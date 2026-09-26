@@ -1,10 +1,32 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import {
+  ArrowDownLeft,
+  ArrowUpRight,
+  BusFront,
+  CalendarDays,
+  ChevronDown,
+  CircleDollarSign,
+  Clapperboard,
+  CreditCard,
+  GraduationCap,
+  HeartPulse,
+  Home,
+  Lightbulb,
+  Package,
+  PiggyBank,
+  Shirt,
+  TrendingUp,
+  Utensils,
+  X,
+  type LucideIcon,
+} from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { PixelPanel } from '../../components/ui/PixelPanel';
 import { PixelButton } from '../../components/ui/PixelButton';
+import { FlowButton } from '../../components/ui/flow-button';
 import { AnimatedCounter } from '../../components/ui/AnimatedCounter';
 import type { Transaction, Budget, FinancialGoal } from '@lifequest/shared';
 import * as financeService from '../../services/finance.service';
@@ -30,8 +52,165 @@ function formatCOP(amount: number) {
   return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(amount);
 }
 
-function TransactionModal({ onClose, onSave }: { onClose: () => void; onSave: (t: Transaction) => void }) {
+type ModalOrigin = { x: number; y: number };
+
+const CATEGORY_MODAL_ICONS: Record<string, LucideIcon> = {
+  FOOD: Utensils,
+  TRANSPORT: BusFront,
+  ENTERTAINMENT: Clapperboard,
+  HEALTH: HeartPulse,
+  EDUCATION: GraduationCap,
+  CLOTHING: Shirt,
+  HOUSING: Home,
+  UTILITIES: Lightbulb,
+  SAVINGS: PiggyBank,
+  INVESTMENT: TrendingUp,
+  SUBSCRIPTIONS: CreditCard,
+  OTHER: Package,
+};
+
+const modalInputClass = 'w-full rounded-xl border border-[var(--border)] bg-[var(--bg-deep)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--accent-gold)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--accent-gold)_16%,transparent)]';
+
+function ModalShell({
+  title,
+  description,
+  icon: Icon = CircleDollarSign,
+  origin,
+  onClose,
+  children,
+  size = 'md',
+}: {
+  title: string;
+  description: string;
+  icon?: LucideIcon;
+  origin?: ModalOrigin;
+  onClose: () => void;
+  children: ReactNode;
+  size?: 'sm' | 'md';
+}) {
   useEscapeKey(onClose);
+  const point = origin ?? { x: 0, y: 0 };
+  const revealFrom = `circle(0px at ${point.x}px ${point.y}px)`;
+  const revealTo = `circle(150vmax at ${point.x}px ${point.y}px)`;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, clipPath: revealFrom }}
+      animate={{ opacity: 1, clipPath: revealTo }}
+      exit={{ opacity: 0, clipPath: revealFrom }}
+      transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
+      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/55 p-3 backdrop-blur-[2px] sm:items-center sm:p-5"
+      onClick={onClose}
+    >
+      <motion.section
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        initial={{ opacity: 0, y: 18, scale: 0.975, filter: 'blur(4px)' }}
+        animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+        exit={{ opacity: 0, y: 12, scale: 0.985, filter: 'blur(3px)' }}
+        transition={{ type: 'spring', stiffness: 420, damping: 34, mass: 0.78 }}
+        className={`max-h-[calc(100dvh-1.5rem)] w-full overflow-y-auto rounded-2xl border border-[var(--border-strong)] bg-[var(--bg-panel)] p-5 shadow-[var(--shadow-pop)] ${size === 'sm' ? 'max-w-sm' : 'max-w-md'}`}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <header className="mb-5 flex items-start justify-between gap-4">
+          <div className="flex min-w-0 items-start gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--bg-muted)] text-[var(--accent-gold)]">
+              <Icon className="h-4 w-4" aria-hidden="true" />
+            </span>
+            <div className="min-w-0">
+              <h2 className="text-base font-semibold tracking-tight text-[var(--text-primary)]">{title}</h2>
+              <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">{description}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={`Cerrar ${title.toLowerCase()}`}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)]"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </header>
+        {children}
+      </motion.section>
+    </motion.div>
+  );
+}
+
+function MoneyField({
+  id,
+  label,
+  value,
+  onChange,
+  autoFocus = false,
+  onEnter,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  autoFocus?: boolean;
+  onEnter?: () => void;
+}) {
+  return (
+    <label htmlFor={id} className="block">
+      <span className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">{label}</span>
+      <span className="relative block">
+        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-[var(--text-muted)]">$</span>
+        <input
+          id={id}
+          type="number"
+          min="0"
+          step="1"
+          inputMode="decimal"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          onKeyDown={(event) => event.key === 'Enter' && onEnter?.()}
+          placeholder="0"
+          autoFocus={autoFocus}
+          className={`${modalInputClass} money-input pr-14 pl-8 text-right text-2xl font-semibold tabular-nums`}
+        />
+        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">COP</span>
+      </span>
+    </label>
+  );
+}
+
+function ModalActions({
+  onCancel,
+  onConfirm,
+  confirmLabel,
+  disabled = false,
+  saving = false,
+}: {
+  onCancel: () => void;
+  onConfirm: () => void;
+  confirmLabel: string;
+  disabled?: boolean;
+  saving?: boolean;
+}) {
+  return (
+    <div className="mt-5 grid grid-cols-2 gap-2.5 border-t border-[var(--border-soft)] pt-4">
+      <FlowButton tone="ghost" withArrows={false} onClick={onCancel} className="w-full">
+        Cancelar
+      </FlowButton>
+      <FlowButton tone="primary" withArrows={false} onClick={onConfirm} disabled={disabled || saving} className="w-full">
+        {saving ? 'Guardando…' : confirmLabel}
+      </FlowButton>
+    </div>
+  );
+}
+
+function TransactionModal({
+  onClose,
+  onSave,
+  origin,
+}: {
+  onClose: () => void;
+  onSave: (t: Transaction) => void;
+  origin?: ModalOrigin;
+}) {
   const [type, setType] = useState<'INCOME' | 'EXPENSE'>('EXPENSE');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('FOOD');
@@ -39,111 +218,104 @@ function TransactionModal({ onClose, onSave }: { onClose: () => void; onSave: (t
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [saving, setSaving] = useState(false);
   const toast = useToast();
+  const CategoryIcon = CATEGORY_MODAL_ICONS[category] ?? Package;
+  const isValidAmount = Number(amount) > 0;
 
   async function save() {
-    if (!amount || Number(amount) <= 0) return;
+    if (!isValidAmount || saving) return;
     setSaving(true);
     try {
-      const t = await financeService.createTransaction({ type, amount: Number(amount), category, description: description || undefined, date });
-      onSave(t);
-      toast.success(type === 'INCOME' ? '¡Ingreso registrado!' : 'Gasto registrado');
+      const transaction = await financeService.createTransaction({
+        type,
+        amount: Number(amount),
+        category,
+        description: description.trim() || undefined,
+        date,
+      });
+      onSave(transaction);
+      toast.success(type === 'INCOME' ? 'Ingreso registrado' : 'Gasto registrado');
     } catch {
-      toast.error('Error al guardar transacción');
+      toast.error('No se pudo guardar la transacción');
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/70 z-50 flex items-end md:items-center justify-center p-4"
-      onClick={onClose}
+    <ModalShell
+      title="Nueva transacción"
+      description="Registra un movimiento real para actualizar tu balance."
+      origin={origin}
+      onClose={onClose}
     >
-      <motion.div
-        initial={{ y: 60, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        exit={{ y: 60, opacity: 0 }}
-        transition={{ type: 'spring', stiffness: 350, damping: 28 }}
-        className="bg-bg-panel border-2 border-border-pixel w-full max-w-md space-y-4 p-5"
-        onClick={e => e.stopPropagation()}
-      >
-        <p className="font-pixel text-accent-gold" style={{ fontSize: '10px' }}>NUEVA TRANSACCIÓN</p>
-
-        {/* Type toggle */}
-        <div className="flex gap-2">
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 rounded-xl border border-[var(--border)] bg-[var(--bg-muted)] p-1" role="group" aria-label="Tipo de transacción">
           <button
+            type="button"
             onClick={() => setType('INCOME')}
-            className={`flex-1 py-2 border-2 font-pixel transition-all ${type === 'INCOME' ? 'border-accent-green bg-accent-green/20 text-accent-green' : 'border-border-pixel text-text-secondary'}`}
-            style={{ fontSize: '8px' }}
+            className={`inline-flex min-h-9 items-center justify-center gap-2 rounded-lg px-3 text-xs font-semibold transition-colors ${type === 'INCOME' ? 'bg-[var(--bg-panel)] text-[var(--accent-green)] shadow-[var(--shadow-sm)]' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'}`}
           >
-            <E e="🟢" /> INGRESO
+            <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+            Ingreso
           </button>
           <button
+            type="button"
             onClick={() => setType('EXPENSE')}
-            className={`flex-1 py-2 border-2 font-pixel transition-all ${type === 'EXPENSE' ? 'border-accent-red bg-accent-red/20 text-accent-red' : 'border-border-pixel text-text-secondary'}`}
-            style={{ fontSize: '8px' }}
+            className={`inline-flex min-h-9 items-center justify-center gap-2 rounded-lg px-3 text-xs font-semibold transition-colors ${type === 'EXPENSE' ? 'bg-[var(--bg-panel)] text-[var(--accent-red)] shadow-[var(--shadow-sm)]' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'}`}
           >
-            <E e="🔴" /> GASTO
+            <ArrowDownLeft className="h-3.5 w-3.5" aria-hidden="true" />
+            Gasto
           </button>
         </div>
 
-        {/* Amount */}
-        <div className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 font-vt text-text-secondary text-lg">$</span>
-          <input
-            type="number"
-            value={amount}
-            onChange={e => setAmount(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && save()}
-            placeholder="0"
-            autoFocus
-            className="w-full bg-bg-deep border-2 border-border-pixel text-text-primary font-vt text-2xl pl-8 pr-16 py-3 focus:border-accent-gold outline-none text-right"
-          />
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 font-pixel text-text-secondary" style={{ fontSize: '8px' }}>COP</span>
-        </div>
+        <MoneyField id="transaction-amount" label="Monto" value={amount} onChange={setAmount} autoFocus onEnter={() => void save()} />
 
-        {/* Category grid */}
-        <div className="grid grid-cols-4 gap-1">
-          {Object.entries(CATEGORY_ICONS).map(([key, icon]) => (
-            <button
-              key={key}
-              onClick={() => setCategory(key)}
-              className={`flex flex-col items-center p-2 border transition-all ${category === key ? 'border-accent-gold bg-accent-gold/10' : 'border-border-pixel hover:border-text-secondary'}`}
+        <label htmlFor="transaction-category" className="block">
+          <span className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">Categoría</span>
+          <span className="relative flex items-center rounded-xl border border-[var(--border)] bg-[var(--bg-deep)] transition-colors focus-within:border-[var(--accent-gold)] focus-within:ring-2 focus-within:ring-[color-mix(in_oklab,var(--accent-gold)_16%,transparent)]">
+            <span className="ml-3 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[var(--bg-muted)] text-[var(--text-secondary)]">
+              <CategoryIcon className="h-3.5 w-3.5" aria-hidden="true" />
+            </span>
+            <select
+              id="transaction-category"
+              value={category}
+              onChange={(event) => setCategory(event.target.value)}
+              className="min-w-0 flex-1 appearance-none bg-transparent px-2 py-2.5 pr-9 text-sm text-[var(--text-primary)] outline-none"
             >
-              <span className="flex h-5 items-center justify-center"><E e={icon} s={17} /></span>
-              <span className="font-pixel text-text-secondary mt-0.5" style={{ fontSize: '6px' }}><E e={CATEGORY_LABELS[key]} /></span>
-            </button>
-          ))}
+              {Object.keys(CATEGORY_LABELS).map((key) => (
+                <option key={key} value={key}>{CATEGORY_LABELS[key]}</option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-3 h-4 w-4 text-[var(--text-muted)]" aria-hidden="true" />
+          </span>
+        </label>
+
+        <div className="grid gap-3 sm:grid-cols-[1.3fr_0.9fr]">
+          <label htmlFor="transaction-description" className="block">
+            <span className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">Descripción <span className="text-[var(--text-muted)]">opcional</span></span>
+            <input
+              id="transaction-description"
+              type="text"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder="Ej. mercado semanal"
+              className={modalInputClass}
+            />
+          </label>
+          <label htmlFor="transaction-date" className="block">
+            <span className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)]"><CalendarDays className="h-3.5 w-3.5" aria-hidden="true" /> Fecha</span>
+            <input
+              id="transaction-date"
+              type="date"
+              value={date}
+              onChange={(event) => setDate(event.target.value)}
+              className={modalInputClass}
+            />
+          </label>
         </div>
-
-        {/* Description */}
-        <input
-          type="text"
-          value={description}
-          onChange={e => setDescription(e.target.value)}
-          placeholder="Descripción (opcional)"
-          className="w-full bg-bg-deep border-2 border-border-pixel text-text-primary font-vt text-base px-3 py-2 focus:border-accent-gold outline-none"
-        />
-
-        {/* Date */}
-        <input
-          type="date"
-          value={date}
-          onChange={e => setDate(e.target.value)}
-          className="w-full bg-bg-deep border-2 border-border-pixel text-text-primary font-vt text-base px-3 py-2 focus:border-accent-gold outline-none"
-        />
-
-        <div className="flex gap-2">
-          <PixelButton variant="ghost" onClick={onClose} className="flex-1">Cancelar</PixelButton>
-          <PixelButton variant="primary" onClick={save} disabled={!amount || saving} className="flex-1">
-            {saving ? 'Guardando...' : 'GUARDAR'}
-          </PixelButton>
-        </div>
-      </motion.div>
-    </motion.div>
+      </div>
+      <ModalActions onCancel={onClose} onConfirm={() => void save()} confirmLabel="Guardar" disabled={!isValidAmount} saving={saving} />
+    </ModalShell>
   );
 }
 
@@ -154,6 +326,7 @@ export default function FinancesPage() {
   const [dashboard, setDashboard] = useState<{ summary: { income: number; expenses: number; balance: number; byCategory: Record<string, number> }; budgets: (Budget & { spent: number })[]; goals: FinancialGoal[]; recent: Transaction[] } | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [showAddTransaction, setShowAddTransaction] = useState(false);
+  const [modalOrigin, setModalOrigin] = useState<ModalOrigin | undefined>();
   const [goals, setGoals] = useState<FinancialGoal[]>([]);
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [goalForm, setGoalForm] = useState({ title: '', targetAmount: '', description: '' });
@@ -183,6 +356,12 @@ export default function FinancesPage() {
     if (day === 1 || day === 15 || day === 30) setShowPayday(true);
   }, []);
 
+  function captureModalOrigin(event: { clientX: number; clientY: number }) {
+    const fallbackX = typeof window === 'undefined' ? 0 : window.innerWidth / 2;
+    const fallbackY = typeof window === 'undefined' ? 0 : window.innerHeight / 2;
+    setModalOrigin({ x: event.clientX || fallbackX, y: event.clientY || fallbackY });
+  }
+
   function handleTransactionSaved(t: Transaction) {
     // Optimistic: already added by modal, refresh
     setTransactions(prev => [t, ...prev]);
@@ -202,7 +381,7 @@ export default function FinancesPage() {
   }
 
   async function handleCreateGoal() {
-    if (!goalForm.title || !goalForm.targetAmount) return;
+    if (!goalForm.title.trim() || Number(goalForm.targetAmount) <= 0) return;
     try {
       const g = await financeService.createFinancialGoal({ title: goalForm.title, targetAmount: Number(goalForm.targetAmount), description: goalForm.description || undefined });
       setGoals(prev => [...prev, g]);
@@ -215,7 +394,7 @@ export default function FinancesPage() {
   }
 
   async function handleContribute() {
-    if (!showContributeModal || !contributeAmount) return;
+    if (!showContributeModal || Number(contributeAmount) <= 0) return;
     const amount = Number(contributeAmount);
     // Optimistic
     setGoals(prev => prev.map(g => g.id === showContributeModal ? { ...g, currentAmount: g.currentAmount + amount } : g));
@@ -258,7 +437,10 @@ export default function FinancesPage() {
         </div>
         <div className="flex items-center gap-2">
           <SageContextButton message="¿Cómo voy con mi dinero este mes? Analiza mis gastos e ingresos y dame recomendaciones concretas." label="¿Cómo voy?" />
-          <PixelButton variant="primary" onClick={() => setShowAddTransaction(true)}>
+          <PixelButton variant="primary" onClick={(event) => {
+            captureModalOrigin(event);
+            setShowAddTransaction(true);
+          }}>
             + TRANSACCIÓN
           </PixelButton>
         </div>
@@ -477,7 +659,10 @@ export default function FinancesPage() {
       {tab === 'goals' && (
         <div className="space-y-3">
           <div className="flex justify-end">
-            <PixelButton variant="secondary" onClick={() => setShowGoalModal(true)}>+ META</PixelButton>
+            <PixelButton variant="secondary" onClick={(event) => {
+              captureModalOrigin(event);
+              setShowGoalModal(true);
+            }}>+ META</PixelButton>
           </div>
           {goals.length === 0 ? (
             <PixelPanel className="p-8 text-center">
@@ -503,7 +688,10 @@ export default function FinancesPage() {
                     <span className="font-vt text-text-secondary text-base">{formatCOP(g.targetAmount)}</span>
                   </div>
                   {!g.isCompleted && (
-                    <PixelButton variant="secondary" onClick={() => setShowContributeModal(g.id)} className="w-full">
+                    <PixelButton variant="secondary" onClick={(event) => {
+                      captureModalOrigin(event);
+                      setShowContributeModal(g.id);
+                    }} className="w-full">
                       + AGREGAR APORTE
                     </PixelButton>
                   )}
@@ -525,7 +713,13 @@ export default function FinancesPage() {
 
       {/* Transaction modal */}
       <AnimatePresence>
-        {showAddTransaction && <TransactionModal onClose={() => setShowAddTransaction(false)} onSave={handleTransactionSaved} />}
+        {showAddTransaction && (
+          <TransactionModal
+            origin={modalOrigin}
+            onClose={() => setShowAddTransaction(false)}
+            onSave={handleTransactionSaved}
+          />
+        )}
       </AnimatePresence>
 
       {/* Payday modal */}
@@ -536,40 +730,79 @@ export default function FinancesPage() {
       {/* Goal modal */}
       <AnimatePresence>
         {showGoalModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={() => setShowGoalModal(false)}>
-            <motion.div initial={{ scale: 0.85 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} className="bg-bg-panel border-2 border-border-pixel p-5 w-full max-w-sm space-y-3" onClick={e => e.stopPropagation()}>
-              <p className="font-pixel text-accent-gold" style={{ fontSize: '10px' }}>NUEVA META DE AHORRO</p>
-              <input value={goalForm.title} onChange={e => setGoalForm(f => ({ ...f, title: e.target.value }))} placeholder="Nombre de la meta" className="w-full bg-bg-deep border-2 border-border-pixel text-text-primary font-vt text-lg px-3 py-2 focus:border-accent-gold outline-none" />
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 font-vt text-text-secondary">$</span>
-                <input type="number" value={goalForm.targetAmount} onChange={e => setGoalForm(f => ({ ...f, targetAmount: e.target.value }))} placeholder="0" className="w-full bg-bg-deep border-2 border-border-pixel text-text-primary font-vt text-xl pl-8 py-2 focus:border-accent-gold outline-none" />
-              </div>
-              <input value={goalForm.description} onChange={e => setGoalForm(f => ({ ...f, description: e.target.value }))} placeholder="Descripción (opcional)" className="w-full bg-bg-deep border-2 border-border-pixel text-text-primary font-vt text-base px-3 py-2 focus:border-accent-gold outline-none" />
-              <div className="flex gap-2">
-                <PixelButton variant="ghost" onClick={() => setShowGoalModal(false)} className="flex-1">Cancelar</PixelButton>
-                <PixelButton variant="primary" onClick={handleCreateGoal} className="flex-1">Crear Meta</PixelButton>
-              </div>
-            </motion.div>
-          </motion.div>
+          <ModalShell
+            title="Nueva meta de ahorro"
+            description="Define un objetivo claro y registra el avance cuando hagas un aporte."
+            icon={PiggyBank}
+            origin={modalOrigin}
+            onClose={() => setShowGoalModal(false)}
+          >
+            <div className="space-y-4">
+              <label htmlFor="financial-goal-title" className="block">
+                <span className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">Nombre de la meta</span>
+                <input
+                  id="financial-goal-title"
+                  value={goalForm.title}
+                  onChange={(event) => setGoalForm((form) => ({ ...form, title: event.target.value }))}
+                  placeholder="Ej. fondo de emergencia"
+                  autoFocus
+                  className={modalInputClass}
+                />
+              </label>
+              <MoneyField
+                id="financial-goal-amount"
+                label="Objetivo"
+                value={goalForm.targetAmount}
+                onChange={(targetAmount) => setGoalForm((form) => ({ ...form, targetAmount }))}
+                onEnter={() => void handleCreateGoal()}
+              />
+              <label htmlFor="financial-goal-description" className="block">
+                <span className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">Nota <span className="text-[var(--text-muted)]">opcional</span></span>
+                <input
+                  id="financial-goal-description"
+                  value={goalForm.description}
+                  onChange={(event) => setGoalForm((form) => ({ ...form, description: event.target.value }))}
+                  placeholder="Para qué quieres ahorrar"
+                  className={modalInputClass}
+                />
+              </label>
+            </div>
+            <ModalActions
+              onCancel={() => setShowGoalModal(false)}
+              onConfirm={() => void handleCreateGoal()}
+              confirmLabel="Crear meta"
+              disabled={!goalForm.title.trim() || Number(goalForm.targetAmount) <= 0}
+            />
+          </ModalShell>
         )}
       </AnimatePresence>
 
       {/* Contribute modal */}
       <AnimatePresence>
         {showContributeModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={() => setShowContributeModal(null)}>
-            <motion.div initial={{ scale: 0.85 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} className="bg-bg-panel border-2 border-border-pixel p-5 w-full max-w-xs space-y-3" onClick={e => e.stopPropagation()}>
-              <p className="font-pixel text-accent-gold" style={{ fontSize: '10px' }}>AGREGAR APORTE</p>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 font-vt text-text-secondary">$</span>
-                <input autoFocus type="number" value={contributeAmount} onChange={e => setContributeAmount(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleContribute()} placeholder="0" className="w-full bg-bg-deep border-2 border-border-pixel text-text-primary font-vt text-2xl pl-8 py-2 focus:border-accent-gold outline-none" />
-              </div>
-              <div className="flex gap-2">
-                <PixelButton variant="ghost" onClick={() => setShowContributeModal(null)} className="flex-1">Cancelar</PixelButton>
-                <PixelButton variant="primary" onClick={handleContribute} className="flex-1">Agregar</PixelButton>
-              </div>
-            </motion.div>
-          </motion.div>
+          <ModalShell
+            title="Agregar aporte"
+            description="El aporte se suma al progreso de esta meta de ahorro."
+            icon={CircleDollarSign}
+            origin={modalOrigin}
+            onClose={() => setShowContributeModal(null)}
+            size="sm"
+          >
+            <MoneyField
+              id="financial-goal-contribution"
+              label="Monto del aporte"
+              value={contributeAmount}
+              onChange={setContributeAmount}
+              autoFocus
+              onEnter={() => void handleContribute()}
+            />
+            <ModalActions
+              onCancel={() => setShowContributeModal(null)}
+              onConfirm={() => void handleContribute()}
+              confirmLabel="Agregar aporte"
+              disabled={Number(contributeAmount) <= 0}
+            />
+          </ModalShell>
         )}
       </AnimatePresence>
     </div>

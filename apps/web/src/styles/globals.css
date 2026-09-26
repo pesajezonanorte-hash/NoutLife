@@ -240,6 +240,20 @@ button {
   background: none;
 }
 
+/* Los campos numéricos se controlan por teclado/táctil: las flechas nativas
+   quedan pegadas a los importes y rompen la composición minimalista. */
+input[type='number'] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
