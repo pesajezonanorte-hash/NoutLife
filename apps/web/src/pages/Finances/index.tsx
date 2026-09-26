@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, type ReactNode } from 'react';
+import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import {
@@ -90,27 +90,34 @@ function ModalShell({
 }) {
   useEscapeKey(onClose);
   const point = origin ?? { x: 0, y: 0 };
-  const revealFrom = `circle(0px at ${point.x}px ${point.y}px)`;
-  const revealTo = `circle(150vmax at ${point.x}px ${point.y}px)`;
 
   return (
     <motion.div
-      initial={{ opacity: 0, clipPath: revealFrom }}
-      animate={{ opacity: 1, clipPath: revealTo }}
-      exit={{ opacity: 0, clipPath: revealFrom }}
-      transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
-      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/55 p-3 backdrop-blur-[2px] sm:items-center sm:p-5"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2, ease: 'easeOut' }}
+      className="fixed inset-0 z-[60] flex items-end justify-center overflow-hidden bg-black/55 p-3 backdrop-blur-[2px] sm:items-center sm:p-5"
       onClick={onClose}
     >
+      <motion.span
+        aria-hidden="true"
+        className="pointer-events-none absolute h-3 w-3 rounded-full bg-[color-mix(in_oklab,var(--accent-gold)_30%,transparent)] blur-2xl"
+        style={{ left: point.x, top: point.y }}
+        initial={{ x: '-50%', y: '-50%', scale: 0, opacity: 0 }}
+        animate={{ x: '-50%', y: '-50%', scale: 150, opacity: 0.24 }}
+        exit={{ x: '-50%', y: '-50%', scale: 115, opacity: 0 }}
+        transition={{ duration: 0.62, ease: [0.22, 1, 0.36, 1] }}
+      />
       <motion.section
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        initial={{ opacity: 0, y: 18, scale: 0.975, filter: 'blur(4px)' }}
-        animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
-        exit={{ opacity: 0, y: 12, scale: 0.985, filter: 'blur(3px)' }}
-        transition={{ type: 'spring', stiffness: 420, damping: 34, mass: 0.78 }}
-        className={`max-h-[calc(100dvh-1.5rem)] w-full overflow-y-auto rounded-2xl border border-[var(--border-strong)] bg-[var(--bg-panel)] p-5 shadow-[var(--shadow-pop)] ${size === 'sm' ? 'max-w-sm' : 'max-w-md'}`}
+        initial={{ opacity: 0, y: 14, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 9, scale: 0.985 }}
+        transition={{ type: 'spring', stiffness: 360, damping: 30, mass: 0.82 }}
+        className={`relative max-h-[calc(100dvh-1.5rem)] w-full overflow-y-auto rounded-2xl border border-[var(--border-strong)] bg-[var(--bg-panel)] p-5 shadow-[var(--shadow-pop)] ${size === 'sm' ? 'max-w-sm' : 'max-w-md'}`}
         onClick={(event) => event.stopPropagation()}
       >
         <header className="mb-5 flex items-start justify-between gap-4">
@@ -202,6 +209,88 @@ function ModalActions({
   );
 }
 
+function CategoryPicker({
+  category,
+  onChange,
+}: {
+  category: string;
+  onChange: (category: string) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+  const SelectedIcon = CATEGORY_MODAL_ICONS[category] ?? Package;
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const closeOnOutsidePress = (event: PointerEvent) => {
+      if (!pickerRef.current?.contains(event.target as Node)) setIsOpen(false);
+    };
+    document.addEventListener('pointerdown', closeOnOutsidePress);
+    return () => document.removeEventListener('pointerdown', closeOnOutsidePress);
+  }, [isOpen]);
+
+  return (
+    <div ref={pickerRef} className="relative">
+      <span className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">Categoría</span>
+      <button
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        aria-controls="transaction-category-options"
+        onClick={() => setIsOpen((open) => !open)}
+        className="flex w-full items-center rounded-xl border border-[var(--border)] bg-[var(--bg-deep)] px-3 py-2.5 text-left transition-colors hover:border-[var(--border-strong)] focus:outline-none focus:ring-2 focus:ring-[color-mix(in_oklab,var(--accent-gold)_16%,transparent)]"
+      >
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[var(--bg-muted)] text-[var(--text-secondary)]">
+          <SelectedIcon className="h-3.5 w-3.5" aria-hidden="true" />
+        </span>
+        <span className="ml-2.5 min-w-0 flex-1 truncate text-sm font-medium text-[var(--text-primary)]">{CATEGORY_LABELS[category]}</span>
+        <motion.span animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.2 }} className="ml-2 text-[var(--text-muted)]">
+          <ChevronDown className="h-4 w-4" aria-hidden="true" />
+        </motion.span>
+      </button>
+
+      <AnimatePresence initial={false}>
+        {isOpen && (
+          <motion.div
+            id="transaction-category-options"
+            role="listbox"
+            aria-label="Opciones de categoría"
+            initial={{ height: 0, opacity: 0, y: -4 }}
+            animate={{ height: 'auto', opacity: 1, y: 0 }}
+            exit={{ height: 0, opacity: 0, y: -4 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="mt-2 grid max-h-48 grid-cols-2 gap-1 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] p-1.5 shadow-[var(--shadow-md)]">
+              {Object.keys(CATEGORY_LABELS).map((key) => {
+                const Icon = CATEGORY_MODAL_ICONS[key] ?? Package;
+                const selected = category === key;
+                return (
+                  <motion.button
+                    key={key}
+                    type="button"
+                    role="option"
+                    aria-selected={selected}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => {
+                      onChange(key);
+                      setIsOpen(false);
+                    }}
+                    className={`flex min-w-0 items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs transition-colors ${selected ? 'bg-[color-mix(in_oklab,var(--accent-gold)_13%,var(--bg-muted))] text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]'}`}
+                  >
+                    <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                    <span className="truncate">{CATEGORY_LABELS[key]}</span>
+                  </motion.button>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 function TransactionModal({
   onClose,
   onSave,
@@ -218,7 +307,6 @@ function TransactionModal({
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [saving, setSaving] = useState(false);
   const toast = useToast();
-  const CategoryIcon = CATEGORY_MODAL_ICONS[category] ?? Package;
   const isValidAmount = Number(amount) > 0;
 
   async function save() {
@@ -248,49 +336,53 @@ function TransactionModal({
       origin={origin}
       onClose={onClose}
     >
-      <div className="space-y-4">
-        <div className="grid grid-cols-2 rounded-xl border border-[var(--border)] bg-[var(--bg-muted)] p-1" role="group" aria-label="Tipo de transacción">
-          <button
-            type="button"
-            onClick={() => setType('INCOME')}
-            className={`inline-flex min-h-9 items-center justify-center gap-2 rounded-lg px-3 text-xs font-semibold transition-colors ${type === 'INCOME' ? 'bg-[var(--bg-panel)] text-[var(--accent-green)] shadow-[var(--shadow-sm)]' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'}`}
-          >
-            <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
-            Ingreso
-          </button>
-          <button
-            type="button"
-            onClick={() => setType('EXPENSE')}
-            className={`inline-flex min-h-9 items-center justify-center gap-2 rounded-lg px-3 text-xs font-semibold transition-colors ${type === 'EXPENSE' ? 'bg-[var(--bg-panel)] text-[var(--accent-red)] shadow-[var(--shadow-sm)]' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'}`}
-          >
-            <ArrowDownLeft className="h-3.5 w-3.5" aria-hidden="true" />
-            Gasto
-          </button>
-        </div>
+      <motion.div
+        initial="hidden"
+        animate="visible"
+        variants={{
+          hidden: {},
+          visible: { transition: { staggerChildren: 0.045, delayChildren: 0.04 } },
+        }}
+        className="space-y-4"
+      >
+        <motion.div variants={{ hidden: { opacity: 0, y: 6 }, visible: { opacity: 1, y: 0 } }} className="grid grid-cols-2 rounded-xl border border-[var(--border)] bg-[var(--bg-muted)] p-1" role="group" aria-label="Tipo de transacción">
+          {([
+            { id: 'INCOME' as const, label: 'Ingreso', Icon: ArrowUpRight, color: 'text-[var(--accent-green)]' },
+            { id: 'EXPENSE' as const, label: 'Gasto', Icon: ArrowDownLeft, color: 'text-[var(--accent-red)]' },
+          ]).map(({ id, label, Icon, color }) => {
+            const selected = type === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setType(id)}
+                className={`relative inline-flex min-h-9 items-center justify-center gap-2 rounded-lg px-3 text-xs font-semibold transition-colors ${selected ? color : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'}`}
+              >
+                {selected && (
+                  <motion.span
+                    layoutId="transaction-type-active"
+                    className="absolute inset-0 rounded-lg bg-[var(--bg-panel)] shadow-[var(--shadow-sm)]"
+                    transition={{ type: 'spring', stiffness: 430, damping: 32 }}
+                  />
+                )}
+                <span className="relative inline-flex items-center gap-2">
+                  <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                  {label}
+                </span>
+              </button>
+            );
+          })}
+        </motion.div>
 
-        <MoneyField id="transaction-amount" label="Monto" value={amount} onChange={setAmount} autoFocus onEnter={() => void save()} />
+        <motion.div variants={{ hidden: { opacity: 0, y: 6 }, visible: { opacity: 1, y: 0 } }}>
+          <MoneyField id="transaction-amount" label="Monto" value={amount} onChange={setAmount} autoFocus onEnter={() => void save()} />
+        </motion.div>
 
-        <label htmlFor="transaction-category" className="block">
-          <span className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">Categoría</span>
-          <span className="relative flex items-center rounded-xl border border-[var(--border)] bg-[var(--bg-deep)] transition-colors focus-within:border-[var(--accent-gold)] focus-within:ring-2 focus-within:ring-[color-mix(in_oklab,var(--accent-gold)_16%,transparent)]">
-            <span className="ml-3 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[var(--bg-muted)] text-[var(--text-secondary)]">
-              <CategoryIcon className="h-3.5 w-3.5" aria-hidden="true" />
-            </span>
-            <select
-              id="transaction-category"
-              value={category}
-              onChange={(event) => setCategory(event.target.value)}
-              className="min-w-0 flex-1 appearance-none bg-transparent px-2 py-2.5 pr-9 text-sm text-[var(--text-primary)] outline-none"
-            >
-              {Object.keys(CATEGORY_LABELS).map((key) => (
-                <option key={key} value={key}>{CATEGORY_LABELS[key]}</option>
-              ))}
-            </select>
-            <ChevronDown className="pointer-events-none absolute right-3 h-4 w-4 text-[var(--text-muted)]" aria-hidden="true" />
-          </span>
-        </label>
+        <motion.div variants={{ hidden: { opacity: 0, y: 6 }, visible: { opacity: 1, y: 0 } }}>
+          <CategoryPicker category={category} onChange={setCategory} />
+        </motion.div>
 
-        <div className="grid gap-3 sm:grid-cols-[1.3fr_0.9fr]">
+        <motion.div variants={{ hidden: { opacity: 0, y: 6 }, visible: { opacity: 1, y: 0 } }} className="grid gap-3 sm:grid-cols-[1.3fr_0.9fr]">
           <label htmlFor="transaction-description" className="block">
             <span className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">Descripción <span className="text-[var(--text-muted)]">opcional</span></span>
             <input
@@ -312,8 +404,8 @@ function TransactionModal({
               className={modalInputClass}
             />
           </label>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
       <ModalActions onCancel={onClose} onConfirm={() => void save()} confirmLabel="Guardar" disabled={!isValidAmount} saving={saving} />
     </ModalShell>
   );
