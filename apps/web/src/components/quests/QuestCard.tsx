@@ -1,169 +1,161 @@
-import { memo } from 'react';
+import { memo, type KeyboardEvent, type MouseEvent } from 'react';
 import { motion } from 'framer-motion';
+import {
+  Archive,
+  Check,
+  CheckCircle2,
+  CircleSlash2,
+  Coins,
+  Flag,
+  FolderKanban,
+  ListTodo,
+  Target,
+  type LucideIcon,
+} from 'lucide-react';
 import type { Quest } from '@lifequest/shared';
 import { CategoryIcon } from './CategoryIcon';
 import { DifficultyBadge, DIFFICULTY_CONFIG } from './DifficultyBadge';
 import { DeadlineBadge } from './DeadlineBadge';
 import { audio } from '../../lib/audio';
-import { E } from '@/components/ui/glyphs';
 
 interface Props {
   quest: Quest;
-  onComplete: (quest: Quest, e: React.MouseEvent) => void;
+  onComplete: (quest: Quest, e: MouseEvent<HTMLButtonElement>) => void;
   onClick: (quest: Quest) => void;
 }
 
-// Shimmer badge effect for XP/Gold
-function ShimmerBadge({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="relative overflow-hidden inline-block text-xs font-medium">
-      {children}
-      <motion.span
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background:
-            'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.35) 50%, transparent 100%)',
-          backgroundSize: '120% 100%',
-        }}
-        animate={{ backgroundPositionX: ['-60%', '160%'] }}
-        transition={{ duration: 2, repeat: Infinity, ease: 'linear', repeatDelay: 4 }}
-      />
-    </span>
-  );
-}
+const TYPE_CONFIG: Record<string, { label: string; Icon: LucideIcon }> = {
+  MAIN: { label: 'Proyecto', Icon: FolderKanban },
+  SIDE: { label: 'Tarea', Icon: ListTodo },
+  META: { label: 'Meta', Icon: Target },
+  DAILY: { label: 'Diaria', Icon: Flag },
+  WEEKLY: { label: 'Semanal', Icon: Flag },
+};
 
+/**
+ * A compact list row rather than a floating game card. Its state is conveyed
+ * through restrained colour and metadata, so a single quest never dominates
+ * the whole page.
+ */
 export const QuestCard = memo(function QuestCard({ quest, onComplete, onClick }: Props) {
-  const subObjectives = quest.subObjectives as Array<{ id: string; title: string; completed: boolean }>;
-  const completedSubs = subObjectives.filter((s) => s.completed).length;
+  const subObjectives = Array.isArray(quest.subObjectives)
+    ? quest.subObjectives as Array<{ id: string; title: string; completed: boolean }>
+    : [];
+  const completedSubs = subObjectives.filter((sub) => sub.completed).length;
   const progressPct = subObjectives.length > 0 ? (completedSubs / subObjectives.length) * 100 : null;
 
   const isCompleted = quest.status === 'COMPLETED';
-  const isFailed   = quest.status === 'FAILED';
+  const isFailed = quest.status === 'FAILED';
   const isArchived = quest.status === 'ARCHIVED';
   const isInactive = isCompleted || isFailed || isArchived;
+  const difficulty = DIFFICULTY_CONFIG[quest.difficulty] ?? { color: 'var(--border)' };
+  const type = TYPE_CONFIG[quest.type] ?? TYPE_CONFIG.SIDE;
+  const TypeIcon = type.Icon;
 
-  const cfg = DIFFICULTY_CONFIG[quest.difficulty] ?? { color: '#888', glow: false };
+  function openQuest() {
+    audio.play('blip');
+    onClick(quest);
+  }
 
-  // Deadline urgency — pulse red if < 2 days away
-  const daysLeft = quest.deadline
-    ? Math.ceil((new Date(quest.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-    : null;
-  const isUrgent = daysLeft !== null && daysLeft <= 2 && !isInactive;
+  function handleKeyDown(event: KeyboardEvent<HTMLElement>) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      openQuest();
+    }
+  }
 
   return (
-    <motion.div
-      onClick={() => { audio.play('blip'); onClick(quest); }}
-      className={`rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] p-4 cursor-pointer select-none relative overflow-hidden
-        ${isInactive ? 'opacity-60' : 'hover:shadow-md transition-shadow'}`}
-      style={{ borderColor: isInactive ? undefined : `${cfg.color}60` }}
-      whileHover={isInactive ? {} : {
-        y: -3,
-      }}
-      whileTap={isInactive ? {} : { y: -1 }}
-      transition={{ duration: 0.15, ease: 'easeOut' }}
-      layout
+    <motion.article
+      layout="position"
+      transition={{ type: 'spring', stiffness: 360, damping: 34, mass: 0.7 }}
+      onClick={openQuest}
+      onKeyDown={handleKeyDown}
+      role="button"
+      tabIndex={0}
+      className={`group relative flex cursor-pointer items-start gap-3 px-4 py-3.5 text-left outline-none transition-colors duration-200 hover:bg-[var(--bg-panel-light)] focus-visible:bg-[var(--bg-panel-light)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent-gold)] ${
+        isInactive ? 'opacity-55' : ''
+      }`}
+      style={{ borderLeft: `2px solid ${isInactive ? 'transparent' : difficulty.color}` }}
     >
-      {/* Hover shimmer background */}
-      {!isInactive && (
-        <motion.div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background: `linear-gradient(135deg, ${cfg.color}08 0%, transparent 60%)`,
-            opacity: 0,
-          }}
-          whileHover={{ opacity: 1 }}
-          transition={{ duration: 0.2 }}
-        />
-      )}
+      <CategoryIcon category={quest.category} size="md" className="mt-0.5" />
 
-      {/* Header */}
-      <div className="flex items-start gap-2 mb-2 relative z-10">
-        {/* Icon with wiggle on hover */}
-        <motion.div
-          whileHover={{ rotate: [-5, 5, -3, 0], transition: { duration: 0.4 } }}
-        >
-          <CategoryIcon category={quest.category} size="md" />
-        </motion.div>
+      <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 items-start gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="flex min-w-0 items-center gap-2">
+              <p
+                className={`truncate text-sm font-semibold leading-5 ${
+                  isInactive ? 'text-[var(--text-secondary)] line-through' : 'text-[var(--text-primary)]'
+                }`}
+              >
+                {quest.title}
+              </p>
+              <span className="hidden shrink-0 items-center gap-1 text-[11px] text-[var(--text-secondary)] sm:inline-flex">
+                <TypeIcon size={12} strokeWidth={1.8} aria-hidden="true" />
+                {type.label}
+              </span>
+            </div>
+            {quest.description && (
+              <p className="mt-0.5 line-clamp-1 text-xs leading-5 text-[var(--text-secondary)]">
+                {quest.description}
+              </p>
+            )}
+          </div>
 
-        <div className="flex-1 min-w-0">
-          <p className={`text-sm leading-tight ${isInactive ? 'text-[var(--text-secondary)] line-through' : 'text-[var(--text-primary)]'}`}>
-            {quest.title}
-          </p>
-          {quest.description && (
-            <p className="text-xs text-[var(--text-secondary)] mt-0.5 line-clamp-2">
-              {quest.description}
-            </p>
+          {!isInactive && (
+            <motion.button
+              type="button"
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[var(--border-strong)] bg-[var(--bg-deep)] text-[var(--text-secondary)] transition-colors hover:border-[var(--accent-gold)] hover:bg-[var(--accent-gold)]/10 hover:text-[var(--accent-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)]"
+              onClick={(event) => {
+                event.stopPropagation();
+                audio.play('questComplete');
+                onComplete(quest, event);
+              }}
+              whileTap={{ scale: 0.94 }}
+              aria-label={`Completar ${quest.title}`}
+              title="Completar misión"
+            >
+              <Check size={16} strokeWidth={2} aria-hidden="true" />
+            </motion.button>
           )}
+          {isCompleted && <CheckCircle2 className="mt-1 shrink-0 text-[var(--accent-green)]" size={20} aria-label="Completada" />}
+          {isFailed && <CircleSlash2 className="mt-1 shrink-0 text-[var(--accent-red)]" size={20} aria-label="Fallida" />}
+          {isArchived && <Archive className="mt-1 shrink-0 text-[var(--text-secondary)]" size={19} aria-label="Archivada" />}
         </div>
 
-        {/* Complete checkbox */}
-        {!isInactive && (
-          <motion.button
-            className="w-8 h-8 rounded-lg border border-[var(--accent-gold)] flex items-center justify-center flex-shrink-0 bg-[var(--bg-deep)] hover:bg-[var(--accent-gold)] hover:text-white transition-colors"
-            onClick={(e) => {
-              e.stopPropagation();
-              audio.play('questComplete');
-              onComplete(quest, e);
-            }}
-            whileHover={{ scale: 1.18 }}
-            whileTap={{ scale: 0.85 }}
-            title="Completar misión"
-          >
-            <span className="text-sm"><E e="✓" /></span>
-          </motion.button>
+        {progressPct !== null && !isInactive && (
+          <div className="mt-2.5 max-w-xl">
+            <div className="mb-1 flex items-center justify-between text-[11px] text-[var(--text-secondary)]">
+              <span>Progreso</span>
+              <span className="tabular-nums">{completedSubs}/{subObjectives.length}</span>
+            </div>
+            <div className="h-1 overflow-hidden rounded-full bg-[var(--bg-deep)]">
+              <motion.div
+                className="h-full rounded-full bg-[var(--accent-gold)]"
+                initial={{ width: 0 }}
+                animate={{ width: `${progressPct}%` }}
+                transition={{ type: 'spring', stiffness: 120, damping: 22, delay: 0.08 }}
+              />
+            </div>
+          </div>
         )}
 
-        {isCompleted && <span className="text-xl flex-shrink-0"><E e="✅" /></span>}
-        {isFailed    && <span className="text-xl flex-shrink-0"><E e="💀" /></span>}
-      </div>
-
-      {/* Progress bar */}
-      {progressPct !== null && !isInactive && (
-        <div className="mb-2 relative z-10">
-          <div className="flex justify-between text-xs mb-0.5">
-            <span className="text-[var(--text-secondary)]">Progreso</span>
-            <span className="text-[var(--accent-gold)]">{completedSubs}/{subObjectives.length}</span>
-          </div>
-          <div className="h-1.5 bg-[var(--bg-panel-light)] border border-[var(--border)] rounded-full overflow-hidden">
-            <motion.div
-              className="h-full bg-[var(--accent-gold)] rounded-full relative"
-              initial={{ width: 0 }}
-              animate={{ width: `${progressPct}%` }}
-              transition={{ duration: 0.5, ease: 'easeOut' }}
-            />
-          </div>
+        <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <span className="inline-flex items-center gap-1 text-[11px] text-[var(--text-secondary)] sm:hidden">
+            <TypeIcon size={12} strokeWidth={1.8} aria-hidden="true" />
+            {type.label}
+          </span>
+          <DifficultyBadge difficulty={quest.difficulty} />
+          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--accent-gold)]">
+            <span>+{quest.xpReward} XP</span>
+          </span>
+          <span className="inline-flex items-center gap-1 text-[11px] text-[var(--text-secondary)]">
+            <Coins size={12} strokeWidth={1.8} aria-hidden="true" />
+            {quest.goldReward}
+          </span>
+          <DeadlineBadge deadline={quest.deadline} />
         </div>
-      )}
-
-      {/* Footer badges */}
-      <div className="flex items-center gap-1.5 flex-wrap mt-1 relative z-10">
-        <DifficultyBadge difficulty={quest.difficulty} />
-        <ShimmerBadge><span className="text-[var(--accent-gold)]">+{quest.xpReward}XP</span></ShimmerBadge>
-        <ShimmerBadge><span className="text-yellow-400"><E e="💰" />{quest.goldReward}</span></ShimmerBadge>
-        <DeadlineBadge deadline={quest.deadline} />
-        <span className="text-xs text-[var(--text-secondary)]">
-          <E e={quest.type === 'DAILY' ? '☀️' : quest.type === 'WEEKLY' ? '📅' : quest.type === 'MAIN' ? '⚔️' : quest.type === 'META' ? '🎯' : '🗡️'} />
-        </span>
       </div>
-
-      {/* Epic glow border */}
-      {quest.difficulty === 'EPIC' && !isInactive && (
-        <motion.div
-          className="absolute inset-0 pointer-events-none rounded-xl border-2"
-          style={{ borderColor: 'var(--accent-gold)' }}
-          animate={{ opacity: [0.35, 0.85, 0.35] }}
-          transition={{ duration: 2, repeat: Infinity }}
-        />
-      )}
-
-      {/* Urgent deadline pulse */}
-      {isUrgent && (
-        <motion.div
-          className="absolute inset-0 pointer-events-none rounded-xl border-2 border-[var(--accent-red)]"
-          animate={{ opacity: [0.3, 0.8, 0.3] }}
-          transition={{ duration: 0.8, repeat: Infinity }}
-        />
-      )}
-    </motion.div>
+    </motion.article>
   );
 });

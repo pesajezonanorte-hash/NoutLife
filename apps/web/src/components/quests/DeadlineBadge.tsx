@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { AlertCircle, CalendarClock } from 'lucide-react';
 
 interface Props {
   deadline?: string | null;
@@ -8,36 +8,28 @@ export function DeadlineBadge({ deadline }: Props) {
   if (!deadline) return null;
 
   const daysLeft = Math.ceil((new Date(deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-
-  if (daysLeft < 0) {
-    return (
-      <span className="font-pixel text-text-secondary border border-text-secondary px-1.5 py-0.5" style={{ fontSize: '7px' }}>
-        VENCIDA
-      </span>
-    );
-  }
-
-  if (daysLeft === 0) {
-    return (
-      <motion.span
-        className="font-pixel text-accent-red border-2 border-accent-red px-1.5 py-0.5"
-        style={{ fontSize: '7px' }}
-        animate={{ opacity: [1, 0.4, 1] }}
-        transition={{ duration: 0.8, repeat: Infinity }}
-      >
-        ¡HOY!
-      </motion.span>
-    );
-  }
-
-  const color = daysLeft <= 3 ? 'var(--accent-red)' : daysLeft <= 7 ? 'var(--accent-gold)' : 'var(--accent-green)';
+  const isOverdue = daysLeft < 0;
+  const isToday = daysLeft === 0;
+  const color = isOverdue || isToday
+    ? 'var(--accent-red)'
+    : daysLeft <= 3
+      ? 'var(--accent-gold)'
+      : 'var(--accent-green)';
+  const label = isOverdue
+    ? 'Vencida'
+    : isToday
+      ? 'Vence hoy'
+      : `${daysLeft} ${daysLeft === 1 ? 'día' : 'días'}`;
+  const Icon = isOverdue || isToday ? AlertCircle : CalendarClock;
 
   return (
     <span
-      className="font-pixel px-1.5 py-0.5 border"
-      style={{ fontSize: '7px', color, borderColor: color }}
+      className="inline-flex items-center gap-1 text-[11px] font-medium"
+      style={{ color }}
+      title={label}
     >
-      {daysLeft}d
+      <Icon size={12} strokeWidth={1.9} aria-hidden="true" />
+      {label}
     </span>
   );
 }
