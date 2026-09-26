@@ -32,7 +32,7 @@ import { FirstStepsWidget } from '../../components/dashboard/FirstStepsWidget';
 import { SkeletonCard } from '../../components/ui/Skeleton';
 import { ProgressRings } from '../../components/ui/ProgressRings';
 import { SageProactiveCard } from '../../components/dashboard/SageProactiveCard';
-import { WhatToDoWidget } from '../../components/dashboard/WhatToDoWidget';
+import { TodayPlan } from '../../components/dashboard/TodayPlan';
 import { getLevelTitle } from '../../lib/gameProgress';
 import { E } from '@/components/ui/glyphs';
 
@@ -449,8 +449,9 @@ export default function DashboardPage() {
       );
 
       await Promise.all([refreshCharacterState(), loadDashboard()]);
+      return true;
     } catch {
-      // ignore
+      return false;
     }
   }
 
@@ -489,6 +490,8 @@ export default function DashboardPage() {
 
       <GreetingHeader displayName={user.displayName} currentStreak={user.currentStreak} createdAt={user.createdAt} gender={user.avatarConfig?.bodyType ?? 'male'} />
 
+      <TodayPlan onHabitComplete={handleHabitLog} />
+
       <SageProactiveCard />
 
       <FirstStepsWidget
@@ -496,8 +499,6 @@ export default function DashboardPage() {
         habitCount={dashData?.firstSteps.habitCount ?? 0}
         hasJournalEntry={dashData?.firstSteps.hasJournalEntry ?? false}
       />
-
-      <WhatToDoWidget />
 
       <div className="grid grid-cols-4 gap-2">
         {DASHBOARD_SHORTCUTS.map(({ label, Icon, to, color }) => (
@@ -617,7 +618,9 @@ export default function DashboardPage() {
         <div className="md:col-span-2 space-y-4">
           <SageDailyTip />
           <SageScrollsWidget />
-          <DailyCheckinWidget />
+          <div id="daily-checkin">
+            <DailyCheckinWidget />
+          </div>
 
           {dashData?.recoveryChallenge && <RecoveryChallengeCard challenge={dashData.recoveryChallenge} />}
           {dashData?.latestWeeklySummary && <WeeklySummaryCard summary={dashData.latestWeeklySummary} />}

@@ -19,3 +19,13 @@ export async function getTodayQuests(req: AuthRequest, res: Response): Promise<v
     res.status(500).json({ error: 'Error al cargar misiones del día.' });
   }
 }
+
+/** Focused daily snapshot used by the Castle's Plan de hoy. */
+export async function getTodayPlan(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const plan = await dashboardService.getTodayPlan(req.userId!);
+    res.json(plan);
+  } catch {
+    res.status(500).json({ error: 'Error al preparar el plan de hoy.' });
+  }
+}

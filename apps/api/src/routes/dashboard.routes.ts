@@ -9,6 +9,7 @@ router.use(requireAuth);
 
 router.get('/', dashboardController.getDashboard);
 router.get('/today-quests', dashboardController.getTodayQuests);
+router.get('/today-plan', dashboardController.getTodayPlan);
 
 router.get('/priorities', async (req, res) => {
   try {

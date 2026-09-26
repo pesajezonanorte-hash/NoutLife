@@ -1,5 +1,5 @@
 import { prisma } from '../lib/prisma';
-import { getCalendarDay } from '../lib/calendar';
+import { addCalendarDays, getCalendarDay } from '../lib/calendar';
 import { isHabitScheduledForDay, reconcileHabitStreaks } from './habit.service';
 import { reconcileUserActivityStreak } from './xp.service';
 
@@ -396,4 +396,391 @@ export async function getTodayPriorities(userId: string): Promise<TodayPrioritie
     habits: habitPriorities,
     events: eventPriorities,
   };
+}
+
+// ─── Plan de hoy ───────────────────────────────────────────────────────────────
+
+export type TodayPlanPriorityType = 'habit' | 'quest' | 'event';
+export type TodayPlanUrgency = 'critical' | 'soon' | 'normal';
+
+export interface TodayPlanPriority {
+  id: string;
+  type: TodayPlanPriorityType;
+  title: string;
+  detail: string;
+  xp: number;
+  urgency: TodayPlanUrgency;
+  route: '/habits' | '/quests' | '/agenda';
+  scheduledAt?: string;
+}
+
+interface RankedTodayPlanPriority extends TodayPlanPriority {
+  score: number;
+}
+
+function calendarKeyInTimezone(date: Date, timezone: string, isAllDay = false): string {
+  // Google all-day events are persisted as their UTC calendar key. Formatting
+  // them in America/Bogota would incorrectly move them to the previous day.
+  if (isAllDay) return date.toISOString().slice(0, 10);
+
+  try {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(date);
+    const values = Object.fromEntries(parts
+      .filter((part) => part.type !== 'literal')
+      .map((part) => [part.type, part.value]));
+    return `${values.year}-${values.month}-${values.day}`;
+  } catch {
+    return date.toISOString().slice(0, 10);
+  }
+}
+
+function timeInTimezone(date: Date, timezone: string): string {
+  try {
+    return new Intl.DateTimeFormat('es-CO', {
+      timeZone: timezone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    }).format(date);
+  } catch {
+    return date.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+  }
+}
+
+function localMinutesNow(timezone: string, now: Date): number | null {
+  try {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: timezone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(now);
+    const values = Object.fromEntries(parts
+      .filter((part) => part.type !== 'literal')
+      .map((part) => [part.type, part.value]));
+    return Number(values.hour) * 60 + Number(values.minute);
+  } catch {
+    return null;
+  }
+}
+
+function calendarDayDistance(fromKey: string, toKey: string): number {
+  const from = new Date(`${fromKey}T00:00:00.000Z`).getTime();
+  const to = new Date(`${toKey}T00:00:00.000Z`).getTime();
+  return Math.round((to - from) / 86_400_000);
+}
+
+function deadlineUrgency(deadline: Date | null, todayKey: string, timezone: string): TodayPlanUrgency {
+  if (!deadline) return 'normal';
+  const days = calendarDayDistance(todayKey, calendarKeyInTimezone(deadline, timezone));
+  if (days <= 0) return 'critical';
+  if (days <= 2) return 'soon';
+  return 'normal';
+}
+
+function formatQuestPlanDetail(deadline: Date | null, type: string, todayKey: string, timezone: string): string {
+  const typeLabel = QUEST_TYPE_LABELS[type] ?? 'Misión';
+  if (!deadline) return typeLabel;
+
+  const days = calendarDayDistance(todayKey, calendarKeyInTimezone(deadline, timezone));
+  if (days < 0) return `${typeLabel} · vencida`;
+  if (days === 0) return `${typeLabel} · vence hoy`;
+  if (days === 1) return `${typeLabel} · vence mañana`;
+  return `${typeLabel} · vence en ${days} días`;
+}
+
+function rankHabitForToday(
+  habit: { id: string; title: string; xpReward: number; currentStreak: number; reminderTime: string | null },
+  nowMinutes: number | null,
+): RankedTodayPlanPriority {
+  let score = 40 + Math.min(habit.currentStreak, 20);
+  let detail = habit.currentStreak > 0 ? `Racha: ${habit.currentStreak} días` : 'Hábito de hoy';
+
+  if (habit.reminderTime && nowMinutes !== null) {
+    const [hours, minutes] = habit.reminderTime.split(':').map(Number);
+    const reminderMinutes = hours * 60 + minutes;
+    if (nowMinutes >= reminderMinutes) {
+      score += 16;
+      detail = `Programado para ${habit.reminderTime}`;
+    }
+  }
+
+  return {
+    id: habit.id,
+    type: 'habit',
+    title: habit.title,
+    detail,
+    xp: habit.xpReward,
+    urgency: habit.currentStreak >= 7 ? 'soon' : 'normal',
+    route: '/habits',
+    score,
+  };
+}
+
+function rankQuestForToday(
+  quest: { id: string; title: string; xpReward: number; deadline: Date | null; type: string; difficulty: string },
+  todayKey: string,
+  timezone: string,
+): RankedTodayPlanPriority {
+  const urgency = deadlineUrgency(quest.deadline, todayKey, timezone);
+  let score = urgency === 'critical' ? 112 : urgency === 'soon' ? 86 : 48;
+  if (quest.type === 'MAIN') score += 12;
+  if (quest.type === 'META') score += 7;
+  if (quest.difficulty === 'EPIC') score += 8;
+  if (quest.difficulty === 'HARD') score += 4;
+
+  return {
+    id: quest.id,
+    type: 'quest',
+    title: quest.title,
+    detail: formatQuestPlanDetail(quest.deadline, quest.type, todayKey, timezone),
+    xp: quest.xpReward,
+    urgency,
+    route: '/quests',
+    score,
+  };
+}
+
+function rankEventForToday(
+  event: { id: string; title: string; startDate: Date; isAllDay: boolean },
+  now: Date,
+  timezone: string,
+): RankedTodayPlanPriority {
+  const minutesUntil = Math.round((event.startDate.getTime() - now.getTime()) / 60_000);
+  let score = event.isAllDay ? 58 : 70;
+  let urgency: TodayPlanUrgency = 'normal';
+
+  if (!event.isAllDay && minutesUntil <= 0) {
+    score = 118;
+    urgency = 'critical';
+  } else if (!event.isAllDay && minutesUntil <= 120) {
+    score = 106;
+    urgency = 'critical';
+  } else if (!event.isAllDay && minutesUntil <= 360) {
+    score = 90;
+    urgency = 'soon';
+  } else if (event.isAllDay) {
+    urgency = 'soon';
+  }
+
+  return {
+    id: event.id,
+    type: 'event',
+    title: event.title,
+    detail: event.isAllDay ? 'Todo el día' : `Agenda · ${timeInTimezone(event.startDate, timezone)}`,
+    xp: 0,
+    urgency,
+    route: '/agenda',
+    scheduledAt: event.startDate.toISOString(),
+    score,
+  };
+}
+
+function buildTodayPlanAdvice(input: {
+  primary: TodayPlanPriority | null;
+  checkin: { energy: number } | null;
+  lastSleep: { duration: number } | null;
+  pendingHabits: number;
+}): { message: string; tone: 'neutral' | 'calm' | 'warning' | 'momentum' } {
+  if (!input.checkin) {
+    return {
+      message: 'Haz tu check-in de energía y ajustaremos el plan a cómo llegas hoy.',
+      tone: 'neutral',
+    };
+  }
+
+  if (input.checkin.energy <= 3) {
+    return {
+      message: input.primary
+        ? `Hoy ve a lo esencial: avanza primero en “${input.primary.title}” y deja margen para descansar.`
+        : 'Tu energía está baja: elige una acción pequeña y cuida tu ritmo.',
+      tone: 'calm',
+    };
+  }
+
+  if (input.lastSleep && input.lastSleep.duration < 6) {
+    return {
+      message: 'Dormiste poco. Mantén el plan corto y evita convertir la urgencia en sobrecarga.',
+      tone: 'calm',
+    };
+  }
+
+  if (input.primary?.urgency === 'critical') {
+    return {
+      message: `Hay una prioridad crítica: atiende “${input.primary.title}” antes de abrir más frentes.`,
+      tone: 'warning',
+    };
+  }
+
+  if (input.pendingHabits > 0) {
+    return {
+      message: `Vas con buen ritmo: completa ${input.pendingHabits === 1 ? 'tu hábito pendiente' : `${input.pendingHabits} hábitos pendientes`} y protege tu constancia.`,
+      tone: 'momentum',
+    };
+  }
+
+  return {
+    message: input.primary
+      ? `Tu siguiente mejor paso es “${input.primary.title}”. Una acción clara a la vez.`
+      : 'Tu día está despejado. Puedes crear una misión o disfrutar el espacio que ganaste.',
+    tone: 'neutral',
+  };
+}
+
+/**
+ * One focused, explainable daily snapshot for the Castle. It does not merge
+ * habits with missions: each item keeps its own route and completion contract.
+ */
+export async function getTodayPlan(userId: string) {
+  await reconcileHabitStreaks(userId);
+
+  const now = new Date();
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: {
+      timezone: true,
+      googleCalendarSyncEnabled: true,
+    },
+  });
+  const timezone = user.timezone || 'America/Bogota';
+  const today = getCalendarDay(timezone, now);
+  const tomorrow = addCalendarDays(today, 1);
+  const todayKey = today.toISOString().slice(0, 10);
+  const queryStart = new Date(now.getTime() - 36 * 60 * 60 * 1000);
+  const queryEnd = new Date(now.getTime() + 36 * 60 * 60 * 1000);
+
+  const [habits, quests, agendaEvents, recentCheckins, xpEvents, lastSleep, lastWorkout] = await Promise.all([
+    prisma.habit.findMany({
+      where: { userId, isActive: true },
+      include: {
+        logs: {
+          where: { date: { gte: today, lt: tomorrow } },
+          select: { completed: true },
+          take: 1,
+        },
+      },
+      orderBy: { currentStreak: 'desc' },
+      take: 100,
+    }),
+    prisma.quest.findMany({
+      where: { userId, status: 'ACTIVE' },
+      orderBy: { createdAt: 'asc' },
+      take: 50,
+    }),
+    prisma.agendaEvent.findMany({
+      where: {
+        userId,
+        isCompleted: false,
+        eventType: { not: 'habit' },
+        startDate: { gte: queryStart, lte: queryEnd },
+      },
+      orderBy: { startDate: 'asc' },
+      take: 30,
+    }),
+    prisma.dailyCheckin.findMany({
+      where: { userId, createdAt: { gte: queryStart } },
+      orderBy: { createdAt: 'desc' },
+      take: 3,
+      select: { energy: true, mood: true, createdAt: true },
+    }),
+    prisma.xpEvent.findMany({
+      where: { userId, createdAt: { gte: queryStart } },
+      select: { xpAmount: true, createdAt: true },
+    }),
+    prisma.sleepLog.findFirst({
+      where: { userId, date: { lte: now } },
+      orderBy: { date: 'desc' },
+      select: { duration: true, sleepScore: true, quality: true, date: true },
+    }),
+    prisma.workout.findFirst({
+      where: { userId, xpEarned: { gt: 0 }, date: { lte: now } },
+      orderBy: { date: 'desc' },
+      select: { date: true, title: true },
+    }),
+  ]);
+
+  // DailyCheckin was historically keyed with the API host's local midnight.
+  // Resolve it by the user's actual calendar day so the plan remains correct
+  // near midnight in America/Bogota and for users in other timezones.
+  const checkin = recentCheckins.find((entry) => calendarKeyInTimezone(entry.createdAt, timezone) === todayKey) ?? null;
+  const scheduledHabits = habits.filter((habit) => isHabitScheduledForDay(today, habit.frequency));
+  const completedHabitCount = scheduledHabits.filter((habit) => habit.logs[0]?.completed).length;
+  const pendingHabits = scheduledHabits.filter((habit) => !habit.logs[0]?.completed);
+  const todayEvents = agendaEvents.filter((event) => calendarKeyInTimezone(event.startDate, timezone, event.isAllDay) === todayKey);
+  const nowMinutes = localMinutesNow(timezone, now);
+
+  const candidates: RankedTodayPlanPriority[] = [
+    ...pendingHabits.map((habit) => rankHabitForToday(habit, nowMinutes)),
+    ...quests.map((quest) => rankQuestForToday(quest, todayKey, timezone)),
+    ...todayEvents.map((event) => rankEventForToday(event, now, timezone)),
+  ].sort((a, b) => b.score - a.score || a.title.localeCompare(b.title, 'es-CO'));
+
+  const primary = candidates[0] ? stripPriorityScore(candidates[0]) : null;
+  const secondary = candidates.slice(1, 3).map(stripPriorityScore);
+  const todayXp = xpEvents
+    .filter((event) => calendarKeyInTimezone(event.createdAt, timezone) === todayKey)
+    .reduce((sum, event) => sum + event.xpAmount, 0);
+  const nextEvent = todayEvents
+    .filter((event) => event.isAllDay || event.startDate >= now)
+    .map((event) => rankEventForToday(event, now, timezone))
+    .sort((a, b) => (a.scheduledAt ?? '').localeCompare(b.scheduledAt ?? ''))[0];
+  const lastWorkoutKey = lastWorkout ? calendarKeyInTimezone(lastWorkout.date, timezone) : null;
+  const workoutDaysAgo = lastWorkoutKey ? Math.max(0, calendarDayDistance(lastWorkoutKey, todayKey)) : null;
+  const advice = buildTodayPlanAdvice({
+    primary,
+    checkin,
+    lastSleep: lastSleep ? { duration: lastSleep.duration } : null,
+    pendingHabits: pendingHabits.length,
+  });
+
+  return {
+    date: todayKey,
+    generatedAt: now.toISOString(),
+    priorities: {
+      primary,
+      secondary,
+      totalOpen: candidates.length,
+    },
+    habits: {
+      total: scheduledHabits.length,
+      completed: completedHabitCount,
+      pending: pendingHabits.length,
+    },
+    calendar: {
+      connected: user.googleCalendarSyncEnabled,
+      eventCount: todayEvents.length,
+      nextEvent: nextEvent ? stripPriorityScore(nextEvent) : null,
+    },
+    wellbeing: {
+      energy: checkin?.energy ?? null,
+      mood: checkin?.mood ?? null,
+      sleep: lastSleep
+        ? {
+            duration: Math.round(lastSleep.duration * 10) / 10,
+            score: lastSleep.sleepScore ?? null,
+            quality: lastSleep.quality,
+            date: lastSleep.date.toISOString(),
+          }
+        : null,
+      workout: lastWorkout
+        ? {
+            title: lastWorkout.title,
+            daysAgo: workoutDaysAgo,
+            completedToday: workoutDaysAgo === 0,
+          }
+        : null,
+    },
+    xp: { earned: todayXp },
+    advice,
+  };
+}
+
+function stripPriorityScore(priority: RankedTodayPlanPriority): TodayPlanPriority {
+  const { score: _score, ...value } = priority;
+  return value;
 }
