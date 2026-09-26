@@ -43,14 +43,27 @@ export async function finishWorkout(req: AuthRequest, res: Response): Promise<vo
   try {
     const result = await svc.finishWorkout(req.userId!, req.params.id, req.body);
     res.json({ workout: s(result.workout), rewards: result.rewards, user: result.user });
-  } catch { res.status(500).json({ error: 'Error al finalizar entrenamiento.' }); }
+  } catch (error) {
+    const code = error instanceof Error ? error.message : '';
+    if (code === 'WORKOUT_NOT_FOUND') { res.status(404).json({ error: 'Entrenamiento no encontrado.' }); return; }
+    if (code === 'WORKOUT_ALREADY_FINISHED') { res.status(409).json({ error: 'Este entrenamiento ya fue finalizado y premiado.' }); return; }
+    res.status(500).json({ error: 'Error al finalizar entrenamiento.' });
+  }
 }
 
 export async function deleteWorkout(req: AuthRequest, res: Response): Promise<void> {
   try {
     await svc.deleteWorkout(req.userId!, req.params.id);
     res.json({ success: true });
-  } catch { res.status(500).json({ error: 'Error al eliminar entrenamiento.' }); }
+  } catch (error) {
+    const code = error instanceof Error ? error.message : '';
+    if (code === 'WORKOUT_NOT_FOUND') { res.status(404).json({ error: 'Entrenamiento no encontrado.' }); return; }
+    if (code === 'WORKOUT_COMPLETED_CANNOT_DELETE') {
+      res.status(409).json({ error: 'No se puede eliminar un entrenamiento que ya otorgó XP. Puedes editarlo para corregirlo.' });
+      return;
+    }
+    res.status(500).json({ error: 'Error al eliminar entrenamiento.' });
+  }
 }
 
 export async function listExercises(req: AuthRequest, res: Response): Promise<void> {

@@ -88,7 +88,7 @@ export async function getFinancialProjection(userId: string, months = 3) {
     prisma.recurringTransaction.findMany({ where: { userId, isActive: true } }),
     prisma.debt.findMany({ where: { userId, isPaid: false }, include: { payments: { orderBy: { date: 'desc' }, take: 3 } } }),
     prisma.transaction.findMany({
-      where: { userId, date: { gte: new Date(Date.now() - 90 * 86400000) } },
+      where: { userId, date: { gte: new Date(Date.now() - 90 * 86400000), lt: new Date() } },
       select: { type: true, amount: true },
     }),
   ]);

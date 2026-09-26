@@ -327,18 +327,28 @@ export async function logHabit(userId: string, habitId: string, status: HabitLog
 
   const today = getCalendarDay(habit.user.timezone);
   const completed = status === 'completed';
+  const existingLog = await prisma.habitLog.findUnique({
+    where: { habitId_date: { habitId, date: today } },
+  });
 
-  // Upsert the log for today
+  // A completed log has already granted rewards. Allowing it to become failed
+  // or skipped would leave the XP ledger and the habit timeline disagreeing.
+  if (existingLog?.completed && !completed) {
+    throw new Error('HABIT_ALREADY_COMPLETED');
+  }
+
+  const isNewCompletion = completed && !existingLog?.completed;
   const log = await prisma.habitLog.upsert({
     where: { habitId_date: { habitId, date: today } },
     create: { habitId, userId, completed, status, date: today, notes },
     update: { completed, status, notes },
   });
 
-  // Update streak
+  // Update a streak only for a real state change. Repeated taps/retries on a
+  // completed habit must be idempotent: no extra day, no duplicate XP.
   let { currentStreak, longestStreak } = habit;
 
-  if (status === 'completed') {
+  if (isNewCompletion) {
     // Continúa desde el último día en que este hábito realmente era exigible.
     // Para un hábito diario es ayer; para frecuencias semanales, el día marcado
     // más reciente. Así una fecha libre no corta la racha.
@@ -353,15 +363,17 @@ export async function logHabit(userId: string, habitId: string, status: HabitLog
       currentStreak = 1;
     }
     longestStreak = Math.max(longestStreak, currentStreak);
-  } else if (status === 'failed') {
+  } else if (status === 'failed' && existingLog?.status !== 'failed') {
     currentStreak = 0;
   }
   // 'skipped' doesn't change the streak
 
-  await prisma.habit.update({
-    where: { id: habitId },
-    data: { currentStreak, longestStreak },
-  });
+  if (isNewCompletion || (status === 'failed' && existingLog?.status !== 'failed')) {
+    await prisma.habit.update({
+      where: { id: habitId },
+      data: { currentStreak, longestStreak },
+    });
+  }
 
   let recoveryCompleted: {
     id: string;
@@ -380,7 +392,7 @@ export async function logHabit(userId: string, habitId: string, status: HabitLog
   });
 
   if (activeRecovery) {
-    if (status === 'completed') {
+    if (isNewCompletion) {
       const nextCurrentDays = activeRecovery.currentDays + 1;
       if (nextCurrentDays >= activeRecovery.requiredDays) {
         const restoredStreak = Math.max(currentStreak, Math.ceil(activeRecovery.lostStreak / 2));
@@ -423,7 +435,7 @@ export async function logHabit(userId: string, habitId: string, status: HabitLog
           data: { currentDays: nextCurrentDays },
         });
       }
-    } else if (status === 'failed') {
+    } else if (status === 'failed' && existingLog?.status !== 'failed') {
       await prisma.recoveryChallenge.update({
         where: { id: activeRecovery.id },
         data: { currentDays: 0 },
@@ -434,7 +446,7 @@ export async function logHabit(userId: string, habitId: string, status: HabitLog
   let rewards = null;
   let achievementsUnlocked: Awaited<ReturnType<typeof checkAchievements>> = [];
 
-  if (status === 'completed') {
+  if (isNewCompletion) {
     const result = await awardXpAndGold(userId, habit.xpReward, habit.goldReward, 'habit_completed', {
       sourceId: habitId,
       description: `Hábito completado: ${habit.title}`,

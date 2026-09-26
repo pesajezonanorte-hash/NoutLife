@@ -46,7 +46,7 @@ export async function deleteTransaction(req: AuthRequest, res: Response): Promis
 export async function getTransactionSummary(req: AuthRequest, res: Response): Promise<void> {
   try {
     const now = new Date();
-    const { from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString(), to = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString() } = req.query as Record<string, string>;
+    const { from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString(), to = now.toISOString() } = req.query as Record<string, string>;
     const summary = await svc.getTransactionSummary(req.userId!, from, to);
     res.json({ summary });
   } catch { res.status(500).json({ error: 'Error al obtener resumen.' }); }

@@ -51,47 +51,67 @@ export async function createSleep(
 }
 
 export async function updateSleep(userId: string, id: string, body: Partial<{ bedtime: string; wakeTime: string; quality: number; notes: string }>) {
-  const updates: Record<string, unknown> = {};
-  if (body.bedtime) updates.bedtime = new Date(body.bedtime);
-  if (body.wakeTime) updates.wakeTime = new Date(body.wakeTime);
-  if (body.quality !== undefined) updates.quality = body.quality;
-  if (body.notes !== undefined) updates.notes = body.notes;
+  const existing = await prisma.sleepLog.findFirst({ where: { id, userId } });
+  if (!existing) throw new Error('SLEEP_NOT_FOUND');
 
-  if (body.bedtime && body.wakeTime) {
-    const bedtime = new Date(body.bedtime);
-    const wakeTime = new Date(body.wakeTime);
-    let duration = (wakeTime.getTime() - bedtime.getTime()) / 3600000;
-    if (duration < 0) duration += 24;
-    updates.duration = duration;
-  }
+  const bedtime = body.bedtime ? new Date(body.bedtime) : existing.bedtime;
+  const wakeTime = body.wakeTime ? new Date(body.wakeTime) : existing.wakeTime;
+  const quality = body.quality ?? existing.quality;
+  const shouldRecalculate = body.bedtime !== undefined || body.wakeTime !== undefined || body.quality !== undefined;
 
-  return prisma.sleepLog.update({ where: { id, userId }, data: updates });
+  let duration = (wakeTime.getTime() - bedtime.getTime()) / 3600000;
+  if (duration < 0) duration += 24;
+
+  return prisma.sleepLog.update({
+    where: { id },
+    data: {
+      ...(body.bedtime !== undefined && { bedtime }),
+      ...(body.wakeTime !== undefined && { wakeTime }),
+      ...(body.quality !== undefined && { quality }),
+      ...(body.notes !== undefined && { notes: body.notes }),
+      ...(shouldRecalculate && {
+        duration,
+        sleepScore: calcSleepScore(duration, quality, bedtime),
+      }),
+    },
+  });
 }
 
 export async function deleteSleep(userId: string, id: string) {
-  return prisma.sleepLog.delete({ where: { id, userId } });
+  const existing = await prisma.sleepLog.findFirst({ where: { id, userId }, select: { id: true } });
+  if (!existing) throw new Error('SLEEP_NOT_FOUND');
+  return prisma.sleepLog.delete({ where: { id } });
 }
 
 export async function getSleepStats(userId: string) {
-  const twoWeeksAgo = new Date();
-  twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+  const now = new Date();
+  const currentWeekStart = new Date(now.getTime() - 7 * 86400000);
+  const previousWeekStart = new Date(now.getTime() - 14 * 86400000);
 
   const logs = await prisma.sleepLog.findMany({
-    where: { userId, date: { gte: twoWeeksAgo } },
+    where: { userId, date: { gte: previousWeekStart, lt: now } },
     orderBy: { date: 'desc' },
   });
 
   if (logs.length === 0) return { avgDuration: 0, avgQuality: 0, totalLogs: 0, weeklyAvg: 0, trend: 'stable' };
 
-  const avgDuration = logs.reduce((a, l) => a + l.duration, 0) / logs.length;
-  const avgQuality = logs.reduce((a, l) => a + l.quality, 0) / logs.length;
+  const average = (items: typeof logs, field: 'duration' | 'quality') =>
+    items.length ? items.reduce((sum, item) => sum + item[field], 0) / items.length : 0;
+  const weekLogs = logs.filter((log) => log.date >= currentWeekStart);
+  const previousWeekLogs = logs.filter((log) => log.date < currentWeekStart);
+  const weeklyAvg = average(weekLogs, 'duration');
+  const previousWeeklyAvg = average(previousWeekLogs, 'duration');
+  const trend = weeklyAvg > previousWeeklyAvg + 0.25
+    ? 'improving'
+    : weeklyAvg < previousWeeklyAvg - 0.25
+      ? 'declining'
+      : 'stable';
 
-  const weekLogs = logs.slice(0, 7);
-  const prevWeekLogs = logs.slice(7, 14);
-  const weeklyAvg = weekLogs.length > 0 ? weekLogs.reduce((a, l) => a + l.duration, 0) / weekLogs.length : 0;
-  const prevWeeklyAvg = prevWeekLogs.length > 0 ? prevWeekLogs.reduce((a, l) => a + l.duration, 0) / prevWeekLogs.length : 0;
-
-  const trend = weeklyAvg > prevWeeklyAvg + 0.25 ? 'improving' : weeklyAvg < prevWeeklyAvg - 0.25 ? 'declining' : 'stable';
-
-  return { avgDuration, avgQuality, totalLogs: logs.length, weeklyAvg, trend };
+  return {
+    avgDuration: average(logs, 'duration'),
+    avgQuality: average(logs, 'quality'),
+    totalLogs: logs.length,
+    weeklyAvg,
+    trend,
+  };
 }

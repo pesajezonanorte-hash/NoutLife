@@ -45,10 +45,11 @@ export async function deleteProgressPhoto(userId: string, id: string) {
 // ─── Exercise History ──────────────────────────────────────────────────────────
 
 export async function getExerciseHistory(userId: string, exerciseId: string) {
+  const now = new Date();
   const workoutExercises = await prisma.workoutExercise.findMany({
     where: {
       exerciseId,
-      workout: { userId },
+      workout: { userId, date: { lte: now }, xpEarned: { gt: 0 } },
     },
     include: {
       workout: { select: { date: true, title: true } },
@@ -97,11 +98,12 @@ export async function getExerciseHistory(userId: string, exerciseId: string) {
 // ─── Weekly Volume by Muscle ───────────────────────────────────────────────────
 
 export async function getWeeklyVolume(userId: string) {
-  const weekAgo = new Date();
+  const now = new Date();
+  const weekAgo = new Date(now);
   weekAgo.setDate(weekAgo.getDate() - 7);
 
   const workoutExercises = await prisma.workoutExercise.findMany({
-    where: { workout: { userId, date: { gte: weekAgo } } },
+    where: { workout: { userId, date: { gte: weekAgo, lte: now }, xpEarned: { gt: 0 } } },
     include: { exercise: { select: { muscleGroup: true, name: true } } },
   });
 

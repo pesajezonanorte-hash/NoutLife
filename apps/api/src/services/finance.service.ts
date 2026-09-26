@@ -48,8 +48,12 @@ export async function deleteTransaction(userId: string, id: string) {
 }
 
 export async function getTransactionSummary(userId: string, from: string, to: string) {
+  const now = new Date();
+  const requestedTo = new Date(to);
+  // A dated transaction can be displayed as planned, but it is not realised money yet.
+  const realisedTo = requestedTo > now ? now : requestedTo;
   const transactions = await prisma.transaction.findMany({
-    where: { userId, date: { gte: new Date(from), lte: new Date(to) } },
+    where: { userId, date: { gte: new Date(from), lte: realisedTo } },
   });
 
   const income = transactions.filter(t => t.type === 'INCOME').reduce((a, t) => a + Number(t.amount), 0);
@@ -71,11 +75,14 @@ export async function listBudgets(userId: string, month?: number, year?: number)
   const budgets = await prisma.budget.findMany({ where: { userId, month: m, year: y } });
 
   const from = new Date(y, m - 1, 1);
-  const to = new Date(y, m, 0, 23, 59, 59);
+  const endOfMonth = new Date(y, m, 0, 23, 59, 59);
+  const to = endOfMonth > now ? now : endOfMonth;
 
-  const transactions = await prisma.transaction.findMany({
-    where: { userId, type: 'EXPENSE', date: { gte: from, lte: to } },
-  });
+  const transactions = from > to
+    ? []
+    : await prisma.transaction.findMany({
+      where: { userId, type: 'EXPENSE', date: { gte: from, lte: to } },
+    });
 
   const spentByCategory = transactions.reduce((acc, t) => {
     acc[t.category] = (acc[t.category] ?? 0) + Number(t.amount);
@@ -172,14 +179,14 @@ export async function deleteFinancialGoal(userId: string, id: string) {
 export async function getFinanceDashboard(userId: string) {
   const now = new Date();
   const from = new Date(now.getFullYear(), now.getMonth(), 1);
-  const to = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+  const to = now;
 
   const [summary, budgets, goals, recent] = await Promise.all([
     getTransactionSummary(userId, from.toISOString(), to.toISOString()),
     listBudgets(userId),
     listFinancialGoals(userId),
     prisma.transaction.findMany({
-      where: { userId },
+      where: { userId, date: { lte: now } },
       orderBy: { date: 'desc' },
       take: 10,
     }),
@@ -190,7 +197,9 @@ export async function getFinanceDashboard(userId: string) {
 
 export async function getFinanceReport(userId: string, year: number, month: number) {
   const from = new Date(year, month - 1, 1);
-  const to = new Date(year, month, 0, 23, 59, 59);
+  const endOfMonth = new Date(year, month, 0, 23, 59, 59);
+  const now = new Date();
+  const to = endOfMonth > now ? now : endOfMonth;
   const summary = await getTransactionSummary(userId, from.toISOString(), to.toISOString());
 
   const topCategory = Object.entries(summary.byCategory).sort((a, b) => b[1] - a[1])[0];

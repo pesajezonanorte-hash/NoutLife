@@ -60,6 +60,10 @@ export async function logHabit(req: AuthRequest, res: Response): Promise<void> {
   } catch (err) {
     const msg = err instanceof Error ? err.message : '';
     if (msg === 'HABIT_NOT_FOUND') { res.status(404).json({ error: 'Hábito no encontrado.' }); return; }
+    if (msg === 'HABIT_ALREADY_COMPLETED') {
+      res.status(409).json({ error: 'Este hábito ya fue completado hoy; su XP ya está registrada.' });
+      return;
+    }
     res.status(500).json({ error: 'Error al registrar el hábito.' });
   }
 }

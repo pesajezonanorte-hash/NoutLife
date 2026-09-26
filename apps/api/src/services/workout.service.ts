@@ -70,6 +70,16 @@ export async function updateWorkout(userId: string, id: string, body: Record<str
 }
 
 export async function finishWorkout(userId: string, id: string, body: { notes?: string; duration?: number; exercises?: Array<{ exerciseId: string; sets: Array<{ weight?: number; reps?: number; completed: boolean }>; notes?: string; order?: number }> }) {
+  // Finishing is the point at which rewards and the stats event are written.
+  // Guard it explicitly so a retry/double click cannot farm XP or corrupt the
+  // workout timeline with multiple reward events.
+  const existing = await prisma.workout.findFirst({
+    where: { id, userId },
+    select: { id: true, xpEarned: true },
+  });
+  if (!existing) throw new Error('WORKOUT_NOT_FOUND');
+  if (existing.xpEarned > 0) throw new Error('WORKOUT_ALREADY_FINISHED');
+
   if (body.exercises) {
     await prisma.workoutExercise.deleteMany({ where: { workoutId: id } });
     for (let i = 0; i < body.exercises.length; i++) {
@@ -102,7 +112,18 @@ export async function finishWorkout(userId: string, id: string, body: { notes?: 
 }
 
 export async function deleteWorkout(userId: string, id: string) {
-  return prisma.workout.delete({ where: { id, userId } });
+  const workout = await prisma.workout.findFirst({
+    where: { id, userId },
+    select: { id: true, xpEarned: true },
+  });
+  if (!workout) throw new Error('WORKOUT_NOT_FOUND');
+
+  // Deleting a rewarded session would leave its XP event in the ledger while
+  // removing the session from gym stats. Completed workouts remain editable,
+  // but are intentionally protected from deletion until a true reward reversal
+  // flow exists.
+  if (workout.xpEarned > 0) throw new Error('WORKOUT_COMPLETED_CANNOT_DELETE');
+  return prisma.workout.delete({ where: { id } });
 }
 
 export async function listExercises(search?: string, muscleGroup?: string) {

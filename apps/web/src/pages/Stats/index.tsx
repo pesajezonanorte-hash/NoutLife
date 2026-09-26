@@ -5,6 +5,7 @@ import {
   CalendarDays,
   Download,
   Flame,
+  RefreshCw,
   HeartPulse,
 } from 'lucide-react';
 import {
@@ -19,11 +20,25 @@ import type { User } from '@lifequest/shared';
 import { FlowButton } from '@/components/ui/flow-button';
 import AdvancedStats, { type AdvancedStatsData } from '@/components/ui/advanced-stats';
 import {
+  FinanceTrendCard,
+  GymProgressionCard,
+  PredictionsCard,
+  SleepTrendCard,
+} from '@/components/ui/advanced-stats-utils/analytics-details';
+import {
   getActivityRadar,
+  getFinanceTrend,
+  getGymProgression,
   getHabitHeatmap,
+  getPredictions,
+  getSleepScatter,
   getStatsSummary,
   getXpHistory,
+  type FinanceTrendPoint,
+  type GymProgression,
   type HeatmapPoint,
+  type SleepTrendPoint,
+  type StatsPredictions,
   type StatsSummary,
 } from '../../services/stats.service';
 import {
@@ -220,20 +235,42 @@ export default function StatsPage() {
   const [xpHistory, setXpHistory] = useState<Array<{ date: string; xp: number }>>([]);
   const [xpAverage, setXpAverage] = useState(0);
   const [radarData, setRadarData] = useState<RadarComparisonPoint[]>([]);
+  const [financeTrend, setFinanceTrend] = useState<FinanceTrendPoint[]>([]);
   const [heatmap, setHeatmap] = useState<HeatmapPoint[]>([]);
+  const [sleepTrend, setSleepTrend] = useState<SleepTrendPoint[]>([]);
+  const [gymProgression, setGymProgression] = useState<GymProgression[]>([]);
+  const [predictions, setPredictions] = useState<StatsPredictions | null>(null);
   const [checkins, setCheckins] = useState<DailyCheckin[]>([]);
   const [summary, setSummary] = useState<StatsSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async (selectedPeriod: Period) => {
     setLoading(true);
+    setLoadError(null);
     try {
-      const [score, dynamic, xp, radar, habits, checkinHistory, stats] = await Promise.allSettled([
+      const [
+        score,
+        dynamic,
+        xp,
+        radar,
+        finance,
+        habits,
+        sleep,
+        gym,
+        prediction,
+        checkinHistory,
+        stats,
+      ] = await Promise.allSettled([
         fetchLifeScore(),
         fetchDynamicLifeScore(),
         getXpHistory(selectedPeriod),
         getActivityRadar(),
+        getFinanceTrend(),
         getHabitHeatmap(),
+        getSleepScatter(selectedPeriod),
+        getGymProgression(selectedPeriod),
+        getPredictions(),
         getCheckinHistory(30),
         getStatsSummary(selectedPeriod),
       ]);
@@ -252,9 +289,23 @@ export default function StatsPage() {
           previous: previousBySubject.get(item.subject) ?? 0,
         })));
       }
+      if (finance.status === 'fulfilled') setFinanceTrend(finance.value);
       if (habits.status === 'fulfilled') setHeatmap(habits.value);
+      if (sleep.status === 'fulfilled') setSleepTrend(sleep.value);
+      if (gym.status === 'fulfilled') setGymProgression(gym.value);
+      if (prediction.status === 'fulfilled') setPredictions(prediction.value);
       if (checkinHistory.status === 'fulfilled') setCheckins(checkinHistory.value);
       if (stats.status === 'fulfilled') setSummary(stats.value);
+
+      const failedRequests = [score, dynamic, xp, radar, finance, habits, sleep, gym, prediction, checkinHistory, stats]
+        .filter((result) => result.status === 'rejected').length;
+      if (failedRequests > 0) {
+        setLoadError(
+          failedRequests === 1
+            ? 'Una métrica no pudo actualizarse. Puedes volver a intentarlo.'
+            : `${failedRequests} métricas no pudieron actualizarse. Puedes volver a intentarlo.`,
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -319,6 +370,29 @@ export default function StatsPage() {
       </header>
 
       <AdvancedStats data={advancedData} loading={loading} />
+
+      {loadError ? (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[color-mix(in_srgb,var(--accent-red)_40%,var(--border))] bg-[color-mix(in_srgb,var(--accent-red)_8%,var(--bg-panel))] px-4 py-3">
+          <p className="text-sm text-[var(--text-secondary)]">{loadError}</p>
+          <FlowButton onClick={() => void load(period)} tone="ghost" size="sm" withArrows={false} className="gap-1.5">
+            <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+            Reintentar
+          </FlowButton>
+        </div>
+      ) : null}
+
+      <section aria-label="Seguimiento detallado" className="space-y-3">
+        <div>
+          <h2 className="text-base font-semibold text-[var(--text-primary)]">Seguimiento detallado</h2>
+          <p className="mt-1 text-xs text-[var(--text-muted)]">Todas las series se calculan a partir de registros reales de LifeQuest.</p>
+        </div>
+        <div className="grid gap-4 xl:grid-cols-2">
+          <FinanceTrendCard data={financeTrend} currency={user?.currency ?? 'COP'} loading={loading} />
+          <SleepTrendCard data={sleepTrend} periodLabel={selectedPeriod.summaryLabel} loading={loading} />
+          <GymProgressionCard data={gymProgression} periodLabel={selectedPeriod.summaryLabel} loading={loading} />
+          <PredictionsCard data={predictions} currency={user?.currency ?? 'COP'} loading={loading} />
+        </div>
+      </section>
 
       <section aria-label="Detalles de actividad" className="grid gap-4 xl:grid-cols-2">
         {radarData.length > 0 ? (

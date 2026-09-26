@@ -1,14 +1,27 @@
 import { prisma } from '../lib/prisma';
+import { addCalendarDays, getCalendarDay } from '../lib/calendar';
+import { isHabitScheduledForDay, reconcileHabitStreaks } from './habit.service';
+import { reconcileUserActivityStreak } from './xp.service';
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+export type StatsPeriod = 'week' | 'month' | '3months' | 'year' | 'all';
 
-function periodRange(period: string): { start: Date; prevStart: Date; prevEnd: Date } {
-  const now = new Date();
+interface PeriodRange {
+  start: Date;
+  end: Date;
+  prevStart: Date;
+  prevEnd: Date;
+}
+
+/**
+ * Keeps every analytics query on the same inclusive/exclusive interval. The
+ * upper bound is now, so future-dated records never leak into current stats.
+ */
+export function periodRange(period: string, now = new Date()): PeriodRange {
   let start: Date;
   let prevStart: Date;
   let prevEnd: Date;
 
-  switch (period) {
+  switch (period as StatsPeriod) {
     case 'week': {
       start = new Date(now.getTime() - 7 * 86400000);
       prevStart = new Date(now.getTime() - 14 * 86400000);
@@ -29,36 +42,49 @@ function periodRange(period: string): { start: Date; prevStart: Date; prevEnd: D
     }
     case 'all': {
       start = new Date(2000, 0, 1);
-      prevStart = new Date(2000, 0, 1);
-      prevEnd = new Date(2000, 0, 1);
+      prevStart = start;
+      prevEnd = start;
       break;
     }
     default: {
-      // month
       start = new Date(now.getFullYear(), now.getMonth(), 1);
       prevStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       prevEnd = start;
     }
   }
 
-  return { start, prevStart, prevEnd };
+  return { start, end: now, prevStart, prevEnd };
+}
+
+function isCompletedWorkoutFilter() {
+  // `xpEarned` is set only by finishWorkout (minimum reward is 20 XP), making
+  // it the backwards-compatible completion marker for the current schema.
+  return { xpEarned: { gt: 0 } };
+}
+
+function percentChange(current: number, previous: number): number {
+  if (previous <= 0) return 0;
+  return Math.round(((current - previous) / previous) * 100);
 }
 
 // ─── Summary ──────────────────────────────────────────────────────────────────
 
 export async function getStatsSummary(userId: string, period = 'month') {
-  const { start, prevStart, prevEnd } = periodRange(period);
+  // A stats read must not display a stale streak merely because the scheduled
+  // job has not run yet (for example after a serverless cold start).
+  await Promise.all([reconcileHabitStreaks(userId), reconcileUserActivityStreak(userId)]);
 
-  // The overview deliberately combines period comparisons with lifetime totals.
-  // That keeps the primary stats truthful as the player continues recording
-  // activity instead of showing a fixed demo value.
+  const { start, end, prevStart, prevEnd } = periodRange(period);
+  const currentRange = { gte: start, lt: end };
+  const previousRange = { gte: prevStart, lt: prevEnd };
+
   const [
     xpCurrent,
-    xpPrev,
+    xpPrevious,
     questsCurrent,
-    questsPrev,
+    questsPrevious,
     user,
-    streakData,
+    habitStreaks,
     transactions,
     totalXp,
     totalQuestCompletions,
@@ -66,36 +92,25 @@ export async function getStatsSummary(userId: string, period = 'month') {
     totalWorkouts,
     questsCreatedInPeriod,
   ] = await Promise.all([
-    prisma.xpEvent.aggregate({
-      where: { userId, createdAt: { gte: start } },
-      _sum: { xpAmount: true },
-    }),
-    prisma.xpEvent.aggregate({
-      where: { userId, createdAt: { gte: prevStart, lt: prevEnd } },
-      _sum: { xpAmount: true },
-    }),
-    prisma.questCompletion.count({ where: { userId, completedAt: { gte: start } } }),
-    prisma.questCompletion.count({ where: { userId, completedAt: { gte: prevStart, lt: prevEnd } } }),
+    prisma.xpEvent.aggregate({ where: { userId, createdAt: currentRange }, _sum: { xpAmount: true } }),
+    prisma.xpEvent.aggregate({ where: { userId, createdAt: previousRange }, _sum: { xpAmount: true } }),
+    prisma.questCompletion.count({ where: { userId, completedAt: currentRange } }),
+    prisma.questCompletion.count({ where: { userId, completedAt: previousRange } }),
     prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: { longestStreak: true, currentStreak: true },
     }),
-    prisma.habit.findMany({
-      where: { userId, isActive: true },
-      select: { currentStreak: true, longestStreak: true },
-    }),
+    // Archived habits still count toward a historical personal best.
+    prisma.habit.findMany({ where: { userId }, select: { longestStreak: true } }),
     prisma.transaction.findMany({
-      where: { userId, date: { gte: start } },
+      where: { userId, date: currentRange },
       select: { type: true, amount: true },
     }),
-    prisma.xpEvent.aggregate({
-      where: { userId },
-      _sum: { xpAmount: true },
-    }),
+    prisma.xpEvent.aggregate({ where: { userId }, _sum: { xpAmount: true } }),
     prisma.questCompletion.count({ where: { userId } }),
     prisma.habitLog.count({ where: { userId, completed: true } }),
-    prisma.workout.count({ where: { userId } }),
-    prisma.quest.count({ where: { userId, createdAt: { gte: start } } }),
+    prisma.workout.count({ where: { userId, ...isCompletedWorkoutFilter() } }),
+    prisma.quest.count({ where: { userId, createdAt: currentRange } }),
   ]);
 
   let income = 0;
@@ -106,16 +121,14 @@ export async function getStatsSummary(userId: string, period = 'month') {
   }
 
   const xpNow = xpCurrent._sum.xpAmount ?? 0;
-  const xpBefore = xpPrev._sum.xpAmount ?? 0;
-  const xpChange = xpBefore > 0 ? Math.round(((xpNow - xpBefore) / xpBefore) * 100) : 0;
-  const questChange = questsPrev > 0 ? Math.round(((questsCurrent - questsPrev) / questsPrev) * 100) : 0;
-  const bestStreak = Math.max(user.longestStreak, ...streakData.map((habit) => habit.longestStreak));
+  const xpBefore = xpPrevious._sum.xpAmount ?? 0;
+  const bestStreak = Math.max(user.longestStreak, ...habitStreaks.map((habit) => habit.longestStreak));
 
   return {
-    xp: { value: xpNow, change: xpChange },
+    xp: { value: xpNow, change: percentChange(xpNow, xpBefore) },
     quests: {
       completed: questsCurrent,
-      change: questChange,
+      change: percentChange(questsCurrent, questsPrevious),
       total: questsCreatedInPeriod,
     },
     currentStreak: user.currentStreak,
@@ -133,25 +146,23 @@ export async function getStatsSummary(userId: string, period = 'month') {
 // ─── XP history ───────────────────────────────────────────────────────────────
 
 export async function getXpHistory(userId: string, period = 'month') {
-  const { start } = periodRange(period);
-
+  const { start, end } = periodRange(period);
   const events = await prisma.xpEvent.findMany({
-    where: { userId, createdAt: { gte: start } },
+    where: { userId, createdAt: { gte: start, lt: end } },
     orderBy: { createdAt: 'asc' },
     select: { xpAmount: true, createdAt: true },
   });
 
-  // Group by date
   const byDate = new Map<string, number>();
-  for (const e of events) {
-    const key = e.createdAt.toISOString().split('T')[0];
-    byDate.set(key, (byDate.get(key) ?? 0) + e.xpAmount);
+  for (const event of events) {
+    const date = event.createdAt.toISOString().split('T')[0];
+    byDate.set(date, (byDate.get(date) ?? 0) + event.xpAmount);
   }
 
-  const result = Array.from(byDate.entries()).map(([date, xp]) => ({ date, xp }));
-  const avg = result.length > 0 ? Math.round(result.reduce((s, r) => s + r.xp, 0) / result.length) : 0;
+  const data = Array.from(byDate.entries()).map(([date, xp]) => ({ date, xp }));
+  const avg = data.length ? Math.round(data.reduce((sum, item) => sum + item.xp, 0) / data.length) : 0;
 
-  return { data: result, avg };
+  return { data, avg };
 }
 
 // ─── Activity radar ───────────────────────────────────────────────────────────
@@ -159,11 +170,11 @@ export async function getXpHistory(userId: string, period = 'month') {
 export async function getActivityRadar(userId: string) {
   const now = new Date();
   const thisWeek = new Date(now.getTime() - 7 * 86400000);
-  const prevWeek = new Date(now.getTime() - 14 * 86400000);
+  const previousWeek = new Date(now.getTime() - 14 * 86400000);
 
   const score = async (after: Date, before: Date) => {
     const [gym, finance, habits, quests, sleep, learning] = await Promise.all([
-      prisma.workout.count({ where: { userId, date: { gte: after, lt: before } } }),
+      prisma.workout.count({ where: { userId, date: { gte: after, lt: before }, ...isCompletedWorkoutFilter() } }),
       prisma.transaction.count({ where: { userId, date: { gte: after, lt: before } } }),
       prisma.habitLog.count({ where: { userId, date: { gte: after, lt: before }, completed: true } }),
       prisma.questCompletion.count({ where: { userId, completedAt: { gte: after, lt: before } } }),
@@ -175,104 +186,111 @@ export async function getActivityRadar(userId: string) {
 
   const [current, previous] = await Promise.all([
     score(thisWeek, now),
-    score(prevWeek, thisWeek),
+    score(previousWeek, thisWeek),
   ]);
 
-  return {
-    current: [
-      { subject: 'Gym', value: Math.min(current.gym * 20, 100) },
-      { subject: 'Finanzas', value: Math.min(current.finance * 10, 100) },
-      { subject: 'Hábitos', value: Math.min(current.habits * 15, 100) },
-      { subject: 'Quests', value: Math.min(current.quests * 15, 100) },
-      { subject: 'Sueño', value: Math.min(current.sleep * 15, 100) },
-      { subject: 'Aprendizaje', value: Math.min(current.learning * 25, 100) },
-    ],
-    previous: [
-      { subject: 'Gym', value: Math.min(previous.gym * 20, 100) },
-      { subject: 'Finanzas', value: Math.min(previous.finance * 10, 100) },
-      { subject: 'Hábitos', value: Math.min(previous.habits * 15, 100) },
-      { subject: 'Quests', value: Math.min(previous.quests * 15, 100) },
-      { subject: 'Sueño', value: Math.min(previous.sleep * 15, 100) },
-      { subject: 'Aprendizaje', value: Math.min(previous.learning * 25, 100) },
-    ],
-  };
+  const normalise = (values: Awaited<ReturnType<typeof score>>) => [
+    { subject: 'Gym', value: Math.min(values.gym * 20, 100) },
+    { subject: 'Finanzas', value: Math.min(values.finance * 10, 100) },
+    { subject: 'Hábitos', value: Math.min(values.habits * 15, 100) },
+    { subject: 'Quests', value: Math.min(values.quests * 15, 100) },
+    { subject: 'Sueño', value: Math.min(values.sleep * 15, 100) },
+    { subject: 'Aprendizaje', value: Math.min(values.learning * 25, 100) },
+  ];
+
+  return { current: normalise(current), previous: normalise(previous) };
 }
 
 // ─── Finance trend ────────────────────────────────────────────────────────────
 
 export async function getFinanceTrend(userId: string) {
   const now = new Date();
-  const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
-
-  const txs = await prisma.transaction.findMany({
-    where: { userId, date: { gte: sixMonthsAgo } },
+  const start = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+  const transactions = await prisma.transaction.findMany({
+    where: { userId, date: { gte: start, lt: now } },
     select: { type: true, amount: true, date: true },
     orderBy: { date: 'asc' },
   });
 
+  // Keep quiet months in the series. This avoids visually joining two distant
+  // transactions as if activity had happened in every intermediate month.
   const byMonth = new Map<string, { income: number; expenses: number }>();
-  for (const t of txs) {
-    const key = `${t.date.getFullYear()}-${String(t.date.getMonth() + 1).padStart(2, '0')}`;
-    if (!byMonth.has(key)) byMonth.set(key, { income: 0, expenses: 0 });
-    const entry = byMonth.get(key)!;
-    if (t.type === 'INCOME') entry.income += Number(t.amount);
-    else entry.expenses += Number(t.amount);
+  const monthKeys: string[] = [];
+  for (let offset = 0; offset < 6; offset += 1) {
+    const monthDate = new Date(now.getFullYear(), now.getMonth() - 5 + offset, 1);
+    const key = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}`;
+    monthKeys.push(key);
+    byMonth.set(key, { income: 0, expenses: 0 });
   }
 
-  let cumBalance = 0;
-  return Array.from(byMonth.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([month, { income, expenses }]) => {
-      cumBalance += income - expenses;
-      return { month, income, expenses, balance: cumBalance };
-    });
+  for (const transaction of transactions) {
+    const key = `${transaction.date.getFullYear()}-${String(transaction.date.getMonth() + 1).padStart(2, '0')}`;
+    const entry = byMonth.get(key);
+    if (!entry) continue;
+    if (transaction.type === 'INCOME') entry.income += Number(transaction.amount);
+    else entry.expenses += Number(transaction.amount);
+  }
+
+  let balance = 0;
+  return monthKeys.map((month) => {
+    const values = byMonth.get(month)!;
+    balance += values.income - values.expenses;
+    return { month, income: values.income, expenses: values.expenses, balance };
+  });
 }
 
 // ─── Habit heatmap ────────────────────────────────────────────────────────────
 
 export async function getHabitHeatmap(userId: string) {
-  const yearAgo = new Date();
+  const now = new Date();
+  const yearAgo = new Date(now);
   yearAgo.setFullYear(yearAgo.getFullYear() - 1);
 
   const logs = await prisma.habitLog.findMany({
-    where: { userId, date: { gte: yearAgo }, completed: true },
+    where: { userId, date: { gte: yearAgo, lte: now }, completed: true },
     select: { date: true },
   });
 
   const byDate = new Map<string, number>();
-  for (const l of logs) {
-    const key = l.date.toISOString().split('T')[0];
-    byDate.set(key, (byDate.get(key) ?? 0) + 1);
+  for (const log of logs) {
+    const date = log.date.toISOString().split('T')[0];
+    byDate.set(date, (byDate.get(date) ?? 0) + 1);
   }
 
-  return Array.from(byDate.entries()).map(([date, count]) => ({ date, count }));
+  return Array.from(byDate.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, count]) => ({ date, count }));
 }
 
-// ─── Sleep scatter ────────────────────────────────────────────────────────────
+// ─── Sleep series ─────────────────────────────────────────────────────────────
 
 export async function getSleepScatter(userId: string, period = 'month') {
-  const { start } = periodRange(period);
-
+  const { start, end } = periodRange(period);
   const logs = await prisma.sleepLog.findMany({
-    where: { userId, date: { gte: start } },
+    where: { userId, date: { gte: start, lt: end } },
     select: { duration: true, quality: true, date: true },
     orderBy: { date: 'asc' },
   });
 
-  return logs.map((l) => ({
-    date: l.date.toISOString().split('T')[0],
-    duration: l.duration,
-    quality: l.quality,
+  return logs.map((log) => ({
+    date: log.date.toISOString().split('T')[0],
+    duration: log.duration,
+    quality: log.quality,
   }));
 }
 
 // ─── Gym progression ─────────────────────────────────────────────────────────
 
 export async function getGymProgression(userId: string, period = 'month') {
-  const { start } = periodRange(period);
-
+  const { start, end } = periodRange(period);
   const exercises = await prisma.workoutExercise.findMany({
-    where: { workout: { userId, date: { gte: start } } },
+    where: {
+      workout: {
+        userId,
+        date: { gte: start, lt: end },
+        ...isCompletedWorkoutFilter(),
+      },
+    },
     include: {
       exercise: { select: { name: true } },
       workout: { select: { date: true } },
@@ -280,33 +298,29 @@ export async function getGymProgression(userId: string, period = 'month') {
     orderBy: { workout: { date: 'asc' } },
   });
 
-  // Group max weight by exercise + date
   const byExercise = new Map<string, Map<string, number>>();
-  for (const we of exercises) {
-    const name = we.exercise.name;
-    const date = we.workout.date.toISOString().split('T')[0];
-    const sets = we.sets as Array<{ weight?: number; reps?: number }>;
-    const maxWeight = sets.reduce((max, s) => Math.max(max, s.weight ?? 0), 0);
+  for (const workoutExercise of exercises) {
+    const date = workoutExercise.workout.date.toISOString().split('T')[0];
+    const sets = workoutExercise.sets as Array<{ weight?: number; completed?: boolean }>;
+    const maxWeight = sets
+      .filter((set) => set.completed !== false)
+      .reduce((max, set) => Math.max(max, Number(set.weight ?? 0)), 0);
 
-    if (!byExercise.has(name)) byExercise.set(name, new Map());
-    const dateMap = byExercise.get(name)!;
-    dateMap.set(date, Math.max(dateMap.get(date) ?? 0, maxWeight));
+    if (!byExercise.has(workoutExercise.exercise.name)) {
+      byExercise.set(workoutExercise.exercise.name, new Map());
+    }
+    const dataByDate = byExercise.get(workoutExercise.exercise.name)!;
+    dataByDate.set(date, Math.max(dataByDate.get(date) ?? 0, maxWeight));
   }
 
-  // Return top 5 exercises by number of data points
-  const result: Array<{ name: string; data: Array<{ date: string; weight: number }> }> = [];
-  for (const [name, dateMap] of byExercise.entries()) {
-    result.push({
+  return Array.from(byExercise.entries())
+    .map(([name, dataByDate]) => ({
       name,
-      data: Array.from(dateMap.entries())
+      data: Array.from(dataByDate.entries())
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([date, weight]) => ({ date, weight })),
-    });
-  }
-
-  return result
-    .filter((r) => r.data.length > 1)
-    .sort((a, b) => b.data.length - a.data.length)
+    }))
+    .sort((a, b) => b.data.length - a.data.length || a.name.localeCompare(b.name))
     .slice(0, 5);
 }
 
@@ -315,18 +329,16 @@ export async function getGymProgression(userId: string, period = 'month') {
 export async function getPredictions(userId: string) {
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000);
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000);
 
   const [user, recentXp, recentSavings, goals, habits] = await Promise.all([
     prisma.user.findUniqueOrThrow({
       where: { id: userId },
-      select: { level: true, xp: true, xpToNextLevel: true },
+      select: { level: true, xp: true, xpToNextLevel: true, timezone: true },
     }),
-    prisma.xpEvent.aggregate({
-      where: { userId, createdAt: { gte: thirtyDaysAgo } },
-      _sum: { xpAmount: true },
-    }),
+    prisma.xpEvent.aggregate({ where: { userId, createdAt: { gte: thirtyDaysAgo, lt: now } }, _sum: { xpAmount: true } }),
     prisma.transaction.findMany({
-      where: { userId, date: { gte: new Date(now.getFullYear(), now.getMonth(), 1) } },
+      where: { userId, date: { gte: new Date(now.getFullYear(), now.getMonth(), 1), lt: now } },
       select: { type: true, amount: true },
     }),
     prisma.financialGoal.findMany({
@@ -338,7 +350,7 @@ export async function getPredictions(userId: string) {
       where: { userId, isActive: true },
       include: {
         logs: {
-          where: { date: { gte: thirtyDaysAgo } },
+          where: { date: { gte: sevenDaysAgo, lte: now } },
           orderBy: { date: 'asc' },
         },
       },
@@ -346,38 +358,54 @@ export async function getPredictions(userId: string) {
     }),
   ]);
 
-  const avgDailyXp = (recentXp._sum.xpAmount ?? 0) / 30;
-  const xpNeeded = user.xpToNextLevel - user.xp;
-  const daysToNextLevel = avgDailyXp > 0 ? Math.ceil(xpNeeded / avgDailyXp) : null;
+  const averageDailyXp = (recentXp._sum.xpAmount ?? 0) / 30;
+  const xpNeeded = Math.max(0, user.xpToNextLevel - user.xp);
+  const daysToNextLevel = averageDailyXp > 0 ? Math.ceil(xpNeeded / averageDailyXp) : null;
 
-  let income = 0, expenses = 0;
-  for (const t of recentSavings) {
-    if (t.type === 'INCOME') income += Number(t.amount);
-    else expenses += Number(t.amount);
+  let income = 0;
+  let expenses = 0;
+  for (const transaction of recentSavings) {
+    if (transaction.type === 'INCOME') income += Number(transaction.amount);
+    else expenses += Number(transaction.amount);
   }
-  const monthlyAvgSaving = income - expenses;
+  const monthlyAverageSaving = income - expenses;
 
-  const goalPredictions = goals.map((g) => {
-    const remaining = Number(g.targetAmount) - Number(g.currentAmount);
-    const months = monthlyAvgSaving > 0 ? Math.ceil(remaining / monthlyAvgSaving) : null;
-    return { title: g.title, remaining, months };
+  const goalPredictions = goals.map((goal) => {
+    const remaining = Math.max(0, Number(goal.targetAmount) - Number(goal.currentAmount));
+    const months = monthlyAverageSaving > 0 ? Math.ceil(remaining / monthlyAverageSaving) : null;
+    return { title: goal.title, remaining, months };
   });
 
-  // Streak risk: check how many days in last 7 each habit was missed
-  const habitRisks = habits.map((h) => {
-    const last7 = h.logs.filter((l) => {
-      const daysAgo = (now.getTime() - new Date(l.date).getTime()) / 86400000;
-      return daysAgo <= 7;
-    });
-    const completed = last7.filter((l) => l.completed).length;
+  const localToday = getCalendarDay(user.timezone, now);
+  const habitRisks = habits.map((habit) => {
+    const logsByDay = new Map(habit.logs.map((log) => [log.date.getTime(), log]));
+    let scheduledDays = 0;
+    let completedDays = 0;
+
+    for (let daysAgo = 0; daysAgo < 7; daysAgo += 1) {
+      const day = addCalendarDays(localToday, -daysAgo);
+      if (!isHabitScheduledForDay(day, habit.frequency)) continue;
+      scheduledDays += 1;
+      if (logsByDay.get(day.getTime())?.completed) completedDays += 1;
+    }
+
+    const completionRate = scheduledDays ? Math.round((completedDays / scheduledDays) * 100) : 0;
     const risk: 'low' | 'medium' | 'high' =
-      completed >= 6 ? 'low' : completed >= 4 ? 'medium' : 'high';
-    return { title: h.title, currentStreak: h.currentStreak, completionRate: completed, risk };
+      completionRate >= 86 ? 'low' : completionRate >= 60 ? 'medium' : 'high';
+
+    return {
+      title: habit.title,
+      currentStreak: habit.currentStreak,
+      completedDays,
+      scheduledDays,
+      completionRate,
+      risk,
+    };
   });
 
   return {
     daysToNextLevel,
-    avgDailyXp: Math.round(avgDailyXp),
+    avgDailyXp: Math.round(averageDailyXp),
     goalPredictions,
     habitRisks,
   };

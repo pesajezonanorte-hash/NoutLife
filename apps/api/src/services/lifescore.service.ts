@@ -44,15 +44,15 @@ export async function calculateLifeScore(userId: string): Promise<{
     relationships,
   ] = await Promise.all([
     prisma.habit.findMany({ where: { userId, isActive: true } }),
-    prisma.habitLog.findMany({ where: { userId, date: { gte: weekAgo }, completed: true } }),
-    prisma.workout.findMany({ where: { userId, date: { gte: weekAgo } } }),
-    prisma.sleepLog.findMany({ where: { userId, date: { gte: weekAgo } } }),
-    prisma.transaction.findMany({ where: { userId, date: { gte: monthAgo } } }),
+    prisma.habitLog.findMany({ where: { userId, date: { gte: weekAgo, lt: now }, completed: true } }),
+    prisma.workout.findMany({ where: { userId, date: { gte: weekAgo, lt: now }, xpEarned: { gt: 0 } } }),
+    prisma.sleepLog.findMany({ where: { userId, date: { gte: weekAgo, lt: now } } }),
+    prisma.transaction.findMany({ where: { userId, date: { gte: monthAgo, lt: now } } }),
     prisma.budget.findMany({ where: { userId, month: now.getMonth() + 1, year: now.getFullYear() } }),
     prisma.quest.findMany({ where: { userId } }),
-    prisma.questCompletion.findMany({ where: { userId, completedAt: { gte: monthAgo } } }),
+    prisma.questCompletion.findMany({ where: { userId, completedAt: { gte: monthAgo, lt: now } } }),
     prisma.learningItem.findMany({ where: { userId, status: { not: 'NOT_STARTED' } } }),
-    prisma.journalEntry.findMany({ where: { userId, date: { gte: weekAgo } } }),
+    prisma.journalEntry.findMany({ where: { userId, date: { gte: weekAgo, lt: now } } }),
     prisma.relationship.findMany({ where: { userId } }),
   ]);
 
@@ -64,9 +64,6 @@ export async function calculateLifeScore(userId: string): Promise<{
 
   // Fitness score (0-100)
   const gymSessionsThisWeek = workouts.length;
-  const sleepAvg = sleepLogs.length
-    ? sleepLogs.reduce((sum, s) => sum + s.duration, 0) / sleepLogs.length
-    : 0;
   const sleepScoreAvg = sleepLogs.length
     ? sleepLogs.reduce((sum, s) => sum + (s.sleepScore ?? calculateSleepScore(s.duration, s.quality, s.bedtime)), 0) / sleepLogs.length
     : 50;
@@ -166,16 +163,16 @@ export async function calculateDynamicLifeScore(userId: string): Promise<{
     learningItems, journalEntries, customZones, careRoutines, careLogs,
   ] = await Promise.all([
     prisma.habit.findMany({ where: { userId, isActive: true } }),
-    prisma.habitLog.findMany({ where: { userId, date: { gte: twoWeeksAgo }, completed: true } }),
-    prisma.workout.findMany({ where: { userId, date: { gte: twoWeeksAgo } } }),
-    prisma.sleepLog.findMany({ where: { userId, date: { gte: twoWeeksAgo } } }),
-    prisma.transaction.findMany({ where: { userId, date: { gte: twoWeeksAgo } } }),
-    prisma.questCompletion.findMany({ where: { userId, completedAt: { gte: twoWeeksAgo } } }),
+    prisma.habitLog.findMany({ where: { userId, date: { gte: twoWeeksAgo, lt: now }, completed: true } }),
+    prisma.workout.findMany({ where: { userId, date: { gte: twoWeeksAgo, lt: now }, xpEarned: { gt: 0 } } }),
+    prisma.sleepLog.findMany({ where: { userId, date: { gte: twoWeeksAgo, lt: now } } }),
+    prisma.transaction.findMany({ where: { userId, date: { gte: twoWeeksAgo, lt: now } } }),
+    prisma.questCompletion.findMany({ where: { userId, completedAt: { gte: twoWeeksAgo, lt: now } } }),
     prisma.learningItem.findMany({ where: { userId, status: { not: 'NOT_STARTED' } } }),
-    prisma.journalEntry.findMany({ where: { userId, date: { gte: twoWeeksAgo } } }),
+    prisma.journalEntry.findMany({ where: { userId, date: { gte: twoWeeksAgo, lt: now } } }),
     prisma.customZone.findMany({ where: { userId, isActive: true, isMeasurable: true } }),
     prisma.careRoutine.findMany({ where: { userId, isActive: true } }),
-    prisma.careLog.findMany({ where: { userId, date: { gte: twoWeeksAgo } } }),
+    prisma.careLog.findMany({ where: { userId, date: { gte: twoWeeksAgo, lt: now } } }),
   ]);
 
   const zones: ZoneScore[] = [];
@@ -235,17 +232,56 @@ export async function calculateDynamicLifeScore(userId: string): Promise<{
     zones.push({ id: 'mirror', name: 'El Espejo', icon: '✨', color: '#a78bfa', score, hasData: true });
   }
 
-  // Custom measurable zones
-  for (const zone of customZones) {
-    if (!zone.weeklyXpGoal) continue;
-    const zoneXp = await prisma.xpEvent.aggregate({
-      where: { userId, createdAt: { gte: twoWeeksAgo } },
-      _sum: { xpAmount: true },
-    });
-    const earned = zoneXp._sum.xpAmount ?? 0;
-    const score = Math.min(100, Math.round((earned / (zone.weeklyXpGoal * 2)) * 100));
-    if (score > 0) {
-      zones.push({ id: zone.id, name: zone.name, icon: zone.icon, color: zone.accentColor, score, hasData: true });
+  // Custom measurable zones. XP belongs to a zone only when its source is a
+  // quest or habit actually linked to that zone. The old implementation used
+  // the user's *entire* XP total for every custom zone, which made multiple
+  // zones show the same misleading progress.
+  const customZoneIds = customZones.map((zone) => zone.id);
+  if (customZoneIds.length > 0) {
+    const [zoneQuests, zoneHabits] = await Promise.all([
+      prisma.quest.findMany({
+        where: { userId, customZoneId: { in: customZoneIds } },
+        select: { id: true, customZoneId: true },
+      }),
+      prisma.habit.findMany({
+        where: { userId, customZoneId: { in: customZoneIds } },
+        select: { id: true, customZoneId: true },
+      }),
+    ]);
+
+    const sourceZoneById = new Map<string, string>();
+    for (const quest of zoneQuests) {
+      if (quest.customZoneId) sourceZoneById.set(quest.id, quest.customZoneId);
+    }
+    for (const habit of zoneHabits) {
+      if (habit.customZoneId) sourceZoneById.set(habit.id, habit.customZoneId);
+    }
+
+    const sourceIds = [...sourceZoneById.keys()];
+    const zoneEvents = sourceIds.length
+      ? await prisma.xpEvent.findMany({
+        where: {
+          userId,
+          sourceId: { in: sourceIds },
+          createdAt: { gte: twoWeeksAgo, lt: now },
+        },
+        select: { sourceId: true, xpAmount: true },
+      })
+      : [];
+
+    const xpByZone = new Map<string, number>();
+    for (const event of zoneEvents) {
+      const zoneId = event.sourceId ? sourceZoneById.get(event.sourceId) : undefined;
+      if (zoneId) xpByZone.set(zoneId, (xpByZone.get(zoneId) ?? 0) + event.xpAmount);
+    }
+
+    for (const zone of customZones) {
+      const earned = xpByZone.get(zone.id) ?? 0;
+      const target = zone.weeklyXpGoal ? zone.weeklyXpGoal * 2 : 0;
+      const score = target > 0 ? Math.min(100, Math.round((earned / target) * 100)) : 0;
+      if (score > 0) {
+        zones.push({ id: zone.id, name: zone.name, icon: zone.icon, color: zone.accentColor, score, hasData: true });
+      }
     }
   }
 
@@ -275,13 +311,14 @@ export async function calculateDynamicLifeScore(userId: string): Promise<{
 // ─── Smart Correlations (SQL-based) ───────────────────────────────────────────
 
 export async function getCorrelations(userId: string): Promise<string[]> {
-  const monthAgo = new Date(Date.now() - 30 * 86400000);
+  const now = new Date();
+  const monthAgo = new Date(now.getTime() - 30 * 86400000);
 
   const [sleepLogs, workouts, questCompletions, journalEntries] = await Promise.all([
-    prisma.sleepLog.findMany({ where: { userId, date: { gte: monthAgo } }, orderBy: { date: 'asc' } }),
-    prisma.workout.findMany({ where: { userId, date: { gte: monthAgo } }, select: { date: true } }),
-    prisma.questCompletion.findMany({ where: { userId, completedAt: { gte: monthAgo } } }),
-    prisma.journalEntry.findMany({ where: { userId, date: { gte: monthAgo } }, select: { date: true, mood: true } }),
+    prisma.sleepLog.findMany({ where: { userId, date: { gte: monthAgo, lt: now } }, orderBy: { date: 'asc' } }),
+    prisma.workout.findMany({ where: { userId, date: { gte: monthAgo, lt: now }, xpEarned: { gt: 0 } }, select: { date: true } }),
+    prisma.questCompletion.findMany({ where: { userId, completedAt: { gte: monthAgo, lt: now } } }),
+    prisma.journalEntry.findMany({ where: { userId, date: { gte: monthAgo, lt: now } }, select: { date: true, mood: true } }),
   ]);
 
   const correlations: string[] = [];
@@ -452,13 +489,16 @@ FORMATO ESTRICTO (3 líneas muy breves, sin texto de relleno):
 // ─── Year in Review ────────────────────────────────────────────────────────────
 
 export async function getYearInReview(userId: string, year?: number) {
-  const targetYear = year ?? new Date().getFullYear();
+  const now = new Date();
+  const targetYear = year ?? now.getFullYear();
   const start = new Date(targetYear, 0, 1);
-  const end = new Date(targetYear, 11, 31, 23, 59, 59);
+  const end = targetYear >= now.getFullYear()
+    ? now
+    : new Date(targetYear, 11, 31, 23, 59, 59);
 
   const [xpEvents, workouts, sleepLogs, questCompletions, journalEntries, learningItems] = await Promise.all([
     prisma.xpEvent.findMany({ where: { userId, createdAt: { gte: start, lte: end } } }),
-    prisma.workout.findMany({ where: { userId, date: { gte: start, lte: end } } }),
+    prisma.workout.findMany({ where: { userId, date: { gte: start, lte: end }, xpEarned: { gt: 0 } } }),
     prisma.sleepLog.findMany({ where: { userId, date: { gte: start, lte: end } } }),
     prisma.questCompletion.findMany({ where: { userId, completedAt: { gte: start, lte: end } } }),
     prisma.journalEntry.findMany({ where: { userId, date: { gte: start, lte: end } } }),
@@ -492,7 +532,7 @@ export async function getYearInReview(userId: string, year?: number) {
     totalWorkouts,
     totalQuestsCompleted: questCompletions.length,
     totalJournalEntries: journalEntries.length,
-    totalBooksCompleted: learningItems.filter((l) => l.type === 'book').length,
+    totalBooksCompleted: learningItems.filter((l) => l.type === 'BOOK').length,
     avgSleepHours: Math.round(avgSleep * 10) / 10,
     avgMood: Math.round(avgMood * 10) / 10,
     bestMonth: bestMonth ? { month: bestMonth[0], xp: bestMonth[1] } : null,
