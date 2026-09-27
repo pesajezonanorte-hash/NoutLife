@@ -5,7 +5,7 @@ import { addCalendarDays, getCalendarDay } from '../src/lib/calendar';
 import { validate } from '../src/middleware/validate.middleware';
 import { createTransactionSchema } from '../src/schemas/finance.schemas';
 import { completeFocusSchema } from '../src/schemas/focus.schemas';
-import { habitLogSchema } from '../src/schemas/habit.schemas';
+import { createHabitSchema, habitLogSchema, updateHabitSchema } from '../src/schemas/habit.schemas';
 import {
   createHabit,
   isHabitScheduledForDay,
@@ -51,25 +51,25 @@ function makeResponse() {
 }
 
 void test('remediaciones de auditoría', async (suite) => {
-  await suite.test('P1 persiste isRitual y lo devuelve en la lista de hábitos', async () => {
+  await suite.test('la consolidación de rituales no conserva el flag legado en hábitos', async () => {
     let createData: Record<string, unknown> | null = null;
-    const ritual = {
-      id: 'habit-ritual', userId: 'u-1', title: 'Inicio consciente', category: 'HEALTH',
+    const habit = {
+      id: 'habit-regular', userId: 'u-1', title: 'Inicio consciente', category: 'HEALTH',
       icon: 'star', color: '#a8871e', xpReward: 20, goldReward: 5,
       frequency: { type: 'daily', days: [] }, resetTime: '04:00', isActive: true,
-      isRitual: true, syncToGoogleCalendar: false,
+      syncToGoogleCalendar: false,
     };
 
     await withMocks({
       habit: {
         create: async ({ data }: { data: Record<string, unknown> }) => {
           createData = data;
-          return ritual;
+          return habit;
         },
-        findUnique: async () => ritual,
+        findUnique: async () => habit,
         count: async () => 1,
         findMany: async (args: { where?: { currentStreak?: unknown } }) => (
-          args.where?.currentStreak ? [] : [ritual]
+          args.where?.currentStreak ? [] : [habit]
         ),
       },
       achievement: { findMany: async () => [] },
@@ -78,15 +78,21 @@ void test('remediaciones de auditoría', async (suite) => {
       user: { findUnique: async () => ({ timezone: 'America/Bogota' }) },
       habitLog: { findMany: async () => [] },
     }, async () => {
-      const created = await createHabit('u-1', {
+      // A stale client may still send the old key during rolling deploys, but
+      // the schema strips it and the service cannot persist it anymore.
+      const stalePayload = createHabitSchema.parse({
         title: 'Inicio consciente', category: 'HEALTH', isRitual: true,
       });
-      assert.equal(createData?.isRitual, true);
-      assert.equal(created?.isRitual, true);
+      assert.equal('isRitual' in stalePayload, false);
+      assert.equal('isRitual' in updateHabitSchema.parse({ isRitual: true }), false);
+
+      const created = await createHabit('u-1', stalePayload);
+      assert.equal('isRitual' in (createData ?? {}), false);
+      assert.equal('isRitual' in created, false);
 
       const listed = await listHabits('u-1');
       assert.equal(listed.length, 1);
-      assert.equal(listed[0].isRitual, true);
+      assert.equal('isRitual' in listed[0], false);
       assert.equal(listed[0].todayCompleted, null);
     });
   });

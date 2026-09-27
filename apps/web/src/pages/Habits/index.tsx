@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
@@ -20,9 +19,6 @@ export default function HabitsPage() {
   const user = useAuthStore((s) => s.user);
   const { addFloatingXP, flashScreen, showAchievementToast, triggerLevelUp } = useUIStore();
   const toast = useToastStore();
-  const [searchParams] = useSearchParams();
-  const showRituals = searchParams.get('filter') === 'ritual';
-
   const [habits, setHabits] = useState<Habit[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -127,7 +123,7 @@ export default function HabitsPage() {
     await load();
   }
 
-  const displayedHabits = showRituals ? habits.filter(h => h.isRitual) : habits;
+  const displayedHabits = habits;
   const maxStreak = displayedHabits.reduce((max, h) => Math.max(max, h.longestStreak), 0);
   const topHabit = displayedHabits.find((h) => h.longestStreak === maxStreak);
   const completedToday = displayedHabits.filter((h) => h.todayStatus === 'completed').length;
@@ -139,16 +135,14 @@ export default function HabitsPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="font-pixel text-accent-gold" style={{ fontSize: '14px' }}>
-            {showRituals ? ' TUS RITUALES' : ' TUS HÁBITOS DIARIOS'}
+            TUS HÁBITOS DIARIOS
           </h1>
           <p className="font-vt text-text-secondary text-base">
-            {showRituals
-              ? 'Secuencias de pasos encadenados para tu rutina'
-              : `Construye quién quieres ser, un día a la vez, ${user?.displayName?.split(' ')[0]}`}
+            {`Construye quién quieres ser, un día a la vez, ${user?.displayName?.split(' ')[0]}`}
           </p>
         </div>
         <PixelButton variant="primary" onClick={() => { setEditingHabit(null); setShowModal(true); }}>
-          {showRituals ? '+ NUEVO RITUAL' : '+ NUEVO HÁBITO'}
++ NUEVO HÁBITO
         </PixelButton>
       </div>
 
@@ -227,9 +221,8 @@ export default function HabitsPage() {
       <AnimatePresence>
         {showModal && (
           <HabitModal
-            title={editingHabit ? (showRituals ? 'EDITAR RITUAL' : 'EDITAR HÁBITO') : (showRituals ? 'NUEVO RITUAL' : 'NUEVO HÁBITO')}
+            title={editingHabit ? 'EDITAR HÁBITO' : 'NUEVO HÁBITO'}
             initial={editingHabit ?? undefined}
-            isRitual={showRituals ? true : editingHabit?.isRitual}
             onSubmit={editingHabit ? handleEdit : handleCreate}
             onClose={() => { setShowModal(false); setEditingHabit(null); }}
           />

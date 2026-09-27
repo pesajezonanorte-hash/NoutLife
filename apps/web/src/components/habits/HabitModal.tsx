@@ -17,11 +17,9 @@ interface Props {
   onClose: () => void;
   initial?: Partial<CreateHabitPayload>;
   title?: string;
-  /** Force the category bit when the modal was opened from /rituals. */
-  isRitual?: boolean;
 }
 
-export function HabitModal({ onSubmit, onClose, initial, title, isRitual }: Props) {
+export function HabitModal({ onSubmit, onClose, initial, title }: Props) {
   // Punto de apertura: de aquí crece la animación (desde donde se hizo click).
   const [origin] = useState(() => getOpenOrigin());
   const [loading, setLoading] = useState(false);
@@ -37,7 +35,6 @@ export function HabitModal({ onSubmit, onClose, initial, title, isRitual }: Prop
     reminderTime: initial?.reminderTime ?? '',
     frequency: initial?.frequency ?? { type: 'daily', days: [] },
     syncToGoogleCalendar: initial?.syncToGoogleCalendar ?? false,
-    isRitual: initial?.isRitual ?? isRitual,
   });
 
   useEffect(() => {

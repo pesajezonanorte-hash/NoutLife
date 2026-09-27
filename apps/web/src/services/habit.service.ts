@@ -21,7 +21,6 @@ export interface Habit {
   resetTime: string;
   reminderTime?: string;
   isActive: boolean;
-  isRitual: boolean;
   syncToGoogleCalendar: boolean;
   googleCalendarEventId?: string | null;
   createdAt: string;
@@ -80,7 +79,6 @@ export interface CreateHabitPayload {
   resetTime?: string;
   reminderTime?: string;
   syncToGoogleCalendar?: boolean;
-  isRitual?: boolean;
 }
 
 export interface HeatmapEntry {

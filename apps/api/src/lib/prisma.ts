@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { REMOVE_LEGACY_HABIT_RITUAL_FLAG_SQL } from './schema-migrations';
 
 function getDatabaseUrl(): string {
   let url = process.env.DATABASE_URL || '';
@@ -81,6 +82,7 @@ export function ensureDbMigrated(): Promise<void> {
           WHERE users."id" = adjustments."userId";
         `);
         await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "ritual_logs_ritualId_date_key" ON "ritual_logs"("ritualId", "date");`);
+        await prisma.$executeRawUnsafe(REMOVE_LEGACY_HABIT_RITUAL_FLAG_SQL);
       } catch (err) {
         console.error('Runtime DB migration error:', err);
       }

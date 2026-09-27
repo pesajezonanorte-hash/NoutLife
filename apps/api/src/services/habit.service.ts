@@ -18,7 +18,6 @@ export interface CreateHabitInput {
   resetTime?: string;
   reminderTime?: string;
   syncToGoogleCalendar?: boolean;
-  isRitual?: boolean;
 }
 
 export interface UpdateHabitInput {
@@ -33,7 +32,6 @@ export interface UpdateHabitInput {
   resetTime?: string;
   reminderTime?: string | null;
   syncToGoogleCalendar?: boolean;
-  isRitual?: boolean;
 }
 
 /**
@@ -189,7 +187,6 @@ export async function createHabit(userId: string, input: CreateHabitInput) {
       resetTime: input.resetTime ?? '04:00',
       reminderTime: input.reminderTime,
       syncToGoogleCalendar: input.syncToGoogleCalendar ?? false,
-      isRitual: input.isRitual ?? false,
     },
   });
 
@@ -269,7 +266,6 @@ export async function updateHabit(userId: string, habitId: string, input: Update
       ...(input.resetTime !== undefined && { resetTime: input.resetTime }),
       ...(input.reminderTime !== undefined && { reminderTime: input.reminderTime }),
       ...(input.syncToGoogleCalendar !== undefined && { syncToGoogleCalendar: input.syncToGoogleCalendar }),
-      ...(input.isRitual !== undefined && { isRitual: input.isRitual }),
     },
   });
 

@@ -1,4 +1,5 @@
 import { prisma } from './lib/prisma';
+import { REMOVE_LEGACY_HABIT_RITUAL_FLAG_SQL } from './lib/schema-migrations';
 
 async function migrate() {
   console.log('Running database schema updates...');
@@ -48,7 +49,9 @@ async function migrate() {
   `);
   await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "ritual_logs_ritualId_date_key" ON "ritual_logs"("ritualId", "date");`);
 
-  console.log('SUCCESS: Runtime database columns, indexes and ritual idempotency key applied.');
+  await prisma.$executeRawUnsafe(REMOVE_LEGACY_HABIT_RITUAL_FLAG_SQL);
+
+  console.log('SUCCESS: Runtime database columns, indexes, ritual idempotency key, and legacy habit ritual cleanup applied.');
 }
 
 migrate()

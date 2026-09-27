@@ -178,8 +178,8 @@ function AnimatedRoutes() {
           <Route path="/custom-zones" element={<SafePage><CustomZonesPage /></SafePage>} />
           <Route path="/goals"    element={<Navigate to="/quests?filter=meta" replace />} />
           <Route path="/metas"    element={<Navigate to="/quests?filter=meta" replace />} />
-          <Route path="/rituals"  element={<Navigate to="/habits?filter=ritual" replace />} />
-          <Route path="/rituales" element={<Navigate to="/habits?filter=ritual" replace />} />
+          <Route path="/rituals"  element={<SafePage><RitualsPage /></SafePage>} />
+          <Route path="/rituales" element={<Navigate to="/rituals" replace />} />
           <Route path="/glow-up"  element={<SafePage><GlowUpPage /></SafePage>} />
           <Route path="/wisdom"   element={<SafePage><WisdomPage /></SafePage>} />
           <Route path="/about"    element={<SafePage><AboutPage /></SafePage>} />

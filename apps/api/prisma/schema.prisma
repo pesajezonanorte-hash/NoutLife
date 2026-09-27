@@ -274,8 +274,6 @@ model Habit {
   description String?
   category    QuestCategory
 
-  isRitual Boolean @default(false)
-
   icon  String @default("⭐")
   color String @default("#ffd23f")
 
