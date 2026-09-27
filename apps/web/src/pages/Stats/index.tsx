@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
   BarChart3,
@@ -18,6 +18,12 @@ import {
 } from 'recharts';
 import type { User } from '@lifequest/shared';
 import { FlowButton } from '@/components/ui/flow-button';
+import {
+  HeatCalendar,
+  HeatCalendarGrid,
+  HeatCalendarLegend,
+  HeatCalendarTooltip,
+} from '@/components/ui/heat-calendar';
 import AdvancedStats, { type AdvancedStatsData } from '@/components/ui/advanced-stats';
 import {
   FinanceTrendCard,
@@ -66,45 +72,68 @@ interface RadarComparisonPoint {
   previous: number;
 }
 
-function HeatmapCell({ count }: { count: number }) {
-  const opacity = count === 0 ? 0.07 : count < 3 ? 0.3 : count < 6 ? 0.6 : 1;
-  return (
-    <div
-      className="h-3 w-3 rounded-sm"
-      style={{ background: `rgba(154, 123, 28, ${opacity})` }}
-      title={`${count} hábitos completados`}
-    />
-  );
+const HEATMAP_WEEKS = 53;
+
+function utcDateKey(date: Date) {
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
 }
 
-function ActivityHeatmap({ data }: { data: HeatmapPoint[] }) {
-  const weeks: HeatmapPoint[][] = [];
-  const activityByDay = new Map(data.map((entry) => [entry.date.split('T')[0], entry.count]));
-  const today = new Date();
-  const start = new Date(today);
-  start.setDate(today.getDate() - 363);
-  start.setDate(start.getDate() - start.getDay());
+/** Maps LifeQuest's real daily habit counts into the composable heat-calendar API. */
+function ActivityHeatCalendar({ data, loading }: { data: HeatmapPoint[]; loading: boolean }) {
+  // Keep the same endpoint date throughout this mounted chart so its matrix
+  // and labels never jump as other statistics finish loading.
+  const endDate = useMemo(() => {
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    return today;
+  }, []);
 
-  const cursor = new Date(start);
-  while (cursor <= today) {
-    const week: HeatmapPoint[] = [];
-    for (let day = 0; day < 7; day += 1) {
-      const date = cursor.toISOString().split('T')[0];
-      week.push({ date, count: activityByDay.get(date) ?? 0 });
-      cursor.setDate(cursor.getDate() + 1);
-    }
-    weeks.push(week);
-  }
+  const { values, maxCount, total } = useMemo(() => {
+    const countsByDay = new Map(data.map((entry) => [entry.date.slice(0, 10), entry.count]));
+    const max = Math.max(1, ...data.map((entry) => entry.count));
+    const start = new Date(endDate);
+    start.setUTCDate(start.getUTCDate() - ((endDate.getUTCDay() + 6) % 7) - (HEATMAP_WEEKS - 1) * 7);
+
+    const nextValues = Array.from({ length: HEATMAP_WEEKS }, (_, week) => (
+      Array.from({ length: 7 }, (_, day) => {
+        const date = new Date(start);
+        date.setUTCDate(start.getUTCDate() + week * 7 + day);
+        return Math.min(1, (countsByDay.get(utcDateKey(date)) ?? 0) / max);
+      })
+    ));
+
+    return {
+      values: nextValues,
+      maxCount: max,
+      total: data.reduce((sum, entry) => sum + entry.count, 0),
+    };
+  }, [data, endDate]);
 
   return (
-    <div className="overflow-x-auto pb-1">
-      <div className="flex min-w-max gap-[3px]" aria-label="Mapa anual de actividad de hábitos">
-        {weeks.map((week, weekIndex) => (
-          <div key={weekIndex} className="flex flex-col gap-[3px]">
-            {week.map((day) => <HeatmapCell key={day.date} count={day.count} />)}
-          </div>
-        ))}
+    <div>
+      <div className="overflow-x-auto pb-1">
+        <HeatCalendar
+          unit="hábitos"
+          weeks={HEATMAP_WEEKS}
+          maxCount={maxCount}
+          values={values}
+          endDate={endDate}
+          color="var(--accent-gold)"
+          className="min-w-max"
+        >
+          <HeatCalendarGrid>
+            <HeatCalendarTooltip />
+          </HeatCalendarGrid>
+          <HeatCalendarLegend />
+        </HeatCalendar>
       </div>
+      <p className="mt-3 text-xs text-[var(--text-muted)]">
+        {loading
+          ? 'Cargando tu constancia…'
+          : total > 0
+            ? `${total.toLocaleString('es-CO')} hábitos completados en los últimos 12 meses.`
+            : 'Aún no hay hábitos completados en este periodo. Cuando registres uno, aparecerá aquí.'}
+      </p>
     </div>
   );
 }
@@ -456,23 +485,21 @@ export default function StatsPage() {
           </article>
         ) : null}
 
-        {heatmap.length > 0 ? (
-          <article className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-5 shadow-pixel">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h2 className="flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)]">
-                  <Flame className="h-4 w-4 text-[var(--accent-gold)]" aria-hidden="true" />
-                  Constancia de hábitos
-                </h2>
-                <p className="mt-1 text-xs text-[var(--text-muted)]">Cada bloque representa hábitos completados durante el último año.</p>
-              </div>
-              <CalendarDays className="h-4 w-4 text-[var(--text-muted)]" aria-hidden="true" />
+        <article className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-5 shadow-pixel xl:col-span-2">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)]">
+                <Flame className="h-4 w-4 text-[var(--accent-gold)]" aria-hidden="true" />
+                Constancia de hábitos
+              </h2>
+              <p className="mt-1 text-xs text-[var(--text-muted)]">Actividad diaria que aporta a tu Life Score durante los últimos 12 meses.</p>
             </div>
-            <div className="mt-6">
-              <ActivityHeatmap data={heatmap} />
-            </div>
-          </article>
-        ) : null}
+            <CalendarDays className="h-4 w-4 text-[var(--text-muted)]" aria-hidden="true" />
+          </div>
+          <div className="mt-6">
+            <ActivityHeatCalendar data={heatmap} loading={loading} />
+          </div>
+        </article>
 
         {checkins.length > 0 ? (
           <article className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-5 shadow-pixel xl:col-span-2">
