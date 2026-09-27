@@ -49,6 +49,38 @@ export function ensureDbMigrated(): Promise<void> {
         await prisma.$executeRawUnsafe(`ALTER TABLE "habits" ADD COLUMN IF NOT EXISTS "googleCalendarEventId" TEXT;`);
         await prisma.$executeRawUnsafe(`ALTER TABLE "agenda_events" ADD COLUMN IF NOT EXISTS "googleSeriesId" TEXT;`);
         await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "agenda_events_userId_googleSeriesId_idx" ON "agenda_events"("userId", "googleSeriesId");`);
+
+        // Keep only the first historical completion per ritual calendar day
+        // before adding the idempotency key. Existing duplicate reward rows
+        // were created by the old non-atomic endpoint, so compensate their
+        // fixed +30 XP / +5 gold reward as the duplicate logs are removed.
+        await prisma.$executeRawUnsafe(`
+          WITH ranked_logs AS (
+            SELECT "id", "userId",
+              ROW_NUMBER() OVER (
+                PARTITION BY "ritualId", "date"
+                ORDER BY "completedAt" ASC, "id" ASC
+              ) AS row_number
+            FROM "ritual_logs"
+          ),
+          removed_logs AS (
+            DELETE FROM "ritual_logs" AS logs
+            USING ranked_logs
+            WHERE logs."id" = ranked_logs."id" AND ranked_logs.row_number > 1
+            RETURNING logs."userId"
+          ),
+          adjustments AS (
+            SELECT "userId", COUNT(*)::integer AS duplicate_count
+            FROM removed_logs
+            GROUP BY "userId"
+          )
+          UPDATE "users" AS users
+          SET "xp" = GREATEST(0, users."xp" - adjustments.duplicate_count * 30),
+              "gold" = GREATEST(0, users."gold" - adjustments.duplicate_count * 5)
+          FROM adjustments
+          WHERE users."id" = adjustments."userId";
+        `);
+        await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "ritual_logs_ritualId_date_key" ON "ritual_logs"("ritualId", "date");`);
       } catch (err) {
         console.error('Runtime DB migration error:', err);
       }

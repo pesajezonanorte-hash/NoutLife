@@ -177,15 +177,20 @@ export function AIQuickLog({ onLogged }: { onLogged: (meal: { name: string; calo
   return (
     <PixelPanel className="p-4 space-y-3">
       <p className="font-pixel text-accent-gold" style={{ fontSize: '9px' }}><E e="🤖" /> REGISTRO RÁPIDO CON IA</p>
-      <div className="flex gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row">
         <input
           value={text}
           onChange={e => setText(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && parse()}
           placeholder="Ej: pollo con arroz y ensalada"
-          className="flex-1 bg-bg-deep border-2 border-border-pixel text-text-primary font-vt text-base px-3 py-2 focus:border-accent-gold outline-none"
+          className="min-w-0 w-full flex-1 bg-bg-deep border-2 border-border-pixel text-text-primary font-vt text-base px-3 py-2 focus:border-accent-gold outline-none"
         />
-        <PixelButton variant="secondary" onClick={parse} disabled={parsing || !text.trim()}>
+        <PixelButton
+          variant="secondary"
+          onClick={parse}
+          disabled={parsing || !text.trim()}
+          className="w-full shrink-0 sm:w-auto"
+        >
           {parsing ? '...' : '→ ANALIZAR'}
         </PixelButton>
       </div>

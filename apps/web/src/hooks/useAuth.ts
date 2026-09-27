@@ -1,10 +1,12 @@
 import { useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import * as authService from '../services/auth.service';
+import { shouldBootstrapSession } from '../lib/session-hint';
 
 /**
- * Al montar, intenta recuperar la sesión del usuario usando el refresh token
- * almacenado en la httpOnly cookie. Si falla, el usuario no está autenticado.
+ * At mount, recover a session with the httpOnly refresh cookie only when it is
+ * relevant. A fresh /login or /register page has no session signal, so it does
+ * not intentionally emit a 401 before the user has tried to authenticate.
  */
 export function useBootstrapAuth() {
   const { setAuth, logout, setLoading } = useAuthStore();
@@ -13,6 +15,11 @@ export function useBootstrapAuth() {
     let cancelled = false;
 
     async function bootstrap() {
+      if (!shouldBootstrapSession(window.location.pathname)) {
+        if (!cancelled) setLoading(false);
+        return;
+      }
+
       try {
         const { user, accessToken } = await authService.refreshToken();
         if (!cancelled) setAuth(user, accessToken);
@@ -21,9 +28,9 @@ export function useBootstrapAuth() {
       }
     }
 
-    bootstrap();
+    void bootstrap();
     return () => { cancelled = true; };
-  }, [setAuth, logout]);
+  }, [setAuth, logout, setLoading]);
 }
 
 /**

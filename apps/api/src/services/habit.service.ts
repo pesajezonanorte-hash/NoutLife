@@ -1,5 +1,5 @@
 import { prisma } from '../lib/prisma';
-import { addCalendarDays, getCalendarDay } from '../lib/calendar';
+import { addCalendarDays, DEFAULT_TIMEZONE, getCalendarDay, parseCalendarDate } from '../lib/calendar';
 import { awardXpAndGold } from './xp.service';
 import { checkAchievements } from './achievement.service';
 import { createNotification } from './notification.service';
@@ -18,6 +18,7 @@ export interface CreateHabitInput {
   resetTime?: string;
   reminderTime?: string;
   syncToGoogleCalendar?: boolean;
+  isRitual?: boolean;
 }
 
 export interface UpdateHabitInput {
@@ -32,6 +33,7 @@ export interface UpdateHabitInput {
   resetTime?: string;
   reminderTime?: string | null;
   syncToGoogleCalendar?: boolean;
+  isRitual?: boolean;
 }
 
 /**
@@ -68,7 +70,14 @@ export async function reconcileHabitStreaks(userId?: string, now = new Date()): 
   });
 
   const stale = habits.filter((habit) => {
-    const today = getCalendarDay(habit.user.timezone, now);
+    const today = getCalendarDay(habit.user.timezone ?? DEFAULT_TIMEZONE, now);
+    const todayLog = habit.logs.find((log) => log.date.getTime() === today.getTime());
+
+    // A same-day retry reaches reconciliation before logHabit reads the
+    // existing log. A valid entry for today must therefore protect the streak
+    // from being reset merely because yesterday has no entry yet.
+    if (todayLog?.completed || todayLog?.status === 'skipped') return false;
+
     const lastRequiredDay = getLastRequiredDay(today, habit.frequency);
     const lastLog = habit.logs.find((log) => log.date.getTime() === lastRequiredDay.getTime());
     return !lastLog || (!lastLog.completed && lastLog.status !== 'skipped');
@@ -180,6 +189,7 @@ export async function createHabit(userId: string, input: CreateHabitInput) {
       resetTime: input.resetTime ?? '04:00',
       reminderTime: input.reminderTime,
       syncToGoogleCalendar: input.syncToGoogleCalendar ?? false,
+      isRitual: input.isRitual ?? false,
     },
   });
 
@@ -259,6 +269,7 @@ export async function updateHabit(userId: string, habitId: string, input: Update
       ...(input.resetTime !== undefined && { resetTime: input.resetTime }),
       ...(input.reminderTime !== undefined && { reminderTime: input.reminderTime }),
       ...(input.syncToGoogleCalendar !== undefined && { syncToGoogleCalendar: input.syncToGoogleCalendar }),
+      ...(input.isRitual !== undefined && { isRitual: input.isRitual }),
     },
   });
 
@@ -314,7 +325,13 @@ export async function archiveHabit(userId: string, habitId: string) {
 
 export type HabitLogStatus = 'completed' | 'failed' | 'skipped';
 
-export async function logHabit(userId: string, habitId: string, status: HabitLogStatus, notes?: string) {
+export async function logHabit(
+  userId: string,
+  habitId: string,
+  status: HabitLogStatus,
+  notes?: string,
+  requestedDate?: string,
+) {
   // Si el servidor estuvo inactivo al cambiar el día, corregir antes de usar
   // currentStreak para que un nuevo registro empiece exactamente en 1.
   await reconcileHabitStreaks(userId);
@@ -325,11 +342,39 @@ export async function logHabit(userId: string, habitId: string, status: HabitLog
   });
   if (!habit) throw new Error('HABIT_NOT_FOUND');
 
-  const today = getCalendarDay(habit.user.timezone);
+  const timezone = habit.user.timezone ?? DEFAULT_TIMEZONE;
+  const today = getCalendarDay(timezone);
+  const date = requestedDate !== undefined ? parseCalendarDate(requestedDate) : today;
+  if (!date) throw new Error('INVALID_HABIT_LOG_DATE');
+  if (date.getTime() > today.getTime()) throw new Error('HABIT_LOG_FUTURE_DATE');
+
+  const isLoggingToday = date.getTime() === today.getTime();
   const completed = status === 'completed';
-  const existingLog = await prisma.habitLog.findUnique({
-    where: { habitId_date: { habitId, date: today } },
+  let existingLog = await prisma.habitLog.findUnique({
+    where: { habitId_date: { habitId, date } },
   });
+  let log: Awaited<ReturnType<typeof prisma.habitLog.create>>;
+  let createdLog = false;
+
+  if (!existingLog) {
+    try {
+      log = await prisma.habitLog.create({
+        data: { habitId, userId, completed, status, date, notes },
+      });
+      createdLog = true;
+    } catch (error) {
+      // The database's habitId+date key is the idempotency boundary. In a
+      // concurrent retry, only the request that inserted the log may earn XP.
+      if (!isUniqueConstraintError(error)) throw error;
+      existingLog = await prisma.habitLog.findUnique({
+        where: { habitId_date: { habitId, date } },
+      });
+      if (!existingLog) throw error;
+      log = existingLog;
+    }
+  } else {
+    log = existingLog;
+  }
 
   // A completed log has already granted rewards. Allowing it to become failed
   // or skipped would leave the XP ledger and the habit timeline disagreeing.
@@ -337,18 +382,20 @@ export async function logHabit(userId: string, habitId: string, status: HabitLog
     throw new Error('HABIT_ALREADY_COMPLETED');
   }
 
-  const isNewCompletion = completed && !existingLog?.completed;
-  const log = await prisma.habitLog.upsert({
-    where: { habitId_date: { habitId, date: today } },
-    create: { habitId, userId, completed, status, date: today, notes },
-    update: { completed, status, notes },
-  });
+  const isNewCompletion = completed && (createdLog || !existingLog?.completed);
+
+  if (!createdLog && existingLog && (existingLog.status !== status || existingLog.completed !== completed || notes !== undefined)) {
+    log = await prisma.habitLog.update({
+      where: { id: existingLog.id },
+      data: { completed, status, ...(notes !== undefined && { notes }) },
+    });
+  }
 
   // Update a streak only for a real state change. Repeated taps/retries on a
   // completed habit must be idempotent: no extra day, no duplicate XP.
   let { currentStreak, longestStreak } = habit;
 
-  if (isNewCompletion) {
+  if (isLoggingToday && isNewCompletion) {
     // Continúa desde el último día en que este hábito realmente era exigible.
     // Para un hábito diario es ayer; para frecuencias semanales, el día marcado
     // más reciente. Así una fecha libre no corta la racha.
@@ -363,12 +410,12 @@ export async function logHabit(userId: string, habitId: string, status: HabitLog
       currentStreak = 1;
     }
     longestStreak = Math.max(longestStreak, currentStreak);
-  } else if (status === 'failed' && existingLog?.status !== 'failed') {
+  } else if (isLoggingToday && status === 'failed' && existingLog?.status !== 'failed') {
     currentStreak = 0;
   }
   // 'skipped' doesn't change the streak
 
-  if (isNewCompletion || (status === 'failed' && existingLog?.status !== 'failed')) {
+  if (isLoggingToday && (isNewCompletion || (status === 'failed' && existingLog?.status !== 'failed'))) {
     await prisma.habit.update({
       where: { id: habitId },
       data: { currentStreak, longestStreak },
@@ -391,7 +438,7 @@ export async function logHabit(userId: string, habitId: string, status: HabitLog
     orderBy: { createdAt: 'desc' },
   });
 
-  if (activeRecovery) {
+  if (isLoggingToday && activeRecovery) {
     if (isNewCompletion) {
       const nextCurrentDays = activeRecovery.currentDays + 1;
       if (nextCurrentDays >= activeRecovery.requiredDays) {
@@ -493,6 +540,15 @@ export async function logHabit(userId: string, habitId: string, status: HabitLog
     achievementsUnlocked,
     recoveryCompleted,
   };
+}
+
+function isUniqueConstraintError(error: unknown): boolean {
+  return Boolean(
+    error &&
+    typeof error === 'object' &&
+    'code' in error &&
+    (error as { code?: unknown }).code === 'P2002',
+  );
 }
 
 export async function getHabitHeatmap(userId: string, habitId: string, days = 90) {

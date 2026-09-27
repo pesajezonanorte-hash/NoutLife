@@ -5,6 +5,7 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
     "test:analytics": "tsx --test tests/analytics.integration.test.ts",
+    "test:fixes": "tsx --test tests/audit-fixes.test.ts",
     "start": "node dist/server.js",
     "postinstall": "npx prisma generate",
     "db:migrate": "prisma migrate dev",

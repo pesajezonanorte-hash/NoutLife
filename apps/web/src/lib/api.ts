@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
+import { clearRefreshSessionExpected, markRefreshSessionExpected } from './session-hint';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? '/api/v1',
@@ -34,8 +35,14 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    const requestUrl = String(originalRequest?.url ?? '');
+    // Credential and refresh endpoints must surface their own 401 responses.
+    // Retrying /refresh from its response used to issue a second identical
+    // refresh request. Logout intentionally remains refreshable so an expired
+    // access token can still revoke a valid refresh-cookie session.
+    const bypassRefresh = /\/auth\/(?:login|register|refresh)(?:\?|$)/.test(requestUrl);
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && !bypassRefresh && !originalRequest._retry) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -56,11 +63,13 @@ api.interceptors.response.use(
         );
 
         useAuthStore.getState().setAccessToken(data.accessToken);
+        markRefreshSessionExpected();
         processQueue(null, data.accessToken);
         originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
+        clearRefreshSessionExpected();
         useAuthStore.getState().logout();
         return Promise.reject(refreshError);
       } finally {

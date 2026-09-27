@@ -52,8 +52,15 @@ export async function deleteRitual(id: string): Promise<void> {
   await api.delete(`/rituals/${id}`);
 }
 
-export async function completeRitual(id: string): Promise<{ xpEarned: number; message: string }> {
-  const { data } = await api.post(`/rituals/${id}/complete`);
+export interface CompleteRitualResult {
+  alreadyDone: boolean;
+  xpEarned: number;
+  goldEarned: number;
+  message: string;
+}
+
+export async function completeRitual(id: string): Promise<CompleteRitualResult> {
+  const { data } = await api.post<CompleteRitualResult>(`/rituals/${id}/complete`);
   return data;
 }
 

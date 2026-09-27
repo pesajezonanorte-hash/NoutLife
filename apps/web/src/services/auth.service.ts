@@ -1,13 +1,19 @@
 import api from '../lib/api';
 import type { AuthResponse, LoginPayload, RegisterPayload } from '@lifequest/shared';
+import {
+  clearRefreshSessionExpected,
+  markRefreshSessionExpected,
+} from '../lib/session-hint';
 
 export async function login(payload: LoginPayload): Promise<AuthResponse> {
   const { data } = await api.post<AuthResponse>('/auth/login', payload);
+  markRefreshSessionExpected();
   return data;
 }
 
 export async function register(payload: RegisterPayload): Promise<AuthResponse> {
   const { data } = await api.post<AuthResponse>('/auth/register', payload);
+  markRefreshSessionExpected();
   return data;
 }
 
@@ -17,10 +23,20 @@ export async function fetchMe(): Promise<AuthResponse['user']> {
 }
 
 export async function refreshToken(): Promise<AuthResponse> {
-  const { data } = await api.post<AuthResponse>('/auth/refresh');
-  return data;
+  try {
+    const { data } = await api.post<AuthResponse>('/auth/refresh');
+    markRefreshSessionExpected();
+    return data;
+  } catch (error) {
+    clearRefreshSessionExpected();
+    throw error;
+  }
 }
 
 export async function logout(): Promise<void> {
-  await api.post('/auth/logout');
+  try {
+    await api.post('/auth/logout');
+  } finally {
+    clearRefreshSessionExpected();
+  }
 }

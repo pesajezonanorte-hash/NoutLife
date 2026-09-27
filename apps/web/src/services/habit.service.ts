@@ -80,6 +80,7 @@ export interface CreateHabitPayload {
   resetTime?: string;
   reminderTime?: string;
   syncToGoogleCalendar?: boolean;
+  isRitual?: boolean;
 }
 
 export interface HeatmapEntry {
@@ -112,8 +113,13 @@ export async function archiveHabit(id: string): Promise<void> {
   await api.delete(`/habits/${id}`);
 }
 
-export async function logHabit(id: string, status: 'completed' | 'failed' | 'skipped', notes?: string): Promise<HabitLogResult> {
-  const { data } = await api.post<HabitLogResult>(`/habits/${id}/log`, { status, notes });
+export async function logHabit(
+  id: string,
+  status: 'completed' | 'failed' | 'skipped',
+  notes?: string,
+  date?: string,
+): Promise<HabitLogResult> {
+  const { data } = await api.post<HabitLogResult>(`/habits/${id}/log`, { status, notes, date });
   return data;
 }
 

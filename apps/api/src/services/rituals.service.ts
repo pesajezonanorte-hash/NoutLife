@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma';
+import { DEFAULT_TIMEZONE, addCalendarDays, getCalendarDay } from '../lib/calendar';
 
 const PRESET_RITUALS = [
   {
@@ -38,6 +39,9 @@ const PRESET_RITUALS = [
     ],
   },
 ];
+
+const RITUAL_XP = 30;
+const RITUAL_GOLD = 5;
 
 export async function listRituals(userId: string) {
   return prisma.ritual.findMany({
@@ -86,49 +90,96 @@ export async function deleteRitual(userId: string, ritualId: string) {
   return prisma.ritual.delete({ where: { id: ritualId } });
 }
 
+/**
+ * Completes a ritual once per local calendar day. The unique ritualId+date
+ * index is the authoritative idempotency boundary; the log and rewards are
+ * committed in one transaction so a partial completion cannot mint XP/gold.
+ */
 export async function completeRitual(userId: string, ritualId: string) {
-  await prisma.ritual.findFirstOrThrow({ where: { id: ritualId, userId } });
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  await prisma.ritualLog.create({
-    data: { ritualId, userId, date: today },
+  const ritual = await prisma.ritual.findFirst({
+    where: { id: ritualId, userId },
+    include: { user: { select: { timezone: true } } },
   });
+  if (!ritual) throw new Error('RITUAL_NOT_FOUND');
 
-  // Award XP
-  const xpEarned = 30;
-  await prisma.user.update({
-    where: { id: userId },
-    data: { xp: { increment: xpEarned }, gold: { increment: 5 } },
-  });
+  const date = getCalendarDay(ritual.user.timezone ?? DEFAULT_TIMEZONE);
 
-  return { xpEarned, message: '¡Ritual completado! +30 XP' };
+  try {
+    return await prisma.$transaction(async (tx) => {
+      // Repeat the ownership check inside the transaction so the mutation's
+      // authorization and its side effects are one logical operation.
+      const ownedRitual = await tx.ritual.findFirst({ where: { id: ritualId, userId }, select: { id: true } });
+      if (!ownedRitual) throw new Error('RITUAL_NOT_FOUND');
+
+      const existingLog = await tx.ritualLog.findUnique({
+        where: { ritualId_date: { ritualId, date } },
+      });
+      if (existingLog) {
+        return {
+          alreadyDone: true,
+          xpEarned: 0,
+          goldEarned: 0,
+          message: '¡Ya completaste este ritual hoy!',
+        };
+      }
+
+      await tx.ritualLog.create({ data: { ritualId, userId, date } });
+      await tx.user.update({
+        where: { id: userId },
+        data: { xp: { increment: RITUAL_XP }, gold: { increment: RITUAL_GOLD } },
+      });
+
+      return {
+        alreadyDone: false,
+        xpEarned: RITUAL_XP,
+        goldEarned: RITUAL_GOLD,
+        message: '¡Ritual completado! +30 XP',
+      };
+    });
+  } catch (error) {
+    // Two taps may pass the transaction-local pre-check simultaneously. The
+    // database unique key admits one; convert the loser into the same benign,
+    // idempotent response instead of an error or a second reward.
+    if (!isUniqueConstraintError(error)) throw error;
+
+    const existingLog = await prisma.ritualLog.findFirst({
+      where: { ritualId, userId, date },
+      select: { id: true },
+    });
+    if (!existingLog) throw error;
+
+    return {
+      alreadyDone: true,
+      xpEarned: 0,
+      goldEarned: 0,
+      message: '¡Ya completaste este ritual hoy!',
+    };
+  }
 }
 
 export async function getRitualStats(userId: string, ritualId: string) {
-  const logs = await prisma.ritualLog.findMany({
-    where: { ritualId, userId },
-    orderBy: { completedAt: 'desc' },
-  });
+  const [ritual, logs] = await Promise.all([
+    prisma.ritual.findFirst({
+      where: { id: ritualId, userId },
+      include: { user: { select: { timezone: true } } },
+    }),
+    prisma.ritualLog.findMany({
+      where: { ritualId, userId },
+      orderBy: { completedAt: 'desc' },
+    }),
+  ]);
 
-  const thisMonth = logs.filter((l) => {
-    const d = new Date(l.completedAt);
-    const now = new Date();
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-  });
+  const today = getCalendarDay(ritual?.user.timezone ?? DEFAULT_TIMEZONE);
+  const thisMonth = logs.filter((log) => (
+    log.date.getUTCMonth() === today.getUTCMonth() &&
+    log.date.getUTCFullYear() === today.getUTCFullYear()
+  ));
 
   let streak = 0;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  for (let i = 0; i < 30; i++) {
-    const day = new Date(today);
-    day.setDate(day.getDate() - i);
-    const found = logs.find((l) => {
-      const d = new Date(l.date);
-      d.setHours(0, 0, 0, 0);
-      return d.getTime() === day.getTime();
-    });
-    if (found) streak++;
+  for (let i = 0; i < 30; i += 1) {
+    const day = addCalendarDays(today, -i);
+    const found = logs.find((log) => log.date.getTime() === day.getTime());
+    if (found) streak += 1;
     else break;
   }
 
@@ -160,4 +211,13 @@ export async function seedPresetRituals(userId: string) {
     )
   );
   return created;
+}
+
+function isUniqueConstraintError(error: unknown): boolean {
+  return Boolean(
+    error &&
+    typeof error === 'object' &&
+    'code' in error &&
+    (error as { code?: unknown }).code === 'P2002',
+  );
 }

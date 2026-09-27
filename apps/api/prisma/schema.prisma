@@ -1064,7 +1064,7 @@ model RitualLog {
   completedAt DateTime @default(now())
   date        DateTime
 
-  @@index([ritualId, date])
+  @@unique([ritualId, date])
   @@map("ritual_logs")
 }
 

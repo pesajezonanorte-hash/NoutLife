@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isValidCalendarDate } from '../lib/calendar';
 
 const CATEGORIES = ['HEALTH', 'FITNESS', 'FINANCE', 'LEARNING', 'LOVE', 'SOCIAL', 'PERSONAL', 'CREATIVE'] as const;
 
@@ -6,6 +7,10 @@ const frequencySchema = z.object({
   type: z.enum(['daily', 'days_per_week']),
   days: z.array(z.number().int().min(0).max(6)),
 });
+
+const calendarDateSchema = z
+  .string()
+  .refine(isValidCalendarDate, 'La fecha debe tener el formato calendario YYYY-MM-DD y ser real.');
 
 export const createHabitSchema = z.object({
   title: z.string().min(1).max(100),
@@ -40,4 +45,7 @@ export const updateHabitSchema = z.object({
 export const habitLogSchema = z.object({
   status: z.enum(['completed', 'failed', 'skipped']),
   notes: z.string().max(500).optional(),
+  // Dates are explicit calendar keys, not JavaScript instants. This allows
+  // intentional backfill while protecting habitId+date idempotency.
+  date: calendarDateSchema.optional(),
 });

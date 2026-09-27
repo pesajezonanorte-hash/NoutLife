@@ -74,8 +74,12 @@ function ExecutionMode({ ritual, onClose, onComplete }: {
       setCompleting(true);
       try {
         const result = await ritualsService.completeRitual(ritual.id);
-        toast.success(result.message);
-        if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 300]);
+        if (result.alreadyDone) {
+          toast.info(result.message);
+        } else {
+          toast.success(result.message);
+          if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 300]);
+        }
         onComplete();
       } catch {
         toast.error('Error al completar el ritual');

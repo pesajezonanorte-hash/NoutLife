@@ -227,8 +227,9 @@ export default function HabitsPage() {
       <AnimatePresence>
         {showModal && (
           <HabitModal
-            title={editingHabit ? 'EDITAR HÁBITO' : 'NUEVO HÁBITO'}
+            title={editingHabit ? (showRituals ? 'EDITAR RITUAL' : 'EDITAR HÁBITO') : (showRituals ? 'NUEVO RITUAL' : 'NUEVO HÁBITO')}
             initial={editingHabit ?? undefined}
+            isRitual={showRituals ? true : editingHabit?.isRitual}
             onSubmit={editingHabit ? handleEdit : handleCreate}
             onClose={() => { setShowModal(false); setEditingHabit(null); }}
           />

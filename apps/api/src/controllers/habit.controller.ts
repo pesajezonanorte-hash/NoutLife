@@ -54,14 +54,26 @@ export async function archiveHabit(req: AuthRequest, res: Response): Promise<voi
 
 export async function logHabit(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const { status, notes } = req.body;
-    const result = await habitService.logHabit(req.userId!, req.params.id, status, notes);
+    const { status, notes, date } = req.body;
+    const result = await habitService.logHabit(req.userId!, req.params.id, status, notes, date);
     res.json({ success: true, ...result });
   } catch (err) {
     const msg = err instanceof Error ? err.message : '';
     if (msg === 'HABIT_NOT_FOUND') { res.status(404).json({ error: 'Hábito no encontrado.' }); return; }
     if (msg === 'HABIT_ALREADY_COMPLETED') {
-      res.status(409).json({ error: 'Este hábito ya fue completado hoy; su XP ya está registrada.' });
+      res.status(409).json({ error: 'Este hábito ya fue completado para esa fecha; su XP ya está registrada.' });
+      return;
+    }
+    if (msg === 'INVALID_HABIT_LOG_DATE' || msg === 'HABIT_LOG_FUTURE_DATE') {
+      res.status(400).json({
+        error: 'Datos inválidos',
+        details: [{
+          field: 'date',
+          message: msg === 'HABIT_LOG_FUTURE_DATE'
+            ? 'No puedes registrar hábitos en una fecha futura.'
+            : 'La fecha debe tener el formato calendario YYYY-MM-DD y ser real.',
+        }],
+      });
       return;
     }
     res.status(500).json({ error: 'Error al registrar el hábito.' });

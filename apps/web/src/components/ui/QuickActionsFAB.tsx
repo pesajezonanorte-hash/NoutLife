@@ -73,7 +73,7 @@ function ExpenseModal({ onClose, onDone }: { onClose: () => void; onDone: () => 
     if (!amount || isNaN(Number(amount))) return;
     setSaving(true);
     try {
-      await createTransaction({ type: 'EXPENSE', amount: Number(amount), category: 'Otros', description: desc || undefined });
+      await createTransaction({ type: 'EXPENSE', amount: Number(amount), category: 'OTHER', description: desc || undefined });
       useToastStore.getState().success('Gasto registrado');
       onDone();
     } catch { setSaving(false); }
