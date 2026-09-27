@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { BookOpen } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
-import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { useDebounce } from '../../hooks/useDebounce';
 import { PixelPanel } from '../../components/ui/PixelPanel';
 import { PixelButton } from '../../components/ui/PixelButton';
+import { ModalFrame } from '../../components/ui/ModalFrame';
 import type { JournalEntry, JournalStreak } from '@lifequest/shared';
 import * as journalService from '../../services/journal.service';
 import { relativeTime } from '../../lib/time';
@@ -28,8 +29,7 @@ const DAILY_PROMPTS = [
   '¿Qué consejo le darías hoy a una versión anterior de ti?',
 ];
 
-function EntryEditor({ entry, onClose, onSave }: { entry?: JournalEntry; onClose: () => void; onSave: (e: JournalEntry) => void }) {
-  useEscapeKey(onClose);
+function EntryEditor({ entry, onClose, onSave }: { entry?: JournalEntry; onClose: () => void; onSave: (entry: JournalEntry) => void }) {
   const today = new Date().toISOString().split('T')[0];
   const [title, setTitle] = useState(entry?.title ?? '');
   const [content, setContent] = useState(entry?.content ?? '');
@@ -41,107 +41,166 @@ function EntryEditor({ entry, onClose, onSave }: { entry?: JournalEntry; onClose
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const autoSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const toast = useToast();
+  const inputClass = 'w-full rounded-xl border border-[var(--border)] bg-[var(--bg-deep)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--accent-gold)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--accent-gold)_16%,transparent)]';
 
   useEffect(() => {
     if (!entry) return;
     if (autoSaveRef.current) clearTimeout(autoSaveRef.current);
     autoSaveRef.current = setTimeout(async () => {
-      if (!entry?.id || !content) return;
+      if (!entry.id || !content) return;
       try {
         await journalService.updateJournalEntry(entry.id, { title: title || undefined, content, mood, tags });
         setLastSaved(new Date());
-      } catch { /* silent */ }
+      } catch {
+        // Autosave should not interrupt the editor when the network is offline.
+      }
     }, 30000);
-    return () => { if (autoSaveRef.current) clearTimeout(autoSaveRef.current); };
-  }, [title, content, mood, tags]);
+    return () => {
+      if (autoSaveRef.current) clearTimeout(autoSaveRef.current);
+    };
+  }, [title, content, mood, tags, entry]);
 
   async function save() {
     if (!content.trim()) return;
     setSaving(true);
     try {
-      let saved: JournalEntry;
-      if (entry?.id) {
-        saved = await journalService.updateJournalEntry(entry.id, { title: title || undefined, content, mood, date, tags });
-      } else {
-        saved = await journalService.createJournalEntry({ title: title || undefined, content, mood, date, tags });
-      }
+      const saved = entry?.id
+        ? await journalService.updateJournalEntry(entry.id, { title: title || undefined, content, mood, date, tags })
+        : await journalService.createJournalEntry({ title: title || undefined, content, mood, date, tags });
       onSave(saved);
-      toast.success('Entrada guardada ');
-    } catch { toast.error('Error al guardar'); }
-    finally { setSaving(false); }
+      toast.success('Entrada guardada');
+    } catch {
+      toast.error('Error al guardar');
+    } finally {
+      setSaving(false);
+    }
   }
 
   function addTag() {
-    const t = tagInput.trim().replace(/^#/, '');
-    if (t && !tags.includes(t)) setTags(prev => [...prev, t]);
+    const nextTag = tagInput.trim().replace(/^#/, '');
+    if (nextTag && !tags.includes(nextTag)) setTags((current) => [...current, nextTag]);
     setTagInput('');
   }
 
+  const wordCount = content.split(/\s+/).filter(Boolean).length;
+
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/70 z-50 flex items-end md:items-center justify-center p-4 overflow-y-auto" onClick={onClose}>
-      <motion.div initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }} transition={{ type: 'spring', stiffness: 350, damping: 28 }} className="bg-bg-panel border-2 border-border-pixel w-full max-w-2xl space-y-4 p-5 my-4" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between">
-          <p className="font-pixel text-accent-gold" style={{ fontSize: '10px' }}><E e="📜" /> ENTRADA DEL DIARIO</p>
-          {lastSaved && <p className="font-pixel text-text-secondary" style={{ fontSize: '7px' }}>Auto-guardado {lastSaved.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</p>}
-        </div>
-
-        <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Título (opcional)" className="w-full bg-bg-deep border-2 border-border-pixel text-text-primary font-vt text-xl px-3 py-2 focus:border-accent-gold outline-none" />
-
-        <div className="flex gap-3 flex-wrap">
-          <div className="flex items-center gap-2">
-            <p className="font-pixel text-text-secondary" style={{ fontSize: '7px' }}>FECHA:</p>
-            <input type="date" value={date} onChange={e => setDate(e.target.value)} className="bg-bg-deep border-2 border-border-pixel text-text-primary font-vt text-base px-2 py-1 focus:border-accent-gold outline-none" />
-          </div>
-          <div className="flex items-center gap-2">
-            <p className="font-pixel text-text-secondary" style={{ fontSize: '7px' }}>HUMOR:</p>
-            <div className="flex gap-1">
-              {[1, 2, 3, 4, 5].map(q => (
-                <motion.button key={q} whileTap={{ scale: 0.85 }} onClick={() => setMood(q)} className={`text-xl transition-all ${mood === q ? 'scale-125' : 'opacity-40'}`}>
-                  <E e={MOOD_EMOJIS[q]} />
-                </motion.button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <textarea
-          value={content}
-          onChange={e => setContent(e.target.value)}
-          placeholder="Escribe aquí tu entrada..."
-          autoFocus={!entry}
-          rows={12}
-          className="w-full bg-bg-deep border-2 border-border-pixel text-text-primary font-vt text-lg px-3 py-2 focus:border-accent-gold outline-none resize-none"
-        />
-
-        <div className="flex items-center gap-1 text-right">
-          <p className="font-pixel text-text-secondary ml-auto" style={{ fontSize: '7px' }}>{content.length} CHARS · {content.split(/\s+/).filter(Boolean).length} PALABRAS</p>
-        </div>
-
-        {/* Tags */}
-        <div>
-          <div className="flex gap-2">
-            <input value={tagInput} onChange={e => setTagInput(e.target.value)} onKeyDown={e => (e.key === 'Enter' || e.key === ',') && (e.preventDefault(), addTag())} placeholder="#etiqueta" className="flex-1 bg-bg-deep border-2 border-border-pixel text-text-primary font-vt text-base px-3 py-1.5 focus:border-accent-gold outline-none" />
-            <PixelButton variant="secondary" onClick={addTag}>+</PixelButton>
-          </div>
-          {tags.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-2">
-              {tags.map(t => (
-                <span key={t} onClick={() => setTags(prev => prev.filter(x => x !== t))} className="font-pixel text-accent-cyan border border-accent-cyan px-2 py-0.5 cursor-pointer hover:bg-accent-cyan/10 transition-colors" style={{ fontSize: '7px' }}>
-                  #{t} ×
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="flex gap-2">
-          <PixelButton variant="ghost" onClick={onClose} className="flex-1">Cancelar</PixelButton>
-          <PixelButton variant="primary" onClick={save} disabled={!content.trim() || saving} className="flex-1">
-            {saving ? '...' : <><E e="✍️" s={11} /> GUARDAR</>}
+    <ModalFrame
+      title={entry ? 'Editar entrada' : 'Nueva entrada'}
+      description={entry ? 'Actualiza tu registro sin perder el hilo de tu historia.' : 'Registra lo que quieres recordar de este día.'}
+      icon={<BookOpen className="h-4 w-4" aria-hidden="true" />}
+      onClose={onClose}
+      size="lg"
+      contentClassName="space-y-5"
+      footer={(
+        <div className="grid grid-cols-2 gap-2.5">
+          <PixelButton variant="ghost" onClick={onClose} className="w-full">Cancelar</PixelButton>
+          <PixelButton variant="primary" onClick={save} disabled={!content.trim() || saving} className="w-full">
+            {saving ? 'Guardando…' : 'Guardar entrada'}
           </PixelButton>
         </div>
-      </motion.div>
-    </motion.div>
+      )}
+    >
+      {lastSaved && (
+        <div className="flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--bg-panel-light)] px-3 py-2 text-xs text-[var(--text-secondary)]">
+          <span>Guardado automático activo</span>
+          <span className="tabular-nums text-[var(--text-muted)]">{lastSaved.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</span>
+        </div>
+      )}
+
+      <label className="block">
+        <span className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">Título <span className="font-normal text-[var(--text-muted)]">(opcional)</span></span>
+        <input
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+          placeholder="Ponle un nombre a este momento"
+          className={inputClass}
+        />
+      </label>
+
+      <div className="grid gap-4 sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">Fecha</span>
+          <input type="date" value={date} onChange={(event) => setDate(event.target.value)} className={inputClass} />
+        </label>
+        <fieldset>
+          <legend className="mb-1.5 text-xs font-medium text-[var(--text-secondary)]">Humor</legend>
+          <div className="grid grid-cols-5 gap-1.5" role="radiogroup" aria-label="Humor de la entrada">
+            {[1, 2, 3, 4, 5].map((rating) => {
+              const selected = mood === rating;
+              return (
+                <motion.button
+                  key={rating}
+                  type="button"
+                  whileTap={{ scale: 0.93 }}
+                  onClick={() => setMood(rating)}
+                  aria-pressed={selected}
+                  aria-label={`Humor ${rating} de 5`}
+                  className={`flex h-10 items-center justify-center rounded-xl border text-base transition-colors ${
+                    selected
+                      ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)]/10'
+                      : 'border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--border-strong)]'
+                  }`}
+                >
+                  <E e={MOOD_EMOJIS[rating]} />
+                </motion.button>
+              );
+            })}
+          </div>
+        </fieldset>
+      </div>
+
+      <label className="block">
+        <span className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">Tu entrada</span>
+        <textarea
+          value={content}
+          onChange={(event) => setContent(event.target.value)}
+          placeholder="Escribe aquí tu entrada..."
+          autoFocus={!entry}
+          rows={10}
+          className={`${inputClass} min-h-56 resize-y leading-6`}
+        />
+        <span className="mt-1.5 flex justify-end text-xs tabular-nums text-[var(--text-muted)]">{content.length} caracteres · {wordCount} palabras</span>
+      </label>
+
+      <section>
+        <div className="mb-1.5 flex items-center justify-between gap-3">
+          <p className="text-xs font-medium text-[var(--text-secondary)]">Etiquetas</p>
+          <p className="text-xs text-[var(--text-muted)]">Presiona Enter para añadir</p>
+        </div>
+        <div className="flex gap-2">
+          <input
+            value={tagInput}
+            onChange={(event) => setTagInput(event.target.value)}
+            onKeyDown={(event) => (event.key === 'Enter' || event.key === ',') && (event.preventDefault(), addTag())}
+            placeholder="#reflexión"
+            className={`${inputClass} flex-1`}
+          />
+          <button
+            type="button"
+            onClick={addTag}
+            aria-label="Añadir etiqueta"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--border)] text-lg text-[var(--text-secondary)] transition-colors hover:border-[var(--accent-gold)] hover:text-[var(--accent-gold)]"
+          >
+            +
+          </button>
+        </div>
+        {tags.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {tags.map((tag) => (
+              <button
+                key={tag}
+                type="button"
+                onClick={() => setTags((current) => current.filter((item) => item !== tag))}
+                className="rounded-full border border-[var(--border)] bg-[var(--bg-panel-light)] px-2.5 py-1 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--accent-red)] hover:text-[var(--accent-red)]"
+              >
+                #{tag} ×
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+    </ModalFrame>
   );
 }
 

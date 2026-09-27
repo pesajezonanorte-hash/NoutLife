@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { REMOVE_LEGACY_HABIT_RITUAL_FLAG_SQL } from './schema-migrations';
+import { ensureDefaultCatalog } from './default-catalog';
 
 function getDatabaseUrl(): string {
   let url = process.env.DATABASE_URL || '';
@@ -83,6 +84,11 @@ export function ensureDbMigrated(): Promise<void> {
         `);
         await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "ritual_logs_ritualId_date_key" ON "ritual_logs"("ritualId", "date");`);
         await prisma.$executeRawUnsafe(REMOVE_LEGACY_HABIT_RITUAL_FLAG_SQL);
+
+        // Global catalog rows are not player-owned. Bootstrap missing entries on
+        // cold production databases so Shop and Achievements never render as a
+        // successful-but-empty page after account cleanup or a fresh deploy.
+        await ensureDefaultCatalog(prisma);
       } catch (err) {
         console.error('Runtime DB migration error:', err);
       }

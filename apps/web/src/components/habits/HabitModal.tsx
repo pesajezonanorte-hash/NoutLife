@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
-import { CalendarDays, Check, Link2, Loader2 } from 'lucide-react';
+import { CalendarDays, Check, Link2, Loader2, Sparkles } from 'lucide-react';
 import { getOpenOrigin } from '@/lib/origin';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 import { PixelButton } from '../ui/PixelButton';
 import { PixelInput } from '../ui/PixelInput';
 import type { CreateHabitPayload } from '../../services/habit.service';
@@ -10,6 +11,10 @@ import * as agendaService from '../../services/agenda.service';
 import { E, HABIT_ICON_OPTIONS, CATEGORY_GLYPHS, resolveGlyph } from '@/components/ui/glyphs';
 
 const CATEGORIES = ['HEALTH', 'FITNESS', 'FINANCE', 'LEARNING', 'LOVE', 'SOCIAL', 'PERSONAL', 'CREATIVE'] as const;
+const CATEGORY_LABELS: Record<(typeof CATEGORIES)[number], string> = {
+  HEALTH: 'Salud', FITNESS: 'Fitness', FINANCE: 'Finanzas', LEARNING: 'Aprendizaje',
+  LOVE: 'Relaciones', SOCIAL: 'Social', PERSONAL: 'Personal', CREATIVE: 'Creativo',
+};
 const COLOR_OPTIONS = ['#17171a', '#52525b', '#8a8a92', '#c0c0c8', '#a8871e', '#b0332a', '#3f7a55', '#d9b44a'];
 
 interface Props {
@@ -20,6 +25,8 @@ interface Props {
 }
 
 export function HabitModal({ onSubmit, onClose, initial, title }: Props) {
+  useEscapeKey(onClose);
+
   // Punto de apertura: de aquí crece la animación (desde donde se hizo click).
   const [origin] = useState(() => getOpenOrigin());
   const [loading, setLoading] = useState(false);
@@ -106,16 +113,24 @@ export function HabitModal({ onSubmit, onClose, initial, title }: Props) {
 
       <div className="relative flex min-h-full items-start justify-center p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:items-center sm:p-6">
         <motion.div
-          className="relative z-10 flex w-full max-w-md min-h-0 max-h-[calc(100dvh-1.5rem)] flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] shadow-[0_24px_80px_rgba(0,0,0,0.55)] sm:max-h-[calc(100dvh-3rem)]"
+          className="relative z-10 flex w-full max-w-lg min-h-0 max-h-[calc(100dvh-1.5rem)] flex-col overflow-hidden rounded-2xl border border-[var(--border-strong)] bg-[var(--bg-panel)] shadow-lg sm:max-h-[calc(100dvh-3rem)]"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2, ease: 'easeOut', delay: 0.05 }}
         >
-          <div className="flex flex-shrink-0 items-center justify-between rounded-t-2xl border-b border-[var(--border)] bg-[var(--bg-panel-light)] p-4">
-            <h2 id="habit-modal-title" className="text-base font-semibold text-[var(--text-primary)]">
-              {title ?? 'Nuevo hábito'}
-            </h2>
-            <button onClick={onClose} aria-label="Cerrar" className="flex h-8 w-8 items-center justify-center rounded-lg text-xl text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-panel)] hover:text-[var(--text-primary)]"><E e="✕" /></button>
+          <div className="flex flex-shrink-0 items-start justify-between gap-3 rounded-t-2xl border-b border-[var(--border-soft)] bg-[var(--bg-panel-light)] px-4 py-3.5 sm:px-5">
+            <div className="flex min-w-0 items-start gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] text-[var(--accent-gold)] shadow-sm">
+                <Sparkles size={17} aria-hidden="true" />
+              </span>
+              <div className="min-w-0">
+                <h2 id="habit-modal-title" className="text-base font-semibold tracking-tight text-[var(--text-primary)]">
+                  {title ?? 'Nuevo hábito'}
+                </h2>
+                <p className="mt-0.5 text-xs text-[var(--text-muted)]">Define una acción pequeña que quieras repetir.</p>
+              </div>
+            </div>
+            <button onClick={onClose} aria-label="Cerrar" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xl text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-panel)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)]"><E e="✕" /></button>
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 space-y-4">
@@ -142,7 +157,7 @@ export function HabitModal({ onSubmit, onClose, initial, title }: Props) {
 
             <div>
               <label className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Icono</label>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="grid grid-cols-6 gap-1.5 sm:grid-cols-8">
                 {HABIT_ICON_OPTIONS.map(({ id, Icon }) => {
                   const selected = form.icon === id || resolveGlyph(form.icon) === Icon;
                   return (
@@ -152,9 +167,9 @@ export function HabitModal({ onSubmit, onClose, initial, title }: Props) {
                       onClick={() => setForm((current) => ({ ...current, icon: id }))}
                       aria-label={`Seleccionar icono ${id}`}
                       aria-pressed={selected}
-                      className={`relative flex h-8 w-8 items-center justify-center rounded-lg border transition-colors ${selected ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)]/10' : 'border-[var(--border)] hover:border-[var(--text-secondary)]'}`}
+                      className={`relative flex h-9 w-full items-center justify-center rounded-xl border transition-colors ${selected ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)]/10 text-[var(--accent-gold)]' : 'border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]'}`}
                     >
-                      <Icon size={18} strokeWidth={1.75} />
+                      <Icon size={17} strokeWidth={1.75} />
                       {selected && (
                         <span className="absolute -right-1 -top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[var(--accent-gold)] text-[8px] font-bold leading-none text-black"><E e="✓" /></span>
                       )}
@@ -198,10 +213,11 @@ export function HabitModal({ onSubmit, onClose, initial, title }: Props) {
                       onClick={() => setForm((current) => ({ ...current, category }))}
                       aria-label={`Seleccionar categoría ${category.toLowerCase()}`}
                       aria-pressed={selected}
-                      className={`relative rounded-lg border-2 p-2 text-center text-xl transition-all ${selected ? 'border-[var(--text-primary)] bg-[var(--bg-muted)] shadow-[0_0_10px_rgba(0,0,0,0.18)]' : 'border-[var(--border)] hover:border-[var(--text-secondary)]'}`}
+                      className={`relative flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl border p-2 text-center transition-colors ${selected ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)]/10 shadow-sm' : 'border-[var(--border)] bg-[var(--bg-panel-light)] hover:border-[var(--border-strong)]'}`}
                     >
-                      <E e={CATEGORY_GLYPHS[category]} />
-                      {selected && <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--text-primary)] text-[10px] font-bold leading-none text-[var(--text-inv)]"><E e="✓" /></span>}
+                      <span className={`text-lg ${selected ? 'text-[var(--accent-gold)]' : 'text-[var(--text-secondary)]'}`}><E e={CATEGORY_GLYPHS[category]} /></span>
+                      <span className={`text-[10px] font-medium leading-none ${selected ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>{CATEGORY_LABELS[category]}</span>
+                      {selected && <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--accent-gold)] text-[10px] font-bold leading-none text-[var(--bg-deep)]"><E e="✓" /></span>}
                     </button>
                   );
                 })}
@@ -316,7 +332,7 @@ export function HabitModal({ onSubmit, onClose, initial, title }: Props) {
             </div>
           </div>
 
-          <div className="flex flex-shrink-0 gap-3 border-t border-[var(--border)] bg-[var(--bg-panel)] p-4">
+          <div className="flex flex-shrink-0 gap-3 border-t border-[var(--border-soft)] bg-[var(--bg-panel-light)] p-4 sm:px-5">
             <PixelButton variant="ghost" className="flex-1" onClick={onClose}>Cancelar</PixelButton>
             <PixelButton variant="primary" className="flex-1" onClick={handleSubmit} disabled={loading || !form.title.trim()}>
               {loading ? 'Guardando...' : 'Guardar'}

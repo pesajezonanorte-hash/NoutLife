@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Heart } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import { PixelPanel } from '../../components/ui/PixelPanel';
 import { PixelButton } from '../../components/ui/PixelButton';
+import { ModalFrame } from '../../components/ui/ModalFrame';
 import type { Relationship, LoveDashboard, ImportantDate } from '@lifequest/shared';
 import * as loveService from '../../services/love.service';
 import api from '../../lib/api';
@@ -187,35 +189,69 @@ function SetupModal({ onClose, onSave, existing }: { onClose: () => void; onSave
   const [startDate, setStartDate] = useState(existingStartDate);
   const [saving, setSaving] = useState(false);
   const toast = useToast();
+  const inputClass = 'w-full rounded-xl border border-[var(--border)] bg-[var(--bg-deep)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--accent-gold)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--accent-gold)_16%,transparent)]';
 
   async function save() {
     setSaving(true);
     try {
-      const r = await loveService.createRelationship({ name: name.trim(), type: 'romantic', isPartner: true, notes: startDate ? `startDate:${startDate}` : undefined });
-      onSave(r);
-      toast.success(name.trim() ? '¡Relación configurada! ' : 'Nombre eliminado');
-    } catch { toast.error('Error al configurar'); }
-    finally { setSaving(false); }
+      const relationship = await loveService.createRelationship({
+        name: name.trim(),
+        type: 'romantic',
+        isPartner: true,
+        notes: startDate ? `startDate:${startDate}` : undefined,
+      });
+      onSave(relationship);
+      toast.success(name.trim() ? '¡Relación configurada!' : 'Nombre eliminado');
+    } catch {
+      toast.error('Error al configurar');
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <motion.div initial={{ scale: 0.85 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} className="bg-bg-panel border-2 border-border-pixel w-full max-w-sm space-y-4 p-5" onClick={e => e.stopPropagation()}>
-        <p className="font-pixel text-accent-gold" style={{ fontSize: '10px' }}>CONFIGURAR JARDÍN</p>
-        <div>
-          <p className="font-pixel text-text-secondary mb-1" style={{ fontSize: '7px' }}>NOMBRE DE TU PAREJA (opcional)</p>
-          <input autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="Dejar vacío para ocultar nombre" className="w-full bg-bg-deep border-2 border-border-pixel text-text-primary font-vt text-xl px-3 py-2 focus:border-accent-gold outline-none" />
+    <ModalFrame
+      title="Configura tu jardín"
+      description="Define los datos que quieres recordar en este espacio personal."
+      icon={<Heart className="h-4 w-4" aria-hidden="true" />}
+      onClose={onClose}
+      footer={(
+        <div className="grid grid-cols-2 gap-2.5">
+          <PixelButton variant="ghost" onClick={onClose} className="w-full">Cancelar</PixelButton>
+          <PixelButton variant="primary" onClick={save} disabled={saving} className="w-full">
+            {saving ? 'Guardando…' : 'Guardar'}
+          </PixelButton>
         </div>
-        <div>
-          <p className="font-pixel text-text-secondary mb-1" style={{ fontSize: '7px' }}>FECHA DE INICIO</p>
-          <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full bg-bg-deep border-2 border-border-pixel text-text-primary font-vt text-base px-3 py-2 focus:border-accent-gold outline-none" />
-        </div>
-        <div className="flex gap-2">
-          <PixelButton variant="ghost" onClick={onClose} className="flex-1">Cancelar</PixelButton>
-          <PixelButton variant="primary" onClick={save} disabled={saving} className="flex-1">Guardar</PixelButton>
-        </div>
-      </motion.div>
-    </motion.div>
+      )}
+    >
+      <div className="space-y-5">
+        <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel-light)] p-4">
+          <p className="text-sm font-medium text-[var(--text-primary)]">Un espacio a tu medida</p>
+          <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">Puedes dejar el nombre vacío si prefieres que esta zona se mantenga privada.</p>
+        </section>
+
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">Nombre de tu pareja <span className="font-normal text-[var(--text-muted)]">(opcional)</span></span>
+          <input
+            autoFocus
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="Ej. Valentina"
+            className={inputClass}
+          />
+        </label>
+
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">Fecha de inicio</span>
+          <input
+            type="date"
+            value={startDate}
+            onChange={(event) => setStartDate(event.target.value)}
+            className={inputClass}
+          />
+        </label>
+      </div>
+    </ModalFrame>
   );
 }
 

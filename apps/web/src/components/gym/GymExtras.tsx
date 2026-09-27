@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Timer } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { PixelPanel } from '../ui/PixelPanel';
 import { PixelButton } from '../ui/PixelButton';
+import { ModalFrame } from '../ui/ModalFrame';
 import * as gym2 from '../../services/gym2.service';
 import { E } from '@/components/ui/glyphs';
 
@@ -21,32 +23,35 @@ export function RestTimer({ onClose }: { onClose: () => void }) {
   function playBeep() {
     try {
       if (!audioCtx.current) audioCtx.current = new AudioContext();
-      const osc = audioCtx.current.createOscillator();
+      const oscillator = audioCtx.current.createOscillator();
       const gain = audioCtx.current.createGain();
-      osc.connect(gain);
+      oscillator.connect(gain);
       gain.connect(audioCtx.current.destination);
-      osc.frequency.value = 880;
+      oscillator.frequency.value = 880;
       gain.gain.setValueAtTime(0.3, audioCtx.current.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.current.currentTime + 0.6);
-      osc.start();
-      osc.stop(audioCtx.current.currentTime + 0.6);
+      oscillator.start();
+      oscillator.stop(audioCtx.current.currentTime + 0.6);
       if ('vibrate' in navigator) navigator.vibrate([200, 100, 200]);
-    } catch { /* audio not available */ }
+    } catch {
+      // Audio feedback is optional on unsupported devices.
+    }
   }
 
-  const start = useCallback((secs?: number) => {
-    const total = secs ?? duration;
+  const start = useCallback((seconds?: number) => {
+    const total = seconds ?? duration;
+    if (intervalRef.current) clearInterval(intervalRef.current);
     setRemaining(total);
     setRunning(true);
     intervalRef.current = setInterval(() => {
-      setRemaining(prev => {
-        if (prev === null || prev <= 1) {
-          clearInterval(intervalRef.current!);
+      setRemaining((previous) => {
+        if (previous === null || previous <= 1) {
+          if (intervalRef.current) clearInterval(intervalRef.current);
           setRunning(false);
           playBeep();
           return 0;
         }
-        return prev - 1;
+        return previous - 1;
       });
     }, 1000);
   }, [duration]);
@@ -57,76 +62,127 @@ export function RestTimer({ onClose }: { onClose: () => void }) {
     setRemaining(null);
   }
 
-  useEffect(() => () => { if (intervalRef.current) clearInterval(intervalRef.current); }, []);
+  function chooseDuration(seconds: number) {
+    stop();
+    setDuration(seconds);
+    setCustom('');
+  }
+
+  function applyCustomDuration() {
+    const seconds = Number(custom);
+    if (!Number.isFinite(seconds) || seconds <= 0) return;
+    chooseDuration(Math.round(seconds));
+  }
+
+  useEffect(() => () => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+  }, []);
 
   const pct = remaining !== null ? (remaining / duration) * 100 : 100;
   const radius = 54;
-  const circ = 2 * Math.PI * radius;
-  const strokeDash = (pct / 100) * circ;
-  const color = remaining !== null && remaining <= 10 ? 'var(--accent-red)' : remaining !== null && remaining <= 30 ? 'var(--accent-gold)' : 'var(--accent-green)';
+  const circumference = 2 * Math.PI * radius;
+  const strokeDash = (pct / 100) * circumference;
+  const color = remaining !== null && remaining <= 10
+    ? 'var(--accent-red)'
+    : remaining !== null && remaining <= 30
+      ? 'var(--accent-gold)'
+      : 'var(--accent-green)';
+  const displaySeconds = remaining ?? duration;
 
   return (
-    <motion.div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-      <motion.div className="pixel-panel p-6 w-80 text-center" initial={{ scale: 0.8 }} animate={{ scale: 1 }} exit={{ scale: 0.8 }}>
-        <div className="flex items-center justify-between mb-4">
-          <p className="pixel-text text-xs text-[var(--accent-gold)]">⏱ DESCANSO</p>
-          <button onClick={onClose} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-lg"><E e="✕" /></button>
-        </div>
-
-        {/* Circular countdown */}
-        <div className="relative inline-flex items-center justify-center mb-5">
-          <svg width="128" height="128" className="-rotate-90">
+    <ModalFrame
+      title="Descanso entre series"
+      description="Recupera el ritmo antes de tu siguiente serie."
+      icon={<Timer className="h-4 w-4" aria-hidden="true" />}
+      onClose={onClose}
+      size="sm"
+      contentClassName="space-y-5 text-center"
+      footer={(
+        running ? (
+          <PixelButton variant="danger" onClick={stop} className="w-full">Detener temporizador</PixelButton>
+        ) : (
+          <PixelButton variant="primary" onClick={() => start()} className="w-full">Iniciar {duration}s</PixelButton>
+        )
+      )}
+    >
+      <div className="flex justify-center">
+        <div className="relative inline-flex h-36 w-36 items-center justify-center rounded-full bg-[var(--bg-panel-light)] shadow-sm">
+          <svg width="128" height="128" className="-rotate-90" aria-hidden="true">
             <circle cx="64" cy="64" r={radius} fill="none" stroke="var(--border)" strokeWidth="8" />
             <motion.circle
-              cx="64" cy="64" r={radius} fill="none"
-              stroke={color} strokeWidth="8"
-              strokeDasharray={circ}
-              strokeDashoffset={circ - strokeDash}
+              cx="64"
+              cy="64"
+              r={radius}
+              fill="none"
+              stroke={color}
+              strokeWidth="8"
+              strokeDasharray={circumference}
+              strokeDashoffset={circumference - strokeDash}
               strokeLinecap="round"
-              transition={{ duration: 0.5 }}
+              transition={{ duration: 0.45 }}
             />
           </svg>
           <div className="absolute text-center">
-            <p className="pixel-text text-2xl" style={{ color }}>{remaining !== null ? remaining : duration}</p>
-            <p className="text-xs text-[var(--text-secondary)]">seg</p>
+            <p className="text-3xl font-semibold tabular-nums" style={{ color }}>{displaySeconds}</p>
+            <p className="mt-0.5 text-xs text-[var(--text-muted)]">segundos</p>
           </div>
         </div>
+      </div>
 
-        {/* Preset buttons */}
-        <div className="flex gap-2 justify-center mb-4">
-          {TIMER_PRESETS.map(s => (
-            <button
-              key={s}
-              onClick={() => { setDuration(s); stop(); }}
-              className={`text-xs px-2 py-1 border rounded transition-colors ${duration === s ? 'border-[var(--accent-gold)] text-[var(--accent-gold)]' : 'border-[var(--border)] text-[var(--text-secondary)]'}`}
-            >
-              {s}s
-            </button>
-          ))}
+      <fieldset>
+        <legend className="mb-2 text-left text-xs font-medium text-[var(--text-secondary)]">Duración</legend>
+        <div className="grid grid-cols-4 gap-1.5">
+          {TIMER_PRESETS.map((seconds) => {
+            const selected = duration === seconds;
+            return (
+              <button
+                key={seconds}
+                type="button"
+                onClick={() => chooseDuration(seconds)}
+                aria-pressed={selected}
+                className={`min-h-10 rounded-xl border text-xs font-medium tabular-nums transition-colors ${
+                  selected
+                    ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)]/10 text-[var(--accent-gold)]'
+                    : 'border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]'
+                }`}
+              >
+                {seconds}s
+              </button>
+            );
+          })}
+        </div>
+        <div className="mt-2 flex gap-2">
           <input
+            type="number"
+            min="1"
+            inputMode="numeric"
             value={custom}
-            onChange={e => setCustom(e.target.value)}
-            placeholder="?"
-            className="w-10 text-xs text-center bg-[var(--bg-deep)] border border-[var(--border)] rounded text-[var(--text-primary)] outline-none"
-            onBlur={() => { if (Number(custom) > 0) { setDuration(Number(custom)); stop(); } }}
+            onChange={(event) => setCustom(event.target.value)}
+            onKeyDown={(event) => event.key === 'Enter' && applyCustomDuration()}
+            placeholder="Otro tiempo en segundos"
+            className="min-w-0 flex-1 rounded-xl border border-[var(--border)] bg-[var(--bg-deep)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--accent-gold)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--accent-gold)_16%,transparent)]"
           />
+          <button
+            type="button"
+            onClick={applyCustomDuration}
+            disabled={!custom || Number(custom) <= 0}
+            className="rounded-xl border border-[var(--border)] px-3 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--accent-gold)] hover:text-[var(--accent-gold)] disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            Aplicar
+          </button>
         </div>
+      </fieldset>
 
-        <div className="flex gap-3 justify-center">
-          {!running ? (
-            <button onClick={() => start()} className="pixel-button px-5 py-2 text-sm">▶ Iniciar</button>
-          ) : (
-            <button onClick={stop} className="pixel-button px-5 py-2 text-sm bg-red-600">⏹ Parar</button>
-          )}
-        </div>
-
-        {remaining === 0 && (
-          <motion.p className="mt-3 text-[var(--accent-green)] text-sm font-bold" initial={{ scale: 0 }} animate={{ scale: 1 }}>
-            ¡Listo! Siguiente serie <E e="💪" />
-          </motion.p>
-        )}
-      </motion.div>
-    </motion.div>
+      {remaining === 0 && (
+        <motion.p
+          className="rounded-xl border border-[var(--accent-green)]/40 bg-[var(--accent-green)]/10 px-3 py-2 text-sm font-medium text-[var(--accent-green)]"
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          ¡Listo! Siguiente serie <E e="💪" />
+        </motion.p>
+      )}
+    </ModalFrame>
   );
 }
 

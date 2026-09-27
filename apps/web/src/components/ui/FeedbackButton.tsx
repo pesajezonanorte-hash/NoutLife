@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageSquare, X } from 'lucide-react';
+import { MessageSquare } from 'lucide-react';
 import api from '../../lib/api';
 import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 import { E } from '@/components/ui/glyphs';
+import { ModalFrame } from '@/components/ui/ModalFrame';
 
 type Kind = 'bug' | 'idea' | 'other';
 
@@ -83,88 +84,82 @@ export function FeedbackButton({ variant = 'desktop', className = '' }: Feedback
 
       <AnimatePresence>
         {open && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center p-4"
-            onClick={() => !submitting && setOpen(false)}
-          >
-            <motion.div
-              initial={{ y: 40, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 40, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md rounded-2xl border-2 border-[var(--border)] bg-[var(--bg-panel)] p-5 space-y-3 overflow-y-auto"
-              style={{
-                maxHeight: kbHeight > 0 ? `calc(100vh - ${kbHeight}px - 20px)` : '90vh',
-                transition: 'max-height 0.2s ease',
-              }}
-            >
-              <div className="flex items-center justify-between">
-                <h2 className="font-pixel text-[var(--accent-gold)]" style={{ fontSize: '11px' }}>
-                  <E e="💬" /> ENVIAR FEEDBACK
-                </h2>
-                <button onClick={() => setOpen(false)} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
-                  <X size={18} />
+          <ModalFrame
+            title="Enviar feedback"
+            description="Comparte una idea, un error o cualquier comentario para mejorar LifeQuest."
+            icon={<MessageSquare className="h-4 w-4" aria-hidden="true" />}
+            onClose={() => !submitting && setOpen(false)}
+            closeLabel="Cerrar formulario de feedback"
+            panelStyle={kbHeight > 0 ? { maxHeight: `calc(100vh - ${kbHeight}px - 20px)` } : undefined}
+            footer={!sent ? (
+              <div className="grid grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  disabled={submitting}
+                  className="min-h-10 rounded-xl border border-[var(--border)] px-4 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)] disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={submit}
+                  disabled={submitting || message.trim().length < 3}
+                  className="min-h-10 rounded-xl border border-[var(--accent-gold)] bg-[var(--accent-gold)] px-4 text-sm font-semibold text-[var(--bg-deep)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {submitting ? 'Enviando…' : 'Enviar feedback'}
                 </button>
               </div>
-
-              {sent ? (
-                <p className="font-vt text-[var(--accent-green)] text-lg text-center py-4">¡Gracias! Recibido. <E e="🙏" /></p>
-              ) : (
-                <>
-                  <div className="flex gap-2">
-                    {([['bug', ' Bug'], ['idea', ' Idea'], ['other', ' Otro']] as [Kind, string][]).map(([k, label]) => (
+            ) : undefined}
+          >
+            {sent ? (
+              <div className="flex min-h-32 flex-col items-center justify-center text-center">
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--accent-green)]/10 text-2xl"><E e="🙏" /></span>
+                <p className="mt-3 text-base font-semibold text-[var(--text-primary)]">¡Gracias! Recibido.</p>
+                <p className="mt-1 text-sm text-[var(--text-secondary)]">Tu comentario ayudará a mejorar la aventura.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <fieldset>
+                  <legend className="mb-2 text-xs font-medium text-[var(--text-secondary)]">Tipo de feedback</legend>
+                  <div className="grid grid-cols-3 gap-2">
+                    {([['bug', 'Bug'], ['idea', 'Idea'], ['other', 'Otro']] as [Kind, string][]).map(([k, label]) => (
                       <button
                         key={k}
+                        type="button"
                         onClick={() => setKind(k)}
-                        className={`flex-1 px-3 py-1.5 border-2 rounded font-vt text-base transition-colors ${
+                        aria-pressed={kind === k}
+                        className={`min-h-10 rounded-xl border px-3 text-sm font-medium transition-colors ${
                           kind === k
-                            ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)] text-[var(--bg-deep)]'
-                            : 'border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                            ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)]/10 text-[var(--text-primary)]'
+                            : 'border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]'
                         }`}
                       >
                         {label}
                       </button>
                     ))}
                   </div>
+                </fieldset>
 
+                <label className="block">
+                  <span className="mb-2 block text-xs font-medium text-[var(--text-secondary)]">Tu mensaje</span>
                   <textarea
                     ref={textareaRef}
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
-                    rows={3}
+                    rows={4}
                     placeholder="Cuéntanos qué pasó, qué te gustaría, o cualquier comentario…"
-                    className="w-full bg-[var(--bg-deep)] border-2 border-[var(--border)] text-[var(--text-primary)] font-vt text-base px-3 py-2 rounded focus:border-[var(--accent-gold)] outline-none resize-none overflow-hidden"
+                    className="min-h-28 w-full resize-none rounded-xl border border-[var(--border)] bg-[var(--bg-deep)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--accent-gold)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--accent-gold)_16%,transparent)]"
                     maxLength={2000}
-                    style={{ minHeight: 72 }}
                   />
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-[var(--text-muted)]">{message.length}/2000</span>
-                    {error && <span className="text-[var(--accent-red)]">{error}</span>}
-                  </div>
-
-                  <div className="flex justify-end gap-2 pt-1">
-                    <button
-                      onClick={() => setOpen(false)}
-                      disabled={submitting}
-                      className="px-3 py-1.5 border-2 border-[var(--border)] text-[var(--text-secondary)] rounded font-vt text-base hover:text-[var(--text-primary)]"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      onClick={submit}
-                      disabled={submitting || message.trim().length < 3}
-                      className="px-4 py-1.5 border-2 border-[var(--accent-gold)] bg-[var(--accent-gold)] text-[var(--bg-deep)] rounded font-vt text-base disabled:opacity-50 font-semibold"
-                    >
-                      {submitting ? 'Enviando…' : 'Enviar'}
-                    </button>
-                  </div>
-                </>
-              )}
-            </motion.div>
-          </motion.div>
+                </label>
+                <div className="flex min-h-4 items-center justify-between text-xs">
+                  <span className="text-[var(--text-muted)]">{message.length}/2000</span>
+                  {error && <span className="text-[var(--accent-red)]">{error}</span>}
+                </div>
+              </div>
+            )}
+          </ModalFrame>
         )}
       </AnimatePresence>
     </>

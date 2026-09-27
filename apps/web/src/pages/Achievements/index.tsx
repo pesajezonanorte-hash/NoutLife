@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PixelPanel } from '../../components/ui/PixelPanel';
+import { PixelButton } from '../../components/ui/PixelButton';
 import { AchievementCard } from '../../components/achievements/AchievementCard';
 import { fetchAchievements } from '../../services/achievement.service';
 import type { Achievement } from '../../services/achievement.service';
@@ -18,15 +19,25 @@ const CATEGORY_TABS = [
 export default function AchievementsPage() {
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('');
   const [selectedAch, setSelectedAch] = useState<Achievement | null>(null);
 
-  useEffect(() => {
-    fetchAchievements()
-      .then(setAchievements)
-      .catch(() => {})
-      .finally(() => setLoading(false));
+  const loadAchievements = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      setAchievements(await fetchAchievements());
+    } catch {
+      setLoadError('No pudimos cargar tu catálogo de logros. Comprueba tu conexión e inténtalo de nuevo.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void loadAchievements();
+  }, [loadAchievements]);
 
   const filtered = activeTab
     ? achievements.filter((a) => a.category === activeTab)
@@ -41,25 +52,29 @@ export default function AchievementsPage() {
       <div>
         <h1 className="font-pixel text-accent-gold" style={{ fontSize: '14px' }}><E e="🏆" /> SALA DE LOGROS</h1>
         <p className="font-vt text-text-secondary text-base">
-          {unlockedCount}/{achievements.length} desbloqueados · {totalXp.toLocaleString()} XP ganados
+          {achievements.length === 0 && !loading
+            ? 'Preparando catálogo de logros…'
+            : `${unlockedCount}/${achievements.length} desbloqueados · ${totalXp.toLocaleString()} XP ganados`}
         </p>
       </div>
 
       {/* Progress bar global */}
-      <div>
-        <div className="flex justify-between font-pixel mb-1" style={{ fontSize: '7px' }}>
-          <span className="text-text-secondary">PROGRESO GLOBAL</span>
-          <span className="text-accent-gold">{Math.round(achievements.length > 0 ? (unlockedCount / achievements.length) * 100 : 0)}%</span>
+      {(loading || achievements.length > 0) && (
+        <div>
+          <div className="flex justify-between font-pixel mb-1" style={{ fontSize: '7px' }}>
+            <span className="text-text-secondary">PROGRESO GLOBAL</span>
+            <span className="text-accent-gold">{Math.round(achievements.length > 0 ? (unlockedCount / achievements.length) * 100 : 0)}%</span>
+          </div>
+          <div className="h-2 bg-bg-panel border-2 border-border-pixel">
+            <motion.div
+              className="h-full bg-accent-gold"
+              initial={{ width: 0 }}
+              animate={{ width: `${achievements.length > 0 ? (unlockedCount / achievements.length) * 100 : 0}%` }}
+              transition={{ duration: 1, ease: 'easeOut' }}
+            />
+          </div>
         </div>
-        <div className="h-2 bg-bg-panel border-2 border-border-pixel">
-          <motion.div
-            className="h-full bg-accent-gold"
-            initial={{ width: 0 }}
-            animate={{ width: `${achievements.length > 0 ? (unlockedCount / achievements.length) * 100 : 0}%` }}
-            transition={{ duration: 1, ease: 'easeOut' }}
-          />
-        </div>
-      </div>
+      )}
 
       {/* Category tabs */}
       <div className="flex gap-1 overflow-x-auto pb-1">
@@ -86,6 +101,28 @@ export default function AchievementsPage() {
             Cargando logros...
           </motion.p>
         </div>
+      ) : loadError ? (
+        <PixelPanel className="mx-auto max-w-xl p-8 text-center">
+          <p className="text-4xl"><E e="⚠" /></p>
+          <h2 className="mt-3 text-base font-semibold text-[var(--text-primary)]">No pudimos abrir tus logros</h2>
+          <p className="mx-auto mt-1 max-w-sm text-sm leading-6 text-[var(--text-secondary)]">{loadError}</p>
+          <PixelButton variant="secondary" onClick={() => void loadAchievements()} className="mt-5">Reintentar</PixelButton>
+        </PixelPanel>
+      ) : filtered.length === 0 ? (
+        <PixelPanel className="mx-auto max-w-xl p-8 text-center">
+          <p className="text-4xl"><E e={achievements.length === 0 ? '🏆' : '🔎'} /></p>
+          <h2 className="mt-3 text-base font-semibold text-[var(--text-primary)]">{achievements.length === 0 ? 'Tu sala de logros se está preparando' : 'No hay logros en esta categoría'}</h2>
+          <p className="mx-auto mt-1 max-w-sm text-sm leading-6 text-[var(--text-secondary)]">
+            {achievements.length === 0
+              ? 'Vuelve a intentarlo en unos segundos. Si el problema continúa, avísanos desde Feedback.'
+              : 'Explora otra categoría para ver todos los desafíos disponibles.'}
+          </p>
+          {achievements.length === 0 ? (
+            <PixelButton variant="secondary" onClick={() => void loadAchievements()} className="mt-5">Actualizar logros</PixelButton>
+          ) : (
+            <PixelButton variant="ghost" onClick={() => setActiveTab('')} className="mt-5">Ver todos</PixelButton>
+          )}
+        </PixelPanel>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {/* Unlocked first */}

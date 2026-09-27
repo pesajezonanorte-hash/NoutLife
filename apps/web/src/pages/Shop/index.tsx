@@ -82,6 +82,7 @@ export default function ShopPage() {
   const [items, setItems] = useState<ShopItem[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [tab, setTab] = useState<string>('');
   const [shopTab, setShopTab] = useState<'shop' | 'inventory'>('shop');
   const [confirmItem, setConfirmItem] = useState<ShopItem | null>(null);
@@ -108,12 +109,16 @@ export default function ShopPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const [shopItems, inv] = await Promise.all([shopService.fetchShopItems(), shopService.fetchInventory()]);
       setItems(shopItems);
       setInventory(inv);
-    } catch { /* ignore */ }
-    finally { setLoading(false); }
+    } catch {
+      setLoadError('No pudimos cargar el catálogo. Comprueba tu conexión e inténtalo de nuevo.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -195,6 +200,28 @@ export default function ShopPage() {
 
           {loading ? (
             <div className="text-center py-8"><motion.p className="font-vt text-text-secondary text-xl" animate={{ opacity: [1, 0.4, 1] }} transition={{ duration: 1.2, repeat: Infinity }}>Cargando tienda...</motion.p></div>
+          ) : loadError ? (
+            <PixelPanel className="mx-auto max-w-xl p-8 text-center">
+              <p className="text-4xl"><E e="⚠" /></p>
+              <h2 className="mt-3 text-base font-semibold text-[var(--text-primary)]">No pudimos abrir la tienda</h2>
+              <p className="mx-auto mt-1 max-w-sm text-sm leading-6 text-[var(--text-secondary)]">{loadError}</p>
+              <PixelButton variant="secondary" onClick={() => void load()} className="mt-5">Reintentar</PixelButton>
+            </PixelPanel>
+          ) : filtered.length === 0 ? (
+            <PixelPanel className="mx-auto max-w-xl p-8 text-center">
+              <p className="text-4xl"><E e={items.length === 0 ? '🛒' : '🔎'} /></p>
+              <h2 className="mt-3 text-base font-semibold text-[var(--text-primary)]">{items.length === 0 ? 'El catálogo está preparando sus artículos' : 'No hay artículos en esta categoría'}</h2>
+              <p className="mx-auto mt-1 max-w-sm text-sm leading-6 text-[var(--text-secondary)]">
+                {items.length === 0
+                  ? 'Vuelve a intentarlo en unos segundos. Si el problema persiste, avísanos desde Feedback.'
+                  : 'Prueba otra categoría para encontrar algo que encaje con tu aventura.'}
+              </p>
+              {items.length === 0 ? (
+                <PixelButton variant="secondary" onClick={() => void load()} className="mt-5">Actualizar catálogo</PixelButton>
+              ) : (
+                <PixelButton variant="ghost" onClick={() => setTab('')} className="mt-5">Ver todo</PixelButton>
+              )}
+            </PixelPanel>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               <AnimatePresence>

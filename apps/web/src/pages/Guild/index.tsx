@@ -6,6 +6,8 @@ import {
 } from '../../services/social.service';
 import { useAuthStore } from '../../store/authStore';
 import { AvatarDisplay } from '../../components/character/AvatarDisplay';
+import { PixelPanel } from '../../components/ui/PixelPanel';
+import { PixelButton } from '../../components/ui/PixelButton';
 import { E } from '@/components/ui/glyphs';
 
 interface GuildMemberUser {
@@ -142,97 +144,116 @@ export default function GuildPage() {
   // No guild
   if (!guild && mode === 'view') {
     return (
-      <div className="max-w-lg mx-auto py-12 px-4 text-center space-y-6">
-        <Shield className="mx-auto text-text-dim" size={64} />
-        <div className="font-pixel text-text-primary" style={{ fontSize: '14px' }}>SIN GREMIO</div>
-        <p className="font-vt text-text-dim">No perteneces a ningún gremio todavía.</p>
-        <div className="flex gap-3 justify-center">
-          <button
-            onClick={() => setMode('create')}
-            className="flex items-center gap-2 px-6 py-3 bg-accent-gold border-2 border-accent-gold text-bg-deep font-pixel hover:opacity-90 transition-opacity"
-            style={{ fontSize: '10px' }}
-          >
-            <Plus size={16} /> CREAR GREMIO
-          </button>
-          <button
-            onClick={() => setMode('join')}
-            className="flex items-center gap-2 px-6 py-3 border-2 border-border-pixel text-text-primary font-pixel hover:border-accent-gold transition-colors"
-            style={{ fontSize: '10px' }}
-          >
-            UNIRSE
-          </button>
-        </div>
+      <div className="mx-auto flex min-h-[min(62vh,560px)] max-w-xl items-center px-4 py-8">
+        <PixelPanel className="w-full overflow-hidden p-6 text-center shadow-md sm:p-9">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--bg-panel-light)] text-[var(--accent-gold)] shadow-sm">
+            <Shield size={31} strokeWidth={1.7} aria-hidden="true" />
+          </div>
+          <p className="mt-5 text-lg font-semibold tracking-tight text-[var(--text-primary)]">Aún no tienes gremio</p>
+          <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-[var(--text-secondary)]">Crea un espacio con tu grupo o únete con un código de invitación para compartir el progreso.</p>
+
+          <div className="mx-auto mt-6 grid max-w-sm gap-2.5 sm:grid-cols-2">
+            <PixelButton variant="primary" onClick={() => setMode('create')} className="w-full">
+              <span className="inline-flex items-center gap-2"><Plus size={15} aria-hidden="true" /> Crear gremio</span>
+            </PixelButton>
+            <PixelButton variant="ghost" onClick={() => setMode('join')} className="w-full">Unirse con código</PixelButton>
+          </div>
+
+          <div className="mt-6 border-t border-[var(--border-soft)] pt-4 text-xs text-[var(--text-muted)]">
+            Puedes tener hasta 10 aventureros en un gremio.
+          </div>
+        </PixelPanel>
       </div>
     );
   }
 
   if (mode === 'create') {
     return (
-      <div className="max-w-lg mx-auto py-8 px-4">
-        <h2 className="font-pixel text-accent-gold mb-6" style={{ fontSize: '14px' }}>CREAR GREMIO</h2>
-        <div className="space-y-4">
-          <input
-            placeholder="Nombre del gremio"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            className="w-full bg-bg-deep border-2 border-border-pixel px-3 py-2 font-vt text-text-primary focus:outline-none focus:border-accent-gold"
-          />
-          <input
-            placeholder="Descripción (opcional)"
-            value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
-            className="w-full bg-bg-deep border-2 border-border-pixel px-3 py-2 font-vt text-text-primary focus:outline-none focus:border-accent-gold"
-          />
-          <div>
-            <div className="font-pixel text-text-dim mb-2" style={{ fontSize: '9px' }}>EMBLEMA</div>
-            <div className="flex gap-2">
-              {EMBLEMS.map((e) => (
-                <button
-                  key={e}
-                  onClick={() => setForm({ ...form, emblem: e })}
-                  className={`w-10 h-10 border-2 text-xl flex items-center justify-center transition-all ${
-                    form.emblem === e ? 'border-accent-gold bg-bg-panel' : 'border-border-pixel hover:border-text-dim'
-                  }`}
-                >
-                  <E e={EMBLEM_ICONS[e]} />
-                </button>
-              ))}
+      <div className="mx-auto max-w-lg px-4 py-8">
+        <PixelPanel className="p-5 shadow-md sm:p-6">
+          <div className="mb-6 flex items-start gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--bg-panel-light)] text-[var(--accent-gold)]"><Shield size={18} aria-hidden="true" /></span>
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight text-[var(--text-primary)]">Crear gremio</h2>
+              <p className="mt-1 text-sm text-[var(--text-secondary)]">Reúne hasta diez aventureros alrededor de una misma meta.</p>
             </div>
           </div>
-          <div className="flex gap-2">
-            <button onClick={handleCreate} className="flex-1 py-3 bg-accent-gold text-bg-deep font-pixel border-2 border-accent-gold hover:opacity-90" style={{ fontSize: '10px' }}>
-              CREAR
-            </button>
-            <button onClick={() => setMode('view')} className="flex-1 py-3 border-2 border-border-pixel text-text-dim font-pixel hover:text-text-primary" style={{ fontSize: '10px' }}>
-              CANCELAR
-            </button>
+          <div className="space-y-4">
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">Nombre</span>
+              <input
+                placeholder="Nombre del gremio"
+                value={form.name}
+                onChange={(event) => setForm({ ...form, name: event.target.value })}
+                className="w-full rounded-xl border border-[var(--border)] bg-[var(--bg-deep)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--accent-gold)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--accent-gold)_16%,transparent)]"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">Descripción <span className="font-normal text-[var(--text-muted)]">(opcional)</span></span>
+              <input
+                placeholder="Una frase para tu equipo"
+                value={form.description}
+                onChange={(event) => setForm({ ...form, description: event.target.value })}
+                className="w-full rounded-xl border border-[var(--border)] bg-[var(--bg-deep)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--accent-gold)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--accent-gold)_16%,transparent)]"
+              />
+            </label>
+            <fieldset>
+              <legend className="mb-2 text-xs font-medium text-[var(--text-secondary)]">Emblema</legend>
+              <div className="grid grid-cols-6 gap-2">
+                {EMBLEMS.map((emblem) => {
+                  const selected = form.emblem === emblem;
+                  return (
+                    <button
+                      key={emblem}
+                      type="button"
+                      onClick={() => setForm({ ...form, emblem })}
+                      aria-label={`Elegir emblema ${emblem}`}
+                      aria-pressed={selected}
+                      className={`flex h-11 items-center justify-center rounded-xl border text-xl transition-colors ${selected ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)]/10' : 'border-[var(--border)] bg-[var(--bg-panel-light)] hover:border-[var(--border-strong)]'}`}
+                    >
+                      <E e={EMBLEM_ICONS[emblem]} />
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
+            <div className="grid grid-cols-2 gap-2.5 border-t border-[var(--border-soft)] pt-4">
+              <PixelButton variant="ghost" onClick={() => setMode('view')} className="w-full">Cancelar</PixelButton>
+              <PixelButton variant="primary" onClick={handleCreate} disabled={!form.name.trim()} className="w-full">Crear gremio</PixelButton>
+            </div>
           </div>
-        </div>
+        </PixelPanel>
       </div>
     );
   }
 
   if (mode === 'join') {
     return (
-      <div className="max-w-lg mx-auto py-8 px-4">
-        <h2 className="font-pixel text-accent-gold mb-6" style={{ fontSize: '14px' }}>UNIRSE A GREMIO</h2>
-        <div className="space-y-4">
-          <input
-            placeholder="Código de invitación (ej: ABC123)"
-            value={joinCode}
-            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-            maxLength={6}
-            className="w-full bg-bg-deep border-2 border-border-pixel px-3 py-2 font-vt text-text-primary focus:outline-none focus:border-accent-gold uppercase tracking-widest"
-          />
-          <div className="flex gap-2">
-            <button onClick={handleJoin} className="flex-1 py-3 bg-accent-gold text-bg-deep font-pixel border-2 border-accent-gold hover:opacity-90" style={{ fontSize: '10px' }}>
-              UNIRSE
-            </button>
-            <button onClick={() => setMode('view')} className="flex-1 py-3 border-2 border-border-pixel text-text-dim font-pixel hover:text-text-primary" style={{ fontSize: '10px' }}>
-              CANCELAR
-            </button>
+      <div className="mx-auto max-w-lg px-4 py-8">
+        <PixelPanel className="p-5 shadow-md sm:p-6">
+          <div className="mb-6 flex items-start gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--bg-panel-light)] text-[var(--accent-gold)]"><Shield size={18} aria-hidden="true" /></span>
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight text-[var(--text-primary)]">Unirse a un gremio</h2>
+              <p className="mt-1 text-sm text-[var(--text-secondary)]">Pega el código de invitación que te compartió tu equipo.</p>
+            </div>
           </div>
-        </div>
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">Código de invitación</span>
+            <input
+              placeholder="ABC123"
+              value={joinCode}
+              onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
+              maxLength={6}
+              autoCapitalize="characters"
+              className="w-full rounded-xl border border-[var(--border)] bg-[var(--bg-deep)] px-3 py-2.5 text-center text-base font-semibold uppercase tracking-[0.22em] text-[var(--text-primary)] outline-none transition-colors placeholder:tracking-normal placeholder:text-[var(--text-muted)] focus:border-[var(--accent-gold)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--accent-gold)_16%,transparent)]"
+            />
+          </label>
+          <div className="mt-5 grid grid-cols-2 gap-2.5 border-t border-[var(--border-soft)] pt-4">
+            <PixelButton variant="ghost" onClick={() => setMode('view')} className="w-full">Cancelar</PixelButton>
+            <PixelButton variant="primary" onClick={handleJoin} disabled={!joinCode.trim()} className="w-full">Unirse</PixelButton>
+          </div>
+        </PixelPanel>
       </div>
     );
   }

@@ -1,23 +1,26 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { CalendarClock, Coffee, Dumbbell, Moon, MonitorSmartphone } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import { PixelPanel } from '../../components/ui/PixelPanel';
 import { PixelButton } from '../../components/ui/PixelButton';
+import { ModalFrame } from '../../components/ui/ModalFrame';
 import type { SleepLog, SleepStats } from '@lifequest/shared';
 import * as sleepService from '../../services/sleep.service';
 import { SageContextButton } from '../../components/sage/SageContextButton';
 import { E } from '@/components/ui/glyphs';
 
 const QUALITY_LABELS = ['', ' Terrible', ' Malo', ' Regular', ' Bueno', ' Excelente'];
-const QUALITY_COLORS = ['', '#b5453a', '#a8a8b0', '#8a8a92', '#6cb98a', '#3f7a55'];
+const QUALITY_COLORS = ['', 'var(--accent-red)', 'var(--text-muted)', 'var(--text-secondary)', 'var(--accent-green)', 'var(--accent-green)'];
 
 function SleepModal({ onClose, onSave }: { onClose: () => void; onSave: (log: SleepLog) => void }) {
   const today = new Date().toISOString().split('T')[0];
   const [bedtime, setBedtime] = useState(`${today}T23:00`);
   const [wakeTime, setWakeTime] = useState(() => {
-    const tom = new Date(); tom.setDate(tom.getDate() + 1);
-    return `${tom.toISOString().split('T')[0]}T07:00`;
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return `${tomorrow.toISOString().split('T')[0]}T07:00`;
   });
   const [quality, setQuality] = useState(4);
   const [notes, setNotes] = useState('');
@@ -29,88 +32,158 @@ function SleepModal({ onClose, onSave }: { onClose: () => void; onSave: (log: Sl
 
   const duration = (() => {
     try {
-      let d = (new Date(wakeTime).getTime() - new Date(bedtime).getTime()) / 3600000;
-      if (d < 0) d += 24;
-      return d.toFixed(1);
-    } catch { return '?'; }
+      let hours = (new Date(wakeTime).getTime() - new Date(bedtime).getTime()) / 3600000;
+      if (hours < 0) hours += 24;
+      return hours.toFixed(1);
+    } catch {
+      return '?';
+    }
   })();
 
   async function save() {
     setSaving(true);
     try {
-      const log = await sleepService.createSleep({ bedtime, wakeTime, quality, notes: notes || undefined, date: today, caffeineLate, screensBeforeBed, exercisedToday });
+      const log = await sleepService.createSleep({
+        bedtime,
+        wakeTime,
+        quality,
+        notes: notes || undefined,
+        date: today,
+        caffeineLate,
+        screensBeforeBed,
+        exercisedToday,
+      });
       onSave(log);
       toast.success('¡Sueño registrado!', `${duration}h de descanso`);
     } catch {
       toast.error('Error al registrar sueño');
-    } finally { setSaving(false); }
+    } finally {
+      setSaving(false);
+    }
   }
 
+  const factors = [
+    { key: 'caffeine', label: 'Tomé cafeína tarde', detail: 'Después de las 4 p. m.', active: caffeineLate, setActive: setCaffeineLate, Icon: Coffee },
+    { key: 'screens', label: 'Usé pantallas antes de dormir', detail: 'TV, móvil o computador', active: screensBeforeBed, setActive: setScreensBeforeBed, Icon: MonitorSmartphone },
+    { key: 'exercise', label: 'Hice ejercicio hoy', detail: 'Entrenamiento o actividad física', active: exercisedToday, setActive: setExercisedToday, Icon: Dumbbell },
+  ];
+
+  const inputClass = 'min-w-0 w-full rounded-xl border border-[var(--border)] bg-[var(--bg-deep)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition-colors focus:border-[var(--accent-gold)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--accent-gold)_16%,transparent)]';
+
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/70 z-50 flex items-end md:items-center justify-center p-4" onClick={onClose}>
-      <motion.div initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }} transition={{ type: 'spring', stiffness: 350, damping: 28 }} className="bg-bg-panel border-2 border-border-pixel w-full max-w-md space-y-4 p-5" onClick={e => e.stopPropagation()}>
-        <p className="font-pixel text-accent-gold" style={{ fontSize: '10px' }}>REGISTRAR SUEÑO</p>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <p className="font-pixel text-text-secondary mb-1" style={{ fontSize: '7px' }}>ME ACOSTÉ</p>
-            <input type="datetime-local" value={bedtime} onChange={e => setBedtime(e.target.value)} style={{ colorScheme: 'dark' }} className="w-full bg-bg-deep border-2 border-border-pixel text-white font-vt text-base px-2 py-1.5 focus:border-accent-gold outline-none" />
-          </div>
-          <div>
-            <p className="font-pixel text-text-secondary mb-1" style={{ fontSize: '7px' }}>ME LEVANTÉ</p>
-            <input type="datetime-local" value={wakeTime} onChange={e => setWakeTime(e.target.value)} style={{ colorScheme: 'dark' }} className="w-full bg-bg-deep border-2 border-border-pixel text-white font-vt text-base px-2 py-1.5 focus:border-accent-gold outline-none" />
-          </div>
+    <ModalFrame
+      title="Registrar descanso"
+      description="Guarda cómo dormiste para detectar patrones y cuidar tu energía."
+      icon={<Moon className="h-4 w-4" aria-hidden="true" />}
+      onClose={onClose}
+      size="lg"
+      contentClassName="space-y-5"
+      footer={(
+        <div className="grid grid-cols-2 gap-2.5">
+          <PixelButton variant="ghost" onClick={onClose} className="w-full">Cancelar</PixelButton>
+          <PixelButton variant="primary" onClick={save} disabled={saving} className="w-full">
+            {saving ? 'Guardando…' : 'Registrar sueño'}
+          </PixelButton>
         </div>
+      )}
+    >
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <label className="min-w-0">
+          <span className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)]">
+            <CalendarClock className="h-3.5 w-3.5 text-[var(--accent-gold)]" aria-hidden="true" /> Me acosté
+          </span>
+          <input
+            type="datetime-local"
+            value={bedtime}
+            onChange={(event) => setBedtime(event.target.value)}
+            className={inputClass}
+          />
+        </label>
+        <label className="min-w-0">
+          <span className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)]">
+            <CalendarClock className="h-3.5 w-3.5 text-[var(--accent-gold)]" aria-hidden="true" /> Me levanté
+          </span>
+          <input
+            type="datetime-local"
+            value={wakeTime}
+            onChange={(event) => setWakeTime(event.target.value)}
+            className={inputClass}
+          />
+        </label>
+      </div>
 
-        <PixelPanel className="p-3 text-center">
-          <p className="font-pixel text-text-secondary" style={{ fontSize: '7px' }}>DURACIÓN CALCULADA</p>
-          <p className="font-pixel text-accent-gold text-2xl">{duration}h</p>
-        </PixelPanel>
+      <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel-light)] p-4 text-center shadow-sm">
+        <p className="text-xs font-medium uppercase tracking-[0.12em] text-[var(--text-muted)]">Duración calculada</p>
+        <p className="mt-1 text-3xl font-semibold tabular-nums text-[var(--accent-gold)]">{duration}<span className="ml-0.5 text-base">h</span></p>
+      </section>
 
-        <div>
-          <p className="font-pixel text-text-secondary mb-2" style={{ fontSize: '7px' }}>CALIDAD</p>
-          <div className="flex gap-2 justify-center">
-            {[1, 2, 3, 4, 5].map(q => (
+      <fieldset>
+        <legend className="mb-2 text-xs font-medium text-[var(--text-secondary)]">¿Cómo descansaste?</legend>
+        <div className="flex items-center gap-2" role="radiogroup" aria-label="Calidad del sueño">
+          {[1, 2, 3, 4, 5].map((rating) => {
+            const selected = quality === rating;
+            return (
               <motion.button
-                key={q}
-                whileTap={{ scale: 0.85 }}
-                onClick={() => setQuality(q)}
-                className={`text-2xl transition-all ${quality >= q ? 'opacity-100 scale-110' : 'opacity-40'}`}
+                key={rating}
+                type="button"
+                whileTap={{ scale: 0.92 }}
+                onClick={() => setQuality(rating)}
+                aria-label={`${rating} de 5`}
+                aria-pressed={selected}
+                className={`flex h-11 flex-1 items-center justify-center rounded-xl border text-lg transition-colors ${
+                  selected
+                    ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)]/10 text-[var(--accent-gold)]'
+                    : 'border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]'
+                }`}
               >
                 <E e="⭐" />
               </motion.button>
-            ))}
-          </div>
-          <p className="font-vt text-center mt-1" style={{ color: QUALITY_COLORS[quality] }}><E e={QUALITY_LABELS[quality]} /></p>
+            );
+          })}
         </div>
+        <p className="mt-2 text-center text-sm font-medium" style={{ color: QUALITY_COLORS[quality] }}><E e={QUALITY_LABELS[quality]} /></p>
+      </fieldset>
 
-        {/* Sleep factors */}
-        <div>
-          <p className="font-pixel text-text-secondary mb-2" style={{ fontSize: '7px' }}>FACTORES</p>
-          <div className="space-y-2">
-            {([
-              ['caffeineLate', ' Cafeína tarde (después de 4pm)', caffeineLate, setCaffeineLate],
-              ['screens', ' Pantallas antes de dormir', screensBeforeBed, setScreensBeforeBed],
-              ['exercise', ' Ejercicié hoy', exercisedToday, setExercisedToday],
-            ] as [string, string, boolean, (v: boolean) => void][]).map(([key, label, val, setter]) => (
-              <button key={key} onClick={() => setter(!val)} className={`w-full flex items-center gap-3 px-3 py-2 border-2 transition-all text-left ${val ? 'border-accent-gold bg-accent-gold/10' : 'border-border-pixel'}`}>
-                <span className="font-pixel text-accent-gold" style={{ fontSize: '10px' }}>{val ? <E e="☑" s={11} /> : <E e="☐" s={11} />}</span>
-                <span className="font-vt text-text-primary text-base">{label}</span>
-              </button>
-            ))}
-          </div>
+      <fieldset>
+        <legend className="mb-2 text-xs font-medium text-[var(--text-secondary)]">Factores de la noche</legend>
+        <div className="space-y-2">
+          {factors.map(({ key, label, detail, active, setActive, Icon }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setActive(!active)}
+              aria-pressed={active}
+              className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-colors ${
+                active
+                  ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)]/10'
+                  : 'border-[var(--border)] bg-[var(--bg-panel-light)] hover:border-[var(--border-strong)]'
+              }`}
+            >
+              <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${active ? 'bg-[var(--accent-gold)]/15 text-[var(--accent-gold)]' : 'bg-[var(--bg-muted)] text-[var(--text-secondary)]'}`}>
+                <Icon className="h-4 w-4" aria-hidden="true" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-medium text-[var(--text-primary)]">{label}</span>
+                <span className="mt-0.5 block text-xs text-[var(--text-muted)]">{detail}</span>
+              </span>
+              <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-xs ${active ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)] text-[var(--bg-deep)]' : 'border-[var(--border-strong)] text-transparent'}`}>
+                <E e="✓" />
+              </span>
+            </button>
+          ))}
         </div>
+      </fieldset>
 
-        <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Notas (opcional)" className="w-full bg-bg-deep border-2 border-border-pixel text-white font-vt text-base px-3 py-2 focus:border-accent-gold outline-none" />
-
-        <div className="flex gap-2">
-          <PixelButton variant="ghost" onClick={onClose} className="flex-1">Cancelar</PixelButton>
-          <PixelButton variant="primary" onClick={save} disabled={saving} className="flex-1">
-            {saving ? 'Guardando...' : <><E e="🌙" s={11} /> REGISTRAR</>}
-          </PixelButton>
-        </div>
-      </motion.div>
-    </motion.div>
+      <label className="block">
+        <span className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">Notas <span className="font-normal text-[var(--text-muted)]">(opcional)</span></span>
+        <input
+          value={notes}
+          onChange={(event) => setNotes(event.target.value)}
+          placeholder="Algo que quieras recordar sobre tu noche"
+          className={inputClass}
+        />
+      </label>
+    </ModalFrame>
   );
 }
 
@@ -227,7 +300,7 @@ export default function SleepPage() {
               <Tooltip contentStyle={{ background: 'var(--bg-panel)', border: '1px solid var(--border-strong)', fontFamily: 'Montserrat', fontSize: '16px', color: 'var(--text-primary)' }} formatter={(v: number) => `${v}h`} />
               <Bar dataKey="horas">
                 {chartData.map((d, i) => (
-                  <Cell key={i} fill={QUALITY_COLORS[d.quality] ?? '#8a8a92'} />
+                  <Cell key={i} fill={QUALITY_COLORS[d.quality] ?? 'var(--text-muted)'} />
                 ))}
               </Bar>
             </BarChart>
