@@ -83,4 +83,13 @@ export const sageDailyLimiter = buildLimiter({
   message: 'Has alcanzado el límite diario de consultas al Sabio (20/día). Vuelve mañana.',
 });
 
+
+// A destructive reset also requires the current password and a literal
+// confirmation, but limit it further to make accidental/replayed requests rare.
+export const factoryResetLimiter = buildLimiter({
+  windowMs: 60 * 60_000,
+  max: 3,
+  message: 'Demasiados intentos de reinicio. Intenta de nuevo en una hora.',
+});
+
 export { buildLimiter };

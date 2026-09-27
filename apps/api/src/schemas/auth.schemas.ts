@@ -19,3 +19,9 @@ export const loginSchema = z.object({
 
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
+
+/** Explicit confirmation prevents an accidental destructive account reset. */
+export const factoryResetSchema = z.object({
+  password: z.string().min(1, 'Contraseña requerida'),
+  confirmation: z.literal('RESET_MY_LIFEQUEST'),
+});

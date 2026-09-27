@@ -3,6 +3,7 @@ import * as authService from '../services/auth.service';
 import { REFRESH_COOKIE_OPTIONS } from '../lib/jwt';
 import type { AuthRequest } from '../middleware/auth.middleware';
 import { reconcileUserActivityStreak } from '../services/xp.service';
+import { resetAccountData } from '../services/account-reset.service';
 
 export async function register(req: Request, res: Response): Promise<void> {
   try {
@@ -67,6 +68,30 @@ export async function logout(req: AuthRequest, res: Response): Promise<void> {
   }
   res.clearCookie('refreshToken', { path: '/api/v1' });
   res.json({ message: 'Hasta pronto, héroe.' });
+}
+
+
+/**
+ * Destructive self-service reset. Authentication plus the current password and
+ * a literal confirmation are all required before any account data is changed.
+ */
+export async function factoryReset(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const body = req.body as { password: string };
+    const summary = await resetAccountData(req.userId!, body.password);
+    res.json({
+      message: 'Tu progreso y datos de LifeQuest fueron reiniciados.',
+      summary,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '';
+    if (message === 'INVALID_RESET_CREDENTIALS') {
+      res.status(401).json({ error: 'La contraseña actual es incorrecta.' });
+      return;
+    }
+    console.error('[FACTORY_RESET_ERROR]', err);
+    res.status(500).json({ error: 'No se pudo reiniciar la cuenta. No se aplicaron cambios parciales.' });
+  }
 }
 
 export async function me(req: AuthRequest, res: Response): Promise<void> {
