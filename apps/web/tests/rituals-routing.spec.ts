@@ -32,12 +32,12 @@ test.describe('Dedicated ritual routing', () => {
     await page.getByRole('button', { name: /rituales.*rutinas de vida/i }).click();
 
     await expect(page).toHaveURL(/\/rituals$/);
-    await expect(page.getByRole('heading', { name: 'Rituales' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Rituales', exact: true })).toBeVisible();
 
     // Spanish remains a canonical alias for the same dedicated screen.
     await page.goto(url('/rituales'), { waitUntil: 'networkidle' });
     await expect(page).toHaveURL(/\/rituals$/);
-    await expect(page.getByRole('heading', { name: 'Rituales' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Rituales', exact: true })).toBeVisible();
 
     // The old query is harmless but cannot revive System A inside Habits.
     await page.goto(url('/habits?filter=ritual'), { waitUntil: 'networkidle' });

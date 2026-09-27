@@ -40,9 +40,15 @@ La API de exportación es por usuario, no una consulta administrativa global. Po
 3. **UI local construida contra la API desplegada:** Playwright pasó el flujo `CommandPalette → Rituales`, el alias `/rituales`, y la neutralización de `/habits?filter=ritual`.
 4. **ExecutionMode contra la API desplegada, con mutaciones autorizadas:** se sembraron presets en una cuenta autorizada sin rituales, se completó uno dos veces desde la interfaz y se verificó la primera respuesta `{ alreadyDone: false, xpEarned: 30, goldEarned: 5 }` y la segunda `{ alreadyDone: true, xpEarned: 0, goldEarned: 0 }`. Los presets de verificación se eliminaron posteriormente; el historial de la única recompensa se mantuvo conforme a la autorización de auditoría.
 
-## Puerta obligatoria para staging y producción
+## Despliegue directo autorizado y verificación posterior
 
-Antes de enviar esta migración a una base compartida o de producción:
+No había un entorno de staging remoto aislado configurado. Tras señalar explícitamente que `main` dispara los despliegues de Vercel y que la migración elimina una columna, la persona responsable autorizó de forma expresa el despliegue directo a producción. El commit de consolidación quedó desplegado correctamente en los proyectos web y API de Vercel.
+
+La protección no se omitió en el código: el build sólo podía continuar si el conteo global de `Habit.isRitual=true` era cero. Después del despliegue se verificó en producción que `/api/v1/habits` y el export ya no exponen el campo legado, que los hábitos regulares siguen disponibles y que `/api/v1/rituals` responde correctamente. Los E2E de routing y de `ExecutionMode` también pasaron contra las URLs de producción; los presets usados por la prueba se limpiaron al final.
+
+## Puerta requerida para futuras migraciones destructivas
+
+La autorización directa de esta entrega no sustituye un staging. Antes de enviar otra migración destructiva a una base compartida o de producción:
 
 1. Crear snapshot/backup de la base de staging.
 2. Ejecutar `prisma migrate deploy` (o el build `migrate-db.ts` usado por el entorno).
