@@ -38,7 +38,7 @@ La API de exportación es por usuario, no una consulta administrativa global. Po
    - un marcador heredado → rechaza la migración y conserva columna/dato;
    - una segunda ejecución sin columna → no falla.
 3. **UI local construida contra la API desplegada:** Playwright pasó el flujo `CommandPalette → Rituales`, el alias `/rituales`, y la neutralización de `/habits?filter=ritual`.
-4. **ExecutionMode contra la API desplegada, con mutaciones autorizadas:** se sembraron presets en una cuenta autorizada sin rituales, se completó uno dos veces desde la interfaz y se verificó la primera respuesta `{ alreadyDone: false, xpEarned: 30, goldEarned: 5 }` y la segunda `{ alreadyDone: true, xpEarned: 0, goldEarned: 0 }`. Los presets de verificación se eliminaron posteriormente; el historial de la única recompensa se mantuvo conforme a la autorización de auditoría.
+4. **ExecutionMode contra la API desplegada, con mutaciones autorizadas:** se hicieron dos corridas controladas en una cuenta autorizada sin rituales. En cada una se sembraron presets, se completó uno dos veces desde la interfaz y se verificó la primera respuesta `{ alreadyDone: false, xpEarned: 30, goldEarned: 5 }` y la segunda `{ alreadyDone: true, xpEarned: 0, goldEarned: 0 }`. Los presets de verificación se eliminaron posteriormente; los dos eventos de recompensa inicial (total `+60 XP` y `+10 gold`) se conservaron conforme a la autorización de auditoría.
 
 ## Despliegue directo autorizado y verificación posterior
 
