@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useState, useRef } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from './store/authStore';
@@ -235,43 +235,35 @@ export default function App() {
   }, [(user as any)?.activeTheme]);
 
   const [splashDone, setSplashDone] = useState(false);
-  const isLoadingRef = useRef(isLoading);
-  useEffect(() => { isLoadingRef.current = isLoading; }, [isLoading]);
+  const [minimumSplashElapsed, setMinimumSplashElapsed] = useState(false);
+  const [splashReady, setSplashReady] = useState(false);
 
   useEffect(() => {
     initAudio();
-    // Force splash done after 6s no matter what (hard safety net)
-    const hardTimeout = setTimeout(() => setSplashDone(true), 6000);
-    return () => clearTimeout(hardTimeout);
+    // A hard fallback preserves access if the bootstrap request is unavailable.
+    // The splash itself performs the short fade before marking the app as ready.
+    const hardTimeout = window.setTimeout(() => setSplashReady(true), 6000);
+    return () => window.clearTimeout(hardTimeout);
   }, [initAudio]);
 
-  // Watch for auth + 2.2s delay, then release splash
   useEffect(() => {
-    if (splashDone) return;
-    const minDelay = setTimeout(() => {
-      // At this point 2.2s have passed; wait for auth if still loading
-      if (!isLoadingRef.current) {
-        setSplashDone(true);
-      } else {
-        const check = setInterval(() => {
-          if (!isLoadingRef.current) {
-            clearInterval(check);
-            setSplashDone(true);
-          }
-        }, 100);
-        // Safety: clear if somehow never resolves
-        const bail = setTimeout(() => { clearInterval(check); setSplashDone(true); }, 4000);
-        return () => { clearInterval(check); clearTimeout(bail); };
-      }
-    }, 2200);
-    return () => clearTimeout(minDelay);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    // Keep the launch transition perceptible without retaining the old,
+    // disconnected four-second loading scene.
+    const minDelay = window.setTimeout(() => setMinimumSplashElapsed(true), 1450);
+    return () => window.clearTimeout(minDelay);
+  }, []);
+
+  useEffect(() => {
+    if (minimumSplashElapsed && !isLoading) {
+      setSplashReady(true);
+    }
+  }, [isLoading, minimumSplashElapsed]);
 
   const showSplash = !splashDone;
 
   return (
     <ErrorBoundary>
-      {showSplash && <SplashScreen onDone={() => setSplashDone(true)} />}
+      {showSplash && <SplashScreen ready={splashReady} onDone={() => setSplashDone(true)} />}
 
       {isAuthenticated && showNotifModal && (
         <NotificationPermissionModal onClose={() => setShowNotifModal(false)} />

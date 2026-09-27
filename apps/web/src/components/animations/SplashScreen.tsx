@@ -1,220 +1,125 @@
-import { useEffect, useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect, useState } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { Compass, ShieldCheck } from 'lucide-react';
 
 interface Props {
+  /** The app has completed its minimum loading/authentication work. */
+  ready: boolean;
   onDone: () => void;
 }
 
-function PixelStar({ style }: { style: React.CSSProperties }) {
-  return (
-    <motion.div
-      className="absolute bg-white"
-      style={{ width: 1, height: 1, ...style }}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: [0, style.opacity as number, (style.opacity as number) * 0.4] }}
-      transition={{
-        delay: (style.left as number) / 2000,
-        duration: 2 + Math.random() * 2,
-        repeat: Infinity,
-        repeatType: 'reverse',
-      }}
-    />
-  );
-}
+const INTRO_STEPS = [18, 42, 72, 88];
 
-// Pre-generate star positions so they're stable across renders
-const STARS = Array.from({ length: 80 }, (_, i) => ({
-  left: (i * 37 + 17) % 100,
-  top: (i * 53 + 23) % 100,
-  opacity: 0.2 + ((i * 13) % 60) / 100,
-  size: i % 7 === 0 ? 2 : 1,
-}));
-
-export function SplashScreen({ onDone }: Props) {
-  const [lettersShown, setLettersShown] = useState(0);
-  const [showTagline, setShowTagline] = useState(false);
-  const [showSprite, setShowSprite] = useState(false);
-  const [showBar, setShowBar] = useState(false);
-  const [barPct, setBarPct] = useState(0);
-  const [canHide, setCanHide] = useState(false);
+/**
+ * A short, theme-aware launch transition. It intentionally shares the same
+ * surface, border, typography and semantic accent tokens as the application
+ * instead of presenting a separate arcade-style loading scene.
+ */
+export function SplashScreen({ ready, onDone }: Props) {
+  const reduceMotion = useReducedMotion();
+  const [progress, setProgress] = useState(0);
   const [exiting, setExiting] = useState(false);
-  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   useEffect(() => {
-    const t = timers.current;
-    const letters = ['L', 'i', 'f', 'e', 'Q', 'u', 'e', 's', 't'];
-    let letterIndex = 0;
-
-    // Type letters at 120ms each — 9 letters = 1080ms total
-    const typeInterval = setInterval(() => {
-      if (letterIndex < letters.length) {
-        letterIndex++;
-        setLettersShown(letterIndex);
-      } else {
-        clearInterval(typeInterval);
-      }
-    }, 120);
-
-    t.push(setTimeout(() => setShowTagline(true), 1300));
-    t.push(setTimeout(() => setShowSprite(true), 1600));
-    t.push(setTimeout(() => setShowBar(true), 1850));
-
-    // Minimum 2.8s before hiding
-    t.push(setTimeout(() => setCanHide(true), 2800));
-
-    // Safety net: force exit after 4s no matter what
-    t.push(setTimeout(() => {
-      setBarPct(100);
-      setCanHide(true);
-    }, 4000));
-
-    // Fill bar slowly — targets ~2.2s to reach 100%
-    let pct = 0;
-    const barInterval = setInterval(() => {
-      pct = Math.min(100, pct + Math.random() * 7 + 3);
-      setBarPct(Math.floor(pct));
-      if (pct >= 100) clearInterval(barInterval);
-    }, 150);
-
-    return () => {
-      t.forEach(clearTimeout);
-      clearInterval(typeInterval);
-      clearInterval(barInterval);
-    };
+    const timers = INTRO_STEPS.map((value, index) => (
+      window.setTimeout(() => setProgress((current) => Math.max(current, value)), 100 + index * 180)
+    ));
+    return () => timers.forEach(window.clearTimeout);
   }, []);
 
-  // Exit when both conditions are met: min time passed + bar full
   useEffect(() => {
-    if (canHide && barPct >= 100) {
-      const t = setTimeout(() => {
-        setExiting(true);
-        setTimeout(onDone, 450);
-      }, 200);
-      return () => clearTimeout(t);
-    }
-  }, [canHide, barPct, onDone]);
+    if (!ready || exiting) return;
+
+    setProgress(100);
+    const beginExit = window.setTimeout(() => setExiting(true), reduceMotion ? 0 : 150);
+    return () => window.clearTimeout(beginExit);
+  }, [exiting, ready, reduceMotion]);
+
+  useEffect(() => {
+    if (!exiting) return;
+
+    // Wait for AnimatePresence to finish the fade before revealing the route.
+    const finish = window.setTimeout(onDone, reduceMotion ? 0 : 290);
+    return () => window.clearTimeout(finish);
+  }, [exiting, onDone, reduceMotion]);
+
+  const isReady = ready && progress === 100;
+  const status = isReady ? 'Todo listo' : 'Preparando tu espacio';
 
   return (
     <AnimatePresence>
-      {!exiting && (
+      {!exiting ? (
         <motion.div
-          className="fixed inset-0 flex flex-col items-center justify-center overflow-hidden"
-          style={{ background: 'radial-gradient(ellipse at 50% 40%, #1c1c1f 0%, #0a0a0a 100%)', zIndex: 300 }}
-          exit={{ opacity: 0, scale: 1.04 }}
-          transition={{ duration: 0.45 }}
+          aria-busy={!isReady}
+          aria-label="Iniciando LifeQuest"
+          className="fixed inset-0 z-[300] flex min-h-dvh items-center justify-center overflow-hidden bg-[var(--bg-deep)] px-5"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: reduceMotion ? 0 : 0.28, ease: [0.22, 1, 0.36, 1] }}
         >
-          {/* Star field */}
-          <div className="absolute inset-0 pointer-events-none">
-            {STARS.map((s, i) => (
-              <PixelStar
-                key={i}
-                style={{
-                  left: `${s.left}%`,
-                  top: `${s.top}%`,
-                  opacity: s.opacity,
-                  width: s.size,
-                  height: s.size,
-                }}
-              />
-            ))}
-          </div>
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0"
+            style={{
+              background: 'radial-gradient(circle at 50% 44%, color-mix(in oklab, var(--accent-gold) 9%, transparent), transparent 33%)',
+            }}
+          />
+          <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1/2 h-[34rem] w-[34rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[color-mix(in_oklab,var(--border)_72%,transparent)]" />
+          <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1/2 h-[23rem] w-[23rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[color-mix(in_oklab,var(--border-soft)_82%,transparent)]" />
 
-          {/* Content */}
-          <div className="relative z-10 flex flex-col items-center gap-6 px-8">
-            <motion.img
-              src="/brand/lifequest-logo.png"
-              alt="LifeQuest"
-              className="h-28 w-28 rounded-[28px] border border-white/15 bg-white object-cover shadow-2xl"
-              initial={{ opacity: 0, y: -12, scale: 0.82 }}
-              animate={lettersShown > 0 ? { opacity: 1, y: 0, scale: 1 } : {}}
-              transition={{ type: 'spring', stiffness: 240, damping: 18 }}
-            />
+          <motion.div
+            className="relative w-full max-w-[23rem] rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-5 shadow-[var(--shadow-lg)] sm:p-6"
+            initial={reduceMotion ? false : { opacity: 0, y: 14, scale: 0.985 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: reduceMotion ? 0 : 0.42, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <div className="flex items-center gap-3">
+              <motion.div
+                className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-muted)]"
+                animate={isReady || reduceMotion ? undefined : { rotate: [0, -2, 2, 0] }}
+                transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+              >
+                <img src="/brand/lifequest-logo.png" alt="" className="h-full w-full object-cover" />
+              </motion.div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--accent-gold)]">LifeQuest</p>
+                <h1 className="mt-0.5 text-lg font-bold tracking-tight text-[var(--text-primary)]">Tu aventura, en orden.</h1>
+                <p className="mt-1 text-xs text-[var(--text-muted)]">Preparando tu espacio de progreso.</p>
+              </div>
+            </div>
 
-            <motion.div
-              className="font-pixel"
-              style={{
-                fontSize: 'clamp(14px, 4vw, 24px)',
-                letterSpacing: '3px',
-                color: '#d9b44a',
-                textShadow: '3px 3px 0 rgba(0,0,0,0.55), 0 0 24px rgba(217,180,74,0.4)',
-              }}
-              initial={{ opacity: 0, y: 8 }}
-              animate={lettersShown > 2 ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.35 }}
-            >
-              LIFEQUEST
-            </motion.div>
+            <div className="mt-6 rounded-xl border border-[var(--border-soft)] bg-[var(--bg-muted)]/45 p-3.5">
+              <div className="flex items-center justify-between gap-3">
+                <span className="flex min-w-0 items-center gap-2 text-xs font-medium text-[var(--text-secondary)]">
+                  {isReady ? <ShieldCheck className="h-4 w-4 shrink-0 text-[var(--accent-green)]" aria-hidden="true" /> : <Compass className="h-4 w-4 shrink-0 text-[var(--accent-gold)]" aria-hidden="true" />}
+                  <span className="truncate">{status}</span>
+                </span>
+                <span className="shrink-0 text-xs font-semibold tabular-nums text-[var(--text-secondary)]">{progress}%</span>
+              </div>
 
-            {/* Tagline */}
-            <AnimatePresence>
-              {showTagline && (
-                <motion.p
-                  className="font-vt text-text-secondary text-center"
-                  style={{ fontSize: '20px' }}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.7 }}
-                >
-                  La aventura de tu vida empieza hoy
-                </motion.p>
-              )}
-            </AnimatePresence>
-
-            <AnimatePresence>
-              {showSprite && (
+              <div
+                className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--bg-panel)]"
+                role="progressbar"
+                aria-label="Progreso de inicio"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={progress}
+              >
                 <motion.div
-                  initial={{ y: 30, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ type: 'spring', stiffness: 240, damping: 18 }}
-                >
-                  <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 font-vt text-xl text-[var(--text-secondary)]">
-                    El RPG de tu vida real
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                  className="h-full rounded-full bg-[var(--accent-gold)]"
+                  animate={{ width: `${progress}%` }}
+                  transition={{ duration: reduceMotion ? 0 : 0.28, ease: [0.22, 1, 0.36, 1] }}
+                />
+              </div>
+            </div>
 
-            {/* Progress bar */}
-            <AnimatePresence>
-              {showBar && (
-                <motion.div
-                  className="w-64"
-                  initial={{ opacity: 0, scaleX: 0.5 }}
-                  animate={{ opacity: 1, scaleX: 1 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <div className="flex justify-between mb-1">
-                    <span className="font-pixel text-text-secondary" style={{ fontSize: '7px' }}>CARGANDO</span>
-                    <span className="font-pixel text-accent-gold" style={{ fontSize: '7px' }}>{Math.floor(barPct)}%</span>
-                  </div>
-                  <div
-                    className="border-2 border-accent-gold relative overflow-hidden"
-                    style={{ height: '16px', background: 'rgba(0,0,0,0.5)' }}
-                  >
-                    <motion.div
-                      className="h-full bg-accent-gold"
-                      animate={{ width: `${barPct}%` }}
-                      transition={{ ease: 'easeOut', duration: 0.15 }}
-                      style={{
-                        backgroundImage:
-                          'repeating-linear-gradient(90deg, transparent, transparent 10px, rgba(0,0,0,0.18) 10px, rgba(0,0,0,0.18) 12px)',
-                      }}
-                    />
-                    {/* Scanline overlay */}
-                    <div
-                      className="absolute inset-0 pointer-events-none"
-                      style={{
-                        backgroundImage:
-                          'repeating-linear-gradient(transparent, transparent 3px, rgba(0,0,0,0.12) 3px, rgba(0,0,0,0.12) 4px)',
-                      }}
-                    />
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+            <p className="mt-4 text-center text-[11px] leading-4 text-[var(--text-muted)]">
+              Misiones, hábitos y progreso real en un solo lugar.
+            </p>
+          </motion.div>
         </motion.div>
-      )}
+      ) : null}
     </AnimatePresence>
   );
 }
