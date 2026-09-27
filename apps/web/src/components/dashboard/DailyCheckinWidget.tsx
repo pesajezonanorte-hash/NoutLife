@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, Zap, CheckCircle2, Frown, Annoyed, Meh, Smile, Laugh } from 'lucide-react';
 import * as checkinService from '../../services/checkin.service';
 import type { DailyCheckin } from '../../services/checkin.service';
+import { Slider } from '../ui/slider';
 import { E } from '@/components/ui/glyphs';
 
 const MOOD_OPTIONS = [
@@ -114,12 +115,14 @@ export function DailyCheckinWidget() {
           </div>
           <span className="text-sm font-bold text-[var(--accent-gold)]">{energy}/10</span>
         </div>
-        <input
-          type="range"
-          min={1} max={10}
-          value={energy}
-          onChange={(e) => setEnergy(Number(e.target.value))}
-          className="w-full accent-[var(--accent-gold)]"
+        <Slider
+          min={1}
+          max={10}
+          step={1}
+          value={[energy]}
+          onValueChange={([value]) => setEnergy(value)}
+          accent="var(--accent-gold)"
+          aria-label="Nivel de energía"
         />
       </div>
 

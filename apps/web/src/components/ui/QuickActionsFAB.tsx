@@ -12,6 +12,7 @@ import { refreshUser } from '../../hooks/useAuth';
 import type { Habit } from '../../services/habit.service';
 import { E } from '@/components/ui/glyphs';
 import { Dock, DockIcon, DockItem, DockLabel } from './dock';
+import { Slider } from './slider';
 
 type ModalType = 'quest' | 'expense' | 'habit' | 'note' | 'checkin' | null;
 
@@ -205,8 +206,15 @@ function CheckinModal({ onClose, onDone }: { onClose: () => void; onDone: () => 
         </div>
         <div>
           <p className="text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Energía: {energy}/10</p>
-          <input type="range" min={1} max={10} value={energy} onChange={e => setEnergy(Number(e.target.value))}
-            className="w-full accent-[var(--accent-cyan)]" />
+          <Slider
+            min={1}
+            max={10}
+            step={1}
+            value={[energy]}
+            onValueChange={([value]) => setEnergy(value)}
+            accent="var(--accent-cyan)"
+            aria-label="Nivel de energía"
+          />
         </div>
         <SaveButton onClick={handleSave} saving={saving} color="var(--accent-purple)" label="Registrar check-in" />
       </div>

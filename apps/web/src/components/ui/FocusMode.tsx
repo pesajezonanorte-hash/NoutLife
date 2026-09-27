@@ -6,6 +6,7 @@ import { useUIStore } from '../../store/uiStore';
 import { useToastStore } from '../../hooks/useToast';
 import { refreshUser } from '../../hooks/useAuth';
 import { E } from '@/components/ui/glyphs';
+import { Slider } from './slider';
 
 const PRESETS = [
   { label: '25 min', minutes: 25, color: 'var(--accent-cyan)' },
@@ -408,14 +409,14 @@ export function FocusMode({ onClose, taskLabel, questId }: Props) {
                 <span>Volumen</span>
                 <span>{ambientVolume}%</span>
               </div>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                step="1"
-                value={ambientVolume}
-                onChange={(e) => setAmbientVolume(Number(e.target.value))}
-                className="w-full accent-[var(--accent-gold)]"
+              <Slider
+                min={0}
+                max={100}
+                step={1}
+                value={[ambientVolume]}
+                onValueChange={([value]) => setAmbientVolume(value)}
+                accent={preset.color}
+                aria-label="Volumen del ambiente"
               />
             </div>
           </div>
