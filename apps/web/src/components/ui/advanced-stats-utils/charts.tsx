@@ -4,7 +4,10 @@ import { ChartContainer, type ChartConfig } from '@/components/ui/chart';
 
 export interface XpChartDatum {
   date: string;
+  /** XP granted on this day; zero-value days are intentionally present. */
   xp: number;
+  /** XP accumulated inside the selected period through this day. */
+  cumulativeXp: number;
 }
 
 interface ClippedAreaChartProps {
@@ -13,8 +16,12 @@ interface ClippedAreaChartProps {
 }
 
 const chartConfig = {
+  cumulativeXp: {
+    label: 'XP acumulada',
+    color: 'var(--accent-gold)',
+  },
   xp: {
-    label: 'XP ganada',
+    label: 'XP del día',
     color: 'var(--accent-gold)',
   },
 } satisfies ChartConfig;
@@ -30,10 +37,11 @@ function XpTooltip({
   label,
 }: {
   active?: boolean;
-  payload?: Array<{ value?: number }>;
+  payload?: Array<{ value?: number; payload?: XpChartDatum }>;
   label?: string;
 }) {
   if (!active || !payload?.length) return null;
+  const datum = payload[0]?.payload;
 
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] px-3 py-2 shadow-pixel">
@@ -41,17 +49,26 @@ function XpTooltip({
         {label ? formatDate(label) : 'Actividad'}
       </p>
       <p className="mt-1 text-sm font-bold tabular-nums text-[var(--text-primary)]">
-        {Number(payload[0]?.value ?? 0).toLocaleString('es-CO')} XP
+        {Number(datum?.cumulativeXp ?? payload[0]?.value ?? 0).toLocaleString('es-CO')} XP acumulada
+      </p>
+      <p className="mt-0.5 text-xs tabular-nums text-[var(--text-secondary)]">
+        {Number(datum?.xp ?? 0).toLocaleString('es-CO')} XP registrada este día
       </p>
     </div>
   );
 }
 
-/** Area chart for real XP events. Empty periods intentionally remain empty. */
+/**
+ * The chart plots cumulative XP across every day in the chosen period. This
+ * makes days without activity explicit as a flat line instead of visually
+ * connecting two distant events as if progress had happened in between.
+ */
 export function ClippedAreaChart({ data, className }: ClippedAreaChartProps) {
   const gradientId = useId().replace(/:/g, '');
   const chartData = useMemo(
-    () => (data.length ? data : [{ date: new Date().toISOString().slice(0, 10), xp: 0 }]),
+    () => (data.length
+      ? data
+      : [{ date: new Date().toISOString().slice(0, 10), xp: 0, cumulativeXp: 0 }]),
     [data],
   );
 
@@ -76,9 +93,9 @@ export function ClippedAreaChart({ data, className }: ClippedAreaChartProps) {
         <YAxis hide domain={[0, 'dataMax + 10']} />
         <Tooltip content={<XpTooltip />} cursor={{ stroke: 'var(--border-strong)', strokeDasharray: '3 4' }} />
         <Area
-          type="monotone"
-          dataKey="xp"
-          name="XP ganada"
+          type="stepAfter"
+          dataKey="cumulativeXp"
+          name="XP acumulada"
           stroke="var(--accent-gold)"
           strokeWidth={2.25}
           fill={`url(#${gradientId})`}

@@ -103,6 +103,7 @@ void test('auditoría de contratos analíticos', async (suite) => {
 
   await suite.test('las series de XP, hábitos, sueño, gym, radar y dinero conservan datos reales', async () => {
     await withMocks({
+      user: { findUnique: async () => ({ timezone: 'America/Bogota' }) },
       xpEvent: {
         findMany: async () => [
           { createdAt: new Date('2026-09-02T10:00:00Z'), xpAmount: 20 },
@@ -111,28 +112,45 @@ void test('auditoría de contratos analíticos', async (suite) => {
         ],
       },
     }, async () => {
-      const history = await getXpHistory('u-1', 'month');
+      const history = await getXpHistory('u-1', 'month', new Date('2026-09-05T15:00:00Z'));
       assert.deepEqual(history, {
         data: [
-          { date: '2026-09-02', xp: 50 },
-          { date: '2026-09-04', xp: 50 },
+          { date: '2026-09-01', xp: 0, cumulativeXp: 0 },
+          { date: '2026-09-02', xp: 50, cumulativeXp: 50 },
+          { date: '2026-09-03', xp: 0, cumulativeXp: 50 },
+          { date: '2026-09-04', xp: 50, cumulativeXp: 100 },
+          { date: '2026-09-05', xp: 0, cumulativeXp: 100 },
         ],
-        avg: 50,
+        avg: 20,
+        activeDays: 2,
+        daysInPeriod: 5,
+        totalXp: 100,
       });
     });
 
-    const radarCounts = [2, 4, 3, 1, 5, 2, 1, 2, 1, 0, 1, 0];
+    const counts = {
+      workout: [2, 1],
+      transaction: [4, 2],
+      habitLog: [3, 1],
+      questCompletion: [1, 0],
+      sleepLog: [5, 1],
+      learningItem: [2, 0],
+      journalEntry: [2, 1],
+      careLog: [1, 0],
+    };
     await withMocks({
-      workout: { count: async () => radarCounts.shift() },
-      transaction: { count: async () => radarCounts.shift() },
-      habitLog: { count: async () => radarCounts.shift() },
-      questCompletion: { count: async () => radarCounts.shift() },
-      sleepLog: { count: async () => radarCounts.shift() },
-      learningItem: { count: async () => radarCounts.shift() },
+      workout: { count: async () => counts.workout.shift() },
+      transaction: { count: async () => counts.transaction.shift() },
+      habitLog: { count: async () => counts.habitLog.shift() },
+      questCompletion: { count: async () => counts.questCompletion.shift() },
+      sleepLog: { count: async () => counts.sleepLog.shift() },
+      learningItem: { count: async () => counts.learningItem.shift() },
+      journalEntry: { count: async () => counts.journalEntry.shift() },
+      careLog: { count: async () => counts.careLog.shift() },
     }, async () => {
-      const radar = await getActivityRadar('u-1');
-      assert.deepEqual(radar.current.map((item) => item.value), [40, 40, 45, 15, 75, 50]);
-      assert.deepEqual(radar.previous.map((item) => item.value), [20, 20, 15, 0, 15, 0]);
+      const radar = await getActivityRadar('u-1', 'week', new Date('2026-09-26T15:00:00Z'));
+      assert.deepEqual(radar.current.map((item) => item.value), [33, 43, 67, 100, 71, 100, 29, 14]);
+      assert.deepEqual(radar.previous.map((item) => item.value), [0, 14, 33, 100, 14, 0, 14, 0]);
     });
 
     await withMocks({
@@ -143,8 +161,8 @@ void test('auditoría de contratos analíticos', async (suite) => {
         ],
       },
     }, async () => {
-      const finance = await getFinanceTrend('u-1');
-      assert.equal(finance.length, 6);
+      const finance = await getFinanceTrend('u-1', '3months', new Date('2026-06-15T15:00:00Z'));
+      assert.equal(finance.length, 4);
       assert.equal(finance.filter((point) => point.income !== 0 || point.expenses !== 0).length, 1);
       assert.equal(finance.find((point) => point.month === '2026-05')?.balance, 350);
     });
@@ -345,38 +363,55 @@ void test('auditoría de contratos analíticos', async (suite) => {
     });
   });
 
-  await suite.test('Life Score separa XP por zona personalizada y el resumen anual cuenta libros', async () => {
+  await suite.test('Life Score conserva todas las zonas y separa XP por zona personalizada', async () => {
+    let aggregateCalls = 0;
     await withMocks({
+      user: { findUnique: async () => ({ timezone: 'America/Bogota' }) },
+      quest: { findMany: async () => [] },
+      questCompletion: { findMany: async () => [] },
       habit: {
-        findMany: async (args: { where?: { customZoneId?: unknown; isActive?: boolean } }) => {
-          if (args.where?.customZoneId) return [{ id: 'habit-zone', customZoneId: 'zone-1' }];
-          return [];
-        },
+        findMany: async () => [{
+          id: 'habit-zone', isActive: true, frequency: { type: 'daily', days: [] }, customZoneId: 'zone-1',
+        }],
       },
-      habitLog: {
-        findMany: async () => [],
-        count: async () => 0,
-      },
-      workout: { findMany: async () => [] },
-      sleepLog: { findMany: async () => [] },
-      transaction: { findMany: async () => [] },
-      questCompletion: {
-        findMany: async () => [],
-        count: async () => 0,
-      },
+      habitLog: { findMany: async () => [] },
+      workout: { findMany: async () => [], count: async () => 0 },
+      transaction: { findMany: async () => [], count: async () => 0 },
+      budget: { findMany: async () => [] },
+      financialGoal: { findMany: async () => [] },
+      sleepLog: { findMany: async () => [], count: async () => 0 },
       learningItem: { findMany: async () => [] },
-      journalEntry: { findMany: async () => [] },
+      journalEntry: { findMany: async () => [], count: async () => 0 },
       customZone: {
-        findMany: async () => [{ id: 'zone-1', name: 'Proyecto', icon: 'target', accentColor: '#000000', weeklyXpGoal: 50 }],
+        findMany: async () => [{
+          id: 'zone-1', name: 'Proyecto', icon: 'target', accentColor: '#000000',
+          isMeasurable: true, measureMetric: 'xp_gained', weeklyXpGoal: 100, order: 0,
+        }],
       },
       careRoutine: { findMany: async () => [] },
-      careLog: { findMany: async () => [] },
-      quest: { findMany: async () => [] },
-      xpEvent: { findMany: async () => [{ sourceId: 'habit-zone', xpAmount: 60 }] },
+      careLog: { findMany: async () => [], count: async () => 0 },
+      clothingItem: { findMany: async () => [] },
+      outfit: { findMany: async () => [] },
+      presenceCheckin: { findMany: async () => [] },
+      meal: { findMany: async () => [], count: async () => 0 },
+      nutritionGoal: { findUnique: async () => null },
+      relationship: { findMany: async () => [] },
+      giftIdea: { findMany: async () => [] },
+      xpEvent: {
+        findMany: async () => [{ sourceId: 'habit-zone', xpAmount: 60 }],
+        aggregate: async () => ({ _sum: { xpAmount: aggregateCalls++ === 0 ? 60 : 0 } }),
+      },
     }, async () => {
-      const dynamic = await calculateDynamicLifeScore('u-1');
-      assert.equal(dynamic.totalScore, 60);
-      assert.deepEqual(dynamic.zones.map((zone) => ({ id: zone.id, score: zone.score })), [{ id: 'zone-1', score: 60 }]);
+      const dynamic = await calculateDynamicLifeScore('u-1', 'week', new Date('2026-09-26T15:00:00Z'));
+      const expectedCoreZones = ['quests', 'habits', 'gym', 'finances', 'sleep', 'learning', 'journal', 'mirror', 'nutrition', 'relationships'];
+      for (const id of expectedCoreZones) assert.ok(dynamic.zones.some((zone) => zone.id === id), `${id} debe estar visible`);
+
+      const customZone = dynamic.zones.find((zone) => zone.id === 'zone-1');
+      assert.ok(customZone);
+      assert.equal(customZone.score, 60);
+      assert.equal(customZone.hasData, true);
+      assert.equal(customZone.activityLabel, '60 XP de 100 objetivo');
+      assert.equal(dynamic.zones.find((zone) => zone.id === 'mirror')?.status, 'not_configured');
     });
 
     await withMocks({

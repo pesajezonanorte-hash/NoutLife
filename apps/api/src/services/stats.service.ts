@@ -67,6 +67,11 @@ function percentChange(current: number, previous: number): number {
   return Math.round(((current - previous) / previous) * 100);
 }
 
+function ratioPercent(value: number, total: number): number {
+  if (total <= 0) return 0;
+  return Math.max(0, Math.min(100, Math.round((value / total) * 100)));
+}
+
 // ─── Summary ──────────────────────────────────────────────────────────────────
 
 export async function getStatsSummary(userId: string, period = 'month') {
@@ -143,59 +148,93 @@ export async function getStatsSummary(userId: string, period = 'month') {
   };
 }
 
-// ─── XP history ───────────────────────────────────────────────────────────────
+// ─── XP history ─────────────────────────────────────────────────────────────
 
-export async function getXpHistory(userId: string, period = 'month') {
-  const { start, end } = periodRange(period);
+/**
+ * Returns every calendar day in the selected interval, including honest zeroes.
+ * `cumulativeXp` makes sparse activity readable as retained progress rather than
+ * a line that appears to leap across unrecorded dates.
+ */
+export async function getXpHistory(userId: string, period = 'month', now = new Date()) {
+  const { start, end } = periodRange(period, now);
   const events = await prisma.xpEvent.findMany({
     where: { userId, createdAt: { gte: start, lt: end } },
     orderBy: { createdAt: 'asc' },
     select: { xpAmount: true, createdAt: true },
   });
 
+  // The query interval and its buckets intentionally share the same UTC
+  // calendar keys. This prevents a local-time conversion from adding a blank
+  // day before the start of a month while the database query still starts at
+  // that UTC boundary.
   const byDate = new Map<string, number>();
   for (const event of events) {
-    const date = event.createdAt.toISOString().split('T')[0];
+    const date = event.createdAt.toISOString().slice(0, 10);
     byDate.set(date, (byDate.get(date) ?? 0) + event.xpAmount);
   }
 
-  const data = Array.from(byDate.entries()).map(([date, xp]) => ({ date, xp }));
-  const avg = data.length ? Math.round(data.reduce((sum, item) => sum + item.xp, 0) / data.length) : 0;
+  const firstDay = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()));
+  const endDay = new Date(Math.max(start.getTime(), end.getTime() - 1));
+  const lastDay = new Date(Date.UTC(endDay.getUTCFullYear(), endDay.getUTCMonth(), endDay.getUTCDate()));
+  const data: Array<{ date: string; xp: number; cumulativeXp: number }> = [];
+  let cumulativeXp = 0;
+  for (let day = firstDay; day.getTime() <= lastDay.getTime(); day = addCalendarDays(day, 1)) {
+    const date = day.toISOString().slice(0, 10);
+    const xp = byDate.get(date) ?? 0;
+    cumulativeXp += xp;
+    data.push({ date, xp, cumulativeXp });
+  }
 
-  return { data, avg };
+  const activeDays = data.filter((entry) => entry.xp !== 0).length;
+  const totalXp = cumulativeXp;
+  const avg = data.length ? Math.round(totalXp / data.length) : 0;
+
+  return { data, avg, activeDays, daysInPeriod: data.length, totalXp };
 }
 
-// ─── Activity radar ───────────────────────────────────────────────────────────
+// ─── Activity radar ─────────────────────────────────────────────────────────
 
-export async function getActivityRadar(userId: string) {
-  const now = new Date();
-  const thisWeek = new Date(now.getTime() - 7 * 86400000);
-  const previousWeek = new Date(now.getTime() - 14 * 86400000);
+/**
+ * Compares the selected interval with its immediately preceding interval. The
+ * radar is intentionally limited to the core tracked areas; custom zones stay
+ * individually visible in the zone ledger instead of being merged into a vague
+ * catch-all value.
+ */
+export async function getActivityRadar(userId: string, period = 'week', now = new Date()) {
+  const { start, end, prevStart, prevEnd } = periodRange(period, now);
+  const currentRange = { gte: start, lt: end };
+  const previousRange = { gte: prevStart, lt: prevEnd };
+  const intervalDays = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86400000));
+  const weeks = Math.max(1, Math.ceil(intervalDays / 7));
 
-  const score = async (after: Date, before: Date) => {
-    const [gym, finance, habits, quests, sleep, learning] = await Promise.all([
-      prisma.workout.count({ where: { userId, date: { gte: after, lt: before }, ...isCompletedWorkoutFilter() } }),
-      prisma.transaction.count({ where: { userId, date: { gte: after, lt: before } } }),
-      prisma.habitLog.count({ where: { userId, date: { gte: after, lt: before }, completed: true } }),
-      prisma.questCompletion.count({ where: { userId, completedAt: { gte: after, lt: before } } }),
-      prisma.sleepLog.count({ where: { userId, date: { gte: after, lt: before } } }),
-      prisma.learningItem.count({ where: { userId, updatedAt: { gte: after, lt: before } } }),
+  const score = async (range: { gte: Date; lt: Date }) => {
+    const [gym, finance, habits, quests, sleep, learning, journal, mirror] = await Promise.all([
+      prisma.workout.count({ where: { userId, date: range, ...isCompletedWorkoutFilter() } }),
+      prisma.transaction.count({ where: { userId, date: range } }),
+      prisma.habitLog.count({ where: { userId, date: range, completed: true } }),
+      prisma.questCompletion.count({ where: { userId, completedAt: range } }),
+      prisma.sleepLog.count({ where: { userId, date: range } }),
+      prisma.learningItem.count({ where: { userId, updatedAt: range } }),
+      prisma.journalEntry.count({ where: { userId, date: range } }),
+      prisma.careLog.count({ where: { userId, date: range, completed: true } }),
     ]);
-    return { gym, finance, habits, quests, sleep, learning };
+    return { gym, finance, habits, quests, sleep, learning, journal, mirror };
   };
 
   const [current, previous] = await Promise.all([
-    score(thisWeek, now),
-    score(previousWeek, thisWeek),
+    score(currentRange),
+    score(previousRange),
   ]);
 
   const normalise = (values: Awaited<ReturnType<typeof score>>) => [
-    { subject: 'Gym', value: Math.min(values.gym * 20, 100) },
-    { subject: 'Finanzas', value: Math.min(values.finance * 10, 100) },
-    { subject: 'Hábitos', value: Math.min(values.habits * 15, 100) },
-    { subject: 'Quests', value: Math.min(values.quests * 15, 100) },
-    { subject: 'Sueño', value: Math.min(values.sleep * 15, 100) },
-    { subject: 'Aprendizaje', value: Math.min(values.learning * 25, 100) },
+    { subject: 'Misiones', value: ratioPercent(values.quests, weeks * 3) },
+    { subject: 'Hábitos', value: ratioPercent(values.habits, intervalDays) },
+    { subject: 'Coliseo', value: ratioPercent(values.gym, weeks * 3) },
+    { subject: 'Bóveda', value: ratioPercent(values.finance, weeks * 2) },
+    { subject: 'Torre', value: ratioPercent(values.sleep, intervalDays) },
+    { subject: 'Biblioteca', value: ratioPercent(values.learning, weeks * 2) },
+    { subject: 'Diario', value: ratioPercent(values.journal, intervalDays) },
+    { subject: 'Espejo', value: ratioPercent(values.mirror, intervalDays) },
   ];
 
   return { current: normalise(current), previous: normalise(previous) };
@@ -203,37 +242,53 @@ export async function getActivityRadar(userId: string) {
 
 // ─── Finance trend ────────────────────────────────────────────────────────────
 
-export async function getFinanceTrend(userId: string) {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+/**
+ * Buckets real transactions in the same interval chosen by the user. Weeks are
+ * displayed day-by-day; longer ranges stay month-by-month for readability.
+ */
+export async function getFinanceTrend(userId: string, period = 'month', now = new Date()) {
+  const { start, end } = periodRange(period, now);
   const transactions = await prisma.transaction.findMany({
-    where: { userId, date: { gte: start, lt: now } },
+    where: { userId, date: { gte: start, lt: end } },
     select: { type: true, amount: true, date: true },
     orderBy: { date: 'asc' },
   });
 
-  // Keep quiet months in the series. This avoids visually joining two distant
-  // transactions as if activity had happened in every intermediate month.
-  const byMonth = new Map<string, { income: number; expenses: number }>();
-  const monthKeys: string[] = [];
-  for (let offset = 0; offset < 6; offset += 1) {
-    const monthDate = new Date(now.getFullYear(), now.getMonth() - 5 + offset, 1);
-    const key = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}`;
-    monthKeys.push(key);
-    byMonth.set(key, { income: 0, expenses: 0 });
+  const daily = period === 'week';
+  const buckets = new Map<string, { income: number; expenses: number }>();
+  const keys: string[] = [];
+
+  if (daily) {
+    const first = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+    const last = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+    for (let day = first; day.getTime() <= last.getTime(); day.setDate(day.getDate() + 1)) {
+      const key = day.toISOString().slice(0, 10);
+      keys.push(key);
+      buckets.set(key, { income: 0, expenses: 0 });
+    }
+  } else {
+    const first = new Date(start.getFullYear(), start.getMonth(), 1);
+    const last = new Date(end.getFullYear(), end.getMonth(), 1);
+    for (let month = first; month.getTime() <= last.getTime(); month.setMonth(month.getMonth() + 1)) {
+      const key = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, '0')}`;
+      keys.push(key);
+      buckets.set(key, { income: 0, expenses: 0 });
+    }
   }
 
   for (const transaction of transactions) {
-    const key = `${transaction.date.getFullYear()}-${String(transaction.date.getMonth() + 1).padStart(2, '0')}`;
-    const entry = byMonth.get(key);
+    const key = daily
+      ? transaction.date.toISOString().slice(0, 10)
+      : `${transaction.date.getFullYear()}-${String(transaction.date.getMonth() + 1).padStart(2, '0')}`;
+    const entry = buckets.get(key);
     if (!entry) continue;
     if (transaction.type === 'INCOME') entry.income += Number(transaction.amount);
     else entry.expenses += Number(transaction.amount);
   }
 
   let balance = 0;
-  return monthKeys.map((month) => {
-    const values = byMonth.get(month)!;
+  return keys.map((month) => {
+    const values = buckets.get(month)!;
     balance += values.income - values.expenses;
     return { month, income: values.income, expenses: values.expenses, balance };
   });

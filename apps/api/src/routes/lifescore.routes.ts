@@ -29,8 +29,10 @@ router.get('/year-review', async (req, res) => {
 });
 
 router.get('/dynamic', async (req, res) => {
-  try { res.json(await calculateDynamicLifeScore((req as AuthRequest).userId!)); }
-  catch (err: any) { res.status(500).json({ message: err.message }); }
+  try {
+    const period = typeof req.query.period === 'string' ? req.query.period : 'month';
+    res.json(await calculateDynamicLifeScore((req as AuthRequest).userId!, period));
+  } catch (err: any) { res.status(500).json({ message: err.message }); }
 });
 
 router.get('/glow-up', async (req, res) => {

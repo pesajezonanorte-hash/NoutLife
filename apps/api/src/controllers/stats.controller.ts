@@ -29,7 +29,8 @@ export async function xpHistory(req: AuthRequest, res: Response): Promise<void> 
 
 export async function activityRadar(req: AuthRequest, res: Response): Promise<void> {
   try {
-    res.json(await stats.getActivityRadar(req.userId!));
+    const period = (req.query.period as string) ?? 'week';
+    res.json(await stats.getActivityRadar(req.userId!, period));
   } catch (error) {
     sendStatsError(res, error, 'radar');
   }
@@ -37,7 +38,8 @@ export async function activityRadar(req: AuthRequest, res: Response): Promise<vo
 
 export async function financeTrend(req: AuthRequest, res: Response): Promise<void> {
   try {
-    res.json(await stats.getFinanceTrend(req.userId!));
+    const period = (req.query.period as string) ?? 'month';
+    res.json(await stats.getFinanceTrend(req.userId!, period));
   } catch (error) {
     sendStatsError(res, error, 'finance-trend');
   }

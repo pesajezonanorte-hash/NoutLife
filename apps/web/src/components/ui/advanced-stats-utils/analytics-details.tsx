@@ -74,6 +74,10 @@ function EmptyPanel({ children }: { children: string }) {
   return <p className="flex min-h-[180px] items-center justify-center px-6 text-center text-xs leading-5 text-[var(--text-muted)]">{children}</p>;
 }
 
+function formatFinanceBucket(value: string, options: Intl.DateTimeFormatOptions) {
+  return formatDate(value.length === 10 ? value : `${value}-01`, options);
+}
+
 function FinanceTooltip({
   active,
   payload,
@@ -91,7 +95,7 @@ function FinanceTooltip({
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] px-3 py-2 shadow-pixel">
       <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
-        {label ? formatDate(`${label}-01`, { month: 'long', year: 'numeric' }) : 'Periodo'}
+        {label ? formatFinanceBucket(label, label.length === 10 ? { day: 'numeric', month: 'long' } : { month: 'long', year: 'numeric' }) : 'Periodo'}
       </p>
       <div className="mt-1.5 space-y-1 text-xs">
         <p className="flex justify-between gap-5 text-[var(--accent-green)]"><span>Ingresos</span><strong className="tabular-nums">{formatCurrency(values.income ?? 0, currency)}</strong></p>
@@ -105,23 +109,25 @@ function FinanceTooltip({
 export function FinanceTrendCard({
   data,
   currency = 'COP',
+  periodLabel,
   loading = false,
 }: {
   data: FinanceTrendPoint[];
   currency?: string;
+  periodLabel: string;
   loading?: boolean;
 }) {
   const hasActivity = data.some((point) => point.income !== 0 || point.expenses !== 0);
 
   return (
     <article className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-5 shadow-pixel">
-      <PanelHeader icon={CircleDollarSign} title="Flujo de dinero" detail="Ingresos, gastos y flujo acumulado de los últimos seis meses." />
+      <PanelHeader icon={CircleDollarSign} title="Flujo de dinero" detail={`Ingresos, gastos y flujo acumulado · ${periodLabel}.`} />
       {hasActivity ? (
         <div className="mt-4 h-[235px]">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={data} margin={{ top: 12, right: 6, left: -18, bottom: 0 }}>
               <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 5" />
-              <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(value) => formatDate(`${value}-01`, { month: 'short' })} />
+              <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(value) => formatFinanceBucket(value, value.length === 10 ? { day: 'numeric', month: 'short' } : { month: 'short' })} />
               <YAxis hide />
               <Tooltip content={<FinanceTooltip currency={currency} />} cursor={{ fill: 'var(--bg-muted)' }} />
               <Bar dataKey="income" name="Ingresos" fill="var(--accent-green)" radius={[4, 4, 0, 0]} maxBarSize={22} />
@@ -131,7 +137,7 @@ export function FinanceTrendCard({
           </ResponsiveContainer>
         </div>
       ) : (
-        <EmptyPanel>{loading ? 'Cargando tu flujo financiero…' : 'Aún no hay transacciones registradas en los últimos seis meses.'}</EmptyPanel>
+        <EmptyPanel>{loading ? 'Cargando tu flujo financiero…' : `Aún no hay transacciones registradas en ${periodLabel.toLowerCase()}.`}</EmptyPanel>
       )}
     </article>
   );

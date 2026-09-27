@@ -1,5 +1,8 @@
 import { prisma } from '../lib/prisma';
 import { generateText, hasAIProvider } from '../lib/ai';
+import { addCalendarDays, getCalendarDay } from '../lib/calendar';
+import { isHabitScheduledForDay } from './habit.service';
+import { periodRange } from './stats.service';
 
 // ─── Sleep Score ───────────────────────────────────────────────────────────────
 
@@ -136,176 +139,473 @@ export async function calculateLifeScore(userId: string): Promise<{
   return { total, breakdown };
 }
 
-// ─── Dynamic Life Score (all active zones) ────────────────────────────────────
+// ─── Dynamic Life Score (all visible life zones) ──────────────────────────────
+
+/**
+ * A zone is always returned to the client. `status` differentiates a genuine
+ * zero during the selected period from a zone that has not been configured
+ * yet, so a missing record is never silently presented as progress.
+ */
+export type ZoneStatus = 'active' | 'empty' | 'not_configured';
 
 export interface ZoneScore {
   id: string;
   name: string;
+  /** Legacy icon key. The client resolves it to a Lucide icon. */
   icon: string;
   color: string;
+  /** A normalised 0–100 rhythm/goal score when one can be calculated. */
   score: number;
+  /** Whether the score comes from a meaningful denominator or configured goal. */
+  scoreAvailable: boolean;
+  /** There is at least one real record in the selected interval. */
   hasData: boolean;
+  /** The user has configured this area or has historical records for it. */
+  isTracking: boolean;
+  /** `active` = records, `empty` = configured but none this period. */
+  status: ZoneStatus;
+  /** Count of real records represented by `activityLabel`. */
+  activityCount: number;
+  activityLabel: string;
 }
 
-export async function calculateDynamicLifeScore(userId: string): Promise<{
+const DAY_MS = 86400000;
+
+function clampPercent(value: number): number {
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function ratioPercent(value: number, total: number): number {
+  return total > 0 ? clampPercent((value / total) * 100) : 0;
+}
+
+function plural(count: number, singular: string, pluralForm = `${singular}s`): string {
+  return `${count} ${count === 1 ? singular : pluralForm}`;
+}
+
+function dayKey(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function calendarDays(start: Date, end: Date): Date[] {
+  // Life-zone queries use the same UTC date-key convention as HabitLog and
+  // other calendar records. Keeping the visible denominator on those exact
+  // keys avoids adding a phantom day at a period boundary.
+  const first = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()));
+  const finalInstant = new Date(Math.max(start.getTime(), end.getTime() - 1));
+  const last = new Date(Date.UTC(finalInstant.getUTCFullYear(), finalInstant.getUTCMonth(), finalInstant.getUTCDate()));
+  const days: Date[] = [];
+  for (let cursor = first; cursor.getTime() <= last.getTime(); cursor = addCalendarDays(cursor, 1)) {
+    days.push(cursor);
+  }
+  return days.length ? days : [first];
+}
+
+function makeZone(input: Omit<ZoneScore, 'status'>): ZoneScore {
+  return {
+    ...input,
+    status: input.hasData ? 'active' : input.isTracking ? 'empty' : 'not_configured',
+  };
+}
+
+function xpTrend(current: number, previous: number): string {
+  if (previous === 0 && current === 0) return 'Sin XP registrada en este periodo';
+  if (previous === 0) return `+${current} XP registradas`;
+  const difference = current - previous;
+  if (difference === 0) return 'Misma XP que el periodo anterior';
+  return `${difference > 0 ? '+' : ''}${difference} XP vs. periodo anterior`;
+}
+
+/**
+ * Calculates every core LifeQuest area from records inside one selected period.
+ * Scores are only a compact rhythm indicator; the response always includes the
+ * underlying count and state so the UI never invents activity for empty zones.
+ */
+export async function calculateDynamicLifeScore(userId: string, period = 'month', now = new Date()): Promise<{
   totalScore: number;
   zones: ZoneScore[];
   trend: string;
 }> {
-  const now = new Date();
-  const twoWeeksAgo = new Date(now.getTime() - 14 * 86400000);
-  const lastWeekAgo = new Date(now.getTime() - 7 * 86400000);
-  const prevWeekStart = new Date(now.getTime() - 14 * 86400000);
-  const prevWeekEnd = new Date(now.getTime() - 7 * 86400000);
+  const { start, end, prevStart, prevEnd } = periodRange(period, now);
+  const currentRange = { gte: start, lt: end };
+  const previousRange = { gte: prevStart, lt: prevEnd };
 
   const [
-    habits, habitLogs, workouts, sleepLogs, transactions, questCompletions,
-    learningItems, journalEntries, customZones, careRoutines, careLogs,
+    quests,
+    questCompletions,
+    habits,
+    habitLogs,
+    workouts,
+    historicalWorkoutCount,
+    transactions,
+    historicalTransactionCount,
+    budgets,
+    financialGoals,
+    sleepLogs,
+    historicalSleepCount,
+    learningItems,
+    journalEntries,
+    historicalJournalCount,
+    customZones,
+    careRoutines,
+    careLogs,
+    historicalCareLogCount,
+    clothingItems,
+    outfits,
+    presenceCheckins,
+    meals,
+    historicalMealCount,
+    nutritionGoal,
+    relationships,
+    giftIdeas,
+    zoneXpEvents,
+    xpCurrent,
+    xpPrevious,
   ] = await Promise.all([
-    prisma.habit.findMany({ where: { userId, isActive: true } }),
-    prisma.habitLog.findMany({ where: { userId, date: { gte: twoWeeksAgo, lt: now }, completed: true } }),
-    prisma.workout.findMany({ where: { userId, date: { gte: twoWeeksAgo, lt: now }, xpEarned: { gt: 0 } } }),
-    prisma.sleepLog.findMany({ where: { userId, date: { gte: twoWeeksAgo, lt: now } } }),
-    prisma.transaction.findMany({ where: { userId, date: { gte: twoWeeksAgo, lt: now } } }),
-    prisma.questCompletion.findMany({ where: { userId, completedAt: { gte: twoWeeksAgo, lt: now } } }),
-    prisma.learningItem.findMany({ where: { userId, status: { not: 'NOT_STARTED' } } }),
-    prisma.journalEntry.findMany({ where: { userId, date: { gte: twoWeeksAgo, lt: now } } }),
-    prisma.customZone.findMany({ where: { userId, isActive: true, isMeasurable: true } }),
-    prisma.careRoutine.findMany({ where: { userId, isActive: true } }),
-    prisma.careLog.findMany({ where: { userId, date: { gte: twoWeeksAgo, lt: now } } }),
+    prisma.quest.findMany({
+      where: { userId },
+      select: { id: true, status: true, customZoneId: true },
+    }),
+    prisma.questCompletion.findMany({
+      where: { userId, completedAt: currentRange },
+      select: { questId: true, completedAt: true },
+    }),
+    prisma.habit.findMany({
+      where: { userId },
+      select: { id: true, isActive: true, frequency: true, customZoneId: true },
+    }),
+    prisma.habitLog.findMany({
+      where: { userId, date: currentRange },
+      select: { habitId: true, completed: true, date: true },
+    }),
+    prisma.workout.findMany({
+      where: { userId, date: currentRange, xpEarned: { gt: 0 } },
+      select: { id: true, date: true },
+    }),
+    prisma.workout.count({ where: { userId, xpEarned: { gt: 0 } } }),
+    prisma.transaction.findMany({
+      where: { userId, date: currentRange },
+      select: { type: true, amount: true, date: true },
+    }),
+    prisma.transaction.count({ where: { userId } }),
+    prisma.budget.findMany({ where: { userId }, select: { id: true } }),
+    prisma.financialGoal.findMany({ where: { userId }, select: { id: true } }),
+    prisma.sleepLog.findMany({
+      where: { userId, date: currentRange },
+      select: { duration: true, quality: true, sleepScore: true, bedtime: true, date: true },
+    }),
+    prisma.sleepLog.count({ where: { userId } }),
+    prisma.learningItem.findMany({
+      where: { userId },
+      select: { id: true, status: true, currentProgress: true, totalProgress: true, updatedAt: true, completedAt: true },
+    }),
+    prisma.journalEntry.findMany({ where: { userId, date: currentRange }, select: { date: true } }),
+    prisma.journalEntry.count({ where: { userId } }),
+    prisma.customZone.findMany({
+      where: { userId, isActive: true },
+      select: { id: true, name: true, icon: true, accentColor: true, isMeasurable: true, measureMetric: true, weeklyXpGoal: true, order: true },
+    }),
+    prisma.careRoutine.findMany({ where: { userId, isActive: true }, select: { id: true, timeOfDay: true } }),
+    prisma.careLog.findMany({ where: { userId, date: currentRange }, select: { routineId: true, completed: true, date: true } }),
+    prisma.careLog.count({ where: { userId, completed: true } }),
+    prisma.clothingItem.findMany({ where: { userId }, select: { lastWornAt: true } }),
+    prisma.outfit.findMany({ where: { userId }, select: { lastWornAt: true } }),
+    prisma.presenceCheckin.findMany({ where: { userId, week: currentRange }, select: { week: true } }),
+    prisma.meal.findMany({ where: { userId, date: currentRange }, select: { date: true } }),
+    prisma.meal.count({ where: { userId } }),
+    prisma.nutritionGoal.findUnique({ where: { userId }, select: { userId: true } }),
+    prisma.relationship.findMany({ where: { userId }, select: { id: true, createdAt: true, updatedAt: true } }),
+    prisma.giftIdea.findMany({ where: { userId, createdAt: currentRange }, select: { id: true, createdAt: true, isPurchased: true } }),
+    prisma.xpEvent.findMany({ where: { userId, createdAt: currentRange }, select: { sourceId: true, xpAmount: true } }),
+    prisma.xpEvent.aggregate({ where: { userId, createdAt: currentRange }, _sum: { xpAmount: true } }),
+    prisma.xpEvent.aggregate({ where: { userId, createdAt: previousRange }, _sum: { xpAmount: true } }),
   ]);
+
+  const days = calendarDays(start, end);
+  const daysInPeriod = days.length;
+  const weeksInPeriod = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (7 * DAY_MS)));
+  const activeHabits = habits.filter((habit) => habit.isActive);
+  const activeQuests = quests.filter((quest) => quest.status === 'ACTIVE');
+  const completedHabitLogs = habitLogs.filter((log) => log.completed);
+  const completedCareLogs = careLogs.filter((log) => log.completed);
 
   const zones: ZoneScore[] = [];
 
-  // Misiones
-  if (questCompletions.length > 0) {
-    const score = Math.min(100, questCompletions.length * 8);
-    zones.push({ id: 'quests', name: 'Misiones', icon: '⚔️', color: '#8b5cf6', score, hasData: true });
+  // Misiones — completions are the authoritative action record.
+  const questTarget = Math.max(1, Math.min(Math.max(activeQuests.length, 1), weeksInPeriod * 3));
+  const completedQuestCount = questCompletions.length;
+  zones.push(makeZone({
+    id: 'quests',
+    name: 'Misiones',
+    icon: 'quest',
+    color: '#8b5cf6',
+    score: ratioPercent(completedQuestCount, questTarget),
+    scoreAvailable: activeQuests.length > 0 || completedQuestCount > 0,
+    hasData: completedQuestCount > 0,
+    isTracking: quests.length > 0,
+    activityCount: completedQuestCount,
+    activityLabel: completedQuestCount
+      ? `${plural(completedQuestCount, 'misión', 'misiones')} completada${completedQuestCount === 1 ? '' : 's'}`
+      : 'Sin misiones completadas',
+  }));
+
+  // Hábitos — denominator comes from each habit's configured schedule.
+  const scheduledHabitSlots = activeHabits.reduce((total, habit) => (
+    total + days.filter((day) => isHabitScheduledForDay(day, habit.frequency)).length
+  ), 0);
+  zones.push(makeZone({
+    id: 'habits',
+    name: 'Hábitos',
+    icon: 'habit',
+    color: '#d6a21e',
+    score: ratioPercent(completedHabitLogs.length, scheduledHabitSlots),
+    scoreAvailable: scheduledHabitSlots > 0,
+    hasData: habitLogs.length > 0,
+    isTracking: habits.length > 0,
+    activityCount: completedHabitLogs.length,
+    activityLabel: scheduledHabitSlots
+      ? `${completedHabitLogs.length} de ${scheduledHabitSlots} completados`
+      : 'Sin hábitos activos',
+  }));
+
+  // Coliseo — a completed workout is an entry with awarded XP.
+  const gymTarget = weeksInPeriod * 3;
+  zones.push(makeZone({
+    id: 'gym',
+    name: 'Coliseo',
+    icon: 'gym',
+    color: '#c85a50',
+    score: ratioPercent(workouts.length, gymTarget),
+    scoreAvailable: historicalWorkoutCount > 0,
+    hasData: workouts.length > 0,
+    isTracking: historicalWorkoutCount > 0,
+    activityCount: workouts.length,
+    activityLabel: workouts.length ? `${plural(workouts.length, 'entrenamiento')} terminado${workouts.length === 1 ? '' : 's'}` : 'Sin entrenamientos registrados',
+  }));
+
+  // Bóveda — percentage reflects actual net saving rate; expenses without any
+  // income are not treated as a fictitious 50% score.
+  const income = transactions.filter((transaction) => transaction.type === 'INCOME')
+    .reduce((sum, transaction) => sum + Number(transaction.amount), 0);
+  const expenses = transactions.filter((transaction) => transaction.type === 'EXPENSE')
+    .reduce((sum, transaction) => sum + Number(transaction.amount), 0);
+  const financeScore = income > 0 ? ratioPercent(Math.max(0, income - expenses), income) : 0;
+  const financeTracking = historicalTransactionCount > 0 || budgets.length > 0 || financialGoals.length > 0;
+  zones.push(makeZone({
+    id: 'finances',
+    name: 'Bóveda',
+    icon: 'money',
+    color: '#419872',
+    score: financeScore,
+    scoreAvailable: financeTracking,
+    hasData: transactions.length > 0,
+    isTracking: financeTracking,
+    activityCount: transactions.length,
+    activityLabel: transactions.length
+      ? `${plural(transactions.length, 'transacción', 'transacciones')} · balance ${income - expenses >= 0 ? '+' : ''}${Math.round(income - expenses)}`
+      : 'Sin transacciones registradas',
+  }));
+
+  // Torre — use a persisted sleep score when available, otherwise calculate it
+  // from the actual duration, quality and bedtime values.
+  const sleepAverage = sleepLogs.length
+    ? sleepLogs.reduce((sum, log) => sum + (log.sleepScore ?? calculateSleepScore(log.duration, log.quality, log.bedtime)), 0) / sleepLogs.length
+    : 0;
+  zones.push(makeZone({
+    id: 'sleep',
+    name: 'Torre',
+    icon: 'moon',
+    color: '#6570c8',
+    score: clampPercent(sleepAverage),
+    scoreAvailable: historicalSleepCount > 0,
+    hasData: sleepLogs.length > 0,
+    isTracking: historicalSleepCount > 0,
+    activityCount: sleepLogs.length,
+    activityLabel: sleepLogs.length ? `${plural(sleepLogs.length, 'noche')} registrada${sleepLogs.length === 1 ? '' : 's'}` : 'Sin noches registradas',
+  }));
+
+  // Biblioteca — progress is only calculated for records edited/completed in
+  // this interval. Existing items still remain visible with an honest empty state.
+  const touchedLearning = learningItems.filter((item) => (
+    (item.updatedAt >= start && item.updatedAt < end) ||
+    (item.completedAt !== null && item.completedAt >= start && item.completedAt < end)
+  ));
+  const measurableLearning = touchedLearning
+    .map((item) => item.status === 'COMPLETED'
+      ? 100
+      : item.totalProgress > 0 ? ratioPercent(item.currentProgress, item.totalProgress) : null)
+    .filter((score): score is number => score !== null);
+  const learningScore = measurableLearning.length
+    ? measurableLearning.reduce((sum, score) => sum + score, 0) / measurableLearning.length
+    : 0;
+  zones.push(makeZone({
+    id: 'learning',
+    name: 'Biblioteca',
+    icon: 'book',
+    color: '#378fa0',
+    score: clampPercent(learningScore),
+    scoreAvailable: measurableLearning.length > 0,
+    hasData: touchedLearning.length > 0,
+    isTracking: learningItems.length > 0,
+    activityCount: touchedLearning.length,
+    activityLabel: touchedLearning.length ? `${plural(touchedLearning.length, 'elemento')} actualizado${touchedLearning.length === 1 ? '' : 's'}` : 'Sin avance registrado',
+  }));
+
+  // Diario — coverage is based on distinct calendar days, never duplicate rows.
+  const journalDays = new Set(journalEntries.map((entry) => dayKey(entry.date))).size;
+  zones.push(makeZone({
+    id: 'journal',
+    name: 'Diario',
+    icon: 'journal',
+    color: '#bc628c',
+    score: ratioPercent(journalDays, daysInPeriod),
+    scoreAvailable: historicalJournalCount > 0,
+    hasData: journalEntries.length > 0,
+    isTracking: historicalJournalCount > 0,
+    activityCount: journalEntries.length,
+    activityLabel: journalEntries.length ? `${plural(journalEntries.length, 'entrada')} registrada${journalEntries.length === 1 ? '' : 's'}` : 'Sin entradas registradas',
+  }));
+
+  // El Espejo — care routines form the measurable denominator; wardrobe,
+  // outfits and presence check-ins are genuine supplementary records but do not
+  // get converted into invented completion percentages.
+  const expectedCareSlots = careRoutines.reduce((total, routine) => (
+    total + (routine.timeOfDay === 'weekly' ? weeksInPeriod : daysInPeriod)
+  ), 0);
+  const wornItems = clothingItems.filter((item) => item.lastWornAt && item.lastWornAt >= start && item.lastWornAt < end).length;
+  const wornOutfits = outfits.filter((outfit) => outfit.lastWornAt && outfit.lastWornAt >= start && outfit.lastWornAt < end).length;
+  const mirrorActivity = completedCareLogs.length + wornItems + wornOutfits + presenceCheckins.length;
+  const mirrorTracking = careRoutines.length > 0 || historicalCareLogCount > 0 || clothingItems.length > 0 || outfits.length > 0;
+  zones.push(makeZone({
+    id: 'mirror',
+    name: 'El Espejo',
+    icon: 'sparkles',
+    color: '#9274c9',
+    score: ratioPercent(completedCareLogs.length, expectedCareSlots),
+    scoreAvailable: expectedCareSlots > 0,
+    hasData: mirrorActivity > 0,
+    isTracking: mirrorTracking,
+    activityCount: mirrorActivity,
+    activityLabel: mirrorActivity ? `${plural(mirrorActivity, 'registro')} de cuidado o presencia` : 'Sin registros de cuidado',
+  }));
+
+  // Nutrición — daily coverage is measured from meal records, not from a
+  // guessed calorie target.
+  const mealDays = new Set(meals.map((meal) => dayKey(meal.date))).size;
+  const nutritionTracking = historicalMealCount > 0 || Boolean(nutritionGoal);
+  zones.push(makeZone({
+    id: 'nutrition',
+    name: 'Nutrición',
+    icon: 'salad',
+    color: '#73965b',
+    score: ratioPercent(mealDays, daysInPeriod),
+    scoreAvailable: nutritionTracking,
+    hasData: meals.length > 0,
+    isTracking: nutritionTracking,
+    activityCount: meals.length,
+    activityLabel: meals.length ? `${plural(meals.length, 'comida')} registrada${meals.length === 1 ? '' : 's'}` : 'Sin comidas registradas',
+  }));
+
+  // Relationships have setup records but no interaction-log model yet. Keep the
+  // zone visible and explicitly avoid manufacturing a percentage from metadata.
+  const relationshipUpdates = relationships.filter((relationship) => (
+    relationship.createdAt >= start && relationship.createdAt < end ||
+    relationship.updatedAt >= start && relationship.updatedAt < end
+  )).length;
+  const relationshipActivity = relationshipUpdates + giftIdeas.length;
+  zones.push(makeZone({
+    id: 'relationships',
+    name: 'Relaciones',
+    icon: 'heart',
+    color: '#bb6676',
+    score: 0,
+    scoreAvailable: false,
+    hasData: relationshipActivity > 0,
+    isTracking: relationships.length > 0,
+    activityCount: relationshipActivity,
+    activityLabel: relationships.length
+      ? relationshipActivity ? `${plural(relationshipActivity, 'actualización')} de relación o regalo` : 'Sin interacción registrable en este periodo'
+      : 'Aún sin relaciones configuradas',
+  }));
+
+  // Custom zones derive their records only from linked habits, quests and XP
+  // sources. This avoids the old bug where all user XP was credited to every
+  // custom zone at once.
+  const questZoneById = new Map(quests.filter((quest) => quest.customZoneId).map((quest) => [quest.id, quest.customZoneId!]));
+  const habitZoneById = new Map(habits.filter((habit) => habit.customZoneId).map((habit) => [habit.id, habit.customZoneId!]));
+  const customQuestCompletions = new Map<string, number>();
+  const customHabitCompletions = new Map<string, number>();
+  const customXp = new Map<string, number>();
+
+  for (const completion of questCompletions) {
+    const zoneId = questZoneById.get(completion.questId);
+    if (zoneId) customQuestCompletions.set(zoneId, (customQuestCompletions.get(zoneId) ?? 0) + 1);
+  }
+  for (const log of completedHabitLogs) {
+    const zoneId = habitZoneById.get(log.habitId);
+    if (zoneId) customHabitCompletions.set(zoneId, (customHabitCompletions.get(zoneId) ?? 0) + 1);
+  }
+  for (const event of zoneXpEvents) {
+    const zoneId = event.sourceId ? questZoneById.get(event.sourceId) ?? habitZoneById.get(event.sourceId) : undefined;
+    if (zoneId) customXp.set(zoneId, (customXp.get(zoneId) ?? 0) + event.xpAmount);
   }
 
-  // Hábitos
-  if (habits.length > 0 && habitLogs.length > 0) {
-    const possible = habits.length * 14;
-    const score = Math.min(100, Math.round((habitLogs.length / possible) * 100));
-    zones.push({ id: 'habits', name: 'Hábitos', icon: '🔥', color: '#f59e0b', score, hasData: true });
-  }
+  for (const zone of [...customZones].sort((a, b) => a.order - b.order || a.name.localeCompare(b.name))) {
+    const linkedQuests = quests.filter((quest) => quest.customZoneId === zone.id);
+    const linkedActiveHabits = activeHabits.filter((habit) => habit.customZoneId === zone.id);
+    const questCount = customQuestCompletions.get(zone.id) ?? 0;
+    const habitCount = customHabitCompletions.get(zone.id) ?? 0;
+    const earnedXp = customXp.get(zone.id) ?? 0;
+    const expectedHabitSlots = linkedActiveHabits.reduce((total, habit) => (
+      total + days.filter((day) => isHabitScheduledForDay(day, habit.frequency)).length
+    ), 0);
 
-  // Coliseo (Fitness)
-  if (workouts.length > 0) {
-    const score = Math.min(100, Math.round((workouts.length / 6) * 100));
-    zones.push({ id: 'gym', name: 'Coliseo', icon: '💪', color: '#ef4444', score, hasData: true });
-  }
-
-  // Bóveda (Finanzas)
-  if (transactions.length > 0) {
-    const income = transactions.filter(t => t.type === 'INCOME').reduce((s, t) => s + Number(t.amount), 0);
-    const expense = transactions.filter(t => t.type === 'EXPENSE').reduce((s, t) => s + Number(t.amount), 0);
-    const savings = income > 0 ? Math.max(0, (income - expense) / income) : 0.5;
-    const score = Math.min(100, Math.round(savings * 100));
-    zones.push({ id: 'finances', name: 'Bóveda', icon: '💰', color: '#10b981', score, hasData: true });
-  }
-
-  // Torre (Sueño)
-  if (sleepLogs.length > 0) {
-    const avgDuration = sleepLogs.reduce((s, l) => s + l.duration, 0) / sleepLogs.length;
-    const score = avgDuration >= 7 ? 100 : Math.round((avgDuration / 9) * 100);
-    zones.push({ id: 'sleep', name: 'Torre', icon: '🌙', color: '#6366f1', score, hasData: true });
-  }
-
-  // Biblioteca (Aprendizaje)
-  const activeLearn = learningItems.filter(l => l.status === 'IN_PROGRESS').length;
-  if (activeLearn > 0) {
-    const score = Math.min(100, activeLearn * 35 + 10);
-    zones.push({ id: 'learning', name: 'Biblioteca', icon: '📚', color: '#06b6d4', score, hasData: true });
-  }
-
-  // Diario
-  if (journalEntries.length > 0) {
-    const score = Math.min(100, journalEntries.length * 8);
-    zones.push({ id: 'journal', name: 'Diario', icon: '📓', color: '#ec4899', score, hasData: true });
-  }
-
-  // El Espejo (rutinas de cuidado)
-  if (careRoutines.length > 0 && careLogs.length > 0) {
-    const possible = careRoutines.length * 14;
-    const score = Math.min(100, Math.round((careLogs.length / possible) * 100));
-    zones.push({ id: 'mirror', name: 'El Espejo', icon: '✨', color: '#a78bfa', score, hasData: true });
-  }
-
-  // Custom measurable zones. XP belongs to a zone only when its source is a
-  // quest or habit actually linked to that zone. The old implementation used
-  // the user's *entire* XP total for every custom zone, which made multiple
-  // zones show the same misleading progress.
-  const customZoneIds = customZones.map((zone) => zone.id);
-  if (customZoneIds.length > 0) {
-    const [zoneQuests, zoneHabits] = await Promise.all([
-      prisma.quest.findMany({
-        where: { userId, customZoneId: { in: customZoneIds } },
-        select: { id: true, customZoneId: true },
-      }),
-      prisma.habit.findMany({
-        where: { userId, customZoneId: { in: customZoneIds } },
-        select: { id: true, customZoneId: true },
-      }),
-    ]);
-
-    const sourceZoneById = new Map<string, string>();
-    for (const quest of zoneQuests) {
-      if (quest.customZoneId) sourceZoneById.set(quest.id, quest.customZoneId);
+    let score = 0;
+    let scoreAvailable = false;
+    if (zone.measureMetric === 'habits_streak' && expectedHabitSlots > 0) {
+      score = ratioPercent(habitCount, expectedHabitSlots);
+      scoreAvailable = true;
+    } else if (zone.measureMetric === 'quests_completed' && linkedQuests.length > 0) {
+      score = ratioPercent(questCount, Math.max(1, Math.min(linkedQuests.length, weeksInPeriod * 3)));
+      scoreAvailable = true;
+    } else if ((zone.measureMetric === 'xp_gained' || zone.weeklyXpGoal) && zone.weeklyXpGoal) {
+      score = ratioPercent(earnedXp, zone.weeklyXpGoal * weeksInPeriod);
+      scoreAvailable = true;
     }
-    for (const habit of zoneHabits) {
-      if (habit.customZoneId) sourceZoneById.set(habit.id, habit.customZoneId);
-    }
 
-    const sourceIds = [...sourceZoneById.keys()];
-    const zoneEvents = sourceIds.length
-      ? await prisma.xpEvent.findMany({
-        where: {
-          userId,
-          sourceId: { in: sourceIds },
-          createdAt: { gte: twoWeeksAgo, lt: now },
-        },
-        select: { sourceId: true, xpAmount: true },
-      })
-      : [];
+    const activityCount = questCount + habitCount;
+    const hasData = activityCount > 0 || earnedXp > 0;
+    const isTracking = zone.isMeasurable || linkedQuests.length > 0 || linkedActiveHabits.length > 0;
+    const activityLabel = scoreAvailable && zone.weeklyXpGoal
+      ? `${earnedXp} XP de ${zone.weeklyXpGoal * weeksInPeriod} objetivo`
+      : activityCount
+        ? `${activityCount} acción${activityCount === 1 ? '' : 'es'} vinculada${activityCount === 1 ? '' : 's'}`
+        : isTracking ? 'Sin registros vinculados' : 'Métrica pendiente de definir';
 
-    const xpByZone = new Map<string, number>();
-    for (const event of zoneEvents) {
-      const zoneId = event.sourceId ? sourceZoneById.get(event.sourceId) : undefined;
-      if (zoneId) xpByZone.set(zoneId, (xpByZone.get(zoneId) ?? 0) + event.xpAmount);
-    }
-
-    for (const zone of customZones) {
-      const earned = xpByZone.get(zone.id) ?? 0;
-      const target = zone.weeklyXpGoal ? zone.weeklyXpGoal * 2 : 0;
-      const score = target > 0 ? Math.min(100, Math.round((earned / target) * 100)) : 0;
-      if (score > 0) {
-        zones.push({ id: zone.id, name: zone.name, icon: zone.icon, color: zone.accentColor, score, hasData: true });
-      }
-    }
+    zones.push(makeZone({
+      id: zone.id,
+      name: zone.name,
+      icon: zone.icon,
+      color: zone.accentColor,
+      score,
+      scoreAvailable,
+      hasData,
+      isTracking,
+      activityCount,
+      activityLabel,
+    }));
   }
 
-  const filtered = zones.filter(z => z.hasData);
-  const totalScore = filtered.length > 0
-    ? Math.round(filtered.reduce((sum, z) => sum + z.score, 0) / filtered.length)
+  const scoreableZones = zones.filter((zone) => zone.isTracking && zone.scoreAvailable);
+  const totalScore = scoreableZones.length
+    ? Math.round(scoreableZones.reduce((sum, zone) => sum + zone.score, 0) / scoreableZones.length)
     : 0;
 
-  // Trend vs previous week
-  const prevQuestCompletions = await prisma.questCompletion.count({
-    where: { userId, completedAt: { gte: prevWeekStart, lt: prevWeekEnd } },
-  });
-  const prevHabitLogs = await prisma.habitLog.count({
-    where: { userId, date: { gte: prevWeekStart, lt: prevWeekEnd }, completed: true },
-  });
-  const prevScore = prevQuestCompletions * 5 + prevHabitLogs * 3;
-  const currentScore = questCompletions.filter(q => new Date(q.completedAt) >= lastWeekAgo).length * 5
-    + habitLogs.filter(h => new Date(h.date) >= lastWeekAgo).length * 3;
-  const diff = currentScore - prevScore;
-  const trend = diff === 0 ? '→ igual que la semana pasada'
-    : diff > 0 ? `+${Math.min(diff, 15)} vs semana pasada`
-    : `${Math.max(diff, -15)} vs semana pasada`;
-
-  return { totalScore, zones: filtered, trend };
+  return {
+    totalScore,
+    zones,
+    trend: xpTrend(xpCurrent._sum.xpAmount ?? 0, xpPrevious._sum.xpAmount ?? 0),
+  };
 }
 
 // ─── Smart Correlations (SQL-based) ───────────────────────────────────────────

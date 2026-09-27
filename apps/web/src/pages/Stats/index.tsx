@@ -40,6 +40,7 @@ import {
   type SleepTrendPoint,
   type StatsPredictions,
   type StatsSummary,
+  type XpHistoryPoint,
 } from '../../services/stats.service';
 import {
   fetchDynamicLifeScore,
@@ -232,8 +233,10 @@ export default function StatsPage() {
   const [period, setPeriod] = useState<Period>('month');
   const [lifeScore, setLifeScore] = useState<LifeScore | null>(null);
   const [dynamicScore, setDynamicScore] = useState<DynamicLifeScoreData | null>(null);
-  const [xpHistory, setXpHistory] = useState<Array<{ date: string; xp: number }>>([]);
+  const [xpHistory, setXpHistory] = useState<XpHistoryPoint[]>([]);
   const [xpAverage, setXpAverage] = useState(0);
+  const [xpActiveDays, setXpActiveDays] = useState(0);
+  const [xpDaysInPeriod, setXpDaysInPeriod] = useState(0);
   const [radarData, setRadarData] = useState<RadarComparisonPoint[]>([]);
   const [financeTrend, setFinanceTrend] = useState<FinanceTrendPoint[]>([]);
   const [heatmap, setHeatmap] = useState<HeatmapPoint[]>([]);
@@ -244,10 +247,24 @@ export default function StatsPage() {
   const [summary, setSummary] = useState<StatsSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const loadRequestRef = useRef(0);
 
   const load = useCallback(async (selectedPeriod: Period) => {
+    const requestId = ++loadRequestRef.current;
     setLoading(true);
     setLoadError(null);
+    // Do not relabel a previous period's values while the new interval is
+    // loading. Empty/loading states are more honest than temporarily stale data.
+    setDynamicScore(null);
+    setXpHistory([]);
+    setXpAverage(0);
+    setXpActiveDays(0);
+    setXpDaysInPeriod(0);
+    setRadarData([]);
+    setFinanceTrend([]);
+    setSleepTrend([]);
+    setGymProgression([]);
+    setSummary(null);
     try {
       const [
         score,
@@ -263,10 +280,10 @@ export default function StatsPage() {
         stats,
       ] = await Promise.allSettled([
         fetchLifeScore(),
-        fetchDynamicLifeScore(),
+        fetchDynamicLifeScore(selectedPeriod),
         getXpHistory(selectedPeriod),
-        getActivityRadar(),
-        getFinanceTrend(),
+        getActivityRadar(selectedPeriod),
+        getFinanceTrend(selectedPeriod),
         getHabitHeatmap(),
         getSleepScatter(selectedPeriod),
         getGymProgression(selectedPeriod),
@@ -275,11 +292,17 @@ export default function StatsPage() {
         getStatsSummary(selectedPeriod),
       ]);
 
+      // A slower request for a previous filter must never overwrite the values
+      // of the period the player is currently reviewing.
+      if (requestId !== loadRequestRef.current) return;
+
       if (score.status === 'fulfilled') setLifeScore(score.value);
       if (dynamic.status === 'fulfilled') setDynamicScore(dynamic.value);
       if (xp.status === 'fulfilled') {
         setXpHistory(xp.value.data);
         setXpAverage(xp.value.avg);
+        setXpActiveDays(xp.value.activeDays);
+        setXpDaysInPeriod(xp.value.daysInPeriod);
       }
       if (radar.status === 'fulfilled') {
         const previousBySubject = new Map(radar.value.previous.map((item) => [item.subject, item.value]));
@@ -307,7 +330,7 @@ export default function StatsPage() {
         );
       }
     } finally {
-      setLoading(false);
+      if (requestId === loadRequestRef.current) setLoading(false);
     }
   }, []);
 
@@ -322,12 +345,26 @@ export default function StatsPage() {
     xpHistory,
     xpPeriod: summary?.xp.value ?? 0,
     xpAverage,
+    xpActiveDays,
+    xpDaysInPeriod,
     xpChange: summary?.xp.change,
     questsInPeriod: summary?.quests.completed ?? 0,
     questsChange: summary?.quests.change,
-    lifeScore: dynamicScore?.totalScore ?? lifeScore?.total ?? null,
+    lifeScore: dynamicScore?.totalScore ?? null,
     lifeScoreTrend: dynamicScore?.trend,
-    zones: dynamicScore?.zones.map((zone) => ({ id: zone.id, name: zone.name, score: zone.score })),
+    zones: dynamicScore?.zones.map((zone) => ({
+      id: zone.id,
+      name: zone.name,
+      icon: zone.icon,
+      color: zone.color,
+      score: zone.score,
+      scoreAvailable: zone.scoreAvailable,
+      hasData: zone.hasData,
+      isTracking: zone.isTracking,
+      status: zone.status,
+      activityCount: zone.activityCount,
+      activityLabel: zone.activityLabel,
+    })),
     currentStreak: summary?.currentStreak ?? user?.currentStreak,
     bestStreak: summary?.bestStreak ?? user?.longestStreak,
     totals: summary?.totals,
@@ -387,7 +424,7 @@ export default function StatsPage() {
           <p className="mt-1 text-xs text-[var(--text-muted)]">Todas las series se calculan a partir de registros reales de LifeQuest.</p>
         </div>
         <div className="grid gap-4 xl:grid-cols-2">
-          <FinanceTrendCard data={financeTrend} currency={user?.currency ?? 'COP'} loading={loading} />
+          <FinanceTrendCard data={financeTrend} currency={user?.currency ?? 'COP'} periodLabel={selectedPeriod.summaryLabel} loading={loading} />
           <SleepTrendCard data={sleepTrend} periodLabel={selectedPeriod.summaryLabel} loading={loading} />
           <GymProgressionCard data={gymProgression} periodLabel={selectedPeriod.summaryLabel} loading={loading} />
           <PredictionsCard data={predictions} currency={user?.currency ?? 'COP'} loading={loading} />
@@ -403,9 +440,9 @@ export default function StatsPage() {
                   <Activity className="h-4 w-4 text-[var(--text-secondary)]" aria-hidden="true" />
                   Ritmo por área
                 </h2>
-                <p className="mt-1 text-xs text-[var(--text-muted)]">Semana actual frente a la anterior.</p>
+                <p className="mt-1 text-xs text-[var(--text-muted)]">{selectedPeriod.summaryLabel} frente al periodo equivalente anterior.</p>
               </div>
-              <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Últimas 2 semanas</span>
+              <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Periodo seleccionado</span>
             </div>
             <ResponsiveContainer width="100%" height={250}>
               <RadarChart data={radarData} cx="50%" cy="50%" outerRadius={88}>

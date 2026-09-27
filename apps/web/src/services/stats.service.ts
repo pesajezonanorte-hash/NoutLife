@@ -18,12 +18,18 @@ export interface StatsSummary {
 
 export interface XpHistoryPoint {
   date: string;
+  /** XP granted on this calendar day. Zeroes are kept deliberately. */
   xp: number;
+  /** XP accumulated within the selected period through this day. */
+  cumulativeXp: number;
 }
 
 export interface XpHistoryResponse {
   data: XpHistoryPoint[];
   avg: number;
+  activeDays: number;
+  daysInPeriod: number;
+  totalXp: number;
 }
 
 export interface ActivityRadarPoint {
@@ -84,11 +90,11 @@ export const getStatsSummary = (period = 'month') =>
 export const getXpHistory = (period = 'month') =>
   api.get<XpHistoryResponse>('/stats/xp-history', p(period)).then(({ data }) => data);
 
-export const getActivityRadar = () =>
-  api.get<ActivityRadarResponse>('/stats/radar').then(({ data }) => data);
+export const getActivityRadar = (period = 'week') =>
+  api.get<ActivityRadarResponse>('/stats/radar', p(period)).then(({ data }) => data);
 
-export const getFinanceTrend = () =>
-  api.get<FinanceTrendPoint[]>('/stats/finance-trend').then(({ data }) => data);
+export const getFinanceTrend = (period = 'month') =>
+  api.get<FinanceTrendPoint[]>('/stats/finance-trend', p(period)).then(({ data }) => data);
 
 export const getHabitHeatmap = () =>
   api.get<HeatmapPoint[]>('/stats/heatmap').then(({ data }) => data);
