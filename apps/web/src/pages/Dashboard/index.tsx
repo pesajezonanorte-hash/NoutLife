@@ -478,7 +478,7 @@ export default function DashboardPage() {
   const playerClass = (user as unknown as { playerClass?: string }).playerClass;
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-5 pb-8">
+    <div className="w-full max-w-none space-y-5 pb-8">
       <AnimatePresence>
         {showBriefing && <MorningBriefing onClose={() => setShowBriefing(false)} />}
         {showClassModal && <ClassSelectionModal onClose={() => setShowClassModal(false)} />}
@@ -530,67 +530,65 @@ export default function DashboardPage() {
 
       <BossWidget />
 
-      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(280px,0.78fr)_minmax(0,1.65fr)]">
-        <aside className="self-start space-y-4">
-        <PixelPanel animate className="p-4">
-          <div className="flex items-center gap-3">
-            <AvatarDisplay
-              avatarConfig={user.avatarConfig}
-              avatarUrl={user.avatarUrl}
-              equippedAura={user.equippedAura}
-              equippedFrame={user.equippedFrame}
-              size={78}
-              mood={visualState?.mood ?? 3}
-              animate={(visualState?.mood ?? 3) >= 4 ? 'celebrate' : 'idle'}
-            />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-base font-semibold text-[var(--text-primary)]">{user.displayName}</p>
-              <p className="mt-0.5 truncate text-[11px] font-semibold uppercase tracking-[0.11em] text-[var(--accent-gold)]">{getLevelTitle(user.level)}</p>
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-[var(--accent-gold)] px-2.5 py-1 text-[10px] font-bold tracking-[0.08em] text-white">Nivel {user.level}</span>
-                {playerClass && <span className="rounded-full border border-[var(--border)] bg-[var(--bg-panel-light)] px-2 py-1 text-[10px] font-medium text-[var(--text-secondary)]">{CLASS_TITLES[playerClass] ?? playerClass}</span>}
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2 xl:grid-cols-[minmax(250px,0.85fr)_minmax(0,1.45fr)_minmax(250px,0.85fr)]">
+        <aside className="space-y-4">
+          <PixelPanel animate className="p-4">
+            <div className="flex items-center gap-3">
+              <AvatarDisplay
+                avatarConfig={user.avatarConfig}
+                avatarUrl={user.avatarUrl}
+                equippedAura={user.equippedAura}
+                equippedFrame={user.equippedFrame}
+                size={78}
+                mood={visualState?.mood ?? 3}
+                animate={(visualState?.mood ?? 3) >= 4 ? 'celebrate' : 'idle'}
+              />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-base font-semibold text-[var(--text-primary)]">{user.displayName}</p>
+                <p className="mt-0.5 truncate text-[11px] font-semibold uppercase tracking-[0.11em] text-[var(--accent-gold)]">{getLevelTitle(user.level)}</p>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-[var(--accent-gold)] px-2.5 py-1 text-[10px] font-bold tracking-[0.08em] text-white">Nivel {user.level}</span>
+                  {playerClass && <span className="rounded-full border border-[var(--border)] bg-[var(--bg-panel-light)] px-2 py-1 text-[10px] font-medium text-[var(--text-secondary)]">{CLASS_TITLES[playerClass] ?? playerClass}</span>}
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="mt-4 space-y-2.5">
-            {statBars.map(({ label, value, max, color, pulse }) => (
-              <div key={label}>
-                <div className="mb-1 flex justify-between text-[11px]">
-                  <span className="font-medium text-[var(--text-secondary)]">{label}</span>
-                  <span className="tabular-nums text-[var(--text-primary)]">{value}/{max}</span>
+            <div className="mt-4 space-y-2.5">
+              {statBars.map(({ label, value, max, color, pulse }) => (
+                <div key={label}>
+                  <div className="mb-1 flex justify-between text-[11px]">
+                    <span className="font-medium text-[var(--text-secondary)]">{label}</span>
+                    <span className="tabular-nums text-[var(--text-primary)]">{value}/{max}</span>
+                  </div>
+                  <div className={`stat-bar ${pulse ? 'animate-pulse' : ''}`}>
+                    <motion.div className={`stat-bar-fill ${color}`} initial={{ width: 0 }} animate={{ width: `${xpProgressPercent(value, max)}%` }} transition={{ duration: 0.7, ease: 'easeOut', delay: 0.15 }} />
+                  </div>
                 </div>
-                <div className={`stat-bar ${pulse ? 'animate-pulse' : ''}`}>
-                  <motion.div className={`stat-bar-fill ${color}`} initial={{ width: 0 }} animate={{ width: `${xpProgressPercent(value, max)}%` }} transition={{ duration: 0.7, ease: 'easeOut', delay: 0.15 }} />
+              ))}
+            </div>
+
+            {visualState && visualState.daysAway > 0 && (
+              <p className="mt-3 rounded-lg bg-[var(--bg-panel-light)] px-2.5 py-2 text-[11px] leading-4 text-[var(--text-secondary)]">
+                {visualState.daysAway >= 5 ? 'Tu energía visual pide retomar el ritmo.' : visualState.daysAway >= 3 ? 'Una pequeña acción hoy te ayudará a recuperar energía.' : 'Tu energía visual bajó un poco por distancia.'}
+              </p>
+            )}
+
+            <div className="mt-4 grid grid-cols-3 gap-2 border-t border-[var(--border)] pt-3">
+              {stats.map(({ key, value, color }) => (
+                <div key={key} className="rounded-lg bg-[var(--bg-panel-light)] px-2 py-2 text-center">
+                  <p className="text-[10px] font-medium text-[var(--text-secondary)]">{key}</p>
+                  <p className={`mt-0.5 text-base font-semibold tabular-nums ${color}`}>{value}</p>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
 
-          {visualState && visualState.daysAway > 0 && (
-            <p className="mt-3 rounded-lg bg-[var(--bg-panel-light)] px-2.5 py-2 text-[11px] leading-4 text-[var(--text-secondary)]">
-              {visualState.daysAway >= 5 ? 'Tu energía visual pide retomar el ritmo.' : visualState.daysAway >= 3 ? 'Una pequeña acción hoy te ayudará a recuperar energía.' : 'Tu energía visual bajó un poco por distancia.'}
-            </p>
-          )}
-
-          <div className="mt-4 grid grid-cols-3 gap-2 border-t border-[var(--border)] pt-3">
-            {stats.map(({ key, value, color }) => (
-              <div key={key} className="rounded-lg bg-[var(--bg-panel-light)] px-2 py-2 text-center">
-                <p className="text-[10px] font-medium text-[var(--text-secondary)]">{key}</p>
-                <p className={`mt-0.5 text-base font-semibold tabular-nums ${color}`}>{value}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-panel-light)] px-2.5 py-1.5 text-xs font-semibold text-[var(--accent-gold)]"><Coins size={14} />{user.gold.toLocaleString()} oro</span>
-            {user.currentStreak > 0 && <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--accent-red)]"><Flame size={14} />{user.currentStreak} días de racha</span>}
-          </div>
-        </PixelPanel>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-panel-light)] px-2.5 py-1.5 text-xs font-semibold text-[var(--accent-gold)]"><Coins size={14} />{user.gold.toLocaleString()} oro</span>
+              {user.currentStreak > 0 && <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--accent-red)]"><Flame size={14} />{user.currentStreak} días de racha</span>}
+            </div>
+          </PixelPanel>
 
           {lifeScore && <LifeScoreWidget score={lifeScore} />}
-
-          <QuickStatsWidget sleepAvg7d={dashData?.sleepAvg7d ?? 0} monthBalance={dashData?.monthBalance ?? 0} lastWorkoutDaysAgo={lastWorkoutDaysAgo} />
 
           {upcomingEvents.length > 0 && (
             <PixelPanel className="p-4">
@@ -615,24 +613,12 @@ export default function DashboardPage() {
               </div>
             </PixelPanel>
           )}
-
-          <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel-light)] p-3.5 shadow-[0_10px_25px_rgba(0,0,0,0.06)]">
-            <div className="mb-3 flex items-center gap-2"><Swords size={15} className="text-[var(--accent-gold)]" /><div><p className="text-xs font-semibold text-[var(--text-primary)]">Zonas de vida</p><p className="text-[11px] text-[var(--text-secondary)]">Elige dónde avanzar ahora.</p></div></div>
-            <div className="grid grid-cols-2 gap-2">
-              {ZONES.map(({ Icon, ...zone }) => <ZoneCard key={zone.label} {...zone} icon={<Icon size={16} strokeWidth={1.9} />} />)}
-            </div>
-          </section>
         </aside>
 
-        <div className="min-w-0 space-y-4">
-          <SageDailyTip />
-          <SageScrollsWidget />
+        <section className="min-w-0 space-y-4">
           <div id="daily-checkin">
             <DailyCheckinWidget />
           </div>
-
-          {dashData?.recoveryChallenge && <RecoveryChallengeCard challenge={dashData.recoveryChallenge} />}
-          {dashData?.latestWeeklySummary && <WeeklySummaryCard summary={dashData.latestWeeklySummary} />}
 
           {loading ? <SkeletonCard lines={4} /> : <TodayQuestsWidget quests={dashData?.todayQuests ?? []} />}
 
@@ -669,10 +655,10 @@ export default function DashboardPage() {
             </section>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {topHabit && (
-              <PixelPanel className="p-3 cursor-pointer hover:border-[var(--accent-gold)] transition-colors" onClick={() => navigate('/habits')}>
-                <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-1"><Trophy size={14} aria-hidden="true" /> Mejor racha actual</p>
+              <PixelPanel className="cursor-pointer p-3 transition-colors hover:border-[var(--accent-gold)]" onClick={() => navigate('/habits')}>
+                <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]"><Trophy size={14} aria-hidden="true" /> Mejor racha actual</p>
                 <div className="flex items-center gap-2">
                   <span className="text-xl"><E e={topHabit.icon} /></span>
                   <div>
@@ -684,8 +670,8 @@ export default function DashboardPage() {
             )}
 
             {dashData?.recentAchievements?.[0] && (
-              <PixelPanel className="p-3 cursor-pointer hover:border-[var(--accent-gold)] transition-colors" onClick={() => navigate('/achievements')}>
-                <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-1"><Trophy size={14} aria-hidden="true" /> Logro reciente</p>
+              <PixelPanel className="cursor-pointer p-3 transition-colors hover:border-[var(--accent-gold)]" onClick={() => navigate('/achievements')}>
+                <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]"><Trophy size={14} aria-hidden="true" /> Logro reciente</p>
                 <div className="flex items-center gap-2">
                   <span className="text-xl"><E e={dashData.recentAchievements[0].icon} /></span>
                   <div>
@@ -696,9 +682,22 @@ export default function DashboardPage() {
               </PixelPanel>
             )}
           </div>
+        </section>
 
+        <aside className="space-y-4 lg:col-span-2 xl:col-span-1">
+          <SageDailyTip />
+          <SageScrollsWidget />
+          {dashData?.recoveryChallenge && <RecoveryChallengeCard challenge={dashData.recoveryChallenge} />}
+          {dashData?.latestWeeklySummary && <WeeklySummaryCard summary={dashData.latestWeeklySummary} />}
+          <QuickStatsWidget sleepAvg7d={dashData?.sleepAvg7d ?? 0} monthBalance={dashData?.monthBalance ?? 0} lastWorkoutDaysAgo={lastWorkoutDaysAgo} />
 
-        </div>
+          <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel-light)] p-3.5 shadow-[0_10px_25px_rgba(0,0,0,0.06)]">
+            <div className="mb-3 flex items-center gap-2"><Swords size={15} className="text-[var(--accent-gold)]" /><div><p className="text-xs font-semibold text-[var(--text-primary)]">Zonas de vida</p><p className="text-[11px] text-[var(--text-secondary)]">Elige dónde avanzar ahora.</p></div></div>
+            <div className="grid grid-cols-2 gap-2">
+              {ZONES.map(({ Icon, ...zone }) => <ZoneCard key={zone.label} {...zone} icon={<Icon size={16} strokeWidth={1.9} />} />)}
+            </div>
+          </section>
+        </aside>
       </div>
     </div>
   );
