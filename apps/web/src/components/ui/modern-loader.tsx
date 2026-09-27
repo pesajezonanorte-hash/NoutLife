@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
 interface LoaderSegment {
@@ -85,8 +85,7 @@ function useTypewriter(words: string[], complete: boolean, reduceMotion: boolean
 
 /**
  * A compact, theme-aware terminal stream for application launch states.
- * Decorative lines are deterministic and aria-hidden; the loading status and
- * real percentage remain available to assistive technology.
+ * New code-like lines write in at the bottom and gently move older lines up.
  */
 export default function ModernLoader({
   words = ['Iniciando tus herramientas…', 'Sincronizando tu progreso…', 'Preparando tu jornada…'],
@@ -95,18 +94,22 @@ export default function ModernLoader({
   className,
 }: ModernLoaderProps) {
   const reduceMotion = useReducedMotion() ?? false;
-  const [lineCursor, setLineCursor] = useState(0);
+  const [lineCursor, setLineCursor] = useState(4);
   const text = useTypewriter(words, ready, reduceMotion);
-  const visibleLines = useMemo(() => Array.from({ length: 9 }, (_, index) => (
-    LINE_TEMPLATES[(lineCursor + index) % LINE_TEMPLATES.length]
-  )), [lineCursor]);
+  const visibleLines = useMemo(() => {
+    const visibleCount = Math.min(9, lineCursor + 1);
+    const firstSequence = Math.max(0, lineCursor - visibleCount + 1);
+    return Array.from({ length: visibleCount }, (_, index) => {
+      const sequence = firstSequence + index;
+      return { line: LINE_TEMPLATES[sequence % LINE_TEMPLATES.length], sequence };
+    });
+  }, [lineCursor]);
+  const cursorLine = LINE_TEMPLATES[(lineCursor + 1) % LINE_TEMPLATES.length];
   const clampedProgress = Math.max(0, Math.min(100, Math.round(progress)));
 
   useEffect(() => {
     if (ready || reduceMotion) return;
-    const interval = window.setInterval(() => {
-      setLineCursor((current) => (current + 1) % LINE_TEMPLATES.length);
-    }, 220);
+    const interval = window.setInterval(() => setLineCursor((current) => current + 1), 360);
     return () => window.clearInterval(interval);
   }, [ready, reduceMotion]);
 
@@ -144,35 +147,66 @@ export default function ModernLoader({
 
         <div className="relative h-[13.5rem] overflow-hidden px-5 py-4 sm:h-56">
           <motion.div
-            className="space-y-2"
+            className="flex h-full flex-col justify-end gap-2"
             animate={ready ? { opacity: 0.58 } : { opacity: 1 }}
             transition={{ duration: reduceMotion ? 0 : 0.22 }}
           >
-            {visibleLines.map((line, index) => (
+            <AnimatePresence initial={false}>
+              {visibleLines.map(({ line, sequence }) => (
+                <motion.div
+                  key={sequence}
+                  layout={!reduceMotion}
+                  className={cn('flex h-3 shrink-0 items-center gap-2', line.indent ? 'pl-4' : '')}
+                  initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={reduceMotion ? undefined : { opacity: 0, y: -7 }}
+                  transition={{
+                    opacity: { duration: reduceMotion ? 0 : 0.18 },
+                    y: { duration: reduceMotion ? 0 : 0.18, ease: 'easeOut' },
+                    layout: { duration: reduceMotion ? 0 : 0.24, ease: [0.22, 1, 0.36, 1] },
+                  }}
+                >
+                  {line.segments.map((segment, segmentIndex) => (
+                    segment.circle ? (
+                      <motion.span
+                        key={segmentIndex}
+                        className="h-3 w-3 shrink-0 rounded-full"
+                        style={{ backgroundColor: TONE_COLOR[segment.tone], opacity: 0.55 }}
+                        initial={reduceMotion ? false : { scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ duration: reduceMotion ? 0 : 0.18, delay: segmentIndex * 0.04 }}
+                      />
+                    ) : (
+                      <motion.span
+                        key={segmentIndex}
+                        className="h-2.5 shrink-0 origin-left rounded-sm"
+                        style={{ width: `${segment.width}%`, backgroundColor: TONE_COLOR[segment.tone], opacity: 0.58 }}
+                        initial={reduceMotion ? false : { scaleX: 0 }}
+                        animate={{ scaleX: 1 }}
+                        transition={{ duration: reduceMotion ? 0 : 0.24, delay: segmentIndex * 0.045, ease: [0.22, 1, 0.36, 1] }}
+                      />
+                    )
+                  ))}
+                </motion.div>
+              ))}
+            </AnimatePresence>
+
+            {!ready ? (
               <motion.div
-                key={`${lineCursor}-${index}-${line.id}`}
-                className={cn('flex h-3 items-center gap-2', line.indent ? 'pl-4' : '')}
-                initial={reduceMotion ? false : { opacity: 0, x: -5 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: reduceMotion ? 0 : 0.16, delay: index * 0.015, ease: 'easeOut' }}
+                key={`cursor-${lineCursor}`}
+                layout={!reduceMotion}
+                className={cn('flex h-3 shrink-0 items-center', cursorLine.indent ? 'pl-4' : '')}
+                initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: reduceMotion ? 0 : 0.16, ease: 'easeOut' }}
               >
-                {line.segments.map((segment, segmentIndex) => (
-                  segment.circle ? (
-                    <span
-                      key={segmentIndex}
-                      className="h-3 w-3 shrink-0 rounded-full"
-                      style={{ backgroundColor: TONE_COLOR[segment.tone], opacity: 0.55 }}
-                    />
-                  ) : (
-                    <span
-                      key={segmentIndex}
-                      className="h-2.5 shrink-0 rounded-sm"
-                      style={{ width: `${segment.width}%`, backgroundColor: TONE_COLOR[segment.tone], opacity: 0.58 }}
-                    />
-                  )
-                ))}
+                <motion.span
+                  className="h-3 w-px bg-[var(--accent-gold)]"
+                  animate={{ opacity: [1, 1, 0, 0] }}
+                  transition={{ duration: 0.74, repeat: Infinity, ease: 'linear' }}
+                />
               </motion.div>
-            ))}
+            ) : null}
           </motion.div>
 
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-[linear-gradient(to_bottom,transparent,var(--bg-panel))]" />
