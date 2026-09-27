@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { E } from '@/components/ui/glyphs';
+import { Dumbbell, Moon, Wallet } from 'lucide-react';
 
 interface Props {
   sleepAvg7d: number;
@@ -8,55 +8,50 @@ interface Props {
 }
 
 export function QuickStatsWidget({ sleepAvg7d, monthBalance, lastWorkoutDaysAgo }: Props) {
-  const formatCOP = (n: number) =>
-    new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
+  const formatCOP = (value: number) => new Intl.NumberFormat('es-CO', {
+    style: 'currency', currency: 'COP', maximumFractionDigits: 0,
+  }).format(value);
 
   const stats = [
     {
-      icon: '🏋️',
-      label: 'Último entrenamiento',
+      Icon: Dumbbell,
+      label: 'Entrenamiento',
       value: lastWorkoutDaysAgo === null
-        ? 'Sin entrenar'
-        : lastWorkoutDaysAgo === 0 ? '¡Hoy! '
-        : lastWorkoutDaysAgo === 1 ? 'Ayer'
-        : `hace ${lastWorkoutDaysAgo} días`,
-      color: lastWorkoutDaysAgo !== null && lastWorkoutDaysAgo <= 2 ? 'text-accent-green' : 'text-accent-red',
+        ? 'Sin registro'
+        : lastWorkoutDaysAgo === 0 ? 'Hoy'
+          : lastWorkoutDaysAgo === 1 ? 'Ayer'
+            : `Hace ${lastWorkoutDaysAgo} días`,
+      tone: lastWorkoutDaysAgo !== null && lastWorkoutDaysAgo <= 2 ? 'var(--accent-green)' : 'var(--accent-red)',
     },
     {
-      icon: '🌙',
-      label: 'Sueño promedio (7d)',
-      value: sleepAvg7d > 0 ? `${sleepAvg7d}h` : 'Sin datos',
-      color: sleepAvg7d >= 7 ? 'text-accent-green' : sleepAvg7d >= 6 ? 'text-accent-gold' : 'text-accent-red',
+      Icon: Moon,
+      label: 'Sueño · 7 días',
+      value: sleepAvg7d > 0 ? `${sleepAvg7d} h` : 'Sin datos',
+      tone: sleepAvg7d >= 7 ? 'var(--accent-green)' : sleepAvg7d >= 6 ? 'var(--accent-gold)' : 'var(--accent-red)',
     },
     {
-      icon: '💰',
+      Icon: Wallet,
       label: 'Balance del mes',
       value: monthBalance !== 0 ? formatCOP(monthBalance) : '$0',
-      color: monthBalance >= 0 ? 'text-accent-green' : 'text-accent-red',
+      tone: monthBalance >= 0 ? 'var(--accent-green)' : 'var(--accent-red)',
     },
   ];
 
   return (
-    <div className="grid grid-cols-3 gap-3">
-      {stats.map((stat, i) => (
+    <div className="grid grid-cols-1 gap-2">
+      {stats.map(({ Icon, label, value, tone }, index) => (
         <motion.div
-          key={stat.label}
-          className="bg-bg-panel border-2 border-border-pixel p-3 relative"
-          initial={{ opacity: 0, y: 10 }}
+          key={label}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: i * 0.1 }}
-          whileHover={{ y: -2, borderColor: '#a8871e' }}
+          transition={{ duration: 0.24, delay: index * 0.05 }}
+          className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel-light)] p-3 transition-colors hover:border-[var(--text-muted)]"
         >
-          <span className="absolute top-0 left-0 w-1.5 h-1.5 bg-border-pixel" />
-          <span className="absolute top-0 right-0 w-1.5 h-1.5 bg-border-pixel" />
-          <span className="absolute bottom-0 left-0 w-1.5 h-1.5 bg-border-pixel" />
-          <span className="absolute bottom-0 right-0 w-1.5 h-1.5 bg-border-pixel" />
-
-          <div className="text-2xl mb-1"><E e={stat.icon} /></div>
-          <p className={`font-vt ${stat.color} text-xl leading-tight`}>{stat.value}</p>
-          <p className="font-pixel text-text-secondary mt-1" style={{ fontSize: '6px', lineHeight: 1.5 }}>
-            {stat.label}
-          </p>
+          <div className="flex items-center justify-between gap-2">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--bg-panel)]" style={{ color: tone }}><Icon size={14} strokeWidth={1.9} /></span>
+            <span className="text-[10px] font-medium uppercase tracking-[0.09em] text-[var(--text-muted)]">{label}</span>
+          </div>
+          <p className="mt-3 truncate text-sm font-semibold tabular-nums" style={{ color: tone }}>{value}</p>
         </motion.div>
       ))}
     </div>

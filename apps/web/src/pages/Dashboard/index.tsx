@@ -1,12 +1,12 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Flame, NotebookPen, Swords, Wallet } from 'lucide-react';
+import { BookOpen, CalendarDays, Check, ClipboardList, Coins, Dumbbell, Flame, HeartHandshake, Moon, NotebookPen, Swords, Trophy, Utensils, Wallet, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { Quest } from '@lifequest/shared';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { PixelPanel } from '../../components/ui/PixelPanel';
-import { MiguelSprite } from '../../components/character/MiguelSprite';
+import { AvatarDisplay } from '../../components/character/AvatarDisplay';
 import { GreetingHeader } from '../../components/dashboard/GreetingHeader';
 import { TodayQuestsWidget } from '../../components/dashboard/TodayQuestsWidget';
 import { QuickStatsWidget } from '../../components/dashboard/QuickStatsWidget';
@@ -117,14 +117,14 @@ interface DashboardData {
   };
 }
 
-const ZONES: { icon: ReactNode; label: string; sublabel: string; to: string; color: string; badge: undefined }[] = [
-  { icon: <span className="text-4xl leading-none block"><E e="🏋" /></span>, label: 'Gym', sublabel: 'Coliseo', to: '/gym', color: 'border-[var(--accent-red)]', badge: undefined },
-  { icon: <span className="text-4xl leading-none block"><E e="💰" /></span>, label: 'Finanzas', sublabel: 'La Bóveda', to: '/finances', color: 'border-[var(--accent-gold)]', badge: undefined },
-  { icon: <span className="text-4xl leading-none block"><E e="📚" /></span>, label: 'Aprend.', sublabel: 'Biblioteca', to: '/learning', color: 'border-[var(--accent-blue)]', badge: undefined },
-  { icon: <span className="text-4xl leading-none block"><E e="🍽" /></span>, label: 'Comida', sublabel: 'La Posada', to: '/food', color: 'border-[var(--accent-green)]', badge: undefined },
-  { icon: <span className="text-4xl leading-none block"><E e="🌙" /></span>, label: 'Sueño', sublabel: 'La Torre', to: '/sleep', color: 'border-[var(--accent-cyan)]', badge: undefined },
-  { icon: <span className="text-4xl leading-none block"><E e="💕" /></span>, label: 'Amor', sublabel: 'El Jardín', to: '/love', color: 'border-[var(--accent-pink)]', badge: undefined },
-];
+const ZONES = [
+  { Icon: Dumbbell, label: 'Gym', sublabel: 'Coliseo', to: '/gym', color: 'var(--accent-red)', badge: undefined },
+  { Icon: Wallet, label: 'Finanzas', sublabel: 'La Bóveda', to: '/finances', color: 'var(--accent-gold)', badge: undefined },
+  { Icon: BookOpen, label: 'Aprendizaje', sublabel: 'Biblioteca', to: '/learning', color: 'var(--accent-blue)', badge: undefined },
+  { Icon: Utensils, label: 'Comida', sublabel: 'La Posada', to: '/food', color: 'var(--accent-green)', badge: undefined },
+  { Icon: Moon, label: 'Sueño', sublabel: 'La Torre', to: '/sleep', color: 'var(--accent-cyan)', badge: undefined },
+  { Icon: HeartHandshake, label: 'Amor', sublabel: 'El Jardín', to: '/love', color: 'var(--accent-pink)', badge: undefined },
+] as const;
 
 const DASHBOARD_SHORTCUTS = [
   { label: 'Nueva Quest', Icon: Swords,      to: '/quests',   color: 'var(--primary)' },
@@ -134,10 +134,10 @@ const DASHBOARD_SHORTCUTS = [
 ] as const;
 
 const CLASS_TITLES: Record<string, string> = {
-  warrior: ' Guerrero',
-  mage: ' Mago',
-  merchant: ' Mercader',
-  paladin: ' Paladín',
+  warrior: 'Guerrero',
+  mage: 'Mago',
+  merchant: 'Mercader',
+  paladin: 'Paladín',
 };
 
 function LifeScoreWidget({ score }: { score: LifeScore }) {
@@ -154,7 +154,7 @@ function LifeScoreWidget({ score }: { score: LifeScore }) {
     <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 18, padding: 22, boxShadow: 'var(--shadow-rest)' }}>
       <div className="flex items-center gap-3 mb-4">
         <div style={{ width: 36, height: 36, borderRadius: 10, background: 'color-mix(in oklab, var(--primary) 14%, transparent)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <E e="📊" />
+          <Trophy size={17} aria-hidden="true" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-[11px] font-bold uppercase tracking-[0.1em]" style={{ color: 'var(--primary)' }}>Life Score</div>
@@ -455,7 +455,6 @@ export default function DashboardPage() {
     }
   }
 
-  const avatarCfg = user.avatarConfig;
   const visualState = dashData?.visualState;
   const visualHpValue = Math.round((user.maxHp * (visualState?.hpPercent ?? 100)) / 100);
   const statBars = [
@@ -479,7 +478,7 @@ export default function DashboardPage() {
   const playerClass = (user as unknown as { playerClass?: string }).playerClass;
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto w-full max-w-6xl space-y-5 pb-8">
       <AnimatePresence>
         {showBriefing && <MorningBriefing onClose={() => setShowBriefing(false)} />}
         {showClassModal && <ClassSelectionModal onClose={() => setShowClassModal(false)} />}
@@ -516,106 +515,116 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          {playerClass ? (
-            <span className="text-xs font-semibold text-[var(--accent-gold)] bg-[var(--bg-panel-light)] border border-[var(--border)] px-2 py-1 rounded">
-              {CLASS_TITLES[playerClass] ?? playerClass}
-            </span>
-          ) : user.level >= 10 ? (
-            <button onClick={() => setShowClassModal(true)} className="text-xs font-semibold text-[var(--accent-gold)] animate-pulse">
-              <E e="⚡" /> ¡Elige tu Clase! (Nivel 10)
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          {!playerClass && user.level >= 10 && (
+            <button type="button" onClick={() => setShowClassModal(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-[color-mix(in_oklab,var(--accent-gold)_45%,var(--border))] bg-[color-mix(in_oklab,var(--accent-gold)_8%,var(--bg-panel))] px-2.5 py-1.5 text-xs font-medium text-[var(--accent-gold)] transition-colors hover:bg-[color-mix(in_oklab,var(--accent-gold)_14%,var(--bg-panel))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)]">
+              <Zap size={14} aria-hidden="true" /> Elige tu clase · nivel 10
             </button>
-          ) : null}
+          )}
         </div>
-        <button onClick={() => setShowBriefing(true)} className="text-xs text-[var(--text-secondary)] hover:text-[var(--accent-gold)] transition-colors">
-          <E e="📋" /> Briefing del día
+        <button type="button" onClick={() => setShowBriefing(true)} className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-panel-light)] hover:text-[var(--accent-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)]">
+          <ClipboardList size={14} aria-hidden="true" /> Briefing del día
         </button>
       </div>
 
       <BossWidget />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <PixelPanel animate className="p-4 md:col-span-1">
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-24 h-24 rounded-full bg-[var(--bg-panel-light)] flex items-center justify-center relative overflow-hidden">
-              {user.avatarUrl ? (
-                <img
-                  src={user.avatarUrl}
-                  alt={user.displayName}
-                  className="w-full h-full object-cover rounded-full"
-                  onError={(e) => {
-                    (e.target as HTMLElement).style.display = 'none';
-                  }}
-                />
-              ) : (
-                <MiguelSprite
-                  size={80}
-                  bodyType={avatarCfg.bodyType}
-                  hairStyle={avatarCfg.hairStyle}
-                  hairColor={avatarCfg.hairColor}
-                  skinColor={avatarCfg.skinColor}
-                  shirtColor={avatarCfg.shirtColor}
-                  pantsColor={avatarCfg.pants}
-                  accessory={avatarCfg.accessory}
-                  expression={avatarCfg.expression}
-                  mood={visualState?.mood ?? 3}
-                  animate={(visualState?.mood ?? 3) >= 4 ? 'celebrate' : 'idle'}
-                />
-              )}
-            </div>
-
-            <div className="text-center">
-              <p className="font-semibold text-sm text-[var(--text-primary)]">{user.displayName}</p>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--accent-gold)] mt-1">{getLevelTitle(user.level)}</p>
-              <div className="bg-[var(--accent-gold)] text-white text-xs font-bold px-3 py-1 rounded-full mt-2 inline-block">
-                NIVEL {user.level}
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(280px,0.78fr)_minmax(0,1.65fr)]">
+        <aside className="self-start space-y-4">
+        <PixelPanel animate className="p-4">
+          <div className="flex items-center gap-3">
+            <AvatarDisplay
+              avatarConfig={user.avatarConfig}
+              avatarUrl={user.avatarUrl}
+              equippedAura={user.equippedAura}
+              equippedFrame={user.equippedFrame}
+              size={78}
+              mood={visualState?.mood ?? 3}
+              animate={(visualState?.mood ?? 3) >= 4 ? 'celebrate' : 'idle'}
+            />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-base font-semibold text-[var(--text-primary)]">{user.displayName}</p>
+              <p className="mt-0.5 truncate text-[11px] font-semibold uppercase tracking-[0.11em] text-[var(--accent-gold)]">{getLevelTitle(user.level)}</p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-[var(--accent-gold)] px-2.5 py-1 text-[10px] font-bold tracking-[0.08em] text-white">Nivel {user.level}</span>
+                {playerClass && <span className="rounded-full border border-[var(--border)] bg-[var(--bg-panel-light)] px-2 py-1 text-[10px] font-medium text-[var(--text-secondary)]">{CLASS_TITLES[playerClass] ?? playerClass}</span>}
               </div>
             </div>
+          </div>
 
-            <div className="w-full space-y-2">
-              {statBars.map(({ label, value, max, color, pulse }) => (
-                <div key={label}>
-                  <div className="flex justify-between text-sm mb-0.5">
-                    <span className="text-[var(--text-secondary)]">{label}</span>
-                    <span className="text-[var(--text-primary)]">{value}/{max}</span>
-                  </div>
-                  <div className={`stat-bar ${pulse ? 'animate-pulse' : ''}`}>
-                    <motion.div className={`stat-bar-fill ${color}`} initial={{ width: 0 }} animate={{ width: `${xpProgressPercent(value, max)}%` }} transition={{ duration: 1, ease: 'easeOut', delay: 0.3 }} />
-                  </div>
-                  {label === 'HP' && visualState && visualState.daysAway > 0 && (
-                    <p className="mt-1 text-[11px] text-[var(--text-secondary)]">
-                      {visualState.daysAway >= 5 ? 'Tu HP luce crítico por ausencia.' : visualState.daysAway >= 3 ? 'Tu HP visual pide volver al castillo.' : 'Tu HP visual bajó un poco por distancia.'}
-                    </p>
-                  )}
+          <div className="mt-4 space-y-2.5">
+            {statBars.map(({ label, value, max, color, pulse }) => (
+              <div key={label}>
+                <div className="mb-1 flex justify-between text-[11px]">
+                  <span className="font-medium text-[var(--text-secondary)]">{label}</span>
+                  <span className="tabular-nums text-[var(--text-primary)]">{value}/{max}</span>
                 </div>
-              ))}
-            </div>
-
-            <div className="flex gap-4 mt-1">
-              {stats.map(({ key, value, color }) => (
-                <div key={key} className="text-center">
-                  <p className="text-xs font-bold text-[var(--text-secondary)]">{key}</p>
-                  <p className={`text-xl font-bold ${color}`}>{value}</p>
+                <div className={`stat-bar ${pulse ? 'animate-pulse' : ''}`}>
+                  <motion.div className={`stat-bar-fill ${color}`} initial={{ width: 0 }} animate={{ width: `${xpProgressPercent(value, max)}%` }} transition={{ duration: 0.7, ease: 'easeOut', delay: 0.15 }} />
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
+          </div>
 
-            <div className="flex items-center gap-1 bg-[var(--bg-panel-light)] border border-[var(--border)] rounded-lg px-3 py-1.5">
-              <span className="text-base font-semibold text-[var(--accent-gold)]"><E e="💰" /> {user.gold.toLocaleString()}</span>
-              <span className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide ml-1">GOLD</span>
-            </div>
+          {visualState && visualState.daysAway > 0 && (
+            <p className="mt-3 rounded-lg bg-[var(--bg-panel-light)] px-2.5 py-2 text-[11px] leading-4 text-[var(--text-secondary)]">
+              {visualState.daysAway >= 5 ? 'Tu energía visual pide retomar el ritmo.' : visualState.daysAway >= 3 ? 'Una pequeña acción hoy te ayudará a recuperar energía.' : 'Tu energía visual bajó un poco por distancia.'}
+            </p>
+          )}
 
-            {user.currentStreak > 0 && (
-              <motion.div className="flex items-center gap-1 text-[var(--accent-red)]" animate={{ scale: [1, 1.05, 1] }} transition={{ duration: 2, repeat: Infinity }}>
-                <span><E e="🔥" /></span>
-                <span className="text-sm">{user.currentStreak} días de racha</span>
-              </motion.div>
-            )}
+          <div className="mt-4 grid grid-cols-3 gap-2 border-t border-[var(--border)] pt-3">
+            {stats.map(({ key, value, color }) => (
+              <div key={key} className="rounded-lg bg-[var(--bg-panel-light)] px-2 py-2 text-center">
+                <p className="text-[10px] font-medium text-[var(--text-secondary)]">{key}</p>
+                <p className={`mt-0.5 text-base font-semibold tabular-nums ${color}`}>{value}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-panel-light)] px-2.5 py-1.5 text-xs font-semibold text-[var(--accent-gold)]"><Coins size={14} />{user.gold.toLocaleString()} oro</span>
+            {user.currentStreak > 0 && <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--accent-red)]"><Flame size={14} />{user.currentStreak} días de racha</span>}
           </div>
         </PixelPanel>
 
-        <div className="md:col-span-2 space-y-4">
+          {lifeScore && <LifeScoreWidget score={lifeScore} />}
+
+          <QuickStatsWidget sleepAvg7d={dashData?.sleepAvg7d ?? 0} monthBalance={dashData?.monthBalance ?? 0} lastWorkoutDaysAgo={lastWorkoutDaysAgo} />
+
+          {upcomingEvents.length > 0 && (
+            <PixelPanel className="p-4">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2"><CalendarDays size={15} className="text-[var(--accent-blue)]" /><h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-secondary)]">Próximos eventos</h3></div>
+                <button type="button" onClick={() => navigate('/agenda')} className="text-xs font-medium text-[var(--accent-gold)] transition-colors hover:text-[var(--text-primary)]">Ver agenda</button>
+              </div>
+              <div className="space-y-3">
+                {upcomingEvents.slice(0, 3).map((event) => {
+                  const when = new Date(event.startDate);
+                  const isToday = when.toDateString() === new Date().toDateString();
+                  return (
+                    <div key={event.id} className="flex items-start gap-2.5">
+                      <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${isToday ? 'bg-[var(--accent-red)]' : 'bg-[var(--accent-blue)]'}`} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-[var(--text-primary)]">{event.title}</p>
+                        <p className="mt-0.5 text-[11px] text-[var(--text-secondary)]">{isToday ? 'Hoy' : when.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' })}{!event.isAllDay ? ` · ${when.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}` : ''}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </PixelPanel>
+          )}
+
+          <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel-light)] p-3.5 shadow-[0_10px_25px_rgba(0,0,0,0.06)]">
+            <div className="mb-3 flex items-center gap-2"><Swords size={15} className="text-[var(--accent-gold)]" /><div><p className="text-xs font-semibold text-[var(--text-primary)]">Zonas de vida</p><p className="text-[11px] text-[var(--text-secondary)]">Elige dónde avanzar ahora.</p></div></div>
+            <div className="grid grid-cols-2 gap-2">
+              {ZONES.map(({ Icon, ...zone }) => <ZoneCard key={zone.label} {...zone} icon={<Icon size={16} strokeWidth={1.9} />} />)}
+            </div>
+          </section>
+        </aside>
+
+        <div className="min-w-0 space-y-4">
           <SageDailyTip />
           <SageScrollsWidget />
           <div id="daily-checkin">
@@ -628,43 +637,42 @@ export default function DashboardPage() {
           {loading ? <SkeletonCard lines={4} /> : <TodayQuestsWidget quests={dashData?.todayQuests ?? []} />}
 
           {habits.length > 0 && (
-            <PixelPanel className="p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide"><E e="🔥" /> HÁBITOS DE HOY</h3>
-                <button onClick={() => navigate('/habits')} className="text-xs font-medium text-[var(--accent-gold)] hover:text-[var(--text-primary)]">
-                  VER TODOS →
-                </button>
+            <section className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-panel-light)] shadow-[0_14px_36px_rgba(0,0,0,0.08)]">
+              <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-4 sm:px-5">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[color-mix(in_oklab,var(--accent-green)_10%,var(--bg-panel))] text-[var(--accent-green)]"><Flame size={17} /></span>
+                  <div><h3 className="text-sm font-semibold text-[var(--text-primary)]">Hábitos de hoy</h3><p className="mt-0.5 text-xs text-[var(--text-secondary)]">Rituales recurrentes que sostienen tu semana.</p></div>
+                </div>
+                <button type="button" onClick={() => navigate('/habits')} className="text-xs font-medium text-[var(--accent-gold)] transition-colors hover:text-[var(--text-primary)]">Ver todos</button>
               </div>
-              <div className="space-y-2">
-                {habits.slice(0, 5).map((habit) => (
-                  <div key={habit.id} className="flex items-center gap-2 py-1">
-                    <span className="text-lg"><E e={habit.icon} /></span>
-                    <span className="text-sm text-[var(--text-primary)] flex-1 truncate">{habit.title}</span>
-                    <StreakFlame streak={habit.currentStreak} size="sm" />
-                    <motion.button
-                      className={`w-8 h-8 rounded-full border border-[var(--border)] flex items-center justify-center text-sm font-medium transition-colors ${
-                        habit.todayStatus === 'completed'
-                          ? 'bg-[var(--accent-green)] border-[var(--accent-green)] text-white'
-                          : 'bg-[var(--bg-deep)] hover:border-[var(--accent-green)]'
-                      }`}
-                      onClick={() => {
-                        if (!habit.todayCompleted) handleHabitLog(habit.id);
-                      }}
-                      whileTap={{ scale: 0.9 }}
-                      disabled={habit.todayStatus === 'completed'}
-                    >
-                      {habit.todayStatus === 'completed' ? '✓' : '○'}
-                    </motion.button>
-                  </div>
-                ))}
+              <div className="divide-y divide-[var(--border)] px-4 sm:px-5">
+                {habits.slice(0, 5).map((habit) => {
+                  const isComplete = habit.todayStatus === 'completed';
+                  return (
+                    <div key={habit.id} className="flex items-center gap-3 py-3">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--bg-panel)] text-[var(--text-secondary)]"><E e={habit.icon} s={16} /></span>
+                      <div className="min-w-0 flex-1"><p className={`truncate text-sm font-medium ${isComplete ? 'text-[var(--text-secondary)] line-through' : 'text-[var(--text-primary)]'}`}>{habit.title}</p><p className="mt-0.5 text-[11px] text-[var(--text-muted)]">+{habit.xpReward} XP</p></div>
+                      <StreakFlame streak={habit.currentStreak} size="sm" />
+                      <button
+                        type="button"
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-green)] ${isComplete ? 'border-[var(--accent-green)] bg-[var(--accent-green)] text-white' : 'border-[var(--border-strong)] bg-[var(--bg-panel)] text-[var(--text-muted)] hover:border-[var(--accent-green)] hover:text-[var(--accent-green)]'}`}
+                        onClick={() => { if (!habit.todayCompleted) void handleHabitLog(habit.id); }}
+                        disabled={isComplete}
+                        aria-label={isComplete ? `Hábito completado: ${habit.title}` : `Completar hábito: ${habit.title}`}
+                      >
+                        {isComplete ? <Check size={16} /> : <span className="h-2 w-2 rounded-full border border-current" aria-hidden="true" />}
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
-            </PixelPanel>
+            </section>
           )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {topHabit && (
               <PixelPanel className="p-3 cursor-pointer hover:border-[var(--accent-gold)] transition-colors" onClick={() => navigate('/habits')}>
-                <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-1"><E e="🏆" /> MEJOR RACHA ACTUAL</p>
+                <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-1"><Trophy size={14} aria-hidden="true" /> Mejor racha actual</p>
                 <div className="flex items-center gap-2">
                   <span className="text-xl"><E e={topHabit.icon} /></span>
                   <div>
@@ -677,7 +685,7 @@ export default function DashboardPage() {
 
             {dashData?.recentAchievements?.[0] && (
               <PixelPanel className="p-3 cursor-pointer hover:border-[var(--accent-gold)] transition-colors" onClick={() => navigate('/achievements')}>
-                <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-1"><E e="⭐" /> LOGRO RECIENTE</p>
+                <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-1"><Trophy size={14} aria-hidden="true" /> Logro reciente</p>
                 <div className="flex items-center gap-2">
                   <span className="text-xl"><E e={dashData.recentAchievements[0].icon} /></span>
                   <div>
@@ -689,44 +697,7 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {lifeScore && <LifeScoreWidget score={lifeScore} />}
 
-          <QuickStatsWidget sleepAvg7d={dashData?.sleepAvg7d ?? 0} monthBalance={dashData?.monthBalance ?? 0} lastWorkoutDaysAgo={lastWorkoutDaysAgo} />
-
-          {upcomingEvents.length > 0 && (
-            <PixelPanel className="p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide"><E e="📅" /> PRÓXIMOS EVENTOS</h3>
-                <button onClick={() => navigate('/agenda')} className="text-xs font-medium text-[var(--accent-gold)] hover:text-[var(--text-primary)]">
-                  VER AGENDA →
-                </button>
-              </div>
-              <div className="space-y-2">
-                {upcomingEvents.slice(0, 3).map((event) => {
-                  const when = new Date(event.startDate);
-                  const isToday = when.toDateString() === new Date().toDateString();
-                  return (
-                    <div key={event.id} className="flex items-start gap-2">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-[var(--text-primary)] truncate">{event.title}</p>
-                        <p className="text-xs text-[var(--text-secondary)]">
-                          {isToday ? 'Hoy' : when.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' })}
-                          {!event.isAllDay ? ` · ${when.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}` : ''}
-                        </p>
-                      </div>
-                      {isToday && <span className="text-xs font-semibold text-[var(--accent-red)] flex-shrink-0">HOY</span>}
-                    </div>
-                  );
-                })}
-              </div>
-            </PixelPanel>
-          )}
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {ZONES.map((zone) => (
-              <ZoneCard key={zone.label} {...zone} />
-            ))}
-          </div>
         </div>
       </div>
     </div>

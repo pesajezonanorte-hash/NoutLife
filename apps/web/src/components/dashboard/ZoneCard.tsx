@@ -1,7 +1,5 @@
-import { type ReactNode } from 'react';
+import { type CSSProperties, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { E } from '@/components/ui/glyphs';
 
 interface Props {
   icon: ReactNode;
@@ -12,39 +10,24 @@ interface Props {
   badge?: string;
 }
 
+/** A calm navigation tile for the dashboard's life zones. */
 export function ZoneCard({ icon, label, sublabel, to, color, badge }: Props) {
   const navigate = useNavigate();
+  const style = { '--zone-accent': color } as CSSProperties;
 
   return (
-    <motion.div
-      whileHover={{ y: -3, scale: 1.03 }}
-      whileTap={{ scale: 0.97 }}
+    <button
+      type="button"
       onClick={() => navigate(to)}
-      className={`bg-bg-panel border-2 ${color} shadow-pixel p-3 cursor-pointer relative group`}
+      style={style}
+      className="group relative flex min-h-[122px] w-full flex-col rounded-2xl border border-[color-mix(in_oklab,var(--zone-accent)_42%,var(--border))] bg-[var(--bg-panel-light)] p-3.5 text-left shadow-[0_10px_25px_rgba(0,0,0,0.06)] transition-colors hover:bg-[var(--bg-panel)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--zone-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-deep)]"
     >
-      <span className="absolute top-0 left-0 w-2 h-2 bg-border-pixel" />
-      <span className="absolute top-0 right-0 w-2 h-2 bg-border-pixel" />
-      <span className="absolute bottom-0 left-0 w-2 h-2 bg-border-pixel" />
-      <span className="absolute bottom-0 right-0 w-2 h-2 bg-border-pixel" />
-
-      <div className="mb-2 flex justify-center drop-shadow-sm"><E e={icon} /></div>
-      <p className="font-pixel text-text-primary text-center" style={{ fontSize: '9px' }}>{label}</p>
-      <p className="font-vt text-text-secondary text-sm text-center">{sublabel}</p>
-
-      {badge && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="mt-1.5 bg-bg-deep border border-border-pixel px-1.5 py-0.5 inline-block"
-        >
-          <p className="font-vt text-text-secondary text-xs">{badge}</p>
-        </motion.div>
-      )}
-
-      {/* Glow on hover */}
-      <motion.div
-        className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-10 bg-white transition-opacity"
-      />
-    </motion.div>
+      <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[color-mix(in_oklab,var(--zone-accent)_11%,var(--bg-panel))] text-[var(--zone-accent)]" aria-hidden="true">
+        {icon}
+      </span>
+      <span className="mt-3 text-sm font-semibold text-[var(--text-primary)]">{label}</span>
+      <span className="mt-0.5 text-xs leading-5 text-[var(--text-secondary)]">{sublabel}</span>
+      {badge && <span className="mt-auto pt-2 text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--zone-accent)]">{badge}</span>}
+    </button>
   );
 }
