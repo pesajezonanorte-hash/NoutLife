@@ -26,7 +26,7 @@ test.describe('public auth bootstrap', () => {
 test.describe('Food mobile layout', () => {
   test.skip(!baseUrl || !email || !password, 'Set LIFEQUEST_E2E_BASE_URL, LIFEQUEST_E2E_EMAIL and LIFEQUEST_E2E_PASSWORD.');
 
-  test('fits at 390 px and keeps ANALIZAR fully reachable', async ({ page }, testInfo) => {
+  test('fits at 390 px and keeps ANALIZAR fully reachable', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(url('/login'), { waitUntil: 'networkidle' });
     await page.locator('input[type="email"]').fill(email!);
@@ -51,9 +51,5 @@ test.describe('Food mobile layout', () => {
     expect(box!.x + box!.width).toBeLessThanOrEqual(390);
     expect(box!.y + box!.height).toBeLessThanOrEqual(844);
 
-    await testInfo.attach('food-mobile-390', {
-      body: await page.screenshot({ fullPage: true }),
-      contentType: 'image/png',
-    });
   });
 });
