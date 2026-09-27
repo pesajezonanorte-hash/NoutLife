@@ -35,9 +35,12 @@ test.describe('Food mobile layout', () => {
     await page.waitForURL((location) => !location.pathname.endsWith('/login'), { timeout: 20_000 });
 
     await page.goto(url('/food'), { waitUntil: 'networkidle' });
+    const quickLogInput = page.getByPlaceholder('Ej: pollo con arroz y ensalada');
+    await quickLogInput.fill('Prueba de visibilidad móvil');
     const analyze = page.getByRole('button', { name: /analizar/i });
     await expect(analyze).toBeVisible();
     await expect(analyze).toBeEnabled();
+    await analyze.scrollIntoViewIfNeeded();
 
     const metrics = await page.evaluate(() => ({
       viewportWidth: window.innerWidth,
