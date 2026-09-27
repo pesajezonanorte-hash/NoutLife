@@ -1,6 +1,6 @@
 import { Suspense, lazy, useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useAuthStore } from './store/authStore';
 import { useUIStore } from './store/uiStore';
 import { useBootstrapAuth } from './hooks/useAuth';
@@ -95,37 +95,85 @@ const NotFoundPage     = lazy(loaders.NotFoundPage);
 const AboutPage        = lazy(loaders.AboutPage);
 const FAQPage          = lazy(loaders.FAQPage);
 
-// Page transition variants (entrada suave, salida instantánea sin parpadeos)
+// El shell conserva la zona actual hasta que el módulo de destino está listo.
+// Las redirecciones no necesitan esperar ningún bundle propio.
+const routeLoaders: Record<string, () => Promise<unknown>> = {
+  '/': loaders.DashboardPage,
+  '/character': loaders.CharacterPage,
+  '/quests': loaders.QuestsPage,
+  '/quests/new': loaders.QuestsPage,
+  '/habits': loaders.HabitsPage,
+  '/achievements': loaders.AchievementsPage,
+  '/history': loaders.HistoryPage,
+  '/gym': loaders.GymPage,
+  '/finances': loaders.FinancesPage,
+  '/sleep': loaders.SleepPage,
+  '/food': loaders.FoodPage,
+  '/learning': loaders.LearningPage,
+  '/journal': loaders.JournalPage,
+  '/love': loaders.LovePage,
+  '/shop': loaders.ShopPage,
+  '/settings': loaders.SettingsPage,
+  '/leaderboard': loaders.LeaderboardPage,
+  '/challenges': loaders.ChallengesPage,
+  '/guild': loaders.GuildPage,
+  '/stats': loaders.StatsPage,
+  '/season': loaders.SeasonPage,
+  '/agenda': loaders.AgendaPage,
+  '/life': loaders.LifePage,
+  '/custom-zones': loaders.CustomZonesPage,
+  '/rituals': loaders.RitualsPage,
+  '/glow-up': loaders.GlowUpPage,
+  '/wisdom': loaders.WisdomPage,
+  '/about': loaders.AboutPage,
+  '/faq': loaders.FAQPage,
+};
+
+function loaderForPath(pathname: string) {
+  if (pathname === '/goals' || pathname === '/metas' || pathname === '/rituales') return null;
+  return routeLoaders[pathname] ?? loaders.NotFoundPage;
+}
+
+// La salida conserva casi toda la página anterior hasta que la siguiente zona
+// está lista. Así la transición se siente continua, sin dejar un frame vacío.
 const pageVariants = {
-  initial: { opacity: 0, y: 16, scale: 0.995 },
+  initial: { opacity: 0.88, y: 8 },
   animate: {
     opacity: 1,
     y: 0,
-    scale: 1,
     transition: {
-      duration: 0.4,
-      ease: [0.22, 1, 0.36, 1], // easeOut suave y minimalista
+      duration: 0.28,
+      ease: [0.16, 1, 0.3, 1],
     },
   },
-  // Salida instantánea: con mode="wait", una salida animada deja un frame en
-  // blanco entre zonas (los "parpadeos" que se ven). El swap inmediato +
-  // entrada fluida dan sensación de fluidez sin flashes.
   exit: {
-    opacity: 0,
-    transition: { duration: 0 },
+    opacity: 0.96,
+    y: -2,
+    transition: { duration: 0.12, ease: 'easeOut' },
   },
 };
 
 function PageLoader() {
+  const shouldReduceMotion = useReducedMotion();
+
   return (
-    <div className="w-full min-h-[300px] flex items-center justify-center py-16">
+    <div className="flex min-h-[300px] w-full items-center justify-center px-4 py-16" role="status" aria-live="polite">
       <motion.div
-        className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-5 py-2.5 text-sm font-semibold text-[var(--text-2)] shadow-lg flex items-center gap-2.5"
-        animate={{ opacity: [0.6, 1, 0.6], y: [0, -4, 0] }}
-        transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
+        className="flex max-w-full items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 shadow-lg"
+        animate={shouldReduceMotion ? { opacity: 1 } : { opacity: [0.76, 1, 0.76], y: [0, -3, 0] }}
+        transition={shouldReduceMotion ? { duration: 0 } : { duration: 1.35, repeat: Infinity, ease: 'easeInOut' }}
       >
-        <span className="w-2.5 h-2.5 rounded-full bg-[var(--primary)] animate-ping" />
-        Cargando sección...
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[var(--primary)]/10" aria-hidden="true">
+          <motion.span
+            className="h-2 w-2 rounded-sm bg-[var(--primary)]"
+            animate={shouldReduceMotion ? { opacity: 1 } : { opacity: [0.35, 1, 0.35], scale: [0.82, 1, 0.82] }}
+            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.9, repeat: Infinity, ease: 'easeInOut' }}
+          />
+        </span>
+        <span className="min-w-0">
+          <span className="block text-sm font-semibold text-[var(--text)]">Preparando la zona</span>
+          <span className="block truncate font-mono text-[11px] text-[var(--text-3)]">&gt; sincronizando tu progreso</span>
+        </span>
       </motion.div>
     </div>
   );
@@ -135,8 +183,7 @@ function SafePage({ children }: { children: React.ReactNode }) {
   return <ErrorBoundary>{children}</ErrorBoundary>;
 }
 
-function AnimatedRoutes() {
-  const location = useLocation();
+function AnimatedRoutes({ location }: { location: ReturnType<typeof useLocation> }) {
   return (
     <AnimatePresence mode="wait" initial={false}>
       <motion.div
@@ -188,6 +235,95 @@ function AnimatedRoutes() {
         </Routes>
       </motion.div>
     </AnimatePresence>
+  );
+}
+
+/**
+ * Mantiene la zona actual mientras el bundle de destino se resuelve. El
+ * boundary vive dentro de GameLayout, por lo que HUD, navegación y fondo nunca
+ * se desmontan al entrar por primera vez a una ruta lazy.
+ */
+function DeferredRouteContent() {
+  const location = useLocation();
+  const [displayedLocation, setDisplayedLocation] = useState(location);
+  const [isRoutePending, setIsRoutePending] = useState(false);
+  const [showLoadingCue, setShowLoadingCue] = useState(false);
+  const shouldReduceMotion = useReducedMotion();
+
+  // React Router actualiza la URL al instante, pero aquí esperamos el import de
+  // la nueva zona antes de reemplazar el contenido. Eso mantiene la sección
+  // anterior visible incluso cuando el navegador todavía no tiene su chunk.
+  useEffect(() => {
+    if (location.key === displayedLocation.key) return;
+
+    const loader = loaderForPath(location.pathname);
+    if (!loader) {
+      setDisplayedLocation(location);
+      setIsRoutePending(false);
+      return;
+    }
+
+    let active = true;
+    setIsRoutePending(true);
+
+    void loader().then(
+      () => {
+        if (!active) return;
+        setDisplayedLocation(location);
+        setIsRoutePending(false);
+      },
+      () => {
+        // El ErrorBoundary de la ruta conserva el manejo de un import fallido.
+        // Sólo liberamos el cambio para que pueda mostrar dicho estado.
+        if (!active) return;
+        setDisplayedLocation(location);
+        setIsRoutePending(false);
+      },
+    );
+
+    return () => {
+      active = false;
+    };
+  }, [displayedLocation.key, location]);
+
+  useEffect(() => {
+    setShowLoadingCue(false);
+    if (!isRoutePending) return;
+
+    const timeout = window.setTimeout(() => setShowLoadingCue(true), 120);
+    return () => window.clearTimeout(timeout);
+  }, [isRoutePending]);
+
+  return (
+    <div className="relative">
+      <Suspense fallback={<PageLoader />}>
+        <AnimatedRoutes location={displayedLocation} />
+      </Suspense>
+
+      <AnimatePresence initial={false}>
+        {showLoadingCue && (
+          <motion.div
+            className="pointer-events-none absolute inset-x-0 top-3 z-20 flex justify-center px-4"
+            initial={shouldReduceMotion ? false : { opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
+            transition={{ duration: shouldReduceMotion ? 0.01 : 0.18, ease: 'easeOut' }}
+          >
+            <div className="flex max-w-full items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 shadow-md" role="status" aria-live="polite">
+              <span className="flex h-4 w-4 shrink-0 items-center justify-center" aria-hidden="true">
+                <motion.span
+                  className="h-1.5 w-1.5 rounded-sm bg-[var(--primary)]"
+                  animate={shouldReduceMotion ? { opacity: 1 } : { opacity: [0.3, 1, 0.3], scale: [0.75, 1, 0.75] }}
+                  transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.72, repeat: Infinity, ease: 'easeInOut' }}
+                />
+              </span>
+              <span className="truncate text-xs font-semibold text-[var(--text-2)]">Preparando la siguiente zona</span>
+              <span className="hidden font-mono text-[10px] text-[var(--text-3)] sm:inline">loading</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
 
@@ -270,27 +406,46 @@ export default function App() {
       )}
 
       {!showSplash && (
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-            <Route path="/login"      element={<PublicRoute><LoginPage /></PublicRoute>} />
-            <Route path="/register"   element={<PublicRoute><RegisterPage /></PublicRoute>} />
-            <Route path="/onboarding" element={<OnboardingRoute><OnboardingPage /></OnboardingRoute>} />
+        <Routes>
+          <Route
+            path="/login"
+            element={
+              <Suspense fallback={<PageLoader />}>
+                <PublicRoute><LoginPage /></PublicRoute>
+              </Suspense>
+            }
+          />
+          <Route
+            path="/register"
+            element={
+              <Suspense fallback={<PageLoader />}>
+                <PublicRoute><RegisterPage /></PublicRoute>
+              </Suspense>
+            }
+          />
+          <Route
+            path="/onboarding"
+            element={
+              <Suspense fallback={<PageLoader />}>
+                <OnboardingRoute><OnboardingPage /></OnboardingRoute>
+              </Suspense>
+            }
+          />
 
-            <Route
-              path="/*"
-              element={
-                <ProtectedRoute>
-                  <ErrorBoundary>
-                    <GameLayout>
-                      <AnimatedRoutes />
-                    </GameLayout>
-                  </ErrorBoundary>
-                  <SageWidget />
-                </ProtectedRoute>
-              }
-            />
-          </Routes>
-        </Suspense>
+          <Route
+            path="/*"
+            element={
+              <ProtectedRoute>
+                <ErrorBoundary>
+                  <GameLayout>
+                    <DeferredRouteContent />
+                  </GameLayout>
+                </ErrorBoundary>
+                <SageWidget />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
       )}
     </ErrorBoundary>
   );
