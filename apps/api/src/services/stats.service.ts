@@ -243,8 +243,9 @@ export async function getActivityRadar(userId: string, period = 'week', now = ne
 // ─── Finance trend ────────────────────────────────────────────────────────────
 
 /**
- * Buckets real transactions in the same interval chosen by the user. Weeks are
- * displayed day-by-day; longer ranges stay month-by-month for readability.
+ * Buckets real transactions in the same interval chosen by the user. Week and
+ * month views stay day-by-day so a single transaction never becomes a lonely,
+ * misleading monthly bar; longer ranges remain month-by-month for readability.
  */
 export async function getFinanceTrend(userId: string, period = 'month', now = new Date()) {
   const { start, end } = periodRange(period, now);
@@ -254,7 +255,7 @@ export async function getFinanceTrend(userId: string, period = 'month', now = ne
     orderBy: { date: 'asc' },
   });
 
-  const daily = period === 'week';
+  const daily = period === 'week' || period === 'month';
   const buckets = new Map<string, { income: number; expenses: number }>();
   const keys: string[] = [];
 

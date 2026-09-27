@@ -43,10 +43,11 @@ export interface ActivityRadarResponse {
 }
 
 export interface FinanceTrendPoint {
+  /** `YYYY-MM-DD` for week/month views; `YYYY-MM` for longer views. */
   month: string;
   income: number;
   expenses: number;
-  /** Net accumulated within the visible six-month window, not account balance. */
+  /** Net accumulated inside the selected period, not an account balance. */
   balance: number;
 }
 

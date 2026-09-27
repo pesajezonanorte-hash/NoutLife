@@ -100,7 +100,7 @@ function FinanceTooltip({
       <div className="mt-1.5 space-y-1 text-xs">
         <p className="flex justify-between gap-5 text-[var(--accent-green)]"><span>Ingresos</span><strong className="tabular-nums">{formatCurrency(values.income ?? 0, currency)}</strong></p>
         <p className="flex justify-between gap-5 text-[var(--accent-red)]"><span>Gastos</span><strong className="tabular-nums">{formatCurrency(values.expenses ?? 0, currency)}</strong></p>
-        <p className="flex justify-between gap-5 border-t border-[var(--border-soft)] pt-1 text-[var(--text-secondary)]"><span>Flujo acumulado</span><strong className="tabular-nums">{formatCurrency(values.balance ?? 0, currency)}</strong></p>
+        <p className="flex justify-between gap-5 border-t border-[var(--border-soft)] pt-1 text-[var(--text-secondary)]"><span>Flujo neto</span><strong className="tabular-nums">{formatCurrency(values.balance ?? 0, currency)}</strong></p>
       </div>
     </div>
   );
@@ -118,24 +118,53 @@ export function FinanceTrendCard({
   loading?: boolean;
 }) {
   const hasActivity = data.some((point) => point.income !== 0 || point.expenses !== 0);
+  const totals = data.reduce((summary, point) => ({
+    income: summary.income + point.income,
+    expenses: summary.expenses + point.expenses,
+  }), { income: 0, expenses: 0 });
+  const net = totals.income - totals.expenses;
 
   return (
     <article className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-5 shadow-pixel">
-      <PanelHeader icon={CircleDollarSign} title="Flujo de dinero" detail={`Ingresos, gastos y flujo acumulado · ${periodLabel}.`} />
+      <PanelHeader icon={CircleDollarSign} title="Flujo de dinero" detail={`Ingresos, gastos y flujo neto acumulado · ${periodLabel}.`} />
       {hasActivity ? (
-        <div className="mt-4 h-[235px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={data} margin={{ top: 12, right: 6, left: -18, bottom: 0 }}>
-              <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 5" />
-              <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(value) => formatFinanceBucket(value, value.length === 10 ? { day: 'numeric', month: 'short' } : { month: 'short' })} />
-              <YAxis hide />
-              <Tooltip content={<FinanceTooltip currency={currency} />} cursor={{ fill: 'var(--bg-muted)' }} />
-              <Bar dataKey="income" name="Ingresos" fill="var(--accent-green)" radius={[4, 4, 0, 0]} maxBarSize={22} />
-              <Bar dataKey="expenses" name="Gastos" fill="var(--accent-red)" fillOpacity={0.72} radius={[4, 4, 0, 0]} maxBarSize={22} />
-              <Line type="monotone" dataKey="balance" name="Flujo acumulado" stroke="var(--accent-gold)" strokeWidth={2} dot={{ r: 2.5, fill: 'var(--accent-gold)' }} />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
+        <>
+          <div className="mt-4 grid grid-cols-3 divide-x divide-[var(--border-soft)] rounded-xl border border-[var(--border-soft)] bg-[var(--bg-muted)]/45 py-2.5 text-xs">
+            <div className="min-w-0 px-3">
+              <p className="text-[10px] font-medium uppercase tracking-[0.1em] text-[var(--text-muted)]">Ingresos</p>
+              <p className="mt-1 truncate font-semibold tabular-nums text-[var(--accent-green)]" title={formatCurrency(totals.income, currency)}>{formatCurrency(totals.income, currency)}</p>
+            </div>
+            <div className="min-w-0 px-3">
+              <p className="text-[10px] font-medium uppercase tracking-[0.1em] text-[var(--text-muted)]">Gastos</p>
+              <p className="mt-1 truncate font-semibold tabular-nums text-[var(--accent-red)]" title={formatCurrency(totals.expenses, currency)}>{formatCurrency(totals.expenses, currency)}</p>
+            </div>
+            <div className="min-w-0 px-3">
+              <p className="text-[10px] font-medium uppercase tracking-[0.1em] text-[var(--text-muted)]">Flujo neto</p>
+              <p className={['mt-1 truncate font-semibold tabular-nums', net >= 0 ? 'text-[var(--accent-gold)]' : 'text-[var(--accent-red)]'].join(' ')} title={formatCurrency(net, currency)}>{formatCurrency(net, currency)}</p>
+            </div>
+          </div>
+
+          <div className="mt-3 h-[184px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={data} margin={{ top: 12, right: 8, left: -18, bottom: 0 }} barCategoryGap="34%">
+                <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 5" />
+                <XAxis
+                  dataKey="month"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  minTickGap={34}
+                  tickFormatter={(value) => formatFinanceBucket(value, value.length === 10 ? { day: 'numeric', month: 'short' } : { month: 'short' })}
+                />
+                <YAxis hide />
+                <Tooltip content={<FinanceTooltip currency={currency} />} cursor={{ fill: 'var(--bg-muted)' }} />
+                <Bar dataKey="income" name="Ingresos" fill="var(--accent-green)" radius={[4, 4, 0, 0]} maxBarSize={18} />
+                <Bar dataKey="expenses" name="Gastos" fill="var(--accent-red)" fillOpacity={0.72} radius={[4, 4, 0, 0]} maxBarSize={18} />
+                <Line type="stepAfter" dataKey="balance" name="Flujo neto" stroke="var(--accent-gold)" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: 'var(--bg-panel)', stroke: 'var(--accent-gold)', strokeWidth: 2 }} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </>
       ) : (
         <EmptyPanel>{loading ? 'Cargando tu flujo financiero…' : `Aún no hay transacciones registradas en ${periodLabel.toLowerCase()}.`}</EmptyPanel>
       )}

@@ -168,6 +168,23 @@ void test('auditoría de contratos analíticos', async (suite) => {
     });
 
     await withMocks({
+      transaction: {
+        findMany: async () => [
+          { date: new Date('2026-09-02T12:00:00Z'), type: 'INCOME', amount: 142000 },
+          { date: new Date('2026-09-03T12:00:00Z'), type: 'EXPENSE', amount: 42000 },
+        ],
+      },
+    }, async () => {
+      const finance = await getFinanceTrend('u-1', 'month', new Date('2026-09-04T15:00:00Z'));
+      assert.deepEqual(finance, [
+        { month: '2026-09-01', income: 0, expenses: 0, balance: 0 },
+        { month: '2026-09-02', income: 142000, expenses: 0, balance: 142000 },
+        { month: '2026-09-03', income: 0, expenses: 42000, balance: 100000 },
+        { month: '2026-09-04', income: 0, expenses: 0, balance: 100000 },
+      ]);
+    });
+
+    await withMocks({
       habitLog: {
         findMany: async () => [
           { date: new Date('2026-09-02T00:00:00Z') },
