@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { usePageVisibility } from './LoadingGate';
 
 interface LoaderSegment {
   width: number;
@@ -16,15 +17,25 @@ interface LoaderLine {
   segments: LoaderSegment[];
 }
 
+export type ModernLoaderVariant = 'screen' | 'page' | 'compact';
+
 export interface ModernLoaderProps {
-  /** Status messages typed into the terminal title bar. */
-  words?: string[];
-  /** Real loading progress supplied by the calling screen. */
+  /** Layout intent. `screen` preserves the launch-terminal presentation. */
+  variant?: ModernLoaderVariant;
+  /** Status messages typed into the terminal title or command line. */
+  words?: readonly string[];
+  /** Real progress supplied by the caller. Omit it for indeterminate loading. */
   progress?: number;
   /** Stops the stream and presents a completed terminal state. */
   ready?: boolean;
   className?: string;
 }
+
+const DEFAULT_WORDS = [
+  'Iniciando tus herramientas…',
+  'Sincronizando tu progreso…',
+  'Preparando tu jornada…',
+] as const;
 
 const LINE_TEMPLATES: LoaderLine[] = [
   { id: 1, segments: [{ width: 24, tone: 'secondary' }] },
@@ -49,8 +60,43 @@ const TONE_COLOR: Record<LoaderSegment['tone'], string> = {
   danger: 'var(--accent-red)',
 };
 
-function useTypewriter(words: string[], complete: boolean, reduceMotion: boolean) {
-  const safeWords = words.length ? words : ['Preparando LifeQuest…'];
+const VARIANT_CONFIG: Record<ModernLoaderVariant, {
+  lineLimit: number;
+  container: string;
+  body: string;
+  lineGap: string;
+  showWindowChrome: boolean;
+}> = {
+  screen: {
+    lineLimit: 9,
+    container: 'max-w-[30rem]',
+    body: 'h-[13.5rem] px-5 py-4 sm:h-56',
+    lineGap: 'gap-2',
+    showWindowChrome: true,
+  },
+  page: {
+    lineLimit: 7,
+    container: 'max-w-[28rem]',
+    body: 'h-48 px-5 py-4 sm:h-52',
+    lineGap: 'gap-2',
+    showWindowChrome: true,
+  },
+  compact: {
+    lineLimit: 4,
+    container: 'max-w-none',
+    body: 'h-28 px-4 py-3',
+    lineGap: 'gap-1.5',
+    showWindowChrome: false,
+  },
+};
+
+function useTypewriter(
+  words: readonly string[],
+  complete: boolean,
+  reduceMotion: boolean,
+  paused: boolean,
+) {
+  const safeWords = words.length ? words : DEFAULT_WORDS;
   const [wordIndex, setWordIndex] = useState(0);
   const [letterCount, setLetterCount] = useState(0);
   const [deleting, setDeleting] = useState(false);
@@ -60,8 +106,10 @@ function useTypewriter(words: string[], complete: boolean, reduceMotion: boolean
     if (complete || reduceMotion) {
       setLetterCount(activeWord.length);
       setDeleting(false);
-      return;
+      return undefined;
     }
+
+    if (paused) return undefined;
 
     const atEnd = letterCount >= activeWord.length;
     const atStart = letterCount === 0;
@@ -78,92 +126,126 @@ function useTypewriter(words: string[], complete: boolean, reduceMotion: boolean
     }, delay);
 
     return () => window.clearTimeout(timer);
-  }, [activeWord, complete, deleting, letterCount, reduceMotion, safeWords.length]);
+  }, [activeWord, complete, deleting, letterCount, paused, reduceMotion, safeWords.length]);
 
   return activeWord.slice(0, letterCount);
 }
 
 /**
- * A compact, theme-aware terminal stream for application launch states.
+ * A compact, theme-aware terminal stream for launch, route, and content states.
  * New code-like lines write in at the bottom and gently move older lines up.
  */
 export default function ModernLoader({
-  words = ['Iniciando tus herramientas…', 'Sincronizando tu progreso…', 'Preparando tu jornada…'],
-  progress = 0,
+  variant = 'screen',
+  words = DEFAULT_WORDS,
+  progress,
   ready = false,
   className,
 }: ModernLoaderProps) {
   const reduceMotion = useReducedMotion() ?? false;
+  const isPageVisible = usePageVisibility();
+  const canAnimate = !reduceMotion && isPageVisible;
+  const config = VARIANT_CONFIG[variant];
+  const isCompact = variant === 'compact';
+  const hasProgress = typeof progress === 'number';
   const [lineCursor, setLineCursor] = useState(4);
-  const text = useTypewriter(words, ready, reduceMotion);
+  const text = useTypewriter(words, ready, reduceMotion, !isPageVisible);
+  const clampedProgress = typeof progress === 'number' ? Math.max(0, Math.min(100, Math.round(progress))) : 0;
+  const accessibleMessage = ready
+    ? 'LifeQuest está listo.'
+    : `${words[0] ?? DEFAULT_WORDS[0]}${hasProgress ? ` ${clampedProgress} por ciento.` : ''}`;
   const visibleLines = useMemo(() => {
-    const visibleCount = Math.min(9, lineCursor + 1);
+    const visibleCount = Math.min(config.lineLimit, lineCursor + 1);
     const firstSequence = Math.max(0, lineCursor - visibleCount + 1);
     return Array.from({ length: visibleCount }, (_, index) => {
       const sequence = firstSequence + index;
       return { line: LINE_TEMPLATES[sequence % LINE_TEMPLATES.length], sequence };
     });
-  }, [lineCursor]);
+  }, [config.lineLimit, lineCursor]);
   const cursorLine = LINE_TEMPLATES[(lineCursor + 1) % LINE_TEMPLATES.length];
-  const clampedProgress = Math.max(0, Math.min(100, Math.round(progress)));
+  const showProgress = variant === 'screen' && hasProgress;
 
   useEffect(() => {
-    if (ready || reduceMotion) return;
+    if (ready || !canAnimate) return undefined;
     const interval = window.setInterval(() => setLineCursor((current) => current + 1), 360);
     return () => window.clearInterval(interval);
-  }, [ready, reduceMotion]);
+  }, [canAnimate, ready]);
 
   return (
-    <div className={cn('w-full max-w-[30rem]', className)}>
-      <span className="sr-only" role="status" aria-live="polite">
-        {ready ? 'LifeQuest está listo.' : `${text || 'Iniciando LifeQuest'} ${clampedProgress} por ciento.`}
-      </span>
+    <div
+      className={cn('w-full', config.container, className)}
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+      aria-busy={!ready}
+    >
+      <span className="sr-only">{accessibleMessage}</span>
 
       <motion.section
         aria-hidden="true"
-        className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] shadow-[var(--shadow-lg)]"
-        initial={reduceMotion ? false : { opacity: 0, y: 12, scale: 0.985 }}
+        className={cn(
+          'overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]',
+          isCompact ? 'shadow-sm' : 'shadow-lg',
+        )}
+        initial={canAnimate ? { opacity: 0, y: 12, scale: 0.985 } : false}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: reduceMotion ? 0 : 0.38, ease: [0.22, 1, 0.36, 1] }}
+        transition={{ duration: canAnimate ? 0.38 : 0, ease: [0.22, 1, 0.36, 1] }}
       >
-        <div className="flex h-11 items-center border-b border-[var(--border-soft)] px-4">
-          <div className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-[var(--accent-red)]/90" />
-            <span className="h-2.5 w-2.5 rounded-full bg-[var(--accent-gold)]/90" />
-            <span className="h-2.5 w-2.5 rounded-full bg-[var(--accent-green)]/90" />
-          </div>
-          <div className="ml-4 min-w-0 flex-1 text-center font-mono text-[11px] text-[var(--text-muted)]">
-            <span>{text}</span>
-            {!ready ? (
-              <motion.span
-                className="ml-0.5 inline-block h-3 w-px translate-y-0.5 bg-[var(--accent-gold)]"
-                animate={{ opacity: [1, 1, 0, 0] }}
-                transition={{ duration: 0.82, repeat: Infinity, ease: 'linear' }}
-              />
+        {config.showWindowChrome ? (
+          <div className="flex h-11 items-center border-b border-[var(--border-soft)] px-4">
+            <div className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-[var(--accent-red)]/90" />
+              <span className="h-2.5 w-2.5 rounded-full bg-[var(--accent-gold)]/90" />
+              <span className="h-2.5 w-2.5 rounded-full bg-[var(--accent-green)]/90" />
+            </div>
+            <div className="ml-4 min-w-0 flex-1 truncate text-center font-mono text-[11px] text-[var(--text-muted)]">
+              <span>{text}</span>
+              {!ready ? (
+                <motion.span
+                  className="ml-0.5 inline-block h-3 w-px translate-y-0.5 bg-[var(--accent-gold)]"
+                  animate={canAnimate ? { opacity: [1, 1, 0, 0] } : { opacity: 1 }}
+                  transition={canAnimate ? { duration: 0.82, repeat: Infinity, ease: 'linear' } : { duration: 0 }}
+                />
+              ) : null}
+            </div>
+            {showProgress ? (
+              <span className="w-8 shrink-0 text-right font-mono text-[10px] tabular-nums text-[var(--text-muted)]">{clampedProgress}%</span>
             ) : null}
           </div>
-          <span className="w-8 shrink-0 text-right font-mono text-[10px] tabular-nums text-[var(--text-muted)]">{clampedProgress}%</span>
-        </div>
+        ) : null}
 
-        <div className="relative h-[13.5rem] overflow-hidden px-5 py-4 sm:h-56">
+        <div className={cn('relative overflow-hidden', config.body)}>
           <motion.div
-            className="flex h-full flex-col justify-end gap-2"
+            className={cn('flex h-full flex-col justify-end', config.lineGap)}
             animate={ready ? { opacity: 0.58 } : { opacity: 1 }}
-            transition={{ duration: reduceMotion ? 0 : 0.22 }}
+            transition={{ duration: canAnimate ? 0.22 : 0 }}
           >
+            {isCompact ? (
+              <div className="flex min-w-0 items-center gap-1.5 font-mono text-[10px] text-[var(--text-muted)]">
+                <span className="truncate">{text}</span>
+                {!ready ? (
+                  <motion.span
+                    className="h-3 w-px shrink-0 bg-[var(--accent-gold)]"
+                    animate={canAnimate ? { opacity: [1, 1, 0, 0] } : { opacity: 1 }}
+                    transition={canAnimate ? { duration: 0.82, repeat: Infinity, ease: 'linear' } : { duration: 0 }}
+                  />
+                ) : null}
+              </div>
+            ) : null}
+
             <AnimatePresence initial={false}>
               {visibleLines.map(({ line, sequence }) => (
                 <motion.div
                   key={sequence}
-                  layout={!reduceMotion}
+                  layout={canAnimate}
                   className={cn('flex h-3 shrink-0 items-center gap-2', line.indent ? 'pl-4' : '')}
-                  initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                  initial={canAnimate ? { opacity: 0, y: 8 } : false}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={reduceMotion ? undefined : { opacity: 0, y: -7 }}
+                  exit={canAnimate ? { opacity: 0, y: -7 } : undefined}
                   transition={{
-                    opacity: { duration: reduceMotion ? 0 : 0.18 },
-                    y: { duration: reduceMotion ? 0 : 0.18, ease: 'easeOut' },
-                    layout: { duration: reduceMotion ? 0 : 0.24, ease: [0.22, 1, 0.36, 1] },
+                    opacity: { duration: canAnimate ? 0.18 : 0 },
+                    y: { duration: canAnimate ? 0.18 : 0, ease: 'easeOut' },
+                    layout: { duration: canAnimate ? 0.24 : 0, ease: [0.22, 1, 0.36, 1] },
                   }}
                 >
                   {line.segments.map((segment, segmentIndex) => (
@@ -172,18 +254,18 @@ export default function ModernLoader({
                         key={segmentIndex}
                         className="h-3 w-3 shrink-0 rounded-full"
                         style={{ backgroundColor: TONE_COLOR[segment.tone], opacity: 0.55 }}
-                        initial={reduceMotion ? false : { scale: 0 }}
+                        initial={canAnimate ? { scale: 0 } : false}
                         animate={{ scale: 1 }}
-                        transition={{ duration: reduceMotion ? 0 : 0.18, delay: segmentIndex * 0.04 }}
+                        transition={{ duration: canAnimate ? 0.18 : 0, delay: canAnimate ? segmentIndex * 0.04 : 0 }}
                       />
                     ) : (
                       <motion.span
                         key={segmentIndex}
                         className="h-2.5 shrink-0 origin-left rounded-sm"
                         style={{ width: `${segment.width}%`, backgroundColor: TONE_COLOR[segment.tone], opacity: 0.58 }}
-                        initial={reduceMotion ? false : { scaleX: 0 }}
+                        initial={canAnimate ? { scaleX: 0 } : false}
                         animate={{ scaleX: 1 }}
-                        transition={{ duration: reduceMotion ? 0 : 0.24, delay: segmentIndex * 0.045, ease: [0.22, 1, 0.36, 1] }}
+                        transition={{ duration: canAnimate ? 0.24 : 0, delay: canAnimate ? segmentIndex * 0.045 : 0, ease: [0.22, 1, 0.36, 1] }}
                       />
                     )
                   ))}
@@ -194,16 +276,16 @@ export default function ModernLoader({
             {!ready ? (
               <motion.div
                 key={`cursor-${lineCursor}`}
-                layout={!reduceMotion}
+                layout={canAnimate}
                 className={cn('flex h-3 shrink-0 items-center', cursorLine.indent ? 'pl-4' : '')}
-                initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+                initial={canAnimate ? { opacity: 0, y: 6 } : false}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: reduceMotion ? 0 : 0.16, ease: 'easeOut' }}
+                transition={{ duration: canAnimate ? 0.16 : 0, ease: 'easeOut' }}
               >
                 <motion.span
                   className="h-3 w-px bg-[var(--accent-gold)]"
-                  animate={{ opacity: [1, 1, 0, 0] }}
-                  transition={{ duration: 0.74, repeat: Infinity, ease: 'linear' }}
+                  animate={canAnimate ? { opacity: [1, 1, 0, 0] } : { opacity: 1 }}
+                  transition={canAnimate ? { duration: 0.74, repeat: Infinity, ease: 'linear' } : { duration: 0 }}
                 />
               </motion.div>
             ) : null}
@@ -213,15 +295,17 @@ export default function ModernLoader({
           <div className="pointer-events-none absolute inset-x-0 top-0 h-7 bg-[linear-gradient(to_top,transparent,var(--bg-panel))]" />
         </div>
 
-        <div className="border-t border-[var(--border-soft)] px-4 py-3">
-          <div className="h-1 overflow-hidden rounded-full bg-[var(--bg-muted)]">
-            <motion.div
-              className="h-full rounded-full bg-[var(--accent-gold)]"
-              animate={{ width: `${clampedProgress}%` }}
-              transition={{ duration: reduceMotion ? 0 : 0.26, ease: [0.22, 1, 0.36, 1] }}
-            />
+        {showProgress ? (
+          <div className="border-t border-[var(--border-soft)] px-4 py-3">
+            <div className="h-1 overflow-hidden rounded-full bg-[var(--bg-muted)]">
+              <motion.div
+                className="h-full rounded-full bg-[var(--accent-gold)]"
+                animate={{ width: `${clampedProgress}%` }}
+                transition={{ duration: canAnimate ? 0.26 : 0, ease: [0.22, 1, 0.36, 1] }}
+              />
+            </div>
           </div>
-        </div>
+        ) : null}
       </motion.section>
     </div>
   );

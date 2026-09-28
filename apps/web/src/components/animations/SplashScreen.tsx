@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import ModernLoader from '@/components/ui/modern-loader';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 
 interface Props {
   /** The app has completed its minimum loading/authentication work. */
@@ -9,12 +10,6 @@ interface Props {
 }
 
 const INTRO_STEPS = [18, 42, 72, 88];
-const LOADING_WORDS = [
-  'Iniciando tus herramientas…',
-  'Sincronizando tu progreso…',
-  'Preparando tu jornada…',
-];
-
 /** A real bootstrap gate displayed as a restrained, animated code terminal. */
 export function SplashScreen({ ready, onDone }: Props) {
   const reduceMotion = useReducedMotion() ?? false;
@@ -57,7 +52,7 @@ export function SplashScreen({ ready, onDone }: Props) {
           exit={{ opacity: 0 }}
           transition={{ duration: reduceMotion ? 0 : 0.3, ease: [0.22, 1, 0.36, 1] }}
         >
-          <ModernLoader words={LOADING_WORDS} progress={progress} ready={isReady} />
+          <ModernLoader variant="screen" words={LOADING_COPY.splash} progress={progress} ready={isReady} />
         </motion.div>
       ) : null}
     </AnimatePresence>
