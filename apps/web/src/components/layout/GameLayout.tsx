@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
@@ -33,6 +33,7 @@ import { E } from '@/components/ui/glyphs';
 import SkyToggle from '../ui/sky-toggle';
 import { applyThemeMode, resolveIsDark, subscribeThemeMode } from '../../lib/themeMode';
 import { Sidebar, SidebarBody, SidebarLink, useSidebar } from '../ui/sidebar';
+import { MobileNavigation } from './MobileNavigation';
 import { AvatarDisplay } from '../character/AvatarDisplay';
 import { Dock, DockIcon, DockItem, DockLabel } from '../ui/dock';
 
@@ -319,7 +320,7 @@ export function GameLayout({ children }: Props) {
   return (
     <div className="flex flex-col md:flex-row h-screen overflow-hidden bg-[var(--bg-deep)] text-[var(--text-primary)]">
       <Sidebar open={sidebarOpen} setOpen={setSidebarOpen}>
-        <SidebarBody className="justify-between gap-2 py-2">
+        <SidebarBody mobile={false} className="justify-between gap-2 py-2">
           <div className="flex min-w-[252px] flex-1 flex-col overflow-y-auto overflow-x-hidden">
             {/* marca */}
             <div className="relative flex items-center gap-2.5 px-2 pt-1 pb-4">
@@ -690,44 +691,11 @@ export function GameLayout({ children }: Props) {
           </div>
         </main>
 
-        <nav
-          className="md:hidden border-t border-[var(--border)]"
-          style={{ background: 'color-mix(in oklab, var(--bg) 90%, transparent)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)' }}
-        >
-          <div
-            className="flex items-center gap-1 px-2 py-2"
-            style={{ overflowX: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
-          >
-            {[
-              ...NAV_ITEMS,
-              { to: '/character', icon: <User size={18} />, label: 'Personaje', hint: '', group: 'me' as const, accent: false },
-              { to: '/achievements', icon: <Trophy size={18} />, label: 'Logros', hint: '', group: 'me' as const, accent: false },
-              { to: '/settings', icon: <Settings size={18} />, label: 'Ajustes', hint: '', group: 'me' as const, accent: false },
-            ].map(({ to, icon, label, accent }) => (
-              <NavLink
-                key={to}
-                to={to}
-                end={to === '/'}
-                onClick={() => audio.play('blip')}
-              >
-                {({ isActive }) => (
-                  <div
-                    className="flex flex-col items-center gap-0.5 rounded-xl px-3 py-1.5 transition-colors"
-                    style={{
-                      minWidth: 56,
-                      flexShrink: 0,
-                      background: isActive ? 'color-mix(in oklab, var(--primary) 14%, transparent)' : 'transparent',
-                      color: isActive ? 'var(--primary)' : accent ? 'var(--c-xp)' : 'var(--text-3)',
-                    }}
-                  >
-                    <div style={{ lineHeight: 0 }}>{icon}</div>
-                    <span style={{ fontSize: 10, fontWeight: isActive ? 700 : 500, whiteSpace: 'nowrap' }}>{label}</span>
-                  </div>
-                )}
-              </NavLink>
-            ))}
-          </div>
-        </nav>
+        <MobileNavigation
+          items={NAV_ITEMS}
+          groups={NAV_GROUPS}
+          onNavigate={() => audio.play('blip')}
+        />
       </div>
 
       <LevelUpOverlay />
