@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../../store/authStore';
-import { MiguelSprite } from '../../components/character/MiguelSprite';
+import { AvatarDisplay } from '../../components/character/AvatarDisplay';
 import { StatBlock } from '../../components/character/StatBlock';
 import { AvatarCustomizer } from '../../components/character/AvatarCustomizer';
 import { PixelPanel } from '../../components/ui/PixelPanel';
@@ -33,6 +33,7 @@ export default function CharacterPage() {
   if (!user) return null;
 
   const avatarCfg = user.avatarConfig;
+  const isMinecraftSkin = avatarCfg.avatarMode === 'minecraft' && !!avatarCfg.minecraftSkinUrl;
   const xpPct = xpProgressPercent(user.xp, user.xpToNextLevel);
 
   const daysSinceJoin = Math.floor(
@@ -59,39 +60,24 @@ export default function CharacterPage() {
             {/* Aura glow effect */}
             {user.equippedAura && AURA_STYLES[user.equippedAura] && (
               <motion.div
-                className="absolute inset-0 rounded-full pointer-events-none"
+                className={`absolute inset-0 pointer-events-none ${isMinecraftSkin ? 'rounded-2xl' : 'rounded-full'}`}
                 style={{ background: AURA_STYLES[user.equippedAura].gradient, boxShadow: AURA_STYLES[user.equippedAura].shadow }}
                 animate={{ opacity: [0.7, 1, 0.7], scale: [1, 1.06, 1] }}
                 transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
               />
             )}
             <div
-              className="w-32 h-32 rounded-full bg-[var(--bg-panel-light)] flex items-center justify-center relative overflow-hidden"
+              className={`bg-[var(--bg-panel-light)] flex items-center justify-center relative ${
+                isMinecraftSkin ? 'h-40 w-36 rounded-2xl' : 'h-32 w-32 overflow-hidden rounded-full'
+              }`}
               style={user.equippedFrame ? { border: '3px solid var(--accent-gold)', boxShadow: '0 0 14px var(--accent-gold)44' } : {}}
             >
-              {user.avatarUrl ? (
-                <img
-                  src={user.avatarUrl}
-                  alt={user.displayName}
-                  className="w-full h-full object-cover rounded-full"
-                  onError={(e) => {
-                    (e.target as HTMLElement).style.display = 'none';
-                  }}
-                />
-              ) : (
-                <MiguelSprite
-                  size={120}
-                  bodyType={avatarCfg.bodyType}
-                  hairStyle={avatarCfg.hairStyle}
-                  hairColor={avatarCfg.hairColor}
-                  skinColor={avatarCfg.skinColor}
-                  shirtColor={avatarCfg.shirtColor}
-                  pantsColor={avatarCfg.pants}
-                  accessory={avatarCfg.accessory}
-                  expression={avatarCfg.expression}
-                  animate="idle"
-                />
-              )}
+              <AvatarDisplay
+                avatarConfig={avatarCfg}
+                avatarUrl={user.avatarUrl}
+                size={isMinecraftSkin ? 122 : 120}
+                animate="idle"
+              />
             </div>
           </motion.div>
 

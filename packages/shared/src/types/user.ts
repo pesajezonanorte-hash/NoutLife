@@ -35,6 +35,7 @@ export interface User {
 export type HairStyle = 'short' | 'medium' | 'long' | 'shaved' | 'copete' | 'afro' | 'recogido' | 'trenzas' | 'ondulado';
 export type Accessory = 'none' | 'glasses' | 'cap' | 'headband' | 'earrings' | 'scarf';
 export type Expression = 'normal' | 'smile' | 'serious' | 'determined';
+export type AvatarMode = 'pixel' | 'photo' | 'minecraft';
 
 export interface AvatarConfig {
   bodyType?: 'male' | 'female';
@@ -46,6 +47,10 @@ export interface AvatarConfig {
   accessory: Accessory;
   expression: Expression;
   pet: string | null;
+  /** Determines which saved visual is rendered without deleting the others. */
+  avatarMode?: AvatarMode;
+  /** A normalized standard 64×64 Minecraft skin PNG stored as a data URL. */
+  minecraftSkinUrl?: string | null;
 }
 
 export type RelationshipStatus =

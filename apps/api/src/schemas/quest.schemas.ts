@@ -57,11 +57,26 @@ export const onboardingSchema = z.object({
   mainQuestDeadline: z.string().optional(),
 });
 
+const AVATAR_MODES = ['pixel', 'photo', 'minecraft'] as const;
+const BODY_TYPES = ['male', 'female'] as const;
+const HAIR_STYLES = ['short', 'medium', 'long', 'shaved', 'copete', 'afro', 'recogido', 'trenzas', 'ondulado'] as const;
+const ACCESSORIES = ['none', 'glasses', 'cap', 'headband', 'earrings', 'scarf'] as const;
+const EXPRESSIONS = ['normal', 'smile', 'serious', 'determined'] as const;
+
 export const avatarSchema = z.object({
-  hairColor: z.string().optional(),
-  skinColor: z.string().optional(),
-  shirtColor: z.string().optional(),
-  pants: z.string().optional(),
-  accessory: z.string().nullable().optional(),
-  pet: z.string().nullable().optional(),
+  bodyType: z.enum(BODY_TYPES).optional(),
+  hairStyle: z.enum(HAIR_STYLES).optional(),
+  hairColor: z.string().max(32).optional(),
+  skinColor: z.string().max(32).optional(),
+  shirtColor: z.string().max(32).optional(),
+  pants: z.string().max(32).optional(),
+  accessory: z.enum(ACCESSORIES).nullable().optional(),
+  expression: z.enum(EXPRESSIONS).optional(),
+  pet: z.string().max(120).nullable().optional(),
+  avatarMode: z.enum(AVATAR_MODES).optional(),
+  minecraftSkinUrl: z.string()
+    .max(100_000)
+    .regex(/^data:image\/png;base64,/i, 'La skin debe ser un PNG válido.')
+    .nullable()
+    .optional(),
 });
