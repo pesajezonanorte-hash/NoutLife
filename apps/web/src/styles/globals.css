@@ -203,11 +203,13 @@ html,
 body,
 #root {
   height: 100%;
+  min-height: 100dvh;
   width: 100%;
 }
 
 html {
   background: var(--bg-deep);
+  overscroll-behavior-y: none;
 }
 
 body {
@@ -221,7 +223,16 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
+  overscroll-behavior-y: none;
   transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+@media (max-width: 767px) {
+  input:not([type='checkbox']):not([type='radio']),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
 }
 
 /* Minimalismo: sin lavados de gradiente decorativos detrás de todo. */

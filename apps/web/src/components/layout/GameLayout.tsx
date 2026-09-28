@@ -1,6 +1,6 @@
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { type ReactNode, type UIEvent, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import * as authService from '../../services/auth.service';
@@ -265,13 +265,18 @@ export function GameLayout({ children }: Props) {
   const location = useLocation();
   const [showFocus, setShowFocus] = useState(false);
   const [zoneTooltipVisible, setZoneTooltipVisible] = useState(false);
+  const [mobileHeaderVisible, setMobileHeaderVisible] = useState(true);
+  const shouldReduceMotion = useReducedMotion();
 
   const mainRef = useRef<HTMLElement>(null);
+  const mobileScrollTopRef = useRef(0);
 
   useEffect(() => {
     if (mainRef.current) {
       mainRef.current.scrollTo({ top: 0 });
     }
+    mobileScrollTopRef.current = 0;
+    setMobileHeaderVisible(true);
     const tooltip = ZONE_TOOLTIPS[location.pathname];
     if (!tooltip) return;
     const key = `lifequest_zone_tip_${location.pathname}`;
@@ -317,8 +322,23 @@ export function GameLayout({ children }: Props) {
   const xpPctSide = user ? Math.round((user.xp / user.xpToNextLevel) * 100) : 0;
   const u = user as unknown as { avatarConfig?: unknown; avatarUrl?: string | null; equippedAura?: string | null; equippedFrame?: string | null };
 
+  function handleMainScroll(event: UIEvent<HTMLElement>) {
+    const nextTop = event.currentTarget.scrollTop;
+    const previousTop = mobileScrollTopRef.current;
+    mobileScrollTopRef.current = nextTop;
+
+    if (nextTop < 12) {
+      setMobileHeaderVisible(true);
+      return;
+    }
+
+    if (Math.abs(nextTop - previousTop) > 8) {
+      setMobileHeaderVisible(nextTop < previousTop);
+    }
+  }
+
   return (
-    <div className="flex flex-col md:flex-row h-screen overflow-hidden bg-[var(--bg-deep)] text-[var(--text-primary)]">
+    <div className="flex h-[100dvh] min-h-[100dvh] flex-col overflow-hidden bg-[var(--bg-deep)] text-[var(--text-primary)] md:flex-row">
       <Sidebar open={sidebarOpen} setOpen={setSidebarOpen}>
         <SidebarBody mobile={false} className="justify-between gap-2 py-2">
           <div className="flex min-w-[252px] flex-1 flex-col overflow-y-auto overflow-x-hidden">
@@ -485,37 +505,87 @@ export function GameLayout({ children }: Props) {
         >
           {/* ── MOBILE header ── */}
           {user && (
-            <div className="md:hidden flex items-center justify-between px-4 pt-3 pb-2 gap-2">
-              <div className="min-w-0">
-                <h1 className="m-0 text-[19px] font-extrabold tracking-[-0.025em] leading-tight truncate" style={{ color: 'var(--text)' }}>
-                  {user.displayName.split(' ')[0]} <span style={{ color: 'var(--primary)' }}><E e="⚔" /></span>
-                </h1>
-                <div className="text-[11px] tabular-nums" style={{ color: 'var(--text-3)' }}>
-                  Nv {user.level} · {user.currentStreak} días de racha
+            <motion.div
+              className="overflow-hidden md:hidden"
+              initial={false}
+              animate={mobileHeaderVisible
+                ? { height: 'auto', opacity: 1, y: 0 }
+                : { height: 0, opacity: 0, y: -10 }}
+              transition={shouldReduceMotion ? { duration: 0.01 } : { duration: 0.2, ease: 'easeOut' }}
+            >
+              <div className="px-4 pb-2 pt-[calc(env(safe-area-inset-top)+0.5rem)]">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => navigate('/character')}
+                    aria-label="Abrir personaje"
+                    className="flex min-w-0 flex-1 items-center gap-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)]"
+                  >
+                    <AvatarDisplay
+                      avatarConfig={u.avatarConfig}
+                      avatarUrl={u.avatarUrl}
+                      equippedAura={u.equippedAura}
+                      equippedFrame={u.equippedFrame}
+                      size={34}
+                      animate="none"
+                    />
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-extrabold leading-tight text-[var(--text-primary)]">
+                        {user.displayName}
+                      </span>
+                      <span className="block truncate text-[11px] font-medium tabular-nums text-[var(--text-muted)]">
+                        Nv {user.level} · {user.currentStreak} días de racha
+                      </span>
+                    </span>
+                  </button>
+
+                  <div className="flex shrink-0 items-center">
+                    <div
+                      aria-label={`${user.gold.toLocaleString('es-CO')} monedas`}
+                      className="flex h-11 items-center gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-2.5 text-xs font-bold tabular-nums text-[var(--c-gold)]"
+                    >
+                      <Wallet size={14} aria-hidden="true" />
+                      <span>{user.gold.toLocaleString('es-CO')}</span>
+                    </div>
+                    <NotificationBell variant="mobile" />
+                    <motion.button
+                      type="button"
+                      aria-label="Buscar"
+                      title="Buscar"
+                      className="ml-0.5 flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-2)] transition-colors hover:border-[var(--accent-gold)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)]"
+                      onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { ctrlKey: true, key: 'k', bubbles: true }))}
+                      whileTap={{ scale: 0.96 }}
+                    >
+                      <Search size={18} aria-hidden="true" />
+                    </motion.button>
+                  </div>
+                </div>
+
+                <div className="mt-2 grid grid-cols-3 gap-2" aria-label={`Estado: ${user.hp} de ${user.maxHp} puntos de vida, ${user.mp} de ${user.maxMp} puntos de maná y ${user.xp} de ${user.xpToNextLevel} experiencia`}>
+                  <div className="min-w-0">
+                    <div className="mb-1 flex items-center justify-between text-[9px] font-semibold tabular-nums text-[var(--text-muted)]">
+                      <span className="text-[var(--c-hp)]">HP</span>
+                      <span>{Math.round(hpPct)}%</span>
+                    </div>
+                    <StatBarFill pct={hpPct} color="bg-accent-pink" pulse={!shouldReduceMotion} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="mb-1 flex items-center justify-between text-[9px] font-semibold tabular-nums text-[var(--text-muted)]">
+                      <span className="text-[var(--c-mp)]">MP</span>
+                      <span>{Math.round(mpPct)}%</span>
+                    </div>
+                    <StatBarFill pct={mpPct} color="bg-accent-cyan" wave={!shouldReduceMotion} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="mb-1 flex items-center justify-between text-[9px] font-semibold tabular-nums text-[var(--text-muted)]">
+                      <span className="text-[var(--c-xp)]">XP</span>
+                      <span>{Math.round(xpPct)}%</span>
+                    </div>
+                    <StatBarFill pct={xpPct} color="bg-accent-gold" />
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-1 shrink-0">
-                {/* oro compacto */}
-                <div className="flex items-center gap-1 tabular-nums px-2 h-7 rounded-lg" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--c-gold)', fontSize: 12, fontWeight: 700 }}>
-                  <Wallet size={12} />{user.gold.toLocaleString('es-CO')}
-                </div>
-                <div className="flex shrink-0 items-center"><SkyToggle checked={isDarkMode} onChange={handleToggleTheme} size={7} /></div>
-                <NotificationBell />
-                <FeedbackButton variant="mobile" />
-                <motion.button className="flex h-7 w-7 items-center justify-center rounded-lg" onClick={toggleAudio} whileTap={{ scale: 0.96 }} style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-2)' }}>
-                  {audioEnabled ? <Volume2 size={14} /> : <VolumeX size={14} className="text-red-400" />}
-                </motion.button>
-                <motion.button className="flex h-7 w-7 items-center justify-center rounded-lg" onClick={() => navigate('/wisdom')} whileTap={{ scale: 0.96 }} style={{ background: 'var(--text-primary)', color: 'var(--text-inv)', border: 'none' }} title="Sabiduría">
-                  <Sparkles size={14} />
-                </motion.button>
-                <motion.button className="flex h-7 w-7 items-center justify-center rounded-lg" onClick={() => setShowFocus(true)} whileTap={{ scale: 0.96 }} style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--accent-cyan)' }} title="Enfoque">
-                  <Zap size={14} />
-                </motion.button>
-                <motion.button className="flex h-7 w-7 items-center justify-center rounded-lg" onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { ctrlKey: true, key: 'k', bubbles: true }))} whileTap={{ scale: 0.96 }} style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-2)' }} title="Buscar">
-                  <Search size={14} />
-                </motion.button>
-              </div>
-            </div>
+            </motion.div>
           )}
 
           {/* ── DESKTOP header ── */}
@@ -628,35 +698,9 @@ export function GameLayout({ children }: Props) {
             )}
           </div>
 
-          {/* mobile compact stat strip */}
-          {user && (
-            <div className="md:hidden grid grid-cols-3 gap-2 px-4 pb-3">
-              <div>
-                <div className="mb-1 flex justify-between text-[10px] tabular-nums" style={{ color: 'var(--text-2)' }}>
-                  <span style={{ color: 'var(--c-hp)', fontWeight: 700 }}>HP</span>
-                  <span>{user.hp}/{user.maxHp}</span>
-                </div>
-                <StatBarFill pct={hpPct} color="bg-accent-pink" pulse />
-              </div>
-              <div>
-                <div className="mb-1 flex justify-between text-[10px] tabular-nums" style={{ color: 'var(--text-2)' }}>
-                  <span style={{ color: 'var(--c-mp)', fontWeight: 700 }}>MP</span>
-                  <span>{user.mp}/{user.maxMp}</span>
-                </div>
-                <StatBarFill pct={mpPct} color="bg-accent-cyan" wave />
-              </div>
-              <div>
-                <div className="mb-1 flex justify-between text-[10px] tabular-nums" style={{ color: 'var(--text-2)' }}>
-                  <span style={{ color: 'var(--c-xp)', fontWeight: 700 }}>XP</span>
-                  <span>{user.xp}/{user.xpToNextLevel}</span>
-                </div>
-                <StatBarFill pct={xpPct} color="bg-accent-gold" />
-              </div>
-            </div>
-          )}
         </header>
 
-        <main ref={mainRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+        <main ref={mainRef} onScroll={handleMainScroll} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-none">
           <div className="mx-auto w-full max-w-[1680px] px-4 py-5 pb-6 md:px-6 md:py-6">
             {zoneTooltipVisible && ZONE_TOOLTIPS[location.pathname] && (
               <motion.div
@@ -695,6 +739,50 @@ export function GameLayout({ children }: Props) {
           items={NAV_ITEMS}
           groups={NAV_GROUPS}
           onNavigate={() => audio.play('blip')}
+          utilityContent={(closeMore) => (
+            <div className="grid grid-cols-2 gap-2">
+              <motion.button
+                type="button"
+                onClick={() => {
+                  toggleAudio();
+                  closeMore();
+                }}
+                whileTap={{ scale: 0.98 }}
+                className="flex min-h-12 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-left text-sm font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--accent-gold)] hover:text-[var(--text-primary)]"
+              >
+                {audioEnabled ? <Volume2 className="h-4 w-4 text-[var(--accent-cyan)]" aria-hidden="true" /> : <VolumeX className="h-4 w-4 text-[var(--accent-red)]" aria-hidden="true" />}
+                <span>{audioEnabled ? 'Audio activo' : 'Activar audio'}</span>
+              </motion.button>
+              <motion.button
+                type="button"
+                onClick={() => {
+                  closeMore();
+                  setShowFocus(true);
+                }}
+                whileTap={{ scale: 0.98 }}
+                className="flex min-h-12 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-left text-sm font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--accent-gold)] hover:text-[var(--text-primary)]"
+              >
+                <Zap className="h-4 w-4 text-[var(--accent-cyan)]" aria-hidden="true" />
+                <span>Modo enfoque</span>
+              </motion.button>
+              <motion.button
+                type="button"
+                onClick={() => {
+                  closeMore();
+                  navigate('/settings');
+                }}
+                whileTap={{ scale: 0.98 }}
+                className="flex min-h-12 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-left text-sm font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--accent-gold)] hover:text-[var(--text-primary)]"
+              >
+                <Settings className="h-4 w-4 text-[var(--accent-gold)]" aria-hidden="true" />
+                <span>Tema y ajustes</span>
+              </motion.button>
+              <FeedbackButton
+                variant="inline"
+                className="min-h-12 w-full justify-start border-[var(--border)] bg-[var(--surface)] px-3 text-[var(--text-secondary)] hover:border-[var(--accent-gold)]"
+              />
+            </div>
+          )}
         />
       </div>
 

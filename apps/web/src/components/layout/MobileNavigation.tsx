@@ -21,7 +21,7 @@ interface Props {
   items: MobileNavItem[];
   groups: MobileNavGroup[];
   onNavigate?: () => void;
-  utilityContent?: ReactNode;
+  utilityContent?: (onClose: () => void) => ReactNode;
 }
 
 const PRIMARY_ROUTES = ['/', '/quests', '/habits', '/finances'] as const;
@@ -43,7 +43,7 @@ function MoreSheet({
   items: MobileNavItem[];
   groups: MobileNavGroup[];
   onNavigate?: () => void;
-  utilityContent?: ReactNode;
+  utilityContent?: (onClose: () => void) => ReactNode;
 }) {
   const shouldReduceMotion = useReducedMotion();
 
@@ -146,7 +146,7 @@ function MoreSheet({
                 {utilityContent && (
                   <section aria-label="Accesos rápidos">
                     <h2 className="px-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Accesos rápidos</h2>
-                    <div className="mt-2">{utilityContent}</div>
+                    <div className="mt-2">{utilityContent(onClose)}</div>
                   </section>
                 )}
               </div>

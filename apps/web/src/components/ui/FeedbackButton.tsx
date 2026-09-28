@@ -76,7 +76,7 @@ export function FeedbackButton({ variant = 'desktop', className = '' }: Feedback
           style={{ height: 38 }}
         >
           <MessageSquare size={15} className="text-[var(--accent-gold)]" />
-          <span className="hidden xl:inline text-[13px] font-medium" style={{ color: 'var(--text-2)' }}>
+          <span className={`${variant === 'inline' ? 'inline' : 'hidden xl:inline'} text-[13px] font-medium`} style={{ color: 'var(--text-2)' }}>
             Feedback
           </span>
         </motion.button>
