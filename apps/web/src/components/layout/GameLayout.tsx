@@ -266,6 +266,7 @@ export function GameLayout({ children }: Props) {
   const [showFocus, setShowFocus] = useState(false);
   const [zoneTooltipVisible, setZoneTooltipVisible] = useState(false);
   const [mobileHeaderVisible, setMobileHeaderVisible] = useState(true);
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const shouldReduceMotion = useReducedMotion();
 
   const mainRef = useRef<HTMLElement>(null);
@@ -701,7 +702,7 @@ export function GameLayout({ children }: Props) {
         </header>
 
         <main ref={mainRef} onScroll={handleMainScroll} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-none">
-          <div className="mx-auto w-full max-w-[1680px] px-4 py-5 pb-6 md:px-6 md:py-6">
+          <div className="mx-auto w-full max-w-[1680px] px-4 py-5 pb-[calc(env(safe-area-inset-bottom)+8.5rem)] md:px-6 md:py-6 md:pb-6">
             {zoneTooltipVisible && ZONE_TOOLTIPS[location.pathname] && (
               <motion.div
                 initial={{ opacity: 0, y: -8 }}
@@ -739,6 +740,7 @@ export function GameLayout({ children }: Props) {
           items={NAV_ITEMS}
           groups={NAV_GROUPS}
           onNavigate={() => audio.play('blip')}
+          onMoreOpenChange={setMobileMoreOpen}
           utilityContent={(closeMore) => (
             <div className="grid grid-cols-2 gap-2">
               <motion.button
@@ -796,7 +798,7 @@ export function GameLayout({ children }: Props) {
       <ScrollToTop />
 
       {/* FAB de acciones rápidas */}
-      <QuickActionsFAB />
+      <QuickActionsFAB mobileHidden={mobileMoreOpen} />
 
       {/* Reproductor de música global */}
       <MusicPlayer url={user?.gymPlaylistUrl} />

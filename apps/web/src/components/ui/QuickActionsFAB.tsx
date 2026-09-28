@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { getOpenOrigin } from '@/lib/origin';
+import { useEffect, useState } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { useLocation } from 'react-router-dom';
 import { Plus, X, Swords, Wallet, Flame, NotebookPen, Zap, ChevronRight, type LucideIcon } from 'lucide-react';
 import { createQuest } from '../../services/quest.service';
 import { createTransaction } from '../../services/finance.service';
@@ -23,6 +23,27 @@ const ACTIONS: { icon: LucideIcon; label: string; color: string; modal: Exclude<
   { icon: NotebookPen, label: 'Nota rápida',   color: '#8f8f98', modal: 'note' },
   { icon: Zap,         label: 'Check-in',      color: '#6b6b73', modal: 'checkin' },
 ];
+
+function mobileActionsForPath(pathname: string) {
+  if (pathname === '/quests' || pathname.startsWith('/quests/')) return [ACTIONS[0]];
+  if (pathname === '/habits' || pathname.startsWith('/habits/')) return [ACTIONS[2]];
+  if (pathname === '/finances' || pathname.startsWith('/finances/')) return [ACTIONS[1]];
+  return [];
+}
+
+function useMobileViewport() {
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches);
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 767px)');
+    const sync = () => setIsMobile(media.matches);
+    sync();
+    media.addEventListener('change', sync);
+    return () => media.removeEventListener('change', sync);
+  }, []);
+
+  return isMobile;
+}
 
 // ── Quest Modal ──────────────────────────────────────────────────────────────
 function QuestModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
@@ -48,11 +69,11 @@ function QuestModal({ onClose, onDone }: { onClose: () => void; onDone: () => vo
         onChange={e => setTitle(e.target.value)}
         onKeyDown={e => e.key === 'Enter' && handleSave()}
         placeholder="Nombre de la misión..."
-        className="w-full px-3 py-2 rounded-xl text-sm border border-[var(--border)] bg-[var(--bg-deep)] text-[var(--text-primary)] outline-none focus:border-[var(--accent-gold)]"
+        className="min-h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--bg-deep)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent-gold)]"
       />
       <div className="flex gap-1.5 mt-2">
         {(['SIDE', 'MAIN', 'META'] as const).map(t => (
-          <button key={t} onClick={() => setType(t)} className="flex-1 py-1.5 rounded-lg text-xs font-semibold border transition-all"
+          <button key={t} onClick={() => setType(t)} className="min-h-11 flex-1 rounded-lg border py-1.5 text-xs font-semibold transition-all"
             style={{ border: `1px solid ${type === t ? 'var(--accent-gold)' : 'var(--border)'}`, background: type === t ? 'color-mix(in oklab, var(--accent-gold) 12%, transparent)' : 'transparent', color: type === t ? 'var(--accent-gold)' : 'var(--text-muted)' }}>
             {t === 'SIDE' ? <><E e="📜" s={11} /> Tarea</> : t === 'MAIN' ? <><E e="⚔️" s={11} /> Proyecto</> : <><E e="🎯" s={11} /> Meta</>}
           </button>
@@ -82,9 +103,9 @@ function ExpenseModal({ onClose, onDone }: { onClose: () => void; onDone: () => 
   return (
     <ModalShell title="Gasto Rápido" onClose={onClose}>
       <input autoFocus type="number" value={amount} onChange={e => setAmount(e.target.value)}
-        placeholder="Monto" className="w-full px-3 py-2 rounded-xl text-sm border border-[var(--border)] bg-[var(--bg-deep)] text-[var(--text-primary)] outline-none focus:border-[var(--accent-green)]" />
+        placeholder="Monto" className="min-h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--bg-deep)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent-green)]" />
       <input value={desc} onChange={e => setDesc(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSave()}
-        placeholder="Descripción (opcional)" className="w-full px-3 py-2 rounded-xl text-sm border border-[var(--border)] bg-[var(--bg-deep)] text-[var(--text-primary)] outline-none focus:border-[var(--accent-green)] mt-2" />
+        placeholder="Descripción (opcional)" className="mt-2 min-h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--bg-deep)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent-green)]" />
       <SaveButton onClick={handleSave} saving={saving} disabled={!amount || isNaN(Number(amount))} color="var(--accent-green)" />
     </ModalShell>
   );
@@ -122,7 +143,7 @@ function HabitModal({ onClose, onDone }: { onClose: () => void; onDone: () => vo
           {habits.map(h => (
             <motion.button key={h.id} whileTap={{ scale: 0.97 }} onClick={() => handleLog(h.id)}
               disabled={saving === h.id}
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl border border-[var(--border)] text-left transition-all hover:border-[var(--accent-red)] disabled:opacity-50"
+              className="flex min-h-11 w-full items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-left transition-all hover:border-[var(--accent-red)] disabled:opacity-50"
               style={{ background: 'var(--bg-panel-light)' }}>
               <span className="text-base"><E e={h.icon} /></span>
               <div className="flex-1 min-w-0">
@@ -197,7 +218,7 @@ function CheckinModal({ onClose, onDone }: { onClose: () => void; onDone: () => 
           <p className="text-xs font-medium mb-2" style={{ color: 'var(--text-muted)' }}>Estado de ánimo</p>
           <div className="flex justify-between gap-1">
             {MOODS.map((m, i) => (
-              <button key={i} onClick={() => setMood(i + 1)} className="text-xl transition-all"
+              <button key={i} onClick={() => setMood(i + 1)} className="flex h-11 w-11 items-center justify-center text-xl transition-all"
                 style={{ opacity: mood === i + 1 ? 1 : 0.35, transform: mood === i + 1 ? 'scale(1.25)' : 'scale(1)' }}>
                 <E e={m} s={18} className="inline-block" />
               </button>
@@ -224,24 +245,42 @@ function CheckinModal({ onClose, onDone }: { onClose: () => void; onDone: () => 
 
 // ── Shared ────────────────────────────────────────────────────────────────────
 function ModalShell({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  const shouldReduceMotion = useReducedMotion() ?? false;
+  const isMobile = useMobileViewport();
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
+    <motion.section
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+      drag={isMobile && !shouldReduceMotion ? 'y' : false}
+      dragConstraints={{ top: 0, bottom: 180 }}
+      dragElastic={{ top: 0, bottom: 0.14 }}
+      dragSnapToOrigin
+      onDragEnd={(_, info) => {
+        if (window.innerWidth < 768 && (info.offset.y > 90 || info.velocity.y > 520)) onClose();
+      }}
+      initial={shouldReduceMotion ? false : { opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 12 }}
-      transition={{ duration: 0.2, ease: 'easeOut', delay: 0.05 }}
-      className="w-80 rounded-2xl shadow-2xl p-4"
-      style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)' }}
+      exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 18 }}
+      transition={shouldReduceMotion ? { duration: 0.01 } : { duration: 0.2, ease: 'easeOut', delay: 0.05 }}
+      className="w-full max-h-[min(84dvh,46rem)] overflow-y-auto rounded-t-2xl border border-[var(--border)] bg-[var(--bg-panel)] px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-2 shadow-lg md:w-80 md:max-h-[calc(100dvh-2rem)] md:rounded-2xl md:p-4"
       onClick={e => e.stopPropagation()}
     >
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{title}</span>
-        <button onClick={onClose} className="w-6 h-6 flex items-center justify-center rounded-full" style={{ color: 'var(--text-muted)', background: 'var(--bg-panel-light)' }}>
-          <X size={12} />
+      <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-[var(--border-strong)] md:hidden" aria-hidden="true" />
+      <div className="mb-3 flex items-center justify-between">
+        <span className="text-sm font-bold text-[var(--text-primary)]">{title}</span>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={`Cerrar ${title}`}
+          className="flex h-11 w-11 items-center justify-center rounded-xl text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-panel-light)] hover:text-[var(--text-primary)] md:h-6 md:w-6 md:rounded-full"
+        >
+          <X size={16} aria-hidden="true" />
         </button>
       </div>
       {children}
-    </motion.div>
+    </motion.section>
   );
 }
 
@@ -253,7 +292,7 @@ function SaveButton({ onClick, saving, disabled, color = 'var(--accent-gold)', l
       whileTap={{ scale: 0.96 }}
       onClick={onClick}
       disabled={disabled || saving}
-      className="w-full mt-3 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-40"
+      className="mt-3 min-h-11 w-full rounded-xl text-xs font-bold transition-all disabled:opacity-40"
       style={{ background: `${color}22`, border: `1px solid ${color}66`, color }}
     >
       {saving ? '...' : label}
@@ -305,28 +344,114 @@ function DesktopQuickActionsDock({ onOpen }: { onOpen: (modal: ModalType) => voi
   );
 }
 
+function MobileActionSheet({
+  actions,
+  onOpen,
+  onClose,
+}: {
+  actions: typeof ACTIONS;
+  onOpen: (modal: ModalType) => void;
+  onClose: () => void;
+}) {
+  const shouldReduceMotion = useReducedMotion() ?? false;
+
+  return (
+    <motion.div
+      className="fixed inset-0 z-[150] md:hidden"
+      initial={shouldReduceMotion ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: shouldReduceMotion ? 0.01 : 0.18 }}
+    >
+      <button
+        type="button"
+        aria-label="Cerrar acciones rápidas"
+        className="absolute inset-0 w-full bg-[var(--scrim)]"
+        onClick={onClose}
+      />
+      <motion.section
+        role="dialog"
+        aria-modal="true"
+        aria-label="Acciones rápidas"
+        drag={shouldReduceMotion ? false : 'y'}
+        dragConstraints={{ top: 0, bottom: 220 }}
+        dragElastic={{ top: 0, bottom: 0.16 }}
+        dragSnapToOrigin
+        onDragEnd={(_, info) => {
+          if (info.offset.y > 96 || info.velocity.y > 520) onClose();
+        }}
+        initial={shouldReduceMotion ? false : { y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        transition={{ type: 'spring', stiffness: 380, damping: 34 }}
+        className="absolute inset-x-0 bottom-0 rounded-t-2xl border border-[var(--border)] bg-[var(--bg-panel)] px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-2 shadow-lg"
+      >
+        <div className="mx-auto h-1 w-10 rounded-full bg-[var(--border-strong)]" aria-hidden="true" />
+        <div className="mt-3 flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-bold text-[var(--text-primary)]">Acciones rápidas</h2>
+            <p className="mt-0.5 text-xs text-[var(--text-secondary)]">Registra el siguiente paso de tu aventura.</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Cerrar acciones rápidas"
+            className="flex h-11 w-11 items-center justify-center rounded-xl text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-panel-light)] hover:text-[var(--text-primary)]"
+          >
+            <X size={18} aria-hidden="true" />
+          </button>
+        </div>
+        <div className="mt-3 space-y-2">
+          {actions.map((action) => {
+            const Icon = action.icon;
+            return (
+              <motion.button
+                key={action.modal}
+                type="button"
+                whileTap={{ scale: 0.98 }}
+                onClick={() => onOpen(action.modal)}
+                className="flex min-h-12 w-full items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-left transition-colors hover:border-[var(--accent-gold)]"
+              >
+                <span
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
+                  style={{ background: `color-mix(in oklab, ${action.color} 14%, transparent)`, color: action.color }}
+                >
+                  <Icon size={17} strokeWidth={1.8} aria-hidden="true" />
+                </span>
+                <span className="min-w-0 flex-1 text-sm font-semibold text-[var(--text-primary)]">{action.label}</span>
+                <ChevronRight size={16} className="shrink-0 text-[var(--text-muted)]" aria-hidden="true" />
+              </motion.button>
+            );
+          })}
+        </div>
+      </motion.section>
+    </motion.div>
+  );
+}
+
 // ── Main FAB ─────────────────────────────────────────────────────────────────
-export function QuickActionsFAB() {
+export function QuickActionsFAB({ mobileHidden = false }: { mobileHidden?: boolean }) {
+  const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
   const [activeModal, setActiveModal] = useState<ModalType>(null);
-  const fabRef = useRef<HTMLDivElement>(null);
+  const mobileActions = mobileActionsForPath(pathname);
+  const showMobileFab = !mobileHidden && mobileActions.length > 0;
 
-  // Cierra al hacer click fuera
   useEffect(() => {
-    if (!open) return;
-    function handleClickOutside(e: MouseEvent) {
-      if (fabRef.current && !fabRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [open]);
+    setOpen(false);
+    setActiveModal(null);
+  }, [pathname]);
 
-  // Cierra con Escape
+  useEffect(() => {
+    if (!showMobileFab) setOpen(false);
+  }, [showMobileFab]);
+
   useEffect(() => {
     function handleEsc(e: KeyboardEvent) {
-      if (e.key === 'Escape') { setOpen(false); setActiveModal(null); }
+      if (e.key === 'Escape') {
+        setOpen(false);
+        setActiveModal(null);
+      }
     }
     document.addEventListener('keydown', handleEsc);
     return () => document.removeEventListener('keydown', handleEsc);
@@ -345,149 +470,62 @@ export function QuickActionsFAB() {
 
   return (
     <>
-      {/* Modal overlay - centrado en pantalla */}
       <AnimatePresence>
         {activeModal && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.92 }}
-            animate={{ opacity: 1, scale: 1, transition: { duration: 0.25, ease: [0.22, 1, 0.36, 1] } }}
-            exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.15 } }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)', transformOrigin: getOpenOrigin() }}
+            className="fixed inset-0 z-[160] flex items-end justify-center bg-[var(--scrim)] p-0 backdrop-blur-sm md:items-center md:p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
             onClick={() => setActiveModal(null)}
           >
-            <div onClick={e => e.stopPropagation()}>
-              {activeModal === 'quest'   && <QuestModal   onClose={() => setActiveModal(null)} onDone={onDone} />}
-              {activeModal === 'expense' && <ExpenseModal onClose={() => setActiveModal(null)} onDone={onDone} />}
-              {activeModal === 'habit'   && <HabitModal   onClose={() => setActiveModal(null)} onDone={onDone} />}
-              {activeModal === 'note'    && <NoteModal    onClose={() => setActiveModal(null)} onDone={onDone} />}
-              {activeModal === 'checkin' && <CheckinModal onClose={() => setActiveModal(null)} onDone={onDone} />}
-            </div>
+            {activeModal === 'quest' && <QuestModal onClose={() => setActiveModal(null)} onDone={onDone} />}
+            {activeModal === 'expense' && <ExpenseModal onClose={() => setActiveModal(null)} onDone={onDone} />}
+            {activeModal === 'habit' && <HabitModal onClose={() => setActiveModal(null)} onDone={onDone} />}
+            {activeModal === 'note' && <NoteModal onClose={() => setActiveModal(null)} onDone={onDone} />}
+            {activeModal === 'checkin' && <CheckinModal onClose={() => setActiveModal(null)} onDone={onDone} />}
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* FAB container */}
-      <div
-        ref={fabRef}
-        className="fixed z-50 md:hidden"
-        style={{
-          bottom: 'var(--fab-bottom, 1.5rem)',
-          right: 'var(--fab-right, 1.25rem)',
-        }}
-      >
-        {/* ── Menú desplegable: panel único y organizado ── */}
-        <AnimatePresence>
-          {open && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.92, y: 12 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.92, y: 12 }}
-              transition={{ type: 'spring', stiffness: 420, damping: 30 }}
-              className="absolute flex flex-col overflow-hidden rounded-2xl"
-              style={{
-                bottom: 'calc(100% + 12px)',
-                right: 0,
-                width: 224,
-                maxWidth: 'calc(100vw - 2rem)',
-                maxHeight: 'min(420px, calc(100vh - var(--fab-bottom, 1.5rem) - 5.5rem))',
-                background: 'color-mix(in oklab, var(--bg-panel) 96%, transparent)',
-                border: '1px solid var(--border)',
-                backdropFilter: 'blur(16px)',
-                WebkitBackdropFilter: 'blur(16px)',
-                boxShadow: '0 12px 40px rgba(0,0,0,0.38)',
-                transformOrigin: 'bottom right',
-              }}
-            >
-              {/* Cabecera del menú */}
-              <div
-                className="px-4 pt-3 pb-2 text-[10px] font-bold uppercase tracking-widest flex-shrink-0"
-                style={{ color: 'var(--text-3)', borderBottom: '1px solid var(--border)' }}
-              >
-                Acciones rápidas
-              </div>
+      <AnimatePresence>
+        {showMobileFab && open && (
+          <MobileActionSheet
+            actions={mobileActions}
+            onOpen={openModal}
+            onClose={() => setOpen(false)}
+          />
+        )}
+      </AnimatePresence>
 
-              {/* Lista de acciones */}
-              <div className="flex flex-col gap-1 p-2 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
-                {ACTIONS.map((action, i) => {
-                  const Icon = action.icon;
-                  return (
-                    <motion.button
-                      key={action.modal}
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 6 }}
-                      transition={{ type: 'spring', stiffness: 420, damping: 28, delay: i * 0.025 }}
-                      whileTap={{ scale: 0.97 }}
-                      onClick={() => openModal(action.modal)}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl w-full text-left transition-colors"
-                      style={{ background: 'transparent', border: 'none' }}
-                      onMouseEnter={e => { e.currentTarget.style.background = `${action.color}14`; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-                    >
-                      <span
-                        className="flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center"
-                        style={{ background: `${action.color}1f`, color: action.color }}
-                      >
-                        <Icon size={16} strokeWidth={1.8} />
-                      </span>
-                      <span className="flex-1 truncate" style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: 13 }}>
-                        {action.label}
-                      </span>
-                      <ChevronRight size={14} strokeWidth={1.8} className="flex-shrink-0" style={{ color: 'var(--text-3)' }} />
-                    </motion.button>
-                  );
-                })}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* ── Botón principal + ── */}
-        <motion.button
-          whileTap={{ scale: 0.9 }}
-          onClick={() => setOpen(o => !o)}
-          aria-label={open ? 'Cerrar acciones rápidas' : 'Abrir acciones rápidas'}
-          aria-expanded={open}
-          className="w-14 h-14 rounded-full flex items-center justify-center shadow-2xl relative z-10"
-          style={{
-            background: open
-              ? 'linear-gradient(135deg, #2a2a2e, #0a0a0a)'
-              : 'linear-gradient(135deg, var(--accent-gold), var(--accent-cyan))',
-            border: 'none',
-            color: '#fff',
-            boxShadow: open
-              ? '0 8px 28px rgba(0,0,0,0.35)'
-              : '0 8px 28px rgba(0,0,0,0.35), 0 0 0 3px rgba(255,210,63,0.15)',
-            transition: 'background 0.3s ease, box-shadow 0.3s ease',
-          }}
-        >
+      <AnimatePresence initial={false}>
+        {showMobileFab && !open && !activeModal && (
           <motion.div
-            animate={{ rotate: open ? 45 : 0 }}
-            transition={{ duration: 0.2, type: 'spring', stiffness: 420, damping: 22 }}
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ type: 'spring', stiffness: 420, damping: 28 }}
+            className="fixed z-[120] md:hidden"
+            style={{
+              bottom: 'calc(env(safe-area-inset-bottom) + 5.25rem)',
+              right: 'calc(env(safe-area-inset-right) + 0.75rem)',
+            }}
           >
-            <Plus size={24} />
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.9 }}
+              onClick={() => setOpen(true)}
+              aria-label="Abrir acciones rápidas"
+              className="relative flex h-14 w-14 items-center justify-center rounded-full border border-[var(--accent-gold)] bg-[var(--accent-gold)] text-[var(--bg-deep)] shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-deep)]"
+            >
+              <Plus size={24} aria-hidden="true" />
+            </motion.button>
           </motion.div>
-        </motion.button>
-      </div>
+        )}
+      </AnimatePresence>
 
       <DesktopQuickActionsDock onOpen={openModal} />
-
-      {/* CSS para posición responsive */}
-      <style>{`
-        @media (max-width: 767px) {
-          :root {
-            --fab-bottom: 5rem;
-            --fab-right: 0.75rem;
-          }
-        }
-        @media (min-width: 768px) {
-          :root {
-            --fab-bottom: 1.5rem;
-            --fab-right: 1.25rem;
-          }
-        }
-      `}</style>
     </>
   );
 }

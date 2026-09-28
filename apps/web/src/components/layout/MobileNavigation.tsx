@@ -21,6 +21,7 @@ interface Props {
   items: MobileNavItem[];
   groups: MobileNavGroup[];
   onNavigate?: () => void;
+  onMoreOpenChange?: (open: boolean) => void;
   utilityContent?: (onClose: () => void) => ReactNode;
 }
 
@@ -71,6 +72,7 @@ function MoreSheet({
             drag={shouldReduceMotion ? false : 'y'}
             dragConstraints={{ top: 0, bottom: 220 }}
             dragElastic={{ top: 0, bottom: 0.16 }}
+            dragSnapToOrigin
             onDragEnd={(_, info) => {
               if (info.offset.y > 96 || info.velocity.y > 520) onClose();
             }}
@@ -158,7 +160,7 @@ function MoreSheet({
   );
 }
 
-export function MobileNavigation({ items, groups, onNavigate, utilityContent }: Props) {
+export function MobileNavigation({ items, groups, onNavigate, onMoreOpenChange, utilityContent }: Props) {
   const { pathname } = useLocation();
   const shouldReduceMotion = useReducedMotion();
   const [moreOpen, setMoreOpen] = useState(false);
@@ -178,6 +180,10 @@ export function MobileNavigation({ items, groups, onNavigate, utilityContent }: 
   useEffect(() => {
     setMoreOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    onMoreOpenChange?.(moreOpen);
+  }, [moreOpen, onMoreOpenChange]);
 
   return (
     <>
