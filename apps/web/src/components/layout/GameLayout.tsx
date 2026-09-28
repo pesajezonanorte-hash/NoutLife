@@ -184,7 +184,7 @@ function StatBarFill({
   return (
     <div className="stat-bar relative overflow-hidden">
       <motion.div
-        className={`stat-bar-fill ${color} relative`}
+        className={`stat-bar-fill ${color} relative overflow-hidden`}
         initial={{ width: 0 }}
         animate={{ width: `${pct}%` }}
         transition={{ duration: 0.8, ease: 'easeOut' }}
@@ -575,7 +575,7 @@ export function GameLayout({ children }: Props) {
                       <span className="text-[var(--c-mp)]">MP</span>
                       <span>{Math.round(mpPct)}%</span>
                     </div>
-                    <StatBarFill pct={mpPct} color="bg-accent-cyan" wave={!shouldReduceMotion} />
+                    <StatBarFill pct={mpPct} color="bg-accent-cyan" />
                   </div>
                   <div className="min-w-0">
                     <div className="mb-1 flex items-center justify-between text-[9px] font-semibold tabular-nums text-[var(--text-muted)]">

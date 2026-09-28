@@ -40,7 +40,7 @@ const ChartContainer = React.forwardRef<
         ref={ref}
         data-chart={chartId}
         className={cn(
-          'flex aspect-video min-h-[180px] w-full justify-center text-xs [&_.recharts-cartesian-axis-tick_text]:fill-[var(--text-muted)] [&_.recharts-cartesian-grid_line[stroke="#ccc"]]:stroke-[var(--border)] [&_.recharts-curve.recharts-tooltip-cursor]:stroke-[var(--border-strong)] [&_.recharts-default-tooltip]:outline-none',
+          'flex min-w-0 aspect-video min-h-[180px] w-full justify-center text-xs [&_.recharts-cartesian-axis-tick_text]:fill-[var(--text-muted)] [&_.recharts-cartesian-grid_line[stroke="#ccc"]]:stroke-[var(--border)] [&_.recharts-curve.recharts-tooltip-cursor]:stroke-[var(--border-strong)] [&_.recharts-default-tooltip]:outline-none',
           className,
         )}
         {...props}

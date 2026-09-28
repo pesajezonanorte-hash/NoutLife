@@ -20,7 +20,7 @@ export function TimelineAnimation({ children, animationNum = 0, className }: Tim
   return (
     <motion.div
       ref={ref}
-      className={cn(className)}
+      className={cn('min-w-0', className)}
       initial={{ opacity: 0, y: 12 }}
       animate={isInView ? { opacity: 1, y: 0 } : undefined}
       transition={{ duration: 0.36, delay: Math.min(animationNum * 0.055, 0.22), ease: [0.22, 1, 0.36, 1] }}

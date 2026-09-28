@@ -58,11 +58,11 @@ function PanelHeader({
   detail: string;
 }) {
   return (
-    <div className="flex items-start gap-3">
+    <div className="flex min-w-0 items-start gap-3">
       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-muted)] text-[var(--text-secondary)]">
         <Icon className="h-4 w-4" aria-hidden="true" />
       </span>
-      <div>
+      <div className="min-w-0">
         <h3 className="text-sm font-semibold text-[var(--text-primary)]">{title}</h3>
         <p className="mt-0.5 text-xs leading-5 text-[var(--text-muted)]">{detail}</p>
       </div>
@@ -125,7 +125,7 @@ export function FinanceTrendCard({
   const net = totals.income - totals.expenses;
 
   return (
-    <article className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-5 shadow-pixel">
+    <article className="min-w-0 rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-4 shadow-pixel sm:p-5">
       <PanelHeader icon={CircleDollarSign} title="Flujo de dinero" detail={`Ingresos, gastos y flujo neto acumulado · ${periodLabel}.`} />
       {hasActivity ? (
         <>
@@ -144,7 +144,7 @@ export function FinanceTrendCard({
             </div>
           </div>
 
-          <div className="mt-3 h-[184px]">
+          <div className="mt-3 h-[184px] min-w-0">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={data} margin={{ top: 12, right: 8, left: -18, bottom: 0 }} barCategoryGap="34%">
                 <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 5" />
@@ -204,10 +204,10 @@ export function SleepTrendCard({
   loading?: boolean;
 }) {
   return (
-    <article className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-5 shadow-pixel">
+    <article className="min-w-0 rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-4 shadow-pixel sm:p-5">
       <PanelHeader icon={BedDouble} title="Descanso registrado" detail={`Horas y calidad de sueño · ${periodLabel}.`} />
       {data.length ? (
-        <div className="mt-4 h-[235px]">
+        <div className="mt-4 h-[210px] min-w-0 sm:h-[235px]">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data} margin={{ top: 12, right: 6, left: -18, bottom: 0 }}>
               <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 5" />
@@ -267,18 +267,18 @@ export function GymProgressionCard({
   );
 
   return (
-    <article className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-5 shadow-pixel">
+    <article className="min-w-0 rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-4 shadow-pixel sm:p-5">
       <PanelHeader icon={Dumbbell} title="Progresión de fuerza" detail={`Peso máximo por ejercicio terminado · ${periodLabel}.`} />
       {selected ? (
         <>
-          <div className="mt-4 flex gap-1.5 overflow-x-auto pb-1">
+          <div className="mt-4 grid grid-cols-2 gap-1.5 sm:flex sm:flex-wrap">
             {data.map((exercise) => (
               <button
                 key={exercise.name}
                 type="button"
                 onClick={() => setSelectedName(exercise.name)}
                 className={[
-                  'shrink-0 rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition-colors',
+                  'min-h-11 min-w-0 rounded-lg border px-2.5 py-1 text-left text-[11px] font-semibold transition-colors sm:shrink-0',
                   selected.name === exercise.name
                     ? 'border-[var(--accent-gold)] bg-[color-mix(in_oklab,var(--accent-gold)_12%,transparent)] text-[var(--text-primary)]'
                     : 'border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-secondary)]',
@@ -288,7 +288,7 @@ export function GymProgressionCard({
               </button>
             ))}
           </div>
-          <div className="mt-2 h-[198px]">
+          <div className="mt-2 h-[190px] min-w-0 sm:h-[198px]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={selected.data} margin={{ top: 12, right: 6, left: -18, bottom: 0 }}>
                 <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 5" />
@@ -327,7 +327,7 @@ export function PredictionsCard({
   loading?: boolean;
 }) {
   return (
-    <article className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-5 shadow-pixel">
+    <article className="min-w-0 rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-4 shadow-pixel sm:p-5">
       <PanelHeader icon={TrendingUp} title="Proyecciones con tus datos" detail="Estimaciones basadas en tu XP, flujo mensual y cumplimiento reciente." />
       {!data ? (
         <EmptyPanel>{loading ? 'Calculando tus proyecciones…' : 'Aún no hay suficientes registros para generar proyecciones.'}</EmptyPanel>
@@ -351,9 +351,9 @@ export function PredictionsCard({
           {data.goalPredictions.length ? (
             <div className="space-y-2 border-t border-[var(--border-soft)] pt-3">
               {data.goalPredictions.map((goal) => (
-                <div key={goal.title} className="flex items-center justify-between gap-3 text-xs">
+                <div key={goal.title} className="flex flex-wrap items-center justify-between gap-2 text-xs">
                   <span className="min-w-0 truncate font-medium text-[var(--text-secondary)]">{goal.title}</span>
-                  <span className="shrink-0 text-right text-[var(--text-muted)]">
+                  <span className="ml-auto max-w-full text-right text-[var(--text-muted)]">
                     {goal.months === null ? 'Sin ahorro neto aún' : `${goal.months} ${goal.months === 1 ? 'mes' : 'meses'}`}
                     <span className="ml-1 tabular-nums">· {formatCurrency(goal.remaining, currency)}</span>
                   </span>
@@ -366,12 +366,12 @@ export function PredictionsCard({
             <div className="space-y-2 border-t border-[var(--border-soft)] pt-3">
               <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Constancia de hábitos · 7 días</p>
               {data.habitRisks.map((habit) => (
-                <div key={habit.title} className="flex items-center justify-between gap-3">
+                <div key={habit.title} className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="truncate text-xs font-medium text-[var(--text-secondary)]">{habit.title}</p>
                     <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">{habit.completedDays}/{habit.scheduledDays} días · racha {habit.currentStreak}</p>
                   </div>
-                  <div className="flex shrink-0 items-center gap-2">
+                  <div className="ml-auto flex items-center gap-2">
                     <span className="text-xs font-semibold tabular-nums text-[var(--text-primary)]">{habit.completionRate}%</span>
                     <RiskBadge risk={habit.risk} />
                   </div>

@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Activity,
   BookOpen,
@@ -130,7 +131,7 @@ function ZoneLedger({ zones, periodLabel, loading = false }: { zones: AdvancedSt
 
   return (
     <TimelineAnimation animationNum={3}>
-      <article className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-5 shadow-pixel sm:p-6">
+      <article className="min-w-0 rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-4 shadow-pixel sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
@@ -145,7 +146,7 @@ function ZoneLedger({ zones, periodLabel, loading = false }: { zones: AdvancedSt
           </p>
         </div>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-5 grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {zones.map((zone) => {
             const Icon = ZONE_ICONS[zone.id] ?? (zone.icon ? resolveGlyph(zone.icon) : Map);
             const hasScore = zone.scoreAvailable ?? (zone.status !== 'not_configured');
@@ -153,8 +154,8 @@ function ZoneLedger({ zones, periodLabel, loading = false }: { zones: AdvancedSt
             const accent = zone.color ?? 'var(--accent-gold)';
 
             return (
-              <div key={zone.id} className="rounded-xl border border-[var(--border-soft)] bg-[var(--bg-muted)]/35 p-3.5">
-                <div className="flex items-start justify-between gap-3">
+              <div key={zone.id} className="min-w-0 rounded-xl border border-[var(--border-soft)] bg-[var(--bg-muted)]/35 p-3.5">
+                <div className="flex min-w-0 items-start justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-2.5">
                     <span
                       className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-panel)]"
@@ -167,7 +168,7 @@ function ZoneLedger({ zones, periodLabel, loading = false }: { zones: AdvancedSt
                       <p className="mt-0.5 truncate text-[11px] text-[var(--text-muted)]">{zone.activityLabel ?? 'Sin registros en este periodo'}</p>
                     </div>
                   </div>
-                  <span className={cn('shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold', zoneStateClass(zone))}>
+                  <span className={cn('max-w-[7.5rem] shrink-0 whitespace-normal rounded-md border px-1.5 py-0.5 text-right text-[10px] font-semibold leading-4', zoneStateClass(zone))}>
                     {zoneStateLabel(zone)}
                   </span>
                 </div>
@@ -256,10 +257,10 @@ export default function AdvancedStats({ data, loading = false, className }: Adva
   const lifeTrendIsNegative = data.lifeScoreTrend?.trim().startsWith('-');
 
   return (
-    <section aria-label="Resumen avanzado de estadísticas" className={cn('space-y-4', className)}>
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(270px,0.36fr)]">
+    <section aria-label="Resumen avanzado de estadísticas" className={cn('min-w-0 space-y-4', className)}>
+      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(270px,0.36fr)]">
         <TimelineAnimation animationNum={0}>
-          <article className="relative h-full overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-5 shadow-pixel sm:p-6">
+          <article className="relative min-w-0 h-full overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-4 shadow-pixel sm:p-6">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
@@ -291,12 +292,15 @@ export default function AdvancedStats({ data, loading = false, className }: Adva
             </div>
 
             <div className="relative mt-5">
-              <ClippedAreaChart data={data.xpHistory} className="min-h-[220px] sm:min-h-[245px]" />
+              <ClippedAreaChart data={data.xpHistory} className="min-h-[190px] min-w-0 sm:min-h-[245px]" />
               {!loading && !hasPeriodActivity ? (
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-8 text-center">
-                  <p className="max-w-xs rounded-lg bg-[color-mix(in_oklab,var(--bg-panel)_90%,transparent)] px-3 py-2 text-xs text-[var(--text-muted)]">
-                    Aún no hay XP registrada en este periodo. Los días sin actividad se muestran como una línea plana, no se rellenan.
-                  </p>
+                  <div className="max-w-xs rounded-lg bg-[color-mix(in_oklab,var(--bg-panel)_90%,transparent)] px-3 py-2 text-xs text-[var(--text-muted)]">
+                    <p>Aún no hay XP registrada en este periodo. Tu primera misión completada encenderá este gráfico.</p>
+                    <Link to="/quests" className="mt-2 inline-flex min-h-11 items-center font-semibold text-[var(--accent-gold)] hover:text-[var(--text-primary)]">
+                      Ir a Misiones
+                    </Link>
+                  </div>
                 </div>
               ) : null}
             </div>
@@ -312,7 +316,7 @@ export default function AdvancedStats({ data, loading = false, className }: Adva
         </TimelineAnimation>
 
         <TimelineAnimation animationNum={1}>
-          <article className="h-full rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-5 shadow-pixel">
+          <article className="min-w-0 h-full rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-4 shadow-pixel sm:p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Life Score</p>
@@ -355,10 +359,10 @@ export default function AdvancedStats({ data, loading = false, className }: Adva
 
       <ZoneLedger zones={zones} periodLabel={data.periodLabel} loading={loading} />
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {statCards.map(({ label, value, detail, change, changeValue, icon: Icon, accent }, index) => (
           <TimelineAnimation key={label} animationNum={index + 4}>
-            <article className="h-full rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-4 shadow-pixel">
+            <article className="min-w-0 h-full rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-4 shadow-pixel">
               <div className="flex items-start justify-between gap-3">
                 <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-muted)]" style={{ color: accent }}>
                   <Icon className="h-4 w-4" aria-hidden="true" />

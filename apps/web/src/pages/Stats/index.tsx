@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Activity,
   BarChart3,
@@ -7,6 +8,7 @@ import {
   Flame,
   RefreshCw,
   HeartPulse,
+  Swords,
 } from 'lucide-react';
 import {
   PolarAngleAxis,
@@ -18,6 +20,7 @@ import {
 } from 'recharts';
 import type { User } from '@lifequest/shared';
 import { FlowButton } from '@/components/ui/flow-button';
+import { PageHeader } from '@/components/layout/PageHeader';
 import {
   HeatCalendar,
   HeatCalendarGrid,
@@ -79,6 +82,92 @@ function utcDateKey(date: Date) {
 }
 
 /** Maps LifeQuest's real daily habit counts into the composable heat-calendar API. */
+function CompactActivityMosaic({
+  weeks,
+  maxCount,
+  loading,
+}: {
+  weeks: Array<{ start: Date; end: Date; count: number }>;
+  maxCount: number;
+  loading: boolean;
+}) {
+  const groups = Array.from({ length: 4 }, (_, group) => weeks.slice(group * 14, group * 14 + 14));
+  const rangeFormatter = useMemo(() => new Intl.DateTimeFormat('es-CO', { month: 'short', day: 'numeric', timeZone: 'UTC' }), []);
+
+  return (
+    <div className="xl:hidden">
+      <div className="space-y-3" role="img" aria-label="Actividad semanal de hábitos de los últimos doce meses">
+        {groups.map((group, groupIndex) => {
+          const first = group[0];
+          const last = group[group.length - 1];
+          const label = first && last ? `${rangeFormatter.format(first.start)} – ${rangeFormatter.format(last.end)}` : `Tramo ${groupIndex + 1}`;
+
+          return (
+            <div key={label} className="min-w-0">
+              <div className="mb-1.5 flex items-center justify-between gap-3 text-[10px] font-medium text-[var(--text-muted)]">
+                <span>{label}</span>
+                <span>{group.reduce((sum, week) => sum + week.count, 0).toLocaleString('es-CO')} hábitos</span>
+              </div>
+              <div className="grid grid-cols-[repeat(14,minmax(0,1fr))] gap-1">
+                {Array.from({ length: 14 }, (_, index) => {
+                  const week = group[index];
+                  const intensity = week ? Math.min(1, week.count / Math.max(1, maxCount)) : 0;
+                  const strength = Math.max(20, Math.round(intensity * 92));
+                  return (
+                    <span
+                      key={`${groupIndex}-${index}`}
+                      aria-label={week ? `${week.count} hábitos en la semana del ${rangeFormatter.format(week.start)}` : undefined}
+                      className="aspect-square rounded-sm"
+                      style={{
+                        background: week && week.count > 0
+                          ? `color-mix(in oklab, var(--accent-gold) ${strength}%, var(--bg-muted))`
+                          : 'var(--bg-muted)',
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-3 flex items-center justify-between gap-3 text-[11px] text-[var(--text-muted)]">
+        <span>{loading ? 'Cargando tu constancia…' : 'Menos actividad'}</span>
+        <span className="flex items-center gap-1" aria-hidden="true">
+          {[20, 42, 68, 92].map((strength) => (
+            <span
+              key={strength}
+              className="h-3 w-3 rounded-sm"
+              style={{ background: `color-mix(in oklab, var(--accent-gold) ${strength}%, var(--bg-muted))` }}
+            />
+          ))}
+        </span>
+        <span>Más actividad</span>
+      </div>
+    </div>
+  );
+}
+
+function EmptyActivityState() {
+  return (
+    <div className="flex min-h-48 flex-col items-center justify-center rounded-xl border border-dashed border-[var(--border)] bg-[var(--bg-muted)]/35 px-5 py-6 text-center">
+      <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] text-[var(--accent-gold)]">
+        <Flame className="h-5 w-5" aria-hidden="true" />
+      </span>
+      <h3 className="mt-3 text-sm font-semibold text-[var(--text-primary)]">Tu constancia empieza con una misión</h3>
+      <p className="mt-1 max-w-sm text-xs leading-5 text-[var(--text-muted)]">Cuando completes hábitos, este mapa mostrará el ritmo de tu aventura sin dejar espacios vacíos ni scroll lateral.</p>
+      <Link
+        to="/quests"
+        className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--accent-gold)] bg-[var(--accent-gold)] px-4 text-sm font-semibold text-[var(--bg-deep)] transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)]"
+      >
+        <Swords className="h-4 w-4" aria-hidden="true" />
+        Ir a Misiones
+      </Link>
+    </div>
+  );
+}
+
+/** Maps LifeQuest's real daily habit counts into responsive activity views. */
 function ActivityHeatCalendar({ data, loading }: { data: HeatmapPoint[]; loading: boolean }) {
   // Keep the same endpoint date throughout this mounted chart so its matrix
   // and labels never jump as other statistics finish loading.
@@ -88,7 +177,7 @@ function ActivityHeatCalendar({ data, loading }: { data: HeatmapPoint[]; loading
     return today;
   }, []);
 
-  const { values, maxCount, total } = useMemo(() => {
+  const { values, maxCount, total, weekTotals } = useMemo(() => {
     const countsByDay = new Map(data.map((entry) => [entry.date.slice(0, 10), entry.count]));
     const max = Math.max(1, ...data.map((entry) => entry.count));
     const start = new Date(endDate);
@@ -101,38 +190,53 @@ function ActivityHeatCalendar({ data, loading }: { data: HeatmapPoint[]; loading
         return Math.min(1, (countsByDay.get(utcDateKey(date)) ?? 0) / max);
       })
     ));
+    const nextWeekTotals = nextValues.map((week, index) => {
+      const weekStart = new Date(start);
+      weekStart.setUTCDate(start.getUTCDate() + index * 7);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setUTCDate(weekStart.getUTCDate() + 6);
+      return {
+        start: weekStart,
+        end: weekEnd,
+        count: Math.round(week.reduce((sum, value) => sum + value * max, 0)),
+      };
+    });
 
     return {
       values: nextValues,
+      weekTotals: nextWeekTotals,
       maxCount: max,
       total: data.reduce((sum, entry) => sum + entry.count, 0),
     };
   }, [data, endDate]);
 
+  if (!loading && total === 0) return <EmptyActivityState />;
+
   return (
-    <div>
-      <div className="overflow-x-auto pb-1">
-        <HeatCalendar
-          unit="hábitos"
-          weeks={HEATMAP_WEEKS}
-          maxCount={maxCount}
-          values={values}
-          endDate={endDate}
-          color="var(--accent-gold)"
-          className="min-w-max"
-        >
-          <HeatCalendarGrid>
-            <HeatCalendarTooltip />
-          </HeatCalendarGrid>
-          <HeatCalendarLegend />
-        </HeatCalendar>
+    <div className="min-w-0">
+      <CompactActivityMosaic weeks={weekTotals} maxCount={maxCount} loading={loading} />
+      <div className="hidden min-w-0 xl:block">
+        <div className="overflow-x-auto pb-1">
+          <HeatCalendar
+            unit="hábitos"
+            weeks={HEATMAP_WEEKS}
+            maxCount={maxCount}
+            values={values}
+            endDate={endDate}
+            color="var(--accent-gold)"
+            className="min-w-max"
+          >
+            <HeatCalendarGrid>
+              <HeatCalendarTooltip />
+            </HeatCalendarGrid>
+            <HeatCalendarLegend />
+          </HeatCalendar>
+        </div>
       </div>
-      <p className="mt-3 text-xs text-[var(--text-muted)]">
+      <p className="mt-3 text-xs leading-5 text-[var(--text-muted)]">
         {loading
           ? 'Cargando tu constancia…'
-          : total > 0
-            ? `${total.toLocaleString('es-CO')} hábitos completados en los últimos 12 meses.`
-            : 'Aún no hay hábitos completados en este periodo. Cuando registres uno, aparecerá aquí.'}
+          : `${total.toLocaleString('es-CO')} hábitos completados en los últimos 12 meses.`}
       </p>
     </div>
   );
@@ -250,7 +354,7 @@ function ShareButton({ user, score }: { user: User | null; score: LifeScore | nu
   return (
     <>
       <canvas ref={canvasRef} className="hidden" />
-      <FlowButton onClick={generate} tone="ghost" size="sm" withArrows={false} className="gap-1.5 whitespace-nowrap">
+      <FlowButton onClick={generate} tone="ghost" size="sm" withArrows={false} className="min-h-11 gap-1.5 whitespace-nowrap">
         <span className="inline-flex items-center gap-1.5"><Download className="h-3.5 w-3.5" aria-hidden="true" /> Compartir</span>
       </FlowButton>
     </>
@@ -400,47 +504,44 @@ export default function StatsPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] text-[var(--accent-gold)] shadow-pixel">
-              <BarChart3 className="h-[18px] w-[18px]" aria-hidden="true" />
-            </span>
-            <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">Estadísticas</h1>
-          </div>
-          <p className="mt-2 text-sm text-[var(--text-secondary)]">Tu progreso real, acumulado y organizado por periodo.</p>
+    <div className="min-w-0 space-y-6">
+      <div className="min-w-0 space-y-3">
+        <PageHeader
+          icon={<BarChart3 className="h-5 w-5" aria-hidden="true" />}
+          title="Estadísticas"
+          description="Tu progreso real, acumulado y organizado por periodo."
+          actions={<ShareButton user={user} score={lifeScore} />}
+        />
+        <div
+          className="grid w-full grid-cols-4 rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] p-1"
+          role="group"
+          aria-label="Periodo de estadísticas"
+        >
+          {PERIODS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setPeriod(item.id)}
+              aria-pressed={period === item.id}
+              className={[
+                'min-w-0 min-h-11 rounded-lg px-1.5 text-[11px] font-semibold transition-colors sm:px-3 sm:text-xs',
+                period === item.id
+                  ? 'bg-[var(--text-primary)] text-[var(--bg-deep)]'
+                  : 'text-[var(--text-muted)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]',
+              ].join(' ')}
+            >
+              <span className="block truncate">{item.label}</span>
+            </button>
+          ))}
         </div>
-
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <ShareButton user={user} score={lifeScore} />
-          <div className="flex rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] p-1" role="group" aria-label="Periodo de estadísticas">
-            {PERIODS.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setPeriod(item.id)}
-                aria-pressed={period === item.id}
-                className={[
-                  'rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors sm:px-3',
-                  period === item.id
-                    ? 'bg-[var(--text-primary)] text-[var(--bg-deep)]'
-                    : 'text-[var(--text-muted)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]',
-                ].join(' ')}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </header>
+      </div>
 
       <AdvancedStats data={advancedData} loading={loading} />
 
       {loadError ? (
         <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[color-mix(in_srgb,var(--accent-red)_40%,var(--border))] bg-[color-mix(in_srgb,var(--accent-red)_8%,var(--bg-panel))] px-4 py-3">
           <p className="text-sm text-[var(--text-secondary)]">{loadError}</p>
-          <FlowButton onClick={() => void load(period)} tone="ghost" size="sm" withArrows={false} className="gap-1.5">
+          <FlowButton onClick={() => void load(period)} tone="ghost" size="sm" withArrows={false} className="min-h-11 gap-1.5">
             <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
             Reintentar
           </FlowButton>
@@ -452,7 +553,7 @@ export default function StatsPage() {
           <h2 className="text-base font-semibold text-[var(--text-primary)]">Seguimiento detallado</h2>
           <p className="mt-1 text-xs text-[var(--text-muted)]">Todas las series se calculan a partir de registros reales de LifeQuest.</p>
         </div>
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="grid min-w-0 gap-4 xl:grid-cols-2">
           <FinanceTrendCard data={financeTrend} currency={user?.currency ?? 'COP'} periodLabel={selectedPeriod.summaryLabel} loading={loading} />
           <SleepTrendCard data={sleepTrend} periodLabel={selectedPeriod.summaryLabel} loading={loading} />
           <GymProgressionCard data={gymProgression} periodLabel={selectedPeriod.summaryLabel} loading={loading} />
@@ -460,9 +561,9 @@ export default function StatsPage() {
         </div>
       </section>
 
-      <section aria-label="Detalles de actividad" className="grid gap-4 xl:grid-cols-2">
+      <section aria-label="Detalles de actividad" className="grid min-w-0 gap-4 xl:grid-cols-2">
         {radarData.length > 0 ? (
-          <article className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-5 shadow-pixel">
+          <article className="min-w-0 rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-4 shadow-pixel sm:p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 className="flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)]">
@@ -485,7 +586,7 @@ export default function StatsPage() {
           </article>
         ) : null}
 
-        <article className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-5 shadow-pixel xl:col-span-2">
+        <article className="min-w-0 rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-4 shadow-pixel sm:p-5 xl:col-span-2">
           <div className="flex items-start justify-between gap-3">
             <div>
               <h2 className="flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)]">
@@ -502,8 +603,8 @@ export default function StatsPage() {
         </article>
 
         {checkins.length > 0 ? (
-          <article className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-5 shadow-pixel xl:col-span-2">
-            <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_minmax(220px,0.75fr)] sm:items-center">
+          <article className="min-w-0 rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-4 shadow-pixel sm:p-5 xl:col-span-2">
+            <div className="grid min-w-0 gap-5 sm:grid-cols-[minmax(0,1fr)_minmax(220px,0.75fr)] sm:items-center">
               <div>
                 <h2 className="flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)]">
                   <HeartPulse className="h-4 w-4 text-[var(--accent-red)]" aria-hidden="true" />
