@@ -9,6 +9,10 @@ import { SplashScreen } from './components/animations/SplashScreen';
 import { SageWidget } from './components/sage/SageWidget';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { NotificationPermissionModal, useNotificationModalState } from './components/ui/NotificationPermissionModal';
+import ModernLoader from './components/ui/modern-loader';
+import { InlineLoader } from './components/ui/InlineLoader';
+import { LoadingGate, LOADER_DELAY_MS, useLoadingVisibility } from './components/ui/LoadingGate';
+import { LOADING_COPY } from './lib/loadingCopy';
 import { useKeyboardAdjust } from './hooks/useKeyboardAdjust';
 
 // Páginas lazy. Los loaders viven en un mapa para poder precargarlos en idle:
@@ -154,27 +158,9 @@ const pageVariants = {
 };
 
 function PageLoader() {
-  const shouldReduceMotion = useReducedMotion();
-
   return (
-    <div className="flex min-h-[300px] w-full items-center justify-center px-4 py-16" role="status" aria-live="polite">
-      <motion.div
-        className="flex max-w-full items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 shadow-lg"
-        animate={shouldReduceMotion ? { opacity: 1 } : { opacity: [0.76, 1, 0.76], y: [0, -3, 0] }}
-        transition={shouldReduceMotion ? { duration: 0 } : { duration: 1.35, repeat: Infinity, ease: 'easeInOut' }}
-      >
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[var(--primary)]/10" aria-hidden="true">
-          <motion.span
-            className="h-2 w-2 rounded-sm bg-[var(--primary)]"
-            animate={shouldReduceMotion ? { opacity: 1 } : { opacity: [0.35, 1, 0.35], scale: [0.82, 1, 0.82] }}
-            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.9, repeat: Infinity, ease: 'easeInOut' }}
-          />
-        </span>
-        <span className="min-w-0">
-          <span className="block text-sm font-semibold text-[var(--text)]">Preparando la zona</span>
-          <span className="block truncate font-mono text-[11px] text-[var(--text-3)]">&gt; sincronizando tu progreso</span>
-        </span>
-      </motion.div>
+    <div className="flex min-h-[300px] w-full items-center justify-center px-4 py-12 sm:min-h-[360px]" aria-busy="true">
+      <ModernLoader variant="page" words={LOADING_COPY.page} />
     </div>
   );
 }
@@ -247,7 +233,7 @@ function DeferredRouteContent() {
   const location = useLocation();
   const [displayedLocation, setDisplayedLocation] = useState(location);
   const [isRoutePending, setIsRoutePending] = useState(false);
-  const [showLoadingCue, setShowLoadingCue] = useState(false);
+  const showLoadingCue = useLoadingVisibility(isRoutePending, { delayMs: LOADER_DELAY_MS });
   const shouldReduceMotion = useReducedMotion();
 
   // React Router actualiza la URL al instante, pero aquí esperamos el import de
@@ -286,14 +272,6 @@ function DeferredRouteContent() {
     };
   }, [displayedLocation.key, location]);
 
-  useEffect(() => {
-    setShowLoadingCue(false);
-    if (!isRoutePending) return;
-
-    const timeout = window.setTimeout(() => setShowLoadingCue(true), 120);
-    return () => window.clearTimeout(timeout);
-  }, [isRoutePending]);
-
   return (
     <div className="relative">
       <Suspense fallback={<PageLoader />}>
@@ -309,16 +287,8 @@ function DeferredRouteContent() {
             exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
             transition={{ duration: shouldReduceMotion ? 0.01 : 0.18, ease: 'easeOut' }}
           >
-            <div className="flex max-w-full items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 shadow-md" role="status" aria-live="polite">
-              <span className="flex h-4 w-4 shrink-0 items-center justify-center" aria-hidden="true">
-                <motion.span
-                  className="h-1.5 w-1.5 rounded-sm bg-[var(--primary)]"
-                  animate={shouldReduceMotion ? { opacity: 1 } : { opacity: [0.3, 1, 0.3], scale: [0.75, 1, 0.75] }}
-                  transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.72, repeat: Infinity, ease: 'easeInOut' }}
-                />
-              </span>
-              <span className="truncate text-xs font-semibold text-[var(--text-2)]">Preparando la siguiente zona</span>
-              <span className="hidden font-mono text-[10px] text-[var(--text-3)] sm:inline">loading</span>
+            <div className="max-w-full rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 shadow-md">
+              <InlineLoader label={LOADING_COPY.routeCue[0]} />
             </div>
           </motion.div>
         )}
@@ -330,27 +300,32 @@ function DeferredRouteContent() {
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, user } = useAuthStore();
   const pathname = window.location.pathname;
-  if (isLoading) return <PageLoader />;
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
-  if (user && !user.onboardingCompleted && pathname !== '/onboarding') {
-    return <Navigate to="/onboarding" replace />;
-  }
-  return <>{children}</>;
+
+  return (
+    <LoadingGate loading={isLoading} fallback={<PageLoader />}>
+      {isLoading ? null : !isAuthenticated ? <Navigate to="/login" replace /> : user && !user.onboardingCompleted && pathname !== '/onboarding' ? <Navigate to="/onboarding" replace /> : children}
+    </LoadingGate>
+  );
 }
 
 function OnboardingRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, user } = useAuthStore();
-  if (isLoading) return <PageLoader />;
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
-  if (user?.onboardingCompleted) return <Navigate to="/" replace />;
-  return <>{children}</>;
+
+  return (
+    <LoadingGate loading={isLoading} fallback={<PageLoader />}>
+      {isLoading ? null : !isAuthenticated ? <Navigate to="/login" replace /> : user?.onboardingCompleted ? <Navigate to="/" replace /> : children}
+    </LoadingGate>
+  );
 }
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuthStore();
-  if (isLoading) return <PageLoader />;
-  if (isAuthenticated) return <Navigate to="/" replace />;
-  return <>{children}</>;
+
+  return (
+    <LoadingGate loading={isLoading} fallback={<PageLoader />}>
+      {isLoading ? null : isAuthenticated ? <Navigate to="/" replace /> : children}
+    </LoadingGate>
+  );
 }
 
 export default function App() {
