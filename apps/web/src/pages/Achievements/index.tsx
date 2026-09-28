@@ -6,6 +6,9 @@ import { AchievementCard } from '../../components/achievements/AchievementCard';
 import { fetchAchievements } from '../../services/achievement.service';
 import type { Achievement } from '../../services/achievement.service';
 import { E } from '@/components/ui/glyphs';
+import ModernLoader from '@/components/ui/modern-loader';
+import { LoadingGate } from '@/components/ui/LoadingGate';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 
 const CATEGORY_TABS = [
   { key: '',        label: 'Todos',    icon: '🏆' },
@@ -95,13 +98,8 @@ export default function AchievementsPage() {
       </div>
 
       {/* Achievement grid */}
-      {loading ? (
-        <div className="text-center py-12">
-          <motion.p className="font-vt text-text-secondary text-xl" animate={{ opacity: [1, 0.4, 1] }} transition={{ duration: 1.2, repeat: Infinity }}>
-            Cargando logros...
-          </motion.p>
-        </div>
-      ) : loadError ? (
+      <LoadingGate loading={loading} fallback={<ModernLoader variant="compact" words={LOADING_COPY.achievements} />}>
+        {loading ? null : loadError ? (
         <PixelPanel className="mx-auto max-w-xl p-8 text-center">
           <p className="text-4xl"><E e="⚠" /></p>
           <h2 className="mt-3 text-base font-semibold text-[var(--text-primary)]">No pudimos abrir tus logros</h2>
@@ -137,7 +135,8 @@ export default function AchievementsPage() {
             </motion.div>
           ))}
         </div>
-      )}
+        )}
+      </LoadingGate>
 
       {/* Detail modal */}
       <AnimatePresence>

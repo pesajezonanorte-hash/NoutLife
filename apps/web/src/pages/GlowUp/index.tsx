@@ -6,6 +6,9 @@ import { PixelButton } from '../../components/ui/PixelButton';
 import { useToastStore } from '../../hooks/useToast';
 import api from '../../lib/api';
 import { E } from '@/components/ui/glyphs';
+import ModernLoader from '@/components/ui/modern-loader';
+import { LoadingGate } from '@/components/ui/LoadingGate';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -135,9 +138,8 @@ function CareSection() {
         </PixelPanel>
       )}
 
-      {loading ? (
-        <p className="text-sm text-center" style={{ color: 'var(--text-muted)' }}>Cargando...</p>
-      ) : routines.length === 0 ? (
+      <LoadingGate loading={loading} fallback={<ModernLoader variant="compact" words={LOADING_COPY.glowUpRoutines} />}>
+        {loading ? null : routines.length === 0 ? (
         <PixelPanel className="p-8 text-center">
           <p className="text-3xl mb-2"><E e="🧴" /></p>
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Sin rutinas aún. ¡Crea tu primera!</p>
@@ -179,7 +181,8 @@ function CareSection() {
             </PixelPanel>
           ))}
         </div>
-      )}
+        )}
+      </LoadingGate>
     </div>
   );
 }
@@ -276,9 +279,8 @@ function StyleSection() {
         </PixelPanel>
       )}
 
-      {loading ? (
-        <p className="text-sm text-center" style={{ color: 'var(--text-muted)' }}>Cargando...</p>
-      ) : displayed.length === 0 ? (
+      <LoadingGate loading={loading} fallback={<ModernLoader variant="compact" words={LOADING_COPY.glowUpWardrobe} />}>
+        {loading ? null : displayed.length === 0 ? (
         <PixelPanel className="p-8 text-center">
           <Shirt size={32} className="mx-auto mb-2" style={{ color: 'var(--text-muted)' }} />
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Tu armario está vacío</p>
@@ -314,7 +316,8 @@ function StyleSection() {
             </PixelPanel>
           ))}
         </div>
-      )}
+        )}
+      </LoadingGate>
     </div>
   );
 }

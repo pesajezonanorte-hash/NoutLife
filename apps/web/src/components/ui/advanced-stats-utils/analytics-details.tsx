@@ -28,6 +28,9 @@ import type {
   SleepTrendPoint,
   StatsPredictions,
 } from '@/services/stats.service';
+import ModernLoader from '@/components/ui/modern-loader';
+import { LoadingGate } from '@/components/ui/LoadingGate';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 
 const numberFormat = new Intl.NumberFormat('es-CO');
 
@@ -166,7 +169,9 @@ export function FinanceTrendCard({
           </div>
         </>
       ) : (
-        <EmptyPanel>{loading ? 'Cargando tu flujo financiero…' : `Aún no hay transacciones registradas en ${periodLabel.toLowerCase()}.`}</EmptyPanel>
+        <LoadingGate loading={loading} fallback={<ModernLoader variant="compact" words={LOADING_COPY.statsFinance} />}>
+          {loading ? null : <EmptyPanel>{`Aún no hay transacciones registradas en ${periodLabel.toLowerCase()}.`}</EmptyPanel>}
+        </LoadingGate>
       )}
     </article>
   );
@@ -221,7 +226,9 @@ export function SleepTrendCard({
           </ResponsiveContainer>
         </div>
       ) : (
-        <EmptyPanel>{loading ? 'Cargando tus noches registradas…' : 'Aún no hay noches registradas para este periodo.'}</EmptyPanel>
+        <LoadingGate loading={loading} fallback={<ModernLoader variant="compact" words={LOADING_COPY.statsSleep} />}>
+          {loading ? null : <EmptyPanel>Aún no hay noches registradas para este periodo.</EmptyPanel>}
+        </LoadingGate>
       )}
     </article>
   );
@@ -301,7 +308,9 @@ export function GymProgressionCard({
           </div>
         </>
       ) : (
-        <EmptyPanel>{loading ? 'Cargando tu progresión de fuerza…' : 'Finaliza un entrenamiento con series registradas para seguir tu progresión de fuerza.'}</EmptyPanel>
+        <LoadingGate loading={loading} fallback={<ModernLoader variant="compact" words={LOADING_COPY.statsTraining} />}>
+          {loading ? null : <EmptyPanel>Finaliza un entrenamiento con series registradas para seguir tu progresión de fuerza.</EmptyPanel>}
+        </LoadingGate>
       )}
     </article>
   );
@@ -330,7 +339,9 @@ export function PredictionsCard({
     <article className="min-w-0 rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-4 shadow-pixel sm:p-5">
       <PanelHeader icon={TrendingUp} title="Proyecciones con tus datos" detail="Estimaciones basadas en tu XP, flujo mensual y cumplimiento reciente." />
       {!data ? (
-        <EmptyPanel>{loading ? 'Calculando tus proyecciones…' : 'Aún no hay suficientes registros para generar proyecciones.'}</EmptyPanel>
+        <LoadingGate loading={loading} fallback={<ModernLoader variant="compact" words={LOADING_COPY.statsPredictions} />}>
+          {loading ? null : <EmptyPanel>Aún no hay suficientes registros para generar proyecciones.</EmptyPanel>}
+        </LoadingGate>
       ) : (
         <div className="mt-4 space-y-4">
           <div className="grid gap-3 sm:grid-cols-2">

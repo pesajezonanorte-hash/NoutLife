@@ -4,6 +4,9 @@ import api from '../../lib/api';
 import { PixelPanel } from '../../components/ui/PixelPanel';
 import { Skull, Trophy, Swords } from 'lucide-react';
 import { E } from '@/components/ui/glyphs';
+import ModernLoader from '@/components/ui/modern-loader';
+import { useLoadingVisibility } from '@/components/ui/LoadingGate';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 
 interface SeasonParticipant {
   userId: string;
@@ -113,6 +116,7 @@ export default function SeasonPage() {
   const [data, setData] = useState<SeasonData | null>(null);
   const [loading, setLoading] = useState(true);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const showLoading = useLoadingVisibility(loading);
 
   const fetchSeason = async () => {
     try {
@@ -132,15 +136,11 @@ export default function SeasonPage() {
     return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
   }, []);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}>
-          <Skull size={48} className="text-[var(--accent-red)]" />
-        </motion.div>
-      </div>
-    );
+  if (showLoading) {
+    return <div className="py-6"><ModernLoader variant="compact" words={LOADING_COPY.season} /></div>;
   }
+
+  if (loading) return null;
 
   if (!data?.season) {
     return (

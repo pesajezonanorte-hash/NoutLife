@@ -11,6 +11,9 @@ import * as journalService from '../../services/journal.service';
 import { relativeTime } from '../../lib/time';
 import { SageContextButton } from '../../components/sage/SageContextButton';
 import { E } from '@/components/ui/glyphs';
+import ModernLoader from '@/components/ui/modern-loader';
+import { LoadingGate } from '@/components/ui/LoadingGate';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 
 const MOOD_EMOJIS = ['', '😢', '😔', '😐', '😊', '😄'];
 
@@ -305,9 +308,8 @@ export default function JournalPage() {
       </div>
 
       {/* Entries list */}
-      {loading ? (
-        <div className="text-center py-8"><motion.p className="font-vt text-text-secondary text-xl" animate={{ opacity: [1, 0.4, 1] }} transition={{ duration: 1.2, repeat: Infinity }}>Leyendo el diario...</motion.p></div>
-      ) : filteredEntries.length === 0 ? (
+      <LoadingGate loading={loading} fallback={<ModernLoader variant="compact" words={LOADING_COPY.journal} />}>
+        {loading ? null : filteredEntries.length === 0 ? (
         <PixelPanel className="p-8 text-center">
           <p className="text-4xl mb-2"><E e="📜" /></p>
           <p className="font-pixel text-text-secondary" style={{ fontSize: '9px' }}>{entries.length === 0 ? 'EL DIARIO ESTÁ EN BLANCO' : 'SIN RESULTADOS'}</p>
@@ -340,7 +342,8 @@ export default function JournalPage() {
             ))}
           </div>
         </AnimatePresence>
-      )}
+        )}
+      </LoadingGate>
 
       <AnimatePresence>
         {showEditor && <EntryEditor entry={editing ?? undefined} onClose={() => { setShowEditor(false); setEditing(null); }} onSave={handleSaved} />}

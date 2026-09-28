@@ -4,6 +4,9 @@ import { Swords, Plus, Users, Trophy } from 'lucide-react';
 import { getChallenges, createChallenge, joinChallenge } from '../../services/social.service';
 import { useAuthStore } from '../../store/authStore';
 import { E } from '@/components/ui/glyphs';
+import ModernLoader from '@/components/ui/modern-loader';
+import { LoadingGate } from '@/components/ui/LoadingGate';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 
 interface Challenge {
   id: string;
@@ -162,9 +165,8 @@ export default function ChallengesPage() {
       )}
 
       {/* Challenges list */}
-      {loading ? (
-        <div className="text-center py-8 font-vt text-text-dim animate-pulse">Cargando retos...</div>
-      ) : challenges.length === 0 ? (
+      <LoadingGate loading={loading} fallback={<ModernLoader variant="compact" words={LOADING_COPY.challenges} />}>
+        {loading ? null : challenges.length === 0 ? (
         <div className="text-center py-12 space-y-2">
           <Swords className="mx-auto text-text-dim" size={48} />
           <p className="font-vt text-text-dim">No hay retos activos. ¡Crea el primero!</p>
@@ -257,7 +259,8 @@ export default function ChallengesPage() {
             );
           })}
         </div>
-      )}
+        )}
+      </LoadingGate>
     </div>
   );
 }

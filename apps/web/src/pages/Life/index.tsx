@@ -6,6 +6,9 @@ import { ProgressRings } from '../../components/ui/ProgressRings';
 import { fetchLifeScore, fetchCorrelations, fetchYearInReview } from '../../services/lifescore.service';
 import type { LifeScore, YearInReview } from '../../services/lifescore.service';
 import { E } from '@/components/ui/glyphs';
+import ModernLoader from '@/components/ui/modern-loader';
+import { useLoadingVisibility } from '@/components/ui/LoadingGate';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 
 const AREA_LABELS: Record<string, string> = {
   habits: 'Hábitos', finances: 'Finanzas', fitness: 'Fitness',
@@ -49,6 +52,7 @@ export default function LifePage() {
   const [yearReview, setYearReview] = useState<YearInReview | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'score' | 'correlations' | 'year'>('score');
+  const showLoading = useLoadingVisibility(loading);
 
   useEffect(() => {
     setLoading(true);
@@ -63,15 +67,11 @@ export default function LifePage() {
     }).catch(() => null).finally(() => setLoading(false));
   }, []);
 
-  if (loading) {
-    return (
-      <div className="text-center py-12">
-        <motion.p className="font-vt text-text-secondary text-xl" animate={{ opacity: [1, 0.4, 1] }} transition={{ duration: 1.2, repeat: Infinity }}>
-          Calculando Life Score...
-        </motion.p>
-      </div>
-    );
+  if (showLoading) {
+    return <div className="py-6"><ModernLoader variant="compact" words={LOADING_COPY.life} /></div>;
   }
+
+  if (loading) return null;
 
   const radarData = lifeScore
     ? Object.entries(lifeScore.breakdown).map(([key, val]) => ({

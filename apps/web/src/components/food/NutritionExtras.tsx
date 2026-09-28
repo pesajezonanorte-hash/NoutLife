@@ -4,6 +4,9 @@ import { PixelPanel } from '../ui/PixelPanel';
 import { PixelButton } from '../ui/PixelButton';
 import api from '../../lib/api';
 import { E } from '@/components/ui/glyphs';
+import ModernLoader from '@/components/ui/modern-loader';
+import { LoadingGate } from '@/components/ui/LoadingGate';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 
 interface NutritionGoal { calories: number; protein: number; carbs: number; fat: number }
 interface DailyMacros { calories: number; protein: number; carbs: number; fat: number; goal: NutritionGoal | null }
@@ -321,9 +324,8 @@ export function SavedMealsPanel({ onAdd }: { onAdd: (meal: SavedMeal) => void })
         </select>
       </div>
 
-      {loading ? (
-        <p className="font-vt text-text-secondary text-base text-center py-4">Cargando...</p>
-      ) : meals.length === 0 ? (
+      <LoadingGate loading={loading} fallback={<ModernLoader variant="compact" words={LOADING_COPY.nutrition} />}>
+        {loading ? null : meals.length === 0 ? (
         <p className="font-vt text-text-secondary text-base text-center py-4 italic">Sin comidas guardadas</p>
       ) : (
         <div className="space-y-1">
@@ -340,7 +342,8 @@ export function SavedMealsPanel({ onAdd }: { onAdd: (meal: SavedMeal) => void })
             </div>
           ))}
         </div>
-      )}
+        )}
+      </LoadingGate>
     </PixelPanel>
   );
 }

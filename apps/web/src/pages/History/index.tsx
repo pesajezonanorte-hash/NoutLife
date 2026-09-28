@@ -5,6 +5,9 @@ import { PixelPanel } from '../../components/ui/PixelPanel';
 import { fetchHistory, fetchDayDetail } from '../../services/history.service';
 import type { HistorySummary, DayDetail } from '../../services/history.service';
 import { E } from '@/components/ui/glyphs';
+import ModernLoader from '@/components/ui/modern-loader';
+import { LoadingGate } from '@/components/ui/LoadingGate';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 
 const CATEGORY_COLORS: Record<string, string> = {
   FITNESS: '#5c5c64', HEALTH: '#8a8a92', FINANCE: '#a8871e',
@@ -110,13 +113,8 @@ export default function HistoryPage() {
         ))}
       </div>
 
-      {loading ? (
-        <div className="text-center py-12">
-          <motion.p className="font-vt text-text-secondary text-xl" animate={{ opacity: [1, 0.4, 1] }} transition={{ duration: 1.2, repeat: Infinity }}>
-            Cargando historial...
-          </motion.p>
-        </div>
-      ) : view === 'calendar' ? (
+      <LoadingGate loading={loading} fallback={<ModernLoader variant="compact" words={LOADING_COPY.history} />}>
+        {loading ? null : view === 'calendar' ? (
         <PixelPanel className="p-4">
           <p className="font-pixel text-text-secondary mb-3" style={{ fontSize: '8px' }}>ACTIVIDAD DIARIA (ÚLTIMOS 30 DÍAS)</p>
           <div className="grid grid-cols-7 gap-1.5">
@@ -244,7 +242,8 @@ export default function HistoryPage() {
             </PixelPanel>
           )}
         </div>
-      )}
+        )}
+      </LoadingGate>
     </div>
   );
 }

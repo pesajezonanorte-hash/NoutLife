@@ -6,6 +6,9 @@ import { useUIStore } from '../../store/uiStore';
 import { refreshUser } from '../../hooks/useAuth';
 import api from '../../lib/api';
 import { E } from '@/components/ui/glyphs';
+import ModernLoader from '@/components/ui/modern-loader';
+import { useLoadingVisibility } from '@/components/ui/LoadingGate';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 
 // ─── Pomodoro Timer ────────────────────────────────────────────────────────────
 
@@ -128,6 +131,7 @@ export function NotesPanel({ itemId }: { itemId: string }) {
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
   const [saving, setSaving] = useState(false);
+  const showLoading = useLoadingVisibility(loading);
 
   useEffect(() => {
     api.get(`/learning/${itemId}/notes`).then((r: any) => setNotes(r.data?.notes ?? [])).finally(() => setLoading(false));
@@ -148,7 +152,8 @@ export function NotesPanel({ itemId }: { itemId: string }) {
     setNotes(prev => prev.filter(n => n.id !== noteId));
   }
 
-  if (loading) return <p className="font-vt text-text-secondary text-center py-4 text-xl">Cargando notas...</p>;
+  if (showLoading) return <ModernLoader variant="compact" words={LOADING_COPY.learningNotes} />;
+  if (loading) return null;
 
   return (
     <div className="space-y-3">
@@ -200,6 +205,7 @@ export function VocabPanel({ itemId }: { itemId: string }) {
   const [showBack, setShowBack] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ front: '', back: '', example: '' });
+  const showLoading = useLoadingVisibility(loading);
 
   const today = new Date().toISOString().slice(0, 10);
   const dueCards = cards.filter(c => c.nextReview <= today);
@@ -230,7 +236,8 @@ export function VocabPanel({ itemId }: { itemId: string }) {
     setShowBack(false);
   }
 
-  if (loading) return <p className="font-vt text-text-secondary text-center py-4 text-xl">Cargando tarjetas...</p>;
+  if (showLoading) return <ModernLoader variant="compact" words={LOADING_COPY.learningCards} />;
+  if (loading) return null;
 
   return (
     <div className="space-y-3">

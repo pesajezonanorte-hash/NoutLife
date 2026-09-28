@@ -9,6 +9,9 @@ import { AvatarDisplay } from '../../components/character/AvatarDisplay';
 import { PixelPanel } from '../../components/ui/PixelPanel';
 import { PixelButton } from '../../components/ui/PixelButton';
 import { E } from '@/components/ui/glyphs';
+import ModernLoader from '@/components/ui/modern-loader';
+import { useLoadingVisibility } from '@/components/ui/LoadingGate';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 
 interface GuildMemberUser {
   id: string;
@@ -75,6 +78,7 @@ export default function GuildPage() {
   const [joinCode, setJoinCode] = useState('');
   const [copied, setCopied] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const showLoading = useLoadingVisibility(loading);
 
   const load = () => {
     setLoading(true);
@@ -139,9 +143,11 @@ export default function GuildPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  if (loading) {
-    return <div className="text-center py-12 font-vt text-text-dim animate-pulse">Cargando gremio...</div>;
+  if (showLoading) {
+    return <div className="py-6"><ModernLoader variant="compact" words={LOADING_COPY.guild} /></div>;
   }
+
+  if (loading) return null;
 
   // No guild
   if (!guild && mode === 'view') {

@@ -10,6 +10,9 @@ import * as loveService from '../../services/love.service';
 import api from '../../lib/api';
 import { SageContextButton } from '../../components/sage/SageContextButton';
 import { E } from '@/components/ui/glyphs';
+import ModernLoader from '@/components/ui/modern-loader';
+import { useLoadingVisibility } from '@/components/ui/LoadingGate';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 
 interface GiftIdea { id: string; title: string; description?: string; estimatedPrice?: number; isPurchased: boolean; forPerson?: string }
 
@@ -18,6 +21,7 @@ function GiftWishlist({ relationshipId }: { relationshipId?: string }) {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ title: '', description: '', estimatedPrice: '', forPerson: '' });
+  const showLoading = useLoadingVisibility(loading);
 
   useEffect(() => {
     const q = relationshipId ? `?relationshipId=${relationshipId}` : '';
@@ -48,7 +52,8 @@ function GiftWishlist({ relationshipId }: { relationshipId?: string }) {
     setGifts(prev => prev.filter(g => g.id !== id));
   }
 
-  if (loading) return <p className="font-vt text-text-secondary text-center py-8 text-xl">Cargando...</p>;
+  if (showLoading) return <div className="py-3"><ModernLoader variant="compact" words={LOADING_COPY.loveIdeas} /></div>;
+  if (loading) return null;
 
   return (
     <div className="space-y-3">
@@ -262,6 +267,7 @@ export default function LovePage() {
   const [showSetup, setShowSetup] = useState(false);
   const [showAddDate, setShowAddDate] = useState(false);
   const [tab, setTab] = useState<'jardín' | 'regalos'>('jardín');
+  const showLoading = useLoadingVisibility(loading);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -289,13 +295,11 @@ export default function LovePage() {
     } catch { toast.error('Error al eliminar'); }
   }
 
-  if (loading) {
-    return (
-      <div className="text-center py-12">
-        <motion.p className="font-vt text-text-secondary text-xl" animate={{ opacity: [1, 0.4, 1] }} transition={{ duration: 1.2, repeat: Infinity }}>Entrando al jardín...</motion.p>
-      </div>
-    );
+  if (showLoading) {
+    return <div className="py-6"><ModernLoader variant="compact" words={LOADING_COPY.loveDashboard} /></div>;
   }
+
+  if (loading) return null;
 
   const rel = dashboard?.relationship;
   const startDate = rel?.notes?.match(/startDate:(\S+)/)?.[1];

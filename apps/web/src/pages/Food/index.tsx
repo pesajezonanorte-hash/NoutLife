@@ -8,6 +8,9 @@ import * as mealService from '../../services/meal.service';
 import { MacroGoalsWidget, AIQuickLog, SavedMealsPanel } from '../../components/food/NutritionExtras';
 import { SageContextButton } from '../../components/sage/SageContextButton';
 import { E } from '@/components/ui/glyphs';
+import ModernLoader from '@/components/ui/modern-loader';
+import { LoadingGate } from '@/components/ui/LoadingGate';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 
 const MEAL_TYPES = [
   { key: 'BREAKFAST', label: 'Desayuno', icon: '🌅' },
@@ -237,12 +240,9 @@ export default function FoodPage() {
       )}
 
       {/* Meals by type */}
-      {loading ? (
-        <div className="text-center py-8">
-          <motion.p className="font-vt text-text-secondary text-xl" animate={{ opacity: [1, 0.4, 1] }} transition={{ duration: 1.2, repeat: Infinity }}>Cargando...</motion.p>
-        </div>
-      ) : (
-        <div className="space-y-3">
+      <LoadingGate loading={loading} fallback={<ModernLoader variant="compact" words={LOADING_COPY.food} />}>
+        {loading ? null : (
+          <div className="space-y-3">
           {mealsByType.map(group => (
             <PixelPanel key={group.key} className="p-3">
               <p className="font-pixel text-text-secondary mb-2" style={{ fontSize: '8px' }}><E e={group.icon} /> {group.label.toUpperCase()}</p>
@@ -263,8 +263,9 @@ export default function FoodPage() {
               )}
             </PixelPanel>
           ))}
-        </div>
-      )}
+          </div>
+        )}
+      </LoadingGate>
 
       <AnimatePresence>
         {showModal && <MealModal onClose={() => setShowModal(false)} onSave={handleSaved} />}

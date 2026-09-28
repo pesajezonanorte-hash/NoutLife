@@ -7,6 +7,9 @@ import { PixelButton } from '../../components/ui/PixelButton';
 import type { ShopItem, InventoryItem } from '@lifequest/shared';
 import * as shopService from '../../services/shop.service';
 import { E } from '@/components/ui/glyphs';
+import ModernLoader from '@/components/ui/modern-loader';
+import { LoadingGate } from '@/components/ui/LoadingGate';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 
 const THEME_PREVIEW_COLORS: Record<string, { bg: string; card: string; accent: string }> = {
   aurora:  { bg: '#131316', card: '#1a1a1e', accent: '#d9b44a' },
@@ -198,9 +201,8 @@ export default function ShopPage() {
             ))}
           </div>
 
-          {loading ? (
-            <div className="text-center py-8"><motion.p className="font-vt text-text-secondary text-xl" animate={{ opacity: [1, 0.4, 1] }} transition={{ duration: 1.2, repeat: Infinity }}>Cargando tienda...</motion.p></div>
-          ) : loadError ? (
+          <LoadingGate loading={loading} fallback={<ModernLoader variant="compact" words={LOADING_COPY.shop} />}>
+            {loading ? null : loadError ? (
             <PixelPanel className="mx-auto max-w-xl p-8 text-center">
               <p className="text-4xl"><E e="⚠" /></p>
               <h2 className="mt-3 text-base font-semibold text-[var(--text-primary)]">No pudimos abrir la tienda</h2>
@@ -296,7 +298,8 @@ export default function ShopPage() {
                 })}
               </AnimatePresence>
             </div>
-          )}
+            )}
+          </LoadingGate>
         </>
       )}
 

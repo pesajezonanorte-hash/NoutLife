@@ -8,6 +8,9 @@ import * as agendaService from '../../services/agenda.service';
 import type { AgendaEvent } from '../../services/agenda.service';
 import { Link2 } from 'lucide-react';
 import { E } from '@/components/ui/glyphs';
+import ModernLoader from '@/components/ui/modern-loader';
+import { LoadingGate } from '@/components/ui/LoadingGate';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 
 type ViewMode = 'day' | 'week' | 'month';
 
@@ -795,19 +798,15 @@ export default function AgendaPage() {
         ))}
       </div>
 
-      {loading ? (
-        <div className="text-center py-8">
-          <motion.p className="font-vt text-text-secondary text-xl" animate={{ opacity: [1, 0.4, 1] }} transition={{ duration: 1.2, repeat: Infinity }}>
-            Cargando agenda...
-          </motion.p>
-        </div>
-      ) : view === 'day' ? (
+      <LoadingGate loading={loading} fallback={<ModernLoader variant="compact" words={LOADING_COPY.agenda} />}>
+        {loading ? null : view === 'day' ? (
         <DayView />
       ) : view === 'week' ? (
         <WeekView />
       ) : (
         <MonthView />
-      )}
+        )}
+      </LoadingGate>
 
       <AnimatePresence>
         {showModal && (

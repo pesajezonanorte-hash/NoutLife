@@ -6,6 +6,9 @@ import { PixelButton } from '../../components/ui/PixelButton';
 import { useToastStore } from '../../hooks/useToast';
 import api from '../../lib/api';
 import { E } from '@/components/ui/glyphs';
+import ModernLoader from '@/components/ui/modern-loader';
+import { LoadingGate } from '@/components/ui/LoadingGate';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -640,11 +643,8 @@ export default function CustomZonesPage() {
         )}
       </AnimatePresence>
 
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 size={24} className="animate-spin" style={{ color: 'var(--text-muted)' }} />
-        </div>
-      ) : zones.length === 0 ? (
+      <LoadingGate loading={loading} fallback={<ModernLoader variant="compact" words={LOADING_COPY.customZones} />}>
+        {loading ? null : zones.length === 0 ? (
         <PixelPanel className="p-10 text-center">
           <p className="text-4xl mb-3"><E e="🏰" /></p>
           <p className="font-pixel text-[var(--text-2)]" style={{ fontSize: '10px' }}>SIN ZONAS PERSONALIZADAS</p>
@@ -665,7 +665,8 @@ export default function CustomZonesPage() {
             </motion.div>
           ))}
         </div>
-      )}
+        )}
+      </LoadingGate>
     </div>
   );
 }

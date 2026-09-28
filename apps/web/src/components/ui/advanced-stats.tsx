@@ -23,6 +23,9 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { resolveGlyph } from '@/components/ui/glyphs';
 import { cn } from '@/lib/utils';
+import ModernLoader from '@/components/ui/modern-loader';
+import { LoadingGate } from '@/components/ui/LoadingGate';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 import { ClippedAreaChart, type XpChartDatum } from './advanced-stats-utils/charts';
 import { TimelineAnimation } from './advanced-stats-utils/timeline-animation';
 
@@ -196,9 +199,13 @@ function ZoneLedger({ zones, periodLabel, loading = false }: { zones: AdvancedSt
           })}
         </div>
         {zones.length === 0 ? (
-          <p className="mt-5 rounded-xl border border-dashed border-[var(--border-soft)] px-4 py-5 text-center text-xs leading-5 text-[var(--text-muted)]">
-            {loading ? 'Calculando las áreas que tienen registros en este periodo…' : 'No se pudieron cargar las zonas de vida. Intenta actualizar las estadísticas.'}
-          </p>
+          <LoadingGate loading={loading} fallback={<ModernLoader variant="compact" words={LOADING_COPY.stats} className="mt-5" />}>
+            {loading ? null : (
+              <p className="mt-5 rounded-xl border border-dashed border-[var(--border-soft)] px-4 py-5 text-center text-xs leading-5 text-[var(--text-muted)]">
+                No se pudieron cargar las zonas de vida. Intenta actualizar las estadísticas.
+              </p>
+            )}
+          </LoadingGate>
         ) : null}
       </article>
     </TimelineAnimation>
