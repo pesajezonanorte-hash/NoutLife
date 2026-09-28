@@ -6,7 +6,7 @@ import { useUIStore } from '../../store/uiStore';
 import { refreshUser } from '../../hooks/useAuth';
 import api from '../../lib/api';
 import { E } from '@/components/ui/glyphs';
-import ModernLoader from '@/components/ui/modern-loader-adapted';
+import ModernLoader from '@/components/ui/modern-loader';
 import { useLoadingVisibility } from '@/components/ui/LoadingGate';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 
@@ -152,7 +152,7 @@ export function NotesPanel({ itemId }: { itemId: string }) {
     setNotes(prev => prev.filter(n => n.id !== noteId));
   }
 
-  if (showLoading) return <ModernLoader variant="compact" words={LOADING_COPY.learningNotes} />;
+  if (showLoading) return <ModernLoader words={[...LOADING_COPY.learningNotes]} />;
   if (loading) return null;
 
   return (
@@ -236,7 +236,7 @@ export function VocabPanel({ itemId }: { itemId: string }) {
     setShowBack(false);
   }
 
-  if (showLoading) return <ModernLoader variant="compact" words={LOADING_COPY.learningCards} />;
+  if (showLoading) return <ModernLoader words={[...LOADING_COPY.learningCards]} />;
   if (loading) return null;
 
   return (

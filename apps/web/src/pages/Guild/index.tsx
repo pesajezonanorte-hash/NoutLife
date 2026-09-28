@@ -9,7 +9,7 @@ import { AvatarDisplay } from '../../components/character/AvatarDisplay';
 import { PixelPanel } from '../../components/ui/PixelPanel';
 import { PixelButton } from '../../components/ui/PixelButton';
 import { E } from '@/components/ui/glyphs';
-import ModernLoader from '@/components/ui/modern-loader-adapted';
+import ModernLoader from '@/components/ui/modern-loader';
 import { useLoadingVisibility } from '@/components/ui/LoadingGate';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 
@@ -144,7 +144,7 @@ export default function GuildPage() {
   };
 
   if (showLoading) {
-    return <div className="py-6"><ModernLoader variant="compact" words={LOADING_COPY.guild} /></div>;
+    return <div className="py-6"><ModernLoader words={[...LOADING_COPY.guild]} /></div>;
   }
 
   if (loading) return null;

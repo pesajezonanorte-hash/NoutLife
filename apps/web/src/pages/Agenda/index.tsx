@@ -8,7 +8,7 @@ import * as agendaService from '../../services/agenda.service';
 import type { AgendaEvent } from '../../services/agenda.service';
 import { Link2 } from 'lucide-react';
 import { E } from '@/components/ui/glyphs';
-import ModernLoader from '@/components/ui/modern-loader-adapted';
+import ModernLoader from '@/components/ui/modern-loader';
 import { LoadingGate } from '@/components/ui/LoadingGate';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 
@@ -798,7 +798,7 @@ export default function AgendaPage() {
         ))}
       </div>
 
-      <LoadingGate loading={loading} fallback={<ModernLoader variant="compact" words={LOADING_COPY.agenda} />}>
+      <LoadingGate loading={loading} fallback={<ModernLoader words={[...LOADING_COPY.agenda]} />}>
         {loading ? null : view === 'day' ? (
         <DayView />
       ) : view === 'week' ? (

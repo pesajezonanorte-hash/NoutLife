@@ -8,7 +8,7 @@ import * as mealService from '../../services/meal.service';
 import { MacroGoalsWidget, AIQuickLog, SavedMealsPanel } from '../../components/food/NutritionExtras';
 import { SageContextButton } from '../../components/sage/SageContextButton';
 import { E } from '@/components/ui/glyphs';
-import ModernLoader from '@/components/ui/modern-loader-adapted';
+import ModernLoader from '@/components/ui/modern-loader';
 import { LoadingGate } from '@/components/ui/LoadingGate';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 
@@ -240,7 +240,7 @@ export default function FoodPage() {
       )}
 
       {/* Meals by type */}
-      <LoadingGate loading={loading} fallback={<ModernLoader variant="compact" words={LOADING_COPY.food} />}>
+      <LoadingGate loading={loading} fallback={<ModernLoader words={[...LOADING_COPY.food]} />}>
         {loading ? null : (
           <div className="space-y-3">
           {mealsByType.map(group => (

@@ -28,7 +28,7 @@ import type {
   SleepTrendPoint,
   StatsPredictions,
 } from '@/services/stats.service';
-import ModernLoader from '@/components/ui/modern-loader-adapted';
+import ModernLoader from '@/components/ui/modern-loader';
 import { LoadingGate } from '@/components/ui/LoadingGate';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 
@@ -169,7 +169,7 @@ export function FinanceTrendCard({
           </div>
         </>
       ) : (
-        <LoadingGate loading={loading} fallback={<ModernLoader variant="compact" words={LOADING_COPY.statsFinance} />}>
+        <LoadingGate loading={loading} fallback={<ModernLoader words={[...LOADING_COPY.statsFinance]} />}>
           {loading ? null : <EmptyPanel>{`Aún no hay transacciones registradas en ${periodLabel.toLowerCase()}.`}</EmptyPanel>}
         </LoadingGate>
       )}
@@ -226,7 +226,7 @@ export function SleepTrendCard({
           </ResponsiveContainer>
         </div>
       ) : (
-        <LoadingGate loading={loading} fallback={<ModernLoader variant="compact" words={LOADING_COPY.statsSleep} />}>
+        <LoadingGate loading={loading} fallback={<ModernLoader words={[...LOADING_COPY.statsSleep]} />}>
           {loading ? null : <EmptyPanel>Aún no hay noches registradas para este periodo.</EmptyPanel>}
         </LoadingGate>
       )}
@@ -308,7 +308,7 @@ export function GymProgressionCard({
           </div>
         </>
       ) : (
-        <LoadingGate loading={loading} fallback={<ModernLoader variant="compact" words={LOADING_COPY.statsTraining} />}>
+        <LoadingGate loading={loading} fallback={<ModernLoader words={[...LOADING_COPY.statsTraining]} />}>
           {loading ? null : <EmptyPanel>Finaliza un entrenamiento con series registradas para seguir tu progresión de fuerza.</EmptyPanel>}
         </LoadingGate>
       )}
@@ -339,7 +339,7 @@ export function PredictionsCard({
     <article className="min-w-0 rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-4 shadow-pixel sm:p-5">
       <PanelHeader icon={TrendingUp} title="Proyecciones con tus datos" detail="Estimaciones basadas en tu XP, flujo mensual y cumplimiento reciente." />
       {!data ? (
-        <LoadingGate loading={loading} fallback={<ModernLoader variant="compact" words={LOADING_COPY.statsPredictions} />}>
+        <LoadingGate loading={loading} fallback={<ModernLoader words={[...LOADING_COPY.statsPredictions]} />}>
           {loading ? null : <EmptyPanel>Aún no hay suficientes registros para generar proyecciones.</EmptyPanel>}
         </LoadingGate>
       ) : (

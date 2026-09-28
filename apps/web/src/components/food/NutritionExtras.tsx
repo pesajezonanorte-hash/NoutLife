@@ -4,7 +4,7 @@ import { PixelPanel } from '../ui/PixelPanel';
 import { PixelButton } from '../ui/PixelButton';
 import api from '../../lib/api';
 import { E } from '@/components/ui/glyphs';
-import ModernLoader from '@/components/ui/modern-loader-adapted';
+import ModernLoader from '@/components/ui/modern-loader';
 import { LoadingGate } from '@/components/ui/LoadingGate';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 
@@ -324,7 +324,7 @@ export function SavedMealsPanel({ onAdd }: { onAdd: (meal: SavedMeal) => void })
         </select>
       </div>
 
-      <LoadingGate loading={loading} fallback={<ModernLoader variant="compact" words={LOADING_COPY.nutrition} />}>
+      <LoadingGate loading={loading} fallback={<ModernLoader words={[...LOADING_COPY.nutrition]} />}>
         {loading ? null : meals.length === 0 ? (
         <p className="font-vt text-text-secondary text-base text-center py-4 italic">Sin comidas guardadas</p>
       ) : (

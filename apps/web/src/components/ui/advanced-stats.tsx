@@ -23,7 +23,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { resolveGlyph } from '@/components/ui/glyphs';
 import { cn } from '@/lib/utils';
-import ModernLoader from '@/components/ui/modern-loader-adapted';
+import ModernLoader from '@/components/ui/modern-loader';
 import { LoadingGate } from '@/components/ui/LoadingGate';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 import { ClippedAreaChart, type XpChartDatum } from './advanced-stats-utils/charts';
@@ -199,7 +199,7 @@ function ZoneLedger({ zones, periodLabel, loading = false }: { zones: AdvancedSt
           })}
         </div>
         {zones.length === 0 ? (
-          <LoadingGate loading={loading} fallback={<ModernLoader variant="compact" words={LOADING_COPY.stats} className="mt-5" />}>
+          <LoadingGate loading={loading} fallback={<div className="mt-5"><ModernLoader words={[...LOADING_COPY.stats]} /></div>}>
             {loading ? null : (
               <p className="mt-5 rounded-xl border border-dashed border-[var(--border-soft)] px-4 py-5 text-center text-xs leading-5 text-[var(--text-muted)]">
                 No se pudieron cargar las zonas de vida. Intenta actualizar las estadísticas.

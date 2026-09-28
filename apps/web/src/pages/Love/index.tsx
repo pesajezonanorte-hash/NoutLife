@@ -10,7 +10,7 @@ import * as loveService from '../../services/love.service';
 import api from '../../lib/api';
 import { SageContextButton } from '../../components/sage/SageContextButton';
 import { E } from '@/components/ui/glyphs';
-import ModernLoader from '@/components/ui/modern-loader-adapted';
+import ModernLoader from '@/components/ui/modern-loader';
 import { useLoadingVisibility } from '@/components/ui/LoadingGate';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 
@@ -52,7 +52,7 @@ function GiftWishlist({ relationshipId }: { relationshipId?: string }) {
     setGifts(prev => prev.filter(g => g.id !== id));
   }
 
-  if (showLoading) return <div className="py-3"><ModernLoader variant="compact" words={LOADING_COPY.loveIdeas} /></div>;
+  if (showLoading) return <div className="py-3"><ModernLoader words={[...LOADING_COPY.loveIdeas]} /></div>;
   if (loading) return null;
 
   return (
@@ -296,7 +296,7 @@ export default function LovePage() {
   }
 
   if (showLoading) {
-    return <div className="py-6"><ModernLoader variant="compact" words={LOADING_COPY.loveDashboard} /></div>;
+    return <div className="py-6"><ModernLoader words={[...LOADING_COPY.loveDashboard]} /></div>;
   }
 
   if (loading) return null;

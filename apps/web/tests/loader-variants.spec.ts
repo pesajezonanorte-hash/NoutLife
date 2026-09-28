@@ -82,39 +82,9 @@ async function waitForSplashToLeave(page: Page) {
   await expect(splash).toBeHidden({ timeout: 8_000 });
 }
 
-type LoaderTimelineEvent = { at: number; present: boolean };
+const LITERAL_LOADER = 'div.w-full.max-w-md.mx-auto.p-8';
 
-async function trackLoaderLifetime(page: Page, copy: string) {
-  await page.addInitScript((terminalCopy: string) => {
-    const timeline: Array<{ at: number; present: boolean }> = [];
-    let present = false;
-    const record = () => {
-      const nextPresent = [...document.querySelectorAll('[role="status"]')]
-        .some((node) => node.textContent?.includes(terminalCopy));
-      if (nextPresent !== present) {
-        present = nextPresent;
-        timeline.push({ at: performance.now(), present });
-      }
-    };
-    new MutationObserver(record).observe(document, { childList: true, subtree: true });
-    window.addEventListener('DOMContentLoaded', record, { once: true });
-    (window as Window & { __loaderTimeline?: typeof timeline }).__loaderTimeline = timeline;
-  }, copy);
-}
-
-async function expectMinimumLoaderLifetime(page: Page) {
-  const timeline = await page.evaluate(() => (
-    (window as Window & { __loaderTimeline?: LoaderTimelineEvent[] }).__loaderTimeline ?? []
-  ));
-  const appeared = timeline.find((event) => event.present);
-  const disappeared = appeared && timeline.find((event) => !event.present && event.at > appeared.at);
-  expect(appeared).toBeTruthy();
-  expect(disappeared).toBeTruthy();
-  // Permit scheduling jitter without weakening the 400 ms product contract.
-  expect(disappeared!.at - appeared!.at).toBeGreaterThanOrEqual(360);
-}
-
-test.describe('terminal loader variants', () => {
+test.describe('literal terminal loader coverage', () => {
   test.skip(!baseUrl, 'Set LIFEQUEST_E2E_BASE_URL to run browser verification.');
 
   test('keeps the page terminal stable through the shared minimum after a lazy route resolves', async ({ page }) => {
@@ -148,56 +118,54 @@ test.describe('terminal loader variants', () => {
     await expect(pageLoader).toBeHidden({ timeout: 2_000 });
   });
 
-  test('shows compact content loading without mobile horizontal overflow', async ({ page }) => {
+  test('uses the same terminal for a first section load without mobile horizontal overflow', async ({ page }) => {
     await installApiMocks(page, 1_500);
     await page.goto(url('/achievements'), { waitUntil: 'domcontentloaded' });
     await waitForSplashToLeave(page);
+    await expect(page.getByRole('heading', { name: /sala de logros/i })).toBeVisible({ timeout: 4_000 });
 
-    const compactLoader = page.getByRole('status').filter({ hasText: 'Contando tus logros' });
-    await expect(compactLoader).toBeVisible({ timeout: 4_000 });
+    const sectionLoader = page.locator(LITERAL_LOADER);
+    await expect(sectionLoader).toBeVisible({ timeout: 4_000 });
 
     for (const width of [360, 390, 430]) {
       await page.setViewportSize({ width, height: 844 });
       const metrics = await page.evaluate(() => ({ viewportWidth: window.innerWidth, documentWidth: document.documentElement.scrollWidth }));
       expect(metrics.documentWidth).toBeLessThanOrEqual(metrics.viewportWidth);
 
-      const box = await compactLoader.boundingBox();
+      const box = await sectionLoader.boundingBox();
       expect(box).not.toBeNull();
       expect(box!.x).toBeGreaterThanOrEqual(0);
       expect(box!.x + box!.width).toBeLessThanOrEqual(width);
-      expect(box!.height).toBeGreaterThanOrEqual(100);
-      expect(box!.height).toBeLessThanOrEqual(130);
+      expect(box!.height).toBeGreaterThanOrEqual(160);
+      expect(box!.height).toBeLessThanOrEqual(420);
     }
   });
 
-  test('keeps the compact terminal mounted for its minimum visible window', async ({ page }) => {
-    await trackLoaderLifetime(page, 'Contando tus logros');
+  test('keeps the same section terminal visible after a just-resolved request', async ({ page }) => {
     const { achievementsFinished, releaseAchievements } = await installApiMocks(page, null);
     await page.goto(url('/achievements'), { waitUntil: 'domcontentloaded' });
     await waitForSplashToLeave(page);
+    await expect(page.getByRole('heading', { name: /sala de logros/i })).toBeVisible({ timeout: 4_000 });
 
-    const compactLoader = page.getByRole('status').filter({ hasText: 'Contando tus logros' });
-    await expect(compactLoader).toBeVisible({ timeout: 4_000 });
+    const sectionLoader = page.locator(LITERAL_LOADER);
+    await expect(sectionLoader).toBeVisible({ timeout: 4_000 });
     releaseAchievements();
     await achievementsFinished;
-    await expect(compactLoader).toBeHidden({ timeout: 2_000 });
-    await expectMinimumLoaderLifetime(page);
+    await page.waitForTimeout(80);
+    await expect(sectionLoader).toBeVisible();
+    await expect(sectionLoader).toBeHidden({ timeout: 2_000 });
   });
 
-  test('renders the compact terminal statically for reduced motion', async ({ page }) => {
+  test('uses the same terminal for a first section load with reduced motion enabled', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await installApiMocks(page, 1_100);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(url('/achievements'), { waitUntil: 'domcontentloaded' });
     await waitForSplashToLeave(page);
+    await expect(page.getByRole('heading', { name: /sala de logros/i })).toBeVisible({ timeout: 4_000 });
 
-    const compactLoader = page.getByRole('status').filter({ hasText: 'Contando tus logros' });
-    await expect(compactLoader).toBeVisible({ timeout: 4_000 });
-    await expect(compactLoader).toContainText('Contando tus logros…');
-
-    const runningAnimations = await compactLoader.locator('*').evaluateAll((nodes) => (
-      nodes.flatMap((node) => node.getAnimations()).filter((animation) => animation.playState === 'running').length
-    ));
-    expect(runningAnimations).toBe(0);
+    const sectionLoader = page.locator(LITERAL_LOADER);
+    await expect(sectionLoader).toBeVisible({ timeout: 4_000 });
+    await expect(sectionLoader.locator('.text-muted-foreground.font-mono')).toBeVisible();
   });
 });

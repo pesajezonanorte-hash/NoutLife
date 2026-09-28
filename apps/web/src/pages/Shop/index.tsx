@@ -7,7 +7,7 @@ import { PixelButton } from '../../components/ui/PixelButton';
 import type { ShopItem, InventoryItem } from '@lifequest/shared';
 import * as shopService from '../../services/shop.service';
 import { E } from '@/components/ui/glyphs';
-import ModernLoader from '@/components/ui/modern-loader-adapted';
+import ModernLoader from '@/components/ui/modern-loader';
 import { LoadingGate } from '@/components/ui/LoadingGate';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 
@@ -201,7 +201,7 @@ export default function ShopPage() {
             ))}
           </div>
 
-          <LoadingGate loading={loading} fallback={<ModernLoader variant="compact" words={LOADING_COPY.shop} />}>
+          <LoadingGate loading={loading} fallback={<ModernLoader words={[...LOADING_COPY.shop]} />}>
             {loading ? null : loadError ? (
             <PixelPanel className="mx-auto max-w-xl p-8 text-center">
               <p className="text-4xl"><E e="⚠" /></p>

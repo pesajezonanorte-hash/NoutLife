@@ -27,20 +27,18 @@ Evidencia complementaria de controles auditados:
 
 # Evidencia de loaders terminales — integración literal
 
-Capturas móviles a **390 × 844 px** para la identidad de carga compartida. Las rutas autenticadas usan un usuario y respuestas API simuladas; el splash conserva el timing real del bootstrap.
+Capturas móviles a **390 × 844 px** para el mismo loader terminal literal basado en `motion/react`. Las rutas autenticadas usan un usuario y respuestas API simuladas; el splash conserva el timing real del bootstrap.
 
 | Caso | Archivo | Qué verifica |
 | --- | --- | --- |
-| Splash de arranque | `loader-splash.png` | Componente `modern-loader.tsx` literal basado en `motion/react`. |
-| Zona autenticada | `loader-page.png` | El mismo loader literal durante la carga diferida de una zona, sin overflow a 390 px. |
-| Logros | `loader-compact-achievements.png` | Loader compacto adaptado, tema claro, dentro de una pantalla autenticada. |
-| Comida | `loader-compact-food-dark.png` | Loader compacto adaptado, tema oscuro, después de desplazar el contenido para que el bloque completo quede fuera de la tab bar. |
-| Movimiento reducido | `loader-reduced-motion.png` | Loader compacto adaptado estático con `prefers-reduced-motion: reduce`. |
+| Splash de arranque | `loader-splash.png` | El loader literal durante el bootstrap de LifeQuest. |
+| Zona autenticada | `loader-page.png` | El mismo loader durante la carga diferida de una zona, sin overflow a 390 px. |
+| Primera sección: Logros | `loader-section-achievements.png` | El mismo loader al resolver por primera vez los datos de la sección. |
+| Primera sección: Comida | `loader-section-food.png` | El mismo loader al resolver por primera vez las comidas de la sección. |
 
 ## Validación de loaders
 
-- Timing único: **200 ms** antes de mostrar un loader y **400 ms** de visibilidad mínima, contado sólo desde que el loader aparece. El loader literal se usa para splash y zonas; los loaders compactos conservan la adaptación previa.
-- `LIFEQUEST_E2E_BASE_URL=http://127.0.0.1:5173 npm run test:e2e --workspace=apps/web -- --grep 'terminal loader variants'`: **4/4 aprobadas**. Cubre fallback `page`, tamaños/overflow de `compact` en 360/390/430 px, visibilidad mínima y reduced motion.
-- Suite E2E completa con la misma URL: **5 aprobadas, 3 omitidas**. Las omitidas requieren credenciales reales o permitir una mutación de rituales, que no se configuraron para esta auditoría.
-- Simulación de red lenta en build de producción: **400 ms de latencia, 50 KiB/s de descarga, 20 KiB/s de subida y CPU 4×**. El loader `compact` apareció a los **2735 ms** y el documento conservó 390 px de ancho en el viewport de 390 px.
-- Resultado serializado: `loader-qa-results.json`.
+- Timing compartido: **200 ms** antes de mostrar un loader y **400 ms** de visibilidad mínima, contado sólo desde que el loader aparece.
+- El loader literal se aplica al splash, a las rutas/zonas y a todos los estados iniciales de carga de sección que antes usaban la variante compacta.
+- `LIFEQUEST_E2E_BASE_URL=http://127.0.0.1:5173 npm run test:e2e --workspace=apps/web -- --grep 'literal terminal loader coverage'`: **4/4 aprobadas**. Cubre ruta lazy, primera carga de sección sin overflow en 360/390/430 px, ventana mínima visible y reduced motion habilitado.
+- Suite E2E completa: **5 aprobadas, 3 omitidas** porque requieren credenciales reales o permitir mutaciones de rituales.

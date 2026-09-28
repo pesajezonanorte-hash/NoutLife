@@ -5,7 +5,7 @@ import { PixelPanel } from '../../components/ui/PixelPanel';
 import { fetchHistory, fetchDayDetail } from '../../services/history.service';
 import type { HistorySummary, DayDetail } from '../../services/history.service';
 import { E } from '@/components/ui/glyphs';
-import ModernLoader from '@/components/ui/modern-loader-adapted';
+import ModernLoader from '@/components/ui/modern-loader';
 import { LoadingGate } from '@/components/ui/LoadingGate';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 
@@ -113,7 +113,7 @@ export default function HistoryPage() {
         ))}
       </div>
 
-      <LoadingGate loading={loading} fallback={<ModernLoader variant="compact" words={LOADING_COPY.history} />}>
+      <LoadingGate loading={loading} fallback={<ModernLoader words={[...LOADING_COPY.history]} />}>
         {loading ? null : view === 'calendar' ? (
         <PixelPanel className="p-4">
           <p className="font-pixel text-text-secondary mb-3" style={{ fontSize: '8px' }}>ACTIVIDAD DIARIA (ÚLTIMOS 30 DÍAS)</p>

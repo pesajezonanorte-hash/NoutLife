@@ -6,7 +6,7 @@ import { ProgressRings } from '../../components/ui/ProgressRings';
 import { fetchLifeScore, fetchCorrelations, fetchYearInReview } from '../../services/lifescore.service';
 import type { LifeScore, YearInReview } from '../../services/lifescore.service';
 import { E } from '@/components/ui/glyphs';
-import ModernLoader from '@/components/ui/modern-loader-adapted';
+import ModernLoader from '@/components/ui/modern-loader';
 import { useLoadingVisibility } from '@/components/ui/LoadingGate';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 
@@ -68,7 +68,7 @@ export default function LifePage() {
   }, []);
 
   if (showLoading) {
-    return <div className="py-6"><ModernLoader variant="compact" words={LOADING_COPY.life} /></div>;
+    return <div className="py-6"><ModernLoader words={[...LOADING_COPY.life]} /></div>;
   }
 
   if (loading) return null;

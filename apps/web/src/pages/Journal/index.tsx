@@ -11,7 +11,7 @@ import * as journalService from '../../services/journal.service';
 import { relativeTime } from '../../lib/time';
 import { SageContextButton } from '../../components/sage/SageContextButton';
 import { E } from '@/components/ui/glyphs';
-import ModernLoader from '@/components/ui/modern-loader-adapted';
+import ModernLoader from '@/components/ui/modern-loader';
 import { LoadingGate } from '@/components/ui/LoadingGate';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 
@@ -308,7 +308,7 @@ export default function JournalPage() {
       </div>
 
       {/* Entries list */}
-      <LoadingGate loading={loading} fallback={<ModernLoader variant="compact" words={LOADING_COPY.journal} />}>
+      <LoadingGate loading={loading} fallback={<ModernLoader words={[...LOADING_COPY.journal]} />}>
         {loading ? null : filteredEntries.length === 0 ? (
         <PixelPanel className="p-8 text-center">
           <p className="text-4xl mb-2"><E e="📜" /></p>

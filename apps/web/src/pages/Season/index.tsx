@@ -4,7 +4,7 @@ import api from '../../lib/api';
 import { PixelPanel } from '../../components/ui/PixelPanel';
 import { Skull, Trophy, Swords } from 'lucide-react';
 import { E } from '@/components/ui/glyphs';
-import ModernLoader from '@/components/ui/modern-loader-adapted';
+import ModernLoader from '@/components/ui/modern-loader';
 import { useLoadingVisibility } from '@/components/ui/LoadingGate';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 
@@ -137,7 +137,7 @@ export default function SeasonPage() {
   }, []);
 
   if (showLoading) {
-    return <div className="py-6"><ModernLoader variant="compact" words={LOADING_COPY.season} /></div>;
+    return <div className="py-6"><ModernLoader words={[...LOADING_COPY.season]} /></div>;
   }
 
   if (loading) return null;

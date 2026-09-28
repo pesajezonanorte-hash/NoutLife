@@ -4,7 +4,7 @@ import { Swords, Plus, Users, Trophy } from 'lucide-react';
 import { getChallenges, createChallenge, joinChallenge } from '../../services/social.service';
 import { useAuthStore } from '../../store/authStore';
 import { E } from '@/components/ui/glyphs';
-import ModernLoader from '@/components/ui/modern-loader-adapted';
+import ModernLoader from '@/components/ui/modern-loader';
 import { LoadingGate } from '@/components/ui/LoadingGate';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 
@@ -165,7 +165,7 @@ export default function ChallengesPage() {
       )}
 
       {/* Challenges list */}
-      <LoadingGate loading={loading} fallback={<ModernLoader variant="compact" words={LOADING_COPY.challenges} />}>
+      <LoadingGate loading={loading} fallback={<ModernLoader words={[...LOADING_COPY.challenges]} />}>
         {loading ? null : challenges.length === 0 ? (
         <div className="text-center py-12 space-y-2">
           <Swords className="mx-auto text-text-dim" size={48} />

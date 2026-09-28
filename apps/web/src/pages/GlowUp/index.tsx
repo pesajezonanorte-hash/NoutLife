@@ -6,7 +6,7 @@ import { PixelButton } from '../../components/ui/PixelButton';
 import { useToastStore } from '../../hooks/useToast';
 import api from '../../lib/api';
 import { E } from '@/components/ui/glyphs';
-import ModernLoader from '@/components/ui/modern-loader-adapted';
+import ModernLoader from '@/components/ui/modern-loader';
 import { LoadingGate } from '@/components/ui/LoadingGate';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 
@@ -138,7 +138,7 @@ function CareSection() {
         </PixelPanel>
       )}
 
-      <LoadingGate loading={loading} fallback={<ModernLoader variant="compact" words={LOADING_COPY.glowUpRoutines} />}>
+      <LoadingGate loading={loading} fallback={<ModernLoader words={[...LOADING_COPY.glowUpRoutines]} />}>
         {loading ? null : routines.length === 0 ? (
         <PixelPanel className="p-8 text-center">
           <p className="text-3xl mb-2"><E e="🧴" /></p>
@@ -279,7 +279,7 @@ function StyleSection() {
         </PixelPanel>
       )}
 
-      <LoadingGate loading={loading} fallback={<ModernLoader variant="compact" words={LOADING_COPY.glowUpWardrobe} />}>
+      <LoadingGate loading={loading} fallback={<ModernLoader words={[...LOADING_COPY.glowUpWardrobe]} />}>
         {loading ? null : displayed.length === 0 ? (
         <PixelPanel className="p-8 text-center">
           <Shirt size={32} className="mx-auto mb-2" style={{ color: 'var(--text-muted)' }} />

@@ -12,7 +12,7 @@ import * as learningService from '../../services/learning.service';
 import { PomodoroTimer, NotesPanel, VocabPanel } from '../../components/learning/LearningExtras';
 import { SageContextButton } from '../../components/sage/SageContextButton';
 import { E } from '@/components/ui/glyphs';
-import ModernLoader from '@/components/ui/modern-loader-adapted';
+import ModernLoader from '@/components/ui/modern-loader';
 import { LoadingGate } from '@/components/ui/LoadingGate';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 
@@ -318,7 +318,7 @@ export default function LearningPage() {
         ))}
       </div>
 
-      <LoadingGate loading={loading} fallback={<ModernLoader variant="compact" words={LOADING_COPY.learning} />}>
+      <LoadingGate loading={loading} fallback={<ModernLoader words={[...LOADING_COPY.learning]} />}>
         {loading ? null : filtered.length === 0 ? (
         <PixelPanel className="p-8 text-center">
           <p className="text-4xl mb-2"><E e="📚" /></p>
