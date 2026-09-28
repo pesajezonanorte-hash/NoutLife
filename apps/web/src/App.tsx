@@ -10,7 +10,6 @@ import { SageWidget } from './components/sage/SageWidget';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { NotificationPermissionModal, useNotificationModalState } from './components/ui/NotificationPermissionModal';
 import ModernLoader from './components/ui/modern-loader';
-import { InlineLoader } from './components/ui/InlineLoader';
 import { LoadingGate, LOADER_DELAY_MS, useLoadingVisibility } from './components/ui/LoadingGate';
 import { LOADING_COPY } from './lib/loadingCopy';
 import { useKeyboardAdjust } from './hooks/useKeyboardAdjust';
@@ -129,7 +128,7 @@ const pageVariants = {
 function PageLoader() {
   return (
     <div className="flex min-h-[300px] w-full items-center justify-center px-4 py-12 sm:min-h-[360px]" aria-busy="true">
-      <ModernLoader variant="page" words={LOADING_COPY.page} />
+      <ModernLoader words={[...LOADING_COPY.page]} />
     </div>
   );
 }
@@ -291,9 +290,7 @@ function DeferredRouteContent() {
             exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
             transition={{ duration: shouldReduceMotion ? 0.01 : 0.18, ease: 'easeOut' }}
           >
-            <div className="max-w-full rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 shadow-md">
-              <InlineLoader label={LOADING_COPY.routeCue[0]} />
-            </div>
+            <ModernLoader words={[...LOADING_COPY.routeCue]} />
           </motion.div>
         )}
       </AnimatePresence>

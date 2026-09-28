@@ -8,7 +8,7 @@ import * as agendaService from '../../services/agenda.service';
 import type { AgendaEvent } from '../../services/agenda.service';
 import { Link2 } from 'lucide-react';
 import { E } from '@/components/ui/glyphs';
-import ModernLoader from '@/components/ui/modern-loader';
+import ModernLoader from '@/components/ui/modern-loader-adapted';
 import { LoadingGate } from '@/components/ui/LoadingGate';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 

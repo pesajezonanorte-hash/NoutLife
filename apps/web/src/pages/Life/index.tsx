@@ -6,7 +6,7 @@ import { ProgressRings } from '../../components/ui/ProgressRings';
 import { fetchLifeScore, fetchCorrelations, fetchYearInReview } from '../../services/lifescore.service';
 import type { LifeScore, YearInReview } from '../../services/lifescore.service';
 import { E } from '@/components/ui/glyphs';
-import ModernLoader from '@/components/ui/modern-loader';
+import ModernLoader from '@/components/ui/modern-loader-adapted';
 import { useLoadingVisibility } from '@/components/ui/LoadingGate';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 

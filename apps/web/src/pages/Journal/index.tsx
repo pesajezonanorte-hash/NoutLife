@@ -11,7 +11,7 @@ import * as journalService from '../../services/journal.service';
 import { relativeTime } from '../../lib/time';
 import { SageContextButton } from '../../components/sage/SageContextButton';
 import { E } from '@/components/ui/glyphs';
-import ModernLoader from '@/components/ui/modern-loader';
+import ModernLoader from '@/components/ui/modern-loader-adapted';
 import { LoadingGate } from '@/components/ui/LoadingGate';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 

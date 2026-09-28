@@ -10,7 +10,7 @@ import * as loveService from '../../services/love.service';
 import api from '../../lib/api';
 import { SageContextButton } from '../../components/sage/SageContextButton';
 import { E } from '@/components/ui/glyphs';
-import ModernLoader from '@/components/ui/modern-loader';
+import ModernLoader from '@/components/ui/modern-loader-adapted';
 import { useLoadingVisibility } from '@/components/ui/LoadingGate';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 

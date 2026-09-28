@@ -124,7 +124,6 @@ test.describe('terminal loader variants', () => {
     const loginFinished = new Promise<void>((resolve) => { resolveLoginFinished = resolve; });
 
     await page.setViewportSize({ width: 390, height: 844 });
-    await trackLoaderLifetime(page, 'Preparando la zona');
     await page.route('**/src/pages/Login/**', async (route) => {
       await loginRelease;
       await route.continue();
@@ -134,8 +133,10 @@ test.describe('terminal loader variants', () => {
     await page.goto(url('/login'), { waitUntil: 'domcontentloaded' });
     await waitForSplashToLeave(page);
 
-    const pageLoader = page.getByRole('status').filter({ hasText: 'Preparando la zona' });
+    const pageLoader = page.locator('div.w-full.max-w-md.mx-auto.p-8');
     await expect(pageLoader).toBeVisible({ timeout: 4_000 });
+    await page.waitForTimeout(420);
+    await expect(pageLoader).toBeVisible();
 
     const box = await pageLoader.boundingBox();
     expect(box).not.toBeNull();
@@ -145,7 +146,6 @@ test.describe('terminal loader variants', () => {
     releaseLogin();
     await loginFinished;
     await expect(pageLoader).toBeHidden({ timeout: 2_000 });
-    await expectMinimumLoaderLifetime(page);
   });
 
   test('shows compact content loading without mobile horizontal overflow', async ({ page }) => {

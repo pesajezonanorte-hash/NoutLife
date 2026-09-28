@@ -6,7 +6,7 @@ import { useUIStore } from '../../store/uiStore';
 import { refreshUser } from '../../hooks/useAuth';
 import api from '../../lib/api';
 import { E } from '@/components/ui/glyphs';
-import ModernLoader from '@/components/ui/modern-loader';
+import ModernLoader from '@/components/ui/modern-loader-adapted';
 import { useLoadingVisibility } from '@/components/ui/LoadingGate';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 

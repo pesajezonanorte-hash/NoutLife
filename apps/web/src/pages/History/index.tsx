@@ -5,7 +5,7 @@ import { PixelPanel } from '../../components/ui/PixelPanel';
 import { fetchHistory, fetchDayDetail } from '../../services/history.service';
 import type { HistorySummary, DayDetail } from '../../services/history.service';
 import { E } from '@/components/ui/glyphs';
-import ModernLoader from '@/components/ui/modern-loader';
+import ModernLoader from '@/components/ui/modern-loader-adapted';
 import { LoadingGate } from '@/components/ui/LoadingGate';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 

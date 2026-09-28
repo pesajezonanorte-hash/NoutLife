@@ -28,7 +28,7 @@ import type {
   SleepTrendPoint,
   StatsPredictions,
 } from '@/services/stats.service';
-import ModernLoader from '@/components/ui/modern-loader';
+import ModernLoader from '@/components/ui/modern-loader-adapted';
 import { LoadingGate } from '@/components/ui/LoadingGate';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 

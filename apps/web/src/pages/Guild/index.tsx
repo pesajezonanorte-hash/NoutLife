@@ -9,7 +9,7 @@ import { AvatarDisplay } from '../../components/character/AvatarDisplay';
 import { PixelPanel } from '../../components/ui/PixelPanel';
 import { PixelButton } from '../../components/ui/PixelButton';
 import { E } from '@/components/ui/glyphs';
-import ModernLoader from '@/components/ui/modern-loader';
+import ModernLoader from '@/components/ui/modern-loader-adapted';
 import { useLoadingVisibility } from '@/components/ui/LoadingGate';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 

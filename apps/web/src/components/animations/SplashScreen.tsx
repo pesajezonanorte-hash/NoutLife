@@ -52,7 +52,7 @@ export function SplashScreen({ ready, onDone }: Props) {
           exit={{ opacity: 0 }}
           transition={{ duration: reduceMotion ? 0 : 0.3, ease: [0.22, 1, 0.36, 1] }}
         >
-          <ModernLoader variant="screen" words={LOADING_COPY.splash} progress={progress} ready={isReady} />
+          <ModernLoader words={[...LOADING_COPY.splash]} />
         </motion.div>
       ) : null}
     </AnimatePresence>

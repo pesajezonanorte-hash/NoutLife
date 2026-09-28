@@ -11,7 +11,7 @@
     "result": "4 passed",
     "fullSuite": "5 passed; 3 skipped because credentialed or mutation E2E variables were intentionally unset",
     "checks": [
-      "page loader and its minimum visible window after a delayed lazy public route resolves",
+      "literal page loader remains stable while a delayed lazy public route resolves",
       "compact loader width and height at 360, 390 and 430 px",
       "compact minimum visible window after a manually released request",
       "reduced-motion terminal without running child animations"
@@ -23,9 +23,10 @@
   },
   "captures": [
     "loader-splash.png",
-    "loader-page.png",
+    "loader-page.png (authenticated zone)",
     "loader-compact-achievements.png",
     "loader-compact-food-dark.png",
     "loader-reduced-motion.png"
-  ]
+  ],
+  "component": "Literal modern-loader.tsx using motion/react for splash and zone loading; adapted compact loader retained for content states."
 }

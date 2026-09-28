@@ -23,7 +23,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { resolveGlyph } from '@/components/ui/glyphs';
 import { cn } from '@/lib/utils';
-import ModernLoader from '@/components/ui/modern-loader';
+import ModernLoader from '@/components/ui/modern-loader-adapted';
 import { LoadingGate } from '@/components/ui/LoadingGate';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 import { ClippedAreaChart, type XpChartDatum } from './advanced-stats-utils/charts';

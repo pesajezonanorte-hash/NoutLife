@@ -6,7 +6,7 @@ import { PixelButton } from '../../components/ui/PixelButton';
 import { useToastStore } from '../../hooks/useToast';
 import api from '../../lib/api';
 import { E } from '@/components/ui/glyphs';
-import ModernLoader from '@/components/ui/modern-loader';
+import ModernLoader from '@/components/ui/modern-loader-adapted';
 import { LoadingGate } from '@/components/ui/LoadingGate';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 

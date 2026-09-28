@@ -1,312 +1,232 @@
 "use client";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { cn } from "@/lib/utils";
+import TypeAnimation from "@/components/ui/modern-loader-utils/typeanimation";
 
-import { useEffect, useMemo, useState } from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { cn } from '@/lib/utils';
-import { usePageVisibility } from './LoadingGate';
-
-interface LoaderSegment {
-  width: number;
-  tone: 'muted' | 'secondary' | 'gold' | 'success' | 'danger';
-  circle?: boolean;
+interface ModernLoaderProps {
+  words?: string[];
 }
 
-interface LoaderLine {
-  id: number;
-  indent?: number;
-  segments: LoaderSegment[];
-}
+const ModernLoader: React.FC<ModernLoaderProps> = ({
+  words = [
+    "Setting things up...",
+    "Initializing modules...",
+    "Almost ready...",
+  ],
+}) => {
+  const [currentLine, setCurrentLine] = useState(0);
+  const [cursorVisible, setCursorVisible] = useState(true);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-export type ModernLoaderVariant = 'screen' | 'page' | 'compact';
+  const colors = useMemo(
+    () => [
+      "bg-gray-500",
+      "bg-teal-500",
+      "bg-blue-500",
+      "bg-gray-600",
+      "bg-pink-500",
+    ],
+    [],
+  );
+  const BUFFER = 20;
+  const MAX_LINES = 100;
 
-export interface ModernLoaderProps {
-  /** Layout intent. `screen` preserves the launch-terminal presentation. */
-  variant?: ModernLoaderVariant;
-  /** Status messages typed into the terminal title or command line. */
-  words?: readonly string[];
-  /** Real progress supplied by the caller. Omit it for indeterminate loading. */
-  progress?: number;
-  /** Stops the stream and presents a completed terminal state. */
-  ready?: boolean;
-  className?: string;
-}
+  const generateLines = useCallback(
+    (count = 20) =>
+      Array.from({ length: count }, (_, idx) => ({
+        id: Date.now() + idx,
+        segments: Array.from(
+          { length: Math.floor(Math.random() * 4) + 1 },
+          () => ({
+            width: `${Math.floor(Math.random() * 80) + 50}px`,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            isCircle: Math.random() > 0.93,
+            indent: Math.random() > 0.7 ? 1 : 0,
+          }),
+        ),
+      })),
+    [colors],
+  );
 
-const DEFAULT_WORDS = [
-  'Iniciando tus herramientas…',
-  'Sincronizando tu progreso…',
-  'Preparando tu jornada…',
-] as const;
+  const [lines, setLines] = useState(() => generateLines());
 
-const LINE_TEMPLATES: LoaderLine[] = [
-  { id: 1, segments: [{ width: 24, tone: 'secondary' }] },
-  { id: 2, segments: [{ width: 12, tone: 'gold' }, { width: 6, tone: 'muted', circle: true }, { width: 28, tone: 'gold' }, { width: 17, tone: 'gold' }] },
-  { id: 3, indent: 1, segments: [{ width: 37, tone: 'muted' }, { width: 19, tone: 'secondary' }] },
-  { id: 4, segments: [{ width: 42, tone: 'success' }, { width: 25, tone: 'secondary' }, { width: 29, tone: 'gold' }] },
-  { id: 5, segments: [{ width: 13, tone: 'gold' }, { width: 31, tone: 'success' }] },
-  { id: 6, indent: 1, segments: [{ width: 20, tone: 'gold' }, { width: 15, tone: 'muted' }] },
-  { id: 7, segments: [{ width: 27, tone: 'secondary' }, { width: 11, tone: 'danger' }, { width: 35, tone: 'muted' }] },
-  { id: 8, indent: 1, segments: [{ width: 46, tone: 'success' }, { width: 18, tone: 'secondary' }] },
-  { id: 9, segments: [{ width: 15, tone: 'gold' }, { width: 8, tone: 'muted', circle: true }, { width: 32, tone: 'muted' }] },
-  { id: 10, segments: [{ width: 39, tone: 'secondary' }] },
-  { id: 11, indent: 1, segments: [{ width: 22, tone: 'success' }, { width: 24, tone: 'gold' }] },
-  { id: 12, segments: [{ width: 19, tone: 'muted' }, { width: 42, tone: 'secondary' }] },
-];
+  const getVisibleRange = () => {
+    const start = Math.max(0, currentLine - BUFFER);
+    const end = Math.min(lines.length, currentLine + BUFFER);
+    return { start, end };
+  };
 
-const TONE_COLOR: Record<LoaderSegment['tone'], string> = {
-  muted: 'var(--text-muted)',
-  secondary: 'var(--text-secondary)',
-  gold: 'var(--accent-gold)',
-  success: 'var(--accent-green)',
-  danger: 'var(--accent-red)',
-};
-
-const VARIANT_CONFIG: Record<ModernLoaderVariant, {
-  lineLimit: number;
-  container: string;
-  body: string;
-  lineGap: string;
-  showWindowChrome: boolean;
-}> = {
-  screen: {
-    lineLimit: 9,
-    container: 'max-w-[30rem]',
-    body: 'h-[13.5rem] px-5 py-4 sm:h-56',
-    lineGap: 'gap-2',
-    showWindowChrome: true,
-  },
-  page: {
-    lineLimit: 7,
-    container: 'max-w-[28rem]',
-    body: 'h-48 px-5 py-4 sm:h-52',
-    lineGap: 'gap-2',
-    showWindowChrome: true,
-  },
-  compact: {
-    lineLimit: 3,
-    container: 'max-w-none',
-    body: 'h-28 px-4 py-3',
-    lineGap: 'gap-1.5',
-    showWindowChrome: false,
-  },
-};
-
-function useTypewriter(
-  words: readonly string[],
-  complete: boolean,
-  reduceMotion: boolean,
-  paused: boolean,
-) {
-  const safeWords = words.length ? words : DEFAULT_WORDS;
-  const [wordIndex, setWordIndex] = useState(0);
-  const [letterCount, setLetterCount] = useState(0);
-  const [deleting, setDeleting] = useState(false);
-  const activeWord = complete ? 'Tu espacio está listo.' : safeWords[wordIndex % safeWords.length];
+  const { start: visibleStart, end: visibleEnd } = getVisibleRange();
 
   useEffect(() => {
-    if (complete || reduceMotion) {
-      setLetterCount(activeWord.length);
-      setDeleting(false);
-      return undefined;
+    if (containerRef.current) {
+      containerRef.current.scrollTop = containerRef.current.scrollHeight;
     }
-
-    if (paused) return undefined;
-
-    const atEnd = letterCount >= activeWord.length;
-    const atStart = letterCount === 0;
-    const delay = deleting ? 18 : atEnd ? 1_000 : 32;
-    const timer = window.setTimeout(() => {
-      if (atEnd && !deleting) {
-        setDeleting(true);
-      } else if (atStart && deleting) {
-        setDeleting(false);
-        setWordIndex((current) => (current + 1) % safeWords.length);
-      } else {
-        setLetterCount((current) => current + (deleting ? -1 : 1));
-      }
-    }, delay);
-
-    return () => window.clearTimeout(timer);
-  }, [activeWord, complete, deleting, letterCount, paused, reduceMotion, safeWords.length]);
-
-  return activeWord.slice(0, letterCount);
-}
-
-/**
- * A compact, theme-aware terminal stream for launch, route, and content states.
- * New code-like lines write in at the bottom and gently move older lines up.
- */
-export default function ModernLoader({
-  variant = 'screen',
-  words = DEFAULT_WORDS,
-  progress,
-  ready = false,
-  className,
-}: ModernLoaderProps) {
-  const reduceMotion = useReducedMotion() ?? false;
-  const isPageVisible = usePageVisibility();
-  const canAnimate = !reduceMotion && isPageVisible;
-  const config = VARIANT_CONFIG[variant];
-  const isCompact = variant === 'compact';
-  const hasProgress = typeof progress === 'number';
-  const [lineCursor, setLineCursor] = useState(4);
-  const text = useTypewriter(words, ready, reduceMotion, !isPageVisible);
-  const clampedProgress = typeof progress === 'number' ? Math.max(0, Math.min(100, Math.round(progress))) : 0;
-  const accessibleMessage = ready
-    ? 'LifeQuest está listo.'
-    : `${words[0] ?? DEFAULT_WORDS[0]}${hasProgress ? ` ${clampedProgress} por ciento.` : ''}`;
-  const visibleLines = useMemo(() => {
-    const visibleCount = Math.min(config.lineLimit, lineCursor + 1);
-    const firstSequence = Math.max(0, lineCursor - visibleCount + 1);
-    return Array.from({ length: visibleCount }, (_, index) => {
-      const sequence = firstSequence + index;
-      return { line: LINE_TEMPLATES[sequence % LINE_TEMPLATES.length], sequence };
-    });
-  }, [config.lineLimit, lineCursor]);
-  const cursorLine = LINE_TEMPLATES[(lineCursor + 1) % LINE_TEMPLATES.length];
-  const showProgress = variant === 'screen' && hasProgress;
+  }, [currentLine]);
 
   useEffect(() => {
-    if (ready || !canAnimate) return undefined;
-    const interval = window.setInterval(() => setLineCursor((current) => current + 1), 360);
-    return () => window.clearInterval(interval);
-  }, [canAnimate, ready]);
+    const timer = setTimeout(() => {
+      setCurrentLine((prev) => {
+        const nextLine = prev + 1;
+        if (nextLine >= lines.length - 10)
+          setLines((old) => [...old, ...generateLines(50)]);
+        return nextLine;
+      });
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [currentLine, lines.length, generateLines]);
+
+  useEffect(() => {
+    const interval = setInterval(() => setCursorVisible((prev) => !prev), 530);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const cleanup = () => {
+      if (lines.length > MAX_LINES && currentLine > BUFFER * 2) {
+        setLines((oldLines) => {
+          const safeIndex = currentLine - BUFFER * 2;
+          if (safeIndex > 0) {
+            setCurrentLine((prev) => prev - safeIndex);
+            return oldLines.slice(safeIndex);
+          }
+          return oldLines;
+        });
+      }
+    };
+    const interval = setInterval(cleanup, 5000);
+    return () => clearInterval(interval);
+  }, [currentLine, lines.length]);
+
+  const visibleLines = lines.slice(visibleStart, visibleEnd);
 
   return (
-    <div
-      className={cn('w-full', config.container, className)}
-      role="status"
-      aria-live="polite"
-      aria-atomic="true"
-      aria-busy={!ready}
-    >
-      <span className="sr-only">{accessibleMessage}</span>
-
-      <motion.section
-        aria-hidden="true"
-        className={cn(
-          'overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]',
-          isCompact ? 'shadow-sm' : 'shadow-lg',
-        )}
-        initial={canAnimate ? { opacity: 0, y: 12, scale: 0.985 } : false}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: canAnimate ? 0.38 : 0, ease: [0.22, 1, 0.36, 1] }}
+    <div className="w-full max-w-md mx-auto p-8">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.3 }}
+        className="relative bg-background h-75 rounded-2xl shadow-2xl overflow-hidden border border-border"
       >
-        {config.showWindowChrome ? (
-          <div className="flex h-11 items-center border-b border-[var(--border-soft)] px-4">
-            <div className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-[var(--accent-red)]/90" />
-              <span className="h-2.5 w-2.5 rounded-full bg-[var(--accent-gold)]/90" />
-              <span className="h-2.5 w-2.5 rounded-full bg-[var(--accent-green)]/90" />
-            </div>
-            <div className="ml-4 min-w-0 flex-1 truncate text-center font-mono text-[11px] text-[var(--text-muted)]">
-              <span>{text}</span>
-              {!ready ? (
-                <motion.span
-                  className="ml-0.5 inline-block h-3 w-px translate-y-0.5 bg-[var(--accent-gold)]"
-                  animate={canAnimate ? { opacity: [1, 1, 0, 0] } : { opacity: 1 }}
-                  transition={canAnimate ? { duration: 0.82, repeat: Infinity, ease: 'linear' } : { duration: 0 }}
-                />
-              ) : null}
-            </div>
-            {showProgress ? (
-              <span className="w-8 shrink-0 text-right font-mono text-[10px] tabular-nums text-[var(--text-muted)]">{clampedProgress}%</span>
-            ) : null}
+        <div className="px-4 py-3 flex items-center z-10 relative">
+          <div className="flex items-center gap-1.5">
+            <motion.div className="w-2 xs:w-2.5 sm:w-3 h-2 xs:h-2.5 sm:h-3 rounded-full bg-red-500" />
+            <motion.div className="w-2 xs:w-2.5 sm:w-3 h-2 xs:h-2.5 sm:h-3 rounded-full bg-yellow-500" />
+            <motion.div className="w-2 xs:w-2.5 sm:w-3 h-2 xs:h-2.5 sm:h-3 rounded-full bg-green-500" />
           </div>
-        ) : null}
 
-        <div className={cn('relative overflow-hidden', config.body)}>
           <motion.div
-            className={cn('flex h-full flex-col justify-end', config.lineGap)}
-            animate={ready ? { opacity: 0.58 } : { opacity: 1 }}
-            transition={{ duration: canAnimate ? 0.22 : 0 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="flex-1 text-center"
           >
-            {isCompact ? (
-              <div className="flex min-w-0 items-center gap-1.5 font-mono text-[10px] text-[var(--text-muted)]">
-                <span className="truncate">{text}</span>
-                {!ready ? (
-                  <motion.span
-                    className="h-3 w-px shrink-0 bg-[var(--accent-gold)]"
-                    animate={canAnimate ? { opacity: [1, 1, 0, 0] } : { opacity: 1 }}
-                    transition={canAnimate ? { duration: 0.82, repeat: Infinity, ease: 'linear' } : { duration: 0 }}
-                  />
-                ) : null}
-              </div>
-            ) : null}
-
-            <AnimatePresence initial={false}>
-              {visibleLines.map(({ line, sequence }) => (
-                <motion.div
-                  key={sequence}
-                  layout={canAnimate}
-                  className={cn('flex h-3 shrink-0 items-center gap-2', line.indent ? 'pl-4' : '')}
-                  initial={canAnimate ? { opacity: 0, y: 8 } : false}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={canAnimate ? { opacity: 0, y: -7 } : undefined}
-                  transition={{
-                    opacity: { duration: canAnimate ? 0.18 : 0 },
-                    y: { duration: canAnimate ? 0.18 : 0, ease: 'easeOut' },
-                    layout: { duration: canAnimate ? 0.24 : 0, ease: [0.22, 1, 0.36, 1] },
-                  }}
-                >
-                  {line.segments.map((segment, segmentIndex) => (
-                    segment.circle ? (
-                      <motion.span
-                        key={segmentIndex}
-                        className="h-3 w-3 shrink-0 rounded-full"
-                        style={{ backgroundColor: TONE_COLOR[segment.tone], opacity: 0.55 }}
-                        initial={canAnimate ? { scale: 0 } : false}
-                        animate={{ scale: 1 }}
-                        transition={{ duration: canAnimate ? 0.18 : 0, delay: canAnimate ? segmentIndex * 0.04 : 0 }}
-                      />
-                    ) : (
-                      <motion.span
-                        key={segmentIndex}
-                        className="h-2.5 shrink-0 origin-left rounded-sm"
-                        style={{ width: `${segment.width}%`, backgroundColor: TONE_COLOR[segment.tone], opacity: 0.58 }}
-                        initial={canAnimate ? { scaleX: 0 } : false}
-                        animate={{ scaleX: 1 }}
-                        transition={{ duration: canAnimate ? 0.24 : 0, delay: canAnimate ? segmentIndex * 0.045 : 0, ease: [0.22, 1, 0.36, 1] }}
-                      />
-                    )
-                  ))}
-                </motion.div>
-              ))}
-            </AnimatePresence>
-
-            {!ready ? (
-              <motion.div
-                key={`cursor-${lineCursor}`}
-                layout={canAnimate}
-                className={cn('flex h-3 shrink-0 items-center', cursorLine.indent ? 'pl-4' : '')}
-                initial={canAnimate ? { opacity: 0, y: 6 } : false}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: canAnimate ? 0.16 : 0, ease: 'easeOut' }}
-              >
-                <motion.span
-                  className="h-3 w-px bg-[var(--accent-gold)]"
-                  animate={canAnimate ? { opacity: [1, 1, 0, 0] } : { opacity: 1 }}
-                  transition={canAnimate ? { duration: 0.74, repeat: Infinity, ease: 'linear' } : { duration: 0 }}
-                />
-              </motion.div>
-            ) : null}
+            <TypeAnimation
+              words={words}
+              typingSpeed="slow"
+              deletingSpeed="slow"
+              pauseDuration={2000}
+              className="text-muted-foreground text-xs font-mono"
+            />
           </motion.div>
-
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-[linear-gradient(to_bottom,transparent,var(--bg-panel))]" />
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-7 bg-[linear-gradient(to_top,transparent,var(--bg-panel))]" />
         </div>
 
-        {showProgress ? (
-          <div className="border-t border-[var(--border-soft)] px-4 py-3">
-            <div className="h-1 overflow-hidden rounded-full bg-[var(--bg-muted)]">
+        <div
+          ref={containerRef}
+          className="relative px-5 py-4 font-mono text-sm overflow-y-hidden h-[calc(100%-48px)]"
+        >
+          <div className="space-y-2 relative z-10">
+            <AnimatePresence mode="sync">
+              {visibleLines.map((line, idx) => {
+                const actualIndex = visibleStart + idx;
+                if (actualIndex >= currentLine) return null;
+                const extraMargin = (idx + 1) % 4 === 0 ? "mt-2" : "";
+                const paddingClass = line.segments[0]?.indent ? "pl-4" : "";
+                return (
+                  <React.Fragment key={line.id}>
+                    <motion.div
+                      className={cn(
+                        "flex items-center gap-2 h-5",
+                        extraMargin,
+                        paddingClass,
+                      )}
+                      initial={{ opacity: 0, x: -5 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.2, ease: "easeOut" }}
+                    >
+                      {line.segments.map((seg, i) =>
+                        seg.isCircle ? (
+                          <motion.div
+                            key={i}
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            transition={{ duration: 0.2, delay: 0.05 }}
+                            className={cn(
+                              "w-4 h-4 rounded-full opacity-50",
+                              seg.color,
+                            )}
+                          />
+                        ) : (
+                          <motion.div
+                            key={i}
+                            initial={{ width: 0 }}
+                            animate={{ width: seg.width }}
+                            transition={{ duration: 0.25, ease: "easeOut" }}
+                            className={cn(
+                              "h-3 rounded-sm opacity-50",
+                              seg.color,
+                            )}
+                            style={{ width: seg.width }}
+                          />
+                        ),
+                      )}
+                    </motion.div>
+
+                    {(actualIndex + 1) % 6 === 0 && (
+                      <motion.div
+                        className="w-full h-1 bg-background rounded-sm opacity-30"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.3 }}
+                      />
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </AnimatePresence>
+
+            {currentLine < lines.length && (
               <motion.div
-                className="h-full rounded-full bg-[var(--accent-gold)]"
-                animate={{ width: `${clampedProgress}%` }}
-                transition={{ duration: canAnimate ? 0.26 : 0, ease: [0.22, 1, 0.36, 1] }}
-              />
-            </div>
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex items-center h-5"
+                style={{
+                  paddingLeft: `${
+                    lines[currentLine]?.segments[0]?.indent ? 16 : 0
+                  }px`,
+                }}
+              >
+                <motion.div
+                  animate={{ opacity: cursorVisible ? 1 : 0 }}
+                  transition={{ duration: 0.1 }}
+                  className="w-0.5 h-3.5 bg-blue-500"
+                />
+              </motion.div>
+            )}
           </div>
-        ) : null}
-      </motion.section>
+        </div>
+      </motion.div>
     </div>
   );
-}
+};
+
+export default ModernLoader;

@@ -6,7 +6,7 @@ import { AchievementCard } from '../../components/achievements/AchievementCard';
 import { fetchAchievements } from '../../services/achievement.service';
 import type { Achievement } from '../../services/achievement.service';
 import { E } from '@/components/ui/glyphs';
-import ModernLoader from '@/components/ui/modern-loader';
+import ModernLoader from '@/components/ui/modern-loader-adapted';
 import { LoadingGate } from '@/components/ui/LoadingGate';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 
