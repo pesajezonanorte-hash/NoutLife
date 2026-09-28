@@ -15,6 +15,15 @@ import { E } from '@/components/ui/glyphs';
 
 const MUSCLE_GROUPS = ['Todos', 'Pecho', 'Espalda', 'Hombros', 'Bíceps', 'Tríceps', 'Piernas', 'Core', 'Cardio'];
 
+type GymTab = 'history' | 'routines' | 'analytics' | 'photos';
+
+const GYM_TABS: Array<{ id: GymTab; label: string; helper: string; icon: string }> = [
+  { id: 'history', label: 'Historial', helper: 'Tus sesiones', icon: '📜' },
+  { id: 'routines', label: 'Rutinas', helper: 'Planes listos', icon: '📋' },
+  { id: 'analytics', label: 'Análisis', helper: 'Tu rendimiento', icon: '📈' },
+  { id: 'photos', label: 'Progreso', helper: 'Fotos y cambios', icon: '📸' },
+];
+
 interface ActiveSet {
   id: string;
   weight: string;
@@ -56,6 +65,53 @@ function WorkoutTimer({ startTime }: { startTime: number }) {
     <span className="font-pixel text-accent-gold" style={{ fontSize: '11px' }}>
       ⏱ {formatDuration(Date.now() - startTime)}
     </span>
+  );
+}
+
+function GymEmptySurface({
+  eyebrow,
+  title,
+  description,
+  icon,
+  actionLabel,
+  onAction,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+  icon: string;
+  actionLabel: string;
+  onAction: () => void;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+    >
+      <PixelPanel className="relative overflow-hidden p-0">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 opacity-80"
+          style={{
+            background: 'radial-gradient(circle at 86% 15%, color-mix(in srgb, var(--accent-gold) 18%, transparent), transparent 31%), linear-gradient(135deg, color-mix(in srgb, var(--accent-gold) 7%, var(--bg-panel)), var(--bg-panel) 55%)',
+          }}
+        />
+        <div className="relative flex flex-col items-start gap-5 p-5 sm:flex-row sm:items-center sm:gap-6 sm:p-7">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[var(--accent-gold)]/45 bg-[var(--accent-gold)]/10 text-[var(--accent-gold)] shadow-lg">
+            <E e={icon} s={28} strokeWidth={1.65} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--accent-gold)]">{eyebrow}</p>
+            <h2 className="mt-1 text-xl font-bold tracking-tight text-[var(--text-primary)] sm:text-2xl">{title}</h2>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--text-secondary)] sm:text-base">{description}</p>
+          </div>
+          <PixelButton variant="primary" size="lg" onClick={onAction} className="w-full sm:w-auto">
+            <E e="⚔" s={16} /> {actionLabel}
+          </PixelButton>
+        </div>
+      </PixelPanel>
+    </motion.div>
   );
 }
 
@@ -570,7 +626,7 @@ export default function GymPage() {
   const [showStartModal, setShowStartModal] = useState(false);
   const [showRestTimer, setShowRestTimer] = useState(false);
   const [newTitle, setNewTitle] = useState('');
-  const [tab, setTab] = useState<'history' | 'routines' | 'analytics' | 'photos'>('history');
+  const [tab, setTab] = useState<GymTab>('history');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -725,62 +781,87 @@ export default function GymPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="font-pixel text-accent-gold" style={{ fontSize: '14px' }}>
-            <E e="⚔" /> EL COLISEO
-          </h1>
-          <p className="font-vt text-text-secondary text-base">Forja tu cuerpo, héroe</p>
+      <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-4 shadow-[var(--shadow-sm)] sm:p-5">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex min-w-0 items-center gap-3.5">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[var(--accent-gold)]/45 bg-[var(--accent-gold)]/10 text-[var(--accent-gold)]">
+              <E e="⚔" s={24} strokeWidth={1.7} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--accent-gold)]">Zona de entrenamiento</p>
+              <h1 className="mt-0.5 text-2xl font-bold tracking-tight text-[var(--text-primary)]">El Coliseo</h1>
+              <p className="mt-0.5 text-sm text-[var(--text-secondary)]">Forja tu cuerpo, héroe.</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+            <SageContextButton
+              message="¿Qué entreno hoy? Sugiere un workout basado en mi historial y los días que llevo sin entrenar."
+              label="¿Qué entreno hoy?"
+              className="col-span-2 min-h-11 w-full justify-center px-3.5 text-sm sm:w-auto"
+            />
+            <PixelButton variant="ghost" size="lg" onClick={() => setShowRestTimer(true)} className="w-full sm:w-auto">
+              <E e="⏱" s={16} /> Descanso
+            </PixelButton>
+            <PixelButton variant="primary" size="lg" onClick={() => setShowStartModal(true)} className="w-full sm:w-auto">
+              <E e="⚔" s={16} /> Iniciar
+            </PixelButton>
+          </div>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <SageContextButton message="¿Qué entreno hoy? Sugiere un workout basado en mi historial y los días que llevo sin entrenar." label="¿Qué entreno hoy?" />
-          <PixelButton variant="ghost" onClick={() => setShowRestTimer(true)}>
-            ⏱ DESCANSO
-          </PixelButton>
-          <PixelButton variant="primary" onClick={() => setShowStartModal(true)}>
-            <E e="⚔" /> INICIAR
-          </PixelButton>
-        </div>
+      </section>
+
+      <div
+        role="tablist"
+        aria-label="Secciones del Coliseo"
+        className="grid grid-cols-2 gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-panel-light)] p-2 sm:grid-cols-4"
+      >
+        {GYM_TABS.map(({ id, label, helper, icon }) => {
+          const isActive = tab === id;
+          return (
+            <button
+              key={id}
+              id={`gym-tab-${id}`}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              aria-controls={`gym-panel-${id}`}
+              onClick={() => setTab(id)}
+              className={`flex min-h-14 min-w-0 items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left transition-[border-color,background-color,color,box-shadow] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-deep)] ${
+                isActive
+                  ? 'border-[var(--accent-gold)]/60 bg-[var(--accent-gold)]/12 text-[var(--text-primary)] shadow-[var(--shadow-sm)]'
+                  : 'border-transparent bg-transparent text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-panel)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border ${
+                isActive
+                  ? 'border-[var(--accent-gold)]/45 bg-[var(--accent-gold)]/12 text-[var(--accent-gold)]'
+                  : 'border-[var(--border)] bg-[var(--bg-panel)] text-[var(--text-muted)]'
+              }`}>
+                <E e={icon} s={16} strokeWidth={1.8} />
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-bold leading-4">{label}</span>
+                <span className="mt-0.5 block truncate text-[11px] leading-4 text-[var(--text-muted)]">{helper}</span>
+              </span>
+            </button>
+          );
+        })}
       </div>
 
-      {/* Tabs */}
-      <div className="grid grid-cols-2 gap-1">
-        {([
-          { id: 'history',   label: 'HISTORIAL' },
-          { id: 'routines',  label: 'RUTINAS' },
-          { id: 'analytics', label: 'ANÁLISIS' },
-          { id: 'photos',    label: 'PROGRESO' },
-        ] as const).map(({ id, label }) => (
-          <button
-            key={id}
-            onClick={() => setTab(id)}
-            className={`min-h-11 font-pixel px-3 py-2 border-b-2 transition-colors ${
-              tab === id
-                ? 'border-accent-gold text-accent-gold'
-                : 'border-transparent text-text-secondary hover:text-text-primary'
-            }`}
-            style={{ fontSize: '8px' }}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
+      <div id={`gym-panel-${tab}`} role="tabpanel" aria-labelledby={`gym-tab-${tab}`}>
       {loading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => <div key={i} className="skeleton h-24 rounded-2xl" />)}
         </div>
       ) : tab === 'history' ? (
         workouts.length === 0 ? (
-          <PixelPanel className="p-8 text-center">
-            <p className="text-4xl mb-3"><E e="⚔" /></p>
-            <p className="font-pixel text-text-secondary" style={{ fontSize: '9px' }}>
-              EL COLISEO ESPERA
-            </p>
-            <p className="font-vt text-text-secondary text-base mt-1">
-              Inicia tu primer entrenamiento para comenzar
-            </p>
-          </PixelPanel>
+          <GymEmptySurface
+            eyebrow="Tu primera sesión"
+            title="El Coliseo está listo para ti"
+            description="Registra ejercicios, pesos y repeticiones para convertir cada entrenamiento en progreso visible."
+            icon="⚔"
+            actionLabel="Iniciar entrenamiento"
+            onAction={() => setShowStartModal(true)}
+          />
         ) : (
           <div className="space-y-3">
             {latestWorkout && (
@@ -859,9 +940,14 @@ export default function GymPage() {
         // Routines tab
         <div className="space-y-3">
           {routines.length === 0 ? (
-            <PixelPanel className="p-8 text-center">
-              <p className="font-vt text-text-secondary text-base">Sin rutinas aún</p>
-            </PixelPanel>
+            <GymEmptySurface
+              eyebrow="Rutinas"
+              title="Aún no tienes una rutina guardada"
+              description="Empieza una sesión libre y convierte tus ejercicios favoritos en una ruta fácil de repetir."
+              icon="📋"
+              actionLabel="Iniciar sesión libre"
+              onAction={() => setShowStartModal(true)}
+            />
           ) : (
             <>
               {featuredRoutine && (
@@ -947,6 +1033,7 @@ export default function GymPage() {
       {tab === 'photos' && (
         <ProgressPhotos />
       )}
+      </div>
 
       {/* Rest Timer Modal */}
       <AnimatePresence>
