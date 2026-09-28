@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Sparkles, Loader2, Trash2, ChevronDown, ChevronRight, CheckCircle2, Circle } from 'lucide-react';
 import { PixelPanel } from '../../components/ui/PixelPanel';
-import { LifeQuestFlipCard } from '../../components/ui/lifequest-flip-card';
 import { PixelButton } from '../../components/ui/PixelButton';
 import { useToastStore } from '../../hooks/useToast';
 import api from '../../lib/api';
@@ -599,7 +598,6 @@ export default function CustomZonesPage() {
   const [zones, setZones] = useState<CustomZone[]>([]);
   const [loading, setLoading] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
-  const featuredZone = zones[0];
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -629,28 +627,6 @@ export default function CustomZonesPage() {
           </PixelButton>
         )}
       </div>
-
-      {!loading && (
-        <LifeQuestFlipCard
-          eyebrow="Zona personalizada"
-          title={featuredZone?.name ?? 'Diseña una zona propia'}
-          description={featuredZone?.description ?? 'El Sabio puede convertir un área importante de tu vida en hábitos, retos y acciones concretas.'}
-          visual={<span className="text-6xl" aria-hidden="true"><E e={featuredZone?.icon ?? 'target'} s={64} /></span>}
-          visualLabel={featuredZone ? `Resumen de la zona ${featuredZone.name}` : 'Nueva zona personalizada'}
-          badge={featuredZone ? 'Activa' : 'Sin zonas'}
-          frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">{featuredZone ? `${featuredZone.quests.length} misiones · ${featuredZone.habits.length} hábitos` : `${zones.length}/10 zonas activas`}</p>}
-          backDescription={<p>{featuredZone ? 'Crea otra zona, revisa sus misiones y deja que el Sabio te ayude a convertirla en un sistema sostenible.' : 'Describe lo que quieres mejorar y genera una estructura guiada para esa parte de tu vida.'}</p>}
-          metrics={[
-            { label: 'Zonas', value: `${zones.length}/10` },
-            { label: 'Misiones', value: featuredZone?.quests.length ?? 0 },
-            { label: 'Hábitos', value: featuredZone?.habits.length ?? 0 },
-          ]}
-          actionLabel={featuredZone ? 'Crear otra zona' : 'Crear mi zona'}
-          onAction={() => setShowWizard(true)}
-          accent="var(--accent-gold)"
-          className="h-[clamp(21rem,54dvh,25rem)] min-h-[21rem] max-w-xl"
-        />
-      )}
 
       <AnimatePresence>
         {showWizard && (

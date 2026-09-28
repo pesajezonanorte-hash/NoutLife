@@ -275,8 +275,7 @@ export default function ShopPage() {
                       else setConfirmItem(featuredItem);
                     }}
                     accent="var(--accent-gold)"
-                    className="h-[clamp(23rem,60dvh,28rem)] min-h-[23rem] max-w-xl"
-                  />
+                    />
                 );
               })()}
 

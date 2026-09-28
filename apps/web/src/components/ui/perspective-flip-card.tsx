@@ -6,6 +6,7 @@ import {
   useState,
   type CSSProperties,
   type KeyboardEvent,
+  type PointerEvent,
   type ReactNode,
 } from 'react';
 import { RotateCcw } from 'lucide-react';
@@ -62,7 +63,7 @@ function useMediaMatch(query: string) {
     const update = () => setMatches(media.matches);
     update();
 
-    // `addListener` keeps the media change path working on older Safari/iOS.
+    // `addListener` preserves this path for older Safari/iOS releases.
     const compatibleMedia = media as unknown as {
       addEventListener?: (type: string, listener: () => void) => void;
       removeEventListener?: (type: string, listener: () => void) => void;
@@ -86,11 +87,12 @@ export function usePrefersReducedMotion() {
 }
 
 /**
- * A semantic, controlled-or-uncontrolled 3D flip shell.
+ * The LifeQuest adaptation of Card 14's real perspective flip.
  *
- * The front is a real button so Enter and Space work natively. The back has a
- * built-in return control and is the only side that receives interactive detail
- * actions. This avoids nesting buttons inside a click-to-navigate card.
+ * The original CSS group-hover transform is deliberately retained as the visual
+ * source of truth on mouse devices. React state mirrors the flip for keyboard,
+ * touch and accessibility, so the inactive face remains inert instead of merely
+ * being visually hidden.
  */
 export function PerspectiveFlipCard({
   front,
@@ -113,10 +115,13 @@ export function PerspectiveFlipCard({
   const previousFlipped = useRef(Boolean(flipped));
   const [uncontrolledFlipped, setUncontrolledFlipped] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
-  const canHover = useMediaMatch('(hover: hover) and (pointer: fine)');
   const prefersReducedMotion = useMediaMatch('(prefers-reduced-motion: reduce)');
+  const hasHoverPointer = useMediaMatch('(hover: hover) and (pointer: fine)');
   const isFlipped = flipped ?? uncontrolledFlipped;
-  const hoverEnabled = trigger === 'hover' || (trigger === 'auto' && canHover);
+  // `auto` must not install a sticky CSS :hover path on touch devices. Explicit
+  // hover remains useful for embedded desktop-only layouts, while tap always
+  // relies on the accessible button interaction below.
+  const hoverEnabled = trigger === 'hover' || (trigger === 'auto' && hasHoverPointer);
 
   const requestFlip = useCallback((next: boolean) => {
     if (next === isFlipped) return;
@@ -162,6 +167,18 @@ export function PerspectiveFlipCard({
     requestFlip(true);
   }
 
+  function handlePointerEnter(event: PointerEvent<HTMLDivElement>) {
+    // A CSS hover transform remains available even if a browser reports an
+    // unusual media capability. State is still updated for inert/ARIA parity.
+    if (!hoverEnabled || event.pointerType === 'touch') return;
+    requestFlip(true);
+  }
+
+  function handlePointerLeave(event: PointerEvent<HTMLDivElement>) {
+    if (!hoverEnabled || event.pointerType === 'touch') return;
+    requestFlip(false);
+  }
+
   function handleKeyDownCapture(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key !== 'Escape' || !isFlipped) return;
     event.preventDefault();
@@ -186,36 +203,36 @@ export function PerspectiveFlipCard({
   return (
     <div
       className={cn(
-        'group relative isolate h-[clamp(22rem,58dvh,30rem)] min-h-[22rem] w-full max-w-[28rem] [perspective:2000px]',
+        'group/p-card relative isolate h-[clamp(26rem,58dvh,31.25rem)] min-h-[26rem] w-full max-w-[22.5rem] [perspective:2000px]',
         prefersReducedMotion && '[perspective:none]',
         className,
       )}
-      onPointerEnter={() => {
-        if (hoverEnabled) requestFlip(true);
-      }}
-      onPointerLeave={() => {
-        if (hoverEnabled) requestFlip(false);
-      }}
+      data-flipped={isFlipped ? 'true' : 'false'}
+      onPointerEnter={handlePointerEnter}
+      onPointerLeave={handlePointerLeave}
       onKeyDownCapture={handleKeyDownCapture}
     >
       <div
         className={cn(
-          'relative h-full w-full transition-transform duration-[700ms] [transition-timing-function:cubic-bezier(0.22,1,0.36,1)]',
-          !prefersReducedMotion && '[transform-style:preserve-3d]',
-          prefersReducedMotion && 'transition-none',
+          'relative h-full w-full rounded-2xl transition-transform duration-700 [transform-style:preserve-3d] [transition-timing-function:cubic-bezier(0.22,1,0.36,1)]',
+          hoverEnabled && !prefersReducedMotion && 'group-hover/p-card:[transform:rotateY(180deg)]',
+          prefersReducedMotion && '[transform-style:flat] transition-none',
           isAnimating && !prefersReducedMotion && 'will-change-transform',
         )}
         style={prefersReducedMotion
           ? undefined
-          : { ...preserve3dStyle, transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}
+          : {
+              ...preserve3dStyle,
+              ...(isFlipped ? { transform: 'rotateY(180deg)' } : {}),
+            }}
       >
         <div
           aria-hidden={isFlipped}
           inert={isFlipped ? '' : undefined}
           className={cn(
-            'absolute inset-0 rounded-3xl border border-border bg-card shadow-lg transition-opacity',
-            prefersReducedMotion ? 'duration-200' : 'duration-150',
-            isFlipped && 'pointer-events-none opacity-0',
+            'absolute inset-0 rounded-2xl border border-border bg-card shadow-lg transition-opacity duration-150 [&_*]:[backface-visibility:hidden] [&_*]:[-webkit-backface-visibility:hidden]',
+            isFlipped && 'pointer-events-none',
+            prefersReducedMotion && isFlipped && 'opacity-0',
             frontClassName,
           )}
           style={faceStyle('front')}
@@ -242,14 +259,14 @@ export function PerspectiveFlipCard({
           inert={!isFlipped ? '' : undefined}
           aria-label={`Detalles de ${label}`}
           className={cn(
-            'absolute inset-0 flex min-h-0 flex-col rounded-3xl border border-border bg-card shadow-lg transition-opacity',
-            prefersReducedMotion ? 'duration-200' : 'duration-150',
-            !isFlipped && 'pointer-events-none opacity-0',
+            'absolute inset-0 flex min-h-0 flex-col rounded-2xl border border-border bg-card shadow-lg transition-opacity duration-150 [&_*]:[backface-visibility:hidden] [&_*]:[-webkit-backface-visibility:hidden]',
+            !isFlipped && 'pointer-events-none',
+            prefersReducedMotion && !isFlipped && 'opacity-0',
             backClassName,
           )}
           style={faceStyle('back')}
         >
-          <div className="pointer-events-none absolute right-4 top-4 z-10" style={depthStyle(46)}>
+          <div className="pointer-events-none absolute right-3 top-3 z-10" style={depthStyle(72)}>
             <button
               ref={backButtonRef}
               type="button"

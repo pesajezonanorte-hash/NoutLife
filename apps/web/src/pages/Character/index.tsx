@@ -49,6 +49,8 @@ export default function CharacterPage() {
         </h1>
       </motion.div>
 
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* ── Columna izquierda: ficha destacada ── */}
       <LifeQuestFlipCard
         eyebrow="Ficha del héroe"
         title={user.displayName}
@@ -71,86 +73,7 @@ export default function CharacterPage() {
         actionLabel="Cambiar apariencia"
         onAction={() => setCustomizerOpen(true)}
         accent="var(--accent-gold)"
-        className="h-[clamp(21rem,54dvh,25rem)] min-h-[21rem] max-w-xl"
       />
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* ── Columna izquierda: Visual ── */}
-        <PixelPanel animate className="p-5 flex flex-col items-center gap-4">
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-            className="relative"
-          >
-            {/* Aura glow effect */}
-            {user.equippedAura && AURA_STYLES[user.equippedAura] && (
-              <motion.div
-                className={`absolute inset-0 pointer-events-none ${isMinecraftSkin ? 'rounded-2xl' : 'rounded-full'}`}
-                style={{ background: AURA_STYLES[user.equippedAura].gradient, boxShadow: AURA_STYLES[user.equippedAura].shadow }}
-                animate={{ opacity: [0.7, 1, 0.7], scale: [1, 1.06, 1] }}
-                transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
-              />
-            )}
-            <div
-              className={`bg-[var(--bg-panel-light)] flex items-center justify-center relative ${
-                isMinecraftSkin ? 'h-40 w-36 rounded-2xl' : 'h-32 w-32 overflow-hidden rounded-full'
-              }`}
-              style={user.equippedFrame ? { border: '3px solid var(--accent-gold)', boxShadow: '0 0 14px var(--accent-gold)44' } : {}}
-            >
-              <AvatarDisplay
-                avatarConfig={avatarCfg}
-                avatarUrl={user.avatarUrl}
-                size={isMinecraftSkin ? 122 : 120}
-                animate="idle"
-              />
-            </div>
-          </motion.div>
-
-          <div className="text-center">
-            <p className="font-semibold text-sm text-[var(--text-primary)]">
-              {user.displayName}
-            </p>
-            <p className="text-xs mt-1 text-[var(--accent-gold)] font-semibold tracking-wide uppercase">
-              {getLevelTitle(user.level)}
-            </p>
-            <div className="flex items-center justify-center gap-2 mt-1">
-              <div className="bg-[var(--accent-gold)] text-white text-xs font-bold px-2.5 py-0.5 rounded-full">
-                LV {user.level}
-              </div>
-              <span className="text-sm text-[var(--text-secondary)]">
-                Día {daysSinceJoin} en LifeQuest
-              </span>
-            </div>
-          </div>
-
-          {/* Barra XP grande */}
-          <div className="w-full">
-            <div className="flex justify-between text-sm mb-1">
-              <span className="text-[var(--text-secondary)]">XP</span>
-              <span className="text-[var(--accent-gold)]">{user.xp.toLocaleString()} / {user.xpToNextLevel.toLocaleString()}</span>
-            </div>
-            <div className="stat-bar h-4">
-              <motion.div
-                className="stat-bar-fill bg-[var(--accent-gold)]"
-                initial={{ width: 0 }}
-                animate={{ width: `${xpPct}%` }}
-                transition={{ duration: 1.2, ease: 'easeOut' }}
-              />
-            </div>
-            <p className="text-xs text-[var(--text-secondary)] mt-0.5 text-right">{xpPct}%</p>
-          </div>
-
-          {/* Racha */}
-          <div className="flex items-center gap-2 bg-[var(--bg-panel-light)] border border-[var(--border)] rounded-lg px-3 py-2 w-full justify-center">
-            <span className="text-xl"><E e="🔥" /></span>
-            <span className="text-sm font-medium text-[var(--text-primary)]">{user.currentStreak} días de racha</span>
-          </div>
-
-          <PixelButton variant="secondary" onClick={() => setCustomizerOpen(true)} className="w-full text-xs">
-            <E e="✏" /> Cambiar apariencia
-          </PixelButton>
-        </PixelPanel>
 
         {/* ── Columna central: Stats ── */}
         <PixelPanel animate className="p-5 space-y-3">

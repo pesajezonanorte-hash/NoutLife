@@ -102,7 +102,6 @@ export default function AchievementsPage() {
           actionLabel={featuredAchievement.unlocked ? 'Ver detalle' : 'Ver avance'}
           onAction={() => setSelectedAch(featuredAchievement)}
           accent="var(--accent-gold)"
-          className="h-[clamp(21rem,54dvh,25rem)] min-h-[21rem] max-w-xl"
         />
       )}
 

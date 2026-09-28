@@ -487,7 +487,6 @@ export default function QuestsPage() {
             else setSelectedQuest(featuredQuest);
           }}
           accent="var(--accent-gold)"
-          className="h-[clamp(22rem,56dvh,26rem)] min-h-[22rem] max-w-xl"
         />
       )}
 

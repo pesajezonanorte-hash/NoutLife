@@ -743,28 +743,6 @@ export default function GymPage() {
         </div>
       </div>
 
-      {!loading && (
-        <LifeQuestFlipCard
-          eyebrow="Plan del Coliseo"
-          title={featuredRoutine?.name ?? latestWorkout?.title ?? 'Tu próximo entrenamiento'}
-          description={featuredRoutine?.description ?? (latestWorkout ? `Última sesión: ${new Date(latestWorkout.date).toLocaleDateString('es-CO')}. Prepárate para el siguiente desafío.` : 'Crea una rutina o inicia un entrenamiento para empezar a forjar tu progreso.')}
-          visual={<span className="text-6xl" aria-hidden="true"><E e="🏋️" s={64} /></span>}
-          visualLabel="Resumen del Coliseo"
-          badge={featuredRoutine ? 'Rutina disponible' : latestWorkout ? 'Última sesión' : 'Por empezar'}
-          frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">{featuredRoutine ? `${(featuredRoutine.exercises as Array<unknown>).length} ejercicios preparados` : `${workouts.length} entrenamientos registrados`}</p>}
-          backDescription={<p>{featuredRoutine ? 'Inicia esta rutina desde el reverso para cargar sus ejercicios y registrar cada serie.' : 'Abre un nuevo entrenamiento y añade los ejercicios que tocarán hoy.'}</p>}
-          metrics={[
-            { label: 'Rutinas', value: routines.length },
-            { label: 'Sesiones', value: workouts.length },
-            { label: 'Último XP', value: latestWorkout ? `+${latestWorkout.xpEarned}` : '—' },
-          ]}
-          actionLabel={featuredRoutine ? 'Iniciar rutina' : 'Iniciar entrenamiento'}
-          onAction={() => { if (featuredRoutine) void startFromRoutine(featuredRoutine); else setShowStartModal(true); }}
-          accent="var(--accent-gold)"
-          className="h-[clamp(21rem,54dvh,25rem)] min-h-[21rem] max-w-xl"
-        />
-      )}
-
       {/* Tabs */}
       <div className="grid grid-cols-2 gap-1">
         {([
@@ -805,8 +783,28 @@ export default function GymPage() {
           </PixelPanel>
         ) : (
           <div className="space-y-3">
+            {latestWorkout && (
+              <LifeQuestFlipCard
+                eyebrow="Último entrenamiento"
+                title={latestWorkout.title}
+                description={`${new Date(latestWorkout.date).toLocaleDateString('es-CO', { weekday: 'long', month: 'long', day: 'numeric' })}${latestWorkout.duration ? ` · ${latestWorkout.duration} min` : ''}.`}
+                visual={<span className="text-6xl" aria-hidden="true"><E e="🏋️" s={64} /></span>}
+                visualLabel={`Último entrenamiento: ${latestWorkout.title}`}
+                badge="Historial"
+                frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">+{latestWorkout.xpEarned} XP · {latestWorkout.exercises?.length ?? 0} ejercicios</p>}
+                backDescription={<p>Este registro ya no se repite abajo. Úsalo como referencia y abre una nueva sesión cuando quieras volver al Coliseo.</p>}
+                metrics={[
+                  { label: 'Duración', value: latestWorkout.duration ? `${latestWorkout.duration} min` : '—' },
+                  { label: 'XP', value: `+${latestWorkout.xpEarned}` },
+                  { label: 'Gold', value: `+${latestWorkout.goldEarned}` },
+                ]}
+                actionLabel="Iniciar entrenamiento"
+                onAction={() => setShowStartModal(true)}
+                accent="var(--accent-gold)"
+              />
+            )}
             <AnimatePresence>
-              {workouts.map((w, i) => (
+              {workouts.slice(1).map((w, i) => (
                 <motion.div
                   key={w.id}
                   initial={{ opacity: 0, y: 8 }}
@@ -857,7 +855,7 @@ export default function GymPage() {
             </AnimatePresence>
           </div>
         )
-      ) : (
+      ) : tab === 'routines' ? (
         // Routines tab
         <div className="space-y-3">
           {routines.length === 0 ? (
@@ -865,7 +863,28 @@ export default function GymPage() {
               <p className="font-vt text-text-secondary text-base">Sin rutinas aún</p>
             </PixelPanel>
           ) : (
-            routines.map((r, i) => (
+            <>
+              {featuredRoutine && (
+                <LifeQuestFlipCard
+                  eyebrow="Rutina preparada"
+                  title={featuredRoutine.name}
+                  description={featuredRoutine.description ?? 'Una secuencia lista para que empieces sin decidir cada ejercicio desde cero.'}
+                  visual={<span className="text-6xl" aria-hidden="true"><E e="🏋️" s={64} /></span>}
+                  visualLabel={`Rutina preparada: ${featuredRoutine.name}`}
+                  badge="Rutina destacada"
+                  frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">{(featuredRoutine.exercises as Array<unknown>).length} ejercicios preparados</p>}
+                  backDescription={<p>Esta rutina sustituye su fila plana en la lista. Iníciala desde el reverso para cargar sus series en el entrenamiento activo.</p>}
+                  metrics={[
+                    { label: 'Ejercicios', value: (featuredRoutine.exercises as Array<unknown>).length },
+                    { label: 'Duración', value: featuredRoutine.estimatedDuration ? `${featuredRoutine.estimatedDuration} min` : '—' },
+                    { label: 'Rutinas', value: routines.length },
+                  ]}
+                  actionLabel="Iniciar rutina"
+                  onAction={() => void startFromRoutine(featuredRoutine)}
+                  accent="var(--accent-gold)"
+                />
+              )}
+              {routines.slice(1).map((r, i) => (
               <motion.div
                 key={r.id}
                 initial={{ opacity: 0, y: 8 }}
@@ -911,10 +930,11 @@ export default function GymPage() {
                   )}
                 </PixelPanel>
               </motion.div>
-            ))
+              ))}
+            </>
           )}
         </div>
-      )}
+      ) : null}
 
       {tab === 'analytics' && (
         <div className="space-y-4">

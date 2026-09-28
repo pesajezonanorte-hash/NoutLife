@@ -75,6 +75,7 @@ export default function WisdomPage() {
   ) ?? [];
   const featuredWisdom = dailyCard ?? data?.available[0] ?? null;
   const featuredConfig = featuredWisdom ? (CATEGORY_CONFIG[featuredWisdom.category] ?? { label: featuredWisdom.category, color: 'var(--accent-gold)', Icon: BookOpen }) : null;
+  const remainingWisdom = featuredWisdom ? filtered.filter((card) => card.id !== featuredWisdom.id) : filtered;
 
   return (
     <div className="space-y-6">
@@ -108,7 +109,6 @@ export default function WisdomPage() {
           actionLabel="Explorar categoría"
           onAction={() => { setFilter(featuredWisdom.category); document.getElementById('wisdom-library')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
           accent="var(--accent-gold)"
-          className="h-[clamp(21rem,54dvh,25rem)] min-h-[21rem] max-w-xl"
         />
       )}
 
@@ -142,7 +142,7 @@ export default function WisdomPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filtered.map((card, i) => (
+          {remainingWisdom.map((card, i) => (
             <WisdomCardUI key={card.id} card={card} delay={i} />
           ))}
         </div>

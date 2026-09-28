@@ -25,7 +25,6 @@ import {
 import { useAuthStore } from '../../store/authStore';
 import { AvatarDisplay } from '../../components/character/AvatarDisplay';
 import { FlowButton } from '../../components/ui/flow-button';
-import { LifeQuestFlipCard } from '../../components/ui/lifequest-flip-card';
 
 type Category = 'xp' | 'streak' | 'gym' | 'savings';
 
@@ -307,28 +306,6 @@ export default function LeaderboardPage() {
           </div>
         </div>
       </header>
-
-      {!loading && (
-        <LifeQuestFlipCard
-          eyebrow="Tu posición"
-          title={myEntry ? `#${myEntry.rank} en ${currentCategory.label}` : `Explora ${currentCategory.label}`}
-          description={myEntry ? `Tu valor actual es ${formatValue(myEntry.value, currentCategory.unit)}. Compite con calma y usa la tabla como una referencia.` : 'Registra actividad en esta categoría para aparecer junto a otros aventureros.'}
-          visual={<Trophy className="h-16 w-16 text-foreground" strokeWidth={1.35} aria-hidden="true" />}
-          visualLabel="Resumen de la tabla de líderes"
-          badge={friendsOnly ? 'Tu círculo' : 'Global'}
-          frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">{data.length} aventureros en la clasificación</p>}
-          backDescription={<p>{currentCategory.description} Cambia el alcance o la métrica para descubrir otra lectura de la comunidad.</p>}
-          metrics={[
-            { label: 'Posición', value: myEntry ? `#${myEntry.rank}` : '—' },
-            { label: currentCategory.shortLabel, value: myEntry ? formatValue(myEntry.value, currentCategory.unit) : '—' },
-            { label: 'Alcance', value: friendsOnly ? 'Amigos' : 'Global' },
-          ]}
-          actionLabel={friendsOnly ? 'Ver tabla global' : 'Ver amigos'}
-          onAction={() => setFriendsOnly(!friendsOnly)}
-          accent="var(--accent-gold)"
-          className="h-[clamp(21rem,54dvh,25rem)] min-h-[21rem] max-w-xl"
-        />
-      )}
 
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
         <main className="min-w-0 space-y-4">

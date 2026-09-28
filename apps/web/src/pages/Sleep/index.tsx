@@ -226,6 +226,7 @@ export default function SleepPage() {
   }));
 
   const lastLog = logs[0];
+  const historyLogs = lastLog ? logs.slice(1) : logs;
 
   return (
     <div className="space-y-4">
@@ -239,28 +240,6 @@ export default function SleepPage() {
           <PixelButton variant="primary" onClick={() => setShowModal(true)}>+ REGISTRAR SUEÑO</PixelButton>
         </div>
       </div>
-
-      {!loading && (
-        <LifeQuestFlipCard
-          eyebrow="Descanso destacado"
-          title={lastLog ? `${lastLog.duration.toFixed(1)} horas la última noche` : 'Tu torre espera el primer registro'}
-          description={lastLog ? `Calidad: ${QUALITY_LABELS[lastLog.quality].trim() || 'Sin valorar'}. Revisa el patrón para cuidar tu energía.` : 'Registra cómo dormiste para convertir tu descanso en una señal útil para tu aventura.'}
-          visual={<div className="flex items-end gap-3" aria-hidden="true"><span className="text-6xl"><E e="🌙" s={64} /></span><div className="text-left"><p className="text-4xl font-semibold leading-none text-foreground">{stats ? stats.weeklyAvg.toFixed(1) : '—'}h</p><p className="mt-1 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">promedio semanal</p></div></div>}
-          visualLabel={stats ? `Promedio de sueño semanal: ${stats.weeklyAvg.toFixed(1)} horas` : 'Aún no hay promedio de sueño'}
-          badge={lastLog ? 'Última noche' : 'Sin registros'}
-          frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">{stats ? `${stats.avgQuality.toFixed(1)}/5 de calidad media` : 'Empieza a registrar tu descanso'}</p>}
-          backDescription={<p>La calidad, duración y hábitos nocturnos se combinan aquí para ayudarte a recuperar energía.</p>}
-          metrics={[
-            { label: 'Semanal', value: stats ? `${stats.weeklyAvg.toFixed(1)}h` : '—' },
-            { label: 'Calidad', value: stats ? `${stats.avgQuality.toFixed(1)}/5` : '—' },
-            { label: 'Registros', value: logs.length },
-          ]}
-          actionLabel="Registrar sueño"
-          onAction={() => setShowModal(true)}
-          accent="var(--accent-gold)"
-          className="h-[clamp(21rem,54dvh,25rem)] min-h-[21rem] max-w-xl"
-        />
-      )}
 
       {/* Stats */}
       {stats && (
@@ -280,36 +259,26 @@ export default function SleepPage() {
         </div>
       )}
 
-      {/* Last night */}
-      {lastLog && (
-        <PixelPanel className="p-4">
-          <p className="font-pixel text-text-secondary mb-2" style={{ fontSize: '8px' }}>ANOCHE</p>
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <div>
-              <p className="font-vt text-text-primary text-xl">
-                {new Date(lastLog.bedtime).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })} →{' '}
-                {new Date(lastLog.wakeTime).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
-              </p>
-              <p className="font-pixel text-accent-gold mt-1" style={{ fontSize: '12px' }}>{lastLog.duration.toFixed(1)}h</p>
-            </div>
-            <div className="text-right">
-              <p className="font-vt text-text-primary text-2xl">{Array.from({ length: lastLog.quality }).map((_, i) => <E key={i} e="⭐" s={16} className="inline-block" />)}</p>
-              <p className="font-vt text-text-secondary text-base"><E e={QUALITY_LABELS[lastLog.quality]} /></p>
-              {(lastLog as any).sleepScore != null && (
-                <div className="mt-1 inline-block px-2 py-0.5 border-2 font-pixel" style={{
-                  fontSize: '9px',
-                  borderColor: (lastLog as any).sleepScore >= 80 ? 'var(--accent-green)' : (lastLog as any).sleepScore >= 60 ? 'var(--accent-gold)' : 'var(--accent-red)',
-                  color: (lastLog as any).sleepScore >= 80 ? 'var(--accent-green)' : (lastLog as any).sleepScore >= 60 ? 'var(--accent-gold)' : 'var(--accent-red)',
-                }}>
-                  SCORE: {(lastLog as any).sleepScore}/100
-                </div>
-              )}
-            </div>
-          </div>
-          {lastLog.duration < 7 && (
-            <p className="font-vt text-accent-red text-base mt-2"><E e="⚠" /> Tu HP está bajo, héroe. Descansa más esta noche.</p>
-          )}
-        </PixelPanel>
+      {/* Latest night: replaces the former static duplicate and stays out of history. */}
+      {!loading && lastLog && (
+        <LifeQuestFlipCard
+          eyebrow="Anoche"
+          title={`${lastLog.duration.toFixed(1)} horas de descanso`}
+          description={`De ${new Date(lastLog.bedtime).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })} a ${new Date(lastLog.wakeTime).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}. Calidad: ${QUALITY_LABELS[lastLog.quality].trim() || 'Sin valorar'}.`}
+          visual={<div className="flex items-end gap-3" aria-hidden="true"><span className="text-6xl"><E e="🌙" s={64} /></span><div className="text-left"><p className="text-4xl font-semibold leading-none text-foreground">{lastLog.duration.toFixed(1)}h</p><p className="mt-1 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">última noche</p></div></div>}
+          visualLabel={`Última noche: ${lastLog.duration.toFixed(1)} horas de descanso`}
+          badge="Último registro"
+          frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">{Array.from({ length: lastLog.quality }).map((_, index) => <E key={index} e="⭐" s={13} className="inline-block" />)}</p>}
+          backDescription={<p>{lastLog.duration < 7 ? 'Tu descanso quedó por debajo de siete horas. Registra la próxima noche para detectar si el patrón continúa.' : 'Una noche registrada se vuelve útil cuando puedes compararla con las que vienen.'}</p>}
+          metrics={[
+            { label: 'Semanal', value: stats ? `${stats.weeklyAvg.toFixed(1)}h` : '—' },
+            { label: 'Calidad', value: `${lastLog.quality}/5` },
+            { label: 'Registros', value: logs.length },
+          ]}
+          actionLabel="Registrar otra noche"
+          onAction={() => setShowModal(true)}
+          accent="var(--accent-gold)"
+        />
       )}
 
       {/* Chart */}
@@ -332,11 +301,11 @@ export default function SleepPage() {
       )}
 
       {/* Log list */}
-      {!loading && logs.length > 0 && (
+      {!loading && historyLogs.length > 0 && (
         <div className="space-y-2">
           <p className="font-pixel text-text-secondary" style={{ fontSize: '8px' }}>HISTORIAL</p>
           <AnimatePresence>
-            {logs.map((l, i) => (
+            {historyLogs.map((l, i) => (
               <motion.div key={l.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ delay: i * 0.03 }}>
                 <PixelPanel className="p-3 flex items-center justify-between">
                   <div>

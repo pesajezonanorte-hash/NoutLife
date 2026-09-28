@@ -580,7 +580,6 @@ export default function FinancesPage() {
             actionLabel="Ver movimientos"
             onAction={() => setTab('transactions')}
             accent="var(--accent-gold)"
-            className="h-[clamp(23rem,60dvh,28rem)] min-h-[23rem] max-w-xl"
           />
         </motion.div>
       )}

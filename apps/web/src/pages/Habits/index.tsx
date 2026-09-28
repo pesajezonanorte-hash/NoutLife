@@ -127,6 +127,7 @@ export default function HabitsPage() {
   const displayedHabits = habits;
   const maxStreak = displayedHabits.reduce((max, h) => Math.max(max, h.longestStreak), 0);
   const topHabit = displayedHabits.find((h) => h.longestStreak === maxStreak);
+  const remainingHabits = topHabit ? displayedHabits.filter((habit) => habit.id !== topHabit.id) : displayedHabits;
   const completedToday = displayedHabits.filter((h) => h.todayStatus === 'completed').length;
   const totalHabits = displayedHabits.length;
 
@@ -145,6 +146,29 @@ export default function HabitsPage() {
         <PixelButton variant="primary" onClick={() => { setEditingHabit(null); setShowModal(true); }}>
 + NUEVO HÁBITO
         </PixelButton>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-3">
+        <PixelPanel className="p-3 text-center">
+          <p className="font-pixel text-text-secondary mb-1" style={{ fontSize: '8px' }}>HOY</p>
+          <p className="font-vt text-accent-green text-3xl">{completedToday}/{totalHabits}</p>
+          <p className="font-vt text-text-secondary text-sm">completados</p>
+        </PixelPanel>
+
+        <PixelPanel className="p-3 text-center">
+          <p className="font-pixel text-text-secondary mb-1" style={{ fontSize: '8px' }}>MEJOR RACHA</p>
+          <div className="flex justify-center">
+            <StreakFlame streak={maxStreak} size="sm" />
+          </div>
+          {topHabit && <p className="font-vt text-text-secondary text-xs mt-1 truncate">{topHabit.title}</p>}
+        </PixelPanel>
+
+        <PixelPanel className="p-3 text-center">
+          <p className="font-pixel text-text-secondary mb-1" style={{ fontSize: '8px' }}>RACHA GLOBAL</p>
+          <p className="font-vt text-accent-gold text-3xl">{user?.currentStreak ?? 0}</p>
+          <p className="font-vt text-text-secondary text-sm">días</p>
+        </PixelPanel>
       </div>
 
       {!loading && topHabit && (
@@ -171,38 +195,14 @@ export default function HabitsPage() {
               Editar hábito
             </button>
           )}
-          actionLabel={topHabit.todayCompleted ? 'Ver hábitos' : 'Completar hábito'}
+          actionLabel={topHabit.todayCompleted ? 'Editar hábito' : 'Completar hábito'}
           onAction={() => {
             if (topHabit.todayCompleted) { setEditingHabit(topHabit); setShowModal(true); return; }
             void handleLog(topHabit.id, 'completed');
           }}
           accent="var(--accent-gold)"
-          className="h-[clamp(21rem,54dvh,25rem)] min-h-[21rem] max-w-xl"
         />
       )}
-
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-3">
-        <PixelPanel className="p-3 text-center">
-          <p className="font-pixel text-text-secondary mb-1" style={{ fontSize: '8px' }}>HOY</p>
-          <p className="font-vt text-accent-green text-3xl">{completedToday}/{totalHabits}</p>
-          <p className="font-vt text-text-secondary text-sm">completados</p>
-        </PixelPanel>
-
-        <PixelPanel className="p-3 text-center">
-          <p className="font-pixel text-text-secondary mb-1" style={{ fontSize: '8px' }}>MEJOR RACHA</p>
-          <div className="flex justify-center">
-            <StreakFlame streak={maxStreak} size="sm" />
-          </div>
-          {topHabit && <p className="font-vt text-text-secondary text-xs mt-1 truncate">{topHabit.title}</p>}
-        </PixelPanel>
-
-        <PixelPanel className="p-3 text-center">
-          <p className="font-pixel text-text-secondary mb-1" style={{ fontSize: '8px' }}>RACHA GLOBAL</p>
-          <p className="font-vt text-accent-gold text-3xl">{user?.currentStreak ?? 0}</p>
-          <p className="font-vt text-text-secondary text-sm">días</p>
-        </PixelPanel>
-      </div>
 
       {/* Habits list */}
       {loading ? (
@@ -216,9 +216,9 @@ export default function HabitsPage() {
             <PixelButton variant="primary" onClick={() => setShowModal(true)}>+ PRIMER HÁBITO</PixelButton>
           </div>
         </PixelPanel>
-      ) : (
+      ) : remainingHabits.length > 0 ? (
         <div className="space-y-2">
-          {displayedHabits.map((habit, idx) => (
+          {remainingHabits.map((habit, idx) => (
             <motion.div
               key={habit.id}
               initial={{ opacity: 0, y: 8 }}
@@ -234,7 +234,7 @@ export default function HabitsPage() {
             </motion.div>
           ))}
         </div>
-      )}
+      ) : null}
 
       {/* Streak milestone toast */}
       <AnimatePresence>

@@ -251,6 +251,9 @@ export default function JournalPage() {
 
   const todayEntry = entries.find(e => e.date.split('T')[0] === new Date().toISOString().split('T')[0]);
   const filteredEntries = moodFilter ? entries.filter(e => e.mood === moodFilter) : entries;
+  const remainingFilteredEntries = todayEntry
+    ? filteredEntries.filter((entry) => entry.id !== todayEntry.id)
+    : filteredEntries;
 
   return (
     <div className="space-y-4">
@@ -264,28 +267,6 @@ export default function JournalPage() {
           <PixelButton variant="primary" onClick={() => { setEditing(null); setShowEditor(true); }}><E e="✍" /> ESCRIBIR</PixelButton>
         </div>
       </div>
-
-      {!loading && (
-        <LifeQuestFlipCard
-          eyebrow="Entrada destacada"
-          title={todayEntry?.title ?? (todayEntry ? 'Tu reflexión de hoy' : 'Tu página de hoy sigue en blanco')}
-          description={todayEntry ? `Escribiste hoy. ${todayEntry.content.slice(0, 120)}${todayEntry.content.length > 120 ? '…' : ''}` : 'Reserva un momento para dejar una idea, emoción o logro de esta jornada.'}
-          visual={<span className="text-6xl" aria-hidden="true"><E e={todayEntry?.mood ? MOOD_EMOJIS[todayEntry.mood] : '📜'} s={64} /></span>}
-          visualLabel={todayEntry ? 'Entrada de diario de hoy' : 'Diario listo para una nueva entrada'}
-          badge={todayEntry ? 'Hoy escrito' : 'Pendiente hoy'}
-          frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">{streak ? `${streak.currentStreak} días de racha` : `${entries.length} entradas guardadas`}</p>}
-          backDescription={<p>{todayEntry ? 'Abre la entrada para continuarla, editarla o releer la reflexión que dejaste hoy.' : `Prompt sugerido: “${todayPrompt}”`}</p>}
-          metrics={[
-            { label: 'Racha', value: `${streak?.currentStreak ?? 0} días` },
-            { label: 'Entradas', value: entries.length },
-            { label: 'Estado', value: todayEntry ? 'Escrito' : 'Por escribir' },
-          ]}
-          actionLabel={todayEntry ? 'Abrir entrada' : 'Escribir hoy'}
-          onAction={() => { setEditing(todayEntry ?? null); setShowEditor(true); }}
-          accent="var(--accent-gold)"
-          className="h-[clamp(21rem,54dvh,25rem)] min-h-[21rem] max-w-xl"
-        />
-      )}
 
       {/* Streak + Today status */}
       <div className="grid grid-cols-2 gap-3">
@@ -314,7 +295,28 @@ export default function JournalPage() {
         </PixelPanel>
       )}
 
-      {/* Search + mood filter */}
+      {!loading && todayEntry && (
+        <LifeQuestFlipCard
+          eyebrow="Entrada destacada"
+          title={todayEntry?.title ?? (todayEntry ? 'Tu reflexión de hoy' : 'Tu página de hoy sigue en blanco')}
+          description={todayEntry ? `Escribiste hoy. ${todayEntry.content.slice(0, 120)}${todayEntry.content.length > 120 ? '…' : ''}` : 'Reserva un momento para dejar una idea, emoción o logro de esta jornada.'}
+          visual={<span className="text-6xl" aria-hidden="true"><E e={todayEntry?.mood ? MOOD_EMOJIS[todayEntry.mood] : '📜'} s={64} /></span>}
+          visualLabel={todayEntry ? 'Entrada de diario de hoy' : 'Diario listo para una nueva entrada'}
+          badge={todayEntry ? 'Hoy escrito' : 'Pendiente hoy'}
+          frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">{streak ? `${streak.currentStreak} días de racha` : `${entries.length} entradas guardadas`}</p>}
+          backDescription={<p>{todayEntry ? 'Abre la entrada para continuarla, editarla o releer la reflexión que dejaste hoy.' : `Prompt sugerido: “${todayPrompt}”`}</p>}
+          metrics={[
+            { label: 'Racha', value: `${streak?.currentStreak ?? 0} días` },
+            { label: 'Entradas', value: entries.length },
+            { label: 'Estado', value: todayEntry ? 'Escrito' : 'Por escribir' },
+          ]}
+          actionLabel={todayEntry ? 'Abrir entrada' : 'Escribir hoy'}
+          onAction={() => { setEditing(todayEntry ?? null); setShowEditor(true); }}
+          accent="var(--accent-gold)"
+        />
+      )}
+
+            {/* Search + mood filter */}
       <div className="space-y-2">
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar en el diario..." className="min-h-11 w-full bg-bg-deep border-2 border-border-pixel px-3 py-2 font-vt text-base text-text-primary outline-none focus:border-accent-gold" />
         <div className="grid grid-cols-3 gap-1.5">
@@ -332,16 +334,18 @@ export default function JournalPage() {
 
       {/* Entries list */}
       <LoadingGate loading={loading} fallback={<ModernLoader words={[...LOADING_COPY.journal]} />}>
-        {loading ? null : filteredEntries.length === 0 ? (
-        <PixelPanel className="p-8 text-center">
-          <p className="text-4xl mb-2"><E e="📜" /></p>
-          <p className="font-pixel text-text-secondary" style={{ fontSize: '9px' }}>{entries.length === 0 ? 'EL DIARIO ESTÁ EN BLANCO' : 'SIN RESULTADOS'}</p>
-          <p className="font-vt text-text-secondary text-base mt-1">{entries.length === 0 ? 'El héroe no ha escrito aún...' : 'Prueba otro filtro'}</p>
-        </PixelPanel>
-      ) : (
+        {loading ? null : remainingFilteredEntries.length === 0 ? (
+          todayEntry && !search && moodFilter === null ? null : (
+            <PixelPanel className="p-8 text-center">
+              <p className="text-4xl mb-2"><E e="📜" /></p>
+              <p className="font-pixel text-text-secondary" style={{ fontSize: '9px' }}>{entries.length === 0 ? 'EL DIARIO ESTÁ EN BLANCO' : 'SIN RESULTADOS'}</p>
+              <p className="font-vt text-text-secondary text-base mt-1">{entries.length === 0 ? 'El héroe no ha escrito aún...' : 'Prueba otro filtro'}</p>
+            </PixelPanel>
+          )
+        ) : (
         <AnimatePresence>
           <div className="space-y-2">
-            {filteredEntries.map((e, i) => (
+            {remainingFilteredEntries.map((e, i) => (
               <motion.div key={e.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
                 <PixelPanel className="p-3 cursor-pointer hover:border-accent-gold/50 transition-colors" onClick={() => { setEditing(e); setShowEditor(true); }}>
                   <div className="flex items-start justify-between gap-3">

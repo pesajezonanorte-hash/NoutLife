@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer } from 'recharts';
 import { PixelPanel } from '../../components/ui/PixelPanel';
-import { LifeQuestFlipCard } from '../../components/ui/lifequest-flip-card';
 import { ProgressRings } from '../../components/ui/ProgressRings';
 import { fetchLifeScore, fetchCorrelations, fetchYearInReview } from '../../services/lifescore.service';
 import type { LifeScore, YearInReview } from '../../services/lifescore.service';
@@ -90,9 +89,6 @@ export default function LifePage() {
         color: AREA_COLORS[key],
       }))
     : [];
-  const areasByScore = [...barData].sort((a, b) => b.score - a.score);
-  const strongestArea = areasByScore[0];
-  const focusArea = areasByScore[areasByScore.length - 1];
 
   return (
     <div className="space-y-4">
@@ -100,28 +96,6 @@ export default function LifePage() {
         <h1 className="font-pixel text-accent-gold" style={{ fontSize: '14px' }}><E e="⭐" /> LIFE SCORE</h1>
         <p className="font-vt text-text-secondary text-base">Tu puntuación de vida en tiempo real</p>
       </div>
-
-      {lifeScore && (
-        <LifeQuestFlipCard
-          eyebrow="Balance de vida"
-          title={`${lifeScore.total} Life Score`}
-          description={strongestArea ? `${strongestArea.name} lidera tu balance con ${strongestArea.score}/100${focusArea && focusArea.name !== strongestArea.name ? `; ${focusArea.name.toLowerCase()} es el área con más espacio para crecer.` : '.'}` : 'Registra actividad para descubrir el equilibrio de tus áreas de vida.'}
-          visual={<span className="text-6xl" aria-hidden="true"><E e="⭐" s={64} /></span>}
-          visualLabel="Resumen de Life Score"
-          badge={lifeScore.total >= 75 ? 'Ritmo legendario' : lifeScore.total >= 50 ? 'En progreso' : 'Comenzando'}
-          frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">{barData.length} áreas medidas en tu balance</p>}
-          backDescription={<p>Alterna entre la puntuación, las correlaciones y la revisión anual para entender qué hábitos están cambiando tu vida.</p>}
-          metrics={[
-            { label: 'Más fuerte', value: strongestArea ? `${strongestArea.score}` : '—' },
-            { label: 'Foco', value: focusArea ? `${focusArea.score}` : '—' },
-            { label: 'Patrones', value: correlations.length },
-          ]}
-          actionLabel={tab === 'correlations' ? 'Ver Life Score' : 'Ver correlaciones'}
-          onAction={() => setTab(tab === 'correlations' ? 'score' : 'correlations')}
-          accent="var(--accent-gold)"
-          className="h-[clamp(21rem,54dvh,25rem)] min-h-[21rem] max-w-xl"
-        />
-      )}
 
       {/* Tabs */}
       <div className="flex gap-1">

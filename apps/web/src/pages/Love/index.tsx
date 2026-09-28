@@ -334,7 +334,7 @@ export default function LovePage() {
 
       {tab === 'regalos' && <GiftWishlist relationshipId={dashboard?.relationship?.id} />}
 
-      {tab === 'jardín' && (
+      {tab === 'jardín' && rel && (
         <LifeQuestFlipCard
           eyebrow="Jardín del corazón"
           title={rel?.name || 'Tu jardín espera'}
@@ -361,7 +361,6 @@ export default function LovePage() {
           actionLabel={rel ? 'Editar jardín' : 'Configurar jardín'}
           onAction={() => setShowSetup(true)}
           accent="var(--accent-gold)"
-          className="h-[clamp(21rem,54dvh,25rem)] min-h-[21rem] max-w-xl"
         />
       )}
 
@@ -376,21 +375,6 @@ export default function LovePage() {
 
       {tab === 'jardín' && rel && (
         <>
-          {/* Partner card */}
-          <PixelPanel className="p-5 text-center space-y-3 relative">
-            <button
-              onClick={() => setShowSetup(true)}
-              className="absolute top-3 right-3 font-pixel text-text-secondary hover:text-accent-gold transition-colors"
-              style={{ fontSize: '9px' }}
-              title="Editar jardín"
-            >
-              <E e="✏" />
-            </button>
-            <p className="text-5xl"><E e="💑" /></p>
-            {rel.name && <p className="font-pixel text-accent-gold" style={{ fontSize: '12px' }}>{rel.name}</p>}
-            {startDate && <p className="font-vt text-text-secondary text-lg">{timeTogetherText(startDate + 'T00:00:00')}</p>}
-          </PixelPanel>
-
           {/* Next important date */}
           {dashboard?.nextImportantDate && (
             <PixelPanel className="p-4">

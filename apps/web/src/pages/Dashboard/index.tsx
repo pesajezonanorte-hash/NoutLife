@@ -656,7 +656,7 @@ export default function DashboardPage() {
             </section>
           )}
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 justify-items-center gap-6 sm:grid-cols-2">
             {topHabit && (
               <LifeQuestFlipCard
                 eyebrow="Mejor racha actual"
@@ -680,7 +680,6 @@ export default function DashboardPage() {
                 actionLabel="Ver hábitos"
                 onAction={() => navigate('/habits')}
                 accent="var(--accent-gold)"
-                className="h-[clamp(19rem,42dvh,22rem)] min-h-[19rem] max-w-none"
               />
             )}
 
@@ -705,8 +704,7 @@ export default function DashboardPage() {
                   actionLabel="Ver logros"
                   onAction={() => navigate('/achievements')}
                   accent="var(--accent-gold)"
-                  className="h-[clamp(19rem,42dvh,22rem)] min-h-[19rem] max-w-none"
-                />
+                  />
               );
             })()}
           </div>

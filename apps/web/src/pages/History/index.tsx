@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { PixelPanel } from '../../components/ui/PixelPanel';
-import { LifeQuestFlipCard } from '../../components/ui/lifequest-flip-card';
 import { fetchHistory, fetchDayDetail } from '../../services/history.service';
 import type { HistorySummary, DayDetail } from '../../services/history.service';
 import { E } from '@/components/ui/glyphs';
@@ -73,8 +72,6 @@ export default function HistoryPage() {
     date: d.date.slice(5),
     xp: d.xpGained,
   })) ?? [];
-  const featuredDay = [...(summary?.days ?? [])]
-    .sort((a, b) => b.productivityScore - a.productivityScore)[0];
 
   return (
     <div className="space-y-4">
@@ -82,28 +79,6 @@ export default function HistoryPage() {
         <h1 className="font-pixel text-accent-gold" style={{ fontSize: '14px' }}><E e="📊" /> HISTORIAL DE AVENTURAS</h1>
         <p className="font-vt text-text-secondary text-base">Los últimos 30 días de tu épica</p>
       </div>
-
-      {!loading && summary && (
-        <LifeQuestFlipCard
-          eyebrow="Últimos 30 días"
-          title={featuredDay ? `${featuredDay.productivityScore} puntos en tu mejor día` : 'Tu historia empieza con el próximo paso'}
-          description={featuredDay ? `${new Date(featuredDay.date).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })}: ${featuredDay.questsCompleted} misiones y ${featuredDay.habitsCompleted} hábitos completados.` : 'Aún no hay actividad suficiente para construir el resumen de tu aventura.'}
-          visual={<span className="text-6xl" aria-hidden="true"><E e="📈" s={64} /></span>}
-          visualLabel="Resumen del historial de aventuras"
-          badge={view === 'calendar' ? 'Calendario' : 'Gráficas'}
-          frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">{summary.totalXp.toLocaleString('es-CO')} XP acumulados</p>}
-          backDescription={<p>Alterna entre el calendario y las gráficas para leer patrones, reconocer tus mejores días y dar contexto a tu avance.</p>}
-          metrics={[
-            { label: 'XP', value: summary.totalXp.toLocaleString('es-CO') },
-            { label: 'Misiones', value: summary.totalQuestsCompleted },
-            { label: 'Hábitos', value: summary.totalHabitsCompleted },
-          ]}
-          actionLabel={view === 'calendar' ? 'Ver gráficas' : 'Ver calendario'}
-          onAction={() => setView(view === 'calendar' ? 'charts' : 'calendar')}
-          accent="var(--accent-gold)"
-          className="h-[clamp(21rem,54dvh,25rem)] min-h-[21rem] max-w-xl"
-        />
-      )}
 
       {/* Summary stats */}
       {summary && (

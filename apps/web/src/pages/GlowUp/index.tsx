@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Plus, Trash2, Check, ShoppingBag, Shirt, Star, BarChart3 } from 'lucide-react';
 import { PixelPanel } from '../../components/ui/PixelPanel';
-import { LifeQuestFlipCard } from '../../components/ui/lifequest-flip-card';
 import { PixelButton } from '../../components/ui/PixelButton';
 import { useToastStore } from '../../hooks/useToast';
 import api from '../../lib/api';
@@ -54,7 +53,6 @@ function CareSection() {
   const [showNew, setShowNew] = useState(false);
   const [form, setForm] = useState({ name: '', timeOfDay: 'morning', steps: [''] });
   const [completing, setCompleting] = useState<string | null>(null);
-  const featuredRoutine = routines[0];
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -97,37 +95,6 @@ function CareSection() {
         <p className="font-pixel text-[var(--text-2)] text-[10px]">TUS RUTINAS DE CUIDADO</p>
         <PixelButton variant="primary" onClick={() => setShowNew(true)}>+ Nueva rutina</PixelButton>
       </div>
-
-      {!loading && (
-        <LifeQuestFlipCard
-          eyebrow="Cuidado personal"
-          title={featuredRoutine?.name ?? 'Crea tu ritual de cuidado'}
-          description={featuredRoutine ? `Una rutina de ${featuredRoutine.steps.length} paso${featuredRoutine.steps.length === 1 ? '' : 's'} para mantener tu bienestar visible.` : 'Define una rutina de mañana, noche o semanal y haz que el cuidado sea una práctica sencilla.'}
-          visual={<span className="text-6xl" aria-hidden="true"><E e="🧴" s={64} /></span>}
-          visualLabel="Resumen de cuidado personal"
-          badge={featuredRoutine ? (TIME_LABELS[featuredRoutine.timeOfDay] || 'Rutina') : 'Por crear'}
-          frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">{featuredRoutine ? `${featuredRoutine.currentStreak} días de racha` : 'El primer paso empieza hoy'}</p>}
-          backDescription={<p>{featuredRoutine ? 'Completa esta rutina desde el reverso o crea una nueva secuencia para otro momento del día.' : 'Abre el formulario y añade los pasos que quieres repetir para cuidarte mejor.'}</p>}
-          metrics={[
-            { label: 'Rutinas', value: routines.length },
-            { label: 'Pasos', value: featuredRoutine?.steps.length ?? 0 },
-            { label: 'Racha', value: `${featuredRoutine?.currentStreak ?? 0} días` },
-          ]}
-          backActions={featuredRoutine ? (
-            <button
-              type="button"
-              onClick={(event) => { event.stopPropagation(); setShowNew(true); }}
-              className="min-h-11 rounded-xl border border-border bg-muted px-3 text-sm font-semibold text-foreground transition-transform hover:scale-[1.015] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            >
-              Nueva rutina
-            </button>
-          ) : undefined}
-          actionLabel={featuredRoutine ? 'Completar rutina' : 'Crear rutina'}
-          onAction={() => { if (featuredRoutine) void handleComplete(featuredRoutine.id); else setShowNew(true); }}
-          accent="var(--accent-gold)"
-          className="h-[clamp(21rem,54dvh,25rem)] min-h-[21rem] max-w-xl"
-        />
-      )}
 
       {showNew && (
         <PixelPanel className="p-4 space-y-3">
@@ -242,7 +209,6 @@ function StyleSection() {
   useEffect(() => { load(); }, [load]);
 
   const displayed = activeCategory ? items.filter(i => i.category === activeCategory) : items;
-  const featuredItem = items.find((item) => item.isFavorite) ?? items[0];
 
   async function handleCreate() {
     try {
@@ -265,28 +231,6 @@ function StyleSection() {
         <p className="font-pixel text-[var(--text-2)] text-[10px]">MI ARMARIO</p>
         <PixelButton variant="primary" onClick={() => setShowNew(true)}>+ Prenda</PixelButton>
       </div>
-
-      {!loading && (
-        <LifeQuestFlipCard
-          eyebrow="Estilo"
-          title={featuredItem?.name ?? 'Arma un armario intencional'}
-          description={featuredItem ? `${CATEGORY_LABELS[featuredItem.category] ?? featuredItem.category}${featuredItem.brand ? ` · ${featuredItem.brand}` : ''}. Registra cada uso para conocer tus favoritos reales.` : 'Añade prendas y empieza a observar qué piezas te acompañan mejor en tu día a día.'}
-          visual={<Shirt className="h-16 w-16 text-foreground" strokeWidth={1.35} aria-hidden="true" />}
-          visualLabel="Resumen de estilo"
-          badge={featuredItem?.isFavorite ? 'Favorita' : featuredItem ? 'En tu armario' : 'Por empezar'}
-          frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">{featuredItem ? `${featuredItem.timesWorn} usos registrados` : `${items.length} prendas registradas`}</p>}
-          backDescription={<p>{featuredItem ? 'Marca esta prenda como usada hoy o añade una nueva pieza para tener una visión más clara de tu estilo.' : 'Abre el formulario y registra la primera prenda que quieras incorporar a tu colección.'}</p>}
-          metrics={[
-            { label: 'Prendas', value: items.length },
-            { label: 'Usos', value: featuredItem?.timesWorn ?? 0 },
-            { label: 'Categoría', value: featuredItem ? (CATEGORY_LABELS[featuredItem.category] ?? featuredItem.category) : '—' },
-          ]}
-          actionLabel={featuredItem ? 'Usar hoy' : 'Añadir prenda'}
-          onAction={() => { if (featuredItem) void handleWorn(featuredItem.id); else setShowNew(true); }}
-          accent="var(--accent-gold)"
-          className="h-[clamp(21rem,54dvh,25rem)] min-h-[21rem] max-w-xl"
-        />
-      )}
 
       <div className="flex gap-2 flex-wrap">
         <button onClick={() => setActiveCategory('')} className="min-h-11 px-2"
@@ -392,8 +336,6 @@ function PresenceSection() {
   const [checkins, setCheckins] = useState<PresenceCheckin[]>([]);
   const [form, setForm] = useState({ posture: 3, voice: 3, confidence: 3, communication: 3, notes: '' });
   const [saving, setSaving] = useState(false);
-  const latestCheckin = checkins[0];
-  const currentAverage = Math.round(((form.posture + form.voice + form.confidence + form.communication) / 4) * 20);
 
   const load = useCallback(async () => {
     try {
@@ -420,26 +362,6 @@ function PresenceSection() {
   return (
     <div className="space-y-4">
       <p className="font-pixel text-[var(--text-2)] text-[10px]">AUTOEVALUACIÓN SEMANAL</p>
-
-      <LifeQuestFlipCard
-        eyebrow="Presencia"
-        title={`${currentAverage}% de tu autoevaluación`}
-        description={latestCheckin ? `Último registro de la semana del ${new Date(latestCheckin.week).toLocaleDateString('es-CO', { day: 'numeric', month: 'long' })}. Ajusta los valores para dejar una nueva lectura.` : 'Evalúa postura, voz, confianza y comunicación para observar tu presencia con más intención.'}
-        visual={<BarChart3 className="h-16 w-16 text-foreground" strokeWidth={1.35} aria-hidden="true" />}
-        visualLabel="Resumen de presencia"
-        badge={latestCheckin ? 'Seguimiento semanal' : 'Primera evaluación'}
-        frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">{checkins.length} autoevaluación{checkins.length === 1 ? '' : 'es'} registrada{checkins.length === 1 ? '' : 's'}</p>}
-        backDescription={<p>Guarda los valores que seleccionaste para crear una nueva referencia y seguir tu evolución semana a semana.</p>}
-        metrics={[
-          { label: 'Postura', value: `${form.posture}/5` },
-          { label: 'Confianza', value: `${form.confidence}/5` },
-          { label: 'Registros', value: checkins.length },
-        ]}
-        actionLabel={saving ? 'Guardando…' : 'Guardar evaluación'}
-        onAction={() => { if (!saving) void handleSave(); }}
-        accent="var(--accent-gold)"
-        className="h-[clamp(21rem,54dvh,25rem)] min-h-[21rem] max-w-xl"
-      />
 
       <PixelPanel className="p-4 space-y-4">
         {AREAS.map(area => (

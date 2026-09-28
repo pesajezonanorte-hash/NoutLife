@@ -4,7 +4,6 @@ import { Plus, Sun, Moon, Zap, Play, CheckCircle2, ChevronRight, Loader2, Flame,
 import { useToastStore } from '../../hooks/useToast';
 import * as ritualsService from '../../services/rituals.service';
 import type { Ritual, RitualStep } from '../../services/rituals.service';
-import { LifeQuestFlipCard } from '../../components/ui/lifequest-flip-card';
 import { E } from '@/components/ui/glyphs';
 
 const TYPE_CONFIG = {
@@ -331,7 +330,6 @@ export default function RitualsPage() {
     }
   }
 
-  const featuredRitual = rituals.find((ritual) => ritual.isActive) ?? rituals[0];
   const grouped = {
     morning: rituals.filter((r) => r.type === 'morning'),
     night: rituals.filter((r) => r.type === 'night'),
@@ -358,31 +356,6 @@ export default function RitualsPage() {
         )}
       </div>
 
-      {!loading && (
-        <LifeQuestFlipCard
-          eyebrow="Ritual destacado"
-          title={featuredRitual?.name ?? 'Construye tu primer ritual'}
-          description={featuredRitual ? `Una secuencia de ${featuredRitual.steps.length} paso${featuredRitual.steps.length === 1 ? '' : 's'} para sostener tu día con intención.` : 'Empieza con los rituales sugeridos y conviértelos en un punto de apoyo diario.'}
-          visual={<span className="text-6xl" aria-hidden="true"><E e={featuredRitual?.icon ?? '⚡'} s={64} /></span>}
-          visualLabel={featuredRitual ? `Ritual ${featuredRitual.name}` : 'Primer ritual'}
-          badge={featuredRitual ? (TYPE_CONFIG[featuredRitual.type].label) : 'Sugerido'}
-          frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">{featuredRitual ? `${featuredRitual.steps.reduce((total, step) => total + (step.durationMin ?? 0), 0)} min estimados` : 'Listo para iniciar'}</p>}
-          backDescription={<p>{featuredRitual ? 'Revisa los pasos de tu ritual y ejecútalo desde la lista cuando tengas tu momento reservado.' : 'Carga los presets para recibir una base de mañana, noche y enfoque personal.'}</p>}
-          metrics={[
-            { label: 'Rituales', value: rituals.length },
-            { label: 'Pasos', value: featuredRitual?.steps.length ?? 0 },
-            { label: 'Activo', value: featuredRitual?.isActive ? 'Sí' : 'Pendiente' },
-          ]}
-          actionLabel={featuredRitual ? 'Ver rituales' : 'Cargar sugeridos'}
-          onAction={() => {
-            if (featuredRitual) document.getElementById('ritual-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            else void handleSeedPresets();
-          }}
-          accent="var(--accent-gold)"
-          className="h-[clamp(21rem,54dvh,25rem)] min-h-[21rem] max-w-xl"
-        />
-      )}
-
       {loading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => <div key={i} className="h-32 rounded-2xl bg-[var(--bg-panel)] animate-pulse" />)}
@@ -405,7 +378,7 @@ export default function RitualsPage() {
           </button>
         </motion.div>
       ) : (
-        <div id="ritual-list" className="space-y-8">
+        <div className="space-y-8">
           {(Object.entries(grouped) as [keyof typeof grouped, Ritual[]][]).map(([type, list]) => {
             if (list.length === 0) return null;
             const cfg = TYPE_CONFIG[type];

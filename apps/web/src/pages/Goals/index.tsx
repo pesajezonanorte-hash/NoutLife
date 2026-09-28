@@ -4,7 +4,6 @@ import { Plus, Target, Sparkles, Trash2, CheckCircle2, Circle, ChevronDown, Chev
 import { useToastStore } from '../../hooks/useToast';
 import * as goalsService from '../../services/goals.service';
 import type { MasterGoal } from '../../services/goals.service';
-import { LifeQuestFlipCard } from '../../components/ui/lifequest-flip-card';
 import { E } from '@/components/ui/glyphs';
 
 const CATEGORIES = [
@@ -420,8 +419,6 @@ export default function GoalsPage() {
   useEffect(() => { load(); }, [load]);
 
   const filtered = filter === 'all' ? goals : goals.filter((g) => g.status === filter);
-  const featuredGoal = goals.find((goal) => goal.status === 'ACTIVE') ?? goals[0];
-  const remainingFilteredGoals = featuredGoal ? filtered.filter((goal) => goal.id !== featuredGoal.id) : filtered;
   const stats = {
     active: goals.filter((g) => g.status === 'ACTIVE').length,
     achieved: goals.filter((g) => g.status === 'ACHIEVED').length,
@@ -448,28 +445,6 @@ export default function GoalsPage() {
           <Plus size={16} /> Nueva Meta
         </motion.button>
       </div>
-
-      {!loading && (
-        <LifeQuestFlipCard
-          eyebrow="Meta destacada"
-          title={featuredGoal?.title ?? 'Define tu próxima meta maestra'}
-          description={featuredGoal?.why ? `“${featuredGoal.why}”` : featuredGoal?.description ?? 'Los sueños toman forma cuando les das una dirección, una fecha y pequeños hitos.'}
-          visual={<span className="text-6xl" aria-hidden="true"><E e={featuredGoal?.icon ?? '🎯'} s={64} /></span>}
-          visualLabel={featuredGoal ? `Resumen de la meta ${featuredGoal.title}` : 'Nueva meta maestra'}
-          badge={featuredGoal ? `${featuredGoal.progress}% completada` : 'Por crear'}
-          frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">{featuredGoal ? `${featuredGoal.milestones.filter((milestone) => milestone.isCompleted).length}/${featuredGoal.milestones.length} hitos logrados` : 'Convierte un sueño en un plan'}</p>}
-          backDescription={<p>{featuredGoal ? 'Consulta los hitos de esta meta en la lista y añade otra meta cuando estés listo para abrir un nuevo frente.' : 'El asistente te guiará para convertir una intención en una meta con categoría, motivo y fecha.'}</p>}
-          metrics={[
-            { label: 'Progreso', value: featuredGoal ? `${featuredGoal.progress}%` : '—' },
-            { label: 'Hitos', value: featuredGoal?.milestones.length ?? 0 },
-            { label: 'Activas', value: stats.active },
-          ]}
-          actionLabel="Nueva meta"
-          onAction={() => setShowWizard(true)}
-          accent="var(--accent-gold)"
-          className="h-[clamp(21rem,54dvh,25rem)] min-h-[21rem] max-w-xl"
-        />
-      )}
 
       {/* Stats Row */}
       <div className="grid grid-cols-3 gap-3">
@@ -527,7 +502,7 @@ export default function GoalsPage() {
       ) : (
         <div className="space-y-4">
           <AnimatePresence>
-            {remainingFilteredGoals.map((goal) => (
+            {filtered.map((goal) => (
               <GoalCard key={goal.id} goal={goal} onUpdate={load} />
             ))}
           </AnimatePresence>

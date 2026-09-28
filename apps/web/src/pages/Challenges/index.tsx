@@ -193,8 +193,7 @@ export default function ChallengesPage() {
               else setCreating(true);
             }}
             accent="var(--accent-gold)"
-            className="h-[clamp(21rem,54dvh,25rem)] min-h-[21rem] max-w-xl"
-          />
+            />
         );
       })()}
 
