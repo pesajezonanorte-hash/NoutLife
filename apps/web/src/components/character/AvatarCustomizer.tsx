@@ -401,29 +401,34 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
       {isOpen && (
         <>
           <motion.div
-            className="fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-[190] bg-black/60 backdrop-blur-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
           />
           <motion.div
-            className="fixed inset-0 z-[130] flex items-center justify-center p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Personalizar apariencia"
+            className="fixed inset-0 z-[200] flex items-end justify-center p-0 sm:items-center sm:p-4"
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
           >
-            <div className="bg-[var(--bg-panel)] border-4 border-[var(--accent-gold)] shadow-pixel-gold max-w-md w-full max-h-[90vh] flex flex-col rounded-xl overflow-hidden">
+            <div className="flex max-h-[88dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl border-4 border-[var(--accent-gold)] bg-[var(--bg-panel)] shadow-pixel-gold sm:max-h-[90vh] sm:rounded-xl">
               {/* Header */}
               <motion.div className="flex items-center justify-between p-4 border-b-2 border-[var(--accent-gold)]/30 bg-gradient-to-r from-[var(--accent-gold)]/10 to-transparent">
                 <h2 className="font-pixel text-[var(--accent-gold)] tracking-widest text-xs flex items-center gap-2">
                   <span><E e="✨" /> APARIENCIA <E e="✨" /></span>
                 </h2>
                 <motion.button
+                  type="button"
+                  aria-label="Cerrar apariencia"
                   onClick={onClose}
                   whileHover={{ scale: 1.1, rotate: 90 }}
                   whileTap={{ scale: 0.9 }}
-                  className="text-[var(--text-secondary)] hover:text-[var(--accent-gold)] transition-colors p-1"
+                  className="flex h-11 w-11 items-center justify-center text-[var(--text-secondary)] transition-colors hover:text-[var(--accent-gold)] sm:h-8 sm:w-8"
                 >
                   <X size={18} />
                 </motion.button>
@@ -433,7 +438,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
               <div className="flex border-b border-[var(--border)] bg-[var(--bg-panel-light)]">
                 <button
                   onClick={() => setActiveTab('photo')}
-                  className={`flex-1 px-1 py-2.5 text-[11px] font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                  className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 px-1 py-2.5 text-[11px] font-semibold transition-all ${
                     activeTab === 'photo'
                       ? 'bg-[var(--bg-panel)] text-[var(--accent-gold)] border-b-2 border-[var(--accent-gold)]'
                       : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -444,7 +449,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
                 </button>
                 <button
                   onClick={() => setActiveTab('minecraft')}
-                  className={`flex-1 px-1 py-2.5 text-[11px] font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                  className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 px-1 py-2.5 text-[11px] font-semibold transition-all ${
                     activeTab === 'minecraft'
                       ? 'bg-[var(--bg-panel)] text-[var(--accent-gold)] border-b-2 border-[var(--accent-gold)]'
                       : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -455,7 +460,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
                 </button>
                 <button
                   onClick={() => setActiveTab('pixel')}
-                  className={`flex-1 px-1 py-2.5 text-[11px] font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                  className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 px-1 py-2.5 text-[11px] font-semibold transition-all ${
                     activeTab === 'pixel'
                       ? 'bg-[var(--bg-panel)] text-[var(--accent-gold)] border-b-2 border-[var(--accent-gold)]'
                       : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -549,7 +554,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
                           value={urlInput}
                           onChange={(e) => setUrlInput(e.target.value)}
                           placeholder="https://ejemplo.com/foto.jpg"
-                          className="flex-1 bg-[var(--bg-panel-light)] border border-[var(--border)] rounded-lg px-3 py-1.5 text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-gold)]"
+                          className="min-h-11 flex-1 rounded-lg border border-[var(--border)] bg-[var(--bg-panel-light)] px-3 py-1.5 text-base text-[var(--text-primary)] focus:border-[var(--accent-gold)] focus:outline-none"
                         />
                         <PixelButton variant="secondary" onClick={handleApplyUrl} className="text-xs px-3">
                           Ver
@@ -682,7 +687,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
                             }}
                             whileHover={{ scale: 1.03 }}
                             whileTap={{ scale: 0.97 }}
-                            className={`py-1.5 px-1.5 text-xs font-vt border-2 transition-all rounded-lg ${
+                            className={`min-h-11 px-1.5 py-1.5 font-vt text-xs border-2 transition-all rounded-lg ${
                               config.bodyType === gender
                                 ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)]/20 text-[var(--accent-gold)] font-bold shadow-pixel-gold'
                                 : 'border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--accent-gold)]'
@@ -729,7 +734,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
                             onClick={() => update('hairStyle')(style)}
                             whileHover={{ scale: 1.03 }}
                             whileTap={{ scale: 0.97 }}
-                            className={`py-1.5 px-1.5 text-xs font-vt border-2 transition-all rounded-lg ${
+                            className={`min-h-11 px-1.5 py-1.5 font-vt text-xs border-2 transition-all rounded-lg ${
                               config.hairStyle === style
                                 ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)]/20 text-[var(--accent-gold)] font-bold shadow-pixel-gold'
                                 : 'border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--accent-gold)]'
@@ -757,7 +762,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
                             onClick={() => update('accessory')(acc)}
                             whileHover={{ scale: 1.03 }}
                             whileTap={{ scale: 0.97 }}
-                            className={`py-1.5 px-1.5 text-xs font-vt border-2 transition-all rounded-lg ${
+                            className={`min-h-11 px-1.5 py-1.5 font-vt text-xs border-2 transition-all rounded-lg ${
                               config.accessory === acc
                                 ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)]/20 text-[var(--accent-gold)] font-bold shadow-pixel-gold'
                                 : 'border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--accent-gold)]'
@@ -780,7 +785,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
                             onClick={() => update('expression')(expr)}
                             whileHover={{ scale: 1.03 }}
                             whileTap={{ scale: 0.97 }}
-                            className={`py-1.5 px-1.5 text-xs font-vt border-2 transition-all rounded-lg ${
+                            className={`min-h-11 px-1.5 py-1.5 font-vt text-xs border-2 transition-all rounded-lg ${
                               config.expression === expr
                                 ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)]/20 text-[var(--accent-gold)] font-bold shadow-pixel-gold'
                                 : 'border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--accent-gold)]'

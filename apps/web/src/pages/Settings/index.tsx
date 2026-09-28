@@ -351,8 +351,8 @@ export default function Settings() {
         </div>
       </header>
 
-      <nav className="overflow-x-auto rounded-2xl border border-[var(--border)] bg-[var(--bg-panel-light)] p-1.5" aria-label="Secciones de configuración">
-        <div className="flex min-w-max gap-1">
+      <nav className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel-light)] p-1.5" aria-label="Secciones de configuración">
+        <div className="grid grid-cols-2 gap-1 sm:flex sm:flex-wrap">
           {TABS.map(({ id, label, Icon }) => {
             const active = activeTab === id;
             return (
@@ -360,7 +360,7 @@ export default function Settings() {
                 key={id}
                 type="button"
                 onClick={() => setActiveTab(id)}
-                className={`flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] ${active ? 'bg-[var(--bg-panel)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-panel)] hover:text-[var(--text-primary)]'}`}
+                className={`flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] sm:justify-start ${active ? 'bg-[var(--bg-panel)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-panel)] hover:text-[var(--text-primary)]'}`}
                 aria-current={active ? 'page' : undefined}
               >
                 <Icon size={16} strokeWidth={1.8} />

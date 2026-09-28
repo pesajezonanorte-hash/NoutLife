@@ -52,13 +52,13 @@ function MealModal({ onClose, onSave }: { onClose: () => void; onSave: (m: Meal)
   }
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/70 z-50 flex items-end md:items-center justify-center p-4" onClick={onClose}>
-      <motion.div initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }} transition={{ type: 'spring', stiffness: 350, damping: 28 }} className="bg-bg-panel border-2 border-border-pixel w-full max-w-md space-y-4 p-5" onClick={e => e.stopPropagation()}>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[200] flex items-end justify-center bg-black/70 p-0 md:items-center md:p-4" onClick={onClose}>
+      <motion.div initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }} transition={{ type: 'spring', stiffness: 350, damping: 28 }} className="max-h-[86dvh] w-full max-w-md space-y-4 overflow-y-auto rounded-t-2xl border-2 border-border-pixel bg-bg-panel p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:rounded-2xl md:p-5" onClick={e => e.stopPropagation()}>
         <p className="font-pixel text-accent-gold" style={{ fontSize: '10px' }}>REGISTRAR COMIDA</p>
 
-        <div className="flex gap-1 overflow-x-auto pb-1">
+        <div className="grid grid-cols-3 gap-1.5">
           {MEAL_TYPES.map(t => (
-            <button key={t.key} onClick={() => setMealType(t.key)} className={`flex-shrink-0 flex flex-col items-center px-3 py-2 border-2 transition-all ${mealType === t.key ? 'border-accent-gold bg-accent-gold/10' : 'border-border-pixel'}`}>
+            <button key={t.key} onClick={() => setMealType(t.key)} className={`flex min-h-14 min-w-0 flex-col items-center justify-center px-2 py-2 border-2 transition-all ${mealType === t.key ? 'border-accent-gold bg-accent-gold/10' : 'border-border-pixel'}`}>
               <span className="text-xl"><E e={t.icon} /></span>
               <span className="font-pixel text-text-secondary mt-0.5" style={{ fontSize: '6px' }}>{t.label}</span>
             </button>
@@ -177,12 +177,12 @@ export default function FoodPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 overflow-x-auto pb-1">
+      <div className="grid grid-cols-3 gap-1">
         {([['log', ' Registro'], ['macros', ' Macros'], ['saved', ' Guardadas']] as const).map(([key, label]) => (
           <button
             key={key}
             onClick={() => setTab(key)}
-            className={`flex-shrink-0 px-3 py-1.5 border-2 font-pixel transition-all ${tab === key ? 'border-accent-gold bg-accent-gold text-bg-deep' : 'border-border-pixel text-text-secondary hover:border-text-secondary'}`}
+            className={`min-h-11 min-w-0 px-2 py-1.5 border-2 font-pixel transition-all ${tab === key ? 'border-accent-gold bg-accent-gold text-bg-deep' : 'border-border-pixel text-text-secondary hover:border-text-secondary'}`}
             style={{ fontSize: '8px' }}
           >
             {label}

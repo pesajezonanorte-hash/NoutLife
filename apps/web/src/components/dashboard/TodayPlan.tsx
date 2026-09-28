@@ -220,7 +220,7 @@ export function TodayPlan({ onHabitComplete }: Props) {
             aria-label="Actualizar plan de hoy"
             title="Actualizar plan"
             onClick={() => { void loadPlan(true); }}
-            className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-panel-light)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)]"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-panel-light)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] sm:h-7 sm:w-7"
           >
             <RefreshCw size={14} strokeWidth={1.8} className={refreshing ? 'animate-spin' : ''} aria-hidden="true" />
           </button>

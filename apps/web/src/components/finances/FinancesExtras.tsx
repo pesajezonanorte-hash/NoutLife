@@ -335,7 +335,7 @@ export function PaydayModal({ onClose }: { onClose: () => void }) {
 
   return (
     <AnimatePresence>
-      <motion.div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/60" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+      <motion.div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
         <motion.div className="pixel-panel p-6 w-full max-w-sm" initial={{ scale: 0.8, y: 30 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9 }}>
           <div className="text-center mb-5">
             <p className="text-4xl mb-2"><E e="💰" /></p>

@@ -99,7 +99,7 @@ function FilterMenu({ label, value, icon: Icon, options, onChange, className = '
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
-        className={`flex h-10 w-full items-center gap-2 rounded-xl border bg-[var(--bg-deep)] px-3 text-left text-sm transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] ${
+        className={`flex min-h-11 w-full items-center gap-2 rounded-xl border bg-[var(--bg-deep)] px-3 text-left text-sm transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] ${
           open ? 'border-[var(--accent-gold)]' : 'border-[var(--border)] hover:border-[var(--text-secondary)]'
         }`}
         aria-haspopup="listbox"
@@ -377,7 +377,7 @@ export default function QuestsPage() {
       </section>
 
       <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-1.5">
-        <div className="flex gap-1 overflow-x-auto [scrollbar-width:none]">
+        <div className="grid grid-cols-2 gap-1 sm:flex sm:flex-wrap">
           {TABS.map((tab) => {
             const Icon = tab.icon;
             const selected = activeTab === tab.key;
@@ -386,7 +386,7 @@ export default function QuestsPage() {
                 key={tab.key || 'all'}
                 type="button"
                 onClick={() => setActiveTab(tab.key)}
-                className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] ${
+                className={`inline-flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] last:col-span-2 sm:shrink-0 sm:last:col-auto ${
                   selected
                     ? 'bg-[var(--bg-panel-light)] text-[var(--text-primary)] shadow-sm'
                     : 'text-[var(--text-secondary)] hover:bg-[var(--bg-panel-light)] hover:text-[var(--text-primary)]'
@@ -403,7 +403,7 @@ export default function QuestsPage() {
 
       <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-3">
         <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center">
-          <label className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-deep)] px-3 transition-colors focus-within:border-[var(--accent-gold)]">
+          <label className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-deep)] px-3 transition-colors focus-within:border-[var(--accent-gold)]">
             <Search size={16} strokeWidth={1.8} className="shrink-0 text-[var(--text-secondary)]" aria-hidden="true" />
             <input
               type="search"
@@ -444,7 +444,7 @@ export default function QuestsPage() {
             <button
               type="button"
               onClick={clearFilters}
-              className="inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-panel-light)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)]"
+              className="inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-panel-light)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)]"
             >
               <RotateCcw size={14} strokeWidth={1.8} aria-hidden="true" />
               Limpiar

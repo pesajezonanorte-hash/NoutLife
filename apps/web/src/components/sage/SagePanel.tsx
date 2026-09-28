@@ -65,7 +65,16 @@ export function SagePanel({ onClose }: Props) {
   const [activeTab, setActiveTab] = useState<TabId>('chat');
   const [messages, setMessages] = useState<Message[]>(() => {
     try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
+      const saved: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
+      return Array.isArray(saved)
+        ? saved.filter((message): message is Message => (
+          typeof message === 'object'
+          && message !== null
+          && (message as Message).from !== undefined
+          && ((message as Message).from === 'user' || (message as Message).from === 'sage')
+          && typeof (message as Message).text === 'string'
+        ))
+        : [];
     } catch {
       return [];
     }
@@ -84,8 +93,11 @@ export function SagePanel({ onClose }: Props) {
       setLoading(true);
       sageChat(msg)
         .then(({ reply }) => {
-          setLatestSageMsg(reply);
-          setMessages((prev) => [...prev, { from: 'sage', text: reply }]);
+          const safeReply = typeof reply === 'string' && reply.trim()
+            ? reply
+            : 'No pude responder ahora mismo.';
+          setLatestSageMsg(safeReply);
+          setMessages((prev) => [...prev, { from: 'sage', text: safeReply }]);
         })
         .catch(() => {
           setMessages((prev) => [...prev, { from: 'sage', text: 'No pude responder ahora mismo.' }]);
@@ -115,7 +127,7 @@ export function SagePanel({ onClose }: Props) {
     setLoading(true);
     try {
       const { reply } = await sageChat(message);
-      addSageReply(reply);
+      addSageReply(typeof reply === 'string' && reply.trim() ? reply : 'No pude responder ahora mismo.');
     } catch {
       addSageReply('No pude responder eso ahora mismo. Intentalo de nuevo en un momento.');
     } finally {
@@ -146,7 +158,7 @@ export function SagePanel({ onClose }: Props) {
         reply = (await sagePlanWorkout()).reply;
       }
 
-      if (reply) addSageReply(reply);
+      addSageReply(typeof reply === 'string' && reply.trim() ? reply : 'No pude terminar ese análisis ahora mismo.');
     } catch {
       addSageReply('No pude terminar ese analisis ahora mismo. Intentalo en un rato.');
     } finally {
@@ -156,12 +168,15 @@ export function SagePanel({ onClose }: Props) {
 
   return (
     <motion.div
-      className="fixed inset-0 z-[150] flex justify-end bg-[var(--bg-overlay)] backdrop-blur-[2px]" onClick={onClose}
+      className="fixed inset-0 z-[200] flex justify-end bg-[var(--bg-overlay)] backdrop-blur-[2px]" onClick={onClose}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
       <motion.aside
+        role="dialog"
+        aria-modal="true"
+        aria-label="Asistente IA"
         onClick={(e) => e.stopPropagation()}
         className="flex h-full w-full max-w-[420px] flex-col border-l border-[var(--border)] bg-[var(--bg-panel)] shadow-2xl"
         initial={{ x: 420 }}
@@ -180,15 +195,16 @@ export function SagePanel({ onClose }: Props) {
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
             aria-label="Cerrar"
-            className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] p-2 text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+            className="flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] sm:h-9 sm:w-9"
           >
             <X size={18} />
           </button>
         </header>
 
-        <nav className="flex gap-2 overflow-x-auto border-b border-[var(--border)] px-4 py-3">
+        <nav className="grid grid-cols-3 gap-1.5 border-b border-[var(--border)] px-4 py-3 sm:flex sm:gap-2 sm:overflow-x-auto">
           {TABS.map((tab) => (
             <button
               key={tab.id}
@@ -197,7 +213,7 @@ export function SagePanel({ onClose }: Props) {
                 if (tab.id !== 'chat') handleAction(tab.id);
               }}
               className={[
-                'flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors',
+                'flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-full px-2 py-1.5 text-xs font-semibold transition-colors sm:px-3',
                 activeTab === tab.id
                   ? 'bg-[var(--text-primary)] text-white'
                   : 'bg-[var(--bg-panel-light)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
@@ -278,7 +294,7 @@ export function SagePanel({ onClose }: Props) {
               <button
                 onClick={handleChat}
                 disabled={loading || !input.trim()}
-                className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--text-primary)] text-white disabled:opacity-50"
+                className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--text-primary)] text-white disabled:opacity-50"
               >
                 <Send size={16} />
               </button>

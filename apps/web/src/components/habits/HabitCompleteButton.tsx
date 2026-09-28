@@ -60,9 +60,9 @@ export function HabitCompleteButton({ status, onLog, disabled }: Props) {
       <AnimatePresence>
         {showMenu && (
           <>
-            <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
+            <div className="fixed inset-0 z-[190]" onClick={() => setShowMenu(false)} />
             <motion.div
-              className="absolute right-0 bottom-full mb-2 bg-bg-panel border-2 border-border-pixel z-50 min-w-36 py-1"
+              className="absolute right-0 bottom-full z-[200] mb-2 min-w-36 border-2 border-border-pixel bg-bg-panel py-1"
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 8 }}
@@ -70,7 +70,7 @@ export function HabitCompleteButton({ status, onLog, disabled }: Props) {
               {(['completed', 'failed', 'skipped'] as const).map((s) => (
                 <button
                   key={s}
-                  className="block w-full text-left px-3 py-1.5 font-vt text-base hover:bg-bg-panel-light transition-colors"
+                  className="block min-h-11 w-full px-3 py-1.5 text-left font-vt text-base transition-colors hover:bg-bg-panel-light"
                   onClick={async () => {
                     setShowMenu(false);
                     setLoading(true);

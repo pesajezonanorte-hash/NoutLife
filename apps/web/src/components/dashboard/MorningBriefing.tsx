@@ -26,14 +26,17 @@ export function MorningBriefing({ onClose }: Props) {
 
   return (
     <motion.div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Briefing del día"
+      className="fixed inset-0 z-[200] flex items-end justify-center bg-black/40 p-0 backdrop-blur-sm sm:items-center sm:p-4"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       onClick={onClose}
     >
       <motion.div
-        className="relative w-full max-w-md overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-2xl"
+        className="relative max-h-[88dvh] w-full max-w-md overflow-y-auto rounded-t-2xl border border-[var(--border)] bg-[var(--surface)] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl sm:rounded-3xl sm:p-6"
         initial={{ scale: 0.94, y: 16 }}
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.95, y: 10 }}
@@ -55,8 +58,10 @@ export function MorningBriefing({ onClose }: Props) {
             </div>
           </div>
           <button
+            type="button"
+            aria-label="Cerrar briefing"
             onClick={onClose}
-            className="p-1.5 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel-light)] transition-colors"
+            className="flex h-11 w-11 items-center justify-center rounded-xl text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-panel-light)] hover:text-[var(--text-primary)] sm:h-8 sm:w-8"
           >
             <X size={18} />
           </button>
@@ -81,7 +86,7 @@ export function MorningBriefing({ onClose }: Props) {
           <motion.button
             whileTap={{ scale: 0.96 }}
             onClick={onClose}
-            className="w-full py-2.5 px-4 rounded-xl text-xs font-semibold bg-[var(--primary)] text-white hover:opacity-95 transition-opacity"
+            className="min-h-[44px] w-full rounded-xl bg-[var(--primary)] px-4 py-2.5 text-xs font-semibold text-white transition-opacity hover:opacity-95"
           >
             Entendido, ¡vamos!
           </motion.button>

@@ -68,7 +68,7 @@ function SleepModal({ onClose, onSave }: { onClose: () => void; onSave: (log: Sl
     { key: 'exercise', label: 'Hice ejercicio hoy', detail: 'Entrenamiento o actividad física', active: exercisedToday, setActive: setExercisedToday, Icon: Dumbbell },
   ];
 
-  const inputClass = 'min-w-0 w-full rounded-xl border border-[var(--border)] bg-[var(--bg-deep)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition-colors focus:border-[var(--accent-gold)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--accent-gold)_16%,transparent)]';
+  const inputClass = 'min-h-11 min-w-0 w-full rounded-xl border border-[var(--border)] bg-[var(--bg-deep)] px-3 py-2.5 text-base text-[var(--text-primary)] outline-none transition-colors focus:border-[var(--accent-gold)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--accent-gold)_16%,transparent)]';
 
   return (
     <ModalFrame
@@ -325,7 +325,7 @@ export default function SleepPage() {
                   <div className="flex items-center gap-3">
                     <p className="font-pixel text-accent-gold" style={{ fontSize: '11px' }}>{l.duration.toFixed(1)}h</p>
                     <p className="font-vt text-base" style={{ color: QUALITY_COLORS[l.quality] }}>{Array.from({ length: l.quality }).map((_, i) => <E key={i} e="⭐" s={14} className="inline-block" />)}</p>
-                    <button onClick={() => handleDelete(l.id)} className="font-pixel text-accent-red hover:opacity-70" style={{ fontSize: '8px' }}><E e="✕" /></button>
+                    <button onClick={() => handleDelete(l.id)} className="flex h-11 w-11 items-center justify-center font-pixel text-accent-red hover:opacity-70" style={{ fontSize: '8px' }}><E e="✕" /></button>
                   </div>
                 </PixelPanel>
               </motion.div>

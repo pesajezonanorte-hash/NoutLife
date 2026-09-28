@@ -48,8 +48,8 @@ const EQUIPPABLE_TYPES = new Set(['COSMETIC', 'HAT', 'AURA', 'FRAME', 'THEME']);
 function ConfirmPurchaseModal({ item, userGold, onConfirm, onClose }: { item: ShopItem; userGold: number; onConfirm: () => void; onClose: () => void }) {
   const canAfford = userGold >= item.cost;
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} transition={{ type: 'spring', stiffness: 350, damping: 28 }} className="bg-bg-panel border-2 border-border-pixel w-full max-w-sm space-y-4 p-5" onClick={e => e.stopPropagation()}>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[200] flex items-end justify-center bg-black/70 p-0 md:items-center md:p-4" onClick={onClose}>
+      <motion.div initial={{ y: 48, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 48, opacity: 0 }} transition={{ type: 'spring', stiffness: 350, damping: 28 }} className="max-h-[86dvh] w-full max-w-sm space-y-4 overflow-y-auto rounded-t-2xl border-2 border-border-pixel bg-bg-panel p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:rounded-2xl md:p-5" onClick={e => e.stopPropagation()}>
         <p className="font-pixel text-accent-gold text-center" style={{ fontSize: '10px' }}>CONFIRMAR COMPRA</p>
         <div className="text-center space-y-2">
           <p className="font-vt text-text-primary text-2xl">{item.name}</p>
@@ -182,7 +182,7 @@ export default function ShopPage() {
       {/* Shop / Inventory tabs */}
       <div className="flex gap-1">
         {[['shop', ' Tienda'], ['inventory', ' Inventario']].map(([key, label]) => (
-          <button key={key} onClick={() => setShopTab(key as 'shop' | 'inventory')} className={`px-4 py-2 border-2 font-pixel transition-all ${shopTab === key ? 'border-accent-gold bg-accent-gold text-bg-deep' : 'border-border-pixel text-text-secondary'}`} style={{ fontSize: '8px' }}>
+          <button key={key} onClick={() => setShopTab(key as 'shop' | 'inventory')} className={`min-h-11 px-4 py-2 border-2 font-pixel transition-all ${shopTab === key ? 'border-accent-gold bg-accent-gold text-bg-deep' : 'border-border-pixel text-text-secondary'}`} style={{ fontSize: '8px' }}>
             {label}
           </button>
         ))}
@@ -190,9 +190,9 @@ export default function ShopPage() {
 
       {shopTab === 'shop' && (
         <>
-          <div className="flex gap-1 overflow-x-auto pb-1">
+          <div className="grid grid-cols-2 gap-1 sm:flex sm:flex-wrap">
             {TYPE_TABS.map(t => (
-              <button key={t.key} onClick={() => setTab(t.key)} className={`flex-shrink-0 px-3 py-1.5 border-2 font-pixel transition-all ${tab === t.key ? 'border-accent-gold bg-accent-gold text-bg-deep' : 'border-border-pixel text-text-secondary'}`} style={{ fontSize: '8px' }}>
+              <button key={t.key} onClick={() => setTab(t.key)} className={`min-h-11 min-w-0 px-2 py-1.5 border-2 font-pixel transition-all sm:shrink-0 ${tab === t.key ? 'border-accent-gold bg-accent-gold text-bg-deep' : 'border-border-pixel text-text-secondary'}`} style={{ fontSize: '8px' }}>
                 {t.label}
               </button>
             ))}

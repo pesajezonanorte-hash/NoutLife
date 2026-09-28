@@ -81,7 +81,7 @@ function NumericStepper({
         type="button"
         disabled={disabled}
         onClick={() => onChange(String(Math.max(min, num - step)))}
-        className="w-5 h-10 border border-border-pixel text-text-secondary hover:text-accent-gold hover:border-accent-gold transition-colors font-pixel disabled:opacity-30"
+        className="h-11 w-11 border border-border-pixel text-text-secondary hover:text-accent-gold hover:border-accent-gold transition-colors font-pixel disabled:opacity-30 md:h-10 md:w-5"
         style={{ fontSize: '8px' }}
       >▼</button>
       <input
@@ -90,14 +90,13 @@ function NumericStepper({
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder ?? '0'}
         disabled={disabled}
-        className="w-12 bg-bg-deep border border-border-pixel text-text-primary font-vt text-lg text-center py-1 focus:border-accent-gold outline-none disabled:opacity-50"
-        style={{ height: '40px' }}
+        className="h-11 w-12 bg-bg-deep border border-border-pixel text-text-primary font-vt text-lg text-center py-1 focus:border-accent-gold outline-none disabled:opacity-50 md:h-10"
       />
       <button
         type="button"
         disabled={disabled}
         onClick={() => onChange(String(num + step))}
-        className="w-5 h-10 border border-border-pixel text-text-secondary hover:text-accent-gold hover:border-accent-gold transition-colors font-pixel disabled:opacity-30"
+        className="h-11 w-11 border border-border-pixel text-text-secondary hover:text-accent-gold hover:border-accent-gold transition-colors font-pixel disabled:opacity-30 md:h-10 md:w-5"
         style={{ fontSize: '8px' }}
       >▲</button>
     </div>
@@ -131,14 +130,14 @@ function ExerciseSearchModal({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/70 z-50 flex items-end md:items-center justify-center p-4"
+      className="fixed inset-0 z-[200] flex items-end justify-center bg-black/70 p-0 md:items-center md:p-4"
       onClick={onClose}
     >
       <motion.div
         initial={{ y: 40, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 40, opacity: 0 }}
-        className="bg-bg-panel border-2 border-border-pixel w-full max-w-md max-h-[80vh] flex flex-col"
+        className="flex max-h-[86dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl border-2 border-border-pixel bg-bg-panel pb-[env(safe-area-inset-bottom)] md:max-h-[80vh] md:rounded-2xl"
         onClick={e => e.stopPropagation()}
       >
         <div className="p-3 border-b-2 border-border-pixel space-y-2">
@@ -157,7 +156,7 @@ function ExerciseSearchModal({
               <button
                 key={mg}
                 onClick={() => setMuscleFilter(mg)}
-                className={`font-pixel px-2 py-0.5 border transition-colors ${
+                className={`min-h-11 px-2 font-pixel border transition-colors ${
                   muscleFilter === mg
                     ? 'border-accent-gold text-accent-gold bg-accent-gold/10'
                     : 'border-border-pixel text-text-secondary hover:border-accent-gold/50'
@@ -179,7 +178,7 @@ function ExerciseSearchModal({
               <button
                 key={ex.id}
                 onClick={() => onSelect(ex)}
-                className="w-full text-left px-3 py-2 hover:bg-bg-panel-light border-b border-border-pixel/30 transition-colors"
+                className="min-h-11 w-full text-left px-3 py-2 hover:bg-bg-panel-light border-b border-border-pixel/30 transition-colors"
               >
                 <p className="font-vt text-text-primary text-lg">{ex.name}</p>
                 {(ex.muscleGroup || ex.equipment) && (
@@ -371,7 +370,56 @@ function ActiveWorkoutView({
               )}
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="space-y-2 md:hidden">
+              {ex.sets.map((set, setIdx) => {
+                const isPR = newPRs.has(`${exIdx}-${setIdx}`);
+                return (
+                  <div key={set.id} className={`rounded-xl border border-border-pixel bg-bg-deep p-3 ${set.completed ? 'opacity-60' : ''}`}>
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <span className="font-pixel text-text-secondary" style={{ fontSize: '8px' }}>SET {setIdx + 1}</span>
+                      <span className="min-w-0 truncate font-pixel text-text-muted" style={{ fontSize: '7px' }}>
+                        ANTERIOR: {ex.prevBest ? `${ex.prevBest.weight}×${ex.prevBest.reps}` : '—'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className="min-w-0">
+                        <span className="mb-1 block font-pixel text-text-secondary" style={{ fontSize: '7px' }}>KG</span>
+                        <NumericStepper
+                          value={set.weight}
+                          onChange={v => updateSet(exIdx, setIdx, 'weight', v)}
+                          step={2.5}
+                          disabled={set.completed}
+                        />
+                      </label>
+                      <label className="min-w-0">
+                        <span className="mb-1 block font-pixel text-text-secondary" style={{ fontSize: '7px' }}>REPS</span>
+                        <NumericStepper
+                          value={set.reps}
+                          onChange={v => updateSet(exIdx, setIdx, 'reps', v)}
+                          step={1}
+                          disabled={set.completed}
+                        />
+                      </label>
+                    </div>
+                    <motion.button
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => updateSet(exIdx, setIdx, 'completed', !set.completed)}
+                      className={`mt-3 flex min-h-11 w-full items-center justify-center gap-2 border-2 font-pixel transition-colors ${
+                        set.completed
+                          ? 'border-accent-green bg-accent-green text-bg-deep'
+                          : 'border-border-pixel text-text-secondary hover:border-accent-green'
+                      }`}
+                      style={{ fontSize: '8px' }}
+                    >
+                      {set.completed ? '✓ SET COMPLETADO' : 'MARCAR SET COMPLETO'}
+                      {isPR && <span className="text-accent-gold"><E e="🏆" /> PR</span>}
+                    </motion.button>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full text-center">
                 <thead>
                   <tr className="border-b border-border-pixel">
@@ -461,7 +509,7 @@ function ActiveWorkoutView({
             <div className="flex items-center justify-between">
               <button
                 onClick={() => addSet(exIdx)}
-                className="font-pixel text-text-secondary hover:text-accent-gold transition-colors"
+                className="min-h-11 px-2 font-pixel text-text-secondary hover:text-accent-gold transition-colors"
                 style={{ fontSize: '8px' }}
               >
                 + SET
@@ -692,7 +740,7 @@ export default function GymPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-0 overflow-x-auto">
+      <div className="grid grid-cols-2 gap-1">
         {([
           { id: 'history',   label: 'HISTORIAL' },
           { id: 'routines',  label: 'RUTINAS' },
@@ -702,7 +750,7 @@ export default function GymPage() {
           <button
             key={id}
             onClick={() => setTab(id)}
-            className={`font-pixel px-4 py-2 border-b-2 transition-colors whitespace-nowrap ${
+            className={`min-h-11 font-pixel px-3 py-2 border-b-2 transition-colors ${
               tab === id
                 ? 'border-accent-gold text-accent-gold'
                 : 'border-transparent text-text-secondary hover:text-text-primary'
@@ -866,7 +914,7 @@ export default function GymPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 z-[200] flex items-end justify-center bg-black/70 p-0 md:items-center md:p-4"
             onClick={() => setShowStartModal(false)}
           >
             <motion.div
@@ -874,7 +922,7 @@ export default function GymPage() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 350, damping: 28 }}
-              className="bg-bg-panel border-2 border-border-pixel p-5 w-full max-w-sm space-y-4"
+              className="w-full max-w-sm space-y-4 rounded-t-2xl border-2 border-border-pixel bg-bg-panel p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:rounded-2xl md:p-5"
               onClick={e => e.stopPropagation()}
             >
               <p className="font-pixel text-accent-gold" style={{ fontSize: '10px' }}>
@@ -887,20 +935,20 @@ export default function GymPage() {
                 onKeyDown={e => e.key === 'Enter' && startWorkout()}
                 placeholder="Nombre del entrenamiento..."
                 autoFocus
-                className="w-full bg-bg-deep border-2 border-border-pixel text-text-primary font-vt text-lg px-3 py-2 focus:border-accent-gold outline-none"
+                className="min-h-[44px] w-full bg-bg-deep border-2 border-border-pixel px-3 py-2 font-vt text-base text-text-primary outline-none focus:border-accent-gold"
               />
               <div className="flex gap-2">
                 <PixelButton
                   variant="ghost"
                   onClick={() => setShowStartModal(false)}
-                  className="flex-1"
+                  className="min-h-[44px] flex-1"
                 >
                   Cancelar
                 </PixelButton>
                 <PixelButton
                   variant="primary"
                   onClick={() => startWorkout()}
-                  className="flex-1"
+                  className="min-h-[44px] flex-1"
                   disabled={!newTitle.trim()}
                 >
                   ¡Empezar!

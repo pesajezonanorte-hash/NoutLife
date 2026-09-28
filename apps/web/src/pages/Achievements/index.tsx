@@ -77,12 +77,12 @@ export default function AchievementsPage() {
       )}
 
       {/* Category tabs */}
-      <div className="flex gap-1 overflow-x-auto pb-1">
+      <div className="grid grid-cols-2 gap-1 sm:grid-cols-3">
         {CATEGORY_TABS.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`flex-shrink-0 px-3 py-1.5 border-2 font-pixel transition-all ${
+            className={`min-h-11 min-w-0 px-3 py-1.5 border-2 font-pixel transition-all ${
               activeTab === tab.key
                 ? 'border-accent-gold bg-accent-gold text-bg-deep'
                 : 'border-border-pixel text-text-secondary hover:border-text-secondary'
@@ -143,14 +143,14 @@ export default function AchievementsPage() {
       <AnimatePresence>
         {selectedAch && (
           <motion.div
-            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
+            className="fixed inset-0 z-[200] flex items-end justify-center p-0 sm:items-center sm:p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
             <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setSelectedAch(null)} />
             <motion.div
-              className="relative bg-bg-panel border-2 border-border-pixel w-full max-w-sm z-10 p-6 text-center"
+              className="relative z-10 max-h-[86dvh] w-full max-w-sm overflow-y-auto rounded-t-2xl border-2 border-border-pixel bg-bg-panel p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] text-center sm:rounded-2xl sm:p-6"
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.8, opacity: 0 }}
@@ -193,7 +193,7 @@ export default function AchievementsPage() {
 
               <button
                 onClick={() => setSelectedAch(null)}
-                className="mt-4 font-pixel text-text-secondary hover:text-text-primary border-2 border-border-pixel px-4 py-1"
+                className="mt-4 min-h-11 font-pixel text-text-secondary hover:text-text-primary border-2 border-border-pixel px-4 py-1"
                 style={{ fontSize: '8px' }}
               >
                 CERRAR

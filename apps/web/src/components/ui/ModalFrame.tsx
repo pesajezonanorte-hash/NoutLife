@@ -59,7 +59,7 @@ export function ModalFrame({
 
   const frame = (
     <motion.div
-      className="fixed inset-0 z-[200] flex items-end justify-center overflow-hidden bg-[var(--scrim)] p-3 backdrop-blur-[2px] sm:items-center sm:p-5"
+      className="fixed inset-0 z-[200] flex items-end justify-center overflow-hidden bg-[var(--scrim)] p-0 backdrop-blur-[2px] sm:items-center sm:p-5"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -71,7 +71,7 @@ export function ModalFrame({
         aria-modal="true"
         aria-label={title}
         className={cn(
-          'relative flex max-h-[calc(100dvh-1.5rem)] w-full flex-col overflow-hidden rounded-2xl border border-[var(--border-strong)] bg-[var(--bg-panel)] shadow-lg sm:max-h-[calc(100dvh-2.5rem)]',
+          'relative flex max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-2xl border border-[var(--border-strong)] bg-[var(--bg-panel)] shadow-lg sm:max-h-[calc(100dvh-2.5rem)] sm:rounded-2xl',
           sizeClasses[size],
           panelClassName,
         )}
@@ -98,7 +98,7 @@ export function ModalFrame({
             type="button"
             onClick={onClose}
             aria-label={closeLabel ?? `Cerrar ${title.toLowerCase()}`}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)]"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] sm:h-8 sm:w-8"
           >
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
@@ -109,7 +109,7 @@ export function ModalFrame({
         </div>
 
         {footer && (
-          <footer className="shrink-0 border-t border-[var(--border-soft)] bg-[var(--bg-panel)] px-4 py-3.5 sm:px-5">
+          <footer className="shrink-0 border-t border-[var(--border-soft)] bg-[var(--bg-panel)] px-4 pb-[calc(0.875rem+env(safe-area-inset-bottom))] pt-3.5 sm:px-5 sm:py-3.5">
             {footer}
           </footer>
         )}

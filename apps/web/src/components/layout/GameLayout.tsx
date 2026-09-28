@@ -256,7 +256,7 @@ interface Props {
 
 export function GameLayout({ children }: Props) {
   const { user, logout: storeLogout } = useAuthStore();
-  const { toggleAudio, audioEnabled, xpSparkTrigger } = useUIStore();
+  const { toggleAudio, audioEnabled, xpSparkTrigger, openSage } = useUIStore();
   const [isDarkMode, setIsDarkMode] = useState(() => resolveIsDark());
   const [sidebarOpen, setSidebarOpen] = useState(false);
   useEffect(() => subscribeThemeMode(() => setIsDarkMode(resolveIsDark())), []);
@@ -766,6 +766,18 @@ export function GameLayout({ children }: Props) {
               >
                 <Zap className="h-4 w-4 text-[var(--accent-cyan)]" aria-hidden="true" />
                 <span>Modo enfoque</span>
+              </motion.button>
+              <motion.button
+                type="button"
+                onClick={() => {
+                  closeMore();
+                  openSage('¿En qué parte de mi aventura me recomiendas enfocarme ahora?');
+                }}
+                whileTap={{ scale: 0.98 }}
+                className="flex min-h-12 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-left text-sm font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--accent-gold)] hover:text-[var(--text-primary)]"
+              >
+                <Sparkles className="h-4 w-4 text-[var(--accent-gold)]" aria-hidden="true" />
+                <span>El Sabio</span>
               </motion.button>
               <motion.button
                 type="button"

@@ -96,7 +96,7 @@ function CareSection() {
       {showNew && (
         <PixelPanel className="p-4 space-y-3">
           <input
-            className="w-full px-3 py-2 rounded-lg text-sm"
+            className="min-h-11 w-full rounded-lg px-3 py-2 text-base"
             style={{ background: 'var(--bg-soft)', border: '1px solid var(--border)', color: 'var(--text)' }}
             placeholder="Nombre de la rutina"
             value={form.name}
@@ -104,7 +104,7 @@ function CareSection() {
           />
           <div className="flex gap-2 flex-wrap">
             {TIME_OF_DAY.map(t => (
-              <button key={t} onClick={() => setForm(f => ({ ...f, timeOfDay: t }))}
+              <button key={t} onClick={() => setForm(f => ({ ...f, timeOfDay: t }))} className="min-h-11 px-2"
                 style={{
                   padding: '4px 10px', borderRadius: 6, fontSize: 12,
                   border: `1px solid ${form.timeOfDay === t ? 'var(--primary)' : 'var(--border)'}`,
@@ -117,7 +117,7 @@ function CareSection() {
           <p className="text-xs font-semibold" style={{ color: 'var(--text-2)' }}>Pasos:</p>
           {form.steps.map((s, i) => (
             <input key={i}
-              className="w-full px-3 py-2 rounded-lg text-sm"
+              className="min-h-11 w-full rounded-lg px-3 py-2 text-base"
               style={{ background: 'var(--bg-soft)', border: '1px solid var(--border)', color: 'var(--text)' }}
               placeholder={`Paso ${i + 1}...`}
               value={s}
@@ -127,7 +127,7 @@ function CareSection() {
             />
           ))}
           <button onClick={() => setForm(f => ({ ...f, steps: [...f.steps, ''] }))}
-            className="text-xs" style={{ color: 'var(--primary)' }}>+ Agregar paso</button>
+            className="min-h-11 px-2 text-xs" style={{ color: 'var(--primary)' }}>+ Agregar paso</button>
           <div className="flex gap-2">
             <PixelButton variant="primary" onClick={handleCreate} disabled={!form.name}>Crear</PixelButton>
             <PixelButton variant="secondary" onClick={() => setShowNew(false)}>Cancelar</PixelButton>
@@ -230,7 +230,7 @@ function StyleSection() {
       </div>
 
       <div className="flex gap-2 flex-wrap">
-        <button onClick={() => setActiveCategory('')}
+        <button onClick={() => setActiveCategory('')} className="min-h-11 px-2"
           style={{
             padding: '4px 10px', borderRadius: 6, fontSize: 12,
             border: `1px solid ${!activeCategory ? 'var(--primary)' : 'var(--border)'}`,
@@ -257,7 +257,7 @@ function StyleSection() {
             { key: 'cost', label: 'Precio (COP)', placeholder: '50000' },
           ].map(f => (
             <input key={f.key}
-              className="w-full px-3 py-2 rounded-lg text-sm"
+              className="min-h-11 w-full rounded-lg px-3 py-2 text-base"
               style={{ background: 'var(--bg-soft)', border: '1px solid var(--border)', color: 'var(--text)' }}
               placeholder={f.placeholder}
               value={(form as any)[f.key]}
@@ -265,7 +265,7 @@ function StyleSection() {
             />
           ))}
           <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
-            className="w-full px-3 py-2 rounded-lg text-sm"
+            className="min-h-11 w-full rounded-lg px-3 py-2 text-base"
             style={{ background: 'var(--bg-soft)', border: '1px solid var(--border)', color: 'var(--text)' }}>
             {CATEGORIES.map(c => <option key={c} value={c}><E e={CATEGORY_LABELS[c]} /></option>)}
           </select>
@@ -290,7 +290,7 @@ function StyleSection() {
               <div className="flex items-start justify-between gap-1">
                 <p className="text-sm font-semibold truncate">{item.name}</p>
                 <button onClick={() => handleDelete(item.id)}
-                  className="shrink-0 p-0.5 rounded hover:bg-red-500/10"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded hover:bg-red-500/10"
                   style={{ color: 'var(--text-muted)' }}>
                   <Trash2 size={12} />
                 </button>
@@ -307,7 +307,7 @@ function StyleSection() {
                 {item.isFavorite && <Star size={12} style={{ color: 'var(--c-gold)' }} />}
               </div>
               <button onClick={() => handleWorn(item.id)}
-                className="w-full text-xs py-1 rounded"
+                className="min-h-11 w-full rounded text-xs py-1"
                 style={{ background: 'var(--bg-soft)', color: 'var(--primary)', border: '1px solid var(--border)' }}>
                 Usar hoy
               </button>
@@ -369,7 +369,7 @@ function PresenceSection() {
             </div>
             <div className="flex gap-2">
               {[1, 2, 3, 4, 5].map(v => (
-                <button key={v} onClick={() => setForm(f => ({ ...f, [area.key]: v }))}
+                <button key={v} onClick={() => setForm(f => ({ ...f, [area.key]: v }))} className="min-h-11"
                   style={{
                     flex: 1, padding: '6px 0', borderRadius: 6,
                     background: form[area.key] >= v
@@ -384,7 +384,7 @@ function PresenceSection() {
           </div>
         ))}
         <textarea
-          className="w-full px-3 py-2 rounded-lg text-sm resize-none"
+          className="min-h-11 w-full resize-none rounded-lg px-3 py-2 text-base"
           style={{ background: 'var(--bg-soft)', border: '1px solid var(--border)', color: 'var(--text)' }}
           placeholder="Notas de la semana..."
           rows={2}
@@ -448,7 +448,7 @@ export default function GlowUpPage() {
       {/* Tabs */}
       <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'var(--bg-soft)' }}>
         {TABS.map(t => (
-          <button key={t.key} onClick={() => setActiveTab(t.key)}
+          <button key={t.key} onClick={() => setActiveTab(t.key)} className="min-h-11"
             style={{
               flex: 1, padding: '8px 4px', borderRadius: 10, fontSize: 12, fontWeight: activeTab === t.key ? 700 : 500,
               background: activeTab === t.key ? 'var(--bg-panel)' : 'transparent',

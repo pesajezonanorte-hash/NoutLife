@@ -97,7 +97,7 @@ export function QuestWizard({ onSubmit, onClose, initialData }: Props) {
 
   return createPortal(
     <motion.div
-      className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center sm:p-5"
+      className="fixed inset-0 z-[200] flex items-end justify-center p-0 sm:items-center sm:p-5"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -114,7 +114,7 @@ export function QuestWizard({ onSubmit, onClose, initialData }: Props) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="quest-wizard-title"
-        className="relative z-10 flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-[var(--border-strong)] bg-[var(--bg-panel)] shadow-2xl"
+        className="relative z-10 flex max-h-[88dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl border border-[var(--border-strong)] bg-[var(--bg-panel)] shadow-2xl sm:max-h-[92vh] sm:rounded-2xl"
         initial={{ opacity: 0, y: 12, scale: 0.975 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 7, scale: 0.985 }}
@@ -144,7 +144,7 @@ export function QuestWizard({ onSubmit, onClose, initialData }: Props) {
             type="button"
             onClick={onClose}
             disabled={loading}
-            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-panel-light)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] disabled:opacity-50"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-panel-light)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] disabled:opacity-50 sm:h-8 sm:w-8"
             aria-label="Cerrar"
           >
             <X size={18} strokeWidth={1.8} aria-hidden="true" />
@@ -352,7 +352,7 @@ export function QuestWizard({ onSubmit, onClose, initialData }: Props) {
           </div>
         </div>
 
-        <footer className="flex items-center justify-between gap-3 border-t border-[var(--border)] px-5 py-4">
+        <footer className="flex items-center justify-between gap-3 border-t border-[var(--border)] px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 sm:py-4">
           <FlowButton
             tone="ghost"
             size="sm"

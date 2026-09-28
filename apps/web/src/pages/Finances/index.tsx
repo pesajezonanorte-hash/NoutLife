@@ -69,7 +69,7 @@ const CATEGORY_MODAL_ICONS: Record<string, LucideIcon> = {
   OTHER: Package,
 };
 
-const modalInputClass = 'w-full rounded-xl border border-[var(--border)] bg-[var(--bg-deep)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--accent-gold)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--accent-gold)_16%,transparent)]';
+const modalInputClass = 'min-h-[44px] w-full rounded-xl border border-[var(--border)] bg-[var(--bg-deep)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--accent-gold)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--accent-gold)_16%,transparent)]';
 
 function ModalShell({
   title,
@@ -97,7 +97,7 @@ function ModalShell({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2, ease: 'easeOut' }}
-      className="fixed inset-0 z-[60] flex items-end justify-center overflow-hidden bg-black/55 p-3 backdrop-blur-[2px] sm:items-center sm:p-5"
+      className="fixed inset-0 z-[200] flex items-end justify-center overflow-hidden bg-black/55 p-0 backdrop-blur-[2px] sm:items-center sm:p-5"
       onClick={onClose}
     >
       <motion.span
@@ -117,7 +117,7 @@ function ModalShell({
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 9, scale: 0.985 }}
         transition={{ type: 'spring', stiffness: 360, damping: 30, mass: 0.82 }}
-        className={`relative max-h-[calc(100dvh-1.5rem)] w-full overflow-y-auto rounded-2xl border border-[var(--border-strong)] bg-[var(--bg-panel)] p-5 shadow-[var(--shadow-pop)] ${size === 'sm' ? 'max-w-sm' : 'max-w-md'}`}
+        className={`relative max-h-[88dvh] w-full overflow-y-auto rounded-t-2xl border border-[var(--border-strong)] bg-[var(--bg-panel)] p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-[var(--shadow-pop)] sm:max-h-[calc(100dvh-1.5rem)] sm:rounded-2xl sm:pb-5 ${size === 'sm' ? 'max-w-sm' : 'max-w-md'}`}
         onClick={(event) => event.stopPropagation()}
       >
         <header className="mb-5 flex items-start justify-between gap-4">
@@ -134,7 +134,7 @@ function ModalShell({
             type="button"
             onClick={onClose}
             aria-label={`Cerrar ${title.toLowerCase()}`}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)]"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] sm:h-8 sm:w-8"
           >
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
@@ -199,10 +199,10 @@ function ModalActions({
 }) {
   return (
     <div className="mt-5 grid grid-cols-2 gap-2.5 border-t border-[var(--border-soft)] pt-4">
-      <FlowButton tone="ghost" withArrows={false} onClick={onCancel} className="w-full">
+      <FlowButton tone="ghost" withArrows={false} onClick={onCancel} className="min-h-[44px] w-full">
         Cancelar
       </FlowButton>
-      <FlowButton tone="primary" withArrows={false} onClick={onConfirm} disabled={disabled || saving} className="w-full">
+      <FlowButton tone="primary" withArrows={false} onClick={onConfirm} disabled={disabled || saving} className="min-h-[44px] w-full">
         {saving ? 'Guardando…' : confirmLabel}
       </FlowButton>
     </div>
@@ -598,12 +598,12 @@ export default function FinancesPage() {
 
 
       {/* Tabs */}
-      <div className="flex gap-1 overflow-x-auto pb-1">
+      <div className="grid grid-cols-2 gap-1 sm:flex sm:flex-wrap">
         {([['dashboard', ' Resumen'], ['transactions', ' Transacciones'], ['budgets', ' Presupuestos'], ['goals', ' Metas'], ['debts', ' Deudas'], ['recurring', ' Recurrentes'], ['projection', ' Proyección']] as const).map(([key, label]) => (
           <button
             key={key}
             onClick={() => setTab(key)}
-            className={`flex-shrink-0 px-3 py-1.5 border-2 font-pixel transition-all ${tab === key ? 'border-accent-gold bg-accent-gold text-bg-deep' : 'border-border-pixel text-text-secondary hover:border-text-secondary'}`}
+            className={`min-h-11 min-w-0 px-2 py-1.5 border-2 font-pixel transition-all sm:shrink-0 ${tab === key ? 'border-accent-gold bg-accent-gold text-bg-deep' : 'border-border-pixel text-text-secondary hover:border-text-secondary'}`}
             style={{ fontSize: '8px' }}
           >
 

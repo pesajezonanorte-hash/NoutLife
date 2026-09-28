@@ -41,7 +41,7 @@ function EntryEditor({ entry, onClose, onSave }: { entry?: JournalEntry; onClose
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const autoSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const toast = useToast();
-  const inputClass = 'w-full rounded-xl border border-[var(--border)] bg-[var(--bg-deep)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--accent-gold)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--accent-gold)_16%,transparent)]';
+  const inputClass = 'min-h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--bg-deep)] px-3 py-2.5 text-base text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--accent-gold)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--accent-gold)_16%,transparent)]';
 
   useEffect(() => {
     if (!entry) return;
@@ -136,7 +136,7 @@ function EntryEditor({ entry, onClose, onSave }: { entry?: JournalEntry; onClose
                   onClick={() => setMood(rating)}
                   aria-pressed={selected}
                   aria-label={`Humor ${rating} de 5`}
-                  className={`flex h-10 items-center justify-center rounded-xl border text-base transition-colors ${
+                  className={`flex h-11 items-center justify-center rounded-xl border text-base transition-colors ${
                     selected
                       ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)]/10'
                       : 'border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--border-strong)]'
@@ -192,7 +192,7 @@ function EntryEditor({ entry, onClose, onSave }: { entry?: JournalEntry; onClose
                 key={tag}
                 type="button"
                 onClick={() => setTags((current) => current.filter((item) => item !== tag))}
-                className="rounded-full border border-[var(--border)] bg-[var(--bg-panel-light)] px-2.5 py-1 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--accent-red)] hover:text-[var(--accent-red)]"
+                className="min-h-11 rounded-full border border-[var(--border)] bg-[var(--bg-panel-light)] px-2.5 py-1 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--accent-red)] hover:text-[var(--accent-red)]"
               >
                 #{tag} ×
               </button>
@@ -290,14 +290,14 @@ export default function JournalPage() {
 
       {/* Search + mood filter */}
       <div className="space-y-2">
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar en el diario..." className="w-full bg-bg-deep border-2 border-border-pixel text-text-primary font-vt text-base px-3 py-2 focus:border-accent-gold outline-none" />
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-pixel text-text-secondary" style={{ fontSize: '7px' }}>FILTRAR HUMOR:</span>
-          <button onClick={() => setMoodFilter(null)} className={`px-2 py-0.5 border font-pixel transition-all ${moodFilter === null ? 'border-accent-gold text-accent-gold' : 'border-border-pixel text-text-secondary'}`} style={{ fontSize: '7px' }}>
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar en el diario..." className="min-h-11 w-full bg-bg-deep border-2 border-border-pixel px-3 py-2 font-vt text-base text-text-primary outline-none focus:border-accent-gold" />
+        <div className="grid grid-cols-3 gap-1.5">
+          <span className="col-span-3 font-pixel text-text-secondary" style={{ fontSize: '7px' }}>FILTRAR HUMOR:</span>
+          <button onClick={() => setMoodFilter(null)} className={`min-h-11 border px-2 py-0.5 font-pixel transition-all ${moodFilter === null ? 'border-accent-gold text-accent-gold' : 'border-border-pixel text-text-secondary'}`} style={{ fontSize: '7px' }}>
             TODOS
           </button>
           {[1, 2, 3, 4, 5].map(m => (
-            <button key={m} onClick={() => setMoodFilter(moodFilter === m ? null : m)} className={`px-2 py-0.5 border transition-all ${moodFilter === m ? 'border-accent-gold' : 'border-border-pixel'}`}>
+            <button key={m} onClick={() => setMoodFilter(moodFilter === m ? null : m)} className={`min-h-11 border px-2 py-0.5 transition-all ${moodFilter === m ? 'border-accent-gold' : 'border-border-pixel'}`}>
               <span className={moodFilter === m ? 'opacity-100' : 'opacity-50'}><E e={MOOD_EMOJIS[m]} /></span>
             </button>
           ))}
@@ -333,7 +333,7 @@ export default function JournalPage() {
                         </div>
                       )}
                     </div>
-                    <button onClick={(ev) => { ev.stopPropagation(); handleDelete(e.id); }} className="font-pixel text-accent-red hover:opacity-70 flex-shrink-0" style={{ fontSize: '8px' }}><E e="✕" /></button>
+                    <button onClick={(ev) => { ev.stopPropagation(); handleDelete(e.id); }} className="flex h-11 w-11 shrink-0 items-center justify-center font-pixel text-accent-red hover:opacity-70" style={{ fontSize: '8px' }}><E e="✕" /></button>
                   </div>
                 </PixelPanel>
               </motion.div>

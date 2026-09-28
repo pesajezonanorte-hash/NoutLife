@@ -111,9 +111,9 @@ export function HabitModal({ onSubmit, onClose, initial, title }: Props) {
         onClick={onClose}
       />
 
-      <div className="relative flex min-h-full items-start justify-center p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:items-center sm:p-6">
+      <div className="relative flex min-h-full items-end justify-center p-0 sm:items-center sm:p-6">
         <motion.div
-          className="relative z-10 flex w-full max-w-lg min-h-0 max-h-[calc(100dvh-1.5rem)] flex-col overflow-hidden rounded-2xl border border-[var(--border-strong)] bg-[var(--bg-panel)] shadow-lg sm:max-h-[calc(100dvh-3rem)]"
+          className="relative z-10 flex min-h-0 max-h-[88dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border border-[var(--border-strong)] bg-[var(--bg-panel)] shadow-lg sm:max-h-[calc(100dvh-3rem)] sm:rounded-2xl"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2, ease: 'easeOut', delay: 0.05 }}
@@ -130,7 +130,7 @@ export function HabitModal({ onSubmit, onClose, initial, title }: Props) {
                 <p className="mt-0.5 text-xs text-[var(--text-muted)]">Define una acción pequeña que quieras repetir.</p>
               </div>
             </div>
-            <button onClick={onClose} aria-label="Cerrar" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xl text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-panel)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)]"><E e="✕" /></button>
+            <button onClick={onClose} aria-label="Cerrar" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-xl text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-panel)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] sm:h-8 sm:w-8"><E e="✕" /></button>
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 space-y-4">
@@ -167,7 +167,7 @@ export function HabitModal({ onSubmit, onClose, initial, title }: Props) {
                       onClick={() => setForm((current) => ({ ...current, icon: id }))}
                       aria-label={`Seleccionar icono ${id}`}
                       aria-pressed={selected}
-                      className={`relative flex h-9 w-full items-center justify-center rounded-xl border transition-colors ${selected ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)]/10 text-[var(--accent-gold)]' : 'border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]'}`}
+                      className={`relative flex h-11 w-full items-center justify-center rounded-xl border transition-colors ${selected ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)]/10 text-[var(--accent-gold)]' : 'border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]'}`}
                     >
                       <Icon size={17} strokeWidth={1.75} />
                       {selected && (
@@ -191,7 +191,7 @@ export function HabitModal({ onSubmit, onClose, initial, title }: Props) {
                       onClick={() => setForm((current) => ({ ...current, color }))}
                       aria-label={`Seleccionar color ${color}`}
                       aria-pressed={selected}
-                      className={`relative flex h-8 w-8 items-center justify-center rounded-full transition-all hover:scale-110 ${selected ? 'scale-110 ring-2 ring-[var(--text-primary)] ring-offset-2 ring-offset-[var(--bg-panel)]' : 'ring-1 ring-[var(--border-strong)]'}`}
+                      className={`relative flex h-11 w-11 items-center justify-center rounded-full transition-all hover:scale-110 ${selected ? 'scale-110 ring-2 ring-[var(--text-primary)] ring-offset-2 ring-offset-[var(--bg-panel)]' : 'ring-1 ring-[var(--border-strong)]'}`}
                       style={{ backgroundColor: color }}
                     >
                       {selected && <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[var(--bg-panel)] text-[10px] font-bold leading-none text-[var(--text-primary)]"><E e="✓" /></span>}
@@ -233,20 +233,20 @@ export function HabitModal({ onSubmit, onClose, initial, title }: Props) {
                 <button
                   type="button"
                   onClick={() => setForm((current) => ({ ...current, frequency: { type: 'daily', days: [] } }))}
-                  className={`rounded-lg border px-3 py-2 text-left text-sm transition-colors ${frequency.type === 'daily' ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)]/10 text-[var(--text-primary)]' : 'border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--text-secondary)]'}`}
+                  className={`min-h-11 rounded-lg border px-3 py-2 text-left text-sm transition-colors ${frequency.type === 'daily' ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)]/10 text-[var(--text-primary)]' : 'border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--text-secondary)]'}`}
                 >
                   Todos los días
                 </button>
                 <button
                   type="button"
                   onClick={() => setForm((current) => ({ ...current, frequency: { type: 'days_per_week', days: current.frequency?.type === 'days_per_week' && current.frequency.days.length > 0 ? current.frequency.days : [1, 2, 3, 4, 5] } }))}
-                  className={`rounded-lg border px-3 py-2 text-left text-sm transition-colors ${frequency.type === 'days_per_week' ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)]/10 text-[var(--text-primary)]' : 'border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--text-secondary)]'}`}
+                  className={`min-h-11 rounded-lg border px-3 py-2 text-left text-sm transition-colors ${frequency.type === 'days_per_week' ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)]/10 text-[var(--text-primary)]' : 'border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--text-secondary)]'}`}
                 >
                   Días específicos
                 </button>
               </div>
               {frequency.type === 'days_per_week' && (
-                <div className="mt-2 flex justify-between gap-1" aria-label="Días del hábito">
+                <div className="mt-2 grid grid-cols-4 gap-2" aria-label="Días del hábito">
                   {weekDays.map((day) => {
                     const selected = frequency.days.includes(day.value);
                     return (
@@ -261,7 +261,7 @@ export function HabitModal({ onSubmit, onClose, initial, title }: Props) {
                             : [...currentDays, day.value].sort((a, b) => a - b);
                           return { ...current, frequency: { type: 'days_per_week', days } };
                         })}
-                        className={`flex h-8 flex-1 items-center justify-center rounded-md border text-xs font-semibold transition-colors ${selected ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)] text-[var(--bg-deep)]' : 'border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--text-secondary)]'}`}
+                        className={`flex min-h-11 items-center justify-center rounded-md border text-xs font-semibold transition-colors ${selected ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)] text-[var(--bg-deep)]' : 'border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--text-secondary)]'}`}
                       >
                         {day.label}
                       </button>
@@ -304,9 +304,9 @@ export function HabitModal({ onSubmit, onClose, initial, title }: Props) {
                       aria-label="Añadir este hábito a Google Calendar"
                       disabled={googleToggleDisabled}
                       onClick={() => setForm((current) => ({ ...current, syncToGoogleCalendar: !current.syncToGoogleCalendar }))}
-                      className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full border transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${form.syncToGoogleCalendar ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)]/25' : 'border-[var(--border-strong)] bg-[var(--bg-deep)]'}`}
+                      className={`relative inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${form.syncToGoogleCalendar ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)]/25' : 'border-[var(--border-strong)] bg-[var(--bg-deep)]'}`}
                     >
-                      <span className={`flex h-4 w-4 items-center justify-center rounded-full bg-[var(--text-primary)] shadow-sm transition-transform ${form.syncToGoogleCalendar ? 'translate-x-5' : 'translate-x-1'}`}>
+                      <span className={`flex h-5 w-5 items-center justify-center rounded-full bg-[var(--text-primary)] shadow-sm transition-transform ${form.syncToGoogleCalendar ? 'translate-x-2.5' : '-translate-x-2.5'}`}>
                         {form.syncToGoogleCalendar && <Check size={10} className="text-[var(--bg-deep)]" strokeWidth={3} />}
                       </span>
                     </button>
@@ -332,7 +332,7 @@ export function HabitModal({ onSubmit, onClose, initial, title }: Props) {
             </div>
           </div>
 
-          <div className="flex flex-shrink-0 gap-3 border-t border-[var(--border-soft)] bg-[var(--bg-panel-light)] p-4 sm:px-5">
+          <div className="flex flex-shrink-0 gap-3 border-t border-[var(--border-soft)] bg-[var(--bg-panel-light)] px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 sm:px-5 sm:py-4">
             <PixelButton variant="ghost" className="flex-1" onClick={onClose}>Cancelar</PixelButton>
             <PixelButton variant="primary" className="flex-1" onClick={handleSubmit} disabled={loading || !form.title.trim()}>
               {loading ? 'Guardando...' : 'Guardar'}

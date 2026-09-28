@@ -211,14 +211,14 @@ function EventModal({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-[200] flex items-end justify-center bg-black/70 p-0 md:items-center md:p-4"
       onClick={onClose}
     >
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-bg-panel border-2 border-border-pixel w-full max-w-md p-5 space-y-4 max-h-[90vh] overflow-y-auto"
+        className="max-h-[86dvh] w-full max-w-md space-y-4 overflow-y-auto rounded-t-2xl border-2 border-border-pixel bg-bg-panel p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:max-h-[90vh] md:rounded-2xl md:p-5"
         onClick={e => e.stopPropagation()}
       >
         <p className="font-pixel text-accent-gold" style={{ fontSize: '10px' }}>
@@ -237,12 +237,12 @@ function EventModal({
         {/* Category */}
         <div>
           <p className="font-pixel text-text-secondary mb-1" style={{ fontSize: '7px' }}>CATEGORÍA</p>
-          <div className="flex flex-wrap gap-1">
+          <div className="grid grid-cols-2 gap-1.5">
             {CATEGORIES.map(c => (
               <button
                 key={c.key}
                 onClick={() => setCategory(c.key)}
-                className={`font-pixel px-2 py-1 border-2 transition-colors flex items-center gap-1`}
+                className={`flex min-h-11 min-w-0 items-center gap-1 border-2 px-2 font-pixel transition-colors`}
                 style={{
                   fontSize: '7px',
                   borderColor: category === c.key ? c.color : 'var(--border-pixel)',
@@ -257,7 +257,7 @@ function EventModal({
         </div>
 
         {/* All day toggle */}
-        <div className="flex items-center gap-2">
+        <label htmlFor="allday" className="flex min-h-11 cursor-pointer items-center gap-2 font-vt text-base text-text-primary">
           <input
             type="checkbox"
             id="allday"
@@ -265,10 +265,8 @@ function EventModal({
             onChange={e => setIsAllDay(e.target.checked)}
             className="accent-accent-gold"
           />
-          <label htmlFor="allday" className="font-vt text-text-primary text-base cursor-pointer">
-            Todo el día
-          </label>
-        </div>
+          Todo el día
+        </label>
 
         {/* Dates */}
         {isAllDay ? (
@@ -289,7 +287,7 @@ function EventModal({
                 type="datetime-local"
                 value={startDate}
                 onChange={e => setStartDate(e.target.value)}
-                className="w-full bg-bg-deep border-2 border-border-pixel text-text-primary font-vt text-sm px-2 py-1.5 focus:border-accent-gold outline-none"
+                className="min-h-11 w-full bg-bg-deep border-2 border-border-pixel text-text-primary font-vt text-sm px-2 py-1.5 focus:border-accent-gold outline-none"
               />
             </div>
             <div>
@@ -298,7 +296,7 @@ function EventModal({
                 type="datetime-local"
                 value={endDate}
                 onChange={e => setEndDate(e.target.value)}
-                className="w-full bg-bg-deep border-2 border-border-pixel text-text-primary font-vt text-sm px-2 py-1.5 focus:border-accent-gold outline-none"
+                className="min-h-11 w-full bg-bg-deep border-2 border-border-pixel text-text-primary font-vt text-sm px-2 py-1.5 focus:border-accent-gold outline-none"
               />
             </div>
           </div>
@@ -435,13 +433,13 @@ export default function AgendaPage() {
         <div className="flex items-center justify-between">
           <button
             onClick={() => { const d = new Date(currentDate); d.setDate(d.getDate() - 1); setCurrentDate(d); }}
-            className="font-pixel text-text-secondary hover:text-accent-gold px-2 py-1 transition-colors"
+            className="flex h-11 w-11 items-center justify-center font-pixel text-text-secondary hover:text-accent-gold transition-colors"
             style={{ fontSize: '10px' }}
           >◀</button>
           <p className="font-vt text-text-primary text-xl capitalize">{dateLabel}</p>
           <button
             onClick={() => { const d = new Date(currentDate); d.setDate(d.getDate() + 1); setCurrentDate(d); }}
-            className="font-pixel text-text-secondary hover:text-accent-gold px-2 py-1 transition-colors"
+            className="flex h-11 w-11 items-center justify-center font-pixel text-text-secondary hover:text-accent-gold transition-colors"
             style={{ fontSize: '10px' }}
           >▶</button>
         </div>
@@ -487,7 +485,7 @@ export default function AgendaPage() {
         <div className="flex items-center justify-between">
           <button
             onClick={() => { const d = new Date(currentDate); d.setDate(d.getDate() - 7); setCurrentDate(d); }}
-            className="font-pixel text-text-secondary hover:text-accent-gold px-2 py-1 transition-colors"
+            className="flex h-11 w-11 items-center justify-center font-pixel text-text-secondary hover:text-accent-gold transition-colors"
             style={{ fontSize: '10px' }}
           >◀</button>
           <p className="font-vt text-text-primary text-base">
@@ -496,7 +494,7 @@ export default function AgendaPage() {
           </p>
           <button
             onClick={() => { const d = new Date(currentDate); d.setDate(d.getDate() + 7); setCurrentDate(d); }}
-            className="font-pixel text-text-secondary hover:text-accent-gold px-2 py-1 transition-colors"
+            className="flex h-11 w-11 items-center justify-center font-pixel text-text-secondary hover:text-accent-gold transition-colors"
             style={{ fontSize: '10px' }}
           >▶</button>
         </div>
@@ -560,13 +558,13 @@ export default function AgendaPage() {
         <div className="flex items-center justify-between">
           <button
             onClick={() => setCurrentDate(new Date(year, month - 1, 1))}
-            className="font-pixel text-text-secondary hover:text-accent-gold px-2 py-1 transition-colors"
+            className="flex h-11 w-11 items-center justify-center font-pixel text-text-secondary hover:text-accent-gold transition-colors"
             style={{ fontSize: '10px' }}
           >◀</button>
           <p className="font-vt text-text-primary text-xl capitalize">{monthLabel}</p>
           <button
             onClick={() => setCurrentDate(new Date(year, month + 1, 1))}
-            className="font-pixel text-text-secondary hover:text-accent-gold px-2 py-1 transition-colors"
+            className="flex h-11 w-11 items-center justify-center font-pixel text-text-secondary hover:text-accent-gold transition-colors"
             style={{ fontSize: '10px' }}
           >▶</button>
         </div>
@@ -785,7 +783,7 @@ export default function AgendaPage() {
           <button
             key={v}
             onClick={() => setView(v)}
-            className={`font-pixel px-4 py-2 border-b-2 -mb-0.5 transition-colors ${
+            className={`min-h-11 font-pixel px-4 py-2 border-b-2 -mb-0.5 transition-colors ${
               view === v
                 ? 'border-accent-gold text-accent-gold'
                 : 'border-transparent text-text-secondary hover:text-text-primary'
@@ -810,17 +808,6 @@ export default function AgendaPage() {
       ) : (
         <MonthView />
       )}
-
-      {/* FAB */}
-      <motion.button
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.9 }}
-        onClick={() => setShowModal(true)}
-        className="fixed bottom-20 right-4 md:bottom-6 md:right-6 w-12 h-12 bg-accent-gold border-2 border-border-pixel font-pixel text-bg-deep text-xl z-30 flex items-center justify-center"
-        style={{ borderRadius: '4px' }}
-      >
-        +
-      </motion.button>
 
       <AnimatePresence>
         {showModal && (

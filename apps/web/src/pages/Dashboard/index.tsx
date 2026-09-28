@@ -303,7 +303,7 @@ function RecoveryOverlay({ open, bonusXp }: { open: boolean; bonusXp: number }) 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center px-4"
+          className="fixed inset-0 z-[200] flex items-center justify-center px-4"
           style={{ background: 'rgba(15,17,23,0.66)' }}
         >
           <motion.div
@@ -518,12 +518,12 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between gap-3">
         <div>
           {!playerClass && user.level >= 10 && (
-            <button type="button" onClick={() => setShowClassModal(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-[color-mix(in_oklab,var(--accent-gold)_45%,var(--border))] bg-[color-mix(in_oklab,var(--accent-gold)_8%,var(--bg-panel))] px-2.5 py-1.5 text-xs font-medium text-[var(--accent-gold)] transition-colors hover:bg-[color-mix(in_oklab,var(--accent-gold)_14%,var(--bg-panel))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)]">
+            <button type="button" onClick={() => setShowClassModal(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-[color-mix(in_oklab,var(--accent-gold)_45%,var(--border))] bg-[color-mix(in_oklab,var(--accent-gold)_8%,var(--bg-panel))] px-2.5 py-1.5 text-xs font-medium text-[var(--accent-gold)] transition-colors hover:bg-[color-mix(in_oklab,var(--accent-gold)_14%,var(--bg-panel))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)]">
               <Zap size={14} aria-hidden="true" /> Elige tu clase · nivel 10
             </button>
           )}
         </div>
-        <button type="button" onClick={() => setShowBriefing(true)} className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-panel-light)] hover:text-[var(--accent-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)]">
+        <button type="button" onClick={() => setShowBriefing(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-panel-light)] hover:text-[var(--accent-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)]">
           <ClipboardList size={14} aria-hidden="true" /> Briefing del día
         </button>
       </div>
@@ -594,7 +594,7 @@ export default function DashboardPage() {
             <PixelPanel className="p-4">
               <div className="mb-3 flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2"><CalendarDays size={15} className="text-[var(--accent-blue)]" /><h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-secondary)]">Próximos eventos</h3></div>
-                <button type="button" onClick={() => navigate('/agenda')} className="text-xs font-medium text-[var(--accent-gold)] transition-colors hover:text-[var(--text-primary)]">Ver agenda</button>
+                <button type="button" onClick={() => navigate('/agenda')} className="inline-flex min-h-11 items-center px-2 text-xs font-medium text-[var(--accent-gold)] transition-colors hover:text-[var(--text-primary)]">Ver agenda</button>
               </div>
               <div className="space-y-3">
                 {upcomingEvents.slice(0, 3).map((event) => {
@@ -629,7 +629,7 @@ export default function DashboardPage() {
                   <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[color-mix(in_oklab,var(--accent-green)_10%,var(--bg-panel))] text-[var(--accent-green)]"><Flame size={17} /></span>
                   <div><h3 className="text-sm font-semibold text-[var(--text-primary)]">Hábitos de hoy</h3><p className="mt-0.5 text-xs text-[var(--text-secondary)]">Rituales recurrentes que sostienen tu semana.</p></div>
                 </div>
-                <button type="button" onClick={() => navigate('/habits')} className="text-xs font-medium text-[var(--accent-gold)] transition-colors hover:text-[var(--text-primary)]">Ver todos</button>
+                <button type="button" onClick={() => navigate('/habits')} className="inline-flex min-h-11 items-center px-2 text-xs font-medium text-[var(--accent-gold)] transition-colors hover:text-[var(--text-primary)]">Ver todos</button>
               </div>
               <div className="divide-y divide-[var(--border)] px-4 sm:px-5">
                 {habits.slice(0, 5).map((habit) => {
@@ -641,7 +641,7 @@ export default function DashboardPage() {
                       <StreakFlame streak={habit.currentStreak} size="sm" />
                       <button
                         type="button"
-                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-green)] ${isComplete ? 'border-[var(--accent-green)] bg-[var(--accent-green)] text-white' : 'border-[var(--border-strong)] bg-[var(--bg-panel)] text-[var(--text-muted)] hover:border-[var(--accent-green)] hover:text-[var(--accent-green)]'}`}
+                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-green)] ${isComplete ? 'border-[var(--accent-green)] bg-[var(--accent-green)] text-white' : 'border-[var(--border-strong)] bg-[var(--bg-panel)] text-[var(--text-muted)] hover:border-[var(--accent-green)] hover:text-[var(--accent-green)]'}`}
                         onClick={() => { if (!habit.todayCompleted) void handleHabitLog(habit.id); }}
                         disabled={isComplete}
                         aria-label={isComplete ? `Hábito completado: ${habit.title}` : `Completar hábito: ${habit.title}`}

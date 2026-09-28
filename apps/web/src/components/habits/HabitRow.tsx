@@ -45,7 +45,7 @@ export const HabitRow = memo(function HabitRow({ habit, onLog, onEdit, onDelete 
         {/* Icon */}
         <button
           onClick={() => setExpanded((e) => !e)}
-          className="text-2xl flex-shrink-0 w-10 h-10 flex items-center justify-center hover:scale-110 transition-transform"
+          className="flex h-11 w-11 shrink-0 items-center justify-center text-2xl transition-transform hover:scale-110"
           title="Ver detalles"
         >
           <E e={habit.icon} />
@@ -77,13 +77,13 @@ export const HabitRow = memo(function HabitRow({ habit, onLog, onEdit, onDelete 
         <div className="flex flex-col gap-1 flex-shrink-0">
           <button
             onClick={() => onEdit(habit)}
-            className="text-sm text-[var(--text-secondary)] hover:text-[var(--accent-gold)] px-1 transition-colors"
+            className="flex h-11 w-11 items-center justify-center text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--accent-gold)]"
           >
             <E e="✏" />
           </button>
           <button
             onClick={() => onDelete(habit)}
-            className="text-sm text-[var(--text-secondary)] hover:text-[var(--accent-red)] px-1 transition-colors"
+            className="flex h-11 w-11 items-center justify-center text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--accent-red)]"
           >
             <E e="🗑" />
           </button>
@@ -104,7 +104,7 @@ export const HabitRow = memo(function HabitRow({ habit, onLog, onEdit, onDelete 
               <span className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
                 Últimos 30 días
               </span>
-              <div className="flex gap-3">
+              <div className="flex flex-wrap gap-x-3 gap-y-1">
                 <span className="text-xs text-[var(--text-secondary)]">
                   Mejor racha: <span className="text-[var(--accent-gold)]">{habit.longestStreak}d</span>
                 </span>
