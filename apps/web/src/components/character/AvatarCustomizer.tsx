@@ -113,8 +113,39 @@ function compressAndResizeImage(file: File, maxWidth = 350, maxHeight = 350): Pr
 
 const MINECRAFT_SKIN_SIZE = 64;
 const MAX_MINECRAFT_SKIN_BYTES = 1024 * 1024;
+const MINECRAFT_SKIN_DRAFT_PREFIX = 'lifequest.minecraft-skin-draft';
 
 type AvatarTab = 'pixel' | 'photo' | 'minecraft';
+
+function minecraftSkinDraftKey(userId?: string): string {
+  return `${MINECRAFT_SKIN_DRAFT_PREFIX}:${userId ?? 'anonymous'}`;
+}
+
+function readMinecraftSkinDraft(userId?: string): string {
+  if (typeof window === 'undefined') return '';
+  try {
+    const draft = window.sessionStorage.getItem(minecraftSkinDraftKey(userId)) ?? '';
+    return /^data:image\/png;base64,/i.test(draft) && draft.length <= 100_000 ? draft : '';
+  } catch {
+    return '';
+  }
+}
+
+function saveMinecraftSkinDraft(userId: string | undefined, skinUrl: string): void {
+  try {
+    window.sessionStorage.setItem(minecraftSkinDraftKey(userId), skinUrl);
+  } catch {
+    // A blocked or full sessionStorage must never prevent selecting a skin.
+  }
+}
+
+function clearMinecraftSkinDraft(userId?: string): void {
+  try {
+    window.sessionStorage.removeItem(minecraftSkinDraftKey(userId));
+  } catch {
+    // no-op
+  }
+}
 
 function initialTabFor(config: AvatarConfig | undefined, avatarUrl?: string | null): AvatarTab {
   if (config?.avatarMode === 'minecraft' && config.minecraftSkinUrl) return 'minecraft';
@@ -187,7 +218,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
   const [activeTab, setActiveTab] = useState<AvatarTab>(() => initialTabFor(user?.avatarConfig, user?.avatarUrl));
   const [config, setConfig] = useState<AvatarConfig>(user?.avatarConfig ?? DEFAULT_AVATAR);
   const [photoUrl, setPhotoUrl] = useState<string>(user?.avatarUrl ?? '');
-  const [skinUrl, setSkinUrl] = useState<string>(user?.avatarConfig?.minecraftSkinUrl ?? '');
+  const [skinUrl, setSkinUrl] = useState<string>(() => readMinecraftSkinDraft(user?.id) || user?.avatarConfig?.minecraftSkinUrl || '');
   const [urlInput, setUrlInput] = useState<string>('');
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -197,7 +228,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
     if (!isOpen) return;
     setConfig(user?.avatarConfig ?? DEFAULT_AVATAR);
     setPhotoUrl(user?.avatarUrl ?? '');
-    setSkinUrl(user?.avatarConfig?.minecraftSkinUrl ?? '');
+    setSkinUrl(readMinecraftSkinDraft(user?.id) || user?.avatarConfig?.minecraftSkinUrl || '');
     setUrlInput('');
     setActiveTab(initialTabFor(user?.avatarConfig, user?.avatarUrl));
   }, [isOpen, user]);
@@ -206,6 +237,8 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
     setConfig((c) => ({ ...c, [key]: value }));
 
   const hairStyles = (config.bodyType === 'female') ? HAIR_STYLES_FEMALE : HAIR_STYLES_MALE;
+  const savedSkinUrl = user?.avatarConfig?.minecraftSkinUrl ?? '';
+  const hasUnsavedSkinDraft = Boolean(skinUrl && skinUrl !== savedSkinUrl);
 
   const handleSavePixelAvatar = async () => {
     setSaving(true);
@@ -248,7 +281,8 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
     try {
       const normalizedSkin = await normalizeMinecraftSkin(file);
       setSkinUrl(normalizedSkin);
-      toast.success('Skin de Minecraft lista para previsualizar.');
+      saveMinecraftSkinDraft(user?.id, normalizedSkin);
+      toast.success('Skin lista para previsualizar. Guarda y equipa para aplicarla.');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'No se pudo procesar la skin.');
     } finally {
@@ -311,12 +345,18 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
         avatarMode: 'minecraft',
         minecraftSkinUrl: skinUrl,
       });
+      if (updatedUser.avatarConfig.avatarMode !== 'minecraft' || !updatedUser.avatarConfig.minecraftSkinUrl) {
+        throw new Error('SKIN_NOT_PERSISTED');
+      }
+      clearMinecraftSkinDraft(user?.id);
       setConfig(updatedUser.avatarConfig);
       updateUser(updatedUser);
-      toast.success('¡Skin de Minecraft equipada!');
+      toast.success('¡Skin de Minecraft guardada y equipada!');
       onClose();
-    } catch {
-      toast.error('Error al guardar la skin de Minecraft.');
+    } catch (error) {
+      toast.error(error instanceof Error && error.message === 'SKIN_NOT_PERSISTED'
+        ? 'La API no confirmó la skin. Tu vista previa se conserva: inténtalo de nuevo.'
+        : 'Error al guardar la skin de Minecraft. Tu vista previa se conserva.');
     } finally {
       setSaving(false);
     }
@@ -331,6 +371,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
         avatarMode: mode,
         minecraftSkinUrl: null,
       });
+      clearMinecraftSkinDraft(user?.id);
       setConfig(updatedUser.avatarConfig);
       setSkinUrl('');
       updateUser(updatedUser);
@@ -570,8 +611,14 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
                       <span>{skinUrl ? 'Cambiar skin de Minecraft' : 'Subir skin de Minecraft'}</span>
                     </PixelButton>
 
+                    {hasUnsavedSkinDraft && (
+                      <div role="status" className="rounded-xl border border-[var(--accent-gold)]/35 bg-[var(--accent-gold)]/10 px-3 py-2.5 text-xs leading-5 text-[var(--text-secondary)]">
+                        <strong className="font-semibold text-[var(--accent-gold)]">Vista previa temporal.</strong> Guarda y equipa la skin para aplicarla en tu personaje. Si el navegador suspende la pestaña, esta selección seguirá disponible al volver a abrir este panel.
+                      </div>
+                    )}
+
                     <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel-light)] px-3 py-2.5 text-xs leading-5 text-[var(--text-secondary)]">
-                      <strong className="font-semibold text-[var(--text-primary)]">Formato:</strong> PNG de 64×64 píxeles. Las skins clásicas de 64×32 se adaptan automáticamente. La textura se guarda en tu perfil; no se envía a un visor externo.
+                      <strong className="font-semibold text-[var(--text-primary)]">Formato:</strong> PNG de 64×64 píxeles. Las skins clásicas de 64×32 se adaptan automáticamente. La textura sólo se guarda en tu perfil al usar el botón de abajo; no se envía a un visor externo.
                     </div>
 
                     <div className="space-y-2 border-t border-[var(--border)] pt-3">
@@ -581,7 +628,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
                         disabled={saving || !skinUrl}
                         className="w-full py-2 text-xs"
                       >
-                        {saving ? 'GUARDANDO...' : <><E e="⛏" s={11} /> EQUIPAR SKIN</>}
+                        {saving ? 'GUARDANDO...' : <><E e="⛏" s={11} /> {hasUnsavedSkinDraft ? 'GUARDAR Y EQUIPAR SKIN' : 'EQUIPAR SKIN'}</>}
                       </PixelButton>
 
                       {(skinUrl || user?.avatarConfig?.minecraftSkinUrl) && (
