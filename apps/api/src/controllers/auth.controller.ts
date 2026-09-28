@@ -105,7 +105,7 @@ export async function me(req: AuthRequest, res: Response): Promise<void> {
         level: true, xp: true, xpToNextLevel: true, gold: true,
         hp: true, maxHp: true, mp: true, maxMp: true,
         strength: true, intelligence: true, charisma: true,
-        avatarConfig: true, timezone: true, currency: true,
+        avatarConfig: true, avatarUrl: true, timezone: true, currency: true,
         language: true, relationshipStatus: true, createdAt: true,
         onboardingCompleted: true, birthDate: true,
         currentStreak: true, longestStreak: true,

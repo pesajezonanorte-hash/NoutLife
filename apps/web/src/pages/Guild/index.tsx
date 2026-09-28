@@ -18,6 +18,7 @@ interface GuildMemberUser {
   currentStreak: number;
   xp: number;
   avatarConfig?: unknown;
+  avatarUrl?: string | null;
   equippedAura?: string | null;
   equippedFrame?: string | null;
   equippedHat?: string | null;
@@ -28,6 +29,7 @@ interface GuildMessageUser {
   username: string;
   displayName: string;
   avatarConfig?: unknown;
+  avatarUrl?: string | null;
   equippedAura?: string | null;
   equippedFrame?: string | null;
 }
@@ -302,6 +304,7 @@ export default function GuildPage() {
               <div key={m.id} className="flex items-center gap-2">
                 <AvatarDisplay
                   avatarConfig={m.user.avatarConfig}
+                  avatarUrl={m.user.avatarUrl}
                   equippedAura={m.user.equippedAura}
                   equippedFrame={m.user.equippedFrame}
                   size={32}
@@ -339,6 +342,7 @@ export default function GuildPage() {
                   >
                     <AvatarDisplay
                       avatarConfig={msg.user.avatarConfig}
+                      avatarUrl={msg.user.avatarUrl}
                       equippedAura={msg.user.equippedAura}
                       equippedFrame={msg.user.equippedFrame}
                       size={28}

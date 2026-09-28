@@ -37,6 +37,7 @@ interface LeaderboardEntry {
   value: number;
   xpToNextLevel?: number;
   avatarConfig?: unknown;
+  avatarUrl?: string | null;
   equippedAura?: string | null;
   equippedFrame?: string | null;
   equippedHat?: string | null;
@@ -51,6 +52,7 @@ interface Friend {
     level: number;
     currentStreak: number;
     avatarConfig?: unknown;
+    avatarUrl?: string | null;
   };
   since: string;
 }
@@ -63,6 +65,7 @@ interface PendingRequest {
     displayName: string;
     level: number;
     avatarConfig?: unknown;
+    avatarUrl?: string | null;
   };
   createdAt: string;
 }
@@ -169,7 +172,7 @@ function FriendManager({
                 <div className="space-y-2">
                   {pending.map((request) => (
                     <div key={request.id} className="flex items-center gap-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] p-2.5">
-                      <AvatarDisplay avatarConfig={request.requester.avatarConfig} size={34} animate="idle" />
+                      <AvatarDisplay avatarConfig={request.requester.avatarConfig} avatarUrl={request.requester.avatarUrl} size={34} animate="idle" />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-xs font-semibold text-[var(--text-primary)]">{request.requester.displayName}</p>
                         <p className="truncate text-[11px] text-[var(--text-secondary)]">@{request.requester.username} · Nivel {request.requester.level}</p>
@@ -188,7 +191,7 @@ function FriendManager({
                 <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
                   {friends.map(({ friendshipId, friend }) => (
                     <div key={friendshipId} className="flex items-center gap-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] p-2.5">
-                      <AvatarDisplay avatarConfig={friend.avatarConfig} size={34} animate="idle" />
+                      <AvatarDisplay avatarConfig={friend.avatarConfig} avatarUrl={friend.avatarUrl} size={34} animate="idle" />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-xs font-semibold text-[var(--text-primary)]">{friend.displayName}</p>
                         <p className="truncate text-[11px] text-[var(--text-secondary)]">@{friend.username} · Nivel {friend.level} · {friend.currentStreak} días</p>
@@ -350,7 +353,7 @@ export default function LeaderboardPage() {
                   return (
                     <motion.div key={entry.id} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18, delay: Math.min(index, 8) * 0.025 }} className={`flex items-center gap-3 px-4 py-3 transition-colors sm:px-5 ${isMe ? 'bg-[color-mix(in_oklab,var(--accent-gold)_8%,var(--bg-panel))]' : 'hover:bg-[var(--bg-panel)]'}`}>
                       <RankMark rank={entry.rank} />
-                      <AvatarDisplay avatarConfig={entry.avatarConfig} equippedAura={entry.equippedAura} equippedFrame={entry.equippedFrame} size={42} animate="idle" />
+                      <AvatarDisplay avatarConfig={entry.avatarConfig} avatarUrl={entry.avatarUrl} equippedAura={entry.equippedAura} equippedFrame={entry.equippedFrame} size={42} animate="idle" />
                       <div className="min-w-0 flex-1">
                         <div className="flex min-w-0 items-center gap-2">
                           <p className={`truncate text-sm font-semibold ${isMe ? 'text-[var(--accent-gold)]' : 'text-[var(--text-primary)]'}`}>{entry.displayName}</p>

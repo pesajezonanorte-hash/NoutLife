@@ -23,6 +23,7 @@ function sanitizeUser(user: {
   intelligence: number;
   charisma: number;
   avatarConfig: unknown;
+  avatarUrl?: string | null;
   timezone: string;
   currency: string;
   language: string;
@@ -55,6 +56,7 @@ function sanitizeUser(user: {
     intelligence: user.intelligence,
     charisma: user.charisma,
     avatarConfig: user.avatarConfig,
+    avatarUrl: user.avatarUrl ?? null,
     timezone: user.timezone,
     currency: user.currency,
     language: user.language,

@@ -223,14 +223,27 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const skinInputRef = useRef<HTMLInputElement>(null);
+  const initializedModalUserRef = useRef<string | undefined>(undefined);
+  const hasInitializedModalRef = useRef(false);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      hasInitializedModalRef.current = false;
+      initializedModalUserRef.current = undefined;
+      return;
+    }
+
+    // The auth store refreshes on navigation/focus. Do not reset a tab or its
+    // in-progress preview when that refresh is for the same signed-in user.
+    if (hasInitializedModalRef.current && initializedModalUserRef.current === user?.id) return;
+
     setConfig(user?.avatarConfig ?? DEFAULT_AVATAR);
     setPhotoUrl(user?.avatarUrl ?? '');
     setSkinUrl(readMinecraftSkinDraft(user?.id) || user?.avatarConfig?.minecraftSkinUrl || '');
     setUrlInput('');
     setActiveTab(initialTabFor(user?.avatarConfig, user?.avatarUrl));
+    initializedModalUserRef.current = user?.id;
+    hasInitializedModalRef.current = true;
   }, [isOpen, user]);
 
   const update = (key: keyof AvatarConfig) => (value: string) =>
