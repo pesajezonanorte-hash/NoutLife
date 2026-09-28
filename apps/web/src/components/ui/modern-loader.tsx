@@ -82,7 +82,7 @@ const VARIANT_CONFIG: Record<ModernLoaderVariant, {
     showWindowChrome: true,
   },
   compact: {
-    lineLimit: 4,
+    lineLimit: 3,
     container: 'max-w-none',
     body: 'h-28 px-4 py-3',
     lineGap: 'gap-1.5',

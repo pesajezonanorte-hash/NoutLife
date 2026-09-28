@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useState } from 'react';
+import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useAuthStore } from './store/authStore';
@@ -15,9 +15,9 @@ import { LoadingGate, LOADER_DELAY_MS, useLoadingVisibility } from './components
 import { LOADING_COPY } from './lib/loadingCopy';
 import { useKeyboardAdjust } from './hooks/useKeyboardAdjust';
 
-// Páginas lazy. Los loaders viven en un mapa para poder precargarlos en idle:
-// así, al cambiar de zona, el módulo ya está cacheado y NO aparece el flash
-// del Suspense ("parpadeos al cambiar de zona").
+// Páginas diferidas. Los loaders viven en un mapa para poder precargarlos en
+// idle; así, al cambiar de zona, el módulo suele estar en caché y no aparece
+// un flash de carga innecesario.
 const loaders = {
   LoginPage: () => import('./pages/Login'),
   RegisterPage: () => import('./pages/Register'),
@@ -54,6 +54,9 @@ const loaders = {
   FAQPage: () => import('./pages/FAQ'),
 } as const;
 
+type PageModule = { default: ComponentType<any> };
+type PageImport = () => Promise<PageModule>;
+
 /** Calienta todos los módulos de página cuando el navegador está ocioso. */
 function preloadPages() {
   const preload = () => Object.values(loaders).forEach((load) => void load());
@@ -64,40 +67,6 @@ function preloadPages() {
     window.setTimeout(preload, 1200);
   }
 }
-
-const LoginPage        = lazy(loaders.LoginPage);
-const RegisterPage     = lazy(loaders.RegisterPage);
-const DashboardPage    = lazy(loaders.DashboardPage);
-const CharacterPage    = lazy(loaders.CharacterPage);
-const OnboardingPage   = lazy(loaders.OnboardingPage);
-const QuestsPage       = lazy(loaders.QuestsPage);
-const HabitsPage       = lazy(loaders.HabitsPage);
-const AchievementsPage = lazy(loaders.AchievementsPage);
-const HistoryPage      = lazy(loaders.HistoryPage);
-const GymPage          = lazy(loaders.GymPage);
-const FinancesPage     = lazy(loaders.FinancesPage);
-const SleepPage        = lazy(loaders.SleepPage);
-const FoodPage         = lazy(loaders.FoodPage);
-const LearningPage     = lazy(loaders.LearningPage);
-const JournalPage      = lazy(loaders.JournalPage);
-const LovePage         = lazy(loaders.LovePage);
-const ShopPage         = lazy(loaders.ShopPage);
-const SettingsPage     = lazy(loaders.SettingsPage);
-const LeaderboardPage  = lazy(loaders.LeaderboardPage);
-const ChallengesPage   = lazy(loaders.ChallengesPage);
-const GuildPage        = lazy(loaders.GuildPage);
-const StatsPage        = lazy(loaders.StatsPage);
-const SeasonPage       = lazy(loaders.SeasonPage);
-const AgendaPage       = lazy(loaders.AgendaPage);
-const LifePage         = lazy(loaders.LifePage);
-const GoalsPage        = lazy(loaders.GoalsPage);
-const RitualsPage      = lazy(loaders.RitualsPage);
-const GlowUpPage       = lazy(loaders.GlowUpPage);
-const WisdomPage       = lazy(loaders.WisdomPage);
-const CustomZonesPage  = lazy(loaders.CustomZonesPage);
-const NotFoundPage     = lazy(loaders.NotFoundPage);
-const AboutPage        = lazy(loaders.AboutPage);
-const FAQPage          = lazy(loaders.FAQPage);
 
 // El shell conserva la zona actual hasta que el módulo de destino está listo.
 // Las redirecciones no necesitan esperar ningún bundle propio.
@@ -165,7 +134,44 @@ function PageLoader() {
   );
 }
 
-function SafePage({ children }: { children: React.ReactNode }) {
+/**
+ * Loads a page module without delegating its lifetime to a Suspense fallback.
+ * This is what lets LoadingGate keep an already-visible terminal on screen for
+ * its full shared minimum, even when an import resolves immediately after it.
+ */
+function DeferredLazyPage({ load }: { load: PageImport }) {
+  const [Page, setPage] = useState<ComponentType<any> | null>(null);
+  const [loadError, setLoadError] = useState<unknown>(null);
+
+  useEffect(() => {
+    let active = true;
+    setPage(null);
+    setLoadError(null);
+
+    void load().then(
+      (module) => {
+        if (active) setPage(() => module.default);
+      },
+      (error: unknown) => {
+        if (active) setLoadError(error);
+      },
+    );
+
+    return () => {
+      active = false;
+    };
+  }, [load]);
+
+  if (loadError) throw loadError;
+
+  return (
+    <LoadingGate loading={!Page} fallback={<PageLoader />}>
+      {Page ? <Page /> : null}
+    </LoadingGate>
+  );
+}
+
+function SafePage({ children }: { children: ReactNode }) {
   return <ErrorBoundary>{children}</ErrorBoundary>;
 }
 
@@ -185,39 +191,39 @@ function AnimatedRoutes({ location }: { location: ReturnType<typeof useLocation>
         style={{ width: '100%' }}
       >
         <Routes location={location}>
-          <Route path="/"             element={<SafePage><DashboardPage /></SafePage>} />
-          <Route path="/character"    element={<SafePage><CharacterPage /></SafePage>} />
-          <Route path="/quests"       element={<SafePage><QuestsPage /></SafePage>} />
-          <Route path="/quests/new"   element={<SafePage><QuestsPage /></SafePage>} />
-          <Route path="/habits"       element={<SafePage><HabitsPage /></SafePage>} />
-          <Route path="/achievements" element={<SafePage><AchievementsPage /></SafePage>} />
-          <Route path="/history"      element={<SafePage><HistoryPage /></SafePage>} />
-          <Route path="/gym"          element={<SafePage><GymPage /></SafePage>} />
-          <Route path="/finances"     element={<SafePage><FinancesPage /></SafePage>} />
-          <Route path="/sleep"        element={<SafePage><SleepPage /></SafePage>} />
-          <Route path="/food"         element={<SafePage><FoodPage /></SafePage>} />
-          <Route path="/learning"     element={<SafePage><LearningPage /></SafePage>} />
-          <Route path="/journal"      element={<SafePage><JournalPage /></SafePage>} />
-          <Route path="/love"         element={<SafePage><LovePage /></SafePage>} />
-          <Route path="/shop"         element={<SafePage><ShopPage /></SafePage>} />
-          <Route path="/settings"     element={<SafePage><SettingsPage /></SafePage>} />
-          <Route path="/leaderboard"  element={<SafePage><LeaderboardPage /></SafePage>} />
-          <Route path="/challenges"   element={<SafePage><ChallengesPage /></SafePage>} />
-          <Route path="/guild"        element={<SafePage><GuildPage /></SafePage>} />
-          <Route path="/stats"        element={<SafePage><StatsPage /></SafePage>} />
-          <Route path="/season"       element={<SafePage><SeasonPage /></SafePage>} />
-          <Route path="/agenda"       element={<SafePage><AgendaPage /></SafePage>} />
-          <Route path="/life"         element={<SafePage><LifePage /></SafePage>} />
-          <Route path="/custom-zones" element={<SafePage><CustomZonesPage /></SafePage>} />
+          <Route path="/"             element={<SafePage><DeferredLazyPage load={loaders.DashboardPage} /></SafePage>} />
+          <Route path="/character"    element={<SafePage><DeferredLazyPage load={loaders.CharacterPage} /></SafePage>} />
+          <Route path="/quests"       element={<SafePage><DeferredLazyPage load={loaders.QuestsPage} /></SafePage>} />
+          <Route path="/quests/new"   element={<SafePage><DeferredLazyPage load={loaders.QuestsPage} /></SafePage>} />
+          <Route path="/habits"       element={<SafePage><DeferredLazyPage load={loaders.HabitsPage} /></SafePage>} />
+          <Route path="/achievements" element={<SafePage><DeferredLazyPage load={loaders.AchievementsPage} /></SafePage>} />
+          <Route path="/history"      element={<SafePage><DeferredLazyPage load={loaders.HistoryPage} /></SafePage>} />
+          <Route path="/gym"          element={<SafePage><DeferredLazyPage load={loaders.GymPage} /></SafePage>} />
+          <Route path="/finances"     element={<SafePage><DeferredLazyPage load={loaders.FinancesPage} /></SafePage>} />
+          <Route path="/sleep"        element={<SafePage><DeferredLazyPage load={loaders.SleepPage} /></SafePage>} />
+          <Route path="/food"         element={<SafePage><DeferredLazyPage load={loaders.FoodPage} /></SafePage>} />
+          <Route path="/learning"     element={<SafePage><DeferredLazyPage load={loaders.LearningPage} /></SafePage>} />
+          <Route path="/journal"      element={<SafePage><DeferredLazyPage load={loaders.JournalPage} /></SafePage>} />
+          <Route path="/love"         element={<SafePage><DeferredLazyPage load={loaders.LovePage} /></SafePage>} />
+          <Route path="/shop"         element={<SafePage><DeferredLazyPage load={loaders.ShopPage} /></SafePage>} />
+          <Route path="/settings"     element={<SafePage><DeferredLazyPage load={loaders.SettingsPage} /></SafePage>} />
+          <Route path="/leaderboard"  element={<SafePage><DeferredLazyPage load={loaders.LeaderboardPage} /></SafePage>} />
+          <Route path="/challenges"   element={<SafePage><DeferredLazyPage load={loaders.ChallengesPage} /></SafePage>} />
+          <Route path="/guild"        element={<SafePage><DeferredLazyPage load={loaders.GuildPage} /></SafePage>} />
+          <Route path="/stats"        element={<SafePage><DeferredLazyPage load={loaders.StatsPage} /></SafePage>} />
+          <Route path="/season"       element={<SafePage><DeferredLazyPage load={loaders.SeasonPage} /></SafePage>} />
+          <Route path="/agenda"       element={<SafePage><DeferredLazyPage load={loaders.AgendaPage} /></SafePage>} />
+          <Route path="/life"         element={<SafePage><DeferredLazyPage load={loaders.LifePage} /></SafePage>} />
+          <Route path="/custom-zones" element={<SafePage><DeferredLazyPage load={loaders.CustomZonesPage} /></SafePage>} />
           <Route path="/goals"    element={<Navigate to="/quests?filter=meta" replace />} />
           <Route path="/metas"    element={<Navigate to="/quests?filter=meta" replace />} />
-          <Route path="/rituals"  element={<SafePage><RitualsPage /></SafePage>} />
+          <Route path="/rituals"  element={<SafePage><DeferredLazyPage load={loaders.RitualsPage} /></SafePage>} />
           <Route path="/rituales" element={<Navigate to="/rituals" replace />} />
-          <Route path="/glow-up"  element={<SafePage><GlowUpPage /></SafePage>} />
-          <Route path="/wisdom"   element={<SafePage><WisdomPage /></SafePage>} />
-          <Route path="/about"    element={<SafePage><AboutPage /></SafePage>} />
-          <Route path="/faq"      element={<SafePage><FAQPage /></SafePage>} />
-          <Route path="*"         element={<SafePage><NotFoundPage /></SafePage>} />
+          <Route path="/glow-up"  element={<SafePage><DeferredLazyPage load={loaders.GlowUpPage} /></SafePage>} />
+          <Route path="/wisdom"   element={<SafePage><DeferredLazyPage load={loaders.WisdomPage} /></SafePage>} />
+          <Route path="/about"    element={<SafePage><DeferredLazyPage load={loaders.AboutPage} /></SafePage>} />
+          <Route path="/faq"      element={<SafePage><DeferredLazyPage load={loaders.FAQPage} /></SafePage>} />
+          <Route path="*"         element={<SafePage><DeferredLazyPage load={loaders.NotFoundPage} /></SafePage>} />
         </Routes>
       </motion.div>
     </AnimatePresence>
@@ -274,9 +280,7 @@ function DeferredRouteContent() {
 
   return (
     <div className="relative">
-      <Suspense fallback={<PageLoader />}>
-        <AnimatedRoutes location={displayedLocation} />
-      </Suspense>
+      <AnimatedRoutes location={displayedLocation} />
 
       <AnimatePresence initial={false}>
         {showLoadingCue && (
@@ -297,7 +301,7 @@ function DeferredRouteContent() {
   );
 }
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
+function ProtectedRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading, user } = useAuthStore();
   const pathname = window.location.pathname;
 
@@ -308,7 +312,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   );
 }
 
-function OnboardingRoute({ children }: { children: React.ReactNode }) {
+function OnboardingRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading, user } = useAuthStore();
 
   return (
@@ -318,7 +322,7 @@ function OnboardingRoute({ children }: { children: React.ReactNode }) {
   );
 }
 
-function PublicRoute({ children }: { children: React.ReactNode }) {
+function PublicRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading } = useAuthStore();
 
   return (
@@ -335,7 +339,7 @@ export default function App() {
   const { user, isLoading, isAuthenticated } = useAuthStore();
   const { show: showNotifModal, setShow: setShowNotifModal } = useNotificationModalState();
 
-  // Precarga todas las zonas en idle: cero flashes del Suspense al navegar.
+  // Precarga todas las zonas en idle para evitar flashes al navegar.
   useEffect(() => {
     preloadPages();
   }, []);
@@ -385,25 +389,19 @@ export default function App() {
           <Route
             path="/login"
             element={
-              <Suspense fallback={<PageLoader />}>
-                <PublicRoute><LoginPage /></PublicRoute>
-              </Suspense>
+              <PublicRoute><DeferredLazyPage load={loaders.LoginPage} /></PublicRoute>
             }
           />
           <Route
             path="/register"
             element={
-              <Suspense fallback={<PageLoader />}>
-                <PublicRoute><RegisterPage /></PublicRoute>
-              </Suspense>
+              <PublicRoute><DeferredLazyPage load={loaders.RegisterPage} /></PublicRoute>
             }
           />
           <Route
             path="/onboarding"
             element={
-              <Suspense fallback={<PageLoader />}>
-                <OnboardingRoute><OnboardingPage /></OnboardingRoute>
-              </Suspense>
+              <OnboardingRoute><DeferredLazyPage load={loaders.OnboardingPage} /></OnboardingRoute>
             }
           />
 

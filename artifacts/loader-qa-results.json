@@ -1,0 +1,31 @@
+{
+  "scope": "LifeQuest terminal loader identity",
+  "viewport": "390x844",
+  "sharedTiming": {
+    "delayMs": 200,
+    "minimumVisibleMs": 400
+  },
+  "build": "npm run build --workspace=apps/web: passed",
+  "playwright": {
+    "command": "LIFEQUEST_E2E_BASE_URL=http://127.0.0.1:5173 npm run test:e2e --workspace=apps/web -- --grep 'terminal loader variants'",
+    "result": "4 passed",
+    "fullSuite": "5 passed; 3 skipped because credentialed or mutation E2E variables were intentionally unset",
+    "checks": [
+      "page loader and its minimum visible window after a delayed lazy public route resolves",
+      "compact loader width and height at 360, 390 and 430 px",
+      "compact minimum visible window after a manually released request",
+      "reduced-motion terminal without running child animations"
+    ]
+  },
+  "slowNetwork": {
+    "profile": "400 ms latency, 50 KiB/s download, 20 KiB/s upload, 4x CPU throttle",
+    "result": "compact loader visible in 2735 ms; document width 390 px at a 390 px viewport"
+  },
+  "captures": [
+    "loader-splash.png",
+    "loader-page.png",
+    "loader-compact-achievements.png",
+    "loader-compact-food-dark.png",
+    "loader-reduced-motion.png"
+  ]
+}
