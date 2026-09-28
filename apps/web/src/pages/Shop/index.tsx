@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../store/authStore';
 import { useToast } from '../../hooks/useToast';
 import { PixelPanel } from '../../components/ui/PixelPanel';
+import { LifeQuestFlipCard } from '../../components/ui/lifequest-flip-card';
 import { PixelButton } from '../../components/ui/PixelButton';
 import type { ShopItem, InventoryItem } from '@lifequest/shared';
 import * as shopService from '../../services/shop.service';
@@ -44,6 +45,10 @@ const TYPE_TABS = [
 const TYPE_LABELS: Record<string, string> = {
   COSMETIC: 'Cosmético', POWERUP: 'Power-up', DECORATION: 'Decoración',
   PASS: 'Pase especial', HAT: 'Sombrero', AURA: 'Aura', FRAME: 'Marco', THEME: 'Tema de color',
+};
+
+const TYPE_GLYPHS: Record<string, string> = {
+  COSMETIC: '✨', POWERUP: '⚡', DECORATION: '🏰', PASS: '🎫', HAT: '🎩', AURA: '🌟', FRAME: '🖼️', THEME: '🎨',
 };
 
 const EQUIPPABLE_TYPES = new Set(['COSMETIC', 'HAT', 'AURA', 'FRAME', 'THEME']);
@@ -160,6 +165,9 @@ export default function ShopPage() {
   }
 
   const filtered = tab ? items.filter(i => i.type === tab) : items;
+  // Keep the 3D treatment to one curated item; catalog grids can grow very large.
+  const featuredItem = filtered.find(item => !(item as ShopItem & { locked?: boolean }).locked) ?? filtered[0];
+  const catalogItems = featuredItem ? filtered.filter(item => item.id !== featuredItem.id) : [];
 
   return (
     <div className="space-y-4">
@@ -225,9 +233,56 @@ export default function ShopPage() {
               )}
             </PixelPanel>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              <AnimatePresence>
-                {filtered.map((item, i) => {
+            <div className="space-y-4">
+              {featuredItem && (() => {
+                const isLocked = (featuredItem as ShopItem & { locked?: boolean }).locked;
+                const isOwned = featuredItem.owned;
+                const isBuying = purchasing === featuredItem.id;
+                const themeId = THEME_NAME_TO_ID[featuredItem.name] ?? featuredItem.name.toLowerCase();
+                const isPreviewing = previewTheme === themeId;
+                const actionLabel = isLocked ? undefined : isOwned ? 'Ver inventario' : `Comprar por ${featuredItem.cost}`;
+                return (
+                  <LifeQuestFlipCard
+                    eyebrow="Artículo destacado"
+                    title={featuredItem.name}
+                    description={TYPE_LABELS[featuredItem.type] ?? featuredItem.type}
+                    visual={<span className="text-6xl" aria-hidden="true"><E e={TYPE_GLYPHS[featuredItem.type] ?? '🛒'} s={64} /></span>}
+                    visualLabel={`Vista previa de ${featuredItem.name}`}
+                    badge={isLocked ? `Nivel ${featuredItem.levelRequired}` : isOwned ? 'En inventario' : 'Disponible'}
+                    frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]"><E e="🪙" /> {featuredItem.cost} Gold</p>}
+                    backDescription={<p>{featuredItem.description || 'Un nuevo recurso para personalizar y fortalecer tu aventura.'}</p>}
+                    metrics={[
+                      { label: 'Tipo', value: TYPE_LABELS[featuredItem.type] ?? featuredItem.type },
+                      { label: 'Precio', value: `${featuredItem.cost} Gold` },
+                      { label: 'Estado', value: isLocked ? `Nivel ${featuredItem.levelRequired}` : isOwned ? 'Tuyo' : 'Disponible' },
+                    ]}
+                    backActions={featuredItem.type === 'THEME' && !isLocked ? (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          applyThemePreview(isPreviewing ? null : themeId);
+                        }}
+                        className="min-h-11 rounded-xl border border-border bg-muted px-3 text-sm font-semibold text-foreground transition-transform hover:scale-[1.015] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                      >
+                        {isPreviewing ? 'Restaurar tema' : 'Vista previa'}
+                      </button>
+                    ) : undefined}
+                    actionLabel={actionLabel}
+                    actionDisabled={isBuying}
+                    onAction={() => {
+                      if (isOwned) setShopTab('inventory');
+                      else setConfirmItem(featuredItem);
+                    }}
+                    accent="var(--accent-gold)"
+                    className="h-[clamp(23rem,60dvh,28rem)] min-h-[23rem] max-w-xl"
+                  />
+                );
+              })()}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                <AnimatePresence>
+                {catalogItems.map((item, i) => {
                   const isLocked = (item as ShopItem & { locked?: boolean }).locked;
                   const isOwned = item.owned;
                   const isBuying = purchasing === item.id;
@@ -296,7 +351,8 @@ export default function ShopPage() {
                     </motion.div>
                   );
                 })}
-              </AnimatePresence>
+                </AnimatePresence>
+              </div>
             </div>
             )}
           </LoadingGate>

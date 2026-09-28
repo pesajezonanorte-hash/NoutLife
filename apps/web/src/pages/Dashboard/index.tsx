@@ -6,6 +6,7 @@ import type { Quest } from '@lifequest/shared';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { PixelPanel } from '../../components/ui/PixelPanel';
+import { LifeQuestFlipCard } from '../../components/ui/lifequest-flip-card';
 import { AvatarDisplay } from '../../components/character/AvatarDisplay';
 import { GreetingHeader } from '../../components/dashboard/GreetingHeader';
 import { TodayQuestsWidget } from '../../components/dashboard/TodayQuestsWidget';
@@ -657,30 +658,57 @@ export default function DashboardPage() {
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {topHabit && (
-              <PixelPanel className="cursor-pointer p-3 transition-colors hover:border-[var(--accent-gold)]" onClick={() => navigate('/habits')}>
-                <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]"><Trophy size={14} aria-hidden="true" /> Mejor racha actual</p>
-                <div className="flex items-center gap-2">
-                  <span className="text-xl"><E e={topHabit.icon} /></span>
-                  <div>
-                    <p className="text-sm text-[var(--text-primary)]">{topHabit.title}</p>
-                    <p className="text-sm text-[var(--accent-gold)]">{topHabit.currentStreak} días seguidos</p>
+              <LifeQuestFlipCard
+                eyebrow="Mejor racha actual"
+                title={topHabit.title}
+                description={`${topHabit.currentStreak} días de constancia en tu aventura.`}
+                visual={(
+                  <div className="flex items-end gap-3" aria-hidden="true">
+                    <span className="flex h-16 w-16 items-center justify-center rounded-2xl border border-border bg-card text-[var(--accent-gold)]"><Flame size={34} /></span>
+                    <div className="text-left"><p className="text-4xl font-semibold leading-none text-foreground">{topHabit.currentStreak}</p><p className="mt-1 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">días seguidos</p></div>
                   </div>
-                </div>
-              </PixelPanel>
+                )}
+                visualLabel={`Racha de ${topHabit.currentStreak} días`}
+                badge={topHabit.todayCompleted ? 'Hoy completado' : 'En curso'}
+                frontFooter={<p className="text-xs font-medium [color:var(--flip-accent)]">+{topHabit.xpReward} XP por completar hoy</p>}
+                backDescription={<p>Revisa tu progreso, conserva la cadena y elige el siguiente hábito que quieres marcar hoy.</p>}
+                metrics={[
+                  { label: 'Racha', value: `${topHabit.currentStreak} días` },
+                  { label: 'Recompensa', value: `+${topHabit.xpReward} XP` },
+                  { label: 'Hoy', value: topHabit.todayCompleted ? 'Hecho' : 'Pendiente' },
+                ]}
+                actionLabel="Ver hábitos"
+                onAction={() => navigate('/habits')}
+                accent="var(--accent-gold)"
+                className="h-[clamp(19rem,42dvh,22rem)] min-h-[19rem] max-w-none"
+              />
             )}
 
-            {dashData?.recentAchievements?.[0] && (
-              <PixelPanel className="cursor-pointer p-3 transition-colors hover:border-[var(--accent-gold)]" onClick={() => navigate('/achievements')}>
-                <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]"><Trophy size={14} aria-hidden="true" /> Logro reciente</p>
-                <div className="flex items-center gap-2">
-                  <span className="text-xl"><E e={dashData.recentAchievements[0].icon} /></span>
-                  <div>
-                    <p className="text-base font-semibold text-[var(--accent-gold)]">{dashData.recentAchievements[0].title}</p>
-                    <p className="text-sm text-[var(--text-secondary)]">{dashData.recentAchievements[0].description}</p>
-                  </div>
-                </div>
-              </PixelPanel>
-            )}
+            {dashData?.recentAchievements?.[0] && (() => {
+              const achievement = dashData.recentAchievements[0];
+              const unlockedDate = new Date(achievement.unlockedAt).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
+              return (
+                <LifeQuestFlipCard
+                  eyebrow="Logro reciente"
+                  title={achievement.title}
+                  description={achievement.description}
+                  visual={<span className="text-6xl" aria-hidden="true"><E e={achievement.icon} s={64} /></span>}
+                  visualLabel={`Insignia de ${achievement.title}`}
+                  badge="Desbloqueado"
+                  frontFooter={<p className="inline-flex items-center gap-1.5 text-xs font-semibold [color:var(--flip-accent)]"><Trophy size={14} aria-hidden="true" /> +{achievement.xpReward} XP</p>}
+                  backDescription={<p>{achievement.description} Forma parte de tu colección de hitos de LifeQuest.</p>}
+                  metrics={[
+                    { label: 'XP', value: `+${achievement.xpReward}` },
+                    { label: 'Fecha', value: unlockedDate },
+                    { label: 'Colección', value: 'Logros' },
+                  ]}
+                  actionLabel="Ver logros"
+                  onAction={() => navigate('/achievements')}
+                  accent="var(--accent-gold)"
+                  className="h-[clamp(19rem,42dvh,22rem)] min-h-[19rem] max-w-none"
+                />
+              );
+            })()}
           </div>
         </section>
 

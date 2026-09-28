@@ -5,6 +5,7 @@ import { useUIStore } from '../../store/uiStore';
 import { useToast } from '../../hooks/useToast';
 import { refreshUser } from '../../hooks/useAuth';
 import { PixelPanel } from '../../components/ui/PixelPanel';
+import { LifeQuestFlipCard } from '../../components/ui/lifequest-flip-card';
 import { PixelButton } from '../../components/ui/PixelButton';
 import { ModalFrame } from '../../components/ui/ModalFrame';
 import type { LearningItem, LearningStats } from '@lifequest/shared';
@@ -17,6 +18,7 @@ import { LoadingGate } from '@/components/ui/LoadingGate';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 
 const TYPE_ICONS: Record<string, string> = { BOOK: '📖', COURSE: '💻', PODCAST: '🎙️', VIDEO: '🎥', LANGUAGE: '🗣️' };
+const TYPE_LABELS: Record<string, string> = { BOOK: 'Libro', COURSE: 'Curso', PODCAST: 'Podcast', VIDEO: 'Video', LANGUAGE: 'Idioma' };
 const STATUS_LABELS: Record<string, string> = { NOT_STARTED: 'Por empezar', IN_PROGRESS: 'En progreso', COMPLETED: 'Completado', ABANDONED: 'Abandonado' };
 const STATUS_COLORS: Record<string, string> = { NOT_STARTED: 'text-text-secondary', IN_PROGRESS: 'text-accent-gold', COMPLETED: 'text-accent-green', ABANDONED: 'text-accent-red' };
 
@@ -230,6 +232,9 @@ export default function LearningPage() {
   useEffect(() => { load(); }, [load]);
 
   const filtered = filter ? items.filter(i => i.status === filter) : items;
+  // Only the current featured entry gets a 3D compositor; the remaining list stays lightweight.
+  const featuredItem = filtered[0];
+  const remainingItems = featuredItem ? filtered.filter(item => item.id !== featuredItem.id) : [];
 
   return (
     <div className="space-y-4">
@@ -326,46 +331,99 @@ export default function LearningPage() {
         </PixelPanel>
       ) : (
         <AnimatePresence>
-          <div className="space-y-2">
-            {filtered.map((item, i) => {
-              const pct = item.totalProgress > 0 ? Math.min((item.currentProgress / item.totalProgress) * 100, 100) : 0;
+          <div className="space-y-3">
+            {featuredItem && (() => {
+              const pct = featuredItem.totalProgress > 0
+                ? Math.min((featuredItem.currentProgress / featuredItem.totalProgress) * 100, 100)
+                : 0;
               return (
-                <motion.div key={item.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
-                  <PixelPanel className="p-3 cursor-pointer hover:border-accent-gold/50 transition-colors" onClick={() => setUpdating(item)}>
-                    <div className="flex justify-end mb-1">
-                      <button
-                        onClick={e => { e.stopPropagation(); setSelectedItem(item); setTab('detalle'); setDetailTab('notas'); }}
-                        className="font-pixel text-text-secondary hover:text-accent-gold transition-colors"
-                        style={{ fontSize: '7px' }}
-                      >
-                        <E e="📝" /> NOTAS/VOCAB
-                      </button>
+                <LifeQuestFlipCard
+                  eyebrow="Entrada destacada"
+                  title={featuredItem.title}
+                  description={featuredItem.author ? `Por ${featuredItem.author}` : STATUS_LABELS[featuredItem.status]}
+                  visual={(
+                    <div className="flex items-center gap-4" aria-hidden="true">
+                      <span className="text-6xl"><E e={TYPE_ICONS[featuredItem.type]} s={64} /></span>
+                      {featuredItem.totalProgress > 0 && <div className="text-left"><p className="text-4xl font-semibold leading-none text-foreground">{Math.round(pct)}%</p><p className="mt-1 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">avanzado</p></div>}
                     </div>
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xl"><E e={TYPE_ICONS[item.type]} /></span>
-                          <p className="font-vt text-text-primary text-lg">{item.title}</p>
-                        </div>
-                        {item.author && <p className="font-pixel text-text-secondary ml-8" style={{ fontSize: '7px' }}>{item.author}</p>}
-                        <p className={`font-pixel ml-8 mt-1 ${STATUS_COLORS[item.status]}`} style={{ fontSize: '7px' }}><E e={STATUS_LABELS[item.status]} /></p>
-                      </div>
-                      {item.rating && (
-                        <p className="font-vt text-accent-gold text-base">{Array.from({ length: item.rating }).map((_, i) => <E key={i} e="⭐" s={14} className="inline-block" />)}</p>
-                      )}
+                  )}
+                  visualLabel={`${featuredItem.title}, ${Math.round(pct)} por ciento de progreso`}
+                  badge={STATUS_LABELS[featuredItem.status]}
+                  frontFooter={featuredItem.totalProgress > 0 ? (
+                    <div>
+                      <div className="h-2 overflow-hidden rounded-full bg-muted"><div className="h-full bg-primary" style={{ width: `${pct}%` }} /></div>
+                      <p className="mt-1 text-right text-xs font-medium text-muted-foreground">{featuredItem.currentProgress}/{featuredItem.totalProgress} unidades</p>
                     </div>
-                    {item.totalProgress > 0 && (
-                      <div className="mt-2">
-                        <div className="stat-bar h-2">
-                          <div className="h-full bg-accent-gold" style={{ width: `${pct}%` }} />
-                        </div>
-                        <p className="font-pixel text-text-secondary mt-0.5 text-right" style={{ fontSize: '7px' }}>{item.currentProgress}/{item.totalProgress} pág · {Math.round(pct)}%</p>
-                      </div>
-                    )}
-                  </PixelPanel>
-                </motion.div>
+                  ) : <p className="text-xs text-muted-foreground">Define una meta de progreso cuando quieras.</p>}
+                  backDescription={<p>{featuredItem.author ? `Continúa con ${featuredItem.author}, guarda tus notas y actualiza el avance cuando termines una sesión.` : 'Guarda notas, actualiza el avance y mantén esta meta a la vista.'}</p>}
+                  metrics={[
+                    { label: 'Formato', value: TYPE_LABELS[featuredItem.type] ?? featuredItem.type },
+                    { label: 'Progreso', value: featuredItem.totalProgress > 0 ? `${featuredItem.currentProgress}/${featuredItem.totalProgress}` : 'Sin meta' },
+                    { label: 'Estado', value: STATUS_LABELS[featuredItem.status] },
+                  ]}
+                  backActions={(
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setSelectedItem(featuredItem);
+                        setTab('detalle');
+                        setDetailTab('notas');
+                      }}
+                      className="min-h-11 rounded-xl border border-border bg-muted px-3 text-sm font-semibold text-foreground transition-transform hover:scale-[1.015] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                    >
+                      Abrir notas
+                    </button>
+                  )}
+                  actionLabel="Actualizar progreso"
+                  onAction={() => setUpdating(featuredItem)}
+                  accent="var(--accent-gold)"
+                  className="h-[clamp(23rem,60dvh,28rem)] min-h-[23rem] max-w-xl"
+                />
               );
-            })}
+            })()}
+
+            <div className="space-y-2">
+              {remainingItems.map((item, i) => {
+                const pct = item.totalProgress > 0 ? Math.min((item.currentProgress / item.totalProgress) * 100, 100) : 0;
+                return (
+                  <motion.div key={item.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
+                    <PixelPanel className="p-3 cursor-pointer hover:border-accent-gold/50 transition-colors" onClick={() => setUpdating(item)}>
+                      <div className="flex justify-end mb-1">
+                        <button
+                          onClick={e => { e.stopPropagation(); setSelectedItem(item); setTab('detalle'); setDetailTab('notas'); }}
+                          className="font-pixel text-text-secondary hover:text-accent-gold transition-colors"
+                          style={{ fontSize: '7px' }}
+                        >
+                          <E e="📝" /> NOTAS/VOCAB
+                        </button>
+                      </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xl"><E e={TYPE_ICONS[item.type]} /></span>
+                            <p className="font-vt text-text-primary text-lg">{item.title}</p>
+                          </div>
+                          {item.author && <p className="font-pixel text-text-secondary ml-8" style={{ fontSize: '7px' }}>{item.author}</p>}
+                          <p className={`font-pixel ml-8 mt-1 ${STATUS_COLORS[item.status]}`} style={{ fontSize: '7px' }}><E e={STATUS_LABELS[item.status]} /></p>
+                        </div>
+                        {item.rating && (
+                          <p className="font-vt text-accent-gold text-base">{Array.from({ length: item.rating }).map((_, i) => <E key={i} e="⭐" s={14} className="inline-block" />)}</p>
+                        )}
+                      </div>
+                      {item.totalProgress > 0 && (
+                        <div className="mt-2">
+                          <div className="stat-bar h-2">
+                            <div className="h-full bg-accent-gold" style={{ width: `${pct}%` }} />
+                          </div>
+                          <p className="font-pixel text-text-secondary mt-0.5 text-right" style={{ fontSize: '7px' }}>{item.currentProgress}/{item.totalProgress} pág · {Math.round(pct)}%</p>
+                        </div>
+                      )}
+                    </PixelPanel>
+                  </motion.div>
+                );
+              })}
+            </div>
           </div>
         </AnimatePresence>
         )}

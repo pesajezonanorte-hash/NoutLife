@@ -25,6 +25,7 @@ import {
 import { useToast } from '../../hooks/useToast';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { PixelPanel } from '../../components/ui/PixelPanel';
+import { LifeQuestFlipCard } from '../../components/ui/lifequest-flip-card';
 import { PixelButton } from '../../components/ui/PixelButton';
 import { FlowButton } from '../../components/ui/flow-button';
 import { AnimatedCounter } from '../../components/ui/AnimatedCounter';
@@ -544,58 +545,45 @@ export default function FinancesPage() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-          className="rounded-2xl overflow-hidden"
-          style={{ background: 'var(--bg-panel-light)', border: '1px solid var(--border)' }}
         >
-          {/* Main balance area */}
-          <div className="px-6 pt-7 pb-5 text-center">
-            <p className="text-[10px] uppercase tracking-[0.25em] font-semibold mb-3"
-               style={{ color: 'var(--text-muted)' }}>
-              Balance del mes
-            </p>
-            <div
-              className={`font-vt leading-none ${dashboard.summary.balance >= 0 ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]'}`}
-              style={{ fontSize: 'clamp(2.4rem, 10vw, 4rem)' }}
-            >
-              <AnimatedCounter
-                value={Math.abs(dashboard.summary.balance)}
-                separator="."
-                prefix={`${dashboard.summary.balance < 0 ? '-' : ''}$ `}
-                duration={1}
-              />
-            </div>
-          </div>
-
-          {/* Income / Expense row */}
-          <div
-            className="grid grid-cols-2"
-            style={{ borderTop: '1px solid var(--border)' }}
-          >
-            <div className="px-5 py-3.5 text-center space-y-0.5">
-              <p className="text-[9px] uppercase tracking-[0.18em] font-semibold flex items-center justify-center gap-1.5"
-                 style={{ color: 'var(--accent-green)' }}>
-                <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-green)] inline-block" />
-                Ingresos
-              </p>
-              <div className="font-vt text-[var(--accent-green)]" style={{ fontSize: '1.35rem' }}>
-                <AnimatedCounter value={dashboard.summary.income} separator="." prefix="$ " duration={0.7} />
+          <LifeQuestFlipCard
+            eyebrow="Balance del mes"
+            title={dashboard.summary.balance >= 0 ? 'Tu bóveda avanza con margen' : 'Tu bóveda necesita atención'}
+            description="Un resumen claro de tus ingresos, gastos y próximo movimiento."
+            visual={(
+              <div className="text-center" aria-hidden="true">
+                <p className={`font-vt text-5xl leading-none sm:text-6xl ${dashboard.summary.balance >= 0 ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]'}`}>
+                  <AnimatedCounter
+                    value={Math.abs(dashboard.summary.balance)}
+                    separator="."
+                    prefix={`${dashboard.summary.balance < 0 ? '-' : ''}$ `}
+                    duration={1}
+                  />
+                </p>
+                <p className="mt-2 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">saldo disponible</p>
               </div>
-            </div>
-            <div className="px-5 py-3.5 text-center space-y-0.5"
-                 style={{ borderLeft: '1px solid var(--border)' }}>
-              <p className="text-[9px] uppercase tracking-[0.18em] font-semibold flex items-center justify-center gap-1.5"
-                 style={{ color: 'var(--accent-red)' }}>
-                <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-red)] inline-block" />
-                Gastos
-              </p>
-              <div className="font-vt text-[var(--accent-red)]" style={{ fontSize: '1.35rem' }}>
-                <AnimatedCounter value={dashboard.summary.expenses} separator="." prefix="$ " duration={0.7} />
+            )}
+            visualLabel={`Balance del mes: ${formatCOP(dashboard.summary.balance)}`}
+            badge={dashboard.summary.balance >= 0 ? 'Balance positivo' : 'Revisar gastos'}
+            frontFooter={(
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-xl border border-border bg-muted px-3 py-2"><p className="text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Ingresos</p><p className="mt-1 truncate text-sm font-semibold text-[var(--accent-green)]"><AnimatedCounter value={dashboard.summary.income} separator="." prefix="$ " duration={0.7} /></p></div>
+                <div className="rounded-xl border border-border bg-muted px-3 py-2"><p className="text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Gastos</p><p className="mt-1 truncate text-sm font-semibold text-[var(--accent-red)]"><AnimatedCounter value={dashboard.summary.expenses} separator="." prefix="$ " duration={0.7} /></p></div>
               </div>
-            </div>
-          </div>
+            )}
+            backDescription={<p>Consulta tus movimientos para entender qué está moviendo el balance y registra una transacción cuando lo necesites.</p>}
+            metrics={[
+              { label: 'Ingresos', value: formatCOP(dashboard.summary.income) },
+              { label: 'Gastos', value: formatCOP(dashboard.summary.expenses) },
+              { label: 'Balance', value: formatCOP(dashboard.summary.balance) },
+            ]}
+            actionLabel="Ver movimientos"
+            onAction={() => setTab('transactions')}
+            accent="var(--accent-gold)"
+            className="h-[clamp(23rem,60dvh,28rem)] min-h-[23rem] max-w-xl"
+          />
         </motion.div>
       )}
-
 
       {/* Tabs */}
       <div className="grid grid-cols-2 gap-1 sm:flex sm:flex-wrap">
