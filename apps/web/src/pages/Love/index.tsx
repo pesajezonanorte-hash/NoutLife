@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Heart } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import { PixelPanel } from '../../components/ui/PixelPanel';
+import { LifeQuestFlipCard } from '../../components/ui/lifequest-flip-card';
 import { PixelButton } from '../../components/ui/PixelButton';
 import { ModalFrame } from '../../components/ui/ModalFrame';
 import type { Relationship, LoveDashboard, ImportantDate } from '@lifequest/shared';
@@ -332,6 +333,37 @@ export default function LovePage() {
       </div>
 
       {tab === 'regalos' && <GiftWishlist relationshipId={dashboard?.relationship?.id} />}
+
+      {tab === 'jardín' && (
+        <LifeQuestFlipCard
+          eyebrow="Jardín del corazón"
+          title={rel?.name || 'Tu jardín espera'}
+          description={rel ? (startDate ? timeTogetherText(startDate + 'T00:00:00') : 'Organiza momentos, fechas y detalles que importan.') : 'Configura esta zona para empezar a registrar las relaciones que quieres cuidar.'}
+          visual={<span className="text-6xl" aria-hidden="true"><E e={rel ? '💑' : '💖'} s={64} /></span>}
+          visualLabel={rel ? `Resumen de ${rel.name || 'tu relación'}` : 'Zona de relaciones sin configurar'}
+          badge={rel ? 'Configurado' : 'Por empezar'}
+          frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">{dashboard?.nextImportantDate ? `${dashboard.nextImportantDate.daysUntil} días para ${dashboard.nextImportantDate.label}` : rel ? 'Sin fecha próxima' : 'Crea tu primer recuerdo'}</p>}
+          backDescription={<p>{rel ? 'Edita los detalles de tu jardín o guarda una fecha especial para no perder de vista lo importante.' : 'Elige un nombre, una fecha y los detalles con los que quieres cuidar esta parte de tu vida.'}</p>}
+          metrics={[
+            { label: 'Fechas', value: rel ? (rel.importantDates as ImportantDate[]).length : 0 },
+            { label: 'Próxima', value: dashboard?.nextImportantDate ? `${dashboard.nextImportantDate.daysUntil} días` : '—' },
+            { label: 'Estado', value: rel ? 'Activo' : 'Sin configurar' },
+          ]}
+          backActions={rel ? (
+            <button
+              type="button"
+              onClick={(event) => { event.stopPropagation(); setShowAddDate(true); }}
+              className="min-h-11 rounded-xl border border-border bg-muted px-3 text-sm font-semibold text-foreground transition-transform hover:scale-[1.015] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
+              Agregar fecha
+            </button>
+          ) : undefined}
+          actionLabel={rel ? 'Editar jardín' : 'Configurar jardín'}
+          onAction={() => setShowSetup(true)}
+          accent="var(--accent-gold)"
+          className="h-[clamp(21rem,54dvh,25rem)] min-h-[21rem] max-w-xl"
+        />
+      )}
 
       {tab === 'jardín' && !rel && (
         <PixelPanel className="p-8 text-center space-y-3">

@@ -5,6 +5,7 @@ import { useUIStore } from '../../store/uiStore';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../hooks/useToast';
 import { PixelPanel } from '../../components/ui/PixelPanel';
+import { LifeQuestFlipCard } from '../../components/ui/lifequest-flip-card';
 import { PixelButton } from '../../components/ui/PixelButton';
 import type { Workout, Exercise, Routine } from '@lifequest/shared';
 import * as workoutService from '../../services/workout.service';
@@ -719,6 +720,9 @@ export default function GymPage() {
     );
   }
 
+  const featuredRoutine = routines[0];
+  const latestWorkout = workouts[0];
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -738,6 +742,28 @@ export default function GymPage() {
           </PixelButton>
         </div>
       </div>
+
+      {!loading && (
+        <LifeQuestFlipCard
+          eyebrow="Plan del Coliseo"
+          title={featuredRoutine?.name ?? latestWorkout?.title ?? 'Tu próximo entrenamiento'}
+          description={featuredRoutine?.description ?? (latestWorkout ? `Última sesión: ${new Date(latestWorkout.date).toLocaleDateString('es-CO')}. Prepárate para el siguiente desafío.` : 'Crea una rutina o inicia un entrenamiento para empezar a forjar tu progreso.')}
+          visual={<span className="text-6xl" aria-hidden="true"><E e="🏋️" s={64} /></span>}
+          visualLabel="Resumen del Coliseo"
+          badge={featuredRoutine ? 'Rutina disponible' : latestWorkout ? 'Última sesión' : 'Por empezar'}
+          frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">{featuredRoutine ? `${(featuredRoutine.exercises as Array<unknown>).length} ejercicios preparados` : `${workouts.length} entrenamientos registrados`}</p>}
+          backDescription={<p>{featuredRoutine ? 'Inicia esta rutina desde el reverso para cargar sus ejercicios y registrar cada serie.' : 'Abre un nuevo entrenamiento y añade los ejercicios que tocarán hoy.'}</p>}
+          metrics={[
+            { label: 'Rutinas', value: routines.length },
+            { label: 'Sesiones', value: workouts.length },
+            { label: 'Último XP', value: latestWorkout ? `+${latestWorkout.xpEarned}` : '—' },
+          ]}
+          actionLabel={featuredRoutine ? 'Iniciar rutina' : 'Iniciar entrenamiento'}
+          onAction={() => { if (featuredRoutine) void startFromRoutine(featuredRoutine); else setShowStartModal(true); }}
+          accent="var(--accent-gold)"
+          className="h-[clamp(21rem,54dvh,25rem)] min-h-[21rem] max-w-xl"
+        />
+      )}
 
       {/* Tabs */}
       <div className="grid grid-cols-2 gap-1">

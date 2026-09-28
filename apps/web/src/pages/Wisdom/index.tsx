@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { BookOpen, Lock, Sparkles, Swords, Brain, Coins, Dumbbell, Heart, TreePine, type LucideIcon } from 'lucide-react';
 import * as wisdomService from '../../services/wisdom.service';
 import type { WisdomCard } from '../../services/wisdom.service';
+import { LifeQuestFlipCard } from '../../components/ui/lifequest-flip-card';
 import { E } from '@/components/ui/glyphs';
 
 type CategoryConfig = { label: string; color: string; Icon: LucideIcon };
@@ -72,6 +73,8 @@ export default function WisdomPage() {
   const filtered = data?.available.filter((c) =>
     filter === 'all' || c.category === filter
   ) ?? [];
+  const featuredWisdom = dailyCard ?? data?.available[0] ?? null;
+  const featuredConfig = featuredWisdom ? (CATEGORY_CONFIG[featuredWisdom.category] ?? { label: featuredWisdom.category, color: 'var(--accent-gold)', Icon: BookOpen }) : null;
 
   return (
     <div className="space-y-6">
@@ -86,32 +89,31 @@ export default function WisdomPage() {
         </p>
       </div>
 
-      {/* Daily Card */}
-      {dailyCard && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.97 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="rounded-2xl p-6 relative overflow-hidden"
-          style={{
-            background: 'linear-gradient(135deg, var(--accent-gold)15, var(--accent-cyan)08)',
-            border: '1px solid var(--accent-gold)55',
-          }}
-        >
-          <div className="flex items-center gap-2 mb-3">
-            <Sparkles size={16} className="text-[var(--accent-gold)]" />
-            <span className="text-xs font-semibold text-[var(--accent-gold)]">Sabiduría del Día</span>
-          </div>
-          <blockquote className="text-base font-semibold text-[var(--text-primary)] leading-relaxed italic">
-            "{dailyCard.quote}"
-          </blockquote>
-          {dailyCard.author && (
-            <p className="text-sm text-[var(--text-muted)] mt-2 text-right">— {dailyCard.author}</p>
-          )}
-        </motion.div>
+      {/* Featured wisdom uses the 3D surface; the library below remains a lightweight grid. */}
+      {featuredWisdom && featuredConfig && (
+        <LifeQuestFlipCard
+          eyebrow={dailyCard ? 'Sabiduría del día' : 'Principio destacado'}
+          title={featuredConfig.label}
+          description={`“${featuredWisdom.quote}”${featuredWisdom.author ? ` — ${featuredWisdom.author}` : ''}`}
+          visual={<E e={featuredConfig.Icon} s={64} />}
+          visualLabel={`Sabiduría destacada: ${featuredConfig.label}`}
+          badge={featuredWisdom.levelRequired > 1 ? `Nivel ${featuredWisdom.levelRequired}` : 'Disponible'}
+          frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">{data?.available.length ?? 0} principios disponibles</p>}
+          backDescription={<p>Explora más principios de {featuredConfig.label.toLowerCase()} y llévalos a tu práctica diaria con una intención concreta.</p>}
+          metrics={[
+            { label: 'Tu nivel', value: data?.userLevel ?? '—' },
+            { label: 'Disponibles', value: data?.available.length ?? 0 },
+            { label: 'Bloqueadas', value: data?.locked.length ?? 0 },
+          ]}
+          actionLabel="Explorar categoría"
+          onAction={() => { setFilter(featuredWisdom.category); document.getElementById('wisdom-library')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
+          accent="var(--accent-gold)"
+          className="h-[clamp(21rem,54dvh,25rem)] min-h-[21rem] max-w-xl"
+        />
       )}
 
       {/* Filter */}
-      <div className="flex gap-2 flex-wrap">
+      <div id="wisdom-library" className="flex gap-2 flex-wrap">
         {categories.map((cat) => {
           const cfg = CATEGORY_CONFIG[cat];
           return (

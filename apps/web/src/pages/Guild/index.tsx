@@ -7,6 +7,7 @@ import {
 import { useAuthStore } from '../../store/authStore';
 import { AvatarDisplay } from '../../components/character/AvatarDisplay';
 import { PixelPanel } from '../../components/ui/PixelPanel';
+import { LifeQuestFlipCard } from '../../components/ui/lifequest-flip-card';
 import { PixelButton } from '../../components/ui/PixelButton';
 import { E } from '@/components/ui/glyphs';
 import ModernLoader from '@/components/ui/modern-loader';
@@ -153,24 +154,34 @@ export default function GuildPage() {
   if (!guild && mode === 'view') {
     return (
       <div className="mx-auto flex min-h-[min(62vh,560px)] max-w-xl items-center px-4 py-8">
-        <PixelPanel className="w-full overflow-hidden p-6 text-center shadow-md sm:p-9">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--bg-panel-light)] text-[var(--accent-gold)] shadow-sm">
-            <Shield size={31} strokeWidth={1.7} aria-hidden="true" />
-          </div>
-          <p className="mt-5 text-lg font-semibold tracking-tight text-[var(--text-primary)]">Aún no tienes gremio</p>
-          <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-[var(--text-secondary)]">Crea un espacio con tu grupo o únete con un código de invitación para compartir el progreso.</p>
-
-          <div className="mx-auto mt-6 grid max-w-sm gap-2.5 sm:grid-cols-2">
-            <PixelButton variant="primary" onClick={() => setMode('create')} className="w-full">
-              <span className="inline-flex items-center gap-2"><Plus size={15} aria-hidden="true" /> Crear gremio</span>
-            </PixelButton>
-            <PixelButton variant="ghost" onClick={() => setMode('join')} className="w-full">Unirse con código</PixelButton>
-          </div>
-
-          <div className="mt-6 border-t border-[var(--border-soft)] pt-4 text-xs text-[var(--text-muted)]">
-            Puedes tener hasta 10 aventureros en un gremio.
-          </div>
-        </PixelPanel>
+        <LifeQuestFlipCard
+          eyebrow="Comunidad"
+          title="Tu próximo gremio espera"
+          description="Crea un espacio con tu grupo o únete con un código para compartir progreso, mensajes y metas."
+          visual={<Shield className="h-20 w-20 text-foreground" strokeWidth={1.35} aria-hidden="true" />}
+          visualLabel="Escudo de gremio"
+          badge="Hasta 10 aventureros"
+          frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">Construye un círculo que acompañe tu progreso.</p>}
+          backDescription={<p>El reverso reúne las dos maneras de empezar: crear un gremio propio o entrar con el código que te compartieron.</p>}
+          metrics={[
+            { label: 'Miembros', value: '0/10' },
+            { label: 'Chat', value: 'Al unirte' },
+            { label: 'Estado', value: 'Sin gremio' },
+          ]}
+          backActions={(
+            <button
+              type="button"
+              onClick={(event) => { event.stopPropagation(); setMode('join'); }}
+              className="min-h-11 rounded-xl border border-border bg-muted px-3 text-sm font-semibold text-foreground transition-transform hover:scale-[1.015] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
+              Unirse con código
+            </button>
+          )}
+          actionLabel="Crear gremio"
+          onAction={() => setMode('create')}
+          accent="var(--accent-gold)"
+          className="h-[clamp(22rem,58dvh,26rem)] min-h-[22rem] max-w-xl"
+        />
       </div>
     );
   }
@@ -270,6 +281,35 @@ export default function GuildPage() {
 
   return (
     <div className="max-w-3xl mx-auto py-6 px-4">
+      <LifeQuestFlipCard
+        eyebrow="Tu gremio"
+        title={guild.name}
+        description={guild.description || 'Tu grupo de aventureros comparte progreso, apoyo y conversación.'}
+        visual={<span className="text-6xl" aria-hidden="true"><E e={EMBLEM_ICONS[guild.emblem] ?? '🛡️'} s={64} /></span>}
+        visualLabel={`Emblema del gremio ${guild.name}`}
+        badge={`Nivel ${guild.level}`}
+        frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">{guild.members.length}/10 aventureros reunidos</p>}
+        backDescription={<p>Comparte el código de invitación, consulta a tus compañeros y deja un mensaje para mantener el impulso del equipo.</p>}
+        metrics={[
+          { label: 'Nivel', value: guild.level },
+          { label: 'Miembros', value: `${guild.members.length}/10` },
+          { label: 'XP', value: guild.xp.toLocaleString('es-CO') },
+        ]}
+        backActions={(
+          <button
+            type="button"
+            onClick={(event) => { event.stopPropagation(); copyCode(); }}
+            className="min-h-11 rounded-xl border border-border bg-muted px-3 text-sm font-semibold text-foreground transition-transform hover:scale-[1.015] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          >
+            Copiar código
+          </button>
+        )}
+        actionLabel="Abrir chat"
+        onAction={() => document.getElementById('guild-message')?.focus()}
+        accent="var(--accent-gold)"
+        className="h-[clamp(21rem,54dvh,25rem)] min-h-[21rem] max-w-xl"
+      />
+
       {/* Guild header */}
       <div className="bg-bg-panel border-4 border-border-pixel p-4 mb-4">
         <div className="flex items-center gap-4">
@@ -378,6 +418,7 @@ export default function GuildPage() {
           </div>
           <div className="p-3 border-t-2 border-border-pixel flex gap-2">
             <input
+              id="guild-message"
               value={msgInput}
               onChange={(e) => setMsgInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '../../hooks/useToast';
 import { PixelPanel } from '../../components/ui/PixelPanel';
+import { LifeQuestFlipCard } from '../../components/ui/lifequest-flip-card';
 import { PixelButton } from '../../components/ui/PixelButton';
 import type { Meal } from '@lifequest/shared';
 import * as mealService from '../../services/meal.service';
@@ -178,6 +179,28 @@ export default function FoodPage() {
           <PixelButton variant="primary" onClick={() => setShowModal(true)}>+ REGISTRAR</PixelButton>
         </div>
       </div>
+
+      {!loading && (
+        <LifeQuestFlipCard
+          eyebrow="Balance de la Posada"
+          title={meals.length ? `${meals.length} registros hoy` : 'Tu mesa está lista'}
+          description={meals.length ? 'Revisa tu hidratación y energía antes de registrar el siguiente bocado.' : 'Registra una comida o agua para comenzar a cuidar la energía del héroe.'}
+          visual={<div className="flex items-end gap-3" aria-hidden="true"><span className="text-6xl"><E e="🍽️" s={64} /></span><div className="text-left"><p className="text-4xl font-semibold leading-none text-foreground">{Math.round(waterPct)}%</p><p className="mt-1 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">hidratación</p></div></div>}
+          visualLabel={`Hidratación: ${Math.round(waterPct)} por ciento`}
+          badge={totalWater >= waterGoal ? 'Meta de agua lista' : 'Hoy'}
+          frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">{(totalWater / 1000).toFixed(1)}L de {waterGoal / 1000}L · {totalCalories} kcal</p>}
+          backDescription={<p>Usa este resumen para equilibrar agua, comidas y energía durante el día.</p>}
+          metrics={[
+            { label: 'Agua', value: `${(totalWater / 1000).toFixed(1)}L` },
+            { label: 'Calorías', value: totalCalories ? `${totalCalories} kcal` : 'Sin datos' },
+            { label: 'Comidas', value: meals.filter((meal) => meal.mealType !== 'WATER').length },
+          ]}
+          actionLabel="Registrar comida"
+          onAction={() => setShowModal(true)}
+          accent="var(--accent-gold)"
+          className="h-[clamp(21rem,54dvh,25rem)] min-h-[21rem] max-w-xl"
+        />
+      )}
 
       {/* Tabs */}
       <div className="grid grid-cols-3 gap-1">

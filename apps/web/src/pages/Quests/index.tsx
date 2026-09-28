@@ -23,6 +23,7 @@ import { QuestCard } from '../../components/quests/QuestCard';
 import { QuestModal } from '../../components/quests/QuestModal';
 import { QuestWizard } from '../../components/quests/QuestWizard';
 import { SkeletonList } from '../../components/ui/Skeleton';
+import { LifeQuestFlipCard } from '../../components/ui/lifequest-flip-card';
 import { FlowButton } from '../../components/ui/flow-button';
 import { useToastStore } from '../../hooks/useToast';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -338,6 +339,9 @@ export default function QuestsPage() {
       ? quests
       : [...activeQuests, ...completedQuests.slice(0, 3), ...inactiveQuests];
   const hasFilters = Boolean(search || filterCategory || filterDifficulty || sortBy);
+  // Only one mission is promoted to 3D; the task list remains inexpensive to scroll.
+  const featuredQuest = displayQuests[0];
+  const remainingDisplayQuests = featuredQuest ? displayQuests.filter((quest) => quest.id !== featuredQuest.id) : [];
   const sectionTitle = activeTab === 'MAIN'
     ? 'Proyectos'
     : activeTab === 'SIDE'
@@ -453,6 +457,40 @@ export default function QuestsPage() {
         </div>
       </section>
 
+      {!loading && featuredQuest && (
+        <LifeQuestFlipCard
+          eyebrow="Misión destacada"
+          title={featuredQuest.title}
+          description={featuredQuest.description || 'Una prioridad de tu aventura que puedes completar, editar o revisar con calma.'}
+          visual={<Target className="h-16 w-16 text-foreground" strokeWidth={1.5} aria-hidden="true" />}
+          visualLabel={`Misión destacada: ${featuredQuest.title}`}
+          badge={featuredQuest.status === 'ACTIVE' ? 'Activa' : featuredQuest.status === 'COMPLETED' ? 'Completada' : 'En pausa'}
+          frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">+{featuredQuest.xpReward} XP · {CATEGORY_LABELS[featuredQuest.category] ?? featuredQuest.category}</p>}
+          backDescription={<p>{featuredQuest.description || 'Abre la misión para revisar objetivos, fecha límite y todas sus recompensas.'}</p>}
+          metrics={[
+            { label: 'Tipo', value: featuredQuest.type === 'MAIN' ? 'Proyecto' : featuredQuest.type === 'SIDE' ? 'Tarea' : 'Meta' },
+            { label: 'Dificultad', value: DIFFICULTY_OPTIONS.find((option) => option.value === featuredQuest.difficulty)?.label ?? featuredQuest.difficulty },
+            { label: 'Recompensa', value: `+${featuredQuest.xpReward} XP` },
+          ]}
+          backActions={(
+            <button
+              type="button"
+              onClick={(event) => { event.stopPropagation(); handleEdit(featuredQuest); }}
+              className="min-h-11 rounded-xl border border-border bg-muted px-3 text-sm font-semibold text-foreground transition-transform hover:scale-[1.015] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
+              Editar misión
+            </button>
+          )}
+          actionLabel={featuredQuest.status === 'ACTIVE' ? 'Completar misión' : 'Ver detalle'}
+          onAction={() => {
+            if (featuredQuest.status === 'ACTIVE') void handleComplete(featuredQuest);
+            else setSelectedQuest(featuredQuest);
+          }}
+          accent="var(--accent-gold)"
+          className="h-[clamp(22rem,56dvh,26rem)] min-h-[22rem] max-w-xl"
+        />
+      )}
+
       <section className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]">
         <header className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
           <div>
@@ -490,10 +528,14 @@ export default function QuestsPage() {
               Nueva misión
             </FlowButton>
           </div>
+        ) : remainingDisplayQuests.length === 0 ? (
+          <div className="px-5 py-8 text-center text-sm text-[var(--text-secondary)]">
+            La misión destacada está lista arriba para revisar o completar.
+          </div>
         ) : (
           <AnimatePresence initial={false} mode="popLayout">
             <motion.div layout className="divide-y divide-[var(--border)]">
-              {displayQuests.map((quest, index) => (
+              {remainingDisplayQuests.map((quest, index) => (
                 <motion.div
                   key={quest.id}
                   layout="position"

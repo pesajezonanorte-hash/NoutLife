@@ -4,6 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 
 import { CalendarClock, Coffee, Dumbbell, Moon, MonitorSmartphone } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import { PixelPanel } from '../../components/ui/PixelPanel';
+import { LifeQuestFlipCard } from '../../components/ui/lifequest-flip-card';
 import { PixelButton } from '../../components/ui/PixelButton';
 import { ModalFrame } from '../../components/ui/ModalFrame';
 import type { SleepLog, SleepStats } from '@lifequest/shared';
@@ -238,6 +239,28 @@ export default function SleepPage() {
           <PixelButton variant="primary" onClick={() => setShowModal(true)}>+ REGISTRAR SUEÑO</PixelButton>
         </div>
       </div>
+
+      {!loading && (
+        <LifeQuestFlipCard
+          eyebrow="Descanso destacado"
+          title={lastLog ? `${lastLog.duration.toFixed(1)} horas la última noche` : 'Tu torre espera el primer registro'}
+          description={lastLog ? `Calidad: ${QUALITY_LABELS[lastLog.quality].trim() || 'Sin valorar'}. Revisa el patrón para cuidar tu energía.` : 'Registra cómo dormiste para convertir tu descanso en una señal útil para tu aventura.'}
+          visual={<div className="flex items-end gap-3" aria-hidden="true"><span className="text-6xl"><E e="🌙" s={64} /></span><div className="text-left"><p className="text-4xl font-semibold leading-none text-foreground">{stats ? stats.weeklyAvg.toFixed(1) : '—'}h</p><p className="mt-1 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">promedio semanal</p></div></div>}
+          visualLabel={stats ? `Promedio de sueño semanal: ${stats.weeklyAvg.toFixed(1)} horas` : 'Aún no hay promedio de sueño'}
+          badge={lastLog ? 'Última noche' : 'Sin registros'}
+          frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">{stats ? `${stats.avgQuality.toFixed(1)}/5 de calidad media` : 'Empieza a registrar tu descanso'}</p>}
+          backDescription={<p>La calidad, duración y hábitos nocturnos se combinan aquí para ayudarte a recuperar energía.</p>}
+          metrics={[
+            { label: 'Semanal', value: stats ? `${stats.weeklyAvg.toFixed(1)}h` : '—' },
+            { label: 'Calidad', value: stats ? `${stats.avgQuality.toFixed(1)}/5` : '—' },
+            { label: 'Registros', value: logs.length },
+          ]}
+          actionLabel="Registrar sueño"
+          onAction={() => setShowModal(true)}
+          accent="var(--accent-gold)"
+          className="h-[clamp(21rem,54dvh,25rem)] min-h-[21rem] max-w-xl"
+        />
+      )}
 
       {/* Stats */}
       {stats && (

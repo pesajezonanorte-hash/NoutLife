@@ -5,6 +5,7 @@ import { AvatarDisplay } from '../../components/character/AvatarDisplay';
 import { StatBlock } from '../../components/character/StatBlock';
 import { AvatarCustomizer } from '../../components/character/AvatarCustomizer';
 import { PixelPanel } from '../../components/ui/PixelPanel';
+import { LifeQuestFlipCard } from '../../components/ui/lifequest-flip-card';
 import { PixelButton } from '../../components/ui/PixelButton';
 import { xpProgressPercent } from '../../lib/xp';
 import { getLevelTitle } from '../../lib/gameProgress';
@@ -47,6 +48,31 @@ export default function CharacterPage() {
           <E e="🧙" /> Ficha del héroe
         </h1>
       </motion.div>
+
+      <LifeQuestFlipCard
+        eyebrow="Ficha del héroe"
+        title={user.displayName}
+        description={`${getLevelTitle(user.level)} · Día ${daysSinceJoin} de tu aventura.`}
+        visual={<AvatarDisplay avatarConfig={avatarCfg} avatarUrl={user.avatarUrl} size={112} animate="idle" />}
+        visualLabel={`Avatar de ${user.displayName}`}
+        badge={`Nivel ${user.level}`}
+        frontFooter={(
+          <div>
+            <div className="flex justify-between text-xs text-muted-foreground"><span>XP actual</span><span>{user.xp.toLocaleString()} / {user.xpToNextLevel.toLocaleString()}</span></div>
+            <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-muted"><div className="h-full bg-primary" style={{ width: `${xpPct}%` }} /></div>
+          </div>
+        )}
+        backDescription={<p>Personaliza tu aspecto, revisa tus atributos y prepara el equipo que llevará tu héroe a la próxima misión.</p>}
+        metrics={[
+          { label: 'Nivel', value: user.level },
+          { label: 'Racha', value: `${user.currentStreak} días` },
+          { label: 'Gold', value: user.gold.toLocaleString() },
+        ]}
+        actionLabel="Cambiar apariencia"
+        onAction={() => setCustomizerOpen(true)}
+        accent="var(--accent-gold)"
+        className="h-[clamp(21rem,54dvh,25rem)] min-h-[21rem] max-w-xl"
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* ── Columna izquierda: Visual ── */}

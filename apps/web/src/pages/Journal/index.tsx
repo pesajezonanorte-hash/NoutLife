@@ -4,6 +4,7 @@ import { BookOpen } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import { useDebounce } from '../../hooks/useDebounce';
 import { PixelPanel } from '../../components/ui/PixelPanel';
+import { LifeQuestFlipCard } from '../../components/ui/lifequest-flip-card';
 import { PixelButton } from '../../components/ui/PixelButton';
 import { ModalFrame } from '../../components/ui/ModalFrame';
 import type { JournalEntry, JournalStreak } from '@lifequest/shared';
@@ -263,6 +264,28 @@ export default function JournalPage() {
           <PixelButton variant="primary" onClick={() => { setEditing(null); setShowEditor(true); }}><E e="✍" /> ESCRIBIR</PixelButton>
         </div>
       </div>
+
+      {!loading && (
+        <LifeQuestFlipCard
+          eyebrow="Entrada destacada"
+          title={todayEntry?.title ?? (todayEntry ? 'Tu reflexión de hoy' : 'Tu página de hoy sigue en blanco')}
+          description={todayEntry ? `Escribiste hoy. ${todayEntry.content.slice(0, 120)}${todayEntry.content.length > 120 ? '…' : ''}` : 'Reserva un momento para dejar una idea, emoción o logro de esta jornada.'}
+          visual={<span className="text-6xl" aria-hidden="true"><E e={todayEntry?.mood ? MOOD_EMOJIS[todayEntry.mood] : '📜'} s={64} /></span>}
+          visualLabel={todayEntry ? 'Entrada de diario de hoy' : 'Diario listo para una nueva entrada'}
+          badge={todayEntry ? 'Hoy escrito' : 'Pendiente hoy'}
+          frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">{streak ? `${streak.currentStreak} días de racha` : `${entries.length} entradas guardadas`}</p>}
+          backDescription={<p>{todayEntry ? 'Abre la entrada para continuarla, editarla o releer la reflexión que dejaste hoy.' : `Prompt sugerido: “${todayPrompt}”`}</p>}
+          metrics={[
+            { label: 'Racha', value: `${streak?.currentStreak ?? 0} días` },
+            { label: 'Entradas', value: entries.length },
+            { label: 'Estado', value: todayEntry ? 'Escrito' : 'Por escribir' },
+          ]}
+          actionLabel={todayEntry ? 'Abrir entrada' : 'Escribir hoy'}
+          onAction={() => { setEditing(todayEntry ?? null); setShowEditor(true); }}
+          accent="var(--accent-gold)"
+          className="h-[clamp(21rem,54dvh,25rem)] min-h-[21rem] max-w-xl"
+        />
+      )}
 
       {/* Streak + Today status */}
       <div className="grid grid-cols-2 gap-3">

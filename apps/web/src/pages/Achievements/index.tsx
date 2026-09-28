@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PixelPanel } from '../../components/ui/PixelPanel';
+import { LifeQuestFlipCard } from '../../components/ui/lifequest-flip-card';
 import { PixelButton } from '../../components/ui/PixelButton';
 import { AchievementCard } from '../../components/achievements/AchievementCard';
 import { fetchAchievements } from '../../services/achievement.service';
@@ -48,6 +49,10 @@ export default function AchievementsPage() {
 
   const unlockedCount = achievements.filter((a) => a.unlocked).length;
   const totalXp = achievements.filter((a) => a.unlocked).reduce((s, a) => s + a.xpReward, 0);
+  // Keep the animated 3D surface to one achievement while the catalog stays light.
+  const orderedAchievements = [...filtered.filter((achievement) => achievement.unlocked), ...filtered.filter((achievement) => !achievement.unlocked)];
+  const featuredAchievement = orderedAchievements[0];
+  const remainingAchievements = featuredAchievement ? orderedAchievements.filter((achievement) => achievement.id !== featuredAchievement.id) : [];
 
   return (
     <div className="space-y-4">
@@ -77,6 +82,28 @@ export default function AchievementsPage() {
             />
           </div>
         </div>
+      )}
+
+      {!loading && featuredAchievement && (
+        <LifeQuestFlipCard
+          eyebrow="Logro destacado"
+          title={featuredAchievement.title}
+          description={featuredAchievement.description}
+          visual={<span className={`text-6xl ${featuredAchievement.unlocked ? '' : 'grayscale opacity-50'}`} aria-hidden="true"><E e={featuredAchievement.icon} s={64} /></span>}
+          visualLabel={`Insignia de ${featuredAchievement.title}`}
+          badge={featuredAchievement.unlocked ? 'Desbloqueado' : 'En progreso'}
+          frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">{featuredAchievement.unlocked ? `+${featuredAchievement.xpReward} XP ganado` : featuredAchievement.target ? `${featuredAchievement.progress ?? 0}/${featuredAchievement.target} de progreso` : 'Sigue avanzando'}</p>}
+          backDescription={<p>{featuredAchievement.description}</p>}
+          metrics={[
+            { label: 'Estado', value: featuredAchievement.unlocked ? 'Desbloqueado' : 'Pendiente' },
+            { label: 'XP', value: `+${featuredAchievement.xpReward}` },
+            { label: 'Progreso', value: featuredAchievement.target ? `${featuredAchievement.progress ?? 0}/${featuredAchievement.target}` : '—' },
+          ]}
+          actionLabel={featuredAchievement.unlocked ? 'Ver detalle' : 'Ver avance'}
+          onAction={() => setSelectedAch(featuredAchievement)}
+          accent="var(--accent-gold)"
+          className="h-[clamp(21rem,54dvh,25rem)] min-h-[21rem] max-w-xl"
+        />
       )}
 
       {/* Category tabs */}
@@ -123,8 +150,7 @@ export default function AchievementsPage() {
         </PixelPanel>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {/* Unlocked first */}
-          {[...filtered.filter(a => a.unlocked), ...filtered.filter(a => !a.unlocked)].map((ach, i) => (
+          {remainingAchievements.map((ach, i) => (
             <motion.div
               key={ach.id}
               initial={{ opacity: 0, y: 12 }}

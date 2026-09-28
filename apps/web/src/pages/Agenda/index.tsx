@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { PixelPanel } from '../../components/ui/PixelPanel';
+import { LifeQuestFlipCard } from '../../components/ui/lifequest-flip-card';
 import { PixelButton } from '../../components/ui/PixelButton';
 import { useToast } from '../../hooks/useToast';
 import * as agendaService from '../../services/agenda.service';
@@ -643,6 +644,10 @@ export default function AgendaPage() {
   }
 
   const defaultDate = currentDate.toISOString().slice(0, 10);
+  const selectedDayEvents = events.filter((event) => isEventOnDay(event, currentDate));
+  const nextEvent = [...events]
+    .filter((event) => new Date(event.startDate).getTime() >= Date.now() && !event.isCompleted)
+    .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())[0];
 
   // Google Calendar Integration State
   const [syncingGoogle, setSyncingGoogle] = useState(false);
@@ -746,6 +751,37 @@ export default function AgendaPage() {
           </PixelButton>
         </div>
       </div>
+
+      {!loading && (
+        <LifeQuestFlipCard
+          eyebrow="Agenda del héroe"
+          title={nextEvent?.title ?? 'Tu agenda tiene espacio'}
+          description={nextEvent ? `${formatDate(nextEvent.startDate)} · ${nextEvent.isAllDay ? 'Todo el día' : formatTime(nextEvent.startDate)}${nextEvent.location ? ` · ${nextEvent.location}` : ''}` : 'Crea un evento o revisa la fecha seleccionada para planear tu siguiente paso.'}
+          visual={<span className="text-6xl" aria-hidden="true"><E e={nextEvent ? catInfo(nextEvent.category).emoji : '📅'} s={64} /></span>}
+          visualLabel={nextEvent ? `Próximo evento: ${nextEvent.title}` : 'Agenda sin próximo evento'}
+          badge={nextEvent ? 'Próximo evento' : 'Planifica tu día'}
+          frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">{selectedDayEvents.length} evento{selectedDayEvents.length === 1 ? '' : 's'} en la fecha seleccionada</p>}
+          backDescription={<p>{nextEvent?.description || 'Añade un evento, una clase o un recordatorio para convertir tus prioridades en un plan visible.'}</p>}
+          metrics={[
+            { label: 'Hoy', value: selectedDayEvents.length },
+            { label: 'Mes', value: events.length },
+            { label: 'Vista', value: view === 'day' ? 'Día' : view === 'week' ? 'Semana' : 'Mes' },
+          ]}
+          backActions={nextEvent ? (
+            <button
+              type="button"
+              onClick={(event) => { event.stopPropagation(); setEditingEvent(nextEvent); }}
+              className="min-h-11 rounded-xl border border-border bg-muted px-3 text-sm font-semibold text-foreground transition-transform hover:scale-[1.015] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
+              Editar evento
+            </button>
+          ) : undefined}
+          actionLabel="Crear evento"
+          onAction={() => setShowModal(true)}
+          accent="var(--accent-gold)"
+          className="h-[clamp(21rem,54dvh,25rem)] min-h-[21rem] max-w-xl"
+        />
+      )}
 
       {/* Google Sync Banner */}
       <PixelPanel className="p-3 bg-bg-deep/40 flex items-center justify-between flex-wrap gap-2 border-border-pixel">

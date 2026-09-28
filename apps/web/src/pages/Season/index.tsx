@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../lib/api';
 import { PixelPanel } from '../../components/ui/PixelPanel';
+import { LifeQuestFlipCard } from '../../components/ui/lifequest-flip-card';
 import { Skull, Trophy, Swords } from 'lucide-react';
 import { E } from '@/components/ui/glyphs';
 import ModernLoader from '@/components/ui/modern-loader';
@@ -113,6 +115,7 @@ function BossSprite({ defeated }: { defeated: boolean }) {
 }
 
 export default function SeasonPage() {
+  const navigate = useNavigate();
   const [data, setData] = useState<SeasonData | null>(null);
   const [loading, setLoading] = useState(true);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -169,6 +172,26 @@ export default function SeasonPage() {
         </h1>
         <p className="font-vt text-text-secondary text-xl">{season.description}</p>
       </div>
+
+      <LifeQuestFlipCard
+        eyebrow="Campaña activa"
+        title={season.bossName}
+        description={season.description}
+        visual={<Skull className={defeated ? 'h-20 w-20 text-muted-foreground' : 'h-20 w-20 text-destructive'} strokeWidth={1.2} aria-hidden="true" />}
+        visualLabel={`Jefe de temporada: ${season.bossName}`}
+        badge={defeated ? 'Derrotado' : `${daysLeft} días restantes`}
+        frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">{hpPct.toFixed(1)}% de HP restante</p>}
+        backDescription={<p>Tu daño se suma al esfuerzo del reino. Completa retos y misiones para ayudar a inclinar la batalla.</p>}
+        metrics={[
+          { label: 'Tu daño', value: userDamage.toLocaleString('es-CO') },
+          { label: 'HP restante', value: season.currentHp.toLocaleString('es-CO') },
+          { label: 'Eventos', value: season.events.length },
+        ]}
+        actionLabel="Ver retos"
+        onAction={() => navigate('/challenges')}
+        accent="var(--accent-gold)"
+        className="h-[clamp(21rem,54dvh,25rem)] min-h-[21rem] max-w-xl"
+      />
 
       {/* Boss card */}
       <PixelPanel className="p-6">

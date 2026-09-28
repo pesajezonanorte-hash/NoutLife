@@ -28,6 +28,7 @@ import {
   HeatCalendarTooltip,
 } from '@/components/ui/heat-calendar';
 import AdvancedStats, { type AdvancedStatsData } from '@/components/ui/advanced-stats';
+import { LifeQuestFlipCard } from '@/components/ui/lifequest-flip-card';
 import {
   FinanceTrendCard,
   GymProgressionCard,
@@ -512,6 +513,26 @@ export default function StatsPage() {
           description="Tu progreso real, acumulado y organizado por periodo."
           actions={<ShareButton user={user} score={lifeScore} />}
         />
+        <LifeQuestFlipCard
+          eyebrow="Life Score"
+          title={dynamicScore?.totalScore !== null && dynamicScore?.totalScore !== undefined ? `${dynamicScore.totalScore} puntos de equilibrio` : 'Tu balance de vida se está calculando'}
+          description={`Resumen de ${selectedPeriod.summaryLabel.toLowerCase()} con datos reales de tus zonas, hábitos y misiones.`}
+          visual={<div className="flex items-end gap-3" aria-hidden="true"><BarChart3 className="h-16 w-16 text-foreground" strokeWidth={1.35} /><div className="text-left"><p className="text-4xl font-semibold leading-none text-foreground">{summary?.quests.completed ?? 0}</p><p className="mt-1 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">misiones</p></div></div>}
+          visualLabel="Resumen de estadísticas"
+          badge={selectedPeriod.summaryLabel}
+          frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">{summary?.xp.value ?? 0} XP en el periodo</p>}
+          backDescription={<p>Actualiza las métricas y explora las series detalladas para entender qué zona está impulsando tu progreso.</p>}
+          metrics={[
+            { label: 'XP', value: summary?.xp.value ?? 0 },
+            { label: 'Racha', value: `${summary?.currentStreak ?? user?.currentStreak ?? 0} días` },
+            { label: 'Life Score', value: dynamicScore?.totalScore ?? '—' },
+          ]}
+          actionLabel="Actualizar estadísticas"
+          onAction={() => void load(period)}
+          accent="var(--accent-gold)"
+          className="h-[clamp(21rem,54dvh,25rem)] min-h-[21rem] max-w-xl"
+        />
+
         <div
           className="grid w-full grid-cols-4 rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] p-1"
           role="group"

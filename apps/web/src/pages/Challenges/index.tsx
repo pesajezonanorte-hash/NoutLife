@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Swords, Plus, Users, Trophy } from 'lucide-react';
+import { LifeQuestFlipCard } from '../../components/ui/lifequest-flip-card';
 import { getChallenges, createChallenge, joinChallenge } from '../../services/social.service';
 import { useAuthStore } from '../../store/authStore';
 import { E } from '@/components/ui/glyphs';
@@ -54,6 +55,10 @@ export default function ChallengesPage() {
   };
 
   useEffect(load, []);
+
+  // One featured challenge uses the 3D surface; the competitive list remains lightweight.
+  const featuredChallenge = challenges[0];
+  const remainingChallenges = featuredChallenge ? challenges.filter((challenge) => challenge.id !== featuredChallenge.id) : [];
 
   const handleCreate = async () => {
     try {
@@ -164,6 +169,35 @@ export default function ChallengesPage() {
         </div>
       )}
 
+      {!loading && featuredChallenge && (() => {
+        const progress = Math.min(100, ((featuredChallenge.myProgress ?? 0) / Math.max(1, featuredChallenge.targetValue)) * 100);
+        const daysLeft = Math.max(0, Math.ceil((new Date(featuredChallenge.endDate).getTime() - Date.now()) / 86400000));
+        return (
+          <LifeQuestFlipCard
+            eyebrow="Reto destacado"
+            title={featuredChallenge.title}
+            description={featuredChallenge.description || `${TYPE_LABELS[featuredChallenge.type] ?? featuredChallenge.type} · meta de ${featuredChallenge.targetValue}.`}
+            visual={<Swords className="h-16 w-16 text-foreground" strokeWidth={1.35} aria-hidden="true" />}
+            visualLabel={`Reto destacado: ${featuredChallenge.title}`}
+            badge={featuredChallenge.isParticipant ? 'Participando' : `${daysLeft} días`}
+            frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">{featuredChallenge.isParticipant ? `${Math.round(progress)}% de tu meta` : `${featuredChallenge.participants.length} participantes`}</p>}
+            backDescription={<p>{featuredChallenge.description || 'Únete para medir tu avance frente a otros aventureros y pelear por la recompensa.'}</p>}
+            metrics={[
+              { label: 'Meta', value: featuredChallenge.targetValue },
+              { label: 'Tu avance', value: `${featuredChallenge.myProgress ?? 0}/${featuredChallenge.targetValue}` },
+              { label: 'Participantes', value: featuredChallenge.participants.length },
+            ]}
+            actionLabel={!featuredChallenge.isParticipant && featuredChallenge.status === 'ACTIVE' ? 'Unirse al reto' : 'Crear reto'}
+            onAction={() => {
+              if (!featuredChallenge.isParticipant && featuredChallenge.status === 'ACTIVE') void handleJoin(featuredChallenge.id);
+              else setCreating(true);
+            }}
+            accent="var(--accent-gold)"
+            className="h-[clamp(21rem,54dvh,25rem)] min-h-[21rem] max-w-xl"
+          />
+        );
+      })()}
+
       {/* Challenges list */}
       <LoadingGate loading={loading} fallback={<ModernLoader words={[...LOADING_COPY.challenges]} />}>
         {loading ? null : challenges.length === 0 ? (
@@ -173,7 +207,7 @@ export default function ChallengesPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {challenges.map((c) => {
+          {remainingChallenges.map((c) => {
             const end = new Date(c.endDate);
             const daysLeft = Math.max(0, Math.ceil((end.getTime() - Date.now()) / 86400000));
             const myProgress = c.myProgress ?? 0;

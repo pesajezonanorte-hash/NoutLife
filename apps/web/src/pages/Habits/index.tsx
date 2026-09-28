@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { PixelPanel } from '../../components/ui/PixelPanel';
+import { LifeQuestFlipCard } from '../../components/ui/lifequest-flip-card';
 import { PixelButton } from '../../components/ui/PixelButton';
 import { StreakFlame } from '../../components/habits/StreakFlame';
 import { HabitRow } from '../../components/habits/HabitRow';
@@ -145,6 +146,40 @@ export default function HabitsPage() {
 + NUEVO HÁBITO
         </PixelButton>
       </div>
+
+      {!loading && topHabit && (
+        <LifeQuestFlipCard
+          eyebrow="Hábito destacado"
+          title={topHabit.title}
+          description={topHabit.todayCompleted ? 'Ya sumaste este paso a tu día. Mira el detalle o ajusta su configuración.' : 'Tu siguiente oportunidad de sostener la racha está lista.'}
+          visual={<span className="text-6xl" aria-hidden="true"><E e={topHabit.icon} s={64} /></span>}
+          visualLabel={`Hábito destacado: ${topHabit.title}`}
+          badge={topHabit.todayCompleted ? 'Completado hoy' : 'Pendiente'}
+          frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">{completedToday}/{totalHabits} hábitos completados hoy</p>}
+          backDescription={<p>Esta es tu mejor racha registrada. Completarla mantiene el ritmo de tu aventura y actualiza tus recompensas.</p>}
+          metrics={[
+            { label: 'Racha actual', value: `${topHabit.currentStreak} días` },
+            { label: 'Mejor racha', value: `${topHabit.longestStreak} días` },
+            { label: 'Hoy', value: topHabit.todayCompleted ? 'Hecho' : 'Pendiente' },
+          ]}
+          backActions={(
+            <button
+              type="button"
+              onClick={(event) => { event.stopPropagation(); setEditingHabit(topHabit); setShowModal(true); }}
+              className="min-h-11 rounded-xl border border-border bg-muted px-3 text-sm font-semibold text-foreground transition-transform hover:scale-[1.015] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
+              Editar hábito
+            </button>
+          )}
+          actionLabel={topHabit.todayCompleted ? 'Ver hábitos' : 'Completar hábito'}
+          onAction={() => {
+            if (topHabit.todayCompleted) { setEditingHabit(topHabit); setShowModal(true); return; }
+            void handleLog(topHabit.id, 'completed');
+          }}
+          accent="var(--accent-gold)"
+          className="h-[clamp(21rem,54dvh,25rem)] min-h-[21rem] max-w-xl"
+        />
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3">
