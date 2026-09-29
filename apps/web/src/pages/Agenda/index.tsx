@@ -556,7 +556,10 @@ export default function AgendaPage() {
     return (
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <button
+          <FlowButton
+            tone="ghost"
+            size="sm"
+            withArrows={false}
             onClick={() => {
               const d = new Date(currentDate);
               d.setDate(d.getDate() - 1);
@@ -566,11 +569,14 @@ export default function AgendaPage() {
             style={{ fontSize: "12px" }}
           >
             ◀
-          </button>
+          </FlowButton>
           <p className="font-vt text-text-primary text-xl capitalize">
             {dateLabel}
           </p>
-          <button
+          <FlowButton
+            tone="ghost"
+            size="sm"
+            withArrows={false}
             onClick={() => {
               const d = new Date(currentDate);
               d.setDate(d.getDate() + 1);
@@ -580,7 +586,7 @@ export default function AgendaPage() {
             style={{ fontSize: "12px" }}
           >
             ▶
-          </button>
+          </FlowButton>
         </div>
         {dayEvents.length === 0 ? (
           <PixelPanel className="p-6 text-center">
@@ -627,7 +633,10 @@ export default function AgendaPage() {
     return (
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <button
+          <FlowButton
+            tone="ghost"
+            size="sm"
+            withArrows={false}
             onClick={() => {
               const d = new Date(currentDate);
               d.setDate(d.getDate() - 7);
@@ -637,7 +646,7 @@ export default function AgendaPage() {
             style={{ fontSize: "12px" }}
           >
             ◀
-          </button>
+          </FlowButton>
           <p className="font-vt text-text-primary text-base">
             {days[0].toLocaleDateString("es-CO", {
               day: "numeric",
@@ -650,7 +659,10 @@ export default function AgendaPage() {
               year: "numeric",
             })}
           </p>
-          <button
+          <FlowButton
+            tone="ghost"
+            size="sm"
+            withArrows={false}
             onClick={() => {
               const d = new Date(currentDate);
               d.setDate(d.getDate() + 7);
@@ -660,7 +672,7 @@ export default function AgendaPage() {
             style={{ fontSize: "12px" }}
           >
             ▶
-          </button>
+          </FlowButton>
         </div>
         <div className="grid grid-cols-7 gap-1">
           {days.map((day, i) => {
@@ -745,23 +757,29 @@ export default function AgendaPage() {
     return (
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <button
+          <FlowButton
+            tone="ghost"
+            size="sm"
+            withArrows={false}
             onClick={() => setCurrentDate(new Date(year, month - 1, 1))}
             className="flex h-11 w-11 items-center justify-center font-pixel text-text-secondary hover:text-accent-gold transition-colors"
             style={{ fontSize: "12px" }}
           >
             ◀
-          </button>
+          </FlowButton>
           <p className="font-vt text-text-primary text-xl capitalize">
             {monthLabel}
           </p>
-          <button
+          <FlowButton
+            tone="ghost"
+            size="sm"
+            withArrows={false}
             onClick={() => setCurrentDate(new Date(year, month + 1, 1))}
             className="flex h-11 w-11 items-center justify-center font-pixel text-text-secondary hover:text-accent-gold transition-colors"
             style={{ fontSize: "12px" }}
           >
             ▶
-          </button>
+          </FlowButton>
         </div>
 
         <div className="grid grid-cols-7 gap-0.5 text-center mb-1">

@@ -426,10 +426,13 @@ function ZoneCard({
                   return (
                     <div className="flex gap-2 flex-wrap">
                       {allActions.map((a, i) => (
-                        <button
+                        <FlowButton
                           key={i}
+                          tone="ghost"
+                          size="sm"
+                          withArrows={false}
                           onClick={() => toggleAction(a)}
-                          className="text-xs px-3 py-1.5 rounded-lg font-semibold transition-all"
+                          className="min-h-11 rounded-lg text-xs"
                           style={{
                             background:
                               activeAction?.label === a.label
@@ -444,12 +447,12 @@ function ZoneCard({
                         >
                           {activeAction?.label === a.label ? (
                             <>
-                              <E e="✕" s={11} /> Cancelar
+                              <E e="✕" /> Cancelar
                             </>
                           ) : (
                             `+ ${a.label}`
                           )}
-                        </button>
+                        </FlowButton>
                       ))}
                     </div>
                   );
