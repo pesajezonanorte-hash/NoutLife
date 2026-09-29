@@ -430,6 +430,123 @@ input[type='number']::-webkit-outer-spin-button {
   }
 }
 
+/*
+ * Shared 3D flip-card compositor chain. No element between the perspective
+ * root and a translateZ layer clips, filters, blurs, or creates isolation;
+ * those properties flatten preserve-3d in WebKit and some mobile GPUs.
+ *
+ * The unguarded rules are an intentionally simple cross-fade. The 3D path is
+ * opt-in only after both CSS @supports and the component's CSS.supports check
+ * agree that preserve-3d is available.
+ */
+@layer components {
+  .perspective-flip-card {
+    perspective: 2000px;
+    -webkit-perspective: 2000px;
+  }
+
+  .perspective-flip-card__rotor,
+  .perspective-flip-card__face,
+  .perspective-flip-card__depth-context,
+  .perspective-flip-card__depth {
+    transform-style: flat;
+    -webkit-transform-style: flat;
+  }
+
+  .perspective-flip-card__face {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+
+  .perspective-flip-card__face,
+  .perspective-flip-card__face * {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+
+  .perspective-flip-card__face--back {
+    opacity: 0;
+  }
+
+  .perspective-flip-card[data-flipped='true'] .perspective-flip-card__face--front {
+    opacity: 0;
+  }
+
+  .perspective-flip-card[data-flipped='true'] .perspective-flip-card__face--back {
+    opacity: 1;
+  }
+
+  .perspective-flip-card[data-3d-supported='false'] .perspective-flip-card__rotor,
+  .perspective-flip-card[data-3d-supported='false'] .perspective-flip-card__face,
+  .perspective-flip-card[data-3d-supported='false'] .perspective-flip-card__depth-context,
+  .perspective-flip-card[data-3d-supported='false'] .perspective-flip-card__depth {
+    transform: none !important;
+    -webkit-transform: none !important;
+  }
+
+  @supports ((transform-style: preserve-3d) or (-webkit-transform-style: preserve-3d)) {
+    .perspective-flip-card[data-3d-supported='true'] .perspective-flip-card__rotor,
+    .perspective-flip-card[data-3d-supported='true'] .perspective-flip-card__face,
+    .perspective-flip-card[data-3d-supported='true'] .perspective-flip-card__depth-context,
+    .perspective-flip-card[data-3d-supported='true'] .perspective-flip-card__depth {
+      transform-style: preserve-3d;
+      -webkit-transform-style: preserve-3d;
+    }
+
+    .perspective-flip-card[data-3d-supported='true'] .perspective-flip-card__rotor {
+      transition-property: transform;
+    }
+
+    .perspective-flip-card[data-3d-supported='true'][data-flipped='true'] .perspective-flip-card__rotor {
+      transform: rotateY(180deg);
+    }
+
+    .perspective-flip-card[data-3d-supported='true'] .perspective-flip-card__face {
+      opacity: 1;
+      transition-property: none;
+    }
+
+    .perspective-flip-card[data-3d-supported='true'] .perspective-flip-card__face--back {
+      transform: rotateY(180deg);
+    }
+  }
+
+  .perspective-flip-card--reduced-motion {
+    perspective: none;
+    -webkit-perspective: none;
+  }
+
+  .perspective-flip-card--reduced-motion .perspective-flip-card__rotor,
+  .perspective-flip-card--reduced-motion .perspective-flip-card__face,
+  .perspective-flip-card--reduced-motion .perspective-flip-card__depth-context,
+  .perspective-flip-card--reduced-motion .perspective-flip-card__depth {
+    transform: none !important;
+    -webkit-transform: none !important;
+    transform-style: flat;
+    -webkit-transform-style: flat;
+  }
+
+  .perspective-flip-card--reduced-motion .perspective-flip-card__face {
+    transition-property: opacity;
+  }
+
+  .perspective-flip-card--reduced-motion .perspective-flip-card__face--front {
+    opacity: 1;
+  }
+
+  .perspective-flip-card--reduced-motion .perspective-flip-card__face--back {
+    opacity: 0;
+  }
+
+  .perspective-flip-card--reduced-motion[data-flipped='true'] .perspective-flip-card__face--front {
+    opacity: 0;
+  }
+
+  .perspective-flip-card--reduced-motion[data-flipped='true'] .perspective-flip-card__face--back {
+    opacity: 1;
+  }
+}
+
 .particle {
   position: absolute;
   width: 6px;

@@ -5,9 +5,13 @@ export default defineConfig({
   timeout: 45_000,
   retries: 1,
   use: {
-    browserName: 'chromium',
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure',
   },
+  projects: [
+    { name: 'chromium', use: { browserName: 'chromium' } },
+    { name: 'webkit', use: { browserName: 'webkit' } },
+    { name: 'firefox', use: { browserName: 'firefox' } },
+  ],
   reporter: [['list']],
 });
