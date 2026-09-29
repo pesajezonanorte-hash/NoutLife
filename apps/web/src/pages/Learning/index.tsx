@@ -1,3 +1,4 @@
+import { FlowButton } from '@/components/ui/flow-button';
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BookOpen, TrendingUp } from 'lucide-react';
@@ -256,7 +257,7 @@ export default function LearningPage() {
             key={key}
             onClick={() => { setTab(key); setSelectedItem(null); }}
             className={`flex-shrink-0 px-3 py-1.5 border-2 font-pixel transition-all ${tab === key ? 'border-accent-gold bg-accent-gold text-bg-deep' : 'border-border-pixel text-text-secondary hover:border-text-secondary'}`}
-            style={{ fontSize: '8px' }}
+            style={{ fontSize: '12px' }}
           >
             {label}
           </button>
@@ -265,7 +266,7 @@ export default function LearningPage() {
           <button
             onClick={() => setTab('detalle')}
             className={`flex-shrink-0 px-3 py-1.5 border-2 font-pixel transition-all ${tab === 'detalle' ? 'border-accent-gold bg-accent-gold text-bg-deep' : 'border-border-pixel text-text-secondary'}`}
-            style={{ fontSize: '8px' }}
+            style={{ fontSize: '12px' }}
           >
             <E e="📖" /> {selectedItem.title.slice(0, 15)}...
           </button>
@@ -277,7 +278,7 @@ export default function LearningPage() {
       {tab === 'detalle' && selectedItem && (
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <button onClick={() => setTab('biblioteca')} className="font-pixel text-text-secondary hover:text-accent-gold transition-colors" style={{ fontSize: '8px' }}>← VOLVER</button>
+            <FlowButton tone="ghost" size="sm" withArrows={false} onClick={() => setTab('biblioteca')} className="min-h-11 font-pixel text-xs">← VOLVER</FlowButton>
             <p className="font-vt text-text-primary text-lg">{selectedItem.title}</p>
           </div>
           <div className="flex gap-1">
@@ -286,7 +287,7 @@ export default function LearningPage() {
                 key={dt}
                 onClick={() => setDetailTab(dt)}
                 className={`px-3 py-1.5 border-2 font-pixel transition-all ${detailTab === dt ? 'border-accent-gold bg-accent-gold text-bg-deep' : 'border-border-pixel text-text-secondary'}`}
-                style={{ fontSize: '8px' }}
+                style={{ fontSize: '12px' }}
               >
                 {dt === 'notas' ? ' Notas' : ' Vocabulario'}
               </button>
@@ -309,7 +310,7 @@ export default function LearningPage() {
             <PixelPanel key={s.label} className="p-3 text-center">
               <p className="text-2xl"><E e={s.icon} /></p>
               <p className="font-pixel text-accent-gold mt-1" style={{ fontSize: '14px' }}>{s.value}</p>
-              <p className="font-pixel text-text-secondary" style={{ fontSize: '6px' }}>{s.label}</p>
+              <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>{s.label}</p>
             </PixelPanel>
           ))}
         </div>
@@ -317,7 +318,7 @@ export default function LearningPage() {
 
       <div className="flex gap-1 overflow-x-auto pb-1">
         {[['', ' Todos'], ['IN_PROGRESS', ' En progreso'], ['NOT_STARTED', '⏳ Por empezar'], ['COMPLETED', ' Completados']].map(([key, label]) => (
-          <button key={key} onClick={() => setFilter(key)} className={`flex-shrink-0 px-3 py-1.5 border-2 font-pixel transition-all ${filter === key ? 'border-accent-gold bg-accent-gold text-bg-deep' : 'border-border-pixel text-text-secondary'}`} style={{ fontSize: '8px' }}>
+          <button key={key} onClick={() => setFilter(key)} className={`flex-shrink-0 px-3 py-1.5 border-2 font-pixel transition-all ${filter === key ? 'border-accent-gold bg-accent-gold text-bg-deep' : 'border-border-pixel text-text-secondary'}`} style={{ fontSize: '12px' }}>
             {label}
           </button>
         ))}
@@ -327,7 +328,7 @@ export default function LearningPage() {
         {loading ? null : filtered.length === 0 ? (
         <PixelPanel className="p-8 text-center">
           <p className="text-4xl mb-2"><E e="📚" /></p>
-          <p className="font-pixel text-text-secondary" style={{ fontSize: '9px' }}>LA BIBLIOTECA ESTÁ VACÍA</p>
+          <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>LA BIBLIOTECA ESTÁ VACÍA</p>
         </PixelPanel>
       ) : (
         <AnimatePresence>
@@ -362,8 +363,10 @@ export default function LearningPage() {
                     { label: 'Estado', value: STATUS_LABELS[featuredItem.status] },
                   ]}
                   backActions={(
-                    <button
-                      type="button"
+                    <FlowButton
+                      tone="ghost"
+                      size="sm"
+                      withArrows={false}
                       onClick={(event) => {
                         event.stopPropagation();
                         setSelectedItem(featuredItem);
@@ -373,7 +376,7 @@ export default function LearningPage() {
                       className="min-h-11 rounded-xl border border-border bg-muted px-3 text-sm font-semibold text-foreground transition-transform hover:scale-[1.015] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                     >
                       Abrir notas
-                    </button>
+                    </FlowButton>
                   )}
                   actionLabel="Actualizar progreso"
                   onAction={() => setUpdating(featuredItem)}
@@ -389,13 +392,16 @@ export default function LearningPage() {
                   <motion.div key={item.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
                     <PixelPanel className="p-3 cursor-pointer hover:border-accent-gold/50 transition-colors" onClick={() => setUpdating(item)}>
                       <div className="flex justify-end mb-1">
-                        <button
+                        <FlowButton
+                          tone="ghost"
+                          size="sm"
+                          withArrows={false}
                           onClick={e => { e.stopPropagation(); setSelectedItem(item); setTab('detalle'); setDetailTab('notas'); }}
                           className="font-pixel text-text-secondary hover:text-accent-gold transition-colors"
-                          style={{ fontSize: '7px' }}
+                          style={{ fontSize: '12px' }}
                         >
                           <E e="📝" /> NOTAS/VOCAB
-                        </button>
+                        </FlowButton>
                       </div>
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1">
@@ -403,8 +409,8 @@ export default function LearningPage() {
                             <span className="text-xl"><E e={TYPE_ICONS[item.type]} /></span>
                             <p className="font-vt text-text-primary text-lg">{item.title}</p>
                           </div>
-                          {item.author && <p className="font-pixel text-text-secondary ml-8" style={{ fontSize: '7px' }}>{item.author}</p>}
-                          <p className={`font-pixel ml-8 mt-1 ${STATUS_COLORS[item.status]}`} style={{ fontSize: '7px' }}><E e={STATUS_LABELS[item.status]} /></p>
+                          {item.author && <p className="font-pixel text-text-secondary ml-8" style={{ fontSize: '12px' }}>{item.author}</p>}
+                          <p className={`font-pixel ml-8 mt-1 ${STATUS_COLORS[item.status]}`} style={{ fontSize: '12px' }}><E e={STATUS_LABELS[item.status]} /></p>
                         </div>
                         {item.rating && (
                           <p className="font-vt text-accent-gold text-base">{Array.from({ length: item.rating }).map((_, i) => <E key={i} e="⭐" s={14} className="inline-block" />)}</p>
@@ -415,7 +421,7 @@ export default function LearningPage() {
                           <div className="stat-bar h-2">
                             <div className="h-full bg-accent-gold" style={{ width: `${pct}%` }} />
                           </div>
-                          <p className="font-pixel text-text-secondary mt-0.5 text-right" style={{ fontSize: '7px' }}>{item.currentProgress}/{item.totalProgress} pág · {Math.round(pct)}%</p>
+                          <p className="font-pixel text-text-secondary mt-0.5 text-right" style={{ fontSize: '12px' }}>{item.currentProgress}/{item.totalProgress} pág · {Math.round(pct)}%</p>
                         </div>
                       )}
                     </PixelPanel>

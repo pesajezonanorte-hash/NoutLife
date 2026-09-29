@@ -148,7 +148,7 @@ function HabitModal({ onClose, onDone }: { onClose: () => void; onDone: () => vo
               <span className="text-base"><E e={h.icon} /></span>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>{h.title}</p>
-                {h.currentStreak > 0 && <p className="text-[10px]" style={{ color: 'var(--accent-gold)' }}><E e="🔥" /> {h.currentStreak} días</p>}
+                {h.currentStreak > 0 && <p className="text-xs" style={{ color: 'var(--accent-gold)' }}><E e="🔥" /> {h.currentStreak} días</p>}
               </div>
               <span className="text-xs font-bold" style={{ color: 'var(--accent-cyan)' }}>+{h.xpReward} XP</span>
             </motion.button>

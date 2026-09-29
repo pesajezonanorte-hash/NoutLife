@@ -1,3 +1,4 @@
+import { FlowButton } from '@/components/ui/flow-button';
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Target, Sparkles, Trash2, CheckCircle2, Circle, ChevronDown, ChevronUp, Loader2, Award } from 'lucide-react';
@@ -117,13 +118,16 @@ function GoalCard({ goal, onUpdate }: { goal: MasterGoal; onUpdate: () => void }
                 >
                   {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                 </button>
-                <button
+                <FlowButton
+                  tone="danger"
+                  size="sm"
+                  withArrows={false}
                   onClick={handleDelete}
                   disabled={deleting}
                   className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-red-400 hover:bg-red-500/10 transition-colors"
                 >
                   {deleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-                </button>
+                </FlowButton>
               </div>
             </div>
 
@@ -310,7 +314,7 @@ function GoalWizard({ onClose, onCreated }: { onClose: () => void; onCreated: ()
                     value={form.why}
                     onChange={(e) => setForm((f) => ({ ...f, why: e.target.value }))}
                   />
-                  <p className="text-[11px] text-[var(--text-muted)] mt-1">Este campo es el más importante. Sé honesto.</p>
+                  <p className="text-xs text-[var(--text-muted)] mt-1">Este campo es el más importante. Sé honesto.</p>
                 </div>
                 <div>
                   <label className="text-xs text-[var(--text-secondary)] mb-1 block font-medium">Fecha límite (opcional)</label>
@@ -353,7 +357,10 @@ function GoalWizard({ onClose, onCreated }: { onClose: () => void; onCreated: ()
                 <p className="text-sm text-[var(--text-secondary)]">
                   ¿Quieres que el Sabio genere los milestones para llegar a tu meta?
                 </p>
-                <button
+                <FlowButton
+                  tone="primary"
+                  fullWidth
+                  withArrows={false}
                   onClick={handleAiBreakdown}
                   disabled={aiLoading}
                   className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all"
@@ -364,13 +371,16 @@ function GoalWizard({ onClose, onCreated }: { onClose: () => void; onCreated: ()
                   ) : (
                     <><Sparkles size={16} /> Que el Sabio los genere</>
                   )}
-                </button>
-                <button
+                </FlowButton>
+                <FlowButton
+                  tone="ghost"
+                  fullWidth
+                  withArrows={false}
                   onClick={() => { onCreated(); onClose(); }}
                   className="w-full py-2 rounded-xl text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
                 >
                   Los agregaré yo mismo
-                </button>
+                </FlowButton>
               </motion.div>
             )}
           </AnimatePresence>
@@ -378,20 +388,26 @@ function GoalWizard({ onClose, onCreated }: { onClose: () => void; onCreated: ()
 
         {step < 3 && (
           <div className="px-6 pb-6 flex gap-3">
-            <button
+            <FlowButton
+              tone="ghost"
+              fullWidth
+              withArrows={false}
               onClick={() => step > 0 ? setStep(s => s - 1) : onClose()}
               className="flex-1 py-2.5 rounded-xl border border-[var(--border)] text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-panel-light)] transition-colors"
             >
               {step === 0 ? 'Cancelar' : 'Atrás'}
-            </button>
-            <button
+            </FlowButton>
+            <FlowButton
+              tone="primary"
+              fullWidth
+              withArrows={false}
               onClick={() => step < 2 ? setStep(s => s + 1) : handleCreate()}
               disabled={step === 0 && !form.title.trim() || loading}
               className="flex-1 py-2.5 rounded-xl font-semibold text-sm transition-all disabled:opacity-40"
               style={{ background: 'var(--accent-gold)', color: 'var(--bg-deep)' }}
             >
               {loading ? <Loader2 size={16} className="animate-spin mx-auto" /> : step === 2 ? 'Crear Meta' : 'Siguiente'}
-            </button>
+            </FlowButton>
           </div>
         )}
       </motion.div>
@@ -491,13 +507,15 @@ export default function GoalsPage() {
           <p className="text-sm text-[var(--text-secondary)] max-w-xs mx-auto">
             Las Metas Maestras son los grandes objetivos de tu vida. No tareas — sueños con plan.
           </p>
-          <button
+          <FlowButton
+            tone="primary"
+            withArrows={false}
             onClick={() => setShowWizard(true)}
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm"
             style={{ background: 'var(--accent-gold)', color: 'var(--bg-deep)' }}
           >
             <Plus size={16} /> Crear mi primera meta
-          </button>
+          </FlowButton>
         </motion.div>
       ) : (
         <div className="space-y-4">

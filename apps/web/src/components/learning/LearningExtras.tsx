@@ -78,7 +78,7 @@ export function PomodoroTimer() {
 
   return (
     <PixelPanel className="p-5 text-center space-y-4">
-      <p className="font-pixel text-accent-gold" style={{ fontSize: '9px' }}><E e="🍅" /> POMODORO +15 XP</p>
+      <p className="font-pixel text-accent-gold" style={{ fontSize: '12px' }}><E e="🍅" /> POMODORO +15 XP</p>
 
       <div className="flex justify-center">
         <div className="relative w-32 h-32">
@@ -98,7 +98,7 @@ export function PomodoroTimer() {
             <p className="font-pixel text-text-primary" style={{ fontSize: '22px' }}>
               {String(mins).padStart(2, '0')}:{String(secs).padStart(2, '0')}
             </p>
-            <p className="font-pixel text-text-secondary" style={{ fontSize: '7px' }}>
+            <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>
               {phase === 'idle' ? 'LISTO' : phase === 'work' ? 'FOCO' : 'DESCANSO'}
             </p>
           </div>
@@ -114,7 +114,7 @@ export function PomodoroTimer() {
       </div>
 
       {sessions > 0 && (
-        <p className="font-pixel text-accent-green" style={{ fontSize: '8px' }}>
+        <p className="font-pixel text-accent-green" style={{ fontSize: '12px' }}>
           {sessions} sesión{sessions > 1 ? 'es' : ''} completada{sessions > 1 ? 's' : ''} · +{sessions * 15} XP
         </p>
       )}
@@ -178,11 +178,11 @@ export function NotesPanel({ itemId }: { itemId: string }) {
             <div key={n.id} className="flex gap-2 items-start">
               <div className="flex-1 bg-bg-deep border border-border-pixel p-2">
                 <p className="font-vt text-text-primary text-base whitespace-pre-wrap">{n.text}</p>
-                <p className="font-pixel text-text-secondary mt-1" style={{ fontSize: '7px' }}>
+                <p className="font-pixel text-text-secondary mt-1" style={{ fontSize: '12px' }}>
                   {new Date(n.createdAt).toLocaleDateString('es-CO')}
                 </p>
               </div>
-              <button onClick={() => deleteNote(n.id)} className="font-pixel text-accent-red hover:opacity-70 mt-1" style={{ fontSize: '8px' }}><E e="✕" /></button>
+              <button onClick={() => deleteNote(n.id)} className="font-pixel text-accent-red hover:opacity-70 mt-1" style={{ fontSize: '12px' }}><E e="✕" /></button>
             </div>
           ))}
         </div>
@@ -243,7 +243,7 @@ export function VocabPanel({ itemId }: { itemId: string }) {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div>
-          <p className="font-pixel text-text-secondary" style={{ fontSize: '7px' }}>TARJETAS: {cards.length} total · {dueCards.length} para repasar</p>
+          <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>TARJETAS: {cards.length} total · {dueCards.length} para repasar</p>
         </div>
         <div className="flex gap-2">
           {dueCards.length > 0 && !reviewing && (
@@ -267,7 +267,7 @@ export function VocabPanel({ itemId }: { itemId: string }) {
         {reviewing && (
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
             <PixelPanel className="p-5 space-y-4 text-center">
-              <p className="font-pixel text-text-secondary" style={{ fontSize: '7px' }}>REVISANDO {dueCards.indexOf(reviewing) + 1} / {dueCards.length}</p>
+              <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>REVISANDO {dueCards.indexOf(reviewing) + 1} / {dueCards.length}</p>
               <p className="font-vt text-text-primary text-2xl">{reviewing.front}</p>
 
               {!showBack ? (
@@ -278,7 +278,7 @@ export function VocabPanel({ itemId }: { itemId: string }) {
                     <p className="font-vt text-accent-gold text-xl">{reviewing.back}</p>
                     {reviewing.example && <p className="font-vt text-text-secondary text-base italic mt-1">{reviewing.example}</p>}
                   </div>
-                  <p className="font-pixel text-text-secondary" style={{ fontSize: '7px' }}>¿QUÉ TAN BIEN LO RECORDASTE?</p>
+                  <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>¿QUÉ TAN BIEN LO RECORDASTE?</p>
                   <div className="grid grid-cols-3 gap-2">
                     {([
                       [0, ' Nada', 'var(--accent-red)'],
@@ -289,7 +289,7 @@ export function VocabPanel({ itemId }: { itemId: string }) {
                         key={q}
                         onClick={() => review(q)}
                         className="py-2 border-2 font-pixel transition-all hover:opacity-80"
-                        style={{ borderColor: color, color, fontSize: '8px' }}
+                        style={{ borderColor: color, color, fontSize: '12px' }}
                       >
                         {label}
                       </button>
@@ -298,7 +298,7 @@ export function VocabPanel({ itemId }: { itemId: string }) {
                 </motion.div>
               )}
 
-              <button onClick={() => setReviewing(null)} className="font-pixel text-text-secondary hover:text-accent-red transition-colors" style={{ fontSize: '7px' }}>
+              <button onClick={() => setReviewing(null)} className="font-pixel text-text-secondary hover:text-accent-red transition-colors" style={{ fontSize: '12px' }}>
                 <E e="✕" /> SALIR DE REVISIÓN
               </button>
             </PixelPanel>
@@ -314,7 +314,7 @@ export function VocabPanel({ itemId }: { itemId: string }) {
               <div>
                 <p className="font-vt text-text-primary text-base">{c.front} → <span className="text-text-secondary">{c.back}</span></p>
               </div>
-              <p className="font-pixel text-text-secondary" style={{ fontSize: '6px' }}>
+              <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>
                 {c.nextReview <= today ? ' HOY' : `en ${Math.ceil((new Date(c.nextReview).getTime() - Date.now()) / 86400000)}d`}
               </p>
             </div>
@@ -325,7 +325,7 @@ export function VocabPanel({ itemId }: { itemId: string }) {
       {cards.length === 0 && !showForm && (
         <PixelPanel className="p-6 text-center">
           <p className="text-3xl mb-2"><E e="🃏" /></p>
-          <p className="font-pixel text-text-secondary" style={{ fontSize: '8px' }}>SIN TARJETAS AÚN</p>
+          <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>SIN TARJETAS AÚN</p>
         </PixelPanel>
       )}
     </div>

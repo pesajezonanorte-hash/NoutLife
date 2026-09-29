@@ -1,3 +1,4 @@
+import { FlowButton } from '@/components/ui/flow-button';
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BookOpen, CalendarDays, Check, ClipboardList, Coins, Dumbbell, Flame, HeartHandshake, Moon, NotebookPen, Swords, Trophy, Utensils, Wallet, Zap } from 'lucide-react';
@@ -158,7 +159,7 @@ function LifeScoreWidget({ score }: { score: LifeScore }) {
           <Trophy size={17} aria-hidden="true" />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-[11px] font-bold uppercase tracking-[0.1em]" style={{ color: 'var(--primary)' }}>Life Score</div>
+          <div className="text-xs font-bold uppercase tracking-[0.1em]" style={{ color: 'var(--primary)' }}>Life Score</div>
           <div className="text-[13px] mt-0.5 font-medium" style={{ color: 'var(--text)' }}>tu balance entre misiones, hábitos y finanzas</div>
         </div>
       </div>
@@ -268,9 +269,9 @@ function SevenDayGuideCard({
             Tu misión de hoy vive en <span className="font-semibold text-[var(--text-primary)]">{guide.task.zone}</span>. Bonus: +{guide.task.xpBonus} XP.
           </p>
         </div>
-        <button onClick={onDismiss} className="text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+        <FlowButton tone="ghost" size="sm" withArrows={false} onClick={onDismiss} className="text-xs font-semibold">
           Ya sé cómo funciona <E e="✕" />
-        </button>
+        </FlowButton>
       </div>
 
       <div className="mt-3">
@@ -280,14 +281,16 @@ function SevenDayGuideCard({
       </div>
 
       <div className="mt-3 flex items-center gap-2">
-        <button
+        <FlowButton
+          tone="primary"
+          withArrows={false}
           onClick={onComplete}
           disabled={loading}
           className="rounded-xl px-4 py-2 text-sm font-semibold"
           style={{ background: 'var(--accent-blue)', color: '#fff', opacity: loading ? 0.7 : 1 }}
         >
           {loading ? 'Completando...' : 'Completar y abrir zona'}
-        </button>
+        </FlowButton>
         {guide.task.suggestedReady && (
           <span className="text-xs font-semibold text-[var(--accent-green)]">Ya hiciste progreso real hoy.</span>
         )}
@@ -511,7 +514,7 @@ export default function DashboardPage() {
             className="flex min-h-[60px] flex-col items-center justify-center gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] transition-colors hover:border-[var(--primary)] hover:bg-[var(--bg-panel-light)]"
           >
             <Icon size={18} strokeWidth={1.8} style={{ color }} aria-hidden="true" />
-            <span className="px-1 text-center text-[10px] font-medium leading-tight text-[var(--text-secondary)]">{label}</span>
+            <span className="px-1 text-center text-xs font-medium leading-tight text-[var(--text-secondary)]">{label}</span>
           </motion.button>
         ))}
       </div>
@@ -519,14 +522,14 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between gap-3">
         <div>
           {!playerClass && user.level >= 10 && (
-            <button type="button" onClick={() => setShowClassModal(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-[color-mix(in_oklab,var(--accent-gold)_45%,var(--border))] bg-[color-mix(in_oklab,var(--accent-gold)_8%,var(--bg-panel))] px-2.5 py-1.5 text-xs font-medium text-[var(--accent-gold)] transition-colors hover:bg-[color-mix(in_oklab,var(--accent-gold)_14%,var(--bg-panel))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)]">
+            <FlowButton tone="primary" size="sm" withArrows={false} onClick={() => setShowClassModal(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-[color-mix(in_oklab,var(--accent-gold)_45%,var(--border))] bg-[color-mix(in_oklab,var(--accent-gold)_8%,var(--bg-panel))] px-2.5 py-1.5 text-xs font-medium text-[var(--accent-gold)] transition-colors hover:bg-[color-mix(in_oklab,var(--accent-gold)_14%,var(--bg-panel))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)]">
               <Zap size={14} aria-hidden="true" /> Elige tu clase · nivel 10
-            </button>
+            </FlowButton>
           )}
         </div>
-        <button type="button" onClick={() => setShowBriefing(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-panel-light)] hover:text-[var(--accent-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)]">
+        <FlowButton tone="ghost" size="sm" withArrows={false} onClick={() => setShowBriefing(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-panel-light)] hover:text-[var(--accent-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)]">
           <ClipboardList size={14} aria-hidden="true" /> Briefing del día
-        </button>
+        </FlowButton>
       </div>
 
       <BossWidget />
@@ -546,10 +549,10 @@ export default function DashboardPage() {
               />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-base font-semibold text-[var(--text-primary)]">{user.displayName}</p>
-                <p className="mt-0.5 truncate text-[11px] font-semibold uppercase tracking-[0.11em] text-[var(--accent-gold)]">{getLevelTitle(user.level)}</p>
+                <p className="mt-0.5 truncate text-xs font-semibold uppercase tracking-[0.11em] text-[var(--accent-gold)]">{getLevelTitle(user.level)}</p>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <span className="rounded-full bg-[var(--accent-gold)] px-2.5 py-1 text-[10px] font-bold tracking-[0.08em] text-white">Nivel {user.level}</span>
-                  {playerClass && <span className="rounded-full border border-[var(--border)] bg-[var(--bg-panel-light)] px-2 py-1 text-[10px] font-medium text-[var(--text-secondary)]">{CLASS_TITLES[playerClass] ?? playerClass}</span>}
+                  <span className="rounded-full bg-[var(--accent-gold)] px-2.5 py-1 text-xs font-bold tracking-[0.08em] text-white">Nivel {user.level}</span>
+                  {playerClass && <span className="rounded-full border border-[var(--border)] bg-[var(--bg-panel-light)] px-2 py-1 text-xs font-medium text-[var(--text-secondary)]">{CLASS_TITLES[playerClass] ?? playerClass}</span>}
                 </div>
               </div>
             </div>
@@ -557,7 +560,7 @@ export default function DashboardPage() {
             <div className="mt-4 space-y-2.5">
               {statBars.map(({ label, value, max, color, pulse }) => (
                 <div key={label}>
-                  <div className="mb-1 flex justify-between text-[11px]">
+                  <div className="mb-1 flex justify-between text-xs">
                     <span className="font-medium text-[var(--text-secondary)]">{label}</span>
                     <span className="tabular-nums text-[var(--text-primary)]">{value}/{max}</span>
                   </div>
@@ -569,7 +572,7 @@ export default function DashboardPage() {
             </div>
 
             {visualState && visualState.daysAway > 0 && (
-              <p className="mt-3 rounded-lg bg-[var(--bg-panel-light)] px-2.5 py-2 text-[11px] leading-4 text-[var(--text-secondary)]">
+              <p className="mt-3 rounded-lg bg-[var(--bg-panel-light)] px-2.5 py-2 text-xs leading-4 text-[var(--text-secondary)]">
                 {visualState.daysAway >= 5 ? 'Tu energía visual pide retomar el ritmo.' : visualState.daysAway >= 3 ? 'Una pequeña acción hoy te ayudará a recuperar energía.' : 'Tu energía visual bajó un poco por distancia.'}
               </p>
             )}
@@ -577,7 +580,7 @@ export default function DashboardPage() {
             <div className="mt-4 grid grid-cols-3 gap-2 border-t border-[var(--border)] pt-3">
               {stats.map(({ key, value, color }) => (
                 <div key={key} className="rounded-lg bg-[var(--bg-panel-light)] px-2 py-2 text-center">
-                  <p className="text-[10px] font-medium text-[var(--text-secondary)]">{key}</p>
+                  <p className="text-xs font-medium text-[var(--text-secondary)]">{key}</p>
                   <p className={`mt-0.5 text-base font-semibold tabular-nums ${color}`}>{value}</p>
                 </div>
               ))}
@@ -595,7 +598,7 @@ export default function DashboardPage() {
             <PixelPanel className="p-4">
               <div className="mb-3 flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2"><CalendarDays size={15} className="text-[var(--accent-blue)]" /><h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-secondary)]">Próximos eventos</h3></div>
-                <button type="button" onClick={() => navigate('/agenda')} className="inline-flex min-h-11 items-center px-2 text-xs font-medium text-[var(--accent-gold)] transition-colors hover:text-[var(--text-primary)]">Ver agenda</button>
+                <FlowButton tone="ghost" size="sm" withArrows={false} onClick={() => navigate('/agenda')} className="inline-flex min-h-11 items-center px-2 text-xs font-medium text-[var(--accent-gold)] transition-colors hover:text-[var(--text-primary)]">Ver agenda</FlowButton>
               </div>
               <div className="space-y-3">
                 {upcomingEvents.slice(0, 3).map((event) => {
@@ -606,7 +609,7 @@ export default function DashboardPage() {
                       <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${isToday ? 'bg-[var(--accent-red)]' : 'bg-[var(--accent-blue)]'}`} />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium text-[var(--text-primary)]">{event.title}</p>
-                        <p className="mt-0.5 text-[11px] text-[var(--text-secondary)]">{isToday ? 'Hoy' : when.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' })}{!event.isAllDay ? ` · ${when.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}` : ''}</p>
+                        <p className="mt-0.5 text-xs text-[var(--text-secondary)]">{isToday ? 'Hoy' : when.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' })}{!event.isAllDay ? ` · ${when.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}` : ''}</p>
                       </div>
                     </div>
                   );
@@ -630,7 +633,7 @@ export default function DashboardPage() {
                   <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[color-mix(in_oklab,var(--accent-green)_10%,var(--bg-panel))] text-[var(--accent-green)]"><Flame size={17} /></span>
                   <div><h3 className="text-sm font-semibold text-[var(--text-primary)]">Hábitos de hoy</h3><p className="mt-0.5 text-xs text-[var(--text-secondary)]">Rituales recurrentes que sostienen tu semana.</p></div>
                 </div>
-                <button type="button" onClick={() => navigate('/habits')} className="inline-flex min-h-11 items-center px-2 text-xs font-medium text-[var(--accent-gold)] transition-colors hover:text-[var(--text-primary)]">Ver todos</button>
+                <FlowButton tone="ghost" size="sm" withArrows={false} onClick={() => navigate('/habits')} className="inline-flex min-h-11 items-center px-2 text-xs font-medium text-[var(--accent-gold)] transition-colors hover:text-[var(--text-primary)]">Ver todos</FlowButton>
               </div>
               <div className="divide-y divide-[var(--border)] px-4 sm:px-5">
                 {habits.slice(0, 5).map((habit) => {
@@ -638,7 +641,7 @@ export default function DashboardPage() {
                   return (
                     <div key={habit.id} className="flex items-center gap-3 py-3">
                       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--bg-panel)] text-[var(--text-secondary)]"><E e={habit.icon} s={16} /></span>
-                      <div className="min-w-0 flex-1"><p className={`truncate text-sm font-medium ${isComplete ? 'text-[var(--text-secondary)] line-through' : 'text-[var(--text-primary)]'}`}>{habit.title}</p><p className="mt-0.5 text-[11px] text-[var(--text-muted)]">+{habit.xpReward} XP</p></div>
+                      <div className="min-w-0 flex-1"><p className={`truncate text-sm font-medium ${isComplete ? 'text-[var(--text-secondary)] line-through' : 'text-[var(--text-primary)]'}`}>{habit.title}</p><p className="mt-0.5 text-xs text-[var(--text-muted)]">+{habit.xpReward} XP</p></div>
                       <StreakFlame streak={habit.currentStreak} size="sm" />
                       <button
                         type="button"
@@ -718,7 +721,7 @@ export default function DashboardPage() {
           <QuickStatsWidget sleepAvg7d={dashData?.sleepAvg7d ?? 0} monthBalance={dashData?.monthBalance ?? 0} lastWorkoutDaysAgo={lastWorkoutDaysAgo} />
 
           <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel-light)] p-3.5 shadow-[0_10px_25px_rgba(0,0,0,0.06)]">
-            <div className="mb-3 flex items-center gap-2"><Swords size={15} className="text-[var(--accent-gold)]" /><div><p className="text-xs font-semibold text-[var(--text-primary)]">Zonas de vida</p><p className="text-[11px] text-[var(--text-secondary)]">Elige dónde avanzar ahora.</p></div></div>
+            <div className="mb-3 flex items-center gap-2"><Swords size={15} className="text-[var(--accent-gold)]" /><div><p className="text-xs font-semibold text-[var(--text-primary)]">Zonas de vida</p><p className="text-xs text-[var(--text-secondary)]">Elige dónde avanzar ahora.</p></div></div>
             <div className="grid grid-cols-2 gap-2">
               {ZONES.map(({ Icon, ...zone }) => <ZoneCard key={zone.label} {...zone} icon={<Icon size={16} strokeWidth={1.9} />} />)}
             </div>

@@ -1,3 +1,4 @@
+import { FlowButton } from '@/components/ui/flow-button';
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Plus, Trash2, Check, ShoppingBag, Shirt, Star, BarChart3 } from 'lucide-react';
@@ -92,7 +93,7 @@ function CareSection() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="font-pixel text-[var(--text-2)] text-[10px]">TUS RUTINAS DE CUIDADO</p>
+        <p className="font-pixel text-[var(--text-2)] text-xs">TUS RUTINAS DE CUIDADO</p>
         <PixelButton variant="primary" onClick={() => setShowNew(true)}>+ Nueva rutina</PixelButton>
       </div>
 
@@ -129,8 +130,8 @@ function CareSection() {
               })}
             />
           ))}
-          <button onClick={() => setForm(f => ({ ...f, steps: [...f.steps, ''] }))}
-            className="min-h-11 px-2 text-xs" style={{ color: 'var(--primary)' }}>+ Agregar paso</button>
+          <FlowButton tone="ghost" size="sm" withArrows={false} onClick={() => setForm(f => ({ ...f, steps: [...f.steps, ''] }))}
+            className="min-h-11 px-3 text-xs">+ Agregar paso</FlowButton>
           <div className="flex gap-2">
             <PixelButton variant="primary" onClick={handleCreate} disabled={!form.name}>Crear</PixelButton>
             <PixelButton variant="secondary" onClick={() => setShowNew(false)}>Cancelar</PixelButton>
@@ -228,7 +229,7 @@ function StyleSection() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="font-pixel text-[var(--text-2)] text-[10px]">MI ARMARIO</p>
+        <p className="font-pixel text-[var(--text-2)] text-xs">MI ARMARIO</p>
         <PixelButton variant="primary" onClick={() => setShowNew(true)}>+ Prenda</PixelButton>
       </div>
 
@@ -291,11 +292,11 @@ function StyleSection() {
             <PixelPanel key={item.id} className="p-3 space-y-2">
               <div className="flex items-start justify-between gap-1">
                 <p className="text-sm font-semibold truncate">{item.name}</p>
-                <button onClick={() => handleDelete(item.id)}
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded hover:bg-red-500/10"
+                <FlowButton tone="danger" size="sm" withArrows={false} onClick={() => handleDelete(item.id)}
+                  className="h-11 w-11 px-3"
                   style={{ color: 'var(--text-muted)' }}>
                   <Trash2 size={12} />
-                </button>
+                </FlowButton>
               </div>
               <p className="text-xs" style={{ color: 'var(--text-2)' }}><E e={CATEGORY_LABELS[item.category]} /></p>
               {item.brand && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{item.brand}</p>}
@@ -308,11 +309,11 @@ function StyleSection() {
                 </p>
                 {item.isFavorite && <Star size={12} style={{ color: 'var(--c-gold)' }} />}
               </div>
-              <button onClick={() => handleWorn(item.id)}
-                className="min-h-11 w-full rounded text-xs py-1"
+              <FlowButton tone="ghost" size="sm" fullWidth withArrows={false} onClick={() => handleWorn(item.id)}
+                className="min-h-11 text-xs"
                 style={{ background: 'var(--bg-soft)', color: 'var(--primary)', border: '1px solid var(--border)' }}>
                 Usar hoy
-              </button>
+              </FlowButton>
             </PixelPanel>
           ))}
         </div>
@@ -361,7 +362,7 @@ function PresenceSection() {
 
   return (
     <div className="space-y-4">
-      <p className="font-pixel text-[var(--text-2)] text-[10px]">AUTOEVALUACIÓN SEMANAL</p>
+      <p className="font-pixel text-[var(--text-2)] text-xs">AUTOEVALUACIÓN SEMANAL</p>
 
       <PixelPanel className="p-4 space-y-4">
         {AREAS.map(area => (
@@ -401,7 +402,7 @@ function PresenceSection() {
 
       {checkins.length > 0 && (
         <div>
-          <p className="font-pixel text-[var(--text-2)] text-[10px] mb-3">EVOLUCIÓN</p>
+          <p className="font-pixel text-[var(--text-2)] text-xs mb-3">EVOLUCIÓN</p>
           <div className="space-y-2">
             {checkins.slice(0, 6).map(c => {
               const avg = Math.round((c.posture + c.voice + c.confidence + c.communication) / 4 * 20);
@@ -414,7 +415,7 @@ function PresenceSection() {
                     {AREAS.map(a => (
                       <div key={a.key} className="flex-1 text-center">
                         <div className="text-xs font-bold" style={{ color: 'var(--primary)' }}>{c[a.key]}</div>
-                        <div className="text-[9px]" style={{ color: 'var(--text-muted)' }}>{a.label.slice(0, 3)}</div>
+                        <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{a.label.slice(0, 3)}</div>
                       </div>
                     ))}
                   </div>

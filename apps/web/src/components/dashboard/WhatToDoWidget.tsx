@@ -105,7 +105,7 @@ export function WhatToDoWidget() {
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-xs font-semibold text-[var(--text-primary)]">{section.title}</span>
-                  <span className="mt-0.5 block text-[11px] leading-snug text-[var(--text-muted)]">{section.description}</span>
+                  <span className="mt-0.5 block text-xs leading-snug text-[var(--text-muted)]">{section.description}</span>
                 </span>
                 <ChevronRight size={15} className="mt-1 text-[var(--text-muted)]" aria-hidden="true" />
               </button>

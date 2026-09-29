@@ -298,8 +298,8 @@ export function ProjectionPanel() {
       {chartData.length > 0 && (
         <ResponsiveContainer width="100%" height={120}>
           <LineChart data={chartData}>
-            <XAxis dataKey="mes" tick={{ fontSize: 10, fill: 'var(--text-secondary)' }} />
-            <YAxis tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 10, fill: 'var(--text-secondary)' }} width={45} />
+            <XAxis dataKey="mes" tick={{ fontSize: 12, fill: 'var(--text-secondary)' }} />
+            <YAxis tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 12, fill: 'var(--text-secondary)' }} width={45} />
             <Tooltip contentStyle={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', fontSize: 12 }}
               formatter={(v: number) => [`$${v.toLocaleString('es-CO')}`, 'Balance']} />
             <ReferenceLine y={0} stroke="var(--border)" strokeDasharray="4 4" />

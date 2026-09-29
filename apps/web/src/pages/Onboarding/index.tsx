@@ -170,7 +170,7 @@ export default function OnboardingPage() {
             <div className="text-center">
               <motion.p
                 className="font-pixel text-accent-gold"
-                style={{ fontSize: '10px' }}
+                style={{ fontSize: '12px' }}
                 animate={{ opacity: [1, 0.3, 1] }}
                 transition={{ duration: 1, repeat: Infinity }}
               >
@@ -235,7 +235,7 @@ export default function OnboardingPage() {
       </div>
 
       <div className="relative z-10 flex flex-col items-center gap-3 p-4">
-        <h1 className="font-pixel text-accent-gold" style={{ fontSize: '10px' }}>
+        <h1 className="font-pixel text-accent-gold" style={{ fontSize: '12px' }}>
           LIFEQUEST
         </h1>
         <OnboardingProgress currentStep={step - 2} totalSteps={TOTAL_STEPS} />

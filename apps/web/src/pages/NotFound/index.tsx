@@ -1,3 +1,4 @@
+import { FlowButton } from '@/components/ui/flow-button';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { E } from '@/components/ui/glyphs';
@@ -18,19 +19,22 @@ export default function NotFoundPage() {
         </p>
         <div className="text-5xl font-bold text-[var(--text-muted)] opacity-30">404</div>
         <div className="flex gap-3 justify-center">
-          <button
+          <FlowButton
+            tone="ghost"
+            withArrows={false}
             onClick={() => navigate(-1)}
-            className="px-4 py-2.5 rounded-xl font-semibold text-sm border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+            className="px-4 py-2.5 text-sm"
           >
             ← Volver
-          </button>
-          <button
+          </FlowButton>
+          <FlowButton
+            tone="primary"
+            withArrows={false}
             onClick={() => navigate('/')}
-            className="px-4 py-2.5 rounded-xl font-semibold text-sm transition-all"
-            style={{ background: 'var(--accent-gold)', color: 'var(--bg-deep)' }}
+            className="px-4 py-2.5 text-sm"
           >
             <E e="🏰" /> Ir al Castillo
-          </button>
+          </FlowButton>
         </div>
       </motion.div>
     </div>

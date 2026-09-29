@@ -1,3 +1,4 @@
+import { FlowButton } from '@/components/ui/flow-button';
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../store/authStore';
@@ -62,7 +63,7 @@ function WorkoutTimer({ startTime }: { startTime: number }) {
     return () => clearInterval(id);
   }, []);
   return (
-    <span className="font-pixel text-accent-gold" style={{ fontSize: '11px' }}>
+    <span className="font-pixel text-accent-gold" style={{ fontSize: '12px' }}>
       ⏱ {formatDuration(Date.now() - startTime)}
     </span>
   );
@@ -139,7 +140,7 @@ function NumericStepper({
         disabled={disabled}
         onClick={() => onChange(String(Math.max(min, num - step)))}
         className="h-11 w-11 border border-border-pixel text-text-secondary hover:text-accent-gold hover:border-accent-gold transition-colors font-pixel disabled:opacity-30 md:h-10 md:w-5"
-        style={{ fontSize: '8px' }}
+        style={{ fontSize: '12px' }}
       >▼</button>
       <input
         type="number"
@@ -154,7 +155,7 @@ function NumericStepper({
         disabled={disabled}
         onClick={() => onChange(String(num + step))}
         className="h-11 w-11 border border-border-pixel text-text-secondary hover:text-accent-gold hover:border-accent-gold transition-colors font-pixel disabled:opacity-30 md:h-10 md:w-5"
-        style={{ fontSize: '8px' }}
+        style={{ fontSize: '12px' }}
       >▲</button>
     </div>
   );
@@ -198,7 +199,7 @@ function ExerciseSearchModal({
         onClick={e => e.stopPropagation()}
       >
         <div className="p-3 border-b-2 border-border-pixel space-y-2">
-          <p className="font-pixel text-accent-gold" style={{ fontSize: '9px' }}>AGREGAR EJERCICIO</p>
+          <p className="font-pixel text-accent-gold" style={{ fontSize: '12px' }}>AGREGAR EJERCICIO</p>
           <input
             type="text"
             value={search}
@@ -218,7 +219,7 @@ function ExerciseSearchModal({
                     ? 'border-accent-gold text-accent-gold bg-accent-gold/10'
                     : 'border-border-pixel text-text-secondary hover:border-accent-gold/50'
                 }`}
-                style={{ fontSize: '6px' }}
+                style={{ fontSize: '12px' }}
               >
                 {mg}
               </button>
@@ -239,7 +240,7 @@ function ExerciseSearchModal({
               >
                 <p className="font-vt text-text-primary text-lg">{ex.name}</p>
                 {(ex.muscleGroup || ex.equipment) && (
-                  <p className="font-pixel text-text-secondary" style={{ fontSize: '7px' }}>
+                  <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>
                     {[ex.muscleGroup, ex.equipment].filter(Boolean).join(' · ')}
                   </p>
                 )}
@@ -358,7 +359,7 @@ function ActiveWorkoutView({
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <p className="font-pixel text-accent-gold" style={{ fontSize: '11px' }}>
+          <p className="font-pixel text-accent-gold" style={{ fontSize: '12px' }}>
             {activeWorkout.title}
           </p>
           <WorkoutTimer startTime={activeWorkout.startTime} />
@@ -382,16 +383,16 @@ function ActiveWorkoutView({
           animate={{ opacity: 1, scale: 1 }}
           className="bg-accent-cyan/10 border-2 border-accent-cyan p-3 text-center"
         >
-          <p className="font-pixel text-accent-cyan" style={{ fontSize: '9px' }}>
+          <p className="font-pixel text-accent-cyan" style={{ fontSize: '12px' }}>
             DESCANSO
           </p>
           <p className="font-pixel text-accent-gold text-2xl">{restTimer}s</p>
-          <button
+          <FlowButton tone="ghost" size="sm" withArrows={false}
             onClick={() => setRestTimer(null)}
             className="font-vt text-text-secondary text-base"
           >
             Saltar
-          </button>
+          </FlowButton>
         </motion.div>
       )}
 
@@ -415,13 +416,13 @@ function ActiveWorkoutView({
                   )}
                 </div>
                 {ex.muscleGroup && (
-                  <p className="font-pixel text-text-secondary" style={{ fontSize: '7px' }}>
+                  <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>
                     {ex.muscleGroup}
                   </p>
                 )}
               </div>
               {ex.prevBest && (
-                <p className="font-pixel text-text-secondary" style={{ fontSize: '7px' }}>
+                <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>
                   MEJOR: {ex.prevBest.weight}kg × {ex.prevBest.reps} reps
                 </p>
               )}
@@ -433,14 +434,14 @@ function ActiveWorkoutView({
                 return (
                   <div key={set.id} className={`rounded-xl border border-border-pixel bg-bg-deep p-3 ${set.completed ? 'opacity-60' : ''}`}>
                     <div className="mb-2 flex items-center justify-between gap-2">
-                      <span className="font-pixel text-text-secondary" style={{ fontSize: '8px' }}>SET {setIdx + 1}</span>
-                      <span className="min-w-0 truncate font-pixel text-text-muted" style={{ fontSize: '7px' }}>
+                      <span className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>SET {setIdx + 1}</span>
+                      <span className="min-w-0 truncate font-pixel text-text-muted" style={{ fontSize: '12px' }}>
                         ANTERIOR: {ex.prevBest ? `${ex.prevBest.weight}×${ex.prevBest.reps}` : '—'}
                       </span>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <label className="min-w-0">
-                        <span className="mb-1 block font-pixel text-text-secondary" style={{ fontSize: '7px' }}>KG</span>
+                        <span className="mb-1 block font-pixel text-text-secondary" style={{ fontSize: '12px' }}>KG</span>
                         <NumericStepper
                           value={set.weight}
                           onChange={v => updateSet(exIdx, setIdx, 'weight', v)}
@@ -449,7 +450,7 @@ function ActiveWorkoutView({
                         />
                       </label>
                       <label className="min-w-0">
-                        <span className="mb-1 block font-pixel text-text-secondary" style={{ fontSize: '7px' }}>REPS</span>
+                        <span className="mb-1 block font-pixel text-text-secondary" style={{ fontSize: '12px' }}>REPS</span>
                         <NumericStepper
                           value={set.reps}
                           onChange={v => updateSet(exIdx, setIdx, 'reps', v)}
@@ -466,7 +467,7 @@ function ActiveWorkoutView({
                           ? 'border-accent-green bg-accent-green text-bg-deep'
                           : 'border-border-pixel text-text-secondary hover:border-accent-green'
                       }`}
-                      style={{ fontSize: '8px' }}
+                      style={{ fontSize: '12px' }}
                     >
                       {set.completed ? '✓ SET COMPLETADO' : 'MARCAR SET COMPLETO'}
                       {isPR && <span className="text-accent-gold"><E e="🏆" /> PR</span>}
@@ -484,7 +485,7 @@ function ActiveWorkoutView({
                       <th
                         key={h}
                         className="font-pixel text-text-secondary pb-1 px-1"
-                        style={{ fontSize: '7px' }}
+                        style={{ fontSize: '12px' }}
                       >
                         {h}
                       </th>
@@ -501,7 +502,7 @@ function ActiveWorkoutView({
                       >
                         <td
                           className="font-pixel text-text-secondary py-1 px-1"
-                          style={{ fontSize: '8px' }}
+                          style={{ fontSize: '12px' }}
                         >
                           {setIdx + 1}
                         </td>
@@ -523,7 +524,7 @@ function ActiveWorkoutView({
                         </td>
                         <td
                           className="font-pixel text-text-muted px-1"
-                          style={{ fontSize: '7px', whiteSpace: 'nowrap' }}
+                          style={{ fontSize: '12px', whiteSpace: 'nowrap' }}
                         >
                           {ex.prevBest
                             ? `${ex.prevBest.weight}×${ex.prevBest.reps}`
@@ -549,7 +550,7 @@ function ActiveWorkoutView({
                                 initial={{ opacity: 0, y: 4 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 className="font-pixel text-accent-gold"
-                                style={{ fontSize: '6px' }}
+                                style={{ fontSize: '12px' }}
                               >
                                 <E e="🏆" />PR
                               </motion.span>
@@ -564,15 +565,15 @@ function ActiveWorkoutView({
             </div>
 
             <div className="flex items-center justify-between">
-              <button
+              <FlowButton tone="ghost" size="sm" withArrows={false}
                 onClick={() => addSet(exIdx)}
                 className="min-h-11 px-2 font-pixel text-text-secondary hover:text-accent-gold transition-colors"
-                style={{ fontSize: '8px' }}
+                style={{ fontSize: '12px' }}
               >
                 + SET
-              </button>
+              </FlowButton>
               {ex.sets.filter(s => s.completed).length > 0 && (
-                <span className="font-pixel text-text-secondary" style={{ fontSize: '7px' }}>
+                <span className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>
                   Volumen:{' '}
                   {ex.sets
                     .filter(s => s.completed)
@@ -741,30 +742,32 @@ export default function GymPage() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="font-pixel text-accent-green border border-accent-green px-2 py-1 hover:bg-accent-green hover:text-bg-deep transition-colors"
-                style={{ fontSize: '8px' }}
+                style={{ fontSize: '12px' }}
               >
                 ▶ ABRIR SPOTIFY
               </a>
-              <button
+              <FlowButton tone="ghost" size="sm" withArrows={false}
                 onClick={() => navigate('/settings')}
                 className="font-pixel text-text-muted hover:text-text-secondary"
-                style={{ fontSize: '8px' }}
+                style={{ fontSize: '12px' }}
               >
                 <E e="✏" />
-              </button>
+              </FlowButton>
             </div>
           </div>
         )}
         {!user?.gymPlaylistUrl && (
           <div className="flex items-center justify-between bg-bg-panel border border-border-pixel px-3 py-2 opacity-60">
-            <p className="font-pixel text-text-secondary" style={{ fontSize: '7px' }}><E e="🎵" /> Sin playlist configurada</p>
-            <button
+            <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}><E e="🎵" /> Sin playlist configurada</p>
+            <FlowButton
+              tone="primary"
+              size="sm"
+              withArrows={false}
               onClick={() => navigate('/settings')}
-              className="font-pixel text-accent-gold hover:text-text-primary"
-              style={{ fontSize: '7px' }}
+              className="font-pixel text-xs"
             >
               + CONFIGURAR →
-            </button>
+            </FlowButton>
           </div>
         )}
         <ActiveWorkoutView
@@ -788,7 +791,7 @@ export default function GymPage() {
               <E e="⚔" s={24} strokeWidth={1.7} />
             </div>
             <div className="min-w-0">
-              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--accent-gold)]">Zona de entrenamiento</p>
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--accent-gold)]">Zona de entrenamiento</p>
               <h1 className="mt-0.5 text-2xl font-bold tracking-tight text-[var(--text-primary)]">El Coliseo</h1>
               <p className="mt-0.5 text-sm text-[var(--text-secondary)]">Forja tu cuerpo, héroe.</p>
             </div>
@@ -840,7 +843,7 @@ export default function GymPage() {
               </span>
               <span className="min-w-0">
                 <span className="block truncate text-sm font-bold leading-4">{label}</span>
-                <span className="mt-0.5 block truncate text-[11px] leading-4 text-[var(--text-muted)]">{helper}</span>
+                <span className="mt-0.5 block truncate text-xs leading-4 text-[var(--text-muted)]">{helper}</span>
               </span>
             </button>
           );
@@ -898,7 +901,7 @@ export default function GymPage() {
                         <p className="font-vt text-text-primary text-xl">{w.title}</p>
                         <p
                           className="font-pixel text-text-secondary"
-                          style={{ fontSize: '7px' }}
+                          style={{ fontSize: '12px' }}
                         >
                           {new Date(w.date).toLocaleDateString('es-CO', {
                             weekday: 'short',
@@ -923,7 +926,7 @@ export default function GymPage() {
                           <span
                             key={idx}
                             className="font-pixel text-text-secondary border border-border-pixel px-2 py-0.5"
-                            style={{ fontSize: '7px' }}
+                            style={{ fontSize: '12px' }}
                           >
                             {ex.exerciseName}
                           </span>
@@ -984,14 +987,14 @@ export default function GymPage() {
                       {r.description && (
                         <p
                           className="font-pixel text-text-secondary"
-                          style={{ fontSize: '7px' }}
+                          style={{ fontSize: '12px' }}
                         >
                           {r.description}
                         </p>
                       )}
                       <p
                         className="font-pixel text-text-muted mt-1"
-                        style={{ fontSize: '7px' }}
+                        style={{ fontSize: '12px' }}
                       >
                         {(r.exercises as { name: string }[])
                           .map(e => e.name)
@@ -1009,7 +1012,7 @@ export default function GymPage() {
                   {r.estimatedDuration && (
                     <p
                       className="font-pixel text-text-secondary mt-2"
-                      style={{ fontSize: '7px' }}
+                      style={{ fontSize: '12px' }}
                     >
                       ~{r.estimatedDuration} min
                     </p>
@@ -1058,7 +1061,7 @@ export default function GymPage() {
               className="w-full max-w-sm space-y-4 rounded-t-2xl border-2 border-border-pixel bg-bg-panel p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:rounded-2xl md:p-5"
               onClick={e => e.stopPropagation()}
             >
-              <p className="font-pixel text-accent-gold" style={{ fontSize: '10px' }}>
+              <p className="font-pixel text-accent-gold" style={{ fontSize: '12px' }}>
                 NUEVO ENTRENAMIENTO
               </p>
               <input

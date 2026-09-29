@@ -97,7 +97,7 @@ export function FinalCelebrationStep({ displayName, avatarConfig, gender, onEnte
 
       {/* Stats apareciendo uno por uno */}
       <div className="bg-bg-panel border-4 border-accent-gold shadow-pixel-gold px-6 py-4 w-full max-w-xs">
-        <p className="font-pixel text-text-secondary mb-3" style={{ fontSize: '7px' }}>STATS INICIALES</p>
+        <p className="font-pixel text-text-secondary mb-3" style={{ fontSize: '12px' }}>STATS INICIALES</p>
         <div className="flex justify-center gap-4 flex-wrap">
           {STATS.slice(0, visibleStats).map((stat, i) => (
             <motion.div
@@ -107,7 +107,7 @@ export function FinalCelebrationStep({ displayName, avatarConfig, gender, onEnte
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05 }}
             >
-              <p className={`font-pixel ${stat.color}`} style={{ fontSize: '7px' }}>{stat.label}</p>
+              <p className={`font-pixel ${stat.color}`} style={{ fontSize: '12px' }}>{stat.label}</p>
               <p className="font-vt text-text-primary text-xl">{stat.value}</p>
             </motion.div>
           ))}

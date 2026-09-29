@@ -137,14 +137,14 @@ function ZoneLedger({ zones, periodLabel, loading = false }: { zones: AdvancedSt
       <article className="min-w-0 rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-4 shadow-pixel sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
               <Activity className="h-3.5 w-3.5 text-[var(--text-secondary)]" aria-hidden="true" />
               Zonas de vida
             </div>
             <h2 className="mt-1.5 text-base font-semibold text-[var(--text-primary)]">Cobertura completa del periodo</h2>
             <p className="mt-1 text-xs text-[var(--text-muted)]">{loading ? `Calculando cobertura · ${periodLabel}` : `${registered} con registros · ${tracking} en seguimiento · ${periodLabel}`}</p>
           </div>
-          <p className="max-w-xs text-right text-[11px] leading-4 text-[var(--text-muted)]">
+          <p className="max-w-xs text-right text-xs leading-4 text-[var(--text-muted)]">
             Cada área permanece visible aunque no tenga actividad. Las barras solo usan registros y metas reales.
           </p>
         </div>
@@ -168,16 +168,16 @@ function ZoneLedger({ zones, periodLabel, loading = false }: { zones: AdvancedSt
                     </span>
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{zone.name}</p>
-                      <p className="mt-0.5 truncate text-[11px] text-[var(--text-muted)]">{zone.activityLabel ?? 'Sin registros en este periodo'}</p>
+                      <p className="mt-0.5 truncate text-xs text-[var(--text-muted)]">{zone.activityLabel ?? 'Sin registros en este periodo'}</p>
                     </div>
                   </div>
-                  <span className={cn('max-w-[7.5rem] shrink-0 whitespace-normal rounded-md border px-1.5 py-0.5 text-right text-[10px] font-semibold leading-4', zoneStateClass(zone))}>
+                  <span className={cn('max-w-[7.5rem] shrink-0 whitespace-normal rounded-md border px-1.5 py-0.5 text-right text-xs font-semibold leading-4', zoneStateClass(zone))}>
                     {zoneStateLabel(zone)}
                   </span>
                 </div>
 
                 <div className="mt-3">
-                  <div className="mb-1.5 flex items-center justify-between gap-3 text-[11px]">
+                  <div className="mb-1.5 flex items-center justify-between gap-3 text-xs">
                     <span className="text-[var(--text-muted)]">{hasScore ? 'Ritmo medible' : 'Sin meta medible'}</span>
                     <span className="font-semibold tabular-nums text-[var(--text-secondary)]">{hasScore ? `${formatNumber(value)}%` : '—'}</span>
                   </div>
@@ -270,7 +270,7 @@ export default function AdvancedStats({ data, loading = false, className }: Adva
           <article className="relative min-w-0 h-full overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-4 shadow-pixel sm:p-6">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
                   <Zap className="h-3.5 w-3.5 text-[var(--accent-gold)]" aria-hidden="true" />
                   Progreso registrado
                 </div>
@@ -284,13 +284,13 @@ export default function AdvancedStats({ data, loading = false, className }: Adva
 
               <div className="flex flex-wrap items-center justify-end gap-2">
                 {data.level !== undefined ? (
-                  <Badge variant="outline" className="gap-1.5 px-2.5 py-1 text-[11px]">
+                  <Badge variant="outline" className="gap-1.5 px-2.5 py-1 text-xs">
                     <Trophy className="h-3 w-3 text-[var(--accent-gold)]" aria-hidden="true" />
                     Nivel {data.level}
                   </Badge>
                 ) : null}
                 {signedPercent(data.xpChange) !== null ? (
-                  <Badge variant={changeVariant(data.xpChange)} className="px-2.5 py-1 text-[11px]">
+                  <Badge variant={changeVariant(data.xpChange)} className="px-2.5 py-1 text-xs">
                     {changeIcon(data.xpChange)}
                     {signedPercent(data.xpChange)} vs. periodo anterior
                   </Badge>
@@ -326,7 +326,7 @@ export default function AdvancedStats({ data, loading = false, className }: Adva
           <article className="min-w-0 h-full rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-4 shadow-pixel sm:p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Life Score</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Life Score</p>
                 <h3 className="mt-1 text-sm font-semibold text-[var(--text-primary)]">Equilibrio del periodo</h3>
               </div>
               <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-muted)] text-[var(--accent-gold)]">
@@ -351,7 +351,7 @@ export default function AdvancedStats({ data, loading = false, className }: Adva
             </div>
 
             <div className="mt-4">
-              <div className="mb-1.5 flex items-center justify-between text-[11px] text-[var(--text-muted)]">
+              <div className="mb-1.5 flex items-center justify-between text-xs text-[var(--text-muted)]">
                 <span>Áreas con métrica disponible</span>
                 <span className="font-medium tabular-nums text-[var(--text-secondary)]">100</span>
               </div>
@@ -383,7 +383,7 @@ export default function AdvancedStats({ data, loading = false, className }: Adva
               </div>
               <p className="mt-4 text-2xl font-bold tracking-tight tabular-nums text-[var(--text-primary)]">{value}</p>
               <p className="mt-1 text-xs font-medium text-[var(--text-secondary)]">{label}</p>
-              <p className="mt-1.5 text-[11px] leading-4 text-[var(--text-muted)]">{detail}</p>
+              <p className="mt-1.5 text-xs leading-4 text-[var(--text-muted)]">{detail}</p>
             </article>
           </TimelineAnimation>
         ))}

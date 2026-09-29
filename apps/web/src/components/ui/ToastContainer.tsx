@@ -36,7 +36,7 @@ export function ToastContainer() {
           >
             <span className="text-lg flex-shrink-0"><E e={ICONS[toast.type]} /></span>
             <div className="flex-1 min-w-0">
-              <p className="font-pixel text-text-primary" style={{ fontSize: '8px' }}>{toast.message}</p>
+              <p className="font-pixel text-text-primary" style={{ fontSize: '12px' }}>{toast.message}</p>
               {toast.subtitle && (
                 <p className="font-vt text-text-secondary text-sm mt-0.5">{toast.subtitle}</p>
               )}

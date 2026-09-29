@@ -32,14 +32,14 @@ export function AchievementCard({ achievement, onClick }: Props) {
           <E e={achievement.icon} />
         </motion.div>
         <div className="flex-1 min-w-0">
-          <p className={`font-pixel text-left leading-tight ${unlocked ? 'text-accent-gold' : 'text-text-secondary'}`} style={{ fontSize: '8px' }}>
+          <p className={`font-pixel text-left leading-tight ${unlocked ? 'text-accent-gold' : 'text-text-secondary'}`} style={{ fontSize: '12px' }}>
             {achievement.title}
           </p>
           <p className="font-vt text-text-secondary text-sm mt-0.5 leading-tight">
             {achievement.description}
           </p>
           {unlocked && achievement.xpReward > 0 && (
-            <p className="font-pixel text-accent-gold mt-1" style={{ fontSize: '7px' }}>
+            <p className="font-pixel text-accent-gold mt-1" style={{ fontSize: '12px' }}>
               +{achievement.xpReward} XP
             </p>
           )}
@@ -57,7 +57,7 @@ export function AchievementCard({ achievement, onClick }: Props) {
       {/* Progress bar (if not unlocked and has progress) */}
       {!unlocked && pct !== null && target && (
         <div className="mt-2">
-          <div className="flex justify-between font-pixel mb-0.5" style={{ fontSize: '6px' }}>
+          <div className="flex justify-between font-pixel mb-0.5" style={{ fontSize: '12px' }}>
             <span className="text-text-secondary">PROGRESO</span>
             <span className="text-text-secondary">{progress}/{target}</span>
           </div>

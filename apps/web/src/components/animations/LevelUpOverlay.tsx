@@ -32,7 +32,7 @@ function StatLine({ label, amount, delay }: { label: string; amount: number; del
   return (
     <motion.div
       className="flex items-center gap-3 font-pixel"
-      style={{ fontSize: '9px' }}
+      style={{ fontSize: '12px' }}
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay, type: 'spring', stiffness: 200 }}
@@ -272,7 +272,7 @@ export function LevelUpOverlay() {
                   <div
                     className="text-accent-gold mb-1"
                     style={{
-                      fontSize: '11px',
+                      fontSize: '12px',
                       textShadow: '3px 3px 0 rgba(0,0,0,0.55), -1px -1px 0 rgba(217,180,74,0.8), 0 0 20px color-mix(in oklab, var(--accent-gold) 50%, transparent)',
                     }}
                   >
@@ -333,7 +333,7 @@ export function LevelUpOverlay() {
                 {phase >= 4 && (
                   <motion.button
                     className="font-pixel text-border-pixel bg-accent-gold border-2 border-border-pixel px-6 py-2 shadow-pixel hover:bg-yellow-300 active:translate-y-0.5 active:shadow-none transition-colors z-10"
-                    style={{ fontSize: '9px' }}
+                    style={{ fontSize: '12px' }}
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1 }}

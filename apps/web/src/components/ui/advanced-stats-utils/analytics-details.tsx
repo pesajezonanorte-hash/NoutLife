@@ -97,7 +97,7 @@ function FinanceTooltip({
 
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] px-3 py-2 shadow-pixel">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
         {label ? formatFinanceBucket(label, label.length === 10 ? { day: 'numeric', month: 'long' } : { month: 'long', year: 'numeric' }) : 'Periodo'}
       </p>
       <div className="mt-1.5 space-y-1 text-xs">
@@ -134,15 +134,15 @@ export function FinanceTrendCard({
         <>
           <div className="mt-4 grid grid-cols-3 divide-x divide-[var(--border-soft)] rounded-xl border border-[var(--border-soft)] bg-[var(--bg-muted)]/45 py-2.5 text-xs">
             <div className="min-w-0 px-3">
-              <p className="text-[10px] font-medium uppercase tracking-[0.1em] text-[var(--text-muted)]">Ingresos</p>
+              <p className="text-xs font-medium uppercase tracking-[0.1em] text-[var(--text-muted)]">Ingresos</p>
               <p className="mt-1 truncate font-semibold tabular-nums text-[var(--accent-green)]" title={formatCurrency(totals.income, currency)}>{formatCurrency(totals.income, currency)}</p>
             </div>
             <div className="min-w-0 px-3">
-              <p className="text-[10px] font-medium uppercase tracking-[0.1em] text-[var(--text-muted)]">Gastos</p>
+              <p className="text-xs font-medium uppercase tracking-[0.1em] text-[var(--text-muted)]">Gastos</p>
               <p className="mt-1 truncate font-semibold tabular-nums text-[var(--accent-red)]" title={formatCurrency(totals.expenses, currency)}>{formatCurrency(totals.expenses, currency)}</p>
             </div>
             <div className="min-w-0 px-3">
-              <p className="text-[10px] font-medium uppercase tracking-[0.1em] text-[var(--text-muted)]">Flujo neto</p>
+              <p className="text-xs font-medium uppercase tracking-[0.1em] text-[var(--text-muted)]">Flujo neto</p>
               <p className={['mt-1 truncate font-semibold tabular-nums', net >= 0 ? 'text-[var(--accent-gold)]' : 'text-[var(--accent-red)]'].join(' ')} title={formatCurrency(net, currency)}>{formatCurrency(net, currency)}</p>
             </div>
           </div>
@@ -190,7 +190,7 @@ function SleepTooltip({
   const values = Object.fromEntries(payload.map((item) => [item.dataKey ?? '', Number(item.value ?? 0)]));
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] px-3 py-2 shadow-pixel">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
         {label ? formatDate(label, { day: 'numeric', month: 'short' }) : 'Noche'}
       </p>
       <p className="mt-1 text-xs text-[var(--text-secondary)]"><strong className="tabular-nums text-[var(--text-primary)]">{(values.duration ?? 0).toFixed(1)} h</strong> de sueño</p>
@@ -246,7 +246,7 @@ function GymTooltip({
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] px-3 py-2 shadow-pixel">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label ? formatDate(label, { day: 'numeric', month: 'short' }) : 'Sesión'}</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label ? formatDate(label, { day: 'numeric', month: 'short' }) : 'Sesión'}</p>
       <p className="mt-1 text-sm font-bold tabular-nums text-[var(--text-primary)]">{numberFormat.format(Number(payload[0]?.value ?? 0))} kg</p>
     </div>
   );
@@ -285,7 +285,7 @@ export function GymProgressionCard({
                 type="button"
                 onClick={() => setSelectedName(exercise.name)}
                 className={[
-                  'min-h-11 min-w-0 rounded-lg border px-2.5 py-1 text-left text-[11px] font-semibold transition-colors sm:shrink-0',
+                  'min-h-11 min-w-0 rounded-lg border px-2.5 py-1 text-left text-xs font-semibold transition-colors sm:shrink-0',
                   selected.name === exercise.name
                     ? 'border-[var(--accent-gold)] bg-[color-mix(in_oklab,var(--accent-gold)_12%,transparent)] text-[var(--text-primary)]'
                     : 'border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-secondary)]',
@@ -323,7 +323,7 @@ function RiskBadge({ risk }: { risk: 'low' | 'medium' | 'high' }) {
     high: { label: 'En riesgo', className: 'border-[color-mix(in_oklab,var(--accent-red)_38%,var(--border))] bg-[color-mix(in_oklab,var(--accent-red)_10%,transparent)] text-[var(--accent-red)]', Icon: AlertTriangle },
   } as const;
   const { label, className, Icon } = variants[risk];
-  return <span className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${className}`}><Icon className="h-3 w-3" aria-hidden="true" />{label}</span>;
+  return <span className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold ${className}`}><Icon className="h-3 w-3" aria-hidden="true" />{label}</span>;
 }
 
 export function PredictionsCard({
@@ -346,16 +346,16 @@ export function PredictionsCard({
         <div className="mt-4 space-y-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-xl border border-[var(--border-soft)] bg-[var(--bg-muted)] p-3">
-              <p className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--text-secondary)]"><Zap className="h-3.5 w-3.5 text-[var(--accent-gold)]" aria-hidden="true" />Siguiente nivel</p>
+              <p className="flex items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary)]"><Zap className="h-3.5 w-3.5 text-[var(--accent-gold)]" aria-hidden="true" />Siguiente nivel</p>
               <p className="mt-2 text-xl font-bold tabular-nums text-[var(--text-primary)]">
                 {data.daysToNextLevel === null ? 'Sin ritmo aún' : `${data.daysToNextLevel} ${data.daysToNextLevel === 1 ? 'día' : 'días'}`}
               </p>
-              <p className="mt-1 text-[11px] text-[var(--text-muted)]">{numberFormat.format(data.avgDailyXp)} XP/día en los últimos 30 días</p>
+              <p className="mt-1 text-xs text-[var(--text-muted)]">{numberFormat.format(data.avgDailyXp)} XP/día en los últimos 30 días</p>
             </div>
             <div className="rounded-xl border border-[var(--border-soft)] bg-[var(--bg-muted)] p-3">
-              <p className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--text-secondary)]"><Goal className="h-3.5 w-3.5 text-[var(--accent-green)]" aria-hidden="true" />Metas financieras</p>
+              <p className="flex items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary)]"><Goal className="h-3.5 w-3.5 text-[var(--accent-green)]" aria-hidden="true" />Metas financieras</p>
               <p className="mt-2 text-xl font-bold tabular-nums text-[var(--text-primary)]">{data.goalPredictions.length}</p>
-              <p className="mt-1 text-[11px] text-[var(--text-muted)]">metas activas con una estimación</p>
+              <p className="mt-1 text-xs text-[var(--text-muted)]">metas activas con una estimación</p>
             </div>
           </div>
 
@@ -375,12 +375,12 @@ export function PredictionsCard({
 
           {data.habitRisks.length ? (
             <div className="space-y-2 border-t border-[var(--border-soft)] pt-3">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Constancia de hábitos · 7 días</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Constancia de hábitos · 7 días</p>
               {data.habitRisks.map((habit) => (
                 <div key={habit.title} className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="truncate text-xs font-medium text-[var(--text-secondary)]">{habit.title}</p>
-                    <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">{habit.completedDays}/{habit.scheduledDays} días · racha {habit.currentStreak}</p>
+                    <p className="mt-0.5 text-xs text-[var(--text-muted)]">{habit.completedDays}/{habit.scheduledDays} días · racha {habit.currentStreak}</p>
                   </div>
                   <div className="ml-auto flex items-center gap-2">
                     <span className="text-xs font-semibold tabular-nums text-[var(--text-primary)]">{habit.completionRate}%</span>

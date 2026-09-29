@@ -30,7 +30,7 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-bg-panel border-2 border-border-pixel px-3 py-2">
-      <p className="font-pixel text-text-secondary" style={{ fontSize: '7px' }}>{label}</p>
+      <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>{label}</p>
       <p className="font-vt text-accent-gold text-base">+{payload[0].value} XP</p>
     </div>
   );
@@ -90,7 +90,7 @@ export default function HistoryPage() {
             { label: 'GOLD', value: summary.totalGold.toLocaleString(), color: 'text-yellow-400' },
           ].map(({ label, value, color }) => (
             <PixelPanel key={label} className="p-3 text-center">
-              <p className="font-pixel text-text-secondary" style={{ fontSize: '7px' }}>{label}</p>
+              <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>{label}</p>
               <p className={`font-vt ${color} text-2xl`}>{value}</p>
             </PixelPanel>
           ))}
@@ -106,7 +106,7 @@ export default function HistoryPage() {
             className={`px-3 py-1.5 border-2 font-pixel transition-all ${
               view === key ? 'border-accent-gold bg-accent-gold text-bg-deep' : 'border-border-pixel text-text-secondary'
             }`}
-            style={{ fontSize: '8px' }}
+            style={{ fontSize: '12px' }}
           >
             {label}
           </button>
@@ -116,7 +116,7 @@ export default function HistoryPage() {
       <LoadingGate loading={loading} fallback={<ModernLoader words={[...LOADING_COPY.history]} />}>
         {loading ? null : view === 'calendar' ? (
         <PixelPanel className="p-4">
-          <p className="font-pixel text-text-secondary mb-3" style={{ fontSize: '8px' }}>ACTIVIDAD DIARIA (ÚLTIMOS 30 DÍAS)</p>
+          <p className="font-pixel text-text-secondary mb-3" style={{ fontSize: '12px' }}>ACTIVIDAD DIARIA (ÚLTIMOS 30 DÍAS)</p>
           <div className="grid grid-cols-7 gap-1.5">
             {calendarDays.map((date) => {
               const day = dayMap.get(date);
@@ -166,7 +166,7 @@ export default function HistoryPage() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
             >
-              <p className="font-pixel text-text-secondary mb-3" style={{ fontSize: '8px' }}>
+              <p className="font-pixel text-text-secondary mb-3" style={{ fontSize: '12px' }}>
                 {new Date(selectedDay).toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
               </p>
               <div className="flex gap-4 mb-3">
@@ -175,19 +175,19 @@ export default function HistoryPage() {
               </div>
               {dayDetail.questsCompleted.length > 0 && (
                 <div className="mb-2">
-                  <p className="font-pixel text-text-secondary mb-1" style={{ fontSize: '7px' }}>MISIONES COMPLETADAS</p>
+                  <p className="font-pixel text-text-secondary mb-1" style={{ fontSize: '12px' }}>MISIONES COMPLETADAS</p>
                   {dayDetail.questsCompleted.map((q) => (
                     <div key={q.questId} className="flex items-center gap-2 py-0.5">
                       <span className="text-accent-green"><E e="✓" /></span>
                       <span className="font-vt text-text-primary text-sm">{q.title}</span>
-                      <span className="font-pixel text-accent-gold ml-auto" style={{ fontSize: '7px' }}>+{q.xpEarned}XP</span>
+                      <span className="font-pixel text-accent-gold ml-auto" style={{ fontSize: '12px' }}>+{q.xpEarned}XP</span>
                     </div>
                   ))}
                 </div>
               )}
               {dayDetail.habitLogs.length > 0 && (
                 <div>
-                  <p className="font-pixel text-text-secondary mb-1" style={{ fontSize: '7px' }}>HÁBITOS</p>
+                  <p className="font-pixel text-text-secondary mb-1" style={{ fontSize: '12px' }}>HÁBITOS</p>
                   {dayDetail.habitLogs.map((l) => (
                     <div key={l.habitId} className="flex items-center gap-2 py-0.5">
                       <span><E e={l.icon} /></span>
@@ -206,11 +206,11 @@ export default function HistoryPage() {
         <div className="space-y-4">
           {/* XP line chart */}
           <PixelPanel className="p-4">
-            <p className="font-pixel text-text-secondary mb-4" style={{ fontSize: '8px' }}>XP GANADO POR DÍA</p>
+            <p className="font-pixel text-text-secondary mb-4" style={{ fontSize: '12px' }}>XP GANADO POR DÍA</p>
             <ResponsiveContainer width="100%" height={180}>
               <LineChart data={chartData}>
-                <XAxis dataKey="date" tick={{ fill: '#8a8a92', fontSize: 10, fontFamily: 'Montserrat' }} />
-                <YAxis tick={{ fill: '#8a8a92', fontSize: 10, fontFamily: 'Montserrat' }} />
+                <XAxis dataKey="date" tick={{ fill: 'var(--text-secondary)', fontSize: 12, fontFamily: 'Montserrat' }} />
+                <YAxis tick={{ fill: 'var(--text-secondary)', fontSize: 12, fontFamily: 'Montserrat' }} />
                 <Tooltip content={<CustomTooltip />} />
                 <Line type="monotone" dataKey="xp" stroke="#a8871e" strokeWidth={2} dot={false} />
               </LineChart>
@@ -220,7 +220,7 @@ export default function HistoryPage() {
           {/* Category distribution */}
           {summary && summary.categoryDistribution.length > 0 && (
             <PixelPanel className="p-4">
-              <p className="font-pixel text-text-secondary mb-4" style={{ fontSize: '8px' }}>DISTRIBUCIÓN POR CATEGORÍA</p>
+              <p className="font-pixel text-text-secondary mb-4" style={{ fontSize: '12px' }}>DISTRIBUCIÓN POR CATEGORÍA</p>
               <ResponsiveContainer width="100%" height={200}>
                 <PieChart>
                   <Pie

@@ -96,7 +96,7 @@ export function NotificationBell({ variant = 'default' }: { variant?: 'default' 
           <motion.span
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
-            className="absolute -top-1 -right-1 min-w-[16px] h-4 px-0.5 rounded-full text-[10px] font-bold flex items-center justify-center"
+            className="absolute -top-1 -right-1 min-w-[16px] h-4 px-0.5 rounded-full text-xs font-bold flex items-center justify-center"
             style={{ background: 'var(--accent-red)', color: 'var(--text-inv)' }}
           >
             {unread > 9 ? '9+' : unread}
@@ -177,10 +177,10 @@ export function NotificationBell({ variant = 'default' }: { variant?: 'default' 
                           <p className={`text-xs font-semibold truncate ${!n.isRead ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>
                             {n.title}
                           </p>
-                          <p className="text-[11px] text-[var(--text-muted)] mt-0.5 leading-snug line-clamp-2">
+                          <p className="text-xs text-[var(--text-muted)] mt-0.5 leading-snug line-clamp-2">
                             {n.body}
                           </p>
-                          <p className="text-[10px] text-[var(--text-muted)] mt-1">{timeAgo(n.createdAt)}</p>
+                          <p className="text-xs text-[var(--text-muted)] mt-1">{timeAgo(n.createdAt)}</p>
                         </div>
                       {/* Punto "nuevo": se aparta (fade) al hacer hover para
                           dejarle el sitio a las acciones sin solaparse */}

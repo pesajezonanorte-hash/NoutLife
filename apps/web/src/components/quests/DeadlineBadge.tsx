@@ -24,7 +24,7 @@ export function DeadlineBadge({ deadline }: Props) {
 
   return (
     <span
-      className="inline-flex items-center gap-1 text-[11px] font-medium"
+      className="inline-flex items-center gap-1 text-xs font-medium"
       style={{ color }}
       title={label}
     >

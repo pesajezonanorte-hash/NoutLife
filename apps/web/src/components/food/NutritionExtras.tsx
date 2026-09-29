@@ -19,8 +19,8 @@ function MacroBar({ label, value, goal, color }: { label: string; value: number;
   return (
     <div>
       <div className="flex justify-between mb-1">
-        <span className="font-pixel text-text-secondary" style={{ fontSize: '7px' }}>{label}</span>
-        <span className="font-pixel" style={{ fontSize: '7px', color: over ? 'var(--accent-red)' : 'var(--text-secondary)' }}>
+        <span className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>{label}</span>
+        <span className="font-pixel" style={{ fontSize: '12px', color: over ? 'var(--accent-red)' : 'var(--text-secondary)' }}>
           {Math.round(value)}/{goal}g
         </span>
       </div>
@@ -79,8 +79,8 @@ export function MacroGoalsWidget({ date }: { date: string }) {
   return (
     <PixelPanel className="p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <p className="font-pixel text-accent-gold" style={{ fontSize: '9px' }}>MACROS HOY</p>
-        <button onClick={() => setEditGoal(e => !e)} className="font-pixel text-text-secondary hover:text-accent-gold transition-colors" style={{ fontSize: '7px' }}>
+        <p className="font-pixel text-accent-gold" style={{ fontSize: '12px' }}>MACROS HOY</p>
+        <button onClick={() => setEditGoal(e => !e)} className="font-pixel text-text-secondary hover:text-accent-gold transition-colors" style={{ fontSize: '12px' }}>
           {editGoal ? <><E e="✕" s={11} /> CERRAR</> : <><E e="⚙" s={11} /> META</>}
         </button>
       </div>
@@ -89,7 +89,7 @@ export function MacroGoalsWidget({ date }: { date: string }) {
         <div className="space-y-2">
           {([['Calorías (kcal)', 'calories'], ['Proteína (g)', 'protein'], ['Carbs (g)', 'carbs'], ['Grasa (g)', 'fat']] as [string, keyof typeof form][]).map(([label, key]) => (
             <div key={key} className="flex items-center gap-2">
-              <span className="font-pixel text-text-secondary w-28" style={{ fontSize: '7px' }}>{label}</span>
+              <span className="font-pixel text-text-secondary w-28" style={{ fontSize: '12px' }}>{label}</span>
               <input
                 type="number"
                 value={form[key]}
@@ -106,13 +106,13 @@ export function MacroGoalsWidget({ date }: { date: string }) {
         <>
           <div className="flex justify-between items-end">
             <div>
-              <p className="font-pixel text-text-secondary" style={{ fontSize: '7px' }}>CALORÍAS</p>
+              <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>CALORÍAS</p>
               <p className="font-vt text-2xl" style={{ color: data.calories > goal.calories ? 'var(--accent-red)' : 'var(--accent-gold)' }}>
                 {Math.round(data.calories)} <span className="text-base text-text-secondary">/ {goal.calories}</span>
               </p>
             </div>
             <div className="text-right">
-              <p className="font-pixel text-accent-green" style={{ fontSize: '7px' }}>
+              <p className="font-pixel text-accent-green" style={{ fontSize: '12px' }}>
                 {Math.max(0, goal.calories - data.calories)} kcal restantes
               </p>
             </div>
@@ -179,7 +179,7 @@ export function AIQuickLog({ onLogged }: { onLogged: (meal: { name: string; calo
 
   return (
     <PixelPanel className="p-4 space-y-3">
-      <p className="font-pixel text-accent-gold" style={{ fontSize: '9px' }}><E e="🤖" /> REGISTRO RÁPIDO CON IA</p>
+      <p className="font-pixel text-accent-gold" style={{ fontSize: '12px' }}><E e="🤖" /> REGISTRO RÁPIDO CON IA</p>
       <div className="flex flex-col gap-2 sm:flex-row">
         <input
           value={text}
@@ -216,7 +216,7 @@ export function AIQuickLog({ onLogged }: { onLogged: (meal: { name: string; calo
               ['Grasa', 'estimatedFat',      parsed.estimatedFat,      'var(--accent-purple)'],
             ] as [string, 'estimatedCalories' | 'estimatedProtein' | 'estimatedCarbs' | 'estimatedFat', number, string][]).map(([label, key, val, color]) => (
               <div key={label} className="text-center border border-border-pixel py-2">
-                <p className="font-pixel text-text-secondary" style={{ fontSize: '6px' }}>{label}</p>
+                <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>{label}</p>
                 <input
                   type="number"
                   min={0}
@@ -293,8 +293,8 @@ export function SavedMealsPanel({ onAdd }: { onAdd: (meal: SavedMeal) => void })
   return (
     <PixelPanel className="p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <p className="font-pixel text-accent-gold" style={{ fontSize: '9px' }}><E e="⭐" /> COMIDAS GUARDADAS</p>
-        <button onClick={() => setShowForm(f => !f)} className="font-pixel text-text-secondary hover:text-accent-gold transition-colors" style={{ fontSize: '7px' }}>
+        <p className="font-pixel text-accent-gold" style={{ fontSize: '12px' }}><E e="⭐" /> COMIDAS GUARDADAS</p>
+        <button onClick={() => setShowForm(f => !f)} className="font-pixel text-text-secondary hover:text-accent-gold transition-colors" style={{ fontSize: '12px' }}>
           {showForm ? <E e="✕" s={11} /> : '+ NUEVA'}
         </button>
       </div>
@@ -305,7 +305,7 @@ export function SavedMealsPanel({ onAdd }: { onAdd: (meal: SavedMeal) => void })
           <div className="grid grid-cols-4 gap-1">
             {(['calories', 'protein', 'carbs', 'fat'] as const).map(k => (
               <div key={k}>
-                <p className="font-pixel text-text-secondary mb-0.5" style={{ fontSize: '6px' }}>{k === 'calories' ? 'KCAL' : k.toUpperCase()}</p>
+                <p className="font-pixel text-text-secondary mb-0.5" style={{ fontSize: '12px' }}>{k === 'calories' ? 'KCAL' : k.toUpperCase()}</p>
                 <input type="number" value={form[k]} onChange={e => setForm(f => ({ ...f, [k]: e.target.value }))} placeholder="0" className="w-full bg-bg-deep border-2 border-border-pixel text-text-primary font-vt text-base px-1 py-1 focus:border-accent-gold outline-none" />
               </div>
             ))}
@@ -315,7 +315,7 @@ export function SavedMealsPanel({ onAdd }: { onAdd: (meal: SavedMeal) => void })
       )}
 
       <div className="flex gap-2 items-center">
-        <span className="font-pixel text-text-secondary" style={{ fontSize: '7px' }}>AGREGAR COMO:</span>
+        <span className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>AGREGAR COMO:</span>
         <select value={mealType} onChange={e => setMealType(e.target.value)} className="flex-1 bg-bg-deep border-2 border-border-pixel text-text-primary font-vt text-sm px-2 py-1 outline-none">
           <option value="BREAKFAST">Desayuno</option>
           <option value="LUNCH">Almuerzo</option>
@@ -333,11 +333,11 @@ export function SavedMealsPanel({ onAdd }: { onAdd: (meal: SavedMeal) => void })
             <div key={m.id} className="flex items-center justify-between py-2 border-b border-border-pixel/30 last:border-0">
               <div>
                 <p className="font-vt text-text-primary text-lg">{m.name}</p>
-                {m.calories && <p className="font-pixel text-accent-gold" style={{ fontSize: '7px' }}>{m.calories} kcal · P:{m.protein ?? 0}g · C:{m.carbs ?? 0}g · G:{m.fat ?? 0}g</p>}
+                {m.calories && <p className="font-pixel text-accent-gold" style={{ fontSize: '12px' }}>{m.calories} kcal · P:{m.protein ?? 0}g · C:{m.carbs ?? 0}g · G:{m.fat ?? 0}g</p>}
               </div>
               <div className="flex gap-2">
-                <button onClick={() => handleAdd(m)} className="font-pixel text-accent-green hover:opacity-70 transition-opacity" style={{ fontSize: '8px' }}>+ AGREGAR</button>
-                <button onClick={() => handleDelete(m.id)} className="font-pixel text-accent-red hover:opacity-70 transition-opacity" style={{ fontSize: '8px' }}><E e="✕" /></button>
+                <button onClick={() => handleAdd(m)} className="font-pixel text-accent-green hover:opacity-70 transition-opacity" style={{ fontSize: '12px' }}>+ AGREGAR</button>
+                <button onClick={() => handleDelete(m.id)} className="font-pixel text-accent-red hover:opacity-70 transition-opacity" style={{ fontSize: '12px' }}><E e="✕" /></button>
               </div>
             </div>
           ))}

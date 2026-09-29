@@ -131,14 +131,16 @@ function ModalShell({
               <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">{description}</p>
             </div>
           </div>
-          <button
-            type="button"
+          <FlowButton
+            tone="ghost"
+            size="sm"
+            withArrows={false}
             onClick={onClose}
             aria-label={`Cerrar ${title.toLowerCase()}`}
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] sm:h-8 sm:w-8"
           >
             <X className="h-4 w-4" aria-hidden="true" />
-          </button>
+          </FlowButton>
         </header>
         {children}
       </motion.section>
@@ -179,7 +181,7 @@ function MoneyField({
           autoFocus={autoFocus}
           className={`${modalInputClass} money-input pr-14 pl-8 text-right text-2xl font-semibold tabular-nums`}
         />
-        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">COP</span>
+        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">COP</span>
       </span>
     </label>
   );
@@ -567,8 +569,8 @@ export default function FinancesPage() {
             badge={dashboard.summary.balance >= 0 ? 'Balance positivo' : 'Revisar gastos'}
             frontFooter={(
               <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-xl border border-border bg-muted px-3 py-2"><p className="text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Ingresos</p><p className="mt-1 truncate text-sm font-semibold text-[var(--accent-green)]"><AnimatedCounter value={dashboard.summary.income} separator="." prefix="$ " duration={0.7} /></p></div>
-                <div className="rounded-xl border border-border bg-muted px-3 py-2"><p className="text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Gastos</p><p className="mt-1 truncate text-sm font-semibold text-[var(--accent-red)]"><AnimatedCounter value={dashboard.summary.expenses} separator="." prefix="$ " duration={0.7} /></p></div>
+                <div className="rounded-xl border border-border bg-muted px-3 py-2"><p className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">Ingresos</p><p className="mt-1 truncate text-sm font-semibold text-[var(--accent-green)]"><AnimatedCounter value={dashboard.summary.income} separator="." prefix="$ " duration={0.7} /></p></div>
+                <div className="rounded-xl border border-border bg-muted px-3 py-2"><p className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">Gastos</p><p className="mt-1 truncate text-sm font-semibold text-[var(--accent-red)]"><AnimatedCounter value={dashboard.summary.expenses} separator="." prefix="$ " duration={0.7} /></p></div>
               </div>
             )}
             backDescription={<p>Consulta tus movimientos para entender qué está moviendo el balance y registra una transacción cuando lo necesites.</p>}
@@ -591,7 +593,7 @@ export default function FinancesPage() {
             key={key}
             onClick={() => setTab(key)}
             className={`min-h-11 min-w-0 px-2 py-1.5 border-2 font-pixel transition-all sm:shrink-0 ${tab === key ? 'border-accent-gold bg-accent-gold text-bg-deep' : 'border-border-pixel text-text-secondary hover:border-text-secondary'}`}
-            style={{ fontSize: '8px' }}
+            style={{ fontSize: '12px' }}
           >
 
             {label}
@@ -604,7 +606,7 @@ export default function FinancesPage() {
         <div className="space-y-4">
           {categoryData.length > 0 && (
             <PixelPanel className="p-4">
-              <p className="font-pixel text-text-secondary mb-3" style={{ fontSize: '8px' }}>GASTOS POR CATEGORÍA</p>
+              <p className="font-pixel text-text-secondary mb-3" style={{ fontSize: '12px' }}>GASTOS POR CATEGORÍA</p>
               <div className="flex flex-col md:flex-row gap-4 items-center">
                 <ResponsiveContainer width="100%" height={200}>
                   <PieChart>
@@ -628,7 +630,7 @@ export default function FinancesPage() {
 
           {/* Recent transactions */}
           <PixelPanel className="p-4">
-            <p className="font-pixel text-text-secondary mb-2" style={{ fontSize: '8px' }}>MOVIMIENTOS RECIENTES</p>
+            <p className="font-pixel text-text-secondary mb-2" style={{ fontSize: '12px' }}>MOVIMIENTOS RECIENTES</p>
             <div className="space-y-2">
               {dashboard.recent.slice(0, 5).map(t => (
                 <div key={t.id} className="flex items-center justify-between py-1 border-b border-border-pixel/30">
@@ -636,7 +638,7 @@ export default function FinancesPage() {
                     <span className="text-lg"><E e={CATEGORY_ICONS[t.category] ?? '📦'} /></span>
                     <div>
                       <p className="font-vt text-text-primary text-base">{t.description ?? CATEGORY_LABELS[t.category]}</p>
-                      <p className="font-pixel text-text-secondary" style={{ fontSize: '7px' }}>{new Date(t.date).toLocaleDateString('es-CO')}</p>
+                      <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>{new Date(t.date).toLocaleDateString('es-CO')}</p>
                     </div>
                   </div>
                   <p className={`font-vt text-lg ${t.type === 'INCOME' ? 'text-accent-green' : 'text-accent-red'}`}>
@@ -655,7 +657,7 @@ export default function FinancesPage() {
           {transactions.length === 0 ? (
             <PixelPanel className="p-8 text-center">
               <p className="text-4xl mb-2"><E e="💸" /></p>
-              <p className="font-pixel text-text-secondary" style={{ fontSize: '9px' }}>SIN TRANSACCIONES</p>
+              <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>SIN TRANSACCIONES</p>
             </PixelPanel>
           ) : (
             <AnimatePresence>
@@ -672,7 +674,7 @@ export default function FinancesPage() {
                       <span className="text-2xl"><E e={CATEGORY_ICONS[t.category] ?? '📦'} /></span>
                       <div>
                         <p className="font-vt text-text-primary text-lg">{t.description ?? CATEGORY_LABELS[t.category]}</p>
-                        <p className="font-pixel text-text-secondary" style={{ fontSize: '7px' }}>
+                        <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>
                           <E e={CATEGORY_LABELS[t.category]} /> · {new Date(t.date).toLocaleDateString('es-CO')}
                         </p>
                       </div>
@@ -681,13 +683,16 @@ export default function FinancesPage() {
                       <p className={`font-vt text-xl ${t.type === 'INCOME' ? 'text-accent-green' : 'text-accent-red'}`}>
                         {t.type === 'INCOME' ? '+' : '-'}{formatCOP(t.amount)}
                       </p>
-                      <button
+                      <FlowButton
+                        tone="danger"
+                        size="sm"
+                        withArrows={false}
                         onClick={() => handleDeleteTransaction(t.id)}
                         className="font-pixel text-accent-red hover:opacity-70 transition-opacity"
-                        style={{ fontSize: '8px' }}
+                        style={{ fontSize: '12px' }}
                       >
                         <E e="✕" />
-                      </button>
+                      </FlowButton>
                     </div>
                   </PixelPanel>
                 </motion.div>
@@ -703,7 +708,7 @@ export default function FinancesPage() {
           {dashboard.budgets.length === 0 ? (
             <PixelPanel className="p-8 text-center">
               <p className="text-4xl mb-2"><E e="📋" /></p>
-              <p className="font-pixel text-text-secondary" style={{ fontSize: '9px' }}>SIN PRESUPUESTOS</p>
+              <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>SIN PRESUPUESTOS</p>
               <p className="font-vt text-text-secondary text-base mt-1">Crea presupuestos para controlar tus gastos</p>
             </PixelPanel>
           ) : (
@@ -718,7 +723,7 @@ export default function FinancesPage() {
                       <span className="text-xl"><E e={CATEGORY_ICONS[b.category]} /></span>
                       <p className="font-vt text-text-primary text-lg"><E e={CATEGORY_LABELS[b.category]} /></p>
                     </div>
-                    <p className={`font-pixel ${color}`} style={{ fontSize: '8px' }}>{Math.round(pct)}%</p>
+                    <p className={`font-pixel ${color}`} style={{ fontSize: '12px' }}>{Math.round(pct)}%</p>
                   </div>
                   <div className="stat-bar h-3">
                     <motion.div className={`h-full ${barColor}`} initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.8, ease: 'easeOut' }} />
@@ -746,7 +751,7 @@ export default function FinancesPage() {
           {goals.length === 0 ? (
             <PixelPanel className="p-8 text-center">
               <p className="text-4xl mb-2"><E e="🎯" /></p>
-              <p className="font-pixel text-text-secondary" style={{ fontSize: '9px' }}>SIN METAS DE AHORRO</p>
+              <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>SIN METAS DE AHORRO</p>
             </PixelPanel>
           ) : (
             goals.map(g => {
@@ -755,7 +760,7 @@ export default function FinancesPage() {
                 <PixelPanel key={g.id} className="p-4">
                   <div className="flex items-center justify-between mb-2">
                     <p className="font-vt text-text-primary text-xl">{g.title}</p>
-                    {g.isCompleted && <span className="font-pixel text-accent-gold" style={{ fontSize: '8px' }}><E e="✓" /> COMPLETADA</span>}
+                    {g.isCompleted && <span className="font-pixel text-accent-gold" style={{ fontSize: '12px' }}><E e="✓" /> COMPLETADA</span>}
                   </div>
                   {g.description && <p className="font-vt text-text-secondary text-base mb-2">{g.description}</p>}
                   <div className="stat-bar h-4 mb-1">
@@ -763,7 +768,7 @@ export default function FinancesPage() {
                   </div>
                   <div className="flex justify-between mb-2">
                     <span className="font-vt text-text-secondary text-base">{formatCOP(g.currentAmount)}</span>
-                    <span className="font-pixel text-accent-gold" style={{ fontSize: '8px' }}>{Math.round(pct)}%</span>
+                    <span className="font-pixel text-accent-gold" style={{ fontSize: '12px' }}>{Math.round(pct)}%</span>
                     <span className="font-vt text-text-secondary text-base">{formatCOP(g.targetAmount)}</span>
                   </div>
                   {!g.isCompleted && (

@@ -49,7 +49,7 @@ export function QuickStatsWidget({ sleepAvg7d, monthBalance, lastWorkoutDaysAgo 
         >
           <div className="flex items-center justify-between gap-2">
             <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--bg-panel)]" style={{ color: tone }}><Icon size={14} strokeWidth={1.9} /></span>
-            <span className="text-[10px] font-medium uppercase tracking-[0.09em] text-[var(--text-muted)]">{label}</span>
+            <span className="text-xs font-medium uppercase tracking-[0.09em] text-[var(--text-muted)]">{label}</span>
           </div>
           <p className="mt-3 truncate text-sm font-semibold tabular-nums" style={{ color: tone }}>{value}</p>
         </motion.div>

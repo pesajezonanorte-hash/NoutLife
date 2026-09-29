@@ -92,7 +92,7 @@ export function TodayQuestsWidget({ quests, onQuestCompleted }: Props) {
             <p className="mt-0.5 text-xs text-[var(--text-secondary)]">Pendientes con propósito, plazo y recompensa.</p>
           </div>
         </div>
-        <span className="rounded-full bg-[var(--bg-panel)] px-2.5 py-1 text-[11px] font-medium text-[var(--text-secondary)]">{quests.length}</span>
+        <span className="rounded-full bg-[var(--bg-panel)] px-2.5 py-1 text-xs font-medium text-[var(--text-secondary)]">{quests.length}</span>
       </div>
 
       <div className="space-y-2 p-3 sm:p-4">
@@ -127,7 +127,7 @@ export function TodayQuestsWidget({ quests, onQuestCompleted }: Props) {
                     <Icon size={14} style={{ color: difficultyTone }} aria-hidden="true" />
                     <p className={`truncate text-sm font-medium ${done ? 'text-[var(--text-secondary)] line-through' : 'text-[var(--text-primary)]'}`}>{quest.title}</p>
                   </div>
-                  <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+                  <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
                     <span style={{ color: difficultyTone }}>{meta.label} · {quest.difficulty}</span>
                     <span className="font-medium text-[var(--accent-gold)]">+{quest.xpReward} XP</span>
                     <span className="inline-flex items-center gap-1 text-[var(--text-secondary)]"><Coins size={12} />+{quest.goldReward}</span>

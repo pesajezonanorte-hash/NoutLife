@@ -90,7 +90,7 @@ export const QuestCard = memo(function QuestCard({ quest, onComplete, onClick }:
               >
                 {quest.title}
               </p>
-              <span className="hidden shrink-0 items-center gap-1 text-[11px] text-[var(--text-secondary)] sm:inline-flex">
+              <span className="hidden shrink-0 items-center gap-1 text-xs text-[var(--text-secondary)] sm:inline-flex">
                 <TypeIcon size={12} strokeWidth={1.8} aria-hidden="true" />
                 {type.label}
               </span>
@@ -125,7 +125,7 @@ export const QuestCard = memo(function QuestCard({ quest, onComplete, onClick }:
 
         {progressPct !== null && !isInactive && (
           <div className="mt-2.5 max-w-xl">
-            <div className="mb-1 flex items-center justify-between text-[11px] text-[var(--text-secondary)]">
+            <div className="mb-1 flex items-center justify-between text-xs text-[var(--text-secondary)]">
               <span>Progreso</span>
               <span className="tabular-nums">{completedSubs}/{subObjectives.length}</span>
             </div>
@@ -141,15 +141,15 @@ export const QuestCard = memo(function QuestCard({ quest, onComplete, onClick }:
         )}
 
         <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-          <span className="inline-flex items-center gap-1 text-[11px] text-[var(--text-secondary)] sm:hidden">
+          <span className="inline-flex items-center gap-1 text-xs text-[var(--text-secondary)] sm:hidden">
             <TypeIcon size={12} strokeWidth={1.8} aria-hidden="true" />
             {type.label}
           </span>
           <DifficultyBadge difficulty={quest.difficulty} />
-          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--accent-gold)]">
+          <span className="inline-flex items-center gap-1 text-xs font-medium text-[var(--accent-gold)]">
             <span>+{quest.xpReward} XP</span>
           </span>
-          <span className="inline-flex items-center gap-1 text-[11px] text-[var(--text-secondary)]">
+          <span className="inline-flex items-center gap-1 text-xs text-[var(--text-secondary)]">
             <Coins size={12} strokeWidth={1.8} aria-hidden="true" />
             {quest.goldReward}
           </span>

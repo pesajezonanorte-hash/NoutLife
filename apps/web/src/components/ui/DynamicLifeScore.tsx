@@ -96,7 +96,7 @@ export function DynamicLifeScore({ totalScore, zones, size = 220, stroke = 13, g
             {ringZones.map(z => (
               <div key={z.id} className="flex items-center gap-1.5">
                 <div className="w-2 h-2 rounded-full" style={{ background: z.color }} />
-                <span style={{ fontSize: 11, color: 'var(--text-2)' }}><E e={z.icon} /> {z.name} {z.score}%</span>
+                <span style={{ fontSize: 12, color: 'var(--text-2)' }}><E e={z.icon} /> {z.name} {z.score}%</span>
               </div>
             ))}
           </div>

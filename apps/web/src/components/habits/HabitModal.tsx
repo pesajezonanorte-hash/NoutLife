@@ -171,7 +171,7 @@ export function HabitModal({ onSubmit, onClose, initial, title }: Props) {
                     >
                       <Icon size={17} strokeWidth={1.75} />
                       {selected && (
-                        <span className="absolute -right-1 -top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[var(--accent-gold)] text-[8px] font-bold leading-none text-black"><E e="✓" /></span>
+                        <span className="absolute -right-1 -top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[var(--accent-gold)] text-xs font-bold leading-none text-black"><E e="✓" /></span>
                       )}
                     </button>
                   );
@@ -194,7 +194,7 @@ export function HabitModal({ onSubmit, onClose, initial, title }: Props) {
                       className={`relative flex h-11 w-11 items-center justify-center rounded-full transition-all hover:scale-110 ${selected ? 'scale-110 ring-2 ring-[var(--text-primary)] ring-offset-2 ring-offset-[var(--bg-panel)]' : 'ring-1 ring-[var(--border-strong)]'}`}
                       style={{ backgroundColor: color }}
                     >
-                      {selected && <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[var(--bg-panel)] text-[10px] font-bold leading-none text-[var(--text-primary)]"><E e="✓" /></span>}
+                      {selected && <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[var(--bg-panel)] text-xs font-bold leading-none text-[var(--text-primary)]"><E e="✓" /></span>}
                     </button>
                   );
                 })}
@@ -216,8 +216,8 @@ export function HabitModal({ onSubmit, onClose, initial, title }: Props) {
                       className={`relative flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl border p-2 text-center transition-colors ${selected ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)]/10 shadow-sm' : 'border-[var(--border)] bg-[var(--bg-panel-light)] hover:border-[var(--border-strong)]'}`}
                     >
                       <span className={`text-lg ${selected ? 'text-[var(--accent-gold)]' : 'text-[var(--text-secondary)]'}`}><E e={CATEGORY_GLYPHS[category]} /></span>
-                      <span className={`text-[10px] font-medium leading-none ${selected ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>{CATEGORY_LABELS[category]}</span>
-                      {selected && <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--accent-gold)] text-[10px] font-bold leading-none text-[var(--bg-deep)]"><E e="✓" /></span>}
+                      <span className={`text-xs font-medium leading-none ${selected ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>{CATEGORY_LABELS[category]}</span>
+                      {selected && <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--accent-gold)] text-xs font-bold leading-none text-[var(--bg-deep)]"><E e="✓" /></span>}
                     </button>
                   );
                 })}

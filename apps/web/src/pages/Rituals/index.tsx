@@ -1,3 +1,4 @@
+import { FlowButton } from '@/components/ui/flow-button';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Sun, Moon, Zap, Play, CheckCircle2, ChevronRight, Loader2, Flame, X, Timer } from 'lucide-react';
@@ -261,12 +262,12 @@ function RitualCard({ ritual, onRefresh }: { ritual: Ritual; onRefresh: () => vo
             {/* Steps preview */}
             <div className="mt-3 flex gap-1 flex-wrap">
               {ritual.steps.slice(0, 4).map((step, i) => (
-                <span key={step.id} className="text-[11px] text-[var(--text-muted)] bg-[var(--bg-panel-light)] px-2 py-0.5 rounded-full">
+                <span key={step.id} className="text-xs text-[var(--text-muted)] bg-[var(--bg-panel-light)] px-2 py-0.5 rounded-full">
                   {i + 1}. {step.title.length > 20 ? step.title.slice(0, 20) + '…' : step.title}
                 </span>
               ))}
               {ritual.steps.length > 4 && (
-                <span className="text-[11px] text-[var(--text-muted)]">+{ritual.steps.length - 4} más</span>
+                <span className="text-xs text-[var(--text-muted)]">+{ritual.steps.length - 4} más</span>
               )}
             </div>
 
@@ -367,7 +368,9 @@ export default function RitualsPage() {
           <p className="text-sm text-[var(--text-secondary)] max-w-xs mx-auto">
             Los rituales son secuencias de pasos que ejecutas cada día. Empieza con los presets o crea los tuyos.
           </p>
-          <button
+          <FlowButton
+            tone="primary"
+            withArrows={false}
             onClick={handleSeedPresets}
             disabled={seeding}
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm"
@@ -375,7 +378,7 @@ export default function RitualsPage() {
           >
             {seeding ? <Loader2 size={16} className="animate-spin" /> : <Zap size={16} />}
             Cargar rituales sugeridos
-          </button>
+          </FlowButton>
         </motion.div>
       ) : (
         <div className="space-y-8">

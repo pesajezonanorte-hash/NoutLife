@@ -59,7 +59,7 @@ export function NotificationPermissionModal({ onClose }: Props) {
               <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-deep)] p-2">
                 <Bell size={22} className="text-[var(--accent-gold)]" />
               </div>
-              <h2 className="font-pixel text-[var(--accent-gold)]" style={{ fontSize: '11px' }}>
+              <h2 className="font-pixel text-[var(--accent-gold)]" style={{ fontSize: '12px' }}>
                 ALERTAS
               </h2>
             </div>

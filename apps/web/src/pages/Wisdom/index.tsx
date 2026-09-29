@@ -34,7 +34,7 @@ function WisdomCardUI({ card, delay = 0 }: { card: WisdomCard; delay?: number })
           {cfg.label}
         </span>
         {card.levelRequired > 1 && (
-          <span className="text-[10px] text-[var(--text-muted)] ml-auto">Nv. {card.levelRequired}</span>
+          <span className="text-xs text-[var(--text-muted)] ml-auto">Nv. {card.levelRequired}</span>
         )}
       </div>
 
@@ -162,7 +162,7 @@ export default function WisdomPage() {
                 <div key={card.id} className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] p-4 flex flex-col items-center gap-2 opacity-40">
                   <Lock size={20} className="text-[var(--text-muted)]" />
                   <span className="text-xs text-[var(--text-muted)]"><E e={cfg?.Icon ?? BookOpen} /> {cfg?.label ?? card.category}</span>
-                  <span className="text-[10px] text-[var(--text-muted)]">Nivel {card.levelRequired}</span>
+                  <span className="text-xs text-[var(--text-muted)]">Nivel {card.levelRequired}</span>
                 </div>
               );
             })}

@@ -51,7 +51,7 @@ function BossHealthBar({ current, max }: { current: number; max: number }) {
   return (
     <div className="w-full">
       <div className="flex justify-between mb-2">
-        <span className="font-pixel text-text-primary" style={{ fontSize: '10px' }}>HP DEL JEFE</span>
+        <span className="font-pixel text-text-primary" style={{ fontSize: '12px' }}>HP DEL JEFE</span>
         <span className="font-vt text-text-secondary text-lg">
           {current.toLocaleString('es-CO')} / {max.toLocaleString('es-CO')}
         </span>
@@ -82,11 +82,11 @@ function BossHealthBar({ current, max }: { current: number; max: number }) {
         </motion.div>
         {pct <= 0 && (
           <div className="absolute inset-0 flex items-center justify-center">
-            <span className="font-pixel text-accent-gold" style={{ fontSize: '10px' }}>¡DERROTADO!</span>
+            <span className="font-pixel text-accent-gold" style={{ fontSize: '12px' }}>¡DERROTADO!</span>
           </div>
         )}
       </div>
-      <div className="mt-1 font-pixel text-center" style={{ fontSize: '8px', color }}>
+      <div className="mt-1 font-pixel text-center" style={{ fontSize: '12px', color }}>
         {pct.toFixed(1)}% DE HP RESTANTE
       </div>
     </div>
@@ -145,7 +145,7 @@ export default function SeasonPage() {
   if (!data?.season) {
     return (
       <PixelPanel className="p-8 text-center">
-        <p className="font-pixel text-text-secondary" style={{ fontSize: '10px' }}>
+        <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>
           No hay temporada activa en este momento.
         </p>
         <p className="font-vt text-text-secondary text-lg mt-2">
@@ -175,7 +175,7 @@ export default function SeasonPage() {
         <div className="flex flex-col md:flex-row items-center gap-6">
           <div className="flex-shrink-0 text-center">
             <BossSprite defeated={defeated} />
-            <p className="font-pixel text-accent-red mt-3" style={{ fontSize: '9px' }}>{season.bossName}</p>
+            <p className="font-pixel text-accent-red mt-3" style={{ fontSize: '12px' }}>{season.bossName}</p>
           </div>
           <div className="flex-1 w-full">
             <BossHealthBar current={season.currentHp} max={season.bossHp} />
@@ -187,7 +187,7 @@ export default function SeasonPage() {
                 animate={{ scale: 1 }}
                 transition={{ type: 'spring' }}
               >
-                <p className="font-pixel text-accent-gold" style={{ fontSize: '10px' }}>
+                <p className="font-pixel text-accent-gold" style={{ fontSize: '12px' }}>
                   ¡VICTORIA ÉPICA DEL REINO!
                 </p>
               </motion.div>
@@ -199,7 +199,7 @@ export default function SeasonPage() {
                 animate={{ opacity: [0.7, 1, 0.7] }}
                 transition={{ duration: 1, repeat: Infinity }}
               >
-                <p className="font-pixel text-accent-red text-center" style={{ fontSize: '8px' }}>
+                <p className="font-pixel text-accent-red text-center" style={{ fontSize: '12px' }}>
                   ¡EL JEFE TIENE {hpPct.toFixed(0)}% DE HP! ¡ÚLTIMO EMPUJÓN!
                 </p>
               </motion.div>
@@ -210,15 +210,15 @@ export default function SeasonPage() {
         {/* Stats */}
         <div className="mt-4 grid grid-cols-3 gap-3 border-t-2 border-border-pixel pt-4">
           <div className="text-center">
-            <p className="font-pixel text-text-secondary" style={{ fontSize: '7px' }}>TU DAÑO</p>
+            <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>TU DAÑO</p>
             <p className="font-vt text-accent-gold text-2xl">{userDamage.toLocaleString('es-CO')}</p>
           </div>
           <div className="text-center">
-            <p className="font-pixel text-text-secondary" style={{ fontSize: '7px' }}>HP RESTANTE</p>
+            <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>HP RESTANTE</p>
             <p className="font-vt text-accent-red text-2xl">{season.currentHp.toLocaleString('es-CO')}</p>
           </div>
           <div className="text-center">
-            <p className="font-pixel text-text-secondary" style={{ fontSize: '7px' }}>DÍAS RESTANTES</p>
+            <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>DÍAS RESTANTES</p>
             <p className="font-vt text-accent-cyan text-2xl">{daysLeft}</p>
           </div>
         </div>
@@ -227,7 +227,7 @@ export default function SeasonPage() {
       {/* Active events */}
       {season.events.length > 0 && (
         <div>
-          <h2 className="font-pixel text-accent-gold mb-3" style={{ fontSize: '10px' }}>
+          <h2 className="font-pixel text-accent-gold mb-3" style={{ fontSize: '12px' }}>
             EVENTOS ACTIVOS
           </h2>
           <div className="grid gap-3">
@@ -235,15 +235,15 @@ export default function SeasonPage() {
               <PixelPanel key={ev.id} className="p-3 border-accent-cyan">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="font-pixel text-accent-cyan" style={{ fontSize: '9px' }}>{ev.name}</p>
+                    <p className="font-pixel text-accent-cyan" style={{ fontSize: '12px' }}>{ev.name}</p>
                     <p className="font-vt text-text-secondary text-base mt-1">{ev.description}</p>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <div className="bg-accent-gold text-border-pixel font-pixel px-2 py-1 border-2 border-border-pixel" style={{ fontSize: '8px' }}>
+                    <div className="bg-accent-gold text-border-pixel font-pixel px-2 py-1 border-2 border-border-pixel" style={{ fontSize: '12px' }}>
                       ×{ev.bonusXpMult} XP
                     </div>
                     {ev.category && (
-                      <p className="font-pixel text-text-secondary mt-1" style={{ fontSize: '7px' }}>{ev.category}</p>
+                      <p className="font-pixel text-text-secondary mt-1" style={{ fontSize: '12px' }}>{ev.category}</p>
                     )}
                   </div>
                 </div>
@@ -256,7 +256,7 @@ export default function SeasonPage() {
       {/* Rewards */}
       {season.rewards.length > 0 && (
         <PixelPanel className="p-4">
-          <h2 className="font-pixel text-accent-gold mb-3" style={{ fontSize: '10px' }}>
+          <h2 className="font-pixel text-accent-gold mb-3" style={{ fontSize: '12px' }}>
             RECOMPENSAS AL DERROTAR AL JEFE
           </h2>
           <div className="flex flex-wrap gap-3">
@@ -275,7 +275,7 @@ export default function SeasonPage() {
       {/* Top 10 leaderboard */}
       {season.participants.length > 0 && (
         <div>
-          <h2 className="font-pixel text-accent-gold mb-3" style={{ fontSize: '10px' }}>
+          <h2 className="font-pixel text-accent-gold mb-3" style={{ fontSize: '12px' }}>
             HÉROES MÁS VALIENTES
           </h2>
           <PixelPanel className="p-0 overflow-hidden">
@@ -284,17 +284,17 @@ export default function SeasonPage() {
                 key={p.userId}
                 className={`flex items-center gap-3 px-4 py-3 border-b border-border-pixel last:border-0 ${i === 0 ? 'bg-accent-gold/10' : ''}`}
               >
-                <span className="font-pixel text-accent-gold w-6 text-right" style={{ fontSize: '9px' }}>
+                <span className="font-pixel text-accent-gold w-6 text-right" style={{ fontSize: '12px' }}>
                   {i === 0 ? <E e="👑" s={12} /> : `#${i + 1}`}
                 </span>
                 <Swords size={16} className={i === 0 ? 'text-[var(--accent-gold)]' : 'text-[var(--text-secondary)]'} />
                 <div className="flex-1">
-                  <p className="font-pixel text-text-primary" style={{ fontSize: '8px' }}>{p.user.displayName}</p>
+                  <p className="font-pixel text-text-primary" style={{ fontSize: '12px' }}>{p.user.displayName}</p>
                   <p className="font-vt text-text-secondary text-sm">Lv.{p.user.level}</p>
                 </div>
                 <div className="text-right">
                   <p className="font-vt text-accent-red text-xl">{p.damageDealt.toLocaleString('es-CO')}</p>
-                  <p className="font-pixel text-text-secondary" style={{ fontSize: '7px' }}>DMG</p>
+                  <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>DMG</p>
                 </div>
               </div>
             ))}

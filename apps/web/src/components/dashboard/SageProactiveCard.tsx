@@ -57,7 +57,7 @@ export function SageProactiveCard() {
     >
       {note.isNew && (
         <span
-          className="absolute top-3 right-3 text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full"
+          className="absolute top-3 right-3 text-xs font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full"
           style={{ background: style.badge, color: 'var(--text-inv)' }}
         >
           Nuevo

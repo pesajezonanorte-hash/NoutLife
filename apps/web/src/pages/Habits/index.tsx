@@ -1,3 +1,4 @@
+import { FlowButton } from '@/components/ui/flow-button';
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../store/authStore';
@@ -151,13 +152,13 @@ export default function HabitsPage() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3">
         <PixelPanel className="p-3 text-center">
-          <p className="font-pixel text-text-secondary mb-1" style={{ fontSize: '8px' }}>HOY</p>
+          <p className="font-pixel text-text-secondary mb-1" style={{ fontSize: '12px' }}>HOY</p>
           <p className="font-vt text-accent-green text-3xl">{completedToday}/{totalHabits}</p>
           <p className="font-vt text-text-secondary text-sm">completados</p>
         </PixelPanel>
 
         <PixelPanel className="p-3 text-center">
-          <p className="font-pixel text-text-secondary mb-1" style={{ fontSize: '8px' }}>MEJOR RACHA</p>
+          <p className="font-pixel text-text-secondary mb-1" style={{ fontSize: '12px' }}>MEJOR RACHA</p>
           <div className="flex justify-center">
             <StreakFlame streak={maxStreak} size="sm" />
           </div>
@@ -165,7 +166,7 @@ export default function HabitsPage() {
         </PixelPanel>
 
         <PixelPanel className="p-3 text-center">
-          <p className="font-pixel text-text-secondary mb-1" style={{ fontSize: '8px' }}>RACHA GLOBAL</p>
+          <p className="font-pixel text-text-secondary mb-1" style={{ fontSize: '12px' }}>RACHA GLOBAL</p>
           <p className="font-vt text-accent-gold text-3xl">{user?.currentStreak ?? 0}</p>
           <p className="font-vt text-text-secondary text-sm">días</p>
         </PixelPanel>
@@ -187,13 +188,15 @@ export default function HabitsPage() {
             { label: 'Hoy', value: topHabit.todayCompleted ? 'Hecho' : 'Pendiente' },
           ]}
           backActions={(
-            <button
-              type="button"
+            <FlowButton
+              tone="ghost"
+              size="sm"
+              withArrows={false}
               onClick={(event) => { event.stopPropagation(); setEditingHabit(topHabit); setShowModal(true); }}
               className="min-h-11 rounded-xl border border-border bg-muted px-3 text-sm font-semibold text-foreground transition-transform hover:scale-[1.015] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               Editar hábito
-            </button>
+            </FlowButton>
           )}
           actionLabel={topHabit.todayCompleted ? 'Editar hábito' : 'Completar hábito'}
           onAction={() => {
@@ -210,7 +213,7 @@ export default function HabitsPage() {
       ) : habits.length === 0 ? (
         <PixelPanel className="p-8 text-center">
           <p className="text-4xl mb-3"><E e="🔥" /></p>
-          <p className="font-pixel text-text-secondary" style={{ fontSize: '9px' }}>SIN HÁBITOS AÚN</p>
+          <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>SIN HÁBITOS AÚN</p>
           <p className="font-vt text-text-secondary text-base mt-1">Crea tu primer hábito y empieza a construir racha</p>
           <div className="mt-4">
             <PixelButton variant="primary" onClick={() => setShowModal(true)}>+ PRIMER HÁBITO</PixelButton>
@@ -244,10 +247,10 @@ export default function HabitsPage() {
             initial={{ y: 40, opacity: 0, scale: 0.8 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: 40, opacity: 0, scale: 0.8 }}
-            style={{ fontSize: '10px' }}
+            style={{ fontSize: '12px' }}
           >
             <E e="🔥" /> ¡{streakToast.streak} DÍAS!<br />
-            <span style={{ fontSize: '8px' }}>{streakToast.name}</span>
+            <span style={{ fontSize: '12px' }}>{streakToast.name}</span>
           </motion.div>
         )}
       </AnimatePresence>

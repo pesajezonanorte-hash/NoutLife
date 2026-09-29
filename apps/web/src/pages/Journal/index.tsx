@@ -1,3 +1,4 @@
+import { FlowButton } from '@/components/ui/flow-button';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BookOpen } from 'lucide-react';
@@ -180,14 +181,16 @@ function EntryEditor({ entry, onClose, onSave }: { entry?: JournalEntry; onClose
             placeholder="#reflexión"
             className={`${inputClass} flex-1`}
           />
-          <button
-            type="button"
+          <FlowButton
+            tone="ghost"
+            size="sm"
+            withArrows={false}
             onClick={addTag}
             aria-label="Añadir etiqueta"
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--border)] text-lg text-[var(--text-secondary)] transition-colors hover:border-[var(--accent-gold)] hover:text-[var(--accent-gold)]"
           >
             +
-          </button>
+          </FlowButton>
         </div>
         {tags.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1.5">
@@ -274,12 +277,12 @@ export default function JournalPage() {
           <PixelPanel className="p-3 text-center">
             <p className="text-2xl"><E e="🔥" /></p>
             <p className="font-pixel text-accent-gold mt-1" style={{ fontSize: '14px' }}>{streak.currentStreak}</p>
-            <p className="font-pixel text-text-secondary" style={{ fontSize: '6px' }}>DÍAS SEGUIDOS</p>
+            <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>DÍAS SEGUIDOS</p>
           </PixelPanel>
         )}
         <PixelPanel className="p-3 text-center cursor-pointer hover:border-accent-gold/50 transition-colors" onClick={() => { setEditing(todayEntry ?? null); setShowEditor(true); }}>
           <p className="text-2xl">{todayEntry ? <E e="✅" s={14} /> : <E e="📝" s={14} />}</p>
-          <p className="font-pixel text-accent-gold mt-1" style={{ fontSize: '10px' }}>{todayEntry ? 'HOY ESCRITO' : 'ESCRIBIR HOY'}</p>
+          <p className="font-pixel text-accent-gold mt-1" style={{ fontSize: '12px' }}>{todayEntry ? 'HOY ESCRITO' : 'ESCRIBIR HOY'}</p>
           {todayEntry && <p className="font-vt text-text-secondary text-base mt-0.5">{todayEntry.title ?? 'Sin título'}</p>}
         </PixelPanel>
       </div>
@@ -287,7 +290,7 @@ export default function JournalPage() {
       {/* Daily prompt */}
       {!todayEntry && (
         <PixelPanel className="p-4 border-accent-purple/50">
-          <p className="font-pixel text-accent-purple mb-2" style={{ fontSize: '8px' }}><E e="💬" /> PROMPT DEL DÍA</p>
+          <p className="font-pixel text-accent-purple mb-2" style={{ fontSize: '12px' }}><E e="💬" /> PROMPT DEL DÍA</p>
           <p className="font-vt text-text-primary text-lg italic">"{todayPrompt}"</p>
           <PixelButton variant="secondary" onClick={() => { setEditing(null); setShowEditor(true); }} className="mt-3 w-full">
             <E e="✍" /> RESPONDER PROMPT
@@ -320,8 +323,8 @@ export default function JournalPage() {
       <div className="space-y-2">
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar en el diario..." className="min-h-11 w-full bg-bg-deep border-2 border-border-pixel px-3 py-2 font-vt text-base text-text-primary outline-none focus:border-accent-gold" />
         <div className="grid grid-cols-3 gap-1.5">
-          <span className="col-span-3 font-pixel text-text-secondary" style={{ fontSize: '7px' }}>FILTRAR HUMOR:</span>
-          <button onClick={() => setMoodFilter(null)} className={`min-h-11 border px-2 py-0.5 font-pixel transition-all ${moodFilter === null ? 'border-accent-gold text-accent-gold' : 'border-border-pixel text-text-secondary'}`} style={{ fontSize: '7px' }}>
+          <span className="col-span-3 font-pixel text-text-secondary" style={{ fontSize: '12px' }}>FILTRAR HUMOR:</span>
+          <button onClick={() => setMoodFilter(null)} className={`min-h-11 border px-2 py-0.5 font-pixel transition-all ${moodFilter === null ? 'border-accent-gold text-accent-gold' : 'border-border-pixel text-text-secondary'}`} style={{ fontSize: '12px' }}>
             TODOS
           </button>
           {[1, 2, 3, 4, 5].map(m => (
@@ -338,7 +341,7 @@ export default function JournalPage() {
           todayEntry && !search && moodFilter === null ? null : (
             <PixelPanel className="p-8 text-center">
               <p className="text-4xl mb-2"><E e="📜" /></p>
-              <p className="font-pixel text-text-secondary" style={{ fontSize: '9px' }}>{entries.length === 0 ? 'EL DIARIO ESTÁ EN BLANCO' : 'SIN RESULTADOS'}</p>
+              <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>{entries.length === 0 ? 'EL DIARIO ESTÁ EN BLANCO' : 'SIN RESULTADOS'}</p>
               <p className="font-vt text-text-secondary text-base mt-1">{entries.length === 0 ? 'El héroe no ha escrito aún...' : 'Prueba otro filtro'}</p>
             </PixelPanel>
           )
@@ -354,15 +357,15 @@ export default function JournalPage() {
                         {e.mood && <span className="text-xl flex-shrink-0"><E e={MOOD_EMOJIS[e.mood]} /></span>}
                         <p className="font-vt text-text-primary text-lg truncate">{e.title ?? `Día ${new Date(e.date).toLocaleDateString('es-CO', { weekday: 'long', month: 'long', day: 'numeric' })}`}</p>
                       </div>
-                      <p className="font-pixel text-text-secondary mt-0.5" style={{ fontSize: '7px' }} title={new Date(e.date).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })}>{relativeTime(e.date)}</p>
+                      <p className="font-pixel text-text-secondary mt-0.5" style={{ fontSize: '12px' }} title={new Date(e.date).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })}>{relativeTime(e.date)}</p>
                       <p className="font-vt text-text-secondary text-base mt-1 line-clamp-2">{e.content.substring(0, 120)}{e.content.length > 120 ? '...' : ''}</p>
                       {e.tags.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-1">
-                          {e.tags.map(t => <span key={t} className="font-pixel text-accent-cyan" style={{ fontSize: '7px' }}>#{t}</span>)}
+                          {e.tags.map(t => <span key={t} className="font-pixel text-accent-cyan" style={{ fontSize: '12px' }}>#{t}</span>)}
                         </div>
                       )}
                     </div>
-                    <button onClick={(ev) => { ev.stopPropagation(); handleDelete(e.id); }} className="flex h-11 w-11 shrink-0 items-center justify-center font-pixel text-accent-red hover:opacity-70" style={{ fontSize: '8px' }}><E e="✕" /></button>
+                    <FlowButton tone="danger" size="sm" withArrows={false} onClick={(ev) => { ev.stopPropagation(); handleDelete(e.id); }} className="h-11 w-11 px-3 font-pixel text-xs"><E e="✕" /></FlowButton>
                   </div>
                 </PixelPanel>
               </motion.div>

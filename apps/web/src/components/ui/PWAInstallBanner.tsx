@@ -58,7 +58,7 @@ export function PWAInstallBanner() {
           <div className="bg-bg-panel border-2 border-accent-gold shadow-pixel-gold px-4 py-3 flex items-center gap-3">
             <span className="text-2xl"><E e="⚔" /></span>
             <div className="flex-1 min-w-0">
-              <p className="font-pixel text-accent-gold" style={{ fontSize: '8px' }}>
+              <p className="font-pixel text-accent-gold" style={{ fontSize: '12px' }}>
                 ¡Instala LifeQuest!
               </p>
               <p className="font-vt text-text-secondary text-base leading-tight">
@@ -68,14 +68,14 @@ export function PWAInstallBanner() {
             <button
               onClick={handleInstall}
               className="font-pixel text-border-pixel bg-accent-gold border-2 border-border-pixel px-3 py-1 shadow-pixel hover:brightness-110 whitespace-nowrap flex-shrink-0"
-              style={{ fontSize: '7px' }}
+              style={{ fontSize: '12px' }}
             >
               INSTALAR
             </button>
             <button
               onClick={handleDismiss}
               className="font-pixel text-text-secondary hover:text-text-primary flex-shrink-0"
-              style={{ fontSize: '10px' }}
+              style={{ fontSize: '12px' }}
             >
               <E e="✕" />
             </button>

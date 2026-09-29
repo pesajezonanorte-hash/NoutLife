@@ -40,7 +40,7 @@ export function IdentityStep({
       exit={{ opacity: 0, x: -40 }}
     >
       <div className="text-center">
-        <h2 className="font-pixel text-accent-gold mb-1" style={{ fontSize: '11px' }}>
+        <h2 className="font-pixel text-accent-gold mb-1" style={{ fontSize: '12px' }}>
           ¿QUIÉN ERES?
         </h2>
         <p className="font-vt text-text-secondary text-xl">
@@ -51,7 +51,7 @@ export function IdentityStep({
       <PixelPanel className="p-5 space-y-5">
         {!lockGender && (
           <div>
-            <label className="font-pixel text-text-secondary block mb-2" style={{ fontSize: '8px' }}>
+            <label className="font-pixel text-text-secondary block mb-2" style={{ fontSize: '12px' }}>
               ¿ERES HÉROE O HEROÍNA?
             </label>
             <div className="flex gap-3">
@@ -74,7 +74,7 @@ export function IdentityStep({
         )}
 
         <div>
-          <label className="font-pixel text-text-secondary block mb-2" style={{ fontSize: '8px' }}>
+          <label className="font-pixel text-text-secondary block mb-2" style={{ fontSize: '12px' }}>
             ¿CÓMO TE LLAMARÁN EN EL REINO?
           </label>
           <PixelInput
@@ -86,7 +86,7 @@ export function IdentityStep({
         </div>
 
         <div>
-          <label className="font-pixel text-text-secondary block mb-2" style={{ fontSize: '8px' }}>
+          <label className="font-pixel text-text-secondary block mb-2" style={{ fontSize: '12px' }}>
             FECHA DE NACIMIENTO (OPCIONAL)
           </label>
           <input
@@ -101,7 +101,7 @@ export function IdentityStep({
         </div>
 
         <div>
-          <label className="font-pixel text-text-secondary block mb-2" style={{ fontSize: '8px' }}>
+          <label className="font-pixel text-text-secondary block mb-2" style={{ fontSize: '12px' }}>
             ZONA HORARIA (AUTO-DETECTADA)
           </label>
           <div className="border-2 border-border-pixel bg-bg-deep px-3 py-2">

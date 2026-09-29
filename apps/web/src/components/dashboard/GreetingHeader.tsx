@@ -146,7 +146,7 @@ export function GreetingHeader({ displayName, currentStreak, createdAt, gender =
             <div>
               <p
                 className="font-bold uppercase tracking-[0.08em]"
-                style={{ fontSize: 10, color: 'var(--c-amber)' }}
+                style={{ fontSize: 12, color: 'var(--c-amber)' }}
               >
                 RACHA
               </p>

@@ -1,54 +1,78 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useEscapeKey } from '../../hooks/useEscapeKey';
-import { PixelPanel } from '../../components/ui/PixelPanel';
-import { PixelButton } from '../../components/ui/PixelButton';
-import { useToast } from '../../hooks/useToast';
-import * as agendaService from '../../services/agenda.service';
-import type { AgendaEvent } from '../../services/agenda.service';
-import { Link2 } from 'lucide-react';
-import { E } from '@/components/ui/glyphs';
-import ModernLoader from '@/components/ui/modern-loader';
-import { LoadingGate } from '@/components/ui/LoadingGate';
-import { LOADING_COPY } from '@/lib/loadingCopy';
+import { FlowButton } from "@/components/ui/flow-button";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useEscapeKey } from "../../hooks/useEscapeKey";
+import { PixelPanel } from "../../components/ui/PixelPanel";
+import { PixelButton } from "../../components/ui/PixelButton";
+import { useToast } from "../../hooks/useToast";
+import * as agendaService from "../../services/agenda.service";
+import type { AgendaEvent } from "../../services/agenda.service";
+import { Link2 } from "lucide-react";
+import { E } from "@/components/ui/glyphs";
+import ModernLoader from "@/components/ui/modern-loader";
+import { LoadingGate } from "@/components/ui/LoadingGate";
+import { LOADING_COPY } from "@/lib/loadingCopy";
 
-type ViewMode = 'day' | 'week' | 'month';
+type ViewMode = "day" | "week" | "month";
 
 const CATEGORIES = [
-  { key: 'personal',   label: 'Personal',   emoji: '🏠', color: '#5c5c64' },
-  { key: 'work',       label: 'Trabajo',    emoji: '💼', color: '#2a2a2e' },
-  { key: 'health',     label: 'Salud',      emoji: '🏥', color: 'var(--accent-green)' },
-  { key: 'social',     label: 'Social',     emoji: '🎉', color: '#8a8a92' },
-  { key: 'romantic',   label: 'Romántico',  emoji: '💖', color: 'var(--accent-red)' },
-  { key: 'finance',    label: 'Finanzas',   emoji: '💰', color: 'var(--accent-gold)' },
-  { key: 'tarea',      label: 'Tarea',      emoji: '📚', color: '#a1a1aa' },
-  { key: 'examen',     label: 'Examen',     emoji: '📝', color: '#3a3a40' },
-  { key: 'exposicion', label: 'Exposición', emoji: '🗣️', color: '#6b6b73' },
-  { key: 'clase',      label: 'Clase',      emoji: '🎒', color: '#c0c0c8' },
-  { key: 'other',      label: 'Otro',       emoji: '📦', color: '#8f8f98' },
+  { key: "personal", label: "Personal", emoji: "🏠", color: "#5c5c64" },
+  { key: "work", label: "Trabajo", emoji: "💼", color: "#2a2a2e" },
+  { key: "health", label: "Salud", emoji: "🏥", color: "var(--accent-green)" },
+  { key: "social", label: "Social", emoji: "🎉", color: "#8a8a92" },
+  {
+    key: "romantic",
+    label: "Romántico",
+    emoji: "💖",
+    color: "var(--accent-red)",
+  },
+  {
+    key: "finance",
+    label: "Finanzas",
+    emoji: "💰",
+    color: "var(--accent-gold)",
+  },
+  { key: "tarea", label: "Tarea", emoji: "📚", color: "#a1a1aa" },
+  { key: "examen", label: "Examen", emoji: "📝", color: "#3a3a40" },
+  { key: "exposicion", label: "Exposición", emoji: "🗣️", color: "#6b6b73" },
+  { key: "clase", label: "Clase", emoji: "🎒", color: "#c0c0c8" },
+  { key: "other", label: "Otro", emoji: "📦", color: "#8f8f98" },
 ];
 
 const REMINDERS = [
-  { value: null,  label: 'Sin recordatorio' },
-  { value: 30,    label: '30 minutos antes' },
-  { value: 60,    label: '1 hora antes' },
-  { value: 1440,  label: '1 día antes' },
+  { value: null, label: "Sin recordatorio" },
+  { value: 30, label: "30 minutos antes" },
+  { value: 60, label: "1 hora antes" },
+  { value: 1440, label: "1 día antes" },
 ];
 
 function catInfo(key: string) {
-  return CATEGORIES.find(c => c.key === key) ?? CATEGORIES[CATEGORIES.length - 1];
+  return (
+    CATEGORIES.find((c) => c.key === key) ?? CATEGORIES[CATEGORIES.length - 1]
+  );
 }
 
 function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+  return new Date(iso).toLocaleTimeString("es-CO", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' });
+  return new Date(iso).toLocaleDateString("es-CO", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
 }
 
 function isSameDay(a: Date, b: Date) {
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
 }
 
 // Google returns all-day events as YYYY-MM-DD. They are stored as a UTC
@@ -57,9 +81,11 @@ function isSameDay(a: Date, b: Date) {
 function isEventOnDay(event: AgendaEvent, day: Date) {
   const eventDate = new Date(event.startDate);
   if (event.isAllDay) {
-    return eventDate.getUTCFullYear() === day.getFullYear()
-      && eventDate.getUTCMonth() === day.getMonth()
-      && eventDate.getUTCDate() === day.getDate();
+    return (
+      eventDate.getUTCFullYear() === day.getFullYear() &&
+      eventDate.getUTCMonth() === day.getMonth() &&
+      eventDate.getUTCDate() === day.getDate()
+    );
   }
   return isSameDay(eventDate, day);
 }
@@ -78,36 +104,50 @@ function EventCard({
   onToggle: () => void;
 }) {
   const cat = catInfo(event.category);
-  const isHabitEvent = event.eventType === 'habit';
+  const isHabitEvent = event.eventType === "habit";
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -4 }}
-      className={`border-l-4 px-3 py-2 rounded-r-sm transition-opacity ${event.isCompleted ? 'opacity-50' : ''}`}
+      className={`border-l-4 px-3 py-2 rounded-r-sm transition-opacity ${event.isCompleted ? "opacity-50" : ""}`}
       style={{ borderLeftColor: cat.color, background: `${cat.color}10` }}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span><E e={cat.emoji} /></span>
-            <p className={`font-vt text-text-primary text-lg ${event.isCompleted ? 'line-through' : ''}`}>
+            <span>
+              <E e={cat.emoji} />
+            </span>
+            <p
+              className={`font-vt text-text-primary text-lg ${event.isCompleted ? "line-through" : ""}`}
+            >
               {event.title}
             </p>
           </div>
-          <p className="font-pixel text-text-secondary mt-0.5" style={{ fontSize: '7px' }}>
-            {event.isAllDay ? 'Todo el día' : formatTime(event.startDate)}
-            {event.endDate && !event.isAllDay ? ` — ${formatTime(event.endDate)}` : ''}
-            {event.location ? ` · ${event.location}` : ''}
-            {event.reminder ? ` · ⏰ ${REMINDERS.find(r => r.value === event.reminder)?.label ?? ''}` : ''}
+          <p
+            className="font-pixel text-text-secondary mt-0.5"
+            style={{ fontSize: "12px" }}
+          >
+            {event.isAllDay ? "Todo el día" : formatTime(event.startDate)}
+            {event.endDate && !event.isAllDay
+              ? ` — ${formatTime(event.endDate)}`
+              : ""}
+            {event.location ? ` · ${event.location}` : ""}
+            {event.reminder
+              ? ` · ⏰ ${REMINDERS.find((r) => r.value === event.reminder)?.label ?? ""}`
+              : ""}
           </p>
           {isHabitEvent && (
             <p className="mt-1 flex items-center gap-1 text-xs text-accent-gold">
-              <Link2 size={12} strokeWidth={1.8} aria-hidden="true" /> Hábito recurrente · se gestiona desde Hábitos
+              <Link2 size={12} strokeWidth={1.8} aria-hidden="true" /> Hábito
+              recurrente · se gestiona desde Hábitos
             </p>
           )}
           {event.description && (
-            <p className="font-vt text-text-secondary text-sm mt-0.5">{event.description}</p>
+            <p className="font-vt text-text-secondary text-sm mt-0.5">
+              {event.description}
+            </p>
           )}
         </div>
         <div className="flex gap-1 flex-shrink-0">
@@ -115,34 +155,45 @@ function EventCard({
             <a
               href="/habits"
               className="font-pixel text-accent-gold hover:text-text-primary transition-colors"
-              style={{ fontSize: '8px' }}
+              style={{ fontSize: "12px" }}
             >
               HÁBITOS
             </a>
           ) : (
             <>
-              <button
+              <FlowButton
+                tone="green"
+                size="sm"
+                withArrows={false}
                 onClick={onToggle}
-                title={event.isCompleted ? 'Marcar pendiente' : 'Marcar completado'}
+                title={
+                  event.isCompleted ? "Marcar pendiente" : "Marcar completado"
+                }
                 className="font-pixel text-text-secondary hover:text-accent-green transition-colors"
-                style={{ fontSize: '10px' }}
+                style={{ fontSize: "12px" }}
               >
-                {event.isCompleted ? '↩' : '✓'}
-              </button>
-              <button
+                {event.isCompleted ? "↩" : "✓"}
+              </FlowButton>
+              <FlowButton
+                tone="ghost"
+                size="sm"
+                withArrows={false}
                 onClick={onEdit}
                 className="font-pixel text-text-secondary hover:text-accent-gold transition-colors"
-                style={{ fontSize: '10px' }}
+                style={{ fontSize: "12px" }}
               >
                 <E e="✏" />
-              </button>
-              <button
+              </FlowButton>
+              <FlowButton
+                tone="danger"
+                size="sm"
+                withArrows={false}
                 onClick={onDelete}
                 className="font-pixel text-text-secondary hover:text-accent-red transition-colors"
-                style={{ fontSize: '10px' }}
+                style={{ fontSize: "12px" }}
               >
                 <E e="✕" />
-              </button>
+              </FlowButton>
             </>
           )}
         </div>
@@ -161,37 +212,46 @@ function EventModal({
 }: {
   initial?: AgendaEvent;
   defaultDate?: string;
-  onSave: (data: Omit<AgendaEvent, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'isCompleted'>) => void;
+  onSave: (
+    data: Omit<
+      AgendaEvent,
+      "id" | "userId" | "createdAt" | "updatedAt" | "isCompleted"
+    >,
+  ) => void;
   onClose: () => void;
 }) {
   useEscapeKey(onClose);
   const todayLocal = defaultDate ?? new Date().toISOString().slice(0, 10);
-  const [title, setTitle] = useState(initial?.title ?? '');
-  const [category, setCategory] = useState(initial?.category ?? 'personal');
+  const [title, setTitle] = useState(initial?.title ?? "");
+  const [category, setCategory] = useState(initial?.category ?? "personal");
   const [startDate, setStartDate] = useState(
     initial ? initial.startDate.slice(0, 16) : `${todayLocal}T09:00`,
   );
-  const [endDate, setEndDate] = useState(initial?.endDate?.slice(0, 16) ?? '');
+  const [endDate, setEndDate] = useState(initial?.endDate?.slice(0, 16) ?? "");
   const [isAllDay, setIsAllDay] = useState(initial?.isAllDay ?? false);
-  const [location, setLocation] = useState(initial?.location ?? '');
+  const [location, setLocation] = useState(initial?.location ?? "");
   const [description, setDescription] = useState(
-    initial?.description && !initial.description.startsWith('Asignatura:') 
-      ? initial.description 
-      : (initial?.description?.split('\n\n')[1] ?? '')
+    initial?.description && !initial.description.startsWith("Asignatura:")
+      ? initial.description
+      : (initial?.description?.split("\n\n")[1] ?? ""),
   );
   const [asignatura, setAsignatura] = useState(() => {
-    if (initial?.description?.startsWith('Asignatura:')) {
-      return initial.description.split('\n')[0].replace('Asignatura: ', '');
+    if (initial?.description?.startsWith("Asignatura:")) {
+      return initial.description.split("\n")[0].replace("Asignatura: ", "");
     }
-    return '';
+    return "";
   });
-  const [reminder, setReminder] = useState<number | null>(initial?.reminder ?? null);
+  const [reminder, setReminder] = useState<number | null>(
+    initial?.reminder ?? null,
+  );
 
-  const isAcademic = ['tarea', 'examen', 'exposicion', 'clase'].includes(category);
+  const isAcademic = ["tarea", "examen", "exposicion", "clase"].includes(
+    category,
+  );
 
   function handleSubmit() {
     if (!title.trim()) return;
-    
+
     let finalDesc = description;
     if (isAcademic && asignatura.trim()) {
       finalDesc = `Asignatura: ${asignatura.trim()}\n\n${description}`.trim();
@@ -200,7 +260,9 @@ function EventModal({
     onSave({
       title: title.trim(),
       category,
-      startDate: isAllDay ? `${startDate.slice(0, 10)}T00:00:00.000Z` : new Date(startDate).toISOString(),
+      startDate: isAllDay
+        ? `${startDate.slice(0, 10)}T00:00:00.000Z`
+        : new Date(startDate).toISOString(),
       endDate: endDate ? new Date(endDate).toISOString() : undefined,
       isAllDay,
       location: location || undefined,
@@ -222,16 +284,16 @@ function EventModal({
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
         className="max-h-[86dvh] w-full max-w-md space-y-4 overflow-y-auto rounded-t-2xl border-2 border-border-pixel bg-bg-panel p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:max-h-[90vh] md:rounded-2xl md:p-5"
-        onClick={e => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
       >
-        <p className="font-pixel text-accent-gold" style={{ fontSize: '10px' }}>
-          {initial ? 'EDITAR EVENTO' : 'NUEVO EVENTO'}
+        <p className="font-pixel text-accent-gold" style={{ fontSize: "12px" }}>
+          {initial ? "EDITAR EVENTO" : "NUEVO EVENTO"}
         </p>
 
         <input
           type="text"
           value={title}
-          onChange={e => setTitle(e.target.value)}
+          onChange={(e) => setTitle(e.target.value)}
           placeholder="Título del evento *"
           autoFocus
           className="w-full bg-bg-deep border-2 border-border-pixel text-text-primary font-vt text-lg px-3 py-2 focus:border-accent-gold outline-none"
@@ -239,18 +301,25 @@ function EventModal({
 
         {/* Category */}
         <div>
-          <p className="font-pixel text-text-secondary mb-1" style={{ fontSize: '7px' }}>CATEGORÍA</p>
+          <p
+            className="font-pixel text-text-secondary mb-1"
+            style={{ fontSize: "12px" }}
+          >
+            CATEGORÍA
+          </p>
           <div className="grid grid-cols-2 gap-1.5">
-            {CATEGORIES.map(c => (
+            {CATEGORIES.map((c) => (
               <button
                 key={c.key}
                 onClick={() => setCategory(c.key)}
                 className={`flex min-h-11 min-w-0 items-center gap-1 border-2 px-2 font-pixel transition-colors`}
                 style={{
-                  fontSize: '7px',
-                  borderColor: category === c.key ? c.color : 'var(--border-pixel)',
-                  background: category === c.key ? `${c.color}20` : 'transparent',
-                  color: category === c.key ? c.color : 'var(--text-secondary)',
+                  fontSize: "12px",
+                  borderColor:
+                    category === c.key ? c.color : "var(--border-pixel)",
+                  background:
+                    category === c.key ? `${c.color}20` : "transparent",
+                  color: category === c.key ? c.color : "var(--text-secondary)",
                 }}
               >
                 <E e={c.emoji} /> {c.label}
@@ -260,12 +329,15 @@ function EventModal({
         </div>
 
         {/* All day toggle */}
-        <label htmlFor="allday" className="flex min-h-11 cursor-pointer items-center gap-2 font-vt text-base text-text-primary">
+        <label
+          htmlFor="allday"
+          className="flex min-h-11 cursor-pointer items-center gap-2 font-vt text-base text-text-primary"
+        >
           <input
             type="checkbox"
             id="allday"
             checked={isAllDay}
-            onChange={e => setIsAllDay(e.target.checked)}
+            onChange={(e) => setIsAllDay(e.target.checked)}
             className="accent-accent-gold"
           />
           Todo el día
@@ -274,31 +346,46 @@ function EventModal({
         {/* Dates */}
         {isAllDay ? (
           <div>
-            <p className="font-pixel text-text-secondary mb-1" style={{ fontSize: '7px' }}>FECHA</p>
+            <p
+              className="font-pixel text-text-secondary mb-1"
+              style={{ fontSize: "12px" }}
+            >
+              FECHA
+            </p>
             <input
               type="date"
               value={startDate.slice(0, 10)}
-              onChange={e => setStartDate(`${e.target.value}T00:00`)}
+              onChange={(e) => setStartDate(`${e.target.value}T00:00`)}
               className="w-full bg-bg-deep border-2 border-border-pixel text-text-primary font-vt text-base px-3 py-2 focus:border-accent-gold outline-none"
             />
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <p className="font-pixel text-text-secondary mb-1" style={{ fontSize: '7px' }}>INICIO</p>
+              <p
+                className="font-pixel text-text-secondary mb-1"
+                style={{ fontSize: "12px" }}
+              >
+                INICIO
+              </p>
               <input
                 type="datetime-local"
                 value={startDate}
-                onChange={e => setStartDate(e.target.value)}
+                onChange={(e) => setStartDate(e.target.value)}
                 className="min-h-11 w-full bg-bg-deep border-2 border-border-pixel text-text-primary font-vt text-sm px-2 py-1.5 focus:border-accent-gold outline-none"
               />
             </div>
             <div>
-              <p className="font-pixel text-text-secondary mb-1" style={{ fontSize: '7px' }}>FIN (OPCIONAL)</p>
+              <p
+                className="font-pixel text-text-secondary mb-1"
+                style={{ fontSize: "12px" }}
+              >
+                FIN (OPCIONAL)
+              </p>
               <input
                 type="datetime-local"
                 value={endDate}
-                onChange={e => setEndDate(e.target.value)}
+                onChange={(e) => setEndDate(e.target.value)}
                 className="min-h-11 w-full bg-bg-deep border-2 border-border-pixel text-text-primary font-vt text-sm px-2 py-1.5 focus:border-accent-gold outline-none"
               />
             </div>
@@ -309,7 +396,7 @@ function EventModal({
         <input
           type="text"
           value={location}
-          onChange={e => setLocation(e.target.value)}
+          onChange={(e) => setLocation(e.target.value)}
           placeholder=" Lugar (opcional)"
           className="w-full bg-bg-deep border-2 border-border-pixel text-text-primary font-vt text-base px-3 py-2 focus:border-accent-gold outline-none"
         />
@@ -319,7 +406,7 @@ function EventModal({
           <input
             type="text"
             value={asignatura}
-            onChange={e => setAsignatura(e.target.value)}
+            onChange={(e) => setAsignatura(e.target.value)}
             placeholder=" Asignatura (ej. Matemáticas)"
             className="w-full bg-bg-deep border-2 border-border-pixel text-text-primary font-vt text-base px-3 py-2 focus:border-accent-gold outline-none"
           />
@@ -328,7 +415,7 @@ function EventModal({
         {/* Description */}
         <textarea
           value={description}
-          onChange={e => setDescription(e.target.value)}
+          onChange={(e) => setDescription(e.target.value)}
           placeholder="Descripción (opcional)"
           rows={2}
           className="w-full bg-bg-deep border-2 border-border-pixel text-text-primary font-vt text-base px-3 py-2 focus:border-accent-gold outline-none resize-none"
@@ -336,14 +423,21 @@ function EventModal({
 
         {/* Reminder */}
         <div>
-          <p className="font-pixel text-text-secondary mb-1" style={{ fontSize: '7px' }}>RECORDATORIO</p>
+          <p
+            className="font-pixel text-text-secondary mb-1"
+            style={{ fontSize: "12px" }}
+          >
+            RECORDATORIO
+          </p>
           <select
-            value={reminder ?? ''}
-            onChange={e => setReminder(e.target.value === '' ? null : Number(e.target.value))}
+            value={reminder ?? ""}
+            onChange={(e) =>
+              setReminder(e.target.value === "" ? null : Number(e.target.value))
+            }
             className="w-full bg-bg-deep border-2 border-border-pixel text-text-primary font-vt text-base px-3 py-2 focus:border-accent-gold outline-none"
           >
-            {REMINDERS.map(r => (
-              <option key={r.label} value={r.value ?? ''}>
+            {REMINDERS.map((r) => (
+              <option key={r.label} value={r.value ?? ""}>
                 {r.label}
               </option>
             ))}
@@ -351,9 +445,16 @@ function EventModal({
         </div>
 
         <div className="flex gap-2">
-          <PixelButton variant="ghost" onClick={onClose} className="flex-1">Cancelar</PixelButton>
-          <PixelButton variant="primary" onClick={handleSubmit} className="flex-1" disabled={!title.trim()}>
-            {initial ? 'Guardar' : 'Crear evento'}
+          <PixelButton variant="ghost" onClick={onClose} className="flex-1">
+            Cancelar
+          </PixelButton>
+          <PixelButton
+            variant="primary"
+            onClick={handleSubmit}
+            className="flex-1"
+            disabled={!title.trim()}
+          >
+            {initial ? "Guardar" : "Crear evento"}
           </PixelButton>
         </div>
       </motion.div>
@@ -365,7 +466,7 @@ function EventModal({
 
 export default function AgendaPage() {
   const toast = useToast();
-  const [view, setView] = useState<ViewMode>('day');
+  const [view, setView] = useState<ViewMode>("day");
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<AgendaEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -375,8 +476,16 @@ export default function AgendaPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const from = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).toISOString();
-      const to   = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, 1).toISOString();
+      const from = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth(),
+        1,
+      ).toISOString();
+      const to = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth() + 2,
+        1,
+      ).toISOString();
       const data = await agendaService.fetchEvents({ from, to });
       setEvents(data);
     } catch {
@@ -386,27 +495,34 @@ export default function AgendaPage() {
     }
   }, [currentDate]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
-  async function handleCreate(body: Parameters<typeof agendaService.createEvent>[0]) {
+  async function handleCreate(
+    body: Parameters<typeof agendaService.createEvent>[0],
+  ) {
     try {
       await agendaService.createEvent(body);
       setShowModal(false);
       await load();
-      toast.success('Evento creado');
+      toast.success("Evento creado");
     } catch {
-      toast.error('Error al crear evento');
+      toast.error("Error al crear evento");
     }
   }
 
-  async function handleUpdate(id: string, body: Parameters<typeof agendaService.updateEvent>[1]) {
+  async function handleUpdate(
+    id: string,
+    body: Parameters<typeof agendaService.updateEvent>[1],
+  ) {
     try {
       await agendaService.updateEvent(id, body);
       setEditingEvent(null);
       await load();
-      toast.success('Evento actualizado');
+      toast.success("Evento actualizado");
     } catch {
-      toast.error('Error al actualizar evento');
+      toast.error("Error al actualizar evento");
     }
   }
 
@@ -414,49 +530,74 @@ export default function AgendaPage() {
     try {
       await agendaService.deleteEvent(id);
       await load();
-      toast.success('Evento eliminado');
+      toast.success("Evento eliminado");
     } catch {
-      toast.error('Error al eliminar evento');
+      toast.error("Error al eliminar evento");
     }
   }
 
   async function handleToggle(event: AgendaEvent) {
-    await handleUpdate(event.id, { isCompleted: !event.isCompleted } as Partial<AgendaEvent>);
+    await handleUpdate(event.id, {
+      isCompleted: !event.isCompleted,
+    } as Partial<AgendaEvent>);
   }
 
   // ── Day view ────────────────────────────────────────────────────────────────
 
   function DayView() {
-    const dayEvents = events.filter((event) => isEventOnDay(event, currentDate));
-    const dateLabel = currentDate.toLocaleDateString('es-CO', {
-      weekday: 'long', day: 'numeric', month: 'long',
+    const dayEvents = events.filter((event) =>
+      isEventOnDay(event, currentDate),
+    );
+    const dateLabel = currentDate.toLocaleDateString("es-CO", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
     });
     return (
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <button
-            onClick={() => { const d = new Date(currentDate); d.setDate(d.getDate() - 1); setCurrentDate(d); }}
+            onClick={() => {
+              const d = new Date(currentDate);
+              d.setDate(d.getDate() - 1);
+              setCurrentDate(d);
+            }}
             className="flex h-11 w-11 items-center justify-center font-pixel text-text-secondary hover:text-accent-gold transition-colors"
-            style={{ fontSize: '10px' }}
-          >◀</button>
-          <p className="font-vt text-text-primary text-xl capitalize">{dateLabel}</p>
+            style={{ fontSize: "12px" }}
+          >
+            ◀
+          </button>
+          <p className="font-vt text-text-primary text-xl capitalize">
+            {dateLabel}
+          </p>
           <button
-            onClick={() => { const d = new Date(currentDate); d.setDate(d.getDate() + 1); setCurrentDate(d); }}
+            onClick={() => {
+              const d = new Date(currentDate);
+              d.setDate(d.getDate() + 1);
+              setCurrentDate(d);
+            }}
             className="flex h-11 w-11 items-center justify-center font-pixel text-text-secondary hover:text-accent-gold transition-colors"
-            style={{ fontSize: '10px' }}
-          >▶</button>
+            style={{ fontSize: "12px" }}
+          >
+            ▶
+          </button>
         </div>
         {dayEvents.length === 0 ? (
           <PixelPanel className="p-6 text-center">
-            <p className="font-vt text-text-secondary text-lg">Sin eventos este día</p>
-            <p className="font-pixel text-text-muted mt-1" style={{ fontSize: '8px' }}>
+            <p className="font-vt text-text-secondary text-lg">
+              Sin eventos este día
+            </p>
+            <p
+              className="font-pixel text-text-muted mt-1"
+              style={{ fontSize: "12px" }}
+            >
               Pulsa + para agregar uno
             </p>
           </PixelPanel>
         ) : (
           <div className="space-y-2">
             <AnimatePresence>
-              {dayEvents.map(e => (
+              {dayEvents.map((e) => (
                 <EventCard
                   key={e.id}
                   event={e}
@@ -487,50 +628,89 @@ export default function AgendaPage() {
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <button
-            onClick={() => { const d = new Date(currentDate); d.setDate(d.getDate() - 7); setCurrentDate(d); }}
+            onClick={() => {
+              const d = new Date(currentDate);
+              d.setDate(d.getDate() - 7);
+              setCurrentDate(d);
+            }}
             className="flex h-11 w-11 items-center justify-center font-pixel text-text-secondary hover:text-accent-gold transition-colors"
-            style={{ fontSize: '10px' }}
-          >◀</button>
+            style={{ fontSize: "12px" }}
+          >
+            ◀
+          </button>
           <p className="font-vt text-text-primary text-base">
-            {days[0].toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })} —{' '}
-            {days[6].toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' })}
+            {days[0].toLocaleDateString("es-CO", {
+              day: "numeric",
+              month: "short",
+            })}{" "}
+            —{" "}
+            {days[6].toLocaleDateString("es-CO", {
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+            })}
           </p>
           <button
-            onClick={() => { const d = new Date(currentDate); d.setDate(d.getDate() + 7); setCurrentDate(d); }}
+            onClick={() => {
+              const d = new Date(currentDate);
+              d.setDate(d.getDate() + 7);
+              setCurrentDate(d);
+            }}
             className="flex h-11 w-11 items-center justify-center font-pixel text-text-secondary hover:text-accent-gold transition-colors"
-            style={{ fontSize: '10px' }}
-          >▶</button>
+            style={{ fontSize: "12px" }}
+          >
+            ▶
+          </button>
         </div>
         <div className="grid grid-cols-7 gap-1">
           {days.map((day, i) => {
-            const dayEvents = events.filter((event) => isEventOnDay(event, day));
+            const dayEvents = events.filter((event) =>
+              isEventOnDay(event, day),
+            );
             const isToday = isSameDay(day, new Date());
-            const DAY_NAMES = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+            const DAY_NAMES = ["L", "M", "X", "J", "V", "S", "D"];
             return (
               <div
                 key={i}
                 className={`border rounded-sm p-1 cursor-pointer transition-colors min-h-[80px] ${
-                  isToday ? 'border-accent-gold' : 'border-border-pixel'
+                  isToday ? "border-accent-gold" : "border-border-pixel"
                 }`}
-                onClick={() => { setCurrentDate(day); setView('day'); }}
+                onClick={() => {
+                  setCurrentDate(day);
+                  setView("day");
+                }}
               >
-                <p className={`font-pixel text-center mb-1 ${isToday ? 'text-accent-gold' : 'text-text-secondary'}`} style={{ fontSize: '7px' }}>
-                  {DAY_NAMES[i]}<br />{day.getDate()}
+                <p
+                  className={`font-pixel text-center mb-1 ${isToday ? "text-accent-gold" : "text-text-secondary"}`}
+                  style={{ fontSize: "12px" }}
+                >
+                  {DAY_NAMES[i]}
+                  <br />
+                  {day.getDate()}
                 </p>
-                {dayEvents.slice(0, 3).map(e => {
+                {dayEvents.slice(0, 3).map((e) => {
                   const cat = catInfo(e.category);
                   return (
                     <div
                       key={e.id}
                       className="text-xs px-1 py-0.5 rounded mb-0.5 truncate"
-                      style={{ background: `${cat.color}30`, color: cat.color, fontSize: '7px' }}
+                      style={{
+                        background: `${cat.color}30`,
+                        color: cat.color,
+                        fontSize: "12px",
+                      }}
                     >
                       {e.title}
                     </div>
                   );
                 })}
                 {dayEvents.length > 3 && (
-                  <p className="font-pixel text-text-muted" style={{ fontSize: '6px' }}>+{dayEvents.length - 3}</p>
+                  <p
+                    className="font-pixel text-text-muted"
+                    style={{ fontSize: "12px" }}
+                  >
+                    +{dayEvents.length - 3}
+                  </p>
                 )}
               </div>
             );
@@ -543,7 +723,7 @@ export default function AgendaPage() {
   // ── Month view ──────────────────────────────────────────────────────────────
 
   function MonthView() {
-    const year  = currentDate.getFullYear();
+    const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     const firstDay = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -551,10 +731,16 @@ export default function AgendaPage() {
 
     const cells: (Date | null)[] = [
       ...Array(offset).fill(null),
-      ...Array.from({ length: daysInMonth }, (_, i) => new Date(year, month, i + 1)),
+      ...Array.from(
+        { length: daysInMonth },
+        (_, i) => new Date(year, month, i + 1),
+      ),
     ];
 
-    const monthLabel = currentDate.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' });
+    const monthLabel = currentDate.toLocaleDateString("es-CO", {
+      month: "long",
+      year: "numeric",
+    });
 
     return (
       <div className="space-y-3">
@@ -562,26 +748,40 @@ export default function AgendaPage() {
           <button
             onClick={() => setCurrentDate(new Date(year, month - 1, 1))}
             className="flex h-11 w-11 items-center justify-center font-pixel text-text-secondary hover:text-accent-gold transition-colors"
-            style={{ fontSize: '10px' }}
-          >◀</button>
-          <p className="font-vt text-text-primary text-xl capitalize">{monthLabel}</p>
+            style={{ fontSize: "12px" }}
+          >
+            ◀
+          </button>
+          <p className="font-vt text-text-primary text-xl capitalize">
+            {monthLabel}
+          </p>
           <button
             onClick={() => setCurrentDate(new Date(year, month + 1, 1))}
             className="flex h-11 w-11 items-center justify-center font-pixel text-text-secondary hover:text-accent-gold transition-colors"
-            style={{ fontSize: '10px' }}
-          >▶</button>
+            style={{ fontSize: "12px" }}
+          >
+            ▶
+          </button>
         </div>
 
         <div className="grid grid-cols-7 gap-0.5 text-center mb-1">
-          {['L','M','X','J','V','S','D'].map(d => (
-            <p key={d} className="font-pixel text-text-muted" style={{ fontSize: '7px' }}>{d}</p>
+          {["L", "M", "X", "J", "V", "S", "D"].map((d) => (
+            <p
+              key={d}
+              className="font-pixel text-text-muted"
+              style={{ fontSize: "12px" }}
+            >
+              {d}
+            </p>
           ))}
         </div>
 
         <div className="grid grid-cols-7 gap-0.5">
           {cells.map((day, i) => {
             if (!day) return <div key={i} />;
-            const dayEvents = events.filter((event) => isEventOnDay(event, day));
+            const dayEvents = events.filter((event) =>
+              isEventOnDay(event, day),
+            );
             const isToday = isSameDay(day, new Date());
             const isSelected = isSameDay(day, currentDate);
 
@@ -589,16 +789,25 @@ export default function AgendaPage() {
               <div
                 key={i}
                 className={`border rounded-sm p-1 cursor-pointer transition-colors min-h-[44px] ${
-                  isSelected ? 'border-accent-gold bg-accent-gold/10' :
-                  isToday ? 'border-accent-gold/50' : 'border-border-pixel hover:border-accent-gold/40'
+                  isSelected
+                    ? "border-accent-gold bg-accent-gold/10"
+                    : isToday
+                      ? "border-accent-gold/50"
+                      : "border-border-pixel hover:border-accent-gold/40"
                 }`}
-                onClick={() => { setCurrentDate(day); setView('day'); }}
+                onClick={() => {
+                  setCurrentDate(day);
+                  setView("day");
+                }}
               >
-                <p className={`font-pixel text-center ${isToday ? 'text-accent-gold' : 'text-text-secondary'}`} style={{ fontSize: '8px' }}>
+                <p
+                  className={`font-pixel text-center ${isToday ? "text-accent-gold" : "text-text-secondary"}`}
+                  style={{ fontSize: "12px" }}
+                >
                   {day.getDate()}
                 </p>
                 <div className="flex flex-wrap gap-0.5 justify-center mt-0.5">
-                  {dayEvents.slice(0, 3).map(e => {
+                  {dayEvents.slice(0, 3).map((e) => {
                     const cat = catInfo(e.category);
                     return (
                       <div
@@ -617,15 +826,26 @@ export default function AgendaPage() {
 
         {/* Selected day events */}
         {(() => {
-          const dayEvents = events.filter((event) => isEventOnDay(event, currentDate));
+          const dayEvents = events.filter((event) =>
+            isEventOnDay(event, currentDate),
+          );
           if (dayEvents.length === 0) return null;
           return (
             <div className="space-y-2 mt-2">
-              <p className="font-pixel text-text-secondary" style={{ fontSize: '8px' }}>
-                {currentDate.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase()}
+              <p
+                className="font-pixel text-text-secondary"
+                style={{ fontSize: "12px" }}
+              >
+                {currentDate
+                  .toLocaleDateString("es-CO", {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                  })
+                  .toUpperCase()}
               </p>
               <AnimatePresence>
-                {dayEvents.map(e => (
+                {dayEvents.map((e) => (
                   <EventCard
                     key={e.id}
                     event={e}
@@ -659,7 +879,7 @@ export default function AgendaPage() {
   useEffect(() => {
     // Check if redirect contains OAuth code
     const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get('code');
+    const code = urlParams.get("code");
 
     if (code && handledCodeRef.current !== code) {
       handledCodeRef.current = code;
@@ -671,13 +891,19 @@ export default function AgendaPage() {
       agendaService
         .handleGoogleCallback(code, redirectUri)
         .then(() => {
-          toast.success('¡Google Calendar vinculado con éxito!');
+          toast.success("¡Google Calendar vinculado con éxito!");
           setGoogleConnected(true);
           load();
         })
         .catch((err: unknown) => {
-          const errorObj = err as { response?: { data?: { error?: string } }; message?: string };
-          const msg = errorObj.response?.data?.error || errorObj.message || 'Error al vincular Google Calendar';
+          const errorObj = err as {
+            response?: { data?: { error?: string } };
+            message?: string;
+          };
+          const msg =
+            errorObj.response?.data?.error ||
+            errorObj.message ||
+            "Error al vincular Google Calendar";
           toast.error(msg);
         });
     }
@@ -689,8 +915,14 @@ export default function AgendaPage() {
       const url = await agendaService.getGoogleAuthUrl(redirectUri);
       window.location.href = url;
     } catch (err: unknown) {
-      const errorObj = err as { response?: { data?: { error?: string } }; message?: string };
-      const msg = errorObj.response?.data?.error || errorObj.message || 'No se pudo obtener la URL de autorización de Google.';
+      const errorObj = err as {
+        response?: { data?: { error?: string } };
+        message?: string;
+      };
+      const msg =
+        errorObj.response?.data?.error ||
+        errorObj.message ||
+        "No se pudo obtener la URL de autorización de Google.";
       toast.error(msg);
     }
   }
@@ -703,8 +935,14 @@ export default function AgendaPage() {
       setGoogleConnected(true);
       await load();
     } catch (err: unknown) {
-      const errorObj = err as { response?: { data?: { error?: string } }; message?: string };
-      const msg = errorObj.response?.data?.error || errorObj.message || 'Error al sincronizar con Google Calendar';
+      const errorObj = err as {
+        response?: { data?: { error?: string } };
+        message?: string;
+      };
+      const msg =
+        errorObj.response?.data?.error ||
+        errorObj.message ||
+        "Error al sincronizar con Google Calendar";
       toast.error(msg);
     } finally {
       setSyncingGoogle(false);
@@ -714,11 +952,17 @@ export default function AgendaPage() {
   async function handleDisconnectGoogle() {
     try {
       await agendaService.disconnectGoogleCalendar();
-      toast.success('Google Calendar desconectado.');
+      toast.success("Google Calendar desconectado.");
       setGoogleConnected(false);
     } catch (err: unknown) {
-      const errorObj = err as { response?: { data?: { error?: string } }; message?: string };
-      const msg = errorObj.response?.data?.error || errorObj.message || 'Error al desconectar Google Calendar';
+      const errorObj = err as {
+        response?: { data?: { error?: string } };
+        message?: string;
+      };
+      const msg =
+        errorObj.response?.data?.error ||
+        errorObj.message ||
+        "Error al desconectar Google Calendar";
       toast.error(msg);
     }
   }
@@ -728,17 +972,40 @@ export default function AgendaPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="font-pixel text-accent-gold" style={{ fontSize: '14px' }}><E e="📅" /> AGENDA</h1>
-          <p className="font-vt text-text-secondary text-base">Tu tiempo, tus misiones</p>
+          <h1
+            className="font-pixel text-accent-gold"
+            style={{ fontSize: "14px" }}
+          >
+            <E e="📅" /> AGENDA
+          </h1>
+          <p className="font-vt text-text-secondary text-base">
+            Tu tiempo, tus misiones
+          </p>
         </div>
         <div className="flex gap-2 flex-wrap items-center">
-          <PixelButton variant="ghost" onClick={handleConnectGoogle} className="text-xs flex items-center gap-1">
-            <span className="text-accent-gold"><E e="📆" /></span> {googleConnected ? 'Re-conectar Google' : 'Conectar Google'}
+          <PixelButton
+            variant="ghost"
+            onClick={handleConnectGoogle}
+            className="text-xs flex items-center gap-1"
+          >
+            <span className="text-accent-gold">
+              <E e="📆" />
+            </span>{" "}
+            {googleConnected ? "Re-conectar Google" : "Conectar Google"}
           </PixelButton>
-          <PixelButton variant="secondary" onClick={handleSyncGoogle} disabled={syncingGoogle} className="text-xs">
-            {syncingGoogle ? 'Sincronizando...' : ' Sincronizar'}
+          <PixelButton
+            variant="secondary"
+            onClick={handleSyncGoogle}
+            disabled={syncingGoogle}
+            className="text-xs"
+          >
+            {syncingGoogle ? "Sincronizando..." : " Sincronizar"}
           </PixelButton>
-          <PixelButton variant="secondary" onClick={() => setCurrentDate(new Date())} className="text-sm">
+          <PixelButton
+            variant="secondary"
+            onClick={() => setCurrentDate(new Date())}
+            className="text-sm"
+          >
             Hoy
           </PixelButton>
           <PixelButton variant="primary" onClick={() => setShowModal(true)}>
@@ -750,61 +1017,76 @@ export default function AgendaPage() {
       {/* Google Sync Banner */}
       <PixelPanel className="p-3 bg-bg-deep/40 flex items-center justify-between flex-wrap gap-2 border-border-pixel">
         <div className="flex items-center gap-2">
-          <span className="text-lg"><E e="🗓" /></span>
+          <span className="text-lg">
+            <E e="🗓" />
+          </span>
           <div>
-            <p className="font-pixel text-text-primary" style={{ fontSize: '8px' }}>
+            <p
+              className="font-pixel text-text-primary"
+              style={{ fontSize: "12px" }}
+            >
               INTEGRACIÓN GOOGLE CALENDAR
             </p>
             <p className="font-vt text-text-secondary text-sm">
-              Sincroniza tus reuniones y eventos de Google Calendar; los hábitos que elijas se añaden como series recurrentes separadas.
+              Sincroniza tus reuniones y eventos de Google Calendar; los hábitos
+              que elijas se añaden como series recurrentes separadas.
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button
+          <FlowButton
+            tone="primary"
+            withArrows={false}
             onClick={handleSyncGoogle}
             disabled={syncingGoogle}
             className="font-pixel px-3 py-1.5 bg-accent-gold/20 border-2 border-accent-gold text-accent-gold hover:bg-accent-gold/30 transition-colors text-xs flex items-center gap-1"
-            style={{ fontSize: '8px' }}
+            style={{ fontSize: "12px" }}
           >
-            {syncingGoogle ? '⏳ Sincronizando...' : ' Sincronizar Google Calendar'}
-          </button>
-          <button
+            {syncingGoogle
+              ? "⏳ Sincronizando..."
+              : " Sincronizar Google Calendar"}
+          </FlowButton>
+          <FlowButton
+            tone="ghost"
+            withArrows={false}
             onClick={handleDisconnectGoogle}
             className="font-pixel px-2 py-1.5 text-text-muted hover:text-accent-red transition-colors text-xs"
-            style={{ fontSize: '8px' }}
+            style={{ fontSize: "12px" }}
             title="Desconectar cuenta de Google"
           >
             <E e="🔌" /> Desconectar
-          </button>
+          </FlowButton>
         </div>
       </PixelPanel>
 
       {/* View tabs */}
       <div className="flex gap-0 border-b-2 border-border-pixel">
-        {(['day', 'week', 'month'] as ViewMode[]).map(v => (
+        {(["day", "week", "month"] as ViewMode[]).map((v) => (
           <button
             key={v}
             onClick={() => setView(v)}
             className={`min-h-11 font-pixel px-4 py-2 border-b-2 -mb-0.5 transition-colors ${
               view === v
-                ? 'border-accent-gold text-accent-gold'
-                : 'border-transparent text-text-secondary hover:text-text-primary'
+                ? "border-accent-gold text-accent-gold"
+                : "border-transparent text-text-secondary hover:text-text-primary"
             }`}
-            style={{ fontSize: '8px' }}
+            style={{ fontSize: "12px" }}
           >
-            {v === 'day' ? 'DÍA' : v === 'week' ? 'SEMANA' : 'MES'}
+            {v === "day" ? "DÍA" : v === "week" ? "SEMANA" : "MES"}
           </button>
         ))}
       </div>
 
-      <LoadingGate loading={loading} fallback={<ModernLoader words={[...LOADING_COPY.agenda]} />}>
-        {loading ? null : view === 'day' ? (
-        <DayView />
-      ) : view === 'week' ? (
-        <WeekView />
-      ) : (
-        <MonthView />
+      <LoadingGate
+        loading={loading}
+        fallback={<ModernLoader words={[...LOADING_COPY.agenda]} />}
+      >
+        {loading ? null : view === "day" ? (
+          <DayView />
+        ) : view === "week" ? (
+          <WeekView />
+        ) : (
+          <MonthView />
         )}
       </LoadingGate>
 
@@ -820,7 +1102,9 @@ export default function AgendaPage() {
           <EventModal
             initial={editingEvent}
             defaultDate={defaultDate}
-            onSave={d => handleUpdate(editingEvent.id, d as Partial<AgendaEvent>)}
+            onSave={(d) =>
+              handleUpdate(editingEvent.id, d as Partial<AgendaEvent>)
+            }
             onClose={() => setEditingEvent(null)}
           />
         )}

@@ -1,3 +1,4 @@
+import { FlowButton } from '@/components/ui/flow-button';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Swords, Plus, Users, Trophy } from 'lucide-react';
@@ -86,19 +87,21 @@ export default function ChallengesPage() {
           <Swords className="text-accent-crimson" size={28} />
           <h1 className="font-pixel text-accent-crimson" style={{ fontSize: '16px' }}>RETOS</h1>
         </div>
-        <button
+        <FlowButton
+          tone="primary"
+          withArrows={false}
           onClick={() => setCreating(true)}
           className="flex items-center gap-2 px-4 py-2 bg-bg-panel border-2 border-accent-gold font-pixel text-accent-gold hover:bg-accent-gold hover:text-bg-deep transition-colors"
-          style={{ fontSize: '9px' }}
+          style={{ fontSize: '12px' }}
         >
           <Plus size={14} /> NUEVO RETO
-        </button>
+        </FlowButton>
       </div>
 
       {/* Create form */}
       {creating && (
         <div className="bg-bg-panel border-4 border-border-pixel p-4 space-y-3">
-          <div className="font-pixel text-accent-gold mb-3" style={{ fontSize: '11px' }}>CREAR RETO</div>
+          <div className="font-pixel text-accent-gold mb-3" style={{ fontSize: '12px' }}>CREAR RETO</div>
           <input
             placeholder="Título del reto"
             value={form.title}
@@ -116,7 +119,7 @@ export default function ChallengesPage() {
           </select>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="font-pixel text-text-dim block mb-1" style={{ fontSize: '9px' }}>META</label>
+              <label className="font-pixel text-text-dim block mb-1" style={{ fontSize: '12px' }}>META</label>
               <input
                 type="number" min={1}
                 value={form.targetValue}
@@ -125,7 +128,7 @@ export default function ChallengesPage() {
               />
             </div>
             <div>
-              <label className="font-pixel text-text-dim block mb-1" style={{ fontSize: '9px' }}>GOLD APUESTA</label>
+              <label className="font-pixel text-text-dim block mb-1" style={{ fontSize: '12px' }}>GOLD APUESTA</label>
               <input
                 type="number" min={0}
                 value={form.goldWager}
@@ -134,7 +137,7 @@ export default function ChallengesPage() {
               />
             </div>
             <div>
-              <label className="font-pixel text-text-dim block mb-1" style={{ fontSize: '9px' }}>INICIO</label>
+              <label className="font-pixel text-text-dim block mb-1" style={{ fontSize: '12px' }}>INICIO</label>
               <input
                 type="date" value={form.startDate}
                 onChange={(e) => setForm({ ...form, startDate: e.target.value })}
@@ -142,7 +145,7 @@ export default function ChallengesPage() {
               />
             </div>
             <div>
-              <label className="font-pixel text-text-dim block mb-1" style={{ fontSize: '9px' }}>FIN</label>
+              <label className="font-pixel text-text-dim block mb-1" style={{ fontSize: '12px' }}>FIN</label>
               <input
                 type="date" value={form.endDate}
                 onChange={(e) => setForm({ ...form, endDate: e.target.value })}
@@ -151,20 +154,24 @@ export default function ChallengesPage() {
             </div>
           </div>
           <div className="flex gap-2">
-            <button
+            <FlowButton
+              tone="primary"
+              withArrows={false}
               onClick={handleCreate}
               className="flex-1 py-2 bg-accent-gold border-2 border-accent-gold text-bg-deep font-pixel hover:opacity-90 transition-opacity"
-              style={{ fontSize: '9px' }}
+              style={{ fontSize: '12px' }}
             >
               CREAR
-            </button>
-            <button
+            </FlowButton>
+            <FlowButton
+              tone="ghost"
+              withArrows={false}
               onClick={() => setCreating(false)}
               className="flex-1 py-2 border-2 border-border-pixel text-text-dim font-pixel hover:text-text-primary transition-colors"
-              style={{ fontSize: '9px' }}
+              style={{ fontSize: '12px' }}
             >
               CANCELAR
-            </button>
+            </FlowButton>
           </div>
         </div>
       )}
@@ -221,7 +228,7 @@ export default function ChallengesPage() {
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
-                    <div className="font-pixel text-text-primary mb-1 truncate" style={{ fontSize: '11px' }}>
+                    <div className="font-pixel text-text-primary mb-1 truncate" style={{ fontSize: '12px' }}>
                       {c.title}
                     </div>
                     <div className="flex items-center gap-2 font-vt text-text-dim text-xs">
@@ -261,16 +268,19 @@ export default function ChallengesPage() {
                   </div>
 
                   {!c.isParticipant && c.status === 'ACTIVE' && (
-                    <button
+                    <FlowButton
+                      tone="primary"
+                      size="sm"
+                      withArrows={false}
                       onClick={() => handleJoin(c.id)}
                       className="px-3 py-1 bg-accent-crimson/20 border border-accent-crimson text-accent-crimson font-pixel hover:bg-accent-crimson hover:text-white transition-colors"
-                      style={{ fontSize: '9px' }}
+                      style={{ fontSize: '12px' }}
                     >
                       UNIRSE
-                    </button>
+                    </FlowButton>
                   )}
                   {c.isParticipant && (
-                    <span className="font-pixel text-accent-emerald" style={{ fontSize: '9px' }}><E e="✓" /> PARTICIPANDO</span>
+                    <span className="font-pixel text-accent-emerald" style={{ fontSize: '12px' }}><E e="✓" /> PARTICIPANDO</span>
                   )}
                 </div>
 
