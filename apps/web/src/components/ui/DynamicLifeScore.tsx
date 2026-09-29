@@ -82,8 +82,8 @@ export function DynamicLifeScore({ totalScore, zones, size = 220, stroke = 13, g
               {totalScore}
             </motion.span>
             <span style={{
-              fontSize: Math.max(9, size * 0.055), marginTop: size * 0.04, lineHeight: 1,
-              color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em',
+              fontSize: Math.max(12, size * 0.055), marginTop: size * 0.04, lineHeight: 1,
+              color: 'var(--text-muted)',
             }}>
               Life Score
             </span>

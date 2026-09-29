@@ -478,7 +478,7 @@ function ZoneCard({
                 {zone.quests.length > 0 && (
                   <div>
                     <p
-                      className="text-xs font-bold uppercase tracking-wider mb-1.5"
+                      className="text-sm font-medium mb-1.5"
                       style={{ color: "var(--text-muted)" }}
                     >
                       <E e="⚔" /> Misiones ({zone.quests.length})
@@ -549,7 +549,7 @@ function ZoneCard({
                 {zone.habits.length > 0 && (
                   <div>
                     <p
-                      className="text-xs font-bold uppercase tracking-wider mb-1.5"
+                      className="text-sm font-medium mb-1.5"
                       style={{ color: "var(--text-muted)" }}
                     >
                       <E e="🔥" /> Hábitos ({zone.habits.length})

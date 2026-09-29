@@ -244,7 +244,7 @@ function LifeScoreWidget({ score }: { score: LifeScore }) {
         </div>
         <div className="flex-1 min-w-0">
           <div
-            className="text-xs font-bold uppercase tracking-[0.1em]"
+            className="text-sm font-medium"
             style={{ color: "var(--primary)" }}
           >
             Life Score
@@ -319,7 +319,7 @@ function WeeklySummaryCard({ summary }: { summary: WeeklySummaryCardData }) {
     <PixelPanel className="p-4">
       <div className="flex items-center justify-between gap-3 mb-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--accent-gold)]">
+          <p className="text-sm font-medium text-[var(--accent-gold)]">
             <E e="📊" /> Resumen semanal
           </p>
           <p className="text-xs text-[var(--text-secondary)]">{weekLabel}</p>
@@ -369,7 +369,7 @@ function RecoveryChallengeCard({
       <div className="flex items-start gap-3">
         <div className="text-2xl">{challenge.habitIcon}</div>
         <div className="flex-1">
-          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--accent-gold)]">
+          <p className="text-sm font-medium text-[var(--accent-gold)]">
             Reto de recuperación
           </p>
           <p className="mt-1 text-sm font-semibold text-[var(--text-primary)]">
@@ -423,7 +423,7 @@ function SevenDayGuideCard({
     >
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--accent-blue)]">
+          <p className="text-sm font-medium text-[var(--accent-blue)]">
             Semana del Héroe
           </p>
           <p className="mt-1 text-sm font-semibold text-[var(--text-primary)]">
@@ -527,7 +527,7 @@ function RecoveryOverlay({
                 </motion.span>
               ))}
             </div>
-            <p className="relative text-xs font-bold uppercase tracking-[0.18em] text-[var(--accent-gold)]">
+            <p className="relative text-sm font-medium text-[var(--accent-gold)]">
               ¡Racha recuperada!
             </p>
             <h3 className="relative mt-3 text-3xl font-black text-white">
@@ -839,11 +839,11 @@ export default function DashboardPage() {
                 <p className="truncate text-base font-semibold text-[var(--text-primary)]">
                   {user.displayName}
                 </p>
-                <p className="mt-0.5 truncate text-xs font-semibold uppercase tracking-[0.11em] text-[var(--accent-gold)]">
+                <p className="mt-0.5 truncate text-sm font-medium text-[var(--accent-gold)]">
                   {getLevelTitle(user.level)}
                 </p>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <span className="rounded-full bg-[var(--accent-gold)] px-2.5 py-1 text-xs font-bold tracking-[0.08em] text-white">
+                  <span className="rounded-full bg-[var(--accent-gold)] px-2.5 py-1 text-xs font-bold text-white">
                     Nivel {user.level}
                   </span>
                   {playerClass && (
@@ -934,7 +934,7 @@ export default function DashboardPage() {
                     size={15}
                     className="text-[var(--accent-blue)]"
                   />
-                  <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-secondary)]">
+                  <h3 className="text-sm font-medium text-[var(--text-secondary)]">
                     Próximos eventos
                   </h3>
                 </div>
@@ -1087,7 +1087,7 @@ export default function DashboardPage() {
                       <p className="text-4xl font-semibold leading-none text-foreground">
                         {topHabit.currentStreak}
                       </p>
-                      <p className="mt-1 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                      <p className="mt-1 text-sm font-medium text-muted-foreground">
                         días seguidos
                       </p>
                     </div>

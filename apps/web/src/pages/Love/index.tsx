@@ -1,6 +1,7 @@
 import { FlowButton } from '@/components/ui/flow-button';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Heart } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import { PixelPanel } from '../../components/ui/PixelPanel';
@@ -263,6 +264,7 @@ function SetupModal({ onClose, onSave, existing }: { onClose: () => void; onSave
 }
 
 export default function LovePage() {
+  const reduceMotion = useReducedMotion();
   const toast = useToast();
   const [dashboard, setDashboard] = useState<LoveDashboard | null>(null);
   const [loading, setLoading] = useState(true);
@@ -310,12 +312,12 @@ export default function LovePage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="font-pixel text-accent-gold" style={{ fontSize: '14px' }}><E e="💖" /> JARDÍN DEL CORAZÓN</h1>
-          <p className="font-vt text-text-secondary text-base">Lo que importa en tu vida</p>
+          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-[var(--text-primary)]"><Heart className="h-5 w-5 text-[var(--accent-gold)]" aria-hidden="true" /> Jardín del corazón</h1>
+          <p className="mt-1 text-sm text-[var(--text-secondary)]">Cuida las relaciones y los momentos que más te importan.</p>
         </div>
         <div className="flex items-center gap-2">
           <SageContextButton message="¿Cómo puedo cuidar mejor las relaciones que importan?" label="Pídele consejo al Sabio" />
-          {!rel && <PixelButton variant="primary" onClick={() => setShowSetup(true)}>CONFIGURAR</PixelButton>}
+          {!rel && <FlowButton tone="primary" size="lg" withArrows={false} onClick={() => setShowSetup(true)}>Configurar</FlowButton>}
         </div>
       </div>
 
@@ -333,6 +335,14 @@ export default function LovePage() {
         ))}
       </div>
 
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={tab}
+          initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={reduceMotion ? undefined : { opacity: 0, y: -5 }}
+          transition={{ duration: reduceMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
+        >
       {tab === 'regalos' && <GiftWishlist relationshipId={dashboard?.relationship?.id} />}
 
       {tab === 'jardín' && rel && (
@@ -368,12 +378,13 @@ export default function LovePage() {
       )}
 
       {tab === 'jardín' && !rel && (
-        <PixelPanel className="p-8 text-center space-y-3">
-          <p className="text-5xl"><E e="💖" /></p>
-          <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>EL JARDÍN ESPERA</p>
-          <p className="font-vt text-text-secondary text-base">Configura esta zona para comenzar a cultivar tus relaciones</p>
-          <PixelButton variant="primary" onClick={() => setShowSetup(true)}>CONFIGURAR JARDÍN</PixelButton>
-        </PixelPanel>
+        <EmptyState
+          icon={Heart}
+          title="Tu jardín espera"
+          description="Configura este espacio para guardar los momentos y fechas que quieres cuidar."
+          actionLabel="Configurar mi jardín"
+          onAction={() => setShowSetup(true)}
+        />
       )}
 
       {tab === 'jardín' && rel && (
@@ -381,7 +392,7 @@ export default function LovePage() {
           {/* Next important date */}
           {dashboard?.nextImportantDate && (
             <PixelPanel className="p-4">
-              <p className="font-pixel text-text-secondary mb-2" style={{ fontSize: '12px' }}>PRÓXIMA FECHA ESPECIAL</p>
+              <p className="mb-2 text-sm font-medium text-[var(--text-secondary)]">Próxima fecha especial</p>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="text-2xl"><E e={dashboard.nextImportantDate.emoji ?? '💝'} /></span>
@@ -394,7 +405,7 @@ export default function LovePage() {
                 </div>
                 <div className="text-right">
                   <p className="font-pixel text-accent-gold" style={{ fontSize: '14px' }}>{dashboard.nextImportantDate.daysUntil}</p>
-                  <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>DÍAS</p>
+                  <p className="text-sm font-medium text-[var(--text-secondary)]">Días</p>
                 </div>
               </div>
             </PixelPanel>
@@ -403,7 +414,7 @@ export default function LovePage() {
           {/* Important dates */}
           <PixelPanel className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>FECHAS ESPECIALES</p>
+              <p className="text-sm font-medium text-[var(--text-secondary)]">Fechas especiales</p>
               <PixelButton variant="secondary" onClick={() => setShowAddDate(true)}>+ AGREGAR</PixelButton>
             </div>
             {(rel.importantDates as ImportantDate[]).length === 0 ? (
@@ -439,12 +450,15 @@ export default function LovePage() {
 
           {rel.notes && !rel.notes.startsWith('startDate:') && (
             <PixelPanel className="p-4">
-              <p className="font-pixel text-text-secondary mb-2" style={{ fontSize: '12px' }}>NOTAS PRIVADAS</p>
+              <p className="mb-2 text-sm font-medium text-[var(--text-secondary)]">Notas privadas</p>
               <p className="font-vt text-text-primary text-base">{rel.notes}</p>
             </PixelPanel>
           )}
         </>
       )}
+
+        </motion.div>
+      </AnimatePresence>
 
       <AnimatePresence>
         {showSetup && <SetupModal onClose={() => setShowSetup(false)} onSave={handleRelationshipSaved} existing={dashboard?.relationship} />}

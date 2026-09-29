@@ -89,8 +89,8 @@ export function ProgressRings({
           )}
           {centerSubLabel && (
             <span
-              className="text-[var(--text-muted)] uppercase tracking-wider"
-              style={{ fontSize: Math.max(9, size * 0.058), marginTop: size * 0.04, lineHeight: 1 }}
+              className="text-[var(--text-muted)]"
+              style={{ fontSize: Math.max(12, size * 0.058), marginTop: size * 0.04, lineHeight: 1 }}
             >
               {centerSubLabel}
             </span>

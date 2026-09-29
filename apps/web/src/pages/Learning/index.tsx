@@ -1,6 +1,7 @@
 import { FlowButton } from '@/components/ui/flow-button';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { BookOpen, TrendingUp } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
 import { useToast } from '../../hooks/useToast';
@@ -209,6 +210,7 @@ function ProgressModal({ item, onClose, onUpdate }: { item: LearningItem; onClos
 }
 
 export default function LearningPage() {
+  const reduceMotion = useReducedMotion();
   const toast = useToast();
   const [items, setItems] = useState<LearningItem[]>([]);
   const [stats, setStats] = useState<LearningStats | null>(null);
@@ -241,12 +243,12 @@ export default function LearningPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="font-pixel text-accent-gold" style={{ fontSize: '14px' }}><E e="📚" /> LA BIBLIOTECA</h1>
-          <p className="font-vt text-text-secondary text-base">Conocimiento es poder</p>
+          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-[var(--text-primary)]"><BookOpen className="h-5 w-5 text-[var(--accent-gold)]" aria-hidden="true" /> Biblioteca</h1>
+          <p className="mt-1 text-sm text-[var(--text-secondary)]">Reúne lo que quieres aprender y vuelve a ello con claridad.</p>
         </div>
         <div className="flex items-center gap-2">
           <SageContextButton message="¿Qué debería estudiar o leer ahora dado lo que llevo en la Biblioteca?" label="Pídele recomendación al Sabio" />
-          <PixelButton variant="primary" onClick={() => setShowAdd(true)}>+ AGREGAR</PixelButton>
+          <FlowButton tone="primary" size="lg" withArrows={false} onClick={() => setShowAdd(true)}>Agregar</FlowButton>
         </div>
       </div>
 
@@ -273,6 +275,14 @@ export default function LearningPage() {
         )}
       </div>
 
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={tab}
+          initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={reduceMotion ? undefined : { opacity: 0, y: -5 }}
+          transition={{ duration: reduceMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
+        >
       {tab === 'pomodoro' && <PomodoroTimer />}
 
       {tab === 'detalle' && selectedItem && (
@@ -302,15 +312,15 @@ export default function LearningPage() {
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { label: 'EN PROGRESO', value: stats.inProgress, icon: '📖' },
-            { label: 'COMPLETADOS', value: stats.totalCompleted, icon: '✅' },
-            { label: 'ESTE AÑO', value: stats.completedThisYear, icon: '🏆' },
-            { label: 'PÁGINAS', value: stats.totalPages, icon: '📄' },
+            { label: 'En progreso', value: stats.inProgress, icon: '📖' },
+            { label: 'Completados', value: stats.totalCompleted, icon: '✅' },
+            { label: 'Este año', value: stats.completedThisYear, icon: '🏆' },
+            { label: 'Páginas', value: stats.totalPages, icon: '📄' },
           ].map(s => (
             <PixelPanel key={s.label} className="p-3 text-center">
               <p className="text-2xl"><E e={s.icon} /></p>
-              <p className="font-pixel text-accent-gold mt-1" style={{ fontSize: '14px' }}>{s.value}</p>
-              <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>{s.label}</p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums text-[var(--accent-gold)]">{s.value}</p>
+              <p className="text-sm font-medium text-[var(--text-secondary)]">{s.label}</p>
             </PixelPanel>
           ))}
         </div>
@@ -326,10 +336,13 @@ export default function LearningPage() {
 
       <LoadingGate loading={loading} fallback={<ModernLoader words={[...LOADING_COPY.learning]} />}>
         {loading ? null : filtered.length === 0 ? (
-        <PixelPanel className="p-8 text-center">
-          <p className="text-4xl mb-2"><E e="📚" /></p>
-          <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>LA BIBLIOTECA ESTÁ VACÍA</p>
-        </PixelPanel>
+        <EmptyState
+          icon={BookOpen}
+          title="Tu biblioteca está lista"
+          description="Agrega un libro, curso o idioma para convertir lo que quieres aprender en progreso visible."
+          actionLabel="Agregar a mi biblioteca"
+          onAction={() => setShowAdd(true)}
+        />
       ) : (
         <AnimatePresence>
           <div className="space-y-3">
@@ -345,7 +358,7 @@ export default function LearningPage() {
                   visual={(
                     <div className="flex items-center gap-4" aria-hidden="true">
                       <span className="text-6xl"><E e={TYPE_ICONS[featuredItem.type]} s={64} /></span>
-                      {featuredItem.totalProgress > 0 && <div className="text-left"><p className="text-4xl font-semibold leading-none text-foreground">{Math.round(pct)}%</p><p className="mt-1 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">avanzado</p></div>}
+                      {featuredItem.totalProgress > 0 && <div className="text-left"><p className="text-4xl font-medium leading-none text-foreground">{Math.round(pct)}%</p><p className="mt-1 text-sm font-medium text-muted-foreground">avanzado</p></div>}
                     </div>
                   )}
                   visualLabel={`${featuredItem.title}, ${Math.round(pct)} por ciento de progreso`}
@@ -433,12 +446,14 @@ export default function LearningPage() {
         </AnimatePresence>
         )}
       </LoadingGate>
+      </>}
+        </motion.div>
+      </AnimatePresence>
 
       <AnimatePresence>
         {showAdd && <AddItemModal onClose={() => setShowAdd(false)} onSave={item => { setItems(prev => [item, ...prev]); setShowAdd(false); }} />}
         {updating && <ProgressModal item={updating} onClose={() => setUpdating(null)} onUpdate={updated => { setItems(prev => prev.map(i => i.id === updated.id ? updated : i)); setUpdating(null); }} />}
       </AnimatePresence>
-      </>}
     </div>
   );
 }

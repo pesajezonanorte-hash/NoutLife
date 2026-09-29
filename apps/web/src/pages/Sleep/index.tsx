@@ -1,4 +1,5 @@
 import { FlowButton } from "@/components/ui/flow-button";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -187,7 +188,7 @@ function SleepModal({
       </div>
 
       <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel-light)] p-4 text-center shadow-sm">
-        <p className="text-xs font-medium uppercase tracking-[0.12em] text-[var(--text-muted)]">
+        <p className="text-sm font-medium text-[var(--text-muted)]">
           Duración calculada
         </p>
         <p className="mt-1 text-3xl font-semibold tabular-nums text-[var(--accent-gold)]">
@@ -355,14 +356,12 @@ export default function SleepPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1
-            className="font-pixel text-accent-gold"
-            style={{ fontSize: "14px" }}
-          >
-            <E e="🌙" /> TORRE DEL SUEÑO
+          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-[var(--text-primary)]">
+            <Moon className="h-5 w-5 text-[var(--accent-gold)]" aria-hidden="true" />
+            Torre del sueño
           </h1>
-          <p className="font-vt text-text-secondary text-base">
-            Tu descanso es tu HP, héroe
+          <p className="mt-1 text-sm text-[var(--text-secondary)]">
+            Registra tu descanso y entiende los patrones que influyen en tu energía.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -370,33 +369,43 @@ export default function SleepPage() {
             message="¿Cómo está mi sueño últimamente? ¿Qué patrones detectas?"
             label="Pídele consejo al Sabio"
           />
-          <PixelButton variant="primary" onClick={() => setShowModal(true)}>
-            + REGISTRAR SUEÑO
-          </PixelButton>
+          <FlowButton tone="primary" size="lg" withArrows={false} onClick={() => setShowModal(true)}>
+            Registrar sueño
+          </FlowButton>
         </div>
       </div>
 
+      {!loading && logs.length === 0 && (
+        <EmptyState
+          icon={Moon}
+          title="Tu descanso empieza esta noche"
+          description="Guarda tu primera noche para descubrir cómo cambia tu energía con el tiempo."
+          actionLabel="Registrar mi primera noche"
+          onAction={() => setShowModal(true)}
+        />
+      )}
+
       {/* Stats */}
-      {stats && (
+      {stats && logs.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
             {
-              label: "PROMEDIO SEMANAL",
+              label: "Promedio semanal",
               value: `${stats.weeklyAvg.toFixed(1)}h`,
               icon: "🌙",
             },
             {
-              label: "PROMEDIO TOTAL",
+              label: "Promedio total",
               value: `${stats.avgDuration.toFixed(1)}h`,
               icon: "📊",
             },
             {
-              label: "CALIDAD MEDIA",
+              label: "Calidad media",
               value: `${stats.avgQuality.toFixed(1)}/5`,
               icon: "⭐",
             },
             {
-              label: "TENDENCIA",
+              label: "Tendencia",
               value:
                 stats.trend === "improving"
                   ? "↑ Mejorando"
@@ -411,14 +420,12 @@ export default function SleepPage() {
                 <E e={s.icon} />
               </p>
               <p
-                className="font-pixel text-accent-gold mt-1"
-                style={{ fontSize: "12px" }}
+                className="mt-1 text-xl font-semibold tabular-nums text-[var(--accent-gold)]"
               >
                 {s.value}
               </p>
               <p
-                className="font-pixel text-text-secondary"
-                style={{ fontSize: "12px" }}
+                className="text-sm font-medium text-[var(--text-secondary)]"
               >
                 {s.label}
               </p>
@@ -442,7 +449,7 @@ export default function SleepPage() {
                 <p className="text-4xl font-semibold leading-none text-foreground">
                   {lastLog.duration.toFixed(1)}h
                 </p>
-                <p className="mt-1 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                <p className="mt-1 text-sm font-medium text-muted-foreground">
                   última noche
                 </p>
               </div>
@@ -481,11 +488,8 @@ export default function SleepPage() {
       {/* Chart */}
       {chartData.length > 1 && (
         <PixelPanel className="p-4">
-          <p
-            className="font-pixel text-text-secondary mb-3"
-            style={{ fontSize: "12px" }}
-          >
-            ÚLTIMAS 2 SEMANAS
+          <p className="mb-3 text-sm font-medium text-[var(--text-secondary)]">
+            Últimas dos semanas
           </p>
           <ResponsiveContainer width="100%" height={160}>
             <BarChart data={chartData}>
@@ -531,11 +535,8 @@ export default function SleepPage() {
       {/* Log list */}
       {!loading && historyLogs.length > 0 && (
         <div className="space-y-2">
-          <p
-            className="font-pixel text-text-secondary"
-            style={{ fontSize: "12px" }}
-          >
-            HISTORIAL
+          <p className="text-sm font-medium text-[var(--text-secondary)]">
+            Historial
           </p>
           <AnimatePresence>
             {historyLogs.map((l, i) => (

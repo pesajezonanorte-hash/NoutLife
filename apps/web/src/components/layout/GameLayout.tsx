@@ -89,7 +89,7 @@ function SidebarGroupLabel({ label }: { label: string }) {
   return (
     <motion.div
       animate={{ opacity: open ? 1 : 0 }}
-      className="px-[10px] pt-1 pb-1.5 text-xs font-bold uppercase tracking-[0.12em]"
+      className="px-[10px] pt-1 pb-1.5 text-sm font-medium"
       style={{ color: 'var(--text-3)' }}
     >
       {label}
@@ -352,7 +352,7 @@ export function GameLayout({ children }: Props) {
               />
               <motion.div animate={{ opacity: sidebarOpen ? 1 : 0 }} className="min-w-0">
                 <div className="text-[17px] font-extrabold tracking-[-0.02em] leading-none">LifeQuest</div>
-                <div className="mt-[2px] text-[10.5px] font-semibold uppercase tracking-[0.1em]" style={{ color: 'var(--text-3)' }}>
+                <div className="mt-[2px] text-xs font-medium" style={{ color: 'var(--text-3)' }}>
                   v0.3 · alpha
                 </div>
               </motion.div>
@@ -461,7 +461,7 @@ export function GameLayout({ children }: Props) {
                     </div>
                     <div className="mt-2 flex items-center gap-2">
                       <span
-                        className="shrink-0 text-xs font-bold uppercase tracking-[0.1em]"
+                        className="shrink-0 text-sm font-medium"
                         style={{ color: 'var(--text-3)' }}
                       >
                         XP
@@ -715,7 +715,7 @@ export function GameLayout({ children }: Props) {
               >
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.12em]" style={{ color: 'var(--accent-gold)' }}>
+                    <p className="text-sm font-medium" style={{ color: 'var(--accent-gold)' }}>
                       {ZONE_TOOLTIPS[location.pathname].title}
                     </p>
                     <p className="mt-1 text-sm" style={{ color: 'var(--text-primary)' }}>

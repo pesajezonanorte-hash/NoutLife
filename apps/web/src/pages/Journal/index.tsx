@@ -1,4 +1,5 @@
 import { FlowButton } from '@/components/ui/flow-button';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BookOpen } from 'lucide-react';
@@ -262,12 +263,12 @@ export default function JournalPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="font-pixel text-accent-gold" style={{ fontSize: '14px' }}><E e="📜" /> DIARIO DE AVENTURAS</h1>
-          <p className="font-vt text-text-secondary text-base">El registro de tu historia, héroe</p>
+          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-[var(--text-primary)]"><BookOpen className="h-5 w-5 text-[var(--accent-gold)]" aria-hidden="true" /> Diario</h1>
+          <p className="mt-1 text-sm text-[var(--text-secondary)]">Una pausa breve para registrar lo que importa de tu día.</p>
         </div>
         <div className="flex items-center gap-2">
           <SageContextButton message="Dame un tema profundo para reflexionar hoy en mi diario." label="Tema de reflexión" />
-          <PixelButton variant="primary" onClick={() => { setEditing(null); setShowEditor(true); }}><E e="✍" /> ESCRIBIR</PixelButton>
+          <FlowButton tone="primary" size="lg" withArrows={false} onClick={() => { setEditing(null); setShowEditor(true); }}>Escribir hoy</FlowButton>
         </div>
       </div>
 
@@ -277,12 +278,12 @@ export default function JournalPage() {
           <PixelPanel className="p-3 text-center">
             <p className="text-2xl"><E e="🔥" /></p>
             <p className="font-pixel text-accent-gold mt-1" style={{ fontSize: '14px' }}>{streak.currentStreak}</p>
-            <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>DÍAS SEGUIDOS</p>
+            <p className="text-sm font-medium text-[var(--text-secondary)]">Días seguidos</p>
           </PixelPanel>
         )}
         <PixelPanel className="p-3 text-center cursor-pointer hover:border-accent-gold/50 transition-colors" onClick={() => { setEditing(todayEntry ?? null); setShowEditor(true); }}>
           <p className="text-2xl">{todayEntry ? <E e="✅" s={14} /> : <E e="📝" s={14} />}</p>
-          <p className="font-pixel text-accent-gold mt-1" style={{ fontSize: '12px' }}>{todayEntry ? 'HOY ESCRITO' : 'ESCRIBIR HOY'}</p>
+          <p className="font-pixel text-accent-gold mt-1" style={{ fontSize: '12px' }}>{todayEntry ? 'Hoy escrito' : 'Escribir hoy'}</p>
           {todayEntry && <p className="font-vt text-text-secondary text-base mt-0.5">{todayEntry.title ?? 'Sin título'}</p>}
         </PixelPanel>
       </div>
@@ -290,12 +291,22 @@ export default function JournalPage() {
       {/* Daily prompt */}
       {!todayEntry && (
         <PixelPanel className="p-4 border-accent-purple/50">
-          <p className="font-pixel text-accent-purple mb-2" style={{ fontSize: '12px' }}><E e="💬" /> PROMPT DEL DÍA</p>
+          <p className="mb-2 text-sm font-medium text-[var(--accent-purple)]"><E e="💬" /> Prompt del día</p>
           <p className="font-vt text-text-primary text-lg italic">"{todayPrompt}"</p>
-          <PixelButton variant="secondary" onClick={() => { setEditing(null); setShowEditor(true); }} className="mt-3 w-full">
-            <E e="✍" /> RESPONDER PROMPT
-          </PixelButton>
+          <FlowButton tone="secondary" withArrows={false} onClick={() => { setEditing(null); setShowEditor(true); }} className="mt-3 w-full">
+            Responder prompt
+          </FlowButton>
         </PixelPanel>
+      )}
+
+      {!loading && entries.length === 0 && (
+        <EmptyState
+          icon={BookOpen}
+          title="Tu diario está listo"
+          description="Escribe una primera idea, emoción o momento para empezar a construir tu historia."
+          actionLabel="Escribir mi primera entrada"
+          onAction={() => { setEditing(null); setShowEditor(true); }}
+        />
       )}
 
       {!loading && todayEntry && (
@@ -323,7 +334,7 @@ export default function JournalPage() {
       <div className="space-y-2">
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar en el diario..." className="min-h-11 w-full bg-bg-deep border-2 border-border-pixel px-3 py-2 font-vt text-base text-text-primary outline-none focus:border-accent-gold" />
         <div className="grid grid-cols-3 gap-1.5">
-          <span className="col-span-3 font-pixel text-text-secondary" style={{ fontSize: '12px' }}>FILTRAR HUMOR:</span>
+          <span className="col-span-3 text-sm font-medium text-[var(--text-secondary)]">Filtrar por ánimo</span>
           <button onClick={() => setMoodFilter(null)} className={`min-h-11 border px-2 py-0.5 font-pixel transition-all ${moodFilter === null ? 'border-accent-gold text-accent-gold' : 'border-border-pixel text-text-secondary'}`} style={{ fontSize: '12px' }}>
             TODOS
           </button>
@@ -338,11 +349,10 @@ export default function JournalPage() {
       {/* Entries list */}
       <LoadingGate loading={loading} fallback={<ModernLoader words={[...LOADING_COPY.journal]} />}>
         {loading ? null : remainingFilteredEntries.length === 0 ? (
-          todayEntry && !search && moodFilter === null ? null : (
-            <PixelPanel className="p-8 text-center">
-              <p className="text-4xl mb-2"><E e="📜" /></p>
-              <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>{entries.length === 0 ? 'EL DIARIO ESTÁ EN BLANCO' : 'SIN RESULTADOS'}</p>
-              <p className="font-vt text-text-secondary text-base mt-1">{entries.length === 0 ? 'El héroe no ha escrito aún...' : 'Prueba otro filtro'}</p>
+          todayEntry && !search && moodFilter === null ? null : entries.length === 0 ? null : (
+            <PixelPanel className="p-6 text-center">
+              <p className="text-sm font-medium text-[var(--text-secondary)]">Sin resultados</p>
+              <p className="mt-1 text-sm text-[var(--text-muted)]">Prueba otro filtro o una búsqueda diferente.</p>
             </PixelPanel>
           )
         ) : (

@@ -356,7 +356,7 @@ export default function QuestsPage() {
     <div className="mx-auto w-full max-w-5xl space-y-5 pb-6">
       <section className="flex flex-col gap-4 border-b border-[var(--border)] pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <div className="mb-2 inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent-gold)]">
+          <div className="mb-2 inline-flex items-center gap-1.5 text-sm font-medium text-[var(--accent-gold)]">
             <ClipboardList size={14} strokeWidth={1.9} aria-hidden="true" />
             Planificación
           </div>

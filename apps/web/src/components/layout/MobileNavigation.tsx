@@ -107,7 +107,7 @@ function MoreSheet({
 
                   return (
                     <section key={group.id} aria-label={group.label}>
-                      <h2 className="px-1 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+                      <h2 className="px-1 text-sm font-medium text-[var(--text-muted)]">
                         {group.label}
                       </h2>
                       <div className="mt-2 grid grid-cols-2 gap-2">
@@ -147,7 +147,7 @@ function MoreSheet({
 
                 {utilityContent && (
                   <section aria-label="Accesos rápidos">
-                    <h2 className="px-1 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Accesos rápidos</h2>
+                    <h2 className="px-1 text-sm font-medium text-[var(--text-muted)]">Accesos rápidos</h2>
                     <div className="mt-2">{utilityContent(onClose)}</div>
                   </section>
                 )}

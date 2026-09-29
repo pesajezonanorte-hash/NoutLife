@@ -137,7 +137,7 @@ function ZoneLedger({ zones, periodLabel, loading = false }: { zones: AdvancedSt
       <article className="min-w-0 rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-4 shadow-pixel sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+            <div className="flex items-center gap-2 text-sm font-medium text-[var(--text-muted)]">
               <Activity className="h-3.5 w-3.5 text-[var(--text-secondary)]" aria-hidden="true" />
               Zonas de vida
             </div>
@@ -270,7 +270,7 @@ export default function AdvancedStats({ data, loading = false, className }: Adva
           <article className="relative min-w-0 h-full overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-4 shadow-pixel sm:p-6">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+                <div className="flex items-center gap-2 text-sm font-medium text-[var(--text-muted)]">
                   <Zap className="h-3.5 w-3.5 text-[var(--accent-gold)]" aria-hidden="true" />
                   Progreso registrado
                 </div>
@@ -326,7 +326,7 @@ export default function AdvancedStats({ data, loading = false, className }: Adva
           <article className="min-w-0 h-full rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-4 shadow-pixel sm:p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Life Score</p>
+                <p className="text-sm font-medium text-[var(--text-muted)]">Life Score</p>
                 <h3 className="mt-1 text-sm font-semibold text-[var(--text-primary)]">Equilibrio del periodo</h3>
               </div>
               <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-muted)] text-[var(--accent-gold)]">

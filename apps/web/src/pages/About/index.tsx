@@ -127,7 +127,7 @@ export default function AboutPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {TECH_STACK.map((group) => (
             <div key={group.category} className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-4">
-              <p className="text-xs font-semibold text-[var(--accent-cyan)] uppercase tracking-widest mb-3">{group.category}</p>
+              <p className="text-sm font-medium text-[var(--accent-cyan)] mb-3">{group.category}</p>
               <ul className="space-y-1.5">
                 {group.items.map((item) => (
                   <li key={item} className="text-xs text-[var(--text-secondary)] flex items-center gap-2">

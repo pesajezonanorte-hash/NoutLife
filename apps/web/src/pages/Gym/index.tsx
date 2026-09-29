@@ -103,7 +103,7 @@ function GymEmptySurface({
             <E e={icon} s={28} strokeWidth={1.65} />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--accent-gold)]">{eyebrow}</p>
+            <p className="text-sm font-medium text-[var(--accent-gold)]">{eyebrow}</p>
             <h2 className="mt-1 text-xl font-bold tracking-tight text-[var(--text-primary)] sm:text-2xl">{title}</h2>
             <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--text-secondary)] sm:text-base">{description}</p>
           </div>
@@ -791,7 +791,7 @@ export default function GymPage() {
               <E e="⚔" s={24} strokeWidth={1.7} />
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--accent-gold)]">Zona de entrenamiento</p>
+              <p className="text-sm font-medium text-[var(--accent-gold)]">Zona de entrenamiento</p>
               <h1 className="mt-0.5 text-2xl font-bold tracking-tight text-[var(--text-primary)]">El Coliseo</h1>
               <p className="mt-0.5 text-sm text-[var(--text-secondary)]">Forja tu cuerpo, héroe.</p>
             </div>

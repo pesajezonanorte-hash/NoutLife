@@ -255,7 +255,7 @@ export default function GuildPage() {
               onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
               maxLength={6}
               autoCapitalize="characters"
-              className="w-full rounded-xl border border-[var(--border)] bg-[var(--bg-deep)] px-3 py-2.5 text-center text-base font-semibold uppercase tracking-[0.22em] text-[var(--text-primary)] outline-none transition-colors placeholder:tracking-normal placeholder:text-[var(--text-muted)] focus:border-[var(--accent-gold)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--accent-gold)_16%,transparent)]"
+              className="w-full rounded-xl border border-[var(--border)] bg-[var(--bg-deep)] px-3 py-2.5 text-center text-base font-medium text-[var(--text-primary)] outline-none transition-colors placeholder:tracking-normal placeholder:text-[var(--text-muted)] focus:border-[var(--accent-gold)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--accent-gold)_16%,transparent)]"
             />
           </label>
           <div className="mt-5 grid grid-cols-2 gap-2.5 border-t border-[var(--border-soft)] pt-4">

@@ -123,7 +123,7 @@ export function QuestWizard({ onSubmit, onClose, initialData }: Props) {
       >
         <header className="flex items-start justify-between gap-4 border-b border-[var(--border)] px-5 py-4">
           <div>
-            <p className="mb-1 text-xs font-semibold uppercase tracking-[0.13em] text-[var(--accent-gold)]">
+            <p className="mb-1 text-sm font-medium text-[var(--accent-gold)]">
               {initialData?.title ? 'Edición' : 'Planificación'}
             </p>
             <h2 id="quest-wizard-title" className="text-base font-semibold text-[var(--text-primary)]">
@@ -333,7 +333,7 @@ export function QuestWizard({ onSubmit, onClose, initialData }: Props) {
             </div>
 
             <aside className="border-t border-[var(--border)] bg-[var(--bg-panel-light)] p-5 md:w-52 md:border-l md:border-t-0">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-secondary)]">Vista previa</p>
+              <p className="mb-3 text-sm font-medium text-[var(--text-secondary)]">Vista previa</p>
               <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] p-3">
                 <span className="mb-3 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-panel-light)] text-[var(--accent-gold)]">
                   <PreviewCategoryIcon size={16} strokeWidth={1.8} aria-hidden="true" />

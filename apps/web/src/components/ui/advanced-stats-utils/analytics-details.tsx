@@ -97,7 +97,7 @@ function FinanceTooltip({
 
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] px-3 py-2 shadow-pixel">
-      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+      <p className="text-sm font-medium text-[var(--text-muted)]">
         {label ? formatFinanceBucket(label, label.length === 10 ? { day: 'numeric', month: 'long' } : { month: 'long', year: 'numeric' }) : 'Periodo'}
       </p>
       <div className="mt-1.5 space-y-1 text-xs">
@@ -134,15 +134,15 @@ export function FinanceTrendCard({
         <>
           <div className="mt-4 grid grid-cols-3 divide-x divide-[var(--border-soft)] rounded-xl border border-[var(--border-soft)] bg-[var(--bg-muted)]/45 py-2.5 text-xs">
             <div className="min-w-0 px-3">
-              <p className="text-xs font-medium uppercase tracking-[0.1em] text-[var(--text-muted)]">Ingresos</p>
+              <p className="text-sm font-medium text-[var(--text-muted)]">Ingresos</p>
               <p className="mt-1 truncate font-semibold tabular-nums text-[var(--accent-green)]" title={formatCurrency(totals.income, currency)}>{formatCurrency(totals.income, currency)}</p>
             </div>
             <div className="min-w-0 px-3">
-              <p className="text-xs font-medium uppercase tracking-[0.1em] text-[var(--text-muted)]">Gastos</p>
+              <p className="text-sm font-medium text-[var(--text-muted)]">Gastos</p>
               <p className="mt-1 truncate font-semibold tabular-nums text-[var(--accent-red)]" title={formatCurrency(totals.expenses, currency)}>{formatCurrency(totals.expenses, currency)}</p>
             </div>
             <div className="min-w-0 px-3">
-              <p className="text-xs font-medium uppercase tracking-[0.1em] text-[var(--text-muted)]">Flujo neto</p>
+              <p className="text-sm font-medium text-[var(--text-muted)]">Flujo neto</p>
               <p className={['mt-1 truncate font-semibold tabular-nums', net >= 0 ? 'text-[var(--accent-gold)]' : 'text-[var(--accent-red)]'].join(' ')} title={formatCurrency(net, currency)}>{formatCurrency(net, currency)}</p>
             </div>
           </div>
@@ -190,7 +190,7 @@ function SleepTooltip({
   const values = Object.fromEntries(payload.map((item) => [item.dataKey ?? '', Number(item.value ?? 0)]));
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] px-3 py-2 shadow-pixel">
-      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+      <p className="text-sm font-medium text-[var(--text-muted)]">
         {label ? formatDate(label, { day: 'numeric', month: 'short' }) : 'Noche'}
       </p>
       <p className="mt-1 text-xs text-[var(--text-secondary)]"><strong className="tabular-nums text-[var(--text-primary)]">{(values.duration ?? 0).toFixed(1)} h</strong> de sueño</p>
@@ -246,7 +246,7 @@ function GymTooltip({
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] px-3 py-2 shadow-pixel">
-      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label ? formatDate(label, { day: 'numeric', month: 'short' }) : 'Sesión'}</p>
+      <p className="text-sm font-medium text-[var(--text-muted)]">{label ? formatDate(label, { day: 'numeric', month: 'short' }) : 'Sesión'}</p>
       <p className="mt-1 text-sm font-bold tabular-nums text-[var(--text-primary)]">{numberFormat.format(Number(payload[0]?.value ?? 0))} kg</p>
     </div>
   );
@@ -375,7 +375,7 @@ export function PredictionsCard({
 
           {data.habitRisks.length ? (
             <div className="space-y-2 border-t border-[var(--border-soft)] pt-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Constancia de hábitos · 7 días</p>
+              <p className="text-sm font-medium text-[var(--text-muted)]">Constancia de hábitos · 7 días</p>
               {data.habitRisks.map((habit) => (
                 <div key={habit.title} className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0">

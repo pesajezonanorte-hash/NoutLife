@@ -1,6 +1,8 @@
 import { FlowButton } from '@/components/ui/flow-button';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { Utensils } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import { PixelPanel } from '../../components/ui/PixelPanel';
 import { PixelButton } from '../../components/ui/PixelButton';
@@ -127,6 +129,7 @@ function getTodayString(): string {
 }
 
 export default function FoodPage() {
+  const reduceMotion = useReducedMotion();
   const toast = useToast();
   const [meals, setMeals] = useState<Meal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -166,17 +169,18 @@ export default function FoodPage() {
     ...t,
     items: meals.filter(m => m.mealType === t.key),
   }));
+  const hasMealRecords = meals.length > 0;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="font-pixel text-accent-gold" style={{ fontSize: '14px' }}><E e="🍖" /> LA POSADA</h1>
-          <p className="font-vt text-text-secondary text-base">Alimenta al héroe — {new Date().toLocaleDateString('es-CO')}</p>
+          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-[var(--text-primary)]"><Utensils className="h-5 w-5 text-[var(--accent-gold)]" aria-hidden="true" /> La Posada</h1>
+          <p className="mt-1 text-sm text-[var(--text-secondary)]">Registra tus comidas y observa lo que sostiene tu energía.</p>
         </div>
         <div className="flex items-center gap-2">
           <SageContextButton message="¿Cómo está mi alimentación esta semana? ¿Qué puedo mejorar?" label="Pídele consejo al Sabio" />
-          <PixelButton variant="primary" onClick={() => setShowModal(true)}>+ REGISTRAR</PixelButton>
+          <FlowButton tone="primary" size="lg" withArrows={false} onClick={() => setShowModal(true)}>Registrar comida</FlowButton>
         </div>
       </div>
 
@@ -194,6 +198,14 @@ export default function FoodPage() {
         ))}
       </div>
 
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={tab}
+          initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={reduceMotion ? undefined : { opacity: 0, y: -5 }}
+          transition={{ duration: reduceMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
+        >
       {/* Macros tab */}
       {tab === 'macros' && (
         <div className="space-y-4">
@@ -214,7 +226,7 @@ export default function FoodPage() {
       {/* Water tracker */}
       <PixelPanel className="p-4">
         <div className="flex items-center justify-between mb-2">
-          <p className="font-pixel text-accent-cyan" style={{ fontSize: '12px' }}><E e="💧" /> HIDRATACIÓN HOY</p>
+          <p className="text-sm font-medium text-[var(--accent-cyan)]"><E e="💧" /> Hidratación de hoy</p>
           <p className="font-vt text-accent-cyan text-lg">{(totalWater / 1000).toFixed(1)}L / {waterGoal / 1000}L</p>
         </div>
         <div className="stat-bar h-5">
@@ -235,18 +247,26 @@ export default function FoodPage() {
       {/* Calories */}
       {totalCalories > 0 && (
         <PixelPanel className="p-3 flex justify-between items-center">
-          <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>CALORÍAS HOY</p>
+          <p className="text-sm font-medium text-[var(--text-secondary)]">Calorías de hoy</p>
           <p className="font-vt text-accent-gold text-2xl">{totalCalories} kcal</p>
         </PixelPanel>
       )}
 
       {/* Meals by type */}
       <LoadingGate loading={loading} fallback={<ModernLoader words={[...LOADING_COPY.food]} />}>
-        {loading ? null : (
+        {loading ? null : !hasMealRecords ? (
+          <EmptyState
+            icon={Utensils}
+            title="Tu mesa está lista"
+            description="Registra tu primera comida para comenzar a entender tus hábitos de alimentación."
+            actionLabel="Registrar mi primera comida"
+            onAction={() => setShowModal(true)}
+          />
+        ) : (
           <div className="space-y-3">
           {mealsByType.map(group => (
             <PixelPanel key={group.key} className="p-3">
-              <p className="font-pixel text-text-secondary mb-2" style={{ fontSize: '12px' }}><E e={group.icon} /> {group.label.toUpperCase()}</p>
+              <p className="mb-2 text-sm font-medium text-[var(--text-secondary)]"><E e={group.icon} /> {group.label}</p>
               {group.items.length === 0 ? (
                 <p className="font-vt text-text-secondary text-base italic">— sin registros —</p>
               ) : (
@@ -267,11 +287,13 @@ export default function FoodPage() {
           </div>
         )}
       </LoadingGate>
+      </>}
+        </motion.div>
+      </AnimatePresence>
 
       <AnimatePresence>
         {showModal && <MealModal onClose={() => setShowModal(false)} onSave={handleSaved} />}
       </AnimatePresence>
-      </>}
     </div>
   );
 }

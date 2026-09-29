@@ -811,7 +811,7 @@ export default function StatsPage() {
                       equivalente anterior.
                     </p>
                   </div>
-                  <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+                  <span className="text-sm font-medium text-[var(--text-muted)]">
                     Periodo seleccionado
                   </span>
                 </div>

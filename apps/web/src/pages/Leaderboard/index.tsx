@@ -255,7 +255,7 @@ function FriendManager({
           <>
             {pending.length > 0 && (
               <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+                <p className="mb-2 text-sm font-medium text-[var(--text-muted)]">
                   Solicitudes · {pending.length}
                 </p>
                 <div className="space-y-2">
@@ -306,7 +306,7 @@ function FriendManager({
             )}
 
             <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+              <p className="mb-2 text-sm font-medium text-[var(--text-muted)]">
                 Amigos · {friends.length}
               </p>
               {friends.length ? (
@@ -467,7 +467,7 @@ export default function LeaderboardPage() {
       <header className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel-light)] px-4 py-5 shadow-[0_14px_36px_rgba(0,0,0,0.08)] sm:px-6">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent-gold)]">
+            <p className="text-sm font-medium text-[var(--accent-gold)]">
               Comunidad
             </p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[var(--text-primary)]">
@@ -638,7 +638,7 @@ export default function LeaderboardPage() {
                         <p className="text-sm font-semibold tabular-nums text-[var(--accent-gold)]">
                           {formatValue(entry.value, currentCategory.unit)}
                         </p>
-                        <p className="mt-0.5 text-xs uppercase tracking-[0.1em] text-[var(--text-muted)]">
+                        <p className="mt-0.5 text-sm text-[var(--text-muted)]">
                           Posición {entry.rank}
                         </p>
                       </div>
@@ -664,7 +664,7 @@ export default function LeaderboardPage() {
             {myEntry ? (
               <div className="mt-4 flex items-end justify-between rounded-xl border border-[color-mix(in_oklab,var(--accent-gold)_35%,var(--border))] bg-[color-mix(in_oklab,var(--accent-gold)_8%,var(--bg-panel))] px-3.5 py-3">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+                  <p className="text-sm font-medium text-[var(--text-muted)]">
                     Posición
                   </p>
                   <p className="mt-1 text-2xl font-semibold tabular-nums text-[var(--accent-gold)]">

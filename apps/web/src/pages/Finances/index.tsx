@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import {
   ArrowDownLeft,
@@ -181,7 +181,7 @@ function MoneyField({
           autoFocus={autoFocus}
           className={`${modalInputClass} money-input pr-14 pl-8 text-right text-2xl font-semibold tabular-nums`}
         />
-        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">COP</span>
+        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm font-medium text-[var(--text-muted)]">COP</span>
       </span>
     </label>
   );
@@ -415,6 +415,7 @@ function TransactionModal({
 }
 
 export default function FinancesPage() {
+  const reduceMotion = useReducedMotion();
   const toast = useToast();
   const [tab, setTab] = useState<'dashboard' | 'transactions' | 'budgets' | 'goals' | 'debts' | 'recurring' | 'projection'>('dashboard');
   const [showPayday, setShowPayday] = useState(false);
@@ -527,17 +528,17 @@ export default function FinancesPage() {
       {/* Header minimal */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="font-pixel text-accent-gold" style={{ fontSize: '14px' }}><E e="💰" /> LA BÓVEDA</h1>
-          <p className="font-vt text-text-secondary text-base">Finanzas en COP — dinero real</p>
+          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-[var(--text-primary)]"><CircleDollarSign className="h-5 w-5 text-[var(--accent-gold)]" aria-hidden="true" /> La Bóveda</h1>
+          <p className="mt-1 text-sm text-[var(--text-secondary)]">Tus ingresos, gastos y metas en un solo lugar.</p>
         </div>
         <div className="flex items-center gap-2">
           <SageContextButton message="¿Cómo voy con mi dinero este mes? Analiza mis gastos e ingresos y dame recomendaciones concretas." label="¿Cómo voy?" />
-          <PixelButton variant="primary" onClick={(event) => {
+          <FlowButton tone="primary" size="lg" withArrows={false} onClick={(event) => {
             captureModalOrigin(event);
             setShowAddTransaction(true);
           }}>
-            + TRANSACCIÓN
-          </PixelButton>
+            Nueva transacción
+          </FlowButton>
         </div>
       </div>
 
@@ -562,15 +563,15 @@ export default function FinancesPage() {
                     duration={1}
                   />
                 </p>
-                <p className="mt-2 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">saldo disponible</p>
+                <p className="mt-2 text-sm font-medium text-muted-foreground">Saldo disponible</p>
               </div>
             )}
             visualLabel={`Balance del mes: ${formatCOP(dashboard.summary.balance)}`}
             badge={dashboard.summary.balance >= 0 ? 'Balance positivo' : 'Revisar gastos'}
             frontFooter={(
               <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-xl border border-border bg-muted px-3 py-2"><p className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">Ingresos</p><p className="mt-1 truncate text-sm font-semibold text-[var(--accent-green)]"><AnimatedCounter value={dashboard.summary.income} separator="." prefix="$ " duration={0.7} /></p></div>
-                <div className="rounded-xl border border-border bg-muted px-3 py-2"><p className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">Gastos</p><p className="mt-1 truncate text-sm font-semibold text-[var(--accent-red)]"><AnimatedCounter value={dashboard.summary.expenses} separator="." prefix="$ " duration={0.7} /></p></div>
+                <div className="rounded-xl border border-border bg-muted px-3 py-2"><p className="text-sm font-medium text-muted-foreground">Ingresos</p><p className="mt-1 truncate text-sm font-medium text-[var(--accent-green)]"><AnimatedCounter value={dashboard.summary.income} separator="." prefix="$ " duration={0.7} /></p></div>
+                <div className="rounded-xl border border-border bg-muted px-3 py-2"><p className="text-sm font-medium text-muted-foreground">Gastos</p><p className="mt-1 truncate text-sm font-medium text-[var(--accent-red)]"><AnimatedCounter value={dashboard.summary.expenses} separator="." prefix="$ " duration={0.7} /></p></div>
               </div>
             )}
             backDescription={<p>Consulta tus movimientos para entender qué está moviendo el balance y registra una transacción cuando lo necesites.</p>}
@@ -592,7 +593,7 @@ export default function FinancesPage() {
           <button
             key={key}
             onClick={() => setTab(key)}
-            className={`min-h-11 min-w-0 px-2 py-1.5 border-2 font-pixel transition-all sm:shrink-0 ${tab === key ? 'border-accent-gold bg-accent-gold text-bg-deep' : 'border-border-pixel text-text-secondary hover:border-text-secondary'}`}
+            className={`min-h-11 min-w-0 rounded-xl border px-3 py-2 text-sm font-medium transition-colors sm:shrink-0 ${tab === key ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)] text-[var(--bg-deep)]' : 'border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--text-secondary)]'}`}
             style={{ fontSize: '12px' }}
           >
 
@@ -601,12 +602,20 @@ export default function FinancesPage() {
         ))}
       </div>
 
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={tab}
+          initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={reduceMotion ? undefined : { opacity: 0, y: -5 }}
+          transition={{ duration: reduceMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
+        >
       {/* Dashboard tab */}
       {tab === 'dashboard' && dashboard && (
         <div className="space-y-4">
           {categoryData.length > 0 && (
             <PixelPanel className="p-4">
-              <p className="font-pixel text-text-secondary mb-3" style={{ fontSize: '12px' }}>GASTOS POR CATEGORÍA</p>
+              <p className="mb-3 text-sm font-medium text-[var(--text-secondary)]">Gastos por categoría</p>
               <div className="flex flex-col md:flex-row gap-4 items-center">
                 <ResponsiveContainer width="100%" height={200}>
                   <PieChart>
@@ -630,7 +639,7 @@ export default function FinancesPage() {
 
           {/* Recent transactions */}
           <PixelPanel className="p-4">
-            <p className="font-pixel text-text-secondary mb-2" style={{ fontSize: '12px' }}>MOVIMIENTOS RECIENTES</p>
+            <p className="mb-2 text-sm font-medium text-[var(--text-secondary)]">Movimientos recientes</p>
             <div className="space-y-2">
               {dashboard.recent.slice(0, 5).map(t => (
                 <div key={t.id} className="flex items-center justify-between py-1 border-b border-border-pixel/30">
@@ -655,9 +664,8 @@ export default function FinancesPage() {
       {tab === 'transactions' && (
         <div className="space-y-2">
           {transactions.length === 0 ? (
-            <PixelPanel className="p-8 text-center">
-              <p className="text-4xl mb-2"><E e="💸" /></p>
-              <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>SIN TRANSACCIONES</p>
+            <PixelPanel className="p-6 text-center">
+              <p className="text-sm font-medium text-[var(--text-secondary)]">Aún no hay transacciones</p>
             </PixelPanel>
           ) : (
             <AnimatePresence>
@@ -743,10 +751,10 @@ export default function FinancesPage() {
       {tab === 'goals' && (
         <div className="space-y-3">
           <div className="flex justify-end">
-            <PixelButton variant="secondary" onClick={(event) => {
+            <FlowButton tone="secondary" size="sm" withArrows={false} onClick={(event) => {
               captureModalOrigin(event);
               setShowGoalModal(true);
-            }}>+ META</PixelButton>
+            }}>Agregar meta</FlowButton>
           </div>
           {goals.length === 0 ? (
             <PixelPanel className="p-8 text-center">
@@ -794,6 +802,9 @@ export default function FinancesPage() {
 
       {/* Projection tab */}
       {tab === 'projection' && <ProjectionPanel />}
+
+        </motion.div>
+      </AnimatePresence>
 
       {/* Transaction modal */}
       <AnimatePresence>

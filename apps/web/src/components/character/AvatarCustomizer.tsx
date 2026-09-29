@@ -419,7 +419,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
             <div className="flex max-h-[88dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl border-4 border-[var(--accent-gold)] bg-[var(--bg-panel)] shadow-pixel-gold sm:max-h-[90vh] sm:rounded-xl">
               {/* Header */}
               <motion.div className="flex items-center justify-between p-4 border-b-2 border-[var(--accent-gold)]/30 bg-gradient-to-r from-[var(--accent-gold)]/10 to-transparent">
-                <h2 className="font-pixel text-[var(--accent-gold)] tracking-widest text-xs flex items-center gap-2">
+                <h2 className="font-pixel text-[var(--accent-gold)] text-xs flex items-center gap-2">
                   <span><E e="✨" /> APARIENCIA <E e="✨" /></span>
                 </h2>
                 <motion.button
@@ -538,7 +538,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
                     {/* Separador */}
                     <div className="flex items-center my-3">
                       <div className="flex-1 border-t border-[var(--border)]" />
-                      <span className="px-3 text-xs text-[var(--text-muted)] uppercase tracking-wider font-semibold">o por enlace</span>
+                      <span className="px-3 text-sm text-[var(--text-muted)] font-medium">o por enlace</span>
                       <div className="flex-1 border-t border-[var(--border)]" />
                     </div>
 
@@ -665,7 +665,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
                   /* ── TAB AVATAR PIXEL ── */
                   <div className="space-y-5">
                     <div>
-                      <label className="font-pixel text-[var(--accent-gold)] block mb-2 text-xs tracking-wider">
+                      <label className="font-pixel text-[var(--accent-gold)] block mb-2 text-xs">
                         GÉNERO
                       </label>
                       <div className="grid grid-cols-2 gap-1.5">
@@ -724,7 +724,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
                     </div>
 
                     <div>
-                      <label className="font-pixel text-[var(--accent-gold)] block mb-2 text-xs tracking-wider">
+                      <label className="font-pixel text-[var(--accent-gold)] block mb-2 text-xs">
                         ESTILOS DE CABELLO
                       </label>
                       <div className="grid grid-cols-3 gap-1.5">
@@ -752,7 +752,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
                     <ColorPicker label="PANTALÓN" value={config.pants} colors={PANTS_COLORS} onChange={update('pants')} />
 
                     <div>
-                      <label className="font-pixel text-[var(--accent-gold)] block mb-2 text-xs tracking-wider">
+                      <label className="font-pixel text-[var(--accent-gold)] block mb-2 text-xs">
                         ACCESORIOS
                       </label>
                       <div className="grid grid-cols-3 gap-1.5">
@@ -775,7 +775,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
                     </div>
 
                     <div>
-                      <label className="font-pixel text-[var(--accent-gold)] block mb-2 text-xs tracking-wider">
+                      <label className="font-pixel text-[var(--accent-gold)] block mb-2 text-xs">
                         EXPRESIÓN
                       </label>
                       <div className="grid grid-cols-2 gap-1.5">

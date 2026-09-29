@@ -90,7 +90,7 @@ export default function RegisterPage() {
                 />
               </div>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Vista Previa</p>
+                <p className="text-sm font-medium text-[var(--text-muted)]">Vista Previa</p>
                 <p className="mt-1 text-sm font-medium text-[var(--text-primary)]">Tú como aventurero</p>
                 <p className="text-sm text-[var(--text-secondary)]">Perfil RPG minimalista</p>
               </div>
@@ -99,7 +99,7 @@ export default function RegisterPage() {
 
           <div className="mb-8 grid gap-4 rounded-3xl border border-[var(--border)] bg-[var(--bg-panel-light)] p-5 md:grid-cols-2">
             <div className="md:col-span-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)] mb-3">¿Eres héroe o heroína?</p>
+              <p className="text-sm font-medium text-[var(--text-muted)] mb-3">¿Eres héroe o heroína?</p>
               <div className="flex gap-3">
                 {(['male', 'female'] as const).map((g) => (
                   <button
@@ -119,7 +119,7 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Color de cabello</p>
+              <p className="text-sm font-medium text-[var(--text-muted)]">Color de cabello</p>
               <div className="mt-3 flex gap-2">
                 {HAIR_COLORS.map((color) => (
                   <button
@@ -137,7 +137,7 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Color de ropa</p>
+              <p className="text-sm font-medium text-[var(--text-muted)]">Color de ropa</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {SHIRT_COLORS.map((color) => (
                   <button

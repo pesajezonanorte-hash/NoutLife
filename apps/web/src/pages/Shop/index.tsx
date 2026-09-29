@@ -1,6 +1,6 @@
 import { FlowButton } from "@/components/ui/flow-button";
 import { useState, useEffect, useCallback, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useAuthStore } from "../../store/authStore";
 import { useToast } from "../../hooks/useToast";
 import { PixelPanel } from "../../components/ui/PixelPanel";
@@ -171,6 +171,7 @@ function ConfirmPurchaseModal({
 }
 
 export default function ShopPage() {
+  const reduceMotion = useReducedMotion();
   const { user, updateUser } = useAuthStore();
   const toast = useToast();
   const [items, setItems] = useState<ShopItem[]>([]);
@@ -343,6 +344,14 @@ export default function ShopPage() {
         ))}
       </div>
 
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={shopTab}
+          initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={reduceMotion ? undefined : { opacity: 0, y: -5 }}
+          transition={{ duration: reduceMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
+        >
       {shopTab === "shop" && (
         <>
           <div className="grid grid-cols-2 gap-1 sm:flex sm:flex-wrap">
@@ -740,6 +749,9 @@ export default function ShopPage() {
           )}
         </div>
       )}
+
+        </motion.div>
+      </AnimatePresence>
 
       <AnimatePresence>
         {confirmItem && (

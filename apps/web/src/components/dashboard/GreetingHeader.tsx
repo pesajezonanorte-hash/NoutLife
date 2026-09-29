@@ -145,7 +145,7 @@ export function GreetingHeader({ displayName, currentStreak, createdAt, gender =
             </motion.span>
             <div>
               <p
-                className="font-bold uppercase tracking-[0.08em]"
+                className="font-medium"
                 style={{ fontSize: 12, color: 'var(--c-amber)' }}
               >
                 RACHA

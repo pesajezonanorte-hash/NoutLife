@@ -38,7 +38,7 @@ export function SageDailyTip() {
     >
       <Sparkles size={16} className="text-[var(--accent-gold)] flex-shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
       <div>
-        <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-0.5">Sugerencia del Sabio</p>
+        <p className="text-sm font-medium text-[var(--text-muted)] mb-0.5">Sugerencia del Sabio</p>
         <p className="text-sm text-[var(--text-secondary)] italic leading-relaxed">{tip}</p>
       </div>
     </button>

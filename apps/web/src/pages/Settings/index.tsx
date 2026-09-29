@@ -142,7 +142,7 @@ function SectionCard({
     >
       <div className="border-b border-[var(--border)] px-4 py-4 sm:px-5">
         {eyebrow && (
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent-gold)]">
+          <p className="text-sm font-medium text-[var(--accent-gold)]">
             {eyebrow}
           </p>
         )}
@@ -245,7 +245,7 @@ function FormField({
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] px-3 py-3">
-      <p className="text-xs font-medium uppercase tracking-[0.1em] text-[var(--text-muted)]">
+      <p className="text-sm font-medium text-[var(--text-muted)]">
         {label}
       </p>
       <p className="mt-1 text-lg font-semibold tabular-nums text-[var(--text-primary)]">
@@ -470,7 +470,7 @@ export default function Settings() {
       <header className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel-light)] px-4 py-5 shadow-[0_14px_36px_rgba(0,0,0,0.08)] sm:px-6">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent-gold)]">
+            <p className="text-sm font-medium text-[var(--accent-gold)]">
               Espacio personal
             </p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[var(--text-primary)]">

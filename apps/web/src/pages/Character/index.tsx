@@ -77,7 +77,7 @@ export default function CharacterPage() {
 
         {/* ── Columna central: Stats ── */}
         <PixelPanel animate className="p-5 space-y-3">
-          <h2 className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide text-center mb-3">
+          <h2 className="text-sm font-medium text-[var(--text-secondary)] text-center mb-3">
             Atributos
           </h2>
 
@@ -114,14 +114,14 @@ export default function CharacterPage() {
             <div className="flex items-center justify-center gap-2 bg-[var(--bg-panel-light)] border border-[var(--border)] rounded-lg px-4 py-2">
               <span className="text-[var(--accent-gold)] text-2xl"><E e="💰" /></span>
               <span className="text-xl font-bold text-[var(--accent-gold)]">{user.gold.toLocaleString()}</span>
-              <span className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide">GOLD</span>
+              <span className="text-sm font-medium text-[var(--text-secondary)]">GOLD</span>
             </div>
           </div>
         </PixelPanel>
 
         {/* ── Columna derecha: Equipamiento ── */}
         <PixelPanel animate className="p-5">
-          <h2 className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide text-center mb-4">
+          <h2 className="text-sm font-medium text-[var(--text-secondary)] text-center mb-4">
             Equipamiento
           </h2>
 
@@ -156,7 +156,7 @@ export default function CharacterPage() {
 
           {/* Logros recientes */}
           <div className="mt-4 border-t border-[var(--border)] pt-4">
-            <h3 className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-2">Logros desbloqueados</h3>
+            <h3 className="text-sm font-medium text-[var(--text-secondary)] mb-2">Logros desbloqueados</h3>
             <div className="space-y-1.5">
               {[
                 { icon: '🌟', title: '¡El Héroe Despierta!', desc: 'Primera sesión' },

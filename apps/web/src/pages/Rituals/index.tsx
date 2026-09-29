@@ -176,7 +176,7 @@ function ExecutionMode({
           className="space-y-6"
         >
           <div
-            className="text-xs font-semibold uppercase tracking-widest"
+            className="text-sm font-medium"
             style={{ color: cfg.color }}
           >
             Paso {stepIdx + 1} de {ritual.steps.length}
