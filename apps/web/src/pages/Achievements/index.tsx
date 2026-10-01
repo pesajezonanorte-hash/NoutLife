@@ -1,3 +1,4 @@
+import { FlowButton } from '@/components/ui/flow-button';
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PixelPanel } from '../../components/ui/PixelPanel';
@@ -69,7 +70,7 @@ export default function AchievementsPage() {
       {/* Progress bar global */}
       {(loading || achievements.length > 0) && (
         <div>
-          <div className="flex justify-between font-pixel mb-1" style={{ fontSize: '7px' }}>
+          <div className="flex justify-between font-pixel mb-1" style={{ fontSize: '12px' }}>
             <span className="text-text-secondary">PROGRESO GLOBAL</span>
             <span className="text-accent-gold">{Math.round(achievements.length > 0 ? (unlockedCount / achievements.length) * 100 : 0)}%</span>
           </div>
@@ -116,7 +117,7 @@ export default function AchievementsPage() {
                 ? 'border-accent-gold bg-accent-gold text-bg-deep'
                 : 'border-border-pixel text-text-secondary hover:border-text-secondary'
             }`}
-            style={{ fontSize: '7px' }}
+            style={{ fontSize: '12px' }}
           >
             <E e={tab.icon} /> {tab.label}
           </button>
@@ -187,26 +188,26 @@ export default function AchievementsPage() {
               >
                 <E e={selectedAch.icon} />
               </motion.div>
-              <h3 className={`font-pixel mb-2 ${selectedAch.unlocked ? 'text-accent-gold' : 'text-text-secondary'}`} style={{ fontSize: '11px' }}>
+              <h3 className={`font-pixel mb-2 ${selectedAch.unlocked ? 'text-accent-gold' : 'text-text-secondary'}`} style={{ fontSize: '12px' }}>
                 {selectedAch.title}
               </h3>
               <p className="font-vt text-text-primary text-base mb-4">{selectedAch.description}</p>
 
               {selectedAch.unlocked ? (
                 <div className="space-y-1">
-                  <p className="font-pixel text-accent-gold" style={{ fontSize: '9px' }}><E e="✓" /> DESBLOQUEADO</p>
+                  <p className="font-pixel text-accent-gold" style={{ fontSize: '12px' }}><E e="✓" /> DESBLOQUEADO</p>
                   {selectedAch.unlockedAt && (
                     <p className="font-vt text-text-secondary text-sm">
                       {new Date(selectedAch.unlockedAt).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })}
                     </p>
                   )}
                   {selectedAch.xpReward > 0 && (
-                    <p className="font-pixel text-accent-gold" style={{ fontSize: '8px' }}>+{selectedAch.xpReward} XP</p>
+                    <p className="font-pixel text-accent-gold" style={{ fontSize: '12px' }}>+{selectedAch.xpReward} XP</p>
                   )}
                 </div>
               ) : (
                 <div>
-                  <p className="font-pixel text-text-secondary" style={{ fontSize: '8px' }}><E e="🔒" /> BLOQUEADO</p>
+                  <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}><E e="🔒" /> BLOQUEADO</p>
                   {selectedAch.progress !== null && selectedAch.target && (
                     <p className="font-vt text-text-secondary text-sm mt-1">
                       {selectedAch.progress}/{selectedAch.target}
@@ -215,13 +216,15 @@ export default function AchievementsPage() {
                 </div>
               )}
 
-              <button
+              <FlowButton
+                tone="ghost"
+                withArrows={false}
                 onClick={() => setSelectedAch(null)}
                 className="mt-4 min-h-11 font-pixel text-text-secondary hover:text-text-primary border-2 border-border-pixel px-4 py-1"
-                style={{ fontSize: '8px' }}
+                style={{ fontSize: '12px' }}
               >
                 CERRAR
-              </button>
+              </FlowButton>
             </motion.div>
           </motion.div>
         )}

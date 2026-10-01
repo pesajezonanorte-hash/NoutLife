@@ -299,7 +299,7 @@ export function SagePanel({ onClose }: Props) {
                 <Send size={16} />
               </button>
             </div>
-            <p className="mt-2 text-center text-[11px] text-[var(--text-muted)]">
+            <p className="mt-2 text-center text-xs text-[var(--text-muted)]">
               La IA puede equivocarse. Verifica decisiones importantes.
             </p>
           </div>

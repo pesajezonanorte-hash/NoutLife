@@ -1,3 +1,4 @@
+import { FlowButton } from '@/components/ui/flow-button';
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../store/authStore';
@@ -23,6 +24,14 @@ const GYM_TABS: Array<{ id: GymTab; label: string; helper: string; icon: string 
   { id: 'analytics', label: 'Análisis', helper: 'Tu rendimiento', icon: '📈' },
   { id: 'photos', label: 'Progreso', helper: 'Fotos y cambios', icon: '📸' },
 ];
+
+const WEEKDAY_LABELS = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
+
+function routineExerciseCount(routine: Routine) {
+  return routine.days.length > 0
+    ? routine.days.reduce((total, day) => total + day.exercises.length, 0)
+    : routine.exercises.length;
+}
 
 interface ActiveSet {
   id: string;
@@ -62,7 +71,7 @@ function WorkoutTimer({ startTime }: { startTime: number }) {
     return () => clearInterval(id);
   }, []);
   return (
-    <span className="font-pixel text-accent-gold" style={{ fontSize: '11px' }}>
+    <span className="font-pixel text-accent-gold" style={{ fontSize: '12px' }}>
       ⏱ {formatDuration(Date.now() - startTime)}
     </span>
   );
@@ -102,7 +111,7 @@ function GymEmptySurface({
             <E e={icon} s={28} strokeWidth={1.65} />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--accent-gold)]">{eyebrow}</p>
+            <p className="text-sm font-medium text-[var(--accent-gold)]">{eyebrow}</p>
             <h2 className="mt-1 text-xl font-bold tracking-tight text-[var(--text-primary)] sm:text-2xl">{title}</h2>
             <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--text-secondary)] sm:text-base">{description}</p>
           </div>
@@ -139,7 +148,7 @@ function NumericStepper({
         disabled={disabled}
         onClick={() => onChange(String(Math.max(min, num - step)))}
         className="h-11 w-11 border border-border-pixel text-text-secondary hover:text-accent-gold hover:border-accent-gold transition-colors font-pixel disabled:opacity-30 md:h-10 md:w-5"
-        style={{ fontSize: '8px' }}
+        style={{ fontSize: '12px' }}
       >▼</button>
       <input
         type="number"
@@ -154,7 +163,7 @@ function NumericStepper({
         disabled={disabled}
         onClick={() => onChange(String(num + step))}
         className="h-11 w-11 border border-border-pixel text-text-secondary hover:text-accent-gold hover:border-accent-gold transition-colors font-pixel disabled:opacity-30 md:h-10 md:w-5"
-        style={{ fontSize: '8px' }}
+        style={{ fontSize: '12px' }}
       >▲</button>
     </div>
   );
@@ -198,7 +207,7 @@ function ExerciseSearchModal({
         onClick={e => e.stopPropagation()}
       >
         <div className="p-3 border-b-2 border-border-pixel space-y-2">
-          <p className="font-pixel text-accent-gold" style={{ fontSize: '9px' }}>AGREGAR EJERCICIO</p>
+          <p className="font-pixel text-accent-gold" style={{ fontSize: '12px' }}>AGREGAR EJERCICIO</p>
           <input
             type="text"
             value={search}
@@ -218,7 +227,7 @@ function ExerciseSearchModal({
                     ? 'border-accent-gold text-accent-gold bg-accent-gold/10'
                     : 'border-border-pixel text-text-secondary hover:border-accent-gold/50'
                 }`}
-                style={{ fontSize: '6px' }}
+                style={{ fontSize: '12px' }}
               >
                 {mg}
               </button>
@@ -239,7 +248,7 @@ function ExerciseSearchModal({
               >
                 <p className="font-vt text-text-primary text-lg">{ex.name}</p>
                 {(ex.muscleGroup || ex.equipment) && (
-                  <p className="font-pixel text-text-secondary" style={{ fontSize: '7px' }}>
+                  <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>
                     {[ex.muscleGroup, ex.equipment].filter(Boolean).join(' · ')}
                   </p>
                 )}
@@ -358,7 +367,7 @@ function ActiveWorkoutView({
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <p className="font-pixel text-accent-gold" style={{ fontSize: '11px' }}>
+          <p className="font-pixel text-accent-gold" style={{ fontSize: '12px' }}>
             {activeWorkout.title}
           </p>
           <WorkoutTimer startTime={activeWorkout.startTime} />
@@ -382,16 +391,16 @@ function ActiveWorkoutView({
           animate={{ opacity: 1, scale: 1 }}
           className="bg-accent-cyan/10 border-2 border-accent-cyan p-3 text-center"
         >
-          <p className="font-pixel text-accent-cyan" style={{ fontSize: '9px' }}>
+          <p className="font-pixel text-accent-cyan" style={{ fontSize: '12px' }}>
             DESCANSO
           </p>
           <p className="font-pixel text-accent-gold text-2xl">{restTimer}s</p>
-          <button
+          <FlowButton tone="ghost" size="sm" withArrows={false}
             onClick={() => setRestTimer(null)}
             className="font-vt text-text-secondary text-base"
           >
             Saltar
-          </button>
+          </FlowButton>
         </motion.div>
       )}
 
@@ -415,13 +424,13 @@ function ActiveWorkoutView({
                   )}
                 </div>
                 {ex.muscleGroup && (
-                  <p className="font-pixel text-text-secondary" style={{ fontSize: '7px' }}>
+                  <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>
                     {ex.muscleGroup}
                   </p>
                 )}
               </div>
               {ex.prevBest && (
-                <p className="font-pixel text-text-secondary" style={{ fontSize: '7px' }}>
+                <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>
                   MEJOR: {ex.prevBest.weight}kg × {ex.prevBest.reps} reps
                 </p>
               )}
@@ -433,14 +442,14 @@ function ActiveWorkoutView({
                 return (
                   <div key={set.id} className={`rounded-xl border border-border-pixel bg-bg-deep p-3 ${set.completed ? 'opacity-60' : ''}`}>
                     <div className="mb-2 flex items-center justify-between gap-2">
-                      <span className="font-pixel text-text-secondary" style={{ fontSize: '8px' }}>SET {setIdx + 1}</span>
-                      <span className="min-w-0 truncate font-pixel text-text-muted" style={{ fontSize: '7px' }}>
+                      <span className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>SET {setIdx + 1}</span>
+                      <span className="min-w-0 truncate font-pixel text-text-muted" style={{ fontSize: '12px' }}>
                         ANTERIOR: {ex.prevBest ? `${ex.prevBest.weight}×${ex.prevBest.reps}` : '—'}
                       </span>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <label className="min-w-0">
-                        <span className="mb-1 block font-pixel text-text-secondary" style={{ fontSize: '7px' }}>KG</span>
+                        <span className="mb-1 block font-pixel text-text-secondary" style={{ fontSize: '12px' }}>KG</span>
                         <NumericStepper
                           value={set.weight}
                           onChange={v => updateSet(exIdx, setIdx, 'weight', v)}
@@ -449,7 +458,7 @@ function ActiveWorkoutView({
                         />
                       </label>
                       <label className="min-w-0">
-                        <span className="mb-1 block font-pixel text-text-secondary" style={{ fontSize: '7px' }}>REPS</span>
+                        <span className="mb-1 block font-pixel text-text-secondary" style={{ fontSize: '12px' }}>REPS</span>
                         <NumericStepper
                           value={set.reps}
                           onChange={v => updateSet(exIdx, setIdx, 'reps', v)}
@@ -466,7 +475,7 @@ function ActiveWorkoutView({
                           ? 'border-accent-green bg-accent-green text-bg-deep'
                           : 'border-border-pixel text-text-secondary hover:border-accent-green'
                       }`}
-                      style={{ fontSize: '8px' }}
+                      style={{ fontSize: '12px' }}
                     >
                       {set.completed ? '✓ SET COMPLETADO' : 'MARCAR SET COMPLETO'}
                       {isPR && <span className="text-accent-gold"><E e="🏆" /> PR</span>}
@@ -484,7 +493,7 @@ function ActiveWorkoutView({
                       <th
                         key={h}
                         className="font-pixel text-text-secondary pb-1 px-1"
-                        style={{ fontSize: '7px' }}
+                        style={{ fontSize: '12px' }}
                       >
                         {h}
                       </th>
@@ -501,7 +510,7 @@ function ActiveWorkoutView({
                       >
                         <td
                           className="font-pixel text-text-secondary py-1 px-1"
-                          style={{ fontSize: '8px' }}
+                          style={{ fontSize: '12px' }}
                         >
                           {setIdx + 1}
                         </td>
@@ -523,7 +532,7 @@ function ActiveWorkoutView({
                         </td>
                         <td
                           className="font-pixel text-text-muted px-1"
-                          style={{ fontSize: '7px', whiteSpace: 'nowrap' }}
+                          style={{ fontSize: '12px', whiteSpace: 'nowrap' }}
                         >
                           {ex.prevBest
                             ? `${ex.prevBest.weight}×${ex.prevBest.reps}`
@@ -549,7 +558,7 @@ function ActiveWorkoutView({
                                 initial={{ opacity: 0, y: 4 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 className="font-pixel text-accent-gold"
-                                style={{ fontSize: '6px' }}
+                                style={{ fontSize: '12px' }}
                               >
                                 <E e="🏆" />PR
                               </motion.span>
@@ -564,15 +573,15 @@ function ActiveWorkoutView({
             </div>
 
             <div className="flex items-center justify-between">
-              <button
+              <FlowButton tone="ghost" size="sm" withArrows={false}
                 onClick={() => addSet(exIdx)}
                 className="min-h-11 px-2 font-pixel text-text-secondary hover:text-accent-gold transition-colors"
-                style={{ fontSize: '8px' }}
+                style={{ fontSize: '12px' }}
               >
                 + SET
-              </button>
+              </FlowButton>
               {ex.sets.filter(s => s.completed).length > 0 && (
-                <span className="font-pixel text-text-secondary" style={{ fontSize: '7px' }}>
+                <span className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>
                   Volumen:{' '}
                   {ex.sets
                     .filter(s => s.completed)
@@ -621,6 +630,8 @@ export default function GymPage() {
 
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [routines, setRoutines] = useState<Routine[]>([]);
+  const [attendances, setAttendances] = useState<workoutService.GymAttendance[]>([]);
+  const [recordingAttendance, setRecordingAttendance] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeWorkout, setActiveWorkout] = useState<ActiveWorkout | null>(null);
   const [showStartModal, setShowStartModal] = useState(false);
@@ -631,12 +642,14 @@ export default function GymPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [ws, rs] = await Promise.all([
+      const [ws, rs, attendance] = await Promise.all([
         workoutService.fetchWorkouts(10),
         workoutService.fetchRoutines(),
+        workoutService.fetchGymAttendances(),
       ]);
       setWorkouts(ws);
       setRoutines(rs);
+      setAttendances(attendance);
     } catch {
       /* ignore */
     } finally {
@@ -647,6 +660,19 @@ export default function GymPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  async function recordAttendance() {
+    setRecordingAttendance(true);
+    try {
+      const attendance = await workoutService.recordGymAttendance();
+      setAttendances((current) => [...current.filter((item) => item.id !== attendance.id), attendance]);
+      toast.success('Asistencia registrada', 'El Coliseo cuenta tu visita de hoy.');
+    } catch {
+      toast.error('No se pudo registrar la asistencia');
+    } finally {
+      setRecordingAttendance(false);
+    }
+  }
 
   async function startWorkout(title?: string) {
     const t = title ?? newTitle;
@@ -663,25 +689,37 @@ export default function GymPage() {
 
   async function startFromRoutine(routine: Routine) {
     try {
-      const w = await workoutService.createWorkout({ title: routine.name });
-      const exercises = (routine.exercises as Array<{
-        exerciseId: string;
-        name: string;
-        sets: number;
-        reps?: number;
-      }>).map(re => ({
-        exerciseId: re.exerciseId,
-        name: re.name,
-        muscleGroup: undefined as string | undefined,
-        sets: Array.from({ length: re.sets }, (_, i) => ({
-          id: String(i + 1),
-          weight: '',
-          reps: re.reps ? String(re.reps) : '',
-          completed: false,
-        })),
-        prevBest: null,
-        personalRecord: 0,
-      }));
+      const today = new Date().getDay();
+      const routineDay = routine.days.find((day) => day.weekday === today && !day.isRestDay)
+        ?? routine.days.find((day) => !day.isRestDay);
+      const w = await workoutService.createWorkout({ title: routineDay?.title || routine.name, routineDayId: routineDay?.id });
+      const exercises = routineDay
+        ? routineDay.exercises.map((exercise) => ({
+          exerciseId: exercise.exerciseId,
+          name: exercise.exercise.name,
+          muscleGroup: exercise.exercise.muscleGroup,
+          sets: (exercise.targetSets ?? []).map((set, index) => ({
+            id: String(index + 1),
+            weight: set.weight ? String(set.weight) : '',
+            reps: set.reps ? String(set.reps) : '',
+            completed: false,
+          })),
+          prevBest: null,
+          personalRecord: 0,
+        }))
+        : (routine.exercises as Array<{ exerciseId: string; name: string; sets: number; reps?: number }>).map((exercise) => ({
+          exerciseId: exercise.exerciseId,
+          name: exercise.name,
+          muscleGroup: undefined as string | undefined,
+          sets: Array.from({ length: exercise.sets }, (_, index) => ({
+            id: String(index + 1),
+            weight: '',
+            reps: exercise.reps ? String(exercise.reps) : '',
+            completed: false,
+          })),
+          prevBest: null,
+          personalRecord: 0,
+        }));
       setActiveWorkout({ id: w.id, title: w.title, startTime: Date.now(), exercises });
     } catch {
       toast.error('Error al iniciar rutina');
@@ -741,30 +779,32 @@ export default function GymPage() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="font-pixel text-accent-green border border-accent-green px-2 py-1 hover:bg-accent-green hover:text-bg-deep transition-colors"
-                style={{ fontSize: '8px' }}
+                style={{ fontSize: '12px' }}
               >
                 ▶ ABRIR SPOTIFY
               </a>
-              <button
+              <FlowButton tone="ghost" size="sm" withArrows={false}
                 onClick={() => navigate('/settings')}
                 className="font-pixel text-text-muted hover:text-text-secondary"
-                style={{ fontSize: '8px' }}
+                style={{ fontSize: '12px' }}
               >
                 <E e="✏" />
-              </button>
+              </FlowButton>
             </div>
           </div>
         )}
         {!user?.gymPlaylistUrl && (
           <div className="flex items-center justify-between bg-bg-panel border border-border-pixel px-3 py-2 opacity-60">
-            <p className="font-pixel text-text-secondary" style={{ fontSize: '7px' }}><E e="🎵" /> Sin playlist configurada</p>
-            <button
+            <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}><E e="🎵" /> Sin playlist configurada</p>
+            <FlowButton
+              tone="primary"
+              size="sm"
+              withArrows={false}
               onClick={() => navigate('/settings')}
-              className="font-pixel text-accent-gold hover:text-text-primary"
-              style={{ fontSize: '7px' }}
+              className="font-pixel text-xs"
             >
               + CONFIGURAR →
-            </button>
+            </FlowButton>
           </div>
         )}
         <ActiveWorkoutView
@@ -778,6 +818,27 @@ export default function GymPage() {
 
   const featuredRoutine = routines[0];
   const latestWorkout = workouts[0];
+  const calendarParts = (date: Date) => new Intl.DateTimeFormat('en-CA', {
+    timeZone: user?.timezone ?? 'America/Bogota',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date).reduce<Record<string, string>>((parts, part) => ({ ...parts, [part.type]: part.value }), {});
+  const calendarKey = (date: Date) => {
+    const parts = calendarParts(date);
+    return `${parts.year}-${parts.month}-${parts.day}`;
+  };
+  const todayKey = calendarKey(new Date());
+  const attendedToday = attendances.some((attendance) => attendance.date.slice(0, 10) === todayKey);
+  const attendanceDays = Array.from({ length: 7 }, (_, index) => {
+    const day = new Date(Date.now() - (6 - index) * 86_400_000);
+    const key = calendarKey(day);
+    return {
+      key,
+      label: day.toLocaleDateString('es-CO', { timeZone: user?.timezone ?? 'America/Bogota', weekday: 'narrow' }),
+      attended: attendances.some((attendance) => attendance.date.slice(0, 10) === key),
+    };
+  });
 
   return (
     <div className="space-y-4">
@@ -788,7 +849,7 @@ export default function GymPage() {
               <E e="⚔" s={24} strokeWidth={1.7} />
             </div>
             <div className="min-w-0">
-              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--accent-gold)]">Zona de entrenamiento</p>
+              <p className="text-sm font-medium text-[var(--accent-gold)]">Zona de entrenamiento</p>
               <h1 className="mt-0.5 text-2xl font-bold tracking-tight text-[var(--text-primary)]">El Coliseo</h1>
               <p className="mt-0.5 text-sm text-[var(--text-secondary)]">Forja tu cuerpo, héroe.</p>
             </div>
@@ -807,6 +868,32 @@ export default function GymPage() {
             </PixelButton>
           </div>
         </div>
+      </section>
+
+      <section className="flex flex-col gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-3.5 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-[var(--text-primary)]">Asistencia al Coliseo</p>
+          <div className="mt-2 flex gap-1.5" aria-label="Asistencia de los últimos siete días">
+            {attendanceDays.map((day) => (
+              <span
+                key={day.key}
+                title={day.attended ? `${day.label}: asistencia registrada` : `${day.label}: sin asistencia`}
+                className={`flex h-8 w-8 items-center justify-center rounded-lg border text-xs font-semibold ${day.attended ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)]/15 text-[var(--accent-gold)]' : 'border-[var(--border)] bg-[var(--bg-panel-light)] text-[var(--text-muted)]'}`}
+              >
+                {day.label}
+              </span>
+            ))}
+          </div>
+        </div>
+        <FlowButton
+          tone={attendedToday ? 'ghost' : 'primary'}
+          size="sm"
+          withArrows={false}
+          disabled={attendedToday || recordingAttendance}
+          onClick={() => void recordAttendance()}
+        >
+          {attendedToday ? 'Asistencia de hoy' : recordingAttendance ? 'Registrando…' : 'Registrar asistencia'}
+        </FlowButton>
       </section>
 
       <div
@@ -840,7 +927,7 @@ export default function GymPage() {
               </span>
               <span className="min-w-0">
                 <span className="block truncate text-sm font-bold leading-4">{label}</span>
-                <span className="mt-0.5 block truncate text-[11px] leading-4 text-[var(--text-muted)]">{helper}</span>
+                <span className="mt-0.5 block truncate text-xs leading-4 text-[var(--text-muted)]">{helper}</span>
               </span>
             </button>
           );
@@ -898,7 +985,7 @@ export default function GymPage() {
                         <p className="font-vt text-text-primary text-xl">{w.title}</p>
                         <p
                           className="font-pixel text-text-secondary"
-                          style={{ fontSize: '7px' }}
+                          style={{ fontSize: '12px' }}
                         >
                           {new Date(w.date).toLocaleDateString('es-CO', {
                             weekday: 'short',
@@ -923,7 +1010,7 @@ export default function GymPage() {
                           <span
                             key={idx}
                             className="font-pixel text-text-secondary border border-border-pixel px-2 py-0.5"
-                            style={{ fontSize: '7px' }}
+                            style={{ fontSize: '12px' }}
                           >
                             {ex.exerciseName}
                           </span>
@@ -958,10 +1045,10 @@ export default function GymPage() {
                   visual={<span className="text-6xl" aria-hidden="true"><E e="🏋️" s={64} /></span>}
                   visualLabel={`Rutina preparada: ${featuredRoutine.name}`}
                   badge="Rutina destacada"
-                  frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">{(featuredRoutine.exercises as Array<unknown>).length} ejercicios preparados</p>}
+                  frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">{routineExerciseCount(featuredRoutine)} ejercicios preparados</p>}
                   backDescription={<p>Esta rutina sustituye su fila plana en la lista. Iníciala desde el reverso para cargar sus series en el entrenamiento activo.</p>}
                   metrics={[
-                    { label: 'Ejercicios', value: (featuredRoutine.exercises as Array<unknown>).length },
+                    { label: 'Ejercicios', value: routineExerciseCount(featuredRoutine) },
                     { label: 'Duración', value: featuredRoutine.estimatedDuration ? `${featuredRoutine.estimatedDuration} min` : '—' },
                     { label: 'Rutinas', value: routines.length },
                   ]}
@@ -984,18 +1071,18 @@ export default function GymPage() {
                       {r.description && (
                         <p
                           className="font-pixel text-text-secondary"
-                          style={{ fontSize: '7px' }}
+                          style={{ fontSize: '12px' }}
                         >
                           {r.description}
                         </p>
                       )}
                       <p
                         className="font-pixel text-text-muted mt-1"
-                        style={{ fontSize: '7px' }}
+                        style={{ fontSize: '12px' }}
                       >
-                        {(r.exercises as { name: string }[])
-                          .map(e => e.name)
-                          .join(' · ')}
+                        {r.days.length > 0
+                          ? r.days.filter((day) => !day.isRestDay).map((day) => `${WEEKDAY_LABELS[day.weekday]}: ${day.exercises.map((exercise) => exercise.exercise.name).join(', ') || 'descanso'}`).join(' · ')
+                          : r.exercises.map((exercise) => exercise.name).join(' · ')}
                       </p>
                     </div>
                     <PixelButton
@@ -1009,7 +1096,7 @@ export default function GymPage() {
                   {r.estimatedDuration && (
                     <p
                       className="font-pixel text-text-secondary mt-2"
-                      style={{ fontSize: '7px' }}
+                      style={{ fontSize: '12px' }}
                     >
                       ~{r.estimatedDuration} min
                     </p>
@@ -1058,7 +1145,7 @@ export default function GymPage() {
               className="w-full max-w-sm space-y-4 rounded-t-2xl border-2 border-border-pixel bg-bg-panel p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:rounded-2xl md:p-5"
               onClick={e => e.stopPropagation()}
             >
-              <p className="font-pixel text-accent-gold" style={{ fontSize: '10px' }}>
+              <p className="font-pixel text-accent-gold" style={{ fontSize: '12px' }}>
                 NUEVO ENTRENAMIENTO
               </p>
               <input

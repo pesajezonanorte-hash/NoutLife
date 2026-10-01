@@ -198,7 +198,7 @@ function DockLabel({ children, className, placement = 'top', isHovered }: DockLa
           exit={{ opacity: 0, y: opensDown ? -2 : 2, scale: 0.96 }}
           transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
           className={cn(
-            'pointer-events-none absolute left-1/2 z-30 w-fit whitespace-nowrap rounded-md border px-2 py-1 text-[11px] font-semibold shadow-md',
+            'pointer-events-none absolute left-1/2 z-30 w-fit whitespace-nowrap rounded-md border px-2 py-1 text-xs font-semibold shadow-md',
             opensDown ? 'top-[calc(100%+2px)]' : '-top-7',
             'border-[var(--border)] bg-[var(--bg-panel)] text-[var(--text-primary)]',
             className,

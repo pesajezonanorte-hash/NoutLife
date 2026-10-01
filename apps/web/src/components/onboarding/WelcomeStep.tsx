@@ -85,7 +85,7 @@ export function WelcomeStep({ gender, avatarConfig, onNext }: Props) {
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.6, type: 'spring' }}
         >
-          <span className="absolute -top-3 left-6 bg-accent-gold px-2 py-0.5 font-pixel text-border-pixel" style={{ fontSize: '7px' }}>
+          <span className="absolute -top-3 left-6 bg-accent-gold px-2 py-0.5 font-pixel text-border-pixel" style={{ fontSize: '12px' }}>
             SABIO DEL CASTILLO
           </span>
           <p className="font-vt text-lg leading-relaxed text-text-primary">

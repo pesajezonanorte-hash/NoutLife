@@ -57,6 +57,9 @@ export const HabitRow = memo(function HabitRow({ habit, onLog, onEdit, onDelete 
           {habit.description && (
             <p className="text-xs text-[var(--text-secondary)] truncate">{habit.description}</p>
           )}
+          {habit.createsGymAttendance && (
+            <p className="mt-0.5 text-xs font-medium text-[var(--accent-gold)]"><E e="🏋️" /> Cuenta como asistencia al gym</p>
+          )}
         </div>
 
         {/* Streak */}
@@ -101,7 +104,7 @@ export const HabitRow = memo(function HabitRow({ habit, onLog, onEdit, onDelete 
             className="border-t border-[var(--border)] p-3 bg-[var(--bg-panel-light)]"
           >
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
+              <span className="text-sm font-medium text-[var(--text-secondary)]">
                 Últimos 30 días
               </span>
               <div className="flex flex-wrap gap-x-3 gap-y-1">

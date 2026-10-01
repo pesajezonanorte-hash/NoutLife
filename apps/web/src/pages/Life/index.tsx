@@ -104,7 +104,7 @@ export default function LifePage() {
             key={key}
             onClick={() => setTab(key)}
             className={`flex-shrink-0 px-3 py-1.5 border-2 font-pixel transition-all ${tab === key ? 'border-accent-gold bg-accent-gold text-bg-deep' : 'border-border-pixel text-text-secondary hover:border-text-secondary'}`}
-            style={{ fontSize: '8px' }}
+            style={{ fontSize: '12px' }}
           >
             {label}
           </button>
@@ -128,7 +128,7 @@ export default function LifePage() {
 
           {/* Radar chart */}
           <PixelPanel className="p-4">
-            <p className="font-pixel text-text-secondary mb-3" style={{ fontSize: '8px' }}>ÁREAS DE VIDA</p>
+            <p className="font-pixel text-text-secondary mb-3" style={{ fontSize: '12px' }}>ÁREAS DE VIDA</p>
             <ResponsiveContainer width="100%" height={250}>
               <RadarChart data={radarData}>
                 <PolarGrid stroke="var(--border)" />
@@ -140,15 +140,15 @@ export default function LifePage() {
 
           {/* Bar breakdown */}
           <PixelPanel className="p-4">
-            <p className="font-pixel text-text-secondary mb-3" style={{ fontSize: '8px' }}>DETALLE POR ÁREA</p>
+            <p className="font-pixel text-text-secondary mb-3" style={{ fontSize: '12px' }}>DETALLE POR ÁREA</p>
             <div className="space-y-3">
               {barData.map(d => (
                 <div key={d.name}>
                   <div className="flex justify-between mb-1">
                     <span className="font-vt text-text-primary text-base">{d.name}</span>
                     <div className="flex items-center gap-2">
-                      <span className="font-pixel text-text-secondary" style={{ fontSize: '7px' }}>PESO {d.weight}%</span>
-                      <span className="font-pixel" style={{ fontSize: '9px', color: d.color }}>{d.score}/100</span>
+                      <span className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>PESO {d.weight}%</span>
+                      <span className="font-pixel" style={{ fontSize: '12px', color: d.color }}>{d.score}/100</span>
                     </div>
                   </div>
                   <div className="stat-bar h-3">
@@ -170,11 +170,11 @@ export default function LifePage() {
       {/* Correlations tab */}
       {tab === 'correlations' && (
         <div className="space-y-3">
-          <p className="font-pixel text-text-secondary" style={{ fontSize: '8px' }}>PATRONES DETECTADOS EN TUS DATOS</p>
+          <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>PATRONES DETECTADOS EN TUS DATOS</p>
           {correlations.length === 0 ? (
             <PixelPanel className="p-8 text-center">
               <p className="text-4xl mb-2"><E e="🔍" /></p>
-              <p className="font-pixel text-text-secondary" style={{ fontSize: '9px' }}>SIN SUFICIENTES DATOS</p>
+              <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>SIN SUFICIENTES DATOS</p>
               <p className="font-vt text-text-secondary text-base mt-1">Registra más datos para ver correlaciones</p>
             </PixelPanel>
           ) : (
@@ -214,7 +214,7 @@ export default function LifePage() {
               <PixelPanel key={s.label} className="p-3 text-center">
                 <p className="text-2xl"><E e={s.icon} /></p>
                 <p className="font-pixel text-accent-gold mt-1" style={{ fontSize: '16px' }}>{s.value}</p>
-                <p className="font-pixel text-text-secondary" style={{ fontSize: '6px' }}>{s.label}</p>
+                <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>{s.label}</p>
               </PixelPanel>
             ))}
           </div>

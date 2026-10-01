@@ -26,6 +26,8 @@ export interface Workout {
   date: string;
   xpEarned: number;
   goldEarned: number;
+  routineDayId?: string | null;
+  attendanceId?: string | null;
   exercises: WorkoutExercise[];
   createdAt: string;
   updatedAt: string;
@@ -47,14 +49,42 @@ export interface RoutineExercise {
   notes?: string;
 }
 
+export interface RoutineTargetSet {
+  weight?: number;
+  reps?: number;
+  duration?: number;
+}
+
+export interface RoutineDayExercise {
+  id: string;
+  routineDayId: string;
+  exerciseId: string;
+  targetSets: RoutineTargetSet[];
+  notes?: string;
+  order: number;
+  exercise: Exercise;
+}
+
+export interface RoutineDay {
+  id: string;
+  routineId: string;
+  weekday: number;
+  title?: string;
+  isRestDay: boolean;
+  exercises: RoutineDayExercise[];
+}
+
 export interface Routine {
   id: string;
   userId: string;
   name: string;
   description?: string;
+  // Legacy fields remain available for saved routines created before weekly days.
   exercises: RoutineExercise[];
   targetDays: string[];
   estimatedDuration?: number;
+  isActive: boolean;
+  days: RoutineDay[];
   createdAt: string;
   updatedAt: string;
 }

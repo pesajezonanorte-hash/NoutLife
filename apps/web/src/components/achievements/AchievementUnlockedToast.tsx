@@ -21,7 +21,7 @@ export function AchievementUnlockedToast() {
           >
             {/* Gold header bar */}
             <div className="bg-accent-gold px-3 py-1">
-              <p className="font-pixel text-bg-deep" style={{ fontSize: '8px' }}>
+              <p className="font-pixel text-bg-deep" style={{ fontSize: '12px' }}>
                 <E e="🏆" /> ¡LOGRO DESBLOQUEADO!
               </p>
             </div>
@@ -38,7 +38,7 @@ export function AchievementUnlockedToast() {
                 <p className="font-vt text-text-primary text-base">{toast.title}</p>
                 <p className="font-vt text-text-secondary text-sm">{toast.description}</p>
                 {toast.xpReward > 0 && (
-                  <p className="font-pixel text-accent-gold mt-0.5" style={{ fontSize: '7px' }}>
+                  <p className="font-pixel text-accent-gold mt-0.5" style={{ fontSize: '12px' }}>
                     +{toast.xpReward} XP
                   </p>
                 )}

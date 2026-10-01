@@ -70,6 +70,14 @@ async function openLearning(page: Page, width: number) {
   await expect(page.getByRole('button', { name: /clean code para héroes\. mostrar detalles/i })).toBeVisible({ timeout: 8_000 });
 }
 
+function featuredCard(page: Page) {
+  return page.locator('[style*="--flip-accent"]').first().locator(':scope > .perspective-flip-card');
+}
+
+function flipLayer(page: Page) {
+  return featuredCard(page).locator(':scope > .perspective-flip-card__rotor');
+}
+
 test.describe('PerspectiveFlipCard in the Biblioteca', () => {
   test.skip(!baseUrl, 'Set LIFEQUEST_E2E_BASE_URL to run browser verification.');
 
@@ -77,9 +85,9 @@ test.describe('PerspectiveFlipCard in the Biblioteca', () => {
     await openLearning(page, 390);
 
     const toggle = page.getByRole('button', { name: /clean code para héroes\. mostrar detalles/i });
-    const cardRoot = page.locator('[style*="--flip-accent"]').first().locator(':scope > div');
-    const flipLayer = cardRoot.locator(':scope > div');
-    const frontFace = page.locator('button[aria-controls]').locator('..');
+    const cardRoot = featuredCard(page);
+    const rotor = flipLayer(page);
+    const frontFace = toggle.locator('..');
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect(await cardRoot.evaluate((node) => getComputedStyle(node).perspective)).toBe('2000px');
     await toggle.focus();
@@ -87,7 +95,9 @@ test.describe('PerspectiveFlipCard in the Biblioteca', () => {
 
     const detail = page.getByLabel(/detalles de clean code para héroes/i);
     await expect(detail).toHaveAttribute('aria-hidden', 'false');
-    await expect(flipLayer).toHaveAttribute('style', /rotateY\(180deg\)/);
+    await expect(cardRoot).toHaveAttribute('data-flipped', 'true');
+    await page.waitForTimeout(750);
+    expect(await rotor.evaluate((node) => getComputedStyle(node).transform)).not.toBe('none');
     await expect(frontFace).toHaveAttribute('inert', '');
     await expect(detail.getByRole('button', { name: /actualizar progreso/i })).toBeVisible();
     await expect(detail.getByRole('button', { name: /volver al resumen/i })).toBeVisible();
@@ -98,6 +108,89 @@ test.describe('PerspectiveFlipCard in the Biblioteca', () => {
     await expect(toggle).toBeFocused();
   });
 
+  test('keeps a prefixed 3D compositor chain on desktop and 390px', async ({ page }, testInfo) => {
+    for (const viewport of [
+      { name: 'desktop', width: 1280, height: 900 },
+      { name: 'mobile-390', width: 390, height: 844 },
+    ]) {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await installLearningMocks(page);
+      await page.goto(url('/learning'), { waitUntil: 'domcontentloaded' });
+
+      const toggle = page.getByRole('button', { name: /clean code para héroes\. mostrar detalles/i });
+      const cardRoot = featuredCard(page);
+      const rotor = flipLayer(page);
+      const frontFace = cardRoot.locator('.perspective-flip-card__face--front');
+      await expect(toggle).toBeVisible();
+      await expect(cardRoot).toHaveAttribute('data-3d-supported', 'true');
+
+      const styles = await cardRoot.evaluate((node) => {
+        const rotorNode = node.querySelector<HTMLElement>('.perspective-flip-card__rotor')!;
+        const faceNode = node.querySelector<HTMLElement>('.perspective-flip-card__face')!;
+        const root = getComputedStyle(node);
+        const rotorStyle = getComputedStyle(rotorNode);
+        const faceStyle = getComputedStyle(faceNode);
+        return {
+          perspective: root.perspective,
+          transformStyle: rotorStyle.transformStyle,
+          webkitTransformStyle: rotorStyle.getPropertyValue('-webkit-transform-style'),
+          backfaceVisibility: faceStyle.backfaceVisibility,
+          webkitBackfaceVisibility: faceStyle.getPropertyValue('-webkit-backface-visibility'),
+        };
+      });
+      expect(styles.perspective).toBe('2000px');
+      expect(styles.transformStyle).toBe('preserve-3d');
+      expect(styles.webkitTransformStyle || styles.transformStyle).toBe('preserve-3d');
+      expect(styles.backfaceVisibility).toBe('hidden');
+      expect(styles.webkitBackfaceVisibility || styles.backfaceVisibility).toBe('hidden');
+
+      await toggle.click();
+      await expect(cardRoot).toHaveAttribute('data-flipped', 'true');
+      await page.waitForTimeout(350);
+      expect(await rotor.evaluate((node) => getComputedStyle(node).transform)).not.toBe('none');
+      await expect(frontFace).toHaveCSS('opacity', '1');
+      await page.screenshot({ path: testInfo.outputPath(`flip-card-${viewport.name}-transition.png`) });
+      await page.waitForTimeout(450);
+    }
+  });
+
+  test('uses a simple cross-fade when the nested 3D gate is unavailable', async ({ page }) => {
+    await openLearning(page, 390);
+
+    const cardRoot = featuredCard(page);
+    const rotor = flipLayer(page);
+    await page.getByRole('button', { name: /clean code para héroes\. mostrar detalles/i }).click();
+    await expect(cardRoot).toHaveAttribute('data-flipped', 'true');
+    // Simulate a failed runtime feature check after React has committed the
+    // interaction state; the CSS fallback must stay flat and only cross-fade.
+    await cardRoot.evaluate((node) => node.setAttribute('data-3d-supported', 'false'));
+    await page.waitForTimeout(200);
+
+    const fallbackStyles = await cardRoot.evaluate((node) => {
+      const rotorNode = node.querySelector<HTMLElement>('.perspective-flip-card__rotor')!;
+      const frontFace = node.querySelector<HTMLElement>('.perspective-flip-card__face--front')!;
+      const backFace = node.querySelector<HTMLElement>('.perspective-flip-card__face--back')!;
+      const depthLayer = node.querySelector<HTMLElement>('.perspective-flip-card__depth')!;
+      return {
+        rotorTransform: getComputedStyle(rotorNode).transform,
+        frontTransform: getComputedStyle(frontFace).transform,
+        backTransform: getComputedStyle(backFace).transform,
+        depthTransform: getComputedStyle(depthLayer).transform,
+        frontOpacity: getComputedStyle(frontFace).opacity,
+        backOpacity: getComputedStyle(backFace).opacity,
+      };
+    });
+
+    expect(fallbackStyles).toEqual({
+      rotorTransform: 'none',
+      frontTransform: 'none',
+      backTransform: 'none',
+      depthTransform: 'none',
+      frontOpacity: '0',
+      backOpacity: '1',
+    });
+  });
+
   test('does not introduce horizontal overflow at the supported mobile widths', async ({ page }) => {
     for (const width of [360, 390, 430]) {
       await openLearning(page, width);
@@ -106,15 +199,17 @@ test.describe('PerspectiveFlipCard in the Biblioteca', () => {
     }
   });
 
-  test('uses Card 14 hover motion on a pointer device', async ({ page }) => {
+  test('uses the state-driven hover motion on a pointer device', async ({ page }) => {
     await openLearning(page, 1024);
 
-    const cardRoot = page.locator('[style*="--flip-accent"]').first().locator(':scope > div');
-    const flipLayer = cardRoot.locator(':scope > div');
+    const cardRoot = featuredCard(page);
+    const rotor = flipLayer(page);
     await cardRoot.hover();
 
     await expect(page.getByLabel(/detalles de clean code para héroes/i)).toHaveAttribute('aria-hidden', 'false');
-    await expect(flipLayer).toHaveAttribute('style', /rotateY\(180deg\)/);
+    await expect(cardRoot).toHaveAttribute('data-flipped', 'true');
+    await page.waitForTimeout(750);
+    expect(await rotor.evaluate((node) => getComputedStyle(node).transform)).not.toBe('none');
   });
 
   test('uses the non-3D reduced-motion path', async ({ page }) => {
@@ -125,9 +220,7 @@ test.describe('PerspectiveFlipCard in the Biblioteca', () => {
     await toggle.focus();
     await page.keyboard.press('Enter');
 
-    const transform = await page.locator('[style*="--flip-accent"]').first().locator(':scope > div > div').evaluate((node) => getComputedStyle(node).transform);
+    const transform = await flipLayer(page).evaluate((node) => getComputedStyle(node).transform);
     expect(transform).toBe('none');
   });
-
-
 });

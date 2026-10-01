@@ -1,5 +1,7 @@
+import { FlowButton } from '@/components/ui/flow-button';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { BookOpen, TrendingUp } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
 import { useToast } from '../../hooks/useToast';
@@ -208,6 +210,7 @@ function ProgressModal({ item, onClose, onUpdate }: { item: LearningItem; onClos
 }
 
 export default function LearningPage() {
+  const reduceMotion = useReducedMotion();
   const toast = useToast();
   const [items, setItems] = useState<LearningItem[]>([]);
   const [stats, setStats] = useState<LearningStats | null>(null);
@@ -240,12 +243,12 @@ export default function LearningPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="font-pixel text-accent-gold" style={{ fontSize: '14px' }}><E e="📚" /> LA BIBLIOTECA</h1>
-          <p className="font-vt text-text-secondary text-base">Conocimiento es poder</p>
+          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-[var(--text-primary)]"><BookOpen className="h-5 w-5 text-[var(--accent-gold)]" aria-hidden="true" /> Biblioteca</h1>
+          <p className="mt-1 text-sm text-[var(--text-secondary)]">Reúne lo que quieres aprender y vuelve a ello con claridad.</p>
         </div>
         <div className="flex items-center gap-2">
           <SageContextButton message="¿Qué debería estudiar o leer ahora dado lo que llevo en la Biblioteca?" label="Pídele recomendación al Sabio" />
-          <PixelButton variant="primary" onClick={() => setShowAdd(true)}>+ AGREGAR</PixelButton>
+          <FlowButton tone="primary" size="lg" withArrows={false} onClick={() => setShowAdd(true)}>Agregar</FlowButton>
         </div>
       </div>
 
@@ -256,7 +259,7 @@ export default function LearningPage() {
             key={key}
             onClick={() => { setTab(key); setSelectedItem(null); }}
             className={`flex-shrink-0 px-3 py-1.5 border-2 font-pixel transition-all ${tab === key ? 'border-accent-gold bg-accent-gold text-bg-deep' : 'border-border-pixel text-text-secondary hover:border-text-secondary'}`}
-            style={{ fontSize: '8px' }}
+            style={{ fontSize: '12px' }}
           >
             {label}
           </button>
@@ -265,19 +268,27 @@ export default function LearningPage() {
           <button
             onClick={() => setTab('detalle')}
             className={`flex-shrink-0 px-3 py-1.5 border-2 font-pixel transition-all ${tab === 'detalle' ? 'border-accent-gold bg-accent-gold text-bg-deep' : 'border-border-pixel text-text-secondary'}`}
-            style={{ fontSize: '8px' }}
+            style={{ fontSize: '12px' }}
           >
             <E e="📖" /> {selectedItem.title.slice(0, 15)}...
           </button>
         )}
       </div>
 
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={tab}
+          initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={reduceMotion ? undefined : { opacity: 0, y: -5 }}
+          transition={{ duration: reduceMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
+        >
       {tab === 'pomodoro' && <PomodoroTimer />}
 
       {tab === 'detalle' && selectedItem && (
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <button onClick={() => setTab('biblioteca')} className="font-pixel text-text-secondary hover:text-accent-gold transition-colors" style={{ fontSize: '8px' }}>← VOLVER</button>
+            <FlowButton tone="ghost" size="sm" withArrows={false} onClick={() => setTab('biblioteca')} className="min-h-11 font-pixel text-xs">← VOLVER</FlowButton>
             <p className="font-vt text-text-primary text-lg">{selectedItem.title}</p>
           </div>
           <div className="flex gap-1">
@@ -286,7 +297,7 @@ export default function LearningPage() {
                 key={dt}
                 onClick={() => setDetailTab(dt)}
                 className={`px-3 py-1.5 border-2 font-pixel transition-all ${detailTab === dt ? 'border-accent-gold bg-accent-gold text-bg-deep' : 'border-border-pixel text-text-secondary'}`}
-                style={{ fontSize: '8px' }}
+                style={{ fontSize: '12px' }}
               >
                 {dt === 'notas' ? ' Notas' : ' Vocabulario'}
               </button>
@@ -301,15 +312,15 @@ export default function LearningPage() {
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { label: 'EN PROGRESO', value: stats.inProgress, icon: '📖' },
-            { label: 'COMPLETADOS', value: stats.totalCompleted, icon: '✅' },
-            { label: 'ESTE AÑO', value: stats.completedThisYear, icon: '🏆' },
-            { label: 'PÁGINAS', value: stats.totalPages, icon: '📄' },
+            { label: 'En progreso', value: stats.inProgress, icon: '📖' },
+            { label: 'Completados', value: stats.totalCompleted, icon: '✅' },
+            { label: 'Este año', value: stats.completedThisYear, icon: '🏆' },
+            { label: 'Páginas', value: stats.totalPages, icon: '📄' },
           ].map(s => (
             <PixelPanel key={s.label} className="p-3 text-center">
               <p className="text-2xl"><E e={s.icon} /></p>
-              <p className="font-pixel text-accent-gold mt-1" style={{ fontSize: '14px' }}>{s.value}</p>
-              <p className="font-pixel text-text-secondary" style={{ fontSize: '6px' }}>{s.label}</p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums text-[var(--accent-gold)]">{s.value}</p>
+              <p className="text-sm font-medium text-[var(--text-secondary)]">{s.label}</p>
             </PixelPanel>
           ))}
         </div>
@@ -317,7 +328,7 @@ export default function LearningPage() {
 
       <div className="flex gap-1 overflow-x-auto pb-1">
         {[['', ' Todos'], ['IN_PROGRESS', ' En progreso'], ['NOT_STARTED', '⏳ Por empezar'], ['COMPLETED', ' Completados']].map(([key, label]) => (
-          <button key={key} onClick={() => setFilter(key)} className={`flex-shrink-0 px-3 py-1.5 border-2 font-pixel transition-all ${filter === key ? 'border-accent-gold bg-accent-gold text-bg-deep' : 'border-border-pixel text-text-secondary'}`} style={{ fontSize: '8px' }}>
+          <button key={key} onClick={() => setFilter(key)} className={`flex-shrink-0 px-3 py-1.5 border-2 font-pixel transition-all ${filter === key ? 'border-accent-gold bg-accent-gold text-bg-deep' : 'border-border-pixel text-text-secondary'}`} style={{ fontSize: '12px' }}>
             {label}
           </button>
         ))}
@@ -325,10 +336,13 @@ export default function LearningPage() {
 
       <LoadingGate loading={loading} fallback={<ModernLoader words={[...LOADING_COPY.learning]} />}>
         {loading ? null : filtered.length === 0 ? (
-        <PixelPanel className="p-8 text-center">
-          <p className="text-4xl mb-2"><E e="📚" /></p>
-          <p className="font-pixel text-text-secondary" style={{ fontSize: '9px' }}>LA BIBLIOTECA ESTÁ VACÍA</p>
-        </PixelPanel>
+        <EmptyState
+          icon={BookOpen}
+          title="Tu biblioteca está lista"
+          description="Agrega un libro, curso o idioma para convertir lo que quieres aprender en progreso visible."
+          actionLabel="Agregar a mi biblioteca"
+          onAction={() => setShowAdd(true)}
+        />
       ) : (
         <AnimatePresence>
           <div className="space-y-3">
@@ -344,7 +358,7 @@ export default function LearningPage() {
                   visual={(
                     <div className="flex items-center gap-4" aria-hidden="true">
                       <span className="text-6xl"><E e={TYPE_ICONS[featuredItem.type]} s={64} /></span>
-                      {featuredItem.totalProgress > 0 && <div className="text-left"><p className="text-4xl font-semibold leading-none text-foreground">{Math.round(pct)}%</p><p className="mt-1 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">avanzado</p></div>}
+                      {featuredItem.totalProgress > 0 && <div className="text-left"><p className="text-4xl font-medium leading-none text-foreground">{Math.round(pct)}%</p><p className="mt-1 text-sm font-medium text-muted-foreground">avanzado</p></div>}
                     </div>
                   )}
                   visualLabel={`${featuredItem.title}, ${Math.round(pct)} por ciento de progreso`}
@@ -362,8 +376,10 @@ export default function LearningPage() {
                     { label: 'Estado', value: STATUS_LABELS[featuredItem.status] },
                   ]}
                   backActions={(
-                    <button
-                      type="button"
+                    <FlowButton
+                      tone="ghost"
+                      size="sm"
+                      withArrows={false}
                       onClick={(event) => {
                         event.stopPropagation();
                         setSelectedItem(featuredItem);
@@ -373,7 +389,7 @@ export default function LearningPage() {
                       className="min-h-11 rounded-xl border border-border bg-muted px-3 text-sm font-semibold text-foreground transition-transform hover:scale-[1.015] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                     >
                       Abrir notas
-                    </button>
+                    </FlowButton>
                   )}
                   actionLabel="Actualizar progreso"
                   onAction={() => setUpdating(featuredItem)}
@@ -389,13 +405,16 @@ export default function LearningPage() {
                   <motion.div key={item.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
                     <PixelPanel className="p-3 cursor-pointer hover:border-accent-gold/50 transition-colors" onClick={() => setUpdating(item)}>
                       <div className="flex justify-end mb-1">
-                        <button
+                        <FlowButton
+                          tone="ghost"
+                          size="sm"
+                          withArrows={false}
                           onClick={e => { e.stopPropagation(); setSelectedItem(item); setTab('detalle'); setDetailTab('notas'); }}
                           className="font-pixel text-text-secondary hover:text-accent-gold transition-colors"
-                          style={{ fontSize: '7px' }}
+                          style={{ fontSize: '12px' }}
                         >
                           <E e="📝" /> NOTAS/VOCAB
-                        </button>
+                        </FlowButton>
                       </div>
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1">
@@ -403,8 +422,8 @@ export default function LearningPage() {
                             <span className="text-xl"><E e={TYPE_ICONS[item.type]} /></span>
                             <p className="font-vt text-text-primary text-lg">{item.title}</p>
                           </div>
-                          {item.author && <p className="font-pixel text-text-secondary ml-8" style={{ fontSize: '7px' }}>{item.author}</p>}
-                          <p className={`font-pixel ml-8 mt-1 ${STATUS_COLORS[item.status]}`} style={{ fontSize: '7px' }}><E e={STATUS_LABELS[item.status]} /></p>
+                          {item.author && <p className="font-pixel text-text-secondary ml-8" style={{ fontSize: '12px' }}>{item.author}</p>}
+                          <p className={`font-pixel ml-8 mt-1 ${STATUS_COLORS[item.status]}`} style={{ fontSize: '12px' }}><E e={STATUS_LABELS[item.status]} /></p>
                         </div>
                         {item.rating && (
                           <p className="font-vt text-accent-gold text-base">{Array.from({ length: item.rating }).map((_, i) => <E key={i} e="⭐" s={14} className="inline-block" />)}</p>
@@ -415,7 +434,7 @@ export default function LearningPage() {
                           <div className="stat-bar h-2">
                             <div className="h-full bg-accent-gold" style={{ width: `${pct}%` }} />
                           </div>
-                          <p className="font-pixel text-text-secondary mt-0.5 text-right" style={{ fontSize: '7px' }}>{item.currentProgress}/{item.totalProgress} pág · {Math.round(pct)}%</p>
+                          <p className="font-pixel text-text-secondary mt-0.5 text-right" style={{ fontSize: '12px' }}>{item.currentProgress}/{item.totalProgress} pág · {Math.round(pct)}%</p>
                         </div>
                       )}
                     </PixelPanel>
@@ -427,12 +446,14 @@ export default function LearningPage() {
         </AnimatePresence>
         )}
       </LoadingGate>
+      </>}
+        </motion.div>
+      </AnimatePresence>
 
       <AnimatePresence>
         {showAdd && <AddItemModal onClose={() => setShowAdd(false)} onSave={item => { setItems(prev => [item, ...prev]); setShowAdd(false); }} />}
         {updating && <ProgressModal item={updating} onClose={() => setUpdating(null)} onUpdate={updated => { setItems(prev => prev.map(i => i.id === updated.id ? updated : i)); setUpdating(null); }} />}
       </AnimatePresence>
-      </>}
     </div>
   );
 }

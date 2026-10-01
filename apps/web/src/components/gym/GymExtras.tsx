@@ -243,8 +243,8 @@ export function BodyWeightTracker() {
       {records.length > 1 && (
         <ResponsiveContainer width="100%" height={120}>
           <LineChart data={chartData}>
-            <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--text-secondary)' }} />
-            <YAxis domain={['auto', 'auto']} tick={{ fontSize: 10, fill: 'var(--text-secondary)' }} width={35} />
+            <XAxis dataKey="date" tick={{ fontSize: 12, fill: 'var(--text-secondary)' }} />
+            <YAxis domain={['auto', 'auto']} tick={{ fontSize: 12, fill: 'var(--text-secondary)' }} width={35} />
             <Tooltip contentStyle={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', fontSize: 12 }} />
             <Line type="monotone" dataKey="peso" stroke="var(--accent-gold)" strokeWidth={2} dot={{ r: 3, fill: 'var(--accent-gold)' }} />
           </LineChart>
@@ -361,8 +361,8 @@ export function WeeklyVolumeWidget() {
       <h3 className="pixel-text text-sm text-[var(--accent-gold)] mb-4"><E e="📊" /> VOLUMEN SEMANAL POR MÚSCULO</h3>
       <ResponsiveContainer width="100%" height={140}>
         <BarChart data={chartData} barSize={24}>
-          <XAxis dataKey="muscle" tick={{ fontSize: 10, fill: 'var(--text-secondary)' }} />
-          <YAxis tick={{ fontSize: 10, fill: 'var(--text-secondary)' }} width={25} />
+          <XAxis dataKey="muscle" tick={{ fontSize: 12, fill: 'var(--text-secondary)' }} />
+          <YAxis tick={{ fontSize: 12, fill: 'var(--text-secondary)' }} width={25} />
           <Tooltip
             contentStyle={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', fontSize: 12 }}
             formatter={(v, n) => [n === 'sets' ? `${v} sets` : `${v} kg·reps`, n === 'sets' ? 'Sets' : 'Volumen']}
@@ -464,7 +464,7 @@ export function ProgressPhotos() {
               <div key={p.id} className={`relative cursor-pointer rounded overflow-hidden border-2 transition-colors ${compare && (compare[0] === p.id || compare[1] === p.id) ? 'border-[var(--accent-gold)]' : 'border-[var(--border)] hover:border-[var(--accent-blue)]'}`}
                 onClick={() => toggleCompare(p.id)}>
                 <img src={`data:image/jpeg;base64,${p.photoData}`} className="w-full aspect-square object-cover" alt="" />
-                <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-[10px] text-white text-center py-0.5">
+                <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-xs text-white text-center py-0.5">
                   {new Date(p.date).toLocaleDateString('es-CO', { month: 'short', year: '2-digit' })}
                 </div>
               </div>

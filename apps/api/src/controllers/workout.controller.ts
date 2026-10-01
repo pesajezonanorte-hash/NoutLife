@@ -66,6 +66,39 @@ export async function deleteWorkout(req: AuthRequest, res: Response): Promise<vo
   }
 }
 
+export async function listAttendances(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const attendances = await svc.listAttendances(req.userId!, req.query.from as string | undefined, req.query.to as string | undefined);
+    res.json({ attendances: attendances.map((attendance) => ({
+      ...attendance,
+      date: attendance.date.toISOString(),
+      createdAt: attendance.createdAt.toISOString(),
+      updatedAt: attendance.updatedAt.toISOString(),
+    })) });
+  } catch {
+    res.status(500).json({ error: 'Error al obtener asistencia de gimnasio.' });
+  }
+}
+
+export async function recordAttendance(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const attendance = await svc.recordAttendance(req.userId!, req.body.date);
+    res.status(201).json({ attendance: {
+      ...attendance,
+      date: attendance.date.toISOString(),
+      createdAt: attendance.createdAt.toISOString(),
+      updatedAt: attendance.updatedAt.toISOString(),
+    } });
+  } catch (error) {
+    const code = error instanceof Error ? error.message : '';
+    if (code === 'INVALID_ATTENDANCE_DATE' || code === 'ATTENDANCE_FUTURE_DATE') {
+      res.status(400).json({ error: 'La asistencia debe corresponder a una fecha válida que no sea futura.' });
+      return;
+    }
+    res.status(500).json({ error: 'Error al registrar asistencia de gimnasio.' });
+  }
+}
+
 export async function listExercises(req: AuthRequest, res: Response): Promise<void> {
   try {
     const exercises = await svc.listExercises(req.query.search as string, req.query.muscleGroup as string);

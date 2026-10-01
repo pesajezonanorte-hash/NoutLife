@@ -89,7 +89,7 @@ function SidebarGroupLabel({ label }: { label: string }) {
   return (
     <motion.div
       animate={{ opacity: open ? 1 : 0 }}
-      className="px-[10px] pt-1 pb-1.5 text-[10px] font-bold uppercase tracking-[0.12em]"
+      className="px-[10px] pt-1 pb-1.5 text-sm font-medium"
       style={{ color: 'var(--text-3)' }}
     >
       {label}
@@ -106,7 +106,7 @@ function LiveClock() {
     return () => clearInterval(id);
   }, []);
   return (
-    <span className="hidden lg:block font-pixel text-[var(--text-muted)] select-none" style={{ fontSize: '9px' }}>
+    <span className="hidden lg:block font-pixel text-[var(--text-muted)] select-none" style={{ fontSize: '12px' }}>
       {time}
     </span>
   );
@@ -352,7 +352,7 @@ export function GameLayout({ children }: Props) {
               />
               <motion.div animate={{ opacity: sidebarOpen ? 1 : 0 }} className="min-w-0">
                 <div className="text-[17px] font-extrabold tracking-[-0.02em] leading-none">LifeQuest</div>
-                <div className="mt-[2px] text-[10.5px] font-semibold uppercase tracking-[0.1em]" style={{ color: 'var(--text-3)' }}>
+                <div className="mt-[2px] text-xs font-medium" style={{ color: 'var(--text-3)' }}>
                   v0.3 · alpha
                 </div>
               </motion.div>
@@ -443,7 +443,7 @@ export function GameLayout({ children }: Props) {
                       </span>
                       <span
                         style={{
-                          fontSize: 9.5,
+                          fontSize: 12.5,
                           padding: '2px 5px',
                           borderRadius: 5,
                           background: 'color-mix(in oklab, var(--c-xp) 18%, transparent)',
@@ -456,12 +456,12 @@ export function GameLayout({ children }: Props) {
                         NV {user.level}
                       </span>
                     </div>
-                    <div className="mt-1 truncate text-[11px]" style={{ color: 'var(--text-2)' }}>
+                    <div className="mt-1 truncate text-xs" style={{ color: 'var(--text-2)' }}>
                       {getLevelTitle(user.level)}
                     </div>
                     <div className="mt-2 flex items-center gap-2">
                       <span
-                        className="shrink-0 text-[9px] font-bold uppercase tracking-[0.1em]"
+                        className="shrink-0 text-sm font-medium"
                         style={{ color: 'var(--text-3)' }}
                       >
                         XP
@@ -482,7 +482,7 @@ export function GameLayout({ children }: Props) {
                           }}
                         />
                       </div>
-                      <span className="shrink-0 text-[10px] tabular-nums" style={{ color: 'var(--text-3)' }}>
+                      <span className="shrink-0 text-xs tabular-nums" style={{ color: 'var(--text-3)' }}>
                         {user.xp.toLocaleString()}/{user.xpToNextLevel.toLocaleString()}
                       </span>
                     </div>
@@ -534,7 +534,7 @@ export function GameLayout({ children }: Props) {
                       <span className="block truncate text-sm font-extrabold leading-tight text-[var(--text-primary)]">
                         {user.displayName}
                       </span>
-                      <span className="block truncate text-[11px] font-medium tabular-nums text-[var(--text-muted)]">
+                      <span className="block truncate text-xs font-medium tabular-nums text-[var(--text-muted)]">
                         Nv {user.level} · {user.currentStreak} días de racha
                       </span>
                     </span>
@@ -564,21 +564,21 @@ export function GameLayout({ children }: Props) {
 
                 <div className="mt-2 grid grid-cols-3 gap-2" aria-label={`Estado: ${user.hp} de ${user.maxHp} puntos de vida, ${user.mp} de ${user.maxMp} puntos de maná y ${user.xp} de ${user.xpToNextLevel} experiencia`}>
                   <div className="min-w-0">
-                    <div className="mb-1 flex items-center justify-between text-[9px] font-semibold tabular-nums text-[var(--text-muted)]">
+                    <div className="mb-1 flex items-center justify-between text-xs font-semibold tabular-nums text-[var(--text-muted)]">
                       <span className="text-[var(--c-hp)]">HP</span>
                       <span>{Math.round(hpPct)}%</span>
                     </div>
                     <StatBarFill pct={hpPct} color="bg-accent-pink" pulse={!shouldReduceMotion} />
                   </div>
                   <div className="min-w-0">
-                    <div className="mb-1 flex items-center justify-between text-[9px] font-semibold tabular-nums text-[var(--text-muted)]">
+                    <div className="mb-1 flex items-center justify-between text-xs font-semibold tabular-nums text-[var(--text-muted)]">
                       <span className="text-[var(--c-mp)]">MP</span>
                       <span>{Math.round(mpPct)}%</span>
                     </div>
                     <StatBarFill pct={mpPct} color="bg-accent-cyan" />
                   </div>
                   <div className="min-w-0">
-                    <div className="mb-1 flex items-center justify-between text-[9px] font-semibold tabular-nums text-[var(--text-muted)]">
+                    <div className="mb-1 flex items-center justify-between text-xs font-semibold tabular-nums text-[var(--text-muted)]">
                       <span className="text-[var(--c-xp)]">XP</span>
                       <span>{Math.round(xpPct)}%</span>
                     </div>
@@ -617,7 +617,7 @@ export function GameLayout({ children }: Props) {
             >
               <Search size={16} />
               <span className="flex-1 text-left text-[13px]" style={{ color: 'var(--text-3)' }}>Buscar misión, hábito, gasto…</span>
-              <kbd style={{ fontFamily: 'JetBrains Mono, ui-monospace, monospace', fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'var(--bg-soft)', border: '1px solid var(--border)', color: 'var(--text-3)' }}>⌘K</kbd>
+              <kbd style={{ fontFamily: 'JetBrains Mono, ui-monospace, monospace', fontSize: 12, padding: '2px 6px', borderRadius: 4, background: 'var(--bg-soft)', border: '1px solid var(--border)', color: 'var(--text-3)' }}>⌘K</kbd>
             </button>
 
             {user && (
@@ -715,7 +715,7 @@ export function GameLayout({ children }: Props) {
               >
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.12em]" style={{ color: 'var(--accent-gold)' }}>
+                    <p className="text-sm font-medium" style={{ color: 'var(--accent-gold)' }}>
                       {ZONE_TOOLTIPS[location.pathname].title}
                     </p>
                     <p className="mt-1 text-sm" style={{ color: 'var(--text-primary)' }}>

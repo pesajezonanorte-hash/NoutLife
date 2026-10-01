@@ -91,7 +91,7 @@ export function AvatarStep({ gender, initialConfig, onNext, onBack }: Props) {
       exit={{ opacity: 0, x: -40 }}
     >
       <div className="text-center">
-        <h2 className="mb-1 font-pixel text-accent-gold" style={{ fontSize: '11px' }}>
+        <h2 className="mb-1 font-pixel text-accent-gold" style={{ fontSize: '12px' }}>
           PERSONALIZA TU AVATAR
         </h2>
         <p className="font-vt text-xl text-text-secondary">
@@ -137,7 +137,7 @@ export function AvatarStep({ gender, initialConfig, onNext, onBack }: Props) {
 
       <PixelPanel className="space-y-5 p-4">
         <div>
-          <label className="mb-2 block font-pixel text-text-secondary" style={{ fontSize: '8px' }}>
+          <label className="mb-2 block font-pixel text-text-secondary" style={{ fontSize: '12px' }}>
             ESTILO DE CABELLO
           </label>
           <p className="mb-3 text-sm text-text-secondary">
@@ -163,7 +163,7 @@ export function AvatarStep({ gender, initialConfig, onNext, onBack }: Props) {
         <ColorPicker label="COLOR DE PANTALÓN" value={config.pants} colors={PANTS_COLORS} onChange={update('pants')} />
 
         <div>
-          <label className="mb-2 block font-pixel text-text-secondary" style={{ fontSize: '8px' }}>
+          <label className="mb-2 block font-pixel text-text-secondary" style={{ fontSize: '12px' }}>
             ACCESORIOS
           </label>
           <p className="mb-3 text-sm text-text-secondary">
@@ -184,7 +184,7 @@ export function AvatarStep({ gender, initialConfig, onNext, onBack }: Props) {
         </div>
 
         <div>
-          <label className="mb-2 block font-pixel text-text-secondary" style={{ fontSize: '8px' }}>
+          <label className="mb-2 block font-pixel text-text-secondary" style={{ fontSize: '12px' }}>
             EXPRESIÓN
           </label>
           <p className="mb-3 text-sm text-text-secondary">

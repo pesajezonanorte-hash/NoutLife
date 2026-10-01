@@ -356,7 +356,7 @@ export default function QuestsPage() {
     <div className="mx-auto w-full max-w-5xl space-y-5 pb-6">
       <section className="flex flex-col gap-4 border-b border-[var(--border)] pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <div className="mb-2 inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--accent-gold)]">
+          <div className="mb-2 inline-flex items-center gap-1.5 text-sm font-medium text-[var(--accent-gold)]">
             <ClipboardList size={14} strokeWidth={1.9} aria-hidden="true" />
             Planificación
           </div>
@@ -445,14 +445,16 @@ export default function QuestsPage() {
             />
           </div>
           {hasFilters && (
-            <button
-              type="button"
+            <FlowButton
+              tone="ghost"
+              size="sm"
+              withArrows={false}
               onClick={clearFilters}
               className="inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-panel-light)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)]"
             >
               <RotateCcw size={14} strokeWidth={1.8} aria-hidden="true" />
               Limpiar
-            </button>
+            </FlowButton>
           )}
         </div>
       </section>
@@ -473,13 +475,15 @@ export default function QuestsPage() {
             { label: 'Recompensa', value: `+${featuredQuest.xpReward} XP` },
           ]}
           backActions={(
-            <button
-              type="button"
+            <FlowButton
+              tone="ghost"
+              size="sm"
+              withArrows={false}
               onClick={(event) => { event.stopPropagation(); handleEdit(featuredQuest); }}
               className="min-h-11 rounded-xl border border-border bg-muted px-3 text-sm font-semibold text-foreground transition-transform hover:scale-[1.015] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               Editar misión
-            </button>
+            </FlowButton>
           )}
           actionLabel={featuredQuest.status === 'ACTIVE' ? 'Completar misión' : 'Ver detalle'}
           onAction={() => {
@@ -499,7 +503,7 @@ export default function QuestsPage() {
             </p>
           </div>
           {!loading && activeQuests.length > 0 && activeTab !== 'COMPLETED' && (
-            <span className="rounded-full bg-[var(--accent-gold)]/10 px-2.5 py-1 text-[11px] font-medium text-[var(--accent-gold)]">
+            <span className="rounded-full bg-[var(--accent-gold)]/10 px-2.5 py-1 text-xs font-medium text-[var(--accent-gold)]">
               {activeQuests.length} activas
             </span>
           )}

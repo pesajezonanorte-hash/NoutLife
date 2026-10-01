@@ -27,7 +27,7 @@ export function ZoneCard({ icon, label, sublabel, to, color, badge }: Props) {
       </span>
       <span className="mt-3 text-sm font-semibold text-[var(--text-primary)]">{label}</span>
       <span className="mt-0.5 text-xs leading-5 text-[var(--text-secondary)]">{sublabel}</span>
-      {badge && <span className="mt-auto pt-2 text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--zone-accent)]">{badge}</span>}
+      {badge && <span className="mt-auto pt-2 text-sm font-medium text-[var(--zone-accent)]">{badge}</span>}
     </button>
   );
 }

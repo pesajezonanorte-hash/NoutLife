@@ -23,6 +23,7 @@ export interface Habit {
   isActive: boolean;
   syncToGoogleCalendar: boolean;
   googleCalendarEventId?: string | null;
+  createsGymAttendance: boolean;
   createdAt: string;
   updatedAt: string;
   todayStatus?: 'completed' | 'failed' | 'skipped' | null;
@@ -79,6 +80,7 @@ export interface CreateHabitPayload {
   resetTime?: string;
   reminderTime?: string;
   syncToGoogleCalendar?: boolean;
+  createsGymAttendance?: boolean;
 }
 
 export interface HeatmapEntry {

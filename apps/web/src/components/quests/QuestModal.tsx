@@ -116,7 +116,7 @@ export function QuestModal({ quest, onClose, onComplete, onEdit, onArchive, onFa
                 </button>
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                <span className="inline-flex items-center gap-1 text-[11px] text-[var(--text-secondary)]">
+                <span className="inline-flex items-center gap-1 text-xs text-[var(--text-secondary)]">
                   <TypeIcon size={12} strokeWidth={1.8} aria-hidden="true" />
                   {type.label}
                 </span>
@@ -130,22 +130,22 @@ export function QuestModal({ quest, onClose, onComplete, onEdit, onArchive, onFa
         <div className="min-h-0 space-y-5 overflow-y-auto px-5 py-4">
           <div className="grid grid-cols-3 gap-2">
             <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel-light)] px-3 py-2.5">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--text-secondary)]">Experiencia</p>
+              <p className="text-sm font-medium text-[var(--text-secondary)]">Experiencia</p>
               <p className="mt-1 text-sm font-semibold text-[var(--accent-gold)]">+{quest.xpReward} XP</p>
             </div>
             <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel-light)] px-3 py-2.5">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--text-secondary)]">Oro</p>
+              <p className="text-sm font-medium text-[var(--text-secondary)]">Oro</p>
               <p className="mt-1 inline-flex items-center gap-1 text-sm font-semibold text-[var(--text-primary)]"><Coins size={13} strokeWidth={1.8} aria-hidden="true" />+{quest.goldReward}</p>
             </div>
             <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel-light)] px-3 py-2.5">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--text-secondary)]">Categoría</p>
+              <p className="text-sm font-medium text-[var(--text-secondary)]">Categoría</p>
               <p className="mt-1 truncate text-sm font-semibold text-[var(--text-primary)]">{CATEGORY_LABELS[quest.category] ?? quest.category}</p>
             </div>
           </div>
 
           {quest.description && (
             <div>
-              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.11em] text-[var(--text-secondary)]">Descripción</p>
+              <p className="mb-1.5 text-sm font-medium text-[var(--text-secondary)]">Descripción</p>
               <p className="text-sm leading-6 text-[var(--text-primary)]">{quest.description}</p>
             </div>
           )}
@@ -153,7 +153,7 @@ export function QuestModal({ quest, onClose, onComplete, onEdit, onArchive, onFa
           {subObjectives.length > 0 && (
             <div>
               <div className="mb-2.5 flex items-center justify-between gap-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.11em] text-[var(--text-secondary)]">Objetivos</p>
+                <p className="text-sm font-medium text-[var(--text-secondary)]">Objetivos</p>
                 <span className="text-xs tabular-nums text-[var(--text-secondary)]">
                   {subObjectives.filter((objective) => objective.completed).length}/{subObjectives.length}
                 </span>

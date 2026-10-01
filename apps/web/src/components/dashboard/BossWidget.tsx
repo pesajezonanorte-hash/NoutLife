@@ -51,10 +51,10 @@ export function BossWidget() {
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between mb-1">
-            <p className="font-pixel text-accent-red truncate" style={{ fontSize: '7px' }}>
+            <p className="font-pixel text-accent-red truncate" style={{ fontSize: '12px' }}>
               {season.bossName}
             </p>
-            <p className="font-pixel text-text-secondary ml-2 flex-shrink-0" style={{ fontSize: '6px' }}>
+            <p className="font-pixel text-text-secondary ml-2 flex-shrink-0" style={{ fontSize: '12px' }}>
               {daysLeft}d
             </p>
           </div>

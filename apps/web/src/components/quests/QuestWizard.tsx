@@ -123,16 +123,16 @@ export function QuestWizard({ onSubmit, onClose, initialData }: Props) {
       >
         <header className="flex items-start justify-between gap-4 border-b border-[var(--border)] px-5 py-4">
           <div>
-            <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.13em] text-[var(--accent-gold)]">
+            <p className="mb-1 text-sm font-medium text-[var(--accent-gold)]">
               {initialData?.title ? 'Edición' : 'Planificación'}
             </p>
             <h2 id="quest-wizard-title" className="text-base font-semibold text-[var(--text-primary)]">
               {initialData?.title ? 'Editar misión' : 'Nueva misión'}
             </h2>
-            <ol className="mt-2 flex items-center gap-2 text-[11px] text-[var(--text-secondary)]">
+            <ol className="mt-2 flex items-center gap-2 text-xs text-[var(--text-secondary)]">
               {['Tipo', 'Detalles', 'Objetivos'].map((label, index) => (
                 <li key={label} className={`inline-flex items-center gap-1 ${index === step ? 'font-semibold text-[var(--accent-gold)]' : index < step ? 'text-[var(--accent-green)]' : ''}`}>
-                  <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-current text-[9px]">
+                  <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-current text-xs">
                     {index < step ? <Check size={10} strokeWidth={2.2} aria-hidden="true" /> : index + 1}
                   </span>
                   <span className="hidden sm:inline">{label}</span>
@@ -333,17 +333,17 @@ export function QuestWizard({ onSubmit, onClose, initialData }: Props) {
             </div>
 
             <aside className="border-t border-[var(--border)] bg-[var(--bg-panel-light)] p-5 md:w-52 md:border-l md:border-t-0">
-              <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--text-secondary)]">Vista previa</p>
+              <p className="mb-3 text-sm font-medium text-[var(--text-secondary)]">Vista previa</p>
               <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] p-3">
                 <span className="mb-3 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-panel-light)] text-[var(--accent-gold)]">
                   <PreviewCategoryIcon size={16} strokeWidth={1.8} aria-hidden="true" />
                 </span>
                 <p className="line-clamp-2 text-sm font-medium leading-5 text-[var(--text-primary)]">{form.title || 'Tu misión'}</p>
-                <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[11px]">
+                <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs">
                   <span className="font-medium text-[var(--accent-gold)]">+{xp} XP</span>
                   <span className="inline-flex items-center gap-1 text-[var(--text-secondary)]"><Coins size={12} strokeWidth={1.8} aria-hidden="true" />{gold}</span>
                 </div>
-                <span className="mt-3 inline-flex items-center gap-1 text-[11px] text-[var(--text-secondary)]">
+                <span className="mt-3 inline-flex items-center gap-1 text-xs text-[var(--text-secondary)]">
                   <SelectedTypeIcon size={12} strokeWidth={1.8} aria-hidden="true" />
                   {selectedType.label}
                 </span>

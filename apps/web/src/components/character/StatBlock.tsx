@@ -25,7 +25,7 @@ export function StatBlock({ icon, label, value, max, color, barColor, tooltip }:
         <span className="text-xl w-6 text-center"><E e={icon} /></span>
         <div className="flex-1">
           <div className="flex justify-between items-center mb-0.5">
-            <span className={`font-pixel ${color}`} style={{ fontSize: '8px' }}>{label}</span>
+            <span className={`font-pixel ${color}`} style={{ fontSize: '12px' }}>{label}</span>
             <span className="font-vt text-text-primary text-lg">
               {max !== undefined ? `${value}/${max}` : value}
             </span>

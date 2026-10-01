@@ -10,7 +10,7 @@ export function FloatingXPLayer() {
         <motion.div
           key={id}
           className="fixed z-[90] pointer-events-none font-pixel text-accent-gold select-none"
-          style={{ left: x, top: y, fontSize: '10px', textShadow: '1px 1px 0 rgba(0,0,0,0.35)' }}
+          style={{ left: x, top: y, fontSize: '12px', textShadow: '1px 1px 0 rgba(0,0,0,0.35)' }}
           initial={{ opacity: 1, y: 0, x: '-50%' }}
           animate={{ opacity: 0, y: -60, x: '-50%' }}
           exit={{ opacity: 0 }}

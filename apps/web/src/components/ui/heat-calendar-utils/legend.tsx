@@ -12,9 +12,9 @@ export function HeatCalendarLegend({ className }: { className?: string }) {
 
   return (
     <div className={cn('mt-3 flex flex-wrap items-center justify-between gap-3', className)}>
-      <span className="text-[11px] text-[var(--text-muted)]">{rangeLabel}</span>
+      <span className="text-xs text-[var(--text-muted)]">{rangeLabel}</span>
       <span className="flex items-center gap-1" onPointerLeave={() => setFilterLevel(null)}>
-        <span className="mr-0.5 text-[11px] text-[var(--text-muted)]">Menos</span>
+        <span className="mr-0.5 text-xs text-[var(--text-muted)]">Menos</span>
         {STEPS.map((_, index) => (
           <button
             key={index}
@@ -33,7 +33,7 @@ export function HeatCalendarLegend({ className }: { className?: string }) {
             }}
           />
         ))}
-        <span className="ml-0.5 text-[11px] text-[var(--text-muted)]">Más</span>
+        <span className="ml-0.5 text-xs text-[var(--text-muted)]">Más</span>
       </span>
     </div>
   );

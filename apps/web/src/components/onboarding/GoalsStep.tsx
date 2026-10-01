@@ -39,7 +39,7 @@ export function GoalsStep({ onNext, onBack }: Props) {
       exit={{ opacity: 0, x: -40 }}
     >
       <div className="text-center">
-        <h2 className="font-pixel text-accent-gold mb-1" style={{ fontSize: '11px' }}>
+        <h2 className="font-pixel text-accent-gold mb-1" style={{ fontSize: '12px' }}>
           TUS METAS INICIALES
         </h2>
         <p className="font-vt text-text-secondary text-xl">
@@ -70,7 +70,7 @@ export function GoalsStep({ onNext, onBack }: Props) {
               }`}
             >
               <div className="text-2xl mb-1"><E e={opt.icon} /></div>
-              <p className="font-pixel text-text-primary" style={{ fontSize: '7px', lineHeight: 1.4 }}>
+              <p className="font-pixel text-text-primary" style={{ fontSize: '12px', lineHeight: 1.4 }}>
                 {opt.label}
               </p>
               <p className="font-vt text-text-secondary text-sm mt-0.5">{opt.desc}</p>

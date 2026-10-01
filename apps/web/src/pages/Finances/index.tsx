@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import {
   ArrowDownLeft,
@@ -131,14 +131,16 @@ function ModalShell({
               <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">{description}</p>
             </div>
           </div>
-          <button
-            type="button"
+          <FlowButton
+            tone="ghost"
+            size="sm"
+            withArrows={false}
             onClick={onClose}
             aria-label={`Cerrar ${title.toLowerCase()}`}
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] sm:h-8 sm:w-8"
           >
             <X className="h-4 w-4" aria-hidden="true" />
-          </button>
+          </FlowButton>
         </header>
         {children}
       </motion.section>
@@ -179,7 +181,7 @@ function MoneyField({
           autoFocus={autoFocus}
           className={`${modalInputClass} money-input pr-14 pl-8 text-right text-2xl font-semibold tabular-nums`}
         />
-        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">COP</span>
+        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm font-medium text-[var(--text-muted)]">COP</span>
       </span>
     </label>
   );
@@ -413,10 +415,11 @@ function TransactionModal({
 }
 
 export default function FinancesPage() {
+  const reduceMotion = useReducedMotion();
   const toast = useToast();
   const [tab, setTab] = useState<'dashboard' | 'transactions' | 'budgets' | 'goals' | 'debts' | 'recurring' | 'projection'>('dashboard');
   const [showPayday, setShowPayday] = useState(false);
-  const [dashboard, setDashboard] = useState<{ summary: { income: number; expenses: number; balance: number; byCategory: Record<string, number> }; budgets: (Budget & { spent: number })[]; goals: FinancialGoal[]; recent: Transaction[] } | null>(null);
+  const [dashboard, setDashboard] = useState<financeService.FinanceDashboard | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [showAddTransaction, setShowAddTransaction] = useState(false);
   const [modalOrigin, setModalOrigin] = useState<ModalOrigin | undefined>();
@@ -518,24 +521,24 @@ export default function FinancesPage() {
     );
   }
 
-  const categoryData = dashboard ? Object.entries(dashboard.summary.byCategory).map(([k, v]) => ({ name: CATEGORY_LABELS[k] ?? k, value: v })) : [];
+  const categoryData = dashboard ? Object.entries(dashboard.monthSummary.byCategory).map(([k, v]) => ({ name: CATEGORY_LABELS[k] ?? k, value: v })) : [];
 
   return (
     <div className="space-y-4">
       {/* Header minimal */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="font-pixel text-accent-gold" style={{ fontSize: '14px' }}><E e="💰" /> LA BÓVEDA</h1>
-          <p className="font-vt text-text-secondary text-base">Finanzas en COP — dinero real</p>
+          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-[var(--text-primary)]"><CircleDollarSign className="h-5 w-5 text-[var(--accent-gold)]" aria-hidden="true" /> La Bóveda</h1>
+          <p className="mt-1 text-sm text-[var(--text-secondary)]">Tus ingresos, gastos y metas en un solo lugar.</p>
         </div>
         <div className="flex items-center gap-2">
           <SageContextButton message="¿Cómo voy con mi dinero este mes? Analiza mis gastos e ingresos y dame recomendaciones concretas." label="¿Cómo voy?" />
-          <PixelButton variant="primary" onClick={(event) => {
+          <FlowButton tone="primary" size="lg" withArrows={false} onClick={(event) => {
             captureModalOrigin(event);
             setShowAddTransaction(true);
           }}>
-            + TRANSACCIÓN
-          </PixelButton>
+            Nueva transacción
+          </FlowButton>
         </div>
       </div>
 
@@ -547,35 +550,43 @@ export default function FinancesPage() {
           transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
         >
           <LifeQuestFlipCard
-            eyebrow="Balance del mes"
-            title={dashboard.summary.balance >= 0 ? 'Tu bóveda avanza con margen' : 'Tu bóveda necesita atención'}
+            eyebrow="Saldo disponible"
+            title={dashboard.totalBalance >= 0 ? 'Tu saldo está disponible' : 'Tu saldo necesita atención'}
             description="Un resumen claro de tus ingresos, gastos y próximo movimiento."
             visual={(
               <div className="text-center" aria-hidden="true">
-                <p className={`font-vt text-5xl leading-none sm:text-6xl ${dashboard.summary.balance >= 0 ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]'}`}>
+                <p className={`font-vt text-5xl leading-none sm:text-6xl ${dashboard.totalBalance >= 0 ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]'}`}>
                   <AnimatedCounter
-                    value={Math.abs(dashboard.summary.balance)}
+                    value={Math.abs(dashboard.totalBalance)}
                     separator="."
-                    prefix={`${dashboard.summary.balance < 0 ? '-' : ''}$ `}
+                    prefix={`${dashboard.totalBalance < 0 ? '-' : ''}$ `}
                     duration={1}
                   />
                 </p>
-                <p className="mt-2 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">saldo disponible</p>
+                <p className="mt-2 text-sm font-medium text-muted-foreground">Saldo disponible</p>
               </div>
             )}
-            visualLabel={`Balance del mes: ${formatCOP(dashboard.summary.balance)}`}
-            badge={dashboard.summary.balance >= 0 ? 'Balance positivo' : 'Revisar gastos'}
+            visualLabel={`Saldo disponible: ${formatCOP(dashboard.totalBalance)}`}
+            badge={dashboard.totalBalance >= 0 ? 'Saldo positivo' : 'Revisar gastos'}
             frontFooter={(
-              <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-xl border border-border bg-muted px-3 py-2"><p className="text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Ingresos</p><p className="mt-1 truncate text-sm font-semibold text-[var(--accent-green)]"><AnimatedCounter value={dashboard.summary.income} separator="." prefix="$ " duration={0.7} /></p></div>
-                <div className="rounded-xl border border-border bg-muted px-3 py-2"><p className="text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Gastos</p><p className="mt-1 truncate text-sm font-semibold text-[var(--accent-red)]"><AnimatedCounter value={dashboard.summary.expenses} separator="." prefix="$ " duration={0.7} /></p></div>
+              <div className="space-y-2">
+                <div className="rounded-xl border border-border bg-muted px-3 py-2">
+                  <p className="text-sm font-medium text-muted-foreground">Balance del mes</p>
+                  <p className={`mt-1 truncate text-base font-semibold ${dashboard.monthSummary.balance >= 0 ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]'}`}>
+                    <AnimatedCounter value={Math.abs(dashboard.monthSummary.balance)} separator="." prefix={`${dashboard.monthSummary.balance < 0 ? '-' : ''}$ `} duration={0.7} />
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-xl border border-border bg-muted px-3 py-2"><p className="text-sm font-medium text-muted-foreground">Ingresos</p><p className="mt-1 truncate text-sm font-medium text-[var(--accent-green)]"><AnimatedCounter value={dashboard.monthSummary.income} separator="." prefix="$ " duration={0.7} /></p></div>
+                  <div className="rounded-xl border border-border bg-muted px-3 py-2"><p className="text-sm font-medium text-muted-foreground">Gastos</p><p className="mt-1 truncate text-sm font-medium text-[var(--accent-red)]"><AnimatedCounter value={dashboard.monthSummary.expenses} separator="." prefix="$ " duration={0.7} /></p></div>
+                </div>
               </div>
             )}
             backDescription={<p>Consulta tus movimientos para entender qué está moviendo el balance y registra una transacción cuando lo necesites.</p>}
             metrics={[
-              { label: 'Ingresos', value: formatCOP(dashboard.summary.income) },
-              { label: 'Gastos', value: formatCOP(dashboard.summary.expenses) },
-              { label: 'Balance', value: formatCOP(dashboard.summary.balance) },
+              { label: 'Ingresos del mes', value: formatCOP(dashboard.monthSummary.income) },
+              { label: 'Gastos del mes', value: formatCOP(dashboard.monthSummary.expenses) },
+              { label: 'Balance del mes', value: formatCOP(dashboard.monthSummary.balance) },
             ]}
             actionLabel="Ver movimientos"
             onAction={() => setTab('transactions')}
@@ -590,8 +601,8 @@ export default function FinancesPage() {
           <button
             key={key}
             onClick={() => setTab(key)}
-            className={`min-h-11 min-w-0 px-2 py-1.5 border-2 font-pixel transition-all sm:shrink-0 ${tab === key ? 'border-accent-gold bg-accent-gold text-bg-deep' : 'border-border-pixel text-text-secondary hover:border-text-secondary'}`}
-            style={{ fontSize: '8px' }}
+            className={`min-h-11 min-w-0 rounded-xl border px-3 py-2 text-sm font-medium transition-colors sm:shrink-0 ${tab === key ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)] text-[var(--bg-deep)]' : 'border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--text-secondary)]'}`}
+            style={{ fontSize: '12px' }}
           >
 
             {label}
@@ -599,12 +610,20 @@ export default function FinancesPage() {
         ))}
       </div>
 
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={tab}
+          initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={reduceMotion ? undefined : { opacity: 0, y: -5 }}
+          transition={{ duration: reduceMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
+        >
       {/* Dashboard tab */}
       {tab === 'dashboard' && dashboard && (
         <div className="space-y-4">
           {categoryData.length > 0 && (
             <PixelPanel className="p-4">
-              <p className="font-pixel text-text-secondary mb-3" style={{ fontSize: '8px' }}>GASTOS POR CATEGORÍA</p>
+              <p className="mb-3 text-sm font-medium text-[var(--text-secondary)]">Gastos por categoría</p>
               <div className="flex flex-col md:flex-row gap-4 items-center">
                 <ResponsiveContainer width="100%" height={200}>
                   <PieChart>
@@ -628,7 +647,7 @@ export default function FinancesPage() {
 
           {/* Recent transactions */}
           <PixelPanel className="p-4">
-            <p className="font-pixel text-text-secondary mb-2" style={{ fontSize: '8px' }}>MOVIMIENTOS RECIENTES</p>
+            <p className="mb-2 text-sm font-medium text-[var(--text-secondary)]">Movimientos recientes</p>
             <div className="space-y-2">
               {dashboard.recent.slice(0, 5).map(t => (
                 <div key={t.id} className="flex items-center justify-between py-1 border-b border-border-pixel/30">
@@ -636,7 +655,7 @@ export default function FinancesPage() {
                     <span className="text-lg"><E e={CATEGORY_ICONS[t.category] ?? '📦'} /></span>
                     <div>
                       <p className="font-vt text-text-primary text-base">{t.description ?? CATEGORY_LABELS[t.category]}</p>
-                      <p className="font-pixel text-text-secondary" style={{ fontSize: '7px' }}>{new Date(t.date).toLocaleDateString('es-CO')}</p>
+                      <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>{new Date(t.date).toLocaleDateString('es-CO')}</p>
                     </div>
                   </div>
                   <p className={`font-vt text-lg ${t.type === 'INCOME' ? 'text-accent-green' : 'text-accent-red'}`}>
@@ -653,9 +672,8 @@ export default function FinancesPage() {
       {tab === 'transactions' && (
         <div className="space-y-2">
           {transactions.length === 0 ? (
-            <PixelPanel className="p-8 text-center">
-              <p className="text-4xl mb-2"><E e="💸" /></p>
-              <p className="font-pixel text-text-secondary" style={{ fontSize: '9px' }}>SIN TRANSACCIONES</p>
+            <PixelPanel className="p-6 text-center">
+              <p className="text-sm font-medium text-[var(--text-secondary)]">Aún no hay transacciones</p>
             </PixelPanel>
           ) : (
             <AnimatePresence>
@@ -672,7 +690,7 @@ export default function FinancesPage() {
                       <span className="text-2xl"><E e={CATEGORY_ICONS[t.category] ?? '📦'} /></span>
                       <div>
                         <p className="font-vt text-text-primary text-lg">{t.description ?? CATEGORY_LABELS[t.category]}</p>
-                        <p className="font-pixel text-text-secondary" style={{ fontSize: '7px' }}>
+                        <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>
                           <E e={CATEGORY_LABELS[t.category]} /> · {new Date(t.date).toLocaleDateString('es-CO')}
                         </p>
                       </div>
@@ -681,13 +699,16 @@ export default function FinancesPage() {
                       <p className={`font-vt text-xl ${t.type === 'INCOME' ? 'text-accent-green' : 'text-accent-red'}`}>
                         {t.type === 'INCOME' ? '+' : '-'}{formatCOP(t.amount)}
                       </p>
-                      <button
+                      <FlowButton
+                        tone="danger"
+                        size="sm"
+                        withArrows={false}
                         onClick={() => handleDeleteTransaction(t.id)}
                         className="font-pixel text-accent-red hover:opacity-70 transition-opacity"
-                        style={{ fontSize: '8px' }}
+                        style={{ fontSize: '12px' }}
                       >
                         <E e="✕" />
-                      </button>
+                      </FlowButton>
                     </div>
                   </PixelPanel>
                 </motion.div>
@@ -703,7 +724,7 @@ export default function FinancesPage() {
           {dashboard.budgets.length === 0 ? (
             <PixelPanel className="p-8 text-center">
               <p className="text-4xl mb-2"><E e="📋" /></p>
-              <p className="font-pixel text-text-secondary" style={{ fontSize: '9px' }}>SIN PRESUPUESTOS</p>
+              <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>SIN PRESUPUESTOS</p>
               <p className="font-vt text-text-secondary text-base mt-1">Crea presupuestos para controlar tus gastos</p>
             </PixelPanel>
           ) : (
@@ -718,7 +739,7 @@ export default function FinancesPage() {
                       <span className="text-xl"><E e={CATEGORY_ICONS[b.category]} /></span>
                       <p className="font-vt text-text-primary text-lg"><E e={CATEGORY_LABELS[b.category]} /></p>
                     </div>
-                    <p className={`font-pixel ${color}`} style={{ fontSize: '8px' }}>{Math.round(pct)}%</p>
+                    <p className={`font-pixel ${color}`} style={{ fontSize: '12px' }}>{Math.round(pct)}%</p>
                   </div>
                   <div className="stat-bar h-3">
                     <motion.div className={`h-full ${barColor}`} initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.8, ease: 'easeOut' }} />
@@ -738,15 +759,15 @@ export default function FinancesPage() {
       {tab === 'goals' && (
         <div className="space-y-3">
           <div className="flex justify-end">
-            <PixelButton variant="secondary" onClick={(event) => {
+            <FlowButton tone="secondary" size="sm" withArrows={false} onClick={(event) => {
               captureModalOrigin(event);
               setShowGoalModal(true);
-            }}>+ META</PixelButton>
+            }}>Agregar meta</FlowButton>
           </div>
           {goals.length === 0 ? (
             <PixelPanel className="p-8 text-center">
               <p className="text-4xl mb-2"><E e="🎯" /></p>
-              <p className="font-pixel text-text-secondary" style={{ fontSize: '9px' }}>SIN METAS DE AHORRO</p>
+              <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>SIN METAS DE AHORRO</p>
             </PixelPanel>
           ) : (
             goals.map(g => {
@@ -755,7 +776,7 @@ export default function FinancesPage() {
                 <PixelPanel key={g.id} className="p-4">
                   <div className="flex items-center justify-between mb-2">
                     <p className="font-vt text-text-primary text-xl">{g.title}</p>
-                    {g.isCompleted && <span className="font-pixel text-accent-gold" style={{ fontSize: '8px' }}><E e="✓" /> COMPLETADA</span>}
+                    {g.isCompleted && <span className="font-pixel text-accent-gold" style={{ fontSize: '12px' }}><E e="✓" /> COMPLETADA</span>}
                   </div>
                   {g.description && <p className="font-vt text-text-secondary text-base mb-2">{g.description}</p>}
                   <div className="stat-bar h-4 mb-1">
@@ -763,7 +784,7 @@ export default function FinancesPage() {
                   </div>
                   <div className="flex justify-between mb-2">
                     <span className="font-vt text-text-secondary text-base">{formatCOP(g.currentAmount)}</span>
-                    <span className="font-pixel text-accent-gold" style={{ fontSize: '8px' }}>{Math.round(pct)}%</span>
+                    <span className="font-pixel text-accent-gold" style={{ fontSize: '12px' }}>{Math.round(pct)}%</span>
                     <span className="font-vt text-text-secondary text-base">{formatCOP(g.targetAmount)}</span>
                   </div>
                   {!g.isCompleted && (
@@ -789,6 +810,9 @@ export default function FinancesPage() {
 
       {/* Projection tab */}
       {tab === 'projection' && <ProjectionPanel />}
+
+        </motion.div>
+      </AnimatePresence>
 
       {/* Transaction modal */}
       <AnimatePresence>

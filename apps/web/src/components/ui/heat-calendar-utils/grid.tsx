@@ -43,7 +43,7 @@ export function HeatCalendarGrid({ children, className }: { children?: ReactNode
           column.label ? (
             <span
               key={column.id}
-              className="whitespace-nowrap text-[10px] leading-none text-[var(--text-muted)]"
+              className="whitespace-nowrap text-xs leading-none text-[var(--text-muted)]"
               style={{ gridColumn: column.w + 1, gridRow: 1 }}
             >
               {column.label}
@@ -103,7 +103,7 @@ export function HeatCalendarGrid({ children, className }: { children?: ReactNode
                 </TooltipTrigger>
                 <TooltipContent side="top" align="center" className="text-center">
                   <p className="font-semibold tabular-nums text-[var(--text-primary)]">{activityLabel}</p>
-                  <p className="mt-0.5 capitalize text-[11px] text-[var(--text-muted)]">{formatDay(date)}</p>
+                  <p className="mt-0.5 capitalize text-xs text-[var(--text-muted)]">{formatDay(date)}</p>
                 </TooltipContent>
               </Tooltip>
             </span>

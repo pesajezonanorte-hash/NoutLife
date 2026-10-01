@@ -79,7 +79,7 @@ function Metric({ icon: Icon, label, value, tone = 'var(--text-primary)', action
         <Icon size={14} strokeWidth={1.9} aria-hidden="true" />
       </span>
       <span className="min-w-0">
-        <span className="block text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">{label}</span>
+        <span className="block text-sm font-medium text-[var(--text-muted)]">{label}</span>
         <span className="mt-0.5 block truncate text-xs font-semibold text-[var(--text-primary)]">{value}</span>
       </span>
     </>
@@ -204,13 +204,13 @@ export function TodayPlan({ onHabitComplete }: Props) {
             <ListTodo size={18} strokeWidth={1.9} aria-hidden="true" />
           </span>
           <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.13em] text-[var(--accent-gold)]">Plan de hoy</p>
+            <p className="text-sm font-medium text-[var(--accent-gold)]">Plan de hoy</p>
             <h2 id="today-plan-heading" className="mt-0.5 truncate text-sm font-semibold text-[var(--text-primary)]">{todayLabel(plan.date)}</h2>
           </div>
         </div>
         <div className="flex items-center gap-2 self-start sm:self-auto">
           {plan.calendar.connected && (
-            <span className="hidden rounded-full border border-[var(--border)] bg-[var(--bg-panel-light)] px-2.5 py-1 text-[11px] text-[var(--text-secondary)] sm:inline-flex">
+            <span className="hidden rounded-full border border-[var(--border)] bg-[var(--bg-panel-light)] px-2.5 py-1 text-xs text-[var(--text-secondary)] sm:inline-flex">
               Calendar conectado
             </span>
           )}
@@ -248,9 +248,9 @@ export function TodayPlan({ onHabitComplete }: Props) {
                 })()}
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-secondary)]">Enfoque principal</p>
+                    <p className="text-sm font-medium text-[var(--text-secondary)]">Enfoque principal</p>
                     {urgencyLabel(primary.urgency) && (
-                      <span className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${primary.urgency === 'critical' ? 'bg-[var(--accent-gold)]/12 text-[var(--accent-gold)]' : 'bg-[var(--bg-panel)] text-[var(--text-secondary)]'}`}>
+                      <span className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-xs font-semibold ${primary.urgency === 'critical' ? 'bg-[var(--accent-gold)]/12 text-[var(--accent-gold)]' : 'bg-[var(--bg-panel)] text-[var(--text-secondary)]'}`}>
                         {primary.urgency === 'critical' && <AlertCircle size={11} strokeWidth={2} aria-hidden="true" />}
                         {urgencyLabel(primary.urgency)}
                       </span>
@@ -291,8 +291,8 @@ export function TodayPlan({ onHabitComplete }: Props) {
 
             <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel-light)]/50 p-2">
               <div className="flex items-center justify-between gap-2 px-2 pb-1.5 pt-0.5">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-secondary)]">Después</p>
-                <span className="text-[11px] text-[var(--text-muted)]">{plan.priorities.totalOpen} pendientes</span>
+                <p className="text-sm font-medium text-[var(--text-secondary)]">Después</p>
+                <span className="text-xs text-[var(--text-muted)]">{plan.priorities.totalOpen} pendientes</span>
               </div>
               {plan.priorities.secondary.length > 0 ? (
                 <div className="space-y-1">
@@ -308,7 +308,7 @@ export function TodayPlan({ onHabitComplete }: Props) {
                           <Icon size={14} strokeWidth={1.8} style={{ color }} aria-hidden="true" />
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-xs font-medium text-[var(--text-primary)]">{item.title}</span>
-                            <span className="mt-0.5 block truncate text-[11px] text-[var(--text-secondary)]">{item.detail}</span>
+                            <span className="mt-0.5 block truncate text-xs text-[var(--text-secondary)]">{item.detail}</span>
                           </span>
                         </button>
                         {item.type === 'habit' ? (
@@ -375,7 +375,7 @@ export function TodayPlan({ onHabitComplete }: Props) {
 
         {plan.habits.total > 0 && (
           <div className="mt-3 rounded-xl border border-[var(--border)] bg-[var(--bg-panel-light)]/50 px-3 py-2.5">
-            <div className="flex items-center justify-between gap-3 text-[11px]">
+            <div className="flex items-center justify-between gap-3 text-xs">
               <span className="inline-flex items-center gap-1.5 font-medium text-[var(--text-secondary)]"><Flame size={13} strokeWidth={1.8} className="text-[var(--accent-green)]" aria-hidden="true" />Constancia del día</span>
               <span className="tabular-nums text-[var(--text-secondary)]">{habitProgress}%</span>
             </div>
@@ -394,7 +394,7 @@ export function TodayPlan({ onHabitComplete }: Props) {
             <button
               type="button"
               onClick={() => navigate('/agenda')}
-              className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-lg px-2 py-1 text-left text-[11px] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-panel)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] sm:self-auto"
+              className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-lg px-2 py-1 text-left text-xs font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-panel)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] sm:self-auto"
             >
               <Clock3 size={13} strokeWidth={1.8} className="text-[var(--accent-blue)]" aria-hidden="true" />
               <span className="max-w-36 truncate">{nextEvent.title}</span>
@@ -403,7 +403,7 @@ export function TodayPlan({ onHabitComplete }: Props) {
             <button
               type="button"
               onClick={() => navigate('/agenda')}
-              className="shrink-0 self-start rounded-lg px-2 py-1 text-[11px] font-medium text-[var(--accent-blue)] transition-colors hover:bg-[var(--bg-panel)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] sm:self-auto"
+              className="shrink-0 self-start rounded-lg px-2 py-1 text-xs font-medium text-[var(--accent-blue)] transition-colors hover:bg-[var(--bg-panel)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] sm:self-auto"
             >
               Conectar Calendar
             </button>

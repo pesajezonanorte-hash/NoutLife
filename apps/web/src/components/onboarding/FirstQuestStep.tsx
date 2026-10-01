@@ -37,7 +37,7 @@ export function FirstQuestStep({ onNext, onBack }: Props) {
       exit={{ opacity: 0, x: -40 }}
     >
       <div className="text-center">
-        <h2 className="font-pixel text-accent-gold mb-1" style={{ fontSize: '11px' }}>
+        <h2 className="font-pixel text-accent-gold mb-1" style={{ fontSize: '12px' }}>
           TU PRIMERA MISIÓN ÉPICA
         </h2>
         <p className="font-vt text-text-secondary text-xl">
@@ -47,7 +47,7 @@ export function FirstQuestStep({ onNext, onBack }: Props) {
 
       <PixelPanel className="p-5 space-y-5">
         <div>
-          <label className="font-pixel text-text-secondary block mb-2" style={{ fontSize: '8px' }}>
+          <label className="font-pixel text-text-secondary block mb-2" style={{ fontSize: '12px' }}>
             DESCRIBE TU META PRINCIPAL
           </label>
           <PixelInput
@@ -62,7 +62,7 @@ export function FirstQuestStep({ onNext, onBack }: Props) {
         </div>
 
         <div>
-          <label className="font-pixel text-text-secondary block mb-2" style={{ fontSize: '8px' }}>
+          <label className="font-pixel text-text-secondary block mb-2" style={{ fontSize: '12px' }}>
             CATEGORÍA
           </label>
           <div className="grid grid-cols-2 gap-1.5">
@@ -83,7 +83,7 @@ export function FirstQuestStep({ onNext, onBack }: Props) {
         </div>
 
         <div>
-          <label className="font-pixel text-text-secondary block mb-2" style={{ fontSize: '8px' }}>
+          <label className="font-pixel text-text-secondary block mb-2" style={{ fontSize: '12px' }}>
             FECHA OBJETIVO
           </label>
           <input

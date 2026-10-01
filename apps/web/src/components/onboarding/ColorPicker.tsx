@@ -10,7 +10,7 @@ interface Props {
 export function ColorPicker({ label, value, colors, onChange }: Props) {
   return (
     <div>
-      <p className="font-pixel text-text-secondary mb-2" style={{ fontSize: '7px' }}>
+      <p className="font-pixel text-text-secondary mb-2" style={{ fontSize: '12px' }}>
         {label}
       </p>
       <div className="flex flex-wrap gap-2">

@@ -15,7 +15,7 @@ export function DifficultyBadge({ difficulty, showLabel = true }: Props) {
 
   return (
     <span
-      className="inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-medium leading-none"
+      className="inline-flex items-center rounded-md border px-1.5 py-0.5 text-xs font-medium leading-none"
       style={{
         color: cfg.color,
         borderColor: `color-mix(in oklab, ${cfg.color} 42%, var(--border))`,

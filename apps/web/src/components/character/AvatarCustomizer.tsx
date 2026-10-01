@@ -419,7 +419,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
             <div className="flex max-h-[88dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl border-4 border-[var(--accent-gold)] bg-[var(--bg-panel)] shadow-pixel-gold sm:max-h-[90vh] sm:rounded-xl">
               {/* Header */}
               <motion.div className="flex items-center justify-between p-4 border-b-2 border-[var(--accent-gold)]/30 bg-gradient-to-r from-[var(--accent-gold)]/10 to-transparent">
-                <h2 className="font-pixel text-[var(--accent-gold)] tracking-widest text-xs flex items-center gap-2">
+                <h2 className="font-pixel text-[var(--accent-gold)] text-xs flex items-center gap-2">
                   <span><E e="✨" /> APARIENCIA <E e="✨" /></span>
                 </h2>
                 <motion.button
@@ -438,7 +438,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
               <div className="flex border-b border-[var(--border)] bg-[var(--bg-panel-light)]">
                 <button
                   onClick={() => setActiveTab('photo')}
-                  className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 px-1 py-2.5 text-[11px] font-semibold transition-all ${
+                  className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 px-1 py-2.5 text-xs font-semibold transition-all ${
                     activeTab === 'photo'
                       ? 'bg-[var(--bg-panel)] text-[var(--accent-gold)] border-b-2 border-[var(--accent-gold)]'
                       : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -449,7 +449,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
                 </button>
                 <button
                   onClick={() => setActiveTab('minecraft')}
-                  className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 px-1 py-2.5 text-[11px] font-semibold transition-all ${
+                  className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 px-1 py-2.5 text-xs font-semibold transition-all ${
                     activeTab === 'minecraft'
                       ? 'bg-[var(--bg-panel)] text-[var(--accent-gold)] border-b-2 border-[var(--accent-gold)]'
                       : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -460,7 +460,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
                 </button>
                 <button
                   onClick={() => setActiveTab('pixel')}
-                  className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 px-1 py-2.5 text-[11px] font-semibold transition-all ${
+                  className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 px-1 py-2.5 text-xs font-semibold transition-all ${
                     activeTab === 'pixel'
                       ? 'bg-[var(--bg-panel)] text-[var(--accent-gold)] border-b-2 border-[var(--accent-gold)]'
                       : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -509,7 +509,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
                           )}
                         </div>
                         {photoUrl && (
-                          <span className="absolute bottom-1 right-1 bg-[var(--accent-green)] text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
+                          <span className="absolute bottom-1 right-1 bg-[var(--accent-green)] text-white text-xs font-bold px-2 py-0.5 rounded-full shadow">
                             Foto activa
                           </span>
                         )}
@@ -538,7 +538,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
                     {/* Separador */}
                     <div className="flex items-center my-3">
                       <div className="flex-1 border-t border-[var(--border)]" />
-                      <span className="px-3 text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-semibold">o por enlace</span>
+                      <span className="px-3 text-sm text-[var(--text-muted)] font-medium">o por enlace</span>
                       <div className="flex-1 border-t border-[var(--border)]" />
                     </div>
 
@@ -665,7 +665,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
                   /* ── TAB AVATAR PIXEL ── */
                   <div className="space-y-5">
                     <div>
-                      <label className="font-pixel text-[var(--accent-gold)] block mb-2 text-[9px] tracking-wider">
+                      <label className="font-pixel text-[var(--accent-gold)] block mb-2 text-xs">
                         GÉNERO
                       </label>
                       <div className="grid grid-cols-2 gap-1.5">
@@ -724,7 +724,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
                     </div>
 
                     <div>
-                      <label className="font-pixel text-[var(--accent-gold)] block mb-2 text-[9px] tracking-wider">
+                      <label className="font-pixel text-[var(--accent-gold)] block mb-2 text-xs">
                         ESTILOS DE CABELLO
                       </label>
                       <div className="grid grid-cols-3 gap-1.5">
@@ -752,7 +752,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
                     <ColorPicker label="PANTALÓN" value={config.pants} colors={PANTS_COLORS} onChange={update('pants')} />
 
                     <div>
-                      <label className="font-pixel text-[var(--accent-gold)] block mb-2 text-[9px] tracking-wider">
+                      <label className="font-pixel text-[var(--accent-gold)] block mb-2 text-xs">
                         ACCESORIOS
                       </label>
                       <div className="grid grid-cols-3 gap-1.5">
@@ -775,7 +775,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
                     </div>
 
                     <div>
-                      <label className="font-pixel text-[var(--accent-gold)] block mb-2 text-[9px] tracking-wider">
+                      <label className="font-pixel text-[var(--accent-gold)] block mb-2 text-xs">
                         EXPRESIÓN
                       </label>
                       <div className="grid grid-cols-2 gap-1.5">

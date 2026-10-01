@@ -45,7 +45,7 @@ function XpTooltip({
 
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] px-3 py-2 shadow-pixel">
-      <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--text-muted)]">
+      <p className="text-sm font-medium text-[var(--text-muted)]">
         {label ? formatDate(label) : 'Actividad'}
       </p>
       <p className="mt-1 text-sm font-bold tabular-nums text-[var(--text-primary)]">

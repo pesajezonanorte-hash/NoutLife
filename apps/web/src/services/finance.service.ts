@@ -66,8 +66,24 @@ export async function deleteFinancialGoal(id: string): Promise<void> {
   await api.delete(`/finances/goals/${id}`);
 }
 
-export async function fetchFinanceDashboard() {
-  const { data } = await api.get('/finances/dashboard');
+export type FinanceSummary = {
+  income: number;
+  expenses: number;
+  balance: number;
+  byCategory: Record<string, number>;
+  count: number;
+};
+
+export type FinanceDashboard = {
+  totalBalance: number;
+  monthSummary: FinanceSummary;
+  budgets: (Budget & { spent: number })[];
+  goals: FinancialGoal[];
+  recent: Transaction[];
+};
+
+export async function fetchFinanceDashboard(): Promise<FinanceDashboard> {
+  const { data } = await api.get<FinanceDashboard>('/finances/dashboard');
   return data;
 }
 

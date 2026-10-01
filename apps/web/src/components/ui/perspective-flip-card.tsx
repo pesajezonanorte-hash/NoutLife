@@ -42,17 +42,19 @@ export interface PerspectiveFlipCardProps {
 }
 
 const FLIP_DURATION_MS = 700;
-const preserve3dStyle = {
-  transformStyle: 'preserve-3d',
-  WebkitTransformStyle: 'preserve-3d',
-} as CSSProperties;
-const backfaceHiddenStyle = {
-  backfaceVisibility: 'hidden',
-  WebkitBackfaceVisibility: 'hidden',
-} as CSSProperties;
 
 function getMediaMatch(query: string) {
   return typeof window !== 'undefined' && window.matchMedia(query).matches;
+}
+
+/**
+ * Keep this runtime check aligned with the CSS `@supports` guard. Browsers
+ * without a complete preserve-3d implementation stay on the cross-fade path.
+ */
+function supportsNested3d() {
+  if (typeof window === 'undefined' || typeof window.CSS?.supports !== 'function') return false;
+  return window.CSS.supports('transform-style', 'preserve-3d')
+    || window.CSS.supports('-webkit-transform-style', 'preserve-3d');
 }
 
 function useMediaMatch(query: string) {
@@ -86,13 +88,23 @@ export function usePrefersReducedMotion() {
   return useMediaMatch('(prefers-reduced-motion: reduce)');
 }
 
+/** Shared with card compositions so their translateZ layers never bypass the fallback. */
+export function useNested3dSupport() {
+  const [supported, setSupported] = useState(supportsNested3d);
+
+  useEffect(() => {
+    setSupported(supportsNested3d());
+  }, []);
+
+  return supported;
+}
+
 /**
  * The LifeQuest adaptation of Card 14's real perspective flip.
  *
- * The original CSS group-hover transform is deliberately retained as the visual
- * source of truth on mouse devices. React state mirrors the flip for keyboard,
- * touch and accessibility, so the inactive face remains inert instead of merely
- * being visually hidden.
+ * One state-driven path powers hover, keyboard, and touch interactions so the
+ * 3D and fallback presentations always agree on which face is active. The
+ * inactive face remains inert instead of merely being visually hidden.
  */
 export function PerspectiveFlipCard({
   front,
@@ -116,6 +128,8 @@ export function PerspectiveFlipCard({
   const [uncontrolledFlipped, setUncontrolledFlipped] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const prefersReducedMotion = useMediaMatch('(prefers-reduced-motion: reduce)');
+  const supports3d = useNested3dSupport();
+  const canUse3d = supports3d && !prefersReducedMotion;
   const hasHoverPointer = useMediaMatch('(hover: hover) and (pointer: fine)');
   const isFlipped = flipped ?? uncontrolledFlipped;
   // `auto` must not install a sticky CSS :hover path on touch devices. Explicit
@@ -168,8 +182,8 @@ export function PerspectiveFlipCard({
   }
 
   function handlePointerEnter(event: PointerEvent<HTMLDivElement>) {
-    // A CSS hover transform remains available even if a browser reports an
-    // unusual media capability. State is still updated for inert/ARIA parity.
+    // State drives the same path used by keyboard and tap, keeping ARIA/inert
+    // state in lockstep with the visual transition.
     if (!hoverEnabled || event.pointerType === 'touch') return;
     requestFlip(true);
   }
@@ -187,60 +201,44 @@ export function PerspectiveFlipCard({
   }
 
   const depthStyle = (value: number): CSSProperties | undefined => {
-    if (prefersReducedMotion) return undefined;
-    return { ...preserve3dStyle, transform: `translateZ(${value}px)` };
-  };
-
-  const faceStyle = (side: 'front' | 'back'): CSSProperties => {
-    if (prefersReducedMotion) return {};
-    return {
-      ...preserve3dStyle,
-      ...backfaceHiddenStyle,
-      transform: side === 'back' ? 'rotateY(180deg)' : 'rotateY(0deg)',
-    };
+    if (!canUse3d) return undefined;
+    return { transform: `translateZ(${value}px)` };
   };
 
   return (
     <div
       className={cn(
-        'group/p-card relative isolate h-[clamp(26rem,58dvh,31.25rem)] min-h-[26rem] w-full max-w-[22.5rem] [perspective:2000px]',
-        prefersReducedMotion && '[perspective:none]',
+        'perspective-flip-card group/p-card relative h-[clamp(26rem,58dvh,31.25rem)] min-h-[26rem] w-full max-w-[22.5rem]',
+        prefersReducedMotion && 'perspective-flip-card--reduced-motion',
         className,
       )}
       data-flipped={isFlipped ? 'true' : 'false'}
+      data-3d-supported={supports3d ? 'true' : 'false'}
       onPointerEnter={handlePointerEnter}
       onPointerLeave={handlePointerLeave}
       onKeyDownCapture={handleKeyDownCapture}
     >
       <div
         className={cn(
-          'relative h-full w-full rounded-2xl transition-transform duration-700 [transform-style:preserve-3d] [transition-timing-function:cubic-bezier(0.22,1,0.36,1)]',
-          hoverEnabled && !prefersReducedMotion && 'group-hover/p-card:[transform:rotateY(180deg)]',
-          prefersReducedMotion && '[transform-style:flat] transition-none',
-          isAnimating && !prefersReducedMotion && 'will-change-transform',
+          'perspective-flip-card__rotor relative h-full w-full rounded-2xl transition-transform duration-700 [transition-timing-function:cubic-bezier(0.22,1,0.36,1)]',
+          prefersReducedMotion && 'transition-none',
+          isAnimating && canUse3d && 'will-change-transform',
         )}
-        style={prefersReducedMotion
-          ? undefined
-          : {
-              ...preserve3dStyle,
-              ...(isFlipped ? { transform: 'rotateY(180deg)' } : {}),
-            }}
       >
         <div
           aria-hidden={isFlipped}
           inert={isFlipped ? '' : undefined}
           className={cn(
-            'absolute inset-0 rounded-2xl border border-border bg-card shadow-lg transition-opacity duration-150 [&_*]:[backface-visibility:hidden] [&_*]:[-webkit-backface-visibility:hidden]',
+            'perspective-flip-card__face perspective-flip-card__face--front absolute inset-0 rounded-2xl border border-border bg-card shadow-lg transition-opacity duration-150',
             isFlipped && 'pointer-events-none',
             prefersReducedMotion && isFlipped && 'opacity-0',
             frontClassName,
           )}
-          style={faceStyle('front')}
         >
           <button
             ref={frontButtonRef}
             type="button"
-            className="h-full w-full rounded-[inherit] p-0 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="perspective-flip-card__depth-context h-full w-full rounded-[inherit] p-0 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             aria-label={`${label}. Mostrar detalles y acciones`}
             aria-controls={contentId}
             aria-expanded={isFlipped}
@@ -259,14 +257,13 @@ export function PerspectiveFlipCard({
           inert={!isFlipped ? '' : undefined}
           aria-label={`Detalles de ${label}`}
           className={cn(
-            'absolute inset-0 flex min-h-0 flex-col rounded-2xl border border-border bg-card shadow-lg transition-opacity duration-150 [&_*]:[backface-visibility:hidden] [&_*]:[-webkit-backface-visibility:hidden]',
+            'perspective-flip-card__face perspective-flip-card__face--back absolute inset-0 flex min-h-0 flex-col rounded-2xl border border-border bg-card shadow-lg transition-opacity duration-150',
             !isFlipped && 'pointer-events-none',
             prefersReducedMotion && !isFlipped && 'opacity-0',
             backClassName,
           )}
-          style={faceStyle('back')}
         >
-          <div className="pointer-events-none absolute right-3 top-3 z-10" style={depthStyle(72)}>
+          <div className="perspective-flip-card__depth pointer-events-none absolute right-3 top-3 z-10" style={depthStyle(72)}>
             <button
               ref={backButtonRef}
               type="button"
@@ -294,7 +291,7 @@ export function PerspectiveFlipCard({
  * `translateZ` values shared by higher-level card compositions.
  * Kept here so all LifeQuest flip cards turn off their depth layers together.
  */
-export function getFlipDepthStyle(value: number, prefersReducedMotion: boolean): CSSProperties | undefined {
-  if (prefersReducedMotion) return undefined;
-  return { ...preserve3dStyle, transform: `translateZ(${value}px)` };
+export function getFlipDepthStyle(value: number, disableDepth: boolean): CSSProperties | undefined {
+  if (disableDepth) return undefined;
+  return { transform: `translateZ(${value}px)` };
 }

@@ -62,10 +62,20 @@ export async function sendTestNotification(req: AuthRequest, res: Response): Pro
 
 export async function listInApp(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const limit = Math.min(Number(req.query['limit']) || 30, 100);
-    const items = await notificationService.listNotifications(req.userId!, limit);
+    const limit = Math.min(Number(req.query['limit']) || 30, 30);
+    const rawCategory = req.query.category as string | undefined;
+    if (rawCategory && !notificationService.NOTIFICATION_CATEGORIES.includes(rawCategory as notificationService.NotificationCategory)) {
+      res.status(400).json({ error: 'Categoría de notificación inválida.' });
+      return;
+    }
+    const category = rawCategory as notificationService.NotificationCategory | undefined;
+    const { notifications, nextCursor } = await notificationService.listNotifications(req.userId!, {
+      limit,
+      cursor: req.query.cursor as string | undefined,
+      category,
+    });
     const unread = await notificationService.countUnread(req.userId!);
-    res.json({ notifications: items, unread });
+    res.json({ notifications, unread, nextCursor });
   } catch {
     res.status(500).json({ error: 'Error al obtener notificaciones.' });
   }
@@ -95,6 +105,15 @@ export async function markAllReadHandler(req: AuthRequest, res: Response): Promi
     res.json({ success: true });
   } catch {
     res.status(500).json({ error: 'Error al marcar todas como leídas.' });
+  }
+}
+
+export async function deleteAll(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    await notificationService.deleteAllNotifications(req.userId!);
+    res.json({ success: true });
+  } catch {
+    res.status(500).json({ error: 'Error al eliminar todas las notificaciones.' });
   }
 }
 

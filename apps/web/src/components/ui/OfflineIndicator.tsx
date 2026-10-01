@@ -15,7 +15,7 @@ export function OfflineIndicator() {
           className="fixed top-0 left-0 right-0 z-[500] flex items-center justify-center gap-2 bg-[var(--accent-red)] py-1.5 text-white"
         >
           <WifiOff size={14} />
-          <span className="font-pixel" style={{ fontSize: '8px' }}>
+          <span className="font-pixel" style={{ fontSize: '12px' }}>
             Sin conexión — los cambios se guardarán al reconectar
           </span>
         </motion.div>

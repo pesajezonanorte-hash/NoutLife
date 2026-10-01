@@ -1,7 +1,7 @@
 import cron from 'node-cron';
 import { prisma } from '../lib/prisma';
 import { generateText, hasAIProvider } from '../lib/ai';
-import { createNotification, isInQuietHours, sendPush } from '../services/notification.service';
+import { createNotification } from '../services/notification.service';
 import { reconcileHabitStreaks } from '../services/habit.service';
 import { generateDailyScroll } from '../services/scrolls.service';
 import { seedWisdomCards } from '../services/wisdom.service';
@@ -153,8 +153,6 @@ async function penalizeInactiveHabitStreaks() {
 }
 
 async function sendDeadlineAlerts() {
-  if (!process.env.VAPID_PUBLIC_KEY) return;
-
   const twoHoursFromNow = new Date(Date.now() + 2 * 60 * 60 * 1000);
   const oneHourFromNow = new Date(Date.now() + 60 * 60 * 1000);
 
@@ -163,30 +161,26 @@ async function sendDeadlineAlerts() {
       status: 'ACTIVE',
       deadline: { gte: oneHourFromNow, lte: twoHoursFromNow },
     },
-    include: { user: { include: { notificationPreferences: true, pushSubscriptions: true } } },
   });
 
   for (const quest of urgentQuests) {
-    const prefs = quest.user.notificationPreferences;
-    if (!prefs?.questDeadlineAlerts) continue;
-    if (quest.user.pushSubscriptions.length === 0) continue;
-    if (isInQuietHours(prefs.quietHoursStart, prefs.quietHoursEnd)) continue;
-
-    await sendPush(quest.userId, {
+    // createNotification persists the in-app record first and only then sends
+    // an optional push, respecting the category and quiet-hour preferences.
+    await createNotification(quest.userId, {
+      type: 'quest_deadline',
+      category: 'QUESTS',
+      dedupeKey: `deadline-${quest.id}`,
       title: '⚠️ Misión por vencer',
       body: `"${quest.title}" vence en 2 horas. Tú puedes.`,
-      tag: `deadline-${quest.id}`,
-      data: { questId: quest.id },
+      link: '/quests',
     });
   }
 }
 
 async function sendDailySummaries() {
-  if (!process.env.VAPID_PUBLIC_KEY) return;
-
   const users = await prisma.user.findMany({
-    where: { pushSubscriptions: { some: {} } },
-    include: { notificationPreferences: true, pushSubscriptions: true },
+    where: { onboardingCompleted: true },
+    include: { notificationPreferences: true },
   });
 
   const todayStart = startOfDay(new Date());
@@ -194,7 +188,6 @@ async function sendDailySummaries() {
   for (const user of users) {
     const prefs = user.notificationPreferences;
     if (!prefs?.dailySummary) continue;
-    if (isInQuietHours(prefs.quietHoursStart, prefs.quietHoursEnd)) continue;
 
     const [completions, xpEvents] = await Promise.all([
       prisma.questCompletion.count({ where: { userId: user.id, completedAt: { gte: todayStart } } }),
@@ -204,10 +197,13 @@ async function sendDailySummaries() {
       }),
     ]);
 
-    await sendPush(user.id, {
+    await createNotification(user.id, {
+      type: 'daily_summary',
+      category: 'SYSTEM',
+      dedupeKey: `daily-summary-${todayStart.toISOString().slice(0, 10)}`,
       title: '📜 Tu día en LifeQuest',
       body: `Completaste ${completions} misiones y ganaste ${xpEvents._sum.xpAmount ?? 0} XP hoy.`,
-      tag: 'daily-summary',
+      link: '/',
     });
   }
 }
@@ -251,7 +247,7 @@ async function generateWeeklySummaryForUser(userId: string) {
     questsCreated,
     topHabit,
     workoutsCount,
-    transactionAgg,
+    transactionTotals,
     xpAgg,
     goldAgg,
     moodAgg,
@@ -275,8 +271,12 @@ async function generateWeeklySummaryForUser(userId: string) {
     prisma.workout.count({
       where: { userId, date: { gte: weekStart, lt: nextWeekStart } },
     }),
-    prisma.transaction.aggregate({
-      where: { userId },
+    // This is the realised historical balance referenced in the weekly narrative,
+    // not the current week's activity. Keep transaction types separate so expenses
+    // decrease the balance instead of being added to income.
+    prisma.transaction.groupBy({
+      where: { userId, date: { lte: new Date() } },
+      by: ['type'],
       _sum: { amount: true },
     }),
     prisma.xpEvent.aggregate({
@@ -296,6 +296,11 @@ async function generateWeeklySummaryForUser(userId: string) {
     }),
   ]);
 
+  const totalBalance = transactionTotals.reduce((balance, total) => {
+    const amount = Number(total._sum.amount ?? 0);
+    return total.type === 'INCOME' ? balance + amount : balance - amount;
+  }, 0);
+
   const weekData = {
     displayName: user.displayName,
     lifeScore: user.lifeScore,
@@ -305,7 +310,7 @@ async function generateWeeklySummaryForUser(userId: string) {
     bestStreak: Math.max(topHabit?.longestStreak ?? 0, topHabit?.currentStreak ?? 0),
     bestHabitName: topHabit?.title ?? 'tu disciplina',
     gymSessions: workoutsCount,
-    balance: Number(transactionAgg._sum.amount ?? 0),
+    balance: totalBalance,
   };
 
   const summary = await buildWeeklySummary(weekData);
@@ -328,17 +333,13 @@ async function generateWeeklySummaryForUser(userId: string) {
 
   createNotification(userId, {
     type: 'sage',
+    category: 'SYSTEM',
+    dedupeKey: `weekly-summary-${weekStart.toISOString()}`,
     title: '📊 Tu resumen semanal está listo',
     body: `Life Score ${weekData.lifeScore}/100. El Sabio tiene algo que decirte.`,
     icon: '📊',
     link: '/stats',
   }).catch(() => {});
-
-  await sendPush(userId, {
-    title: '📊 Tu resumen semanal está listo',
-    body: `Life Score ${weekData.lifeScore}/100. El Sabio tiene algo que decirte.`,
-    tag: `weekly-summary-${weekStart.toISOString()}`,
-  });
 }
 
 async function buildWeeklySummary(weekData: {

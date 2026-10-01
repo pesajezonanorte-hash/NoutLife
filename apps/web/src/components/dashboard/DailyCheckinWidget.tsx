@@ -101,7 +101,7 @@ export function DailyCheckinWidget() {
             }}
           >
             <span className="flex h-6 items-center justify-center"><E e={m.Icon} s={19} /></span>
-            <span className="text-[10px] text-[var(--text-muted)]">{m.label}</span>
+            <span className="text-xs text-[var(--text-muted)]">{m.label}</span>
           </motion.button>
         ))}
       </div>

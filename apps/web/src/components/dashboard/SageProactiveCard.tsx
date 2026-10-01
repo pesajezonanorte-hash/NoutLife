@@ -57,7 +57,7 @@ export function SageProactiveCard() {
     >
       {note.isNew && (
         <span
-          className="absolute top-3 right-3 text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full"
+          className="absolute top-3 right-3 text-sm font-medium px-1.5 py-0.5 rounded-full"
           style={{ background: style.badge, color: 'var(--text-inv)' }}
         >
           Nuevo
@@ -66,7 +66,7 @@ export function SageProactiveCard() {
       <div className="flex items-start gap-3 pr-10">
         <span className="text-2xl flex-shrink-0 mt-0.5"><E e={note.icon} /></span>
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: style.badge }}>
+          <p className="text-sm font-medium mb-1" style={{ color: style.badge }}>
             El Sabio dice
           </p>
           <p className="text-sm leading-relaxed" style={{ color: 'var(--text-primary)' }}>

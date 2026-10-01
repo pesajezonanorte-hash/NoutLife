@@ -1,3 +1,4 @@
+import { FlowButton } from '@/components/ui/flow-button';
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Shield, Send, LogOut, Plus, Copy, Check } from 'lucide-react';
@@ -254,7 +255,7 @@ export default function GuildPage() {
               onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
               maxLength={6}
               autoCapitalize="characters"
-              className="w-full rounded-xl border border-[var(--border)] bg-[var(--bg-deep)] px-3 py-2.5 text-center text-base font-semibold uppercase tracking-[0.22em] text-[var(--text-primary)] outline-none transition-colors placeholder:tracking-normal placeholder:text-[var(--text-muted)] focus:border-[var(--accent-gold)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--accent-gold)_16%,transparent)]"
+              className="w-full rounded-xl border border-[var(--border)] bg-[var(--bg-deep)] px-3 py-2.5 text-center text-base font-medium text-[var(--text-primary)] outline-none transition-colors placeholder:tracking-normal placeholder:text-[var(--text-muted)] focus:border-[var(--accent-gold)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--accent-gold)_16%,transparent)]"
             />
           </label>
           <div className="mt-5 grid grid-cols-2 gap-2.5 border-t border-[var(--border-soft)] pt-4">
@@ -284,19 +285,22 @@ export default function GuildPage() {
           </div>
           <div className="text-right">
             <div className="flex items-center gap-2 mb-2">
-              <span className="font-pixel text-text-dim" style={{ fontSize: '9px' }}>CÓDIGO:</span>
-              <span className="font-pixel text-accent-gold" style={{ fontSize: '10px' }}>{guild.inviteCode}</span>
-              <button onClick={copyCode} className="text-text-dim hover:text-accent-gold transition-colors">
+              <span className="font-pixel text-text-dim" style={{ fontSize: '12px' }}>CÓDIGO:</span>
+              <span className="font-pixel text-accent-gold" style={{ fontSize: '12px' }}>{guild.inviteCode}</span>
+              <FlowButton tone="ghost" size="sm" withArrows={false} onClick={copyCode} className="min-h-11 px-3">
                 {copied ? <Check size={14} /> : <Copy size={14} />}
-              </button>
+              </FlowButton>
             </div>
-            <button
+            <FlowButton
+              tone="danger"
+              size="sm"
+              withArrows={false}
               onClick={handleLeave}
               className="flex items-center gap-1 px-2 py-1 border border-accent-crimson text-accent-crimson font-pixel hover:bg-accent-crimson hover:text-white transition-colors"
-              style={{ fontSize: '8px' }}
+              style={{ fontSize: '12px' }}
             >
               <LogOut size={10} /> SALIR
-            </button>
+            </FlowButton>
           </div>
         </div>
       </div>
@@ -304,7 +308,7 @@ export default function GuildPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Members */}
         <div className="bg-bg-panel border-4 border-border-pixel p-3">
-          <div className="font-pixel text-text-primary mb-3" style={{ fontSize: '10px' }}>MIEMBROS</div>
+          <div className="font-pixel text-text-primary mb-3" style={{ fontSize: '12px' }}>MIEMBROS</div>
           <div className="space-y-2">
             {guild.members.map((m) => (
               <div key={m.id} className="flex items-center gap-2">
@@ -317,11 +321,11 @@ export default function GuildPage() {
                   animate="idle"
                 />
                 <div className="flex-1 min-w-0">
-                  <div className={`font-pixel truncate ${m.userId === user?.id ? 'text-accent-gold' : 'text-text-primary'}`} style={{ fontSize: '8px' }}>
+                  <div className={`font-pixel truncate ${m.userId === user?.id ? 'text-accent-gold' : 'text-text-primary'}`} style={{ fontSize: '12px' }}>
                     {m.user.displayName}
                     {m.role === 'LEADER' && <E e="👑" s={11} />}
                   </div>
-                  <div className="font-vt text-text-dim" style={{ fontSize: '10px' }}>Nv.{m.user.level} · <E e="🔥" />{m.user.currentStreak}</div>
+                  <div className="font-vt text-text-dim" style={{ fontSize: '12px' }}>Nv.{m.user.level} · <E e="🔥" />{m.user.currentStreak}</div>
                 </div>
               </div>
             ))}
@@ -330,7 +334,7 @@ export default function GuildPage() {
 
         {/* Chat */}
         <div className="md:col-span-2 bg-bg-panel border-4 border-border-pixel flex flex-col" style={{ height: '400px' }}>
-          <div className="font-pixel text-text-primary p-3 border-b-2 border-border-pixel" style={{ fontSize: '10px' }}>
+          <div className="font-pixel text-text-primary p-3 border-b-2 border-border-pixel" style={{ fontSize: '12px' }}>
             CHAT DEL GREMIO
           </div>
           <div className="flex-1 overflow-y-auto p-3 space-y-2">
@@ -356,7 +360,7 @@ export default function GuildPage() {
                       className="flex-shrink-0 mb-4"
                     />
                     <div className={`max-w-[70%] ${isMe ? 'items-end' : 'items-start'} flex flex-col gap-0.5`}>
-                      <span className="font-pixel text-text-dim" style={{ fontSize: '8px' }}>
+                      <span className="font-pixel text-text-dim" style={{ fontSize: '12px' }}>
                         {!isMe && msg.user.displayName}
                       </span>
                       <div className={`px-3 py-2 border-2 font-vt text-sm ${
@@ -366,7 +370,7 @@ export default function GuildPage() {
                       }`}>
                         {msg.content}
                       </div>
-                      <span className="font-vt text-text-dim" style={{ fontSize: '10px' }}>
+                      <span className="font-vt text-text-dim" style={{ fontSize: '12px' }}>
                         {new Date(msg.createdAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
@@ -385,13 +389,16 @@ export default function GuildPage() {
               maxLength={500}
               className="flex-1 bg-bg-deep border-2 border-border-pixel px-3 py-2 font-vt text-sm text-text-primary focus:outline-none focus:border-accent-gold"
             />
-            <button
+            <FlowButton
+              tone="primary"
+              size="sm"
+              withArrows={false}
               onClick={handleSendMessage}
               disabled={!msgInput.trim()}
               className="px-3 py-2 bg-accent-gold border-2 border-accent-gold text-bg-deep hover:opacity-90 disabled:opacity-50 transition-opacity"
             >
               <Send size={16} />
-            </button>
+            </FlowButton>
           </div>
         </div>
       </div>

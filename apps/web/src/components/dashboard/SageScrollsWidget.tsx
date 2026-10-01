@@ -100,7 +100,7 @@ export function SageScrollsWidget() {
                 <E e={cfg.icon} /> El Sabio dice
               </span>
               {scrolls.length > 1 && (
-                <span className="text-[10px] text-[var(--text-muted)]">+{scrolls.length - 1} más</span>
+                <span className="text-xs text-[var(--text-muted)]">+{scrolls.length - 1} más</span>
               )}
             </div>
             <p className="text-sm text-[var(--text-primary)] leading-relaxed">{visible.message}</p>

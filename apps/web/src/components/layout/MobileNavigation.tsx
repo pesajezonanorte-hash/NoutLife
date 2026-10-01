@@ -107,7 +107,7 @@ function MoreSheet({
 
                   return (
                     <section key={group.id} aria-label={group.label}>
-                      <h2 className="px-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+                      <h2 className="px-1 text-sm font-medium text-[var(--text-muted)]">
                         {group.label}
                       </h2>
                       <div className="mt-2 grid grid-cols-2 gap-2">
@@ -147,7 +147,7 @@ function MoreSheet({
 
                 {utilityContent && (
                   <section aria-label="Accesos rápidos">
-                    <h2 className="px-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Accesos rápidos</h2>
+                    <h2 className="px-1 text-sm font-medium text-[var(--text-muted)]">Accesos rápidos</h2>
                     <div className="mt-2">{utilityContent(onClose)}</div>
                   </section>
                 )}
@@ -214,7 +214,7 @@ export function MobileNavigation({ items, groups, onNavigate, onMoreOpenChange, 
                     />
                   )}
                   <span className="relative flex h-5 items-center justify-center">{item.icon}</span>
-                  <span className="relative max-w-full truncate text-[10px] font-medium">{item.label}</span>
+                  <span className="relative max-w-full truncate text-xs font-medium">{item.label}</span>
                 </motion.span>
               )}
             </NavLink>
@@ -239,7 +239,7 @@ export function MobileNavigation({ items, groups, onNavigate, onMoreOpenChange, 
               <span className="absolute inset-0 rounded-xl bg-[color-mix(in_oklab,var(--accent-gold)_12%,transparent)]" />
             ) : null}
             <MoreHorizontal className="relative h-5 w-5" aria-hidden="true" />
-            <span className="relative max-w-full truncate text-[10px] font-medium">Más</span>
+            <span className="relative max-w-full truncate text-xs font-medium">Más</span>
           </motion.button>
         </div>
       </nav>
