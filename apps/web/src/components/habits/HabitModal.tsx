@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
-import { CalendarDays, Check, Link2, Loader2, Sparkles } from 'lucide-react';
+import { CalendarDays, Check, Dumbbell, Link2, Loader2, Sparkles } from 'lucide-react';
 import { getOpenOrigin } from '@/lib/origin';
 import { useEscapeKey } from '@/hooks/useEscapeKey';
 import { PixelButton } from '../ui/PixelButton';
@@ -42,6 +42,7 @@ export function HabitModal({ onSubmit, onClose, initial, title }: Props) {
     reminderTime: initial?.reminderTime ?? '',
     frequency: initial?.frequency ?? { type: 'daily', days: [] },
     syncToGoogleCalendar: initial?.syncToGoogleCalendar ?? false,
+    createsGymAttendance: initial?.createsGymAttendance ?? false,
   });
 
   useEffect(() => {
@@ -282,6 +283,34 @@ export function HabitModal({ onSubmit, onClose, initial, title }: Props) {
               <p className="mt-1 text-xs text-[var(--text-muted)]">
                 Si lo añades al calendario, esta será la hora del evento. Sin hora se crea como evento de todo el día.
               </p>
+            </div>
+
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel-light)] p-3">
+              <div className="flex items-start gap-3">
+                <span className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-[var(--accent-gold)]/10 text-[var(--accent-gold)]">
+                  <Dumbbell size={17} strokeWidth={1.8} aria-hidden="true" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-[var(--text-primary)]">Cuenta como asistencia al gym</p>
+                      <p className="mt-0.5 text-xs text-[var(--text-secondary)]">Al completar este hábito se registra una asistencia en el Coliseo para la misma fecha.</p>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={Boolean(form.createsGymAttendance)}
+                      aria-label="Contabilizar este hábito como asistencia al gimnasio"
+                      onClick={() => setForm((current) => ({ ...current, createsGymAttendance: !current.createsGymAttendance }))}
+                      className={`relative inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border transition-colors ${form.createsGymAttendance ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)]/25' : 'border-[var(--border-strong)] bg-[var(--bg-deep)]'}`}
+                    >
+                      <span className={`flex h-5 w-5 items-center justify-center rounded-full bg-[var(--text-primary)] shadow-sm transition-transform ${form.createsGymAttendance ? 'translate-x-2.5' : '-translate-x-2.5'}`}>
+                        {form.createsGymAttendance && <Check size={10} className="text-[var(--bg-deep)]" strokeWidth={3} />}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel-light)] p-3">

@@ -70,6 +70,21 @@ enum RelationshipStatus {
   PREFER_NOT_TO_SAY
 }
 
+enum GymAttendanceSource {
+  HABIT
+  MANUAL
+}
+
+enum NotificationCategory {
+  HABITS
+  QUESTS
+  GYM
+  FINANCE
+  SOCIAL
+  ACHIEVEMENTS
+  SYSTEM
+}
+
 // ─── Models ──────────────────────────────────────────────────────────────────
 
 model User {
@@ -165,10 +180,12 @@ model User {
   achievements            UserAchievement[]
   relationships           Relationship[]
   routines                Routine[]
+  gymAttendances          GymAttendance[]
   learningItems           LearningItem[]
   xpEvents                XpEvent[]
   pushSubscriptions       PushSubscription[]
   notificationPreferences NotificationPreferences?
+  notificationCategoryPreferences NotificationCategoryPreference[]
   sentFriendRequests      Friendship[]             @relation("SentRequests")
   receivedFriendRequests  Friendship[]             @relation("ReceivedRequests")
   createdChallenges       Challenge[]
@@ -287,6 +304,8 @@ model Habit {
   resetTime    String  @default("04:00")
   reminderTime String?
   isActive     Boolean @default(true)
+  // Completing this habit creates attendance in the Gym for the same local day.
+  createsGymAttendance Boolean @default(false)
 
   // If enabled, LifeQuest owns a recurring event in the linked Google Calendar.
   // The instances are imported back into Agenda using their Google IDs.
@@ -298,6 +317,7 @@ model Habit {
 
   logs HabitLog[]
   recoveryChallenges RecoveryChallenge[]
+  gymAttendances GymAttendance[] @relation("GymAttendanceHabit")
 
   @@map("habits")
 }
@@ -393,6 +413,11 @@ model Workout {
   xpEarned   Int      @default(0)
   goldEarned Int      @default(0)
 
+  routineDayId String?
+  routineDay   RoutineDay? @relation(fields: [routineDayId], references: [id], onDelete: SetNull)
+  attendanceId String?
+  attendance   GymAttendance? @relation(fields: [attendanceId], references: [id], onDelete: SetNull)
+
   exercises WorkoutExercise[]
 
   createdAt DateTime @default(now())
@@ -408,6 +433,7 @@ model Exercise {
   equipment   String?
 
   workoutExercises WorkoutExercise[]
+  routineDayExercises RoutineDayExercise[]
 
   @@map("exercises")
 }
@@ -493,11 +519,66 @@ model Routine {
   exercises         Json @default("[]")
   targetDays        Json @default("[]")
   estimatedDuration Int?
+  isActive          Boolean @default(true)
+
+  // `exercises` and `targetDays` are retained for existing routines. New and
+  // edited weekly plans use the normalized days/exercises below.
+  days RoutineDay[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("routines")
+}
+
+model RoutineDay {
+  id        String  @id @default(cuid())
+  routineId String
+  routine   Routine @relation(fields: [routineId], references: [id], onDelete: Cascade)
+
+  weekday   Int
+  title     String?
+  isRestDay Boolean @default(false)
+  exercises RoutineDayExercise[]
+  workouts  Workout[]
+
+  @@unique([routineId, weekday])
+  @@index([routineId, weekday])
+  @@map("routine_days")
+}
+
+model RoutineDayExercise {
+  id           String     @id @default(cuid())
+  routineDayId String
+  routineDay   RoutineDay @relation(fields: [routineDayId], references: [id], onDelete: Cascade)
+  exerciseId   String
+  exercise     Exercise   @relation(fields: [exerciseId], references: [id])
+
+  targetSets Json @default("[]")
+  notes      String?
+  order      Int  @default(0)
+
+  @@index([routineDayId, order])
+  @@map("routine_day_exercises")
+}
+
+model GymAttendance {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Calendar-date key in the user's timezone, normalized to UTC midnight.
+  date   DateTime
+  source GymAttendanceSource @default(MANUAL)
+  habitId String?
+  habit   Habit? @relation("GymAttendanceHabit", fields: [habitId], references: [id], onDelete: SetNull)
+  workouts Workout[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, date])
+  @@index([userId, date])
+  @@map("gym_attendances")
 }
 
 model LearningItem {
@@ -609,6 +690,21 @@ model NotificationPreferences {
   updatedAt DateTime @updatedAt
 
   @@map("notification_preferences")
+}
+
+model NotificationCategoryPreference {
+  id       String               @id @default(cuid())
+  userId   String
+  user     User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category NotificationCategory
+  inAppEnabled Boolean          @default(true)
+  pushEnabled  Boolean          @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, category])
+  @@map("notification_category_preferences")
 }
 
 model UserAchievement {
@@ -1172,16 +1268,20 @@ model Notification {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  type   String  // 'achievement' | 'streak' | 'reminder' | 'sage' | 'goal' | 'levelup' | 'system'
-  title  String
-  body   String
-  icon   String?
-  link   String?
-  isRead Boolean @default(false)
+  type     String  // Legacy event type retained for display and backwards compatibility.
+  category NotificationCategory @default(SYSTEM)
+  dedupeKey String?
+  title    String
+  body     String
+  icon     String?
+  link     String?
+  isRead   Boolean @default(false)
 
   createdAt DateTime @default(now())
 
   @@index([userId, isRead])
+  @@index([userId, category, createdAt])
+  @@index([userId, dedupeKey, createdAt])
   @@map("notifications")
 }
 

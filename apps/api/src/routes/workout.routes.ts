@@ -7,6 +7,8 @@ router.use(requireAuth);
 
 router.get('/',              ctrl.listWorkouts);
 router.post('/',             ctrl.createWorkout);
+router.get('/attendance',    ctrl.listAttendances);
+router.post('/attendance',   ctrl.recordAttendance);
 router.get('/:id',           ctrl.getWorkout);
 router.patch('/:id',         ctrl.updateWorkout);
 router.post('/:id/finish',   ctrl.finishWorkout);

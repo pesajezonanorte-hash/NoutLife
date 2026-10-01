@@ -57,6 +57,9 @@ export const HabitRow = memo(function HabitRow({ habit, onLog, onEdit, onDelete 
           {habit.description && (
             <p className="text-xs text-[var(--text-secondary)] truncate">{habit.description}</p>
           )}
+          {habit.createsGymAttendance && (
+            <p className="mt-0.5 text-xs font-medium text-[var(--accent-gold)]"><E e="🏋️" /> Cuenta como asistencia al gym</p>
+          )}
         </div>
 
         {/* Streak */}

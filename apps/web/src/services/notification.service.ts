@@ -1,5 +1,26 @@
 import api from '../lib/api';
 
+export const NOTIFICATION_CATEGORIES = ['HABITS', 'QUESTS', 'GYM', 'FINANCE', 'SOCIAL', 'ACHIEVEMENTS', 'SYSTEM'] as const;
+export type NotificationCategory = (typeof NOTIFICATION_CATEGORIES)[number];
+
+export interface NotificationCategoryPreference {
+  category: NotificationCategory;
+  inAppEnabled: boolean;
+  pushEnabled: boolean;
+}
+
+export interface NotificationPreferences {
+  habitReminders: boolean;
+  questDeadlineAlerts: boolean;
+  dailySummary: boolean;
+  dailySummaryTime: string;
+  achievementAlerts: boolean;
+  levelUpAlerts: boolean;
+  quietHoursStart?: string | null;
+  quietHoursEnd?: string | null;
+  categories: NotificationCategoryPreference[];
+}
+
 export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null;
   try {
@@ -28,13 +49,13 @@ export async function requestPermissionAndSubscribe(): Promise<boolean> {
   return true;
 }
 
-export async function getNotificationPreferences() {
-  const { data } = await api.get('/notifications/preferences');
+export async function getNotificationPreferences(): Promise<NotificationPreferences> {
+  const { data } = await api.get<{ preferences: NotificationPreferences }>('/notifications/preferences');
   return data.preferences;
 }
 
-export async function updateNotificationPreferences(prefs: Record<string, unknown>) {
-  const { data } = await api.patch('/notifications/preferences', prefs);
+export async function updateNotificationPreferences(prefs: Partial<NotificationPreferences> & { categoryPreferences?: NotificationCategoryPreference[] }) {
+  const { data } = await api.patch<{ preferences: NotificationPreferences }>('/notifications/preferences', prefs);
   return data.preferences;
 }
 
@@ -42,11 +63,13 @@ export async function sendTestNotification(): Promise<void> {
   await api.post('/notifications/test');
 }
 
-// ─── In-App Notifications ─────────────────────────────────────────────────────
+// ─── In-app notifications ─────────────────────────────────────────────────────
 
 export interface InAppNotification {
   id: string;
   type: string;
+  category: NotificationCategory;
+  dedupeKey?: string | null;
   title: string;
   body: string;
   icon?: string;
@@ -55,8 +78,18 @@ export interface InAppNotification {
   createdAt: string;
 }
 
-export async function listInAppNotifications(limit = 30): Promise<{ notifications: InAppNotification[]; unread: number }> {
-  const { data } = await api.get(`/notifications?limit=${limit}`);
+export interface NotificationPage {
+  notifications: InAppNotification[];
+  unread: number;
+  nextCursor: string | null;
+}
+
+export async function listInAppNotifications(options: { limit?: number; cursor?: string; category?: NotificationCategory } = {}): Promise<NotificationPage> {
+  const params = new URLSearchParams();
+  if (options.limit) params.set('limit', String(options.limit));
+  if (options.cursor) params.set('cursor', options.cursor);
+  if (options.category) params.set('category', options.category);
+  const { data } = await api.get<NotificationPage>(`/notifications?${params}`);
   return data;
 }
 
@@ -75,6 +108,10 @@ export async function markAllAsRead(): Promise<void> {
 
 export async function deleteNotification(id: string): Promise<void> {
   await api.delete(`/notifications/${id}`);
+}
+
+export async function deleteAllNotifications(): Promise<void> {
+  await api.delete('/notifications');
 }
 
 // ─── Global Search ─────────────────────────────────────────────────────────────

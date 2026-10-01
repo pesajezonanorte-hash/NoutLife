@@ -458,11 +458,6 @@ input[type='number']::-webkit-outer-spin-button {
     -webkit-backface-visibility: hidden;
   }
 
-  .perspective-flip-card__face,
-  .perspective-flip-card__face * {
-    backface-visibility: hidden;
-    -webkit-backface-visibility: hidden;
-  }
 
   .perspective-flip-card__face--back {
     opacity: 0;

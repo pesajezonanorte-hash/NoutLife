@@ -178,11 +178,14 @@ export async function deleteFinancialGoal(userId: string, id: string) {
 
 export async function getFinanceDashboard(userId: string) {
   const now = new Date();
-  const from = new Date(now.getFullYear(), now.getMonth(), 1);
-  const to = now;
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const [summary, budgets, goals, recent] = await Promise.all([
-    getTransactionSummary(userId, from.toISOString(), to.toISOString()),
+  // Keep the two financial concepts deliberately separate:
+  // - totalBalance is the realised lifetime balance and must never reset on a new month.
+  // - monthSummary is the current-month activity used for budgeting and monthly insight.
+  const [monthSummary, lifetimeSummary, budgets, goals, recent] = await Promise.all([
+    getTransactionSummary(userId, monthStart.toISOString(), now.toISOString()),
+    getTransactionSummary(userId, new Date(0).toISOString(), now.toISOString()),
     listBudgets(userId),
     listFinancialGoals(userId),
     prisma.transaction.findMany({
@@ -192,10 +195,18 @@ export async function getFinanceDashboard(userId: string) {
     }),
   ]);
 
-  return { summary, budgets, goals: goals.map(g => ({ ...g, targetAmount: Number(g.targetAmount), currentAmount: Number(g.currentAmount) })), recent };
+  return {
+    totalBalance: lifetimeSummary.balance,
+    monthSummary,
+    budgets,
+    goals: goals.map(g => ({ ...g, targetAmount: Number(g.targetAmount), currentAmount: Number(g.currentAmount) })),
+    recent,
+  };
 }
 
 export async function getFinanceReport(userId: string, year: number, month: number) {
+  // Reports intentionally describe the requested calendar month; the persistent
+  // balance belongs to getFinanceDashboard().totalBalance instead.
   const from = new Date(year, month - 1, 1);
   const endOfMonth = new Date(year, month, 0, 23, 59, 59);
   const now = new Date();

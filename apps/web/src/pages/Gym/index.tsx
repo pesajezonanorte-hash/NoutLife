@@ -25,6 +25,14 @@ const GYM_TABS: Array<{ id: GymTab; label: string; helper: string; icon: string 
   { id: 'photos', label: 'Progreso', helper: 'Fotos y cambios', icon: '📸' },
 ];
 
+const WEEKDAY_LABELS = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
+
+function routineExerciseCount(routine: Routine) {
+  return routine.days.length > 0
+    ? routine.days.reduce((total, day) => total + day.exercises.length, 0)
+    : routine.exercises.length;
+}
+
 interface ActiveSet {
   id: string;
   weight: string;
@@ -622,6 +630,8 @@ export default function GymPage() {
 
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [routines, setRoutines] = useState<Routine[]>([]);
+  const [attendances, setAttendances] = useState<workoutService.GymAttendance[]>([]);
+  const [recordingAttendance, setRecordingAttendance] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeWorkout, setActiveWorkout] = useState<ActiveWorkout | null>(null);
   const [showStartModal, setShowStartModal] = useState(false);
@@ -632,12 +642,14 @@ export default function GymPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [ws, rs] = await Promise.all([
+      const [ws, rs, attendance] = await Promise.all([
         workoutService.fetchWorkouts(10),
         workoutService.fetchRoutines(),
+        workoutService.fetchGymAttendances(),
       ]);
       setWorkouts(ws);
       setRoutines(rs);
+      setAttendances(attendance);
     } catch {
       /* ignore */
     } finally {
@@ -648,6 +660,19 @@ export default function GymPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  async function recordAttendance() {
+    setRecordingAttendance(true);
+    try {
+      const attendance = await workoutService.recordGymAttendance();
+      setAttendances((current) => [...current.filter((item) => item.id !== attendance.id), attendance]);
+      toast.success('Asistencia registrada', 'El Coliseo cuenta tu visita de hoy.');
+    } catch {
+      toast.error('No se pudo registrar la asistencia');
+    } finally {
+      setRecordingAttendance(false);
+    }
+  }
 
   async function startWorkout(title?: string) {
     const t = title ?? newTitle;
@@ -664,25 +689,37 @@ export default function GymPage() {
 
   async function startFromRoutine(routine: Routine) {
     try {
-      const w = await workoutService.createWorkout({ title: routine.name });
-      const exercises = (routine.exercises as Array<{
-        exerciseId: string;
-        name: string;
-        sets: number;
-        reps?: number;
-      }>).map(re => ({
-        exerciseId: re.exerciseId,
-        name: re.name,
-        muscleGroup: undefined as string | undefined,
-        sets: Array.from({ length: re.sets }, (_, i) => ({
-          id: String(i + 1),
-          weight: '',
-          reps: re.reps ? String(re.reps) : '',
-          completed: false,
-        })),
-        prevBest: null,
-        personalRecord: 0,
-      }));
+      const today = new Date().getDay();
+      const routineDay = routine.days.find((day) => day.weekday === today && !day.isRestDay)
+        ?? routine.days.find((day) => !day.isRestDay);
+      const w = await workoutService.createWorkout({ title: routineDay?.title || routine.name, routineDayId: routineDay?.id });
+      const exercises = routineDay
+        ? routineDay.exercises.map((exercise) => ({
+          exerciseId: exercise.exerciseId,
+          name: exercise.exercise.name,
+          muscleGroup: exercise.exercise.muscleGroup,
+          sets: (exercise.targetSets ?? []).map((set, index) => ({
+            id: String(index + 1),
+            weight: set.weight ? String(set.weight) : '',
+            reps: set.reps ? String(set.reps) : '',
+            completed: false,
+          })),
+          prevBest: null,
+          personalRecord: 0,
+        }))
+        : (routine.exercises as Array<{ exerciseId: string; name: string; sets: number; reps?: number }>).map((exercise) => ({
+          exerciseId: exercise.exerciseId,
+          name: exercise.name,
+          muscleGroup: undefined as string | undefined,
+          sets: Array.from({ length: exercise.sets }, (_, index) => ({
+            id: String(index + 1),
+            weight: '',
+            reps: exercise.reps ? String(exercise.reps) : '',
+            completed: false,
+          })),
+          prevBest: null,
+          personalRecord: 0,
+        }));
       setActiveWorkout({ id: w.id, title: w.title, startTime: Date.now(), exercises });
     } catch {
       toast.error('Error al iniciar rutina');
@@ -781,6 +818,27 @@ export default function GymPage() {
 
   const featuredRoutine = routines[0];
   const latestWorkout = workouts[0];
+  const calendarParts = (date: Date) => new Intl.DateTimeFormat('en-CA', {
+    timeZone: user?.timezone ?? 'America/Bogota',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date).reduce<Record<string, string>>((parts, part) => ({ ...parts, [part.type]: part.value }), {});
+  const calendarKey = (date: Date) => {
+    const parts = calendarParts(date);
+    return `${parts.year}-${parts.month}-${parts.day}`;
+  };
+  const todayKey = calendarKey(new Date());
+  const attendedToday = attendances.some((attendance) => attendance.date.slice(0, 10) === todayKey);
+  const attendanceDays = Array.from({ length: 7 }, (_, index) => {
+    const day = new Date(Date.now() - (6 - index) * 86_400_000);
+    const key = calendarKey(day);
+    return {
+      key,
+      label: day.toLocaleDateString('es-CO', { timeZone: user?.timezone ?? 'America/Bogota', weekday: 'narrow' }),
+      attended: attendances.some((attendance) => attendance.date.slice(0, 10) === key),
+    };
+  });
 
   return (
     <div className="space-y-4">
@@ -810,6 +868,32 @@ export default function GymPage() {
             </PixelButton>
           </div>
         </div>
+      </section>
+
+      <section className="flex flex-col gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-3.5 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-[var(--text-primary)]">Asistencia al Coliseo</p>
+          <div className="mt-2 flex gap-1.5" aria-label="Asistencia de los últimos siete días">
+            {attendanceDays.map((day) => (
+              <span
+                key={day.key}
+                title={day.attended ? `${day.label}: asistencia registrada` : `${day.label}: sin asistencia`}
+                className={`flex h-8 w-8 items-center justify-center rounded-lg border text-xs font-semibold ${day.attended ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)]/15 text-[var(--accent-gold)]' : 'border-[var(--border)] bg-[var(--bg-panel-light)] text-[var(--text-muted)]'}`}
+              >
+                {day.label}
+              </span>
+            ))}
+          </div>
+        </div>
+        <FlowButton
+          tone={attendedToday ? 'ghost' : 'primary'}
+          size="sm"
+          withArrows={false}
+          disabled={attendedToday || recordingAttendance}
+          onClick={() => void recordAttendance()}
+        >
+          {attendedToday ? 'Asistencia de hoy' : recordingAttendance ? 'Registrando…' : 'Registrar asistencia'}
+        </FlowButton>
       </section>
 
       <div
@@ -961,10 +1045,10 @@ export default function GymPage() {
                   visual={<span className="text-6xl" aria-hidden="true"><E e="🏋️" s={64} /></span>}
                   visualLabel={`Rutina preparada: ${featuredRoutine.name}`}
                   badge="Rutina destacada"
-                  frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">{(featuredRoutine.exercises as Array<unknown>).length} ejercicios preparados</p>}
+                  frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">{routineExerciseCount(featuredRoutine)} ejercicios preparados</p>}
                   backDescription={<p>Esta rutina sustituye su fila plana en la lista. Iníciala desde el reverso para cargar sus series en el entrenamiento activo.</p>}
                   metrics={[
-                    { label: 'Ejercicios', value: (featuredRoutine.exercises as Array<unknown>).length },
+                    { label: 'Ejercicios', value: routineExerciseCount(featuredRoutine) },
                     { label: 'Duración', value: featuredRoutine.estimatedDuration ? `${featuredRoutine.estimatedDuration} min` : '—' },
                     { label: 'Rutinas', value: routines.length },
                   ]}
@@ -996,9 +1080,9 @@ export default function GymPage() {
                         className="font-pixel text-text-muted mt-1"
                         style={{ fontSize: '12px' }}
                       >
-                        {(r.exercises as { name: string }[])
-                          .map(e => e.name)
-                          .join(' · ')}
+                        {r.days.length > 0
+                          ? r.days.filter((day) => !day.isRestDay).map((day) => `${WEEKDAY_LABELS[day.weekday]}: ${day.exercises.map((exercise) => exercise.exercise.name).join(', ') || 'descanso'}`).join(' · ')
+                          : r.exercises.map((exercise) => exercise.name).join(' · ')}
                       </p>
                     </div>
                     <PixelButton

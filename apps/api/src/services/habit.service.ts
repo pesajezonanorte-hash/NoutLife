@@ -4,6 +4,7 @@ import { awardXpAndGold } from './xp.service';
 import { checkAchievements } from './achievement.service';
 import { createNotification } from './notification.service';
 import { removeHabitFromGoogleCalendar, syncHabitWithGoogleCalendar } from './agenda.service';
+import { recordHabitGymAttendance } from './gym-attendance.service';
 import type { QuestCategory } from '@prisma/client';
 
 export interface CreateHabitInput {
@@ -18,6 +19,7 @@ export interface CreateHabitInput {
   resetTime?: string;
   reminderTime?: string;
   syncToGoogleCalendar?: boolean;
+  createsGymAttendance?: boolean;
 }
 
 export interface UpdateHabitInput {
@@ -32,6 +34,7 @@ export interface UpdateHabitInput {
   resetTime?: string;
   reminderTime?: string | null;
   syncToGoogleCalendar?: boolean;
+  createsGymAttendance?: boolean;
 }
 
 /**
@@ -187,6 +190,7 @@ export async function createHabit(userId: string, input: CreateHabitInput) {
       resetTime: input.resetTime ?? '04:00',
       reminderTime: input.reminderTime,
       syncToGoogleCalendar: input.syncToGoogleCalendar ?? false,
+      createsGymAttendance: input.createsGymAttendance ?? false,
     },
   });
 
@@ -266,6 +270,7 @@ export async function updateHabit(userId: string, habitId: string, input: Update
       ...(input.resetTime !== undefined && { resetTime: input.resetTime }),
       ...(input.reminderTime !== undefined && { reminderTime: input.reminderTime }),
       ...(input.syncToGoogleCalendar !== undefined && { syncToGoogleCalendar: input.syncToGoogleCalendar }),
+      ...(input.createsGymAttendance !== undefined && { createsGymAttendance: input.createsGymAttendance }),
     },
   });
 
@@ -486,6 +491,11 @@ export async function logHabit(
     }
   }
 
+  let gymAttendance: Awaited<ReturnType<typeof recordHabitGymAttendance>> | null = null;
+  if (isNewCompletion && habit.createsGymAttendance) {
+    gymAttendance = await recordHabitGymAttendance(userId, habitId, date);
+  }
+
   let rewards = null;
   let achievementsUnlocked: Awaited<ReturnType<typeof checkAchievements>> = [];
 
@@ -535,6 +545,7 @@ export async function logHabit(
     rewards,
     achievementsUnlocked,
     recoveryCompleted,
+    gymAttendance,
   };
 }
 

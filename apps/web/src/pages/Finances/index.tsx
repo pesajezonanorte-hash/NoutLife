@@ -419,7 +419,7 @@ export default function FinancesPage() {
   const toast = useToast();
   const [tab, setTab] = useState<'dashboard' | 'transactions' | 'budgets' | 'goals' | 'debts' | 'recurring' | 'projection'>('dashboard');
   const [showPayday, setShowPayday] = useState(false);
-  const [dashboard, setDashboard] = useState<{ summary: { income: number; expenses: number; balance: number; byCategory: Record<string, number> }; budgets: (Budget & { spent: number })[]; goals: FinancialGoal[]; recent: Transaction[] } | null>(null);
+  const [dashboard, setDashboard] = useState<financeService.FinanceDashboard | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [showAddTransaction, setShowAddTransaction] = useState(false);
   const [modalOrigin, setModalOrigin] = useState<ModalOrigin | undefined>();
@@ -521,7 +521,7 @@ export default function FinancesPage() {
     );
   }
 
-  const categoryData = dashboard ? Object.entries(dashboard.summary.byCategory).map(([k, v]) => ({ name: CATEGORY_LABELS[k] ?? k, value: v })) : [];
+  const categoryData = dashboard ? Object.entries(dashboard.monthSummary.byCategory).map(([k, v]) => ({ name: CATEGORY_LABELS[k] ?? k, value: v })) : [];
 
   return (
     <div className="space-y-4">
@@ -550,35 +550,43 @@ export default function FinancesPage() {
           transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
         >
           <LifeQuestFlipCard
-            eyebrow="Balance del mes"
-            title={dashboard.summary.balance >= 0 ? 'Tu bóveda avanza con margen' : 'Tu bóveda necesita atención'}
+            eyebrow="Saldo disponible"
+            title={dashboard.totalBalance >= 0 ? 'Tu saldo está disponible' : 'Tu saldo necesita atención'}
             description="Un resumen claro de tus ingresos, gastos y próximo movimiento."
             visual={(
               <div className="text-center" aria-hidden="true">
-                <p className={`font-vt text-5xl leading-none sm:text-6xl ${dashboard.summary.balance >= 0 ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]'}`}>
+                <p className={`font-vt text-5xl leading-none sm:text-6xl ${dashboard.totalBalance >= 0 ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]'}`}>
                   <AnimatedCounter
-                    value={Math.abs(dashboard.summary.balance)}
+                    value={Math.abs(dashboard.totalBalance)}
                     separator="."
-                    prefix={`${dashboard.summary.balance < 0 ? '-' : ''}$ `}
+                    prefix={`${dashboard.totalBalance < 0 ? '-' : ''}$ `}
                     duration={1}
                   />
                 </p>
                 <p className="mt-2 text-sm font-medium text-muted-foreground">Saldo disponible</p>
               </div>
             )}
-            visualLabel={`Balance del mes: ${formatCOP(dashboard.summary.balance)}`}
-            badge={dashboard.summary.balance >= 0 ? 'Balance positivo' : 'Revisar gastos'}
+            visualLabel={`Saldo disponible: ${formatCOP(dashboard.totalBalance)}`}
+            badge={dashboard.totalBalance >= 0 ? 'Saldo positivo' : 'Revisar gastos'}
             frontFooter={(
-              <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-xl border border-border bg-muted px-3 py-2"><p className="text-sm font-medium text-muted-foreground">Ingresos</p><p className="mt-1 truncate text-sm font-medium text-[var(--accent-green)]"><AnimatedCounter value={dashboard.summary.income} separator="." prefix="$ " duration={0.7} /></p></div>
-                <div className="rounded-xl border border-border bg-muted px-3 py-2"><p className="text-sm font-medium text-muted-foreground">Gastos</p><p className="mt-1 truncate text-sm font-medium text-[var(--accent-red)]"><AnimatedCounter value={dashboard.summary.expenses} separator="." prefix="$ " duration={0.7} /></p></div>
+              <div className="space-y-2">
+                <div className="rounded-xl border border-border bg-muted px-3 py-2">
+                  <p className="text-sm font-medium text-muted-foreground">Balance del mes</p>
+                  <p className={`mt-1 truncate text-base font-semibold ${dashboard.monthSummary.balance >= 0 ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]'}`}>
+                    <AnimatedCounter value={Math.abs(dashboard.monthSummary.balance)} separator="." prefix={`${dashboard.monthSummary.balance < 0 ? '-' : ''}$ `} duration={0.7} />
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-xl border border-border bg-muted px-3 py-2"><p className="text-sm font-medium text-muted-foreground">Ingresos</p><p className="mt-1 truncate text-sm font-medium text-[var(--accent-green)]"><AnimatedCounter value={dashboard.monthSummary.income} separator="." prefix="$ " duration={0.7} /></p></div>
+                  <div className="rounded-xl border border-border bg-muted px-3 py-2"><p className="text-sm font-medium text-muted-foreground">Gastos</p><p className="mt-1 truncate text-sm font-medium text-[var(--accent-red)]"><AnimatedCounter value={dashboard.monthSummary.expenses} separator="." prefix="$ " duration={0.7} /></p></div>
+                </div>
               </div>
             )}
             backDescription={<p>Consulta tus movimientos para entender qué está moviendo el balance y registra una transacción cuando lo necesites.</p>}
             metrics={[
-              { label: 'Ingresos', value: formatCOP(dashboard.summary.income) },
-              { label: 'Gastos', value: formatCOP(dashboard.summary.expenses) },
-              { label: 'Balance', value: formatCOP(dashboard.summary.balance) },
+              { label: 'Ingresos del mes', value: formatCOP(dashboard.monthSummary.income) },
+              { label: 'Gastos del mes', value: formatCOP(dashboard.monthSummary.expenses) },
+              { label: 'Balance del mes', value: formatCOP(dashboard.monthSummary.balance) },
             ]}
             actionLabel="Ver movimientos"
             onAction={() => setTab('transactions')}

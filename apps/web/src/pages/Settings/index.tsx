@@ -32,8 +32,12 @@ import { useUIStore } from "../../store/uiStore";
 import { useToast } from "../../hooks/useToast";
 import * as userService from "../../services/user.service";
 import {
+  getNotificationPreferences,
   requestPermissionAndSubscribe,
   sendTestNotification,
+  updateNotificationPreferences,
+  type NotificationCategoryPreference,
+  type NotificationPreferences,
 } from "../../services/notification.service";
 import api from "../../lib/api";
 import {
@@ -61,6 +65,16 @@ const TABS: Array<{ id: TabId; label: string; Icon: LucideIcon }> = [
   { id: "data", label: "Datos", Icon: Database },
   { id: "about", label: "Acerca de", Icon: Info },
 ];
+
+const NOTIFICATION_CATEGORY_LABELS: Record<NotificationCategoryPreference['category'], string> = {
+  HABITS: 'Hábitos',
+  QUESTS: 'Misiones',
+  GYM: 'Gym',
+  FINANCE: 'Finanzas',
+  SOCIAL: 'Social',
+  ACHIEVEMENTS: 'Logros',
+  SYSTEM: 'Sistema',
+};
 
 const THEMES: ThemeOption[] = [
   {
@@ -282,6 +296,8 @@ export default function Settings() {
     text: string;
   } | null>(null);
   const [testingNotif, setTestingNotif] = useState(false);
+  const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences | null>(null);
+  const [savingNotificationPreferences, setSavingNotificationPreferences] = useState(false);
   const [notifPermission, setNotifPermission] = useState<
     NotificationPermission | "unsupported"
   >(() =>
@@ -301,6 +317,10 @@ export default function Settings() {
     setPlaylistUrl(user?.gymPlaylistUrl ?? "");
     setShowPlaylist(Boolean(user?.gymPlaylistUrl));
   }, [user]);
+
+  useEffect(() => {
+    getNotificationPreferences().then(setNotificationPreferences).catch(() => null);
+  }, []);
 
   const activeTheme =
     (user as (typeof user & { activeTheme?: string }) | null)?.activeTheme ??
@@ -418,6 +438,41 @@ export default function Settings() {
       toast.error("No se pudo enviar la notificación de prueba");
     } finally {
       setTestingNotif(false);
+    }
+  };
+
+  const updateCategoryPreference = async (
+    category: NotificationCategoryPreference['category'],
+    field: 'inAppEnabled' | 'pushEnabled',
+  ) => {
+    if (!notificationPreferences || savingNotificationPreferences) return;
+    const categories = notificationPreferences.categories.map((preference) => (
+      preference.category === category ? { ...preference, [field]: !preference[field] } : preference
+    ));
+    const optimistic = { ...notificationPreferences, categories };
+    setNotificationPreferences(optimistic);
+    setSavingNotificationPreferences(true);
+    try {
+      const saved = await updateNotificationPreferences({ categoryPreferences: categories });
+      setNotificationPreferences(saved);
+    } catch {
+      setNotificationPreferences(notificationPreferences);
+      toast.error('No se pudieron guardar las preferencias de notificaciones');
+    } finally {
+      setSavingNotificationPreferences(false);
+    }
+  };
+
+  const updateQuietHours = async (field: 'quietHoursStart' | 'quietHoursEnd', value: string) => {
+    if (!notificationPreferences) return;
+    const optimistic = { ...notificationPreferences, [field]: value || null };
+    setNotificationPreferences(optimistic);
+    try {
+      const saved = await updateNotificationPreferences({ [field]: value || null });
+      setNotificationPreferences(saved);
+    } catch {
+      setNotificationPreferences(notificationPreferences);
+      toast.error('No se pudo actualizar el horario silencioso');
     }
   };
 
@@ -777,6 +832,29 @@ export default function Settings() {
                     >
                       {notifStatus.text}
                     </p>
+                  )}
+                  {notificationPreferences && (
+                    <div className="mt-4 border-t border-[var(--border)] pt-4">
+                      <div className="flex flex-wrap items-end justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-semibold text-[var(--text-primary)]">Canales por categoría</p>
+                          <p className="mt-0.5 text-xs text-[var(--text-muted)]">La bandeja in-app se conserva; las horas silenciosas sólo pausan push.</p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-xs text-[var(--text-muted)]">
+                          <label>Silencio desde<input type="time" value={notificationPreferences.quietHoursStart ?? ''} onChange={(event) => void updateQuietHours('quietHoursStart', event.target.value)} className="mt-1 block h-9 rounded-lg border border-[var(--border)] bg-[var(--bg-panel)] px-2 text-sm text-[var(--text-primary)]" /></label>
+                          <label>Hasta<input type="time" value={notificationPreferences.quietHoursEnd ?? ''} onChange={(event) => void updateQuietHours('quietHoursEnd', event.target.value)} className="mt-1 block h-9 rounded-lg border border-[var(--border)] bg-[var(--bg-panel)] px-2 text-sm text-[var(--text-primary)]" /></label>
+                        </div>
+                      </div>
+                      <div className="mt-3 overflow-hidden rounded-xl border border-[var(--border)]">
+                        {notificationPreferences.categories.map((preference) => (
+                          <div key={preference.category} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 border-b border-[var(--border)] px-3 py-2.5 last:border-b-0">
+                            <span className="text-sm font-medium text-[var(--text-primary)]">{NOTIFICATION_CATEGORY_LABELS[preference.category]}</span>
+                            <button type="button" disabled={savingNotificationPreferences} onClick={() => void updateCategoryPreference(preference.category, 'inAppEnabled')} aria-pressed={preference.inAppEnabled} className={`min-h-9 rounded-lg border px-2 text-xs font-medium ${preference.inAppEnabled ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)]/12 text-[var(--accent-gold)]' : 'border-[var(--border)] text-[var(--text-muted)]'}`}>En app</button>
+                            <button type="button" disabled={savingNotificationPreferences} onClick={() => void updateCategoryPreference(preference.category, 'pushEnabled')} aria-pressed={preference.pushEnabled} className={`min-h-9 rounded-lg border px-2 text-xs font-medium ${preference.pushEnabled ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)]/12 text-[var(--accent-gold)]' : 'border-[var(--border)] text-[var(--text-muted)]'}`}>Push</button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </SectionCard>
               </div>

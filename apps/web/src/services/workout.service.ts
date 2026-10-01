@@ -6,12 +6,36 @@ export async function fetchWorkouts(limit = 20): Promise<Workout[]> {
   return data.workouts;
 }
 
+export async function fetchGymAttendances(from?: string, to?: string): Promise<GymAttendance[]> {
+  const params = new URLSearchParams();
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  const { data } = await api.get<{ attendances: GymAttendance[] }>(`/workouts/attendance?${params}`);
+  return data.attendances;
+}
+
+export async function recordGymAttendance(date?: string): Promise<GymAttendance> {
+  const { data } = await api.post<{ attendance: GymAttendance }>('/workouts/attendance', date ? { date } : {});
+  return data.attendance;
+}
+
 export async function fetchWorkout(id: string): Promise<Workout> {
   const { data } = await api.get<{ workout: Workout }>(`/workouts/${id}`);
   return data.workout;
 }
 
-export async function createWorkout(body: { title: string; date?: string; notes?: string }): Promise<Workout> {
+export interface GymAttendance {
+  id: string;
+  userId: string;
+  date: string;
+  source: 'HABIT' | 'MANUAL';
+  habitId?: string | null;
+  habit?: { id: string; title: string; icon: string } | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function createWorkout(body: { title: string; date?: string; notes?: string; routineDayId?: string }): Promise<Workout> {
   const { data } = await api.post<{ workout: Workout }>('/workouts', body);
   return data.workout;
 }

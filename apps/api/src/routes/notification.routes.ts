@@ -16,6 +16,7 @@ router.post('/test',            notificationController.sendTestNotification);
 router.get('/',                 notificationController.listInApp);
 router.get('/unread-count',     notificationController.unreadCount);
 router.patch('/read-all',       notificationController.markAllReadHandler);
+router.delete('/',              notificationController.deleteAll);
 router.patch('/:id/read',       notificationController.markOneRead);
 router.delete('/:id',           notificationController.deleteOne);
 
