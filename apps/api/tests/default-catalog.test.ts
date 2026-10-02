@@ -34,7 +34,7 @@ test('ensureDefaultCatalog restores only missing global shop rows and preserves 
 });
 
 test('default catalog keeps the player-facing achievements and shop populated', () => {
-  assert.equal(DEFAULT_ACHIEVEMENTS.length, 30);
+  assert.equal(DEFAULT_ACHIEVEMENTS.length, 33);
   assert.ok(DEFAULT_SHOP_ITEMS.length >= 25);
   assert.equal(new Set(DEFAULT_ACHIEVEMENTS.map((achievement) => achievement.key)).size, DEFAULT_ACHIEVEMENTS.length);
   assert.equal(new Set(DEFAULT_SHOP_ITEMS.map((item) => item.name)).size, DEFAULT_SHOP_ITEMS.length);

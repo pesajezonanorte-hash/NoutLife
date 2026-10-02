@@ -1,6 +1,7 @@
 import { prisma } from '../lib/prisma';
 import { DEFAULT_TIMEZONE, getCalendarDay, parseCalendarDate } from '../lib/calendar';
 import { awardXpAndGold } from './xp.service';
+import { checkAchievements } from './achievement.service';
 import { createNotification } from './notification.service';
 import { listGymAttendances, recordManualGymAttendance, recordWorkoutGymAttendance } from './gym-attendance.service';
 
@@ -145,8 +146,9 @@ export async function finishWorkout(userId: string, id: string, body: { notes?: 
     link: '/gym',
   }).catch(() => {});
 
+  const achievementsUnlocked = await checkAchievements(userId, 'workout_finished').catch(() => []);
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
-  return { workout, rewards: result, user };
+  return { workout, rewards: result, user, achievementsUnlocked };
 }
 
 export async function deleteWorkout(userId: string, id: string) {

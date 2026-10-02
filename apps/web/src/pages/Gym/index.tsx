@@ -623,7 +623,7 @@ function ActiveWorkoutView({
 }
 
 export default function GymPage() {
-  const { addFloatingXP, triggerLevelUp } = useUIStore();
+  const { addFloatingXP, triggerLevelUp, showAchievementToast } = useUIStore();
   const { updateUser, user } = useAuthStore();
   const navigate = useNavigate();
   const toast = useToast();
@@ -760,6 +760,7 @@ export default function GymPage() {
         '¡Entrenamiento completado!',
         `+${(result.rewards as { xpGained: number }).xpGained} XP`,
       );
+      for (const achievement of result.achievementsUnlocked ?? []) showAchievementToast(achievement);
       await load();
     } catch {
       toast.error('Error al finalizar entrenamiento');

@@ -51,7 +51,7 @@ export async function updateWorkout(req: AuthRequest, res: Response): Promise<vo
 export async function finishWorkout(req: AuthRequest, res: Response): Promise<void> {
   try {
     const result = await svc.finishWorkout(req.userId!, req.params.id, req.body);
-    res.json({ workout: s(result.workout), rewards: result.rewards, user: result.user });
+    res.json({ workout: s(result.workout), rewards: result.rewards, user: result.user, achievementsUnlocked: result.achievementsUnlocked });
   } catch (error) {
     const code = error instanceof Error ? error.message : '';
     if (code === 'WORKOUT_NOT_FOUND') { res.status(404).json({ error: 'Entrenamiento no encontrado.' }); return; }
