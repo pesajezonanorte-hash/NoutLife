@@ -1,6 +1,99 @@
 import { prisma } from './lib/prisma';
 import { REMOVE_LEGACY_HABIT_RITUAL_FLAG_SQL } from './lib/schema-migrations';
 
+const ignoreDuplicate = (sql: string) =>
+  `DO $$ BEGIN ${sql}; EXCEPTION WHEN duplicate_object THEN NULL; END $$;`;
+
+// Idempotent mirror of prisma/migrations/20260930180000_gym_attendance_and_notification_controls.
+const GYM_ATTENDANCE_AND_NOTIFICATION_CONTROLS_SQL = [
+  ignoreDuplicate(`CREATE TYPE "GymAttendanceSource" AS ENUM ('HABIT', 'MANUAL')`),
+  ignoreDuplicate(`CREATE TYPE "NotificationCategory" AS ENUM ('HABITS', 'QUESTS', 'GYM', 'FINANCE', 'SOCIAL', 'ACHIEVEMENTS', 'SYSTEM')`),
+
+  `ALTER TABLE "habits" ADD COLUMN IF NOT EXISTS "createsGymAttendance" BOOLEAN NOT NULL DEFAULT false;`,
+  `ALTER TABLE "routines" ADD COLUMN IF NOT EXISTS "isActive" BOOLEAN NOT NULL DEFAULT true;`,
+  `ALTER TABLE "workouts" ADD COLUMN IF NOT EXISTS "routineDayId" TEXT, ADD COLUMN IF NOT EXISTS "attendanceId" TEXT;`,
+
+  `CREATE TABLE IF NOT EXISTS "routine_days" (
+    "id" TEXT NOT NULL,
+    "routineId" TEXT NOT NULL,
+    "weekday" INTEGER NOT NULL,
+    "title" TEXT,
+    "isRestDay" BOOLEAN NOT NULL DEFAULT false,
+    CONSTRAINT "routine_days_pkey" PRIMARY KEY ("id")
+  );`,
+  `CREATE TABLE IF NOT EXISTS "routine_day_exercises" (
+    "id" TEXT NOT NULL,
+    "routineDayId" TEXT NOT NULL,
+    "exerciseId" TEXT NOT NULL,
+    "targetSets" JSONB NOT NULL DEFAULT '[]',
+    "notes" TEXT,
+    "order" INTEGER NOT NULL DEFAULT 0,
+    CONSTRAINT "routine_day_exercises_pkey" PRIMARY KEY ("id")
+  );`,
+  `CREATE TABLE IF NOT EXISTS "gym_attendances" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "date" TIMESTAMP(3) NOT NULL,
+    "source" "GymAttendanceSource" NOT NULL DEFAULT 'MANUAL',
+    "habitId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "gym_attendances_pkey" PRIMARY KEY ("id")
+  );`,
+
+  `CREATE UNIQUE INDEX IF NOT EXISTS "routine_days_routineId_weekday_key" ON "routine_days"("routineId", "weekday");`,
+  `CREATE INDEX IF NOT EXISTS "routine_days_routineId_weekday_idx" ON "routine_days"("routineId", "weekday");`,
+  `CREATE INDEX IF NOT EXISTS "routine_day_exercises_routineDayId_order_idx" ON "routine_day_exercises"("routineDayId", "order");`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "gym_attendances_userId_date_key" ON "gym_attendances"("userId", "date");`,
+  `CREATE INDEX IF NOT EXISTS "gym_attendances_userId_date_idx" ON "gym_attendances"("userId", "date");`,
+
+  ignoreDuplicate(`ALTER TABLE "routine_days" ADD CONSTRAINT "routine_days_routineId_fkey" FOREIGN KEY ("routineId") REFERENCES "routines"("id") ON DELETE CASCADE ON UPDATE CASCADE`),
+  ignoreDuplicate(`ALTER TABLE "routine_day_exercises" ADD CONSTRAINT "routine_day_exercises_routineDayId_fkey" FOREIGN KEY ("routineDayId") REFERENCES "routine_days"("id") ON DELETE CASCADE ON UPDATE CASCADE`),
+  ignoreDuplicate(`ALTER TABLE "routine_day_exercises" ADD CONSTRAINT "routine_day_exercises_exerciseId_fkey" FOREIGN KEY ("exerciseId") REFERENCES "exercises"("id") ON DELETE RESTRICT ON UPDATE CASCADE`),
+  ignoreDuplicate(`ALTER TABLE "gym_attendances" ADD CONSTRAINT "gym_attendances_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE`),
+  ignoreDuplicate(`ALTER TABLE "gym_attendances" ADD CONSTRAINT "gym_attendances_habitId_fkey" FOREIGN KEY ("habitId") REFERENCES "habits"("id") ON DELETE SET NULL ON UPDATE CASCADE`),
+  ignoreDuplicate(`ALTER TABLE "workouts" ADD CONSTRAINT "workouts_routineDayId_fkey" FOREIGN KEY ("routineDayId") REFERENCES "routine_days"("id") ON DELETE SET NULL ON UPDATE CASCADE`),
+  ignoreDuplicate(`ALTER TABLE "workouts" ADD CONSTRAINT "workouts_attendanceId_fkey" FOREIGN KEY ("attendanceId") REFERENCES "gym_attendances"("id") ON DELETE SET NULL ON UPDATE CASCADE`),
+
+  // Backfill categories only on the run that adds the column, so later runs never rewrite them.
+  `DO $$
+  BEGIN
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'notifications' AND column_name = 'category'
+    ) THEN
+      ALTER TABLE "notifications"
+        ADD COLUMN "category" "NotificationCategory" NOT NULL DEFAULT 'SYSTEM';
+      UPDATE "notifications"
+      SET "category" = CASE
+        WHEN "type" IN ('habit_completed', 'streak', 'reminder') THEN 'HABITS'::"NotificationCategory"
+        WHEN "type" IN ('quest_completed', 'quest_deadline') THEN 'QUESTS'::"NotificationCategory"
+        WHEN "type" IN ('workout', 'gym') THEN 'GYM'::"NotificationCategory"
+        WHEN "type" IN ('achievement') THEN 'ACHIEVEMENTS'::"NotificationCategory"
+        WHEN "type" IN ('friend', 'guild', 'social') THEN 'SOCIAL'::"NotificationCategory"
+        WHEN "type" IN ('finance', 'budget') THEN 'FINANCE'::"NotificationCategory"
+        ELSE 'SYSTEM'::"NotificationCategory"
+      END;
+    END IF;
+  END $$;`,
+  `ALTER TABLE "notifications" ADD COLUMN IF NOT EXISTS "dedupeKey" TEXT;`,
+
+  `CREATE TABLE IF NOT EXISTS "notification_category_preferences" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "category" "NotificationCategory" NOT NULL,
+    "inAppEnabled" BOOLEAN NOT NULL DEFAULT true,
+    "pushEnabled" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "notification_category_preferences_pkey" PRIMARY KEY ("id")
+  );`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "notification_category_preferences_userId_category_key" ON "notification_category_preferences"("userId", "category");`,
+  `CREATE INDEX IF NOT EXISTS "notifications_userId_category_createdAt_idx" ON "notifications"("userId", "category", "createdAt");`,
+  `CREATE INDEX IF NOT EXISTS "notifications_userId_dedupeKey_createdAt_idx" ON "notifications"("userId", "dedupeKey", "createdAt");`,
+  ignoreDuplicate(`ALTER TABLE "notification_category_preferences" ADD CONSTRAINT "notification_category_preferences_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE`),
+];
+
 async function migrate() {
   console.log('Running database schema updates...');
   
@@ -50,6 +143,10 @@ async function migrate() {
   await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "ritual_logs_ritualId_date_key" ON "ritual_logs"("ritualId", "date");`);
 
   await prisma.$executeRawUnsafe(REMOVE_LEGACY_HABIT_RITUAL_FLAG_SQL);
+
+  for (const sql of GYM_ATTENDANCE_AND_NOTIFICATION_CONTROLS_SQL) {
+    await prisma.$executeRawUnsafe(sql);
+  }
 
   console.log('SUCCESS: Runtime database columns, indexes, ritual idempotency key, and legacy habit ritual cleanup applied.');
 }
