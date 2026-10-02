@@ -1,6 +1,7 @@
 // Idempotent bootstrap of global catalogs (no player data) for production.
 // Runs on every deploy via the `vercel-build` script; safe to re-run.
 import { prisma } from './lib/prisma';
+import { shouldSkipBuildDbStep } from './lib/build-env';
 import { DEFAULT_ACHIEVEMENTS, DEFAULT_SHOP_ITEMS, ensureDefaultCatalog } from './lib/default-catalog';
 import { EXERCISE_CATALOG, ensureExerciseCatalog } from './lib/exercise-catalog';
 import { seedWisdomCards } from './services/wisdom.service';
@@ -15,6 +16,8 @@ async function seedProduction() {
   await seedWisdomCards();
   console.log(`Catalog: ${await prisma.wisdomCard.count()} wisdom cards in DB`);
 }
+
+if (shouldSkipBuildDbStep('seed-production')) process.exit(0);
 
 seedProduction()
   .then(() => prisma.$disconnect())

@@ -1,4 +1,5 @@
 import { prisma } from './lib/prisma';
+import { shouldSkipBuildDbStep } from './lib/build-env';
 import { REMOVE_LEGACY_HABIT_RITUAL_FLAG_SQL } from './lib/schema-migrations';
 
 const ignoreDuplicate = (sql: string) =>
@@ -150,6 +151,8 @@ async function migrate() {
 
   console.log('SUCCESS: Runtime database columns, indexes, ritual idempotency key, and legacy habit ritual cleanup applied.');
 }
+
+if (shouldSkipBuildDbStep('migrate-db')) process.exit(0);
 
 migrate()
   .then(() => process.exit(0))
