@@ -1,6 +1,6 @@
 import {
   cloneElement, forwardRef, isValidElement, useId,
-  type InputHTMLAttributes, type ReactElement, type ReactNode, type SelectHTMLAttributes,
+  type InputHTMLAttributes, type ReactElement, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes,
 } from 'react';
 import { AlertCircle, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -22,6 +22,14 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 /** <Input> 16 px (evita zoom en iOS), borde gray-500 (≥3:1), anillo de foco 3 px. */
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input({ invalid, className, ...rest }, ref) {
   return <input ref={ref} aria-invalid={invalid || undefined} className={cn(control, stateCls(invalid), className)} {...rest} />;
+});
+
+export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
+  invalid?: boolean;
+}
+
+export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function Textarea({ invalid, className, ...rest }, ref) {
+  return <textarea ref={ref} aria-invalid={invalid || undefined} className={cn(control, stateCls(invalid), 'min-h-28 resize-y', className)} {...rest} />;
 });
 
 export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {

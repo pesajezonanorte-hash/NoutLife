@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { dialog, scrim, sheet } from '@/lib/motion';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { Button } from './Button';
 
 const FOCUSABLE =
@@ -136,4 +137,10 @@ export function Sheet({ open, onClose, title, hideClose = true, dismissible = tr
     </AnimatePresence>,
     document.body,
   );
+}
+
+/** Modal centrado en md+, Sheet inferior en móvil (mismo contrato). */
+export function ResponsiveDialog(props: ModalProps) {
+  const isDesktop = useMediaQuery('(min-width: 768px)');
+  return isDesktop ? <Modal {...props} /> : <Sheet hideClose={false} {...props} />;
 }

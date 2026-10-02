@@ -171,7 +171,7 @@ function FilterMenu({ label, value, icon: Icon, options, onChange, className = '
 export default function QuestsPage() {
   const { addFloatingXP, flashScreen, showAchievementToast, triggerLevelUp } = useUIStore();
   const toastError = useToastStore((state) => state.error);
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [quests, setQuests] = useState<Quest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -183,6 +183,14 @@ export default function QuestsPage() {
   const [selectedQuest, setSelectedQuest] = useState<Quest | null>(null);
   const [showWizard, setShowWizard] = useState(false);
   const [editingQuest, setEditingQuest] = useState<Quest | null>(null);
+
+  // ?new=1 (acciones rápidas, paleta): abre el asistente de nueva misión.
+  useEffect(() => {
+    if (searchParams.get('new') !== '1') return;
+    setEditingQuest(null);
+    setShowWizard(true);
+    setSearchParams((p) => { p.delete('new'); return p; }, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   // Filters
   const [search, setSearch] = useState('');

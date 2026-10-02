@@ -1,5 +1,6 @@
 import { FlowButton } from '@/components/ui/flow-button';
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
@@ -30,6 +31,15 @@ export default function HabitsPage() {
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [streakToast, setStreakToast] = useState<{ streak: number; name: string } | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Habit | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // ?new=1 (FAB, Topbar, paleta): abre el formulario de nuevo hábito.
+  useEffect(() => {
+    if (searchParams.get('new') !== '1') return;
+    setEditingHabit(null);
+    setShowModal(true);
+    setSearchParams((p) => { p.delete('new'); return p; }, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const load = useCallback(async () => {
     setLoading(true);

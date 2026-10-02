@@ -1,5 +1,5 @@
 // themeMode.ts — Fachada de compatibilidad sobre store/themeStore (Zustand).
-// Settings y el sky-toggle siguen usando 'light' | 'dark' | 'system';
+// Settings sigue usando 'light' | 'dark' | 'system';
 // internamente 'system' equivale al modo 'auto' del store.
 import { resolveDark, useThemeStore, type ThemeMode as StoreMode } from '../store/themeStore';
 

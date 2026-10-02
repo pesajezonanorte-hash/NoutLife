@@ -5,7 +5,7 @@ export { Button, buttonClasses, type ButtonProps, type ButtonVariant, type Butto
 export { Card, type CardProps } from './Card';
 export { Badge, type BadgeProps, type BadgeVariant } from './Badge';
 export { IconChip, type IconChipProps } from './IconChip';
-export { Input, Select, Field, type InputProps, type SelectProps, type FieldProps } from './Field';
+export { Input, Select, Textarea, Field, type InputProps, type SelectProps, type TextareaProps, type FieldProps } from './Field';
 export { Switch } from './Switch';
 export { SegmentedControl, type SegmentOption } from './SegmentedControl';
 export { Tabs } from './Tabs';
@@ -13,7 +13,7 @@ export { CheckButton } from './CheckButton';
 export { ProgressBar, ProgressRing } from './Progress';
 export { StatCard, AnimatedValue } from './StatCard';
 export { Toast, Toaster, useToast } from './Toast';
-export { Modal, Sheet } from './Modal';
+export { Modal, Sheet, ResponsiveDialog, type ModalProps } from './Modal';
 export { EmptyState, ErrorState, PageLoader, Skeleton } from './States';
 export { Spinner } from './Spinner';
 export { Confetti } from './Confetti';
