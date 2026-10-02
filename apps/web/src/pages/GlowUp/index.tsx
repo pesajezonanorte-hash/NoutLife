@@ -158,7 +158,7 @@ function CareSection() {
                     </span>
                   </div>
                   {r.currentStreak > 0 && (
-                    <p className="text-xs mt-1" style={{ color: 'var(--c-gold)' }}><E e="🔥" /> {r.currentStreak} días de racha</p>
+                    <p className="text-xs mt-1" style={{ color: 'var(--c-gold)' }}><E e="🔥" /> {r.currentStreak} {r.currentStreak === 1 ? 'día' : 'días'} de racha</p>
                   )}
                   {r.steps.length > 0 && (
                     <div className="mt-2 space-y-1">

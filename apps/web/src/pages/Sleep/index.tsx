@@ -42,6 +42,8 @@ const QUALITY_LABELS = [
   " Bueno",
   " Excelente",
 ];
+// Logs are 1–5, but older rows were stored without validation.
+const starCount = (quality: number) => Math.min(5, Math.max(0, Math.round(quality) || 0));
 const QUALITY_COLORS = [
   "",
   "var(--accent-red)",
@@ -401,7 +403,7 @@ export default function SleepPage() {
               icon: Moon,
             },
             {
-              label: "Promedio total",
+              label: "Promedio 14 días",
               value: `${stats.avgDuration.toFixed(1)}h`,
               icon: BarChart3,
             },
@@ -436,7 +438,7 @@ export default function SleepPage() {
         <LifeQuestFlipCard
           eyebrow="Anoche"
           title="Descanso de anoche"
-          description={`De ${new Date(lastLog.bedtime).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })} a ${new Date(lastLog.wakeTime).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}. Calidad: ${QUALITY_LABELS[lastLog.quality].trim() || "Sin valorar"}.`}
+          description={`De ${new Date(lastLog.bedtime).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })} a ${new Date(lastLog.wakeTime).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}. Calidad: ${(QUALITY_LABELS[lastLog.quality] ?? "").trim() || "Sin valorar"}.`}
           visual={
             <div className="flex items-center gap-4" aria-hidden="true">
               <span className="shrink-0 text-6xl leading-none">
@@ -456,7 +458,7 @@ export default function SleepPage() {
           badge="Último registro"
           frontFooter={
             <p className="text-xs font-semibold [color:var(--flip-accent)]">
-              {Array.from({ length: lastLog.quality }).map((_, index) => (
+              {Array.from({ length: starCount(lastLog.quality) }).map((_, index) => (
                 <E key={index} e="⭐" s={13} className="inline-block" />
               ))}
             </p>
@@ -579,7 +581,7 @@ export default function SleepPage() {
                       className="font-vt text-base"
                       style={{ color: QUALITY_COLORS[l.quality] }}
                     >
-                      {Array.from({ length: l.quality }).map((_, i) => (
+                      {Array.from({ length: starCount(l.quality) }).map((_, i) => (
                         <E key={i} e="⭐" s={14} className="inline-block" />
                       ))}
                     </p>

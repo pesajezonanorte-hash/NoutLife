@@ -317,7 +317,7 @@ export default function JournalPage() {
           visual={<span className="text-6xl" aria-hidden="true"><E e={todayEntry?.mood ? MOOD_EMOJIS[todayEntry.mood] : '📜'} s={64} /></span>}
           visualLabel={todayEntry ? 'Entrada de diario de hoy' : 'Diario listo para una nueva entrada'}
           badge={todayEntry ? 'Hoy escrito' : 'Pendiente hoy'}
-          frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">{streak ? `${streak.currentStreak} días de racha` : `${entries.length} entradas guardadas`}</p>}
+          frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">{streak ? `${streak.currentStreak} ${streak.currentStreak === 1 ? "día" : "días"} de racha` : `${entries.length} entradas guardadas`}</p>}
           backDescription={<p>{todayEntry ? 'Abre la entrada para continuarla, editarla o releer la reflexión que dejaste hoy.' : `Prompt sugerido: “${todayPrompt}”`}</p>}
           metrics={[
             { label: 'Racha', value: `${streak?.currentStreak ?? 0} días` },

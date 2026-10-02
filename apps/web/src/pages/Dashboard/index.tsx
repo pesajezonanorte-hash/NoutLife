@@ -685,9 +685,10 @@ export default function DashboardPage() {
   }
 
   const visualState = dashData?.visualState;
-  const visualHpValue = Math.round(
-    (user.maxHp * (visualState?.hpPercent ?? 100)) / 100,
-  );
+  // Without /dashboard data, show the real HP rather than assuming a full bar.
+  const visualHpValue = visualState
+    ? Math.round((user.maxHp * visualState.hpPercent) / 100)
+    : user.hp;
   const statBars = [
     {
       label: "HP",
@@ -918,7 +919,7 @@ export default function DashboardPage() {
               {user.currentStreak > 0 && (
                 <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--accent-red)]">
                   <Flame size={14} />
-                  {user.currentStreak} días de racha
+                  {user.currentStreak} {user.currentStreak === 1 ? 'día' : 'días'} de racha
                 </span>
               )}
             </div>
