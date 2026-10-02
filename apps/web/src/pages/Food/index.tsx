@@ -1,5 +1,6 @@
 import { FlowButton } from '@/components/ui/flow-button';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Utensils } from 'lucide-react';
@@ -185,18 +186,12 @@ export default function FoodPage() {
       </div>
 
       {/* Tabs */}
-      <div className="grid grid-cols-3 gap-1">
-        {([['log', ' Registro'], ['macros', ' Macros'], ['saved', ' Guardadas']] as const).map(([key, label]) => (
-          <button
-            key={key}
-            onClick={() => setTab(key)}
-            className={`min-h-11 min-w-0 px-2 py-1.5 border-2 font-pixel transition-all ${tab === key ? 'border-accent-gold bg-accent-gold text-bg-deep' : 'border-border-pixel text-text-secondary hover:border-text-secondary'}`}
-            style={{ fontSize: '12px' }}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        ariaLabel="Secciones de La Posada"
+        items={[{ key: 'log', label: 'Registro' }, { key: 'macros', label: 'Macros' }, { key: 'saved', label: 'Guardadas' }]}
+        value={tab}
+        onChange={setTab}
+      />
 
       <AnimatePresence mode="wait" initial={false}>
         <motion.div

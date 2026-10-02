@@ -12,12 +12,18 @@ import {
   Cell,
 } from "recharts";
 import {
+  BarChart3,
   CalendarClock,
   Coffee,
   Dumbbell,
+  Minus,
   Moon,
   MonitorSmartphone,
+  Star,
+  TrendingDown,
+  TrendingUp,
 } from "lucide-react";
+import { StatTile } from "@/components/ui/StatTile";
 import { useToast } from "../../hooks/useToast";
 import { PixelPanel } from "../../components/ui/PixelPanel";
 import { LifeQuestFlipCard } from "../../components/ui/lifequest-flip-card";
@@ -392,44 +398,35 @@ export default function SleepPage() {
             {
               label: "Promedio semanal",
               value: `${stats.weeklyAvg.toFixed(1)}h`,
-              icon: "🌙",
+              icon: Moon,
             },
             {
               label: "Promedio total",
               value: `${stats.avgDuration.toFixed(1)}h`,
-              icon: "📊",
+              icon: BarChart3,
             },
             {
               label: "Calidad media",
               value: `${stats.avgQuality.toFixed(1)}/5`,
-              icon: "⭐",
+              icon: Star,
             },
             {
               label: "Tendencia",
               value:
                 stats.trend === "improving"
-                  ? "↑ Mejorando"
+                  ? "Mejorando"
                   : stats.trend === "declining"
-                    ? "↓ Bajando"
-                    : "→ Estable",
-              icon: "📈",
+                    ? "Bajando"
+                    : "Estable",
+              icon:
+                stats.trend === "improving"
+                  ? TrendingUp
+                  : stats.trend === "declining"
+                    ? TrendingDown
+                    : Minus,
             },
-          ].map((s) => (
-            <PixelPanel key={s.label} className="p-3 text-center">
-              <p className="text-2xl">
-                <E e={s.icon} />
-              </p>
-              <p
-                className="mt-1 text-xl font-semibold tabular-nums text-[var(--accent-gold)]"
-              >
-                {s.value}
-              </p>
-              <p
-                className="text-sm font-medium text-[var(--text-secondary)]"
-              >
-                {s.label}
-              </p>
-            </PixelPanel>
+          ].map((s, i) => (
+            <StatTile key={s.label} icon={s.icon} label={s.label} value={s.value} index={i} />
           ))}
         </div>
       )}
@@ -438,15 +435,15 @@ export default function SleepPage() {
       {!loading && lastLog && (
         <LifeQuestFlipCard
           eyebrow="Anoche"
-          title={`${lastLog.duration.toFixed(1)} horas de descanso`}
+          title="Descanso de anoche"
           description={`De ${new Date(lastLog.bedtime).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })} a ${new Date(lastLog.wakeTime).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}. Calidad: ${QUALITY_LABELS[lastLog.quality].trim() || "Sin valorar"}.`}
           visual={
-            <div className="flex items-end gap-3" aria-hidden="true">
-              <span className="text-6xl">
+            <div className="flex items-center gap-4" aria-hidden="true">
+              <span className="shrink-0 text-6xl leading-none">
                 <E e="🌙" s={64} />
               </span>
-              <div className="text-left">
-                <p className="text-4xl font-semibold leading-none text-foreground">
+              <div className="min-w-0 text-left">
+                <p className="text-5xl font-semibold leading-none tracking-tight tabular-nums text-foreground">
                   {lastLog.duration.toFixed(1)}h
                 </p>
                 <p className="mt-1 text-sm font-medium text-muted-foreground">

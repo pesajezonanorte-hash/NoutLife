@@ -80,9 +80,10 @@ export function LifeQuestFlipCard({
 
   const front = (
     <div className="perspective-flip-card__depth-context flex h-full min-w-0 flex-col p-3">
+      {/* Flat, clipped hero: translateZ layers here used to spill over the title below. */}
       <div
         className={cn(
-          'perspective-flip-card__depth-context relative h-56 w-full rounded-xl border border-border bg-muted',
+          'relative h-56 w-full overflow-hidden rounded-xl border border-border bg-muted',
           heroClassName,
         )}
         aria-label={visualLabel}
@@ -90,33 +91,30 @@ export function LifeQuestFlipCard({
       >
         <div
           className={cn(
-            'perspective-flip-card__depth-context absolute inset-0 flex items-center justify-center p-4 text-center text-foreground',
-            !prefersReducedMotion && 'transition-transform duration-700 [transition-timing-function:cubic-bezier(0.22,1,0.36,1)] group-hover/p-card:scale-110',
+            'absolute inset-0 flex items-center justify-center p-6 text-center text-foreground',
+            !prefersReducedMotion && 'transition-transform duration-700 [transition-timing-function:cubic-bezier(0.22,1,0.36,1)] group-hover/p-card:scale-[1.04]',
           )}
           style={{
             background: 'radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--flip-accent) 24%, var(--bg-muted)), var(--bg-muted) 68%)',
           }}
         >
-          <div className="perspective-flip-card__depth" style={depth(50)}>{visual}</div>
+          {visual}
         </div>
         {badge && (
-          <span
-            className="perspective-flip-card__depth pointer-events-none absolute bottom-4 left-4 rounded-full border border-border bg-card px-3 py-1.5 text-sm font-medium [color:var(--flip-accent)] shadow-lg"
-            style={depth(80)}
-          >
+          <span className="pointer-events-none absolute right-3 top-3 max-w-[60%] truncate rounded-full border border-[color-mix(in_srgb,var(--border)_70%,transparent)] bg-[color-mix(in_srgb,var(--bg-card)_70%,transparent)] px-3 py-1 text-xs font-medium [color:var(--flip-accent)] shadow-sm backdrop-blur-md">
             {badge}
           </span>
         )}
       </div>
 
-      <div className="perspective-flip-card__depth-context flex min-h-0 flex-1 flex-col justify-between px-3 pb-3 pt-5">
-        <div className="perspective-flip-card__depth min-w-0" style={depth(60)}>
+      <div className="perspective-flip-card__depth flex min-h-0 flex-1 flex-col justify-between px-4 pb-3 pt-6" style={depth(24)}>
+        <div className="min-w-0">
           <p className="flex items-center gap-2 text-sm font-medium [color:var(--flip-accent)]">{eyebrow}</p>
-          <h3 className="mt-1 line-clamp-2 text-xl font-bold leading-6 tracking-tight text-foreground transition-colors duration-300 group-hover/p-card:text-primary">{title}</h3>
-          {description && <p className="mt-2 line-clamp-2 text-sm font-medium leading-5 text-muted-foreground">{description}</p>}
+          <h3 className="mt-1 line-clamp-2 text-xl font-semibold leading-7 tracking-tight text-foreground transition-colors duration-300 group-hover/p-card:text-primary">{title}</h3>
+          {description && <p className="mt-2 line-clamp-2 text-sm leading-5 text-muted-foreground">{description}</p>}
         </div>
 
-        <div className="perspective-flip-card__depth mt-4 flex items-end justify-between gap-3 text-xs font-semibold text-muted-foreground" style={depth(44)}>
+        <div className="mt-4 flex items-end justify-between gap-3 text-xs font-medium text-muted-foreground">
           <div className="min-w-0">
             {frontFooter}
             <p className="mt-2 flex items-center gap-1.5 text-xs transition-transform duration-300 group-hover/p-card:translate-x-1 group-hover/p-card:text-primary">
@@ -146,7 +144,7 @@ export function LifeQuestFlipCard({
               <div
                 key={`${metric.label}-${index}`}
                 className="perspective-flip-card__depth perspective-flip-card__depth-context min-w-0 rounded-2xl border border-border bg-muted p-3"
-                style={depth(index === 1 ? 160 : 130)}
+                style={depth(index === 1 ? 40 : 32)}
               >
                 <p className="truncate text-sm font-medium text-muted-foreground">{metric.label}</p>
                 <div className="perspective-flip-card__depth mt-1 truncate text-sm font-bold text-foreground" style={depth(18)}>{metric.value}</div>

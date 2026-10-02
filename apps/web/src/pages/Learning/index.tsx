@@ -1,8 +1,10 @@
 import { FlowButton } from '@/components/ui/flow-button';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { StatTile } from '@/components/ui/StatTile';
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { BookOpen, TrendingUp } from 'lucide-react';
+import { BookOpen, CheckCircle2, FileText, TrendingUp, Trophy } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
 import { useToast } from '../../hooks/useToast';
 import { refreshUser } from '../../hooks/useAuth';
@@ -253,26 +255,21 @@ export default function LearningPage() {
       </div>
 
       {/* Main tabs */}
-      <div className="flex gap-1">
-        {([['biblioteca', ' Biblioteca'], ['pomodoro', ' Pomodoro']] as const).map(([key, label]) => (
-          <button
-            key={key}
-            onClick={() => { setTab(key); setSelectedItem(null); }}
-            className={`flex-shrink-0 px-3 py-1.5 border-2 font-pixel transition-all ${tab === key ? 'border-accent-gold bg-accent-gold text-bg-deep' : 'border-border-pixel text-text-secondary hover:border-text-secondary'}`}
-            style={{ fontSize: '12px' }}
-          >
-            {label}
-          </button>
-        ))}
-        {selectedItem && (
-          <button
-            onClick={() => setTab('detalle')}
-            className={`flex-shrink-0 px-3 py-1.5 border-2 font-pixel transition-all ${tab === 'detalle' ? 'border-accent-gold bg-accent-gold text-bg-deep' : 'border-border-pixel text-text-secondary'}`}
-            style={{ fontSize: '12px' }}
-          >
-            <E e="📖" /> {selectedItem.title.slice(0, 15)}...
-          </button>
-        )}
+      <div className="max-w-full overflow-x-auto">
+        <SegmentedControl
+          ariaLabel="Secciones de la Biblioteca"
+          fill={false}
+          items={[
+            { key: 'biblioteca', label: 'Biblioteca' },
+            { key: 'pomodoro', label: 'Pomodoro' },
+            ...(selectedItem ? [{ key: 'detalle' as const, label: <span className="inline-block max-w-[10rem] truncate align-bottom">{selectedItem.title}</span> }] : []),
+          ]}
+          value={tab}
+          onChange={(key) => {
+            setTab(key);
+            if (key !== 'detalle') setSelectedItem(null);
+          }}
+        />
       </div>
 
       <AnimatePresence mode="wait" initial={false}>
@@ -291,18 +288,13 @@ export default function LearningPage() {
             <FlowButton tone="ghost" size="sm" withArrows={false} onClick={() => setTab('biblioteca')} className="min-h-11 font-pixel text-xs">← VOLVER</FlowButton>
             <p className="font-vt text-text-primary text-lg">{selectedItem.title}</p>
           </div>
-          <div className="flex gap-1">
-            {(['notas', 'vocab'] as const).map(dt => (
-              <button
-                key={dt}
-                onClick={() => setDetailTab(dt)}
-                className={`px-3 py-1.5 border-2 font-pixel transition-all ${detailTab === dt ? 'border-accent-gold bg-accent-gold text-bg-deep' : 'border-border-pixel text-text-secondary'}`}
-                style={{ fontSize: '12px' }}
-              >
-                {dt === 'notas' ? ' Notas' : ' Vocabulario'}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            ariaLabel="Contenido del ítem"
+            fill={false}
+            items={[{ key: 'notas', label: 'Notas' }, { key: 'vocab', label: 'Vocabulario' }]}
+            value={detailTab}
+            onChange={setDetailTab}
+          />
           {detailTab === 'notas' ? <NotesPanel itemId={selectedItem.id} /> : <VocabPanel itemId={selectedItem.id} />}
         </div>
       )}
@@ -312,26 +304,29 @@ export default function LearningPage() {
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { label: 'En progreso', value: stats.inProgress, icon: '📖' },
-            { label: 'Completados', value: stats.totalCompleted, icon: '✅' },
-            { label: 'Este año', value: stats.completedThisYear, icon: '🏆' },
-            { label: 'Páginas', value: stats.totalPages, icon: '📄' },
-          ].map(s => (
-            <PixelPanel key={s.label} className="p-3 text-center">
-              <p className="text-2xl"><E e={s.icon} /></p>
-              <p className="mt-1 text-2xl font-semibold tabular-nums text-[var(--accent-gold)]">{s.value}</p>
-              <p className="text-sm font-medium text-[var(--text-secondary)]">{s.label}</p>
-            </PixelPanel>
+            { label: 'En progreso', value: stats.inProgress, icon: BookOpen },
+            { label: 'Completados', value: stats.totalCompleted, icon: CheckCircle2 },
+            { label: 'Este año', value: stats.completedThisYear, icon: Trophy },
+            { label: 'Páginas', value: stats.totalPages, icon: FileText },
+          ].map((s, i) => (
+            <StatTile key={s.label} icon={s.icon} label={s.label} value={s.value} index={i} />
           ))}
         </div>
       )}
 
-      <div className="flex gap-1 overflow-x-auto pb-1">
-        {[['', ' Todos'], ['IN_PROGRESS', ' En progreso'], ['NOT_STARTED', '⏳ Por empezar'], ['COMPLETED', ' Completados']].map(([key, label]) => (
-          <button key={key} onClick={() => setFilter(key)} className={`flex-shrink-0 px-3 py-1.5 border-2 font-pixel transition-all ${filter === key ? 'border-accent-gold bg-accent-gold text-bg-deep' : 'border-border-pixel text-text-secondary'}`} style={{ fontSize: '12px' }}>
-            {label}
-          </button>
-        ))}
+      <div className="max-w-full overflow-x-auto pb-1">
+        <SegmentedControl
+          ariaLabel="Filtrar por estado"
+          fill={false}
+          items={[
+            { key: '', label: 'Todos' },
+            { key: 'IN_PROGRESS', label: 'En progreso' },
+            { key: 'NOT_STARTED', label: 'Por empezar' },
+            { key: 'COMPLETED', label: 'Completados' },
+          ]}
+          value={filter}
+          onChange={setFilter}
+        />
       </div>
 
       <LoadingGate loading={loading} fallback={<ModernLoader words={[...LOADING_COPY.learning]} />}>
