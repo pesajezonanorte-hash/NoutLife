@@ -1,190 +1,76 @@
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import './tokens.css';
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+
+/* ── Alias de compatibilidad ────────────────────────────────────────────────
+   Las pantallas existentes usan var(--border), var(--primary), var(--bg-deep)…
+   como colores completos. Se redefinen sobre los tokens del rediseño (--lq-*)
+   para que adopten la paleta nueva sin renombrar 80+ archivos. Los componentes
+   nuevos usan las clases de Tailwind (bg-surface, text-on-surface-light…). */
 :root {
   color-scheme: light;
 
-  /* ── B&N minimalista: blancos, negros y grises derivados ── */
-  --bg-deep: #ffffff;
-  --bg-panel: #ffffff;
-  --bg-panel-light: #fafafa;
-  --bg-card: #ffffff;
-  --bg-muted: #f4f4f5;
-  --bg-overlay: rgba(15, 17, 23, 0.06);
+  --bg-deep: rgb(var(--lq-background));
+  --bg-panel: rgb(var(--lq-surface));
+  --bg-panel-light: rgb(var(--lq-surface));
+  --bg-card: rgb(var(--lq-surface));
+  --bg-muted: rgb(var(--lq-surface-variant));
+  --bg-overlay: rgb(17 24 39 / 0.06);
 
-  /* design-system aliases */
-  --bg: #ffffff;
-  --bg-elev: #fafafa;
-  --bg-soft: #f4f4f5;
-  --surface: #ffffff;
-  --surface-2: #fafafa;
+  --bg: rgb(var(--lq-background));
+  --bg-elev: rgb(var(--lq-surface));
+  --bg-soft: rgb(var(--lq-surface-variant));
+  --surface: rgb(var(--lq-surface));
+  --surface-2: rgb(var(--lq-surface-variant));
 
-  --text-primary: #0a0a0a;
-  --text-secondary: #52525b;
-  --text-muted: #a1a1aa;
-  --text: #0a0a0a;
-  --text-2: #52525b;
-  --text-3: #a1a1aa;
-  --text-inv: #ffffff;
+  --text-primary: rgb(var(--lq-on-background));
+  --text-secondary: rgb(var(--lq-on-surface));
+  --text-muted: rgb(var(--lq-on-surface-light));
+  --text: rgb(var(--lq-on-background));
+  --text-2: rgb(var(--lq-on-surface));
+  --text-3: rgb(var(--lq-on-surface-light));
+  --text-inv: rgb(var(--lq-on-primary));
 
-  --border: #e5e5e5;
-  --border-soft: #f0f0f0;
-  --border-strong: #d4d4d8;
-  --border-focus: #0a0a0a;
+  --border: rgb(var(--lq-border));
+  --border-soft: rgb(var(--lq-border));
+  --border-strong: rgb(var(--lq-border-strong));
+  --border-focus: rgb(var(--lq-primary));
 
-  --shadow-sm: 0 1px 2px rgba(15, 17, 23, 0.04);
-  --shadow-md: 0 2px 8px rgba(15, 17, 23, 0.06);
-  --shadow-lg: 0 8px 24px rgba(15, 17, 23, 0.08);
   --shadow-rest: var(--shadow-sm);
   --shadow-hover: var(--shadow-md);
   --shadow-pop: var(--shadow-lg);
 
-  /* ── Semánticos mínimos (rojo peligro, verde éxito) + dorado XP sutil ── */
-  --accent-gold: #9a7b1c;
-  --accent-blue: #52525b;
-  --accent-green: #3f7a55;
-  --accent-red: #b0332a;
-  --accent-pink: #8a8a92;
-  --accent-purple: #52525b;
-  --accent-cyan: #6b6b73;
+  --accent-gold: rgb(var(--lq-warning-text));
+  --accent-blue: rgb(var(--lq-info-text));
+  --accent-green: rgb(var(--lq-success-text));
+  --accent-red: rgb(var(--lq-error-text));
+  --accent-pink: rgb(var(--lq-secondary-text));
+  --accent-purple: rgb(var(--lq-secondary-text));
+  --accent-cyan: rgb(var(--lq-on-surface-light));
 
-  /* primary + game stat tokens */
-  --primary: #0a0a0a;
-  --primary-soft: color-mix(in oklab, var(--primary) 12%, transparent);
-  --ring-track: rgba(15, 17, 23, 0.06);
-  --scrim: rgba(15, 17, 23, 0.45);
+  --primary: rgb(var(--lq-primary-strong));
+  --primary-soft: rgb(var(--lq-primary) / var(--lq-soft-alpha));
+  --ring-track: rgb(var(--lq-surface-variant));
+  --scrim: rgb(17 24 39 / 0.48);
 
-  --c-hp:   #b0332a;
-  --c-mp:   #a1a1aa;
-  --c-xp:   #9a7b1c;
-  --c-gold: #9a7b1c;
-  --c-amber:#9a7b1c;
-  --c-red:  #b0332a;
-  --c-green:#3f7a55;
-  --c-pink: #8a8a92;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not(.light) {
-    color-scheme: dark;
-    /* ── B&N minimalista oscuro ── */
-    --bg-deep: #0a0a0a;
-    --bg-panel: #111113;
-    --bg-panel-light: #17171a;
-    --bg-card: #111113;
-    --bg-muted: #0e0e10;
-    --bg-overlay: rgba(0, 0, 0, 0.6);
-
-    --bg: #0a0a0a;
-    --bg-elev: #141416;
-    --bg-soft: #17171a;
-    --surface: #111113;
-    --surface-2: #17171a;
-
-    --text-primary: #f5f5f5;
-    --text-secondary: #b0b0b8;
-    --text-muted: #6f6f78;
-    --text: #f5f5f5;
-    --text-2: #b0b0b8;
-    --text-3: #6f6f78;
-    --text-inv: #0a0a0a;
-
-    --border: #26262a;
-    --border-soft: #1c1c20;
-    --border-strong: #3a3a40;
-    --border-focus: #f5f5f5;
-
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.3);
-    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.35);
-    --shadow-rest: var(--shadow-sm);
-    --shadow-hover: var(--shadow-md);
-    --shadow-pop: var(--shadow-lg);
-
-    --accent-gold: #d9b44a;
-    --accent-blue: #8a8a92;
-    --accent-green: #6cb98a;
-    --accent-red: #d25446;
-    --accent-pink: #9a9aa3;
-    --accent-purple: #8a8a92;
-    --accent-cyan: #9a9aa3;
-
-    --primary: #fafafa;
-    --primary-soft: color-mix(in oklab, var(--primary) 14%, transparent);
-    --ring-track: rgba(255, 255, 255, 0.06);
-    --scrim: rgba(0, 0, 0, 0.62);
-
-    --c-hp:   #d25446;
-    --c-mp:   #6f6f78;
-    --c-xp:   #d9b44a;
-    --c-gold: #d9b44a;
-    --c-amber:#d9b44a;
-    --c-red:  #d25446;
-    --c-green:#6cb98a;
-    --c-pink: #9a9aa3;
-  }
+  --c-hp:   rgb(var(--lq-error));
+  --c-mp:   rgb(var(--lq-info));
+  --c-xp:   rgb(var(--lq-warning));
+  --c-gold: rgb(var(--lq-warning));
+  --c-amber:rgb(var(--lq-warning));
+  --c-red:  rgb(var(--lq-error));
+  --c-green:rgb(var(--lq-success));
+  --c-pink: rgb(var(--lq-secondary));
 }
 
 html.dark {
   color-scheme: dark;
-  /* ── B&N minimalista oscuro ── */
-  --bg-deep: #0a0a0a;
-  --bg-panel: #111113;
-  --bg-panel-light: #17171a;
-  --bg-card: #111113;
-  --bg-muted: #0e0e10;
-  --bg-overlay: rgba(0, 0, 0, 0.6);
-
-  --bg: #0a0a0a;
-  --bg-elev: #141416;
-  --bg-soft: #17171a;
-  --surface: #111113;
-  --surface-2: #17171a;
-
-  --text-primary: #f5f5f5;
-  --text-secondary: #b0b0b8;
-  --text-muted: #6f6f78;
-  --text: #f5f5f5;
-  --text-2: #b0b0b8;
-  --text-3: #6f6f78;
-  --text-inv: #0a0a0a;
-
-  --border: #26262a;
-  --border-soft: #1c1c20;
-  --border-strong: #3a3a40;
-  --border-focus: #f5f5f5;
-
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
-  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.45);
-  --shadow-rest: var(--shadow-sm);
-  --shadow-hover: var(--shadow-md);
-  --shadow-pop: var(--shadow-lg);
-
-  --accent-gold: #d9b44a;
-  --accent-blue: #8a8a92;
-  --accent-green: #6cb98a;
-  --accent-red: #d25446;
-  --accent-pink: #9a9aa3;
-  --accent-purple: #8a8a92;
-  --accent-cyan: #9a9aa3;
-
-  --primary: #fafafa;
-  --primary-soft: color-mix(in oklab, var(--primary) 14%, transparent);
-  --ring-track: rgba(255, 255, 255, 0.06);
-  --scrim: rgba(0, 0, 0, 0.62);
-
-  --c-hp:   #d25446;
-  --c-mp:   #6f6f78;
-  --c-xp:   #d9b44a;
-  --c-gold: #d9b44a;
-  --c-amber:#d9b44a;
-  --c-red:  #d25446;
-  --c-green:#6cb98a;
-  --c-pink: #9a9aa3;
+  --bg-overlay: rgb(0 0 0 / 0.6);
+  --scrim: rgb(0 0 0 / 0.62);
 }
 
 html.light {
@@ -642,15 +528,7 @@ input[type='number']::-webkit-outer-spin-button {
 /* ─── Visual Themes (Fase 8 Bloque 13) ──────────────────────────────────────── */
 
 /* Aurora — neutro clásico profundo (la piel base apenas afinada) */
-html.dark[data-theme="aurora"] {
-  --bg-deep: #0c0c0e;
-  --bg-panel: #131316;
-  --bg-panel-light: #1a1a1e;
-  --bg-card: #131316;
-  --bg-muted: #0f0f12;
-  --border: #2a2a2e;
-  --border-strong: #3a3a40;
-}
+/* (sin overrides: Aurora es el tema por defecto y usa los tokens del rediseño) */
 
 /* Cyber — alto contraste puro */
 html.light[data-theme="cyber"] {

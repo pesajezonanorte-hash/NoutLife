@@ -1,0 +1,84 @@
+/* LifeQuest design tokens (docs/redesign/tokens/tokens.css).
+   Canales RGB con prefijo --lq-* para no chocar con las variables hex
+   existentes (--primary, --border, --surface… se usan como color completo
+   en 80+ archivos). Tailwind expone los nombres del README sin prefijo:
+   bg-primary-strong, text-on-surface-light, bg-success/10.
+   Light = :root · Dark = html.dark (o sistema oscuro sin .light). */
+
+:root {
+  --lq-primary: 99 102 241;          /* indigo-500  bars, rings, accents */
+  --lq-primary-strong: 79 70 229;    /* indigo-600  button fill (white text 6.3:1) */
+  --lq-primary-hover: 67 56 202;     /* indigo-700 */
+  --lq-primary-text: 79 70 229;      /* indigo-600  links, active nav */
+  --lq-on-primary: 255 255 255;
+
+  --lq-secondary: 139 92 246;        /* violet-500 */
+  --lq-secondary-text: 109 40 217;   /* violet-700 */
+  --lq-success: 16 185 129;          /* emerald-500 */
+  --lq-success-text: 4 120 87;       /* emerald-700 */
+  --lq-warning: 245 158 11;          /* amber-500 */
+  --lq-warning-text: 180 83 9;       /* amber-700 */
+  --lq-error: 239 68 68;             /* red-500 */
+  --lq-error-text: 185 28 28;        /* red-700 */
+  --lq-info: 59 130 246;             /* blue-500 */
+  --lq-info-text: 29 78 216;         /* blue-700 */
+
+  --lq-background: 255 255 255;
+  --lq-surface: 249 250 251;         /* gray-50 */
+  --lq-surface-variant: 243 244 246; /* gray-100 */
+  --lq-border: 229 231 235;          /* gray-200 */
+  --lq-border-strong: 107 114 128;   /* gray-500  input borders ≥3:1 */
+  --lq-on-background: 31 41 55;      /* gray-800 */
+  --lq-on-surface: 55 65 81;         /* gray-700 */
+  --lq-on-surface-light: 107 114 128;/* gray-500 */
+
+  --lq-soft-alpha: .10;              /* tint for chips/badges */
+
+  /* Sombras: mismos nombres que antes, valores del rediseño */
+  --shadow-sm: 0 1px 2px rgb(17 24 39 / .04), 0 1px 3px rgb(17 24 39 / .06);
+  --shadow-md: 0 4px 12px rgb(17 24 39 / .08), 0 2px 4px rgb(17 24 39 / .04);
+  --shadow-lg: 0 12px 32px rgb(17 24 39 / .12), 0 4px 8px rgb(17 24 39 / .06);
+}
+
+html.dark {
+  --lq-primary: 129 140 248;         /* indigo-400 */
+  --lq-primary-strong: 129 140 248;
+  --lq-primary-hover: 165 180 252;
+  --lq-primary-text: 165 180 252;    /* indigo-300 */
+  --lq-on-primary: 17 24 39;         /* dark text on light button 7.0:1 */
+
+  --lq-secondary: 167 139 250;  --lq-secondary-text: 196 181 253;
+  --lq-success: 52 211 153;     --lq-success-text: 52 211 153;
+  --lq-warning: 251 191 36;     --lq-warning-text: 251 191 36;
+  --lq-error: 248 113 113;      --lq-error-text: 248 113 113;
+  --lq-info: 96 165 250;        --lq-info-text: 96 165 250;
+
+  --lq-background: 17 24 39;         /* gray-900 */
+  --lq-surface: 31 41 55;            /* gray-800 */
+  --lq-surface-variant: 55 65 81;    /* gray-700 */
+  --lq-border: 55 65 81;
+  --lq-border-strong: 156 163 175;
+  --lq-on-background: 249 250 251;
+  --lq-on-surface: 209 213 219;
+  --lq-on-surface-light: 156 163 175;
+
+  --lq-soft-alpha: .16;
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / .3);
+  --shadow-md: 0 4px 12px rgb(0 0 0 / .35);
+  --shadow-lg: 0 12px 32px rgb(0 0 0 / .45);
+}
+
+@layer base {
+  :focus-visible { outline: 3px solid rgb(var(--lq-primary)); outline-offset: 2px; }
+}
+
+/* Reduced motion: remove movement, keep opacity/color */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-property: color, background-color, border-color, opacity !important;
+    scroll-behavior: auto !important;
+  }
+}

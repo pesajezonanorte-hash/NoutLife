@@ -53,6 +53,10 @@ const loaders = {
   FAQPage: () => import('./pages/FAQ'),
 } as const;
 
+// Playground del rediseño: solo se enruta en desarrollo (fuera de `loaders`
+// para no precargarlo).
+const loadPlayground = () => import('./pages/UIPlayground');
+
 type PageModule = { default: ComponentType<any> };
 type PageImport = () => Promise<PageModule>;
 
@@ -383,6 +387,9 @@ export default function App() {
 
       {!showSplash && (
         <Routes>
+          {import.meta.env.DEV && (
+            <Route path="/_ui" element={<DeferredLazyPage load={loadPlayground} />} />
+          )}
           <Route
             path="/login"
             element={
