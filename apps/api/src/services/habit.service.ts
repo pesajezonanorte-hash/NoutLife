@@ -133,6 +133,32 @@ function getLastRequiredDay(today: Date, rawFrequency: unknown): Date {
   return addCalendarDays(today, -1);
 }
 
+type StreakLog = { date: Date; completed: boolean; status: string | null };
+
+/**
+ * Streaks from the log history, with the same rules as the daily +1 path:
+ * a completed day adds one, a skipped day keeps the run, a scheduled day
+ * that is failed or missing ends it, and an unscheduled day without a log
+ * is ignored. Today still pending does not break the current streak.
+ */
+export function computeHabitStreaks(logs: StreakLog[], rawFrequency: unknown, today: Date): { current: number; longest: number } {
+  if (logs.length === 0) return { current: 0, longest: 0 };
+  const byDay = new Map(logs.map((log) => [log.date.getTime(), log]));
+  const first = Math.min(...logs.map((log) => log.date.getTime()));
+
+  let longest = 0;
+  let run = 0;
+  for (let day = new Date(first); day.getTime() <= today.getTime(); day = addCalendarDays(day, 1)) {
+    const log = byDay.get(day.getTime());
+    if (log?.completed) run += 1;
+    else if (log?.status === 'skipped') continue;
+    else if (day.getTime() === today.getTime() && !log) continue;
+    else if (log || isHabitScheduledForDay(day, rawFrequency)) run = 0;
+    longest = Math.max(longest, run);
+  }
+  return { current: run, longest };
+}
+
 export function isHabitScheduledForDay(date: Date, rawFrequency: unknown): boolean {
   if (!rawFrequency || typeof rawFrequency !== 'object' || Array.isArray(rawFrequency)) return true;
 
@@ -417,6 +443,22 @@ export async function logHabit(
   // 'skipped' doesn't change the streak
 
   if (isLoggingToday && (isNewCompletion || (status === 'failed' && existingLog?.status !== 'failed'))) {
+    await prisma.habit.update({
+      where: { id: habitId },
+      data: { currentStreak, longestStreak },
+    });
+  }
+
+  // A backfilled day can join or split runs anywhere in the history, so the
+  // +1 counter above cannot express it: rebuild both streaks from the logs.
+  if (!isLoggingToday && (createdLog || existingLog?.status !== status)) {
+    const logs = await prisma.habitLog.findMany({
+      where: { habitId },
+      select: { date: true, completed: true, status: true },
+    });
+    const streaks = computeHabitStreaks(logs, habit.frequency, today);
+    currentStreak = streaks.current;
+    longestStreak = Math.max(longestStreak, streaks.longest);
     await prisma.habit.update({
       where: { id: habitId },
       data: { currentStreak, longestStreak },

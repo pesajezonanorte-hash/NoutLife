@@ -47,6 +47,8 @@ export const HabitRow = memo(function HabitRow({ habit, onLog, onEdit, onDelete 
           onClick={() => setExpanded((e) => !e)}
           className="flex h-11 w-11 shrink-0 items-center justify-center text-2xl transition-transform hover:scale-110"
           title="Ver detalles"
+          aria-label={`Ver detalles de ${habit.title}`}
+          aria-expanded={expanded}
         >
           <E e={habit.icon} />
         </button>
@@ -80,12 +82,16 @@ export const HabitRow = memo(function HabitRow({ habit, onLog, onEdit, onDelete 
         <div className="flex flex-col gap-1 flex-shrink-0">
           <button
             onClick={() => onEdit(habit)}
+            aria-label={`Editar ${habit.title}`}
+            title="Editar"
             className="flex h-11 w-11 items-center justify-center text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--accent-gold)]"
           >
             <E e="✏" />
           </button>
           <button
             onClick={() => onDelete(habit)}
+            aria-label={`Archivar ${habit.title}`}
+            title="Archivar"
             className="flex h-11 w-11 items-center justify-center text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--accent-red)]"
           >
             <E e="🗑" />

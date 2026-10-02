@@ -1,7 +1,21 @@
 import { prisma } from '../lib/prisma';
+import { DEFAULT_TIMEZONE, getCalendarDay, parseCalendarDate } from '../lib/calendar';
 import { awardXpAndGold } from './xp.service';
+import { checkAchievements } from './achievement.service';
 import { createNotification } from './notification.service';
 import { listGymAttendances, recordManualGymAttendance, recordWorkoutGymAttendance } from './gym-attendance.service';
+
+/**
+ * A bare calendar key ("2026-09-07") is stored at 12:00 UTC so converting it to
+ * the player's timezone keeps the same day. Midnight UTC fell on the previous
+ * day in America/Bogota and shifted the gym attendance.
+ * ponytail: noon UTC holds for UTC-12..UTC+11; use the user's local noon if UTC+12+ players appear.
+ */
+export function workoutDate(input?: string): Date {
+  if (!input) return new Date();
+  const calendarDay = parseCalendarDate(input);
+  return calendarDay ? new Date(calendarDay.getTime() + 12 * 3600000) : new Date(input);
+}
 
 function calcWorkoutXp(durationMinutes: number, totalVolume: number): number {
   const durationXp = Math.min(durationMinutes * 2, 100);
@@ -31,11 +45,16 @@ export async function createWorkout(userId: string, body: { title: string; date?
     if (!routineDay) throw new Error('ROUTINE_DAY_NOT_FOUND');
   }
 
+  const date = workoutDate(body.date);
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { timezone: true } });
+  const timezone = user?.timezone ?? DEFAULT_TIMEZONE;
+  if (getCalendarDay(timezone, date).getTime() > getCalendarDay(timezone).getTime()) throw new Error('WORKOUT_FUTURE_DATE');
+
   return prisma.workout.create({
     data: {
       userId,
       title: body.title,
-      date: body.date ? new Date(body.date) : new Date(),
+      date,
       notes: body.notes,
       routineDayId: body.routineDayId,
     },
@@ -127,8 +146,9 @@ export async function finishWorkout(userId: string, id: string, body: { notes?: 
     link: '/gym',
   }).catch(() => {});
 
+  const achievementsUnlocked = await checkAchievements(userId, 'workout_finished').catch(() => []);
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
-  return { workout, rewards: result, user };
+  return { workout, rewards: result, user, achievementsUnlocked };
 }
 
 export async function deleteWorkout(userId: string, id: string) {

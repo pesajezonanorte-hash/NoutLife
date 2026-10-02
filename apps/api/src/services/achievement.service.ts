@@ -21,6 +21,9 @@ export interface UnlockedAchievement {
   xpReward: number;
 }
 
+/** A workout counts once it is finished, which is when it earns XP. */
+const countFinishedWorkouts = (userId: string) => prisma.workout.count({ where: { userId, xpEarned: { gt: 0 } } });
+
 export async function checkAchievements(
   userId: string,
   event: string,
@@ -38,6 +41,7 @@ export async function checkAchievements(
 
   const totalQuests = await prisma.questCompletion.count({ where: { userId } });
   const totalHabits = await prisma.habit.count({ where: { userId, isActive: true } });
+  let totalWorkouts: number | undefined;
 
   for (const achievement of allAchievements) {
     if (unlockedIds.has(achievement.id)) continue;
@@ -131,7 +135,16 @@ export async function checkAchievements(
         shouldUnlock = context.leveledUp === true && (context.newLevel ?? 0) >= 100;
         break;
       case 'first_login':
-        shouldUnlock = event === 'user_registered';
+        // Login too: accounts created before this catalog existed never got it.
+        shouldUnlock = event === 'user_registered' || event === 'user_login';
+        break;
+      case 'first_workout':
+      case 'workouts_10':
+      case 'workouts_50':
+        if (event === 'workout_finished') {
+          totalWorkouts ??= await countFinishedWorkouts(userId);
+          shouldUnlock = totalWorkouts >= (achievement.progressTarget ?? Infinity);
+        }
         break;
       case 'login_30':
         shouldUnlock = (event === 'user_login' || event === 'user_registered') && (context.currentStreak ?? 0) >= 30;
@@ -236,6 +249,7 @@ export async function getUserAchievements(userId: string) {
 
   const totalQuests = await prisma.questCompletion.count({ where: { userId } });
   const maxHabitStreak = await prisma.habit.aggregate({ where: { userId }, _max: { longestStreak: true } });
+  const totalWorkouts = await countFinishedWorkouts(userId);
 
   return all.map((ach) => {
     const unlockedAt = unlockedMap.get(ach.id);
@@ -249,6 +263,9 @@ export async function getUserAchievements(userId: string) {
           break;
         case 'habit_streak':
           progress = Math.min(maxHabitStreak._max.longestStreak ?? 0, target);
+          break;
+        case 'workout_count':
+          progress = Math.min(totalWorkouts, target);
           break;
       }
     }

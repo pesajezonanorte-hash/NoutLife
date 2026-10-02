@@ -1,4 +1,5 @@
 import api from '../lib/api';
+import type { AchievementToast } from '../store/uiStore';
 import type { Workout, Exercise, Routine } from '@lifequest/shared';
 
 export async function fetchWorkouts(limit = 20): Promise<Workout[]> {
@@ -45,7 +46,7 @@ export async function updateWorkout(id: string, body: Record<string, unknown>): 
   return data.workout;
 }
 
-export async function finishWorkout(id: string, body: { duration?: number; notes?: string; exercises?: unknown[] }): Promise<{ workout: Workout; rewards: unknown; user: unknown }> {
+export async function finishWorkout(id: string, body: { duration?: number; notes?: string; exercises?: unknown[] }): Promise<{ workout: Workout; rewards: unknown; user: unknown; achievementsUnlocked?: AchievementToast[] }> {
   const { data } = await api.post(`/workouts/${id}/finish`, body);
   return data;
 }

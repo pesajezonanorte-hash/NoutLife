@@ -51,3 +51,14 @@ test('profile and important dates reject empty names', async () => {
   assert.ok(ok(createQuestSchema, { ...quest, deadline: '2026-10-10' }));
   assert.ok(!ok(createQuestSchema, { ...quest, deadline: 'mañana' }));
 });
+
+test('default validation messages are in Spanish', async () => {
+  await import('../src/middleware/validate.middleware');
+  const { createHabitSchema } = await import('../src/schemas/habit.schemas');
+  const { createWorkoutSchema: workout } = await import('../src/schemas/activity.schemas');
+  const messages = (r: { success: boolean; error?: { errors: { message: string }[] } }) => r.error?.errors.map((e) => e.message) ?? [];
+  assert.deepEqual(messages(workout.safeParse({})), ['Este campo es obligatorio.']);
+  assert.deepEqual(messages(createHabitSchema.safeParse({ title: '', category: 'HEALTH' })), ['Este campo no puede estar vacío.']);
+  assert.match(messages(createHabitSchema.safeParse({ title: 'x', category: 'NOPE' }))[0], /^Valor no válido\. Opciones: HEALTH/);
+  assert.deepEqual(messages(createHabitSchema.safeParse({ title: 'x', category: 'HEALTH', color: 'red' })), ['El formato no es válido.']);
+});

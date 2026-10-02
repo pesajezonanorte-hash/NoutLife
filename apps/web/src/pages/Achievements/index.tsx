@@ -17,6 +17,7 @@ const CATEGORY_TABS = [
   { key: 'quest',   label: 'Misiones', icon: '⚔️' },
   { key: 'habit',   label: 'Hábitos',  icon: '🔥' },
   { key: 'level',   label: 'Nivel',    icon: '⬆️' },
+  { key: 'gym',     label: 'Coliseo',  icon: '🏋️' },
   { key: 'category', label: 'Categoría', icon: '📋' },
   { key: 'special', label: 'Especiales', icon: '✨' },
 ] as const;

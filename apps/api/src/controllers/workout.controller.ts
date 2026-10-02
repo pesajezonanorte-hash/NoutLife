@@ -2,6 +2,10 @@ import { Response } from 'express';
 import type { AuthRequest } from '../middleware/auth.middleware';
 import * as svc from '../services/workout.service';
 
+// normalizeRoutineDays throws INVALID_ROUTINE_DAYS / _DAY / _WEEKDAY for bad client input.
+const isRoutineInputError = (error: unknown) => error instanceof Error && error.message.startsWith('INVALID_ROUTINE');
+const ROUTINE_INPUT_ERROR = 'Los días de la rutina no son válidos: cada día necesita un weekday de 0 a 6, sin repetir.';
+
 const s = (obj: { createdAt: Date; updatedAt?: Date; date?: Date; [k: string]: unknown }) => ({
   ...obj,
   createdAt: obj.createdAt.toISOString(),
@@ -28,7 +32,12 @@ export async function createWorkout(req: AuthRequest, res: Response): Promise<vo
   try {
     const workout = await svc.createWorkout(req.userId!, req.body);
     res.status(201).json({ workout: s(workout) });
-  } catch { res.status(500).json({ error: 'Error al crear entrenamiento.' }); }
+  } catch (error) {
+    const code = error instanceof Error ? error.message : '';
+    if (code === 'WORKOUT_FUTURE_DATE') { res.status(400).json({ error: 'No puedes registrar un entrenamiento en una fecha futura.' }); return; }
+    if (code === 'ROUTINE_DAY_NOT_FOUND') { res.status(404).json({ error: 'Día de rutina no encontrado.' }); return; }
+    res.status(500).json({ error: 'Error al crear entrenamiento.' });
+  }
 }
 
 export async function updateWorkout(req: AuthRequest, res: Response): Promise<void> {
@@ -42,11 +51,15 @@ export async function updateWorkout(req: AuthRequest, res: Response): Promise<vo
 export async function finishWorkout(req: AuthRequest, res: Response): Promise<void> {
   try {
     const result = await svc.finishWorkout(req.userId!, req.params.id, req.body);
-    res.json({ workout: s(result.workout), rewards: result.rewards, user: result.user });
+    res.json({ workout: s(result.workout), rewards: result.rewards, user: result.user, achievementsUnlocked: result.achievementsUnlocked });
   } catch (error) {
     const code = error instanceof Error ? error.message : '';
     if (code === 'WORKOUT_NOT_FOUND') { res.status(404).json({ error: 'Entrenamiento no encontrado.' }); return; }
     if (code === 'WORKOUT_ALREADY_FINISHED') { res.status(409).json({ error: 'Este entrenamiento ya fue finalizado y premiado.' }); return; }
+    if (code === 'ATTENDANCE_FUTURE_DATE' || code === 'INVALID_ATTENDANCE_DATE') {
+      res.status(400).json({ error: 'No puedes finalizar un entrenamiento con fecha futura.' });
+      return;
+    }
     res.status(500).json({ error: 'Error al finalizar entrenamiento.' });
   }
 }
@@ -124,14 +137,20 @@ export async function createRoutine(req: AuthRequest, res: Response): Promise<vo
   try {
     const routine = await svc.createRoutine(req.userId!, req.body);
     res.status(201).json({ routine: { ...routine, createdAt: routine.createdAt.toISOString(), updatedAt: routine.updatedAt.toISOString() } });
-  } catch { res.status(500).json({ error: 'Error al crear rutina.' }); }
+  } catch (error) {
+    if (isRoutineInputError(error)) { res.status(400).json({ error: ROUTINE_INPUT_ERROR }); return; }
+    res.status(500).json({ error: 'Error al crear rutina.' });
+  }
 }
 
 export async function updateRoutine(req: AuthRequest, res: Response): Promise<void> {
   try {
     const routine = await svc.updateRoutine(req.userId!, req.params.id, req.body);
     res.json({ routine: { ...routine, createdAt: routine.createdAt.toISOString(), updatedAt: routine.updatedAt.toISOString() } });
-  } catch { res.status(500).json({ error: 'Error al actualizar rutina.' }); }
+  } catch (error) {
+    if (isRoutineInputError(error)) { res.status(400).json({ error: ROUTINE_INPUT_ERROR }); return; }
+    res.status(500).json({ error: 'Error al actualizar rutina.' });
+  }
 }
 
 export async function deleteRoutine(req: AuthRequest, res: Response): Promise<void> {

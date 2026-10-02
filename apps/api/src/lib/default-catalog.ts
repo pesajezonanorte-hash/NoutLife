@@ -37,6 +37,9 @@ export const DEFAULT_ACHIEVEMENTS = [
   { key: 'social_butterfly', title: 'Mariposa Social', description: 'Completa 10 misiones de tipo Social', icon: '🦋', category: 'category', xpReward: 150, progressType: 'category_quest_count', progressTarget: 10 },
   { key: 'creative_mind', title: 'Mente Creativa', description: 'Completa 10 misiones de tipo Creativo', icon: '🎨', category: 'category', xpReward: 150, progressType: 'category_quest_count', progressTarget: 10 },
   { key: 'epic_quest', title: 'Épico entre los Épicos', description: 'Completa tu primera misión ÉPICA', icon: '⚡', category: 'quest', xpReward: 500, progressType: null, progressTarget: null },
+  { key: 'first_workout', title: 'Bautizo de Hierro', description: 'Completaste tu primer entrenamiento en el Coliseo', icon: '🏋️', category: 'gym', xpReward: 50, progressType: 'workout_count', progressTarget: 1 },
+  { key: 'workouts_10', title: 'Gladiador', description: 'Completaste 10 entrenamientos', icon: '🛡️', category: 'gym', xpReward: 150, progressType: 'workout_count', progressTarget: 10 },
+  { key: 'workouts_50', title: 'Campeón del Coliseo', description: 'Completaste 50 entrenamientos', icon: '🏆', category: 'gym', xpReward: 400, progressType: 'workout_count', progressTarget: 50 },
   { key: 'speed_run', title: 'Velocista', description: 'Completa 5 misiones en un solo día', icon: '💨', category: 'special', xpReward: 200, progressType: null, progressTarget: null },
 ] as const;
 
