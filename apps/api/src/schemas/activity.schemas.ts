@@ -5,7 +5,7 @@ const parsableDate = z
   .refine((value) => !Number.isNaN(Date.parse(value)), 'La fecha no es válida.');
 
 const nonNegative = (label: string) =>
-  z.number({ invalid_type_error: `${label} debe ser un número.` }).finite().min(0, `${label} no puede ser negativo.`);
+  z.number({ invalid_type_error: `${label} debe ser un número.` }).finite().min(0, `${label}: no se admiten valores negativos.`);
 
 const quality = z
   .number({ invalid_type_error: 'La calidad debe ser un número.' })
