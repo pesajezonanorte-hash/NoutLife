@@ -1078,7 +1078,7 @@ export default function DashboardPage() {
               <LifeQuestFlipCard
                 eyebrow="Mejor racha actual"
                 title={topHabit.title}
-                description={`${topHabit.currentStreak} días de constancia en tu aventura.`}
+                description={`${topHabit.currentStreak} ${topHabit.currentStreak === 1 ? "día" : "días"} de constancia en tu aventura.`}
                 visual={
                   <div className="flex items-end gap-3" aria-hidden="true">
                     <span className="flex h-16 w-16 items-center justify-center rounded-2xl border border-border bg-card text-[var(--accent-gold)]">
@@ -1094,7 +1094,7 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 }
-                visualLabel={`Racha de ${topHabit.currentStreak} días`}
+                visualLabel={`Racha de ${topHabit.currentStreak} ${topHabit.currentStreak === 1 ? "día" : "días"}`}
                 badge={topHabit.todayCompleted ? "Hoy completado" : "En curso"}
                 frontFooter={
                   <p className="text-xs font-medium [color:var(--flip-accent)]">
@@ -1108,7 +1108,7 @@ export default function DashboardPage() {
                   </p>
                 }
                 metrics={[
-                  { label: "Racha", value: `${topHabit.currentStreak} días` },
+                  { label: "Racha", value: `${topHabit.currentStreak} ${topHabit.currentStreak === 1 ? "día" : "días"}` },
                   { label: "Recompensa", value: `+${topHabit.xpReward} XP` },
                   {
                     label: "Hoy",

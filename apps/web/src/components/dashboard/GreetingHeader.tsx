@@ -151,7 +151,7 @@ export function GreetingHeader({ displayName, currentStreak, createdAt, gender =
                 RACHA
               </p>
               <p className="text-[18px] font-extrabold tabular-nums leading-none mt-0.5" style={{ color: 'var(--text)' }}>
-                {currentStreak} días
+                {currentStreak} {currentStreak === 1 ? 'día' : 'días'}
               </p>
             </div>
           </motion.div>
