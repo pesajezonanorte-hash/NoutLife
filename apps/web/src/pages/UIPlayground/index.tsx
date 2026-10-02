@@ -3,6 +3,8 @@
 import { motion } from 'framer-motion';
 import { useThemeStore, type ThemeMode } from '@/store/themeStore';
 import { item, page, stagger } from '@/lib/motion';
+import { SegmentedControl, Toaster } from '@/components/ui/lq';
+import { ComponentsDemo } from './ComponentsDemo';
 
 const swatches = [
   ['primary', 'bg-primary'],
@@ -43,7 +45,9 @@ const typeScale = [
   ['caption', 'text-caption', 'hace 2 h — solo timestamps'],
 ] as const;
 
-const modes: [ThemeMode, string][] = [['light', 'Claro'], ['dark', 'Oscuro'], ['auto', 'Auto']];
+const modes: { value: ThemeMode; label: string }[] = [
+  { value: 'light', label: 'Claro' }, { value: 'dark', label: 'Oscuro' }, { value: 'auto', label: 'Auto' },
+];
 
 export default function UIPlayground() {
   const mode = useThemeStore((s) => s.mode);
@@ -59,25 +63,7 @@ export default function UIPlayground() {
       <header className="flex flex-col gap-4">
         <span className="text-label-lg text-primary-text">Design System · Fundamentos</span>
         <h1 className="text-display-sm lg:text-display-lg">Tokens LifeQuest</h1>
-        <div
-          role="radiogroup"
-          aria-label="Tema"
-          className="flex max-w-sm gap-1 rounded-[0.875rem] bg-surface-variant p-1"
-        >
-          {modes.map(([id, label]) => (
-            <button
-              key={id}
-              role="radio"
-              aria-checked={mode === id}
-              onClick={() => setMode(id)}
-              className={`min-h-11 flex-1 rounded-[0.625rem] text-label-lg transition-colors ${
-                mode === id ? 'bg-background text-on-background shadow-sm' : 'text-on-surface'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl role="radiogroup" label="Tema" value={mode} onChange={setMode} options={modes} className="max-w-sm" />
       </header>
 
       <section className="flex flex-col gap-4">
@@ -145,6 +131,9 @@ export default function UIPlayground() {
           />
         </div>
       </section>
+
+      <ComponentsDemo />
+      <Toaster />
     </motion.main>
   );
 }

@@ -73,6 +73,44 @@ html.dark {
   :focus-visible { outline: 3px solid rgb(var(--lq-primary)); outline-offset: 2px; }
 }
 
+/* Utilidades de movimiento del rediseño que dependen de hover/focus-within
+   de un ancestro (no expresables con Framer). Valores de lq.css. */
+@layer components {
+  .lq-lift {
+    transition: transform .2s cubic-bezier(0, 0, .2, 1), box-shadow .2s cubic-bezier(0, 0, .2, 1), border-color .2s;
+  }
+  .lq-lift:hover, .lq-lift:focus-within {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+    border-color: rgb(var(--lq-primary) / .25);
+  }
+  .lq-ichip { transition: transform .3s cubic-bezier(.3, 1.4, .5, 1); }
+  .lq-lift:hover .lq-ichip { transform: scale(1.08) rotate(-4deg); }
+
+  /* Barra con brillo (`shine`) */
+  .lq-sheen::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent, rgb(255 255 255 / .45), transparent);
+    transform: translateX(-100%);
+    animation: sheen 2.6s ease-in-out 1.4s infinite;
+  }
+
+  /* Skeleton shimmer */
+  .lq-skeleton {
+    background: linear-gradient(90deg, rgb(var(--lq-surface-variant)) 25%, rgb(var(--lq-surface)) 50%, rgb(var(--lq-surface-variant)) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s linear infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .lq-lift:hover, .lq-lift:focus-within, .lq-lift:hover .lq-ichip { transform: none; }
+    .lq-sheen::after, .lq-skeleton { animation: none; }
+  }
+}
+
+@keyframes sheen { 0% { transform: translateX(-100%); } 60%, 100% { transform: translateX(100%); } }
+@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
 /* Reduced motion: remove movement, keep opacity/color */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

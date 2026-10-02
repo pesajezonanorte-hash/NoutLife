@@ -1,0 +1,84 @@
+import {
+  cloneElement, forwardRef, isValidElement, useId,
+  type InputHTMLAttributes, type ReactElement, type ReactNode, type SelectHTMLAttributes,
+} from 'react';
+import { AlertCircle, ChevronDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+const control =
+  'min-h-12 w-full rounded-lg border bg-background px-4 py-2.5 text-body-md text-on-background ' +
+  'transition-[border-color,box-shadow] duration-150 placeholder:text-on-surface-light ' +
+  'focus:outline-none focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50';
+
+const stateCls = (invalid?: boolean) =>
+  invalid
+    ? 'border-error ring-[3px] ring-error/[var(--lq-soft-alpha)]'
+    : 'border-border-strong focus:border-primary focus:ring-[3px] focus:ring-primary/25';
+
+export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
+  invalid?: boolean;
+}
+
+/** <Input> 16 px (evita zoom en iOS), borde gray-500 (≥3:1), anillo de foco 3 px. */
+export const Input = forwardRef<HTMLInputElement, InputProps>(function Input({ invalid, className, ...rest }, ref) {
+  return <input ref={ref} aria-invalid={invalid || undefined} className={cn(control, stateCls(invalid), className)} {...rest} />;
+});
+
+export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
+  invalid?: boolean;
+}
+
+export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select({ invalid, className, children, ...rest }, ref) {
+  return (
+    <div className="relative">
+      <select
+        ref={ref}
+        aria-invalid={invalid || undefined}
+        className={cn(control, stateCls(invalid), 'appearance-none pr-10', className)}
+        {...rest}
+      >
+        {children}
+      </select>
+      <ChevronDown aria-hidden className="pointer-events-none absolute right-3 top-3 size-6 text-on-surface-light" strokeWidth={1.75} />
+    </div>
+  );
+});
+
+export interface FieldProps {
+  label: ReactNode;
+  help?: ReactNode;
+  error?: ReactNode;
+  className?: string;
+  /** Un <Input> o <Select>: Field le inyecta id, aria-describedby e invalid. */
+  children: ReactElement;
+}
+
+/** Label siempre visible + ayuda + error junto al campo. */
+export function Field({ label, help, error, className, children }: FieldProps) {
+  const id = useId();
+  const childId = (isValidElement(children) && (children.props as { id?: string }).id) || id;
+  const helpId = `${childId}-help`;
+  const describedBy = error || help ? helpId : undefined;
+  const control = isValidElement(children)
+    ? cloneElement(children as ReactElement<Record<string, unknown>>, {
+        id: childId,
+        invalid: Boolean(error) || undefined,
+        'aria-describedby': describedBy,
+      })
+    : children;
+
+  return (
+    <div className={cn('flex min-w-0 flex-col gap-1.5', className)}>
+      <label htmlFor={childId} className="text-label-lg text-on-surface">{label}</label>
+      {control}
+      {error ? (
+        <span id={helpId} className="flex items-center gap-1.5 text-body-sm text-error-text">
+          <AlertCircle aria-hidden className="size-4 shrink-0" strokeWidth={1.75} />
+          {error}
+        </span>
+      ) : help ? (
+        <span id={helpId} className="text-body-sm text-on-surface-light">{help}</span>
+      ) : null}
+    </div>
+  );
+}
