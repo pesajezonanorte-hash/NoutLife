@@ -25,6 +25,7 @@ const loaders = {
   OnboardingPage: () => import('./pages/Onboarding'),
   QuestsPage: () => import('./pages/Quests'),
   HabitsPage: () => import('./pages/Habits'),
+  HabitDetailPage: () => import('./pages/HabitDetail'),
   AchievementsPage: () => import('./pages/Achievements'),
   HistoryPage: () => import('./pages/History'),
   GymPage: () => import('./pages/Gym'),
@@ -110,6 +111,7 @@ const REDIRECTS = new Set(['/goals', '/metas', '/rituales', '/character', '/chal
 
 function loaderForPath(pathname: string) {
   if (REDIRECTS.has(pathname)) return null;
+  if (/^\/habits\/[^/]+$/.test(pathname)) return loaders.HabitDetailPage;
   return routeLoaders[pathname] ?? loaders.NotFoundPage;
 }
 
@@ -180,6 +182,7 @@ function AnimatedRoutes({ location }: { location: ReturnType<typeof useLocation>
           <Route path="/quests"       element={<SafePage><DeferredLazyPage load={loaders.QuestsPage} /></SafePage>} />
           <Route path="/quests/new"   element={<SafePage><DeferredLazyPage load={loaders.QuestsPage} /></SafePage>} />
           <Route path="/habits"       element={<SafePage><DeferredLazyPage load={loaders.HabitsPage} /></SafePage>} />
+          <Route path="/habits/:id"   element={<SafePage><DeferredLazyPage load={loaders.HabitDetailPage} /></SafePage>} />
           <Route path="/achievements" element={<SafePage><DeferredLazyPage load={loaders.AchievementsPage} /></SafePage>} />
           <Route path="/history"      element={<SafePage><DeferredLazyPage load={loaders.HistoryPage} /></SafePage>} />
           <Route path="/gym"          element={<SafePage><DeferredLazyPage load={loaders.GymPage} /></SafePage>} />

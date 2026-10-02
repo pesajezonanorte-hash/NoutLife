@@ -1,605 +1,256 @@
-import { useState, useEffect, useCallback, useRef, type MouseEvent as ReactMouseEvent } from 'react';
+// Misiones — Quests.dc.html (móvil) / QuestsDesktop.dc.html (desktop).
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
 import { useSearchParams } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Check,
-  ChevronDown,
-  ClipboardList,
-  Filter,
-  FolderKanban,
-  ListChecks,
-  ListTodo,
-  Plus,
-  RotateCcw,
-  Search,
-  SlidersHorizontal,
-  Target,
-  type LucideIcon,
-} from 'lucide-react';
 import type { Quest } from '@lifequest/shared';
-import { useAuthStore } from '../../store/authStore';
-import { useUIStore } from '../../store/uiStore';
-import { QuestCard } from '../../components/quests/QuestCard';
-import { QuestModal } from '../../components/quests/QuestModal';
-import { QuestWizard } from '../../components/quests/QuestWizard';
-import { SkeletonList } from '../../components/ui/Skeleton';
-import { LifeQuestFlipCard } from '../../components/ui/lifequest-flip-card';
-import { FlowButton } from '../../components/ui/flow-button';
-import { useToastStore } from '../../hooks/useToast';
-import { useDebounce } from '../../hooks/useDebounce';
-import * as questService from '../../services/quest.service';
-import { SageContextButton } from '../../components/sage/SageContextButton';
+import { CheckCircle2, Flag, Plus, Search, Sparkles } from 'lucide-react';
+import { item, stagger } from '@/lib/motion';
+import { categoryMeta } from '@/lib/lifeMeta';
+import { useDebounce } from '@/hooks/useDebounce';
+import { useToastStore } from '@/hooks/useToast';
+import {
+  Badge, Button, Card, EmptyState, ErrorState, IconChip, Input, ProgressRing, SegmentedControl, Select, Skeleton, Spinner,
+} from '@/components/ui/lq';
+import { QuestCard } from '@/components/quests/QuestCard';
+import { QuestDetailDialog } from '@/components/quests/QuestDetailDialog';
+import { CompleteQuestDialog } from '@/components/quests/CompleteQuestDialog';
+import { QuestFormDialog, type QuestFormValues } from '@/components/quests/QuestFormDialog';
+import { QUEST_TYPES, isReady, isoWeek, questProgress } from '@/components/quests/questMeta';
+import * as questService from '@/services/quest.service';
 
-const TABS: ReadonlyArray<{ key: string; label: string; icon: LucideIcon }> = [
-  { key: '', label: 'Todas', icon: ListTodo },
-  { key: 'MAIN', label: 'Proyectos', icon: FolderKanban },
-  { key: 'SIDE', label: 'Tareas', icon: ListChecks },
-  { key: 'META', label: 'Metas', icon: Target },
-  { key: 'COMPLETED', label: 'Completadas', icon: Check },
+type Tab = 'all' | 'progress' | 'done';
+const TABS: { value: Tab; label: string }[] = [
+  { value: 'all', label: 'Todas' }, { value: 'progress', label: 'En progreso' }, { value: 'done', label: 'Completadas' },
 ];
 
-const CATEGORY_LABELS: Record<string, string> = {
-  HEALTH: 'Salud', FITNESS: 'Fitness', FINANCE: 'Finanzas', LEARNING: 'Aprendizaje',
-  LOVE: 'Amor', SOCIAL: 'Social', PERSONAL: 'Personal', CREATIVE: 'Creativo',
-};
-
-const DIFFICULTY_OPTIONS = [
-  { value: 'EASY', label: 'Fácil' },
-  { value: 'NORMAL', label: 'Normal' },
-  { value: 'HARD', label: 'Difícil' },
-  { value: 'EPIC', label: 'Épica' },
-];
-
-const SORT_OPTIONS = [
-  { value: 'xp', label: 'Mayor XP' },
-  { value: 'deadline', label: 'Fecha límite' },
-  { value: 'difficulty', label: 'Dificultad' },
-];
-
-interface FilterOption {
-  value: string;
-  label: string;
-}
-
-interface FilterMenuProps {
-  label: string;
-  value: string;
-  icon: LucideIcon;
-  options: FilterOption[];
-  onChange: (value: string) => void;
-  className?: string;
-}
-
-/** A dark, keyboard-friendly listbox that avoids the browser's native popup. */
-function FilterMenu({ label, value, icon: Icon, options, onChange, className = '' }: FilterMenuProps) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const selected = options.find((option) => option.value === value);
-
-  useEffect(() => {
-    if (!open) return undefined;
-
-    function handlePointerDown(event: PointerEvent) {
-      if (!ref.current?.contains(event.target as Node)) setOpen(false);
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') setOpen(false);
-    }
-
-    document.addEventListener('pointerdown', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [open]);
-
+function QuestsSkeleton() {
   return (
-    <div ref={ref} className={`relative ${className}`}>
-      <button
-        type="button"
-        onClick={() => setOpen((current) => !current)}
-        className={`flex min-h-11 w-full items-center gap-2 rounded-xl border bg-[var(--bg-deep)] px-3 text-left text-sm transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] ${
-          open ? 'border-[var(--accent-gold)]' : 'border-[var(--border)] hover:border-[var(--text-secondary)]'
-        }`}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        aria-label={label}
-      >
-        <Icon size={15} strokeWidth={1.8} className="shrink-0 text-[var(--text-secondary)]" aria-hidden="true" />
-        <span className={`min-w-0 flex-1 truncate ${value ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>
-          {value ? selected?.label ?? label : label}
-        </span>
-        <ChevronDown
-          size={15}
-          strokeWidth={1.8}
-          className={`shrink-0 text-[var(--text-secondary)] transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
-          aria-hidden="true"
-        />
-      </button>
-
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, y: -4, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -3, scale: 0.99 }}
-            transition={{ type: 'spring', stiffness: 420, damping: 30, mass: 0.6 }}
-            className="absolute right-0 top-[calc(100%+0.5rem)] z-30 min-w-full overflow-hidden rounded-xl border border-[var(--border-strong)] bg-[var(--bg-panel)] p-1 shadow-xl"
-            style={{ transformOrigin: 'top right' }}
-            role="listbox"
-            aria-label={label}
-          >
-            <button
-              type="button"
-              role="option"
-              aria-selected={!value}
-              className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs transition-colors hover:bg-[var(--bg-panel-light)] ${
-                !value ? 'text-[var(--accent-gold)]' : 'text-[var(--text-secondary)]'
-              }`}
-              onClick={() => { onChange(''); setOpen(false); }}
-            >
-              <span className="h-3.5 w-3.5">{!value && <Check size={14} strokeWidth={2} aria-hidden="true" />}</span>
-              Todas
-            </button>
-            {options.map((option) => {
-              const active = option.value === value;
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  role="option"
-                  aria-selected={active}
-                  className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs transition-colors hover:bg-[var(--bg-panel-light)] ${
-                    active ? 'text-[var(--accent-gold)]' : 'text-[var(--text-primary)]'
-                  }`}
-                  onClick={() => { onChange(option.value); setOpen(false); }}
-                >
-                  <span className="h-3.5 w-3.5">{active && <Check size={14} strokeWidth={2} aria-hidden="true" />}</span>
-                  <span className="truncate">{option.label}</span>
-                </button>
-              );
-            })}
-          </motion.div>
-        )}
-      </AnimatePresence>
+    <div className="flex flex-col gap-6" aria-busy="true" aria-label="Cargando misiones">
+      <Skeleton className="hidden h-44 rounded-2xl md:block" />
+      <div className="grid gap-4 md:grid-cols-[repeat(auto-fill,minmax(300px,1fr))] md:gap-6">
+        {[0, 1, 2].map((i) => <Skeleton key={i} className="h-56 rounded-2xl" />)}
+      </div>
+      <div className="flex items-center justify-center gap-3"><Spinner /><span className="text-body-sm text-on-surface-light">Cargando misiones…</span></div>
     </div>
   );
 }
 
 export default function QuestsPage() {
-  const { addFloatingXP, flashScreen, showAchievementToast, triggerLevelUp } = useUIStore();
-  const toastError = useToastStore((state) => state.error);
   const [searchParams, setSearchParams] = useSearchParams();
-
   const [quests, setQuests] = useState<Quest[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState(() => {
-    const filter = searchParams.get('filter');
-    if (filter === 'meta') return 'META';
-    return '';
-  });
-  const [selectedQuest, setSelectedQuest] = useState<Quest | null>(null);
-  const [showWizard, setShowWizard] = useState(false);
-  const [editingQuest, setEditingQuest] = useState<Quest | null>(null);
-
-  // ?new=1 (acciones rápidas, paleta): abre el asistente de nueva misión.
-  useEffect(() => {
-    if (searchParams.get('new') !== '1') return;
-    setEditingQuest(null);
-    setShowWizard(true);
-    setSearchParams((p) => { p.delete('new'); return p; }, { replace: true });
-  }, [searchParams, setSearchParams]);
-
-  // Filters
+  const [failed, setFailed] = useState(false);
+  const [tab, setTab] = useState<Tab>('all');
+  const [type, setType] = useState(() => (searchParams.get('filter') === 'meta' ? 'META' : ''));
   const [search, setSearch] = useState('');
-  const [filterCategory, setFilterCategory] = useState('');
-  const [filterDifficulty, setFilterDifficulty] = useState('');
-  const [sortBy, setSortBy] = useState('');
-  const debouncedSearch = useDebounce(search, 300);
+  const debounced = useDebounce(search, 300);
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const [completing, setCompleting] = useState<Quest | null>(null);
+  const [form, setForm] = useState<{ open: boolean; quest: Quest | null }>({ open: false, quest: null });
 
-  const loadQuests = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    setFailed(false);
     try {
       const filters: questService.QuestFilters = {};
-      if (activeTab && activeTab !== 'COMPLETED') filters.type = activeTab;
-      if (activeTab === 'COMPLETED') filters.status = 'COMPLETED';
-      if (filterCategory) filters.category = filterCategory;
-      if (filterDifficulty) filters.difficulty = filterDifficulty;
-      if (debouncedSearch) filters.search = debouncedSearch;
-      if (sortBy) filters.sortBy = sortBy;
-
-      const data = await questService.fetchQuests(filters);
-      setQuests(data);
+      if (type) filters.type = type;
+      if (debounced) filters.search = debounced;
+      setQuests(await questService.fetchQuests(filters));
     } catch {
-      toastError('Error cargando misiones');
+      if (!silent) setFailed(true);
     } finally {
       setLoading(false);
     }
-  }, [activeTab, filterCategory, filterDifficulty, debouncedSearch, sortBy, toastError]);
+  }, [type, debounced]);
 
+  useEffect(() => { void load(); }, [load]);
+
+  // ?new=1 (acciones rápidas, paleta): abre el formulario de nueva misión.
   useEffect(() => {
-    void loadQuests();
-  }, [loadQuests]);
+    if (searchParams.get('new') !== '1') return;
+    setForm({ open: true, quest: null });
+    setSearchParams((p) => { p.delete('new'); return p; }, { replace: true });
+  }, [searchParams, setSearchParams]);
 
-  async function handleComplete(quest: Quest, event?: ReactMouseEvent) {
-    if (event) {
-      const rect = (event.target as HTMLElement).getBoundingClientRect();
-      addFloatingXP(quest.xpReward, rect.left + rect.width / 2, rect.top);
-    }
+  const patch = (q: Quest) => setQuests((prev) => prev.map((x) => (x.id === q.id ? q : x)));
+  const detail = quests.find((q) => q.id === detailId) ?? null;
 
-    setQuests((previous) => previous.map((item) => item.id === quest.id ? { ...item, status: 'COMPLETED' as const } : item));
-    flashScreen('#a8871e');
-
-    try {
-      const result = await questService.completeQuest(quest.id);
-      useAuthStore.getState().updateUser(result.user);
-
-      if (result.rewards.leveledUp && result.rewards.newLevel) {
-        triggerLevelUp({
-          oldLevel: result.rewards.newLevel - 1,
-          newLevel: result.rewards.newLevel,
-          xpEarned: result.rewards.xpEarned,
-          goldEarned: result.rewards.goldEarned,
-          statIncreases: result.rewards.statIncreases ?? {},
-        });
-      }
-
-      for (const achievement of result.achievementsUnlocked) showAchievementToast(achievement);
-      await loadQuests();
-    } catch {
-      setQuests((previous) => previous.map((item) => item.id === quest.id ? { ...item, status: 'ACTIVE' as const } : item));
-    }
-  }
-
-  async function handleWizardSubmit(formData: {
-    type: string; title: string; description: string; category: string;
-    difficulty: string; deadline: string; subObjectives: string[];
-  }) {
+  async function handleSubmit(v: QuestFormValues) {
     const payload = {
-      type: formData.type as Quest['type'],
-      title: formData.title,
-      description: formData.description || undefined,
-      category: formData.category as Quest['category'],
-      difficulty: formData.difficulty as Quest['difficulty'],
-      deadline: formData.deadline || undefined,
-      subObjectives: formData.subObjectives.filter(Boolean).map((title, index) => ({ id: String(index + 1), title, completed: false })),
+      type: v.type,
+      title: v.title,
+      description: v.description || undefined,
+      category: v.category,
+      difficulty: v.difficulty,
+      deadline: v.deadline || undefined,
+      subObjectives: v.subObjectives.filter(Boolean).map((title, i) => ({ id: String(i + 1), title, completed: false })),
     };
-
-    if (editingQuest) {
-      setQuests((previous) => previous.map((item) => item.id === editingQuest.id ? { ...item, ...payload } : item));
-      setShowWizard(false);
-      setEditingQuest(null);
-      try {
-        await questService.updateQuest(editingQuest.id, payload);
-      } catch {
-        await loadQuests();
+    try {
+      if (form.quest) {
+        // Conserva el estado "hecho" de los pasos que no cambiaron de nombre.
+        const prev = new Map(form.quest.subObjectives.map((s) => [s.title, s.completed]));
+        payload.subObjectives = payload.subObjectives.map((s) => ({ ...s, completed: prev.get(s.title) ?? false }));
+        patch(await questService.updateQuest(form.quest.id, payload));
+        useToastStore.getState().success('Misión actualizada');
+      } else {
+        const created = await questService.createQuest(payload);
+        setQuests((prev) => [created, ...prev]);
+        useToastStore.getState().success('Misión creada', 'Ganarás XP al completarla');
       }
-      return;
-    }
-
-    const tempId = `temp_${Date.now()}`;
-    const tempQuest: Quest = {
-      id: tempId,
-      userId: '',
-      ...payload,
-      xpReward: 50,
-      goldReward: 10,
-      isRecurring: false,
-      subObjectives: payload.subObjectives ?? [],
-      status: 'ACTIVE',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    setQuests((previous) => [tempQuest, ...previous]);
-    setShowWizard(false);
-    setEditingQuest(null);
-    try {
-      await questService.createQuest(payload);
-      await loadQuests();
+      setForm({ open: false, quest: null });
     } catch {
-      setQuests((previous) => previous.filter((item) => item.id !== tempId));
+      useToastStore.getState().error('No se pudo guardar la misión');
     }
   }
 
-  async function handleArchive(quest: Quest) {
-    setQuests((previous) => previous.filter((item) => item.id !== quest.id));
+  async function handleFail(q: Quest) {
+    setDetailId(null);
+    patch({ ...q, status: 'FAILED' });
+    try { patch(await questService.failQuest(q.id)); } catch { patch(q); useToastStore.getState().error('No se pudo actualizar la misión'); }
+  }
+
+  async function handleArchive(q: Quest) {
+    setDetailId(null);
+    setQuests((prev) => prev.filter((x) => x.id !== q.id));
     try {
-      await questService.archiveQuest(quest.id);
+      await questService.archiveQuest(q.id);
+      useToastStore.getState().success('Misión archivada');
     } catch {
-      await loadQuests();
+      void load(true);
+      useToastStore.getState().error('No se pudo archivar la misión');
     }
   }
 
-  async function handleFail(quest: Quest) {
-    setQuests((previous) => previous.map((item) => item.id === quest.id ? { ...item, status: 'FAILED' as const } : item));
-    try {
-      await questService.failQuest(quest.id);
-    } catch {
-      setQuests((previous) => previous.map((item) => item.id === quest.id ? { ...item, status: 'ACTIVE' as const } : item));
-    }
-  }
-
-  function handleEdit(quest: Quest) {
-    setEditingQuest(quest);
-    setShowWizard(true);
-  }
-
-  function handleQuestUpdated(updated: Quest) {
-    setQuests((previous) => previous.map((item) => item.id === updated.id ? updated : item));
-    setSelectedQuest(updated);
-  }
-
-  function clearFilters() {
-    setSearch('');
-    setFilterCategory('');
-    setFilterDifficulty('');
-    setSortBy('');
-  }
-
-  const activeQuests = quests.filter((quest) => quest.status === 'ACTIVE');
-  const completedQuests = quests.filter((quest) => quest.status === 'COMPLETED');
-  const inactiveQuests = quests.filter((quest) => quest.status === 'FAILED' || quest.status === 'ARCHIVED');
-  const displayQuests = activeTab === 'COMPLETED'
-    ? completedQuests
-    : activeTab
-      ? quests
-      : [...activeQuests, ...completedQuests.slice(0, 3), ...inactiveQuests];
-  const hasFilters = Boolean(search || filterCategory || filterDifficulty || sortBy);
-  // Only one mission is promoted to 3D; the task list remains inexpensive to scroll.
-  const featuredQuest = displayQuests[0];
-  const remainingDisplayQuests = featuredQuest ? displayQuests.filter((quest) => quest.id !== featuredQuest.id) : [];
-  const sectionTitle = activeTab === 'MAIN'
-    ? 'Proyectos'
-    : activeTab === 'SIDE'
-      ? 'Tareas'
-      : activeTab === 'META'
-        ? 'Metas'
-        : activeTab === 'COMPLETED'
-          ? 'Completadas'
-          : 'Misiones';
+  const visible = useMemo(() => quests.filter((q) => q.status !== 'ARCHIVED'), [quests]);
+  const active = visible.filter((q) => q.status === 'ACTIVE');
+  const shown = visible.filter((q) => (tab === 'all' ? true : tab === 'done' ? q.status === 'COMPLETED' : q.status === 'ACTIVE'));
+  // Destacada: la primera lista para completar (o la activa con más progreso).
+  const featured = tab !== 'done'
+    ? active.find(isReady) ?? [...active].filter((q) => q.subObjectives.length > 0).sort((a, b) => questProgress(b).pct - questProgress(a).pct)[0]
+    : undefined;
+  const list = featured ? shown.filter((q) => q.id !== featured.id) : shown;
+  const listTitle = tab === 'done' ? 'Completadas' : tab === 'progress' ? 'En progreso' : 'Todas las misiones';
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-5 pb-6">
-      <section className="flex flex-col gap-4 border-b border-[var(--border)] pb-5 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <div className="mb-2 inline-flex items-center gap-1.5 text-sm font-medium text-[var(--accent-gold)]">
-            <ClipboardList size={14} strokeWidth={1.9} aria-hidden="true" />
-            Planificación
-          </div>
-          <h1 className="text-2xl font-semibold tracking-[-0.03em] text-[var(--text-primary)]">Misiones</h1>
-          <p className="mt-1 max-w-xl text-sm leading-6 text-[var(--text-secondary)]">
-            Proyectos, tareas y metas con plazo, dificultad y progreso en un solo lugar.
+    <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-6 md:gap-12">
+      <motion.section variants={item} className="flex flex-wrap items-end justify-between gap-6">
+        <div className="flex min-w-0 flex-col gap-1 md:gap-2">
+          <span className="text-body-sm text-on-surface-light md:text-label-lg md:text-primary-text">
+            Semana {isoWeek()}{!loading && !failed ? ` · ${active.length} ${active.length === 1 ? 'activa' : 'activas'}` : ''}
+          </span>
+          <h1 className="text-display-sm md:text-display-md lg:text-display-lg">Misiones</h1>
+          <p className="max-w-[520px] text-body-md text-on-surface-light md:text-body-lg">
+            <span className="md:hidden">Completa objetivos y gana XP extra.</span>
+            <span className="hidden md:inline">Objetivos más grandes que un hábito. Termínalos para ganar XP extra y subir de nivel.</span>
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <SageContextButton message="¿Por dónde empiezo? Prioriza mis misiones activas según lo más urgente." label="Priorizar" />
-          <FlowButton
-            tone="primary"
-            size="md"
-            withArrows={false}
-            onClick={() => { setEditingQuest(null); setShowWizard(true); }}
-            className="gap-2"
-          >
-            <Plus size={16} strokeWidth={2} aria-hidden="true" />
-            Nueva misión
-          </FlowButton>
+        <div className="flex w-full flex-col gap-3 md:w-auto md:min-w-[440px] md:items-end">
+          <Button size="md" className="hidden md:inline-flex" onClick={() => setForm({ open: true, quest: null })}>
+            <Plus aria-hidden className="size-4" strokeWidth={2} />Nueva misión
+          </Button>
+          <SegmentedControl label="Estado" value={tab} onChange={setTab} options={TABS} className="w-full" />
         </div>
-      </section>
+      </motion.section>
 
-      <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-1.5">
-        <div className="grid grid-cols-2 gap-1 sm:flex sm:flex-wrap">
-          {TABS.map((tab) => {
-            const Icon = tab.icon;
-            const selected = activeTab === tab.key;
-            return (
-              <button
-                key={tab.key || 'all'}
-                type="button"
-                onClick={() => setActiveTab(tab.key)}
-                className={`inline-flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] last:col-span-2 sm:shrink-0 sm:last:col-auto ${
-                  selected
-                    ? 'bg-[var(--bg-panel-light)] text-[var(--text-primary)] shadow-sm'
-                    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-panel-light)] hover:text-[var(--text-primary)]'
-                }`}
-                aria-pressed={selected}
-              >
-                <Icon size={14} strokeWidth={selected ? 2 : 1.7} aria-hidden="true" className={selected ? 'text-[var(--accent-gold)]' : ''} />
-                {tab.label}
-              </button>
-            );
-          })}
+      <motion.div variants={item} className="flex flex-col gap-3 sm:flex-row">
+        <div className="relative flex-1">
+          <Search aria-hidden className="pointer-events-none absolute left-4 top-3 size-6 text-on-surface-light" strokeWidth={1.75} />
+          <Input type="search" aria-label="Buscar misiones" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar misión…" className="pl-12" />
         </div>
-      </section>
+        <Select aria-label="Tipo de misión" value={type} onChange={(e) => setType(e.target.value)} className="sm:w-52">
+          <option value="">Todos los tipos</option>
+          {QUEST_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}s</option>)}
+        </Select>
+      </motion.div>
 
-      <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-3">
-        <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center">
-          <label className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-deep)] px-3 transition-colors focus-within:border-[var(--accent-gold)]">
-            <Search size={16} strokeWidth={1.8} className="shrink-0 text-[var(--text-secondary)]" aria-hidden="true" />
-            <input
-              type="search"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Buscar misiones"
-              className="min-w-0 flex-1 bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
-              aria-label="Buscar misiones"
-            />
-          </label>
-          <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap lg:flex-nowrap">
-            <FilterMenu
-              label="Categoría"
-              value={filterCategory}
-              icon={Filter}
-              options={Object.entries(CATEGORY_LABELS).map(([value, label]) => ({ value, label }))}
-              onChange={setFilterCategory}
-              className="min-w-0 sm:min-w-36"
-            />
-            <FilterMenu
-              label="Dificultad"
-              value={filterDifficulty}
-              icon={SlidersHorizontal}
-              options={DIFFICULTY_OPTIONS}
-              onChange={setFilterDifficulty}
-              className="min-w-0 sm:min-w-32"
-            />
-            <FilterMenu
-              label="Ordenar"
-              value={sortBy}
-              icon={ListChecks}
-              options={SORT_OPTIONS}
-              onChange={setSortBy}
-              className="min-w-0 sm:min-w-32"
-            />
-          </div>
-          {hasFilters && (
-            <FlowButton
-              tone="ghost"
-              size="sm"
-              withArrows={false}
-              onClick={clearFilters}
-              className="inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-panel-light)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)]"
-            >
-              <RotateCcw size={14} strokeWidth={1.8} aria-hidden="true" />
-              Limpiar
-            </FlowButton>
-          )}
-        </div>
-      </section>
-
-      {!loading && featuredQuest && (
-        <LifeQuestFlipCard
-          eyebrow="Misión destacada"
-          title={featuredQuest.title}
-          description={featuredQuest.description || 'Una prioridad de tu aventura que puedes completar, editar o revisar con calma.'}
-          visual={<Target className="h-16 w-16 text-foreground" strokeWidth={1.5} aria-hidden="true" />}
-          visualLabel={`Misión destacada: ${featuredQuest.title}`}
-          badge={featuredQuest.status === 'ACTIVE' ? 'Activa' : featuredQuest.status === 'COMPLETED' ? 'Completada' : 'En pausa'}
-          frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">+{featuredQuest.xpReward} XP · {CATEGORY_LABELS[featuredQuest.category] ?? featuredQuest.category}</p>}
-          backDescription={<p>{featuredQuest.description || 'Abre la misión para revisar objetivos, fecha límite y todas sus recompensas.'}</p>}
-          metrics={[
-            { label: 'Tipo', value: featuredQuest.type === 'MAIN' ? 'Proyecto' : featuredQuest.type === 'SIDE' ? 'Tarea' : 'Meta' },
-            { label: 'Dificultad', value: DIFFICULTY_OPTIONS.find((option) => option.value === featuredQuest.difficulty)?.label ?? featuredQuest.difficulty },
-            { label: 'Recompensa', value: `+${featuredQuest.xpReward} XP` },
-          ]}
-          backActions={(
-            <FlowButton
-              tone="ghost"
-              size="sm"
-              withArrows={false}
-              onClick={(event) => { event.stopPropagation(); handleEdit(featuredQuest); }}
-              className="min-h-11 rounded-xl border border-border bg-muted px-3 text-sm font-semibold text-foreground transition-transform hover:scale-[1.015] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            >
-              Editar misión
-            </FlowButton>
-          )}
-          actionLabel={featuredQuest.status === 'ACTIVE' ? 'Completar misión' : 'Ver detalle'}
-          onAction={() => {
-            if (featuredQuest.status === 'ACTIVE') void handleComplete(featuredQuest);
-            else setSelectedQuest(featuredQuest);
-          }}
-          accent="var(--accent-gold)"
-        />
-      )}
-
-      <section className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]">
-        <header className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3">
-          <div>
-            <h2 className="text-sm font-semibold text-[var(--text-primary)]">{sectionTitle}</h2>
-            <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
-              {loading ? 'Cargando…' : `${displayQuests.length} ${displayQuests.length === 1 ? 'misión' : 'misiones'}`}
-            </p>
-          </div>
-          {!loading && activeQuests.length > 0 && activeTab !== 'COMPLETED' && (
-            <span className="rounded-full bg-[var(--accent-gold)]/10 px-2.5 py-1 text-xs font-medium text-[var(--accent-gold)]">
-              {activeQuests.length} activas
-            </span>
-          )}
-        </header>
-
-        {loading ? (
-          <div className="p-4"><SkeletonList count={4} /></div>
-        ) : displayQuests.length === 0 ? (
-          <div className="flex flex-col items-center px-5 py-14 text-center">
-            <span className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--bg-panel-light)] text-[var(--accent-gold)]">
-              <ClipboardList size={20} strokeWidth={1.8} aria-hidden="true" />
-            </span>
-            <h3 className="text-sm font-semibold text-[var(--text-primary)]">Aún no hay misiones aquí</h3>
-            <p className="mt-1 max-w-sm text-sm leading-6 text-[var(--text-secondary)]">
-              Crea una tarea, proyecto o meta para darle una fecha y seguir su avance.
-            </p>
-            <FlowButton
-              tone="primary"
-              size="sm"
-              withArrows={false}
-              onClick={() => { setEditingQuest(null); setShowWizard(true); }}
-              className="mt-5 gap-1.5"
-            >
-              <Plus size={14} strokeWidth={2} aria-hidden="true" />
-              Nueva misión
-            </FlowButton>
-          </div>
-        ) : remainingDisplayQuests.length === 0 ? (
-          <div className="px-5 py-8 text-center text-sm text-[var(--text-secondary)]">
-            La misión destacada está lista arriba para revisar o completar.
-          </div>
+      <motion.div variants={item} className="flex flex-col gap-6 md:gap-12">
+        {loading ? <QuestsSkeleton /> : failed ? (
+          <ErrorState title="No pudimos cargar tus misiones" onRetry={() => void load()} />
         ) : (
-          <AnimatePresence initial={false} mode="popLayout">
-            <motion.div layout className="divide-y divide-[var(--border)]">
-              {remainingDisplayQuests.map((quest, index) => (
-                <motion.div
-                  key={quest.id}
-                  layout="position"
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -5 }}
-                  transition={{
-                    type: 'spring',
-                    stiffness: 360,
-                    damping: 31,
-                    mass: 0.65,
-                    delay: Math.min(index * 0.035, 0.18),
-                  }}
+          <>
+            {featured && (
+              <Card
+                as="section"
+                variant="elevated"
+                padding="none"
+                aria-label="Misión destacada"
+                className="hidden flex-wrap items-center gap-8 border-primary/35 p-8 md:flex"
+              >
+                <ProgressRing value={questProgress(featured).pct} tone={isReady(featured) ? 'success' : 'primary'} size={148} stroke={12} label="Progreso" valueText={questProgress(featured).text}>
+                  <IconChip icon={isReady(featured) ? CheckCircle2 : Flag} tone={isReady(featured) ? 'success' : 'primary'} className="size-20 rounded-full animate-halo motion-reduce:animate-none" />
+                </ProgressRing>
+                <div className="flex min-w-0 flex-[1_1_320px] flex-col gap-3">
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant={categoryMeta(featured.category).tone}>{categoryMeta(featured.category).label}</Badge>
+                    {isReady(featured)
+                      ? <Badge variant="success" icon={CheckCircle2}>Lista para completar</Badge>
+                      : <Badge variant="primary">La más avanzada</Badge>}
+                  </div>
+                  <h2 className="text-display-sm">{featured.title}</h2>
+                  <p className="text-body-md text-on-surface-light">{questProgress(featured).text}{featured.description ? ` · ${featured.description}` : ''}</p>
+                </div>
+                <div className="flex flex-col items-end gap-3">
+                  <span className="flex items-center gap-1 text-display-md text-primary-text tabular-nums">
+                    <Sparkles aria-hidden className="size-7" strokeWidth={1.75} />+{featured.xpReward} XP
+                  </span>
+                  <div className="flex gap-2">
+                    <Button variant="secondary" size="md" onClick={() => setDetailId(featured.id)}>Ver detalle</Button>
+                    <Button size="md" onClick={() => setCompleting(featured)}><CheckCircle2 aria-hidden className="size-5" strokeWidth={1.75} />Completar misión</Button>
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            <section className="flex flex-col gap-4 md:gap-6" aria-labelledby="quest-list-title">
+              <h2 id="quest-list-title" className="hidden text-heading-lg md:block">{listTitle}</h2>
+              {(featured ? [featured, ...list] : list).length > 0 ? (
+                <motion.ul
+                  key={`${tab}-${type}`}
+                  variants={stagger}
+                  initial="initial"
+                  animate="animate"
+                  className="grid gap-4 md:grid-cols-[repeat(auto-fill,minmax(300px,1fr))] md:gap-6"
                 >
-                  <QuestCard quest={quest} onComplete={handleComplete} onClick={setSelectedQuest} />
-                </motion.div>
-              ))}
-            </motion.div>
-          </AnimatePresence>
+                  {/* En móvil la destacada va como una tarjeta más (no hay hero). */}
+                  {featured && (
+                    <QuestCard className="md:hidden" quest={featured} onOpen={() => setDetailId(featured.id)} onComplete={() => setCompleting(featured)} />
+                  )}
+                  {list.map((q) => (
+                    <QuestCard key={q.id} quest={q} onOpen={() => setDetailId(q.id)} onComplete={() => setCompleting(q)} />
+                  ))}
+                </motion.ul>
+              ) : (
+                <EmptyState
+                  icon={tab === 'done' ? CheckCircle2 : Flag}
+                  tone={tab === 'done' ? 'muted' : 'primary'}
+                  title={search || type ? 'Sin resultados' : tab === 'done' ? 'Aún no completas misiones' : 'Sin misiones disponibles'}
+                  description={search || type ? 'Prueba con otra búsqueda o tipo.' : 'Crea una misión para tus objetivos más grandes.'}
+                  action={!(search || type) && tab !== 'done'
+                    ? <Button onClick={() => setForm({ open: true, quest: null })}><Plus aria-hidden className="size-4" strokeWidth={2} />Nueva misión</Button>
+                    : undefined}
+                  className="py-12 md:py-16"
+                />
+              )}
+            </section>
+          </>
         )}
-      </section>
+      </motion.div>
 
-      <AnimatePresence>
-        {selectedQuest && (
-          <QuestModal
-            quest={selectedQuest}
-            onClose={() => setSelectedQuest(null)}
-            onComplete={(quest) => { void handleComplete(quest); }}
-            onEdit={handleEdit}
-            onArchive={(quest) => { void handleArchive(quest); }}
-            onFail={(quest) => { void handleFail(quest); }}
-            onQuestUpdated={handleQuestUpdated}
-          />
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showWizard && (
-          <QuestWizard
-            onSubmit={handleWizardSubmit}
-            onClose={() => { setShowWizard(false); setEditingQuest(null); }}
-            initialData={editingQuest ? {
-              type: editingQuest.type,
-              title: editingQuest.title,
-              description: editingQuest.description ?? '',
-              category: editingQuest.category,
-              difficulty: editingQuest.difficulty,
-              deadline: editingQuest.deadline?.split('T')[0] ?? '',
-              subObjectives: (editingQuest.subObjectives as Array<{ title: string }>).map((sub) => sub.title),
-            } : undefined}
-          />
-        )}
-      </AnimatePresence>
-    </div>
+      <QuestDetailDialog
+        quest={detail}
+        onClose={() => setDetailId(null)}
+        onChange={patch}
+        onComplete={(q) => { setDetailId(null); setCompleting(q); }}
+        onEdit={(q) => { setDetailId(null); setForm({ open: true, quest: q }); }}
+        onFail={(q) => void handleFail(q)}
+        onArchive={(q) => void handleArchive(q)}
+      />
+      <CompleteQuestDialog
+        quest={completing}
+        onClose={() => setCompleting(null)}
+        onCompleted={(q) => patch({ ...q, status: 'COMPLETED', completedAt: new Date().toISOString() })}
+      />
+      <QuestFormDialog open={form.open} quest={form.quest} onClose={() => setForm({ open: false, quest: null })} onSubmit={handleSubmit} />
+    </motion.div>
   );
 }

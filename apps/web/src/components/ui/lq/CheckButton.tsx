@@ -8,18 +8,22 @@ export interface CheckButtonProps {
   /** Nombre del hábito: genera "Completar X" / "Desmarcar X". */
   name: string;
   disabled?: boolean;
+  /** Marcado y sin vuelta atrás (p. ej. la API no permite desmarcar): no reacciona y lo anuncia. */
+  locked?: boolean;
   className?: string;
 }
 
 /** Check de hábito 48 px: aria-pressed, gira 360° y se rellena de success. */
-export function CheckButton({ checked, onToggle, name, disabled, className }: CheckButtonProps) {
+export function CheckButton({ checked, onToggle, name, disabled, locked, className }: CheckButtonProps) {
+  const isLocked = checked && locked;
   return (
     <motion.button
       type="button"
       aria-pressed={checked}
-      aria-label={`${checked ? 'Desmarcar' : 'Completar'} ${name}`}
+      aria-label={isLocked ? `${name}: completado hoy` : `${checked ? 'Desmarcar' : 'Completar'} ${name}`}
+      aria-disabled={isLocked || undefined}
       disabled={disabled}
-      onClick={onToggle}
+      onClick={isLocked ? undefined : onToggle}
       animate={{ rotate: checked ? 360 : 0 }}
       transition={{ duration: 0.2 }}
       className={cn(
@@ -27,6 +31,7 @@ export function CheckButton({ checked, onToggle, name, disabled, className }: Ch
         checked
           ? 'border-success bg-success text-on-primary'
           : 'border-border-strong bg-transparent text-transparent hover:border-success',
+        isLocked && 'cursor-default',
         className,
       )}
     >

@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { useReducedMotion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { solidBg, type Tone } from './tones';
@@ -17,7 +18,7 @@ export interface ConfettiProps {
 export function Confetti({ burst = 0, pieces = 24, position = 'fixed', className }: ConfettiProps) {
   const reduce = useReducedMotion();
   if (reduce) return null;
-  return (
+  const node = (
     <div key={burst} aria-hidden className={cn('pointer-events-none inset-0 z-[70] overflow-hidden', position, className)}>
       {Array.from({ length: pieces }, (_, i) => (
         <i
@@ -28,4 +29,7 @@ export function Confetti({ burst = 0, pieces = 24, position = 'fixed', className
       ))}
     </div>
   );
+  // fixed va en un portal: un ancestro con transform (transiciones de ruta)
+  // lo dejaría por debajo de los diálogos.
+  return position === 'fixed' ? createPortal(node, document.body) : node;
 }

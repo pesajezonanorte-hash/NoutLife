@@ -80,7 +80,7 @@ export function Modal({ open, onClose, title, hideClose, dismissible = true, cla
             ref={panelRef}
             role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}
             variants={dialog}
-            className={cn('flex w-full max-w-[440px] flex-col gap-4 rounded-3xl bg-background p-6 text-on-background shadow-lg outline-none', className)}
+            className={cn('flex max-h-[calc(100dvh-2rem)] w-full max-w-[440px] flex-col gap-4 overflow-y-auto rounded-3xl bg-background p-6 text-on-background shadow-lg outline-none', className)}
           >
             <div className="flex items-start justify-between gap-4">
               <h2 id={titleId} className="text-heading-md">{title}</h2>
