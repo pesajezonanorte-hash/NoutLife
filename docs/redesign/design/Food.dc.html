@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Food</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./lq.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#4f46e5}a:hover{color:#4338ca}
+</style>
+</helmet>
+<div class="lq screen {{theme}}" style="width: 375px; height: 1300px">
+  <header class="hdr" style="padding: 0 8px">
+    <a class="btn btn-icon" href="Dashboard.dc.html" aria-label="Volver"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"></path></svg></a>
+    <span class="t-bs c-3" style="padding-right: 8px">Hoy · 2 oct</span>
+  </header>
+  <main class="enter" style="display: flex; flex-direction: column; gap: 24px; padding: 0 16px 128px">
+    <h1 class="t-ds">Comida</h1>
+
+    <section class="card card-elevated card-lg" style="display: flex; flex-direction: column; gap: 16px" aria-label="Resumen nutricional">
+      <div>
+        <span class="t-bs c-3">Calorías</span>
+        <div class="row" style="gap: 8px; align-items: baseline"><span class="t-dm num">1.450</span><span class="t-bm c-3 num">/ 2.100 kcal</span></div>
+      </div>
+      <sc-for list="{{macros}}" as="m" hint-placeholder-count="3">
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <div class="row" style="justify-content: space-between"><span class="row t-ll" style="gap: 8px"><span style="width: 10px; height: 10px; border-radius: 3px; background: {{m.color}}"></span>{{m.name}}</span><span class="t-bs c-2 num">{{m.cur}} / {{m.max}} g</span></div>
+          <div class="bar {{m.cls}}" role="progressbar" aria-label="{{m.name}}" aria-valuenow="{{m.pct}}" aria-valuemin="0" aria-valuemax="100"><span style="width: {{m.pct}}%"></span></div>
+        </div>
+      </sc-for>
+    </section>
+
+    <button class="btn btn-primary btn-block" style="min-height: 56px; font-size: 16px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"></path><circle cx="12" cy="12" r="3"></circle></svg>Analizar comida</button>
+
+    <section style="display: flex; flex-direction: column; gap: 16px">
+      <h2 class="t-hs">Comidas de hoy</h2>
+      <ol style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column">
+        <sc-for list="{{meals}}" as="m" hint-placeholder-count="4">
+          <li style="display: grid; grid-template-columns: 56px 24px minmax(0, 1fr); column-gap: 8px">
+            <span class="t-bs c-3 num" style="padding-top: 14px">{{m.time}}</span>
+            <div style="display: flex; flex-direction: column; align-items: center">
+              <span style="width: 12px; height: 12px; margin-top: 18px; border-radius: 50%; background: {{m.dot}}; border: 2px solid {{m.dotBorder}}"></span>
+              <span style="flex: 1; width: 2px; background: var(--border); display: {{m.line}}"></span>
+            </div>
+            <div class="card" style="margin-bottom: 12px; display: flex; flex-direction: column; gap: 4px; padding: 12px 16px; border-style: {{m.bs}}; background: {{m.bg}}">
+              <div class="row" style="justify-content: space-between; gap: 8px"><span class="t-lm c-3">{{m.kind}}</span><span class="t-bs c-2 num">{{m.kcal}}</span></div>
+              <span class="t-ll {{m.nameCls}}" style="font-size: 16px">{{m.name}}</span>
+            </div>
+          </li>
+        </sc-for>
+      </ol>
+    </section>
+
+    <section style="display: flex; flex-direction: column; gap: 16px">
+      <div class="row" style="justify-content: space-between"><h2 class="t-hs">Guardadas</h2><a class="link" href="#">Ver historial</a></div>
+      <ul class="list" style="list-style: none; margin: 0; padding: 0">
+        <sc-for list="{{saved}}" as="s" hint-placeholder-count="3">
+          <li class="card row" style="gap: 12px; padding: 8px 8px 8px 16px">
+            <div style="flex: 1; min-width: 0"><div class="t-ll" style="font-size: 16px">{{s.name}}</div><div class="t-bs c-3 num">{{s.meta}}</div></div>
+            <button class="btn btn-secondary btn-md" style="padding: 10px 14px" aria-label="Añadir {{s.name}} a hoy"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Añadir</button>
+          </li>
+        </sc-for>
+      </ul>
+    </section>
+  </main>
+  <nav class="tabbar" aria-label="Principal">
+    <a href="Dashboard.dc.html" class="on" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"></path></svg>Inicio</a>
+    <a href="Habits.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m8.5 12 2.5 2.5 4.5-5"></path></svg>Hábitos</a>
+    <a href="Quests.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 22V4"></path><path d="M5 4h12l-2.5 4L17 12H5"></path></svg>Misiones</a>
+    <a href="Colosseum.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 17.5 21 6V3h-3L6.5 14.5M11 19l-6-6M8 16l-4 4M5 21l-2-2"></path></svg>Coliseo</a>
+    <a href="Profile.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg>Perfil</a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":375,"height":1300}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const macros = [
+      ['Proteína',92,140,'','var(--primary)'],
+      ['Carbohidratos',160,250,'warning','var(--warning)'],
+      ['Grasas',48,70,'secondary','var(--secondary)'],
+    ].map(([name,cur,max,cls,color]) => ({ name, cur, max, cls, color, pct: Math.round(cur / max * 100) }));
+    const meals = [
+      ['08:10','Desayuno','Avena con fruta y nueces','420 kcal',1],
+      ['13:30','Almuerzo','Pollo, arroz integral y ensalada','680 kcal',1],
+      ['17:00','Merienda','Yogur griego con miel','350 kcal',1],
+      ['20:30','Cena','Sin registrar','—',0],
+    ].map(([time,kind,name,kcal,ok], i, arr) => ({ time, kind, name, kcal,
+      dot: ok ? 'var(--success)' : 'var(--bg)', dotBorder: ok ? 'var(--success)' : 'var(--border-strong)',
+      line: i < arr.length - 1 ? 'block' : 'none',
+      bs: ok ? 'solid' : 'dashed', bg: ok ? 'var(--surface)' : 'transparent',
+      nameCls: ok ? 'c-1' : 'c-3' }));
+    const saved = [
+      ['Bowl de quinoa','510 kcal · P 28 g'],
+      ['Batido post-entreno','320 kcal · P 32 g'],
+      ['Tostadas con aguacate','390 kcal · P 12 g'],
+    ].map(([name,meta]) => ({ name, meta }));
+    return { theme: (this.props.dark ?? false) ? 'dark' : '', macros, meals, saved };
+  }
+}
+</script>
+</body>
+</html>

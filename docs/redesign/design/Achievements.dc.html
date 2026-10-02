@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Achievements</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./lq.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#4f46e5}a:hover{color:#4338ca}
+</style>
+</helmet>
+<div class="lq screen {{theme}}" style="width: 375px; height: 1240px">
+  <header class="hdr" style="padding: 0 8px">
+    <a class="btn btn-icon" href="Dashboard.dc.html" aria-label="Volver"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"></path></svg></a>
+    <span></span>
+  </header>
+  <main class="enter" style="display: flex; flex-direction: column; gap: 24px; padding: 0 16px 128px">
+    <div style="display: flex; flex-direction: column; gap: 12px">
+      <h1 class="t-ds">Logros</h1>
+      <div class="row" style="justify-content: space-between"><span class="t-bm c-2"><b class="num">4</b> de 8 desbloqueados</span><span class="t-bs c-3 num">50%</span></div>
+      <div class="bar" aria-hidden="true"><span style="width: 50%"></span></div>
+    </div>
+    <div class="seg" role="tablist" aria-label="Filtro">
+      <sc-for list="{{filters}}" as="f" hint-placeholder-count="3">
+        <button class="{{f.cls}}" role="tab" aria-selected="{{f.sel}}" onClick="{{f.pick}}">{{f.label}}</button>
+      </sc-for>
+    </div>
+    <ul style="list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px">
+      <sc-for list="{{items}}" as="a" hint-placeholder-count="8">
+        <li class="card card-hover" style="display: flex; flex-direction: column; gap: 12px; opacity: {{a.op}}" tabindex="0" aria-label="{{a.aria}}">
+          <div class="row" style="justify-content: space-between; align-items: flex-start">
+            <div class="ichip {{a.tone}}" style="width: 56px; height: 56px; border-radius: 16px"><svg class="i i32" viewBox="0 0 24 24" aria-hidden="true"><path d="{{a.icon}}"></path></svg></div>
+            <sc-if value="{{a.locked}}" hint-placeholder-val="{{ false }}"><svg class="i i16 c-3" viewBox="0 0 24 24" aria-label="Bloqueado"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg></sc-if>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 2px">
+            <span class="t-ll" style="font-size: 16px">{{a.name}}</span>
+            <span class="t-bs c-3">{{a.desc}}</span>
+          </div>
+          <div class="bar {{a.barCls}}" aria-hidden="true"><span style="width: {{a.pct}}%"></span></div>
+          <span class="t-bs {{a.metaCls}} num">{{a.meta}}</span>
+        </li>
+      </sc-for>
+    </ul>
+  </main>
+  <nav class="tabbar" aria-label="Principal">
+    <a href="Dashboard.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"></path></svg>Inicio</a>
+    <a href="Habits.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m8.5 12 2.5 2.5 4.5-5"></path></svg>Hábitos</a>
+    <a href="Quests.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 22V4"></path><path d="M5 4h12l-2.5 4L17 12H5"></path></svg>Misiones</a>
+    <a href="Colosseum.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 17.5 21 6V3h-3L6.5 14.5M11 19l-6-6M8 16l-4 4M5 21l-2-2"></path></svg>Coliseo</a>
+    <a href="Profile.dc.html" class="on" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg>Perfil</a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":375,"height":1240}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { filter: 'all' }; }
+  renderVals() {
+    const I = {
+      flame: 'M12 22c4 0 7-3 7-7 0-4-3-6-4-9-1 2-2 3-4 3 0-2-1-4-2-5-1 4-4 6-4 11 0 4 3 7 7 7z',
+      trophy: 'M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3',
+      book: 'M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z',
+      star: 'm12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z',
+      wallet: 'M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 10h18M16 15h2',
+      moon: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
+      swords: 'M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M9.5 17.5 21 6V3h-3L6.5 14.5M11 19l-6-6M8 16l-4 4',
+      flag: 'M5 22V4M5 4h12l-2.5 4L17 12H5',
+    };
+    const data = [
+      ['Primera chispa','Completa tu primer hábito','flame','warning',1,1,'12 ago'],
+      ['Semana de hierro','Racha de 7 días','flame','warning',7,7,'19 ago'],
+      ['Ratón de biblioteca','Lee 30 días','book','primary',30,30,'11 sep'],
+      ['Gladiador','Gana 10 duelos','swords','error',18,10,'25 sep'],
+      ['Mes imparable','Racha de 30 días','star','secondary',14,30,null],
+      ['Ahorrador','Ahorra $1.000','wallet','info',640,1000,null],
+      ['Buen descanso','7 noches de 7 h+','moon','secondary',4,7,null],
+      ['Héroe de misiones','Completa 50 misiones','flag','primary',34,50,null],
+    ];
+    const f = this.state.filter;
+    const items = data.map(([name,desc,icon,tone,cur,max,date]) => {
+      const unlocked = !!date;
+      const pct = Math.min(100, Math.round(cur / max * 100));
+      return { name, desc, icon: I[icon], pct, locked: !unlocked,
+        tone: unlocked ? tone : 'muted', op: unlocked ? 1 : 0.85,
+        barCls: unlocked ? 'success' : '',
+        meta: unlocked ? `Desbloqueado · ${date}` : `${pct}% · ${cur}/${max}`,
+        metaCls: unlocked ? 'c-success' : 'c-3',
+        aria: `${name}. ${desc}. ${unlocked ? 'Desbloqueado el ' + date : 'Bloqueado, ' + pct + '%'}` };
+    }).filter(a => f === 'all' || (f === 'on' ? !a.locked : a.locked));
+    const filters = [['all','Todos'],['on','Obtenidos'],['off','Bloqueados']].map(([id,label]) => ({
+      label, cls: f === id ? 'on' : '', sel: f === id ? 'true' : 'false', pick: () => this.setState({ filter: id }) }));
+    return { theme: (this.props.dark ?? false) ? 'dark' : '', items, filters };
+  }
+}
+</script>
+</body>
+</html>
