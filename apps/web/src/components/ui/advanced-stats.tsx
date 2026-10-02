@@ -103,7 +103,9 @@ function formatNumber(value: number) {
 
 function signedPercent(value?: number) {
   if (value === undefined || value === null || value === 0) return null;
-  return `${value > 0 ? '+' : ''}${value}%`;
+  // Against a near-empty previous period the ratio is noise (+21845%); cap it.
+  if (value > 999) return '> +999%';
+  return `${value > 0 ? '+' : ''}${Math.round(value)}%`;
 }
 
 function changeVariant(value?: number): 'success' | 'destructive' | 'outline' {

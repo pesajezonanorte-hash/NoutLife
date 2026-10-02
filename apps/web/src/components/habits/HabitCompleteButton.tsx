@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { E } from '@/components/ui/glyphs';
 
 interface Props {
@@ -11,6 +11,7 @@ interface Props {
 export function HabitCompleteButton({ status, onLog, disabled }: Props) {
   const [loading, setLoading] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const reduceMotion = useReducedMotion();
 
   async function handleComplete() {
     if (status === 'completed' || disabled) return;
@@ -23,10 +24,10 @@ export function HabitCompleteButton({ status, onLog, disabled }: Props) {
   }
 
   function getButtonStyle() {
-    if (status === 'completed') return { bg: 'var(--accent-green)', label: '✓', pulse: false };
-    if (status === 'failed') return { bg: 'var(--accent-red)', label: '✗', pulse: false };
-    if (status === 'skipped') return { bg: 'color-mix(in oklab, var(--accent-gold) 28%, transparent)', label: '~', pulse: false };
-    return { bg: 'var(--bg-muted)', label: '?', pulse: true };
+    if (status === 'completed') return { bg: 'var(--accent-green)', label: '✓', pulse: false, a11y: 'Completado hoy' };
+    if (status === 'failed') return { bg: 'var(--accent-red)', label: '✗', pulse: false, a11y: 'Fallado hoy' };
+    if (status === 'skipped') return { bg: 'color-mix(in oklab, var(--accent-gold) 28%, transparent)', label: '~', pulse: false, a11y: 'Omitido hoy' };
+    return { bg: 'var(--bg-muted)', label: '?', pulse: true, a11y: 'Marcar como completado hoy' };
   }
 
   const btn = getButtonStyle();
@@ -36,7 +37,9 @@ export function HabitCompleteButton({ status, onLog, disabled }: Props) {
       <motion.button
         className="w-12 h-12 rounded-full border-2 border-border-pixel flex items-center justify-center font-vt text-2xl"
         style={{ backgroundColor: btn.bg }}
-        animate={btn.pulse ? { scale: [1, 1.08, 1] } : {}}
+        aria-label={loading ? 'Guardando…' : btn.a11y}
+        title={btn.a11y}
+        animate={btn.pulse && !reduceMotion ? { scale: [1, 1.08, 1] } : {}}
         transition={{ duration: 1.5, repeat: Infinity }}
         onClick={handleComplete}
         onContextMenu={(e) => { e.preventDefault(); setShowMenu(true); }}
@@ -45,6 +48,7 @@ export function HabitCompleteButton({ status, onLog, disabled }: Props) {
       >
         <AnimatePresence mode="wait">
           <motion.span
+            aria-hidden="true"
             key={status ?? 'empty'}
             initial={{ scale: 0.5, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
