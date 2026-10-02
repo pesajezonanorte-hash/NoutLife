@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.middleware';
 import type { AuthRequest } from '../middleware/auth.middleware';
 import { Response } from 'express';
+import { validate } from '../middleware/validate.middleware';
+import { createLearningSchema } from '../schemas/activity.schemas';
 import * as ctrl from '../controllers/learning.controller';
 import * as svc from '../services/learning.service';
 
@@ -9,7 +11,7 @@ const router = Router();
 router.use(requireAuth);
 
 router.get('/',        ctrl.listLearning);
-router.post('/',       ctrl.createLearning);
+router.post('/',       validate(createLearningSchema), ctrl.createLearning);
 router.patch('/:id',   ctrl.updateLearning);
 router.delete('/:id',  ctrl.deleteLearning);
 router.get('/stats',   ctrl.getLearningStats);
