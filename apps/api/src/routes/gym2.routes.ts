@@ -1,3 +1,4 @@
+import { publicErrorMessage } from '../middleware/error.middleware';
 import { Router } from 'express';
 import { requireAuth, AuthRequest } from '../middleware/auth.middleware';
 import {
@@ -19,10 +20,13 @@ router.use(requireAuth);
 router.post('/body-weight', async (req, res) => {
   try {
     const { weight, date, notes } = req.body;
-    const record = await logBodyWeight((req as AuthRequest).userId!, Number(weight), new Date(date), notes);
+    if (!(Number(weight) > 0)) { res.status(400).json({ message: 'El peso debe ser un número mayor que cero.' }); return; }
+    const when = date ? new Date(date) : new Date();
+    if (Number.isNaN(when.getTime())) { res.status(400).json({ message: 'La fecha no es válida.' }); return; }
+    const record = await logBodyWeight((req as AuthRequest).userId!, Number(weight), when, notes);
     res.status(201).json(record);
   } catch (err: any) {
-    res.status(400).json({ message: err.message });
+    res.status(400).json({ message: publicErrorMessage(err) });
   }
 });
 
@@ -32,7 +36,7 @@ router.get('/body-weight', async (req, res) => {
     const records = await getBodyWeights((req as AuthRequest).userId!, from ? new Date(from) : undefined, to ? new Date(to) : undefined);
     res.json(records);
   } catch (err: any) {
-    res.status(400).json({ message: err.message });
+    res.status(400).json({ message: publicErrorMessage(err) });
   }
 });
 
@@ -41,7 +45,7 @@ router.delete('/body-weight/:id', async (req, res) => {
     await deleteBodyWeight((req as AuthRequest).userId!, req.params.id);
     res.json({ success: true });
   } catch (err: any) {
-    res.status(400).json({ message: err.message });
+    res.status(400).json({ message: publicErrorMessage(err) });
   }
 });
 
@@ -52,7 +56,7 @@ router.post('/progress-photos', async (req, res) => {
     const record = await saveProgressPhoto((req as AuthRequest).userId!, photoData, new Date(date), notes);
     res.status(201).json({ ...record, photoData: undefined });
   } catch (err: any) {
-    res.status(400).json({ message: err.message });
+    res.status(400).json({ message: publicErrorMessage(err) });
   }
 });
 
@@ -61,7 +65,7 @@ router.get('/progress-photos', async (req, res) => {
     const photos = await getProgressPhotos((req as AuthRequest).userId!);
     res.json(photos);
   } catch (err: any) {
-    res.status(400).json({ message: err.message });
+    res.status(400).json({ message: publicErrorMessage(err) });
   }
 });
 
@@ -70,7 +74,7 @@ router.delete('/progress-photos/:id', async (req, res) => {
     await deleteProgressPhoto((req as AuthRequest).userId!, req.params.id);
     res.json({ success: true });
   } catch (err: any) {
-    res.status(400).json({ message: err.message });
+    res.status(400).json({ message: publicErrorMessage(err) });
   }
 });
 
@@ -80,7 +84,7 @@ router.get('/exercises/:exerciseId/history', async (req, res) => {
     const history = await getExerciseHistory((req as AuthRequest).userId!, req.params.exerciseId);
     res.json(history);
   } catch (err: any) {
-    res.status(400).json({ message: err.message });
+    res.status(400).json({ message: publicErrorMessage(err) });
   }
 });
 
@@ -90,7 +94,7 @@ router.get('/volume-weekly', async (req, res) => {
     const volume = await getWeeklyVolume((req as AuthRequest).userId!);
     res.json(volume);
   } catch (err: any) {
-    res.status(400).json({ message: err.message });
+    res.status(400).json({ message: publicErrorMessage(err) });
   }
 });
 

@@ -1,3 +1,4 @@
+import { publicErrorMessage } from '../middleware/error.middleware';
 import { Response } from 'express';
 import type { AuthRequest } from '../middleware/auth.middleware';
 import {
@@ -19,7 +20,7 @@ export async function chat(req: AuthRequest, res: Response): Promise<void> {
     res.json({ reply });
   } catch (error) {
     console.error('[Sage controller] chat error:', error);
-    res.status(500).json({ error: 'sage_error', message: error instanceof Error ? error.message : 'Error desconocido' });
+    res.status(500).json({ error: 'sage_error', message: publicErrorMessage(error) });
   }
 }
 
@@ -34,7 +35,7 @@ export async function suggestQuests(req: AuthRequest, res: Response): Promise<vo
     }
   } catch (error) {
     console.error('[Sage controller] suggestQuests error:', error);
-    res.status(500).json({ error: 'sage_error', message: error instanceof Error ? error.message : 'Error desconocido' });
+    res.status(500).json({ error: 'sage_error', message: publicErrorMessage(error) });
   }
 }
 
@@ -44,7 +45,7 @@ export async function analyzeHabits(req: AuthRequest, res: Response): Promise<vo
     res.json({ reply });
   } catch (error) {
     console.error('[Sage controller] analyzeHabits error:', error);
-    res.status(500).json({ error: 'sage_error', message: error instanceof Error ? error.message : 'Error desconocido' });
+    res.status(500).json({ error: 'sage_error', message: publicErrorMessage(error) });
   }
 }
 
@@ -54,7 +55,7 @@ export async function analyzeFinances(req: AuthRequest, res: Response): Promise<
     res.json({ reply });
   } catch (error) {
     console.error('[Sage controller] analyzeFinances error:', error);
-    res.status(500).json({ error: 'sage_error', message: error instanceof Error ? error.message : 'Error desconocido' });
+    res.status(500).json({ error: 'sage_error', message: publicErrorMessage(error) });
   }
 }
 
@@ -64,7 +65,7 @@ export async function planWorkout(req: AuthRequest, res: Response): Promise<void
     res.json({ reply });
   } catch (error) {
     console.error('[Sage controller] planWorkout error:', error);
-    res.status(500).json({ error: 'sage_error', message: error instanceof Error ? error.message : 'Error desconocido' });
+    res.status(500).json({ error: 'sage_error', message: publicErrorMessage(error) });
   }
 }
 
@@ -74,7 +75,7 @@ export async function dailySummary(req: AuthRequest, res: Response): Promise<voi
     res.json({ reply });
   } catch (error) {
     console.error('[Sage controller] dailySummary error:', error);
-    res.status(500).json({ error: 'sage_error', message: error instanceof Error ? error.message : 'Error desconocido' });
+    res.status(500).json({ error: 'sage_error', message: publicErrorMessage(error) });
   }
 }
 
@@ -94,6 +95,6 @@ export async function rateInfo(req: AuthRequest, res: Response): Promise<void> {
     res.json(info);
   } catch (error) {
     console.error('[Sage controller] rateInfo error:', error);
-    res.status(500).json({ error: 'sage_error', message: error instanceof Error ? error.message : 'Error desconocido' });
+    res.status(500).json({ error: 'sage_error', message: publicErrorMessage(error) });
   }
 }

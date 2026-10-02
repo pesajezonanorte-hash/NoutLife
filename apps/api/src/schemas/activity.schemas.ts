@@ -78,3 +78,19 @@ export const createLearningSchema = z.object({
   totalProgress: nonNegative('El progreso total').optional(),
   notes: z.string().max(5000).optional(),
 });
+
+export const updateProfileSchema = z.object({
+  displayName: z.string().trim().min(1, 'El nombre no puede estar vacío.').max(50).optional(),
+  timezone: z.string().min(1).optional(),
+  currency: z.string().min(1).optional(),
+  language: z.string().min(1).optional(),
+  gymPlaylistUrl: z.string().nullable().optional(),
+  avatarUrl: z.string().nullable().optional(),
+});
+
+export const importantDateSchema = z.object({
+  label: z.string().trim().min(1, 'El nombre de la fecha es obligatorio.').max(100),
+  date: parsableDate,
+  isRecurring: z.boolean().optional(),
+  emoji: z.string().max(50).optional(),
+});

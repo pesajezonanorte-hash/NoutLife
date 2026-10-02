@@ -38,3 +38,16 @@ test('journal, workouts and learning reject empty input', () => {
   assert.ok(ok(createLearningSchema, { type: 'BOOK', title: 'Atomic Habits', totalProgress: 320 }));
   assert.ok(!ok(createLearningSchema, {}));
 });
+
+test('profile and important dates reject empty names', async () => {
+  const { updateProfileSchema, importantDateSchema } = await import('../src/schemas/activity.schemas');
+  const { createQuestSchema } = await import('../src/schemas/quest.schemas');
+  assert.ok(ok(updateProfileSchema, { displayName: 'Miguel', avatarUrl: null }));
+  assert.ok(!ok(updateProfileSchema, { displayName: '  ' }));
+  assert.ok(ok(importantDateSchema, { label: 'Aniversario', date: '2026-11-14' }));
+  assert.ok(!ok(importantDateSchema, { date: '2026-11-14' }));
+  const quest = { title: 'Q', type: 'SIDE', difficulty: 'EASY', category: 'PERSONAL' };
+  assert.ok(ok(createQuestSchema, { ...quest, deadline: '' }));
+  assert.ok(ok(createQuestSchema, { ...quest, deadline: '2026-10-10' }));
+  assert.ok(!ok(createQuestSchema, { ...quest, deadline: 'mañana' }));
+});
