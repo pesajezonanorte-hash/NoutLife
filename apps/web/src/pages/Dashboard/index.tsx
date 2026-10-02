@@ -685,9 +685,10 @@ export default function DashboardPage() {
   }
 
   const visualState = dashData?.visualState;
-  const visualHpValue = Math.round(
-    (user.maxHp * (visualState?.hpPercent ?? 100)) / 100,
-  );
+  // Without /dashboard data, show the real HP rather than assuming a full bar.
+  const visualHpValue = visualState
+    ? Math.round((user.maxHp * visualState.hpPercent) / 100)
+    : user.hp;
   const statBars = [
     {
       label: "HP",
@@ -918,7 +919,7 @@ export default function DashboardPage() {
               {user.currentStreak > 0 && (
                 <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--accent-red)]">
                   <Flame size={14} />
-                  {user.currentStreak} días de racha
+                  {user.currentStreak} {user.currentStreak === 1 ? 'día' : 'días'} de racha
                 </span>
               )}
             </div>
@@ -1077,7 +1078,7 @@ export default function DashboardPage() {
               <LifeQuestFlipCard
                 eyebrow="Mejor racha actual"
                 title={topHabit.title}
-                description={`${topHabit.currentStreak} días de constancia en tu aventura.`}
+                description={`${topHabit.currentStreak} ${topHabit.currentStreak === 1 ? "día" : "días"} de constancia en tu aventura.`}
                 visual={
                   <div className="flex items-end gap-3" aria-hidden="true">
                     <span className="flex h-16 w-16 items-center justify-center rounded-2xl border border-border bg-card text-[var(--accent-gold)]">
@@ -1093,7 +1094,7 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 }
-                visualLabel={`Racha de ${topHabit.currentStreak} días`}
+                visualLabel={`Racha de ${topHabit.currentStreak} ${topHabit.currentStreak === 1 ? "día" : "días"}`}
                 badge={topHabit.todayCompleted ? "Hoy completado" : "En curso"}
                 frontFooter={
                   <p className="text-xs font-medium [color:var(--flip-accent)]">
@@ -1107,7 +1108,7 @@ export default function DashboardPage() {
                   </p>
                 }
                 metrics={[
-                  { label: "Racha", value: `${topHabit.currentStreak} días` },
+                  { label: "Racha", value: `${topHabit.currentStreak} ${topHabit.currentStreak === 1 ? "día" : "días"}` },
                   { label: "Recompensa", value: `+${topHabit.xpReward} XP` },
                   {
                     label: "Hoy",

@@ -1,12 +1,14 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.middleware';
+import { validate } from '../middleware/validate.middleware';
+import { createWorkoutSchema } from '../schemas/activity.schemas';
 import * as ctrl from '../controllers/workout.controller';
 
 const router = Router();
 router.use(requireAuth);
 
 router.get('/',              ctrl.listWorkouts);
-router.post('/',             ctrl.createWorkout);
+router.post('/',             validate(createWorkoutSchema), ctrl.createWorkout);
 router.get('/attendance',    ctrl.listAttendances);
 router.post('/attendance',   ctrl.recordAttendance);
 router.get('/:id',           ctrl.getWorkout);

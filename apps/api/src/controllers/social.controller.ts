@@ -1,3 +1,4 @@
+import { publicErrorMessage } from '../middleware/error.middleware';
 import { Response } from 'express';
 import type { AuthRequest } from '../middleware/auth.middleware';
 import * as social from '../services/social.service';
@@ -10,7 +11,7 @@ export async function sendFriendRequest(req: AuthRequest, res: Response): Promis
   try {
     const result = await social.sendFriendRequest(req.userId!, identifier.trim());
     res.status(201).json(result);
-  } catch (e: unknown) { res.status(400).json({ error: (e as Error).message }); }
+  } catch (e: unknown) { res.status(400).json({ error: publicErrorMessage(e) }); }
 }
 
 export async function respondRequest(req: AuthRequest, res: Response): Promise<void> {
@@ -19,7 +20,7 @@ export async function respondRequest(req: AuthRequest, res: Response): Promise<v
   try {
     const result = await social.respondFriendRequest(req.userId!, req.params.id, accept);
     res.json(result);
-  } catch (e: unknown) { res.status(400).json({ error: (e as Error).message }); }
+  } catch (e: unknown) { res.status(400).json({ error: publicErrorMessage(e) }); }
 }
 
 export async function listFriends(req: AuthRequest, res: Response): Promise<void> {
@@ -36,14 +37,14 @@ export async function removeFriend(req: AuthRequest, res: Response): Promise<voi
   try {
     await social.removeFriend(req.userId!, req.params.id);
     res.status(204).send();
-  } catch (e: unknown) { res.status(400).json({ error: (e as Error).message }); }
+  } catch (e: unknown) { res.status(400).json({ error: publicErrorMessage(e) }); }
 }
 
 export async function publicProfile(req: AuthRequest, res: Response): Promise<void> {
   try {
     const profile = await social.getPublicProfile(req.params.username, req.userId);
     res.json(profile);
-  } catch (e: unknown) { res.status(404).json({ error: (e as Error).message }); }
+  } catch (e: unknown) { res.status(404).json({ error: publicErrorMessage(e) }); }
 }
 
 // ─── Leaderboard ──────────────────────────────────────────────────────────────
@@ -68,14 +69,14 @@ export async function createChallenge(req: AuthRequest, res: Response): Promise<
   try {
     const c = await social.createChallenge(req.userId!, req.body);
     res.status(201).json(c);
-  } catch (e: unknown) { res.status(400).json({ error: (e as Error).message }); }
+  } catch (e: unknown) { res.status(400).json({ error: publicErrorMessage(e) }); }
 }
 
 export async function joinChallenge(req: AuthRequest, res: Response): Promise<void> {
   try {
     const result = await social.joinChallenge(req.userId!, req.params.id);
     res.status(201).json(result);
-  } catch (e: unknown) { res.status(400).json({ error: (e as Error).message }); }
+  } catch (e: unknown) { res.status(400).json({ error: publicErrorMessage(e) }); }
 }
 
 export async function listChallenges(req: AuthRequest, res: Response): Promise<void> {
@@ -89,7 +90,7 @@ export async function createGuild(req: AuthRequest, res: Response): Promise<void
   try {
     const g = await social.createGuild(req.userId!, req.body);
     res.status(201).json(g);
-  } catch (e: unknown) { res.status(400).json({ error: (e as Error).message }); }
+  } catch (e: unknown) { res.status(400).json({ error: publicErrorMessage(e) }); }
 }
 
 export async function joinGuild(req: AuthRequest, res: Response): Promise<void> {
@@ -98,7 +99,7 @@ export async function joinGuild(req: AuthRequest, res: Response): Promise<void> 
   try {
     const result = await social.joinGuild(req.userId!, inviteCode.trim().toUpperCase());
     res.status(201).json(result);
-  } catch (e: unknown) { res.status(400).json({ error: (e as Error).message }); }
+  } catch (e: unknown) { res.status(400).json({ error: publicErrorMessage(e) }); }
 }
 
 export async function myGuild(req: AuthRequest, res: Response): Promise<void> {
@@ -110,7 +111,7 @@ export async function guildMessages(req: AuthRequest, res: Response): Promise<vo
   try {
     const msgs = await social.getGuildMessages(req.userId!, req.params.guildId);
     res.json(msgs);
-  } catch (e: unknown) { res.status(400).json({ error: (e as Error).message }); }
+  } catch (e: unknown) { res.status(400).json({ error: publicErrorMessage(e) }); }
 }
 
 export async function postGuildMessage(req: AuthRequest, res: Response): Promise<void> {
@@ -119,12 +120,12 @@ export async function postGuildMessage(req: AuthRequest, res: Response): Promise
   try {
     const msg = await social.sendGuildMessage(req.userId!, req.params.guildId, content);
     res.status(201).json(msg);
-  } catch (e: unknown) { res.status(400).json({ error: (e as Error).message }); }
+  } catch (e: unknown) { res.status(400).json({ error: publicErrorMessage(e) }); }
 }
 
 export async function leaveGuild(req: AuthRequest, res: Response): Promise<void> {
   try {
     await social.leaveGuild(req.userId!, req.params.guildId);
     res.status(204).send();
-  } catch (e: unknown) { res.status(400).json({ error: (e as Error).message }); }
+  } catch (e: unknown) { res.status(400).json({ error: publicErrorMessage(e) }); }
 }

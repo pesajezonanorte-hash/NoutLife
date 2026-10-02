@@ -4,6 +4,9 @@ const QUEST_TYPES = ['MAIN', 'SIDE', 'DAILY', 'WEEKLY', 'META'] as const;
 const DIFFICULTIES = ['EASY', 'NORMAL', 'HARD', 'EPIC'] as const;
 const CATEGORIES = ['HEALTH', 'FITNESS', 'FINANCE', 'LEARNING', 'LOVE', 'SOCIAL', 'PERSONAL', 'CREATIVE'] as const;
 const STATUSES = ['ACTIVE', 'COMPLETED', 'FAILED', 'ARCHIVED'] as const;
+// '' means "no deadline" (form default); anything else must parse as a date.
+const optionalDate = z.string().refine((v) => v === '' || !Number.isNaN(Date.parse(v)), 'La fecha límite no es válida.');
+
 const SORT_OPTIONS = ['deadline', 'xp', 'created', 'difficulty'] as const;
 
 export const createQuestSchema = z.object({
@@ -14,7 +17,7 @@ export const createQuestSchema = z.object({
   category: z.enum(CATEGORIES),
   xpReward: z.number().int().min(0).max(10000).optional(),
   goldReward: z.number().int().min(0).max(5000).optional(),
-  deadline: z.string().optional(),
+  deadline: optionalDate.optional(),
   isRecurring: z.boolean().optional(),
   subObjectives: z.array(z.object({ title: z.string().min(1), completed: z.boolean().optional() })).max(10).optional(),
   parentQuestId: z.string().optional(),
@@ -27,7 +30,7 @@ export const updateQuestSchema = z.object({
   category: z.enum(CATEGORIES).optional(),
   xpReward: z.number().int().min(0).max(10000).optional(),
   goldReward: z.number().int().min(0).max(5000).optional(),
-  deadline: z.string().nullable().optional(),
+  deadline: optionalDate.nullable().optional(),
   subObjectives: z.array(z.object({ id: z.string().optional(), title: z.string().min(1), completed: z.boolean().optional() })).max(10).optional(),
   notes: z.string().max(1000).optional(),
 });

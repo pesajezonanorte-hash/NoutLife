@@ -64,7 +64,8 @@ export interface AdvancedStatsData {
   xpActiveDays?: number;
   xpDaysInPeriod?: number;
   xpChange?: number;
-  questsInPeriod: number;
+  /** null when the summary request failed: render "—", never a fake 0. */
+  questsInPeriod: number | null;
   questsChange?: number;
   lifeScore?: number | null;
   lifeScoreTrend?: string;
@@ -237,7 +238,7 @@ export default function AdvancedStats({ data, loading = false, className }: Adva
     },
     {
       label: 'Misiones completadas',
-      value: formatNumber(data.questsInPeriod),
+      value: data.questsInPeriod === null ? '—' : formatNumber(data.questsInPeriod),
       detail: `${data.periodLabel} · ${formatNumber(data.totals?.questsCompleted ?? 0)} históricas`,
       change: signedPercent(data.questsChange),
       changeValue: data.questsChange,

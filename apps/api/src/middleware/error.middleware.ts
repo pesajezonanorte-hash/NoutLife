@@ -52,3 +52,16 @@ export function notFoundHandler(req: Request, res: Response): void {
     error: `La ruta ${req.method} ${req.path} no existe en este reino.`,
   });
 }
+
+/**
+ * Message safe to send from a route's own catch block. Domain errors thrown
+ * with `new Error('…')` keep their text; Prisma and runtime errors (which
+ * contain table/column names and internal ids) are logged and replaced.
+ */
+export function publicErrorMessage(err: unknown): string {
+  const e = err as Error | undefined;
+  const internal = !e?.message || e.name?.startsWith('PrismaClient') || e instanceof TypeError || e instanceof ReferenceError;
+  if (!internal) return e.message;
+  console.error('[Error]', e?.stack ?? e);
+  return 'No pudimos completar la operación. Inténtalo de nuevo.';
+}

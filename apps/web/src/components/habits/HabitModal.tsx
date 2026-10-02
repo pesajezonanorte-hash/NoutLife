@@ -30,6 +30,7 @@ export function HabitModal({ onSubmit, onClose, initial, title }: Props) {
   // Punto de apertura: de aquí crece la animación (desde donde se hizo click).
   const [origin] = useState(() => getOpenOrigin());
   const [loading, setLoading] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [googleConnected, setGoogleConnected] = useState<boolean | null>(null);
   const [form, setForm] = useState<CreateHabitPayload>({
     title: initial?.title ?? '',
@@ -72,12 +73,16 @@ export function HabitModal({ onSubmit, onClose, initial, title }: Props) {
   async function handleSubmit() {
     if (!form.title.trim()) return;
     setLoading(true);
+    setSaveError(null);
     try {
       await onSubmit({
         ...form,
         description: form.description || undefined,
         reminderTime: form.reminderTime || undefined,
       });
+    } catch (err) {
+      const data = (err as { response?: { data?: { error?: string; details?: { message: string }[] } } }).response?.data;
+      setSaveError(data?.details?.[0]?.message ?? data?.error ?? 'No pudimos guardar el hábito. Inténtalo de nuevo.');
     } finally {
       setLoading(false);
     }
@@ -361,6 +366,11 @@ export function HabitModal({ onSubmit, onClose, initial, title }: Props) {
             </div>
           </div>
 
+          {saveError && (
+            <p role="alert" className="flex-shrink-0 border-t border-[var(--border-soft)] px-4 pt-3 text-sm text-[var(--accent-red)] sm:px-5">
+              {saveError}
+            </p>
+          )}
           <div className="flex flex-shrink-0 gap-3 border-t border-[var(--border-soft)] bg-[var(--bg-panel-light)] px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 sm:px-5 sm:py-4">
             <PixelButton variant="ghost" className="flex-1" onClick={onClose}>Cancelar</PixelButton>
             <PixelButton variant="primary" className="flex-1" onClick={handleSubmit} disabled={loading || !form.title.trim()}>

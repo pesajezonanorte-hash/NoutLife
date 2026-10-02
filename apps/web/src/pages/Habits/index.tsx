@@ -16,6 +16,8 @@ import { useToastStore } from '../../hooks/useToast';
 import * as habitService from '../../services/habit.service';
 import type { Habit } from '../../services/habit.service';
 import { E } from '@/components/ui/glyphs';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { AlertTriangle } from 'lucide-react';
 
 export default function HabitsPage() {
   const user = useAuthStore((s) => s.user);
@@ -23,6 +25,7 @@ export default function HabitsPage() {
   const toast = useToastStore();
   const [habits, setHabits] = useState<Habit[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [streakToast, setStreakToast] = useState<{ streak: number; name: string } | null>(null);
@@ -30,11 +33,12 @@ export default function HabitsPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadFailed(false);
     try {
       const data = await habitService.fetchHabits();
       setHabits(data);
     } catch {
-      toast.error('Error cargando hábitos');
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -150,7 +154,7 @@ export default function HabitsPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-3">
+      {!loadFailed && <div className="grid grid-cols-3 gap-3">
         <PixelPanel className="p-3 text-center">
           <p className="font-pixel text-text-secondary mb-1" style={{ fontSize: '12px' }}>HOY</p>
           <p className="font-vt text-accent-green text-3xl">{completedToday}/{totalHabits}</p>
@@ -170,7 +174,7 @@ export default function HabitsPage() {
           <p className="font-vt text-accent-gold text-3xl">{user?.currentStreak ?? 0}</p>
           <p className="font-vt text-text-secondary text-sm">días</p>
         </PixelPanel>
-      </div>
+      </div>}
 
       {!loading && topHabit && (
         <LifeQuestFlipCard
@@ -210,6 +214,14 @@ export default function HabitsPage() {
       {/* Habits list */}
       {loading ? (
         <SkeletonList count={3} />
+      ) : loadFailed ? (
+        <EmptyState
+          icon={AlertTriangle}
+          title="No pudimos cargar tus hábitos"
+          description="Tus hábitos siguen guardados. Revisa tu conexión e inténtalo de nuevo."
+          actionLabel="Reintentar"
+          onAction={() => { void load(); }}
+        />
       ) : habits.length === 0 ? (
         <PixelPanel className="p-8 text-center">
           <p className="text-4xl mb-3"><E e="🔥" /></p>

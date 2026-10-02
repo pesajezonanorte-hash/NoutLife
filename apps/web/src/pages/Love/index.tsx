@@ -353,7 +353,7 @@ export default function LovePage() {
           visual={<span className="text-6xl" aria-hidden="true"><E e={rel ? '💑' : '💖'} s={64} /></span>}
           visualLabel={rel ? `Resumen de ${rel.name || 'tu relación'}` : 'Zona de relaciones sin configurar'}
           badge={rel ? 'Configurado' : 'Por empezar'}
-          frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">{dashboard?.nextImportantDate ? `${dashboard.nextImportantDate.daysUntil} días para ${dashboard.nextImportantDate.label}` : rel ? 'Sin fecha próxima' : 'Crea tu primer recuerdo'}</p>}
+          frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">{dashboard?.nextImportantDate ? `${dashboard.nextImportantDate.daysUntil} ${dashboard.nextImportantDate.daysUntil === 1 ? "día" : "días"} para ${dashboard.nextImportantDate.label || "tu fecha especial"}` : rel ? 'Sin fecha próxima' : 'Crea tu primer recuerdo'}</p>}
           backDescription={<p>{rel ? 'Edita los detalles de tu jardín o guarda una fecha especial para no perder de vista lo importante.' : 'Elige un nombre, una fecha y los detalles con los que quieres cuidar esta parte de tu vida.'}</p>}
           metrics={[
             { label: 'Fechas', value: rel ? (rel.importantDates as ImportantDate[]).length : 0 },

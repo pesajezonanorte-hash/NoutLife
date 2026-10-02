@@ -4,7 +4,7 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { StatTile } from '@/components/ui/StatTile';
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { BookOpen, CheckCircle2, FileText, TrendingUp, Trophy } from 'lucide-react';
+import { AlertTriangle, BookOpen, CheckCircle2, FileText, TrendingUp, Trophy } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
 import { useToast } from '../../hooks/useToast';
 import { refreshUser } from '../../hooks/useAuth';
@@ -219,18 +219,20 @@ export default function LearningPage() {
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [updating, setUpdating] = useState<LearningItem | null>(null);
-  const [filter, setFilter] = useState<string>('IN_PROGRESS');
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [filter, setFilter] = useState<string>('');
   const [tab, setTab] = useState<'biblioteca' | 'pomodoro' | 'detalle'>('biblioteca');
   const [selectedItem, setSelectedItem] = useState<LearningItem | null>(null);
   const [detailTab, setDetailTab] = useState<'notas' | 'vocab'>('notas');
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadFailed(false);
     try {
       const [it, st] = await Promise.all([learningService.fetchLearning(), learningService.fetchLearningStats()]);
       setItems(it);
       setStats(st);
-    } catch { /* ignore */ }
+    } catch { setLoadFailed(true); }
     finally { setLoading(false); }
   }, []);
 
@@ -330,7 +332,23 @@ export default function LearningPage() {
       </div>
 
       <LoadingGate loading={loading} fallback={<ModernLoader words={[...LOADING_COPY.learning]} />}>
-        {loading ? null : filtered.length === 0 ? (
+        {loading ? null : loadFailed ? (
+        <EmptyState
+          icon={AlertTriangle}
+          title="No pudimos cargar tu biblioteca"
+          description="Tus libros y cursos siguen guardados. Revisa tu conexión e inténtalo de nuevo."
+          actionLabel="Reintentar"
+          onAction={() => { void load(); }}
+        />
+      ) : filtered.length === 0 && items.length > 0 ? (
+        <EmptyState
+          icon={BookOpen}
+          title="Nada en este estado"
+          description={`Tienes ${items.length} ${items.length === 1 ? 'ítem' : 'ítems'} en tu biblioteca, pero ninguno con este filtro.`}
+          actionLabel="Ver todos"
+          onAction={() => setFilter('')}
+        />
+      ) : filtered.length === 0 ? (
         <EmptyState
           icon={BookOpen}
           title="Tu biblioteca está lista"

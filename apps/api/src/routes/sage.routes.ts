@@ -1,3 +1,4 @@
+import { publicErrorMessage } from '../middleware/error.middleware';
 import { Router } from 'express';
 import { requireAuth, type AuthRequest } from '../middleware/auth.middleware';
 import { sageLimiter, sageDailyLimiter } from '../middleware/rate-limit.middleware';
@@ -24,7 +25,7 @@ router.get('/proactive-note', async (req, res) => {
     const userId = (req as AuthRequest).userId!;
     const note = await getTodayProactiveNote(userId);
     res.json(note);
-  } catch (err: any) { res.status(500).json({ message: err.message }); }
+  } catch (err: any) { res.status(500).json({ message: publicErrorMessage(err) }); }
 });
 
 router.post('/proactive-note/:id/read', async (req, res) => {
@@ -32,7 +33,7 @@ router.post('/proactive-note/:id/read', async (req, res) => {
     const userId = (req as AuthRequest).userId!;
     await markProactiveNoteRead(userId, req.params.id);
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ message: err.message }); }
+  } catch (err: any) { res.status(500).json({ message: publicErrorMessage(err) }); }
 });
 
 export default router;
