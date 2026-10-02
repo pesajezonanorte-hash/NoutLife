@@ -6,12 +6,14 @@ import { solidBg, strokeTone, textTone, type Tone } from './tones';
 type ChartTone = Exclude<Tone, 'muted'>;
 
 /** Burbuja de tooltip; aparece con hover o foco del `group` padre. */
-function Tip({ children }: { children: string }) {
+function Tip({ children, edge }: { children: string; edge?: 'start' | 'end' }) {
   return (
     <span
       aria-hidden
       className={cn(
-        'pointer-events-none absolute bottom-[calc(100%+6px)] left-1/2 z-10 -translate-x-1/2 translate-y-1 whitespace-nowrap rounded-md',
+        'pointer-events-none absolute bottom-[calc(100%+6px)] z-10 translate-y-1 whitespace-nowrap rounded-md',
+        // En los extremos se alinea al borde para no salirse del contenedor.
+        edge === 'start' ? 'left-0' : edge === 'end' ? 'right-0' : 'left-1/2 -translate-x-1/2',
         'bg-on-background px-2 py-1 text-label-md text-background opacity-0 transition-[opacity,transform] duration-150',
         'group-hover:translate-y-0 group-hover:opacity-100 group-focus-visible:translate-y-0 group-focus-visible:opacity-100',
       )}
@@ -72,7 +74,7 @@ export function BarChart({
           const tip = d.tip ?? `${d.label} · ${formatValue(d.value)}`;
           return (
             <div key={d.label + i} tabIndex={0} aria-label={tip} className="group relative flex h-full flex-col items-center justify-end gap-1.5 rounded-md">
-              <Tip>{tip}</Tip>
+              <Tip edge={i === 0 ? 'start' : i === data.length - 1 ? 'end' : undefined}>{tip}</Tip>
               {showValues && (
                 <span className={cn('text-label-md tabular-nums', d.highlight ? textTone[highlightTone] : 'text-on-surface-light')}>
                   {formatValue(d.value)}
@@ -167,7 +169,7 @@ export function LineChart({ data, label, min, max, tone = 'primary', goal, heigh
             className="group absolute -ml-3.5 -mt-3.5 flex size-7 items-center justify-center rounded-full"
             style={{ left: `${(x(i) / W) * 100}%`, top: `${(y(d.value) / H) * 100}%` }}
           >
-            <Tip>{d.tip ?? `${d.label} · ${d.value}`}</Tip>
+            <Tip edge={i === 0 ? 'start' : i === data.length - 1 ? 'end' : undefined}>{d.tip ?? `${d.label} · ${d.value}`}</Tip>
             <motion.span
               className={cn('rounded-full border-[3px] bg-background', i === data.length - 1 ? 'size-4' : 'size-3', tone === 'primary' ? 'border-primary' : 'border-secondary')}
               initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.9 + i * 0.09, type: 'spring', stiffness: 420, damping: 18 }}

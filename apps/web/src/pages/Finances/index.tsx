@@ -1,913 +1,368 @@
-import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+// Finanzas — Finances.dc.html (móvil) / FinancesDesktop.dc.html (desktop).
+// Debajo del prototipo: planificación (presupuestos, metas, deudas, fijos,
+// proyección) rediseñada con los mismos servicios.
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
+import type { Transaction } from '@lifequest/shared';
 import {
-  ArrowDownLeft,
-  ArrowUpRight,
-  BusFront,
-  CalendarDays,
-  ChevronDown,
-  CircleDollarSign,
-  Clapperboard,
-  CreditCard,
-  GraduationCap,
-  HeartPulse,
-  Home,
-  Lightbulb,
-  Package,
-  PiggyBank,
-  Shirt,
-  TrendingUp,
-  Utensils,
-  X,
-  type LucideIcon,
+  ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, Info, Minus, Plus, Trash2, TrendingDown, TrendingUp, Wallet, X,
 } from 'lucide-react';
-import { useToast } from '../../hooks/useToast';
-import { useEscapeKey } from '../../hooks/useEscapeKey';
-import { PixelPanel } from '../../components/ui/PixelPanel';
-import { LifeQuestFlipCard } from '../../components/ui/lifequest-flip-card';
-import { PixelButton } from '../../components/ui/PixelButton';
-import { FlowButton } from '../../components/ui/flow-button';
-import { AnimatedCounter } from '../../components/ui/AnimatedCounter';
-import type { Transaction, Budget, FinancialGoal } from '@lifequest/shared';
-import * as financeService from '../../services/finance.service';
-import { SageContextButton } from '../../components/sage/SageContextButton';
-import { DebtsPanel, RecurringPanel, ProjectionPanel, PaydayModal } from '../../components/finances/FinancesExtras';
-import { E } from '@/components/ui/glyphs';
+import { cn } from '@/lib/utils';
+import { item, stagger } from '@/lib/motion';
+import { dayKey, formatMoney } from '@/lib/lifeMeta';
+import { useAuthStore } from '@/store/authStore';
+import { useToastStore } from '@/hooks/useToast';
+import {
+  AnimatedValue, BarChart, Button, Card, EmptyState, ErrorState, IconChip, ResponsiveDialog, SegmentedControl, Skeleton, Spinner, Tabs,
+  type BarDatum,
+} from '@/components/ui/lq';
+import { solidBg } from '@/components/ui/lq/tones';
+import * as financeService from '@/services/finance.service';
+import { SHARE_TONES, monthRange, pctChange, txCategory } from '@/components/finances/financeMeta';
+import { TransactionFormDialog } from '@/components/finances/TransactionFormDialog';
+import { BudgetsPanel, DebtsPanel, GoalsPanel, PLANNING_TABS, ProjectionPanel, RecurringPanel } from '@/components/finances/PlanningTools';
 
-const CATEGORY_ICONS: Record<string, string> = {
-  FOOD: '🍔', TRANSPORT: '🚌', ENTERTAINMENT: '🎮', HEALTH: '🏥',
-  EDUCATION: '📚', CLOTHING: '👕', HOUSING: '🏠', UTILITIES: '💡',
-  SAVINGS: '💰', INVESTMENT: '📈', SUBSCRIPTIONS: '💳', OTHER: '📦',
-};
+type Summary = { income: number; expenses: number; balance: number; byCategory: Record<string, number>; count: number };
+type TxTab = 'all' | 'INCOME' | 'EXPENSE';
+type PlanTab = (typeof PLANNING_TABS)[number]['value'];
+const DAY_NAMES = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+const EMPTY: Summary = { income: 0, expenses: 0, balance: 0, byCategory: {}, count: 0 };
 
-const CATEGORY_LABELS: Record<string, string> = {
-  FOOD: 'Comida', TRANSPORT: 'Transporte', ENTERTAINMENT: 'Ocio', HEALTH: 'Salud',
-  EDUCATION: 'Educación', CLOTHING: 'Ropa', HOUSING: 'Vivienda', UTILITIES: 'Servicios',
-  SAVINGS: 'Ahorro', INVESTMENT: 'Inversión', SUBSCRIPTIONS: 'Suscripciones', OTHER: 'Otros',
-};
-
-const COP_COLORS = ['#a8871e', '#2a2a2e', '#4a4a52', '#6b6b73', '#8a8a92', '#a1a1aa', '#c0c0c8', '#5c5c64', '#bdbdc5', '#7a7a82', '#d4d4dc', '#3a3a40'];
-
-function formatCOP(amount: number) {
-  return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(amount);
-}
-
-type ModalOrigin = { x: number; y: number };
-
-const CATEGORY_MODAL_ICONS: Record<string, LucideIcon> = {
-  FOOD: Utensils,
-  TRANSPORT: BusFront,
-  ENTERTAINMENT: Clapperboard,
-  HEALTH: HeartPulse,
-  EDUCATION: GraduationCap,
-  CLOTHING: Shirt,
-  HOUSING: Home,
-  UTILITIES: Lightbulb,
-  SAVINGS: PiggyBank,
-  INVESTMENT: TrendingUp,
-  SUBSCRIPTIONS: CreditCard,
-  OTHER: Package,
-};
-
-const modalInputClass = 'min-h-[44px] w-full rounded-xl border border-[var(--border)] bg-[var(--bg-deep)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--accent-gold)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--accent-gold)_16%,transparent)]';
-
-function ModalShell({
-  title,
-  description,
-  icon: Icon = CircleDollarSign,
-  origin,
-  onClose,
-  children,
-  size = 'md',
-}: {
-  title: string;
-  description: string;
-  icon?: LucideIcon;
-  origin?: ModalOrigin;
-  onClose: () => void;
-  children: ReactNode;
-  size?: 'sm' | 'md';
-}) {
-  useEscapeKey(onClose);
-  const point = origin ?? { x: 0, y: 0 };
-
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.2, ease: 'easeOut' }}
-      className="fixed inset-0 z-[200] flex items-end justify-center overflow-hidden bg-black/55 p-0 backdrop-blur-[2px] sm:items-center sm:p-5"
-      onClick={onClose}
-    >
-      <motion.span
-        aria-hidden="true"
-        className="pointer-events-none absolute h-3 w-3 rounded-full bg-[color-mix(in_oklab,var(--accent-gold)_30%,transparent)] blur-2xl"
-        style={{ left: point.x, top: point.y }}
-        initial={{ x: '-50%', y: '-50%', scale: 0, opacity: 0 }}
-        animate={{ x: '-50%', y: '-50%', scale: 150, opacity: 0.24 }}
-        exit={{ x: '-50%', y: '-50%', scale: 115, opacity: 0 }}
-        transition={{ duration: 0.62, ease: [0.22, 1, 0.36, 1] }}
-      />
-      <motion.section
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        initial={{ opacity: 0, y: 14, scale: 0.98 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 9, scale: 0.985 }}
-        transition={{ type: 'spring', stiffness: 360, damping: 30, mass: 0.82 }}
-        className={`relative max-h-[88dvh] w-full overflow-y-auto rounded-t-2xl border border-[var(--border-strong)] bg-[var(--bg-panel)] p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-[var(--shadow-pop)] sm:max-h-[calc(100dvh-1.5rem)] sm:rounded-2xl sm:pb-5 ${size === 'sm' ? 'max-w-sm' : 'max-w-md'}`}
-        onClick={(event) => event.stopPropagation()}
-      >
-        <header className="mb-5 flex items-start justify-between gap-4">
-          <div className="flex min-w-0 items-start gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--bg-muted)] text-[var(--accent-gold)]">
-              <Icon className="h-4 w-4" aria-hidden="true" />
-            </span>
-            <div className="min-w-0">
-              <h2 className="text-base font-semibold tracking-tight text-[var(--text-primary)]">{title}</h2>
-              <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">{description}</p>
-            </div>
-          </div>
-          <FlowButton
-            tone="ghost"
-            size="sm"
-            withArrows={false}
-            onClick={onClose}
-            aria-label={`Cerrar ${title.toLowerCase()}`}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] sm:h-8 sm:w-8"
-          >
-            <X className="h-4 w-4" aria-hidden="true" />
-          </FlowButton>
-        </header>
-        {children}
-      </motion.section>
-    </motion.div>
-  );
-}
-
-function MoneyField({
-  id,
-  label,
-  value,
-  onChange,
-  autoFocus = false,
-  onEnter,
-}: {
-  id: string;
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  autoFocus?: boolean;
-  onEnter?: () => void;
-}) {
-  return (
-    <label htmlFor={id} className="block">
-      <span className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">{label}</span>
-      <span className="relative block">
-        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-[var(--text-muted)]">$</span>
-        <input
-          id={id}
-          type="number"
-          min="0"
-          step="1"
-          inputMode="decimal"
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          onKeyDown={(event) => event.key === 'Enter' && onEnter?.()}
-          placeholder="0"
-          autoFocus={autoFocus}
-          className={`${modalInputClass} money-input pr-14 pl-8 text-right text-2xl font-semibold tabular-nums`}
-        />
-        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm font-medium text-[var(--text-muted)]">COP</span>
-      </span>
-    </label>
-  );
-}
-
-function ModalActions({
-  onCancel,
-  onConfirm,
-  confirmLabel,
-  disabled = false,
-  saving = false,
-}: {
-  onCancel: () => void;
-  onConfirm: () => void;
-  confirmLabel: string;
-  disabled?: boolean;
-  saving?: boolean;
-}) {
-  return (
-    <div className="mt-5 grid grid-cols-2 gap-2.5 border-t border-[var(--border-soft)] pt-4">
-      <FlowButton tone="ghost" withArrows={false} onClick={onCancel} className="min-h-[44px] w-full">
-        Cancelar
-      </FlowButton>
-      <FlowButton tone="primary" withArrows={false} onClick={onConfirm} disabled={disabled || saving} className="min-h-[44px] w-full">
-        {saving ? 'Guardando…' : confirmLabel}
-      </FlowButton>
-    </div>
-  );
-}
-
-function CategoryPicker({
-  category,
-  onChange,
-}: {
-  category: string;
-  onChange: (category: string) => void;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const pickerRef = useRef<HTMLDivElement>(null);
-  const SelectedIcon = CATEGORY_MODAL_ICONS[category] ?? Package;
-
-  useEffect(() => {
-    if (!isOpen) return undefined;
-    const closeOnOutsidePress = (event: PointerEvent) => {
-      if (!pickerRef.current?.contains(event.target as Node)) setIsOpen(false);
-    };
-    document.addEventListener('pointerdown', closeOnOutsidePress);
-    return () => document.removeEventListener('pointerdown', closeOnOutsidePress);
-  }, [isOpen]);
-
-  return (
-    <div ref={pickerRef} className="relative">
-      <span className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">Categoría</span>
-      <button
-        type="button"
-        aria-haspopup="listbox"
-        aria-expanded={isOpen}
-        aria-controls="transaction-category-options"
-        onClick={() => setIsOpen((open) => !open)}
-        className="flex w-full items-center rounded-xl border border-[var(--border)] bg-[var(--bg-deep)] px-3 py-2.5 text-left transition-colors hover:border-[var(--border-strong)] focus:outline-none focus:ring-2 focus:ring-[color-mix(in_oklab,var(--accent-gold)_16%,transparent)]"
-      >
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[var(--bg-muted)] text-[var(--text-secondary)]">
-          <SelectedIcon className="h-3.5 w-3.5" aria-hidden="true" />
-        </span>
-        <span className="ml-2.5 min-w-0 flex-1 truncate text-sm font-medium text-[var(--text-primary)]">{CATEGORY_LABELS[category]}</span>
-        <motion.span animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.2 }} className="ml-2 text-[var(--text-muted)]">
-          <ChevronDown className="h-4 w-4" aria-hidden="true" />
-        </motion.span>
-      </button>
-
-      <AnimatePresence initial={false}>
-        {isOpen && (
-          <motion.div
-            id="transaction-category-options"
-            role="listbox"
-            aria-label="Opciones de categoría"
-            initial={{ height: 0, opacity: 0, y: -4 }}
-            animate={{ height: 'auto', opacity: 1, y: 0 }}
-            exit={{ height: 0, opacity: 0, y: -4 }}
-            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-            className="overflow-hidden"
-          >
-            <div className="mt-2 grid max-h-48 grid-cols-2 gap-1 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] p-1.5 shadow-[var(--shadow-md)]">
-              {Object.keys(CATEGORY_LABELS).map((key) => {
-                const Icon = CATEGORY_MODAL_ICONS[key] ?? Package;
-                const selected = category === key;
-                return (
-                  <motion.button
-                    key={key}
-                    type="button"
-                    role="option"
-                    aria-selected={selected}
-                    whileTap={{ scale: 0.97 }}
-                    onClick={() => {
-                      onChange(key);
-                      setIsOpen(false);
-                    }}
-                    className={`flex min-w-0 items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs transition-colors ${selected ? 'bg-[color-mix(in_oklab,var(--accent-gold)_13%,var(--bg-muted))] text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]'}`}
-                  >
-                    <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                    <span className="truncate">{CATEGORY_LABELS[key]}</span>
-                  </motion.button>
-                );
-              })}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-function TransactionModal({
-  onClose,
-  onSave,
-  origin,
-}: {
-  onClose: () => void;
-  onSave: (t: Transaction) => void;
-  origin?: ModalOrigin;
-}) {
-  const [type, setType] = useState<'INCOME' | 'EXPENSE'>('EXPENSE');
-  const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState('FOOD');
-  const [description, setDescription] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [saving, setSaving] = useState(false);
-  const toast = useToast();
-  const isValidAmount = Number(amount) > 0;
-
-  async function save() {
-    if (!isValidAmount || saving) return;
-    setSaving(true);
-    try {
-      const transaction = await financeService.createTransaction({
-        type,
-        amount: Number(amount),
-        category,
-        description: description.trim() || undefined,
-        date,
-      });
-      onSave(transaction);
-      toast.success(type === 'INCOME' ? 'Ingreso registrado' : 'Gasto registrado');
-    } catch {
-      toast.error('No se pudo guardar la transacción');
-    } finally {
-      setSaving(false);
-    }
+function summarize(txs: Transaction[]): Summary {
+  const s: Summary = { ...EMPTY, byCategory: {} };
+  for (const t of txs) {
+    const a = Number(t.amount);
+    if (t.type === 'INCOME') s.income += a;
+    else { s.expenses += a; s.byCategory[t.category] = (s.byCategory[t.category] ?? 0) + a; }
   }
+  s.balance = s.income - s.expenses;
+  s.count = txs.length;
+  return s;
+}
 
+function FinancesSkeleton() {
   return (
-    <ModalShell
-      title="Nueva transacción"
-      description="Registra un movimiento real para actualizar tu balance."
-      origin={origin}
-      onClose={onClose}
-    >
-      <motion.div
-        initial="hidden"
-        animate="visible"
-        variants={{
-          hidden: {},
-          visible: { transition: { staggerChildren: 0.045, delayChildren: 0.04 } },
-        }}
-        className="space-y-4"
-      >
-        <motion.div variants={{ hidden: { opacity: 0, y: 6 }, visible: { opacity: 1, y: 0 } }} className="grid grid-cols-2 rounded-xl border border-[var(--border)] bg-[var(--bg-muted)] p-1" role="group" aria-label="Tipo de transacción">
-          {([
-            { id: 'INCOME' as const, label: 'Ingreso', Icon: ArrowUpRight, color: 'text-[var(--accent-green)]' },
-            { id: 'EXPENSE' as const, label: 'Gasto', Icon: ArrowDownLeft, color: 'text-[var(--accent-red)]' },
-          ]).map(({ id, label, Icon, color }) => {
-            const selected = type === id;
-            return (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setType(id)}
-                className={`relative inline-flex min-h-9 items-center justify-center gap-2 rounded-lg px-3 text-xs font-semibold transition-colors ${selected ? color : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'}`}
-              >
-                {selected && (
-                  <motion.span
-                    layoutId="transaction-type-active"
-                    className="absolute inset-0 rounded-lg bg-[var(--bg-panel)] shadow-[var(--shadow-sm)]"
-                    transition={{ type: 'spring', stiffness: 430, damping: 32 }}
-                  />
-                )}
-                <span className="relative inline-flex items-center gap-2">
-                  <Icon className="h-3.5 w-3.5" aria-hidden="true" />
-                  {label}
-                </span>
-              </button>
-            );
-          })}
-        </motion.div>
+    <div className="flex flex-col gap-6" aria-busy="true" aria-label="Cargando finanzas">
+      <div className="grid gap-4 md:grid-cols-3 md:gap-6">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-36 rounded-2xl" />)}</div>
+      <Skeleton className="h-72 rounded-2xl" />
+      <div className="flex items-center justify-center gap-3"><Spinner /><span className="text-body-sm text-on-surface-light">Cargando tus finanzas…</span></div>
+    </div>
+  );
+}
 
-        <motion.div variants={{ hidden: { opacity: 0, y: 6 }, visible: { opacity: 1, y: 0 } }}>
-          <MoneyField id="transaction-amount" label="Monto" value={amount} onChange={setAmount} autoFocus onEnter={() => void save()} />
-        </motion.div>
-
-        <motion.div variants={{ hidden: { opacity: 0, y: 6 }, visible: { opacity: 1, y: 0 } }}>
-          <CategoryPicker category={category} onChange={setCategory} />
-        </motion.div>
-
-        <motion.div variants={{ hidden: { opacity: 0, y: 6 }, visible: { opacity: 1, y: 0 } }} className="grid gap-3 sm:grid-cols-[1.3fr_0.9fr]">
-          <label htmlFor="transaction-description" className="block">
-            <span className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">Descripción <span className="text-[var(--text-muted)]">opcional</span></span>
-            <input
-              id="transaction-description"
-              type="text"
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              placeholder="Ej. mercado semanal"
-              className={modalInputClass}
-            />
-          </label>
-          <label htmlFor="transaction-date" className="block">
-            <span className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)]"><CalendarDays className="h-3.5 w-3.5" aria-hidden="true" /> Fecha</span>
-            <input
-              id="transaction-date"
-              type="date"
-              value={date}
-              onChange={(event) => setDate(event.target.value)}
-              className={modalInputClass}
-            />
-          </label>
-        </motion.div>
-      </motion.div>
-      <ModalActions onCancel={onClose} onConfirm={() => void save()} confirmLabel="Guardar" disabled={!isValidAmount} saving={saving} />
-    </ModalShell>
+function Trend({ value, good, suffix }: { value: number | null; good: 'up' | 'down'; suffix: string }) {
+  if (value === null) return <span className="text-body-sm text-on-surface-light">Sin datos del mes anterior</span>;
+  if (value === 0) return <span className="flex items-center gap-1 text-body-sm text-on-surface"><Minus aria-hidden className="size-4" />Igual que {suffix}</span>;
+  const up = value > 0;
+  const positive = (up && good === 'up') || (!up && good === 'down');
+  const Icon = up ? TrendingUp : TrendingDown;
+  return (
+    <span className={cn('flex items-center gap-1 text-body-sm', positive ? 'text-success-text' : 'text-error-text')}>
+      <Icon aria-hidden className="size-4" strokeWidth={1.75} />{up ? '+' : ''}{value}% vs. {suffix}
+    </span>
   );
 }
 
 export default function FinancesPage() {
-  const reduceMotion = useReducedMotion();
-  const toast = useToast();
-  const [tab, setTab] = useState<'dashboard' | 'transactions' | 'budgets' | 'goals' | 'debts' | 'recurring' | 'projection'>('dashboard');
-  const [showPayday, setShowPayday] = useState(false);
-  const [dashboard, setDashboard] = useState<financeService.FinanceDashboard | null>(null);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [showAddTransaction, setShowAddTransaction] = useState(false);
-  const [modalOrigin, setModalOrigin] = useState<ModalOrigin | undefined>();
-  const [goals, setGoals] = useState<FinancialGoal[]>([]);
-  const [showGoalModal, setShowGoalModal] = useState(false);
-  const [goalForm, setGoalForm] = useState({ title: '', targetAmount: '', description: '' });
-  const [showContributeModal, setShowContributeModal] = useState<string | null>(null);
-  const [contributeAmount, setContributeAmount] = useState('');
-  const [loading, setLoading] = useState(true);
+  const currency = useAuthStore((s) => s.user?.currency) ?? 'COP';
+  const money = useCallback((n: number) => formatMoney(n, currency), [currency]);
+  const compact = useCallback((n: number) => formatMoney(n, currency, true), [currency]);
+  const [offset, setOffset] = useState(0);
+  const range = useMemo(() => monthRange(offset), [offset]);
+  const prevRange = useMemo(() => monthRange(offset - 1), [offset]);
+  const [txs, setTxs] = useState<Transaction[]>([]);
+  const [summary, setSummary] = useState<Summary | null>(null);
+  const [prev, setPrev] = useState<Summary | null>(null);
+  const [state, setState] = useState<'loading' | 'error' | 'ready'>('loading');
+  const [txTab, setTxTab] = useState<TxTab>('all');
+  const [showAll, setShowAll] = useState(false);
+  const [plan, setPlan] = useState<PlanTab>('budgets');
+  const [adding, setAdding] = useState(false);
+  const [detail, setDetail] = useState<Transaction | null>(null);
+  const [payday, setPayday] = useState(() => {
+    const d = new Date().getDate();
+    try { return [1, 15, 30].includes(d) && sessionStorage.getItem('lq-payday') !== new Date().toDateString(); } catch { return false; }
+  });
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setState('loading');
     try {
-      const [dash, txs, gl] = await Promise.all([
-        financeService.fetchFinanceDashboard(),
-        financeService.fetchTransactions(),
-        financeService.fetchFinancialGoals(),
+      // TODO(api): /finances/transactions con from y to aplica solo `to` (el segundo filtro de fecha
+      // pisa al primero), así que se pide hasta fin de mes y se recorta al mes en el cliente.
+      const [list, s, p] = await Promise.all([
+        financeService.fetchTransactions({ to: `${range.to}T23:59:59` }),
+        financeService.fetchTransactionSummary(range.from, `${range.to}T23:59:59`).catch(() => null),
+        financeService.fetchTransactionSummary(prevRange.from, `${prevRange.to}T23:59:59`).catch(() => null),
       ]);
-      setDashboard(dash);
-      setTransactions(txs);
-      setGoals(gl);
-    } catch { /* ignore */ }
-    finally { setLoading(false); }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
-
-  useEffect(() => {
-    const day = new Date().getDate();
-    if (day === 1 || day === 15 || day === 30) setShowPayday(true);
-  }, []);
-
-  function captureModalOrigin(event: { clientX: number; clientY: number }) {
-    const fallbackX = typeof window === 'undefined' ? 0 : window.innerWidth / 2;
-    const fallbackY = typeof window === 'undefined' ? 0 : window.innerHeight / 2;
-    setModalOrigin({ x: event.clientX || fallbackX, y: event.clientY || fallbackY });
-  }
-
-  function handleTransactionSaved(t: Transaction) {
-    // Optimistic: already added by modal, refresh
-    setTransactions(prev => [t, ...prev]);
-    setShowAddTransaction(false);
-    load(); // Sync dashboard
-  }
-
-  async function handleDeleteTransaction(id: string) {
-    setTransactions(prev => prev.filter(t => t.id !== id));
-    try {
-      await financeService.deleteTransaction(id);
-      load();
+      const inMonth = list.filter((t) => { const k = t.date.slice(0, 10); return k >= range.from && k <= range.to; });
+      setTxs(inMonth);
+      const local = summarize(inMonth);
+      // El reparto por categoría sale de los movimientos si el resumen no lo trae.
+      setSummary(s ? { ...EMPTY, ...s, byCategory: Object.keys(s.byCategory ?? {}).length ? s.byCategory : local.byCategory } : local);
+      setPrev(p ? { ...EMPTY, ...p } : null);
+      setState('ready');
     } catch {
-      toast.error('Error al eliminar');
-      load();
+      if (!silent) setState('error');
+    }
+  }, [range, prevRange]);
+
+  useEffect(() => { void load(); setShowAll(false); }, [load]);
+
+  async function remove(t: Transaction) {
+    setTxs((list) => list.filter((x) => x.id !== t.id));
+    try {
+      await financeService.deleteTransaction(t.id);
+      useToastStore.getState().success('Movimiento eliminado');
+      void load(true);
+    } catch {
+      useToastStore.getState().error('No se pudo eliminar');
+      void load(true);
     }
   }
 
-  async function handleCreateGoal() {
-    if (!goalForm.title.trim() || Number(goalForm.targetAmount) <= 0) return;
-    try {
-      const g = await financeService.createFinancialGoal({ title: goalForm.title, targetAmount: Number(goalForm.targetAmount), description: goalForm.description || undefined });
-      setGoals(prev => [...prev, g]);
-      setShowGoalModal(false);
-      setGoalForm({ title: '', targetAmount: '', description: '' });
-      toast.success('¡Meta creada!');
-    } catch {
-      toast.error('Error al crear meta');
-    }
-  }
+  const s = summary ?? EMPTY;
+  const savingsRate = s.income > 0 ? Math.round((s.balance / s.income) * 100) : null;
 
-  async function handleContribute() {
-    if (!showContributeModal || Number(contributeAmount) <= 0) return;
-    const amount = Number(contributeAmount);
-    // Optimistic
-    setGoals(prev => prev.map(g => g.id === showContributeModal ? { ...g, currentAmount: g.currentAmount + amount } : g));
-    setShowContributeModal(null);
-    setContributeAmount('');
-    try {
-      await financeService.contributeToGoal(showContributeModal, amount);
-      toast.success('¡Aporte agregado!');
-      load();
-    } catch {
-      toast.error('Error al agregar aporte');
-      load();
-    }
-  }
+  // Gastos de los últimos 7 días del mes visible (hasta hoy si es el mes actual).
+  const week: BarDatum[] = useMemo(() => {
+    const end = offset === 0 ? new Date() : range.last;
+    const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(end); d.setDate(end.getDate() - (6 - i)); return d; });
+    const vals = days.map((d) => {
+      const k = dayKey(d);
+      return txs.filter((t) => t.type === 'EXPENSE' && t.date.slice(0, 10) === k).reduce((a, t) => a + Number(t.amount), 0);
+    });
+    const max = Math.max(...vals);
+    return days.map((d, i) => ({
+      label: DAY_NAMES[d.getDay()].slice(0, 3),
+      value: vals[i],
+      highlight: max > 0 && vals[i] === max,
+      tip: `${DAY_NAMES[d.getDay()]} · ${money(vals[i])}`,
+    }));
+  }, [txs, offset, range, money]);
+  const weekTotal = week.reduce((a, b) => a + b.value, 0);
 
-  if (loading && !dashboard) {
-    return (
-      <div className="space-y-4">
-        <div className="skeleton h-8 w-48 rounded-xl" />
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[1,2,3,4].map(i => <div key={i} className="skeleton h-24 rounded-2xl" />)}
-        </div>
-        <div className="skeleton h-64 rounded-2xl" />
-        <div className="space-y-2">
-          {[1,2,3].map(i => <div key={i} className="skeleton h-16 rounded-xl" />)}
-        </div>
+  const cats = Object.entries(s.byCategory).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+  const catTotal = cats.reduce((a, [, v]) => a + v, 0);
+  const shown = txs.filter((t) => txTab === 'all' || t.type === txTab);
+  const visible = showAll ? shown : shown.slice(0, 8);
+
+  const monthPicker = (
+    <div className="flex items-center gap-1" role="group" aria-label="Mes">
+      <Button variant="icon" aria-label="Mes anterior" onClick={() => setOffset((o) => o - 1)}><ChevronLeft aria-hidden className="size-5" strokeWidth={1.75} /></Button>
+      <span className="min-w-[9.5rem] text-center text-label-lg tabular-nums" aria-live="polite">{range.label}</span>
+      <Button variant="icon" aria-label="Mes siguiente" disabled={offset >= 0} onClick={() => setOffset((o) => Math.min(0, o + 1))}><ChevronRight aria-hidden className="size-5" strokeWidth={1.75} /></Button>
+    </div>
+  );
+
+  const header = (
+    <motion.section variants={item} className="flex flex-wrap items-end justify-between gap-4">
+      <div className="flex flex-col gap-1 md:gap-2">
+        <span className="hidden text-label-lg text-primary-text md:block">{range.label}</span>
+        <h1 className="text-display-sm md:text-display-md lg:text-display-lg">Finanzas</h1>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        {monthPicker}
+        <Button size="md" onClick={() => setAdding(true)}><Plus aria-hidden className="size-4" strokeWidth={2} />Transacción</Button>
+      </div>
+    </motion.section>
+  );
+
+  let body;
+  if (state === 'loading') body = <FinancesSkeleton />;
+  else if (state === 'error') body = <ErrorState title="No pudimos cargar tus finanzas" onRetry={() => void load()} />;
+  else {
+    body = (
+      <div className="flex flex-col gap-6 md:gap-12">
+        {payday && (
+          <div role="status" className="flex items-start gap-3 rounded-2xl border border-info/30 bg-info/[var(--lq-soft-alpha)] p-4">
+            <Info aria-hidden className="mt-0.5 size-5 shrink-0 text-info-text" strokeWidth={1.75} />
+            <p className="flex-1 text-body-md text-on-surface">
+              <b className="text-info-text">Día de pago.</b> Aparta tu ahorro, paga primero las deudas con más interés y revisa tus presupuestos.
+            </p>
+            <Button variant="icon" aria-label="Ocultar aviso" className="-m-2" onClick={() => { setPayday(false); try { sessionStorage.setItem('lq-payday', new Date().toDateString()); } catch { /* */ } }}>
+              <X aria-hidden className="size-5" strokeWidth={1.75} />
+            </Button>
+          </div>
+        )}
+
+        {/* KPIs */}
+        <section aria-label="Resumen del mes" className="grid gap-4 md:grid-cols-[repeat(auto-fit,minmax(260px,1fr))] md:gap-6">
+          <Card variant="elevated" padding="lg" interactive className="flex flex-col gap-1 border-transparent bg-primary/[var(--lq-soft-alpha)] md:order-last md:gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-body-sm text-on-surface md:text-body-md">Saldo del mes</span>
+              <IconChip icon={Wallet} tone="primary" size="sm" className="hidden bg-background md:flex" />
+            </div>
+            <span className={cn('text-display-md tabular-nums md:text-display-lg', s.balance < 0 ? 'text-error-text' : 'text-primary-text')}>
+              <AnimatedValue value={s.balance} format={compact} />
+            </span>
+            {savingsRate !== null
+              ? <span className={cn('text-body-sm', savingsRate >= 0 ? 'text-success-text' : 'text-error-text')}>{savingsRate >= 0 ? `Ahorras el ${savingsRate} %` : `Gastas ${-savingsRate} % más de lo que ingresas`}</span>
+              : <Trend value={pctChange(s.balance, prev?.balance ?? 0)} good="up" suffix={prevRange.label.split(' ')[0].toLowerCase()} />}
+          </Card>
+          <div className="grid grid-cols-2 gap-4 md:contents">
+            {([
+              ['Ingresos', s.income, prev?.income, ArrowDownLeft, 'success', 'up'],
+              ['Gastos', s.expenses, prev?.expenses, ArrowUpRight, 'error', 'down'],
+            ] as const).map(([label, v, pv, Icon, tone, good], i) => (
+              <Card key={label} padding="lg" interactive className={cn('flex flex-col gap-2 max-md:p-4 md:gap-3', i === 0 ? 'md:order-first' : 'md:order-2')}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-body-sm text-on-surface-light md:text-body-md">{label}</span>
+                  <IconChip icon={Icon} tone={tone} size="sm" />
+                </div>
+                <span className="text-heading-md tabular-nums md:text-display-lg"><AnimatedValue value={v} format={compact} /></span>
+                <span className="hidden md:block"><Trend value={pv !== undefined ? pctChange(v, pv) : null} good={good} suffix={prevRange.label.split(' ')[0].toLowerCase()} /></span>
+              </Card>
+            ))}
+          </div>
+        </section>
+
+        {s.count === 0 && txs.length === 0 ? (
+          <EmptyState
+            icon={Wallet}
+            tone="info"
+            title="Sin movimientos"
+            description={offset === 0 ? 'Registra tu primer gasto o ingreso.' : `No registraste movimientos en ${range.label.toLowerCase()}.`}
+            action={<Button onClick={() => setAdding(true)}><Plus aria-hidden className="size-4" strokeWidth={2} />Transacción</Button>}
+            className="py-12"
+          />
+        ) : (
+          <>
+            <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
+              <Card as="section" padding="lg" aria-labelledby="fin-week" className="flex flex-col gap-6">
+                <div className="flex items-center justify-between gap-3">
+                  <h2 id="fin-week" className="text-heading-sm md:text-heading-lg">Gastos · últimos 7 días</h2>
+                  <span className="text-heading-sm tabular-nums">{money(weekTotal)}</span>
+                </div>
+                <BarChart data={week} label={`Gastos diarios: ${week.map((d) => d.tip).join(', ')}`} tone="primary" highlightTone="error" grid height={200} formatValue={compact} />
+              </Card>
+
+              <Card as="section" padding="lg" aria-labelledby="fin-cats" className="flex flex-col gap-5">
+                <h2 id="fin-cats" className="text-heading-sm">Por categoría</h2>
+                {cats.length === 0 ? (
+                  <p className="text-body-md text-on-surface-light">Sin gastos este mes.</p>
+                ) : (
+                  <>
+                    <div className="flex h-3 gap-[3px] overflow-hidden rounded-full" role="img" aria-label={cats.map(([c, v]) => `${txCategory(c).label} ${Math.round((v / catTotal) * 100)} %`).join(', ')}>
+                      {cats.map(([c, v], i) => (
+                        <motion.span
+                          key={c}
+                          className={cn('block h-full origin-left', solidBg[SHARE_TONES[i % SHARE_TONES.length]])}
+                          style={{ flex: v }}
+                          initial={{ scaleX: 0 }}
+                          animate={{ scaleX: 1 }}
+                          transition={{ duration: 0.6, delay: 0.2 + i * 0.08 }}
+                        />
+                      ))}
+                    </div>
+                    <ul className="flex flex-col gap-3">
+                      {cats.slice(0, 6).map(([c, v], i) => (
+                        <li key={c} className="flex items-center gap-3">
+                          <span aria-hidden className={cn('size-3 shrink-0 rounded', solidBg[SHARE_TONES[i % SHARE_TONES.length]])} />
+                          <span className="flex-1 text-body-md">{txCategory(c).label}</span>
+                          <span className="text-body-sm text-on-surface-light tabular-nums">{Math.round((v / catTotal) * 100)} %</span>
+                          <span className="w-24 text-right text-label-lg tabular-nums">{compact(v)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </Card>
+            </div>
+
+            <Card as="section" padding="lg" aria-labelledby="fin-tx" className="flex flex-col gap-4">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <h2 id="fin-tx" className="text-heading-sm md:text-heading-lg">Movimientos</h2>
+                <SegmentedControl label="Tipo de movimiento" value={txTab} onChange={(v) => { setTxTab(v); setShowAll(false); }} options={[{ value: 'all', label: 'Todos' }, { value: 'INCOME', label: 'Ingresos' }, { value: 'EXPENSE', label: 'Gastos' }]} className="w-full md:max-w-[380px]" />
+              </div>
+              {shown.length === 0 ? (
+                <p className="py-6 text-center text-body-md text-on-surface-light">Nada en este filtro.</p>
+              ) : (
+                <motion.ul key={`${txTab}-${offset}`} variants={stagger} initial="initial" animate="animate" className="flex flex-col">
+                  {visible.map((t, i) => {
+                    const cat = txCategory(t.category);
+                    const income = t.type === 'INCOME';
+                    return (
+                      <motion.li
+                        key={t.id}
+                        variants={item}
+                        className={cn('group relative grid min-h-[72px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-lg hover:bg-surface-variant/60 md:grid-cols-[auto_minmax(0,1fr)_auto_auto] md:gap-4', i < visible.length - 1 && 'border-b border-border')}
+                      >
+                        <IconChip icon={income ? ArrowDownLeft : cat.icon} tone={income ? 'success' : cat.tone} size="sm" />
+                        <div className="min-w-0">
+                          <button type="button" aria-haspopup="dialog" onClick={() => setDetail(t)} className="block max-w-full truncate text-left text-body-md font-semibold after:absolute after:inset-0 after:content-['']">{t.description || cat.label}</button>
+                          <div className="truncate text-body-sm text-on-surface-light">
+                            {income ? 'Ingreso' : cat.label} · {new Date(t.date).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
+                          </div>
+                        </div>
+                        <span className={cn('text-body-md font-semibold tabular-nums md:text-heading-sm', income ? 'text-success-text' : 'text-on-background')}>
+                          {income ? '+' : '−'}{money(Number(t.amount))}
+                        </span>
+                        <Button
+                          variant="icon"
+                          aria-label={`Eliminar ${t.description || cat.label}`}
+                          onClick={() => void remove(t)}
+                          className="relative z-[1] -mr-2 hidden hover:text-error-text md:inline-flex md:opacity-0 md:focus-visible:opacity-100 md:group-hover:opacity-100"
+                        >
+                          <Trash2 aria-hidden className="size-5" strokeWidth={1.75} />
+                        </Button>
+                      </motion.li>
+                    );
+                  })}
+                </motion.ul>
+              )}
+              {shown.length > 8 && (
+                <Button variant="ghost" size="md" className="self-center" onClick={() => setShowAll((v) => !v)}>
+                  {showAll ? 'Ver menos' : `Ver todos (${shown.length})`}
+                </Button>
+              )}
+            </Card>
+          </>
+        )}
+
+        {/* Planificación */}
+        <section aria-labelledby="fin-plan" className="flex flex-col gap-4">
+          <h2 id="fin-plan" className="text-heading-sm md:text-heading-lg">Planificación</h2>
+          <div className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
+            <Tabs label="Herramientas de planificación" value={plan} onChange={setPlan} options={PLANNING_TABS.map(({ value, label }) => ({ value, label }))} className="min-w-max" />
+          </div>
+          <Card padding="lg" role="tabpanel" aria-label={PLANNING_TABS.find((t) => t.value === plan)?.label}>
+            {plan === 'budgets' && <BudgetsPanel month={range.month} year={range.year} money={compact} />}
+            {plan === 'goals' && <GoalsPanel money={money} />}
+            {plan === 'debts' && <DebtsPanel money={money} />}
+            {plan === 'recurring' && <RecurringPanel money={money} />}
+            {plan === 'projection' && <ProjectionPanel money={compact} />}
+          </Card>
+        </section>
       </div>
     );
   }
 
-  const categoryData = dashboard ? Object.entries(dashboard.monthSummary.byCategory).map(([k, v]) => ({ name: CATEGORY_LABELS[k] ?? k, value: v })) : [];
-
   return (
-    <div className="space-y-4">
-      {/* Header minimal */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-[var(--text-primary)]"><CircleDollarSign className="h-5 w-5 text-[var(--accent-gold)]" aria-hidden="true" /> La Bóveda</h1>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">Tus ingresos, gastos y metas en un solo lugar.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <SageContextButton message="¿Cómo voy con mi dinero este mes? Analiza mis gastos e ingresos y dame recomendaciones concretas." label="¿Cómo voy?" />
-          <FlowButton tone="primary" size="lg" withArrows={false} onClick={(event) => {
-            captureModalOrigin(event);
-            setShowAddTransaction(true);
-          }}>
-            Nueva transacción
-          </FlowButton>
-        </div>
-      </div>
-
-      {/* ── Balance Hero Card ── */}
-      {dashboard && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-        >
-          <LifeQuestFlipCard
-            eyebrow="Saldo disponible"
-            title={dashboard.totalBalance >= 0 ? 'Tu saldo está disponible' : 'Tu saldo necesita atención'}
-            description="Un resumen claro de tus ingresos, gastos y próximo movimiento."
-            visual={(
-              <div className="text-center" aria-hidden="true">
-                <p className={`font-vt text-5xl leading-none sm:text-6xl ${dashboard.totalBalance >= 0 ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]'}`}>
-                  <AnimatedCounter
-                    value={Math.abs(dashboard.totalBalance)}
-                    separator="."
-                    prefix={`${dashboard.totalBalance < 0 ? '-' : ''}$ `}
-                    duration={1}
-                  />
-                </p>
-                <p className="mt-2 text-sm font-medium text-muted-foreground">Saldo disponible</p>
-              </div>
-            )}
-            visualLabel={`Saldo disponible: ${formatCOP(dashboard.totalBalance)}`}
-            badge={dashboard.totalBalance >= 0 ? 'Saldo positivo' : 'Revisar gastos'}
-            frontFooter={(
-              <div className="space-y-2">
-                <div className="rounded-xl border border-border bg-muted px-3 py-2">
-                  <p className="text-sm font-medium text-muted-foreground">Balance del mes</p>
-                  <p className={`mt-1 truncate text-base font-semibold ${dashboard.monthSummary.balance >= 0 ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]'}`}>
-                    <AnimatedCounter value={Math.abs(dashboard.monthSummary.balance)} separator="." prefix={`${dashboard.monthSummary.balance < 0 ? '-' : ''}$ `} duration={0.7} />
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="rounded-xl border border-border bg-muted px-3 py-2"><p className="text-sm font-medium text-muted-foreground">Ingresos</p><p className="mt-1 truncate text-sm font-medium text-[var(--accent-green)]"><AnimatedCounter value={dashboard.monthSummary.income} separator="." prefix="$ " duration={0.7} /></p></div>
-                  <div className="rounded-xl border border-border bg-muted px-3 py-2"><p className="text-sm font-medium text-muted-foreground">Gastos</p><p className="mt-1 truncate text-sm font-medium text-[var(--accent-red)]"><AnimatedCounter value={dashboard.monthSummary.expenses} separator="." prefix="$ " duration={0.7} /></p></div>
-                </div>
-              </div>
-            )}
-            backDescription={<p>Consulta tus movimientos para entender qué está moviendo el balance y registra una transacción cuando lo necesites.</p>}
-            metrics={[
-              { label: 'Ingresos del mes', value: formatCOP(dashboard.monthSummary.income) },
-              { label: 'Gastos del mes', value: formatCOP(dashboard.monthSummary.expenses) },
-              { label: 'Balance del mes', value: formatCOP(dashboard.monthSummary.balance) },
-            ]}
-            actionLabel="Ver movimientos"
-            onAction={() => setTab('transactions')}
-            accent="var(--accent-gold)"
-          />
-        </motion.div>
-      )}
-
-      {/* Tabs */}
-      <div className="grid grid-cols-2 gap-1 sm:flex sm:flex-wrap">
-        {([['dashboard', ' Resumen'], ['transactions', ' Transacciones'], ['budgets', ' Presupuestos'], ['goals', ' Metas'], ['debts', ' Deudas'], ['recurring', ' Recurrentes'], ['projection', ' Proyección']] as const).map(([key, label]) => (
-          <button
-            key={key}
-            onClick={() => setTab(key)}
-            className={`min-h-11 min-w-0 rounded-xl border px-3 py-2 text-sm font-medium transition-colors sm:shrink-0 ${tab === key ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)] text-[var(--bg-deep)]' : 'border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--text-secondary)]'}`}
-            style={{ fontSize: '12px' }}
-          >
-
-            {label}
-          </button>
-        ))}
-      </div>
-
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.div
-          key={tab}
-          initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={reduceMotion ? undefined : { opacity: 0, y: -5 }}
-          transition={{ duration: reduceMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
-        >
-      {/* Dashboard tab */}
-      {tab === 'dashboard' && dashboard && (
-        <div className="space-y-4">
-          {categoryData.length > 0 && (
-            <PixelPanel className="p-4">
-              <p className="mb-3 text-sm font-medium text-[var(--text-secondary)]">Gastos por categoría</p>
-              <div className="flex flex-col md:flex-row gap-4 items-center">
-                <ResponsiveContainer width="100%" height={200}>
-                  <PieChart>
-                    <Pie data={categoryData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80}>
-                      {categoryData.map((_, i) => <Cell key={i} fill={COP_COLORS[i % COP_COLORS.length]} />)}
-                    </Pie>
-                    <Tooltip formatter={(v: number) => formatCOP(v)} contentStyle={{ background: 'var(--bg-panel)', border: '2px solid var(--border)', fontFamily: 'Montserrat', fontSize: '16px', color: 'var(--text-primary)' }} />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="flex flex-wrap gap-1">
-                  {categoryData.map((d, i) => (
-                    <div key={d.name} className="flex items-center gap-1">
-                      <span className="w-3 h-3 flex-shrink-0" style={{ background: COP_COLORS[i % COP_COLORS.length] }} />
-                      <span className="font-vt text-text-secondary text-base">{d.name}: {formatCOP(d.value)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </PixelPanel>
-          )}
-
-          {/* Recent transactions */}
-          <PixelPanel className="p-4">
-            <p className="mb-2 text-sm font-medium text-[var(--text-secondary)]">Movimientos recientes</p>
-            <div className="space-y-2">
-              {dashboard.recent.slice(0, 5).map(t => (
-                <div key={t.id} className="flex items-center justify-between py-1 border-b border-border-pixel/30">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg"><E e={CATEGORY_ICONS[t.category] ?? '📦'} /></span>
-                    <div>
-                      <p className="font-vt text-text-primary text-base">{t.description ?? CATEGORY_LABELS[t.category]}</p>
-                      <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>{new Date(t.date).toLocaleDateString('es-CO')}</p>
-                    </div>
+    <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-6 md:gap-12">
+      {header}
+      <motion.div variants={item}>{body}</motion.div>
+      <ResponsiveDialog open={Boolean(detail)} onClose={() => setDetail(null)} title={detail ? (detail.description || txCategory(detail.category).label) : ''}>
+        {detail && (() => {
+          const cat = txCategory(detail.category);
+          const income = detail.type === 'INCOME';
+          return (
+            <div className="flex flex-col gap-5">
+              <span className={cn('text-display-sm tabular-nums', income ? 'text-success-text' : 'text-on-background')}>{income ? '+' : '−'}{money(Number(detail.amount))}</span>
+              <dl className="flex flex-col gap-1">
+                {[['Tipo', income ? 'Ingreso' : 'Gasto'], ['Categoría', cat.label], ['Fecha', new Date(detail.date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })]].map(([k, v]) => (
+                  <div key={k} className="flex min-h-10 items-center justify-between gap-4 border-b border-border last:border-0">
+                    <dt className="text-body-md text-on-surface-light">{k}</dt><dd className="text-label-lg">{v}</dd>
                   </div>
-                  <p className={`font-vt text-lg ${t.type === 'INCOME' ? 'text-accent-green' : 'text-accent-red'}`}>
-                    {t.type === 'INCOME' ? '+' : '-'}{formatCOP(t.amount)}
-                  </p>
-                </div>
-              ))}
+                ))}
+              </dl>
+              <Button variant="danger" block onClick={() => { const t = detail; setDetail(null); void remove(t); }}>
+                <Trash2 aria-hidden className="size-5" strokeWidth={1.75} />Eliminar movimiento
+              </Button>
             </div>
-          </PixelPanel>
-        </div>
-      )}
-
-      {/* Transactions tab */}
-      {tab === 'transactions' && (
-        <div className="space-y-2">
-          {transactions.length === 0 ? (
-            <PixelPanel className="p-6 text-center">
-              <p className="text-sm font-medium text-[var(--text-secondary)]">Aún no hay transacciones</p>
-            </PixelPanel>
-          ) : (
-            <AnimatePresence>
-              {transactions.map((t, i) => (
-                <motion.div
-                  key={t.id}
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20, scale: 0.95 }}
-                  transition={{ delay: i * 0.03 }}
-                >
-                  <PixelPanel className="p-3 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl"><E e={CATEGORY_ICONS[t.category] ?? '📦'} /></span>
-                      <div>
-                        <p className="font-vt text-text-primary text-lg">{t.description ?? CATEGORY_LABELS[t.category]}</p>
-                        <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>
-                          <E e={CATEGORY_LABELS[t.category]} /> · {new Date(t.date).toLocaleDateString('es-CO')}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <p className={`font-vt text-xl ${t.type === 'INCOME' ? 'text-accent-green' : 'text-accent-red'}`}>
-                        {t.type === 'INCOME' ? '+' : '-'}{formatCOP(t.amount)}
-                      </p>
-                      <FlowButton
-                        tone="danger"
-                        size="sm"
-                        withArrows={false}
-                        onClick={() => handleDeleteTransaction(t.id)}
-                        className="font-pixel text-accent-red hover:opacity-70 transition-opacity"
-                        style={{ fontSize: '12px' }}
-                      >
-                        <E e="✕" />
-                      </FlowButton>
-                    </div>
-                  </PixelPanel>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          )}
-        </div>
-      )}
-
-      {/* Budgets tab */}
-      {tab === 'budgets' && dashboard && (
-        <div className="space-y-3">
-          {dashboard.budgets.length === 0 ? (
-            <PixelPanel className="p-8 text-center">
-              <p className="text-4xl mb-2"><E e="📋" /></p>
-              <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>SIN PRESUPUESTOS</p>
-              <p className="font-vt text-text-secondary text-base mt-1">Crea presupuestos para controlar tus gastos</p>
-            </PixelPanel>
-          ) : (
-            dashboard.budgets.map(b => {
-              const pct = b.amount > 0 ? Math.min((b.spent / b.amount) * 100, 100) : 0;
-              const color = pct >= 90 ? 'text-accent-red' : pct >= 70 ? 'text-accent-gold' : 'text-accent-green';
-              const barColor = pct >= 90 ? 'bg-accent-red' : pct >= 70 ? 'bg-accent-gold' : 'bg-accent-green';
-              return (
-                <PixelPanel key={b.id} className="p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl"><E e={CATEGORY_ICONS[b.category]} /></span>
-                      <p className="font-vt text-text-primary text-lg"><E e={CATEGORY_LABELS[b.category]} /></p>
-                    </div>
-                    <p className={`font-pixel ${color}`} style={{ fontSize: '12px' }}>{Math.round(pct)}%</p>
-                  </div>
-                  <div className="stat-bar h-3">
-                    <motion.div className={`h-full ${barColor}`} initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.8, ease: 'easeOut' }} />
-                  </div>
-                  <div className="flex justify-between mt-1">
-                    <span className="font-vt text-text-secondary text-base">{formatCOP(b.spent)} gastado</span>
-                    <span className="font-vt text-text-secondary text-base">de {formatCOP(b.amount)}</span>
-                  </div>
-                </PixelPanel>
-              );
-            })
-          )}
-        </div>
-      )}
-
-      {/* Goals tab */}
-      {tab === 'goals' && (
-        <div className="space-y-3">
-          <div className="flex justify-end">
-            <FlowButton tone="secondary" size="sm" withArrows={false} onClick={(event) => {
-              captureModalOrigin(event);
-              setShowGoalModal(true);
-            }}>Agregar meta</FlowButton>
-          </div>
-          {goals.length === 0 ? (
-            <PixelPanel className="p-8 text-center">
-              <p className="text-4xl mb-2"><E e="🎯" /></p>
-              <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>SIN METAS DE AHORRO</p>
-            </PixelPanel>
-          ) : (
-            goals.map(g => {
-              const pct = g.targetAmount > 0 ? Math.min((g.currentAmount / g.targetAmount) * 100, 100) : 0;
-              return (
-                <PixelPanel key={g.id} className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="font-vt text-text-primary text-xl">{g.title}</p>
-                    {g.isCompleted && <span className="font-pixel text-accent-gold" style={{ fontSize: '12px' }}><E e="✓" /> COMPLETADA</span>}
-                  </div>
-                  {g.description && <p className="font-vt text-text-secondary text-base mb-2">{g.description}</p>}
-                  <div className="stat-bar h-4 mb-1">
-                    <motion.div className="h-full bg-accent-gold" initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 1, ease: 'easeOut' }} />
-                  </div>
-                  <div className="flex justify-between mb-2">
-                    <span className="font-vt text-text-secondary text-base">{formatCOP(g.currentAmount)}</span>
-                    <span className="font-pixel text-accent-gold" style={{ fontSize: '12px' }}>{Math.round(pct)}%</span>
-                    <span className="font-vt text-text-secondary text-base">{formatCOP(g.targetAmount)}</span>
-                  </div>
-                  {!g.isCompleted && (
-                    <PixelButton variant="secondary" onClick={(event) => {
-                      captureModalOrigin(event);
-                      setShowContributeModal(g.id);
-                    }} className="w-full">
-                      + AGREGAR APORTE
-                    </PixelButton>
-                  )}
-                </PixelPanel>
-              );
-            })
-          )}
-        </div>
-      )}
-
-      {/* Debts tab */}
-      {tab === 'debts' && <DebtsPanel />}
-
-      {/* Recurring tab */}
-      {tab === 'recurring' && <RecurringPanel />}
-
-      {/* Projection tab */}
-      {tab === 'projection' && <ProjectionPanel />}
-
-        </motion.div>
-      </AnimatePresence>
-
-      {/* Transaction modal */}
-      <AnimatePresence>
-        {showAddTransaction && (
-          <TransactionModal
-            origin={modalOrigin}
-            onClose={() => setShowAddTransaction(false)}
-            onSave={handleTransactionSaved}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Payday modal */}
-      <AnimatePresence>
-        {showPayday && <PaydayModal onClose={() => setShowPayday(false)} />}
-      </AnimatePresence>
-
-      {/* Goal modal */}
-      <AnimatePresence>
-        {showGoalModal && (
-          <ModalShell
-            title="Nueva meta de ahorro"
-            description="Define un objetivo claro y registra el avance cuando hagas un aporte."
-            icon={PiggyBank}
-            origin={modalOrigin}
-            onClose={() => setShowGoalModal(false)}
-          >
-            <div className="space-y-4">
-              <label htmlFor="financial-goal-title" className="block">
-                <span className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">Nombre de la meta</span>
-                <input
-                  id="financial-goal-title"
-                  value={goalForm.title}
-                  onChange={(event) => setGoalForm((form) => ({ ...form, title: event.target.value }))}
-                  placeholder="Ej. fondo de emergencia"
-                  autoFocus
-                  className={modalInputClass}
-                />
-              </label>
-              <MoneyField
-                id="financial-goal-amount"
-                label="Objetivo"
-                value={goalForm.targetAmount}
-                onChange={(targetAmount) => setGoalForm((form) => ({ ...form, targetAmount }))}
-                onEnter={() => void handleCreateGoal()}
-              />
-              <label htmlFor="financial-goal-description" className="block">
-                <span className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">Nota <span className="text-[var(--text-muted)]">opcional</span></span>
-                <input
-                  id="financial-goal-description"
-                  value={goalForm.description}
-                  onChange={(event) => setGoalForm((form) => ({ ...form, description: event.target.value }))}
-                  placeholder="Para qué quieres ahorrar"
-                  className={modalInputClass}
-                />
-              </label>
-            </div>
-            <ModalActions
-              onCancel={() => setShowGoalModal(false)}
-              onConfirm={() => void handleCreateGoal()}
-              confirmLabel="Crear meta"
-              disabled={!goalForm.title.trim() || Number(goalForm.targetAmount) <= 0}
-            />
-          </ModalShell>
-        )}
-      </AnimatePresence>
-
-      {/* Contribute modal */}
-      <AnimatePresence>
-        {showContributeModal && (
-          <ModalShell
-            title="Agregar aporte"
-            description="El aporte se suma al progreso de esta meta de ahorro."
-            icon={CircleDollarSign}
-            origin={modalOrigin}
-            onClose={() => setShowContributeModal(null)}
-            size="sm"
-          >
-            <MoneyField
-              id="financial-goal-contribution"
-              label="Monto del aporte"
-              value={contributeAmount}
-              onChange={setContributeAmount}
-              autoFocus
-              onEnter={() => void handleContribute()}
-            />
-            <ModalActions
-              onCancel={() => setShowContributeModal(null)}
-              onConfirm={() => void handleContribute()}
-              confirmLabel="Agregar aporte"
-              disabled={Number(contributeAmount) <= 0}
-            />
-          </ModalShell>
-        )}
-      </AnimatePresence>
-    </div>
+          );
+        })()}
+      </ResponsiveDialog>
+      <TransactionFormDialog open={adding} onClose={() => setAdding(false)} onSaved={() => { setAdding(false); void load(true); }} />
+    </motion.div>
   );
 }

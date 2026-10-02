@@ -83,7 +83,7 @@ export function Modal({ open, onClose, title, hideClose, dismissible = true, cla
             className={cn('flex max-h-[calc(100dvh-2rem)] w-full max-w-[440px] flex-col gap-4 overflow-y-auto rounded-3xl bg-background p-6 text-on-background shadow-lg outline-none', className)}
           >
             <div className="flex items-start justify-between gap-4">
-              <h2 id={titleId} className="text-heading-md">{title}</h2>
+              <h2 id={titleId} className="min-w-0 flex-1 text-heading-md">{title}</h2>
               {!hideClose && (
                 <Button variant="icon" aria-label="Cerrar" onClick={onClose} className="-mr-2 -mt-2">
                   <X aria-hidden className="size-6" strokeWidth={1.75} />

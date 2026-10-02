@@ -177,7 +177,7 @@ export default function QuestsPage() {
                 className="hidden flex-wrap items-center gap-8 border-primary/35 p-8 md:flex"
               >
                 <ProgressRing value={questProgress(featured).pct} tone={isReady(featured) ? 'success' : 'primary'} size={148} stroke={12} label="Progreso" valueText={questProgress(featured).text}>
-                  <IconChip icon={isReady(featured) ? CheckCircle2 : Flag} tone={isReady(featured) ? 'success' : 'primary'} className="size-20 rounded-full animate-halo motion-reduce:animate-none" />
+                  <IconChip icon={isReady(featured) ? CheckCircle2 : Flag} tone={isReady(featured) ? 'success' : 'primary'} className="lq-halo size-20 rounded-full" />
                 </ProgressRing>
                 <div className="flex min-w-0 flex-[1_1_320px] flex-col gap-3">
                   <div className="flex flex-wrap gap-2">
