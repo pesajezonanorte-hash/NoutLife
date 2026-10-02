@@ -263,6 +263,9 @@ export function GameLayout({ children }: Props) {
   const handleToggleTheme = (checked: boolean) => applyThemeMode(checked ? 'dark' : 'light');
   const navigate = useNavigate();
   const location = useLocation();
+  const currentNavItem = NAV_ITEMS.find((item) =>
+    item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to));
+  const currentGroupLabel = NAV_GROUPS.find((group) => group.id === currentNavItem?.group)?.label ?? 'LifeQuest';
   const [showFocus, setShowFocus] = useState(false);
   const [zoneTooltipVisible, setZoneTooltipVisible] = useState(false);
   const [mobileHeaderVisible, setMobileHeaderVisible] = useState(true);
@@ -535,7 +538,7 @@ export function GameLayout({ children }: Props) {
                         {user.displayName}
                       </span>
                       <span className="block truncate text-xs font-medium tabular-nums text-[var(--text-muted)]">
-                        Nv {user.level} · {user.currentStreak} días de racha
+                        Nv {user.level} · {user.currentStreak} {user.currentStreak === 1 ? 'día' : 'días'} de racha
                       </span>
                     </span>
                   </button>
@@ -594,23 +597,24 @@ export function GameLayout({ children }: Props) {
             <div className="min-w-0 flex-1">
               {user && (
                 <>
-                  <div className="flex items-center gap-1.5 text-[12px] font-semibold" style={{ color: 'var(--text-3)' }}>
-                    <span>El Castillo</span>
-                    <ChevronRight size={11} />
-                    <span style={{ color: 'var(--text-2)' }}>Día a día</span>
-                  </div>
-                  <h1 className="m-0 text-[22px] font-extrabold tracking-[-0.025em] leading-tight" style={{ color: 'var(--text)' }}>
+                  <nav aria-label="Ubicación" className="flex min-w-0 items-center gap-1.5 whitespace-nowrap text-[12px] font-semibold" style={{ color: 'var(--text-3)' }}>
+                    <span>{currentGroupLabel}</span>
+                    <ChevronRight size={11} className="shrink-0" />
+                    <span className="truncate" style={{ color: 'var(--text-2)' }}>{currentNavItem?.label ?? 'Día a día'}</span>
+                  </nav>
+                  {/* Each page renders its own <h1>; the greeting is not a heading. */}
+                  <p className="m-0 truncate text-[22px] font-extrabold tracking-[-0.025em] leading-tight" style={{ color: 'var(--text)' }}>
                     Bienvenido, {user.displayName.split(' ')[0]}
-                  </h1>
-                  <div className="mt-[2px] text-[13px]" style={{ color: 'var(--text-2)' }}>
-                    Nivel {user.level} aventurero · {user.currentStreak} días de racha
+                  </p>
+                  <div className="mt-[2px] truncate text-[13px]" style={{ color: 'var(--text-2)' }}>
+                    Nivel {user.level} aventurero · {user.currentStreak} {user.currentStreak === 1 ? 'día' : 'días'} de racha
                   </div>
                 </>
               )}
             </div>
 
             <button
-              className="hidden xl:flex items-center gap-2"
+              className="hidden 2xl:flex items-center gap-2"
               onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { ctrlKey: true, key: 'k', bubbles: true }))}
               title="Barra de comandos (Ctrl+K)"
               style={{ height: 38, padding: '0 14px', minWidth: 280, maxWidth: 380, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, color: 'var(--text-3)' }}
@@ -642,7 +646,7 @@ export function GameLayout({ children }: Props) {
                   ariaLabel="Acciones de la barra superior"
                 >
                   <HeaderDockButton
-                    className="inline-flex xl:hidden"
+                    className="inline-flex 2xl:hidden"
                     label="Buscar"
                     onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { ctrlKey: true, key: 'k', bubbles: true }))}
                   >
