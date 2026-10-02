@@ -446,9 +446,7 @@ input[type='number']::-webkit-outer-spin-button {
   }
 
   .perspective-flip-card__rotor,
-  .perspective-flip-card__face,
-  .perspective-flip-card__depth-context,
-  .perspective-flip-card__depth {
+  .perspective-flip-card__face {
     transform-style: flat;
     -webkit-transform-style: flat;
   }
@@ -472,18 +470,15 @@ input[type='number']::-webkit-outer-spin-button {
   }
 
   .perspective-flip-card[data-3d-supported='false'] .perspective-flip-card__rotor,
-  .perspective-flip-card[data-3d-supported='false'] .perspective-flip-card__face,
-  .perspective-flip-card[data-3d-supported='false'] .perspective-flip-card__depth-context,
-  .perspective-flip-card[data-3d-supported='false'] .perspective-flip-card__depth {
+  .perspective-flip-card[data-3d-supported='false'] .perspective-flip-card__face {
     transform: none !important;
     -webkit-transform: none !important;
   }
 
+  /* Only the rotor is a 3D context. Faces stay flat: nested translateZ layers
+   * escaped backface-visibility and painted both sides at once. */
   @supports ((transform-style: preserve-3d) or (-webkit-transform-style: preserve-3d)) {
-    .perspective-flip-card[data-3d-supported='true'] .perspective-flip-card__rotor,
-    .perspective-flip-card[data-3d-supported='true'] .perspective-flip-card__face,
-    .perspective-flip-card[data-3d-supported='true'] .perspective-flip-card__depth-context,
-    .perspective-flip-card[data-3d-supported='true'] .perspective-flip-card__depth {
+    .perspective-flip-card[data-3d-supported='true'] .perspective-flip-card__rotor {
       transform-style: preserve-3d;
       -webkit-transform-style: preserve-3d;
     }
@@ -496,9 +491,9 @@ input[type='number']::-webkit-outer-spin-button {
       transform: rotateY(180deg);
     }
 
-    .perspective-flip-card[data-3d-supported='true'] .perspective-flip-card__face {
-      opacity: 1;
-      transition-property: none;
+    /* Belt and braces: hidden face also fades out exactly at 90deg (half of 700ms). */
+    .perspective-flip-card[data-3d-supported='true']:not(.perspective-flip-card--reduced-motion) .perspective-flip-card__face {
+      transition: opacity 0s linear 350ms;
     }
 
     .perspective-flip-card[data-3d-supported='true'] .perspective-flip-card__face--back {
@@ -512,9 +507,7 @@ input[type='number']::-webkit-outer-spin-button {
   }
 
   .perspective-flip-card--reduced-motion .perspective-flip-card__rotor,
-  .perspective-flip-card--reduced-motion .perspective-flip-card__face,
-  .perspective-flip-card--reduced-motion .perspective-flip-card__depth-context,
-  .perspective-flip-card--reduced-motion .perspective-flip-card__depth {
+  .perspective-flip-card--reduced-motion .perspective-flip-card__face {
     transform: none !important;
     -webkit-transform: none !important;
     transform-style: flat;

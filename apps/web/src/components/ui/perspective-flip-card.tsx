@@ -4,7 +4,6 @@ import {
   useId,
   useRef,
   useState,
-  type CSSProperties,
   type KeyboardEvent,
   type PointerEvent,
   type ReactNode,
@@ -200,11 +199,6 @@ export function PerspectiveFlipCard({
     returnToFront();
   }
 
-  const depthStyle = (value: number): CSSProperties | undefined => {
-    if (!canUse3d) return undefined;
-    return { transform: `translateZ(${value}px)` };
-  };
-
   return (
     <div
       className={cn(
@@ -238,7 +232,7 @@ export function PerspectiveFlipCard({
           <button
             ref={frontButtonRef}
             type="button"
-            className="perspective-flip-card__depth-context h-full w-full rounded-[inherit] p-0 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="h-full w-full rounded-[inherit] p-0 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             aria-label={`${label}. Mostrar detalles y acciones`}
             aria-controls={contentId}
             aria-expanded={isFlipped}
@@ -263,7 +257,7 @@ export function PerspectiveFlipCard({
             backClassName,
           )}
         >
-          <div className="perspective-flip-card__depth pointer-events-none absolute right-3 top-3 z-10" style={depthStyle(72)}>
+          <div className="pointer-events-none absolute right-3 top-3 z-10">
             <button
               ref={backButtonRef}
               type="button"
@@ -285,13 +279,4 @@ export function PerspectiveFlipCard({
       </div>
     </div>
   );
-}
-
-/**
- * `translateZ` values shared by higher-level card compositions.
- * Kept here so all LifeQuest flip cards turn off their depth layers together.
- */
-export function getFlipDepthStyle(value: number, disableDepth: boolean): CSSProperties | undefined {
-  if (disableDepth) return undefined;
-  return { transform: `translateZ(${value}px)` };
 }

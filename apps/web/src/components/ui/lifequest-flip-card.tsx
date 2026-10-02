@@ -3,9 +3,7 @@ import { ArrowRight, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   PerspectiveFlipCard,
-  getFlipDepthStyle,
   type PerspectiveFlipCardTrigger,
-  useNested3dSupport,
   usePrefersReducedMotion,
 } from './perspective-flip-card';
 
@@ -73,13 +71,11 @@ export function LifeQuestFlipCard({
   id,
 }: LifeQuestFlipCardProps) {
   const prefersReducedMotion = usePrefersReducedMotion();
-  const supports3d = useNested3dSupport();
   const customStyle = { '--flip-accent': accent } as CSSProperties;
-  const depth = (value: number) => getFlipDepthStyle(value, prefersReducedMotion || !supports3d);
   const displayedMetrics = metrics.slice(0, 3);
 
   const front = (
-    <div className="perspective-flip-card__depth-context flex h-full min-w-0 flex-col p-3">
+    <div className="flex h-full min-w-0 flex-col p-3">
       {/* Flat, clipped hero: translateZ layers here used to spill over the title below. */}
       <div
         className={cn(
@@ -107,7 +103,7 @@ export function LifeQuestFlipCard({
         )}
       </div>
 
-      <div className="perspective-flip-card__depth flex min-h-0 flex-1 flex-col justify-between px-4 pb-3 pt-6" style={depth(24)}>
+      <div className="flex min-h-0 flex-1 flex-col justify-between px-4 pb-3 pt-6">
         <div className="min-w-0">
           <p className="flex items-center gap-2 text-sm font-medium [color:var(--flip-accent)]">{eyebrow}</p>
           <h3 className="mt-1 line-clamp-2 text-xl font-semibold leading-7 tracking-tight text-foreground transition-colors duration-300 group-hover/p-card:text-primary">{title}</h3>
@@ -129,38 +125,38 @@ export function LifeQuestFlipCard({
   );
 
   const back = (
-    <div className="perspective-flip-card__depth-context flex h-full min-h-0 min-w-0 flex-col p-6 pt-16 text-center">
-      <div className="perspective-flip-card__depth min-w-0 pr-16" style={depth(80)}>
+    <div className="flex h-full min-h-0 min-w-0 flex-col p-6 pt-16 text-center">
+      <div className="min-w-0 pr-16">
         <p className="text-sm font-medium [color:var(--flip-accent)]">{eyebrow}</p>
         <h3 className="mt-1 line-clamp-2 text-xl font-bold leading-6 tracking-tight text-foreground">{backTitle ?? title}</h3>
       </div>
 
-      <div className="perspective-flip-card__depth-context mt-4 min-h-0 flex-1 pr-1">
-        {backDescription && <div className="perspective-flip-card__depth mx-auto max-w-[18rem] text-sm font-medium leading-5 text-muted-foreground" style={depth(48)}>{backDescription}</div>}
+      <div className="mt-4 min-h-0 flex-1 pr-1">
+        {backDescription && <div className="mx-auto max-w-[18rem] text-sm font-medium leading-5 text-muted-foreground">{backDescription}</div>}
 
         {displayedMetrics.length > 0 && (
-          <div className={cn('perspective-flip-card__depth-context mt-6 grid gap-2', displayedMetrics.length === 1 ? 'grid-cols-1' : displayedMetrics.length === 2 ? 'grid-cols-2' : 'grid-cols-3')}>
+          <div className={cn('mt-6 grid gap-2', displayedMetrics.length === 1 ? 'grid-cols-1' : displayedMetrics.length === 2 ? 'grid-cols-2' : 'grid-cols-3')}>
             {displayedMetrics.map((metric, index) => (
               <div
                 key={`${metric.label}-${index}`}
-                className="perspective-flip-card__depth perspective-flip-card__depth-context min-w-0 rounded-2xl border border-border bg-muted p-3"
-                style={depth(index === 1 ? 40 : 32)}
+                className="min-w-0 rounded-2xl border border-border bg-muted p-3"
+               
               >
                 <p className="truncate text-sm font-medium text-muted-foreground">{metric.label}</p>
-                <div className="perspective-flip-card__depth mt-1 truncate text-sm font-bold text-foreground" style={depth(18)}>{metric.value}</div>
+                <div className="mt-1 truncate text-sm font-bold text-foreground">{metric.value}</div>
               </div>
             ))}
           </div>
         )}
 
-        {backContent && <div className="perspective-flip-card__depth mt-5 text-sm leading-5 text-muted-foreground" style={depth(56)}>{backContent}</div>}
+        {backContent && <div className="mt-5 text-sm leading-5 text-muted-foreground">{backContent}</div>}
       </div>
 
       {(backActions || actionLabel) && (
-        <div className="perspective-flip-card__depth-context mt-4 flex flex-wrap items-center justify-center gap-2 border-t border-border pt-4" onClick={(event) => event.stopPropagation()}>
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-2 border-t border-border pt-4" onClick={(event) => event.stopPropagation()}>
           {backActions}
           {actionLabel && (
-            <div className="perspective-flip-card__depth w-full px-1" style={depth(100)}>
+            <div className="w-full px-1">
               <button
                 type="button"
                 disabled={actionDisabled}
