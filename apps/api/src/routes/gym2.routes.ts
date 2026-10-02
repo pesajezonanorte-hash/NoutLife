@@ -100,8 +100,13 @@ router.get('/volume-weekly', async (req, res) => {
 
 // 1RM Calculator
 router.post('/1rm', async (req, res) => {
-  const { weight, reps } = req.body;
-  res.json({ oneRepMax: calculate1RM(Number(weight), Number(reps)) });
+  const weight = Number(req.body.weight);
+  const reps = Number(req.body.reps);
+  if (!(weight > 0) || !Number.isInteger(reps) || reps < 1 || reps > 30) {
+    res.status(400).json({ message: 'Indica un peso mayor que cero y entre 1 y 30 repeticiones.' });
+    return;
+  }
+  res.json({ oneRepMax: calculate1RM(weight, reps) });
 });
 
 export default router;
