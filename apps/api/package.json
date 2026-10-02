@@ -4,6 +4,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
+    "vercel-build": "prisma generate && tsx src/migrate-db.ts && tsx src/seed-production.ts && tsc -p tsconfig.json",
     "test:analytics": "tsx --test tests/analytics.integration.test.ts",
     "test:fixes": "tsx --test tests/audit-fixes.test.ts",
     "start": "node dist/server.js",
