@@ -1,30 +1,40 @@
-import { FlowButton } from '@/components/ui/flow-button';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { SegmentedControl } from '@/components/ui/SegmentedControl';
-import { StatTile } from '@/components/ui/StatTile';
-import { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { AlertTriangle, BookOpen, CheckCircle2, FileText, TrendingUp, Trophy } from 'lucide-react';
+// Aprendizaje — LearningDesktop.dc.html. Biblioteca (KPIs count-up, estantería con
+// portadas y filtros de estado) y Pomodoro real. Notas y vocabulario por ítem.
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import {
+  ArrowLeft, BookOpen, CheckCircle2, FileText, Globe, Headphones, MonitorPlay, NotebookPen, Plus, TrendingUp, Trophy, Video,
+  type LucideIcon,
+} from 'lucide-react';
+import type { LearningItem, LearningStats } from '@lifequest/shared';
+import { item, stagger } from '@/lib/motion';
 import { useUIStore } from '../../store/uiStore';
 import { useToast } from '../../hooks/useToast';
 import { refreshUser } from '../../hooks/useAuth';
-import { PixelPanel } from '../../components/ui/PixelPanel';
-import { LifeQuestFlipCard } from '../../components/ui/lifequest-flip-card';
-import { PixelButton } from '../../components/ui/PixelButton';
-import { ModalFrame } from '../../components/ui/ModalFrame';
-import type { LearningItem, LearningStats } from '@lifequest/shared';
 import * as learningService from '../../services/learning.service';
 import { PomodoroTimer, NotesPanel, VocabPanel } from '../../components/learning/LearningExtras';
 import { SageContextButton } from '../../components/sage/SageContextButton';
-import { E } from '@/components/ui/glyphs';
-import ModernLoader from '@/components/ui/modern-loader';
-import { LoadingGate } from '@/components/ui/LoadingGate';
-import { LOADING_COPY } from '@/lib/loadingCopy';
+import {
+  Badge, BookCover, Button, Card, EmptyState, ErrorState, Field, Input, Modal, ProgressBar, SegmentedControl, Select,
+  Skeleton, StatCard, type BadgeVariant, type Tone,
+} from '@/components/ui/lq';
 
-const TYPE_ICONS: Record<string, string> = { BOOK: '📖', COURSE: '💻', PODCAST: '🎙️', VIDEO: '🎥', LANGUAGE: '🗣️' };
-const TYPE_LABELS: Record<string, string> = { BOOK: 'Libro', COURSE: 'Curso', PODCAST: 'Podcast', VIDEO: 'Video', LANGUAGE: 'Idioma' };
-const STATUS_LABELS: Record<string, string> = { NOT_STARTED: 'Por empezar', IN_PROGRESS: 'En progreso', COMPLETED: 'Completado', ABANDONED: 'Abandonado' };
-const STATUS_COLORS: Record<string, string> = { NOT_STARTED: 'text-text-secondary', IN_PROGRESS: 'text-accent-gold', COMPLETED: 'text-accent-green', ABANDONED: 'text-accent-red' };
+const TYPE_META: Record<string, { label: string; icon: LucideIcon; tone: Exclude<Tone, 'muted'> }> = {
+  BOOK: { label: 'Libro', icon: BookOpen, tone: 'primary' },
+  COURSE: { label: 'Curso', icon: MonitorPlay, tone: 'info' },
+  PODCAST: { label: 'Podcast', icon: Headphones, tone: 'secondary' },
+  VIDEO: { label: 'Video', icon: Video, tone: 'warning' },
+  LANGUAGE: { label: 'Idioma', icon: Globe, tone: 'success' },
+};
+const STATUS_META: Record<string, { label: string; badge: BadgeVariant; bar: 'primary' | 'success' | 'warning' | 'error' }> = {
+  NOT_STARTED: { label: 'Por empezar', badge: 'neutral', bar: 'primary' },
+  IN_PROGRESS: { label: 'En progreso', badge: 'primary', bar: 'primary' },
+  COMPLETED: { label: 'Completado', badge: 'success', bar: 'success' },
+  ABANDONED: { label: 'Abandonado', badge: 'error', bar: 'error' },
+};
+
+const pctOf = (i: LearningItem) => (i.totalProgress > 0 ? Math.min(Math.round((i.currentProgress / i.totalProgress) * 100), 100) : 0);
+const unitOf = (i: LearningItem) => (i.type === 'BOOK' ? 'pág' : i.type === 'COURSE' ? 'lecciones' : 'unidades');
 
 function AddItemModal({ onClose, onSave }: { onClose: () => void; onSave: (item: LearningItem) => void }) {
   const [type, setType] = useState('BOOK');
@@ -33,19 +43,15 @@ function AddItemModal({ onClose, onSave }: { onClose: () => void; onSave: (item:
   const [totalProgress, setTotalProgress] = useState('');
   const [saving, setSaving] = useState(false);
   const toast = useToast();
-  const inputClass = 'w-full rounded-xl border border-[var(--border)] bg-[var(--bg-deep)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--accent-gold)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--accent-gold)_16%,transparent)]';
 
   async function save() {
     if (!title.trim()) return;
     setSaving(true);
     try {
-      const item = await learningService.createLearning({
-        type,
-        title,
-        author: author || undefined,
-        totalProgress: totalProgress ? Number(totalProgress) : 0,
+      const created = await learningService.createLearning({
+        type, title, author: author || undefined, totalProgress: totalProgress ? Number(totalProgress) : 0,
       });
-      onSave(item);
+      onSave(created);
       toast.success('¡Ítem agregado!');
     } catch {
       toast.error('Error al agregar');
@@ -55,103 +61,55 @@ function AddItemModal({ onClose, onSave }: { onClose: () => void; onSave: (item:
   }
 
   return (
-    <ModalFrame
-      title="Agregar a tu biblioteca"
-      description="Elige el formato y guarda algo que quieras estudiar, leer o escuchar."
-      icon={<BookOpen className="h-4 w-4" aria-hidden="true" />}
-      onClose={onClose}
-      footer={(
-        <div className="grid grid-cols-2 gap-2.5">
-          <PixelButton variant="ghost" onClick={onClose} className="w-full">Cancelar</PixelButton>
-          <PixelButton variant="primary" onClick={save} disabled={!title.trim() || saving} className="w-full">
-            {saving ? 'Agregando…' : 'Agregar'}
-          </PixelButton>
-        </div>
-      )}
-    >
-      <div className="space-y-5">
+    <Modal open onClose={onClose} title="Agregar a tu biblioteca">
+      <form className="flex flex-col gap-5" onSubmit={(e) => { e.preventDefault(); void save(); }}>
+        <p className="-mt-2 text-body-sm text-on-surface-light">Elige el formato y guarda algo que quieras estudiar, leer o escuchar.</p>
         <fieldset>
-          <legend className="mb-2 text-xs font-medium text-[var(--text-secondary)]">Formato</legend>
+          <legend className="mb-2 text-label-lg text-on-surface">Formato</legend>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {Object.entries(TYPE_ICONS).map(([key, icon]) => {
-              const selected = type === key;
+            {Object.entries(TYPE_META).map(([key, m]) => {
+              const on = type === key;
               return (
                 <button
-                  key={key}
-                  type="button"
-                  onClick={() => setType(key)}
-                  aria-pressed={selected}
-                  className={`flex min-h-11 items-center gap-2 rounded-xl border px-3 text-left text-sm font-medium transition-colors ${
-                    selected
-                      ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)]/10 text-[var(--text-primary)]'
-                      : 'border-[var(--border)] bg-[var(--bg-panel-light)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]'
-                  }`}
+                  key={key} type="button" aria-pressed={on} onClick={() => setType(key)}
+                  className={`flex min-h-11 items-center gap-2 rounded-lg border px-3 text-left text-label-lg transition-colors ${on ? 'border-primary/50 bg-primary/[var(--lq-soft-alpha)] text-primary-text' : 'border-border bg-background text-on-surface hover:border-primary/40'}`}
                 >
-                  <span aria-hidden="true">{icon}</span>
-                  <span className="truncate">{key === 'LANGUAGE' ? 'Idioma' : key === 'COURSE' ? 'Curso' : key === 'PODCAST' ? 'Podcast' : key === 'VIDEO' ? 'Video' : 'Libro'}</span>
+                  <m.icon aria-hidden className="size-4 shrink-0" strokeWidth={1.75} />{m.label}
                 </button>
               );
             })}
           </div>
         </fieldset>
-
-        <label className="block">
-          <span className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">Título</span>
-          <input
-            autoFocus
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            onKeyDown={(event) => event.key === 'Enter' && void save()}
-            placeholder="Ej. Hábitos atómicos"
-            className={inputClass}
-          />
-        </label>
-
-        <label className="block">
-          <span className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">Autor o plataforma <span className="font-normal text-[var(--text-muted)]">(opcional)</span></span>
-          <input
-            value={author}
-            onChange={(event) => setAuthor(event.target.value)}
-            placeholder="Ej. James Clear o Coursera"
-            className={inputClass}
-          />
-        </label>
-
+        <Field label="Título"><Input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ej. Hábitos atómicos" /></Field>
+        <Field label="Autor o plataforma (opcional)"><Input value={author} onChange={(e) => setAuthor(e.target.value)} placeholder="Ej. James Clear o Coursera" /></Field>
         {type === 'BOOK' && (
-          <label className="block">
-            <span className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">Total de páginas <span className="font-normal text-[var(--text-muted)]">(opcional)</span></span>
-            <input
-              type="number"
-              min="0"
-              inputMode="numeric"
-              value={totalProgress}
-              onChange={(event) => setTotalProgress(event.target.value)}
-              placeholder="Ej. 320"
-              className={inputClass}
-            />
-          </label>
+          <Field label="Total de páginas (opcional)"><Input type="number" min="0" inputMode="numeric" value={totalProgress} onChange={(e) => setTotalProgress(e.target.value)} placeholder="Ej. 320" /></Field>
         )}
-      </div>
-    </ModalFrame>
+        <div className="flex gap-3">
+          <Button type="button" variant="ghost" className="flex-1" onClick={onClose}>Cancelar</Button>
+          <Button type="submit" className="flex-1" disabled={!title.trim()} loading={saving}>Agregar</Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
-function ProgressModal({ item, onClose, onUpdate }: { item: LearningItem; onClose: () => void; onUpdate: (item: LearningItem) => void }) {
-  const [progress, setProgress] = useState(String(item.currentProgress));
-  const [status, setStatus] = useState(item.status);
+function ProgressModal({ item: it, onClose, onUpdate }: { item: LearningItem; onClose: () => void; onUpdate: (item: LearningItem) => void }) {
+  const [progress, setProgress] = useState(String(it.currentProgress));
+  const [status, setStatus] = useState(it.status);
   const [saving, setSaving] = useState(false);
   const toast = useToast();
   const { addFloatingXP } = useUIStore();
-  const inputClass = 'w-full rounded-xl border border-[var(--border)] bg-[var(--bg-deep)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition-colors focus:border-[var(--accent-gold)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--accent-gold)_16%,transparent)]';
 
   async function save() {
     setSaving(true);
     try {
-      const result = await learningService.updateLearning(item.id, { currentProgress: Number(progress), status });
+      const result = await learningService.updateLearning(it.id, { currentProgress: Number(progress), status });
       onUpdate(result.item);
-      if (result.rewards && (result.rewards as { xpGained: number }).xpGained) {
-        addFloatingXP((result.rewards as { xpGained: number }).xpGained, window.innerWidth / 2, 200);
-        toast.success('¡Ítem completado!', `+${(result.rewards as { xpGained: number }).xpGained} XP`);
+      const xp = (result.rewards as { xpGained?: number } | null)?.xpGained;
+      if (xp) {
+        addFloatingXP(xp, window.innerWidth / 2, 200);
+        toast.success('¡Ítem completado!', `+${xp} XP`);
         void refreshUser();
       }
       onClose();
@@ -162,311 +120,187 @@ function ProgressModal({ item, onClose, onUpdate }: { item: LearningItem; onClos
     }
   }
 
-  const pct = item.totalProgress > 0 ? Math.min((Number(progress) / item.totalProgress) * 100, 100) : 0;
+  const pct = it.totalProgress > 0 ? Math.min((Number(progress) / it.totalProgress) * 100, 100) : 0;
 
   return (
-    <ModalFrame
-      title="Actualizar progreso"
-      description={item.title}
-      icon={<TrendingUp className="h-4 w-4" aria-hidden="true" />}
-      onClose={onClose}
-      footer={(
-        <div className="grid grid-cols-2 gap-2.5">
-          <PixelButton variant="ghost" onClick={onClose} className="w-full">Cancelar</PixelButton>
-          <PixelButton variant="primary" onClick={save} disabled={saving} className="w-full">
-            {saving ? 'Guardando…' : 'Guardar'}
-          </PixelButton>
-        </div>
-      )}
-    >
-      <div className="space-y-5">
-        {item.totalProgress > 0 && (
-          <div>
-            <label className="block">
-              <span className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">Progreso actual de {item.totalProgress}</span>
-              <input
-                type="number"
-                min="0"
-                value={progress}
-                onChange={(event) => setProgress(event.target.value)}
-                placeholder="Página actual"
-                className={inputClass}
-              />
-            </label>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--bg-muted)]">
-              <motion.div className="h-full rounded-full bg-[var(--accent-gold)]" animate={{ width: `${pct}%` }} transition={{ duration: 0.35 }} />
-            </div>
-            <p className="mt-1.5 text-right text-xs font-medium tabular-nums text-[var(--accent-gold)]">{Math.round(pct)}%</p>
+    <Modal open onClose={onClose} title="Actualizar progreso">
+      <form className="flex flex-col gap-5" onSubmit={(e) => { e.preventDefault(); void save(); }}>
+        <p className="-mt-2 text-body-md text-on-surface">{it.title}</p>
+        {it.totalProgress > 0 && (
+          <div className="flex flex-col gap-3">
+            <Field label={`Progreso actual de ${it.totalProgress}`}><Input type="number" min="0" inputMode="numeric" value={progress} onChange={(e) => setProgress(e.target.value)} placeholder="Página actual" /></Field>
+            <ProgressBar value={pct} label="Progreso" valueText={`${Math.round(pct)}%`} />
+            <p className="text-right font-mono text-label-lg tabular-nums text-primary-text">{Math.round(pct)}%</p>
           </div>
         )}
-
-        <label className="block">
-          <span className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">Estado</span>
-          <select value={status} onChange={(event) => setStatus(event.target.value as LearningItem['status'])} className={inputClass}>
-            {Object.entries(STATUS_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
-          </select>
-        </label>
-      </div>
-    </ModalFrame>
+        <Field label="Estado">
+          <Select value={status} onChange={(e) => setStatus(e.target.value as LearningItem['status'])}>
+            {Object.entries(STATUS_META).map(([key, m]) => <option key={key} value={key}>{m.label}</option>)}
+          </Select>
+        </Field>
+        <div className="flex gap-3">
+          <Button type="button" variant="ghost" className="flex-1" onClick={onClose}>Cancelar</Button>
+          <Button type="submit" className="flex-1" loading={saving}>Guardar</Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
+type Mode = 'biblioteca' | 'pomodoro' | 'detalle';
+const FILTERS = [
+  { value: 'all', label: 'Todos' },
+  { value: 'IN_PROGRESS', label: 'En progreso' },
+  { value: 'NOT_STARTED', label: 'Por empezar' },
+  { value: 'COMPLETED', label: 'Completados' },
+];
+
 export default function LearningPage() {
-  const reduceMotion = useReducedMotion();
-  const toast = useToast();
   const [items, setItems] = useState<LearningItem[]>([]);
   const [stats, setStats] = useState<LearningStats | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [state, setState] = useState<'loading' | 'error' | 'ready'>('loading');
   const [showAdd, setShowAdd] = useState(false);
   const [updating, setUpdating] = useState<LearningItem | null>(null);
-  const [loadFailed, setLoadFailed] = useState(false);
-  const [filter, setFilter] = useState<string>('');
-  const [tab, setTab] = useState<'biblioteca' | 'pomodoro' | 'detalle'>('biblioteca');
+  const [filter, setFilter] = useState('all');
+  const [tab, setTab] = useState<Mode>('biblioteca');
   const [selectedItem, setSelectedItem] = useState<LearningItem | null>(null);
   const [detailTab, setDetailTab] = useState<'notas' | 'vocab'>('notas');
 
   const load = useCallback(async () => {
-    setLoading(true);
-    setLoadFailed(false);
+    setState('loading');
     try {
       const [it, st] = await Promise.all([learningService.fetchLearning(), learningService.fetchLearningStats()]);
       setItems(it);
       setStats(st);
-    } catch { setLoadFailed(true); }
-    finally { setLoading(false); }
+      setState('ready');
+    } catch { setState('error'); }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { void load(); }, [load]);
 
-  const filtered = filter ? items.filter(i => i.status === filter) : items;
-  // Only the current featured entry gets a 3D compositor; the remaining list stays lightweight.
-  const featuredItem = filtered[0];
-  const remainingItems = featuredItem ? filtered.filter(item => item.id !== featuredItem.id) : [];
+  const filtered = filter === 'all' ? items : items.filter((i) => i.status === filter);
+  const reading = items.find((i) => i.status === 'IN_PROGRESS');
+  const modes = useMemo(() => [
+    { value: 'biblioteca' as const, label: 'Biblioteca' },
+    { value: 'pomodoro' as const, label: 'Pomodoro' },
+    ...(selectedItem ? [{ value: 'detalle' as const, label: selectedItem.title.length > 18 ? `${selectedItem.title.slice(0, 17)}…` : selectedItem.title }] : []),
+  ], [selectedItem]);
+
+  const openDetail = (it: LearningItem) => { setSelectedItem(it); setTab('detalle'); setDetailTab('notas'); };
+
+  const kpis = stats ? [
+    { label: 'En progreso', value: stats.inProgress, icon: BookOpen, tone: 'primary' as const },
+    { label: 'Completados', value: stats.totalCompleted, icon: CheckCircle2, tone: 'success' as const },
+    { label: 'Este año', value: stats.completedThisYear, icon: Trophy, tone: 'warning' as const },
+    { label: 'Páginas', value: stats.totalPages, icon: FileText, tone: 'info' as const },
+  ] : [];
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-[var(--text-primary)]"><BookOpen className="h-5 w-5 text-[var(--accent-gold)]" aria-hidden="true" /> Biblioteca</h1>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">Reúne lo que quieres aprender y vuelve a ello con claridad.</p>
+    <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-6 md:gap-8">
+      <motion.section variants={item} className="flex flex-wrap items-end justify-between gap-6">
+        <div className="flex min-w-0 flex-[1_1_360px] flex-col gap-2">
+          <span className="text-label-lg text-primary-text">Aprendizaje</span>
+          <h1 className="text-display-sm md:text-display-md lg:text-display-lg">Biblioteca</h1>
+          <p className="text-body-lg text-on-surface-light">Reúne lo que quieres aprender y vuelve a ello con claridad.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <SageContextButton message="¿Qué debería estudiar o leer ahora dado lo que llevo en la Biblioteca?" label="Pídele recomendación al Sabio" />
-          <FlowButton tone="primary" size="lg" withArrows={false} onClick={() => setShowAdd(true)}>Agregar</FlowButton>
+        <div className="flex flex-wrap items-center gap-2">
+          <SageContextButton message="¿Qué debería estudiar o leer ahora dado lo que llevo en la Biblioteca?" label="Recomendación del Sabio" />
+          <Button onClick={() => setShowAdd(true)}><Plus aria-hidden className="size-4" />Agregar</Button>
         </div>
-      </div>
+      </motion.section>
 
-      {/* Main tabs */}
-      <div className="max-w-full overflow-x-auto">
+      <motion.div variants={item} className="w-full max-w-[360px]">
         <SegmentedControl
-          ariaLabel="Secciones de la Biblioteca"
-          fill={false}
-          items={[
-            { key: 'biblioteca', label: 'Biblioteca' },
-            { key: 'pomodoro', label: 'Pomodoro' },
-            ...(selectedItem ? [{ key: 'detalle' as const, label: <span className="inline-block max-w-[10rem] truncate align-bottom">{selectedItem.title}</span> }] : []),
-          ]}
-          value={tab}
-          onChange={(key) => {
-            setTab(key);
-            if (key !== 'detalle') setSelectedItem(null);
-          }}
+          options={modes} value={tab} label="Vista"
+          onChange={(v) => { setTab(v); if (v !== 'detalle') setSelectedItem(null); }}
         />
-      </div>
+      </motion.div>
 
       <AnimatePresence mode="wait" initial={false}>
-        <motion.div
-          key={tab}
-          initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={reduceMotion ? undefined : { opacity: 0, y: -5 }}
-          transition={{ duration: reduceMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
-        >
-      {tab === 'pomodoro' && <PomodoroTimer />}
+        <motion.div key={tab} role="tabpanel" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="flex flex-col gap-6 md:gap-8">
+          {tab === 'pomodoro' && <PomodoroTimer itemTitle={reading?.title} />}
 
-      {tab === 'detalle' && selectedItem && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <FlowButton tone="ghost" size="sm" withArrows={false} onClick={() => setTab('biblioteca')} className="min-h-11 font-pixel text-xs">← VOLVER</FlowButton>
-            <p className="font-vt text-text-primary text-lg">{selectedItem.title}</p>
-          </div>
-          <SegmentedControl
-            ariaLabel="Contenido del ítem"
-            fill={false}
-            items={[{ key: 'notas', label: 'Notas' }, { key: 'vocab', label: 'Vocabulario' }]}
-            value={detailTab}
-            onChange={setDetailTab}
-          />
-          {detailTab === 'notas' ? <NotesPanel itemId={selectedItem.id} /> : <VocabPanel itemId={selectedItem.id} />}
-        </div>
-      )}
-
-      {tab !== 'biblioteca' ? null : <>
-
-      {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[
-            { label: 'En progreso', value: stats.inProgress, icon: BookOpen },
-            { label: 'Completados', value: stats.totalCompleted, icon: CheckCircle2 },
-            { label: 'Este año', value: stats.completedThisYear, icon: Trophy },
-            { label: 'Páginas', value: stats.totalPages, icon: FileText },
-          ].map((s, i) => (
-            <StatTile key={s.label} icon={s.icon} label={s.label} value={s.value} index={i} />
-          ))}
-        </div>
-      )}
-
-      <div className="max-w-full overflow-x-auto pb-1">
-        <SegmentedControl
-          ariaLabel="Filtrar por estado"
-          fill={false}
-          items={[
-            { key: '', label: 'Todos' },
-            { key: 'IN_PROGRESS', label: 'En progreso' },
-            { key: 'NOT_STARTED', label: 'Por empezar' },
-            { key: 'COMPLETED', label: 'Completados' },
-          ]}
-          value={filter}
-          onChange={setFilter}
-        />
-      </div>
-
-      <LoadingGate loading={loading} fallback={<ModernLoader words={[...LOADING_COPY.learning]} />}>
-        {loading ? null : loadFailed ? (
-        <EmptyState
-          icon={AlertTriangle}
-          title="No pudimos cargar tu biblioteca"
-          description="Tus libros y cursos siguen guardados. Revisa tu conexión e inténtalo de nuevo."
-          actionLabel="Reintentar"
-          onAction={() => { void load(); }}
-        />
-      ) : filtered.length === 0 && items.length > 0 ? (
-        <EmptyState
-          icon={BookOpen}
-          title="Nada en este estado"
-          description={`Tienes ${items.length} ${items.length === 1 ? 'ítem' : 'ítems'} en tu biblioteca, pero ninguno con este filtro.`}
-          actionLabel="Ver todos"
-          onAction={() => setFilter('')}
-        />
-      ) : filtered.length === 0 ? (
-        <EmptyState
-          icon={BookOpen}
-          title="Tu biblioteca está lista"
-          description="Agrega un libro, curso o idioma para convertir lo que quieres aprender en progreso visible."
-          actionLabel="Agregar a mi biblioteca"
-          onAction={() => setShowAdd(true)}
-        />
-      ) : (
-        <AnimatePresence>
-          <div className="space-y-3">
-            {featuredItem && (() => {
-              const pct = featuredItem.totalProgress > 0
-                ? Math.min((featuredItem.currentProgress / featuredItem.totalProgress) * 100, 100)
-                : 0;
-              return (
-                <LifeQuestFlipCard
-                  eyebrow="Entrada destacada"
-                  title={featuredItem.title}
-                  description={featuredItem.author ? `Por ${featuredItem.author}` : STATUS_LABELS[featuredItem.status]}
-                  visual={(
-                    <div className="flex items-center gap-4" aria-hidden="true">
-                      <span className="text-6xl"><E e={TYPE_ICONS[featuredItem.type]} s={64} /></span>
-                      {featuredItem.totalProgress > 0 && <div className="text-left"><p className="text-4xl font-medium leading-none text-foreground">{Math.round(pct)}%</p><p className="mt-1 text-sm font-medium text-muted-foreground">avanzado</p></div>}
-                    </div>
-                  )}
-                  visualLabel={`${featuredItem.title}, ${Math.round(pct)} por ciento de progreso`}
-                  badge={STATUS_LABELS[featuredItem.status]}
-                  frontFooter={featuredItem.totalProgress > 0 ? (
-                    <div>
-                      <div className="h-2 overflow-hidden rounded-full bg-muted"><div className="h-full bg-primary" style={{ width: `${pct}%` }} /></div>
-                      <p className="mt-1 text-right text-xs font-medium text-muted-foreground">{featuredItem.currentProgress}/{featuredItem.totalProgress} unidades</p>
-                    </div>
-                  ) : <p className="text-xs text-muted-foreground">Define una meta de progreso cuando quieras.</p>}
-                  backDescription={<p>{featuredItem.author ? `Continúa con ${featuredItem.author}, guarda tus notas y actualiza el avance cuando termines una sesión.` : 'Guarda notas, actualiza el avance y mantén esta meta a la vista.'}</p>}
-                  metrics={[
-                    { label: 'Formato', value: TYPE_LABELS[featuredItem.type] ?? featuredItem.type },
-                    { label: 'Progreso', value: featuredItem.totalProgress > 0 ? `${featuredItem.currentProgress}/${featuredItem.totalProgress}` : 'Sin meta' },
-                    { label: 'Estado', value: STATUS_LABELS[featuredItem.status] },
-                  ]}
-                  backActions={(
-                    <FlowButton
-                      tone="ghost"
-                      size="sm"
-                      withArrows={false}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setSelectedItem(featuredItem);
-                        setTab('detalle');
-                        setDetailTab('notas');
-                      }}
-                      className="min-h-11 rounded-xl border border-border bg-muted px-3 text-sm font-semibold text-foreground transition-transform hover:scale-[1.015] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                    >
-                      Abrir notas
-                    </FlowButton>
-                  )}
-                  actionLabel="Actualizar progreso"
-                  onAction={() => setUpdating(featuredItem)}
-                  accent="var(--accent-gold)"
-                />
-              );
-            })()}
-
-            <div className="space-y-2">
-              {remainingItems.map((item, i) => {
-                const pct = item.totalProgress > 0 ? Math.min((item.currentProgress / item.totalProgress) * 100, 100) : 0;
-                return (
-                  <motion.div key={item.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
-                    <PixelPanel className="p-3 cursor-pointer hover:border-accent-gold/50 transition-colors" onClick={() => setUpdating(item)}>
-                      <div className="flex justify-end mb-1">
-                        <FlowButton
-                          tone="ghost"
-                          size="sm"
-                          withArrows={false}
-                          onClick={e => { e.stopPropagation(); setSelectedItem(item); setTab('detalle'); setDetailTab('notas'); }}
-                          className="font-pixel text-text-secondary hover:text-accent-gold transition-colors"
-                          style={{ fontSize: '12px' }}
-                        >
-                          <E e="📝" /> NOTAS/VOCAB
-                        </FlowButton>
-                      </div>
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xl"><E e={TYPE_ICONS[item.type]} /></span>
-                            <p className="font-vt text-text-primary text-lg">{item.title}</p>
-                          </div>
-                          {item.author && <p className="font-pixel text-text-secondary ml-8" style={{ fontSize: '12px' }}>{item.author}</p>}
-                          <p className={`font-pixel ml-8 mt-1 ${STATUS_COLORS[item.status]}`} style={{ fontSize: '12px' }}><E e={STATUS_LABELS[item.status]} /></p>
-                        </div>
-                        {item.rating && (
-                          <p className="font-vt text-accent-gold text-base">{Array.from({ length: item.rating }).map((_, i) => <E key={i} e="⭐" s={14} className="inline-block" />)}</p>
-                        )}
-                      </div>
-                      {item.totalProgress > 0 && (
-                        <div className="mt-2">
-                          <div className="stat-bar h-2">
-                            <div className="h-full bg-accent-gold" style={{ width: `${pct}%` }} />
-                          </div>
-                          <p className="font-pixel text-text-secondary mt-0.5 text-right" style={{ fontSize: '12px' }}>{item.currentProgress}/{item.totalProgress} pág · {Math.round(pct)}%</p>
-                        </div>
-                      )}
-                    </PixelPanel>
-                  </motion.div>
-                );
-              })}
+          {tab === 'detalle' && selectedItem && (
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-3">
+                <Button variant="ghost" size="sm" onClick={() => { setTab('biblioteca'); setSelectedItem(null); }}><ArrowLeft aria-hidden className="size-4" />Volver</Button>
+                <h2 className="min-w-0 truncate text-heading-md">{selectedItem.title}</h2>
+              </div>
+              <SegmentedControl options={[{ value: 'notas', label: 'Notas' }, { value: 'vocab', label: 'Vocabulario' }]} value={detailTab} onChange={setDetailTab} label="Contenido del ítem" className="max-w-[320px]" />
+              {detailTab === 'notas' ? <NotesPanel itemId={selectedItem.id} /> : <VocabPanel itemId={selectedItem.id} />}
             </div>
-          </div>
-        </AnimatePresence>
-        )}
-      </LoadingGate>
-      </>}
+          )}
+
+          {tab === 'biblioteca' && (
+            state === 'loading' ? (
+              <div className="flex flex-col gap-6" aria-busy="true" aria-label="Cargando biblioteca">
+                <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-36 rounded-2xl" />)}</div>
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-72 rounded-2xl" />)}</div>
+              </div>
+            ) : state === 'error' ? (
+              <ErrorState title="No pudimos cargar tu biblioteca" description="Tus libros y cursos siguen guardados. Revisa tu conexión e inténtalo de nuevo." onRetry={() => void load()} />
+            ) : (
+              <>
+                {stats && (
+                  <section aria-label="Resumen" className="grid grid-cols-2 gap-4 lg:grid-cols-4 lg:gap-6">
+                    {kpis.map((k) => <StatCard key={k.label} icon={k.icon} tone={k.tone} value={k.value} label={k.label} />)}
+                  </section>
+                )}
+
+                <section className="flex flex-col gap-6" aria-labelledby="lib-shelf">
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <h2 id="lib-shelf" className="text-heading-lg">Tu estantería</h2>
+                    <SegmentedControl options={FILTERS} value={filter} onChange={setFilter} label="Estado" className="w-full overflow-x-auto sm:max-w-[520px]" />
+                  </div>
+
+                  {items.length === 0 ? (
+                    <Card variant="elevated" padding="lg">
+                      <EmptyState icon={BookOpen} title="Tu biblioteca está lista" description="Agrega un libro, curso o idioma para convertir lo que quieres aprender en progreso visible."
+                        action={<Button onClick={() => setShowAdd(true)}><Plus aria-hidden className="size-4" />Agregar a mi biblioteca</Button>} className="py-6" />
+                    </Card>
+                  ) : filtered.length === 0 ? (
+                    <EmptyState icon={BookOpen} title="Nada en esta sección" description="Agrega un libro o curso para empezar."
+                      action={<Button variant="secondary" onClick={() => setFilter('all')}>Ver todos</Button>} className="py-10" />
+                  ) : (
+                    <motion.ul variants={stagger} initial="initial" animate="animate" className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                      {filtered.map((b) => {
+                        const t = TYPE_META[b.type] ?? TYPE_META.BOOK;
+                        const s = STATUS_META[b.status] ?? STATUS_META.NOT_STARTED;
+                        const pct = pctOf(b);
+                        return (
+                          <motion.li key={b.id} variants={item}>
+                            <Card as="article" padding="sm" interactive aria-labelledby={`bk-${b.id}`} className="flex h-full flex-col gap-3.5">
+                              <BookCover title={b.title} icon={t.icon} tone={t.tone} />
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center justify-between gap-2"><Badge variant={s.badge}>{s.label}</Badge><span className="text-body-sm text-on-surface-light">{t.label}</span></div>
+                                <h3 id={`bk-${b.id}`} className="mt-1.5 text-label-lg">{b.title}</h3>
+                                {(b.author || b.platform) && <p className="text-body-sm text-on-surface-light">{b.author ?? b.platform}</p>}
+                              </div>
+                              <div className="mt-auto flex flex-col gap-1.5">
+                                {b.totalProgress > 0 && <ProgressBar value={pct} tone={s.bar} label={`Progreso de ${b.title}`} />}
+                                <span className="font-mono text-body-sm tabular-nums text-on-surface-light">
+                                  {b.totalProgress > 0 ? `${b.currentProgress}/${b.totalProgress} ${unitOf(b)} · ${pct}%` : 'Sin meta de progreso'}
+                                </span>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <Button variant="secondary" size="sm" onClick={() => setUpdating(b)}><TrendingUp aria-hidden className="size-4" />Progreso</Button>
+                                <Button variant="ghost" size="sm" onClick={() => openDetail(b)}><NotebookPen aria-hidden className="size-4" />Notas</Button>
+                              </div>
+                            </Card>
+                          </motion.li>
+                        );
+                      })}
+                    </motion.ul>
+                  )}
+                </section>
+              </>
+            )
+          )}
         </motion.div>
       </AnimatePresence>
 
-      <AnimatePresence>
-        {showAdd && <AddItemModal onClose={() => setShowAdd(false)} onSave={item => { setItems(prev => [item, ...prev]); setShowAdd(false); }} />}
-        {updating && <ProgressModal item={updating} onClose={() => setUpdating(null)} onUpdate={updated => { setItems(prev => prev.map(i => i.id === updated.id ? updated : i)); setUpdating(null); }} />}
-      </AnimatePresence>
-    </div>
+      {showAdd && <AddItemModal onClose={() => setShowAdd(false)} onSave={(it) => { setItems((prev) => [it, ...prev]); setShowAdd(false); }} />}
+      {updating && <ProgressModal item={updating} onClose={() => setUpdating(null)} onUpdate={(u) => { setItems((prev) => prev.map((i) => (i.id === u.id ? u : i))); setUpdating(null); }} />}
+    </motion.div>
   );
 }

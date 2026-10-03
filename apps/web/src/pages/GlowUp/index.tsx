@@ -1,15 +1,17 @@
-import { FlowButton } from '@/components/ui/flow-button';
-import { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Plus, Trash2, Check, ShoppingBag, Shirt, Star, BarChart3 } from 'lucide-react';
-import { PixelPanel } from '../../components/ui/PixelPanel';
-import { PixelButton } from '../../components/ui/PixelButton';
+// Glow up — GlowUpDesktop.dc.html. "Brillo de hoy" (anillo), SegmentedControl
+// Cuidado / Estilo / Presencia, rutinas con pasos que se marcan, armario con
+// filtros y autoevaluación semanal. Datos: /mirror/* (sin cambios).
+import { useState, useEffect, useCallback, useMemo, type ReactNode } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Check, Droplets, Flame, Moon, Plus, Shirt, Sparkles, Star, Sun, Trash2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { item, stagger } from '@/lib/motion';
 import { useToastStore } from '../../hooks/useToast';
 import api from '../../lib/api';
-import { E } from '@/components/ui/glyphs';
-import ModernLoader from '@/components/ui/modern-loader';
-import { LoadingGate } from '@/components/ui/LoadingGate';
-import { LOADING_COPY } from '@/lib/loadingCopy';
+import {
+  Badge, Button, Card, ChipGroup, EmptyState, ErrorState, Field, IconChip, Input, Modal, ProgressBar, ProgressRing,
+  Select, SegmentedControl, Skeleton, StepItem, Textarea, type Tone,
+} from '@/components/ui/lq';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -29,54 +31,100 @@ interface PresenceCheckin {
   posture: number; voice: number; confidence: number; communication: number;
 }
 
+type Tab = 'care' | 'style' | 'presence';
 const TABS = [
-  { key: 'care',     label: ' Cuidado Personal' },
-  { key: 'style',    label: ' Estilo' },
-  { key: 'presence', label: ' Presencia' },
-] as const;
+  { value: 'care' as const, label: 'Cuidado personal' },
+  { value: 'style' as const, label: 'Estilo' },
+  { value: 'presence' as const, label: 'Presencia' },
+];
 
 const CATEGORIES = ['tops', 'bottoms', 'shoes', 'outerwear', 'accessories'];
 const CATEGORY_LABELS: Record<string, string> = {
-  tops: 'Camisas/Tops', bottoms: 'Pantalones', shoes: 'Zapatos',
-  outerwear: 'Abrigos', accessories: 'Accesorios',
+  tops: 'Camisas y tops', bottoms: 'Pantalones', shoes: 'Zapatos', outerwear: 'Abrigos', accessories: 'Accesorios',
 };
 const TIME_OF_DAY = ['morning', 'night', 'weekly', 'custom'];
-const TIME_LABELS: Record<string, string> = {
-  morning: ' Mañana', night: ' Noche', weekly: ' Semanal', custom: ' Custom',
+const TIME_META: Record<string, { label: string; tone: Tone; icon: typeof Sun }> = {
+  morning: { label: 'Mañana', tone: 'warning', icon: Sun },
+  night: { label: 'Noche', tone: 'secondary', icon: Moon },
+  weekly: { label: 'Semanal', tone: 'info', icon: Droplets },
+  custom: { label: 'Personalizada', tone: 'primary', icon: Sparkles },
 };
+
+const todayKey = () => new Date().toISOString().slice(0, 10);
+const isToday = (iso?: string) => !!iso && new Date(iso).toDateString() === new Date().toDateString();
+
+// TODO(api): no hay endpoint para marcar pasos sueltos; se guardan en el dispositivo
+// por día y, al completar todos, se llama a /mirror/routines/:id/complete.
+const STEPS_KEY = 'lq-glow-steps';
+function readSteps(): Record<string, boolean> {
+  try {
+    const raw = JSON.parse(localStorage.getItem(STEPS_KEY) ?? '{}');
+    return raw.day === todayKey() ? raw.done ?? {} : {};
+  } catch { return {}; }
+}
+function writeSteps(done: Record<string, boolean>) {
+  try { localStorage.setItem(STEPS_KEY, JSON.stringify({ day: todayKey(), done })); } catch { /* sin storage */ }
+}
 
 // ─── Care Section ────────────────────────────────────────────────────────────
 
-function CareSection() {
+interface CareProps { onProgress: (done: number, total: number, streak: number) => void }
+
+function CareSection({ onProgress }: CareProps) {
   const toast = useToastStore();
   const [routines, setRoutines] = useState<CareRoutine[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [state, setState] = useState<'loading' | 'error' | 'ready'>('loading');
   const [showNew, setShowNew] = useState(false);
   const [form, setForm] = useState({ name: '', timeOfDay: 'morning', steps: [''] });
   const [completing, setCompleting] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [ticks, setTicks] = useState<Record<string, boolean>>(readSteps);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setState('loading');
     try {
       const { data } = await api.get('/mirror/routines');
       setRoutines(data);
-    } catch { toast.error('Error cargando rutinas'); }
-    finally { setLoading(false); }
-  }, []);
+      setState('ready');
+    } catch {
+      if (!silent) setState('error');
+      else toast.error('Error cargando rutinas');
+    }
+  }, [toast]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { void load(); }, [load]);
+
+  const doneOf = useCallback((r: CareRoutine) => (
+    isToday(r.lastDoneAt) ? r.steps.length : r.steps.filter((s) => ticks[`${r.id}:${s.id}`]).length
+  ), [ticks]);
+
+  useEffect(() => {
+    const total = routines.reduce((a, r) => a + r.steps.length, 0);
+    const done = routines.reduce((a, r) => a + doneOf(r), 0);
+    onProgress(done, total, Math.max(0, ...routines.map((r) => r.currentStreak)));
+  }, [routines, doneOf, onProgress]);
 
   async function handleComplete(id: string) {
     setCompleting(id);
     try {
       const { data } = await api.post(`/mirror/routines/${id}/complete`);
-      if (data.alreadyDone) { toast.info('¡Ya completaste esta rutina hoy!'); }
-      else { toast.success('¡Rutina completada! +20 XP'); load(); }
-    } catch { toast.error('Error'); }
+      if (data.alreadyDone) toast.info('¡Ya completaste esta rutina hoy!');
+      else { toast.success('¡Rutina completada! +20 XP'); void load(true); }
+    } catch { toast.error('No se pudo completar la rutina'); }
     finally { setCompleting(null); }
   }
 
+  function toggleStep(r: CareRoutine, stepId: string) {
+    if (isToday(r.lastDoneAt)) return;
+    const key = `${r.id}:${stepId}`;
+    const next = { ...ticks, [key]: !ticks[key] };
+    setTicks(next);
+    writeSteps(next);
+    if (r.steps.every((s) => next[`${r.id}:${s.id}`])) void handleComplete(r.id);
+  }
+
   async function handleCreate() {
+    setSaving(true);
     try {
       await api.post('/mirror/routines', {
         name: form.name,
@@ -85,106 +133,103 @@ function CareSection() {
       });
       setShowNew(false);
       setForm({ name: '', timeOfDay: 'morning', steps: [''] });
-      load();
+      void load(true);
       toast.success('Rutina creada');
-    } catch { toast.error('Error creando rutina'); }
+    } catch { toast.error('No se pudo crear la rutina'); }
+    finally { setSaving(false); }
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="font-pixel text-[var(--text-2)] text-xs">TUS RUTINAS DE CUIDADO</p>
-        <PixelButton variant="primary" onClick={() => setShowNew(true)}>+ Nueva rutina</PixelButton>
+    <section className="flex flex-col gap-6" aria-labelledby="glow-care">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 id="glow-care" className="text-heading-lg">Tus rutinas de cuidado</h2>
+        <div className="flex items-center gap-3">
+          <span className="hidden text-body-sm text-on-surface-light sm:inline">Toca un paso para marcarlo</span>
+          <Button size="md" onClick={() => setShowNew(true)}><Plus aria-hidden className="size-4" />Nueva rutina</Button>
+        </div>
       </div>
 
-      {showNew && (
-        <PixelPanel className="p-4 space-y-3">
-          <input
-            className="min-h-11 w-full rounded-lg px-3 py-2 text-base"
-            style={{ background: 'var(--bg-soft)', border: '1px solid var(--border)', color: 'var(--text)' }}
-            placeholder="Nombre de la rutina"
-            value={form.name}
-            onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-          />
-          <div className="flex gap-2 flex-wrap">
-            {TIME_OF_DAY.map(t => (
-              <button key={t} onClick={() => setForm(f => ({ ...f, timeOfDay: t }))} className="min-h-11 px-2"
-                style={{
-                  padding: '4px 10px', borderRadius: 6, fontSize: 12,
-                  border: `1px solid ${form.timeOfDay === t ? 'var(--primary)' : 'var(--border)'}`,
-                  background: form.timeOfDay === t ? 'color-mix(in oklab, var(--primary) 14%, transparent)' : 'var(--bg-panel)',
-                  color: form.timeOfDay === t ? 'var(--primary)' : 'var(--text-2)',
-                }}
-              ><E e={TIME_LABELS[t]} /></button>
-            ))}
-          </div>
-          <p className="text-xs font-semibold" style={{ color: 'var(--text-2)' }}>Pasos:</p>
-          {form.steps.map((s, i) => (
-            <input key={i}
-              className="min-h-11 w-full rounded-lg px-3 py-2 text-base"
-              style={{ background: 'var(--bg-soft)', border: '1px solid var(--border)', color: 'var(--text)' }}
-              placeholder={`Paso ${i + 1}...`}
-              value={s}
-              onChange={e => setForm(f => {
-                const steps = [...f.steps]; steps[i] = e.target.value; return { ...f, steps };
-              })}
-            />
-          ))}
-          <FlowButton tone="ghost" size="sm" withArrows={false} onClick={() => setForm(f => ({ ...f, steps: [...f.steps, ''] }))}
-            className="min-h-11 px-3 text-xs">+ Agregar paso</FlowButton>
-          <div className="flex gap-2">
-            <PixelButton variant="primary" onClick={handleCreate} disabled={!form.name}>Crear</PixelButton>
-            <PixelButton variant="secondary" onClick={() => setShowNew(false)}>Cancelar</PixelButton>
-          </div>
-        </PixelPanel>
-      )}
-
-      <LoadingGate loading={loading} fallback={<ModernLoader words={[...LOADING_COPY.glowUpRoutines]} />}>
-        {loading ? null : routines.length === 0 ? (
-        <PixelPanel className="p-8 text-center">
-          <p className="text-3xl mb-2"><E e="🧴" /></p>
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Sin rutinas aún. ¡Crea tu primera!</p>
-        </PixelPanel>
+      {state === 'loading' ? (
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3" aria-busy="true" aria-label="Cargando rutinas">
+          {[0, 1, 2].map((i) => <Skeleton key={i} className="h-72 rounded-2xl" />)}
+        </div>
+      ) : state === 'error' ? (
+        <ErrorState title="No pudimos cargar tus rutinas" onRetry={() => void load()} />
+      ) : routines.length === 0 ? (
+        <Card variant="elevated" padding="lg">
+          <EmptyState icon={Droplets} tone="secondary" title="Sin rutinas aún" description="Crea tu primera rutina de cuidado y marca sus pasos cada día."
+            action={<Button onClick={() => setShowNew(true)}><Plus aria-hidden className="size-4" />Nueva rutina</Button>} className="py-6" />
+        </Card>
       ) : (
-        <div className="space-y-3">
-          {routines.map(r => (
-            <PixelPanel key={r.id} className="p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-sm">{r.name}</span>
-                    <span className="text-xs px-2 py-0.5 rounded" style={{ background: 'var(--bg-soft)', color: 'var(--text-2)' }}>
-                      <E e={TIME_LABELS[r.timeOfDay]} />
-                    </span>
+        <motion.ul variants={stagger} initial="initial" animate="animate" className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+          {routines.map((r) => {
+            const meta = TIME_META[r.timeOfDay] ?? TIME_META.custom;
+            const n = doneOf(r);
+            const full = r.steps.length > 0 && n === r.steps.length;
+            const pct = r.steps.length ? Math.round((n / r.steps.length) * 100) : isToday(r.lastDoneAt) ? 100 : 0;
+            return (
+              <motion.li key={r.id} variants={item}>
+                <Card as="article" padding="lg" interactive aria-labelledby={`r-${r.id}`} className="flex h-full flex-col gap-4">
+                  <div className="flex items-center gap-4">
+                    <IconChip icon={meta.icon} tone={meta.tone} />
+                    <div className="min-w-0 flex-1">
+                      <h3 id={`r-${r.id}`} className="truncate text-heading-sm">{r.name}</h3>
+                      <p className="text-body-sm text-on-surface-light">
+                        {meta.label}
+                        {r.currentStreak > 0 && <span className="ml-2 inline-flex items-center gap-1 text-warning-text"><Flame aria-hidden className="size-3.5" /><span className="font-mono tabular-nums">{r.currentStreak}</span> {r.currentStreak === 1 ? 'día' : 'días'}</span>}
+                      </p>
+                    </div>
+                    {r.steps.length > 0 && <Badge variant={full ? 'success' : 'neutral'} icon={full ? Check : undefined}><span className="font-mono tabular-nums">{n}/{r.steps.length}</span></Badge>}
                   </div>
-                  {r.currentStreak > 0 && (
-                    <p className="text-xs mt-1" style={{ color: 'var(--c-gold)' }}><E e="🔥" /> {r.currentStreak} {r.currentStreak === 1 ? 'día' : 'días'} de racha</p>
-                  )}
+                  <ProgressBar value={pct} tone={full ? 'success' : 'secondary'} label={`Progreso de ${r.name}`} />
                   {r.steps.length > 0 && (
-                    <div className="mt-2 space-y-1">
-                      {r.steps.map((s, i) => (
-                        <p key={s.id} className="text-xs" style={{ color: 'var(--text-2)' }}>
-                          {i + 1}. {s.name}{s.product && ` (${s.product})`}
-                        </p>
+                    <div className="flex flex-col">
+                      {[...r.steps].sort((a, b) => a.order - b.order).map((s) => (
+                        <StepItem key={s.id} checked={isToday(r.lastDoneAt) || !!ticks[`${r.id}:${s.id}`]} onToggle={() => toggleStep(r, s.id)} disabled={completing === r.id || isToday(r.lastDoneAt)} meta={s.product}>
+                          {s.name}
+                        </StepItem>
                       ))}
                     </div>
                   )}
-                </div>
-                <PixelButton
-                  variant="primary"
-                  onClick={() => handleComplete(r.id)}
-                  disabled={completing === r.id}
-                >
-                  <Check size={14} />
-                  {completing === r.id ? '...' : 'Hecho'}
-                </PixelButton>
-              </div>
-            </PixelPanel>
-          ))}
-        </div>
-        )}
-      </LoadingGate>
-    </div>
+                  <div className="mt-auto pt-2">
+                    {isToday(r.lastDoneAt) ? (
+                      <Badge variant="success" size="lg" icon={Check}>Completada hoy</Badge>
+                    ) : (
+                      <Button variant="secondary" size="md" block loading={completing === r.id} onClick={() => void handleComplete(r.id)}>
+                        <Check aria-hidden className="size-4" />Marcar rutina completa
+                      </Button>
+                    )}
+                  </div>
+                </Card>
+              </motion.li>
+            );
+          })}
+        </motion.ul>
+      )}
+
+      <Modal open={showNew} onClose={() => setShowNew(false)} title="Nueva rutina">
+        <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); void handleCreate(); }}>
+          <Field label="Nombre de la rutina"><Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Rutina de mañana" autoFocus /></Field>
+          <Field label="Momento">
+            <Select value={form.timeOfDay} onChange={(e) => setForm((f) => ({ ...f, timeOfDay: e.target.value }))}>
+              {TIME_OF_DAY.map((t) => <option key={t} value={t}>{TIME_META[t].label}</option>)}
+            </Select>
+          </Field>
+          <fieldset className="flex flex-col gap-2">
+            <legend className="mb-1 text-label-lg text-on-surface">Pasos</legend>
+            {form.steps.map((s, i) => (
+              <Input key={i} aria-label={`Paso ${i + 1}`} placeholder={`Paso ${i + 1}…`} value={s}
+                onChange={(e) => setForm((f) => { const steps = [...f.steps]; steps[i] = e.target.value; return { ...f, steps }; })} />
+            ))}
+            <Button type="button" variant="ghost" size="sm" className="self-start" onClick={() => setForm((f) => ({ ...f, steps: [...f.steps, ''] }))}><Plus aria-hidden className="size-4" />Agregar paso</Button>
+          </fieldset>
+          <div className="flex gap-3">
+            <Button type="button" variant="ghost" className="flex-1" onClick={() => setShowNew(false)}>Cancelar</Button>
+            <Button type="submit" className="flex-1" disabled={!form.name.trim()} loading={saving}>Crear</Button>
+          </div>
+        </form>
+      </Modal>
+    </section>
   );
 }
 
@@ -193,159 +238,166 @@ function CareSection() {
 function StyleSection() {
   const toast = useToastStore();
   const [items, setItems] = useState<ClothingItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [activeCategory, setActiveCategory] = useState('');
+  const [state, setState] = useState<'loading' | 'error' | 'ready'>('loading');
+  const [activeCategory, setActiveCategory] = useState('all');
   const [showNew, setShowNew] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ name: '', category: 'tops', color: '', brand: '', cost: '' });
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setState('loading');
     try {
       const { data } = await api.get('/mirror/wardrobe');
       setItems(data);
-    } catch { toast.error('Error'); }
-    finally { setLoading(false); }
-  }, []);
+      setState('ready');
+    } catch {
+      if (!silent) setState('error');
+      else toast.error('No se pudo actualizar el armario');
+    }
+  }, [toast]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { void load(); }, [load]);
 
-  const displayed = activeCategory ? items.filter(i => i.category === activeCategory) : items;
+  const displayed = activeCategory === 'all' ? items : items.filter((i) => i.category === activeCategory);
+  const options = useMemo(() => [
+    { value: 'all', label: 'Todas', count: items.length },
+    ...CATEGORIES.map((c) => ({ value: c, label: CATEGORY_LABELS[c], count: items.filter((i) => i.category === c).length })),
+  ], [items]);
 
   async function handleCreate() {
+    setSaving(true);
     try {
       await api.post('/mirror/wardrobe', { ...form, cost: form.cost ? Number(form.cost) : undefined });
-      setShowNew(false); load(); toast.success('Prenda añadida');
-    } catch { toast.error('Error'); }
+      setShowNew(false);
+      setForm({ name: '', category: 'tops', color: '', brand: '', cost: '' });
+      void load(true);
+      toast.success('Prenda añadida');
+    } catch { toast.error('No se pudo añadir la prenda'); }
+    finally { setSaving(false); }
   }
 
   async function handleWorn(id: string) {
-    try { await api.post(`/mirror/wardrobe/${id}/worn`); load(); } catch { toast.error('Error'); }
+    try { await api.post(`/mirror/wardrobe/${id}/worn`); void load(true); } catch { toast.error('No se pudo registrar el uso'); }
   }
 
   async function handleDelete(id: string) {
-    try { await api.delete(`/mirror/wardrobe/${id}`); load(); } catch { toast.error('Error'); }
+    try { await api.delete(`/mirror/wardrobe/${id}`); void load(true); } catch { toast.error('No se pudo eliminar la prenda'); }
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="font-pixel text-[var(--text-2)] text-xs">MI ARMARIO</p>
-        <PixelButton variant="primary" onClick={() => setShowNew(true)}>+ Prenda</PixelButton>
+    <section className="flex flex-col gap-6" aria-labelledby="glow-style">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 id="glow-style" className="text-heading-lg">Armario cápsula</h2>
+        <Button size="md" onClick={() => setShowNew(true)}><Plus aria-hidden className="size-4" />Prenda</Button>
       </div>
+      {/* TODO(api): el prototipo incluye "Outfits de la semana"; no existe endpoint de outfits. */}
+      <ChipGroup label="Categoría de prenda" options={options} value={activeCategory} onChange={setActiveCategory} />
 
-      <div className="flex gap-2 flex-wrap">
-        <button onClick={() => setActiveCategory('')} className="min-h-11 px-2"
-          style={{
-            padding: '4px 10px', borderRadius: 6, fontSize: 12,
-            border: `1px solid ${!activeCategory ? 'var(--primary)' : 'var(--border)'}`,
-            background: !activeCategory ? 'color-mix(in oklab, var(--primary) 14%, transparent)' : 'var(--bg-panel)',
-            color: !activeCategory ? 'var(--primary)' : 'var(--text-2)',
-          }}>Todas</button>
-        {CATEGORIES.map(c => (
-          <button key={c} onClick={() => setActiveCategory(c)}
-            style={{
-              padding: '4px 10px', borderRadius: 6, fontSize: 12,
-              border: `1px solid ${activeCategory === c ? 'var(--primary)' : 'var(--border)'}`,
-              background: activeCategory === c ? 'color-mix(in oklab, var(--primary) 14%, transparent)' : 'var(--bg-panel)',
-              color: activeCategory === c ? 'var(--primary)' : 'var(--text-2)',
-            }}><E e={CATEGORY_LABELS[c]} /></button>
-        ))}
-      </div>
-
-      {showNew && (
-        <PixelPanel className="p-4 space-y-2">
-          {[
-            { key: 'name', label: 'Nombre', placeholder: 'Camiseta azul...' },
-            { key: 'brand', label: 'Marca', placeholder: 'Zara, Nike...' },
-            { key: 'color', label: 'Color', placeholder: '#8a8a92' },
-            { key: 'cost', label: 'Precio (COP)', placeholder: '50000' },
-          ].map(f => (
-            <input key={f.key}
-              className="min-h-11 w-full rounded-lg px-3 py-2 text-base"
-              style={{ background: 'var(--bg-soft)', border: '1px solid var(--border)', color: 'var(--text)' }}
-              placeholder={f.placeholder}
-              value={(form as any)[f.key]}
-              onChange={e => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}
-            />
+      {state === 'loading' ? (
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4" aria-busy="true" aria-label="Cargando armario">
+          {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-44 rounded-2xl" />)}
+        </div>
+      ) : state === 'error' ? (
+        <ErrorState title="No pudimos cargar tu armario" onRetry={() => void load()} />
+      ) : displayed.length === 0 ? (
+        <Card variant="elevated" padding="lg">
+          <EmptyState icon={Shirt} tone="info" title="Tu armario está vacío" description="Añade tus prendas para saber cuánto uso le das a cada una."
+            action={<Button onClick={() => setShowNew(true)}><Plus aria-hidden className="size-4" />Añadir prenda</Button>} className="py-6" />
+        </Card>
+      ) : (
+        <motion.ul variants={stagger} initial="initial" animate="animate" className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+          {displayed.map((it) => (
+            <motion.li key={it.id} variants={item}>
+              <Card as="article" padding="sm" interactive className="flex h-full flex-col gap-2">
+                <div className="flex items-start justify-between gap-1">
+                  <h3 className="min-w-0 truncate text-label-lg">{it.name}</h3>
+                  <Button variant="icon" size="sm" aria-label={`Eliminar ${it.name}`} onClick={() => void handleDelete(it.id)} className="-mr-2 -mt-2 size-11 md:size-9">
+                    <Trash2 aria-hidden className="size-4" strokeWidth={1.75} />
+                  </Button>
+                </div>
+                <p className="text-body-sm text-on-surface">{CATEGORY_LABELS[it.category] ?? it.category}</p>
+                {it.brand && <p className="text-body-sm text-on-surface-light">{it.brand}</p>}
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-body-sm text-on-surface-light">
+                    <span className="font-mono tabular-nums">{it.timesWorn}</span> {it.timesWorn === 1 ? 'uso' : 'usos'}
+                    {it.cost && it.timesWorn > 0 ? <> · <span className="font-mono tabular-nums">${Math.round(Number(it.cost) / it.timesWorn).toLocaleString('es-CO')}</span>/uso</> : null}
+                  </p>
+                  {it.isFavorite && <Star aria-label="Favorita" className="size-4 shrink-0 fill-warning text-warning" />}
+                </div>
+                <Button variant="secondary" size="sm" block className="mt-auto" onClick={() => void handleWorn(it.id)}>Usar hoy</Button>
+              </Card>
+            </motion.li>
           ))}
-          <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
-            className="min-h-11 w-full rounded-lg px-3 py-2 text-base"
-            style={{ background: 'var(--bg-soft)', border: '1px solid var(--border)', color: 'var(--text)' }}>
-            {CATEGORIES.map(c => <option key={c} value={c}><E e={CATEGORY_LABELS[c]} /></option>)}
-          </select>
-          <div className="flex gap-2">
-            <PixelButton variant="primary" onClick={handleCreate} disabled={!form.name}>Añadir</PixelButton>
-            <PixelButton variant="secondary" onClick={() => setShowNew(false)}>Cancelar</PixelButton>
-          </div>
-        </PixelPanel>
+        </motion.ul>
       )}
 
-      <LoadingGate loading={loading} fallback={<ModernLoader words={[...LOADING_COPY.glowUpWardrobe]} />}>
-        {loading ? null : displayed.length === 0 ? (
-        <PixelPanel className="p-8 text-center">
-          <Shirt size={32} className="mx-auto mb-2" style={{ color: 'var(--text-muted)' }} />
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Tu armario está vacío</p>
-        </PixelPanel>
-      ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {displayed.map(item => (
-            <PixelPanel key={item.id} className="p-3 space-y-2">
-              <div className="flex items-start justify-between gap-1">
-                <p className="text-sm font-semibold truncate">{item.name}</p>
-                <FlowButton tone="danger" size="sm" withArrows={false} onClick={() => handleDelete(item.id)}
-                  className="h-11 w-11 px-3"
-                  style={{ color: 'var(--text-muted)' }}>
-                  <Trash2 size={12} />
-                </FlowButton>
-              </div>
-              <p className="text-xs" style={{ color: 'var(--text-2)' }}><E e={CATEGORY_LABELS[item.category]} /></p>
-              {item.brand && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{item.brand}</p>}
-              <div className="flex items-center justify-between">
-                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                  {item.timesWorn}x usado
-                  {item.cost && item.timesWorn > 0
-                    ? ` · $${Math.round(Number(item.cost) / item.timesWorn).toLocaleString('es-CO')}/uso`
-                    : ''}
-                </p>
-                {item.isFavorite && <Star size={12} style={{ color: 'var(--c-gold)' }} />}
-              </div>
-              <FlowButton tone="ghost" size="sm" fullWidth withArrows={false} onClick={() => handleWorn(item.id)}
-                className="min-h-11 text-xs"
-                style={{ background: 'var(--bg-soft)', color: 'var(--primary)', border: '1px solid var(--border)' }}>
-                Usar hoy
-              </FlowButton>
-            </PixelPanel>
-          ))}
-        </div>
-        )}
-      </LoadingGate>
-    </div>
+      <Modal open={showNew} onClose={() => setShowNew(false)} title="Nueva prenda">
+        <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); void handleCreate(); }}>
+          <Field label="Nombre"><Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Camiseta azul" autoFocus /></Field>
+          <Field label="Categoría">
+            <Select value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}>
+              {CATEGORIES.map((c) => <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>)}
+            </Select>
+          </Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Marca"><Input value={form.brand} onChange={(e) => setForm((f) => ({ ...f, brand: e.target.value }))} placeholder="Zara, Nike…" /></Field>
+            <Field label="Color"><Input value={form.color} onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))} placeholder="Azul marino" /></Field>
+          </div>
+          <Field label="Precio (COP)"><Input type="number" inputMode="numeric" value={form.cost} onChange={(e) => setForm((f) => ({ ...f, cost: e.target.value }))} placeholder="50000" /></Field>
+          <div className="flex gap-3">
+            <Button type="button" variant="ghost" className="flex-1" onClick={() => setShowNew(false)}>Cancelar</Button>
+            <Button type="submit" className="flex-1" disabled={!form.name.trim()} loading={saving}>Añadir</Button>
+          </div>
+        </form>
+      </Modal>
+    </section>
   );
 }
 
 // ─── Presence Section ─────────────────────────────────────────────────────────
 
 const AREAS = [
-  { key: 'posture',       label: 'Postura' },
-  { key: 'voice',         label: 'Voz' },
-  { key: 'confidence',    label: 'Confianza' },
+  { key: 'posture', label: 'Postura' },
+  { key: 'voice', label: 'Voz' },
+  { key: 'confidence', label: 'Confianza' },
   { key: 'communication', label: 'Comunicación' },
 ] as const;
+
+function Rating({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+  return (
+    <fieldset className="flex flex-col gap-2">
+      <legend className="flex w-full items-center justify-between text-label-lg">
+        <span>{label}</span><span className="font-mono tabular-nums text-primary-text">{value}/5</span>
+      </legend>
+      <div role="radiogroup" aria-label={label} className="grid grid-cols-5 gap-2">
+        {[1, 2, 3, 4, 5].map((v) => (
+          <button
+            key={v} type="button" role="radio" aria-checked={value === v} aria-label={`${v} de 5`} onClick={() => onChange(v)}
+            className={cn('min-h-11 rounded-lg font-mono text-label-lg tabular-nums transition-colors', value >= v ? 'bg-primary-strong text-on-primary' : 'bg-surface-variant text-on-surface hover:bg-border')}
+          >{v}</button>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
 
 function PresenceSection() {
   const toast = useToastStore();
   const [checkins, setCheckins] = useState<PresenceCheckin[]>([]);
+  const [state, setState] = useState<'loading' | 'error' | 'ready'>('loading');
   const [form, setForm] = useState({ posture: 3, voice: 3, confidence: 3, communication: 3, notes: '' });
   const [saving, setSaving] = useState(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setState('loading');
     try {
       const { data } = await api.get('/mirror/checkins');
       setCheckins(data);
-    } catch { toast.error('Error'); }
+      setState('ready');
+    } catch { if (!silent) setState('error'); }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { void load(); }, [load]);
 
   async function handleSave() {
     setSaving(true);
@@ -355,127 +407,99 @@ function PresenceSection() {
       week.setDate(week.getDate() - week.getDay());
       await api.post('/mirror/checkins', { week: week.toISOString(), ...form });
       toast.success('Autoevaluación guardada');
-      load();
-    } catch { toast.error('Error guardando'); }
+      void load(true);
+    } catch { toast.error('No se pudo guardar la evaluación'); }
     finally { setSaving(false); }
   }
 
-  return (
-    <div className="space-y-4">
-      <p className="font-pixel text-[var(--text-2)] text-xs">AUTOEVALUACIÓN SEMANAL</p>
-
-      <PixelPanel className="p-4 space-y-4">
-        {AREAS.map(area => (
-          <div key={area.key}>
-            <div className="flex justify-between mb-1">
-              <span className="text-sm font-medium">{area.label}</span>
-              <span className="text-sm font-bold" style={{ color: 'var(--primary)' }}>{form[area.key]}/5</span>
-            </div>
-            <div className="flex gap-2">
-              {[1, 2, 3, 4, 5].map(v => (
-                <button key={v} onClick={() => setForm(f => ({ ...f, [area.key]: v }))} className="min-h-11"
-                  style={{
-                    flex: 1, padding: '6px 0', borderRadius: 6,
-                    background: form[area.key] >= v
-                      ? 'color-mix(in oklab, var(--primary) 80%, transparent)'
-                      : 'var(--bg-soft)',
-                    border: '1px solid var(--border)',
-                    color: form[area.key] >= v ? 'white' : 'var(--text-2)',
-                    fontSize: 12, fontWeight: 600,
-                  }}>{v}</button>
+  let history: ReactNode = null;
+  if (state === 'loading') history = <Skeleton className="h-40 rounded-2xl" />;
+  else if (state === 'error') history = <ErrorState title="No pudimos cargar tu evolución" onRetry={() => void load()} />;
+  else if (checkins.length === 0) history = <EmptyState icon={Sparkles} tone="secondary" title="Tu presencia empieza aquí" description="Guarda tu primera autoevaluación para ver cómo evolucionas semana a semana." className="py-4" />;
+  else history = (
+    <ul className="flex flex-col">
+      {checkins.slice(0, 6).map((c) => {
+        const avg = Math.round((c.posture + c.voice + c.confidence + c.communication) / 4 * 20);
+        return (
+          <li key={c.id} className="flex min-h-14 items-center gap-3 border-b border-border py-2 last:border-0">
+            <span className="w-16 shrink-0 text-body-sm text-on-surface-light">{new Date(c.week).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }).replace('.', '')}</span>
+            <div className="grid flex-1 grid-cols-4 gap-1 text-center">
+              {AREAS.map((a) => (
+                <div key={a.key}>
+                  <div className="font-mono text-label-lg tabular-nums text-primary-text">{c[a.key]}</div>
+                  <div className="text-label-md text-on-surface-light">{a.label.slice(0, 3)}</div>
+                </div>
               ))}
             </div>
-          </div>
-        ))}
-        <textarea
-          className="min-h-11 w-full resize-none rounded-lg px-3 py-2 text-base"
-          style={{ background: 'var(--bg-soft)', border: '1px solid var(--border)', color: 'var(--text)' }}
-          placeholder="Notas de la semana..."
-          rows={2}
-          value={form.notes}
-          onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-        />
-        <PixelButton variant="primary" onClick={handleSave} disabled={saving}>
-          {saving ? 'Guardando...' : 'Guardar evaluación'}
-        </PixelButton>
-      </PixelPanel>
+            <Badge variant={avg >= 60 ? 'success' : 'warning'}><span className="font-mono tabular-nums">{avg}%</span></Badge>
+          </li>
+        );
+      })}
+    </ul>
+  );
 
-      {checkins.length > 0 && (
-        <div>
-          <p className="font-pixel text-[var(--text-2)] text-xs mb-3">EVOLUCIÓN</p>
-          <div className="space-y-2">
-            {checkins.slice(0, 6).map(c => {
-              const avg = Math.round((c.posture + c.voice + c.confidence + c.communication) / 4 * 20);
-              return (
-                <PixelPanel key={c.id} className="p-3 flex items-center gap-3">
-                  <div className="text-xs font-medium w-20 shrink-0" style={{ color: 'var(--text-2)' }}>
-                    {new Date(c.week).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })}
-                  </div>
-                  <div className="flex-1 flex gap-2">
-                    {AREAS.map(a => (
-                      <div key={a.key} className="flex-1 text-center">
-                        <div className="text-xs font-bold" style={{ color: 'var(--primary)' }}>{c[a.key]}</div>
-                        <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{a.label.slice(0, 3)}</div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="text-sm font-bold shrink-0" style={{ color: avg >= 60 ? 'var(--c-green)' : 'var(--c-gold)' }}>
-                    {avg}%
-                  </div>
-                </PixelPanel>
-              );
-            })}
-          </div>
-        </div>
-      )}
-    </div>
+  return (
+    <section className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2" aria-labelledby="glow-presence">
+      <Card as="form" padding="lg" className="flex flex-col gap-5" onSubmit={(e: React.FormEvent) => { e.preventDefault(); void handleSave(); }}>
+        <h2 id="glow-presence" className="text-heading-lg">Autoevaluación semanal</h2>
+        {AREAS.map((a) => <Rating key={a.key} label={a.label} value={form[a.key]} onChange={(v) => setForm((f) => ({ ...f, [a.key]: v }))} />)}
+        <Field label="Notas de la semana"><Textarea rows={2} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} placeholder="Qué te funcionó esta semana…" /></Field>
+        <Button type="submit" loading={saving}>Guardar evaluación</Button>
+      </Card>
+      <Card as="section" padding="lg" aria-labelledby="glow-evol" className="flex flex-col gap-3">
+        <h2 id="glow-evol" className="text-heading-lg">Evolución</h2>
+        {history}
+      </Card>
+    </section>
   );
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function GlowUpPage() {
-  const [activeTab, setActiveTab] = useState<'care' | 'style' | 'presence'>('care');
+  const [tab, setTab] = useState<Tab>('care');
+  const [progress, setProgress] = useState({ done: 0, total: 0, streak: 0 });
+  const onProgress = useCallback((done: number, total: number, streak: number) => {
+    setProgress((p) => (p.done === done && p.total === total && p.streak === streak ? p : { done, total, streak }));
+  }, []);
+  const pct = progress.total ? Math.round((progress.done / progress.total) * 100) : 0;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <Sparkles size={22} style={{ color: 'var(--primary)' }} />
-        <div>
-          <h1 className="font-pixel text-[var(--accent-gold)]" style={{ fontSize: '14px' }}>
-            EL ESPEJO
-          </h1>
-          <p className="text-sm" style={{ color: 'var(--text-2)' }}>Glow Up No Físico — Cuídate, vístete y preséntate</p>
+    <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-6 md:gap-8">
+      <motion.section variants={item} className="flex flex-wrap items-center justify-between gap-6 md:gap-8">
+        <div className="flex min-w-0 flex-[1_1_360px] flex-col gap-2">
+          <span className="text-label-lg text-primary-text">El espejo</span>
+          <h1 className="text-display-sm md:text-display-md lg:text-display-lg">Glow up</h1>
+          <p className="max-w-[540px] text-body-lg text-on-surface-light">Cuídate, vístete y preséntate. Pequeños rituales que cambian cómo te ves y cómo te sientes.</p>
         </div>
-      </div>
+        <div className="flex items-center gap-5">
+          <ProgressRing value={pct} tone="secondary" size={120} stroke={10} label="Brillo de hoy" valueText={`${pct}%`}>
+            <span className="flex flex-col items-center" aria-live="polite">
+              <span className="font-mono text-heading-md font-bold tabular-nums">{pct}%</span>
+              <span className="text-body-sm text-on-surface-light">hoy</span>
+            </span>
+          </ProgressRing>
+          <div className="flex flex-col gap-1">
+            <span className="text-label-lg">Brillo de hoy</span>
+            <span className="font-mono text-body-sm tabular-nums text-on-surface-light">{progress.done} de {progress.total} pasos</span>
+            {progress.streak > 0 && (
+              <span className="flex items-center gap-1.5 text-body-sm text-warning-text"><Flame aria-hidden className="size-4" /><span className="font-mono tabular-nums">{progress.streak}</span> {progress.streak === 1 ? 'día' : 'días'} de racha</span>
+            )}
+          </div>
+        </div>
+      </motion.section>
 
-      {/* Tabs */}
-      <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'var(--bg-soft)' }}>
-        {TABS.map(t => (
-          <button key={t.key} onClick={() => setActiveTab(t.key)} className="min-h-11"
-            style={{
-              flex: 1, padding: '8px 4px', borderRadius: 10, fontSize: 12, fontWeight: activeTab === t.key ? 700 : 500,
-              background: activeTab === t.key ? 'var(--bg-panel)' : 'transparent',
-              color: activeTab === t.key ? 'var(--text)' : 'var(--text-2)',
-              border: activeTab === t.key ? '1px solid var(--border)' : '1px solid transparent',
-              boxShadow: activeTab === t.key ? 'var(--shadow-sm)' : 'none',
-              transition: 'all .15s',
-            }}>{t.label}</button>
-        ))}
-      </div>
+      <motion.div variants={item}>
+        <SegmentedControl options={TABS} value={tab} onChange={setTab} label="Área" className="max-w-[560px]" />
+      </motion.div>
 
       <AnimatePresence mode="wait">
-        <motion.div key={activeTab}
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -4 }}
-          transition={{ duration: 0.18 }}
-        >
-          {activeTab === 'care' && <CareSection />}
-          {activeTab === 'style' && <StyleSection />}
-          {activeTab === 'presence' && <PresenceSection />}
+        <motion.div key={tab} role="tabpanel" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+          {tab === 'care' && <CareSection onProgress={onProgress} />}
+          {tab === 'style' && <StyleSection />}
+          {tab === 'presence' && <PresenceSection />}
         </motion.div>
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }

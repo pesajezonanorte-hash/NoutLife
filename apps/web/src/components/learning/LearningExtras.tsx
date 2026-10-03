@@ -1,24 +1,41 @@
+// Extras de Aprendizaje (rediseño): Pomodoro, notas y tarjetas de vocabulario (SM-2).
+// Misma lógica y endpoints; piel lq.
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { PixelPanel } from '../ui/PixelPanel';
-import { PixelButton } from '../ui/PixelButton';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Layers, NotebookPen, Pause, Play, Plus, RotateCcw, Trash2, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { useUIStore } from '../../store/uiStore';
 import { refreshUser } from '../../hooks/useAuth';
+import { useToastStore } from '../../hooks/useToast';
 import api from '../../lib/api';
-import { E } from '@/components/ui/glyphs';
-import ModernLoader from '@/components/ui/modern-loader';
-import { useLoadingVisibility } from '@/components/ui/LoadingGate';
-import { LOADING_COPY } from '@/lib/loadingCopy';
+import {
+  Badge, Button, Card, EmptyState, Field, Input, ProgressBar, ProgressRing, Skeleton, Textarea, formatClock,
+} from '@/components/ui/lq';
 
 // ─── Pomodoro Timer ────────────────────────────────────────────────────────────
 
 const POMODORO_MINUTES = 25;
 const BREAK_MINUTES = 5;
+const DAILY_GOAL_MIN = 100;
+const FOCUS_KEY = 'lq-focus-today';
 
-export function PomodoroTimer() {
+// TODO(api): no hay endpoint de minutos de enfoque; se acumulan en el dispositivo por día.
+function readFocus(): number {
+  try {
+    const v = JSON.parse(localStorage.getItem(FOCUS_KEY) ?? '{}');
+    return v.day === new Date().toDateString() ? Number(v.min) || 0 : 0;
+  } catch { return 0; }
+}
+function writeFocus(min: number) {
+  try { localStorage.setItem(FOCUS_KEY, JSON.stringify({ day: new Date().toDateString(), min })); } catch { /* sin storage */ }
+}
+
+export function PomodoroTimer({ itemTitle }: { itemTitle?: string }) {
   const [phase, setPhase] = useState<'idle' | 'work' | 'break'>('idle');
+  const [running, setRunning] = useState(false);
   const [seconds, setSeconds] = useState(POMODORO_MINUTES * 60);
   const [sessions, setSessions] = useState(0);
+  const [focusMin, setFocusMin] = useState(readFocus);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { addFloatingXP, flashScreen } = useUIStore();
 
@@ -26,7 +43,7 @@ export function PomodoroTimer() {
 
   const beep = useCallback(() => {
     try {
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.connect(gain); gain.connect(ctx.destination);
@@ -38,87 +55,88 @@ export function PomodoroTimer() {
   }, []);
 
   useEffect(() => {
-    if (phase === 'idle') return;
+    if (phase === 'idle' || !running) return;
     clear();
     intervalRef.current = setInterval(() => {
-      setSeconds(s => {
+      setSeconds((s) => {
         if (s <= 1) {
           clearInterval(intervalRef.current!);
           beep();
           if (phase === 'work') {
-            // Award XP for completed pomodoro
-            api.post('/learning/pomodoro').then((r: any) => {
-              const xp = r.data?.xp ?? 15;
-              addFloatingXP(xp, window.innerWidth / 2, 200);
-              flashScreen('#8f8f98');
+            api.post('/learning/pomodoro').then((r: { data?: { xp?: number } }) => {
+              addFloatingXP(r.data?.xp ?? 15, window.innerWidth / 2, 200);
+              flashScreen('rgb(var(--lq-primary) / 0.35)');
               void refreshUser();
             }).catch(() => null);
-            setSessions(n => n + 1);
+            setSessions((n) => n + 1);
+            setFocusMin((m) => { writeFocus(m + POMODORO_MINUTES); return m + POMODORO_MINUTES; });
             setPhase('break');
             return BREAK_MINUTES * 60;
-          } else {
-            setPhase('work');
-            return POMODORO_MINUTES * 60;
           }
+          setPhase('work');
+          return POMODORO_MINUTES * 60;
         }
         return s - 1;
       });
     }, 1000);
     return clear;
-  }, [phase, beep, addFloatingXP, flashScreen]);
+  }, [phase, running, beep, addFloatingXP, flashScreen]);
 
-  function start() { setPhase('work'); setSeconds(POMODORO_MINUTES * 60); }
-  function stop() { setPhase('idle'); setSeconds(POMODORO_MINUTES * 60); clear(); }
+  function toggle() {
+    if (phase === 'idle') { setPhase('work'); setSeconds(POMODORO_MINUTES * 60); setRunning(true); return; }
+    setRunning((r) => !r);
+  }
+  function reset() { clear(); setPhase('idle'); setRunning(false); setSeconds(POMODORO_MINUTES * 60); }
 
   const total = phase === 'break' ? BREAK_MINUTES * 60 : POMODORO_MINUTES * 60;
-  const progress = 1 - seconds / total;
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  const circumference = 2 * Math.PI * 54;
+  const pct = phase === 'idle' ? 0 : (1 - seconds / total) * 100;
+  const label = phase === 'idle' ? 'Listo para enfocar' : phase === 'work' ? (running ? 'Enfocado' : 'En pausa') : 'Descanso';
+  const dots = Math.max(4, sessions);
 
   return (
-    <PixelPanel className="p-5 text-center space-y-4">
-      <p className="font-pixel text-accent-gold" style={{ fontSize: '12px' }}><E e="🍅" /> POMODORO +15 XP</p>
-
-      <div className="flex justify-center">
-        <div className="relative w-32 h-32">
-          <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
-            <circle cx="60" cy="60" r="54" fill="none" stroke="var(--bg-deep)" strokeWidth="8" />
-            <circle
-              cx="60" cy="60" r="54" fill="none"
-              stroke={phase === 'break' ? 'var(--accent-green)' : phase === 'work' ? 'var(--accent-gold)' : 'var(--border)'}
-              strokeWidth="8"
-              strokeDasharray={circumference}
-              strokeDashoffset={circumference * (1 - progress)}
-              strokeLinecap="round"
-              style={{ transition: 'stroke-dashoffset 0.5s linear' }}
-            />
-          </svg>
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <p className="font-pixel text-text-primary" style={{ fontSize: '22px' }}>
-              {String(mins).padStart(2, '0')}:{String(secs).padStart(2, '0')}
-            </p>
-            <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>
-              {phase === 'idle' ? 'LISTO' : phase === 'work' ? 'FOCO' : 'DESCANSO'}
-            </p>
-          </div>
+    <section className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]" aria-label="Pomodoro">
+      <Card variant="elevated" padding="none" className="flex flex-col items-center gap-6 px-6 py-10 text-center md:px-8 md:py-12">
+        <Badge variant={phase === 'break' ? 'success' : phase === 'work' && running ? 'primary' : 'neutral'} size="lg">{label}</Badge>
+        <ProgressRing value={pct} tone={phase === 'break' ? 'success' : 'primary'} size={260} stroke={9} label="Progreso del Pomodoro" valueText={formatClock(seconds)}>
+          <span className="flex flex-col items-center gap-1">
+            <span role="timer" aria-live="off" aria-label={`Tiempo restante ${formatClock(seconds)}`} className="font-mono text-display-md font-bold tabular-nums"><span aria-hidden>{formatClock(seconds)}</span></span>
+            {itemTitle && <span className="max-w-[12rem] truncate text-body-sm text-on-surface-light">Leyendo: {itemTitle}</span>}
+          </span>
+        </ProgressRing>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <Button variant="secondary" onClick={reset}><RotateCcw aria-hidden className="size-4" />Reiniciar</Button>
+          <Button className="min-w-40" onClick={toggle}>
+            {running ? <Pause aria-hidden className="size-4" /> : <Play aria-hidden className="size-4" />}
+            {running ? 'Pausar' : phase === 'idle' ? 'Comenzar' : 'Reanudar'}
+          </Button>
         </div>
-      </div>
+        <ul className="flex gap-2" aria-label={`${sessions} sesiones completadas`}>
+          {Array.from({ length: dots }, (_, i) => (
+            <li key={i} aria-hidden className={cn('size-3 rounded-full transition-colors duration-300', i < sessions ? 'bg-primary' : 'bg-surface-variant')} />
+          ))}
+        </ul>
+        {sessions > 0 && <p className="font-mono text-body-sm tabular-nums text-success-text">{sessions} {sessions === 1 ? 'sesión completada' : 'sesiones completadas'} · +{sessions * 15} XP</p>}
+      </Card>
 
-      <div className="flex gap-2 justify-center">
-        {phase === 'idle' ? (
-          <PixelButton variant="primary" onClick={start}>▶ INICIAR</PixelButton>
-        ) : (
-          <PixelButton variant="ghost" onClick={stop}>■ DETENER</PixelButton>
-        )}
-      </div>
-
-      {sessions > 0 && (
-        <p className="font-pixel text-accent-green" style={{ fontSize: '12px' }}>
-          {sessions} sesión{sessions > 1 ? 'es' : ''} completada{sessions > 1 ? 's' : ''} · +{sessions * 15} XP
-        </p>
-      )}
-    </PixelPanel>
+      <aside className="flex flex-col gap-6">
+        <Card as="section" padding="lg" aria-labelledby="pomo-focus" className="flex flex-col gap-3">
+          <h2 id="pomo-focus" className="text-heading-sm">Enfoque de hoy</h2>
+          <span className="font-mono text-display-sm font-bold tabular-nums">{focusMin} min</span>
+          <span className="text-body-sm text-on-surface-light">Meta diaria {DAILY_GOAL_MIN} min</span>
+          <ProgressBar value={Math.min(100, (focusMin / DAILY_GOAL_MIN) * 100)} shine label="Enfoque de hoy" valueText={`${focusMin} de ${DAILY_GOAL_MIN} minutos`} />
+        </Card>
+        <Card as="section" padding="lg" aria-labelledby="pomo-set" className="flex flex-col gap-2">
+          <h2 id="pomo-set" className="mb-1 text-heading-sm">Ajustes</h2>
+          <dl>
+            {[['Enfoque', `${POMODORO_MINUTES} min`], ['Descanso corto', `${BREAK_MINUTES} min`], ['Descanso largo', '15 min']].map(([k, v]) => (
+              <div key={k} className="flex min-h-11 items-center justify-between border-b border-border last:border-0">
+                <dt className="text-body-md text-on-surface">{k}</dt><dd className="font-mono text-label-lg tabular-nums">{v}</dd>
+              </div>
+            ))}
+          </dl>
+        </Card>
+      </aside>
+    </section>
   );
 }
 
@@ -131,61 +149,52 @@ export function NotesPanel({ itemId }: { itemId: string }) {
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
   const [saving, setSaving] = useState(false);
-  const showLoading = useLoadingVisibility(loading);
 
   useEffect(() => {
-    api.get(`/learning/${itemId}/notes`).then((r: any) => setNotes(r.data?.notes ?? [])).finally(() => setLoading(false));
+    api.get(`/learning/${itemId}/notes`).then((r: { data?: { notes?: Note[] } }) => setNotes(r.data?.notes ?? [])).catch(() => null).finally(() => setLoading(false));
   }, [itemId]);
 
   async function addNote() {
     if (!text.trim()) return;
     setSaving(true);
     try {
-      const r: any = await api.post(`/learning/${itemId}/notes`, { text });
-      setNotes(prev => [...prev, r.data.note]);
+      const r: { data: { note: Note } } = await api.post(`/learning/${itemId}/notes`, { text });
+      setNotes((prev) => [...prev, r.data.note]);
       setText('');
-    } catch { /* ignore */ } finally { setSaving(false); }
+    } catch { useToastStore.getState().error('No se pudo guardar la nota'); } finally { setSaving(false); }
   }
 
   async function deleteNote(noteId: string) {
-    await api.delete(`/learning/${itemId}/notes/${noteId}`);
-    setNotes(prev => prev.filter(n => n.id !== noteId));
+    try {
+      await api.delete(`/learning/${itemId}/notes/${noteId}`);
+      setNotes((prev) => prev.filter((n) => n.id !== noteId));
+    } catch { useToastStore.getState().error('No se pudo eliminar la nota'); }
   }
 
-  if (showLoading) return <ModernLoader words={[...LOADING_COPY.learningNotes]} />;
-  if (loading) return null;
+  if (loading) return <Skeleton className="h-40 rounded-2xl" />;
 
   return (
-    <div className="space-y-3">
-      <div className="flex gap-2">
-        <textarea
-          value={text}
-          onChange={e => setText(e.target.value)}
-          placeholder="Añadir nota..."
-          rows={2}
-          className="flex-1 bg-bg-deep border-2 border-border-pixel text-text-primary font-vt text-base px-3 py-2 focus:border-accent-gold outline-none resize-none"
-        />
-        <PixelButton variant="secondary" onClick={addNote} disabled={saving || !text.trim()}>
-          {saving ? '...' : '+ NOTA'}
-        </PixelButton>
-      </div>
-
+    <div className="flex flex-col gap-4">
+      <form className="flex flex-col gap-3 sm:flex-row sm:items-end" onSubmit={(e) => { e.preventDefault(); void addNote(); }}>
+        <Field label="Nueva nota" className="flex-1"><Textarea rows={2} value={text} onChange={(e) => setText(e.target.value)} placeholder="Añadir nota…" /></Field>
+        <Button type="submit" variant="secondary" loading={saving} disabled={!text.trim()}><Plus aria-hidden className="size-4" />Nota</Button>
+      </form>
       {notes.length === 0 ? (
-        <p className="font-vt text-text-secondary text-base italic text-center py-4">Sin notas aún</p>
+        <Card><EmptyState icon={NotebookPen} tone="info" title="Sin notas aún" description="Guarda ideas y citas mientras avanzas." className="py-4" /></Card>
       ) : (
-        <div className="space-y-2">
-          {notes.map(n => (
-            <div key={n.id} className="flex gap-2 items-start">
-              <div className="flex-1 bg-bg-deep border border-border-pixel p-2">
-                <p className="font-vt text-text-primary text-base whitespace-pre-wrap">{n.text}</p>
-                <p className="font-pixel text-text-secondary mt-1" style={{ fontSize: '12px' }}>
-                  {new Date(n.createdAt).toLocaleDateString('es-CO')}
-                </p>
-              </div>
-              <button onClick={() => deleteNote(n.id)} className="font-pixel text-accent-red hover:opacity-70 mt-1" style={{ fontSize: '12px' }}><E e="✕" /></button>
-            </div>
+        <ul className="flex flex-col gap-3">
+          {notes.map((n) => (
+            <li key={n.id}>
+              <Card padding="sm" className="flex items-start gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="whitespace-pre-wrap text-body-md">{n.text}</p>
+                  <p className="mt-1 text-body-sm text-on-surface-light">{new Date(n.createdAt).toLocaleDateString('es-ES')}</p>
+                </div>
+                <Button variant="icon" aria-label="Eliminar nota" onClick={() => void deleteNote(n.id)} className="-mr-2 -mt-2"><Trash2 aria-hidden className="size-5" strokeWidth={1.75} /></Button>
+              </Card>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </div>
   );
@@ -205,128 +214,104 @@ export function VocabPanel({ itemId }: { itemId: string }) {
   const [showBack, setShowBack] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ front: '', back: '', example: '' });
-  const showLoading = useLoadingVisibility(loading);
 
   const today = new Date().toISOString().slice(0, 10);
-  const dueCards = cards.filter(c => c.nextReview <= today);
+  const dueCards = cards.filter((c) => c.nextReview <= today);
 
   useEffect(() => {
-    api.get(`/learning/${itemId}/vocab`).then((r: any) => setCards(r.data?.cards ?? [])).finally(() => setLoading(false));
+    api.get(`/learning/${itemId}/vocab`).then((r: { data?: { cards?: VocabCard[] } }) => setCards(r.data?.cards ?? [])).catch(() => null).finally(() => setLoading(false));
   }, [itemId]);
 
   async function addCard() {
     if (!form.front.trim() || !form.back.trim()) return;
-    const r: any = await api.post(`/learning/${itemId}/vocab`, { front: form.front, back: form.back, example: form.example || undefined });
-    setCards(prev => [...prev, r.data.card]);
-    setForm({ front: '', back: '', example: '' });
-    setShowForm(false);
+    try {
+      const r: { data: { card: VocabCard } } = await api.post(`/learning/${itemId}/vocab`, { front: form.front, back: form.back, example: form.example || undefined });
+      setCards((prev) => [...prev, r.data.card]);
+      setForm({ front: '', back: '', example: '' });
+      setShowForm(false);
+    } catch { useToastStore.getState().error('No se pudo guardar la tarjeta'); }
   }
 
   async function review(quality: 0 | 1 | 2 | 3 | 4 | 5) {
     if (!reviewing) return;
-    const r: any = await api.post(`/learning/${itemId}/vocab/${reviewing.id}/review`, { quality });
-    setCards(prev => prev.map(c => c.id === reviewing.id ? r.data.card : c));
-    const next = dueCards.find(c => c.id !== reviewing.id) ?? null;
-    setReviewing(next);
-    setShowBack(false);
+    try {
+      const r: { data: { card: VocabCard } } = await api.post(`/learning/${itemId}/vocab/${reviewing.id}/review`, { quality });
+      setCards((prev) => prev.map((c) => (c.id === reviewing.id ? r.data.card : c)));
+      setReviewing(dueCards.find((c) => c.id !== reviewing.id) ?? null);
+      setShowBack(false);
+    } catch { useToastStore.getState().error('No se pudo registrar el repaso'); }
   }
 
-  function startReview() {
-    setReviewing(dueCards[0] ?? null);
-    setShowBack(false);
-  }
+  if (loading) return <Skeleton className="h-40 rounded-2xl" />;
 
-  if (showLoading) return <ModernLoader words={[...LOADING_COPY.learningCards]} />;
-  if (loading) return null;
+  const grades: Array<[0 | 2 | 4, string, string]> = [
+    [0, 'Nada', 'bg-error/[var(--lq-soft-alpha)] text-error-text'],
+    [2, 'Difícil', 'bg-warning/[var(--lq-soft-alpha)] text-warning-text'],
+    [4, 'Fácil', 'bg-success/[var(--lq-soft-alpha)] text-success-text'],
+  ];
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>TARJETAS: {cards.length} total · {dueCards.length} para repasar</p>
-        </div>
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="font-mono text-body-sm tabular-nums text-on-surface-light">{cards.length} tarjetas · {dueCards.length} para repasar</p>
         <div className="flex gap-2">
-          {dueCards.length > 0 && !reviewing && (
-            <PixelButton variant="primary" onClick={startReview}>▶ REPASAR ({dueCards.length})</PixelButton>
-          )}
-          <PixelButton variant="secondary" onClick={() => setShowForm(f => !f)}>{showForm ? <E e="✕" s={11} /> : '+ TARJETA'}</PixelButton>
+          {dueCards.length > 0 && !reviewing && <Button size="md" onClick={() => { setReviewing(dueCards[0] ?? null); setShowBack(false); }}><Play aria-hidden className="size-4" />Repasar ({dueCards.length})</Button>}
+          <Button variant="secondary" size="md" onClick={() => setShowForm((f) => !f)}>
+            {showForm ? <><X aria-hidden className="size-4" />Cerrar</> : <><Plus aria-hidden className="size-4" />Tarjeta</>}
+          </Button>
         </div>
       </div>
 
       {showForm && (
-        <PixelPanel className="p-4 space-y-2">
-          <input value={form.front} onChange={e => setForm(f => ({ ...f, front: e.target.value }))} placeholder="Frente (palabra/concepto)" className="w-full bg-bg-deep border-2 border-border-pixel text-text-primary font-vt text-base px-3 py-2 focus:border-accent-gold outline-none" />
-          <input value={form.back} onChange={e => setForm(f => ({ ...f, back: e.target.value }))} placeholder="Dorso (definición/traducción)" className="w-full bg-bg-deep border-2 border-border-pixel text-text-primary font-vt text-base px-3 py-2 focus:border-accent-gold outline-none" />
-          <input value={form.example} onChange={e => setForm(f => ({ ...f, example: e.target.value }))} placeholder="Ejemplo (opcional)" className="w-full bg-bg-deep border-2 border-border-pixel text-text-primary font-vt text-base px-3 py-2 focus:border-accent-gold outline-none" />
-          <PixelButton variant="primary" onClick={addCard} className="w-full">GUARDAR TARJETA</PixelButton>
-        </PixelPanel>
+        <Card as="form" padding="md" className="flex flex-col gap-3" onSubmit={(e: React.FormEvent) => { e.preventDefault(); void addCard(); }}>
+          <Field label="Frente"><Input value={form.front} onChange={(e) => setForm((f) => ({ ...f, front: e.target.value }))} placeholder="Palabra o concepto" /></Field>
+          <Field label="Dorso"><Input value={form.back} onChange={(e) => setForm((f) => ({ ...f, back: e.target.value }))} placeholder="Definición o traducción" /></Field>
+          <Field label="Ejemplo (opcional)"><Input value={form.example} onChange={(e) => setForm((f) => ({ ...f, example: e.target.value }))} /></Field>
+          <Button type="submit" block disabled={!form.front.trim() || !form.back.trim()}>Guardar tarjeta</Button>
+        </Card>
       )}
 
-      {/* Active review session */}
       <AnimatePresence>
         {reviewing && (
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-            <PixelPanel className="p-5 space-y-4 text-center">
-              <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>REVISANDO {dueCards.indexOf(reviewing) + 1} / {dueCards.length}</p>
-              <p className="font-vt text-text-primary text-2xl">{reviewing.front}</p>
-
+            <Card variant="elevated" padding="lg" className="flex flex-col items-center gap-4 text-center">
+              <p className="font-mono text-body-sm tabular-nums text-on-surface-light">Repasando {dueCards.indexOf(reviewing) + 1} / {dueCards.length}</p>
+              <p className="text-heading-lg">{reviewing.front}</p>
               {!showBack ? (
-                <PixelButton variant="secondary" onClick={() => setShowBack(true)} className="w-full">MOSTRAR RESPUESTA</PixelButton>
+                <Button variant="secondary" block onClick={() => setShowBack(true)}>Mostrar respuesta</Button>
               ) : (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
-                  <div className="border-t border-border-pixel pt-3">
-                    <p className="font-vt text-accent-gold text-xl">{reviewing.back}</p>
-                    {reviewing.example && <p className="font-vt text-text-secondary text-base italic mt-1">{reviewing.example}</p>}
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex w-full flex-col gap-4" aria-live="polite">
+                  <div className="border-t border-border pt-4">
+                    <p className="text-heading-md text-primary-text">{reviewing.back}</p>
+                    {reviewing.example && <p className="mt-1 text-body-md italic text-on-surface-light">{reviewing.example}</p>}
                   </div>
-                  <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>¿QUÉ TAN BIEN LO RECORDASTE?</p>
+                  <p className="text-label-lg text-on-surface">¿Qué tan bien lo recordaste?</p>
                   <div className="grid grid-cols-3 gap-2">
-                    {([
-                      [0, ' Nada', 'var(--accent-red)'],
-                      [2, ' Difícil', 'var(--accent-gold)'],
-                      [4, ' Fácil', 'var(--accent-green)'],
-                    ] as [0 | 2 | 4, string, string][]).map(([q, label, color]) => (
-                      <button
-                        key={q}
-                        onClick={() => review(q)}
-                        className="py-2 border-2 font-pixel transition-all hover:opacity-80"
-                        style={{ borderColor: color, color, fontSize: '12px' }}
-                      >
-                        {label}
-                      </button>
+                    {grades.map(([q, name, cls]) => (
+                      <button key={q} type="button" onClick={() => void review(q)} className={cn('min-h-12 rounded-lg text-label-lg transition-shadow hover:shadow-md', cls)}>{name}</button>
                     ))}
                   </div>
                 </motion.div>
               )}
-
-              <button onClick={() => setReviewing(null)} className="font-pixel text-text-secondary hover:text-accent-red transition-colors" style={{ fontSize: '12px' }}>
-                <E e="✕" /> SALIR DE REVISIÓN
-              </button>
-            </PixelPanel>
+              <Button variant="ghost" size="sm" onClick={() => setReviewing(null)}><X aria-hidden className="size-4" />Salir de la revisión</Button>
+            </Card>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Card list */}
       {!reviewing && cards.length > 0 && (
-        <div className="space-y-1">
-          {cards.map(c => (
-            <div key={c.id} className="flex items-center justify-between px-3 py-2 border border-border-pixel/50">
-              <div>
-                <p className="font-vt text-text-primary text-base">{c.front} → <span className="text-text-secondary">{c.back}</span></p>
-              </div>
-              <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>
-                {c.nextReview <= today ? ' HOY' : `en ${Math.ceil((new Date(c.nextReview).getTime() - Date.now()) / 86400000)}d`}
-              </p>
-            </div>
+        <ul className="flex flex-col">
+          {cards.map((c) => (
+            <li key={c.id} className="flex min-h-12 items-center justify-between gap-3 border-b border-border py-2 last:border-0">
+              <p className="min-w-0 truncate text-body-md">{c.front} <span aria-hidden>→</span><span className="sr-only">significa</span> <span className="text-on-surface-light">{c.back}</span></p>
+              {c.nextReview <= today ? <Badge variant="warning">Hoy</Badge> : <span className="shrink-0 font-mono text-body-sm tabular-nums text-on-surface-light">en {Math.ceil((new Date(c.nextReview).getTime() - Date.now()) / 86400000)} d</span>}
+            </li>
           ))}
-        </div>
+        </ul>
       )}
 
       {cards.length === 0 && !showForm && (
-        <PixelPanel className="p-6 text-center">
-          <p className="text-3xl mb-2"><E e="🃏" /></p>
-          <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>SIN TARJETAS AÚN</p>
-        </PixelPanel>
+        <Card><EmptyState icon={Layers} tone="secondary" title="Sin tarjetas aún" description="Crea tarjetas de vocabulario y repásalas con repetición espaciada." className="py-4" /></Card>
       )}
     </div>
   );

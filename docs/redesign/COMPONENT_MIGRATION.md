@@ -74,3 +74,14 @@ Cambios de la fase 7:
 | `.text-accent-red` | `--lq-error-text` |
 
 Al migrar cada página a lq, sustituye estas clases por `text-warning-text`, `text-success-text` y `text-error-text`.
+
+## Fase 6 (Más zonas I)
+
+Migradas a `ui/lq`: Gimnasio, Glow up, Aprendizaje, Relaciones (`/love`), Diario y Agenda, junto con `GymExtras`, `LearningExtras` y `SageContextButton`.
+
+Componentes nuevos en `ui/lq/`: `ChipGroup`, `DayDot`, `StepItem`, `Timer`, `BookCover`, `MoodPicker` (`MoodFace`), `TimelineDay`, `MonthGrid`.
+
+Notas:
+- `globals.css`: `button { border: 0 }` pasó a `border-width: 0`. Con `border: 0` el botón quedaba con `border-style: none` y ninguna clase `border-*` dibujaba el borde.
+- `tailwind.config.ts` registra `font-mono` (JetBrains Mono, ahora con peso 700 en la fuente).
+- Datos que la API no da (marcados `TODO(api)`): pasos sueltos de rutinas (Glow up), outfits, conexión % y último contacto (Relaciones), minutos de enfoque diarios (Pomodoro), récords históricos (Gimnasio).
