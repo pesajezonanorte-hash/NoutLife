@@ -498,7 +498,7 @@ export default function LeaderboardPage() {
                 <button
                   type="button"
                   onClick={() => setFriendsOnly(false)}
-                  className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] ${!friendsOnly ? "bg-[var(--bg-panel-light)] text-[var(--text-primary)] shadow-sm" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+                  className={`inline-flex min-h-11 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] ${!friendsOnly ? "bg-[var(--bg-panel-light)] text-[var(--text-primary)] shadow-sm" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
                   aria-pressed={!friendsOnly}
                 >
                   <Globe size={15} />
@@ -507,7 +507,7 @@ export default function LeaderboardPage() {
                 <button
                   type="button"
                   onClick={() => setFriendsOnly(true)}
-                  className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] ${friendsOnly ? "bg-[var(--bg-panel-light)] text-[var(--text-primary)] shadow-sm" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+                  className={`inline-flex min-h-11 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] ${friendsOnly ? "bg-[var(--bg-panel-light)] text-[var(--text-primary)] shadow-sm" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
                   aria-pressed={friendsOnly}
                 >
                   <Users size={15} />
@@ -537,7 +537,7 @@ export default function LeaderboardPage() {
                     key={id}
                     type="button"
                     onClick={() => setCategory(id)}
-                    className={`flex min-w-0 items-center gap-2 rounded-xl border px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] ${selected ? "border-[var(--accent-gold)] bg-[color-mix(in_oklab,var(--accent-gold)_9%,var(--bg-panel))] text-[var(--text-primary)]" : "border-[var(--border)] bg-[var(--bg-panel)] text-[var(--text-secondary)] hover:border-[var(--text-muted)]"}`}
+                    className={`flex min-h-11 min-w-0 items-center gap-2 rounded-xl border px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] ${selected ? "border-[var(--accent-gold)] bg-[color-mix(in_oklab,var(--accent-gold)_9%,var(--bg-panel))] text-[var(--text-primary)]" : "border-[var(--border)] bg-[var(--bg-panel)] text-[var(--text-secondary)] hover:border-[var(--text-muted)]"}`}
                   >
                     <Icon
                       size={16}

@@ -336,7 +336,7 @@ export default function ShopPage() {
           <button
             key={key}
             onClick={() => setShopTab(key as "shop" | "inventory")}
-            className={`min-h-11 px-4 py-2 border-2 font-pixel transition-all ${shopTab === key ? "border-accent-gold bg-accent-gold text-bg-deep" : "border-border-pixel text-text-secondary"}`}
+            className={`min-h-11 px-4 py-2 border-2 font-pixel transition-all ${shopTab === key ? "border-primary-strong bg-primary-strong text-on-primary" : "border-border-pixel text-text-secondary"}`}
             style={{ fontSize: "12px" }}
           >
             {label}
@@ -359,7 +359,7 @@ export default function ShopPage() {
               <button
                 key={t.key}
                 onClick={() => setTab(t.key)}
-                className={`min-h-11 min-w-0 px-2 py-1.5 border-2 font-pixel transition-all sm:shrink-0 ${tab === t.key ? "border-accent-gold bg-accent-gold text-bg-deep" : "border-border-pixel text-text-secondary"}`}
+                className={`min-h-11 min-w-0 px-2 py-1.5 border-2 font-pixel transition-all sm:shrink-0 ${tab === t.key ? "border-primary-strong bg-primary-strong text-on-primary" : "border-border-pixel text-text-secondary"}`}
                 style={{ fontSize: "12px" }}
               >
                 {t.label}

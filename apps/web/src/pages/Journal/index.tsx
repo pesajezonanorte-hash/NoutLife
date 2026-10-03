@@ -335,11 +335,11 @@ export default function JournalPage() {
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar en el diario..." className="min-h-11 w-full bg-bg-deep border-2 border-border-pixel px-3 py-2 font-vt text-base text-text-primary outline-none focus:border-accent-gold" />
         <div className="grid grid-cols-3 gap-1.5">
           <span className="col-span-3 text-sm font-medium text-[var(--text-secondary)]">Filtrar por ánimo</span>
-          <button onClick={() => setMoodFilter(null)} className={`min-h-11 border px-2 py-0.5 font-pixel transition-all ${moodFilter === null ? 'border-accent-gold text-accent-gold' : 'border-border-pixel text-text-secondary'}`} style={{ fontSize: '12px' }}>
+          <button aria-pressed={moodFilter === null} onClick={() => setMoodFilter(null)} className={`min-h-11 border px-2 py-0.5 font-pixel transition-all ${moodFilter === null ? 'border-accent-gold text-accent-gold' : 'border-border-pixel text-text-secondary'}`} style={{ fontSize: '12px' }}>
             TODOS
           </button>
           {[1, 2, 3, 4, 5].map(m => (
-            <button key={m} onClick={() => setMoodFilter(moodFilter === m ? null : m)} className={`min-h-11 border px-2 py-0.5 transition-all ${moodFilter === m ? 'border-accent-gold' : 'border-border-pixel'}`}>
+            <button key={m} aria-label={`Ánimo ${m} de 5`} aria-pressed={moodFilter === m} onClick={() => setMoodFilter(moodFilter === m ? null : m)} className={`min-h-11 border px-2 py-0.5 transition-all ${moodFilter === m ? 'border-accent-gold' : 'border-border-pixel'}`}>
               <span className={moodFilter === m ? 'opacity-100' : 'opacity-50'}><E e={MOOD_EMOJIS[m]} /></span>
             </button>
           ))}
@@ -375,7 +375,7 @@ export default function JournalPage() {
                         </div>
                       )}
                     </div>
-                    <FlowButton tone="danger" size="sm" withArrows={false} onClick={(ev) => { ev.stopPropagation(); handleDelete(e.id); }} className="h-11 w-11 px-3 font-pixel text-xs"><E e="✕" /></FlowButton>
+                    <FlowButton tone="danger" size="sm" withArrows={false} aria-label="Eliminar entrada" onClick={(ev) => { ev.stopPropagation(); handleDelete(e.id); }} className="h-11 w-11 px-3 font-pixel text-xs"><E e="✕" /></FlowButton>
                   </div>
                 </PixelPanel>
               </motion.div>

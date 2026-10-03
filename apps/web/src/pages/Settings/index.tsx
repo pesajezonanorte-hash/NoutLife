@@ -246,7 +246,7 @@ function FormField({
         value={value}
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-1.5 h-10 w-full rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] px-3 text-sm text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--accent-gold)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--accent-gold)_20%,transparent)] disabled:cursor-not-allowed disabled:opacity-60"
+        className="mt-1.5 h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] px-3 text-sm text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--accent-gold)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--accent-gold)_20%,transparent)] disabled:cursor-not-allowed disabled:opacity-60"
       />
       {hint && (
         <span className="mt-1.5 block text-xs leading-4 text-[var(--text-muted)]">
@@ -840,8 +840,8 @@ export default function Settings() {
                           <p className="mt-0.5 text-xs text-[var(--text-muted)]">La bandeja in-app se conserva; las horas silenciosas sólo pausan push.</p>
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-xs text-[var(--text-muted)]">
-                          <label>Silencio desde<input type="time" value={notificationPreferences.quietHoursStart ?? ''} onChange={(event) => void updateQuietHours('quietHoursStart', event.target.value)} className="mt-1 block h-9 rounded-lg border border-[var(--border)] bg-[var(--bg-panel)] px-2 text-sm text-[var(--text-primary)]" /></label>
-                          <label>Hasta<input type="time" value={notificationPreferences.quietHoursEnd ?? ''} onChange={(event) => void updateQuietHours('quietHoursEnd', event.target.value)} className="mt-1 block h-9 rounded-lg border border-[var(--border)] bg-[var(--bg-panel)] px-2 text-sm text-[var(--text-primary)]" /></label>
+                          <label>Silencio desde<input type="time" value={notificationPreferences.quietHoursStart ?? ''} onChange={(event) => void updateQuietHours('quietHoursStart', event.target.value)} className="mt-1 block h-11 rounded-lg border border-[var(--border)] bg-[var(--bg-panel)] px-2 text-sm text-[var(--text-primary)]" /></label>
+                          <label>Hasta<input type="time" value={notificationPreferences.quietHoursEnd ?? ''} onChange={(event) => void updateQuietHours('quietHoursEnd', event.target.value)} className="mt-1 block h-11 rounded-lg border border-[var(--border)] bg-[var(--bg-panel)] px-2 text-sm text-[var(--text-primary)]" /></label>
                         </div>
                       </div>
                       <div className="mt-3 overflow-hidden rounded-xl border border-[var(--border)]">
@@ -872,7 +872,7 @@ export default function Settings() {
                         value={timezone}
                         onChange={(event) => setTimezone(event.target.value)}
                         style={{ colorScheme: resolvedTheme }}
-                        className="mt-1.5 h-10 w-full rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] px-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent-gold)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--accent-gold)_20%,transparent)]"
+                        className="mt-1.5 h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] px-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent-gold)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--accent-gold)_20%,transparent)]"
                       >
                         <option value="America/Bogota">Bogotá (UTC−5)</option>
                         <option value="America/New_York">
