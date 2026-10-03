@@ -122,7 +122,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <main
           id="main"
           tabIndex={-1}
-          className="mx-auto w-full max-w-[1120px] flex-1 px-4 pb-32 pt-2 outline-none md:px-8 md:pb-12 md:pt-8 lg:pt-12"
+          className="mx-auto w-full max-w-[1120px] flex-1 px-4 pb-[calc(10rem+env(safe-area-inset-bottom))] pt-2 outline-none md:px-8 md:pb-12 md:pt-8 lg:pt-12"
         >
           <ZoneTip />
           {children}

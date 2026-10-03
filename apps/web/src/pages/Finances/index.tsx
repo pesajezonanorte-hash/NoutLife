@@ -289,7 +289,7 @@ export default function FinancesPage() {
                       >
                         <IconChip icon={income ? ArrowDownLeft : cat.icon} tone={income ? 'success' : cat.tone} size="sm" />
                         <div className="min-w-0">
-                          <button type="button" aria-haspopup="dialog" onClick={() => setDetail(t)} className="block max-w-full truncate text-left text-body-md font-semibold after:absolute after:inset-0 after:content-['']">{t.description || cat.label}</button>
+                          <button type="button" aria-haspopup="dialog" onClick={() => setDetail(t)} className="block max-w-full truncate text-left text-body-md font-semibold lq-stretch after:absolute after:inset-0 after:content-['']">{t.description || cat.label}</button>
                           <div className="truncate text-body-sm text-on-surface-light">
                             {income ? 'Ingreso' : cat.label} · {new Date(t.date).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
                           </div>

@@ -74,7 +74,7 @@ export function BarChart({
           const pct = Math.max(2, (d.value / top) * (showValues ? 80 : 100));
           const tip = d.tip ?? `${d.label} · ${formatValue(d.value)}`;
           return (
-            <div key={d.label + i} tabIndex={0} aria-label={tip} className="group relative flex h-full flex-col items-center justify-end gap-1.5 rounded-md">
+            <div key={d.label + i} tabIndex={0} role="img" aria-label={tip} className="group relative flex h-full flex-col items-center justify-end gap-1.5 rounded-md">
               <Tip edge={i === 0 ? 'start' : i === data.length - 1 ? 'end' : undefined}>{tip}</Tip>
               {showValues && (
                 <span className={cn('text-label-md tabular-nums', d.highlight ? textTone[highlightTone] : 'text-on-surface-light')}>
@@ -173,8 +173,9 @@ export function LineChart({ data, label, min, max, tone = 'primary', goal, heigh
           <span
             key={d.label + i}
             tabIndex={0}
+            role="img"
             aria-label={d.tip ?? `${d.label}: ${d.value}`}
-            className="group absolute -ml-3.5 -mt-3.5 flex size-7 items-center justify-center rounded-full"
+            className="group absolute -ml-[22px] -mt-[22px] flex size-11 items-center justify-center rounded-full"
             style={{ left: `${(x(i) / W) * 100}%`, top: `${(y(d.value) / H) * 100}%` }}
           >
             <Tip edge={i === 0 ? 'start' : i === data.length - 1 ? 'end' : undefined}>{d.tip ?? `${d.label} · ${d.value}`}</Tip>

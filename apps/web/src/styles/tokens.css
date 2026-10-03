@@ -17,7 +17,7 @@
   --lq-success: 16 185 129;          /* emerald-500 */
   --lq-success-text: 4 120 87;       /* emerald-700 */
   --lq-warning: 245 158 11;          /* amber-500 */
-  --lq-warning-text: 180 83 9;       /* amber-700 */
+  --lq-warning-text: 146 64 14;      /* amber-800 (amber-700 daba 4.47:1 sobre el tinte suave) */
   --lq-error: 239 68 68;             /* red-500 */
   --lq-error-text: 185 28 28;        /* red-700 */
   --lq-info: 59 130 246;             /* blue-500 */
@@ -50,8 +50,8 @@ html.dark {
   --lq-secondary: 167 139 250;  --lq-secondary-text: 196 181 253;
   --lq-success: 52 211 153;     --lq-success-text: 52 211 153;
   --lq-warning: 251 191 36;     --lq-warning-text: 251 191 36;
-  --lq-error: 248 113 113;      --lq-error-text: 248 113 113;
-  --lq-info: 96 165 250;        --lq-info-text: 96 165 250;
+  --lq-error: 248 113 113;      --lq-error-text: 252 165 165;  /* red-300: AA sobre tinte suave */
+  --lq-info: 96 165 250;        --lq-info-text: 147 197 253;   /* blue-300: AA sobre tinte suave */
 
   --lq-background: 17 24 39;         /* gray-900 */
   --lq-surface: 31 41 55;            /* gray-800 */
@@ -71,6 +71,10 @@ html.dark {
 
 @layer base {
   :focus-visible { outline: 3px solid rgb(var(--lq-primary)); outline-offset: 2px; }
+  /* El foco nunca queda bajo la TabBar + FAB (móvil) ni bajo la Topbar fija (desktop). WCAG 2.4.11 */
+  html { scroll-padding-bottom: calc(11rem + env(safe-area-inset-bottom)); }
+  @media (min-width: 768px) { html { scroll-padding-bottom: 2rem; } }
+  @media (min-width: 1024px) { html { scroll-padding-top: 5rem; } }
 }
 
 /* Utilidades de movimiento del rediseño que dependen de hover/focus-within
@@ -94,6 +98,9 @@ html.dark {
     box-shadow: var(--shadow-lg);
     border-color: rgb(var(--lq-primary) / .25);
   }
+  /* Enlace estirado (título que cubre toda la tarjeta): el anillo de foco rodea la tarjeta. */
+  .lq-stretch:focus-visible { outline: none; }
+  .lq-stretch:focus-visible::after { outline: 3px solid rgb(var(--lq-primary)); outline-offset: 2px; border-radius: 1rem; }
   .lq-ichip { transition: transform .3s cubic-bezier(.3, 1.4, .5, 1); }
   .lq-lift:hover .lq-ichip { transform: scale(1.08) rotate(-4deg); }
 

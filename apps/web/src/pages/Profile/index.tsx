@@ -241,7 +241,7 @@ export default function ProfilePage() {
         {([['Fuerza', user.strength], ['Intelecto', user.intelligence], ['Carisma', user.charisma]] as const).map(([k, v]) => (
           <div key={k} className="flex flex-col items-center gap-0.5 rounded-xl bg-surface-variant px-2 py-3">
             <dd className="text-heading-sm tabular-nums">{v}</dd>
-            <dt className="text-label-md text-on-surface-light">{k}</dt>
+            <dt className="text-label-md text-on-surface">{k}</dt>
           </div>
         ))}
       </dl>

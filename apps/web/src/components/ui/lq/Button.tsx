@@ -21,7 +21,8 @@ const variants: Record<ButtonVariant, string> = {
 const sizes: Record<ButtonSize, string> = {
   lg: 'min-h-12 px-6 py-3',
   md: 'min-h-11 px-5 py-2.5',
-  sm: 'min-h-9 px-3.5 py-1.5',
+  // sm: 36 px como btn-sm en desktop; 44 px en táctil (README regla 4).
+  sm: 'min-h-11 px-3.5 py-1.5 md:min-h-9',
 };
 
 /** Clases de botón para usarlas en enlaces (<Link className={buttonClasses()} />). */

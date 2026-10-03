@@ -269,7 +269,7 @@ export default function FoodPage() {
                       <span className="text-label-md text-on-surface-light">{mealTypeLabel(type)}</span>
                       <span className="text-body-sm text-on-surface tabular-nums md:hidden">{e.meal.calories ? `${fmtInt(e.meal.calories)} kcal` : '—'}</span>
                     </div>
-                    <button type="button" aria-haspopup="dialog" onClick={() => setDetail(e.meal)} className="block max-w-full text-left text-body-lg font-semibold [overflow-wrap:anywhere] after:absolute after:inset-0 after:rounded-2xl after:content-[''] md:truncate">
+                    <button type="button" aria-haspopup="dialog" onClick={() => setDetail(e.meal)} className="block max-w-full text-left text-body-lg font-semibold [overflow-wrap:anywhere] lq-stretch after:absolute after:inset-0 after:rounded-2xl after:content-[''] md:truncate">
                       {e.meal.name}
                     </button>
                     {macroLine(e.meal) && <div className="hidden text-body-sm text-on-surface-light tabular-nums md:block">{macroLine(e.meal)}</div>}
@@ -314,7 +314,7 @@ export default function FoodPage() {
           {saved.map((s) => (
             <motion.li key={s.id} variants={item} className="relative flex items-center gap-3 rounded-2xl border border-border bg-surface py-2 pl-4 pr-2 hover:bg-surface-variant/60 md:rounded-lg md:border-0 md:bg-transparent md:px-0 md:hover:bg-transparent">
               <div className="min-w-0 flex-1">
-                <button type="button" aria-haspopup="dialog" onClick={() => setSavedDetail(s)} className="block max-w-full truncate text-left text-body-lg font-semibold after:absolute after:inset-0 after:content-['']">{s.name}</button>
+                <button type="button" aria-haspopup="dialog" onClick={() => setSavedDetail(s)} className="block max-w-full truncate text-left text-body-lg font-semibold lq-stretch after:absolute after:inset-0 after:content-['']">{s.name}</button>
                 <div className="truncate text-body-sm text-on-surface-light tabular-nums">
                   {[s.calories ? `${fmtInt(s.calories)} kcal` : null, s.protein ? `P ${fmtInt(s.protein)} g` : null].filter(Boolean).join(' · ') || 'Sin datos nutricionales'}
                 </div>

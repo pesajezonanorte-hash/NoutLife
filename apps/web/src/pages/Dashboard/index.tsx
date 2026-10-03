@@ -291,12 +291,12 @@ export default function DashboardPage() {
                 const p = questProgress(q);
                 const cat = categoryMeta(q.category);
                 return (
-                  <li key={q.id} className={cn('flex flex-col gap-2 py-4 first:pt-0 last:pb-0', i > 0 && 'border-t border-border')}>
+                  <li key={q.id} className={cn('relative flex flex-col gap-2 py-4 first:pt-0 last:pb-0', i > 0 && 'border-t border-border')}>
                     <div className="flex items-center justify-between gap-2">
                       <Badge variant={cat.tone}>{cat.label}</Badge>
                       <span className="text-label-lg text-primary-text tabular-nums">+{q.xpReward} XP</span>
                     </div>
-                    <Link to="/quests" className="text-heading-sm hover:underline">{q.title}</Link>
+                    <Link to="/quests" className="text-heading-sm lq-stretch after:absolute after:inset-0 after:content-[''] hover:underline">{q.title}</Link>
                     <ProgressBar value={p.pct} tone={p.pct >= 100 ? 'success' : 'primary'} label={`Progreso de ${q.title}`} valueText={p.text} />
                     <span className="text-body-sm text-on-surface-light">{p.text}</span>
                   </li>

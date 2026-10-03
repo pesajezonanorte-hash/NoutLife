@@ -28,7 +28,7 @@ function Breadcrumb() {
               {last || !c.to ? (
                 <span aria-current={last ? 'page' : undefined} className={cn('truncate', last && 'text-on-background')}>{c.label}</span>
               ) : (
-                <Link to={c.to} className="rounded transition-colors hover:text-on-background">{c.label}</Link>
+                <Link to={c.to} className="inline-flex min-h-11 items-center rounded transition-colors hover:text-on-background">{c.label}</Link>
               )}
             </li>
           );

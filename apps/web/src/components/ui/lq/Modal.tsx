@@ -11,7 +11,7 @@ const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /** Focus trap + Escape + restaurar foco + bloquear scroll del body. */
-function useDialogBehavior(open: boolean, onClose: () => void) {
+export function useDialogBehavior(open: boolean, onClose: () => void) {
   const panelRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
