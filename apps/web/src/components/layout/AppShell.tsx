@@ -1,8 +1,8 @@
 // Shell del rediseño (docs/redesign/README.md → Layout):
 //   móvil  (<768)    MobileHeader + TabBar + Fab
-//   tablet (768–1023) Rail w-20 + Topbar (fecha)
-//   desktop (≥1024)  Sidebar w-64 + Topbar h-16 con breadcrumb, sin FAB
-// La página hace scroll en window; Sidebar/Rail son sticky a la altura del viewport.
+//   md+    (≥768)    Sidebar recogido (72 px, íconos) que se despliega a 256 px
+//                    al pasar el cursor o con teclado, + Topbar h-16, sin FAB
+// La página hace scroll en window; el Sidebar es fixed y flota sobre la página al desplegarse.
 import { useEffect, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
@@ -24,7 +24,6 @@ import { FocusMode } from '../ui/FocusMode';
 import { MusicPlayer } from '../ui/MusicPlayer';
 import { TabBar } from './TabBar';
 import { Fab } from './Fab';
-import { Rail } from './Rail';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
 import { MobileHeader } from './MobileHeader';
@@ -113,8 +112,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         Saltar al contenido
       </a>
 
-      <Rail className="hidden md:flex lg:hidden" />
-      <Sidebar className="hidden lg:flex" />
+      <Sidebar className="hidden md:block" />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <MobileHeader className="md:hidden" />
