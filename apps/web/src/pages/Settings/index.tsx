@@ -1,3 +1,4 @@
+import { useMotionStore } from "@/store/motionStore";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -284,9 +285,9 @@ export default function Settings() {
   const [showPlaylist, setShowPlaylist] = useState(
     Boolean(user?.gymPlaylistUrl),
   );
-  const [animationsEnabled, setAnimationsEnabled] = useState(
-    () => localStorage.getItem("animations") !== "false",
-  );
+  const reduceMotion = useMotionStore((s) => s.reduce);
+  const setReduceMotion = useMotionStore((s) => s.setReduce);
+  const animationsEnabled = !reduceMotion;
   const [isSaving, setIsSaving] = useState(false);
   const [themeLoading, setThemeLoading] = useState<string | null>(null);
   const [previewTheme, setPreviewTheme] = useState<string | null>(null);
@@ -352,9 +353,7 @@ export default function Settings() {
   };
 
   const handleToggleAnimations = (enabled: boolean) => {
-    setAnimationsEnabled(enabled);
-    localStorage.setItem("animations", String(enabled));
-    document.documentElement.classList.toggle("reduce-motion", !enabled);
+    setReduceMotion(!enabled);
   };
 
   const saveProfile = async () => {

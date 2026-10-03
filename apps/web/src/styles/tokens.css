@@ -84,6 +84,7 @@ html.dark {
     animation: lq-halo 2.8s cubic-bezier(0, 0, .2, 1) 1s infinite;
   }
   @media (prefers-reduced-motion: reduce) { .lq-halo::after { animation: none; } }
+  .reduce-motion .lq-halo::after { animation: none; }
 
   .lq-lift {
     transition: transform .2s cubic-bezier(0, 0, .2, 1), box-shadow .2s cubic-bezier(0, 0, .2, 1), border-color .2s;
@@ -115,6 +116,8 @@ html.dark {
     .lq-lift:hover, .lq-lift:focus-within, .lq-lift:hover .lq-ichip { transform: none; }
     .lq-sheen::after, .lq-skeleton { animation: none; }
   }
+  .reduce-motion .lq-lift:hover, .reduce-motion .lq-lift:focus-within, .reduce-motion .lq-lift:hover .lq-ichip { transform: none; }
+  .reduce-motion .lq-sheen::after, .reduce-motion .lq-skeleton { animation: none; }
 }
 
 @keyframes sheen { 0% { transform: translateX(-100%); } 60%, 100% { transform: translateX(100%); } }
@@ -129,4 +132,12 @@ html.dark {
     transition-property: color, background-color, border-color, opacity !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* Mismo efecto con "Reducir movimiento" activado en la app (store/motionStore). */
+.reduce-motion *, .reduce-motion *::before, .reduce-motion *::after {
+  animation-duration: .01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-property: color, background-color, border-color, opacity !important;
+  scroll-behavior: auto !important;
 }

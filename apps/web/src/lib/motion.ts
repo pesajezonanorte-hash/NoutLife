@@ -1,7 +1,7 @@
 // src/lib/motion.ts — Framer Motion 11 presets for LifeQuest (docs/redesign/tokens/motion.ts).
 // Wrap the app once: <MotionConfig reducedMotion="user"> (removes transforms, keeps opacity).
 import { useEffect, useState } from 'react';
-import { animate, useReducedMotion, type Transition, type Variants } from 'framer-motion';
+import { animate, useReducedMotionConfig, type Transition, type Variants } from 'framer-motion';
 
 export const ease = [0, 0, 0.2, 1] as const;          // ease-out
 export const spring: Transition = { type: 'spring', stiffness: 420, damping: 30 };
@@ -69,7 +69,7 @@ export const check = { animate: (on: boolean) => ({ rotate: on ? 360 : 0, transi
 
 /** Animated number (balances, streaks, kcal). Respects reduced motion. */
 export function useCountUp(target: number, duration = 1.1) {
-  const reduce = useReducedMotion();
+  const reduce = useReducedMotionConfig();
   const [v, setV] = useState(reduce ? target : 0);
   useEffect(() => {
     if (reduce) { setV(target); return; }

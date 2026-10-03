@@ -2,43 +2,24 @@
 // Grid 2 col (móvil) / auto-fill 232 px; hover y foco despliegan la descripción.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Check, Dumbbell, Flag, Flame, LayoutGrid, Lock, Sparkles, Star, Trophy, type LucideIcon } from 'lucide-react';
+import { Check, Lock, Trophy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { item, stagger } from '@/lib/motion';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import {
-  EmptyState, ErrorState, ProgressBar, ProgressRing, Select, SegmentedControl, Skeleton, Spinner, type Tone,
+  EmptyState, ErrorState, ProgressBar, ProgressRing, Select, SegmentedControl, Skeleton, Spinner,
 } from '@/components/ui/lq';
 import { softTone } from '@/components/ui/lq/tones';
-import { resolveGlyph } from '@/components/ui/glyphs';
 import { fetchAchievements, type Achievement } from '@/services/achievement.service';
+import { achievementCategory as catMeta, achievementIcon, achievementProgress as progressOf } from '@/components/achievements/achievementMeta';
 
 type Filter = 'all' | 'on' | 'off';
 
-const CATEGORY: Record<string, { label: string; tone: Exclude<Tone, 'muted'>; icon: LucideIcon }> = {
-  quest: { label: 'Misiones', tone: 'primary', icon: Flag },
-  habit: { label: 'Hábitos', tone: 'warning', icon: Flame },
-  level: { label: 'Nivel', tone: 'secondary', icon: Star },
-  gym: { label: 'Gimnasio', tone: 'success', icon: Dumbbell },
-  category: { label: 'Zonas', tone: 'info', icon: LayoutGrid },
-  special: { label: 'Especiales', tone: 'error', icon: Sparkles },
-};
-const catMeta = (c: string) => CATEGORY[c] ?? { label: 'Otros', tone: 'primary' as const, icon: Trophy };
-
 const fmtDate = (iso?: string) => (iso ? new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) : '');
-
-function progressOf(a: Achievement) {
-  const target = a.target ?? a.progressTarget ?? 0;
-  const current = Math.min(target, a.progress ?? 0);
-  const pct = a.unlocked ? 100 : target > 0 ? Math.round((current / target) * 100) : 0;
-  return { target, current, pct };
-}
 
 function AchievementCard({ a }: { a: Achievement }) {
   const meta = catMeta(a.category);
-  // resolveGlyph devuelve Star para claves desconocidas: entonces se usa el ícono de la categoría.
-  const glyph = a.icon ? resolveGlyph(a.icon) : null;
-  const Icon = glyph && (glyph !== Star || /star|⭐|🌟/i.test(a.icon)) ? glyph : meta.icon;
+  const Icon = achievementIcon(a);
   const { target, current, pct } = progressOf(a);
   const on = a.unlocked;
   const metaText = on ? `Desbloqueado · ${fmtDate(a.unlockedAt)}` : target > 0 ? `${pct}% · ${current}/${target}` : 'Bloqueado';

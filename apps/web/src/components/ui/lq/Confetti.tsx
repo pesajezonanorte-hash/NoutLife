@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom';
-import { useReducedMotion } from 'framer-motion';
+import { useReducedMotionConfig } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { solidBg, type Tone } from './tones';
 
@@ -16,7 +16,7 @@ export interface ConfettiProps {
 
 /** Confeti decorativo (aria-hidden). No se renderiza con reduced motion. */
 export function Confetti({ burst = 0, pieces = 24, position = 'fixed', className }: ConfettiProps) {
-  const reduce = useReducedMotion();
+  const reduce = useReducedMotionConfig();
   if (reduce) return null;
   const node = (
     <div key={burst} aria-hidden className={cn('pointer-events-none inset-0 z-[70] overflow-hidden', position, className)}>

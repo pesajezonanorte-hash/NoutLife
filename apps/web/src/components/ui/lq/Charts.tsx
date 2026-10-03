@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { ease } from '@/lib/motion';
@@ -125,12 +126,14 @@ export interface LineChartProps {
 
 /** Línea que se dibuja (pathLength 1.3 s), área que aparece después y meta punteada. */
 export function LineChart({ data, label, min, max, tone = 'primary', goal, height = 140, dots, className }: LineChartProps) {
-  const W = 300, H = 120, PAD = 10;
-  const x = (i: number) => PAD + (i * (W - PAD * 2)) / Math.max(1, data.length - 1);
+  const W = 300, H = 120;
+  const clipId = `lc${useId().replace(/:/g, '')}`;
+  // Cada punto en el centro de su columna: coincide con la fila de etiquetas (grid).
+  const x = (i: number) => ((i + 0.5) * W) / Math.max(1, data.length);
   const y = (v: number) => H - 10 - ((v - min) / (max - min)) * (H - 20);
   const pts = data.map((d, i) => `${x(i).toFixed(1)},${y(d.value).toFixed(1)}`);
   const path = `M${pts.join(' L')}`;
-  const area = `${path} L${x(data.length - 1)},${H} L${PAD},${H} Z`;
+  const area = `${path} L${x(data.length - 1)},${H} L${x(0)},${H} Z`;
 
   return (
     <div className={cn('flex flex-col gap-2', className)}>
@@ -147,10 +150,15 @@ export function LineChart({ data, label, min, max, tone = 'primary', goal, heigh
             d={area} className={cn('stroke-none', tone === 'primary' ? 'fill-primary/[var(--lq-soft-alpha)]' : 'fill-secondary/[var(--lq-soft-alpha)]')}
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5, delay: 1.2 }}
           />
-          <motion.path
+          {/* La línea se "dibuja" con un recorte que crece de izquierda a derecha: pathLength
+              falla con vector-effect non-scaling-stroke cuando el SVG se estira (desktop). */}
+          <clipPath id={clipId}>
+            <motion.rect x="0" y="-10" height={H + 20} initial={{ width: 0 }} animate={{ width: W }} transition={{ duration: 1.3, ease, delay: 0.2 }} />
+          </clipPath>
+          <path
             d={path} fill="none" strokeWidth={3} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke"
+            clipPath={`url(#${clipId})`}
             className={strokeTone[tone]}
-            initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 1.3, ease, delay: 0.2 }}
           />
         </svg>
         {goal && (

@@ -21,7 +21,7 @@ const loaders = {
   LoginPage: () => import('./pages/Login'),
   RegisterPage: () => import('./pages/Register'),
   DashboardPage: () => import('./pages/Dashboard'),
-  CharacterPage: () => import('./pages/Character'),
+  ProfilePage: () => import('./pages/Profile'),
   OnboardingPage: () => import('./pages/Onboarding'),
   QuestsPage: () => import('./pages/Quests'),
   HabitsPage: () => import('./pages/Habits'),
@@ -76,7 +76,7 @@ function preloadPages() {
 // Las redirecciones no necesitan esperar ningún bundle propio.
 const routeLoaders: Record<string, () => Promise<unknown>> = {
   '/': loaders.DashboardPage,
-  '/profile': loaders.CharacterPage,
+  '/profile': loaders.ProfilePage,
   '/quests': loaders.QuestsPage,
   '/quests/new': loaders.QuestsPage,
   '/habits': loaders.HabitsPage,
@@ -177,7 +177,7 @@ function AnimatedRoutes({ location }: { location: ReturnType<typeof useLocation>
       >
         <Routes location={location}>
           <Route path="/"             element={<SafePage><DeferredLazyPage load={loaders.DashboardPage} /></SafePage>} />
-          <Route path="/profile"      element={<SafePage><DeferredLazyPage load={loaders.CharacterPage} /></SafePage>} />
+          <Route path="/profile"      element={<SafePage><DeferredLazyPage load={loaders.ProfilePage} /></SafePage>} />
           <Route path="/character"    element={<Navigate to="/profile" replace />} />
           <Route path="/quests"       element={<SafePage><DeferredLazyPage load={loaders.QuestsPage} /></SafePage>} />
           <Route path="/quests/new"   element={<SafePage><DeferredLazyPage load={loaders.QuestsPage} /></SafePage>} />
