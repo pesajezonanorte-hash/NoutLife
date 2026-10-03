@@ -3,7 +3,9 @@
 // El contenido interno tiene siempre 256 px de ancho y el panel solo lo recorta,
 // así que nada se reacomoda: los íconos no se mueven y el texto aparece
 // revelado por el borde + un fundido. El panel EMPUJA la página: su contenedor
-// anima el ancho 72→256 px y el contenido se comprime.
+// anima el ancho 72→256 px (abre en 520 ms, cierra en 320 ms) y la página se comprime.
+// El scroll interno es siempre el mismo elemento, así que su posición se conserva al
+// abrir y cerrar; el hueco de la barra está reservado y solo se pinta desplegado.
 import { useEffect, useId, useRef, useState, type FocusEvent, type PointerEvent } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Link, NavLink, useLocation } from 'react-router-dom';
@@ -25,7 +27,7 @@ function readOpen(): Record<string, boolean> {
 
 /** Texto que aparece al desplegar: solo opacidad, sin mover nada. */
 const reveal =
-  'whitespace-nowrap opacity-0 transition-opacity duration-150 group-data-[open=true]/side:opacity-100 group-data-[open=true]/side:delay-75 group-data-[open=true]/side:duration-200';
+  'whitespace-nowrap opacity-0 -translate-x-1 transition-[opacity,transform] duration-150 ease-out motion-reduce:translate-x-0 group-data-[open=true]/side:translate-x-0 group-data-[open=true]/side:opacity-100 group-data-[open=true]/side:delay-100 group-data-[open=true]/side:duration-[380ms]';
 
 /**
  * Ítem: ícono fijo a 24 px del borde (centrado en 72 px). El fondo de hover/activo
@@ -47,7 +49,7 @@ function SideLink({ to, label, icon: Icon }: NavEntry) {
       <span
         aria-hidden
         className={cn(
-          'absolute inset-y-0 left-0 w-12 rounded-[10px] transition-[width,background-color] duration-300 ease-out group-data-[open=true]/side:w-full',
+          'absolute inset-y-0 left-0 w-12 rounded-[10px] transition-[width,background-color] duration-[320ms] ease-[cubic-bezier(.4,0,.2,1)] group-data-[open=true]/side:w-full group-data-[open=true]/side:duration-[520ms] group-data-[open=true]/side:ease-[cubic-bezier(.22,1,.36,1)]',
           active ? 'bg-primary/[var(--lq-soft-alpha)]' : 'group-hover/link:bg-surface-variant',
         )}
       />
@@ -193,7 +195,7 @@ export function Sidebar({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        'relative w-[72px] shrink-0 transition-[width] duration-300 ease-[cubic-bezier(.2,.8,.2,1)] has-[[data-open=true]]:w-64 motion-reduce:transition-none',
+        'relative w-[72px] shrink-0 transition-[width] duration-[320ms] ease-[cubic-bezier(.4,0,.2,1)] has-[[data-open=true]]:w-64 has-[[data-open=true]]:duration-[520ms] has-[[data-open=true]]:ease-[cubic-bezier(.22,1,.36,1)] motion-reduce:transition-none',
         className,
       )}
     >
@@ -208,7 +210,7 @@ export function Sidebar({ className }: { className?: string }) {
           'group/side sticky top-0 h-dvh w-full overflow-hidden border-r border-border bg-surface',
         )}
       >
-        <div className="flex h-full w-64 flex-col gap-4 overflow-y-auto overflow-x-hidden px-3 py-4 [scrollbar-width:none]">
+        <div className="flex h-full w-64 flex-col gap-4 overflow-y-auto overflow-x-hidden px-3 py-4 [scrollbar-gutter:stable] [scrollbar-width:thin] [scrollbar-color:transparent_transparent] group-data-[open=true]/side:[scrollbar-color:rgb(var(--lq-border-strong))_transparent]">
           <Link to="/" className="flex min-h-11 items-center gap-3 rounded-xl px-1" aria-label="LifeQuest, ir al inicio">
             <BrandMark />
             <span className={cn('text-heading-sm text-on-background', reveal)}>LifeQuest</span>
