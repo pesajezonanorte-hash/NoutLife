@@ -13,7 +13,7 @@ export { CheckButton } from './CheckButton';
 export { ProgressBar, ProgressRing } from './Progress';
 export { StatCard, AnimatedValue } from './StatCard';
 export { Toast, Toaster, useToast } from './Toast';
-export { Modal, Sheet, ResponsiveDialog, type ModalProps } from './Modal';
+export { Modal, Sheet, ResponsiveDialog, useDialogBehavior, type ModalProps } from './Modal';
 export { EmptyState, ErrorState, PageLoader, Skeleton } from './States';
 export { Spinner } from './Spinner';
 export { Confetti } from './Confetti';

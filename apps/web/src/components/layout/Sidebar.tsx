@@ -121,7 +121,7 @@ export function Sidebar({ className }: { className?: string }) {
 
   return (
     <aside className={cn('sticky top-0 h-dvh w-64 shrink-0 flex-col gap-6 overflow-y-auto border-r border-border bg-surface px-4 py-6', className)}>
-      <Link to="/" className="flex items-center gap-3 rounded-xl px-2" aria-label="LifeQuest, ir al inicio">
+      <Link to="/" className="flex min-h-11 items-center gap-3 rounded-xl px-2" aria-label="LifeQuest, ir al inicio">
         <BrandMark />
         <span className="text-heading-sm text-on-background">LifeQuest</span>
       </Link>

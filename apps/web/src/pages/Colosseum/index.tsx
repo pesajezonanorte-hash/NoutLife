@@ -331,7 +331,7 @@ export default function ColosseumPage() {
                   <span className="text-label-md uppercase text-error-text">Jefe de temporada</span>
                   <h2 id="boss-title" className="text-heading-md md:text-heading-lg">{s.bossName}</h2>
                 </div>
-                <Link to="/season" className="text-label-lg text-primary-text hover:underline">Ver campaña</Link>
+                <Link to="/season" className="inline-flex min-h-11 items-center text-label-lg text-primary-text hover:underline">Ver campaña</Link>
               </div>
               <div className="flex flex-col gap-2">
                 <ProgressBar value={bossPct} tone="error" size="lg" label={`Vida de ${s.bossName}`} valueText={`${s.currentHp} de ${s.bossHp}`} />

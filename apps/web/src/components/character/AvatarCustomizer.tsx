@@ -1,3 +1,4 @@
+import { useDialogBehavior } from '@/components/ui/lq';
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Upload, Link as LinkIcon, Trash2, Camera, User as UserIcon } from 'lucide-react';
@@ -221,6 +222,8 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
   const [skinUrl, setSkinUrl] = useState<string>(() => readMinecraftSkinDraft(user?.id) || user?.avatarConfig?.minecraftSkinUrl || '');
   const [urlInput, setUrlInput] = useState<string>('');
   const [saving, setSaving] = useState(false);
+  // Focus trap, Escape y devolución del foco como los modales del rediseño.
+  const panelRef = useDialogBehavior(isOpen, onClose);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const skinInputRef = useRef<HTMLInputElement>(null);
   const initializedModalUserRef = useRef<string | undefined>(undefined);
@@ -416,7 +419,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
           >
-            <div className="flex max-h-[88dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl border-4 border-[var(--accent-gold)] bg-[var(--bg-panel)] shadow-pixel-gold sm:max-h-[90vh] sm:rounded-xl">
+            <div ref={panelRef} className="flex max-h-[88dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl border-4 border-[var(--accent-gold)] bg-[var(--bg-panel)] shadow-pixel-gold sm:max-h-[90vh] sm:rounded-xl">
               {/* Header */}
               <motion.div className="flex items-center justify-between p-4 border-b-2 border-[var(--accent-gold)]/30 bg-gradient-to-r from-[var(--accent-gold)]/10 to-transparent">
                 <h2 className="font-pixel text-[var(--accent-gold)] text-xs flex items-center gap-2">

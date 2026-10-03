@@ -340,6 +340,11 @@ export function NotificationBell({ className }: { className?: string }) {
               role="dialog"
               aria-labelledby={titleId}
               tabIndex={-1}
+              // No modal: si el foco sale con Tab (y no vuelve al botón), se cierra.
+              onBlur={(e) => {
+                const next = e.relatedTarget as Node | null;
+                if (next && !panelRef.current?.contains(next) && !triggerRef.current?.contains(next)) close(false);
+              }}
               initial={{ opacity: 0, y: -6, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1, transition: { duration: 0.2, ease } }}
               exit={{ opacity: 0, transition: { duration: 0.15 } }}

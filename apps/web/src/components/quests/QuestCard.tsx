@@ -43,7 +43,7 @@ export function QuestCard({ quest, onOpen, onComplete, className }: QuestCardPro
       <div className="flex flex-col gap-1">
         <h3 className="text-heading-sm">
           {/* El enlace cubre la tarjeta (patrón "stretched link"): un único destino tabulable. */}
-          <button type="button" aria-haspopup="dialog" onClick={onOpen} className="text-left after:absolute after:inset-0 after:rounded-2xl after:content-[''] focus-visible:outline-none focus-visible:after:outline focus-visible:after:outline-[3px] focus-visible:after:outline-offset-2 focus-visible:after:outline-primary">
+          <button type="button" aria-haspopup="dialog" onClick={onOpen} className="text-left lq-stretch after:absolute after:inset-0 after:rounded-2xl after:content-[''] focus-visible:outline-none focus-visible:after:outline focus-visible:after:outline-[3px] focus-visible:after:outline-offset-2 focus-visible:after:outline-primary">
             {quest.title}
           </button>
         </h3>
