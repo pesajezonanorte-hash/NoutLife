@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Ranking Desktop</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./lq.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#4f46e5}a:hover{color:#4338ca}
+</style>
+</helmet>
+<div class="lq app {{theme}}">
+  <aside class="side">
+    <a href="DashboardDesktop.dc.html" class="row" style="gap: 12px; padding: 0 8px; text-decoration: none; color: inherit"><span class="ichip primary" style="width: 40px; height: 40px; border-radius: 12px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg></span><span class="t-hs">LifeQuest</span></a>
+    <nav aria-label="Principal" class="navgrp" style="border: 0; padding: 0">
+      <sc-for list="{{nav}}" as="n" hint-placeholder-count="5"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <nav aria-label="Bienestar" class="navgrp"><span class="sec">BIENESTAR</span>
+      <sc-for list="{{nav2}}" as="n" hint-placeholder-count="4"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <nav aria-label="Más zonas" class="navgrp"><span class="sec">MÁS ZONAS</span>
+      <sc-for list="{{nav3}}" as="n" hint-placeholder-count="11"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <nav aria-label="Comunidad" class="navgrp"><span class="sec">COMUNIDAD</span>
+      <sc-for list="{{nav4}}" as="n" hint-placeholder-count="3"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <div class="navgrp" style="margin-top: auto">
+      <sc-for list="{{nav5}}" as="n" hint-placeholder-count="2"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+      <a class="usercard" href="ProfileDesktop.dc.html" aria-label="Tu perfil: Alex Rivera, nivel 12">
+        <span class="avatar t-ll" style="width: 40px; height: 40px; background: var(--primary-soft); color: var(--primary-text)">AR</span>
+        <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px"><span class="t-ll">Alex Rivera</span><span class="t-bs c-3" style="line-height: 1.2">Nivel 12 · Aventurero</span><span class="bar" style="height: 4px"><span style="width: 78%"></span></span></span>
+      </a>
+    </div>
+  </aside>
+  <div class="pane">
+    <header class="topbar">
+      <nav class="crumb" aria-label="Ruta"><a href="DashboardDesktop.dc.html">Inicio</a><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg><span class="c-1" aria-current="page">Ranking</span></nav>
+      <button class="btn btn-ghost btn-md" onClick="{{refresh}}"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true" style="{{spin}}"><path d="M20 12a8 8 0 1 1-2.3-5.7L20 8"/><path d="M20 3v5h-5"/></svg>Actualizar</button>
+    </header>
+
+    <main class="wrap enter">
+      <section style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-end; justify-content: space-between">
+        <div style="flex: 1 1 420px; display: flex; flex-direction: column; gap: 8px">
+          <span class="eyebrow">Comunidad</span>
+          <h1 class="t-dl">Tabla de líderes</h1>
+          <p class="t-bl c-3">Una lectura clara del progreso global o de las personas que tienes cerca.</p>
+        </div>
+        <div class="seg slide" role="tablist" aria-label="Alcance" style="flex: 0 1 300px; width: 100%">
+          <span class="pill" style="width: calc((100% - 12px) / 2); transform: {{scopeX}}" aria-hidden="true"></span>
+          <sc-for list="{{scopes}}" as="t" hint-placeholder-count="2"><button class="{{t.cls}}" role="tab" aria-selected="{{t.sel}}" onClick="{{t.pick}}">{{t.label}}</button></sc-for>
+        </div>
+      </section>
+
+      <div class="chips" role="tablist" aria-label="Métrica">
+        <sc-for list="{{metrics}}" as="m" hint-placeholder-count="4"><button class="chip {{m.cls}}" role="tab" aria-selected="{{m.sel}}" onClick="{{m.pick}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{m.icon}}"/></svg>{{m.label}}</button></sc-for>
+      </div>
+
+      <div class="cols">
+        <section class="main">
+          <div class="card card-elevated" style="padding: 40px 24px 0; overflow: hidden" aria-label="Podio">
+            <div class="podium">
+              <sc-for list="{{podium}}" as="p" hint-placeholder-count="3">
+                <div class="col">
+                  <span class="avatar t-hs {{p.halo}}" style="width: {{p.size}}px; height: {{p.size}}px; background: {{p.bg}}; color: {{p.fg}}; box-shadow: 0 0 0 4px var(--bg), 0 0 0 6px {{p.ring}}">{{p.ini}}</span>
+                  <div style="text-align: center"><div class="t-ll" style="font-size: 16px">{{p.name}}</div><div class="t-bs c-3 num">{{p.score}}</div></div>
+                  <div class="base" style="height: {{p.h}}px; background: {{p.base}}; animation-delay: {{p.d}}ms"><span class="t-dm num" style="color: {{p.fg}}">{{p.pos}}</span></div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <ol class="card stagger" style="list-style: none; margin: 0; padding: 8px; display: flex; flex-direction: column" aria-label="Clasificación">
+            <sc-for list="{{rows}}" as="r" hint-placeholder-count="7">
+              <li class="row" style="gap: 16px; min-height: 64px; padding: 0 12px; border-radius: 12px; background: {{r.bg}}" aria-current="{{r.cur}}">
+                <span class="t-ll num c-3" style="width: 28px; text-align: center">{{r.pos}}</span>
+                <span class="avatar t-ll" style="width: 40px; height: 40px; background: {{r.abg}}; color: {{r.afg}}">{{r.ini}}</span>
+                <div style="flex: 1; min-width: 0"><div class="row" style="gap: 8px"><span class="t-ll {{r.nameCls}}" style="font-size: 16px">{{r.name}}</span><sc-if value="{{r.isYou}}" hint-placeholder-val="{{ false }}"><span class="badge badge-primary">Tú</span></sc-if></div><div class="t-bs c-3">@{{r.handle}} · Nivel {{r.lvl}}</div></div>
+                <span class="row t-bs {{r.trendCls}}" style="gap: 2px; width: 44px"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{r.trendIcon}}"/></svg>{{r.trend}}</span>
+                <span class="t-ll num" style="width: 96px; text-align: right; font-size: 16px">{{r.score}}</span>
+              </li>
+            </sc-for>
+          </ol>
+        </section>
+
+        <aside class="aside">
+          <section class="card card-lg" style="display: flex; flex-direction: column; gap: 16px; background: var(--primary-soft); border-color: transparent">
+            <span class="t-ll c-2">Tu posición</span>
+            <div class="row" style="gap: 12px; align-items: baseline"><span class="num c-primary" style="font-size: 64px; font-weight: 700; line-height: 1; letter-spacing: -2px">#{{myPos}}</span><span class="t-bm c-2">de 128</span></div>
+            <div style="display: flex; flex-direction: column; gap: 6px">
+              <div class="row" style="justify-content: space-between"><span class="t-bs c-2">Para alcanzar el #2</span><span class="t-ll num">320 XP</span></div>
+              <div class="bar shine" style="background: var(--bg)"><span style="width: 86%"></span></div>
+            </div>
+          </section>
+          <section class="card card-lg" style="display: flex; flex-direction: column; gap: 12px">
+            <span class="ichip success"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"/></svg></span>
+            <h2 class="t-hs">Compite con calma</h2>
+            <p class="t-bm c-3">La tabla es solo una referencia. Tu avance más importante es el que puedes sostener.</p>
+            <a class="link" href="#">Ver amigos<svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></a>
+          </section>
+        </aside>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1460}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { scope: 'global', metric: 'xp', spinning: false, k: 0 }; }
+  componentDidMount() {
+    const rm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (rm) { this.setState({ k: 1 }); return; }
+    const t0 = performance.now();
+    const f = n => { const p = Math.min(1, (n - t0) / 1100); this.setState({ k: 1 - Math.pow(1 - p, 3) }); if (p < 1) this._raf = requestAnimationFrame(f); };
+    this._raf = requestAnimationFrame(f);
+  }
+  componentWillUnmount() { cancelAnimationFrame(this._raf); clearTimeout(this._t); }
+  navs(active) {
+    const P = {
+      home: 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z', habits: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0zM8.5 12l2.5 2.5 4.5-5', quests: 'M5 22V4M5 4h12l-2.5 4L17 12H5',
+      arena: 'M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 17.5 21 6V3h-3L6.5 14.5M11 19l-6-6M8 16l-4 4M5 21l-2-2', profile: 'M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM4 21a8 8 0 0 1 16 0',
+      money: 'M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 10h18M16 15h2', food: 'M7 3v18M4 3v6a3 3 0 0 0 6 0V3M17 21V3c-2 1-3 4-3 7h3', sleep: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
+      ach: 'M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3', stats: 'M3 3v18h18M8 16v-5M13 16V8M18 16v-3',
+      gym: 'M6.5 6.5l11 11M21 21l-1-1M3 3l1 1M18 22l4-4M2 6l4-4M3 10l7-7M14 21l7-7', glow: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 3v4M17 5h4',
+      learn: 'M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z', rel: 'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z',
+      diary: 'M5 4h11a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2zM9 8h5M9 12h5M20 7l-6 6', agenda: 'M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM4 10h16M9 2v4M15 2v4',
+      ritual: 'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4', wisdom: 'M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM9 8h6M9 12h6M9 16h3',
+      zones: 'M12 21s-7-6-7-12a7 7 0 0 1 14 0c0 6-7 12-7 12zM12 11.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z', shop: 'M5 8h14l-1 12H6zM9 8V6a3 3 0 0 1 6 0v2',
+      rank: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18', guild: 'M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM2 21a8 8 0 0 1 12-6.9M17 11a3 3 0 1 0 0-6M22 21a6 6 0 0 0-5-5.9',
+      camp: 'M3 21 12 4l9 17zM12 4v17M8 21l4-6 4 6', settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1',
+      help: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.7M12 17h.01',
+    };
+    const mk = a => a.map(([id, label, f]) => ({ label, href: f ? f + '.dc.html' : '#', icon: P[id], cls: id === active ? 'on' : '', cur: id === active ? 'page' : 'false' }));
+    return {
+      nav: mk([['home','Inicio','DashboardDesktop'],['habits','Hábitos','HabitsDesktop'],['quests','Misiones','QuestsDesktop'],['arena','Coliseo','ColosseumDesktop'],['profile','Perfil','ProfileDesktop']]),
+      nav2: mk([['money','Finanzas','FinancesDesktop'],['food','Comida','FoodDesktop'],['sleep','Sueño','SleepDesktop'],['ach','Logros','AchievementsDesktop']]),
+      nav3: mk([['stats','Estadísticas',null],['gym','Gimnasio','GymDesktop'],['glow','Glow up','GlowUpDesktop'],['learn','Aprendizaje','LearningDesktop'],['rel','Relaciones','RelationsDesktop'],['diary','Diario','JournalDesktop'],['agenda','Agenda','AgendaDesktop'],['ritual','Rituales','RitualsDesktop'],['wisdom','Sabiduría','WisdomDesktop'],['zones','Mis zonas','ZonesDesktop'],['shop','Tienda','ShopDesktop']]),
+      nav4: mk([['rank','Ranking','RankingDesktop'],['guild','Gremio',null],['camp','Campaña',null]]),
+      nav5: mk([['settings','Ajustes','SettingsDesktop'],['help','Ayuda',null]]),
+    };
+  }
+  renderVals() {
+    const s = this.state;
+    const fmt = n => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    const M = { xp: ['XP total',' XP',1], streak: ['Racha activa',' días',0.012], train: ['Entrenamiento',' sesiones',0.02], save: ['Ahorro','',0.35] };
+    const people = [
+      ['Sofía Vargas','sofi.runs',15,4210,'up','2'],['Diego Morales','diegom',13,3580,'flat','—'],['Alex Rivera','alexquest',12,3260,'up','1'],
+      ['Lucía Peña','lu.pena',11,2940,'down','1'],['Mateo Ruiz','mateo_r',10,2610,'up','3'],['Valeria Soto','valesoto',9,2205,'flat','—'],
+      ['Tomás Gil','tomgil',9,1980,'down','2'],['Camila Ortiz','cami.o',8,1720,'up','1'],['Andrés León','andresl',7,1410,'flat','—'],['Paula Rey','paurey',6,1105,'down','1'],
+    ];
+    const friends = new Set([0, 2, 3, 7]);
+    const list = people.filter((_, i) => s.scope === 'global' || friends.has(i));
+    const m = M[s.metric];
+    const val = v => s.metric === 'save' ? `$${fmt(v * m[2])}` : fmt(v * m[2]) + m[1];
+    const tones = [['var(--primary-soft)','var(--primary-text)'],['var(--success-soft)','var(--success-text)'],['var(--warning-soft)','var(--warning-text)'],['var(--info-soft)','var(--info-text)'],['var(--secondary-soft)','var(--secondary-text)']];
+    const ini = n => n.split(' ').map(w => w[0]).join('').slice(0, 2);
+    const top = list.slice(0, 3);
+    const order = [1, 0, 2];
+    const podium = order.filter(i => top[i]).map(i => {
+      const p = top[i]; const me = p[1] === 'alexquest';
+      return { ini: ini(p[0]), name: p[0].split(' ')[0], score: val(p[3]), pos: i + 1, size: i === 0 ? 72 : 60,
+        bg: me ? 'var(--primary-soft)' : 'var(--surface-variant)', fg: i === 0 ? 'var(--warning-text)' : 'var(--on-surface)',
+        ring: i === 0 ? 'var(--warning)' : (me ? 'var(--primary)' : 'var(--border)'), halo: i === 0 ? 'halo' : '',
+        base: i === 0 ? 'var(--warning-soft)' : 'var(--surface-variant)', h: [160, 116, 84][i], d: [350, 200, 500][i] };
+    });
+    const T = { up: ['m6 15 6-6 6 6','c-success'], down: ['m6 9 6 6 6-6','c-error'], flat: ['M6 12h12','c-3'] };
+    const rows = list.slice(3).map((p, j) => {
+      const me = p[1] === 'alexquest'; const [ti, tc] = T[p[4]];
+      return { pos: j + 4, name: p[0], handle: p[1], lvl: p[2], score: val(p[3]), ini: ini(p[0]), abg: tones[j % 5][0], afg: tones[j % 5][1],
+        isYou: me, bg: me ? 'var(--primary-soft)' : 'transparent', nameCls: me ? 'c-primary' : 'c-1', cur: me ? 'true' : 'false',
+        trend: p[5], trendIcon: ti, trendCls: tc };
+    });
+    const myIdx = list.findIndex(p => p[1] === 'alexquest');
+    const so = [['global','Global'],['friends','Amigos']];
+    const si = so.findIndex(o => o[0] === s.scope);
+    const metrics = [['xp','XP total','M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z'],['streak','Racha activa','M12 22c4 0 7-3 7-7 0-4-3-6-4-9-1 2-2 3-4 3 0-2-1-4-2-5-1 4-4 6-4 11 0 4 3 7 7 7z'],['train','Entrenamiento','M6.5 6.5l11 11M21 21l-1-1M3 3l1 1M18 22l4-4M2 6l4-4M3 10l7-7M14 21l7-7'],['save','Ahorro','M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 10h18M16 15h2']]
+      .map(([id, label, icon]) => ({ label, icon, cls: s.metric === id ? 'on' : '', sel: s.metric === id ? 'true' : 'false', pick: () => this.setState({ metric: id }) }));
+    return {
+      theme: (this.props.dark ?? false) ? 'dark' : '', ...this.navs('rank'),
+      scopes: so.map(([id, label]) => ({ label, cls: s.scope === id ? 'on' : '', sel: s.scope === id ? 'true' : 'false', pick: () => this.setState({ scope: id }) })),
+      scopeX: `translateX(calc(${si} * (100% + 4px)))`, metrics, podium, rows,
+      myPos: Math.max(1, Math.round((myIdx + 1) * s.k)),
+      spin: s.spinning ? 'animation: lq-spin .8s linear infinite' : '',
+      refresh: () => { this.setState({ spinning: true }); clearTimeout(this._t); this._t = setTimeout(() => this.setState({ spinning: false }), 1200); },
+    };
+  }
+}
+</script>
+</body>
+</html>

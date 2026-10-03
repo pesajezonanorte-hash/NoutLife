@@ -45,7 +45,7 @@ html.dark {
   --lq-primary-strong: 129 140 248;
   --lq-primary-hover: 165 180 252;
   --lq-primary-text: 165 180 252;    /* indigo-300 */
-  --lq-on-primary: 17 24 39;         /* dark text on light button 7.0:1 */
+  --lq-on-primary: 10 10 11;         /* texto casi negro sobre botón claro */
 
   --lq-secondary: 167 139 250;  --lq-secondary-text: 196 181 253;
   --lq-success: 52 211 153;     --lq-success-text: 52 211 153;
@@ -53,14 +53,14 @@ html.dark {
   --lq-error: 248 113 113;      --lq-error-text: 252 165 165;  /* red-300: AA sobre tinte suave */
   --lq-info: 96 165 250;        --lq-info-text: 147 197 253;   /* blue-300: AA sobre tinte suave */
 
-  --lq-background: 17 24 39;         /* gray-900 */
-  --lq-surface: 31 41 55;            /* gray-800 */
-  --lq-surface-variant: 55 65 81;    /* gray-700 */
-  --lq-border: 55 65 81;
-  --lq-border-strong: 156 163 175;
-  --lq-on-background: 249 250 251;
-  --lq-on-surface: 209 213 219;
-  --lq-on-surface-light: 156 163 175;
+  --lq-background: 10 10 11;         /* casi negro neutro (sin tinte azul) */
+  --lq-surface: 20 20 22;            /* gris carbón */
+  --lq-surface-variant: 39 39 42;    /* zinc-800 */
+  --lq-border: 42 42 46;
+  --lq-border-strong: 161 161 170;   /* zinc-400 */
+  --lq-on-background: 250 250 250;
+  --lq-on-surface: 212 212 216;
+  --lq-on-surface-light: 161 161 170;
 
   --lq-soft-alpha: .16;
 

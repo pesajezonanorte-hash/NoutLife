@@ -1,61 +1,57 @@
-/* LifeQuest design tokens — paste into apps/web/src/index.css (or import it there).
-   Values are RGB channels so Tailwind opacity modifiers work: bg-primary/10, ring-primary/25.
-   Light = :root, Dark = .dark on <html>. Font: Montserrat 400/500/600/700. */
+/* LifeQuest tokens — values from the LifeQuest Design System (design-system/tokens.json).
+   Merge into apps/web/src/styles/tokens.css. RGB channels so Tailwind opacity works: bg-primary/10.
+   Light = :root · Dark = .dark on <html>. */
 
 @layer base {
   :root {
     --primary: 99 102 241;          /* indigo-500  bars, rings, accents */
-    --primary-strong: 79 70 229;    /* indigo-600  button fill (white text 6.3:1) */
+    --primary-strong: 79 70 229;    /* indigo-600  button fill (6.3:1 with white) */
     --primary-hover: 67 56 202;     /* indigo-700 */
     --primary-text: 79 70 229;      /* indigo-600  links, active nav */
     --on-primary: 255 255 255;
 
-    --secondary: 139 92 246;        /* violet-500 */
-    --secondary-text: 109 40 217;   /* violet-700 */
-    --success: 16 185 129;          /* emerald-500 */
-    --success-text: 4 120 87;       /* emerald-700 */
-    --warning: 245 158 11;          /* amber-500 */
-    --warning-text: 180 83 9;       /* amber-700 */
-    --error: 239 68 68;             /* red-500 */
-    --error-text: 185 28 28;        /* red-700 */
-    --info: 59 130 246;             /* blue-500 */
-    --info-text: 29 78 216;         /* blue-700 */
+    --secondary: 139 92 246;        --secondary-text: 109 40 217;  /* violet-500 / 700 */
+    --success: 16 185 129;          --success-text: 4 120 87;      /* emerald-500 / 700 */
+    --warning: 245 158 11;          --warning-text: 146 64 14;     /* amber-500 / 800 (gold, XP) */
+    --error: 239 68 68;             --error-text: 185 28 28;       /* red-500 / 700 */
+    --info: 59 130 246;             --info-text: 29 78 216;        /* blue-500 / 700 */
 
     --background: 255 255 255;
     --surface: 249 250 251;         /* gray-50 */
     --surface-variant: 243 244 246; /* gray-100 */
     --border: 229 231 235;          /* gray-200 */
-    --border-strong: 107 114 128;   /* gray-500  input borders ≥3:1 */
+    --border-strong: 107 114 128;   /* gray-500, inputs ≥3:1 */
     --on-background: 31 41 55;      /* gray-800 */
     --on-surface: 55 65 81;         /* gray-700 */
     --on-surface-light: 107 114 128;/* gray-500 */
 
+    --radius-sm: 6px;               /* badges, small toggles */
+    --radius-md: 10px;              /* buttons, inputs */
+    --radius-lg: 16px;              /* cards, panels */
+    --radius-xl: 24px;              /* modals, hero cards (redesign) */
+    --radius-full: 999px;
+
     --shadow-sm: 0 1px 2px rgb(17 24 39 / .04), 0 1px 3px rgb(17 24 39 / .06);
     --shadow-md: 0 4px 12px rgb(17 24 39 / .08), 0 2px 4px rgb(17 24 39 / .04);
     --shadow-lg: 0 12px 32px rgb(17 24 39 / .12), 0 4px 8px rgb(17 24 39 / .06);
-    --soft-alpha: .10;              /* tint for chips/badges: bg-primary/10 */
+    --soft-alpha: .10;
   }
 
   .dark {
-    --primary: 129 140 248;         /* indigo-400 */
-    --primary-strong: 129 140 248;
-    --primary-hover: 165 180 252;
-    --primary-text: 165 180 252;    /* indigo-300 */
-    --on-primary: 17 24 39;         /* dark text on light button 7.0:1 */
+    --primary: 129 140 248;         --primary-strong: 129 140 248;
+    --primary-hover: 165 180 252;   --primary-text: 165 180 252;
+    --on-primary: 17 24 39;
 
-    --secondary: 167 139 250;  --secondary-text: 196 181 253;
-    --success: 52 211 153;     --success-text: 52 211 153;
-    --warning: 251 191 36;     --warning-text: 251 191 36;
-    --error: 248 113 113;      --error-text: 248 113 113;
-    --info: 96 165 250;        --info-text: 96 165 250;
+    --secondary: 167 139 250;       --secondary-text: 196 181 253;
+    --success: 52 211 153;          --success-text: 52 211 153;
+    --warning: 251 191 36;          --warning-text: 251 191 36;
+    --error: 248 113 113;           --error-text: 252 165 165;
+    --info: 96 165 250;             --info-text: 147 197 253;
 
-    --background: 17 24 39;         /* gray-900 */
-    --surface: 31 41 55;            /* gray-800 */
-    --surface-variant: 55 65 81;    /* gray-700 */
-    --border: 55 65 81;
+    --background: 17 24 39;         --surface: 31 41 55;
+    --surface-variant: 55 65 81;    --border: 55 65 81;
     --border-strong: 156 163 175;
-    --on-background: 249 250 251;
-    --on-surface: 209 213 219;
+    --on-background: 249 250 251;   --on-surface: 209 213 219;
     --on-surface-light: 156 163 175;
 
     --shadow-sm: 0 1px 2px rgb(0 0 0 / .3);
@@ -64,12 +60,12 @@
     --soft-alpha: .16;
   }
 
-  html { font-family: Montserrat, ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  html { font-family: Montserrat, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; }
   body { @apply bg-background text-on-background; }
   :focus-visible { outline: 3px solid rgb(var(--primary)); outline-offset: 2px; }
+  .tabular, .font-mono { font-variant-numeric: tabular-nums; }
 }
 
-/* Reduced motion: remove movement, keep opacity/color */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: .01ms !important;

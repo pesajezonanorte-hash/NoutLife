@@ -1,29 +1,31 @@
 # Prompt para Claude Code
 
-Copia todo lo que está debajo de la línea y pégalo en Claude Code, abierto en la raíz del repo `lifequest2`, con esta carpeta copiada en `docs/redesign/`.
+Copia esta carpeta en el repo como `docs/redesign/` (reemplaza la versión anterior si existe). Abre Claude Code en la raíz de `lifequest2` y pega todo lo que está debajo de la línea.
 
 ---
 
-Vamos a implementar el rediseño de LifeQuest en `apps/web`. Toda la especificación está en `docs/redesign/`:
+Vamos a implementar el rediseño completo de LifeQuest en `apps/web`. La especificación está en `docs/redesign/`:
 
-- `docs/redesign/README.md`: mapa de pantallas, componentes, reglas y desviaciones. **Léelo primero, completo.**
-- `docs/redesign/tokens/`: `tokens.css`, `tailwind.tokens.ts`, `motion.ts` (listos para integrar).
-- `docs/redesign/design/*.dc.html`: prototipos de cada pantalla (móvil `X.dc.html`, desktop `XDesktop.dc.html`) y `lq.css` con medidas/animaciones exactas. Son especificación, no código a copiar: usan una sintaxis de plantilla propia (`{{}}`, `<sc-for>`, `<sc-if>`, `DCLogic`). Tradúcelos a JSX + Tailwind con nuestros tokens.
+- `docs/redesign/README.md`: mapa de las 22 rutas, navegación, componentes, motion, reglas y la **prioridad de estilos**. Léelo primero, completo.
+- `docs/redesign/design-system/`: el LifeQuest Design System (README + tokens.json). Es la fuente de verdad de estilo: si un prototipo usa otro valor (radio, color de texto, fuente de cifras), gana el design system.
+- `docs/redesign/tokens/`: `tokens.css`, `tailwind.tokens.ts` y `motion.ts`, ya alineados con el design system.
+- `docs/redesign/design/*.dc.html` + `lq.css`: prototipos de cada pantalla (móvil `X`, desktop `XDesktop`). Son especificación, no código: usan sintaxis de plantilla propia (`{{}}`, `<sc-for>`, `<sc-if>`, `DCLogic`). Tradúcelos a JSX + Tailwind con nuestros tokens. Los datos de ejemplo se reemplazan por los reales.
 
 Restricciones:
-- No toques `apps/api`. No cambies contratos de datos: conecta la UI a los hooks/queries de React Query y stores de Zustand que ya existen; los datos de ejemplo de los prototipos son solo placeholders. Si una pantalla necesita un dato que la API no da, deja un `// TODO(api):` y un fallback, no inventes endpoints.
-- Respeta la configuración existente (alias `@/*`, Montserrat ya mapeada, variables `var(--*)` actuales). Si ya hay variables con otros nombres, haz un mapeo y avísame antes de renombrar en masa.
-- Nada de hex en componentes; solo clases de token. Mobile-first (375 → sm → md → lg).
-- Trabaja en la rama `feat/redesign`. Un commit por fase, mensajes claros.
+- No toques `apps/api` ni contratos de datos. Conecta la UI a los hooks de React Query y stores de Zustand existentes. Si falta un dato, deja `// TODO(api):` con un fallback; no inventes endpoints.
+- Respeta lo que ya existe: alias `@/*`, `src/styles/tokens.css`, Montserrat. Antes de renombrar variables o clases en masa, muéstrame el mapeo.
+- Sin hex en componentes. Mobile-first. Solo `transform`/`opacity` en animaciones. `MotionConfig reducedMotion="user"`.
+- Rama `feat/redesign`. Un commit por fase.
 
-Plan por fases. Detente al final de cada fase, corre `lint`, `typecheck` y `build` de `apps/web`, y muéstrame un resumen + capturas con Playwright a 375, 834 y 1440 px (light y dark) de lo que cambió antes de seguir:
+Fases. Al final de cada una corre lint, typecheck y build de `apps/web`, toma capturas con Playwright a 375, 834 y 1440 px (light y dark) de lo que cambió, y espera mi OK:
 
-1. **Fundamentos:** inspecciona `tailwind.config.ts`, `src/index.css` y los componentes UI actuales; dime qué existe y cómo vas a mapearlo. Integra `tokens.css`, fusiona `tailwind.tokens.ts`, crea `src/lib/motion.ts`, envuelve la app en `<MotionConfig reducedMotion="user">` y asegura el toggle `.dark` en `<html>` (persistido en Zustand, opción Auto = `prefers-color-scheme`).
-2. **Componentes UI** (`src/components/ui/`) según la lista del README, replicando estados de `Components.dc.html` y `lq.css` (hover/active/disabled/focus, light/dark). Si hay Storybook o una ruta de playground, agrégalos ahí.
-3. **Layout:** `AppShell` con TabBar + FAB (móvil), Rail (tablet), Sidebar + Topbar con breadcrumb (desktop); transiciones de ruta con `AnimatePresence mode="wait"` y `page` de `motion.ts`.
-4. **Pantallas semana 1:** Dashboard, Hábitos, Detalle de hábito, Misiones (con loading/error/empty y todas las animaciones descritas).
-5. **Pantallas semana 2:** Coliseo, Logros, Finanzas.
-6. **Pantallas semana 3:** Comida, Sueño, Perfil.
-7. **QA final:** audita contraste AA, foco visible, orden de tabulación, Escape en modales, `aria-*` del README, `prefers-reduced-motion` (emúlalo en Playwright) y que no haya scroll horizontal a 375 px. Lista lo que quedó pendiente.
+1. **Fundamentos:** compara `tokens/` y `design-system/` con lo actual; integra tokens, Tailwind, JetBrains Mono para cifras, `motion.ts`, toggle `.dark` (Zustand, opción Auto).
+2. **Componentes UI:** los del design system + los nuevos del README (Chip, StepItem, DayDot, Timer, TimelineDay, MonthGrid, Podium, LeaderRow, BookCover, QuoteCard, ShopItem/PurchaseDialog, MoodPicker, SabioComposer, UserCard), con estados de `Components.dc.html`.
+3. **Layout:** AppShell con Sidebar agrupada + UserCard + Topbar (desktop), Rail (tablet), TabBar + FAB + menú "Más" (móvil); transiciones de ruta.
+4. **Núcleo:** Dashboard, Hábitos, Detalle, Misiones.
+5. **Engagement:** Coliseo, Logros, Finanzas, Comida, Sueño, Perfil.
+6. **Más zonas I:** Gimnasio, Glow up, Aprendizaje, Relaciones, Diario, Agenda.
+7. **Más zonas II y comunidad:** Rituales, Sabiduría, Mis zonas, Tienda, Ranking, Ajustes.
+8. **QA:** contraste AA, foco y orden de tabulación, Escape en modales, `aria-*` del README, reduced motion emulado en Playwright, sin scroll horizontal a 375 px, Estadísticas/Gremio/Campaña/Ayuda con los nuevos tokens. Lista lo pendiente.
 
-Empieza por la fase 1: lee el README y los archivos del repo indicados, y muéstrame tu plan de mapeo antes de escribir código.
+Empieza por la fase 1: lee el README, el design system y los archivos del repo indicados, y muéstrame el plan de mapeo antes de escribir código.

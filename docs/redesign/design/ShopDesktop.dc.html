@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Shop Desktop</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./lq.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#4f46e5}a:hover{color:#4338ca}
+</style>
+</helmet>
+<div class="lq app {{theme}}">
+  <aside class="side">
+    <a href="DashboardDesktop.dc.html" class="row" style="gap: 12px; padding: 0 8px; text-decoration: none; color: inherit"><span class="ichip primary" style="width: 40px; height: 40px; border-radius: 12px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg></span><span class="t-hs">LifeQuest</span></a>
+    <nav aria-label="Principal" class="navgrp" style="border: 0; padding: 0">
+      <sc-for list="{{nav}}" as="n" hint-placeholder-count="5"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <nav aria-label="Bienestar" class="navgrp"><span class="sec">BIENESTAR</span>
+      <sc-for list="{{nav2}}" as="n" hint-placeholder-count="4"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <nav aria-label="Más zonas" class="navgrp"><span class="sec">MÁS ZONAS</span>
+      <sc-for list="{{nav3}}" as="n" hint-placeholder-count="11"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <nav aria-label="Comunidad" class="navgrp"><span class="sec">COMUNIDAD</span>
+      <sc-for list="{{nav4}}" as="n" hint-placeholder-count="3"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <div class="navgrp" style="margin-top: auto">
+      <sc-for list="{{nav5}}" as="n" hint-placeholder-count="2"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+      <a class="usercard" href="ProfileDesktop.dc.html" aria-label="Tu perfil: Alex Rivera, nivel 12">
+        <span class="avatar t-ll" style="width: 40px; height: 40px; background: var(--primary-soft); color: var(--primary-text)">AR</span>
+        <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px"><span class="t-ll">Alex Rivera</span><span class="t-bs c-3" style="line-height: 1.2">Nivel 12 · Aventurero</span><span class="bar" style="height: 4px"><span style="width: 78%"></span></span></span>
+      </a>
+    </div>
+  </aside>
+  <div class="pane">
+    <header class="topbar">
+      <nav class="crumb" aria-label="Ruta"><a href="DashboardDesktop.dc.html">Inicio</a><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg><span class="c-1" aria-current="page">Tienda</span></nav>
+      <span class="badge lg badge-warning num" aria-live="polite"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5h4a1.5 1.5 0 0 1 0 3h-3a1.5 1.5 0 0 0 0 3h4"/></svg>{{goldTxt}} Gold</span>
+    </header>
+
+    <main class="wrap enter">
+      <section style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-end; justify-content: space-between">
+        <div style="flex: 1 1 420px; display: flex; flex-direction: column; gap: 8px">
+          <span class="eyebrow">El mercado</span>
+          <h1 class="t-dl">Tienda</h1>
+          <p class="t-bl c-3">Gasta tu Gold sabiamente, héroe.</p>
+        </div>
+        <div class="seg slide" role="tablist" aria-label="Vista" style="flex: 0 1 300px; width: 100%">
+          <span class="pill" style="width: calc((100% - 12px) / 2); transform: {{tabX}}" aria-hidden="true"></span>
+          <sc-for list="{{tabs}}" as="t" hint-placeholder-count="2"><button class="{{t.cls}}" role="tab" aria-selected="{{t.sel}}" onClick="{{t.pick}}">{{t.label}}</button></sc-for>
+        </div>
+      </section>
+
+      <sc-if value="{{isShop}}" hint-placeholder-val="{{ true }}">
+        <section class="card card-elevated" style="padding: 32px; display: flex; flex-wrap: wrap; gap: 32px; align-items: center" aria-label="Artículo destacado">
+          <div class="float" style="flex: 0 1 320px; aspect-ratio: 16 / 10; border-radius: 20px; overflow: hidden; display: grid; grid-template-columns: repeat(4, 1fr); box-shadow: var(--shadow-lg)" role="img" aria-label="Vista previa del tema Aurora Boreal: verde, turquesa, violeta y azul noche">
+            <span style="background: #34d399"></span><span style="background: #22d3ee"></span><span style="background: #a78bfa"></span><span style="background: #1e1b4b"></span>
+          </div>
+          <div style="flex: 1 1 280px; display: flex; flex-direction: column; gap: 10px">
+            <div class="row" style="gap: 8px"><span class="eyebrow">Artículo destacado</span><span class="badge badge-secondary">Tema</span></div>
+            <h2 class="t-ds">Aurora Boreal</h2>
+            <p class="t-bm c-3">Un tema de color para toda la app, inspirado en el cielo del norte.</p>
+            <div class="row" style="gap: 16px; margin-top: 8px">
+              <span class="row t-hm c-warning num" style="gap: 8px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5h4a1.5 1.5 0 0 1 0 3h-3a1.5 1.5 0 0 0 0 3h4"/></svg>500</span>
+              <button class="btn btn-primary" onClick="{{buyFeatured}}" disabled="{{featOwned}}">{{featLabel}}</button>
+            </div>
+          </div>
+        </section>
+
+        <div class="chips" role="tablist" aria-label="Categoría">
+          <sc-for list="{{cats}}" as="c" hint-placeholder-count="7"><button class="chip {{c.cls}}" role="tab" aria-selected="{{c.sel}}" onClick="{{c.pick}}">{{c.label}}</button></sc-for>
+        </div>
+
+        <ul class="stagger" style="list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 24px">
+          <sc-for list="{{items}}" as="it" hint-placeholder-count="6">
+            <li class="card card-lg lift" style="display: flex; flex-direction: column; gap: 14px">
+              <div class="row" style="justify-content: space-between"><span class="ichip {{it.tone}}" style="width: 56px; height: 56px; border-radius: 16px"><svg class="i i32" viewBox="0 0 24 24" aria-hidden="true"><path d="{{it.icon}}"/></svg></span><span class="badge badge-neutral">{{it.catLabel}}</span></div>
+              <div><h3 class="t-hs">{{it.name}}</h3><p class="t-bs c-3">{{it.desc}}</p></div>
+              <div class="row" style="justify-content: space-between; margin-top: auto; padding-top: 12px; border-top: 1px solid var(--border)">
+                <span class="row t-ll c-warning num" style="gap: 6px; font-size: 16px"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5h4a1.5 1.5 0 0 1 0 3h-3a1.5 1.5 0 0 0 0 3h4"/></svg>{{it.price}}</span>
+                <button class="btn {{it.btnCls}} btn-md" onClick="{{it.buy}}" disabled="{{it.disabled}}" aria-label="{{it.aria}}">{{it.btnLabel}}</button>
+              </div>
+            </li>
+          </sc-for>
+        </ul>
+      </sc-if>
+
+      <sc-if value="{{isInv}}" hint-placeholder-val="{{ false }}">
+        <ul class="stagger" style="list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 24px">
+          <sc-for list="{{inventory}}" as="it" hint-placeholder-count="3">
+            <li class="card card-lg lift" style="display: flex; flex-direction: column; gap: 14px">
+              <span class="ichip {{it.tone}}" style="width: 56px; height: 56px; border-radius: 16px"><svg class="i i32" viewBox="0 0 24 24" aria-hidden="true"><path d="{{it.icon}}"/></svg></span>
+              <div><h3 class="t-hs">{{it.name}}</h3><p class="t-bs c-3">{{it.desc}}</p></div>
+              <button class="btn {{it.eqCls}} btn-md" onClick="{{it.equip}}" aria-pressed="{{it.eqPressed}}">{{it.eqLabel}}</button>
+            </li>
+          </sc-for>
+        </ul>
+      </sc-if>
+    </main>
+  </div>
+
+  <sc-if value="{{confirming}}" hint-placeholder-val="{{ false }}">
+    <div class="center-scrim">
+      <div class="modal dialog" role="dialog" aria-modal="true" aria-labelledby="buy-t">
+        <sc-if value="{{askPhase}}" hint-placeholder-val="{{ true }}">
+          <div style="display: flex; flex-direction: column; gap: 16px">
+            <h2 id="buy-t" class="t-hm">¿Comprar {{pendingName}}?</h2>
+            <p class="t-bm c-2">Se descontarán <b class="c-warning">{{pendingPrice}} Gold</b>. Te quedarán {{after}}.</p>
+            <div class="row" style="gap: 12px; justify-content: flex-end"><button class="btn btn-secondary btn-md" onClick="{{cancel}}">Cancelar</button><button class="btn btn-primary btn-md" onClick="{{confirm}}">Comprar</button></div>
+          </div>
+        </sc-if>
+        <sc-if value="{{donePhase}}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px">
+            <span class="ichip warning lg pop halo" style="border-radius: 999px"><svg class="i i48" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1 12H6zM9 8V6a3 3 0 0 1 6 0v2"/></svg></span>
+            <h2 id="buy-t" class="t-hl">¡Es tuyo!</h2>
+            <p class="t-bm c-3">{{pendingName}} ya está en tu inventario.</p>
+            <button class="btn btn-primary btn-block" onClick="{{cancel}}">Genial</button>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1520}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { gold: 1565, shown: 0, tab: 'shop', cat: 'all', owned: { hat: true }, equipped: { hat: true }, pending: null, phase: 'ask' }; }
+  componentDidMount() { this.animateTo(this.state.gold); }
+  componentWillUnmount() { cancelAnimationFrame(this._raf); }
+  animateTo(target) {
+    const rm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (rm) { this.setState({ shown: target }); return; }
+    const from = this.state.shown, t0 = performance.now();
+    cancelAnimationFrame(this._raf);
+    const f = n => { const p = Math.min(1, (n - t0) / 900); this.setState({ shown: from + (target - from) * (1 - Math.pow(1 - p, 3)) }); if (p < 1) this._raf = requestAnimationFrame(f); };
+    this._raf = requestAnimationFrame(f);
+  }
+  navs(active) {
+    const P = {
+      home: 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z', habits: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0zM8.5 12l2.5 2.5 4.5-5', quests: 'M5 22V4M5 4h12l-2.5 4L17 12H5',
+      arena: 'M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 17.5 21 6V3h-3L6.5 14.5M11 19l-6-6M8 16l-4 4M5 21l-2-2', profile: 'M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM4 21a8 8 0 0 1 16 0',
+      money: 'M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 10h18M16 15h2', food: 'M7 3v18M4 3v6a3 3 0 0 0 6 0V3M17 21V3c-2 1-3 4-3 7h3', sleep: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
+      ach: 'M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3', stats: 'M3 3v18h18M8 16v-5M13 16V8M18 16v-3',
+      gym: 'M6.5 6.5l11 11M21 21l-1-1M3 3l1 1M18 22l4-4M2 6l4-4M3 10l7-7M14 21l7-7', glow: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 3v4M17 5h4',
+      learn: 'M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z', rel: 'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z',
+      diary: 'M5 4h11a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2zM9 8h5M9 12h5M20 7l-6 6', agenda: 'M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM4 10h16M9 2v4M15 2v4',
+      ritual: 'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4', wisdom: 'M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM9 8h6M9 12h6M9 16h3',
+      zones: 'M12 21s-7-6-7-12a7 7 0 0 1 14 0c0 6-7 12-7 12zM12 11.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z', shop: 'M5 8h14l-1 12H6zM9 8V6a3 3 0 0 1 6 0v2',
+      rank: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18', guild: 'M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM2 21a8 8 0 0 1 12-6.9M17 11a3 3 0 1 0 0-6M22 21a6 6 0 0 0-5-5.9',
+      camp: 'M3 21 12 4l9 17zM12 4v17M8 21l4-6 4 6', settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1',
+      help: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.7M12 17h.01',
+    };
+    const mk = a => a.map(([id, label, f]) => ({ label, href: f ? f + '.dc.html' : '#', icon: P[id], cls: id === active ? 'on' : '', cur: id === active ? 'page' : 'false' }));
+    return {
+      nav: mk([['home','Inicio','DashboardDesktop'],['habits','Hábitos','HabitsDesktop'],['quests','Misiones','QuestsDesktop'],['arena','Coliseo','ColosseumDesktop'],['profile','Perfil','ProfileDesktop']]),
+      nav2: mk([['money','Finanzas','FinancesDesktop'],['food','Comida','FoodDesktop'],['sleep','Sueño','SleepDesktop'],['ach','Logros','AchievementsDesktop']]),
+      nav3: mk([['stats','Estadísticas',null],['gym','Gimnasio','GymDesktop'],['glow','Glow up','GlowUpDesktop'],['learn','Aprendizaje','LearningDesktop'],['rel','Relaciones','RelationsDesktop'],['diary','Diario','JournalDesktop'],['agenda','Agenda','AgendaDesktop'],['ritual','Rituales','RitualsDesktop'],['wisdom','Sabiduría','WisdomDesktop'],['zones','Mis zonas','ZonesDesktop'],['shop','Tienda','ShopDesktop']]),
+      nav4: mk([['rank','Ranking','RankingDesktop'],['guild','Gremio',null],['camp','Campaña',null]]),
+      nav5: mk([['settings','Ajustes','SettingsDesktop'],['help','Ayuda',null]]),
+    };
+  }
+  renderVals() {
+    const s = this.state;
+    const fmt = n => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    const I = {
+      potion: 'M9 3h6M10 3v5l-4 7a4 4 0 0 0 3.5 6h5A4 4 0 0 0 18 15l-4-7V3M7.5 14h9',
+      pass: 'M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4zM10 9h4M10 13h4',
+      hat: 'M3 17h18M6 17l1.5-8a4.5 4.5 0 0 1 9 0L18 17M9 12h6',
+      magnet: 'M6 4v8a6 6 0 0 0 12 0V4h-4v8a2 2 0 0 1-4 0V4zM6 8h4M14 8h4',
+      xp: 'M13 2 4 14h7l-1 8 9-12h-7z',
+      ninja: 'M4 11c0-4 4-7 8-7s8 3 8 7v2H4zM7 13v2a5 5 0 0 0 10 0v-2M20 11l2 3',
+      aura: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10z',
+      frame: 'M4 4h16v16H4zM8 8h8v8H8z',
+    };
+    const catalog = [
+      ['potion','Poción de energía','Recupera 50 HP al instante','power',100,'error'],
+      ['pass','Pase de perdón','No pierdes la racha si fallas un día','pass',150,'info'],
+      ['hat','Sombrero de aventurero','Un sombrero digno de un héroe','hat',200,'warning'],
+      ['magnet','Imán de Gold','+50% de Gold durante 24 h','power',250,'warning'],
+      ['xp','Multiplicador XP ×2','Duplica tu XP durante 24 h','power',300,'primary'],
+      ['ninja','Gorra del ninja','Velocidad y sigilo para héroes discretos','hat',350,'secondary'],
+      ['aura','Aura serena','Un halo suave alrededor de tu avatar','aura',800,'success'],
+      ['frame','Marco dorado','Marco premium para tu perfil','frame',2000,'warning'],
+    ];
+    const CL = { hat: 'Sombreros', aura: 'Auras', frame: 'Marcos', power: 'Power-ups', pass: 'Pases' };
+    const open = (id, name, price) => this.setState({ pending: { id, name, price }, phase: 'ask' });
+    const items = catalog.filter(c => s.cat === 'all' || c[3] === s.cat).map(([id, name, desc, cat, price, tone]) => {
+      const owned = !!s.owned[id], poor = price > s.gold;
+      return { name, desc, price: fmt(price), tone, icon: I[id], catLabel: CL[cat],
+        disabled: owned || poor, btnCls: owned ? 'btn-secondary' : 'btn-primary', btnLabel: owned ? 'Tienes' : (poor ? 'Sin Gold' : 'Comprar'),
+        aria: owned ? `${name}: ya lo tienes` : `Comprar ${name} por ${price} Gold`, buy: () => open(id, name, price) };
+    });
+    const cats = [['all','Todo'],['hat','Sombreros'],['aura','Auras'],['frame','Marcos'],['power','Power-ups'],['pass','Pases']]
+      .map(([id, label]) => ({ label, cls: s.cat === id ? 'on' : '', sel: s.cat === id ? 'true' : 'false', pick: () => this.setState({ cat: id }) }));
+    const inventory = catalog.concat([['theme','Tema Aurora Boreal','Tema de color','theme',500,'secondary']]).filter(c => s.owned[c[0]]).map(([id, name, desc, , , tone]) => {
+      const eq = !!s.equipped[id];
+      return { name, desc, tone, icon: I[id] || 'M12 3a9 9 0 1 0 9 9c0-1-1-2-2-2h-3a2 2 0 0 1-2-2V5c0-1-1-2-2-2z', eqLabel: eq ? 'Equipado' : 'Equipar', eqCls: eq ? 'btn-secondary' : 'btn-primary',
+        eqPressed: eq ? 'true' : 'false', equip: () => this.setState({ equipped: { ...this.state.equipped, [id]: !eq } }) };
+    });
+    const opts = [['shop','Tienda'],['inv','Inventario']];
+    const idx = opts.findIndex(o => o[0] === s.tab);
+    const p = s.pending || { name: '', price: 0 };
+    return {
+      theme: (this.props.dark ?? false) ? 'dark' : '', ...this.navs('shop'),
+      goldTxt: fmt(s.shown), tabs: opts.map(([id, label]) => ({ label, cls: s.tab === id ? 'on' : '', sel: s.tab === id ? 'true' : 'false', pick: () => this.setState({ tab: id }) })),
+      tabX: `translateX(calc(${idx} * (100% + 4px)))`, isShop: s.tab === 'shop', isInv: s.tab === 'inv',
+      items, cats, inventory,
+      featOwned: !!s.owned.theme, featLabel: s.owned.theme ? 'En tu inventario' : 'Comprar tema', buyFeatured: () => open('theme', 'Tema Aurora Boreal', 500),
+      confirming: !!s.pending, askPhase: s.phase === 'ask', donePhase: s.phase === 'done',
+      pendingName: p.name, pendingPrice: fmt(p.price), after: fmt(s.gold - p.price),
+      cancel: () => this.setState({ pending: null }),
+      confirm: () => { const g = this.state.gold - p.price; this.setState({ gold: g, phase: 'done', owned: { ...this.state.owned, [p.id]: true } }); this.animateTo(g); },
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Relations Desktop</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./lq.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#4f46e5}a:hover{color:#4338ca}
+</style>
+</helmet>
+<div class="lq app {{theme}}">
+  <aside class="side">
+    <a href="DashboardDesktop.dc.html" class="row" style="gap: 12px; padding: 0 8px; text-decoration: none; color: inherit"><span class="ichip primary" style="width: 40px; height: 40px; border-radius: 12px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg></span><span class="t-hs">LifeQuest</span></a>
+    <nav aria-label="Principal" class="navgrp" style="border: 0; padding: 0">
+      <sc-for list="{{nav}}" as="n" hint-placeholder-count="5"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <nav aria-label="Bienestar" class="navgrp"><span class="sec">BIENESTAR</span>
+      <sc-for list="{{nav2}}" as="n" hint-placeholder-count="4"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <nav aria-label="Más zonas" class="navgrp"><span class="sec">MÁS ZONAS</span>
+      <sc-for list="{{nav3}}" as="n" hint-placeholder-count="11"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <nav aria-label="Comunidad" class="navgrp"><span class="sec">COMUNIDAD</span>
+      <sc-for list="{{nav4}}" as="n" hint-placeholder-count="3"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <div class="navgrp" style="margin-top: auto">
+      <sc-for list="{{nav5}}" as="n" hint-placeholder-count="2"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+      <a class="usercard" href="ProfileDesktop.dc.html" aria-label="Tu perfil: Alex Rivera, nivel 12">
+        <span class="avatar t-ll" style="width: 40px; height: 40px; background: var(--primary-soft); color: var(--primary-text)">AR</span>
+        <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px"><span class="t-ll">Alex Rivera</span><span class="t-bs c-3" style="line-height: 1.2">Nivel 12 · Aventurero</span><span class="bar" style="height: 4px"><span style="width: 78%"></span></span></span>
+      </a>
+    </div>
+  </aside>
+  <div class="pane">
+    <header class="topbar">
+      <nav class="crumb" aria-label="Ruta"><a href="DashboardDesktop.dc.html">Inicio</a><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg><span class="c-1" aria-current="page">Relaciones</span></nav>
+      <div class="row" style="gap: 8px">
+        <button class="btn btn-secondary btn-md"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg>Consejo del Sabio</button>
+        <button class="btn btn-primary btn-md"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Añadir persona</button>
+      </div>
+    </header>
+
+    <main class="wrap enter">
+      <section style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-end; justify-content: space-between">
+        <div style="flex: 1 1 420px; display: flex; flex-direction: column; gap: 8px">
+          <span class="eyebrow">Relaciones</span>
+          <h1 class="t-dl">Jardín del corazón</h1>
+          <p class="t-bl c-3">Cuida las relaciones y los momentos que más te importan.</p>
+        </div>
+        <div class="seg slide" role="tablist" aria-label="Vista" style="flex: 0 1 300px; width: 100%">
+          <span class="pill" style="width: calc((100% - 12px) / 2); transform: {{tabX}}" aria-hidden="true"></span>
+          <sc-for list="{{tabs}}" as="t" hint-placeholder-count="2"><button class="{{t.cls}}" role="tab" aria-selected="{{t.sel}}" onClick="{{t.pick}}">{{t.label}}</button></sc-for>
+        </div>
+      </section>
+
+      <sc-if value="{{isGarden}}" hint-placeholder-val="{{ true }}">
+        <section class="card card-elevated" style="padding: 32px; display: flex; flex-wrap: wrap; gap: 32px; align-items: center" aria-label="Próxima fecha especial">
+          <div style="position: relative; width: 148px; height: 148px; flex: none">
+            <svg viewBox="0 0 120 120" width="148" height="148" aria-hidden="true" style="transform: rotate(-90deg)"><circle cx="60" cy="60" r="52" fill="none" stroke="var(--surface-variant)" stroke-width="8"/><circle class="ring-val" cx="60" cy="60" r="52" fill="none" stroke="var(--error)" stroke-width="8" stroke-linecap="round" pathLength="100" stroke-dasharray="100" stroke-dashoffset="88"/></svg>
+            <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center"><span class="t-dm num">{{days}}</span><span class="t-bs c-3">días</span></div>
+          </div>
+          <div style="flex: 1 1 280px; display: flex; flex-direction: column; gap: 8px">
+            <span class="eyebrow">Próxima fecha especial</span>
+            <h2 class="t-ds">Aniversario con Ana</h2>
+            <p class="t-bm c-3">Viernes, 13 de noviembre · cada año</p>
+          </div>
+          <button class="btn btn-secondary"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9h18v4H3zM5 13h14v8H5zM12 9v12M12 9c-1.5-3-5-3-5-1s3 1 5 1c2 0 5 1 5-1s-3.5-2-5 1"/></svg>Ideas de regalo</button>
+        </section>
+
+        <section style="display: flex; flex-direction: column; gap: 24px">
+          <h2 class="t-hl">Tu círculo</h2>
+          <ul class="auto-grid stagger" style="list-style: none; margin: 0; padding: 0">
+            <sc-for list="{{people}}" as="p" hint-placeholder-count="3">
+              <li class="card card-lg lift" style="display: flex; flex-direction: column; gap: 16px">
+                <div class="row" style="gap: 16px">
+                  <span class="avatar t-hs" style="width: 56px; height: 56px; background: {{p.bg}}; color: {{p.fg}}">{{p.ini}}</span>
+                  <div style="flex: 1"><h3 class="t-hs">{{p.name}}</h3><span class="badge {{p.badge}}">{{p.rel}}</span></div>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 6px">
+                  <div class="row" style="justify-content: space-between"><span class="t-bs c-3">Conexión</span><span class="t-bs c-2 num">{{p.score}}%</span></div>
+                  <div class="bar {{p.barCls}}"><span style="width: {{p.score}}%"></span></div>
+                </div>
+                <p class="row t-bs c-2" style="gap: 8px"><svg class="i i16 c-3" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>{{p.last}}</p>
+              </li>
+            </sc-for>
+            <li>
+              <button class="card lift" style="width: 100%; height: 100%; min-height: 200px; border: 2px dashed var(--border); background: transparent; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; cursor: pointer; font-family: inherit; color: var(--on-surface)">
+                <span class="ichip primary"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span>
+                <span class="t-ll">Añadir persona</span>
+              </button>
+            </li>
+          </ul>
+        </section>
+
+        <section class="card card-lg" style="display: flex; flex-direction: column; gap: 8px">
+          <div class="row" style="justify-content: space-between; margin-bottom: 8px"><h2 class="t-hs">Fechas especiales</h2><button class="btn btn-secondary btn-md" onClick="{{addDate}}"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Agregar fecha</button></div>
+          <ul class="stagger" style="list-style: none; margin: 0; padding: 0">
+            <sc-for list="{{dates}}" as="d" hint-placeholder-count="3">
+              <li class="row" style="gap: 16px; min-height: 72px; border-bottom: {{d.border}}">
+                <span class="ichip {{d.tone}}" style="width: 44px; height: 44px; border-radius: 12px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 20px; height: 20px"><path d="{{d.icon}}"/></svg></span>
+                <div style="flex: 1; min-width: 0"><div class="t-ll" style="font-size: 16px">{{d.name}}</div><div class="t-bs c-3">{{d.when}}</div></div>
+                <span class="badge {{d.badge}} num">en {{d.days}} días</span>
+                <button class="btn btn-icon" aria-label="Eliminar {{d.name}}" onClick="{{d.remove}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 20px; height: 20px"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button>
+              </li>
+            </sc-for>
+          </ul>
+        </section>
+      </sc-if>
+
+      <sc-if value="{{isGifts}}" hint-placeholder-val="{{ false }}">
+        <section class="auto-grid stagger" style="grid-template-columns: repeat(auto-fill, minmax(300px, 1fr))">
+          <sc-for list="{{gifts}}" as="g" hint-placeholder-count="4">
+            <article class="card card-lg lift" style="display: flex; flex-direction: column; gap: 12px">
+              <div class="row" style="justify-content: space-between"><span class="badge badge-secondary">Para {{g.who}}</span><span class="t-ll num">{{g.price}}</span></div>
+              <h3 class="t-hs">{{g.name}}</h3>
+              <p class="t-bs c-3">{{g.note}}</p>
+              <button class="{{g.cls}}" aria-pressed="{{g.pressed}}" onClick="{{g.toggle}}" style="margin-top: auto"><span class="tick"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true" style="stroke-width: 2.5"><path d="m5 12 5 5 9-10"/></svg></span><span class="lbl t-bm">Comprado</span></button>
+            </article>
+          </sc-for>
+        </section>
+      </sc-if>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1560}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { k: 0, tab: 'garden', removed: {}, extra: false, bought: { 1: true } }; }
+  componentDidMount() {
+    const rm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (rm) { this.setState({ k: 1 }); return; }
+    const t0 = performance.now();
+    const f = n => { const p = Math.min(1, (n - t0) / 1100); this.setState({ k: 1 - Math.pow(1 - p, 3) }); if (p < 1) this._raf = requestAnimationFrame(f); };
+    this._raf = requestAnimationFrame(f);
+  }
+  componentWillUnmount() { cancelAnimationFrame(this._raf); }
+  navs(active) {
+    const P = {
+      home: 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z', habits: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0zM8.5 12l2.5 2.5 4.5-5', quests: 'M5 22V4M5 4h12l-2.5 4L17 12H5',
+      arena: 'M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 17.5 21 6V3h-3L6.5 14.5M11 19l-6-6M8 16l-4 4M5 21l-2-2', profile: 'M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM4 21a8 8 0 0 1 16 0',
+      money: 'M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 10h18M16 15h2', food: 'M7 3v18M4 3v6a3 3 0 0 0 6 0V3M17 21V3c-2 1-3 4-3 7h3', sleep: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
+      ach: 'M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3', stats: 'M3 3v18h18M8 16v-5M13 16V8M18 16v-3',
+      gym: 'M6.5 6.5l11 11M21 21l-1-1M3 3l1 1M18 22l4-4M2 6l4-4M3 10l7-7M14 21l7-7', glow: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 3v4M17 5h4',
+      learn: 'M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z', rel: 'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z',
+      diary: 'M5 4h11a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2zM9 8h5M9 12h5M20 7l-6 6', agenda: 'M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM4 10h16M9 2v4M15 2v4',
+      ritual: 'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4', wisdom: 'M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM9 8h6M9 12h6M9 16h3',
+      zones: 'M12 21s-7-6-7-12a7 7 0 0 1 14 0c0 6-7 12-7 12zM12 11.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z', shop: 'M5 8h14l-1 12H6zM9 8V6a3 3 0 0 1 6 0v2',
+      rank: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18', guild: 'M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM2 21a8 8 0 0 1 12-6.9M17 11a3 3 0 1 0 0-6M22 21a6 6 0 0 0-5-5.9',
+      camp: 'M3 21 12 4l9 17zM12 4v17M8 21l4-6 4 6', settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1',
+      help: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.7M12 17h.01',
+    };
+    const mk = a => a.map(([id, label, f]) => ({ label, href: f ? f + '.dc.html' : '#', icon: P[id], cls: id === active ? 'on' : '', cur: id === active ? 'page' : 'false' }));
+    return {
+      nav: mk([['home','Inicio','DashboardDesktop'],['habits','Hábitos','HabitsDesktop'],['quests','Misiones','QuestsDesktop'],['arena','Coliseo','ColosseumDesktop'],['profile','Perfil','ProfileDesktop']]),
+      nav2: mk([['money','Finanzas','FinancesDesktop'],['food','Comida','FoodDesktop'],['sleep','Sueño','SleepDesktop'],['ach','Logros','AchievementsDesktop']]),
+      nav3: mk([['stats','Estadísticas',null],['gym','Gimnasio','GymDesktop'],['glow','Glow up','GlowUpDesktop'],['learn','Aprendizaje','LearningDesktop'],['rel','Relaciones','RelationsDesktop'],['diary','Diario','JournalDesktop'],['agenda','Agenda','AgendaDesktop'],['ritual','Rituales','RitualsDesktop'],['wisdom','Sabiduría','WisdomDesktop'],['zones','Mis zonas','ZonesDesktop'],['shop','Tienda','ShopDesktop']]),
+      nav4: mk([['rank','Ranking','RankingDesktop'],['guild','Gremio',null],['camp','Campaña',null]]),
+      nav5: mk([['settings','Ajustes','SettingsDesktop'],['help','Ayuda',null]]),
+    };
+  }
+  renderVals() {
+    const s = this.state;
+    const people = [
+      ['Ana','AN','Pareja','badge-error','var(--error-soft)','var(--error-text)',92,'success','Cena juntos · hace 2 días'],
+      ['Mamá','MA','Familia','badge-warning','var(--warning-soft)','var(--warning-text)',74,'','Llamada · hace 5 días'],
+      ['Carlos','CA','Amistad','badge-info','var(--info-soft)','var(--info-text)',46,'warning','Mensaje · hace 3 semanas'],
+    ].map(([name, ini, rel, badge, bg, fg, score, barCls, last]) => ({ name, ini, rel, badge, bg, fg, score, barCls, last }));
+    const CAL = 'M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM4 10h16M9 2v4M15 2v4';
+    const CAKE = 'M4 21h16M5 21v-8h14v8M12 13V9M12 6a1 1 0 1 0 0-.01M5 17c2 1 4-1 7 0s5 1 7 0';
+    const base = [
+      { id: 0, name: 'Aniversario con Ana', when: '13 de noviembre · anual', days: 42, tone: 'error', badge: 'badge-error', icon: CAL },
+      { id: 1, name: 'Cumpleaños de Mamá', when: '2 de diciembre · anual', days: 61, tone: 'warning', badge: 'badge-neutral', icon: CAKE },
+      { id: 2, name: 'Cumpleaños de Carlos', when: '20 de enero · anual', days: 110, tone: 'info', badge: 'badge-neutral', icon: CAKE },
+    ];
+    if (s.extra) base.push({ id: 3, name: 'Nueva fecha', when: 'Toca para editar', days: 7, tone: 'primary', badge: 'badge-primary', icon: CAL });
+    const list = base.filter(d => !s.removed[d.id]);
+    const dates = list.map((d, i) => ({ ...d, border: i < list.length - 1 ? '1px solid var(--border)' : '0', remove: () => this.setState({ removed: { ...this.state.removed, [d.id]: true } }) }));
+    const gifts = [['Ana','Clase de cerámica para dos','Experiencia compartida, sábado por la tarde','$80'],['Mamá','Álbum de fotos impreso','Fotos del último viaje familiar','$45'],['Carlos','Entradas al concierto','Su banda favorita toca en enero','$60'],['Ana','Libro de poesía dedicado','Con una nota escrita a mano','$25']]
+      .map(([who, name, note, price], i) => { const on = !!s.bought[i]; return { who, name, note, price, cls: on ? 'step on' : 'step', pressed: on ? 'true' : 'false', toggle: () => this.setState({ bought: { ...this.state.bought, [i]: !on } }) }; });
+    const opts = [['garden','Jardín'],['gifts','Regalos']];
+    const idx = opts.findIndex(o => o[0] === s.tab);
+    return {
+      theme: (this.props.dark ?? false) ? 'dark' : '', ...this.navs('rel'),
+      tabs: opts.map(([id, label]) => ({ label, cls: s.tab === id ? 'on' : '', sel: s.tab === id ? 'true' : 'false', pick: () => this.setState({ tab: id }) })),
+      tabX: `translateX(calc(${idx} * (100% + 4px)))`, isGarden: s.tab === 'garden', isGifts: s.tab === 'gifts',
+      days: Math.round(42 * s.k), people, dates, gifts, addDate: () => this.setState({ extra: true }),
+    };
+  }
+}
+</script>
+</body>
+</html>

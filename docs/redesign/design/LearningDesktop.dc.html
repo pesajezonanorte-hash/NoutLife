@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Learning Desktop</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./lq.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#4f46e5}a:hover{color:#4338ca}
+</style>
+</helmet>
+<div class="lq app {{theme}}">
+  <aside class="side">
+    <a href="DashboardDesktop.dc.html" class="row" style="gap: 12px; padding: 0 8px; text-decoration: none; color: inherit"><span class="ichip primary" style="width: 40px; height: 40px; border-radius: 12px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg></span><span class="t-hs">LifeQuest</span></a>
+    <nav aria-label="Principal" class="navgrp" style="border: 0; padding: 0">
+      <sc-for list="{{nav}}" as="n" hint-placeholder-count="5"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <nav aria-label="Bienestar" class="navgrp"><span class="sec">BIENESTAR</span>
+      <sc-for list="{{nav2}}" as="n" hint-placeholder-count="4"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <nav aria-label="Más zonas" class="navgrp"><span class="sec">MÁS ZONAS</span>
+      <sc-for list="{{nav3}}" as="n" hint-placeholder-count="11"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <nav aria-label="Comunidad" class="navgrp"><span class="sec">COMUNIDAD</span>
+      <sc-for list="{{nav4}}" as="n" hint-placeholder-count="3"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <div class="navgrp" style="margin-top: auto">
+      <sc-for list="{{nav5}}" as="n" hint-placeholder-count="2"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+      <a class="usercard" href="ProfileDesktop.dc.html" aria-label="Tu perfil: Alex Rivera, nivel 12">
+        <span class="avatar t-ll" style="width: 40px; height: 40px; background: var(--primary-soft); color: var(--primary-text)">AR</span>
+        <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px"><span class="t-ll">Alex Rivera</span><span class="t-bs c-3" style="line-height: 1.2">Nivel 12 · Aventurero</span><span class="bar" style="height: 4px"><span style="width: 78%"></span></span></span>
+      </a>
+    </div>
+  </aside>
+  <div class="pane">
+    <header class="topbar">
+      <nav class="crumb" aria-label="Ruta"><a href="DashboardDesktop.dc.html">Inicio</a><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg><span class="c-1" aria-current="page">Aprendizaje</span></nav>
+      <div class="row" style="gap: 8px">
+        <button class="btn btn-secondary btn-md"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg>Recomendación del Sabio</button>
+        <button class="btn btn-primary btn-md"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Agregar</button>
+      </div>
+    </header>
+
+    <main class="wrap enter">
+      <section style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-end; justify-content: space-between">
+        <div style="flex: 1 1 420px; display: flex; flex-direction: column; gap: 8px">
+          <span class="eyebrow">Aprendizaje</span>
+          <h1 class="t-dl">Biblioteca</h1>
+          <p class="t-bl c-3">Reúne lo que quieres aprender y vuelve a ello con claridad.</p>
+        </div>
+        <div class="seg slide" role="tablist" aria-label="Vista" style="flex: 0 1 320px; width: 100%">
+          <span class="pill" style="width: {{modeW}}; transform: {{modeX}}" aria-hidden="true"></span>
+          <sc-for list="{{modes}}" as="m" hint-placeholder-count="2"><button class="{{m.cls}}" role="tab" aria-selected="{{m.sel}}" onClick="{{m.pick}}">{{m.label}}</button></sc-for>
+        </div>
+      </section>
+
+      <sc-if value="{{isLib}}" hint-placeholder-val="{{ true }}">
+        <section class="kpis stagger" aria-label="Resumen">
+          <sc-for list="{{kpis}}" as="k" hint-placeholder-count="4">
+            <div class="card card-lg lift" style="display: flex; flex-direction: column; gap: 12px">
+              <span class="ichip {{k.tone}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{k.icon}}"/></svg></span>
+              <span class="t-dm num">{{k.v}}</span><span class="t-bm c-3">{{k.label}}</span>
+            </div>
+          </sc-for>
+        </section>
+
+        <section style="display: flex; flex-direction: column; gap: 24px">
+          <div class="row" style="justify-content: space-between; flex-wrap: wrap; gap: 16px">
+            <h2 class="t-hl">Tu estantería</h2>
+            <div class="seg slide" role="tablist" aria-label="Estado" style="flex: 0 1 520px; width: 100%">
+              <span class="pill" style="width: {{filterW}}; transform: {{filterX}}" aria-hidden="true"></span>
+              <sc-for list="{{filters}}" as="f" hint-placeholder-count="4"><button class="{{f.cls}}" role="tab" aria-selected="{{f.sel}}" onClick="{{f.pick}}">{{f.label}}</button></sc-for>
+            </div>
+          </div>
+          <ul class="stagger" style="list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 24px">
+            <sc-for list="{{items}}" as="b" hint-placeholder-count="5">
+              <li class="card lift" style="padding: 16px; display: flex; flex-direction: column; gap: 14px">
+                <div class="cover" style="background: {{b.cover}}">
+                  <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{b.icon}}"/></svg>
+                  <span class="t-hs" style="line-height: 1.25; text-wrap: balance">{{b.title}}</span>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 4px">
+                  <div class="row" style="gap: 8px; justify-content: space-between"><span class="badge {{b.badge}}">{{b.status}}</span><span class="t-bs c-3">{{b.kind}}</span></div>
+                  <h3 class="t-ll" style="font-size: 16px; margin-top: 6px">{{b.title}}</h3>
+                  <p class="t-bs c-3">{{b.author}}</p>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 6px; margin-top: auto">
+                  <div class="bar {{b.barCls}}"><span style="width: {{b.pct}}%"></span></div>
+                  <span class="t-bs c-3 num">{{b.meta}}</span>
+                </div>
+              </li>
+            </sc-for>
+          </ul>
+          <sc-if value="{{noneShown}}" hint-placeholder-val="{{ false }}">
+            <div class="pop" style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; padding: 48px 16px">
+              <span class="ichip primary lg"><svg class="i i48" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z"/></svg></span>
+              <h2 class="t-hl">Nada en esta sección</h2>
+              <p class="t-bm c-3">Agrega un libro o curso para empezar.</p>
+            </div>
+          </sc-if>
+        </section>
+      </sc-if>
+
+      <sc-if value="{{isPomo}}" hint-placeholder-val="{{ false }}">
+        <section class="cols">
+          <div class="main card card-elevated pop" style="padding: 48px 32px; align-items: center; text-align: center; gap: 24px">
+            <span class="badge lg {{phaseBadge}}">{{phaseLabel}}</span>
+            <div style="position: relative; width: 280px; height: 280px; max-width: 100%">
+              <svg viewBox="0 0 120 120" width="280" height="280" aria-hidden="true" style="transform: rotate(-90deg); max-width: 100%; height: auto"><circle cx="60" cy="60" r="54" fill="none" stroke="var(--surface-variant)" stroke-width="5"/><circle cx="60" cy="60" r="54" fill="none" stroke="{{ringColor}}" stroke-width="5" stroke-linecap="round" pathLength="100" stroke-dasharray="100" stroke-dashoffset="{{ringOff}}" style="transition: stroke-dashoffset 1s linear"/></svg>
+              <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px">
+                <span class="num" style="font-size: 64px; font-weight: 700; letter-spacing: -2px; line-height: 1" role="timer" aria-live="off">{{clock}}</span>
+                <span class="t-bs c-3">Leyendo: Atomic Habits</span>
+              </div>
+            </div>
+            <div class="row" style="gap: 12px">
+              <button class="btn btn-secondary" onClick="{{reset}}" aria-label="Reiniciar"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/><path d="M3 3v5h5"/></svg>Reiniciar</button>
+              <button class="btn btn-primary" style="min-width: 160px" onClick="{{toggle}}">{{toggleLabel}}</button>
+            </div>
+            <div class="row" style="gap: 8px" aria-label="{{sessionsAria}}"><sc-for list="{{dots}}" as="d" hint-placeholder-count="4"><span style="width: 12px; height: 12px; border-radius: 99px; background: {{d.bg}}; transition: background-color .3s"></span></sc-for></div>
+          </div>
+          <aside class="aside">
+            <div class="card card-lg" style="display: flex; flex-direction: column; gap: 12px">
+              <h2 class="t-hs">Enfoque de hoy</h2>
+              <span class="t-dm num">{{focusMin}} min</span>
+              <span class="t-bs c-3">Meta diaria 100 min</span>
+              <div class="bar shine"><span style="width: {{focusPct}}%; transition: width .4s"></span></div>
+            </div>
+            <div class="card card-lg" style="display: flex; flex-direction: column; gap: 8px">
+              <h2 class="t-hs">Ajustes</h2>
+              <div class="row" style="justify-content: space-between; min-height: 44px; border-bottom: 1px solid var(--border)"><span class="t-bm c-2">Enfoque</span><span class="t-ll">25 min</span></div>
+              <div class="row" style="justify-content: space-between; min-height: 44px; border-bottom: 1px solid var(--border)"><span class="t-bm c-2">Descanso corto</span><span class="t-ll">5 min</span></div>
+              <div class="row" style="justify-content: space-between; min-height: 44px"><span class="t-bm c-2">Descanso largo</span><span class="t-ll">15 min</span></div>
+            </div>
+          </aside>
+        </section>
+      </sc-if>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1420}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { k: 0, mode: 'lib', filter: 'all', left: 1500, running: false, sessions: 1, focus: 25 }; }
+  componentDidMount() {
+    const rm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (rm) { this.setState({ k: 1 }); return; }
+    const t0 = performance.now();
+    const f = n => { const p = Math.min(1, (n - t0) / 1100); this.setState({ k: 1 - Math.pow(1 - p, 3) }); if (p < 1) this._raf = requestAnimationFrame(f); };
+    this._raf = requestAnimationFrame(f);
+  }
+  componentWillUnmount() { cancelAnimationFrame(this._raf); clearInterval(this._iv); }
+  navs(active) {
+    const P = {
+      home: 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z', habits: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0zM8.5 12l2.5 2.5 4.5-5', quests: 'M5 22V4M5 4h12l-2.5 4L17 12H5',
+      arena: 'M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 17.5 21 6V3h-3L6.5 14.5M11 19l-6-6M8 16l-4 4M5 21l-2-2', profile: 'M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM4 21a8 8 0 0 1 16 0',
+      money: 'M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 10h18M16 15h2', food: 'M7 3v18M4 3v6a3 3 0 0 0 6 0V3M17 21V3c-2 1-3 4-3 7h3', sleep: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
+      ach: 'M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3', stats: 'M3 3v18h18M8 16v-5M13 16V8M18 16v-3',
+      gym: 'M6.5 6.5l11 11M21 21l-1-1M3 3l1 1M18 22l4-4M2 6l4-4M3 10l7-7M14 21l7-7', glow: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 3v4M17 5h4',
+      learn: 'M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z', rel: 'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z',
+      diary: 'M5 4h11a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2zM9 8h5M9 12h5M20 7l-6 6', agenda: 'M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM4 10h16M9 2v4M15 2v4',
+      ritual: 'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4', wisdom: 'M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM9 8h6M9 12h6M9 16h3',
+      zones: 'M12 21s-7-6-7-12a7 7 0 0 1 14 0c0 6-7 12-7 12zM12 11.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z', shop: 'M5 8h14l-1 12H6zM9 8V6a3 3 0 0 1 6 0v2',
+      rank: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18', guild: 'M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM2 21a8 8 0 0 1 12-6.9M17 11a3 3 0 1 0 0-6M22 21a6 6 0 0 0-5-5.9',
+      camp: 'M3 21 12 4l9 17zM12 4v17M8 21l4-6 4 6', settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1',
+      help: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.7M12 17h.01',
+    };
+    const mk = a => a.map(([id, label, f]) => ({ label, href: f ? f + '.dc.html' : '#', icon: P[id], cls: id === active ? 'on' : '', cur: id === active ? 'page' : 'false' }));
+    return {
+      nav: mk([['home','Inicio','DashboardDesktop'],['habits','Hábitos','HabitsDesktop'],['quests','Misiones','QuestsDesktop'],['arena','Coliseo','ColosseumDesktop'],['profile','Perfil','ProfileDesktop']]),
+      nav2: mk([['money','Finanzas','FinancesDesktop'],['food','Comida','FoodDesktop'],['sleep','Sueño','SleepDesktop'],['ach','Logros','AchievementsDesktop']]),
+      nav3: mk([['stats','Estadísticas',null],['gym','Gimnasio','GymDesktop'],['glow','Glow up','GlowUpDesktop'],['learn','Aprendizaje','LearningDesktop'],['rel','Relaciones','RelationsDesktop'],['diary','Diario','JournalDesktop'],['agenda','Agenda','AgendaDesktop'],['ritual','Rituales','RitualsDesktop'],['wisdom','Sabiduría','WisdomDesktop'],['zones','Mis zonas','ZonesDesktop'],['shop','Tienda','ShopDesktop']]),
+      nav4: mk([['rank','Ranking','RankingDesktop'],['guild','Gremio',null],['camp','Campaña',null]]),
+      nav5: mk([['settings','Ajustes','SettingsDesktop'],['help','Ayuda',null]]),
+    };
+  }
+  renderVals() {
+    const s = this.state, k = s.k;
+    const kpis = [['En progreso',2,'primary','M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z'],['Completados',1,'success','M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0zM8.5 12l2.5 2.5 4.5-5'],['Este año',1,'warning','M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z'],['Páginas leídas',320,'info','M6 3h9l4 4v14H6zM14 3v5h5M9 13h6M9 17h6']]
+      .map(([label, v, tone, icon]) => ({ label, tone, icon, v: Math.round(v * k) }));
+    const BOOK = 'M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z';
+    const PLAY = 'M4 5h16v11H4zM8 20h8M10 9l4 2-4 2z';
+    const all = [
+      { title: 'Atomic Habits', author: 'James Clear', kind: 'Libro', st: 'done', cur: 320, max: 320, unit: 'pág', cover: '#4338ca', icon: BOOK },
+      { title: 'Curso de React', author: 'Plataforma en línea', kind: 'Curso', st: 'prog', cur: 14, max: 40, unit: 'lecciones', cover: '#0f766e', icon: PLAY },
+      { title: 'El hombre en busca de sentido', author: 'Viktor Frankl', kind: 'Libro', st: 'prog', cur: 62, max: 168, unit: 'pág', cover: '#9a3412', icon: BOOK },
+      { title: 'Inglés B2', author: 'Práctica diaria', kind: 'Curso', st: 'todo', cur: 0, max: 60, unit: 'lecciones', cover: '#1d4ed8', icon: PLAY },
+      { title: 'Deep Work', author: 'Cal Newport', kind: 'Libro', st: 'todo', cur: 0, max: 296, unit: 'pág', cover: '#374151', icon: BOOK },
+    ];
+    const ST = { done: ['Completado','badge-success','success'], prog: ['En progreso','badge-primary',''], todo: ['Por empezar','badge-neutral',''] };
+    const items = all.filter(b => s.filter === 'all' || b.st === s.filter).map(b => ({ ...b,
+      status: ST[b.st][0], badge: ST[b.st][1], barCls: ST[b.st][2], pct: Math.round(b.cur / b.max * 100), meta: `${b.cur}/${b.max} ${b.unit} · ${Math.round(b.cur / b.max * 100)}%` }));
+    const fo = [['all','Todos'],['prog','En progreso'],['todo','Por empezar'],['done','Completados']];
+    const fi = fo.findIndex(o => o[0] === s.filter);
+    const filters = fo.map(([id, label]) => ({ label, cls: s.filter === id ? 'on' : '', sel: s.filter === id ? 'true' : 'false', pick: () => this.setState({ filter: id }) }));
+    const mo = [['lib','Biblioteca'],['pomo','Pomodoro']];
+    const mi = mo.findIndex(o => o[0] === s.mode);
+    const modes = mo.map(([id, label]) => ({ label, cls: s.mode === id ? 'on' : '', sel: s.mode === id ? 'true' : 'false', pick: () => this.setState({ mode: id }) }));
+    const toggle = () => {
+      if (this.state.running) { clearInterval(this._iv); this.setState({ running: false }); return; }
+      this.setState({ running: true });
+      clearInterval(this._iv);
+      this._iv = setInterval(() => {
+        const l = this.state.left - 1;
+        if (l <= 0) { clearInterval(this._iv); this.setState({ left: 1500, running: false, sessions: this.state.sessions + 1, focus: this.state.focus + 25 }); return; }
+        this.setState({ left: l, focus: this.state.focus + (l % 60 === 0 ? 1 : 0) });
+      }, 1000);
+    };
+    const mm = String(Math.floor(s.left / 60)).padStart(2, '0'), ss = String(s.left % 60).padStart(2, '0');
+    return {
+      theme: (this.props.dark ?? false) ? 'dark' : '', ...this.navs('learn'),
+      kpis, items, filters, modes, noneShown: items.length === 0,
+      isLib: s.mode === 'lib', isPomo: s.mode === 'pomo',
+      filterW: 'calc((100% - 20px) / 4)', filterX: `translateX(calc(${fi} * (100% + 4px)))`,
+      modeW: 'calc((100% - 12px) / 2)', modeX: `translateX(calc(${mi} * (100% + 4px)))`,
+      clock: `${mm}:${ss}`, ringOff: Math.round(100 - s.left / 1500 * 100), ringColor: 'var(--primary)',
+      toggle, toggleLabel: s.running ? 'Pausar' : (s.left < 1500 ? 'Reanudar' : 'Comenzar'),
+      reset: () => { clearInterval(this._iv); this.setState({ left: 1500, running: false }); },
+      phaseLabel: s.running ? 'Enfocado' : 'Listo para enfocar', phaseBadge: s.running ? 'badge-primary' : 'badge-neutral',
+      dots: Array.from({ length: 4 }, (_, i) => ({ bg: i < s.sessions ? 'var(--primary)' : 'var(--surface-variant)' })),
+      sessionsAria: `${s.sessions} de 4 sesiones completadas`,
+      focusMin: s.focus, focusPct: Math.min(100, s.focus),
+    };
+  }
+}
+</script>
+</body>
+</html>

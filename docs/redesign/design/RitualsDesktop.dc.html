@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Rituals Desktop</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./lq.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#4f46e5}a:hover{color:#4338ca}
+</style>
+</helmet>
+<div class="lq app {{theme}}">
+  <aside class="side">
+    <a href="DashboardDesktop.dc.html" class="row" style="gap: 12px; padding: 0 8px; text-decoration: none; color: inherit"><span class="ichip primary" style="width: 40px; height: 40px; border-radius: 12px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg></span><span class="t-hs">LifeQuest</span></a>
+    <nav aria-label="Principal" class="navgrp" style="border: 0; padding: 0">
+      <sc-for list="{{nav}}" as="n" hint-placeholder-count="5"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <nav aria-label="Bienestar" class="navgrp"><span class="sec">BIENESTAR</span>
+      <sc-for list="{{nav2}}" as="n" hint-placeholder-count="4"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <nav aria-label="Más zonas" class="navgrp"><span class="sec">MÁS ZONAS</span>
+      <sc-for list="{{nav3}}" as="n" hint-placeholder-count="11"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <nav aria-label="Comunidad" class="navgrp"><span class="sec">COMUNIDAD</span>
+      <sc-for list="{{nav4}}" as="n" hint-placeholder-count="3"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <div class="navgrp" style="margin-top: auto">
+      <sc-for list="{{nav5}}" as="n" hint-placeholder-count="2"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+      <a class="usercard" href="ProfileDesktop.dc.html" aria-label="Tu perfil: Alex Rivera, nivel 12">
+        <span class="avatar t-ll" style="width: 40px; height: 40px; background: var(--primary-soft); color: var(--primary-text)">AR</span>
+        <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px"><span class="t-ll">Alex Rivera</span><span class="t-bs c-3" style="line-height: 1.2">Nivel 12 · Aventurero</span><span class="bar" style="height: 4px"><span style="width: 78%"></span></span></span>
+      </a>
+    </div>
+  </aside>
+  <div class="pane">
+    <header class="topbar">
+      <nav class="crumb" aria-label="Ruta"><a href="DashboardDesktop.dc.html">Inicio</a><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg><span class="c-1" aria-current="page">Rituales</span></nav>
+      <button class="btn btn-primary btn-md"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Nuevo ritual</button>
+    </header>
+
+    <main class="wrap enter">
+      <section style="display: flex; flex-direction: column; gap: 8px">
+        <span class="eyebrow">Rituales</span>
+        <h1 class="t-dl">Secuencias que te construyen</h1>
+        <p class="t-bl c-3" style="max-width: 560px">Pasos encadenados que ejecutas cada día. Uno detrás de otro, sin pensar.</p>
+      </section>
+
+      <sc-if value="{{hasData}}" hint-placeholder-val="{{ true }}">
+        <sc-if value="{{playing}}" hint-placeholder-val="{{ false }}">
+          <section class="card card-elevated pop" style="padding: 40px; display: flex; flex-wrap: wrap; gap: 40px; align-items: center; border-color: var(--primary-ring)" aria-label="Ritual en curso">
+            <div style="position: relative; width: 200px; height: 200px; flex: none">
+              <svg viewBox="0 0 120 120" width="200" height="200" aria-hidden="true" style="transform: rotate(-90deg)"><circle cx="60" cy="60" r="52" fill="none" stroke="var(--surface-variant)" stroke-width="8"/><circle cx="60" cy="60" r="52" fill="none" stroke="var(--primary)" stroke-width="8" stroke-linecap="round" pathLength="100" stroke-dasharray="100" stroke-dashoffset="{{playOff}}" style="transition: stroke-dashoffset .6s cubic-bezier(.2,.8,.2,1)"/></svg>
+              <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center"><span class="t-dm num">{{stepNum}}/4</span><span class="t-bs c-3">pasos</span></div>
+            </div>
+            <div style="flex: 1 1 320px; display: flex; flex-direction: column; gap: 12px" aria-live="polite">
+              <span class="eyebrow">Ritual de mañana · paso {{stepNum}}</span>
+              <h2 class="t-ds pop">{{stepName}}</h2>
+              <p class="t-bl c-3">{{stepHint}}</p>
+              <div class="row" style="gap: 12px; margin-top: 8px"><button class="btn btn-secondary" onClick="{{stop}}">Salir</button><button class="btn btn-primary" onClick="{{next}}">{{nextLabel}}</button></div>
+            </div>
+          </section>
+        </sc-if>
+
+        <section class="auto-grid stagger" style="grid-template-columns: repeat(auto-fill, minmax(320px, 1fr))">
+          <sc-for list="{{rituals}}" as="r" hint-placeholder-count="3">
+            <article class="card card-lg lift" style="display: flex; flex-direction: column; gap: 20px">
+              <div class="row" style="gap: 16px">
+                <span class="ichip {{r.tone}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{r.icon}}"/></svg></span>
+                <div style="flex: 1"><h2 class="t-hs">{{r.name}}</h2><p class="t-bs c-3">{{r.meta}}</p></div>
+                <span class="badge {{r.badge}}">{{r.status}}</span>
+              </div>
+              <ol style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0">
+                <sc-for list="{{r.steps}}" as="st" hint-placeholder-count="4">
+                  <li class="row" style="gap: 12px; min-height: 40px">
+                    <span class="avatar t-lm" style="width: 24px; height: 24px; background: {{st.bg}}; color: {{st.fg}}">{{st.n}}</span>
+                    <span class="t-bm {{st.cls}}" style="flex: 1">{{st.name}}</span>
+                    <span class="t-bs c-3">{{st.min}}</span>
+                  </li>
+                </sc-for>
+              </ol>
+              <button class="btn {{r.btnCls}} btn-block" onClick="{{r.play}}" style="margin-top: auto"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4v16l13-8z"/></svg>{{r.cta}}</button>
+            </article>
+          </sc-for>
+        </section>
+      </sc-if>
+
+      <sc-if value="{{isEmpty}}" hint-placeholder-val="{{ false }}">
+        <section class="card pop" style="padding: 80px 24px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 16px">
+          <span class="ichip warning lg float halo" style="border-radius: 28px"><svg class="i i48" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg></span>
+          <h2 class="t-ds">Sin rituales todavía</h2>
+          <p class="t-bl c-3" style="max-width: 460px">Los rituales son secuencias de pasos que ejecutas cada día. Empieza con los sugeridos o crea los tuyos.</p>
+          <div class="row" style="gap: 12px; flex-wrap: wrap; justify-content: center"><button class="btn btn-secondary">Crear el mío</button><button class="btn btn-primary"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>Cargar rituales sugeridos</button></div>
+        </section>
+      </sc-if>
+    </main>
+  </div>
+
+  <sc-if value="{{finished}}" hint-placeholder-val="{{ false }}">
+    <div class="toast toast-dock" role="status">
+      <span class="ichip success"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg></span>
+      <span style="flex: 1">Ritual de mañana completado · <b>+30 XP</b></span>
+      <button class="btn btn-icon" aria-label="Cerrar" onClick="{{closeToast}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"empty":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1240}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { playing: false, step: 0, done: false, finished: false }; }
+  componentWillUnmount() { clearTimeout(this._t); }
+  navs(active) {
+    const P = {
+      home: 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z', habits: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0zM8.5 12l2.5 2.5 4.5-5', quests: 'M5 22V4M5 4h12l-2.5 4L17 12H5',
+      arena: 'M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 17.5 21 6V3h-3L6.5 14.5M11 19l-6-6M8 16l-4 4M5 21l-2-2', profile: 'M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM4 21a8 8 0 0 1 16 0',
+      money: 'M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 10h18M16 15h2', food: 'M7 3v18M4 3v6a3 3 0 0 0 6 0V3M17 21V3c-2 1-3 4-3 7h3', sleep: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
+      ach: 'M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3', stats: 'M3 3v18h18M8 16v-5M13 16V8M18 16v-3',
+      gym: 'M6.5 6.5l11 11M21 21l-1-1M3 3l1 1M18 22l4-4M2 6l4-4M3 10l7-7M14 21l7-7', glow: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 3v4M17 5h4',
+      learn: 'M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z', rel: 'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z',
+      diary: 'M5 4h11a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2zM9 8h5M9 12h5M20 7l-6 6', agenda: 'M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM4 10h16M9 2v4M15 2v4',
+      ritual: 'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4', wisdom: 'M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM9 8h6M9 12h6M9 16h3',
+      zones: 'M12 21s-7-6-7-12a7 7 0 0 1 14 0c0 6-7 12-7 12zM12 11.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z', shop: 'M5 8h14l-1 12H6zM9 8V6a3 3 0 0 1 6 0v2',
+      rank: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18', guild: 'M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM2 21a8 8 0 0 1 12-6.9M17 11a3 3 0 1 0 0-6M22 21a6 6 0 0 0-5-5.9',
+      camp: 'M3 21 12 4l9 17zM12 4v17M8 21l4-6 4 6', settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1',
+      help: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.7M12 17h.01',
+    };
+    const mk = a => a.map(([id, label, f]) => ({ label, href: f ? f + '.dc.html' : '#', icon: P[id], cls: id === active ? 'on' : '', cur: id === active ? 'page' : 'false' }));
+    return {
+      nav: mk([['home','Inicio','DashboardDesktop'],['habits','Hábitos','HabitsDesktop'],['quests','Misiones','QuestsDesktop'],['arena','Coliseo','ColosseumDesktop'],['profile','Perfil','ProfileDesktop']]),
+      nav2: mk([['money','Finanzas','FinancesDesktop'],['food','Comida','FoodDesktop'],['sleep','Sueño','SleepDesktop'],['ach','Logros','AchievementsDesktop']]),
+      nav3: mk([['stats','Estadísticas',null],['gym','Gimnasio','GymDesktop'],['glow','Glow up','GlowUpDesktop'],['learn','Aprendizaje','LearningDesktop'],['rel','Relaciones','RelationsDesktop'],['diary','Diario','JournalDesktop'],['agenda','Agenda','AgendaDesktop'],['ritual','Rituales','RitualsDesktop'],['wisdom','Sabiduría','WisdomDesktop'],['zones','Mis zonas','ZonesDesktop'],['shop','Tienda','ShopDesktop']]),
+      nav4: mk([['rank','Ranking','RankingDesktop'],['guild','Gremio',null],['camp','Campaña',null]]),
+      nav5: mk([['settings','Ajustes','SettingsDesktop'],['help','Ayuda',null]]),
+    };
+  }
+  renderVals() {
+    const s = this.state;
+    const am = [['Vaso de agua','1 min','Hidrátate antes del café.'],['Meditar','10 min','Respira contando hasta 4. Sin juzgar.'],['Escribir 3 gratitudes','5 min','Cosas pequeñas cuentan.'],['Planear el día','5 min','Elige la única tarea que haría el día un éxito.']];
+    const mk = (arr, doneAll, cur) => arr.map(([name, min], i) => {
+      const d = doneAll || i < cur;
+      return { n: i + 1, name, min, bg: d ? 'var(--success)' : 'var(--surface-variant)', fg: d ? '#fff' : 'var(--on-surface)', cls: d ? 'c-3' : 'c-1' };
+    });
+    const play = () => this.setState({ playing: true, step: 0 });
+    const rituals = [
+      { name: 'Ritual de mañana', meta: '4 pasos · 21 min · 07:00', tone: 'warning', icon: 'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4',
+        steps: mk(am, s.done, s.playing ? s.step : 0), status: s.done ? 'Hecho hoy' : 'Pendiente', badge: s.done ? 'badge-success' : 'badge-neutral',
+        cta: s.done ? 'Repetir' : 'Comenzar', btnCls: s.done ? 'btn-secondary' : 'btn-primary', play },
+      { name: 'Ritual de enfoque', meta: '3 pasos · 5 min · antes de trabajar', tone: 'primary', icon: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM12 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2z',
+        steps: mk([['Modo no molestar','1 min'],['Escribir el objetivo','2 min'],['Temporizador 25 min','2 min']], false, 0), status: 'Pendiente', badge: 'badge-neutral', cta: 'Comenzar', btnCls: 'btn-secondary', play },
+      { name: 'Ritual de noche', meta: '4 pasos · 30 min · 22:00', tone: 'secondary', icon: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
+        steps: mk([['Pantallas fuera','1 min'],['Preparar ropa de mañana','5 min'],['Leer','20 min'],['Respiración 4-7-8','4 min']], false, 0), status: '22:00', badge: 'badge-secondary', cta: 'Comenzar', btnCls: 'btn-secondary', play },
+    ];
+    const cur = am[Math.min(s.step, 3)];
+    const empty = this.props.empty ?? false;
+    return {
+      theme: (this.props.dark ?? false) ? 'dark' : '', ...this.navs('ritual'),
+      hasData: !empty, isEmpty: empty, rituals,
+      playing: s.playing, stepNum: s.step + 1, stepName: cur[0], stepHint: cur[2], playOff: 100 - (s.step + 1) * 25,
+      nextLabel: s.step >= 3 ? 'Terminar' : 'Siguiente paso',
+      next: () => {
+        if (this.state.step >= 3) { this.setState({ playing: false, done: true, finished: true }); clearTimeout(this._t); this._t = setTimeout(() => this.setState({ finished: false }), 4000); return; }
+        this.setState({ step: this.state.step + 1 });
+      },
+      stop: () => this.setState({ playing: false }),
+      finished: s.finished, closeToast: () => this.setState({ finished: false }),
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Gym Desktop</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./lq.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#4f46e5}a:hover{color:#4338ca}
+</style>
+</helmet>
+<div class="lq app {{theme}}">
+  <aside class="side">
+    <a href="DashboardDesktop.dc.html" class="row" style="gap: 12px; padding: 0 8px; text-decoration: none; color: inherit"><span class="ichip primary" style="width: 40px; height: 40px; border-radius: 12px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg></span><span class="t-hs">LifeQuest</span></a>
+    <nav aria-label="Principal" class="navgrp" style="border: 0; padding: 0">
+      <sc-for list="{{nav}}" as="n" hint-placeholder-count="5"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <nav aria-label="Bienestar" class="navgrp"><span class="sec">BIENESTAR</span>
+      <sc-for list="{{nav2}}" as="n" hint-placeholder-count="4"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <nav aria-label="Más zonas" class="navgrp"><span class="sec">MÁS ZONAS</span>
+      <sc-for list="{{nav3}}" as="n" hint-placeholder-count="11"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <nav aria-label="Comunidad" class="navgrp"><span class="sec">COMUNIDAD</span>
+      <sc-for list="{{nav4}}" as="n" hint-placeholder-count="3"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <div class="navgrp" style="margin-top: auto">
+      <sc-for list="{{nav5}}" as="n" hint-placeholder-count="2"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+      <a class="usercard" href="ProfileDesktop.dc.html" aria-label="Tu perfil: Alex Rivera, nivel 12">
+        <span class="avatar t-ll" style="width: 40px; height: 40px; background: var(--primary-soft); color: var(--primary-text)">AR</span>
+        <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px"><span class="t-ll">Alex Rivera</span><span class="t-bs c-3" style="line-height: 1.2">Nivel 12 · Aventurero</span><span class="bar" style="height: 4px"><span style="width: 78%"></span></span></span>
+      </a>
+    </div>
+  </aside>
+  <div class="pane">
+    <header class="topbar">
+      <nav class="crumb" aria-label="Ruta"><a href="DashboardDesktop.dc.html">Inicio</a><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg><span class="c-1" aria-current="page">Gimnasio</span></nav>
+      <div class="row" style="gap: 8px">
+        <button class="btn btn-icon" aria-label="Buscar ejercicio"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+        <button class="btn btn-secondary btn-md"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg>¿Qué entreno hoy?</button>
+      </div>
+    </header>
+
+    <main class="wrap enter">
+      <section style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-end; justify-content: space-between">
+        <div style="flex: 1 1 420px; display: flex; flex-direction: column; gap: 8px">
+          <span class="eyebrow">Zona de entrenamiento</span>
+          <h1 class="t-dl">Gimnasio</h1>
+          <p class="t-bl c-3">Forja tu cuerpo, héroe. Cada sesión suma XP y fortalece tu personaje.</p>
+        </div>
+        <div class="row" style="gap: 8px; flex-wrap: wrap">
+          <button class="btn btn-ghost btn-md"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/></svg>Descanso</button>
+          <button class="btn btn-primary" onClick="{{startSession}}" disabled="{{sessionOn}}"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4v16l13-8z"/></svg>Iniciar entrenamiento</button>
+        </div>
+      </section>
+
+      <sc-if value="{{sessionOn}}" hint-placeholder-val="{{ false }}">
+        <section class="card card-elevated pop" style="padding: 32px; display: flex; flex-wrap: wrap; gap: 32px; align-items: center; border-color: var(--primary-ring)" aria-label="Sesión en curso">
+          <div style="display: flex; flex-direction: column; gap: 8px; flex: 0 0 auto">
+            <span class="row t-ll c-error" style="gap: 8px"><span style="width: 8px; height: 8px; border-radius: 50%; background: var(--error); animation: lq-beat 1.6s ease-in-out infinite"></span>EN CURSO · EMPUJE</span>
+            <span class="num" style="font-size: 72px; font-weight: 700; letter-spacing: -2px; line-height: 1" aria-live="off">{{clock}}</span>
+            <span class="t-bs c-3 num">{{setsDone}} de 12 series · {{volume}} kg</span>
+          </div>
+          <div style="flex: 1 1 340px; display: flex; flex-direction: column; gap: 4px">
+            <sc-for list="{{sets}}" as="s" hint-placeholder-count="4">
+              <button class="{{s.cls}}" aria-pressed="{{s.pressed}}" onClick="{{s.toggle}}"><span class="tick"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true" style="stroke-width: 2.5"><path d="m5 12 5 5 9-10"/></svg></span><span class="lbl t-bm" style="flex: 1">{{s.name}}</span><span class="t-bs c-3 num">{{s.meta}}</span></button>
+            </sc-for>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px">
+            <button class="btn btn-secondary btn-md" onClick="{{pause}}">{{pauseLabel}}</button>
+            <button class="btn btn-primary btn-md" onClick="{{finish}}">Terminar</button>
+          </div>
+        </section>
+      </sc-if>
+
+      <section class="card card-lg" style="display: flex; flex-wrap: wrap; gap: 24px; align-items: center; justify-content: space-between" aria-label="Asistencia">
+        <div style="display: flex; flex-direction: column; gap: 4px">
+          <h2 class="t-hs">Asistencia de la semana</h2>
+          <span class="row t-bs c-warning" style="gap: 6px"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22c4 0 7-3 7-7 0-4-3-6-4-9-1 2-2 3-4 3 0-2-1-4-2-5-1 4-4 6-4 11 0 4 3 7 7 7z"/></svg><span class="num">{{streak}} días seguidos</span></span>
+        </div>
+        <ol class="row stagger" style="list-style: none; margin: 0; padding: 0; gap: 10px">
+          <sc-for list="{{week}}" as="d" hint-placeholder-count="7">
+            <li style="display: flex; flex-direction: column; align-items: center; gap: 6px" aria-label="{{d.aria}}">
+              <span class="day-dot {{d.cls}}"><sc-if value="{{d.done}}" hint-placeholder-val="{{ true }}"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true" style="stroke-width: 2.5"><path d="m5 12 5 5 9-10"/></svg></sc-if><sc-if value="{{d.notDone}}" hint-placeholder-val="{{ false }}">{{d.l}}</sc-if></span>
+              <span class="t-lm c-3">{{d.l}}</span>
+            </li>
+          </sc-for>
+        </ol>
+        <button class="btn btn-primary btn-md" onClick="{{checkIn}}" disabled="{{checkedIn}}">{{checkLabel}}</button>
+      </section>
+
+      <section class="kpis stagger" aria-label="Accesos">
+        <sc-for list="{{tiles}}" as="t" hint-placeholder-count="4">
+          <a class="card lift row" href="#" style="gap: 16px; padding: 20px; text-decoration: none; color: inherit">
+            <span class="ichip {{t.tone}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{t.icon}}"/></svg></span>
+            <span style="flex: 1"><span class="t-ll" style="display: block; font-size: 16px">{{t.title}}</span><span class="t-bs c-3">{{t.sub}}</span></span>
+            <svg class="i i16 c-3" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+          </a>
+        </sc-for>
+      </section>
+
+      <div class="cols">
+        <section class="main">
+          <article class="card card-elevated" style="padding: 32px; display: flex; flex-direction: column; gap: 24px">
+            <div class="row" style="gap: 20px; flex-wrap: wrap">
+              <span class="ichip warning halo" style="width: 72px; height: 72px; border-radius: 22px"><svg class="i i32" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 6.5l11 11M21 21l-1-1M3 3l1 1M18 22l4-4M2 6l4-4M3 10l7-7M14 21l7-7"/></svg></span>
+              <div style="flex: 1">
+                <span class="eyebrow">Último entrenamiento</span>
+                <h2 class="t-hl">Piernas</h2>
+                <p class="t-bs c-3">Jueves, 1 de octubre · 65 min</p>
+              </div>
+              <span class="badge lg badge-primary"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg>+123 XP</span>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px">
+              <div class="card" style="padding: 16px; background: var(--bg)"><div class="t-bs c-3">Duración</div><div class="t-hm num">65 min</div></div>
+              <div class="card" style="padding: 16px; background: var(--bg)"><div class="t-bs c-3">Volumen</div><div class="t-hm num">{{vol}} kg</div></div>
+              <div class="card" style="padding: 16px; background: var(--bg)"><div class="t-bs c-3">Series</div><div class="t-hm num">13</div></div>
+            </div>
+            <ul class="stagger" style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column">
+              <sc-for list="{{last}}" as="e" hint-placeholder-count="4">
+                <li class="row" style="gap: 16px; min-height: 56px; border-bottom: {{e.border}}">
+                  <span class="t-bm" style="flex: 1">{{e.name}}</span>
+                  <span class="t-bs c-3 num">{{e.sets}}</span>
+                  <span class="t-ll num" style="width: 72px; text-align: right">{{e.kg}}</span>
+                </li>
+              </sc-for>
+            </ul>
+          </article>
+          <section class="card card-lg" style="display: flex; flex-direction: column; gap: 20px">
+            <div class="row" style="justify-content: space-between"><h2 class="t-hs">Volumen semanal</h2><span class="row t-bs c-success" style="gap: 6px"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 17 6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>+14% vs. semana pasada</span></div>
+            <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 16px; align-items: end; height: 180px" role="img" aria-label="Volumen por día en kg: domingo 4200, lunes 5100, martes 0, miércoles 4800, jueves 6240, viernes 3900, sábado 0">
+              <sc-for list="{{bars}}" as="b" hint-placeholder-count="7">
+                <div class="tip" tabindex="0" style="height: 100%; display: flex; align-items: flex-end">
+                  <span class="tip-b">{{b.tip}}</span>
+                  <span class="rise" style="display: block; width: 100%; height: {{b.h}}%; border-radius: 10px 10px 4px 4px; background: {{b.bg}}; animation-delay: {{b.d}}ms"></span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 16px"><sc-for list="{{bars}}" as="b" hint-placeholder-count="7"><span class="t-bs c-3" style="text-align: center">{{b.l}}</span></sc-for></div>
+          </section>
+        </section>
+
+        <aside class="aside">
+          <section class="card card-lg" style="display: flex; flex-direction: column; gap: 8px">
+            <div class="row" style="justify-content: space-between; margin-bottom: 8px"><h2 class="t-hs">Rutinas</h2><a class="link" href="#">Ver todas</a></div>
+            <sc-for list="{{routines}}" as="r" hint-placeholder-count="4">
+              <div class="row" style="gap: 12px; min-height: 64px; border-bottom: {{r.border}}">
+                <span class="ichip {{r.tone}}" style="width: 40px; height: 40px; border-radius: 12px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 20px; height: 20px"><path d="M6.5 6.5l11 11M21 21l-1-1M3 3l1 1M18 22l4-4M2 6l4-4M3 10l7-7M14 21l7-7"/></svg></span>
+                <div style="flex: 1; min-width: 0"><div class="t-ll" style="font-size: 16px">{{r.name}}</div><div class="t-bs c-3">{{r.meta}}</div></div>
+                <button class="btn btn-icon" style="background: var(--primary-soft); color: var(--primary-text)" aria-label="Iniciar {{r.name}}" onClick="{{startSession}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 18px; height: 18px"><path d="M7 4v16l13-8z"/></svg></button>
+              </div>
+            </sc-for>
+          </section>
+          <section class="card card-lg" style="display: flex; flex-direction: column; gap: 12px">
+            <h2 class="t-hs">Récords personales</h2>
+            <sc-for list="{{prs}}" as="p" hint-placeholder-count="3">
+              <div style="display: flex; flex-direction: column; gap: 6px">
+                <div class="row" style="justify-content: space-between"><span class="t-bm">{{p.name}}</span><span class="t-ll num">{{p.kg}} kg</span></div>
+                <div class="bar shine warning"><span style="width: {{p.pct}}%"></span></div>
+              </div>
+            </sc-for>
+          </section>
+        </aside>
+      </div>
+    </main>
+  </div>
+
+  <sc-if value="{{summary}}" hint-placeholder-val="{{ false }}">
+    <div class="center-scrim">
+      <div class="confetti" aria-hidden="true" style="position: fixed"><sc-for list="{{confetti}}" as="c" hint-placeholder-count="24"><i style="left: {{c.x}}%; background: {{c.color}}; animation-delay: {{c.d}}ms; animation-duration: 1.9s"></i></sc-for></div>
+      <div class="modal dialog" role="dialog" aria-modal="true" aria-labelledby="gs-t" style="align-items: center; text-align: center">
+        <span class="ichip success lg pop halo" style="border-radius: 999px"><svg class="i i48" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg></span>
+        <h2 id="gs-t" class="t-hl">¡Sesión completada!</h2>
+        <p class="t-dl c-primary num pop" style="animation-delay: 180ms">+{{xpEarned}} XP</p>
+        <p class="t-bm c-3 num">{{clock}} · {{setsDone}} series · {{volume}} kg</p>
+        <button class="btn btn-primary btn-block" onClick="{{closeSummary}}">Continuar</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{toast}}" hint-placeholder-val="{{ false }}">
+    <div class="toast toast-dock" role="status">
+      <span class="ichip success"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg></span>
+      <span style="flex: 1">Asistencia registrada · <b>+20 XP</b></span>
+      <button class="btn btn-icon" aria-label="Cerrar" onClick="{{closeToast}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1620}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { k: 0, checked: false, toast: false, session: false, sec: 0, paused: false, done: {}, summary: false };
+  }
+  componentDidMount() {
+    const rm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (rm) { this.setState({ k: 1 }); return; }
+    const t0 = performance.now();
+    const f = n => { const p = Math.min(1, (n - t0) / 1100); this.setState({ k: 1 - Math.pow(1 - p, 3) }); if (p < 1) this._raf = requestAnimationFrame(f); };
+    this._raf = requestAnimationFrame(f);
+  }
+  componentWillUnmount() { cancelAnimationFrame(this._raf); clearInterval(this._iv); clearTimeout(this._t); }
+  navs(active) {
+    const P = {
+      home: 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z', habits: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0zM8.5 12l2.5 2.5 4.5-5', quests: 'M5 22V4M5 4h12l-2.5 4L17 12H5',
+      arena: 'M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 17.5 21 6V3h-3L6.5 14.5M11 19l-6-6M8 16l-4 4M5 21l-2-2', profile: 'M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM4 21a8 8 0 0 1 16 0',
+      money: 'M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 10h18M16 15h2', food: 'M7 3v18M4 3v6a3 3 0 0 0 6 0V3M17 21V3c-2 1-3 4-3 7h3', sleep: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
+      ach: 'M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3', stats: 'M3 3v18h18M8 16v-5M13 16V8M18 16v-3',
+      gym: 'M6.5 6.5l11 11M21 21l-1-1M3 3l1 1M18 22l4-4M2 6l4-4M3 10l7-7M14 21l7-7', glow: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 3v4M17 5h4',
+      learn: 'M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z', rel: 'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z',
+      diary: 'M5 4h11a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2zM9 8h5M9 12h5M20 7l-6 6', agenda: 'M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM4 10h16M9 2v4M15 2v4',
+      ritual: 'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4', wisdom: 'M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM9 8h6M9 12h6M9 16h3',
+      zones: 'M12 21s-7-6-7-12a7 7 0 0 1 14 0c0 6-7 12-7 12zM12 11.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z', shop: 'M5 8h14l-1 12H6zM9 8V6a3 3 0 0 1 6 0v2',
+      rank: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18', guild: 'M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM2 21a8 8 0 0 1 12-6.9M17 11a3 3 0 1 0 0-6M22 21a6 6 0 0 0-5-5.9',
+      camp: 'M3 21 12 4l9 17zM12 4v17M8 21l4-6 4 6', settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1',
+      help: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.7M12 17h.01',
+    };
+    const mk = a => a.map(([id, label, f]) => ({ label, href: f ? f + '.dc.html' : '#', icon: P[id], cls: id === active ? 'on' : '', cur: id === active ? 'page' : 'false' }));
+    return {
+      nav: mk([['home','Inicio','DashboardDesktop'],['habits','Hábitos','HabitsDesktop'],['quests','Misiones','QuestsDesktop'],['arena','Coliseo','ColosseumDesktop'],['profile','Perfil','ProfileDesktop']]),
+      nav2: mk([['money','Finanzas','FinancesDesktop'],['food','Comida','FoodDesktop'],['sleep','Sueño','SleepDesktop'],['ach','Logros','AchievementsDesktop']]),
+      nav3: mk([['stats','Estadísticas',null],['gym','Gimnasio','GymDesktop'],['glow','Glow up','GlowUpDesktop'],['learn','Aprendizaje','LearningDesktop'],['rel','Relaciones','RelationsDesktop'],['diary','Diario','JournalDesktop'],['agenda','Agenda','AgendaDesktop'],['ritual','Rituales','RitualsDesktop'],['wisdom','Sabiduría','WisdomDesktop'],['zones','Mis zonas','ZonesDesktop'],['shop','Tienda','ShopDesktop']]),
+      nav4: mk([['rank','Ranking','RankingDesktop'],['guild','Gremio',null],['camp','Campaña',null]]),
+      nav5: mk([['settings','Ajustes','SettingsDesktop'],['help','Ayuda',null]]),
+    };
+  }
+  renderVals() {
+    const s = this.state, k = s.k;
+    const fmt = n => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    const days = [['D',1],['L',1],['M',1],['X',1],['J',1],['V',1],['S',0]];
+    const names = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+    const week = days.map(([l, d], i) => {
+      const done = d || (i === 6 && s.checked);
+      return { l, done: !!done, notDone: !done, cls: done ? 'done' : (i === 6 ? 'today' : 'rest'), aria: `${names[i]}: ${done ? 'asististe' : 'hoy, pendiente'}` };
+    });
+    const tiles = [
+      ['Historial','Tus sesiones','primary','M12 8v4l3 2M3.05 11a9 9 0 1 1 .5 4M3 4v5h5'],
+      ['Rutinas','Planes listos','secondary','M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1zM6 6h12v15H6zM9 11h6M9 15h4'],
+      ['Análisis','Tu rendimiento','info','m3 17 6-6 4 4 8-8M15 7h6v6'],
+      ['Progreso','Fotos y medidas','success','M4 8h3l2-3h6l2 3h3v11H4zM12 17a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z'],
+    ].map(([title, sub, tone, icon]) => ({ title, sub, tone, icon }));
+    const lastData = [['Sentadilla','4 × 8','80 kg'],['Prensa','3 × 12','160 kg'],['Peso muerto rumano','3 × 10','70 kg'],['Zancadas','3 × 12','20 kg']];
+    const last = lastData.map(([name, sets, kg], i) => ({ name, sets, kg, border: i < lastData.length - 1 ? '1px solid var(--border)' : '0' }));
+    const bv = [4200, 5100, 0, 4800, 6240, 3900, 0];
+    const bl = ['D','L','M','X','J','V','S'];
+    const bars = bv.map((v, i) => ({ l: bl[i], h: Math.max(3, Math.round(v / 6240 * 100)), d: 200 + i * 70,
+      tip: v ? `${names[i]} · ${fmt(v)} kg` : `${names[i]} · descanso`, bg: v === 6240 ? 'var(--primary)' : (v ? 'var(--primary-soft)' : 'var(--surface-variant)') }));
+    const rData = [['Empuje','6 ejercicios · 55 min','primary'],['Tirón','6 ejercicios · 50 min','secondary'],['Piernas','5 ejercicios · 65 min','warning'],['Full body','8 ejercicios · 70 min','success']];
+    const start = () => {
+      if (this.state.session) return;
+      this.setState({ session: true, sec: 0, paused: false, done: {} });
+      clearInterval(this._iv);
+      this._iv = setInterval(() => { if (!this.state.paused) this.setState({ sec: this.state.sec + 1 }); }, 1000);
+    };
+    const routines = rData.map(([name, meta, tone], i) => ({ name, meta, tone, border: i < rData.length - 1 ? '1px solid var(--border)' : '0' }));
+    const prs = [['Sentadilla',100,77],['Press banca',80,62],['Peso muerto',130,100]].map(([name, kg, pct]) => ({ name, kg, pct }));
+    const setData = [['Press banca','4 × 8 · 70 kg',4,2240],['Press militar','3 × 10 · 40 kg',3,1200],['Fondos','3 × 12',3,0],['Elevaciones laterales','2 × 15 · 10 kg',2,300]];
+    const sets = setData.map(([name, meta, n, kg], i) => {
+      const on = !!s.done[i];
+      return { name, meta, cls: on ? 'step on' : 'step', pressed: on ? 'true' : 'false', toggle: () => this.setState({ done: { ...this.state.done, [i]: !on } }) };
+    });
+    const setsDone = setData.reduce((a, d, i) => a + (s.done[i] ? d[2] : 0), 0);
+    const volume = fmt(setData.reduce((a, d, i) => a + (s.done[i] ? d[3] : 0), 0));
+    const mm = String(Math.floor(s.sec / 60)).padStart(2, '0'), ss = String(s.sec % 60).padStart(2, '0');
+    const colors = ['#6366f1','#10b981','#f59e0b','#8b5cf6','#3b82f6'];
+    return {
+      theme: (this.props.dark ?? false) ? 'dark' : '', ...this.navs('gym'),
+      week, tiles, last, bars, routines, prs, sets, setsDone, volume, vol: fmt(6240 * k),
+      streak: 6 + (s.checked ? 1 : 0), checkedIn: s.checked, checkLabel: s.checked ? 'Registrada hoy' : 'Registrar asistencia',
+      checkIn: () => { this.setState({ checked: true, toast: true }); clearTimeout(this._t); this._t = setTimeout(() => this.setState({ toast: false }), 4000); },
+      toast: s.toast, closeToast: () => this.setState({ toast: false }),
+      sessionOn: s.session, startSession: start, clock: `${mm}:${ss}`,
+      pauseLabel: s.paused ? 'Reanudar' : 'Pausar', pause: () => this.setState({ paused: !this.state.paused }),
+      finish: () => { clearInterval(this._iv); this.setState({ session: false, summary: true }); },
+      summary: s.summary, xpEarned: 40 + setsDone * 10, closeSummary: () => this.setState({ summary: false }),
+      confetti: Array.from({ length: 24 }, (_, i) => ({ x: 3 + i * 4.1, color: colors[i % 5], d: (i % 6) * 60 })),
+    };
+  }
+}
+</script>
+</body>
+</html>

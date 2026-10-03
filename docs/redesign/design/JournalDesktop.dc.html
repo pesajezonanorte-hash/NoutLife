@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Journal Desktop</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./lq.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#4f46e5}a:hover{color:#4338ca}
+</style>
+</helmet>
+<div class="lq app {{theme}}">
+  <aside class="side">
+    <a href="DashboardDesktop.dc.html" class="row" style="gap: 12px; padding: 0 8px; text-decoration: none; color: inherit"><span class="ichip primary" style="width: 40px; height: 40px; border-radius: 12px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg></span><span class="t-hs">LifeQuest</span></a>
+    <nav aria-label="Principal" class="navgrp" style="border: 0; padding: 0">
+      <sc-for list="{{nav}}" as="n" hint-placeholder-count="5"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <nav aria-label="Bienestar" class="navgrp"><span class="sec">BIENESTAR</span>
+      <sc-for list="{{nav2}}" as="n" hint-placeholder-count="4"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <nav aria-label="Más zonas" class="navgrp"><span class="sec">MÁS ZONAS</span>
+      <sc-for list="{{nav3}}" as="n" hint-placeholder-count="11"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <nav aria-label="Comunidad" class="navgrp"><span class="sec">COMUNIDAD</span>
+      <sc-for list="{{nav4}}" as="n" hint-placeholder-count="3"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <div class="navgrp" style="margin-top: auto">
+      <sc-for list="{{nav5}}" as="n" hint-placeholder-count="2"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+      <a class="usercard" href="ProfileDesktop.dc.html" aria-label="Tu perfil: Alex Rivera, nivel 12">
+        <span class="avatar t-ll" style="width: 40px; height: 40px; background: var(--primary-soft); color: var(--primary-text)">AR</span>
+        <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px"><span class="t-ll">Alex Rivera</span><span class="t-bs c-3" style="line-height: 1.2">Nivel 12 · Aventurero</span><span class="bar" style="height: 4px"><span style="width: 78%"></span></span></span>
+      </a>
+    </div>
+  </aside>
+  <div class="pane">
+    <header class="topbar">
+      <nav class="crumb" aria-label="Ruta"><a href="DashboardDesktop.dc.html">Inicio</a><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg><span class="c-1" aria-current="page">Diario</span></nav>
+      <div class="row" style="gap: 8px">
+        <button class="btn btn-secondary btn-md"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg>Tema de reflexión</button>
+        <button class="btn btn-primary btn-md" onClick="{{openComposer}}"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L20 8l-4-4L4 16z"/></svg>Escribir hoy</button>
+      </div>
+    </header>
+
+    <main class="wrap enter">
+      <section style="display: flex; flex-direction: column; gap: 8px">
+        <span class="eyebrow">Sábado, 3 de octubre</span>
+        <h1 class="t-dl">Diario</h1>
+        <p class="t-bl c-3">Una pausa breve para registrar lo que importa de tu día.</p>
+      </section>
+
+      <section class="kpis stagger" aria-label="Resumen">
+        <div class="card card-lg lift row" style="gap: 16px"><span class="ichip warning"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22c4 0 7-3 7-7 0-4-3-6-4-9-1 2-2 3-4 3 0-2-1-4-2-5-1 4-4 6-4 11 0 4 3 7 7 7z"/></svg></span><div><div class="t-hl num">{{streak}}</div><div class="t-bs c-3">Días seguidos</div></div></div>
+        <div class="card card-lg lift row" style="gap: 16px"><span class="ichip primary"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2zM9 8h5M9 12h5"/></svg></span><div><div class="t-hl num">{{entries}}</div><div class="t-bs c-3">Entradas</div></div></div>
+        <div class="card card-lg lift row" style="gap: 16px"><span class="ichip success"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9 10h.01M15 10h.01M9 14.5q3 2 6 0"/></svg></span><div><div class="t-hl">Bien</div><div class="t-bs c-3">Ánimo promedio</div></div></div>
+      </section>
+
+      <section class="card card-elevated" style="padding: 32px; display: flex; flex-direction: column; gap: 20px; border-color: var(--primary-ring)">
+        <span class="row eyebrow" style="gap: 8px"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.5 7.2L4 21l1.8-5.5A8 8 0 1 1 21 12z"/></svg>Pregunta del día</span>
+        <p class="t-quote-lg">“¿Qué harías diferente si pudieras repetir este día?”</p>
+        <sc-if value="{{composerClosed}}" hint-placeholder-val="{{ true }}">
+          <button class="btn btn-secondary" style="align-self: flex-start" onClick="{{openComposer}}">Responder</button>
+        </sc-if>
+        <sc-if value="{{composerOpen}}" hint-placeholder-val="{{ false }}">
+          <div class="pop" style="display: flex; flex-direction: column; gap: 16px">
+            <div class="field"><label for="j-title">Título</label><input id="j-title" class="input" type="text" placeholder="Ej. Un día de foco"></div>
+            <div class="field"><label for="j-body">Tu reflexión</label><textarea id="j-body" class="input" placeholder="Escribe con calma…"></textarea></div>
+            <fieldset style="border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px">
+              <legend class="t-ll c-2" style="padding: 0; margin-bottom: 8px">¿Cómo te sientes? <span class="c-1">{{moodLabel}}</span></legend>
+              <div class="row" style="gap: 8px; flex-wrap: wrap" role="radiogroup">
+                <sc-for list="{{moods}}" as="m" hint-placeholder-count="5">
+                  <button role="radio" aria-checked="{{m.sel}}" aria-label="{{m.name}}" onClick="{{m.pick}}" style="width: 56px; height: 56px; border-radius: 16px; border: {{m.border}}; background: {{m.bg}}; color: {{m.fg}}; display: flex; align-items: center; justify-content: center; cursor: pointer; transform: {{m.scale}}; transition: transform .25s cubic-bezier(.3,1.4,.5,1), background-color .2s, color .2s"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9 10h.01M15 10h.01"/><path d="{{m.mouth}}"/></svg></button>
+                </sc-for>
+              </div>
+            </fieldset>
+            <div class="row" style="gap: 12px; justify-content: flex-end"><button class="btn btn-secondary btn-md" onClick="{{closeComposer}}">Cancelar</button><button class="btn btn-primary btn-md" onClick="{{save}}">Guardar entrada</button></div>
+          </div>
+        </sc-if>
+      </section>
+
+      <section style="display: flex; flex-direction: column; gap: 20px">
+        <div class="row" style="gap: 16px; flex-wrap: wrap; justify-content: space-between">
+          <h2 class="t-hl">Entradas</h2>
+          <div style="position: relative; flex: 0 1 360px; width: 100%">
+            <label for="j-search" class="sr" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Buscar en el diario</label>
+            <svg class="i c-3" viewBox="0 0 24 24" aria-hidden="true" style="position: absolute; left: 14px; top: 12px; pointer-events: none"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input id="j-search" class="input" type="search" placeholder="Buscar en el diario…" style="padding-left: 46px">
+          </div>
+        </div>
+        <div class="chips" role="tablist" aria-label="Filtrar por ánimo">
+          <sc-for list="{{filters}}" as="f" hint-placeholder-count="6"><button class="chip {{f.cls}}" role="tab" aria-selected="{{f.sel}}" onClick="{{f.pick}}"><sc-if value="{{f.hasFace}}" hint-placeholder-val="{{ true }}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9 10h.01M15 10h.01"/><path d="{{f.mouth}}"/></svg></sc-if>{{f.label}}</button></sc-for>
+        </div>
+        <ul class="stagger" style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px">
+          <sc-for list="{{list}}" as="e" hint-placeholder-count="3">
+            <li class="card card-lg lift" style="display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 20px; align-items: start">
+              <span class="ichip {{e.tone}}" title="{{e.moodName}}"><svg class="i" viewBox="0 0 24 24" aria-label="Ánimo: {{e.moodName}}"><circle cx="12" cy="12" r="9"/><path d="M9 10h.01M15 10h.01"/><path d="{{e.mouth}}"/></svg></span>
+              <div style="display: flex; flex-direction: column; gap: 6px">
+                <div class="row" style="gap: 12px; flex-wrap: wrap"><h3 class="t-hs">{{e.title}}</h3><span class="t-bs c-3">{{e.when}}</span></div>
+                <p class="t-bm c-2">{{e.body}}</p>
+                <div class="row" style="gap: 6px"><sc-for list="{{e.tags}}" as="t" hint-placeholder-count="2"><span class="badge badge-neutral">#{{t}}</span></sc-for></div>
+              </div>
+              <button class="btn btn-icon" aria-label="Eliminar {{e.title}}" onClick="{{e.remove}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 20px; height: 20px"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button>
+            </li>
+          </sc-for>
+        </ul>
+        <sc-if value="{{noneShown}}" hint-placeholder-val="{{ false }}">
+          <div class="pop" style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; padding: 48px 16px">
+            <span class="ichip muted lg"><svg class="i i48" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2zM9 8h5M9 12h5"/></svg></span>
+            <h2 class="t-hl">Sin entradas con ese ánimo</h2>
+            <p class="t-bm c-3">Prueba otro filtro o escribe la de hoy.</p>
+          </div>
+        </sc-if>
+      </section>
+    </main>
+  </div>
+
+  <sc-if value="{{toast}}" hint-placeholder-val="{{ false }}">
+    <div class="toast toast-dock" role="status">
+      <span class="ichip success"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg></span>
+      <span style="flex: 1">Entrada guardada · <b>+15 XP</b></span>
+      <button class="btn btn-icon" aria-label="Cerrar" onClick="{{closeToast}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1600}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { k: 0, open: false, mood: 4, filter: 0, removed: {}, added: false, toast: false }; }
+  componentDidMount() {
+    const rm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (rm) { this.setState({ k: 1 }); return; }
+    const t0 = performance.now();
+    const f = n => { const p = Math.min(1, (n - t0) / 1100); this.setState({ k: 1 - Math.pow(1 - p, 3) }); if (p < 1) this._raf = requestAnimationFrame(f); };
+    this._raf = requestAnimationFrame(f);
+  }
+  componentWillUnmount() { cancelAnimationFrame(this._raf); clearTimeout(this._t); }
+  navs(active) {
+    const P = {
+      home: 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z', habits: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0zM8.5 12l2.5 2.5 4.5-5', quests: 'M5 22V4M5 4h12l-2.5 4L17 12H5',
+      arena: 'M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 17.5 21 6V3h-3L6.5 14.5M11 19l-6-6M8 16l-4 4M5 21l-2-2', profile: 'M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM4 21a8 8 0 0 1 16 0',
+      money: 'M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 10h18M16 15h2', food: 'M7 3v18M4 3v6a3 3 0 0 0 6 0V3M17 21V3c-2 1-3 4-3 7h3', sleep: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
+      ach: 'M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3', stats: 'M3 3v18h18M8 16v-5M13 16V8M18 16v-3',
+      gym: 'M6.5 6.5l11 11M21 21l-1-1M3 3l1 1M18 22l4-4M2 6l4-4M3 10l7-7M14 21l7-7', glow: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 3v4M17 5h4',
+      learn: 'M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z', rel: 'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z',
+      diary: 'M5 4h11a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2zM9 8h5M9 12h5M20 7l-6 6', agenda: 'M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM4 10h16M9 2v4M15 2v4',
+      ritual: 'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4', wisdom: 'M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM9 8h6M9 12h6M9 16h3',
+      zones: 'M12 21s-7-6-7-12a7 7 0 0 1 14 0c0 6-7 12-7 12zM12 11.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z', shop: 'M5 8h14l-1 12H6zM9 8V6a3 3 0 0 1 6 0v2',
+      rank: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18', guild: 'M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM2 21a8 8 0 0 1 12-6.9M17 11a3 3 0 1 0 0-6M22 21a6 6 0 0 0-5-5.9',
+      camp: 'M3 21 12 4l9 17zM12 4v17M8 21l4-6 4 6', settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1',
+      help: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.7M12 17h.01',
+    };
+    const mk = a => a.map(([id, label, f]) => ({ label, href: f ? f + '.dc.html' : '#', icon: P[id], cls: id === active ? 'on' : '', cur: id === active ? 'page' : 'false' }));
+    return {
+      nav: mk([['home','Inicio','DashboardDesktop'],['habits','Hábitos','HabitsDesktop'],['quests','Misiones','QuestsDesktop'],['arena','Coliseo','ColosseumDesktop'],['profile','Perfil','ProfileDesktop']]),
+      nav2: mk([['money','Finanzas','FinancesDesktop'],['food','Comida','FoodDesktop'],['sleep','Sueño','SleepDesktop'],['ach','Logros','AchievementsDesktop']]),
+      nav3: mk([['stats','Estadísticas',null],['gym','Gimnasio','GymDesktop'],['glow','Glow up','GlowUpDesktop'],['learn','Aprendizaje','LearningDesktop'],['rel','Relaciones','RelationsDesktop'],['diary','Diario','JournalDesktop'],['agenda','Agenda','AgendaDesktop'],['ritual','Rituales','RitualsDesktop'],['wisdom','Sabiduría','WisdomDesktop'],['zones','Mis zonas','ZonesDesktop'],['shop','Tienda','ShopDesktop']]),
+      nav4: mk([['rank','Ranking','RankingDesktop'],['guild','Gremio',null],['camp','Campaña',null]]),
+      nav5: mk([['settings','Ajustes','SettingsDesktop'],['help','Ayuda',null]]),
+    };
+  }
+  renderVals() {
+    const s = this.state;
+    const names = ['Muy mal','Mal','Neutral','Bien','Genial'];
+    const mouths = ['M8.5 16.5q3.5-3 7 0','M9 16q3-1.2 6 0','M9 15.5h6','M9 14.5q3 2 6 0','M8 14q4 4 8 0'];
+    const tones = ['error','warning','muted','success','primary'];
+    const moods = names.map((name, i) => { const sel = s.mood === i + 1; return { name, mouth: mouths[i], sel: sel ? 'true' : 'false',
+      border: sel ? '2px solid var(--primary)' : '1px solid var(--border)', bg: sel ? 'var(--primary-soft)' : 'var(--bg)', fg: sel ? 'var(--primary-text)' : 'var(--on-surface)',
+      scale: sel ? 'scale(1.08)' : 'none', pick: () => this.setState({ mood: i + 1 }) }; });
+    const base = [
+      { id: 'n', title: 'Un día de foco', when: 'Hoy', mood: s.mood, body: 'Habría empezado antes con lo importante. La mañana sin el teléfono funcionó.', tags: ['foco'], show: s.added },
+      { id: 'a', title: 'Día 30', when: 'Hace 21 horas', mood: 5, body: 'Terminé la simulación de 30 días. Me siento orgulloso de la constancia.', tags: ['logro','constancia'], show: true },
+      { id: 'b', title: 'Semana de trabajo', when: 'Hace 6 días', mood: 3, body: 'Mucho trabajo, poco descanso. Necesito proteger mis noches.', tags: ['trabajo'], show: true },
+      { id: 'c', title: 'Tarde con Ana', when: 'Hace 9 días', mood: 4, body: 'Caminamos por el parque y hablamos de planes para fin de año.', tags: ['relaciones'], show: true },
+    ];
+    const visible = base.filter(e => e.show && !s.removed[e.id]);
+    const list = visible.filter(e => !s.filter || e.mood === s.filter).map(e => ({ ...e, moodName: names[e.mood - 1], mouth: mouths[e.mood - 1], tone: tones[e.mood - 1],
+      remove: () => this.setState({ removed: { ...this.state.removed, [e.id]: true } }) }));
+    const filters = [{ label: 'Todos', id: 0 }].concat(names.map((n, i) => ({ label: n, id: i + 1 }))).map(f => ({ label: f.label, hasFace: f.id > 0, mouth: f.id ? mouths[f.id - 1] : '',
+      cls: s.filter === f.id ? 'on' : '', sel: s.filter === f.id ? 'true' : 'false', pick: () => this.setState({ filter: f.id }) }));
+    return {
+      theme: (this.props.dark ?? false) ? 'dark' : '', ...this.navs('diary'),
+      streak: Math.round((s.added ? 2 : 1) * s.k), entries: Math.round(visible.length * s.k),
+      composerOpen: s.open, composerClosed: !s.open, openComposer: () => this.setState({ open: true }), closeComposer: () => this.setState({ open: false }),
+      moods, moodLabel: names[s.mood - 1], filters, list, noneShown: list.length === 0,
+      save: () => { this.setState({ open: false, added: true, toast: true }); clearTimeout(this._t); this._t = setTimeout(() => this.setState({ toast: false }), 4000); },
+      toast: s.toast, closeToast: () => this.setState({ toast: false }),
+    };
+  }
+}
+</script>
+</body>
+</html>
