@@ -1,18 +1,24 @@
-import { useEffect, useState } from 'react';
+// Onboarding — 5 pasos (identidad, bienvenida, avatar, metas, primera misión) y
+// celebración final. Mismo estado, persistencia local y llamada a
+// completeOnboarding que antes; cambia la presentación. Transición entre pasos
+// fade + x 24 (250 ms); el foco pasa al título de cada paso.
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useAuthStore } from '../../store/authStore';
-import * as authService from '../../services/auth.service';
-import { completeOnboarding } from '../../services/user.service';
-import { OnboardingProgress } from '../../components/onboarding/OnboardingProgress';
-import { WelcomeStep } from '../../components/onboarding/WelcomeStep';
-import { IdentityStep } from '../../components/onboarding/IdentityStep';
-import { AvatarStep } from '../../components/onboarding/AvatarStep';
-import { GoalsStep } from '../../components/onboarding/GoalsStep';
-import { FirstQuestStep } from '../../components/onboarding/FirstQuestStep';
-import { FinalCelebrationStep } from '../../components/onboarding/FinalCelebrationStep';
-import { getHeroLabelCapitalized } from '../../utils/gender';
+import { ArrowLeft, ArrowRight, Droplet, Heart, Sparkles, Star } from 'lucide-react';
 import type { AvatarConfig } from '@lifequest/shared';
+import { ease } from '@/lib/motion';
+import { useAuthStore } from '@/store/authStore';
+import * as authService from '@/services/auth.service';
+import { completeOnboarding } from '@/services/user.service';
+import { getHeroLabel, getWelcomeLabel } from '@/utils/gender';
+import { BrandMark } from '@/components/layout/Brand';
+import { Badge, Button, Confetti, Spinner } from '@/components/ui/lq';
+import { AvatarPreview } from '@/components/character/AvatarPixelEditor';
+import { withDefaults } from '@/components/character/avatarOptions';
+import {
+  AvatarContent, FirstQuestFields, GoalsContent, IdentityFields, MAX_GOALS, WelcomeContent,
+} from '@/components/onboarding/steps';
 
 const STORAGE_KEY = 'lifequest_onboarding_progress';
 const TOTAL_STEPS = 5;
@@ -40,8 +46,68 @@ function loadSaved(): Partial<OnboardingState> {
 }
 
 function save(state: Partial<OnboardingState>) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch { /* sin storage */ }
 }
+
+/** Título del paso; al montarse por un cambio de paso recibe el foco (los lectores lo anuncian). */
+function StepTitle({ children, focus }: { children: ReactNode; focus: boolean }) {
+  const ref = useRef<HTMLHeadingElement>(null);
+  useEffect(() => { if (focus) ref.current?.focus(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return <h1 ref={ref} tabIndex={-1} className="text-heading-lg outline-none md:text-display-sm">{children}</h1>;
+}
+
+function Shell({ step, title, subtitle, children, footer }: { step: number; title: string; subtitle: string; children: ReactNode; footer: ReactNode }) {
+  const initialStep = useRef(step);
+
+  return (
+    <div className="flex min-h-dvh flex-col bg-background text-on-background">
+      <header className="mx-auto flex w-full max-w-[640px] flex-col gap-4 px-4 pt-6 md:pt-10">
+        <div className="flex items-center gap-3">
+          <BrandMark />
+          <span className="text-heading-sm">LifeQuest</span>
+        </div>
+        <div className="flex flex-col gap-2">
+          <span className="text-label-lg text-on-surface-light">Paso {step + 1} de {TOTAL_STEPS}</span>
+          <div role="progressbar" aria-label="Progreso del registro" aria-valuemin={1} aria-valuemax={TOTAL_STEPS} aria-valuenow={step + 1}
+            className="grid grid-cols-5 gap-1.5">
+            {Array.from({ length: TOTAL_STEPS }, (_, i) => (
+              <span key={i} className={i <= step ? 'h-1.5 rounded-full bg-primary transition-colors duration-300' : 'h-1.5 rounded-full bg-surface-variant transition-colors duration-300'} />
+            ))}
+          </div>
+        </div>
+      </header>
+
+      <main id="main" className="mx-auto flex w-full max-w-[640px] flex-1 flex-col px-4 pb-6 pt-8">
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={step}
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0, transition: { duration: 0.25, ease } }}
+            exit={{ opacity: 0, x: -24, transition: { duration: 0.15 } }}
+            className="flex flex-col gap-8"
+          >
+            <div className="flex flex-col gap-2">
+              <StepTitle focus={step !== initialStep.current}>{title}</StepTitle>
+              <p className="text-body-lg text-on-surface-light">{subtitle}</p>
+            </div>
+            {children}
+          </motion.div>
+        </AnimatePresence>
+      </main>
+
+      <footer className="sticky bottom-0 border-t border-border bg-background/95 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
+        <div className="mx-auto flex w-full max-w-[640px] flex-col-reverse gap-2 sm:flex-row sm:justify-between">{footer}</div>
+      </footer>
+    </div>
+  );
+}
+
+const back = (onClick: () => void, label = 'Atrás') => (
+  <Button variant="ghost" onClick={onClick}><ArrowLeft aria-hidden className="size-5" strokeWidth={1.75} />{label}</Button>
+);
+const next = (onClick: () => void, label = 'Siguiente') => (
+  <Button size="lg" onClick={onClick} className="sm:min-w-[200px]">{label}<ArrowRight aria-hidden className="size-5" strokeWidth={1.75} /></Button>
+);
 
 export default function OnboardingPage() {
   const navigate = useNavigate();
@@ -52,226 +118,163 @@ export default function OnboardingPage() {
   const [step, setStep] = useState(saved.step ?? 0);
   const [displayName, setDisplayName] = useState(saved.displayName ?? user?.displayName ?? '');
   const [birthDate, setBirthDate] = useState(saved.birthDate ?? '');
-  const [timezone, setTimezone] = useState(saved.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone);
+  const [timezone] = useState(saved.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone);
   const [gender, setGender] = useState<'male' | 'female'>(savedOrRegisteredGender ?? 'male');
   const [avatarConfig, setAvatarConfig] = useState<Partial<AvatarConfig>>(saved.avatarConfig ?? user?.avatarConfig ?? {});
   const [goalCategories, setGoalCategories] = useState<string[]>(saved.goalCategories ?? []);
   const [mainQuestTitle, setMainQuestTitle] = useState(saved.mainQuestTitle ?? '');
   const [mainQuestCategory, setMainQuestCategory] = useState(saved.mainQuestCategory ?? 'PERSONAL');
   const [mainQuestDeadline, setMainQuestDeadline] = useState(saved.mainQuestDeadline ?? `${new Date().getFullYear()}-12-31`);
+  const [tried, setTried] = useState(false);
   const [celebrating, setCelebrating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const completedUser = useRef<Parameters<typeof updateUser>[0] | null>(null);
 
   useEffect(() => {
-    save({
-      step,
-      displayName,
-      birthDate,
-      timezone,
-      gender,
-      avatarConfig,
-      goalCategories,
-      mainQuestTitle,
-      mainQuestCategory,
-      mainQuestDeadline,
-    });
+    save({ step, displayName, birthDate, timezone, gender, avatarConfig, goalCategories, mainQuestTitle, mainQuestCategory, mainQuestDeadline });
   }, [step, displayName, birthDate, timezone, gender, avatarConfig, goalCategories, mainQuestTitle, mainQuestCategory, mainQuestDeadline]);
 
-  const goNext = () => setStep((current) => current + 1);
-  const goBack = () => setStep((current) => Math.max(0, current - 1));
+  const config = withDefaults(avatarConfig, gender);
+  const go = (s: number) => { setTried(false); setStep(s); };
 
-  const handleIdentity = (data: { displayName: string; birthDate: string; timezone: string; gender: 'male' | 'female' }) => {
-    setDisplayName(data.displayName);
-    setBirthDate(data.birthDate);
-    setTimezone(data.timezone);
-    setGender(data.gender);
-    setAvatarConfig((current) => ({
-      ...current,
-      bodyType: data.gender,
-      hairStyle: current.hairStyle ?? (data.gender === 'female' ? 'long' : 'short'),
-    }));
-    goNext();
-  };
+  function submitIdentity() {
+    if (!displayName.trim()) { setTried(true); return; }
+    setDisplayName(displayName.trim());
+    setAvatarConfig((c) => ({ ...c, bodyType: gender, hairStyle: c.hairStyle ?? (gender === 'female' ? 'long' : 'short') }));
+    go(1);
+  }
 
-  const handleAvatar = (config: AvatarConfig) => {
-    setAvatarConfig(config);
-    goNext();
-  };
-
-  const handleGoals = (categories: string[]) => {
-    setGoalCategories(categories);
-    goNext();
-  };
-
-  const handleFirstQuest = async (data: { title: string; category: string; deadline: string }) => {
-    setMainQuestTitle(data.title);
-    setMainQuestCategory(data.category);
-    setMainQuestDeadline(data.deadline);
+  async function submitQuest() {
+    if (!mainQuestTitle.trim()) { setTried(true); return; }
     setCelebrating(true);
     setSubmitting(true);
-
     try {
-      const updatedUser = await completeOnboarding({
-        displayName,
-        birthDate: birthDate || undefined,
-        timezone,
-        avatarConfig,
-        goalCategories,
-        mainQuestTitle: data.title,
-        mainQuestCategory: data.category,
-        mainQuestDeadline: data.deadline,
+      const updated = await completeOnboarding({
+        displayName, birthDate: birthDate || undefined, timezone, avatarConfig: config, goalCategories,
+        mainQuestTitle: mainQuestTitle.trim(), mainQuestCategory, mainQuestDeadline,
       });
-
-      if (updatedUser) {
-        updateUser({ ...updatedUser, onboardingCompleted: true });
-      }
+      // Se aplica al pulsar «Empezar»: con onboardingCompleted la guarda de
+      // ruta redirige a / y la celebración no llegaría a verse.
+      completedUser.current = updated ? { ...updated, onboardingCompleted: true } : { onboardingCompleted: true };
     } catch (error) {
       console.error('[Onboarding] Error:', error);
-      updateUser({ onboardingCompleted: true });
+      completedUser.current = { onboardingCompleted: true };
     } finally {
       setSubmitting(false);
     }
-  };
+  }
 
-  const handleEnterCastle = () => {
+  async function leave(to: '/login' | '/register') {
+    try { await authService.logout(); } catch { /* se limpia el estado igualmente */ }
     localStorage.removeItem(STORAGE_KEY);
+    logout();
+    navigate(to, { replace: true });
+  }
+
+  function enter() {
+    localStorage.removeItem(STORAGE_KEY);
+    updateUser(completedUser.current ?? { onboardingCompleted: true });
     navigate('/', { replace: true });
-  };
-
-  const handleSwitchAccount = async () => {
-    try {
-      await authService.logout();
-    } catch {
-      // Ignore logout errors and still clear local auth state.
-    }
-
-    localStorage.removeItem(STORAGE_KEY);
-    logout();
-    navigate('/login', { replace: true });
-  };
-
-  const handleBackToRegister = async () => {
-    try {
-      await authService.logout();
-    } catch {
-      // Ignore logout errors and still send the user back to the register form.
-    }
-
-    localStorage.removeItem(STORAGE_KEY);
-    logout();
-    navigate('/register', { replace: true });
-  };
+  }
 
   if (celebrating) {
     return (
-      <div className="min-h-screen bg-bg-deep flex items-center justify-center overflow-hidden px-4">
-        <div className="w-full max-w-sm">
-          {submitting ? (
-            <div className="text-center">
-              <motion.p
-                className="font-pixel text-accent-gold"
-                style={{ fontSize: '12px' }}
-                animate={{ opacity: [1, 0.3, 1] }}
-                transition={{ duration: 1, repeat: Infinity }}
-              >
-                FORJANDO TU {getHeroLabelCapitalized(gender).toUpperCase()}...
-              </motion.p>
+      <div className="flex min-h-dvh items-center justify-center bg-background px-4 text-on-background">
+        {submitting ? (
+          <div role="status" className="flex flex-col items-center gap-4">
+            <Spinner />
+            <p className="text-body-md text-on-surface-light">Preparando tu aventura…</p>
+          </div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0, transition: { duration: 0.3, ease } }}
+            className="flex w-full max-w-[440px] flex-col items-center gap-6 text-center"
+          >
+            <Confetti />
+            <AvatarPreview config={config} size={120} animate="celebrate" className="lq-halo" />
+            <div className="flex flex-col gap-2">
+              <span className="text-label-lg text-primary-text">Nivel 1</span>
+              <h1 className="text-display-sm">¡{getWelcomeLabel(gender)}, {displayName}!</h1>
+              <p className="text-body-lg text-on-surface-light">Tu {getHeroLabel(gender)} está {gender === 'female' ? 'lista' : 'listo'}. Tu primera misión ya te espera.</p>
             </div>
-          ) : (
-            <FinalCelebrationStep
-              displayName={displayName}
-              gender={gender}
-              avatarConfig={avatarConfig}
-              onEnter={handleEnterCastle}
-            />
-          )}
-        </div>
+            <ul aria-label="Atributos iniciales" className="flex flex-wrap justify-center gap-2">
+              <li><Badge variant="error" size="lg" icon={Heart}>100 HP</Badge></li>
+              <li><Badge variant="info" size="lg" icon={Droplet}>100 MP</Badge></li>
+              <li><Badge variant="primary" size="lg" icon={Star}>500 XP en juego</Badge></li>
+            </ul>
+            <Button size="lg" block onClick={enter} autoFocus>
+              <Sparkles aria-hidden className="size-5" strokeWidth={1.75} />Empezar
+            </Button>
+          </motion.div>
+        )}
       </div>
     );
   }
 
   if (step === 0) {
     return (
-      <div className="min-h-screen bg-bg-deep flex flex-col">
-        <div className="flex-1 flex items-center justify-center px-4">
-          <div className="w-full max-w-sm">
-            <IdentityStep
-              initialName={displayName}
-              initialBirthDate={birthDate}
-              initialGender={gender}
-              lockGender={Boolean(savedOrRegisteredGender)}
-              secondaryActionLabel="Registrarse o iniciar sesion con otra cuenta"
-              onSecondaryAction={handleSwitchAccount}
-              onNext={handleIdentity}
-              onBack={handleBackToRegister}
-            />
+      <Shell
+        step={0} title="¿Quién eres?" subtitle="Cuéntanos un poco sobre la persona que empieza esta aventura."
+        footer={<>
+          <div className="flex flex-col gap-1 sm:flex-row">
+            {back(() => void leave('/register'), 'Volver al registro')}
+            <Button variant="ghost" onClick={() => void leave('/login')}>Usar otra cuenta</Button>
           </div>
-        </div>
-      </div>
+          {next(submitIdentity)}
+        </>}
+      >
+        <IdentityFields
+          name={displayName} onName={setDisplayName} nameError={tried && !displayName.trim() ? 'Escribe un nombre para continuar' : undefined}
+          birthDate={birthDate} onBirthDate={setBirthDate}
+          gender={gender} onGender={setGender} lockGender={Boolean(savedOrRegisteredGender)}
+          timezone={timezone}
+        />
+      </Shell>
     );
   }
 
   if (step === 1) {
-    return <WelcomeStep gender={gender} avatarConfig={avatarConfig} onNext={goNext} />;
+    return (
+      <Shell step={1} title={`Hola, ${displayName.split(' ')[0]}`} subtitle="Así empieza tu partida." footer={<>{back(() => go(0))}{next(() => go(2), 'Comenzar')}</>}>
+        <WelcomeContent config={config} />
+      </Shell>
+    );
+  }
+
+  if (step === 2) {
+    return (
+      <Shell step={2} title="Tu avatar" subtitle="Dale estilo a tu personaje; cada cambio se ve al instante." footer={<>{back(() => go(1))}{next(() => go(3))}</>}>
+        <AvatarContent config={config} onChange={setAvatarConfig} />
+      </Shell>
+    );
+  }
+
+  if (step === 3) {
+    return (
+      <Shell
+        step={3} title="¿Qué quieres mejorar?" subtitle={`Elige hasta ${MAX_GOALS} áreas para empezar.`}
+        footer={<>
+          {back(() => go(2))}
+          <Button size="lg" disabled={goalCategories.length === 0} onClick={() => go(4)} className="sm:min-w-[200px]">
+            Siguiente<ArrowRight aria-hidden className="size-5" strokeWidth={1.75} />
+          </Button>
+        </>}
+      >
+        <GoalsContent
+          selected={goalCategories}
+          onToggle={(id) => setGoalCategories((s) => (s.includes(id) ? s.filter((x) => x !== id) : s.length < MAX_GOALS ? [...s, id] : s))}
+        />
+      </Shell>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-bg-deep flex flex-col">
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        {Array.from({ length: 40 }, (_, index) => (
-          <motion.div
-            key={index}
-            className="absolute rounded-full bg-white"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              width: 1 + Math.random() * 2,
-              height: 1 + Math.random() * 2,
-            }}
-            animate={{ opacity: [0.1, 0.6, 0.1] }}
-            transition={{ duration: 2 + Math.random() * 3, repeat: Infinity, delay: Math.random() * 3 }}
-          />
-        ))}
-      </div>
-
-      <div className="relative z-10 flex flex-col items-center gap-3 p-4">
-        <h1 className="font-pixel text-accent-gold" style={{ fontSize: '12px' }}>
-          LIFEQUEST
-        </h1>
-        <OnboardingProgress currentStep={step - 2} totalSteps={TOTAL_STEPS} />
-        <p className="font-vt text-lg text-text-secondary">
-          Paso {step - 1} de {TOTAL_STEPS}
-        </p>
-      </div>
-
-      <div className="relative z-10 flex flex-1 items-start justify-center px-4 pb-6">
-        <div className="w-full max-w-sm">
-          <AnimatePresence mode="wait">
-            <motion.div key={step}>
-              {step === 2 && (
-                <AvatarStep
-                  gender={gender}
-                  initialConfig={avatarConfig}
-                  onNext={handleAvatar}
-                  onBack={goBack}
-                />
-              )}
-              {step === 3 && (
-                <GoalsStep
-                  onNext={handleGoals}
-                  onBack={goBack}
-                />
-              )}
-              {step === 4 && (
-                <FirstQuestStep
-                  onNext={handleFirstQuest}
-                  onBack={goBack}
-                />
-              )}
-            </motion.div>
-          </AnimatePresence>
-        </div>
-      </div>
-    </div>
+    <Shell step={4} title="Tu primera misión" subtitle="¿Cuál es la meta más grande que quieres conquistar este año?" footer={<>{back(() => go(3))}{next(() => void submitQuest(), 'Crear misión')}</>}>
+      <FirstQuestFields
+        title={mainQuestTitle} onTitle={setMainQuestTitle} titleError={tried && !mainQuestTitle.trim() ? 'Escribe tu meta para continuar' : undefined}
+        category={mainQuestCategory} onCategory={setMainQuestCategory}
+        deadline={mainQuestDeadline} onDeadline={setMainQuestDeadline}
+      />
+    </Shell>
   );
 }

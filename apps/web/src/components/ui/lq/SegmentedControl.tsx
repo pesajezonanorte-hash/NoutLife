@@ -1,5 +1,5 @@
 import { useId, useRef, type KeyboardEvent } from 'react';
-import { motion } from 'framer-motion';
+import { motion, PresenceContext } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
 export interface SegmentOption<T extends string> {
@@ -38,7 +38,11 @@ export function SegmentedControl<T extends string>({
     refs.current[next]?.focus();
   };
 
+  // El indicador usa layoutId: al cambiar de opción el anterior se desmonta y,
+  // dentro de un diálogo, quedaba registrado como salida pendiente de su
+  // AnimatePresence y el diálogo no terminaba de cerrarse. Se aísla aquí.
   return (
+    <PresenceContext.Provider value={null}>
     <div role={role} aria-label={label} className={cn('flex gap-1 rounded-[0.875rem] bg-surface-variant p-1', className)}>
       {options.map((o, i) => {
         const on = o.value === value;
@@ -71,5 +75,6 @@ export function SegmentedControl<T extends string>({
         );
       })}
     </div>
+    </PresenceContext.Provider>
   );
 }

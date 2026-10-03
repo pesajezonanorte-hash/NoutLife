@@ -1,76 +1,22 @@
-import { useDialogBehavior } from '@/components/ui/lq';
-import { useEffect, useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Upload, Link as LinkIcon, Trash2, Camera, User as UserIcon } from 'lucide-react';
-import { MiguelSprite } from './MiguelSprite';
+// Personalizar avatar — ResponsiveDialog (modal md+, hoja en móvil) con tres
+// pestañas: Pixel, Foto y Skin de Minecraft. La lógica de guardado es la de
+// antes; cambia la presentación (lq) y el editor pixel compartido.
+import { useEffect, useId, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
+import { Link as LinkIcon, Box, Trash2, Upload } from 'lucide-react';
 import { MinecraftSkinAvatar } from './MinecraftSkinAvatar';
-import { ColorPicker } from '../onboarding/ColorPicker';
-import { PixelButton } from '../ui/PixelButton';
+import { AvatarPixelEditor, AvatarPreview } from './AvatarPixelEditor';
+import { withDefaults } from './avatarOptions';
 import { updateAvatar, updateProfile } from '../../services/user.service';
 import { useAuthStore } from '../../store/authStore';
 import { useToast } from '../../hooks/useToast';
-import type { AvatarConfig, AvatarMode, HairStyle, Accessory, Expression } from '@lifequest/shared';
-import { E } from '@/components/ui/glyphs';
-
-const HAIR_COLORS  = ['#2c1810','#4a3728','#8b4513','#d4a017','#c8a2c8','#708090','#1a1a1a','#ff6b6b','#e8c090','#ffffff','#3d5a80','#c0392b'];
-const SKIN_COLORS  = [
-  '#fdf0e8','#fde8d0','#fcd9c0','#f8d5b0',
-  '#f5c89f','#f0b98e','#e8a876','#d4956a',
-  '#c68642','#b87340','#a86035','#a0522d',
-  '#8b4513','#7b3f2c','#6b3422','#5c2e1a',
-  '#4a2010','#3d1a0c','#2d1009','#1c0806',
-];
-const SHIRT_COLORS = ['#4d96ff','#ff6b9d','#4ecdc4','#6bcf7f','#ffd23f','#ff6347','#9b59b6','#2c3e50','#e74c3c','#1abc9c','#f97316','#64748b','#ffffff','#000000'];
-const PANTS_COLORS = ['#37474f','#1a237e','#4e342e','#1b5e20','#880e4f','#263238','#000000','#5d4037','#b71c1c','#1565c0'];
-const HAIR_STYLES_MALE: HairStyle[] = ['short', 'medium', 'long', 'shaved', 'copete', 'afro'];
-const HAIR_STYLES_FEMALE: HairStyle[] = ['long', 'short', 'recogido', 'trenzas', 'ondulado', 'afro'];
-const ACCESSORIES: Accessory[] = ['none', 'glasses', 'cap', 'headband', 'earrings', 'scarf'];
-const EXPRESSIONS: Expression[] = ['normal', 'smile', 'serious', 'determined'];
-
-const HAIR_STYLE_LABELS: Record<HairStyle, string> = {
-  short: 'Corto',
-  medium: 'Medio',
-  long: 'Largo',
-  shaved: 'Afeitado',
-  copete: 'Copete',
-  afro: 'Afro',
-  recogido: 'Recogido',
-  trenzas: 'Trenzas',
-  ondulado: 'Ondulado',
-};
-
-const ACCESSORY_LABELS: Record<Accessory, string> = {
-  none: 'Ninguno',
-  glasses: 'Gafas',
-  cap: 'Gorro',
-  headband: 'Diadema',
-  earrings: 'Aretes',
-  scarf: 'Bufanda',
-};
-
-const EXPRESSION_LABELS: Record<Expression, string> = {
-  normal: 'Normal',
-  smile: 'Sonriente',
-  serious: 'Serio',
-  determined: 'Decidido',
-};
+import type { AvatarConfig, AvatarMode } from '@lifequest/shared';
+import { Badge, Button, Field, Input, ResponsiveDialog, Tabs } from '@/components/ui/lq';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
 }
-
-const DEFAULT_AVATAR: AvatarConfig = {
-  bodyType: 'male',
-  hairStyle: 'short',
-  hairColor: '#2c1810',
-  skinColor: '#c68642',
-  shirtColor: '#4d96ff',
-  pants: '#37474f',
-  accessory: 'none',
-  expression: 'normal',
-  pet: null,
-};
 
 function compressAndResizeImage(file: File, maxWidth = 350, maxHeight = 350): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -217,13 +163,11 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
   const { user, updateUser } = useAuthStore();
   const toast = useToast();
   const [activeTab, setActiveTab] = useState<AvatarTab>(() => initialTabFor(user?.avatarConfig, user?.avatarUrl));
-  const [config, setConfig] = useState<AvatarConfig>(user?.avatarConfig ?? DEFAULT_AVATAR);
+  const [config, setConfig] = useState<AvatarConfig>(withDefaults(user?.avatarConfig));
   const [photoUrl, setPhotoUrl] = useState<string>(user?.avatarUrl ?? '');
   const [skinUrl, setSkinUrl] = useState<string>(() => readMinecraftSkinDraft(user?.id) || user?.avatarConfig?.minecraftSkinUrl || '');
   const [urlInput, setUrlInput] = useState<string>('');
   const [saving, setSaving] = useState(false);
-  // Focus trap, Escape y devolución del foco como los modales del rediseño.
-  const panelRef = useDialogBehavior(isOpen, onClose);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const skinInputRef = useRef<HTMLInputElement>(null);
   const initializedModalUserRef = useRef<string | undefined>(undefined);
@@ -240,7 +184,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
     // in-progress preview when that refresh is for the same signed-in user.
     if (hasInitializedModalRef.current && initializedModalUserRef.current === user?.id) return;
 
-    setConfig(user?.avatarConfig ?? DEFAULT_AVATAR);
+    setConfig(withDefaults(user?.avatarConfig));
     setPhotoUrl(user?.avatarUrl ?? '');
     setSkinUrl(readMinecraftSkinDraft(user?.id) || user?.avatarConfig?.minecraftSkinUrl || '');
     setUrlInput('');
@@ -249,10 +193,6 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
     hasInitializedModalRef.current = true;
   }, [isOpen, user]);
 
-  const update = (key: keyof AvatarConfig) => (value: string) =>
-    setConfig((c) => ({ ...c, [key]: value }));
-
-  const hairStyles = (config.bodyType === 'female') ? HAIR_STYLES_FEMALE : HAIR_STYLES_MALE;
   const savedSkinUrl = user?.avatarConfig?.minecraftSkinUrl ?? '';
   const hasUnsavedSkinDraft = Boolean(skinUrl && skinUrl !== savedSkinUrl);
 
@@ -261,7 +201,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
     try {
       const nextConfig: AvatarConfig = { ...config, avatarMode: 'pixel' };
       const updatedUser = await updateAvatar(nextConfig);
-      setConfig(updatedUser.avatarConfig);
+      setConfig(withDefaults(updatedUser.avatarConfig));
       updateUser(updatedUser);
       toast.success('¡Avatar pixel guardado!');
       onClose();
@@ -320,7 +260,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
       const mode: AvatarMode = photoUrl.trim() ? 'photo' : skinUrl ? 'minecraft' : 'pixel';
       await updateAvatar({ ...config, avatarMode: mode });
       const updatedUser = await updateProfile({ avatarUrl: photoUrl.trim() || null });
-      setConfig(updatedUser.avatarConfig);
+      setConfig(withDefaults(updatedUser.avatarConfig));
       updateUser(updatedUser);
       toast.success(photoUrl ? '¡Foto de perfil actualizada!' : 'Foto de perfil eliminada.');
       onClose();
@@ -337,7 +277,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
       const mode: AvatarMode = skinUrl ? 'minecraft' : 'pixel';
       await updateAvatar({ ...config, avatarMode: mode });
       const updatedUser = await updateProfile({ avatarUrl: null });
-      setConfig(updatedUser.avatarConfig);
+      setConfig(withDefaults(updatedUser.avatarConfig));
       setPhotoUrl('');
       updateUser(updatedUser);
       toast.success(skinUrl ? 'Foto eliminada, se usará tu skin de Minecraft.' : 'Foto eliminada, se usará tu avatar pixel.');
@@ -365,7 +305,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
         throw new Error('SKIN_NOT_PERSISTED');
       }
       clearMinecraftSkinDraft(user?.id);
-      setConfig(updatedUser.avatarConfig);
+      setConfig(withDefaults(updatedUser.avatarConfig));
       updateUser(updatedUser);
       toast.success('¡Skin de Minecraft guardada y equipada!');
       onClose();
@@ -388,7 +328,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
         minecraftSkinUrl: null,
       });
       clearMinecraftSkinDraft(user?.id);
-      setConfig(updatedUser.avatarConfig);
+      setConfig(withDefaults(updatedUser.avatarConfig));
       setSkinUrl('');
       updateUser(updatedUser);
       toast.success(photoUrl ? 'Skin eliminada, se usará tu foto de perfil.' : 'Skin eliminada, se usará tu avatar pixel.');
@@ -399,422 +339,102 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
     }
   };
 
+  const panelId = useId();
+  const tabs = [
+    { value: 'pixel' as const, label: 'Pixel' },
+    { value: 'photo' as const, label: 'Foto' },
+    { value: 'minecraft' as const, label: 'Skin MC' },
+  ];
+
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          <motion.div
-            className="fixed inset-0 z-[190] bg-black/60 backdrop-blur-sm"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-          />
-          <motion.div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Personalizar apariencia"
-            className="fixed inset-0 z-[200] flex items-end justify-center p-0 sm:items-center sm:p-4"
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-          >
-            <div ref={panelRef} className="flex max-h-[88dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl border-4 border-[var(--accent-gold)] bg-[var(--bg-panel)] shadow-pixel-gold sm:max-h-[90vh] sm:rounded-xl">
-              {/* Header */}
-              <motion.div className="flex items-center justify-between p-4 border-b-2 border-[var(--accent-gold)]/30 bg-gradient-to-r from-[var(--accent-gold)]/10 to-transparent">
-                <h2 className="font-pixel text-[var(--accent-gold)] text-xs flex items-center gap-2">
-                  <span><E e="✨" /> APARIENCIA <E e="✨" /></span>
-                </h2>
-                <motion.button
-                  type="button"
-                  aria-label="Cerrar apariencia"
-                  onClick={onClose}
-                  whileHover={{ scale: 1.1, rotate: 90 }}
-                  whileTap={{ scale: 0.9 }}
-                  className="flex h-11 w-11 items-center justify-center text-[var(--text-secondary)] transition-colors hover:text-[var(--accent-gold)] sm:h-8 sm:w-8"
-                >
-                  <X size={18} />
-                </motion.button>
-              </motion.div>
+    <ResponsiveDialog open={isOpen} onClose={onClose} title="Personaliza tu avatar" className="md:max-w-[560px]">
+      <Tabs label="Tipo de avatar" value={activeTab} onChange={setActiveTab} options={tabs} />
 
-              {/* Tabs Selector */}
-              <div className="flex border-b border-[var(--border)] bg-[var(--bg-panel-light)]">
-                <button
-                  onClick={() => setActiveTab('photo')}
-                  className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 px-1 py-2.5 text-xs font-semibold transition-all ${
-                    activeTab === 'photo'
-                      ? 'bg-[var(--bg-panel)] text-[var(--accent-gold)] border-b-2 border-[var(--accent-gold)]'
-                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                  }`}
-                >
-                  <Camera size={14} />
-                  <span>Foto</span>
-                </button>
-                <button
-                  onClick={() => setActiveTab('minecraft')}
-                  className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 px-1 py-2.5 text-xs font-semibold transition-all ${
-                    activeTab === 'minecraft'
-                      ? 'bg-[var(--bg-panel)] text-[var(--accent-gold)] border-b-2 border-[var(--accent-gold)]'
-                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                  }`}
-                >
-                  <span aria-hidden="true"><E e="⛏" s={12} /></span>
-                  <span>Skin MC</span>
-                </button>
-                <button
-                  onClick={() => setActiveTab('pixel')}
-                  className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 px-1 py-2.5 text-xs font-semibold transition-all ${
-                    activeTab === 'pixel'
-                      ? 'bg-[var(--bg-panel)] text-[var(--accent-gold)] border-b-2 border-[var(--accent-gold)]'
-                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                  }`}
-                >
-                  <UserIcon size={14} />
-                  <span>Pixel</span>
-                </button>
-              </div>
-
-              {/* Tab Content */}
-              <div className="p-5 space-y-5 overflow-y-auto flex-1">
-                {activeTab === 'photo' ? (
-                  /* ── TAB FOTO DE PERFIL ── */
-                  <div className="space-y-5">
-                    <div className="text-center">
-                      <p className="text-xs text-[var(--text-secondary)] mb-3">
-                        Sube una foto real desde tu dispositivo o ingresa un enlace de imagen.
-                      </p>
-
-                      {/* Vista previa de la foto */}
-                      <div className="relative inline-block my-2">
-                        <div className="w-32 h-32 rounded-full border-4 border-[var(--accent-gold)] shadow-lg overflow-hidden bg-[var(--bg-panel-light)] flex items-center justify-center mx-auto">
-                          {photoUrl ? (
-                            <img
-                              src={photoUrl}
-                              alt="Vista previa"
-                              className="w-full h-full object-cover"
-                              onError={() => {
-                                toast.error('No se pudo cargar la imagen desde el enlace.');
-                              }}
-                            />
-                          ) : (
-                            <MiguelSprite
-                              size={120}
-                              bodyType={config.bodyType}
-                              hairStyle={config.hairStyle}
-                              hairColor={config.hairColor}
-                              skinColor={config.skinColor}
-                              shirtColor={config.shirtColor}
-                              pantsColor={config.pants}
-                              accessory={config.accessory}
-                              expression={config.expression}
-                              animate="idle"
-                            />
-                          )}
-                        </div>
-                        {photoUrl && (
-                          <span className="absolute bottom-1 right-1 bg-[var(--accent-green)] text-white text-xs font-bold px-2 py-0.5 rounded-full shadow">
-                            Foto activa
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Botón para subir desde el dispositivo */}
-                    <div>
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        onChange={handleFileSelect}
-                        accept="image/*"
-                        className="hidden"
-                      />
-                      <PixelButton
-                        variant="primary"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="w-full flex items-center justify-center gap-2 text-xs py-2.5"
-                      >
-                        <Upload size={16} />
-                        <span>Subir desde dispositivo</span>
-                      </PixelButton>
-                    </div>
-
-                    {/* Separador */}
-                    <div className="flex items-center my-3">
-                      <div className="flex-1 border-t border-[var(--border)]" />
-                      <span className="px-3 text-sm text-[var(--text-muted)] font-medium">o por enlace</span>
-                      <div className="flex-1 border-t border-[var(--border)]" />
-                    </div>
-
-                    {/* Input para URL de imagen */}
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-[var(--text-secondary)] flex items-center gap-1.5">
-                        <LinkIcon size={14} />
-                        <span>URL de imagen web</span>
-                      </label>
-                      <div className="flex gap-2">
-                        <input
-                          type="url"
-                          value={urlInput}
-                          onChange={(e) => setUrlInput(e.target.value)}
-                          placeholder="https://ejemplo.com/foto.jpg"
-                          className="min-h-11 flex-1 rounded-lg border border-[var(--border)] bg-[var(--bg-panel-light)] px-3 py-1.5 text-base text-[var(--text-primary)] focus:border-[var(--accent-gold)] focus:outline-none"
-                        />
-                        <PixelButton variant="secondary" onClick={handleApplyUrl} className="text-xs px-3">
-                          Ver
-                        </PixelButton>
-                      </div>
-                    </div>
-
-                    {/* Acciones de foto */}
-                    <div className="pt-3 border-t border-[var(--border)] space-y-2">
-                      <PixelButton
-                        variant="primary"
-                        onClick={handleSavePhotoProfile}
-                        disabled={saving}
-                        className="w-full text-xs py-2"
-                      >
-                        {saving ? 'Guardando...' : <><E e="💾" s={11} /> Guardar Foto de Perfil</>}
-                      </PixelButton>
-
-                      {user?.avatarUrl && (
-                        <button
-                          onClick={handleRemovePhoto}
-                          disabled={saving}
-                          className="w-full text-xs text-[var(--accent-red)] hover:underline flex items-center justify-center gap-1.5 py-1"
-                        >
-                          <Trash2 size={13} />
-                          <span>Eliminar foto y usar otro estilo</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ) : activeTab === 'minecraft' ? (
-                  /* ── TAB SKIN DE MINECRAFT ── */
-                  <div className="space-y-5">
-                    <div className="text-center">
-                      <p className="text-xs leading-5 text-[var(--text-secondary)]">
-                        Sube una textura PNG de Minecraft. La skin se renderiza como tu personaje en 3D sin eliminar tu foto de perfil ni tu avatar pixel.
-                      </p>
-                    </div>
-
-                    <div className="flex min-h-[224px] items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--bg-deep)] px-4 py-5 shadow-inner">
-                      {skinUrl ? (
-                        <motion.div
-                          key={skinUrl}
-                          initial={{ opacity: 0, scale: 0.9 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{ type: 'spring', stiffness: 260, damping: 20 }}
-                        >
-                          <MinecraftSkinAvatar skinUrl={skinUrl} size={164} animate="idle" />
-                        </motion.div>
-                      ) : (
-                        <div className="max-w-[230px] text-center">
-                          <span className="text-3xl" aria-hidden="true"><E e="⛏" /></span>
-                          <p className="mt-3 text-sm font-semibold text-[var(--text-primary)]">Tu skin aparecerá aquí</p>
-                          <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">Aceptamos skins Java modernas de 64×64 y clásicas de 64×32.</p>
-                        </div>
-                      )}
-                    </div>
-
-                    <input
-                      ref={skinInputRef}
-                      type="file"
-                      accept="image/png,.png"
-                      onChange={handleSkinFileSelect}
-                      className="hidden"
-                    />
-                    <PixelButton
-                      variant="primary"
-                      onClick={() => skinInputRef.current?.click()}
-                      className="flex w-full items-center justify-center gap-2 py-2.5 text-xs"
-                    >
-                      <Upload size={16} />
-                      <span>{skinUrl ? 'Cambiar skin de Minecraft' : 'Subir skin de Minecraft'}</span>
-                    </PixelButton>
-
-                    {hasUnsavedSkinDraft && (
-                      <div role="status" className="rounded-xl border border-[var(--accent-gold)]/35 bg-[var(--accent-gold)]/10 px-3 py-2.5 text-xs leading-5 text-[var(--text-secondary)]">
-                        <strong className="font-semibold text-[var(--accent-gold)]">Vista previa temporal.</strong> Guarda y equipa la skin para aplicarla en tu personaje. Si el navegador suspende la pestaña, esta selección seguirá disponible al volver a abrir este panel.
-                      </div>
-                    )}
-
-                    <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel-light)] px-3 py-2.5 text-xs leading-5 text-[var(--text-secondary)]">
-                      <strong className="font-semibold text-[var(--text-primary)]">Formato:</strong> PNG de 64×64 píxeles. Las skins clásicas de 64×32 se adaptan automáticamente. La textura sólo se guarda en tu perfil al usar el botón de abajo; no se envía a un visor externo.
-                    </div>
-
-                    <div className="space-y-2 border-t border-[var(--border)] pt-3">
-                      <PixelButton
-                        variant="primary"
-                        onClick={handleSaveMinecraftSkin}
-                        disabled={saving || !skinUrl}
-                        className="w-full py-2 text-xs"
-                      >
-                        {saving ? 'GUARDANDO...' : <><E e="⛏" s={11} /> {hasUnsavedSkinDraft ? 'GUARDAR Y EQUIPAR SKIN' : 'EQUIPAR SKIN'}</>}
-                      </PixelButton>
-
-                      {(skinUrl || user?.avatarConfig?.minecraftSkinUrl) && (
-                        <button
-                          onClick={handleRemoveMinecraftSkin}
-                          disabled={saving}
-                          className="flex w-full items-center justify-center gap-1.5 py-1 text-xs text-[var(--accent-red)] hover:underline"
-                        >
-                          <Trash2 size={13} />
-                          <span>Eliminar skin y usar otro estilo</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
+      <div role="tabpanel" id={panelId} aria-label={tabs.find((t) => t.value === activeTab)?.label} className="flex flex-col gap-6">
+        {activeTab === 'photo' ? (
+          <>
+            <p className="text-body-md text-on-surface-light">Sube una foto desde tu dispositivo o pega el enlace de una imagen.</p>
+            <div className="relative flex justify-center pb-3">
+              <span className="flex size-36 items-center justify-center overflow-hidden rounded-full bg-surface-variant shadow-[0_0_0_4px_rgb(var(--lq-background)),0_0_0_6px_rgb(var(--lq-primary)/0.4)]">
+                {photoUrl ? (
+                  <img src={photoUrl} alt="Vista previa de tu foto" className="size-full object-cover" onError={() => toast.error('No se pudo cargar la imagen desde el enlace.')} />
                 ) : (
-                  /* ── TAB AVATAR PIXEL ── */
-                  <div className="space-y-5">
-                    <div>
-                      <label className="font-pixel text-[var(--accent-gold)] block mb-2 text-xs">
-                        GÉNERO
-                      </label>
-                      <div className="grid grid-cols-2 gap-1.5">
-                        {(['male', 'female'] as const).map((gender) => (
-                          <motion.button
-                            key={gender}
-                            onClick={() => {
-                              update('bodyType')(gender);
-                              setConfig((c) => {
-                                const femaleStyles: HairStyle[] = ['long', 'short', 'recogido', 'trenzas', 'ondulado', 'afro'];
-                                const maleStyles: HairStyle[] = ['short', 'medium', 'long', 'shaved', 'copete', 'afro'];
-                                const validStyles = gender === 'female' ? femaleStyles : maleStyles;
-                                return {
-                                  ...c,
-                                  bodyType: gender,
-                                  hairStyle: validStyles.includes(c.hairStyle) ? c.hairStyle : validStyles[0],
-                                };
-                              });
-                            }}
-                            whileHover={{ scale: 1.03 }}
-                            whileTap={{ scale: 0.97 }}
-                            className={`min-h-11 px-1.5 py-1.5 font-vt text-xs border-2 transition-all rounded-lg ${
-                              config.bodyType === gender
-                                ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)]/20 text-[var(--accent-gold)] font-bold shadow-pixel-gold'
-                                : 'border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--accent-gold)]'
-                            }`}
-                          >
-                            {gender === 'male' ? <><E e="♂" s={11} /> Masculino</> : <><E e="♀" s={11} /> Femenino</>}
-                          </motion.button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="flex justify-center py-2">
-                      <motion.div
-                        key={JSON.stringify(config)}
-                        initial={{ scale: 0.8, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                        className="relative"
-                      >
-                        <div className="absolute inset-0 rounded-2xl" style={{ background: 'radial-gradient(circle at center, rgba(212,160,23,0.1), transparent)' }} />
-                        <MiguelSprite
-                          size={140}
-                          bodyType={config.bodyType}
-                          hairStyle={config.hairStyle}
-                          hairColor={config.hairColor}
-                          skinColor={config.skinColor}
-                          shirtColor={config.shirtColor}
-                          pantsColor={config.pants}
-                          accessory={config.accessory}
-                          expression={config.expression}
-                          animate="celebrate"
-                        />
-                      </motion.div>
-                    </div>
-
-                    <div>
-                      <label className="font-pixel text-[var(--accent-gold)] block mb-2 text-xs">
-                        ESTILOS DE CABELLO
-                      </label>
-                      <div className="grid grid-cols-3 gap-1.5">
-                        {hairStyles.map((style) => (
-                          <motion.button
-                            key={style}
-                            onClick={() => update('hairStyle')(style)}
-                            whileHover={{ scale: 1.03 }}
-                            whileTap={{ scale: 0.97 }}
-                            className={`min-h-11 px-1.5 py-1.5 font-vt text-xs border-2 transition-all rounded-lg ${
-                              config.hairStyle === style
-                                ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)]/20 text-[var(--accent-gold)] font-bold shadow-pixel-gold'
-                                : 'border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--accent-gold)]'
-                            }`}
-                          >
-                            {HAIR_STYLE_LABELS[style]}
-                          </motion.button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <ColorPicker label="CABELLO" value={config.hairColor} colors={HAIR_COLORS} onChange={update('hairColor')} />
-                    <ColorPicker label="PIEL" value={config.skinColor} colors={SKIN_COLORS} onChange={update('skinColor')} />
-                    <ColorPicker label="CAMISA" value={config.shirtColor} colors={SHIRT_COLORS} onChange={update('shirtColor')} />
-                    <ColorPicker label="PANTALÓN" value={config.pants} colors={PANTS_COLORS} onChange={update('pants')} />
-
-                    <div>
-                      <label className="font-pixel text-[var(--accent-gold)] block mb-2 text-xs">
-                        ACCESORIOS
-                      </label>
-                      <div className="grid grid-cols-3 gap-1.5">
-                        {ACCESSORIES.map((acc) => (
-                          <motion.button
-                            key={acc}
-                            onClick={() => update('accessory')(acc)}
-                            whileHover={{ scale: 1.03 }}
-                            whileTap={{ scale: 0.97 }}
-                            className={`min-h-11 px-1.5 py-1.5 font-vt text-xs border-2 transition-all rounded-lg ${
-                              config.accessory === acc
-                                ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)]/20 text-[var(--accent-gold)] font-bold shadow-pixel-gold'
-                                : 'border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--accent-gold)]'
-                            }`}
-                          >
-                            {ACCESSORY_LABELS[acc]}
-                          </motion.button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="font-pixel text-[var(--accent-gold)] block mb-2 text-xs">
-                        EXPRESIÓN
-                      </label>
-                      <div className="grid grid-cols-2 gap-1.5">
-                        {EXPRESSIONS.map((expr) => (
-                          <motion.button
-                            key={expr}
-                            onClick={() => update('expression')(expr)}
-                            whileHover={{ scale: 1.03 }}
-                            whileTap={{ scale: 0.97 }}
-                            className={`min-h-11 px-1.5 py-1.5 font-vt text-xs border-2 transition-all rounded-lg ${
-                              config.expression === expr
-                                ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)]/20 text-[var(--accent-gold)] font-bold shadow-pixel-gold'
-                                : 'border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--accent-gold)]'
-                            }`}
-                          >
-                            {EXPRESSION_LABELS[expr]}
-                          </motion.button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="flex gap-3 pt-3 border-t border-[var(--border)]">
-                      <PixelButton variant="ghost" onClick={onClose} className="flex-1 text-xs">
-                        CANCELAR
-                      </PixelButton>
-                      <PixelButton variant="primary" onClick={handleSavePixelAvatar} disabled={saving} className="flex-1 text-xs">
-                        {saving ? 'GUARDANDO...' : <><E e="✨" s={11} /> GUARDAR</>}
-                      </PixelButton>
-                    </div>
-                  </div>
+                  <AvatarPreview config={config} size={104} className="bg-transparent" />
                 )}
-              </div>
+              </span>
+              {photoUrl && <Badge variant="success" className="absolute bottom-0 left-1/2 -translate-x-1/2">Foto activa</Badge>}
             </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+            <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept="image/*" className="hidden" tabIndex={-1} />
+            <Button variant="secondary" block onClick={() => fileInputRef.current?.click()}>
+              <Upload aria-hidden className="size-5" strokeWidth={1.75} />Subir desde el dispositivo
+            </Button>
+            <div className="flex items-end gap-2">
+              <Field label="O pega un enlace" className="flex-1">
+                <Input type="url" value={urlInput} onChange={(e) => setUrlInput(e.target.value)} placeholder="https://ejemplo.com/foto.jpg" />
+              </Field>
+              <Button variant="secondary" onClick={handleApplyUrl} disabled={!urlInput.trim()} className="min-h-12">
+                <LinkIcon aria-hidden className="size-5" strokeWidth={1.75} />Ver
+              </Button>
+            </div>
+            <div className="flex flex-col gap-2 border-t border-border pt-4">
+              <Button size="lg" block loading={saving} onClick={handleSavePhotoProfile}>Guardar foto de perfil</Button>
+              {user?.avatarUrl && (
+                <Button variant="danger" block disabled={saving} onClick={handleRemovePhoto}>
+                  <Trash2 aria-hidden className="size-5" strokeWidth={1.75} />Quitar foto
+                </Button>
+              )}
+            </div>
+          </>
+        ) : activeTab === 'minecraft' ? (
+          <>
+            <p className="text-body-md text-on-surface-light">Sube una textura PNG de Minecraft; se dibuja como tu personaje en 3D sin borrar tu foto ni tu avatar pixel.</p>
+            <div className="flex min-h-[224px] items-center justify-center rounded-2xl border border-border bg-surface p-5">
+              {skinUrl ? (
+                <motion.div key={skinUrl} initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }}>
+                  <MinecraftSkinAvatar skinUrl={skinUrl} size={164} animate="idle" />
+                </motion.div>
+              ) : (
+                <div className="flex max-w-[240px] flex-col items-center gap-2 text-center">
+                  <Box aria-hidden className="size-8 text-on-surface-light" strokeWidth={1.5} />
+                  <p className="text-label-lg">Tu skin aparecerá aquí</p>
+                  <p className="text-body-sm text-on-surface-light">Skins Java de 64×64 o clásicas de 64×32.</p>
+                </div>
+              )}
+            </div>
+            <input ref={skinInputRef} type="file" accept="image/png,.png" onChange={handleSkinFileSelect} className="hidden" tabIndex={-1} />
+            <Button variant="secondary" block onClick={() => skinInputRef.current?.click()}>
+              <Upload aria-hidden className="size-5" strokeWidth={1.75} />{skinUrl ? 'Cambiar skin' : 'Subir skin'}
+            </Button>
+            {hasUnsavedSkinDraft && (
+              <p role="status" className="rounded-xl bg-warning/[var(--lq-soft-alpha)] px-4 py-3 text-body-sm text-warning-text">
+                <b>Vista previa temporal.</b> Guarda y equipa la skin para aplicarla. Si cierras la pestaña, la selección se conserva al volver.
+              </p>
+            )}
+            <p className="text-body-sm text-on-surface-light">PNG de 64×64 (las de 64×32 se adaptan). Solo se guarda en tu perfil al pulsar el botón; no se envía a ningún visor externo.</p>
+            <div className="flex flex-col gap-2 border-t border-border pt-4">
+              <Button size="lg" block loading={saving} disabled={!skinUrl} onClick={handleSaveMinecraftSkin}>
+                {hasUnsavedSkinDraft ? 'Guardar y equipar skin' : 'Equipar skin'}
+              </Button>
+              {(skinUrl || user?.avatarConfig?.minecraftSkinUrl) && (
+                <Button variant="danger" block disabled={saving} onClick={handleRemoveMinecraftSkin}>
+                  <Trash2 aria-hidden className="size-5" strokeWidth={1.75} />Quitar skin
+                </Button>
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex justify-center">
+              <AvatarPreview config={config} size={96} />
+            </div>
+            <AvatarPixelEditor config={config} onChange={setConfig} />
+            <div className="sticky bottom-0 -mx-4 -mb-8 flex gap-2 border-t border-border bg-background px-4 pb-4 pt-4 md:-mx-6 md:-mb-6 md:px-6">
+              <Button variant="ghost" onClick={onClose} className="flex-1">Cancelar</Button>
+              <Button size="lg" loading={saving} onClick={handleSavePixelAvatar} className="flex-1">Guardar</Button>
+            </div>
+          </>
+        )}
+      </div>
+    </ResponsiveDialog>
   );
 }
