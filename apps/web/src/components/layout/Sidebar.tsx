@@ -4,6 +4,8 @@
 // así que nada se reacomoda: los íconos no se mueven y el texto aparece
 // revelado por el borde + un fundido. El panel EMPUJA la página: su contenedor
 // anima el ancho 72→256 px (abre en 520 ms, cierra en 320 ms) y la página se comprime.
+// Con "reducir movimiento" del sistema el crecimiento se mantiene (.lq-grow en tokens.css)
+// y el texto solo hace fundido; el ajuste de la app lo desactiva del todo.
 // El scroll interno es siempre el mismo elemento, así que su posición se conserva al
 // abrir y cerrar; el hueco de la barra está reservado y solo se pinta desplegado.
 import { useEffect, useId, useRef, useState, type FocusEvent, type PointerEvent } from 'react';
@@ -49,7 +51,7 @@ function SideLink({ to, label, icon: Icon }: NavEntry) {
       <span
         aria-hidden
         className={cn(
-          'absolute inset-y-0 left-0 w-12 rounded-[10px] transition-[width,background-color] duration-[320ms] ease-[cubic-bezier(.4,0,.2,1)] group-data-[open=true]/side:w-full group-data-[open=true]/side:duration-[520ms] group-data-[open=true]/side:ease-[cubic-bezier(.22,1,.36,1)]',
+          'lq-grow absolute inset-y-0 left-0 w-12 rounded-[10px] transition-[width,background-color] duration-[320ms] ease-[cubic-bezier(.4,0,.2,1)] group-data-[open=true]/side:w-full group-data-[open=true]/side:duration-[520ms] group-data-[open=true]/side:ease-[cubic-bezier(.22,1,.36,1)]',
           active ? 'bg-primary/[var(--lq-soft-alpha)]' : 'group-hover/link:bg-surface-variant',
         )}
       />
@@ -195,7 +197,7 @@ export function Sidebar({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        'relative w-[72px] shrink-0 transition-[width] duration-[320ms] ease-[cubic-bezier(.4,0,.2,1)] has-[[data-open=true]]:w-64 has-[[data-open=true]]:duration-[520ms] has-[[data-open=true]]:ease-[cubic-bezier(.22,1,.36,1)] motion-reduce:transition-none',
+        'lq-grow relative w-[72px] shrink-0 transition-[width] duration-[320ms] ease-[cubic-bezier(.4,0,.2,1)] has-[[data-open=true]]:w-64 has-[[data-open=true]]:duration-[520ms] has-[[data-open=true]]:ease-[cubic-bezier(.22,1,.36,1)]',
         className,
       )}
     >
@@ -236,7 +238,7 @@ export function Sidebar({ className }: { className?: string }) {
                 }}
                 className="group/link relative flex min-h-11 items-center gap-3 rounded-[10px] px-3 text-label-lg text-on-surface-light transition-colors hover:text-on-surface"
               >
-                <span aria-hidden className="absolute inset-y-0 left-0 w-12 rounded-[10px] transition-[width,background-color] duration-300 ease-out group-hover/link:bg-surface-variant group-data-[open=true]/side:w-full" />
+                <span aria-hidden className="lq-grow absolute inset-y-0 left-0 w-12 rounded-[10px] transition-[width,background-color] duration-300 ease-out group-hover/link:bg-surface-variant group-data-[open=true]/side:w-full" />
                 {open
                   ? <PanelLeftClose aria-hidden className="relative size-6 shrink-0" strokeWidth={1.75} />
                   : <PanelLeftOpen aria-hidden className="relative size-6 shrink-0" strokeWidth={1.75} />}
