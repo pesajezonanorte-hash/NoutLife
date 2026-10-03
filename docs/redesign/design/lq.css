@@ -298,3 +298,46 @@ select.input{appearance:none;background-image:none;padding-right:40px}
   .lift:hover,.lift:focus-within,.lift:hover .ichip,.side a.nav:hover .i{transform:none!important}
   .seg.slide .pill{transition:none}
 }
+
+/* ───────── Zones (v2): chips, timeline, quotes, covers, podium ───────── */
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 16px;border-radius:999px;border:1px solid var(--border);background:var(--bg);color:var(--on-surface);font-family:inherit;font-size:.875rem;font-weight:600;cursor:pointer;transition:background-color .2s,color .2s,border-color .2s,transform .2s var(--ease-out)}
+.chip:hover{border-color:var(--primary-ring);color:var(--on-bg)}
+.chip:active{transform:scale(.97)}
+.chip.on{background:var(--primary-soft);border-color:var(--primary-ring);color:var(--primary-text)}
+.chip .i{width:16px;height:16px}
+textarea.input{min-height:132px;resize:vertical;line-height:1.6}
+.t-quote{font-size:1.5rem;font-weight:500;line-height:1.5;letter-spacing:-.2px}
+.t-quote-lg{font-size:2.25rem;font-weight:600;line-height:1.35;letter-spacing:-.4px}
+.cover{position:relative;aspect-ratio:3/4;border-radius:12px;display:flex;align-items:flex-end;padding:14px;overflow:hidden;color:#fff}
+.cover .i{position:absolute;top:14px;right:14px;opacity:.85}
+.day-dot{width:44px;height:44px;border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:.875rem;font-weight:600;flex:none;transition:background-color .2s,color .2s,transform .3s cubic-bezier(.3,1.4,.5,1)}
+.day-dot.done{background:var(--success);color:#fff}
+.lq.dark .day-dot.done{color:#064e3b}
+.day-dot.today{background:var(--bg);color:var(--primary-text);box-shadow:0 0 0 2px var(--primary)}
+.day-dot.rest{background:var(--surface-variant);color:var(--on-surface-light)}
+.step{display:flex;align-items:center;gap:12px;min-height:52px;padding:4px 8px;border-radius:12px;border:0;background:transparent;font-family:inherit;color:inherit;text-align:left;cursor:pointer;width:100%;transition:background-color .15s}
+.step:hover{background:var(--surface-variant)}
+.step .tick{width:28px;height:28px;border-radius:999px;border:2px solid var(--border-strong);display:flex;align-items:center;justify-content:center;color:transparent;flex:none;transition:background-color .2s,border-color .2s,color .2s,transform .25s cubic-bezier(.3,1.4,.5,1)}
+.step.on .tick{background:var(--success);border-color:var(--success);color:#fff;transform:scale(1.08)}
+.lq.dark .step.on .tick{color:#064e3b}
+.step.on .lbl{color:var(--on-surface-light);text-decoration:line-through;text-decoration-color:var(--border-strong)}
+.now-line{position:absolute;left:0;right:0;height:2px;background:var(--error);z-index:2}
+.now-line::before{content:"";position:absolute;left:-5px;top:-4px;width:10px;height:10px;border-radius:50%;background:var(--error);animation:lq-beat 2s ease-in-out infinite}
+.podium{display:flex;align-items:flex-end;justify-content:center;gap:16px}
+.podium .col{flex:1 1 0;max-width:180px;display:flex;flex-direction:column;align-items:center;gap:12px}
+.podium .base{width:100%;border-radius:16px 16px 6px 6px;display:flex;align-items:flex-start;justify-content:center;padding-top:16px;transform-origin:bottom;animation:lq-grow-y .9s cubic-bezier(.2,.8,.2,1) both}
+.avatar{border-radius:999px;display:flex;align-items:center;justify-content:center;font-weight:700;flex:none}
+.typing::after{content:"▍";margin-left:2px;animation:lq-blink 1s steps(1) infinite;color:var(--primary)}
+@keyframes lq-beat{50%{transform:scale(1.5);opacity:.5}}
+@keyframes lq-blink{50%{opacity:0}}
+@media (prefers-reduced-motion:reduce){
+  .now-line::before,.typing::after{animation:none!important}
+  .podium .base{animation:none!important}
+  .chip:active,.step.on .tick{transform:none}
+}
+.side{gap:16px}
+.navgrp{display:flex;flex-direction:column;gap:2px;padding-top:16px;border-top:1px solid var(--border)}
+.side a.nav{min-height:40px}
+.usercard{display:flex;align-items:center;gap:12px;padding:12px;margin-top:12px;border-radius:14px;background:var(--bg);border:1px solid var(--border);text-decoration:none;color:inherit;transition:border-color .2s,box-shadow .2s}
+.usercard:hover{border-color:var(--primary-ring);box-shadow:var(--shadow-md)}

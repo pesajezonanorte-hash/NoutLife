@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Settings Desktop</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./lq.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#4f46e5}a:hover{color:#4338ca}
+</style>
+</helmet>
+<div class="lq app {{theme}}" style="transition: background-color .3s, color .3s">
+  <aside class="side">
+    <a href="DashboardDesktop.dc.html" class="row" style="gap: 12px; padding: 0 8px; text-decoration: none; color: inherit"><span class="ichip primary" style="width: 40px; height: 40px; border-radius: 12px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg></span><span class="t-hs">LifeQuest</span></a>
+    <nav aria-label="Principal" class="navgrp" style="border: 0; padding: 0">
+      <sc-for list="{{nav}}" as="n" hint-placeholder-count="5"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <nav aria-label="Bienestar" class="navgrp"><span class="sec">BIENESTAR</span>
+      <sc-for list="{{nav2}}" as="n" hint-placeholder-count="4"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <nav aria-label="Más zonas" class="navgrp"><span class="sec">MÁS ZONAS</span>
+      <sc-for list="{{nav3}}" as="n" hint-placeholder-count="11"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <nav aria-label="Comunidad" class="navgrp"><span class="sec">COMUNIDAD</span>
+      <sc-for list="{{nav4}}" as="n" hint-placeholder-count="3"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <div class="navgrp" style="margin-top: auto">
+      <sc-for list="{{nav5}}" as="n" hint-placeholder-count="2"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+      <a class="usercard" href="ProfileDesktop.dc.html" aria-label="Tu perfil: Alex Rivera, nivel 12">
+        <span class="avatar t-ll" style="width: 40px; height: 40px; background: var(--primary-soft); color: var(--primary-text)">AR</span>
+        <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px"><span class="t-ll">Alex Rivera</span><span class="t-bs c-3" style="line-height: 1.2">Nivel 12 · Aventurero</span><span class="bar" style="height: 4px"><span style="width: 78%"></span></span></span>
+      </a>
+    </div>
+  </aside>
+  <div class="pane">
+    <header class="topbar">
+      <nav class="crumb" aria-label="Ruta"><a href="DashboardDesktop.dc.html">Inicio</a><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg><span class="c-1" aria-current="page">Ajustes</span></nav>
+      <span class="badge lg badge-neutral">Versión 2.4.0</span>
+    </header>
+
+    <main class="wrap enter">
+      <section style="display: flex; flex-direction: column; gap: 8px">
+        <span class="eyebrow">Espacio personal</span>
+        <h1 class="t-dl">Ajustes</h1>
+        <p class="t-bl c-3">Tu experiencia, tus datos y las herramientas que acompañan tu progreso.</p>
+      </section>
+
+      <div class="seg slide" role="tablist" aria-label="Sección" style="max-width: 600px">
+        <span class="pill" style="width: calc((100% - 20px) / 4); transform: {{tabX}}" aria-hidden="true"></span>
+        <sc-for list="{{tabs}}" as="t" hint-placeholder-count="4"><button class="{{t.cls}}" role="tab" aria-selected="{{t.sel}}" onClick="{{t.pick}}">{{t.label}}</button></sc-for>
+      </div>
+
+      <div class="cols">
+        <section class="main">
+          <sc-if value="{{isProfile}}" hint-placeholder-val="{{ true }}">
+            <div class="card card-lg pop" style="display: flex; flex-direction: column; gap: 24px">
+              <div><span class="eyebrow">Tu identidad</span><h2 class="t-hl">Perfil</h2><p class="t-bs c-3">La información con la que LifeQuest te acompaña cada día.</p></div>
+              <div class="row" style="gap: 20px; flex-wrap: wrap">
+                <span class="avatar t-hl halo" style="width: 88px; height: 88px; background: var(--primary-soft); color: var(--primary-text)">AR</span>
+                <div style="display: flex; flex-direction: column; gap: 8px"><button class="btn btn-secondary btn-md">Cambiar avatar</button><span class="t-bs c-3">PNG o JPG, máximo 2 MB</span></div>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px">
+                <div class="field"><label for="s-name">Nombre de aventurero</label><input id="s-name" class="input" type="text" value="Alex Rivera"></div>
+                <div class="field"><label for="s-mail">Correo</label><input id="s-mail" class="input" type="email" value="alex.rivera@correo.com" disabled="" style="opacity: .7"><span class="help">Se administra desde tu cuenta.</span></div>
+                <div class="field"><label for="s-tz">Zona horaria</label><div style="position: relative"><select id="s-tz" class="input"><option>América/Bogotá (UTC−5)</option><option>América/Ciudad de México</option><option>Europa/Madrid</option></select><svg class="i c-3" viewBox="0 0 24 24" aria-hidden="true" style="position: absolute; right: 12px; top: 12px; pointer-events: none"><path d="m6 9 6 6 6-6"/></svg></div></div>
+                <div class="field"><label for="s-lang">Idioma</label><div style="position: relative"><select id="s-lang" class="input"><option>Español</option><option>English</option><option>Português</option></select><svg class="i c-3" viewBox="0 0 24 24" aria-hidden="true" style="position: absolute; right: 12px; top: 12px; pointer-events: none"><path d="m6 9 6 6 6-6"/></svg></div></div>
+              </div>
+              <div class="row" style="justify-content: flex-end; padding-top: 16px; border-top: 1px solid var(--border)"><button class="btn btn-primary btn-md" onClick="{{save}}" disabled="{{saving}}"><sc-if value="{{saving}}" hint-placeholder-val="{{ false }}"><span class="spin" style="width: 16px; height: 16px; border-width: 2px; border-color: rgba(255,255,255,.35); border-top-color: currentColor"></span></sc-if>{{saveLabel}}</button></div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{isGame}}" hint-placeholder-val="{{ false }}">
+            <div class="card card-lg pop" style="display: flex; flex-direction: column; gap: 0">
+              <div style="margin-bottom: 8px"><span class="eyebrow">Experiencia</span><h2 class="t-hl">Juego</h2></div>
+              <sc-for list="{{toggles}}" as="g" hint-placeholder-count="5">
+                <div class="row" style="gap: 16px; min-height: 76px; border-bottom: {{g.border}}">
+                  <div style="flex: 1"><label for="{{g.id}}" class="t-ll" style="font-size: 16px">{{g.name}}</label><div class="t-bs c-3">{{g.desc}}</div></div>
+                  <span class="switch"><input id="{{g.id}}" type="checkbox" role="switch" checked="{{g.on}}" onChange="{{g.toggle}}"><span></span></span>
+                </div>
+              </sc-for>
+              <div style="display: flex; flex-direction: column; gap: 12px; padding-top: 20px">
+                <span class="t-ll" style="font-size: 16px" id="s-theme">Tema</span>
+                <div class="seg slide" role="radiogroup" aria-labelledby="s-theme" style="max-width: 360px">
+                  <span class="pill" style="width: calc((100% - 16px) / 3); transform: {{modeX}}" aria-hidden="true"></span>
+                  <sc-for list="{{modes}}" as="m" hint-placeholder-count="3"><button class="{{m.cls}}" role="radio" aria-checked="{{m.sel}}" onClick="{{m.pick}}">{{m.label}}</button></sc-for>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{isData}}" hint-placeholder-val="{{ false }}">
+            <div class="card card-lg pop" style="display: flex; flex-direction: column; gap: 20px">
+              <div><span class="eyebrow">Tus datos</span><h2 class="t-hl">Datos</h2><p class="t-bs c-3">Descarga una copia de todo tu progreso cuando quieras.</p></div>
+              <div class="row" style="gap: 12px; flex-wrap: wrap"><button class="btn btn-secondary btn-md"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Exportar JSON</button><button class="btn btn-secondary btn-md"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Exportar CSV</button></div>
+              <div class="row" style="gap: 16px; padding: 20px; border-radius: 16px; background: var(--error-soft); flex-wrap: wrap">
+                <svg class="i c-error" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 21h20z"/><path d="M12 10v5M12 18h.01"/></svg>
+                <div style="flex: 1 1 260px"><div class="t-ll c-error" style="font-size: 16px">Zona de peligro</div><div class="t-bs c-2">Eliminar tu cuenta borra para siempre tu personaje, XP y Gold.</div></div>
+                <button class="btn btn-md" style="background: var(--error-text); color: #fff">Eliminar cuenta</button>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{isAbout}}" hint-placeholder-val="{{ false }}">
+            <div class="card card-lg pop" style="display: flex; flex-direction: column; gap: 16px; align-items: flex-start">
+              <span class="ichip primary lg float"><svg class="i i48" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg></span>
+              <h2 class="t-hl">LifeQuest 2.4.0</h2>
+              <p class="t-bm c-2">Convierte tus hábitos en una aventura. Hecho con cuidado para quienes construyen su mejor versión cada día.</p>
+              <div class="row" style="gap: 8px; flex-wrap: wrap"><a class="btn btn-ghost btn-md" href="#">Novedades</a><a class="btn btn-ghost btn-md" href="#">Privacidad</a><a class="btn btn-ghost btn-md" href="#">Términos</a><a class="btn btn-ghost btn-md" href="#">Contacto</a></div>
+            </div>
+          </sc-if>
+        </section>
+
+        <aside class="aside">
+          <section class="card card-lg" style="display: flex; flex-direction: column; gap: 16px">
+            <div><h2 class="t-hs">Resumen de cuenta</h2><p class="t-bs c-3">Tu avance acompaña tus preferencias.</p></div>
+            <div class="row" style="gap: 12px"><span class="avatar t-ll" style="width: 44px; height: 44px; background: var(--primary-soft); color: var(--primary-text)">AR</span><div><div class="t-ll" style="font-size: 16px">Alex Rivera</div><div class="t-bs c-3">Nivel 12 · racha de 14 días</div></div></div>
+            <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+              <div class="card" style="padding: 12px; background: var(--bg)"><div class="t-bs c-3">Nivel</div><div class="t-hs num">{{lvl}}</div></div>
+              <div class="card" style="padding: 12px; background: var(--bg)"><div class="t-bs c-3">XP</div><div class="t-hs num">{{xp}}</div></div>
+              <div class="card" style="padding: 12px; background: var(--bg)"><div class="t-bs c-3">Gold</div><div class="t-hs num c-warning">{{gold}}</div></div>
+            </div>
+            <div class="bar shine"><span style="width: 78%"></span></div>
+          </section>
+        </aside>
+      </div>
+    </main>
+  </div>
+
+  <sc-if value="{{toast}}" hint-placeholder-val="{{ false }}">
+    <div class="toast toast-dock" role="status">
+      <span class="ichip success"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg></span>
+      <span style="flex: 1">Perfil guardado</span>
+      <button class="btn btn-icon" aria-label="Cerrar" onClick="{{closeToast}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1240}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { k: 0, tab: 'profile', saving: false, toast: false, mode: null, on: { sound: true, confetti: true, streak: true, weekly: false, sabio: true } }; }
+  componentDidMount() {
+    const rm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (rm) { this.setState({ k: 1 }); return; }
+    const t0 = performance.now();
+    const f = n => { const p = Math.min(1, (n - t0) / 1100); this.setState({ k: 1 - Math.pow(1 - p, 3) }); if (p < 1) this._raf = requestAnimationFrame(f); };
+    this._raf = requestAnimationFrame(f);
+  }
+  componentWillUnmount() { cancelAnimationFrame(this._raf); clearTimeout(this._t); }
+  navs(active) {
+    const P = {
+      home: 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z', habits: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0zM8.5 12l2.5 2.5 4.5-5', quests: 'M5 22V4M5 4h12l-2.5 4L17 12H5',
+      arena: 'M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 17.5 21 6V3h-3L6.5 14.5M11 19l-6-6M8 16l-4 4M5 21l-2-2', profile: 'M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM4 21a8 8 0 0 1 16 0',
+      money: 'M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 10h18M16 15h2', food: 'M7 3v18M4 3v6a3 3 0 0 0 6 0V3M17 21V3c-2 1-3 4-3 7h3', sleep: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
+      ach: 'M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3', stats: 'M3 3v18h18M8 16v-5M13 16V8M18 16v-3',
+      gym: 'M6.5 6.5l11 11M21 21l-1-1M3 3l1 1M18 22l4-4M2 6l4-4M3 10l7-7M14 21l7-7', glow: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 3v4M17 5h4',
+      learn: 'M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z', rel: 'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z',
+      diary: 'M5 4h11a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2zM9 8h5M9 12h5M20 7l-6 6', agenda: 'M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM4 10h16M9 2v4M15 2v4',
+      ritual: 'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4', wisdom: 'M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM9 8h6M9 12h6M9 16h3',
+      zones: 'M12 21s-7-6-7-12a7 7 0 0 1 14 0c0 6-7 12-7 12zM12 11.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z', shop: 'M5 8h14l-1 12H6zM9 8V6a3 3 0 0 1 6 0v2',
+      rank: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18', guild: 'M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM2 21a8 8 0 0 1 12-6.9M17 11a3 3 0 1 0 0-6M22 21a6 6 0 0 0-5-5.9',
+      camp: 'M3 21 12 4l9 17zM12 4v17M8 21l4-6 4 6', settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1',
+      help: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.7M12 17h.01',
+    };
+    const mk = a => a.map(([id, label, f]) => ({ label, href: f ? f + '.dc.html' : '#', icon: P[id], cls: id === active ? 'on' : '', cur: id === active ? 'page' : 'false' }));
+    return {
+      nav: mk([['home','Inicio','DashboardDesktop'],['habits','Hábitos','HabitsDesktop'],['quests','Misiones','QuestsDesktop'],['arena','Coliseo','ColosseumDesktop'],['profile','Perfil','ProfileDesktop']]),
+      nav2: mk([['money','Finanzas','FinancesDesktop'],['food','Comida','FoodDesktop'],['sleep','Sueño','SleepDesktop'],['ach','Logros','AchievementsDesktop']]),
+      nav3: mk([['stats','Estadísticas',null],['gym','Gimnasio','GymDesktop'],['glow','Glow up','GlowUpDesktop'],['learn','Aprendizaje','LearningDesktop'],['rel','Relaciones','RelationsDesktop'],['diary','Diario','JournalDesktop'],['agenda','Agenda','AgendaDesktop'],['ritual','Rituales','RitualsDesktop'],['wisdom','Sabiduría','WisdomDesktop'],['zones','Mis zonas','ZonesDesktop'],['shop','Tienda','ShopDesktop']]),
+      nav4: mk([['rank','Ranking','RankingDesktop'],['guild','Gremio',null],['camp','Campaña',null]]),
+      nav5: mk([['settings','Ajustes','SettingsDesktop'],['help','Ayuda',null]]),
+    };
+  }
+  renderVals() {
+    const s = this.state, k = s.k;
+    const fmt = n => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    const to = [['profile','Perfil'],['game','Juego'],['data','Datos'],['about','Acerca de']];
+    const ti = to.findIndex(o => o[0] === s.tab);
+    const tg = [['sound','Sonidos','Efectos al completar hábitos y misiones'],['confetti','Celebraciones','Confeti y animaciones de logro'],['streak','Aviso de racha','Recordatorio si tu racha está en riesgo'],['weekly','Resumen semanal','Un correo cada domingo con tu progreso'],['sabio','Sugerencias del Sabio','Ideas personalizadas en cada zona']];
+    const toggles = tg.map(([id, name, desc], i) => ({ id: 'tg-' + id, name, desc, on: !!s.on[id], border: i < tg.length - 1 ? '1px solid var(--border)' : '0',
+      toggle: () => this.setState({ on: { ...this.state.on, [id]: !this.state.on[id] } }) }));
+    const mode = s.mode ?? ((this.props.dark ?? false) ? 'dark' : 'light');
+    const mo = [['light','Claro'],['dark','Oscuro'],['auto','Auto']];
+    const mi = mo.findIndex(o => o[0] === mode);
+    return {
+      theme: mode === 'dark' ? 'dark' : '', ...this.navs('settings'),
+      tabs: to.map(([id, label]) => ({ label, cls: s.tab === id ? 'on' : '', sel: s.tab === id ? 'true' : 'false', pick: () => this.setState({ tab: id }) })),
+      tabX: `translateX(calc(${ti} * (100% + 4px)))`,
+      isProfile: s.tab === 'profile', isGame: s.tab === 'game', isData: s.tab === 'data', isAbout: s.tab === 'about',
+      toggles, modes: mo.map(([id, label]) => ({ label, cls: mode === id ? 'on' : '', sel: mode === id ? 'true' : 'false', pick: () => this.setState({ mode: id }) })),
+      modeX: `translateX(calc(${mi} * (100% + 4px)))`,
+      lvl: Math.round(12 * k), xp: fmt(3260 * k), gold: fmt(1565 * k),
+      saving: s.saving, saveLabel: s.saving ? 'Guardando…' : 'Guardar perfil',
+      save: () => { this.setState({ saving: true }); clearTimeout(this._t); this._t = setTimeout(() => { this.setState({ saving: false, toast: true }); this._t = setTimeout(() => this.setState({ toast: false }), 4000); }, 1100); },
+      toast: s.toast, closeToast: () => this.setState({ toast: false }),
+    };
+  }
+}
+</script>
+</body>
+</html>
