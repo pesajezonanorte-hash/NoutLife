@@ -1,310 +1,245 @@
-import { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
-import { X, Send, Sparkles, Sword, BarChart2, DollarSign, Dumbbell } from 'lucide-react';
+// El Sabio — consejero IA. Cajón a la derecha en md+ (el disparador vive en la
+// Topbar, a la derecha), pantalla completa en móvil. Modal: foco atrapado,
+// Escape cierra, el foco vuelve al disparador. Historial (8 últimos) en
+// localStorage como antes; la conversación es un role="log".
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
+import { createPortal } from 'react-dom';
+import { motion, useReducedMotionConfig, type Variants } from 'framer-motion';
+import { BarChart2, Dumbbell, Send, Sparkles, Sword, Trash2, Wallet, X, type LucideIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { ease, scrim } from '@/lib/motion';
 import {
-  sageChat,
-  sageSuggestQuests,
-  sageAnalyzeHabits,
-  sageAnalyzeFinances,
-  sagePlanWorkout,
-} from '../../services/sage.service';
-import { useUIStore } from '../../store/uiStore';
-import { E } from '@/components/ui/glyphs';
-
-interface Props {
-  onClose: () => void;
-}
-
-type TabId = 'chat' | 'quests' | 'habits' | 'finances' | 'gym';
+  sageAnalyzeFinances, sageAnalyzeHabits, sageChat, sagePlanWorkout, sageSuggestQuests,
+} from '@/services/sage.service';
+import { useUIStore } from '@/store/uiStore';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { Button, IconChip, Input, useDialogBehavior } from '@/components/ui/lq';
 
 interface Message {
   from: 'user' | 'sage';
   text: string;
 }
 
-const STORAGE_KEY = 'sage-history';
+type Action = 'quests' | 'habits' | 'finances' | 'gym';
 
-const TABS: Array<{ id: TabId; label: string; icon: React.ReactNode }> = [
-  { id: 'chat', label: 'Chat', icon: <Sparkles size={14} /> },
-  { id: 'quests', label: 'Misiones', icon: <Sword size={14} /> },
-  { id: 'habits', label: 'Habitos', icon: <BarChart2 size={14} /> },
-  { id: 'finances', label: 'Finanzas', icon: <DollarSign size={14} /> },
-  { id: 'gym', label: 'Gym', icon: <Dumbbell size={14} /> },
+const ACTIONS: Array<{ id: Action; label: string; icon: LucideIcon }> = [
+  { id: 'quests', label: 'Ideas de misiones', icon: Sword },
+  { id: 'habits', label: 'Analiza mis hábitos', icon: BarChart2 },
+  { id: 'finances', label: 'Revisa mis finanzas', icon: Wallet },
+  { id: 'gym', label: 'Plan de entrenamiento', icon: Dumbbell },
 ];
 
-function TypewriterText({ text, onDone }: { text: string; onDone?: () => void }) {
-  const [displayed, setDisplayed] = useState('');
-  const [done, setDone] = useState(false);
+const STORAGE_KEY = 'sage-history';
+const FALLBACK = 'No pude responder ahora mismo. Inténtalo de nuevo en un momento.';
 
-  useEffect(() => {
-    setDisplayed('');
-    setDone(false);
-    let i = 0;
-    const interval = setInterval(() => {
-      i += 1;
-      setDisplayed(text.slice(0, i));
-      if (i >= text.length) {
-        clearInterval(interval);
-        setDone(true);
-        onDone?.();
-      }
-    }, 14);
-    return () => clearInterval(interval);
-  }, [text, onDone]);
+const drawer: Variants = {
+  initial: { x: '100%', opacity: 0 },
+  animate: { x: 0, opacity: 1, transition: { duration: 0.3, ease } },
+  exit: { x: '100%', opacity: 0, transition: { duration: 0.2 } },
+};
 
-  return <span>{displayed}{!done && <span className="animate-pulse">|</span>}</span>;
+function loadHistory(): Message[] {
+  try {
+    const saved: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
+    return Array.isArray(saved)
+      ? saved.filter((m): m is Message => typeof m === 'object' && m !== null
+        && ((m as Message).from === 'user' || (m as Message).from === 'sage') && typeof (m as Message).text === 'string')
+      : [];
+  } catch {
+    return [];
+  }
 }
 
-export function SagePanel({ onClose }: Props) {
+const clean = (reply: unknown) => (typeof reply === 'string' && reply.trim() ? reply : FALLBACK);
+
+/** Escritura progresiva de la última respuesta (visual); el texto completo va en sr-only. */
+function Typewriter({ text }: { text: string }) {
+  const reduce = useReducedMotionConfig();
+  const [n, setN] = useState(reduce ? text.length : 0);
   useEffect(() => {
-    const onKey = (ev: KeyboardEvent) => { if (ev.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
-  const { sagePendingMessage, clearSagePending } = useUIStore();
-  const [activeTab, setActiveTab] = useState<TabId>('chat');
-  const [messages, setMessages] = useState<Message[]>(() => {
-    try {
-      const saved: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
-      return Array.isArray(saved)
-        ? saved.filter((message): message is Message => (
-          typeof message === 'object'
-          && message !== null
-          && (message as Message).from !== undefined
-          && ((message as Message).from === 'user' || (message as Message).from === 'sage')
-          && typeof (message as Message).text === 'string'
-        ))
-        : [];
-    } catch {
-      return [];
-    }
-  });
+    if (reduce) { setN(text.length); return; }
+    setN(0);
+    const id = window.setInterval(() => setN((i) => {
+      if (i >= text.length) { window.clearInterval(id); return i; }
+      return i + 3;
+    }), 16);
+    return () => window.clearInterval(id);
+  }, [text, reduce]);
+  return (
+    <>
+      <span aria-hidden>{text.slice(0, n)}</span>
+      <span className="sr-only">{text}</span>
+    </>
+  );
+}
+
+export function SagePanel({ onClose }: { onClose: () => void }) {
+  const titleId = useId();
+  const pending = useUIStore((s) => s.sagePendingMessage);
+  const clearPending = useUIStore((s) => s.clearSagePending);
+  const [messages, setMessages] = useState<Message[]>(loadHistory);
+  const [typing, setTyping] = useState<number | null>(null);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [latestSageMsg, setLatestSageMsg] = useState<string | null>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const panelRef = useDialogBehavior(true, onClose);
+  const endRef = useRef<HTMLDivElement>(null);
+  const sentPending = useRef(false);
+  const reduce = useReducedMotionConfig();
+  // En móvil no se enfoca el campo al abrir (abriría el teclado encima).
+  const isDesktop = useMediaQuery('(min-width: 768px)');
 
-  // Auto-send contextual message if one is pending
+  async function ask(userText: string, request: () => Promise<string>) {
+    setMessages((prev) => [...prev, { from: 'user', text: userText }]);
+    setLoading(true);
+    let reply = FALLBACK;
+    try { reply = clean(await request()); } catch { /* FALLBACK */ }
+    setMessages((prev) => {
+      setTyping(prev.length);
+      return [...prev, { from: 'sage', text: reply }];
+    });
+    setLoading(false);
+  }
+
+  // Mensaje contextual pendiente (Dashboard, menú…): se envía al abrir.
   useEffect(() => {
-    if (sagePendingMessage) {
-      clearSagePending();
-      const msg = sagePendingMessage;
-      setMessages((prev) => [...prev, { from: 'user', text: msg }]);
-      setLoading(true);
-      sageChat(msg)
-        .then(({ reply }) => {
-          const safeReply = typeof reply === 'string' && reply.trim()
-            ? reply
-            : 'No pude responder ahora mismo.';
-          setLatestSageMsg(safeReply);
-          setMessages((prev) => [...prev, { from: 'sage', text: safeReply }]);
-        })
-        .catch(() => {
-          setMessages((prev) => [...prev, { from: 'sage', text: 'No pude responder ahora mismo.' }]);
-        })
-        .finally(() => setLoading(false));
-    }
+    if (!pending || sentPending.current) return;
+    sentPending.current = true; // StrictMode monta dos veces
+    clearPending();
+    void ask(pending, async () => (await sageChat(pending)).reply);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, loading]);
+    endRef.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'end' });
+  }, [messages, loading, reduce]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-8)));
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-8))); } catch { /* sin storage */ }
   }, [messages]);
 
-  const addSageReply = (text: string) => {
-    setLatestSageMsg(text);
-    setMessages((prev) => [...prev, { from: 'sage', text }]);
-  };
-
-  const handleChat = async () => {
-    if (!input.trim() || loading) return;
-    const message = input.trim();
+  function submit(e: FormEvent) {
+    e.preventDefault();
+    const text = input.trim();
+    if (!text || loading) return;
     setInput('');
-    setMessages((prev) => [...prev, { from: 'user', text: message }]);
-    setLoading(true);
-    try {
-      const { reply } = await sageChat(message);
-      addSageReply(typeof reply === 'string' && reply.trim() ? reply : 'No pude responder ahora mismo.');
-    } catch {
-      addSageReply('No pude responder eso ahora mismo. Intentalo de nuevo en un momento.');
-    } finally {
-      setLoading(false);
-    }
-  };
+    void ask(text, async () => (await sageChat(text)).reply);
+  }
 
-  const handleAction = async (action: TabId) => {
+  function runAction(a: (typeof ACTIONS)[number]) {
     if (loading) return;
-    setLoading(true);
-    try {
-      let reply = '';
-
-      if (action === 'quests') {
+    void ask(a.label, async () => {
+      if (a.id === 'quests') {
         const { quests } = await sageSuggestQuests();
-        if (Array.isArray(quests) && quests.length > 0) {
-          reply = `Nuevas misiones sugeridas:\n\n${(quests as Array<{ type: string; title: string; description: string; difficulty: string }>).map(
-            (q) => `- [${q.type}] ${q.title}\n  ${q.description} (${q.difficulty})`
-          ).join('\n\n')}`;
-        } else {
-          reply = 'No hay sugerencias de misiones por el momento.';
-        }
-      } else if (action === 'habits') {
-        reply = (await sageAnalyzeHabits()).reply;
-      } else if (action === 'finances') {
-        reply = (await sageAnalyzeFinances()).reply;
-      } else if (action === 'gym') {
-        reply = (await sagePlanWorkout()).reply;
+        const list = Array.isArray(quests) ? (quests as Array<{ title: string; description: string; difficulty: string }>) : [];
+        return list.length
+          ? `Te propongo estas misiones:\n\n${list.map((q) => `• ${q.title} (${q.difficulty})\n  ${q.description}`).join('\n\n')}`
+          : 'No tengo sugerencias de misiones por ahora.';
       }
+      if (a.id === 'habits') return (await sageAnalyzeHabits()).reply;
+      if (a.id === 'finances') return (await sageAnalyzeFinances()).reply;
+      return (await sagePlanWorkout()).reply;
+    });
+  }
 
-      addSageReply(typeof reply === 'string' && reply.trim() ? reply : 'No pude terminar ese análisis ahora mismo.');
-    } catch {
-      addSageReply('No pude terminar ese analisis ahora mismo. Intentalo en un rato.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
+  return createPortal(
     <motion.div
-      className="fixed inset-0 z-[200] flex justify-end bg-[var(--bg-overlay)] backdrop-blur-[2px]" onClick={onClose}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+      variants={scrim} initial="initial" animate="animate" exit="exit"
+      className="fixed inset-0 z-[80] flex justify-end bg-[var(--scrim)]"
+      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
-      <motion.aside
-        role="dialog"
-        aria-modal="true"
-        aria-label="Asistente IA"
-        onClick={(e) => e.stopPropagation()}
-        className="flex h-full w-full max-w-[420px] flex-col border-l border-[var(--border)] bg-[var(--bg-panel)] shadow-2xl"
-        initial={{ x: 420 }}
-        animate={{ x: 0 }}
-        exit={{ x: 420 }}
-        transition={{ type: 'spring', stiffness: 280, damping: 28 }}
+      <motion.div
+        ref={panelRef}
+        role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}
+        variants={drawer}
+        className="flex h-full w-full flex-col bg-background text-on-background shadow-lg outline-none md:max-w-[440px] md:rounded-l-3xl md:border-l md:border-border"
       >
-        <header className="flex items-center justify-between border-b border-[var(--border)] bg-[var(--bg-panel-light)] px-5 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)]">
-              <Sparkles size={18} className="text-[var(--accent-gold)]" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold tracking-[-0.01em]">Asistente IA</h2>
-              <p className="text-xs text-[var(--text-secondary)]">Claro, motivador y adaptado a ti</p>
-            </div>
+        <header className="flex items-center gap-3 border-b border-border py-3 pl-4 pr-2 pt-[max(0.75rem,env(safe-area-inset-top))] md:pl-6">
+          <IconChip icon={Sparkles} tone="secondary" size="sm" />
+          <div className="min-w-0 flex-1">
+            <h2 id={titleId} className="text-heading-sm">El Sabio</h2>
+            <p className="text-body-sm text-on-surface-light">Tu consejero IA</p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Cerrar"
-            className="flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] sm:h-9 sm:w-9"
-          >
-            <X size={18} />
-          </button>
+          {messages.length > 0 && (
+            <Button variant="icon" aria-label="Borrar conversación" disabled={loading} onClick={() => { setMessages([]); setTyping(null); }}>
+              <Trash2 aria-hidden className="size-5" strokeWidth={1.75} />
+            </Button>
+          )}
+          <Button variant="icon" aria-label="Cerrar" onClick={onClose}>
+            <X aria-hidden className="size-6" strokeWidth={1.75} />
+          </Button>
         </header>
 
-        <nav className="grid grid-cols-3 gap-1.5 border-b border-[var(--border)] px-4 py-3 sm:flex sm:gap-2 sm:overflow-x-auto">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => {
-                setActiveTab(tab.id);
-                if (tab.id !== 'chat') handleAction(tab.id);
-              }}
-              className={[
-                'flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-full px-2 py-1.5 text-xs font-semibold transition-colors sm:px-3',
-                activeTab === tab.id
-                  ? 'bg-[var(--text-primary)] text-white'
-                  : 'bg-[var(--bg-panel-light)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
-              ].join(' ')}
-            >
-              {tab.icon}
-              {tab.label}
-            </button>
-          ))}
-        </nav>
-
-        <div className="flex-1 overflow-y-auto px-4 py-4">
-          {messages.length === 0 && !loading && (
-            <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--bg-panel-light)]">
-                <Sparkles size={22} className="text-[var(--accent-gold)]" />
-              </div>
-              <div>
-                <p className="text-sm font-medium">Tu asistente esta listo.</p>
-                <p className="mt-1 max-w-[280px] text-sm text-[var(--text-secondary)]">
-                  Pide ideas para misiones, analiza tus finanzas o recibe una rutina de ejercicios.
-                </p>
+        <div className="flex-1 overflow-y-auto px-4 py-4 md:px-6">
+          {messages.length === 0 && !loading ? (
+            <div className="flex h-full flex-col items-center justify-center gap-4 py-8 text-center">
+              <IconChip icon={Sparkles} tone="secondary" size="lg" />
+              <div className="flex max-w-[300px] flex-col gap-1">
+                <p className="text-heading-sm">¿En qué te ayudo hoy?</p>
+                <p className="text-body-md text-on-surface-light">Pide ideas de misiones, analiza tus hábitos o tus finanzas, o pregunta lo que quieras.</p>
               </div>
             </div>
-          )}
-
-          <div className="space-y-4">
-            {messages.map((msg, index) => (
-              <div key={index} className={`flex ${msg.from === 'user' ? 'justify-end' : 'justify-start'}`}>
+          ) : (
+            <div role="log" aria-label="Conversación con el Sabio" className="flex flex-col gap-3">
+              {messages.map((m, i) => (
                 <div
-                  className={[
-                    'max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm',
-                    msg.from === 'user'
-                      ? 'rounded-tr-md bg-[var(--text-primary)] text-[var(--bg-deep)] font-medium'
-                      : 'rounded-tl-md border border-[var(--border)] bg-[var(--bg-panel-light)] text-[var(--text-primary)]',
-                  ].join(' ')}
-                >
-                  {msg.from === 'sage' && index === messages.length - 1 && msg.text === latestSageMsg ? (
-                    <TypewriterText text={msg.text} />
-                  ) : (
-                    msg.text
+                  key={i}
+                  className={cn(
+                    'max-w-[85%] whitespace-pre-line rounded-2xl px-4 py-3 text-body-md',
+                    m.from === 'user'
+                      ? 'self-end rounded-br-md bg-primary-strong text-on-primary'
+                      : 'self-start rounded-bl-md border border-border bg-surface text-on-background',
                   )}
+                >
+                  <span className="sr-only">{m.from === 'user' ? 'Tú: ' : 'El Sabio: '}</span>
+                  {m.from === 'sage' && i === typing ? <Typewriter text={m.text} /> : m.text}
                 </div>
-              </div>
-            ))}
-
-            {loading && (
-              <div className="flex justify-start">
-                <div className="rounded-2xl rounded-tl-md border border-[var(--border)] bg-[var(--bg-panel-light)] px-4 py-3 shadow-sm">
-                  <div className="flex gap-1">
-                    {[0, 1, 2].map((i) => (
-                      <motion.div
-                        key={i}
-                        className="h-2 w-2 rounded-full bg-[var(--text-muted)]"
-                        animate={{ opacity: [0.25, 1, 0.25] }}
-                        transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.18 }}
+              ))}
+              {loading && (
+                <div className="flex items-center gap-2 self-start rounded-2xl rounded-bl-md border border-border bg-surface px-4 py-3">
+                  <span aria-hidden className="flex gap-1">
+                    {[0, 1, 2].map((d) => (
+                      <motion.span
+                        key={d}
+                        className="size-2 rounded-full bg-on-surface-light"
+                        animate={reduce ? undefined : { opacity: [0.3, 1, 0.3] }}
+                        transition={{ duration: 0.9, repeat: Infinity, delay: d * 0.18 }}
                       />
                     ))}
-                  </div>
+                  </span>
+                  <span className="text-body-sm text-on-surface-light">El Sabio está pensando…</span>
                 </div>
-              </div>
-            )}
-            <div ref={bottomRef} />
-          </div>
+              )}
+              <div ref={endRef} />
+            </div>
+          )}
         </div>
 
-        {activeTab === 'chat' && (
-          <div className="border-t border-[var(--border)] bg-[var(--bg-panel-light)] px-4 py-4">
-            <div className="flex items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-2">
-              <input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleChat()}
-                placeholder="Escribe lo que necesitas..."
-                disabled={loading}
-                className="flex-1 bg-transparent px-2 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none disabled:opacity-50"
-              />
-              <button
-                onClick={handleChat}
-                disabled={loading || !input.trim()}
-                className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--text-primary)] text-white disabled:opacity-50"
-              >
-                <Send size={16} />
-              </button>
-            </div>
-            <p className="mt-2 text-center text-xs text-[var(--text-muted)]">
-              La IA puede equivocarse. Verifica decisiones importantes.
-            </p>
-          </div>
-        )}
-      </motion.aside>
-    </motion.div>
+        <div className="flex flex-col gap-3 border-t border-border px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 md:px-6">
+          <ul aria-label="Acciones rápidas" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-wrap md:overflow-visible md:px-0">
+            {ACTIONS.map((a) => (
+              <li key={a.id} className="shrink-0">
+                <Button variant="secondary" size="sm" disabled={loading} onClick={() => runAction(a)}>
+                  <a.icon aria-hidden className="size-4" strokeWidth={1.75} />{a.label}
+                </Button>
+              </li>
+            ))}
+          </ul>
+          <form onSubmit={submit} className="flex items-center gap-2">
+            <Input
+              aria-label="Mensaje para el Sabio"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Escribe tu pregunta…"
+              maxLength={500}
+              data-autofocus={isDesktop || undefined}
+            />
+            <Button type="submit" aria-label="Enviar" disabled={!input.trim() || loading} className="size-12 shrink-0 rounded-full p-0">
+              <Send aria-hidden className="size-5" strokeWidth={1.75} />
+            </Button>
+          </form>
+          <p className="text-center text-body-sm text-on-surface-light">El Sabio puede equivocarse. Verifica las decisiones importantes.</p>
+        </div>
+      </motion.div>
+    </motion.div>,
+    document.body,
   );
 }

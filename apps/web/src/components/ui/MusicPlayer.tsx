@@ -1,113 +1,117 @@
-import { useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Music, X, ChevronUp, ChevronDown, ExternalLink } from 'lucide-react';
+// Reproductor de la playlist del usuario (Spotify o YouTube embebidos).
+// Panel NO modal: al ocultarlo el iframe sigue montado para que la música no
+// se corte. md+: píldora flotante abajo a la derecha que abre el panel encima.
+// Móvil: se abre desde Menú → Herramientas → Música, sobre la tab bar.
+// TODO(api): los controles propios (play/pausa, volumen, pista actual) no son
+// posibles con los embeds; requieren Spotify Web Playback SDK / YouTube IFrame API.
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
+import { ChevronDown, ExternalLink, Music, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { ease } from '@/lib/motion';
+import { useShellStore } from '@/store/shellStore';
+import { Button, IconChip } from '@/components/ui/lq';
 
-interface Props {
-  url: string | null | undefined;
-}
+type Provider = 'spotify' | 'youtube';
 
-function parseEmbed(url: string): { type: 'spotify' | 'youtube' | null; embedUrl: string | null } {
+export function parseEmbed(url: string | null | undefined): { type: Provider | null; embedUrl: string | null } {
   if (!url) return { type: null, embedUrl: null };
-
-  // Spotify playlist/track/album
-  const spotifyMatch = url.match(/spotify\.com\/(playlist|track|album|artist)\/([a-zA-Z0-9]+)/);
-  if (spotifyMatch) {
-    return {
-      type: 'spotify',
-      embedUrl: `https://open.spotify.com/embed/${spotifyMatch[1]}/${spotifyMatch[2]}?utm_source=generator&theme=0`,
-    };
-  }
-
-  // YouTube video or playlist
-  const ytVideoMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
-  if (ytVideoMatch) {
-    return { type: 'youtube', embedUrl: `https://www.youtube.com/embed/${ytVideoMatch[1]}?autoplay=0` };
-  }
-
-  const ytListMatch = url.match(/youtube\.com\/playlist\?list=([a-zA-Z0-9_-]+)/);
-  if (ytListMatch) {
-    return { type: 'youtube', embedUrl: `https://www.youtube.com/embed/videoseries?list=${ytListMatch[1]}` };
-  }
-
+  const spotify = url.match(/spotify\.com\/(playlist|track|album|artist)\/([a-zA-Z0-9]+)/);
+  if (spotify) return { type: 'spotify', embedUrl: `https://open.spotify.com/embed/${spotify[1]}/${spotify[2]}?utm_source=generator&theme=0` };
+  const ytVideo = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
+  if (ytVideo) return { type: 'youtube', embedUrl: `https://www.youtube.com/embed/${ytVideo[1]}?autoplay=0` };
+  const ytList = url.match(/youtube\.com\/playlist\?list=([a-zA-Z0-9_-]+)/);
+  if (ytList) return { type: 'youtube', embedUrl: `https://www.youtube.com/embed/videoseries?list=${ytList[1]}` };
   return { type: null, embedUrl: null };
 }
 
-export function MusicPlayer({ url }: Props) {
-  const [open, setOpen] = useState(false);
-  const { type, embedUrl } = useMemo(() => parseEmbed(url ?? ''), [url]);
+const PROVIDER: Record<Provider, string> = { spotify: 'Spotify', youtube: 'YouTube' };
 
-  if (!url || !embedUrl) return null;
+export function MusicPlayer({ url }: { url: string | null | undefined }) {
+  const { type, embedUrl } = useMemo(() => parseEmbed(url), [url]);
+  const open = useShellStore((s) => s.musicOpen);
+  const setOpen = useShellStore((s) => s.setMusicOpen);
+  // El iframe se monta la primera vez que se abre y ya no se desmonta.
+  const [mounted, setMounted] = useState(false);
+  const panelId = useId();
+  const titleId = useId();
+  const panelRef = useRef<HTMLElement>(null);
+  const launcherRef = useRef<HTMLButtonElement>(null);
 
-  const height = type === 'spotify' ? 152 : 200;
+  useEffect(() => {
+    if (!open) return;
+    setMounted(true);
+    // Tras cerrar el menú (que devuelve el foco), llevarlo al panel.
+    const raf = requestAnimationFrame(() => panelRef.current?.focus());
+    return () => cancelAnimationFrame(raf);
+  }, [open]);
+
+  if (!url || !embedUrl || !type) return null;
+
+  const close = () => {
+    setOpen(false);
+    if (panelRef.current?.contains(document.activeElement)) launcherRef.current?.focus();
+  };
 
   return (
-    <div className="fixed bottom-20 right-[5.5rem] z-40 hidden md:flex flex-col items-end">
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            key="player"
-            initial={{ opacity: 0, y: 12, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 12, scale: 0.96 }}
-            transition={{ type: 'spring', stiffness: 350, damping: 28 }}
-            className="mb-2 rounded-2xl overflow-hidden shadow-2xl"
-            style={{
-              width: 300,
-              border: '1px solid var(--border)',
-              background: 'var(--bg-panel)',
-            }}
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between px-3 py-2" style={{ borderBottom: '1px solid var(--border)' }}>
-              <div className="flex items-center gap-2">
-                <Music size={14} style={{ color: type === 'spotify' ? '#1db954' : '#ff0000' }} />
-                <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
-                  {type === 'spotify' ? 'Spotify' : 'YouTube'}
-                </span>
-              </div>
-              <div className="flex items-center gap-1">
-                <a href={url} target="_blank" rel="noopener noreferrer" title="Abrir en app">
-                  <motion.div whileTap={{ scale: 0.9 }} className="flex items-center justify-center w-6 h-6 rounded-md" style={{ color: 'var(--text-muted)' }}>
-                    <ExternalLink size={12} />
-                  </motion.div>
-                </a>
-                <motion.button whileTap={{ scale: 0.9 }} onClick={() => setOpen(false)} className="flex items-center justify-center w-6 h-6 rounded-md" style={{ color: 'var(--text-muted)' }}>
-                  <X size={12} />
-                </motion.button>
-              </div>
-            </div>
-
-            {/* Embed iframe */}
-            <iframe
-              src={embedUrl}
-              width="300"
-              height={height}
-              frameBorder="0"
-              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-              loading="lazy"
-              style={{ display: 'block' }}
-            />
-          </motion.div>
+    <>
+      <motion.section
+        ref={panelRef}
+        id={panelId}
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        hidden={!mounted}
+        initial={false}
+        animate={open ? { opacity: 1, y: 0, visibility: 'visible' } : { opacity: 0, y: 16, transitionEnd: { visibility: 'hidden' } }}
+        transition={{ duration: open ? 0.3 : 0.2, ease }}
+        onKeyDown={(e) => e.key === 'Escape' && close()}
+        className={cn(
+          'fixed inset-x-4 bottom-[calc(10rem+env(safe-area-inset-bottom))] z-40 overflow-hidden rounded-3xl border border-border bg-background text-on-background shadow-lg outline-none',
+          'md:inset-x-auto md:bottom-24 md:right-8 md:w-[360px]',
         )}
-      </AnimatePresence>
-
-      {/* Toggle button */}
-      <motion.button
-        onClick={() => setOpen(!open)}
-        whileTap={{ scale: 0.93 }}
-        className="flex items-center gap-2 px-3 py-2 rounded-full text-xs font-semibold shadow-lg"
-        style={{
-          background: type === 'spotify' ? 'linear-gradient(135deg, #1db954, #19a347)' : 'linear-gradient(135deg, #ff0000, #cc0000)',
-          color: '#fff',
-          border: 'none',
-        }}
-        animate={open ? {} : { scale: [1, 1.04, 1] }}
-        transition={{ duration: 2.5, repeat: Infinity, repeatType: 'loop' }}
       >
-        <Music size={14} />
-        <span>{open ? 'Cerrar' : 'Música'}</span>
-        {open ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
-      </motion.button>
-    </div>
+        <header className="flex items-center gap-3 border-b border-border py-2 pl-4 pr-2">
+          <IconChip icon={Music} tone="secondary" size="sm" />
+          <div className="min-w-0 flex-1">
+            <h2 id={titleId} className="text-heading-sm">Tu música</h2>
+            <p className="text-body-sm text-on-surface-light">Playlist de {PROVIDER[type]}</p>
+          </div>
+          <a
+            href={url} target="_blank" rel="noopener noreferrer"
+            aria-label={`Abrir en ${PROVIDER[type]} (nueva pestaña)`}
+            className="flex size-11 shrink-0 items-center justify-center rounded-full text-on-surface hover:bg-surface-variant"
+          >
+            <ExternalLink aria-hidden className="size-5" strokeWidth={1.75} />
+          </a>
+          <Button variant="icon" aria-label="Ocultar reproductor" onClick={close}>
+            <X aria-hidden className="size-5" strokeWidth={1.75} />
+          </Button>
+        </header>
+        {mounted && (
+          <iframe
+            title={`Reproductor de ${PROVIDER[type]}`}
+            src={embedUrl}
+            className={cn('block w-full border-0', type === 'spotify' ? 'h-[152px]' : 'aspect-video')}
+            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+            loading="lazy"
+          />
+        )}
+        <p className="px-4 py-2 text-body-sm text-on-surface-light">Sigue sonando aunque ocultes el panel.</p>
+      </motion.section>
+
+      {/* Lanzador (md+). En móvil se abre desde el menú. */}
+      <button
+        ref={launcherRef}
+        type="button"
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={() => (open ? close() : setOpen(true))}
+        className="fixed bottom-8 right-8 z-40 hidden min-h-11 items-center gap-2 rounded-full border border-border bg-background px-4 text-label-lg text-on-background shadow-md transition-shadow hover:shadow-lg md:inline-flex"
+      >
+        <Music aria-hidden className="size-5 text-secondary-text" strokeWidth={1.75} />
+        Música
+        <ChevronDown aria-hidden className={cn('size-4 transition-transform duration-200', !open && 'rotate-180')} strokeWidth={1.75} />
+      </button>
+    </>
   );
 }

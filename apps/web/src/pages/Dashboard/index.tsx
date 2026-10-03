@@ -461,8 +461,16 @@ export default function DashboardPage() {
       )}
 
       {burst > 0 && <Confetti burst={burst} />}
-      {modal === 'class' && <ClassSelectionModal onClose={() => setModal(null)} />}
-      {modal === 'briefing' && <MorningBriefing onClose={() => setModal(null)} />}
+      <ClassSelectionModal open={modal === 'class'} onClose={() => setModal(null)} />
+      <MorningBriefing
+        open={modal === 'briefing'}
+        onClose={() => setModal(null)}
+        name={first}
+        habitsDone={done}
+        habitsTotal={habits.length}
+        quests={quests.length}
+        streak={user.currentStreak}
+      />
     </motion.div>
   );
 }

@@ -1,34 +1,23 @@
-import { useState, useEffect, useRef } from 'react';
+// Modo enfoque — pantalla completa en móvil, diálogo centrado (520 px) en md+.
+// Temporizador por marca de tiempo (no se desfasa si la pestaña se duerme),
+// sonido ambiente opcional y aviso sonoro al terminar. Escape o cerrar durante
+// una sesión piden confirmación en línea en vez de descartarla.
+import { useEffect, useId, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
-import { X, Play, Pause, RotateCcw, Zap } from 'lucide-react';
-import { logFocusSession } from '../../services/focus.service';
-import { useUIStore } from '../../store/uiStore';
-import { useToastStore } from '../../hooks/useToast';
-import { refreshUser } from '../../hooks/useAuth';
-import { E } from '@/components/ui/glyphs';
-import { Slider } from './slider';
+import { CheckCircle2, Pause, Play, RotateCcw, Square, X, Zap } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { dialog, scrim } from '@/lib/motion';
+import { logFocusSession } from '@/services/focus.service';
+import { useUIStore } from '@/store/uiStore';
+import { useToastStore } from '@/hooks/useToast';
+import { refreshUser } from '@/hooks/useAuth';
+import { Button, Confetti, Field, IconChip, Input, SegmentedControl, Select, Switch, useDialogBehavior } from '@/components/ui/lq';
+import { AMBIENT_SOUNDS, createAmbientSound, playChime, type AmbientAudioController, type AmbientSoundId } from '@/components/focus/ambientSound';
 
-const PRESETS = [
-  { label: '25 min', minutes: 25, color: 'var(--accent-cyan)' },
-  { label: '45 min', minutes: 45, color: 'var(--accent-gold)' },
-  { label: '60 min', minutes: 60, color: 'var(--accent-pink)' },
-  { label: '90 min', minutes: 90, color: 'var(--accent-green)' },
-];
-
-const AMBIENT_SOUNDS = [
-  { id: 'none', label: 'Silencio' },
-  { id: 'rain', label: 'Lluvia' },
-  { id: 'waves', label: 'Olas' },
-  { id: 'forest', label: 'Bosque' },
-  { id: 'fire', label: 'Fogata' },
-] as const;
-
-type AmbientSoundId = (typeof AMBIENT_SOUNDS)[number]['id'];
-
-interface AmbientAudioController {
-  stop: () => void;
-  setVolume: (value: number) => void;
-}
+const PRESETS = ['25', '45', '60', '90'] as const;
+type Preset = (typeof PRESETS)[number];
+type Phase = 'setup' | 'running' | 'paused' | 'done';
 
 interface Props {
   onClose: () => void;
@@ -36,469 +25,293 @@ interface Props {
   questId?: string;
 }
 
-function createNoiseBuffer(ctx: AudioContext, seconds = 2) {
-  const buffer = ctx.createBuffer(1, ctx.sampleRate * seconds, ctx.sampleRate);
-  const data = buffer.getChannelData(0);
-
-  let last = 0;
-  for (let i = 0; i < data.length; i += 1) {
-    const white = Math.random() * 2 - 1;
-    last = (last + 0.02 * white) / 1.02;
-    data[i] = last * 3.5;
-  }
-
-  return buffer;
-}
-
-function createAmbientSound(type: AmbientSoundId, ctx: AudioContext, volume: number): AmbientAudioController | null {
-  if (type === 'none') return null;
-
-  const master = ctx.createGain();
-  master.gain.value = volume;
-  master.connect(ctx.destination);
-
-  const cleanup: Array<() => void> = [];
-
-  const setVolume = (value: number) => {
-    master.gain.setTargetAtTime(value, ctx.currentTime, 0.15);
-  };
-
-  const addLoopingNoise = (filterType: BiquadFilterType, frequency: number, gainValue: number, q = 0.7) => {
-    const source = ctx.createBufferSource();
-    source.buffer = createNoiseBuffer(ctx);
-    source.loop = true;
-
-    const filter = ctx.createBiquadFilter();
-    filter.type = filterType;
-    filter.frequency.value = frequency;
-    filter.Q.value = q;
-
-    const gain = ctx.createGain();
-    gain.gain.value = gainValue;
-
-    source.connect(filter);
-    filter.connect(gain);
-    gain.connect(master);
-    source.start();
-
-    cleanup.push(() => {
-      source.stop();
-      source.disconnect();
-      filter.disconnect();
-      gain.disconnect();
-    });
-  };
-
-  if (type === 'rain') {
-    addLoopingNoise('bandpass', 1800, 0.3, 0.9);
-    addLoopingNoise('highpass', 900, 0.08, 0.3);
-  }
-
-  if (type === 'waves') {
-    addLoopingNoise('lowpass', 500, 0.28, 0.5);
-
-    const swell = ctx.createOscillator();
-    const swellGain = ctx.createGain();
-    swell.type = 'sine';
-    swell.frequency.value = 0.12;
-    swellGain.gain.value = 0.06;
-    swell.connect(swellGain);
-    swellGain.connect(master.gain);
-    swell.start();
-
-    cleanup.push(() => {
-      swell.stop();
-      swell.disconnect();
-      swellGain.disconnect();
-    });
-  }
-
-  if (type === 'forest') {
-    addLoopingNoise('bandpass', 1200, 0.12, 0.8);
-    addLoopingNoise('highpass', 2500, 0.03, 0.2);
-
-    const chirpTimer = window.setInterval(() => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(1200 + Math.random() * 900, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(1800 + Math.random() * 1200, ctx.currentTime + 0.12);
-      gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.035, ctx.currentTime + 0.03);
-      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.18);
-      osc.connect(gain);
-      gain.connect(master);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.2);
-
-      window.setTimeout(() => {
-        osc.disconnect();
-        gain.disconnect();
-      }, 250);
-    }, 3200);
-
-    cleanup.push(() => window.clearInterval(chirpTimer));
-  }
-
-  if (type === 'fire') {
-    addLoopingNoise('lowpass', 700, 0.22, 0.5);
-    addLoopingNoise('bandpass', 80, 0.12, 1.1);
-
-    const crackleTimer = window.setInterval(() => {
-      const source = ctx.createBufferSource();
-      source.buffer = createNoiseBuffer(ctx, 0.15);
-
-      const gain = ctx.createGain();
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'highpass';
-      filter.frequency.value = 1800 + Math.random() * 1200;
-
-      gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.05, ctx.currentTime + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.08);
-
-      source.connect(filter);
-      filter.connect(gain);
-      gain.connect(master);
-      source.start();
-      source.stop(ctx.currentTime + 0.1);
-
-      window.setTimeout(() => {
-        source.disconnect();
-        filter.disconnect();
-        gain.disconnect();
-      }, 160);
-    }, 1400);
-
-    cleanup.push(() => window.clearInterval(crackleTimer));
-  }
-
-  return {
-    stop: () => {
-      cleanup.forEach((fn) => fn());
-      master.disconnect();
-    },
-    setVolume,
-  };
-}
+const mmss = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+const minutesText = (s: number) => {
+  const m = Math.ceil(s / 60);
+  return `${m} ${m === 1 ? 'minuto' : 'minutos'}`;
+};
 
 export function FocusMode({ onClose, taskLabel, questId }: Props) {
-  const [preset, setPreset] = useState(PRESETS[0]);
-  const [running, setRunning] = useState(false);
-  const [remaining, setRemaining] = useState(PRESETS[0].minutes * 60);
-  const [started, setStarted] = useState(false);
-  const [done, setDone] = useState(false);
+  const titleId = useId();
+  const soundOnId = useId();
+  const confirmId = useId();
+  const [preset, setPreset] = useState<Preset>('25');
+  const [phase, setPhase] = useState<Phase>('setup');
+  const [remaining, setRemaining] = useState(25 * 60);
   const [task, setTask] = useState(taskLabel ?? '');
-  const [ambientSound, setAmbientSound] = useState<AmbientSoundId>('none');
-  const [ambientVolume, setAmbientVolume] = useState(35);
+  const [ambient, setAmbient] = useState<AmbientSoundId>('none');
+  const [volume, setVolume] = useState(35);
+  const [chime, setChime] = useState(true);
+  const [confirmExit, setConfirmExit] = useState(false);
   const [saving, setSaving] = useState(false);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const ambientControllerRef = useRef<AmbientAudioController | null>(null);
-  const { addFloatingXP } = useUIStore();
+  const [announce, setAnnounce] = useState('');
+  const endAt = useRef(0);
+  const ctxRef = useRef<AudioContext | null>(null);
+  const ambientRef = useRef<AmbientAudioController | null>(null);
+  const stayRef = useRef<HTMLButtonElement>(null);
+  const mainRef = useRef<HTMLButtonElement>(null);
+  const addFloatingXP = useUIStore((s) => s.addFloatingXP);
   const toast = useToastStore();
 
-  const totalSecs = preset.minutes * 60;
-  const progress = ((totalSecs - remaining) / totalSecs) * 100;
-  const minutes = Math.floor(remaining / 60);
-  const seconds = remaining % 60;
+  const total = Number(preset) * 60;
+  const elapsed = total - remaining;
+  const progress = phase === 'done' ? 1 : elapsed / total;
+  const inSession = phase === 'running' || phase === 'paused';
 
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape' && !started) onClose();
+  /** Cerrar: durante una sesión pide confirmación; si no, cierra. */
+  const requestClose = () => {
+    if (confirmExit) { setConfirmExit(false); return; }
+    if (inSession) {
+      if (phase === 'running') pause();
+      setConfirmExit(true);
+      return;
     }
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [started, onClose]);
+    onClose();
+  };
+  const panelRef = useDialogBehavior(true, requestClose);
 
+  useEffect(() => { if (confirmExit) stayRef.current?.focus(); }, [confirmExit]);
+  // Al cambiar de fase el botón pulsado desaparece: el foco pasa al control principal.
   useEffect(() => {
-    return () => {
-      clearInterval(intervalRef.current!);
-      ambientControllerRef.current?.stop();
-      ambientControllerRef.current = null;
-      audioContextRef.current?.close().catch(() => null);
-      audioContextRef.current = null;
-    };
+    if (confirmExit) return;
+    if (!panelRef.current?.contains(document.activeElement) || document.activeElement === panelRef.current) mainRef.current?.focus();
+  }, [phase, confirmExit]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Tic cada 250 ms contra la hora de fin.
+  useEffect(() => {
+    if (phase !== 'running') return;
+    const id = window.setInterval(() => {
+      const left = Math.max(0, Math.ceil((endAt.current - Date.now()) / 1000));
+      setRemaining(left);
+      if (left === 0) finish();
+    }, 250);
+    return () => window.clearInterval(id);
+  }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => () => {
+    ambientRef.current?.stop();
+    ctxRef.current?.close().catch(() => null);
   }, []);
 
-  useEffect(() => {
-    ambientControllerRef.current?.setVolume(ambientVolume / 100);
-  }, [ambientVolume]);
+  useEffect(() => { ambientRef.current?.setVolume(volume / 100); }, [volume]);
 
-  async function syncAmbientSound(nextSound: AmbientSoundId) {
-    ambientControllerRef.current?.stop();
-    ambientControllerRef.current = null;
-
-    if (nextSound === 'none') return;
-
-    const AudioCtx = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AudioCtx) return;
-
-    if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
-      audioContextRef.current = new AudioCtx();
-    }
-
-    if (audioContextRef.current.state === 'suspended') {
-      await audioContextRef.current.resume().catch(() => null);
-    }
-
-    ambientControllerRef.current = createAmbientSound(nextSound, audioContextRef.current, ambientVolume / 100);
+  async function audioCtx() {
+    const Ctx = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctx) return null;
+    if (!ctxRef.current || ctxRef.current.state === 'closed') ctxRef.current = new Ctx();
+    if (ctxRef.current.state === 'suspended') await ctxRef.current.resume().catch(() => null);
+    return ctxRef.current;
   }
 
-  function handlePresetChange(p: typeof PRESETS[0]) {
+  async function changeAmbient(next: AmbientSoundId) {
+    setAmbient(next);
+    ambientRef.current?.stop();
+    ambientRef.current = null;
+    if (next === 'none') return;
+    const ctx = await audioCtx();
+    if (ctx) ambientRef.current = createAmbientSound(next, ctx, volume / 100);
+  }
+
+  function changePreset(p: Preset) {
     setPreset(p);
-    setRemaining(p.minutes * 60);
-    setStarted(false);
-    setRunning(false);
-    clearInterval(intervalRef.current!);
+    setRemaining(Number(p) * 60);
   }
 
-  function handleAmbientChange(nextSound: AmbientSoundId) {
-    setAmbientSound(nextSound);
-    void syncAmbientSound(nextSound);
+  function start() {
+    endAt.current = Date.now() + remaining * 1000;
+    setPhase('running');
+    setAnnounce(`Sesión iniciada: ${minutesText(remaining)}`);
+    if (chime) void audioCtx(); // desbloquea el audio con el gesto del usuario
   }
 
-  function handleStart() {
-    setStarted(true);
-    setRunning(true);
-    intervalRef.current = setInterval(() => {
-      setRemaining((r) => {
-        if (r <= 1) {
-          clearInterval(intervalRef.current!);
-          setRunning(false);
-          setDone(true);
-          if (navigator.vibrate) navigator.vibrate([300, 100, 300]);
-          return 0;
-        }
-        return r - 1;
-      });
-    }, 1000);
+  function pause() {
+    setRemaining(Math.max(0, Math.ceil((endAt.current - Date.now()) / 1000)));
+    setPhase('paused');
+    setAnnounce('Sesión en pausa');
   }
 
-  function handlePause() {
-    setRunning(false);
-    clearInterval(intervalRef.current!);
+  function resume() {
+    setConfirmExit(false);
+    start();
+    setAnnounce('Sesión reanudada');
   }
 
-  function handleResume() {
-    setRunning(true);
-    clearInterval(intervalRef.current!);
-    intervalRef.current = setInterval(() => {
-      setRemaining((r) => {
-        if (r <= 1) {
-          clearInterval(intervalRef.current!);
-          setRunning(false);
-          setDone(true);
-          return 0;
-        }
-        return r - 1;
-      });
-    }, 1000);
+  function reset() {
+    setPhase('setup');
+    setRemaining(total);
+    setConfirmExit(false);
+    setAnnounce('Temporizador reiniciado');
   }
 
-  function handleReset() {
-    clearInterval(intervalRef.current!);
-    setRemaining(preset.minutes * 60);
-    setRunning(false);
-    setStarted(false);
-    setDone(false);
+  function finish() {
+    setRemaining(0);
+    setPhase('done');
+    setAnnounce('¡Sesión completada!');
+    navigator.vibrate?.([300, 100, 300]);
+    if (chime && ctxRef.current) playChime(ctxRef.current);
   }
 
-  async function handleComplete() {
-    const elapsed = totalSecs - remaining;
-    const durationMin = Math.max(1, Math.floor(elapsed / 60));
+  async function save() {
+    const minutes = Math.max(1, Math.floor(elapsed / 60));
     setSaving(true);
     try {
-      const result = await logFocusSession(durationMin, questId, task || undefined);
-      addFloatingXP(result.xpEarned, window.innerWidth / 2, window.innerHeight / 2);
-      toast.success(result.message);
+      const r = await logFocusSession(minutes, questId, task.trim() || undefined);
+      addFloatingXP(r.xpEarned, window.innerWidth / 2, window.innerHeight / 2);
+      toast.success(r.message);
       void refreshUser();
-    } catch {
-      toast.error('Error registrando sesión');
-    } finally {
-      setSaving(false);
       onClose();
+    } catch {
+      toast.error('No se pudo guardar la sesión', 'Inténtalo de nuevo');
+      setSaving(false);
     }
   }
 
-  const circumference = 2 * Math.PI * 110;
+  const ringTone = phase === 'done' ? 'stroke-success' : 'stroke-primary';
+  const savedMinutes = Math.floor(elapsed / 60);
 
-  return (
+  return createPortal(
     <motion.div
-      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-md p-4"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      onClick={(e) => { if (e.target === e.currentTarget && !started) onClose(); }}
+      variants={scrim} initial="initial" animate="animate" exit="exit"
+      className="fixed inset-0 z-[80] flex bg-[var(--scrim)] md:items-center md:justify-center md:p-6"
+      onMouseDown={(e) => e.target === e.currentTarget && requestClose()}
     >
       <motion.div
-        className="w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl"
-        style={{ background: 'var(--bg-deep)', border: `2px solid ${preset.color}44` }}
-        initial={{ scale: 0.9, y: 20 }}
-        animate={{ scale: 1, y: 0 }}
+        ref={panelRef}
+        role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}
+        variants={dialog}
+        className="flex h-full w-full flex-col overflow-y-auto bg-background text-on-background outline-none md:h-auto md:max-h-[calc(100dvh-3rem)] md:max-w-[520px] md:rounded-3xl md:shadow-lg"
       >
-        <div className="flex items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-2">
-            <Zap size={18} style={{ color: preset.color }} />
-            <span className="font-bold text-[var(--text-primary)]">Modo Enfoque</span>
-          </div>
-          <button onClick={onClose} className="p-2 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/5 transition-colors">
-            <X size={16} />
-          </button>
-        </div>
+        <header className="flex items-center gap-3 px-4 pb-2 pt-[max(1rem,env(safe-area-inset-top))] md:px-8 md:pt-6">
+          <IconChip icon={Zap} tone="primary" size="sm" />
+          <h2 id={titleId} className="min-w-0 flex-1 text-heading-sm">Modo enfoque</h2>
+          <Button variant="icon" aria-label="Cerrar modo enfoque" onClick={requestClose} className="-mr-2">
+            <X aria-hidden className="size-6" strokeWidth={1.75} />
+          </Button>
+        </header>
 
-        <div className="px-6 pb-8 space-y-6">
-          {!started && (
-            <div className="grid grid-cols-4 gap-2">
-              {PRESETS.map((p) => (
-                <button
-                  key={p.minutes}
-                  onClick={() => handlePresetChange(p)}
-                  className="py-2 rounded-xl text-xs font-semibold transition-all"
-                  style={{
-                    background: preset.minutes === p.minutes ? p.color + '33' : 'rgba(255,255,255,0.05)',
-                    border: `1px solid ${preset.minutes === p.minutes ? p.color : 'transparent'}`,
-                    color: preset.minutes === p.minutes ? p.color : 'var(--text-muted)',
-                  }}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
+        <div className="flex flex-1 flex-col gap-6 px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:px-8 md:pb-8">
+          {phase === 'setup' && (
+            <>
+              <div className="flex flex-col gap-1">
+                <p className="text-heading-lg md:text-display-sm">Una sola cosa a la vez</p>
+                <p className="text-body-md text-on-surface-light">Elige cuánto tiempo, silencia lo demás y gana XP al terminar.</p>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <span className="text-label-lg text-on-surface" aria-hidden>Duración</span>
+                <SegmentedControl
+                  role="radiogroup" label="Duración"
+                  value={preset} onChange={changePreset}
+                  options={PRESETS.map((p) => ({ value: p, label: `${p} min` }))}
+                />
+              </div>
+              <Field label="¿En qué te vas a enfocar?" help="Opcional. Aparece bajo el temporizador.">
+                <Input value={task} onChange={(e) => setTask(e.target.value)} placeholder="Ej. Repasar el capítulo 3" maxLength={80} />
+              </Field>
+            </>
           )}
 
-          {!started && (
-            <input
-              className="w-full rounded-xl bg-white/5 border border-[var(--border)] px-4 py-2.5 text-sm focus:outline-none focus:border-[var(--accent-gold)] transition-colors"
-              placeholder="¿En qué te vas a enfocar? (opcional)"
-              value={task}
-              onChange={(e) => setTask(e.target.value)}
-            />
-          )}
-
-          <div className="space-y-3 rounded-2xl border border-[var(--border)] bg-white/5 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-[var(--text-primary)]">Ambiente relajante</p>
-                <p className="text-xs text-[var(--text-muted)]">Puedes dejarlo sonando durante tu sesión</p>
-              </div>
-              <span className="text-xs font-semibold" style={{ color: preset.color }}>
-                {AMBIENT_SOUNDS.find((item) => item.id === ambientSound)?.label}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              {AMBIENT_SOUNDS.map((sound) => (
-                <button
-                  key={sound.id}
-                  onClick={() => handleAmbientChange(sound.id)}
-                  className="rounded-xl px-3 py-2 text-xs font-semibold transition-all"
-                  style={{
-                    background: ambientSound === sound.id ? `${preset.color}22` : 'rgba(255,255,255,0.04)',
-                    border: `1px solid ${ambientSound === sound.id ? preset.color : 'rgba(255,255,255,0.08)'}`,
-                    color: ambientSound === sound.id ? preset.color : 'var(--text-secondary)',
-                  }}
-                >
-                  {sound.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs text-[var(--text-muted)]">
-                <span>Volumen</span>
-                <span>{ambientVolume}%</span>
-              </div>
-              <Slider
-                min={0}
-                max={100}
-                step={1}
-                value={[ambientVolume]}
-                onValueChange={([value]) => setAmbientVolume(value)}
-                accent={preset.color}
-                aria-label="Volumen del ambiente"
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-center">
-            <div className="relative" style={{ width: 240, height: 240 }}>
-              <svg width={240} height={240}>
-                <circle cx={120} cy={120} r={110} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth={10} />
-                <motion.circle
-                  cx={120}
-                  cy={120}
-                  r={110}
-                  fill="none"
-                  stroke={preset.color}
-                  strokeWidth={10}
-                  strokeLinecap="round"
-                  strokeDasharray={circumference}
-                  strokeDashoffset={circumference - (progress / 100) * circumference}
-                  transform="rotate(-90 120 120)"
-                  transition={{ duration: 0.5 }}
+          {/* Temporizador */}
+          <div className="flex justify-center py-2">
+            <div className="relative size-60 md:size-72">
+              <svg viewBox="0 0 100 100" aria-hidden className="size-full -rotate-90">
+                <circle cx="50" cy="50" r="45" fill="none" strokeWidth="6" className="stroke-surface-variant" />
+                <circle
+                  cx="50" cy="50" r="45" fill="none" strokeWidth="6" strokeLinecap="round"
+                  pathLength={1} strokeDasharray="1 1" strokeDashoffset={1 - progress}
+                  strokeOpacity={progress > 0 ? 1 : 0}
+                  className={cn(ringTone, 'transition-[stroke-dashoffset,stroke] duration-300 ease-linear')}
                 />
               </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                {done ? (
-                  <div className="text-center">
-                    <div className="text-5xl mb-2"><E e="🎉" /></div>
-                    <p className="text-lg font-bold" style={{ color: preset.color }}>¡Completado!</p>
-                  </div>
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 px-8 text-center">
+                {phase === 'done' ? (
+                  <>
+                    <CheckCircle2 aria-hidden className="size-12 text-success-text" strokeWidth={1.75} />
+                    <span className="text-heading-md">¡Completado!</span>
+                    <span className="text-body-sm text-on-surface-light">{preset} min de enfoque</span>
+                  </>
                 ) : (
                   <>
-                    <div className="tabular-nums text-5xl font-bold text-[var(--text-primary)]">
-                      {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
-                    </div>
-                    {task && <p className="text-xs text-[var(--text-muted)] mt-2 max-w-[160px] text-center truncate">{task}</p>}
+                    <span role="timer" aria-label={`Tiempo restante ${minutesText(remaining)}`} className="text-display-md tabular-nums md:text-display-lg">
+                      {mmss(remaining)}
+                    </span>
+                    <span className={cn('max-w-full truncate text-body-sm', phase === 'paused' ? 'text-warning-text' : 'text-on-surface-light')}>
+                      {phase === 'paused' ? 'En pausa' : task.trim() || (phase === 'setup' ? 'Listo cuando quieras' : 'Enfocado')}
+                    </span>
                   </>
                 )}
               </div>
             </div>
           </div>
+          <p aria-live="polite" className="sr-only">{announce}</p>
+          {phase === 'done' && <Confetti />}
 
-          <div className="flex gap-3">
-            {done ? (
-              <motion.button
-                onClick={handleComplete}
-                disabled={saving}
-                whileTap={{ scale: 0.96 }}
-                className="flex-1 py-3 rounded-2xl font-bold text-sm flex items-center justify-center gap-2"
-                style={{ background: preset.color, color: 'var(--bg-deep)' }}
-              >
-                {saving ? 'Guardando...' : <><Zap size={16} /> +XP – Guardar sesión</>}
-              </motion.button>
-            ) : !started ? (
-              <motion.button
-                onClick={handleStart}
-                whileTap={{ scale: 0.96 }}
-                className="flex-1 py-3 rounded-2xl font-bold text-sm flex items-center justify-center gap-2"
-                style={{ background: preset.color, color: 'var(--bg-deep)' }}
-              >
-                <Play size={16} /> Comenzar
-              </motion.button>
-            ) : (
-              <>
-                <motion.button
-                  onClick={running ? handlePause : handleResume}
-                  whileTap={{ scale: 0.96 }}
-                  className="flex-1 py-3 rounded-2xl font-bold text-sm flex items-center justify-center gap-2"
-                  style={{ background: preset.color, color: 'var(--bg-deep)' }}
-                >
-                  {running ? <><Pause size={16} /> Pausar</> : <><Play size={16} /> Continuar</>}
-                </motion.button>
-                <motion.button
-                  onClick={handleReset}
-                  whileTap={{ scale: 0.96 }}
-                  className="py-3 px-4 rounded-2xl border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
-                >
-                  <RotateCcw size={16} />
-                </motion.button>
-              </>
-            )}
-          </div>
+          {/* Controles */}
+          {confirmExit ? (
+            <div role="group" aria-labelledby={confirmId} className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4">
+              <p id={confirmId} className="text-body-md">
+                <b>¿Terminar la sesión?</b>{' '}
+                {savedMinutes >= 1 ? `Llevas ${savedMinutes} min; puedes guardarlos.` : 'Aún no llevas un minuto, no se guardará nada.'}
+              </p>
+              <div className="flex flex-col gap-2 sm:flex-row-reverse">
+                <Button ref={stayRef} onClick={resume} className="sm:flex-1">Seguir enfocado</Button>
+                {savedMinutes >= 1 && <Button variant="secondary" loading={saving} onClick={save} className="sm:flex-1">Guardar {savedMinutes} min</Button>}
+                <Button variant="danger" onClick={onClose} className="sm:flex-1">Salir sin guardar</Button>
+              </div>
+            </div>
+          ) : phase === 'setup' ? (
+            <Button ref={mainRef} size="lg" block onClick={start}><Play aria-hidden className="size-5" strokeWidth={1.75} />Comenzar</Button>
+          ) : phase === 'done' ? (
+            <div className="flex flex-col gap-2">
+              <Button ref={mainRef} size="lg" block loading={saving} onClick={save}><Zap aria-hidden className="size-5" strokeWidth={1.75} />Guardar sesión y ganar XP</Button>
+              <Button variant="ghost" block onClick={onClose}>Cerrar sin guardar</Button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-2">
+                <Button ref={mainRef} size="lg" onClick={phase === 'running' ? pause : resume} className="flex-1">
+                  {phase === 'running'
+                    ? <><Pause aria-hidden className="size-5" strokeWidth={1.75} />Pausar</>
+                    : <><Play aria-hidden className="size-5" strokeWidth={1.75} />Continuar</>}
+                </Button>
+                <Button variant="secondary" size="lg" onClick={reset} aria-label="Reiniciar" className="px-4 sm:px-6">
+                  <RotateCcw aria-hidden className="size-5" strokeWidth={1.75} /><span aria-hidden className="hidden sm:inline">Reiniciar</span>
+                </Button>
+              </div>
+              <Button variant="ghost" block onClick={requestClose}><Square aria-hidden className="size-4" strokeWidth={1.75} />Terminar</Button>
+            </div>
+          )}
+
+          {/* Sonido */}
+          {phase !== 'done' && (
+            <section aria-label="Sonido" className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-4">
+              <Field label="Sonido ambiente">
+                <Select value={ambient} onChange={(e) => void changeAmbient(e.target.value as AmbientSoundId)}>
+                  {AMBIENT_SOUNDS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+                </Select>
+              </Field>
+              {ambient !== 'none' && (
+                <div className="flex flex-col gap-1">
+                  <div className="flex justify-between text-label-lg text-on-surface">
+                    <label htmlFor={`${soundOnId}-vol`}>Volumen</label>
+                    <span className="tabular-nums text-on-surface-light">{volume}%</span>
+                  </div>
+                  <input
+                    id={`${soundOnId}-vol`} type="range" min={0} max={100} step={5}
+                    value={volume} onChange={(e) => setVolume(Number(e.target.value))}
+                    aria-valuetext={`${volume}%`}
+                    className="h-11 w-full cursor-pointer accent-primary"
+                  />
+                </div>
+              )}
+              <div className="flex items-center justify-between gap-4">
+                <label htmlFor={soundOnId} className="text-body-md">Aviso sonoro al terminar</label>
+                <Switch id={soundOnId} checked={chime} onChange={(e) => setChime(e.target.checked)} />
+              </div>
+            </section>
+          )}
         </div>
       </motion.div>
-    </motion.div>
+    </motion.div>,
+    document.body,
   );
 }
