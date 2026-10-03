@@ -2,8 +2,8 @@
 // cursor o enfocar con teclado se despliega hacia la derecha hasta 256 px.
 // El contenido interno tiene siempre 256 px de ancho y el panel solo lo recorta,
 // así que nada se reacomoda: los íconos no se mueven y el texto aparece
-// revelado por el borde + un fundido. El panel flota sobre la página (no la
-// empuja); un hueco de 72 px en el flujo reserva su sitio.
+// revelado por el borde + un fundido. El panel EMPUJA la página: su contenedor
+// anima el ancho 72→256 px y el contenido se comprime.
 import { useEffect, useId, useRef, useState, type FocusEvent, type PointerEvent } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Link, NavLink, useLocation } from 'react-router-dom';
@@ -191,7 +191,12 @@ export function Sidebar({ className }: { className?: string }) {
   }, [open]);
 
   return (
-    <div className={cn('relative w-[72px] shrink-0', className)}>
+    <div
+      className={cn(
+        'relative w-[72px] shrink-0 transition-[width] duration-300 ease-[cubic-bezier(.2,.8,.2,1)] has-[[data-open=true]]:w-64 motion-reduce:transition-none',
+        className,
+      )}
+    >
       <aside
         ref={panelRef}
         data-open={open}
@@ -200,9 +205,7 @@ export function Sidebar({ className }: { className?: string }) {
         onFocus={onFocus}
         onBlur={onBlur}
         className={cn(
-          'group/side fixed inset-y-0 left-0 z-40 w-[72px] overflow-hidden border-r border-border bg-surface',
-          'transition-[width,box-shadow] duration-300 ease-[cubic-bezier(.2,.8,.2,1)] motion-reduce:transition-none',
-          open && 'w-64 shadow-lg',
+          'group/side sticky top-0 h-dvh w-full overflow-hidden border-r border-border bg-surface',
         )}
       >
         <div className="flex h-full w-64 flex-col gap-4 overflow-y-auto overflow-x-hidden px-3 py-4 [scrollbar-width:none]">

@@ -58,7 +58,7 @@ export function Topbar({ className }: { className?: string }) {
       )}
     >
       <div className="min-w-0 flex-1">
-        <span className="text-body-sm text-on-surface-light lg:hidden">{todayLabel()}</span>
+        <span className="block truncate text-body-sm text-on-surface-light lg:hidden">{todayLabel()}</span>
         <div className="hidden lg:block"><Breadcrumb /></div>
       </div>
       <div className="flex items-center gap-1">
