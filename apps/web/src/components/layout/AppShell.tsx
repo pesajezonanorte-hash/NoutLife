@@ -2,7 +2,7 @@
 //   móvil  (<768)    MobileHeader + TabBar + Fab
 //   md+    (≥768)    Sidebar recogido (72 px, íconos) que se despliega a 256 px
 //                    al pasar el cursor o con teclado, + Topbar h-16, sin FAB
-// La página hace scroll en window; el Sidebar es fixed y flota sobre la página al desplegarse.
+// La página hace scroll en window; el Sidebar es sticky y empuja la página al desplegarse.
 import { useEffect, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
