@@ -139,6 +139,10 @@ html.dark {
     transition-property: color, background-color, border-color, opacity !important;
     scroll-behavior: auto !important;
   }
+  /* Excepción: el despliegue del Sidebar lo inicia el usuario y no desplaza nada
+     bruscamente, así que su ancho sigue animándose con la preferencia del sistema.
+     El ajuste "Reducir movimiento" de la app (.reduce-motion) sí lo desactiva. */
+  html:not(.reduce-motion) .lq-grow { transition-property: width, background-color !important; }
 }
 
 /* Mismo efecto con "Reducir movimiento" activado en la app (store/motionStore). */
