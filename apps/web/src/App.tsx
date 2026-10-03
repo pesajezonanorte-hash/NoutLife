@@ -4,14 +4,14 @@ import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useAuthStore } from './store/authStore';
 import { useUIStore } from './store/uiStore';
 import { useBootstrapAuth } from './hooks/useAuth';
-import { GameLayout } from './components/layout/GameLayout';
+import { AppShell } from './components/layout/AppShell';
 import { SplashScreen } from './components/animations/SplashScreen';
 import { SageWidget } from './components/sage/SageWidget';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { NotificationPermissionModal, useNotificationModalState } from './components/ui/NotificationPermissionModal';
-import ModernLoader from './components/ui/modern-loader';
+import { PageLoader as LqPageLoader, Spinner } from './components/ui/lq';
+import { page as pageVariants } from './lib/motion';
 import { LoadingGate, LOADER_DELAY_MS, useLoadingVisibility } from './components/ui/LoadingGate';
-import { LOADING_COPY } from './lib/loadingCopy';
 import { useKeyboardAdjust } from './hooks/useKeyboardAdjust';
 
 // Páginas diferidas. Los loaders viven en un mapa para poder precargarlos en
@@ -21,10 +21,11 @@ const loaders = {
   LoginPage: () => import('./pages/Login'),
   RegisterPage: () => import('./pages/Register'),
   DashboardPage: () => import('./pages/Dashboard'),
-  CharacterPage: () => import('./pages/Character'),
+  ProfilePage: () => import('./pages/Profile'),
   OnboardingPage: () => import('./pages/Onboarding'),
   QuestsPage: () => import('./pages/Quests'),
   HabitsPage: () => import('./pages/Habits'),
+  HabitDetailPage: () => import('./pages/HabitDetail'),
   AchievementsPage: () => import('./pages/Achievements'),
   HistoryPage: () => import('./pages/History'),
   GymPage: () => import('./pages/Gym'),
@@ -37,7 +38,7 @@ const loaders = {
   ShopPage: () => import('./pages/Shop'),
   SettingsPage: () => import('./pages/Settings'),
   LeaderboardPage: () => import('./pages/Leaderboard'),
-  ChallengesPage: () => import('./pages/Challenges'),
+  ColosseumPage: () => import('./pages/Colosseum'),
   GuildPage: () => import('./pages/Guild'),
   StatsPage: () => import('./pages/Stats'),
   SeasonPage: () => import('./pages/Season'),
@@ -52,6 +53,10 @@ const loaders = {
   AboutPage: () => import('./pages/About'),
   FAQPage: () => import('./pages/FAQ'),
 } as const;
+
+// Playground del rediseño: solo se enruta en desarrollo (fuera de `loaders`
+// para no precargarlo).
+const loadPlayground = () => import('./pages/UIPlayground');
 
 type PageModule = { default: ComponentType<any> };
 type PageImport = () => Promise<PageModule>;
@@ -71,7 +76,7 @@ function preloadPages() {
 // Las redirecciones no necesitan esperar ningún bundle propio.
 const routeLoaders: Record<string, () => Promise<unknown>> = {
   '/': loaders.DashboardPage,
-  '/character': loaders.CharacterPage,
+  '/profile': loaders.ProfilePage,
   '/quests': loaders.QuestsPage,
   '/quests/new': loaders.QuestsPage,
   '/habits': loaders.HabitsPage,
@@ -87,7 +92,7 @@ const routeLoaders: Record<string, () => Promise<unknown>> = {
   '/shop': loaders.ShopPage,
   '/settings': loaders.SettingsPage,
   '/leaderboard': loaders.LeaderboardPage,
-  '/challenges': loaders.ChallengesPage,
+  '/colosseum': loaders.ColosseumPage,
   '/guild': loaders.GuildPage,
   '/stats': loaders.StatsPage,
   '/season': loaders.SeasonPage,
@@ -101,36 +106,17 @@ const routeLoaders: Record<string, () => Promise<unknown>> = {
   '/faq': loaders.FAQPage,
 };
 
+// Rutas que solo redirigen (no esperan ningún bundle).
+const REDIRECTS = new Set(['/goals', '/metas', '/rituales', '/character', '/challenges']);
+
 function loaderForPath(pathname: string) {
-  if (pathname === '/goals' || pathname === '/metas' || pathname === '/rituales') return null;
+  if (REDIRECTS.has(pathname)) return null;
+  if (/^\/habits\/[^/]+$/.test(pathname)) return loaders.HabitDetailPage;
   return routeLoaders[pathname] ?? loaders.NotFoundPage;
 }
 
-// La salida conserva casi toda la página anterior hasta que la siguiente zona
-// está lista. Así la transición se siente continua, sin dejar un frame vacío.
-const pageVariants = {
-  initial: { opacity: 0.88, y: 8 },
-  animate: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.28,
-      ease: [0.16, 1, 0.3, 1],
-    },
-  },
-  exit: {
-    opacity: 0.96,
-    y: -2,
-    transition: { duration: 0.12, ease: 'easeOut' },
-  },
-};
-
 function PageLoader() {
-  return (
-    <div className="flex min-h-[300px] w-full items-center justify-center px-4 py-12 sm:min-h-[360px]" aria-busy="true">
-      <ModernLoader words={[...LOADING_COPY.page]} />
-    </div>
-  );
+  return <LqPageLoader className="min-h-[300px] sm:min-h-[360px]" />;
 }
 
 /**
@@ -191,10 +177,12 @@ function AnimatedRoutes({ location }: { location: ReturnType<typeof useLocation>
       >
         <Routes location={location}>
           <Route path="/"             element={<SafePage><DeferredLazyPage load={loaders.DashboardPage} /></SafePage>} />
-          <Route path="/character"    element={<SafePage><DeferredLazyPage load={loaders.CharacterPage} /></SafePage>} />
+          <Route path="/profile"      element={<SafePage><DeferredLazyPage load={loaders.ProfilePage} /></SafePage>} />
+          <Route path="/character"    element={<Navigate to="/profile" replace />} />
           <Route path="/quests"       element={<SafePage><DeferredLazyPage load={loaders.QuestsPage} /></SafePage>} />
           <Route path="/quests/new"   element={<SafePage><DeferredLazyPage load={loaders.QuestsPage} /></SafePage>} />
           <Route path="/habits"       element={<SafePage><DeferredLazyPage load={loaders.HabitsPage} /></SafePage>} />
+          <Route path="/habits/:id"   element={<SafePage><DeferredLazyPage load={loaders.HabitDetailPage} /></SafePage>} />
           <Route path="/achievements" element={<SafePage><DeferredLazyPage load={loaders.AchievementsPage} /></SafePage>} />
           <Route path="/history"      element={<SafePage><DeferredLazyPage load={loaders.HistoryPage} /></SafePage>} />
           <Route path="/gym"          element={<SafePage><DeferredLazyPage load={loaders.GymPage} /></SafePage>} />
@@ -207,7 +195,8 @@ function AnimatedRoutes({ location }: { location: ReturnType<typeof useLocation>
           <Route path="/shop"         element={<SafePage><DeferredLazyPage load={loaders.ShopPage} /></SafePage>} />
           <Route path="/settings"     element={<SafePage><DeferredLazyPage load={loaders.SettingsPage} /></SafePage>} />
           <Route path="/leaderboard"  element={<SafePage><DeferredLazyPage load={loaders.LeaderboardPage} /></SafePage>} />
-          <Route path="/challenges"   element={<SafePage><DeferredLazyPage load={loaders.ChallengesPage} /></SafePage>} />
+          <Route path="/colosseum"    element={<SafePage><DeferredLazyPage load={loaders.ColosseumPage} /></SafePage>} />
+          <Route path="/challenges"   element={<Navigate to="/colosseum" replace />} />
           <Route path="/guild"        element={<SafePage><DeferredLazyPage load={loaders.GuildPage} /></SafePage>} />
           <Route path="/stats"        element={<SafePage><DeferredLazyPage load={loaders.StatsPage} /></SafePage>} />
           <Route path="/season"       element={<SafePage><DeferredLazyPage load={loaders.SeasonPage} /></SafePage>} />
@@ -231,7 +220,7 @@ function AnimatedRoutes({ location }: { location: ReturnType<typeof useLocation>
 
 /**
  * Mantiene la zona actual mientras el bundle de destino se resuelve. El
- * boundary vive dentro de GameLayout, por lo que HUD, navegación y fondo nunca
+ * boundary vive dentro de AppShell, por lo que HUD, navegación y fondo nunca
  * se desmontan al entrar por primera vez a una ruta lazy.
  */
 function DeferredRouteContent() {
@@ -290,7 +279,10 @@ function DeferredRouteContent() {
             exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
             transition={{ duration: shouldReduceMotion ? 0.01 : 0.18, ease: 'easeOut' }}
           >
-            <ModernLoader words={[...LOADING_COPY.routeCue]} />
+            <span role="status" className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-label-lg text-on-surface shadow-md">
+              <Spinner size="sm" className="text-primary-text" />
+              Cargando…
+            </span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -383,6 +375,9 @@ export default function App() {
 
       {!showSplash && (
         <Routes>
+          {import.meta.env.DEV && (
+            <Route path="/_ui" element={<DeferredLazyPage load={loadPlayground} />} />
+          )}
           <Route
             path="/login"
             element={
@@ -407,9 +402,9 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <ErrorBoundary>
-                  <GameLayout>
+                  <AppShell>
                     <DeferredRouteContent />
-                  </GameLayout>
+                  </AppShell>
                 </ErrorBoundary>
                 <SageWidget />
               </ProtectedRoute>

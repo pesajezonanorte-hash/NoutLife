@@ -1,0 +1,49 @@
+import { motion } from 'framer-motion';
+import { NavLink, useLocation } from 'react-router-dom';
+import { cn } from '@/lib/utils';
+import { spring } from '@/lib/motion';
+import { PRIMARY_NAV, matchesRoute } from './nav';
+
+/** Barra inferior móvil (<768): 5 destinos, 56 px de alto táctil, fondo translúcido. */
+export function TabBar({ className }: { className?: string }) {
+  const { pathname } = useLocation();
+  return (
+    <nav
+      aria-label="Principal"
+      className={cn(
+        'fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-border bg-background/[0.86] px-1 pt-1',
+        'pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-xl backdrop-saturate-[1.8]',
+        className,
+      )}
+    >
+      {PRIMARY_NAV.map(({ to, label, icon: Icon }) => {
+        const active = matchesRoute(pathname, to);
+        return (
+          <NavLink
+            key={to}
+            to={to}
+            end={to === '/'}
+            aria-current={active ? 'page' : undefined}
+            className={cn(
+              'flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-xl text-label-md transition-colors',
+              active ? 'text-primary-text' : 'text-on-surface-light hover:text-on-surface',
+            )}
+          >
+            <span className="relative flex h-8 w-14 items-center justify-center">
+              {active && (
+                <motion.span
+                  layoutId="tabbar-pill"
+                  transition={spring}
+                  aria-hidden
+                  className="absolute inset-0 rounded-full bg-primary/[var(--lq-soft-alpha)]"
+                />
+              )}
+              <Icon aria-hidden className="relative size-6" strokeWidth={1.75} />
+            </span>
+            {label}
+          </NavLink>
+        );
+      })}
+    </nav>
+  );
+}

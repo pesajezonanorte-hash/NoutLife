@@ -1,235 +1,190 @@
-import { FlowButton } from '@/components/ui/flow-button';
-import { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { PixelPanel } from '../../components/ui/PixelPanel';
-import { LifeQuestFlipCard } from '../../components/ui/lifequest-flip-card';
-import { PixelButton } from '../../components/ui/PixelButton';
-import { AchievementCard } from '../../components/achievements/AchievementCard';
-import { fetchAchievements } from '../../services/achievement.service';
-import type { Achievement } from '../../services/achievement.service';
-import { E } from '@/components/ui/glyphs';
-import ModernLoader from '@/components/ui/modern-loader';
-import { LoadingGate } from '@/components/ui/LoadingGate';
-import { LOADING_COPY } from '@/lib/loadingCopy';
+// Logros — Achievements.dc.html (móvil) / AchievementsDesktop.dc.html (desktop).
+// Grid 2 col (móvil) / auto-fill 232 px; hover y foco despliegan la descripción.
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
+import { Check, Lock, Trophy } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { item, stagger } from '@/lib/motion';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
+import {
+  EmptyState, ErrorState, ProgressBar, ProgressRing, Select, SegmentedControl, Skeleton, Spinner,
+} from '@/components/ui/lq';
+import { softTone } from '@/components/ui/lq/tones';
+import { fetchAchievements, type Achievement } from '@/services/achievement.service';
+import { achievementCategory as catMeta, achievementIcon, achievementProgress as progressOf } from '@/components/achievements/achievementMeta';
 
-const CATEGORY_TABS = [
-  { key: '',        label: 'Todos',    icon: '🏆' },
-  { key: 'quest',   label: 'Misiones', icon: '⚔️' },
-  { key: 'habit',   label: 'Hábitos',  icon: '🔥' },
-  { key: 'level',   label: 'Nivel',    icon: '⬆️' },
-  { key: 'gym',     label: 'Coliseo',  icon: '🏋️' },
-  { key: 'category', label: 'Categoría', icon: '📋' },
-  { key: 'special', label: 'Especiales', icon: '✨' },
-] as const;
+type Filter = 'all' | 'on' | 'off';
 
-export default function AchievementsPage() {
-  const [achievements, setAchievements] = useState<Achievement[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('');
-  const [selectedAch, setSelectedAch] = useState<Achievement | null>(null);
+const fmtDate = (iso?: string) => (iso ? new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) : '');
 
-  const loadAchievements = useCallback(async () => {
-    setLoading(true);
-    setLoadError(null);
-    try {
-      setAchievements(await fetchAchievements());
-    } catch {
-      setLoadError('No pudimos cargar tu catálogo de logros. Comprueba tu conexión e inténtalo de nuevo.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadAchievements();
-  }, [loadAchievements]);
-
-  const filtered = activeTab
-    ? achievements.filter((a) => a.category === activeTab)
-    : achievements;
-
-  const unlockedCount = achievements.filter((a) => a.unlocked).length;
-  const totalXp = achievements.filter((a) => a.unlocked).reduce((s, a) => s + a.xpReward, 0);
-  // Keep the animated 3D surface to one achievement while the catalog stays light.
-  const orderedAchievements = [...filtered.filter((achievement) => achievement.unlocked), ...filtered.filter((achievement) => !achievement.unlocked)];
-  const featuredAchievement = orderedAchievements[0];
-  const remainingAchievements = featuredAchievement ? orderedAchievements.filter((achievement) => achievement.id !== featuredAchievement.id) : [];
+function AchievementCard({ a }: { a: Achievement }) {
+  const meta = catMeta(a.category);
+  const Icon = achievementIcon(a);
+  const { target, current, pct } = progressOf(a);
+  const on = a.unlocked;
+  const metaText = on ? `Desbloqueado · ${fmtDate(a.unlockedAt)}` : target > 0 ? `${pct}% · ${current}/${target}` : 'Bloqueado';
+  const aria = `${a.title}. ${a.description.replace(/\.\s*$/, '')}. ${on ? `Desbloqueado el ${fmtDate(a.unlockedAt)}` : target > 0 ? `Bloqueado, ${pct} por ciento` : 'Bloqueado'}. ${a.xpReward} XP.`;
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div>
-        <h1 className="font-pixel text-accent-gold" style={{ fontSize: '14px' }}><E e="🏆" /> SALA DE LOGROS</h1>
-        <p className="font-vt text-text-secondary text-base">
-          {achievements.length === 0 && !loading
-            ? 'Preparando catálogo de logros…'
-            : `${unlockedCount}/${achievements.length} desbloqueados · ${totalXp.toLocaleString()} XP ganados`}
-        </p>
-      </div>
-
-      {/* Progress bar global */}
-      {(loading || achievements.length > 0) && (
-        <div>
-          <div className="flex justify-between font-pixel mb-1" style={{ fontSize: '12px' }}>
-            <span className="text-text-secondary">PROGRESO GLOBAL</span>
-            <span className="text-accent-gold">{Math.round(achievements.length > 0 ? (unlockedCount / achievements.length) * 100 : 0)}%</span>
-          </div>
-          <div className="h-2 bg-bg-panel border-2 border-border-pixel">
-            <motion.div
-              className="h-full bg-accent-gold"
-              initial={{ width: 0 }}
-              animate={{ width: `${achievements.length > 0 ? (unlockedCount / achievements.length) * 100 : 0}%` }}
-              transition={{ duration: 1, ease: 'easeOut' }}
-            />
-          </div>
-        </div>
+    <motion.li
+      variants={item}
+      tabIndex={0}
+      aria-label={aria}
+      className={cn(
+        // `group` despliega la descripción con hover y con foco (también en móvil al tocar).
+        'lq-lift group flex flex-col gap-3 rounded-2xl border border-border p-4 shadow-sm md:items-center md:gap-4 md:p-6 md:text-center',
+        on ? 'bg-surface' : 'bg-background',
       )}
-
-      {!loading && featuredAchievement && (
-        <LifeQuestFlipCard
-          eyebrow="Logro destacado"
-          title={featuredAchievement.title}
-          description={featuredAchievement.description}
-          visual={<span className={`text-6xl ${featuredAchievement.unlocked ? '' : 'grayscale opacity-50'}`} aria-hidden="true"><E e={featuredAchievement.icon} s={64} /></span>}
-          visualLabel={`Insignia de ${featuredAchievement.title}`}
-          badge={featuredAchievement.unlocked ? 'Desbloqueado' : 'En progreso'}
-          frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">{featuredAchievement.unlocked ? `+${featuredAchievement.xpReward} XP ganado` : featuredAchievement.target ? `${featuredAchievement.progress ?? 0}/${featuredAchievement.target} de progreso` : 'Sigue avanzando'}</p>}
-          backDescription={<p>{featuredAchievement.description}</p>}
-          metrics={[
-            { label: 'Estado', value: featuredAchievement.unlocked ? 'Desbloqueado' : 'Pendiente' },
-            { label: 'XP', value: `+${featuredAchievement.xpReward}` },
-            { label: 'Progreso', value: featuredAchievement.target ? `${featuredAchievement.progress ?? 0}/${featuredAchievement.target}` : '—' },
-          ]}
-          actionLabel={featuredAchievement.unlocked ? 'Ver detalle' : 'Ver avance'}
-          onAction={() => setSelectedAch(featuredAchievement)}
-          accent="var(--accent-gold)"
-        />
-      )}
-
-      {/* Category tabs */}
-      <div className="grid grid-cols-2 gap-1 sm:grid-cols-3">
-        {CATEGORY_TABS.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`min-h-11 min-w-0 px-3 py-1.5 border-2 font-pixel transition-all ${
-              activeTab === tab.key
-                ? 'border-accent-gold bg-accent-gold text-bg-deep'
-                : 'border-border-pixel text-text-secondary hover:border-text-secondary'
-            }`}
-            style={{ fontSize: '12px' }}
+    >
+      <div className="flex items-start justify-between md:justify-center">
+        <span className="relative">
+          <span
+            aria-hidden
+            className={cn(
+              'lq-ichip flex size-14 items-center justify-center rounded-2xl md:size-[88px] md:rounded-[28px]',
+              on ? softTone[meta.tone] : cn(softTone.muted, 'grayscale'),
+            )}
           >
-            <E e={tab.icon} /> {tab.label}
-          </button>
-        ))}
+            <Icon className="size-7 md:size-11" strokeWidth={1.75} />
+          </span>
+          <span
+            aria-hidden
+            className={cn(
+              'absolute -bottom-2 -right-2 hidden size-8 items-center justify-center rounded-full border-2 border-surface md:flex',
+              on ? 'bg-success text-on-primary' : 'bg-surface-variant text-on-surface-light',
+            )}
+          >
+            {on ? <Check className="size-4" strokeWidth={3} /> : <Lock className="size-4" strokeWidth={2} />}
+          </span>
+        </span>
+        {!on && <Lock aria-hidden className="size-5 text-on-surface-light md:hidden" strokeWidth={1.75} />}
       </div>
-
-      {/* Achievement grid */}
-      <LoadingGate loading={loading} fallback={<ModernLoader words={[...LOADING_COPY.achievements]} />}>
-        {loading ? null : loadError ? (
-        <PixelPanel className="mx-auto max-w-xl p-8 text-center">
-          <p className="text-4xl"><E e="⚠" /></p>
-          <h2 className="mt-3 text-base font-semibold text-[var(--text-primary)]">No pudimos abrir tus logros</h2>
-          <p className="mx-auto mt-1 max-w-sm text-sm leading-6 text-[var(--text-secondary)]">{loadError}</p>
-          <PixelButton variant="secondary" onClick={() => void loadAchievements()} className="mt-5">Reintentar</PixelButton>
-        </PixelPanel>
-      ) : filtered.length === 0 ? (
-        <PixelPanel className="mx-auto max-w-xl p-8 text-center">
-          <p className="text-4xl"><E e={achievements.length === 0 ? '🏆' : '🔎'} /></p>
-          <h2 className="mt-3 text-base font-semibold text-[var(--text-primary)]">{achievements.length === 0 ? 'Tu sala de logros se está preparando' : 'No hay logros en esta categoría'}</h2>
-          <p className="mx-auto mt-1 max-w-sm text-sm leading-6 text-[var(--text-secondary)]">
-            {achievements.length === 0
-              ? 'Vuelve a intentarlo en unos segundos. Si el problema continúa, avísanos desde Feedback.'
-              : 'Explora otra categoría para ver todos los desafíos disponibles.'}
+      <div className="flex flex-col gap-0.5">
+        <h2 className="text-body-md font-semibold md:text-heading-sm">{a.title}</h2>
+        <p className="text-body-sm text-on-surface-light md:hidden">{a.description}</p>
+      </div>
+      <div className="flex w-full flex-col gap-1.5">
+        <ProgressBar value={pct} tone={on ? 'success' : 'primary'} />
+        <span className={cn('text-body-sm tabular-nums', on ? 'text-success-text' : 'text-on-surface-light')}>{metaText}</span>
+      </div>
+      {/* Desktop: la descripción se despliega en hover/foco (grid-rows 0fr → 1fr). */}
+      <div className="hidden w-full grid-rows-[0fr] opacity-0 transition-[grid-template-rows,opacity] duration-300 ease-out group-hover:grid-rows-[1fr] group-hover:opacity-100 group-focus:grid-rows-[1fr] group-focus:opacity-100 motion-reduce:transition-none md:grid">
+        <div className="overflow-hidden">
+          <p className="border-t border-border pt-3 text-body-sm text-on-surface">
+            {a.description} <span className="text-primary-text">+{a.xpReward} XP</span>
           </p>
-          {achievements.length === 0 ? (
-            <PixelButton variant="secondary" onClick={() => void loadAchievements()} className="mt-5">Actualizar logros</PixelButton>
-          ) : (
-            <PixelButton variant="ghost" onClick={() => setActiveTab('')} className="mt-5">Ver todos</PixelButton>
-          )}
-        </PixelPanel>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {remainingAchievements.map((ach, i) => (
-            <motion.div
-              key={ach.id}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.03, duration: 0.2 }}
-            >
-              <AchievementCard achievement={ach} onClick={setSelectedAch} />
-            </motion.div>
-          ))}
         </div>
+      </div>
+    </motion.li>
+  );
+}
+
+export default function AchievementsPage() {
+  const [list, setList] = useState<Achievement[]>([]);
+  const [state, setState] = useState<'loading' | 'error' | 'ready'>('loading');
+  const [filter, setFilter] = useState<Filter>('all');
+  const [category, setCategory] = useState('');
+  const isDesktop = useMediaQuery('(min-width: 768px)');
+
+  const load = useCallback(async () => {
+    setState('loading');
+    try {
+      setList(await fetchAchievements());
+      setState('ready');
+    } catch {
+      setState('error');
+    }
+  }, []);
+  useEffect(() => { void load(); }, [load]);
+
+  const unlocked = list.filter((a) => a.unlocked).length;
+  const pct = list.length ? Math.round((unlocked / list.length) * 100) : 0;
+  const categories = useMemo(() => [...new Set(list.map((a) => a.category))], [list]);
+  // Orden: obtenidos más recientes primero, luego bloqueados por cercanía.
+  const shown = list
+    .filter((a) => (filter === 'all' ? true : filter === 'on' ? a.unlocked : !a.unlocked))
+    .filter((a) => !category || a.category === category)
+    .sort((a, b) => Number(b.unlocked) - Number(a.unlocked)
+      || (a.unlocked ? (b.unlockedAt ?? '').localeCompare(a.unlockedAt ?? '') : progressOf(b).pct - progressOf(a).pct));
+
+  return (
+    <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-6 md:gap-12">
+      <motion.section variants={item} className="flex flex-wrap items-center justify-between gap-6 md:gap-8">
+        <div className="flex w-full min-w-0 flex-col gap-3 md:w-auto md:flex-[1_1_420px] md:gap-2">
+          <span className="hidden text-label-lg text-primary-text md:block">Colección</span>
+          <h1 className="text-display-sm md:text-display-md lg:text-display-lg">Logros</h1>
+          <p className="hidden max-w-[520px] text-body-lg text-on-surface-light md:block">
+            Cada medalla cuenta una parte de tu historia. Pasa el cursor o enfoca una para ver cómo se consigue.
+          </p>
+          {state === 'ready' && list.length > 0 && (
+            <div className="flex flex-col gap-2 md:hidden">
+              <div className="flex justify-between text-body-md">
+                <span><b className="tabular-nums">{unlocked}</b> de {list.length} desbloqueados</span>
+                <span className="text-body-sm text-on-surface-light tabular-nums">{pct}%</span>
+              </div>
+              <ProgressBar value={pct} />
+            </div>
+          )}
+        </div>
+        {state === 'ready' && list.length > 0 && (
+          <ProgressRing value={pct} size={140} stroke={12} label="Logros obtenidos" valueText={`${unlocked} de ${list.length}`} className="hidden md:flex">
+            <span className="text-heading-lg tabular-nums">{unlocked}/{list.length}</span>
+            <span className="text-body-sm text-on-surface-light">obtenidos</span>
+          </ProgressRing>
         )}
-      </LoadingGate>
+      </motion.section>
 
-      {/* Detail modal */}
-      <AnimatePresence>
-        {selectedAch && (
-          <motion.div
-            className="fixed inset-0 z-[200] flex items-end justify-center p-0 sm:items-center sm:p-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setSelectedAch(null)} />
-            <motion.div
-              className="relative z-10 max-h-[86dvh] w-full max-w-sm overflow-y-auto rounded-t-2xl border-2 border-border-pixel bg-bg-panel p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] text-center sm:rounded-2xl sm:p-6"
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.8, opacity: 0 }}
-              style={selectedAch.unlocked ? { boxShadow: '0 0 30px #ffd23f44' } : {}}
-            >
-              <motion.div
-                className={`text-6xl mb-4 ${!selectedAch.unlocked ? 'grayscale opacity-40' : ''}`}
-                animate={selectedAch.unlocked ? { scale: [1, 1.1, 1] } : {}}
-                transition={{ duration: 1.5, repeat: Infinity }}
-              >
-                <E e={selectedAch.icon} />
-              </motion.div>
-              <h3 className={`font-pixel mb-2 ${selectedAch.unlocked ? 'text-accent-gold' : 'text-text-secondary'}`} style={{ fontSize: '12px' }}>
-                {selectedAch.title}
-              </h3>
-              <p className="font-vt text-text-primary text-base mb-4">{selectedAch.description}</p>
-
-              {selectedAch.unlocked ? (
-                <div className="space-y-1">
-                  <p className="font-pixel text-accent-gold" style={{ fontSize: '12px' }}><E e="✓" /> DESBLOQUEADO</p>
-                  {selectedAch.unlockedAt && (
-                    <p className="font-vt text-text-secondary text-sm">
-                      {new Date(selectedAch.unlockedAt).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })}
-                    </p>
-                  )}
-                  {selectedAch.xpReward > 0 && (
-                    <p className="font-pixel text-accent-gold" style={{ fontSize: '12px' }}>+{selectedAch.xpReward} XP</p>
-                  )}
-                </div>
-              ) : (
-                <div>
-                  <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}><E e="🔒" /> BLOQUEADO</p>
-                  {selectedAch.progress !== null && selectedAch.target && (
-                    <p className="font-vt text-text-secondary text-sm mt-1">
-                      {selectedAch.progress}/{selectedAch.target}
-                    </p>
-                  )}
-                </div>
+      <motion.div variants={item} className="flex flex-col gap-6">
+        {state === 'loading' ? (
+          <div className="flex flex-col gap-6" aria-busy="true" aria-label="Cargando logros">
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-[repeat(auto-fill,minmax(232px,1fr))] md:gap-6">
+              {Array.from({ length: 8 }, (_, i) => <Skeleton key={i} className="h-52 rounded-2xl md:h-64" />)}
+            </div>
+            <div className="flex items-center justify-center gap-3"><Spinner /><span className="text-body-sm text-on-surface-light">Cargando tu colección…</span></div>
+          </div>
+        ) : state === 'error' ? (
+          <ErrorState title="No pudimos cargar tus logros" onRetry={() => void load()} />
+        ) : list.length === 0 ? (
+          <EmptyState icon={Trophy} title="Aún no hay logros" description="Completa hábitos y misiones para empezar tu colección." className="py-16" />
+        ) : (
+          <>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <SegmentedControl
+                label="Filtro"
+                value={filter}
+                onChange={setFilter}
+                options={[{ value: 'all', label: 'Todos' }, { value: 'on', label: isDesktop ? 'Desbloqueados' : 'Obtenidos' }, { value: 'off', label: 'Bloqueados' }]}
+                className="w-full sm:max-w-[480px]"
+              />
+              {categories.length > 1 && (
+                <Select aria-label="Categoría" value={category} onChange={(e) => setCategory(e.target.value)} className="sm:w-52">
+                  <option value="">Todas las categorías</option>
+                  {categories.map((c) => <option key={c} value={c}>{catMeta(c).label}</option>)}
+                </Select>
               )}
-
-              <FlowButton
-                tone="ghost"
-                withArrows={false}
-                onClick={() => setSelectedAch(null)}
-                className="mt-4 min-h-11 font-pixel text-text-secondary hover:text-text-primary border-2 border-border-pixel px-4 py-1"
-                style={{ fontSize: '12px' }}
+            </div>
+            {shown.length > 0 ? (
+              <motion.ul
+                key={`${filter}-${category}`}
+                variants={stagger}
+                initial="initial"
+                animate="animate"
+                className="grid grid-cols-2 gap-4 md:grid-cols-[repeat(auto-fill,minmax(232px,1fr))] md:gap-6"
               >
-                CERRAR
-              </FlowButton>
-            </motion.div>
-          </motion.div>
+                {shown.map((a) => <AchievementCard key={a.id} a={a} />)}
+              </motion.ul>
+            ) : (
+              <EmptyState
+                icon={filter === 'on' ? Trophy : Lock}
+                tone="muted"
+                title={filter === 'on' ? 'Todavía sin medallas aquí' : '¡Lo tienes todo!'}
+                description={filter === 'on' ? 'Sigue completando hábitos y misiones.' : 'No te quedan logros bloqueados en este filtro.'}
+                className="py-12"
+              />
+            )}
+          </>
         )}
-      </AnimatePresence>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

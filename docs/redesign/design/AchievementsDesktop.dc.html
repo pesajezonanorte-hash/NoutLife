@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Achievements Desktop</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./lq.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#4f46e5}a:hover{color:#4338ca}
+</style>
+</helmet>
+<div class="lq app {{theme}}">
+  <aside class="side">
+    <a href="DashboardDesktop.dc.html" class="row" style="gap: 12px; padding: 0 8px; text-decoration: none; color: inherit"><span class="ichip primary" style="width: 40px; height: 40px; border-radius: 12px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg></span><span class="t-hs">LifeQuest</span></a>
+    <nav aria-label="Principal" style="display: flex; flex-direction: column; gap: 4px">
+      <sc-for list="{{nav}}" as="n" hint-placeholder-count="5"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <div style="display: flex; flex-direction: column; gap: 4px; padding-top: 16px; border-top: 1px solid var(--border)">
+      <span class="sec">BIENESTAR</span>
+      <sc-for list="{{nav2}}" as="n" hint-placeholder-count="4"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </div>
+  </aside>
+
+  <div class="pane">
+    <header class="topbar">
+      <nav class="crumb" aria-label="Ruta"><a href="DashboardDesktop.dc.html">Inicio</a><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg><span class="c-1" aria-current="page">Logros</span></nav>
+      <button class="btn btn-icon" aria-label="Compartir logros"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/></svg></button>
+    </header>
+
+    <main class="wrap enter">
+      <section style="display: flex; flex-wrap: wrap; gap: 32px; align-items: center; justify-content: space-between">
+        <div style="flex: 1 1 420px; display: flex; flex-direction: column; gap: 8px">
+          <span class="eyebrow">Colección</span>
+          <h1 class="t-dl">Logros</h1>
+          <p class="t-bl c-3" style="max-width: 520px">Cada medalla cuenta una parte de tu historia. Pasa el cursor para ver cómo se consigue.</p>
+        </div>
+        <div class="row" style="gap: 24px">
+          <div style="position: relative; width: 140px; height: 140px">
+            <svg viewBox="0 0 120 120" width="140" height="140" aria-hidden="true" style="transform: rotate(-90deg)"><circle cx="60" cy="60" r="52" fill="none" stroke="var(--surface-variant)" stroke-width="10"/><circle class="ring-val" cx="60" cy="60" r="52" fill="none" stroke="var(--warning)" stroke-width="10" stroke-linecap="round" pathLength="100" stroke-dasharray="100" stroke-dashoffset="50"/></svg>
+            <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center"><span class="t-hl num">{{unlocked}}/8</span><span class="t-bs c-3">obtenidos</span></div>
+          </div>
+        </div>
+      </section>
+
+      <div class="seg slide" role="tablist" aria-label="Filtro" style="max-width: 480px">
+        <span class="pill" style="width: {{pillW}}; transform: {{pillX}}" aria-hidden="true"></span>
+        <sc-for list="{{filters}}" as="f" hint-placeholder-count="3"><button class="{{f.cls}}" role="tab" aria-selected="{{f.sel}}" onClick="{{f.pick}}">{{f.label}}</button></sc-for>
+      </div>
+
+      <ul class="stagger" style="list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); gap: 24px">
+        <sc-for list="{{items}}" as="a" hint-placeholder-count="8">
+          <li class="card card-lg lift ach" tabindex="0" aria-label="{{a.aria}}" style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 16px; background: {{a.cardBg}}">
+            <div style="position: relative">
+              <span class="ichip {{a.tone}}" style="width: 88px; height: 88px; border-radius: 28px; filter: {{a.filter}}"><svg class="i i48" viewBox="0 0 24 24" aria-hidden="true"><path d="{{a.icon}}"/></svg></span>
+              <sc-if value="{{a.locked}}" hint-placeholder-val="{{ false }}"><span class="ichip muted" style="position: absolute; right: -8px; bottom: -8px; width: 32px; height: 32px; border-radius: 999px; border: 2px solid var(--surface)"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span></sc-if>
+              <sc-if value="{{a.isOn}}" hint-placeholder-val="{{ true }}"><span class="ichip success" style="position: absolute; right: -8px; bottom: -8px; width: 32px; height: 32px; border-radius: 999px; border: 2px solid var(--surface); background: var(--success); color: #fff"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true" style="stroke-width: 2.5"><path d="m5 12 5 5 9-10"/></svg></span></sc-if>
+            </div>
+            <h2 class="t-hs" style="font-size: 18px">{{a.name}}</h2>
+            <div style="width: 100%; display: flex; flex-direction: column; gap: 6px">
+              <div class="bar {{a.barCls}}" aria-hidden="true"><span style="width: {{a.pct}}%"></span></div>
+              <span class="t-bs {{a.metaCls}} num">{{a.meta}}</span>
+            </div>
+            <div class="expand" style="width: 100%"><div><p class="t-bs c-2" style="padding-top: 12px; border-top: 1px solid var(--border)">{{a.desc}}</p></div></div>
+          </li>
+        </sc-for>
+      </ul>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1260}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { filter: 'all' }; }
+  navs(active) {
+    const P = { home: 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z', habits: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0zM8.5 12l2.5 2.5 4.5-5', quests: 'M5 22V4M5 4h12l-2.5 4L17 12H5', arena: 'M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 17.5 21 6V3h-3L6.5 14.5M11 19l-6-6M8 16l-4 4M5 21l-2-2', profile: 'M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM4 21a8 8 0 0 1 16 0', money: 'M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 10h18M16 15h2', food: 'M7 3v18M4 3v6a3 3 0 0 0 6 0V3M17 21V3c-2 1-3 4-3 7h3', sleep: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z', ach: 'M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3' };
+    const mk = a => a.map(([id, label, f]) => ({ label, href: f + '.dc.html', icon: P[id], cls: id === active ? 'on' : '', cur: id === active ? 'page' : 'false' }));
+    return {
+      nav: mk([['home','Inicio','DashboardDesktop'],['habits','Hábitos','HabitsDesktop'],['quests','Misiones','QuestsDesktop'],['arena','Coliseo','ColosseumDesktop'],['profile','Perfil','ProfileDesktop']]),
+      nav2: mk([['money','Finanzas','FinancesDesktop'],['food','Comida','FoodDesktop'],['sleep','Sueño','SleepDesktop'],['ach','Logros','AchievementsDesktop']]),
+    };
+  }
+  renderVals() {
+    const I = {
+      flame: 'M12 22c4 0 7-3 7-7 0-4-3-6-4-9-1 2-2 3-4 3 0-2-1-4-2-5-1 4-4 6-4 11 0 4 3 7 7 7z',
+      book: 'M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z',
+      star: 'm12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z',
+      wallet: 'M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 10h18M16 15h2',
+      moon: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
+      swords: 'M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M9.5 17.5 21 6V3h-3L6.5 14.5M11 19l-6-6M8 16l-4 4',
+      flag: 'M5 22V4M5 4h12l-2.5 4L17 12H5',
+      zap: 'M13 2 4 14h7l-1 8 9-12h-7z',
+    };
+    const data = [
+      ['Primera chispa','Completa tu primer hábito. El comienzo de toda aventura.','zap','warning',1,1,'12 ago'],
+      ['Semana de hierro','Mantén cualquier racha durante 7 días seguidos.','flame','warning',7,7,'19 ago'],
+      ['Ratón de biblioteca','Completa “Leer” durante 30 días en total.','book','primary',30,30,'11 sep'],
+      ['Gladiador','Gana 10 duelos en el Coliseo.','swords','error',18,10,'25 sep'],
+      ['Mes imparable','Mantén una racha de 30 días seguidos.','star','secondary',21,30,null],
+      ['Ahorrador','Acumula $1.000 en ahorros registrados.','wallet','info',640,1000,null],
+      ['Buen descanso','Duerme 7 h o más durante 7 noches seguidas.','moon','secondary',4,7,null],
+      ['Héroe de misiones','Completa 50 misiones de cualquier categoría.','flag','primary',34,50,null],
+    ];
+    const f = this.state.filter;
+    const all = data.map(([name, desc, icon, tone, cur, max, date]) => {
+      const on = !!date;
+      const pct = Math.min(100, Math.round(cur / max * 100));
+      return { name, desc: on ? `${desc} Desbloqueado el ${date}.` : desc, icon: I[icon], pct, locked: !on, isOn: on,
+        tone: on ? tone : 'muted', filter: on ? 'none' : 'grayscale(1)', cardBg: on ? 'var(--surface)' : 'var(--bg)',
+        barCls: on ? 'success' : '', meta: on ? `Desbloqueado · ${date}` : `${pct}% · ${cur}/${max}`, metaCls: on ? 'c-success' : 'c-3',
+        aria: `${name}. ${desc} ${on ? 'Desbloqueado el ' + date : 'Bloqueado, ' + pct + ' por ciento'}` };
+    });
+    const items = all.filter(a => f === 'all' || (f === 'on' ? a.isOn : a.locked));
+    const opts = [['all','Todos'],['on','Desbloqueados'],['off','Bloqueados']];
+    const idx = opts.findIndex(o => o[0] === f);
+    const filters = opts.map(([id, label]) => ({ label, cls: f === id ? 'on' : '', sel: f === id ? 'true' : 'false', pick: () => this.setState({ filter: id }) }));
+    return { theme: (this.props.dark ?? false) ? 'dark' : '', ...this.navs('ach'), items, filters, unlocked: all.filter(a => a.isOn).length,
+      pillW: 'calc((100% - 16px) / 3)', pillX: `translateX(calc(${idx} * (100% + 4px)))` };
+  }
+}
+</script>
+</body>
+</html>

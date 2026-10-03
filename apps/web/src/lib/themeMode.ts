@@ -1,29 +1,25 @@
-// themeMode.ts — Modo claro/oscuro del sistema (light | dark | system).
-// Fuente única de verdad: localStorage['theme'] + clase en documentElement,
-// sincronizada entre Settings y el sky-toggle de la barra superior vía evento.
+// themeMode.ts — Fachada de compatibilidad sobre store/themeStore (Zustand).
+// Settings sigue usando 'light' | 'dark' | 'system';
+// internamente 'system' equivale al modo 'auto' del store.
+import { resolveDark, useThemeStore, type ThemeMode as StoreMode } from '../store/themeStore';
+
 export type ThemeMode = 'light' | 'dark' | 'system';
 
-const EVENT = 'lifequest:theme-mode';
+const toStore = (m: ThemeMode): StoreMode => (m === 'system' ? 'auto' : m);
+const fromStore = (m: StoreMode): ThemeMode => (m === 'auto' ? 'system' : m);
 
 export function readThemeMode(): ThemeMode {
-  const stored = localStorage.getItem('theme');
-  return stored === 'dark' || stored === 'light' || stored === 'system' ? stored : 'light';
+  return fromStore(useThemeStore.getState().mode);
 }
 
 export function resolveIsDark(mode: ThemeMode = readThemeMode()): boolean {
-  if (mode === 'system') return window.matchMedia('(prefers-color-scheme: dark)').matches;
-  return mode === 'dark';
+  return resolveDark(toStore(mode), useThemeStore.getState().systemDark);
 }
 
 export function applyThemeMode(mode: ThemeMode) {
-  localStorage.setItem('theme', mode);
-  const isDark = resolveIsDark(mode);
-  document.documentElement.classList.remove('dark', 'light');
-  document.documentElement.classList.add(isDark ? 'dark' : 'light');
-  window.dispatchEvent(new Event(EVENT));
+  useThemeStore.getState().setMode(toStore(mode));
 }
 
 export function subscribeThemeMode(cb: () => void): () => void {
-  window.addEventListener(EVENT, cb);
-  return () => window.removeEventListener(EVENT, cb);
+  return useThemeStore.subscribe(cb);
 }

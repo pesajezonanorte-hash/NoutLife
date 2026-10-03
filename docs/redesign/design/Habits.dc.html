@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Habits List</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./lq.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#4f46e5}a:hover{color:#4338ca}
+</style>
+</helmet>
+<div class="lq screen {{theme}}" style="width: 375px; height: 1080px">
+  <header class="hdr">
+    <span class="t-bs c-3">Hoy</span>
+    <button class="btn btn-icon" aria-label="Ordenar"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"></path></svg></button>
+  </header>
+  <main class="enter" style="display: flex; flex-direction: column; gap: 24px; padding: 0 16px 128px">
+    <div style="display: flex; flex-direction: column; gap: 4px">
+      <h1 class="t-ds">Hábitos</h1>
+      <p class="t-bm c-3" aria-live="polite"><span class="num">{{doneCount}}</span> de 5 completados hoy</p>
+    </div>
+    <div class="bar success" aria-hidden="true"><span style="width: {{pct}}%; transition: width .4s"></span></div>
+    <div class="seg" role="tablist" aria-label="Filtro">
+      <sc-for list="{{filters}}" as="f" hint-placeholder-count="3">
+        <button class="{{f.cls}}" role="tab" aria-selected="{{f.sel}}" onClick="{{f.pick}}">{{f.label}}</button>
+      </sc-for>
+    </div>
+    <ul class="list" style="list-style: none; margin: 0; padding: 0">
+      <sc-for list="{{habits}}" as="h" hint-placeholder-count="5">
+        <li class="card card-hover row" style="gap: 16px; padding: 12px 12px 12px 16px">
+          <div class="ichip {{h.tone}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{h.icon}}"></path></svg></div>
+          <a href="HabitDetail.dc.html" style="flex: 1; min-width: 0; text-decoration: none; color: inherit; display: flex; flex-direction: column; min-height: 48px; justify-content: center">
+            <span class="t-ll" style="font-size: 16px; color: var(--on-bg)">{{h.name}}</span>
+            <span class="row t-bs c-warning" style="gap: 4px"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22c4 0 7-3 7-7 0-4-3-6-4-9-1 2-2 3-4 3 0-2-1-4-2-5-1 4-4 6-4 11 0 4 3 7 7 7z"></path></svg><span class="num">{{h.streak}} días</span></span>
+          </a>
+          <button class="{{h.chk}}" aria-pressed="{{h.done}}" aria-label="{{h.aria}}" onClick="{{h.toggle}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10"></path></svg></button>
+        </li>
+      </sc-for>
+    </ul>
+    <sc-if value="{{noneShown}}" hint-placeholder-val="{{ false }}">
+      <div style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; padding: 24px 16px">
+        <div class="ichip muted lg"><svg class="i i48" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m8.5 12 2.5 2.5 4.5-5"></path></svg></div>
+        <h2 class="t-hl">Nada por aquí</h2>
+        <p class="t-bm c-3">Cambia el filtro o crea un hábito nuevo.</p>
+      </div>
+    </sc-if>
+  </main>
+
+  <sc-if value="{{celebrate}}" hint-placeholder-val="{{ false }}">
+    <div class="confetti" aria-hidden="true">
+      <sc-for list="{{confetti}}" as="c" hint-placeholder-count="14"><i style="left: {{c.x}}%; background: {{c.color}}; animation-delay: {{c.d}}ms"></i></sc-for>
+    </div>
+    <div class="toast pop" role="status" style="position: absolute; left: 16px; right: 16px; bottom: 176px; z-index: 16">
+      <div class="ichip success"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10"></path></svg></div>
+      <span style="flex: 1">{{lastName}} · <b>+10 XP</b></span>
+      <button class="btn btn-icon" aria-label="Cerrar" onClick="{{closeToast}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+    </div>
+  </sc-if>
+
+  <button class="fab" aria-label="Nuevo hábito"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button>
+  <nav class="tabbar" aria-label="Principal">
+    <a href="Dashboard.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"></path></svg>Inicio</a>
+    <a href="Habits.dc.html" class="on" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m8.5 12 2.5 2.5 4.5-5"></path></svg>Hábitos</a>
+    <a href="Quests.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 22V4"></path><path d="M5 4h12l-2.5 4L17 12H5"></path></svg>Misiones</a>
+    <a href="Colosseum.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 17.5 21 6V3h-3L6.5 14.5M11 19l-6-6M8 16l-4 4M5 21l-2-2"></path></svg>Coliseo</a>
+    <a href="Profile.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg>Perfil</a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":375,"height":1080}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { filter: 'all', done: { med: true, read: true }, celebrate: false, last: '' };
+  }
+  renderVals() {
+    const base = [
+      { id: 'med', name: 'Meditar 10 min', tone: 'secondary', streak: 21, icon: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z' },
+      { id: 'read', name: 'Leer 20 páginas', tone: 'primary', streak: 14, icon: 'M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z' },
+      { id: 'water', name: 'Beber 2 L de agua', tone: 'info', streak: 6, icon: 'M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z' },
+      { id: 'gym', name: 'Entrenar 30 min', tone: 'success', streak: 3, icon: 'M6 6v12M18 6v12M3 9v6M21 9v6M6 12h12' },
+      { id: 'sleep', name: 'Dormir antes de 23:00', tone: 'warning', streak: 9, icon: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z' },
+    ];
+    const done = this.state.done;
+    const f = this.state.filter;
+    const habits = base
+      .filter(h => f === 'all' || (f === 'done' ? !!done[h.id] : !done[h.id]))
+      .map(h => {
+        const d = !!done[h.id];
+        return { ...h, done: d ? 'true' : 'false', chk: d ? 'chk on' : 'chk',
+          aria: (d ? 'Desmarcar ' : 'Completar ') + h.name,
+          toggle: () => {
+            const nd = { ...this.state.done, [h.id]: !d };
+            this.setState({ done: nd, celebrate: !d, last: h.name });
+            clearTimeout(this._t);
+            if (!d) this._t = setTimeout(() => this.setState({ celebrate: false }), 4000);
+          } };
+      });
+    const doneCount = base.filter(h => done[h.id]).length;
+    const filters = [['all','Todos'],['active','Activos'],['done','Completados']].map(([id,label]) => ({
+      label, cls: f === id ? 'on' : '', sel: f === id ? 'true' : 'false', pick: () => this.setState({ filter: id }) }));
+    const colors = ['#6366f1','#10b981','#f59e0b','#8b5cf6','#3b82f6'];
+    const confetti = Array.from({ length: 14 }, (_, i) => ({ x: 6 + i * 6.6, color: colors[i % 5], d: (i % 5) * 70 }));
+    return {
+      theme: (this.props.dark ?? false) ? 'dark' : '',
+      habits, filters, doneCount, pct: doneCount * 20, noneShown: habits.length === 0,
+      celebrate: this.state.celebrate, lastName: this.state.last, confetti,
+      closeToast: () => this.setState({ celebrate: false }),
+    };
+  }
+  componentWillUnmount() { clearTimeout(this._t); }
+}
+</script>
+</body>
+</html>

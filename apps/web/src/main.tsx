@@ -1,22 +1,13 @@
-import { StrictMode } from 'react';
+import { StrictMode, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
+import { MotionConfig } from 'framer-motion';
 import App from './App';
 import { PWAInstallBanner } from './components/ui/PWAInstallBanner';
+// Aplica .dark/.light en <html> al importarse, antes del primer render (sin parpadeo).
+import './store/themeStore';
+import { useMotionStore } from './store/motionStore';
 import './styles/globals.css';
-
-// Apply saved theme preference immediately to avoid flash
-// Default is 'light' (blanco minimalista); 'dark' y 'system' siguen disponibles
-const savedTheme = localStorage.getItem('theme') ?? 'light';
-if (savedTheme === 'dark') {
-  document.documentElement.classList.add('dark');
-} else if (savedTheme === 'light') {
-  document.documentElement.classList.add('light');
-} else {
-  // 'system' mode
-  const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  document.documentElement.classList.add(systemDark ? 'dark' : 'light');
-}
 
 // Register service worker
 if ('serviceWorker' in navigator) {
@@ -27,11 +18,19 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+/** "Reducir movimiento" de la app fuerza el modo reducido; si no, sigue al sistema. */
+function Motion({ children }: { children: ReactNode }) {
+  const reduce = useMotionStore((s) => s.reduce);
+  return <MotionConfig reducedMotion={reduce ? 'always' : 'user'}>{children}</MotionConfig>;
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter>
-      <App />
-      <PWAInstallBanner />
-    </BrowserRouter>
+    <Motion>
+      <BrowserRouter>
+        <App />
+        <PWAInstallBanner />
+      </BrowserRouter>
+    </Motion>
   </StrictMode>
 );

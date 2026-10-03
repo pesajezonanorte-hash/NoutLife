@@ -1,294 +1,444 @@
-import { FlowButton } from '@/components/ui/flow-button';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { SegmentedControl } from '@/components/ui/SegmentedControl';
-import { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { Utensils } from 'lucide-react';
-import { useToast } from '../../hooks/useToast';
-import { PixelPanel } from '../../components/ui/PixelPanel';
-import { PixelButton } from '../../components/ui/PixelButton';
+// Comida — Food.dc.html (móvil) / FoodDesktop.dc.html (desktop).
+// Resumen kcal + macros, CTA "Analizar comida", línea de tiempo del día,
+// guardadas e hidratación. Metas: /nutrition/goals (valores de referencia si no hay).
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
 import type { Meal } from '@lifequest/shared';
-import * as mealService from '../../services/meal.service';
-import { MacroGoalsWidget, AIQuickLog, SavedMealsPanel } from '../../components/food/NutritionExtras';
-import { SageContextButton } from '../../components/sage/SageContextButton';
-import { E } from '@/components/ui/glyphs';
-import ModernLoader from '@/components/ui/modern-loader';
-import { LoadingGate } from '@/components/ui/LoadingGate';
-import { LOADING_COPY } from '@/lib/loadingCopy';
+import { Bookmark, BookmarkCheck, ChevronLeft, ChevronRight, Droplet, Minus, Pencil, Plus, Scan, Target, Trash2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { item, stagger } from '@/lib/motion';
+import { dayKey } from '@/lib/lifeMeta';
+import { useToastStore } from '@/hooks/useToast';
+import {
+  AnimatedValue, Button, Card, ErrorState, IconChip, ProgressBar, ProgressRing, ResponsiveDialog, Skeleton, Spinner,
+} from '@/components/ui/lq';
+import { solidBg } from '@/components/ui/lq/tones';
+import * as mealService from '@/services/meal.service';
+import type { NutritionGoal, SavedMeal } from '@/services/meal.service';
+import {
+  MACROS, MEAL_TYPES, effectiveGoal, fmtInt, macroLine, mealTypeLabel, totals, typeForNow, type FoodType,
+} from '@/components/food/foodMeta';
+import { AnalyzeMealDialog, GoalDialog, MealFormDialog } from '@/components/food/FoodDialogs';
 
-const MEAL_TYPES = [
-  { key: 'BREAKFAST', label: 'Desayuno', icon: '🌅' },
-  { key: 'LUNCH', label: 'Almuerzo', icon: '☀️' },
-  { key: 'DINNER', label: 'Cena', icon: '🌙' },
-  { key: 'SNACK', label: 'Snack', icon: '🍎' },
-  { key: 'WATER', label: 'Agua', icon: '💧' },
-];
+const GLASS_ML = 250;
+const timeOf = (iso: string) => new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 
-function MealModal({ onClose, onSave }: { onClose: () => void; onSave: (m: Meal) => void }) {
-  const [mealType, setMealType] = useState('LUNCH');
-  const [name, setName] = useState('');
-  const [calories, setCalories] = useState('');
-  const [showMacros, setShowMacros] = useState(false);
-  const [protein, setProtein] = useState('');
-  const [carbs, setCarbs] = useState('');
-  const [fat, setFat] = useState('');
-  const [waterMl, setWaterMl] = useState('');
-  const [saving, setSaving] = useState(false);
-  const toast = useToast();
+function dayLabel(d: Date, offset: number) {
+  const short = d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }).replace('.', '');
+  if (offset === 0) return `Hoy · ${short}`;
+  if (offset === -1) return `Ayer · ${short}`;
+  const wd = d.toLocaleDateString('es-ES', { weekday: 'short' }).replace('.', '');
+  return `${wd.charAt(0).toUpperCase()}${wd.slice(1)} · ${short}`;
+}
 
-  const isWater = mealType === 'WATER';
+type Entry = { kind: 'meal'; meal: Meal; at: number } | { kind: 'empty'; type: FoodType; at: number };
 
-  async function save() {
-    if (!isWater && !name.trim()) return;
-    setSaving(true);
-    try {
-      const m = await mealService.createMeal({
-        name: isWater ? 'Agua' : name,
-        mealType,
-        calories: calories ? Number(calories) : undefined,
-        protein: protein ? Number(protein) : undefined,
-        carbs: carbs ? Number(carbs) : undefined,
-        fat: fat ? Number(fat) : undefined,
-        waterMl: waterMl ? Number(waterMl) : isWater ? 250 : undefined,
-      });
-      onSave(m);
-      toast.success(isWater ? '¡Hidratación registrada!' : 'Comida registrada!');
-    } catch {
-      toast.error('Error al registrar');
-    } finally { setSaving(false); }
-  }
-
+function FoodSkeleton() {
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[200] flex items-end justify-center bg-black/70 p-0 md:items-center md:p-4" onClick={onClose}>
-      <motion.div initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }} transition={{ type: 'spring', stiffness: 350, damping: 28 }} className="max-h-[86dvh] w-full max-w-md space-y-4 overflow-y-auto rounded-t-2xl border-2 border-border-pixel bg-bg-panel p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:rounded-2xl md:p-5" onClick={e => e.stopPropagation()}>
-        <p className="font-pixel text-accent-gold" style={{ fontSize: '12px' }}>REGISTRAR COMIDA</p>
-
-        <div className="grid grid-cols-3 gap-1.5">
-          {MEAL_TYPES.map(t => (
-            <button key={t.key} onClick={() => setMealType(t.key)} className={`flex min-h-14 min-w-0 flex-col items-center justify-center px-2 py-2 border-2 transition-all ${mealType === t.key ? 'border-accent-gold bg-accent-gold/10' : 'border-border-pixel'}`}>
-              <span className="text-xl"><E e={t.icon} /></span>
-              <span className="font-pixel text-text-secondary mt-0.5" style={{ fontSize: '12px' }}>{t.label}</span>
-            </button>
-          ))}
-        </div>
-
-        {!isWater && (
-          <>
-            <input autoFocus value={name} onChange={e => setName(e.target.value)} onKeyDown={e => e.key === 'Enter' && save()} placeholder="¿Qué comiste?" className="w-full bg-bg-deep border-2 border-border-pixel text-text-primary font-vt text-lg px-3 py-2 focus:border-accent-gold outline-none" />
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <p className="font-pixel text-text-secondary mb-1" style={{ fontSize: '12px' }}>CALORÍAS (opcional)</p>
-                <input type="number" value={calories} onChange={e => setCalories(e.target.value)} placeholder="0" className="w-full bg-bg-deep border-2 border-border-pixel text-text-primary font-vt text-lg px-3 py-2 focus:border-accent-gold outline-none" />
-              </div>
-            </div>
-            <button onClick={() => setShowMacros(m => !m)} className="font-pixel text-text-secondary hover:text-accent-gold transition-colors" style={{ fontSize: '12px' }}>
-              {showMacros ? '▲ OCULTAR MACROS' : '▼ AGREGAR MACROS'}
-            </button>
-            {showMacros && (
-              <div className="grid grid-cols-3 gap-2">
-                {([['Proteína (g)', protein, setProtein], ['Carbs (g)', carbs, setCarbs], ['Grasa (g)', fat, setFat]] as [string, string, (v: string) => void][]).map(([label, val, setter]) => (
-                  <div key={label}>
-                    <p className="font-pixel text-text-secondary mb-1" style={{ fontSize: '12px' }}>{label}</p>
-                    <input type="number" value={val} onChange={e => setter(e.target.value)} placeholder="0" className="w-full bg-bg-deep border-2 border-border-pixel text-text-primary font-vt text-base px-2 py-1 focus:border-accent-gold outline-none" />
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
-        )}
-
-        {isWater && (
-          <div>
-            <p className="font-pixel text-text-secondary mb-2" style={{ fontSize: '12px' }}>CANTIDAD (ml)</p>
-            <div className="flex gap-2">
-              {[250, 500, 750].map(ml => (
-                <button key={ml} onClick={() => setWaterMl(String(ml))} className={`flex-1 py-2 border-2 font-vt text-lg transition-all ${waterMl === String(ml) ? 'border-accent-cyan bg-accent-cyan/20 text-accent-cyan' : 'border-border-pixel text-text-secondary'}`}>
-                  {ml}ml
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="flex gap-2">
-          <PixelButton variant="ghost" onClick={onClose} className="flex-1">Cancelar</PixelButton>
-          <PixelButton variant="primary" onClick={save} disabled={saving || (!isWater && !name.trim())} className="flex-1">
-            {saving ? '...' : 'GUARDAR'}
-          </PixelButton>
-        </div>
-      </motion.div>
-    </motion.div>
+    <div className="flex flex-col gap-6" aria-busy="true" aria-label="Cargando comidas">
+      <Skeleton className="h-64 rounded-2xl" />
+      <Skeleton className="h-14 rounded-2xl md:h-32" />
+      <Skeleton className="h-80 rounded-2xl" />
+      <div className="flex items-center justify-center gap-3"><Spinner /><span className="text-body-sm text-on-surface-light">Cargando tu día…</span></div>
+    </div>
   );
 }
 
-function getTodayString(): string {
-  const d = new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
 export default function FoodPage() {
-  const reduceMotion = useReducedMotion();
-  const toast = useToast();
+  const [offset, setOffset] = useState(0);
+  const day = useMemo(() => { const d = new Date(); d.setDate(d.getDate() + offset); return d; }, [offset]);
+  const key = dayKey(day);
   const [meals, setMeals] = useState<Meal[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [tab, setTab] = useState<'log' | 'macros' | 'saved'>('log');
-  const today = getTodayString();
+  const [goal, setGoal] = useState<NutritionGoal | null>(null);
+  const [saved, setSaved] = useState<SavedMeal[] | null>(null);
+  const [state, setState] = useState<'loading' | 'error' | 'ready'>('loading');
+  const [analyze, setAnalyze] = useState<FoodType | null>(null);
+  const [manual, setManual] = useState<FoodType | null>(null);
+  const [newSaved, setNewSaved] = useState(false);
+  const [goalOpen, setGoalOpen] = useState(false);
+  const [detail, setDetail] = useState<Meal | null>(null);
+  const [savedDetail, setSavedDetail] = useState<SavedMeal | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setState('loading');
     try {
-      const data = await mealService.fetchMeals(today);
-      setMeals(data);
-    } catch { /* ignore */ }
-    finally { setLoading(false); }
-  }, [today]);
+      const [list, g] = await Promise.all([mealService.fetchMeals(key), mealService.fetchNutritionGoal().catch(() => null)]);
+      setMeals(list);
+      setGoal(g);
+      setState('ready');
+    } catch {
+      if (!silent) setState('error');
+    }
+  }, [key]);
+  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { mealService.fetchSavedMeals().then(setSaved).catch(() => setSaved([])); }, []);
 
-  useEffect(() => { load(); }, [load]);
+  const food = meals.filter((m) => m.mealType !== 'WATER');
+  const water = meals.filter((m) => m.mealType === 'WATER');
+  const t = totals(meals);
+  const g = effectiveGoal(goal);
+  const kcalPct = Math.round((t.calories / g.calories) * 100);
+  const over = t.calories > g.calories;
+  const glasses = Math.max(1, Math.round(g.waterMl / GLASS_ML));
+  const filled = Math.min(glasses, Math.floor(t.waterMl / GLASS_ML));
 
-  function handleSaved(m: Meal) {
-    setMeals(prev => [...prev, m]);
-    setShowModal(false);
+  // Línea de tiempo: comidas registradas + huecos de desayuno/almuerzo/cena sin registrar.
+  const entries: Entry[] = useMemo(() => {
+    const list: Entry[] = food.map((m) => { const d = new Date(m.date); return { kind: 'meal', meal: m, at: d.getHours() * 60 + d.getMinutes() }; });
+    for (const mt of MEAL_TYPES) {
+      if (mt.value !== 'SNACK' && !food.some((m) => m.mealType === mt.value)) list.push({ kind: 'empty', type: mt.value, at: mt.at });
+    }
+    return list.sort((a, b) => a.at - b.at);
+  }, [food]);
+
+  const label = dayLabel(day, offset);
+  const dayWord = offset === 0 ? 'hoy' : offset === -1 ? 'ayer' : `del ${day.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}`;
+  const toast = useToastStore.getState;
+
+  function added(m: Meal | SavedMeal) {
+    if ('mealType' in m) setMeals((list) => [...list, m]);
+    setAnalyze(null); setManual(null);
+    void load(true);
   }
 
-  async function handleDelete(id: string) {
-    setMeals(prev => prev.filter(m => m.id !== id));
-    try { await mealService.deleteMeal(id); }
-    catch { toast.error('Error al eliminar'); load(); }
+  async function removeMeal(m: Meal) {
+    setDetail(null);
+    setMeals((list) => list.filter((x) => x.id !== m.id));
+    try { await mealService.deleteMeal(m.id); toast().success('Comida eliminada'); } catch { toast().error('No se pudo eliminar'); void load(true); }
   }
 
-  const waterLogs = meals.filter(m => m.mealType === 'WATER');
-  const totalWater = waterLogs.reduce((a, m) => a + (m.waterMl ?? 0), 0);
-  const waterGoal = 2000;
-  const waterPct = Math.min((totalWater / waterGoal) * 100, 100);
-  const totalCalories = meals.filter(m => m.calories).reduce((a, m) => a + (m.calories ?? 0), 0);
+  async function addSaved(s: SavedMeal) {
+    const type = offset === 0 ? typeForNow() : 'LUNCH';
+    setBusy(s.id);
+    try {
+      const m = await mealService.createMeal({ name: s.name, mealType: type, calories: s.calories ?? undefined, protein: s.protein ?? undefined, carbs: s.carbs ?? undefined, fat: s.fat ?? undefined, date: key });
+      setMeals((list) => [...list, m]);
+      toast().success(`Añadida como ${mealTypeLabel(type).toLowerCase()}`, s.name);
+    } catch {
+      toast().error('No se pudo añadir');
+    } finally {
+      setBusy(null);
+    }
+  }
 
-  const mealsByType = MEAL_TYPES.filter(t => t.key !== 'WATER').map(t => ({
-    ...t,
-    items: meals.filter(m => m.mealType === t.key),
-  }));
-  const hasMealRecords = meals.length > 0;
+  async function saveFavorite(m: Meal) {
+    try {
+      const s = await mealService.createSavedMeal({ name: m.name, calories: m.calories, protein: m.protein, carbs: m.carbs, fat: m.fat });
+      setSaved((list) => [...(list ?? []), s].sort((a, b) => a.name.localeCompare(b.name)));
+      toast().success('Guardada para repetirla');
+    } catch {
+      toast().error('No se pudo guardar');
+    }
+  }
 
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-3">
+  async function removeSaved(s: SavedMeal) {
+    setSavedDetail(null);
+    setSaved((list) => (list ?? []).filter((x) => x.id !== s.id));
+    try { await mealService.deleteSavedMeal(s.id); } catch { toast().error('No se pudo eliminar'); mealService.fetchSavedMeals().then(setSaved).catch(() => null); }
+  }
+
+  async function addWater(ml: number) {
+    setBusy('water');
+    try {
+      const m = await mealService.createMeal({ name: 'Agua', mealType: 'WATER', waterMl: ml, date: key });
+      setMeals((list) => [...list, m]);
+    } catch {
+      toast().error('No se pudo registrar el agua');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function removeWater() {
+    const last = water[water.length - 1];
+    if (!last) return;
+    setMeals((list) => list.filter((x) => x.id !== last.id));
+    try { await mealService.deleteMeal(last.id); } catch { toast().error('No se pudo quitar'); void load(true); }
+  }
+
+  const header = (
+    <motion.section variants={item} className="flex flex-wrap items-end justify-between gap-4">
+      <div className="flex flex-col gap-1 md:gap-2">
+        <span className="hidden text-label-lg text-primary-text md:block">Nutrición</span>
+        <h1 className="text-display-sm md:text-display-md lg:text-display-lg">Comida</h1>
+      </div>
+      <div className="flex items-center gap-1" role="group" aria-label="Día">
+        <Button variant="icon" aria-label="Día anterior" onClick={() => setOffset((o) => o - 1)}><ChevronLeft aria-hidden className="size-5" strokeWidth={1.75} /></Button>
+        <span className="min-w-[7.5rem] text-center text-label-lg tabular-nums" aria-live="polite">{label}</span>
+        <Button variant="icon" aria-label="Día siguiente" disabled={offset >= 0} onClick={() => setOffset((o) => Math.min(0, o + 1))}><ChevronRight aria-hidden className="size-5" strokeWidth={1.75} /></Button>
+      </div>
+    </motion.section>
+  );
+
+  const summary = (
+    <Card as="section" variant="elevated" padding="none" aria-label="Resumen nutricional" className="flex flex-col gap-4 p-6 md:flex-row md:flex-wrap md:items-center md:gap-12 md:p-8">
+      <div className="flex items-start justify-between gap-4 md:hidden">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-[var(--text-primary)]"><Utensils className="h-5 w-5 text-[var(--accent-gold)]" aria-hidden="true" /> La Posada</h1>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">Registra tus comidas y observa lo que sostiene tu energía.</p>
+          <span className="text-body-sm text-on-surface-light">Calorías</span>
+          <div className="flex items-baseline gap-2">
+            <span className={cn('text-display-md tabular-nums', over && 'text-error-text')}><AnimatedValue value={t.calories} format={fmtInt} /></span>
+            <span className="text-body-md text-on-surface-light tabular-nums">/ {fmtInt(g.calories)} kcal</span>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <SageContextButton message="¿Cómo está mi alimentación esta semana? ¿Qué puedo mejorar?" label="Pídele consejo al Sabio" />
-          <FlowButton tone="primary" size="lg" withArrows={false} onClick={() => setShowModal(true)}>Registrar comida</FlowButton>
+        <Button variant="icon" aria-label="Editar metas" onClick={() => setGoalOpen(true)} className="-mr-2 -mt-1"><Pencil aria-hidden className="size-5" strokeWidth={1.75} /></Button>
+      </div>
+      <ProgressRing
+        value={Math.min(100, kcalPct)} tone={over ? 'error' : 'primary'} size={200} stroke={8}
+        label="Calorías del día" valueText={`${fmtInt(t.calories)} de ${fmtInt(g.calories)} kcal`}
+        className="hidden md:block"
+      >
+        <span className={cn('text-display-sm tabular-nums', over && 'text-error-text')}><AnimatedValue value={t.calories} format={fmtInt} /></span>
+        <span className="text-body-sm text-on-surface-light tabular-nums">de {fmtInt(g.calories)} kcal</span>
+      </ProgressRing>
+      <div className="flex min-w-0 flex-col gap-4 md:flex-[1_1_320px] md:gap-5">
+        {MACROS.map(({ key: k, label: name, tone }) => {
+          const cur = t[k];
+          const max = g[k];
+          const pct = Math.round((cur / max) * 100);
+          return (
+            <div key={k} className="flex flex-col gap-1.5 md:gap-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="flex items-center gap-2 text-label-lg"><span aria-hidden className={cn('size-2.5 rounded-[3px]', solidBg[tone])} />{name}</span>
+                <span className={cn('text-body-sm tabular-nums', cur > max ? 'text-error-text' : 'text-on-surface')}>
+                  <b className="font-semibold text-on-background">{fmtInt(cur)} g</b> / {fmtInt(max)} g
+                </span>
+              </div>
+              <ProgressBar value={pct} tone={cur > max ? 'error' : tone} size="lg" label={name} valueText={`${fmtInt(cur)} de ${fmtInt(max)} gramos`} />
+            </div>
+          );
+        })}
+        <div className="flex flex-wrap items-center justify-between gap-2 text-body-sm">
+          <span className={over ? 'text-error-text' : 'text-on-surface-light'}>
+            {over ? `Te pasaste ${fmtInt(t.calories - g.calories)} kcal` : `Te quedan ${fmtInt(g.calories - t.calories)} kcal`}
+            {!goal && ' · metas de referencia'}
+          </span>
+          <Button variant="ghost" size="sm" onClick={() => setGoalOpen(true)} className="hidden md:inline-flex">
+            <Target aria-hidden className="size-4" strokeWidth={1.75} />{goal ? 'Editar metas' : 'Definir mis metas'}
+          </Button>
         </div>
       </div>
+    </Card>
+  );
 
-      {/* Tabs */}
-      <SegmentedControl
-        ariaLabel="Secciones de La Posada"
-        items={[{ key: 'log', label: 'Registro' }, { key: 'macros', label: 'Macros' }, { key: 'saved', label: 'Guardadas' }]}
-        value={tab}
-        onChange={setTab}
-      />
-
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.div
-          key={tab}
-          initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={reduceMotion ? undefined : { opacity: 0, y: -5 }}
-          transition={{ duration: reduceMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
-        >
-      {/* Macros tab */}
-      {tab === 'macros' && (
-        <div className="space-y-4">
-          <MacroGoalsWidget date={today} />
+  const cta = (
+    <>
+      <Button block onClick={() => setAnalyze(offset === 0 ? typeForNow() : 'LUNCH')} className="min-h-14 text-body-lg md:hidden">
+        <Scan aria-hidden className="size-5" strokeWidth={1.75} />Analizar comida
+      </Button>
+      <div className="hidden flex-wrap items-center gap-6 rounded-2xl border-2 border-dashed border-primary/40 bg-primary/[var(--lq-soft-alpha)] p-8 md:flex">
+        <IconChip icon={Scan} size="lg" className="size-16 rounded-[20px] bg-background animate-float motion-reduce:animate-none [&>svg]:size-8" />
+        <div className="min-w-0 flex-[1_1_240px]">
+          <h2 className="text-heading-sm">Analiza tu plato</h2>
+          <p className="text-body-md text-on-surface">Describe lo que comiste y calcularemos calorías y macros por ti.</p>
         </div>
-      )}
-
-      {/* Saved meals tab */}
-      {tab === 'saved' && (
-        <SavedMealsPanel onAdd={() => load()} />
-      )}
-
-      {tab !== 'log' ? null : <>
-
-      {/* AI Quick Log */}
-      <AIQuickLog onLogged={() => load()} />
-
-      {/* Water tracker */}
-      <PixelPanel className="p-4">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-sm font-medium text-[var(--accent-cyan)]"><E e="💧" /> Hidratación de hoy</p>
-          <p className="font-vt text-accent-cyan text-lg">{(totalWater / 1000).toFixed(1)}L / {waterGoal / 1000}L</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="ghost" onClick={() => setManual(offset === 0 ? typeForNow() : 'LUNCH')}>Registrar a mano</Button>
+          <Button onClick={() => setAnalyze(offset === 0 ? typeForNow() : 'LUNCH')} className="min-h-14 px-8 text-body-lg">
+            <Scan aria-hidden className="size-5" strokeWidth={1.75} />Analizar comida
+          </Button>
         </div>
-        <div className="stat-bar h-5">
-          <motion.div className="h-full bg-accent-cyan" initial={{ width: 0 }} animate={{ width: `${waterPct}%` }} transition={{ duration: 0.8 }} />
-        </div>
-        <div className="flex gap-2 mt-2">
-          {[250, 500].map(ml => (
-            <PixelButton key={ml} variant="secondary" onClick={async () => {
-              const m = await mealService.createMeal({ name: 'Agua', mealType: 'WATER', waterMl: ml, date: today });
-              setMeals(prev => [...prev, m]);
-            }}>
-              + {ml}ml <E e="💧" />
-            </PixelButton>
-          ))}
-        </div>
-      </PixelPanel>
+      </div>
+    </>
+  );
 
-      {/* Calories */}
-      {totalCalories > 0 && (
-        <PixelPanel className="p-3 flex justify-between items-center">
-          <p className="text-sm font-medium text-[var(--text-secondary)]">Calorías de hoy</p>
-          <p className="font-vt text-accent-gold text-2xl">{totalCalories} kcal</p>
-        </PixelPanel>
-      )}
-
-      {/* Meals by type */}
-      <LoadingGate loading={loading} fallback={<ModernLoader words={[...LOADING_COPY.food]} />}>
-        {loading ? null : !hasMealRecords ? (
-          <EmptyState
-            icon={Utensils}
-            title="Tu mesa está lista"
-            description="Registra tu primera comida para comenzar a entender tus hábitos de alimentación."
-            actionLabel="Registrar mi primera comida"
-            onAction={() => setShowModal(true)}
-          />
-        ) : (
-          <div className="space-y-3">
-          {mealsByType.map(group => (
-            <PixelPanel key={group.key} className="p-3">
-              <p className="mb-2 text-sm font-medium text-[var(--text-secondary)]"><E e={group.icon} /> {group.label}</p>
-              {group.items.length === 0 ? (
-                <p className="font-vt text-text-secondary text-base italic">— sin registros —</p>
+  const timeline = (
+    <Card as="section" padding="none" aria-labelledby="food-day" className="flex flex-col gap-4 border-0 bg-transparent shadow-none md:border md:bg-surface md:p-6 md:shadow-sm">
+      <div className="flex items-center justify-between gap-2">
+        <h2 id="food-day" className="text-heading-sm md:text-heading-lg">Comidas de {dayWord}</h2>
+        <Button variant="ghost" size="sm" onClick={() => setManual(offset === 0 ? typeForNow() : 'LUNCH')} className="md:hidden">
+          <Plus aria-hidden className="size-4" strokeWidth={2} />A mano
+        </Button>
+      </div>
+      <motion.ol key={key} variants={stagger} initial="initial" animate="animate" className="flex flex-col">
+        {entries.map((e, i) => {
+          const last = i === entries.length - 1;
+          const ok = e.kind === 'meal';
+          const type = ok ? e.meal.mealType : e.type;
+          return (
+            <motion.li key={ok ? e.meal.id : e.type} variants={item} className="grid grid-cols-[48px_24px_minmax(0,1fr)] gap-x-2 md:grid-cols-[64px_24px_minmax(0,1fr)] md:gap-x-3">
+              <span className="pt-3.5 text-body-sm text-on-surface-light tabular-nums md:pt-[18px]">{ok ? timeOf(e.meal.date) : '—'}</span>
+              <div aria-hidden className="flex flex-col items-center">
+                <span className={cn('mt-[18px] size-3 shrink-0 rounded-full border-2 md:mt-[22px] md:size-3.5', ok ? 'border-success bg-success' : 'border-border-strong bg-background')} />
+                {!last && <span className="w-0.5 flex-1 bg-border" />}
+              </div>
+              {ok ? (
+                <div className="lq-lift relative mb-3 flex items-center gap-4 rounded-2xl border border-border bg-surface px-4 py-3 md:px-5 md:py-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-label-md text-on-surface-light">{mealTypeLabel(type)}</span>
+                      <span className="text-body-sm text-on-surface tabular-nums md:hidden">{e.meal.calories ? `${fmtInt(e.meal.calories)} kcal` : '—'}</span>
+                    </div>
+                    <button type="button" aria-haspopup="dialog" onClick={() => setDetail(e.meal)} className="block max-w-full text-left text-body-lg font-semibold [overflow-wrap:anywhere] after:absolute after:inset-0 after:rounded-2xl after:content-[''] md:truncate">
+                      {e.meal.name}
+                    </button>
+                    {macroLine(e.meal) && <div className="hidden text-body-sm text-on-surface-light tabular-nums md:block">{macroLine(e.meal)}</div>}
+                  </div>
+                  <span className="hidden text-heading-sm tabular-nums md:block">{e.meal.calories ? fmtInt(e.meal.calories) : '—'}<span className="sr-only"> kcal</span></span>
+                </div>
               ) : (
-                <AnimatePresence>
-                  {group.items.map(m => (
-                    <motion.div key={m.id} initial={{ opacity: 0, x: -4 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="flex items-center justify-between py-1 border-b border-border-pixel/30 last:border-0">
-                      <p className="font-vt text-text-primary text-lg">{m.name}</p>
-                      <div className="flex items-center gap-3">
-                        {m.calories && <p className="font-pixel text-accent-gold" style={{ fontSize: '12px' }}>{m.calories} kcal</p>}
-                        <FlowButton tone="danger" size="sm" withArrows={false} onClick={() => handleDelete(m.id)} className="min-h-11 px-3 font-pixel text-xs"><E e="✕" /></FlowButton>
-                      </div>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
+                <button
+                  type="button"
+                  onClick={() => setAnalyze(e.type)}
+                  className="mb-3 flex flex-col gap-0.5 rounded-2xl border border-dashed border-border-strong px-4 py-3 text-left transition-colors hover:bg-surface-variant/60 md:px-5 md:py-4"
+                >
+                  <span className="flex w-full items-center justify-between gap-2">
+                    <span className="text-label-md text-on-surface-light">{mealTypeLabel(type)}</span>
+                    <span className="flex items-center gap-1 text-label-md text-primary-text"><Plus aria-hidden className="size-4" strokeWidth={2} />Registrar</span>
+                  </span>
+                  <span className="text-body-lg font-semibold text-on-surface-light">Sin registrar</span>
+                  <span className="sr-only">. Analizar o registrar {mealTypeLabel(type).toLowerCase()}</span>
+                </button>
               )}
-            </PixelPanel>
+            </motion.li>
+          );
+        })}
+      </motion.ol>
+    </Card>
+  );
+
+  const savedCard = (
+    <Card as="section" padding="none" aria-labelledby="food-saved" className="flex flex-col gap-4 border-0 bg-transparent shadow-none md:border md:bg-surface md:p-6 md:shadow-sm">
+      <div className="flex items-center justify-between gap-2">
+        <h2 id="food-saved" className="text-heading-sm">Guardadas</h2>
+        <Button variant="ghost" size="sm" onClick={() => setNewSaved(true)}><Plus aria-hidden className="size-4" strokeWidth={2} />Nueva</Button>
+      </div>
+      {saved === null ? (
+        <div className="flex flex-col gap-2">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-16 rounded-2xl" />)}</div>
+      ) : saved.length === 0 ? (
+        <p className="rounded-2xl border border-dashed border-border-strong p-4 text-body-md text-on-surface-light">
+          Guarda tus comidas frecuentes para añadirlas con un toque.
+        </p>
+      ) : (
+        <motion.ul variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-2 md:gap-1">
+          {saved.map((s) => (
+            <motion.li key={s.id} variants={item} className="relative flex items-center gap-3 rounded-2xl border border-border bg-surface py-2 pl-4 pr-2 hover:bg-surface-variant/60 md:rounded-lg md:border-0 md:bg-transparent md:px-0 md:hover:bg-transparent">
+              <div className="min-w-0 flex-1">
+                <button type="button" aria-haspopup="dialog" onClick={() => setSavedDetail(s)} className="block max-w-full truncate text-left text-body-lg font-semibold after:absolute after:inset-0 after:content-['']">{s.name}</button>
+                <div className="truncate text-body-sm text-on-surface-light tabular-nums">
+                  {[s.calories ? `${fmtInt(s.calories)} kcal` : null, s.protein ? `P ${fmtInt(s.protein)} g` : null].filter(Boolean).join(' · ') || 'Sin datos nutricionales'}
+                </div>
+              </div>
+              <Button
+                variant="secondary" size="md" loading={busy === s.id} aria-label={`Añadir ${s.name} a ${dayWord}`} onClick={() => void addSaved(s)}
+                className="relative z-[1] px-3.5 md:hidden"
+              >
+                <Plus aria-hidden className="size-4" strokeWidth={2} />Añadir
+              </Button>
+              <Button
+                variant="icon" loading={busy === s.id} aria-label={`Añadir ${s.name} a ${dayWord}`} onClick={() => void addSaved(s)}
+                className="relative z-[1] hidden bg-surface-variant text-primary-text hover:bg-primary/[var(--lq-soft-alpha)] md:inline-flex"
+              >
+                <Plus aria-hidden className="size-5" strokeWidth={2} />
+              </Button>
+            </motion.li>
           ))}
+        </motion.ul>
+      )}
+    </Card>
+  );
+
+  const hydration = (
+    <Card as="section" aria-labelledby="food-water" className="flex flex-col gap-3 md:p-6">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-3">
+          <IconChip icon={Droplet} tone="info" size="sm" />
+          <h2 id="food-water" className="text-heading-sm">Hidratación</h2>
+        </div>
+        <Button variant="icon" aria-label="Quitar el último registro de agua" disabled={!water.length} onClick={() => void removeWater()}>
+          <Minus aria-hidden className="size-5" strokeWidth={1.75} />
+        </Button>
+      </div>
+      <div className="flex gap-1.5" role="img" aria-label={`${filled} de ${glasses} vasos de agua`}>
+        {Array.from({ length: glasses }, (_, i) => (
+          <motion.span
+            key={i}
+            className={cn('h-8 flex-1 rounded-lg transition-colors duration-300', i < filled ? 'bg-info' : 'bg-surface-variant')}
+            initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.4 + i * 0.06, type: 'spring', stiffness: 420, damping: 18 }}
+          />
+        ))}
+      </div>
+      <span className="text-body-sm text-on-surface-light tabular-nums" aria-live="polite">
+        {filled} de {glasses} vasos · {(t.waterMl / 1000).toLocaleString('es-ES', { maximumFractionDigits: 1 })} L de {(g.waterMl / 1000).toLocaleString('es-ES', { maximumFractionDigits: 1 })} L
+      </span>
+      <div className="grid grid-cols-2 gap-2">
+        <Button variant="secondary" size="md" loading={busy === 'water'} onClick={() => void addWater(GLASS_ML)}><Plus aria-hidden className="size-4" strokeWidth={2} />1 vaso</Button>
+        <Button variant="secondary" size="md" disabled={busy === 'water'} onClick={() => void addWater(500)}><Plus aria-hidden className="size-4" strokeWidth={2} />500 ml</Button>
+      </div>
+    </Card>
+  );
+
+  const savedMatch = (m: Meal) => (saved ?? []).some((s) => s.name.trim().toLowerCase() === m.name.trim().toLowerCase());
+
+  return (
+    <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-6 md:gap-8">
+      {header}
+      {state === 'loading' ? <FoodSkeleton /> : state === 'error' ? (
+        <ErrorState title="No pudimos cargar tus comidas" onRetry={() => void load()} />
+      ) : (
+        <>
+          <motion.div variants={item}>{summary}</motion.div>
+          <motion.div variants={item} className="grid items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
+            <div className="flex min-w-0 flex-col gap-6">
+              {cta}
+              {timeline}
+            </div>
+            <div className="flex min-w-0 flex-col gap-6">
+              {hydration}
+              {savedCard}
+            </div>
+          </motion.div>
+        </>
+      )}
+
+      <AnalyzeMealDialog open={analyze !== null} onClose={() => setAnalyze(null)} date={key} initialType={analyze ?? 'LUNCH'} onSaved={added} />
+      <MealFormDialog open={manual !== null} onClose={() => setManual(null)} kind="log" date={key} initialType={manual ?? 'LUNCH'} onSaved={added} />
+      <MealFormDialog
+        open={newSaved} onClose={() => setNewSaved(false)} kind="saved" date={key} initialType="LUNCH"
+        onSaved={(s) => { setNewSaved(false); setSaved((list) => [...(list ?? []), s as SavedMeal].sort((a, b) => a.name.localeCompare(b.name))); }}
+      />
+      <GoalDialog open={goalOpen} onClose={() => setGoalOpen(false)} goal={goal} onSaved={(ng) => { setGoal(ng); setGoalOpen(false); }} />
+
+      <ResponsiveDialog open={Boolean(detail)} onClose={() => setDetail(null)} title={detail?.name ?? ''}>
+        {detail && (
+          <div className="flex flex-col gap-5">
+            <span className="text-display-sm tabular-nums">{detail.calories ? `${fmtInt(detail.calories)} kcal` : 'Sin calorías'}</span>
+            <dl className="flex flex-col gap-1">
+              {[
+                ['Momento', mealTypeLabel(detail.mealType)],
+                ['Hora', timeOf(detail.date)],
+                ...MACROS.map(({ key: k, label: name }) => [name, detail[k] ? `${fmtInt(detail[k]!)} g` : '—']),
+              ].map(([k, v]) => (
+                <div key={k} className="flex min-h-10 items-center justify-between gap-4 border-b border-border last:border-0">
+                  <dt className="text-body-md text-on-surface-light">{k}</dt><dd className="text-label-lg tabular-nums">{v}</dd>
+                </div>
+              ))}
+            </dl>
+            <div className="flex flex-col gap-3 sm:flex-row-reverse">
+              <Button variant="secondary" block disabled={savedMatch(detail)} onClick={() => void saveFavorite(detail)}>
+                {savedMatch(detail)
+                  ? <><BookmarkCheck aria-hidden className="size-5" strokeWidth={1.75} />Ya está en Guardadas</>
+                  : <><Bookmark aria-hidden className="size-5" strokeWidth={1.75} />Guardar para repetir</>}
+              </Button>
+              <Button variant="danger" block onClick={() => void removeMeal(detail)}><Trash2 aria-hidden className="size-5" strokeWidth={1.75} />Eliminar comida</Button>
+            </div>
           </div>
         )}
-      </LoadingGate>
-      </>}
-        </motion.div>
-      </AnimatePresence>
+      </ResponsiveDialog>
 
-      <AnimatePresence>
-        {showModal && <MealModal onClose={() => setShowModal(false)} onSave={handleSaved} />}
-      </AnimatePresence>
-    </div>
+      <ResponsiveDialog open={Boolean(savedDetail)} onClose={() => setSavedDetail(null)} title={savedDetail?.name ?? ''}>
+        {savedDetail && (
+          <div className="flex flex-col gap-5">
+            <span className="text-display-sm tabular-nums">{savedDetail.calories ? `${fmtInt(savedDetail.calories)} kcal` : 'Sin calorías'}</span>
+            <p className="text-body-md text-on-surface">{macroLine(savedDetail) || 'Sin macros registrados'}</p>
+            <div className="flex flex-col gap-3 sm:flex-row-reverse">
+              <Button block onClick={() => { const s = savedDetail; setSavedDetail(null); void addSaved(s); }}><Plus aria-hidden className="size-5" strokeWidth={2} />Añadir a {dayWord}</Button>
+              <Button variant="danger" block onClick={() => void removeSaved(savedDetail)}><Trash2 aria-hidden className="size-5" strokeWidth={1.75} />Quitar de Guardadas</Button>
+            </div>
+          </div>
+        )}
+      </ResponsiveDialog>
+    </motion.div>
   );
 }

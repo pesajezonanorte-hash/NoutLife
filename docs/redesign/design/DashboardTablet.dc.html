@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Dashboard Tablet</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./lq.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#4f46e5}a:hover{color:#4338ca}
+.rail a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;width:72px;min-height:64px;border-radius:16px;text-decoration:none;color:var(--on-surface-light);font-size:12px;font-weight:600;letter-spacing:.1px;transition:background-color .15s,color .15s}
+.rail a:hover{background:var(--surface-variant)}
+.rail a.on{color:var(--primary-text);background:var(--primary-soft)}
+</style>
+</helmet>
+<div class="lq {{theme}}" style="width: 834px; height: 1112px; display: flex; overflow: hidden">
+  <nav class="rail" aria-label="Principal" style="width: 88px; flex: none; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 24px 0">
+    <div class="ichip primary" style="width: 44px; height: 44px; border-radius: 12px; margin-bottom: 16px" role="img" aria-label="LifeQuest"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"></path><path d="m9 12 2 2 4-4"></path></svg></div>
+    <a href="#" class="on" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"></path></svg>Inicio</a>
+    <a href="Habits.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m8.5 12 2.5 2.5 4.5-5"></path></svg>Hábitos</a>
+    <a href="Quests.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 22V4"></path><path d="M5 4h12l-2.5 4L17 12H5"></path></svg>Misiones</a>
+    <a href="Colosseum.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 17.5 21 6V3h-3L6.5 14.5M11 19l-6-6M8 16l-4 4M5 21l-2-2"></path></svg>Coliseo</a>
+    <a href="Profile.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg>Perfil</a>
+  </nav>
+  <div style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+    <header style="height: 64px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px 0 32px">
+      <span class="t-bs c-3">Viernes, 2 de octubre</span>
+      <div class="row" style="gap: 8px">
+        <button class="btn btn-icon" aria-label="Notificaciones"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4z"></path><path d="M10 21h4"></path></svg></button>
+        <button class="btn btn-primary btn-md"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Nuevo hábito</button>
+      </div>
+    </header>
+    <main class="enter" style="padding: 8px 32px 32px; display: flex; flex-direction: column; gap: 24px">
+      <h1 class="t-dm">Buenos días, Alex</h1>
+      <section class="card card-elevated card-lg" style="display: flex; align-items: center; gap: 24px">
+        <div class="ichip primary" style="width: 64px; height: 64px; border-radius: 20px"><span class="t-hl num">12</span></div>
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 8px">
+          <div class="row" style="justify-content: space-between"><span class="t-hs">Nivel 12 · Aventurero</span><span class="t-bs c-3 num">2.340 / 3.000 XP</span></div>
+          <div class="bar lg" role="progressbar" aria-label="Experiencia" aria-valuenow="78" aria-valuemin="0" aria-valuemax="100"><span style="width: 78%"></span></div>
+        </div>
+      </section>
+      <section style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px" aria-label="Resumen">
+        <div class="card card-hover card-lg row" style="gap: 16px">
+          <div class="ichip success"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m8.5 12 2.5 2.5 4.5-5"></path></svg></div>
+          <div style="flex: 1"><div class="t-hl num">3/5</div><div class="t-bs c-3">Hábitos hoy</div></div>
+          <a class="btn btn-icon" href="Habits.dc.html" aria-label="Ver hábitos"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+        </div>
+        <div class="card card-hover card-lg row" style="gap: 16px">
+          <div class="ichip primary"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 22V4"></path><path d="M5 4h12l-2.5 4L17 12H5"></path></svg></div>
+          <div style="flex: 1"><div class="t-hl num">2</div><div class="t-bs c-3">Misiones activas</div></div>
+          <a class="btn btn-icon" href="Quests.dc.html" aria-label="Ver misiones"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+        </div>
+        <div class="card card-hover card-lg row" style="gap: 16px">
+          <div class="ichip info"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2"></rect><path d="M3 10h18M16 15h2"></path></svg></div>
+          <div style="flex: 1"><div class="t-hl num">$1.240</div><div class="t-bs c-3">Saldo del mes</div></div>
+          <a class="btn btn-icon" href="Finances.dc.html" aria-label="Ver finanzas"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+        </div>
+        <div class="card card-hover card-lg row" style="gap: 16px">
+          <div class="ichip warning"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22c4 0 7-3 7-7 0-4-3-6-4-9-1 2-2 3-4 3 0-2-1-4-2-5-1 4-4 6-4 11 0 4 3 7 7 7z"></path></svg></div>
+          <div style="flex: 1"><div class="t-hl num">14</div><div class="t-bs c-3">Días de racha</div></div>
+          <a class="btn btn-icon" href="Achievements.dc.html" aria-label="Ver logros"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
+        </div>
+      </section>
+      <section class="card card-lg" style="display: flex; flex-direction: column; gap: 8px">
+        <div class="row" style="justify-content: space-between"><h2 class="t-hl">Hábitos de hoy</h2><a class="link" href="Habits.dc.html">Ver todo</a></div>
+        <ul style="list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 24px">
+          <li class="row" style="gap: 16px; padding: 12px 0"><div class="ichip secondary"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"></path></svg></div><span class="t-ll" style="flex: 1; font-size: 16px">Meditar 10 min</span><button class="chk on" aria-pressed="true" aria-label="Desmarcar Meditar"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10"></path></svg></button></li>
+          <li class="row" style="gap: 16px; padding: 12px 0"><div class="ichip primary"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z"></path></svg></div><span class="t-ll" style="flex: 1; font-size: 16px">Leer 20 páginas</span><button class="chk on" aria-pressed="true" aria-label="Desmarcar Leer"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10"></path></svg></button></li>
+          <li class="row" style="gap: 16px; padding: 12px 0"><div class="ichip info"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"></path></svg></div><span class="t-ll" style="flex: 1; font-size: 16px">Beber 2 L de agua</span><button class="chk" aria-pressed="false" aria-label="Completar Beber agua"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10"></path></svg></button></li>
+          <li class="row" style="gap: 16px; padding: 12px 0"><div class="ichip success"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6v12M18 6v12M3 9v6M21 9v6M6 12h12"></path></svg></div><span class="t-ll" style="flex: 1; font-size: 16px">Entrenar 30 min</span><button class="chk" aria-pressed="false" aria-label="Completar Entrenar"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10"></path></svg></button></li>
+        </ul>
+      </section>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":true},"$preview":{"width":834,"height":1112}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: (this.props.dark ?? true) ? 'dark' : '' };
+  }
+}
+</script>
+</body>
+</html>

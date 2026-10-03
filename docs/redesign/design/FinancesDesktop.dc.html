@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Finances Desktop</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./lq.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#4f46e5}a:hover{color:#4338ca}
+</style>
+</helmet>
+<div class="lq app {{theme}}">
+  <aside class="side">
+    <a href="DashboardDesktop.dc.html" class="row" style="gap: 12px; padding: 0 8px; text-decoration: none; color: inherit"><span class="ichip primary" style="width: 40px; height: 40px; border-radius: 12px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg></span><span class="t-hs">LifeQuest</span></a>
+    <nav aria-label="Principal" style="display: flex; flex-direction: column; gap: 4px">
+      <sc-for list="{{nav}}" as="n" hint-placeholder-count="5"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <div style="display: flex; flex-direction: column; gap: 4px; padding-top: 16px; border-top: 1px solid var(--border)">
+      <span class="sec">BIENESTAR</span>
+      <sc-for list="{{nav2}}" as="n" hint-placeholder-count="4"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </div>
+  </aside>
+
+  <div class="pane">
+    <header class="topbar">
+      <nav class="crumb" aria-label="Ruta"><a href="DashboardDesktop.dc.html">Inicio</a><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg><span class="c-1" aria-current="page">Finanzas</span></nav>
+      <div class="row" style="gap: 8px">
+        <button class="btn btn-secondary btn-md">Octubre 2026<svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+        <button class="btn btn-primary btn-md"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Transacción</button>
+      </div>
+    </header>
+
+    <sc-if value="{{hasData}}" hint-placeholder-val="{{ true }}">
+    <main class="wrap enter">
+      <section style="display: flex; flex-direction: column; gap: 8px">
+        <span class="eyebrow">Octubre 2026</span>
+        <h1 class="t-dl">Finanzas</h1>
+      </section>
+
+      <section class="kpis stagger" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr))" aria-label="Resumen">
+        <div class="card card-lg lift" style="display: flex; flex-direction: column; gap: 12px">
+          <div class="row" style="justify-content: space-between"><span class="t-bm c-3">Ingresos</span><span class="ichip success" style="width: 40px; height: 40px; border-radius: 12px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 7 7 17M16 17H7V8"/></svg></span></div>
+          <span class="t-dl num">${{inc}}</span>
+          <span class="row t-bs c-success" style="gap: 4px"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 17 6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>+8% vs. septiembre</span>
+        </div>
+        <div class="card card-lg lift" style="display: flex; flex-direction: column; gap: 12px">
+          <div class="row" style="justify-content: space-between"><span class="t-bm c-3">Gastos</span><span class="ichip error" style="width: 40px; height: 40px; border-radius: 12px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg></span></div>
+          <span class="t-dl num">${{exp}}</span>
+          <span class="row t-bs c-2" style="gap: 4px"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg>Igual que septiembre</span>
+        </div>
+        <div class="card card-lg lift" style="display: flex; flex-direction: column; gap: 12px; background: var(--primary-soft); border-color: transparent">
+          <div class="row" style="justify-content: space-between"><span class="t-bm c-2">Saldo</span><span class="ichip primary" style="width: 40px; height: 40px; border-radius: 12px; background: var(--bg)"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 10h18M16 15h2"/></svg></span></div>
+          <span class="t-dl num c-primary">${{bal}}</span>
+          <span class="row t-bs c-success" style="gap: 4px"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 17 6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>+12% de ahorro</span>
+        </div>
+      </section>
+
+      <div class="cols">
+        <section class="main card card-lg" style="gap: 24px">
+          <div class="row" style="justify-content: space-between"><h2 class="t-hl">Gastos · últimos 7 días</h2><span class="t-hs num">$412</span></div>
+          <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 16px; align-items: end; height: 220px; padding-top: 24px; background: repeating-linear-gradient(to top, var(--border) 0 1px, transparent 1px 55px)" role="img" aria-label="Gastos diarios: lunes 42, martes 18, miércoles 96, jueves 30, viernes 128, sábado 64, domingo 34 dólares. Máximo el viernes.">
+            <sc-for list="{{days}}" as="d" hint-placeholder-count="7">
+              <div class="tip" tabindex="0" style="height: 100%; display: flex; align-items: flex-end">
+                <span class="tip-b">{{d.tip}}</span>
+                <span class="rise" style="display: block; width: 100%; height: {{d.h}}%; border-radius: 10px 10px 4px 4px; background: {{d.bg}}; animation-delay: {{d.delay}}ms"></span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 16px"><sc-for list="{{days}}" as="d" hint-placeholder-count="7"><span class="t-bs c-3" style="text-align: center">{{d.day}}</span></sc-for></div>
+        </section>
+
+        <section class="aside card card-lg" style="gap: 20px">
+          <h2 class="t-hs">Por categoría</h2>
+          <div style="display: flex; height: 12px; border-radius: 999px; overflow: hidden; gap: 3px" role="img" aria-label="Comida 38%, Servicios 24%, Educación 18%, Movilidad 12%, Otros 8%">
+            <sc-for list="{{cats}}" as="c" hint-placeholder-count="5"><span class="rise" style="display: block; flex: {{c.pct}}; background: {{c.color}}; transform-origin: left; animation-name: lq-grow; animation-delay: {{c.delay}}ms"></span></sc-for>
+          </div>
+          <ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px">
+            <sc-for list="{{cats}}" as="c" hint-placeholder-count="5">
+              <li class="row" style="gap: 12px"><span style="width: 12px; height: 12px; border-radius: 4px; background: {{c.color}}"></span><span class="t-bm" style="flex: 1">{{c.name}}</span><span class="t-bs c-3 num">{{c.pct}}%</span><span class="t-ll num" style="width: 64px; text-align: right">{{c.amt}}</span></li>
+            </sc-for>
+          </ul>
+        </section>
+      </div>
+
+      <section class="card card-lg" style="display: flex; flex-direction: column; gap: 16px">
+        <div class="row" style="justify-content: space-between; flex-wrap: wrap; gap: 16px">
+          <h2 class="t-hl">Movimientos</h2>
+          <div class="seg slide" role="tablist" aria-label="Tipo" style="flex: 0 1 380px; width: 100%">
+            <span class="pill" style="width: {{pillW}}; transform: {{pillX}}" aria-hidden="true"></span>
+            <sc-for list="{{tabs}}" as="t" hint-placeholder-count="3"><button class="{{t.cls}}" role="tab" aria-selected="{{t.sel}}" onClick="{{t.pick}}">{{t.label}}</button></sc-for>
+          </div>
+        </div>
+        <ul class="stagger" style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column">
+          <sc-for list="{{tx}}" as="t" hint-placeholder-count="6">
+            <li style="display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 16px; align-items: center; min-height: 72px; border-bottom: {{t.border}}">
+              <span class="ichip {{t.tone}}" style="width: 44px; height: 44px; border-radius: 12px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 20px; height: 20px"><path d="{{t.icon}}"/></svg></span>
+              <div style="min-width: 0"><div class="t-ll" style="font-size: 16px">{{t.name}}</div><div class="t-bs c-3">{{t.meta}}</div></div>
+              <span class="t-hs num {{t.amtCls}}" style="font-size: 18px">{{t.amt}}</span>
+            </li>
+          </sc-for>
+        </ul>
+      </section>
+    </main>
+    </sc-if>
+
+    <sc-if value="{{isEmpty}}" hint-placeholder-val="{{ false }}">
+    <main class="wrap enter">
+      <h1 class="t-dl">Finanzas</h1>
+      <div style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 16px; padding: 96px 16px">
+        <span class="ichip info lg float"><svg class="i i48" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2"/><path d="M3 10h18M16 15h2"/></svg></span>
+        <h2 class="t-ds">Sin movimientos</h2>
+        <p class="t-bl c-3">Registra tu primer gasto o ingreso.</p>
+        <button class="btn btn-primary"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Transacción</button>
+      </div>
+    </main>
+    </sc-if>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"empty":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1620}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { k: 0, tab: 'all' }; }
+  componentDidMount() {
+    const rm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (rm) { this.setState({ k: 1 }); return; }
+    const t0 = performance.now();
+    const f = n => { const p = Math.min(1, (n - t0) / 1200); this.setState({ k: 1 - Math.pow(1 - p, 3) }); if (p < 1) this._raf = requestAnimationFrame(f); };
+    this._raf = requestAnimationFrame(f);
+  }
+  componentWillUnmount() { cancelAnimationFrame(this._raf); }
+  navs(active) {
+    const P = { home: 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z', habits: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0zM8.5 12l2.5 2.5 4.5-5', quests: 'M5 22V4M5 4h12l-2.5 4L17 12H5', arena: 'M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 17.5 21 6V3h-3L6.5 14.5M11 19l-6-6M8 16l-4 4M5 21l-2-2', profile: 'M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM4 21a8 8 0 0 1 16 0', money: 'M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 10h18M16 15h2', food: 'M7 3v18M4 3v6a3 3 0 0 0 6 0V3M17 21V3c-2 1-3 4-3 7h3', sleep: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z', ach: 'M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3' };
+    const mk = a => a.map(([id, label, f]) => ({ label, href: f + '.dc.html', icon: P[id], cls: id === active ? 'on' : '', cur: id === active ? 'page' : 'false' }));
+    return {
+      nav: mk([['home','Inicio','DashboardDesktop'],['habits','Hábitos','HabitsDesktop'],['quests','Misiones','QuestsDesktop'],['arena','Coliseo','ColosseumDesktop'],['profile','Perfil','ProfileDesktop']]),
+      nav2: mk([['money','Finanzas','FinancesDesktop'],['food','Comida','FoodDesktop'],['sleep','Sueño','SleepDesktop'],['ach','Logros','AchievementsDesktop']]),
+    };
+  }
+  renderVals() {
+    const k = this.state.k;
+    const fmt = n => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    const names = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+    const vals = [42, 18, 96, 30, 128, 64, 34];
+    const days = vals.map((v, i) => ({ day: names[i].slice(0, 3), tip: `${names[i]} · $${v}`, h: Math.round(v / 128 * 100), delay: 200 + i * 70,
+      bg: v === 128 ? 'var(--error)' : 'var(--primary-soft)' }));
+    const cats = [['Comida',38,'var(--warning)','$593'],['Servicios',24,'var(--secondary)','$374'],['Educación',18,'var(--primary)','$281'],['Movilidad',12,'var(--info)','$187'],['Otros',8,'var(--on-surface-light)','$125']]
+      .map(([name, pct, color, amt], i) => ({ name, pct, color, amt, delay: 300 + i * 90 }));
+    const ICO = {
+      food: 'M7 3v18M4 3v6a3 3 0 0 0 6 0V3M17 21V3c-2 1-3 4-3 7h3', in: 'M17 7 7 17M16 17H7V8',
+      car: 'M5 17h14M6 17v2M18 17v2M4 13l2-6h12l2 6v4H4z', book: 'M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z',
+      bolt: 'M13 2 4 14h7l-1 8 9-12h-7z',
+    };
+    const all = [
+      ['Supermercado','Comida · Hoy, 10:24','−$64,20','food','warning',0],
+      ['Pago freelance','Ingreso · Ayer, 18:02','+$800,00','in','success',1],
+      ['Transporte','Movilidad · 30 sep','−$18,50','car','info',0],
+      ['Curso de diseño','Educación · 29 sep','−$49,00','book','primary',0],
+      ['Salario','Ingreso · 28 sep','+$2.000,00','in','success',1],
+      ['Electricidad','Servicios · 28 sep','−$72,30','bolt','secondary',0],
+    ];
+    const t = this.state.tab;
+    const list = all.filter(r => t === 'all' || (t === 'in' ? r[5] : !r[5]));
+    const tx = list.map(([name, meta, amt, icon, tone, pos], i) => ({ name, meta, amt, icon: ICO[icon], tone,
+      amtCls: pos ? 'c-success' : 'c-1', border: i < list.length - 1 ? '1px solid var(--border)' : '0' }));
+    const opts = [['all','Todos'],['in','Ingresos'],['out','Gastos']];
+    const idx = opts.findIndex(o => o[0] === t);
+    const tabs = opts.map(([id, label]) => ({ label, cls: t === id ? 'on' : '', sel: t === id ? 'true' : 'false', pick: () => this.setState({ tab: id }) }));
+    const empty = this.props.empty ?? false;
+    return { theme: (this.props.dark ?? false) ? 'dark' : '', ...this.navs('money'),
+      inc: fmt(2800 * k), exp: fmt(1560 * k), bal: fmt(1240 * k), days, cats, tx, tabs,
+      pillW: 'calc((100% - 16px) / 3)', pillX: `translateX(calc(${idx} * (100% + 4px)))`,
+      hasData: !empty, isEmpty: empty };
+  }
+}
+</script>
+</body>
+</html>

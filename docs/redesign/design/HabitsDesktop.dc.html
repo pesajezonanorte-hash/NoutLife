@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Habits Desktop</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./lq.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#4f46e5}a:hover{color:#4338ca}
+</style>
+</helmet>
+<div class="lq app {{theme}}">
+  <aside class="side">
+    <a href="DashboardDesktop.dc.html" class="row" style="gap: 12px; padding: 0 8px; text-decoration: none; color: inherit"><span class="ichip primary" style="width: 40px; height: 40px; border-radius: 12px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg></span><span class="t-hs">LifeQuest</span></a>
+    <nav aria-label="Principal" style="display: flex; flex-direction: column; gap: 4px">
+      <sc-for list="{{nav}}" as="n" hint-placeholder-count="5"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <div style="display: flex; flex-direction: column; gap: 4px; padding-top: 16px; border-top: 1px solid var(--border)">
+      <span class="sec">BIENESTAR</span>
+      <sc-for list="{{nav2}}" as="n" hint-placeholder-count="4"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </div>
+  </aside>
+
+  <div class="pane">
+    <header class="topbar">
+      <nav class="crumb" aria-label="Ruta"><a href="DashboardDesktop.dc.html">Inicio</a><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg><span class="c-1" aria-current="page">Hábitos</span></nav>
+      <div class="row" style="gap: 8px">
+        <button class="btn btn-icon" aria-label="Buscar hábitos"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+        <button class="btn btn-primary btn-md"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Nuevo hábito</button>
+      </div>
+    </header>
+
+    <main class="wrap enter">
+      <section style="display: flex; flex-wrap: wrap; gap: 32px; align-items: center; justify-content: space-between">
+        <div style="flex: 1 1 420px; display: flex; flex-direction: column; gap: 8px">
+          <span class="eyebrow">Viernes, 2 de octubre</span>
+          <h1 class="t-dl">Hábitos</h1>
+          <p class="t-bl c-3" style="max-width: 520px">Pequeñas acciones, todos los días. Cada hábito completado suma XP a tu personaje.</p>
+        </div>
+        <div class="row" style="gap: 24px">
+          <div style="position: relative; width: 132px; height: 132px">
+            <svg viewBox="0 0 120 120" width="132" height="132" aria-hidden="true" style="transform: rotate(-90deg)"><circle cx="60" cy="60" r="52" fill="none" stroke="var(--surface-variant)" stroke-width="10"/><circle class="ring-val" cx="60" cy="60" r="52" fill="none" stroke="var(--success)" stroke-width="10" stroke-linecap="round" pathLength="100" stroke-dasharray="100" stroke-dashoffset="{{ringOff}}" style="transition: stroke-dashoffset .6s cubic-bezier(.2,.8,.2,1)"/></svg>
+            <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center" aria-live="polite"><span class="t-hl num">{{doneCount}}/5</span><span class="t-bs c-3">hoy</span></div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px">
+            <span class="row t-ll c-warning" style="gap: 6px"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22c4 0 7-3 7-7 0-4-3-6-4-9-1 2-2 3-4 3 0-2-1-4-2-5-1 4-4 6-4 11 0 4 3 7 7 7z"/></svg>Racha global 14 días</span>
+            <span class="t-bs c-3 num">+{{xpToday}} XP ganados hoy</span>
+          </div>
+        </div>
+      </section>
+
+      <div class="cols">
+        <section class="main" aria-label="Lista de hábitos">
+          <div class="row" style="justify-content: space-between; gap: 16px; flex-wrap: wrap">
+            <div class="seg slide" role="tablist" aria-label="Filtro" style="flex: 0 1 420px">
+              <span class="pill" style="width: {{pillW}}; transform: {{pillX}}" aria-hidden="true"></span>
+              <sc-for list="{{filters}}" as="f" hint-placeholder-count="3"><button class="{{f.cls}}" role="tab" aria-selected="{{f.sel}}" onClick="{{f.pick}}">{{f.label}}</button></sc-for>
+            </div>
+            <span class="t-bs c-3">{{countLabel}}</span>
+          </div>
+          <ul class="stagger" style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px">
+            <sc-for list="{{habits}}" as="h" hint-placeholder-count="5">
+              <li class="card lift" style="display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 24px; padding: 16px 16px 16px 24px">
+                <span class="ichip {{h.tone}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{h.icon}}"/></svg></span>
+                <a href="HabitDetailDesktop.dc.html" style="min-width: 0; text-decoration: none; color: inherit; display: flex; flex-direction: column">
+                  <span class="t-hs" style="font-size: 18px">{{h.name}}</span>
+                  <span class="t-bs c-3">{{h.meta}}</span>
+                </a>
+                <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px">
+                  <span class="row" style="gap: 4px" aria-label="{{h.weekAria}}">
+                    <sc-for list="{{h.week}}" as="d" hint-placeholder-count="7"><span style="width: 10px; height: 10px; border-radius: 3px; background: {{d.bg}}"></span></sc-for>
+                  </span>
+                  <span class="row t-bs c-warning num" style="gap: 4px"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22c4 0 7-3 7-7 0-4-3-6-4-9-1 2-2 3-4 3 0-2-1-4-2-5-1 4-4 6-4 11 0 4 3 7 7 7z"/></svg>{{h.streak}} días</span>
+                </div>
+                <button class="{{h.chk}}" aria-pressed="{{h.pressed}}" aria-label="{{h.aria}}" onClick="{{h.toggle}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg></button>
+              </li>
+            </sc-for>
+          </ul>
+          <sc-if value="{{noneShown}}" hint-placeholder-val="{{ false }}">
+            <div class="pop" style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; padding: 48px 16px">
+              <span class="ichip muted lg"><svg class="i i48" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg></span>
+              <h2 class="t-hl">Nada por aquí</h2>
+              <p class="t-bm c-3">Cambia el filtro o crea un hábito nuevo.</p>
+            </div>
+          </sc-if>
+        </section>
+
+        <aside class="aside">
+          <section class="card card-lg" style="display: flex; flex-direction: column; gap: 16px">
+            <div class="row" style="justify-content: space-between"><h2 class="t-hs">Esta semana</h2><span class="badge badge-success num">82%</span></div>
+            <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; align-items: end; height: 140px" role="img" aria-label="Hábitos completados por día: lunes 5, martes 4, miércoles 5, jueves 3, viernes 2 hasta ahora">
+              <sc-for list="{{weekBars}}" as="b" hint-placeholder-count="7">
+                <div class="tip" tabindex="0" style="height: 100%; display: flex; align-items: flex-end">
+                  <span class="tip-b">{{b.tip}}</span>
+                  <span class="rise" style="display: block; width: 100%; height: {{b.h}}%; border-radius: 8px; background: {{b.bg}}; animation-delay: {{b.d}}ms"></span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px"><sc-for list="{{weekBars}}" as="b" hint-placeholder-count="7"><span class="t-lm c-3" style="text-align: center">{{b.l}}</span></sc-for></div>
+          </section>
+          <section class="card card-lg" style="display: flex; flex-direction: column; gap: 12px">
+            <span class="ichip warning float"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg></span>
+            <h2 class="t-hs">Mejor racha</h2>
+            <p class="t-bm c-2"><b>Meditar 10 min</b> lleva 21 días. 9 más para desbloquear “Mes imparable”.</p>
+            <div class="bar shine warning"><span style="width: 70%"></span></div>
+          </section>
+        </aside>
+      </div>
+    </main>
+  </div>
+
+  <sc-if value="{{celebrate}}" hint-placeholder-val="{{ false }}">
+    <div class="confetti" aria-hidden="true" style="position: fixed">
+      <sc-for list="{{confetti}}" as="c" hint-placeholder-count="24"><i style="left: {{c.x}}%; background: {{c.color}}; animation-delay: {{c.d}}ms; animation-duration: 1.8s"></i></sc-for>
+    </div>
+    <div class="toast toast-dock" role="status">
+      <span class="ichip success"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg></span>
+      <span style="flex: 1">{{lastName}} · <b>+10 XP</b></span>
+      <button class="btn btn-icon" aria-label="Cerrar" onClick="{{closeToast}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1160}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { filter: 'all', done: { med: true, read: true }, celebrate: false, last: '' };
+  }
+  componentWillUnmount() { clearTimeout(this._t); }
+  navs(active) {
+    const P = { home: 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z', habits: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0zM8.5 12l2.5 2.5 4.5-5', quests: 'M5 22V4M5 4h12l-2.5 4L17 12H5', arena: 'M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 17.5 21 6V3h-3L6.5 14.5M11 19l-6-6M8 16l-4 4M5 21l-2-2', profile: 'M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM4 21a8 8 0 0 1 16 0', money: 'M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 10h18M16 15h2', food: 'M7 3v18M4 3v6a3 3 0 0 0 6 0V3M17 21V3c-2 1-3 4-3 7h3', sleep: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z', ach: 'M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3' };
+    const mk = a => a.map(([id, label, f]) => ({ label, href: f + '.dc.html', icon: P[id], cls: id === active ? 'on' : '', cur: id === active ? 'page' : 'false' }));
+    return {
+      nav: mk([['home','Inicio','DashboardDesktop'],['habits','Hábitos','HabitsDesktop'],['quests','Misiones','QuestsDesktop'],['arena','Coliseo','ColosseumDesktop'],['profile','Perfil','ProfileDesktop']]),
+      nav2: mk([['money','Finanzas','FinancesDesktop'],['food','Comida','FoodDesktop'],['sleep','Sueño','SleepDesktop'],['ach','Logros','AchievementsDesktop']]),
+    };
+  }
+  renderVals() {
+    const base = [
+      { id: 'med', name: 'Meditar 10 min', meta: 'Mente · cada mañana', tone: 'secondary', streak: 21, w: [1,1,1,1,1,1,1], icon: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z' },
+      { id: 'read', name: 'Leer 20 páginas', meta: 'Aprendizaje · diario', tone: 'primary', streak: 14, w: [1,1,0,1,1,1,1], icon: 'M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z' },
+      { id: 'water', name: 'Beber 2 L de agua', meta: 'Salud · 1,2 L de 2 L', tone: 'info', streak: 6, w: [0,1,1,1,1,1,0], icon: 'M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z' },
+      { id: 'gym', name: 'Entrenar 30 min', meta: 'Salud · antes de las 19:00', tone: 'success', streak: 3, w: [1,0,1,0,1,1,0], icon: 'M6 6v12M18 6v12M3 9v6M21 9v6M6 12h12' },
+      { id: 'sleep', name: 'Dormir antes de 23:00', meta: 'Descanso · cada noche', tone: 'warning', streak: 9, w: [1,1,1,1,0,1,1], icon: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z' },
+    ];
+    const s = this.state;
+    const habits = base
+      .filter(h => s.filter === 'all' || (s.filter === 'done' ? !!s.done[h.id] : !s.done[h.id]))
+      .map(h => {
+        const d = !!s.done[h.id];
+        const week = h.w.map((v, i) => ({ bg: i === 6 ? (d ? 'var(--success)' : 'var(--surface-variant)') : (v ? 'var(--success)' : 'var(--surface-variant)') }));
+        const n = h.w.slice(0, 6).filter(Boolean).length + (d ? 1 : 0);
+        return { ...h, week, weekAria: `${n} de 7 días completados esta semana`,
+          chk: d ? 'chk on' : 'chk', pressed: d ? 'true' : 'false', aria: (d ? 'Desmarcar ' : 'Completar ') + h.name,
+          toggle: () => {
+            this.setState({ done: { ...this.state.done, [h.id]: !d }, celebrate: !d, last: h.name });
+            clearTimeout(this._t);
+            if (!d) this._t = setTimeout(() => this.setState({ celebrate: false }), 4000);
+          } };
+      });
+    const doneCount = base.filter(h => s.done[h.id]).length;
+    const opts = [['all','Todos'],['active','Activos'],['done','Completados']];
+    const idx = opts.findIndex(o => o[0] === s.filter);
+    const filters = opts.map(([id, label]) => ({ label, cls: s.filter === id ? 'on' : '', sel: s.filter === id ? 'true' : 'false', pick: () => this.setState({ filter: id }) }));
+    const wv = [5,4,5,3,doneCount,0,0];
+    const weekBars = ['L','M','X','J','V','S','D'].map((l, i) => ({ l, h: Math.max(4, wv[i] * 20), d: i * 70,
+      tip: i > 4 ? 'Pendiente' : `${wv[i]} de 5`, bg: i === 4 ? 'var(--primary)' : (i > 4 ? 'var(--surface-variant)' : 'var(--primary-soft)') }));
+    const colors = ['#6366f1','#10b981','#f59e0b','#8b5cf6','#3b82f6'];
+    const confetti = Array.from({ length: 24 }, (_, i) => ({ x: 3 + i * 4.1, color: colors[i % 5], d: (i % 6) * 60 }));
+    return {
+      theme: (this.props.dark ?? false) ? 'dark' : '', ...this.navs('habits'),
+      habits, filters, doneCount, xpToday: doneCount * 10, ringOff: 100 - doneCount * 20,
+      pillW: 'calc((100% - 16px) / 3)', pillX: `translateX(calc(${idx} * (100% + 4px)))`,
+      countLabel: `${habits.length} ${habits.length === 1 ? 'hábito' : 'hábitos'}`,
+      noneShown: habits.length === 0, weekBars,
+      celebrate: s.celebrate, lastName: s.last, confetti, closeToast: () => this.setState({ celebrate: false }),
+    };
+  }
+}
+</script>
+</body>
+</html>

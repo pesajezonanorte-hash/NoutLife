@@ -1,161 +1,87 @@
-import { memo, type KeyboardEvent, type MouseEvent } from 'react';
 import { motion } from 'framer-motion';
-import {
-  Archive,
-  Check,
-  CheckCircle2,
-  CircleSlash2,
-  Coins,
-  Flag,
-  FolderKanban,
-  ListTodo,
-  Target,
-  type LucideIcon,
-} from 'lucide-react';
 import type { Quest } from '@lifequest/shared';
-import { CategoryIcon } from './CategoryIcon';
-import { DifficultyBadge, DIFFICULTY_CONFIG } from './DifficultyBadge';
-import { DeadlineBadge } from './DeadlineBadge';
-import { audio } from '../../lib/audio';
+import { CalendarClock, CheckCircle2, Sparkles, XCircle } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { item } from '@/lib/motion';
+import { categoryMeta } from '@/lib/lifeMeta';
+import { Badge, Button, IconChip, ProgressBar } from '@/components/ui/lq';
+import { deadlineInfo, isReady, questProgress, typeMeta } from './questMeta';
 
-interface Props {
+export interface QuestCardProps {
   quest: Quest;
-  onComplete: (quest: Quest, e: MouseEvent<HTMLButtonElement>) => void;
-  onClick: (quest: Quest) => void;
+  onOpen: () => void;
+  onComplete: () => void;
+  className?: string;
 }
 
-const TYPE_CONFIG: Record<string, { label: string; Icon: LucideIcon }> = {
-  MAIN: { label: 'Proyecto', Icon: FolderKanban },
-  SIDE: { label: 'Tarea', Icon: ListTodo },
-  META: { label: 'Meta', Icon: Target },
-  DAILY: { label: 'Diaria', Icon: Flag },
-  WEEKLY: { label: 'Semanal', Icon: Flag },
-};
-
 /**
- * A compact list row rather than a floating game card. Its state is conveyed
- * through restrained colour and metadata, so a single quest never dominates
- * the whole page.
+ * Tarjeta de misión (Quests.dc.html / QuestsDesktop): categoría + XP, título,
+ * barra de progreso con texto y %. Toda la tarjeta abre el detalle; el botón
+ * "Completar misión" aparece cuando la misión está activa.
  */
-export const QuestCard = memo(function QuestCard({ quest, onComplete, onClick }: Props) {
-  const subObjectives = Array.isArray(quest.subObjectives)
-    ? quest.subObjectives as Array<{ id: string; title: string; completed: boolean }>
-    : [];
-  const completedSubs = subObjectives.filter((sub) => sub.completed).length;
-  const progressPct = subObjectives.length > 0 ? (completedSubs / subObjectives.length) * 100 : null;
-
-  const isCompleted = quest.status === 'COMPLETED';
-  const isFailed = quest.status === 'FAILED';
-  const isArchived = quest.status === 'ARCHIVED';
-  const isInactive = isCompleted || isFailed || isArchived;
-  const difficulty = DIFFICULTY_CONFIG[quest.difficulty] ?? { color: 'var(--border)' };
-  const type = TYPE_CONFIG[quest.type] ?? TYPE_CONFIG.SIDE;
-  const TypeIcon = type.Icon;
-
-  function openQuest() {
-    audio.play('blip');
-    onClick(quest);
-  }
-
-  function handleKeyDown(event: KeyboardEvent<HTMLElement>) {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      openQuest();
-    }
-  }
+export function QuestCard({ quest, onOpen, onComplete, className }: QuestCardProps) {
+  const cat = categoryMeta(quest.category);
+  const type = typeMeta(quest.type);
+  const p = questProgress(quest);
+  const ready = isReady(quest);
+  const done = quest.status === 'COMPLETED';
+  const failed = quest.status === 'FAILED';
+  const deadline = quest.status === 'ACTIVE' ? deadlineInfo(quest.deadline) : null;
 
   return (
-    <motion.article
-      layout="position"
-      transition={{ type: 'spring', stiffness: 360, damping: 34, mass: 0.7 }}
-      onClick={openQuest}
-      onKeyDown={handleKeyDown}
-      role="button"
-      tabIndex={0}
-      className={`group relative flex cursor-pointer items-start gap-3 px-4 py-3.5 text-left outline-none transition-colors duration-200 hover:bg-[var(--bg-panel-light)] focus-visible:bg-[var(--bg-panel-light)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent-gold)] ${
-        isInactive ? 'opacity-55' : ''
-      }`}
-      style={{ borderLeft: `2px solid ${isInactive ? 'transparent' : difficulty.color}` }}
-    >
-      <CategoryIcon category={quest.category} size="md" className="mt-0.5" />
+    <motion.li variants={item} className={cn('lq-lift relative flex flex-col gap-4 rounded-2xl border border-border bg-surface p-4 shadow-sm md:p-6', failed && 'opacity-75', className)}>
+      <div className="flex items-center justify-between gap-2">
+        <span className="flex items-center gap-3">
+          <IconChip icon={type.icon} tone={cat.tone} size="sm" className="hidden md:flex" />
+          <Badge variant={cat.tone}>{cat.label}</Badge>
+        </span>
+        <span className="flex items-center gap-1 text-label-lg text-primary-text tabular-nums">
+          <Sparkles aria-hidden className="size-4" strokeWidth={1.75} />+{quest.xpReward} XP
+        </span>
+      </div>
 
-      <div className="min-w-0 flex-1">
-        <div className="flex min-w-0 items-start gap-2">
-          <div className="min-w-0 flex-1">
-            <div className="flex min-w-0 items-center gap-2">
-              <p
-                className={`truncate text-sm font-semibold leading-5 ${
-                  isInactive ? 'text-[var(--text-secondary)] line-through' : 'text-[var(--text-primary)]'
-                }`}
-              >
-                {quest.title}
-              </p>
-              <span className="hidden shrink-0 items-center gap-1 text-xs text-[var(--text-secondary)] sm:inline-flex">
-                <TypeIcon size={12} strokeWidth={1.8} aria-hidden="true" />
-                {type.label}
-              </span>
-            </div>
-            {quest.description && (
-              <p className="mt-0.5 line-clamp-1 text-xs leading-5 text-[var(--text-secondary)]">
-                {quest.description}
-              </p>
-            )}
-          </div>
+      <div className="flex flex-col gap-1">
+        <h3 className="text-heading-sm">
+          {/* El enlace cubre la tarjeta (patrón "stretched link"): un único destino tabulable. */}
+          <button type="button" aria-haspopup="dialog" onClick={onOpen} className="text-left after:absolute after:inset-0 after:rounded-2xl after:content-[''] focus-visible:outline-none focus-visible:after:outline focus-visible:after:outline-[3px] focus-visible:after:outline-offset-2 focus-visible:after:outline-primary">
+            {quest.title}
+          </button>
+        </h3>
+        <span className="line-clamp-2 text-body-sm text-on-surface-light">{type.label}{quest.description ? ` · ${quest.description}` : ''}</span>
+      </div>
 
-          {!isInactive && (
-            <motion.button
-              type="button"
-              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[var(--border-strong)] bg-[var(--bg-deep)] text-[var(--text-secondary)] transition-colors hover:border-[var(--accent-gold)] hover:bg-[var(--accent-gold)]/10 hover:text-[var(--accent-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)]"
-              onClick={(event) => {
-                event.stopPropagation();
-                audio.play('questComplete');
-                onComplete(quest, event);
-              }}
-              whileTap={{ scale: 0.94 }}
-              aria-label={`Completar ${quest.title}`}
-              title="Completar misión"
-            >
-              <Check size={16} strokeWidth={2} aria-hidden="true" />
-            </motion.button>
-          )}
-          {isCompleted && <CheckCircle2 className="mt-1 shrink-0 text-[var(--accent-green)]" size={20} aria-label="Completada" />}
-          {isFailed && <CircleSlash2 className="mt-1 shrink-0 text-[var(--accent-red)]" size={20} aria-label="Fallida" />}
-          {isArchived && <Archive className="mt-1 shrink-0 text-[var(--text-secondary)]" size={19} aria-label="Archivada" />}
-        </div>
-
-        {progressPct !== null && !isInactive && (
-          <div className="mt-2.5 max-w-xl">
-            <div className="mb-1 flex items-center justify-between text-xs text-[var(--text-secondary)]">
-              <span>Progreso</span>
-              <span className="tabular-nums">{completedSubs}/{subObjectives.length}</span>
-            </div>
-            <div className="h-1 overflow-hidden rounded-full bg-[var(--bg-deep)]">
-              <motion.div
-                className="h-full rounded-full bg-[var(--accent-gold)]"
-                initial={{ width: 0 }}
-                animate={{ width: `${progressPct}%` }}
-                transition={{ type: 'spring', stiffness: 120, damping: 22, delay: 0.08 }}
-              />
-            </div>
-          </div>
-        )}
-
-        <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-          <span className="inline-flex items-center gap-1 text-xs text-[var(--text-secondary)] sm:hidden">
-            <TypeIcon size={12} strokeWidth={1.8} aria-hidden="true" />
-            {type.label}
-          </span>
-          <DifficultyBadge difficulty={quest.difficulty} />
-          <span className="inline-flex items-center gap-1 text-xs font-medium text-[var(--accent-gold)]">
-            <span>+{quest.xpReward} XP</span>
-          </span>
-          <span className="inline-flex items-center gap-1 text-xs text-[var(--text-secondary)]">
-            <Coins size={12} strokeWidth={1.8} aria-hidden="true" />
-            {quest.goldReward}
-          </span>
-          <DeadlineBadge deadline={quest.deadline} />
+      <div className="mt-auto flex flex-col gap-1.5">
+        <ProgressBar
+          value={p.pct}
+          tone={done || ready ? 'success' : 'primary'}
+          label={`Progreso de ${quest.title}`}
+          valueText={p.text}
+        />
+        <div className="flex justify-between gap-2 text-body-sm tabular-nums">
+          <span className="text-on-surface-light">{p.text}</span>
+          <span className="text-on-surface">{p.pct}%</span>
         </div>
       </div>
-    </motion.article>
+
+      {deadline && <Badge variant={deadline.variant} icon={CalendarClock} className="self-start">{deadline.text}</Badge>}
+      {done && (
+        <Badge variant="success" icon={CheckCircle2} className="self-start">
+          Completada{quest.completedAt ? ` · ${new Date(quest.completedAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}` : ''}
+        </Badge>
+      )}
+      {failed && <Badge variant="error" icon={XCircle} className="self-start">Fallida</Badge>}
+      {quest.status === 'ACTIVE' && (
+        <Button
+          variant={ready ? 'primary' : 'secondary'}
+          size="md"
+          block
+          onClick={onComplete}
+          className="relative z-[1]"
+        >
+          <CheckCircle2 aria-hidden className="size-5" strokeWidth={1.75} />
+          Completar misión
+        </Button>
+      )}
+    </motion.li>
   );
-});
+}

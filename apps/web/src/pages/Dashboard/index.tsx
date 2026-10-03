@@ -1,55 +1,38 @@
-import { FlowButton } from "@/components/ui/flow-button";
-import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+// Inicio — Dashboard.dc.html (móvil), DashboardTablet.dc.html, DashboardDesktop.dc.html.
+// Además del prototipo, conserva (rediseñados) los datos que ya da /dashboard:
+// reto de recuperación, guía de 7 días, resumen semanal, sueño, entrenamiento,
+// Life Score, agenda y logros recientes.
+import { useCallback, useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
+import type { Quest } from '@lifequest/shared';
 import {
-  BookOpen,
-  CalendarDays,
-  Check,
-  ClipboardList,
-  Coins,
-  Dumbbell,
-  Flame,
-  HeartHandshake,
-  Moon,
-  NotebookPen,
-  Swords,
-  Trophy,
-  Utensils,
-  Wallet,
-  Zap,
-} from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import type { Quest } from "@lifequest/shared";
-import { useAuthStore } from "../../store/authStore";
-import { useUIStore } from "../../store/uiStore";
-import { PixelPanel } from "../../components/ui/PixelPanel";
-import { LifeQuestFlipCard } from "../../components/ui/lifequest-flip-card";
-import { AvatarDisplay } from "../../components/character/AvatarDisplay";
-import { GreetingHeader } from "../../components/dashboard/GreetingHeader";
-import { TodayQuestsWidget } from "../../components/dashboard/TodayQuestsWidget";
-import { QuickStatsWidget } from "../../components/dashboard/QuickStatsWidget";
-import { ZoneCard } from "../../components/dashboard/ZoneCard";
-import { StreakFlame } from "../../components/habits/StreakFlame";
-import { MorningBriefing } from "../../components/dashboard/MorningBriefing";
-import { fetchCharacter, fetchDashboard } from "../../services/user.service";
-import { logHabit } from "../../services/habit.service";
-import { fetchLifeScore } from "../../services/lifescore.service";
-import type { LifeScore } from "../../services/lifescore.service";
-import { xpProgressPercent } from "../../lib/xp";
-import { BossWidget } from "../../components/dashboard/BossWidget";
-import { fetchUpcoming } from "../../services/agenda.service";
-import type { AgendaEvent } from "../../services/agenda.service";
-import { ClassSelectionModal } from "../../components/character/ClassSelectionModal";
-import { DailyCheckinWidget } from "../../components/dashboard/DailyCheckinWidget";
-import { SageScrollsWidget } from "../../components/dashboard/SageScrollsWidget";
-import { SageDailyTip } from "../../components/dashboard/SageDailyTip";
-import { FirstStepsWidget } from "../../components/dashboard/FirstStepsWidget";
-import { SkeletonCard } from "../../components/ui/Skeleton";
-import { ProgressRings } from "../../components/ui/ProgressRings";
-import { SageProactiveCard } from "../../components/dashboard/SageProactiveCard";
-import { TodayPlan } from "../../components/dashboard/TodayPlan";
-import { getLevelTitle } from "../../lib/gameProgress";
-import { E } from "@/components/ui/glyphs";
+  CalendarDays, CheckCircle2, ChevronRight, ClipboardList, Dumbbell, Flag, Flame, HeartPulse, ListChecks, Moon, Plus,
+  RotateCcw, Sparkles, Trophy, Wallet, X, Zap, type LucideIcon,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { item, stagger } from '@/lib/motion';
+import { categoryMeta, formatMoney, greeting, longDate } from '@/lib/lifeMeta';
+import { getLevelTitle } from '@/lib/gameProgress';
+import { relativeTime } from '@/lib/time';
+import { useAuthStore } from '@/store/authStore';
+import { useShellStore } from '@/store/shellStore';
+import { useUIStore } from '@/store/uiStore';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { useHabitCompletion } from '@/hooks/useHabitCompletion';
+import { useToastStore } from '@/hooks/useToast';
+import { refreshUser } from '@/hooks/useAuth';
+import {
+  Badge, Button, Card, Confetti, EmptyState, ErrorState, IconChip, ProgressBar, ProgressRing, Skeleton, Spinner, StatCard,
+  buttonClasses, type Tone,
+} from '@/components/ui/lq';
+import { HabitListItem } from '@/components/habits/HabitListItem';
+import { questProgress } from '@/components/quests/questMeta';
+import { ClassSelectionModal } from '@/components/character/ClassSelectionModal';
+import { MorningBriefing } from '@/components/dashboard/MorningBriefing';
+import { completeGuideDay, dismissGuide, fetchDashboard } from '@/services/user.service';
+import { fetchLifeScore, type LifeScore } from '@/services/lifescore.service';
+import { fetchUpcoming, type AgendaEvent } from '@/services/agenda.service';
 
 interface HabitSummary {
   id: string;
@@ -60,50 +43,7 @@ interface HabitSummary {
   xpReward: number;
   todayStatus: string | null;
   todayCompleted: boolean | null;
-}
-
-interface RecentAchievement {
-  id: string;
-  title: string;
-  description: string;
-  icon: string;
-  xpReward: number;
-  unlockedAt: string;
-}
-
-interface WeeklySummaryCardData {
-  id: string;
-  summary: string;
-  lifeScore: number;
-  weekStart: string;
-  weekEnd: string;
-}
-
-interface RecoveryChallengeData {
-  id: string;
-  habitId: string;
-  habitTitle: string;
-  habitIcon: string;
-  lostStreak: number;
-  requiredDays: number;
-  currentDays: number;
-  bonusXp: number;
-  expiresAt: string;
-}
-
-interface SevenDayGuideData {
-  currentDay: number;
-  totalDays: number;
-  completedDays: number[];
-  task: {
-    day: number;
-    title: string;
-    zone: string;
-    route: string;
-    xpBonus: number;
-    celebration?: boolean;
-    suggestedReady?: boolean;
-  };
+  category?: string;
 }
 
 interface DashboardData {
@@ -113,1100 +53,416 @@ interface DashboardData {
   monthBalance: number;
   recentWorkout: { date: string } | null;
   daysSinceJoin: number;
-  recentAchievements: RecentAchievement[];
-  visualState: {
-    mood: number;
-    daysAway: number;
-    hpPercent: number;
-    hpLabel: string;
-    hpLow: boolean;
-    hpRecovery: boolean;
-  };
-  latestWeeklySummary: WeeklySummaryCardData | null;
-  recoveryChallenge: RecoveryChallengeData | null;
-  sevenDayGuide: SevenDayGuideData | null;
-  firstSteps: {
-    questCount: number;
-    habitCount: number;
-    hasJournalEntry: boolean;
-  };
+  recentAchievements: { id: string; title: string; description: string; xpReward: number; unlockedAt: string }[];
+  latestWeeklySummary: { id: string; summary: string; lifeScore: number; weekStart: string; weekEnd: string } | null;
+  recoveryChallenge: {
+    id: string; habitTitle: string; lostStreak: number; requiredDays: number; currentDays: number; bonusXp: number; expiresAt: string;
+  } | null;
+  sevenDayGuide: {
+    currentDay: number; totalDays: number; completedDays: number[];
+    task: { day: number; title: string; zone: string; route: string; xpBonus: number };
+  } | null;
+  firstSteps: { questCount: number; habitCount: number; hasJournalEntry: boolean };
 }
 
-const ZONES = [
-  {
-    Icon: Dumbbell,
-    label: "Gym",
-    sublabel: "Coliseo",
-    to: "/gym",
-    color: "var(--accent-red)",
-    badge: undefined,
-  },
-  {
-    Icon: Wallet,
-    label: "Finanzas",
-    sublabel: "La Bóveda",
-    to: "/finances",
-    color: "var(--accent-gold)",
-    badge: undefined,
-  },
-  {
-    Icon: BookOpen,
-    label: "Aprendizaje",
-    sublabel: "Biblioteca",
-    to: "/learning",
-    color: "var(--accent-blue)",
-    badge: undefined,
-  },
-  {
-    Icon: Utensils,
-    label: "Comida",
-    sublabel: "La Posada",
-    to: "/food",
-    color: "var(--accent-green)",
-    badge: undefined,
-  },
-  {
-    Icon: Moon,
-    label: "Sueño",
-    sublabel: "La Torre",
-    to: "/sleep",
-    color: "var(--accent-cyan)",
-    badge: undefined,
-  },
-  {
-    Icon: HeartHandshake,
-    label: "Amor",
-    sublabel: "El Jardín",
-    to: "/love",
-    color: "var(--accent-pink)",
-    badge: undefined,
-  },
-] as const;
+function daysLeft(iso: string) {
+  const d = Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000);
+  return d <= 0 ? 'termina hoy' : d === 1 ? 'queda 1 día' : `quedan ${d} días`;
+}
 
-const DASHBOARD_SHORTCUTS = [
-  {
-    label: "Nueva Quest",
-    Icon: Swords,
-    to: "/quests",
-    color: "var(--primary)",
-  },
-  { label: "Gasto", Icon: Wallet, to: "/finances", color: "var(--text-2)" },
-  { label: "Hábitos", Icon: Flame, to: "/habits", color: "var(--primary)" },
-  {
-    label: "Diario",
-    Icon: NotebookPen,
-    to: "/journal",
-    color: "var(--text-2)",
-  },
-] as const;
+const isDone = (h: HabitSummary) => Boolean(h.todayCompleted) || h.todayStatus === 'completed';
 
-const CLASS_TITLES: Record<string, string> = {
-  warrior: "Guerrero",
-  mage: "Mago",
-  merchant: "Mercader",
-  paladin: "Paladín",
-};
-
-function LifeScoreWidget({ score }: { score: LifeScore }) {
-  const quests = Math.round(score.breakdown.quests ?? 0);
-  const habits = Math.round(score.breakdown.habits ?? 0);
-  const finances = Math.round(score.breakdown.finances ?? 0);
-  const rows = [
-    { label: "Misiones", value: quests, color: "#2a2a2e" },
-    { label: "Hábitos", value: habits, color: "#8a8a92" },
-    { label: "Finanzas", value: finances, color: "#a8871e" },
-  ];
-
+function DashboardSkeleton() {
   return (
-    <div
-      style={{
-        background: "var(--surface)",
-        border: "1px solid var(--border)",
-        borderRadius: 18,
-        padding: 22,
-        boxShadow: "var(--shadow-rest)",
-      }}
-    >
-      <div className="flex items-center gap-3 mb-4">
-        <div
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 10,
-            background: "color-mix(in oklab, var(--primary) 14%, transparent)",
-            color: "var(--primary)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Trophy size={17} aria-hidden="true" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div
-            className="text-sm font-medium"
-            style={{ color: "var(--primary)" }}
-          >
-            Life Score
-          </div>
-          <div
-            className="text-[13px] mt-0.5 font-medium"
-            style={{ color: "var(--text)" }}
-          >
-            tu balance entre misiones, hábitos y finanzas
-          </div>
-        </div>
+    <div className="flex flex-col gap-6 md:gap-12" aria-busy="true" aria-label="Cargando">
+      <Skeleton className="h-24 w-[70%] md:h-16 md:w-1/2" />
+      <Skeleton className="h-40 rounded-2xl" />
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-6">
+        {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-44 rounded-2xl" />)}
       </div>
-
-      <div className="flex flex-col items-center gap-4">
-        <ProgressRings
-          size={210}
-          stroke={14}
-          gap={4}
-          centerLabel={score.total}
-          centerSubLabel="/ 100"
-          rings={[
-            { progress: rows[0].value, color: rows[0].color },
-            { progress: rows[1].value, color: rows[1].color },
-            { progress: rows[2].value, color: rows[2].color },
-          ]}
-        />
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full">
-          {rows.map((row) => (
-            <div
-              key={row.label}
-              className="flex items-center gap-2"
-              style={{
-                padding: "8px 10px",
-                borderRadius: 10,
-                background: "var(--bg-soft)",
-                border: "1px solid var(--border-soft)",
-              }}
-            >
-              <span
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 999,
-                  background: row.color,
-                  boxShadow: `0 0 6px ${row.color}80`,
-                }}
-              />
-              <span
-                className="flex-1 text-[12px] font-medium"
-                style={{ color: "var(--text-2)" }}
-              >
-                {row.label}
-              </span>
-              <span
-                className="text-[13px] font-bold tabular-nums"
-                style={{ color: "var(--text)" }}
-              >
-                {row.value}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
+      <div className="flex items-center justify-center gap-3"><Spinner /><span className="text-body-sm text-on-surface-light">Cargando tu aventura…</span></div>
     </div>
   );
 }
 
-function WeeklySummaryCard({ summary }: { summary: WeeklySummaryCardData }) {
-  const weekLabel = `${new Date(summary.weekStart).toLocaleDateString("es-CO", { day: "numeric", month: "short" })} - ${new Date(summary.weekEnd).toLocaleDateString("es-CO", { day: "numeric", month: "short" })}`;
-
+function SectionHead({ title, to, linkLabel, id }: { title: string; to: string; linkLabel: string; id: string }) {
   return (
-    <PixelPanel className="p-4">
-      <div className="flex items-center justify-between gap-3 mb-3">
-        <div>
-          <p className="text-sm font-medium text-[var(--accent-gold)]">
-            <E e="📊" /> Resumen semanal
-          </p>
-          <p className="text-xs text-[var(--text-secondary)]">{weekLabel}</p>
-        </div>
-        <div
-          className="rounded-full px-3 py-1 text-xs font-bold"
-          style={{
-            background: "rgba(217,180,74,0.12)",
-            color: "var(--accent-gold)",
-          }}
-        >
-          {summary.lifeScore}/100
-        </div>
-      </div>
-      <p className="text-sm leading-6 whitespace-pre-line text-[var(--text-primary)]">
-        {summary.summary}
-      </p>
-    </PixelPanel>
-  );
-}
-
-function RecoveryChallengeCard({
-  challenge,
-}: {
-  challenge: RecoveryChallengeData;
-}) {
-  const expires = new Date(challenge.expiresAt).toLocaleDateString("es-CO", {
-    day: "numeric",
-    month: "short",
-  });
-  const progress = Math.min(
-    100,
-    (challenge.currentDays / challenge.requiredDays) * 100,
-  );
-
-  return (
-    <PixelPanel
-      className="p-4"
-      style={{
-        border: "1px solid rgba(217,180,74,0.5)",
-        boxShadow:
-          "0 0 0 1px rgba(217,180,74,0.15), 0 16px 36px rgba(217,180,74,0.12)",
-        background:
-          "linear-gradient(145deg, rgba(217,180,74,0.12), rgba(15,17,23,0.02))",
-      }}
-    >
-      <div className="flex items-start gap-3">
-        <div className="text-2xl">{challenge.habitIcon}</div>
-        <div className="flex-1">
-          <p className="text-sm font-medium text-[var(--accent-gold)]">
-            Reto de recuperación
-          </p>
-          <p className="mt-1 text-sm font-semibold text-[var(--text-primary)]">
-            {challenge.habitTitle}
-          </p>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">
-            Completa {challenge.requiredDays} días seguidos →{" "}
-            {challenge.bonusXp} XP bonus + racha restaurada parcialmente.
-          </p>
-          <div className="mt-3">
-            <div className="flex justify-between text-xs mb-1 text-[var(--text-secondary)]">
-              <span>
-                {challenge.currentDays}/{challenge.requiredDays} días
-              </span>
-              <span>vence {expires}</span>
-            </div>
-            <div className="stat-bar">
-              <motion.div
-                className="stat-bar-fill bg-[var(--accent-gold)]"
-                animate={{ width: `${progress}%` }}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-    </PixelPanel>
-  );
-}
-
-function SevenDayGuideCard({
-  guide,
-  loading,
-  onComplete,
-  onDismiss,
-}: {
-  guide: SevenDayGuideData;
-  loading: boolean;
-  onComplete: () => void;
-  onDismiss: () => void;
-}) {
-  const progress = (guide.completedDays.length / guide.totalDays) * 100;
-
-  return (
-    <div
-      className="rounded-2xl border p-4"
-      style={{
-        borderColor: "rgba(59,130,246,0.25)",
-        background:
-          "linear-gradient(145deg, rgba(59,130,246,0.12), rgba(255,255,255,0.02))",
-      }}
-    >
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium text-[var(--accent-blue)]">
-            Semana del Héroe
-          </p>
-          <p className="mt-1 text-sm font-semibold text-[var(--text-primary)]">
-            Día {guide.currentDay}/{guide.totalDays}: {guide.task.title}
-          </p>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">
-            Tu misión de hoy vive en{" "}
-            <span className="font-semibold text-[var(--text-primary)]">
-              {guide.task.zone}
-            </span>
-            . Bonus: +{guide.task.xpBonus} XP.
-          </p>
-        </div>
-        <FlowButton
-          tone="ghost"
-          size="sm"
-          withArrows={false}
-          onClick={onDismiss}
-          className="text-xs font-semibold"
-        >
-          Ya sé cómo funciona <E e="✕" />
-        </FlowButton>
-      </div>
-
-      <div className="mt-3">
-        <div className="stat-bar">
-          <motion.div
-            className="stat-bar-fill bg-[var(--accent-blue)]"
-            animate={{ width: `${progress}%` }}
-          />
-        </div>
-      </div>
-
-      <div className="mt-3 flex items-center gap-2">
-        <FlowButton
-          tone="primary"
-          withArrows={false}
-          onClick={onComplete}
-          disabled={loading}
-          className="rounded-xl px-4 py-2 text-sm font-semibold"
-          style={{
-            background: "var(--accent-blue)",
-            color: "#fff",
-            opacity: loading ? 0.7 : 1,
-          }}
-        >
-          {loading ? "Completando..." : "Completar y abrir zona"}
-        </FlowButton>
-        {guide.task.suggestedReady && (
-          <span className="text-xs font-semibold text-[var(--accent-green)]">
-            Ya hiciste progreso real hoy.
-          </span>
-        )}
-      </div>
+    <div className="flex items-center justify-between gap-4">
+      <h2 id={id} className="text-heading-sm md:text-heading-lg">{title}</h2>
+      <Link to={to} className="flex min-h-11 items-center gap-1 text-label-lg text-primary-text hover:underline">
+        {linkLabel}<ChevronRight aria-hidden className="size-4" strokeWidth={2} />
+      </Link>
     </div>
   );
 }
 
-function RecoveryOverlay({
-  open,
-  bonusXp,
-}: {
-  open: boolean;
-  bonusXp: number;
-}) {
+/** Tarjeta compacta de "Tu día" (sin prototipo: patrón StatCard horizontal). */
+function MiniStat({ icon, tone, label, value, to }: { icon: LucideIcon; tone: Tone; label: string; value: string; to: string }) {
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[200] flex items-center justify-center px-4"
-          style={{ background: "rgba(15,17,23,0.66)" }}
-        >
-          <motion.div
-            initial={{ scale: 0.88, y: 18 }}
-            animate={{ scale: 1, y: 0 }}
-            exit={{ scale: 0.94, y: 10 }}
-            className="relative overflow-hidden rounded-3xl border px-8 py-10 text-center"
-            style={{
-              borderColor: "rgba(217,180,74,0.5)",
-              background:
-                "linear-gradient(180deg, rgba(217,180,74,0.16), rgba(0,0,0,0.45))",
-            }}
-          >
-            <div className="absolute inset-0 pointer-events-none">
-              {Array.from({ length: 8 }, (_, index) => (
-                <motion.span
-                  key={index}
-                  className="absolute text-3xl"
-                  style={{ left: `${10 + index * 10}%`, bottom: 8 }}
-                  animate={{ y: [-6, -30, -12], opacity: [0.3, 1, 0.2] }}
-                  transition={{
-                    duration: 1.1,
-                    repeat: Infinity,
-                    delay: index * 0.08,
-                  }}
-                >
-                  <E e="✨" />
-                </motion.span>
-              ))}
-            </div>
-            <p className="relative text-sm font-medium text-[var(--accent-gold)]">
-              ¡Racha recuperada!
-            </p>
-            <h3 className="relative mt-3 text-3xl font-black text-white">
-              Tu fuego volvió
-            </h3>
-            <p className="relative mt-3 text-sm text-white/85">
-              +{bonusXp} XP bonus y restauración parcial de racha.
-            </p>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-}
-
-function CoinBurst({ count }: { count: number }) {
-  return (
-    <div className="pointer-events-none fixed inset-0 z-40 overflow-hidden">
-      {Array.from({ length: count }, (_, index) => (
-        <motion.span
-          key={`${count}-${index}`}
-          className="absolute text-2xl"
-          initial={{ opacity: 0, y: -20, x: 0, rotate: 0 }}
-          animate={{
-            opacity: [0, 1, 1, 0],
-            y: [0, 80 + index * 8, 150 + index * 12],
-            x: [0, (index - count / 2) * 12, (index - count / 2) * 20],
-            rotate: [0, 120, 220],
-          }}
-          transition={{ duration: 1, ease: "easeIn" }}
-          style={{ left: `calc(50% + ${(index - count / 2) * 8}px)`, top: 110 }}
-        >
-          <E e="🪙" />
-        </motion.span>
-      ))}
-    </div>
+    <Link to={to} className="lq-lift flex items-center gap-4 rounded-2xl border border-border bg-surface p-4 shadow-sm">
+      <IconChip icon={icon} tone={tone} size="sm" />
+      <span className="min-w-0 flex-1">
+        <span className="block text-body-sm text-on-surface-light">{label}</span>
+        <span className="block truncate text-heading-sm tabular-nums">{value}</span>
+      </span>
+      <ChevronRight aria-hidden className="size-5 shrink-0 text-on-surface-light" strokeWidth={1.75} />
+    </Link>
   );
 }
 
 export default function DashboardPage() {
-  const navigate = useNavigate();
-  const user = useAuthStore((state) => state.user);
-  const updateUser = useAuthStore((state) => state.updateUser);
-  const { addFloatingXP, flashScreen, showAchievementToast, triggerLevelUp } =
-    useUIStore();
-
-  const [dashData, setDashData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const user = useAuthStore((s) => s.user);
+  const openQuickAction = useShellStore((s) => s.openQuickAction);
+  const openSage = useUIStore((s) => s.openSage);
+  const isDesktop = useMediaQuery('(min-width: 768px)');
+  const [data, setData] = useState<DashboardData | null>(null);
   const [habits, setHabits] = useState<HabitSummary[]>([]);
-  const [upcomingEvents, setUpcomingEvents] = useState<AgendaEvent[]>([]);
-  const [showBriefing, setShowBriefing] = useState(false);
+  const [state, setState] = useState<'loading' | 'error' | 'ready'>('loading');
   const [lifeScore, setLifeScore] = useState<LifeScore | null>(null);
-  const [showClassModal, setShowClassModal] = useState(false);
-  const [coinBurstCount, setCoinBurstCount] = useState(0);
-  const [recoveryOverlay, setRecoveryOverlay] = useState<{
-    open: boolean;
-    bonusXp: number;
-  }>({ open: false, bonusXp: 0 });
+  const [events, setEvents] = useState<AgendaEvent[]>([]);
+  const [modal, setModal] = useState<'class' | 'briefing' | null>(null);
+  const [guideBusy, setGuideBusy] = useState(false);
+  const { complete, pending, burst } = useHabitCompletion();
 
-  useEffect(() => {
-    loadDashboard();
-    fetchUpcoming()
-      .then(setUpcomingEvents)
-      .catch(() => null);
-    fetchLifeScore()
-      .then(setLifeScore)
-      .catch(() => null);
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setState('loading');
+    try {
+      const d = (await fetchDashboard()) as DashboardData;
+      setData(d);
+      setHabits(d.todayHabits ?? []);
+      setState('ready');
+    } catch {
+      if (!silent) setState('error');
+    }
   }, []);
 
   useEffect(() => {
-    if (!coinBurstCount) return;
-    const timeout = setTimeout(() => setCoinBurstCount(0), 1100);
-    return () => clearTimeout(timeout);
-  }, [coinBurstCount]);
-
-  useEffect(() => {
-    if (!recoveryOverlay.open) return;
-    const timeout = setTimeout(
-      () => setRecoveryOverlay((current) => ({ ...current, open: false })),
-      2100,
-    );
-    return () => clearTimeout(timeout);
-  }, [recoveryOverlay.open]);
+    void load();
+    fetchLifeScore().then(setLifeScore).catch(() => null);
+    fetchUpcoming().then((e) => setEvents(e.slice(0, 3))).catch(() => null);
+  }, [load]);
 
   if (!user) return null;
 
-  async function loadDashboard() {
-    setLoading(true);
+  async function handleComplete(h: HabitSummary) {
+    const result = await complete(h);
+    if (!result) return;
+    setHabits((prev) => prev.map((x) => (x.id === h.id ? { ...x, todayStatus: 'completed', todayCompleted: true, currentStreak: result.currentStreak } : x)));
+    void load(true);
+  }
+
+  async function handleGuide(action: 'complete' | 'dismiss') {
+    if (!data?.sevenDayGuide) return;
+    setGuideBusy(true);
     try {
-      const data = await fetchDashboard();
-      setDashData(data as DashboardData);
-      setHabits((data as DashboardData).todayHabits ?? []);
+      if (action === 'dismiss') {
+        await dismissGuide();
+        setData((d) => d && { ...d, sevenDayGuide: null });
+      } else {
+        const r = await completeGuideDay(data.sevenDayGuide.task.day);
+        useToastStore.getState().success(`Día ${r.day} completado`, r.rewards?.xpEarned ? `+${r.rewards.xpEarned} XP` : undefined);
+        void refreshUser();
+        await load(true);
+      }
     } catch {
-      setDashData(null);
+      useToastStore.getState().error('No se pudo actualizar la guía');
     } finally {
-      setLoading(false);
+      setGuideBusy(false);
     }
   }
 
-  async function refreshCharacterState() {
-    try {
-      const character = await fetchCharacter();
-      updateUser(character);
-    } catch {
-      // ignore
-    }
-  }
-
-  async function handleHabitLog(habitId: string) {
-    try {
-      const result = await logHabit(habitId, "completed");
-      addFloatingXP(result.rewards?.xpEarned ?? 0, window.innerWidth / 2, 200);
-      flashScreen("#4a825f");
-      if (result.rewards?.leveledUp && result.rewards.newLevel) {
-        triggerLevelUp({
-          oldLevel: Math.max(1, result.rewards.newLevel - 1),
-          newLevel: result.rewards.newLevel,
-          xpEarned: result.rewards.xpEarned,
-          goldEarned: result.rewards.goldEarned,
-          statIncreases: {},
-        });
-      }
-      if ((result.rewards?.goldEarned ?? 0) > 0) {
-        setCoinBurstCount(
-          Math.min(8, Math.max(5, result.rewards?.goldEarned ?? 0)),
-        );
-      }
-      for (const achievement of result.achievementsUnlocked)
-        showAchievementToast(achievement);
-      if (result.recoveryCompleted) {
-        setRecoveryOverlay({
-          open: true,
-          bonusXp: result.recoveryCompleted.bonusXp,
-        });
-      }
-
-      setHabits((previous) =>
-        previous.map((habit) =>
-          habit.id === habitId
-            ? {
-                ...habit,
-                todayStatus: "completed",
-                todayCompleted: true,
-                currentStreak: result.currentStreak,
-              }
-            : habit,
-        ),
-      );
-
-      await Promise.all([refreshCharacterState(), loadDashboard()]);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  const visualState = dashData?.visualState;
-  // Without /dashboard data, show the real HP rather than assuming a full bar.
-  const visualHpValue = visualState
-    ? Math.round((user.maxHp * visualState.hpPercent) / 100)
-    : user.hp;
-  const statBars = [
-    {
-      label: "HP",
-      value: visualHpValue,
-      max: user.maxHp,
-      color: "bg-accent-pink",
-      pulse: visualState?.hpLow ?? false,
-    },
-    {
-      label: "MP",
-      value: user.mp,
-      max: user.maxMp,
-      color: "bg-accent-cyan",
-      pulse: false,
-    },
-    {
-      label: "XP",
-      value: user.xp,
-      max: user.xpToNextLevel,
-      color: "bg-accent-gold",
-      pulse: false,
-    },
-  ];
-
-  const stats = [
-    { key: "STR", value: user.strength, color: "text-[var(--accent-red)]" },
-    {
-      key: "INT",
-      value: user.intelligence,
-      color: "text-[var(--accent-blue)]",
-    },
-    { key: "CHA", value: user.charisma, color: "text-[var(--accent-pink)]" },
-  ];
-
-  const lastWorkoutDaysAgo = dashData?.recentWorkout
-    ? Math.floor(
-        (Date.now() - new Date(dashData.recentWorkout.date).getTime()) /
-          (1000 * 60 * 60 * 24),
-      )
-    : null;
-
-  const maxHabitStreak = habits.reduce(
-    (max, habit) => Math.max(max, habit.currentStreak),
-    0,
-  );
-  const topHabit = habits.find(
-    (habit) => habit.currentStreak === maxHabitStreak && maxHabitStreak > 0,
-  );
+  const first = user.displayName.split(' ')[0];
+  const xpPct = user.xpToNextLevel > 0 ? (user.xp / user.xpToNextLevel) * 100 : 0;
+  const missing = Math.max(0, user.xpToNextLevel - user.xp);
+  const done = habits.filter(isDone).length;
+  const pendingHabits = habits.filter((h) => !isDone(h));
+  const quests = (data?.todayQuests ?? []).filter((q) => q.status === 'ACTIVE');
   const playerClass = (user as unknown as { playerClass?: string }).playerClass;
+  const isEmpty = state === 'ready' && habits.length === 0 && (data?.firstSteps?.habitCount ?? 0) === 0;
+  const fmt = (n: number) => n.toLocaleString('es-CO');
+
+  const levelCard = (
+    <Card as="section" variant="elevated" padding="lg" aria-label="Nivel" className="flex min-w-0 flex-col gap-4 md:flex-[1_1_380px]">
+      <div className="flex items-center gap-4">
+        <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-primary/[var(--lq-soft-alpha)] text-heading-md text-primary-text tabular-nums">
+          {user.level}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-heading-sm">Nivel {user.level} · {getLevelTitle(user.level)}</div>
+          <div className="text-body-sm text-on-surface-light tabular-nums">
+            {fmt(user.xp)} / {fmt(user.xpToNextLevel)} XP<span className="hidden md:inline"> · faltan {fmt(missing)}</span>
+          </div>
+        </div>
+      </div>
+      <ProgressBar value={xpPct} size="lg" shine label="Experiencia" valueText={`${fmt(user.xp)} de ${fmt(user.xpToNextLevel)} XP`} />
+      <div className="flex items-center gap-1.5 text-body-sm text-on-surface md:hidden">
+        <Sparkles aria-hidden className="size-4 text-primary-text" strokeWidth={1.75} />
+        {fmt(missing)} XP para el nivel {user.level + 1}
+      </div>
+    </Card>
+  );
+
+  const header = (
+    <motion.section variants={item} className="flex flex-col gap-6 md:flex-row md:flex-wrap md:items-end md:justify-between">
+      <div className="flex min-w-0 flex-col gap-1 md:flex-[1_1_360px]">
+        <p className="hidden text-body-md text-on-surface-light md:block">{longDate()}</p>
+        <h1 className="text-display-sm md:text-display-md lg:text-display-lg">
+          {isEmpty ? 'Bienvenido' : greeting()},<br className="md:hidden" /> {first}
+        </h1>
+      </div>
+      {levelCard}
+    </motion.section>
+  );
+
+  if (state === 'loading') return <DashboardSkeleton />;
+  if (state === 'error') {
+    return (
+      <ErrorState
+        title="No pudimos cargar tu panel"
+        description="Revisa tu conexión."
+        onRetry={() => void load()}
+        className="py-24 md:py-32"
+      />
+    );
+  }
+
+  if (isEmpty) {
+    return (
+      <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-6 md:gap-12">
+        {header}
+        <motion.div variants={item}>
+          <EmptyState
+            icon={ListChecks}
+            title="Sin hábitos aún"
+            description="Tu aventura empieza con un hábito pequeño. Cada día completado te da XP."
+            action={<Link to="/habits?new=1" className={buttonClasses('primary', 'lg')}><Plus aria-hidden className="size-5" strokeWidth={2} />Nuevo hábito</Link>}
+            className="py-12"
+          />
+        </motion.div>
+      </motion.div>
+    );
+  }
+
+  const statSize = isDesktop ? 'lg' : 'md';
+  const recovery = data?.recoveryChallenge;
+  const guide = data?.sevenDayGuide;
 
   return (
-    <div className="w-full max-w-none space-y-5 pb-8">
-      <AnimatePresence>
-        {showBriefing && (
-          <MorningBriefing onClose={() => setShowBriefing(false)} />
-        )}
-        {showClassModal && (
-          <ClassSelectionModal onClose={() => setShowClassModal(false)} />
-        )}
-      </AnimatePresence>
+    <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-6 md:gap-12">
+      {header}
 
-      {coinBurstCount > 0 && <CoinBurst count={coinBurstCount} />}
-      <RecoveryOverlay
-        open={recoveryOverlay.open}
-        bonusXp={recoveryOverlay.bonusXp}
-      />
+      {/* Resumen: 4 StatCards con count-up */}
+      <motion.section variants={item} aria-label="Resumen" className="grid grid-cols-2 gap-4 md:grid-cols-[repeat(auto-fit,minmax(220px,1fr))] md:gap-6">
+        <StatCard icon={CheckCircle2} tone="success" value={`${done}/${habits.length}`} label="Hábitos hoy" to="/habits" size={statSize} />
+        <StatCard icon={Flag} tone="primary" value={quests.length} label="Misiones activas" to="/quests" size={statSize} />
+        <StatCard icon={Wallet} tone="info" value={data?.monthBalance ?? 0} format={(n) => formatMoney(n, user.currency, true)} label="Saldo del mes" to="/finances" size={statSize} />
+        <StatCard icon={Flame} tone="warning" value={user.currentStreak} label="Días de racha" to="/achievements" size={statSize} />
+      </motion.section>
 
-      <GreetingHeader
-        displayName={user.displayName}
-        currentStreak={user.currentStreak}
-        createdAt={user.createdAt}
-        gender={user.avatarConfig?.bodyType ?? "male"}
-      />
-
-      <TodayPlan onHabitComplete={handleHabitLog} />
-
-      <SageProactiveCard />
-
-      <FirstStepsWidget
-        questCount={dashData?.firstSteps.questCount ?? 0}
-        habitCount={dashData?.firstSteps.habitCount ?? 0}
-        hasJournalEntry={dashData?.firstSteps.hasJournalEntry ?? false}
-      />
-
-      <div className="grid grid-cols-4 gap-2">
-        {DASHBOARD_SHORTCUTS.map(({ label, Icon, to, color }) => (
-          <FlowButton
-            key={to}
-            tone="secondary"
-            withArrows={false}
-            aria-label={label}
-            onClick={() => navigate(to)}
-            className="min-h-[60px] flex-col gap-1.5 rounded-xl px-2 py-2"
-          >
-            <Icon
-              size={18}
-              strokeWidth={1.8}
-              style={{ color }}
-              aria-hidden="true"
-            />
-            <span className="px-1 text-center text-xs font-medium leading-tight text-[var(--text-secondary)]">
-              {label}
-            </span>
-          </FlowButton>
-        ))}
-      </div>
-
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          {!playerClass && user.level >= 10 && (
-            <FlowButton
-              tone="primary"
-              size="sm"
-              withArrows={false}
-              onClick={() => setShowClassModal(true)}
-              className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-[color-mix(in_oklab,var(--accent-gold)_45%,var(--border))] bg-[color-mix(in_oklab,var(--accent-gold)_8%,var(--bg-panel))] px-2.5 py-1.5 text-xs font-medium text-[var(--accent-gold)] transition-colors hover:bg-[color-mix(in_oklab,var(--accent-gold)_14%,var(--bg-panel))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)]"
-            >
-              <Zap size={14} aria-hidden="true" /> Elige tu clase · nivel 10
-            </FlowButton>
-          )}
-        </div>
-        <FlowButton
-          tone="ghost"
-          size="sm"
-          withArrows={false}
-          onClick={() => setShowBriefing(true)}
-          className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-panel-light)] hover:text-[var(--accent-gold)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)]"
-        >
-          <ClipboardList size={14} aria-hidden="true" /> Briefing del día
-        </FlowButton>
-      </div>
-
-      <BossWidget />
-
-      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2 xl:grid-cols-[minmax(250px,0.85fr)_minmax(0,1.45fr)_minmax(250px,0.85fr)]">
-        <aside className="space-y-4">
-          <PixelPanel animate className="p-4">
-            <div className="flex items-center gap-3">
-              <AvatarDisplay
-                avatarConfig={user.avatarConfig}
-                avatarUrl={user.avatarUrl}
-                equippedAura={user.equippedAura}
-                equippedFrame={user.equippedFrame}
-                size={78}
-                mood={visualState?.mood ?? 3}
-                animate={(visualState?.mood ?? 3) >= 4 ? "celebrate" : "idle"}
-              />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-base font-semibold text-[var(--text-primary)]">
-                  {user.displayName}
-                </p>
-                <p className="mt-0.5 truncate text-sm font-medium text-[var(--accent-gold)]">
-                  {getLevelTitle(user.level)}
-                </p>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <span className="rounded-full bg-[var(--accent-gold)] px-2.5 py-1 text-xs font-bold text-white">
-                    Nivel {user.level}
-                  </span>
-                  {playerClass && (
-                    <span className="rounded-full border border-[var(--border)] bg-[var(--bg-panel-light)] px-2 py-1 text-xs font-medium text-[var(--text-secondary)]">
-                      {CLASS_TITLES[playerClass] ?? playerClass}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-4 space-y-2.5">
-              {statBars.map(({ label, value, max, color, pulse }) => (
-                <div key={label}>
-                  <div className="mb-1 flex justify-between text-xs">
-                    <span className="font-medium text-[var(--text-secondary)]">
-                      {label}
-                    </span>
-                    <span className="tabular-nums text-[var(--text-primary)]">
-                      {value}/{max}
-                    </span>
-                  </div>
-                  <div className={`stat-bar ${pulse ? "animate-pulse" : ""}`}>
-                    <motion.div
-                      className={`stat-bar-fill ${color}`}
-                      initial={{ width: 0 }}
-                      animate={{ width: `${xpProgressPercent(value, max)}%` }}
-                      transition={{
-                        duration: 0.7,
-                        ease: "easeOut",
-                        delay: 0.15,
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {visualState && visualState.daysAway > 0 && (
-              <p className="mt-3 rounded-lg bg-[var(--bg-panel-light)] px-2.5 py-2 text-xs leading-4 text-[var(--text-secondary)]">
-                {visualState.daysAway >= 5
-                  ? "Tu energía visual pide retomar el ritmo."
-                  : visualState.daysAway >= 3
-                    ? "Una pequeña acción hoy te ayudará a recuperar energía."
-                    : "Tu energía visual bajó un poco por distancia."}
-              </p>
-            )}
-
-            <div className="mt-4 grid grid-cols-3 gap-2 border-t border-[var(--border)] pt-3">
-              {stats.map(({ key, value, color }) => (
-                <div
-                  key={key}
-                  className="rounded-lg bg-[var(--bg-panel-light)] px-2 py-2 text-center"
-                >
-                  <p className="text-xs font-medium text-[var(--text-secondary)]">
-                    {key}
-                  </p>
-                  <p
-                    className={`mt-0.5 text-base font-semibold tabular-nums ${color}`}
-                  >
-                    {value}
-                  </p>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-panel-light)] px-2.5 py-1.5 text-xs font-semibold text-[var(--accent-gold)]">
-                <Coins size={14} />
-                {user.gold.toLocaleString()} oro
-              </span>
-              {user.currentStreak > 0 && (
-                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--accent-red)]">
-                  <Flame size={14} />
-                  {user.currentStreak} {user.currentStreak === 1 ? 'día' : 'días'} de racha
-                </span>
-              )}
-            </div>
-          </PixelPanel>
-
-          {lifeScore && <LifeScoreWidget score={lifeScore} />}
-
-          {upcomingEvents.length > 0 && (
-            <PixelPanel className="p-4">
-              <div className="mb-3 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <CalendarDays
-                    size={15}
-                    className="text-[var(--accent-blue)]"
-                  />
-                  <h3 className="text-sm font-medium text-[var(--text-secondary)]">
-                    Próximos eventos
-                  </h3>
-                </div>
-                <FlowButton
-                  tone="ghost"
-                  size="sm"
-                  withArrows={false}
-                  onClick={() => navigate("/agenda")}
-                  className="inline-flex min-h-11 items-center px-2 text-xs font-medium text-[var(--accent-gold)] transition-colors hover:text-[var(--text-primary)]"
-                >
-                  Ver agenda
-                </FlowButton>
-              </div>
-              <div className="space-y-3">
-                {upcomingEvents.slice(0, 3).map((event) => {
-                  const when = new Date(event.startDate);
-                  const isToday =
-                    when.toDateString() === new Date().toDateString();
-                  return (
-                    <div key={event.id} className="flex items-start gap-2.5">
-                      <span
-                        className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${isToday ? "bg-[var(--accent-red)]" : "bg-[var(--accent-blue)]"}`}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-[var(--text-primary)]">
-                          {event.title}
-                        </p>
-                        <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
-                          {isToday
-                            ? "Hoy"
-                            : when.toLocaleDateString("es-CO", {
-                                weekday: "short",
-                                day: "numeric",
-                                month: "short",
-                              })}
-                          {!event.isAllDay
-                            ? ` · ${when.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}`
-                            : ""}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </PixelPanel>
-          )}
-        </aside>
-
-        <section className="min-w-0 space-y-4">
-          <div id="daily-checkin">
-            <DailyCheckinWidget />
-          </div>
-
-          {loading ? (
-            <SkeletonCard lines={4} />
-          ) : (
-            <TodayQuestsWidget quests={dashData?.todayQuests ?? []} />
-          )}
-
-          {habits.length > 0 && (
-            <section className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-panel-light)] shadow-[0_14px_36px_rgba(0,0,0,0.08)]">
-              <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-4 sm:px-5">
-                <div className="flex items-center gap-3">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[color-mix(in_oklab,var(--accent-green)_10%,var(--bg-panel))] text-[var(--accent-green)]">
-                    <Flame size={17} />
-                  </span>
-                  <div>
-                    <h3 className="text-sm font-semibold text-[var(--text-primary)]">
-                      Hábitos de hoy
-                    </h3>
-                    <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
-                      Rituales recurrentes que sostienen tu semana.
-                    </p>
-                  </div>
-                </div>
-                <FlowButton
-                  tone="ghost"
-                  size="sm"
-                  withArrows={false}
-                  onClick={() => navigate("/habits")}
-                  className="inline-flex min-h-11 items-center px-2 text-xs font-medium text-[var(--accent-gold)] transition-colors hover:text-[var(--text-primary)]"
-                >
-                  Ver todos
-                </FlowButton>
-              </div>
-              <div className="divide-y divide-[var(--border)] px-4 sm:px-5">
-                {habits.slice(0, 5).map((habit) => {
-                  const isComplete = habit.todayStatus === "completed";
-                  return (
-                    <div
-                      key={habit.id}
-                      className="flex items-center gap-3 py-3"
-                    >
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--bg-panel)] text-[var(--text-secondary)]">
-                        <E e={habit.icon} s={16} />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p
-                          className={`truncate text-sm font-medium ${isComplete ? "text-[var(--text-secondary)] line-through" : "text-[var(--text-primary)]"}`}
-                        >
-                          {habit.title}
-                        </p>
-                        <p className="mt-0.5 text-xs text-[var(--text-muted)]">
-                          +{habit.xpReward} XP
-                        </p>
-                      </div>
-                      <StreakFlame streak={habit.currentStreak} size="sm" />
-                      <button
-                        type="button"
-                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-green)] ${isComplete ? "border-[var(--accent-green)] bg-[var(--accent-green)] text-white" : "border-[var(--border-strong)] bg-[var(--bg-panel)] text-[var(--text-muted)] hover:border-[var(--accent-green)] hover:text-[var(--accent-green)]"}`}
-                        onClick={() => {
-                          if (!habit.todayCompleted)
-                            void handleHabitLog(habit.id);
-                        }}
-                        disabled={isComplete}
-                        aria-label={
-                          isComplete
-                            ? `Hábito completado: ${habit.title}`
-                            : `Completar hábito: ${habit.title}`
-                        }
-                      >
-                        {isComplete ? (
-                          <Check size={16} />
-                        ) : (
-                          <span
-                            className="h-2 w-2 rounded-full border border-current"
-                            aria-hidden="true"
-                          />
-                        )}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-          )}
-
-          <div className="grid grid-cols-1 justify-items-center gap-6 sm:grid-cols-2">
-            {topHabit && (
-              <LifeQuestFlipCard
-                eyebrow="Mejor racha actual"
-                title={topHabit.title}
-                description={`${topHabit.currentStreak} ${topHabit.currentStreak === 1 ? "día" : "días"} de constancia en tu aventura.`}
-                visual={
-                  <div className="flex items-end gap-3" aria-hidden="true">
-                    <span className="flex h-16 w-16 items-center justify-center rounded-2xl border border-border bg-card text-[var(--accent-gold)]">
-                      <Flame size={34} />
-                    </span>
-                    <div className="text-left">
-                      <p className="text-4xl font-semibold leading-none text-foreground">
-                        {topHabit.currentStreak}
-                      </p>
-                      <p className="mt-1 text-sm font-medium text-muted-foreground">
-                        días seguidos
-                      </p>
-                    </div>
-                  </div>
-                }
-                visualLabel={`Racha de ${topHabit.currentStreak} ${topHabit.currentStreak === 1 ? "día" : "días"}`}
-                badge={topHabit.todayCompleted ? "Hoy completado" : "En curso"}
-                frontFooter={
-                  <p className="text-xs font-medium [color:var(--flip-accent)]">
-                    +{topHabit.xpReward} XP por completar hoy
-                  </p>
-                }
-                backDescription={
-                  <p>
-                    Revisa tu progreso, conserva la cadena y elige el siguiente
-                    hábito que quieres marcar hoy.
-                  </p>
-                }
-                metrics={[
-                  { label: "Racha", value: `${topHabit.currentStreak} ${topHabit.currentStreak === 1 ? "día" : "días"}` },
-                  { label: "Recompensa", value: `+${topHabit.xpReward} XP` },
-                  {
-                    label: "Hoy",
-                    value: topHabit.todayCompleted ? "Hecho" : "Pendiente",
-                  },
-                ]}
-                actionLabel="Ver hábitos"
-                onAction={() => navigate("/habits")}
-                accent="var(--accent-gold)"
-              />
-            )}
-
-            {dashData?.recentAchievements?.[0] &&
-              (() => {
-                const achievement = dashData.recentAchievements[0];
-                const unlockedDate = new Date(
-                  achievement.unlockedAt,
-                ).toLocaleDateString("es-CO", {
-                  day: "numeric",
-                  month: "short",
-                });
-                return (
-                  <LifeQuestFlipCard
-                    eyebrow="Logro reciente"
-                    title={achievement.title}
-                    description={achievement.description}
-                    visual={
-                      <span className="text-6xl" aria-hidden="true">
-                        <E e={achievement.icon} s={64} />
-                      </span>
-                    }
-                    visualLabel={`Insignia de ${achievement.title}`}
-                    badge="Desbloqueado"
-                    frontFooter={
-                      <p className="inline-flex items-center gap-1.5 text-xs font-semibold [color:var(--flip-accent)]">
-                        <Trophy size={14} aria-hidden="true" /> +
-                        {achievement.xpReward} XP
-                      </p>
-                    }
-                    backDescription={
-                      <p>
-                        {achievement.description} Forma parte de tu colección de
-                        hitos de LifeQuest.
-                      </p>
-                    }
-                    metrics={[
-                      { label: "XP", value: `+${achievement.xpReward}` },
-                      { label: "Fecha", value: unlockedDate },
-                      { label: "Colección", value: "Logros" },
-                    ]}
-                    actionLabel="Ver logros"
-                    onAction={() => navigate("/achievements")}
-                    accent="var(--accent-gold)"
-                  />
-                );
-              })()}
-          </div>
-        </section>
-
-        <aside className="space-y-4 lg:col-span-2 xl:col-span-1">
-          <SageDailyTip />
-          <SageScrollsWidget />
-          {dashData?.recoveryChallenge && (
-            <RecoveryChallengeCard challenge={dashData.recoveryChallenge} />
-          )}
-          {dashData?.latestWeeklySummary && (
-            <WeeklySummaryCard summary={dashData.latestWeeklySummary} />
-          )}
-          <QuickStatsWidget
-            sleepAvg7d={dashData?.sleepAvg7d ?? 0}
-            monthBalance={dashData?.monthBalance ?? 0}
-            lastWorkoutDaysAgo={lastWorkoutDaysAgo}
-          />
-
-          <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel-light)] p-3.5 shadow-[0_10px_25px_rgba(0,0,0,0.06)]">
-            <div className="mb-3 flex items-center gap-2">
-              <Swords size={15} className="text-[var(--accent-gold)]" />
-              <div>
-                <p className="text-xs font-semibold text-[var(--text-primary)]">
-                  Zonas de vida
-                </p>
-                <p className="text-xs text-[var(--text-secondary)]">
-                  Elige dónde avanzar ahora.
-                </p>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {ZONES.map(({ Icon, ...zone }) => (
-                <ZoneCard
-                  key={zone.label}
-                  {...zone}
-                  icon={<Icon size={16} strokeWidth={1.9} />}
+      {/* Hábitos + Misiones */}
+      <motion.div variants={item} className="grid items-start gap-6 lg:grid-cols-2">
+        <section aria-labelledby="dash-habits" className="flex flex-col gap-4 md:rounded-2xl md:border md:border-border md:bg-surface md:p-6 md:shadow-sm">
+          <SectionHead id="dash-habits" title={isDesktop ? 'Hábitos de hoy' : 'Pendiente hoy'} to="/habits" linkLabel="Ver todo" />
+          {(isDesktop ? habits : pendingHabits).length > 0 ? (
+            <motion.ul variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-3 md:gap-0 md:divide-y md:divide-border">
+              {(isDesktop ? habits : pendingHabits).slice(0, 6).map((h) => (
+                <HabitListItem
+                  key={h.id}
+                  habit={h}
+                  variant={isDesktop ? 'row' : 'card'}
+                  pending={pending === h.id}
+                  onComplete={() => void handleComplete(h)}
                 />
               ))}
+            </motion.ul>
+          ) : (
+            <div className="flex items-center gap-3 rounded-2xl border border-border bg-success/[var(--lq-soft-alpha)] p-4" role="status">
+              <CheckCircle2 aria-hidden className="size-6 shrink-0 text-success-text" strokeWidth={1.75} />
+              <p className="text-body-md text-on-surface">¡Todo listo por hoy! Completaste tus {habits.length} hábitos.</p>
             </div>
-          </section>
-        </aside>
-      </div>
-    </div>
+          )}
+        </section>
+
+        <Card as="section" padding="lg" aria-labelledby="dash-quests" className="flex flex-col gap-4">
+          <SectionHead id="dash-quests" title="Misiones" to="/quests" linkLabel="Ver todas" />
+          {quests.length > 0 ? (
+            <ul className="flex flex-col">
+              {quests.slice(0, 3).map((q, i) => {
+                const p = questProgress(q);
+                const cat = categoryMeta(q.category);
+                return (
+                  <li key={q.id} className={cn('flex flex-col gap-2 py-4 first:pt-0 last:pb-0', i > 0 && 'border-t border-border')}>
+                    <div className="flex items-center justify-between gap-2">
+                      <Badge variant={cat.tone}>{cat.label}</Badge>
+                      <span className="text-label-lg text-primary-text tabular-nums">+{q.xpReward} XP</span>
+                    </div>
+                    <Link to="/quests" className="text-heading-sm hover:underline">{q.title}</Link>
+                    <ProgressBar value={p.pct} tone={p.pct >= 100 ? 'success' : 'primary'} label={`Progreso de ${q.title}`} valueText={p.text} />
+                    <span className="text-body-sm text-on-surface-light">{p.text}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <EmptyState
+              icon={Flag}
+              tone="muted"
+              title="Sin misiones para hoy"
+              description="Crea una misión para tus objetivos grandes."
+              action={<Link to="/quests?new=1" className={buttonClasses('secondary', 'md')}><Plus aria-hidden className="size-4" strokeWidth={2} />Nueva misión</Link>}
+              className="py-6"
+            />
+          )}
+        </Card>
+      </motion.div>
+
+      {/* Avisos accionables (sin prototipo: Card + IconChip + ProgressBar) */}
+      {(recovery || guide) && (
+        <motion.div variants={item} className="grid gap-6 md:grid-cols-2">
+          {recovery && (
+            <Card as="section" padding="lg" aria-labelledby="dash-recovery" className="flex flex-col gap-3 border-warning/40">
+              <div className="flex items-start gap-3">
+                <IconChip icon={RotateCcw} tone="warning" />
+                <div className="min-w-0 flex-1">
+                  <h2 id="dash-recovery" className="text-heading-sm">Recupera tu racha</h2>
+                  <p className="text-body-sm text-on-surface-light">
+                    Completa “{recovery.habitTitle}” {recovery.requiredDays} días seguidos para recuperar {recovery.lostStreak} días de racha.
+                  </p>
+                </div>
+                <Badge variant="warning">+{recovery.bonusXp} XP</Badge>
+              </div>
+              <ProgressBar value={(recovery.currentDays / recovery.requiredDays) * 100} tone="warning" label="Progreso de recuperación" valueText={`${recovery.currentDays} de ${recovery.requiredDays} días`} />
+              <span className="text-body-sm text-on-surface-light tabular-nums">
+                {recovery.currentDays} de {recovery.requiredDays} días · {daysLeft(recovery.expiresAt)}
+              </span>
+            </Card>
+          )}
+          {guide && (
+            <Card as="section" padding="lg" aria-labelledby="dash-guide" className="flex flex-col gap-3 border-primary/35">
+              <div className="flex items-start gap-3">
+                <IconChip icon={Zap} tone="primary" />
+                <div className="min-w-0 flex-1">
+                  <span className="text-label-md uppercase text-primary-text">Semana del héroe · día {guide.currentDay}/{guide.totalDays}</span>
+                  <h2 id="dash-guide" className="text-heading-sm">{guide.task.title}</h2>
+                  <p className="text-body-sm text-on-surface-light">En {guide.task.zone} · +{guide.task.xpBonus} XP</p>
+                </div>
+                <Button variant="icon" aria-label="Ocultar la guía" onClick={() => void handleGuide('dismiss')} disabled={guideBusy}>
+                  <X aria-hidden className="size-5" strokeWidth={1.75} />
+                </Button>
+              </div>
+              <ProgressBar value={(guide.completedDays.length / guide.totalDays) * 100} label="Progreso de la guía" valueText={`${guide.completedDays.length} de ${guide.totalDays} días`} />
+              <div className="flex flex-wrap gap-2">
+                <Link to={guide.task.route} className={buttonClasses('secondary', 'md')}>Ir a {guide.task.zone}</Link>
+                <Button size="md" loading={guideBusy} onClick={() => void handleGuide('complete')}>Marcar como hecho</Button>
+              </div>
+            </Card>
+          )}
+        </motion.div>
+      )}
+
+      {/* Tu día */}
+      <motion.section variants={item} aria-labelledby="dash-day" className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 id="dash-day" className="text-heading-sm md:text-heading-lg">Tu día</h2>
+          <div className="flex flex-wrap gap-2">
+            {!playerClass && user.level >= 10 && (
+              <Button variant="secondary" size="sm" onClick={() => setModal('class')}><Zap aria-hidden className="size-4" strokeWidth={1.75} />Elige tu clase</Button>
+            )}
+            <Button variant="ghost" size="sm" onClick={() => setModal('briefing')}><ClipboardList aria-hidden className="size-4" strokeWidth={1.75} />Briefing del día</Button>
+          </div>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <button
+            type="button"
+            onClick={() => openQuickAction('checkin')}
+            className="lq-lift flex items-center gap-4 rounded-2xl border border-primary/30 bg-primary/[var(--lq-soft-alpha)] p-4 text-left"
+          >
+            <IconChip icon={HeartPulse} tone="primary" size="sm" className="bg-background" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-label-lg text-primary-text">Check-in diario</span>
+              <span className="block text-body-sm text-on-surface">¿Cómo llegas hoy? Bonus de XP diario.</span>
+            </span>
+          </button>
+          <MiniStat icon={Moon} tone="secondary" label="Sueño · media 7 días" value={data?.sleepAvg7d ? `${data.sleepAvg7d.toFixed(1)} h` : 'Sin datos'} to="/sleep" />
+          <MiniStat icon={Dumbbell} tone="success" label="Último entrenamiento" value={data?.recentWorkout ? relativeTime(data.recentWorkout.date) : 'Sin registro'} to="/gym" />
+          {lifeScore && (
+            <Link to="/life" className="lq-lift flex items-center gap-4 rounded-2xl border border-border bg-surface p-4 shadow-sm">
+              <ProgressRing value={lifeScore.total} size={48} stroke={5} label="Life Score" valueText={`${lifeScore.total} de 100`}>
+                <span className="text-label-md tabular-nums">{lifeScore.total}</span>
+              </ProgressRing>
+              <span className="min-w-0 flex-1">
+                <span className="block text-body-sm text-on-surface-light">Life Score</span>
+                <span className="block text-heading-sm tabular-nums">{lifeScore.total}/100</span>
+              </span>
+              <ChevronRight aria-hidden className="size-5 shrink-0 text-on-surface-light" strokeWidth={1.75} />
+            </Link>
+          )}
+          <button
+            type="button"
+            onClick={() => openSage('¿En qué me recomiendas enfocarme hoy?')}
+            className="lq-lift flex items-center gap-4 rounded-2xl border border-border bg-surface p-4 text-left shadow-sm"
+          >
+            <IconChip icon={Sparkles} tone="secondary" size="sm" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-label-lg text-on-background">Consejo del Sabio</span>
+              <span className="block text-body-sm text-on-surface-light">Pregúntale en qué enfocarte hoy.</span>
+            </span>
+          </button>
+        </div>
+      </motion.section>
+
+      {(events.length > 0 || (data?.recentAchievements?.length ?? 0) > 0 || data?.latestWeeklySummary) && (
+        <motion.div variants={item} className="grid items-start gap-6 lg:grid-cols-2">
+          {events.length > 0 && (
+            <Card as="section" padding="lg" aria-labelledby="dash-agenda" className="flex flex-col gap-4">
+              <SectionHead id="dash-agenda" title="Próximo en tu agenda" to="/agenda" linkLabel="Agenda" />
+              <ul className="flex flex-col gap-3">
+                {events.map((e) => (
+                  <li key={e.id} className="flex items-center gap-3">
+                    <IconChip icon={CalendarDays} tone="info" size="sm" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-label-lg text-on-background">{e.title}</span>
+                      <span className="block text-body-sm text-on-surface-light">
+                        {new Date(e.startDate).toLocaleString('es-ES', e.isAllDay ? { weekday: 'long', day: 'numeric', month: 'short' } : { weekday: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+          {(data?.recentAchievements?.length ?? 0) > 0 && (
+            <Card as="section" padding="lg" aria-labelledby="dash-ach" className="flex flex-col gap-4">
+              <SectionHead id="dash-ach" title="Logros recientes" to="/achievements" linkLabel="Ver logros" />
+              <ul className="flex flex-col gap-3">
+                {data!.recentAchievements.slice(0, 3).map((a) => (
+                  <li key={a.id} className="flex items-center gap-3">
+                    <IconChip icon={Trophy} tone="warning" size="sm" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-label-lg text-on-background">{a.title}</span>
+                      <span className="block truncate text-body-sm text-on-surface-light">{a.description}</span>
+                    </span>
+                    <span className="text-caption text-on-surface-light">{relativeTime(a.unlockedAt)}</span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+          {data?.latestWeeklySummary && (
+            <Card as="section" padding="lg" aria-labelledby="dash-week" className="flex flex-col gap-3 lg:col-span-2">
+              <div className="flex items-center justify-between gap-3">
+                <h2 id="dash-week" className="text-heading-sm md:text-heading-lg">Tu última semana</h2>
+                <Badge variant="primary">Life Score {data.latestWeeklySummary.lifeScore}/100</Badge>
+              </div>
+              <p className="text-body-md text-on-surface">{data.latestWeeklySummary.summary}</p>
+            </Card>
+          )}
+        </motion.div>
+      )}
+
+      {burst > 0 && <Confetti burst={burst} />}
+      {modal === 'class' && <ClassSelectionModal onClose={() => setModal(null)} />}
+      {modal === 'briefing' && <MorningBriefing onClose={() => setModal(null)} />}
+    </motion.div>
   );
 }

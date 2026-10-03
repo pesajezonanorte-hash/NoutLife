@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Sleep</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./lq.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#4f46e5}a:hover{color:#4338ca}
+</style>
+</helmet>
+<div class="lq screen {{theme}}" style="width: 375px; height: 1300px">
+  <header class="hdr" style="padding: 0 8px">
+    <a class="btn btn-icon" href="Dashboard.dc.html" aria-label="Volver"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"></path></svg></a>
+    <span></span>
+  </header>
+  <main class="enter" style="display: flex; flex-direction: column; gap: 24px; padding: 0 16px 128px">
+    <h1 class="t-ds">Sueño</h1>
+
+    <section class="card card-elevated card-lg" style="display: flex; flex-direction: column; gap: 12px" aria-label="Última noche">
+      <span class="t-bs c-3">Anoche</span>
+      <div class="row" style="gap: 8px; align-items: baseline"><span class="t-dl num">7</span><span class="t-hm c-2">h</span><span class="t-dl num">42</span><span class="t-hm c-2">min</span></div>
+      <div class="row" style="gap: 12px; flex-wrap: wrap">
+        <span class="badge lg badge-success"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M9 10h.01M15 10h.01M9 14.5q3 2 6 0"></path></svg>Buena · 4/5</span>
+        <span class="row t-bs c-3" style="gap: 6px"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>23:10 → 06:52</span>
+      </div>
+    </section>
+
+    <section class="card" style="display: flex; flex-direction: column; gap: 16px">
+      <div class="row" style="justify-content: space-between"><h2 class="t-hs">Últimos 7 días</h2><span class="t-bs c-3">Prom. 7 h 01</span></div>
+      <div style="position: relative">
+        <svg viewBox="0 0 300 120" width="100%" height="140" preserveAspectRatio="none" role="img" aria-label="Horas de sueño: 6,5; 6,8; 7,0; 6,2; 7,1; 7,4; 7,7. Tendencia al alza.">
+          <line x1="0" x2="300" y1="{{goalY}}" y2="{{goalY}}" stroke="var(--success)" stroke-width="1" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"></line>
+          <polyline points="{{area}}" fill="var(--primary-soft)" stroke="none"></polyline>
+          <polyline points="{{points}}" fill="none" stroke="var(--primary)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"></polyline>
+        </svg>
+        <span class="t-lm c-success" style="position: absolute; right: 0; top: 0">Meta 7 h</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); text-align: center"><sc-for list="{{days}}" as="d" hint-placeholder-count="7"><div style="display: flex; flex-direction: column"><span class="t-lm c-2 num">{{d.v}}</span><span class="t-lm c-3">{{d.l}}</span></div></sc-for></div>
+      <div class="row" style="gap: 12px; padding: 12px 16px; border-radius: 12px; background: var(--success-soft)">
+        <svg class="i c-success" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 17 6-6 4 4 8-8"></path><path d="M15 7h6v6"></path></svg>
+        <div><div class="t-ll c-success">Tendencia: mejorando</div><div class="t-bs c-2">+38 min vs. la semana pasada</div></div>
+      </div>
+    </section>
+
+    <section class="card" style="display: flex; flex-direction: column; gap: 16px" aria-labelledby="log-title">
+      <h2 id="log-title" class="t-hs">Registrar noche</h2>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+        <div class="field"><label for="sl-in">Me dormí</label><input id="sl-in" class="input" type="time" value="23:10"></div>
+        <div class="field"><label for="sl-out">Desperté</label><input id="sl-out" class="input" type="time" value="06:52"></div>
+      </div>
+      <fieldset style="border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px">
+        <legend class="t-ll c-2" style="padding: 0; margin-bottom: 8px">Calidad: <span class="c-1">{{qLabel}}</span></legend>
+        <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px" role="radiogroup">
+          <sc-for list="{{faces}}" as="f" hint-placeholder-count="5">
+            <button role="radio" aria-checked="{{f.sel}}" aria-label="{{f.aria}}" onClick="{{f.pick}}" style="min-height: 56px; border-radius: 12px; border: {{f.border}}; background: {{f.bg}}; color: {{f.fg}}; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; font-family: inherit; transition: background-color .2s, color .2s, border-color .2s">
+              <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M9 10h.01M15 10h.01"></path><path d="{{f.mouth}}"></path></svg>
+              <span class="t-lm">{{f.n}}</span>
+            </button>
+          </sc-for>
+        </div>
+      </fieldset>
+      <button class="btn btn-primary btn-block">Guardar registro</button>
+    </section>
+  </main>
+  <nav class="tabbar" aria-label="Principal">
+    <a href="Dashboard.dc.html" class="on" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"></path></svg>Inicio</a>
+    <a href="Habits.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m8.5 12 2.5 2.5 4.5-5"></path></svg>Hábitos</a>
+    <a href="Quests.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 22V4"></path><path d="M5 4h12l-2.5 4L17 12H5"></path></svg>Misiones</a>
+    <a href="Colosseum.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 17.5 21 6V3h-3L6.5 14.5M11 19l-6-6M8 16l-4 4M5 21l-2-2"></path></svg>Coliseo</a>
+    <a href="Profile.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg>Perfil</a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":375,"height":1300}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { q: 4 }; }
+  renderVals() {
+    const vals = [6.5, 6.8, 7.0, 6.2, 7.1, 7.4, 7.7];
+    const lbl = ['V','S','D','L','M','X','J'];
+    const y = v => (110 - (v - 5.5) / 2.5 * 100).toFixed(1);
+    const pts = vals.map((v, i) => `${(10 + i * 280 / 6).toFixed(1)},${y(v)}`);
+    const points = pts.join(' ');
+    const area = `10,120 ${points} 290,120`;
+    const days = vals.map((v, i) => ({ v: String(v).replace('.', ','), l: lbl[i] }));
+    const names = ['Muy mala','Mala','Regular','Buena','Excelente'];
+    const mouths = ['M8.5 16.5q3.5-3 7 0','M9 16q3-1.2 6 0','M9 15.5h6','M9 14.5q3 2 6 0','M8 14q4 4 8 0'];
+    const q = this.state.q;
+    const faces = names.map((n, i) => {
+      const sel = q === i + 1;
+      return { n: i + 1, mouth: mouths[i], sel: sel ? 'true' : 'false', aria: `${i + 1} de 5, ${n}`,
+        border: sel ? '2px solid var(--primary)' : '1px solid var(--border)',
+        bg: sel ? 'var(--primary-soft)' : 'var(--bg)', fg: sel ? 'var(--primary-text)' : 'var(--on-surface)',
+        pick: () => this.setState({ q: i + 1 }) };
+    });
+    return { theme: (this.props.dark ?? false) ? 'dark' : '', points, area, goalY: y(7), days, faces, qLabel: `${names[q - 1]} (${q}/5)` };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>LifeQuest Foundations</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./lq.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#4f46e5}a:hover{color:#4338ca}
+</style>
+</helmet>
+<div class="lq" style="width: 1440px; height: 2900px; padding: 64px 80px; display: flex; flex-direction: column; gap: 64px">
+
+<header style="display: flex; justify-content: space-between; align-items: flex-end; gap: 48px; padding-bottom: 48px; border-bottom: 1px solid var(--border)">
+  <div style="display: flex; flex-direction: column; gap: 16px">
+    <div class="row" style="gap: 12px">
+      <div class="ichip primary"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"></path><path d="m9 12 2 2 4-4"></path></svg></div>
+      <span class="t-hs">LifeQuest</span>
+      <span class="badge badge-neutral">Design System v1.0</span>
+    </div>
+    <h1 class="t-dl" style="max-width: 900px">Fundamentos: tokens que se reutilizan en todas partes.</h1>
+    <p class="t-bl c-2" style="max-width: 760px">Montserrat como única familia, paleta Tailwind (indigo / violet / emerald / amber / red / blue / gray) expuesta como variables CSS <span class="mono">var(--*)</span> con modo light y dark, escala de espaciado en múltiplos de 4 px y specs de movimiento para Framer Motion.</p>
+  </div>
+  <div class="card" style="width: 380px; display: flex; flex-direction: column; gap: 8px">
+    <span class="t-ll">Nombres en Figma / código</span>
+    <span class="mono c-2">Colors → primary, secondary, success, warning, error, info, background, surface, surface-variant, on-background, on-surface, on-surface-light</span>
+    <span class="mono c-2">Type → display-lg … caption</span>
+    <span class="mono c-2">Space → space-0.5 … space-16</span>
+  </div>
+</header>
+
+<section style="display: flex; flex-direction: column; gap: 24px">
+  <div class="row" style="justify-content: space-between">
+    <h2 class="t-dm">Tipografía</h2>
+    <span class="t-bs c-3">Montserrat 400 / 500 / 600 / 700 · base 16 px · nunca &lt;14 px en contenido o controles</span>
+  </div>
+  <div class="card" style="padding: 0; overflow: hidden">
+    <div style="display: grid; grid-template-columns: 180px minmax(0, 1fr) 260px 220px; gap: 24px; padding: 12px 24px; background: var(--surface-variant)">
+      <span class="t-lm c-2">TOKEN</span><span class="t-lm c-2">MUESTRA</span><span class="t-lm c-2">TAMAÑO / PESO / LÍNEA / TRACKING</span><span class="t-lm c-2">TAILWIND</span>
+    </div>
+    <sc-for list="{{type}}" as="t" hint-placeholder-count="12">
+      <div style="display: grid; grid-template-columns: 180px minmax(0, 1fr) 260px 220px; gap: 24px; padding: 16px 24px; align-items: center; border-top: 1px solid var(--border); background: var(--bg)">
+        <span class="mono c-primary">{{t.token}}</span>
+        <span class="{{t.cls}}" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{t.sample}}</span>
+        <span class="mono c-2">{{t.spec}}</span>
+        <span class="mono c-3">{{t.tw}}</span>
+      </div>
+    </sc-for>
+  </div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 24px">
+  <div class="row" style="justify-content: space-between">
+    <h2 class="t-dm">Color</h2>
+    <span class="t-bs c-3">Texto sobre fondo medido contra WCAG AA (4.5:1 normal · 3:1 grande / UI)</span>
+  </div>
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px">
+    <sc-for list="{{palettes}}" as="p" hint-placeholder-count="2">
+      <div class="lq {{p.cls}}" style="border-radius: 24px; border: 1px solid var(--border); padding: 24px; display: flex; flex-direction: column; gap: 16px">
+        <div class="row" style="justify-content: space-between">
+          <span class="t-hs">{{p.name}}</span>
+          <span class="badge badge-neutral">{{p.note}}</span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px">
+          <sc-for list="{{p.swatches}}" as="s" hint-placeholder-count="12">
+            <div style="border-radius: 16px; border: 1px solid var(--border); overflow: hidden; background: var(--surface)">
+              <div style="height: 72px; background: {{s.hex}}; display: flex; align-items: flex-end; padding: 8px 12px; color: {{s.fg}}; font-size: 14px; font-weight: 600">Aa {{s.ratio}}</div>
+              <div style="padding: 10px 12px; display: flex; flex-direction: column; gap: 2px">
+                <span class="t-ll">{{s.role}}</span>
+                <span class="mono c-3">{{s.v}}</span>
+                <span class="mono c-2">{{s.hex}} · {{s.tw}}</span>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+  <div class="card row" style="gap: 16px; background: var(--info-soft); border-color: transparent">
+    <svg class="i c-info" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path></svg>
+    <p class="t-bm c-1"><b>Ajustes de contraste:</b> indigo-500 con texto blanco da 4.47:1 (falla AA en 14 px), por eso los botones rellenan con <span class="mono">primary-strong</span> (indigo-600, 6.3:1) e indigo-500 queda para barras, anillos y acentos. Texto de estado usa la variante 700 (emerald-700, amber-700, red-700, blue-700). En dark, el botón indigo-400 lleva texto gray-900 (7.0:1).</p>
+  </div>
+</section>
+
+<section style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 48px">
+  <div style="display: flex; flex-direction: column; gap: 24px">
+    <h2 class="t-dm">Espaciado</h2>
+    <p class="t-bm c-3">Múltiplos de 4 px. Por pantalla: 16 px (dentro de bloques) y 24 px (entre secciones); 48 px entre bloques grandes en desktop.</p>
+    <div class="list">
+      <sc-for list="{{space}}" as="s" hint-placeholder-count="12">
+        <div class="row" style="gap: 16px">
+          <span class="mono c-primary" style="width: 96px">{{s.token}}</span>
+          <span class="mono c-2" style="width: 120px">{{s.rem}} · {{s.px}}</span>
+          <span style="height: 16px; width: {{s.px}}; background: var(--primary); border-radius: 4px"></span>
+          <span class="t-bs c-3">{{s.use}}</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+  <div style="display: flex; flex-direction: column; gap: 24px">
+    <h2 class="t-dm">Radio y elevación</h2>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px">
+      <div class="card" style="border-radius: 8px; height: 96px; display: flex; flex-direction: column; justify-content: flex-end"><span class="t-ll">rounded-lg</span><span class="mono c-3">8 px · botón, input</span></div>
+      <div class="card" style="border-radius: 16px; height: 96px; display: flex; flex-direction: column; justify-content: flex-end"><span class="t-ll">rounded-2xl</span><span class="mono c-3">16 px · card</span></div>
+      <div class="card" style="border-radius: 24px; height: 96px; display: flex; flex-direction: column; justify-content: flex-end"><span class="t-ll">rounded-3xl</span><span class="mono c-3">24 px · modal, hero</span></div>
+      <div class="card" style="box-shadow: var(--shadow-sm); height: 96px; display: flex; flex-direction: column; justify-content: flex-end; background: var(--bg)"><span class="t-ll">shadow-sm</span><span class="mono c-3">reposo</span></div>
+      <div class="card" style="box-shadow: var(--shadow-md); height: 96px; display: flex; flex-direction: column; justify-content: flex-end; background: var(--bg)"><span class="t-ll">shadow-md</span><span class="mono c-3">hover botón</span></div>
+      <div class="card" style="box-shadow: var(--shadow-lg); height: 96px; display: flex; flex-direction: column; justify-content: flex-end; background: var(--bg)"><span class="t-ll">shadow-lg</span><span class="mono c-3">hover card, FAB, toast</span></div>
+    </div>
+    <h2 class="t-hl" style="margin-top: 24px">Breakpoints</h2>
+    <div class="list">
+      <div class="row card" style="gap: 16px; padding: 12px 16px"><span class="badge badge-primary">base</span><span class="t-bm">375–640 · tab bar inferior h-20, FAB, header h-14</span></div>
+      <div class="row card" style="gap: 16px; padding: 12px 16px"><span class="badge badge-primary">sm · md</span><span class="t-bm">641–1024 · rail lateral w-20 con etiquetas, grid 2 col</span></div>
+      <div class="row card" style="gap: 16px; padding: 12px 16px"><span class="badge badge-primary">lg · xl</span><span class="t-bm">1025+ · sidebar w-64 (colapsa a w-20), header h-16 con breadcrumb, sin FAB</span></div>
+    </div>
+  </div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 24px">
+  <div class="row" style="justify-content: space-between">
+    <h2 class="t-dm">Movimiento</h2>
+    <span class="t-bs c-3">Framer Motion 11 · easing base cubic-bezier(0, 0, 0.2, 1)</span>
+  </div>
+  <div style="display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 24px">
+    <div class="card" style="padding: 0; overflow: hidden">
+      <div style="display: grid; grid-template-columns: 200px 110px minmax(0, 1fr); gap: 16px; padding: 12px 24px; background: var(--surface-variant)">
+        <span class="t-lm c-2">PATRÓN</span><span class="t-lm c-2">DURACIÓN</span><span class="t-lm c-2">PROPIEDADES</span>
+      </div>
+      <sc-for list="{{motion}}" as="m" hint-placeholder-count="10">
+        <div style="display: grid; grid-template-columns: 200px 110px minmax(0, 1fr); gap: 16px; padding: 14px 24px; border-top: 1px solid var(--border); background: var(--bg); align-items: center">
+          <span class="t-ll">{{m.name}}</span>
+          <span class="mono c-primary">{{m.dur}}</span>
+          <span class="t-bs c-2">{{m.props}}</span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 16px">
+      <div class="card" style="background: #111827; border-color: #111827; color: #e5e7eb; display: flex; flex-direction: column; gap: 8px">
+        <span class="t-ll" style="color: #a5b4fc">motion.ts</span>
+        <pre class="mono" style="margin: 0; white-space: pre-wrap; color: #e5e7eb">export const ease = [0, 0, 0.2, 1];
+export const page = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0,
+    transition: { duration: 0.4, ease,
+      staggerChildren: 0.05 } },
+  exit: { opacity: 0, transition: { duration: 0.2 } },
+};
+export const tap = { whileHover: { scale: 1.02 },
+  whileTap: { scale: 0.98 },
+  transition: { duration: 0.1 } };
+
+// en App: &lt;MotionConfig reducedMotion="user"&gt;
+// reduce → sin transform, solo opacity/color</pre>
+      </div>
+      <div class="card row" style="gap: 12px; background: var(--warning-soft); border-color: transparent; align-items: flex-start">
+        <svg class="i c-warning" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 21h20z"></path><path d="M12 10v5M12 18h.01"></path></svg>
+        <p class="t-bs c-1"><b>prefers-reduced-motion:</b> se eliminan translate, scale, rotate, confetti y shimmer. Se conservan fades (opacidad) y cambios de color. Las barras aparecen en su valor final.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":2900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const type = [
+      ['display-lg','t-dl','Nivel 12 alcanzado','56 / 700 / 1.2 / -0.5px','text-[3.5rem] font-bold'],
+      ['display-md','t-dm','Tus hábitos de hoy','44 / 700 / 1.3 / -0.3px','text-[2.75rem] font-bold'],
+      ['display-sm','t-ds','Buenos días, Alex','36 / 600 / 1.4 / 0','text-4xl font-semibold'],
+      ['heading-lg','t-hl','Misiones activas','28 / 600 / 1.5 / 0','text-[1.75rem] font-semibold'],
+      ['heading-md','t-hm','Racha de 14 días','24 / 600 / 1.5 / 0','text-2xl font-semibold'],
+      ['heading-sm','t-hs','Historial de duelos','20 / 600 / 1.6 / 0','text-xl font-semibold'],
+      ['body-lg','t-bl','Completa tus hábitos para ganar experiencia.','18 / 400 / 1.6 / 0','text-lg'],
+      ['body-md','t-bm','Comienza con un objetivo pequeño y constante.','16 / 400 / 1.6 / 0','text-base'],
+      ['body-sm','t-bs','Actualizado hace 5 min · 3 de 5 completados','14 / 400 / 1.6 / 0','text-sm'],
+      ['label-lg','t-ll','Completar misión','14 / 600 / 1.5 / 0.1px','text-sm font-semibold'],
+      ['label-md','t-lm','EN PROGRESO · +150 XP','12 / 600 / 1.5 / 0.1px','text-xs font-semibold'],
+      ['caption','t-cap','hace 2 h — solo timestamps','10 / 500 / 1.4 / 0.2px','text-[0.625rem]'],
+    ].map(([token,cls,sample,spec,tw]) => ({token,cls,sample,spec,tw}));
+    const sw = (role,v,hex,tw,fg,ratio) => ({role,v,hex,tw,fg,ratio});
+    const palettes = [
+      { name: 'Light', cls: '', note: 'html:not(.dark)', swatches: [
+        sw('Primary','--primary','#6366f1','indigo-500','#fff','4.47·L'),
+        sw('Primary strong','--primary-strong','#4f46e5','indigo-600','#fff','6.3'),
+        sw('Secondary','--secondary','#8b5cf6','violet-500','#fff','4.2·L'),
+        sw('Success','--success','#10b981','emerald-500','#064e3b','5.6'),
+        sw('Warning','--warning','#f59e0b','amber-500','#451a03','8.3'),
+        sw('Error','--error','#ef4444','red-500','#fff','3.8·L'),
+        sw('Info','--info','#3b82f6','blue-500','#fff','3.7·L'),
+        sw('Background','--background','#ffffff','white','#1f2937','14.7'),
+        sw('Surface','--surface','#f9fafb','gray-50','#1f2937','14.1'),
+        sw('Surface variant','--surface-variant','#f3f4f6','gray-100','#374151','9.2'),
+        sw('On surface','--on-surface','#374151','gray-700','#fff','10.3'),
+        sw('On surface light','--on-surface-light','#6b7280','gray-500','#fff','4.8'),
+      ]},
+      { name: 'Dark', cls: 'dark', note: 'html.dark', swatches: [
+        sw('Primary','--primary','#818cf8','indigo-400','#111827','7.0'),
+        sw('Primary text','--primary-text','#a5b4fc','indigo-300','#111827','9.6'),
+        sw('Secondary','--secondary','#a78bfa','violet-400','#111827','6.9'),
+        sw('Success','--success','#34d399','emerald-400','#111827','9.9'),
+        sw('Warning','--warning','#fbbf24','amber-400','#111827','11.0'),
+        sw('Error','--error','#f87171','red-400','#111827','6.4'),
+        sw('Info','--info','#60a5fa','blue-400','#111827','7.0'),
+        sw('Background','--background','#111827','gray-900','#f9fafb','16.1'),
+        sw('Surface','--surface','#1f2937','gray-800','#f9fafb','13.6'),
+        sw('Surface variant','--surface-variant','#374151','gray-700','#d1d5db','7.2'),
+        sw('On surface','--on-surface','#d1d5db','gray-300','#111827','12.0'),
+        sw('On surface light','--on-surface-light','#9ca3af','gray-400','#111827','7.6'),
+      ]},
+    ];
+    const space = [
+      ['space-0.5','0.125rem','2px','hairline offsets'],['space-1','0.25rem','4px','icono ↔ texto'],
+      ['space-1.5','0.375rem','6px','label ↔ input'],['space-2','0.5rem','8px','mínimo padding'],
+      ['space-3','0.75rem','12px','items de lista'],['space-4','1rem','16px','default · padding card móvil'],
+      ['space-5','1.25rem','20px','botón md'],['space-6','1.5rem','24px','entre secciones'],
+      ['space-8','2rem','32px','padding página desktop'],['space-10','2.5rem','40px','—'],
+      ['space-12','3rem','48px','bloques grandes'],['space-16','4rem','64px','hero desktop'],
+    ].map(([token,rem,px,use]) => ({token,rem,px,use}));
+    const motion = [
+      ['Entrada de pantalla','400 ms','opacity 0→1 · translateY 20→0 · ease-out · stagger hijos 50 ms'],
+      ['Salida de pantalla','200 ms','opacity 1→0 (exit más rápido que enter)'],
+      ['Transición de ruta','300 ms','AnimatePresence mode="wait": fade + slideUp'],
+      ['Hover botón','100 ms','scale 1→1.02 · shadow-none→shadow-md · tap 0.98'],
+      ['Hover card','150 ms','translateY -2 px · shadow-sm→shadow-lg'],
+      ['Toggle / completar','200 ms','rotate 0→360° del check + fill success · confetti 1.4 s'],
+      ['Barra XP / HP / MP','900 ms','scaleX 0→1 (transform-origin left), delay 200 ms · nunca animar width'],
+      ['Toast','200 / 200 ms','in: y 100%→0 + fade · out: fade · vida 4 s'],
+      ['Modal / sheet','300 / 200 ms','scrim fade · sheet y 100%→0 · Escape cierra'],
+      ['Skeleton','1.4 s loop','shimmer de fondo · reduce: estático'],
+    ].map(([name,dur,props]) => ({name,dur,props}));
+    return { type, palettes, space, motion };
+  }
+}
+</script>
+</body>
+</html>

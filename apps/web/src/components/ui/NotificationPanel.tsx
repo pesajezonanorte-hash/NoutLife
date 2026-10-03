@@ -1,18 +1,26 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, Check, CheckCheck, Trash2, X } from 'lucide-react';
+// Campana + panel de notificaciones (rediseño). Sin prototipo propio: sigue el
+// botón ícono del header de Dashboard.dc.html (punto error como indicador) y el
+// patrón de popover/Sheet del sistema. Móvil → Sheet; md+ → popover anclado.
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import {
+  Bell, Check, CheckCheck, Clock, Flame, Megaphone, Sparkles, Star, Target, Trash2, Trophy, type LucideIcon,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { ease } from '@/lib/motion';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { Button, EmptyState, Sheet, Skeleton, type Tone } from '@/components/ui/lq';
+import { softTone } from '@/components/ui/lq/tones';
 import * as notifService from '../../services/notification.service';
 import type { InAppNotification } from '../../services/notification.service';
-import { E } from '@/components/ui/glyphs';
 
 function timeAgo(iso: string): string {
   const diff = (Date.now() - new Date(iso).getTime()) / 1000;
   if (diff < 60) return 'hace un momento';
-  if (diff < 3600) return `hace ${Math.floor(diff / 60)}m`;
-  if (diff < 86400) return `hace ${Math.floor(diff / 3600)}h`;
-  return `hace ${Math.floor(diff / 86400)}d`;
+  if (diff < 3600) return `hace ${Math.floor(diff / 60)} min`;
+  if (diff < 86400) return `hace ${Math.floor(diff / 3600)} h`;
+  return `hace ${Math.floor(diff / 86400)} d`;
 }
 
 function dayLabel(iso: string): string {
@@ -26,336 +34,334 @@ function dayLabel(iso: string): string {
   return date.toLocaleDateString('es-CO', { day: 'numeric', month: 'long' });
 }
 
-const TYPE_ICON: Record<string, string> = {
-  achievement: '🏆', streak: '🔥', reminder: '⏰',
-  sage: '🧙', goal: '🎯', levelup: '⭐', system: '📢',
+// La API manda un emoji en `icon`; el rediseño no usa emojis → ícono por tipo.
+const TYPE_ICON: Record<string, { icon: LucideIcon; tone: Tone }> = {
+  achievement: { icon: Trophy, tone: 'warning' },
+  streak: { icon: Flame, tone: 'error' },
+  reminder: { icon: Clock, tone: 'info' },
+  sage: { icon: Sparkles, tone: 'secondary' },
+  goal: { icon: Target, tone: 'primary' },
+  levelup: { icon: Star, tone: 'warning' },
+  system: { icon: Megaphone, tone: 'muted' },
 };
 
-export function NotificationBell({ variant = 'default' }: { variant?: 'default' | 'dock' | 'mobile' }) {
-  const [open, setOpen] = useState(false);
+function NotificationRow({ n, onOpen, onRead, onDelete }: {
+  n: InAppNotification;
+  onOpen: () => void;
+  onRead: () => void;
+  onDelete: () => void;
+}) {
+  const { icon: Icon, tone } = TYPE_ICON[n.type] ?? TYPE_ICON.system;
+  return (
+    <motion.li
+      layout
+      exit={{ opacity: 0, transition: { duration: 0.15 } }}
+      className={cn('group flex items-start gap-1 rounded-xl pr-1 transition-colors hover:bg-surface-variant', !n.isRead && 'bg-primary/[0.05]')}
+    >
+      <button type="button" onClick={onOpen} className="flex min-w-0 flex-1 items-start gap-3 rounded-xl p-3 text-left">
+        <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-xl', softTone[tone])}>
+          <Icon aria-hidden className="size-5" strokeWidth={1.75} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-2">
+            <span className={cn('truncate text-label-lg', n.isRead ? 'text-on-surface' : 'text-on-background')}>{n.title}</span>
+            {!n.isRead && (
+              <>
+                <span aria-hidden className="size-2 shrink-0 rounded-full bg-primary" />
+                <span className="sr-only">(sin leer)</span>
+              </>
+            )}
+          </span>
+          <span className="mt-0.5 line-clamp-2 block text-body-sm text-on-surface-light">{n.body}</span>
+          <span className="mt-1 block text-caption text-on-surface-light">{timeAgo(n.createdAt)}</span>
+        </span>
+      </button>
+      {/* Acciones visibles en hover/foco (desktop) y siempre en táctil. */}
+      <span className="flex shrink-0 flex-col pt-1 md:opacity-0 md:transition-opacity md:group-focus-within:opacity-100 md:group-hover:opacity-100">
+        {!n.isRead && (
+          <Button variant="icon" aria-label={`Marcar como leída: ${n.title}`} onClick={onRead}>
+            <Check aria-hidden className="size-5" strokeWidth={1.75} />
+          </Button>
+        )}
+        <Button variant="icon" aria-label={`Eliminar: ${n.title}`} onClick={onDelete} className="hover:text-error-text">
+          <Trash2 aria-hidden className="size-5" strokeWidth={1.75} />
+        </Button>
+      </span>
+    </motion.li>
+  );
+}
+
+function useNotifications(open: boolean) {
   const [unread, setUnread] = useState(0);
   const [items, setItems] = useState<InAppNotification[]>([]);
   const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [confirmClearAll, setConfirmClearAll] = useState(false);
-  const [panelPosition, setPanelPosition] = useState({ top: 8, left: 8, arrowLeft: 16 });
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const navigate = useNavigate();
-
-  const updatePanelPosition = useCallback(() => {
-    const trigger = triggerRef.current;
-    if (!trigger) return;
-
-    const rect = trigger.getBoundingClientRect();
-    const gutter = 8;
-    const panelWidth = Math.min(320, Math.max(0, window.innerWidth - gutter * 2));
-    const maxLeft = Math.max(gutter, window.innerWidth - panelWidth - gutter);
-    const left = Math.min(maxLeft, Math.max(gutter, rect.right - panelWidth));
-    // The panel has a capped scrollable list, so this keeps its complete shell
-    // on screen even in a short mobile viewport.
-    const top = Math.min(rect.bottom + gutter, Math.max(gutter, window.innerHeight - 390));
-    const arrowLeft = Math.min(panelWidth - 18, Math.max(18, rect.left + rect.width / 2 - left));
-
-    setPanelPosition({ top, left, arrowLeft });
-  }, []);
 
   useEffect(() => {
-    notifService.getUnreadCount().then(setUnread).catch(() => null);
-    const interval = setInterval(() => {
-      notifService.getUnreadCount().then(setUnread).catch(() => null);
-    }, 30_000);
-    return () => clearInterval(interval);
+    const poll = () => notifService.getUnreadCount().then(setUnread).catch(() => null);
+    poll();
+    const id = setInterval(poll, 30_000);
+    return () => clearInterval(id);
   }, []);
 
-  useEffect(() => {
-    if (!open) return;
+  const load = useCallback(() => {
     setLoading(true);
-    notifService.listInAppNotifications().then(({ notifications, unread: u, nextCursor: cursor }) => {
-      setItems(notifications);
-      setUnread(u);
-      setNextCursor(cursor);
-    }).catch(() => null).finally(() => setLoading(false));
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return undefined;
-
-    updatePanelPosition();
-    window.addEventListener('resize', updatePanelPosition);
-    window.addEventListener('scroll', updatePanelPosition, true);
-    return () => {
-      window.removeEventListener('resize', updatePanelPosition);
-      window.removeEventListener('scroll', updatePanelPosition, true);
-    };
-  }, [open, updatePanelPosition]);
-
-  async function handleMarkRead(id: string) {
-    await notifService.markAsRead(id).catch(() => null);
-    setItems((prev) => prev.map((n) => n.id === id ? { ...n, isRead: true } : n));
-    setUnread((u) => Math.max(0, u - 1));
-  }
-
-  async function handleMarkAll() {
-    await notifService.markAllAsRead().catch(() => null);
-    setItems((prev) => prev.map((n) => ({ ...n, isRead: true })));
-    setUnread(0);
-  }
-
-  async function handleLoadMore() {
-    if (!nextCursor || loadingMore) return;
-    setLoadingMore(true);
-    try {
-      const page = await notifService.listInAppNotifications({ cursor: nextCursor });
-      setItems((previous) => [...previous, ...page.notifications]);
-      setUnread(page.unread);
-      setNextCursor(page.nextCursor);
-    } finally {
-      setLoadingMore(false);
-    }
-  }
-
-  async function handleDeleteAll() {
-    await notifService.deleteAllNotifications().catch(() => null);
-    setItems([]);
-    setUnread(0);
-    setNextCursor(null);
-    setConfirmClearAll(false);
-  }
-
-  async function handleDelete(id: string) {
-    await notifService.deleteNotification(id).catch(() => null);
-    const wasUnread = items.find((n) => n.id === id)?.isRead === false;
-    setItems((prev) => prev.filter((n) => n.id !== id));
-    if (wasUnread) setUnread((u) => Math.max(0, u - 1));
-  }
-
-  function handleClick(notif: InAppNotification) {
-    if (!notif.isRead) handleMarkRead(notif.id);
-    if (notif.link) { setOpen(false); navigate(notif.link); }
-  }
-
-  const groupedItems = items.reduce<Array<{ label: string; notifications: InAppNotification[] }>>((groups, notification) => {
-    const label = dayLabel(notification.createdAt);
-    const group = groups.find((candidate) => candidate.label === label);
-    if (group) group.notifications.push(notification);
-    else groups.push({ label, notifications: [notification] });
-    return groups;
+    setFailed(false);
+    notifService.listInAppNotifications()
+      .then(({ notifications, unread: u, nextCursor: cursor }) => {
+        setItems(notifications);
+        setUnread(u);
+        setNextCursor(cursor);
+      })
+      .catch(() => setFailed(true))
+      .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => { if (open) load(); }, [open, load]);
+
+  return {
+    unread, items, loading, failed, loadingMore, nextCursor, load,
+    async markRead(id: string) {
+      await notifService.markAsRead(id).catch(() => null);
+      setItems((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
+      setUnread((u) => Math.max(0, u - 1));
+    },
+    async markAll() {
+      await notifService.markAllAsRead().catch(() => null);
+      setItems((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      setUnread(0);
+    },
+    async remove(id: string) {
+      await notifService.deleteNotification(id).catch(() => null);
+      if (items.find((n) => n.id === id)?.isRead === false) setUnread((u) => Math.max(0, u - 1));
+      setItems((prev) => prev.filter((n) => n.id !== id));
+    },
+    async removeAll() {
+      await notifService.deleteAllNotifications().catch(() => null);
+      setItems([]);
+      setUnread(0);
+      setNextCursor(null);
+    },
+    async loadMore() {
+      if (!nextCursor || loadingMore) return;
+      setLoadingMore(true);
+      try {
+        const page = await notifService.listInAppNotifications({ cursor: nextCursor });
+        setItems((prev) => [...prev, ...page.notifications]);
+        setUnread(page.unread);
+        setNextCursor(page.nextCursor);
+      } catch { /* se puede reintentar */ } finally {
+        setLoadingMore(false);
+      }
+    },
+  };
+}
+
+function PanelBody({ state, onNavigate, confirming, setConfirming }: {
+  state: ReturnType<typeof useNotifications>;
+  onNavigate: (link: string) => void;
+  confirming: boolean;
+  setConfirming: (v: boolean) => void;
+}) {
+  const groups = state.items.reduce<Array<{ label: string; items: InAppNotification[] }>>((acc, n) => {
+    const label = dayLabel(n.createdAt);
+    const g = acc.find((x) => x.label === label);
+    if (g) g.items.push(n); else acc.push({ label, items: [n] });
+    return acc;
+  }, []);
+
+  if (state.loading) {
+    return (
+      <div className="flex flex-col gap-3 p-2" aria-busy="true" aria-label="Cargando notificaciones">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="flex items-center gap-3">
+            <Skeleton className="size-10 rounded-xl" />
+            <div className="flex flex-1 flex-col gap-2"><Skeleton className="h-4 w-2/3" /><Skeleton className="h-3 w-full" /></div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  if (state.failed) {
+    return (
+      <div role="alert" className="flex flex-col items-center gap-3 px-4 py-8 text-center">
+        <p className="text-body-md text-on-surface">No pudimos cargar tus notificaciones.</p>
+        <Button variant="secondary" size="sm" onClick={state.load}>Reintentar</Button>
+      </div>
+    );
+  }
+  if (state.items.length === 0) {
+    return (
+      <EmptyState
+        icon={Bell}
+        tone="muted"
+        title="Todo al día"
+        description="Aquí verás logros, rachas y recordatorios."
+        className="py-8"
+      />
+    );
+  }
+  return (
+    <div className="flex flex-col gap-4">
+      {confirming && (
+        <div role="alertdialog" aria-labelledby="lq-clear-title" className="flex flex-col gap-3 rounded-2xl border border-error/30 bg-error/[var(--lq-soft-alpha)] p-4">
+          <p id="lq-clear-title" className="text-label-lg text-error-text">¿Eliminar todas las notificaciones?</p>
+          <p className="text-body-sm text-on-surface">Se borra el historial de avisos y no se puede deshacer.</p>
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant="secondary" size="sm" data-autofocus onClick={() => setConfirming(false)}>Cancelar</Button>
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={() => { void state.removeAll(); setConfirming(false); }}
+            >
+              Eliminar
+            </Button>
+          </div>
+        </div>
+      )}
+      {groups.map((g) => (
+        <section key={g.label} aria-label={g.label} className="flex flex-col gap-1">
+          <h3 className="px-3 text-label-md uppercase text-on-surface-light">{g.label}</h3>
+          <ul className="flex flex-col gap-1">
+            <AnimatePresence initial={false}>
+              {g.items.map((n) => (
+                <NotificationRow
+                  key={n.id}
+                  n={n}
+                  onOpen={() => {
+                    if (!n.isRead) void state.markRead(n.id);
+                    if (n.link) onNavigate(n.link);
+                  }}
+                  onRead={() => void state.markRead(n.id)}
+                  onDelete={() => void state.remove(n.id)}
+                />
+              ))}
+            </AnimatePresence>
+          </ul>
+        </section>
+      ))}
+      {state.nextCursor && (
+        <Button variant="ghost" size="sm" block onClick={() => void state.loadMore()} loading={state.loadingMore}>
+          Cargar más
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function HeaderActions({ state, onClearAll }: { state: ReturnType<typeof useNotifications>; onClearAll: () => void }) {
+  return (
+    <span className="flex items-center">
+      {state.unread > 0 && (
+        <Button variant="icon" aria-label="Marcar todas como leídas" onClick={() => void state.markAll()}>
+          <CheckCheck aria-hidden className="size-5" strokeWidth={1.75} />
+        </Button>
+      )}
+      {state.items.length > 0 && (
+        <Button variant="icon" aria-label="Eliminar todas las notificaciones" onClick={onClearAll} className="hover:text-error-text">
+          <Trash2 aria-hidden className="size-5" strokeWidth={1.75} />
+        </Button>
+      )}
+    </span>
+  );
+}
+
+/** Botón ícono 44 px con punto error si hay sin leer; aria-label incluye el número. */
+export function NotificationBell({ className }: { className?: string }) {
+  const [open, setOpen] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const isDesktop = useMediaQuery('(min-width: 768px)');
+  const state = useNotifications(open);
+  const navigate = useNavigate();
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+
+  const close = useCallback((refocus = true) => {
+    setOpen(false);
+    setConfirming(false);
+    if (refocus) triggerRef.current?.focus();
+  }, []);
+
+  // Popover desktop: Escape y clic fuera cierran; foco al panel al abrir.
+  useEffect(() => {
+    if (!open || !isDesktop) return;
+    panelRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (!panelRef.current?.contains(t) && !triggerRef.current?.contains(t)) close(false);
+    };
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('mousedown', onDown);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('mousedown', onDown);
+    };
+  }, [open, isDesktop, close]);
+
+  const label = state.unread > 0 ? `Notificaciones, ${state.unread} sin leer` : 'Notificaciones';
+  const onNavigate = (link: string) => { close(false); navigate(link); };
+  const title: ReactNode = (
+    <span className="flex items-center gap-2">
+      Notificaciones
+      {state.unread > 0 && <span className="rounded-full bg-error/[var(--lq-soft-alpha)] px-2 text-label-md text-error-text">{state.unread}</span>}
+    </span>
+  );
 
   return (
-    <div className={variant === 'dock' ? 'relative h-full w-full' : 'relative'}>
-      <motion.button
+    <div className={cn('relative', className)}>
+      <Button
         ref={triggerRef}
-        onClick={() => {
-          if (!open) updatePanelPosition();
-          setOpen((value) => !value);
-        }}
-        whileTap={{ scale: 0.94 }}
-        aria-label="Notificaciones"
-        aria-expanded={open}
+        variant="icon"
+        aria-label={label}
         aria-haspopup="dialog"
-        className={variant === 'dock'
-          ? 'relative flex h-full w-full items-center justify-center rounded-[10px] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-panel-light)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)]'
-          : variant === 'mobile'
-            ? 'relative flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-secondary)] transition-colors hover:border-[var(--accent-gold)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)]'
-            : 'relative flex h-8 w-8 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] text-[var(--text-secondary)] transition-colors hover:border-[var(--accent-gold)] hover:text-[var(--text-primary)]'}
-        title="Notificaciones"
+        aria-expanded={open}
+        onClick={() => (open ? close() : setOpen(true))}
       >
-        <Bell size={16} className={variant === 'dock' ? 'h-[80%] w-[80%]' : undefined} />
-        {unread > 0 && (
+        <Bell aria-hidden className="size-6" strokeWidth={1.75} />
+        {state.unread > 0 && (
           <motion.span
+            aria-hidden
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
-            className="absolute -top-1 -right-1 min-w-[16px] h-4 px-0.5 rounded-full text-xs font-bold flex items-center justify-center"
-            style={{ background: 'var(--accent-red)', color: 'var(--text-inv)' }}
-          >
-            {unread > 9 ? '9+' : unread}
-          </motion.span>
+            className="absolute right-[11px] top-2.5 size-2 rounded-full bg-error ring-2 ring-background"
+          />
         )}
-      </motion.button>
+      </Button>
 
-      {typeof document !== 'undefined' && createPortal(
+      {isDesktop ? (
         <AnimatePresence>
-        {open && (
-          <>
+          {open && (
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[998] bg-black/45 backdrop-blur-[1px]"
-              aria-hidden="true"
-              onClick={() => setOpen(false)}
-            />
-            <motion.div
-              initial={{ opacity: 0, y: -8, scale: 0.94 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -8, scale: 0.94 }}
-              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              ref={panelRef}
               role="dialog"
-              aria-modal="true"
-              aria-labelledby="notification-panel-title"
-              className="fixed z-[999] flex w-80 max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] shadow-2xl"
-              style={{
-                top: panelPosition.top,
-                left: panelPosition.left,
-                maxHeight: 'calc(100dvh - 1rem)',
-                transformOrigin: `${panelPosition.arrowLeft}px top`,
-                boxShadow: '0 12px 32px rgba(0,0,0,0.35)',
-              }}
+              aria-labelledby={titleId}
+              tabIndex={-1}
+              initial={{ opacity: 0, y: -6, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1, transition: { duration: 0.2, ease } }}
+              exit={{ opacity: 0, transition: { duration: 0.15 } }}
+              className="absolute right-0 top-[calc(100%+8px)] z-40 flex max-h-[min(560px,calc(100dvh-96px))] w-[380px] origin-top-right flex-col rounded-2xl border border-border bg-background shadow-lg outline-none"
             >
-            {/* Arrow indicator pointing to the bell */}
-            <div
-              className="absolute -top-1.5 h-3 w-3 rotate-45 border-l border-t border-[var(--border)] bg-[var(--bg-panel)]"
-              style={{ left: panelPosition.arrowLeft - 6 }}
-              aria-hidden
-            />
-            {/* Header */}
-            <div className="flex shrink-0 items-center justify-between border-b border-[var(--border)] px-4 py-3">
-              <span id="notification-panel-title" className="text-sm font-semibold text-[var(--text-primary)]">Notificaciones</span>
-              <div className="flex items-center gap-1">
-                {unread > 0 && (
-                  <button
-                    onClick={handleMarkAll}
-                    className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--accent-gold)] hover:bg-[var(--bg-panel-light)] transition-colors"
-                    title="Marcar todas como leídas"
-                    aria-label="Marcar todas como leídas"
-                  >
-                    <CheckCheck size={14} />
-                  </button>
-                )}
-                {items.length > 0 && (
-                  <button
-                    onClick={() => setConfirmClearAll(true)}
-                    className="p-1.5 rounded-lg text-[var(--text-muted)] hover:bg-[var(--bg-panel-light)] hover:text-[var(--accent-red)] transition-colors"
-                    title="Eliminar todas"
-                    aria-label="Eliminar todas las notificaciones"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                )}
-                <button
-                  onClick={() => setOpen(false)}
-                  className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel-light)] transition-colors"
-                >
-                  <X size={14} />
-                </button>
+              <div className="flex items-center justify-between gap-2 border-b border-border py-2 pl-4 pr-2">
+                <h2 id={titleId} className="text-heading-sm text-on-background">{title}</h2>
+                <HeaderActions state={state} onClearAll={() => setConfirming(true)} />
               </div>
-            </div>
-
-            {/* List */}
-            <div className="min-h-0 max-h-80 overflow-y-auto" style={{ maxHeight: 'min(20rem, calc(100dvh - 5rem))' }}>
-              {loading ? (
-                <div className="space-y-2 p-3">
-                  {[1, 2, 3].map((i) => <div key={i} className="skeleton h-14 rounded-xl" />)}
-                </div>
-              ) : items.length === 0 ? (
-                <div className="py-10 text-center">
-                  <Bell size={28} className="mx-auto text-[var(--text-muted)] opacity-30 mb-2" />
-                  <p className="text-xs text-[var(--text-muted)]">Sin notificaciones</p>
-                </div>
-              ) : (
-                <div className="space-y-3 py-2">
-                  {groupedItems.map((group) => (
-                    <section key={group.label} aria-label={group.label}>
-                      <p className="px-4 pb-1 text-xs font-semibold text-[var(--text-muted)]">{group.label}</p>
-                      <div className="divide-y divide-[var(--border)]">
-                        {group.notifications.map((n) => (
-                    <motion.div
-                      key={n.id}
-                      layout
-                      className={`group relative px-4 py-3 cursor-pointer hover:bg-[var(--bg-panel-light)] transition-colors ${!n.isRead ? 'bg-[var(--bg-panel-light)]' : ''}`}
-                      onClick={() => handleClick(n)}
-                    >
-                      <div className="flex items-start gap-3">
-                        <span className="text-lg flex-shrink-0 mt-0.5">
-                          <E e={n.icon ?? TYPE_ICON[n.type] ?? '📢'} />
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-xs font-semibold truncate ${!n.isRead ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>
-                            {n.title}
-                          </p>
-                          <p className="text-xs text-[var(--text-muted)] mt-0.5 leading-snug line-clamp-2">
-                            {n.body}
-                          </p>
-                          <p className="text-xs text-[var(--text-muted)] mt-1">{timeAgo(n.createdAt)}</p>
-                        </div>
-                      {/* Punto "nuevo": se aparta (fade) al hacer hover para
-                          dejarle el sitio a las acciones sin solaparse */}
-                      {!n.isRead && (
-                        <span
-                          className="w-2 h-2 rounded-full flex-shrink-0 mt-1.5 transition-opacity group-hover:opacity-0"
-                          style={{ background: 'var(--accent-cyan)' }}
-                        />
-                      )}
-                    </div>
-                    {/* Actions on hover */}
-                    <div
-                      className="absolute right-1.5 top-1.5 hidden group-hover:flex items-center gap-0.5 rounded-lg px-1 py-0.5 shadow-sm"
-                      style={{ background: 'color-mix(in oklab, var(--bg-panel) 92%, transparent)', backdropFilter: 'blur(6px)' }}
-                    >
-                        {!n.isRead && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleMarkRead(n.id); }}
-                            className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--accent-green)] transition-colors"
-                            title="Marcar como leída"
-                          >
-                            <Check size={12} />
-                          </button>
-                        )}
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleDelete(n.id); }}
-                          className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--accent-red)] transition-colors"
-                          title="Eliminar"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    </motion.div>
-                        ))}
-                      </div>
-                    </section>
-                  ))}
-                  {nextCursor && (
-                    <div className="px-3 pt-1">
-                      <button
-                        type="button"
-                        onClick={() => void handleLoadMore()}
-                        disabled={loadingMore}
-                        className="min-h-11 w-full rounded-lg border border-[var(--border)] px-3 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)] disabled:opacity-60"
-                      >
-                        {loadingMore ? 'Cargando…' : 'Cargar más'}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+              <div className="min-h-0 flex-1 overflow-y-auto p-2">
+                <PanelBody state={state} onNavigate={onNavigate} confirming={confirming} setConfirming={setConfirming} />
+              </div>
             </motion.div>
-            {confirmClearAll && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/55 p-4"
-                role="alertdialog"
-                aria-modal="true"
-                aria-labelledby="clear-notifications-title"
-              >
-                <div className="w-full max-w-xs rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-4 shadow-2xl">
-                  <p id="clear-notifications-title" className="text-sm font-semibold text-[var(--text-primary)]">Eliminar todas las notificaciones</p>
-                  <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">Esta acción elimina el historial de avisos y no se puede deshacer.</p>
-                  <div className="mt-4 grid grid-cols-2 gap-2">
-                    <button type="button" onClick={() => setConfirmClearAll(false)} className="min-h-11 rounded-lg border border-[var(--border)] px-3 text-xs font-medium text-[var(--text-secondary)]">Cancelar</button>
-                    <button type="button" onClick={() => void handleDeleteAll()} className="min-h-11 rounded-lg border border-[var(--accent-red)] bg-[var(--accent-red)] px-3 text-xs font-semibold text-white">Eliminar</button>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </>
-        )}
-        </AnimatePresence>,
-        document.body,
+          )}
+        </AnimatePresence>
+      ) : (
+        <Sheet open={open} onClose={() => close()} title={title}>
+          <div className="-mt-2 flex justify-end">
+            <HeaderActions state={state} onClearAll={() => setConfirming(true)} />
+          </div>
+          <PanelBody state={state} onNavigate={onNavigate} confirming={confirming} setConfirming={setConfirming} />
+        </Sheet>
       )}
     </div>
   );

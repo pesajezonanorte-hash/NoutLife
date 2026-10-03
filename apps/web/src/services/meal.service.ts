@@ -23,3 +23,47 @@ export async function fetchMealSummary(from?: string, to?: string) {
   const { data } = await api.get(`/meals/summary?${params}`);
   return data;
 }
+
+// ─── Nutrición (/nutrition): metas, comidas guardadas y estimación con IA ─────
+
+export interface NutritionGoal { calories: number | null; protein: number | null; carbs: number | null; fat: number | null; waterMl: number | null }
+export interface SavedMeal { id: string; name: string; calories?: number | null; protein?: number | null; carbs?: number | null; fat?: number | null }
+export interface ParsedMeal {
+  name: string;
+  estimatedCalories: number;
+  estimatedProtein: number;
+  estimatedCarbs: number;
+  estimatedFat: number;
+  aiAvailable: boolean;
+  aiSucceeded: boolean;
+}
+
+/** null si el usuario aún no definió metas. */
+export async function fetchNutritionGoal(): Promise<NutritionGoal | null> {
+  const { data } = await api.get<NutritionGoal | null>('/nutrition/goals');
+  return data ?? null;
+}
+
+export async function saveNutritionGoal(body: Partial<NutritionGoal>): Promise<NutritionGoal> {
+  const { data } = await api.put<NutritionGoal>('/nutrition/goals', body);
+  return data;
+}
+
+export async function fetchSavedMeals(): Promise<SavedMeal[]> {
+  const { data } = await api.get<SavedMeal[]>('/nutrition/saved-meals');
+  return data ?? [];
+}
+
+export async function createSavedMeal(body: Omit<SavedMeal, 'id'>): Promise<SavedMeal> {
+  const { data } = await api.post<SavedMeal>('/nutrition/saved-meals', body);
+  return data;
+}
+
+export async function deleteSavedMeal(id: string): Promise<void> {
+  await api.delete(`/nutrition/saved-meals/${id}`);
+}
+
+export async function parseMeal(description: string): Promise<ParsedMeal> {
+  const { data } = await api.post<ParsedMeal>('/nutrition/ai-parse', { description });
+  return data;
+}
