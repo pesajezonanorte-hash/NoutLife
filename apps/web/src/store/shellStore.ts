@@ -12,12 +12,15 @@ interface ShellState {
   quickAction: QuickAction | null;
   focusOpen: boolean;
   feedbackOpen: boolean;
+  /** Panel del reproductor (no modal; el iframe sigue montado al cerrarlo). */
+  musicOpen: boolean;
   setCrumb: (crumb: string | null) => void;
   setMenuOpen: (open: boolean) => void;
   setQuickOpen: (open: boolean) => void;
   openQuickAction: (action: QuickAction | null) => void;
   setFocusOpen: (open: boolean) => void;
   setFeedbackOpen: (open: boolean) => void;
+  setMusicOpen: (open: boolean) => void;
 }
 
 export const useShellStore = create<ShellState>()((set) => ({
@@ -27,6 +30,7 @@ export const useShellStore = create<ShellState>()((set) => ({
   quickAction: null,
   focusOpen: false,
   feedbackOpen: false,
+  musicOpen: false,
   setCrumb: (crumb) => set({ crumb }),
   setMenuOpen: (menuOpen) => set({ menuOpen }),
   setQuickOpen: (quickOpen) => set({ quickOpen }),
@@ -34,6 +38,7 @@ export const useShellStore = create<ShellState>()((set) => ({
   openQuickAction: (quickAction) => set({ quickAction, quickOpen: false }),
   setFocusOpen: (focusOpen) => set({ focusOpen }),
   setFeedbackOpen: (feedbackOpen) => set({ feedbackOpen }),
+  setMusicOpen: (musicOpen) => set({ musicOpen }),
 }));
 
 /** Fija el último tramo del breadcrumb mientras la página está montada. */

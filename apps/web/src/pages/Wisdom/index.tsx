@@ -120,11 +120,12 @@ export default function WisdomPage() {
             <button
               key={cat}
               onClick={() => setFilter(cat)}
-              className="px-3 py-1.5 rounded-xl text-xs font-medium transition-all"
+              aria-pressed={filter === cat}
+              className="min-h-11 px-3 py-1.5 rounded-xl text-xs font-medium transition-all"
               style={{
                 background: filter === cat ? (cfg?.color ?? 'var(--accent-gold)') + '33' : 'transparent',
                 border: `1px solid ${filter === cat ? (cfg?.color ?? 'var(--accent-gold)') : 'var(--border)'}`,
-                color: filter === cat ? (cfg?.color ?? 'var(--accent-gold)') : 'var(--text-muted)',
+                color: filter === cat ? (cfg?.color ?? 'var(--accent-gold)') : 'var(--text-secondary)',
               }}
             >
               {cfg ? <><E e={cfg.Icon} s={13} /> <span>{cfg.label}</span></> : 'Todas'}
@@ -159,7 +160,7 @@ export default function WisdomPage() {
             {data.locked.slice(0, 6).map((card) => {
               const cfg = CATEGORY_CONFIG[card.category];
               return (
-                <div key={card.id} className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] p-4 flex flex-col items-center gap-2 opacity-40">
+                <div key={card.id} className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] p-4 flex flex-col items-center gap-2">
                   <Lock size={20} className="text-[var(--text-muted)]" />
                   <span className="text-xs text-[var(--text-muted)]"><E e={cfg?.Icon ?? BookOpen} /> {cfg?.label ?? card.category}</span>
                   <span className="text-xs text-[var(--text-muted)]">Nivel {card.levelRequired}</span>

@@ -645,3 +645,15 @@ html.dark[data-theme="retro"] {
   --border: #3f3f3f;
   --border-strong: #5a5a5a;
 }
+
+/* ── Compatibilidad AA para utilidades heredadas ─────────────────────────────
+   El dorado legado (#a8871e) da 3.3:1 como texto en claro y 4.3:1 en oscuro.
+   Como TEXTO se pinta con el tono AA de aviso; fondos y bordes no cambian.
+   Va después de @tailwind utilities para ganar a igual especificidad. */
+.text-accent-gold,
+.hover\:text-accent-gold:hover,
+.group:hover .group-hover\:text-accent-gold {
+  color: rgb(var(--lq-warning-text));
+}
+.text-accent-green { color: rgb(var(--lq-success-text)); }
+.text-accent-red { color: rgb(var(--lq-error-text)); }

@@ -166,6 +166,7 @@ function EventCard({
                 size="sm"
                 withArrows={false}
                 onClick={onToggle}
+                aria-label={`${event.isCompleted ? "Marcar pendiente" : "Marcar completado"}: ${event.title}`}
                 title={
                   event.isCompleted ? "Marcar pendiente" : "Marcar completado"
                 }
@@ -179,6 +180,7 @@ function EventCard({
                 size="sm"
                 withArrows={false}
                 onClick={onEdit}
+                aria-label={`Editar ${event.title}`}
                 className="font-pixel text-text-secondary hover:text-accent-gold transition-colors"
                 style={{ fontSize: "12px" }}
               >
@@ -189,6 +191,7 @@ function EventCard({
                 size="sm"
                 withArrows={false}
                 onClick={onDelete}
+                aria-label={`Eliminar ${event.title}`}
                 className="font-pixel text-text-secondary hover:text-accent-red transition-colors"
                 style={{ fontSize: "12px" }}
               >

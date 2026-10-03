@@ -1,9 +1,10 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Coins, LogOut, MessageSquarePlus, Sparkles, Volume2, VolumeX, Zap, type LucideIcon } from 'lucide-react';
+import { Coins, LogOut, MessageSquarePlus, Music, Sparkles, Volume2, VolumeX, Zap, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button, ProgressBar, SegmentedControl, Sheet } from '@/components/ui/lq';
 import { useAuthStore } from '@/store/authStore';
 import { useUIStore } from '@/store/uiStore';
+import { parseEmbed } from '@/components/ui/MusicPlayer';
 import { useShellStore } from '@/store/shellStore';
 import { useThemeStore, type ThemeMode } from '@/store/themeStore';
 import { getLevelTitle } from '@/lib/gameProgress';
@@ -56,6 +57,7 @@ export function MenuSheet() {
   const setOpen = useShellStore((s) => s.setMenuOpen);
   const setFocusOpen = useShellStore((s) => s.setFocusOpen);
   const setFeedbackOpen = useShellStore((s) => s.setFeedbackOpen);
+  const setMusicOpen = useShellStore((s) => s.setMusicOpen);
   const user = useAuthStore((s) => s.user);
   const { audioEnabled, toggleAudio } = useUIStore();
   const mode = useThemeStore((s) => s.mode);
@@ -101,6 +103,9 @@ export function MenuSheet() {
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <ToolButton icon={Sparkles} label="Preguntar al Sabio" onClick={then(() => openSage('¿En qué parte de mi aventura me recomiendas enfocarme ahora?'))} />
           <ToolButton icon={Zap} label="Modo enfoque" onClick={then(() => setFocusOpen(true))} />
+          {parseEmbed(user?.gymPlaylistUrl).embedUrl && (
+            <ToolButton icon={Music} label="Música" onClick={then(() => setMusicOpen(true))} />
+          )}
           <ToolButton icon={audioEnabled ? Volume2 : VolumeX} label={audioEnabled ? 'Silenciar sonidos' : 'Activar sonidos'} onClick={toggleAudio} />
           <ToolButton icon={MessageSquarePlus} label="Enviar feedback" onClick={then(() => setFeedbackOpen(true))} />
         </div>

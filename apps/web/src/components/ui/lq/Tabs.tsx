@@ -1,5 +1,5 @@
 import { useId, useRef, type KeyboardEvent } from 'react';
-import { motion } from 'framer-motion';
+import { motion, PresenceContext } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import type { SegmentOption } from './SegmentedControl';
 
@@ -25,7 +25,11 @@ export function Tabs<T extends string>({ options, value, onChange, label, classN
     refs.current[next]?.focus();
   };
 
+  // El indicador usa layoutId: al cambiar de opción el anterior se desmonta y,
+  // dentro de un diálogo, quedaba registrado como salida pendiente de su
+  // AnimatePresence y el diálogo no terminaba de cerrarse. Se aísla aquí.
   return (
+    <PresenceContext.Provider value={null}>
     <div role="tablist" aria-label={label} className={cn('flex gap-6 border-b border-border', className)}>
       {options.map((o, i) => {
         const on = o.value === value;
@@ -57,5 +61,6 @@ export function Tabs<T extends string>({ options, value, onChange, label, classN
         );
       })}
     </div>
+    </PresenceContext.Provider>
   );
 }

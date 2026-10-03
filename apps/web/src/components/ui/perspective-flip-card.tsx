@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 import { RotateCcw } from 'lucide-react';
+import { useMotionStore } from '@/store/motionStore';
 import { cn } from '@/lib/utils';
 
 // React 18's JSX types predate the standard `inert` attribute. The browser
@@ -83,8 +84,11 @@ function useMediaMatch(query: string) {
 }
 
 /** Shared so composed cards remove their interior translateZ layers as well. */
+/** Sistema (prefers-reduced-motion) o el ajuste «Reducir movimiento» de la app. */
 export function usePrefersReducedMotion() {
-  return useMediaMatch('(prefers-reduced-motion: reduce)');
+  const system = useMediaMatch('(prefers-reduced-motion: reduce)');
+  const app = useMotionStore((s) => s.reduce);
+  return system || app;
 }
 
 /** Shared with card compositions so their translateZ layers never bypass the fallback. */
@@ -126,7 +130,7 @@ export function PerspectiveFlipCard({
   const previousFlipped = useRef(Boolean(flipped));
   const [uncontrolledFlipped, setUncontrolledFlipped] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
-  const prefersReducedMotion = useMediaMatch('(prefers-reduced-motion: reduce)');
+  const prefersReducedMotion = usePrefersReducedMotion();
   const supports3d = useNested3dSupport();
   const canUse3d = supports3d && !prefersReducedMotion;
   const hasHoverPointer = useMediaMatch('(hover: hover) and (pointer: fine)');
@@ -236,7 +240,6 @@ export function PerspectiveFlipCard({
             aria-label={`${label}. Mostrar detalles y acciones`}
             aria-controls={contentId}
             aria-expanded={isFlipped}
-            aria-pressed={isFlipped}
             tabIndex={isFlipped ? -1 : 0}
             onClick={handleFrontClick}
           >
@@ -263,8 +266,6 @@ export function PerspectiveFlipCard({
               type="button"
               className="pointer-events-auto inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-border bg-muted px-3 text-xs font-semibold text-foreground transition-transform hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               aria-label={`Volver al resumen de ${label}`}
-              aria-expanded={false}
-              aria-pressed={false}
               onClick={(event) => {
                 event.stopPropagation();
                 returnToFront();

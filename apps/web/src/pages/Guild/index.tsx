@@ -287,7 +287,7 @@ export default function GuildPage() {
             <div className="flex items-center gap-2 mb-2">
               <span className="font-pixel text-text-dim" style={{ fontSize: '12px' }}>CÓDIGO:</span>
               <span className="font-pixel text-accent-gold" style={{ fontSize: '12px' }}>{guild.inviteCode}</span>
-              <FlowButton tone="ghost" size="sm" withArrows={false} onClick={copyCode} className="min-h-11 px-3">
+              <FlowButton tone="ghost" size="sm" withArrows={false} onClick={copyCode} aria-label={copied ? "Código copiado" : "Copiar código de invitación"} className="min-h-11 px-3">
                 {copied ? <Check size={14} /> : <Copy size={14} />}
               </FlowButton>
             </div>
@@ -395,7 +395,8 @@ export default function GuildPage() {
               withArrows={false}
               onClick={handleSendMessage}
               disabled={!msgInput.trim()}
-              className="px-3 py-2 bg-accent-gold border-2 border-accent-gold text-bg-deep hover:opacity-90 disabled:opacity-50 transition-opacity"
+              aria-label="Enviar mensaje"
+              className="px-3 py-2"
             >
               <Send size={16} />
             </FlowButton>

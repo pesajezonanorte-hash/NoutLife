@@ -103,8 +103,8 @@ export default function HistoryPage() {
           <button
             key={key}
             onClick={() => setView(key as 'calendar' | 'charts')}
-            className={`px-3 py-1.5 border-2 font-pixel transition-all ${
-              view === key ? 'border-accent-gold bg-accent-gold text-bg-deep' : 'border-border-pixel text-text-secondary'
+            className={`min-h-11 px-3 py-1.5 border-2 font-pixel transition-all ${
+              view === key ? 'border-primary-strong bg-primary-strong text-on-primary' : 'border-border-pixel text-text-secondary'
             }`}
             style={{ fontSize: '12px' }}
           >
@@ -115,9 +115,9 @@ export default function HistoryPage() {
 
       <LoadingGate loading={loading} fallback={<ModernLoader words={[...LOADING_COPY.history]} />}>
         {loading ? null : view === 'calendar' ? (
-        <PixelPanel className="p-4">
+        <PixelPanel className="p-2 sm:p-4">
           <p className="font-pixel text-text-secondary mb-3" style={{ fontSize: '12px' }}>ACTIVIDAD DIARIA (ÚLTIMOS 30 DÍAS)</p>
-          <div className="grid grid-cols-7 gap-1.5">
+          <div className="grid grid-cols-7 gap-0.5 sm:gap-1.5">
             {calendarDays.map((date) => {
               const day = dayMap.get(date);
               const score = day?.productivityScore ?? 0;
@@ -131,14 +131,13 @@ export default function HistoryPage() {
                   onClick={() => handleDayClick(date, score)}
                   className="aspect-square flex flex-col items-center justify-center border-2 text-center transition-all"
                   style={{
-                    backgroundColor: getProductivityColor(score),
+                    backgroundColor: score === 0 ? 'rgb(var(--lq-surface-variant))' : getProductivityColor(score),
                     borderColor: isSelected ? 'var(--text-primary)' : isToday ? 'var(--accent-gold)' : 'transparent',
-                    opacity: score === 0 ? 0.4 : 1,
                   }}
                   whileHover={{ scale: 1.15 }}
                   title={`${date}: ${day ? `${score} pts, ${day.questsCompleted} misiones, ${day.habitsCompleted} hábitos` : 'Sin actividad'}`}
                 >
-                  <span className="font-vt text-white text-xs font-bold" style={{ textShadow: '0 0 3px rgba(0,0,0,0.55)' }}>{dayNum}</span>
+                  <span className="rounded bg-background/85 px-1 font-vt text-xs font-bold text-on-background">{dayNum}</span>
                 </motion.button>
               );
             })}

@@ -101,7 +101,7 @@ export const useUIStore = create<UIState>((set, get) => ({
     const id = Math.random().toString(36).slice(2);
     set((state) => ({ achievementToasts: [...state.achievementToasts, { id, ...achievement }] }));
     audio.play('achievement');
-    setTimeout(() => get().removeAchievementToast(id), 5000);
+    // El cierre automático (4 s, en pausa con hover/foco) lo gestiona AchievementUnlockedToast.
   },
 
   removeAchievementToast: (id) =>

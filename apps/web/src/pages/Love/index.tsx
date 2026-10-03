@@ -327,7 +327,7 @@ export default function LovePage() {
           <button
             key={key}
             onClick={() => setTab(key)}
-            className={`flex-shrink-0 px-3 py-1.5 border-2 font-pixel transition-all ${tab === key ? 'border-accent-gold bg-accent-gold text-bg-deep' : 'border-border-pixel text-text-secondary hover:border-text-secondary'}`}
+            className={`min-h-11 flex-shrink-0 px-3 py-1.5 border-2 font-pixel transition-all ${tab === key ? 'border-primary-strong bg-primary-strong text-on-primary' : 'border-border-pixel text-text-secondary hover:border-text-secondary'}`}
             style={{ fontSize: '12px' }}
           >
             {label}
