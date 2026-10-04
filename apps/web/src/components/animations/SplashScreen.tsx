@@ -1,11 +1,9 @@
-// Splash inicial: marca + terminal animada (ModernLoader) mientras la app
-// autentica. Continúa el splash estático de index.html (mismo layout), así que
-// el paso de HTML a React no se nota. Sin interacción.
-import { useEffect, useState } from 'react';
-import { AnimatePresence, motion, useReducedMotionConfig } from 'framer-motion';
-import { ease } from '@/lib/motion';
-import { LOADING_COPY } from '@/lib/loadingCopy';
-import { ModernLoader } from '@/components/ui/lq';
+// Splash inicial. La animación (hojas que vuelan y forman la N + «Noutlife»
+// letra a letra) vive en index.html (#lq-boot) como CSS puro, para que empiece
+// en el primer pintado y no se corte al montar React. Este componente solo la
+// desvanece cuando la app está lista y la retira del DOM.
+import { useEffect, useRef, useState } from 'react';
+import { useReducedMotionConfig } from 'framer-motion';
 import { BrandLockup } from '@/components/layout/Brand';
 
 interface Props {
@@ -16,33 +14,28 @@ interface Props {
 
 export function SplashScreen({ ready, onDone }: Props) {
   const reduce = useReducedMotionConfig() ?? false;
-  const [exiting, setExiting] = useState(false);
+  const [boot] = useState(() => document.getElementById('lq-boot'));
+  const done = useRef(onDone);
+  done.current = onDone;
 
   useEffect(() => {
-    if (!ready || exiting) return;
-    const t = window.setTimeout(() => setExiting(true), reduce ? 0 : 180);
+    if (!ready) return;
+    if (!boot) { done.current(); return; }
+    boot.classList.add('out');
+    // La retirada no depende del ciclo de vida del componente: se desmonta al llamar a onDone.
+    const remove = () => boot.remove();
+    boot.addEventListener('transitionend', remove, { once: true });
+    window.setTimeout(remove, 900);
+    // La app se monta debajo mientras el splash se desvanece encima.
+    const t = window.setTimeout(() => done.current(), reduce ? 0 : 120);
     return () => window.clearTimeout(t);
-  }, [exiting, ready, reduce]);
+  }, [boot, ready, reduce]);
 
-  useEffect(() => {
-    if (!exiting) return;
-    const t = window.setTimeout(onDone, reduce ? 0 : 300);
-    return () => window.clearTimeout(t);
-  }, [exiting, onDone, reduce]);
-
+  if (boot) return null;
+  // Sin splash estático (p. ej. recarga en caliente): marca centrada.
   return (
-    <AnimatePresence>
-      {!exiting && (
-        <motion.div
-          className="fixed inset-0 z-[300] flex min-h-dvh flex-col items-center justify-center gap-6 bg-background px-4 text-on-background"
-          initial={false}
-          exit={{ opacity: 0 }}
-          transition={{ duration: reduce ? 0 : 0.3, ease }}
-        >
-          <BrandLockup markSize={44} wordClassName="text-[1.75rem]" />
-          <ModernLoader words={LOADING_COPY.splash} label="Preparando tu aventura" className="max-w-md" />
-        </motion.div>
-      )}
-    </AnimatePresence>
+    <div className="fixed inset-0 z-[300] flex items-center justify-center bg-background">
+      <BrandLockup markSize={44} wordClassName="text-[1.75rem]" />
+    </div>
   );
 }
