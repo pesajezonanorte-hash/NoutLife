@@ -1,112 +1,228 @@
-import { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import api from '../../lib/api';
-import { PixelPanel } from '../../components/ui/PixelPanel';
-import { Skull, Trophy, Swords } from 'lucide-react';
-import { E } from '@/components/ui/glyphs';
-import ModernLoader from '@/components/ui/modern-loader';
-import { useLoadingVisibility } from '@/components/ui/LoadingGate';
-import { LOADING_COPY } from '@/lib/loadingCopy';
+// Campaña (CampaignDesktop). Temporada activa: cuenta atrás en vivo, pase
+// Gratis/Premium, capítulos (eventos), jefe comunitario y tu temporada.
+// Sin temporada: cuenta atrás a la próxima + interruptor «Avísame cuando empiece».
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import { Bell, Coins, Crown, Flag, Gift, Mountain, Skull, Sparkles, Swords, Zap } from 'lucide-react';
+import api from '@/lib/api';
+import { item, stagger } from '@/lib/motion';
+import { useAuthStore } from '@/store/authStore';
+import { useToast } from '@/hooks/useToast';
+import {
+  Badge, BossBar, Button, Card, Countdown, ErrorState, IconChip, LeaderRow, PageLoader, SeasonPassTrack, SegmentedControl,
+  SpotCard, Switch, type PassReward,
+} from '@/components/ui/lq';
 
-interface SeasonParticipant {
-  userId: string;
-  damageDealt: number;
-  user: { displayName: string; username: string; level: number };
-}
-
-interface SeasonEvent {
-  id: string;
-  name: string;
-  description: string;
-  bonusXpMult: number;
-  category?: string;
-  startDate: string;
-  endDate: string;
-}
-
+interface Participant { userId: string; damageDealt: number; user: { displayName: string; username: string; level: number } }
+interface SeasonEvent { id: string; name: string; description: string; bonusXpMult: number; category?: string; startDate: string; endDate: string }
 interface Season {
-  id: string;
-  name: string;
-  description: string;
-  bossName: string;
-  bossHp: number;
-  currentHp: number;
-  startDate: string;
-  endDate: string;
-  isActive: boolean;
+  id: string; name: string; description: string; bossName: string; bossHp: number; currentHp: number;
+  startDate: string; endDate: string; isActive: boolean;
   rewards: Array<{ type: string; amount?: number; itemId?: string }>;
-  participants: SeasonParticipant[];
-  events: SeasonEvent[];
+  participants: Participant[]; events: SeasonEvent[];
+}
+interface SeasonData { season: Season; userDamage: number }
+
+const initials = (n: string) => n.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+const fmt = (n: number) => Math.round(n).toLocaleString('es-CO');
+
+/** Primer día del mes siguiente: fecha de referencia cuando no hay temporada. */
+function nextSeasonDate() {
+  const d = new Date();
+  return new Date(d.getFullYear(), d.getMonth() + 1, 1);
 }
 
-interface SeasonData {
-  season: Season;
-  userDamage: number;
+// TODO(api): sin pase de temporada ni reclamo de recompensas. El pase se construye con
+// las recompensas reales de la temporada: cada una se libera al quitarle al jefe su
+// tramo de vida, y lo reclamado se guarda en este dispositivo.
+function useClaimed(seasonId: string | undefined) {
+  const key = `lq-season-claimed-${seasonId}`;
+  const [claimed, setClaimed] = useState<string[]>([]);
+  useEffect(() => {
+    try { setClaimed(JSON.parse(localStorage.getItem(key) ?? '[]')); } catch { setClaimed([]); }
+  }, [key]);
+  const claim = (id: string) => setClaimed((c) => {
+    const next = [...new Set([...c, id])];
+    try { localStorage.setItem(key, JSON.stringify(next)); } catch { /* sin storage */ }
+    return next;
+  });
+  return { claimed, claim };
 }
 
-function BossHealthBar({ current, max }: { current: number; max: number }) {
-  const pct = Math.max(0, (current / max) * 100);
-  const color = pct > 60 ? 'var(--accent-green)' : pct > 30 ? 'var(--accent-gold)' : 'var(--accent-red)';
+function rewardName(r: Season['rewards'][number]) {
+  if (r.type === 'xp') return `${fmt(r.amount ?? 0)} XP`;
+  if (r.type === 'gold') return `${fmt(r.amount ?? 0)} Gold`;
+  return r.itemId ? r.itemId.replace(/[-_]/g, ' ').replace(/^\w/, (c) => c.toUpperCase()) : 'Objeto';
+}
 
+function Inactive() {
+  const toast = useToast();
+  // TODO(api): sin suscripción a avisos de temporada; la preferencia vive en este dispositivo.
+  const [notify, setNotify] = useState(() => { try { return localStorage.getItem('lq-season-notify') !== 'off'; } catch { return true; } });
+  const toggle = (on: boolean) => {
+    setNotify(on);
+    try { localStorage.setItem('lq-season-notify', on ? 'on' : 'off'); } catch { /* sin storage */ }
+    toast.info(on ? 'Te avisaremos cuando empiece' : 'Aviso desactivado');
+  };
   return (
-    <div className="w-full">
-      <div className="flex justify-between mb-2">
-        <span className="font-pixel text-text-primary" style={{ fontSize: '12px' }}>HP DEL JEFE</span>
-        <span className="font-vt text-text-secondary text-lg">
-          {current.toLocaleString('es-CO')} / {max.toLocaleString('es-CO')}
-        </span>
-      </div>
-      <div
-        className="border-4 border-border-pixel relative overflow-hidden"
-        style={{ height: '32px', background: 'rgba(0,0,0,0.5)' }}
-      >
-        <motion.div
-          className="h-full relative"
-          animate={{ width: `${pct}%` }}
-          transition={{ duration: 1.5, ease: 'easeOut' }}
-          style={{ backgroundColor: color }}
-        >
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 20px, rgba(0,0,0,0.12) 20px, rgba(0,0,0,0.12) 22px)',
-            }}
-          />
-          {/* Shimmer */}
-          <motion.div
-            className="absolute inset-0"
-            style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)' }}
-            animate={{ x: ['-100%', '200%'] }}
-            transition={{ duration: 2, repeat: Infinity, repeatDelay: 3, ease: 'linear' }}
-          />
-        </motion.div>
-        {pct <= 0 && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="font-pixel text-accent-gold" style={{ fontSize: '12px' }}>¡DERROTADO!</span>
+    <motion.div variants={stagger} initial="initial" animate="animate" className="mx-auto flex max-w-[820px] flex-col items-center gap-8 pt-6 text-center md:pt-16">
+      <motion.span variants={item}>
+        <IconChip icon={Mountain} tone="primary" size="lg" className="lq-halo size-24 animate-float rounded-[36px] [.reduce-motion_&]:animate-none md:size-28" />
+      </motion.span>
+      <motion.div variants={item} className="flex flex-col gap-2">
+        <span className="text-label-lg text-primary-text">Campaña</span>
+        <h1 className="text-display-sm md:text-display-md lg:text-display-lg">No hay temporada activa</h1>
+        <p className="text-body-lg text-on-surface-light">Vuelve pronto para la próxima batalla. Mientras tanto, cada XP que ganes cuenta para tu nivel.</p>
+      </motion.div>
+      <motion.div variants={item}><Countdown to={nextSeasonDate()} accent={false} className="justify-center" /></motion.div>
+      <motion.div variants={item} className="w-full">
+        <Card padding="md" className="flex items-center gap-4 text-left">
+          <IconChip icon={Bell} tone="info" />
+          <div className="flex-1">
+            <label htmlFor="season-notify" className="text-label-lg md:text-body-md md:font-semibold">Avísame cuando empiece</label>
+            <div className="text-body-sm text-on-surface-light">Te enviaremos una notificación el primer día.</div>
           </div>
-        )}
-      </div>
-      <div className="mt-1 font-pixel text-center" style={{ fontSize: '12px', color }}>
-        {pct.toFixed(1)}% DE HP RESTANTE
-      </div>
-    </div>
+          <Switch id="season-notify" checked={notify} onChange={(e) => toggle(e.target.checked)} />
+        </Card>
+      </motion.div>
+    </motion.div>
   );
 }
 
-function BossSprite({ defeated }: { defeated: boolean }) {
+function Active({ data }: { data: SeasonData }) {
+  const { season, userDamage } = data;
+  const me = useAuthStore((s) => s.user);
+  const navigate = useNavigate();
+  const toast = useToast();
+  const [track, setTrack] = useState<'free' | 'premium'>('free');
+  const { claimed, claim } = useClaimed(season.id);
+
+  const lost = Math.max(0, season.bossHp - season.currentHp);
+  const lostPct = season.bossHp ? (lost / season.bossHp) * 100 : 0;
+  const ranked = [...season.participants].sort((a, b) => b.damageDealt - a.damageDealt);
+  const myRank = ranked.findIndex((p) => p.userId === String(me?.id)) + 1;
+  const n = Math.max(1, season.rewards.length);
+
+  const rewards: PassReward[] = useMemo(() => season.rewards.slice(0, 10).map((r, i) => {
+    const threshold = ((i + 1) / n) * 100;
+    const id = `${i}`;
+    const state: PassReward['state'] = track === 'premium' ? 'premium' : claimed.includes(id) ? 'claimed' : lostPct >= threshold ? 'claimable' : 'locked';
+    return {
+      level: Math.round(threshold), name: rewardName(r),
+      icon: r.type === 'xp' ? Zap : r.type === 'gold' ? Coins : i === n - 1 ? Crown : Gift,
+      tone: r.type === 'xp' ? 'primary' : r.type === 'gold' ? 'warning' : 'secondary', state,
+    };
+  }), [season.rewards, n, track, claimed, lostPct]);
+  const tier = rewards.filter((r) => lostPct >= r.level).length;
+
   return (
-    <motion.div
-      animate={defeated ? { opacity: 0.3, scale: 0.8 } : { y: [0, -6, 0] }}
-      transition={defeated ? {} : { duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-      className="flex flex-col items-center"
-    >
-      <Skull size={80} className={defeated ? 'text-[#555]' : 'text-accent-red'} />
-      {!defeated && (
-        <motion.div
-          className="w-20 h-1 bg-accent-red/30 rounded-full mt-2"
-          animate={{ scaleX: [1, 0.7, 1] }}
-          transition={{ duration: 2, repeat: Infinity }}
-        />
+    <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-8 md:gap-12">
+      <motion.div variants={item}>
+        <SpotCard className="flex flex-wrap items-center gap-8 md:gap-10">
+          <div className="flex min-w-0 flex-[1_1_380px] flex-col gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-label-lg text-primary-text">Temporada activa</span>
+              <Badge variant="success" icon={Sparkles}>En curso</Badge>
+            </div>
+            <h1 className="text-display-sm md:text-display-md lg:text-display-lg">{season.name}</h1>
+            <p className="max-w-[480px] text-body-lg text-on-surface-light">{season.description}</p>
+            <div className="mt-2 flex flex-wrap gap-3">
+              <Button onClick={() => navigate('/quests')}><Flag aria-hidden className="size-4" strokeWidth={1.75} />Ver misiones</Button>
+            </div>
+          </div>
+          <div className="flex flex-col items-start gap-3">
+            <span className="text-label-lg text-on-surface">Termina en</span>
+            <Countdown to={season.endDate} />
+          </div>
+        </SpotCard>
+      </motion.div>
+
+      {rewards.length > 0 && (
+        <motion.section variants={item} aria-labelledby="pass-t">
+          <Card padding="lg" className="flex flex-col gap-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 id="pass-t" className="text-heading-lg">Pase de temporada</h2>
+                <p className="text-body-sm text-on-surface-light">
+                  <span className="font-mono">{tier}</span> de <span className="font-mono">{rewards.length}</span> recompensas liberadas · se liberan a medida que la comunidad daña al jefe
+                </p>
+              </div>
+              <div className="w-full max-w-[300px]">
+                <SegmentedControl label="Pista" value={track} onChange={setTrack} options={[{ value: 'free', label: 'Gratis' }, { value: 'premium', label: 'Premium' }]} />
+              </div>
+            </div>
+            <SeasonPassTrack
+              key={track}
+              rewards={rewards}
+              progress={lostPct}
+              onClaim={(r) => { claim(String(rewards.indexOf(r))); toast.success(`Reclamaste: ${r.name}`); }}
+            />
+            {track === 'premium' && <p className="text-body-sm text-on-surface-light">La pista Premium todavía no está disponible.</p>}
+          </Card>
+        </motion.section>
+      )}
+
+      <div className="flex flex-wrap items-start gap-6">
+        <motion.section variants={item} aria-labelledby="ch-t" className="flex min-w-0 flex-[2_1_520px] flex-col">
+          <Card padding="lg" className="flex flex-col gap-4">
+            <div className="flex items-center justify-between gap-2">
+              <h2 id="ch-t" className="text-heading-lg">Capítulos</h2>
+              <Badge variant="primary"><span className="font-mono">{season.events.length}</span> eventos</Badge>
+            </div>
+            {season.events.length === 0 ? (
+              <p className="text-body-md text-on-surface-light">Aún no hay eventos en esta temporada.</p>
+            ) : (
+              <motion.ul variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-2">
+                {season.events.map((ev) => {
+                  const live = Date.now() >= new Date(ev.startDate).getTime() && Date.now() <= new Date(ev.endDate).getTime();
+                  return (
+                    <motion.li key={ev.id} variants={item} className="flex min-h-16 items-center gap-3 rounded-xl px-2 py-2 hover:bg-surface-variant">
+                      <IconChip icon={Swords} tone={live ? 'primary' : 'muted'} size="sm" />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-label-lg md:text-body-md md:font-semibold">{ev.name}</div>
+                        <div className="text-body-sm text-on-surface-light">{ev.description}</div>
+                      </div>
+                      <span className="font-mono text-label-lg tabular-nums text-primary-text">×{ev.bonusXpMult} XP</span>
+                    </motion.li>
+                  );
+                })}
+              </motion.ul>
+            )}
+          </Card>
+        </motion.section>
+
+        <div className="flex min-w-0 flex-[1_1_300px] flex-col gap-6">
+          <motion.div variants={item}>
+            <Card padding="lg">
+              <BossBar eyebrow="Jefe de temporada" name={season.bossName} icon={Skull} hp={season.currentHp} maxHp={season.bossHp}
+                note={`${season.participants.length.toLocaleString('es-CO')} aventureros han dañado al jefe. Cada hábito y misión le quita vida.`} />
+            </Card>
+          </motion.div>
+          <motion.div variants={item}>
+            <Card padding="lg" className="flex flex-col gap-3">
+              <h2 className="text-heading-sm">Tu temporada</h2>
+              <div className="grid grid-cols-2 gap-2">
+                <Card padding="sm" className="bg-background"><div className="text-body-sm text-on-surface-light">Tu daño</div><div className="font-mono text-heading-sm tabular-nums">{fmt(userDamage)}</div></Card>
+                <Card padding="sm" className="bg-background"><div className="text-body-sm text-on-surface-light">Puesto</div><div className="font-mono text-heading-sm tabular-nums">{myRank ? `#${myRank}` : '—'}</div></Card>
+              </div>
+            </Card>
+          </motion.div>
+        </div>
+      </div>
+
+      {ranked.length > 0 && (
+        <motion.section variants={item} aria-labelledby="dmg-t">
+          <Card padding="sm" className="flex flex-col gap-1">
+            <h2 id="dmg-t" className="px-3 pb-2 pt-2 text-heading-sm">Más daño al jefe</h2>
+            <ol className="flex flex-col">
+              {ranked.slice(0, 10).map((p, i) => (
+                <LeaderRow key={p.userId} id={p.userId} position={i + 1} name={p.user.displayName} initials={initials(p.user.displayName)}
+                  subtitle={`@${p.user.username} · Nivel ${p.user.level}`} score={fmt(p.damageDealt)} isYou={p.userId === String(me?.id)} toneIndex={i} />
+              ))}
+            </ol>
+          </Card>
+        </motion.section>
       )}
     </motion.div>
   );
@@ -114,193 +230,27 @@ function BossSprite({ defeated }: { defeated: boolean }) {
 
 export default function SeasonPage() {
   const [data, setData] = useState<SeasonData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const showLoading = useLoadingVisibility(loading);
+  const [state, setState] = useState<'loading' | 'error' | 'ready'>('loading');
 
-  const fetchSeason = async () => {
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setState('loading');
     try {
       const res = await api.get<SeasonData>('/seasons/active');
       setData(res.data);
-    } catch {
-      setData(null);
-    } finally {
-      setLoading(false);
+      setState('ready');
+    } catch (e) {
+      // 404 = sin temporada activa.
+      if ((e as { response?: { status?: number } })?.response?.status === 404) { setData(null); setState('ready'); }
+      else if (!silent) setState('error');
     }
-  };
-
-  useEffect(() => {
-    fetchSeason();
-    // Poll every 30s
-    pollingRef.current = setInterval(fetchSeason, 30_000);
-    return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
   }, []);
+  useEffect(() => {
+    void load();
+    const id = window.setInterval(() => void load(true), 30_000);
+    return () => window.clearInterval(id);
+  }, [load]);
 
-  if (showLoading) {
-    return <div className="py-6"><ModernLoader words={[...LOADING_COPY.season]} /></div>;
-  }
-
-  if (loading) return null;
-
-  if (!data?.season) {
-    return (
-      <PixelPanel className="p-8 text-center">
-        <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>
-          No hay temporada activa en este momento.
-        </p>
-        <p className="font-vt text-text-secondary text-lg mt-2">
-          Vuelve pronto para la próxima batalla.
-        </p>
-      </PixelPanel>
-    );
-  }
-
-  const { season, userDamage } = data;
-  const hpPct = (season.currentHp / season.bossHp) * 100;
-  const defeated = season.currentHp <= 0;
-  const daysLeft = Math.max(0, Math.ceil((new Date(season.endDate).getTime() - Date.now()) / 86400000));
-
-  return (
-    <div className="space-y-6">
-      {/* Header épico */}
-      <div className="text-center space-y-1">
-        <h1 className="font-pixel text-accent-red" style={{ fontSize: '14px', textShadow: '3px 3px 0 rgba(0,0,0,0.55), 0 0 20px color-mix(in oklab, var(--accent-red) 50%, transparent)' }}>
-          {season.name}
-        </h1>
-        <p className="font-vt text-text-secondary text-xl">{season.description}</p>
-      </div>
-
-      {/* Boss card */}
-      <PixelPanel className="p-6">
-        <div className="flex flex-col md:flex-row items-center gap-6">
-          <div className="flex-shrink-0 text-center">
-            <BossSprite defeated={defeated} />
-            <p className="font-pixel text-accent-red mt-3" style={{ fontSize: '12px' }}>{season.bossName}</p>
-          </div>
-          <div className="flex-1 w-full">
-            <BossHealthBar current={season.currentHp} max={season.bossHp} />
-
-            {defeated && (
-              <motion.div
-                className="mt-4 p-3 border-2 border-accent-gold bg-accent-gold/10 text-center"
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: 'spring' }}
-              >
-                <p className="font-pixel text-accent-gold" style={{ fontSize: '12px' }}>
-                  ¡VICTORIA ÉPICA DEL REINO!
-                </p>
-              </motion.div>
-            )}
-
-            {hpPct <= 15 && !defeated && (
-              <motion.div
-                className="mt-3 p-2 border-2 border-accent-red bg-accent-red/10"
-                animate={{ opacity: [0.7, 1, 0.7] }}
-                transition={{ duration: 1, repeat: Infinity }}
-              >
-                <p className="font-pixel text-accent-red text-center" style={{ fontSize: '12px' }}>
-                  ¡EL JEFE TIENE {hpPct.toFixed(0)}% DE HP! ¡ÚLTIMO EMPUJÓN!
-                </p>
-              </motion.div>
-            )}
-          </div>
-        </div>
-
-        {/* Stats */}
-        <div className="mt-4 grid grid-cols-3 gap-3 border-t-2 border-border-pixel pt-4">
-          <div className="text-center">
-            <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>TU DAÑO</p>
-            <p className="font-vt text-accent-gold text-2xl">{userDamage.toLocaleString('es-CO')}</p>
-          </div>
-          <div className="text-center">
-            <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>HP RESTANTE</p>
-            <p className="font-vt text-accent-red text-2xl">{season.currentHp.toLocaleString('es-CO')}</p>
-          </div>
-          <div className="text-center">
-            <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>DÍAS RESTANTES</p>
-            <p className="font-vt text-accent-cyan text-2xl">{daysLeft}</p>
-          </div>
-        </div>
-      </PixelPanel>
-
-      {/* Active events */}
-      {season.events.length > 0 && (
-        <div>
-          <h2 className="font-pixel text-accent-gold mb-3" style={{ fontSize: '12px' }}>
-            EVENTOS ACTIVOS
-          </h2>
-          <div className="grid gap-3">
-            {season.events.map((ev) => (
-              <PixelPanel key={ev.id} className="p-3 border-accent-cyan">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-pixel text-accent-cyan" style={{ fontSize: '12px' }}>{ev.name}</p>
-                    <p className="font-vt text-text-secondary text-base mt-1">{ev.description}</p>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <div className="bg-accent-gold text-border-pixel font-pixel px-2 py-1 border-2 border-border-pixel" style={{ fontSize: '12px' }}>
-                      ×{ev.bonusXpMult} XP
-                    </div>
-                    {ev.category && (
-                      <p className="font-pixel text-text-secondary mt-1" style={{ fontSize: '12px' }}>{ev.category}</p>
-                    )}
-                  </div>
-                </div>
-              </PixelPanel>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Rewards */}
-      {season.rewards.length > 0 && (
-        <PixelPanel className="p-4">
-          <h2 className="font-pixel text-accent-gold mb-3" style={{ fontSize: '12px' }}>
-            RECOMPENSAS AL DERROTAR AL JEFE
-          </h2>
-          <div className="flex flex-wrap gap-3">
-            {season.rewards.map((r, i) => (
-              <div key={i} className="flex items-center gap-2 bg-bg-deep border-2 border-border-pixel px-3 py-2">
-                <Trophy size={16} />
-                <span className="font-vt text-text-primary text-lg">
-                  {r.type === 'gold' ? `${r.amount?.toLocaleString('es-CO')} Oro` : `${r.amount} XP`}
-                </span>
-              </div>
-            ))}
-          </div>
-        </PixelPanel>
-      )}
-
-      {/* Top 10 leaderboard */}
-      {season.participants.length > 0 && (
-        <div>
-          <h2 className="font-pixel text-accent-gold mb-3" style={{ fontSize: '12px' }}>
-            HÉROES MÁS VALIENTES
-          </h2>
-          <PixelPanel className="p-0 overflow-hidden">
-            {season.participants.map((p, i) => (
-              <div
-                key={p.userId}
-                className={`flex items-center gap-3 px-4 py-3 border-b border-border-pixel last:border-0 ${i === 0 ? 'bg-accent-gold/10' : ''}`}
-              >
-                <span className="font-pixel text-accent-gold w-6 text-right" style={{ fontSize: '12px' }}>
-                  {i === 0 ? <E e="👑" s={12} /> : `#${i + 1}`}
-                </span>
-                <Swords size={16} className={i === 0 ? 'text-[var(--accent-gold)]' : 'text-[var(--text-secondary)]'} />
-                <div className="flex-1">
-                  <p className="font-pixel text-text-primary" style={{ fontSize: '12px' }}>{p.user.displayName}</p>
-                  <p className="font-vt text-text-secondary text-sm">Lv.{p.user.level}</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-vt text-accent-red text-xl">{p.damageDealt.toLocaleString('es-CO')}</p>
-                  <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>DMG</p>
-                </div>
-              </div>
-            ))}
-          </PixelPanel>
-        </div>
-      )}
-    </div>
-  );
+  if (state === 'loading') return <PageLoader />;
+  if (state === 'error') return <ErrorState onRetry={() => void load()} />;
+  return data?.season?.isActive !== false && data?.season ? <Active data={data} /> : <Inactive />;
 }
