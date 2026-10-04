@@ -3,7 +3,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { Transaction, TransactionCategory } from '@lifequest/shared';
 import { cn } from '@/lib/utils';
-import { Button, Field, Input, ResponsiveDialog, SegmentedControl } from '@/components/ui/lq';
+import { Button, Field, Input, ResponsiveDialog, SegmentedControl, DatePicker } from '@/components/ui/lq';
 import { softTone } from '@/components/ui/lq/tones';
 import { useToastStore } from '@/hooks/useToast';
 import * as financeService from '@/services/finance.service';
@@ -88,7 +88,7 @@ export function TransactionFormDialog({ open, onClose, onSaved }: {
             <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ej. Supermercado" />
           </Field>
           <Field label="Fecha">
-            <Input type="date" value={date} max={today()} onChange={(e) => setDate(e.target.value)} />
+            <DatePicker value={date} max={today()} onChange={setDate} />
           </Field>
         </div>
         {error && <p role="alert" className="text-body-sm text-error-text">{error}</p>}

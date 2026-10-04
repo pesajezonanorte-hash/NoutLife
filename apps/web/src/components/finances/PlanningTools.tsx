@@ -6,7 +6,7 @@ import type { FinancialGoal, TransactionCategory } from '@lifequest/shared';
 import { ArrowDownLeft, ArrowUpRight, CalendarClock, PiggyBank, Plus, Repeat, Target, Trash2, TrendingUp, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatMoney } from '@/lib/lifeMeta';
-import { Badge, Button, Card, EmptyState, ErrorState, Field, IconChip, Input, LineChart, ProgressBar, ResponsiveDialog, SegmentedControl, Select, PageLoader } from '@/components/ui/lq';
+import { Badge, Button, Card, EmptyState, ErrorState, Field, IconChip, Input, LineChart, ProgressBar, ResponsiveDialog, SegmentedControl, Select, PageLoader, DatePicker } from '@/components/ui/lq';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 import { useToastStore } from '@/hooks/useToast';
 import * as financeService from '@/services/finance.service';
@@ -236,7 +236,7 @@ export function GoalsPanel({ money }: { money: Money }) {
           <Field label="Nombre"><Input data-autofocus value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="Ej. Viaje a la costa" /></Field>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Cifra objetivo"><Input type="number" inputMode="decimal" min="0" value={form.targetAmount} onChange={(e) => setForm((f) => ({ ...f, targetAmount: e.target.value }))} /></Field>
-            <Field label="Fecha límite" help="Opcional"><Input type="date" value={form.deadline} onChange={(e) => setForm((f) => ({ ...f, deadline: e.target.value }))} /></Field>
+            <Field label="Fecha límite" help="Opcional"><DatePicker clearable value={form.deadline} onChange={(v) => setForm((f) => ({ ...f, deadline: v }))} /></Field>
           </div>
           <Button type="submit" block loading={saving} disabled={!form.title.trim() || !(Number(form.targetAmount) > 0)}>Crear meta</Button>
         </form>
@@ -328,7 +328,7 @@ export function DebtsPanel({ money }: { money: Money }) {
             <Field label="Monto"><Input type="number" inputMode="decimal" min="0" value={form.originalAmount} onChange={(e) => setForm((f) => ({ ...f, originalAmount: e.target.value }))} /></Field>
             <Field label="Persona" help="Opcional"><Input value={form.personName} onChange={(e) => setForm((f) => ({ ...f, personName: e.target.value }))} /></Field>
           </div>
-          <Field label="Vence" help="Opcional"><Input type="date" value={form.dueDate} onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))} /></Field>
+          <Field label="Vence" help="Opcional"><DatePicker clearable value={form.dueDate} onChange={(v) => setForm((f) => ({ ...f, dueDate: v }))} /></Field>
           <Button type="submit" block loading={saving} disabled={!form.title.trim() || !(Number(form.originalAmount) > 0)}>Guardar deuda</Button>
         </form>
       </ResponsiveDialog>

@@ -11,7 +11,7 @@ import { useDebounce } from '../../hooks/useDebounce';
 import * as journalService from '../../services/journal.service';
 import { relativeTime } from '../../lib/time';
 import { SageContextButton } from '../../components/sage/SageContextButton';
-import { Badge, Button, Card, ChipGroup, EmptyState, ErrorState, Field, IconChip, Input, MOODS, MoodFace, MoodPicker, ResponsiveDialog, StatCard, Textarea, moodOf, type ChipOption, PageLoader } from '@/components/ui/lq';
+import { Badge, Button, Card, ChipGroup, EmptyState, ErrorState, Field, IconChip, Input, MOODS, MoodFace, MoodPicker, ResponsiveDialog, StatCard, Textarea, moodOf, type ChipOption, PageLoader, DatePicker } from '@/components/ui/lq';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 import { softTone } from '@/components/ui/lq/tones';
 
@@ -87,7 +87,7 @@ function EntryForm({ entry, onCancel, onSave, inline }: { entry?: JournalEntry; 
     <form className={'flex flex-col gap-4'} onSubmit={(e) => { e.preventDefault(); void save(); }}>
       {lastSaved && <p role="status" className="rounded-lg bg-surface-variant px-3 py-2 text-body-sm text-on-surface">Guardado automático · {lastSaved.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</p>}
       <Field label="Título (opcional)"><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ej. Un día de foco" /></Field>
-      {!inline && <Field label="Fecha"><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>}
+      {!inline && <Field label="Fecha"><DatePicker value={date} onChange={setDate} /></Field>}
       <Field label="Tu reflexión" help={`${content.length} caracteres · ${words} palabras`}>
         <Textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="Escribe con calma…" rows={inline ? 5 : 8} autoFocus={!entry} className="resize-y" />
       </Field>

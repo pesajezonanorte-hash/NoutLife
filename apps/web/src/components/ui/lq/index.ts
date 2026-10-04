@@ -28,3 +28,4 @@ export { BookCover, type BookCoverProps } from './BookCover';
 export { MoodPicker, MoodFace, MOODS, moodOf, type MoodPickerProps } from './MoodPicker';
 export { TimelineDay, type TimelineItem, type TimelineDayProps } from './TimelineDay';
 export { MonthGrid, type MonthGridProps } from './MonthGrid';
+export { DatePicker, type DatePickerProps } from './DatePicker';

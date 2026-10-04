@@ -15,6 +15,9 @@ const stateCls = (invalid?: boolean) =>
     ? 'border-error ring-[3px] ring-error/[var(--lq-soft-alpha)]'
     : 'border-border-strong hover:border-on-surface-light focus:border-primary focus:ring-[3px] focus:ring-primary/25';
 
+/** Clases de un campo de formulario, para controles propios (p. ej. DatePicker). */
+export const fieldClasses = (invalid?: boolean) => cn(control, stateCls(invalid));
+
 export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   invalid?: boolean;
 }
@@ -77,7 +80,7 @@ export function Field({ label, help, error, className, children }: FieldProps) {
 
   return (
     <div className={cn('flex min-w-0 flex-col gap-1.5', className)}>
-      <label htmlFor={childId} className="text-label-lg text-on-surface">{label}</label>
+      <label id={`${childId}-label`} htmlFor={childId} className="text-label-lg text-on-surface">{label}</label>
       {control}
       {error ? (
         <span id={helpId} className="flex items-center gap-1.5 text-body-sm text-error-text">

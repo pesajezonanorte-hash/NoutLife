@@ -7,7 +7,7 @@ import {
 import type { AvatarConfig } from '@lifequest/shared';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { Field, IconChip, Input, SegmentedControl, Select, type Tone } from '@/components/ui/lq';
+import { Field, IconChip, Input, SegmentedControl, Select, type Tone, DatePicker } from '@/components/ui/lq';
 import { AvatarPreview, AvatarStudio } from '@/components/character/AvatarPixelEditor';
 
 // ── Identidad ────────────────────────────────────────────────────────────────
@@ -30,7 +30,7 @@ export function IdentityFields({ name, onName, nameError, birthDate, onBirthDate
         </div>
       )}
       <Field label="Fecha de nacimiento" help="Opcional. Para celebrar tu cumpleaños en LifeQuest.">
-        <Input type="date" value={birthDate} onChange={(e) => onBirthDate(e.target.value)} max={new Date().toISOString().slice(0, 10)} />
+        <DatePicker clearable value={birthDate} onChange={onBirthDate} max={new Date().toISOString().slice(0, 10)} placeholder="Tu cumpleaños" />
       </Field>
       <div className="flex flex-col gap-1">
         <span className="text-label-lg text-on-surface">Zona horaria</span>
@@ -143,7 +143,7 @@ export function FirstQuestFields({ title, onTitle, titleError, category, onCateg
         </Select>
       </Field>
       <Field label="Fecha objetivo">
-        <Input type="date" value={deadline} onChange={(e) => onDeadline(e.target.value)} min={new Date().toISOString().slice(0, 10)} />
+        <DatePicker value={deadline} onChange={onDeadline} min={new Date().toISOString().slice(0, 10)} />
       </Field>
     </div>
   );

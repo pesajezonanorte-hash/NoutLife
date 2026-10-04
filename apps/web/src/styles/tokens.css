@@ -143,6 +143,9 @@ html.dark {
 }
 
 /* Estudio del personaje: cada píxel que cambia (PixelStage). */
+/* Calendario: los días entran en cascada (el retraso lo pone cada día). */
+.lq-day-in { animation: lq-day-in .38s cubic-bezier(.34, 1.56, .64, 1) backwards; }
+@keyframes lq-day-in { from { opacity: 0; transform: translateY(6px) scale(.6); } }
 .lq-px-in, .lq-px-re, .lq-px-out { transform-box: fill-box; transform-origin: center; }
 .lq-px-in { animation: lq-px-in .5s cubic-bezier(.34, 1.56, .64, 1) both; }
 .lq-px-re { animation: lq-px-re .45s cubic-bezier(.22, 1, .36, 1) both; }
