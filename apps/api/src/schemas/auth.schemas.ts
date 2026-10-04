@@ -17,6 +17,9 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'ContraseÃ±a requerida'),
 });
 
+/** Pre-check used before onboarding: the account is only created once onboarding finishes. */
+export const availabilitySchema = registerSchema.pick({ email: true, username: true });
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 

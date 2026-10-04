@@ -2,6 +2,7 @@ import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence, useReducedMotionConfig } from 'framer-motion';
 import { useAuthStore } from './store/authStore';
+import { useSignupStore } from './store/signupStore';
 import { useUIStore } from './store/uiStore';
 import { useBootstrapAuth } from './hooks/useAuth';
 import { AppShell } from './components/layout/AppShell';
@@ -299,10 +300,12 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
 
 function OnboardingRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading, user } = useAuthStore();
+  // Registro pendiente: el onboarding se hace antes de crear la cuenta.
+  const signingUp = useSignupStore((s) => Boolean(s.draft));
 
   return (
     <LoadingGate loading={isLoading} fallback={<PageLoader />}>
-      {isLoading ? null : !isAuthenticated ? <Navigate to="/login" replace /> : user?.onboardingCompleted ? <Navigate to="/" replace /> : children}
+      {isLoading ? null : !isAuthenticated ? (signingUp ? children : <Navigate to="/register" replace />) : user?.onboardingCompleted ? <Navigate to="/" replace /> : children}
     </LoadingGate>
   );
 }

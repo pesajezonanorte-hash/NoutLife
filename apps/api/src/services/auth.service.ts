@@ -74,6 +74,20 @@ function sanitizeUser(user: {
   };
 }
 
+/** Reports whether the email or username is already taken, without creating anything. */
+export async function checkAvailability(data: Pick<RegisterInput, 'email' | 'username'>) {
+  const normalizedEmail = data.email.trim().toLowerCase();
+  const username = data.username.trim();
+  const existing = await prisma.user.findMany({
+    where: { OR: [{ email: normalizedEmail }, { username }] },
+    select: { email: true, username: true },
+  });
+  return {
+    emailTaken: existing.some((u) => u.email === normalizedEmail),
+    usernameTaken: existing.some((u) => u.username === username),
+  };
+}
+
 export async function registerUser(data: RegisterInput) {
   const normalizedEmail = data.email.trim().toLowerCase();
   const existing = await prisma.user.findFirst({
