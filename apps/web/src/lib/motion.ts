@@ -60,10 +60,6 @@ export const toast: Variants = {
   exit: { opacity: 0, transition: { duration: 0.2 } },
 };
 
-/** Duel entrance (Colosseum) */
-export const fromLeft: Variants = { initial: { opacity: 0, x: -60 }, animate: { opacity: 1, x: 0, transition: spring } };
-export const fromRight: Variants = { initial: { opacity: 0, x: 60 }, animate: { opacity: 1, x: 0, transition: spring } };
-
 /** Habit check: rotate 360 + fill */
 export const check = { animate: (on: boolean) => ({ rotate: on ? 360 : 0, transition: { duration: 0.2 } }) };
 

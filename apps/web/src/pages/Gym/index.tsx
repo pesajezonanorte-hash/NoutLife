@@ -371,7 +371,7 @@ export default function GymPage() {
     try {
       const attendance = await workoutService.recordGymAttendance();
       setAttendances((current) => [...current.filter((i) => i.id !== attendance.id), attendance]);
-      toast.success('Asistencia registrada', 'El Coliseo cuenta tu visita de hoy.');
+      toast.success('Asistencia registrada', 'Tu visita de hoy ya cuenta.');
     } catch {
       toast.error('No se pudo registrar la asistencia');
     } finally {

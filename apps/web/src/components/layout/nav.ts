@@ -5,7 +5,7 @@
 import {
   BarChart3, BookOpen, CalendarDays, HelpCircle, Dumbbell, Flag, Globe, Heart, Home,
   MapPin, Moon, NotebookPen, Scroll, Settings, ShoppingBag, Skull, Sparkles, Sun,
-  Swords, Trophy, User, Users, UtensilsCrossed, Wallet, CheckCircle2, type LucideIcon,
+  Trophy, User, Users, UtensilsCrossed, Wallet, CheckCircle2, type LucideIcon,
 } from 'lucide-react';
 import { useMemo } from 'react';
 import { useAuthStore } from '@/store/authStore';
@@ -65,7 +65,6 @@ export const NAV_SECTIONS: NavSection[] = [
     label: 'Comunidad',
     collapsible: true,
     items: [
-      { to: '/colosseum', label: 'Coliseo', icon: Swords },
       { to: '/leaderboard', label: 'Ranking', icon: Globe },
       { to: '/guild', label: 'Gremio', icon: Users },
       { to: '/season', label: 'Campaña', icon: Skull },

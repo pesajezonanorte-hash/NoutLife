@@ -25,7 +25,7 @@ export const ZONE_TOOLTIPS: Record<string, { title: string; body: string }> = {
   '/quests': { title: 'Misiones', body: 'Aquí conviertes objetivos grandes y pequeños en progreso medible.' },
   '/habits': { title: 'Hábitos', body: 'Tu fuego diario vive aquí: constancia, rachas y disciplina visible.' },
   '/finances': { title: 'Bóveda', body: 'Registra ingresos y gastos para que tu oro tenga dirección.' },
-  '/gym': { title: 'Coliseo', body: 'Entrena, suma sesiones y fortalece tu versión física.' },
+  '/gym': { title: 'Gimnasio', body: 'Entrena, suma sesiones y fortalece tu versión física.' },
   '/wisdom': { title: 'Sabio', body: 'Pide contexto, claridad o estrategia cuando te sientas bloqueado.' },
   '/journal': { title: 'Diario', body: 'Vacía la mente, captura ideas y ordena lo que estás viviendo.' },
   '/stats': { title: 'Life Score', body: 'Aquí ves si tu progreso está realmente equilibrado.' },

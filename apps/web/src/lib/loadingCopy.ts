@@ -27,11 +27,6 @@ export const LOADING_COPY = {
     'Acomodando tus planes…',
     'Consultando tu calendario…',
   ],
-  challenges: [
-    'Preparando los retos…',
-    'Buscando desafíos…',
-    'Reuniendo tus pruebas…',
-  ],
   food: [
     'Preparando tu registro…',
     'Sirviendo tus comidas…',
@@ -136,11 +131,6 @@ export const LOADING_COPY = {
     'Trazando tus proyecciones…',
     'Leyendo tus tendencias…',
     'Preparando tus pronósticos…',
-  ],
-  colosseum: [
-    'Preparando la arena…',
-    'Convocando a los rivales…',
-    'Afilando las espadas…',
   ],
   habits: [
     'Cargando tus hábitos…',
