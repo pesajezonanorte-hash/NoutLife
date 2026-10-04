@@ -424,9 +424,6 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
           </>
         ) : (
           <>
-            <div className="flex justify-center">
-              <AvatarPreview config={config} size={96} />
-            </div>
             <AvatarPixelEditor config={config} onChange={setConfig} />
             <div className="sticky bottom-0 -mx-4 -mb-8 flex gap-2 border-t border-border bg-background px-4 pb-4 pt-4 md:-mx-6 md:-mb-6 md:px-6">
               <Button variant="ghost" onClick={onClose} className="flex-1">Cancelar</Button>

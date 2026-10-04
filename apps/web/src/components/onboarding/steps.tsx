@@ -60,12 +60,7 @@ export function WelcomeContent({ config }: { config: AvatarConfig }) {
 // ── Avatar ───────────────────────────────────────────────────────────────────
 export function AvatarContent({ config, onChange }: { config: AvatarConfig; onChange: (c: AvatarConfig) => void }) {
   return (
-    <div className="flex flex-col gap-6 md:grid md:grid-cols-[200px_1fr] md:items-start md:gap-8">
-      <div className="flex justify-center md:sticky md:top-8">
-        <AvatarPreview config={config} size={120} />
-      </div>
-      <AvatarPixelEditor config={config} onChange={onChange} showBody={false} />
-    </div>
+    <AvatarPixelEditor config={config} onChange={onChange} />
   );
 }
 
