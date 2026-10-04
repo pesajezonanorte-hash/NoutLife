@@ -1,175 +1,156 @@
-import { useState, useEffect } from 'react';
+// Sabiduría (WisdomDesktop): principio del día con Guardar/Compartir/Reflexionar,
+// chips por categoría y principios abiertos o bloqueados por nivel.
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { BookOpen, Lock, Sparkles, Swords, Brain, Coins, Dumbbell, Heart, TreePine, type LucideIcon } from 'lucide-react';
-import * as wisdomService from '../../services/wisdom.service';
-import type { WisdomCard } from '../../services/wisdom.service';
-import { LifeQuestFlipCard } from '../../components/ui/lifequest-flip-card';
-import { E } from '@/components/ui/glyphs';
+import { useNavigate } from 'react-router-dom';
+import { Bookmark, BookOpen, Brain, Coins, HeartPulse, List, NotebookPen, Share2, Sprout, Swords, Users, type LucideIcon } from 'lucide-react';
+import { item, stagger } from '@/lib/motion';
+import { cn } from '@/lib/utils';
+import * as wisdomService from '@/services/wisdom.service';
+import type { WisdomCard } from '@/services/wisdom.service';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { useToast } from '@/hooks/useToast';
+import {
+  Badge, Button, Card, ChipGroup, EmptyState, ErrorState, PageLoader, ProgressBar, QuoteCard, SpotCard, type ChipOption, type Tone,
+} from '@/components/ui/lq';
 
-type CategoryConfig = { label: string; color: string; Icon: LucideIcon };
-
-const CATEGORY_CONFIG: Record<string, CategoryConfig> = {
-  discipline:    { label: 'Disciplina',  color: 'var(--accent-red)',   Icon: Swords },
-  mindset:       { label: 'Mentalidad',  color: 'var(--accent-cyan)',  Icon: Brain },
-  finance:       { label: 'Finanzas',    color: 'var(--accent-gold)',  Icon: Coins },
-  health:        { label: 'Salud',       color: 'var(--accent-green)', Icon: Dumbbell },
-  relationships: { label: 'Relaciones',  color: 'var(--accent-pink)',  Icon: Heart },
-  growth:        { label: 'Crecimiento', color: 'var(--accent-cyan)',  Icon: TreePine },
+type Cat = { label: string; tone: Exclude<Tone, 'muted'>; icon: LucideIcon };
+const CATS: Record<string, Cat> = {
+  discipline: { label: 'Disciplina', tone: 'error', icon: Swords },
+  mindset: { label: 'Mentalidad', tone: 'primary', icon: Brain },
+  finance: { label: 'Finanzas', tone: 'warning', icon: Coins },
+  health: { label: 'Salud', tone: 'success', icon: HeartPulse },
+  relationships: { label: 'Relaciones', tone: 'secondary', icon: Users },
+  growth: { label: 'Crecimiento', tone: 'info', icon: Sprout },
 };
+const catOf = (c: string): Cat => CATS[c] ?? { label: c, tone: 'primary', icon: BookOpen };
 
-function WisdomCardUI({ card, delay = 0 }: { card: WisdomCard; delay?: number }) {
-  const cfg: CategoryConfig = CATEGORY_CONFIG[card.category] ?? { label: card.category, color: 'var(--text-muted)', Icon: BookOpen };
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -2 }}
-      transition={{ delay: delay * 0.05, type: 'spring', stiffness: 300, damping: 25 }}
-      className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-5 flex flex-col gap-3"
-      style={{ borderColor: cfg.color + '33' }}
-    >
-      <div className="flex items-center gap-2">
-        <span className="text-lg"><E e={cfg.Icon} s={18} /></span>
-        <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: cfg.color + '22', color: cfg.color }}>
-          {cfg.label}
-        </span>
-        {card.levelRequired > 1 && (
-          <span className="text-xs text-[var(--text-muted)] ml-auto">Nv. {card.levelRequired}</span>
-        )}
-      </div>
-
-      <blockquote className="text-sm text-[var(--text-primary)] leading-relaxed font-medium italic">
-        "{card.quote}"
-      </blockquote>
-
-      {card.author && (
-        <p className="text-xs text-[var(--text-muted)] text-right">— {card.author}</p>
-      )}
-    </motion.div>
-  );
+// TODO(api): no hay endpoint para guardar principios; se guardan en este dispositivo.
+const SAVED_KEY = 'lq-wisdom-saved';
+function readSaved(): string[] {
+  try { return JSON.parse(localStorage.getItem(SAVED_KEY) ?? '[]'); } catch { return []; }
 }
 
+type Data = Awaited<ReturnType<typeof wisdomService.getAllCards>>;
+
 export default function WisdomPage() {
-  const [data, setData] = useState<{
-    available: WisdomCard[];
-    locked: { id: string; category: string; levelRequired: number }[];
-    userLevel: number;
-  } | null>(null);
-  const [dailyCard, setDailyCard] = useState<WisdomCard | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<string>('all');
+  const navigate = useNavigate();
+  const toast = useToast();
+  const [data, setData] = useState<Data | null>(null);
+  const [daily, setDaily] = useState<WisdomCard | null>(null);
+  const [state, setState] = useState<'loading' | 'error' | 'ready'>('loading');
+  const [cat, setCat] = useState('all');
+  const [saved, setSaved] = useState<string[]>(readSaved);
 
-  useEffect(() => {
-    Promise.allSettled([
-      wisdomService.getDailyCard(),
-      wisdomService.getAllCards(),
-    ]).then(([daily, all]) => {
-      if (daily.status === 'fulfilled') setDailyCard(daily.value);
-      if (all.status === 'fulfilled') setData(all.value);
-    }).finally(() => setLoading(false));
-  }, []);
+  const load = () => {
+    setState('loading');
+    Promise.allSettled([wisdomService.getDailyCard(), wisdomService.getAllCards()]).then(([d, all]) => {
+      if (d.status === 'fulfilled') setDaily(d.value);
+      if (all.status === 'fulfilled') { setData(all.value); setState('ready'); } else setState('error');
+    });
+  };
+  useEffect(load, []);
 
-  const categories = ['all', ...Object.keys(CATEGORY_CONFIG)];
-  const filtered = data?.available.filter((c) =>
-    filter === 'all' || c.category === filter
-  ) ?? [];
-  const featuredWisdom = dailyCard ?? data?.available[0] ?? null;
-  const featuredConfig = featuredWisdom ? (CATEGORY_CONFIG[featuredWisdom.category] ?? { label: featuredWisdom.category, color: 'var(--accent-gold)', Icon: BookOpen }) : null;
-  const remainingWisdom = featuredWisdom ? filtered.filter((card) => card.id !== featuredWisdom.id) : filtered;
+  const featured = daily ?? data?.available[0] ?? null;
+  const total = (data?.available.length ?? 0) + (data?.locked.length ?? 0);
+  const nextLevel = useMemo(() => (data?.locked.length ? Math.min(...data.locked.map((l) => l.levelRequired)) : null), [data]);
+
+  const options: ChipOption<string>[] = [
+    { value: 'all', label: 'Todas', icon: List },
+    ...Object.entries(CATS).map(([value, c]) => ({ value, label: c.label, icon: c.icon })),
+  ];
+  const open = (data?.available ?? []).filter((c) => c.id !== featured?.id && (cat === 'all' || c.category === cat));
+  const locked = (data?.locked ?? []).filter((c) => cat === 'all' || c.category === cat).slice(0, 6);
+
+  const isSaved = featured ? saved.includes(featured.id) : false;
+  const toggleSave = () => {
+    if (!featured) return;
+    const next = isSaved ? saved.filter((id) => id !== featured.id) : [...saved, featured.id];
+    setSaved(next);
+    try { localStorage.setItem(SAVED_KEY, JSON.stringify(next)); } catch { /* sin storage */ }
+  };
+  const share = async () => {
+    if (!featured) return;
+    const text = `“${featured.quote}”${featured.author ? ` — ${featured.author}` : ''}`;
+    try {
+      if (navigator.share) await navigator.share({ text });
+      else { await navigator.clipboard.writeText(text); toast.success('Principio copiado'); }
+    } catch { /* cancelado */ }
+  };
+
+  if (state === 'loading') return <PageLoader />;
+  if (state === 'error') return <ErrorState onRetry={load} />;
+
+  const fc = featured ? catOf(featured.category) : null;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-[var(--text-primary)] flex items-center gap-2">
-          <BookOpen className="text-[var(--accent-gold)]" size={24} />
-          Biblioteca de Sabiduría
-        </h1>
-        <p className="text-sm text-[var(--text-secondary)] mt-1">
-          Principios que desbloqueas con el nivel — {data?.available.length ?? 0} disponibles
-        </p>
-      </div>
+    <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-8 md:gap-12">
+      <PageHeader
+        eyebrow="Sabiduría"
+        title="Biblioteca de principios"
+        description={`Ideas que desbloqueas al subir de nivel. ${data?.available.length ?? 0} de ${total} disponibles.`}
+        aside={
+          <div className="flex w-full max-w-[260px] flex-col gap-1.5">
+            <div className="flex justify-between"><span className="text-body-sm text-on-surface-light">Desbloqueados</span><span className="font-mono text-label-lg tabular-nums">{data?.available.length ?? 0}/{total}</span></div>
+            <ProgressBar value={total ? ((data?.available.length ?? 0) / total) * 100 : 0} shine label="Principios desbloqueados" />
+            {nextLevel && <span className="text-body-sm text-on-surface-light">Siguiente al nivel {nextLevel}</span>}
+          </div>
+        }
+      />
 
-      {/* Featured wisdom uses the 3D surface; the library below remains a lightweight grid. */}
-      {featuredWisdom && featuredConfig && (
-        <LifeQuestFlipCard
-          eyebrow={dailyCard ? 'Sabiduría del día' : 'Principio destacado'}
-          title={featuredConfig.label}
-          description={`“${featuredWisdom.quote}”${featuredWisdom.author ? ` — ${featuredWisdom.author}` : ''}`}
-          visual={<E e={featuredConfig.Icon} s={64} />}
-          visualLabel={`Sabiduría destacada: ${featuredConfig.label}`}
-          badge={featuredWisdom.levelRequired > 1 ? `Nivel ${featuredWisdom.levelRequired}` : 'Disponible'}
-          frontFooter={<p className="text-xs font-semibold [color:var(--flip-accent)]">{data?.available.length ?? 0} principios disponibles</p>}
-          backDescription={<p>Explora más principios de {featuredConfig.label.toLowerCase()} y llévalos a tu práctica diaria con una intención concreta.</p>}
-          metrics={[
-            { label: 'Tu nivel', value: data?.userLevel ?? '—' },
-            { label: 'Disponibles', value: data?.available.length ?? 0 },
-            { label: 'Bloqueadas', value: data?.locked.length ?? 0 },
-          ]}
-          actionLabel="Explorar categoría"
-          onAction={() => { setFilter(featuredWisdom.category); document.getElementById('wisdom-library')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
-          accent="var(--accent-gold)"
-        />
+      {featured && fc && (
+        <motion.div variants={item}>
+          <SpotCard aria-label="Principio del día" className="relative flex flex-col gap-6">
+            <BookOpen aria-hidden className="absolute right-8 top-6 size-28 animate-float text-primary/[var(--lq-soft-alpha)] [.reduce-motion_&]:animate-none md:right-10 md:size-32" strokeWidth={1} />
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-label-lg text-primary-text">{daily ? 'Principio del día' : 'Principio destacado'}</span>
+              <Badge variant={fc.tone} icon={fc.icon}>{fc.label}</Badge>
+            </div>
+            <p className="relative max-w-[760px] text-heading-lg [text-wrap:balance] md:text-display-sm">“{featured.quote}”</p>
+            {featured.author && <p className="text-body-md text-on-surface-light">— {featured.author}</p>}
+            <div className="flex flex-wrap gap-3">
+              <Button variant={isSaved ? 'secondary' : 'primary'} aria-pressed={isSaved} onClick={toggleSave}>
+                <Bookmark aria-hidden className={cn('size-4', isSaved && 'fill-current')} strokeWidth={1.75} />{isSaved ? 'Guardado' : 'Guardar'}
+              </Button>
+              <Button variant="ghost" onClick={share}><Share2 aria-hidden className="size-4" strokeWidth={1.75} />Compartir</Button>
+              <Button variant="ghost" onClick={() => navigate('/journal')}><NotebookPen aria-hidden className="size-4" strokeWidth={1.75} />Reflexionar en el diario</Button>
+            </div>
+          </SpotCard>
+        </motion.div>
       )}
 
-      {/* Filter */}
-      <div id="wisdom-library" className="flex gap-2 flex-wrap">
-        {categories.map((cat) => {
-          const cfg = CATEGORY_CONFIG[cat];
-          return (
-            <button
-              key={cat}
-              onClick={() => setFilter(cat)}
-              aria-pressed={filter === cat}
-              className="min-h-11 px-3 py-1.5 rounded-xl text-xs font-medium transition-all"
-              style={{
-                background: filter === cat ? (cfg?.color ?? 'var(--accent-gold)') + '33' : 'transparent',
-                border: `1px solid ${filter === cat ? (cfg?.color ?? 'var(--accent-gold)') : 'var(--border)'}`,
-                color: filter === cat ? (cfg?.color ?? 'var(--accent-gold)') : 'var(--text-secondary)',
-              }}
-            >
-              {cfg ? <><E e={cfg.Icon} s={13} /> <span>{cfg.label}</span></> : 'Todas'}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Cards grid */}
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="skeleton h-32 rounded-2xl" />
-          ))}
+      <motion.section variants={item} className="flex flex-col gap-6" aria-label="Biblioteca">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <ChipGroup label="Categoría" options={options} value={cat} onChange={setCat} />
+          <span className="text-body-sm text-on-surface-light">Guardados · <span className="font-mono">{saved.length}</span></span>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {remainingWisdom.map((card, i) => (
-            <WisdomCardUI key={card.id} card={card} delay={i} />
-          ))}
-        </div>
-      )}
-
-      {/* Locked section */}
-      {data && data.locked.length > 0 && (
-        <div className="space-y-3">
-          <h3 className="text-sm font-semibold text-[var(--text-muted)] flex items-center gap-2">
-            <Lock size={14} />
-            {data.locked.length} cartas bloqueadas — sigue subiendo de nivel
-          </h3>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {data.locked.slice(0, 6).map((card) => {
-              const cfg = CATEGORY_CONFIG[card.category];
+        {open.length === 0 && locked.length === 0 ? (
+          <EmptyState icon={BookOpen} title="Nada en esta categoría" description="Sube de nivel para desbloquear más principios." />
+        ) : (
+          <motion.ul variants={stagger} initial="initial" animate="animate" className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-6 xl:grid-cols-3">
+            {open.map((c) => {
+              const k = catOf(c.category);
               return (
-                <div key={card.id} className="rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] p-4 flex flex-col items-center gap-2">
-                  <Lock size={20} className="text-[var(--text-muted)]" />
-                  <span className="text-xs text-[var(--text-muted)]"><E e={cfg?.Icon ?? BookOpen} /> {cfg?.label ?? card.category}</span>
-                  <span className="text-xs text-[var(--text-muted)]">Nivel {card.levelRequired}</span>
-                </div>
+                <motion.li key={c.id} variants={item}>
+                  <Card interactive padding="lg" className="h-full">
+                    <QuoteCard category={k.label} icon={k.icon} tone={k.tone} text={c.quote} author={c.author} />
+                  </Card>
+                </motion.li>
               );
             })}
-          </div>
-        </div>
-      )}
-    </div>
+            {locked.map((c) => {
+              const k = catOf(c.category);
+              return (
+                <motion.li key={c.id} variants={item}>
+                  <Card padding="lg" className="h-full bg-background">
+                    <QuoteCard category={k.label} icon={k.icon} tone={k.tone} unlockLevel={c.levelRequired} />
+                  </Card>
+                </motion.li>
+              );
+            })}
+          </motion.ul>
+        )}
+      </motion.section>
+    </motion.div>
   );
 }
