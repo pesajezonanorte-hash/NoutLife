@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotionConfig } from 'framer-motion';
 import { ArrowUp } from 'lucide-react';
 
 /** Volver arriba (la página hace scroll en window). Sobre el FAB en móvil. */
 export function ScrollToTop() {
   const [visible, setVisible] = useState(false);
-  const reduce = useReducedMotion();
+  const reduce = useReducedMotionConfig();
 
   useEffect(() => {
     const onScroll = () => setVisible(window.scrollY > 600);

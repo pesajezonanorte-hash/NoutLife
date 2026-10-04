@@ -19,7 +19,7 @@ export const Switch = forwardRef<HTMLInputElement, SwitchProps>(function Switch(
           'peer-focus-visible:outline peer-focus-visible:outline-[3px] peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary',
           'peer-disabled:opacity-40',
           'after:absolute after:left-[3px] after:top-[3px] after:size-6 after:rounded-full after:bg-background after:shadow-sm',
-          'after:transition-transform after:duration-200 after:ease-out peer-checked:after:translate-x-5',
+          'after:transition-[transform,width] after:duration-300 after:ease-[cubic-bezier(.34,1.56,.64,1)] peer-checked:after:translate-x-5 peer-active:after:scale-x-110',
         )}
       />
     </span>

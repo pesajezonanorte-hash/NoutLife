@@ -18,10 +18,14 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-/** "Reducir movimiento" de la app fuerza el modo reducido; si no, sigue al sistema. */
+/**
+ * "Reducir movimiento" de la app apaga las animaciones. Si no está activo, se
+ * animan siempre: las del sistema de diseño son cortas y de pocos píxeles, y los
+ * bucles decorativos se apagan aparte con la preferencia del sistema (tokens.css).
+ */
 function Motion({ children }: { children: ReactNode }) {
   const reduce = useMotionStore((s) => s.reduce);
-  return <MotionConfig reducedMotion={reduce ? 'always' : 'user'}>{children}</MotionConfig>;
+  return <MotionConfig reducedMotion={reduce ? 'always' : 'never'}>{children}</MotionConfig>;
 }
 
 createRoot(document.getElementById('root')!).render(

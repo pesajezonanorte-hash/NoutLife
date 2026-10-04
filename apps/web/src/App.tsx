@@ -1,6 +1,6 @@
 import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotionConfig } from 'framer-motion';
 import { useAuthStore } from './store/authStore';
 import { useUIStore } from './store/uiStore';
 import { useBootstrapAuth } from './hooks/useAuth';
@@ -224,7 +224,7 @@ function DeferredRouteContent() {
   const [displayedLocation, setDisplayedLocation] = useState(location);
   const [isRoutePending, setIsRoutePending] = useState(false);
   const showLoadingCue = useLoadingVisibility(isRoutePending, { delayMs: LOADER_DELAY_MS });
-  const shouldReduceMotion = useReducedMotion();
+  const shouldReduceMotion = useReducedMotionConfig();
 
   // React Router actualiza la URL al instante, pero aquí esperamos el import de
   // la nueva zona antes de reemplazar el contenido. Eso mantiene la sección

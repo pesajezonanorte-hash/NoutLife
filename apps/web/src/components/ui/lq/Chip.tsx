@@ -22,7 +22,7 @@ export interface ChipGroupProps<T extends string> {
 /** Chip de filtro: píldora 44 px, tinte primary al seleccionar. Úsalo dentro de ChipGroup. */
 export function chipClasses(selected: boolean) {
   return cn(
-    'inline-flex min-h-11 items-center gap-1.5 whitespace-nowrap rounded-full border px-4 text-label-lg transition-[background-color,border-color,color,transform] duration-200 active:scale-[.97] motion-reduce:active:transform-none',
+    'inline-flex min-h-11 items-center gap-1.5 whitespace-nowrap rounded-full border px-4 text-label-lg transition-[background-color,border-color,color,transform] duration-200 active:scale-[.97]',
     selected
       ? 'border-primary/40 bg-primary/[var(--lq-soft-alpha)] text-primary-text'
       : 'border-border bg-background text-on-surface hover:border-primary/40 hover:text-on-background',

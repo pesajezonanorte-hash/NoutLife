@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion, useReducedMotionConfig } from 'framer-motion';
 
 interface PageHeaderProps {
   title: ReactNode;
@@ -22,7 +22,7 @@ export function PageHeader({
   actions,
   className = '',
 }: PageHeaderProps) {
-  const shouldReduceMotion = useReducedMotion();
+  const shouldReduceMotion = useReducedMotionConfig();
 
   return (
     <motion.header

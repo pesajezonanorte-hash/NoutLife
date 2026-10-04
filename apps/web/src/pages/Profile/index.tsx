@@ -267,7 +267,7 @@ export default function ProfilePage() {
           </Select>
         </div>
       </SettingRow>
-      <SettingRow icon={Shield} title="Reducir movimiento" hint="Apagado sigue la preferencia del sistema" htmlFor="pf-motion">
+      <SettingRow icon={Shield} title="Reducir movimiento" hint="Quita todas las animaciones de la app" htmlFor="pf-motion">
         <Switch id="pf-motion" checked={reduce} onChange={(e) => setReduce(e.target.checked)} />
       </SettingRow>
       <Link to="/settings" className="group flex min-h-16 items-center gap-3 py-3 md:min-h-20 md:gap-4">

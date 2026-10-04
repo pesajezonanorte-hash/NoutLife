@@ -7,13 +7,13 @@ import { cn } from '@/lib/utils';
 
 const control =
   'min-h-12 w-full rounded-lg border bg-background px-4 py-2.5 text-body-md text-on-background ' +
-  'transition-[border-color,box-shadow] duration-150 placeholder:text-on-surface-light ' +
+  'transition-[border-color,box-shadow,background-color] duration-200 ease-out placeholder:text-on-surface-light ' +
   'focus:outline-none focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50';
 
 const stateCls = (invalid?: boolean) =>
   invalid
     ? 'border-error ring-[3px] ring-error/[var(--lq-soft-alpha)]'
-    : 'border-border-strong focus:border-primary focus:ring-[3px] focus:ring-primary/25';
+    : 'border-border-strong hover:border-on-surface-light focus:border-primary focus:ring-[3px] focus:ring-primary/25';
 
 export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   invalid?: boolean;

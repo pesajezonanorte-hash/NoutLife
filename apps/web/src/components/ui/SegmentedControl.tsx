@@ -1,5 +1,5 @@
 import { useId, type ReactNode } from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import { motion, useReducedMotionConfig } from "framer-motion";
 
 export interface SegmentedItem<K extends string> {
   key: K;
@@ -25,7 +25,7 @@ export function SegmentedControl<K extends string>({
   fill = true,
   className = "",
 }: SegmentedControlProps<K>) {
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useReducedMotionConfig();
   const indicatorId = useId();
 
   return (
