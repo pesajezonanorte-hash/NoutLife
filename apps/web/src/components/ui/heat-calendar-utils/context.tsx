@@ -1,6 +1,6 @@
 "use client";
 
-import { useReducedMotion } from 'framer-motion';
+import { useReducedMotionConfig } from 'framer-motion';
 import { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import type { HeatCalendarCell, HeatCalendarProps, HeatCalendarSelection } from './types';
 import { addDays, EMPTY, formatMonth, mondayOf, startOfDay, STEPS } from './utils';
@@ -63,7 +63,7 @@ export function useHeatCalendarModel({
   defaultSelection = null,
   onSelectionChange,
 }: HeatCalendarProps): HeatCalendarModel {
-  const reduced = useReducedMotion() ?? false;
+  const reduced = useReducedMotionConfig() ?? false;
   const [hover, setHover] = useState<HeatCalendarCell | null>(null);
   const [internalSelection, setInternalSelection] = useState<HeatCalendarSelection | null>(defaultSelection);
   const [filterLevel, setFilterLevel] = useState<number | null>(null);

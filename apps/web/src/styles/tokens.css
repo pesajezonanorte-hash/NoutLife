@@ -119,11 +119,26 @@ html.dark {
     animation: shimmer 1.4s linear infinite;
   }
 
+  /* Pulsación: escala independiente (propiedad `scale`), compatible con el transform de Framer. */
+  .lq-lift:active { scale: .995; }
+
+  /* Brillo que cruza el botón primario al pasar el cursor. */
+  .lq-shine { position: relative; overflow: hidden; isolation: isolate; }
+  .lq-shine::before {
+    content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+    background: linear-gradient(105deg, transparent 30%, rgb(255 255 255 / .28) 50%, transparent 70%);
+    transform: translateX(-120%);
+  }
+  .lq-shine:hover::before, .lq-shine:focus-visible::before { transform: translateX(120%); transition: transform .7s cubic-bezier(.22, 1, .36, 1); }
+
+  /* Con «reducir movimiento» del sistema se quitan solo los bucles decorativos;
+     las microinteracciones y apariciones se mantienen (cortas y sin desplazamientos grandes). */
   @media (prefers-reduced-motion: reduce) {
-    .lq-lift:hover, .lq-lift:focus-within, .lq-lift:hover .lq-ichip { transform: none; }
     .lq-sheen::after, .lq-skeleton { animation: none; }
   }
   .reduce-motion .lq-lift:hover, .reduce-motion .lq-lift:focus-within, .reduce-motion .lq-lift:hover .lq-ichip { transform: none; }
+  .reduce-motion .lq-lift:active, .reduce-motion .lq-press:active { scale: none; }
+  .reduce-motion .lq-shine::before { display: none; }
   .reduce-motion .lq-sheen::after, .reduce-motion .lq-skeleton { animation: none; }
 }
 
@@ -131,21 +146,18 @@ html.dark {
 @keyframes lq-halo { from { transform: scale(.92); opacity: .55; } to { transform: scale(1.22); opacity: 0; } }
 @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 
-/* Reduced motion: remove movement, keep opacity/color */
+/* Política de movimiento:
+   - Sistema con «reducir movimiento» (p. ej. Windows con los efectos de animación
+     apagados): se mantienen las microinteracciones y apariciones, que son cortas y
+     de pocos píxeles; solo se apagan los bucles decorativos (halo, brillo, shimmer,
+     float y pulse con motion-reduce:animate-none) y el scroll suave.
+   - «Reducir movimiento» de la app (store/motionStore, clase .reduce-motion):
+     apaga todo el movimiento y deja solo opacidad y color. */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: .01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-property: color, background-color, border-color, opacity !important;
-    scroll-behavior: auto !important;
-  }
-  /* Excepción: el despliegue del Sidebar lo inicia el usuario y no desplaza nada
-     bruscamente, así que su ancho sigue animándose con la preferencia del sistema.
-     El ajuste "Reducir movimiento" de la app (.reduce-motion) sí lo desactiva. */
-  html:not(.reduce-motion) .lq-grow { transition-property: width, background-color !important; }
+  html { scroll-behavior: auto; }
 }
 
-/* Mismo efecto con "Reducir movimiento" activado en la app (store/motionStore). */
+/* «Reducir movimiento» activado en la app (store/motionStore). */
 .reduce-motion *, .reduce-motion *::before, .reduce-motion *::after {
   animation-duration: .01ms !important;
   animation-iteration-count: 1 !important;

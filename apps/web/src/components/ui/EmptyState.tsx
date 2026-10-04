@@ -1,4 +1,4 @@
-import { motion, useReducedMotion } from "framer-motion";
+import { motion, useReducedMotionConfig } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
 import { FlowButton } from "./flow-button";
 
@@ -20,7 +20,7 @@ export function EmptyState({
   onAction,
   className = "",
 }: EmptyStateProps) {
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useReducedMotionConfig();
 
   return (
     <motion.section

@@ -1,4 +1,4 @@
-import { motion, useReducedMotion } from "framer-motion";
+import { motion, useReducedMotionConfig } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -12,7 +12,7 @@ interface StatTileProps {
 
 /** Compact metric card with a hairline border and an ambient glow on hover. */
 export function StatTile({ icon: Icon, label, value, index = 0 }: StatTileProps) {
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useReducedMotionConfig();
 
   return (
     <motion.div

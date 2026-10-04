@@ -26,7 +26,7 @@ export function TabBar({ className }: { className?: string }) {
             end={to === '/'}
             aria-current={active ? 'page' : undefined}
             className={cn(
-              'flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-xl text-label-md transition-colors',
+              'group/tab flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-xl text-label-md transition-colors',
               active ? 'text-primary-text' : 'text-on-surface-light hover:text-on-surface',
             )}
           >
@@ -39,7 +39,7 @@ export function TabBar({ className }: { className?: string }) {
                   className="absolute inset-0 rounded-full bg-primary/[var(--lq-soft-alpha)]"
                 />
               )}
-              <Icon aria-hidden className="relative size-6" strokeWidth={1.75} />
+              <Icon aria-hidden className="relative size-6 transition-transform duration-300 ease-[cubic-bezier(.34,1.56,.64,1)] group-active/tab:scale-[.82]" strokeWidth={1.75} />
             </span>
             {label}
           </NavLink>

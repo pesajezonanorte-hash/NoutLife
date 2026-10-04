@@ -1,4 +1,4 @@
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion, useReducedMotionConfig } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { usePageVisibility } from './LoadingGate';
 
@@ -18,7 +18,7 @@ export function InlineLoader({
   className,
   size = 'sm',
 }: InlineLoaderProps) {
-  const reduceMotion = useReducedMotion() ?? false;
+  const reduceMotion = useReducedMotionConfig() ?? false;
   const isPageVisible = usePageVisibility();
   const animate = !reduceMotion && isPageVisible;
   const dotClassName = size === 'md' ? 'h-2 w-2' : 'h-1.5 w-1.5';

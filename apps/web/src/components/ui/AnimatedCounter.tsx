@@ -5,7 +5,7 @@ import {
   AnimatePresence,
   motion,
   useMotionValue,
-  useReducedMotion,
+  useReducedMotionConfig,
   useTransform,
   type Transition,
 } from "framer-motion";
@@ -305,7 +305,7 @@ export function AnimatedCounter({
   className,
   ...props
 }: AnimatedCounterProps) {
-  const reduced = useReducedMotion() ?? false;
+  const reduced = useReducedMotionConfig() ?? false;
 
   const shape = measure(value, decimals, padStart, duration);
   const chars = format(shape, separator, decimalSeparator, grouping);

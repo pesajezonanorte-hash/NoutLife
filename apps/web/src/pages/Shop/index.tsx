@@ -1,6 +1,6 @@
 import { FlowButton } from "@/components/ui/flow-button";
 import { useState, useEffect, useCallback, useRef } from "react";
-import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotionConfig } from "framer-motion";
 import { useAuthStore } from "../../store/authStore";
 import { useToast } from "../../hooks/useToast";
 import { PixelPanel } from "../../components/ui/PixelPanel";
@@ -171,7 +171,7 @@ function ConfirmPurchaseModal({
 }
 
 export default function ShopPage() {
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useReducedMotionConfig();
   const { user, updateUser } = useAuthStore();
   const toast = useToast();
   const [items, setItems] = useState<ShopItem[]>([]);

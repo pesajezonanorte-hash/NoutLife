@@ -1,8 +1,9 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-// "Reducir movimiento" de la app (Perfil y Ajustes). Desactivado = sigue la
-// preferencia del sistema (prefers-reduced-motion); activado = siempre reduce.
+// "Reducir movimiento" de la app (Perfil y Ajustes). Activado = sin animaciones.
+// Desactivado = animaciones del sistema de diseño; con la preferencia del sistema
+// (prefers-reduced-motion) solo se apagan los bucles decorativos (tokens.css).
 // main.tsx pasa el valor a <MotionConfig> y la clase .reduce-motion en <html>
 // aplica en CSS la misma regla que la media query (tokens.css).
 
