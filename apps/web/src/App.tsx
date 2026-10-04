@@ -352,8 +352,8 @@ export default function App() {
   useEffect(() => {
     // Keep the launch transition perceptible without retaining the old,
     // disconnected four-second loading scene.
-    // La animación de arranque (index.html) termina hacia los 2,8 s; con «Reducir movimiento», 0,5 s.
-    const minDelay = window.setTimeout(() => setMinimumSplashElapsed(true), document.documentElement.classList.contains('lq-rm') ? 500 : 2800);
+    // La animación de arranque (index.html) termina hacia los 3 s; con «Reducir movimiento», 0,5 s.
+    const minDelay = window.setTimeout(() => setMinimumSplashElapsed(true), document.documentElement.classList.contains('lq-rm') ? 500 : 3000);
     return () => window.clearTimeout(minDelay);
   }, []);
 
