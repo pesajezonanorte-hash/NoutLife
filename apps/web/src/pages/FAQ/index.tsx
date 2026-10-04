@@ -1,101 +1,156 @@
-import { useState } from 'react';
+// Ayuda (HelpDesktop): búsqueda en vivo sin tildes + chips de categoría,
+// acordeones con aria-expanded y «¿Te sirvió?», estado sin resultados y 3 tarjetas de contacto.
+import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronDown } from 'lucide-react';
-import { PixelPanel } from '../../components/ui/PixelPanel';
-import { E } from '@/components/ui/glyphs';
+import { Link } from 'react-router-dom';
+import { Check, MessageCircle, Search, ShieldCheck, Sparkles, ThumbsDown, ThumbsUp, Trophy, Zap, type LucideIcon } from 'lucide-react';
+import { item, pop3, stagger } from '@/lib/motion';
+import { useUIStore } from '@/store/uiStore';
+import { useShellStore } from '@/store/shellStore';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { AccordionItem, Button, ChipGroup, EmptyState, IconChip, SpotCard, type ChipOption, type Tone } from '@/components/ui/lq';
 
-interface QA { q: string; a: string }
+type CatId = 'start' | 'game' | 'sabio' | 'account';
+const CATS: Record<CatId, { label: string; tone: Exclude<Tone, 'muted'>; icon: LucideIcon }> = {
+  start: { label: 'Primeros pasos', tone: 'primary', icon: Zap },
+  game: { label: 'Juego y XP', tone: 'warning', icon: Trophy },
+  sabio: { label: 'El Sabio', tone: 'secondary', icon: Sparkles },
+  account: { label: 'Cuenta y datos', tone: 'success', icon: ShieldCheck },
+};
 
-const FAQ: QA[] = [
-  {
-    q: '¿Qué es LifeQuest?',
-    a: 'Un RPG gamificado para tu vida real. Convierte tus metas, hábitos, entrenamientos, finanzas y aprendizaje en misiones épicas. Ganas XP, subes de nivel y vas desbloqueando logros — todo basado en lo que haces de verdad.',
-  },
-  {
-    q: '¿Cómo funcionan las quests?',
-    a: 'Las misiones representan tareas, proyectos y metas concretas. Puedes definir su dificultad, fecha límite y pasos para medir el progreso. Al completarlas ganas XP, oro y suben tus stats. Las acciones recurrentes se crean como hábitos, donde tienen frecuencia y racha propias.',
-  },
-  {
-    q: '¿Cómo se calcula el XP y los niveles?',
-    a: 'Cada acción (completar una quest, registrar un hábito, entrenar, dormir, escribir en el diario, etc.) te da XP. Al acumular suficiente XP subes de nivel. Cada nivel pide más XP que el anterior. Tu clase de héroe (Guerrero, Mago, Pícaro, Bardo) puede dar bonus multiplicador en ciertas áreas.',
-  },
-  {
-    q: '¿Qué son los hábitos y las rachas?',
-    a: 'Los hábitos son acciones diarias que repites (meditar, leer, hacer ejercicio…). Cada vez que registras un hábito sube tu racha. Si fallas un día, la racha se reinicia. Las rachas largas te dan más XP por completion.',
-  },
-  {
-    q: '¿Quién es el Sabio del Castillo?',
-    a: 'Tu mentor de IA personal. Te puede sugerir misiones, analizar tus hábitos, planificar entrenamientos, darte un consejo del día y responder lo que le preguntes sobre tu vida en el juego. Tiene memoria de tus conversaciones anteriores.',
-  },
-  {
-    q: '¿Mis datos están seguros?',
-    a: 'Sí. Cada usuario solo ve sus propios datos. Las contraseñas se guardan hasheadas con bcrypt y los tokens de sesión expiran. Tu diario, finanzas y datos personales nunca son visibles para otros usuarios.',
-  },
-  {
-    q: '¿Qué muestran los amigos en mi perfil?',
-    a: 'Solo lo gamificado: nivel, logros desbloqueados, rachas, posición en los leaderboards. Nunca verán tu diario, tus transacciones ni tus datos privados.',
-  },
-  {
-    q: '¿Puedo usar LifeQuest sin Spotify o sin la IA?',
-    a: 'Sí. Spotify, Google Calendar, Google Fit y el Sabio son integraciones opcionales. La app funciona perfecto sin ellos; cuando alguno falla, la app sigue como si nada.',
-  },
-  {
-    q: '¿Funciona en el celular?',
-    a: 'Sí. Está optimizada para mobile y desktop, y la puedes instalar como PWA desde el navegador (Android e iOS). Una vez instalada queda como una app normal.',
-  },
-  {
-    q: '¿Cómo reporto un bug o sugiero algo?',
-    a: 'Usa el botón " Feedback" en la esquina inferior derecha o en Settings. Tu mensaje llega directo al equipo de LifeQuest.',
-  },
+const FAQ: Array<{ cat: CatId; q: string; a: string; privacy?: boolean }> = [
+  { cat: 'start', q: '¿Qué es LifeQuest?', a: 'Un RPG para tu vida real. Conviertes metas, hábitos, entrenamientos, finanzas y aprendizaje en misiones: ganas XP, subes de nivel y desbloqueas logros según lo que haces de verdad.' },
+  { cat: 'game', q: '¿Cómo funcionan las misiones?', a: 'Las misiones son objetivos más grandes que un hábito, con dificultad, fecha límite y pasos. Al completar el último paso puedes cerrarlas y recibir su XP y oro. Las acciones recurrentes se crean como hábitos.' },
+  { cat: 'game', q: '¿Cómo se calculan el XP y los niveles?', a: 'Cada acción registrada suma XP: hábitos, misiones, entrenamientos, sueño, entradas del diario y más. Cada nivel pide algo más de XP que el anterior; tu barra de nivel muestra cuánto falta.' },
+  { cat: 'game', q: '¿Qué son los hábitos y las rachas?', a: 'Un hábito es una acción recurrente. La racha cuenta los días seguidos que lo completas; si fallas un día se reinicia, salvo que uses un Pase de perdón de la Tienda.' },
+  { cat: 'sabio', q: '¿Quién es el Sabio?', a: 'Es el asistente con IA de LifeQuest. Te sugiere rutinas y misiones, crea zonas personalizadas, analiza tus hábitos y responde preguntas sobre tu progreso. Recuerda tus conversaciones anteriores.' },
+  { cat: 'account', q: '¿Mis datos están seguros?', a: 'Tus registros son privados y solo tú los ves, salvo lo que decidas compartir con amigos o tu gremio. Las contraseñas se guardan cifradas y las sesiones caducan.', privacy: true },
+  { cat: 'account', q: '¿Qué ven mis amigos en mi perfil?', a: 'Tu nombre, nivel, logros desbloqueados, rachas y posición en el ranking. Tus finanzas, diario y datos de salud nunca se muestran.' },
+  { cat: 'sabio', q: '¿Puedo usar LifeQuest sin Spotify o sin la IA?', a: 'Sí. Spotify, Google Calendar y el Sabio son opcionales; todo el núcleo funciona sin ellos y puedes desactivar las sugerencias en Ajustes.' },
+  { cat: 'start', q: '¿Funciona en el celular?', a: 'Sí. La interfaz se adapta a cualquier pantalla desde 375 px, con barra inferior y botón de acción rápida en móvil, y puedes instalarla como app desde el navegador.' },
+  { cat: 'start', q: '¿Cómo reporto un error o sugiero algo?', a: 'Usa «Enviar feedback» arriba o la tarjeta «Reportar un problema» al final de esta página. Tu mensaje llega directo al equipo.' },
 ];
 
-function Item({ qa, open, onToggle }: { qa: QA; open: boolean; onToggle: () => void }) {
-  return (
-    <PixelPanel className="p-0 overflow-hidden">
-      <button
-        onClick={onToggle}
-        className="w-full text-left px-4 py-3 flex items-center justify-between gap-3 hover:bg-[var(--bg-panel-hover)] transition-colors"
-      >
-        <span className="font-vt text-[var(--text-primary)] text-lg">{qa.q}</span>
-        <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2 }}>
-          <ChevronDown size={18} className="text-[var(--text-secondary)]" />
-        </motion.span>
-      </button>
-      {open && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          exit={{ opacity: 0, height: 0 }}
-          className="px-4 pb-4 pt-1"
-        >
-          <p className="font-vt text-[var(--text-secondary)] text-base leading-relaxed">{qa.a}</p>
-        </motion.div>
-      )}
-    </PixelPanel>
-  );
-}
+/** Minúsculas y sin tildes: «sueno» encuentra «sueño». */
+const norm = (t: string) => t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 
 export default function FAQPage() {
-  const [openIdx, setOpenIdx] = useState<number | null>(0);
+  const openSage = useUIStore((s) => s.openSage);
+  const openFeedback = useShellStore((s) => s.setFeedbackOpen);
+  const [q, setQ] = useState('');
+  const [cat, setCat] = useState<'all' | CatId>('all');
+  const [open, setOpen] = useState<Record<number, boolean>>({ 0: true });
+  const [vote, setVote] = useState<Record<number, 'y' | 'n'>>({});
+
+  const query = norm(q.trim());
+  const list = useMemo(
+    () => FAQ.map((f, i) => ({ f, i })).filter(({ f }) => (cat === 'all' || f.cat === cat) && (!query || norm(`${f.q} ${f.a}`).includes(query))),
+    [cat, query],
+  );
+  const options: ChipOption<'all' | CatId>[] = [{ value: 'all', label: 'Todo' }, ...(Object.keys(CATS) as CatId[]).map((id) => ({ value: id, label: CATS[id].label }))];
 
   return (
-    <div className="space-y-4 max-w-3xl mx-auto">
-      <div>
-        <h1 className="font-pixel text-accent-gold" style={{ fontSize: '14px' }}><E e="❓" /> AYUDA Y PREGUNTAS</h1>
-        <p className="font-vt text-text-secondary text-base">Todo lo que necesitas saber para empezar</p>
-      </div>
+    <motion.div variants={stagger} initial="initial" animate="animate" className="mx-auto flex max-w-[960px] flex-col gap-8 md:gap-12">
+      <PageHeader
+        eyebrow="Ayuda y preguntas"
+        title="¿En qué te ayudamos?"
+        description="Todo lo que necesitas saber para empezar tu aventura."
+        aside={<Button variant="secondary" size="md" onClick={() => openFeedback(true)}><MessageCircle aria-hidden className="size-4" strokeWidth={1.75} />Enviar feedback</Button>}
+      />
 
-      <div className="space-y-2">
-        {FAQ.map((qa, i) => (
-          <Item key={i} qa={qa} open={openIdx === i} onToggle={() => setOpenIdx(openIdx === i ? null : i)} />
-        ))}
-      </div>
+      <motion.section variants={item} className="flex flex-col gap-4" aria-label="Buscar en la ayuda">
+        <div className="relative">
+          <label htmlFor="help-q" className="sr-only">Buscar en la ayuda</label>
+          <Search aria-hidden className="pointer-events-none absolute left-[18px] top-4 size-6 text-on-surface-light" strokeWidth={1.75} />
+          <input
+            id="help-q" type="search" value={q} onChange={(e) => setQ(e.target.value)}
+            placeholder="Busca: XP, rachas, Sabio, datos…"
+            className="min-h-14 w-full rounded-2xl border border-border-strong bg-background pl-[52px] pr-4 text-[1.0625rem] text-on-background transition-[border-color,box-shadow] placeholder:text-on-surface-light hover:border-on-surface-light focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/25"
+          />
+        </div>
+        <ChipGroup label="Categoría" options={options} value={cat} onChange={setCat} />
+      </motion.section>
 
-      <PixelPanel className="p-4 text-center mt-6">
-        <p className="font-vt text-[var(--text-secondary)] text-base">
-          ¿Algo que no resolví? Usa el botón <span className="text-[var(--accent-gold)]"><E e="💬" /> Feedback</span> para escribirnos.
+      <motion.section variants={item} className="flex flex-col gap-3" aria-label="Preguntas frecuentes">
+        <p aria-live="polite" className="text-body-sm text-on-surface-light">
+          {query ? `${list.length} ${list.length === 1 ? 'resultado' : 'resultados'}` : `${list.length} preguntas frecuentes`}
         </p>
-      </PixelPanel>
-    </div>
+        {list.length === 0 ? (
+          <motion.div variants={pop3} initial="initial" animate="animate">
+            <EmptyState
+              icon={Search} tone="muted"
+              title={`Sin resultados para “${q.trim()}”`}
+              description="Prueba con otra palabra o pregúntale directamente al Sabio."
+              action={<div className="flex flex-wrap justify-center gap-3">
+                <Button variant="secondary" onClick={() => { setQ(''); setCat('all'); }}>Limpiar búsqueda</Button>
+                <Button onClick={() => openSage(q.trim())}><Sparkles aria-hidden className="size-4" strokeWidth={1.75} />Preguntar al Sabio</Button>
+              </div>}
+            />
+          </motion.div>
+        ) : (
+          <motion.div key={`${cat}-${query}`} variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-3">
+            {list.map(({ f, i }) => {
+              const c = CATS[f.cat];
+              // Con 1–2 resultados de búsqueda se abren solos.
+              const isOpen = Boolean(open[i]) || (Boolean(query) && list.length <= 2);
+              const v = vote[i];
+              return (
+                <motion.div key={i} variants={item}>
+                  <AccordionItem
+                    title={f.q}
+                    open={isOpen}
+                    onToggle={() => setOpen((o) => ({ ...o, [i]: !isOpen }))}
+                    leading={<IconChip icon={c.icon} tone={c.tone} size="sm" className="size-9 rounded-[10px] [&>svg]:size-4" />}
+                  >
+                    <div className="flex flex-col gap-3.5 px-4 pb-5 md:pl-[72px] md:pr-5">
+                      <p className="text-body-md text-on-surface">
+                        {f.a}
+                        {/* TODO: enlazar la política de privacidad vigente cuando exista su página. */}
+                        {f.privacy && <> Consulta <Link to="/about" className="font-semibold text-primary-text underline-offset-4 hover:underline">Acerca de</Link> para el detalle.</>}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-body-sm text-on-surface-light">¿Te sirvió?</span>
+                        <Button size="sm" variant={v === 'y' ? 'primary' : 'secondary'} aria-pressed={v === 'y'} onClick={() => setVote((x) => ({ ...x, [i]: 'y' }))}>
+                          <ThumbsUp aria-hidden className="size-4" strokeWidth={1.75} />Sí
+                        </Button>
+                        <Button size="sm" variant={v === 'n' ? 'primary' : 'secondary'} aria-pressed={v === 'n'} onClick={() => setVote((x) => ({ ...x, [i]: 'n' }))}>
+                          <ThumbsDown aria-hidden className="size-4" strokeWidth={1.75} />No
+                        </Button>
+                        {v && (
+                          <motion.span variants={pop3} initial="initial" animate="animate" className="flex items-center gap-1 text-body-sm text-success-text">
+                            <Check aria-hidden className="size-4" strokeWidth={2} />Gracias
+                          </motion.span>
+                        )}
+                      </div>
+                    </div>
+                  </AccordionItem>
+                </motion.div>
+              );
+            })}
+          </motion.div>
+        )}
+      </motion.section>
+
+      <motion.section variants={item} aria-label="Más ayuda" className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {[
+          { icon: Sparkles, tone: 'primary' as const, title: 'Pregúntale al Sabio', body: 'Respuestas al instante sobre tu progreso.', onClick: () => openSage('Tengo una duda sobre LifeQuest: ') },
+          { icon: MessageCircle, tone: 'warning' as const, title: 'Reportar un problema', body: 'Cuéntanos qué pasó y lo revisamos.', onClick: () => openFeedback(true) },
+          { icon: ShieldCheck, tone: 'success' as const, title: 'Privacidad', body: 'Cómo tratamos tus datos.', to: '/about' },
+        ].map((card) => {
+          const inner = (
+            <>
+              <IconChip icon={card.icon} tone={card.tone} />
+              <span className="text-heading-sm">{card.title}</span>
+              <span className="text-body-sm text-on-surface-light">{card.body}</span>
+            </>
+          );
+          return card.to ? (
+            <SpotCard key={card.title} as={Link} to={card.to} padding="md" className="flex flex-col gap-2.5 text-on-background">{inner}</SpotCard>
+          ) : (
+            <SpotCard key={card.title} as="button" type="button" onClick={card.onClick} padding="md" className="flex flex-col items-start gap-2.5 text-left text-on-background">{inner}</SpotCard>
+          );
+        })}
+      </motion.section>
+    </motion.div>
   );
 }
