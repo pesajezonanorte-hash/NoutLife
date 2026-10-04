@@ -125,7 +125,7 @@ export default function StatsPage() {
   const withData = zones.filter((z) => z.hasData).length;
   const coverage = zones.length ? Math.round((withData / zones.length) * 100) : 0;
   const lifeScore = dyn?.totalScore ?? life?.total ?? 0;
-  const xpTotal = summary?.xp.value ?? xp?.totalXp ?? 0;
+  const xpTotal = summary?.xp.value || xp?.totalXp || 0;
   const labels = useMemo(() => {
     const d = xp?.data ?? [];
     if (d.length < 2) return [];

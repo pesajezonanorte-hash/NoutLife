@@ -13,7 +13,7 @@ export const springSoft: Transition = { type: 'spring', stiffness: 300, damping:
 
 /** Reducir movimiento (ajuste de la app), leído al resolver la variante. */
 const reduced = () => useMotionStore.getState().reduce;
-/** Entrada v3: y 24 + scale .985 + blur 6 px → 0. La blur es solo de entrada y
+/** Entrada v3: y 24 + scale .985 + blur 6 px → 0 (con «Reducir movimiento», solo opacidad). La blur es solo de entrada y
  *  termina en `filter: none` (un filtro residual crearía containing block para los fixed). */
 const blurIn = () => (reduced() ? { opacity: 0 } : { opacity: 0, y: 24, scale: 0.985, filter: 'blur(6px)' });
 
@@ -27,11 +27,13 @@ export const pressSpring: Transition = { type: 'spring', stiffness: 520, damping
 /** Transición de ruta (page3): AnimatePresence mode="wait" alrededor de las rutas. */
 export const page3: Variants = {
   initial: blurIn,
-  animate: {
-    opacity: 1, y: 0, scale: 1, filter: 'blur(0px)',
-    transition: { duration: 0.8, ease: expo, staggerChildren: 0.06 },
-    transitionEnd: { filter: 'none' },
-  },
+  animate: () => (reduced()
+    ? { opacity: 1, transition: { duration: 0.2, staggerChildren: 0.06 } }
+    : {
+        opacity: 1, y: 0, scale: 1, filter: 'blur(0px)',
+        transition: { duration: 0.8, ease: expo, staggerChildren: 0.06 },
+        transitionEnd: { filter: 'none' },
+      }),
   exit: { opacity: 0, transition: { duration: 0.2 } },
 };
 export const page = page3;
@@ -40,11 +42,13 @@ export const page = page3;
 export const stagger: Variants = { animate: { transition: { staggerChildren: 0.06, delayChildren: 0.04 } } };
 export const item3: Variants = {
   initial: blurIn,
-  animate: {
-    opacity: 1, y: 0, scale: 1, filter: 'blur(0px)',
-    transition: { duration: 0.7, ease: expo },
-    transitionEnd: { filter: 'none' },
-  },
+  animate: () => (reduced()
+    ? { opacity: 1, transition: { duration: 0.2 } }
+    : {
+        opacity: 1, y: 0, scale: 1, filter: 'blur(0px)',
+        transition: { duration: 0.7, ease: expo },
+        transitionEnd: { filter: 'none' },
+      }),
 };
 export const item = item3;
 export const pop3: Variants = { initial: { opacity: 0, scale: 0.88 }, animate: { opacity: 1, scale: 1, transition: springSoft } };

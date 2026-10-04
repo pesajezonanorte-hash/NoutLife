@@ -84,8 +84,8 @@ const STATE = {
 export function SeasonPassTrack({ rewards, progress, onClaim, className }: SeasonPassTrackProps) {
   return (
     <div className={cn('-mx-4 overflow-x-auto px-4 pb-4 pt-2 md:mx-0 md:px-1', className)}>
-      <ol className="relative grid min-w-max auto-cols-[112px] grid-flow-col gap-4">
-        <span aria-hidden className="absolute left-9 right-9 top-[35px] h-1 overflow-hidden rounded-full bg-surface-variant">
+      <ol className="relative grid w-max auto-cols-[112px] grid-flow-col gap-4">
+        <span aria-hidden className="absolute left-14 right-14 top-[35px] h-1 overflow-hidden rounded-full bg-surface-variant">
           <motion.span
             className="block h-full origin-left rounded-full bg-primary"
             initial={{ scaleX: 0 }} animate={{ scaleX: Math.max(0, Math.min(1, progress / 100)) }}
@@ -101,6 +101,8 @@ export function SeasonPassTrack({ rewards, progress, onClaim, className }: Seaso
               className="relative flex flex-col items-center gap-2.5 text-center"
               initial={{ opacity: 0, scale: 0.88 }} animate={{ opacity: 1, scale: 1 }} transition={{ ...springSoft, delay: 0.15 + i * 0.06 }}
             >
+              {/* Fondo opaco: la línea de la pista no se ve a través del tinte. */}
+              <span className="relative z-10 rounded-[22px] bg-surface">
               <button
                 type="button"
                 disabled={r.state !== 'claimable'}
@@ -114,6 +116,7 @@ export function SeasonPassTrack({ rewards, progress, onClaim, className }: Seaso
               >
                 <r.icon aria-hidden className="size-8" strokeWidth={1.75} />
               </button>
+              </span>
               <span className="text-label-md text-on-surface-light">NIVEL {r.level}</span>
               <span className={cn('text-body-sm leading-tight', locked ? 'text-on-surface-light' : 'text-on-background')}>{r.name}</span>
               <Badge variant={st.badge} icon={st.icon}>{st.label}</Badge>

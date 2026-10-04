@@ -100,11 +100,11 @@ function Active({ data }: { data: SeasonData }) {
 
   const lost = Math.max(0, season.bossHp - season.currentHp);
   const lostPct = season.bossHp ? (lost / season.bossHp) * 100 : 0;
-  const ranked = [...season.participants].sort((a, b) => b.damageDealt - a.damageDealt);
+  const ranked = [...(season.participants ?? [])].sort((a, b) => b.damageDealt - a.damageDealt);
   const myRank = ranked.findIndex((p) => p.userId === String(me?.id)) + 1;
-  const n = Math.max(1, season.rewards.length);
+  const n = Math.max(1, season.rewards?.length ?? 0);
 
-  const rewards: PassReward[] = useMemo(() => season.rewards.slice(0, 10).map((r, i) => {
+  const rewards: PassReward[] = useMemo(() => (season.rewards ?? []).slice(0, 10).map((r, i) => {
     const threshold = ((i + 1) / n) * 100;
     const id = `${i}`;
     const state: PassReward['state'] = track === 'premium' ? 'premium' : claimed.includes(id) ? 'claimed' : lostPct >= threshold ? 'claimable' : 'locked';
@@ -168,13 +168,13 @@ function Active({ data }: { data: SeasonData }) {
           <Card padding="lg" className="flex flex-col gap-4">
             <div className="flex items-center justify-between gap-2">
               <h2 id="ch-t" className="text-heading-lg">Capítulos</h2>
-              <Badge variant="primary"><span className="font-mono">{season.events.length}</span> eventos</Badge>
+              <Badge variant="primary"><span className="font-mono">{(season.events ?? []).length}</span> eventos</Badge>
             </div>
-            {season.events.length === 0 ? (
+            {(season.events ?? []).length === 0 ? (
               <p className="text-body-md text-on-surface-light">Aún no hay eventos en esta temporada.</p>
             ) : (
               <motion.ul variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-2">
-                {season.events.map((ev) => {
+                {(season.events ?? []).map((ev) => {
                   const live = Date.now() >= new Date(ev.startDate).getTime() && Date.now() <= new Date(ev.endDate).getTime();
                   return (
                     <motion.li key={ev.id} variants={item} className="flex min-h-16 items-center gap-3 rounded-xl px-2 py-2 hover:bg-surface-variant">
@@ -196,7 +196,7 @@ function Active({ data }: { data: SeasonData }) {
           <motion.div variants={item}>
             <Card padding="lg">
               <BossBar eyebrow="Jefe de temporada" name={season.bossName} icon={Skull} hp={season.currentHp} maxHp={season.bossHp}
-                note={`${season.participants.length.toLocaleString('es-CO')} aventureros han dañado al jefe. Cada hábito y misión le quita vida.`} />
+                note={`${(season.participants?.length ?? 0).toLocaleString('es-CO')} aventureros han dañado al jefe. Cada hábito y misión le quita vida.`} />
             </Card>
           </motion.div>
           <motion.div variants={item}>

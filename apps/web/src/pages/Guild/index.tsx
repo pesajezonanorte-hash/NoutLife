@@ -153,14 +153,14 @@ function InGuild({ guild, onLeft }: { guild: Guild; onLeft: () => void }) {
   useEffect(() => { feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight, behavior: 'smooth' }); }, [messages.length]);
 
   const em = emblemOf(guild.emblem);
-  const members = [...guild.members].sort((a, b) => b.user.xp - a.user.xp);
-  const maxXp = Math.max(1, ...members.map((m) => m.user.xp));
+  const members = [...guild.members].sort((a, b) => (b.user.xp ?? 0) - (a.user.xp ?? 0));
+  const maxXp = Math.max(1, ...members.map((m) => m.user.xp ?? 0));
   // TODO(api): no hay jefe semanal ni XP semanal del gremio. Fallback con datos reales:
   // cada día de racha activa de un miembro le quita 50 HP al jefe.
-  const damage = guild.members.reduce((s, m) => s + m.user.currentStreak * 50, 0);
+  const damage = guild.members.reduce((s, m) => s + (m.user.currentStreak ?? 0) * 50, 0);
   const bossHp = Math.max(0, BOSS_HP - damage);
   // TODO(api): sin meta semanal; fallback = miembros con racha activa.
-  const active = guild.members.filter((m) => m.user.currentStreak > 0).length;
+  const active = guild.members.filter((m) => (m.user.currentStreak ?? 0) > 0).length;
   const goalPct = guild.members.length ? Math.round((active / guild.members.length) * 100) : 0;
 
   async function copy() {
@@ -194,7 +194,7 @@ function InGuild({ guild, onLeft }: { guild: Guild; onLeft: () => void }) {
             {guild.description && <p className="text-body-md text-on-surface-light">{guild.description}</p>}
             <div className="flex flex-wrap gap-2">
               <Badge size="lg" icon={Users}><span className="font-mono">{guild.members.length}/{MAX_MEMBERS}</span> aventureros</Badge>
-              <Badge size="lg" variant="primary"><span className="font-mono">{guild.xp.toLocaleString('es-CO')}</span> XP de gremio</Badge>
+              <Badge size="lg" variant="primary"><span className="font-mono">{(guild.xp ?? 0).toLocaleString('es-CO')}</span> XP de gremio</Badge>
             </div>
           </div>
           <Card padding="sm" className="flex min-w-[240px] flex-col gap-2 bg-background">
@@ -238,10 +238,10 @@ function InGuild({ guild, onLeft }: { guild: Guild; onLeft: () => void }) {
                           {lead && <Badge variant="warning" icon={Crown}>Líder</Badge>}
                           {you && <Badge variant="primary">Tú</Badge>}
                         </div>
-                        <div className="text-body-sm text-on-surface-light">Nivel {m.user.level} · <Flame aria-hidden className="inline size-3.5 text-warning-text" /> {m.user.currentStreak} días</div>
+                        <div className="text-body-sm text-on-surface-light">Nivel {m.user.level} · <Flame aria-hidden className="inline size-3.5 text-warning-text" /> {(m.user.currentStreak ?? 0)} días</div>
                       </div>
-                      <ProgressBar value={(m.user.xp / maxXp) * 100} className="order-last w-full sm:order-none sm:flex-1" label={`Aporte de ${m.user.displayName}`} />
-                      <span className="w-20 text-right font-mono text-label-lg tabular-nums">{m.user.xp.toLocaleString('es-CO')}</span>
+                      <ProgressBar value={((m.user.xp ?? 0) / maxXp) * 100} className="order-last w-full sm:order-none sm:flex-1" label={`Aporte de ${m.user.displayName}`} />
+                      <span className="w-20 text-right font-mono text-label-lg tabular-nums">{(m.user.xp ?? 0).toLocaleString('es-CO')}</span>
                     </motion.li>
                   );
                 })}
