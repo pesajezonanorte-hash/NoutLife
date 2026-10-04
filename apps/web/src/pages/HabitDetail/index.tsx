@@ -227,14 +227,14 @@ export default function HabitDetailPage() {
         <StatCard icon={CheckCircle2} tone="success" value={stats.completed} label={isDesktop ? `Completados (${WINDOW_DAYS} d)` : 'Completados'} size={isDesktop ? 'lg' : 'md'} className="max-md:p-3" />
         <Card padding="lg" interactive className="flex flex-col items-start gap-3 max-md:p-3 md:flex-row md:items-center md:gap-6">
           <ProgressRing value={stats.rate} tone="primary" size={72} stroke={8} label="Tasa de éxito" valueText={`${stats.rate}%`} className="md:hidden">
-            <span className="text-label-lg tabular-nums">{stats.rate}%</span>
+            <span className="text-label-lg font-mono tabular-nums">{stats.rate}%</span>
           </ProgressRing>
           <ProgressRing value={stats.rate} tone="primary" size={96} stroke={10} label="Tasa de éxito" valueText={`${stats.rate}%`} className="hidden md:flex">
-            <span className="text-heading-sm tabular-nums">{stats.rate}%</span>
+            <span className="text-heading-sm font-mono tabular-nums">{stats.rate}%</span>
           </ProgressRing>
           <div>
             <div className="text-heading-sm max-md:text-body-sm max-md:text-on-surface-light">Éxito</div>
-            <div className="hidden text-body-sm text-on-surface-light tabular-nums md:block">{stats.completed} de {stats.possible} días</div>
+            <div className="hidden text-body-sm text-on-surface-light font-mono tabular-nums md:block">{stats.completed} de {stats.possible} días</div>
           </div>
         </Card>
       </motion.section>
@@ -270,7 +270,7 @@ export default function HabitDetailPage() {
           <Card as="section" padding="lg" className="flex flex-col gap-4" aria-labelledby="last7-title">
             <div className="flex items-center justify-between">
               <h2 id="last7-title" className="text-heading-sm">Últimos 7 días</h2>
-              <span className="text-body-sm text-on-surface-light tabular-nums">{stats.last7.filter((d) => d.done).length} / 7</span>
+              <span className="text-body-sm text-on-surface-light font-mono tabular-nums">{stats.last7.filter((d) => d.done).length} / 7</span>
             </div>
             <ol className="grid grid-cols-7 gap-1">
               {stats.last7.map((d, i) => (
@@ -306,7 +306,7 @@ export default function HabitDetailPage() {
             ].map(([k, v], i, arr) => (
               <div key={k} className={cn('flex min-h-10 items-center justify-between gap-4', i < arr.length - 1 && 'border-b border-border')}>
                 <span className="text-body-md text-on-surface-light">{k}</span>
-                <span className={cn('text-label-lg tabular-nums', i === arr.length - 1 && 'text-primary-text')}>{v}</span>
+                <span className={cn('text-label-lg font-mono tabular-nums', i === arr.length - 1 && 'text-primary-text')}>{v}</span>
               </div>
             ))}
             {habit.createsGymAttendance && <p className="mt-2 text-body-sm text-on-surface-light">Cuenta como asistencia al gimnasio.</p>}

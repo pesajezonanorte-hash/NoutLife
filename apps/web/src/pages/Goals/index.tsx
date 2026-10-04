@@ -195,7 +195,7 @@ function GoalCard({
               <div className="flex items-center gap-1 flex-shrink-0">
                 <button
                   onClick={() => setExpanded((v) => !v)}
-                  className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel-light)] transition-colors"
+                  className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel-light)] transition-colors"
                 >
                   {expanded ? (
                     <ChevronUp size={16} />
@@ -209,7 +209,7 @@ function GoalCard({
                   withArrows={false}
                   onClick={handleDelete}
                   disabled={deleting}
-                  className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                  className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-error-text hover:bg-error/10 transition-colors"
                 >
                   {deleting ? (
                     <Loader2 size={16} className="animate-spin" />

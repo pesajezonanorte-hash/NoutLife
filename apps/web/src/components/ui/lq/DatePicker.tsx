@@ -1,4 +1,4 @@
-// Selector de fecha de LifeQuest: sustituye a <input type="date">. Mismo valor
+// Selector de fecha de Noutlife: sustituye a <input type="date">. Mismo valor
 // 'YYYY-MM-DD' (cadena vacía = sin fecha), así que encaja con los formularios y
 // la API tal como estaban. El calendario se despliega en un popover animado; el
 // título del mes abre la vista de años y meses para saltar lejos (cumpleaños).
@@ -235,7 +235,7 @@ function YearView({ start, end, month, selected, onPick }: { start: Date; end: D
                 aria-expanded={isOpen}
                 onClick={() => toggle(y)}
                 className={cn(
-                  'flex min-h-11 w-full items-center gap-2 rounded-lg px-2 text-label-lg transition-colors hover:text-primary-text',
+                  'flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-label-lg transition-colors hover:text-primary-text',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
                   y === month.getFullYear() ? 'text-primary-text' : 'text-on-background',
                 )}

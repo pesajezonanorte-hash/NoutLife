@@ -32,7 +32,7 @@ const EMBLEMS: Array<{ id: string; name: string; icon: LucideIcon; tone: Exclude
   { id: 'sword', name: 'Espadas', icon: Swords, tone: 'error' },
   { id: 'crown', name: 'Corona', icon: Crown, tone: 'primary' },
   { id: 'star', name: 'Estrella', icon: Star, tone: 'info' },
-  { id: 'dragon', name: 'Llama', icon: Flame, tone: 'secondary' },
+  { id: 'dragon', name: 'Llama', icon: Flame, tone: 'forest' },
   { id: 'wolf', name: 'Lobo', icon: PawPrint, tone: 'success' },
 ];
 const emblemOf = (id: string) => EMBLEMS.find((e) => e.id === id) ?? EMBLEMS[0];
@@ -104,7 +104,7 @@ function NoGuild({ onEntered }: { onEntered: (msg: string) => void }) {
                       onClick={() => setEmblem(em.id)} onKeyDown={onRadioKey(i)}
                       className={cn(
                         'flex size-[52px] items-center justify-center rounded-2xl border-2 transition-[transform,border-color] duration-500 ease-[cubic-bezier(.34,1.56,.64,1)]',
-                        `${{ warning: 'bg-warning/[var(--lq-soft-alpha)] text-warning-text', error: 'bg-error/[var(--lq-soft-alpha)] text-error-text', primary: 'bg-primary/[var(--lq-soft-alpha)] text-primary-text', info: 'bg-info/[var(--lq-soft-alpha)] text-info-text', secondary: 'bg-secondary/[var(--lq-soft-alpha)] text-secondary-text', success: 'bg-success/[var(--lq-soft-alpha)] text-success-text' }[em.tone]}`,
+                        `${{ warning: 'bg-warning/[var(--lq-soft-alpha)] text-warning-text', error: 'bg-error/[var(--lq-soft-alpha)] text-error-text', primary: 'bg-primary/[var(--lq-soft-alpha)] text-primary-text', info: 'bg-info/[var(--lq-soft-alpha)] text-info-text', secondary: 'bg-secondary/[var(--lq-soft-alpha)] text-secondary-text', forest: 'bg-forest/[var(--lq-soft-alpha)] text-forest-text', success: 'bg-success/[var(--lq-soft-alpha)] text-success-text' }[em.tone]}`,
                         on ? 'scale-110 border-primary' : 'border-transparent',
                       )}
                     >
@@ -120,7 +120,7 @@ function NoGuild({ onEntered }: { onEntered: (msg: string) => void }) {
 
         <SpotCard aria-labelledby="g-join" padding="md" className="md:p-8">
           <form noValidate onSubmit={join} className="flex h-full flex-col gap-4">
-            <IconChip icon={LogIn} tone="secondary" />
+            <IconChip icon={LogIn} tone="forest" />
             <h2 id="g-join" className="text-heading-md">Unirse con código</h2>
             <p className="text-body-md text-on-surface-light">Pide el código de 6 caracteres a quien lidera el gremio. Puedes pegarlo entero.</p>
             <OtpInput value={code} onChange={setCode} label="Código de invitación" invalid={Boolean(error.join)} disabled={busy === 'join'} />

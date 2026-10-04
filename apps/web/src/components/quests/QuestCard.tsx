@@ -35,7 +35,7 @@ export function QuestCard({ quest, onOpen, onComplete, className }: QuestCardPro
           <IconChip icon={type.icon} tone={cat.tone} size="sm" className="hidden md:flex" />
           <Badge variant={cat.tone}>{cat.label}</Badge>
         </span>
-        <span className="flex items-center gap-1 text-label-lg text-primary-text tabular-nums">
+        <span className="flex items-center gap-1 text-label-lg text-primary-text font-mono tabular-nums">
           <Sparkles aria-hidden className="size-4" strokeWidth={1.75} />+{quest.xpReward} XP
         </span>
       </div>
@@ -57,7 +57,7 @@ export function QuestCard({ quest, onOpen, onComplete, className }: QuestCardPro
           label={`Progreso de ${quest.title}`}
           valueText={p.text}
         />
-        <div className="flex justify-between gap-2 text-body-sm tabular-nums">
+        <div className="flex justify-between gap-2 text-body-sm font-mono tabular-nums">
           <span className="text-on-surface-light">{p.text}</span>
           <span className="text-on-surface">{p.pct}%</span>
         </div>

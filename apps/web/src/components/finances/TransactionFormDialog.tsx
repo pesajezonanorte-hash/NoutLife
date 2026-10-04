@@ -55,7 +55,7 @@ export function TransactionFormDialog({ open, onClose, onSaved }: {
       <form className="flex flex-col gap-6" onSubmit={(e) => void submit(e)} noValidate>
         <SegmentedControl role="radiogroup" label="Tipo de transacción" value={type} onChange={setType} options={[{ value: 'EXPENSE', label: 'Gasto' }, { value: 'INCOME', label: 'Ingreso' }]} />
         <Field label="Monto" error={touched && !valid ? 'Escribe un monto mayor que 0' : undefined}>
-          <Input data-autofocus type="number" inputMode="decimal" min="0" step="any" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" className="text-heading-sm tabular-nums" />
+          <Input data-autofocus type="number" inputMode="decimal" min="0" step="any" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" className="text-heading-sm font-mono tabular-nums" />
         </Field>
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-2 text-label-lg text-on-surface">Categoría</legend>
@@ -74,7 +74,7 @@ export function TransactionFormDialog({ open, onClose, onSaved }: {
                     selected ? 'border-primary bg-primary/[var(--lq-soft-alpha)] text-primary-text' : 'border-border text-on-surface hover:bg-surface-variant',
                   )}
                 >
-                  <span className={cn('flex size-7 items-center justify-center rounded-lg', !selected && softTone[tone])}>
+                  <span className={cn('flex size-7 items-center justify-center rounded-md', !selected && softTone[tone])}>
                     <Icon aria-hidden className="size-4" strokeWidth={1.75} />
                   </span>
                   {label}

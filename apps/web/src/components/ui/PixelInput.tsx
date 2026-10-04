@@ -27,11 +27,11 @@ export const PixelInput = forwardRef<HTMLInputElement, Props>(
           : 'border-[var(--border)]';
 
     const glowColor = error
-      ? 'rgba(181,69,58,0.28)'
+      ? 'rgba(200,70,63,0.28)'
       : success
-        ? 'rgba(74,130,95,0.28)'
+        ? 'rgba(58,155,103,0.28)'
         : focused
-          ? 'rgba(122,122,133,0.28)'
+          ? 'rgba(107,138,120,0.28)'
           : 'transparent';
 
     return (
@@ -52,7 +52,7 @@ export const PixelInput = forwardRef<HTMLInputElement, Props>(
             </span>
           )}
           <motion.div
-            className="absolute inset-0 pointer-events-none rounded-lg"
+            className="absolute inset-0 pointer-events-none rounded-md"
             animate={{ boxShadow: focused || error || success ? `0 0 0 3px ${glowColor}` : '0 0 0 0px transparent' }}
             transition={{ duration: 0.2 }}
           />

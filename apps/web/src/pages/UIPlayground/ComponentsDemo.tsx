@@ -40,7 +40,7 @@ export function ComponentsDemo() {
     <div className="flex flex-col gap-12">
       <h2 className="text-heading-md">Componentes</h2>
 
-      <Block title="Button" spec='<Button variant="primary|secondary|ghost|danger|icon" size="lg|md|sm"> · hover scale 1.02 + shadow-md 100 ms'>
+      <Block title="Button" spec='<Button variant="primary|secondary|ghost|danger|icon" size="lg|md|sm"> · hover −1 px + shadow-md 100 ms · press .97'>
         <div className="flex flex-wrap items-center gap-3">
           <Button>Primary lg</Button>
           <Button size="md">Primary md</Button>
@@ -102,14 +102,14 @@ export function ComponentsDemo() {
           <Badge size="lg">Neutral</Badge>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          {(['primary', 'secondary', 'success', 'warning', 'error', 'info', 'muted'] as const).map((t) => (
+          {(['primary', 'secondary', 'forest', 'success', 'warning', 'error', 'info', 'muted'] as const).map((t) => (
             <IconChip key={t} icon={BookOpen} tone={t} />
           ))}
           <IconChip icon={BookOpen} tone="primary" size="lg" />
         </div>
       </Block>
 
-      <Block title="Input · Select · Switch" spec='<Field label help error><Input /></Field> · 16 px · borde gray-500 · foco 3 px'>
+      <Block title="Input · Select · Switch" spec='<Field label help error><Input /></Field> · 16 px · borde border-strong · foco 3 px'>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Nombre del hábito" help="Corto y concreto."><Input placeholder="Ej. Leer 20 páginas" /></Field>
           <Field label="Focus (fijado)"><Input defaultValue="Meditar 10 min" className="border-primary ring-[3px] ring-primary/25" /></Field>
@@ -147,7 +147,7 @@ export function ComponentsDemo() {
             <ProgressBar value={35} tone="warning" size="lg" label="Presupuesto" />
             <ProgressBar value={82} tone="error" size="lg" shine label="Vida" />
           </div>
-          <ProgressRing value={72} label="Progreso"><span className="text-heading-sm tabular-nums">72%</span></ProgressRing>
+          <ProgressRing value={72} label="Progreso"><span className="text-heading-sm font-mono tabular-nums">72%</span></ProgressRing>
         </div>
       </Block>
 

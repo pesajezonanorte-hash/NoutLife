@@ -1,70 +1,101 @@
-/* LifeQuest tokens — values from the LifeQuest Design System (design-system/tokens.json).
-   Merge into apps/web/src/styles/tokens.css. RGB channels so Tailwind opacity works: bg-primary/10.
-   Light = :root · Dark = .dark on <html>. */
+/* Noutlife tokens (Jade) — values from design-system/tokens.json.
+   apps/web/src/styles/tokens.css already exposes RGB channels as --lq-*  (e.g. --lq-primary: 99 102 241).
+   Replace the channel VALUES with these; keep the names so components rebrand without edits.
+   Light = :root · Dark = .dark on <html>. Tailwind opacity works: bg-primary/10. */
 
 @layer base {
   :root {
-    --primary: 99 102 241;          /* indigo-500  bars, rings, accents */
-    --primary-strong: 79 70 229;    /* indigo-600  button fill (6.3:1 with white) */
-    --primary-hover: 67 56 202;     /* indigo-700 */
-    --primary-text: 79 70 229;      /* indigo-600  links, active nav */
-    --on-primary: 255 255 255;
+    --lq-jade-50: 230 242 232;
+    --lq-jade-100: 220 243 225;
+    --lq-jade-200: 196 226 202;
+    --lq-jade-300: 165 210 181;
+    --lq-jade-400: 133 199 161;
+    --lq-jade-500: 112 180 141;
+    --lq-jade-600: 84 143 111;
+    --lq-jade-700: 61 105 80;
+    --lq-jade-800: 35 68 51;
+    --lq-jade-900: 14 29 22;
+    --lq-primary: 84 143 111;  /* jade-600 · bars, rings, focus (non-text) */
+    --lq-primary-strong: 61 105 80;  /* jade-700 · button fill, white 6.3:1 */
+    --lq-primary-hover: 35 68 51;  /* jade-800 */
+    --lq-primary-text: 61 105 80;  /* jade-700 · links, active nav */
+    --lq-on-primary: 255 255 255;
+    --lq-secondary: 176 141 87;  /* champagne gold · rewards only */
+    --lq-secondary-text: 138 106 47;  /* gold text 5.0:1 */
+    --lq-forest: 35 68 51;  /* neutral category tone (replaces old violet categories) */
+    --lq-forest-text: 35 68 51;
+    --lq-success: 58 155 103;  /* always with check icon */
+    --lq-success-text: 47 122 79;
+    --lq-success-strong: 47 122 79;  /* fill behind white text */
+    --lq-on-success: 255 255 255;
+    --lq-warning: 212 149 42;
+    --lq-warning-text: 138 75 8;
+    --lq-error: 200 70 63;
+    --lq-error-text: 168 50 45;  /* also danger button fill */
+    --lq-info: 59 126 166;  /* MP, info */
+    --lq-info-text: 44 95 124;
+    --lq-background: 249 247 243;  /* warm ivory */
+    --lq-surface: 255 255 255;
+    --lq-surface-variant: 230 242 232;  /* inputs, tracks, skeletons */
+    --lq-border: 219 231 222;
+    --lq-border-strong: 107 138 120;  /* controls ≥3:1 */
+    --lq-on-background: 14 29 22;  /* ink green */
+    --lq-on-surface: 35 68 51;
+    --lq-on-surface-light: 79 107 92;  /* muted 5.5:1 */
 
-    --secondary: 139 92 246;        --secondary-text: 109 40 217;  /* violet-500 / 700 */
-    --success: 16 185 129;          --success-text: 4 120 87;      /* emerald-500 / 700 */
-    --warning: 245 158 11;          --warning-text: 146 64 14;     /* amber-500 / 800 (gold, XP) */
-    --error: 239 68 68;             --error-text: 185 28 28;       /* red-500 / 700 */
-    --info: 59 130 246;             --info-text: 29 78 216;        /* blue-500 / 700 */
-
-    --background: 255 255 255;
-    --surface: 249 250 251;         /* gray-50 */
-    --surface-variant: 243 244 246; /* gray-100 */
-    --border: 229 231 235;          /* gray-200 */
-    --border-strong: 107 114 128;   /* gray-500, inputs ≥3:1 */
-    --on-background: 31 41 55;      /* gray-800 */
-    --on-surface: 55 65 81;         /* gray-700 */
-    --on-surface-light: 107 114 128;/* gray-500 */
-
-    --radius-sm: 6px;               /* badges, small toggles */
-    --radius-md: 10px;              /* buttons, inputs */
-    --radius-lg: 16px;              /* cards, panels */
-    --radius-xl: 24px;              /* modals, hero cards (redesign) */
+    --radius-sm: 6px;   /* chips, badges, checks */
+    --radius-md: 10px;  /* buttons, inputs */
+    --radius-lg: 16px;  /* cards, panels, modals */
     --radius-full: 999px;
 
-    --shadow-sm: 0 1px 2px rgb(17 24 39 / .04), 0 1px 3px rgb(17 24 39 / .06);
-    --shadow-md: 0 4px 12px rgb(17 24 39 / .08), 0 2px 4px rgb(17 24 39 / .04);
-    --shadow-lg: 0 12px 32px rgb(17 24 39 / .12), 0 4px 8px rgb(17 24 39 / .06);
+    --shadow-sm: 0 1px 2px rgb(14 29 22 / .04), 0 1px 3px rgb(14 29 22 / .06);
+    --shadow-md: 0 4px 12px rgb(14 29 22 / .08), 0 2px 4px rgb(14 29 22 / .04);
+    --shadow-lg: 0 12px 32px rgb(14 29 22 / .12), 0 4px 8px rgb(14 29 22 / .06);
     --soft-alpha: .10;
   }
 
   .dark {
-    --primary: 129 140 248;         --primary-strong: 129 140 248;
-    --primary-hover: 165 180 252;   --primary-text: 165 180 252;
-    --on-primary: 17 24 39;
-
-    --secondary: 167 139 250;       --secondary-text: 196 181 253;
-    --success: 52 211 153;          --success-text: 52 211 153;
-    --warning: 251 191 36;          --warning-text: 251 191 36;
-    --error: 248 113 113;           --error-text: 252 165 165;
-    --info: 96 165 250;             --info-text: 147 197 253;
-
-    --background: 17 24 39;         --surface: 31 41 55;
-    --surface-variant: 55 65 81;    --border: 55 65 81;
-    --border-strong: 156 163 175;
-    --on-background: 249 250 251;   --on-surface: 209 213 219;
-    --on-surface-light: 156 163 175;
-
+    --lq-primary: 133 199 161;
+    --lq-primary-strong: 133 199 161;
+    --lq-primary-hover: 165 210 181;
+    --lq-primary-text: 165 210 181;
+    --lq-on-primary: 14 29 22;
+    --lq-secondary: 212 180 131;
+    --lq-secondary-text: 212 180 131;
+    --lq-forest: 196 226 202;
+    --lq-forest-text: 196 226 202;
+    --lq-success: 127 211 160;
+    --lq-success-text: 127 211 160;
+    --lq-success-strong: 127 211 160;
+    --lq-on-success: 14 29 22;
+    --lq-warning: 224 168 74;
+    --lq-warning-text: 224 168 74;
+    --lq-error: 229 115 105;
+    --lq-error-text: 242 163 155;
+    --lq-info: 127 182 214;
+    --lq-info-text: 156 199 224;
+    --lq-background: 14 29 22;
+    --lq-surface: 20 38 29;
+    --lq-surface-variant: 28 51 40;
+    --lq-border: 35 68 51;
+    --lq-border-strong: 95 154 122;
+    --lq-on-background: 230 242 232;
+    --lq-on-surface: 196 226 202;
+    --lq-on-surface-light: 143 174 156;
     --shadow-sm: 0 1px 2px rgb(0 0 0 / .3);
     --shadow-md: 0 4px 12px rgb(0 0 0 / .35);
     --shadow-lg: 0 12px 32px rgb(0 0 0 / .45);
     --soft-alpha: .16;
   }
 
-  html { font-family: Montserrat, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; }
-  body { @apply bg-background text-on-background; }
-  :focus-visible { outline: 3px solid rgb(var(--primary)); outline-offset: 2px; }
-  .tabular, .font-mono { font-variant-numeric: tabular-nums; }
+  html { font-family: Montserrat, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 100%; -webkit-font-smoothing: antialiased; }
+  body { @apply bg-background text-on-background text-body; }
+  :focus-visible { outline: 3px solid rgb(var(--lq-primary)); outline-offset: 2px; }
+  .font-mono, .tabular { font-family: 'JetBrains Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
 }
+
+/* The alternate themes in globals.css (cyber, forest, ocean, sunset, retro) are not part of the system.
+   Keep them only as purchasable Shop themes; the default theme is Jade. */
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

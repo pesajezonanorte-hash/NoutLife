@@ -122,14 +122,14 @@ export default function HabitsPage() {
         </p>
         {!loading && !failed && total > 0 && (
           <p className="text-body-md text-on-surface-light md:hidden" aria-live="polite">
-            <span className="tabular-nums">{doneCount}</span> de {total} completados hoy
+            <span className="font-mono tabular-nums">{doneCount}</span> de {total} completados hoy
           </p>
         )}
       </div>
       {!loading && !failed && total > 0 && (
         <div className="hidden items-center gap-6 md:flex">
           <ProgressRing value={pct} tone="success" size={132} stroke={12} label="Hábitos completados hoy" valueText={`${doneCount} de ${total}`}>
-            <span className="text-heading-lg tabular-nums" aria-live="polite">{doneCount}/{total}</span>
+            <span className="text-heading-lg font-mono tabular-nums" aria-live="polite">{doneCount}/{total}</span>
             <span className="text-body-sm text-on-surface-light">hoy</span>
           </ProgressRing>
           <div className="flex flex-col gap-1">
@@ -137,7 +137,7 @@ export default function HabitsPage() {
               <Flame aria-hidden className="size-4" strokeWidth={1.75} />
               Racha global {user?.currentStreak ?? 0} días
             </span>
-            <span className="text-body-sm text-on-surface-light tabular-nums">+{xpToday} XP ganados hoy</span>
+            <span className="text-body-sm text-on-surface-light font-mono tabular-nums">+{xpToday} XP ganados hoy</span>
           </div>
         </div>
       )}

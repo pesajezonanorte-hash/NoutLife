@@ -28,7 +28,7 @@ export function StatTile({ icon: Icon, label, value, index = 0 }: StatTileProps)
       <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[color-mix(in_srgb,var(--accent-gold)_12%,transparent)] text-[var(--accent-gold)]">
         <Icon className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden="true" />
       </span>
-      <p className="mt-4 truncate text-2xl sm:text-3xl font-semibold tracking-tight tabular-nums text-[var(--text-primary)]">{value}</p>
+      <p className="mt-4 truncate text-2xl sm:text-3xl font-semibold tracking-tight font-mono tabular-nums text-[var(--text-primary)]">{value}</p>
       <p className="mt-0.5 truncate text-sm font-medium text-[var(--text-secondary)]">{label}</p>
     </motion.div>
   );

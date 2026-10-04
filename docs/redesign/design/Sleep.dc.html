@@ -9,15 +9,15 @@
 <body>
 <x-dc>
 <helmet>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&amp;family=Montserrat:wght@400;500;600;700&amp;display=swap">
 <style>
 body{margin:0}
-a{color:#4f46e5}a:hover{color:#4338ca}
+a{color:var(--primary-text)}a:hover{color:var(--primary-hover)}
 </style>
 </helmet>
 <div class="lq screen {{theme}}" style="width: 375px; height: 1300px">
   <header class="hdr" style="padding: 0 8px">
-    <a class="btn btn-icon" href="Dashboard.dc.html" aria-label="Volver"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></a>
+    <a class="btn btn-icon" href="Dashboard.dc.html" aria-label="Volver"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"></path></svg></a>
     <span></span>
   </header>
   <main class="enter" style="display: flex; flex-direction: column; gap: 24px; padding: 0 16px 128px">
@@ -27,8 +27,8 @@ a{color:#4f46e5}a:hover{color:#4338ca}
       <span class="t-bs c-3">Anoche</span>
       <div class="row" style="gap: 8px; align-items: baseline"><span class="t-dl num">7</span><span class="t-hm c-2">h</span><span class="t-dl num">42</span><span class="t-hm c-2">min</span></div>
       <div class="row" style="gap: 12px; flex-wrap: wrap">
-        <span class="badge lg badge-success"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9 10h.01M15 10h.01M9 14.5q3 2 6 0"/></svg>Buena · 4/5</span>
-        <span class="row t-bs c-3" style="gap: 6px"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>23:10 → 06:52</span>
+        <span class="badge lg badge-success"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M9 10h.01M15 10h.01M9 14.5q3 2 6 0"></path></svg>Buena · 4/5</span>
+        <span class="row t-bs c-3" style="gap: 6px"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>23:10 → 06:52</span>
       </div>
     </section>
 
@@ -36,15 +36,15 @@ a{color:#4f46e5}a:hover{color:#4338ca}
       <div class="row" style="justify-content: space-between"><h2 class="t-hs">Últimos 7 días</h2><span class="t-bs c-3">Prom. 7 h 01</span></div>
       <div style="position: relative">
         <svg viewBox="0 0 300 120" width="100%" height="140" preserveAspectRatio="none" role="img" aria-label="Horas de sueño: 6,5; 6,8; 7,0; 6,2; 7,1; 7,4; 7,7. Tendencia al alza.">
-          <line x1="0" x2="300" y1="{{goalY}}" y2="{{goalY}}" stroke="var(--success)" stroke-width="1" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>
-          <polyline points="{{area}}" fill="var(--primary-soft)" stroke="none"/>
-          <polyline points="{{points}}" fill="none" stroke="var(--primary)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+          <line x1="0" x2="300" y1="{{goalY}}" y2="{{goalY}}" stroke="var(--success)" stroke-width="1" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"></line>
+          <polyline points="{{area}}" fill="var(--primary-soft)" stroke="none"></polyline>
+          <polyline points="{{points}}" fill="none" stroke="var(--primary)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"></polyline>
         </svg>
         <span class="t-lm c-success" style="position: absolute; right: 0; top: 0">Meta 7 h</span>
       </div>
       <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); text-align: center"><sc-for list="{{days}}" as="d" hint-placeholder-count="7"><div style="display: flex; flex-direction: column"><span class="t-lm c-2 num">{{d.v}}</span><span class="t-lm c-3">{{d.l}}</span></div></sc-for></div>
       <div class="row" style="gap: 12px; padding: 12px 16px; border-radius: 12px; background: var(--success-soft)">
-        <svg class="i c-success" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 17 6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>
+        <svg class="i c-success" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 17 6-6 4 4 8-8"></path><path d="M15 7h6v6"></path></svg>
         <div><div class="t-ll c-success">Tendencia: mejorando</div><div class="t-bs c-2">+38 min vs. la semana pasada</div></div>
       </div>
     </section>
@@ -60,7 +60,7 @@ a{color:#4f46e5}a:hover{color:#4338ca}
         <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px" role="radiogroup">
           <sc-for list="{{faces}}" as="f" hint-placeholder-count="5">
             <button role="radio" aria-checked="{{f.sel}}" aria-label="{{f.aria}}" onClick="{{f.pick}}" style="min-height: 56px; border-radius: 12px; border: {{f.border}}; background: {{f.bg}}; color: {{f.fg}}; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; font-family: inherit; transition: background-color .2s, color .2s, border-color .2s">
-              <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9 10h.01M15 10h.01"/><path d="{{f.mouth}}"/></svg>
+              <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M9 10h.01M15 10h.01"></path><path d="{{f.mouth}}"></path></svg>
               <span class="t-lm">{{f.n}}</span>
             </button>
           </sc-for>
@@ -70,11 +70,11 @@ a{color:#4f46e5}a:hover{color:#4338ca}
     </section>
   </main>
   <nav class="tabbar" aria-label="Principal">
-    <a href="Dashboard.dc.html" class="on" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Inicio</a>
-    <a href="Habits.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg>Hábitos</a>
-    <a href="Quests.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 22V4"/><path d="M5 4h12l-2.5 4L17 12H5"/></svg>Misiones</a>
-    <a href="Colosseum.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 17.5 21 6V3h-3L6.5 14.5M11 19l-6-6M8 16l-4 4M5 21l-2-2"/></svg>Coliseo</a>
-    <a href="Profile.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Perfil</a>
+    <a href="Dashboard.dc.html" class="on" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"></path></svg>Inicio</a>
+    <a href="Habits.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m8.5 12 2.5 2.5 4.5-5"></path></svg>Hábitos</a>
+    <a href="Quests.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 22V4"></path><path d="M5 4h12l-2.5 4L17 12H5"></path></svg>Misiones</a>
+    <a href="Colosseum.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 17.5 21 6V3h-3L6.5 14.5M11 19l-6-6M8 16l-4 4M5 21l-2-2"></path></svg>Coliseo</a>
+    <a href="Profile.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg>Perfil</a>
   </nav>
 </div>
 </x-dc>

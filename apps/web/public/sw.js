@@ -5,7 +5,7 @@ self.addEventListener('push', (event) => {
   try {
     payload = event.data.json();
   } catch {
-    payload = { title: 'LifeQuest', body: event.data.text() };
+    payload = { title: 'Noutlife', body: event.data.text() };
   }
 
   const options = {
@@ -16,13 +16,13 @@ self.addEventListener('push', (event) => {
     data: payload.data ?? {},
     vibrate: [100, 50, 100],
     actions: [
-      { action: 'open', title: 'Abrir LifeQuest' },
+      { action: 'open', title: 'Abrir Noutlife' },
       { action: 'dismiss', title: 'Ignorar' },
     ],
   };
 
   event.waitUntil(
-    self.registration.showNotification(payload.title ?? 'LifeQuest', options)
+    self.registration.showNotification(payload.title ?? 'Noutlife', options)
   );
 });
 

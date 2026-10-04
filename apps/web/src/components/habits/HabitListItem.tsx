@@ -50,12 +50,12 @@ export function HabitListItem({ habit, onComplete, pending, week, variant = 'car
       )}
     >
       <IconChip icon={resolveGlyph(habit.icon)} tone={meta.tone} />
-      <Link to={`/habits/${habit.id}`} className="flex min-h-12 min-w-0 flex-1 flex-col justify-center rounded-lg">
+      <Link to={`/habits/${habit.id}`} className="flex min-h-12 min-w-0 flex-1 flex-col justify-center rounded-md">
         <span className={cn('truncate text-on-background', variant === 'card' ? 'text-body-md font-semibold md:text-heading-sm' : 'text-body-md font-semibold')}>
           {habit.title}
         </span>
         {variant === 'card' && <span className="hidden truncate text-body-sm text-on-surface-light md:block">{sub}</span>}
-        <span className={cn('flex items-center gap-1 text-body-sm text-warning-text tabular-nums', variant === 'card' && 'md:hidden')}>
+        <span className={cn('flex items-center gap-1 text-body-sm text-warning-text font-mono tabular-nums', variant === 'card' && 'md:hidden')}>
           <Flame aria-hidden className="size-4" strokeWidth={1.75} />
           {habit.currentStreak} {habit.currentStreak === 1 ? 'día' : 'días'}
           {skipped && <span className="ml-1 text-on-surface-light">· omitido hoy</span>}
@@ -70,10 +70,10 @@ export function HabitListItem({ habit, onComplete, pending, week, variant = 'car
                   <span key={i} className={cn('size-2.5 rounded-[3px]', d ? 'bg-success' : 'bg-surface-variant')} />
                 ))}
               </span>
-              <span aria-hidden className="text-label-md text-on-surface-light tabular-nums">{weekDone}/7</span>
+              <span aria-hidden className="text-label-md text-on-surface-light font-mono tabular-nums">{weekDone}/7</span>
             </span>
           )}
-          <span className="flex items-center gap-1 text-body-sm text-warning-text tabular-nums">
+          <span className="flex items-center gap-1 text-body-sm text-warning-text font-mono tabular-nums">
             <Flame aria-hidden className="size-4" strokeWidth={1.75} />
             {habit.currentStreak} {habit.currentStreak === 1 ? 'día' : 'días'}
           </span>

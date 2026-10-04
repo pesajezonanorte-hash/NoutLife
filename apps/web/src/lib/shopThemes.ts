@@ -3,7 +3,7 @@
 import type { ThemePalette } from '@/components/ui/lq';
 
 export const THEME_PALETTES: Record<string, ThemePalette> = {
-  aurora: { background: '#131316', surface: '#1a1a1e', accent: '#d9b44a', soft: '#a8871e', text: '#f5f5f5' },
+  aurora: { background: '#0e1d16', surface: '#14261d', accent: '#d4b483', soft: '#85c7a1', text: '#e6f2e8' },
   cyber: { background: '#050505', surface: '#0d0d0d', accent: '#f5f5f5', soft: '#8a8a92', text: '#f5f5f5' },
   forest: { background: '#151411', surface: '#1c1a16', accent: '#c9a94e', soft: '#4a825f', text: '#f2efe6' },
   ocean: { background: '#121316', surface: '#181a1e', accent: '#cbb45c', soft: '#3b82f6', text: '#eef2f7' },

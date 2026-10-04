@@ -16,7 +16,7 @@ import * as authService from '@/services/auth.service';
 import { completeOnboarding } from '@/services/user.service';
 import { orderFromGoals, useNavStore } from '@/store/navStore';
 import { getHeroLabel, getWelcomeLabel } from '@/utils/gender';
-import { BrandMark } from '@/components/layout/Brand';
+import { BrandLockup } from '@/components/layout/Brand';
 import { Badge, Button, Confetti, ModernLoader } from '@/components/ui/lq';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 import { AvatarPreview } from '@/components/character/AvatarPixelEditor';
@@ -69,10 +69,7 @@ function Shell({ step, title, subtitle, children, footer, wide }: { step: number
   return (
     <div className="flex min-h-dvh flex-col bg-background text-on-background">
       <header className={cn('mx-auto flex w-full flex-col gap-4 px-4 pt-6 md:pt-10', width)}>
-        <div className="flex items-center gap-3">
-          <BrandMark />
-          <span className="text-heading-sm">LifeQuest</span>
-        </div>
+        <BrandLockup />
         <div className="flex flex-col gap-2">
           <span className="text-label-lg text-on-surface-light">Paso {step + 1} de {TOTAL_STEPS}</span>
           <div role="progressbar" aria-label="Progreso del registro" aria-valuemin={1} aria-valuemax={TOTAL_STEPS} aria-valuenow={step + 1}

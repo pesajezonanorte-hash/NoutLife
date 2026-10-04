@@ -25,7 +25,7 @@ interface ActionDef { id: QuickAction | 'new-habit'; label: string; description:
 const ACTIONS: ActionDef[] = [
   { id: 'new-habit', label: 'Nuevo hábito', description: 'Crea una rutina para tu día', icon: Plus, tone: 'primary' },
   { id: 'habit', label: 'Marcar hábito', description: 'Completa un hábito de hoy', icon: CheckCircle2, tone: 'success' },
-  { id: 'quest', label: 'Nueva misión', description: 'Una tarea, proyecto o meta', icon: Flag, tone: 'secondary' },
+  { id: 'quest', label: 'Nueva misión', description: 'Una tarea, proyecto o meta', icon: Flag, tone: 'forest' },
   { id: 'expense', label: 'Gasto rápido', description: 'Registra un gasto en segundos', icon: Wallet, tone: 'warning' },
   { id: 'note', label: 'Nota rápida', description: 'Guárdala en tu diario', icon: NotebookPen, tone: 'info' },
   { id: 'checkin', label: 'Check-in', description: 'Ánimo y energía de hoy', icon: Zap, tone: 'error' },
@@ -153,7 +153,7 @@ function HabitPicker({ onDone }: { onDone: () => void }) {
         <li key={h.id} className="flex items-center gap-3 rounded-2xl border border-border bg-surface p-3">
           <span className="min-w-0 flex-1">
             <span className="block truncate text-label-lg text-on-background">{h.title}</span>
-            <span className="block text-body-sm text-primary-text tabular-nums">+{h.xpReward} XP{h.currentStreak > 0 ? ` · racha ${h.currentStreak} d` : ''}</span>
+            <span className="block text-body-sm text-primary-text font-mono tabular-nums">+{h.xpReward} XP{h.currentStreak > 0 ? ` · racha ${h.currentStreak} d` : ''}</span>
           </span>
           <CheckButton name={h.title} checked={saving === h.id} disabled={saving === h.id} onToggle={() => void complete(h)} />
         </li>
@@ -232,7 +232,7 @@ function CheckinForm({ onDone }: { onDone: () => void }) {
       </fieldset>
       <div className="flex flex-col gap-2">
         <label htmlFor="qa-energy" className="flex justify-between text-label-lg text-on-surface">
-          Energía <span className="tabular-nums text-primary-text">{energy}/10</span>
+          Energía <span className="font-mono tabular-nums text-primary-text">{energy}/10</span>
         </label>
         <input
           id="qa-energy"

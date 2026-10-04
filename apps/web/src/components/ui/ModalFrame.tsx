@@ -85,7 +85,7 @@ export function ModalFrame({
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-[var(--border-soft)] bg-[var(--bg-panel-light)] px-4 py-3.5 sm:px-5">
           <div className="flex min-w-0 items-start gap-3">
             {icon && (
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] text-[var(--accent-gold)] shadow-sm">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] text-primary-text shadow-sm">
                 {icon}
               </span>
             )}
@@ -98,7 +98,7 @@ export function ModalFrame({
             type="button"
             onClick={onClose}
             aria-label={closeLabel ?? `Cerrar ${title.toLowerCase()}`}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] sm:h-8 sm:w-8"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:h-8 sm:w-8"
           >
             <X className="h-4 w-4" aria-hidden="true" />
           </button>

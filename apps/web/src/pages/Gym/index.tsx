@@ -26,14 +26,14 @@ type GymTab = 'history' | 'routines' | 'analytics' | 'photos';
 
 const GYM_TABS: Array<{ id: GymTab; label: string; helper: string; icon: typeof History; tone: Tone }> = [
   { id: 'history', label: 'Historial', helper: 'Tus sesiones', icon: History, tone: 'primary' },
-  { id: 'routines', label: 'Rutinas', helper: 'Planes listos', icon: ClipboardList, tone: 'secondary' },
+  { id: 'routines', label: 'Rutinas', helper: 'Planes listos', icon: ClipboardList, tone: 'forest' },
   { id: 'analytics', label: 'Análisis', helper: 'Tu rendimiento', icon: TrendingUp, tone: 'info' },
   { id: 'photos', label: 'Progreso', helper: 'Fotos y cambios', icon: Camera, tone: 'success' },
 ];
 
 const WEEKDAY_LABELS = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
 const DAY_MS = 86_400_000;
-const ROUTINE_TONES: Tone[] = ['primary', 'secondary', 'warning', 'success'];
+const ROUTINE_TONES: Tone[] = ['primary', 'forest', 'warning', 'success'];
 
 const kg = (n: number) => `${Math.round(n).toLocaleString('es-ES')} kg`;
 const longDate = (iso: string) => {
@@ -85,7 +85,7 @@ function NumericStepper({
   value, onChange, step = 1, min = 0, disabled, label,
 }: { value: string; onChange: (v: string) => void; step?: number; min?: number; disabled?: boolean; label: string }) {
   const num = parseFloat(value) || 0;
-  const btn = 'flex size-11 shrink-0 items-center justify-center rounded-lg bg-surface-variant text-on-surface transition-colors hover:bg-border disabled:opacity-40 md:size-10';
+  const btn = 'flex size-11 shrink-0 items-center justify-center rounded-md bg-surface-variant text-on-surface transition-colors hover:bg-border disabled:opacity-40 md:size-10';
   return (
     <div className="flex items-center gap-1">
       <button type="button" disabled={disabled} aria-label={`Restar a ${label}`} onClick={() => onChange(String(Math.max(min, num - step)))} className={btn}>
@@ -93,7 +93,7 @@ function NumericStepper({
       </button>
       <input
         type="number" inputMode="decimal" value={value} onChange={(e) => onChange(e.target.value)} placeholder="0" disabled={disabled} aria-label={label}
-        className="h-11 w-16 min-w-0 rounded-lg border border-border-strong bg-background text-center font-mono text-body-md tabular-nums text-on-background focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/25 disabled:opacity-50 md:h-10"
+        className="h-11 w-16 min-w-0 rounded-md border border-border-strong bg-background text-center font-mono text-body-md tabular-nums text-on-background focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/25 disabled:opacity-50 md:h-10"
       />
       <button type="button" disabled={disabled} aria-label={`Sumar a ${label}`} onClick={() => onChange(String(num + step))} className={btn}>
         <Plus aria-hidden className="size-4" strokeWidth={2} />
@@ -530,7 +530,7 @@ export default function GymPage() {
       <p className="flex items-center gap-2 text-body-sm text-on-surface"><Music aria-hidden className="size-4 text-success-text" />{user?.gymPlaylistUrl ? 'Playlist de entrenamiento' : 'Sin playlist configurada'}</p>
       {user?.gymPlaylistUrl ? (
         <div className="flex gap-2">
-          <a href={user.gymPlaylistUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-1.5 rounded-lg bg-success/[var(--lq-soft-alpha)] px-4 text-label-lg text-success-text md:min-h-9">
+          <a href={user.gymPlaylistUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-1.5 rounded-md bg-success/[var(--lq-soft-alpha)] px-4 text-label-lg text-success-text md:min-h-9">
             Abrir Spotify<ExternalLink aria-hidden className="size-4" /><span className="sr-only">(se abre en una pestaña nueva)</span>
           </a>
           <Button variant="ghost" size="sm" onClick={() => navigate('/settings')}>Editar</Button>
@@ -729,7 +729,7 @@ export default function GymPage() {
           routines.length === 0 ? (
             <Card variant="elevated" padding="lg">
               <EmptyState
-                icon={ClipboardList} tone="secondary" title="Aún no tienes una rutina guardada"
+                icon={ClipboardList} tone="forest" title="Aún no tienes una rutina guardada"
                 description="Empieza una sesión libre y convierte tus ejercicios favoritos en una ruta fácil de repetir."
                 action={<Button onClick={() => setShowStartModal(true)}>Iniciar sesión libre</Button>} className="py-6"
               />

@@ -1,248 +1,233 @@
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
-import { PixelPanel } from '../../components/ui/PixelPanel';
-import { fetchHistory, fetchDayDetail } from '../../services/history.service';
-import type { HistorySummary, DayDetail } from '../../services/history.service';
-import { E } from '@/components/ui/glyphs';
-import ModernLoader from '@/components/ui/modern-loader';
-import { LoadingGate } from '@/components/ui/LoadingGate';
-import { LOADING_COPY } from '@/lib/loadingCopy';
+import { useCallback, useEffect, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { CalendarDays, CheckCircle2, Coins, Flag, MinusCircle, Repeat, XCircle, Zap } from 'lucide-react';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { BarChart, Card, EmptyState, ErrorState, PageLoader, ProgressBar, SegmentedControl, StatCard } from '@/components/ui/lq';
+import { fetchDayDetail, fetchHistory } from '@/services/history.service';
+import type { DayDetail, HistorySummary } from '@/services/history.service';
+import { item, stagger } from '@/lib/motion';
+import { cn } from '@/lib/utils';
 
-const CATEGORY_COLORS: Record<string, string> = {
-  FITNESS: '#5c5c64', HEALTH: '#8a8a92', FINANCE: '#a8871e',
-  LEARNING: '#4a4a52', LOVE: '#c0c0c8', SOCIAL: '#a1a1aa', PERSONAL: '#2a2a2e', CREATIVE: '#bdbdc5',
-};
+type View = 'calendar' | 'charts';
+
+const VIEWS = [
+  { value: 'calendar' as const, label: 'Calendario' },
+  { value: 'charts' as const, label: 'Gráficas' },
+];
 
 const CATEGORY_LABELS: Record<string, string> = {
   FITNESS: 'Fitness', HEALTH: 'Salud', FINANCE: 'Finanzas', LEARNING: 'Aprendizaje',
   LOVE: 'Amor', SOCIAL: 'Social', PERSONAL: 'Personal', CREATIVE: 'Creativo',
 };
 
-function getProductivityColor(score: number): string {
-  if (score >= 70) return 'var(--accent-green)';
-  if (score >= 40) return 'var(--accent-gold)';
-  if (score > 0)   return 'var(--accent-red)';
-  return 'var(--border-strong)';
-}
+// Intensidad del día: jade al 15 / 45 / 100 % según la productividad.
+const LEVELS = [
+  { min: 70, cls: 'bg-primary text-on-primary', label: 'Excelente' },
+  { min: 40, cls: 'bg-primary/45 text-on-background', label: 'Bien' },
+  { min: 1, cls: 'bg-primary/15 text-on-background', label: 'Poco' },
+  { min: 0, cls: 'bg-surface-variant text-on-surface-light', label: 'Sin actividad' },
+];
+const levelOf = (score: number) => LEVELS.find((l) => score >= l.min) ?? LEVELS[3];
 
-function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number }>; label?: string }) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="bg-bg-panel border-2 border-border-pixel px-3 py-2">
-      <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>{label}</p>
-      <p className="font-vt text-accent-gold text-base">+{payload[0].value} XP</p>
-    </div>
-  );
-}
+const isoDay = (d: Date) => d.toISOString().split('T')[0];
 
 export default function HistoryPage() {
   const [summary, setSummary] = useState<HistorySummary | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [dayDetail, setDayDetail] = useState<DayDetail | null>(null);
-  const [view, setView] = useState<'calendar' | 'charts'>('calendar');
+  const [view, setView] = useState<View>('calendar');
 
-  useEffect(() => {
-    const to = new Date().toISOString().split('T')[0];
-    const from = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  const load = useCallback(() => {
+    setState('loading');
+    const to = isoDay(new Date());
+    const from = isoDay(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
     fetchHistory(from, to)
-      .then(setSummary)
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      .then((s) => { setSummary(s); setState('ready'); })
+      .catch(() => setState('error'));
   }, []);
+
+  useEffect(load, [load]);
 
   async function handleDayClick(date: string, score: number) {
     if (score === 0) return;
     setSelectedDay(date);
-    const detail = await fetchDayDetail(date).catch(() => null);
-    setDayDetail(detail);
+    setDayDetail(await fetchDayDetail(date).catch(() => null));
   }
 
+  if (state === 'loading') return <PageLoader label="Cargando tu historial" />;
+  if (state === 'error') return <ErrorState onRetry={load} />;
+
   const today = new Date();
+  const todayIso = isoDay(today);
   const calendarDays = Array.from({ length: 30 }, (_, i) => {
     const date = new Date(today);
     date.setDate(date.getDate() - (29 - i));
-    return date.toISOString().split('T')[0];
+    return isoDay(date);
   });
-
-  const dayMap = new Map(summary?.days.map((d) => [d.date, d]) ?? []);
-
-  const chartData = summary?.days.map((d) => ({
-    date: d.date.slice(5),
-    xp: d.xpGained,
-  })) ?? [];
+  const days = summary?.days ?? [];
+  const cats = summary?.categoryDistribution ?? [];
+  const dayMap = new Map(days.map((d) => [d.date, d]));
+  const xpData = days.map((d) => ({ label: d.date.slice(8), value: d.xpGained, tip: `${d.date.slice(5)} · +${d.xpGained} XP` }));
+  const catTotal = cats.reduce((s, c) => s + c.count, 0);
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="font-pixel text-accent-gold" style={{ fontSize: '14px' }}><E e="📊" /> HISTORIAL DE AVENTURAS</h1>
-        <p className="font-vt text-text-secondary text-base">Los últimos 30 días de tu épica</p>
-      </div>
+    <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-8 md:gap-12">
+      <PageHeader
+        eyebrow="Historial"
+        title="Tus últimos 30 días"
+        description="Cada día, lo que completaste y lo que ganaste."
+        aside={<div className="w-full max-w-[320px] sm:w-[300px]"><SegmentedControl label="Vista" value={view} onChange={setView} options={VIEWS} /></div>}
+      />
 
-      {/* Summary stats */}
       {summary && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[
-            { label: 'XP GANADO', value: summary.totalXp.toLocaleString(), color: 'text-accent-gold' },
-            { label: 'MISIONES', value: summary.totalQuestsCompleted, color: 'text-accent-blue' },
-            { label: 'HÁBITOS', value: summary.totalHabitsCompleted, color: 'text-accent-green' },
-            { label: 'GOLD', value: summary.totalGold.toLocaleString(), color: 'text-yellow-400' },
-          ].map(({ label, value, color }) => (
-            <PixelPanel key={label} className="p-3 text-center">
-              <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>{label}</p>
-              <p className={`font-vt ${color} text-2xl`}>{value}</p>
-            </PixelPanel>
-          ))}
-        </div>
+        <motion.ul variants={stagger} className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <motion.li variants={item}><StatCard icon={Zap} tone="secondary" value={summary.totalXp} label="XP ganada" /></motion.li>
+          <motion.li variants={item}><StatCard icon={Flag} tone="forest" value={summary.totalQuestsCompleted} label="Misiones" /></motion.li>
+          <motion.li variants={item}><StatCard icon={Repeat} tone="primary" value={summary.totalHabitsCompleted} label="Hábitos" /></motion.li>
+          <motion.li variants={item}><StatCard icon={Coins} tone="secondary" value={summary.totalGold} label="Oro" /></motion.li>
+        </motion.ul>
       )}
 
-      {/* View toggle */}
-      <div className="flex gap-2">
-        {[{ key: 'calendar', label: ' Calendario' }, { key: 'charts', label: ' Gráficas' }].map(({ key, label }) => (
-          <button
-            key={key}
-            onClick={() => setView(key as 'calendar' | 'charts')}
-            className={`min-h-11 px-3 py-1.5 border-2 font-pixel transition-all ${
-              view === key ? 'border-primary-strong bg-primary-strong text-on-primary' : 'border-border-pixel text-text-secondary'
-            }`}
-            style={{ fontSize: '12px' }}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      <LoadingGate loading={loading} fallback={<ModernLoader words={[...LOADING_COPY.history]} />}>
-        {loading ? null : view === 'calendar' ? (
-        <PixelPanel className="p-2 sm:p-4">
-          <p className="font-pixel text-text-secondary mb-3" style={{ fontSize: '12px' }}>ACTIVIDAD DIARIA (ÚLTIMOS 30 DÍAS)</p>
-          <div className="grid grid-cols-7 gap-0.5 sm:gap-1.5">
-            {calendarDays.map((date) => {
-              const day = dayMap.get(date);
-              const score = day?.productivityScore ?? 0;
-              const isToday = date === today.toISOString().split('T')[0];
-              const isSelected = date === selectedDay;
-              const dayNum = new Date(date).getDate();
-
-              return (
-                <motion.button
-                  key={date}
-                  onClick={() => handleDayClick(date, score)}
-                  className="aspect-square flex flex-col items-center justify-center border-2 text-center transition-all"
-                  style={{
-                    backgroundColor: score === 0 ? 'rgb(var(--lq-surface-variant))' : getProductivityColor(score),
-                    borderColor: isSelected ? 'var(--text-primary)' : isToday ? 'var(--accent-gold)' : 'transparent',
-                  }}
-                  whileHover={{ scale: 1.15 }}
-                  title={`${date}: ${day ? `${score} pts, ${day.questsCompleted} misiones, ${day.habitsCompleted} hábitos` : 'Sin actividad'}`}
-                >
-                  <span className="rounded bg-background/85 px-1 font-vt text-xs font-bold text-on-background">{dayNum}</span>
-                </motion.button>
-              );
-            })}
-          </div>
-
-          {/* Legend */}
-          <div className="flex gap-4 mt-3 justify-end">
-            {[
-              { color: 'var(--accent-green)', label: 'Excelente' },
-              { color: 'var(--accent-gold)', label: 'Bien' },
-              { color: 'var(--accent-red)', label: 'Poco' },
-              { color: 'var(--border-strong)', label: 'Sin actividad' },
-            ].map(({ color, label }) => (
-              <div key={label} className="flex items-center gap-1">
-                <div className="w-3 h-3 border border-border-pixel" style={{ backgroundColor: color }} />
-                <span className="font-vt text-text-secondary text-xs">{label}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Day detail */}
-          {selectedDay && dayDetail && (
-            <motion.div
-              className="mt-4 border-t-2 border-border-pixel pt-4"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              <p className="font-pixel text-text-secondary mb-3" style={{ fontSize: '12px' }}>
-                {new Date(selectedDay).toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-              </p>
-              <div className="flex gap-4 mb-3">
-                <span className="font-vt text-accent-gold text-base">+{dayDetail.totalXp} XP</span>
-                <span className="font-vt text-yellow-400 text-base"><E e="💰" />{dayDetail.totalGold}</span>
-              </div>
-              {dayDetail.questsCompleted.length > 0 && (
-                <div className="mb-2">
-                  <p className="font-pixel text-text-secondary mb-1" style={{ fontSize: '12px' }}>MISIONES COMPLETADAS</p>
-                  {dayDetail.questsCompleted.map((q) => (
-                    <div key={q.questId} className="flex items-center gap-2 py-0.5">
-                      <span className="text-accent-green"><E e="✓" /></span>
-                      <span className="font-vt text-text-primary text-sm">{q.title}</span>
-                      <span className="font-pixel text-accent-gold ml-auto" style={{ fontSize: '12px' }}>+{q.xpEarned}XP</span>
-                    </div>
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={view}
+          initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+        >
+          {view === 'calendar' ? (
+            <Card padding="lg" className="flex flex-col gap-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-heading-md">Actividad diaria</h2>
+                <ul className="flex flex-wrap gap-x-4 gap-y-2" aria-label="Leyenda">
+                  {LEVELS.map((l) => (
+                    <li key={l.label} className="flex items-center gap-1.5 text-body-sm text-on-surface-light">
+                      <span aria-hidden className={cn('size-3 rounded-sm', l.cls)} />{l.label}
+                    </li>
                   ))}
-                </div>
-              )}
-              {dayDetail.habitLogs.length > 0 && (
-                <div>
-                  <p className="font-pixel text-text-secondary mb-1" style={{ fontSize: '12px' }}>HÁBITOS</p>
-                  {dayDetail.habitLogs.map((l) => (
-                    <div key={l.habitId} className="flex items-center gap-2 py-0.5">
-                      <span><E e={l.icon} /></span>
-                      <span className="font-vt text-text-primary text-sm">{l.title}</span>
-                      <span className={`ml-auto font-vt text-sm ${l.status === 'completed' ? 'text-accent-green' : l.status === 'failed' ? 'text-accent-red' : 'text-yellow-400'}`}>
-                        {l.status === 'completed' ? '✓' : l.status === 'failed' ? '✗' : '~'}
+                </ul>
+              </div>
+              <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
+                {calendarDays.map((date, i) => {
+                  const day = dayMap.get(date);
+                  const score = day?.productivityScore ?? 0;
+                  const lvl = levelOf(score);
+                  const selected = date === selectedDay;
+                  return (
+                    <motion.button
+                      key={date}
+                      type="button"
+                      onClick={() => void handleDayClick(date, score)}
+                      disabled={score === 0}
+                      aria-pressed={selected}
+                      aria-label={`${new Date(date).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', timeZone: 'UTC' })}: ${day ? `${score} puntos, ${day.questsCompleted} misiones, ${day.habitsCompleted} hábitos` : 'sin actividad'}`}
+                      initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }}
+                      transition={{ type: 'spring', stiffness: 380, damping: 24, delay: i * 0.012 }}
+                      whileHover={score ? { y: -2 } : undefined} whileTap={score ? { scale: 0.94 } : undefined}
+                      className={cn(
+                        'flex aspect-square min-h-11 items-center justify-center rounded-md font-mono text-label-lg tabular-nums transition-shadow disabled:cursor-default',
+                        lvl.cls,
+                        date === todayIso && 'ring-2 ring-primary-text ring-offset-2 ring-offset-surface',
+                        selected && 'shadow-md ring-2 ring-on-background ring-offset-2 ring-offset-surface',
+                      )}
+                    >
+                      {new Date(date).getUTCDate()}
+                    </motion.button>
+                  );
+                })}
+              </div>
+
+              <AnimatePresence>
+                {selectedDay && dayDetail && (
+                  <motion.section
+                    key={selectedDay}
+                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                    className="flex flex-col gap-4 border-t border-border pt-5"
+                    aria-live="polite"
+                  >
+                    <div className="flex flex-wrap items-baseline justify-between gap-3">
+                      <h3 className="text-heading-sm first-letter:uppercase">
+                        {new Date(selectedDay).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' })}
+                      </h3>
+                      <span className="flex gap-4 font-mono text-label-lg tabular-nums text-secondary-text">
+                        <span>+{dayDetail.totalXp} XP</span><span>+{dayDetail.totalGold} oro</span>
                       </span>
                     </div>
-                  ))}
-                </div>
-              )}
-            </motion.div>
+                    {dayDetail.questsCompleted.length > 0 && (
+                      <div className="flex flex-col gap-2">
+                        <p className="text-label-md uppercase tracking-[0.08em] text-on-surface-light">Misiones completadas</p>
+                        <ul className="flex flex-col gap-1">
+                          {dayDetail.questsCompleted.map((q) => (
+                            <li key={q.questId} className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-surface-variant/60">
+                              <CheckCircle2 aria-hidden className="size-5 shrink-0 text-success-text" strokeWidth={1.75} />
+                              <span className="min-w-0 flex-1 truncate text-body-md">{q.title}</span>
+                              <span className="font-mono text-label-lg tabular-nums text-on-surface-light">+{q.xpEarned} XP</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {dayDetail.habitLogs.length > 0 && (
+                      <div className="flex flex-col gap-2">
+                        <p className="text-label-md uppercase tracking-[0.08em] text-on-surface-light">Hábitos</p>
+                        <ul className="flex flex-col gap-1">
+                          {dayDetail.habitLogs.map((l) => {
+                            const done = l.status === 'completed', failed = l.status === 'failed';
+                            const Icon = done ? CheckCircle2 : failed ? XCircle : MinusCircle;
+                            return (
+                              <li key={l.habitId} className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-surface-variant/60">
+                                <Icon aria-hidden className={cn('size-5 shrink-0', done ? 'text-success-text' : failed ? 'text-error-text' : 'text-on-surface-light')} strokeWidth={1.75} />
+                                <span className="min-w-0 flex-1 truncate text-body-md">{l.title}</span>
+                                <span className={cn('text-label-lg', done ? 'text-success-text' : failed ? 'text-error-text' : 'text-on-surface-light')}>
+                                  {done ? 'Hecho' : failed ? 'Fallido' : 'Parcial'}
+                                </span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    )}
+                  </motion.section>
+                )}
+              </AnimatePresence>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
+              <Card padding="lg" className="flex flex-col gap-4">
+                <h2 className="text-heading-md">XP por día</h2>
+                {xpData.length ? (
+                  <BarChart data={xpData} label="XP ganada por día en los últimos 30 días" tone="primary" height={200} grid />
+                ) : (
+                  <EmptyState icon={Zap} title="Sin XP registrada" description="Completa hábitos y misiones para ver tu progreso." className="py-4" />
+                )}
+              </Card>
+              <Card padding="lg" className="flex flex-col gap-5">
+                <h2 className="text-heading-md">Por categoría</h2>
+                {catTotal > 0 ? (
+                  <motion.ul variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-4">
+                    {[...cats].sort((a, b) => b.count - a.count).map((c) => {
+                      const pct = Math.round((c.count / catTotal) * 100);
+                      const name = CATEGORY_LABELS[c.category] ?? c.category;
+                      return (
+                        <motion.li key={c.category} variants={item} className="flex flex-col gap-2">
+                          <div className="flex items-baseline justify-between gap-3">
+                            <span className="text-label-lg">{name}</span>
+                            <span className="font-mono text-body-sm tabular-nums text-on-surface-light">{pct}%</span>
+                          </div>
+                          <ProgressBar value={pct} tone="forest" label={`${name}: ${pct}%`} />
+                        </motion.li>
+                      );
+                    })}
+                  </motion.ul>
+                ) : (
+                  <EmptyState icon={CalendarDays} tone="forest" title="Sin misiones aún" description="Cuando completes misiones verás aquí su reparto." className="py-4" />
+                )}
+              </Card>
+            </div>
           )}
-        </PixelPanel>
-      ) : (
-        <div className="space-y-4">
-          {/* XP line chart */}
-          <PixelPanel className="p-4">
-            <p className="font-pixel text-text-secondary mb-4" style={{ fontSize: '12px' }}>XP GANADO POR DÍA</p>
-            <ResponsiveContainer width="100%" height={180}>
-              <LineChart data={chartData}>
-                <XAxis dataKey="date" tick={{ fill: 'var(--text-secondary)', fontSize: 12, fontFamily: 'Montserrat' }} />
-                <YAxis tick={{ fill: 'var(--text-secondary)', fontSize: 12, fontFamily: 'Montserrat' }} />
-                <Tooltip content={<CustomTooltip />} />
-                <Line type="monotone" dataKey="xp" stroke="#a8871e" strokeWidth={2} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </PixelPanel>
-
-          {/* Category distribution */}
-          {summary && summary.categoryDistribution.length > 0 && (
-            <PixelPanel className="p-4">
-              <p className="font-pixel text-text-secondary mb-4" style={{ fontSize: '12px' }}>DISTRIBUCIÓN POR CATEGORÍA</p>
-              <ResponsiveContainer width="100%" height={200}>
-                <PieChart>
-                  <Pie
-                    data={summary.categoryDistribution}
-                    dataKey="count"
-                    nameKey="category"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={80}
-                    label={({ category, percent }) => `${CATEGORY_LABELS[category] ?? category} ${Math.round((percent ?? 0) * 100)}%`}
-                  >
-                    {summary.categoryDistribution.map((entry) => (
-                      <Cell key={entry.category} fill={CATEGORY_COLORS[entry.category] ?? '#8a8a92'} />
-                    ))}
-                  </Pie>
-                  <Legend formatter={(value) => CATEGORY_LABELS[value] ?? value} />
-                </PieChart>
-              </ResponsiveContainer>
-            </PixelPanel>
-          )}
-        </div>
-        )}
-      </LoadingGate>
-    </div>
+        </motion.div>
+      </AnimatePresence>
+    </motion.div>
   );
 }

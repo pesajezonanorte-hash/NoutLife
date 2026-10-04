@@ -20,7 +20,7 @@ const CATS: Record<string, Cat> = {
   mindset: { label: 'Mentalidad', tone: 'primary', icon: Brain },
   finance: { label: 'Finanzas', tone: 'warning', icon: Coins },
   health: { label: 'Salud', tone: 'success', icon: HeartPulse },
-  relationships: { label: 'Relaciones', tone: 'secondary', icon: Users },
+  relationships: { label: 'Relaciones', tone: 'forest', icon: Users },
   growth: { label: 'Crecimiento', tone: 'info', icon: Sprout },
 };
 const catOf = (c: string): Cat => CATS[c] ?? { label: c, tone: 'primary', icon: BookOpen };

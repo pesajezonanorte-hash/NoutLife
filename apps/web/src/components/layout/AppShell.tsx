@@ -107,7 +107,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="min-h-dvh bg-background text-on-background md:flex">
       <a
         href="#main"
-        className="sr-only z-[70] rounded-lg bg-primary-strong px-4 py-3 text-label-lg text-on-primary focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+        className="sr-only z-[70] rounded-md bg-primary-strong px-4 py-3 text-label-lg text-on-primary focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
       >
         Saltar al contenido
       </a>

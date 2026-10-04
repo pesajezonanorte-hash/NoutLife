@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 
-/** A single timing contract for every transient loading state in LifeQuest. */
+/** A single timing contract for every transient loading state in Noutlife. */
 export const LOADER_DELAY_MS = 200;
 export const LOADER_MIN_VISIBLE_MS = 400;
 

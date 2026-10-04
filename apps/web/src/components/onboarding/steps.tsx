@@ -29,7 +29,7 @@ export function IdentityFields({ name, onName, nameError, birthDate, onBirthDate
             options={[{ value: 'male', label: 'Héroe' }, { value: 'female', label: 'Heroína' }]} />
         </div>
       )}
-      <Field label="Fecha de nacimiento" help="Opcional. Para celebrar tu cumpleaños en LifeQuest.">
+      <Field label="Fecha de nacimiento" help="Opcional. Para celebrar tu cumpleaños en Noutlife.">
         <DatePicker clearable value={birthDate} onChange={onBirthDate} max={new Date().toISOString().slice(0, 10)} placeholder="Tu cumpleaños" />
       </Field>
       <div className="flex flex-col gap-1">
@@ -46,8 +46,8 @@ export function WelcomeContent({ config }: { config: AvatarConfig }) {
   return (
     <div className="flex flex-col items-center gap-6 text-center">
       <AvatarPreview config={config} size={112} className="lq-halo" />
-      <div className="flex w-full flex-col gap-3 rounded-2xl bg-secondary/[var(--lq-soft-alpha)] p-5 text-left">
-        <span className="flex items-center gap-2 text-label-lg text-secondary-text">
+      <div className="flex w-full flex-col gap-3 rounded-2xl bg-forest/[var(--lq-soft-alpha)] p-5 text-left">
+        <span className="flex items-center gap-2 text-label-lg text-forest-text">
           <Sparkles aria-hidden className="size-4" strokeWidth={1.75} />El Sabio
         </span>
         <p className="text-body-md text-on-surface">
@@ -80,7 +80,7 @@ export const GOALS: Array<{ id: string; icon: LucideIcon; tone: Exclude<Tone, 'm
   { id: 'LEARNING', icon: BookOpen, tone: 'primary', label: 'Aprendizaje', desc: 'Habilidades, idiomas, cursos' },
   { id: 'LOVE', icon: Heart, tone: 'error', label: 'Relaciones', desc: 'Pareja, familia, amigos' },
   { id: 'PERSONAL', icon: Leaf, tone: 'success', label: 'Bienestar mental', desc: 'Mindfulness, meditación, propósito' },
-  { id: 'CREATIVE', icon: Palette, tone: 'secondary', label: 'Creatividad', desc: 'Arte, música, escritura' },
+  { id: 'CREATIVE', icon: Palette, tone: 'forest', label: 'Creatividad', desc: 'Arte, música, escritura' },
 ];
 export const MAX_GOALS = 3;
 

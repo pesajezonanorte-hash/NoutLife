@@ -85,7 +85,7 @@ function EntryForm({ entry, onCancel, onSave, inline }: { entry?: JournalEntry; 
 
   return (
     <form className={'flex flex-col gap-4'} onSubmit={(e) => { e.preventDefault(); void save(); }}>
-      {lastSaved && <p role="status" className="rounded-lg bg-surface-variant px-3 py-2 text-body-sm text-on-surface">Guardado automático · {lastSaved.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</p>}
+      {lastSaved && <p role="status" className="rounded-md bg-surface-variant px-3 py-2 text-body-sm text-on-surface">Guardado automático · {lastSaved.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</p>}
       <Field label="Título (opcional)"><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ej. Un día de foco" /></Field>
       {!inline && <Field label="Fecha"><DatePicker value={date} onChange={setDate} /></Field>}
       <Field label="Tu reflexión" help={`${content.length} caracteres · ${words} palabras`}>
@@ -182,7 +182,7 @@ export default function JournalPage() {
         <StatCard icon={BookOpen} tone="primary" value={entries.length} label="Entradas" />
         <Card padding="lg" interactive className="flex flex-col gap-3">
           <IconChip tone={lastMood ? moodOf(lastMood).tone : 'muted'}><MoodFace mood={lastMood ?? 3} className="size-6" /></IconChip>
-          <span className="text-display-sm tabular-nums">{lastMood ? moodOf(lastMood).name : '—'}</span>
+          <span className="text-display-sm font-mono tabular-nums">{lastMood ? moodOf(lastMood).name : '—'}</span>
           <span className="text-body-md text-on-surface-light">Último ánimo</span>
         </Card>
       </motion.section>

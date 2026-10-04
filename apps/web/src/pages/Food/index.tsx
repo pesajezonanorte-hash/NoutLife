@@ -157,7 +157,7 @@ export default function FoodPage() {
       </div>
       <div className="flex items-center gap-1" role="group" aria-label="Día">
         <Button variant="icon" aria-label="Día anterior" onClick={() => setOffset((o) => o - 1)}><ChevronLeft aria-hidden className="size-5" strokeWidth={1.75} /></Button>
-        <span className="min-w-[7.5rem] text-center text-label-lg tabular-nums" aria-live="polite">{label}</span>
+        <span className="min-w-[7.5rem] text-center text-label-lg font-mono tabular-nums" aria-live="polite">{label}</span>
         <Button variant="icon" aria-label="Día siguiente" disabled={offset >= 0} onClick={() => setOffset((o) => Math.min(0, o + 1))}><ChevronRight aria-hidden className="size-5" strokeWidth={1.75} /></Button>
       </div>
     </motion.section>
@@ -169,8 +169,8 @@ export default function FoodPage() {
         <div>
           <span className="text-body-sm text-on-surface-light">Calorías</span>
           <div className="flex items-baseline gap-2">
-            <span className={cn('text-display-md tabular-nums', over && 'text-error-text')}><AnimatedValue value={t.calories} format={fmtInt} /></span>
-            <span className="text-body-md text-on-surface-light tabular-nums">/ {fmtInt(g.calories)} kcal</span>
+            <span className={cn('text-display-md font-mono tabular-nums', over && 'text-error-text')}><AnimatedValue value={t.calories} format={fmtInt} /></span>
+            <span className="text-body-md text-on-surface-light font-mono tabular-nums">/ {fmtInt(g.calories)} kcal</span>
           </div>
         </div>
         <Button variant="icon" aria-label="Editar metas" onClick={() => setGoalOpen(true)} className="-mr-2 -mt-1"><Pencil aria-hidden className="size-5" strokeWidth={1.75} /></Button>
@@ -180,8 +180,8 @@ export default function FoodPage() {
         label="Calorías del día" valueText={`${fmtInt(t.calories)} de ${fmtInt(g.calories)} kcal`}
         className="hidden md:block"
       >
-        <span className={cn('text-display-sm tabular-nums', over && 'text-error-text')}><AnimatedValue value={t.calories} format={fmtInt} /></span>
-        <span className="text-body-sm text-on-surface-light tabular-nums">de {fmtInt(g.calories)} kcal</span>
+        <span className={cn('text-display-sm font-mono tabular-nums', over && 'text-error-text')}><AnimatedValue value={t.calories} format={fmtInt} /></span>
+        <span className="text-body-sm text-on-surface-light font-mono tabular-nums">de {fmtInt(g.calories)} kcal</span>
       </ProgressRing>
       <div className="flex min-w-0 flex-col gap-4 md:flex-[1_1_320px] md:gap-5">
         {MACROS.map(({ key: k, label: name, tone }) => {
@@ -192,7 +192,7 @@ export default function FoodPage() {
             <div key={k} className="flex flex-col gap-1.5 md:gap-2">
               <div className="flex items-center justify-between gap-2">
                 <span className="flex items-center gap-2 text-label-lg"><span aria-hidden className={cn('size-2.5 rounded-[3px]', solidBg[tone])} />{name}</span>
-                <span className={cn('text-body-sm tabular-nums', cur > max ? 'text-error-text' : 'text-on-surface')}>
+                <span className={cn('text-body-sm font-mono tabular-nums', cur > max ? 'text-error-text' : 'text-on-surface')}>
                   <b className="font-semibold text-on-background">{fmtInt(cur)} g</b> / {fmtInt(max)} g
                 </span>
               </div>
@@ -249,7 +249,7 @@ export default function FoodPage() {
           const type = ok ? e.meal.mealType : e.type;
           return (
             <motion.li key={ok ? e.meal.id : e.type} variants={item} className="grid grid-cols-[48px_24px_minmax(0,1fr)] gap-x-2 md:grid-cols-[64px_24px_minmax(0,1fr)] md:gap-x-3">
-              <span className="pt-3.5 text-body-sm text-on-surface-light tabular-nums md:pt-[18px]">{ok ? timeOf(e.meal.date) : '—'}</span>
+              <span className="pt-3.5 text-body-sm text-on-surface-light font-mono tabular-nums md:pt-[18px]">{ok ? timeOf(e.meal.date) : '—'}</span>
               <div aria-hidden className="flex flex-col items-center">
                 <span className={cn('mt-[18px] size-3 shrink-0 rounded-full border-2 md:mt-[22px] md:size-3.5', ok ? 'border-success bg-success' : 'border-border-strong bg-background')} />
                 {!last && <span className="w-0.5 flex-1 bg-border" />}
@@ -259,14 +259,14 @@ export default function FoodPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-label-md text-on-surface-light">{mealTypeLabel(type)}</span>
-                      <span className="text-body-sm text-on-surface tabular-nums md:hidden">{e.meal.calories ? `${fmtInt(e.meal.calories)} kcal` : '—'}</span>
+                      <span className="text-body-sm text-on-surface font-mono tabular-nums md:hidden">{e.meal.calories ? `${fmtInt(e.meal.calories)} kcal` : '—'}</span>
                     </div>
                     <button type="button" aria-haspopup="dialog" onClick={() => setDetail(e.meal)} className="block max-w-full text-left text-body-lg font-semibold [overflow-wrap:anywhere] lq-stretch after:absolute after:inset-0 after:rounded-2xl after:content-[''] md:truncate">
                       {e.meal.name}
                     </button>
-                    {macroLine(e.meal) && <div className="hidden text-body-sm text-on-surface-light tabular-nums md:block">{macroLine(e.meal)}</div>}
+                    {macroLine(e.meal) && <div className="hidden text-body-sm text-on-surface-light font-mono tabular-nums md:block">{macroLine(e.meal)}</div>}
                   </div>
-                  <span className="hidden text-heading-sm tabular-nums md:block">{e.meal.calories ? fmtInt(e.meal.calories) : '—'}<span className="sr-only"> kcal</span></span>
+                  <span className="hidden text-heading-sm font-mono tabular-nums md:block">{e.meal.calories ? fmtInt(e.meal.calories) : '—'}<span className="sr-only"> kcal</span></span>
                 </div>
               ) : (
                 <button
@@ -304,10 +304,10 @@ export default function FoodPage() {
       ) : (
         <motion.ul variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-2 md:gap-1">
           {saved.map((s) => (
-            <motion.li key={s.id} variants={item} className="relative flex items-center gap-3 rounded-2xl border border-border bg-surface py-2 pl-4 pr-2 hover:bg-surface-variant/60 md:rounded-lg md:border-0 md:bg-transparent md:px-0 md:hover:bg-transparent">
+            <motion.li key={s.id} variants={item} className="relative flex items-center gap-3 rounded-2xl border border-border bg-surface py-2 pl-4 pr-2 hover:bg-surface-variant/60 md:rounded-md md:border-0 md:bg-transparent md:px-0 md:hover:bg-transparent">
               <div className="min-w-0 flex-1">
                 <button type="button" aria-haspopup="dialog" onClick={() => setSavedDetail(s)} className="block max-w-full truncate text-left text-body-lg font-semibold lq-stretch after:absolute after:inset-0 after:content-['']">{s.name}</button>
-                <div className="truncate text-body-sm text-on-surface-light tabular-nums">
+                <div className="truncate text-body-sm text-on-surface-light font-mono tabular-nums">
                   {[s.calories ? `${fmtInt(s.calories)} kcal` : null, s.protein ? `P ${fmtInt(s.protein)} g` : null].filter(Boolean).join(' · ') || 'Sin datos nutricionales'}
                 </div>
               </div>
@@ -345,13 +345,13 @@ export default function FoodPage() {
         {Array.from({ length: glasses }, (_, i) => (
           <motion.span
             key={i}
-            className={cn('h-8 flex-1 rounded-lg transition-colors duration-300', i < filled ? 'bg-info' : 'bg-surface-variant')}
+            className={cn('h-8 flex-1 rounded-md transition-colors duration-300', i < filled ? 'bg-info' : 'bg-surface-variant')}
             initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.4 + i * 0.06, type: 'spring', stiffness: 420, damping: 18 }}
           />
         ))}
       </div>
-      <span className="text-body-sm text-on-surface-light tabular-nums" aria-live="polite">
+      <span className="text-body-sm text-on-surface-light font-mono tabular-nums" aria-live="polite">
         {filled} de {glasses} vasos · {(t.waterMl / 1000).toLocaleString('es-ES', { maximumFractionDigits: 1 })} L de {(g.waterMl / 1000).toLocaleString('es-ES', { maximumFractionDigits: 1 })} L
       </span>
       <div className="grid grid-cols-2 gap-2">
@@ -395,7 +395,7 @@ export default function FoodPage() {
       <ResponsiveDialog open={Boolean(detail)} onClose={() => setDetail(null)} title={detail?.name ?? ''}>
         {detail && (
           <div className="flex flex-col gap-5">
-            <span className="text-display-sm tabular-nums">{detail.calories ? `${fmtInt(detail.calories)} kcal` : 'Sin calorías'}</span>
+            <span className="text-display-sm font-mono tabular-nums">{detail.calories ? `${fmtInt(detail.calories)} kcal` : 'Sin calorías'}</span>
             <dl className="flex flex-col gap-1">
               {[
                 ['Momento', mealTypeLabel(detail.mealType)],
@@ -403,7 +403,7 @@ export default function FoodPage() {
                 ...MACROS.map(({ key: k, label: name }) => [name, detail[k] ? `${fmtInt(detail[k]!)} g` : '—']),
               ].map(([k, v]) => (
                 <div key={k} className="flex min-h-10 items-center justify-between gap-4 border-b border-border last:border-0">
-                  <dt className="text-body-md text-on-surface-light">{k}</dt><dd className="text-label-lg tabular-nums">{v}</dd>
+                  <dt className="text-body-md text-on-surface-light">{k}</dt><dd className="text-label-lg font-mono tabular-nums">{v}</dd>
                 </div>
               ))}
             </dl>
@@ -422,7 +422,7 @@ export default function FoodPage() {
       <ResponsiveDialog open={Boolean(savedDetail)} onClose={() => setSavedDetail(null)} title={savedDetail?.name ?? ''}>
         {savedDetail && (
           <div className="flex flex-col gap-5">
-            <span className="text-display-sm tabular-nums">{savedDetail.calories ? `${fmtInt(savedDetail.calories)} kcal` : 'Sin calorías'}</span>
+            <span className="text-display-sm font-mono tabular-nums">{savedDetail.calories ? `${fmtInt(savedDetail.calories)} kcal` : 'Sin calorías'}</span>
             <p className="text-body-md text-on-surface">{macroLine(savedDetail) || 'Sin macros registrados'}</p>
             <div className="flex flex-col gap-3 sm:flex-row-reverse">
               <Button block onClick={() => { const s = savedDetail; setSavedDetail(null); void addSaved(s); }}><Plus aria-hidden className="size-5" strokeWidth={2} />Añadir a {dayWord}</Button>

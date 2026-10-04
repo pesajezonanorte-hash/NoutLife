@@ -11,7 +11,7 @@ import { Button, IconChip, ResponsiveDialog, type Tone } from '@/components/ui/l
 
 const CLASSES: Array<{ id: string; icon: LucideIcon; tone: Exclude<Tone, 'muted'>; name: string; description: string; bonus: string; stat: string }> = [
   { id: 'warrior', icon: Swords, tone: 'error', name: 'Guerrero', description: 'Maestro del fitness y la disciplina', bonus: '+20% XP en misiones de Gym', stat: 'Fuerza +2 por nivel' },
-  { id: 'mage', icon: Wand2, tone: 'secondary', name: 'Mago', description: 'Sabio del conocimiento', bonus: '+20% XP en misiones de Aprendizaje', stat: 'Inteligencia +2 por nivel' },
+  { id: 'mage', icon: Wand2, tone: 'forest', name: 'Mago', description: 'Sabio del conocimiento', bonus: '+20% XP en misiones de Aprendizaje', stat: 'Inteligencia +2 por nivel' },
   { id: 'merchant', icon: Coins, tone: 'warning', name: 'Mercader', description: 'Maestro de las finanzas y el ahorro', bonus: '+20% de oro en todas las misiones', stat: 'Acumula riqueza más rápido' },
   { id: 'paladin', icon: Heart, tone: 'success', name: 'Paladín', description: 'Guardián de las relaciones y el bienestar', bonus: '+20% XP en misiones de Amor y Salud', stat: 'Carisma +2 por nivel' },
 ];
@@ -19,6 +19,7 @@ const CLASSES: Array<{ id: string; icon: LucideIcon; tone: Exclude<Tone, 'muted'
 const ring: Record<Exclude<Tone, 'muted'>, string> = {
   primary: 'has-[:checked]:border-primary',
   secondary: 'has-[:checked]:border-secondary',
+  forest: 'has-[:checked]:border-forest',
   success: 'has-[:checked]:border-success',
   warning: 'has-[:checked]:border-warning',
   error: 'has-[:checked]:border-error',

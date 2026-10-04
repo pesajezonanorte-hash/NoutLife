@@ -1,4 +1,4 @@
-// apps/web/src/lib/motion.ts — Framer Motion 11 presets for LifeQuest.
+// apps/web/src/lib/motion.ts — Framer Motion 11 presets for Noutlife.
 import type React from 'react';
 // Wrap the app once: <MotionConfig reducedMotion="user"> (removes transforms, keeps opacity).
 import { useEffect, useState } from 'react';
@@ -22,10 +22,10 @@ export const item: Variants = {
 };
 
 /** Buttons */
-export const tap = { whileHover: { scale: 1.02 }, whileTap: { scale: 0.98 }, transition: { duration: 0.1 } };
+export const tap = { whileHover: { y: -1 }, whileTap: { scale: 0.97 }, transition: { duration: 0.1 } }; // + shadow-md on hover (DS Button)
 
 /** Cards: lift + icon wiggle (put `variants={iconHover}` on the icon chip) */
-export const cardHover = { whileHover: { y: -4 }, transition: { duration: 0.2, ease } };
+export const cardHover = { whileHover: { y: -4 }, transition: { duration: 0.2, ease } }; // + shadow-lg + border primary/25
 export const iconHover: Variants = { hover: { scale: 1.08, rotate: -4, transition: spring } };
 
 /** Progress bar fill: animate scaleX, never width */
@@ -102,8 +102,8 @@ export const item3: Variants = {
 export const pop3: Variants = { initial: { opacity: 0, scale: 0.88 }, animate: { opacity: 1, scale: 1, transition: springSoft } };
 
 /** v3 hovers: card lift −6px with spring, buttons spring scale */
-export const tap3 = { whileHover: { scale: 1.02 }, whileTap: { scale: 0.97 }, transition: springSoft };
-export const cardHover3 = { whileHover: { y: -6 }, transition: springSoft };
+export const tap3 = { whileHover: { y: -1 }, whileTap: { scale: 0.97 }, transition: springSoft };
+export const cardHover3 = { whileHover: { y: -4 }, transition: springSoft };
 
 /** Bars / rings / lines on expo */
 export const barFill3 = (value: number): any => ({

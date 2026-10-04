@@ -1,66 +1,88 @@
-/* LifeQuest design tokens (docs/redesign/tokens/tokens.css).
+/* Noutlife design tokens: paleta Jade del sistema de diseño Noutlife
+   (claude.ai/artifact/McvHnNCYs9XHM3K74SYdE3, project/tokens.json).
    Canales RGB con prefijo --lq-* para no chocar con las variables hex
    existentes (--primary, --border, --surface… se usan como color completo
    en 80+ archivos). Tailwind expone los nombres del README sin prefijo:
    bg-primary-strong, text-on-surface-light, bg-success/10.
-   Light = :root · Dark = html.dark (o sistema oscuro sin .light). */
+   Light = :root · Dark = html.dark (o sistema oscuro sin .light).
+
+   Escala Jade: 50 #e6f2e8 · 100 #dcf3e1 · 200 #c4e2ca · 300 #a5d2b5 · 400 #85c7a1
+                500 #70b48d · 600 #548f6f · 700 #3d6950 · 800 #234433 · 900 #0e1d16 */
 
 :root {
-  --lq-primary: 99 102 241;          /* indigo-500  bars, rings, accents */
-  --lq-primary-strong: 79 70 229;    /* indigo-600  button fill (white text 6.3:1) */
-  --lq-primary-hover: 67 56 202;     /* indigo-700 */
-  --lq-primary-text: 79 70 229;      /* indigo-600  links, active nav */
+  /* Escala Jade completa (bg-jade-500, text-jade-800…): ilustración y gráficos */
+  --lq-jade-50: 230 242 232;  --lq-jade-100: 220 243 225; --lq-jade-200: 196 226 202;
+  --lq-jade-300: 165 210 181; --lq-jade-400: 133 199 161; --lq-jade-500: 112 180 141;
+  --lq-jade-600: 84 143 111;  --lq-jade-700: 61 105 80;   --lq-jade-800: 35 68 51;
+  --lq-jade-900: 14 29 22;
+
+  --lq-primary: 84 143 111;          /* jade-600  bars, rings, accents */
+  --lq-primary-strong: 61 105 80;    /* jade-700  button fill (white text 6.3:1) */
+  --lq-primary-hover: 35 68 51;      /* jade-800 */
+  --lq-primary-text: 61 105 80;      /* jade-700  links, active nav */
   --lq-on-primary: 255 255 255;
 
-  --lq-secondary: 139 92 246;        /* violet-500 */
-  --lq-secondary-text: 109 40 217;   /* violet-700 */
-  --lq-success: 16 185 129;          /* emerald-500 */
-  --lq-success-text: 4 120 87;       /* emerald-700 */
-  --lq-warning: 245 158 11;          /* amber-500 */
-  --lq-warning-text: 146 64 14;      /* amber-800 (amber-700 daba 4.47:1 sobre el tinte suave) */
-  --lq-error: 239 68 68;             /* red-500 */
-  --lq-error-text: 185 28 28;        /* red-700 */
-  --lq-info: 59 130 246;             /* blue-500 */
-  --lq-info-text: 29 78 216;         /* blue-700 */
+  --lq-secondary: 176 141 87;        /* champagne gold #b08d57: XP, gold, recompensas */
+  --lq-secondary-text: 138 106 47;   /* #8a6a2f (5.0:1 sobre blanco) */
+  --lq-forest: 35 68 51;             /* jade-800  tono de categoría (sustituye al violeta) */
+  --lq-forest-text: 35 68 51;
+  --lq-success: 58 155 103;          /* #3a9b67  siempre con ícono + texto */
+  --lq-success-text: 47 122 79;      /* #2f7a4f */
+  --lq-success-strong: 47 122 79;    /* relleno bajo texto blanco */
+  --lq-on-success: 255 255 255;
+  --lq-warning: 212 149 42;          /* #d4952a */
+  --lq-warning-text: 138 75 8;       /* #8a4b08 */
+  --lq-error: 200 70 63;             /* #c8463f */
+  --lq-error-text: 168 50 45;        /* #a8322d */
+  --lq-info: 59 126 166;             /* #3b7ea6 steel blue */
+  --lq-info-text: 44 95 124;         /* #2c5f7c */
 
-  --lq-background: 255 255 255;
-  --lq-surface: 249 250 251;         /* gray-50 */
-  --lq-surface-variant: 243 244 246; /* gray-100 */
-  --lq-border: 229 231 235;          /* gray-200 */
-  --lq-border-strong: 107 114 128;   /* gray-500  input borders ≥3:1 */
-  --lq-on-background: 31 41 55;      /* gray-800 */
-  --lq-on-surface: 55 65 81;         /* gray-700 */
-  --lq-on-surface-light: 107 114 128;/* gray-500 */
+  --lq-background: 249 247 243;      /* marfil #f9f7f3 */
+  --lq-surface: 255 255 255;
+  --lq-surface-variant: 230 242 232; /* jade-50 */
+  --lq-border: 219 231 222;          /* #dbe7de */
+  --lq-border-strong: 107 138 120;   /* #6b8a78  input borders ≥3:1 */
+  --lq-on-background: 14 29 22;      /* jade-900 ink green */
+  --lq-on-surface: 35 68 51;         /* jade-800 */
+  --lq-on-surface-light: 79 107 92;  /* #4f6b5c */
 
   --lq-soft-alpha: .10;              /* tint for chips/badges */
 
-  /* Sombras: mismos nombres que antes, valores del rediseño */
-  --shadow-sm: 0 1px 2px rgb(17 24 39 / .04), 0 1px 3px rgb(17 24 39 / .06);
-  --shadow-md: 0 4px 12px rgb(17 24 39 / .08), 0 2px 4px rgb(17 24 39 / .04);
-  --shadow-lg: 0 12px 32px rgb(17 24 39 / .12), 0 4px 8px rgb(17 24 39 / .06);
+  /* Radios: chips/checks 6 · botones/inputs 10 · cards/paneles/modales 16 */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-full: 999px;
+
+  /* Sombras: mismos nombres que antes, teñidas de verde tinta */
+  --shadow-sm: 0 1px 2px rgb(14 29 22 / .04), 0 1px 3px rgb(14 29 22 / .06);
+  --shadow-md: 0 4px 12px rgb(14 29 22 / .08), 0 2px 4px rgb(14 29 22 / .04);
+  --shadow-lg: 0 12px 32px rgb(14 29 22 / .12), 0 4px 8px rgb(14 29 22 / .06);
 }
 
 html.dark {
-  --lq-primary: 129 140 248;         /* indigo-400 */
-  --lq-primary-strong: 129 140 248;
-  --lq-primary-hover: 165 180 252;
-  --lq-primary-text: 165 180 252;    /* indigo-300 */
-  --lq-on-primary: 10 10 11;         /* texto casi negro sobre botón claro */
+  --lq-primary: 133 199 161;         /* jade-400 */
+  --lq-primary-strong: 133 199 161;
+  --lq-primary-hover: 165 210 181;   /* jade-300 */
+  --lq-primary-text: 165 210 181;    /* jade-300 */
+  --lq-on-primary: 14 29 22;         /* jade-900 sobre botón claro */
 
-  --lq-secondary: 167 139 250;  --lq-secondary-text: 196 181 253;
-  --lq-success: 52 211 153;     --lq-success-text: 52 211 153;
-  --lq-warning: 251 191 36;     --lq-warning-text: 251 191 36;
-  --lq-error: 248 113 113;      --lq-error-text: 252 165 165;  /* red-300: AA sobre tinte suave */
-  --lq-info: 96 165 250;        --lq-info-text: 147 197 253;   /* blue-300: AA sobre tinte suave */
+  --lq-secondary: 212 180 131;  --lq-secondary-text: 212 180 131;  /* #d4b483 */
+  --lq-forest: 196 226 202;     --lq-forest-text: 196 226 202;     /* jade-200 */
+  --lq-success: 127 211 160;    --lq-success-text: 127 211 160;    /* #7fd3a0 */
+  --lq-success-strong: 127 211 160; --lq-on-success: 14 29 22;
+  --lq-warning: 224 168 74;     --lq-warning-text: 224 168 74;     /* #e0a84a */
+  --lq-error: 229 115 105;      --lq-error-text: 242 163 155;      /* #e57369 / #f2a39b */
+  --lq-info: 127 182 214;       --lq-info-text: 156 199 224;       /* #7fb6d6 / #9cc7e0 */
 
-  --lq-background: 10 10 11;         /* casi negro neutro (sin tinte azul) */
-  --lq-surface: 20 20 22;            /* gris carbón */
-  --lq-surface-variant: 39 39 42;    /* zinc-800 */
-  --lq-border: 42 42 46;
-  --lq-border-strong: 161 161 170;   /* zinc-400 */
-  --lq-on-background: 250 250 250;
-  --lq-on-surface: 212 212 216;
-  --lq-on-surface-light: 161 161 170;
+  --lq-background: 14 29 22;         /* jade-900 */
+  --lq-surface: 20 38 29;            /* #14261d */
+  --lq-surface-variant: 28 51 40;    /* #1c3328 */
+  --lq-border: 35 68 51;             /* jade-800 */
+  --lq-border-strong: 95 154 122;    /* #5f9a7a */
+  --lq-on-background: 230 242 232;   /* jade-50 */
+  --lq-on-surface: 196 226 202;      /* jade-200 */
+  --lq-on-surface-light: 143 174 156;/* #8fae9c */
 
   --lq-soft-alpha: .16;
 
@@ -71,6 +93,12 @@ html.dark {
 
 @layer base {
   :focus-visible { outline: 3px solid rgb(var(--lq-primary)); outline-offset: 2px; }
+  /* Números que cuentan: JetBrains Mono con cifras tabulares (README §Tipografía). */
+  .font-mono { font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+  /* El cuerpo es 15 px: en táctil los campos suben a 16 px para que iOS no haga zoom. */
+  @media (pointer: coarse) {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea { font-size: max(1rem, 1em); }
+  }
   /* El foco nunca queda bajo la TabBar + FAB (móvil) ni bajo la Topbar fija (desktop). WCAG 2.4.11 */
   html { scroll-padding-bottom: calc(11rem + env(safe-area-inset-bottom)); }
   @media (min-width: 768px) { html { scroll-padding-bottom: 2rem; } }
@@ -96,12 +124,13 @@ html.dark {
   }
   .reduce-motion .lq-halo::after { animation: none; }
 
-  /* Motion v3: lift −6 px con curva expo; el ícono rebota con muelle. */
+  /* Card interactiva (design system): lift −4 px con muelle suave + shadow-lg +
+     borde primary/25; el ícono rebota con muelle. */
   .lq-lift {
-    transition: transform .5s cubic-bezier(.16, 1, .3, 1), box-shadow .5s cubic-bezier(.16, 1, .3, 1), border-color .3s;
+    transition: transform .42s cubic-bezier(.34, 1.4, .64, 1), box-shadow .3s cubic-bezier(.16, 1, .3, 1), border-color .2s ease-out;
   }
   .lq-lift:hover, .lq-lift:focus-within {
-    transform: translateY(-6px);
+    transform: translateY(-4px);
     box-shadow: var(--shadow-lg);
     border-color: rgb(var(--lq-primary) / .25);
   }

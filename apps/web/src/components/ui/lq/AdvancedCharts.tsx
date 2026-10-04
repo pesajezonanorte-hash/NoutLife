@@ -8,6 +8,8 @@ import { expo, springSoft } from '@/lib/motion';
 import { strokeTone, type Tone } from './tones';
 
 const fillSoft: Partial<Record<Tone, string>> = {
+  forest: 'fill-forest/[var(--lq-soft-alpha)]',
+  info: 'fill-info/[var(--lq-soft-alpha)]',
   primary: 'fill-primary/[var(--lq-soft-alpha)]',
   secondary: 'fill-secondary/[var(--lq-soft-alpha)]',
   warning: 'fill-warning/[var(--lq-soft-alpha)]',

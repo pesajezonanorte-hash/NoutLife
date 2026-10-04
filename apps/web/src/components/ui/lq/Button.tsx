@@ -8,14 +8,16 @@ export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'icon
 export type ButtonSize = 'lg' | 'md' | 'sm';
 
 const base =
-  'inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-lg text-label-lg ' +
-  'transition-[background-color,color,box-shadow,scale] duration-200 ease-[cubic-bezier(.22,1,.36,1)] disabled:cursor-not-allowed disabled:opacity-40';
+  'inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-md text-label-lg ' +
+  'transition-[background-color,color,border-color,box-shadow,scale] duration-150 ease-out disabled:cursor-not-allowed disabled:opacity-55';
 
+// Design system: primario jade sólido (uno por vista), secundario con borde
+// border-strong, peligro sólido error-text. Reposo shadow-sm, hover shadow-md.
 const variants: Record<ButtonVariant, string> = {
-  primary: 'lq-shine bg-primary-strong text-on-primary hover:bg-primary-hover hover:shadow-[0_10px_28px_-10px_rgb(var(--lq-primary)/0.65)] active:shadow-none',
-  secondary: 'bg-surface-variant text-primary-text hover:bg-border hover:shadow-md active:shadow-none',
-  ghost: 'bg-transparent text-primary-text hover:underline hover:underline-offset-4',
-  danger: 'bg-error/[var(--lq-soft-alpha)] text-error-text hover:shadow-md active:shadow-none',
+  primary: 'lq-shine bg-primary-strong text-on-primary shadow-sm hover:bg-primary-hover hover:shadow-md active:shadow-sm',
+  secondary: 'border border-border-strong bg-surface-variant text-on-background shadow-sm hover:border-primary hover:shadow-md active:shadow-sm',
+  ghost: 'bg-transparent text-primary-text hover:bg-primary/[var(--lq-soft-alpha)]',
+  danger: 'bg-error-text text-on-primary shadow-sm hover:shadow-md active:shadow-sm',
   icon: 'size-11 shrink-0 rounded-full bg-transparent p-0 text-on-surface hover:bg-surface-variant',
 };
 
@@ -32,12 +34,12 @@ function classesFor(variant: ButtonVariant, size: ButtonSize, block?: boolean) {
 
 /** Clases de botón para enlaces (<Link className={buttonClasses()} />), con pulsación en CSS. */
 export function buttonClasses(variant: ButtonVariant = 'primary', size: ButtonSize = 'lg', block = false) {
-  return cn(classesFor(variant, size, block), 'active:[scale:.96]');
+  return cn(classesFor(variant, size, block), 'transition-[background-color,color,border-color,box-shadow,transform,scale] hover:-translate-y-px active:translate-y-0 active:[scale:.97] [.reduce-motion_&]:hover:translate-y-0');
 }
 
-// Hover y pulsación con muelle; ghost no se eleva, icon solo escala.
-const lift: TargetAndTransition = { y: -1, scale: 1.015 };
-const press: TargetAndTransition = { y: 0, scale: 0.96 };
+// Hover −1 px y pulsación 0.97 con muelle; ghost no se eleva, icon solo escala.
+const lift: TargetAndTransition = { y: -1 };
+const press: TargetAndTransition = { y: 0, scale: 0.97 };
 const hoverFor: Record<ButtonVariant, TargetAndTransition | undefined> = {
   primary: lift, secondary: lift, danger: lift, ghost: undefined, icon: { scale: 1.06 },
 };
@@ -55,8 +57,8 @@ export interface ButtonProps extends Omit<HTMLMotionProps<'button'>, 'children'>
 
 /**
  * <Button variant="primary|secondary|ghost|danger|icon" size="lg|md|sm">
- * Hover: sube 1 px y escala 1.015 (el primario además brilla y proyecta sombra
- * de color); pulsación 0.96 con muelle. Icon escala, ghost solo se hunde.
+ * Hover: sube 1 px + shadow-md (el primario además deja pasar un brillo);
+ * pulsación 0.97 con muelle. Icon escala, ghost solo se hunde.
  * Los botones icon necesitan aria-label.
  */
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(

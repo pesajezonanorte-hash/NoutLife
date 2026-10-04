@@ -6,6 +6,7 @@ import type { Tone } from './tones';
 const cover: Record<Exclude<Tone, 'muted'>, string> = {
   primary: 'bg-primary-strong',
   secondary: 'bg-secondary-text',
+  forest: 'bg-forest-text',
   success: 'bg-success-text',
   warning: 'bg-warning-text',
   error: 'bg-error-text',

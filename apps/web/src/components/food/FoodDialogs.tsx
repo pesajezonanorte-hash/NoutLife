@@ -61,11 +61,11 @@ function MealFields({ draft, set, touched, withType, nameRef }: {
       {withType && <TypePicker value={draft.type} onChange={(type) => set({ type })} />}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <Field label="Calorías" help="kcal" error={touched && invalidNum(draft.calories) ? 'Número no válido' : undefined}>
-          <Input type="number" inputMode="numeric" min="0" value={draft.calories} onChange={(e) => set({ calories: e.target.value })} placeholder="0" className="tabular-nums" />
+          <Input type="number" inputMode="numeric" min="0" value={draft.calories} onChange={(e) => set({ calories: e.target.value })} placeholder="0" className="font-mono tabular-nums" />
         </Field>
         {MACROS.map(({ key, label }) => (
           <Field key={key} label={label} help="gramos" error={touched && invalidNum(draft[key]) ? 'Número no válido' : undefined}>
-            <Input type="number" inputMode="decimal" min="0" step="any" value={draft[key]} onChange={(e) => set({ [key]: e.target.value })} placeholder="0" className="tabular-nums" />
+            <Input type="number" inputMode="decimal" min="0" step="any" value={draft[key]} onChange={(e) => set({ [key]: e.target.value })} placeholder="0" className="font-mono tabular-nums" />
           </Field>
         ))}
       </div>
@@ -310,7 +310,7 @@ export function GoalDialog({ open, onClose, goal, onSaved }: {
         <div className="grid grid-cols-2 gap-4">
           {fields.map(({ key, label, help }, i) => (
             <Field key={key} label={label} help={help} error={bad(key) ? 'Debe ser mayor que 0' : undefined} className={cn(i === 0 && 'col-span-2')}>
-              <Input data-autofocus={i === 0 || undefined} type="number" inputMode="numeric" min="1" value={form[key]} onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))} className="tabular-nums" />
+              <Input data-autofocus={i === 0 || undefined} type="number" inputMode="numeric" min="1" value={form[key]} onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))} className="font-mono tabular-nums" />
             </Field>
           ))}
         </div>

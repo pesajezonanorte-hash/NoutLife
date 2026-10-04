@@ -64,7 +64,7 @@ function AchievementCard({ a }: { a: Achievement }) {
       </div>
       <div className="flex w-full flex-col gap-1.5">
         <ProgressBar value={pct} tone={on ? 'success' : 'primary'} />
-        <span className={cn('text-body-sm tabular-nums', on ? 'text-success-text' : 'text-on-surface-light')}>{metaText}</span>
+        <span className={cn('text-body-sm font-mono tabular-nums', on ? 'text-success-text' : 'text-on-surface-light')}>{metaText}</span>
       </div>
       {/* Desktop: la descripción se despliega en hover/foco (grid-rows 0fr → 1fr). */}
       <div className="hidden w-full grid-rows-[0fr] opacity-0 transition-[grid-template-rows,opacity] duration-300 ease-out group-hover:grid-rows-[1fr] group-hover:opacity-100 group-focus:grid-rows-[1fr] group-focus:opacity-100 [.reduce-motion_&]:transition-none md:grid">
@@ -118,8 +118,8 @@ export default function AchievementsPage() {
           {state === 'ready' && list.length > 0 && (
             <div className="flex flex-col gap-2 md:hidden">
               <div className="flex justify-between text-body-md">
-                <span><b className="tabular-nums">{unlocked}</b> de {list.length} desbloqueados</span>
-                <span className="text-body-sm text-on-surface-light tabular-nums">{pct}%</span>
+                <span><b className="font-mono tabular-nums">{unlocked}</b> de {list.length} desbloqueados</span>
+                <span className="text-body-sm text-on-surface-light font-mono tabular-nums">{pct}%</span>
               </div>
               <ProgressBar value={pct} />
             </div>
@@ -127,7 +127,7 @@ export default function AchievementsPage() {
         </div>
         {state === 'ready' && list.length > 0 && (
           <ProgressRing value={pct} size={140} stroke={12} label="Logros obtenidos" valueText={`${unlocked} de ${list.length}`} className="hidden md:flex">
-            <span className="text-heading-lg tabular-nums">{unlocked}/{list.length}</span>
+            <span className="text-heading-lg font-mono tabular-nums">{unlocked}/{list.length}</span>
             <span className="text-body-sm text-on-surface-light">obtenidos</span>
           </ProgressRing>
         )}

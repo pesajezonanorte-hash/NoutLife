@@ -65,7 +65,7 @@ export default function LoginPage() {
           {forgot && (
             <p id="forgot-note" className="flex items-start gap-2 rounded-xl bg-info/[var(--lq-soft-alpha)] px-4 py-3 text-body-sm text-info-text">
               <Info aria-hidden className="mt-0.5 size-4 shrink-0" strokeWidth={1.75} />
-              Todavía no se puede restablecer desde la app. Contacta con el soporte de LifeQuest indicando el email de tu cuenta.
+              Todavía no se puede restablecer desde la app. Contacta con el soporte de Noutlife indicando el email de tu cuenta.
             </p>
           )}
         </div>

@@ -31,7 +31,7 @@ function hasTextualLabel(node: ReactNode): boolean {
 }
 
 /**
- * Shared action button for LifeQuest. It preserves the historical PixelButton
+ * Shared action button for Noutlife. It preserves the historical PixelButton
  * API and audio feedback, while rendering the bounded FlowButton interaction
  * instead of the previous liquid-glass/scale-on-hover treatment.
  */

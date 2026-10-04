@@ -132,11 +132,11 @@ export function findNavEntry(pathname: string): NavEntry | undefined {
 export interface Crumb { label: string; to?: string }
 
 /**
- * Breadcrumb "LifeQuest › Sección › Detalle". El último tramo puede venir de
+ * Breadcrumb "Noutlife › Sección › Detalle". El último tramo puede venir de
  * la página (p. ej. el nombre del hábito) vía `usePageCrumb`.
  */
 export function buildCrumbs(pathname: string, detail?: string | null): Crumb[] {
-  const crumbs: Crumb[] = [{ label: 'LifeQuest', to: '/' }];
+  const crumbs: Crumb[] = [{ label: 'Noutlife', to: '/' }];
   const entry = findNavEntry(pathname);
   if (EXTRA_LABELS[pathname]) {
     if (entry && entry.to !== '/') crumbs.push({ label: entry.label, to: entry.to });

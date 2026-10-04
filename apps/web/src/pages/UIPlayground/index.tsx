@@ -10,6 +10,8 @@ const swatches = [
   ['primary', 'bg-primary'],
   ['primary-strong', 'bg-primary-strong'],
   ['secondary', 'bg-secondary'],
+  ['forest', 'bg-forest'],
+  ['jade-500', 'bg-jade-500'],
   ['success', 'bg-success'],
   ['warning', 'bg-warning'],
   ['error', 'bg-error'],
@@ -62,7 +64,7 @@ export default function UIPlayground() {
     >
       <header className="flex flex-col gap-4">
         <span className="text-label-lg text-primary-text">Design System · Fundamentos</span>
-        <h1 className="text-display-sm lg:text-display-lg">Tokens LifeQuest</h1>
+        <h1 className="text-display-sm lg:text-display-lg">Tokens Noutlife</h1>
         <SegmentedControl role="radiogroup" label="Tema" value={mode} onChange={setMode} options={modes} className="max-w-sm" />
       </header>
 

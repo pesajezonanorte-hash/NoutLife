@@ -88,14 +88,14 @@ export function CompleteQuestDialog({ quest: current, onClose, onCompleted }: Co
               initial={{ scale: 0.6, opacity: 0 }}
               animate={{ scale: [0.6, 1.08, 1], opacity: 1 }}
               transition={{ duration: 0.45, delay: 0.18 }}
-              className="text-display-md text-primary-text tabular-nums md:text-display-lg"
+              className="text-display-md text-primary-text font-mono tabular-nums md:text-display-lg"
             >
               +{earned} XP
             </motion.p>
             {user && (
               <div className="flex w-full flex-col gap-1.5">
                 <ProgressBar value={pct} size="lg" shine label="Experiencia" valueText={`${user.xp} de ${user.xpToNextLevel} XP`} />
-                <span className="text-body-sm text-on-surface-light tabular-nums">
+                <span className="text-body-sm text-on-surface-light font-mono tabular-nums">
                   {user.xp.toLocaleString('es-CO')} / {user.xpToNextLevel.toLocaleString('es-CO')} XP · Nivel {user.level}
                 </span>
               </div>

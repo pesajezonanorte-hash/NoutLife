@@ -2,23 +2,23 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<title>LifeQuest Components</title>
+<title>Noutlife Components</title>
 <script src="./support.js"></script>
 <link rel="stylesheet" href="./lq.css">
 </head>
 <body>
 <x-dc>
 <helmet>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&amp;family=Montserrat:wght@400;500;600;700&amp;display=swap">
 <style>
 body{margin:0}
-a{color:#4f46e5}a:hover{color:#4338ca}
+a{color:var(--primary-text)}a:hover{color:var(--primary-hover)}
 </style>
 </helmet>
 <div class="lq" style="width: 1440px; height: 3500px; padding: 64px 80px; display: flex; flex-direction: column; gap: 48px">
   <header style="display: flex; flex-direction: column; gap: 12px">
     <h1 class="t-dl">Componentes</h1>
-    <p class="t-bl c-2" style="max-width: 900px">Cada bloque se muestra en light y dark. Los estados hover / active / disabled / focus están fijados para inspección. Nota de implementación arriba de cada componente: mapeo React → Tailwind y spec de Framer Motion.</p>
+    <p class="t-bl c-2" style="max-width: 900px">Sistema Noutlife (Jade). Cada bloque se muestra en light y dark. Los estados hover / active / disabled / focus están fijados para inspección. Nota de implementación arriba de cada componente: mapeo React → Tailwind y spec de Framer Motion.</p>
   </header>
 
   <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px">
@@ -27,7 +27,7 @@ a{color:#4f46e5}a:hover{color:#4338ca}
     <div class="row" style="justify-content: space-between"><span class="t-hm">{{th.name}}</span><span class="badge badge-neutral">{{th.tag}}</span></div>
 
     <section style="display: flex; flex-direction: column; gap: 16px">
-      <div style="display: flex; flex-direction: column; gap: 4px"><h2 class="t-hs">Button</h2><span class="mono c-3">&lt;Button variant="primary|secondary|ghost|icon" size="lg|md|sm"&gt; · hover scale 1.02 + shadow-md 100 ms</span></div>
+      <div style="display: flex; flex-direction: column; gap: 4px"><h2 class="t-hs">Button</h2><span class="mono c-3">&lt;Button variant="primary|secondary|ghost|danger|icon" size="lg|md|sm"&gt; · rounded-md (10 px) · hover y −1 + shadow-md 100 ms · press 0.97</span></div>
       <div class="row" style="gap: 12px; flex-wrap: wrap">
         <button class="btn btn-primary">Primary lg</button>
         <button class="btn btn-primary btn-md">Primary md</button>
@@ -36,9 +36,9 @@ a{color:#4f46e5}a:hover{color:#4338ca}
       <div class="row" style="gap: 12px; flex-wrap: wrap">
         <button class="btn btn-secondary">Secondary</button>
         <button class="btn btn-ghost">Ghost</button>
-        <button class="btn btn-danger"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>Eliminar</button>
-        <button class="btn btn-icon" aria-label="Notificaciones"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 21h4"/></svg></button>
-        <button class="btn btn-icon is-hover" aria-label="Ajustes (hover)"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></svg></button>
+        <button class="btn btn-danger"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"></path></svg>Eliminar</button>
+        <button class="btn btn-icon" aria-label="Notificaciones"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4z"></path><path d="M10 21h4"></path></svg></button>
+        <button class="btn btn-icon is-hover" aria-label="Ajustes (hover)"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"></path></svg></button>
       </div>
       <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px">
         <div style="display: flex; flex-direction: column; gap: 6px"><button class="btn btn-primary btn-md">Guardar</button><span class="t-bs c-3">Default</span></div>
@@ -49,22 +49,22 @@ a{color:#4f46e5}a:hover{color:#4338ca}
     </section>
 
     <section style="display: flex; flex-direction: column; gap: 16px">
-      <div style="display: flex; flex-direction: column; gap: 4px"><h2 class="t-hs">Card · Stat Card</h2><span class="mono c-3">&lt;Card variant="base|elevated" badge?&gt; rounded-2xl p-4 md:p-6 · hover y -2 + shadow-lg 150 ms</span></div>
+      <div style="display: flex; flex-direction: column; gap: 4px"><h2 class="t-hs">Card · Stat Card</h2><span class="mono c-3">&lt;Card variant="base|elevated" badge?&gt; rounded-lg (16 px) p-4 / p-6 hero · interactiva: y −4 + shadow-lg + borde primary/25 200 ms</span></div>
       <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px">
         <div class="card" style="display: flex; flex-direction: column; gap: 8px"><span class="t-ll">Base</span><span class="t-bs c-3">surface + border + shadow-sm</span></div>
-        <div class="card card-elevated is-hover" style="display: flex; flex-direction: column; gap: 8px"><span class="t-ll">Elevated · hover</span><span class="t-bs c-3">shadow-lg, y -2 px</span></div>
-        <div class="card" style="display: flex; flex-direction: column; gap: 8px"><span class="badge badge-success" style="align-self: flex-start"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>Hecho</span><span class="t-ll">Con badge</span></div>
+        <div class="card card-elevated is-hover" style="display: flex; flex-direction: column; gap: 8px"><span class="t-ll">Elevated · hover</span><span class="t-bs c-3">shadow-lg, y −4 px</span></div>
+        <div class="card" style="display: flex; flex-direction: column; gap: 8px"><span class="badge badge-success" style="align-self: flex-start"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10"></path></svg>Hecho</span><span class="t-ll">Con badge</span></div>
       </div>
       <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
         <div class="card" style="display: flex; flex-direction: column; gap: 12px">
-          <div class="ichip warning"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22c4 0 7-3 7-7 0-4-3-6-4-9-1 2-2 3-4 3 0-2-1-4-2-5-1 4-4 6-4 11 0 4 3 7 7 7z"/></svg></div>
+          <div class="ichip warning"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22c4 0 7-3 7-7 0-4-3-6-4-9-1 2-2 3-4 3 0-2-1-4-2-5-1 4-4 6-4 11 0 4 3 7 7 7z"></path></svg></div>
           <div><div class="t-hl num">14 días</div><div class="t-bs c-3">Racha actual</div></div>
-          <a class="link" href="#">Ver más<svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></a>
+          <a class="link" href="#">Ver más<svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
         </div>
         <div class="card" style="display: flex; flex-direction: column; gap: 12px">
-          <div class="ichip success"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg></div>
+          <div class="ichip success"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m8.5 12 2.5 2.5 4.5-5"></path></svg></div>
           <div><div class="t-hl num">3/5</div><div class="t-bs c-3">Hábitos hoy</div></div>
-          <a class="link" href="#">Ver más<svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></a>
+          <a class="link" href="#">Ver más<svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></a>
         </div>
       </div>
     </section>
@@ -72,14 +72,14 @@ a{color:#4f46e5}a:hover{color:#4338ca}
     <section style="display: flex; flex-direction: column; gap: 16px">
       <div style="display: flex; flex-direction: column; gap: 4px"><h2 class="t-hs">Badge</h2><span class="mono c-3">&lt;Badge variant size="md|lg"&gt; · siempre ícono + texto en estados</span></div>
       <div class="row" style="gap: 8px; flex-wrap: wrap">
-        <span class="badge badge-success"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>Completado</span>
-        <span class="badge badge-warning"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 21h20z"/><path d="M12 10v5"/></svg>HP bajo</span>
-        <span class="badge badge-error"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>Derrota</span>
-        <span class="badge badge-info"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>Nuevo</span>
-        <span class="badge badge-primary"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg>+150 XP</span>
+        <span class="badge badge-success"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10"></path></svg>Completado</span>
+        <span class="badge badge-warning"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 21h20z"></path><path d="M12 10v5"></path></svg>HP bajo</span>
+        <span class="badge badge-error"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>Derrota</span>
+        <span class="badge badge-info"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path></svg>Nuevo</span>
+        <span class="badge badge-primary"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"></path></svg>+150 XP</span>
       </div>
       <div class="row" style="gap: 8px; flex-wrap: wrap">
-        <span class="badge lg badge-success">Salud</span><span class="badge lg badge-info">Aprendizaje</span><span class="badge lg badge-warning">Finanzas</span><span class="badge lg badge-secondary">Mente</span><span class="badge lg badge-neutral">Neutral</span>
+        <span class="badge lg badge-success">Salud</span><span class="badge lg badge-info">Aprendizaje</span><span class="badge lg badge-warning">Finanzas</span><span class="badge lg badge-forest">Mente</span><span class="badge lg badge-neutral">Neutral</span>
       </div>
     </section>
 
@@ -88,8 +88,8 @@ a{color:#4f46e5}a:hover{color:#4338ca}
       <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px">
         <div class="field"><label for="a-{{th.id}}">Nombre del hábito</label><input id="a-{{th.id}}" class="input" type="text" placeholder="Ej. Leer 20 páginas"></div>
         <div class="field"><label for="b-{{th.id}}">Focus</label><input id="b-{{th.id}}" class="input is-focus" type="text" value="Meditar 10 min"></div>
-        <div class="field"><label for="c-{{th.id}}">Monto</label><input id="c-{{th.id}}" class="input is-error" type="number" value="-20"><span class="help err"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>Ingresa un monto mayor a 0</span></div>
-        <div class="field"><label for="d-{{th.id}}">Frecuencia</label><div style="position: relative"><select id="d-{{th.id}}" class="input"><option>Diario</option><option>Semanal</option></select><svg class="i c-3" viewBox="0 0 24 24" aria-hidden="true" style="position: absolute; right: 12px; top: 12px; pointer-events: none"><path d="m6 9 6 6 6-6"/></svg></div></div>
+        <div class="field"><label for="c-{{th.id}}">Monto</label><input id="c-{{th.id}}" class="input is-error" type="number" value="-20"><span class="help err"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16h.01"></path></svg>Ingresa un monto mayor a 0</span></div>
+        <div class="field"><label for="d-{{th.id}}">Frecuencia</label><div style="position: relative"><select id="d-{{th.id}}" class="input"><option>Diario</option><option>Semanal</option></select><svg class="i c-3" viewBox="0 0 24 24" aria-hidden="true" style="position: absolute; right: 12px; top: 12px; pointer-events: none"><path d="m6 9 6 6 6-6"></path></svg></div></div>
       </div>
     </section>
 
@@ -104,7 +104,7 @@ a{color:#4f46e5}a:hover{color:#4338ca}
           <div class="bar lg warning"><span style="width: 35%"></span></div>
         </div>
         <div style="position: relative; width: 96px; height: 96px">
-          <svg viewBox="0 0 96 96" width="96" height="96" aria-hidden="true" style="transform: rotate(-90deg)"><circle cx="48" cy="48" r="40" fill="none" stroke="var(--surface-variant)" stroke-width="8"/><circle cx="48" cy="48" r="40" fill="none" stroke="var(--primary)" stroke-width="8" stroke-linecap="round" stroke-dasharray="251" stroke-dashoffset="70"/></svg>
+          <svg viewBox="0 0 96 96" width="96" height="96" aria-hidden="true" style="transform: rotate(-90deg)"><circle cx="48" cy="48" r="40" fill="none" stroke="var(--surface-variant)" stroke-width="8"></circle><circle cx="48" cy="48" r="40" fill="none" stroke="var(--primary)" stroke-width="8" stroke-linecap="round" stroke-dasharray="251" stroke-dashoffset="70"></circle></svg>
           <span class="t-hs num" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center">72%</span>
         </div>
       </div>
@@ -112,18 +112,18 @@ a{color:#4f46e5}a:hover{color:#4338ca}
 
     <section style="display: flex; flex-direction: column; gap: 16px">
       <div style="display: flex; flex-direction: column; gap: 4px"><h2 class="t-hs">Toast</h2><span class="mono c-3">&lt;Toast type&gt; móvil bottom-center · desktop bottom-right · 4 s · in y 100%→0 200 ms · role="status"</span></div>
-      <div class="toast" role="status"><div class="ichip success"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg></div><span style="flex: 1">Hábito completado · +10 XP</span><button class="btn btn-icon" aria-label="Cerrar"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
-      <div class="toast" role="alert"><div class="ichip error"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg></div><span style="flex: 1">No se pudo guardar. Revisa tu conexión.</span><button class="btn btn-icon" aria-label="Cerrar"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
-      <div class="toast" role="status"><div class="ichip warning"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 21h20z"/><path d="M12 10v5M12 18h.01"/></svg></div><span style="flex: 1">Tu HP está bajo: descansa antes de pelear.</span><button class="btn btn-icon" aria-label="Cerrar"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
-      <div class="toast" role="status"><div class="ichip info"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg></div><span style="flex: 1">Nueva misión semanal disponible.</span><button class="btn btn-icon" aria-label="Cerrar"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
-      <div class="row" style="gap: 12px; padding: 12px 8px 12px 16px; border-radius: 12px; background: var(--error-soft)"><svg class="i c-error" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg><span class="t-bm c-1" style="flex: 1">Inline: tu presupuesto de comida superó el límite.</span><button class="btn btn-ghost btn-sm">Cerrar</button></div>
+      <div class="toast" role="status"><div class="ichip success"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10"></path></svg></div><span style="flex: 1">Hábito completado · +10 XP</span><button class="btn btn-icon" aria-label="Cerrar"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button></div>
+      <div class="toast" role="alert"><div class="ichip error"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16h.01"></path></svg></div><span style="flex: 1">No se pudo guardar. Revisa tu conexión.</span><button class="btn btn-icon" aria-label="Cerrar"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button></div>
+      <div class="toast" role="status"><div class="ichip warning"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 21h20z"></path><path d="M12 10v5M12 18h.01"></path></svg></div><span style="flex: 1">Tu HP está bajo: descansa antes de pelear.</span><button class="btn btn-icon" aria-label="Cerrar"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button></div>
+      <div class="toast" role="status"><div class="ichip info"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path></svg></div><span style="flex: 1">Nueva misión semanal disponible.</span><button class="btn btn-icon" aria-label="Cerrar"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button></div>
+      <div class="row" style="gap: 12px; padding: 12px 8px 12px 16px; border-radius: 12px; background: var(--error-soft)"><svg class="i c-error" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16h.01"></path></svg><span class="t-bm c-1" style="flex: 1">Inline: tu presupuesto de comida superó el límite.</span><button class="btn btn-ghost btn-sm">Cerrar</button></div>
     </section>
 
     <section style="display: flex; flex-direction: column; gap: 16px">
       <div style="display: flex; flex-direction: column; gap: 4px"><h2 class="t-hs">Modal</h2><span class="mono c-3">&lt;Modal&gt; role="dialog" aria-modal · focus trap · Escape cierra · scrim fade 200 ms, panel y 20→0 300 ms</span></div>
-      <div style="padding: 24px; border-radius: 20px; background: rgba(17,24,39,.48)">
+      <div style="padding: 24px; border-radius: 20px; background: rgba(14,29,22,.48)">
         <div class="modal" role="dialog" aria-modal="true" aria-labelledby="m-{{th.id}}">
-          <div class="row" style="justify-content: space-between"><h3 id="m-{{th.id}}" class="t-hm">¿Completar misión?</h3><button class="btn btn-icon" aria-label="Cerrar"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+          <div class="row" style="justify-content: space-between"><h3 id="m-{{th.id}}" class="t-hm">¿Completar misión?</h3><button class="btn btn-icon" aria-label="Cerrar"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button></div>
           <p class="t-bm c-2">Recibirás +300 XP y la misión pasará a Completadas.</p>
           <div class="row" style="gap: 12px; justify-content: flex-end"><button class="btn btn-secondary btn-md">Cancelar</button><button class="btn btn-primary btn-md">Completar</button></div>
         </div>
@@ -134,16 +134,16 @@ a{color:#4f46e5}a:hover{color:#4338ca}
       <div style="display: flex; flex-direction: column; gap: 4px"><h2 class="t-hs">Empty · Error · Page Loader</h2><span class="mono c-3">if (isLoading) &lt;PageLoader/&gt; · if (error) &lt;ErrorState onRetry /&gt; (auto-retry 5 s) · else &lt;Content/&gt;</span></div>
       <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
         <div class="card" style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; padding: 32px 16px">
-          <div class="ichip primary lg"><svg class="i i48" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg></div>
+          <div class="ichip primary lg"><svg class="i i48" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m8.5 12 2.5 2.5 4.5-5"></path></svg></div>
           <h3 class="t-hl">Crea tu primer hábito</h3>
           <p class="t-bm c-3">Comienza con un objetivo pequeño.</p>
-          <button class="btn btn-primary"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Nuevo hábito</button>
+          <button class="btn btn-primary"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Nuevo hábito</button>
         </div>
         <div class="card" style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; padding: 32px 16px">
-          <div class="ichip error lg"><svg class="i i48" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 21h20z"/><path d="M12 10v5M12 18h.01"/></svg></div>
+          <div class="ichip error lg"><svg class="i i48" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 21h20z"></path><path d="M12 10v5M12 18h.01"></path></svg></div>
           <h3 class="t-hl">No pudimos cargar</h3>
           <p class="t-bm c-3">Reintentando en 5 s…</p>
-          <button class="btn btn-secondary"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7L20 8"/><path d="M20 3v5h-5"/></svg>Reintentar</button>
+          <button class="btn btn-secondary"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7L20 8"></path><path d="M20 3v5h-5"></path></svg>Reintentar</button>
         </div>
       </div>
       <div class="card" style="display: flex; flex-direction: column; gap: 12px" aria-busy="true" aria-label="Cargando">
@@ -157,13 +157,13 @@ a{color:#4f46e5}a:hover{color:#4338ca}
     <section style="display: flex; flex-direction: column; gap: 16px">
       <div style="display: flex; flex-direction: column; gap: 4px"><h2 class="t-hs">Navegación móvil</h2><span class="mono c-3">&lt;TabBar&gt; h-20 · 5 destinos · target 56 px · activo primary-text + aria-current · &lt;Fab&gt; 64 px bottom-24 right-4</span></div>
       <div class="screen" style="height: 200px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface)">
-        <button class="fab" aria-label="Nuevo hábito" style="bottom: 96px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+        <button class="fab" aria-label="Nuevo hábito" style="bottom: 96px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button>
         <nav class="tabbar" aria-label="Principal">
-          <a href="#" class="on" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Inicio</a>
-          <a href="#"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg>Hábitos</a>
-          <a href="#"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 22V4"/><path d="M5 4h12l-2.5 4L17 12H5"/></svg>Misiones</a>
-          <a href="#"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 17.5 21 6V3h-3L6.5 14.5M11 19l-6-6M8 16l-4 4M5 21l-2-2"/></svg>Coliseo</a>
-          <a href="#"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Perfil</a>
+          <a href="#" class="on" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"></path></svg>Inicio</a>
+          <a href="#"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m8.5 12 2.5 2.5 4.5-5"></path></svg>Hábitos</a>
+          <a href="#"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 22V4"></path><path d="M5 4h12l-2.5 4L17 12H5"></path></svg>Misiones</a>
+          <a href="#"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 17.5 21 6V3h-3L6.5 14.5M11 19l-6-6M8 16l-4 4M5 21l-2-2"></path></svg>Coliseo</a>
+          <a href="#"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg>Perfil</a>
         </nav>
       </div>
     </section>

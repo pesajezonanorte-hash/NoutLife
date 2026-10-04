@@ -43,7 +43,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 const TIME_OF_DAY = ['morning', 'night', 'weekly', 'custom'];
 const TIME_META: Record<string, { label: string; tone: Tone; icon: typeof Sun }> = {
   morning: { label: 'Mañana', tone: 'warning', icon: Sun },
-  night: { label: 'Noche', tone: 'secondary', icon: Moon },
+  night: { label: 'Noche', tone: 'forest', icon: Moon },
   weekly: { label: 'Semanal', tone: 'info', icon: Droplets },
   custom: { label: 'Personalizada', tone: 'primary', icon: Sparkles },
 };
@@ -153,7 +153,7 @@ function CareSection({ onProgress }: CareProps) {
         <ErrorState title="No pudimos cargar tus rutinas" onRetry={() => void load()} />
       ) : routines.length === 0 ? (
         <Card variant="elevated" padding="lg">
-          <EmptyState icon={Droplets} tone="secondary" title="Sin rutinas aún" description="Crea tu primera rutina de cuidado y marca sus pasos cada día."
+          <EmptyState icon={Droplets} tone="forest" title="Sin rutinas aún" description="Crea tu primera rutina de cuidado y marca sus pasos cada día."
             action={<Button onClick={() => setShowNew(true)}><Plus aria-hidden className="size-4" />Nueva rutina</Button>} className="py-6" />
         </Card>
       ) : (
@@ -177,7 +177,7 @@ function CareSection({ onProgress }: CareProps) {
                     </div>
                     {r.steps.length > 0 && <Badge variant={full ? 'success' : 'neutral'} icon={full ? Check : undefined}><span className="font-mono tabular-nums">{n}/{r.steps.length}</span></Badge>}
                   </div>
-                  <ProgressBar value={pct} tone={full ? 'success' : 'secondary'} label={`Progreso de ${r.name}`} />
+                  <ProgressBar value={pct} tone={full ? 'success' : 'primary'} label={`Progreso de ${r.name}`} />
                   {r.steps.length > 0 && (
                     <div className="flex flex-col">
                       {[...r.steps].sort((a, b) => a.order - b.order).map((s) => (
@@ -367,7 +367,7 @@ function Rating({ label, value, onChange }: { label: string; value: number; onCh
         {[1, 2, 3, 4, 5].map((v) => (
           <button
             key={v} type="button" role="radio" aria-checked={value === v} aria-label={`${v} de 5`} onClick={() => onChange(v)}
-            className={cn('min-h-11 rounded-lg font-mono text-label-lg tabular-nums transition-colors', value >= v ? 'bg-primary-strong text-on-primary' : 'bg-surface-variant text-on-surface hover:bg-border')}
+            className={cn('min-h-11 rounded-md font-mono text-label-lg tabular-nums transition-colors', value >= v ? 'bg-primary-strong text-on-primary' : 'bg-surface-variant text-on-surface hover:bg-border')}
           >{v}</button>
         ))}
       </div>
@@ -409,7 +409,7 @@ function PresenceSection() {
   let history: ReactNode = null;
   if (state === 'loading') history = <PageLoader label="Cargando tu evolución…" words={LOADING_COPY.glowUpRoutines} size="sm" />;
   else if (state === 'error') history = <ErrorState title="No pudimos cargar tu evolución" onRetry={() => void load()} />;
-  else if (checkins.length === 0) history = <EmptyState icon={Sparkles} tone="secondary" title="Tu presencia empieza aquí" description="Guarda tu primera autoevaluación para ver cómo evolucionas semana a semana." className="py-4" />;
+  else if (checkins.length === 0) history = <EmptyState icon={Sparkles} tone="forest" title="Tu presencia empieza aquí" description="Guarda tu primera autoevaluación para ver cómo evolucionas semana a semana." className="py-4" />;
   else history = (
     <ul className="flex flex-col">
       {checkins.slice(0, 6).map((c) => {
@@ -467,7 +467,7 @@ export default function GlowUpPage() {
           <p className="max-w-[540px] text-body-lg text-on-surface-light">Cuídate, vístete y preséntate. Pequeños rituales que cambian cómo te ves y cómo te sientes.</p>
         </div>
         <div className="flex items-center gap-5">
-          <ProgressRing value={pct} tone="secondary" size={120} stroke={10} label="Brillo de hoy" valueText={`${pct}%`}>
+          <ProgressRing value={pct} tone="primary" size={120} stroke={10} label="Brillo de hoy" valueText={`${pct}%`}>
             <span className="flex flex-col items-center" aria-live="polite">
               <span className="font-mono text-heading-md font-bold tabular-nums">{pct}%</span>
               <span className="text-body-sm text-on-surface-light">hoy</span>

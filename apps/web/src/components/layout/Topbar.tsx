@@ -67,7 +67,7 @@ export function Topbar({ className }: { className?: string }) {
         </Button>
         <Button variant="icon" aria-label={hasNew ? 'El Sabio, consejo nuevo' : 'El Sabio'} onClick={() => openSage()} className="relative">
           <Sparkles aria-hidden className="size-6" strokeWidth={1.75} />
-          {hasNew && <span aria-hidden className="absolute right-[11px] top-2.5 size-2 rounded-full bg-secondary ring-2 ring-background" />}
+          {hasNew && <span aria-hidden className="absolute right-[11px] top-2.5 size-2 rounded-full bg-primary ring-2 ring-background" />}
         </Button>
         <NotificationBell />
         <Button variant="icon" aria-label="Acciones rápidas" aria-haspopup="dialog" onClick={() => setQuickOpen(true)}>

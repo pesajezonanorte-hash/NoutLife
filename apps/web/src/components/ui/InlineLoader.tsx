@@ -34,7 +34,7 @@ export function InlineLoader({
     >
       <motion.span
         aria-hidden="true"
-        className={cn('shrink-0 rounded-full bg-[var(--accent-gold)]', dotClassName)}
+        className={cn('shrink-0 rounded-full bg-primary', dotClassName)}
         animate={animate ? { opacity: [0.35, 1, 0.35], scale: [0.82, 1, 0.82] } : { opacity: 1, scale: 1 }}
         transition={animate ? { duration: 0.82, repeat: Infinity, ease: 'easeInOut' } : { duration: 0 }}
       />

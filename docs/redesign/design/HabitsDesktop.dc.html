@@ -9,15 +9,15 @@
 <body>
 <x-dc>
 <helmet>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&amp;family=Montserrat:wght@400;500;600;700&amp;display=swap">
 <style>
 body{margin:0}
-a{color:#4f46e5}a:hover{color:#4338ca}
+a{color:var(--primary-text)}a:hover{color:var(--primary-hover)}
 </style>
 </helmet>
 <div class="lq app {{theme}}">
   <aside class="side">
-    <a href="DashboardDesktop.dc.html" class="row" style="gap: 12px; padding: 0 8px; text-decoration: none; color: inherit"><span class="ichip primary" style="width: 40px; height: 40px; border-radius: 12px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg></span><span class="t-hs">LifeQuest</span></a>
+    <a href="DashboardDesktop.dc.html" class="brand" aria-label="Noutlife — Inicio"><svg class="mk mk-l" viewBox="0 0 670 786" aria-hidden="true"><defs><linearGradient id="na" gradientUnits="userSpaceOnUse" x1="60" y1="40" x2="650" y2="770"><stop offset="0" stop-color="#5fae97"></stop><stop offset=".35" stop-color="#2f7565"></stop><stop offset=".72" stop-color="#0a3a33"></stop><stop offset="1" stop-color="#05302b"></stop></linearGradient><linearGradient id="nb" gradientUnits="userSpaceOnUse" x1="30" y1="290" x2="250" y2="740"><stop offset="0" stop-color="#8ec7ad"></stop><stop offset="1" stop-color="#2c7362"></stop></linearGradient><linearGradient id="nc" gradientUnits="userSpaceOnUse" x1="520" y1="210" x2="669" y2="780"><stop offset="0" stop-color="#4f9c84"></stop><stop offset=".45" stop-color="#2a6f60"></stop><stop offset="1" stop-color="#06302b"></stop></linearGradient></defs><g><path fill="url(#nc)" d="M474 198C581.2 230.2 670.1 305.6 669.0 500.0L669 760C669 776 666 783 662 785L500 600L474 489Z"></path><path fill="url(#na)" d="M1 0C124.1 148.2 331.6 191.3 474.0 489.0L662 785C314.2 532.2 633.0 710.9 118.0 399.0C-22.3 290.2 2.6 200.5 0.0 150.0L0 4Z"></path><path fill="url(#nb)" d="M2 271C93.4 468.0 228.1 416.0 251.0 545.0L251 743C76.1 695.7 -13.2 587.2 0.0 380.0L0 275Z"></path></g></svg><svg class="mk mk-d" viewBox="0 0 670 786" aria-hidden="true"><defs><linearGradient id="da" gradientUnits="userSpaceOnUse" x1="60" y1="40" x2="650" y2="770"><stop offset="0" stop-color="#a8d9c1"></stop><stop offset=".35" stop-color="#5aa58c"></stop><stop offset=".72" stop-color="#2a7262"></stop><stop offset="1" stop-color="#1a5547"></stop></linearGradient><linearGradient id="db" gradientUnits="userSpaceOnUse" x1="30" y1="290" x2="250" y2="740"><stop offset="0" stop-color="#c4e6d4"></stop><stop offset="1" stop-color="#5aa58c"></stop></linearGradient><linearGradient id="dc" gradientUnits="userSpaceOnUse" x1="520" y1="210" x2="669" y2="780"><stop offset="0" stop-color="#86c5aa"></stop><stop offset=".45" stop-color="#4c957d"></stop><stop offset="1" stop-color="#1a5547"></stop></linearGradient></defs><g><path fill="url(#dc)" d="M474 198C581.2 230.2 670.1 305.6 669.0 500.0L669 760C669 776 666 783 662 785L500 600L474 489Z"></path><path fill="url(#da)" d="M1 0C124.1 148.2 331.6 191.3 474.0 489.0L662 785C314.2 532.2 633.0 710.9 118.0 399.0C-22.3 290.2 2.6 200.5 0.0 150.0L0 4Z"></path><path fill="url(#db)" d="M2 271C93.4 468.0 228.1 416.0 251.0 545.0L251 743C76.1 695.7 -13.2 587.2 0.0 380.0L0 275Z"></path></g></svg><span class="wm">Noutlife</span></a>
     <nav aria-label="Principal" class="navgrp" style="border: 0; padding: 0">
       <sc-for list="{{nav}}" as="n" hint-placeholder-count="5"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
     </nav>
@@ -172,7 +172,7 @@ class Component extends DCLogic {
   }
   renderVals() {
     const base = [
-      { id: 'med', name: 'Meditar 10 min', meta: 'Mente · cada mañana', tone: 'secondary', streak: 21, w: [1,1,1,1,1,1,1], icon: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z' },
+      { id: 'med', name: 'Meditar 10 min', meta: 'Mente · cada mañana', tone: 'forest', streak: 21, w: [1,1,1,1,1,1,1], icon: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z' },
       { id: 'read', name: 'Leer 20 páginas', meta: 'Aprendizaje · diario', tone: 'primary', streak: 14, w: [1,1,0,1,1,1,1], icon: 'M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z' },
       { id: 'water', name: 'Beber 2 L de agua', meta: 'Salud · 1,2 L de 2 L', tone: 'info', streak: 6, w: [0,1,1,1,1,1,0], icon: 'M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z' },
       { id: 'gym', name: 'Entrenar 30 min', meta: 'Salud · antes de las 19:00', tone: 'success', streak: 3, w: [1,0,1,0,1,1,0], icon: 'M6 6v12M18 6v12M3 9v6M21 9v6M6 12h12' },
@@ -200,7 +200,7 @@ class Component extends DCLogic {
     const wv = [5,4,5,3,doneCount,0,0];
     const weekBars = ['L','M','X','J','V','S','D'].map((l, i) => ({ l, h: Math.max(4, wv[i] * 20), d: i * 70,
       tip: i > 4 ? 'Pendiente' : `${wv[i]} de 5`, bg: i === 4 ? 'var(--primary)' : (i > 4 ? 'var(--surface-variant)' : 'var(--primary-soft)') }));
-    const colors = ['#6366f1','#10b981','#f59e0b','#8b5cf6','#3b82f6'];
+    const colors = ['var(--primary)','var(--success)','var(--warning)','var(--forest)','var(--info)'];
     const confetti = Array.from({ length: 24 }, (_, i) => ({ x: 3 + i * 4.1, color: colors[i % 5], d: (i % 6) * 60 }));
     return {
       theme: (this.props.dark ?? false) ? 'dark' : '', ...this.navs('habits'),

@@ -9,15 +9,15 @@
 <body>
 <x-dc>
 <helmet>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&amp;family=Montserrat:wght@400;500;600;700&amp;display=swap">
 <style>
 body{margin:0}
-a{color:#4f46e5}a:hover{color:#4338ca}
+a{color:var(--primary-text)}a:hover{color:var(--primary-hover)}
 </style>
 </helmet>
 <div class="lq app {{theme}}">
   <aside class="side">
-    <a href="DashboardDesktop.dc.html" class="row" style="gap: 12px; padding: 0 8px; text-decoration: none; color: inherit"><span class="ichip primary" style="width: 40px; height: 40px; border-radius: 12px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg></span><span class="t-hs">LifeQuest</span></a>
+    <a href="DashboardDesktop.dc.html" class="brand" aria-label="Noutlife — Inicio"><svg class="mk mk-l" viewBox="0 0 670 786" aria-hidden="true"><defs><linearGradient id="na" gradientUnits="userSpaceOnUse" x1="60" y1="40" x2="650" y2="770"><stop offset="0" stop-color="#5fae97"></stop><stop offset=".35" stop-color="#2f7565"></stop><stop offset=".72" stop-color="#0a3a33"></stop><stop offset="1" stop-color="#05302b"></stop></linearGradient><linearGradient id="nb" gradientUnits="userSpaceOnUse" x1="30" y1="290" x2="250" y2="740"><stop offset="0" stop-color="#8ec7ad"></stop><stop offset="1" stop-color="#2c7362"></stop></linearGradient><linearGradient id="nc" gradientUnits="userSpaceOnUse" x1="520" y1="210" x2="669" y2="780"><stop offset="0" stop-color="#4f9c84"></stop><stop offset=".45" stop-color="#2a6f60"></stop><stop offset="1" stop-color="#06302b"></stop></linearGradient></defs><g><path fill="url(#nc)" d="M474 198C581.2 230.2 670.1 305.6 669.0 500.0L669 760C669 776 666 783 662 785L500 600L474 489Z"></path><path fill="url(#na)" d="M1 0C124.1 148.2 331.6 191.3 474.0 489.0L662 785C314.2 532.2 633.0 710.9 118.0 399.0C-22.3 290.2 2.6 200.5 0.0 150.0L0 4Z"></path><path fill="url(#nb)" d="M2 271C93.4 468.0 228.1 416.0 251.0 545.0L251 743C76.1 695.7 -13.2 587.2 0.0 380.0L0 275Z"></path></g></svg><svg class="mk mk-d" viewBox="0 0 670 786" aria-hidden="true"><defs><linearGradient id="da" gradientUnits="userSpaceOnUse" x1="60" y1="40" x2="650" y2="770"><stop offset="0" stop-color="#a8d9c1"></stop><stop offset=".35" stop-color="#5aa58c"></stop><stop offset=".72" stop-color="#2a7262"></stop><stop offset="1" stop-color="#1a5547"></stop></linearGradient><linearGradient id="db" gradientUnits="userSpaceOnUse" x1="30" y1="290" x2="250" y2="740"><stop offset="0" stop-color="#c4e6d4"></stop><stop offset="1" stop-color="#5aa58c"></stop></linearGradient><linearGradient id="dc" gradientUnits="userSpaceOnUse" x1="520" y1="210" x2="669" y2="780"><stop offset="0" stop-color="#86c5aa"></stop><stop offset=".45" stop-color="#4c957d"></stop><stop offset="1" stop-color="#1a5547"></stop></linearGradient></defs><g><path fill="url(#dc)" d="M474 198C581.2 230.2 670.1 305.6 669.0 500.0L669 760C669 776 666 783 662 785L500 600L474 489Z"></path><path fill="url(#da)" d="M1 0C124.1 148.2 331.6 191.3 474.0 489.0L662 785C314.2 532.2 633.0 710.9 118.0 399.0C-22.3 290.2 2.6 200.5 0.0 150.0L0 4Z"></path><path fill="url(#db)" d="M2 271C93.4 468.0 228.1 416.0 251.0 545.0L251 743C76.1 695.7 -13.2 587.2 0.0 380.0L0 275Z"></path></g></svg><span class="wm">Noutlife</span></a>
     <nav aria-label="Principal" class="navgrp" style="border: 0; padding: 0">
       <sc-for list="{{nav}}" as="n" hint-placeholder-count="5"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
     </nav>
@@ -242,7 +242,7 @@ class Component extends DCLogic {
     });
     const tiles = [
       ['Historial','Tus sesiones','primary','M12 8v4l3 2M3.05 11a9 9 0 1 1 .5 4M3 4v5h5'],
-      ['Rutinas','Planes listos','secondary','M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1zM6 6h12v15H6zM9 11h6M9 15h4'],
+      ['Rutinas','Planes listos','forest','M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1zM6 6h12v15H6zM9 11h6M9 15h4'],
       ['Análisis','Tu rendimiento','info','m3 17 6-6 4 4 8-8M15 7h6v6'],
       ['Progreso','Fotos y medidas','success','M4 8h3l2-3h6l2 3h3v11H4zM12 17a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z'],
     ].map(([title, sub, tone, icon]) => ({ title, sub, tone, icon }));
@@ -252,7 +252,7 @@ class Component extends DCLogic {
     const bl = ['D','L','M','X','J','V','S'];
     const bars = bv.map((v, i) => ({ l: bl[i], h: Math.max(3, Math.round(v / 6240 * 100)), d: 200 + i * 70,
       tip: v ? `${names[i]} · ${fmt(v)} kg` : `${names[i]} · descanso`, bg: v === 6240 ? 'var(--primary)' : (v ? 'var(--primary-soft)' : 'var(--surface-variant)') }));
-    const rData = [['Empuje','6 ejercicios · 55 min','primary'],['Tirón','6 ejercicios · 50 min','secondary'],['Piernas','5 ejercicios · 65 min','warning'],['Full body','8 ejercicios · 70 min','success']];
+    const rData = [['Empuje','6 ejercicios · 55 min','primary'],['Tirón','6 ejercicios · 50 min','forest'],['Piernas','5 ejercicios · 65 min','warning'],['Full body','8 ejercicios · 70 min','success']];
     const start = () => {
       if (this.state.session) return;
       this.setState({ session: true, sec: 0, paused: false, done: {} });
@@ -269,7 +269,7 @@ class Component extends DCLogic {
     const setsDone = setData.reduce((a, d, i) => a + (s.done[i] ? d[2] : 0), 0);
     const volume = fmt(setData.reduce((a, d, i) => a + (s.done[i] ? d[3] : 0), 0));
     const mm = String(Math.floor(s.sec / 60)).padStart(2, '0'), ss = String(s.sec % 60).padStart(2, '0');
-    const colors = ['#6366f1','#10b981','#f59e0b','#8b5cf6','#3b82f6'];
+    const colors = ['var(--primary)','var(--success)','var(--warning)','var(--forest)','var(--info)'];
     return {
       theme: (this.props.dark ?? false) ? 'dark' : '', ...this.navs('gym'),
       week, tiles, last, bars, routines, prs, sets, setsDone, volume, vol: fmt(6240 * k),

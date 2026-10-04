@@ -244,7 +244,7 @@ function NapForm({ onSaved, idPrefix }: { onSaved: () => void; idPrefix: string 
                   on ? 'border-warning bg-warning/[var(--lq-soft-alpha)] text-warning-text' : 'border-border text-on-surface hover:bg-surface-variant',
                 )}
               >
-                <span className="text-label-lg tabular-nums">{p.label}</span>
+                <span className="text-label-lg font-mono tabular-nums">{p.label}</span>
                 <span className="text-body-sm opacity-80">{p.hint}</span>
               </motion.button>
             );
@@ -277,7 +277,7 @@ function LogCard({ logs, onSaved }: { logs: SleepLog[]; onSaved: () => void }) {
   return (
     <Card as="section" padding="none" aria-labelledby="sleep-log" className="flex flex-col gap-4 overflow-hidden p-4 md:gap-5 md:p-6 lg:p-8">
       <div className="flex items-center gap-3">
-        <span className={cn('relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-xl transition-colors duration-300', mode === 'night' ? softTone.secondary : softTone.warning)}>
+        <span className={cn('relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-xl transition-colors duration-300', mode === 'night' ? softTone.info : softTone.warning)}>
           <AnimatePresence initial={false} mode="popLayout">
             <motion.span
               key={mode}
@@ -324,8 +324,8 @@ function BigDuration({ hours }: { hours: number }) {
   return (
     <>
       <div className="flex flex-wrap items-baseline gap-2 md:gap-2.5" aria-hidden>
-        <span className="text-display-lg tabular-nums md:text-[88px] md:font-bold md:leading-none md:tracking-[-2px]">{h}</span><span className="text-heading-md text-on-surface">h</span>
-        <span className="text-display-lg tabular-nums md:text-[88px] md:font-bold md:leading-none md:tracking-[-2px]">{String(m).padStart(2, '0')}</span><span className="text-heading-md text-on-surface">min</span>
+        <span className="text-display-lg font-mono tabular-nums md:text-[88px] md:font-bold md:leading-none md:tracking-[-2px]">{h}</span><span className="text-heading-md text-on-surface">h</span>
+        <span className="text-display-lg font-mono tabular-nums md:text-[88px] md:font-bold md:leading-none md:tracking-[-2px]">{String(m).padStart(2, '0')}</span><span className="text-heading-md text-on-surface">min</span>
       </div>
       <span className="sr-only">{hm(hours)}</span>
     </>
@@ -384,7 +384,7 @@ function SleepHero({ night, dayLogs }: { night: SleepLog | undefined; dayLogs: S
         <div className="flex flex-col items-center gap-3">
           <RestDial segments={segments} totalHours={total} caption={naps.length ? 'noche + siestas' : 'descanso total'} />
           <div aria-hidden className="flex items-center gap-4 text-body-sm text-on-surface-light">
-            <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-secondary" />Noche</span>
+            <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-info" />Noche</span>
             <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-warning" />Siesta</span>
             <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-primary" />Ahora</span>
           </div>
@@ -394,16 +394,16 @@ function SleepHero({ night, dayLogs }: { night: SleepLog | undefined; dayLogs: S
   );
 }
 
-function MiniStat({ label, hours, sub, tone }: { label: string; hours: number; sub: string; tone: 'secondary' | 'warning' | 'primary' }) {
+function MiniStat({ label, hours, sub, tone }: { label: string; hours: number; sub: string; tone: 'info' | 'warning' | 'primary' }) {
   const minutes = useCountUp(Math.round(hours * 60), 1.1);
   return (
     <motion.div variants={pop3} className="min-w-0">
       <Card padding="none" className="lq-lift flex h-full flex-col gap-1 p-4 md:p-5">
         <span className="flex items-center gap-2 text-body-sm text-on-surface-light">
-          <span aria-hidden className={cn('size-2 rounded-full', tone === 'secondary' ? 'bg-secondary' : tone === 'warning' ? 'bg-warning' : 'bg-primary')} />
+          <span aria-hidden className={cn('size-2 rounded-full', tone === 'info' ? 'bg-info' : tone === 'warning' ? 'bg-warning' : 'bg-primary')} />
           {label}
         </span>
-        <span className="text-heading-md font-bold tabular-nums" aria-hidden>{hours ? hm(minutes / 60, true) : '—'}</span>
+        <span className="text-heading-md font-bold font-mono tabular-nums" aria-hidden>{hours ? hm(minutes / 60, true) : '—'}</span>
         <span className="sr-only">{hours ? hm(hours) : 'Sin datos'}</span>
         <span className="truncate text-body-sm text-on-surface-light">{sub}</span>
       </Card>
@@ -507,7 +507,7 @@ export default function SleepPage() {
     <Card as="section" padding="none" aria-labelledby="sleep-week" className="flex flex-col gap-4 p-4 md:gap-6 md:p-6 lg:p-8">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 id="sleep-week" className="text-heading-sm md:text-heading-lg">Últimas {recent.length > 1 ? recent.length : 7} noches</h2>
-        {recent.length > 1 && <span className="text-body-sm text-on-surface-light md:text-body-md">Prom. <b className="font-semibold text-on-background tabular-nums">{hm(avg, true)}</b></span>}
+        {recent.length > 1 && <span className="text-body-sm text-on-surface-light md:text-body-md">Prom. <b className="font-semibold text-on-background font-mono tabular-nums">{hm(avg, true)}</b></span>}
       </div>
       {recent.length > 1 ? (
         <>
@@ -578,9 +578,9 @@ export default function SleepPage() {
                     {date}
                     {nap && <span className="hidden rounded-full sm:inline bg-warning/[var(--lq-soft-alpha)] px-2 py-0.5 text-label-md text-warning-text">Siesta</span>}
                   </div>
-                  <div className="truncate text-body-sm text-on-surface-light tabular-nums">{nap && <span className="text-warning-text sm:hidden">Siesta · </span>}{clock(l.bedtime)} → {clock(l.wakeTime)}<span className="sr-only sm:not-sr-only"> · {quality(l.quality).name}</span></div>
+                  <div className="truncate text-body-sm text-on-surface-light font-mono tabular-nums">{nap && <span className="text-warning-text sm:hidden">Siesta · </span>}{clock(l.bedtime)} → {clock(l.wakeTime)}<span className="sr-only sm:not-sr-only"> · {quality(l.quality).name}</span></div>
                 </div>
-                <span className={cn('text-body-md font-semibold tabular-nums', !nap && l.duration < SLEEP_GOAL_H - 1 && 'text-warning-text')}>{nap ? hm(l.duration) : hm(l.duration, true)}</span>
+                <span className={cn('text-body-md font-semibold font-mono tabular-nums', !nap && l.duration < SLEEP_GOAL_H - 1 && 'text-warning-text')}>{nap ? hm(l.duration) : hm(l.duration, true)}</span>
                 <Button variant="icon" aria-label={`Eliminar ${nap ? 'la siesta' : 'la noche'} del ${date}`} onClick={() => void remove(l)} className="-mr-2 hover:text-error-text">
                   <Trash2 aria-hidden className="size-5" strokeWidth={1.75} />
                 </Button>
@@ -608,7 +608,7 @@ export default function SleepPage() {
         <>
           <motion.div variants={item}><SleepHero night={lastNight} dayLogs={heroLogs} /></motion.div>
           <motion.div variants={stagger} className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
-            <MiniStat label="Media de noches" hours={avg} sub={recent.length ? `Últimas ${recent.length}` : 'Sin noches aún'} tone="secondary" />
+            <MiniStat label="Media de noches" hours={avg} sub={recent.length ? `Últimas ${recent.length}` : 'Sin noches aún'} tone="info" />
             <MiniStat label="Siestas · 7 días" hours={weekNapHours} sub={weekNaps.length ? `${weekNaps.length} siesta${weekNaps.length === 1 ? '' : 's'}` : 'Ninguna esta semana'} tone="warning" />
             <div className="col-span-2 md:col-span-1">
               <MiniStat label="Descanso de hoy" hours={todayHours} sub="Noche + siestas" tone="primary" />

@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 type SliderPrimitiveProps = React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root>;
 
 interface SliderProps extends SliderPrimitiveProps {
-  /** Optional semantic accent. Defaults to the active LifeQuest primary color. */
+  /** Optional semantic accent. Defaults to the active Noutlife primary color. */
   accent?: string;
 }
 
@@ -16,7 +16,7 @@ interface SliderProps extends SliderPrimitiveProps {
  * Shared accessible range control based on Radix Slider.
  *
  * It replaces browser-native range inputs so the thumb, focus state and track
- * remain legible in both LifeQuest themes and on touch devices.
+ * remain legible in both Noutlife themes and on touch devices.
  */
 const Slider = React.forwardRef<
   React.ElementRef<typeof SliderPrimitive.Root>,

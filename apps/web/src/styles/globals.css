@@ -19,7 +19,7 @@
   --bg-panel-light: rgb(var(--lq-surface));
   --bg-card: rgb(var(--lq-surface));
   --bg-muted: rgb(var(--lq-surface-variant));
-  --bg-overlay: rgb(17 24 39 / 0.06);
+  --bg-overlay: rgb(14 29 22 / 0.06);
 
   --bg: rgb(var(--lq-background));
   --bg-elev: rgb(var(--lq-surface));
@@ -44,33 +44,33 @@
   --shadow-hover: var(--shadow-md);
   --shadow-pop: var(--shadow-lg);
 
-  --accent-gold: rgb(var(--lq-warning-text));
+  --accent-gold: rgb(var(--lq-secondary-text));   /* champagne gold: XP, oro, recompensas */
   --accent-blue: rgb(var(--lq-info-text));
   --accent-green: rgb(var(--lq-success-text));
   --accent-red: rgb(var(--lq-error-text));
-  --accent-pink: rgb(var(--lq-secondary-text));
-  --accent-purple: rgb(var(--lq-secondary-text));
+  --accent-pink: rgb(var(--lq-primary-text));
+  --accent-purple: rgb(var(--lq-primary-text));
   --accent-cyan: rgb(var(--lq-on-surface-light));
 
   --primary: rgb(var(--lq-primary-strong));
   --primary-soft: rgb(var(--lq-primary) / var(--lq-soft-alpha));
   --ring-track: rgb(var(--lq-surface-variant));
-  --scrim: rgb(17 24 39 / 0.48);
+  --scrim: rgb(14 29 22 / 0.48);
 
   --c-hp:   rgb(var(--lq-error));
   --c-mp:   rgb(var(--lq-info));
-  --c-xp:   rgb(var(--lq-warning));
-  --c-gold: rgb(var(--lq-warning));
+  --c-xp:   rgb(var(--lq-secondary));
+  --c-gold: rgb(var(--lq-secondary));
   --c-amber:rgb(var(--lq-warning));
   --c-red:  rgb(var(--lq-error));
   --c-green:rgb(var(--lq-success));
-  --c-pink: rgb(var(--lq-secondary));
+  --c-pink: rgb(var(--lq-primary));
 }
 
 html.dark {
   color-scheme: dark;
-  --bg-overlay: rgb(0 0 0 / 0.6);
-  --scrim: rgb(0 0 0 / 0.62);
+  --bg-overlay: rgb(4 12 8 / 0.6);
+  --scrim: rgb(4 12 8 / 0.62);
 }
 
 html.light {
@@ -647,13 +647,13 @@ html.dark[data-theme="retro"] {
 }
 
 /* ── Compatibilidad AA para utilidades heredadas ─────────────────────────────
-   El dorado legado (#a8871e) da 3.3:1 como texto en claro y 4.3:1 en oscuro.
-   Como TEXTO se pinta con el tono AA de aviso; fondos y bordes no cambian.
+   El dorado champagne (#b08d57) no llega a 4.5:1 como texto en claro.
+   Como TEXTO se pinta con secondary-text (AA); fondos y bordes no cambian.
    Va después de @tailwind utilities para ganar a igual especificidad. */
 .text-accent-gold,
 .hover\:text-accent-gold:hover,
 .group:hover .group-hover\:text-accent-gold {
-  color: rgb(var(--lq-warning-text));
+  color: rgb(var(--lq-secondary-text));
 }
 .text-accent-green { color: rgb(var(--lq-success-text)); }
 .text-accent-red { color: rgb(var(--lq-error-text)); }

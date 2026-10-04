@@ -1,4 +1,4 @@
-// Acerca de LifeQuest: qué es, por qué existe, con qué propósito y quién lo hace.
+// Acerca de Noutlife: qué es, por qué existe, con qué propósito y quién lo hace.
 // Estética minimalista con el logo como protagonista (flota dentro de un anillo
 // de luz que gira), titular que entra palabra a palabra y secciones que aparecen
 // al desplazarse. Solo transform/opacity; quieto con «Reducir movimiento».
@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { expo, item, springSoft, stagger } from '@/lib/motion';
 import { Card, SpotCard } from '@/components/ui/lq';
 import { buttonClasses } from '@/components/ui/lq/Button';
+import { BrandMark } from '@/components/layout/Brand';
 
 const CREATOR = { name: 'Miguel Angel Romero', initials: 'MR', instagram: 'miguxlxr' };
 
@@ -43,18 +44,16 @@ function Eyebrow({ children }: { children: React.ReactNode }) {
 function LogoHero() {
   return (
     <div className="relative mx-auto flex size-40 items-center justify-center md:size-48">
-      {/* Anillo de luz que gira + halo que respira */}
-      <span aria-hidden className="lq-spin-slow absolute inset-0 rounded-full bg-[conic-gradient(from_0deg,rgb(var(--lq-primary)/.0),rgb(var(--lq-primary)/.55),rgb(var(--lq-secondary)/.0),rgb(var(--lq-secondary)/.5),rgb(var(--lq-primary)/.0))] p-px [mask:radial-gradient(farthest-side,transparent_calc(100%-2px),black_calc(100%-1px))]" />
-      <span aria-hidden className="lq-breathe absolute inset-4 rounded-full bg-[radial-gradient(circle,rgb(var(--lq-primary)/.22),transparent_70%)]" />
+      {/* Anillos finos que respiran alrededor de la baldosa (el logo no lleva glow ni sombra) */}
+      <span aria-hidden className="lq-breathe absolute inset-0 rounded-full border border-primary/25" />
+      <span aria-hidden className="lq-breathe absolute inset-5 rounded-full border border-primary/15 [animation-delay:1.2s]" />
       <motion.span
-        initial={{ opacity: 0, scale: 0.6, rotate: -12 }}
-        animate={{ opacity: 1, scale: 1, rotate: 0 }}
-        transition={{ type: 'spring', stiffness: 220, damping: 14, delay: 0.1 }}
+        initial={{ opacity: 0, scale: 0.8, y: 12 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 260, damping: 22, delay: 0.1 }}
         className="relative"
       >
-        <span className="animate-float [.reduce-motion_&]:animate-none flex size-24 overflow-hidden rounded-[28px] border border-border bg-white shadow-lg md:size-28">
-          <img src="/brand/lifequest-logo.png" alt="Logo de LifeQuest" width={112} height={112} className="size-full scale-[1.56] object-cover" draggable={false} />
-        </span>
+        <BrandMark tile alt="Logo de Noutlife" className="animate-float [.reduce-motion_&]:animate-none size-24 rounded-[28px] shadow-sm md:size-28" />
       </motion.span>
     </div>
   );
@@ -69,7 +68,7 @@ export default function AboutPage() {
         <LogoHero />
         <div className="flex flex-col items-center gap-4">
           <Eyebrow>Acerca de</Eyebrow>
-          <h1 id="about-title" className="text-display-md md:text-display-lg">LifeQuest</h1>
+          <h1 id="about-title" className="text-display-md md:text-display-lg">Noutlife</h1>
           <p className="max-w-xl text-heading-sm font-medium text-on-surface md:text-heading-md" aria-label={TAGLINE}>
             {words.map((w, i) => (
               <motion.span
@@ -99,7 +98,7 @@ export default function AboutPage() {
             exactamente cómo hacer que quieras volver: metas claras, progreso visible y recompensas por cada paso.
           </p>
           <p>
-            LifeQuest toma esas mismas ideas y las pone al servicio de tu vida real. Tú eres el personaje; tus hábitos,
+            Noutlife toma esas mismas ideas y las pone al servicio de tu vida real. Tú eres el personaje; tus hábitos,
             tus metas y tu descanso son la partida.
           </p>
         </div>
@@ -135,7 +134,6 @@ export default function AboutPage() {
       {/* Quién lo hace */}
       <Reveal>
         <Card variant="elevated" padding="none" className="relative isolate overflow-hidden p-6 md:p-10">
-          <span aria-hidden className="lq-breathe absolute -right-24 -top-24 -z-10 size-72 rounded-full bg-[radial-gradient(circle,rgb(var(--lq-secondary)/.18),transparent_65%)]" />
           <div className="flex flex-col gap-6 md:flex-row md:items-center md:gap-10">
             <motion.span
               initial={{ scale: 0.7, opacity: 0 }}
@@ -143,7 +141,7 @@ export default function AboutPage() {
               viewport={{ once: true }}
               transition={{ type: 'spring', stiffness: 260, damping: 14 }}
               aria-hidden
-              className="flex size-20 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-secondary text-heading-md font-bold text-on-primary shadow-lg"
+              className="flex size-20 shrink-0 items-center justify-center rounded-full bg-primary-strong text-heading-md font-bold text-on-primary shadow-lg"
             >
               {CREATOR.initials}
             </motion.span>
@@ -151,7 +149,7 @@ export default function AboutPage() {
               <Eyebrow>Quién lo hace</Eyebrow>
               <h2 className="text-heading-lg">{CREATOR.name}</h2>
               <p className="text-body-md text-on-surface">
-                LifeQuest es un proyecto independiente, diseñado y desarrollado por una sola persona que quería una forma
+                Noutlife es un proyecto independiente, diseñado y desarrollado por una sola persona que quería una forma
                 más motivadora de cuidar sus hábitos, su dinero, su cuerpo y su mente. Cada pantalla está hecha con la
                 misma idea: que avanzar se sienta bien.
               </p>
@@ -181,10 +179,8 @@ export default function AboutPage() {
           <Link to="/faq" className={buttonClasses('ghost', 'md')}><LifeBuoy aria-hidden className="size-5" strokeWidth={1.75} />Ayuda</Link>
         </div>
         <span className="flex items-center gap-2 text-body-sm text-on-surface-light">
-          <span className="flex size-6 overflow-hidden rounded-md border border-border bg-white">
-            <img src="/brand/lifequest-logo.png" alt="" aria-hidden width={24} height={24} className="size-full scale-[1.56] object-cover" />
-          </span>
-          © {new Date().getFullYear()} LifeQuest · {CREATOR.name}
+          <BrandMark size={24} />
+          © {new Date().getFullYear()} Noutlife · {CREATOR.name}
         </span>
       </Reveal>
     </motion.div>

@@ -41,7 +41,7 @@ function Figure({ icon, tone, value, label }: { icon: LucideIcon; tone: Tone; va
   return (
     <motion.li variants={child} className="flex flex-col items-start gap-2 rounded-2xl border border-border bg-surface p-3 md:p-4">
       <IconChip icon={icon} tone={tone} size="sm" />
-      <span className="text-heading-md tabular-nums">{value}</span>
+      <span className="text-heading-md font-mono tabular-nums">{value}</span>
       <span className="text-body-sm text-on-surface-light">{label}</span>
     </motion.li>
   );
@@ -73,8 +73,8 @@ export function MorningBriefing({ open, onClose, name, habitsDone, habitsTotal, 
           <Figure icon={Flame} tone="warning" value={String(streak)} label={streak === 1 ? 'Día de racha' : 'Días de racha'} />
         </motion.ul>
 
-        <motion.section variants={child} aria-labelledby="briefing-sage" className="flex flex-col gap-3 rounded-2xl bg-secondary/[var(--lq-soft-alpha)] p-4">
-          <h3 id="briefing-sage" className="flex items-center gap-2 text-label-lg text-secondary-text">
+        <motion.section variants={child} aria-labelledby="briefing-sage" className="flex flex-col gap-3 rounded-2xl bg-forest/[var(--lq-soft-alpha)] p-4">
+          <h3 id="briefing-sage" className="flex items-center gap-2 text-label-lg text-forest-text">
             <Sparkles aria-hidden className="size-4" strokeWidth={1.75} />
             Mensaje del Sabio
           </h3>

@@ -68,14 +68,14 @@ export function QuestDetailDialog({ quest: current, onClose, onChange, onComplet
 
       <div className="flex items-center justify-between rounded-2xl bg-primary/[var(--lq-soft-alpha)] p-4">
         <span className="flex items-center gap-2 text-label-lg text-primary-text"><Sparkles aria-hidden className="size-5" strokeWidth={1.75} />Recompensa</span>
-        <span className="text-heading-sm text-primary-text tabular-nums">+{quest.xpReward} XP{quest.goldReward ? ` · ${quest.goldReward} oro` : ''}</span>
+        <span className="text-heading-sm text-primary-text font-mono tabular-nums">+{quest.xpReward} XP{quest.goldReward ? ` · ${quest.goldReward} oro` : ''}</span>
       </div>
 
       {quest.subObjectives.length > 0 && (
         <section className="flex flex-col gap-3" aria-labelledby="qd-steps">
           <div className="flex items-center justify-between">
             <h3 id="qd-steps" className="text-heading-sm">Pasos</h3>
-            <span className="text-body-sm text-on-surface-light tabular-nums">{p.text}</span>
+            <span className="text-body-sm text-on-surface-light font-mono tabular-nums">{p.text}</span>
           </div>
           <ProgressBar value={p.pct} tone={p.pct >= 100 ? 'success' : 'primary'} label="Progreso de la misión" valueText={p.text} />
           <ul className="flex flex-col gap-1">

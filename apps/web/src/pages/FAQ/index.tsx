@@ -14,19 +14,19 @@ type CatId = 'start' | 'game' | 'sabio' | 'account';
 const CATS: Record<CatId, { label: string; tone: Exclude<Tone, 'muted'>; icon: LucideIcon }> = {
   start: { label: 'Primeros pasos', tone: 'primary', icon: Zap },
   game: { label: 'Juego y XP', tone: 'warning', icon: Trophy },
-  sabio: { label: 'El Sabio', tone: 'secondary', icon: Sparkles },
+  sabio: { label: 'El Sabio', tone: 'forest', icon: Sparkles },
   account: { label: 'Cuenta y datos', tone: 'success', icon: ShieldCheck },
 };
 
 const FAQ: Array<{ cat: CatId; q: string; a: string; privacy?: boolean }> = [
-  { cat: 'start', q: '¿Qué es LifeQuest?', a: 'Un RPG para tu vida real. Conviertes metas, hábitos, entrenamientos, finanzas y aprendizaje en misiones: ganas XP, subes de nivel y desbloqueas logros según lo que haces de verdad.' },
+  { cat: 'start', q: '¿Qué es Noutlife?', a: 'Un RPG para tu vida real. Conviertes metas, hábitos, entrenamientos, finanzas y aprendizaje en misiones: ganas XP, subes de nivel y desbloqueas logros según lo que haces de verdad.' },
   { cat: 'game', q: '¿Cómo funcionan las misiones?', a: 'Las misiones son objetivos más grandes que un hábito, con dificultad, fecha límite y pasos. Al completar el último paso puedes cerrarlas y recibir su XP y oro. Las acciones recurrentes se crean como hábitos.' },
   { cat: 'game', q: '¿Cómo se calculan el XP y los niveles?', a: 'Cada acción registrada suma XP: hábitos, misiones, entrenamientos, sueño, entradas del diario y más. Cada nivel pide algo más de XP que el anterior; tu barra de nivel muestra cuánto falta.' },
   { cat: 'game', q: '¿Qué son los hábitos y las rachas?', a: 'Un hábito es una acción recurrente. La racha cuenta los días seguidos que lo completas; si fallas un día se reinicia, salvo que uses un Pase de perdón de la Tienda.' },
-  { cat: 'sabio', q: '¿Quién es el Sabio?', a: 'Es el asistente con IA de LifeQuest. Te sugiere rutinas y misiones, crea zonas personalizadas, analiza tus hábitos y responde preguntas sobre tu progreso. Recuerda tus conversaciones anteriores.' },
+  { cat: 'sabio', q: '¿Quién es el Sabio?', a: 'Es el asistente con IA de Noutlife. Te sugiere rutinas y misiones, crea zonas personalizadas, analiza tus hábitos y responde preguntas sobre tu progreso. Recuerda tus conversaciones anteriores.' },
   { cat: 'account', q: '¿Mis datos están seguros?', a: 'Tus registros son privados y solo tú los ves, salvo lo que decidas compartir con amigos o tu gremio. Las contraseñas se guardan cifradas y las sesiones caducan.', privacy: true },
   { cat: 'account', q: '¿Qué ven mis amigos en mi perfil?', a: 'Tu nombre, nivel, logros desbloqueados, rachas y posición en el ranking. Tus finanzas, diario y datos de salud nunca se muestran.' },
-  { cat: 'sabio', q: '¿Puedo usar LifeQuest sin Spotify o sin la IA?', a: 'Sí. Spotify, Google Calendar y el Sabio son opcionales; todo el núcleo funciona sin ellos y puedes desactivar las sugerencias en Ajustes.' },
+  { cat: 'sabio', q: '¿Puedo usar Noutlife sin Spotify o sin la IA?', a: 'Sí. Spotify, Google Calendar y el Sabio son opcionales; todo el núcleo funciona sin ellos y puedes desactivar las sugerencias en Ajustes.' },
   { cat: 'start', q: '¿Funciona en el celular?', a: 'Sí. La interfaz se adapta a cualquier pantalla desde 375 px, con barra inferior y botón de acción rápida en móvil, y puedes instalarla como app desde el navegador.' },
   { cat: 'start', q: '¿Cómo reporto un error o sugiero algo?', a: 'Usa «Enviar feedback» arriba o la tarjeta «Reportar un problema» al final de esta página. Tu mensaje llega directo al equipo.' },
 ];
@@ -133,7 +133,7 @@ export default function FAQPage() {
 
       <motion.section variants={item} aria-label="Más ayuda" className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {[
-          { icon: Sparkles, tone: 'primary' as const, title: 'Pregúntale al Sabio', body: 'Respuestas al instante sobre tu progreso.', onClick: () => openSage('Tengo una duda sobre LifeQuest: ') },
+          { icon: Sparkles, tone: 'primary' as const, title: 'Pregúntale al Sabio', body: 'Respuestas al instante sobre tu progreso.', onClick: () => openSage('Tengo una duda sobre Noutlife: ') },
           { icon: MessageCircle, tone: 'warning' as const, title: 'Reportar un problema', body: 'Cuéntanos qué pasó y lo revisamos.', onClick: () => openFeedback(true) },
           { icon: ShieldCheck, tone: 'success' as const, title: 'Privacidad', body: 'Cómo tratamos tus datos.', to: '/about' },
         ].map((card) => {
