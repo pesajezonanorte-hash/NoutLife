@@ -1,163 +1,192 @@
-import { useState, useEffect } from 'react';
+// Acerca de LifeQuest: qué es, por qué existe, con qué propósito y quién lo hace.
+// Estética minimalista con el logo como protagonista (flota dentro de un anillo
+// de luz que gira), titular que entra palabra a palabra y secciones que aparecen
+// al desplazarse. Solo transform/opacity; quieto con «Reducir movimiento».
 import { motion } from 'framer-motion';
-import { Heart, Star, Zap, Target, Trophy, Calendar } from 'lucide-react';
-import { useAuthStore } from '../../store/authStore';
-import api from '../../lib/api';
-import { E } from '@/components/ui/glyphs';
+import { Link } from 'react-router-dom';
+import { Compass, HeartHandshake, Instagram, LifeBuoy, ShieldCheck, Sparkles, Swords, Target } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { expo, item, springSoft, stagger } from '@/lib/motion';
+import { Card, SpotCard } from '@/components/ui/lq';
+import { buttonClasses } from '@/components/ui/lq/Button';
 
-const PHASES = [
-  { num: 1, title: 'Los Cimientos', desc: 'Auth, perfil de héroe, sistema de XP/nivel/stats, onboarding RPG' },
-  { num: 2, title: 'El Sistema de Misiones', desc: 'CRUD de quests con tipos, dificultad, sub-objetivos y completion' },
-  { num: 3, title: 'El Sistema de Hábitos', desc: 'Hábitos con rachas, logs diarios, logros y sistema de XP por completar' },
-  { num: 4, title: 'La Economía del Héroe', desc: 'Finanzas, ingresos/gastos, presupuestos, metas financieras, análisis' },
-  { num: 5, title: 'El Cuerpo del Héroe', desc: 'Gimnasio, nutrición con IA, sueño, peso corporal y fotos de progreso' },
-  { num: 6, title: 'La Mente del Héroe', desc: 'Aprendizaje, diario personal, relaciones, tienda, logros épicos' },
-  { num: 7, title: 'El Mundo Exterior', desc: 'Social, gremio, retos PvP, temporadas, integraciones, agenda' },
-  { num: 8, title: 'La Inteligencia Artificial', desc: 'El Sabio con memoria, sugerencias, análisis contextual, LifeScore' },
-  { num: 9, title: 'El Glow Up', desc: 'Metas maestras, rituales diarios, check-in, sabiduría desbloqueada, modo enfoque' },
-  { num: 10, title: 'La Fase Final', desc: 'Centro de notificaciones, búsqueda global, exportación, tour, esta página' },
-];
+const CREATOR = { name: 'Miguel Angel Romero', initials: 'MR', instagram: 'miguxlxr' };
 
-const TECH_STACK = [
-  { category: 'Frontend', items: ['React 18 + TypeScript', 'Vite', 'Tailwind CSS', 'Framer Motion', 'Zustand', 'React Router v6'] },
-  { category: 'Backend', items: ['Node.js + Express', 'TypeScript', 'Prisma ORM', 'PostgreSQL (Supabase)', 'JWT Auth', 'Google Gemini AI'] },
-  { category: 'Herramientas', items: ['pnpm workspaces', 'Concurrently', 'tsx watch', 'ESLint', 'Web Push (VAPID)', 'Netlify'] },
-];
+const TAGLINE = 'Tu vida real, jugada como la mejor partida.';
+
+const PILLARS = [
+  { icon: Swords, title: 'Una aventura, no una lista', text: 'Hábitos, misiones, finanzas, sueño o gimnasio dejan de ser tareas sueltas: cada avance suma XP, sube tu nivel y hace crecer a tu personaje.' },
+  { icon: Target, title: 'Constancia antes que perfección', text: 'Las rachas, los rituales y los pequeños logros premian volver cada día, aunque sea un poco. El progreso se construye así.' },
+  { icon: Compass, title: 'Toda tu vida en un lugar', text: 'Ver tus zonas juntas te ayuda a notar qué va bien, qué se está quedando atrás y dónde poner la energía esta semana.' },
+  { icon: ShieldCheck, title: 'Tus datos son tuyos', text: 'Puedes exportar todo lo que registras o borrarlo cuando quieras desde Ajustes.' },
+] as const;
+
+/** Sección que aparece al entrar en pantalla. */
+function Reveal({ children, className, delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 28 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-60px' }}
+      transition={{ duration: 0.8, ease: expo, delay }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+function Eyebrow({ children }: { children: React.ReactNode }) {
+  return <span className="text-label-lg uppercase tracking-[0.14em] text-primary-text">{children}</span>;
+}
+
+function LogoHero() {
+  return (
+    <div className="relative mx-auto flex size-40 items-center justify-center md:size-48">
+      {/* Anillo de luz que gira + halo que respira */}
+      <span aria-hidden className="lq-spin-slow absolute inset-0 rounded-full bg-[conic-gradient(from_0deg,rgb(var(--lq-primary)/.0),rgb(var(--lq-primary)/.55),rgb(var(--lq-secondary)/.0),rgb(var(--lq-secondary)/.5),rgb(var(--lq-primary)/.0))] p-px [mask:radial-gradient(farthest-side,transparent_calc(100%-2px),black_calc(100%-1px))]" />
+      <span aria-hidden className="lq-breathe absolute inset-4 rounded-full bg-[radial-gradient(circle,rgb(var(--lq-primary)/.22),transparent_70%)]" />
+      <motion.span
+        initial={{ opacity: 0, scale: 0.6, rotate: -12 }}
+        animate={{ opacity: 1, scale: 1, rotate: 0 }}
+        transition={{ type: 'spring', stiffness: 220, damping: 14, delay: 0.1 }}
+        className="relative"
+      >
+        <span className="animate-float [.reduce-motion_&]:animate-none flex size-24 overflow-hidden rounded-[28px] border border-border bg-white shadow-lg md:size-28">
+          <img src="/brand/lifequest-logo.png" alt="Logo de LifeQuest" width={112} height={112} className="size-full scale-[1.56] object-cover" draggable={false} />
+        </span>
+      </motion.span>
+    </div>
+  );
+}
 
 export default function AboutPage() {
-  const user = useAuthStore((s) => s.user);
-  const [stats, setStats] = useState<{ quests: number; habits: number; workouts: number } | null>(null);
-
-  const startDate = user?.createdAt ? new Date(user.createdAt) : null;
-  const daysPlaying = startDate
-    ? Math.floor((Date.now() - startDate.getTime()) / 86400000)
-    : 0;
-
-  useEffect(() => {
-    Promise.all([
-      api.get('/quests?status=COMPLETED&limit=1'),
-      api.get('/habits?limit=1'),
-      api.get('/workouts?limit=1'),
-    ])
-      .then(([q, h, w]) => {
-        setStats({
-          quests: q.data?.total ?? q.data?.quests?.length ?? 0,
-          habits: h.data?.total ?? h.data?.habits?.length ?? 0,
-          workouts: w.data?.total ?? w.data?.workouts?.length ?? 0,
-        });
-      })
-      .catch(() => null);
-  }, []);
-
+  const words = TAGLINE.split(' ');
   return (
-    <div className="space-y-8 max-w-3xl mx-auto">
+    <motion.div variants={stagger} initial="initial" animate="animate" className="mx-auto flex max-w-4xl flex-col gap-16 pb-8 md:gap-24">
       {/* Hero */}
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl p-8 text-center relative overflow-hidden"
-        style={{ background: 'linear-gradient(135deg, var(--accent-gold)12, var(--accent-cyan)08)', border: '1px solid var(--accent-gold)33' }}
-      >
-        <div className="text-6xl mb-4"><E e="🏆" /></div>
-        <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">LifeQuest</h1>
-        <p className="text-[var(--text-secondary)] text-sm">RPG de Vida Real · Versión 10.0.0</p>
-        <p className="text-[var(--text-muted)] text-xs mt-4 leading-relaxed max-w-md mx-auto">
-          {user?.displayName ? <>Hola, <span className="text-[var(--accent-gold)] font-semibold">{user.displayName}</span> — </> : null}
-          porque convertir tu vida en un juego es la forma más épica de ganarla.
-        </p>
-      </motion.div>
-
-      {/* Estadísticas del viaje */}
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-      >
-        <h2 className="text-lg font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2">
-          <Star className="text-[var(--accent-gold)]" size={20} /> Tu Viaje
-        </h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { label: 'Días jugando', value: daysPlaying, icon: <Calendar size={20} />, color: 'var(--accent-gold)' },
-            { label: 'Nivel actual', value: user?.level ?? 1, icon: <Zap size={20} />, color: 'var(--accent-cyan)' },
-            { label: 'Racha actual', value: `${user?.currentStreak ?? 0}d`, icon: <Target size={20} />, color: 'var(--accent-green)' },
-            { label: 'XP total', value: (user?.xp ?? 0).toLocaleString('es-CO'), icon: <Trophy size={20} />, color: 'var(--accent-pink)' },
-          ].map((stat) => (
-            <div key={stat.label} className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-4 text-center">
-              <div className="flex justify-center mb-2" style={{ color: stat.color }}>{stat.icon}</div>
-              <p className="text-xl font-bold text-[var(--text-primary)]">{stat.value}</p>
-              <p className="text-xs text-[var(--text-muted)] mt-0.5">{stat.label}</p>
-            </div>
-          ))}
-        </div>
-      </motion.div>
-
-      {/* Las 10 Fases */}
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-        <h2 className="text-lg font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2">
-          <Zap className="text-[var(--accent-cyan)]" size={20} /> Las 10 Fases de LifeQuest
-        </h2>
-        <div className="space-y-2">
-          {PHASES.map((phase, i) => (
-            <motion.div
-              key={phase.num}
-              initial={{ opacity: 0, x: -12 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.15 + i * 0.04 }}
-              className="flex items-start gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] p-3"
-            >
-              <span
-                className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0"
-                style={{ background: 'var(--accent-gold)22', color: 'var(--accent-gold)' }}
+      <motion.section variants={item} aria-labelledby="about-title" className="flex flex-col items-center gap-6 pt-4 text-center md:pt-10">
+        <LogoHero />
+        <div className="flex flex-col items-center gap-4">
+          <Eyebrow>Acerca de</Eyebrow>
+          <h1 id="about-title" className="text-display-md md:text-display-lg">LifeQuest</h1>
+          <p className="max-w-xl text-heading-sm font-medium text-on-surface md:text-heading-md" aria-label={TAGLINE}>
+            {words.map((w, i) => (
+              <motion.span
+                key={i}
+                aria-hidden
+                className="inline-block"
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ ...springSoft, delay: 0.45 + i * 0.07 }}
               >
-                {phase.num}
-              </span>
-              <div>
-                <p className="text-sm font-semibold text-[var(--text-primary)]">{phase.title}</p>
-                <p className="text-xs text-[var(--text-muted)] mt-0.5">{phase.desc}</p>
-              </div>
-            </motion.div>
+                {w}{i < words.length - 1 ? ' ' : ''}
+              </motion.span>
+            ))}
+          </p>
+        </div>
+      </motion.section>
+
+      {/* Qué es / por qué */}
+      <Reveal className="grid gap-8 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] md:gap-14">
+        <div className="flex flex-col gap-3">
+          <Eyebrow>Por qué existe</Eyebrow>
+          <h2 className="text-heading-lg md:text-display-sm">Mejorar es fácil de empezar y difícil de sostener.</h2>
+        </div>
+        <div className="flex flex-col gap-4 text-body-lg text-on-surface">
+          <p>
+            Todos hemos empezado un hábito con ganas y lo hemos dejado a las dos semanas. Los videojuegos, en cambio, saben
+            exactamente cómo hacer que quieras volver: metas claras, progreso visible y recompensas por cada paso.
+          </p>
+          <p>
+            LifeQuest toma esas mismas ideas y las pone al servicio de tu vida real. Tú eres el personaje; tus hábitos,
+            tus metas y tu descanso son la partida.
+          </p>
+        </div>
+      </Reveal>
+
+      {/* Propósito */}
+      <section aria-labelledby="about-purpose" className="flex flex-col gap-8">
+        <Reveal className="flex flex-col items-center gap-3 text-center">
+          <Eyebrow>Propósito</Eyebrow>
+          <h2 id="about-purpose" className="max-w-2xl text-heading-lg md:text-display-sm">Ayudarte a construir tu mejor versión, un día a la vez.</h2>
+        </Reveal>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {PILLARS.map((p, i) => (
+            <Reveal key={p.title} delay={i * 0.08}>
+              <SpotCard as="article" padding="md" className="flex h-full flex-col gap-4">
+                <motion.span
+                  whileHover={{ scale: 1.1, rotate: -6 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 12 }}
+                  className="flex size-12 items-center justify-center rounded-2xl bg-primary/[var(--lq-soft-alpha)] text-primary-text"
+                >
+                  <p.icon aria-hidden className="size-6" strokeWidth={1.75} />
+                </motion.span>
+                <div className="flex flex-col gap-1.5">
+                  <h3 className="text-heading-sm">{p.title}</h3>
+                  <p className="text-body-md text-on-surface-light">{p.text}</p>
+                </div>
+              </SpotCard>
+            </Reveal>
           ))}
         </div>
-      </motion.div>
+      </section>
 
-      {/* Stack técnico */}
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-        <h2 className="text-lg font-bold text-[var(--text-primary)] mb-4"><E e="⚙" /> Stack Técnico</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {TECH_STACK.map((group) => (
-            <div key={group.category} className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-4">
-              <p className="text-sm font-medium text-[var(--accent-cyan)] mb-3">{group.category}</p>
-              <ul className="space-y-1.5">
-                {group.items.map((item) => (
-                  <li key={item} className="text-xs text-[var(--text-secondary)] flex items-center gap-2">
-                    <span className="w-1 h-1 rounded-full bg-[var(--accent-gold)] flex-shrink-0" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
+      {/* Quién lo hace */}
+      <Reveal>
+        <Card variant="elevated" padding="none" className="relative isolate overflow-hidden p-6 md:p-10">
+          <span aria-hidden className="lq-breathe absolute -right-24 -top-24 -z-10 size-72 rounded-full bg-[radial-gradient(circle,rgb(var(--lq-secondary)/.18),transparent_65%)]" />
+          <div className="flex flex-col gap-6 md:flex-row md:items-center md:gap-10">
+            <motion.span
+              initial={{ scale: 0.7, opacity: 0 }}
+              whileInView={{ scale: 1, opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ type: 'spring', stiffness: 260, damping: 14 }}
+              aria-hidden
+              className="flex size-20 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-secondary text-heading-md font-bold text-on-primary shadow-lg"
+            >
+              {CREATOR.initials}
+            </motion.span>
+            <div className="flex min-w-0 flex-1 flex-col gap-3">
+              <Eyebrow>Quién lo hace</Eyebrow>
+              <h2 className="text-heading-lg">{CREATOR.name}</h2>
+              <p className="text-body-md text-on-surface">
+                LifeQuest es un proyecto independiente, diseñado y desarrollado por una sola persona que quería una forma
+                más motivadora de cuidar sus hábitos, su dinero, su cuerpo y su mente. Cada pantalla está hecha con la
+                misma idea: que avanzar se sienta bien.
+              </p>
+              <motion.a
+                href={`https://instagram.com/${CREATOR.instagram}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                whileHover={{ y: -2 }}
+                whileTap={{ scale: 0.95 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 14 }}
+                className={cn(buttonClasses('secondary', 'md'), 'w-fit')}
+              >
+                <Instagram aria-hidden className="size-5" strokeWidth={1.75} />@{CREATOR.instagram}
+                <span className="sr-only"> (Instagram, se abre en otra pestaña)</span>
+              </motion.a>
             </div>
-          ))}
-        </div>
-      </motion.div>
+          </div>
+        </Card>
+      </Reveal>
 
-      {/* Créditos */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.97 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.25 }}
-        className="rounded-2xl p-6 text-center"
-        style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)' }}
-      >
-        <Heart className="mx-auto text-[var(--accent-pink)] mb-3" size={28} />
-        <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-          Diseñado y desarrollado como un sistema de mejora personal que convierte cada hábito,
-          misión y logro en un verdadero avance de héroe.
-        </p>
-        <p className="text-xs text-[var(--text-muted)] mt-3">
-          LifeQuest v10.0.0 · 2025 · {user?.createdAt ? new Date(user.createdAt).getFullYear() : '2025'}–presente
-        </p>
-      </motion.div>
-    </div>
+      {/* Cierre */}
+      <Reveal className="flex flex-col items-center gap-5 text-center">
+        <Sparkles aria-hidden className="size-6 text-primary-text" strokeWidth={1.75} />
+        <p className="max-w-lg text-body-lg text-on-surface">Gracias por jugar. Cada día que vuelves, tu personaje —y tú— sube un poco más.</p>
+        <div className="flex flex-wrap justify-center gap-2">
+          <Link to="/" className={buttonClasses('primary', 'md')}><HeartHandshake aria-hidden className="size-5" strokeWidth={1.75} />Seguir mi aventura</Link>
+          <Link to="/faq" className={buttonClasses('ghost', 'md')}><LifeBuoy aria-hidden className="size-5" strokeWidth={1.75} />Ayuda</Link>
+        </div>
+        <span className="flex items-center gap-2 text-body-sm text-on-surface-light">
+          <span className="flex size-6 overflow-hidden rounded-md border border-border bg-white">
+            <img src="/brand/lifequest-logo.png" alt="" aria-hidden width={24} height={24} className="size-full scale-[1.56] object-cover" />
+          </span>
+          © {new Date().getFullYear()} LifeQuest · {CREATOR.name}
+        </span>
+      </Reveal>
+    </motion.div>
   );
 }

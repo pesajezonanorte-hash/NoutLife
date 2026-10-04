@@ -74,6 +74,13 @@ html.dark {
   /* El foco nunca queda bajo la TabBar + FAB (móvil) ni bajo la Topbar fija (desktop). WCAG 2.4.11 */
   html { scroll-padding-bottom: calc(11rem + env(safe-area-inset-bottom)); }
   @media (min-width: 768px) { html { scroll-padding-bottom: 2rem; } }
+  /* iOS Safari: los campos de hora/fecha tienen un ancho mínimo propio y se salían
+     de la rejilla en móvil; además centraban el valor. */
+  input[type="time"], input[type="date"], input[type="datetime-local"], input[type="month"] {
+    min-width: 0; max-width: 100%; -webkit-appearance: none; appearance: none;
+  }
+  input[type="time"]::-webkit-date-and-time-value, input[type="date"]::-webkit-date-and-time-value,
+  input[type="datetime-local"]::-webkit-date-and-time-value { text-align: left; min-height: 1.5em; }
   @media (min-width: 1024px) { html { scroll-padding-top: 5rem; } }
 }
 
@@ -212,3 +219,7 @@ html.dark {
 @keyframes lq-float { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-8px) rotate(-6deg); } }
 @keyframes lq-breathe { 0%, 100% { opacity: .45; transform: scale(.92); } 50% { opacity: .9; transform: scale(1.08); } }
 @keyframes lq-zzz { 0% { opacity: 0; transform: translate(0, 4px) scale(.7); } 25% { opacity: 1; } 100% { opacity: 0; transform: translate(10px, -22px) scale(1.1); } }
+
+/* Acerca de: anillo de luz que gira despacio alrededor del logo. */
+.lq-spin-slow { animation: lq-spin 16s linear infinite; }
+@keyframes lq-spin { to { transform: rotate(360deg); } }
