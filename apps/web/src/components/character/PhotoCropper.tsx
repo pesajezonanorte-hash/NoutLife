@@ -3,8 +3,8 @@
 // siempre cubre el círculo: al soltar fuera de los bordes vuelve con un muelle
 // (mientras se arrastra hay resistencia elástica). El resultado es un JPEG
 // cuadrado de OUT px con exactamente lo que se ve dentro del círculo.
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
-import { animate, motion, useMotionValue } from 'framer-motion';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
+import { animate, motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { RotateCcw, RotateCw, ZoomIn, ZoomOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { springSoft } from '@/lib/motion';
@@ -44,6 +44,106 @@ function loadSource(src: string): Promise<HTMLCanvasElement | HTMLImageElement> 
     img.onerror = () => reject(new Error('No se pudo cargar la imagen.'));
     img.src = src;
   });
+}
+
+/** Muelle con rebote visible para el punto del zoom y los botones. */
+const bounce = { type: 'spring', stiffness: 520, damping: 14, mass: 0.7 } as const;
+
+/** Envoltorio que rebota al pulsar (botones de acción). */
+function Bouncy({ children }: { children: ReactNode }) {
+  return <motion.span className="block" whileTap={{ scale: 0.92 }} transition={bounce}>{children}</motion.span>;
+}
+
+/** Botón de ícono que rebota al pulsar y crece un poco al pasar el cursor. */
+function BounceIcon({ label, onClick, disabled, children }: { label: string; onClick: () => void; disabled?: boolean; children: ReactNode }) {
+  return (
+    <motion.button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      disabled={disabled}
+      whileHover={disabled ? undefined : { scale: 1.12 }}
+      whileTap={disabled ? undefined : { scale: 0.8 }}
+      transition={bounce}
+      className="flex size-11 shrink-0 items-center justify-center rounded-full text-on-surface transition-colors hover:bg-surface-variant hover:text-on-background disabled:opacity-40"
+    >
+      {children}
+    </motion.button>
+  );
+}
+
+/**
+ * Deslizador de zoom minimalista: una línea fina, el tramo recorrido en color y
+ * un punto que sigue el valor con un muelle (rebota al saltar con +/−, crece al
+ * agarrarlo). Accesible como role="slider" (flechas, Inicio/Fin, RePág/AvPág).
+ */
+function ZoomSlider({ value, onChange, onStep }: { value: number; onChange: (z: number) => void; onStep: (delta: number) => void }) {
+  const reduce = useMotionStore((s) => s.reduce);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  const [grab, setGrab] = useState(false);
+  const frac = (value - MIN_Z) / (MAX_Z - MIN_Z);
+  const target = useMotionValue(0);
+  const x = useSpring(target, reduce ? { stiffness: 10000, damping: 1000 } : { stiffness: 420, damping: 18, mass: 0.6 });
+  const fill = useTransform(x, (v) => (width ? v / width : 0));
+
+  useLayoutEffect(() => {
+    const el = trackRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => setWidth(e.contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  useEffect(() => { target.set(frac * width); }, [frac, width, target]);
+
+  const fromPointer = (clientX: number) => {
+    const r = trackRef.current?.getBoundingClientRect();
+    if (!r || !r.width) return;
+    const f = Math.min(1, Math.max(0, (clientX - r.left) / r.width));
+    onChange(MIN_Z + f * (MAX_Z - MIN_Z));
+  };
+  const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    const steps: Record<string, number> = { ArrowRight: 0.1, ArrowUp: 0.1, ArrowLeft: -0.1, ArrowDown: -0.1, PageUp: 0.5, PageDown: -0.5, Home: -MAX_Z, End: MAX_Z };
+    if (!(e.key in steps)) return;
+    e.preventDefault();
+    onStep(steps[e.key]);
+  };
+
+  return (
+    <div
+      role="slider"
+      tabIndex={0}
+      aria-label="Zoom"
+      aria-valuemin={MIN_Z * 100}
+      aria-valuemax={MAX_Z * 100}
+      aria-valuenow={Math.round(value * 100)}
+      aria-valuetext={`${Math.round(value * 100)} %`}
+      onKeyDown={onKey}
+      onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); setGrab(true); fromPointer(e.clientX); }}
+      onPointerMove={(e) => grab && fromPointer(e.clientX)}
+      onPointerUp={() => setGrab(false)}
+      onPointerCancel={() => setGrab(false)}
+      className="group relative flex h-11 min-w-0 flex-1 cursor-pointer touch-none items-center rounded-full focus-visible:outline-offset-4"
+    >
+      <div ref={trackRef} className="relative h-0.5 w-full rounded-full bg-border">
+        <motion.span aria-hidden className="absolute inset-0 rounded-full bg-primary" style={{ scaleX: fill, originX: 0 }} />
+        <motion.span aria-hidden className="absolute top-1/2 -ml-2 -mt-2 block size-4" style={{ x }}>
+          {/* Halo que aparece al agarrar */}
+          <motion.span
+            className="absolute inset-0 rounded-full bg-primary/20"
+            animate={{ scale: grab ? 2.4 : 1, opacity: grab ? 1 : 0 }}
+            transition={bounce}
+          />
+          <motion.span
+            className="absolute inset-0 rounded-full bg-primary shadow-md ring-2 ring-background"
+            animate={{ scale: grab ? 1.35 : 1 }}
+            whileHover={{ scale: 1.2 }}
+            transition={bounce}
+          />
+        </motion.span>
+      </div>
+    </div>
+  );
 }
 
 export function PhotoCropper({ src, onCancel, onApply }: PhotoCropperProps) {
@@ -272,37 +372,29 @@ export function PhotoCropper({ src, onCancel, onApply }: PhotoCropperProps) {
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
-        <Button variant="icon" aria-label="Alejar" onClick={() => setZoomTo(zoom - 0.25)} disabled={zoom <= MIN_Z}>
+      <div className="flex items-center gap-3">
+        <BounceIcon label="Alejar" onClick={() => setZoomTo(zoom - 0.25)} disabled={zoom <= MIN_Z}>
           <ZoomOut aria-hidden className="size-5" strokeWidth={1.75} />
-        </Button>
-        <input
-          type="range"
-          min={MIN_Z} max={MAX_Z} step={0.01}
-          value={zoom}
-          onChange={(e) => setZoomTo(Number(e.target.value), false)}
-          aria-label="Zoom"
-          aria-valuetext={`${Math.round(zoom * 100)} %`}
-          className="h-11 min-w-0 flex-1 cursor-pointer accent-primary-strong"
-        />
-        <Button variant="icon" aria-label="Acercar" onClick={() => setZoomTo(zoom + 0.25)} disabled={zoom >= MAX_Z}>
+        </BounceIcon>
+        <ZoomSlider value={zoom} onChange={(z) => setZoomTo(z, false)} onStep={(d) => setZoomTo(zoom + d)} />
+        <BounceIcon label="Acercar" onClick={() => setZoomTo(zoom + 0.25)} disabled={zoom >= MAX_Z}>
           <ZoomIn aria-hidden className="size-5" strokeWidth={1.75} />
-        </Button>
+        </BounceIcon>
       </div>
 
-      <div className="flex flex-wrap items-center justify-center gap-2">
-        <Button variant="ghost" size="sm" onClick={() => setRot((r) => r - 90)} disabled={!source}>
+      <div className="flex flex-wrap items-center justify-center gap-2 [&>*]:inline-flex">
+        <Bouncy><Button variant="ghost" size="sm" onClick={() => setRot((r) => r - 90)} disabled={!source}>
           <RotateCcw aria-hidden className="size-4" strokeWidth={1.75} />Girar
-        </Button>
-        <Button variant="ghost" size="sm" onClick={reset} disabled={!source}>Restablecer</Button>
-        <Button variant="ghost" size="sm" onClick={() => setRot((r) => r + 90)} disabled={!source}>
+        </Button></Bouncy>
+        <Bouncy><Button variant="ghost" size="sm" onClick={reset} disabled={!source}>Restablecer</Button></Bouncy>
+        <Bouncy><Button variant="ghost" size="sm" onClick={() => setRot((r) => r + 90)} disabled={!source}>
           Girar<RotateCw aria-hidden className="size-4" strokeWidth={1.75} />
-        </Button>
+        </Button></Bouncy>
       </div>
 
       <div className="grid grid-cols-2 gap-2 border-t border-border pt-4">
-        <Button variant="secondary" onClick={onCancel}>Cancelar</Button>
-        <Button onClick={apply} disabled={!source || failed}>Aplicar</Button>
+        <Bouncy><Button variant="secondary" block onClick={onCancel}>Cancelar</Button></Bouncy>
+        <Bouncy><Button block onClick={apply} disabled={!source || failed}>Aplicar</Button></Bouncy>
       </div>
     </motion.div>
   );
