@@ -24,15 +24,15 @@ export default {
         // ── Borders ────────────────────────────────────────────────────────
         'border-pixel':   'var(--border)',
 
-        // ── Accents B&N: dorado XP sutil + semánticos tenues + grises ───────
+        // ── Accents Noutlife: dorado champagne (XP) + semánticos + neutros jade ─
         // Tonos medios para que los modificadores /15 /50 funcionen en ambos modos.
-        'accent-gold':    '#a8871e',
-        'accent-cyan':    '#7c7c85',
-        'accent-pink':    '#8f8f98',
-        'accent-green':   '#4a825f',
-        'accent-red':     '#b5453a',
-        'accent-blue':    '#71717a',
-        'accent-purple':  '#6b6b73',
+        'accent-gold':    '#b08d57',
+        'accent-cyan':    '#6b8a78',
+        'accent-pink':    '#8fae9c',
+        'accent-green':   '#3a9b67',
+        'accent-red':     '#c8463f',
+        'accent-blue':    '#4f6b5c',
+        'accent-purple':  '#548f6f',
 
         // ── Tokens semánticos shadcn (para componentes tipo shadcn: LiquidButton, etc.) ──
         // Mapeados a las CSS vars del tema LifeQuest (globals.css). No colisionan
@@ -74,8 +74,8 @@ export default {
         pixel:       'var(--shadow-sm)',
         'pixel-lg':  'var(--shadow-md)',
         'pixel-inset': 'inset 0 1px 3px rgba(0,0,0,0.07)',
-        'pixel-gold': '0 4px 14px rgba(245,158,11,0.25)',
-        'pixel-red':  '0 4px 14px rgba(239,68,68,0.25)',
+        'pixel-gold': '0 4px 14px rgba(176,141,87,0.25)',
+        'pixel-red':  '0 4px 14px rgba(200,70,63,0.25)',
         'sm':         'var(--shadow-sm)',
         'md':         'var(--shadow-md)',
         'lg':         'var(--shadow-lg)',

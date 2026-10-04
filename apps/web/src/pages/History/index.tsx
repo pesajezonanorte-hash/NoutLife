@@ -10,8 +10,8 @@ import { LoadingGate } from '@/components/ui/LoadingGate';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 
 const CATEGORY_COLORS: Record<string, string> = {
-  FITNESS: '#5c5c64', HEALTH: '#8a8a92', FINANCE: '#a8871e',
-  LEARNING: '#4a4a52', LOVE: '#c0c0c8', SOCIAL: '#a1a1aa', PERSONAL: '#2a2a2e', CREATIVE: '#bdbdc5',
+  FITNESS: '#548f6f', HEALTH: '#70b48d', FINANCE: '#b08d57',
+  LEARNING: '#6b8a78', LOVE: '#c4e2ca', SOCIAL: '#a5d2b5', PERSONAL: '#3d6950', CREATIVE: '#85c7a1',
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -87,7 +87,7 @@ export default function HistoryPage() {
             { label: 'XP GANADO', value: summary.totalXp.toLocaleString(), color: 'text-accent-gold' },
             { label: 'MISIONES', value: summary.totalQuestsCompleted, color: 'text-accent-blue' },
             { label: 'HÁBITOS', value: summary.totalHabitsCompleted, color: 'text-accent-green' },
-            { label: 'GOLD', value: summary.totalGold.toLocaleString(), color: 'text-yellow-400' },
+            { label: 'GOLD', value: summary.totalGold.toLocaleString(), color: 'text-secondary-text' },
           ].map(({ label, value, color }) => (
             <PixelPanel key={label} className="p-3 text-center">
               <p className="font-pixel text-text-secondary" style={{ fontSize: '12px' }}>{label}</p>
@@ -170,7 +170,7 @@ export default function HistoryPage() {
               </p>
               <div className="flex gap-4 mb-3">
                 <span className="font-vt text-accent-gold text-base">+{dayDetail.totalXp} XP</span>
-                <span className="font-vt text-yellow-400 text-base"><E e="💰" />{dayDetail.totalGold}</span>
+                <span className="font-vt text-secondary-text text-base"><E e="💰" />{dayDetail.totalGold}</span>
               </div>
               {dayDetail.questsCompleted.length > 0 && (
                 <div className="mb-2">
@@ -191,7 +191,7 @@ export default function HistoryPage() {
                     <div key={l.habitId} className="flex items-center gap-2 py-0.5">
                       <span><E e={l.icon} /></span>
                       <span className="font-vt text-text-primary text-sm">{l.title}</span>
-                      <span className={`ml-auto font-vt text-sm ${l.status === 'completed' ? 'text-accent-green' : l.status === 'failed' ? 'text-accent-red' : 'text-yellow-400'}`}>
+                      <span className={`ml-auto font-vt text-sm ${l.status === 'completed' ? 'text-accent-green' : l.status === 'failed' ? 'text-accent-red' : 'text-secondary-text'}`}>
                         {l.status === 'completed' ? '✓' : l.status === 'failed' ? '✗' : '~'}
                       </span>
                     </div>
@@ -211,7 +211,7 @@ export default function HistoryPage() {
                 <XAxis dataKey="date" tick={{ fill: 'var(--text-secondary)', fontSize: 12, fontFamily: 'Montserrat' }} />
                 <YAxis tick={{ fill: 'var(--text-secondary)', fontSize: 12, fontFamily: 'Montserrat' }} />
                 <Tooltip content={<CustomTooltip />} />
-                <Line type="monotone" dataKey="xp" stroke="#a8871e" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="xp" stroke="#b08d57" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </PixelPanel>
@@ -232,7 +232,7 @@ export default function HistoryPage() {
                     label={({ category, percent }) => `${CATEGORY_LABELS[category] ?? category} ${Math.round((percent ?? 0) * 100)}%`}
                   >
                     {summary.categoryDistribution.map((entry) => (
-                      <Cell key={entry.category} fill={CATEGORY_COLORS[entry.category] ?? '#8a8a92'} />
+                      <Cell key={entry.category} fill={CATEGORY_COLORS[entry.category] ?? '#6b8a78'} />
                     ))}
                   </Pie>
                   <Legend formatter={(value) => CATEGORY_LABELS[value] ?? value} />

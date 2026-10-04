@@ -9,15 +9,15 @@
 <body>
 <x-dc>
 <helmet>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&amp;family=Montserrat:wght@400;500;600;700&amp;display=swap">
 <style>
 body{margin:0}
-a{color:#4f46e5}a:hover{color:#4338ca}
+a{color:var(--primary-text)}a:hover{color:var(--primary-hover)}
 </style>
 </helmet>
 <div class="lq screen {{theme}}" style="width: 375px; height: 1300px">
   <header class="hdr" style="padding: 0 8px">
-    <a class="btn btn-icon" href="Dashboard.dc.html" aria-label="Volver"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></a>
+    <a class="btn btn-icon" href="Dashboard.dc.html" aria-label="Volver"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"></path></svg></a>
     <span class="t-bs c-3" style="padding-right: 8px">Hoy · 2 oct</span>
   </header>
   <main class="enter" style="display: flex; flex-direction: column; gap: 24px; padding: 0 16px 128px">
@@ -36,7 +36,7 @@ a{color:#4f46e5}a:hover{color:#4338ca}
       </sc-for>
     </section>
 
-    <button class="btn btn-primary btn-block" style="min-height: 56px; font-size: 16px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><circle cx="12" cy="12" r="3"/></svg>Analizar comida</button>
+    <button class="btn btn-primary btn-block" style="min-height: 56px; font-size: 16px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"></path><circle cx="12" cy="12" r="3"></circle></svg>Analizar comida</button>
 
     <section style="display: flex; flex-direction: column; gap: 16px">
       <h2 class="t-hs">Comidas de hoy</h2>
@@ -63,18 +63,18 @@ a{color:#4f46e5}a:hover{color:#4338ca}
         <sc-for list="{{saved}}" as="s" hint-placeholder-count="3">
           <li class="card row" style="gap: 12px; padding: 8px 8px 8px 16px">
             <div style="flex: 1; min-width: 0"><div class="t-ll" style="font-size: 16px">{{s.name}}</div><div class="t-bs c-3 num">{{s.meta}}</div></div>
-            <button class="btn btn-secondary btn-md" style="padding: 10px 14px" aria-label="Añadir {{s.name}} a hoy"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Añadir</button>
+            <button class="btn btn-secondary btn-md" style="padding: 10px 14px" aria-label="Añadir {{s.name}} a hoy"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Añadir</button>
           </li>
         </sc-for>
       </ul>
     </section>
   </main>
   <nav class="tabbar" aria-label="Principal">
-    <a href="Dashboard.dc.html" class="on" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Inicio</a>
-    <a href="Habits.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg>Hábitos</a>
-    <a href="Quests.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 22V4"/><path d="M5 4h12l-2.5 4L17 12H5"/></svg>Misiones</a>
-    <a href="Colosseum.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 17.5 21 6V3h-3L6.5 14.5M11 19l-6-6M8 16l-4 4M5 21l-2-2"/></svg>Coliseo</a>
-    <a href="Profile.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Perfil</a>
+    <a href="Dashboard.dc.html" class="on" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"></path></svg>Inicio</a>
+    <a href="Habits.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m8.5 12 2.5 2.5 4.5-5"></path></svg>Hábitos</a>
+    <a href="Quests.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 22V4"></path><path d="M5 4h12l-2.5 4L17 12H5"></path></svg>Misiones</a>
+    <a href="Colosseum.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 17.5 21 6V3h-3L6.5 14.5M11 19l-6-6M8 16l-4 4M5 21l-2-2"></path></svg>Coliseo</a>
+    <a href="Profile.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg>Perfil</a>
   </nav>
 </div>
 </x-dc>
@@ -84,7 +84,7 @@ class Component extends DCLogic {
     const macros = [
       ['Proteína',92,140,'','var(--primary)'],
       ['Carbohidratos',160,250,'warning','var(--warning)'],
-      ['Grasas',48,70,'secondary','var(--secondary)'],
+      ['Grasas',48,70,'forest','var(--forest)'],
     ].map(([name,cur,max,cls,color]) => ({ name, cur, max, cls, color, pct: Math.round(cur / max * 100) }));
     const meals = [
       ['08:10','Desayuno','Avena con fruta y nueces','420 kcal',1],

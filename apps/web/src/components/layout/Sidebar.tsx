@@ -232,9 +232,9 @@ export function Sidebar({ className }: { className?: string }) {
         )}
       >
         <div ref={scrollRef} className="flex h-full w-64 flex-col gap-4 overflow-y-auto overscroll-contain overflow-x-hidden px-3 py-4 [scrollbar-gutter:stable] [scrollbar-width:thin] [scrollbar-color:transparent_transparent] group-data-[open=true]/side:[scrollbar-color:rgb(var(--lq-border-strong))_transparent]">
-          <Link to="/" className="flex min-h-11 items-center gap-3 rounded-xl px-1" aria-label="LifeQuest, ir al inicio">
+          <Link to="/" className="flex min-h-11 items-center gap-3 rounded-xl px-1" aria-label="Noutlife, ir al inicio">
             <BrandMark />
-            <span className={cn('text-heading-sm text-on-background', reveal)}>LifeQuest</span>
+            <span className={cn('text-heading-sm text-on-background', reveal)}>Noutlife</span>
           </Link>
 
           <nav aria-label="Principal" className="flex flex-col gap-3">

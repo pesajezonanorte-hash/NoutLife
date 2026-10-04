@@ -29,7 +29,7 @@ export function AuthLayout({ title, subtitle, children, footer }: Props) {
         <aside className="relative hidden flex-col justify-between overflow-hidden rounded-3xl border border-border bg-surface p-12 lg:flex">
           <div className="flex items-center gap-3">
             <BrandMark />
-            <span className="text-heading-sm">LifeQuest</span>
+            <span className="text-heading-sm">Noutlife</span>
           </div>
           <div className="flex max-w-[480px] flex-col gap-4">
             <p className="text-label-lg text-primary-text">Tu vida, como un juego</p>
@@ -57,7 +57,7 @@ export function AuthLayout({ title, subtitle, children, footer }: Props) {
             <div className="flex flex-col gap-6">
               <div className="flex items-center gap-3 lg:hidden">
                 <BrandMark />
-                <span className="text-heading-sm">LifeQuest</span>
+                <span className="text-heading-sm">Noutlife</span>
               </div>
               <div className="flex flex-col gap-2">
                 <h1 className="text-display-sm sm:text-display-md">{title}</h1>

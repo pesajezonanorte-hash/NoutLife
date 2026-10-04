@@ -20,8 +20,8 @@ const AREA_WEIGHTS: Record<string, number> = {
 };
 
 const AREA_COLORS: Record<string, string> = {
-  habits: '#8a8a92', finances: '#a8871e', fitness: '#5c5c64',
-  quests: '#2a2a2e', learning: '#a1a1aa', relationships: '#c0c0c8', journal: '#6b6b73',
+  habits: '#70b48d', finances: '#b08d57', fitness: '#548f6f',
+  quests: '#3d6950', learning: '#a5d2b5', relationships: '#c4e2ca', journal: '#6b8a78',
 };
 
 function ScoreRing({ score }: { score: LifeScore }) {
@@ -37,9 +37,9 @@ function ScoreRing({ score }: { score: LifeScore }) {
         centerLabel={score.total}
         centerSubLabel="LIFE SCORE"
         rings={[
-          { progress: quests,   color: '#2a2a2e' },
-          { progress: habits,   color: '#8a8a92' },
-          { progress: finances, color: '#a8871e' },
+          { progress: quests,   color: '#3d6950' },
+          { progress: habits,   color: '#70b48d' },
+          { progress: finances, color: '#b08d57' },
         ]}
       />
     </div>
@@ -117,9 +117,9 @@ export default function LifePage() {
           <PixelPanel className="p-4">
             <ScoreRing score={lifeScore} />
             <div className="flex justify-center gap-4 mt-3 text-xs flex-wrap">
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: '#2a2a2e' }} /><span className="text-[var(--text-secondary)]">Misiones</span></span>
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: '#8a8a92' }} /><span className="text-[var(--text-secondary)]">Hábitos</span></span>
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: '#a8871e' }} /><span className="text-[var(--text-secondary)]">Finanzas</span></span>
+              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: '#3d6950' }} /><span className="text-[var(--text-secondary)]">Misiones</span></span>
+              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: '#70b48d' }} /><span className="text-[var(--text-secondary)]">Hábitos</span></span>
+              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: '#b08d57' }} /><span className="text-[var(--text-secondary)]">Finanzas</span></span>
             </div>
             <p className="text-center font-vt text-text-secondary text-base">
               {lifeScore.total >= 75 ? '¡Héroe legendario!' : lifeScore.total >= 50 ? 'Aventurero en progreso' : ' Comenzando la aventura'}

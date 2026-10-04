@@ -1,4 +1,4 @@
-// Calendario base (react-day-picker v9) con los tokens de LifeQuest. Lo usa
+// Calendario base (react-day-picker v9) con los tokens de Noutlife. Lo usa
 // DatePicker (ui/lq) en todos los campos de fecha. Movimiento solo con
 // transform/opacity: el mes entra deslizándose en la dirección de navegación,
 // los días aparecen en cascada y la selección es una pastilla que viaja de un

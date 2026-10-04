@@ -29,7 +29,7 @@ export function IdentityFields({ name, onName, nameError, birthDate, onBirthDate
             options={[{ value: 'male', label: 'Héroe' }, { value: 'female', label: 'Heroína' }]} />
         </div>
       )}
-      <Field label="Fecha de nacimiento" help="Opcional. Para celebrar tu cumpleaños en LifeQuest.">
+      <Field label="Fecha de nacimiento" help="Opcional. Para celebrar tu cumpleaños en Noutlife.">
         <DatePicker clearable value={birthDate} onChange={onBirthDate} max={new Date().toISOString().slice(0, 10)} placeholder="Tu cumpleaños" />
       </Field>
       <div className="flex flex-col gap-1">

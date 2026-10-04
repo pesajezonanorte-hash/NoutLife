@@ -209,7 +209,7 @@ function GoalCard({
                   withArrows={false}
                   onClick={handleDelete}
                   disabled={deleting}
-                  className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                  className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-error-text hover:bg-error/10 transition-colors"
                 >
                   {deleting ? (
                     <Loader2 size={16} className="animate-spin" />

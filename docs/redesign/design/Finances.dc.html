@@ -9,16 +9,16 @@
 <body>
 <x-dc>
 <helmet>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&amp;family=Montserrat:wght@400;500;600;700&amp;display=swap">
 <style>
 body{margin:0}
-a{color:#4f46e5}a:hover{color:#4338ca}
+a{color:var(--primary-text)}a:hover{color:var(--primary-hover)}
 </style>
 </helmet>
 <div class="lq screen {{theme}}" style="width: 375px; height: 1260px">
   <header class="hdr" style="padding: 0 8px">
-    <a class="btn btn-icon" href="Dashboard.dc.html" aria-label="Volver"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></a>
-    <button class="btn btn-secondary btn-sm" aria-label="Cambiar mes, actual octubre 2026">Octubre 2026<svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+    <a class="btn btn-icon" href="Dashboard.dc.html" aria-label="Volver"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"></path></svg></a>
+    <button class="btn btn-secondary btn-sm" aria-label="Cambiar mes, actual octubre 2026">Octubre 2026<svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></button>
   </header>
 
   <sc-if value="{{hasData}}" hint-placeholder-val="{{ true }}">
@@ -27,15 +27,15 @@ a{color:#4f46e5}a:hover{color:#4338ca}
     <section class="card card-elevated card-lg" style="display: flex; flex-direction: column; gap: 4px" aria-label="Saldo">
       <span class="t-bs c-3">Saldo del mes</span>
       <span class="t-dl num">$1.240</span>
-      <span class="row t-bs c-success" style="gap: 4px"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 17 6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>+12% vs. septiembre</span>
+      <span class="row t-bs c-success" style="gap: 4px"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 17 6-6 4 4 8-8"></path><path d="M15 7h6v6"></path></svg>+12% vs. septiembre</span>
     </section>
     <section style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px">
       <div class="card" style="display: flex; flex-direction: column; gap: 8px">
-        <div class="ichip success" style="width: 40px; height: 40px; border-radius: 12px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 7 7 17M16 17H7V8"/></svg></div>
+        <div class="ichip success" style="width: 40px; height: 40px; border-radius: 12px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 7 7 17M16 17H7V8"></path></svg></div>
         <span class="t-bs c-3">Ingresos</span><span class="t-hm num">$2.800</span>
       </div>
       <div class="card" style="display: flex; flex-direction: column; gap: 8px">
-        <div class="ichip error" style="width: 40px; height: 40px; border-radius: 12px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg></div>
+        <div class="ichip error" style="width: 40px; height: 40px; border-radius: 12px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"></path></svg></div>
         <span class="t-bs c-3">Gastos</span><span class="t-hm num">$1.560</span>
       </div>
     </section>
@@ -56,7 +56,7 @@ a{color:#4f46e5}a:hover{color:#4338ca}
       <ul class="card" style="list-style: none; margin: 0; padding: 4px 16px; display: flex; flex-direction: column">
         <sc-for list="{{tx}}" as="t" hint-placeholder-count="5">
           <li class="row" style="gap: 12px; min-height: 64px; border-bottom: {{t.border}}">
-            <div class="ichip {{t.tone}}" style="width: 40px; height: 40px; border-radius: 12px"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true" style="width: 20px; height: 20px"><path d="{{t.icon}}"/></svg></div>
+            <div class="ichip {{t.tone}}" style="width: 40px; height: 40px; border-radius: 12px"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true" style="width: 20px; height: 20px"><path d="{{t.icon}}"></path></svg></div>
             <div style="flex: 1; min-width: 0"><div class="t-ll" style="font-size: 16px">{{t.name}}</div><div class="t-bs c-3">{{t.meta}}</div></div>
             <span class="t-ll num {{t.amtCls}}" style="font-size: 16px">{{t.amt}}</span>
           </li>
@@ -70,21 +70,21 @@ a{color:#4f46e5}a:hover{color:#4338ca}
   <main style="display: flex; flex-direction: column; gap: 24px; padding: 0 16px 128px">
     <h1 class="t-ds">Finanzas</h1>
     <div style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 16px; padding: 96px 16px">
-      <div class="ichip info lg"><svg class="i i48" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2"/><path d="M3 10h18M16 15h2"/></svg></div>
+      <div class="ichip info lg"><svg class="i i48" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2"></rect><path d="M3 10h18M16 15h2"></path></svg></div>
       <h2 class="t-hl">Sin movimientos</h2>
       <p class="t-bm c-3">Registra tu primer gasto o ingreso.</p>
-      <button class="btn btn-primary"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Transacción</button>
+      <button class="btn btn-primary"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Transacción</button>
     </div>
   </main>
   </sc-if>
 
-  <button class="fab" aria-label="Nueva transacción"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+  <button class="fab" aria-label="Nueva transacción"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button>
   <nav class="tabbar" aria-label="Principal">
-    <a href="Dashboard.dc.html" class="on" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Inicio</a>
-    <a href="Habits.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg>Hábitos</a>
-    <a href="Quests.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 22V4"/><path d="M5 4h12l-2.5 4L17 12H5"/></svg>Misiones</a>
-    <a href="Colosseum.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 17.5 21 6V3h-3L6.5 14.5M11 19l-6-6M8 16l-4 4M5 21l-2-2"/></svg>Coliseo</a>
-    <a href="Profile.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Perfil</a>
+    <a href="Dashboard.dc.html" class="on" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"></path></svg>Inicio</a>
+    <a href="Habits.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m8.5 12 2.5 2.5 4.5-5"></path></svg>Hábitos</a>
+    <a href="Quests.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 22V4"></path><path d="M5 4h12l-2.5 4L17 12H5"></path></svg>Misiones</a>
+    <a href="Colosseum.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 17.5 21 6V3h-3L6.5 14.5M11 19l-6-6M8 16l-4 4M5 21l-2-2"></path></svg>Coliseo</a>
+    <a href="Profile.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg>Perfil</a>
   </nav>
 </div>
 </x-dc>
@@ -107,7 +107,7 @@ class Component extends DCLogic {
       ['Pago freelance','Ingreso · Ayer','+$800,00','in','success',1],
       ['Transporte','Movilidad · 30 sep','−$18,50','car','info',0],
       ['Curso de diseño','Educación · 29 sep','−$49,00','book','primary',0],
-      ['Electricidad','Servicios · 28 sep','−$72,30','bolt','secondary',0],
+      ['Electricidad','Servicios · 28 sep','−$72,30','bolt','forest',0],
     ].map(([name,meta,amt,icon,tone,pos], i) => ({ name, meta, amt, icon: ICO[icon], tone,
       amtCls: pos ? 'c-success' : 'c-1', border: i < 4 ? '1px solid var(--border)' : '0' }));
     const empty = this.props.empty ?? false;

@@ -41,7 +41,7 @@ export function SplashScreen({ ready, onDone }: Props) {
         >
           <div className="flex items-center gap-3">
             <BrandMark />
-            <span className="text-heading-lg">LifeQuest</span>
+            <span className="text-heading-lg">Noutlife</span>
           </div>
           <ModernLoader words={LOADING_COPY.splash} label="Preparando tu aventura" className="max-w-md" />
         </motion.div>

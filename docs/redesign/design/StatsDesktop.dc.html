@@ -9,15 +9,15 @@
 <body>
 <x-dc>
 <helmet>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&amp;family=Montserrat:wght@400;500;600;700&amp;display=swap">
 <style>
 body{margin:0}
-a{color:#4f46e5}a:hover{color:#4338ca}
+a{color:var(--primary-text)}a:hover{color:var(--primary-hover)}
 </style>
 </helmet>
 <div class="lq app {{theme}}">
   <aside class="side">
-    <a href="DashboardDesktop.dc.html" class="row" style="gap: 12px; padding: 0 8px; text-decoration: none; color: inherit"><span class="ichip primary" style="width: 40px; height: 40px; border-radius: 12px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg></span><span class="t-hs">LifeQuest</span></a>
+    <a href="DashboardDesktop.dc.html" class="brand" aria-label="Noutlife — Inicio"><svg class="mk mk-l" viewBox="0 0 670 786" aria-hidden="true"><defs><linearGradient id="na" gradientUnits="userSpaceOnUse" x1="60" y1="40" x2="650" y2="770"><stop offset="0" stop-color="#5fae97"></stop><stop offset=".35" stop-color="#2f7565"></stop><stop offset=".72" stop-color="#0a3a33"></stop><stop offset="1" stop-color="#05302b"></stop></linearGradient><linearGradient id="nb" gradientUnits="userSpaceOnUse" x1="30" y1="290" x2="250" y2="740"><stop offset="0" stop-color="#8ec7ad"></stop><stop offset="1" stop-color="#2c7362"></stop></linearGradient><linearGradient id="nc" gradientUnits="userSpaceOnUse" x1="520" y1="210" x2="669" y2="780"><stop offset="0" stop-color="#4f9c84"></stop><stop offset=".45" stop-color="#2a6f60"></stop><stop offset="1" stop-color="#06302b"></stop></linearGradient></defs><g><path fill="url(#nc)" d="M474 198C581.2 230.2 670.1 305.6 669.0 500.0L669 760C669 776 666 783 662 785L500 600L474 489Z"></path><path fill="url(#na)" d="M1 0C124.1 148.2 331.6 191.3 474.0 489.0L662 785C314.2 532.2 633.0 710.9 118.0 399.0C-22.3 290.2 2.6 200.5 0.0 150.0L0 4Z"></path><path fill="url(#nb)" d="M2 271C93.4 468.0 228.1 416.0 251.0 545.0L251 743C76.1 695.7 -13.2 587.2 0.0 380.0L0 275Z"></path></g></svg><svg class="mk mk-d" viewBox="0 0 670 786" aria-hidden="true"><defs><linearGradient id="da" gradientUnits="userSpaceOnUse" x1="60" y1="40" x2="650" y2="770"><stop offset="0" stop-color="#a8d9c1"></stop><stop offset=".35" stop-color="#5aa58c"></stop><stop offset=".72" stop-color="#2a7262"></stop><stop offset="1" stop-color="#1a5547"></stop></linearGradient><linearGradient id="db" gradientUnits="userSpaceOnUse" x1="30" y1="290" x2="250" y2="740"><stop offset="0" stop-color="#c4e6d4"></stop><stop offset="1" stop-color="#5aa58c"></stop></linearGradient><linearGradient id="dc" gradientUnits="userSpaceOnUse" x1="520" y1="210" x2="669" y2="780"><stop offset="0" stop-color="#86c5aa"></stop><stop offset=".45" stop-color="#4c957d"></stop><stop offset="1" stop-color="#1a5547"></stop></linearGradient></defs><g><path fill="url(#dc)" d="M474 198C581.2 230.2 670.1 305.6 669.0 500.0L669 760C669 776 666 783 662 785L500 600L474 489Z"></path><path fill="url(#da)" d="M1 0C124.1 148.2 331.6 191.3 474.0 489.0L662 785C314.2 532.2 633.0 710.9 118.0 399.0C-22.3 290.2 2.6 200.5 0.0 150.0L0 4Z"></path><path fill="url(#db)" d="M2 271C93.4 468.0 228.1 416.0 251.0 545.0L251 743C76.1 695.7 -13.2 587.2 0.0 380.0L0 275Z"></path></g></svg><span class="wm">Noutlife</span></a>
     <nav aria-label="Principal" class="navgrp" style="border: 0; padding: 0">
       <sc-for list="{{nav}}" as="n" hint-placeholder-count="5"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
     </nav>
@@ -154,10 +154,10 @@ a{color:#4f46e5}a:hover{color:#4338ca}
           </article>
 
           <article class="card card-lg" style="display: flex; flex-direction: column; gap: 20px">
-            <div class="row" style="gap: 12px"><span class="ichip secondary" style="width: 40px; height: 40px; border-radius: 12px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 20px; height: 20px"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg></span><div><h3 class="t-hs">Descanso</h3><p class="t-bs c-3">Horas por noche · promedio 7 h 01</p></div></div>
+            <div class="row" style="gap: 12px"><span class="ichip info" style="width: 40px; height: 40px; border-radius: 12px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 20px; height: 20px"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg></span><div><h3 class="t-hs">Descanso</h3><p class="t-bs c-3">Horas por noche · promedio 7 h 01</p></div></div>
             <svg viewBox="0 0 300 120" width="100%" height="160" preserveAspectRatio="none" role="img" aria-label="Horas de sueño en los últimos 7 días, tendencia al alza" style="display: block; overflow: visible">
               <line x1="0" x2="300" y1="46" y2="46" stroke="var(--success)" stroke-dasharray="4 5" vector-effect="non-scaling-stroke"/>
-              <path class="draw" pathLength="1" d="{{sleepLine}}" fill="none" stroke="var(--secondary)" stroke-width="3" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+              <path class="draw" pathLength="1" d="{{sleepLine}}" fill="none" stroke="var(--info)" stroke-width="3" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
             </svg>
             <div class="row" style="gap: 12px; padding: 12px 16px; border-radius: 12px; background: var(--success-soft)"><svg class="i c-success" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 17 6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg><span class="t-bs c-1"><b>Mejorando:</b> +38 min frente a la semana anterior.</span></div>
           </article>
@@ -301,7 +301,7 @@ class Component extends DCLogic {
       return { name, tone, sub, icon: I[ic], status: v === -1 ? 'Sin configurar' : (has ? 'Con registros' : 'Sin registros'),
         badge: has ? 'badge-success' : 'badge-neutral', bIcon: has ? OK : NONE, pct: Math.round(pct * k), pctTxt: v === null ? 'Sin meta' : (v > 0 ? pct + '%' : '—'), barCls: tone === 'muted' ? '' : tone };
     });
-    const kpis = [['XP registrada', fmt(p.xp * k), 'primary', 'M13 2 4 14h7l-1 8 9-12h-7z', p.name], ['Misiones completadas', Math.round(4 * p.m * k), 'secondary', I.quests, `${Math.round(34 * k)} históricas`], ['Hábitos completados', Math.round(12 * p.m * k), 'success', I.habits, '63% de cumplimiento'], ['Entrenamientos', Math.round(Math.max(1, 3 * p.m) * k), 'warning', I.gym, 'Volumen +14%']]
+    const kpis = [['XP registrada', fmt(p.xp * k), 'primary', 'M13 2 4 14h7l-1 8 9-12h-7z', p.name], ['Misiones completadas', Math.round(4 * p.m * k), 'forest', I.quests, `${Math.round(34 * k)} históricas`], ['Hábitos completados', Math.round(12 * p.m * k), 'success', I.habits, '63% de cumplimiento'], ['Entrenamientos', Math.round(Math.max(1, 3 * p.m) * k), 'warning', I.gym, 'Volumen +14%']]
       .map(([label, v, tone, icon, sub]) => ({ label, v, tone, icon, sub }));
     const mv = [[3200, 1800], [800, 2100], [1500, 1200], [2600, 1400]];
     const mm = 3200;

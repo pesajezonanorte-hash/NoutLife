@@ -9,15 +9,15 @@
 <body>
 <x-dc>
 <helmet>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&amp;family=Montserrat:wght@400;500;600;700&amp;display=swap">
 <style>
 body{margin:0}
-a{color:#4f46e5}a:hover{color:#4338ca}
+a{color:var(--primary-text)}a:hover{color:var(--primary-hover)}
 </style>
 </helmet>
 <div class="lq app {{theme}}">
   <aside class="side">
-    <a href="DashboardDesktop.dc.html" class="row" style="gap: 12px; padding: 0 8px; text-decoration: none; color: inherit"><span class="ichip primary" style="width: 40px; height: 40px; border-radius: 12px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg></span><span class="t-hs">LifeQuest</span></a>
+    <a href="DashboardDesktop.dc.html" class="brand" aria-label="Noutlife — Inicio"><svg class="mk mk-l" viewBox="0 0 670 786" aria-hidden="true"><defs><linearGradient id="na" gradientUnits="userSpaceOnUse" x1="60" y1="40" x2="650" y2="770"><stop offset="0" stop-color="#5fae97"></stop><stop offset=".35" stop-color="#2f7565"></stop><stop offset=".72" stop-color="#0a3a33"></stop><stop offset="1" stop-color="#05302b"></stop></linearGradient><linearGradient id="nb" gradientUnits="userSpaceOnUse" x1="30" y1="290" x2="250" y2="740"><stop offset="0" stop-color="#8ec7ad"></stop><stop offset="1" stop-color="#2c7362"></stop></linearGradient><linearGradient id="nc" gradientUnits="userSpaceOnUse" x1="520" y1="210" x2="669" y2="780"><stop offset="0" stop-color="#4f9c84"></stop><stop offset=".45" stop-color="#2a6f60"></stop><stop offset="1" stop-color="#06302b"></stop></linearGradient></defs><g><path fill="url(#nc)" d="M474 198C581.2 230.2 670.1 305.6 669.0 500.0L669 760C669 776 666 783 662 785L500 600L474 489Z"></path><path fill="url(#na)" d="M1 0C124.1 148.2 331.6 191.3 474.0 489.0L662 785C314.2 532.2 633.0 710.9 118.0 399.0C-22.3 290.2 2.6 200.5 0.0 150.0L0 4Z"></path><path fill="url(#nb)" d="M2 271C93.4 468.0 228.1 416.0 251.0 545.0L251 743C76.1 695.7 -13.2 587.2 0.0 380.0L0 275Z"></path></g></svg><svg class="mk mk-d" viewBox="0 0 670 786" aria-hidden="true"><defs><linearGradient id="da" gradientUnits="userSpaceOnUse" x1="60" y1="40" x2="650" y2="770"><stop offset="0" stop-color="#a8d9c1"></stop><stop offset=".35" stop-color="#5aa58c"></stop><stop offset=".72" stop-color="#2a7262"></stop><stop offset="1" stop-color="#1a5547"></stop></linearGradient><linearGradient id="db" gradientUnits="userSpaceOnUse" x1="30" y1="290" x2="250" y2="740"><stop offset="0" stop-color="#c4e6d4"></stop><stop offset="1" stop-color="#5aa58c"></stop></linearGradient><linearGradient id="dc" gradientUnits="userSpaceOnUse" x1="520" y1="210" x2="669" y2="780"><stop offset="0" stop-color="#86c5aa"></stop><stop offset=".45" stop-color="#4c957d"></stop><stop offset="1" stop-color="#1a5547"></stop></linearGradient></defs><g><path fill="url(#dc)" d="M474 198C581.2 230.2 670.1 305.6 669.0 500.0L669 760C669 776 666 783 662 785L500 600L474 489Z"></path><path fill="url(#da)" d="M1 0C124.1 148.2 331.6 191.3 474.0 489.0L662 785C314.2 532.2 633.0 710.9 118.0 399.0C-22.3 290.2 2.6 200.5 0.0 150.0L0 4Z"></path><path fill="url(#db)" d="M2 271C93.4 468.0 228.1 416.0 251.0 545.0L251 743C76.1 695.7 -13.2 587.2 0.0 380.0L0 275Z"></path></g></svg><span class="wm">Noutlife</span></a>
     <nav aria-label="Principal" class="navgrp" style="border: 0; padding: 0">
       <sc-for list="{{nav}}" as="n" hint-placeholder-count="5"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
     </nav>
@@ -177,7 +177,7 @@ class Component extends DCLogic {
     const vals = [42, 18, 96, 30, 128, 64, 34];
     const days = vals.map((v, i) => ({ day: names[i].slice(0, 3), tip: `${names[i]} · $${v}`, h: Math.round(v / 128 * 100), delay: 200 + i * 70,
       bg: v === 128 ? 'var(--error)' : 'var(--primary-soft)' }));
-    const cats = [['Comida',38,'var(--warning)','$593'],['Servicios',24,'var(--secondary)','$374'],['Educación',18,'var(--primary)','$281'],['Movilidad',12,'var(--info)','$187'],['Otros',8,'var(--on-surface-light)','$125']]
+    const cats = [['Comida',38,'var(--warning)','$593'],['Servicios',24,'var(--forest)','$374'],['Educación',18,'var(--primary)','$281'],['Movilidad',12,'var(--info)','$187'],['Otros',8,'var(--on-surface-light)','$125']]
       .map(([name, pct, color, amt], i) => ({ name, pct, color, amt, delay: 300 + i * 90 }));
     const ICO = {
       food: 'M7 3v18M4 3v6a3 3 0 0 0 6 0V3M17 21V3c-2 1-3 4-3 7h3', in: 'M17 7 7 17M16 17H7V8',
@@ -190,7 +190,7 @@ class Component extends DCLogic {
       ['Transporte','Movilidad · 30 sep','−$18,50','car','info',0],
       ['Curso de diseño','Educación · 29 sep','−$49,00','book','primary',0],
       ['Salario','Ingreso · 28 sep','+$2.000,00','in','success',1],
-      ['Electricidad','Servicios · 28 sep','−$72,30','bolt','secondary',0],
+      ['Electricidad','Servicios · 28 sep','−$72,30','bolt','forest',0],
     ];
     const t = this.state.tab;
     const list = all.filter(r => t === 'all' || (t === 'in' ? r[5] : !r[5]));

@@ -1,12 +1,12 @@
 {
-  "name": "LifeQuest — El RPG de tu vida",
-  "short_name": "LifeQuest",
+  "name": "Noutlife — El RPG de tu vida",
+  "short_name": "Noutlife",
   "description": "Gamifica tu vida real. Gana XP, sube de nivel y conquista tus metas.",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#1a1033",
-  "theme_color": "#1a1033",
+  "background_color": "#0e1d16",
+  "theme_color": "#0e1d16",
   "categories": ["lifestyle", "productivity", "games"],
   "icons": [
     { "src": "/icons/icon-72.png",  "sizes": "72x72",   "type": "image/png", "purpose": "any" },

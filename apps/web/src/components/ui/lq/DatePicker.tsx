@@ -1,4 +1,4 @@
-// Selector de fecha de LifeQuest: sustituye a <input type="date">. Mismo valor
+// Selector de fecha de Noutlife: sustituye a <input type="date">. Mismo valor
 // 'YYYY-MM-DD' (cadena vacía = sin fecha), así que encaja con los formularios y
 // la API tal como estaban. El calendario se despliega en un popover animado; el
 // título del mes abre la vista de años y meses para saltar lejos (cumpleaños).

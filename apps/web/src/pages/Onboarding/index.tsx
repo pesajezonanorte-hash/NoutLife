@@ -71,7 +71,7 @@ function Shell({ step, title, subtitle, children, footer, wide }: { step: number
       <header className={cn('mx-auto flex w-full flex-col gap-4 px-4 pt-6 md:pt-10', width)}>
         <div className="flex items-center gap-3">
           <BrandMark />
-          <span className="text-heading-sm">LifeQuest</span>
+          <span className="text-heading-sm">Noutlife</span>
         </div>
         <div className="flex flex-col gap-2">
           <span className="text-label-lg text-on-surface-light">Paso {step + 1} de {TOTAL_STEPS}</span>

@@ -37,7 +37,7 @@ const ICONS: Record<string, LucideIcon> = {
 };
 const iconOf = (k: string) => ICONS[k] ?? Target;
 /** Colores de acento de zona: dato de la zona (se guarda en la API), no estilo de componente. */
-const ZONE_COLORS = ['#6366f1', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#ec4899', '#64748b'];
+const ZONE_COLORS = ['#548f6f', '#b08d57', '#3a9b67', '#d4952a', '#c8463f', '#3b7ea6', '#70b48d', '#6b8a78'];
 const IDEAS = [
   { label: 'Música', text: 'Quiero aprender guitarra: practicar 20 minutos al día y tocar una canción completa en 2 meses.' },
   { label: 'Idiomas', text: 'Quiero mejorar mi inglés conversacional: 15 minutos de práctica oral al día y una conversación por semana.' },

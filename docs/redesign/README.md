@@ -1,31 +1,75 @@
-# LifeQuest Redesign — Handoff v3 (completo, 26 rutas)
+# Noutlife Redesign — Handoff v4 (rebrand Jade, 26 rutas)
 
-Especificación para implementar el rediseño completo en `apps/web` (React 18 + Vite + Tailwind 3.4 + Framer Motion 11 + React Query + Zustand).
+*Grow your life like a lime.* LifeQuest pasa a llamarse **Noutlife** y cambia de piel: paleta **Jade** (verdes bosque, neutros marfil con tinte verde y oro champán solo para recompensas), logo de hoja en forma de N y JetBrains Mono para los números. Especificación para `apps/web` (React 18 + Vite + Tailwind 3.4 + Framer Motion 11 + React Query + Zustand).
 
 ## Contenido
 
 | Carpeta / archivo | Qué es | Uso |
 |---|---|---|
-| `design-system/README.md`, `design-system/tokens.json` | **LifeQuest Design System** (fuente de verdad de estilo) | Colores, tipografía, radios, sombras, reglas. Manda sobre cualquier valor de los prototipos |
-| `tokens/tokens.css` | Variables light/dark en canales RGB, con los valores del design system | Fusionar en `src/styles/tokens.css` |
-| `tokens/tailwind.tokens.ts` | `theme.extend` para Tailwind | Fusionar en `tailwind.config.ts` |
-| `tokens/motion.ts` | Presets Framer Motion + `useCountUp` | `src/lib/motion.ts` |
-| `design/*.dc.html` | 39 prototipos (móvil, tablet, desktop) | Especificación de layout, copy, estados y animaciones |
-| `design/lq.css` | CSS del prototipo (`.btn`, `.card`, `.seg.slide`, `.lift`, `.rise`, `.draw`, `.halo`…) | Medidas, timings y keyframes exactos |
+| `design-system/README.md`, `tokens.json`, `components/` | **Noutlife Design System** (fuente de verdad de estilo) | Colores, tipografía, radios, sombras, logo, reglas. Manda sobre cualquier valor de los prototipos |
+| `design-system/logos/*.svg` | Mark (light/dark), lockup horizontal (light/dark), wordmark, app icon | Copiar a `apps/web/public/brand/` y `src/assets/brand/` |
+| `tokens/tokens.css` | Canales RGB `--lq-*` light/dark con los valores Jade | **Reemplazar los valores** de las variables `--lq-*` existentes en `src/styles/tokens.css` (mismos nombres) y añadir las nuevas (`jade-*`, `forest`, `success-strong`, `on-success`) |
+| `tokens/tailwind.tokens.ts` | `theme.extend` (`noutlifeTheme`) | Fusionar en `tailwind.config.ts` |
+| `tokens/motion.ts` | Presets Framer Motion (base + v3) + `useCountUp` + `useSpotlight` | `src/lib/motion.ts` |
+| `design/*.dc.html` | 39 prototipos ya con la piel Jade (móvil, tablet, desktop) | Layout, copy, estados y animaciones |
+| `design/lq.css` | CSS del prototipo, ya en Jade | Medidas, timings y keyframes exactos |
 
-> Los `.dc.html` son prototipos de un editor de diseño: usan `{{holes}}`, `<sc-for>`, `<sc-if>` y `class Component extends DCLogic`. Léelos como especificación y tradúcelos a JSX + Tailwind. Los datos (Alex Rivera, cifras, rankings) son de ejemplo: se reemplazan por los de la API.
+> Los `.dc.html` son prototipos de un editor de diseño (`{{holes}}`, `<sc-for>`, `<sc-if>`, `class Component extends DCLogic`). Léelos como especificación y tradúcelos a JSX + Tailwind. Los datos (Alex Rivera, cifras, otros jugadores) son de ejemplo.
 
 ## Prioridad de estilos
 
-1. **`design-system/`** — colores, fuentes, radios, sombras, espaciado y reglas.
+1. **`design-system/`** — colores, fuentes, radios, sombras, logo y reglas.
 2. **`tokens/`** — ya traducidos a CSS/Tailwind con esos valores.
-3. **`design/`** — estructura, jerarquía, interacción y motion. Si un valor de `lq.css` difiere del design system, gana el design system.
+3. **`design/`** — estructura, jerarquía, interacción y motion.
 
-Diferencias concretas a respetar sobre los prototipos:
-- Botones e inputs con radio **10 px** (`rounded-md`), cards 16 px, chips/anillos 999 px.
-- `warning-text` en light es **amber-800**; `error-text` e `info-text` en dark son red-300 / blue-300.
-- **JetBrains Mono** (`font-mono tabular-nums`) para cifras de juego: XP, Gold, cronómetros, contadores y stats.
-- Tipografía: escala del design system para toda la UI (`display`, `heading-*`, `body-*`, `label-*`, `caption`). Los tamaños grandes del rediseño quedan solo como `hero-lg/md/sm` para el título de página y los números protagonistas (saldo, horas de sueño, cronómetro). Si el equipo prefiere no usarlos, reemplazar por `display`.
+## Rebrand Noutlife: qué cambia en toda la app
+
+**Marca**
+- Nombre visible **Noutlife** en todas partes: `<title>`, meta tags, `manifest.json` (`name`, `short_name`, `theme_color` #3d6950, `background_color` #f9f7f3), favicon (de `noutlife-mark.svg`), íconos PWA (de `noutlife-app-icon.svg`), splash/onboarding, textos ("¿Qué es Noutlife?", "Noutlife 2.4.0", FAQ, emails). No renombres paquetes, rutas, claves de storage ni identificadores de código.
+- Sidebar y header: componente `<BrandLockup>` = mark SVG (34 px de alto; versión `-on-dark` en `.dark`) + "Noutlife" en Montserrat 500, 21 px, tracking −0.012em, color `on-background`. Rail de tablet y TabBar: solo el mark (32 px). Mínimos: mark 24 px; lockup 120 px de ancho. Nunca recolorear, rotar, estirar ni poner sombras/glow al logo. El degradado del logo es solo del logo; la UI usa Jade plano.
+
+**Color**
+- Fondo de página `background` marfil #f9f7f3; cards, sidebar, modales y popovers en `surface` blanco con borde `border` y `shadow-sm`. En dark: fondo jade-900, surfaces #14261d / #1c3328.
+- `primary` (jade) es el único color de acción. Botón primario `bg-primary-strong text-on-primary hover:bg-primary-hover`. Texto/links/nav activo: `text-primary-text`. Barras, anillos y foco: `primary`.
+- `secondary` ya no es violeta: es **oro champán solo para recompensas** (XP, oro, hitos de racha, premium, logros desbloqueados, recompensas del pase). Máximo 1–2 apariciones por pantalla.
+- Todo lo que antes usaba violeta como **categoría** (Mente, meditación, servicios, rutina de noche, El Sabio, grasas, etc.) pasa al tono **`forest`** (jade-800 / dark jade-200). Sueño usa `info`. En los prototipos ya está aplicado: busca `forest` en `design/`.
+- Estados: success (esmeralda), warning (ámbar), error (ladrillo), info (azul acero), cada uno con `*-text` AA. Como success y primary son verdes, **un estado siempre lleva ícono + texto**.
+- Fondos con texto blanco sobre success usan `success-strong` + `on-success`. Botón peligro: `bg-error-text text-white` (dark: texto jade-900).
+- Tintes de chips/badges: rol al 10 % (light) / 16 % (dark) + texto `*-text`.
+- Sin hex en componentes; sin gradientes de fondo ni glow decorativo (el spotlight de las cards v3 queda en 7 % de primary, muy sutil). Portadas de libros, colores de outfits y temas de la Tienda son contenido, no UI.
+- Los temas alternos de `globals.css` (cyber, forest, ocean, sunset, retro) salen del sistema: el tema por defecto es Jade; si se conservan, solo como temas comprables en la Tienda.
+
+**Tipografía**
+- Montserrat para UI, **JetBrains Mono 400/500** para números que cuentan (XP, oro, dinero, timers, contadores, stats, códigos). Cargar ambas desde Google Fonts.
+- Body 15/22 −0.01em. Nada bajo 14 px salvo `caption` 12 px.
+- Clases de los prototipos → Tailwind:
+
+| Prototipo | Tailwind | Valor |
+|---|---|---|
+| `.t-dl` | `text-hero-lg` | 56 / 700 / −0.02em — solo título de página o número protagonista |
+| `.t-dm` | `text-hero-md` | 40 / 700 |
+| `.t-ds` | `text-display` | 32 / 40 / 700 / −0.02em |
+| `.t-hl` | `text-heading-xl` | 24 / 32 / 700 |
+| `.t-hm` | `text-heading-lg` | 20 / 28 / 600 |
+| `.t-hs` | `text-heading-md` | 18 / 26 / 600 |
+| `.t-bl` | `text-body-lg` | 16 / 24 |
+| `.t-bm` | `text-body` | 15 / 22 / −0.01em |
+| `.t-bs` | `text-body-sm` | 14 / 20 |
+| `.t-ll` | `text-label-md` | 14 / 20 / 600 |
+| `.t-lm` | `text-label-sm` | 12 / 18 / 600 |
+| `.t-cap` | `text-caption` | 12 / 18 |
+| `.num` | `font-mono tabular-nums` | JetBrains Mono 500 |
+
+**Forma y elevación**
+- Radios: chips/badges/checks 6 px (`rounded-sm`), botones e inputs 10 px (`rounded-md`), cards/paneles/modales 16 px (`rounded-lg`), pills y barras `rounded-full`.
+- Sombras teñidas de verde tinta en light (`shadow-sm` reposo, `shadow-md` hover, `shadow-lg` modales y cards levantadas).
+- Inputs: fondo `surface-variant`, borde `border-strong`, al enfocar fondo `surface` + anillo 3 px `primary`.
+- Botón secundario: `bg-surface-variant text-on-background` + borde 1 px `border-strong`.
+
+**Motion (ajustes del design system sobre v3)**
+- Botón: hover `y −1 px` + `shadow-md` (100 ms), press `scale .97` (50 ms), disabled 55 % de opacidad.
+- Card interactiva: hover `y −4 px` + `shadow-lg` + borde `primary/25` (200 ms). Se mantienen las curvas expo/spring de v3, la entrada con blur y el spotlight + tilt.
+- Todo efecto respeta `prefers-reduced-motion` **y** el ajuste in-app "Reducir movimiento".
 
 ## Mapa pantalla → ruta → referencias
 
@@ -83,15 +127,15 @@ Los del design system (Button, Card, Badge, Input/Select/Field, Switch, Segmente
 Los valores v3 sustituyen a los del resumen anterior donde coinciden:
 - Curvas: entradas con `expo` `cubic-bezier(.16,1,.3,1)`; elementos interactivos (botones, switches, checks, píldora de SegmentedControl, barras, diálogos, toasts) con spring suave con ligero rebote (`springSoft`).
 - Entrada: `page3`/`item3` — y 24 px + scale .985 + blur 6 px → 0, 800 ms, stagger 60 ms. La blur es la única excepción a "solo transform/opacity" y solo en la entrada.
-- Card hover: lift −6 px con spring. Tarjetas protagonistas (`.spot` en los prototipos) con luz que sigue al cursor + tilt 3D de 3° como máximo (`useSpotlight`); el tilt se apaga con reduced motion y en dispositivos táctiles.
+- Card hover: lift −4 px con spring + `shadow-lg` + borde `primary/25`. Tarjetas protagonistas (`.spot` en los prototipos) con luz que sigue al cursor + tilt 3D de 3° como máximo (`useSpotlight`); el tilt se apaga con reduced motion y en dispositivos táctiles.
 - Barras 1.1 s expo, líneas/anillos 1.6 s expo. Contadores con `useCountUp` (easeOutQuart).
 - Acordeón: `grid-template-rows 0fr→1fr` 450 ms (excepción permitida) + chevron 180°.
 - Cuenta atrás: cada dígito entra/sale con `tick` (key por valor + AnimatePresence).
 
 Valores base (siguen vigentes donde v3 no dice nada):
 
-Entrada 400 ms ease-out + stagger 50–60 ms · salida 200 ms · hover botón scale 1.02 (100 ms) · card lift −4 px (200 ms) + ícono rota −4° · barras `scaleX` con delay 200 ms + sheen · gráficos de barras `scaleY` escalonado · líneas y anillos con `pathLength` · contadores con `useCountUp` · halo pulsante en avatares/medallas · píldora deslizante en SegmentedControl · modales con spring · toasts abajo a la derecha (móvil abajo centro) · confeti en logros grandes. **Solo `transform` y `opacity`.** Con reduced motion: sin movimiento, solo opacidad/color, valores finales directos.
+Entrada 400 ms ease-out + stagger 50–60 ms · salida 200 ms · hover botón y −1 px + shadow-md (100 ms), press 0.97 · card lift −4 px (200 ms) + ícono rota −4° · barras `scaleX` con delay 200 ms + sheen · gráficos de barras `scaleY` escalonado · líneas y anillos con `pathLength` · contadores con `useCountUp` · halo pulsante en avatares/medallas · píldora deslizante en SegmentedControl · modales con spring · toasts abajo a la derecha (móvil abajo centro) · confeti en logros grandes. **Solo `transform` y `opacity`.** Con reduced motion: sin movimiento, solo opacidad/color, valores finales directos.
 
 ## Reglas no negociables
 
-Las 8 del design system (sin hex en componentes, AA, ≥14 px, targets ≥44 px, solo transform/opacity, reduced motion, estados loading/error/empty, ícono + texto en estados) más: `aria-current="page"` en nav, `aria-pressed` en checks, `role="progressbar"`/`timer` con valores, `aria-live` en toasts y contadores, Escape cierra modales, foco visible 3 px primary.
+Las reglas del design system (sin hex en componentes, AA, ≥14 px, targets ≥44 px, solo transform/opacity, reduced motion, estados loading/error/empty, ícono + texto en estados) más: `aria-current="page"` en nav, `aria-pressed` en checks, `role="progressbar"`/`timer` con valores, `aria-live` en toasts y contadores, Escape cierra modales, foco visible 3 px primary con 2 px de offset. Targets: 44 px botones-ícono, 48 px checks, 56 px TabBar, 64 px FAB.

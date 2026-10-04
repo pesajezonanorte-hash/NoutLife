@@ -38,7 +38,7 @@ const NOTIF_LABELS: Record<NotificationCategoryPreference['category'], string> =
   HABITS: 'Hábitos', QUESTS: 'Misiones', GYM: 'Gimnasio', FINANCE: 'Finanzas', SOCIAL: 'Social', ACHIEVEMENTS: 'Logros', SYSTEM: 'Sistema',
 };
 const THEMES: Array<{ id: string; name: string; description: string; cost: number }> = [
-  { id: 'aurora', name: 'Aurora', description: 'La experiencia LifeQuest original.', cost: 0 },
+  { id: 'aurora', name: 'Aurora', description: 'La experiencia Noutlife original.', cost: 0 },
   { id: 'cyber', name: 'Cyber', description: 'Contraste sobrio y preciso.', cost: 200 },
   { id: 'forest', name: 'Bosque', description: 'Una paleta tranquila para concentrarte.', cost: 200 },
   { id: 'ocean', name: 'Océano', description: 'Neutros fríos para sesiones largas.', cost: 200 },
@@ -206,7 +206,7 @@ export default function SettingsPage() {
       const { data } = await api.get<Blob>(format === 'json' ? '/export/json' : '/export/transactions.csv', { responseType: 'blob' });
       const url = URL.createObjectURL(data);
       const a = document.createElement('a');
-      a.href = url; a.download = format === 'json' ? `lifequest-backup-${new Date().toISOString().slice(0, 10)}.json` : `transacciones-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.href = url; a.download = format === 'json' ? `noutlife-backup-${new Date().toISOString().slice(0, 10)}.json` : `transacciones-${new Date().toISOString().slice(0, 10)}.csv`;
       a.click(); URL.revokeObjectURL(url);
       toast.success(`Exportación ${format.toUpperCase()} descargada`);
     } catch { toast.error('No se pudo preparar la exportación'); }
@@ -230,7 +230,7 @@ export default function SettingsPage() {
           <AnimatePresence mode="wait" initial={false}>
             <motion.div key={tab} variants={pop3} initial="initial" animate="animate" exit={{ opacity: 0, transition: { duration: 0.15 } }} className="flex flex-col gap-6">
               {tab === 'profile' && (
-                <Section eyebrow="Tu identidad" title="Perfil" description="La información con la que LifeQuest te acompaña cada día.">
+                <Section eyebrow="Tu identidad" title="Perfil" description="La información con la que Noutlife te acompaña cada día.">
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <Field label="Nombre de aventurero"><Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} autoComplete="name" /></Field>
                     <Field label="Correo" help="Se administra desde tu cuenta."><Input type="email" value={user?.email ?? ''} disabled readOnly /></Field>
@@ -278,7 +278,7 @@ export default function SettingsPage() {
                     </div>
                   </Section>
 
-                  <Section title="Paleta de LifeQuest" description="Los temas comprados en la Tienda se aplican aquí sin cambiar tus datos.">
+                  <Section title="Paleta de Noutlife" description="Los temas comprados en la Tienda se aplican aquí sin cambiar tus datos.">
                     <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                       {THEMES.map((t) => {
                         const p = THEME_PALETTES[t.id];
@@ -341,7 +341,7 @@ export default function SettingsPage() {
               )}
 
               {tab === 'about' && (
-                <Section title="LifeQuest" description="Convierte tus hábitos en una aventura. Hecho con cuidado para quienes construyen su mejor versión cada día.">
+                <Section title="Noutlife" description="Convierte tus hábitos en una aventura. Hecho con cuidado para quienes construyen su mejor versión cada día.">
                   <IconChip icon={Gamepad2} tone="primary" size="lg" className="animate-float [.reduce-motion_&]:animate-none" />
                   <div className="flex flex-wrap gap-2">
                     <Button variant="ghost" size="md" onClick={() => navigate('/about')}><Info aria-hidden className="size-4" />Acerca de</Button>

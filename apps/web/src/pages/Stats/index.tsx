@@ -41,7 +41,7 @@ function useShareCard() {
     c.width = 600; c.height = 380;
     ctx.fillStyle = tok('background'); ctx.fillRect(0, 0, 600, 380);
     ctx.strokeStyle = tok('primary', 0.5); ctx.lineWidth = 2; ctx.roundRect(4, 4, 592, 372, 16); ctx.stroke();
-    ctx.fillStyle = tok('primary-text'); ctx.font = 'bold 28px Montserrat, system-ui'; ctx.fillText('LifeQuest', 32, 56);
+    ctx.fillStyle = tok('primary-text'); ctx.font = 'bold 28px Montserrat, system-ui'; ctx.fillText('Noutlife', 32, 56);
     ctx.fillStyle = tok('on-surface-light'); ctx.font = '16px Montserrat, system-ui'; ctx.fillText(user?.displayName ?? 'Héroe', 32, 84);
     ctx.fillStyle = tok('on-background'); ctx.font = 'bold 18px Montserrat, system-ui'; ctx.fillText(`Nivel ${user?.level ?? 1}`, 32, 128);
     if (score) {
@@ -54,7 +54,7 @@ function useShareCard() {
     ctx.fillStyle = tok('on-surface-light'); ctx.font = '13px Montserrat, system-ui';
     ctx.fillText(new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' }), 32, 340);
     const a = document.createElement('a');
-    a.download = `lifequest-${new Date().toISOString().slice(0, 10)}.png`; a.href = c.toDataURL('image/png'); a.click();
+    a.download = `noutlife-${new Date().toISOString().slice(0, 10)}.png`; a.href = c.toDataURL('image/png'); a.click();
   };
   return { ref, share };
 }

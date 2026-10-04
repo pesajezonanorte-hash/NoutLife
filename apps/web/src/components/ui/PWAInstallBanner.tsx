@@ -59,7 +59,7 @@ export function PWAInstallBanner() {
             <span className="text-2xl"><E e="⚔" /></span>
             <div className="flex-1 min-w-0">
               <p className="font-pixel text-accent-gold" style={{ fontSize: '12px' }}>
-                ¡Instala LifeQuest!
+                ¡Instala Noutlife!
               </p>
               <p className="font-vt text-text-secondary text-base leading-tight">
                 Experiencia épica sin navegador

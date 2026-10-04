@@ -1,4 +1,4 @@
-// src/lib/motion.ts — Framer Motion 11 presets for LifeQuest (docs/redesign/tokens/motion.ts, Motion v3).
+// src/lib/motion.ts — Framer Motion 11 presets for Noutlife (docs/redesign/tokens/motion.ts, Motion v3).
 // main.tsx envuelve la app en <MotionConfig>: solo el ajuste "Reducir movimiento"
 // de la app la apaga (la preferencia del sistema no, por decisión de producto).
 import { useEffect, useRef, useState, type PointerEvent } from 'react';
