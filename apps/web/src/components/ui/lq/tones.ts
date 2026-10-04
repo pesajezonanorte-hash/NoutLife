@@ -75,3 +75,15 @@ export const borderTone: Record<Tone, string> = {
   info: 'border-info',
   muted: 'border-on-surface-light',
 };
+
+/** Relleno sólido SVG (barras de gráficos). */
+export const fillTone: Record<Tone, string> = {
+  primary: 'fill-primary',
+  secondary: 'fill-secondary',
+  forest: 'fill-forest',
+  success: 'fill-success',
+  warning: 'fill-warning',
+  error: 'fill-error',
+  info: 'fill-info',
+  muted: 'fill-on-surface-light',
+};
