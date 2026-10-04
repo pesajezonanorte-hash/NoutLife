@@ -1,7 +1,7 @@
 // src/lib/motion.ts — Framer Motion 11 presets for LifeQuest (docs/redesign/tokens/motion.ts, Motion v3).
 // main.tsx envuelve la app en <MotionConfig>: solo el ajuste "Reducir movimiento"
 // de la app la apaga (la preferencia del sistema no, por decisión de producto).
-import { useEffect, useState, type PointerEvent } from 'react';
+import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { animate, useReducedMotionConfig, type Transition, type Variants } from 'framer-motion';
 import { useMotionStore } from '@/store/motionStore';
 
@@ -100,9 +100,11 @@ export const check = { animate: (on: boolean) => ({ rotate: on ? 360 : 0, transi
 export function useCountUp(target: number, duration = 1.1) {
   const reduce = useReducedMotionConfig();
   const [v, setV] = useState(reduce ? target : 0);
+  // Parte del último valor mostrado: un saldo que baja anima desde el anterior, no desde 0.
+  const from = useRef(reduce ? target : 0);
   useEffect(() => {
-    if (reduce) { setV(target); return; }
-    const c = animate(0, target, { duration, ease: [0.25, 1, 0.5, 1], onUpdate: setV }); // easeOutQuart
+    if (reduce) { setV(target); from.current = target; return; }
+    const c = animate(from.current, target, { duration, ease: [0.25, 1, 0.5, 1], onUpdate: (x) => { from.current = x; setV(x); } }); // easeOutQuart
     return () => c.stop();
   }, [target, duration, reduce]);
   return v;

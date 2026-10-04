@@ -41,7 +41,7 @@ export interface ShopItemProps {
 
 export function ShopItem({ name, description, price, icon, tone = 'primary', category, owned, affordable = true, busy, onBuy, onPreview, className }: ShopItemProps) {
   return (
-    <Card as="li" interactive padding="lg" className={cn('flex flex-col gap-3.5', className)}>
+    <Card interactive padding="lg" className={cn('flex h-full flex-col gap-3.5', className)}>
       <div className="flex items-start justify-between gap-2">
         <IconChip icon={icon} tone={tone} className="size-14 rounded-2xl [&>svg]:size-8" />
         {category && <Badge>{category}</Badge>}
