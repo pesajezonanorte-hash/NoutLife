@@ -36,10 +36,12 @@ export interface PixelStageProps {
   focus?: StageFocus;
   /** Cambia (se incrementa) para lanzar la celebración de guardado. */
   celebrate?: number;
+  /** Texto del sello de la celebración. */
+  doneLabel?: string;
   className?: string;
 }
 
-export function PixelStage({ look, focus = 'full', celebrate = 0, className }: PixelStageProps) {
+export function PixelStage({ look, focus = 'full', celebrate = 0, doneLabel = 'Guardado', className }: PixelStageProps) {
   const reduce = useReducedMotionConfig() ?? false;
   const blink = useBlink(!reduce);
   const base = useMemo(() => renderGrid(look), [look]);
@@ -197,7 +199,7 @@ export function PixelStage({ look, focus = 'full', celebrate = 0, className }: P
             initial={{ opacity: 0, y: -16, scale: 0.8 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8 }}
             transition={{ type: 'spring', stiffness: 420, damping: 22, delay: 0.15 }}
           >
-            <Check aria-hidden className="size-4" strokeWidth={2.5} />Guardado
+            <Check aria-hidden className="size-4" strokeWidth={2.5} />{doneLabel}
           </motion.span>
         )}
       </AnimatePresence>

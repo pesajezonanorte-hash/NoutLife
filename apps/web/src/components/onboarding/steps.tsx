@@ -5,9 +5,10 @@ import {
   Apple, BookOpen, Check, Dumbbell, Heart, Leaf, Moon, Palette, Sparkles, Wallet, type LucideIcon,
 } from 'lucide-react';
 import type { AvatarConfig } from '@lifequest/shared';
+import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Field, IconChip, Input, SegmentedControl, Select, type Tone } from '@/components/ui/lq';
-import { AvatarPixelEditor, AvatarPreview } from '@/components/character/AvatarPixelEditor';
+import { AvatarPreview, AvatarStudio } from '@/components/character/AvatarPixelEditor';
 
 // ── Identidad ────────────────────────────────────────────────────────────────
 export function IdentityFields({ name, onName, nameError, birthDate, onBirthDate, gender, onGender, lockGender, timezone }: {
@@ -58,9 +59,15 @@ export function WelcomeContent({ config }: { config: AvatarConfig }) {
 }
 
 // ── Avatar ───────────────────────────────────────────────────────────────────
-export function AvatarContent({ config, onChange }: { config: AvatarConfig; onChange: (c: AvatarConfig) => void }) {
+/** Paso del avatar: el mismo estudio que en Perfil, en un marco con altura de pantalla. */
+export function AvatarContent({ config, onChange, celebrate = 0 }: { config: AvatarConfig; onChange: (c: AvatarConfig) => void; celebrate?: number }) {
   return (
-    <AvatarPixelEditor config={config} onChange={onChange} />
+    <motion.div
+      initial={{ opacity: 0, y: 16, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 260, damping: 28 }}
+      className="flex h-[calc(100dvh-340px)] min-h-[560px] flex-col overflow-hidden rounded-[28px] border border-border bg-background shadow-lg md:h-[calc(100dvh-370px)] md:min-h-[560px]"
+    >
+      <AvatarStudio config={config} onChange={onChange} celebrate={celebrate} doneLabel="¡Listo!" />
+    </motion.div>
   );
 }
 

@@ -290,12 +290,12 @@ export function AvatarPixelEditor({ config, onChange }: EditorProps) {
 }
 
 /** Perfil: estudio a pantalla completa (escenario grande + panel de opciones). */
-export function AvatarStudio({ config, onChange, celebrate = 0 }: EditorProps & { celebrate?: number }) {
+export function AvatarStudio({ config, onChange, celebrate = 0, doneLabel }: EditorProps & { celebrate?: number; doneLabel?: string }) {
   const { look, history, tab, setTab, roll } = useEditor(config, onChange);
   return (
     <div className="grid min-h-0 flex-1 grid-rows-[minmax(300px,46dvh)_minmax(0,1fr)] md:grid-cols-[minmax(0,1fr)_minmax(380px,500px)] md:grid-rows-1">
       <div className="relative flex min-h-0 flex-col">
-        <PixelStage look={look} focus={FOCUS[tab]} celebrate={celebrate} className="min-h-0 flex-1 pb-16 md:pb-24" />
+        <PixelStage look={look} focus={FOCUS[tab]} celebrate={celebrate} doneLabel={doneLabel} className="min-h-0 flex-1 pb-16 md:pb-24" />
         <motion.div
           initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ type: 'spring', stiffness: 260, damping: 26, delay: 0.2 }}
           className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center px-3 md:bottom-8"
