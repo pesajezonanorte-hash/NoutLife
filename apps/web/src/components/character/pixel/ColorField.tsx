@@ -3,7 +3,7 @@
 // hex + recientes) que se despliega con muelle. Los colores son datos del
 // personaje; el plano de color y el arcoíris son la propia herramienta.
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, PresenceContext, motion } from 'framer-motion';
 import { Check, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -117,7 +117,12 @@ function Mixer({ value, onChange, label }: { value: string; onChange: (c: string
 }
 
 // ── Campo completo ──────────────────────────────────────────────────────────
-export function ColorField({ label, value, colors, onChange }: { label: string; value: string; colors: string[]; onChange: (c: string) => void }) {
+/** Aislado del contexto de presencia: el anillo usa layoutId (ver Controls). */
+export function ColorField(props: { label: string; value: string; colors: string[]; onChange: (c: string) => void }) {
+  return <PresenceContext.Provider value={null}><ColorFieldInner {...props} /></PresenceContext.Provider>;
+}
+
+function ColorFieldInner({ label, value, colors, onChange }: { label: string; value: string; colors: string[]; onChange: (c: string) => void }) {
   const name = useId();
   const panelId = useId();
   const [open, setOpen] = useState(false);

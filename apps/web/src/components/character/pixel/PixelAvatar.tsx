@@ -3,7 +3,7 @@
 // «Reducir movimiento» de la app.
 import { memo, useEffect, useMemo, useState } from 'react';
 import { motion, useReducedMotionConfig } from 'framer-motion';
-import { H, W, render, type PixelLook } from './engine';
+import { H, W, render, type PixelLook, type Run } from './engine';
 
 export type PixelAnimation = 'idle' | 'celebrate' | 'hurt' | 'none';
 
@@ -14,8 +14,22 @@ export const CROPS = {
   body: '4 17 24 19',
 } as const;
 
+// Caché de dibujos: las miniaturas del estudio se recalculan en cada cambio
+// con objetos nuevos pero aspectos repetidos.
+const cache = new Map<string, Run[]>();
+function cachedRender(look: PixelLook, blink: boolean) {
+  const key = JSON.stringify(look) + (blink ? '|b' : '');
+  let runs = cache.get(key);
+  if (!runs) {
+    runs = render(look, { blink });
+    if (cache.size > 400) cache.delete(cache.keys().next().value as string);
+    cache.set(key, runs);
+  }
+  return runs;
+}
+
 const Sprite = memo(function Sprite({ look, blink, viewBox }: { look: PixelLook; blink: boolean; viewBox: string }) {
-  const runs = useMemo(() => render(look, { blink }), [look, blink]);
+  const runs = useMemo(() => cachedRender(look, blink), [look, blink]);
   return (
     <svg viewBox={viewBox} shapeRendering="crispEdges" className="block size-full" aria-hidden>
       {runs.map((r) => <rect key={`${r.x}-${r.y}`} x={r.x} y={r.y} width={r.w} height={1} fill={r.c} />)}
