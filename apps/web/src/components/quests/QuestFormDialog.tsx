@@ -2,7 +2,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { Quest } from '@lifequest/shared';
 import { Plus, X } from 'lucide-react';
-import { Button, Field, Input, ResponsiveDialog, SegmentedControl, Select, Textarea } from '@/components/ui/lq';
+import { Button, Field, Input, ResponsiveDialog, SegmentedControl, Select, Textarea, DatePicker } from '@/components/ui/lq';
 import { CATEGORIES, CATEGORY_META } from '@/lib/lifeMeta';
 import { DIFFICULTIES, QUEST_TYPES } from './questMeta';
 
@@ -92,7 +92,7 @@ export function QuestFormDialog({ open, quest, onClose, onSubmit }: QuestFormDia
             </Select>
           </Field>
           <Field label="Fecha límite" help="Opcional">
-            <Input type="date" value={v.deadline} onChange={(e) => set('deadline', e.target.value)} />
+            <DatePicker clearable value={v.deadline} onChange={(d) => set('deadline', d)} />
           </Field>
         </div>
 

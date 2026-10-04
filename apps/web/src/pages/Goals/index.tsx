@@ -17,6 +17,7 @@ import { useToastStore } from "../../hooks/useToast";
 import * as goalsService from "../../services/goals.service";
 import type { MasterGoal } from "../../services/goals.service";
 import { E } from "@/components/ui/glyphs";
+import { DatePicker } from '@/components/ui/lq';
 
 const CATEGORIES = [
   {
@@ -453,16 +454,14 @@ function GoalWizard({
                   </p>
                 </div>
                 <div>
-                  <label className="text-xs text-[var(--text-secondary)] mb-1 block font-medium">
+                  <label id="goal-target-date-label" htmlFor="goal-target-date" className="text-xs text-[var(--text-secondary)] mb-1 block font-medium">
                     Fecha límite (opcional)
                   </label>
-                  <input
-                    type="date"
-                    className="w-full rounded-xl border border-[var(--border)] bg-[var(--bg-panel-light)] px-4 py-3 text-sm focus:outline-none focus:border-[var(--accent-gold)] transition-colors"
+                  <DatePicker
+                    id="goal-target-date"
+                    clearable
                     value={form.targetDate}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, targetDate: e.target.value }))
-                    }
+                    onChange={(d) => setForm((f) => ({ ...f, targetDate: d }))}
                   />
                 </div>
               </motion.div>

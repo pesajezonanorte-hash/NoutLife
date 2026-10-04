@@ -11,7 +11,7 @@ import * as loveService from '../../services/love.service';
 import api from '../../lib/api';
 import { SageContextButton } from '../../components/sage/SageContextButton';
 import { E } from '@/components/ui/glyphs';
-import { Badge, Button, Card, EmptyState, ErrorState, Field, IconChip, Input, Modal, ProgressRing, SegmentedControl, StepItem, Switch, PageLoader } from '@/components/ui/lq';
+import { Badge, Button, Card, EmptyState, ErrorState, Field, IconChip, Input, Modal, ProgressRing, SegmentedControl, StepItem, Switch, PageLoader, DatePicker } from '@/components/ui/lq';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 
 interface GiftIdea { id: string; title: string; description?: string; estimatedPrice?: number; isPurchased: boolean; forPerson?: string }
@@ -172,7 +172,7 @@ function AddDateModal({ relationshipId, onClose, onSave }: { relationshipId: str
             ))}
           </div>
         </fieldset>
-        <Field label="Fecha"><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+        <Field label="Fecha"><DatePicker value={date} onChange={setDate} /></Field>
         <div className="flex min-h-11 items-center justify-between gap-3">
           <span id="love-rec" className="text-body-md">Recurrente anual</span>
           <Switch checked={isRecurring} onChange={(e) => setIsRecurring(e.target.checked)} aria-labelledby="love-rec" />
@@ -210,7 +210,7 @@ function SetupModal({ onClose, onSave, existing }: { onClose: () => void; onSave
       <form className="flex flex-col gap-5" onSubmit={(e) => { e.preventDefault(); void save(); }}>
         <p className="-mt-2 text-body-sm text-on-surface-light">Define los datos que quieres recordar en este espacio personal. Puedes dejar el nombre vacío si prefieres que esta zona se mantenga privada.</p>
         <Field label="Nombre de tu pareja (opcional)"><Input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej. Valentina" /></Field>
-        <Field label="Fecha de inicio"><Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} /></Field>
+        <Field label="Fecha de inicio"><DatePicker value={startDate} onChange={setStartDate} /></Field>
         <div className="flex gap-3">
           <Button type="button" variant="ghost" className="flex-1" onClick={onClose}>Cancelar</Button>
           <Button type="submit" className="flex-1" loading={saving}>Guardar</Button>

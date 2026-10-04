@@ -11,7 +11,7 @@ import { item, stagger } from '@/lib/motion';
 import { useToast } from '../../hooks/useToast';
 import * as agendaService from '../../services/agenda.service';
 import type { AgendaEvent } from '../../services/agenda.service';
-import { Badge, Button, Card, EmptyState, Field, IconChip, Input, MonthGrid, ProgressRing, ResponsiveDialog, SegmentedControl, Select, Switch, Textarea, TimelineDay, type TimelineItem, type Tone, PageLoader } from '@/components/ui/lq';
+import { Badge, Button, Card, EmptyState, Field, IconChip, Input, MonthGrid, ProgressRing, ResponsiveDialog, SegmentedControl, Select, Switch, Textarea, TimelineDay, type TimelineItem, type Tone, PageLoader, DatePicker } from '@/components/ui/lq';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 import { solidBg, softTone } from '@/components/ui/lq/tones';
 
@@ -165,7 +165,7 @@ function EventModal({ initial, defaultDate, onSave, onDelete, onClose }: {
           <Switch id="ev-allday" checked={isAllDay} onChange={(e) => setIsAllDay(e.target.checked)} />
         </div>
         {isAllDay ? (
-          <Field label="Fecha"><Input type="date" value={startDate.slice(0, 10)} onChange={(e) => setStartDate(`${e.target.value}T00:00`)} /></Field>
+          <Field label="Fecha"><DatePicker value={startDate.slice(0, 10)} onChange={(d) => setStartDate(`${d}T00:00`)} /></Field>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Inicio"><Input type="datetime-local" value={startDate} onChange={(e) => setStartDate(e.target.value)} /></Field>
