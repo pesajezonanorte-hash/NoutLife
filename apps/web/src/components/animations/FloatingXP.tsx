@@ -9,7 +9,7 @@ export function FloatingXPLayer() {
       {floatingXPs.map(({ id, amount, x, y }) => (
         <motion.div
           key={id}
-          className="fixed z-[90] pointer-events-none font-pixel text-accent-gold select-none"
+          className="fixed z-[90] pointer-events-none font-mono font-medium tabular-nums text-secondary-text select-none"
           style={{ left: x, top: y, fontSize: '12px', textShadow: '1px 1px 0 rgba(0,0,0,0.35)' }}
           initial={{ opacity: 1, y: 0, x: '-50%' }}
           animate={{ opacity: 0, y: -60, x: '-50%' }}

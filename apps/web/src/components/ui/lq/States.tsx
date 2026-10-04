@@ -67,7 +67,7 @@ export function ErrorState({
       <h2 className="text-heading-lg">{title}</h2>
       <p className="max-w-sm text-body-md text-on-surface-light">
         {description ?? 'Revisa tu conexión.'}{' '}
-        {autoRetrySeconds > 0 && left > 0 && <span className="font-mono tabular-nums">Reintentando en {left} s…</span>}
+        {autoRetrySeconds > 0 && left > 0 && <span>Reintentando en <span className="font-mono tabular-nums">{left}</span> s…</span>}
       </p>
       <Button variant="secondary" onClick={onRetry}>
         <RefreshCw aria-hidden className="size-4" strokeWidth={1.75} />

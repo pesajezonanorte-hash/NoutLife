@@ -35,6 +35,8 @@ async function shoot(browser, path, width, theme) {
     if (/\/auth\/(refresh|login)/.test(url)) return route.fulfill({ json: { user, accessToken: 'mock' } });
     if (/\/auth\/me/.test(url)) return route.fulfill({ json: { user } });
     if (/\/users\/me$/.test(url)) return route.fulfill({ json: user });
+    if (/\/stats\/radar/.test(url)) return route.fulfill({ json: { current: [], previous: [] } });
+    if (/\/shop\//.test(url)) return route.fulfill({ json: { items: [] } });
     return route.fulfill({ json: [] });
   });
   const errors = [];

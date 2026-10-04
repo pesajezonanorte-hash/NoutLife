@@ -81,14 +81,14 @@ function GiftWishlist({ relationshipId }: { relationshipId?: string }) {
       ) : state === 'error' ? (
         <ErrorState title="No pudimos cargar tus ideas" onRetry={() => void load()} />
       ) : gifts.length === 0 ? (
-        <Card variant="elevated" padding="lg"><EmptyState icon={Gift} tone="secondary" title="Sin ideas de regalo" description="Guarda ideas cuando se te ocurran y márcalas al comprarlas." action={<Button onClick={() => setShowForm(true)}><Plus aria-hidden className="size-4" />Añadir idea</Button>} className="py-6" /></Card>
+        <Card variant="elevated" padding="lg"><EmptyState icon={Gift} tone="forest" title="Sin ideas de regalo" description="Guarda ideas cuando se te ocurran y márcalas al comprarlas." action={<Button onClick={() => setShowForm(true)}><Plus aria-hidden className="size-4" />Añadir idea</Button>} className="py-6" /></Card>
       ) : (
         <motion.ul variants={stagger} initial="initial" animate="animate" className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {gifts.map((g) => (
             <motion.li key={g.id} variants={item}>
               <Card as="article" padding="lg" interactive aria-labelledby={`g-${g.id}`} className="flex h-full flex-col gap-3">
                 <div className="flex items-center justify-between gap-2">
-                  {g.forPerson ? <Badge variant="secondary">Para {g.forPerson}</Badge> : <span />}
+                  {g.forPerson ? <Badge variant="forest">Para {g.forPerson}</Badge> : <span />}
                   <div className="flex items-center gap-1">
                     {g.estimatedPrice ? <span className="font-mono text-label-lg tabular-nums">{money(g.estimatedPrice)}</span> : null}
                     <Button variant="icon" size="sm" aria-label={`Eliminar ${g.title}`} onClick={() => void handleDelete(g.id)} className="-mr-2"><Trash2 aria-hidden className="size-4" strokeWidth={1.75} /></Button>

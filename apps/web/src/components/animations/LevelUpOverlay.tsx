@@ -17,7 +17,7 @@ const STATS: Array<{ key: keyof StatIncreases; label: string; icon: LucideIcon; 
   { key: 'hp', label: 'HP', icon: Heart, variant: 'error' },
   { key: 'mp', label: 'MP', icon: Droplet, variant: 'info' },
   { key: 'strength', label: 'Fuerza', icon: Dumbbell, variant: 'success' },
-  { key: 'intelligence', label: 'Inteligencia', icon: Brain, variant: 'secondary' },
+  { key: 'intelligence', label: 'Inteligencia', icon: Brain, variant: 'forest' },
   { key: 'charisma', label: 'Carisma', icon: Sparkles, variant: 'warning' },
 ];
 

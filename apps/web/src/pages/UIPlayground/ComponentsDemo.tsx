@@ -40,7 +40,7 @@ export function ComponentsDemo() {
     <div className="flex flex-col gap-12">
       <h2 className="text-heading-md">Componentes</h2>
 
-      <Block title="Button" spec='<Button variant="primary|secondary|ghost|danger|icon" size="lg|md|sm"> · hover scale 1.02 + shadow-md 100 ms'>
+      <Block title="Button" spec='<Button variant="primary|secondary|ghost|danger|icon" size="lg|md|sm"> · hover −1 px + shadow-md 100 ms · press .97'>
         <div className="flex flex-wrap items-center gap-3">
           <Button>Primary lg</Button>
           <Button size="md">Primary md</Button>

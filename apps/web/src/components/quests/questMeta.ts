@@ -17,7 +17,7 @@ export const DIFFICULTIES: { value: Quest['difficulty']; label: string; variant:
   { value: 'EASY', label: 'Fácil', variant: 'neutral' },
   { value: 'NORMAL', label: 'Normal', variant: 'info' },
   { value: 'HARD', label: 'Difícil', variant: 'warning' },
-  { value: 'EPIC', label: 'Épica', variant: 'secondary' },
+  { value: 'EPIC', label: 'Épica', variant: 'forest' },
 ];
 
 export const difficultyMeta = (d: Quest['difficulty']) => DIFFICULTIES.find((x) => x.value === d) ?? DIFFICULTIES[1];

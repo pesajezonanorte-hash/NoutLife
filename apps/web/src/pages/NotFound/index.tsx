@@ -1,42 +1,23 @@
-import { FlowButton } from '@/components/ui/flow-button';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
-import { E } from '@/components/ui/glyphs';
+import { ArrowLeft, Compass, Home } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Button, IconChip, buttonClasses } from '@/components/ui/lq';
+import { item, stagger } from '@/lib/motion';
 
 export default function NotFoundPage() {
   const navigate = useNavigate();
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--bg-deep)] text-[var(--text-primary)] p-8">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="text-center max-w-md space-y-6"
-      >
-        <div className="text-7xl"><E e="🗺" /></div>
-        <h1 className="text-3xl font-bold">Zona inexplorada</h1>
-        <p className="text-[var(--text-secondary)] text-sm leading-relaxed">
-          Esta parte del reino aún no ha sido descubierta. Puede que la URL sea incorrecta o que la zona haya sido movida.
-        </p>
-        <div className="text-5xl font-bold text-[var(--text-muted)] opacity-30">404</div>
-        <div className="flex gap-3 justify-center">
-          <FlowButton
-            tone="ghost"
-            withArrows={false}
-            onClick={() => navigate(-1)}
-            className="px-4 py-2.5 text-sm"
-          >
-            ← Volver
-          </FlowButton>
-          <FlowButton
-            tone="primary"
-            withArrows={false}
-            onClick={() => navigate('/')}
-            className="px-4 py-2.5 text-sm"
-          >
-            <E e="🏰" /> Ir al Castillo
-          </FlowButton>
-        </div>
+    <motion.div variants={stagger} initial="initial" animate="animate" className="flex min-h-[70vh] flex-col items-center justify-center gap-6 px-4 text-center">
+      <motion.div variants={item}><IconChip icon={Compass} tone="forest" size="lg" /></motion.div>
+      <motion.div variants={item} className="flex max-w-md flex-col gap-3">
+        <span className="font-mono text-label-lg tabular-nums text-on-surface-light">Error 404</span>
+        <h1 className="text-display-sm md:text-display-md">Zona sin explorar</h1>
+        <p className="text-body-lg text-on-surface-light">Puede que el enlace esté mal escrito o que esta zona se haya movido.</p>
       </motion.div>
-    </div>
+      <motion.div variants={item} className="flex flex-wrap justify-center gap-3">
+        <Button variant="secondary" size="md" onClick={() => navigate(-1)}><ArrowLeft aria-hidden className="size-4" />Volver</Button>
+        <Link to="/" className={buttonClasses('primary', 'md')}><Home aria-hidden className="size-4" />Ir al inicio</Link>
+      </motion.div>
+    </motion.div>
   );
 }
