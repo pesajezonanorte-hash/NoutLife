@@ -1,925 +1,371 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
-import { AnimatePresence, motion } from "framer-motion";
+// Estadísticas (StatsDesktop): periodo Semana/Mes/3 meses/Año (la curva se vuelve
+// a dibujar al cambiar), curva de XP con área, Life Score con doble anillo, zonas
+// con estado, KPIs, dinero, descanso, fuerza, proyecciones, radar y constancia.
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
-  Activity,
-  BarChart3,
-  CalendarDays,
-  Download,
-  Flame,
-  RefreshCw,
-  HeartPulse,
-  Swords,
-} from "lucide-react";
+  AlertTriangle, Check, Dumbbell, Flag, Minus, Moon, RefreshCw, Share2, Sparkles, TrendingUp, Wallet, Zap, CheckCircle2,
+} from 'lucide-react';
+import { expo, item, stagger } from '@/lib/motion';
+import { cn } from '@/lib/utils';
 import {
-  PolarAngleAxis,
-  PolarGrid,
-  PolarRadiusAxis,
-  Radar,
-  RadarChart,
-  ResponsiveContainer,
-} from "recharts";
-import type { User } from "@lifequest/shared";
-import { FlowButton } from "@/components/ui/flow-button";
-import { PageHeader } from "@/components/layout/PageHeader";
+  getActivityRadar, getFinanceTrend, getGymProgression, getHabitHeatmap, getPredictions, getSleepScatter, getStatsSummary, getXpHistory,
+  type FinanceTrendPoint, type GymProgression, type HeatmapPoint, type SleepTrendPoint, type StatsPredictions, type StatsSummary, type XpHistoryPoint,
+} from '@/services/stats.service';
+import { fetchDynamicLifeScore, fetchLifeScore, type DynamicLifeScoreData, type LifeScore } from '@/services/lifescore.service';
+import { getCheckinHistory, type DailyCheckin } from '@/services/checkin.service';
+import { useAuthStore } from '@/store/authStore';
+import { PageHeader } from '@/components/layout/PageHeader';
 import {
-  HeatCalendar,
-  HeatCalendarGrid,
-  HeatCalendarLegend,
-  HeatCalendarTooltip,
-} from "@/components/ui/heat-calendar";
-import AdvancedStats, {
-  type AdvancedStatsData,
-} from "@/components/ui/advanced-stats";
-import {
-  FinanceTrendCard,
-  GymProgressionCard,
-  PredictionsCard,
-  SleepTrendCard,
-} from "@/components/ui/advanced-stats-utils/analytics-details";
-import {
-  getActivityRadar,
-  getFinanceTrend,
-  getGymProgression,
-  getHabitHeatmap,
-  getPredictions,
-  getSleepScatter,
-  getStatsSummary,
-  getXpHistory,
-  type FinanceTrendPoint,
-  type GymProgression,
-  type HeatmapPoint,
-  type SleepTrendPoint,
-  type StatsPredictions,
-  type StatsSummary,
-  type XpHistoryPoint,
-} from "../../services/stats.service";
-import {
-  fetchDynamicLifeScore,
-  fetchLifeScore,
-  type DynamicLifeScoreData,
-  type LifeScore,
-} from "../../services/lifescore.service";
-import {
-  getCheckinHistory,
-  type DailyCheckin,
-} from "../../services/checkin.service";
-import { useAuthStore } from "../../store/authStore";
+  AnimatedValue, AreaChart, Badge, Button, Card, ChipGroup, Heatmap, IconChip, LineChart, MoodFace, ProgressBar, ProgressRing,
+  RadarChart, SegmentedControl, Skeleton, SpotCard, StatCard, moodOf, type HeatLevel, type Tone,
+} from '@/components/ui/lq';
 
-type Period = "week" | "month" | "3months" | "year";
-
-const PERIODS: Array<{ id: Period; label: string; summaryLabel: string }> = [
-  { id: "week", label: "Semana", summaryLabel: "Última semana" },
-  { id: "month", label: "Mes", summaryLabel: "Mes actual" },
-  { id: "3months", label: "3 meses", summaryLabel: "Últimos 3 meses" },
-  { id: "year", label: "Año", summaryLabel: "Año actual" },
+type Period = 'week' | 'month' | '3months' | 'year';
+const PERIODS: Array<{ value: Period; label: string; long: string }> = [
+  { value: 'week', label: 'Semana', long: 'última semana' }, { value: 'month', label: 'Mes', long: 'mes actual' },
+  { value: '3months', label: '3 meses', long: 'últimos 3 meses' }, { value: 'year', label: 'Año', long: 'año actual' },
 ];
+const fmt = (n: number) => Math.round(n).toLocaleString('es-CO');
+const money = (n: number, cur: string) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: cur, maximumFractionDigits: 0 }).format(n);
+const shortDate = (d: string) => new Date(d.length === 7 ? `${d}-01` : d).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
 
-interface RadarComparisonPoint {
-  subject: string;
-  current: number;
-  previous: number;
-}
-
-const HEATMAP_WEEKS = 53;
-
-function utcDateKey(date: Date) {
-  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
-}
-
-/** Maps LifeQuest's real daily habit counts into the composable heat-calendar API. */
-function CompactActivityMosaic({
-  weeks,
-  maxCount,
-  loading,
-}: {
-  weeks: Array<{ start: Date; end: Date; count: number }>;
-  maxCount: number;
-  loading: boolean;
-}) {
-  const groups = Array.from({ length: 4 }, (_, group) =>
-    weeks.slice(group * 14, group * 14 + 14),
-  );
-  const rangeFormatter = useMemo(
-    () =>
-      new Intl.DateTimeFormat("es-CO", {
-        month: "short",
-        day: "numeric",
-        timeZone: "UTC",
-      }),
-    [],
-  );
-
-  return (
-    <div className="xl:hidden">
-      <div
-        className="space-y-3"
-        role="img"
-        aria-label="Actividad semanal de hábitos de los últimos doce meses"
-      >
-        {groups.map((group, groupIndex) => {
-          const first = group[0];
-          const last = group[group.length - 1];
-          const label =
-            first && last
-              ? `${rangeFormatter.format(first.start)} – ${rangeFormatter.format(last.end)}`
-              : `Tramo ${groupIndex + 1}`;
-
-          return (
-            <div key={label} className="min-w-0">
-              <div className="mb-1.5 flex items-center justify-between gap-3 text-xs font-medium text-[var(--text-muted)]">
-                <span>{label}</span>
-                <span>
-                  {group
-                    .reduce((sum, week) => sum + week.count, 0)
-                    .toLocaleString("es-CO")}{" "}
-                  hábitos
-                </span>
-              </div>
-              <div className="grid grid-cols-[repeat(14,minmax(0,1fr))] gap-1">
-                {Array.from({ length: 14 }, (_, index) => {
-                  const week = group[index];
-                  const intensity = week
-                    ? Math.min(1, week.count / Math.max(1, maxCount))
-                    : 0;
-                  const strength = Math.max(20, Math.round(intensity * 92));
-                  return (
-                    <span
-                      key={`${groupIndex}-${index}`}
-                      aria-label={
-                        week
-                          ? `${week.count} hábitos en la semana del ${rangeFormatter.format(week.start)}`
-                          : undefined
-                      }
-                      className="aspect-square rounded-sm"
-                      style={{
-                        background:
-                          week && week.count > 0
-                            ? `color-mix(in oklab, var(--accent-gold) ${strength}%, var(--bg-muted))`
-                            : "var(--bg-muted)",
-                      }}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      <div className="mt-3 flex items-center justify-between gap-3 text-xs text-[var(--text-muted)]">
-        <span>{loading ? "Cargando tu constancia…" : "Menos actividad"}</span>
-        <span className="flex items-center gap-1" aria-hidden="true">
-          {[20, 42, 68, 92].map((strength) => (
-            <span
-              key={strength}
-              className="h-3 w-3 rounded-sm"
-              style={{
-                background: `color-mix(in oklab, var(--accent-gold) ${strength}%, var(--bg-muted))`,
-              }}
-            />
-          ))}
-        </span>
-        <span>Más actividad</span>
-      </div>
-    </div>
-  );
-}
-
-function EmptyActivityState() {
-  return (
-    <div className="flex min-h-48 flex-col items-center justify-center rounded-xl border border-dashed border-[var(--border)] bg-[var(--bg-muted)]/35 px-5 py-6 text-center">
-      <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] text-[var(--accent-gold)]">
-        <Flame className="h-5 w-5" aria-hidden="true" />
-      </span>
-      <h3 className="mt-3 text-sm font-semibold text-[var(--text-primary)]">
-        Tu constancia empieza con una misión
-      </h3>
-      <p className="mt-1 max-w-sm text-xs leading-5 text-[var(--text-muted)]">
-        Cuando completes hábitos, este mapa mostrará el ritmo de tu aventura sin
-        dejar espacios vacíos ni scroll lateral.
-      </p>
-      <Link
-        to="/quests"
-        className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--accent-gold)] bg-[var(--accent-gold)] px-4 text-sm font-semibold text-[var(--bg-deep)] transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)]"
-      >
-        <Swords className="h-4 w-4" aria-hidden="true" />
-        Ir a Misiones
-      </Link>
-    </div>
-  );
-}
-
-/** Maps LifeQuest's real daily habit counts into responsive activity views. */
-function ActivityHeatCalendar({
-  data,
-  loading,
-}: {
-  data: HeatmapPoint[];
-  loading: boolean;
-}) {
-  // Keep the same endpoint date throughout this mounted chart so its matrix
-  // and labels never jump as other statistics finish loading.
-  const endDate = useMemo(() => {
-    const today = new Date();
-    today.setUTCHours(0, 0, 0, 0);
-    return today;
-  }, []);
-
-  const { values, maxCount, total, weekTotals } = useMemo(() => {
-    const countsByDay = new Map(
-      data.map((entry) => [entry.date.slice(0, 10), entry.count]),
-    );
-    const max = Math.max(1, ...data.map((entry) => entry.count));
-    const start = new Date(endDate);
-    start.setUTCDate(
-      start.getUTCDate() -
-        ((endDate.getUTCDay() + 6) % 7) -
-        (HEATMAP_WEEKS - 1) * 7,
-    );
-
-    const nextValues = Array.from({ length: HEATMAP_WEEKS }, (_, week) =>
-      Array.from({ length: 7 }, (_, day) => {
-        const date = new Date(start);
-        date.setUTCDate(start.getUTCDate() + week * 7 + day);
-        return Math.min(1, (countsByDay.get(utcDateKey(date)) ?? 0) / max);
-      }),
-    );
-    const nextWeekTotals = nextValues.map((week, index) => {
-      const weekStart = new Date(start);
-      weekStart.setUTCDate(start.getUTCDate() + index * 7);
-      const weekEnd = new Date(weekStart);
-      weekEnd.setUTCDate(weekStart.getUTCDate() + 6);
-      return {
-        start: weekStart,
-        end: weekEnd,
-        count: Math.round(week.reduce((sum, value) => sum + value * max, 0)),
-      };
-    });
-
-    return {
-      values: nextValues,
-      weekTotals: nextWeekTotals,
-      maxCount: max,
-      total: data.reduce((sum, entry) => sum + entry.count, 0),
-    };
-  }, [data, endDate]);
-
-  if (!loading && total === 0) return <EmptyActivityState />;
-
-  return (
-    <div className="min-w-0">
-      <CompactActivityMosaic
-        weeks={weekTotals}
-        maxCount={maxCount}
-        loading={loading}
-      />
-      <div className="hidden min-w-0 xl:block">
-        <div className="overflow-x-auto pb-1">
-          <HeatCalendar
-            unit="hábitos"
-            weeks={HEATMAP_WEEKS}
-            maxCount={maxCount}
-            values={values}
-            endDate={endDate}
-            color="var(--accent-gold)"
-            className="min-w-max"
-          >
-            <HeatCalendarGrid>
-              <HeatCalendarTooltip />
-            </HeatCalendarGrid>
-            <HeatCalendarLegend />
-          </HeatCalendar>
-        </div>
-      </div>
-      <p className="mt-3 text-xs leading-5 text-[var(--text-muted)]">
-        {loading
-          ? "Cargando tu constancia…"
-          : `${total.toLocaleString("es-CO")} hábitos completados en los últimos 12 meses.`}
-      </p>
-    </div>
-  );
-}
-
-const MOOD_COLORS = ["", "#b5453a", "#a8a8b0", "#8a8a92", "#6cb98a", "#3f7a55"];
-
-function MoodHeatmap({ checkins }: { checkins: DailyCheckin[] }) {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const firstDay = new Date(year, month, 1).getDay();
-  const moodsByDay = new Map(
-    checkins.map((checkin) => [new Date(checkin.date).getDate(), checkin.mood]),
-  );
-  const cells: Array<number | null> = [];
-
-  for (let index = 0; index < firstDay; index += 1) cells.push(null);
-  for (let day = 1; day <= daysInMonth; day += 1) cells.push(day);
-
-  return (
-    <div>
-      <div className="mb-1 grid grid-cols-7 gap-1 text-center text-xs text-[var(--text-muted)]">
-        {["D", "L", "M", "X", "J", "V", "S"].map((day) => (
-          <span key={day}>{day}</span>
-        ))}
-      </div>
-      <div className="grid grid-cols-7 gap-1">
-        {cells.map((day, index) => {
-          const mood = day ? moodsByDay.get(day) : undefined;
-          const isToday = day === now.getDate();
-          return (
-            <div
-              key={`${day ?? "empty"}-${index}`}
-              className="flex aspect-square items-center justify-center rounded-md text-xs font-medium text-[var(--text-secondary)]"
-              style={{
-                background: day
-                  ? mood
-                    ? `${MOOD_COLORS[mood]}88`
-                    : "var(--bg-muted)"
-                  : "transparent",
-                border: isToday
-                  ? "1px solid var(--accent-gold)"
-                  : "1px solid transparent",
-              }}
-            >
-              {day ?? ""}
-            </div>
-          );
-        })}
-      </div>
-      <div className="mt-3 flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
-        <span>Ánimo:</span>
-        {MOOD_COLORS.slice(1).map((color, index) => (
-          <span
-            key={color}
-            className="h-3 w-3 rounded-sm"
-            style={{ background: `${color}88` }}
-            title={`${index + 1}/5`}
-          />
-        ))}
-        <span className="ml-1">bajo → alto</span>
-      </div>
-    </div>
-  );
-}
-
-function ShareButton({
-  user,
-  score,
-}: {
-  user: User | null;
-  score: LifeScore | null;
-}) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  function generate() {
-    const canvas = canvasRef.current;
-    const context = canvas?.getContext("2d");
-    if (!canvas || !context) return;
-
-    canvas.width = 600;
-    canvas.height = 380;
-    const gradient = context.createLinearGradient(0, 0, 600, 380);
-    gradient.addColorStop(0, "#141416");
-    gradient.addColorStop(1, "#0c0c0e");
-    context.fillStyle = gradient;
-    context.fillRect(0, 0, 600, 380);
-
-    context.strokeStyle = "#d9b44a66";
-    context.lineWidth = 2;
-    context.roundRect(4, 4, 592, 372, 16);
-    context.stroke();
-
-    context.fillStyle = "#d9b44a";
-    context.font = "bold 28px Montserrat, system-ui";
-    context.fillText("LifeQuest", 32, 56);
-    context.fillStyle = "#9ca3af";
-    context.font = "16px Montserrat, system-ui";
-    context.fillText(user?.displayName ?? "Héroe", 32, 84);
-
-    context.fillStyle = "#d9b44a22";
-    context.roundRect(32, 104, 110, 36, 8);
-    context.fill();
-    context.fillStyle = "#d9b44a";
-    context.font = "bold 18px Montserrat, system-ui";
-    context.fillText(`Nivel ${user?.level ?? 1}`, 50, 128);
-
+/** Tarjeta PNG para compartir; los colores salen de los tokens (--lq-*). */
+function useShareCard() {
+  const ref = useRef<HTMLCanvasElement>(null);
+  const share = (user: ReturnType<typeof useAuthStore.getState>['user'], score: LifeScore | null) => {
+    const c = ref.current; const ctx = c?.getContext('2d');
+    if (!c || !ctx) return;
+    const css = getComputedStyle(document.documentElement);
+    const tok = (n: string, a = 1) => `rgb(${css.getPropertyValue(`--lq-${n}`).trim()} / ${a})`;
+    c.width = 600; c.height = 380;
+    ctx.fillStyle = tok('background'); ctx.fillRect(0, 0, 600, 380);
+    ctx.strokeStyle = tok('primary', 0.5); ctx.lineWidth = 2; ctx.roundRect(4, 4, 592, 372, 16); ctx.stroke();
+    ctx.fillStyle = tok('primary-text'); ctx.font = 'bold 28px Montserrat, system-ui'; ctx.fillText('LifeQuest', 32, 56);
+    ctx.fillStyle = tok('on-surface-light'); ctx.font = '16px Montserrat, system-ui'; ctx.fillText(user?.displayName ?? 'Héroe', 32, 84);
+    ctx.fillStyle = tok('on-background'); ctx.font = 'bold 18px Montserrat, system-ui'; ctx.fillText(`Nivel ${user?.level ?? 1}`, 32, 128);
     if (score) {
-      context.fillStyle = "#ffffff";
-      context.font = "bold 72px Montserrat, system-ui";
-      context.fillText(score.total.toString(), 400, 160);
-      context.fillStyle = "#9ca3af";
-      context.font = "18px Montserrat, system-ui";
-      context.fillText("Life Score", 400, 188);
+      ctx.font = 'bold 72px Montserrat, system-ui'; ctx.fillText(String(score.total), 400, 160);
+      ctx.fillStyle = tok('on-surface-light'); ctx.font = '18px Montserrat, system-ui'; ctx.fillText('Life Score', 400, 188);
     }
-
-    context.fillStyle = "#e5e7eb";
-    context.font = "15px Montserrat, system-ui";
-    context.fillText(`Racha: ${user?.currentStreak ?? 0} días`, 32, 200);
-    context.fillText(
-      `XP actual: ${(user?.xp ?? 0).toLocaleString("es-CO")}`,
-      32,
-      228,
-    );
-    context.fillText(
-      `STR ${user?.strength ?? 1} | INT ${user?.intelligence ?? 1} | CHA ${user?.charisma ?? 1}`,
-      32,
-      256,
-    );
-
-    context.fillStyle = "#6b7280";
-    context.font = "13px Montserrat, system-ui";
-    context.fillText(
-      new Date().toLocaleDateString("es-CO", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      }),
-      32,
-      340,
-    );
-    context.fillText("lifequest.app", 450, 340);
-
-    const link = document.createElement("a");
-    link.download = `lifequest-${new Date().toISOString().split("T")[0]}.png`;
-    link.href = canvas.toDataURL("image/png");
-    link.click();
-  }
-
-  return (
-    <>
-      <canvas ref={canvasRef} className="hidden" />
-      <FlowButton
-        onClick={generate}
-        tone="ghost"
-        size="sm"
-        withArrows={false}
-        className="min-h-11 gap-1.5 whitespace-nowrap"
-      >
-        <span className="inline-flex items-center gap-1.5">
-          <Download className="h-3.5 w-3.5" aria-hidden="true" /> Compartir
-        </span>
-      </FlowButton>
-    </>
-  );
+    ctx.fillStyle = tok('on-surface'); ctx.font = '15px Montserrat, system-ui';
+    ctx.fillText(`Racha: ${user?.currentStreak ?? 0} días`, 32, 200);
+    ctx.fillText(`XP: ${fmt(user?.xp ?? 0)}`, 32, 228);
+    ctx.fillStyle = tok('on-surface-light'); ctx.font = '13px Montserrat, system-ui';
+    ctx.fillText(new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' }), 32, 340);
+    const a = document.createElement('a');
+    a.download = `lifequest-${new Date().toISOString().slice(0, 10)}.png`; a.href = c.toDataURL('image/png'); a.click();
+  };
+  return { ref, share };
 }
+
+/** 26 semanas de constancia (lunes → domingo) a partir de los conteos diarios. */
+function toWeeks(points: HeatmapPoint[], weeks = 26): HeatLevel[][] {
+  const byDay = new Map(points.map((p) => [p.date.slice(0, 10), p.count]));
+  const max = Math.max(1, ...points.map((p) => p.count));
+  const today = new Date();
+  const monday = new Date(today); monday.setDate(today.getDate() - ((today.getDay() + 6) % 7) - (weeks - 1) * 7);
+  return Array.from({ length: weeks }, (_, w) => Array.from({ length: 7 }, (_, d) => {
+    const day = new Date(monday); day.setDate(monday.getDate() + w * 7 + d);
+    const n = byDay.get(day.toISOString().slice(0, 10)) ?? 0;
+    return (n === 0 ? 0 : n >= max * 0.6 ? 2 : 1) as HeatLevel;
+  }));
+}
+
+const zoneStatus = {
+  active: { label: 'Con registros', variant: 'success' as const, icon: Check },
+  empty: { label: 'Sin registros', variant: 'neutral' as const, icon: Minus },
+  not_configured: { label: 'Sin configurar', variant: 'neutral' as const, icon: Minus },
+};
 
 export default function StatsPage() {
-  const { user } = useAuthStore();
-  const [period, setPeriod] = useState<Period>("month");
-  const [lifeScore, setLifeScore] = useState<LifeScore | null>(null);
-  const [dynamicScore, setDynamicScore] = useState<DynamicLifeScoreData | null>(
-    null,
-  );
-  const [xpHistory, setXpHistory] = useState<XpHistoryPoint[]>([]);
-  const [xpAverage, setXpAverage] = useState(0);
-  const [xpActiveDays, setXpActiveDays] = useState(0);
-  const [xpDaysInPeriod, setXpDaysInPeriod] = useState(0);
-  const [radarData, setRadarData] = useState<RadarComparisonPoint[]>([]);
-  const [financeTrend, setFinanceTrend] = useState<FinanceTrendPoint[]>([]);
-  const [heatmap, setHeatmap] = useState<HeatmapPoint[]>([]);
-  const [sleepTrend, setSleepTrend] = useState<SleepTrendPoint[]>([]);
-  const [gymProgression, setGymProgression] = useState<GymProgression[]>([]);
-  const [predictions, setPredictions] = useState<StatsPredictions | null>(null);
+  const user = useAuthStore((s) => s.user);
+  const currency = user?.currency ?? 'COP';
+  const [period, setPeriod] = useState<Period>('month');
+  const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(0);
+  const [life, setLife] = useState<LifeScore | null>(null);
+  const [dyn, setDyn] = useState<DynamicLifeScoreData | null>(null);
+  const [xp, setXp] = useState<{ data: XpHistoryPoint[]; avg: number; activeDays: number; daysInPeriod: number; totalXp: number } | null>(null);
+  const [radar, setRadar] = useState<Array<{ label: string; value: number; previous: number }>>([]);
+  const [finance, setFinance] = useState<FinanceTrendPoint[]>([]);
+  const [heat, setHeat] = useState<HeatmapPoint[]>([]);
+  const [sleep, setSleep] = useState<SleepTrendPoint[]>([]);
+  const [gym, setGym] = useState<GymProgression[]>([]);
+  const [lift, setLift] = useState('');
+  const [pred, setPred] = useState<StatsPredictions | null>(null);
   const [checkins, setCheckins] = useState<DailyCheckin[]>([]);
   const [summary, setSummary] = useState<StatsSummary | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const loadRequestRef = useRef(0);
+  const req = useRef(0);
+  const { ref: canvasRef, share } = useShareCard();
 
-  const load = useCallback(async (selectedPeriod: Period) => {
-    const requestId = ++loadRequestRef.current;
+  const load = useCallback(async (p: Period) => {
+    const id = ++req.current;
     setLoading(true);
-    setLoadError(null);
-    // Do not relabel a previous period's values while the new interval is
-    // loading. Empty/loading states are more honest than temporarily stale data.
-    setDynamicScore(null);
-    setXpHistory([]);
-    setXpAverage(0);
-    setXpActiveDays(0);
-    setXpDaysInPeriod(0);
-    setRadarData([]);
-    setFinanceTrend([]);
-    setSleepTrend([]);
-    setGymProgression([]);
-    setSummary(null);
-    try {
-      const [
-        score,
-        dynamic,
-        xp,
-        radar,
-        finance,
-        habits,
-        sleep,
-        gym,
-        prediction,
-        checkinHistory,
-        stats,
-      ] = await Promise.allSettled([
-        fetchLifeScore(),
-        fetchDynamicLifeScore(selectedPeriod),
-        getXpHistory(selectedPeriod),
-        getActivityRadar(selectedPeriod),
-        getFinanceTrend(selectedPeriod),
-        getHabitHeatmap(),
-        getSleepScatter(selectedPeriod),
-        getGymProgression(selectedPeriod),
-        getPredictions(),
-        getCheckinHistory(30),
-        getStatsSummary(selectedPeriod),
-      ]);
-
-      // A slower request for a previous filter must never overwrite the values
-      // of the period the player is currently reviewing.
-      if (requestId !== loadRequestRef.current) return;
-
-      if (score.status === "fulfilled") setLifeScore(score.value);
-      if (dynamic.status === "fulfilled") setDynamicScore(dynamic.value);
-      if (xp.status === "fulfilled") {
-        setXpHistory(xp.value.data);
-        setXpAverage(xp.value.avg);
-        setXpActiveDays(xp.value.activeDays);
-        setXpDaysInPeriod(xp.value.daysInPeriod);
-      }
-      if (radar.status === "fulfilled") {
-        const previousBySubject = new Map(
-          radar.value.previous.map((item) => [item.subject, item.value]),
-        );
-        setRadarData(
-          radar.value.current.map((item) => ({
-            subject: item.subject,
-            current: item.value,
-            previous: previousBySubject.get(item.subject) ?? 0,
-          })),
-        );
-      }
-      if (finance.status === "fulfilled") setFinanceTrend(finance.value);
-      if (habits.status === "fulfilled") setHeatmap(habits.value);
-      if (sleep.status === "fulfilled") setSleepTrend(sleep.value);
-      if (gym.status === "fulfilled") setGymProgression(gym.value);
-      if (prediction.status === "fulfilled") setPredictions(prediction.value);
-      if (checkinHistory.status === "fulfilled")
-        setCheckins(checkinHistory.value);
-      if (stats.status === "fulfilled") setSummary(stats.value);
-
-      const failedRequests = [
-        score,
-        dynamic,
-        xp,
-        radar,
-        finance,
-        habits,
-        sleep,
-        gym,
-        prediction,
-        checkinHistory,
-        stats,
-      ].filter((result) => result.status === "rejected").length;
-      if (failedRequests > 0) {
-        setLoadError(
-          failedRequests === 1
-            ? "Una métrica no pudo actualizarse. Puedes volver a intentarlo."
-            : `${failedRequests} métricas no pudieron actualizarse. Puedes volver a intentarlo.`,
-        );
-      }
-    } finally {
-      if (requestId === loadRequestRef.current) setLoading(false);
-    }
+    const r = await Promise.allSettled([
+      fetchLifeScore(), fetchDynamicLifeScore(p), getXpHistory(p), getActivityRadar(p), getFinanceTrend(p), getHabitHeatmap(),
+      getSleepScatter(p), getGymProgression(p), getPredictions(), getCheckinHistory(30), getStatsSummary(p),
+    ]);
+    if (id !== req.current) return; // una respuesta lenta de otro periodo no pisa la actual
+    const v = <T,>(x: PromiseSettledResult<T>, set: (val: T) => void, fallback?: T) => { if (x.status === 'fulfilled') set(x.value); else if (fallback !== undefined) set(fallback); };
+    v(r[0], setLife); v(r[1], setDyn, null); v(r[2], setXp, null);
+    if (r[3].status === 'fulfilled') {
+      const prev = new Map(r[3].value.previous.map((i) => [i.subject, i.value]));
+      setRadar(r[3].value.current.map((i) => ({ label: i.subject, value: i.value, previous: prev.get(i.subject) ?? 0 })));
+    } else setRadar([]);
+    v(r[4], setFinance, []); v(r[5], setHeat); v(r[6], setSleep, []); v(r[7], setGym, []); v(r[8], setPred); v(r[9], setCheckins); v(r[10], setSummary, null);
+    setFailed(r.filter((x) => x.status === 'rejected').length);
+    setLoading(false);
   }, []);
+  useEffect(() => { void load(period); }, [load, period]);
+  useEffect(() => { if (gym.length && !gym.some((g) => g.name === lift)) setLift(gym[0].name); }, [gym, lift]);
 
-  useEffect(() => {
-    void load(period);
-  }, [load, period]);
-
-  const selectedPeriod =
-    PERIODS.find((item) => item.id === period) ?? PERIODS[1];
-  const advancedData: AdvancedStatsData = {
-    periodLabel: selectedPeriod.summaryLabel,
-    level: user?.level,
-    currentXp: user?.xp,
-    xpToNextLevel: user?.xpToNextLevel,
-    xpHistory,
-    // /stats/summary can fail independently; the XP chart already holds the period total.
-    xpPeriod: summary?.xp.value ?? xpHistory[xpHistory.length - 1]?.cumulativeXp ?? 0,
-    xpAverage,
-    xpActiveDays,
-    xpDaysInPeriod,
-    xpChange: summary?.xp.change,
-    questsInPeriod: summary?.quests.completed ?? null,
-    questsChange: summary?.quests.change,
-    lifeScore: dynamicScore?.totalScore ?? null,
-    lifeScoreTrend: dynamicScore?.trend,
-    zones: dynamicScore?.zones.map((zone) => ({
-      id: zone.id,
-      name: zone.name,
-      icon: zone.icon,
-      color: zone.color,
-      score: zone.score,
-      scoreAvailable: zone.scoreAvailable,
-      hasData: zone.hasData,
-      isTracking: zone.isTracking,
-      status: zone.status,
-      activityCount: zone.activityCount,
-      activityLabel: zone.activityLabel,
-    })),
-    currentStreak: summary?.currentStreak ?? user?.currentStreak,
-    bestStreak: summary?.bestStreak ?? user?.longestStreak,
-    totals: summary?.totals,
-  };
+  const per = PERIODS.find((p) => p.value === period)!;
+  const zones = dyn?.zones ?? [];
+  const withData = zones.filter((z) => z.hasData).length;
+  const coverage = zones.length ? Math.round((withData / zones.length) * 100) : 0;
+  const lifeScore = dyn?.totalScore ?? life?.total ?? 0;
+  const xpTotal = summary?.xp.value ?? xp?.totalXp ?? 0;
+  const labels = useMemo(() => {
+    const d = xp?.data ?? [];
+    if (d.length < 2) return [];
+    const idx = [0, Math.floor(d.length / 3), Math.floor((2 * d.length) / 3), d.length - 1];
+    return [...new Set(idx)].map((i) => shortDate(d[i].date));
+  }, [xp]);
+  const fin = finance.reduce((a, f) => ({ inc: a.inc + f.income, exp: a.exp + f.expenses }), { inc: 0, exp: 0 });
+  const finMax = Math.max(1, ...finance.map((f) => Math.max(f.income, f.expenses)));
+  const liftData = gym.find((g) => g.name === lift)?.data.slice(-6) ?? [];
+  const liftMax = Math.max(1, ...liftData.map((d) => d.weight));
+  const sleepAvg = sleep.length ? sleep.reduce((a, s) => a + s.duration, 0) / sleep.length : 0;
 
   return (
-    <motion.div
-      className="min-w-0 space-y-6"
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
-    >
-      <div className="min-w-0 space-y-3">
-        <PageHeader
-          icon={<BarChart3 className="h-5 w-5" aria-hidden="true" />}
-          title="Estadísticas"
-          description="Tu progreso real, acumulado y organizado por periodo."
-          actions={<ShareButton user={user} score={lifeScore} />}
-        />
-        <div
-          className="grid w-full grid-cols-4 rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] p-1"
-          role="group"
-          aria-label="Periodo de estadísticas"
-        >
-          {PERIODS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setPeriod(item.id)}
-              aria-pressed={period === item.id}
-              className={[
-                "min-w-0 min-h-11 rounded-lg px-1.5 text-xs font-semibold transition-colors sm:px-3 sm:text-xs",
-                period === item.id
-                  ? "bg-[var(--text-primary)] text-[var(--bg-deep)]"
-                  : "text-[var(--text-muted)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]",
-              ].join(" ")}
-            >
-              <span className="block truncate">{item.label}</span>
-            </button>
-          ))}
-        </div>
+    <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-8 md:gap-12">
+      <canvas ref={canvasRef} className="hidden" aria-hidden />
+      <PageHeader
+        eyebrow="Estadísticas"
+        title="Tu progreso, en claro"
+        description="Todo calculado a partir de lo que registras de verdad."
+        aside={<>
+          <div className="w-full max-w-[460px] sm:w-[440px]"><SegmentedControl label="Periodo" value={period} onChange={setPeriod} options={PERIODS} /></div>
+          <Button variant="secondary" size="md" onClick={() => share(user, life)}><Share2 aria-hidden className="size-4" strokeWidth={1.75} />Compartir</Button>
+        </>}
+      />
+
+      {failed > 0 && !loading && (
+        <motion.div variants={item} role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-error/[var(--lq-soft-alpha)] px-4 py-3">
+          <p className="flex items-center gap-2 text-body-md text-error-text"><AlertTriangle aria-hidden className="size-5" />{failed === 1 ? 'Una métrica no pudo actualizarse.' : `${failed} métricas no pudieron actualizarse.`}</p>
+          <Button variant="secondary" size="sm" onClick={() => void load(period)}><RefreshCw aria-hidden className="size-4" />Reintentar</Button>
+        </motion.div>
+      )}
+
+      <div className="flex flex-wrap items-start gap-6">
+        <motion.div variants={item} className="min-w-0 flex-[2_1_520px]">
+          <SpotCard aria-label="Progreso de XP" className="flex flex-col gap-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <span className="flex items-center gap-2 text-label-lg text-on-surface"><Zap aria-hidden className="size-4 text-primary-text" />Progreso registrado · {per.long}</span>
+              <span className="flex flex-wrap gap-2">
+                <Badge variant="primary">Nivel {user?.level ?? 1}</Badge>
+                {summary && <Badge variant={summary.xp.change >= 0 ? 'success' : 'warning'} icon={TrendingUp}>{summary.xp.change >= 0 ? '+' : ''}{Math.round(summary.xp.change)}% vs. anterior</Badge>}
+              </span>
+            </div>
+            <div className="flex items-baseline gap-2.5">
+              <span className="font-mono text-[3rem] font-bold leading-none tracking-[-2px] md:text-[4rem]"><AnimatedValue value={xpTotal} /></span>
+              <span className="text-heading-md text-on-surface-light">XP</span>
+            </div>
+            {loading && !xp ? <Skeleton className="h-[220px] rounded-xl" /> : (
+              <AreaChart values={(xp?.data ?? []).map((d) => d.cumulativeXp)} labels={labels} redrawKey={period}
+                label={`XP acumulada en ${per.long}: ${fmt(xpTotal)}`} />
+            )}
+            <div className="grid grid-cols-3 gap-4 border-t border-border pt-4">
+              <div><div className="text-body-sm text-on-surface-light">Promedio</div><div className="font-mono text-label-lg tabular-nums md:text-body-md md:font-semibold">{fmt(xp?.avg ?? 0)} XP/día</div></div>
+              <div><div className="text-body-sm text-on-surface-light">Días con XP</div><div className="font-mono text-label-lg tabular-nums md:text-body-md md:font-semibold">{xp?.activeDays ?? 0} de {xp?.daysInPeriod ?? 0}</div></div>
+              <div><div className="text-body-sm text-on-surface-light">Para subir de nivel</div><div className="font-mono text-label-lg tabular-nums md:text-body-md md:font-semibold">{fmt(Math.max(0, (user?.xpToNextLevel ?? 0) - (user?.xp ?? 0)))} XP</div></div>
+            </div>
+          </SpotCard>
+        </motion.div>
+
+        <motion.div variants={item} className="min-w-0 flex-[1_1_300px]">
+          <SpotCard aria-label="Life Score" padding="md" className="flex flex-col items-center gap-4 text-center md:p-6">
+            <div className="flex w-full items-center justify-between"><span className="text-label-lg">Life Score</span><Badge>{dyn?.trend === 'up' ? 'Subiendo' : dyn?.trend === 'down' ? 'Bajando' : 'Equilibrio'}</Badge></div>
+            <div className="relative">
+              <ProgressRing value={lifeScore} tone="warning" size={200} stroke={7} label="Life Score" valueText={`${lifeScore} de 100`}>
+                <span className="font-mono text-[3rem] font-bold leading-none tabular-nums"><AnimatedValue value={lifeScore} /></span>
+                <span className="text-body-sm text-on-surface-light">de 100</span>
+              </ProgressRing>
+              <ProgressRing value={coverage} tone="primary" size={150} stroke={5} label="Cobertura" valueText={`${coverage}%`}
+                className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 [&_span]:hidden" />
+            </div>
+            <div className="flex flex-wrap justify-center gap-4 text-body-sm text-on-surface">
+              <span className="flex items-center gap-1.5"><span aria-hidden className="size-2.5 rounded-full bg-warning" />Score</span>
+              <span className="flex items-center gap-1.5"><span aria-hidden className="size-2.5 rounded-full bg-primary" />Cobertura {coverage}%</span>
+            </div>
+            <p className="text-body-sm text-on-surface-light">Se calcula solo con áreas configuradas y métricas con registros reales.</p>
+          </SpotCard>
+        </motion.div>
       </div>
 
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.div
-          key={period}
-          className="min-w-0 space-y-6"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -6 }}
-          transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-        >
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{
-              delay: 0.04,
-              duration: 0.28,
-              ease: [0.22, 1, 0.36, 1],
-            }}
-          >
-            <AdvancedStats data={advancedData} loading={loading} />
+      {zones.length > 0 && (
+        <motion.section variants={item} className="flex flex-col gap-6" aria-labelledby="zones-t">
+          <div><h2 id="zones-t" className="text-heading-lg">Zonas de vida</h2><p className="text-body-sm text-on-surface-light">{withData} con registros · {zones.filter((z) => z.isTracking).length} en seguimiento · {per.long}</p></div>
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.ul key={period} variants={stagger} initial="initial" animate="animate" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {zones.map((z) => {
+                const st = zoneStatus[z.status] ?? zoneStatus.empty;
+                return (
+                  <motion.li key={z.id} variants={item}>
+                    <Card interactive padding="md" className="flex h-full flex-col gap-3.5">
+                      <div className="flex items-center gap-3">
+                        <IconChip icon={Sparkles} tone={z.hasData ? 'primary' : 'muted'} size="sm" />
+                        <div className="min-w-0 flex-1"><div className="truncate text-label-lg md:text-body-md md:font-semibold">{z.name}</div><div className="truncate text-body-sm text-on-surface-light">{z.activityLabel}</div></div>
+                        <Badge variant={st.variant} icon={st.icon}>{st.label}</Badge>
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <div className="flex justify-between"><span className="text-body-sm text-on-surface-light">Ritmo</span><span className="font-mono text-label-lg tabular-nums">{z.scoreAvailable ? `${Math.round(z.score)}%` : '—'}</span></div>
+                        <ProgressBar value={z.scoreAvailable ? z.score : 0} />
+                      </div>
+                    </Card>
+                  </motion.li>
+                );
+              })}
+            </motion.ul>
+          </AnimatePresence>
+        </motion.section>
+      )}
+
+      {summary && (
+        <motion.section variants={item} aria-label="Totales" className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-6 xl:grid-cols-4">
+          <StatCard icon={Zap} tone="primary" value={summary.totals.xpEarned} label="XP histórica" />
+          <StatCard icon={Flag} tone="secondary" value={summary.quests.completed} label={`Misiones en ${per.long}`} />
+          <StatCard icon={CheckCircle2} tone="success" value={summary.totals.habitCompletions} label="Hábitos completados" />
+          <StatCard icon={Dumbbell} tone="warning" value={summary.totals.workouts} label="Entrenamientos" />
+        </motion.section>
+      )}
+
+      <motion.section variants={item} className="flex flex-col gap-6" aria-labelledby="detail-t">
+        <div><h2 id="detail-t" className="text-heading-lg">Seguimiento detallado</h2><p className="text-body-sm text-on-surface-light">Series calculadas a partir de tus registros.</p></div>
+        <div className="grid grid-cols-1 gap-4 md:gap-6 xl:grid-cols-2">
+          <Card padding="lg" className="flex flex-col gap-5">
+            <div className="flex items-center gap-3"><IconChip icon={Wallet} tone="success" size="sm" /><div><h3 className="text-heading-sm">Flujo de dinero</h3><p className="text-body-sm text-on-surface-light">Ingresos y gastos · {per.long}</p></div></div>
+            <div className="grid grid-cols-3 gap-2">
+              {([['Ingresos', fin.inc, 'text-success-text'], ['Gastos', fin.exp, 'text-error-text'], ['Neto', fin.inc - fin.exp, '']] as const).map(([l, v, c]) => (
+                <Card key={l} padding="sm" className="bg-background px-3"><div className="text-body-sm text-on-surface-light">{l}</div><div className={cn('truncate font-mono text-label-lg tabular-nums', c)}>{money(v, currency)}</div></Card>
+              ))}
+            </div>
+            {finance.length === 0 ? <p className="text-body-sm text-on-surface-light">Sin movimientos en este periodo.</p> : (
+              <>
+                <div role="img" aria-label="Ingresos y gastos por tramo del periodo" className="flex h-40 items-end gap-3">
+                  {finance.slice(-8).map((f, i) => (
+                    <div key={f.month} className="flex h-full flex-1 items-end gap-1">
+                      {[[f.income, 'bg-success'], [f.expenses, 'bg-error/75']].map(([val, cls], k) => (
+                        <motion.span key={k} className={cn('block h-full flex-1 origin-bottom rounded-t-lg rounded-b-sm', cls as string)}
+                          initial={{ scaleY: 0 }} animate={{ scaleY: (val as number) / finMax }} transition={{ duration: 1, ease: expo, delay: 0.2 + i * 0.07 + k * 0.05 }} />
+                      ))}
+                    </div>
+                  ))}
+                </div>
+                <div className="flex flex-wrap justify-between gap-2 text-body-sm text-on-surface">
+                  <span className="flex items-center gap-1.5"><span aria-hidden className="size-2.5 rounded-sm bg-success" />Ingresos</span>
+                  <span className="flex items-center gap-1.5"><span aria-hidden className="size-2.5 rounded-sm bg-error/75" />Gastos</span>
+                  <span className="text-on-surface-light">{shortDate(finance.slice(-8)[0].month)} – {shortDate(finance[finance.length - 1].month)}</span>
+                </div>
+              </>
+            )}
+          </Card>
+
+          <Card padding="lg" className="flex flex-col gap-5">
+            <div className="flex items-center gap-3"><IconChip icon={Moon} tone="secondary" size="sm" /><div><h3 className="text-heading-sm">Descanso</h3><p className="text-body-sm text-on-surface-light">Horas por noche · promedio {sleepAvg ? `${Math.floor(sleepAvg)} h ${String(Math.round((sleepAvg % 1) * 60)).padStart(2, '0')}` : '—'}</p></div></div>
+            {sleep.length < 2 ? <p className="text-body-sm text-on-surface-light">Registra al menos dos noches para ver la tendencia.</p> : (
+              <LineChart key={period} tone="secondary" min={4} max={10} goal={{ value: 7, label: 'Meta 7 h' }}
+                data={sleep.slice(-7).map((s) => ({ label: new Date(s.date).toLocaleDateString('es-ES', { weekday: 'narrow' }), value: s.duration, tip: `${shortDate(s.date)} · ${s.duration.toFixed(1)} h` }))}
+                label="Horas de sueño por noche" />
+            )}
+          </Card>
+
+          <Card padding="lg" className="flex flex-col gap-5">
+            <div className="flex items-center gap-3"><IconChip icon={Dumbbell} tone="warning" size="sm" /><div><h3 className="text-heading-sm">Progresión de fuerza</h3><p className="text-body-sm text-on-surface-light">Peso máximo por sesión</p></div></div>
+            {gym.length === 0 ? <p className="text-body-sm text-on-surface-light">Sin entrenamientos con peso en este periodo.</p> : (
+              <>
+                <ChipGroup label="Ejercicio" value={lift} onChange={setLift} options={gym.slice(0, 4).map((g) => ({ value: g.name, label: g.name }))} />
+                <div role="img" aria-label={`${lift}: ${liftData.map((d) => `${d.weight} kg`).join(', ')}`} className="flex h-36 items-end gap-3">
+                  {liftData.map((d, i) => (
+                    <motion.span key={`${lift}-${d.date}`} className={cn('block h-full flex-1 origin-bottom rounded-t-lg rounded-b-sm', i === liftData.length - 1 ? 'bg-warning' : 'bg-warning/[var(--lq-soft-alpha)]')}
+                      initial={{ scaleY: 0 }} animate={{ scaleY: d.weight / liftMax }} transition={{ type: 'spring', stiffness: 300, damping: 24, delay: 0.15 + i * 0.07 }} />
+                  ))}
+                </div>
+              </>
+            )}
+          </Card>
+
+          <Card padding="lg" className="flex flex-col gap-4">
+            <div className="flex items-center gap-3"><IconChip icon={TrendingUp} tone="info" size="sm" /><div><h3 className="text-heading-sm">Proyecciones</h3><p className="text-body-sm text-on-surface-light">Basadas en tu ritmo reciente</p></div></div>
+            <div className="grid grid-cols-2 gap-2">
+              <Card padding="sm" className="bg-background"><div className="text-body-sm text-on-surface-light">Siguiente nivel</div><div className="font-mono text-heading-md">{pred?.daysToNextLevel != null ? `${pred.daysToNextLevel} días` : '—'}</div><div className="text-body-sm text-on-surface-light">a {fmt(pred?.avgDailyXp ?? 0)} XP/día</div></Card>
+              {pred?.goalPredictions[0] ? (
+                <Card padding="sm" className="bg-background"><div className="truncate text-body-sm text-on-surface-light">{pred.goalPredictions[0].title}</div><div className="font-mono text-heading-md">{pred.goalPredictions[0].months != null ? `${pred.goalPredictions[0].months} meses` : '—'}</div><div className="text-body-sm text-on-surface-light">faltan {money(pred.goalPredictions[0].remaining, currency)}</div></Card>
+              ) : <Card padding="sm" className="bg-background"><div className="text-body-sm text-on-surface-light">Metas de ahorro</div><div className="text-body-sm text-on-surface">Sin metas activas</div></Card>}
+            </div>
+            {(pred?.habitRisks.length ?? 0) > 0 && (
+              <>
+                <span className="text-label-lg text-on-surface">Constancia de hábitos</span>
+                <ul className="flex flex-col">
+                  {pred!.habitRisks.slice(0, 5).map((h) => {
+                    const v = h.risk === 'high' ? { label: 'En riesgo', variant: 'error' as const, icon: AlertTriangle } : h.risk === 'medium' ? { label: 'Atención', variant: 'warning' as const, icon: AlertTriangle } : { label: 'En ritmo', variant: 'success' as const, icon: Check };
+                    return (
+                      <li key={h.title} className="flex min-h-10 items-center gap-3">
+                        <span className="min-w-0 flex-1 truncate text-body-md">{h.title}</span>
+                        <span className="w-11 text-right font-mono text-label-lg tabular-nums">{Math.round(h.completionRate)}%</span>
+                        <Badge variant={v.variant} icon={v.icon} className="w-28 justify-center">{v.label}</Badge>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </>
+            )}
+          </Card>
+        </div>
+      </motion.section>
+
+      <div className="grid grid-cols-1 gap-4 md:gap-6 xl:grid-cols-2">
+        {radar.length > 0 && (
+          <motion.div variants={item}>
+            <SpotCard padding="md" className="flex flex-col gap-4 md:p-6">
+              <div><h2 className="text-heading-sm">Ritmo por área</h2><p className="text-body-sm text-on-surface-light">Periodo actual frente al anterior</p></div>
+              <RadarChart key={period} axes={radar.map((r) => ({ label: r.label, value: r.value / 100, previous: r.previous / 100 }))}
+                label={radar.map((r) => `${r.label} ${Math.round(r.value)}%`).join(', ')} />
+              <div className="flex flex-wrap justify-center gap-5 text-body-sm text-on-surface">
+                <span className="flex items-center gap-1.5"><span aria-hidden className="h-[3px] w-3.5 bg-warning" />Este periodo</span>
+                <span className="flex items-center gap-1.5"><span aria-hidden className="w-3.5 border-t-2 border-dashed border-on-surface-light" />Anterior</span>
+              </div>
+            </SpotCard>
           </motion.div>
-
-          {loadError ? (
-            <div
-              role="alert"
-              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[color-mix(in_srgb,var(--accent-red)_40%,var(--border))] bg-[color-mix(in_srgb,var(--accent-red)_8%,var(--bg-panel))] px-4 py-3"
-            >
-              <p className="text-sm text-[var(--text-secondary)]">
-                {loadError}
-              </p>
-              <FlowButton
-                onClick={() => void load(period)}
-                tone="ghost"
-                size="sm"
-                withArrows={false}
-                className="min-h-11 gap-1.5"
-              >
-                <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-                Reintentar
-              </FlowButton>
-            </div>
-          ) : null}
-
-          <section aria-label="Seguimiento detallado" className="space-y-3">
-            <div>
-              <h2 className="text-base font-semibold text-[var(--text-primary)]">
-                Seguimiento detallado
-              </h2>
-              <p className="mt-1 text-xs text-[var(--text-muted)]">
-                Todas las series se calculan a partir de registros reales de
-                LifeQuest.
-              </p>
-            </div>
-            <div className="grid min-w-0 gap-4 xl:grid-cols-2">
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                  delay: 0.06,
-                  duration: 0.28,
-                  ease: [0.22, 1, 0.36, 1],
-                }}
-              >
-                <FinanceTrendCard
-                  data={financeTrend}
-                  currency={user?.currency ?? "COP"}
-                  periodLabel={selectedPeriod.summaryLabel}
-                  loading={loading}
-                />
-              </motion.div>
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                  delay: 0.1,
-                  duration: 0.28,
-                  ease: [0.22, 1, 0.36, 1],
-                }}
-              >
-                <SleepTrendCard
-                  data={sleepTrend}
-                  periodLabel={selectedPeriod.summaryLabel}
-                  loading={loading}
-                />
-              </motion.div>
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                  delay: 0.14,
-                  duration: 0.28,
-                  ease: [0.22, 1, 0.36, 1],
-                }}
-              >
-                <GymProgressionCard
-                  data={gymProgression}
-                  periodLabel={selectedPeriod.summaryLabel}
-                  loading={loading}
-                />
-              </motion.div>
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                  delay: 0.18,
-                  duration: 0.28,
-                  ease: [0.22, 1, 0.36, 1],
-                }}
-              >
-                <PredictionsCard
-                  data={predictions}
-                  currency={user?.currency ?? "COP"}
-                  loading={loading}
-                />
-              </motion.div>
-            </div>
-          </section>
-
-          <section
-            aria-label="Detalles de actividad"
-            className="grid min-w-0 gap-4 xl:grid-cols-2"
-          >
-            {radarData.length > 0 ? (
-              <motion.article
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                  delay: 0.1,
-                  duration: 0.28,
-                  ease: [0.22, 1, 0.36, 1],
-                }}
-                className="min-w-0 rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-4 shadow-pixel sm:p-5"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h2 className="flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)]">
-                      <Activity
-                        className="h-4 w-4 text-[var(--text-secondary)]"
-                        aria-hidden="true"
-                      />
-                      Ritmo por área
-                    </h2>
-                    <p className="mt-1 text-xs text-[var(--text-muted)]">
-                      {selectedPeriod.summaryLabel} frente al periodo
-                      equivalente anterior.
-                    </p>
-                  </div>
-                  <span className="text-sm font-medium text-[var(--text-muted)]">
-                    Periodo seleccionado
-                  </span>
-                </div>
-                <ResponsiveContainer width="100%" height={250}>
-                  <RadarChart
-                    data={radarData}
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={88}
-                  >
-                    <PolarGrid stroke="var(--border)" />
-                    <PolarAngleAxis
-                      dataKey="subject"
-                      tick={{ fill: "var(--text-muted)", fontSize: 12 }}
-                    />
-                    <PolarRadiusAxis
-                      domain={[0, 100]}
-                      tick={false}
-                      axisLine={false}
-                    />
-                    <Radar
-                      name="Semana anterior"
-                      dataKey="previous"
-                      stroke="var(--text-muted)"
-                      fill="var(--text-muted)"
-                      fillOpacity={0.07}
-                      strokeWidth={1.25}
-                    />
-                    <Radar
-                      name="Semana actual"
-                      dataKey="current"
-                      stroke="var(--accent-gold)"
-                      fill="var(--accent-gold)"
-                      fillOpacity={0.18}
-                      strokeWidth={2}
-                    />
-                  </RadarChart>
-                </ResponsiveContainer>
-              </motion.article>
-            ) : null}
-
-            <motion.article
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{
-                delay: 0.1,
-                duration: 0.28,
-                ease: [0.22, 1, 0.36, 1],
-              }}
-              className="min-w-0 rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-4 shadow-pixel sm:p-5 xl:col-span-2"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)]">
-                    <Flame
-                      className="h-4 w-4 text-[var(--accent-gold)]"
-                      aria-hidden="true"
-                    />
-                    Constancia de hábitos
-                  </h2>
-                  <p className="mt-1 text-xs text-[var(--text-muted)]">
-                    Actividad diaria que aporta a tu Life Score durante los
-                    últimos 12 meses.
-                  </p>
-                </div>
-                <CalendarDays
-                  className="h-4 w-4 text-[var(--text-muted)]"
-                  aria-hidden="true"
-                />
-              </div>
-              <div className="mt-6">
-                <ActivityHeatCalendar data={heatmap} loading={loading} />
-              </div>
-            </motion.article>
-
-            {checkins.length > 0 ? (
-              <motion.article
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                  delay: 0.1,
-                  duration: 0.28,
-                  ease: [0.22, 1, 0.36, 1],
-                }}
-                className="min-w-0 rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-4 shadow-pixel sm:p-5 xl:col-span-2"
-              >
-                <div className="grid min-w-0 gap-5 sm:grid-cols-[minmax(0,1fr)_minmax(220px,0.75fr)] sm:items-center">
-                  <div>
-                    <h2 className="flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)]">
-                      <HeartPulse
-                        className="h-4 w-4 text-[var(--accent-red)]"
-                        aria-hidden="true"
-                      />
-                      Estado emocional del mes
-                    </h2>
-                    <p className="mt-1 max-w-lg text-xs leading-5 text-[var(--text-muted)]">
-                      Tus check-ins ayudan a relacionar tu ánimo con el ritmo de
-                      tus hábitos, misiones y descanso.
-                    </p>
-                  </div>
-                  <MoodHeatmap checkins={checkins} />
-                </div>
-              </motion.article>
-            ) : null}
-          </section>
+        )}
+        <motion.div variants={item}>
+          <Card padding="lg" className="flex h-full flex-col gap-4">
+            <div><h2 className="text-heading-sm">Constancia de hábitos</h2><p className="text-body-sm text-on-surface-light">Últimas 26 semanas · <span className="font-mono">{fmt(heat.reduce((a, h) => a + h.count, 0))}</span> hábitos completados</p></div>
+            <Heatmap weeks={toWeeks(heat)} label="Mapa de calor de hábitos de las últimas 26 semanas" className="max-w-none [&_.grid]:gap-1" />
+          </Card>
         </motion.div>
-      </AnimatePresence>
+      </div>
+
+      {checkins.length > 0 && (
+        <motion.section variants={item}>
+          <Card padding="lg" className="flex flex-col gap-4">
+            <div><h2 className="text-heading-sm">Ánimo del mes</h2><p className="text-body-sm text-on-surface-light">Tus check-ins relacionan tu ánimo con tus hábitos y descanso.</p></div>
+            <ul className="flex flex-wrap gap-1.5" aria-label="Ánimo por día">
+              {[...checkins].reverse().map((c) => {
+                const m = moodOf(c.mood);
+                const tone: Tone = m.tone;
+                return (
+                  <li key={c.id} title={`${shortDate(c.date)} · ${m.name}`} aria-label={`${shortDate(c.date)}: ${m.name}`}
+                    className={cn('flex size-9 items-center justify-center rounded-lg', { primary: 'bg-primary/[var(--lq-soft-alpha)] text-primary-text', success: 'bg-success/[var(--lq-soft-alpha)] text-success-text', warning: 'bg-warning/[var(--lq-soft-alpha)] text-warning-text', error: 'bg-error/[var(--lq-soft-alpha)] text-error-text', info: 'bg-info/[var(--lq-soft-alpha)] text-info-text', secondary: 'bg-secondary/[var(--lq-soft-alpha)] text-secondary-text', muted: 'bg-surface-variant text-on-surface-light' }[tone])}>
+                    <MoodFace mood={c.mood} className="size-5" />
+                  </li>
+                );
+              })}
+            </ul>
+          </Card>
+        </motion.section>
+      )}
     </motion.div>
   );
 }
