@@ -6,7 +6,7 @@
 // escalonadas, el marco de selección se desliza entre miniaturas y la cámara se
 // acerca a la cabeza o al cuerpo según la pestaña. Historial con deshacer/rehacer.
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
-import { AnimatePresence, motion, type Variants } from 'framer-motion';
+import { AnimatePresence, PresenceContext, motion, type Variants } from 'framer-motion';
 import { Check, Dices, Redo2, Undo2 } from 'lucide-react';
 import type { AvatarConfig } from '@lifequest/shared';
 import { cn } from '@/lib/utils';
@@ -151,7 +151,17 @@ const TABS: { value: Tab; label: string }[] = [
 ];
 const FOCUS: Record<Tab, StageFocus> = { cuerpo: 'full', pelo: 'head', cara: 'head', ropa: 'body', extras: 'full' };
 
-function Controls({ look, commit, tab, setTab }: { look: PixelLook; commit: (l: PixelLook) => void; tab: Tab; setTab: (t: Tab) => void }) {
+/**
+ * Los marcos de selección usan layoutId. Dentro de un AnimatePresence en modo
+ * «wait» (pasos del onboarding, panel anterior) quedaban registrados como
+ * salida pendiente y la salida no terminaba nunca: el panel o el paso siguiente
+ * no aparecía. Se aíslan del contexto de presencia, como Tabs y SegmentedControl.
+ */
+function Controls(props: { look: PixelLook; commit: (l: PixelLook) => void; tab: Tab; setTab: (t: Tab) => void }) {
+  return <PresenceContext.Provider value={null}><ControlsInner {...props} /></PresenceContext.Provider>;
+}
+
+function ControlsInner({ look, commit, tab, setTab }: { look: PixelLook; commit: (l: PixelLook) => void; tab: Tab; setTab: (t: Tab) => void }) {
   const set = <K extends keyof PixelLook>(k: K) => (v: PixelLook[K]) => commit({ ...look, [k]: v });
   const dir = useRef(0);
   const prev = useRef(tab);
