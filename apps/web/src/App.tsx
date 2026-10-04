@@ -38,7 +38,6 @@ const loaders = {
   ShopPage: () => import('./pages/Shop'),
   SettingsPage: () => import('./pages/Settings'),
   LeaderboardPage: () => import('./pages/Leaderboard'),
-  ColosseumPage: () => import('./pages/Colosseum'),
   GuildPage: () => import('./pages/Guild'),
   StatsPage: () => import('./pages/Stats'),
   SeasonPage: () => import('./pages/Season'),
@@ -92,7 +91,6 @@ const routeLoaders: Record<string, () => Promise<unknown>> = {
   '/shop': loaders.ShopPage,
   '/settings': loaders.SettingsPage,
   '/leaderboard': loaders.LeaderboardPage,
-  '/colosseum': loaders.ColosseumPage,
   '/guild': loaders.GuildPage,
   '/stats': loaders.StatsPage,
   '/season': loaders.SeasonPage,
@@ -107,7 +105,7 @@ const routeLoaders: Record<string, () => Promise<unknown>> = {
 };
 
 // Rutas que solo redirigen (no esperan ningún bundle).
-const REDIRECTS = new Set(['/goals', '/metas', '/rituales', '/character', '/challenges']);
+const REDIRECTS = new Set(['/goals', '/metas', '/rituales', '/character']);
 
 function loaderForPath(pathname: string) {
   if (REDIRECTS.has(pathname)) return null;
@@ -195,8 +193,6 @@ function AnimatedRoutes({ location }: { location: ReturnType<typeof useLocation>
           <Route path="/shop"         element={<SafePage><DeferredLazyPage load={loaders.ShopPage} /></SafePage>} />
           <Route path="/settings"     element={<SafePage><DeferredLazyPage load={loaders.SettingsPage} /></SafePage>} />
           <Route path="/leaderboard"  element={<SafePage><DeferredLazyPage load={loaders.LeaderboardPage} /></SafePage>} />
-          <Route path="/colosseum"    element={<SafePage><DeferredLazyPage load={loaders.ColosseumPage} /></SafePage>} />
-          <Route path="/challenges"   element={<Navigate to="/colosseum" replace />} />
           <Route path="/guild"        element={<SafePage><DeferredLazyPage load={loaders.GuildPage} /></SafePage>} />
           <Route path="/stats"        element={<SafePage><DeferredLazyPage load={loaders.StatsPage} /></SafePage>} />
           <Route path="/season"       element={<SafePage><DeferredLazyPage load={loaders.SeasonPage} /></SafePage>} />

@@ -100,7 +100,7 @@ const CATEGORIES: Array<{
     shortLabel: "Gym",
     Icon: Dumbbell,
     unit: "sesiones",
-    description: "Sesiones registradas en el Coliseo.",
+    description: "Sesiones registradas en el Gimnasio.",
   },
   {
     id: "savings",
