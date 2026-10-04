@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Stats Desktop</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./lq.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#4f46e5}a:hover{color:#4338ca}
+</style>
+</helmet>
+<div class="lq app {{theme}}">
+  <aside class="side">
+    <a href="DashboardDesktop.dc.html" class="row" style="gap: 12px; padding: 0 8px; text-decoration: none; color: inherit"><span class="ichip primary" style="width: 40px; height: 40px; border-radius: 12px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg></span><span class="t-hs">LifeQuest</span></a>
+    <nav aria-label="Principal" class="navgrp" style="border: 0; padding: 0">
+      <sc-for list="{{nav}}" as="n" hint-placeholder-count="5"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <nav aria-label="Bienestar" class="navgrp"><span class="sec">BIENESTAR</span>
+      <sc-for list="{{nav2}}" as="n" hint-placeholder-count="4"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <nav aria-label="Más zonas" class="navgrp"><span class="sec">MÁS ZONAS</span>
+      <sc-for list="{{nav3}}" as="n" hint-placeholder-count="11"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <nav aria-label="Comunidad" class="navgrp"><span class="sec">COMUNIDAD</span>
+      <sc-for list="{{nav4}}" as="n" hint-placeholder-count="3"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <div class="navgrp" style="margin-top: auto">
+      <sc-for list="{{nav5}}" as="n" hint-placeholder-count="2"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+      <a class="usercard" href="ProfileDesktop.dc.html" aria-label="Tu perfil: Alex Rivera, nivel 12">
+        <span class="avatar t-ll" style="width: 40px; height: 40px; background: var(--primary-soft); color: var(--primary-text)">AR</span>
+        <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px"><span class="t-ll">Alex Rivera</span><span class="t-bs c-3" style="line-height: 1.2">Nivel 12 · Aventurero</span><span class="bar" style="height: 4px"><span style="width: 78%"></span></span></span>
+      </a>
+    </div>
+  </aside>
+  <div class="pane">
+    <header class="topbar">
+      <nav class="crumb" aria-label="Ruta"><a href="DashboardDesktop.dc.html">Inicio</a><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg><span class="c-1" aria-current="page">Estadísticas</span></nav>
+      <button class="btn btn-secondary btn-md"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/></svg>Compartir</button>
+    </header>
+
+    <main class="wrap enter">
+      <section style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-end; justify-content: space-between">
+        <div style="flex: 1 1 420px; display: flex; flex-direction: column; gap: 8px">
+          <span class="eyebrow">Estadísticas</span>
+          <h1 class="t-dl">Tu progreso, en claro</h1>
+          <p class="t-bl c-3">Todo calculado a partir de lo que registras de verdad.</p>
+        </div>
+        <div class="seg slide" role="tablist" aria-label="Periodo" style="flex: 0 1 460px; width: 100%">
+          <span class="pill" style="width: calc((100% - 20px) / 4); transform: {{periodX}}" aria-hidden="true"></span>
+          <sc-for list="{{periods}}" as="p" hint-placeholder-count="4"><button class="{{p.cls}}" role="tab" aria-selected="{{p.sel}}" onClick="{{p.pick}}">{{p.label}}</button></sc-for>
+        </div>
+      </section>
+
+      <div class="cols">
+        <section class="main card card-elevated spot" style="padding: 32px; gap: 20px" onMouseMove="{{spot}}" onMouseLeave="{{unspot}}" aria-label="Progreso de XP">
+          <div class="row" style="justify-content: space-between; flex-wrap: wrap; gap: 12px">
+            <span class="row t-ll c-2" style="gap: 8px"><svg class="i i16 c-primary" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>Progreso registrado · {{periodName}}</span>
+            <span class="row" style="gap: 8px"><span class="badge badge-primary">Nivel 12</span><span class="badge badge-success"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 17 6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>+{{delta}}% vs. anterior</span></span>
+          </div>
+          <div class="row" style="gap: 10px; align-items: baseline"><span class="num" style="font-size: 64px; font-weight: 700; letter-spacing: -2px; line-height: 1">{{xp}}</span><span class="t-hm c-3">XP</span></div>
+          <sc-if value="{{chartA}}" hint-placeholder-val="{{ true }}">
+            <svg viewBox="0 0 600 200" width="100%" height="220" preserveAspectRatio="none" role="img" aria-label="{{chartAria}}" style="display: block; overflow: visible">
+              <line x1="0" x2="600" y1="50" y2="50" stroke="var(--border)" stroke-dasharray="3 6" vector-effect="non-scaling-stroke"/><line x1="0" x2="600" y1="110" y2="110" stroke="var(--border)" stroke-dasharray="3 6" vector-effect="non-scaling-stroke"/><line x1="0" x2="600" y1="170" y2="170" stroke="var(--border)" stroke-dasharray="3 6" vector-effect="non-scaling-stroke"/>
+              <path class="fade-late" d="{{area}}" fill="var(--primary-soft)"/>
+              <path class="draw" pathLength="1" d="{{line}}" fill="none" stroke="var(--primary)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+            </svg>
+          </sc-if>
+          <sc-if value="{{chartB}}" hint-placeholder-val="{{ false }}">
+            <svg viewBox="0 0 600 200" width="100%" height="220" preserveAspectRatio="none" role="img" aria-label="{{chartAria}}" style="display: block; overflow: visible">
+              <line x1="0" x2="600" y1="50" y2="50" stroke="var(--border)" stroke-dasharray="3 6" vector-effect="non-scaling-stroke"/><line x1="0" x2="600" y1="110" y2="110" stroke="var(--border)" stroke-dasharray="3 6" vector-effect="non-scaling-stroke"/><line x1="0" x2="600" y1="170" y2="170" stroke="var(--border)" stroke-dasharray="3 6" vector-effect="non-scaling-stroke"/>
+              <path class="fade-late" d="{{area}}" fill="var(--primary-soft)"/>
+              <path class="draw" pathLength="1" d="{{line}}" fill="none" stroke="var(--primary)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+            </svg>
+          </sc-if>
+          <div class="row t-bs c-3" style="justify-content: space-between"><sc-for list="{{xLabels}}" as="x" hint-placeholder-count="4"><span>{{x}}</span></sc-for></div>
+          <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; padding-top: 16px; border-top: 1px solid var(--border)">
+            <div><div class="t-bs c-3">Promedio</div><div class="t-ll num" style="font-size: 16px">{{avg}} XP/día</div></div>
+            <div><div class="t-bs c-3">Días con XP</div><div class="t-ll num" style="font-size: 16px">{{activeDays}}</div></div>
+            <div><div class="t-bs c-3">Para subir de nivel</div><div class="t-ll num" style="font-size: 16px">660 XP</div></div>
+          </div>
+        </section>
+
+        <aside class="aside">
+          <section class="card card-lg spot" style="display: flex; flex-direction: column; gap: 16px; align-items: center; text-align: center" onMouseMove="{{spot}}" onMouseLeave="{{unspot}}" aria-label="Life Score">
+            <div class="row" style="justify-content: space-between; width: 100%"><span class="t-ll">Life Score</span><span class="badge badge-neutral">Equilibrio</span></div>
+            <div style="position: relative; width: 200px; height: 200px">
+              <svg viewBox="0 0 120 120" width="200" height="200" aria-hidden="true" style="transform: rotate(-90deg)">
+                <circle cx="60" cy="60" r="52" fill="none" stroke="var(--surface-variant)" stroke-width="7"/>
+                <circle class="ring-val" cx="60" cy="60" r="52" fill="none" stroke="var(--warning)" stroke-width="7" stroke-linecap="round" pathLength="100" stroke-dasharray="100" stroke-dashoffset="{{lifeOff}}" style="transition: stroke-dashoffset 1s cubic-bezier(.16,1,.3,1)"/>
+                <circle cx="60" cy="60" r="42" fill="none" stroke="var(--surface-variant)" stroke-width="4"/>
+                <circle class="ring-val" cx="60" cy="60" r="42" fill="none" stroke="var(--primary)" stroke-width="4" stroke-linecap="round" pathLength="100" stroke-dasharray="100" stroke-dashoffset="{{coverOff}}" style="animation-delay: .45s"/>
+              </svg>
+              <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center"><span class="num" style="font-size: 48px; font-weight: 700; line-height: 1">{{life}}</span><span class="t-bs c-3">de 100</span></div>
+            </div>
+            <div class="row" style="gap: 16px; justify-content: center"><span class="row t-bs c-2" style="gap: 6px"><span style="width: 10px; height: 10px; border-radius: 99px; background: var(--warning)"></span>Score</span><span class="row t-bs c-2" style="gap: 6px"><span style="width: 10px; height: 10px; border-radius: 99px; background: var(--primary)"></span>Cobertura 80%</span></div>
+            <p class="t-bs c-3">Se calcula solo con áreas configuradas y métricas con registros reales.</p>
+          </section>
+        </aside>
+      </div>
+
+      <section style="display: flex; flex-direction: column; gap: 24px">
+        <div class="row" style="justify-content: space-between; flex-wrap: wrap; gap: 8px"><div><h2 class="t-hl">Zonas de vida</h2><p class="t-bs c-3">8 con registros · 10 en seguimiento · {{periodName}}</p></div></div>
+        <ul class="stagger" style="list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px">
+          <sc-for list="{{zones}}" as="z" hint-placeholder-count="10">
+            <li class="card lift" style="padding: 20px; display: flex; flex-direction: column; gap: 14px">
+              <div class="row" style="gap: 12px">
+                <span class="ichip {{z.tone}}" style="width: 40px; height: 40px; border-radius: 12px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 20px; height: 20px"><path d="{{z.icon}}"/></svg></span>
+                <div style="flex: 1; min-width: 0"><div class="t-ll" style="font-size: 16px">{{z.name}}</div><div class="t-bs c-3" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{z.sub}}</div></div>
+                <span class="badge {{z.badge}}"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{z.bIcon}}"/></svg>{{z.status}}</span>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 6px">
+                <div class="row" style="justify-content: space-between"><span class="t-bs c-3">Ritmo</span><span class="t-ll num">{{z.pctTxt}}</span></div>
+                <div class="bar {{z.barCls}}"><span style="width: {{z.pct}}%; transition: width .8s cubic-bezier(.16,1,.3,1)"></span></div>
+              </div>
+            </li>
+          </sc-for>
+        </ul>
+      </section>
+
+      <section class="kpis stagger" aria-label="Totales">
+        <sc-for list="{{kpis}}" as="k" hint-placeholder-count="4">
+          <div class="card card-lg lift" style="display: flex; flex-direction: column; gap: 8px">
+            <span class="ichip {{k.tone}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{k.icon}}"/></svg></span>
+            <span class="t-dm num">{{k.v}}</span><span class="t-bm c-2">{{k.label}}</span><span class="t-bs c-3">{{k.sub}}</span>
+          </div>
+        </sc-for>
+      </section>
+
+      <section style="display: flex; flex-direction: column; gap: 24px">
+        <div><h2 class="t-hl">Seguimiento detallado</h2><p class="t-bs c-3">Series calculadas a partir de tus registros.</p></div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 24px">
+          <article class="card card-lg" style="display: flex; flex-direction: column; gap: 20px">
+            <div class="row" style="gap: 12px"><span class="ichip success" style="width: 40px; height: 40px; border-radius: 12px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 20px; height: 20px"><path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 10h18M16 15h2"/></svg></span><div><h3 class="t-hs">Flujo de dinero</h3><p class="t-bs c-3">Ingresos y gastos por semana</p></div></div>
+            <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px">
+              <div class="card" style="padding: 12px; background: var(--bg)"><div class="t-bs c-3">Ingresos</div><div class="t-ll num c-success" style="font-size: 16px">${{inc}}</div></div>
+              <div class="card" style="padding: 12px; background: var(--bg)"><div class="t-bs c-3">Gastos</div><div class="t-ll num c-error" style="font-size: 16px">${{exp}}</div></div>
+              <div class="card" style="padding: 12px; background: var(--bg)"><div class="t-bs c-3">Neto</div><div class="t-ll num" style="font-size: 16px">${{net}}</div></div>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; align-items: end; height: 160px" role="img" aria-label="Ingresos y gastos por semana">
+              <sc-for list="{{money}}" as="m" hint-placeholder-count="4">
+                <div class="row" style="gap: 6px; align-items: flex-end; height: 100%">
+                  <div class="rise tip" tabindex="0" style="flex: 1; height: 100%; display: flex; align-items: flex-end; animation-delay: {{m.d}}ms"><span class="tip-b">{{m.tipIn}}</span><span style="display: block; width: 100%; height: 100%; border-radius: 8px 8px 3px 3px; background: var(--success); transform-origin: bottom; transform: scaleY({{m.inS}}); transition: transform .8s cubic-bezier(.16,1,.3,1)"></span></div>
+                  <div class="rise tip" tabindex="0" style="flex: 1; height: 100%; display: flex; align-items: flex-end; animation-delay: {{m.d2}}ms"><span class="tip-b">{{m.tipOut}}</span><span style="display: block; width: 100%; height: 100%; border-radius: 8px 8px 3px 3px; background: var(--error); opacity: .75; transform-origin: bottom; transform: scaleY({{m.outS}}); transition: transform .8s cubic-bezier(.16,1,.3,1)"></span></div>
+                </div>
+              </sc-for>
+            </div>
+            <div class="row" style="justify-content: space-between"><span class="row t-bs c-2" style="gap: 6px"><span style="width: 10px; height: 10px; border-radius: 3px; background: var(--success)"></span>Ingresos</span><span class="row t-bs c-2" style="gap: 6px"><span style="width: 10px; height: 10px; border-radius: 3px; background: var(--error); opacity: .75"></span>Gastos</span><span class="t-bs c-3">S1 · S2 · S3 · S4</span></div>
+          </article>
+
+          <article class="card card-lg" style="display: flex; flex-direction: column; gap: 20px">
+            <div class="row" style="gap: 12px"><span class="ichip secondary" style="width: 40px; height: 40px; border-radius: 12px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 20px; height: 20px"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg></span><div><h3 class="t-hs">Descanso</h3><p class="t-bs c-3">Horas por noche · promedio 7 h 01</p></div></div>
+            <svg viewBox="0 0 300 120" width="100%" height="160" preserveAspectRatio="none" role="img" aria-label="Horas de sueño en los últimos 7 días, tendencia al alza" style="display: block; overflow: visible">
+              <line x1="0" x2="300" y1="46" y2="46" stroke="var(--success)" stroke-dasharray="4 5" vector-effect="non-scaling-stroke"/>
+              <path class="draw" pathLength="1" d="{{sleepLine}}" fill="none" stroke="var(--secondary)" stroke-width="3" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+            </svg>
+            <div class="row" style="gap: 12px; padding: 12px 16px; border-radius: 12px; background: var(--success-soft)"><svg class="i c-success" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 17 6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg><span class="t-bs c-1"><b>Mejorando:</b> +38 min frente a la semana anterior.</span></div>
+          </article>
+
+          <article class="card card-lg" style="display: flex; flex-direction: column; gap: 20px">
+            <div class="row" style="gap: 12px"><span class="ichip warning" style="width: 40px; height: 40px; border-radius: 12px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 20px; height: 20px"><path d="M6.5 6.5l11 11M21 21l-1-1M3 3l1 1M18 22l4-4M2 6l4-4M3 10l7-7M14 21l7-7"/></svg></span><div><h3 class="t-hs">Progresión de fuerza</h3><p class="t-bs c-3">Peso máximo por ejercicio</p></div></div>
+            <div class="chips" role="tablist" aria-label="Ejercicio"><sc-for list="{{lifts}}" as="l" hint-placeholder-count="3"><button class="chip {{l.cls}}" role="tab" aria-selected="{{l.sel}}" onClick="{{l.pick}}">{{l.label}}</button></sc-for></div>
+            <div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; align-items: end; height: 140px" role="img" aria-label="{{liftAria}}">
+              <sc-for list="{{liftBars}}" as="b" hint-placeholder-count="6">
+                <div class="rise tip" tabindex="0" style="height: 100%; display: flex; align-items: flex-end; animation-delay: {{b.d}}ms"><span class="tip-b">{{b.tip}}</span><span style="display: block; width: 100%; height: 100%; border-radius: 8px 8px 3px 3px; background: {{b.bg}}; transform-origin: bottom; transform: scaleY({{b.s}}); transition: transform .8s cubic-bezier(.34,1.56,.64,1)"></span></div>
+              </sc-for>
+            </div>
+          </article>
+
+          <article class="card card-lg" style="display: flex; flex-direction: column; gap: 16px">
+            <div class="row" style="gap: 12px"><span class="ichip info" style="width: 40px; height: 40px; border-radius: 12px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 20px; height: 20px"><path d="m3 17 6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg></span><div><h3 class="t-hs">Proyecciones</h3><p class="t-bs c-3">Basadas en tu ritmo reciente</p></div></div>
+            <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+              <div class="card" style="padding: 14px; background: var(--bg)"><div class="t-bs c-3">Siguiente nivel</div><div class="t-hm num">3 días</div><div class="t-bs c-3">a 257 XP/día</div></div>
+              <div class="card" style="padding: 14px; background: var(--bg)"><div class="t-bs c-3">Meta de ahorro</div><div class="t-hm num">5 semanas</div><div class="t-bs c-3">$80 por semana</div></div>
+            </div>
+            <span class="t-ll c-2">Constancia de hábitos · 7 días</span>
+            <sc-for list="{{consistency}}" as="c" hint-placeholder-count="5">
+              <div class="row" style="gap: 12px; min-height: 40px">
+                <span class="t-bm" style="flex: 1">{{c.name}}</span>
+                <span class="t-ll num" style="width: 44px; text-align: right">{{c.pct}}%</span>
+                <span class="badge {{c.badge}}" style="width: 108px; justify-content: center"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{c.icon}}"/></svg>{{c.status}}</span>
+              </div>
+            </sc-for>
+          </article>
+        </div>
+      </section>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 24px">
+        <section class="card card-lg spot" style="display: flex; flex-direction: column; gap: 16px" onMouseMove="{{spot}}" onMouseLeave="{{unspot}}">
+          <div class="row" style="justify-content: space-between"><div><h2 class="t-hs">Ritmo por área</h2><p class="t-bs c-3">Periodo actual frente al anterior</p></div></div>
+          <svg viewBox="-150 -140 300 280" width="100%" height="300" role="img" aria-label="{{radarAria}}" style="overflow: visible">
+            <sc-for list="{{radarGrid}}" as="g" hint-placeholder-count="4"><polygon points="{{g}}" fill="none" stroke="var(--border)"/></sc-for>
+            <sc-for list="{{radarAxes}}" as="a" hint-placeholder-count="8"><g><line x1="0" y1="0" x2="{{a.x}}" y2="{{a.y}}" stroke="var(--border)"/><text x="{{a.lx}}" y="{{a.ly}}" text-anchor="{{a.anchor}}" dominant-baseline="middle" fill="var(--on-surface-light)" font-size="11" font-family="Montserrat" font-weight="600">{{a.label}}</text></g></sc-for>
+            <polygon points="{{radarPrev}}" fill="none" stroke="var(--on-surface-light)" stroke-dasharray="4 4" stroke-width="1.5"/>
+            <polygon class="pop" points="{{radarNow}}" fill="var(--warning-soft)" stroke="var(--warning)" stroke-width="2.5" stroke-linejoin="round" style="transform-origin: 0 0; animation-delay: .3s"/>
+          </svg>
+          <div class="row" style="gap: 20px; justify-content: center"><span class="row t-bs c-2" style="gap: 6px"><span style="width: 14px; height: 3px; background: var(--warning)"></span>Este periodo</span><span class="row t-bs c-2" style="gap: 6px"><span style="width: 14px; height: 0; border-top: 2px dashed var(--on-surface-light)"></span>Anterior</span></div>
+        </section>
+
+        <section class="card card-lg" style="display: flex; flex-direction: column; gap: 16px">
+          <div class="row" style="justify-content: space-between"><div><h2 class="t-hs">Constancia de hábitos</h2><p class="t-bs c-3">Últimas 26 semanas · 116 hábitos completados</p></div></div>
+          <div style="display: grid; grid-template-columns: repeat(26, minmax(0, 1fr)); gap: 4px" role="img" aria-label="Mapa de calor de 26 semanas, actividad concentrada en las últimas 4 semanas">
+            <sc-for list="{{heat}}" as="w" hint-placeholder-count="26">
+              <div style="display: grid; grid-template-rows: repeat(7, 1fr); gap: 4px"><sc-for list="{{w.d}}" as="c" hint-placeholder-count="7"><span class="pop" style="aspect-ratio: 1; border-radius: 3px; background: {{c.bg}}; animation-delay: {{c.delay}}ms"></span></sc-for></div>
+            </sc-for>
+          </div>
+          <div class="row t-bs c-3" style="justify-content: space-between"><span>abr</span><span>jun</span><span>ago</span><span>oct</span></div>
+          <div class="row t-bs c-3" style="gap: 6px; justify-content: flex-end">Menos<span style="width: 12px; height: 12px; border-radius: 3px; background: var(--surface-variant)"></span><span style="width: 12px; height: 12px; border-radius: 3px; background: var(--warning-soft)"></span><span style="width: 12px; height: 12px; border-radius: 3px; background: var(--warning)"></span>Más</div>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":2700}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { k: 0, period: 'month', rev: 0, lift: 'squat' }; }
+  componentDidMount() { this.countUp(1400); }
+  componentWillUnmount() { cancelAnimationFrame(this._raf); }
+  navs(active) {
+    const P = {
+      home: 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z', habits: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0zM8.5 12l2.5 2.5 4.5-5', quests: 'M5 22V4M5 4h12l-2.5 4L17 12H5',
+      arena: 'M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 17.5 21 6V3h-3L6.5 14.5M11 19l-6-6M8 16l-4 4M5 21l-2-2', profile: 'M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM4 21a8 8 0 0 1 16 0',
+      money: 'M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 10h18M16 15h2', food: 'M7 3v18M4 3v6a3 3 0 0 0 6 0V3M17 21V3c-2 1-3 4-3 7h3', sleep: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
+      ach: 'M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3', stats: 'M3 3v18h18M8 16v-5M13 16V8M18 16v-3',
+      gym: 'M6.5 6.5l11 11M21 21l-1-1M3 3l1 1M18 22l4-4M2 6l4-4M3 10l7-7M14 21l7-7', glow: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 3v4M17 5h4',
+      learn: 'M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z', rel: 'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z',
+      diary: 'M5 4h11a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2zM9 8h5M9 12h5M20 7l-6 6', agenda: 'M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM4 10h16M9 2v4M15 2v4',
+      ritual: 'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4', wisdom: 'M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM9 8h6M9 12h6M9 16h3',
+      zones: 'M12 21s-7-6-7-12a7 7 0 0 1 14 0c0 6-7 12-7 12zM12 11.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z', shop: 'M5 8h14l-1 12H6zM9 8V6a3 3 0 0 1 6 0v2',
+      rank: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18', guild: 'M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM2 21a8 8 0 0 1 12-6.9M17 11a3 3 0 1 0 0-6M22 21a6 6 0 0 0-5-5.9',
+      camp: 'M3 21 12 4l9 17zM12 4v17M8 21l4-6 4 6', settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1',
+      help: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.7M12 17h.01',
+    };
+    const mk = a => a.map(([id, label, f]) => ({ label, href: f ? f + '.dc.html' : '#', icon: P[id], cls: id === active ? 'on' : '', cur: id === active ? 'page' : 'false' }));
+    return {
+      nav: mk([['home','Inicio','DashboardDesktop'],['habits','Hábitos','HabitsDesktop'],['quests','Misiones','QuestsDesktop'],['arena','Coliseo','ColosseumDesktop'],['profile','Perfil','ProfileDesktop']]),
+      nav2: mk([['money','Finanzas','FinancesDesktop'],['food','Comida','FoodDesktop'],['sleep','Sueño','SleepDesktop'],['ach','Logros','AchievementsDesktop']]),
+      nav3: mk([['stats','Estadísticas','StatsDesktop'],['gym','Gimnasio','GymDesktop'],['glow','Glow up','GlowUpDesktop'],['learn','Aprendizaje','LearningDesktop'],['rel','Relaciones','RelationsDesktop'],['diary','Diario','JournalDesktop'],['agenda','Agenda','AgendaDesktop'],['ritual','Rituales','RitualsDesktop'],['wisdom','Sabiduría','WisdomDesktop'],['zones','Mis zonas','ZonesDesktop'],['shop','Tienda','ShopDesktop']]),
+      nav4: mk([['rank','Ranking','RankingDesktop'],['guild','Gremio','GuildDesktop'],['camp','Campaña','CampaignDesktop']]),
+      nav5: mk([['settings','Ajustes','SettingsDesktop'],['help','Ayuda','HelpDesktop']]),
+    };
+  }
+  spotFns() {
+    const rm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    return {
+      spot: e => {
+        const el = e.currentTarget, r = el.getBoundingClientRect();
+        const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+        el.style.setProperty('--mx', (x * 100).toFixed(1) + '%'); el.style.setProperty('--my', (y * 100).toFixed(1) + '%');
+        if (!rm) { el.style.setProperty('--ry', ((x - .5) * 5).toFixed(2) + 'deg'); el.style.setProperty('--rx', ((.5 - y) * 5).toFixed(2) + 'deg'); }
+      },
+      unspot: e => { e.currentTarget.style.setProperty('--rx', '0deg'); e.currentTarget.style.setProperty('--ry', '0deg'); },
+    };
+  }
+  countUp(ms) {
+    const rm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    cancelAnimationFrame(this._raf);
+    if (rm) { this.setState({ k: 1 }); return; }
+    const t0 = performance.now();
+    const f = n => { const p = Math.min(1, (n - t0) / (ms || 1300)); this.setState({ k: 1 - Math.pow(1 - p, 4) }); if (p < 1) this._raf = requestAnimationFrame(f); };
+    this._raf = requestAnimationFrame(f);
+  }
+  renderVals() {
+    const s = this.state, k = s.k;
+    const fmt = n => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    const P = {
+      week: { name: 'Semana', xp: 1790, delta: 18, days: '6 de 7', life: 52, labels: ['L','M','X','J','V','S','D'], pts: [180, 320, 260, 410, 240, 380, 0], m: 0.25 },
+      month: { name: 'Mes', xp: 7679, delta: 42, days: '22 de 30', life: 47, labels: ['1 oct','8 oct','15 oct','22 oct','29 oct'], pts: [900, 1500, 1200, 2100, 1979], m: 1 },
+      q: { name: '3 meses', xp: 19240, delta: 64, days: '61 de 92', life: 44, labels: ['jul','ago','sep','oct'], pts: [3200, 5100, 4300, 6640], m: 2.6 },
+      year: { name: 'Año', xp: 41830, delta: 120, days: '188 de 365', life: 41, labels: ['ene','abr','jul','oct'], pts: [1800, 4200, 7900, 11200, 9800, 6930], m: 5.2 },
+    };
+    const p = P[s.period];
+    const max = Math.max(...p.pts) * 1.15;
+    const xy = p.pts.map((v, i) => [i / (p.pts.length - 1) * 600, 190 - v / max * 170]);
+    let line = `M${xy[0][0]},${xy[0][1]}`;
+    for (let i = 0; i < xy.length - 1; i++) {
+      const [x0, y0] = xy[Math.max(0, i - 1)], [x1, y1] = xy[i], [x2, y2] = xy[i + 1], [x3, y3] = xy[Math.min(xy.length - 1, i + 2)];
+      const c1x = x1 + (x2 - x0) / 6, c1y = y1 + (y2 - y0) / 6, c2x = x2 - (x3 - x1) / 6, c2y = y2 - (y3 - y1) / 6;
+      line += ` C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}`;
+    }
+    const area = line + ' L600,200 L0,200 Z';
+    const po = [['week','Semana'],['month','Mes'],['q','3 meses'],['year','Año']];
+    const pi = po.findIndex(o => o[0] === s.period);
+    const I = {
+      quests: 'M5 22V4M5 4h12l-2.5 4L17 12H5', habits: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0zM8.5 12l2.5 2.5 4.5-5', gym: 'M6.5 6.5l11 11M21 21l-1-1M3 3l1 1M18 22l4-4M2 6l4-4M3 10l7-7M14 21l7-7',
+      money: 'M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 10h18M16 15h2', sleep: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
+      learn: 'M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z', diary: 'M5 4h11a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2zM9 8h5M9 12h5',
+      glow: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z', food: 'M7 3v18M4 3v6a3 3 0 0 0 6 0V3M17 21V3c-2 1-3 4-3 7h3', rel: 'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z',
+    };
+    const zd = [['Misiones','quests','primary','4 misiones completadas',100],['Hábitos','habits','warning','12 de 19 completados',63],['Gimnasio','gym','error','1 entrenamiento terminado',33],['Finanzas','money','success','6 transacciones',45],['Sueño','sleep','secondary','1 noche registrada',58],['Aprendizaje','learn','info','2 elementos actualizados',50],['Diario','diary','error','1 entrada',25],['Relaciones','rel','secondary','1 actualización',null],['Glow up','glow','muted','Sin rutinas configuradas',-1],['Comida','food','muted','Sin comidas registradas',0]];
+    const OK = 'm5 12 5 5 9-10', NONE = 'M8 12h8';
+    const zones = zd.map(([name, ic, tone, sub, v]) => {
+      const has = v !== -1 && v !== 0;
+      const pct = v > 0 ? Math.round(v * Math.min(1, 0.6 + p.m * 0.15) ) : 0;
+      return { name, tone, sub, icon: I[ic], status: v === -1 ? 'Sin configurar' : (has ? 'Con registros' : 'Sin registros'),
+        badge: has ? 'badge-success' : 'badge-neutral', bIcon: has ? OK : NONE, pct: Math.round(pct * k), pctTxt: v === null ? 'Sin meta' : (v > 0 ? pct + '%' : '—'), barCls: tone === 'muted' ? '' : tone };
+    });
+    const kpis = [['XP registrada', fmt(p.xp * k), 'primary', 'M13 2 4 14h7l-1 8 9-12h-7z', p.name], ['Misiones completadas', Math.round(4 * p.m * k), 'secondary', I.quests, `${Math.round(34 * k)} históricas`], ['Hábitos completados', Math.round(12 * p.m * k), 'success', I.habits, '63% de cumplimiento'], ['Entrenamientos', Math.round(Math.max(1, 3 * p.m) * k), 'warning', I.gym, 'Volumen +14%']]
+      .map(([label, v, tone, icon, sub]) => ({ label, v, tone, icon, sub }));
+    const mv = [[3200, 1800], [800, 2100], [1500, 1200], [2600, 1400]];
+    const mm = 3200;
+    const money = mv.map(([a, b], i) => ({ inS: (a / mm).toFixed(3), outS: (b / mm).toFixed(3), d: 200 + i * 100, d2: 260 + i * 100, tipIn: `S${i + 1} · +$${fmt(a * p.m)}`, tipOut: `S${i + 1} · −$${fmt(b * p.m)}` }));
+    const sv = [6.5, 6.8, 7.0, 6.2, 7.1, 7.4, 7.7];
+    const sleepLine = sv.map((v, i) => `${i ? 'L' : 'M'}${(i * 50).toFixed(0)},${(110 - (v - 5.5) / 2.5 * 100).toFixed(1)}`).join(' ');
+    const L = { squat: ['Sentadilla', [70, 75, 75, 80, 85, 100]], bench: ['Press banca', [55, 60, 60, 65, 70, 80]], dead: ['Peso muerto', [100, 105, 115, 120, 125, 130]] };
+    const lifts = Object.keys(L).map(id => ({ label: L[id][0], cls: s.lift === id ? 'on' : '', sel: s.lift === id ? 'true' : 'false', pick: () => this.setState({ lift: id }) }));
+    const lv = L[s.lift][1], lmax = 130;
+    const liftBars = lv.map((v, i) => ({ s: (v / lmax).toFixed(3), d: 200 + i * 70, tip: `Sesión ${i + 1} · ${v} kg`, bg: i === lv.length - 1 ? 'var(--warning)' : 'var(--warning-soft)' }));
+    const W = 'M12 3 2 21h20zM12 10v5', X = 'M6 6l12 12M18 6 6 18';
+    const consistency = [['Gimnasio', 20, 'En riesgo', 'badge-error', X], ['Meditar 10 min', 71, 'Atención', 'badge-warning', W], ['Leer 20 páginas', 71, 'Atención', 'badge-warning', W], ['Ir al gym', 100, 'En ritmo', 'badge-success', OK], ['Beber 2,5 L de agua', 71, 'Atención', 'badge-warning', W]]
+      .map(([name, pct, status, badge, icon]) => ({ name, pct, status, badge, icon }));
+    const axes = ['Misiones','Hábitos','Gimnasio','Finanzas','Sueño','Aprendizaje','Diario','Glow up'];
+    const now = [1, .63, .33, .45, .58, .5, .25, .1], prev = [.4, .5, .2, .35, .5, .3, .15, .05];
+    const R = 110, pt = (i, r) => { const a = -Math.PI / 2 + i * 2 * Math.PI / axes.length; return [Math.cos(a) * r, Math.sin(a) * r]; };
+    const poly = vals => vals.map((v, i) => pt(i, R * v).map(n => n.toFixed(1)).join(',')).join(' ');
+    const radarGrid = [.25, .5, .75, 1].map(f => poly(axes.map(() => f)));
+    const radarAxes = axes.map((label, i) => { const [x, y] = pt(i, R), [lx, ly] = pt(i, R + 22); return { label, x: x.toFixed(1), y: y.toFixed(1), lx: lx.toFixed(1), ly: ly.toFixed(1), anchor: Math.abs(lx) < 8 ? 'middle' : (lx > 0 ? 'start' : 'end') }; });
+    const heat = Array.from({ length: 26 }, (_, w) => ({ d: Array.from({ length: 7 }, (_, d) => {
+      const recent = w >= 22, v = recent ? ((w * 7 + d) % 3) : ((w * 13 + d * 7) % 11 === 0 ? 1 : 0);
+      return { bg: v === 2 || (recent && v === 1) ? 'var(--warning)' : (v ? 'var(--warning-soft)' : 'var(--surface-variant)'), delay: 300 + w * 22 + d * 6 };
+    }) }));
+    return {
+      theme: (this.props.dark ?? false) ? 'dark' : '', ...this.navs('stats'), ...this.spotFns(),
+      periods: po.map(([id, label]) => ({ label, cls: s.period === id ? 'on' : '', sel: s.period === id ? 'true' : 'false',
+        pick: () => { if (this.state.period === id) return; this.setState({ period: id, rev: this.state.rev + 1 }); this.countUp(1000); } })),
+      periodX: `translateX(calc(${pi} * (100% + 4px)))`, periodName: p.name,
+      xp: fmt(p.xp * k), delta: Math.round(p.delta * k), activeDays: p.days, avg: fmt(p.xp / (p.m * 30) * k),
+      line, area, chartA: s.rev % 2 === 0, chartB: s.rev % 2 === 1, xLabels: p.labels.length > 5 ? [p.labels[0], p.labels[3], p.labels[6]] : p.labels,
+      chartAria: `XP por tramo del periodo ${p.name}: ${p.pts.join(', ')}`,
+      life: Math.round(p.life * k), lifeOff: 100 - p.life, coverOff: 20,
+      zones, kpis, money, inc: fmt(8100 * p.m * k), exp: fmt(6500 * p.m * k), net: fmt(1600 * p.m * k),
+      sleepLine, lifts, liftBars, liftAria: `${L[s.lift][0]}: ${lv.join(', ')} kg`, consistency,
+      radarGrid, radarAxes, radarNow: poly(now), radarPrev: poly(prev), radarAria: axes.map((a, i) => `${a} ${Math.round(now[i] * 100)}%`).join(', '),
+      heat,
+    };
+  }
+}
+</script>
+</body>
+</html>

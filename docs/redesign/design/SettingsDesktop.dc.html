@@ -51,9 +51,9 @@ a{color:#4f46e5}a:hover{color:#4338ca}
         <p class="t-bl c-3">Tu experiencia, tus datos y las herramientas que acompañan tu progreso.</p>
       </section>
 
-      <div class="seg slide" role="tablist" aria-label="Sección" style="max-width: 600px">
-        <span class="pill" style="width: calc((100% - 20px) / 4); transform: {{tabX}}" aria-hidden="true"></span>
-        <sc-for list="{{tabs}}" as="t" hint-placeholder-count="4"><button class="{{t.cls}}" role="tab" aria-selected="{{t.sel}}" onClick="{{t.pick}}">{{t.label}}</button></sc-for>
+      <div class="seg slide" role="tablist" aria-label="Sección" style="max-width: 720px">
+        <span class="pill" style="width: calc((100% - 24px) / 5); transform: {{tabX}}" aria-hidden="true"></span>
+        <sc-for list="{{tabs}}" as="t" hint-placeholder-count="5"><button class="{{t.cls}}" role="tab" aria-selected="{{t.sel}}" onClick="{{t.pick}}">{{t.label}}</button></sc-for>
       </div>
 
       <div class="cols">
@@ -72,6 +72,21 @@ a{color:#4f46e5}a:hover{color:#4338ca}
                 <div class="field"><label for="s-lang">Idioma</label><div style="position: relative"><select id="s-lang" class="input"><option>Español</option><option>English</option><option>Português</option></select><svg class="i c-3" viewBox="0 0 24 24" aria-hidden="true" style="position: absolute; right: 12px; top: 12px; pointer-events: none"><path d="m6 9 6 6 6-6"/></svg></div></div>
               </div>
               <div class="row" style="justify-content: flex-end; padding-top: 16px; border-top: 1px solid var(--border)"><button class="btn btn-primary btn-md" onClick="{{save}}" disabled="{{saving}}"><sc-if value="{{saving}}" hint-placeholder-val="{{ false }}"><span class="spin" style="width: 16px; height: 16px; border-width: 2px; border-color: rgba(255,255,255,.35); border-top-color: currentColor"></span></sc-if>{{saveLabel}}</button></div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{isZones}}" hint-placeholder-val="{{ false }}">
+            <div class="card card-lg pop" style="display: flex; flex-direction: column; gap: 0">
+              <div style="margin-bottom: 8px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; align-items: flex-end"><div><span class="eyebrow">Tu menú</span><h2 class="t-hl">Zonas</h2><p class="t-bs c-3">Elige qué zonas aparecen en la barra lateral. Puedes reactivarlas cuando quieras.</p></div><span class="badge lg badge-primary num">{{zonesOn}} de {{zonesTotal}} visibles</span></div>
+              <ul class="stagger" style="list-style: none; margin: 0; padding: 0">
+                <sc-for list="{{zoneToggles}}" as="z" hint-placeholder-count="11">
+                  <li class="row" style="gap: 16px; min-height: 68px; border-bottom: {{z.border}}; opacity: {{z.op}}; transition: opacity .3s">
+                    <span class="ichip {{z.tone}}" style="width: 40px; height: 40px; border-radius: 12px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 20px; height: 20px"><path d="{{z.icon}}"/></svg></span>
+                    <div style="flex: 1"><label for="{{z.id}}" class="t-ll" style="font-size: 16px">{{z.name}}</label><div class="t-bs c-3">{{z.desc}}</div></div>
+                    <span class="switch"><input id="{{z.id}}" type="checkbox" role="switch" checked="{{z.on}}" onChange="{{z.toggle}}"><span></span></span>
+                  </li>
+                </sc-for>
+              </ul>
             </div>
           </sc-if>
 
@@ -171,19 +186,22 @@ class Component extends DCLogic {
     return {
       nav: mk([['home','Inicio','DashboardDesktop'],['habits','Hábitos','HabitsDesktop'],['quests','Misiones','QuestsDesktop'],['arena','Coliseo','ColosseumDesktop'],['profile','Perfil','ProfileDesktop']]),
       nav2: mk([['money','Finanzas','FinancesDesktop'],['food','Comida','FoodDesktop'],['sleep','Sueño','SleepDesktop'],['ach','Logros','AchievementsDesktop']]),
-      nav3: mk([['stats','Estadísticas',null],['gym','Gimnasio','GymDesktop'],['glow','Glow up','GlowUpDesktop'],['learn','Aprendizaje','LearningDesktop'],['rel','Relaciones','RelationsDesktop'],['diary','Diario','JournalDesktop'],['agenda','Agenda','AgendaDesktop'],['ritual','Rituales','RitualsDesktop'],['wisdom','Sabiduría','WisdomDesktop'],['zones','Mis zonas','ZonesDesktop'],['shop','Tienda','ShopDesktop']]),
-      nav4: mk([['rank','Ranking','RankingDesktop'],['guild','Gremio',null],['camp','Campaña',null]]),
-      nav5: mk([['settings','Ajustes','SettingsDesktop'],['help','Ayuda',null]]),
+      nav3: mk([['stats','Estadísticas','StatsDesktop'],['gym','Gimnasio','GymDesktop'],['glow','Glow up','GlowUpDesktop'],['learn','Aprendizaje','LearningDesktop'],['rel','Relaciones','RelationsDesktop'],['diary','Diario','JournalDesktop'],['agenda','Agenda','AgendaDesktop'],['ritual','Rituales','RitualsDesktop'],['wisdom','Sabiduría','WisdomDesktop'],['zones','Mis zonas','ZonesDesktop'],['shop','Tienda','ShopDesktop']]),
+      nav4: mk([['rank','Ranking','RankingDesktop'],['guild','Gremio','GuildDesktop'],['camp','Campaña','CampaignDesktop']]),
+      nav5: mk([['settings','Ajustes','SettingsDesktop'],['help','Ayuda','HelpDesktop']]),
     };
   }
   renderVals() {
     const s = this.state, k = s.k;
     const fmt = n => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-    const to = [['profile','Perfil'],['game','Juego'],['data','Datos'],['about','Acerca de']];
+    const to = [['profile','Perfil'],['zones','Zonas'],['game','Juego'],['data','Datos'],['about','Acerca de']];
     const ti = to.findIndex(o => o[0] === s.tab);
     const tg = [['sound','Sonidos','Efectos al completar hábitos y misiones'],['confetti','Celebraciones','Confeti y animaciones de logro'],['streak','Aviso de racha','Recordatorio si tu racha está en riesgo'],['weekly','Resumen semanal','Un correo cada domingo con tu progreso'],['sabio','Sugerencias del Sabio','Ideas personalizadas en cada zona']];
     const toggles = tg.map(([id, name, desc], i) => ({ id: 'tg-' + id, name, desc, on: !!s.on[id], border: i < tg.length - 1 ? '1px solid var(--border)' : '0',
       toggle: () => this.setState({ on: { ...this.state.on, [id]: !this.state.on[id] } }) }));
+    const ZD = [['stats','Estadísticas','Tu progreso por periodo','primary','M3 3v18h18M8 16v-5M13 16V8M18 16v-3'],['gym','Gimnasio','Entrenamientos y récords','error','M6.5 6.5l11 11M21 21l-1-1M3 3l1 1M18 22l4-4M2 6l4-4M3 10l7-7M14 21l7-7'],['glow','Glow up','Cuidado, estilo y presencia','secondary','M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z'],['learn','Aprendizaje','Biblioteca y pomodoro','info','M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z'],['rel','Relaciones','Personas y fechas especiales','error','M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z'],['diary','Diario','Reflexión diaria','primary','M5 4h11a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2zM9 8h5M9 12h5'],['agenda','Agenda','Calendario y bloques','info','M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM4 10h16M9 2v4M15 2v4'],['ritual','Rituales','Secuencias diarias','warning','M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 2v2M12 20v2M2 12h2M20 12h2'],['wisdom','Sabiduría','Principios por nivel','secondary','M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM9 8h6M9 12h6'],['zones','Mis zonas','Zonas creadas con el Sabio','success','M12 21s-7-6-7-12a7 7 0 0 1 14 0c0 6-7 12-7 12z'],['shop','Tienda','Gasta tu Gold','warning','M5 8h14l-1 12H6zM9 8V6a3 3 0 0 1 6 0v2']];
+    const zoff = s.zoff || {};
+    const zoneToggles = ZD.map(([id, name, desc, tone, icon], i) => { const on = !zoff[id]; return { id: 'zt-' + id, name, desc, tone, icon, on, op: on ? 1 : .55, border: i < ZD.length - 1 ? '1px solid var(--border)' : '0', toggle: () => this.setState({ zoff: { ...(this.state.zoff || {}), [id]: on } }) }; });
     const mode = s.mode ?? ((this.props.dark ?? false) ? 'dark' : 'light');
     const mo = [['light','Claro'],['dark','Oscuro'],['auto','Auto']];
     const mi = mo.findIndex(o => o[0] === mode);
@@ -191,7 +209,7 @@ class Component extends DCLogic {
       theme: mode === 'dark' ? 'dark' : '', ...this.navs('settings'),
       tabs: to.map(([id, label]) => ({ label, cls: s.tab === id ? 'on' : '', sel: s.tab === id ? 'true' : 'false', pick: () => this.setState({ tab: id }) })),
       tabX: `translateX(calc(${ti} * (100% + 4px)))`,
-      isProfile: s.tab === 'profile', isGame: s.tab === 'game', isData: s.tab === 'data', isAbout: s.tab === 'about',
+      isProfile: s.tab === 'profile', isZones: s.tab === 'zones', zoneToggles, zonesOn: zoneToggles.filter(z => z.on).length, zonesTotal: zoneToggles.length, isGame: s.tab === 'game', isData: s.tab === 'data', isAbout: s.tab === 'about',
       toggles, modes: mo.map(([id, label]) => ({ label, cls: mode === id ? 'on' : '', sel: mode === id ? 'true' : 'false', pick: () => this.setState({ mode: id }) })),
       modeX: `translateX(calc(${mi} * (100% + 4px)))`,
       lvl: Math.round(12 * k), xp: fmt(3260 * k), gold: fmt(1565 * k),

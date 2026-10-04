@@ -17,7 +17,7 @@ a{color:#4f46e5}a:hover{color:#4338ca}
 </helmet>
 <div class="lq screen {{theme}}" style="width: 375px; height: 1240px">
   <header class="hdr" style="padding: 0 8px">
-    <a class="btn btn-icon" href="Dashboard.dc.html" aria-label="Volver"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"></path></svg></a>
+    <a class="btn btn-icon" href="Dashboard.dc.html" aria-label="Volver"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></a>
     <span></span>
   </header>
   <main class="enter" style="display: flex; flex-direction: column; gap: 24px; padding: 0 16px 128px">
@@ -35,8 +35,8 @@ a{color:#4f46e5}a:hover{color:#4338ca}
       <sc-for list="{{items}}" as="a" hint-placeholder-count="8">
         <li class="card card-hover" style="display: flex; flex-direction: column; gap: 12px; opacity: {{a.op}}" tabindex="0" aria-label="{{a.aria}}">
           <div class="row" style="justify-content: space-between; align-items: flex-start">
-            <div class="ichip {{a.tone}}" style="width: 56px; height: 56px; border-radius: 16px"><svg class="i i32" viewBox="0 0 24 24" aria-hidden="true"><path d="{{a.icon}}"></path></svg></div>
-            <sc-if value="{{a.locked}}" hint-placeholder-val="{{ false }}"><svg class="i i16 c-3" viewBox="0 0 24 24" aria-label="Bloqueado"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg></sc-if>
+            <div class="ichip {{a.tone}}" style="width: 56px; height: 56px; border-radius: 16px"><svg class="i i32" viewBox="0 0 24 24" aria-hidden="true"><path d="{{a.icon}}"/></svg></div>
+            <sc-if value="{{a.locked}}" hint-placeholder-val="{{ false }}"><svg class="i i16 c-3" viewBox="0 0 24 24" aria-label="Bloqueado"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></sc-if>
           </div>
           <div style="display: flex; flex-direction: column; gap: 2px">
             <span class="t-ll" style="font-size: 16px">{{a.name}}</span>
@@ -49,11 +49,11 @@ a{color:#4f46e5}a:hover{color:#4338ca}
     </ul>
   </main>
   <nav class="tabbar" aria-label="Principal">
-    <a href="Dashboard.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"></path></svg>Inicio</a>
-    <a href="Habits.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m8.5 12 2.5 2.5 4.5-5"></path></svg>Hábitos</a>
-    <a href="Quests.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 22V4"></path><path d="M5 4h12l-2.5 4L17 12H5"></path></svg>Misiones</a>
-    <a href="Colosseum.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 17.5 21 6V3h-3L6.5 14.5M11 19l-6-6M8 16l-4 4M5 21l-2-2"></path></svg>Coliseo</a>
-    <a href="Profile.dc.html" class="on" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg>Perfil</a>
+    <a href="Dashboard.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Inicio</a>
+    <a href="Habits.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg>Hábitos</a>
+    <a href="Quests.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 22V4"/><path d="M5 4h12l-2.5 4L17 12H5"/></svg>Misiones</a>
+    <a href="Colosseum.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 17.5 21 6V3h-3L6.5 14.5M11 19l-6-6M8 16l-4 4M5 21l-2-2"/></svg>Coliseo</a>
+    <a href="Profile.dc.html" class="on" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Perfil</a>
   </nav>
 </div>
 </x-dc>

@@ -84,7 +84,7 @@ a{color:#4f46e5}a:hover{color:#4338ca}
               <div><h3 class="t-hs">{{it.name}}</h3><p class="t-bs c-3">{{it.desc}}</p></div>
               <div class="row" style="justify-content: space-between; margin-top: auto; padding-top: 12px; border-top: 1px solid var(--border)">
                 <span class="row t-ll c-warning num" style="gap: 6px; font-size: 16px"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5h4a1.5 1.5 0 0 1 0 3h-3a1.5 1.5 0 0 0 0 3h4"/></svg>{{it.price}}</span>
-                <button class="btn {{it.btnCls}} btn-md" onClick="{{it.buy}}" disabled="{{it.disabled}}" aria-label="{{it.aria}}">{{it.btnLabel}}</button>
+                <span class="row" style="gap: 8px"><sc-if value="{{it.isTheme}}" hint-placeholder-val="{{ false }}"><button class="btn btn-ghost btn-md" style="padding: 10px 12px" onClick="{{it.preview}}" aria-label="Vista previa de {{it.name}}"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>Ver</button></sc-if><button class="btn {{it.btnCls}} btn-md" onClick="{{it.buy}}" disabled="{{it.disabled}}" aria-label="{{it.aria}}">{{it.btnLabel}}</button></span>
               </div>
             </li>
           </sc-for>
@@ -104,6 +104,25 @@ a{color:#4f46e5}a:hover{color:#4338ca}
       </sc-if>
     </main>
   </div>
+
+  <sc-if value="{{previewing}}" hint-placeholder-val="{{ false }}">
+    <div class="center-scrim">
+      <div class="modal dialog" role="dialog" aria-modal="true" aria-labelledby="pv-t" style="max-width: 560px">
+        <div class="row" style="justify-content: space-between"><h2 id="pv-t" class="t-hm">{{pvName}}</h2><button class="btn btn-icon" aria-label="Cerrar vista previa" onClick="{{closePreview}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+        <div class="pop" style="border-radius: 20px; overflow: hidden; background: {{pvBg}}; padding: 20px; display: flex; gap: 16px; box-shadow: var(--shadow-lg)" role="img" aria-label="Vista previa de la app con el tema {{pvName}}">
+          <div style="width: 56px; display: flex; flex-direction: column; gap: 10px"><span style="height: 32px; border-radius: 10px; background: {{pvAccent}}"></span><span style="height: 10px; border-radius: 5px; background: {{pvSurf}}"></span><span style="height: 10px; border-radius: 5px; background: {{pvSurf}}"></span><span style="height: 10px; border-radius: 5px; background: {{pvSurf}}"></span></div>
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 12px">
+            <span style="color: {{pvText}}; font-weight: 700; font-size: 22px">Buenos días, Alex</span>
+            <div style="border-radius: 14px; background: {{pvSurf}}; padding: 14px; display: flex; flex-direction: column; gap: 10px"><span style="color: {{pvText}}; font-size: 13px; font-weight: 600">Nivel 12 · Aventurero</span><span style="height: 8px; border-radius: 99px; background: rgba(255,255,255,.12); overflow: hidden"><span style="display: block; width: 78%; height: 100%; background: {{pvSoft}}; transform-origin: left; animation: lq-grow 1.2s cubic-bezier(.16,1,.3,1) .3s both"></span></span></div>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px"><span style="height: 64px; border-radius: 12px; background: {{pvSurf}}"></span><span style="height: 64px; border-radius: 12px; background: {{pvSurf}}"></span></div>
+            <span style="align-self: flex-start; padding: 8px 14px; border-radius: 10px; background: {{pvAccent}}; color: #fff; font-size: 13px; font-weight: 600">Nuevo hábito</span>
+          </div>
+        </div>
+        <div class="row" style="gap: 8px" aria-hidden="true"><sc-for list="{{pv}}" as="c" hint-placeholder-count="5"><span style="flex: 1; height: 28px; border-radius: 8px; background: {{c}}"></span></sc-for></div>
+        <div class="row" style="justify-content: space-between"><span class="row t-hs c-warning num" style="gap: 6px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5h4a1.5 1.5 0 0 1 0 3h-3a1.5 1.5 0 0 0 0 3h4"/></svg>{{pvPrice}}</span><div class="row" style="gap: 8px"><button class="btn btn-secondary btn-md" onClick="{{closePreview}}">Cerrar</button><button class="btn btn-primary btn-md" onClick="{{buyPreview}}">Comprar tema</button></div></div>
+      </div>
+    </div>
+  </sc-if>
 
   <sc-if value="{{confirming}}" hint-placeholder-val="{{ false }}">
     <div class="center-scrim">
@@ -130,7 +149,7 @@ a{color:#4f46e5}a:hover{color:#4338ca}
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1520}}'>
 class Component extends DCLogic {
-  constructor(props) { super(props); this.state = { gold: 1565, shown: 0, tab: 'shop', cat: 'all', owned: { hat: true }, equipped: { hat: true }, pending: null, phase: 'ask' }; }
+  constructor(props) { super(props); this.state = { gold: 1565, shown: 0, tab: 'shop', cat: 'all', owned: { hat: true }, equipped: { hat: true }, pending: null, phase: 'ask', preview: null }; }
   componentDidMount() { this.animateTo(this.state.gold); }
   componentWillUnmount() { cancelAnimationFrame(this._raf); }
   animateTo(target) {
@@ -160,9 +179,9 @@ class Component extends DCLogic {
     return {
       nav: mk([['home','Inicio','DashboardDesktop'],['habits','Hábitos','HabitsDesktop'],['quests','Misiones','QuestsDesktop'],['arena','Coliseo','ColosseumDesktop'],['profile','Perfil','ProfileDesktop']]),
       nav2: mk([['money','Finanzas','FinancesDesktop'],['food','Comida','FoodDesktop'],['sleep','Sueño','SleepDesktop'],['ach','Logros','AchievementsDesktop']]),
-      nav3: mk([['stats','Estadísticas',null],['gym','Gimnasio','GymDesktop'],['glow','Glow up','GlowUpDesktop'],['learn','Aprendizaje','LearningDesktop'],['rel','Relaciones','RelationsDesktop'],['diary','Diario','JournalDesktop'],['agenda','Agenda','AgendaDesktop'],['ritual','Rituales','RitualsDesktop'],['wisdom','Sabiduría','WisdomDesktop'],['zones','Mis zonas','ZonesDesktop'],['shop','Tienda','ShopDesktop']]),
-      nav4: mk([['rank','Ranking','RankingDesktop'],['guild','Gremio',null],['camp','Campaña',null]]),
-      nav5: mk([['settings','Ajustes','SettingsDesktop'],['help','Ayuda',null]]),
+      nav3: mk([['stats','Estadísticas','StatsDesktop'],['gym','Gimnasio','GymDesktop'],['glow','Glow up','GlowUpDesktop'],['learn','Aprendizaje','LearningDesktop'],['rel','Relaciones','RelationsDesktop'],['diary','Diario','JournalDesktop'],['agenda','Agenda','AgendaDesktop'],['ritual','Rituales','RitualsDesktop'],['wisdom','Sabiduría','WisdomDesktop'],['zones','Mis zonas','ZonesDesktop'],['shop','Tienda','ShopDesktop']]),
+      nav4: mk([['rank','Ranking','RankingDesktop'],['guild','Gremio','GuildDesktop'],['camp','Campaña','CampaignDesktop']]),
+      nav5: mk([['settings','Ajustes','SettingsDesktop'],['help','Ayuda','HelpDesktop']]),
     };
   }
   renderVals() {
@@ -187,16 +206,22 @@ class Component extends DCLogic {
       ['ninja','Gorra del ninja','Velocidad y sigilo para héroes discretos','hat',350,'secondary'],
       ['aura','Aura serena','Un halo suave alrededor de tu avatar','aura',800,'success'],
       ['frame','Marco dorado','Marco premium para tu perfil','frame',2000,'warning'],
+      ['ocean','Tema: Océano Profundo','Azules y cian, calma del mar','theme',400,'info'],
+      ['forest','Tema: Bosque Oscuro','Verdes profundos, naturaleza salvaje','theme',500,'success'],
+      ['lava','Tema: Lava Volcánica','Rojos y naranjas, puro fuego','theme',500,'error'],
     ];
-    const CL = { hat: 'Sombreros', aura: 'Auras', frame: 'Marcos', power: 'Power-ups', pass: 'Pases' };
+    const CL = { hat: 'Sombreros', aura: 'Auras', frame: 'Marcos', power: 'Power-ups', pass: 'Pases', theme: 'Temas' };
+    const PAL = { ocean: ['#0c4a6e','#0891b2','#67e8f9','#082f49','#e0f2fe'], forest: ['#14532d','#16a34a','#86efac','#052e16','#dcfce7'], lava: ['#7f1d1d','#ea580c','#fdba74','#450a0a','#ffedd5'], theme: ['#1e1b4b','#34d399','#a78bfa','#22d3ee','#ecfeff'] };
+    I.ocean = I.forest = I.lava = 'M12 3a9 9 0 1 0 9 9c0-1-1-2-2-2h-3a2 2 0 0 1-2-2V5c0-1-1-2-2-2zM7.5 10.5h.01M10.5 7.5h.01M15 7.5h.01';
     const open = (id, name, price) => this.setState({ pending: { id, name, price }, phase: 'ask' });
     const items = catalog.filter(c => s.cat === 'all' || c[3] === s.cat).map(([id, name, desc, cat, price, tone]) => {
       const owned = !!s.owned[id], poor = price > s.gold;
       return { name, desc, price: fmt(price), tone, icon: I[id], catLabel: CL[cat],
         disabled: owned || poor, btnCls: owned ? 'btn-secondary' : 'btn-primary', btnLabel: owned ? 'Tienes' : (poor ? 'Sin Gold' : 'Comprar'),
-        aria: owned ? `${name}: ya lo tienes` : `Comprar ${name} por ${price} Gold`, buy: () => open(id, name, price) };
+        aria: owned ? `${name}: ya lo tienes` : `Comprar ${name} por ${price} Gold`, buy: () => open(id, name, price),
+        isTheme: cat === 'theme', preview: () => this.setState({ preview: { id, name, price } }) };
     });
-    const cats = [['all','Todo'],['hat','Sombreros'],['aura','Auras'],['frame','Marcos'],['power','Power-ups'],['pass','Pases']]
+    const cats = [['all','Todo'],['theme','Temas'],['hat','Sombreros'],['aura','Auras'],['frame','Marcos'],['power','Power-ups'],['pass','Pases']]
       .map(([id, label]) => ({ label, cls: s.cat === id ? 'on' : '', sel: s.cat === id ? 'true' : 'false', pick: () => this.setState({ cat: id }) }));
     const inventory = catalog.concat([['theme','Tema Aurora Boreal','Tema de color','theme',500,'secondary']]).filter(c => s.owned[c[0]]).map(([id, name, desc, , , tone]) => {
       const eq = !!s.equipped[id];
@@ -212,6 +237,9 @@ class Component extends DCLogic {
       tabX: `translateX(calc(${idx} * (100% + 4px)))`, isShop: s.tab === 'shop', isInv: s.tab === 'inv',
       items, cats, inventory,
       featOwned: !!s.owned.theme, featLabel: s.owned.theme ? 'En tu inventario' : 'Comprar tema', buyFeatured: () => open('theme', 'Tema Aurora Boreal', 500),
+      previewing: !!s.preview, pvName: (s.preview || {}).name, pvPrice: fmt((s.preview || {}).price || 0),
+      pv: (PAL[(s.preview || {}).id] || PAL.theme).map(c => c), pvBg: (PAL[(s.preview || {}).id] || PAL.theme)[3], pvAccent: (PAL[(s.preview || {}).id] || PAL.theme)[1], pvSoft: (PAL[(s.preview || {}).id] || PAL.theme)[2], pvText: (PAL[(s.preview || {}).id] || PAL.theme)[4], pvSurf: (PAL[(s.preview || {}).id] || PAL.theme)[0],
+      closePreview: () => this.setState({ preview: null }), buyPreview: () => { const pv = this.state.preview; this.setState({ preview: null }); open(pv.id, pv.name, pv.price); },
       confirming: !!s.pending, askPhase: s.phase === 'ask', donePhase: s.phase === 'done',
       pendingName: p.name, pendingPrice: fmt(p.price), after: fmt(s.gold - p.price),
       cancel: () => this.setState({ pending: null }),
