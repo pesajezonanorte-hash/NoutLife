@@ -1,7 +1,7 @@
 import { useId } from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { ease } from '@/lib/motion';
+import { ease, expo, springSoft } from '@/lib/motion';
 import { solidBg, strokeTone, textTone, type Tone } from './tones';
 
 type ChartTone = Exclude<Tone, 'muted'>;
@@ -89,7 +89,7 @@ export function BarChart({
                 style={{ height: `${pct}%`, originY: 1 }}
                 initial={{ scaleY: 0 }}
                 animate={{ scaleY: 1 }}
-                transition={{ duration: 0.8, ease: [0.2, 0.8, 0.2, 1], delay: 0.2 + i * 0.07 }}
+                transition={{ duration: 1, ease: expo, delay: 0.2 + i * 0.07 }}
               />
             </div>
           );
@@ -153,7 +153,7 @@ export function LineChart({ data, label, min, max, tone = 'primary', goal, heigh
           {/* La línea se "dibuja" con un recorte que crece de izquierda a derecha: pathLength
               falla con vector-effect non-scaling-stroke cuando el SVG se estira (desktop). */}
           <clipPath id={clipId}>
-            <motion.rect x="0" y="-10" height={H + 20} initial={{ width: 0 }} animate={{ width: W }} transition={{ duration: 1.3, ease, delay: 0.2 }} />
+            <motion.rect x="0" y="-10" height={H + 20} initial={{ width: 0 }} animate={{ width: W }} transition={{ duration: 1.6, ease: expo, delay: 0.2 }} />
           </clipPath>
           <path
             d={path} fill="none" strokeWidth={3} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke"
@@ -181,7 +181,7 @@ export function LineChart({ data, label, min, max, tone = 'primary', goal, heigh
             <Tip edge={i === 0 ? 'start' : i === data.length - 1 ? 'end' : undefined}>{d.tip ?? `${d.label} · ${d.value}`}</Tip>
             <motion.span
               className={cn('rounded-full border-[3px] bg-background', i === data.length - 1 ? 'size-4' : 'size-3', tone === 'primary' ? 'border-primary' : 'border-secondary')}
-              initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.9 + i * 0.09, type: 'spring', stiffness: 420, damping: 18 }}
+              initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ ...springSoft, delay: 0.9 + i * 0.09 }}
             />
           </span>
         ))}

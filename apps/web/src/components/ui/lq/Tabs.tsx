@@ -1,3 +1,4 @@
+import { springSoft } from '@/lib/motion';
 import { useId, useRef, type KeyboardEvent } from 'react';
 import { motion, PresenceContext } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -54,7 +55,7 @@ export function Tabs<T extends string>({ options, value, onChange, label, classN
                 layoutId={barId}
                 aria-hidden
                 className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-primary"
-                transition={{ duration: 0.2 }}
+                transition={springSoft}
               />
             )}
           </button>

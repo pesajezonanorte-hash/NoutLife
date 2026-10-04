@@ -1,3 +1,4 @@
+import { springSoft } from '@/lib/motion';
 import { useId, useRef, type KeyboardEvent } from 'react';
 import { motion, PresenceContext } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -67,7 +68,7 @@ export function SegmentedControl<T extends string>({
                 layoutId={pillId}
                 aria-hidden
                 className="absolute inset-0 rounded-[0.625rem] bg-background shadow-sm"
-                transition={{ type: 'spring', stiffness: 420, damping: 30 }}
+                transition={springSoft}
               />
             )}
             <span className="relative">{o.label}</span>

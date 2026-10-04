@@ -1,3 +1,4 @@
+import { springSoft } from '@/lib/motion';
 import type { ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { Check } from 'lucide-react';
@@ -29,7 +30,7 @@ export function StepItem({ checked, onToggle, children, meta, disabled, classNam
       <motion.span
         aria-hidden
         animate={{ scale: checked ? 1.08 : 1 }}
-        transition={{ type: 'spring', stiffness: 420, damping: 18 }}
+        transition={springSoft}
         className={cn(
           'flex size-7 shrink-0 items-center justify-center rounded-full border-2 transition-colors duration-200',
           checked ? 'border-success bg-success text-on-primary' : 'border-border-strong text-transparent',
