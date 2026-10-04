@@ -24,14 +24,15 @@ function calcSleepScore(duration: number, quality: number, bedtime: Date): numbe
 
 export async function createSleep(
   userId: string,
-  body: { bedtime: string; wakeTime: string; quality: number; notes?: string; date?: string; caffeineLate?: boolean; screensBeforeBed?: boolean; exercisedToday?: boolean }
+  body: { bedtime: string; wakeTime: string; quality: number; notes?: string; date?: string; caffeineLate?: boolean; screensBeforeBed?: boolean; exercisedToday?: boolean; isNap?: boolean }
 ) {
   const bedtime = new Date(body.bedtime);
   const wakeTime = new Date(body.wakeTime);
   let duration = (wakeTime.getTime() - bedtime.getTime()) / 3600000;
   if (duration < 0) duration += 24;
 
-  const sleepScore = calcSleepScore(duration, body.quality, bedtime);
+  // Las siestas no tienen puntuación de noche (la hora de acostarse no aplica).
+  const sleepScore = body.isNap ? null : calcSleepScore(duration, body.quality, bedtime);
 
   return prisma.sleepLog.create({
     data: {
@@ -46,6 +47,7 @@ export async function createSleep(
       caffeineLate: body.caffeineLate,
       screensBeforeBed: body.screensBeforeBed,
       exercisedToday: body.exercisedToday,
+      isNap: body.isNap ?? false,
     },
   });
 }
@@ -71,7 +73,7 @@ export async function updateSleep(userId: string, id: string, body: Partial<{ be
       ...(body.notes !== undefined && { notes: body.notes }),
       ...(shouldRecalculate && {
         duration,
-        sleepScore: calcSleepScore(duration, quality, bedtime),
+        sleepScore: existing.isNap ? null : calcSleepScore(duration, quality, bedtime),
       }),
     },
   });
@@ -89,7 +91,7 @@ export async function getSleepStats(userId: string) {
   const previousWeekStart = new Date(now.getTime() - 14 * 86400000);
 
   const logs = await prisma.sleepLog.findMany({
-    where: { userId, date: { gte: previousWeekStart, lt: now } },
+    where: { userId, isNap: false, date: { gte: previousWeekStart, lt: now } },
     orderBy: { date: 'desc' },
   });
 

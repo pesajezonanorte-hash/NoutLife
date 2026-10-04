@@ -49,7 +49,7 @@ export async function calculateLifeScore(userId: string): Promise<{
     prisma.habit.findMany({ where: { userId, isActive: true } }),
     prisma.habitLog.findMany({ where: { userId, date: { gte: weekAgo, lt: now }, completed: true } }),
     prisma.workout.findMany({ where: { userId, date: { gte: weekAgo, lt: now }, xpEarned: { gt: 0 } } }),
-    prisma.sleepLog.findMany({ where: { userId, date: { gte: weekAgo, lt: now } } }),
+    prisma.sleepLog.findMany({ where: { userId, isNap: false, date: { gte: weekAgo, lt: now } } }),
     prisma.transaction.findMany({ where: { userId, date: { gte: monthAgo, lt: now } } }),
     prisma.budget.findMany({ where: { userId, month: now.getMonth() + 1, year: now.getFullYear() } }),
     prisma.quest.findMany({ where: { userId } }),
@@ -291,7 +291,7 @@ export async function calculateDynamicLifeScore(userId: string, period = 'month'
     prisma.budget.findMany({ where: { userId }, select: { id: true } }),
     prisma.financialGoal.findMany({ where: { userId }, select: { id: true } }),
     prisma.sleepLog.findMany({
-      where: { userId, date: currentRange },
+      where: { userId, isNap: false, date: currentRange },
       select: { duration: true, quality: true, sleepScore: true, bedtime: true, date: true },
     }),
     prisma.sleepLog.count({ where: { userId } }),
@@ -615,7 +615,7 @@ export async function getCorrelations(userId: string): Promise<string[]> {
   const monthAgo = new Date(now.getTime() - 30 * 86400000);
 
   const [sleepLogs, workouts, questCompletions, journalEntries] = await Promise.all([
-    prisma.sleepLog.findMany({ where: { userId, date: { gte: monthAgo, lt: now } }, orderBy: { date: 'asc' } }),
+    prisma.sleepLog.findMany({ where: { userId, isNap: false, date: { gte: monthAgo, lt: now } }, orderBy: { date: 'asc' } }),
     prisma.workout.findMany({ where: { userId, date: { gte: monthAgo, lt: now }, xpEarned: { gt: 0 } }, select: { date: true } }),
     prisma.questCompletion.findMany({ where: { userId, completedAt: { gte: monthAgo, lt: now } } }),
     prisma.journalEntry.findMany({ where: { userId, date: { gte: monthAgo, lt: now } }, select: { date: true, mood: true } }),
@@ -713,7 +713,7 @@ export async function getMorningBriefing(userId: string): Promise<{
     }),
     prisma.transaction.findMany({ where: { userId, date: { gte: startOfMonth } }, select: { type: true, amount: true, category: true } }),
     prisma.budget.findMany({ where: { userId, month: now.getMonth() + 1, year: now.getFullYear() } }),
-    prisma.sleepLog.findMany({ where: { userId, date: { gte: sevenDaysAgo } }, orderBy: { date: 'desc' }, take: 1 }),
+    prisma.sleepLog.findMany({ where: { userId, isNap: false, date: { gte: sevenDaysAgo } }, orderBy: { date: 'desc' }, take: 1 }),
     prisma.habit.findMany({ where: { userId, isActive: true, currentStreak: { gte: 5 } }, orderBy: { currentStreak: 'desc' }, take: 3 }),
   ]);
 
@@ -799,7 +799,7 @@ export async function getYearInReview(userId: string, year?: number) {
   const [xpEvents, workouts, sleepLogs, questCompletions, journalEntries, learningItems] = await Promise.all([
     prisma.xpEvent.findMany({ where: { userId, createdAt: { gte: start, lte: end } } }),
     prisma.workout.findMany({ where: { userId, date: { gte: start, lte: end }, xpEarned: { gt: 0 } } }),
-    prisma.sleepLog.findMany({ where: { userId, date: { gte: start, lte: end } } }),
+    prisma.sleepLog.findMany({ where: { userId, isNap: false, date: { gte: start, lte: end } } }),
     prisma.questCompletion.findMany({ where: { userId, completedAt: { gte: start, lte: end } } }),
     prisma.journalEntry.findMany({ where: { userId, date: { gte: start, lte: end } } }),
     prisma.learningItem.findMany({ where: { userId, completedAt: { gte: start, lte: end } } }),

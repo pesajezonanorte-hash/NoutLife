@@ -323,7 +323,7 @@ export async function getHabitHeatmap(userId: string) {
 export async function getSleepScatter(userId: string, period = 'month') {
   const { start, end } = periodRange(period);
   const logs = await prisma.sleepLog.findMany({
-    where: { userId, date: { gte: start, lt: end } },
+    where: { userId, isNap: false, date: { gte: start, lt: end } },
     select: { duration: true, quality: true, date: true },
     orderBy: { date: 'asc' },
   });

@@ -149,6 +149,9 @@ async function migrate() {
     await prisma.$executeRawUnsafe(sql);
   }
 
+  // Idempotent mirror of prisma/migrations/20261004120000_sleep_naps.
+  await prisma.$executeRawUnsafe(`ALTER TABLE "sleep_logs" ADD COLUMN IF NOT EXISTS "isNap" BOOLEAN NOT NULL DEFAULT false;`);
+
   console.log('SUCCESS: Runtime database columns, indexes, ritual idempotency key, and legacy habit ritual cleanup applied.');
 }
 

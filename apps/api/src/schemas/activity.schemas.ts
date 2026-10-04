@@ -29,11 +29,13 @@ export const createSleepSchema = z
     caffeineLate: z.boolean().optional(),
     screensBeforeBed: z.boolean().optional(),
     exercisedToday: z.boolean().optional(),
+    isNap: z.boolean().optional(),
   })
   .refine((body) => {
     const hours = sleepHours(body.bedtime, body.wakeTime);
-    return hours >= 0.5 && hours <= 12;
-  }, { message: 'La duración del sueño debe estar entre 0.5 y 12 horas.', path: ['wakeTime'] });
+    // Siesta: de 5 min a 4 h; noche: de 30 min a 12 h.
+    return body.isNap ? hours >= 5 / 60 && hours <= 4 : hours >= 0.5 && hours <= 12;
+  }, { message: 'La duración no es válida: siestas de 5 min a 4 h, noches de 30 min a 12 h.', path: ['wakeTime'] });
 
 export const updateSleepSchema = z.object({
   bedtime: parsableDate.optional(),

@@ -67,7 +67,7 @@ export async function getDashboard(userId: string) {
       orderBy: { date: 'desc' },
     }),
     prisma.sleepLog.findMany({
-      where: { userId, date: { gte: sevenDaysAgo } },
+      where: { userId, isNap: false, date: { gte: sevenDaysAgo } },
       orderBy: { date: 'desc' },
     }),
     prisma.transaction.findMany({
@@ -693,7 +693,7 @@ export async function getTodayPlan(userId: string) {
       select: { xpAmount: true, createdAt: true },
     }),
     prisma.sleepLog.findFirst({
-      where: { userId, date: { lte: now } },
+      where: { userId, isNap: false, date: { lte: now } },
       orderBy: { date: 'desc' },
       select: { duration: true, sleepScore: true, quality: true, date: true },
     }),

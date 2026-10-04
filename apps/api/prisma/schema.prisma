@@ -486,6 +486,8 @@ model SleepLog {
   caffeineLate     Boolean?
   screensBeforeBed Boolean?
   exercisedToday   Boolean?
+  // Siesta: suma al descanso del día pero no cuenta como noche (medias, puntuación, tendencia).
+  isNap            Boolean  @default(false)
 
   createdAt DateTime @default(now())
 
