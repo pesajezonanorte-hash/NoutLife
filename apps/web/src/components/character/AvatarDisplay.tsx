@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import type { AvatarConfig, AvatarMode } from '@lifequest/shared';
-import { MiguelSprite } from './MiguelSprite';
+import { PixelAvatar } from './pixel/PixelAvatar';
+import { lookFrom } from './pixel/look';
 import { MinecraftSkinAvatar } from './MinecraftSkinAvatar';
 
 const AURA_STYLES: Record<string, { gradient: string; shadow: string }> = {
@@ -85,19 +86,10 @@ export function AvatarDisplay({
             }}
           />
         ) : (
-          <MiguelSprite
-            size={size}
-            bodyType={cfg.bodyType}
-            hairStyle={cfg.hairStyle}
-            hairColor={cfg.hairColor}
-            skinColor={cfg.skinColor}
-            shirtColor={cfg.shirtColor}
-            pantsColor={cfg.pants}
-            accessory={cfg.accessory}
-            expression={cfg.expression}
-            animate={animate}
-            mood={mood}
-          />
+          // Personaje pixel: en el círculo se ve la cabeza (busto) sobre el fondo de superficie.
+          <span className="flex items-end justify-center bg-surface-variant" style={{ width: size, height: size }}>
+            <PixelAvatar look={lookFrom(cfg)} size={size} crop="head" animate={animate} mood={mood} />
+          </span>
         )}
       </div>
     </div>

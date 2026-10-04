@@ -17,7 +17,7 @@ import { BrandMark } from '@/components/layout/Brand';
 import { Badge, Button, Confetti, ModernLoader } from '@/components/ui/lq';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 import { AvatarPreview } from '@/components/character/AvatarPixelEditor';
-import { withDefaults } from '@/components/character/avatarOptions';
+import { withBody, withDefaults } from '@/components/character/avatarOptions';
 import {
   AvatarContent, FirstQuestFields, GoalsContent, IdentityFields, MAX_GOALS, WelcomeContent,
 } from '@/components/onboarding/steps';
@@ -142,7 +142,8 @@ export default function OnboardingPage() {
   function submitIdentity() {
     if (!displayName.trim()) { setTried(true); return; }
     setDisplayName(displayName.trim());
-    setAvatarConfig((c) => ({ ...c, bodyType: gender, hairStyle: c.hairStyle ?? (gender === 'female' ? 'long' : 'short') }));
+    // El cuerpo del personaje sigue al género elegido (luego se puede cambiar en el estudio).
+    setAvatarConfig((c) => withBody(c, gender));
     go(1);
   }
 

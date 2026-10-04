@@ -19,6 +19,8 @@ import { useShellActions } from '@/components/layout/actions';
 import { AnimatedValue, Button, Card, IconChip, ProgressBar, SegmentedControl, Select, Skeleton, Switch } from '@/components/ui/lq';
 import { softTone } from '@/components/ui/lq/tones';
 import { AvatarCustomizer } from '@/components/character/AvatarCustomizer';
+import { PixelAvatar } from '@/components/character/pixel/PixelAvatar';
+import { lookFrom } from '@/components/character/pixel/look';
 import { getStatsSummary } from '@/services/stats.service';
 import { fetchAchievements, type Achievement } from '@/services/achievement.service';
 import { getNotificationPreferences, updateNotificationPreferences, type NotificationPreferences } from '@/services/notification.service';
@@ -35,7 +37,10 @@ const LANGUAGES = [{ value: 'es', label: 'Español' }, { value: 'en', label: 'En
 
 const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join('') || '?';
 
-function Avatar({ name, url, className }: { name: string; url?: string | null; className?: string }) {
+/** Foto si el usuario eligió foto; si no, su personaje pixel (busto). */
+function Avatar({ name, url, config, className }: { name: string; url?: string | null; config?: unknown; className?: string }) {
+  const mode = (config as { avatarMode?: string } | undefined)?.avatarMode;
+  const photo = url && (mode === 'photo' || !mode);
   return (
     <div
       role="img"
@@ -46,7 +51,9 @@ function Avatar({ name, url, className }: { name: string; url?: string | null; c
         className,
       )}
     >
-      {url ? <img src={url} alt="" className="size-full object-cover" /> : <span aria-hidden>{initials(name)}</span>}
+      {photo ? <img src={url!} alt="" className="size-full object-cover" /> : config ? (
+        <span aria-hidden className="flex size-full items-end justify-center bg-surface-variant"><PixelAvatar look={lookFrom(config)} size={200} crop="head" className="!h-auto !w-full" /></span>
+      ) : <span aria-hidden>{initials(name)}</span>}
     </div>
   );
 }
@@ -143,7 +150,7 @@ export default function ProfilePage() {
     <motion.section variants={item}>
       {/* Móvil: centrado */}
       <div className="flex flex-col items-center gap-4 text-center md:hidden">
-        <Avatar name={user.displayName} url={user.avatarUrl} className="size-24 text-heading-lg" />
+        <Avatar name={user.displayName} url={user.avatarUrl} config={user.avatarConfig} className="size-24 text-heading-lg" />
         <div>
           <h1 className="text-heading-lg">{user.displayName}</h1>
           <p className="text-body-md text-on-surface-light">Nivel {user.level} · {title}</p>
@@ -155,7 +162,7 @@ export default function ProfilePage() {
       </div>
       {/* Desktop: tarjeta */}
       <Card variant="elevated" padding="none" className="hidden flex-wrap items-center gap-8 p-10 md:flex">
-        <Avatar name={user.displayName} url={user.avatarUrl} className="lq-halo size-28 animate-float text-display-sm motion-reduce:animate-none" />
+        <Avatar name={user.displayName} url={user.avatarUrl} config={user.avatarConfig} className="lq-halo size-28 animate-float text-display-sm motion-reduce:animate-none" />
         <div className="flex min-w-0 flex-[1_1_300px] flex-col gap-2">
           <span className="text-label-lg text-primary-text">Miembro desde {since}</span>
           <h1 className="text-display-md">{user.displayName}</h1>
