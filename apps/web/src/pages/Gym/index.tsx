@@ -222,7 +222,7 @@ function ActiveWorkoutView({
       <Card as="section" variant="elevated" padding="lg" aria-label="Sesión en curso" className="flex flex-wrap items-center gap-6 border-primary/40 md:gap-8 md:p-8">
         <div className="flex flex-col gap-2">
           <span className={cn('flex items-center gap-2 text-label-lg uppercase', paused ? 'text-warning-text' : 'text-error-text')}>
-            <span aria-hidden className={cn('size-2 rounded-full', paused ? 'bg-warning' : 'animate-pulse bg-error motion-reduce:animate-none')} />
+            <span aria-hidden className={cn('size-2 rounded-full', paused ? 'bg-warning' : 'animate-pulse bg-error [.reduce-motion_&]:animate-none')} />
             {paused ? 'En pausa' : 'En curso'} · {activeWorkout.title}
           </span>
           <Timer seconds={elapsedMs(activeWorkout, now) / 1000} size="hero" label="Tiempo de entrenamiento" />

@@ -27,7 +27,7 @@ function readOpen(): Record<string, boolean> {
 
 /** Texto que aparece al desplegar: solo opacidad, sin mover nada. */
 const reveal =
-  'whitespace-nowrap opacity-0 -translate-x-1 transition-[opacity,transform] duration-150 ease-out motion-reduce:translate-x-0 group-data-[open=true]/side:translate-x-0 group-data-[open=true]/side:opacity-100 group-data-[open=true]/side:delay-100 group-data-[open=true]/side:duration-[380ms]';
+  'whitespace-nowrap opacity-0 -translate-x-1 transition-[opacity,transform] duration-150 ease-out [.reduce-motion_&]:translate-x-0 group-data-[open=true]/side:translate-x-0 group-data-[open=true]/side:opacity-100 group-data-[open=true]/side:delay-100 group-data-[open=true]/side:duration-[380ms]';
 
 /**
  * Ítem: ícono fijo a 24 px del borde (centrado en 72 px). El fondo de hover/activo

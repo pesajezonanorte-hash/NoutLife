@@ -12,7 +12,7 @@ export function Spinner({ size = 'md', className, label }: { size?: keyof typeof
       role={label ? 'status' : undefined}
       aria-label={label}
       aria-hidden={label ? undefined : true}
-      className={cn('inline-block shrink-0 animate-spin rounded-full motion-reduce:animate-pulse', sizes[size], className)}
+      className={cn('inline-block shrink-0 animate-spin rounded-full [.reduce-motion_&]:animate-pulse', sizes[size], className)}
     />
   );
 }

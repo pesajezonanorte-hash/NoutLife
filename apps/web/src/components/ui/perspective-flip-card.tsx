@@ -84,11 +84,9 @@ function useMediaMatch(query: string) {
 }
 
 /** Shared so composed cards remove their interior translateZ layers as well. */
-/** Sistema (prefers-reduced-motion) o el ajuste «Reducir movimiento» de la app. */
+/** Solo el ajuste «Reducir movimiento» de la app (las animaciones van activas de base). */
 export function usePrefersReducedMotion() {
-  const system = useMediaMatch('(prefers-reduced-motion: reduce)');
-  const app = useMotionStore((s) => s.reduce);
-  return system || app;
+  return useMotionStore((s) => s.reduce);
 }
 
 /** Shared with card compositions so their translateZ layers never bypass the fallback. */

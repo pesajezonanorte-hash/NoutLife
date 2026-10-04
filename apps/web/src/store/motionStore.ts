@@ -2,15 +2,9 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 // "Reducir movimiento" de la app (Perfil y Ajustes). Activado = sin animaciones.
-// Desactivado = animaciones del sistema de diseño; con la preferencia del sistema
-// (prefers-reduced-motion) solo se apagan los bucles decorativos (tokens.css).
-// main.tsx pasa el valor a <MotionConfig> y la clase .reduce-motion en <html>
-// aplica en CSS la misma regla que la media query (tokens.css).
-
-/** Valor previo: localStorage['animations'] = 'false' cuando se apagaban en Ajustes. */
-function legacyReduce(): boolean {
-  try { return localStorage.getItem('animations') === 'false'; } catch { return false; }
-}
+// De base está desactivado: todas las animaciones activas, aunque el sistema
+// operativo pida reducir movimiento. main.tsx pasa el valor a <MotionConfig> y
+// la clase .reduce-motion en <html> lo aplica en CSS (tokens.css).
 
 function applyClass(reduce: boolean) {
   document.documentElement.classList.toggle('reduce-motion', reduce);
@@ -24,13 +18,19 @@ interface MotionState {
 export const useMotionStore = create<MotionState>()(
   persist(
     (set) => ({
-      reduce: legacyReduce(),
+      reduce: false,
       setReduce: (reduce) => {
         applyClass(reduce);
         set({ reduce });
       },
     }),
-    { name: 'lq-motion', partialize: (s) => ({ reduce: s.reduce }) },
+    {
+      name: 'lq-motion',
+      partialize: (s) => ({ reduce: s.reduce }),
+      // v1: todas las animaciones activas de base; se reinicia lo guardado antes.
+      version: 1,
+      migrate: () => ({ reduce: false }),
+    },
   ),
 );
 
