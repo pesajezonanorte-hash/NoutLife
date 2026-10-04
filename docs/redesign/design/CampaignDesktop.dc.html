@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Campaign Desktop</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./lq.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#4f46e5}a:hover{color:#4338ca}
+</style>
+</helmet>
+<div class="lq app {{theme}}">
+  <aside class="side">
+    <a href="DashboardDesktop.dc.html" class="row" style="gap: 12px; padding: 0 8px; text-decoration: none; color: inherit"><span class="ichip primary" style="width: 40px; height: 40px; border-radius: 12px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg></span><span class="t-hs">LifeQuest</span></a>
+    <nav aria-label="Principal" class="navgrp" style="border: 0; padding: 0">
+      <sc-for list="{{nav}}" as="n" hint-placeholder-count="5"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <nav aria-label="Bienestar" class="navgrp"><span class="sec">BIENESTAR</span>
+      <sc-for list="{{nav2}}" as="n" hint-placeholder-count="4"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <nav aria-label="Más zonas" class="navgrp"><span class="sec">MÁS ZONAS</span>
+      <sc-for list="{{nav3}}" as="n" hint-placeholder-count="11"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <nav aria-label="Comunidad" class="navgrp"><span class="sec">COMUNIDAD</span>
+      <sc-for list="{{nav4}}" as="n" hint-placeholder-count="3"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <div class="navgrp" style="margin-top: auto">
+      <sc-for list="{{nav5}}" as="n" hint-placeholder-count="2"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+      <a class="usercard" href="ProfileDesktop.dc.html" aria-label="Tu perfil: Alex Rivera, nivel 12">
+        <span class="avatar t-ll" style="width: 40px; height: 40px; background: var(--primary-soft); color: var(--primary-text)">AR</span>
+        <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px"><span class="t-ll">Alex Rivera</span><span class="t-bs c-3" style="line-height: 1.2">Nivel 12 · Aventurero</span><span class="bar" style="height: 4px"><span style="width: 78%"></span></span></span>
+      </a>
+    </div>
+  </aside>
+  <div class="pane">
+    <header class="topbar">
+      <nav class="crumb" aria-label="Ruta"><a href="DashboardDesktop.dc.html">Inicio</a><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg><span class="c-1" aria-current="page">Campaña</span></nav>
+      <span class="badge lg {{seasonBadge}}">{{seasonTag}}</span>
+    </header>
+
+    <sc-if value="{{active}}" hint-placeholder-val="{{ true }}">
+    <main class="wrap enter">
+      <section class="card card-elevated spot" style="padding: 48px; display: flex; flex-wrap: wrap; gap: 40px; align-items: center; overflow: hidden" onMouseMove="{{spot}}" onMouseLeave="{{unspot}}">
+        <div style="flex: 1 1 380px; display: flex; flex-direction: column; gap: 12px">
+          <span class="eyebrow">Temporada 3 · Capítulo 2 de 4</span>
+          <h1 class="t-dl">El Despertar</h1>
+          <p class="t-bl c-3" style="max-width: 480px">Cuatro capítulos, un jefe final y recompensas exclusivas. Avanza el pase con cualquier XP que ganes.</p>
+          <div class="row" style="gap: 12px; margin-top: 8px; flex-wrap: wrap"><a class="btn btn-primary" href="QuestsDesktop.dc.html">Ver misiones del capítulo</a><button class="btn btn-ghost">Reglas</button></div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 12px; align-items: flex-start">
+          <span class="t-ll c-2">Termina en</span>
+          <div class="row" style="gap: 8px" role="timer" aria-label="{{countAria}}">
+            <span class="digit"><b class="num">{{dd}}</b><span class="t-bs c-3">días</span></span>
+            <span class="digit"><b class="num">{{hh}}</b><span class="t-bs c-3">horas</span></span>
+            <span class="digit"><b class="num">{{mi}}</b><span class="t-bs c-3">min</span></span>
+            <span class="digit"><sc-if value="{{even}}" hint-placeholder-val="{{ true }}"><b class="num ticker" style="color: var(--primary-text)">{{ss}}</b></sc-if><sc-if value="{{odd}}" hint-placeholder-val="{{ false }}"><b class="num ticker" style="color: var(--primary-text)">{{ss}}</b></sc-if><span class="t-bs c-3">seg</span></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="card card-lg" style="display: flex; flex-direction: column; gap: 24px" aria-labelledby="pass-t">
+        <div class="row" style="justify-content: space-between; flex-wrap: wrap; gap: 12px">
+          <div><h2 id="pass-t" class="t-hl">Pase de temporada</h2><p class="t-bs c-3 num">Nivel {{tier}} de 30 · {{tierXp}} / 500 XP al siguiente</p></div>
+          <div class="seg slide" role="tablist" aria-label="Pista" style="flex: 0 1 300px; width: 100%">
+            <span class="pill" style="width: calc((100% - 12px) / 2); transform: {{trackX}}" aria-hidden="true"></span>
+            <sc-for list="{{tracks}}" as="t" hint-placeholder-count="2"><button class="{{t.cls}}" role="tab" aria-selected="{{t.sel}}" onClick="{{t.pick}}">{{t.label}}</button></sc-for>
+          </div>
+        </div>
+        <div style="position: relative; overflow-x: auto; padding: 8px 4px 16px">
+          <div style="position: relative; display: grid; grid-template-columns: repeat(10, 120px); gap: 16px; min-width: max-content">
+            <div style="position: absolute; left: 36px; right: 36px; top: 35px; height: 4px; border-radius: 99px; background: var(--surface-variant)"><span style="display: block; height: 100%; width: {{trackPct}}%; border-radius: inherit; background: var(--primary); transform-origin: left; animation: lq-grow 1.6s cubic-bezier(.16,1,.3,1) .3s both"></span></div>
+            <sc-for list="{{rewards}}" as="r" hint-placeholder-count="10">
+              <div class="pop" style="position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; animation-delay: {{r.d}}ms">
+                <button class="ichip {{r.tone}} {{r.halo}}" style="width: 72px; height: 72px; border-radius: 22px; border: {{r.border}}; cursor: pointer; filter: {{r.filter}}" onClick="{{r.claim}}" aria-label="{{r.aria}}" disabled="{{r.locked}}">
+                  <svg class="i i32" viewBox="0 0 24 24" aria-hidden="true"><path d="{{r.icon}}"/></svg>
+                </button>
+                <span class="t-lm c-3">NIVEL {{r.lvl}}</span>
+                <span class="t-bs {{r.nameCls}}" style="line-height: 1.3">{{r.name}}</span>
+                <span class="badge {{r.badge}}"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{r.bIcon}}"/></svg>{{r.state}}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </section>
+
+      <div class="cols">
+        <section class="main card card-lg" style="gap: 16px" aria-labelledby="ch-t">
+          <div class="row" style="justify-content: space-between"><h2 id="ch-t" class="t-hl">Capítulo 2 · El bosque de la duda</h2><span class="badge badge-primary num">{{chDone}}/4</span></div>
+          <ul class="stagger" style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px">
+            <sc-for list="{{chapter}}" as="c" hint-placeholder-count="4">
+              <li><button class="{{c.cls}}" aria-pressed="{{c.pressed}}" onClick="{{c.toggle}}" style="min-height: 64px; padding: 8px 12px"><span class="tick"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true" style="stroke-width: 2.5"><path d="m5 12 5 5 9-10"/></svg></span><span class="lbl t-bm" style="flex: 1">{{c.name}}</span><span class="t-ll c-primary num">+{{c.xp}} XP</span></button></li>
+            </sc-for>
+          </ul>
+        </section>
+        <aside class="aside">
+          <section class="card card-lg" style="display: flex; flex-direction: column; gap: 16px">
+            <div class="row" style="gap: 14px"><span class="ichip error halo" style="width: 56px; height: 56px; border-radius: 18px"><svg class="i i32" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="M9 11h.01M15 11h.01M9.5 15.5h5"/></svg></span><div><span class="eyebrow">Jefe de temporada</span><h2 class="t-hs">El Rey Aplazador</h2></div></div>
+            <div class="row" style="justify-content: space-between"><span class="t-bs c-3">Vida comunitaria</span><span class="t-ll num">{{bossPct}}%</span></div>
+            <div class="bar lg error shine"><span style="width: {{bossPct}}%"></span></div>
+            <p class="t-bs c-3">12.480 aventureros han dañado al jefe. Se libera en el capítulo 4.</p>
+          </section>
+          <section class="card card-lg" style="display: flex; flex-direction: column; gap: 12px">
+            <h2 class="t-hs">Tu temporada</h2>
+            <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+              <div class="card" style="padding: 12px; background: var(--bg)"><div class="t-bs c-3">XP de temporada</div><div class="t-hs num">{{seasonXp}}</div></div>
+              <div class="card" style="padding: 12px; background: var(--bg)"><div class="t-bs c-3">Puesto</div><div class="t-hs num">#{{rank}}</div></div>
+            </div>
+          </section>
+        </aside>
+      </div>
+    </main>
+    </sc-if>
+
+    <sc-if value="{{inactive}}" hint-placeholder-val="{{ false }}">
+    <main class="wrap enter" style="max-width: 820px; align-items: center; text-align: center; padding-top: 96px">
+      <span class="ichip primary halo float" style="width: 112px; height: 112px; border-radius: 36px"><svg class="i i48" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21 12 4l9 17zM12 4v17M8 21l4-6 4 6"/></svg></span>
+      <div style="display: flex; flex-direction: column; gap: 8px"><span class="eyebrow">Campaña</span><h1 class="t-dl">No hay temporada activa</h1><p class="t-bl c-3">Vuelve pronto para la próxima batalla. Mientras tanto, cada XP que ganes cuenta para tu nivel.</p></div>
+      <div class="row" style="gap: 8px; justify-content: center" role="timer" aria-label="{{countAria}}">
+        <span class="digit"><b class="num">{{dd}}</b><span class="t-bs c-3">días</span></span><span class="digit"><b class="num">{{hh}}</b><span class="t-bs c-3">horas</span></span><span class="digit"><b class="num">{{mi}}</b><span class="t-bs c-3">min</span></span><span class="digit"><sc-if value="{{even}}" hint-placeholder-val="{{ true }}"><b class="num ticker">{{ss}}</b></sc-if><sc-if value="{{odd}}" hint-placeholder-val="{{ false }}"><b class="num ticker">{{ss}}</b></sc-if><span class="t-bs c-3">seg</span></span>
+      </div>
+      <div class="card row" style="gap: 16px; padding: 16px 20px; align-self: stretch; text-align: left">
+        <span class="ichip info"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 21h4"/></svg></span>
+        <div style="flex: 1"><label for="c-notify" class="t-ll" style="font-size: 16px">Avísame cuando empiece</label><div class="t-bs c-3">Te enviaremos una notificación el primer día.</div></div>
+        <span class="switch"><input id="c-notify" type="checkbox" role="switch" checked="{{notify}}" onChange="{{toggleNotify}}"><span></span></span>
+      </div>
+    </main>
+    </sc-if>
+  </div>
+
+  <sc-if value="{{toast}}" hint-placeholder-val="{{ false }}">
+    <div class="toast toast-dock" role="status">
+      <span class="ichip warning"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/></svg></span>
+      <span style="flex: 1">{{toastText}}</span>
+      <button class="btn btn-icon" aria-label="Cerrar" onClick="{{closeToast}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"active":{"editor":"boolean","default":true},"$preview":{"width":1440,"height":1460}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { k: 0, left: 12 * 86400 + 7 * 3600 + 41 * 60 + 18, track: 'free', claimed: { 0: true, 1: true, 2: true }, done: { 0: true, 1: true }, notify: true, toast: '' }; }
+  componentDidMount() { this.countUp(1300); this._iv = setInterval(() => this.setState({ left: Math.max(0, this.state.left - 1) }), 1000); }
+  componentWillUnmount() { cancelAnimationFrame(this._raf); clearInterval(this._iv); clearTimeout(this._t); }
+  navs(active) {
+    const P = {
+      home: 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z', habits: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0zM8.5 12l2.5 2.5 4.5-5', quests: 'M5 22V4M5 4h12l-2.5 4L17 12H5',
+      arena: 'M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 17.5 21 6V3h-3L6.5 14.5M11 19l-6-6M8 16l-4 4M5 21l-2-2', profile: 'M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM4 21a8 8 0 0 1 16 0',
+      money: 'M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 10h18M16 15h2', food: 'M7 3v18M4 3v6a3 3 0 0 0 6 0V3M17 21V3c-2 1-3 4-3 7h3', sleep: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
+      ach: 'M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3', stats: 'M3 3v18h18M8 16v-5M13 16V8M18 16v-3',
+      gym: 'M6.5 6.5l11 11M21 21l-1-1M3 3l1 1M18 22l4-4M2 6l4-4M3 10l7-7M14 21l7-7', glow: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 3v4M17 5h4',
+      learn: 'M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z', rel: 'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z',
+      diary: 'M5 4h11a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2zM9 8h5M9 12h5M20 7l-6 6', agenda: 'M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM4 10h16M9 2v4M15 2v4',
+      ritual: 'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4', wisdom: 'M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM9 8h6M9 12h6M9 16h3',
+      zones: 'M12 21s-7-6-7-12a7 7 0 0 1 14 0c0 6-7 12-7 12zM12 11.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z', shop: 'M5 8h14l-1 12H6zM9 8V6a3 3 0 0 1 6 0v2',
+      rank: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18', guild: 'M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM2 21a8 8 0 0 1 12-6.9M17 11a3 3 0 1 0 0-6M22 21a6 6 0 0 0-5-5.9',
+      camp: 'M3 21 12 4l9 17zM12 4v17M8 21l4-6 4 6', settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1',
+      help: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.7M12 17h.01',
+    };
+    const mk = a => a.map(([id, label, f]) => ({ label, href: f ? f + '.dc.html' : '#', icon: P[id], cls: id === active ? 'on' : '', cur: id === active ? 'page' : 'false' }));
+    return {
+      nav: mk([['home','Inicio','DashboardDesktop'],['habits','Hábitos','HabitsDesktop'],['quests','Misiones','QuestsDesktop'],['arena','Coliseo','ColosseumDesktop'],['profile','Perfil','ProfileDesktop']]),
+      nav2: mk([['money','Finanzas','FinancesDesktop'],['food','Comida','FoodDesktop'],['sleep','Sueño','SleepDesktop'],['ach','Logros','AchievementsDesktop']]),
+      nav3: mk([['stats','Estadísticas','StatsDesktop'],['gym','Gimnasio','GymDesktop'],['glow','Glow up','GlowUpDesktop'],['learn','Aprendizaje','LearningDesktop'],['rel','Relaciones','RelationsDesktop'],['diary','Diario','JournalDesktop'],['agenda','Agenda','AgendaDesktop'],['ritual','Rituales','RitualsDesktop'],['wisdom','Sabiduría','WisdomDesktop'],['zones','Mis zonas','ZonesDesktop'],['shop','Tienda','ShopDesktop']]),
+      nav4: mk([['rank','Ranking','RankingDesktop'],['guild','Gremio','GuildDesktop'],['camp','Campaña','CampaignDesktop']]),
+      nav5: mk([['settings','Ajustes','SettingsDesktop'],['help','Ayuda','HelpDesktop']]),
+    };
+  }
+  spotFns() {
+    const rm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    return {
+      spot: e => {
+        const el = e.currentTarget, r = el.getBoundingClientRect();
+        const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+        el.style.setProperty('--mx', (x * 100).toFixed(1) + '%'); el.style.setProperty('--my', (y * 100).toFixed(1) + '%');
+        if (!rm) { el.style.setProperty('--ry', ((x - .5) * 5).toFixed(2) + 'deg'); el.style.setProperty('--rx', ((.5 - y) * 5).toFixed(2) + 'deg'); }
+      },
+      unspot: e => { e.currentTarget.style.setProperty('--rx', '0deg'); e.currentTarget.style.setProperty('--ry', '0deg'); },
+    };
+  }
+  countUp(ms) {
+    const rm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    cancelAnimationFrame(this._raf);
+    if (rm) { this.setState({ k: 1 }); return; }
+    const t0 = performance.now();
+    const f = n => { const p = Math.min(1, (n - t0) / (ms || 1300)); this.setState({ k: 1 - Math.pow(1 - p, 4) }); if (p < 1) this._raf = requestAnimationFrame(f); };
+    this._raf = requestAnimationFrame(f);
+  }
+  renderVals() {
+    const s = this.state, k = s.k;
+    const fmt = n => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    const active = this.props.active ?? true;
+    const pad = n => String(n).padStart(2, '0');
+    const d = Math.floor(s.left / 86400), h = Math.floor(s.left % 86400 / 3600), m = Math.floor(s.left % 3600 / 60), sec = s.left % 60;
+    const tier = 7;
+    const I = { gold: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v10M9.5 9.5h4a1.5 1.5 0 0 1 0 3h-3a1.5 1.5 0 0 0 0 3h4', xp: 'M13 2 4 14h7l-1 8 9-12h-7z', hat: 'M3 17h18M6 17l1.5-8a4.5 4.5 0 0 1 9 0L18 17M9 12h6', aura: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10z', frame: 'M4 4h16v16H4zM8 8h8v8H8z', pass: 'M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4zM10 9h4M10 13h4', crown: 'M3 8l4 4 5-7 5 7 4-4-2 11H5z' };
+    const free = [[1,'100 Gold','gold','warning'],[3,'Pase de perdón','pass','info'],[5,'150 Gold','gold','warning'],[7,'XP ×2 · 24 h','xp','primary'],[10,'Sombrero del Alba','hat','secondary'],[13,'250 Gold','gold','warning'],[16,'Aura del Bosque','aura','success'],[20,'XP ×2 · 48 h','xp','primary'],[25,'Marco de Temporada','frame','warning'],[30,'Corona del Despertar','crown','error']];
+    const prem = free.map(([l, n, ic, t], i) => [l, ['200 Gold','2 Pases de perdón','300 Gold','XP ×3 · 24 h','Capa del Alba','500 Gold','Aura Dorada','Tema Amanecer','Marco Épico','Corona Dorada'][i], ic, t]);
+    const list = s.track === 'free' ? free : prem;
+    const LOCK = 'M5 11h14v10H5zM8 11V7a4 4 0 0 1 8 0v4', OK = 'm5 12 5 5 9-10', GIFT = 'M3 9h18v4H3zM5 13h14v8H5zM12 9v12';
+    const rewards = list.map(([lvl, name, ic, tone], i) => {
+      const reached = lvl <= tier, claimed = reached && !!s.claimed[i] && s.track === 'free';
+      const premLocked = s.track === 'prem';
+      const locked = !reached || premLocked;
+      return { lvl, name, icon: I[ic], tone: locked ? 'muted' : tone, d: 150 + i * 60,
+        filter: locked ? 'grayscale(1)' : 'none', halo: reached && !claimed && !premLocked ? 'halo' : '',
+        border: reached && !claimed && !premLocked ? '2px solid var(--primary)' : '2px solid transparent',
+        nameCls: locked ? 'c-3' : 'c-1', locked,
+        state: premLocked ? 'Premium' : (claimed ? 'Reclamado' : (reached ? 'Reclamar' : 'Bloqueado')),
+        badge: premLocked ? 'badge-secondary' : (claimed ? 'badge-success' : (reached ? 'badge-primary' : 'badge-neutral')),
+        bIcon: premLocked ? LOCK : (claimed ? OK : (reached ? GIFT : LOCK)),
+        aria: `${name}, nivel ${lvl}: ${premLocked ? 'requiere pase premium' : (claimed ? 'reclamado' : (reached ? 'reclamar' : 'bloqueado'))}`,
+        claim: () => { if (!reached || claimed || premLocked) return; this.setState({ claimed: { ...this.state.claimed, [i]: true }, toast: `Reclamaste: ${name}` }); clearTimeout(this._t); this._t = setTimeout(() => this.setState({ toast: '' }), 3500); } };
+    });
+    const to = [['free','Gratis'],['prem','Premium']];
+    const ti = to.findIndex(o => o[0] === s.track);
+    const ch = [['Completa 15 hábitos esta semana',150],['Gana 3 duelos en el Coliseo',120],['Registra 5 noches de sueño',100],['Lee 100 páginas',180]];
+    const chapter = ch.map(([name, xp], i) => { const on = !!s.done[i]; return { name, xp, cls: on ? 'step on' : 'step', pressed: on ? 'true' : 'false', toggle: () => this.setState({ done: { ...this.state.done, [i]: !on } }) }; });
+    return {
+      theme: (this.props.dark ?? false) ? 'dark' : '', ...this.navs('camp'), ...this.spotFns(),
+      active, inactive: !active, seasonTag: active ? 'Temporada 3 · activa' : 'Entre temporadas', seasonBadge: active ? 'badge-success' : 'badge-neutral',
+      even: sec % 2 === 0, odd: sec % 2 === 1, dd: pad(d), hh: pad(h), mi: pad(m), ss: pad(sec), countAria: `Quedan ${d} días, ${h} horas y ${m} minutos`,
+      tier, tierXp: fmt(340 * k), trackPct: Math.round((6 + 0.68) / 9 * 100 * 0.62),
+      tracks: to.map(([id, label]) => ({ label, cls: s.track === id ? 'on' : '', sel: s.track === id ? 'true' : 'false', pick: () => this.setState({ track: id }) })),
+      trackX: `translateX(calc(${ti} * (100% + 4px)))`, rewards, chapter, chDone: ch.filter((_, i) => s.done[i]).length,
+      bossPct: Math.round(64 * k), seasonXp: fmt(3840 * k), rank: Math.max(1, Math.round(214 * (2 - k) / 2 * 1)),
+      notify: s.notify, toggleNotify: () => this.setState({ notify: !this.state.notify }),
+      toast: !!s.toast, toastText: s.toast, closeToast: () => this.setState({ toast: '' }),
+    };
+  }
+}
+</script>
+</body>
+</html>

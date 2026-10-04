@@ -1,564 +1,275 @@
-import { FlowButton } from "@/components/ui/flow-button";
-import { useState, useEffect, useCallback, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+// Rituales (RitualsDesktop): tarjetas con pasos numerados, modo guiado paso a paso
+// (anillo + cronómetro por paso) y estado vacío «Cargar rituales sugeridos».
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { CheckCircle2, ChevronRight, Flame, Moon, Play, Plus, Sun, Trash2, X, Zap, type LucideIcon } from 'lucide-react';
+import { item, pop3, stagger } from '@/lib/motion';
+import { cn } from '@/lib/utils';
+import * as ritualsService from '@/services/rituals.service';
+import type { Ritual } from '@/services/rituals.service';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { useToast } from '@/hooks/useToast';
 import {
-  Plus,
-  Sun,
-  Moon,
-  Zap,
-  Play,
-  CheckCircle2,
-  ChevronRight,
-  Loader2,
-  Flame,
-  X,
-  Timer,
-} from "lucide-react";
-import { useToastStore } from "../../hooks/useToast";
-import * as ritualsService from "../../services/rituals.service";
-import type { Ritual, RitualStep } from "../../services/rituals.service";
-import { E } from "@/components/ui/glyphs";
+  Badge, Button, Card, EmptyState, ErrorState, Field, IconChip, Input, PageLoader, ProgressRing, ResponsiveDialog,
+  SegmentedControl, SpotCard, Timer, type Tone,
+} from '@/components/ui/lq';
 
-const TYPE_CONFIG = {
-  morning: {
-    label: "Mañana",
-    color: "var(--accent-gold)",
-    icon: <Sun size={16} />,
-  },
-  night: {
-    label: "Noche",
-    color: "var(--accent-cyan)",
-    icon: <Moon size={16} />,
-  },
-  custom: {
-    label: "Custom",
-    color: "var(--accent-green)",
-    icon: <Zap size={16} />,
-  },
+type RitualType = Ritual['type'];
+const TYPES: Record<RitualType, { label: string; tone: Exclude<Tone, 'muted'>; icon: LucideIcon }> = {
+  morning: { label: 'Mañana', tone: 'warning', icon: Sun },
+  night: { label: 'Noche', tone: 'secondary', icon: Moon },
+  custom: { label: 'Personal', tone: 'primary', icon: Zap },
 };
+const typeOf = (t: string) => TYPES[t as RitualType] ?? TYPES.custom;
+const minutes = (r: Ritual) => r.steps.reduce((s, st) => s + (st.durationMin ?? 0), 0);
 
-function ExecutionMode({
-  ritual,
-  onClose,
-  onComplete,
-}: {
-  ritual: Ritual;
-  onClose: () => void;
-  onComplete: () => void;
-}) {
-  const [stepIdx, setStepIdx] = useState(0);
-  const [timer, setTimer] = useState<number | null>(null);
+/** Modo guiado: paso actual con anillo de progreso y cronómetro si el paso tiene duración. */
+function Runner({ ritual, onExit, onDone }: { ritual: Ritual; onExit: () => void; onDone: (msg: string, already: boolean) => void }) {
+  const [idx, setIdx] = useState(0);
   const [elapsed, setElapsed] = useState(0);
-  const [completing, setCompleting] = useState(false);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const toast = useToastStore();
+  const [busy, setBusy] = useState(false);
+  const toast = useToast();
+  const step = ritual.steps[idx];
+  const last = idx === ritual.steps.length - 1;
+  const total = (step?.durationMin ?? 0) * 60;
+  const titleRef = useRef<HTMLHeadingElement>(null);
 
-  const step = ritual.steps[stepIdx];
-  const isLast = stepIdx === ritual.steps.length - 1;
-  const progress = (stepIdx / ritual.steps.length) * 100;
-
+  useEffect(() => { setElapsed(0); titleRef.current?.focus(); }, [idx]);
   useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+    if (!total) return;
+    const id = window.setInterval(() => setElapsed((e) => (e >= total ? e : e + 1)), 1000);
+    return () => window.clearInterval(id);
+  }, [total, idx]);
 
-  useEffect(() => {
-    if (step?.durationMin) {
-      const total = step.durationMin * 60;
-      setTimer(total);
-      setElapsed(0);
-    } else {
-      setTimer(null);
-      setElapsed(0);
-    }
-    if (intervalRef.current) clearInterval(intervalRef.current);
-  }, [stepIdx, step?.durationMin]);
-
-  useEffect(() => {
-    if (timer === null) return;
-    intervalRef.current = setInterval(() => {
-      setElapsed((e) => {
-        if (e >= timer) {
-          clearInterval(intervalRef.current!);
-          if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-          return e;
-        }
-        return e + 1;
-      });
-    }, 1000);
-    return () => clearInterval(intervalRef.current!);
-  }, [timer]);
-
-  function formatTime(secs: number) {
-    const m = Math.floor(secs / 60)
-      .toString()
-      .padStart(2, "0");
-    const s = (secs % 60).toString().padStart(2, "0");
-    return `${m}:${s}`;
+  async function next() {
+    if (!last) { setIdx((i) => i + 1); return; }
+    setBusy(true);
+    try {
+      const r = await ritualsService.completeRitual(ritual.id);
+      onDone(r.message, r.alreadyDone);
+    } catch { toast.error('No se pudo completar el ritual'); }
+    finally { setBusy(false); }
   }
 
-  async function handleNext() {
-    if (isLast) {
-      setCompleting(true);
-      try {
-        const result = await ritualsService.completeRitual(ritual.id);
-        if (result.alreadyDone) {
-          toast.info(result.message);
-        } else {
-          toast.success(result.message);
-          if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 300]);
-        }
-        onComplete();
-      } catch {
-        toast.error("Error al completar el ritual");
-      } finally {
-        setCompleting(false);
-      }
-    } else {
-      setStepIdx((i) => i + 1);
-      if (navigator.vibrate) navigator.vibrate(50);
-    }
-  }
-
-  const timerPct = timer ? (elapsed / timer) * 100 : 0;
-  const cfg =
-    TYPE_CONFIG[ritual.type as keyof typeof TYPE_CONFIG] ?? TYPE_CONFIG.custom;
-
+  const k = typeOf(ritual.type);
   return (
-    <motion.div
-      className="fixed inset-0 z-50 flex flex-col bg-[var(--bg-deep)]"
-      initial={{ opacity: 0, scale: 0.97 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.97 }}
-    >
-      {/* Top bar */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
-        <div>
-          <span className="text-lg mr-2">
-            <E e={ritual.icon} />
-          </span>
-          <span className="font-semibold text-[var(--text-primary)]">
-            {ritual.name}
-          </span>
-        </div>
-        <FlowButton
-          tone="ghost"
-          size="sm"
-          withArrows={false}
-          onClick={onClose}
-          className="h-11 w-11 px-3"
-          aria-label="Cerrar ejecución del ritual"
-        >
-          <X size={18} />
-        </FlowButton>
-      </div>
-
-      {/* Progress bar */}
-      <div className="h-1 bg-white/5">
-        <motion.div
-          className="h-full"
-          style={{ background: cfg.color }}
-          animate={{ width: `${progress}%` }}
-          transition={{ duration: 0.3 }}
-        />
-      </div>
-
-      {/* Step display */}
-      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-        <motion.div
-          key={stepIdx}
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -24 }}
-          className="space-y-6"
-        >
-          <div
-            className="text-sm font-medium"
-            style={{ color: cfg.color }}
-          >
-            Paso {stepIdx + 1} de {ritual.steps.length}
+    <SpotCard aria-label="Ritual en curso" className="flex flex-wrap items-center gap-8 border-primary/25 md:gap-10">
+      <ProgressRing value={((idx + 1) / ritual.steps.length) * 100} size={180} stroke={8} label="Progreso del ritual" valueText={`Paso ${idx + 1} de ${ritual.steps.length}`}>
+        <span className="font-mono text-display-sm tabular-nums">{idx + 1}/{ritual.steps.length}</span>
+        <span className="text-body-sm text-on-surface-light">pasos</span>
+      </ProgressRing>
+      <div className="flex min-w-0 flex-[1_1_300px] flex-col gap-3" aria-live="polite">
+        <span className="text-label-lg text-primary-text">{ritual.name} · paso {idx + 1}</span>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.h2 key={step?.id} ref={titleRef} tabIndex={-1} variants={pop3} initial="initial" animate="animate" exit={{ opacity: 0, transition: { duration: 0.15 } }}
+            className="text-display-sm outline-none">{step?.title}</motion.h2>
+        </AnimatePresence>
+        {total > 0 ? (
+          <div className="flex items-center gap-3">
+            <Timer seconds={Math.max(0, total - elapsed)} size="lg" label="Tiempo restante del paso" className={cn(elapsed >= total && 'text-success-text')} />
+            {elapsed >= total && <Badge variant="success" icon={CheckCircle2}>Tiempo cumplido</Badge>}
           </div>
-
-          <h2 className="text-3xl font-bold text-[var(--text-primary)] max-w-sm">
-            {step?.title}
-          </h2>
-
-          {/* Timer */}
-          {timer !== null && (
-            <div
-              className="relative mx-auto"
-              style={{ width: 120, height: 120 }}
-            >
-              <svg
-                width={120}
-                height={120}
-                style={{ transform: "rotate(-90deg)" }}
-              >
-                <circle
-                  cx={60}
-                  cy={60}
-                  r={52}
-                  fill="none"
-                  stroke="rgba(255,255,255,0.07)"
-                  strokeWidth={8}
-                />
-                <motion.circle
-                  cx={60}
-                  cy={60}
-                  r={52}
-                  fill="none"
-                  stroke={cfg.color}
-                  strokeWidth={8}
-                  strokeLinecap="round"
-                  strokeDasharray={2 * Math.PI * 52}
-                  animate={{
-                    strokeDashoffset: 2 * Math.PI * 52 * (1 - timerPct / 100),
-                  }}
-                  transition={{ duration: 0.5 }}
-                />
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <Timer size={16} className="text-[var(--text-muted)] mb-1" />
-                <span
-                  className="text-2xl font-bold tabular-nums"
-                  style={{ color: cfg.color }}
-                >
-                  {formatTime(Math.max(0, timer - elapsed))}
-                </span>
-              </div>
-            </div>
-          )}
-
-          {timer === null && (
-            <div className="text-5xl">
-              <E e="✅" />
-            </div>
-          )}
-
-          <p className="text-sm text-[var(--text-muted)]">
-            {timer !== null
-              ? "El timer suena cuando termines el paso"
-              : "Haz el paso y marca completado"}
-          </p>
-        </motion.div>
+        ) : (
+          <p className="text-body-lg text-on-surface-light">Sin tiempo fijo: márcalo cuando lo termines.</p>
+        )}
+        <div className="mt-2 flex flex-wrap gap-3">
+          <Button variant="secondary" onClick={onExit}><X aria-hidden className="size-4" strokeWidth={1.75} />Salir</Button>
+          <Button onClick={next} loading={busy}>
+            {last ? <><CheckCircle2 aria-hidden className="size-4" strokeWidth={1.75} />Terminar</> : <>Siguiente paso<ChevronRight aria-hidden className="size-4" strokeWidth={1.75} /></>}
+          </Button>
+        </div>
       </div>
-
-      {/* Step dots */}
-      <div className="flex justify-center gap-1.5 pb-4">
-        {ritual.steps.map((_, i) => (
-          <div
-            key={i}
-            className={`rounded-full transition-all ${i < stepIdx ? "w-2 h-2" : i === stepIdx ? "w-4 h-2" : "w-2 h-2 opacity-30"}`}
-            style={{
-              background: i <= stepIdx ? cfg.color : "rgba(255,255,255,0.2)",
-            }}
-          />
-        ))}
-      </div>
-
-      {/* Next button */}
-      <div className="px-6 pb-10">
-        <FlowButton
-          tone="primary"
-          fullWidth
-          withArrows={false}
-          onClick={handleNext}
-          disabled={completing}
-          className="h-14 rounded-2xl text-base"
-          style={{ background: cfg.color, color: "var(--bg-deep)" }}
-        >
-          {completing ? (
-            <Loader2 size={20} className="animate-spin" />
-          ) : isLast ? (
-            <>
-              <CheckCircle2 size={20} /> ¡Completar Ritual!
-            </>
-          ) : (
-            <>
-              Hecho <ChevronRight size={20} />
-            </>
-          )}
-        </FlowButton>
-      </div>
-    </motion.div>
+      <Badge variant={k.tone} icon={k.icon} className="self-start">{k.label}</Badge>
+    </SpotCard>
   );
 }
 
-function RitualCard({
-  ritual,
-  onRefresh,
-}: {
-  ritual: Ritual;
-  onRefresh: () => void;
-}) {
-  const [executing, setExecuting] = useState(false);
-  const [stats, setStats] = useState<{
-    streak: number;
-    thisMonth: number;
-  } | null>(null);
-  const cfg =
-    TYPE_CONFIG[ritual.type as keyof typeof TYPE_CONFIG] ?? TYPE_CONFIG.custom;
-  const toast = useToastStore();
-
+function RitualCard({ ritual, doneToday, playing, onPlay }: { ritual: Ritual; doneToday: boolean; playing: boolean; onPlay: () => void }) {
+  const k = typeOf(ritual.type);
+  const [stats, setStats] = useState<{ streak: number; thisMonth: number } | null>(null);
   useEffect(() => {
-    ritualsService
-      .getRitualStats(ritual.id)
-      .then((s) => setStats({ streak: s.streak, thisMonth: s.thisMonth }))
-      .catch(() => null);
+    ritualsService.getRitualStats(ritual.id).then((s) => setStats({ streak: s.streak, thisMonth: s.thisMonth })).catch(() => null);
   }, [ritual.id]);
-
-  const totalDuration = ritual.steps.reduce(
-    (s, step) => s + (step.durationMin ?? 0),
-    0,
+  const mins = minutes(ritual);
+  return (
+    <Card as="article" interactive padding="lg" className="flex h-full flex-col gap-5">
+      <div className="flex items-start gap-4">
+        <IconChip icon={k.icon} tone={k.tone} />
+        <div className="min-w-0 flex-1">
+          <h2 className="text-heading-sm">{ritual.name}</h2>
+          <p className="text-body-sm text-on-surface-light">{ritual.steps.length} pasos{mins ? ` · ${mins} min` : ''} · {k.label}</p>
+        </div>
+        <Badge variant={doneToday ? 'success' : 'neutral'} icon={doneToday ? CheckCircle2 : undefined}>{doneToday ? 'Hecho hoy' : 'Pendiente'}</Badge>
+      </div>
+      <ol className="flex flex-col">
+        {ritual.steps.map((st, i) => (
+          <li key={st.id} className="flex min-h-10 items-center gap-3">
+            <span className={cn('flex size-6 shrink-0 items-center justify-center rounded-full text-label-md', doneToday ? 'bg-success text-background' : 'bg-surface-variant text-on-surface')}>{i + 1}</span>
+            <span className={cn('min-w-0 flex-1 text-body-md', doneToday ? 'text-on-surface-light' : 'text-on-background')}>{st.title}</span>
+            {st.durationMin ? <span className="font-mono text-body-sm tabular-nums text-on-surface-light">{st.durationMin} min</span> : null}
+          </li>
+        ))}
+      </ol>
+      {stats && (
+        <div className="flex flex-wrap items-center gap-3 text-body-sm">
+          {stats.streak > 0 && <span className="flex items-center gap-1 text-warning-text"><Flame aria-hidden className="size-4" strokeWidth={1.75} /><span className="font-mono">{stats.streak}</span> días de racha</span>}
+          <span className="text-on-surface-light"><span className="font-mono">{stats.thisMonth}</span> este mes</span>
+        </div>
+      )}
+      <Button variant={doneToday ? 'secondary' : 'primary'} block disabled={playing} onClick={onPlay} className="mt-auto">
+        <Play aria-hidden className="size-4" strokeWidth={1.75} />{doneToday ? 'Repetir' : 'Comenzar'}
+      </Button>
+    </Card>
   );
+}
+
+/** Crear ritual: nombre, tipo y pasos (título + minutos opcionales). */
+function NewRitualDialog({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: () => void }) {
+  const toast = useToast();
+  const [name, setName] = useState('');
+  const [type, setType] = useState<RitualType>('morning');
+  const [steps, setSteps] = useState([{ title: '', min: '' }]);
+  const [saving, setSaving] = useState(false);
+  const [tried, setTried] = useState(false);
+
+  useEffect(() => { if (open) { setName(''); setType('morning'); setSteps([{ title: '', min: '' }]); setTried(false); } }, [open]);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    const valid = steps.filter((s) => s.title.trim());
+    if (!name.trim() || valid.length === 0) { setTried(true); return; }
+    setSaving(true);
+    try {
+      await ritualsService.createRitual({
+        name: name.trim(), type,
+        steps: valid.map((s, i) => ({ title: s.title.trim(), durationMin: s.min ? Number(s.min) : undefined, order: i })),
+      });
+      toast.success('Ritual creado');
+      onCreated();
+    } catch { toast.error('No se pudo crear el ritual'); }
+    finally { setSaving(false); }
+  }
 
   return (
-    <>
-      <motion.div
-        layout
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        whileHover={{ y: -2 }}
-        transition={{ type: "spring", stiffness: 300, damping: 25 }}
-        className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel)] p-5 transition-colors group"
-      >
-        <div className="flex items-start gap-4">
-          <div
-            className="w-12 h-12 rounded-2xl flex items-center justify-center text-xl flex-shrink-0"
-            style={{ background: cfg.color + "22" }}
-          >
-            <E e={ritual.icon} />
-          </div>
-
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <h3 className="font-semibold text-[var(--text-primary)]">
-                  {ritual.name}
-                </h3>
-                <div className="flex items-center gap-2 mt-1">
-                  <span
-                    className="text-xs px-2 py-0.5 rounded-full"
-                    style={{ background: cfg.color + "22", color: cfg.color }}
-                  >
-                    {cfg.icon} {cfg.label}
-                  </span>
-                  {totalDuration > 0 && (
-                    <span className="text-xs text-[var(--text-muted)]">
-                      {totalDuration} min
-                    </span>
-                  )}
-                  <span className="text-xs text-[var(--text-muted)]">
-                    {ritual.steps.length} pasos
-                  </span>
-                </div>
-              </div>
-              <FlowButton
-                tone="ghost"
-                size="sm"
-                withArrows={false}
-                onClick={() => setExecuting(true)}
-                className="min-h-11 shrink-0 gap-1.5"
-                style={{ background: cfg.color + "22", color: cfg.color }}
-              >
-                <Play size={12} /> Ejecutar
-              </FlowButton>
-            </div>
-
-            {/* Steps preview */}
-            <div className="mt-3 flex gap-1 flex-wrap">
-              {ritual.steps.slice(0, 4).map((step, i) => (
-                <span
-                  key={step.id}
-                  className="text-xs text-[var(--text-muted)] bg-[var(--bg-panel-light)] px-2 py-0.5 rounded-full"
-                >
-                  {i + 1}.{" "}
-                  {step.title.length > 20
-                    ? step.title.slice(0, 20) + "…"
-                    : step.title}
-                </span>
-              ))}
-              {ritual.steps.length > 4 && (
-                <span className="text-xs text-[var(--text-muted)]">
-                  +{ritual.steps.length - 4} más
-                </span>
-              )}
-            </div>
-
-            {/* Stats */}
-            {stats && (
-              <div className="flex items-center gap-3 mt-3">
-                {stats.streak > 0 && (
-                  <div className="flex items-center gap-1 text-xs text-[var(--accent-gold)]">
-                    <Flame size={12} /> {stats.streak}d racha
-                  </div>
-                )}
-                <div className="text-xs text-[var(--text-muted)]">
-                  {stats.thisMonth} este mes
-                </div>
-              </div>
-            )}
-          </div>
+    <ResponsiveDialog open={open} onClose={onClose} title="Nuevo ritual">
+      <form noValidate onSubmit={submit} className="flex flex-col gap-5">
+        <Field label="Nombre" error={tried && !name.trim() ? 'Ponle un nombre' : undefined}>
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej. Ritual de enfoque" />
+        </Field>
+        <div className="flex flex-col gap-2">
+          <span id="rt-type" className="text-label-lg text-on-surface">Momento</span>
+          <SegmentedControl role="radiogroup" label="Momento" value={type} onChange={setType}
+            options={(Object.keys(TYPES) as RitualType[]).map((t) => ({ value: t, label: TYPES[t].label }))} />
         </div>
-      </motion.div>
-
-      <AnimatePresence>
-        {executing && (
-          <ExecutionMode
-            ritual={ritual}
-            onClose={() => setExecuting(false)}
-            onComplete={() => {
-              setExecuting(false);
-              onRefresh();
-            }}
-          />
-        )}
-      </AnimatePresence>
-    </>
+        <fieldset className="flex flex-col gap-3">
+          <legend className="mb-2 text-label-lg text-on-surface">Pasos</legend>
+          {steps.map((s, i) => (
+            <div key={i} className="flex items-end gap-2">
+              <Field label={`Paso ${i + 1}`} className="flex-1" error={tried && i === 0 && !steps.some((x) => x.title.trim()) ? 'Añade al menos un paso' : undefined}>
+                <Input value={s.title} onChange={(e) => setSteps((p) => p.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)))} placeholder="Ej. Vaso de agua" />
+              </Field>
+              <Field label="Min" className="w-20">
+                <Input inputMode="numeric" value={s.min} onChange={(e) => setSteps((p) => p.map((x, j) => (j === i ? { ...x, min: e.target.value.replace(/\D/g, '').slice(0, 3) } : x)))} />
+              </Field>
+              <Button variant="icon" aria-label={`Quitar paso ${i + 1}`} disabled={steps.length === 1} onClick={() => setSteps((p) => p.filter((_, j) => j !== i))}>
+                <Trash2 aria-hidden className="size-5" strokeWidth={1.75} />
+              </Button>
+            </div>
+          ))}
+          <Button variant="ghost" size="md" className="self-start" onClick={() => setSteps((p) => [...p, { title: '', min: '' }])}>
+            <Plus aria-hidden className="size-4" strokeWidth={1.75} />Añadir paso
+          </Button>
+        </fieldset>
+        <div className="flex justify-end gap-3">
+          <Button variant="secondary" size="md" onClick={onClose}>Cancelar</Button>
+          <Button type="submit" size="md" loading={saving}>Crear ritual</Button>
+        </div>
+      </form>
+    </ResponsiveDialog>
   );
 }
 
 export default function RitualsPage() {
+  const toast = useToast();
   const [rituals, setRituals] = useState<Ritual[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [state, setState] = useState<'loading' | 'error' | 'ready'>('loading');
   const [seeding, setSeeding] = useState(false);
-  const toast = useToastStore();
+  const [playing, setPlaying] = useState<Ritual | null>(null);
+  const [creating, setCreating] = useState(false);
+  // TODO(api): la API no expone si el ritual ya se hizo hoy; se marca al completarlo en esta sesión.
+  const [doneIds, setDoneIds] = useState<string[]>([]);
 
-  const load = useCallback(async () => {
-    try {
-      const data = await ritualsService.listRituals();
-      setRituals(data);
-    } catch {
-      toast.error("Error cargando rituales");
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setState('loading');
+    try { setRituals(await ritualsService.listRituals()); setState('ready'); }
+    catch { if (!silent) setState('error'); }
+  }, []);
+  useEffect(() => { void load(); }, [load]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  async function handleSeedPresets() {
+  async function seed() {
     setSeeding(true);
-    try {
-      await ritualsService.seedPresets();
-      await load();
-      toast.success("¡Rituales presets creados!");
-    } catch {
-      toast.error("Error");
-    } finally {
-      setSeeding(false);
-    }
+    try { await ritualsService.seedPresets(); await load(true); toast.success('Rituales sugeridos listos'); }
+    catch { toast.error('No se pudieron cargar los sugeridos'); }
+    finally { setSeeding(false); }
   }
 
-  const grouped = {
-    morning: rituals.filter((r) => r.type === "morning"),
-    night: rituals.filter((r) => r.type === "night"),
-    custom: rituals.filter((r) => r.type === "custom"),
-  };
+  if (state === 'loading') return <PageLoader />;
+  if (state === 'error') return <ErrorState onRetry={() => void load()} />;
+
+  const ordered = (['morning', 'custom', 'night'] as RitualType[]).flatMap((t) => rituals.filter((r) => r.type === t));
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-[var(--text-primary)] flex items-center gap-2">
-            <Sun className="text-[var(--accent-gold)]" size={24} />
-            Rituales
-          </h1>
-          <p className="text-sm text-[var(--text-secondary)] mt-1">
-            Secuencias que construyen a la mejor versión de ti
-          </p>
-        </div>
-        {rituals.length > 0 && (
-          <FlowButton
-            tone="ghost"
-            size="sm"
-            withArrows={false}
-            disabled
-            title="La creación de rituales personalizados estará disponible próximamente"
-            className="min-h-11 gap-2"
-          >
-            <Plus size={16} /> Nuevo
-          </FlowButton>
-        )}
-      </div>
+    <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-8 md:gap-12">
+      <PageHeader
+        eyebrow="Rituales"
+        title="Secuencias que te construyen"
+        description="Pasos encadenados que ejecutas cada día. Uno detrás de otro, sin pensar."
+        aside={<Button onClick={() => setCreating(true)}><Plus aria-hidden className="size-4" strokeWidth={1.75} />Nuevo ritual</Button>}
+      />
 
-      {loading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="h-32 rounded-2xl bg-[var(--bg-panel)] animate-pulse"
-            />
-          ))}
-        </div>
-      ) : rituals.length === 0 ? (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-center py-16 space-y-4"
-        >
-          <div className="text-6xl">
-            <E e="⚡" />
-          </div>
-          <h3 className="text-lg font-semibold text-[var(--text-primary)]">
-            Sin rituales todavía
-          </h3>
-          <p className="text-sm text-[var(--text-secondary)] max-w-xs mx-auto">
-            Los rituales son secuencias de pasos que ejecutas cada día. Empieza
-            con los presets o crea los tuyos.
-          </p>
-          <FlowButton
-            tone="primary"
-            withArrows={false}
-            onClick={handleSeedPresets}
-            disabled={seeding}
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm"
-            style={{
-              background: "var(--accent-gold)",
-              color: "var(--bg-deep)",
-            }}
-          >
-            {seeding ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <Zap size={16} />
-            )}
-            Cargar rituales sugeridos
-          </FlowButton>
+      {rituals.length === 0 ? (
+        <motion.div variants={item}>
+          <EmptyState
+            icon={Zap} tone="warning"
+            title="Sin rituales todavía"
+            description="Los rituales son secuencias de pasos que ejecutas cada día. Empieza con los sugeridos o crea los tuyos."
+            action={
+              <div className="flex flex-wrap justify-center gap-3">
+                <Button variant="secondary" onClick={() => setCreating(true)}>Crear el mío</Button>
+                <Button onClick={seed} loading={seeding}><Zap aria-hidden className="size-4" strokeWidth={1.75} />Cargar rituales sugeridos</Button>
+              </div>
+            }
+          />
         </motion.div>
       ) : (
-        <div className="space-y-8">
-          {(Object.entries(grouped) as [keyof typeof grouped, Ritual[]][]).map(
-            ([type, list]) => {
-              if (list.length === 0) return null;
-              const cfg = TYPE_CONFIG[type];
-              return (
-                <div key={type}>
-                  <div className="flex items-center gap-2 mb-3">
-                    <span style={{ color: cfg.color }}>{cfg.icon}</span>
-                    <h2
-                      className="text-sm font-semibold"
-                      style={{ color: cfg.color }}
-                    >
-                      {cfg.label}
-                    </h2>
-                  </div>
-                  <div className="space-y-3">
-                    {list.map((r) => (
-                      <RitualCard key={r.id} ritual={r} onRefresh={load} />
-                    ))}
-                  </div>
-                </div>
-              );
-            },
-          )}
-        </div>
+        <>
+          <AnimatePresence initial={false}>
+            {playing && (
+              <motion.div key="runner" variants={pop3} initial="initial" animate="animate" exit={{ opacity: 0, transition: { duration: 0.2 } }}>
+                <Runner
+                  ritual={playing}
+                  onExit={() => setPlaying(null)}
+                  onDone={(msg, already) => {
+                    if (already) toast.info(msg); else toast.success(msg);
+                    setDoneIds((d) => [...new Set([...d, playing.id])]);
+                    setPlaying(null);
+                  }}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+          <motion.ul variants={stagger} initial="initial" animate="animate" className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 xl:grid-cols-3">
+            {ordered.map((r) => (
+              <motion.li key={r.id} variants={item}>
+                <RitualCard ritual={r} doneToday={doneIds.includes(r.id)} playing={playing?.id === r.id}
+                  onPlay={() => { setPlaying(r); window.scrollTo({ top: 0, behavior: 'smooth' }); }} />
+              </motion.li>
+            ))}
+          </motion.ul>
+        </>
       )}
-    </div>
+
+      <NewRitualDialog open={creating} onClose={() => setCreating(false)} onCreated={() => { setCreating(false); void load(true); }} />
+    </motion.div>
   );
 }

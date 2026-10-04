@@ -1,3 +1,4 @@
+import { springSoft } from '@/lib/motion';
 import { motion } from 'framer-motion';
 import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -25,7 +26,7 @@ export function CheckButton({ checked, onToggle, name, disabled, locked, classNa
       disabled={disabled}
       onClick={isLocked ? undefined : onToggle}
       animate={{ rotate: checked ? 360 : 0 }}
-      transition={{ duration: 0.2 }}
+      transition={springSoft}
       className={cn(
         'flex size-12 shrink-0 items-center justify-center rounded-full border-2 transition-colors duration-200 disabled:opacity-40',
         checked

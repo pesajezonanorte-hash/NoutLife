@@ -1,31 +1,54 @@
-# Prompt para Claude Code
+# Prompt para Claude Code (una sola fase)
 
-Copia esta carpeta en el repo como `docs/redesign/` (reemplaza la versión anterior si existe). Abre Claude Code en la raíz de `lifequest2` y pega todo lo que está debajo de la línea.
+1. Descomprime y copia la carpeta `lifequest-redesign/` en el repo como `docs/redesign/` (reemplaza la v2 si existe).
+2. Abre Claude Code en la raíz de `lifequest2` y pega todo lo que está debajo de la línea.
 
 ---
 
-Vamos a implementar el rediseño completo de LifeQuest en `apps/web`. La especificación está en `docs/redesign/`:
+Implementa el rediseño completo de LifeQuest en `apps/web` en **una sola fase continua**, de principio a fin, sin pedir aprobación ni detenerte entre pantallas. Solo para si algo te bloquea de verdad: un dato que la API no tiene y no admite fallback, o un cambio que rompería otra parte de la app.
 
-- `docs/redesign/README.md`: mapa de las 22 rutas, navegación, componentes, motion, reglas y la **prioridad de estilos**. Léelo primero, completo.
-- `docs/redesign/design-system/`: el LifeQuest Design System (README + tokens.json). Es la fuente de verdad de estilo: si un prototipo usa otro valor (radio, color de texto, fuente de cifras), gana el design system.
-- `docs/redesign/tokens/`: `tokens.css`, `tailwind.tokens.ts` y `motion.ts`, ya alineados con el design system.
-- `docs/redesign/design/*.dc.html` + `lq.css`: prototipos de cada pantalla (móvil `X`, desktop `XDesktop`). Son especificación, no código: usan sintaxis de plantilla propia (`{{}}`, `<sc-for>`, `<sc-if>`, `DCLogic`). Tradúcelos a JSX + Tailwind con nuestros tokens. Los datos de ejemplo se reemplazan por los reales.
+**Especificación (`docs/redesign/`)**
+- `README.md`: mapa de las **26 rutas**, navegación, componentes, **Motion v3**, reglas y prioridad de estilos. Léelo completo una vez al inicio.
+- `design-system/`: fuente de verdad de estilo. Si un prototipo usa otro valor, gana el design system.
+- `tokens/`: `tokens.css`, `tailwind.tokens.ts`, `motion.ts` (incluye los presets v3: `expo`, `springSoft`, `page3`, `item3`, `pop3`, `tap3`, `cardHover3`, `barFill3`, `draw3`, `tick`, `useSpotlight`).
+- `design/*.dc.html` + `lq.css`: prototipos (móvil `X`, desktop `XDesktop`). Su sintaxis (`{{}}`, `<sc-for>`, `<sc-if>`, `DCLogic`) es de un editor de diseño: tradúcela a JSX + Tailwind. Lee cada prototipo solo cuando vayas a implementar esa pantalla. Los datos de ejemplo (Alex Rivera, cifras, otros jugadores) se reemplazan por los reales.
 
-Restricciones:
-- No toques `apps/api` ni contratos de datos. Conecta la UI a los hooks de React Query y stores de Zustand existentes. Si falta un dato, deja `// TODO(api):` con un fallback; no inventes endpoints.
-- Respeta lo que ya existe: alias `@/*`, `src/styles/tokens.css`, Montserrat. Antes de renombrar variables o clases en masa, muéstrame el mapeo.
-- Sin hex en componentes. Mobile-first. Solo `transform`/`opacity` en animaciones. `MotionConfig reducedMotion="user"`.
-- Rama `feat/redesign`. Un commit por fase.
+**Si ya existe trabajo de la v2 en el repo** (rama `feat/redesign`): no lo rehagas. Continúa sobre él, sube todas las animaciones al Motion v3 y añade lo que falte.
 
-Fases. Al final de cada una corre lint, typecheck y build de `apps/web`, toma capturas con Playwright a 375, 834 y 1440 px (light y dark) de lo que cambió, y espera mi OK:
+**Reglas**
+- No toques `apps/api` ni los contratos de datos. Usa los hooks de React Query y stores de Zustand que ya existen. Si falta un dato, deja `// TODO(api):` con un fallback y no inventes endpoints.
+- Reutiliza lo existente: alias `@/*`, `src/styles/tokens.css`, Montserrat. Si algo choca con los tokens nuevos, mapea en vez de renombrar en masa.
+- Sin hex en los componentes. Mobile-first.
+- Anima solo `transform` y `opacity`. Hay dos excepciones documentadas: la blur de entrada y el acordeón con `grid-template-rows`.
+- Envuelve la app en `MotionConfig reducedMotion="user"`. El tilt 3D se desactiva con reduced motion y con `pointer: coarse`.
+- Primero construye los componentes compartidos (los del README, incluidos `SpotCard`, `Accordion`, `OtpInput`, `Countdown`, `RadarChart`, `AreaChart`, `SeasonPassTrack`, `BossBar`, `ThemePreviewDialog` y `ZoneToggleList`) y reutilízalos en todas las pantallas. No dupliques markup.
+- Trabaja en la rama `feat/redesign`. Haz commits pequeños a medida que avanzas, sin esperar a nadie entre ellos.
 
-1. **Fundamentos:** compara `tokens/` y `design-system/` con lo actual; integra tokens, Tailwind, JetBrains Mono para cifras, `motion.ts`, toggle `.dark` (Zustand, opción Auto).
-2. **Componentes UI:** los del design system + los nuevos del README (Chip, StepItem, DayDot, Timer, TimelineDay, MonthGrid, Podium, LeaderRow, BookCover, QuoteCard, ShopItem/PurchaseDialog, MoodPicker, SabioComposer, UserCard), con estados de `Components.dc.html`.
-3. **Layout:** AppShell con Sidebar agrupada + UserCard + Topbar (desktop), Rail (tablet), TabBar + FAB + menú "Más" (móvil); transiciones de ruta.
-4. **Núcleo:** Dashboard, Hábitos, Detalle, Misiones.
-5. **Engagement:** Coliseo, Logros, Finanzas, Comida, Sueño, Perfil.
-6. **Más zonas I:** Gimnasio, Glow up, Aprendizaje, Relaciones, Diario, Agenda.
-7. **Más zonas II y comunidad:** Rituales, Sabiduría, Mis zonas, Tienda, Ranking, Ajustes.
-8. **QA:** contraste AA, foco y orden de tabulación, Escape en modales, `aria-*` del README, reduced motion emulado en Playwright, sin scroll horizontal a 375 px, Estadísticas/Gremio/Campaña/Ayuda con los nuevos tokens. Lista lo pendiente.
+**Orden de trabajo (sin pausas)**
+1. **Base:** tokens, Tailwind, JetBrains Mono, `motion.ts` v3 y el toggle `.dark` (Zustand, con opción Auto).
+2. **Componentes y AppShell:** los componentes UI y el AppShell completo:
+   - Sidebar agrupada con UserCard y Topbar en desktop.
+   - Rail en tablet.
+   - TabBar + FAB + menú "Más" en móvil.
+   - Transiciones de ruta con `page3`.
+   - La navegación respeta las zonas ocultas en Ajustes → Zonas.
+3. **Núcleo y bienestar:** Dashboard, Hábitos, Detalle de hábito, Misiones, Coliseo, Logros, Finanzas, Comida, Sueño y Perfil.
+4. **Más zonas:** Gimnasio, Glow up, Aprendizaje, Relaciones, Diario, Agenda, Rituales, Sabiduría, Mis zonas, Tienda (con temas y vista previa), Ranking y Ajustes (con la pestaña Zonas).
+5. **Comunidad, estadísticas y ayuda:** Estadísticas, Gremio, Campaña y Ayuda, con todos sus estados del README:
+   - Gremio: sin gremio y dentro de un gremio.
+   - Campaña: temporada activa e inactiva.
+   - Ayuda: búsqueda con resultados y sin resultados.
 
-Empieza por la fase 1: lee el README, el design system y los archivos del repo indicados, y muéstrame el plan de mapeo antes de escribir código.
+**Verificación (una sola pasada al final)**
+- Mientras trabajas, corre `typecheck` solo al cerrar cada punto del orden; corrige y sigue.
+- Al final, ejecuta `lint`, `typecheck` y `build` de `apps/web`, sin errores.
+- Saca capturas con Playwright de las 26 rutas a 375 y 1440 px en light, y de 4 rutas representativas en dark.
+- Comprueba que, con reduced motion emulado, no haya tilt, blur ni desplazamientos.
+- Comprueba que no haya scroll horizontal a 375 px, que el foco sea visible y que Escape cierre los modales.
+- Comprueba que el OTP del Gremio acepte pegar un código, avance solo y retroceda con backspace, y que los acordeones de Ayuda actualicen `aria-expanded`.
+
+**Al terminar**, dame un resumen corto con:
+- qué se implementó;
+- los mapeos de tokens o clases que hiciste;
+- los `TODO(api)` pendientes (Gremio, Campaña y zonas ocultas son los más probables);
+- cualquier desviación del diseño y su motivo.

@@ -1,745 +1,214 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+// Ranking (RankingDesktop): Global/Amigos, chips de métrica, podio que sube,
+// tu fila resaltada, tu posición con la distancia al siguiente y gestión de amigos.
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Check, Dumbbell, Flame, HeartHandshake, PiggyBank, RefreshCw, Trophy, UserMinus, UserPlus, Users, X, type LucideIcon } from 'lucide-react';
+import { item, stagger } from '@/lib/motion';
+import { cn } from '@/lib/utils';
 import {
-  Check,
-  Dumbbell,
-  Flame,
-  Globe,
-  Medal,
-  PiggyBank,
-  RefreshCw,
-  Trophy,
-  UserPlus,
-  Users,
-  X,
-  type LucideIcon,
-} from "lucide-react";
+  getLeaderboard, sendFriendRequest, getFriends, getPendingRequests, respondFriendRequest, removeFriend,
+} from '@/services/social.service';
+import { useAuthStore } from '@/store/authStore';
+import { useToast } from '@/hooks/useToast';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { AvatarDisplay } from '@/components/character/AvatarDisplay';
 import {
-  getLeaderboard,
-  sendFriendRequest,
-  getFriends,
-  getPendingRequests,
-  respondFriendRequest,
-  removeFriend,
-} from "../../services/social.service";
-import { useAuthStore } from "../../store/authStore";
-import { AvatarDisplay } from "../../components/character/AvatarDisplay";
-import { FlowButton } from "../../components/ui/flow-button";
+  Button, Card, ChipGroup, EmptyState, ErrorState, Field, Input, LeaderRow, PageLoader, Podium, ProgressBar,
+  SegmentedControl, Skeleton, type ChipOption,
+} from '@/components/ui/lq';
 
-type Category = "xp" | "streak" | "gym" | "savings";
+type Category = 'xp' | 'streak' | 'gym' | 'savings';
+type Scope = 'global' | 'friends';
 
-interface LeaderboardEntry {
-  rank: number;
-  id: string;
-  username: string;
-  displayName: string;
-  level: number;
-  value: number;
-  xpToNextLevel?: number;
-  avatarConfig?: unknown;
-  avatarUrl?: string | null;
-  equippedAura?: string | null;
-  equippedFrame?: string | null;
-  equippedHat?: string | null;
+interface Entry {
+  rank: number; id: string; username: string; displayName: string; level: number; value: number;
+  avatarConfig?: unknown; avatarUrl?: string | null;
 }
+interface Friend { friendshipId: string; friend: { id: string; username: string; displayName: string; level: number; currentStreak: number; avatarConfig?: unknown; avatarUrl?: string | null } }
+interface Pending { id: string; requester: { id: string; username: string; displayName: string; level: number; avatarConfig?: unknown; avatarUrl?: string | null } }
 
-interface Friend {
-  friendshipId: string;
-  friend: {
-    id: string;
-    username: string;
-    displayName: string;
-    level: number;
-    currentStreak: number;
-    avatarConfig?: unknown;
-    avatarUrl?: string | null;
-  };
-  since: string;
-}
+const METRICS: Record<Category, { label: string; icon: LucideIcon; unit: string }> = {
+  xp: { label: 'XP total', icon: Trophy, unit: 'XP' },
+  streak: { label: 'Racha activa', icon: Flame, unit: 'días' },
+  gym: { label: 'Entrenamiento', icon: Dumbbell, unit: 'sesiones' },
+  savings: { label: 'Ahorro', icon: PiggyBank, unit: '%' },
+};
+const fmtValue = (v: number, c: Category) => (c === 'savings' ? `${Math.round(v)}%` : `${Math.round(v).toLocaleString('es-CO')} ${METRICS[c].unit}`);
+const initials = (n: string) => n.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+const errText = (e: unknown, fallback: string) => (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? fallback;
 
-interface PendingRequest {
-  id: string;
-  requester: {
-    id: string;
-    username: string;
-    displayName: string;
-    level: number;
-    avatarConfig?: unknown;
-    avatarUrl?: string | null;
-  };
-  createdAt: string;
-}
+function Friends({ onChanged }: { onChanged: () => void }) {
+  const toast = useToast();
+  const [friends, setFriends] = useState<Friend[]>([]);
+  const [pending, setPending] = useState<Pending[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [input, setInput] = useState('');
+  const [sending, setSending] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
-const CATEGORIES: Array<{
-  id: Category;
-  label: string;
-  shortLabel: string;
-  Icon: LucideIcon;
-  unit: string;
-  description: string;
-}> = [
-  {
-    id: "xp",
-    label: "XP total",
-    shortLabel: "XP",
-    Icon: Trophy,
-    unit: "XP",
-    description: "Progreso acumulado de cada aventurero.",
-  },
-  {
-    id: "streak",
-    label: "Racha activa",
-    shortLabel: "Racha",
-    Icon: Flame,
-    unit: "días",
-    description: "Días consecutivos sosteniendo el ritmo.",
-  },
-  {
-    id: "gym",
-    label: "Entrenamiento",
-    shortLabel: "Gym",
-    Icon: Dumbbell,
-    unit: "sesiones",
-    description: "Sesiones registradas en el Gimnasio.",
-  },
-  {
-    id: "savings",
-    label: "Ahorro",
-    shortLabel: "Ahorro",
-    Icon: PiggyBank,
-    unit: "%",
-    description: "Porcentaje de ahorro del mes actual.",
-  },
-];
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [f, p] = await Promise.all([getFriends(), getPendingRequests()]);
+      setFriends(f as Friend[]); setPending(p as Pending[]);
+    } catch { setFriends([]); setPending([]); }
+    finally { setLoading(false); }
+  }, []);
+  useEffect(() => { void refresh(); }, [refresh]);
 
-function formatValue(value: number, unit: string) {
-  const amount = new Intl.NumberFormat("es-CO").format(value);
-  return unit === "%" ? `${amount}%` : `${amount} ${unit}`;
-}
-
-function rankTone(rank: number) {
-  if (rank === 1)
-    return "text-[var(--accent-gold)] border-[color-mix(in_oklab,var(--accent-gold)_42%,var(--border))] bg-[color-mix(in_oklab,var(--accent-gold)_10%,var(--bg-panel))]";
-  if (rank === 2)
-    return "text-[var(--text-primary)] border-[var(--border-strong)] bg-[var(--bg-panel)]";
-  if (rank === 3)
-    return "text-[var(--text-secondary)] border-[var(--border)] bg-[var(--bg-panel)]";
-  return "text-[var(--text-muted)] border-transparent bg-transparent";
-}
-
-function RankMark({ rank }: { rank: number }) {
-  if (rank <= 3) {
-    return (
-      <span
-        className={`flex h-8 w-8 items-center justify-center rounded-lg border ${rankTone(rank)}`}
-        aria-label={`Posición ${rank}`}
-      >
-        <Medal size={16} strokeWidth={1.9} />
-      </span>
-    );
+  async function send() {
+    if (!input.trim()) return;
+    setSending(true); setMsg(null);
+    try { await sendFriendRequest(input.trim()); setMsg({ ok: true, text: 'Solicitud enviada. Aparecerá cuando la acepten.' }); setInput(''); }
+    catch (e) { setMsg({ ok: false, text: errText(e, 'No se pudo enviar la solicitud.') }); }
+    finally { setSending(false); }
   }
-  return (
-    <span className="flex h-8 w-8 items-center justify-center text-xs font-semibold tabular-nums text-[var(--text-muted)]">
-      {rank}
-    </span>
-  );
-}
+  async function respond(id: string, accept: boolean) {
+    try { await respondFriendRequest(id, accept); setPending((p) => p.filter((x) => x.id !== id)); if (accept) { await refresh(); onChanged(); } }
+    catch { toast.error('No se pudo actualizar la solicitud'); }
+  }
+  async function remove(id: string) {
+    try { await removeFriend(id); setFriends((f) => f.filter((x) => x.friendshipId !== id)); onChanged(); }
+    catch { toast.error('No se pudo eliminar a este amigo'); }
+  }
 
-function PanelTitle({
-  icon: Icon,
-  title,
-  detail,
-}: {
-  icon: LucideIcon;
-  title: string;
-  detail?: string;
-}) {
   return (
-    <div className="flex items-start gap-3">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[color-mix(in_oklab,var(--accent-gold)_10%,var(--bg-panel))] text-[var(--accent-gold)]">
-        <Icon size={17} />
-      </span>
-      <div className="min-w-0">
-        <h2 className="text-sm font-semibold text-[var(--text-primary)]">
-          {title}
-        </h2>
-        {detail && (
-          <p className="mt-0.5 text-xs leading-5 text-[var(--text-secondary)]">
-            {detail}
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function FriendManager({
-  friends,
-  pending,
-  loading,
-  addInput,
-  setAddInput,
-  addLoading,
-  addMessage,
-  onSend,
-  onRespond,
-  onRemove,
-}: {
-  friends: Friend[];
-  pending: PendingRequest[];
-  loading: boolean;
-  addInput: string;
-  setAddInput: (value: string) => void;
-  addLoading: boolean;
-  addMessage: { ok: boolean; text: string } | null;
-  onSend: () => Promise<void>;
-  onRespond: (id: string, accept: boolean) => Promise<void>;
-  onRemove: (friendshipId: string) => Promise<void>;
-}) {
-  return (
-    <section className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-panel-light)] shadow-[0_14px_36px_rgba(0,0,0,0.08)]">
-      <div className="border-b border-[var(--border)] px-4 py-4">
-        <PanelTitle
-          icon={Users}
-          title="Tu círculo"
-          detail="Compara avances y acompaña el progreso de tus amigos."
-        />
-      </div>
-      <div className="space-y-4 p-4">
-        <div>
-          <label
-            className="text-xs font-medium text-[var(--text-secondary)]"
-            htmlFor="friend-identifier"
-          >
-            Invitar a un amigo
-          </label>
-          <div className="mt-1.5 flex gap-2">
-            <input
-              id="friend-identifier"
-              value={addInput}
-              onChange={(event) => setAddInput(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") void onSend();
-              }}
-              placeholder="Usuario o código"
-              className="min-w-0 flex-1 rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--accent-gold)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--accent-gold)_20%,transparent)]"
-            />
-            <FlowButton
-              onClick={() => void onSend()}
-              disabled={addLoading || !addInput.trim()}
-              size="sm"
-              withArrows={false}
-              aria-label="Enviar solicitud de amistad"
-            >
-              <span className="inline-flex items-center gap-1.5">
-                <UserPlus size={14} />
-                {addLoading ? "…" : "Enviar"}
-              </span>
-            </FlowButton>
-          </div>
-          {addMessage && (
-            <p
-              className={`mt-2 text-xs ${addMessage.ok ? "text-[var(--accent-green)]" : "text-[var(--accent-red)]"}`}
-            >
-              {addMessage.text}
-            </p>
-          )}
-        </div>
-
-        {loading ? (
-          <div className="space-y-2" aria-label="Cargando amistades">
-            <div className="skeleton h-12 rounded-xl" />
-            <div className="skeleton h-12 rounded-xl" />
-          </div>
-        ) : (
-          <>
-            {pending.length > 0 && (
-              <div>
-                <p className="mb-2 text-sm font-medium text-[var(--text-muted)]">
-                  Solicitudes · {pending.length}
-                </p>
-                <div className="space-y-2">
-                  {pending.map((request) => (
-                    <div
-                      key={request.id}
-                      className="flex items-center gap-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] p-2.5"
-                    >
-                      <AvatarDisplay
-                        avatarConfig={request.requester.avatarConfig}
-                        avatarUrl={request.requester.avatarUrl}
-                        size={34}
-                        animate="idle"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-semibold text-[var(--text-primary)]">
-                          {request.requester.displayName}
-                        </p>
-                        <p className="truncate text-xs text-[var(--text-secondary)]">
-                          @{request.requester.username} · Nivel{" "}
-                          {request.requester.level}
-                        </p>
-                      </div>
-                      <FlowButton
-                        tone="green"
-                        size="sm"
-                        withArrows={false}
-                        className="h-8 w-8 px-2"
-                        onClick={() => void onRespond(request.id, true)}
-                        aria-label={`Aceptar solicitud de ${request.requester.displayName}`}
-                      >
-                        <Check size={15} />
-                      </FlowButton>
-                      <FlowButton
-                        tone="danger"
-                        size="sm"
-                        withArrows={false}
-                        className="h-8 w-8 px-2"
-                        onClick={() => void onRespond(request.id, false)}
-                        aria-label={`Rechazar solicitud de ${request.requester.displayName}`}
-                      >
-                        <X size={15} />
-                      </FlowButton>
-                    </div>
-                  ))}
+    <Card padding="lg" className="flex flex-col gap-4">
+      <div className="flex items-center gap-2"><Users aria-hidden className="size-5 text-primary-text" strokeWidth={1.75} /><h2 className="text-heading-sm">Tu círculo</h2></div>
+      <form onSubmit={(e) => { e.preventDefault(); void send(); }} className="flex flex-col gap-2">
+        <Field label="Invitar a un amigo" error={msg && !msg.ok ? msg.text : undefined} help={msg?.ok ? msg.text : 'Su usuario o su código de invitación.'}>
+          <Input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Usuario o código" autoCapitalize="none" />
+        </Field>
+        <Button type="submit" size="md" loading={sending} disabled={!input.trim()} className="self-start"><UserPlus aria-hidden className="size-4" strokeWidth={1.75} />Enviar solicitud</Button>
+      </form>
+      {loading ? <Skeleton className="h-24 rounded-xl" /> : (
+        <>
+          {pending.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <p className="text-label-md uppercase text-on-surface-light">Solicitudes · {pending.length}</p>
+              {pending.map((r) => (
+                <div key={r.id} className="flex items-center gap-3 rounded-xl border border-border bg-background p-2">
+                  <AvatarDisplay avatarConfig={r.requester.avatarConfig} avatarUrl={r.requester.avatarUrl} size={36} animate="none" className="shrink-0 overflow-hidden rounded-full" />
+                  <div className="min-w-0 flex-1"><p className="truncate text-label-lg">{r.requester.displayName}</p><p className="truncate text-body-sm text-on-surface-light">@{r.requester.username} · Nivel {r.requester.level}</p></div>
+                  <Button variant="icon" aria-label={`Aceptar a ${r.requester.displayName}`} onClick={() => void respond(r.id, true)} className="text-success-text"><Check aria-hidden className="size-5" /></Button>
+                  <Button variant="icon" aria-label={`Rechazar a ${r.requester.displayName}`} onClick={() => void respond(r.id, false)} className="text-error-text"><X aria-hidden className="size-5" /></Button>
                 </div>
-              </div>
-            )}
-
-            <div>
-              <p className="mb-2 text-sm font-medium text-[var(--text-muted)]">
-                Amigos · {friends.length}
-              </p>
-              {friends.length ? (
-                <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
-                  {friends.map(({ friendshipId, friend }) => (
-                    <div
-                      key={friendshipId}
-                      className="flex items-center gap-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] p-2.5"
-                    >
-                      <AvatarDisplay
-                        avatarConfig={friend.avatarConfig}
-                        avatarUrl={friend.avatarUrl}
-                        size={34}
-                        animate="idle"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-semibold text-[var(--text-primary)]">
-                          {friend.displayName}
-                        </p>
-                        <p className="truncate text-xs text-[var(--text-secondary)]">
-                          @{friend.username} · Nivel {friend.level} ·{" "}
-                          {friend.currentStreak} días
-                        </p>
-                      </div>
-                      <FlowButton
-                        tone="danger"
-                        size="sm"
-                        withArrows={false}
-                        className="h-8 w-8 px-2"
-                        onClick={() => void onRemove(friendshipId)}
-                        aria-label={`Eliminar a ${friend.displayName}`}
-                      >
-                        <X size={14} />
-                      </FlowButton>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="rounded-xl bg-[var(--bg-panel)] px-3 py-3 text-xs leading-5 text-[var(--text-secondary)]">
-                  Aún no tienes amigos. Invita a alguien con su usuario o código
-                  de invitación.
-                </p>
-              )}
+              ))}
             </div>
-          </>
-        )}
-      </div>
-    </section>
+          )}
+          <div className="flex flex-col gap-1">
+            <p className="text-label-md uppercase text-on-surface-light">Amigos · {friends.length}</p>
+            {friends.length === 0 ? <p className="text-body-sm text-on-surface-light">Aún no tienes amigos. Invita a alguien con su usuario.</p> : friends.map(({ friendshipId, friend }) => (
+              <div key={friendshipId} className="flex min-h-14 items-center gap-3">
+                <AvatarDisplay avatarConfig={friend.avatarConfig} avatarUrl={friend.avatarUrl} size={36} animate="none" className="shrink-0 overflow-hidden rounded-full" />
+                <div className="min-w-0 flex-1"><p className="truncate text-label-lg">{friend.displayName}</p><p className="truncate text-body-sm text-on-surface-light">Nivel {friend.level} · {friend.currentStreak} días de racha</p></div>
+                <Button variant="icon" aria-label={`Quitar a ${friend.displayName}`} onClick={() => void remove(friendshipId)}><UserMinus aria-hidden className="size-5" strokeWidth={1.75} /></Button>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </Card>
   );
 }
 
 export default function LeaderboardPage() {
-  const { user } = useAuthStore();
-  const [category, setCategory] = useState<Category>("xp");
-  const [friendsOnly, setFriendsOnly] = useState(false);
-  const [data, setData] = useState<LeaderboardEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [friends, setFriends] = useState<Friend[]>([]);
-  const [pending, setPending] = useState<PendingRequest[]>([]);
-  const [friendsLoading, setFriendsLoading] = useState(false);
-  const [addInput, setAddInput] = useState("");
-  const [addLoading, setAddLoading] = useState(false);
-  const [addMessage, setAddMessage] = useState<{
-    ok: boolean;
-    text: string;
-  } | null>(null);
+  const user = useAuthStore((s) => s.user);
+  const [category, setCategory] = useState<Category>('xp');
+  const [scope, setScope] = useState<Scope>('global');
+  const [data, setData] = useState<Entry[]>([]);
+  const [state, setState] = useState<'loading' | 'error' | 'ready'>('loading');
+  const [refreshing, setRefreshing] = useState(false);
 
-  const currentCategory = useMemo(
-    () => CATEGORIES.find((item) => item.id === category) ?? CATEGORIES[0],
-    [category],
-  );
+  const load = useCallback(async (silent = false) => {
+    if (silent) setRefreshing(true); else setState('loading');
+    try { setData((await getLeaderboard(category, scope === 'friends')) as Entry[]); setState('ready'); }
+    catch { if (!silent) setState('error'); }
+    finally { setRefreshing(false); }
+  }, [category, scope]);
+  useEffect(() => { void load(); }, [load]);
 
-  const refreshLeaderboard = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await getLeaderboard(category, friendsOnly);
-      setData(response as LeaderboardEntry[]);
-    } catch {
-      setData([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [category, friendsOnly]);
-
-  const refreshFriends = useCallback(async () => {
-    setFriendsLoading(true);
-    try {
-      const [friendList, pendingList] = await Promise.all([
-        getFriends(),
-        getPendingRequests(),
-      ]);
-      setFriends(friendList as Friend[]);
-      setPending(pendingList as PendingRequest[]);
-    } catch {
-      setFriends([]);
-      setPending([]);
-    } finally {
-      setFriendsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void refreshLeaderboard();
-  }, [refreshLeaderboard]);
-  useEffect(() => {
-    if (friendsOnly) void refreshFriends();
-  }, [friendsOnly, refreshFriends]);
-
-  const myEntry = data.find((entry) => entry.id === user?.id);
-
-  const handleSendRequest = async () => {
-    if (!addInput.trim()) return;
-    setAddLoading(true);
-    setAddMessage(null);
-    try {
-      await sendFriendRequest(addInput.trim());
-      setAddMessage({
-        ok: true,
-        text: "Solicitud enviada. Aparecerá en tu círculo cuando sea aceptada.",
-      });
-      setAddInput("");
-    } catch (error: unknown) {
-      const response = error as { response?: { data?: { error?: string } } };
-      setAddMessage({
-        ok: false,
-        text:
-          response.response?.data?.error ?? "No se pudo enviar la solicitud.",
-      });
-    } finally {
-      setAddLoading(false);
-    }
-  };
-
-  const handleRespond = async (id: string, accept: boolean) => {
-    try {
-      await respondFriendRequest(id, accept);
-      setPending((items) => items.filter((item) => item.id !== id));
-      if (accept) await Promise.all([refreshFriends(), refreshLeaderboard()]);
-    } catch {
-      setAddMessage({ ok: false, text: "No se pudo actualizar la solicitud." });
-    }
-  };
-
-  const handleRemove = async (friendshipId: string) => {
-    try {
-      await removeFriend(friendshipId);
-      setFriends((items) =>
-        items.filter((item) => item.friendshipId !== friendshipId),
-      );
-      await refreshLeaderboard();
-    } catch {
-      setAddMessage({ ok: false, text: "No se pudo eliminar a este amigo." });
-    }
-  };
+  const myIdx = data.findIndex((e) => e.id === String(user?.id));
+  const me = myIdx >= 0 ? data[myIdx] : null;
+  const ahead = myIdx > 0 ? data[myIdx - 1] : null;
+  const gap = me && ahead ? Math.max(0, ahead.value - me.value) : 0;
+  const top = useMemo(() => data.slice(0, 3).map((e) => ({
+    id: e.id, name: e.displayName.split(' ')[0], initials: initials(e.displayName), score: fmtValue(e.value, category), isYou: e.id === String(user?.id),
+  })), [data, category, user?.id]);
+  const options: ChipOption<Category>[] = (Object.keys(METRICS) as Category[]).map((c) => ({ value: c, label: METRICS[c].label, icon: METRICS[c].icon }));
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-5 pb-8">
-      <header className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel-light)] px-4 py-5 shadow-[0_14px_36px_rgba(0,0,0,0.08)] sm:px-6">
-        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-          <div>
-            <p className="text-sm font-medium text-[var(--accent-gold)]">
-              Comunidad
-            </p>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[var(--text-primary)]">
-              Tabla de líderes
-            </h1>
-            <p className="mt-1 max-w-xl text-sm leading-5 text-[var(--text-secondary)]">
-              Una lectura clara del progreso global o de las personas que tienes
-              cerca.
-            </p>
-          </div>
-          <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[color-mix(in_oklab,var(--accent-gold)_10%,var(--bg-panel))] text-[var(--accent-gold)]">
-              <Trophy size={16} />
-            </span>
-            Actualizado al abrir esta vista
-          </div>
-        </div>
-      </header>
+    <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-8 md:gap-12">
+      <PageHeader
+        eyebrow="Comunidad"
+        title="Tabla de líderes"
+        description="Una lectura clara del progreso global o de las personas que tienes cerca."
+        aside={<>
+          <div className="w-full max-w-[300px] sm:w-[300px]"><SegmentedControl label="Alcance" value={scope} onChange={setScope} options={[{ value: 'global', label: 'Global' }, { value: 'friends', label: 'Amigos' }]} /></div>
+          <Button variant="ghost" size="md" onClick={() => void load(true)} aria-label="Actualizar ranking">
+            <RefreshCw aria-hidden className={cn('size-4', refreshing && 'animate-spin')} strokeWidth={1.75} />Actualizar
+          </Button>
+        </>}
+      />
 
-      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <main className="min-w-0 space-y-4">
-          <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel-light)] p-3 shadow-[0_14px_36px_rgba(0,0,0,0.08)] sm:p-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div
-                className="flex rounded-xl bg-[var(--bg-panel)] p-1"
-                aria-label="Alcance de la clasificación"
-              >
-                <button
-                  type="button"
-                  onClick={() => setFriendsOnly(false)}
-                  className={`inline-flex min-h-11 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] ${!friendsOnly ? "bg-[var(--bg-panel-light)] text-[var(--text-primary)] shadow-sm" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
-                  aria-pressed={!friendsOnly}
-                >
-                  <Globe size={15} />
-                  Global
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFriendsOnly(true)}
-                  className={`inline-flex min-h-11 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] ${friendsOnly ? "bg-[var(--bg-panel-light)] text-[var(--text-primary)] shadow-sm" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
-                  aria-pressed={friendsOnly}
-                >
-                  <Users size={15} />
-                  Amigos
-                </button>
-              </div>
-              <FlowButton
-                tone="ghost"
-                size="sm"
-                withArrows={false}
-                onClick={() => void refreshLeaderboard()}
-                className="min-h-11 gap-1.5"
-                aria-label="Actualizar tabla"
-              >
-                <RefreshCw
-                  size={14}
-                  className={loading ? "animate-spin" : ""}
-                />
-                Actualizar
-              </FlowButton>
-            </div>
-            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {CATEGORIES.map(({ id, label, shortLabel, Icon }) => {
-                const selected = category === id;
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => setCategory(id)}
-                    className={`flex min-h-11 min-w-0 items-center gap-2 rounded-xl border px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] ${selected ? "border-[var(--accent-gold)] bg-[color-mix(in_oklab,var(--accent-gold)_9%,var(--bg-panel))] text-[var(--text-primary)]" : "border-[var(--border)] bg-[var(--bg-panel)] text-[var(--text-secondary)] hover:border-[var(--text-muted)]"}`}
-                  >
-                    <Icon
-                      size={16}
-                      className={
-                        selected
-                          ? "shrink-0 text-[var(--accent-gold)]"
-                          : "shrink-0"
-                      }
-                    />
-                    <span className="min-w-0 truncate text-xs font-medium">
-                      <span className="sm:hidden">{shortLabel}</span>
-                      <span className="hidden sm:inline">{label}</span>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
+      <motion.div variants={item}><ChipGroup label="Métrica" options={options} value={category} onChange={setCategory} /></motion.div>
 
-          <section className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-panel-light)] shadow-[0_14px_36px_rgba(0,0,0,0.08)]">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-4 sm:px-5">
-              <PanelTitle
-                icon={currentCategory.Icon}
-                title={currentCategory.label}
-                detail={currentCategory.description}
-              />
-              <span className="rounded-full bg-[var(--bg-panel)] px-2.5 py-1 text-xs font-medium text-[var(--text-secondary)]">
-                {friendsOnly ? "Tu círculo" : "Global"} · {data.length}
-              </span>
-            </div>
-
-            {loading ? (
-              <div
-                className="space-y-2 p-4 sm:p-5"
-                aria-label="Cargando tabla de líderes"
-              >
-                {[1, 2, 3, 4, 5].map((index) => (
-                  <div key={index} className="skeleton h-[68px] rounded-xl" />
-                ))}
-              </div>
-            ) : data.length === 0 ? (
-              <div className="px-5 py-14 text-center">
-                <Users
-                  size={28}
-                  className="mx-auto text-[var(--text-muted)] opacity-50"
-                />
-                <p className="mt-3 text-sm font-semibold text-[var(--text-primary)]">
-                  Aún no hay posiciones para mostrar
-                </p>
-                <p className="mx-auto mt-1 max-w-sm text-xs leading-5 text-[var(--text-secondary)]">
-                  {friendsOnly
-                    ? "Invita a tus amigos o registra una actividad para empezar la comparación."
-                    : "Sé de los primeros en registrar tu progreso."}
-                </p>
-              </div>
-            ) : (
-              <div className="divide-y divide-[var(--border)]">
-                {data.slice(0, 50).map((entry, index) => {
-                  const isMe = entry.id === user?.id;
-                  return (
-                    <motion.div
-                      key={entry.id}
-                      initial={{ opacity: 0, y: 5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{
-                        duration: 0.18,
-                        delay: Math.min(index, 8) * 0.025,
-                      }}
-                      className={`flex items-center gap-3 px-4 py-3 transition-colors sm:px-5 ${isMe ? "bg-[color-mix(in_oklab,var(--accent-gold)_8%,var(--bg-panel))]" : "hover:bg-[var(--bg-panel)]"}`}
-                    >
-                      <RankMark rank={entry.rank} />
-                      <AvatarDisplay
-                        avatarConfig={entry.avatarConfig}
-                        avatarUrl={entry.avatarUrl}
-                        equippedAura={entry.equippedAura}
-                        equippedFrame={entry.equippedFrame}
-                        size={42}
-                        animate="idle"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex min-w-0 items-center gap-2">
-                          <p
-                            className={`truncate text-sm font-semibold ${isMe ? "text-[var(--accent-gold)]" : "text-[var(--text-primary)]"}`}
-                          >
-                            {entry.displayName}
-                          </p>
-                          {isMe && (
-                            <span className="rounded-full bg-[color-mix(in_oklab,var(--accent-gold)_12%,var(--bg-panel))] px-1.5 py-0.5 text-xs font-medium text-[var(--accent-gold)]">
-                              Tú
-                            </span>
-                          )}
-                        </div>
-                        <p className="mt-0.5 truncate text-xs text-[var(--text-secondary)]">
-                          @{entry.username} · Nivel {entry.level}
-                        </p>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <p className="text-sm font-semibold tabular-nums text-[var(--accent-gold)]">
-                          {formatValue(entry.value, currentCategory.unit)}
-                        </p>
-                        <p className="mt-0.5 text-sm text-[var(--text-muted)]">
-                          Posición {entry.rank}
-                        </p>
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-        </main>
-
-        <aside className="space-y-4">
-          <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel-light)] p-4 shadow-[0_14px_36px_rgba(0,0,0,0.08)]">
-            <PanelTitle
-              icon={Trophy}
-              title="Tu posición"
-              detail={
-                friendsOnly
-                  ? "Dentro de tu círculo."
-                  : "Dentro de la clasificación global."
-              }
-            />
-            {myEntry ? (
-              <div className="mt-4 flex items-end justify-between rounded-xl border border-[color-mix(in_oklab,var(--accent-gold)_35%,var(--border))] bg-[color-mix(in_oklab,var(--accent-gold)_8%,var(--bg-panel))] px-3.5 py-3">
-                <div>
-                  <p className="text-sm font-medium text-[var(--text-muted)]">
-                    Posición
-                  </p>
-                  <p className="mt-1 text-2xl font-semibold tabular-nums text-[var(--accent-gold)]">
-                    #{myEntry.rank}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-semibold tabular-nums text-[var(--text-primary)]">
-                    {formatValue(myEntry.value, currentCategory.unit)}
-                  </p>
-                  <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
-                    {currentCategory.shortLabel}
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <p className="mt-4 rounded-xl bg-[var(--bg-panel)] px-3 py-3 text-xs leading-5 text-[var(--text-secondary)]">
-                Registra actividad en esta categoría para aparecer en la tabla.
-              </p>
-            )}
-          </section>
-
-          <AnimatePresence mode="wait">
-            {friendsOnly ? (
-              <motion.div
-                key="friends"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -5 }}
-                transition={{ duration: 0.18 }}
-              >
-                <FriendManager
-                  friends={friends}
-                  pending={pending}
-                  loading={friendsLoading}
-                  addInput={addInput}
-                  setAddInput={setAddInput}
-                  addLoading={addLoading}
-                  addMessage={addMessage}
-                  onSend={handleSendRequest}
-                  onRespond={handleRespond}
-                  onRemove={handleRemove}
-                />
+      <div className="flex flex-wrap items-start gap-6">
+        <motion.section variants={item} className="flex min-w-0 flex-[2_1_520px] flex-col gap-6" aria-label="Clasificación">
+          {state === 'loading' ? <PageLoader size="sm" /> : state === 'error' ? <ErrorState onRetry={() => void load()} /> : data.length === 0 ? (
+            <EmptyState icon={Users} title={scope === 'friends' ? 'Tu círculo está vacío' : 'Aún no hay clasificación'} description={scope === 'friends' ? 'Invita a amigos para compararte con ellos.' : 'Vuelve más tarde.'} />
+          ) : (
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div key={`${scope}-${category}`} variants={stagger} initial="initial" animate="animate" exit={{ opacity: 0, transition: { duration: 0.15 } }} className="flex flex-col gap-6">
+                <motion.div variants={item}>
+                  <Card variant="elevated" padding="none" className="overflow-hidden px-4 pt-8 md:px-6 md:pt-10">
+                    <Podium top={top} />
+                  </Card>
+                </motion.div>
+                {data.length > 3 && (
+                  <motion.div variants={item}>
+                    <Card padding="none" className="p-2">
+                      <motion.ol variants={stagger} initial="initial" animate="animate" className="flex flex-col">
+                        {data.slice(3).map((e, j) => (
+                          <motion.div key={e.id} variants={item}>
+                            <LeaderRow id={e.id} position={e.rank ?? j + 4} name={e.displayName} initials={initials(e.displayName)} toneIndex={j}
+                              subtitle={`@${e.username} · Nivel ${e.level}`} score={fmtValue(e.value, category)} isYou={e.id === String(user?.id)} />
+                          </motion.div>
+                        ))}
+                      </motion.ol>
+                    </Card>
+                  </motion.div>
+                )}
               </motion.div>
-            ) : (
-              <motion.section
-                key="global"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -5 }}
-                transition={{ duration: 0.18 }}
-                className="rounded-2xl border border-[var(--border)] bg-[var(--bg-panel-light)] p-4 shadow-[0_14px_36px_rgba(0,0,0,0.08)]"
-              >
-                <PanelTitle
-                  icon={Users}
-                  title="Compite con calma"
-                  detail="La tabla sirve como referencia: tu avance más importante es el que puedes sostener."
-                />
-                <FlowButton
-                  onClick={() => setFriendsOnly(true)}
-                  tone="ghost"
-                  size="sm"
-                  withArrows={false}
-                  className="mt-4 w-full"
-                >
-                  <span className="inline-flex items-center gap-1.5">
-                    <UserPlus size={14} />
-                    Ver amigos
-                  </span>
-                </FlowButton>
-              </motion.section>
-            )}
-          </AnimatePresence>
-        </aside>
+            </AnimatePresence>
+          )}
+        </motion.section>
+
+        <motion.aside variants={item} className="flex min-w-0 flex-[1_1_300px] flex-col gap-6">
+          <Card padding="lg" className="flex flex-col gap-4 border-transparent bg-primary/[var(--lq-soft-alpha)]">
+            <span className="text-label-lg text-on-surface">Tu posición</span>
+            <div className="flex items-baseline gap-3">
+              <span className="font-mono text-[4rem] font-bold leading-none tracking-[-2px] text-primary-text">{me ? `#${me.rank ?? myIdx + 1}` : '—'}</span>
+              <span className="text-body-md text-on-surface">de <span className="font-mono">{data.length}</span></span>
+            </div>
+            {me && ahead ? (
+              <div className="flex flex-col gap-1.5">
+                <div className="flex justify-between gap-2"><span className="text-body-sm text-on-surface">Para alcanzar el #{ahead.rank ?? myIdx}</span><span className="font-mono text-label-lg tabular-nums">{fmtValue(gap, category)}</span></div>
+                <ProgressBar value={ahead.value ? (me.value / ahead.value) * 100 : 0} shine label="Distancia al siguiente puesto" className="bg-background" />
+              </div>
+            ) : me ? <p className="text-body-sm text-on-surface">¡Vas en cabeza en {METRICS[category].label.toLowerCase()}!</p>
+              : <p className="text-body-sm text-on-surface">Aún no apareces en esta métrica. Registra actividad para entrar.</p>}
+          </Card>
+          {scope === 'friends' ? <Friends onChanged={() => void load(true)} /> : (
+            <Card padding="lg" className="flex flex-col gap-3">
+              <HeartHandshake aria-hidden className="size-8 text-success-text" strokeWidth={1.5} />
+              <h2 className="text-heading-sm">Compite con calma</h2>
+              <p className="text-body-md text-on-surface-light">La tabla es solo una referencia. Tu avance más importante es el que puedes sostener.</p>
+              <Button variant="ghost" size="md" className="self-start" onClick={() => setScope('friends')}>Ver amigos</Button>
+            </Card>
+          )}
+        </motion.aside>
       </div>
-    </div>
+    </motion.div>
   );
 }

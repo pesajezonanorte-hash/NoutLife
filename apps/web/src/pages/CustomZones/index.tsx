@@ -1,984 +1,347 @@
-import { FlowButton } from "@/components/ui/flow-button";
-import { useState, useEffect, useCallback, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+// Mis zonas (ZonesDesktop): composer «El Sabio» con texto de progreso → revisión
+// de la propuesta → la zona aparece con pop. Cada zona: hábitos, misiones y acciones.
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
-  Plus,
-  Sparkles,
-  Loader2,
-  Trash2,
-  ChevronDown,
-  ChevronRight,
-  CheckCircle2,
-  Circle,
-} from "lucide-react";
-import { PixelPanel } from "../../components/ui/PixelPanel";
-import { PixelButton } from "../../components/ui/PixelButton";
-import { useToastStore } from "../../hooks/useToast";
-import api from "../../lib/api";
-import { E } from "@/components/ui/glyphs";
-import ModernLoader from "@/components/ui/modern-loader";
-import { LoadingGate } from "@/components/ui/LoadingGate";
-import { LOADING_COPY } from "@/lib/loadingCopy";
+  BookOpen, Brain, Check, ChevronDown, Code2, Dumbbell, Flame, Heart, Leaf, MapPin, Moon, Music, NotebookPen, Plus, Sparkles, Star, Target, Trash2, Wallet,
+  type LucideIcon,
+} from 'lucide-react';
+import api from '@/lib/api';
+import { item, pop3, stagger } from '@/lib/motion';
+import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/useToast';
+import { PageHeader } from '@/components/layout/PageHeader';
+import {
+  Badge, Button, Card, EmptyState, ErrorState, Field, Input, Modal, PageLoader, ProgressBar, SabioComposer, SegmentedControl, SpotCard, Switch,
+} from '@/components/ui/lq';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface ZoneQuest {
-  id: string;
-  title: string;
-  status: string;
-  xpReward: number;
-  difficulty: string;
-}
-
-interface ZoneHabit {
-  id: string;
-  title: string;
-  currentStreak: number;
-  icon: string;
-  xpReward: number;
-}
-
+interface ZoneQuest { id: string; title: string; status: string; xpReward: number; difficulty: string }
+interface ZoneHabit { id: string; title: string; currentStreak: number; icon: string; xpReward: number }
 interface CustomZone {
-  id: string;
-  name: string;
-  description?: string;
-  icon: string;
-  accentColor: string;
-  isMeasurable: boolean;
-  measureMetric?: string;
-  weeklyXpGoal?: number;
+  id: string; name: string; description?: string; icon: string; accentColor: string; isMeasurable: boolean;
   sections?: { type: string; title: string; description: string }[];
   actions?: { label: string; type: string }[];
-  content: unknown[];
-  quests: ZoneQuest[];
-  habits: ZoneHabit[];
+  quests: ZoneQuest[]; habits: ZoneHabit[];
 }
-
-interface AISuggestion {
-  name: string;
-  description: string;
-  icon: string;
-  color: string;
-  isMeasurable: boolean;
-  measureReason: string;
+interface Suggestion {
+  name: string; description: string; icon: string; color: string; isMeasurable: boolean; measureReason: string;
   sections: { type: string; title: string; description: string }[];
   habits: { title: string; frequency: string }[];
   actions: { label: string; type: string }[];
 }
 
-const COLOR_PALETTE = [
-  "#2a2a2e",
-  "#5c5c64",
-  "#8a8a92",
-  "#c0c0c8",
-  "#a8871e",
-  "#4a825f",
-  "#b5453a",
-  "#d9b44a",
-];
-
-const DIFFICULTY_LABELS: Record<string, string> = {
-  EASY: "Fácil",
-  NORMAL: "Normal",
-  HARD: "Difícil",
+const MAX_ZONES = 10;
+const ICONS: Record<string, LucideIcon> = {
+  target: Target, book: BookOpen, brain: Brain, money: Wallet, heart: Heart, leaf: Leaf,
+  music: Music, star: Star, gym: Dumbbell, notes: NotebookPen, code: Code2, moon: Moon,
 };
-const DIFFICULTY_COLORS: Record<string, string> = {
-  EASY: "var(--text-muted)",
-  NORMAL: "var(--text-secondary)",
-  HARD: "var(--text-primary)",
-};
-
-const ZONE_ICON_KEYS = [
-  "target",
-  "book",
-  "brain",
-  "money",
-  "heart",
-  "leaf",
-  "music",
-  "star",
-  "gym",
-  "notes",
-  "code",
-  "moon",
+const iconOf = (k: string) => ICONS[k] ?? Target;
+/** Colores de acento de zona: dato de la zona (se guarda en la API), no estilo de componente. */
+const ZONE_COLORS = ['#6366f1', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#ec4899', '#64748b'];
+const IDEAS = [
+  { label: 'Música', text: 'Quiero aprender guitarra: practicar 20 minutos al día y tocar una canción completa en 2 meses.' },
+  { label: 'Idiomas', text: 'Quiero mejorar mi inglés conversacional: 15 minutos de práctica oral al día y una conversación por semana.' },
+  { label: 'Meditación', text: 'Quiero meditar 10 minutos cada mañana durante 30 días y notar más calma.' },
+  { label: 'Escritura', text: 'Quiero escribir un relato: 500 palabras al día hasta terminar el primer borrador.' },
 ];
+const PROGRESS = ['Analizando tu objetivo', 'Diseñando hábitos', 'Creando misiones', 'Preparando tu zona'];
+const createsHabit = (t: string) => /habit|habito|hábito|rutina/i.test(t);
+const categoryOf = (t: string) => (/lesson|leccion|lección|study|estudio/i.test(t) ? 'LEARNING' : 'PERSONAL');
+/** Tinte de la zona con su color de acento (variable CSS en el contenedor). */
+const zoneVars = (color: string) => ({ '--zone': color }) as CSSProperties;
 
-// Detect if an action type creates a habit or quest
-function actionCreatesHabit(type: string) {
+function ZoneIcon({ zone, size = 'md' }: { zone: { icon: string; accentColor: string }; size?: 'md' | 'lg' }) {
+  const Icon = iconOf(zone.icon);
   return (
-    type === "new_habit" ||
-    type.includes("habit") ||
-    type.includes("habito") ||
-    type.includes("habito") ||
-    type.includes("rutina")
+    <span style={zoneVars(zone.accentColor)}
+      className={cn('lq-ichip relative flex shrink-0 items-center justify-center overflow-hidden text-[color:var(--zone)] before:absolute before:inset-0 before:bg-[var(--zone)] before:opacity-15',
+        size === 'lg' ? 'size-14 rounded-2xl' : 'size-12 rounded-[14px]')}>
+      <Icon aria-hidden className={cn('relative', size === 'lg' ? 'size-8' : 'size-6')} strokeWidth={1.75} />
+    </span>
   );
 }
 
-function actionCategory(type: string): string {
-  if (
-    type.includes("lesson") ||
-    type.includes("leccion") ||
-    type.includes("lección") ||
-    type.includes("study") ||
-    type.includes("estudio")
-  )
-    return "LEARNING";
-  return "PERSONAL";
-}
-
-// ─── Inline Action Form ───────────────────────────────────────────────────────
-
-function ActionForm({
-  action,
-  zone,
-  onDone,
-  onClose,
-}: {
-  action: { label: string; type: string };
-  zone: CustomZone;
-  onDone: () => void;
-  onClose: () => void;
-}) {
-  const toast = useToastStore();
-  const [title, setTitle] = useState("");
-  const [difficulty, setDifficulty] = useState<"EASY" | "NORMAL" | "HARD">(
-    "NORMAL",
-  );
+function ActionForm({ action, zone, onDone }: { action: { label: string; type: string }; zone: CustomZone; onDone: () => void }) {
+  const toast = useToast();
+  const isHabit = createsHabit(action.type);
+  const [title, setTitle] = useState('');
+  const [difficulty, setDifficulty] = useState<'EASY' | 'NORMAL' | 'HARD'>('NORMAL');
   const [saving, setSaving] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const isHabit = actionCreatesHabit(action.type);
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => { ref.current?.focus(); }, []);
 
-  useEffect(() => {
-    setTimeout(() => inputRef.current?.focus(), 80);
-  }, []);
-
-  async function handleSave() {
+  async function save(e: FormEvent) {
+    e.preventDefault();
     if (!title.trim()) return;
     setSaving(true);
     try {
-      if (isHabit) {
-        await api.post(`/custom-zones/${zone.id}/habits`, {
-          title: title.trim(),
-        });
-        toast.success("¡Hábito creado en la zona!");
-      } else {
-        await api.post(`/custom-zones/${zone.id}/quests`, {
-          title: title.trim(),
-          type: "SIDE",
-          difficulty,
-          category: actionCategory(action.type),
-        });
-        toast.success("¡Misión creada en la zona!");
-      }
-      setTitle("");
+      if (isHabit) await api.post(`/custom-zones/${zone.id}/habits`, { title: title.trim() });
+      else await api.post(`/custom-zones/${zone.id}/quests`, { title: title.trim(), type: 'SIDE', difficulty, category: categoryOf(action.type) });
+      toast.success(isHabit ? 'Hábito creado en la zona' : 'Misión creada en la zona');
+      setTitle('');
       onDone();
-    } catch {
-      toast.error("Error al crear. Intenta de nuevo.");
-      setSaving(false);
-    }
+    } catch { toast.error('No se pudo crear. Inténtalo de nuevo.'); }
+    finally { setSaving(false); }
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, height: 0 }}
-      animate={{ opacity: 1, height: "auto" }}
-      exit={{ opacity: 0, height: 0 }}
-      transition={{ duration: 0.18 }}
-      className="overflow-hidden"
-    >
-      <div
-        className="mt-2 rounded-xl p-3 space-y-2"
-        style={{
-          background: `${zone.accentColor}10`,
-          border: `1px solid ${zone.accentColor}30`,
-        }}
-      >
-        <p
-          className="text-xs font-semibold"
-          style={{ color: zone.accentColor }}
-        >
-          {isHabit ? (
-            <>
-              <E e="🔥" s={11} /> Nuevo hábito
-            </>
-          ) : (
-            `+ ${action.label}`
-          )}
-        </p>
-        <input
-          ref={inputRef}
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") handleSave();
-            if (e.key === "Escape") onClose();
-          }}
-          placeholder={
-            isHabit ? "Nombre del hábito..." : "Nombre de la misión..."
-          }
-          className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-          style={{
-            background: "var(--bg-panel)",
-            border: `1px solid ${zone.accentColor}40`,
-            color: "var(--text)",
-          }}
-        />
-        {!isHabit && (
-          <div className="flex gap-1.5">
-            {(["EASY", "NORMAL", "HARD"] as const).map((d) => (
-              <button
-                key={d}
-                onClick={() => setDifficulty(d)}
-                className="flex-1 py-1 rounded-lg text-xs font-semibold transition-all"
-                style={{
-                  background:
-                    difficulty === d
-                      ? `${DIFFICULTY_COLORS[d]}22`
-                      : "var(--bg-soft)",
-                  border: `1px solid ${difficulty === d ? DIFFICULTY_COLORS[d] : "var(--border)"}`,
-                  color:
-                    difficulty === d
-                      ? DIFFICULTY_COLORS[d]
-                      : "var(--text-muted)",
-                }}
-              >
-                <E e={DIFFICULTY_LABELS[d]} />
-              </button>
-            ))}
-          </div>
-        )}
-        <div className="flex gap-2">
-          <FlowButton
-            tone="primary"
-            withArrows={false}
-            onClick={handleSave}
-            disabled={!title.trim() || saving}
-            className="flex-1 py-1.5 rounded-lg text-xs font-bold transition-all disabled:opacity-40"
-            style={{ background: zone.accentColor, color: "#fff" }}
-          >
-            {saving ? "..." : "Crear"}
-          </FlowButton>
-          <FlowButton
-            tone="ghost"
-            withArrows={false}
-            onClick={onClose}
-            className="px-3 py-1.5 rounded-lg text-xs font-semibold"
-            style={{
-              background: "var(--bg-soft)",
-              color: "var(--text-muted)",
-              border: "1px solid var(--border)",
-            }}
-          >
-            Cancelar
-          </FlowButton>
+    <motion.form variants={pop3} initial="initial" animate="animate" onSubmit={save} className="flex flex-col gap-3 rounded-xl border border-border bg-background p-3">
+      <Field label={isHabit ? 'Nuevo hábito' : 'Nueva misión'}>
+        <Input ref={ref} value={title} onChange={(e) => setTitle(e.target.value)} placeholder={action.label} />
+      </Field>
+      {!isHabit && (
+        <SegmentedControl label="Dificultad" value={difficulty} onChange={setDifficulty}
+          options={[{ value: 'EASY', label: 'Fácil' }, { value: 'NORMAL', label: 'Normal' }, { value: 'HARD', label: 'Difícil' }]} />
+      )}
+      <Button type="submit" size="md" loading={saving} disabled={!title.trim()} className="self-end">Crear</Button>
+    </motion.form>
+  );
+}
+
+function ZoneCard({ zone: initial, onDeleted }: { zone: CustomZone; onDeleted: () => void }) {
+  const toast = useToast();
+  const [zone, setZone] = useState(initial);
+  const [open, setOpen] = useState(false);
+  const [action, setAction] = useState<{ label: string; type: string } | null>(null);
+  const [completing, setCompleting] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  useEffect(() => setZone(initial), [initial]);
+
+  const refresh = async () => { try { setZone((await api.get<CustomZone>(`/custom-zones/${zone.id}`)).data); } catch { /* silencioso */ } };
+  async function complete(id: string) {
+    setCompleting(id);
+    try { await api.post(`/quests/${id}/complete`); toast.success('¡Misión completada!'); await refresh(); }
+    catch { toast.error('No se pudo completar la misión'); }
+    finally { setCompleting(null); }
+  }
+  async function remove() {
+    setDeleting(true);
+    try { await api.delete(`/custom-zones/${zone.id}`); toast.success('Zona eliminada'); onDeleted(); }
+    catch { toast.error('No se pudo eliminar la zona'); setDeleting(false); }
+  }
+
+  const done = zone.quests.filter((q) => q.status === 'COMPLETED').length;
+  const pct = zone.quests.length ? Math.round((done / zone.quests.length) * 100) : 0;
+  const panelId = `zone-${zone.id}`;
+
+  return (
+    <Card as="article" interactive padding="lg" className="flex h-full flex-col gap-4">
+      <div className="flex items-start gap-4">
+        <ZoneIcon zone={zone} size="lg" />
+        <div className="min-w-0 flex-1">
+          <h3 className="text-heading-sm">{zone.name}</h3>
+          <Badge variant="success" icon={Check}>Activa</Badge>
         </div>
+        <Button variant="icon" aria-label={`Eliminar ${zone.name}`} onClick={() => setConfirmDelete(true)}><Trash2 aria-hidden className="size-5" strokeWidth={1.75} /></Button>
+      </div>
+      {zone.description && <p className="text-body-md text-on-surface">{zone.description}</p>}
+      <div className="grid grid-cols-3 gap-2">
+        {[['Hábitos', zone.habits.length], ['Misiones', zone.quests.length], ['Progreso', `${pct}%`]].map(([l, v]) => (
+          <Card key={l} padding="sm" className="bg-background px-3"><div className="font-mono text-heading-sm tabular-nums">{v}</div><div className="text-body-sm text-on-surface-light">{l}</div></Card>
+        ))}
+      </div>
+      <ProgressBar value={pct} tone="success" label={`Progreso de ${zone.name}`} valueText={`${pct}%`} />
+      <Button variant="secondary" block aria-expanded={open} aria-controls={panelId} onClick={() => setOpen((o) => !o)} className="mt-auto">
+        {open ? 'Cerrar zona' : 'Abrir zona'}<ChevronDown aria-hidden className={cn('size-4 transition-transform duration-500 ease-[cubic-bezier(.34,1.56,.64,1)]', open && 'rotate-180')} strokeWidth={1.75} />
+      </Button>
+      <div id={panelId} className="lq-acc-panel" data-open={open}>
+        <div>
+          <div className="lq-acc-body flex flex-col gap-4 pt-2" {...({ inert: open ? undefined : '' } as object)}>
+            {zone.habits.length > 0 && (
+              <section className="flex flex-col gap-1">
+                <h4 className="text-label-md uppercase text-on-surface-light">Hábitos</h4>
+                {zone.habits.map((h) => (
+                  <div key={h.id} className="flex min-h-11 items-center gap-3">
+                    <span className="min-w-0 flex-1 text-body-md">{h.title}</span>
+                    <span className="flex items-center gap-1 text-body-sm text-warning-text"><Flame aria-hidden className="size-4" /><span className="font-mono">{h.currentStreak}</span></span>
+                  </div>
+                ))}
+              </section>
+            )}
+            {zone.quests.length > 0 && (
+              <section className="flex flex-col gap-1">
+                <h4 className="text-label-md uppercase text-on-surface-light">Misiones</h4>
+                {zone.quests.map((q) => {
+                  const isDone = q.status === 'COMPLETED';
+                  return (
+                    <div key={q.id} className="flex min-h-11 items-center gap-3">
+                      <span className={cn('min-w-0 flex-1 text-body-md', isDone && 'text-on-surface-light line-through')}>{q.title}</span>
+                      <span className="font-mono text-body-sm text-primary-text">+{q.xpReward} XP</span>
+                      {!isDone && (
+                        <Button variant="icon" aria-label={`Completar ${q.title}`} disabled={completing === q.id} onClick={() => void complete(q.id)}>
+                          <Check aria-hidden className="size-5" strokeWidth={2} />
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })}
+              </section>
+            )}
+            {(zone.actions?.length ?? 0) > 0 && (
+              <section className="flex flex-col gap-2">
+                <h4 className="text-label-md uppercase text-on-surface-light">Acciones</h4>
+                <div className="flex flex-wrap gap-2">
+                  {zone.actions!.map((a) => {
+                    const on = action?.label === a.label && action?.type === a.type;
+                    return <Button key={a.label + a.type} size="sm" variant={on ? 'primary' : 'secondary'} aria-pressed={on} onClick={() => setAction(on ? null : a)}><Plus aria-hidden className="size-4" />{a.label}</Button>;
+                  })}
+                </div>
+                <AnimatePresence initial={false}>
+                  {action && <ActionForm key={action.label} action={action} zone={zone} onDone={() => { setAction(null); void refresh(); }} />}
+                </AnimatePresence>
+              </section>
+            )}
+          </div>
+        </div>
+      </div>
+      <Modal open={confirmDelete} onClose={() => setConfirmDelete(false)} title={`¿Eliminar «${zone.name}»?`}>
+        <p className="text-body-md text-on-surface">Se borrarán la zona y su configuración. Esta acción no se puede deshacer.</p>
+        <div className="flex justify-end gap-3">
+          <Button variant="secondary" size="md" onClick={() => setConfirmDelete(false)}>Cancelar</Button>
+          <Button variant="danger" size="md" loading={deleting} onClick={remove}>Eliminar</Button>
+        </div>
+      </Modal>
+    </Card>
+  );
+}
+
+/** Revisión de la propuesta del Sabio antes de crear la zona. */
+function Review({ s, onCancel, onCreated }: { s: Suggestion; onCancel: () => void; onCreated: (z: CustomZone) => void }) {
+  const toast = useToast();
+  const [name, setName] = useState(s.name);
+  const [color, setColor] = useState(ZONE_COLORS.includes(s.color) ? s.color : ZONE_COLORS[0]);
+  const [measurable, setMeasurable] = useState(s.isMeasurable);
+  const [saving, setSaving] = useState(false);
+
+  async function create() {
+    setSaving(true);
+    try {
+      const { data } = await api.post<CustomZone>('/custom-zones', {
+        name: name.trim() || s.name, description: s.description, icon: s.icon, accentColor: color, isMeasurable: measurable,
+        sections: s.sections, actions: s.actions,
+      });
+      toast.success(`Zona «${name}» creada`);
+      onCreated(data);
+    } catch { toast.error('No se pudo crear la zona'); setSaving(false); }
+  }
+
+  return (
+    <motion.div variants={pop3} initial="initial" animate="animate" className="flex flex-col gap-5">
+      <div className="flex items-center gap-4">
+        <ZoneIcon zone={{ icon: s.icon, accentColor: color }} size="lg" />
+        <div className="min-w-0 flex-1"><span className="text-label-lg text-primary-text">Propuesta del Sabio</span><p className="text-body-md text-on-surface">{s.description}</p></div>
+      </div>
+      <Field label="Nombre de la zona"><Input value={name} onChange={(e) => setName(e.target.value)} /></Field>
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-2 text-label-lg text-on-surface">Color</legend>
+        <div role="radiogroup" aria-label="Color de la zona" className="flex flex-wrap gap-2">
+          {ZONE_COLORS.map((c, i) => (
+            <button key={c} type="button" role="radio" aria-checked={color === c} aria-label={`Color ${i + 1}`} onClick={() => setColor(c)}
+              style={{ background: c }}
+              className={cn('size-11 rounded-full border-2 transition-transform duration-500 ease-[cubic-bezier(.34,1.56,.64,1)]', color === c ? 'scale-110 border-on-background' : 'border-transparent')} />
+          ))}
+        </div>
+      </fieldset>
+      {s.sections.length > 0 && (
+        <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {s.sections.map((sec) => <li key={sec.title} className="rounded-xl border border-border bg-background p-3"><div className="text-label-lg">{sec.title}</div><div className="text-body-sm text-on-surface-light">{sec.description}</div></li>)}
+        </ul>
+      )}
+      <div className="flex items-center gap-4 rounded-xl bg-surface-variant p-3">
+        <div className="flex-1"><label htmlFor="z-measure" className="text-label-lg">Zona medible</label><p className="text-body-sm text-on-surface-light">{s.measureReason}</p></div>
+        <Switch id="z-measure" checked={measurable} onChange={(e) => setMeasurable(e.target.checked)} />
+      </div>
+      <div className="flex justify-end gap-3">
+        <Button variant="secondary" onClick={onCancel}>Volver</Button>
+        <Button onClick={create} loading={saving}><Sparkles aria-hidden className="size-4" strokeWidth={1.75} />Crear zona</Button>
       </div>
     </motion.div>
   );
 }
 
-// ─── Zone Card ────────────────────────────────────────────────────────────────
-
-function ZoneCard({
-  zone: initialZone,
-  onDelete,
-}: {
-  zone: CustomZone;
-  onDelete: () => void;
-}) {
-  const [zone, setZone] = useState(initialZone);
-  const [expanded, setExpanded] = useState(true);
-  const [activeAction, setActiveAction] = useState<{
-    label: string;
-    type: string;
-  } | null>(null);
-  const [completingQuest, setCompletingQuest] = useState<string | null>(null);
-  const toast = useToastStore();
-
-  // Keep zone in sync if parent updates
-  useEffect(() => {
-    setZone(initialZone);
-  }, [initialZone]);
-
-  async function refreshZone() {
-    try {
-      const { data } = await api.get<CustomZone>(`/custom-zones/${zone.id}`);
-      setZone(data);
-    } catch {
-      /* silent */
-    }
-  }
-
-  async function handleDelete() {
-    if (!confirm(`¿Eliminar la zona "${zone.name}"?`)) return;
-    try {
-      await api.delete(`/custom-zones/${zone.id}`);
-      toast.success("Zona eliminada");
-      onDelete();
-    } catch {
-      toast.error("Error eliminando zona");
-    }
-  }
-
-  async function handleCompleteQuest(questId: string) {
-    setCompletingQuest(questId);
-    try {
-      await api.post(`/quests/${questId}/complete`);
-      toast.success("¡Misión completada! ");
-      await refreshZone();
-    } catch {
-      toast.error("Error completando misión");
-    } finally {
-      setCompletingQuest(null);
-    }
-  }
-
-  function toggleAction(a: { label: string; type: string }) {
-    setActiveAction((prev) =>
-      prev?.type === a.type && prev?.label === a.label ? null : a,
-    );
-  }
-
-  const hasContent = zone.quests.length > 0 || zone.habits.length > 0;
-
-  return (
-    <PixelPanel className="overflow-hidden">
-      {/* Top accent bar */}
-      <div className="h-1 w-full" style={{ background: zone.accentColor }} />
-
-      <div className="p-4">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <button
-            className="flex items-center gap-3 flex-1 text-left"
-            onClick={() => setExpanded((v) => !v)}
-          >
-            <span style={{ fontSize: 22 }}>
-              <E e={zone.icon} />
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <p className="font-bold text-sm truncate">{zone.name}</p>
-                <span
-                  className="text-xs px-1.5 py-0.5 rounded font-medium"
-                  style={{
-                    background: `${zone.accentColor}20`,
-                    color: zone.accentColor,
-                  }}
-                >
-                  {zone.quests.length}M · {zone.habits.length}H
-                </span>
-              </div>
-              {zone.description && (
-                <p
-                  className="text-xs truncate"
-                  style={{ color: "var(--text-2)" }}
-                >
-                  {zone.description}
-                </p>
-              )}
-            </div>
-            {expanded ? (
-              <ChevronDown
-                size={16}
-                style={{ color: "var(--text-muted)", flexShrink: 0 }}
-              />
-            ) : (
-              <ChevronRight
-                size={16}
-                style={{ color: "var(--text-muted)", flexShrink: 0 }}
-              />
-            )}
-          </button>
-          <FlowButton
-            tone="danger"
-            size="sm"
-            withArrows={false}
-            onClick={handleDelete}
-            className="ml-2 p-1.5 rounded-lg hover:bg-red-500/10 transition-colors"
-            style={{ color: "var(--text-muted)" }}
-            title="Eliminar zona"
-          >
-            <Trash2 size={14} />
-          </FlowButton>
-        </div>
-
-        <AnimatePresence>
-          {expanded && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="overflow-hidden"
-            >
-              <div className="pt-3 space-y-3">
-                {/* Quick action buttons — always show base buttons + any custom ones */}
-                {(() => {
-                  const defaultActions: { label: string; type: string }[] = [
-                    { label: "Nueva misión", type: "new_quest" },
-                    { label: "Nuevo hábito", type: "new_habit" },
-                  ];
-                  const customActions = (zone.actions ?? []).filter(
-                    (a) => a.type !== "new_quest" && a.type !== "new_habit",
-                  );
-                  const allActions = [...defaultActions, ...customActions];
-                  return (
-                    <div className="flex gap-2 flex-wrap">
-                      {allActions.map((a, i) => (
-                        <FlowButton
-                          key={i}
-                          tone="ghost"
-                          size="sm"
-                          withArrows={false}
-                          onClick={() => toggleAction(a)}
-                          className="min-h-11 rounded-lg text-xs"
-                          style={{
-                            background:
-                              activeAction?.label === a.label
-                                ? zone.accentColor
-                                : `${zone.accentColor}20`,
-                            color:
-                              activeAction?.label === a.label
-                                ? "#fff"
-                                : zone.accentColor,
-                            border: `1px solid ${zone.accentColor}50`,
-                          }}
-                        >
-                          {activeAction?.label === a.label ? (
-                            <>
-                              <E e="✕" /> Cancelar
-                            </>
-                          ) : (
-                            `+ ${a.label}`
-                          )}
-                        </FlowButton>
-                      ))}
-                    </div>
-                  );
-                })()}
-
-                {/* Inline creation form */}
-                <AnimatePresence>
-                  {activeAction && (
-                    <ActionForm
-                      key={activeAction.type + activeAction.label}
-                      action={activeAction}
-                      zone={zone}
-                      onDone={async () => {
-                        setActiveAction(null);
-                        await refreshZone();
-                      }}
-                      onClose={() => setActiveAction(null)}
-                    />
-                  )}
-                </AnimatePresence>
-
-                {/* Quests list */}
-                {zone.quests.length > 0 && (
-                  <div>
-                    <p
-                      className="text-sm font-medium mb-1.5"
-                      style={{ color: "var(--text-muted)" }}
-                    >
-                      <E e="⚔" /> Misiones ({zone.quests.length})
-                    </p>
-                    <div className="space-y-1">
-                      {zone.quests.map((q) => (
-                        <div
-                          key={q.id}
-                          className="flex items-center gap-2 px-2 py-1.5 rounded-lg group"
-                          style={{ background: "var(--bg-soft)" }}
-                        >
-                          <FlowButton
-                            tone="green"
-                            size="sm"
-                            withArrows={false}
-                            onClick={() => handleCompleteQuest(q.id)}
-                            disabled={completingQuest === q.id}
-                            className="h-11 w-11 shrink-0 px-3"
-                            title="Completar misión"
-                          >
-                            {completingQuest === q.id ? (
-                              <Loader2
-                                size={15}
-                                className="animate-spin"
-                                style={{ color: zone.accentColor }}
-                              />
-                            ) : (
-                              <Circle
-                                size={15}
-                                style={{ color: zone.accentColor }}
-                                className="hover:opacity-70"
-                              />
-                            )}
-                          </FlowButton>
-                          <span
-                            className="text-sm flex-1 truncate"
-                            style={{ color: "var(--text)" }}
-                          >
-                            {q.title}
-                          </span>
-                          <span
-                            className="text-xs font-medium flex-shrink-0"
-                            style={{
-                              color:
-                                DIFFICULTY_COLORS[q.difficulty] ??
-                                "var(--text-muted)",
-                            }}
-                          >
-                            <E
-                              e={
-                                DIFFICULTY_LABELS[q.difficulty] ?? q.difficulty
-                              }
-                            />
-                          </span>
-                          <span
-                            className="text-xs flex-shrink-0"
-                            style={{ color: "var(--accent-cyan)" }}
-                          >
-                            +{q.xpReward}xp
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Habits list */}
-                {zone.habits.length > 0 && (
-                  <div>
-                    <p
-                      className="text-sm font-medium mb-1.5"
-                      style={{ color: "var(--text-muted)" }}
-                    >
-                      <E e="🔥" /> Hábitos ({zone.habits.length})
-                    </p>
-                    <div className="space-y-1">
-                      {zone.habits.map((h) => (
-                        <div
-                          key={h.id}
-                          className="flex items-center gap-2 px-2 py-1.5 rounded-lg"
-                          style={{ background: "var(--bg-soft)" }}
-                        >
-                          <span className="flex-shrink-0">
-                            <E e={h.icon} />
-                          </span>
-                          <span
-                            className="text-sm flex-1 truncate"
-                            style={{ color: "var(--text)" }}
-                          >
-                            {h.title}
-                          </span>
-                          {h.currentStreak > 0 && (
-                            <span
-                              className="text-xs font-bold flex-shrink-0 px-1.5 py-0.5 rounded"
-                              style={{
-                                background:
-                                  "color-mix(in oklab, var(--accent-gold) 15%, transparent)",
-                                color: "var(--accent-gold)",
-                              }}
-                            >
-                              <E e="🔥" /> {h.currentStreak}d
-                            </span>
-                          )}
-                          <span
-                            className="text-xs flex-shrink-0"
-                            style={{ color: "var(--accent-cyan)" }}
-                          >
-                            +{h.xpReward}xp
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Empty state */}
-                {!hasContent && !activeAction && (
-                  <p
-                    className="text-xs py-1"
-                    style={{ color: "var(--text-muted)" }}
-                  >
-                    Usa los botones de arriba para añadir misiones o hábitos a
-                    esta zona.
-                  </p>
-                )}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    </PixelPanel>
-  );
-}
-
-// ─── Wizard ───────────────────────────────────────────────────────────────────
-
-function ZoneWizard({
-  onCreated,
-  onCancel,
-}: {
-  onCreated: () => void;
-  onCancel: () => void;
-}) {
-  const toast = useToastStore();
-  const [step, setStep] = useState<1 | 2>(1);
-  const [description, setDescription] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [suggestion, setSuggestion] = useState<AISuggestion | null>(null);
-  const [editedColor, setEditedColor] = useState("#5c5c64");
-  const [editedIcon, setEditedIcon] = useState("target");
-  const [isMeasurable, setIsMeasurable] = useState(false);
-  const [saving, setSaving] = useState(false);
-
-  async function handleAsk() {
-    if (!description.trim()) return;
-    setLoading(true);
-    try {
-      const { data } = await api.post("/custom-zones/suggest", { description });
-      setSuggestion(data);
-      setEditedColor(data.color ?? "#5c5c64");
-      setEditedIcon(data.icon ?? "target");
-      setIsMeasurable(data.isMeasurable ?? false);
-      setStep(2);
-    } catch {
-      toast.error("Error generando sugerencia. Intenta de nuevo.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleCreate() {
-    if (!suggestion) return;
-    setSaving(true);
-    try {
-      await api.post("/custom-zones", {
-        name: suggestion.name,
-        description: suggestion.description,
-        icon: editedIcon,
-        accentColor: editedColor,
-        isMeasurable,
-        sections: suggestion.sections,
-        actions: suggestion.actions,
-      });
-      toast.success(`¡Zona "${suggestion.name}" creada!`);
-      onCreated();
-    } catch {
-      toast.error("Error creando zona");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <PixelPanel className="p-5 space-y-4">
-      <div className="flex items-center gap-2">
-        <Sparkles size={18} style={{ color: "var(--primary)" }} />
-        <h2 className="font-semibold text-sm">
-          {step === 1 ? "El Sabio construye tu zona" : "Revisa y ajusta"}
-        </h2>
-      </div>
-
-      {step === 1 && (
-        <>
-          <textarea
-            className="w-full px-3 py-2 rounded-lg text-sm resize-none"
-            style={{
-              background: "var(--bg-soft)",
-              border: "1px solid var(--border)",
-              color: "var(--text)",
-            }}
-            rows={4}
-            placeholder="Ej: Quiero organizar mis clases de inglés, tener mis notas de vocabulario, repasar el material..."
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && e.ctrlKey) handleAsk();
-            }}
-          />
-          <div className="flex gap-2">
-            <PixelButton
-              variant="primary"
-              onClick={handleAsk}
-              disabled={loading || !description.trim()}
-            >
-              {loading ? (
-                <>
-                  <Loader2 size={14} className="animate-spin" /> Generando...
-                </>
-              ) : (
-                "El Sabio construye mi zona →"
-              )}
-            </PixelButton>
-            <PixelButton variant="secondary" onClick={onCancel}>
-              Cancelar
-            </PixelButton>
-          </div>
-        </>
-      )}
-
-      {step === 2 && suggestion && (
-        <>
-          <div
-            className="rounded-xl p-4 space-y-3"
-            style={{
-              background: `${editedColor}18`,
-              border: `1px solid ${editedColor}40`,
-            }}
-          >
-            <div className="flex items-center gap-3">
-              <span className="flex h-8 w-8 items-center justify-center">
-                <E e={editedIcon} s={28} />
-              </span>
-              <div>
-                <p className="font-bold">{suggestion.name}</p>
-                <p className="text-sm" style={{ color: "var(--text-2)" }}>
-                  {suggestion.description}
-                </p>
-              </div>
-            </div>
-            {suggestion.sections?.map((s, i) => (
-              <div
-                key={i}
-                className="text-xs px-3 py-2 rounded-lg"
-                style={{ background: "var(--bg-panel)" }}
-              >
-                <span className="font-semibold">{s.title}</span>
-                <span style={{ color: "var(--text-2)" }}>
-                  {" "}
-                  — {s.description}
-                </span>
-              </div>
-            ))}
-            {suggestion.actions?.length > 0 && (
-              <div className="flex gap-2 flex-wrap pt-1">
-                {suggestion.actions.map((a, i) => (
-                  <span
-                    key={i}
-                    className="text-xs px-2 py-1 rounded-lg"
-                    style={{
-                      background: `${editedColor}25`,
-                      color: editedColor,
-                    }}
-                  >
-                    + {a.label}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div>
-            <p
-              className="text-xs font-semibold mb-2"
-              style={{ color: "var(--text-2)" }}
-            >
-              Ícono
-            </p>
-            <div
-              className="grid grid-cols-6 gap-1.5"
-              role="radiogroup"
-              aria-label="Ícono de la zona"
-            >
-              {ZONE_ICON_KEYS.map((iconKey) => (
-                <button
-                  key={iconKey}
-                  type="button"
-                  title={iconKey}
-                  aria-label={`Elegir ícono ${iconKey}`}
-                  aria-pressed={editedIcon === iconKey}
-                  onClick={() => setEditedIcon(iconKey)}
-                  className="flex h-9 w-9 items-center justify-center rounded-lg transition-colors"
-                  style={{
-                    background:
-                      editedIcon === iconKey
-                        ? `${editedColor}20`
-                        : "var(--bg-soft)",
-                    border: `1px solid ${editedIcon === iconKey ? editedColor : "var(--border)"}`,
-                    color:
-                      editedIcon === iconKey ? editedColor : "var(--text-2)",
-                  }}
-                >
-                  <E e={iconKey} s={16} />
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <p
-              className="text-xs font-semibold mb-2"
-              style={{ color: "var(--text-2)" }}
-            >
-              Color de la zona
-            </p>
-            <div className="flex gap-2 flex-wrap">
-              {COLOR_PALETTE.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setEditedColor(c)}
-                  style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: 8,
-                    background: c,
-                    border:
-                      editedColor === c
-                        ? "2px solid white"
-                        : "2px solid transparent",
-                    boxShadow: editedColor === c ? `0 0 0 2px ${c}` : "none",
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-
-          <div
-            className="flex items-center justify-between py-2 rounded-lg px-3"
-            style={{ background: "var(--bg-soft)" }}
-          >
-            <div>
-              <p className="text-sm font-medium">¿Contar en tu Life Score?</p>
-              <p className="text-xs" style={{ color: "var(--text-2)" }}>
-                {suggestion.measureReason}
-              </p>
-            </div>
-            <button
-              onClick={() => setIsMeasurable((v) => !v)}
-              className="relative w-10 h-5 rounded-full transition-colors"
-              style={{
-                background: isMeasurable ? editedColor : "var(--border)",
-              }}
-            >
-              <motion.div
-                animate={{ x: isMeasurable ? 20 : 2 }}
-                transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                className="absolute top-0.5 w-4 h-4 rounded-full bg-white"
-              />
-            </button>
-          </div>
-
-          <div className="flex gap-2">
-            <PixelButton
-              variant="primary"
-              onClick={handleCreate}
-              disabled={saving}
-            >
-              {saving ? "Creando..." : "Crear mi zona →"}
-            </PixelButton>
-            <PixelButton variant="secondary" onClick={() => setStep(1)}>
-              Atrás
-            </PixelButton>
-          </div>
-        </>
-      )}
-    </PixelPanel>
-  );
-}
-
-// ─── Main Page ────────────────────────────────────────────────────────────────
-
 export default function CustomZonesPage() {
-  const toast = useToastStore();
+  const toast = useToast();
   const [zones, setZones] = useState<CustomZone[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showWizard, setShowWizard] = useState(false);
+  const [state, setState] = useState<'loading' | 'error' | 'ready'>('loading');
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [step, setStep] = useState(0);
+  const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const { data } = await api.get<CustomZone[]>("/custom-zones");
-      setZones(data);
-    } catch {
-      toast.error("Error cargando zonas");
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
-
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setState('loading');
+    try { setZones((await api.get<CustomZone[]>('/custom-zones')).data); setState('ready'); }
+    catch { if (!silent) setState('error'); }
+  }, []);
+  useEffect(() => { void load(); }, [load]);
   useEffect(() => {
-    load();
-  }, [load]);
+    if (!busy) return;
+    const id = window.setInterval(() => setStep((s) => s + 1), 900);
+    return () => window.clearInterval(id);
+  }, [busy]);
+
+  async function ask() {
+    if (!text.trim()) return;
+    setBusy(true); setStep(0);
+    try { setSuggestion((await api.post<Suggestion>('/custom-zones/suggest', { description: text.trim() })).data); }
+    catch { toast.error('El Sabio no pudo proponer la zona. Inténtalo de nuevo.'); }
+    finally { setBusy(false); }
+  }
+
+  if (state === 'loading') return <PageLoader />;
+  if (state === 'error') return <ErrorState onRetry={() => void load()} />;
+  const full = zones.length >= MAX_ZONES;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1
-            className="font-pixel text-[var(--accent-gold)]"
-            style={{ fontSize: "14px" }}
-          >
-            <E e="target" /> MIS ZONAS
-          </h1>
-          <p className="text-sm" style={{ color: "var(--text-2)" }}>
-            Zonas personalizadas creadas con El Sabio · {zones.length}/10
-            activas
-          </p>
-        </div>
-        {!showWizard && zones.length < 10 && (
-          <PixelButton variant="primary" onClick={() => setShowWizard(true)}>
-            <Plus size={14} /> Nueva zona
-          </PixelButton>
-        )}
-      </div>
+    <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-8 md:gap-12">
+      <PageHeader
+        eyebrow="Mis zonas"
+        title="Crea tu propio espacio"
+        description="Describe lo que quieres trabajar y El Sabio construye una zona a tu medida, con hábitos, misiones y métricas."
+        aside={<Badge size="lg"><span className="font-mono">{zones.length}/{MAX_ZONES}</span> zonas activas</Badge>}
+      />
 
-      <AnimatePresence>
-        {showWizard && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-          >
-            <ZoneWizard
-              onCreated={() => {
-                setShowWizard(false);
-                load();
-              }}
-              onCancel={() => setShowWizard(false)}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <LoadingGate
-        loading={loading}
-        fallback={<ModernLoader words={[...LOADING_COPY.customZones]} />}
-      >
-        {loading ? null : zones.length === 0 ? (
-          <PixelPanel className="p-10 text-center">
-            <p className="text-4xl mb-3">
-              <E e="🏰" />
-            </p>
-            <p
-              className="font-pixel text-[var(--text-2)]"
-              style={{ fontSize: "12px" }}
-            >
-              SIN ZONAS PERSONALIZADAS
-            </p>
-            <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
-              El Sabio puede construir una zona personalizada a partir de tu
-              descripción
-            </p>
-            <div className="mt-4">
-              <PixelButton
-                variant="primary"
-                onClick={() => setShowWizard(true)}
-              >
-                <Sparkles size={14} /> Crear primera zona
-              </PixelButton>
-            </div>
-          </PixelPanel>
-        ) : (
-          <div className="space-y-3">
-            {zones.map((z) => (
-              <motion.div key={z.id} layout>
-                <ZoneCard zone={z} onDelete={load} />
+      <motion.div variants={item}>
+        <SpotCard aria-label="El Sabio" className="border-primary/25">
+          <AnimatePresence mode="wait" initial={false}>
+            {suggestion ? (
+              <motion.div key="review" exit={{ opacity: 0, transition: { duration: 0.15 } }}>
+                <Review s={suggestion} onCancel={() => setSuggestion(null)} onCreated={(z) => { setSuggestion(null); setText(''); setZones((p) => [z, ...p]); void load(true); }} />
               </motion.div>
+            ) : (
+              <motion.div key="compose" exit={{ opacity: 0, transition: { duration: 0.15 } }}>
+                {full ? (
+                  <p className="text-body-md text-on-surface">Tienes el máximo de {MAX_ZONES} zonas. Elimina una para crear otra.</p>
+                ) : (
+                  <SabioComposer
+                    subtitle="Cuéntale qué zona quieres crear"
+                    value={text} onChange={setText} ideas={IDEAS} busy={busy}
+                    progressText={PROGRESS[step % PROGRESS.length]}
+                    submitLabel="Crear zona" onSubmit={ask}
+                    placeholder="Ej. Quiero aprender guitarra: practicar 20 minutos al día y tocar una canción completa en 2 meses."
+                  />
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </SpotCard>
+      </motion.div>
+
+      <motion.section variants={item} className="flex flex-col gap-6" aria-labelledby="z-list">
+        <h2 id="z-list" className="text-heading-lg">Tus zonas</h2>
+        {zones.length === 0 ? (
+          <EmptyState icon={MapPin} tone="muted" title="Aún no tienes zonas personalizadas" description="Escribe una idea arriba o elige una sugerencia para crear la primera." />
+        ) : (
+          <motion.ul variants={stagger} initial="initial" animate="animate" className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 md:gap-6 xl:grid-cols-3">
+            {zones.map((z) => (
+              <motion.li key={z.id} variants={item} layout="position">
+                <ZoneCard zone={z} onDeleted={() => setZones((p) => p.filter((x) => x.id !== z.id))} />
+              </motion.li>
             ))}
-          </div>
+          </motion.ul>
         )}
-      </LoadingGate>
-    </div>
+      </motion.section>
+    </motion.div>
   );
 }

@@ -18,7 +18,7 @@ a{color:#4f46e5}a:hover{color:#4338ca}
 <div class="lq screen {{theme}}" style="width: 375px; height: 1300px">
   <header class="hdr">
     <span class="t-bs c-3">Temporada 3</span>
-    <button class="btn btn-icon" aria-label="Reglas del coliseo"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path></svg></button>
+    <button class="btn btn-icon" aria-label="Reglas del coliseo"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg></button>
   </header>
   <main class="enter" style="display: flex; flex-direction: column; gap: 24px; padding: 0 16px 128px">
     <h1 class="t-ds">Coliseo</h1>
@@ -28,15 +28,15 @@ a{color:#4f46e5}a:hover{color:#4338ca}
         <div class="ichip primary" style="width: 64px; height: 64px; border-radius: 20px"><span class="t-hm">AL</span></div>
         <div style="flex: 1; min-width: 0">
           <div class="t-hs">Alex · Nivel 12</div>
-          <div class="row t-bs c-3" style="gap: 6px"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"></path></svg><span class="num">18 V · 6 D</span></div>
+          <div class="row t-bs c-3" style="gap: 6px"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/></svg><span class="num">18 V · 6 D</span></div>
         </div>
       </div>
       <div style="display: flex; flex-direction: column; gap: 6px">
-        <div class="row" style="justify-content: space-between"><span class="row t-ll c-error" style="gap: 6px"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"></path></svg>HP</span><span class="t-bs c-2 num">{{hp}} / 100</span></div>
+        <div class="row" style="justify-content: space-between"><span class="row t-ll c-error" style="gap: 6px"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"/></svg>HP</span><span class="t-bs c-2 num">{{hp}} / 100</span></div>
         <div class="bar lg error" role="progressbar" aria-label="Puntos de vida" aria-valuenow="{{hp}}" aria-valuemin="0" aria-valuemax="100"><span style="width: {{hp}}%; transition: width .4s"></span></div>
       </div>
       <div style="display: flex; flex-direction: column; gap: 6px">
-        <div class="row" style="justify-content: space-between"><span class="row t-ll c-info" style="gap: 6px"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z"></path></svg>MP</span><span class="t-bs c-2 num">45 / 60</span></div>
+        <div class="row" style="justify-content: space-between"><span class="row t-ll c-info" style="gap: 6px"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>MP</span><span class="t-bs c-2 num">45 / 60</span></div>
         <div class="bar lg info" role="progressbar" aria-label="Puntos de maná" aria-valuenow="75" aria-valuemin="0" aria-valuemax="100"><span style="width: 75%"></span></div>
       </div>
     </section>
@@ -46,7 +46,7 @@ a{color:#4f46e5}a:hover{color:#4338ca}
       <ul class="list" style="list-style: none; margin: 0; padding: 0">
         <sc-for list="{{enemies}}" as="e" hint-placeholder-count="3">
           <li class="card row" style="gap: 16px; padding: 16px">
-            <div class="ichip {{e.tone}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"></path><path d="M9 11h.01M15 11h.01M9.5 15.5h5"></path></svg></div>
+            <div class="ichip {{e.tone}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="M9 11h.01M15 11h.01M9.5 15.5h5"/></svg></div>
             <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px">
               <span class="t-ll" style="font-size: 16px">{{e.name}}</span>
               <span class="row" style="gap: 8px; flex-wrap: wrap"><span class="badge {{e.badge}}">Nv {{e.lvl}} · {{e.diff}}</span><span class="t-bs c-primary num">+{{e.xp}} XP</span></span>
@@ -62,7 +62,7 @@ a{color:#4f46e5}a:hover{color:#4338ca}
       <ul class="card" style="list-style: none; margin: 0; padding: 4px 16px; display: flex; flex-direction: column">
         <sc-for list="{{history}}" as="h" hint-placeholder-count="5">
           <li class="row" style="gap: 12px; min-height: 56px; border-bottom: {{h.border}}">
-            <span class="badge {{h.badge}}" style="width: 88px; justify-content: center"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{h.icon}}"></path></svg>{{h.res}}</span>
+            <span class="badge {{h.badge}}" style="width: 88px; justify-content: center"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{h.icon}}"/></svg>{{h.res}}</span>
             <span class="t-bs c-1" style="flex: 1; min-width: 0">{{h.name}}</span>
             <span class="t-bs c-3 num">{{h.xp}}</span>
           </li>
@@ -82,7 +82,7 @@ a{color:#4f46e5}a:hover{color:#4338ca}
           </div>
           <span class="t-ds c-3">vs</span>
           <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; flex: 1">
-            <div class="ichip error" style="width: 72px; height: 72px; border-radius: 22px"><svg class="i i32" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"></path><path d="M9 11h.01M15 11h.01M9.5 15.5h5"></path></svg></div>
+            <div class="ichip error" style="width: 72px; height: 72px; border-radius: 22px"><svg class="i i32" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="M9 11h.01M15 11h.01M9.5 15.5h5"/></svg></div>
             <span class="t-ll" style="text-align: center">{{foeName}}</span>
           </div>
         </div>
@@ -91,7 +91,7 @@ a{color:#4f46e5}a:hover{color:#4338ca}
         </sc-if>
         <sc-if value="{{resolved}}" hint-placeholder-val="{{ false }}">
           <div class="pop" style="display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 8px 0" aria-live="polite">
-            <span class="badge lg {{resultBadge}}"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{resultIcon}}"></path></svg>{{resultLabel}}</span>
+            <span class="badge lg {{resultBadge}}"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{resultIcon}}"/></svg>{{resultLabel}}</span>
             <span class="t-hl num {{resultColor}}">{{resultXp}}</span>
             <span class="t-bs c-3">{{resultNote}}</span>
           </div>
@@ -102,11 +102,11 @@ a{color:#4f46e5}a:hover{color:#4338ca}
   </sc-if>
 
   <nav class="tabbar" aria-label="Principal">
-    <a href="Dashboard.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"></path></svg>Inicio</a>
-    <a href="Habits.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m8.5 12 2.5 2.5 4.5-5"></path></svg>Hábitos</a>
-    <a href="Quests.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 22V4"></path><path d="M5 4h12l-2.5 4L17 12H5"></path></svg>Misiones</a>
-    <a href="Colosseum.dc.html" class="on" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 17.5 21 6V3h-3L6.5 14.5M11 19l-6-6M8 16l-4 4M5 21l-2-2"></path></svg>Coliseo</a>
-    <a href="Profile.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg>Perfil</a>
+    <a href="Dashboard.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Inicio</a>
+    <a href="Habits.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg>Hábitos</a>
+    <a href="Quests.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 22V4"/><path d="M5 4h12l-2.5 4L17 12H5"/></svg>Misiones</a>
+    <a href="Colosseum.dc.html" class="on" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 17.5 21 6V3h-3L6.5 14.5M11 19l-6-6M8 16l-4 4M5 21l-2-2"/></svg>Coliseo</a>
+    <a href="Profile.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Perfil</a>
   </nav>
 </div>
 </x-dc>

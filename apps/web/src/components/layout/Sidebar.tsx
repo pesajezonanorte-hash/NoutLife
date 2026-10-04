@@ -113,7 +113,7 @@ function Section({ section, open, onToggle }: { section: NavSection; open: boole
   );
 }
 
-/** Perfil: recogido solo se ven las iniciales; el borde y el texto aparecen al desplegar. */
+/** UserCard: recogido solo se ven las iniciales; nombre, nivel y barra de XP aparecen al desplegar. */
 function ProfileCard() {
   const user = useAuthStore((s) => s.user);
   if (!user) return null;
@@ -130,7 +130,10 @@ function ProfileCard() {
         </span>
         <span className={cn('min-w-0', reveal)}>
           <span className="block truncate text-label-lg text-on-background">{user.displayName}</span>
-          <span className="block truncate text-body-sm text-on-surface-light">Nivel {user.level} · {getLevelTitle(user.level)}</span>
+          <span className="block truncate text-body-sm leading-tight text-on-surface-light">Nivel {user.level} · {getLevelTitle(user.level)}</span>
+          <span aria-hidden className="mt-1 block h-1 w-36 overflow-hidden rounded-full bg-surface-variant">
+            <span className="block h-full origin-left rounded-full bg-primary transition-transform duration-700" style={{ transform: `scaleX(${Math.min(1, (user.xp ?? 0) / Math.max(1, user.xpToNextLevel ?? 1))})` }} />
+          </span>
         </span>
       </span>
     </Link>

@@ -164,7 +164,7 @@ async function buildSageContext(userId: string): Promise<string> {
       select: { date: true },
     }),
     prisma.sleepLog.findMany({
-      where: { userId, date: { gte: sevenDaysAgo } },
+      where: { userId, isNap: false, date: { gte: sevenDaysAgo } },
       select: { duration: true },
     }),
   ]);

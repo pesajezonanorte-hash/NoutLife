@@ -17,30 +17,30 @@ a{color:#4f46e5}a:hover{color:#4338ca}
 </helmet>
 <div class="lq screen {{theme}}" style="width: 375px; height: 1180px">
   <header class="hdr" style="padding: 0 8px">
-    <a class="btn btn-icon" href="Habits.dc.html" aria-label="Volver a Hábitos"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"></path></svg></a>
-    <button class="btn btn-icon" aria-label="Editar hábito"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L20 8l-4-4L4 16z"></path></svg></button>
+    <a class="btn btn-icon" href="Habits.dc.html" aria-label="Volver a Hábitos"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></a>
+    <button class="btn btn-icon" aria-label="Editar hábito"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L20 8l-4-4L4 16z"/></svg></button>
   </header>
   <main class="enter" style="display: flex; flex-direction: column; gap: 24px; padding: 0 16px 128px">
     <section style="display: flex; flex-direction: column; gap: 16px">
-      <div class="ichip primary lg"><svg class="i i48" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z"></path></svg></div>
+      <div class="ichip primary lg"><svg class="i i48" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z"/></svg></div>
       <div>
         <h1 class="t-ds">Leer 20 páginas</h1>
         <p class="t-bm c-3">Diario · desde el 12 de agosto</p>
       </div>
-      <div class="row" style="gap: 8px; flex-wrap: wrap"><span class="badge badge-primary">Aprendizaje</span><span class="badge badge-success"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"></path></svg>+10 XP / día</span></div>
+      <div class="row" style="gap: 8px; flex-wrap: wrap"><span class="badge badge-primary">Aprendizaje</span><span class="badge badge-success"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg>+10 XP / día</span></div>
     </section>
 
     <section style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px" aria-label="Estadísticas">
       <div class="card" style="display: flex; flex-direction: column; gap: 4px; padding: 16px 12px">
-        <svg class="i c-warning" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22c4 0 7-3 7-7 0-4-3-6-4-9-1 2-2 3-4 3 0-2-1-4-2-5-1 4-4 6-4 11 0 4 3 7 7 7z"></path></svg>
+        <svg class="i c-warning" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22c4 0 7-3 7-7 0-4-3-6-4-9-1 2-2 3-4 3 0-2-1-4-2-5-1 4-4 6-4 11 0 4 3 7 7 7z"/></svg>
         <span class="t-hl num">14</span><span class="t-bs c-3">Racha</span>
       </div>
       <div class="card" style="display: flex; flex-direction: column; gap: 4px; padding: 16px 12px">
-        <svg class="i c-success" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m8.5 12 2.5 2.5 4.5-5"></path></svg>
+        <svg class="i c-success" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg>
         <span class="t-hl num">43</span><span class="t-bs c-3">Completados</span>
       </div>
       <div class="card" style="display: flex; flex-direction: column; gap: 4px; padding: 16px 12px">
-        <svg class="i c-primary" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 17 6-6 4 4 8-8"></path><path d="M15 7h6v6"></path></svg>
+        <svg class="i c-primary" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 17 6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>
         <span class="t-hl num">86%</span><span class="t-bs c-3">Éxito</span>
       </div>
     </section>
@@ -51,7 +51,7 @@ a{color:#4f46e5}a:hover{color:#4338ca}
         <sc-for list="{{week}}" as="d" hint-placeholder-count="7">
           <li style="display: flex; flex-direction: column; align-items: center; gap: 8px" aria-label="{{d.aria}}">
             <span class="t-lm c-3">{{d.label}}</span>
-            <span class="{{d.cls}}" style="width: 40px; height: 40px; border-radius: 999px; display: flex; align-items: center; justify-content: center"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true" style="stroke-width: 2.5"><path d="{{d.icon}}"></path></svg></span>
+            <span class="{{d.cls}}" style="width: 40px; height: 40px; border-radius: 999px; display: flex; align-items: center; justify-content: center"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true" style="stroke-width: 2.5"><path d="{{d.icon}}"/></svg></span>
           </li>
         </sc-for>
       </ol>
@@ -72,16 +72,16 @@ a{color:#4f46e5}a:hover{color:#4338ca}
     </section>
 
     <section style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
-      <button class="btn btn-secondary"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L20 8l-4-4L4 16z"></path></svg>Editar</button>
-      <button class="btn btn-danger"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"></path></svg>Eliminar</button>
+      <button class="btn btn-secondary"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L20 8l-4-4L4 16z"/></svg>Editar</button>
+      <button class="btn btn-danger"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>Eliminar</button>
     </section>
   </main>
   <nav class="tabbar" aria-label="Principal">
-    <a href="Dashboard.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"></path></svg>Inicio</a>
-    <a href="Habits.dc.html" class="on" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m8.5 12 2.5 2.5 4.5-5"></path></svg>Hábitos</a>
-    <a href="Quests.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 22V4"></path><path d="M5 4h12l-2.5 4L17 12H5"></path></svg>Misiones</a>
-    <a href="Colosseum.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 17.5 21 6V3h-3L6.5 14.5M11 19l-6-6M8 16l-4 4M5 21l-2-2"></path></svg>Coliseo</a>
-    <a href="Profile.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg>Perfil</a>
+    <a href="Dashboard.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Inicio</a>
+    <a href="Habits.dc.html" class="on" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg>Hábitos</a>
+    <a href="Quests.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 22V4"/><path d="M5 4h12l-2.5 4L17 12H5"/></svg>Misiones</a>
+    <a href="Colosseum.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 17.5 21 6V3h-3L6.5 14.5M11 19l-6-6M8 16l-4 4M5 21l-2-2"/></svg>Coliseo</a>
+    <a href="Profile.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Perfil</a>
   </nav>
 </div>
 </x-dc>

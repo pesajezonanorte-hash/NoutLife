@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { ease } from '@/lib/motion';
+import { ease, expo } from '@/lib/motion';
 import { solidBg, strokeTone, type Tone } from './tones';
 
 const clamp = (v: number) => Math.max(0, Math.min(100, v));
@@ -33,7 +33,7 @@ export function ProgressBar({ value, tone = 'primary', size = 'md', shine, label
         style={{ originX: 0 }}
         initial={{ scaleX: 0 }}
         animate={{ scaleX: v / 100 }}
-        transition={{ duration: 0.9, ease, delay: 0.2 }}
+        transition={{ duration: 1.1, ease: expo, delay: 0.2 }}
       />
     </div>
   );
@@ -68,7 +68,7 @@ export function ProgressRing({ value, tone = 'primary', size = 96, stroke = 8, l
           className={strokeTone[tone]}
           initial={{ pathLength: 0 }}
           animate={{ pathLength: v / 100 }}
-          transition={{ duration: 1.3, ease, delay: 0.2 }}
+          transition={{ duration: 1.6, ease: expo, delay: 0.2 }}
         />
       </svg>
       {children && <div className="absolute inset-0 flex flex-col items-center justify-center text-center">{children}</div>}

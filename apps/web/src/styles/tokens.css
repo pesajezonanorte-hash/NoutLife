@@ -89,18 +89,41 @@ html.dark {
   }
   .reduce-motion .lq-halo::after { animation: none; }
 
+  /* Motion v3: lift −6 px con curva expo; el ícono rebota con muelle. */
   .lq-lift {
-    transition: transform .2s cubic-bezier(0, 0, .2, 1), box-shadow .2s cubic-bezier(0, 0, .2, 1), border-color .2s;
+    transition: transform .5s cubic-bezier(.16, 1, .3, 1), box-shadow .5s cubic-bezier(.16, 1, .3, 1), border-color .3s;
   }
   .lq-lift:hover, .lq-lift:focus-within {
-    transform: translateY(-4px);
+    transform: translateY(-6px);
     box-shadow: var(--shadow-lg);
     border-color: rgb(var(--lq-primary) / .25);
   }
   /* Enlace estirado (título que cubre toda la tarjeta): el anillo de foco rodea la tarjeta. */
   .lq-stretch:focus-visible { outline: none; }
   .lq-stretch:focus-visible::after { outline: 3px solid rgb(var(--lq-primary)); outline-offset: 2px; border-radius: 1rem; }
-  .lq-ichip { transition: transform .3s cubic-bezier(.3, 1.4, .5, 1); }
+  .lq-ichip { transition: transform .5s cubic-bezier(.34, 1.56, .64, 1); }
+
+  /* Spotlight + tilt (useSpotlight fija --mx --my --rx --ry). Tilt máx. 3°. */
+  .lq-spot {
+    position: relative; isolation: isolate;
+    transform: perspective(1100px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+    transition: transform .6s cubic-bezier(.16, 1, .3, 1), box-shadow .4s cubic-bezier(.16, 1, .3, 1);
+  }
+  .lq-spot::before {
+    content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none;
+    background: radial-gradient(480px circle at var(--mx, 50%) var(--my, 50%), rgb(var(--lq-primary) / var(--lq-soft-alpha)), transparent 62%);
+    opacity: 0; transition: opacity .4s;
+  }
+  .lq-spot:hover::before { opacity: 1; }
+  .reduce-motion .lq-spot { transform: none; }
+
+  /* Acordeón: grid-template-rows 0fr → 1fr (excepción documentada a transform/opacity). */
+  .lq-acc-panel { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .45s cubic-bezier(.16, 1, .3, 1); }
+  .lq-acc-panel[data-open="true"] { grid-template-rows: 1fr; }
+  .lq-acc-panel > div { overflow: hidden; }
+  .lq-acc-panel .lq-acc-body { opacity: 0; transform: translateY(-6px); transition: opacity .4s .05s, transform .5s cubic-bezier(.16, 1, .3, 1); }
+  .lq-acc-panel[data-open="true"] .lq-acc-body { opacity: 1; transform: none; }
+  .reduce-motion .lq-acc-panel { transition: none; }
   .lq-lift:hover .lq-ichip { transform: scale(1.08) rotate(-4deg); }
 
   /* Barra con brillo (`shine`) */
@@ -173,3 +196,19 @@ html.dark {
   transition-property: color, background-color, border-color, opacity !important;
   scroll-behavior: auto !important;
 }
+
+@keyframes lq-blink { 50% { opacity: 0; } }
+
+/* Sueño: cielo vivo. Olas que fluyen (translateX en bucle sobre un SVG de dos
+   periodos), estrellas que titilan, luna que flota y halo que respira. Solo
+   transform/opacity; con «Reducir movimiento» quedan quietas (regla de arriba). */
+.lq-wave { animation: lq-wave var(--lq-wave-d, 16s) linear infinite; will-change: transform; }
+.lq-twinkle { animation: lq-twinkle 3.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+.lq-float { animation: lq-float 7s ease-in-out infinite; }
+.lq-breathe { animation: lq-breathe 5.5s ease-in-out infinite; }
+.lq-zzz { animation: lq-zzz 3.6s ease-out infinite; opacity: 0; }
+@keyframes lq-wave { to { transform: translateX(-50%); } }
+@keyframes lq-twinkle { 0%, 100% { opacity: .2; transform: scale(.6); } 50% { opacity: 1; transform: scale(1); } }
+@keyframes lq-float { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-8px) rotate(-6deg); } }
+@keyframes lq-breathe { 0%, 100% { opacity: .45; transform: scale(.92); } 50% { opacity: .9; transform: scale(1.08); } }
+@keyframes lq-zzz { 0% { opacity: 0; transform: translate(0, 4px) scale(.7); } 25% { opacity: 1; } 100% { opacity: 0; transform: translate(10px, -22px) scale(1.1); } }

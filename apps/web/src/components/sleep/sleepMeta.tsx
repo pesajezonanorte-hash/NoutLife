@@ -62,3 +62,25 @@ export function nightFromTimes(bed: string, wake: string, base = new Date()) {
   if (b >= w) b.setDate(b.getDate() - 1);
   return { bedtime: b, wakeTime: w, hours: (w.getTime() - b.getTime()) / 3600000 };
 }
+
+/** Siesta: suma al descanso del día pero no cuenta como noche. */
+export const isNap = (l: Pick<SleepLog, 'isNap'>) => Boolean(l.isNap);
+
+/** Duraciones rápidas de siesta (min). */
+export const NAP_PRESETS = [
+  { min: 20, label: '20 min', hint: 'Energizante' },
+  { min: 45, label: '45 min', hint: 'Media' },
+  { min: 90, label: '90 min', hint: 'Ciclo completo' },
+] as const;
+
+/** Consejo según la duración de la siesta (ciclos de sueño de ~90 min). */
+export function napAdvice(hours: number) {
+  const m = hours * 60;
+  if (m <= 30) return { tone: 'success' as const, text: 'Siesta energizante: despiertas sin aturdimiento.' };
+  if (m < 70) return { tone: 'warning' as const, text: 'Puede dejarte algo aturdido: llegaste al sueño profundo.' };
+  if (m <= 110) return { tone: 'info' as const, text: 'Cerca de un ciclo completo (~90 min): ideal para recuperar.' };
+  return { tone: 'warning' as const, text: 'Siesta larga: puede costarte dormir esta noche.' };
+}
+
+/** Minuto del día (0–1439) de una fecha. */
+export const minuteOfDay = (iso: string | Date) => { const d = new Date(iso); return d.getHours() * 60 + d.getMinutes(); };

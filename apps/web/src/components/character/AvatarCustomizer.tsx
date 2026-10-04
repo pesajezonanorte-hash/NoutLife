@@ -3,8 +3,9 @@
 // antes; cambia la presentación (lq) y el editor pixel compartido.
 import { useEffect, useId, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Link as LinkIcon, Box, Check, Trash2, Upload, X } from 'lucide-react';
+import { Link as LinkIcon, Box, Check, Crop, Trash2, Upload, X } from 'lucide-react';
 import { MinecraftSkinAvatar } from './MinecraftSkinAvatar';
+import { PhotoCropper } from './PhotoCropper';
 import { AvatarPreview, AvatarStudio } from './AvatarPixelEditor';
 import { withDefaults } from './avatarOptions';
 import { updateAvatar, updateProfile } from '../../services/user.service';
@@ -18,41 +19,10 @@ interface Props {
   onClose: () => void;
 }
 
-function compressAndResizeImage(file: File, maxWidth = 350, maxHeight = 350): Promise<string> {
+function readAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > maxWidth) {
-            height = Math.round((height * maxWidth) / width);
-            width = maxWidth;
-          }
-        } else {
-          if (height > maxHeight) {
-            width = Math.round((width * maxHeight) / height);
-            height = maxHeight;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', 0.85));
-        } else {
-          resolve(e.target?.result as string);
-        }
-      };
-      img.onerror = () => reject(new Error('Error al cargar la imagen'));
-      img.src = e.target?.result as string;
-    };
+    reader.onload = () => resolve(reader.result as string);
     reader.onerror = () => reject(new Error('Error al leer el archivo'));
     reader.readAsDataURL(file);
   });
@@ -167,6 +137,10 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
   const [photoUrl, setPhotoUrl] = useState<string>(user?.avatarUrl ?? '');
   const [skinUrl, setSkinUrl] = useState<string>(() => readMinecraftSkinDraft(user?.id) || user?.avatarConfig?.minecraftSkinUrl || '');
   const [urlInput, setUrlInput] = useState<string>('');
+  /** Imagen en el editor de recorte (null = vista previa normal). */
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const cropOpen = useRef(false);
+  cropOpen.current = cropSrc !== null;
   const [saving, setSaving] = useState(false);
   /** Se incrementa al guardar el pixel: el escenario celebra antes de cerrar. */
   const [celebrate, setCelebrate] = useState(0);
@@ -190,6 +164,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
     setPhotoUrl(user?.avatarUrl ?? '');
     setSkinUrl(readMinecraftSkinDraft(user?.id) || user?.avatarConfig?.minecraftSkinUrl || '');
     setUrlInput('');
+    setCropSrc(null);
     setActiveTab(initialTabFor(user?.avatarConfig, user?.avatarUrl));
     initializedModalUserRef.current = user?.id;
     hasInitializedModalRef.current = true;
@@ -225,11 +200,12 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
     }
 
     try {
-      const compressedBase64 = await compressAndResizeImage(file);
-      setPhotoUrl(compressedBase64);
-      toast.success('Imagen seleccionada correctamente ');
+      // Primero se encuadra (zoom, posición, giro); el recorte genera el JPEG final.
+      setCropSrc(await readAsDataUrl(file));
     } catch {
       toast.error('Error al procesar la imagen.');
+    } finally {
+      e.target.value = '';
     }
   };
 
@@ -360,7 +336,8 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
     document.body.style.overflow = 'hidden';
     const t = window.setTimeout(() => closeRef.current?.focus(), 50);
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { e.preventDefault(); onClose(); return; }
+      // Con el recorte abierto, Escape solo lo cancela.
+      if (e.key === 'Escape') { e.preventDefault(); if (cropOpen.current) setCropSrc(null); else onClose(); return; }
       if (e.key !== 'Tab' || !dialogRef.current) return;
       const f = [...dialogRef.current.querySelectorAll<HTMLElement>('button:not([disabled]),input:not([disabled]):not([type=radio]),input[type=radio]:checked,[tabindex="0"],a[href]')].filter((el) => el.offsetParent !== null || el.getClientRects().length > 0);
       if (!f.length) return;
@@ -422,6 +399,14 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
                     <div className="mx-auto flex w-full max-w-md flex-col gap-6 px-4 py-6">
                       {activeTab === 'photo' ? (
                         <>
+                      {cropSrc ? (
+                        <PhotoCropper
+                          src={cropSrc}
+                          onCancel={() => setCropSrc(null)}
+                          onApply={(url) => { setPhotoUrl(url); setCropSrc(null); toast.success('Foto ajustada. Guárdala para aplicarla.'); }}
+                        />
+                      ) : (
+                        <>
                       <p className="text-body-md text-on-surface-light">Sube una foto desde tu dispositivo o pega el enlace de una imagen.</p>
                       <div className="relative flex justify-center pb-3">
                         <span className="flex size-36 items-center justify-center overflow-hidden rounded-full bg-surface-variant shadow-[0_0_0_4px_rgb(var(--lq-background)),0_0_0_6px_rgb(var(--lq-primary)/0.4)]">
@@ -433,10 +418,15 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
                         </span>
                         {photoUrl && <Badge variant="success" className="absolute bottom-0 left-1/2 -translate-x-1/2">Foto activa</Badge>}
                       </div>
-                      <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept="image/*" className="hidden" tabIndex={-1} />
+                      <input type="file" aria-label="Subir foto" ref={fileInputRef} onChange={handleFileSelect} accept="image/*" className="hidden" tabIndex={-1} />
                       <Button variant="secondary" block onClick={() => fileInputRef.current?.click()}>
                         <Upload aria-hidden className="size-5" strokeWidth={1.75} />Subir desde el dispositivo
                       </Button>
+                      {photoUrl && (
+                        <Button variant="ghost" block onClick={() => setCropSrc(photoUrl)}>
+                          <Crop aria-hidden className="size-5" strokeWidth={1.75} />Ajustar encuadre
+                        </Button>
+                      )}
                       <div className="flex items-end gap-2">
                         <Field label="O pega un enlace" className="flex-1">
                           <Input type="url" value={urlInput} onChange={(e) => setUrlInput(e.target.value)} placeholder="https://ejemplo.com/foto.jpg" />
@@ -453,6 +443,8 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
                           </Button>
                         )}
                       </div>
+                        </>
+                      )}
                         </>
                       ) : (
                         <>

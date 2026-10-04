@@ -7,7 +7,7 @@ export async function fetchSleep(month?: string): Promise<SleepLog[]> {
   return data.logs;
 }
 
-export async function createSleep(body: { bedtime: string; wakeTime: string; quality: number; notes?: string; date?: string; caffeineLate?: boolean; screensBeforeBed?: boolean; exercisedToday?: boolean }): Promise<SleepLog> {
+export async function createSleep(body: { bedtime: string; wakeTime: string; quality: number; notes?: string; date?: string; caffeineLate?: boolean; screensBeforeBed?: boolean; exercisedToday?: boolean; isNap?: boolean }): Promise<SleepLog> {
   const { data } = await api.post<{ log: SleepLog }>('/sleep', body);
   return data.log;
 }

@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Guild Desktop</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./lq.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#4f46e5}a:hover{color:#4338ca}
+</style>
+</helmet>
+<div class="lq app {{theme}}">
+  <aside class="side">
+    <a href="DashboardDesktop.dc.html" class="row" style="gap: 12px; padding: 0 8px; text-decoration: none; color: inherit"><span class="ichip primary" style="width: 40px; height: 40px; border-radius: 12px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg></span><span class="t-hs">LifeQuest</span></a>
+    <nav aria-label="Principal" class="navgrp" style="border: 0; padding: 0">
+      <sc-for list="{{nav}}" as="n" hint-placeholder-count="5"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <nav aria-label="Bienestar" class="navgrp"><span class="sec">BIENESTAR</span>
+      <sc-for list="{{nav2}}" as="n" hint-placeholder-count="4"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <nav aria-label="Más zonas" class="navgrp"><span class="sec">MÁS ZONAS</span>
+      <sc-for list="{{nav3}}" as="n" hint-placeholder-count="11"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <nav aria-label="Comunidad" class="navgrp"><span class="sec">COMUNIDAD</span>
+      <sc-for list="{{nav4}}" as="n" hint-placeholder-count="3"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+    </nav>
+    <div class="navgrp" style="margin-top: auto">
+      <sc-for list="{{nav5}}" as="n" hint-placeholder-count="2"><a class="nav {{n.cls}}" href="{{n.href}}" aria-current="{{n.cur}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.icon}}"/></svg>{{n.label}}</a></sc-for>
+      <a class="usercard" href="ProfileDesktop.dc.html" aria-label="Tu perfil: Alex Rivera, nivel 12">
+        <span class="avatar t-ll" style="width: 40px; height: 40px; background: var(--primary-soft); color: var(--primary-text)">AR</span>
+        <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px"><span class="t-ll">Alex Rivera</span><span class="t-bs c-3" style="line-height: 1.2">Nivel 12 · Aventurero</span><span class="bar" style="height: 4px"><span style="width: 78%"></span></span></span>
+      </a>
+    </div>
+  </aside>
+  <div class="pane">
+    <header class="topbar">
+      <nav class="crumb" aria-label="Ruta"><a href="DashboardDesktop.dc.html">Inicio</a><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg><span class="c-1" aria-current="page">Gremio</span></nav>
+      <sc-if value="{{inGuild}}" hint-placeholder-val="{{ false }}"><button class="btn btn-ghost btn-md" onClick="{{leave}}">Salir del gremio</button></sc-if>
+    </header>
+
+    <sc-if value="{{noGuild}}" hint-placeholder-val="{{ true }}">
+    <main class="wrap enter" style="max-width: 920px">
+      <section style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 16px; padding-top: 24px">
+        <span class="ichip warning halo float" style="width: 112px; height: 112px; border-radius: 36px"><svg class="i i48" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/></svg></span>
+        <span class="eyebrow">Comunidad</span>
+        <h1 class="t-dl">Aún no tienes gremio</h1>
+        <p class="t-bl c-3" style="max-width: 520px">Crea un espacio con tu grupo o únete con un código. Juntos derrotan jefes semanales y comparten el progreso. Hasta 10 aventureros.</p>
+      </section>
+
+      <div class="stagger" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px">
+        <section class="card card-elevated spot" style="padding: 32px; display: flex; flex-direction: column; gap: 16px" onMouseMove="{{spot}}" onMouseLeave="{{unspot}}" aria-labelledby="g-create">
+          <span class="ichip primary"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span>
+          <h2 id="g-create" class="t-hm">Crear gremio</h2>
+          <div class="field"><label for="g-name">Nombre</label><input id="g-name" class="input" type="text" placeholder="Ej. Los Constantes"></div>
+          <fieldset style="border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px">
+            <legend class="t-ll c-2" style="padding: 0; margin-bottom: 8px">Emblema</legend>
+            <div class="row" style="gap: 8px" role="radiogroup">
+              <sc-for list="{{emblems}}" as="e" hint-placeholder-count="5">
+                <button role="radio" aria-checked="{{e.sel}}" aria-label="{{e.name}}" onClick="{{e.pick}}" class="ichip {{e.tone}}" style="width: 52px; height: 52px; border-radius: 16px; border: {{e.border}}; cursor: pointer; transform: {{e.scale}}; transition: transform .5s cubic-bezier(.34,1.56,.64,1), border-color .2s"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{e.icon}}"/></svg></button>
+              </sc-for>
+            </div>
+          </fieldset>
+          <button class="btn btn-primary btn-block" onClick="{{create}}" disabled="{{busy}}" style="margin-top: auto"><sc-if value="{{busyCreate}}" hint-placeholder-val="{{ false }}"><span class="spin" style="width: 16px; height: 16px; border-width: 2px; border-color: rgba(255,255,255,.35); border-top-color: currentColor"></span></sc-if>{{createLabel}}</button>
+        </section>
+
+        <section class="card card-elevated spot" style="padding: 32px; display: flex; flex-direction: column; gap: 16px" onMouseMove="{{spot}}" onMouseLeave="{{unspot}}" aria-labelledby="g-join">
+          <span class="ichip secondary"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg></span>
+          <h2 id="g-join" class="t-hm">Unirse con código</h2>
+          <p class="t-bm c-3">Pide el código de 6 caracteres a quien lidera el gremio.</p>
+          <div class="row" style="gap: 8px; flex-wrap: wrap" role="group" aria-label="Código de invitación">
+            <sc-for list="{{otp}}" as="o" hint-placeholder-count="6"><input class="input otp" maxlength="1" aria-label="{{o.aria}}" value="{{o.v}}" style="border-color: {{o.border}}"></sc-for>
+          </div>
+          <span class="help">Ejemplo de código válido: LQ7K2A</span>
+          <button class="btn btn-secondary btn-block" onClick="{{join}}" disabled="{{busy}}" style="margin-top: auto"><sc-if value="{{busyJoin}}" hint-placeholder-val="{{ false }}"><span class="spin" style="width: 16px; height: 16px; border-width: 2px"></span></sc-if>{{joinLabel}}</button>
+        </section>
+      </div>
+    </main>
+    </sc-if>
+
+    <sc-if value="{{inGuild}}" hint-placeholder-val="{{ false }}">
+    <main class="wrap enter">
+      <section class="card card-elevated spot" style="padding: 40px; display: flex; flex-wrap: wrap; gap: 32px; align-items: center" onMouseMove="{{spot}}" onMouseLeave="{{unspot}}">
+        <span class="ichip warning halo pop" style="width: 120px; height: 120px; border-radius: 36px"><svg class="i i48" viewBox="0 0 24 24" aria-hidden="true"><path d="{{emblemIcon}}"/></svg></span>
+        <div style="flex: 1 1 320px; display: flex; flex-direction: column; gap: 8px">
+          <span class="eyebrow">Tu gremio · nivel 4</span>
+          <h1 class="t-dl">Los Constantes</h1>
+          <div class="row" style="gap: 8px; flex-wrap: wrap"><span class="badge lg badge-neutral num">{{members}}/10 aventureros</span><span class="badge lg badge-primary num">+{{guildXp}} XP esta semana</span></div>
+        </div>
+        <div class="card" style="padding: 16px 20px; background: var(--bg); display: flex; flex-direction: column; gap: 8px; min-width: 240px">
+          <span class="t-bs c-3">Código de invitación</span>
+          <div class="row" style="gap: 12px; justify-content: space-between"><span class="num" style="font-size: 24px; font-weight: 700; letter-spacing: 4px">LQ7K2A</span>
+            <button class="btn btn-secondary btn-md" onClick="{{copy}}" aria-live="polite"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{copyIcon}}"/></svg>{{copyLabel}}</button></div>
+        </div>
+      </section>
+
+      <div class="cols">
+        <section class="main">
+          <article class="card card-lg" style="display: flex; flex-direction: column; gap: 20px">
+            <div class="row" style="gap: 16px; flex-wrap: wrap">
+              <span class="ichip error" style="width: 56px; height: 56px; border-radius: 16px"><svg class="i i32" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="M9 11h.01M15 11h.01M9.5 15.5h5"/></svg></span>
+              <div style="flex: 1"><span class="eyebrow">Jefe semanal</span><h2 class="t-hl">Titán del Sofá</h2></div>
+              <span class="badge lg badge-warning num"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>2 d 14 h</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px">
+              <div class="row" style="justify-content: space-between"><span class="t-ll c-error">Vida del jefe</span><span class="t-ll num">{{bossHp}} / 5.000</span></div>
+              <div class="bar lg error shine" role="progressbar" aria-label="Vida del jefe" aria-valuenow="{{bossPct}}" aria-valuemin="0" aria-valuemax="100" style="height: 16px"><span style="width: {{bossPct}}%; transition: width .9s cubic-bezier(.16,1,.3,1)"></span></div>
+              <p class="t-bs c-3">Cada hábito completado por cualquier miembro le quita 10 HP. Recompensa: +300 XP y 150 Gold para todos.</p>
+            </div>
+            <button class="btn btn-primary" style="align-self: flex-start" onClick="{{hit}}"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2"/></svg>Atacar con tus hábitos de hoy</button>
+          </article>
+
+          <article class="card card-lg" style="display: flex; flex-direction: column; gap: 8px">
+            <div class="row" style="justify-content: space-between; margin-bottom: 8px"><h2 class="t-hs">Miembros</h2><span class="t-bs c-3">Aporte esta semana</span></div>
+            <ol class="stagger" style="list-style: none; margin: 0; padding: 0">
+              <sc-for list="{{roster}}" as="m" hint-placeholder-count="6">
+                <li class="row" style="gap: 14px; min-height: 60px; border-bottom: {{m.border}}">
+                  <span class="avatar t-ll" style="width: 40px; height: 40px; background: {{m.bg}}; color: {{m.fg}}">{{m.ini}}</span>
+                  <div style="flex: 0 0 180px; min-width: 0"><div class="row" style="gap: 6px"><span class="t-ll" style="font-size: 16px">{{m.name}}</span><sc-if value="{{m.lead}}" hint-placeholder-val="{{ false }}"><span class="badge badge-warning">Líder</span></sc-if><sc-if value="{{m.you}}" hint-placeholder-val="{{ false }}"><span class="badge badge-primary">Tú</span></sc-if></div><div class="t-bs c-3">Nivel {{m.lvl}}</div></div>
+                  <div class="bar" style="flex: 1"><span style="width: {{m.pct}}%; animation-delay: {{m.d}}ms"></span></div>
+                  <span class="t-ll num" style="width: 72px; text-align: right">{{m.xp}} XP</span>
+                </li>
+              </sc-for>
+            </ol>
+          </article>
+        </section>
+
+        <aside class="aside">
+          <section class="card card-lg" style="display: flex; flex-direction: column; gap: 12px; align-items: center; text-align: center">
+            <h2 class="t-hs" style="align-self: flex-start">Meta semanal</h2>
+            <div style="position: relative; width: 168px; height: 168px">
+              <svg viewBox="0 0 120 120" width="168" height="168" aria-hidden="true" style="transform: rotate(-90deg)"><circle cx="60" cy="60" r="52" fill="none" stroke="var(--surface-variant)" stroke-width="9"/><circle class="ring-val" cx="60" cy="60" r="52" fill="none" stroke="var(--success)" stroke-width="9" stroke-linecap="round" pathLength="100" stroke-dasharray="100" stroke-dashoffset="{{goalOff}}" style="transition: stroke-dashoffset .9s cubic-bezier(.16,1,.3,1)"/></svg>
+              <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center"><span class="t-ds num">{{goalPct}}%</span><span class="t-bs c-3">de 120 hábitos</span></div>
+            </div>
+          </section>
+          <section class="card card-lg" style="display: flex; flex-direction: column; gap: 4px">
+            <h2 class="t-hs" style="margin-bottom: 8px">Actividad</h2>
+            <ul class="stagger" style="list-style: none; margin: 0; padding: 0">
+              <sc-for list="{{feed}}" as="f" hint-placeholder-count="5">
+                <li class="row" style="gap: 12px; padding: 10px 0; align-items: flex-start">
+                  <span class="ichip {{f.tone}}" style="width: 32px; height: 32px; border-radius: 10px"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{f.icon}}"/></svg></span>
+                  <div style="flex: 1"><p class="t-bs c-1"><b>{{f.who}}</b> {{f.what}}</p><span class="t-bs c-3">{{f.when}}</span></div>
+                </li>
+              </sc-for>
+            </ul>
+          </section>
+        </aside>
+      </div>
+    </main>
+    </sc-if>
+  </div>
+
+  <sc-if value="{{toast}}" hint-placeholder-val="{{ false }}">
+    <div class="toast toast-dock" role="status">
+      <span class="ichip success"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg></span>
+      <span style="flex: 1">{{toastText}}</span>
+      <button class="btn btn-icon" aria-label="Cerrar" onClick="{{closeToast}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"member":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1460}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { k: 1, joined: null, busy: null, emblem: 0, copied: false, hits: 0, toast: '' }; }
+  componentWillUnmount() { cancelAnimationFrame(this._raf); clearTimeout(this._t); clearTimeout(this._t2); }
+  navs(active) {
+    const P = {
+      home: 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z', habits: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0zM8.5 12l2.5 2.5 4.5-5', quests: 'M5 22V4M5 4h12l-2.5 4L17 12H5',
+      arena: 'M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 17.5 21 6V3h-3L6.5 14.5M11 19l-6-6M8 16l-4 4M5 21l-2-2', profile: 'M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM4 21a8 8 0 0 1 16 0',
+      money: 'M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 10h18M16 15h2', food: 'M7 3v18M4 3v6a3 3 0 0 0 6 0V3M17 21V3c-2 1-3 4-3 7h3', sleep: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
+      ach: 'M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3', stats: 'M3 3v18h18M8 16v-5M13 16V8M18 16v-3',
+      gym: 'M6.5 6.5l11 11M21 21l-1-1M3 3l1 1M18 22l4-4M2 6l4-4M3 10l7-7M14 21l7-7', glow: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 3v4M17 5h4',
+      learn: 'M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z', rel: 'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z',
+      diary: 'M5 4h11a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2zM9 8h5M9 12h5M20 7l-6 6', agenda: 'M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM4 10h16M9 2v4M15 2v4',
+      ritual: 'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4', wisdom: 'M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM9 8h6M9 12h6M9 16h3',
+      zones: 'M12 21s-7-6-7-12a7 7 0 0 1 14 0c0 6-7 12-7 12zM12 11.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z', shop: 'M5 8h14l-1 12H6zM9 8V6a3 3 0 0 1 6 0v2',
+      rank: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18', guild: 'M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM2 21a8 8 0 0 1 12-6.9M17 11a3 3 0 1 0 0-6M22 21a6 6 0 0 0-5-5.9',
+      camp: 'M3 21 12 4l9 17zM12 4v17M8 21l4-6 4 6', settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1',
+      help: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.7M12 17h.01',
+    };
+    const mk = a => a.map(([id, label, f]) => ({ label, href: f ? f + '.dc.html' : '#', icon: P[id], cls: id === active ? 'on' : '', cur: id === active ? 'page' : 'false' }));
+    return {
+      nav: mk([['home','Inicio','DashboardDesktop'],['habits','Hábitos','HabitsDesktop'],['quests','Misiones','QuestsDesktop'],['arena','Coliseo','ColosseumDesktop'],['profile','Perfil','ProfileDesktop']]),
+      nav2: mk([['money','Finanzas','FinancesDesktop'],['food','Comida','FoodDesktop'],['sleep','Sueño','SleepDesktop'],['ach','Logros','AchievementsDesktop']]),
+      nav3: mk([['stats','Estadísticas','StatsDesktop'],['gym','Gimnasio','GymDesktop'],['glow','Glow up','GlowUpDesktop'],['learn','Aprendizaje','LearningDesktop'],['rel','Relaciones','RelationsDesktop'],['diary','Diario','JournalDesktop'],['agenda','Agenda','AgendaDesktop'],['ritual','Rituales','RitualsDesktop'],['wisdom','Sabiduría','WisdomDesktop'],['zones','Mis zonas','ZonesDesktop'],['shop','Tienda','ShopDesktop']]),
+      nav4: mk([['rank','Ranking','RankingDesktop'],['guild','Gremio','GuildDesktop'],['camp','Campaña','CampaignDesktop']]),
+      nav5: mk([['settings','Ajustes','SettingsDesktop'],['help','Ayuda','HelpDesktop']]),
+    };
+  }
+  spotFns() {
+    const rm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    return {
+      spot: e => {
+        const el = e.currentTarget, r = el.getBoundingClientRect();
+        const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+        el.style.setProperty('--mx', (x * 100).toFixed(1) + '%'); el.style.setProperty('--my', (y * 100).toFixed(1) + '%');
+        if (!rm) { el.style.setProperty('--ry', ((x - .5) * 5).toFixed(2) + 'deg'); el.style.setProperty('--rx', ((.5 - y) * 5).toFixed(2) + 'deg'); }
+      },
+      unspot: e => { e.currentTarget.style.setProperty('--rx', '0deg'); e.currentTarget.style.setProperty('--ry', '0deg'); },
+    };
+  }
+  countUp(ms) {
+    const rm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    cancelAnimationFrame(this._raf);
+    if (rm) { this.setState({ k: 1 }); return; }
+    const t0 = performance.now();
+    const f = n => { const p = Math.min(1, (n - t0) / (ms || 1300)); this.setState({ k: 1 - Math.pow(1 - p, 4) }); if (p < 1) this._raf = requestAnimationFrame(f); };
+    this._raf = requestAnimationFrame(f);
+  }
+  renderVals() {
+    const s = this.state, k = s.k;
+    const fmt = n => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    const inGuild = s.joined ?? (this.props.member ?? false);
+    const EM = [['Escudo','warning','M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z'],['Llama','error','M12 22c4 0 7-3 7-7 0-4-3-6-4-9-1 2-2 3-4 3 0-2-1-4-2-5-1 4-4 6-4 11 0 4 3 7 7 7z'],['Estrella','primary','m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z'],['Rayo','info','M13 2 4 14h7l-1 8 9-12h-7z'],['Hoja','success','M12 22V12M12 12C12 7 8 4 4 4c0 4 3 8 8 8zM12 12c0-4 3-7 8-7 0 4-3 7-8 7']];
+    const emblems = EM.map(([name, tone, icon], i) => ({ name, tone, icon, sel: s.emblem === i ? 'true' : 'false', border: s.emblem === i ? '2px solid var(--primary)' : '2px solid transparent', scale: s.emblem === i ? 'scale(1.1)' : 'none', pick: () => this.setState({ emblem: i }) }));
+    const enter = (which) => {
+      this.setState({ busy: which });
+      clearTimeout(this._t);
+      this._t = setTimeout(() => {
+        this.setState({ busy: null, joined: true, toast: which === 'create' ? 'Gremio creado · eres el líder' : 'Te uniste a Los Constantes', k: 0 });
+        this.countUp(1200);
+        clearTimeout(this._t2); this._t2 = setTimeout(() => this.setState({ toast: '' }), 4000);
+      }, 1300);
+    };
+    const code = 'LQ7K2A';
+    const otp = code.split('').map((v, i) => ({ v: s.busy === 'join' || i < 3 ? v : '', aria: `Carácter ${i + 1}`, border: s.busy === 'join' ? 'var(--primary)' : 'var(--border-strong)' }));
+    const tones = [['var(--warning-soft)','var(--warning-text)'],['var(--primary-soft)','var(--primary-text)'],['var(--success-soft)','var(--success-text)'],['var(--info-soft)','var(--info-text)'],['var(--secondary-soft)','var(--secondary-text)'],['var(--error-soft)','var(--error-text)']];
+    const rd = [['Sofía Vargas',15,820,true,false],['Alex Rivera',12,640 + s.hits * 10,false,true],['Diego Morales',13,590,false,false],['Lucía Peña',11,410,false,false],['Mateo Ruiz',10,260,false,false],['Camila Ortiz',8,120,false,false]];
+    const roster = rd.map(([name, lvl, xp, lead, you], i) => ({ name, lvl, lead, you, xp: fmt(xp * k), pct: Math.round(xp / 900 * 100), d: 200 + i * 80,
+      ini: name.split(' ').map(w => w[0]).join(''), bg: tones[i][0], fg: tones[i][1], border: i < rd.length - 1 ? '1px solid var(--border)' : '0' }));
+    const OK = 'm5 12 5 5 9-10';
+    const feed = [['Sofía','completó “Correr 5 km”','Hace 12 min','success',OK],['Diego','subió al nivel 13','Hace 1 h','warning','M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z'],['Lucía','golpeó al jefe · −40 HP','Hace 2 h','error','M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6'],['Mateo','se unió al gremio','Ayer','primary','M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM4 21a8 8 0 0 1 16 0'],['Camila','terminó una misión','Ayer','secondary','M5 22V4M5 4h12l-2.5 4L17 12H5']]
+      .map(([who, what, when, tone, icon]) => ({ who, what, when, tone, icon }));
+    const hp = Math.max(0, 1600 - s.hits * 50);
+    return {
+      theme: (this.props.dark ?? false) ? 'dark' : '', ...this.navs('guild'), ...this.spotFns(),
+      noGuild: !inGuild, inGuild, emblems, otp, emblemIcon: EM[s.emblem][2],
+      busy: !!s.busy, busyCreate: s.busy === 'create', busyJoin: s.busy === 'join',
+      createLabel: s.busy === 'create' ? 'Creando…' : 'Crear gremio', joinLabel: s.busy === 'join' ? 'Verificando…' : 'Unirse',
+      create: () => enter('create'), join: () => enter('join'),
+      leave: () => this.setState({ joined: false }),
+      members: rd.length, guildXp: fmt(2840 * k), roster, feed,
+      bossHp: fmt(hp * (2 - k)), bossPct: Math.round(hp / 5000 * 100),
+      hit: () => { this.setState({ hits: this.state.hits + 1, toast: '¡Golpe! −50 HP al Titán del Sofá' }); clearTimeout(this._t2); this._t2 = setTimeout(() => this.setState({ toast: '' }), 3000); },
+      goalPct: Math.round(72 * k), goalOff: 100 - Math.round(72 * k),
+      copied: s.copied, copyLabel: s.copied ? 'Copiado' : 'Copiar', copyIcon: s.copied ? OK : 'M9 9h10v10H9zM5 15V5h10',
+      copy: () => { this.setState({ copied: true }); clearTimeout(this._t); this._t = setTimeout(() => this.setState({ copied: false }), 1800); },
+      toast: !!s.toast, toastText: s.toast, closeToast: () => this.setState({ toast: '' }),
+    };
+  }
+}
+</script>
+</body>
+</html>

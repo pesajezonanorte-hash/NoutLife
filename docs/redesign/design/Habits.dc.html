@@ -18,7 +18,7 @@ a{color:#4f46e5}a:hover{color:#4338ca}
 <div class="lq screen {{theme}}" style="width: 375px; height: 1080px">
   <header class="hdr">
     <span class="t-bs c-3">Hoy</span>
-    <button class="btn btn-icon" aria-label="Ordenar"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"></path></svg></button>
+    <button class="btn btn-icon" aria-label="Ordenar"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg></button>
   </header>
   <main class="enter" style="display: flex; flex-direction: column; gap: 24px; padding: 0 16px 128px">
     <div style="display: flex; flex-direction: column; gap: 4px">
@@ -34,18 +34,18 @@ a{color:#4f46e5}a:hover{color:#4338ca}
     <ul class="list" style="list-style: none; margin: 0; padding: 0">
       <sc-for list="{{habits}}" as="h" hint-placeholder-count="5">
         <li class="card card-hover row" style="gap: 16px; padding: 12px 12px 12px 16px">
-          <div class="ichip {{h.tone}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{h.icon}}"></path></svg></div>
+          <div class="ichip {{h.tone}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{h.icon}}"/></svg></div>
           <a href="HabitDetail.dc.html" style="flex: 1; min-width: 0; text-decoration: none; color: inherit; display: flex; flex-direction: column; min-height: 48px; justify-content: center">
             <span class="t-ll" style="font-size: 16px; color: var(--on-bg)">{{h.name}}</span>
-            <span class="row t-bs c-warning" style="gap: 4px"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22c4 0 7-3 7-7 0-4-3-6-4-9-1 2-2 3-4 3 0-2-1-4-2-5-1 4-4 6-4 11 0 4 3 7 7 7z"></path></svg><span class="num">{{h.streak}} días</span></span>
+            <span class="row t-bs c-warning" style="gap: 4px"><svg class="i i16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22c4 0 7-3 7-7 0-4-3-6-4-9-1 2-2 3-4 3 0-2-1-4-2-5-1 4-4 6-4 11 0 4 3 7 7 7z"/></svg><span class="num">{{h.streak}} días</span></span>
           </a>
-          <button class="{{h.chk}}" aria-pressed="{{h.done}}" aria-label="{{h.aria}}" onClick="{{h.toggle}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10"></path></svg></button>
+          <button class="{{h.chk}}" aria-pressed="{{h.done}}" aria-label="{{h.aria}}" onClick="{{h.toggle}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg></button>
         </li>
       </sc-for>
     </ul>
     <sc-if value="{{noneShown}}" hint-placeholder-val="{{ false }}">
       <div style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; padding: 24px 16px">
-        <div class="ichip muted lg"><svg class="i i48" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m8.5 12 2.5 2.5 4.5-5"></path></svg></div>
+        <div class="ichip muted lg"><svg class="i i48" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg></div>
         <h2 class="t-hl">Nada por aquí</h2>
         <p class="t-bm c-3">Cambia el filtro o crea un hábito nuevo.</p>
       </div>
@@ -57,19 +57,19 @@ a{color:#4f46e5}a:hover{color:#4338ca}
       <sc-for list="{{confetti}}" as="c" hint-placeholder-count="14"><i style="left: {{c.x}}%; background: {{c.color}}; animation-delay: {{c.d}}ms"></i></sc-for>
     </div>
     <div class="toast pop" role="status" style="position: absolute; left: 16px; right: 16px; bottom: 176px; z-index: 16">
-      <div class="ichip success"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10"></path></svg></div>
+      <div class="ichip success"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg></div>
       <span style="flex: 1">{{lastName}} · <b>+10 XP</b></span>
-      <button class="btn btn-icon" aria-label="Cerrar" onClick="{{closeToast}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+      <button class="btn btn-icon" aria-label="Cerrar" onClick="{{closeToast}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
     </div>
   </sc-if>
 
-  <button class="fab" aria-label="Nuevo hábito"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button>
+  <button class="fab" aria-label="Nuevo hábito"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
   <nav class="tabbar" aria-label="Principal">
-    <a href="Dashboard.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"></path></svg>Inicio</a>
-    <a href="Habits.dc.html" class="on" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m8.5 12 2.5 2.5 4.5-5"></path></svg>Hábitos</a>
-    <a href="Quests.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 22V4"></path><path d="M5 4h12l-2.5 4L17 12H5"></path></svg>Misiones</a>
-    <a href="Colosseum.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 17.5 21 6V3h-3L6.5 14.5M11 19l-6-6M8 16l-4 4M5 21l-2-2"></path></svg>Coliseo</a>
-    <a href="Profile.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg>Perfil</a>
+    <a href="Dashboard.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Inicio</a>
+    <a href="Habits.dc.html" class="on" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg>Hábitos</a>
+    <a href="Quests.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 22V4"/><path d="M5 4h12l-2.5 4L17 12H5"/></svg>Misiones</a>
+    <a href="Colosseum.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 17.5 21 6V3h-3L6.5 14.5M11 19l-6-6M8 16l-4 4M5 21l-2-2"/></svg>Coliseo</a>
+    <a href="Profile.dc.html"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Perfil</a>
   </nav>
 </div>
 </x-dc>

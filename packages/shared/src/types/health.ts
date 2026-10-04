@@ -9,6 +9,9 @@ export interface SleepLog {
   quality: number;
   notes?: string;
   date: string;
+  sleepScore?: number | null;
+  /** Siesta: suma al descanso del día, pero no cuenta como noche. */
+  isNap?: boolean;
   createdAt: string;
 }
 
