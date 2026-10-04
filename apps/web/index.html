@@ -45,9 +45,9 @@
       try { if ((JSON.parse(localStorage.getItem('lq-motion') || 'null') || {}).state.reduce) document.documentElement.classList.add('lq-rm'); } catch (e) {}
     </script>
     <!-- Splash de arranque: las tres hojas del logo vuelan, se juntan formando la N
-         y aparece «Noutlife» letra a letra. Es CSS puro para que empiece en el primer
+         y el wordmark «noutlife» se dibuja trazo a trazo. Es CSS puro para que empiece en el primer
          pintado, antes del JS; SplashScreen (React) solo decide cuándo desvanecerlo.
-         Solo transform/opacity (+ blur de entrada en las letras). -->
+         Solo transform/opacity (+ stroke-dashoffset para dibujar el nombre). -->
     <style>
       #lq-boot { --bg: 249 247 243; --fg: 14 29 22; --mt: 79 107 92; --pr: 30 54 41;
         --a0: #5fae97; --a1: #2f7565; --a2: #0a3a33; --a3: #05302b; --b0: #8ec7ad; --b1: #2c7362; --c0: #4f9c84; --c1: #2a6f60; --c2: #06302b;
@@ -57,19 +57,18 @@
       html.dark #lq-boot { --bg: 7 13 10; --fg: 230 242 232; --mt: 143 174 156; --pr: 133 199 161;
         --a0: #a8d9c1; --a1: #5aa58c; --a2: #2a7262; --a3: #1a5547; --b0: #c4e6d4; --b1: #5aa58c; --c0: #86c5aa; --c1: #4c957d; --c2: #1a5547; }
       #lq-boot.out { opacity: 0; transform: scale(1.02); pointer-events: none; }
-      #lq-boot .mk { position: relative; width: 89px; height: 104px; animation: lqb-settle .7s cubic-bezier(.34,1.56,.64,1) 1.62s both; }
+      #lq-boot .mk { position: relative; width: 128px; height: 150px; animation: lqb-settle .7s cubic-bezier(.34,1.56,.64,1) 1.62s both; }
       #lq-boot .mk svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; opacity: 0;
         animation: 1.45s cubic-bezier(.45,.05,.2,1) both; will-change: transform, opacity; }
       #lq-boot .mk .lb { animation-name: lqb-b; animation-delay: .05s; }
       #lq-boot .mk .la { animation-name: lqb-a; animation-delay: .12s; }
       #lq-boot .mk .lc { animation-name: lqb-c; animation-delay: .2s; }
-      #lq-boot .rp { position: absolute; left: 50%; top: 50%; width: 150px; height: 150px; margin: -75px 0 0 -75px; border-radius: 50%;
-        border: 1.5px solid rgb(var(--pr) / .35); opacity: 0; animation: lqb-ripple 1.1s cubic-bezier(.16,1,.3,1) 1.62s forwards; }
-      #lq-boot .wm { display: flex; font-size: 2.5rem; font-weight: 500; letter-spacing: -0.012em; line-height: 1; }
-      #lq-boot .wm span { display: inline-block; opacity: 0; animation: lqb-letter .7s cubic-bezier(.16,1,.3,1) both; }
-      #lq-boot .tg { font-size: .9375rem; color: rgb(var(--mt)); opacity: 0; animation: lqb-up .7s cubic-bezier(.16,1,.3,1) 2.1s both; }
-      #lq-boot .bar { width: 120px; height: 2px; border-radius: 2px; background: rgb(var(--pr) / .12); overflow: hidden; opacity: 0; animation: lqb-up .5s ease-out 2.25s both; }
-      #lq-boot .bar i { display: block; width: 40%; height: 100%; border-radius: 2px; background: rgb(var(--pr)); animation: lqb-slide 1.3s cubic-bezier(.65,0,.35,1) 2.25s infinite; }
+      #lq-boot .wm { width: 240px; height: auto; overflow: visible; color: rgb(var(--fg)); animation: lqb-up .7s cubic-bezier(.16,1,.3,1) 1.5s both; }
+      #lq-boot .wm path { stroke-dasharray: 1; stroke-dashoffset: 1; animation: lqb-draw .6s cubic-bezier(.65,0,.35,1) both; }
+      #lq-boot .wm circle { transform-box: fill-box; transform-origin: center; transform: scale(0); animation: lqb-pop .5s cubic-bezier(.34,1.56,.64,1) 2.3s both; }
+      #lq-boot .tg { font-size: .9375rem; color: rgb(var(--mt)); opacity: 0; animation: lqb-up .7s cubic-bezier(.16,1,.3,1) 2.4s both; }
+      #lq-boot .bar { width: 120px; height: 2px; border-radius: 2px; background: rgb(var(--pr) / .12); overflow: hidden; opacity: 0; animation: lqb-up .5s ease-out 2.55s both; }
+      #lq-boot .bar i { display: block; width: 40%; height: 100%; border-radius: 2px; background: rgb(var(--pr)); animation: lqb-slide 1.3s cubic-bezier(.65,0,.35,1) 2.55s infinite; }
       /* Vuelo de cada hoja: entra desde un lado girando, deriva, se pasa un poco y se asienta. */
       @keyframes lqb-b { 0% { opacity: 0; transform: translate(-46vw, 22vh) rotate(-140deg) scale(.45); }
         18% { opacity: 1; } 55% { transform: translate(-90px, -110px) rotate(38deg) scale(.95); }
@@ -81,24 +80,23 @@
         18% { opacity: 1; } 55% { transform: translate(-110px, 40px) rotate(28deg) scale(.92); }
         82% { transform: translate(4px, -5px) rotate(-4deg) scale(1.02); } 100% { opacity: 1; transform: none; } }
       @keyframes lqb-settle { 0% { transform: scale(1); } 40% { transform: scale(1.07); } 100% { transform: scale(1); } }
-      @keyframes lqb-ripple { from { opacity: .9; transform: scale(.55); } to { opacity: 0; transform: scale(1.5); } }
-      @keyframes lqb-letter { from { opacity: 0; transform: translateY(.5em) rotate(4deg); filter: blur(8px); } to { opacity: 1; transform: none; filter: none; } }
+      @keyframes lqb-draw { to { stroke-dashoffset: 0; } }
+      @keyframes lqb-pop { to { transform: scale(1); } }
       @keyframes lqb-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
       @keyframes lqb-slide { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
       /* Reducir movimiento: todo aparece montado, solo con un fundido. */
       html.lq-rm #lq-boot *, html.lq-rm #lq-boot .mk svg { animation: lqb-up .3s ease-out both !important; }
-      html.lq-rm #lq-boot .rp { display: none; }
+      html.lq-rm #lq-boot .wm path { stroke-dashoffset: 0; } html.lq-rm #lq-boot .wm circle { transform: none; }
     </style>
   </head>
   <body>
     <div id="lq-boot" role="status" aria-label="Cargando Noutlife">
       <div class="mk" aria-hidden="true">
-        <span class="rp"></span>
         <svg class="lb" viewBox="0 0 670 786"><defs><linearGradient id="bb" gradientUnits="userSpaceOnUse" x1="30" y1="290" x2="250" y2="740"><stop offset="0" style="stop-color:var(--b0)"/><stop offset="1" style="stop-color:var(--b1)"/></linearGradient></defs><path fill="url(#bb)" d="M2 271C93.4 468.0 228.1 416.0 251.0 545.0L251 743C76.1 695.7 -13.2 587.2 0.0 380.0L0 275Z"/></svg>
         <svg class="lc" viewBox="0 0 670 786"><defs><linearGradient id="bc" gradientUnits="userSpaceOnUse" x1="520" y1="210" x2="669" y2="780"><stop offset="0" style="stop-color:var(--c0)"/><stop offset=".45" style="stop-color:var(--c1)"/><stop offset="1" style="stop-color:var(--c2)"/></linearGradient></defs><path fill="url(#bc)" d="M474 198C581.2 230.2 670.1 305.6 669.0 500.0L669 760C669 776 666 783 662 785L500 600L474 489Z"/></svg>
         <svg class="la" viewBox="0 0 670 786"><defs><linearGradient id="ba" gradientUnits="userSpaceOnUse" x1="60" y1="40" x2="650" y2="770"><stop offset="0" style="stop-color:var(--a0)"/><stop offset=".35" style="stop-color:var(--a1)"/><stop offset=".72" style="stop-color:var(--a2)"/><stop offset="1" style="stop-color:var(--a3)"/></linearGradient></defs><path fill="url(#ba)" d="M1 0C124.1 148.2 331.6 191.3 474.0 489.0L662 785C314.2 532.2 633.0 710.9 118.0 399.0C-22.3 290.2 2.6 200.5 0.0 150.0L0 4Z"/></svg>
       </div>
-      <div class="wm" aria-hidden="true"><span style="animation-delay:1.55s">N</span><span style="animation-delay:1.59s">o</span><span style="animation-delay:1.64s">u</span><span style="animation-delay:1.69s">t</span><span style="animation-delay:1.73s">l</span><span style="animation-delay:1.77s">i</span><span style="animation-delay:1.82s">f</span><span style="animation-delay:1.86s">e</span></div>
+      <svg class="wm" viewBox="-10 -10 486 120" fill="none" stroke="currentColor" stroke-width="15" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path pathLength="1" style="animation-delay:1.6s" d="M4 100 L16 52 A22.5 22.5 0 0 1 59 58.5 V100"/><path pathLength="1" style="animation-delay:1.68s" d="M110 43.5a24.5 24.5 0 1 1 0 49a24.5 24.5 0 1 1 0-49"/><path pathLength="1" style="animation-delay:1.76s" d="M163.5 36v41.5a22.5 22.5 0 0 0 45 0V36M208.5 36v64"/><path pathLength="1" style="animation-delay:1.84s" d="M240 12v68a20 20 0 0 0 20 20M240 40h26"/><path pathLength="1" style="animation-delay:1.92s" d="M290 0v100"/><path pathLength="1" style="animation-delay:2s" d="M322 52v48"/><path pathLength="1" style="animation-delay:2.08s" d="M356 100V30a22 22 0 0 1 22-22h4M342 46h34"/><path pathLength="1" style="animation-delay:2.16s" d="M406 78 L449 56 A24.5 24.5 0 1 0 448.3 84.7"/><circle cx="322" cy="22" r="9" fill="currentColor" stroke="none"/></svg>
       <div class="tg" aria-hidden="true">Haz crecer tu vida</div>
       <div class="bar" aria-hidden="true"><i></i></div>
     </div>
