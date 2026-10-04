@@ -114,7 +114,7 @@ export function QuestFormDialog({ open, quest, onClose, onSubmit }: QuestFormDia
             <ol className="flex flex-col gap-1">
               {v.subObjectives.map((s, i) => (
                 <li key={`${s}-${i}`} className="flex items-center gap-2 rounded-xl border border-border bg-surface pl-3">
-                  <span className="text-label-md text-on-surface-light tabular-nums">{i + 1}.</span>
+                  <span className="text-label-md text-on-surface-light font-mono tabular-nums">{i + 1}.</span>
                   <span className="min-w-0 flex-1 truncate text-body-md">{s}</span>
                   <Button variant="icon" aria-label={`Quitar paso ${s}`} onClick={() => set('subObjectives', v.subObjectives.filter((_, j) => j !== i))}>
                     <X aria-hidden className="size-5" strokeWidth={1.75} />

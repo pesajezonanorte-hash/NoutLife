@@ -191,7 +191,7 @@ export function BodyWeightTracker() {
           <div className="text-right">
             <p className="font-mono text-heading-sm font-bold tabular-nums">{latest.weight} kg</p>
             {change !== null && (
-              <p className={cn('text-label-md tabular-nums', change < 0 ? 'text-success-text' : change > 0 ? 'text-warning-text' : 'text-on-surface-light')}>
+              <p className={cn('text-label-md font-mono tabular-nums', change < 0 ? 'text-success-text' : change > 0 ? 'text-warning-text' : 'text-on-surface-light')}>
                 {change > 0 ? '+' : ''}{change.toFixed(1)} kg total
               </p>
             )}

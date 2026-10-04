@@ -222,7 +222,7 @@ export function GoalsPanel({ money }: { money: Money }) {
             return (
               <Row key={g.id} icon={PiggyBank} tone={g.isCompleted ? 'success' : 'primary'} title={g.title}
                 meta={`${money(Number(g.currentAmount))} de ${money(Number(g.targetAmount))}${g.deadline ? ` · hasta ${new Date(g.deadline).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}` : ''}`}
-                right={g.isCompleted ? <Badge variant="success">Lograda</Badge> : <span className="text-label-lg text-primary-text tabular-nums">{Math.round(pct)}%</span>}
+                right={g.isCompleted ? <Badge variant="success">Lograda</Badge> : <span className="text-label-lg text-primary-text font-mono tabular-nums">{Math.round(pct)}%</span>}
                 onDelete={() => void remove(g.id)} deleteLabel={`Eliminar meta ${g.title}`}>
                 <ProgressBar value={Math.min(100, pct)} tone={g.isCompleted ? 'success' : 'primary'} shine={!g.isCompleted} label={`Progreso de ${g.title}`} valueText={`${Math.round(pct)} %`} />
                 {!g.isCompleted && <Button variant="ghost" size="sm" className="self-start" onClick={() => setContributing(g)}><Plus aria-hidden className="size-4" strokeWidth={2} />Aportar</Button>}
@@ -302,11 +302,11 @@ export function DebtsPanel({ money }: { money: Money }) {
             return (
               <Row key={d.id} icon={iOwe ? ArrowUpRight : ArrowDownLeft} tone={iOwe ? 'error' : 'success'} title={d.title}
                 meta={`${iOwe ? 'Debes a' : 'Te debe'} ${d.personName ?? '—'}${d.dueDate ? ` · vence ${new Date(d.dueDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}` : ''}`}
-                right={<span className="text-label-lg tabular-nums">{money(Number(d.currentAmount))}</span>}
+                right={<span className="text-label-lg font-mono tabular-nums">{money(Number(d.currentAmount))}</span>}
                 onDelete={() => setConfirmId(d.id)} deleteLabel={`Eliminar deuda ${d.title}`}>
                 <ProgressBar value={paid} tone="success" label={`Pagado de ${d.title}`} valueText={`${Math.round(paid)} % pagado`} />
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-body-sm text-on-surface-light tabular-nums">{Math.round(paid)} % pagado de {money(Number(d.originalAmount))}</span>
+                  <span className="text-body-sm text-on-surface-light font-mono tabular-nums">{Math.round(paid)} % pagado de {money(Number(d.originalAmount))}</span>
                   <Button variant="ghost" size="sm" onClick={() => setPaying(d)}>Registrar pago</Button>
                 </div>
                 {confirmId === d.id && (
@@ -378,7 +378,7 @@ export function RecurringPanel({ money }: { money: Money }) {
             const isIncome = i.type === 'INCOME';
             return (
               <Row key={i.id} icon={cat.icon} tone={isIncome ? 'success' : cat.tone} title={i.description} meta={`${cat.label} · día ${i.dayOfMonth}`}
-                right={<span className={cn('text-label-lg tabular-nums', isIncome ? 'text-success-text' : 'text-on-background')}>{isIncome ? '+' : '−'}{money(Number(i.amount))}</span>}
+                right={<span className={cn('text-label-lg font-mono tabular-nums', isIncome ? 'text-success-text' : 'text-on-background')}>{isIncome ? '+' : '−'}{money(Number(i.amount))}</span>}
                 onDelete={() => void remove(i.id)} deleteLabel={`Eliminar ${i.description}`} />
             );
           })}
@@ -435,7 +435,7 @@ export function ProjectionPanel({ money }: { money: Money }) {
             ] as const).map(([k, v, cls]) => (
               <div key={k} className="rounded-2xl border border-border bg-background p-4">
                 <span className="block text-body-sm text-on-surface-light">{k}</span>
-                <span className={cn('block text-heading-sm tabular-nums', cls)}>{money(v)}</span>
+                <span className={cn('block text-heading-sm font-mono tabular-nums', cls)}>{money(v)}</span>
               </div>
             ))}
           </div>

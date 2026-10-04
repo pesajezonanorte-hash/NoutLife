@@ -287,7 +287,7 @@ export function VocabPanel({ itemId }: { itemId: string }) {
                   <p className="text-label-lg text-on-surface">¿Qué tan bien lo recordaste?</p>
                   <div className="grid grid-cols-3 gap-2">
                     {grades.map(([q, name, cls]) => (
-                      <button key={q} type="button" onClick={() => void review(q)} className={cn('min-h-12 rounded-lg text-label-lg transition-shadow hover:shadow-md', cls)}>{name}</button>
+                      <button key={q} type="button" onClick={() => void review(q)} className={cn('min-h-12 rounded-md text-label-lg transition-shadow hover:shadow-md', cls)}>{name}</button>
                     ))}
                   </div>
                 </motion.div>
@@ -310,7 +310,7 @@ export function VocabPanel({ itemId }: { itemId: string }) {
       )}
 
       {cards.length === 0 && !showForm && (
-        <Card><EmptyState icon={Layers} tone="secondary" title="Sin tarjetas aún" description="Crea tarjetas de vocabulario y repásalas con repetición espaciada." className="py-4" /></Card>
+        <Card><EmptyState icon={Layers} tone="forest" title="Sin tarjetas aún" description="Crea tarjetas de vocabulario y repásalas con repetición espaciada." className="py-4" /></Card>
       )}
     </div>
   );

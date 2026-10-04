@@ -26,7 +26,7 @@ export function SleepSky({ className }: { className?: string }) {
   return (
     <div aria-hidden className={cn('pointer-events-none absolute inset-0 overflow-hidden', className)}>
       {/* Resplandor de luna */}
-      <div className="lq-breathe absolute -right-16 -top-20 size-72 rounded-full bg-[radial-gradient(circle,rgb(var(--lq-secondary)/.22),transparent_65%)]" />
+      <div className="lq-breathe absolute -right-16 -top-20 size-72 rounded-full bg-[radial-gradient(circle,rgb(var(--lq-info)/.22),transparent_65%)]" />
       {STARS.map(([x, y, r, d]) => (
         <span
           key={`${x}-${y}`}
@@ -37,7 +37,7 @@ export function SleepSky({ className }: { className?: string }) {
       {/* Olas: dos capas a distinta velocidad y en sentidos opuestos */}
       <div className="absolute inset-x-0 bottom-0 h-20 md:h-24">
         <svg className="lq-wave absolute bottom-0 left-0 h-full w-[200%]" style={{ ['--lq-wave-d' as string]: '18s' }} viewBox="0 0 1200 100" preserveAspectRatio="none">
-          <path d={WAVE} className="fill-secondary/10" />
+          <path d={WAVE} className="fill-info/10" />
         </svg>
         <svg className="lq-wave absolute bottom-0 left-0 h-full w-[200%]" style={{ ['--lq-wave-d' as string]: '26s', animationDirection: 'reverse' }} viewBox="0 0 1200 100" preserveAspectRatio="none">
           <path d={WAVE_2} className="fill-primary/10" />
@@ -51,12 +51,12 @@ export function SleepSky({ className }: { className?: string }) {
 export function SleepyMoon({ className }: { className?: string }) {
   return (
     <span aria-hidden className={cn('relative inline-flex size-14 items-center justify-center', className)}>
-      <span className="lq-breathe absolute inset-0 rounded-full bg-secondary/20" />
-      <span className="lq-float relative inline-flex size-12 items-center justify-center rounded-full bg-secondary/15 text-secondary-text">
+      <span className="lq-breathe absolute inset-0 rounded-full bg-info/20" />
+      <span className="lq-float relative inline-flex size-12 items-center justify-center rounded-full bg-info/15 text-info-text">
         <Moon className="size-6" strokeWidth={1.75} />
       </span>
       {['z', 'z', 'Z'].map((z, i) => (
-        <span key={i} className="lq-zzz absolute -right-1 top-0 text-label-md font-bold text-secondary-text" style={{ animationDelay: `${i * 1.2}s` }}>{z}</span>
+        <span key={i} className="lq-zzz absolute -right-1 top-0 text-label-md font-bold text-info-text" style={{ animationDelay: `${i * 1.2}s` }}>{z}</span>
       ))}
     </span>
   );
@@ -97,13 +97,13 @@ export function RestDial({ segments, totalHours, size = 220, caption = 'descanso
         })}
         {[0, 6, 12, 18].map((h) => {
           const [x, y] = polar(C, R - 24, h * 60);
-          return <text key={h} x={x} y={y} textAnchor="middle" dominantBaseline="central" className="fill-on-surface-light text-[10px] font-semibold tabular-nums">{String(h).padStart(2, '0')}</text>;
+          return <text key={h} x={x} y={y} textAnchor="middle" dominantBaseline="central" className="fill-on-surface-light text-[10px] font-semibold font-mono tabular-nums">{String(h).padStart(2, '0')}</text>;
         })}
         {segments.map((s, i) => (
           <motion.path
             key={`${s.start}-${i}`}
             d={arc(C, R, minuteOfDay(s.start), minuteOfDay(s.end))}
-            className={cn('fill-none', s.kind === 'night' ? 'stroke-secondary' : 'stroke-warning')}
+            className={cn('fill-none', s.kind === 'night' ? 'stroke-info' : 'stroke-warning')}
             strokeWidth={16}
             strokeLinecap="round"
             initial={{ pathLength: 0, opacity: 0 }}
@@ -116,7 +116,7 @@ export function RestDial({ segments, totalHours, size = 220, caption = 'descanso
         <circle cx={nx} cy={ny} r={4} className="fill-primary stroke-background" strokeWidth={2} />
       </svg>
       <figcaption aria-hidden className="absolute inset-0 flex flex-col items-center justify-center text-center">
-        <span className="text-heading-md font-bold tabular-nums">{hm(minutes / 60, true)}</span>
+        <span className="text-heading-md font-bold font-mono tabular-nums">{hm(minutes / 60, true)}</span>
         <span className="text-body-sm text-on-surface-light">{caption}</span>
       </figcaption>
     </figure>
@@ -125,8 +125,8 @@ export function RestDial({ segments, totalHours, size = 220, caption = 'descanso
 
 /* ───────── Duración en vivo ───────── */
 
-export function DurationMeter({ hours, target, targetLabel, tone = 'secondary', advice }: {
-  hours: number | null; target: number; targetLabel: string; tone?: 'secondary' | 'warning'; advice?: { tone: 'success' | 'warning' | 'info'; text: string } | null;
+export function DurationMeter({ hours, target, targetLabel, tone = 'info', advice }: {
+  hours: number | null; target: number; targetLabel: string; tone?: 'info' | 'warning'; advice?: { tone: 'success' | 'warning' | 'info'; text: string } | null;
 }) {
   const minutes = useCountUp(Math.round((hours ?? 0) * 60), 0.6);
   const fill = hours ? Math.min(1, hours / target) : 0;
@@ -134,11 +134,11 @@ export function DurationMeter({ hours, target, targetLabel, tone = 'secondary', 
     <div className="flex flex-col gap-2" aria-live="polite">
       <div className="flex items-baseline justify-between gap-2">
         <span className="text-label-lg text-on-surface">Duración</span>
-        <span className="text-heading-sm font-bold tabular-nums">{hours ? hm(minutes / 60) : '—'}</span>
+        <span className="text-heading-sm font-bold font-mono tabular-nums">{hours ? hm(minutes / 60) : '—'}</span>
       </div>
       <div className="relative h-3 overflow-hidden rounded-full bg-surface-variant">
         <motion.span
-          className={cn('lq-sheen absolute inset-0 overflow-hidden rounded-full', tone === 'secondary' ? 'bg-secondary' : 'bg-warning')}
+          className={cn('lq-sheen absolute inset-0 overflow-hidden rounded-full', tone === 'info' ? 'bg-info' : 'bg-warning')}
           style={{ originX: 0 }}
           initial={{ scaleX: 0 }}
           animate={{ scaleX: fill }}

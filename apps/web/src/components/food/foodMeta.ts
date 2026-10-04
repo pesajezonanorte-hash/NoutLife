@@ -24,7 +24,7 @@ export type MacroKey = 'protein' | 'carbs' | 'fat';
 export const MACROS: { key: MacroKey; label: string; short: string; tone: Exclude<Tone, 'muted'> }[] = [
   { key: 'protein', label: 'Proteína', short: 'P', tone: 'primary' },
   { key: 'carbs', label: 'Carbohidratos', short: 'C', tone: 'warning' },
-  { key: 'fat', label: 'Grasas', short: 'G', tone: 'secondary' },
+  { key: 'fat', label: 'Grasas', short: 'G', tone: 'forest' },
 ];
 
 /** Metas efectivas: las del usuario o valores de referencia mientras no defina las suyas. */

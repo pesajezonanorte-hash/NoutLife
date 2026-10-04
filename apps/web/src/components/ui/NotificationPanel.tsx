@@ -39,7 +39,7 @@ const TYPE_ICON: Record<string, { icon: LucideIcon; tone: Tone }> = {
   achievement: { icon: Trophy, tone: 'warning' },
   streak: { icon: Flame, tone: 'error' },
   reminder: { icon: Clock, tone: 'info' },
-  sage: { icon: Sparkles, tone: 'secondary' },
+  sage: { icon: Sparkles, tone: 'forest' },
   goal: { icon: Target, tone: 'primary' },
   levelup: { icon: Star, tone: 'warning' },
   system: { icon: Megaphone, tone: 'muted' },

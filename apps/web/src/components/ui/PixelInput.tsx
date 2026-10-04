@@ -52,7 +52,7 @@ export const PixelInput = forwardRef<HTMLInputElement, Props>(
             </span>
           )}
           <motion.div
-            className="absolute inset-0 pointer-events-none rounded-lg"
+            className="absolute inset-0 pointer-events-none rounded-md"
             animate={{ boxShadow: focused || error || success ? `0 0 0 3px ${glowColor}` : '0 0 0 0px transparent' }}
             transition={{ duration: 0.2 }}
           />

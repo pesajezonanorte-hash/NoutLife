@@ -43,7 +43,7 @@ export function SegmentedControl<K extends string>({
             role="tab"
             aria-selected={active}
             onClick={() => onChange(item.key)}
-            className={`relative min-h-11 min-w-0 shrink-0 rounded-xl px-4 text-sm font-medium transition-[color,transform] duration-300 ease-out active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-gold)] ${fill ? "flex-1" : ""} ${
+            className={`relative min-h-11 min-w-0 shrink-0 rounded-xl px-4 text-sm font-medium transition-[color,transform] duration-300 ease-out active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${fill ? "flex-1" : ""} ${
               active ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             }`}
           >

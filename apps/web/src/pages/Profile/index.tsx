@@ -157,7 +157,7 @@ export default function ProfilePage() {
         </div>
         <div className="flex w-full flex-col gap-1.5">
           <ProgressBar value={pct} size="lg" label="Experiencia" valueText={`${fmtNumber(user.xp)} de ${fmtNumber(user.xpToNextLevel)} XP`} />
-          <div className="flex justify-between text-body-sm text-on-surface-light tabular-nums"><span>{fmtNumber(user.xp)} XP</span><span>{fmtNumber(user.xpToNextLevel)} XP</span></div>
+          <div className="flex justify-between text-body-sm text-on-surface-light font-mono tabular-nums"><span>{fmtNumber(user.xp)} XP</span><span>{fmtNumber(user.xpToNextLevel)} XP</span></div>
         </div>
       </div>
       {/* Desktop: tarjeta */}
@@ -171,7 +171,7 @@ export default function ProfilePage() {
         <div className="flex min-w-0 flex-[1_1_320px] flex-col gap-2">
           <div className="flex items-center justify-between gap-2">
             <span className="text-label-lg">Progreso al nivel {user.level + 1}</span>
-            <span className="text-body-sm text-on-surface-light tabular-nums"><AnimatedValue value={user.xp} /> / {fmtNumber(user.xpToNextLevel)} XP</span>
+            <span className="text-body-sm text-on-surface-light font-mono tabular-nums"><AnimatedValue value={user.xp} /> / {fmtNumber(user.xpToNextLevel)} XP</span>
           </div>
           <ProgressBar value={pct} size="lg" shine label="Experiencia" valueText={`${fmtNumber(user.xp)} de ${fmtNumber(user.xpToNextLevel)} XP`} className="h-3.5" />
         </div>
@@ -185,8 +185,8 @@ export default function ProfilePage() {
         <Card key={s.to} as={Link} to={s.to} interactive padding="none" className="flex min-w-0 flex-col gap-1 px-3 py-4 md:gap-3 md:p-6">
           <s.icon aria-hidden className={cn('size-6 md:hidden', softTone[s.tone].split(' ')[1])} strokeWidth={1.75} />
           <IconChip icon={s.icon} tone={s.tone} className="hidden md:inline-flex" />
-          <span className="text-heading-lg tabular-nums md:text-display-md">
-            {stats === undefined ? <Skeleton className="inline-block h-8 w-12 rounded-lg" /> : s.value === undefined ? '—' : <AnimatedValue value={s.value} />}
+          <span className="text-heading-lg font-mono tabular-nums md:text-display-md">
+            {stats === undefined ? <Skeleton className="inline-block h-8 w-12 rounded-md" /> : s.value === undefined ? '—' : <AnimatedValue value={s.value} />}
           </span>
           <span className="text-body-sm text-on-surface-light md:text-body-md"><span className="md:hidden">{s.short}</span><span className="hidden md:inline">{s.long}</span></span>
         </Card>
@@ -233,13 +233,13 @@ export default function ProfilePage() {
     <Card as="section" aria-labelledby="pf-attr" padding="none" className="flex flex-col gap-4 p-4 md:p-6">
       <div className="flex items-center justify-between gap-2">
         <h2 id="pf-attr" className="text-heading-sm">Atributos</h2>
-        <span className="flex items-center gap-1.5 text-label-lg text-warning-text tabular-nums"><Coins aria-hidden className="size-5" strokeWidth={1.75} />{fmtNumber(user.gold)}<span className="sr-only"> de oro</span></span>
+        <span className="flex items-center gap-1.5 text-label-lg text-warning-text font-mono tabular-nums"><Coins aria-hidden className="size-5" strokeWidth={1.75} />{fmtNumber(user.gold)}<span className="sr-only"> de oro</span></span>
       </div>
       {([['Vida', Heart, user.hp, user.maxHp, 'error'], ['Maná', Zap, user.mp, user.maxMp, 'info']] as const).map(([name, Icon, v, max, tone]) => (
         <div key={name} className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between text-body-sm">
             <span className="flex items-center gap-2 text-label-lg"><Icon aria-hidden className={cn('size-4', softTone[tone].split(' ')[1])} strokeWidth={1.75} />{name}</span>
-            <span className="text-on-surface tabular-nums">{v} / {max}</span>
+            <span className="text-on-surface font-mono tabular-nums">{v} / {max}</span>
           </div>
           <ProgressBar value={max > 0 ? (v / max) * 100 : 0} tone={tone} label={name} valueText={`${v} de ${max}`} />
         </div>
@@ -247,7 +247,7 @@ export default function ProfilePage() {
       <dl className="grid grid-cols-3 gap-2">
         {([['Fuerza', user.strength], ['Intelecto', user.intelligence], ['Carisma', user.charisma]] as const).map(([k, v]) => (
           <div key={k} className="flex flex-col items-center gap-0.5 rounded-xl bg-surface-variant px-2 py-3">
-            <dd className="text-heading-sm tabular-nums">{v}</dd>
+            <dd className="text-heading-sm font-mono tabular-nums">{v}</dd>
             <dt className="text-label-md text-on-surface">{k}</dt>
           </div>
         ))}

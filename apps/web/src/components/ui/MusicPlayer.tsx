@@ -71,7 +71,7 @@ export function MusicPlayer({ url }: { url: string | null | undefined }) {
         )}
       >
         <header className="flex items-center gap-3 border-b border-border py-2 pl-4 pr-2">
-          <IconChip icon={Music} tone="secondary" size="sm" />
+          <IconChip icon={Music} tone="forest" size="sm" />
           <div className="min-w-0 flex-1">
             <h2 id={titleId} className="text-heading-sm">Tu música</h2>
             <p className="text-body-sm text-on-surface-light">Playlist de {PROVIDER[type]}</p>
@@ -108,7 +108,7 @@ export function MusicPlayer({ url }: { url: string | null | undefined }) {
         onClick={() => (open ? close() : setOpen(true))}
         className="fixed bottom-8 right-8 z-40 hidden min-h-11 items-center gap-2 rounded-full border border-border bg-background px-4 text-label-lg text-on-background shadow-md transition-shadow hover:shadow-lg md:inline-flex"
       >
-        <Music aria-hidden className="size-5 text-secondary-text" strokeWidth={1.75} />
+        <Music aria-hidden className="size-5 text-forest-text" strokeWidth={1.75} />
         Música
         <ChevronDown aria-hidden className={cn('size-4 transition-transform duration-200', !open && 'rotate-180')} strokeWidth={1.75} />
       </button>

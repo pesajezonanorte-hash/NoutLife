@@ -111,7 +111,7 @@ function Active({ data }: { data: SeasonData }) {
     return {
       level: Math.round(threshold), name: rewardName(r),
       icon: r.type === 'xp' ? Zap : r.type === 'gold' ? Coins : i === n - 1 ? Crown : Gift,
-      tone: r.type === 'xp' ? 'primary' : r.type === 'gold' ? 'warning' : 'secondary', state,
+      tone: r.type === 'xp' || r.type === 'gold' ? 'secondary' : 'forest', state,
     };
   }), [season.rewards, n, track, claimed, lostPct]);
   const tier = rewards.filter((r) => lostPct >= r.level).length;

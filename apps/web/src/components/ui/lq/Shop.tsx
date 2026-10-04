@@ -164,7 +164,7 @@ export function ThemePreviewDialog({ open, name, price, palette, owned, onBuy, o
       </motion.div>
       <div aria-hidden className="flex gap-2">
         {[palette.surface, palette.accent, palette.soft, palette.background, palette.text].map((c, i) => (
-          <span key={i} className="h-7 flex-1 rounded-lg border border-border" style={{ background: c }} />
+          <span key={i} className="h-7 flex-1 rounded-md border border-border" style={{ background: c }} />
         ))}
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3">

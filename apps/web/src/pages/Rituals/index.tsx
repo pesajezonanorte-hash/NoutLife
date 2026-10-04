@@ -17,7 +17,7 @@ import {
 type RitualType = Ritual['type'];
 const TYPES: Record<RitualType, { label: string; tone: Exclude<Tone, 'muted'>; icon: LucideIcon }> = {
   morning: { label: 'Mañana', tone: 'warning', icon: Sun },
-  night: { label: 'Noche', tone: 'secondary', icon: Moon },
+  night: { label: 'Noche', tone: 'forest', icon: Moon },
   custom: { label: 'Personal', tone: 'primary', icon: Zap },
 };
 const typeOf = (t: string) => TYPES[t as RitualType] ?? TYPES.custom;

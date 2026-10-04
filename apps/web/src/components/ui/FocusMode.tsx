@@ -231,7 +231,7 @@ export function FocusMode({ onClose, taskLabel, questId }: Props) {
                   </>
                 ) : (
                   <>
-                    <span role="timer" aria-label={`Tiempo restante ${minutesText(remaining)}`} className="text-display-md tabular-nums md:text-display-lg">
+                    <span role="timer" aria-label={`Tiempo restante ${minutesText(remaining)}`} className="text-display-md font-mono tabular-nums md:text-display-lg">
                       {mmss(remaining)}
                     </span>
                     <span className={cn('max-w-full truncate text-body-sm', phase === 'paused' ? 'text-warning-text' : 'text-on-surface-light')}>
@@ -293,7 +293,7 @@ export function FocusMode({ onClose, taskLabel, questId }: Props) {
                 <div className="flex flex-col gap-1">
                   <div className="flex justify-between text-label-lg text-on-surface">
                     <label htmlFor={`${soundOnId}-vol`}>Volumen</label>
-                    <span className="tabular-nums text-on-surface-light">{volume}%</span>
+                    <span className="font-mono tabular-nums text-on-surface-light">{volume}%</span>
                   </div>
                   <input
                     id={`${soundOnId}-vol`} type="range" min={0} max={100} step={5}

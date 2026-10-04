@@ -17,13 +17,13 @@ import {
 
 type Type = Item['type'];
 const TYPES: Record<string, { label: string; plural: string; icon: LucideIcon; tone: Exclude<Tone, 'muted'> }> = {
-  THEME: { label: 'Tema', plural: 'Temas', icon: Palette, tone: 'secondary' },
+  THEME: { label: 'Tema', plural: 'Temas', icon: Palette, tone: 'forest' },
   HAT: { label: 'Sombrero', plural: 'Sombreros', icon: Crown, tone: 'warning' },
   AURA: { label: 'Aura', plural: 'Auras', icon: Sparkles, tone: 'success' },
   FRAME: { label: 'Marco', plural: 'Marcos', icon: Frame, tone: 'warning' },
   POWERUP: { label: 'Power-up', plural: 'Power-ups', icon: Zap, tone: 'primary' },
   PASS: { label: 'Pase', plural: 'Pases', icon: Ticket, tone: 'info' },
-  COSMETIC: { label: 'Cosmético', plural: 'Cosméticos', icon: Shirt, tone: 'secondary' },
+  COSMETIC: { label: 'Cosmético', plural: 'Cosméticos', icon: Shirt, tone: 'forest' },
   DECORATION: { label: 'Decoración', plural: 'Decoraciones', icon: Gem, tone: 'info' },
 };
 const typeOf = (t: string) => TYPES[t] ?? { label: t, plural: t, icon: Package, tone: 'primary' as const };

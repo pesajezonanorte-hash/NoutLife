@@ -92,7 +92,7 @@ function MiniStat({ icon, tone, label, value, to }: { icon: LucideIcon; tone: To
       <IconChip icon={icon} tone={tone} size="sm" />
       <span className="min-w-0 flex-1">
         <span className="block text-body-sm text-on-surface-light">{label}</span>
-        <span className="block truncate text-heading-sm tabular-nums">{value}</span>
+        <span className="block truncate text-heading-sm font-mono tabular-nums">{value}</span>
       </span>
       <ChevronRight aria-hidden className="size-5 shrink-0 text-on-surface-light" strokeWidth={1.75} />
     </Link>
@@ -173,12 +173,12 @@ export default function DashboardPage() {
   const levelCard = (
     <Card as="section" variant="elevated" padding="lg" aria-label="Nivel" className="flex min-w-0 flex-col gap-4 md:flex-[1_1_380px]">
       <div className="flex items-center gap-4">
-        <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-primary/[var(--lq-soft-alpha)] text-heading-md text-primary-text tabular-nums">
+        <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-primary/[var(--lq-soft-alpha)] text-heading-md text-primary-text font-mono tabular-nums">
           {user.level}
         </span>
         <div className="min-w-0 flex-1">
           <div className="text-heading-sm">Nivel {user.level} · {getLevelTitle(user.level)}</div>
-          <div className="text-body-sm text-on-surface-light tabular-nums">
+          <div className="text-body-sm text-on-surface-light font-mono tabular-nums">
             {fmt(user.xp)} / {fmt(user.xpToNextLevel)} XP<span className="hidden md:inline"> · faltan {fmt(missing)}</span>
           </div>
         </div>
@@ -283,7 +283,7 @@ export default function DashboardPage() {
                   <li key={q.id} className={cn('relative flex flex-col gap-2 py-4 first:pt-0 last:pb-0', i > 0 && 'border-t border-border')}>
                     <div className="flex items-center justify-between gap-2">
                       <Badge variant={cat.tone}>{cat.label}</Badge>
-                      <span className="text-label-lg text-primary-text tabular-nums">+{q.xpReward} XP</span>
+                      <span className="text-label-lg text-primary-text font-mono tabular-nums">+{q.xpReward} XP</span>
                     </div>
                     <Link to="/quests" className="text-heading-sm lq-stretch after:absolute after:inset-0 after:content-[''] hover:underline">{q.title}</Link>
                     <ProgressBar value={p.pct} tone={p.pct >= 100 ? 'success' : 'primary'} label={`Progreso de ${q.title}`} valueText={p.text} />
@@ -321,7 +321,7 @@ export default function DashboardPage() {
                 <Badge variant="warning">+{recovery.bonusXp} XP</Badge>
               </div>
               <ProgressBar value={(recovery.currentDays / recovery.requiredDays) * 100} tone="warning" label="Progreso de recuperación" valueText={`${recovery.currentDays} de ${recovery.requiredDays} días`} />
-              <span className="text-body-sm text-on-surface-light tabular-nums">
+              <span className="text-body-sm text-on-surface-light font-mono tabular-nums">
                 {recovery.currentDays} de {recovery.requiredDays} días · {daysLeft(recovery.expiresAt)}
               </span>
             </Card>
@@ -372,16 +372,16 @@ export default function DashboardPage() {
               <span className="block text-body-sm text-on-surface">¿Cómo llegas hoy? Bonus de XP diario.</span>
             </span>
           </button>
-          <MiniStat icon={Moon} tone="secondary" label="Sueño · media 7 días" value={data?.sleepAvg7d ? `${data.sleepAvg7d.toFixed(1)} h` : 'Sin datos'} to="/sleep" />
+          <MiniStat icon={Moon} tone="info" label="Sueño · media 7 días" value={data?.sleepAvg7d ? `${data.sleepAvg7d.toFixed(1)} h` : 'Sin datos'} to="/sleep" />
           <MiniStat icon={Dumbbell} tone="success" label="Último entrenamiento" value={data?.recentWorkout ? relativeTime(data.recentWorkout.date) : 'Sin registro'} to="/gym" />
           {lifeScore && (
             <Link to="/life" className="lq-lift flex items-center gap-4 rounded-2xl border border-border bg-surface p-4 shadow-sm">
               <ProgressRing value={lifeScore.total} size={48} stroke={5} label="Life Score" valueText={`${lifeScore.total} de 100`}>
-                <span className="text-label-md tabular-nums">{lifeScore.total}</span>
+                <span className="text-label-md font-mono tabular-nums">{lifeScore.total}</span>
               </ProgressRing>
               <span className="min-w-0 flex-1">
                 <span className="block text-body-sm text-on-surface-light">Life Score</span>
-                <span className="block text-heading-sm tabular-nums">{lifeScore.total}/100</span>
+                <span className="block text-heading-sm font-mono tabular-nums">{lifeScore.total}/100</span>
               </span>
               <ChevronRight aria-hidden className="size-5 shrink-0 text-on-surface-light" strokeWidth={1.75} />
             </Link>
@@ -391,7 +391,7 @@ export default function DashboardPage() {
             onClick={() => openSage('¿En qué me recomiendas enfocarme hoy?')}
             className="lq-lift flex items-center gap-4 rounded-2xl border border-border bg-surface p-4 text-left shadow-sm"
           >
-            <IconChip icon={Sparkles} tone="secondary" size="sm" />
+            <IconChip icon={Sparkles} tone="forest" size="sm" />
             <span className="min-w-0 flex-1">
               <span className="block text-label-lg text-on-background">Consejo del Sabio</span>
               <span className="block text-body-sm text-on-surface-light">Pregúntale en qué enfocarte hoy.</span>

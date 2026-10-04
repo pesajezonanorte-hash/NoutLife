@@ -45,7 +45,7 @@ const CLASSES = {
   week: '',
   day: 'group size-11 p-0 text-center',
   day_button:
-    'lq-day-in relative z-0 inline-flex size-11 items-center justify-center rounded-xl text-body-md tabular-nums text-on-background ' +
+    'lq-day-in relative z-0 inline-flex size-11 items-center justify-center rounded-xl text-body-md font-mono tabular-nums text-on-background ' +
     'transition-[transform,color] duration-200 ease-out ' +
     'before:absolute before:inset-1 before:-z-10 before:rounded-xl before:bg-primary/10 before:opacity-0 before:scale-50 before:transition-[opacity,transform] before:duration-200 ' +
     'hover:scale-[1.08] hover:before:opacity-100 hover:before:scale-100 active:scale-90 ' +

@@ -7,7 +7,7 @@ import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { usePageVisibility } from '@/components/ui/LoadingGate';
 
-const TONES = ['bg-on-surface-light', 'bg-success', 'bg-primary', 'bg-on-surface-light', 'bg-info', 'bg-secondary'];
+const TONES = ['bg-on-surface-light', 'bg-success', 'bg-primary', 'bg-on-surface-light', 'bg-info', 'bg-forest'];
 const TICK_MS = 200;
 const KEEP_LINES = 16;
 

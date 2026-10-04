@@ -337,7 +337,7 @@ export function AnimatedCounter({
   return (
     <span
       data-slot="animated-counter"
-      className={cn("inline-flex items-center tabular-nums", className)}
+      className={cn("inline-flex items-center font-mono tabular-nums", className)}
       {...props}
     >
       {prefix != null && <Fixed {...slot}>{prefix}</Fixed>}

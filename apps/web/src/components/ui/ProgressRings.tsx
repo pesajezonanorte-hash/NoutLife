@@ -64,7 +64,6 @@ export function ProgressRings({
                   initial={{ strokeDashoffset: circumference }}
                   animate={{ strokeDashoffset: offset }}
                   transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1], delay: i * 0.08 }}
-                  style={{ filter: `drop-shadow(0 0 6px ${ring.color}55)` }}
                 />
               </g>
             );
@@ -81,7 +80,7 @@ export function ProgressRings({
               initial={{ opacity: 0, scale: 0.85 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.4 }}
-              className="text-[var(--text-primary)] font-bold tabular-nums"
+              className="text-[var(--text-primary)] font-bold font-mono tabular-nums"
               style={{ fontSize: size * 0.26, lineHeight: 1, letterSpacing: '-0.02em' }}
             >
               {centerLabel}

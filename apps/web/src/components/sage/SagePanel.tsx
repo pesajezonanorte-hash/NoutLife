@@ -153,7 +153,7 @@ export function SagePanel({ onClose }: { onClose: () => void }) {
         className="flex h-full w-full flex-col bg-background text-on-background shadow-lg outline-none md:max-w-[440px] md:rounded-l-3xl md:border-l md:border-border"
       >
         <header className="flex items-center gap-3 border-b border-border py-3 pl-4 pr-2 pt-[max(0.75rem,env(safe-area-inset-top))] md:pl-6">
-          <IconChip icon={Sparkles} tone="secondary" size="sm" />
+          <IconChip icon={Sparkles} tone="forest" size="sm" />
           <div className="min-w-0 flex-1">
             <h2 id={titleId} className="text-heading-sm">El Sabio</h2>
             <p className="text-body-sm text-on-surface-light">Tu consejero IA</p>
@@ -171,7 +171,7 @@ export function SagePanel({ onClose }: { onClose: () => void }) {
         <div className="flex-1 overflow-y-auto px-4 py-4 md:px-6">
           {messages.length === 0 && !loading ? (
             <div className="flex h-full flex-col items-center justify-center gap-4 py-8 text-center">
-              <IconChip icon={Sparkles} tone="secondary" size="lg" />
+              <IconChip icon={Sparkles} tone="forest" size="lg" />
               <div className="flex max-w-[300px] flex-col gap-1">
                 <p className="text-heading-sm">¿En qué te ayudo hoy?</p>
                 <p className="text-body-md text-on-surface-light">Pide ideas de misiones, analiza tus hábitos o tus finanzas, o pregunta lo que quieras.</p>

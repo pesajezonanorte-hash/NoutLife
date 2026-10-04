@@ -10,6 +10,12 @@
                 500 #70b48d · 600 #548f6f · 700 #3d6950 · 800 #234433 · 900 #0e1d16 */
 
 :root {
+  /* Escala Jade completa (bg-jade-500, text-jade-800…): ilustración y gráficos */
+  --lq-jade-50: 230 242 232;  --lq-jade-100: 220 243 225; --lq-jade-200: 196 226 202;
+  --lq-jade-300: 165 210 181; --lq-jade-400: 133 199 161; --lq-jade-500: 112 180 141;
+  --lq-jade-600: 84 143 111;  --lq-jade-700: 61 105 80;   --lq-jade-800: 35 68 51;
+  --lq-jade-900: 14 29 22;
+
   --lq-primary: 84 143 111;          /* jade-600  bars, rings, accents */
   --lq-primary-strong: 61 105 80;    /* jade-700  button fill (white text 6.3:1) */
   --lq-primary-hover: 35 68 51;      /* jade-800 */
@@ -18,8 +24,12 @@
 
   --lq-secondary: 176 141 87;        /* champagne gold #b08d57: XP, gold, recompensas */
   --lq-secondary-text: 138 106 47;   /* #8a6a2f (5.0:1 sobre blanco) */
-  --lq-success: 58 155 103;          /* #3a9b67 */
+  --lq-forest: 35 68 51;             /* jade-800  tono de categoría (sustituye al violeta) */
+  --lq-forest-text: 35 68 51;
+  --lq-success: 58 155 103;          /* #3a9b67  siempre con ícono + texto */
   --lq-success-text: 47 122 79;      /* #2f7a4f */
+  --lq-success-strong: 47 122 79;    /* relleno bajo texto blanco */
+  --lq-on-success: 255 255 255;
   --lq-warning: 212 149 42;          /* #d4952a */
   --lq-warning-text: 138 75 8;       /* #8a4b08 */
   --lq-error: 200 70 63;             /* #c8463f */
@@ -38,6 +48,12 @@
 
   --lq-soft-alpha: .10;              /* tint for chips/badges */
 
+  /* Radios: chips/checks 6 · botones/inputs 10 · cards/paneles/modales 16 */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-full: 999px;
+
   /* Sombras: mismos nombres que antes, teñidas de verde tinta */
   --shadow-sm: 0 1px 2px rgb(14 29 22 / .04), 0 1px 3px rgb(14 29 22 / .06);
   --shadow-md: 0 4px 12px rgb(14 29 22 / .08), 0 2px 4px rgb(14 29 22 / .04);
@@ -52,7 +68,9 @@ html.dark {
   --lq-on-primary: 14 29 22;         /* jade-900 sobre botón claro */
 
   --lq-secondary: 212 180 131;  --lq-secondary-text: 212 180 131;  /* #d4b483 */
+  --lq-forest: 196 226 202;     --lq-forest-text: 196 226 202;     /* jade-200 */
   --lq-success: 127 211 160;    --lq-success-text: 127 211 160;    /* #7fd3a0 */
+  --lq-success-strong: 127 211 160; --lq-on-success: 14 29 22;
   --lq-warning: 224 168 74;     --lq-warning-text: 224 168 74;     /* #e0a84a */
   --lq-error: 229 115 105;      --lq-error-text: 242 163 155;      /* #e57369 / #f2a39b */
   --lq-info: 127 182 214;       --lq-info-text: 156 199 224;       /* #7fb6d6 / #9cc7e0 */
@@ -75,6 +93,12 @@ html.dark {
 
 @layer base {
   :focus-visible { outline: 3px solid rgb(var(--lq-primary)); outline-offset: 2px; }
+  /* Números que cuentan: JetBrains Mono con cifras tabulares (README §Tipografía). */
+  .font-mono { font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+  /* El cuerpo es 15 px: en táctil los campos suben a 16 px para que iOS no haga zoom. */
+  @media (pointer: coarse) {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea { font-size: max(1rem, 1em); }
+  }
   /* El foco nunca queda bajo la TabBar + FAB (móvil) ni bajo la Topbar fija (desktop). WCAG 2.4.11 */
   html { scroll-padding-bottom: calc(11rem + env(safe-area-inset-bottom)); }
   @media (min-width: 768px) { html { scroll-padding-bottom: 2rem; } }
@@ -100,12 +124,13 @@ html.dark {
   }
   .reduce-motion .lq-halo::after { animation: none; }
 
-  /* Motion v3: lift −6 px con curva expo; el ícono rebota con muelle. */
+  /* Card interactiva (design system): lift −4 px con muelle suave + shadow-lg +
+     borde primary/25; el ícono rebota con muelle. */
   .lq-lift {
-    transition: transform .5s cubic-bezier(.16, 1, .3, 1), box-shadow .5s cubic-bezier(.16, 1, .3, 1), border-color .3s;
+    transition: transform .42s cubic-bezier(.34, 1.4, .64, 1), box-shadow .3s cubic-bezier(.16, 1, .3, 1), border-color .2s ease-out;
   }
   .lq-lift:hover, .lq-lift:focus-within {
-    transform: translateY(-6px);
+    transform: translateY(-4px);
     box-shadow: var(--shadow-lg);
     border-color: rgb(var(--lq-primary) / .25);
   }

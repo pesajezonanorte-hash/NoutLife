@@ -38,7 +38,7 @@ export function StatCard({ icon, tone = 'primary', value, format, label, to, lin
     <Card interactive padding={size === 'lg' ? 'lg' : 'sm'} className={cn('flex flex-col', size === 'lg' ? 'gap-4' : 'gap-3', className)}>
       <IconChip icon={icon} tone={tone} />
       <div>
-        <div className={cn('tabular-nums', size === 'lg' ? 'text-display-md' : 'text-heading-lg')}>
+        <div className={cn('font-mono tabular-nums', size === 'lg' ? 'text-display-md' : 'text-heading-lg')}>
           {typeof value === 'number' ? <AnimatedValue value={value} format={format} /> : value}
         </div>
         <div className={cn('text-on-surface-light', size === 'lg' ? 'text-body-md' : 'text-body-sm')}>{label}</div>

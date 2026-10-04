@@ -111,7 +111,7 @@ function ChartTooltipContent({
               <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: item.color ?? `var(--color-${key})` }} />
               {itemLabel}
             </span>
-            <span className="font-semibold tabular-nums text-[var(--text-primary)]">
+            <span className="font-semibold font-mono tabular-nums text-[var(--text-primary)]">
               {formatter ? formatter(value, key) : value}
             </span>
           </div>

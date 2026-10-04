@@ -14,7 +14,7 @@ type CatId = 'start' | 'game' | 'sabio' | 'account';
 const CATS: Record<CatId, { label: string; tone: Exclude<Tone, 'muted'>; icon: LucideIcon }> = {
   start: { label: 'Primeros pasos', tone: 'primary', icon: Zap },
   game: { label: 'Juego y XP', tone: 'warning', icon: Trophy },
-  sabio: { label: 'El Sabio', tone: 'secondary', icon: Sparkles },
+  sabio: { label: 'El Sabio', tone: 'forest', icon: Sparkles },
   account: { label: 'Cuenta y datos', tone: 'success', icon: ShieldCheck },
 };
 

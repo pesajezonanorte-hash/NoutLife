@@ -167,7 +167,7 @@ function AddDateModal({ relationshipId, onClose, onSave }: { relationshipId: str
             {DATE_ICON_OPTIONS.map((o) => (
               <button
                 key={o.id} type="button" role="radio" aria-checked={iconKey === o.id} aria-label={o.label} title={o.label} onClick={() => setIconKey(o.id)}
-                className={cn('flex min-h-11 items-center justify-center rounded-lg border transition-colors', iconKey === o.id ? 'border-primary/50 bg-primary/[var(--lq-soft-alpha)] text-primary-text' : 'border-border text-on-surface hover:border-primary/40')}
+                className={cn('flex min-h-11 items-center justify-center rounded-md border transition-colors', iconKey === o.id ? 'border-primary/50 bg-primary/[var(--lq-soft-alpha)] text-primary-text' : 'border-border text-on-surface hover:border-primary/40')}
               ><o.icon aria-hidden className="size-5" strokeWidth={1.75} /></button>
             ))}
           </div>

@@ -6,14 +6,14 @@ import { AlertCircle, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const control =
-  'min-h-12 w-full rounded-lg border bg-background px-4 py-2.5 text-body-md text-on-background ' +
+  'min-h-12 w-full rounded-md border bg-surface-variant px-4 py-2.5 text-body-lg text-on-background focus:bg-surface ' +
   'transition-[border-color,box-shadow,background-color] duration-200 ease-out placeholder:text-on-surface-light ' +
   'focus:outline-none focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50';
 
 const stateCls = (invalid?: boolean) =>
   invalid
     ? 'border-error ring-[3px] ring-error/[var(--lq-soft-alpha)]'
-    : 'border-border-strong hover:border-on-surface-light focus:border-primary focus:ring-[3px] focus:ring-primary/25';
+    : 'border-border-strong hover:border-on-surface-light focus:border-primary focus:ring-[3px] focus:ring-primary';
 
 /** Clases de un campo de formulario, para controles propios (p. ej. DatePicker). */
 export const fieldClasses = (invalid?: boolean) => cn(control, stateCls(invalid));
@@ -22,7 +22,7 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   invalid?: boolean;
 }
 
-/** <Input> 16 px (evita zoom en iOS), borde gray-500 (≥3:1), anillo de foco 3 px. */
+/** <Input> 16 px (evita zoom en iOS), fondo surface-variant → surface al enfocar, borde border-strong (≥3:1), anillo de foco 3 px primary. */
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input({ invalid, className, ...rest }, ref) {
   return <input ref={ref} aria-invalid={invalid || undefined} className={cn(control, stateCls(invalid), className)} {...rest} />;
 });

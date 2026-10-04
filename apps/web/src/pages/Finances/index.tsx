@@ -141,7 +141,7 @@ export default function FinancesPage() {
   const monthPicker = (
     <div className="flex items-center gap-1" role="group" aria-label="Mes">
       <Button variant="icon" aria-label="Mes anterior" onClick={() => setOffset((o) => o - 1)}><ChevronLeft aria-hidden className="size-5" strokeWidth={1.75} /></Button>
-      <span className="min-w-[9.5rem] text-center text-label-lg tabular-nums" aria-live="polite">{range.label}</span>
+      <span className="min-w-[9.5rem] text-center text-label-lg font-mono tabular-nums" aria-live="polite">{range.label}</span>
       <Button variant="icon" aria-label="Mes siguiente" disabled={offset >= 0} onClick={() => setOffset((o) => Math.min(0, o + 1))}><ChevronRight aria-hidden className="size-5" strokeWidth={1.75} /></Button>
     </div>
   );
@@ -184,7 +184,7 @@ export default function FinancesPage() {
               <span className="text-body-sm text-on-surface md:text-body-md">Saldo del mes</span>
               <IconChip icon={Wallet} tone="primary" size="sm" className="hidden bg-background md:flex" />
             </div>
-            <span className={cn('text-display-md tabular-nums md:text-display-lg', s.balance < 0 ? 'text-error-text' : 'text-primary-text')}>
+            <span className={cn('text-display-md font-mono tabular-nums md:text-display-lg', s.balance < 0 ? 'text-error-text' : 'text-primary-text')}>
               <AnimatedValue value={s.balance} format={compact} />
             </span>
             {savingsRate !== null
@@ -201,7 +201,7 @@ export default function FinancesPage() {
                   <span className="text-body-sm text-on-surface-light md:text-body-md">{label}</span>
                   <IconChip icon={Icon} tone={tone} size="sm" />
                 </div>
-                <span className="text-heading-md tabular-nums md:text-display-lg"><AnimatedValue value={v} format={compact} /></span>
+                <span className="text-heading-md font-mono tabular-nums md:text-display-lg"><AnimatedValue value={v} format={compact} /></span>
                 <span className="hidden md:block"><Trend value={pv !== undefined ? pctChange(v, pv) : null} good={good} suffix={prevRange.label.split(' ')[0].toLowerCase()} /></span>
               </Card>
             ))}
@@ -223,7 +223,7 @@ export default function FinancesPage() {
               <Card as="section" padding="lg" aria-labelledby="fin-week" className="flex flex-col gap-6">
                 <div className="flex items-center justify-between gap-3">
                   <h2 id="fin-week" className="text-heading-sm md:text-heading-lg">Gastos · últimos 7 días</h2>
-                  <span className="text-heading-sm tabular-nums">{money(weekTotal)}</span>
+                  <span className="text-heading-sm font-mono tabular-nums">{money(weekTotal)}</span>
                 </div>
                 <BarChart data={week} label={`Gastos diarios: ${week.map((d) => d.tip).join(', ')}`} tone="primary" highlightTone="error" grid height={200} formatValue={compact} />
               </Card>
@@ -251,8 +251,8 @@ export default function FinancesPage() {
                         <li key={c} className="flex items-center gap-3">
                           <span aria-hidden className={cn('size-3 shrink-0 rounded', solidBg[SHARE_TONES[i % SHARE_TONES.length]])} />
                           <span className="flex-1 text-body-md">{txCategory(c).label}</span>
-                          <span className="text-body-sm text-on-surface-light tabular-nums">{Math.round((v / catTotal) * 100)} %</span>
-                          <span className="w-24 text-right text-label-lg tabular-nums">{compact(v)}</span>
+                          <span className="text-body-sm text-on-surface-light font-mono tabular-nums">{Math.round((v / catTotal) * 100)} %</span>
+                          <span className="w-24 text-right text-label-lg font-mono tabular-nums">{compact(v)}</span>
                         </li>
                       ))}
                     </ul>
@@ -277,7 +277,7 @@ export default function FinancesPage() {
                       <motion.li
                         key={t.id}
                         variants={item}
-                        className={cn('group relative grid min-h-[72px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-lg hover:bg-surface-variant/60 md:grid-cols-[auto_minmax(0,1fr)_auto_auto] md:gap-4', i < visible.length - 1 && 'border-b border-border')}
+                        className={cn('group relative grid min-h-[72px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-md hover:bg-surface-variant/60 md:grid-cols-[auto_minmax(0,1fr)_auto_auto] md:gap-4', i < visible.length - 1 && 'border-b border-border')}
                       >
                         <IconChip icon={income ? ArrowDownLeft : cat.icon} tone={income ? 'success' : cat.tone} size="sm" />
                         <div className="min-w-0">
@@ -286,7 +286,7 @@ export default function FinancesPage() {
                             {income ? 'Ingreso' : cat.label} · {new Date(t.date).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
                           </div>
                         </div>
-                        <span className={cn('text-body-md font-semibold tabular-nums md:text-heading-sm', income ? 'text-success-text' : 'text-on-background')}>
+                        <span className={cn('text-body-md font-semibold font-mono tabular-nums md:text-heading-sm', income ? 'text-success-text' : 'text-on-background')}>
                           {income ? '+' : '−'}{money(Number(t.amount))}
                         </span>
                         <Button
@@ -339,7 +339,7 @@ export default function FinancesPage() {
           const income = detail.type === 'INCOME';
           return (
             <div className="flex flex-col gap-5">
-              <span className={cn('text-display-sm tabular-nums', income ? 'text-success-text' : 'text-on-background')}>{income ? '+' : '−'}{money(Number(detail.amount))}</span>
+              <span className={cn('text-display-sm font-mono tabular-nums', income ? 'text-success-text' : 'text-on-background')}>{income ? '+' : '−'}{money(Number(detail.amount))}</span>
               <dl className="flex flex-col gap-1">
                 {[['Tipo', income ? 'Ingreso' : 'Gasto'], ['Categoría', cat.label], ['Fecha', new Date(detail.date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })]].map(([k, v]) => (
                   <div key={k} className="flex min-h-10 items-center justify-between gap-4 border-b border-border last:border-0">

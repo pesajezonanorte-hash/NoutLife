@@ -44,16 +44,16 @@ function Eyebrow({ children }: { children: React.ReactNode }) {
 function LogoHero() {
   return (
     <div className="relative mx-auto flex size-40 items-center justify-center md:size-48">
-      {/* Anillo de luz que gira + halo que respira */}
-      <span aria-hidden className="lq-spin-slow absolute inset-0 rounded-full bg-[conic-gradient(from_0deg,rgb(var(--lq-primary)/.0),rgb(var(--lq-primary)/.55),rgb(var(--lq-secondary)/.0),rgb(var(--lq-secondary)/.5),rgb(var(--lq-primary)/.0))] p-px [mask:radial-gradient(farthest-side,transparent_calc(100%-2px),black_calc(100%-1px))]" />
-      <span aria-hidden className="lq-breathe absolute inset-4 rounded-full bg-[radial-gradient(circle,rgb(var(--lq-primary)/.22),transparent_70%)]" />
+      {/* Anillos finos que respiran alrededor de la baldosa (el logo no lleva glow ni sombra) */}
+      <span aria-hidden className="lq-breathe absolute inset-0 rounded-full border border-primary/25" />
+      <span aria-hidden className="lq-breathe absolute inset-5 rounded-full border border-primary/15 [animation-delay:1.2s]" />
       <motion.span
-        initial={{ opacity: 0, scale: 0.6, rotate: -12 }}
-        animate={{ opacity: 1, scale: 1, rotate: 0 }}
-        transition={{ type: 'spring', stiffness: 220, damping: 14, delay: 0.1 }}
+        initial={{ opacity: 0, scale: 0.8, y: 12 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 260, damping: 22, delay: 0.1 }}
         className="relative"
       >
-        <BrandMark alt="Logo de Noutlife" className="animate-float [.reduce-motion_&]:animate-none size-24 rounded-[28px] shadow-lg md:size-28" />
+        <BrandMark tile alt="Logo de Noutlife" className="animate-float [.reduce-motion_&]:animate-none size-24 rounded-[28px] shadow-sm md:size-28" />
       </motion.span>
     </div>
   );
@@ -134,7 +134,6 @@ export default function AboutPage() {
       {/* Quién lo hace */}
       <Reveal>
         <Card variant="elevated" padding="none" className="relative isolate overflow-hidden p-6 md:p-10">
-          <span aria-hidden className="lq-breathe absolute -right-24 -top-24 -z-10 size-72 rounded-full bg-[radial-gradient(circle,rgb(var(--lq-secondary)/.18),transparent_65%)]" />
           <div className="flex flex-col gap-6 md:flex-row md:items-center md:gap-10">
             <motion.span
               initial={{ scale: 0.7, opacity: 0 }}
@@ -142,7 +141,7 @@ export default function AboutPage() {
               viewport={{ once: true }}
               transition={{ type: 'spring', stiffness: 260, damping: 14 }}
               aria-hidden
-              className="flex size-20 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-secondary text-heading-md font-bold text-on-primary shadow-lg"
+              className="flex size-20 shrink-0 items-center justify-center rounded-full bg-primary-strong text-heading-md font-bold text-on-primary shadow-lg"
             >
               {CREATOR.initials}
             </motion.span>
@@ -180,7 +179,7 @@ export default function AboutPage() {
           <Link to="/faq" className={buttonClasses('ghost', 'md')}><LifeBuoy aria-hidden className="size-5" strokeWidth={1.75} />Ayuda</Link>
         </div>
         <span className="flex items-center gap-2 text-body-sm text-on-surface-light">
-          <BrandMark className="size-6 rounded-md" />
+          <BrandMark size={24} />
           © {new Date().getFullYear()} Noutlife · {CREATOR.name}
         </span>
       </Reveal>

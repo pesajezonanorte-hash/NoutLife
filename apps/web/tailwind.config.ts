@@ -53,8 +53,13 @@ export default {
         // ── Rediseño LifeQuest (README: bg-primary-strong, text-on-surface-light…) ──
         primary: { DEFAULT: c('primary'), strong: c('primary-strong'), hover: c('primary-hover'), text: c('primary-text') },
         'on-primary': c('on-primary'),
+        jade: Object.fromEntries([50, 100, 200, 300, 400, 500, 600, 700, 800, 900].map((k) => [k, c(`jade-${k}`)])),
+        // Oro champán: solo recompensas (XP, oro, premium, logros, pase).
         secondary: { DEFAULT: c('secondary'), text: c('secondary-text') },
-        success: { DEFAULT: c('success'), text: c('success-text') },
+        // Tono neutro de categoría (Mente, noche, servicios, El Sabio…), antes violeta.
+        forest: { DEFAULT: c('forest'), text: c('forest-text') },
+        success: { DEFAULT: c('success'), text: c('success-text'), strong: c('success-strong') },
+        'on-success': c('on-success'),
         warning: { DEFAULT: c('warning'), text: c('warning-text') },
         error: { DEFAULT: c('error'), text: c('error-text') },
         info: { DEFAULT: c('info'), text: c('info-text') },
@@ -80,25 +85,42 @@ export default {
         'md':         'var(--shadow-md)',
         'lg':         'var(--shadow-lg)',
       },
+      // Radios del design system: sm 6 (chips) · md 10 (botones, inputs) · lg/2xl 16 (cards, modales).
       borderRadius: {
         'pixel': '12px',
-        lg: '0.5rem', xl: '0.75rem', '2xl': '1rem', '3xl': '1.5rem',
+        sm: 'var(--radius-sm)', md: 'var(--radius-md)', lg: 'var(--radius-lg)',
+        xl: '0.75rem', '2xl': 'var(--radius-lg)', '3xl': '1.5rem',
       },
+      // Escala Noutlife (lq.css .t-*). Las clases heredadas que ya usan las páginas
+      // conservan su nombre con los valores del design system:
+      //   display-lg = .t-dl 56 · display-md = .t-dm 40 · display-sm = .t-ds 32
+      //   heading-lg = .t-hl 24 · heading-md = .t-hm 20 · heading-sm = .t-hs 18
+      //   body-lg = .t-bl 16 · body-md = .t-bm 15 · body-sm = .t-bs 14
+      //   label-lg = .t-ll 14 · label-md = .t-lm 12 · caption = .t-cap 12
+      // y se añaden los alias del README v4 (hero-lg, hero-md, display, heading-xl, body, label-sm, stat).
       fontSize: {
-        'display-lg': ['3.5rem', { lineHeight: '1.2', letterSpacing: '-0.5px', fontWeight: '700' }],
-        'display-md': ['2.75rem', { lineHeight: '1.3', letterSpacing: '-0.3px', fontWeight: '700' }],
-        'display-sm': ['2.25rem', { lineHeight: '1.4', letterSpacing: '-0.2px', fontWeight: '600' }],
-        'heading-lg': ['1.75rem', { lineHeight: '1.5', fontWeight: '600' }],
-        'heading-md': ['1.5rem', { lineHeight: '1.5', fontWeight: '600' }],
-        'heading-sm': ['1.25rem', { lineHeight: '1.6', fontWeight: '600' }],
-        'body-lg': ['1.125rem', { lineHeight: '1.6' }],
-        'body-md': ['1rem', { lineHeight: '1.6' }],
-        'body-sm': ['0.875rem', { lineHeight: '1.6' }],
-        'label-lg': ['0.875rem', { lineHeight: '1.5', letterSpacing: '0.1px', fontWeight: '600' }],
-        'label-md': ['0.75rem', { lineHeight: '1.5', letterSpacing: '0.1px', fontWeight: '600' }],
-        caption: ['0.625rem', { lineHeight: '1.4', letterSpacing: '0.2px', fontWeight: '500' }],
+        'display-lg': ['3.5rem', { lineHeight: '1.1', letterSpacing: '-0.02em', fontWeight: '700' }],
+        'display-md': ['2.5rem', { lineHeight: '1.15', letterSpacing: '-0.02em', fontWeight: '700' }],
+        'display-sm': ['2rem', { lineHeight: '2.5rem', letterSpacing: '-0.02em', fontWeight: '700' }],
+        'heading-lg': ['1.5rem', { lineHeight: '2rem', letterSpacing: '-0.01em', fontWeight: '700' }],
+        'heading-md': ['1.25rem', { lineHeight: '1.75rem', letterSpacing: '-0.01em', fontWeight: '600' }],
+        'heading-sm': ['1.125rem', { lineHeight: '1.625rem', letterSpacing: '-0.01em', fontWeight: '600' }],
+        'body-lg': ['1rem', { lineHeight: '1.5rem' }],
+        'body-md': ['0.9375rem', { lineHeight: '1.375rem', letterSpacing: '-0.01em' }],
+        'body-sm': ['0.875rem', { lineHeight: '1.25rem' }],
+        'label-lg': ['0.875rem', { lineHeight: '1.25rem', fontWeight: '600' }],
+        'label-md': ['0.75rem', { lineHeight: '1.125rem', letterSpacing: '0.01em', fontWeight: '600' }],
+        caption: ['0.75rem', { lineHeight: '1.125rem' }],
+        // Alias README v4
+        'hero-lg': ['3.5rem', { lineHeight: '1.1', letterSpacing: '-0.02em', fontWeight: '700' }],
+        'hero-md': ['2.5rem', { lineHeight: '1.15', letterSpacing: '-0.02em', fontWeight: '700' }],
+        display: ['2rem', { lineHeight: '2.5rem', letterSpacing: '-0.02em', fontWeight: '700' }],
+        'heading-xl': ['1.5rem', { lineHeight: '2rem', letterSpacing: '-0.01em', fontWeight: '700' }],
+        body: ['0.9375rem', { lineHeight: '1.375rem', letterSpacing: '-0.01em' }],
+        'label-sm': ['0.75rem', { lineHeight: '1.125rem', fontWeight: '600' }],
+        stat: ['1.25rem', { lineHeight: '1.75rem', fontWeight: '500' }],
       },
-      transitionTimingFunction: { out: 'cubic-bezier(0, 0, 0.2, 1)', spring: 'cubic-bezier(.3, 1.3, .5, 1)' },
+      transitionTimingFunction: { out: 'cubic-bezier(0, 0, 0.2, 1)', expo: 'cubic-bezier(.16, 1, .3, 1)', spring: 'cubic-bezier(.34, 1.56, .64, 1)' },
       animation: {
         'bounce-in': 'bounceIn 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97)',
         'shake': 'shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97)',
@@ -112,6 +134,7 @@ export default {
         sheen: 'sheen 2.6s ease-in-out 1.4s infinite',
         halo: 'halo 2.8s cubic-bezier(0,0,.2,1) 1s infinite',
         float: 'float 6s ease-in-out infinite',
+        beat: 'beat 2s ease-in-out infinite',
         shimmer: 'shimmer 1.4s linear infinite',
         confetti: 'confetti-fall 1.8s cubic-bezier(0,0,.2,1) forwards',
       },
@@ -146,6 +169,7 @@ export default {
         sheen: { '0%': { transform: 'translateX(-100%)' }, '60%,100%': { transform: 'translateX(100%)' } },
         halo: { '0%': { transform: 'scale(.92)', opacity: '.55' }, '100%': { transform: 'scale(1.22)', opacity: '0' } },
         float: { '50%': { transform: 'translateY(-6px)' } },
+        beat: { '50%': { transform: 'scale(1.5)', opacity: '.5' } },
         shimmer: { from: { backgroundPosition: '200% 0' }, to: { backgroundPosition: '-200% 0' } },
         'confetti-fall': { '0%': { transform: 'translateY(0) rotate(0)', opacity: '1' }, '100%': { transform: 'translateY(420px) rotate(540deg)', opacity: '0' } },
         idleBreathe: {

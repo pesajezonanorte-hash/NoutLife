@@ -65,7 +65,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   levelUpData: null,
   floatingXPs: [],
   isScreenFlashing: false,
-  flashColor: '#ffffff',
+  flashColor: 'rgb(var(--lq-surface))',
   achievementToasts: [],
   audioEnabled: false,
   xpSparkTrigger: 0,
@@ -92,7 +92,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   removeFloatingXP: (id) =>
     set((state) => ({ floatingXPs: state.floatingXPs.filter((xp) => xp.id !== id) })),
 
-  flashScreen: (color = '#ffffff') => {
+  flashScreen: (color = 'rgb(var(--lq-surface))') => {
     set({ isScreenFlashing: true, flashColor: color });
     setTimeout(() => set({ isScreenFlashing: false }), 300);
   },

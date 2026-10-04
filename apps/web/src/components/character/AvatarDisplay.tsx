@@ -48,8 +48,8 @@ export function AvatarDisplay({
   const aura = equippedAura && AURA_STYLES[equippedAura] ? AURA_STYLES[equippedAura] : null;
   const frameStyle = equippedFrame
     ? {
-        border: '2px solid var(--accent-gold, #d4a017)',
-        boxShadow: '0 0 8px #d4a01744',
+        border: '2px solid rgb(var(--lq-secondary))',
+        boxShadow: 'var(--shadow-md)',
         borderRadius: isMinecraft ? '12px' : '50%',
         overflow: isMinecraft ? 'visible' : 'hidden',
       }

@@ -62,7 +62,7 @@ export function LevelUpOverlay() {
               aria-hidden
               initial={{ scale: 0.6, opacity: 0 }}
               animate={{ scale: 1, opacity: 1, transition: { ...spring, delay: 0.1 } }}
-              className="lq-halo flex size-32 items-center justify-center rounded-full bg-primary/[var(--lq-soft-alpha)] text-display-lg text-primary-text tabular-nums shadow-[0_0_0_6px_rgb(var(--lq-background)),0_0_0_8px_rgb(var(--lq-primary)/0.35)]"
+              className="lq-halo flex size-32 items-center justify-center rounded-full bg-primary/[var(--lq-soft-alpha)] text-display-lg text-primary-text font-mono tabular-nums shadow-[0_0_0_6px_rgb(var(--lq-background)),0_0_0_8px_rgb(var(--lq-primary)/0.35)]"
             >
               {level}
             </motion.span>

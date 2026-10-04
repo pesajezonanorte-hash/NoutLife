@@ -251,7 +251,7 @@ export default function SettingsPage() {
                       <div className="flex flex-col gap-2 rounded-xl border border-border bg-background p-2">
                         <div className="flex items-center justify-between px-1"><span className="text-body-sm text-on-surface-light">Vista previa</span>
                           <Button size="sm" variant="ghost" onClick={() => window.open(`https://open.spotify.com/playlist/${spotifyId}`, '_blank', 'noopener,noreferrer')}><Music aria-hidden className="size-4" />Abrir</Button></div>
-                        <iframe title="Vista previa de la playlist de Spotify" src={`https://open.spotify.com/embed/playlist/${spotifyId}?theme=0`} width="100%" height="152" allow="encrypted-media" className="rounded-lg border-0" />
+                        <iframe title="Vista previa de la playlist de Spotify" src={`https://open.spotify.com/embed/playlist/${spotifyId}?theme=0`} width="100%" height="152" allow="encrypted-media" className="rounded-md border-0" />
                       </div>
                     )}
                   </div>

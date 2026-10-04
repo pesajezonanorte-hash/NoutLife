@@ -54,11 +54,11 @@ export const item = item3;
 export const pop3: Variants = { initial: { opacity: 0, scale: 0.88 }, animate: { opacity: 1, scale: 1, transition: springSoft } };
 
 /** Buttons (v3: muelle suave) */
-export const tap3 = { whileHover: { scale: 1.02 }, whileTap: { scale: 0.97 }, transition: springSoft };
-export const tap = { whileHover: { y: -1, scale: 1.02 }, whileTap: { y: 0, scale: 0.96 }, transition: springSoft };
+export const tap3 = { whileHover: { y: -1 }, whileTap: { y: 0, scale: 0.97 }, transition: springSoft };
+export const tap = tap3;
 
 /** Cards: lift −6 px con muelle + icon wiggle (put `variants={iconHover}` on the icon chip) */
-export const cardHover3 = { whileHover: { y: -6 }, transition: springSoft };
+export const cardHover3 = { whileHover: { y: -4 }, transition: springSoft };
 export const cardHover = cardHover3;
 export const iconHover: Variants = { hover: { scale: 1.08, rotate: -4, transition: spring } };
 

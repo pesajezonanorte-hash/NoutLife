@@ -78,7 +78,7 @@ export function MenuSheet() {
               <span className="block truncate text-heading-sm text-on-background">{user.displayName}</span>
               <span className="block truncate text-body-sm text-on-surface-light">Nivel {user.level} · {getLevelTitle(user.level)}</span>
             </span>
-            <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-warning/[var(--lq-soft-alpha)] px-3 py-1 text-label-lg tabular-nums text-warning-text">
+            <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-warning/[var(--lq-soft-alpha)] px-3 py-1 text-label-lg font-mono tabular-nums text-warning-text">
               <Coins aria-hidden className="size-4" strokeWidth={1.75} />
               {user.gold.toLocaleString('es-CO')}
               <span className="sr-only">monedas</span>

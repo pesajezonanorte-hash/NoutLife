@@ -235,7 +235,7 @@ export default function StatsPage() {
       {summary && (
         <motion.section variants={item} aria-label="Totales" className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-6 xl:grid-cols-4">
           <StatCard icon={Zap} tone="primary" value={summary.totals.xpEarned} label="XP histórica" />
-          <StatCard icon={Flag} tone="secondary" value={summary.quests.completed} label={`Misiones en ${per.long}`} />
+          <StatCard icon={Flag} tone="forest" value={summary.quests.completed} label={`Misiones en ${per.long}`} />
           <StatCard icon={CheckCircle2} tone="success" value={summary.totals.habitCompletions} label="Hábitos completados" />
           <StatCard icon={Dumbbell} tone="warning" value={summary.totals.workouts} label="Entrenamientos" />
         </motion.section>
@@ -273,9 +273,9 @@ export default function StatsPage() {
           </Card>
 
           <Card padding="lg" className="flex flex-col gap-5">
-            <div className="flex items-center gap-3"><IconChip icon={Moon} tone="secondary" size="sm" /><div><h3 className="text-heading-sm">Descanso</h3><p className="text-body-sm text-on-surface-light">Horas por noche · promedio {sleepAvg ? `${Math.floor(sleepAvg)} h ${String(Math.round((sleepAvg % 1) * 60)).padStart(2, '0')}` : '—'}</p></div></div>
+            <div className="flex items-center gap-3"><IconChip icon={Moon} tone="info" size="sm" /><div><h3 className="text-heading-sm">Descanso</h3><p className="text-body-sm text-on-surface-light">Horas por noche · promedio {sleepAvg ? `${Math.floor(sleepAvg)} h ${String(Math.round((sleepAvg % 1) * 60)).padStart(2, '0')}` : '—'}</p></div></div>
             {sleep.length < 2 ? <p className="text-body-sm text-on-surface-light">Registra al menos dos noches para ver la tendencia.</p> : (
-              <LineChart key={period} tone="secondary" min={4} max={10} goal={{ value: 7, label: 'Meta 7 h' }}
+              <LineChart key={period} tone="info" min={4} max={10} goal={{ value: 7, label: 'Meta 7 h' }}
                 data={sleep.slice(-7).map((s) => ({ label: new Date(s.date).toLocaleDateString('es-ES', { weekday: 'narrow' }), value: s.duration, tip: `${shortDate(s.date)} · ${s.duration.toFixed(1)} h` }))}
                 label="Horas de sueño por noche" />
             )}
@@ -357,7 +357,7 @@ export default function StatsPage() {
                 const tone: Tone = m.tone;
                 return (
                   <li key={c.id} title={`${shortDate(c.date)} · ${m.name}`} aria-label={`${shortDate(c.date)}: ${m.name}`}
-                    className={cn('flex size-9 items-center justify-center rounded-lg', { primary: 'bg-primary/[var(--lq-soft-alpha)] text-primary-text', success: 'bg-success/[var(--lq-soft-alpha)] text-success-text', warning: 'bg-warning/[var(--lq-soft-alpha)] text-warning-text', error: 'bg-error/[var(--lq-soft-alpha)] text-error-text', info: 'bg-info/[var(--lq-soft-alpha)] text-info-text', secondary: 'bg-secondary/[var(--lq-soft-alpha)] text-secondary-text', muted: 'bg-surface-variant text-on-surface-light' }[tone])}>
+                    className={cn('flex size-9 items-center justify-center rounded-md', { primary: 'bg-primary/[var(--lq-soft-alpha)] text-primary-text', success: 'bg-success/[var(--lq-soft-alpha)] text-success-text', warning: 'bg-warning/[var(--lq-soft-alpha)] text-warning-text', error: 'bg-error/[var(--lq-soft-alpha)] text-error-text', info: 'bg-info/[var(--lq-soft-alpha)] text-info-text', secondary: 'bg-secondary/[var(--lq-soft-alpha)] text-secondary-text', forest: 'bg-forest/[var(--lq-soft-alpha)] text-forest-text', muted: 'bg-surface-variant text-on-surface-light' }[tone])}>
                     <MoodFace mood={c.mood} className="size-5" />
                   </li>
                 );

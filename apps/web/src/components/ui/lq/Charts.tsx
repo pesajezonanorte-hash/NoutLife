@@ -2,7 +2,7 @@ import { useId } from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { ease, expo, springSoft } from '@/lib/motion';
-import { solidBg, strokeTone, textTone, type Tone } from './tones';
+import { borderTone, fillSoftTone, solidBg, strokeTone, textTone, type Tone } from './tones';
 
 type ChartTone = Exclude<Tone, 'muted'>;
 
@@ -77,7 +77,7 @@ export function BarChart({
             <div key={d.label + i} tabIndex={0} role="img" aria-label={tip} className="group relative flex h-full flex-col items-center justify-end gap-1.5 rounded-md">
               <Tip edge={i === 0 ? 'start' : i === data.length - 1 ? 'end' : undefined}>{tip}</Tip>
               {showValues && (
-                <span className={cn('text-label-md tabular-nums', d.highlight ? textTone[highlightTone] : 'text-on-surface-light')}>
+                <span className={cn('text-label-md font-mono tabular-nums', d.highlight ? textTone[highlightTone] : 'text-on-surface-light')}>
                   {formatValue(d.value)}
                 </span>
               )}
@@ -147,7 +147,7 @@ export function LineChart({ data, label, min, max, tone = 'primary', goal, heigh
             />
           )}
           <motion.path
-            d={area} className={cn('stroke-none', tone === 'primary' ? 'fill-primary/[var(--lq-soft-alpha)]' : 'fill-secondary/[var(--lq-soft-alpha)]')}
+            d={area} className={cn('stroke-none', fillSoftTone[tone])}
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5, delay: 1.2 }}
           />
           {/* La línea se "dibuja" con un recorte que crece de izquierda a derecha: pathLength
@@ -180,7 +180,7 @@ export function LineChart({ data, label, min, max, tone = 'primary', goal, heigh
           >
             <Tip edge={i === 0 ? 'start' : i === data.length - 1 ? 'end' : undefined}>{d.tip ?? `${d.label} · ${d.value}`}</Tip>
             <motion.span
-              className={cn('rounded-full border-[3px] bg-background', i === data.length - 1 ? 'size-4' : 'size-3', tone === 'primary' ? 'border-primary' : 'border-secondary')}
+              className={cn('rounded-full border-[3px] bg-background', i === data.length - 1 ? 'size-4' : 'size-3', borderTone[tone])}
               initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ ...springSoft, delay: 0.9 + i * 0.09 }}
             />
           </span>

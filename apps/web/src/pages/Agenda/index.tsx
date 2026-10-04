@@ -18,7 +18,7 @@ import { solidBg, softTone } from '@/components/ui/lq/tones';
 type ViewMode = 'day' | 'week' | 'month';
 
 const CATEGORIES: Array<{ key: string; label: string; tone: Tone }> = [
-  { key: 'personal', label: 'Personal', tone: 'secondary' },
+  { key: 'personal', label: 'Personal', tone: 'forest' },
   { key: 'work', label: 'Trabajo', tone: 'primary' },
   { key: 'health', label: 'Salud', tone: 'success' },
   { key: 'social', label: 'Social', tone: 'info' },
@@ -26,7 +26,7 @@ const CATEGORIES: Array<{ key: string; label: string; tone: Tone }> = [
   { key: 'finance', label: 'Finanzas', tone: 'warning' },
   { key: 'tarea', label: 'Tarea', tone: 'info' },
   { key: 'examen', label: 'Examen', tone: 'error' },
-  { key: 'exposicion', label: 'Exposición', tone: 'secondary' },
+  { key: 'exposicion', label: 'Exposición', tone: 'forest' },
   { key: 'clase', label: 'Clase', tone: 'primary' },
   { key: 'other', label: 'Otro', tone: 'muted' },
 ];
@@ -72,7 +72,7 @@ const hm = (min: number) => `${Math.floor(min / 60)} h${min % 60 ? ` ${String(mi
 
 function EventActions({ event, onEdit, onToggle }: { event: AgendaEvent; onEdit: () => void; onToggle: () => void }) {
   if (event.eventType === 'habit') {
-    return <Link to="/habits" className="inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-label-lg text-primary-text hover:underline"><Link2 aria-hidden className="size-4" />Hábitos</Link>;
+    return <Link to="/habits" className="inline-flex min-h-11 items-center gap-1 rounded-md px-2 text-label-lg text-primary-text hover:underline"><Link2 aria-hidden className="size-4" />Hábitos</Link>;
   }
   return (
     <div className="flex shrink-0 items-center">
@@ -398,7 +398,7 @@ export default function AgendaPage() {
                         >
                           <span className="flex items-center justify-between"><span className="text-label-md uppercase text-on-surface">{day.toLocaleDateString('es-ES', { weekday: 'short' }).replace('.', '')}</span><span className={cn('font-mono text-heading-sm tabular-nums', isToday && 'text-primary-text')}>{day.getDate()}</span></span>
                           {evs.slice(0, 4).map((e) => (
-                            <span key={e.id} className="flex items-center gap-1.5 rounded-lg border border-border bg-background px-2 py-1.5 text-body-sm"><span aria-hidden className={cn('size-2 shrink-0 rounded-full', solidBg[catInfo(e.category).tone])} /><span className="truncate">{e.title}</span></span>
+                            <span key={e.id} className="flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1.5 text-body-sm"><span aria-hidden className={cn('size-2 shrink-0 rounded-full', solidBg[catInfo(e.category).tone])} /><span className="truncate">{e.title}</span></span>
                           ))}
                           {evs.length > 4 && <span className="text-body-sm text-on-surface-light">+{evs.length - 4} más</span>}
                         </button>

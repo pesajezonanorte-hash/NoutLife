@@ -1,4 +1,6 @@
+import { Link } from 'react-router-dom';
 import { Menu, Search } from 'lucide-react';
+import { BrandMark } from './Brand';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/lq';
 import { NotificationBell } from '@/components/ui/NotificationPanel';
@@ -18,7 +20,10 @@ export function MobileHeader({ className }: { className?: string }) {
         className,
       )}
     >
-      <span className="truncate text-body-sm text-on-surface-light">{todayLabel()}</span>
+      <Link to="/" className="flex min-h-11 min-w-0 items-center gap-2.5 rounded-md">
+        <BrandMark size={28} alt="Noutlife, inicio ·" />
+        <span className="truncate text-body-sm text-on-surface-light">{todayLabel()}</span>
+      </Link>
       <div className="flex items-center">
         <Button variant="icon" aria-label="Buscar" onClick={openCommandPalette}>
           <Search aria-hidden className="size-6" strokeWidth={1.75} />

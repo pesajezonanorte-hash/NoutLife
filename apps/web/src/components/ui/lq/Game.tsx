@@ -185,7 +185,7 @@ export interface LeaderRowProps extends Leader {
   toneIndex?: number;
 }
 
-const AVATAR_TONES: Tone[] = ['primary', 'success', 'warning', 'info', 'secondary'];
+const AVATAR_TONES: Tone[] = ['primary', 'success', 'warning', 'info', 'forest'];
 const TREND = { up: { cls: 'text-success-text', d: 'm6 15 6-6 6 6', sr: 'sube' }, down: { cls: 'text-error-text', d: 'm6 9 6 6 6-6', sr: 'baja' }, flat: { cls: 'text-on-surface-light', d: 'M6 12h12', sr: 'igual' } };
 
 /** Fila de clasificación: posición, avatar, nombre (+ «Tú»), tendencia y puntuación. */

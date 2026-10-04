@@ -6,7 +6,7 @@ import { AnimatePresence, motion, useReducedMotionConfig } from 'framer-motion';
 import { ease } from '@/lib/motion';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 import { ModernLoader } from '@/components/ui/lq';
-import { BrandMark } from '@/components/layout/Brand';
+import { BrandLockup } from '@/components/layout/Brand';
 
 interface Props {
   /** La app terminó su carga mínima / autenticación. */
@@ -39,10 +39,7 @@ export function SplashScreen({ ready, onDone }: Props) {
           exit={{ opacity: 0 }}
           transition={{ duration: reduce ? 0 : 0.3, ease }}
         >
-          <div className="flex items-center gap-3">
-            <BrandMark />
-            <span className="text-heading-lg">Noutlife</span>
-          </div>
+          <BrandLockup markSize={44} wordClassName="text-[1.75rem]" />
           <ModernLoader words={LOADING_COPY.splash} label="Preparando tu aventura" className="max-w-md" />
         </motion.div>
       )}

@@ -181,7 +181,7 @@ export default function QuestsPage() {
                   <p className="text-body-md text-on-surface-light">{questProgress(featured).text}{featured.description ? ` · ${featured.description}` : ''}</p>
                 </div>
                 <div className="flex flex-col items-end gap-3">
-                  <span className="flex items-center gap-1 text-display-md text-primary-text tabular-nums">
+                  <span className="flex items-center gap-1 text-display-md text-primary-text font-mono tabular-nums">
                     <Sparkles aria-hidden className="size-7" strokeWidth={1.75} />+{featured.xpReward} XP
                   </span>
                   <div className="flex gap-2">

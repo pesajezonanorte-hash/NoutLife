@@ -20,8 +20,8 @@ export const CATEGORY_META: Record<Category, CategoryMeta> = {
   LEARNING: { label: 'Aprendizaje', tone: 'primary', icon: BookOpen },
   LOVE: { label: 'Relaciones', tone: 'error', icon: Heart },
   SOCIAL: { label: 'Social', tone: 'info', icon: Users },
-  PERSONAL: { label: 'Personal', tone: 'secondary', icon: User },
-  CREATIVE: { label: 'Creativo', tone: 'secondary', icon: Palette },
+  PERSONAL: { label: 'Personal', tone: 'forest', icon: User },
+  CREATIVE: { label: 'Creativo', tone: 'forest', icon: Palette },
 };
 
 export function categoryMeta(category?: string | null): CategoryMeta {

@@ -10,6 +10,8 @@ const swatches = [
   ['primary', 'bg-primary'],
   ['primary-strong', 'bg-primary-strong'],
   ['secondary', 'bg-secondary'],
+  ['forest', 'bg-forest'],
+  ['jade-500', 'bg-jade-500'],
   ['success', 'bg-success'],
   ['warning', 'bg-warning'],
   ['error', 'bg-error'],

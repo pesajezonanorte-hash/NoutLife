@@ -20,7 +20,7 @@ import { LOADING_COPY } from '@/lib/loadingCopy';
 const TYPE_META: Record<string, { label: string; icon: LucideIcon; tone: Exclude<Tone, 'muted'> }> = {
   BOOK: { label: 'Libro', icon: BookOpen, tone: 'primary' },
   COURSE: { label: 'Curso', icon: MonitorPlay, tone: 'info' },
-  PODCAST: { label: 'Podcast', icon: Headphones, tone: 'secondary' },
+  PODCAST: { label: 'Podcast', icon: Headphones, tone: 'forest' },
   VIDEO: { label: 'Video', icon: Video, tone: 'warning' },
   LANGUAGE: { label: 'Idioma', icon: Globe, tone: 'success' },
 };
@@ -70,7 +70,7 @@ function AddItemModal({ onClose, onSave }: { onClose: () => void; onSave: (item:
               return (
                 <button
                   key={key} type="button" aria-pressed={on} onClick={() => setType(key)}
-                  className={`flex min-h-11 items-center gap-2 rounded-lg border px-3 text-left text-label-lg transition-colors ${on ? 'border-primary/50 bg-primary/[var(--lq-soft-alpha)] text-primary-text' : 'border-border bg-background text-on-surface hover:border-primary/40'}`}
+                  className={`flex min-h-11 items-center gap-2 rounded-md border px-3 text-left text-label-lg transition-colors ${on ? 'border-primary/50 bg-primary/[var(--lq-soft-alpha)] text-primary-text' : 'border-border bg-background text-on-surface hover:border-primary/40'}`}
                 >
                   <m.icon aria-hidden className="size-4 shrink-0" strokeWidth={1.75} />{m.label}
                 </button>
