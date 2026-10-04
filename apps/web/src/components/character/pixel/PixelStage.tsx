@@ -136,15 +136,15 @@ export function PixelStage({ look, focus = 'full', celebrate = 0, doneLabel = 'G
         animate={FOCUS[focus]}
         transition={{ type: 'spring', stiffness: 140, damping: 22, mass: 0.9 }}
       >
-        {/* Sombra en el suelo, respira con el personaje. */}
+        {/* Sombra en el suelo (oscura, detrás del personaje), respira con él. */}
         <motion.span
           aria-hidden
-          className="absolute bottom-[1%] left-1/2 h-[5%] w-[58%] rounded-[50%] bg-on-background/20 blur-[2px]"
+          className="absolute bottom-[-1%] left-1/2 h-[5%] w-[62%] rounded-[50%] bg-[radial-gradient(closest-side,rgb(0_0_0/0.55),rgb(0_0_0/0.25)_60%,transparent)]"
           style={{ x: '-50%' }}
           animate={reduce ? undefined : { scaleX: [1, 1, 0.9, 0.9, 1], opacity: [0.9, 0.9, 0.6, 0.6, 0.9] }}
           transition={{ duration: 2.4, times: [0, 0.45, 0.5, 0.95, 1], repeat: Infinity, ease: 'linear' }}
         />
-        <motion.div animate={jump} className="size-full">
+        <motion.div animate={jump} className="relative size-full">
           <motion.svg
             viewBox={`0 0 ${W} ${H}`}
             shapeRendering="crispEdges"

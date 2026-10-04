@@ -5,7 +5,7 @@ import { prisma } from '../lib/prisma';
 export async function sendFriendRequest(requesterId: string, identifier: string) {
   // identifier can be username or inviteCode
   const target = await prisma.user.findFirst({
-    where: { OR: [{ username: identifier }, { inviteCode: identifier }] },
+    where: { onboardingCompleted: true, OR: [{ username: identifier }, { inviteCode: identifier }] },
     select: { id: true, username: true, displayName: true, level: true, avatarConfig: true },
   });
   if (!target) throw new Error('Usuario no encontrado');
@@ -80,8 +80,8 @@ export async function removeFriend(userId: string, friendshipId: string) {
 }
 
 export async function getPublicProfile(username: string, viewerId?: string) {
-  const user = await prisma.user.findUnique({
-    where: { username },
+  const user = await prisma.user.findFirst({
+    where: { username, onboardingCompleted: true },
     select: {
       id: true, username: true, displayName: true, level: true, xp: true,
       currentStreak: true, longestStreak: true, avatarConfig: true, inviteCode: true,
@@ -127,7 +127,10 @@ export async function getLeaderboard(
   friendsOnly = false
 ) {
   const friendIds = friendsOnly ? await getFriendIds(userId) : null;
-  const whereClause = friendIds ? { id: { in: [...friendIds, userId] } } : {};
+  // Only accounts that finished onboarding appear in rankings.
+  const whereClause = friendIds
+    ? { onboardingCompleted: true, id: { in: [...friendIds, userId] } }
+    : { onboardingCompleted: true };
 
   if (category === 'xp') {
     const users = await prisma.user.findMany({
@@ -160,18 +163,18 @@ export async function getLeaderboard(
 
     const userIds = result.map((r) => r.userId);
     const users = await prisma.user.findMany({
-      where: { id: { in: userIds } },
+      where: { onboardingCompleted: true, id: { in: userIds } },
       select: { id: true, username: true, displayName: true, level: true, avatarConfig: true, avatarUrl: true, equippedAura: true, equippedFrame: true, equippedHat: true },
     });
 
     const userMap = new Map(users.map((u) => [u.id, u]));
     return result
+      .filter((r) => userMap.has(r.userId))
       .map((r, i) => ({
         rank: i + 1,
         ...userMap.get(r.userId),
         value: r._count.id,
-      }))
-      .filter((r) => r.username);
+      }));
   }
 
   if (category === 'savings') {
@@ -202,12 +205,12 @@ export async function getLeaderboard(
 
     const userIds = ranked.map((r) => r.userId);
     const users = await prisma.user.findMany({
-      where: { id: { in: userIds } },
+      where: { onboardingCompleted: true, id: { in: userIds } },
       select: { id: true, username: true, displayName: true, level: true, avatarConfig: true, avatarUrl: true, equippedAura: true, equippedFrame: true, equippedHat: true },
     });
 
     const userMap = new Map(users.map((u) => [u.id, u]));
-    return ranked.map((r, i) => ({
+    return ranked.filter((r) => userMap.has(r.userId)).map((r, i) => ({
       rank: i + 1,
       ...userMap.get(r.userId),
       value: r.savingsPct,

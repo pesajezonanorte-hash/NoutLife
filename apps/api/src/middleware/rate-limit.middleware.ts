@@ -69,6 +69,14 @@ export const registerLimiter = buildLimiter({
   message: 'Demasiados registros desde esta IP. Intenta más tarde.',
 });
 
+// Availability check before onboarding — limits email/username probing per IP
+export const availabilityLimiter = buildLimiter({
+  windowMs: 15 * 60_000,
+  max: 30,
+  key: (r) => r.ip ?? 'anon',
+  message: 'Demasiadas comprobaciones. Intenta en unos minutos.',
+});
+
 // Sage limiter — per-minute burst guard
 export const sageLimiter = buildLimiter({
   windowMs: 60_000,

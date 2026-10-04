@@ -1,6 +1,7 @@
 // Registro — AuthLayout + nombre, usuario, email, contraseña (con medidor de
 // seguridad 0–4) y confirmación. El cuerpo del avatar se elige aquí porque la
-// API lo recibe como `gender`; el resto del avatar se completa en el onboarding.
+// API lo recibe como `gender`; el resto del avatar se completa en el onboarding, y la
+// cuenta se crea solo al terminarlo.
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm, useWatch } from 'react-hook-form';
@@ -8,7 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAuthStore } from '@/store/authStore';
+import { useSignupStore } from '@/store/signupStore';
 import * as authService from '@/services/auth.service';
 import { AuthLayout } from '@/components/auth/AuthLayout';
 import { PasswordInput } from '@/components/auth/PasswordInput';
@@ -64,20 +65,27 @@ function StrengthMeter({ password }: { password: string }) {
 
 export default function RegisterPage() {
   const navigate = useNavigate();
-  const setAuth = useAuthStore((s) => s.setAuth);
+  const { draft, setDraft } = useSignupStore();
   const [apiError, setApiError] = useState('');
-  const [gender, setGender] = useState<'male' | 'female'>('male');
-  const { register, handleSubmit, control, formState: { errors, isSubmitting } } = useForm<FormData>({ resolver: zodResolver(schema) });
+  const [gender, setGender] = useState<'male' | 'female'>(draft?.gender ?? 'male');
+  const { register, handleSubmit, control, setError, formState: { errors, isSubmitting } } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    // Al volver desde el onboarding el formulario conserva lo escrito.
+    defaultValues: draft ? { displayName: draft.displayName, username: draft.username, email: draft.email, password: draft.password, confirm: draft.password } : undefined,
+  });
   const password = useWatch({ control, name: 'password' }) ?? '';
 
+  // La cuenta no se crea aquí: solo se comprueba que email y usuario estén
+  // libres. Se guarda en la base de datos al terminar el onboarding.
   async function onSubmit(data: FormData) {
     setApiError('');
     try {
-      const { user, accessToken } = await authService.register({
-        email: data.email, username: data.username, password: data.password, displayName: data.displayName, gender,
-      });
-      setAuth(user, accessToken);
-      navigate('/');
+      const { emailTaken, usernameTaken } = await authService.checkAvailability({ email: data.email, username: data.username });
+      if (emailTaken) setError('email', { message: 'Este email ya está en uso' });
+      if (usernameTaken) setError('username', { message: 'Este nombre de usuario ya existe' });
+      if (emailTaken || usernameTaken) return;
+      setDraft({ email: data.email.trim(), username: data.username.trim(), password: data.password, displayName: data.displayName.trim(), gender });
+      navigate('/onboarding');
     } catch (err: unknown) {
       const d = (err as { response?: { data?: { error?: string; message?: string } } })?.response?.data;
       setApiError(d?.error || d?.message || 'No pudimos crear tu cuenta. Inténtalo de nuevo.');

@@ -26,6 +26,15 @@ export async function register(req: Request, res: Response): Promise<void> {
   }
 }
 
+export async function availability(req: Request, res: Response): Promise<void> {
+  try {
+    res.json(await authService.checkAvailability(req.body));
+  } catch (err) {
+    console.error('[AVAILABILITY_ERROR]', err);
+    res.status(500).json({ error: 'No se pudo comprobar la disponibilidad.' });
+  }
+}
+
 export async function login(req: Request, res: Response): Promise<void> {
   try {
     const { user, accessToken, refreshToken } = await authService.loginUser(req.body);

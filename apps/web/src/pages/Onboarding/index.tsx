@@ -10,6 +10,8 @@ import { ArrowLeft, ArrowRight, Droplet, Heart, Sparkles, Star } from 'lucide-re
 import type { AvatarConfig } from '@lifequest/shared';
 import { ease } from '@/lib/motion';
 import { useAuthStore } from '@/store/authStore';
+import { useSignupStore } from '@/store/signupStore';
+import { useToast } from '@/hooks/useToast';
 import * as authService from '@/services/auth.service';
 import { completeOnboarding } from '@/services/user.service';
 import { orderFromGoals, useNavStore } from '@/store/navStore';
@@ -116,12 +118,16 @@ const next = (onClick: () => void, label = 'Siguiente') => (
 
 export default function OnboardingPage() {
   const navigate = useNavigate();
-  const { user, updateUser, logout } = useAuthStore();
-  const saved = user?.displayName && !user?.onboardingCompleted ? {} : loadSaved();
-  const savedOrRegisteredGender = saved.gender ?? user?.avatarConfig?.bodyType;
+  const { user, updateUser, logout, setAuth } = useAuthStore();
+  const toast = useToast();
+  // Registro pendiente: la cuenta aún no existe y se crea al terminar.
+  const draft = useSignupStore((s) => s.draft);
+  const [initialSaved] = useState(() => (user?.displayName && !user?.onboardingCompleted ? {} : loadSaved()));
+  const saved: Partial<OnboardingState> = initialSaved;
+  const savedOrRegisteredGender = saved.gender ?? draft?.gender ?? user?.avatarConfig?.bodyType;
 
   const [step, setStep] = useState(saved.step ?? 0);
-  const [displayName, setDisplayName] = useState(saved.displayName ?? user?.displayName ?? '');
+  const [displayName, setDisplayName] = useState(saved.displayName ?? draft?.displayName ?? user?.displayName ?? '');
   const [birthDate, setBirthDate] = useState(saved.birthDate ?? '');
   const [timezone] = useState(saved.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone);
   const [gender, setGender] = useState<'male' | 'female'>(savedOrRegisteredGender ?? 'male');
@@ -154,11 +160,27 @@ export default function OnboardingPage() {
 
   async function submitQuest() {
     if (!mainQuestTitle.trim()) { setTried(true); return; }
+    setCelebrating(true);
+    setSubmitting(true);
+    // Hasta aquí no se ha guardado nada: la cuenta se crea ahora, con todo el
+    // onboarding hecho, y solo entonces aparece en rankings y búsquedas.
+    if (draft && !useAuthStore.getState().user) {
+      try {
+        const { user: created, accessToken } = await authService.register(draft);
+        setAuth(created, accessToken);
+      } catch (err: unknown) {
+        const d = (err as { response?: { data?: { error?: string } } })?.response?.data;
+        toast.error(d?.error ?? 'No pudimos crear tu cuenta. Revisa tus datos e inténtalo de nuevo.');
+        setCelebrating(false);
+        setSubmitting(false);
+        // El progreso queda guardado; al volver del registro se retoma aquí.
+        navigate('/register', { replace: true });
+        return;
+      }
+    }
     // Las áreas elegidas pasan a ser las zonas principales de la navegación.
     const userId = useAuthStore.getState().user?.id;
     if (userId) useNavStore.getState().setOrder(String(userId), orderFromGoals(goalCategories));
-    setCelebrating(true);
-    setSubmitting(true);
     try {
       const updated = await completeOnboarding({
         displayName, birthDate: birthDate || undefined, timezone, avatarConfig: config, goalCategories,
@@ -176,6 +198,12 @@ export default function OnboardingPage() {
   }
 
   async function leave(to: '/login' | '/register') {
+    // Sin cuenta creada todavía: volver al registro conserva lo escrito.
+    if (draft && !user) {
+      if (to === '/login') useSignupStore.getState().clear();
+      navigate(to, { replace: true });
+      return;
+    }
     try { await authService.logout(); } catch { /* se limpia el estado igualmente */ }
     localStorage.removeItem(STORAGE_KEY);
     logout();
@@ -184,6 +212,7 @@ export default function OnboardingPage() {
 
   function enter() {
     localStorage.removeItem(STORAGE_KEY);
+    useSignupStore.getState().clear();
     updateUser(completedUser.current ?? { onboardingCompleted: true });
     navigate('/', { replace: true });
   }
