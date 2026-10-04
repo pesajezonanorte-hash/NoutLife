@@ -11,6 +11,7 @@ import { ease } from '@/lib/motion';
 import { useAuthStore } from '@/store/authStore';
 import * as authService from '@/services/auth.service';
 import { completeOnboarding } from '@/services/user.service';
+import { orderFromGoals, useNavStore } from '@/store/navStore';
 import { getHeroLabel, getWelcomeLabel } from '@/utils/gender';
 import { BrandMark } from '@/components/layout/Brand';
 import { Badge, Button, Confetti, ModernLoader } from '@/components/ui/lq';
@@ -147,6 +148,9 @@ export default function OnboardingPage() {
 
   async function submitQuest() {
     if (!mainQuestTitle.trim()) { setTried(true); return; }
+    // Las áreas elegidas pasan a ser las zonas principales de la navegación.
+    const userId = useAuthStore.getState().user?.id;
+    if (userId) useNavStore.getState().setOrder(String(userId), orderFromGoals(goalCategories));
     setCelebrating(true);
     setSubmitting(true);
     try {
