@@ -3,7 +3,8 @@ import { AlertTriangle, RefreshCw, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from './Button';
 import { IconChip } from './IconChip';
-import { Spinner } from './Spinner';
+import { ModernLoader } from './ModernLoader';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 import type { Tone } from './tones';
 
 export interface EmptyStateProps {
@@ -81,19 +82,21 @@ export function Skeleton({ className }: { className?: string }) {
   return <div aria-hidden className={cn('lq-skeleton rounded-lg', className)} />;
 }
 
-/** Cargando pantalla: skeletons del layout típico + spinner con texto. */
-export function PageLoader({ label = 'Cargando tu aventura…', className }: { label?: string; className?: string }) {
+export interface PageLoaderProps {
+  /** Texto principal (lectores de pantalla y primera frase de la terminal). */
+  label?: string;
+  /** Frases extra que la terminal va escribiendo después de `label`. */
+  words?: readonly string[];
+  /** lg: página completa · sm: sección o tarjeta. */
+  size?: 'lg' | 'sm';
+  className?: string;
+}
+
+/** Cargando página o sección: terminal animada (ModernLoader) centrada. */
+export function PageLoader({ label = 'Cargando tu aventura…', words = LOADING_COPY.page, size = 'lg', className }: PageLoaderProps) {
   return (
-    <div aria-busy="true" aria-label="Cargando" className={cn('flex flex-col gap-6', className)}>
-      <Skeleton className="h-24 w-3/4 md:w-1/2" />
-      <Skeleton className="h-40 rounded-2xl" />
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="h-44 rounded-2xl" />)}
-      </div>
-      <div className="flex items-center justify-center gap-3">
-        <Spinner />
-        <span className="text-body-sm text-on-surface-light">{label}</span>
-      </div>
+    <div className={cn('flex items-center justify-center', size === 'lg' ? 'py-8' : 'py-2', className)}>
+      <ModernLoader label={label} words={[label, ...words.filter((w) => w !== label)]} size={size} />
     </div>
   );
 }

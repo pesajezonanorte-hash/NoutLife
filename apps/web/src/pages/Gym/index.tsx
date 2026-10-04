@@ -14,10 +14,8 @@ import { item, stagger } from '@/lib/motion';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { useToast } from '../../hooks/useToast';
-import {
-  Badge, BarChart, Button, Card, ChipGroup, Confetti, DayDot, EmptyState, ErrorState, Field, IconChip, Input,
-  Modal, ProgressBar, ResponsiveDialog, Skeleton, Timer, formatClock, type BarDatum, type DayStatus, type Tone,
-} from '@/components/ui/lq';
+import { Badge, BarChart, Button, Card, ChipGroup, Confetti, DayDot, EmptyState, ErrorState, Field, IconChip, Input, Modal, ProgressBar, ResponsiveDialog, Timer, formatClock, type BarDatum, type DayStatus, type Tone, PageLoader } from '@/components/ui/lq';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 import * as workoutService from '../../services/workout.service';
 import { SageContextButton } from '../../components/sage/SageContextButton';
 import { BodyWeightTracker, OneRMCalculator, WeeklyVolumeWidget, ProgressPhotos, RestTimer } from '../../components/gym/GymExtras';
@@ -662,10 +660,7 @@ export default function GymPage() {
 
       <div id={`gym-panel-${tab}`} role="tabpanel" aria-labelledby={`gym-tab-${tab}`} className="flex flex-col gap-6 outline-none" tabIndex={-1}>
         {state === 'loading' ? (
-          <div className="flex flex-col gap-6" aria-busy="true" aria-label="Cargando gimnasio">
-            <Skeleton className="h-64 rounded-2xl" />
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]"><Skeleton className="h-60 rounded-2xl" /><Skeleton className="h-60 rounded-2xl" /></div>
-          </div>
+          <PageLoader label="Calentando motores…" words={LOADING_COPY.gym} />
         ) : state === 'error' ? (
           <ErrorState title="No pudimos cargar tu gimnasio" onRetry={() => void load()} />
         ) : tab === 'history' ? (

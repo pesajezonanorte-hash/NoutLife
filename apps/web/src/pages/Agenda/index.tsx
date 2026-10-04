@@ -11,10 +11,8 @@ import { item, stagger } from '@/lib/motion';
 import { useToast } from '../../hooks/useToast';
 import * as agendaService from '../../services/agenda.service';
 import type { AgendaEvent } from '../../services/agenda.service';
-import {
-  Badge, Button, Card, EmptyState, Field, IconChip, Input, MonthGrid, ProgressRing, ResponsiveDialog, SegmentedControl, Select,
-  Skeleton, Switch, Textarea, TimelineDay, type TimelineItem, type Tone,
-} from '@/components/ui/lq';
+import { Badge, Button, Card, EmptyState, Field, IconChip, Input, MonthGrid, ProgressRing, ResponsiveDialog, SegmentedControl, Select, Switch, Textarea, TimelineDay, type TimelineItem, type Tone, PageLoader } from '@/components/ui/lq';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 import { solidBg, softTone } from '@/components/ui/lq/tones';
 
 type ViewMode = 'day' | 'week' | 'month';
@@ -344,7 +342,7 @@ export default function AgendaPage() {
       </motion.section>
 
       {loading && events.length === 0 ? (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]" aria-busy="true" aria-label="Cargando agenda"><Skeleton className="h-[480px] rounded-2xl" /><Skeleton className="h-60 rounded-2xl" /></div>
+        <PageLoader label="Ordenando tu agenda…" words={LOADING_COPY.agenda} />
       ) : (
         <AnimatePresence mode="wait" initial={false}>
           <motion.div key={view} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>

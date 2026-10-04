@@ -22,10 +22,8 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useHabitCompletion } from '@/hooks/useHabitCompletion';
 import { useToastStore } from '@/hooks/useToast';
 import { refreshUser } from '@/hooks/useAuth';
-import {
-  Badge, Button, Card, Confetti, EmptyState, ErrorState, IconChip, ProgressBar, ProgressRing, Skeleton, Spinner, StatCard,
-  buttonClasses, type Tone,
-} from '@/components/ui/lq';
+import { Badge, Button, Card, Confetti, EmptyState, ErrorState, IconChip, ProgressBar, ProgressRing, StatCard, buttonClasses, type Tone, PageLoader } from '@/components/ui/lq';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 import { HabitListItem } from '@/components/habits/HabitListItem';
 import { questProgress } from '@/components/quests/questMeta';
 import { ClassSelectionModal } from '@/components/character/ClassSelectionModal';
@@ -73,16 +71,7 @@ function daysLeft(iso: string) {
 const isDone = (h: HabitSummary) => Boolean(h.todayCompleted) || h.todayStatus === 'completed';
 
 function DashboardSkeleton() {
-  return (
-    <div className="flex flex-col gap-6 md:gap-12" aria-busy="true" aria-label="Cargando">
-      <Skeleton className="h-24 w-[70%] md:h-16 md:w-1/2" />
-      <Skeleton className="h-40 rounded-2xl" />
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-6">
-        {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-44 rounded-2xl" />)}
-      </div>
-      <div className="flex items-center justify-center gap-3"><Spinner /><span className="text-body-sm text-on-surface-light">Cargando tu aventura…</span></div>
-    </div>
-  );
+  return <PageLoader label="Cargando tu aventura…" words={LOADING_COPY.page} />;
 }
 
 function SectionHead({ title, to, linkLabel, id }: { title: string; to: string; linkLabel: string; id: string }) {

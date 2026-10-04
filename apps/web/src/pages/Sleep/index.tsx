@@ -10,9 +10,8 @@ import { item, stagger, useCountUp } from '@/lib/motion';
 import { dayKey } from '@/lib/lifeMeta';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useToastStore } from '@/hooks/useToast';
-import {
-  Button, Card, EmptyState, ErrorState, Field, IconChip, Input, LineChart, Select, Skeleton, Spinner, type LinePoint,
-} from '@/components/ui/lq';
+import { Button, Card, EmptyState, ErrorState, Field, IconChip, Input, LineChart, Select, type LinePoint, PageLoader } from '@/components/ui/lq';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 import { softTone } from '@/components/ui/lq/tones';
 import * as sleepService from '@/services/sleep.service';
 import {
@@ -384,11 +383,7 @@ export default function SleepPage() {
     <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-6 md:gap-8">
       {header}
       {state === 'loading' ? (
-        <div className="flex flex-col gap-6" aria-busy="true" aria-label="Cargando sueño">
-          <Skeleton className="h-48 rounded-2xl md:h-56" />
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]"><Skeleton className="h-80 rounded-2xl" /><Skeleton className="h-80 rounded-2xl" /></div>
-          <div className="flex items-center justify-center gap-3"><Spinner /><span className="text-body-sm text-on-surface-light">Cargando tus noches…</span></div>
-        </div>
+        <PageLoader label="Cargando tus noches…" words={LOADING_COPY.statsSleep} />
       ) : state === 'error' ? (
         <ErrorState title="No pudimos cargar tu sueño" onRetry={() => void load()} />
       ) : (

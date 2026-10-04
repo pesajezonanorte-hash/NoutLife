@@ -12,10 +12,8 @@ import { item, stagger } from '@/lib/motion';
 import { dayKey, formatMoney } from '@/lib/lifeMeta';
 import { useAuthStore } from '@/store/authStore';
 import { useToastStore } from '@/hooks/useToast';
-import {
-  AnimatedValue, BarChart, Button, Card, EmptyState, ErrorState, IconChip, ResponsiveDialog, SegmentedControl, Skeleton, Spinner, Tabs,
-  type BarDatum,
-} from '@/components/ui/lq';
+import { AnimatedValue, BarChart, Button, Card, EmptyState, ErrorState, IconChip, ResponsiveDialog, SegmentedControl, Tabs, type BarDatum, PageLoader } from '@/components/ui/lq';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 import { solidBg } from '@/components/ui/lq/tones';
 import * as financeService from '@/services/finance.service';
 import { SHARE_TONES, monthRange, pctChange, txCategory } from '@/components/finances/financeMeta';
@@ -41,13 +39,7 @@ function summarize(txs: Transaction[]): Summary {
 }
 
 function FinancesSkeleton() {
-  return (
-    <div className="flex flex-col gap-6" aria-busy="true" aria-label="Cargando finanzas">
-      <div className="grid gap-4 md:grid-cols-3 md:gap-6">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-36 rounded-2xl" />)}</div>
-      <Skeleton className="h-72 rounded-2xl" />
-      <div className="flex items-center justify-center gap-3"><Spinner /><span className="text-body-sm text-on-surface-light">Cargando tus finanzas…</span></div>
-    </div>
-  );
+  return <PageLoader label="Cargando tus finanzas…" words={LOADING_COPY.statsFinance} />;
 }
 
 function Trend({ value, good, suffix }: { value: number | null; good: 'up' | 'down'; suffix: string }) {

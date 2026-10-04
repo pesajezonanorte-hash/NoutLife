@@ -5,10 +5,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Camera, Dumbbell, Scale, Timer as TimerIcon, Trash2, Plus, BarChart3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import {
-  Badge, BarChart, Button, Card, EmptyState, Field, IconChip, Input, LineChart, Modal, ProgressRing, Skeleton, chipClasses,
-  type BarDatum, type LinePoint,
-} from '@/components/ui/lq';
+import { Badge, BarChart, Button, Card, EmptyState, Field, IconChip, Input, LineChart, Modal, ProgressRing, chipClasses, type BarDatum, type LinePoint, PageLoader } from '@/components/ui/lq';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 import { useToastStore } from '@/hooks/useToast';
 import * as gym2 from '../../services/gym2.service';
 
@@ -201,7 +199,7 @@ export function BodyWeightTracker() {
         )}
       </div>
 
-      {loading ? <Skeleton className="h-32 rounded-xl" /> : records.length > 1 && (
+      {loading ? <PageLoader label="Leyendo tu peso…" words={LOADING_COPY.gym} size="sm" /> : records.length > 1 && (
         <LineChart data={points} min={lo} max={hi} label={`Peso corporal: de ${first.weight} a ${latest.weight} kg`} tone="info" height={140} dots />
       )}
 
@@ -298,7 +296,7 @@ export function WeeklyVolumeWidget() {
     label: r.muscle.slice(0, 5), value: r.sets, tip: `${r.muscle} · ${r.sets} series · ${r.volume.toLocaleString('es-ES')} kg·reps`, highlight: i === 0,
   }));
 
-  if (loading) return <Skeleton className="h-52 rounded-2xl" />;
+  if (loading) return <PageLoader label="Sumando tus récords…" words={LOADING_COPY.gym} size="sm" />;
   if (rows.length === 0) return null;
 
   return (
@@ -378,7 +376,7 @@ export function ProgressPhotos() {
         <input ref={fileRef} type="file" accept="image/*" className="hidden" aria-label="Subir foto de progreso" onChange={(e) => e.target.files?.[0] && void handleUpload(e.target.files[0])} />
       </div>
 
-      {loading ? <Skeleton className="h-40 rounded-xl" /> : photos.length === 0 ? (
+      {loading ? <PageLoader label="Buscando tus fotos…" words={LOADING_COPY.gym} size="sm" /> : photos.length === 0 ? (
         <EmptyState icon={Camera} tone="success" title="Aún no hay fotos" description="Sube tu primera foto para ver tu cambio con el tiempo." className="py-4" />
       ) : (
         <>

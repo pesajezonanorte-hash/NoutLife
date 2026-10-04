@@ -14,10 +14,8 @@ import { refreshUser } from '../../hooks/useAuth';
 import * as learningService from '../../services/learning.service';
 import { PomodoroTimer, NotesPanel, VocabPanel } from '../../components/learning/LearningExtras';
 import { SageContextButton } from '../../components/sage/SageContextButton';
-import {
-  Badge, BookCover, Button, Card, EmptyState, ErrorState, Field, Input, Modal, ProgressBar, SegmentedControl, Select,
-  Skeleton, StatCard, type BadgeVariant, type Tone,
-} from '@/components/ui/lq';
+import { Badge, BookCover, Button, Card, EmptyState, ErrorState, Field, Input, Modal, ProgressBar, SegmentedControl, Select, StatCard, type BadgeVariant, type Tone, PageLoader } from '@/components/ui/lq';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 
 const TYPE_META: Record<string, { label: string; icon: LucideIcon; tone: Exclude<Tone, 'muted'> }> = {
   BOOK: { label: 'Libro', icon: BookOpen, tone: 'primary' },
@@ -233,10 +231,7 @@ export default function LearningPage() {
 
           {tab === 'biblioteca' && (
             state === 'loading' ? (
-              <div className="flex flex-col gap-6" aria-busy="true" aria-label="Cargando biblioteca">
-                <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-36 rounded-2xl" />)}</div>
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-72 rounded-2xl" />)}</div>
-              </div>
+              <PageLoader label="Abriendo la biblioteca…" words={LOADING_COPY.learning} />
             ) : state === 'error' ? (
               <ErrorState title="No pudimos cargar tu biblioteca" description="Tus libros y cursos siguen guardados. Revisa tu conexión e inténtalo de nuevo." onRetry={() => void load()} />
             ) : (

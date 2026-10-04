@@ -8,10 +8,8 @@ import { cn } from '@/lib/utils';
 import { item, stagger } from '@/lib/motion';
 import { useToastStore } from '../../hooks/useToast';
 import api from '../../lib/api';
-import {
-  Badge, Button, Card, ChipGroup, EmptyState, ErrorState, Field, IconChip, Input, Modal, ProgressBar, ProgressRing,
-  Select, SegmentedControl, Skeleton, StepItem, Textarea, type Tone,
-} from '@/components/ui/lq';
+import { Badge, Button, Card, ChipGroup, EmptyState, ErrorState, Field, IconChip, Input, Modal, ProgressBar, ProgressRing, Select, SegmentedControl, StepItem, Textarea, type Tone, PageLoader } from '@/components/ui/lq';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -150,9 +148,7 @@ function CareSection({ onProgress }: CareProps) {
       </div>
 
       {state === 'loading' ? (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3" aria-busy="true" aria-label="Cargando rutinas">
-          {[0, 1, 2].map((i) => <Skeleton key={i} className="h-72 rounded-2xl" />)}
-        </div>
+        <PageLoader label="Preparando tus rituales…" words={LOADING_COPY.glowUpRoutines} />
       ) : state === 'error' ? (
         <ErrorState title="No pudimos cargar tus rutinas" onRetry={() => void load()} />
       ) : routines.length === 0 ? (
@@ -294,9 +290,7 @@ function StyleSection() {
       <ChipGroup label="Categoría de prenda" options={options} value={activeCategory} onChange={setActiveCategory} />
 
       {state === 'loading' ? (
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4" aria-busy="true" aria-label="Cargando armario">
-          {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-44 rounded-2xl" />)}
-        </div>
+        <PageLoader label="Abriendo tu armario…" words={LOADING_COPY.glowUpWardrobe} />
       ) : state === 'error' ? (
         <ErrorState title="No pudimos cargar tu armario" onRetry={() => void load()} />
       ) : displayed.length === 0 ? (
@@ -413,7 +407,7 @@ function PresenceSection() {
   }
 
   let history: ReactNode = null;
-  if (state === 'loading') history = <Skeleton className="h-40 rounded-2xl" />;
+  if (state === 'loading') history = <PageLoader label="Cargando tu evolución…" words={LOADING_COPY.glowUpRoutines} size="sm" />;
   else if (state === 'error') history = <ErrorState title="No pudimos cargar tu evolución" onRetry={() => void load()} />;
   else if (checkins.length === 0) history = <EmptyState icon={Sparkles} tone="secondary" title="Tu presencia empieza aquí" description="Guarda tu primera autoevaluación para ver cómo evolucionas semana a semana." className="py-4" />;
   else history = (

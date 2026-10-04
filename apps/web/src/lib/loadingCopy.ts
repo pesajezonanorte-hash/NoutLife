@@ -137,6 +137,26 @@ export const LOADING_COPY = {
     'Leyendo tus tendencias…',
     'Preparando tus pronósticos…',
   ],
+  colosseum: [
+    'Preparando la arena…',
+    'Convocando a los rivales…',
+    'Afilando las espadas…',
+  ],
+  habits: [
+    'Cargando tus hábitos…',
+    'Revisando tus rachas…',
+    'Ordenando tu día…',
+  ],
+  quests: [
+    'Cargando misiones…',
+    'Desplegando el mapa…',
+    'Revisando tus objetivos…',
+  ],
+  gym: [
+    'Calentando motores…',
+    'Cargando tus rutinas…',
+    'Sumando tu volumen…',
+  ],
 } as const;
 
 export type LoadingCopyKey = keyof typeof LOADING_COPY;

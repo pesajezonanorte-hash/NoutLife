@@ -7,7 +7,8 @@ import {
   Angry, CheckCircle2, ChevronRight, Flag, Frown, Laugh, Meh, NotebookPen, Plus, Smile, Wallet, Zap, type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Button, CheckButton, EmptyState, Field, Input, ResponsiveDialog, SegmentedControl, Skeleton, Textarea, type Tone } from '@/components/ui/lq';
+import { Button, CheckButton, EmptyState, Field, Input, ResponsiveDialog, SegmentedControl, Textarea, type Tone, PageLoader } from '@/components/ui/lq';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 import { softTone } from '@/components/ui/lq/tones';
 import { useShellStore, type QuickAction } from '@/store/shellStore';
 import { useUIStore } from '@/store/uiStore';
@@ -141,7 +142,7 @@ function HabitPicker({ onDone }: { onDone: () => void }) {
     );
   }
   if (!habits) {
-    return <div className="flex flex-col gap-3" aria-busy="true">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-16 rounded-2xl" />)}</div>;
+    return <PageLoader label="Cargando tus hábitos…" words={LOADING_COPY.habits} size="sm" />;
   }
   if (habits.length === 0) {
     return <EmptyState icon={CheckCircle2} tone="success" title="¡Todo listo por hoy!" description="Completaste todos tus hábitos del día." />;

@@ -8,9 +8,8 @@ import { item, stagger } from '@/lib/motion';
 import { categoryMeta } from '@/lib/lifeMeta';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useToastStore } from '@/hooks/useToast';
-import {
-  Badge, Button, Card, EmptyState, ErrorState, IconChip, Input, ProgressRing, SegmentedControl, Select, Skeleton, Spinner,
-} from '@/components/ui/lq';
+import { Badge, Button, Card, EmptyState, ErrorState, IconChip, Input, ProgressRing, SegmentedControl, Select, PageLoader } from '@/components/ui/lq';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 import { QuestCard } from '@/components/quests/QuestCard';
 import { QuestDetailDialog } from '@/components/quests/QuestDetailDialog';
 import { CompleteQuestDialog } from '@/components/quests/CompleteQuestDialog';
@@ -24,15 +23,7 @@ const TABS: { value: Tab; label: string }[] = [
 ];
 
 function QuestsSkeleton() {
-  return (
-    <div className="flex flex-col gap-6" aria-busy="true" aria-label="Cargando misiones">
-      <Skeleton className="hidden h-44 rounded-2xl md:block" />
-      <div className="grid gap-4 md:grid-cols-[repeat(auto-fill,minmax(300px,1fr))] md:gap-6">
-        {[0, 1, 2].map((i) => <Skeleton key={i} className="h-56 rounded-2xl" />)}
-      </div>
-      <div className="flex items-center justify-center gap-3"><Spinner /><span className="text-body-sm text-on-surface-light">Cargando misiones…</span></div>
-    </div>
-  );
+  return <PageLoader label="Cargando misiones…" words={LOADING_COPY.quests} />;
 }
 
 export default function QuestsPage() {

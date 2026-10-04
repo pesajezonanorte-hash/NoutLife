@@ -11,9 +11,8 @@ import * as loveService from '../../services/love.service';
 import api from '../../lib/api';
 import { SageContextButton } from '../../components/sage/SageContextButton';
 import { E } from '@/components/ui/glyphs';
-import {
-  Badge, Button, Card, EmptyState, ErrorState, Field, IconChip, Input, Modal, ProgressRing, SegmentedControl, Skeleton, StepItem, Switch,
-} from '@/components/ui/lq';
+import { Badge, Button, Card, EmptyState, ErrorState, Field, IconChip, Input, Modal, ProgressRing, SegmentedControl, StepItem, Switch, PageLoader } from '@/components/ui/lq';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 
 interface GiftIdea { id: string; title: string; description?: string; estimatedPrice?: number; isPurchased: boolean; forPerson?: string }
 
@@ -78,7 +77,7 @@ function GiftWishlist({ relationshipId }: { relationshipId?: string }) {
       </div>
 
       {state === 'loading' ? (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3" aria-busy="true" aria-label="Cargando ideas">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-44 rounded-2xl" />)}</div>
+        <PageLoader label="Preparando tus detalles…" words={LOADING_COPY.loveIdeas} size="sm" />
       ) : state === 'error' ? (
         <ErrorState title="No pudimos cargar tus ideas" onRetry={() => void load()} />
       ) : gifts.length === 0 ? (
@@ -287,7 +286,7 @@ export default function LovePage() {
       <AnimatePresence mode="wait" initial={false}>
         <motion.div key={tab} role="tabpanel" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="flex flex-col gap-6 md:gap-8">
           {tab === 'regalos' ? <GiftWishlist relationshipId={rel?.id} /> : state === 'loading' ? (
-            <div className="flex flex-col gap-6" aria-busy="true" aria-label="Cargando jardín"><Skeleton className="h-52 rounded-2xl" /><div className="grid grid-cols-1 gap-6 md:grid-cols-3"><Skeleton className="h-52 rounded-2xl" /><Skeleton className="h-52 rounded-2xl" /></div></div>
+            <PageLoader label="Entrando al jardín…" words={LOADING_COPY.loveDashboard} />
           ) : state === 'error' ? (
             <ErrorState title="No pudimos cargar tu jardín" onRetry={() => void load()} />
           ) : !rel ? (
