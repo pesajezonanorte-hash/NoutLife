@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react';
-import { motion } from 'framer-motion';
+import { useRef, type ReactNode } from 'react';
+import { motion, useInView } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { ease, expo } from '@/lib/motion';
 import { solidBg, strokeTone, type Tone } from './tones';
@@ -23,16 +23,18 @@ export interface ProgressBarProps {
 /** Barra de progreso: anima scaleX (nunca width), 900 ms con 200 ms de retraso. */
 export function ProgressBar({ value, tone = 'primary', size = 'md', shine, label, valueText, className }: ProgressBarProps) {
   const v = clamp(value);
+  const ref = useRef<HTMLDivElement>(null);
+  const seen = useInView(ref, { once: true, amount: 0.5 });
   const a11y = label
     ? { role: 'progressbar', 'aria-label': label, 'aria-valuenow': Math.round(v), 'aria-valuemin': 0, 'aria-valuemax': 100, 'aria-valuetext': valueText }
     : { 'aria-hidden': true };
   return (
-    <div {...a11y} className={cn('overflow-hidden rounded-full bg-surface-variant', size === 'md' ? 'h-2' : 'h-3', className)}>
+    <div ref={ref} {...a11y} className={cn('overflow-hidden rounded-full bg-surface-variant', size === 'md' ? 'h-2' : 'h-3', className)}>
       <motion.span
         className={cn('relative block h-full overflow-hidden rounded-full', solidBg[tone], shine && 'lq-sheen')}
         style={{ originX: 0 }}
         initial={{ scaleX: 0 }}
-        animate={{ scaleX: v / 100 }}
+        animate={{ scaleX: seen ? v / 100 : 0 }}
         transition={{ duration: 1.1, ease: expo, delay: 0.2 }}
       />
     </div>
@@ -55,19 +57,21 @@ export interface ProgressRingProps {
 /** Anillo que se dibuja con pathLength (1.3 s). */
 export function ProgressRing({ value, tone = 'primary', size = 96, stroke = 8, label, valueText, children, className }: ProgressRingProps) {
   const v = clamp(value);
+  const ref = useRef<HTMLDivElement>(null);
+  const seen = useInView(ref, { once: true, amount: 0.5 });
   const r = 50 - stroke / 2;
   const a11y = label
     ? { role: 'progressbar', 'aria-label': label, 'aria-valuenow': Math.round(v), 'aria-valuemin': 0, 'aria-valuemax': 100, 'aria-valuetext': valueText }
     : {};
   return (
-    <div {...a11y} className={cn('relative shrink-0', className)} style={{ width: size, height: size }}>
+    <div ref={ref} {...a11y} className={cn('relative shrink-0', className)} style={{ width: size, height: size }}>
       <svg viewBox="0 0 100 100" width={size} height={size} aria-hidden className="-rotate-90">
         <circle cx="50" cy="50" r={r} fill="none" strokeWidth={stroke} className="stroke-surface-variant" />
         <motion.circle
           cx="50" cy="50" r={r} fill="none" strokeWidth={stroke} strokeLinecap="round"
           className={strokeTone[tone]}
           initial={{ pathLength: 0 }}
-          animate={{ pathLength: v / 100 }}
+          animate={{ pathLength: seen ? v / 100 : 0 }}
           transition={{ duration: 1.6, ease: expo, delay: 0.2 }}
         />
       </svg>

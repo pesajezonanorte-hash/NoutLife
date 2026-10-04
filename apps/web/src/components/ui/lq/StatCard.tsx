@@ -1,3 +1,5 @@
+import { useRef } from 'react';
+import { useInView } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ChevronRight, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -23,10 +25,13 @@ export interface StatCardProps {
 
 /** Número animado para la vista; los lectores reciben solo el valor final. */
 export function AnimatedValue({ value, format = fmtNumber }: { value: number; format?: (n: number) => string }) {
-  const v = useCountUp(value);
+  // Cuenta al aparecer en pantalla (no al montar), para que se vea aunque esté bajo el pliegue.
+  const ref = useRef<HTMLSpanElement>(null);
+  const seen = useInView(ref, { once: true, amount: 0.6 });
+  const v = useCountUp(seen ? value : 0);
   return (
     <>
-      <span aria-hidden>{format(v)}</span>
+      <span ref={ref} aria-hidden>{format(v)}</span>
       <span className="sr-only">{format(value)}</span>
     </>
   );
