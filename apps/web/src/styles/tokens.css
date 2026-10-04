@@ -142,6 +142,24 @@ html.dark {
   .reduce-motion .lq-sheen::after, .reduce-motion .lq-skeleton { animation: none; }
 }
 
+/* Estudio del personaje: cada píxel que cambia (PixelStage). */
+.lq-px-in, .lq-px-re, .lq-px-out { transform-box: fill-box; transform-origin: center; }
+.lq-px-in { animation: lq-px-in .5s cubic-bezier(.34, 1.56, .64, 1) both; }
+.lq-px-re { animation: lq-px-re .45s cubic-bezier(.22, 1, .36, 1) both; }
+.lq-px-out { animation: lq-px-out .5s cubic-bezier(.55, 0, 1, .45) both; }
+@keyframes lq-px-in { from { opacity: 0; transform: translateY(-5px) scale(.2); } to { opacity: 1; transform: none; } }
+@keyframes lq-px-re { 0% { opacity: .25; transform: scale(.4); } 60% { transform: scale(1.25); } 100% { opacity: 1; transform: none; } }
+@keyframes lq-px-out { to { opacity: 0; transform: translateY(6px) scale(.2) rotate(35deg); } }
+
+/* Deslizador de tono del selector de color: pulgar redondo con anillo. */
+.lq-hue { -webkit-appearance: none; appearance: none; background: transparent; }
+.lq-hue::-webkit-slider-thumb { -webkit-appearance: none; width: 26px; height: 26px; border-radius: 9999px; border: 3px solid rgb(var(--lq-background)); background: var(--thumb, transparent); box-shadow: 0 0 0 1px rgb(var(--lq-border-strong)), 0 4px 10px rgb(0 0 0 / .25); cursor: grab; transition: transform .2s cubic-bezier(.34, 1.56, .64, 1); }
+.lq-hue::-moz-range-thumb { width: 22px; height: 22px; border-radius: 9999px; border: 3px solid rgb(var(--lq-background)); background: var(--thumb, transparent); box-shadow: 0 0 0 1px rgb(var(--lq-border-strong)), 0 4px 10px rgb(0 0 0 / .25); cursor: grab; }
+.lq-hue:active::-webkit-slider-thumb { transform: scale(1.18); cursor: grabbing; }
+.lq-hue:focus-visible { outline: none; }
+.lq-hue:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px rgb(var(--lq-primary)), 0 4px 10px rgb(0 0 0 / .25); }
+.lq-hue:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 3px rgb(var(--lq-primary)); }
+
 @keyframes sheen { 0% { transform: translateX(-100%); } 60%, 100% { transform: translateX(100%); } }
 @keyframes lq-halo { from { transform: scale(.92); opacity: .55; } to { transform: scale(1.22); opacity: 0; } }
 @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }

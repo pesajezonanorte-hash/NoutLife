@@ -52,7 +52,7 @@ function Avatar({ name, url, config, className }: { name: string; url?: string |
       )}
     >
       {photo ? <img src={url!} alt="" className="size-full object-cover" /> : config ? (
-        <span aria-hidden className="flex size-full items-end justify-center bg-surface-variant"><PixelAvatar look={lookFrom(config)} size={200} crop="head" className="!h-auto !w-full" /></span>
+        <motion.span key={JSON.stringify((config as { pixel?: unknown }).pixel ?? null)} aria-hidden initial={{ scale: 0.6, rotate: -8, opacity: 0 }} animate={{ scale: 1, rotate: 0, opacity: 1 }} transition={{ type: 'spring', stiffness: 320, damping: 16 }} className="flex size-full items-end justify-center bg-surface-variant"><PixelAvatar look={lookFrom(config)} size={200} crop="head" className="!h-auto !w-full" /></motion.span>
       ) : <span aria-hidden>{initials(name)}</span>}
     </div>
   );
