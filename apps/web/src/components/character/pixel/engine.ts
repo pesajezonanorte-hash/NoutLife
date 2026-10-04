@@ -491,8 +491,10 @@ function paintExtras(cv: Canvas, look: PixelLook) {
 
 // ── Composición ─────────────────────────────────────────────────────────────
 export interface Run { x: number; y: number; w: number; c: string }
+export type PixelGrid = (string | null)[][];
 
-export function render(look: PixelLook, opts: { blink?: boolean } = {}): Run[] {
+/** Rejilla final (con sombreado y contorno): un color por celda o null. */
+export function renderGrid(look: PixelLook, opts: { blink?: boolean } = {}): PixelGrid {
   const cv = new Canvas();
   paintHairBack(cv, look);
   paintBody(cv, look);
@@ -530,8 +532,12 @@ export function render(look: PixelLook, opts: { blink?: boolean } = {}): Run[] {
     if (n) outline[y][x] = mix(darken(n, 0.38), INK, 0.45);
   }
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (outline[y][x]) out[y][x] = outline[y][x];
+  return out;
+}
 
-  // Tiras horizontales del mismo color.
+/** Tiras horizontales del mismo color (menos nodos SVG para miniaturas). */
+export function render(look: PixelLook, opts: { blink?: boolean } = {}): Run[] {
+  const out = renderGrid(look, opts);
   const runs: Run[] = [];
   for (let y = 0; y < H; y++) {
     let x = 0;

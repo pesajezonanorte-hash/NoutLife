@@ -2,16 +2,16 @@
 // pestañas: Pixel, Foto y Skin de Minecraft. La lógica de guardado es la de
 // antes; cambia la presentación (lq) y el editor pixel compartido.
 import { useEffect, useId, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
-import { Link as LinkIcon, Box, Trash2, Upload } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Link as LinkIcon, Box, Check, Trash2, Upload, X } from 'lucide-react';
 import { MinecraftSkinAvatar } from './MinecraftSkinAvatar';
-import { AvatarPixelEditor, AvatarPreview } from './AvatarPixelEditor';
+import { AvatarPreview, AvatarStudio } from './AvatarPixelEditor';
 import { withDefaults } from './avatarOptions';
 import { updateAvatar, updateProfile } from '../../services/user.service';
 import { useAuthStore } from '../../store/authStore';
 import { useToast } from '../../hooks/useToast';
 import type { AvatarConfig, AvatarMode } from '@lifequest/shared';
-import { Badge, Button, Field, Input, ResponsiveDialog, Tabs } from '@/components/ui/lq';
+import { Badge, Button, Field, Input, SegmentedControl } from '@/components/ui/lq';
 
 interface Props {
   isOpen: boolean;
@@ -168,6 +168,8 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
   const [skinUrl, setSkinUrl] = useState<string>(() => readMinecraftSkinDraft(user?.id) || user?.avatarConfig?.minecraftSkinUrl || '');
   const [urlInput, setUrlInput] = useState<string>('');
   const [saving, setSaving] = useState(false);
+  /** Se incrementa al guardar el pixel: el escenario celebra antes de cerrar. */
+  const [celebrate, setCelebrate] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const skinInputRef = useRef<HTMLInputElement>(null);
   const initializedModalUserRef = useRef<string | undefined>(undefined);
@@ -203,8 +205,9 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
       const updatedUser = await updateAvatar(nextConfig);
       setConfig(withDefaults(updatedUser.avatarConfig));
       updateUser(updatedUser);
+      setCelebrate((c) => c + 1);
       toast.success('¡Avatar pixel guardado!');
-      onClose();
+      window.setTimeout(() => { setCelebrate(0); onClose(); }, 1500);
     } catch {
       toast.error('Error al guardar el avatar. Intenta de nuevo.');
     } finally {
@@ -339,99 +342,164 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
     }
   };
 
-  const panelId = useId();
+  const titleId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
   const tabs = [
     { value: 'pixel' as const, label: 'Pixel' },
     { value: 'photo' as const, label: 'Foto' },
     { value: 'minecraft' as const, label: 'Skin MC' },
   ];
 
-  return (
-    <ResponsiveDialog open={isOpen} onClose={onClose} title="Personaliza tu avatar" className="md:max-w-[560px]">
-      <Tabs label="Tipo de avatar" value={activeTab} onChange={setActiveTab} options={tabs} />
+  // Diálogo a pantalla completa: Escape cierra, el foco queda dentro y vuelve
+  // al botón que lo abrió; el fondo no se desplaza mientras está abierto.
+  useEffect(() => {
+    if (!isOpen) return;
+    const opener = document.activeElement as HTMLElement | null;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const t = window.setTimeout(() => closeRef.current?.focus(), 50);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.preventDefault(); onClose(); return; }
+      if (e.key !== 'Tab' || !dialogRef.current) return;
+      const f = [...dialogRef.current.querySelectorAll<HTMLElement>('button:not([disabled]),input:not([disabled]):not([type=radio]),input[type=radio]:checked,[tabindex="0"],a[href]')].filter((el) => el.offsetParent !== null || el.getClientRects().length > 0);
+      if (!f.length) return;
+      const first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => { window.clearTimeout(t); document.removeEventListener('keydown', onKey); document.body.style.overflow = overflow; opener?.focus?.(); };
+  }, [isOpen, onClose]);
 
-      <div role="tabpanel" id={panelId} aria-label={tabs.find((t) => t.value === activeTab)?.label} className="flex flex-col gap-6">
-        {activeTab === 'photo' ? (
-          <>
-            <p className="text-body-md text-on-surface-light">Sube una foto desde tu dispositivo o pega el enlace de una imagen.</p>
-            <div className="relative flex justify-center pb-3">
-              <span className="flex size-36 items-center justify-center overflow-hidden rounded-full bg-surface-variant shadow-[0_0_0_4px_rgb(var(--lq-background)),0_0_0_6px_rgb(var(--lq-primary)/0.4)]">
-                {photoUrl ? (
-                  <img src={photoUrl} alt="Vista previa de tu foto" className="size-full object-cover" onError={() => toast.error('No se pudo cargar la imagen desde el enlace.')} />
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div key="studio" className="fixed inset-0 z-50 flex md:p-3">
+          <motion.div
+            aria-hidden
+            className="absolute inset-0 bg-[var(--scrim)] backdrop-blur-sm"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.2 } }}
+            onClick={onClose}
+          />
+          <motion.div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
+            initial={{ opacity: 0, y: 40, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1, transition: { type: 'spring', stiffness: 300, damping: 30 } }}
+            exit={{ opacity: 0, y: 24, scale: 0.98, transition: { duration: 0.2 } }}
+            className="relative flex size-full flex-col overflow-hidden bg-background text-on-background shadow-lg md:rounded-[28px] md:border md:border-border"
+          >
+            <header className="flex h-16 shrink-0 items-center gap-2 border-b border-border px-2 md:gap-4 md:px-5">
+              <Button ref={closeRef} variant="icon" aria-label="Cerrar" onClick={onClose}>
+                <X aria-hidden className="size-6" strokeWidth={1.75} />
+              </Button>
+              <h2 id={titleId} className="hidden text-heading-sm md:block">Tu personaje</h2>
+              <div className="mx-auto w-full max-w-[280px]">
+                <SegmentedControl role="tablist" label="Tipo de avatar" value={activeTab} onChange={setActiveTab} options={tabs} />
+              </div>
+              {activeTab === 'pixel' ? (
+                <motion.span key="save" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
+                  <Button size="md" loading={saving} onClick={handleSavePixelAvatar} className="min-w-[104px]">
+                    {celebrate ? <><Check aria-hidden className="size-5" strokeWidth={2.25} />Listo</> : 'Guardar'}
+                  </Button>
+                </motion.span>
+              ) : <span aria-hidden className="w-11 shrink-0 md:w-[104px]" />}
+            </header>
+
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 30 } }} exit={{ opacity: 0, transition: { duration: 0.12 } }}
+                className="flex min-h-0 flex-1 flex-col"
+              >
+                {activeTab === 'pixel' ? (
+                  <AvatarStudio config={config} onChange={setConfig} celebrate={celebrate} />
                 ) : (
-                  <AvatarPreview config={config} size={104} className="bg-transparent" />
+                  <div className="min-h-0 flex-1 overflow-y-auto">
+                    <div className="mx-auto flex w-full max-w-md flex-col gap-6 px-4 py-6">
+                      {activeTab === 'photo' ? (
+                        <>
+                      <p className="text-body-md text-on-surface-light">Sube una foto desde tu dispositivo o pega el enlace de una imagen.</p>
+                      <div className="relative flex justify-center pb-3">
+                        <span className="flex size-36 items-center justify-center overflow-hidden rounded-full bg-surface-variant shadow-[0_0_0_4px_rgb(var(--lq-background)),0_0_0_6px_rgb(var(--lq-primary)/0.4)]">
+                          {photoUrl ? (
+                            <img src={photoUrl} alt="Vista previa de tu foto" className="size-full object-cover" onError={() => toast.error('No se pudo cargar la imagen desde el enlace.')} />
+                          ) : (
+                            <AvatarPreview config={config} size={104} className="bg-transparent" />
+                          )}
+                        </span>
+                        {photoUrl && <Badge variant="success" className="absolute bottom-0 left-1/2 -translate-x-1/2">Foto activa</Badge>}
+                      </div>
+                      <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept="image/*" className="hidden" tabIndex={-1} />
+                      <Button variant="secondary" block onClick={() => fileInputRef.current?.click()}>
+                        <Upload aria-hidden className="size-5" strokeWidth={1.75} />Subir desde el dispositivo
+                      </Button>
+                      <div className="flex items-end gap-2">
+                        <Field label="O pega un enlace" className="flex-1">
+                          <Input type="url" value={urlInput} onChange={(e) => setUrlInput(e.target.value)} placeholder="https://ejemplo.com/foto.jpg" />
+                        </Field>
+                        <Button variant="secondary" onClick={handleApplyUrl} disabled={!urlInput.trim()} className="min-h-12">
+                          <LinkIcon aria-hidden className="size-5" strokeWidth={1.75} />Ver
+                        </Button>
+                      </div>
+                      <div className="flex flex-col gap-2 border-t border-border pt-4">
+                        <Button size="lg" block loading={saving} onClick={handleSavePhotoProfile}>Guardar foto de perfil</Button>
+                        {user?.avatarUrl && (
+                          <Button variant="danger" block disabled={saving} onClick={handleRemovePhoto}>
+                            <Trash2 aria-hidden className="size-5" strokeWidth={1.75} />Quitar foto
+                          </Button>
+                        )}
+                      </div>
+                        </>
+                      ) : (
+                        <>
+                      <p className="text-body-md text-on-surface-light">Sube una textura PNG de Minecraft; se dibuja como tu personaje en 3D sin borrar tu foto ni tu avatar pixel.</p>
+                      <div className="flex min-h-[224px] items-center justify-center rounded-2xl border border-border bg-surface p-5">
+                        {skinUrl ? (
+                          <motion.div key={skinUrl} initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }}>
+                            <MinecraftSkinAvatar skinUrl={skinUrl} size={164} animate="idle" />
+                          </motion.div>
+                        ) : (
+                          <div className="flex max-w-[240px] flex-col items-center gap-2 text-center">
+                            <Box aria-hidden className="size-8 text-on-surface-light" strokeWidth={1.5} />
+                            <p className="text-label-lg">Tu skin aparecerá aquí</p>
+                            <p className="text-body-sm text-on-surface-light">Skins Java de 64×64 o clásicas de 64×32.</p>
+                          </div>
+                        )}
+                      </div>
+                      <input ref={skinInputRef} type="file" accept="image/png,.png" onChange={handleSkinFileSelect} className="hidden" tabIndex={-1} />
+                      <Button variant="secondary" block onClick={() => skinInputRef.current?.click()}>
+                        <Upload aria-hidden className="size-5" strokeWidth={1.75} />{skinUrl ? 'Cambiar skin' : 'Subir skin'}
+                      </Button>
+                      {hasUnsavedSkinDraft && (
+                        <p role="status" className="rounded-xl bg-warning/[var(--lq-soft-alpha)] px-4 py-3 text-body-sm text-warning-text">
+                          <b>Vista previa temporal.</b> Guarda y equipa la skin para aplicarla. Si cierras la pestaña, la selección se conserva al volver.
+                        </p>
+                      )}
+                      <p className="text-body-sm text-on-surface-light">PNG de 64×64 (las de 64×32 se adaptan). Solo se guarda en tu perfil al pulsar el botón; no se envía a ningún visor externo.</p>
+                      <div className="flex flex-col gap-2 border-t border-border pt-4">
+                        <Button size="lg" block loading={saving} disabled={!skinUrl} onClick={handleSaveMinecraftSkin}>
+                          {hasUnsavedSkinDraft ? 'Guardar y equipar skin' : 'Equipar skin'}
+                        </Button>
+                        {(skinUrl || user?.avatarConfig?.minecraftSkinUrl) && (
+                          <Button variant="danger" block disabled={saving} onClick={handleRemoveMinecraftSkin}>
+                            <Trash2 aria-hidden className="size-5" strokeWidth={1.75} />Quitar skin
+                          </Button>
+                        )}
+                      </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 )}
-              </span>
-              {photoUrl && <Badge variant="success" className="absolute bottom-0 left-1/2 -translate-x-1/2">Foto activa</Badge>}
-            </div>
-            <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept="image/*" className="hidden" tabIndex={-1} />
-            <Button variant="secondary" block onClick={() => fileInputRef.current?.click()}>
-              <Upload aria-hidden className="size-5" strokeWidth={1.75} />Subir desde el dispositivo
-            </Button>
-            <div className="flex items-end gap-2">
-              <Field label="O pega un enlace" className="flex-1">
-                <Input type="url" value={urlInput} onChange={(e) => setUrlInput(e.target.value)} placeholder="https://ejemplo.com/foto.jpg" />
-              </Field>
-              <Button variant="secondary" onClick={handleApplyUrl} disabled={!urlInput.trim()} className="min-h-12">
-                <LinkIcon aria-hidden className="size-5" strokeWidth={1.75} />Ver
-              </Button>
-            </div>
-            <div className="flex flex-col gap-2 border-t border-border pt-4">
-              <Button size="lg" block loading={saving} onClick={handleSavePhotoProfile}>Guardar foto de perfil</Button>
-              {user?.avatarUrl && (
-                <Button variant="danger" block disabled={saving} onClick={handleRemovePhoto}>
-                  <Trash2 aria-hidden className="size-5" strokeWidth={1.75} />Quitar foto
-                </Button>
-              )}
-            </div>
-          </>
-        ) : activeTab === 'minecraft' ? (
-          <>
-            <p className="text-body-md text-on-surface-light">Sube una textura PNG de Minecraft; se dibuja como tu personaje en 3D sin borrar tu foto ni tu avatar pixel.</p>
-            <div className="flex min-h-[224px] items-center justify-center rounded-2xl border border-border bg-surface p-5">
-              {skinUrl ? (
-                <motion.div key={skinUrl} initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }}>
-                  <MinecraftSkinAvatar skinUrl={skinUrl} size={164} animate="idle" />
-                </motion.div>
-              ) : (
-                <div className="flex max-w-[240px] flex-col items-center gap-2 text-center">
-                  <Box aria-hidden className="size-8 text-on-surface-light" strokeWidth={1.5} />
-                  <p className="text-label-lg">Tu skin aparecerá aquí</p>
-                  <p className="text-body-sm text-on-surface-light">Skins Java de 64×64 o clásicas de 64×32.</p>
-                </div>
-              )}
-            </div>
-            <input ref={skinInputRef} type="file" accept="image/png,.png" onChange={handleSkinFileSelect} className="hidden" tabIndex={-1} />
-            <Button variant="secondary" block onClick={() => skinInputRef.current?.click()}>
-              <Upload aria-hidden className="size-5" strokeWidth={1.75} />{skinUrl ? 'Cambiar skin' : 'Subir skin'}
-            </Button>
-            {hasUnsavedSkinDraft && (
-              <p role="status" className="rounded-xl bg-warning/[var(--lq-soft-alpha)] px-4 py-3 text-body-sm text-warning-text">
-                <b>Vista previa temporal.</b> Guarda y equipa la skin para aplicarla. Si cierras la pestaña, la selección se conserva al volver.
-              </p>
-            )}
-            <p className="text-body-sm text-on-surface-light">PNG de 64×64 (las de 64×32 se adaptan). Solo se guarda en tu perfil al pulsar el botón; no se envía a ningún visor externo.</p>
-            <div className="flex flex-col gap-2 border-t border-border pt-4">
-              <Button size="lg" block loading={saving} disabled={!skinUrl} onClick={handleSaveMinecraftSkin}>
-                {hasUnsavedSkinDraft ? 'Guardar y equipar skin' : 'Equipar skin'}
-              </Button>
-              {(skinUrl || user?.avatarConfig?.minecraftSkinUrl) && (
-                <Button variant="danger" block disabled={saving} onClick={handleRemoveMinecraftSkin}>
-                  <Trash2 aria-hidden className="size-5" strokeWidth={1.75} />Quitar skin
-                </Button>
-              )}
-            </div>
-          </>
-        ) : (
-          <>
-            <AvatarPixelEditor config={config} onChange={setConfig} />
-            <div className="sticky bottom-0 -mx-4 -mb-8 flex gap-2 border-t border-border bg-background px-4 pb-4 pt-4 md:-mx-6 md:-mb-6 md:px-6">
-              <Button variant="ghost" onClick={onClose} className="flex-1">Cancelar</Button>
-              <Button size="lg" loading={saving} onClick={handleSavePixelAvatar} className="flex-1">Guardar</Button>
-            </div>
-          </>
-        )}
-      </div>
-    </ResponsiveDialog>
+              </motion.div>
+            </AnimatePresence>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

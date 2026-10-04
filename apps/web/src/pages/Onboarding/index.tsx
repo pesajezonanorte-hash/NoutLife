@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
+import { cn } from '@/lib/utils';
 import { ArrowLeft, ArrowRight, Droplet, Heart, Sparkles, Star } from 'lucide-react';
 import type { AvatarConfig } from '@lifequest/shared';
 import { ease } from '@/lib/motion';
@@ -58,12 +59,14 @@ function StepTitle({ children, focus }: { children: ReactNode; focus: boolean })
   return <h1 ref={ref} tabIndex={-1} className="text-heading-lg outline-none md:text-display-sm">{children}</h1>;
 }
 
-function Shell({ step, title, subtitle, children, footer }: { step: number; title: string; subtitle: string; children: ReactNode; footer: ReactNode }) {
+function Shell({ step, title, subtitle, children, footer, wide }: { step: number; title: string; subtitle: string; children: ReactNode; footer: ReactNode; wide?: boolean }) {
   const initialStep = useRef(step);
+  // El paso del avatar usa el estudio a todo lo ancho; el resto, columna de lectura.
+  const width = wide ? 'max-w-[1200px]' : 'max-w-[640px]';
 
   return (
     <div className="flex min-h-dvh flex-col bg-background text-on-background">
-      <header className="mx-auto flex w-full max-w-[640px] flex-col gap-4 px-4 pt-6 md:pt-10">
+      <header className={cn('mx-auto flex w-full flex-col gap-4 px-4 pt-6 md:pt-10', width)}>
         <div className="flex items-center gap-3">
           <BrandMark />
           <span className="text-heading-sm">LifeQuest</span>
@@ -79,14 +82,14 @@ function Shell({ step, title, subtitle, children, footer }: { step: number; titl
         </div>
       </header>
 
-      <main id="main" className="mx-auto flex w-full max-w-[640px] flex-1 flex-col px-4 pb-6 pt-8">
+      <main id="main" className={cn('mx-auto flex w-full flex-1 flex-col px-4 pb-6', wide ? 'pt-6' : 'pt-8', width)}>
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={step}
             initial={{ opacity: 0, x: 24 }}
             animate={{ opacity: 1, x: 0, transition: { duration: 0.25, ease } }}
             exit={{ opacity: 0, x: -24, transition: { duration: 0.15 } }}
-            className="flex flex-col gap-8"
+            className={cn('flex flex-col', wide ? 'gap-5' : 'gap-8')}
           >
             <div className="flex flex-col gap-2">
               <StepTitle focus={step !== initialStep.current}>{title}</StepTitle>
@@ -98,7 +101,7 @@ function Shell({ step, title, subtitle, children, footer }: { step: number; titl
       </main>
 
       <footer className="sticky bottom-0 border-t border-border bg-background/95 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-[640px] flex-col-reverse gap-2 sm:flex-row sm:justify-between">{footer}</div>
+        <div className={cn('mx-auto flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-between', width)}>{footer}</div>
       </footer>
     </div>
   );
@@ -137,6 +140,8 @@ export default function OnboardingPage() {
   }, [step, displayName, birthDate, timezone, gender, avatarConfig, goalCategories, mainQuestTitle, mainQuestCategory, mainQuestDeadline]);
 
   const config = withDefaults(avatarConfig, gender);
+  /** Se incrementa al salir del paso del avatar: el escenario celebra. */
+  const [celebrate, setCelebrate] = useState(0);
   const go = (s: number) => { setTried(false); setStep(s); };
 
   function submitIdentity() {
@@ -246,8 +251,16 @@ export default function OnboardingPage() {
 
   if (step === 2) {
     return (
-      <Shell step={2} title="Tu avatar" subtitle="Dale estilo a tu personaje; cada cambio se ve al instante." footer={<>{back(() => go(1))}{next(() => go(3))}</>}>
-        <AvatarContent config={config} onChange={setAvatarConfig} />
+      <Shell
+        step={2} wide title="Tu avatar" subtitle="Dale estilo a tu personaje; cada cambio se ve al instante."
+        footer={<>{back(() => go(1))}{next(() => {
+          // El personaje celebra antes de pasar al siguiente paso.
+          if (celebrate) return;
+          setCelebrate((c) => c + 1);
+          window.setTimeout(() => { setCelebrate(0); go(3); }, 1100);
+        }, celebrate ? '¡Listo!' : 'Siguiente')}</>}
+      >
+        <AvatarContent config={config} onChange={setAvatarConfig} celebrate={celebrate} />
       </Shell>
     );
   }
