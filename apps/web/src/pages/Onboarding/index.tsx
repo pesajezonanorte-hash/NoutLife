@@ -13,7 +13,8 @@ import * as authService from '@/services/auth.service';
 import { completeOnboarding } from '@/services/user.service';
 import { getHeroLabel, getWelcomeLabel } from '@/utils/gender';
 import { BrandMark } from '@/components/layout/Brand';
-import { Badge, Button, Confetti, Spinner } from '@/components/ui/lq';
+import { Badge, Button, Confetti, ModernLoader } from '@/components/ui/lq';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 import { AvatarPreview } from '@/components/character/AvatarPixelEditor';
 import { withDefaults } from '@/components/character/avatarOptions';
 import {
@@ -181,10 +182,7 @@ export default function OnboardingPage() {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-background px-4 text-on-background">
         {submitting ? (
-          <div role="status" className="flex flex-col items-center gap-4">
-            <Spinner />
-            <p className="text-body-md text-on-surface-light">Preparando tu aventura…</p>
-          </div>
+          <ModernLoader label="Preparando tu aventura…" words={LOADING_COPY.splash} />
         ) : (
           <motion.div
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0, transition: { duration: 0.3, ease } }}

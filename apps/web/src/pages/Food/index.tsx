@@ -9,9 +9,8 @@ import { cn } from '@/lib/utils';
 import { item, stagger } from '@/lib/motion';
 import { dayKey } from '@/lib/lifeMeta';
 import { useToastStore } from '@/hooks/useToast';
-import {
-  AnimatedValue, Button, Card, ErrorState, IconChip, ProgressBar, ProgressRing, ResponsiveDialog, Skeleton, Spinner,
-} from '@/components/ui/lq';
+import { AnimatedValue, Button, Card, ErrorState, IconChip, ProgressBar, ProgressRing, ResponsiveDialog, PageLoader } from '@/components/ui/lq';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 import { solidBg } from '@/components/ui/lq/tones';
 import * as mealService from '@/services/meal.service';
 import type { NutritionGoal, SavedMeal } from '@/services/meal.service';
@@ -34,14 +33,7 @@ function dayLabel(d: Date, offset: number) {
 type Entry = { kind: 'meal'; meal: Meal; at: number } | { kind: 'empty'; type: FoodType; at: number };
 
 function FoodSkeleton() {
-  return (
-    <div className="flex flex-col gap-6" aria-busy="true" aria-label="Cargando comidas">
-      <Skeleton className="h-64 rounded-2xl" />
-      <Skeleton className="h-14 rounded-2xl md:h-32" />
-      <Skeleton className="h-80 rounded-2xl" />
-      <div className="flex items-center justify-center gap-3"><Spinner /><span className="text-body-sm text-on-surface-light">Cargando tu día…</span></div>
-    </div>
-  );
+  return <PageLoader label="Cargando tu día…" words={LOADING_COPY.food} />;
 }
 
 export default function FoodPage() {
@@ -304,7 +296,7 @@ export default function FoodPage() {
         <Button variant="ghost" size="sm" onClick={() => setNewSaved(true)}><Plus aria-hidden className="size-4" strokeWidth={2} />Nueva</Button>
       </div>
       {saved === null ? (
-        <div className="flex flex-col gap-2">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-16 rounded-2xl" />)}</div>
+        <PageLoader label="Cargando tus guardadas…" words={LOADING_COPY.food} size="sm" />
       ) : saved.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-border-strong p-4 text-body-md text-on-surface-light">
           Guarda tus comidas frecuentes para añadirlas con un toque.

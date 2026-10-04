@@ -6,9 +6,8 @@ import { Check, Lock, Trophy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { item, stagger } from '@/lib/motion';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import {
-  EmptyState, ErrorState, ProgressBar, ProgressRing, Select, SegmentedControl, Skeleton, Spinner,
-} from '@/components/ui/lq';
+import { EmptyState, ErrorState, ProgressBar, ProgressRing, Select, SegmentedControl, PageLoader } from '@/components/ui/lq';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 import { softTone } from '@/components/ui/lq/tones';
 import { fetchAchievements, type Achievement } from '@/services/achievement.service';
 import { achievementCategory as catMeta, achievementIcon, achievementProgress as progressOf } from '@/components/achievements/achievementMeta';
@@ -136,12 +135,7 @@ export default function AchievementsPage() {
 
       <motion.div variants={item} className="flex flex-col gap-6">
         {state === 'loading' ? (
-          <div className="flex flex-col gap-6" aria-busy="true" aria-label="Cargando logros">
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-[repeat(auto-fill,minmax(232px,1fr))] md:gap-6">
-              {Array.from({ length: 8 }, (_, i) => <Skeleton key={i} className="h-52 rounded-2xl md:h-64" />)}
-            </div>
-            <div className="flex items-center justify-center gap-3"><Spinner /><span className="text-body-sm text-on-surface-light">Cargando tu colección…</span></div>
-          </div>
+          <PageLoader label="Cargando tu colección…" words={LOADING_COPY.achievements} />
         ) : state === 'error' ? (
           <ErrorState title="No pudimos cargar tus logros" onRetry={() => void load()} />
         ) : list.length === 0 ? (

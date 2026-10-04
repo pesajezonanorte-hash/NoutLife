@@ -10,10 +10,8 @@ import { usePageCrumb } from '@/store/shellStore';
 import { useHabitCompletion } from '@/hooks/useHabitCompletion';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useToastStore } from '@/hooks/useToast';
-import {
-  Badge, BarChart, Button, Card, Confetti, EmptyState, ErrorState, Heatmap, IconChip, Modal, ProgressRing,
-  Skeleton, StatCard, type BarDatum, type HeatLevel,
-} from '@/components/ui/lq';
+import { Badge, BarChart, Button, Card, Confetti, EmptyState, ErrorState, Heatmap, IconChip, Modal, ProgressRing, StatCard, type BarDatum, type HeatLevel, PageLoader } from '@/components/ui/lq';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 import { resolveGlyph } from '@/components/ui/glyphs';
 import { HabitFormDialog } from '@/components/habits/HabitFormDialog';
 import * as habitService from '@/services/habit.service';
@@ -84,13 +82,7 @@ function useStats(habit: Habit | null, entries: HeatmapEntry[], todayDone: boole
 }
 
 function DetailSkeleton() {
-  return (
-    <div className="flex flex-col gap-6" aria-busy="true" aria-label="Cargando hábito">
-      <div className="flex items-center gap-6"><Skeleton className="size-20 rounded-3xl md:size-28" /><div className="flex flex-1 flex-col gap-3"><Skeleton className="h-4 w-48" /><Skeleton className="h-10 w-2/3" /></div></div>
-      <div className="grid grid-cols-3 gap-3 md:gap-6">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-28 rounded-2xl md:h-40" />)}</div>
-      <Skeleton className="h-64 rounded-2xl" />
-    </div>
-  );
+  return <PageLoader label="Cargando tu hábito…" words={LOADING_COPY.habits} />;
 }
 
 export default function HabitDetailPage() {

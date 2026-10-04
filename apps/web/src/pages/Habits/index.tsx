@@ -8,10 +8,8 @@ import { dayKey, longDate } from '@/lib/lifeMeta';
 import { useAuthStore } from '@/store/authStore';
 import { useHabitCompletion } from '@/hooks/useHabitCompletion';
 import { useToastStore } from '@/hooks/useToast';
-import {
-  Badge, BarChart, Button, Card, Confetti, EmptyState, ErrorState, IconChip, ProgressBar, ProgressRing,
-  SegmentedControl, Skeleton, Spinner, type BarDatum,
-} from '@/components/ui/lq';
+import { Badge, BarChart, Button, Card, Confetti, EmptyState, ErrorState, IconChip, ProgressBar, ProgressRing, SegmentedControl, type BarDatum, PageLoader } from '@/components/ui/lq';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 import { HabitListItem } from '@/components/habits/HabitListItem';
 import { HabitFormDialog } from '@/components/habits/HabitFormDialog';
 import * as habitService from '@/services/habit.service';
@@ -39,15 +37,7 @@ function useDays() {
 }
 
 function HabitsSkeleton() {
-  return (
-    <div className="flex flex-col gap-6" aria-busy="true" aria-label="Cargando hábitos">
-      <Skeleton className="h-12 w-48" />
-      <Skeleton className="h-3 w-full rounded-full" />
-      <Skeleton className="h-12 w-full max-w-md rounded-full" />
-      {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-[76px] rounded-2xl md:h-[88px]" />)}
-      <div className="flex items-center justify-center gap-3"><Spinner /><span className="text-body-sm text-on-surface-light">Cargando tus hábitos…</span></div>
-    </div>
-  );
+  return <PageLoader label="Cargando tus hábitos…" words={LOADING_COPY.habits} />;
 }
 
 export default function HabitsPage() {

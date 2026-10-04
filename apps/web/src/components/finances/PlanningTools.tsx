@@ -6,10 +6,8 @@ import type { FinancialGoal, TransactionCategory } from '@lifequest/shared';
 import { ArrowDownLeft, ArrowUpRight, CalendarClock, PiggyBank, Plus, Repeat, Target, Trash2, TrendingUp, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatMoney } from '@/lib/lifeMeta';
-import {
-  Badge, Button, Card, EmptyState, ErrorState, Field, IconChip, Input, LineChart, ProgressBar, ResponsiveDialog, SegmentedControl,
-  Select, Skeleton,
-} from '@/components/ui/lq';
+import { Badge, Button, Card, EmptyState, ErrorState, Field, IconChip, Input, LineChart, ProgressBar, ResponsiveDialog, SegmentedControl, Select, PageLoader } from '@/components/ui/lq';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 import { useToastStore } from '@/hooks/useToast';
 import * as financeService from '@/services/finance.service';
 import * as f2 from '@/services/finance2.service';
@@ -33,7 +31,7 @@ function useLoader<T>(fetcher: () => Promise<T>) {
 
 function PanelState({ failed, loading, onRetry }: { failed: boolean; loading: boolean; onRetry: () => void }) {
   if (failed) return <ErrorState title="No pudimos cargar esta sección" onRetry={onRetry} autoRetrySeconds={0} className="py-8" />;
-  if (loading) return <div className="flex flex-col gap-3" aria-busy="true">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-16 rounded-2xl" />)}</div>;
+  if (loading) return <PageLoader label="Cargando esta sección…" words={LOADING_COPY.statsFinance} size="sm" />;
   return null;
 }
 

@@ -8,9 +8,8 @@ import { useUIStore } from '../../store/uiStore';
 import { refreshUser } from '../../hooks/useAuth';
 import { useToastStore } from '../../hooks/useToast';
 import api from '../../lib/api';
-import {
-  Badge, Button, Card, EmptyState, Field, Input, ProgressBar, ProgressRing, Skeleton, Textarea, formatClock,
-} from '@/components/ui/lq';
+import { Badge, Button, Card, EmptyState, Field, Input, ProgressBar, ProgressRing, Textarea, formatClock, PageLoader } from '@/components/ui/lq';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 
 // ─── Pomodoro Timer ────────────────────────────────────────────────────────────
 
@@ -171,7 +170,7 @@ export function NotesPanel({ itemId }: { itemId: string }) {
     } catch { useToastStore.getState().error('No se pudo eliminar la nota'); }
   }
 
-  if (loading) return <Skeleton className="h-40 rounded-2xl" />;
+  if (loading) return <PageLoader label="Abriendo tus apuntes…" words={LOADING_COPY.learningNotes} size="sm" />;
 
   return (
     <div className="flex flex-col gap-4">
@@ -242,7 +241,7 @@ export function VocabPanel({ itemId }: { itemId: string }) {
     } catch { useToastStore.getState().error('No se pudo registrar el repaso'); }
   }
 
-  if (loading) return <Skeleton className="h-40 rounded-2xl" />;
+  if (loading) return <PageLoader label="Barajando tus tarjetas…" words={LOADING_COPY.learningCards} size="sm" />;
 
   const grades: Array<[0 | 2 | 4, string, string]> = [
     [0, 'Nada', 'bg-error/[var(--lq-soft-alpha)] text-error-text'],

@@ -16,6 +16,7 @@ export { Toast, Toaster, useToast } from './Toast';
 export { Modal, Sheet, ResponsiveDialog, useDialogBehavior, type ModalProps } from './Modal';
 export { EmptyState, ErrorState, PageLoader, Skeleton } from './States';
 export { Spinner } from './Spinner';
+export { ModernLoader, type ModernLoaderProps } from './ModernLoader';
 export { Confetti } from './Confetti';
 export { BarChart, LineChart, Heatmap, type BarDatum, type LinePoint, type HeatLevel } from './Charts';
 export type { Tone } from './tones';

@@ -20,10 +20,8 @@ import { useAuthStore } from '@/store/authStore';
 import { useToastStore } from '@/hooks/useToast';
 import { refreshUser } from '@/hooks/useAuth';
 import api from '@/lib/api';
-import {
-  Badge, Button, Card, Confetti, EmptyState, ErrorState, Field, IconChip, Input, Modal, ProgressBar, ResponsiveDialog, Select,
-  Skeleton, Spinner, Switch, Textarea, type Tone,
-} from '@/components/ui/lq';
+import { Badge, Button, Card, Confetti, EmptyState, ErrorState, Field, IconChip, Input, Modal, ProgressBar, ResponsiveDialog, Select, Switch, Textarea, type Tone, PageLoader, Spinner } from '@/components/ui/lq';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 import { getChallenges, createChallenge, joinChallenge } from '@/services/social.service';
 
 interface Challenge {
@@ -195,13 +193,7 @@ function NewChallengeDialog({ open, onClose, onCreated }: { open: boolean; onClo
 // ── Página ───────────────────────────────────────────────────────────────────
 
 function ColosseumSkeleton() {
-  return (
-    <div className="flex flex-col gap-6" aria-busy="true" aria-label="Cargando el coliseo">
-      <Skeleton className="h-48 rounded-2xl" />
-      <div className="grid gap-4 md:grid-cols-3 md:gap-6">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-52 rounded-2xl" />)}</div>
-      <div className="flex items-center justify-center gap-3"><Spinner /><span className="text-body-sm text-on-surface-light">Preparando la arena…</span></div>
-    </div>
-  );
+  return <PageLoader label="Preparando la arena…" words={LOADING_COPY.colosseum} />;
 }
 
 export default function ColosseumPage() {

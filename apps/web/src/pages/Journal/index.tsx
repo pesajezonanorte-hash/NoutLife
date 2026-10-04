@@ -11,10 +11,8 @@ import { useDebounce } from '../../hooks/useDebounce';
 import * as journalService from '../../services/journal.service';
 import { relativeTime } from '../../lib/time';
 import { SageContextButton } from '../../components/sage/SageContextButton';
-import {
-  Badge, Button, Card, ChipGroup, EmptyState, ErrorState, Field, IconChip, Input, MOODS, MoodFace, MoodPicker, ResponsiveDialog,
-  Skeleton, StatCard, Textarea, moodOf, type ChipOption,
-} from '@/components/ui/lq';
+import { Badge, Button, Card, ChipGroup, EmptyState, ErrorState, Field, IconChip, Input, MOODS, MoodFace, MoodPicker, ResponsiveDialog, StatCard, Textarea, moodOf, type ChipOption, PageLoader } from '@/components/ui/lq';
+import { LOADING_COPY } from '@/lib/loadingCopy';
 import { softTone } from '@/components/ui/lq/tones';
 
 const DAILY_PROMPTS = [
@@ -215,7 +213,7 @@ export default function JournalPage() {
         <ChipGroup label="Filtrar por ánimo" options={filterOptions} value={moodFilter} onChange={setMoodFilter} />
 
         {state === 'loading' ? (
-          <div className="flex flex-col gap-3" aria-busy="true" aria-label="Cargando diario">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-28 rounded-2xl" />)}</div>
+          <PageLoader label="Abriendo tu diario…" words={LOADING_COPY.journal} size="sm" />
         ) : state === 'error' ? (
           <ErrorState title="No pudimos cargar tu diario" onRetry={() => void load()} />
         ) : entries.length === 0 ? (
