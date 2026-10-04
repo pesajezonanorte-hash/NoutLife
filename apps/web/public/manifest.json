@@ -5,8 +5,8 @@
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0e1d16",
-  "theme_color": "#0e1d16",
+  "background_color": "#070d0a",
+  "theme_color": "#070d0a",
   "categories": ["lifestyle", "productivity", "games"],
   "icons": [
     { "src": "/icons/icon-72.png",  "sizes": "72x72",   "type": "image/png", "purpose": "any" },

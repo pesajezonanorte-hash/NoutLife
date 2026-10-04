@@ -16,10 +16,10 @@
   --lq-jade-600: 84 143 111;  --lq-jade-700: 61 105 80;   --lq-jade-800: 35 68 51;
   --lq-jade-900: 14 29 22;
 
-  --lq-primary: 84 143 111;          /* jade-600  bars, rings, accents */
-  --lq-primary-strong: 61 105 80;    /* jade-700  button fill (white text 6.3:1) */
-  --lq-primary-hover: 35 68 51;      /* jade-800 */
-  --lq-primary-text: 61 105 80;      /* jade-700  links, active nav */
+  --lq-primary: 30 54 41;            /* #1e3629 negro verdoso: barras, anillos, foco */
+  --lq-primary-strong: 16 30 22;     /* #101e16 negro verdoso: relleno de botón (blanco 16:1) */
+  --lq-primary-hover: 35 58 45;      /* #233a2d: hover se aclara un punto */
+  --lq-primary-text: 22 41 31;       /* #16291f enlaces, nav activa */
   --lq-on-primary: 255 255 255;
 
   --lq-secondary: 176 141 87;        /* champagne gold #b08d57: XP, gold, recompensas */
@@ -75,10 +75,10 @@ html.dark {
   --lq-error: 229 115 105;      --lq-error-text: 242 163 155;      /* #e57369 / #f2a39b */
   --lq-info: 127 182 214;       --lq-info-text: 156 199 224;       /* #7fb6d6 / #9cc7e0 */
 
-  --lq-background: 14 29 22;         /* jade-900 */
-  --lq-surface: 20 38 29;            /* #14261d */
-  --lq-surface-variant: 28 51 40;    /* #1c3328 */
-  --lq-border: 35 68 51;             /* jade-800 */
+  --lq-background: 7 13 10;          /* #070d0a negro verdoso */
+  --lq-surface: 13 22 17;            /* #0d1611 */
+  --lq-surface-variant: 21 34 27;    /* #15221b */
+  --lq-border: 30 46 37;             /* #1e2e25 */
   --lq-border-strong: 95 154 122;    /* #5f9a7a */
   --lq-on-background: 230 242 232;   /* jade-50 */
   --lq-on-surface: 196 226 202;      /* jade-200 */
