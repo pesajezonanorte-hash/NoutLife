@@ -162,7 +162,7 @@ export default function ProfilePage() {
       </div>
       {/* Desktop: tarjeta */}
       <Card variant="elevated" padding="none" className="hidden flex-wrap items-center gap-8 p-10 md:flex">
-        <Avatar name={user.displayName} url={user.avatarUrl} config={user.avatarConfig} className="lq-halo size-28 animate-float text-display-sm motion-reduce:animate-none" />
+        <Avatar name={user.displayName} url={user.avatarUrl} config={user.avatarConfig} className="lq-halo size-28 animate-float text-display-sm [.reduce-motion_&]:animate-none" />
         <div className="flex min-w-0 flex-[1_1_300px] flex-col gap-2">
           <span className="text-label-lg text-primary-text">Miembro desde {since}</span>
           <h1 className="text-display-md">{user.displayName}</h1>

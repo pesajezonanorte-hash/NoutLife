@@ -220,7 +220,7 @@ function CheckinForm({ onDone }: { onDone: () => void }) {
                 onClick={() => setMood(i + 1)}
                 className={cn(
                   'flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl border transition-[background-color,border-color,transform] duration-200',
-                  selected ? 'scale-105 border-primary bg-primary/[var(--lq-soft-alpha)] text-primary-text motion-reduce:scale-100' : 'border-border text-on-surface-light hover:bg-surface-variant',
+                  selected ? 'scale-105 border-primary bg-primary/[var(--lq-soft-alpha)] text-primary-text [.reduce-motion_&]:scale-100' : 'border-border text-on-surface-light hover:bg-surface-variant',
                 )}
               >
                 <Icon aria-hidden className="size-7" strokeWidth={1.75} />

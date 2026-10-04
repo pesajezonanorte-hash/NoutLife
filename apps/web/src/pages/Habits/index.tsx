@@ -209,7 +209,7 @@ export default function HabitsPage() {
           </Card>
           {best && best.currentStreak > 0 && (
             <Card as="section" padding="lg" className="flex flex-col gap-3">
-              <IconChip icon={Trophy} tone="warning" className="animate-float motion-reduce:animate-none" />
+              <IconChip icon={Trophy} tone="warning" className="animate-float [.reduce-motion_&]:animate-none" />
               <h2 className="text-heading-sm">Mejor racha</h2>
               <p className="text-body-md text-on-surface">
                 <b>{best.title}</b> lleva {best.currentStreak} {best.currentStreak === 1 ? 'día' : 'días'}. {nextMilestone - best.currentStreak} más para llegar a {nextMilestone}.

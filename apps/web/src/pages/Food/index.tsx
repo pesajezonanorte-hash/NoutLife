@@ -219,7 +219,7 @@ export default function FoodPage() {
         <Scan aria-hidden className="size-5" strokeWidth={1.75} />Analizar comida
       </Button>
       <div className="hidden flex-wrap items-center gap-6 rounded-2xl border-2 border-dashed border-primary/40 bg-primary/[var(--lq-soft-alpha)] p-8 md:flex">
-        <IconChip icon={Scan} size="lg" className="size-16 rounded-[20px] bg-background animate-float motion-reduce:animate-none [&>svg]:size-8" />
+        <IconChip icon={Scan} size="lg" className="size-16 rounded-[20px] bg-background animate-float [.reduce-motion_&]:animate-none [&>svg]:size-8" />
         <div className="min-w-0 flex-[1_1_240px]">
           <h2 className="text-heading-sm">Analiza tu plato</h2>
           <p className="text-body-md text-on-surface">Describe lo que comiste y calcularemos calorías y macros por ti.</p>

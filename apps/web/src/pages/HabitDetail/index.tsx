@@ -191,7 +191,7 @@ export default function HabitDetailPage() {
       {/* Hero */}
       <motion.section variants={item} className="flex flex-col gap-4 md:flex-row md:flex-wrap md:items-center md:gap-8">
         <span className="relative w-fit">
-          <IconChip icon={Icon} tone={meta.tone} size="lg" className="md:size-28 md:rounded-[32px] md:[&>svg]:size-14 md:animate-float motion-reduce:animate-none" />
+          <IconChip icon={Icon} tone={meta.tone} size="lg" className="md:size-28 md:rounded-[32px] md:[&>svg]:size-14 md:animate-float [.reduce-motion_&]:animate-none" />
         </span>
         <div className="flex min-w-0 flex-col gap-2 md:flex-[1_1_360px]">
           <span className="hidden text-label-lg text-primary-text md:block">{meta.label} · {freq.toLowerCase()} desde el {since}</span>

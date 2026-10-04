@@ -19,7 +19,7 @@ export function StatTile({ icon: Icon, label, value, index = 0 }: StatTileProps)
       initial={reduceMotion ? false : { opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: reduceMotion ? 0 : 0.35, delay: reduceMotion ? 0 : index * 0.05, ease: [0.22, 1, 0.36, 1] }}
-      className="group relative min-w-0 overflow-hidden rounded-2xl border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-panel)_80%,transparent)] p-5 backdrop-blur-md transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-[color-mix(in_srgb,var(--accent-gold)_35%,var(--border))] hover:shadow-[0_10px_32px_-14px_color-mix(in_srgb,var(--accent-gold)_45%,transparent)] motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+      className="group relative min-w-0 overflow-hidden rounded-2xl border border-[var(--border)] bg-[color-mix(in_srgb,var(--bg-panel)_80%,transparent)] p-5 backdrop-blur-md transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-[color-mix(in_srgb,var(--accent-gold)_35%,var(--border))] hover:shadow-[0_10px_32px_-14px_color-mix(in_srgb,var(--accent-gold)_45%,transparent)] [.reduce-motion_&]:transition-none [.reduce-motion_&]:hover:translate-y-0"
     >
       <span
         aria-hidden="true"

@@ -67,7 +67,7 @@ function AchievementCard({ a }: { a: Achievement }) {
         <span className={cn('text-body-sm tabular-nums', on ? 'text-success-text' : 'text-on-surface-light')}>{metaText}</span>
       </div>
       {/* Desktop: la descripción se despliega en hover/foco (grid-rows 0fr → 1fr). */}
-      <div className="hidden w-full grid-rows-[0fr] opacity-0 transition-[grid-template-rows,opacity] duration-300 ease-out group-hover:grid-rows-[1fr] group-hover:opacity-100 group-focus:grid-rows-[1fr] group-focus:opacity-100 motion-reduce:transition-none md:grid">
+      <div className="hidden w-full grid-rows-[0fr] opacity-0 transition-[grid-template-rows,opacity] duration-300 ease-out group-hover:grid-rows-[1fr] group-hover:opacity-100 group-focus:grid-rows-[1fr] group-focus:opacity-100 [.reduce-motion_&]:transition-none md:grid">
         <div className="overflow-hidden">
           <p className="border-t border-border pt-3 text-body-sm text-on-surface">
             {a.description} <span className="text-primary-text">+{a.xpReward} XP</span>
