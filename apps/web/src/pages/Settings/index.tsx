@@ -12,6 +12,7 @@ import {
   FileText,
   Gamepad2,
   Info,
+  LayoutGrid,
   Leaf,
   Monitor,
   Moon,
@@ -27,6 +28,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { ZoneOrderEditor } from "@/components/settings/ZoneOrderEditor";
 import { FlowButton } from "../../components/ui/flow-button";
 import { useAuthStore } from "../../store/authStore";
 import { useUIStore } from "../../store/uiStore";
@@ -48,7 +50,7 @@ import {
   subscribeThemeMode,
 } from "../../lib/themeMode";
 
-type TabId = "profile" | "game" | "data" | "about";
+type TabId = "profile" | "zones" | "game" | "data" | "about";
 type ThemeMode = "dark" | "light" | "system";
 
 interface ThemeOption {
@@ -62,6 +64,7 @@ interface ThemeOption {
 
 const TABS: Array<{ id: TabId; label: string; Icon: LucideIcon }> = [
   { id: "profile", label: "Perfil", Icon: User },
+  { id: "zones", label: "Zonas", Icon: LayoutGrid },
   { id: "game", label: "Juego", Icon: Gamepad2 },
   { id: "data", label: "Datos", Icon: Database },
   { id: "about", label: "Acerca de", Icon: Info },
@@ -639,6 +642,8 @@ export default function Settings() {
               </SectionCard>
             </div>
           )}
+
+          {activeTab === "zones" && <ZoneOrderEditor />}
 
           {activeTab === "game" && (
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">

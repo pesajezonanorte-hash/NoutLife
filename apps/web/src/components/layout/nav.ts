@@ -1,12 +1,15 @@
-// Mapa de navegación del AppShell (docs/redesign/README.md). Las 5 secciones
-// principales van en TabBar/Rail/Sidebar; "Bienestar" replica la sección del
-// sidebar de DashboardDesktop; el resto de zonas existentes (sin prototipo)
-// conservan su ruta y se agrupan en "Más zonas" y "Comunidad".
+// Mapa de navegación del AppShell (docs/redesign/README.md). La navegación
+// principal (TabBar/Sidebar) es Inicio + las 3 zonas que elige el usuario
+// (onboarding o Ajustes → Zonas) + Perfil; el resto queda en Bienestar, "Más
+// zonas" y Comunidad.
 import {
   BarChart3, BookOpen, CalendarDays, HelpCircle, Dumbbell, Flag, Globe, Heart, Home,
   MapPin, Moon, NotebookPen, Scroll, Settings, ShoppingBag, Skull, Sparkles, Sun,
   Swords, Trophy, User, Users, UtensilsCrossed, Wallet, CheckCircle2, type LucideIcon,
 } from 'lucide-react';
+import { useMemo } from 'react';
+import { useAuthStore } from '@/store/authStore';
+import { DEFAULT_ORDER, PINNED_COUNT, useNavStore } from '@/store/navStore';
 
 export interface NavEntry {
   to: string;
@@ -22,14 +25,10 @@ export interface NavSection {
   collapsible?: boolean;
 }
 
-export const PRIMARY_NAV: NavEntry[] = [
-  { to: '/', label: 'Inicio', icon: Home },
-  { to: '/habits', label: 'Hábitos', icon: CheckCircle2 },
-  { to: '/quests', label: 'Misiones', icon: Flag },
-  { to: '/colosseum', label: 'Coliseo', icon: Swords },
-  { to: '/profile', label: 'Perfil', icon: User },
-];
+const HOME: NavEntry = { to: '/', label: 'Inicio', icon: Home };
+const PROFILE: NavEntry = { to: '/profile', label: 'Perfil', icon: User };
 
+/** Secciones con todas las zonas; las zonas principales del usuario se sacan de aquí. */
 export const NAV_SECTIONS: NavSection[] = [
   {
     id: 'wellness',
@@ -46,6 +45,8 @@ export const NAV_SECTIONS: NavSection[] = [
     label: 'Más zonas',
     collapsible: true,
     items: [
+      { to: '/habits', label: 'Hábitos', icon: CheckCircle2 },
+      { to: '/quests', label: 'Misiones', icon: Flag },
       { to: '/stats', label: 'Estadísticas', icon: BarChart3 },
       { to: '/gym', label: 'Gimnasio', icon: Dumbbell },
       { to: '/glow-up', label: 'Glow up', icon: Sparkles },
@@ -64,12 +65,44 @@ export const NAV_SECTIONS: NavSection[] = [
     label: 'Comunidad',
     collapsible: true,
     items: [
+      { to: '/colosseum', label: 'Coliseo', icon: Swords },
       { to: '/leaderboard', label: 'Ranking', icon: Globe },
       { to: '/guild', label: 'Gremio', icon: Users },
       { to: '/season', label: 'Campaña', icon: Skull },
     ],
   },
 ];
+
+/** Todas las zonas que pueden ir en la navegación principal (entre Inicio y Perfil). */
+export const ZONES: NavEntry[] = NAV_SECTIONS.flatMap((s) => s.items);
+
+/** Orden válido y completo: quita rutas desconocidas o repetidas y añade las que falten. */
+export function resolveOrder(order: string[] | undefined): string[] {
+  const known = new Set(ZONES.map((z) => z.to));
+  const valid = [...new Set((order ?? DEFAULT_ORDER).filter((to) => known.has(to)))];
+  return [...valid, ...ZONES.map((z) => z.to).filter((to) => !valid.includes(to))];
+}
+
+export function buildNav(order: string[] | undefined) {
+  const pinned = resolveOrder(order).slice(0, PINNED_COUNT);
+  const byTo = new Map(ZONES.map((z) => [z.to, z]));
+  return {
+    primary: [HOME, ...pinned.map((to) => byTo.get(to)!), PROFILE],
+    sections: NAV_SECTIONS
+      .map((s) => ({ ...s, items: s.items.filter((it) => !pinned.includes(it.to)) }))
+      .filter((s) => s.items.length > 0),
+  };
+}
+
+/** Navegación del usuario actual: Inicio + sus zonas principales + Perfil, y el resto por secciones. */
+export function useNav() {
+  const userId = String(useAuthStore((s) => s.user?.id) ?? 'anon');
+  const order = useNavStore((s) => s.byUser[userId]);
+  return useMemo(() => buildNav(order), [order]);
+}
+
+/** Navegación por defecto (búsqueda rápida y breadcrumb). */
+export const PRIMARY_NAV: NavEntry[] = buildNav(undefined).primary;
 
 export const UTILITY_NAV: NavEntry[] = [
   { to: '/settings', label: 'Ajustes', icon: Settings },
@@ -84,7 +117,7 @@ const EXTRA_LABELS: Record<string, string> = {
   '/quests/new': 'Nueva misión',
 };
 
-const ALL_NAV = [...PRIMARY_NAV, ...NAV_SECTIONS.flatMap((s) => s.items), ...UTILITY_NAV];
+const ALL_NAV = [HOME, PROFILE, ...ZONES, ...UTILITY_NAV];
 
 export function matchesRoute(pathname: string, to: string) {
   return to === '/' ? pathname === '/' : pathname === to || pathname.startsWith(`${to}/`);

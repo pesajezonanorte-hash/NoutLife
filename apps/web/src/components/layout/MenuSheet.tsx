@@ -8,7 +8,7 @@ import { parseEmbed } from '@/components/ui/MusicPlayer';
 import { useShellStore } from '@/store/shellStore';
 import { useThemeStore, type ThemeMode } from '@/store/themeStore';
 import { getLevelTitle } from '@/lib/gameProgress';
-import { NAV_SECTIONS, UTILITY_NAV, matchesRoute, type NavEntry } from './nav';
+import { UTILITY_NAV, matchesRoute, useNav, type NavEntry } from './nav';
 import { useShellActions } from './actions';
 
 const THEMES: { value: ThemeMode; label: string }[] = [
@@ -59,6 +59,7 @@ export function MenuSheet() {
   const setFeedbackOpen = useShellStore((s) => s.setFeedbackOpen);
   const setMusicOpen = useShellStore((s) => s.setMusicOpen);
   const user = useAuthStore((s) => s.user);
+  const nav = useNav();
   const { audioEnabled, toggleAudio } = useUIStore();
   const mode = useThemeStore((s) => s.mode);
   const setMode = useThemeStore((s) => s.setMode);
@@ -88,7 +89,7 @@ export function MenuSheet() {
       )}
 
       <nav aria-label="Todas las zonas" className="flex flex-col gap-6">
-        {NAV_SECTIONS.map((s) => (
+        {nav.sections.map((s) => (
           <section key={s.id} className="flex flex-col gap-3">
             <h3 className="text-label-md uppercase text-on-surface-light">{s.label}</h3>
             <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4">

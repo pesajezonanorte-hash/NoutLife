@@ -17,7 +17,7 @@ import { ease } from '@/lib/motion';
 import { useAuthStore } from '@/store/authStore';
 import { getLevelTitle } from '@/lib/gameProgress';
 import { BrandMark } from './Brand';
-import { NAV_SECTIONS, PRIMARY_NAV, UTILITY_NAV, matchesRoute, type NavEntry, type NavSection } from './nav';
+import { UTILITY_NAV, matchesRoute, useNav, type NavEntry, type NavSection } from './nav';
 
 const OPEN_KEY = 'lq-nav-sections';
 const ENTER_DELAY = 90;
@@ -149,6 +149,7 @@ export function Sidebar({ className }: { className?: string }) {
   const panelRef = useRef<HTMLElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const open = hovered || focused || pinned;
+  const nav = useNav();
 
   const isOpen = (s: NavSection) => openMap[s.id] ?? s.items.some((it) => matchesRoute(pathname, it.to));
   const toggle = (s: NavSection) => {
@@ -237,9 +238,9 @@ export function Sidebar({ className }: { className?: string }) {
 
           <nav aria-label="Principal" className="flex flex-col gap-3">
             <div className="flex flex-col gap-1">
-              {PRIMARY_NAV.map((it) => <SideLink key={it.to} {...it} />)}
+              {nav.primary.map((it) => <SideLink key={it.to} {...it} />)}
             </div>
-            {NAV_SECTIONS.map((s) => (
+            {nav.sections.map((s) => (
               <Section key={s.id} section={s} open={isOpen(s)} onToggle={() => toggle(s)} />
             ))}
           </nav>

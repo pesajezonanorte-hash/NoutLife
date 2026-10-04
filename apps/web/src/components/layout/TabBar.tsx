@@ -2,11 +2,12 @@ import { motion } from 'framer-motion';
 import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { spring } from '@/lib/motion';
-import { PRIMARY_NAV, matchesRoute } from './nav';
+import { matchesRoute, useNav } from './nav';
 
 /** Barra inferior móvil (<768): 5 destinos, 56 px de alto táctil, fondo translúcido. */
 export function TabBar({ className }: { className?: string }) {
   const { pathname } = useLocation();
+  const { primary } = useNav();
   return (
     <nav
       aria-label="Principal"
@@ -16,7 +17,7 @@ export function TabBar({ className }: { className?: string }) {
         className,
       )}
     >
-      {PRIMARY_NAV.map(({ to, label, icon: Icon }) => {
+      {primary.map(({ to, label, icon: Icon }) => {
         const active = matchesRoute(pathname, to);
         return (
           <NavLink
