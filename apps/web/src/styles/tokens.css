@@ -196,3 +196,5 @@ html.dark {
   transition-property: color, background-color, border-color, opacity !important;
   scroll-behavior: auto !important;
 }
+
+@keyframes lq-blink { 50% { opacity: 0; } }

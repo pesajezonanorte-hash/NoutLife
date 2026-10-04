@@ -5,7 +5,8 @@ import { persist } from 'zustand/middleware';
 // PINNED_COUNT zonas que el usuario elige y ordena (Ajustes → Zonas). El resto
 // se agrupa en las secciones de "Más zonas". Se guarda por usuario en este
 // dispositivo.
-// TODO(api): persistir el orden en la cuenta para que viaje entre dispositivos.
+// Las zonas ocultas (Ajustes → Zonas) desaparecen de Sidebar, Rail y menú «Más».
+// TODO(api): persistir orden y zonas ocultas en la cuenta para que viajen entre dispositivos.
 
 export const PINNED_COUNT = 3;
 export const DEFAULT_ORDER = ['/habits', '/quests', '/gym'];
@@ -32,6 +33,9 @@ interface NavState {
   /** Orden de zonas por id de usuario; las PINNED_COUNT primeras son las principales. */
   byUser: Record<string, string[]>;
   setOrder: (userId: string, order: string[]) => void;
+  /** Zonas ocultas por id de usuario (nunca las principales). */
+  hiddenByUser: Record<string, string[]>;
+  setHidden: (userId: string, to: string, hidden: boolean) => void;
 }
 
 export const useNavStore = create<NavState>()(
@@ -39,6 +43,12 @@ export const useNavStore = create<NavState>()(
     (set) => ({
       byUser: {},
       setOrder: (userId, order) => set((s) => ({ byUser: { ...s.byUser, [userId]: order } })),
+      hiddenByUser: {},
+      setHidden: (userId, to, hidden) => set((s) => {
+        const cur = new Set(s.hiddenByUser[userId] ?? []);
+        if (hidden) cur.add(to); else cur.delete(to);
+        return { hiddenByUser: { ...s.hiddenByUser, [userId]: [...cur] } };
+      }),
     }),
     { name: 'lq-nav-zones' },
   ),

@@ -82,13 +82,14 @@ export function resolveOrder(order: string[] | undefined): string[] {
   return [...valid, ...ZONES.map((z) => z.to).filter((to) => !valid.includes(to))];
 }
 
-export function buildNav(order: string[] | undefined) {
+export function buildNav(order: string[] | undefined, hidden: string[] = []) {
   const pinned = resolveOrder(order).slice(0, PINNED_COUNT);
+  const off = new Set(hidden.filter((to) => !pinned.includes(to)));
   const byTo = new Map(ZONES.map((z) => [z.to, z]));
   return {
     primary: [HOME, ...pinned.map((to) => byTo.get(to)!), PROFILE],
     sections: NAV_SECTIONS
-      .map((s) => ({ ...s, items: s.items.filter((it) => !pinned.includes(it.to)) }))
+      .map((s) => ({ ...s, items: s.items.filter((it) => !pinned.includes(it.to) && !off.has(it.to)) }))
       .filter((s) => s.items.length > 0),
   };
 }
@@ -97,7 +98,8 @@ export function buildNav(order: string[] | undefined) {
 export function useNav() {
   const userId = String(useAuthStore((s) => s.user?.id) ?? 'anon');
   const order = useNavStore((s) => s.byUser[userId]);
-  return useMemo(() => buildNav(order), [order]);
+  const hidden = useNavStore((s) => s.hiddenByUser?.[userId]);
+  return useMemo(() => buildNav(order, hidden), [order, hidden]);
 }
 
 /** Navegación por defecto (búsqueda rápida y breadcrumb). */
