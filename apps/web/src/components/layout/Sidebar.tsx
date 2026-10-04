@@ -147,6 +147,7 @@ export function Sidebar({ className }: { className?: string }) {
   const [pinned, setPinned] = useState(false);
   const timer = useRef<number>();
   const panelRef = useRef<HTMLElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const open = hovered || focused || pinned;
 
   const isOpen = (s: NavSection) => openMap[s.id] ?? s.items.some((it) => matchesRoute(pathname, it.to));
@@ -170,6 +171,22 @@ export function Sidebar({ className }: { className?: string }) {
   // Teclado: se despliega mientras el foco (visible) esté dentro.
   const onFocus = (e: FocusEvent) => { if ((e.target as HTMLElement).matches(':focus-visible')) setFocused(true); };
   const onBlur = (e: FocusEvent) => { if (!panelRef.current?.contains(e.relatedTarget as Node)) setFocused(false); };
+
+  // La rueda sobre el sidebar nunca desplaza la página: si el scroll interno ya
+  // está en su tope (o no hay scroll), se cancela en vez de pasar a la página.
+  useEffect(() => {
+    const panel = panelRef.current;
+    const list = scrollRef.current;
+    if (!panel || !list) return;
+    const onWheel = (e: WheelEvent) => {
+      if (e.ctrlKey) return; // zoom del navegador
+      const atTop = list.scrollTop <= 0;
+      const atBottom = list.scrollTop + list.clientHeight >= list.scrollHeight - 1;
+      if ((e.deltaY < 0 && atTop) || (e.deltaY > 0 && atBottom) || !(e.target instanceof Node && list.contains(e.target))) e.preventDefault();
+    };
+    panel.addEventListener('wheel', onWheel, { passive: false });
+    return () => panel.removeEventListener('wheel', onWheel);
+  }, []);
 
   // Al navegar se suelta el anclado manual (táctil).
   useEffect(() => { setPinned(false); }, [pathname]);
@@ -212,7 +229,7 @@ export function Sidebar({ className }: { className?: string }) {
           'group/side sticky top-0 h-dvh w-full overflow-hidden border-r border-border bg-surface',
         )}
       >
-        <div className="flex h-full w-64 flex-col gap-4 overflow-y-auto overflow-x-hidden px-3 py-4 [scrollbar-gutter:stable] [scrollbar-width:thin] [scrollbar-color:transparent_transparent] group-data-[open=true]/side:[scrollbar-color:rgb(var(--lq-border-strong))_transparent]">
+        <div ref={scrollRef} className="flex h-full w-64 flex-col gap-4 overflow-y-auto overscroll-contain overflow-x-hidden px-3 py-4 [scrollbar-gutter:stable] [scrollbar-width:thin] [scrollbar-color:transparent_transparent] group-data-[open=true]/side:[scrollbar-color:rgb(var(--lq-border-strong))_transparent]">
           <Link to="/" className="flex min-h-11 items-center gap-3 rounded-xl px-1" aria-label="LifeQuest, ir al inicio">
             <BrandMark />
             <span className={cn('text-heading-sm text-on-background', reveal)}>LifeQuest</span>
