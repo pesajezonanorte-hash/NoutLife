@@ -53,10 +53,10 @@ function useLookHistory(look: PixelLook, onCommit: (l: PixelLook) => void) {
 }
 
 // ── Opciones ────────────────────────────────────────────────────────────────
-const gridV: Variants = { initial: {}, animate: { transition: { staggerChildren: 0.022 } } };
+// Cascada corta y con tope: toda la rejilla está visible en menos de ~0,4 s.
 const tileV: Variants = {
-  initial: { opacity: 0, y: 12, scale: 0.94 },
-  animate: { opacity: 1, y: 0, scale: 1, transition: { type: 'spring', stiffness: 380, damping: 26 } },
+  initial: { opacity: 0, y: 8, scale: 0.96 },
+  animate: (i: number) => ({ opacity: 1, y: 0, scale: 1, transition: { type: 'spring', stiffness: 520, damping: 34, delay: Math.min(i * 0.012, 0.18) } }),
 };
 const tileCls = cn(
   'group relative flex min-h-[100px] cursor-pointer flex-col items-center justify-end gap-1 rounded-2xl border border-border bg-background px-1 pb-2 pt-1 text-center',
@@ -94,11 +94,11 @@ function OptionGrid<T extends string>({ title, look, options, value, preview, cr
   const name = useId();
   return (
     <Section title={title} count={options.length}>
-      <motion.div variants={gridV} initial="initial" animate="animate" className="grid grid-cols-3 gap-2 min-[420px]:grid-cols-4">
-        {options.map((o) => {
+      <div className="grid grid-cols-3 gap-2 min-[420px]:grid-cols-4">
+        {options.map((o, i) => {
           const on = value === o.id;
           return (
-            <motion.label key={o.id} variants={tileV} whileHover={{ y: -3 }} whileTap={{ scale: 0.95 }} className={tileCls}>
+            <motion.label key={o.id} variants={tileV} custom={i} initial="initial" animate="animate" whileHover={{ y: -3 }} whileTap={{ scale: 0.95 }} className={tileCls}>
               <input type="radio" name={name} value={o.id} checked={on} onChange={() => onSelect(o.id)} className="sr-only" />
               {on && <Selected id={`sel-${name}`} />}
               <span className="relative transition-transform duration-300 ease-[cubic-bezier(.34,1.56,.64,1)] group-hover:scale-110">
@@ -108,7 +108,7 @@ function OptionGrid<T extends string>({ title, look, options, value, preview, cr
             </motion.label>
           );
         })}
-      </motion.div>
+      </div>
     </Section>
   );
 }
@@ -117,11 +117,11 @@ function ExtrasGrid({ look, onChange }: { look: PixelLook; onChange: (l: PixelLo
   return (
     <Section title="Accesorios" count={EXTRAS.length}>
       <p className="-mt-1 text-body-sm text-on-surface-light">Combina los que quieras; solo un sombrero y unas gafas a la vez.</p>
-      <motion.div variants={gridV} initial="initial" animate="animate" className="grid grid-cols-3 gap-2 min-[420px]:grid-cols-4">
-        {EXTRAS.map((o) => {
+      <div className="grid grid-cols-3 gap-2 min-[420px]:grid-cols-4">
+        {EXTRAS.map((o, i) => {
           const on = look.extras.includes(o.id);
           return (
-            <motion.label key={o.id} variants={tileV} whileHover={{ y: -3 }} whileTap={{ scale: 0.95 }} className={tileCls}>
+            <motion.label key={o.id} variants={tileV} custom={i} initial="initial" animate="animate" whileHover={{ y: -3 }} whileTap={{ scale: 0.95 }} className={tileCls}>
               <input type="checkbox" checked={on} onChange={() => onChange(toggleExtra(look, o.id))} className="sr-only" />
               <AnimatePresence>
                 {on && (
@@ -138,7 +138,7 @@ function ExtrasGrid({ look, onChange }: { look: PixelLook; onChange: (l: PixelLo
             </motion.label>
           );
         })}
-      </motion.div>
+      </div>
     </Section>
   );
 }
@@ -160,18 +160,15 @@ function Controls({ look, commit, tab, setTab }: { look: PixelLook; commit: (l: 
   return (
     <div className="flex flex-col gap-5">
       <Tabs label="Partes del personaje" value={tab} onChange={setTab} options={TABS} />
-      <AnimatePresence mode="wait" initial={false} custom={dir.current}>
-        <motion.div
+      {/* El panel nuevo entra al instante (sin esperar la salida del anterior):
+          cambiar rápido de pestaña nunca deja el panel vacío. */}
+      <motion.div
           key={tab}
           role="tabpanel"
           aria-label={TABS.find((t) => t.value === tab)?.label}
-          custom={dir.current}
-          variants={{
-            initial: (d: number) => ({ opacity: 0, x: d * 28 }),
-            animate: { opacity: 1, x: 0, transition: { type: 'spring', stiffness: 320, damping: 30 } },
-            exit: (d: number) => ({ opacity: 0, x: d * -20, transition: { duration: 0.14 } }),
-          }}
-          initial="initial" animate="animate" exit="exit"
+          initial={{ opacity: 0, x: dir.current * 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ type: 'spring', stiffness: 420, damping: 34 }}
           className="flex flex-col gap-8"
         >
           {tab === 'cuerpo' && (
@@ -217,8 +214,7 @@ function Controls({ look, commit, tab, setTab }: { look: PixelLook; commit: (l: 
               <ColorField label="Color de accesorios" value={look.extraColor} colors={CLOTH_COLORS} onChange={set('extraColor')} />
             </>
           )}
-        </motion.div>
-      </AnimatePresence>
+      </motion.div>
     </div>
   );
 }
