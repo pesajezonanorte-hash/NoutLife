@@ -1,7 +1,15 @@
 // Campaña (CampaignDesktop). Temporada activa: cuenta atrás en vivo, pase
 // Gratis/Premium, capítulos (eventos), jefe comunitario y tu temporada.
 // Sin temporada: cuenta atrás a la próxima + interruptor «Avísame cuando empiece».
+// Zona ambientada: un periódico. La hoja se despliega al llegar: cabecera con la
+// fecha y el número de edición (el día de la temporada), el titular de la
+// temporada que se entinta, la crónica del jefe, los objetivos como noticias
+// breves en columnas (al reclamar uno cae el sello «Noticia cumplida»), los
+// capítulos como artículos y la clasificación como tabla deportiva.
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Ink, Masthead, Sheet, Stamp } from '@/components/season/Newspaper';
+import { ZoneShell } from '@/components/ambience';
+import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Bell, Coins, Crown, Flag, Gift, Mountain, Skull, Sparkles, Swords, Zap } from 'lucide-react';
@@ -10,8 +18,8 @@ import { item, stagger } from '@/lib/motion';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/useToast';
 import {
-  Badge, BossBar, Button, Card, Countdown, ErrorState, IconChip, LeaderRow, PageLoader, SeasonPassTrack, SegmentedControl,
-  SpotCard, Switch, type PassReward,
+  Badge, BossBar, Button, Countdown, ErrorState, IconChip, PageLoader, SegmentedControl,
+  Switch, type PassReward,
 } from '@/components/ui/lq';
 
 interface Participant { userId: string; damageDealt: number; user: { displayName: string; username: string; level: number } }
@@ -26,6 +34,7 @@ interface SeasonData { season: Season; userDamage: number }
 
 const initials = (n: string) => n.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
 const fmt = (n: number) => Math.round(n).toLocaleString('es-CO');
+const longDate = (d: Date) => d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).replace(/^\p{L}/u, (c) => c.toUpperCase());
 
 /** Primer día del mes siguiente: fecha de referencia cuando no hay temporada. */
 function nextSeasonDate() {
@@ -66,27 +75,31 @@ function Inactive() {
     toast.info(on ? 'Te avisaremos cuando empiece' : 'Aviso desactivado');
   };
   return (
-    <motion.div variants={stagger} initial="initial" animate="animate" className="mx-auto flex max-w-[820px] flex-col items-center gap-8 pt-6 text-center md:pt-16">
-      <motion.span variants={item}>
-        <IconChip icon={Mountain} tone="primary" size="lg" className="lq-halo size-24 animate-float rounded-[36px] [.reduce-motion_&]:animate-none md:size-28" />
-      </motion.span>
-      <motion.div variants={item} className="flex flex-col gap-2">
-        <span className="text-label-lg text-primary-text">Campaña</span>
-        <h1 className="text-display-sm md:text-display-md lg:text-display-lg">No hay temporada activa</h1>
-        <p className="text-body-lg text-on-surface-light">Vuelve pronto para la próxima batalla. Mientras tanto, cada XP que ganes cuenta para tu nivel.</p>
-      </motion.div>
-      <motion.div variants={item}><Countdown to={nextSeasonDate()} accent={false} className="justify-center" /></motion.div>
-      <motion.div variants={item} className="w-full">
-        <Card padding="md" className="flex items-center gap-4 text-left">
+    <Sheet className="mx-auto w-full max-w-[860px]">
+      <Masthead
+        title="Crónica de temporada"
+        left={<span>Edición especial</span>}
+        right={<span>Próxima temporada</span>}
+        dateline={<span>{longDate(new Date())}</span>}
+      />
+      <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col items-center gap-6 pt-8 text-center">
+        <motion.span variants={item}><IconChip icon={Mountain} tone="primary" size="lg" className="size-20 rounded-[28px]" /></motion.span>
+        <motion.div variants={item} className="flex flex-col gap-2">
+          <Ink as="h1" d={900} delay={500} className="text-display-sm md:text-display-md">No hay temporada activa</Ink>
+          <p className="mx-auto max-w-[60ch] text-body-lg text-on-surface">Vuelve pronto para la próxima batalla. Mientras tanto, cada XP que ganes cuenta para tu nivel.</p>
+        </motion.div>
+        <motion.div variants={item}><Countdown to={nextSeasonDate()} accent={false} className="justify-center" /></motion.div>
+        <motion.div variants={item} className="lq-rule w-full" aria-hidden="true" />
+        <motion.div variants={item} className="flex w-full items-center gap-4 text-left">
           <IconChip icon={Bell} tone="info" />
           <div className="flex-1">
             <label htmlFor="season-notify" className="text-label-lg md:text-body-md md:font-semibold">Avísame cuando empiece</label>
-            <div className="text-body-sm text-on-surface-light">Te enviaremos una notificación el primer día.</div>
+            <div className="text-body-sm text-on-surface">Te enviaremos una notificación el primer día.</div>
           </div>
           <Switch id="season-notify" checked={notify} onChange={(e) => toggle(e.target.checked)} />
-        </Card>
+        </motion.div>
       </motion.div>
-    </motion.div>
+    </Sheet>
   );
 }
 
@@ -116,115 +129,138 @@ function Active({ data }: { data: SeasonData }) {
   }), [season.rewards, n, track, claimed, lostPct]);
   const tier = rewards.filter((r) => lostPct >= r.level).length;
 
+  // Número de edición: el día de la temporada.
+  const edition = Math.max(1, Math.floor((Date.now() - new Date(season.startDate).getTime()) / 86400000) + 1);
+  const [fresh, setFresh] = useState<string | null>(null);
+  // Lo que falta, para la oreja de la cabecera (la página se actualiza cada 30 s).
+  const ms = Math.max(0, new Date(season.endDate).getTime() - Date.now());
+  const daysLeft = Math.floor(ms / 86400000);
+  const left = daysLeft >= 1 ? `${daysLeft} ${daysLeft === 1 ? 'día' : 'días'}` : `${Math.floor(ms / 3600000)} h`;
+
   return (
-    <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-8 md:gap-12">
-      <motion.div variants={item}>
-        <SpotCard className="flex flex-wrap items-center gap-8 md:gap-10">
-          <div className="flex min-w-0 flex-[1_1_380px] flex-col gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-label-lg text-primary-text">Temporada activa</span>
-              <Badge variant="success" icon={Sparkles}>En curso</Badge>
-            </div>
-            <h1 className="text-display-sm md:text-display-md lg:text-display-lg">{season.name}</h1>
-            <p className="max-w-[480px] text-body-lg text-on-surface-light">{season.description}</p>
-            <div className="mt-2 flex flex-wrap gap-3">
-              <Button onClick={() => navigate('/quests')}><Flag aria-hidden className="size-4" strokeWidth={1.75} />Ver misiones</Button>
-            </div>
-          </div>
-          <div className="flex flex-col items-start gap-3">
-            <span className="text-label-lg text-on-surface">Termina en</span>
-            <Countdown to={season.endDate} />
-          </div>
-        </SpotCard>
+    <Sheet>
+      <Masthead
+        title="Crónica de temporada"
+        left={<span>Edición nº <span className="font-mono">{edition}</span></span>}
+        right={<span>Termina en <span className="font-mono">{left}</span></span>}
+        dateline={<><span>{longDate(new Date())}</span><span><span className="font-mono">{fmt(season.participants?.length ?? 0)}</span> aventureros en la campaña</span></>}
+      />
+
+      {/* Titular de portada */}
+      <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-3 py-6 text-center md:py-8">
+        <motion.div variants={item} className="flex justify-center"><Badge variant="success" icon={Sparkles}>Temporada en curso</Badge></motion.div>
+        <Ink as="h1" d={1100} delay={650} className="mx-auto max-w-[22ch] text-display-sm [text-wrap:balance] md:text-display-md lg:text-display-lg">{season.name}</Ink>
+        <motion.p variants={item} className="mx-auto max-w-[62ch] text-body-lg text-on-surface">{season.description}</motion.p>
+        <motion.div variants={item} className="flex justify-center"><Button onClick={() => navigate('/quests')}><Flag aria-hidden className="size-4" strokeWidth={1.75} />Ver misiones</Button></motion.div>
+      </motion.div>
+      <div className="lq-rule" aria-hidden="true" />
+
+      <motion.div variants={stagger} initial="initial" animate="animate" className="grid gap-6 py-6 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] md:gap-8">
+        {/* Crónica principal: el jefe de la temporada */}
+        <motion.section variants={item} aria-labelledby="boss-t" className="flex flex-col gap-3">
+          <span className="text-label-md text-error-text">Crónica principal</span>
+          <Ink as="h2" d={800} delay={900} className="text-heading-lg md:text-heading-xl">
+            <span id="boss-t">{season.bossName} ya perdió el <span className="font-mono">{Math.round(lostPct)}%</span> de su vida</span>
+          </Ink>
+          <BossBar eyebrow="Jefe de temporada" name={season.bossName} icon={Skull} hp={season.currentHp} maxHp={season.bossHp}
+            note={`${(season.participants?.length ?? 0).toLocaleString('es-CO')} aventureros han dañado al jefe. Cada hábito y misión le quita vida.`} />
+        </motion.section>
+        {/* Recuadro lateral: tu crónica */}
+        <motion.aside variants={item} aria-labelledby="mine-t" className="lq-rule-v flex flex-col gap-3 md:pl-8">
+          <span className="text-label-md text-on-surface">En primera persona</span>
+          <h2 id="mine-t" className="text-heading-md">Tu temporada</h2>
+          <dl className="grid grid-cols-2 gap-3">
+            <div><dt className="text-body-sm text-on-surface">Tu daño</dt><dd className="font-mono text-heading-md tabular-nums">{fmt(userDamage)}</dd></div>
+            <div><dt className="text-body-sm text-on-surface">Puesto</dt><dd className="font-mono text-heading-md tabular-nums">{myRank ? `#${myRank}` : '—'}</dd></div>
+          </dl>
+        </motion.aside>
       </motion.div>
 
       {rewards.length > 0 && (
-        <motion.section variants={item} aria-labelledby="pass-t">
-          <Card padding="lg" className="flex flex-col gap-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+        <>
+          <div className="lq-rule" aria-hidden="true" />
+          <section aria-labelledby="pass-t" className="flex flex-col gap-4 py-6">
+            <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
-                <h2 id="pass-t" className="text-heading-lg">Pase de temporada</h2>
-                <p className="text-body-sm text-on-surface-light">
-                  <span className="font-mono">{tier}</span> de <span className="font-mono">{rewards.length}</span> recompensas liberadas · se liberan a medida que la comunidad daña al jefe
+                <h2 id="pass-t" className="text-heading-lg">Objetivos de la temporada</h2>
+                <p className="text-body-sm text-on-surface">
+                  <span className="font-mono">{tier}</span> de <span className="font-mono">{rewards.length}</span> cumplidos: se logran a medida que la comunidad daña al jefe.
                 </p>
               </div>
               <div className="w-full max-w-[300px]">
                 <SegmentedControl label="Pista" value={track} onChange={setTrack} options={[{ value: 'free', label: 'Gratis' }, { value: 'premium', label: 'Premium' }]} />
               </div>
             </div>
-            <SeasonPassTrack
-              key={track}
-              rewards={rewards}
-              progress={lostPct}
-              onClaim={(r) => { claim(String(rewards.indexOf(r))); toast.success(`Reclamaste: ${r.name}`); }}
-            />
-            {track === 'premium' && <p className="text-body-sm text-on-surface-light">La pista Premium todavía no está disponible.</p>}
-          </Card>
-        </motion.section>
+            {track === 'premium' && <p className="text-body-sm text-on-surface">La pista Premium todavía no está disponible.</p>}
+            {/* Noticias breves en columnas */}
+            <motion.ol variants={stagger} initial="initial" animate="animate" className="lq-columns columns-1 sm:columns-2 lg:columns-3">
+              {rewards.map((r, i) => {
+                const Icon = r.icon;
+                return (
+                  <motion.li key={i} variants={item} className={cn('relative mb-5 flex break-inside-avoid flex-col gap-1.5 border-b border-on-background/15 pb-5', r.state === 'locked' && 'opacity-70')}>
+                    <span className="flex items-center gap-2 text-label-md text-on-surface"><Icon aria-hidden className="size-4" strokeWidth={1.75} />Al <span className="font-mono">{r.level}%</span> de daño</span>
+                    <h3 className="text-heading-sm">{r.name}</h3>
+                    <p className="text-body-sm text-on-surface">
+                      {r.state === 'claimed' ? 'Recompensa recibida.' : r.state === 'claimable' ? 'La comunidad lo logró: ya puedes reclamarla.' : r.state === 'premium' ? 'Solo en la pista Premium.' : 'Aún falta daño al jefe para liberarla.'}
+                    </p>
+                    {r.state === 'claimable' && (
+                      <Button size="sm" className="mt-1 self-start" onClick={() => { claim(String(i)); setFresh(String(i)); toast.success(`Reclamaste: ${r.name}`); }}>Reclamar</Button>
+                    )}
+                    {r.state === 'claimed' && <Stamp animate={fresh === String(i)} className="absolute right-0 top-1">Noticia cumplida</Stamp>}
+                  </motion.li>
+                );
+              })}
+            </motion.ol>
+          </section>
+        </>
       )}
 
-      <div className="flex flex-wrap items-start gap-6">
-        <motion.section variants={item} aria-labelledby="ch-t" className="flex min-w-0 flex-[2_1_520px] flex-col">
-          <Card padding="lg" className="flex flex-col gap-4">
-            <div className="flex items-center justify-between gap-2">
-              <h2 id="ch-t" className="text-heading-lg">Capítulos</h2>
-              <Badge variant="primary"><span className="font-mono">{(season.events ?? []).length}</span> eventos</Badge>
-            </div>
-            {(season.events ?? []).length === 0 ? (
-              <p className="text-body-md text-on-surface-light">Aún no hay eventos en esta temporada.</p>
-            ) : (
-              <motion.ul variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-2">
-                {(season.events ?? []).map((ev) => {
-                  const live = Date.now() >= new Date(ev.startDate).getTime() && Date.now() <= new Date(ev.endDate).getTime();
-                  return (
-                    <motion.li key={ev.id} variants={item} className="flex min-h-16 items-center gap-3 rounded-xl px-2 py-2 hover:bg-surface-variant">
-                      <IconChip icon={Swords} tone={live ? 'primary' : 'muted'} size="sm" />
-                      <div className="min-w-0 flex-1">
-                        <div className="text-label-lg md:text-body-md md:font-semibold">{ev.name}</div>
-                        <div className="text-body-sm text-on-surface-light">{ev.description}</div>
-                      </div>
-                      <span className="font-mono text-label-lg tabular-nums text-primary-text">×{ev.bonusXpMult} XP</span>
-                    </motion.li>
-                  );
-                })}
-              </motion.ul>
-            )}
-          </Card>
-        </motion.section>
-
-        <div className="flex min-w-0 flex-[1_1_300px] flex-col gap-6">
-          <motion.div variants={item}>
-            <Card padding="lg">
-              <BossBar eyebrow="Jefe de temporada" name={season.bossName} icon={Skull} hp={season.currentHp} maxHp={season.bossHp}
-                note={`${(season.participants?.length ?? 0).toLocaleString('es-CO')} aventureros han dañado al jefe. Cada hábito y misión le quita vida.`} />
-            </Card>
-          </motion.div>
-          <motion.div variants={item}>
-            <Card padding="lg" className="flex flex-col gap-3">
-              <h2 className="text-heading-sm">Tu temporada</h2>
-              <div className="grid grid-cols-2 gap-2">
-                <Card padding="sm" className="bg-background"><div className="text-body-sm text-on-surface-light">Tu daño</div><div className="font-mono text-heading-sm tabular-nums">{fmt(userDamage)}</div></Card>
-                <Card padding="sm" className="bg-background"><div className="text-body-sm text-on-surface-light">Puesto</div><div className="font-mono text-heading-sm tabular-nums">{myRank ? `#${myRank}` : '—'}</div></Card>
-              </div>
-            </Card>
-          </motion.div>
-        </div>
-      </div>
-
-      {ranked.length > 0 && (
-        <motion.section variants={item} aria-labelledby="dmg-t">
-          <Card padding="sm" className="flex flex-col gap-1">
-            <h2 id="dmg-t" className="px-3 pb-2 pt-2 text-heading-sm">Más daño al jefe</h2>
+      <div className="lq-rule" aria-hidden="true" />
+      <div className="grid gap-6 pt-6 md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] md:gap-8">
+        {/* Capítulos: artículos de la edición */}
+        <section aria-labelledby="ch-t" className="flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-2">
+            <h2 id="ch-t" className="text-heading-lg">Capítulos</h2>
+            <span className="text-body-sm text-on-surface"><span className="font-mono">{(season.events ?? []).length}</span> eventos</span>
+          </div>
+          {(season.events ?? []).length === 0 ? (
+            <p className="text-body-md text-on-surface">Aún no hay eventos en esta temporada.</p>
+          ) : (
+            <motion.ul variants={stagger} initial="initial" animate="animate" className="lq-columns columns-1 lg:columns-2">
+              {(season.events ?? []).map((ev) => {
+                const live = Date.now() >= new Date(ev.startDate).getTime() && Date.now() <= new Date(ev.endDate).getTime();
+                return (
+                  <motion.li key={ev.id} variants={item} className="mb-4 flex break-inside-avoid flex-col gap-1 border-b border-on-background/15 pb-4">
+                    {live && <span className="text-label-md text-error-text">Última hora: en curso</span>}
+                    <h3 className="text-heading-sm">{ev.name}</h3>
+                    <p className="text-body-sm text-on-surface">{ev.description}</p>
+                    <span className="font-mono text-label-lg tabular-nums text-primary-text">×{ev.bonusXpMult} XP</span>
+                  </motion.li>
+                );
+              })}
+            </motion.ul>
+          )}
+        </section>
+        {/* Clasificación: la tabla de la página de deportes */}
+        {ranked.length > 0 && (
+          <section aria-labelledby="dmg-t" className="lq-rule-v flex flex-col gap-3 md:pl-8">
+            <h2 id="dmg-t" className="text-heading-lg">Más daño al jefe</h2>
             <ol className="flex flex-col">
-              {ranked.slice(0, 10).map((p, i) => (
-                <LeaderRow key={p.userId} id={p.userId} position={i + 1} name={p.user.displayName} initials={initials(p.user.displayName)}
-                  subtitle={`@${p.user.username} · Nivel ${p.user.level}`} score={fmt(p.damageDealt)} isYou={p.userId === String(me?.id)} toneIndex={i} />
-              ))}
+              {ranked.slice(0, 10).map((p, i) => {
+                const you = p.userId === String(me?.id);
+                return (
+                  <li key={p.userId} aria-current={you || undefined} className={cn('flex items-baseline gap-3 border-b border-dotted border-on-background/25 py-2', you && 'font-semibold text-secondary-text')}>
+                    <span className="w-6 font-mono text-label-lg tabular-nums">{i + 1}</span>
+                    <span className="min-w-0 flex-1 truncate text-body-md">{p.user.displayName}{you && ' (tú)'}</span>
+                    <span className="font-mono text-label-lg tabular-nums">{fmt(p.damageDealt)}</span>
+                  </li>
+                );
+              })}
             </ol>
-          </Card>
-        </motion.section>
-      )}
-    </motion.div>
+          </section>
+        )}
+      </div>
+    </Sheet>
   );
 }
 
@@ -252,5 +288,9 @@ export default function SeasonPage() {
 
   if (state === 'loading') return <PageLoader />;
   if (state === 'error') return <ErrorState onRetry={() => void load()} />;
-  return data?.season?.isActive !== false && data?.season ? <Active data={data} /> : <Inactive />;
+  return (
+    <ZoneShell zone="season" ambience={<span className="lq-tex-newsprint absolute inset-0 block opacity-60 [mask-image:radial-gradient(120%_80%_at_50%_10%,#000_30%,transparent_75%)]" />}>
+      {data?.season?.isActive !== false && data?.season ? <Active data={data} /> : <Inactive />}
+    </ZoneShell>
+  );
 }

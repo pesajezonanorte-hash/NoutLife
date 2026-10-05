@@ -830,3 +830,28 @@ html.dark .lq-tent-shade { fill: color-mix(in srgb, rgb(var(--lq-secondary)) 22%
 /* Los miembros alrededor del fuego se balancean apenas. */
 .lq-camper { animation: lq-camper 3.6s ease-in-out infinite alternate; }
 @keyframes lq-camper { from { transform: translateY(0) rotate(-1.2deg); } to { transform: translateY(-2px) rotate(1.2deg); } }
+
+/* ───────── Temporada (periódico) ───────── */
+/* Papel prensa: blanco roto con la trama de puntos de imprenta y su sombra. */
+.lq-newspaper {
+  background-color: color-mix(in srgb, rgb(var(--lq-surface)) 92%, rgb(var(--lq-secondary)));
+  background-image: radial-gradient(rgb(var(--lq-on-background) / .05) .55px, transparent .7px);
+  background-size: 4px 4px;
+  box-shadow: 0 1px 0 rgb(var(--lq-border)), 0 3px 0 -1px color-mix(in srgb, rgb(var(--lq-surface)) 88%, rgb(var(--lq-secondary))), 0 4px 0 -1px rgb(var(--lq-border)), 0 22px 38px -20px rgb(var(--lq-jade-900) / .45);
+}
+html.dark .lq-newspaper { background-color: color-mix(in srgb, rgb(var(--lq-surface-variant)) 92%, rgb(var(--lq-secondary))); background-image: radial-gradient(rgb(255 255 255 / .035) .55px, transparent .7px); box-shadow: 0 22px 38px -18px rgb(0 0 0 / .8); }
+.lq-fold { background: linear-gradient(180deg, transparent, rgb(var(--lq-jade-900) / .045) 48%, rgb(255 255 255 / .25) 52%, transparent); }
+html.dark .lq-fold { background: linear-gradient(180deg, transparent, rgb(0 0 0 / .2) 48%, rgb(255 255 255 / .03) 52%, transparent); }
+/* Filetes de imprenta. */
+.lq-rule { height: 1px; background: rgb(var(--lq-on-background) / .55); }
+.lq-rule-double { height: 4px; border-top: 2px solid rgb(var(--lq-on-background) / .8); border-bottom: 1px solid rgb(var(--lq-on-background) / .55); }
+.lq-rule-v { border-left: 1px solid rgb(var(--lq-on-background) / .25); }
+/* Orejas de la cabecera: recuadros a los lados del título. */
+.lq-ear { border: 1px solid rgb(var(--lq-on-background) / .4); padding: .4rem .7rem; font-size: .75rem; line-height: 1.1rem; }
+/* La tinta: el texto se asienta un poco más oscuro, con la mínima rebaba de la imprenta. */
+.lq-ink-text { text-shadow: 0 0 .6px rgb(var(--lq-on-background) / .35); }
+/* Columnas de artículos con su filete vertical. */
+.lq-columns { column-gap: 2rem; column-rule: 1px solid rgb(var(--lq-on-background) / .2); }
+/* Sello «Noticia cumplida»: tinta roja con el borde gastado. */
+.lq-news-stamp { color: rgb(var(--lq-error-text)); border-color: rgb(var(--lq-error-text)); -webkit-mask: radial-gradient(rgb(0 0 0) 70%, rgb(0 0 0 / .55) 100%) 0 0 / 5px 5px; mask: radial-gradient(rgb(0 0 0) 70%, rgb(0 0 0 / .55) 100%) 0 0 / 5px 5px; }
+html.dark .lq-news-stamp { color: rgb(var(--lq-error)); border-color: rgb(var(--lq-error)); }
