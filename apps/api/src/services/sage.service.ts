@@ -83,6 +83,27 @@ export const SAGE_TIRED_REPLY =
   'Hoy hemos conversado mucho y necesito reposar los ojos. Vuelve mañana y seguimos. ' +
   'Mientras tanto, tus hábitos, misiones, comidas y todo lo demás siguen funcionando como siempre.';
 
+// Respuesta cuando la IA falla por otra razón (modelo retirado, red...): en
+// personaje, nunca el error técnico de los proveedores.
+export const SAGE_ERROR_REPLY =
+  'Mis pergaminos se enredaron un momento y no pude escucharte bien. Prueba otra vez en unos minutos.';
+
+/** Devuelve el cupo del chat cuando la IA no llegó a responder: ese mensaje no cuenta. */
+async function refundChatSlot(userId: string): Promise<void> {
+  if (globalChat.count > 0) globalChat.count -= 1;
+  await prisma.user.updateMany({
+    where: { id: userId, sageCallsToday: { gt: 0 } },
+    data: { sageCallsToday: { decrement: 1 } },
+  }).catch(() => null);
+}
+
+/** Ejecuta una respuesta del chat; si la IA no respondió, devuelve el cupo. */
+async function chatTurn(userId: string, run: () => Promise<string>): Promise<string> {
+  const reply = await run();
+  if (reply === SAGE_ERROR_REPLY || reply === SAGE_QUOTA_REPLY) await refundChatSlot(userId);
+  return reply;
+}
+
 /** Cupo del chat: por persona y global. null = el Sabio descansa. */
 async function takeChatSlot(userId: string): Promise<SageDailyUsage | null> {
   const usage = await consumeSageDailyAI(userId);
@@ -104,7 +125,8 @@ async function callAI(prompt: string): Promise<string> {
   } catch (err) {
     // Cuota agotada en TODOS los proveedores: respuesta digna, nunca 5xx.
     if (err instanceof AIQuotaError) return SAGE_QUOTA_REPLY;
-    throw err;
+    console.error('[Sage] AI error:', err instanceof Error ? err.message : err);
+    return SAGE_ERROR_REPLY;
   }
 }
 
@@ -156,7 +178,8 @@ async function callAIWithMemory(
     // Cuota agotada en todos los proveedores: respuesta digna y no quemamos cuota
     // guardando memoria de mensajes que realmente no se procesaron.
     if (err instanceof AIQuotaError) return SAGE_QUOTA_REPLY;
-    throw err;
+    console.error('[Sage] AI error:', err instanceof Error ? err.message : err);
+    return SAGE_ERROR_REPLY;
   }
 
   // Si la cuota diaria del USUARIO está agotada, la respuesta fija no se
@@ -338,8 +361,7 @@ export async function sageChat(userId: string, message: string): Promise<string>
   const usage = await takeChatSlot(userId);
   if (!usage) return SAGE_TIRED_REPLY;
 
-  const context = await buildSageContext(userId);
-  return callAIWithMemory(userId, context, message);
+  return chatTurn(userId, async () => callAIWithMemory(userId, await buildSageContext(userId), message));
 }
 
 export async function sageSuggestQuests(userId: string): Promise<string> {
@@ -358,7 +380,7 @@ Responde SOLO con este JSON sin markdown ni texto extra:
   {"type":"DAILY","title":"...","description":"...","difficulty":"EASY","category":"HEALTH","xpReward":20,"goldReward":5}
 ]`;
 
-  return callAI(fullPrompt.trim());
+  return chatTurn(userId, () => callAI(fullPrompt.trim()));
 }
 
 export async function sageAnalyzeHabits(userId: string): Promise<string> {
@@ -366,7 +388,7 @@ export async function sageAnalyzeHabits(userId: string): Promise<string> {
   if (!usage) return SAGE_TIRED_REPLY;
 
   const context = await buildSageContext(userId);
-  return callAI(`${context}\n\nAnaliza los habitos del heroe. En 3 parrafos: cual tiene mas riesgo de romperse esta semana y por que, cual esta mas consolidado, y que habito nuevo recomendarias agregar dado sus metas actuales.`);
+  return chatTurn(userId, () => callAI(`${context}\n\nAnaliza los habitos del heroe. En 3 parrafos: cual tiene mas riesgo de romperse esta semana y por que, cual esta mas consolidado, y que habito nuevo recomendarias agregar dado sus metas actuales.`));
 }
 
 export async function sageAnalyzeFinances(userId: string): Promise<string> {
@@ -374,7 +396,7 @@ export async function sageAnalyzeFinances(userId: string): Promise<string> {
   if (!usage) return SAGE_TIRED_REPLY;
 
   const context = await buildSageContext(userId);
-  return callAI(`${context}\n\nAnaliza las finanzas del heroe este mes. En 3 parrafos concretos: en que categoria gasta mas de lo optimo, cuanto podria ahorrar mensualmente si ajusta eso, y cuando alcanzaria su meta de ahorro mas cercana.`);
+  return chatTurn(userId, () => callAI(`${context}\n\nAnaliza las finanzas del heroe este mes. En 3 parrafos concretos: en que categoria gasta mas de lo optimo, cuanto podria ahorrar mensualmente si ajusta eso, y cuando alcanzaria su meta de ahorro mas cercana.`));
 }
 
 export async function sagePlanWorkout(userId: string): Promise<string> {
@@ -382,7 +404,7 @@ export async function sagePlanWorkout(userId: string): Promise<string> {
   if (!usage) return SAGE_TIRED_REPLY;
 
   const context = await buildSageContext(userId);
-  return callAI(`${context}\n\nBasandote en el historial de entrenamientos del heroe, sugiere el proximo entrenamiento ideal: grupo muscular a trabajar, 4-5 ejercicios especificos con series y reps sugeridas, y justifica brevemente la eleccion.`);
+  return chatTurn(userId, () => callAI(`${context}\n\nBasandote en el historial de entrenamientos del heroe, sugiere el proximo entrenamiento ideal: grupo muscular a trabajar, 4-5 ejercicios especificos con series y reps sugeridas, y justifica brevemente la eleccion.`));
 }
 
 // Cache del consejo diario en memoria de proceso: la llaman el scheduler (un
@@ -401,7 +423,8 @@ export async function sageDailyTip(userId: string): Promise<string> {
   const tip = await callAI(`${context}\\n\\nDa UNA sola frase de consejo o motivación para hoy, basada en el estado actual del usuario. Máximo 15 palabras. Sin saludos, sin introducciones. Solo la frase, directa y útil.`);
   // No cachear la respuesta de cuota agotada ni el fallback: mañana podría
   // haber cuota de nuevo y queremos reintentar la llamada a la IA.
-  if (tip !== SAGE_QUOTA_REPLY && tip !== DAILY_TIP_FALLBACK) {
+  if (tip === SAGE_QUOTA_REPLY || tip === SAGE_ERROR_REPLY) return DAILY_TIP_FALLBACK;
+  if (tip !== DAILY_TIP_FALLBACK) {
     dailyTipCache.set(userId, { date: today, tip });
   }
   return tip;
@@ -421,7 +444,7 @@ export async function sageDailySummary(userId: string): Promise<string> {
 
   const context = await buildSageContext(userId);
   const text = await callAI(`${context}\n\nEs el inicio del dia de ${user.displayName}. En 2 parrafos: resume que logro ayer y que deberia priorizar hoy segun sus misiones activas, habitos con riesgo de romperse y estado financiero.`);
-  if (text !== SAGE_QUOTA_REPLY) dailySummaryCache.set(userId, { date: today, text });
+  if (text !== SAGE_QUOTA_REPLY && text !== SAGE_ERROR_REPLY) dailySummaryCache.set(userId, { date: today, text });
   return text;
 }
 
