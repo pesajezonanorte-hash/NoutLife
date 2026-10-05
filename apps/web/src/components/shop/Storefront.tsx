@@ -82,7 +82,7 @@ export function PendantLamps({ lamps, delay = 0.15 }: { lamps: Lamp[]; delay?: n
             <path d="M21 0h6v5c9 1.6 15.6 7.6 17 17H4C5.4 12.6 12 6.6 21 5Z" />
           </svg>
           <motion.span
-            className="absolute left-[calc(50%-9rem)] top-[calc(100%-2px)] block h-[26rem] w-[18rem]"
+            className="lq-lamp-glow absolute left-[calc(50%-9rem)] top-[calc(100%-2px)] block h-[26rem] w-[18rem]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1, transition: { duration: 1.1, delay: delay + i * 0.18 } }}
           >

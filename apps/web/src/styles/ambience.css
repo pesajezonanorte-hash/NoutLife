@@ -74,6 +74,14 @@
 .lq-amb, .lq-amb * { pointer-events: none; }
 .lq-amb-page { inset: -1rem -1rem -2rem; }
 @media (min-width: 768px) { .lq-amb-page { inset: -2rem -2rem -3rem; } }
+/* La luz no termina en el borde de la capa: se desvanece antes, así ningún halo
+   recortado deja una arista recta (ni la capa se lee como un bloque). */
+.lq-amb-page {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8rem, #000 calc(100% - 8rem), transparent), linear-gradient(180deg, transparent, #000 6rem, #000 calc(100% - 7rem), transparent);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(90deg, transparent, #000 8rem, #000 calc(100% - 8rem), transparent), linear-gradient(180deg, transparent, #000 6rem, #000 calc(100% - 7rem), transparent);
+  mask-composite: intersect;
+}
 .lq-amb-local { inset: 0; border-radius: inherit; }
 /* Ventana que acompaña al scroll (luz, partículas): se queda en pantalla dentro de la zona. */
 .lq-amb-view { position: sticky; top: 0; height: 100svh; width: 100%; overflow: hidden; }
@@ -193,8 +201,21 @@ html.dark .lq-holo { mix-blend-mode: screen; opacity: .3; }
 }
 
 /* Luz de ambiente (AmbientLight): halo de un token con intensidad propia en claro y en oscuro. */
-.lq-light { --amb-a: var(--a-l, .1); background: radial-gradient(closest-side, rgb(var(--lt) / var(--amb-a)), transparent); }
-html.dark .lq-light { --amb-a: var(--a-d, .06); }
+/* Caída de la luz real (aprox. inversa del cuadrado): núcleo, penumbra larga y cola
+   que llega a cero sin escalón. De noche el tono se aclara hacia el blanco: una luz
+   sobre fondo oscuro brilla, no ensucia. */
+.lq-light {
+  --amb-a: var(--a-l, .1);
+  --lc: rgb(var(--lt));
+  background: radial-gradient(closest-side,
+    color-mix(in srgb, var(--lc) calc(var(--amb-a) * 100%), transparent),
+    color-mix(in srgb, var(--lc) calc(var(--amb-a) * 72%), transparent) 20%,
+    color-mix(in srgb, var(--lc) calc(var(--amb-a) * 42%), transparent) 42%,
+    color-mix(in srgb, var(--lc) calc(var(--amb-a) * 18%), transparent) 66%,
+    color-mix(in srgb, var(--lc) calc(var(--amb-a) * 5%), transparent) 86%,
+    transparent);
+}
+html.dark .lq-light { --amb-a: var(--a-d, .06); --lc: color-mix(in srgb, rgb(var(--lt)) 62%, white); }
 
 /* ───────── Logros (vitrina) ───────── */
 /* La medalla oscila con peso al pasar el cursor: amortiguada, de un solo vaivén. */
@@ -394,8 +415,9 @@ html.dark .lq-tag { background: rgb(var(--lq-surface-variant)); }
 /* Lámparas del pasaje: pantalla de metal, bombilla y cono de luz cálida. */
 .lq-lamp-shade path { fill: rgb(var(--lq-primary-strong)); }
 html.dark .lq-lamp-shade path { fill: rgb(var(--lq-surface-variant)); stroke: rgb(var(--lq-on-background) / .14); }
-.lq-lamp-cone { clip-path: polygon(43% 0, 57% 0, 100% 100%, 0 100%); background: linear-gradient(to bottom, rgb(var(--lq-secondary) / .15), rgb(var(--lq-secondary) / 0) 88%); }
-html.dark .lq-lamp-cone { background: linear-gradient(to bottom, rgb(var(--lq-secondary) / .15), rgb(var(--lq-secondary) / 0) 88%); }
+/* El cono se recorta y su contenedor (.lq-lamp-glow) lo difumina: bordes de penumbra, no aristas. */
+.lq-lamp-glow { filter: blur(8px); }
+.lq-lamp-cone { --beam: color-mix(in srgb, rgb(var(--lq-secondary)) 75%, white); clip-path: polygon(42% 0, 58% 0, 100% 100%, 0 100%); background: linear-gradient(to bottom, color-mix(in srgb, var(--beam) 26%, transparent), color-mix(in srgb, var(--beam) 12%, transparent) 30%, color-mix(in srgb, var(--beam) 4%, transparent) 65%, transparent 92%); }
 .lq-lamp-bulb { background: radial-gradient(closest-side, rgb(var(--lq-secondary) / .95), rgb(var(--lq-secondary) / 0)); }
 /* Moneda de oro (monedero, monedas que vuelan al comprar). */
 .lq-coin {
@@ -528,8 +550,31 @@ html.dark .lq-bookcase { box-shadow: 0 24px 44px -16px rgb(0 0 0 / .85); }
 .lq-shade { fill: rgb(var(--lq-jade-600)); }
 html.dark .lq-shade { fill: rgb(var(--lq-jade-700)); }
 .lq-chain { background: repeating-linear-gradient(to bottom, rgb(var(--lq-secondary)) 0 3px, rgb(var(--lq-secondary-text)) 3px 4px); border-radius: 2px; }
-.lq-lamp-light { background: radial-gradient(48% 60% at 50% 0%, rgb(var(--lq-warning) / .32), rgb(var(--lq-warning) / .1) 55%, transparent 75%); }
-html.dark .lq-lamp-light { background: radial-gradient(48% 60% at 50% 0%, rgb(var(--lq-warning) / .26), rgb(var(--lq-warning) / .07) 55%, transparent 75%); }
+/* La luz de la lámpara: un cono que se abre desde la pantalla y un charco cálido
+   donde cae. El cono se recorta con clip-path y su contenedor lo difumina, así los
+   bordes son penumbra y no aristas. */
+.lq-lamp-light { --beam: color-mix(in srgb, rgb(var(--lq-warning)) 72%, white); --k: 1; filter: blur(10px); }
+html.dark .lq-lamp-light { --beam: color-mix(in srgb, rgb(var(--lq-warning)) 60%, white); --k: .9; }
+.lq-desk-beam {
+  position: absolute; inset: 0;
+  clip-path: polygon(47% 0, 95% 0, 100% 100%, 3% 100%);
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--beam) calc(var(--k) * 46%), transparent),
+    color-mix(in srgb, var(--beam) calc(var(--k) * 24%), transparent) 30%,
+    color-mix(in srgb, var(--beam) calc(var(--k) * 11%), transparent) 62%,
+    color-mix(in srgb, var(--beam) calc(var(--k) * 4%), transparent) 88%,
+    transparent);
+}
+.lq-desk-pool {
+  position: absolute; left: 14%; right: 2%; bottom: 4%; height: 46%; border-radius: 50%;
+  background: radial-gradient(closest-side,
+    color-mix(in srgb, var(--beam) calc(var(--k) * 26%), transparent),
+    color-mix(in srgb, var(--beam) calc(var(--k) * 12%), transparent) 45%,
+    color-mix(in srgb, var(--beam) calc(var(--k) * 3%), transparent) 80%,
+    transparent);
+}
+/* La bombilla bajo la pantalla: un resplandor pequeño y muy brillante. */
+.lq-desk-bulb { background: radial-gradient(closest-side, color-mix(in srgb, var(--beam, rgb(var(--lq-warning))) 85%, transparent), color-mix(in srgb, rgb(var(--lq-warning)) 30%, transparent) 45%, transparent); filter: blur(3px); }
 /* Cartulina de ficha: color crema de los tokens, regla roja arriba y renglones; perforación al pie. */
 .lq-index-card {
   border-radius: 6px;
@@ -737,6 +782,26 @@ html.dark .lq-capital, html.dark .lq-abacus, html.dark .lq-col-base, html.dark .
 /* Antorcha: copa y brazo de bronce; la llama oscila despacio. */
 .lq-torch-cup { background: linear-gradient(180deg, rgb(var(--lq-secondary-text)), color-mix(in srgb, rgb(var(--lq-secondary-text)) 60%, black)); box-shadow: inset 0 2px 0 rgb(255 255 255 / .25); }
 .lq-torch-arm { background: color-mix(in srgb, rgb(var(--lq-secondary-text)) 60%, black); }
+.lq-torch-glow {
+  --fire: color-mix(in srgb, rgb(var(--lq-warning)) 70%, white);
+  background: radial-gradient(closest-side,
+    color-mix(in srgb, var(--fire) 70%, transparent),
+    color-mix(in srgb, rgb(var(--lq-warning)) 40%, transparent) 16%,
+    color-mix(in srgb, rgb(var(--lq-warning)) 19%, transparent) 38%,
+    color-mix(in srgb, rgb(var(--lq-warning)) 7%, transparent) 66%,
+    transparent);
+}
+/* Luz de antorcha sobre la estela: entra por los dos cantos a la altura de la llama. */
+.lq-torchlit {
+  --fire: rgb(var(--lq-warning));
+  background:
+    radial-gradient(38% 70% at 0% 26%, color-mix(in srgb, var(--fire) 16%, transparent), color-mix(in srgb, var(--fire) 5%, transparent) 55%, transparent),
+    radial-gradient(38% 70% at 100% 26%, color-mix(in srgb, var(--fire) 16%, transparent), color-mix(in srgb, var(--fire) 5%, transparent) 55%, transparent);
+  animation: lq-torchlit 4.2s ease-in-out infinite;
+}
+@keyframes lq-torchlit { 0%, 100% { opacity: .78; } 14% { opacity: .92; } 31% { opacity: .82; } 47% { opacity: 1; } 63% { opacity: .8; } 81% { opacity: .9; } }
+html.dark .lq-torchlit { --fire: color-mix(in srgb, rgb(var(--lq-warning)) 75%, white); }
+.reduce-motion .lq-torchlit { animation: none; opacity: .7; }
 .lq-flame { transform-origin: 50% 90%; animation: lq-flame 1.05s ease-in-out infinite alternate; }
 @keyframes lq-flame { 0% { transform: scale(1, 1) skewX(-2deg); } 50% { transform: scale(.94, 1.06) skewX(2.5deg); } 100% { transform: scale(1.03, .96) skewX(-1deg); } }
 /* Placa cubierta de polvo: aún por desenterrar. */
@@ -932,3 +997,8 @@ html.dark .lq-plaque { background: linear-gradient(180deg, color-mix(in srgb, rg
 /* Hito pendiente: un marco vacío con línea de puntos. */
 .lq-pending-exhibit { border: 2px dashed rgb(var(--lq-on-background) / .3); border-radius: 6px; }
 .lq-room-dot { background: rgb(var(--lq-secondary)); box-shadow: 0 0 0 4px rgb(var(--lq-background)), 0 0 0 5px rgb(var(--lq-secondary) / .5), 0 0 12px rgb(var(--lq-secondary) / .6); }
+
+/* ───────── Tutorial de bienvenida ───────── */
+/* El foco: un hueco en un velo que cubre la pantalla, con un anillo de luz. De noche el velo es negro (el jade aclararía). */
+.lq-tour-spot { box-shadow: 0 0 0 200vmax rgb(var(--lq-jade-900) / .55), 0 0 0 2px rgb(var(--lq-primary) / .9), 0 0 28px 6px rgb(var(--lq-primary) / .35); }
+html.dark .lq-tour-spot { box-shadow: 0 0 0 200vmax rgb(0 0 0 / .6), 0 0 0 2px rgb(var(--lq-primary) / .9), 0 0 28px 6px rgb(var(--lq-primary) / .3); }
