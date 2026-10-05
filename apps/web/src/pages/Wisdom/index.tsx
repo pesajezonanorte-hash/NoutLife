@@ -1,9 +1,10 @@
 // Sabiduría (WisdomDesktop): principio del día con Guardar/Compartir/Reflexionar,
 // chips por categoría y principios abiertos o bloqueados por nivel.
-// Zona ambientada: un lugar antiguo. El principio del día está escrito en
-// pergamino y se graba palabra a palabra; los demás emergen de la niebla. Luz de
-// antorcha que oscila muy suave, polvo y niebla tenue. Un principio nuevo desde
-// la última visita intensifica la luz un instante.
+// Zona ambientada: un santuario antiguo. El principio del día está tallado en una
+// estela de piedra entre dos columnas con antorchas de llama viva y se graba palabra
+// a palabra; los demás principios son placas de piedra que emergen de la niebla y
+// los bloqueados siguen cubiertos de polvo. Polvo y niebla tenue. Un principio
+// nuevo desde la última visita aviva la luz de las antorchas un instante.
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -11,13 +12,14 @@ import { Bookmark, BookOpen, Brain, Coins, HeartPulse, List, NotebookPen, Share2
 import { enter, item, stagger } from '@/lib/motion';
 import { AmbientLight, Particles, ZoneShell, useParticleBudget } from '@/components/ambience';
 import { EngravedText } from '@/components/wisdom/Engraved';
+import { Column, StoneTablet } from '@/components/wisdom/Sanctuary';
 import { cn } from '@/lib/utils';
 import * as wisdomService from '@/services/wisdom.service';
 import type { WisdomCard } from '@/services/wisdom.service';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { useToast } from '@/hooks/useToast';
 import {
-  Badge, Button, Card, ChipGroup, EmptyState, ErrorState, PageLoader, ProgressBar, QuoteCard, SpotCard, type ChipOption, type Tone,
+  Badge, Button, Card, ChipGroup, EmptyState, ErrorState, PageLoader, ProgressBar, QuoteCard, type ChipOption, type Tone,
 } from '@/components/ui/lq';
 
 type Cat = { label: string; tone: Exclude<Tone, 'muted'>; icon: LucideIcon };
@@ -136,29 +138,30 @@ export default function WisdomPage() {
       />
 
       {featured && fc && (
-        <motion.div variants={item}>
-          <SpotCard aria-label="Principio del día" className="lq-tex-parchment relative flex flex-col gap-6">
-            {/* Un principio nuevo aviva la luz un instante */}
-            {discovered && <motion.span aria-hidden="true" className="pointer-events-none absolute -inset-10 rounded-[2rem] bg-[radial-gradient(closest-side,rgb(var(--lq-secondary)/.35),transparent)]" initial={{ opacity: 0 }} animate={{ opacity: [0, 1, 0.15] }} transition={{ duration: 2.4, times: [0, 0.35, 1], delay: 0.6 }} />}
-            <BookOpen aria-hidden className="absolute right-8 top-6 size-28 animate-float text-primary/[var(--lq-soft-alpha)] [.reduce-motion_&]:animate-none md:right-10 md:size-32" strokeWidth={1} />
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-label-lg text-primary-text">{daily ? 'Principio del día' : 'Principio destacado'}</span>
+        <motion.div variants={item} className="relative flex items-stretch justify-center gap-3 lg:gap-6">
+          {/* Un principio nuevo aviva la luz de las antorchas un instante */}
+          {discovered && <motion.span aria-hidden="true" className="pointer-events-none absolute -inset-10 rounded-[2rem] bg-[radial-gradient(closest-side,rgb(var(--lq-warning)/.3),transparent)]" initial={{ opacity: 0 }} animate={{ opacity: [0, 1, 0.15] }} transition={{ duration: 2.4, times: [0, 0.35, 1], delay: 0.6 }} />}
+          <Column side="left" className="hidden md:flex" />
+          <StoneTablet aria-label="Principio del día" className="flex min-w-0 max-w-[880px] flex-1 flex-col gap-6 px-7 py-9 md:px-12 md:py-12">
+            <div className="flex flex-wrap items-center justify-center gap-2 text-center">
+              <span className="text-label-lg text-on-surface">{daily ? 'Principio del día' : 'Principio destacado'}</span>
               <Badge variant={fc.tone} icon={fc.icon}>{fc.label}</Badge>
             </div>
-            <p className="relative max-w-[760px] text-heading-lg [text-wrap:balance] md:text-display-sm"><EngravedText text={`“${featured.quote}”`} delay={0.45} step={discovered ? 0.09 : 0.05} /></p>
+            <p className="lq-engraved relative mx-auto max-w-[760px] text-center text-heading-lg [text-wrap:balance] md:text-display-sm"><EngravedText text={`“${featured.quote}”`} delay={0.45} step={discovered ? 0.09 : 0.05} /></p>
             {featured.author && (
-              <motion.p className="relative text-body-md text-on-surface-light" initial={{ opacity: 0 }} animate={{ opacity: 1, transition: { duration: 0.8, delay: 0.6 + featured.quote.split(/\s+/).length * (discovered ? 0.09 : 0.05) } }}>
+              <motion.p className="relative text-center text-body-md text-on-surface" initial={{ opacity: 0 }} animate={{ opacity: 1, transition: { duration: 0.8, delay: 0.6 + featured.quote.split(/\s+/).length * (discovered ? 0.09 : 0.05) } }}>
                 — {featured.author}
               </motion.p>
             )}
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap justify-center gap-3">
               <Button variant={isSaved ? 'secondary' : 'primary'} aria-pressed={isSaved} onClick={toggleSave}>
                 <Bookmark aria-hidden className={cn('size-4', isSaved && 'fill-current')} strokeWidth={1.75} />{isSaved ? 'Guardado' : 'Guardar'}
               </Button>
               <Button variant="ghost" onClick={share}><Share2 aria-hidden className="size-4" strokeWidth={1.75} />Compartir</Button>
               <Button variant="ghost" onClick={() => navigate('/journal')}><NotebookPen aria-hidden className="size-4" strokeWidth={1.75} />Reflexionar en el diario</Button>
             </div>
-          </SpotCard>
+          </StoneTablet>
+          <Column side="right" className="hidden md:flex" />
         </motion.div>
       )}
 
@@ -175,7 +178,7 @@ export default function WisdomPage() {
               const k = catOf(c.category);
               return (
                 <motion.li key={c.id} variants={enter.emerge}>
-                  <Card interactive padding="lg" className="lq-tex-parchment h-full">
+                  <Card interactive padding="lg" className="lq-stone h-full rounded-[18px_14px_20px_12px]">
                     <QuoteCard category={k.label} icon={k.icon} tone={k.tone} text={c.quote} author={c.author} />
                   </Card>
                 </motion.li>
@@ -185,7 +188,7 @@ export default function WisdomPage() {
               const k = catOf(c.category);
               return (
                 <motion.li key={c.id} variants={enter.emerge}>
-                  <Card padding="lg" className="h-full bg-background">
+                  <Card padding="lg" className="lq-stone lq-dusty h-full rounded-[18px_14px_20px_12px]">
                     <QuoteCard category={k.label} icon={k.icon} tone={k.tone} unlockLevel={c.levelRequired} />
                   </Card>
                 </motion.li>

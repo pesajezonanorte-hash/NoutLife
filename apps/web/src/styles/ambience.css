@@ -691,3 +691,56 @@ html.dark .lq-cane-node { fill: rgb(var(--lq-jade-900) / .8); }
 html.dark .lq-leaf { fill: rgb(var(--lq-jade-600)); }
 .lq-zen-tray.lq-lift:hover, .lq-zen-tray.lq-lift:focus-within { box-shadow: inset 0 0 0 1px rgb(var(--lq-secondary-text) / .25), inset 0 0 0 6px color-mix(in srgb, rgb(var(--lq-secondary)) 45%, rgb(var(--lq-surface))), inset 0 0 0 7px rgb(var(--lq-secondary-text) / .25), var(--shadow-lg); }
 html.dark .lq-zen-tray.lq-lift:hover, html.dark .lq-zen-tray.lq-lift:focus-within { box-shadow: inset 0 0 0 1px rgb(var(--lq-secondary) / .2), inset 0 0 0 6px color-mix(in srgb, rgb(var(--lq-secondary)) 22%, rgb(var(--lq-surface-variant))), inset 0 0 0 7px rgb(var(--lq-secondary) / .18), var(--shadow-lg); }
+
+/* ───────── Sabiduría (santuario de piedra) ───────── */
+/* Piedra: jade pálido con un toque dorado, grano y desgaste; de noche, piedra oscura. */
+.lq-stone {
+  --stone: color-mix(in srgb, rgb(var(--lq-jade-50)) 90%, rgb(var(--lq-secondary)));
+  background-color: var(--stone) !important;
+  background-image:
+    radial-gradient(rgb(0 0 0 / .05) .7px, transparent 1px),
+    radial-gradient(rgb(255 255 255 / .35) .6px, transparent .9px),
+    radial-gradient(120% 90% at 20% 10%, rgb(255 255 255 / .35), transparent 55%),
+    radial-gradient(90% 80% at 100% 100%, rgb(var(--lq-jade-900) / .06), transparent 60%);
+  background-size: 5px 5px, 7px 7px, auto, auto;
+  background-position: 0 0, 2px 3px, 0 0, 0 0;
+  border: 1px solid rgb(var(--lq-jade-900) / .12) !important;
+}
+html.dark .lq-stone {
+  --stone: color-mix(in srgb, rgb(var(--lq-surface-variant)) 84%, rgb(var(--lq-secondary)));
+  background-image:
+    radial-gradient(rgb(0 0 0 / .25) .7px, transparent 1px),
+    radial-gradient(rgb(255 255 255 / .05) .6px, transparent .9px),
+    radial-gradient(120% 90% at 20% 10%, rgb(255 255 255 / .05), transparent 55%),
+    radial-gradient(90% 80% at 100% 100%, rgb(0 0 0 / .3), transparent 60%);
+  border-color: rgb(255 255 255 / .06) !important;
+}
+/* Estela: esquinas irregulares, peso y sombra en el suelo. */
+.lq-tablet { border-radius: 26px 18px 30px 14px / 22px 28px 16px 24px; box-shadow: inset 0 2px 0 rgb(255 255 255 / .4), inset 0 -6px 14px rgb(var(--lq-jade-900) / .14), 0 24px 36px -20px rgb(var(--lq-jade-900) / .5); }
+html.dark .lq-tablet { box-shadow: inset 0 1px 0 rgb(255 255 255 / .06), inset 0 -6px 14px rgb(0 0 0 / .35), 0 24px 40px -18px rgb(0 0 0 / .85); }
+.lq-tablet-frame { box-shadow: inset 0 1px 1px rgb(var(--lq-jade-900) / .2), 0 1px 0 rgb(255 255 255 / .45); }
+html.dark .lq-tablet-frame { box-shadow: inset 0 1px 1px rgb(0 0 0 / .5), 0 1px 0 rgb(255 255 255 / .05); }
+/* Texto tallado en la piedra. */
+.lq-engraved { color: rgb(var(--lq-jade-900) / .88); text-shadow: 0 1px 0 rgb(255 255 255 / .5), 0 -1px 0 rgb(var(--lq-jade-900) / .12); }
+html.dark .lq-engraved { color: rgb(var(--lq-jade-50) / .92); text-shadow: 0 -1px 0 rgb(0 0 0 / .6), 0 1px 0 rgb(255 255 255 / .05); }
+/* Columna: capitel, fuste estriado con volumen y basa. */
+.lq-capital, .lq-abacus, .lq-col-base { background: linear-gradient(180deg, color-mix(in srgb, var(--col) 92%, white), var(--col)); box-shadow: 0 2px 3px rgb(0 0 0 / .18); }
+.lq-capital { --col: color-mix(in srgb, rgb(var(--lq-jade-50)) 90%, rgb(var(--lq-secondary))); border-radius: 4px 4px 8px 8px; }
+.lq-abacus, .lq-col-base { --col: color-mix(in srgb, rgb(var(--lq-jade-50)) 90%, rgb(var(--lq-secondary))); }
+.lq-shaft {
+  --col: color-mix(in srgb, rgb(var(--lq-jade-50)) 90%, rgb(var(--lq-secondary)));
+  background:
+    linear-gradient(90deg, rgb(0 0 0 / .18), transparent 28%, rgb(255 255 255 / .35) 45%, transparent 62%, rgb(0 0 0 / .22)),
+    repeating-linear-gradient(90deg, var(--col) 0 5px, color-mix(in srgb, var(--col) 82%, black) 5px 6.5px);
+}
+html.dark .lq-capital, html.dark .lq-abacus, html.dark .lq-col-base, html.dark .lq-shaft { --col: color-mix(in srgb, rgb(var(--lq-surface-variant)) 84%, rgb(var(--lq-secondary))); }
+/* Antorcha: copa y brazo de bronce; la llama oscila despacio. */
+.lq-torch-cup { background: linear-gradient(180deg, rgb(var(--lq-secondary-text)), color-mix(in srgb, rgb(var(--lq-secondary-text)) 60%, black)); box-shadow: inset 0 2px 0 rgb(255 255 255 / .25); }
+.lq-torch-arm { background: color-mix(in srgb, rgb(var(--lq-secondary-text)) 60%, black); }
+.lq-flame { transform-origin: 50% 90%; animation: lq-flame 1.05s ease-in-out infinite alternate; }
+@keyframes lq-flame { 0% { transform: scale(1, 1) skewX(-2deg); } 50% { transform: scale(.94, 1.06) skewX(2.5deg); } 100% { transform: scale(1.03, .96) skewX(-1deg); } }
+/* Placa cubierta de polvo: aún por desenterrar. */
+.lq-dusty { background-image: linear-gradient(170deg, color-mix(in srgb, rgb(var(--lq-secondary)) 22%, transparent), transparent 70%), radial-gradient(rgb(0 0 0 / .06) .7px, transparent 1px) !important; background-size: auto, 4px 4px !important; }
+/* Sobre la piedra clara, el texto secundario va un tono más oscuro para mantener el contraste AA. */
+.lq-stone .text-on-surface-light { color: rgb(var(--lq-on-surface)); }
+html.dark .lq-stone .text-on-surface-light { color: rgb(var(--lq-on-surface-light)); }
