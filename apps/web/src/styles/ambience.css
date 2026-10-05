@@ -346,3 +346,88 @@ html.dark .lq-lamp-cone { background: linear-gradient(to bottom, rgb(var(--lq-se
     radial-gradient(circle, rgb(var(--lq-secondary)) 55%, rgb(var(--lq-secondary-text)) 57% 60%, rgb(var(--lq-secondary)) 62%);
   box-shadow: inset 0 0 0 1.5px rgb(var(--lq-secondary-text) / .6), 0 2px 4px rgb(var(--lq-on-background) / .2);
 }
+
+/* ───────── Diario (diario de cuero) ───────── */
+/* Cuero de la tapa: jade profundo (igual en claro y en oscuro), con grano y desgaste en los bordes. */
+.lq-diary-case, .lq-diary-cover {
+  background-color: rgb(var(--lq-jade-800));
+  background-image:
+    radial-gradient(rgb(255 255 255 / .05) .6px, transparent .9px),
+    radial-gradient(rgb(0 0 0 / .22) .7px, transparent 1px),
+    linear-gradient(155deg, rgb(255 255 255 / .08), transparent 38%, rgb(0 0 0 / .24));
+  background-size: 5px 5px, 7px 7px, auto;
+  background-position: 0 0, 2px 3px, 0 0;
+}
+.lq-diary-case { box-shadow: 0 22px 40px -16px rgb(var(--lq-jade-900) / .5), 0 4px 10px rgb(var(--lq-jade-900) / .16); }
+html.dark .lq-diary-case { box-shadow: 0 22px 44px -14px rgb(0 0 0 / .85), inset 0 0 0 1px rgb(255 255 255 / .04); }
+.lq-diary-cover { box-shadow: inset 0 0 0 1px rgb(255 255 255 / .07), inset 7px 0 10px -6px rgb(0 0 0 / .55), 0 22px 40px -16px rgb(var(--lq-jade-900) / .55); }
+/* Marco repujado en dorado. */
+.lq-diary-cover::before { content: ""; position: absolute; inset: 16px 20px 16px 26px; border: 1px solid rgb(var(--lq-secondary) / .5); border-radius: 10px; box-shadow: inset 0 0 0 4px rgb(var(--lq-jade-800)), inset 0 0 0 5px rgb(var(--lq-secondary) / .22); }
+/* Letras de pan de oro. */
+.lq-foil {
+  background: linear-gradient(100deg, rgb(var(--lq-secondary-text)), rgb(var(--lq-secondary)) 35%, rgb(255 255 255 / .92) 50%, rgb(var(--lq-secondary)) 65%, rgb(var(--lq-secondary-text)));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  text-shadow: 0 1px 0 rgb(0 0 0 / .4);
+}
+/* El dorso de la tapa no deja ver sus letras al revés (también en capas propias de los hijos). */
+.lq-diary-cover, .lq-diary-cover * { -webkit-backface-visibility: hidden; backface-visibility: hidden; }
+/* Elástico. */
+.lq-diary-band { background: linear-gradient(to right, rgb(var(--lq-jade-900)), rgb(var(--lq-jade-900) / .9) 38%, rgb(255 255 255 / .1) 50%, rgb(var(--lq-jade-900))); box-shadow: 0 0 5px rgb(0 0 0 / .45); }
+/* Papel: grano y la curvatura hacia el lomo (oscurece junto a la costura). */
+.lq-diary-paper {
+  background-color: rgb(var(--lq-surface));
+  background-image: var(--curve, none), radial-gradient(rgb(var(--lq-on-background) / .03) .6px, transparent .8px);
+  background-size: auto, 7px 7px;
+}
+.lq-diary-paper-l { --curve: linear-gradient(to left, rgb(var(--lq-jade-900) / .1), rgb(var(--lq-jade-900) / .03) 5%, transparent 12%); }
+.lq-diary-paper-r { --curve: linear-gradient(to right, rgb(var(--lq-jade-900) / .1), rgb(var(--lq-jade-900) / .03) 5%, transparent 12%); }
+html.dark .lq-diary-paper-l { --curve: linear-gradient(to left, rgb(0 0 0 / .45), rgb(0 0 0 / .12) 5%, transparent 14%); }
+html.dark .lq-diary-paper-r { --curve: linear-gradient(to right, rgb(0 0 0 / .45), rgb(0 0 0 / .12) 5%, transparent 14%); }
+@media (max-width: 1023px) {
+  /* Una sola página: el lomo queda a la izquierda. */
+  .lq-diary-paper-l, .lq-diary-paper-r { --curve: linear-gradient(to right, rgb(var(--lq-jade-900) / .08), transparent 7%); }
+  html.dark .lq-diary-paper-l, html.dark .lq-diary-paper-r { --curve: linear-gradient(to right, rgb(0 0 0 / .4), transparent 8%); }
+}
+/* El lomo: sombra de la curvatura y la costura. */
+.lq-diary-gutter {
+  position: absolute; top: 0; bottom: 0; left: 50%; width: 2.75rem; margin-left: -1.375rem;
+  background: linear-gradient(to right, transparent, rgb(var(--lq-jade-900) / .06) 40%, rgb(var(--lq-jade-900) / .17) 50%, rgb(var(--lq-jade-900) / .06) 60%, transparent);
+}
+.lq-diary-gutter::after {
+  content: ""; position: absolute; top: 22px; bottom: 22px; left: 50%; width: 1.5px; margin-left: -.75px;
+  background: repeating-linear-gradient(to bottom, rgb(var(--lq-secondary-text) / .5) 0 7px, transparent 7px 17px);
+}
+html.dark .lq-diary-gutter { background: linear-gradient(to right, transparent, rgb(0 0 0 / .3) 40%, rgb(0 0 0 / .6) 50%, rgb(0 0 0 / .3) 60%, transparent); }
+html.dark .lq-diary-gutter::after { background: repeating-linear-gradient(to bottom, rgb(var(--lq-secondary) / .4) 0 7px, transparent 7px 17px); }
+/* Cinta marcapáginas: raso con brillo, punta en V. */
+.lq-ribbon { background: linear-gradient(to right, rgb(var(--lq-error-text)), rgb(var(--lq-error)) 45%, rgb(var(--lq-error-text))); box-shadow: 1px 1px 2px rgb(0 0 0 / .2); }
+html.dark .lq-ribbon { background: linear-gradient(to right, rgb(var(--lq-error) / .8), rgb(var(--lq-error)) 45%, rgb(var(--lq-error) / .8)); }
+.lq-ribbon-tail { clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 76%, 0 100%); }
+/* En el diario, el ánimo elegido queda como un sello torcido. */
+.lq-diary [role="radiogroup"] button { transition: rotate .5s var(--lq-ease-heavy), color .2s, background-color .2s, border-color .2s; }
+.lq-diary [role="radiogroup"] [aria-checked="true"] { border-style: dashed; rotate: -7deg; }
+/* Hoja de una entrada anterior: papel suelto que se levanta al pasar y dobla su esquina. */
+.lq-leaf {
+  position: relative;
+  background-color: rgb(var(--lq-surface));
+  background-image: radial-gradient(rgb(var(--lq-on-background) / .03) .6px, transparent .8px);
+  background-size: 7px 7px;
+  border-radius: 6px 12px 12px 6px;
+  box-shadow: 0 1px 2px rgb(var(--lq-on-background) / .06), 0 4px 10px -3px rgb(var(--lq-on-background) / .09);
+  transition: transform var(--lq-dur-heavy) var(--lq-ease-heavy), box-shadow .4s ease-out;
+}
+.group:hover .lq-leaf, .lq-leaf:focus-within { transform: translateY(-3px) rotate(-.35deg); box-shadow: 0 14px 26px -12px rgb(var(--lq-on-background) / .26), 0 2px 4px rgb(var(--lq-on-background) / .06); }
+html.dark .lq-leaf { border: 1px solid rgb(var(--lq-border)); box-shadow: 0 2px 6px rgb(0 0 0 / .45); }
+.reduce-motion .group:hover .lq-leaf, .reduce-motion .lq-leaf:focus-within { transform: none; }
+/* Esquina doblada: se dobla un poco más al pasar el cursor. */
+.lq-dogear {
+  position: absolute; right: 0; bottom: 0; width: 22px; height: 22px; border-radius: 0 0 12px 0; pointer-events: none;
+  background: linear-gradient(315deg, rgb(var(--lq-background)) 0 50%, rgb(var(--lq-surface-variant)) 50% 100%);
+  box-shadow: -1px -1px 2px rgb(var(--lq-on-background) / .08);
+  transform-origin: 100% 100%; transition: transform .5s var(--lq-ease-heavy);
+}
+.group:hover .lq-dogear, .lq-leaf:focus-within .lq-dogear { transform: scale(1.5); }
+.reduce-motion .lq-dogear { transform: none !important; }
+/* Renglones bajo el texto de una hoja (la línea cae en la base de cada renglón). */
+.lq-lines { line-height: var(--lq-rule); background-image: linear-gradient(to bottom, transparent calc(var(--lq-rule) - 1px), rgb(var(--lq-info) / .18) calc(var(--lq-rule) - 1px), rgb(var(--lq-info) / .18) var(--lq-rule)); background-size: 100% var(--lq-rule); }
+html.dark .lq-lines { background-image: linear-gradient(to bottom, transparent calc(var(--lq-rule) - 1px), rgb(var(--lq-info) / .14) calc(var(--lq-rule) - 1px), rgb(var(--lq-info) / .14) var(--lq-rule)); }
