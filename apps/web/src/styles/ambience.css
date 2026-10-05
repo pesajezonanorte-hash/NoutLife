@@ -764,3 +764,37 @@ html.dark .lq-frame { box-shadow: inset 0 0 0 1px rgb(0 0 0 / .4), inset 0 0 0 7
 .lq-hang { transform-origin: 50% 0.4rem; }
 .lq-hang:hover { animation: lq-frame-swing 1.6s cubic-bezier(.3, .2, .2, 1); }
 @keyframes lq-frame-swing { 0% { transform: rotate(0); } 18% { transform: rotate(1.8deg); } 40% { transform: rotate(-1.1deg); } 62% { transform: rotate(.6deg); } 82% { transform: rotate(-.2deg); } 100% { transform: rotate(0); } }
+
+/* ───────── Ranking (ceremonia olímpica) ───────── */
+/* Escenario de noche (jade profundo en claro y en oscuro) con focos del estadio al fondo. */
+.lq-stage { background: radial-gradient(120% 70% at 50% 0%, rgb(var(--lq-jade-800)), rgb(var(--lq-jade-900)) 70%); box-shadow: inset 0 0 0 1px rgb(var(--lq-secondary) / .25), 0 24px 40px -20px rgb(var(--lq-jade-900) / .6); }
+.lq-floodlights {
+  background:
+    radial-gradient(circle 9px at 12% 34%, rgb(255 255 255 / .55), transparent 70%), radial-gradient(circle 9px at 18% 30%, rgb(255 255 255 / .45), transparent 70%),
+    radial-gradient(circle 9px at 82% 30%, rgb(255 255 255 / .45), transparent 70%), radial-gradient(circle 9px at 88% 34%, rgb(255 255 255 / .55), transparent 70%),
+    radial-gradient(40% 90% at 15% 30%, rgb(var(--lq-secondary) / .18), transparent 70%), radial-gradient(40% 90% at 85% 30%, rgb(var(--lq-secondary) / .18), transparent 70%);
+  filter: blur(2px);
+}
+/* Foco sobre cada escalón del podio. */
+.lq-spotlight { clip-path: polygon(40% 0, 60% 0, 96% 100%, 4% 100%); background: linear-gradient(180deg, rgb(var(--lq-secondary) / .34), rgb(var(--lq-secondary) / .08) 70%, transparent); }
+/* Bloque del podio: mármol con filo dorado y número grabado en oro. */
+.lq-podium-block { border-radius: 10px 10px 2px 2px; box-shadow: inset 0 3px 0 rgb(var(--lq-secondary)), inset 0 4px 0 rgb(255 255 255 / .5), inset -8px 0 14px -8px rgb(0 0 0 / .2), inset 8px 0 14px -8px rgb(0 0 0 / .1); }
+.lq-engraved-gold { color: rgb(var(--lq-secondary-text)); text-shadow: 0 1px 0 rgb(255 255 255 / .6), 0 -1px 0 rgb(0 0 0 / .15); }
+html.dark .lq-engraved-gold { color: rgb(var(--lq-secondary)); text-shadow: 0 -1px 0 rgb(0 0 0 / .6); }
+.lq-stage-floor { background: linear-gradient(180deg, rgb(var(--lq-secondary) / .35), rgb(var(--lq-jade-900)) 60%); }
+/* Metales y cintas de las medallas. */
+.lq-metal-gold { color: rgb(var(--lq-jade-900) / .75); background: radial-gradient(circle at 34% 28%, rgb(255 255 255 / .75), transparent 36%), radial-gradient(circle, rgb(var(--lq-secondary)) 0 60%, rgb(var(--lq-secondary-text)) 62% 68%, rgb(var(--lq-secondary)) 70%); box-shadow: 0 6px 10px rgb(0 0 0 / .45); }
+.lq-metal-silver { color: rgb(var(--lq-jade-900) / .7); background: radial-gradient(circle at 34% 28%, rgb(255 255 255 / .85), transparent 36%), radial-gradient(circle, rgb(var(--lq-jade-100)) 0 60%, rgb(var(--lq-border-strong)) 62% 68%, rgb(var(--lq-jade-100)) 70%); box-shadow: 0 6px 10px rgb(0 0 0 / .45); }
+.lq-metal-bronze { color: rgb(255 255 255 / .85); background: radial-gradient(circle at 34% 28%, rgb(255 255 255 / .5), transparent 36%), radial-gradient(circle, color-mix(in srgb, rgb(var(--lq-warning-text)) 80%, rgb(var(--lq-warning))) 0 60%, color-mix(in srgb, rgb(var(--lq-warning-text)) 70%, black) 62% 68%, color-mix(in srgb, rgb(var(--lq-warning-text)) 80%, rgb(var(--lq-warning))) 70%); box-shadow: 0 6px 10px rgb(0 0 0 / .45); }
+.lq-rib-gold { fill: rgb(var(--lq-error)); }
+.lq-rib-silver { fill: rgb(var(--lq-info)); }
+.lq-rib-bronze { fill: rgb(var(--lq-success)); }
+/* Marcador de resultados: carril con el puesto y tu fila con su brillo. */
+.lq-lane { background: rgb(var(--lq-surface-variant)); color: rgb(var(--lq-on-surface)); }
+.lq-result + .lq-result { box-shadow: 0 -1px 0 rgb(var(--lq-border)); }
+.lq-result-you { background: rgb(var(--lq-secondary) / var(--lq-soft-alpha)); }
+.lq-result-you .lq-lane { background: rgb(var(--lq-secondary)); color: rgb(var(--lq-jade-900)); }
+.lq-result-you::before { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; box-shadow: 0 0 0 1.5px rgb(var(--lq-secondary) / .7), 0 0 20px rgb(var(--lq-secondary) / .35); animation: lq-you-glow 2.8s ease-in-out infinite; }
+@keyframes lq-you-glow { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+/* Placa de tu posición. */
+.lq-rank-plaque { background: radial-gradient(120% 90% at 50% 0%, rgb(var(--lq-secondary) / .16), transparent 60%), rgb(var(--lq-surface)); box-shadow: inset 0 0 0 1px rgb(var(--lq-secondary) / .4), var(--shadow-sm); }
