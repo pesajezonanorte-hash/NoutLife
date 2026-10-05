@@ -15,6 +15,7 @@ import { useToastStore } from '../../hooks/useToast';
 import api from '../../lib/api';
 import { Badge, Button, Card, ChipGroup, EmptyState, ErrorState, Field, IconChip, Input, Modal, ProgressBar, Select, SegmentedControl, StepItem, Textarea, type Tone, PageLoader } from '@/components/ui/lq';
 import { LOADING_COPY } from '@/lib/loadingCopy';
+import { Lettering } from '@/components/layout/Lettering';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -472,7 +473,7 @@ export default function GlowUpPage() {
       <motion.section variants={item} className="flex flex-wrap items-center justify-between gap-6 md:gap-8">
         <div className="flex min-w-0 flex-[1_1_360px] flex-col gap-2">
           <span className="text-label-lg text-primary-text">El espejo</span>
-          <h1 className="text-display-sm md:text-display-md lg:text-display-lg">Glow up</h1>
+          <h1 className="text-display-sm md:text-display-md lg:text-display-lg"><Lettering text="Glow up" /></h1>
           <p className="max-w-[540px] text-body-lg text-on-surface-light">Cuídate, vístete y preséntate. Pequeños rituales que cambian cómo te ves y cómo te sientes.</p>
         </div>
         {/* El tocador: cada paso completado enciende otra bombilla y aclara el vidrio */}

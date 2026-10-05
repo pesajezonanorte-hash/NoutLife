@@ -31,6 +31,7 @@ import * as userService from '@/services/user.service';
 import { IdCard, documentNumber } from '@/components/profile/IdCard';
 import { AchievementPosts } from '@/components/profile/AchievementPosts';
 import { ZoneAmbience } from '@/components/ambience';
+import { Lettering } from '@/components/layout/Lettering';
 
 const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
   { value: 'light', label: 'Claro' },
@@ -190,7 +191,7 @@ export default function ProfilePage() {
       <div className="flex min-w-0 flex-col gap-5">
         <div className="flex flex-col gap-1">
           <span className="text-label-lg text-primary-text">Miembro desde {since}</span>
-          <h1 className="text-display-sm md:text-display-md">{user.displayName}</h1>
+          <h1 className="text-display-sm md:text-display-md"><Lettering text={user.displayName} /></h1>
           <p className="text-body-lg text-on-surface-light">@{user.username} · Nivel {user.level} · {title}</p>
         </div>
         {/* Métricas al estilo de un perfil social */}

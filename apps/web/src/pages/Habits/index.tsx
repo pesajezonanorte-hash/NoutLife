@@ -20,6 +20,7 @@ import { SketchUnderline, ZoneAmbience } from '@/components/ambience';
 import { HabitFormDialog } from '@/components/habits/HabitFormDialog';
 import * as habitService from '@/services/habit.service';
 import type { Habit } from '@/services/habit.service';
+import { Lettering } from '@/components/layout/Lettering';
 
 type Filter = 'all' | 'active' | 'done';
 const FILTERS: { value: Filter; label: string }[] = [
@@ -130,8 +131,8 @@ export default function HabitsPage() {
       <div className="flex min-w-0 flex-[1_1_420px] flex-col gap-1 md:gap-2">
         <span className="hidden text-label-lg text-primary-text md:block">{longDate()}</span>
         <h1 className="relative self-start text-display-sm md:text-display-md lg:text-display-lg">
-          Hábitos
-          <SketchUnderline className="absolute -bottom-1.5 left-0 w-full text-warning md:-bottom-2.5" delay={0.45} />
+          <Lettering text="Hábitos" />
+          <SketchUnderline className="absolute -bottom-1.5 left-0 w-full text-warning md:-bottom-2.5" delay={0.75} />
         </h1>
         <p className="hidden max-w-[520px] text-body-lg text-on-surface-light md:block">
           Pequeñas acciones, todos los días. Cada hábito completado suma XP a tu personaje.

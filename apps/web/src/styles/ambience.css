@@ -156,6 +156,9 @@ html.dark .lq-sheen-sweep::after { --sheen-a: .08; }
 
 /* Trazo dibujado a mano: el grosor no cambia al escalar el SVG. */
 .lq-ink { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+/* Trazos casi horizontales que se estiran a lo ancho (subrayado, tachado): con non-scaling-stroke
+   el trazo animado (pathLength) solo cubriría una parte del ancho; su grosor lo da la escala vertical (1). */
+.lq-ink.lq-ink-stretch { vector-effect: none; }
 
 /* ───────── Holograma (documento del Perfil) ─────────
    --mx/--my (0–100 %) los fija el puntero o la inclinación del móvil. */
@@ -681,17 +684,19 @@ html.dark .lq-ring { background: linear-gradient(90deg, rgb(var(--lq-on-surface-
   background: color-mix(in srgb, var(--note) 26%, rgb(var(--lq-surface)));
   border-radius: 2px 2px 6px 2px;
   box-shadow: 0 1px 1px rgb(0 0 0 / .08), 0 10px 18px -10px rgb(0 0 0 / .45);
-  transform: rotate(var(--tilt, -1.5deg));
-  transition: transform var(--lq-dur-heavy) var(--lq-ease-heavy), box-shadow .4s ease-out;
+  transition: box-shadow .4s ease-out;
 }
-.lq-note:hover, .lq-note:focus-within { transform: rotate(0deg) translateY(-3px); box-shadow: 0 2px 2px rgb(0 0 0 / .08), 0 18px 26px -12px rgb(0 0 0 / .5); }
+/* Caer, asentarse y enderezarse lo mueve Framer (StickyNote); aquí solo la sombra. */
+.lq-note:hover, .lq-note:focus-within { box-shadow: 0 2px 2px rgb(0 0 0 / .08), 0 18px 26px -12px rgb(0 0 0 / .5); }
 html.dark .lq-note { background: color-mix(in srgb, var(--note) 20%, rgb(var(--lq-surface-variant))); }
 .lq-note-info { --note: rgb(var(--lq-info)); }
 .lq-note-success { --note: rgb(var(--lq-success)); }
-.reduce-motion .lq-note, .reduce-motion .lq-note:hover { transform: rotate(var(--tilt, -1.5deg)); }
 .lq-tape { background: rgb(255 255 255 / .5); box-shadow: 0 1px 1px rgb(0 0 0 / .08); }
 html.dark .lq-tape { background: rgb(255 255 255 / .12); }
 /* Bloque de un evento: marca de resaltador del color de su categoría (--hl). */
+/* La marca se pasa de izquierda a derecha al llegar y se aviva al pasar el cursor. */
+.lq-highlight-mark { opacity: .9; transition: opacity .4s ease-out; }
+.group:hover .lq-highlight-mark, .group:focus-within .lq-highlight-mark { opacity: 1; }
 .lq-highlight { background: linear-gradient(100deg, rgb(var(--hl) / .2), rgb(var(--hl) / .12) 70%, rgb(var(--hl) / .2)); border-left: 3px solid rgb(var(--hl)); }
 html.dark .lq-highlight { background: linear-gradient(100deg, rgb(var(--hl) / .2), rgb(var(--hl) / .1) 70%, rgb(var(--hl) / .18)); }
 
@@ -1044,3 +1049,109 @@ html.dark .lq-plaque { background: linear-gradient(180deg, color-mix(in srgb, rg
 /* El foco: un hueco en un velo que cubre la pantalla, con un anillo de luz. De noche el velo es negro (el jade aclararía). */
 .lq-tour-spot { box-shadow: 0 0 0 200vmax rgb(var(--lq-jade-900) / .55), 0 0 0 2px rgb(var(--lq-primary) / .9), 0 0 28px 6px rgb(var(--lq-primary) / .35); }
 html.dark .lq-tour-spot { box-shadow: 0 0 0 200vmax rgb(0 0 0 / .6), 0 0 0 2px rgb(var(--lq-primary) / .9), 0 0 28px 6px rgb(var(--lq-primary) / .3); }
+
+/* ───────── Letra de la marca (Lettering) ─────────
+   El trazo del wordmark: 15 u de grosor y remates redondos, en el color del texto.
+   Cada palabra es un SVG de 1,35 em alineado a la línea base (sus 0,4 em
+   inferiores alojan las descendentes). Al montarse se escribe trazo a trazo,
+   como el splash; excepción documentada: anima stroke-dashoffset. */
+.lq-letters { line-height: 1.2; }
+/* Los márgenes negativos dejan la caja de línea como la del texto: las descendentes desbordan como en cualquier letra. */
+.lq-letters svg { display: inline-block; height: 1.35em; vertical-align: -0.4em; margin: -0.05em 0 -0.22em; overflow: visible; fill: none; stroke: currentColor; stroke-width: 15; stroke-linecap: round; stroke-linejoin: round; }
+.lq-letters circle { fill: currentColor; stroke: none; }
+.lq-letters[data-draw] path { stroke-dasharray: 1 2; stroke-dashoffset: 1.01; animation: lq-letter-draw .62s cubic-bezier(.65, 0, .35, 1) var(--d, 0s) forwards; }
+.lq-letters[data-draw] circle { transform-box: fill-box; transform-origin: center; transform: scale(0); animation: lq-letter-pop .5s cubic-bezier(.34, 1.56, .64, 1) var(--d, 0s) forwards; }
+@keyframes lq-letter-draw { to { stroke-dashoffset: 0; } }
+@keyframes lq-letter-pop { to { transform: scale(1); } }
+.reduce-motion .lq-letters[data-draw] path { animation: none; stroke-dasharray: none; stroke-dashoffset: 0; }
+.reduce-motion .lq-letters[data-draw] circle { animation: none; transform: none; }
+
+/* ───────── Misiones (el mapa de tu vida) ───────── */
+/* Pergamino con su doble filete de mapa antiguo y las esquinas tostadas. */
+.lq-map {
+  background-color: rgb(var(--lq-surface));
+  background-image:
+    radial-gradient(120% 70% at 12% 0%, rgb(var(--lq-secondary) / .12), transparent 60%),
+    radial-gradient(90% 60% at 100% 100%, rgb(var(--lq-warning) / .1), transparent 62%),
+    radial-gradient(rgb(var(--lq-on-background) / .035) .6px, transparent .8px);
+  background-size: auto, auto, 9px 9px;
+  box-shadow: inset 0 0 0 1px rgb(var(--lq-secondary-text) / .3), inset 0 0 0 7px rgb(var(--lq-surface) / .6), inset 0 0 0 8px rgb(var(--lq-secondary-text) / .2), inset 0 0 70px rgb(var(--lq-warning-text) / .09), var(--shadow-md);
+}
+html.dark .lq-map {
+  background-image:
+    radial-gradient(120% 70% at 12% 0%, rgb(var(--lq-secondary) / .07), transparent 60%),
+    radial-gradient(90% 60% at 100% 100%, rgb(var(--lq-warning) / .05), transparent 62%),
+    radial-gradient(rgb(255 255 255 / .03) .6px, transparent .8px);
+  box-shadow: inset 0 0 0 1px rgb(var(--lq-secondary) / .2), inset 0 0 0 7px rgb(var(--lq-surface) / .6), inset 0 0 0 8px rgb(var(--lq-secondary) / .12), inset 0 0 80px rgb(0 0 0 / .35), var(--shadow-md);
+}
+/* El sendero: lo recorrido, en tinta sepia a trazos; lo que falta, punteado y tenue. */
+.lq-trail { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.lq-trail-past { stroke: rgb(var(--lq-warning-text) / .7); stroke-width: 3; stroke-dasharray: 9 8; }
+.lq-trail-ahead { stroke: rgb(var(--lq-on-surface-light) / .55); stroke-width: 3.5; stroke-dasharray: .5 10; }
+html.dark .lq-trail-past { stroke: rgb(var(--lq-secondary) / .6); }
+/* La niebla de lo inexplorado: baja desde el borde y deriva despacio. */
+.lq-fog { background: linear-gradient(to bottom, rgb(var(--lq-surface)) 0%, rgb(var(--lq-surface) / .82) 32%, rgb(var(--lq-surface) / 0)); }
+.lq-fog-puff { border-radius: 999px; background: radial-gradient(closest-side, rgb(var(--lq-surface) / .95), rgb(var(--lq-surface) / 0)); filter: blur(8px); }
+/* «Estás aquí»: un aro que se abre despacio, como una onda (una vez cada 2,8 s). */
+.lq-you-ring { background: rgb(var(--lq-primary) / .22); animation: lq-you-ring 2.8s cubic-bezier(0, 0, .2, 1) infinite; }
+@keyframes lq-you-ring { 0% { transform: scale(.85); opacity: .9; } 100% { transform: scale(1.65); opacity: 0; } }
+/* El banderín del lugar visitado ondea al pasar el cursor o al enfocar el lugar. */
+.lq-flag { transform-box: fill-box; transform-origin: 0% 50%; }
+.group:hover .lq-flag, .group:focus-within .lq-flag { --r: 9deg; animation: lq-amb-sway .9s ease-in-out infinite alternate; }
+
+/* ───────── Inicio (la casa) ───────── */
+/* El marco de la ventana: madera pintada del color de la superficie, hundida en la pared. */
+.lq-window-frame { border: 10px solid rgb(var(--lq-surface)); box-shadow: 0 0 0 1px rgb(var(--lq-border)), inset 0 0 0 1px rgb(var(--lq-on-background) / .08), inset 0 6px 14px -6px rgb(0 0 0 / .35), 0 18px 32px -20px rgb(var(--lq-jade-900) / .45); }
+html.dark .lq-window-frame { border-color: rgb(var(--lq-surface-variant)); box-shadow: 0 0 0 1px rgb(255 255 255 / .05), inset 0 6px 14px -6px rgb(0 0 0 / .7), 0 18px 32px -18px rgb(0 0 0 / .8); }
+.lq-muntin { background: rgb(var(--lq-surface)); box-shadow: 0 1px 2px rgb(0 0 0 / .18); }
+html.dark .lq-muntin { background: rgb(var(--lq-surface-variant)); }
+.lq-rod { background: linear-gradient(180deg, color-mix(in srgb, rgb(var(--lq-secondary)) 70%, white), rgb(var(--lq-secondary-text))); box-shadow: 0 2px 3px rgb(0 0 0 / .2); }
+.lq-sill { background: linear-gradient(180deg, rgb(var(--lq-surface)), color-mix(in srgb, rgb(var(--lq-surface)) 88%, rgb(var(--lq-on-background)))); box-shadow: 0 1px 0 rgb(var(--lq-border)), 0 10px 16px -10px rgb(0 0 0 / .4); }
+html.dark .lq-sill { background: linear-gradient(180deg, rgb(var(--lq-surface-variant)), rgb(var(--lq-surface))); }
+/* El cielo según la hora (tonos de los tokens). */
+.lq-sky[data-phase="day"] { background: linear-gradient(180deg, color-mix(in srgb, rgb(var(--lq-info)) 58%, white) 0%, color-mix(in srgb, rgb(var(--lq-info)) 24%, white) 72%, color-mix(in srgb, rgb(var(--lq-warning)) 14%, white) 100%); }
+.lq-sky[data-phase="dawn"] { background: linear-gradient(180deg, color-mix(in srgb, rgb(var(--lq-info)) 42%, white) 0%, color-mix(in srgb, rgb(var(--lq-error)) 26%, white) 58%, color-mix(in srgb, rgb(var(--lq-warning)) 46%, white) 100%); }
+.lq-sky[data-phase="dusk"] { background: linear-gradient(180deg, color-mix(in srgb, rgb(var(--lq-jade-800)) 62%, rgb(var(--lq-info))) 0%, color-mix(in srgb, rgb(var(--lq-error)) 62%, rgb(var(--lq-warning))) 64%, color-mix(in srgb, rgb(var(--lq-warning)) 85%, white) 100%); }
+.lq-sky[data-phase="night"] { background: linear-gradient(180deg, color-mix(in srgb, rgb(var(--lq-jade-900)) 92%, black) 0%, color-mix(in srgb, rgb(var(--lq-jade-900)) 78%, rgb(var(--lq-info))) 100%); }
+/* El sol: núcleo cálido y halo que respira despacio. */
+.lq-sun-disc { --lo: .85; --hi: 1; background: radial-gradient(circle, color-mix(in srgb, rgb(var(--lq-warning)) 30%, white) 0 32%, rgb(var(--lq-warning) / .55) 34%, rgb(var(--lq-warning) / .18) 52%, transparent 70%); animation: lq-amb-breathe 7s ease-in-out infinite; }
+.lq-sky[data-phase="dusk"] .lq-sun-disc, .lq-sky[data-phase="dawn"] .lq-sun-disc { background: radial-gradient(circle, color-mix(in srgb, rgb(var(--lq-warning)) 55%, white) 0 30%, rgb(var(--lq-error) / .5) 33%, rgb(var(--lq-warning) / .22) 52%, transparent 70%); }
+/* Nubes: tres copos redondos que cruzan la ventana en uno o dos minutos. */
+.lq-cloud { left: 0; animation: lq-cloud var(--cd, 90s) linear var(--cdelay, 0s) infinite; }
+.lq-cloud-puff { border-radius: 999px; background: rgb(255 255 255 / .88); box-shadow: inset 0 -3px 4px rgb(var(--lq-info) / .12); }
+.lq-sky[data-phase="dusk"] .lq-cloud-puff { background: color-mix(in srgb, rgb(var(--lq-error)) 22%, white); opacity: .8; }
+.lq-sky[data-phase="night"] .lq-cloud-puff { background: rgb(255 255 255 / .1); box-shadow: none; }
+@keyframes lq-cloud { from { transform: translateX(-120%); } to { transform: translateX(460%); } }
+/* Colinas de la vista: más oscuras cuanto más cae el día. */
+.lq-view-hill-far { fill: color-mix(in srgb, rgb(var(--lq-jade-300)) 70%, white); }
+.lq-view-hill-near { fill: rgb(var(--lq-jade-400)); }
+.lq-view-hill-far[data-phase="dawn"] { fill: color-mix(in srgb, rgb(var(--lq-jade-300)) 60%, rgb(var(--lq-error))); }
+.lq-view-hill-far[data-phase="dusk"] { fill: color-mix(in srgb, rgb(var(--lq-jade-700)) 70%, rgb(var(--lq-error))); }
+.lq-view-hill-near[data-phase="dusk"] { fill: rgb(var(--lq-jade-800)); }
+.lq-view-hill-far[data-phase="night"] { fill: rgb(var(--lq-jade-800)); }
+.lq-view-hill-near[data-phase="night"] { fill: color-mix(in srgb, rgb(var(--lq-jade-900)) 80%, black); }
+/* Reflejo del vidrio: cruza muy despacio, ida y vuelta. */
+.lq-glass-glint { background: linear-gradient(100deg, transparent, rgb(255 255 255 / .22) 50%, transparent); animation: lq-mirror-glint 22s ease-in-out infinite alternate; }
+.lq-sky[data-phase="night"] .lq-glass-glint { opacity: .25; }
+/* Cortinas de lino teñido de jade, con sus pliegues; se mecen con la brisa desde la barra. */
+.lq-curtain {
+  border-radius: 4px 4px 14px 10px;
+  background: repeating-linear-gradient(90deg, color-mix(in srgb, rgb(var(--lq-primary)) 20%, rgb(var(--lq-surface))) 0 9px, color-mix(in srgb, rgb(var(--lq-primary)) 30%, rgb(var(--lq-surface))) 9px 13px, color-mix(in srgb, rgb(var(--lq-primary)) 15%, rgb(var(--lq-surface))) 13px 21px);
+  box-shadow: inset -6px 0 10px -6px rgb(0 0 0 / .25), 0 8px 14px -10px rgb(0 0 0 / .35);
+}
+.lq-curtain-r { border-radius: 4px 4px 10px 14px; box-shadow: inset 6px 0 10px -6px rgb(0 0 0 / .25), 0 8px 14px -10px rgb(0 0 0 / .35); }
+html.dark .lq-curtain { background: repeating-linear-gradient(90deg, color-mix(in srgb, rgb(var(--lq-primary)) 22%, rgb(var(--lq-surface-variant))) 0 9px, color-mix(in srgb, rgb(var(--lq-primary)) 32%, rgb(var(--lq-surface-variant))) 9px 13px, color-mix(in srgb, rgb(var(--lq-primary)) 16%, rgb(var(--lq-surface-variant))) 13px 21px); }
+.lq-curtain-sway { transform-origin: 50% 0; animation: lq-curtain 9s ease-in-out infinite; }
+@keyframes lq-curtain { 0%, 100% { transform: skewX(0deg) scaleX(1); } 50% { transform: skewX(1.4deg) scaleX(.96); } }
+/* La maceta de barro. */
+.lq-pot { fill: color-mix(in srgb, rgb(var(--lq-error-text)) 55%, rgb(var(--lq-warning-text))); }
+.lq-pot-rim { fill: color-mix(in srgb, rgb(var(--lq-error-text)) 70%, rgb(var(--lq-warning-text))); }
+/* La luz de la ventana en la sala: un rectángulo de sol, difuso y con caída, que aclara lo que toca. */
+.lq-sunpatch {
+  clip-path: polygon(26% 0, 74% 0, 100% 100%, 0 100%);
+  /* Sobre una pared clara la luz se ve por su calidez: un dorado suave que se apaga al caer. */
+  background: linear-gradient(180deg, rgb(var(--lq-warning) / .16), rgb(var(--lq-warning) / .07) 45%, rgb(var(--lq-warning) / 0) 92%);
+  filter: blur(22px); transform-origin: 50% 0;
+}
+.lq-sunpatch[data-phase="dusk"], .lq-sunpatch[data-phase="dawn"] { background: linear-gradient(180deg, rgb(var(--lq-warning) / .24), rgb(var(--lq-error) / .08) 50%, transparent 92%); }
+html.dark .lq-sunpatch { mix-blend-mode: screen; opacity: .55; }

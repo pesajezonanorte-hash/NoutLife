@@ -20,6 +20,7 @@ import {
   NAP_PRESETS, QUALITY, QualityFace, SLEEP_GOAL_H, bedMinutes, clock, fmtBedMinutes, hm, isNap, napAdvice, nightFromTimes, nightKey, quality,
 } from '@/components/sleep/sleepMeta';
 import { DurationMeter, RestDial, SleepSky, SleepyMoon, type DialSegment } from '@/components/sleep/SleepVisuals';
+import { Lettering } from '@/components/layout/Lettering';
 
 const DAY = 86400000;
 const weekday = (d: Date, style: 'short' | 'long' = 'short') => {
@@ -499,7 +500,7 @@ export default function SleepPage() {
   const header = (
     <motion.section variants={item} className="flex flex-col gap-1 md:gap-2">
       <span className="hidden text-label-lg text-primary-text md:block">Descanso</span>
-      <h1 className="text-display-sm md:text-display-md lg:text-display-lg">Sueño</h1>
+      <h1 className="text-display-sm md:text-display-md lg:text-display-lg"><Lettering text="Sueño" /></h1>
     </motion.section>
   );
 

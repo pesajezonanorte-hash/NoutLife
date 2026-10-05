@@ -39,6 +39,10 @@ export const getMyGuild = (): Promise<unknown> =>
 export const createGuild = (data: unknown): Promise<unknown> =>
   api.post('/social/guilds', data).then(({ data: d }) => d);
 
+/** Cambia o quita (null) la foto del gremio. Solo quien lo lidera. */
+export const updateGuild = (guildId: string, data: { photoUrl: string | null }): Promise<{ id: string; photoUrl: string | null }> =>
+  api.patch(`/social/guilds/${guildId}`, data).then(({ data: d }) => d);
+
 export const joinGuild = (inviteCode: string): Promise<unknown> =>
   api.post('/social/guilds/join', { inviteCode }).then(({ data }) => data);
 

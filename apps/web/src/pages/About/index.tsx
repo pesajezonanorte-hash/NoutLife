@@ -15,6 +15,7 @@ import { buttonClasses } from '@/components/ui/lq/Button';
 import { BrandMark } from '@/components/layout/Brand';
 import { AmbientLight, ZoneShell } from '@/components/ambience';
 import { Frame, Pedestal, Plaque, Room, TourLine } from '@/components/about/Museum';
+import { Lettering } from '@/components/layout/Lettering';
 
 const CREATOR = { name: 'Miguel Angel Romero', initials: 'MR', instagram: 'miguxlxr' };
 
@@ -73,7 +74,7 @@ export default function AboutPage() {
         </Pedestal>
         <div className="flex flex-col items-center gap-4">
           <span className="text-label-lg text-primary-text">Acerca de</span>
-          <h1 id="about-title" className="text-display-md md:text-display-lg">Noutlife</h1>
+          <h1 id="about-title" className="text-display-md md:text-display-lg"><Lettering text="Noutlife" /></h1>
           <p className="max-w-xl text-heading-sm font-medium text-on-surface md:text-heading-md" aria-label={TAGLINE}>
             {words.map((w, i) => (
               <motion.span key={i} aria-hidden className="inline-block" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ ...springSoft, delay: 0.55 + i * 0.07 }}>

@@ -2,6 +2,10 @@
 // Además del prototipo, conserva (rediseñados) los datos que ya da /dashboard:
 // reto de recuperación, guía de 7 días, resumen semanal, sueño, entrenamiento,
 // Life Score, agenda y logros recientes.
+// Zona ambientada: la casa. Un lugar tranquilo: el saludo escrito con la letra de
+// la marca, una ventana con el cielo de la hora real (cortinas que se abren y se
+// mecen, planta y taza humeante en el alféizar) y su luz cayendo en la sala; de
+// noche, la lámpara. Lo demás entra con calma, sin prisa.
 import { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
@@ -12,6 +16,9 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { item, stagger } from '@/lib/motion';
+import { ZoneShell } from '@/components/ambience';
+import { HomeWindow, RoomLight, useNow } from '@/components/dashboard/HomeWindow';
+import { Lettering } from '@/components/layout/Lettering';
 import { categoryMeta, formatMoney, greeting, longDate } from '@/lib/lifeMeta';
 import { getLevelTitle } from '@/lib/gameProgress';
 import { relativeTime } from '@/lib/time';
@@ -112,6 +119,7 @@ export default function DashboardPage() {
   const [modal, setModal] = useState<'class' | 'briefing' | null>(null);
   const [guideBusy, setGuideBusy] = useState(false);
   const { complete, pending, burst } = useHabitCompletion();
+  const now = useNow();
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setState('loading');
@@ -171,7 +179,7 @@ export default function DashboardPage() {
   const fmt = (n: number) => n.toLocaleString('es-CO');
 
   const levelCard = (
-    <Card as="section" variant="elevated" padding="lg" aria-label="Nivel" className="flex min-w-0 flex-col gap-4 md:flex-[1_1_380px]">
+    <Card as="section" variant="elevated" padding="lg" aria-label="Nivel" className="flex min-w-0 flex-col gap-4 md:max-w-[500px]">
       <div className="flex items-center gap-4">
         <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-primary/[var(--lq-soft-alpha)] text-heading-md text-primary-text font-mono tabular-nums">
           {user.level}
@@ -191,15 +199,25 @@ export default function DashboardPage() {
     </Card>
   );
 
+  const left = habits.filter((h) => !isDone(h)).length;
+  const calm = habits.length === 0
+    ? 'Tu casa está lista. Empieza con algo pequeño.'
+    : left === 0 ? 'Todo listo por hoy. Ponte cómodo.' : `Te ${left === 1 ? 'espera 1 hábito' : `esperan ${left} hábitos`} hoy, sin prisa.`;
+
+  // En casa: la ventana con el cielo de esta hora y, al lado, el saludo escrito con la letra de la marca.
   const header = (
-    <motion.section variants={item} className="flex flex-col gap-6 md:flex-row md:flex-wrap md:items-end md:justify-between">
-      <div className="flex min-w-0 flex-col gap-1 md:flex-[1_1_360px]">
-        <p className="hidden text-body-md text-on-surface-light md:block">{longDate()}</p>
-        <h1 className="text-display-sm md:text-display-md lg:text-display-lg">
-          {isEmpty ? 'Bienvenido' : greeting()},<br className="md:hidden" /> {first}
-        </h1>
+    <motion.section variants={item} className="grid items-center gap-6 md:grid-cols-[minmax(0,1fr)_minmax(280px,400px)] md:gap-10">
+      <HomeWindow now={now} className="md:order-2" />
+      <div className="flex min-w-0 flex-col gap-5 md:order-1">
+        <div className="flex flex-col gap-1.5">
+          <p className="hidden text-body-md text-on-surface-light md:block">{longDate(now)}</p>
+          <h1 className="text-display-sm [text-wrap:balance] md:text-display-md lg:text-display-lg">
+            <Lettering text={`${isEmpty ? 'Bienvenido a casa' : greeting(now)}, ${first}`} delay={0.2} />
+          </h1>
+          <p className="text-body-lg text-on-surface">{calm}</p>
+        </div>
+        {levelCard}
       </div>
-      {levelCard}
     </motion.section>
   );
 
@@ -217,7 +235,7 @@ export default function DashboardPage() {
 
   if (isEmpty) {
     return (
-      <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-6 md:gap-12">
+      <ZoneShell zone="home" ambience={<RoomLight now={now} />}>
         {header}
         <motion.div variants={item}>
           <EmptyState
@@ -228,7 +246,7 @@ export default function DashboardPage() {
             className="py-12"
           />
         </motion.div>
-      </motion.div>
+      </ZoneShell>
     );
   }
 
@@ -237,7 +255,7 @@ export default function DashboardPage() {
   const guide = data?.sevenDayGuide;
 
   return (
-    <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-6 md:gap-12">
+    <ZoneShell zone="home" ambience={<RoomLight now={now} />}>
       {header}
 
       {/* Resumen: 4 StatCards con count-up */}
@@ -460,6 +478,6 @@ export default function DashboardPage() {
         quests={quests.length}
         streak={user.currentStreak}
       />
-    </motion.div>
+    </ZoneShell>
   );
 }

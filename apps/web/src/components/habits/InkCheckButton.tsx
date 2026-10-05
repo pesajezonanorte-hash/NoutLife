@@ -1,8 +1,9 @@
-// Check de libreta (Hábitos): un círculo hecho a mano donde, al completar, se
-// traza un check de tinta. La tinta aparece en cuanto se toca (sin esperar a
+// Check de libreta (Hábitos, Agenda): un círculo hecho a mano donde, al completar,
+// se traza un check de tinta. La tinta aparece en cuanto se toca (sin esperar a
 // la API) y dura menos de 400 ms; si el registro falla, el trazo se recoge.
-// Mismo contrato accesible que CheckButton: aria-pressed, nombre «Completar X»
-// y, una vez completado, bloqueado y anunciado como tal.
+// Mismo contrato accesible que CheckButton: aria-pressed, nombre «Completar X»;
+// con `locked`, una vez completado queda bloqueado y anunciado como tal; sin él,
+// tocarlo otra vez lo desmarca y la tinta se recoge.
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -34,15 +35,19 @@ export function InkCheckButton({ checked, name, onToggle, pending, locked, class
     wasPending.current = false;
   }, [pending, checked]);
 
+  // Mientras la tinta de un toque espera a la API, otro toque no hace nada.
+  const waiting = inking && !checked;
+  const toggle = () => { setInking(!checked); onToggle(); };
+
   return (
     <motion.button
       type="button"
       aria-pressed={checked}
-      aria-label={isLocked ? `${name}: completado hoy` : `Completar ${name}`}
+      aria-label={isLocked ? `${name}: completado hoy` : checked ? `Desmarcar ${name}` : `Completar ${name}`}
       aria-disabled={isLocked || undefined}
       aria-busy={pending || undefined}
       disabled={pending}
-      onClick={isLocked || shown ? undefined : () => { setInking(true); onToggle(); }}
+      onClick={isLocked || waiting ? undefined : toggle}
       whileTap={isLocked ? undefined : { scale: 0.9 }}
       transition={springs.snappy}
       className={cn(

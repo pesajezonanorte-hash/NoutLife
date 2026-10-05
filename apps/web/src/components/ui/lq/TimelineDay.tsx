@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { springs } from '@/lib/motion/presets';
 
 export interface TimelineItem {
   id: string;
@@ -56,6 +57,9 @@ function layout(items: TimelineItem[]) {
 /**
  * Día en horas: rejilla con etiquetas mono, bloques absolutos (entran con pop escalonado)
  * y línea "ahora" que aparece al final. Solo transform/opacity en la animación.
+ * Con `ruled` es una hoja de agenda escrita a mano: el margen rojo se traza de arriba
+ * abajo, cada línea de hora se dibuja de izquierda a derecha y su hora se escribe;
+ * los bloques solo aparecen (su contenido trae su propia entrada, como el resaltador).
  */
 export function TimelineDay({ items, showNow, fromHour = 7, toHour = 20, hourHeight = 64, label, ruled, className }: TimelineDayProps) {
   const [now, setNow] = useState(() => new Date());
@@ -79,10 +83,29 @@ export function TimelineDay({ items, showNow, fromHour = 7, toHour = 20, hourHei
   return (
     <div role="group" aria-label={label} className={cn('relative ml-14', className)} style={{ height: (end - start) * hourHeight }}>
       {/* Hoja de agenda: margen rojo y medias horas punteadas */}
-      {ruled && <span aria-hidden className="pointer-events-none absolute -left-2 bottom-0 top-0 w-px bg-error/40" />}
-      {hours.map((h) => (
-        <div key={h} aria-hidden className="absolute inset-x-0 border-t border-border" style={{ top: (h - start) * hourHeight }}>
-          <span className="absolute -left-14 -top-3 font-mono text-body-sm tabular-nums text-on-surface-light">{String(h).padStart(2, '0')}:00</span>
+      {ruled && (
+        <motion.span
+          aria-hidden
+          className="pointer-events-none absolute -left-2 bottom-0 top-0 w-px origin-top bg-error/40"
+          initial={{ scaleY: 0 }}
+          animate={{ scaleY: 1, transition: { ...springs.gentle, delay: 0.15 } }}
+        />
+      )}
+      {hours.map((h, i) => (
+        <div key={h} aria-hidden className={cn('absolute inset-x-0', !ruled && 'border-t border-border')} style={{ top: (h - start) * hourHeight }}>
+          {ruled && (
+            <motion.span
+              className="absolute inset-x-0 top-0 block h-px origin-left bg-border"
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: 1, transition: { ...springs.gentle, mass: 0.8, delay: 0.2 + i * 0.035 } }}
+            />
+          )}
+          <span
+            className={cn('absolute -left-14 -top-3 font-mono text-body-sm tabular-nums text-on-surface-light', ruled && 'lq-write')}
+            style={ruled ? ({ '--delay': `${260 + i * 35}ms`, '--d': '420ms' } as CSSProperties) : undefined}
+          >
+            {String(h).padStart(2, '0')}:00
+          </span>
           {ruled && h < end && <span className="absolute inset-x-0 block border-t border-dashed border-border" style={{ top: hourHeight / 2 }} />}
         </div>
       ))}
@@ -99,8 +122,8 @@ export function TimelineDay({ items, showNow, fromHour = 7, toHour = 20, hourHei
       {placed.map(({ item, col, cols }, i) => (
         <motion.div
           key={item.id}
-          initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.4, delay: 0.1 + i * 0.06, ease: [0, 0, 0.2, 1] }}
+          initial={ruled ? { opacity: 0 } : { opacity: 0, scale: 0.97 }} animate={ruled ? { opacity: 1 } : { opacity: 1, scale: 1 }}
+          transition={{ duration: ruled ? 0.2 : 0.4, delay: 0.1 + i * 0.06, ease: [0, 0, 0.2, 1] }}
           className={cn('absolute', item.className)}
           style={{
             top: top(item.start) + 2,

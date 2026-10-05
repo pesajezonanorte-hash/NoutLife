@@ -18,6 +18,7 @@ import { LOADING_COPY } from '@/lib/loadingCopy';
 import { AmbientLight, Particles, Sheen, ZoneShell, useParticleBudget } from '@/components/ambience';
 import { fetchAchievements, type Achievement } from '@/services/achievement.service';
 import { achievementCategory as catMeta, achievementIcon, achievementProgress as progressOf } from '@/components/achievements/achievementMeta';
+import { Lettering } from '@/components/layout/Lettering';
 
 type Filter = 'all' | 'on' | 'off';
 
@@ -189,7 +190,7 @@ export default function AchievementsPage() {
       <motion.section variants={item} className="flex flex-wrap items-center justify-between gap-6 md:gap-8">
         <div className="flex w-full min-w-0 flex-col gap-3 md:w-auto md:flex-[1_1_420px] md:gap-2">
           <span className="hidden text-label-lg text-primary-text md:block">Vitrina</span>
-          <h1 className="text-display-sm md:text-display-md lg:text-display-lg">Logros</h1>
+          <h1 className="text-display-sm md:text-display-md lg:text-display-lg"><Lettering text="Logros" /></h1>
           <p className="hidden max-w-[520px] text-body-lg text-on-surface-light md:block">
             Cada medalla cuenta una parte de tu historia. Pasa el cursor o enfoca una para ver cómo se consigue.
           </p>

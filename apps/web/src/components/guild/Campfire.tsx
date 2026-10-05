@@ -31,14 +31,16 @@ function Tent({ className, flip }: { className?: string; flip?: boolean }) {
   );
 }
 
-/** Banderín con el emblema del gremio en lo alto de un mástil. */
-function Pennant({ icon: Icon, tone }: { icon: LucideIcon; tone: string }) {
+/** Banderín con el emblema (o la foto) del gremio en lo alto de un mástil. */
+function Pennant({ icon: Icon, tone, photoUrl }: { icon: LucideIcon; tone: string; photoUrl?: string | null }) {
   return (
     <span aria-hidden="true" className="relative block h-32 w-16">
       <span className="absolute bottom-0 left-1 block h-full w-1 rounded-full bg-secondary-text" />
       <span className="lq-amb-sway absolute left-2 top-1 block origin-left [--d:4.5s] [--o:0%_50%] [--r:4deg]">
         <span className="lq-pennant flex h-10 w-14 items-center pl-2" style={{ '--pen': `var(--lq-${tone})` } as CSSProperties}>
-          <Icon className="size-4 text-jade-50" strokeWidth={2} />
+          {photoUrl
+            ? <img src={photoUrl} alt="" className="-ml-0.5 size-5 rounded-full object-cover ring-[1.5px] ring-jade-50/80" draggable={false} />
+            : <Icon className="size-4 text-jade-50" strokeWidth={2} />}
         </span>
       </span>
     </span>
@@ -57,8 +59,8 @@ function Flames() {
   );
 }
 
-export function Campfire({ campers, progress, prevProgress, emblem, emblemTone, className }: {
-  campers: Camper[]; progress: number; prevProgress?: number | null; emblem: LucideIcon; emblemTone: string; className?: string;
+export function Campfire({ campers, progress, prevProgress, emblem, emblemTone, photoUrl, className }: {
+  campers: Camper[]; progress: number; prevProgress?: number | null; emblem: LucideIcon; emblemTone: string; photoUrl?: string | null; className?: string;
 }) {
   const wide = useMediaQuery('(min-width: 768px)');
   const budget = useParticleBudget();
@@ -105,7 +107,7 @@ export function Campfire({ campers, progress, prevProgress, emblem, emblemTone, 
       {/* Tiendas y banderín */}
       <Tent className="pointer-events-none absolute left-[5%] top-[30%] w-[22%] max-w-[180px] md:left-[9%]" />
       <Tent flip className="pointer-events-none absolute right-[5%] top-[33%] hidden w-[18%] max-w-[150px] sm:block md:right-[12%]" />
-      <span className="pointer-events-none absolute right-[4%] top-[18%] hidden md:block"><Pennant icon={emblem} tone={emblemTone} /></span>
+      <span className="pointer-events-none absolute right-[4%] top-[18%] hidden md:block"><Pennant icon={emblem} tone={emblemTone} photoUrl={photoUrl} /></span>
 
       {/* Los miembros llegan y se sientan alrededor */}
       {seats.filter((s) => s.y < 64).map((s, i) => <Seat key={s.c.id} seat={s} i={i} />)}
