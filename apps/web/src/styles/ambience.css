@@ -172,3 +172,22 @@ html.dark .lq-holo { mix-blend-mode: screen; opacity: .3; }
     repeating-radial-gradient(circle at 85% 120%, transparent 0 9px, rgb(var(--lq-primary) / .06) 9px 10px),
     repeating-radial-gradient(circle at -10% -30%, transparent 0 13px, rgb(var(--lq-info) / .05) 13px 14px);
 }
+
+/* ───────── Posada (Comida) ───────── */
+/* Vapor de un plato recién servido: sube, se estira y se disipa (ciclos de 3,4 s). */
+.lq-steam { opacity: .35; transform-origin: 50% 100%; animation: lq-steam 3.4s ease-in-out infinite; }
+@keyframes lq-steam {
+  0% { transform: translateY(4px) scaleY(.7); opacity: 0; }
+  30% { opacity: .55; }
+  100% { transform: translateY(-10px) scaleY(1.1) skewX(-8deg); opacity: 0; }
+}
+/* Luz de vela (modo oscuro): oscila suave e irregular, por debajo de 2 Hz. */
+.lq-candle { opacity: .7; animation: lq-candle 4.2s ease-in-out infinite; }
+@keyframes lq-candle {
+  0%, 100% { opacity: .62; transform: scale(1); }
+  14% { opacity: .74; transform: scale(1.02); }
+  31% { opacity: .66; transform: scale(.99); }
+  47% { opacity: .78; transform: scale(1.03); }
+  63% { opacity: .64; transform: scale(.985); }
+  81% { opacity: .72; transform: scale(1.015); }
+}
