@@ -63,7 +63,8 @@ export async function refresh(req: Request, res: Response): Promise<void> {
   }
 
   try {
-    const { accessToken, user } = await authService.refreshAccessToken(token);
+    const { accessToken, refreshToken, user } = await authService.refreshAccessToken(token);
+    res.cookie('refreshToken', refreshToken, REFRESH_COOKIE_OPTIONS);
     res.json({ accessToken, user });
   } catch {
     res.clearCookie('refreshToken', { path: '/api/v1' });

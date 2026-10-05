@@ -2,6 +2,7 @@
 
 interface ImportMetaEnv {
   readonly VITE_API_URL: string;
+  readonly VITE_API_CROSS_ORIGIN?: string;
   readonly VITE_APP_NAME: string;
   readonly VITE_VAPID_PUBLIC_KEY: string;
 }

@@ -1,3 +1,10 @@
+# La API en el mismo dominio: cookie de sesión de primera parte (Safari/iPhone).
+[[redirects]]
+  from = "/api/v1/*"
+  to = "https://lifequest2-api.vercel.app/api/v1/:splat"
+  status = 200
+  force = true
+
 [[redirects]]
   from = "/*"
   to = "/index.html"

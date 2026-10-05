@@ -1,4 +1,5 @@
 import bcrypt from 'bcrypt';
+import { randomBytes } from 'crypto';
 import { prisma } from '../lib/prisma';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../lib/jwt';
 import type { RegisterInput, LoginInput } from '../schemas/auth.schemas';
@@ -88,6 +89,23 @@ export async function checkAvailability(data: Pick<RegisterInput, 'email' | 'use
   };
 }
 
+/**
+ * Sesiones: cada usuario tiene una «familia» (refreshTokenHash guarda su id, no
+ * un hash por token). Todos sus dispositivos comparten la familia, así iniciar
+ * sesión en el móvil no cierra la del ordenador. Cerrar sesión la borra y
+ * revoca todos los tokens. Los tokens antiguos (hash bcrypt, sin fid) se
+ * aceptan una vez y se migran.
+ */
+const FAMILY_PREFIX = 'fam_';
+const isFamily = (v: string | null | undefined): v is string => Boolean(v?.startsWith(FAMILY_PREFIX));
+
+async function issueSession(user: { id: string; email: string; refreshTokenHash: string | null }) {
+  const fid = isFamily(user.refreshTokenHash) ? user.refreshTokenHash : FAMILY_PREFIX + randomBytes(18).toString('base64url');
+  await prisma.user.update({ where: { id: user.id }, data: { refreshTokenHash: fid, lastLoginAt: new Date() } });
+  const payload = { userId: user.id, email: user.email };
+  return { accessToken: signAccessToken(payload), refreshToken: signRefreshToken({ ...payload, fid }) };
+}
+
 export async function registerUser(data: RegisterInput) {
   const normalizedEmail = data.email.trim().toLowerCase();
   const existing = await prisma.user.findFirst({
@@ -123,15 +141,7 @@ export async function registerUser(data: RegisterInput) {
     },
   });
 
-  const payload = { userId: user.id, email: user.email };
-  const accessToken = signAccessToken(payload);
-  const refreshToken = signRefreshToken(payload);
-
-  const refreshTokenHash = await bcrypt.hash(refreshToken, 10);
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { refreshTokenHash, lastLoginAt: new Date() },
-  });
+  const { accessToken, refreshToken } = await issueSession(user);
 
   // Trigger first_login achievement silently (don't block registration)
   checkAchievements(user.id, 'user_registered', { currentStreak: 0 }).catch(() => {});
@@ -154,15 +164,7 @@ export async function loginUser(data: LoginInput) {
     ? user
     : { ...user, currentStreak: reconciledStreak };
 
-  const payload = { userId: user.id, email: user.email };
-  const accessToken = signAccessToken(payload);
-  const refreshToken = signRefreshToken(payload);
-
-  const refreshTokenHash = await bcrypt.hash(refreshToken, 10);
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { refreshTokenHash, lastLoginAt: new Date() },
-  });
+  const { accessToken, refreshToken } = await issueSession(user);
 
   // Check login_30 achievement silently
   checkAchievements(user.id, 'user_login', { currentStreak: userForResponse.currentStreak }).catch(() => {});
@@ -181,7 +183,9 @@ export async function refreshAccessToken(refreshToken: string) {
   const user = await prisma.user.findUnique({ where: { id: payload.userId } });
   if (!user?.refreshTokenHash) throw new Error('INVALID_REFRESH_TOKEN');
 
-  const valid = await bcrypt.compare(refreshToken, user.refreshTokenHash);
+  const valid = isFamily(user.refreshTokenHash)
+    ? (payload as { fid?: string }).fid === user.refreshTokenHash
+    : await bcrypt.compare(refreshToken, user.refreshTokenHash);
   if (!valid) throw new Error('INVALID_REFRESH_TOKEN');
 
   const { reconcileUserActivityStreak } = await import('./xp.service');
@@ -190,8 +194,9 @@ export async function refreshAccessToken(refreshToken: string) {
     ? user
     : { ...user, currentStreak: reconciledStreak };
 
-  const newAccessToken = signAccessToken({ userId: user.id, email: user.email });
-  return { accessToken: newAccessToken, user: sanitizeUser(userForResponse) };
+  // Renovación deslizante: cada refresh entrega un token nuevo de la misma familia.
+  const { accessToken, refreshToken: nextRefreshToken } = await issueSession(user);
+  return { accessToken, refreshToken: nextRefreshToken, user: sanitizeUser(userForResponse) };
 }
 
 export async function logoutUser(userId: string) {
