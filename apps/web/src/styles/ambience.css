@@ -855,3 +855,26 @@ html.dark .lq-fold { background: linear-gradient(180deg, transparent, rgb(0 0 0 
 /* Sello «Noticia cumplida»: tinta roja con el borde gastado. */
 .lq-news-stamp { color: rgb(var(--lq-error-text)); border-color: rgb(var(--lq-error-text)); -webkit-mask: radial-gradient(rgb(0 0 0) 70%, rgb(0 0 0 / .55) 100%) 0 0 / 5px 5px; mask: radial-gradient(rgb(0 0 0) 70%, rgb(0 0 0 / .55) 100%) 0 0 / 5px 5px; }
 html.dark .lq-news-stamp { color: rgb(var(--lq-error)); border-color: rgb(var(--lq-error)); }
+
+/* ───────── Ajustes (taller) ───────── */
+/* Tablero perforado de la pared. */
+.lq-pegboard { background-image: radial-gradient(circle 2.4px, rgb(var(--lq-on-background) / .13) 98%, transparent); background-size: 22px 22px; background-color: color-mix(in srgb, rgb(var(--lq-secondary)) 9%, transparent); }
+html.dark .lq-pegboard { background-image: radial-gradient(circle 2.4px, rgb(0 0 0 / .45) 98%, transparent); background-color: color-mix(in srgb, rgb(var(--lq-secondary)) 5%, transparent); }
+.lq-tool { fill: rgb(var(--lq-on-background) / .14); }
+.lq-peg { fill: rgb(var(--lq-secondary-text) / .5); }
+/* Banco de trabajo: tablero de contrachapado con su canto y cuatro tornillos. */
+.lq-bench {
+  background-color: color-mix(in srgb, rgb(var(--lq-surface)) 90%, rgb(var(--lq-secondary)));
+  background-image: repeating-linear-gradient(90deg, transparent 0 34px, rgb(var(--lq-secondary-text) / .035) 34px 35px);
+  border: 1px solid rgb(var(--lq-border));
+  box-shadow: 0 6px 0 -2px color-mix(in srgb, rgb(var(--lq-warning-text)) 45%, rgb(var(--lq-secondary))), 0 7px 0 -2px rgb(var(--lq-on-background) / .2), 0 16px 24px -14px rgb(var(--lq-jade-900) / .35);
+}
+html.dark .lq-bench { background-color: color-mix(in srgb, rgb(var(--lq-surface)) 92%, rgb(var(--lq-secondary))); box-shadow: 0 6px 0 -2px color-mix(in srgb, rgb(var(--lq-warning-text)) 25%, rgb(var(--lq-jade-900))), 0 16px 24px -12px rgb(0 0 0 / .7); }
+.lq-screw { background: radial-gradient(circle at 35% 30%, rgb(255 255 255 / .9), rgb(var(--lq-border-strong)) 70%); box-shadow: 0 1px 1px rgb(0 0 0 / .3), inset 0 0 0 1px rgb(0 0 0 / .12); }
+/* Interruptores mecánicos: perilla de metal que viaja con muelle y su ranura hundida. */
+.lq-workshop [role="switch"] + span { box-shadow: inset 0 2px 4px rgb(0 0 0 / .2); }
+.lq-workshop [role="switch"] + span::after {
+  background: radial-gradient(circle at 35% 30%, rgb(255 255 255), rgb(var(--lq-surface-variant)) 55%, rgb(var(--lq-border-strong)));
+  box-shadow: 0 2px 3px rgb(0 0 0 / .32), inset 0 -1px 0 rgb(0 0 0 / .15);
+  transition: transform var(--lq-dur-heavy) var(--lq-ease-heavy), width .2s ease-out;
+}
