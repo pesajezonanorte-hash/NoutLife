@@ -1,5 +1,9 @@
 // Aprendizaje — LearningDesktop.dc.html. Biblioteca (KPIs count-up, estantería con
 // portadas y filtros de estado) y Pomodoro real. Notas y vocabulario por ítem.
+// Zona ambientada: una biblioteca tranquila. Los libros se asientan uno a uno en
+// el estante (grosor según tamaño, marcapáginas según progreso) y asoman al pasar;
+// terminar uno lo cierra con peso y lo devuelve al estante con un brillo suave.
+// Polvo flotando bajo la luz de una lámpara. Todo lento.
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -8,6 +12,8 @@ import {
 } from 'lucide-react';
 import type { LearningItem, LearningStats } from '@lifequest/shared';
 import { item, stagger } from '@/lib/motion';
+import { AmbientLight, Particles, ZoneShell, useParticleBudget } from '@/components/ambience';
+import { Bookshelf } from '@/components/learning/Bookshelf';
 import { useUIStore } from '../../store/uiStore';
 import { useToast } from '../../hooks/useToast';
 import { refreshUser } from '../../hooks/useAuth';
@@ -163,6 +169,9 @@ export default function LearningPage() {
   const [tab, setTab] = useState<Mode>('biblioteca');
   const [selectedItem, setSelectedItem] = useState<LearningItem | null>(null);
   const [detailTab, setDetailTab] = useState<'notas' | 'vocab'>('notas');
+  /** Libro que se acaba de terminar: se cierra y vuelve al estante. */
+  const [closing, setClosing] = useState<string | null>(null);
+  const budget = useParticleBudget();
 
   const load = useCallback(async () => {
     setState('loading');
@@ -194,7 +203,18 @@ export default function LearningPage() {
   ] : [];
 
   return (
-    <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-6 md:gap-8">
+    <ZoneShell
+      zone="learning"
+      contentClassName="gap-6 md:gap-8"
+      ambience={<AmbientLight tone="warning" alpha={0.12} darkAlpha={0.07} d={18} className="right-[-6%] top-[-8%] h-[34rem] w-[46%]" />}
+      view={(
+        // Motas de polvo que flotan despacio bajo la lámpara.
+        <Particles
+          count={budget(14)} kind="drift" seed={23} x={[52, 98]} y={[4, 60]} duration={[14, 24]} alpha={[0.2, 0.45]} size={[1.5, 3]} sx={[-20, 20]} sy={[-26, 14]}
+          render={(sz) => <span className="block rounded-full bg-warning" style={{ width: sz, height: sz }} />}
+        />
+      )}
+    >
       <motion.section variants={item} className="flex flex-wrap items-end justify-between gap-6">
         <div className="flex min-w-0 flex-[1_1_360px] flex-col gap-2">
           <span className="text-label-lg text-primary-text">Aprendizaje</span>
@@ -247,6 +267,11 @@ export default function LearningPage() {
                     <h2 id="lib-shelf" className="text-heading-lg">Tu estantería</h2>
                     <SegmentedControl options={FILTERS} value={filter} onChange={setFilter} label="Estado" className="w-full overflow-x-auto sm:max-w-[520px]" />
                   </div>
+                  <Bookshelf
+                    books={filtered.map((b) => ({ item: b, tone: (TYPE_META[b.type] ?? TYPE_META.BOOK).tone, label: (STATUS_META[b.status] ?? STATUS_META.NOT_STARTED).label, pct: pctOf(b) }))}
+                    onPick={setUpdating}
+                    closing={closing}
+                  />
 
                   {items.length === 0 ? (
                     <Card variant="elevated" padding="lg">
@@ -295,7 +320,11 @@ export default function LearningPage() {
       </AnimatePresence>
 
       {showAdd && <AddItemModal onClose={() => setShowAdd(false)} onSave={(it) => { setItems((prev) => [it, ...prev]); setShowAdd(false); }} />}
-      {updating && <ProgressModal item={updating} onClose={() => setUpdating(null)} onUpdate={(u) => { setItems((prev) => prev.map((i) => (i.id === u.id ? u : i))); setUpdating(null); }} />}
-    </motion.div>
+      {updating && <ProgressModal item={updating} onClose={() => setUpdating(null)} onUpdate={(u) => {
+        // Terminado ahora: el libro se cierra y vuelve al estante con un brillo.
+        if (u.status === 'COMPLETED' && updating.status !== 'COMPLETED') { setClosing(u.id); window.setTimeout(() => setClosing(null), 2600); }
+        setItems((prev) => prev.map((i) => (i.id === u.id ? u : i))); setUpdating(null);
+      }} />}
+    </ZoneShell>
   );
 }

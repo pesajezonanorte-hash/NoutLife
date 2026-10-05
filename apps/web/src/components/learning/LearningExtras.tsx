@@ -10,6 +10,7 @@ import { useToastStore } from '../../hooks/useToast';
 import api from '../../lib/api';
 import { Badge, Button, Card, EmptyState, Field, Input, ProgressBar, ProgressRing, Textarea, formatClock, PageLoader } from '@/components/ui/lq';
 import { LOADING_COPY } from '@/lib/loadingCopy';
+import { PerspectiveFlipCard } from '@/components/ui/perspective-flip-card';
 
 // ─── Pomodoro Timer ────────────────────────────────────────────────────────────
 
@@ -273,27 +274,41 @@ export function VocabPanel({ itemId }: { itemId: string }) {
       <AnimatePresence>
         {reviewing && (
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-            <Card variant="elevated" padding="lg" className="flex flex-col items-center gap-4 text-center">
+            <div className="flex flex-col items-center gap-4">
               <p className="font-mono text-body-sm tabular-nums text-on-surface-light">Repasando {dueCards.indexOf(reviewing) + 1} / {dueCards.length}</p>
-              <p className="text-heading-lg">{reviewing.front}</p>
-              {!showBack ? (
-                <Button variant="secondary" block onClick={() => setShowBack(true)}>Mostrar respuesta</Button>
-              ) : (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex w-full flex-col gap-4" aria-live="polite">
-                  <div className="border-t border-border pt-4">
-                    <p className="text-heading-md text-primary-text">{reviewing.back}</p>
-                    {reviewing.example && <p className="mt-1 text-body-md italic text-on-surface-light">{reviewing.example}</p>}
+              {/* Pasar la página de la tarjeta: el flip card existente */}
+              <PerspectiveFlipCard
+                key={reviewing.id}
+                label={`Tarjeta ${reviewing.front}`}
+                trigger="tap"
+                flipped={showBack}
+                onFlipChange={setShowBack}
+                className="h-72 min-h-0 max-w-[30rem]"
+                front={(
+                  <div className="lq-tex-paper flex size-full flex-col items-center justify-center gap-3 rounded-[inherit] p-6 text-center">
+                    <p className="text-heading-lg [text-wrap:balance]">{reviewing.front}</p>
+                    <p className="text-body-sm text-on-surface-light">Toca para ver la respuesta</p>
                   </div>
-                  <p className="text-label-lg text-on-surface">¿Qué tan bien lo recordaste?</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {grades.map(([q, name, cls]) => (
-                      <button key={q} type="button" onClick={() => void review(q)} className={cn('min-h-12 rounded-md text-label-lg transition-shadow hover:shadow-md', cls)}>{name}</button>
-                    ))}
+                )}
+                back={(
+                  <div className="lq-tex-paper flex size-full flex-col justify-between gap-3 rounded-[inherit] p-6 pt-16 text-center" aria-live="polite">
+                    <div>
+                      <p className="text-heading-md text-primary-text">{reviewing.back}</p>
+                      {reviewing.example && <p className="mt-1 text-body-md italic text-on-surface-light">{reviewing.example}</p>}
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <p className="text-label-lg text-on-surface">¿Qué tan bien lo recordaste?</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {grades.map(([q, name, cls]) => (
+                          <button key={q} type="button" onClick={() => void review(q)} className={cn('min-h-12 rounded-md text-label-lg transition-shadow hover:shadow-md', cls)}>{name}</button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
-                </motion.div>
-              )}
+                )}
+              />
               <Button variant="ghost" size="sm" onClick={() => setReviewing(null)}><X aria-hidden className="size-4" />Salir de la revisión</Button>
-            </Card>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
