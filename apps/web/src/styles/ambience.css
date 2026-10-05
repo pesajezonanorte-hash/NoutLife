@@ -661,3 +661,33 @@ html.dark .lq-marble {
 /* Bandeja de mármol para cada rutina: borde de la bandeja y brillo. */
 .lq-tray { border: 1px solid rgb(var(--lq-border)); box-shadow: inset 0 0 0 5px rgb(var(--lq-surface) / .55), inset 0 0 0 6px rgb(var(--lq-secondary) / .25), var(--shadow-sm); }
 html.dark .lq-tray { box-shadow: inset 0 0 0 5px rgb(0 0 0 / .15), inset 0 0 0 6px rgb(var(--lq-secondary) / .18), var(--shadow-sm); }
+
+/* ───────── Rituales (jardín zen) ───────── */
+/* Arena: el dorado de los tokens muy diluido; el rastrillado, un poco más oscuro. */
+.lq-sand { --sand: color-mix(in srgb, rgb(var(--lq-secondary)) 20%, rgb(var(--lq-background))); background: var(--sand); }
+html.dark .lq-sand { --sand: color-mix(in srgb, rgb(var(--lq-secondary)) 9%, rgb(var(--lq-surface))); }
+.lq-sand-fill { fill: var(--sand); }
+.lq-rake path, .lq-rake-ring { stroke: rgb(var(--lq-secondary-text) / .2); }
+html.dark .lq-rake path, html.dark .lq-rake-ring { stroke: rgb(var(--lq-secondary) / .16); }
+.lq-zen-wave { stroke: rgb(var(--lq-success) / .6); transform-box: fill-box; }
+/* Bandeja de jardín zen: arena con marco de bambú claro. */
+.lq-zen-tray {
+  --sand: color-mix(in srgb, rgb(var(--lq-secondary)) 12%, rgb(var(--lq-surface)));
+  background-color: var(--sand) !important;
+  background-image: repeating-linear-gradient(180deg, transparent 0 9px, rgb(var(--lq-secondary-text) / .06) 9px 10px);
+  box-shadow: inset 0 0 0 1px rgb(var(--lq-secondary-text) / .25), inset 0 0 0 6px color-mix(in srgb, rgb(var(--lq-secondary)) 45%, rgb(var(--lq-surface))), inset 0 0 0 7px rgb(var(--lq-secondary-text) / .25), var(--shadow-sm);
+}
+html.dark .lq-zen-tray {
+  --sand: color-mix(in srgb, rgb(var(--lq-secondary)) 7%, rgb(var(--lq-surface)));
+  background-image: repeating-linear-gradient(180deg, transparent 0 9px, rgb(var(--lq-secondary) / .05) 9px 10px);
+  box-shadow: inset 0 0 0 1px rgb(var(--lq-secondary) / .2), inset 0 0 0 6px color-mix(in srgb, rgb(var(--lq-secondary)) 22%, rgb(var(--lq-surface-variant))), inset 0 0 0 7px rgb(var(--lq-secondary) / .18), var(--shadow-sm);
+}
+/* Bambú. */
+.lq-cane { fill: rgb(var(--lq-jade-500)); }
+.lq-cane-node { fill: rgb(var(--lq-jade-700) / .7); }
+.lq-leaf { fill: rgb(var(--lq-jade-400)); }
+html.dark .lq-cane { fill: rgb(var(--lq-jade-700)); }
+html.dark .lq-cane-node { fill: rgb(var(--lq-jade-900) / .8); }
+html.dark .lq-leaf { fill: rgb(var(--lq-jade-600)); }
+.lq-zen-tray.lq-lift:hover, .lq-zen-tray.lq-lift:focus-within { box-shadow: inset 0 0 0 1px rgb(var(--lq-secondary-text) / .25), inset 0 0 0 6px color-mix(in srgb, rgb(var(--lq-secondary)) 45%, rgb(var(--lq-surface))), inset 0 0 0 7px rgb(var(--lq-secondary-text) / .25), var(--shadow-lg); }
+html.dark .lq-zen-tray.lq-lift:hover, html.dark .lq-zen-tray.lq-lift:focus-within { box-shadow: inset 0 0 0 1px rgb(var(--lq-secondary) / .2), inset 0 0 0 6px color-mix(in srgb, rgb(var(--lq-secondary)) 22%, rgb(var(--lq-surface-variant))), inset 0 0 0 7px rgb(var(--lq-secondary) / .18), var(--shadow-lg); }

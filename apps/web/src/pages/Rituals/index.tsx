@@ -1,15 +1,18 @@
 // Rituales (RitualsDesktop): tarjetas con pasos numerados, modo guiado paso a paso
 // (anillo + cronómetro por paso) y estado vacío «Cargar rituales sugeridos».
-// Zona ambientada: un lugar de paz. Los pasos son un camino de piedras que se
-// encienden una a una; en el modo guiado cada paso hecho se ilumina con una onda
-// como en el agua y hay un círculo para respirar. Completar el ritual entero
-// enciende todas las piedras a la vez y expande una onda de calma.
+// Zona ambientada: un jardín zen. Cada ritual es una bandeja de arena con marco de
+// bambú: sus pasos son piedras que caen y se asientan mientras se rastrillan los
+// anillos a su alrededor. Hecho hoy, a las piedras les crece musgo. En el modo
+// guiado cada paso se ilumina con una onda y hay un círculo para respirar.
+// Completar el ritual enciende todas las piedras y una onda recorre la arena.
+// Bambú que se mece junto al título.
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CheckCircle2, ChevronRight, Flame, Moon, Play, Plus, Sun, Trash2, X, Zap, type LucideIcon } from 'lucide-react';
 import { item, pop3, springs, stagger } from '@/lib/motion';
 import { AmbientLight, ZoneShell } from '@/components/ambience';
 import { BreathCircle, StonePath } from '@/components/rituals/StonePath';
+import { Bamboo, ZenGarden } from '@/components/rituals/ZenGarden';
 import { cn } from '@/lib/utils';
 import * as ritualsService from '@/services/rituals.service';
 import type { Ritual } from '@/services/rituals.service';
@@ -59,7 +62,7 @@ function Runner({ ritual, onExit, onDone }: { ritual: Ritual; onExit: () => void
 
   const k = typeOf(ritual.type);
   return (
-    <SpotCard aria-label="Ritual en curso" className="flex flex-wrap items-center gap-8 border-primary/25 md:gap-10">
+    <SpotCard aria-label="Ritual en curso" className="lq-zen-tray flex flex-wrap items-center gap-8 md:gap-10">
       <ProgressRing value={((idx + 1) / ritual.steps.length) * 100} size={180} stroke={8} label="Progreso del ritual" valueText={`Paso ${idx + 1} de ${ritual.steps.length}`}>
         <span className="font-mono text-display-sm tabular-nums">{idx + 1}/{ritual.steps.length}</span>
         <span className="text-body-sm text-on-surface-light">pasos</span>
@@ -102,7 +105,7 @@ function RitualCard({ ritual, doneToday, playing, onPlay, celebrate }: { ritual:
   }, [ritual.id]);
   const mins = minutes(ritual);
   return (
-    <Card as="article" interactive padding="lg" className="relative flex h-full flex-col gap-5 overflow-hidden">
+    <Card as="article" interactive padding="lg" className="lq-zen-tray relative flex h-full flex-col gap-5 overflow-hidden">
       {/* Ritual completo: una onda de calma se expande desde el camino */}
       {celebrate && <span key="calm" aria-hidden="true" className="lq-calm-wave pointer-events-none absolute left-8 top-1/2 block size-80 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-success/50 bg-[radial-gradient(closest-side,rgb(var(--lq-success)/.16),transparent)]" />}
       <div className="flex items-start gap-4">
@@ -113,6 +116,8 @@ function RitualCard({ ritual, doneToday, playing, onPlay, celebrate }: { ritual:
         </div>
         <Badge variant={doneToday ? 'success' : 'neutral'} icon={doneToday ? CheckCircle2 : undefined}>{doneToday ? 'Hecho hoy' : 'Pendiente'}</Badge>
       </div>
+      {/* El jardín de piedras del ritual: una por paso */}
+      <ZenGarden steps={ritual.steps.length} done={doneToday} celebrate={celebrate} seed={[...ritual.id].reduce((a, c) => a + c.charCodeAt(0), 0) % 7} className="h-28" />
       <ol className="relative flex flex-col">
         {/* El sendero que une las piedras */}
         <span aria-hidden="true" className="pointer-events-none absolute bottom-5 left-3 top-5 border-l border-dashed border-border-strong/50" />
@@ -258,7 +263,12 @@ export default function RitualsPage() {
         eyebrow="Rituales"
         title="Secuencias que te construyen"
         description="Pasos encadenados que ejecutas cada día. Uno detrás de otro, sin pensar."
-        aside={<Button onClick={() => setCreating(true)}><Plus aria-hidden className="size-4" strokeWidth={1.75} />Nuevo ritual</Button>}
+        aside={(
+          <div className="flex items-end gap-6">
+            <Bamboo className="-mb-2 hidden md:flex [&_svg]:max-h-[9.5rem]" />
+            <Button onClick={() => setCreating(true)}><Plus aria-hidden className="size-4" strokeWidth={1.75} />Nuevo ritual</Button>
+          </div>
+        )}
       />
 
       {rituals.length === 0 ? (
