@@ -46,8 +46,8 @@ interface SketchProps { drawn?: boolean; delay?: number; duration?: number; clas
 export function SketchUnderline({ drawn = true, delay = 0.35, duration = 0.6, className, strokeWidth = 2.5 }: SketchProps) {
   return (
     <svg aria-hidden="true" viewBox="0 0 200 12" preserveAspectRatio="none" className={cn('pointer-events-none block h-3 w-full overflow-visible', className)}>
-      <InkPath d="M3 8.6C38 4.2 76 9.8 114 6.4 146 3.6 172 5.2 197 7.4" drawn={drawn} delay={delay} duration={duration} strokeWidth={strokeWidth} />
-      <InkPath d="M28 10.2C70 7.6 118 9.4 168 8.2" drawn={drawn} delay={delay + duration * 0.6} duration={duration * 0.6} strokeWidth={strokeWidth * 0.55} className="opacity-60" />
+      <InkPath d="M3 8.6C38 4.2 76 9.8 114 6.4 146 3.6 172 5.2 197 7.4" drawn={drawn} delay={delay} duration={duration} strokeWidth={strokeWidth} className="lq-ink-stretch" />
+      <InkPath d="M28 10.2C70 7.6 118 9.4 168 8.2" drawn={drawn} delay={delay + duration * 0.6} duration={duration * 0.6} strokeWidth={strokeWidth * 0.55} className="lq-ink-stretch opacity-60" />
     </svg>
   );
 }
@@ -74,7 +74,7 @@ export function SketchCheck({ drawn = true, delay = 0, duration = 0.22, classNam
 export function SketchStrike({ drawn = true, delay = 0, duration = 0.32, className, strokeWidth = 2 }: SketchProps) {
   return (
     <svg aria-hidden="true" viewBox="0 0 200 10" preserveAspectRatio="none" className={cn('pointer-events-none absolute inset-x-0 top-1/2 h-2.5 w-full -translate-y-1/2 overflow-visible', className)}>
-      <InkPath d="M2 6.2C52 3.4 104 7.6 150 4.6 172 3.4 186 4.4 198 5.2" drawn={drawn} delay={delay} duration={duration} strokeWidth={strokeWidth} />
+      <InkPath d="M2 6.2C52 3.4 104 7.6 150 4.6 172 3.4 186 4.4 198 5.2" drawn={drawn} delay={delay} duration={duration} strokeWidth={strokeWidth} className="lq-ink-stretch" />
     </svg>
   );
 }

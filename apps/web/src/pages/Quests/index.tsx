@@ -1,16 +1,24 @@
-// Misiones — Quests.dc.html (móvil) / QuestsDesktop.dc.html (desktop).
-import { useCallback, useEffect, useMemo, useState } from 'react';
+// Misiones — el mapa de tu vida. Cada misión cumplida es un lugar que ya
+// visitaste (la lista de lo que has hecho, con su fecha), cada misión activa es
+// un destino por explorar y en la niebla marcas uno nuevo. Al lado, el cuaderno
+// de viaje con las cifras del viaje, la próxima parada y la leyenda del mapa.
+// «Todo el mapa / Por explorar / Visitados», la búsqueda y el tipo filtran el
+// mapa. Detalle, completar y formulario son los de siempre (quest.service).
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { useSearchParams } from 'react-router-dom';
 import type { Quest } from '@lifequest/shared';
-import { CheckCircle2, Flag, Plus, Search, Sparkles } from 'lucide-react';
-import { item, stagger } from '@/lib/motion';
-import { categoryMeta } from '@/lib/lifeMeta';
+import { Plus, Search, X } from 'lucide-react';
+import { item } from '@/lib/motion';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useToastStore } from '@/hooks/useToast';
-import { Badge, Button, Card, EmptyState, ErrorState, IconChip, Input, ProgressRing, SegmentedControl, Select, PageLoader } from '@/components/ui/lq';
+import { useAuthStore } from '@/store/authStore';
+import { Button, Card, EmptyState, ErrorState, Input, ProgressBar, SegmentedControl, Select, PageLoader } from '@/components/ui/lq';
 import { LOADING_COPY } from '@/lib/loadingCopy';
-import { QuestCard } from '@/components/quests/QuestCard';
+import { AmbientLight, ZoneShell } from '@/components/ambience';
+import { AvatarDisplay } from '@/components/character/AvatarDisplay';
+import { Lettering } from '@/components/layout/Lettering';
+import { AdventureMap } from '@/components/quests/AdventureMap';
 import { QuestDetailDialog } from '@/components/quests/QuestDetailDialog';
 import { CompleteQuestDialog } from '@/components/quests/CompleteQuestDialog';
 import { QuestFormDialog, type QuestFormValues } from '@/components/quests/QuestFormDialog';
@@ -19,14 +27,27 @@ import * as questService from '@/services/quest.service';
 
 type Tab = 'all' | 'progress' | 'done';
 const TABS: { value: Tab; label: string }[] = [
-  { value: 'all', label: 'Todas' }, { value: 'progress', label: 'En progreso' }, { value: 'done', label: 'Completadas' },
+  { value: 'all', label: 'Todo el mapa' }, { value: 'progress', label: 'Por explorar' }, { value: 'done', label: 'Visitados' },
 ];
 
-function QuestsSkeleton() {
-  return <PageLoader label="Cargando misiones…" words={LOADING_COPY.quests} />;
+const time = (iso?: string) => (iso ? new Date(iso).getTime() : Number.POSITIVE_INFINITY);
+/** El destino más cercano primero: lo que ya puedes completar, lo que vence antes y lo más avanzado. */
+const byNearest = (a: Quest, b: Quest) =>
+  Number(isReady(b)) - Number(isReady(a)) || time(a.deadline) - time(b.deadline) || questProgress(b).pct - questProgress(a).pct || time(a.createdAt) - time(b.createdAt);
+/** Lo vivido, de lo más reciente a lo más antiguo. */
+const byRecent = (a: Quest, b: Quest) => time(b.completedAt ?? b.updatedAt) - time(a.completedAt ?? a.updatedAt);
+
+function Legend({ mark, children }: { mark: ReactNode; children: ReactNode }) {
+  return (
+    <li className="flex items-center gap-3 text-body-sm text-on-surface">
+      <span aria-hidden className="flex w-7 shrink-0 justify-center">{mark}</span>
+      {children}
+    </li>
+  );
 }
 
 export default function QuestsPage() {
+  const user = useAuthStore((s) => s.user);
   const [searchParams, setSearchParams] = useSearchParams();
   const [quests, setQuests] = useState<Quest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,6 +86,7 @@ export default function QuestsPage() {
 
   const patch = (q: Quest) => setQuests((prev) => prev.map((x) => (x.id === q.id ? q : x)));
   const detail = quests.find((q) => q.id === detailId) ?? null;
+  const openNew = () => setForm({ open: true, quest: null });
 
   async function handleSubmit(v: QuestFormValues) {
     const payload = {
@@ -86,7 +108,7 @@ export default function QuestsPage() {
       } else {
         const created = await questService.createQuest(payload);
         setQuests((prev) => [created, ...prev]);
-        useToastStore.getState().success('Misión creada', 'Ganarás XP al completarla');
+        useToastStore.getState().success('Destino marcado en tu mapa', 'Ganarás XP al completarlo');
       }
       setForm({ open: false, quest: null });
     } catch {
@@ -112,41 +134,40 @@ export default function QuestsPage() {
     }
   }
 
-  const visible = useMemo(() => quests.filter((q) => q.status !== 'ARCHIVED'), [quests]);
-  const active = visible.filter((q) => q.status === 'ACTIVE');
-  const shown = visible.filter((q) => (tab === 'all' ? true : tab === 'done' ? q.status === 'COMPLETED' : q.status === 'ACTIVE'));
-  // Destacada: la primera lista para completar (o la activa con más progreso).
-  const featured = tab !== 'done'
-    ? active.find(isReady) ?? [...active].filter((q) => q.subObjectives.length > 0).sort((a, b) => questProgress(b).pct - questProgress(a).pct)[0]
-    : undefined;
-  const list = featured ? shown.filter((q) => q.id !== featured.id) : shown;
-  const listTitle = tab === 'done' ? 'Completadas' : tab === 'progress' ? 'En progreso' : 'Todas las misiones';
+  const ahead = useMemo(() => quests.filter((q) => q.status === 'ACTIVE').sort(byNearest), [quests]);
+  const behind = useMemo(() => quests.filter((q) => q.status === 'COMPLETED' || q.status === 'FAILED').sort(byRecent), [quests]);
+  const visited = behind.filter((q) => q.status === 'COMPLETED');
+  const journeyXp = visited.reduce((s, q) => s + q.xpReward, 0);
+  const next = ahead[0];
+  const shownAhead = tab === 'done' ? [] : ahead;
+  const shownBehind = tab === 'progress' ? [] : behind;
+  const filtering = Boolean(search || type);
+  const fmt = (n: number) => n.toLocaleString('es-CO');
 
   return (
-    <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-6 md:gap-12">
+    <ZoneShell zone="quests" contentClassName="gap-6 md:gap-10" ambience={<AmbientLight tone="warning" alpha={0.09} darkAlpha={0.06} d={16} className="left-[8%] top-[6%] h-[36rem] w-[72%]" />}>
       <motion.section variants={item} className="flex flex-wrap items-end justify-between gap-6">
-        <div className="flex min-w-0 flex-col gap-1 md:gap-2">
+        <div className="flex min-w-0 flex-[1_1_360px] flex-col gap-1 md:gap-2">
           <span className="text-body-sm text-on-surface-light md:text-label-lg md:text-primary-text">
-            Semana {isoWeek()}{!loading && !failed ? ` · ${active.length} ${active.length === 1 ? 'activa' : 'activas'}` : ''}
+            Semana {isoWeek()}{!loading && !failed ? ` · ${ahead.length} por explorar` : ''}
           </span>
-          <h1 className="text-display-sm md:text-display-md lg:text-display-lg">Misiones</h1>
-          <p className="max-w-[520px] text-body-md text-on-surface-light md:text-body-lg">
-            <span className="md:hidden">Completa objetivos y gana XP extra.</span>
-            <span className="hidden md:inline">Objetivos más grandes que un hábito. Termínalos para ganar XP extra y subir de nivel.</span>
+          <h1 className="text-display-sm md:text-display-md lg:text-display-lg"><Lettering text="Misiones" /></h1>
+          <p className="max-w-[540px] text-body-md text-on-surface-light md:text-body-lg">
+            El mapa de tu vida: lo que ya viviste y lo que viene. Cada misión cumplida es un lugar que visitaste.
           </p>
         </div>
         <div className="flex w-full flex-col gap-3 md:w-auto md:min-w-[440px] md:items-end">
-          <Button size="md" className="hidden md:inline-flex" onClick={() => setForm({ open: true, quest: null })}>
+          <Button size="md" className="hidden md:inline-flex" onClick={openNew}>
             <Plus aria-hidden className="size-4" strokeWidth={2} />Nueva misión
           </Button>
-          <SegmentedControl label="Estado" value={tab} onChange={setTab} options={TABS} className="w-full" />
+          <SegmentedControl label="Qué mostrar del mapa" value={tab} onChange={setTab} options={TABS} className="w-full" />
         </div>
       </motion.section>
 
       <motion.div variants={item} className="flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">
           <Search aria-hidden className="pointer-events-none absolute left-4 top-3 size-6 text-on-surface-light" strokeWidth={1.75} />
-          <Input type="search" aria-label="Buscar misiones" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar misión…" className="pl-12" />
+          <Input type="search" aria-label="Buscar en el mapa" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar un lugar o destino…" className="pl-12" />
         </div>
         <Select aria-label="Tipo de misión" value={type} onChange={(e) => setType(e.target.value)} className="sm:w-52">
           <option value="">Todos los tipos</option>
@@ -154,76 +175,60 @@ export default function QuestsPage() {
         </Select>
       </motion.div>
 
-      <motion.div variants={item} className="flex flex-col gap-6 md:gap-12">
-        {loading ? <QuestsSkeleton /> : failed ? (
-          <ErrorState title="No pudimos cargar tus misiones" onRetry={() => void load()} />
+      <motion.div variants={item}>
+        {loading ? <PageLoader label="Desplegando tu mapa…" words={LOADING_COPY.quests} /> : failed ? (
+          <ErrorState title="No pudimos cargar tu mapa" description="Tus misiones siguen guardadas." onRetry={() => void load()} />
+        ) : filtering && shownAhead.length + shownBehind.length === 0 ? (
+          <EmptyState icon={Search} tone="muted" title="Ningún lugar con ese nombre" description="Prueba con otra búsqueda o tipo." className="py-12 md:py-16" />
         ) : (
-          <>
-            {featured && (
-              <Card
-                as="section"
-                variant="elevated"
-                padding="none"
-                aria-label="Misión destacada"
-                className="hidden flex-wrap items-center gap-8 border-primary/35 p-8 md:flex"
-              >
-                <ProgressRing value={questProgress(featured).pct} tone={isReady(featured) ? 'success' : 'primary'} size={148} stroke={12} label="Progreso" valueText={questProgress(featured).text}>
-                  <IconChip icon={isReady(featured) ? CheckCircle2 : Flag} tone={isReady(featured) ? 'success' : 'primary'} className="lq-halo size-20 rounded-full" />
-                </ProgressRing>
-                <div className="flex min-w-0 flex-[1_1_320px] flex-col gap-3">
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant={categoryMeta(featured.category).tone}>{categoryMeta(featured.category).label}</Badge>
-                    {isReady(featured)
-                      ? <Badge variant="success" icon={CheckCircle2}>Lista para completar</Badge>
-                      : <Badge variant="primary">La más avanzada</Badge>}
-                  </div>
-                  <h2 className="text-display-sm">{featured.title}</h2>
-                  <p className="text-body-md text-on-surface-light">{questProgress(featured).text}{featured.description ? ` · ${featured.description}` : ''}</p>
-                </div>
-                <div className="flex flex-col items-end gap-3">
-                  <span className="flex items-center gap-1 text-display-md text-primary-text font-mono tabular-nums">
-                    <Sparkles aria-hidden className="size-7" strokeWidth={1.75} />+{featured.xpReward} XP
-                  </span>
-                  <div className="flex gap-2">
-                    <Button variant="secondary" size="md" onClick={() => setDetailId(featured.id)}>Ver detalle</Button>
-                    <Button size="md" onClick={() => setCompleting(featured)}><CheckCircle2 aria-hidden className="size-5" strokeWidth={1.75} />Completar misión</Button>
-                  </div>
-                </div>
-              </Card>
-            )}
+          <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
+            <AdventureMap
+              ahead={shownAhead}
+              behind={shownBehind}
+              startedAt={user?.createdAt}
+              traveler={<AvatarDisplay avatarConfig={user?.avatarConfig} avatarUrl={user?.avatarUrl} size={56} animate="none" className="size-full" />}
+              onOpen={(q) => setDetailId(q.id)}
+              onComplete={setCompleting}
+              onNew={tab === 'done' ? undefined : openNew}
+            />
 
-            <section className="flex flex-col gap-4 md:gap-6" aria-labelledby="quest-list-title">
-              <h2 id="quest-list-title" className="hidden text-heading-lg md:block">{listTitle}</h2>
-              {(featured ? [featured, ...list] : list).length > 0 ? (
-                <motion.ul
-                  key={`${tab}-${type}`}
-                  variants={stagger}
-                  initial="initial"
-                  animate="animate"
-                  className="grid gap-4 md:grid-cols-[repeat(auto-fill,minmax(300px,1fr))] md:gap-6"
-                >
-                  {/* En móvil la destacada va como una tarjeta más (no hay hero). */}
-                  {featured && (
-                    <QuestCard className="md:hidden" quest={featured} onOpen={() => setDetailId(featured.id)} onComplete={() => setCompleting(featured)} />
-                  )}
-                  {list.map((q) => (
-                    <QuestCard key={q.id} quest={q} onOpen={() => setDetailId(q.id)} onComplete={() => setCompleting(q)} />
+            {/* Cuaderno de viaje */}
+            <aside className="flex min-w-0 flex-col gap-6 lg:sticky lg:top-24">
+              <Card as="section" padding="lg" aria-labelledby="journal-title" className="lq-tex-parchment flex flex-col gap-4">
+                <h2 id="journal-title" className="text-heading-sm">Cuaderno de viaje</h2>
+                <dl className="grid grid-cols-3 gap-3 lg:grid-cols-1">
+                  {[
+                    ['Lugares visitados', fmt(visited.length)],
+                    ['Por explorar', fmt(ahead.length)],
+                    ['XP del viaje', `+${fmt(journeyXp)}`],
+                  ].map(([label, value]) => (
+                    <div key={label} className="flex flex-col gap-0.5 lg:flex-row lg:items-baseline lg:justify-between">
+                      <dt className="text-body-sm text-on-surface-light">{label}</dt>
+                      <dd className="font-mono text-heading-sm tabular-nums text-on-background">{value}</dd>
+                    </div>
                   ))}
-                </motion.ul>
-              ) : (
-                <EmptyState
-                  icon={tab === 'done' ? CheckCircle2 : Flag}
-                  tone={tab === 'done' ? 'muted' : 'primary'}
-                  title={search || type ? 'Sin resultados' : tab === 'done' ? 'Aún no completas misiones' : 'Sin misiones disponibles'}
-                  description={search || type ? 'Prueba con otra búsqueda o tipo.' : 'Crea una misión para tus objetivos más grandes.'}
-                  action={!(search || type) && tab !== 'done'
-                    ? <Button onClick={() => setForm({ open: true, quest: null })}><Plus aria-hidden className="size-4" strokeWidth={2} />Nueva misión</Button>
-                    : undefined}
-                  className="py-12 md:py-16"
-                />
-              )}
-            </section>
-          </>
+                </dl>
+                {next && (
+                  <div className="flex flex-col gap-2 border-t border-border pt-4">
+                    <span className="text-body-sm text-on-surface-light">Próxima parada</span>
+                    <button type="button" aria-haspopup="dialog" onClick={() => setDetailId(next.id)} className="text-left text-label-lg text-on-background hover:underline">{next.title}</button>
+                    <ProgressBar value={questProgress(next).pct} tone={isReady(next) ? 'success' : 'primary'} label={`Progreso de ${next.title}`} valueText={questProgress(next).text} />
+                    <span className="text-body-sm text-on-surface-light">{questProgress(next).text}</span>
+                  </div>
+                )}
+              </Card>
+              <Card as="section" padding="lg" aria-labelledby="legend-title" className="hidden flex-col gap-3 lg:flex">
+                <h2 id="legend-title" className="text-heading-sm">Leyenda</h2>
+                <ul className="flex flex-col gap-2.5">
+                  <Legend mark={<span className="block size-6 rounded-full border-[2.5px] border-primary bg-surface" />}>Lugar visitado</Legend>
+                  <Legend mark={<span className="block size-6 rounded-full border-2 border-dashed border-on-surface-light/70 bg-surface" />}>Destino por explorar</Legend>
+                  <Legend mark={<span className="flex size-6 items-center justify-center rounded-full border-2 border-dashed border-on-surface-light/50 text-on-surface-light"><X className="size-3" strokeWidth={2.5} /></span>}>Camino cerrado</Legend>
+                  <Legend mark={<svg viewBox="0 0 28 8" className="h-2 w-7"><path d="M2 4h24" className="lq-trail lq-trail-past" /></svg>}>Camino recorrido</Legend>
+                  <Legend mark={<svg viewBox="0 0 28 8" className="h-2 w-7"><path d="M2 4h24" className="lq-trail lq-trail-ahead" /></svg>}>Camino por recorrer</Legend>
+                </ul>
+              </Card>
+            </aside>
+          </div>
         )}
       </motion.div>
 
@@ -242,6 +247,6 @@ export default function QuestsPage() {
         onCompleted={(q) => patch({ ...q, status: 'COMPLETED', completedAt: new Date().toISOString() })}
       />
       <QuestFormDialog open={form.open} quest={form.quest} onClose={() => setForm({ open: false, quest: null })} onSubmit={handleSubmit} />
-    </motion.div>
+    </ZoneShell>
   );
 }

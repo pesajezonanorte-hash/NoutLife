@@ -1,6 +1,7 @@
-// Gremio (GuildDesktop). Sin gremio: crear (nombre + emblema en radiogroup) o
-// unirse con un código OTP de 6 casillas. En gremio: código copiable, jefe semanal,
-// miembros con aporte, meta semanal y actividad (chat del gremio).
+// Gremio (GuildDesktop). Sin gremio: crear (nombre, emblema en radiogroup y foto
+// opcional) o unirse con un código OTP de 6 casillas. En gremio: su foto de perfil
+// (o emblema; quien lidera la cambia), código copiable, jefe semanal, miembros con
+// aporte, meta semanal y actividad (chat del gremio).
 // Zona ambientada: una fogata. Al anochecer el fuego se enciende entre piedras y
 // leños, suben brasas y los miembros llegan a sentarse alrededor; al fondo, las
 // tiendas y el banderín del gremio. El tamaño del fuego es la meta semanal: crece
@@ -13,12 +14,14 @@ import {
 } from 'lucide-react';
 import { item, pop3, stagger } from '@/lib/motion';
 import { cn } from '@/lib/utils';
-import { getMyGuild, createGuild, joinGuild, getGuildMessages, postGuildMessage, leaveGuild } from '@/services/social.service';
+import { getMyGuild, createGuild, joinGuild, getGuildMessages, postGuildMessage, leaveGuild, updateGuild } from '@/services/social.service';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/useToast';
 import { AvatarDisplay } from '@/components/character/AvatarDisplay';
 import { AmbientLight, ZoneShell } from '@/components/ambience';
 import { Campfire } from '@/components/guild/Campfire';
+import { CrestEditButton, GuildCrest, GuildPhotoDialog } from '@/components/guild/GuildCrest';
+import { Lettering } from '@/components/layout/Lettering';
 import {
   Badge, BossBar, Button, Card, ErrorState, Field, IconChip, Input, Modal, OtpInput, PageLoader, ProgressBar, ProgressRing, SpotCard, type Tone,
 } from '@/components/ui/lq';
@@ -29,7 +32,7 @@ interface MemberUser {
 }
 interface Message { id: string; content: string; createdAt: string; userId: string; user: { displayName: string; avatarConfig?: unknown; avatarUrl?: string | null } }
 interface Guild {
-  id: string; name: string; description?: string; emblem: string; leaderId: string; level: number; xp: number; inviteCode: string;
+  id: string; name: string; description?: string; emblem: string; photoUrl?: string | null; leaderId: string; level: number; xp: number; inviteCode: string;
   members: Array<{ id: string; userId: string; role: string; user: MemberUser }>;
 }
 
@@ -53,6 +56,8 @@ const errMsg = (e: unknown) =>
 function NoGuild({ onEntered }: { onEntered: (msg: string) => void }) {
   const [name, setName] = useState('');
   const [emblem, setEmblem] = useState('shield');
+  const [photo, setPhoto] = useState<string | null>(null);
+  const [photoOpen, setPhotoOpen] = useState(false);
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState<'create' | 'join' | null>(null);
   const [error, setError] = useState<{ create?: string; join?: string }>({});
@@ -62,7 +67,7 @@ function NoGuild({ onEntered }: { onEntered: (msg: string) => void }) {
     e.preventDefault();
     if (!name.trim()) { setError({ create: 'Ponle un nombre a tu gremio' }); return; }
     setBusy('create'); setError({});
-    try { await createGuild({ name: name.trim(), emblem }); onEntered('Gremio creado · eres el líder'); }
+    try { await createGuild({ name: name.trim(), emblem, ...(photo ? { photoUrl: photo } : {}) }); onEntered('Gremio creado · eres el líder'); }
     catch (err) { setError({ create: errMsg(err) }); }
     finally { setBusy(null); }
   }
@@ -89,7 +94,7 @@ function NoGuild({ onEntered }: { onEntered: (msg: string) => void }) {
       <motion.section variants={item} className="flex flex-col items-center gap-4 pt-2 text-center">
         <IconChip icon={Shield} tone="warning" size="lg" className="lq-halo size-24 animate-float rounded-[32px] [.reduce-motion_&]:animate-none md:size-28" />
         <span className="text-label-lg text-primary-text">Comunidad</span>
-        <h1 className="text-display-sm md:text-display-md lg:text-display-lg">Aún no tienes gremio</h1>
+        <h1 className="text-display-sm md:text-display-md lg:text-display-lg"><Lettering text="Aún no tienes gremio" /></h1>
         <p className="max-w-[520px] text-body-lg text-on-surface-light">Crea un espacio con tu grupo o únete con un código. Juntos derrotan jefes semanales y comparten el progreso. Hasta {MAX_MEMBERS} aventureros.</p>
       </motion.section>
 
@@ -123,6 +128,18 @@ function NoGuild({ onEntered }: { onEntered: (msg: string) => void }) {
                 })}
               </div>
             </fieldset>
+            {/* Foto del gremio (opcional): sustituye al emblema en la cabecera y el banderín */}
+            <div className="flex items-center gap-4">
+              <GuildCrest photoUrl={photo} emblem={emblemOf(emblem).icon} tone={emblemOf(emblem).tone} name={name.trim() || 'tu gremio'} halo={false} className="size-14 rounded-2xl [&>svg]:size-7" />
+              <div className="flex min-w-0 flex-col items-start gap-1">
+                <span className="text-label-lg text-on-surface">Foto del gremio <span className="font-normal text-on-surface-light">(opcional)</span></span>
+                <Button type="button" variant="secondary" size="sm" onClick={() => setPhotoOpen(true)}>{photo ? 'Cambiar foto' : 'Elegir foto'}</Button>
+              </div>
+            </div>
+            <GuildPhotoDialog
+              open={photoOpen} onClose={() => setPhotoOpen(false)} name={name.trim() || 'tu gremio'}
+              photoUrl={photo} emblem={emblemOf(emblem).icon} tone={emblemOf(emblem).tone} onSave={(url) => setPhoto(url)}
+            />
             <Button type="submit" block loading={busy === 'create'} disabled={busy === 'join'} className="mt-auto">{busy === 'create' ? 'Creando…' : 'Crear gremio'}</Button>
           </form>
         </SpotCard>
@@ -151,6 +168,8 @@ function InGuild({ guild, onLeft }: { guild: Guild; onLeft: () => void }) {
   const [copied, setCopied] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [photo, setPhoto] = useState<string | null>(guild.photoUrl ?? null);
+  const [photoOpen, setPhotoOpen] = useState(false);
   const feedRef = useRef<HTMLUListElement>(null);
 
   useEffect(() => {
@@ -162,6 +181,19 @@ function InGuild({ guild, onLeft }: { guild: Guild; onLeft: () => void }) {
   useEffect(() => { feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight, behavior: 'smooth' }); }, [messages.length]);
 
   const em = emblemOf(guild.emblem);
+  const myRole = guild.members.find((m) => m.userId === String(me?.id))?.role;
+  const canEdit = guild.leaderId === String(me?.id) || myRole === 'LEADER' || myRole === 'OFFICER';
+
+  async function savePhoto(url: string | null) {
+    try {
+      const res = await updateGuild(guild.id, { photoUrl: url });
+      setPhoto(res.photoUrl);
+      toast.success(url ? 'Foto del gremio actualizada' : 'Foto del gremio quitada');
+    } catch (e) {
+      toast.error(errMsg(e));
+      throw e;
+    }
+  }
   const members = [...guild.members].sort((a, b) => (b.user.xp ?? 0) - (a.user.xp ?? 0));
   const maxXp = Math.max(1, ...members.map((m) => m.user.xp ?? 0));
   // TODO(api): no hay jefe semanal ni XP semanal del gremio. Fallback con datos reales:
@@ -199,12 +231,13 @@ function InGuild({ guild, onLeft }: { guild: Guild; onLeft: () => void }) {
     <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-8 md:gap-12">
       <motion.div variants={item} className="flex flex-col gap-6">
         <div className="flex flex-wrap items-center gap-6 md:gap-8">
-          <motion.span variants={pop3} initial="initial" animate="animate">
-            <IconChip icon={em.icon} tone={em.tone} size="lg" className="lq-halo size-20 rounded-[28px] md:size-24 md:rounded-[32px] [&>svg]:size-10" />
+          <motion.span variants={pop3} initial="initial" animate="animate" className="relative">
+            <GuildCrest photoUrl={photo} emblem={em.icon} tone={em.tone} name={guild.name} className="size-20 rounded-[28px] md:size-24 md:rounded-[32px]" />
+            {canEdit && <CrestEditButton onClick={() => setPhotoOpen(true)} label={photo ? 'Cambiar la foto del gremio' : 'Poner una foto al gremio'} />}
           </motion.span>
           <div className="flex min-w-0 flex-[1_1_300px] flex-col gap-2">
             <span className="text-label-lg text-primary-text">Tu gremio · nivel {guild.level}</span>
-            <h1 className="text-display-sm md:text-display-md">{guild.name}</h1>
+            <h1 className="text-display-sm md:text-display-md"><Lettering text={guild.name} /></h1>
             {guild.description && <p className="text-body-md text-on-surface-light">{guild.description}</p>}
             <div className="flex flex-wrap gap-2">
               <Badge size="lg" icon={Users}><span className="font-mono">{guild.members.length}/{MAX_MEMBERS}</span> aventureros</Badge>
@@ -228,7 +261,7 @@ function InGuild({ guild, onLeft }: { guild: Guild; onLeft: () => void }) {
             id: m.id, name: m.user.displayName.split(' ')[0], lead: m.userId === guild.leaderId, you: m.userId === String(me?.id),
             avatar: (size: number) => <AvatarDisplay avatarConfig={m.user.avatarConfig} avatarUrl={m.user.avatarUrl} size={size} animate="none" className="rounded-full" />,
           }))}
-          progress={goalPct} prevProgress={prevFire} emblem={em.icon} emblemTone={em.tone}
+          progress={goalPct} prevProgress={prevFire} emblem={em.icon} emblemTone={em.tone} photoUrl={photo}
         />
       </motion.div>
 
@@ -313,6 +346,9 @@ function InGuild({ guild, onLeft }: { guild: Guild; onLeft: () => void }) {
         </div>
       </div>
 
+      {canEdit && (
+        <GuildPhotoDialog open={photoOpen} onClose={() => setPhotoOpen(false)} name={guild.name} photoUrl={photo} emblem={em.icon} tone={em.tone} onSave={savePhoto} />
+      )}
       <Modal open={confirmLeave} onClose={() => setConfirmLeave(false)} title="¿Salir del gremio?">
         <p className="text-body-md text-on-surface">Dejarás de aportar al jefe semanal y de ver la actividad de {guild.name}. Podrás volver con el código.</p>
         <div className="flex justify-end gap-3">

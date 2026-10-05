@@ -24,6 +24,7 @@ import { withBody, withDefaults } from '@/components/character/avatarOptions';
 import {
   AvatarContent, FirstQuestFields, GoalsContent, IdentityFields, MAX_GOALS, WelcomeContent,
 } from '@/components/onboarding/steps';
+import { Lettering, TitleText } from '@/components/layout/Lettering';
 
 const STORAGE_KEY = 'lifequest_onboarding_progress';
 const TOTAL_STEPS = 5;
@@ -58,7 +59,7 @@ function save(state: Partial<OnboardingState>) {
 function StepTitle({ children, focus }: { children: ReactNode; focus: boolean }) {
   const ref = useRef<HTMLHeadingElement>(null);
   useEffect(() => { if (focus) ref.current?.focus(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  return <h1 ref={ref} tabIndex={-1} className="text-heading-lg outline-none md:text-display-sm">{children}</h1>;
+  return <h1 ref={ref} tabIndex={-1} className="text-heading-lg outline-none md:text-display-sm"><TitleText>{children}</TitleText></h1>;
 }
 
 function Shell({ step, title, subtitle, children, footer, wide }: { step: number; title: string; subtitle: string; children: ReactNode; footer: ReactNode; wide?: boolean }) {
@@ -228,7 +229,7 @@ export default function OnboardingPage() {
             <AvatarPreview config={config} size={120} animate="celebrate" className="lq-halo" />
             <div className="flex flex-col gap-2">
               <span className="text-label-lg text-primary-text">Nivel 1</span>
-              <h1 className="text-display-sm">¡{getWelcomeLabel(gender)}, {displayName}!</h1>
+              <h1 className="text-display-sm"><Lettering text={`¡${getWelcomeLabel(gender)}, ${displayName}!`} /></h1>
               <p className="text-body-lg text-on-surface-light">Tu {getHeroLabel(gender)} está {gender === 'female' ? 'lista' : 'listo'}. Tu primera misión ya te espera.</p>
             </div>
             <ul aria-label="Atributos iniciales" className="flex flex-wrap justify-center gap-2">

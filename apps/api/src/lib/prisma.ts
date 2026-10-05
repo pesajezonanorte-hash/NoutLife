@@ -84,6 +84,7 @@ export function ensureDbMigrated(): Promise<void> {
         `);
         await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "ritual_logs_ritualId_date_key" ON "ritual_logs"("ritualId", "date");`);
         await prisma.$executeRawUnsafe(REMOVE_LEGACY_HABIT_RITUAL_FLAG_SQL);
+        await prisma.$executeRawUnsafe(`ALTER TABLE "guilds" ADD COLUMN IF NOT EXISTS "photoUrl" TEXT;`);
 
         // Global catalog rows are not player-owned. Bootstrap missing entries on
         // cold production databases so Shop and Achievements never render as a

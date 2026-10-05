@@ -20,6 +20,7 @@ import { SageContextButton } from '../../components/sage/SageContextButton';
 import { E } from '@/components/ui/glyphs';
 import { Badge, Button, Card, EmptyState, ErrorState, Field, IconChip, Input, Modal, SegmentedControl, StepItem, Switch, PageLoader, DatePicker } from '@/components/ui/lq';
 import { LOADING_COPY } from '@/lib/loadingCopy';
+import { Lettering } from '@/components/layout/Lettering';
 
 interface GiftIdea { id: string; title: string; description?: string; estimatedPrice?: number; isPurchased: boolean; forPerson?: string }
 
@@ -327,7 +328,7 @@ export default function LovePage() {
       <motion.section variants={item} className="flex flex-wrap items-end justify-between gap-6">
         <div className="flex min-w-0 flex-[1_1_360px] flex-col gap-2">
           <span className="text-label-lg text-primary-text">Relaciones</span>
-          <h1 className="text-display-sm md:text-display-md lg:text-display-lg">Jardín del corazón</h1>
+          <h1 className="text-display-sm md:text-display-md lg:text-display-lg"><Lettering text="Jardín del corazón" /></h1>
           <p className="text-body-lg text-on-surface-light">Cuida las relaciones y los momentos que más te importan.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

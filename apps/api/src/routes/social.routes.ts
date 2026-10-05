@@ -24,6 +24,7 @@ router.post('/challenges/:id/join',      social.joinChallenge);
 // Guild
 router.post('/guilds',                   social.createGuild);
 router.post('/guilds/join',              social.joinGuild);
+router.patch('/guilds/:guildId',         social.updateGuild);
 router.get('/guilds/mine',               social.myGuild);
 router.get('/guilds/:guildId/messages',  social.guildMessages);
 router.post('/guilds/:guildId/messages', social.postGuildMessage);

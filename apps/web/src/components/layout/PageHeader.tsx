@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { item } from '@/lib/motion';
+import { TitleText } from './Lettering';
 
 interface PageHeaderProps {
   title: ReactNode;
@@ -24,7 +25,7 @@ export function PageHeader({ title, description, eyebrow, aside, actions, classN
     <motion.section variants={item} className={cn('flex flex-wrap items-end justify-between gap-6', className)}>
       <div className="flex min-w-0 flex-[1_1_360px] flex-col gap-2">
         {eyebrow && <span className="text-label-lg text-primary-text">{eyebrow}</span>}
-        <h1 className="text-display-sm [text-wrap:balance] md:text-display-md lg:text-display-lg">{title}</h1>
+        <h1 className="text-display-sm [text-wrap:balance] md:text-display-md lg:text-display-lg"><TitleText>{title}</TitleText></h1>
         {description && <p className="max-w-[560px] text-body-lg text-on-surface-light">{description}</p>}
       </div>
       {right && <div className="flex min-w-0 flex-wrap items-center gap-3">{right}</div>}

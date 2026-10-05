@@ -23,6 +23,7 @@ import {
 import { AnalyzeMealDialog, GoalDialog, MealFormDialog } from '@/components/food/FoodDialogs';
 import { ClocheIcon, MacroPlate, Steam } from '@/components/food/Restaurant';
 import { ZoneAmbience } from '@/components/ambience';
+import { Lettering } from '@/components/layout/Lettering';
 
 const GLASS_ML = 250;
 const timeOf = (iso: string) => new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
@@ -166,7 +167,7 @@ export default function FoodPage() {
     <motion.section variants={item} className="flex flex-wrap items-end justify-between gap-4">
       <div className="flex flex-col gap-1 md:gap-2">
         <span className="hidden text-label-lg text-primary-text md:block">La carta {offset === 0 ? 'de hoy' : offset === -1 ? 'de ayer' : `del ${day.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}`}</span>
-        <h1 className="text-display-sm md:text-display-md lg:text-display-lg">Comida</h1>
+        <h1 className="text-display-sm md:text-display-md lg:text-display-lg"><Lettering text="Comida" /></h1>
       </div>
       <div className="flex items-center gap-1" role="group" aria-label="Día">
         <Button variant="icon" aria-label="Día anterior" onClick={() => goDay(-1)}><ChevronLeft aria-hidden className="size-5" strokeWidth={1.75} /></Button>

@@ -3,6 +3,7 @@ import { ArrowLeft, Compass, Home } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button, IconChip, buttonClasses } from '@/components/ui/lq';
 import { item, stagger } from '@/lib/motion';
+import { Lettering } from '@/components/layout/Lettering';
 
 export default function NotFoundPage() {
   const navigate = useNavigate();
@@ -11,7 +12,7 @@ export default function NotFoundPage() {
       <motion.div variants={item}><IconChip icon={Compass} tone="forest" size="lg" /></motion.div>
       <motion.div variants={item} className="flex max-w-md flex-col gap-3">
         <span className="font-mono text-label-lg tabular-nums text-on-surface-light">Error 404</span>
-        <h1 className="text-display-sm md:text-display-md">Zona sin explorar</h1>
+        <h1 className="text-display-sm md:text-display-md"><Lettering text="Zona sin explorar" /></h1>
         <p className="text-body-lg text-on-surface-light">Puede que el enlace esté mal escrito o que esta zona se haya movido.</p>
       </motion.div>
       <motion.div variants={item} className="flex flex-wrap justify-center gap-3">

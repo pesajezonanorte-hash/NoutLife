@@ -22,6 +22,7 @@ import { SageContextButton } from '../../components/sage/SageContextButton';
 import { Badge, Button, Card, ChipGroup, EmptyState, ErrorState, Field, Input, MOODS, MoodFace, MoodPicker, ResponsiveDialog, Textarea, moodOf, type ChipOption, PageLoader, DatePicker } from '@/components/ui/lq';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 import { softTone } from '@/components/ui/lq/tones';
+import { Lettering } from '@/components/layout/Lettering';
 
 const DAILY_PROMPTS = [
   '¿Qué fue lo mejor que te pasó hoy?',
@@ -200,8 +201,8 @@ export default function JournalPage() {
       <motion.section variants={item} className="flex flex-wrap items-end justify-between gap-6">
         <div className="flex min-w-0 flex-[1_1_360px] flex-col gap-2">
           <h1 className="relative self-start text-display-sm md:text-display-md lg:text-display-lg">
-            Diario
-            <SketchUnderline className="absolute -bottom-1.5 left-0 w-full text-info md:-bottom-2.5" delay={0.5} />
+            <Lettering text="Diario" />
+            <SketchUnderline className="absolute -bottom-1.5 left-0 w-full text-info md:-bottom-2.5" delay={0.75} />
           </h1>
           <p className="text-body-lg text-on-surface-light">Una pausa breve para registrar lo que importa de tu día.</p>
         </div>

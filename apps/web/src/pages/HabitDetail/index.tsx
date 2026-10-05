@@ -16,6 +16,7 @@ import { resolveGlyph } from '@/components/ui/glyphs';
 import { HabitFormDialog } from '@/components/habits/HabitFormDialog';
 import * as habitService from '@/services/habit.service';
 import type { Habit, HeatmapEntry } from '@/services/habit.service';
+import { Lettering } from '@/components/layout/Lettering';
 
 const WINDOW_DAYS = 90;
 const DAY_LETTERS = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
@@ -195,7 +196,7 @@ export default function HabitDetailPage() {
         </span>
         <div className="flex min-w-0 flex-col gap-2 md:flex-[1_1_360px]">
           <span className="hidden text-label-lg text-primary-text md:block">{meta.label} · {freq.toLowerCase()} desde el {since}</span>
-          <h1 className="text-display-sm md:text-display-lg">{habit.title}</h1>
+          <h1 className="text-display-sm md:text-display-lg"><Lettering text={habit.title} /></h1>
           <p className="text-body-md text-on-surface-light md:hidden">{freq} · desde el {since}</p>
           {habit.description && <p className="max-w-xl text-body-md text-on-surface">{habit.description}</p>}
           <div className="flex flex-wrap gap-2">

@@ -1,10 +1,12 @@
 // Agenda — AgendaDesktop.dc.html. Día (línea de tiempo con "ahora" y bloques completables),
 // Semana, Mes y Google Calendar con estado. Servicios sin cambios (agenda.service).
-// Zona ambientada: un escritorio ordenado. Sobre un vade de fieltro, la hoja de
-// la agenda con su anillado: la fecha grande, horas con medias horas punteadas y
-// los eventos como marcas de resaltador. Cambiar de día, semana o mes pasa la
-// hoja hacia arriba sobre las anillas. El resumen y las categorías son notas
-// adhesivas; las celdas del mes se colocan en cascada y hoy lleva un círculo.
+// Zona ambientada: un escritorio ordenado, con el lenguaje de la libreta de
+// Hábitos. Sobre un vade de fieltro, la hoja de la agenda se posa y cierra sus
+// anillas; el margen se traza, las horas se escriben y cada evento es una marca
+// de resaltador que se pasa y luego se escribe. Completar traza un check de tinta
+// y tacha el evento a mano. Cambiar de día, semana o mes pasa la hoja hacia
+// arriba sobre las anillas. El resumen y las categorías son notas adhesivas que
+// caen; en la semana, cada día es una columna de la hoja y hoy lleva un círculo.
 import { useState, useEffect, useCallback, useRef, useMemo, type CSSProperties, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -13,8 +15,11 @@ import {
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { item, springs } from '@/lib/motion';
-import { AmbientLight, SketchCheck, ZoneShell } from '@/components/ambience';
+import { longDate } from '@/lib/lifeMeta';
+import { AmbientLight, SketchCheck, SketchCircle, SketchStrike, ZoneShell } from '@/components/ambience';
 import { DeskMat, PlannerPage, StickyNote } from '@/components/agenda/Planner';
+import { InkCheckButton } from '@/components/habits/InkCheckButton';
+import { Lettering } from '@/components/layout/Lettering';
 import { useToast } from '../../hooks/useToast';
 import * as agendaService from '../../services/agenda.service';
 import type { AgendaEvent } from '../../services/agenda.service';
@@ -77,52 +82,87 @@ const hm = (min: number) => `${Math.floor(min / 60)} h${min % 60 ? ` ${String(mi
 
 // ─── Event row / block ───────────────────────────────────────────────────────
 
-function EventActions({ event, onEdit, onToggle }: { event: AgendaEvent; onEdit: () => void; onToggle: () => void }) {
+function EventActions({ event, pending, onEdit, onToggle }: { event: AgendaEvent; pending?: boolean; onEdit: () => void; onToggle: () => void }) {
   if (event.eventType === 'habit') {
     return <Link to="/habits" className="inline-flex min-h-11 items-center gap-1 rounded-md px-2 text-label-lg text-primary-text hover:underline"><Link2 aria-hidden className="size-4" />Hábitos</Link>;
   }
   return (
-    <div className="flex shrink-0 items-center">
-      <button
-        type="button" aria-pressed={event.isCompleted}
-        aria-label={`${event.isCompleted ? 'Desmarcar' : 'Completar'} ${event.title}`}
-        onClick={onToggle}
-        className={cn('flex size-11 items-center justify-center rounded-full border-2 transition-colors', event.isCompleted ? 'border-success bg-success text-on-primary' : 'border-border-strong text-transparent hover:border-success')}
-      ><Check aria-hidden className="size-[18px]" strokeWidth={2.5} /></button>
+    <div className="relative flex shrink-0 items-center">
+      <InkCheckButton name={event.title} checked={event.isCompleted} pending={pending} onToggle={onToggle} className="size-11" />
       <Button variant="icon" aria-label={`Editar ${event.title}`} onClick={onEdit}><Pencil aria-hidden className="size-[18px]" strokeWidth={1.75} /></Button>
     </div>
   );
 }
 
-function EventBlock({ event, onEdit, onToggle }: { event: AgendaEvent; onEdit: () => void; onToggle: () => void }) {
+/** Texto que se escribe de izquierda a derecha; la máscara se quita al terminar (no recorta el foco). */
+function Written({ delay, className, children }: { delay: number; className?: string; children: ReactNode }) {
+  const [done, setDone] = useState(false);
+  return (
+    <div
+      className={cn(className, !done && 'lq-write')}
+      style={{ '--delay': `${Math.round(delay * 1000)}ms`, '--d': '540ms' } as CSSProperties}
+      onAnimationEnd={(e) => { if (e.animationName === 'lq-write') setDone(true); }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** Título del evento; al completarlo se tacha a mano. */
+function EventTitle({ event, className }: { event: AgendaEvent; className?: string }) {
+  return (
+    <p className={cn('flex min-w-0 text-label-lg transition-colors duration-300', event.isCompleted ? 'text-on-surface-light' : 'text-on-background', className)}>
+      {/* El tachado mide lo que el título, no la fila entera */}
+      <span className="relative min-w-0 truncate">
+        {event.title}
+        <SketchStrike drawn={event.isCompleted} className="text-on-surface-light" />
+      </span>
+    </p>
+  );
+}
+
+function EventBlock({ event, index, pending, onEdit, onToggle }: { event: AgendaEvent; index: number; pending?: boolean; onEdit: () => void; onToggle: () => void }) {
   const cat = catInfo(event.category);
+  const at = 0.34 + index * 0.09;
   return (
     <article
       aria-label={event.title}
       style={{ '--hl': `var(--lq-${cat.tone === 'muted' ? 'border-strong' : cat.tone})` } as CSSProperties}
-      className={cn('lq-lift lq-highlight flex h-full items-start gap-3 rounded-[4px_12px_12px_4px] py-2.5 pl-3.5 pr-1 transition-opacity', event.isCompleted && 'opacity-70')}
+      // Presionar inclina un poco la marca, como el papel bajo el lápiz.
+      className="group relative flex h-full items-start gap-3 rounded-[4px_12px_12px_4px] py-2.5 pl-3.5 pr-1 transition-transform duration-[325ms] ease-[var(--lq-ease-snappy)] active:-rotate-[0.45deg] [.reduce-motion_&]:active:transform-none"
     >
-      <div className="min-w-0 flex-1">
-        <p className={cn('truncate text-label-lg', event.isCompleted ? 'text-on-surface-light line-through' : 'text-on-background')}>{event.title}</p>
+      {/* El resaltador se pasa de izquierda a derecha; después se escribe el evento */}
+      <motion.span
+        aria-hidden="true"
+        className={cn('lq-highlight lq-highlight-mark pointer-events-none absolute inset-0 origin-left rounded-[inherit]', event.isCompleted && '!opacity-60')}
+        initial={{ scaleX: 0 }}
+        animate={{ scaleX: 1, transition: { duration: 0.5, ease: [0.3, 0.2, 0.2, 1], delay: at } }}
+      />
+      <Written delay={at + 0.28} className="relative min-w-0 flex-1">
+        <EventTitle event={event} />
         <p className="font-mono text-body-sm tabular-nums text-on-surface-light">{timeLabel(event)} · {cat.label}</p>
         {event.location && <p className="flex items-center gap-1 text-body-sm text-on-surface-light"><MapPin aria-hidden className="size-3.5" />{event.location}</p>}
-      </div>
-      <EventActions event={event} onEdit={onEdit} onToggle={onToggle} />
+      </Written>
+      <EventActions event={event} pending={pending} onEdit={onEdit} onToggle={onToggle} />
     </article>
   );
 }
 
-function EventRow({ event, onEdit, onToggle }: { event: AgendaEvent; onEdit: () => void; onToggle: () => void }) {
+const rowRule = { initial: { scaleX: 0 }, animate: { scaleX: 1 } };
+
+/** Evento como una línea de la hoja: la línea se dibuja y el evento se escribe. */
+function EventRow({ event, index, pending, onEdit, onToggle }: { event: AgendaEvent; index: number; pending?: boolean; onEdit: () => void; onToggle: () => void }) {
   const cat = catInfo(event.category);
   return (
-    <li className="flex items-center gap-3 border-b border-border py-2 last:border-0">
+    <li className="group relative flex items-center gap-3 py-2 transition-transform duration-[325ms] ease-[var(--lq-ease-snappy)] active:-rotate-[0.3deg] [.reduce-motion_&]:active:transform-none">
+      <motion.span aria-hidden="true" variants={rowRule} initial="initial" animate="animate" transition={{ ...springs.gentle, mass: 0.8, delay: 0.1 + index * 0.06 }} className="pointer-events-none absolute inset-x-0 bottom-0 h-px origin-left bg-info/25" />
       <span aria-hidden className={cn('size-2.5 shrink-0 rounded-full', solidBg[cat.tone])} />
-      <div className="min-w-0 flex-1">
-        <p className={cn('truncate text-label-lg', event.isCompleted && 'text-on-surface-light line-through')}>{event.title}</p>
+      <Written delay={0.22 + index * 0.07} className="min-w-0 flex-1">
+        <EventTitle event={event} />
         <p className="text-body-sm text-on-surface-light">{timeLabel(event)} · {cat.label}{event.location ? ` · ${event.location}` : ''}</p>
         {event.eventType === 'habit' && <p className="text-body-sm text-primary-text">Hábito recurrente · se gestiona desde Hábitos</p>}
-      </div>
-      <EventActions event={event} onEdit={onEdit} onToggle={onToggle} />
+      </Written>
+      <EventActions event={event} pending={pending} onEdit={onEdit} onToggle={onToggle} />
     </li>
   );
 }
@@ -260,7 +300,17 @@ export default function AgendaPage() {
     try { await agendaService.deleteEvent(id); setEditingEvent(null); await load(); toast.success('Evento eliminado'); }
     catch { toast.error('Error al eliminar evento'); }
   }
-  const handleToggle = (event: AgendaEvent) => handleUpdate(event.id, { isCompleted: !event.isCompleted } as Partial<AgendaEvent>);
+  // La tinta va antes que la API: se marca al momento y, si falla, se recoge.
+  const [toggling, setToggling] = useState<string | null>(null);
+  async function handleToggle(event: AgendaEvent) {
+    const next = !event.isCompleted;
+    const set = (v: boolean) => setEvents((prev) => prev.map((x) => (x.id === event.id ? { ...x, isCompleted: v } : x)));
+    set(next);
+    setToggling(event.id);
+    try { await agendaService.updateEvent(event.id, { isCompleted: next } as Partial<AgendaEvent>); }
+    catch { set(!next); toast.error('Error al actualizar evento'); }
+    finally { setToggling(null); }
+  }
 
   // Google Calendar
   useEffect(() => {
@@ -315,9 +365,10 @@ export default function AgendaPage() {
     return [...m.entries()].sort((a, b) => b[1] - a[1]);
   }, [timed]);
 
-  const items: TimelineItem[] = timed.map((e) => ({
+  // En orden de la hoja: los bloques se resaltan y se escriben de arriba abajo.
+  const items: TimelineItem[] = [...timed].sort((a, b) => minutesOf(a.startDate) - minutesOf(b.startDate)).map((e, i) => ({
     id: e.id, start: minutesOf(e.startDate), duration: durationOf(e),
-    render: <EventBlock event={e} onEdit={() => setEditingEvent(e)} onToggle={() => void handleToggle(e)} />,
+    render: <EventBlock event={e} index={i} pending={toggling === e.id} onEdit={() => setEditingEvent(e)} onToggle={() => void handleToggle(e)} />,
   }));
 
   const monday = new Date(currentDate);
@@ -334,9 +385,10 @@ export default function AgendaPage() {
       ambience={<AmbientLight tone="warning" alpha={0.1} darkAlpha={0.06} d={18} className="left-[18%] top-[6%] h-[34rem] w-[64%]" />}
     >
       <motion.section variants={item} className="flex flex-wrap items-end justify-between gap-6">
-        <div className="flex min-w-0 flex-[1_1_360px] flex-col gap-2">
-          <span className="text-label-lg text-primary-text">Agenda</span>
-          <h1 className="text-display-sm md:text-display-md lg:text-display-lg">Tu tiempo, tus misiones</h1>
+        <div className="flex min-w-0 flex-[1_1_360px] flex-col gap-1 md:gap-2">
+          <span className="hidden text-label-lg text-primary-text md:block">{longDate()}</span>
+          <h1 className="text-display-sm md:text-display-md lg:text-display-lg"><Lettering text="Agenda" /></h1>
+          <p className="text-body-lg text-on-surface-light">Tu tiempo, tus misiones.</p>
         </div>
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           <Button variant="secondary" size="md" onClick={() => { setDir(new Date() >= currentDate ? 1 : -1); setCurrentDate(new Date()); }}>Hoy</Button>
@@ -384,9 +436,9 @@ export default function AgendaPage() {
                     dir={dir}
                     label={upper1(currentDate.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }))}
                     display={(
-                      // La fecha como en un calendario de escritorio: el número grande
+                      // La fecha como en un calendario de escritorio: el número grande, escrito con la letra de la marca
                       <span className="flex items-center gap-3 text-left">
-                        <span className="font-mono text-display-sm font-bold leading-none tabular-nums md:text-display-md">{currentDate.getDate()}</span>
+                        <span className="text-display-sm leading-none md:text-display-md"><Lettering text={String(currentDate.getDate())} delay={0.1} /></span>
                         <span className="flex flex-col">
                           <span className="text-heading-sm leading-tight">{upper1(currentDate.toLocaleDateString('es-ES', { weekday: 'long' }))}</span>
                           <span className="text-body-sm font-normal text-on-surface-light">{upper1(currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }))}</span>
@@ -413,7 +465,7 @@ export default function AgendaPage() {
                 </PlannerPage>
                 <aside className="flex flex-col gap-8 pt-2">
                   {/* Notas adhesivas: el resumen con sus casillas marcadas y el tiempo por categoría */}
-                  <StickyNote tone="warning" tilt={-1.8} aria-labelledby="ag-sum">
+                  <StickyNote tone="warning" tilt={-1.8} delay={0.35} aria-labelledby="ag-sum">
                     <h2 id="ag-sum" className="text-heading-sm">Resumen del día</h2>
                     <p className="flex items-baseline gap-2">
                       <span className="font-mono text-display-sm font-bold tabular-nums">{doneN}<span className="text-on-surface-light">/{dayEvents.length}</span></span>
@@ -430,7 +482,7 @@ export default function AgendaPage() {
                     )}
                     <p className="text-body-sm text-on-surface">{planned ? `${hm(planned)} planificadas` : 'Nada planificado'}</p>
                   </StickyNote>
-                  <StickyNote tone="info" tilt={1.4} aria-labelledby="ag-cats" className="gap-2.5">
+                  <StickyNote tone="info" tilt={1.4} delay={0.5} aria-labelledby="ag-cats" className="gap-2.5">
                     <h2 id="ag-cats" className="text-heading-sm">Categorías</h2>
                     {byCat.length === 0 ? <p className="text-body-sm text-on-surface">Sin bloques con horario.</p> : byCat.map(([key, min]) => (
                       <div key={key} className="flex items-center gap-3"><span aria-hidden className={cn('h-5 w-2 rounded-sm', solidBg[catInfo(key).tone])} /><span className="flex-1 text-body-md">{catInfo(key).label}</span><span className="font-mono text-body-sm tabular-nums text-on-surface">{hm(min)}</span></div>
@@ -444,26 +496,39 @@ export default function AgendaPage() {
               <PlannerPage aria-label="Semana" className="flex flex-col gap-4 px-4 pb-6 md:px-7">
                 <NavBar dir={dir} label={`${weekDays[0].toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })} — ${weekDays[6].toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}`} prevLabel="Semana anterior" nextLabel="Semana siguiente" onPrev={() => shift(-7)} onNext={() => shift(7)} />
                 <AnimatePresence mode="popLayout" initial={false} custom={dir}>
-                <motion.ol key={weekDays[0].toDateString()} custom={dir} variants={flip} initial="enter" animate="center" exit="leave" style={{ transformPerspective: 1200, originY: 0 }} className="grid grid-cols-1 gap-3 md:grid-cols-7">
+                {/* Cada día es una columna de la hoja (una línea en móvil): el día se escribe, hoy lleva un círculo de tinta y los eventos son marcas de resaltador. */}
+                <motion.ol key={weekDays[0].toDateString()} custom={dir} variants={flip} initial="enter" animate="center" exit="leave" style={{ transformPerspective: 1200, originY: 0 }} className="grid grid-cols-1 md:grid-cols-7">
                   {weekDays.map((day, di) => {
                     const evs = events.filter((e) => isEventOnDay(e, day));
                     const isToday = isSameDay(day, today);
                     return (
-                      <motion.li key={day.toISOString()} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0, transition: { ...springs.natural, delay: 0.06 + di * 0.04 } }}>
+                      <li key={day.toISOString()} className={cn('relative', di > 0 && 'md:border-l md:border-info/20')}>
+                        <motion.span aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-px origin-left bg-info/25 md:hidden" initial={{ scaleX: 0 }} animate={{ scaleX: 1, transition: { ...springs.gentle, mass: 0.8, delay: 0.1 + di * 0.05 } }} />
                         <button
                           type="button" aria-current={isToday ? 'date' : undefined}
                           aria-label={`${day.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}, ${evs.length} ${evs.length === 1 ? 'evento' : 'eventos'}`}
-                          onClick={() => { setCurrentDate(day); setView('day'); }}
-                          className={cn('flex min-h-24 w-full flex-col gap-2 rounded-2xl p-3 text-left transition-colors md:min-h-[240px]', isToday ? 'bg-primary/[var(--lq-soft-alpha)]' : 'bg-surface-variant hover:bg-border')}
+                          onClick={() => { setDir(day >= currentDate ? 1 : -1); setCurrentDate(day); setView('day'); }}
+                          className="flex min-h-16 w-full flex-col gap-2 rounded-lg px-2 py-3 text-left transition-colors duration-300 hover:bg-warning/[.08] md:min-h-[260px] md:px-2.5"
                         >
-                          <span className="flex items-center justify-between"><span className="text-label-md uppercase text-on-surface">{day.toLocaleDateString('es-ES', { weekday: 'short' }).replace('.', '')}</span><span className={cn('font-mono text-heading-sm tabular-nums', isToday && 'text-primary-text')}>{day.getDate()}</span></span>
-                          {evs.slice(0, 4).map((e, k) => (
-                            // Cada evento encaja en su franja: baja un poco y se asienta.
-                            <motion.span key={e.id} initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0, transition: { ...springs.snappy, delay: 0.25 + di * 0.04 + k * 0.05 } }} className="flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1.5 text-body-sm"><span aria-hidden className={cn('size-2 shrink-0 rounded-full', solidBg[catInfo(e.category).tone])} /><span className="truncate">{e.title}</span></motion.span>
-                          ))}
-                          {evs.length > 4 && <span className="text-body-sm text-on-surface-light">+{evs.length - 4} más</span>}
+                          <span aria-hidden className="flex items-center justify-between gap-2 md:flex-col md:items-start md:gap-1">
+                            <Written delay={0.15 + di * 0.05}><span className="text-label-md text-on-surface-light">{day.toLocaleDateString('es-ES', { weekday: 'short' }).replace('.', '')}</span></Written>
+                            <span className={cn('relative inline-flex min-w-8 items-center justify-center font-mono text-heading-md tabular-nums', isToday && 'text-primary-text')}>
+                              {day.getDate()}
+                              {isToday && <SketchCircle className="absolute -inset-2 size-[calc(100%+1rem)] text-primary" delay={0.6} duration={0.6} strokeWidth={1.8} />}
+                            </span>
+                          </span>
+                          {evs.slice(0, 4).map((e, k) => {
+                            const tone = catInfo(e.category).tone;
+                            return (
+                              <span key={e.id} aria-hidden className="relative flex items-center rounded-[3px_8px_8px_3px] py-1 pl-2 pr-1.5 text-body-sm" style={{ '--hl': `var(--lq-${tone === 'muted' ? 'border-strong' : tone})` } as CSSProperties}>
+                                <motion.span className="lq-highlight absolute inset-0 origin-left rounded-[inherit]" initial={{ scaleX: 0 }} animate={{ scaleX: 1, transition: { duration: 0.45, ease: [0.3, 0.2, 0.2, 1], delay: 0.3 + di * 0.05 + k * 0.07 } }} />
+                                <span className={cn('relative truncate', e.isCompleted && 'text-on-surface-light line-through')}>{e.title}</span>
+                              </span>
+                            );
+                          })}
+                          {evs.length > 4 && <span aria-hidden className="text-body-sm text-on-surface-light">+{evs.length - 4} más</span>}
                         </button>
-                      </motion.li>
+                      </li>
                     );
                   })}
                 </motion.ol>
@@ -488,7 +553,7 @@ export default function AgendaPage() {
                 <PlannerPage rings={false} aria-labelledby="ag-sel" className="flex flex-col gap-2 p-6">
                   <h2 id="ag-sel" className="text-heading-sm">{upper1(currentDate.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }))}</h2>
                   {dayEvents.length === 0 ? <p className="py-2 text-body-md text-on-surface-light">Sin eventos este día.</p> : (
-                    <ul>{dayEvents.map((e) => <EventRow key={e.id} event={e} onEdit={() => setEditingEvent(e)} onToggle={() => void handleToggle(e)} />)}</ul>
+                    <ul key={currentDate.toDateString()}>{dayEvents.map((e, i) => <EventRow key={e.id} index={i} event={e} pending={toggling === e.id} onEdit={() => setEditingEvent(e)} onToggle={() => void handleToggle(e)} />)}</ul>
                   )}
                 </PlannerPage>
               </div>

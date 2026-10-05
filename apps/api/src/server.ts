@@ -78,7 +78,8 @@ app.get('/api/v1/db/push', async (_req, res) => {
 });
 
 // ─── Parsing ─────────────────────────────────────────────────────────────────
-app.use(express.json());
+// Las fotos (perfil y gremio) viajan como data URL JPEG: 100 kB por defecto se queda corto.
+app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 

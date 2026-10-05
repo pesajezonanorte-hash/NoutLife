@@ -25,6 +25,7 @@ import { PomodoroTimer, NotesPanel, VocabPanel } from '../../components/learning
 import { SageContextButton } from '../../components/sage/SageContextButton';
 import { Button, Card, EmptyState, ErrorState, Field, Input, Modal, ProgressBar, SegmentedControl, Select, type BadgeVariant, type Tone, PageLoader } from '@/components/ui/lq';
 import { LOADING_COPY } from '@/lib/loadingCopy';
+import { Lettering } from '@/components/layout/Lettering';
 
 const TYPE_META: Record<string, { label: string; icon: LucideIcon; tone: Exclude<Tone, 'muted'> }> = {
   BOOK: { label: 'Libro', icon: BookOpen, tone: 'primary' },
@@ -240,7 +241,7 @@ export default function LearningPage() {
       <motion.section variants={item} className="flex flex-wrap items-end justify-between gap-6">
         <div className="flex min-w-0 flex-[1_1_360px] flex-col gap-2">
           <span className="text-label-lg text-primary-text">Aprendizaje</span>
-          <h1 className="text-display-sm md:text-display-md lg:text-display-lg">Biblioteca</h1>
+          <h1 className="text-display-sm md:text-display-md lg:text-display-lg"><Lettering text="Biblioteca" /></h1>
           <p className="text-body-lg text-on-surface-light">Reúne lo que quieres aprender y vuelve a ello con claridad.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

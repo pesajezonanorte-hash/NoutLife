@@ -7,6 +7,7 @@ import { Flame, Sparkles, Trophy, type LucideIcon } from 'lucide-react';
 import { ease } from '@/lib/motion';
 import { BrandLockup } from '@/components/layout/Brand';
 import { IconChip, type Tone } from '@/components/ui/lq';
+import { Lettering } from '@/components/layout/Lettering';
 
 const FEATURES: Array<{ icon: LucideIcon; tone: Tone; title: string; body: string }> = [
   { icon: Flame, tone: 'warning', title: 'Hábitos con racha', body: 'Cada día cumplido suma XP y mantiene viva tu racha.' },
@@ -54,7 +55,7 @@ export function AuthLayout({ title, subtitle, children, footer }: Props) {
             <div className="flex flex-col gap-6">
               <BrandLockup className="lg:hidden" />
               <div className="flex flex-col gap-2">
-                <h1 className="text-display-sm sm:text-display-md">{title}</h1>
+                <h1 className="text-display-sm sm:text-display-md"><Lettering text={title} /></h1>
                 <p className="text-body-lg text-on-surface-light">{subtitle}</p>
               </div>
             </div>

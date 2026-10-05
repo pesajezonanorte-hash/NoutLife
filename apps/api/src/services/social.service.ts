@@ -333,24 +333,52 @@ function generateGuildCode(): string {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
+/** Foto del gremio: data URL de imagen (el cliente la recorta y la reduce a 384 px). */
+const GUILD_PHOTO = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
+const GUILD_PHOTO_MAX = 400_000;
+
+/** undefined = no cambia · null = quitar la foto · string = foto válida. */
+function guildPhoto(value: unknown): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null || value === '') return null;
+  if (typeof value !== 'string' || value.length > GUILD_PHOTO_MAX || !GUILD_PHOTO.test(value)) {
+    throw new Error('La foto debe ser una imagen JPEG, PNG o WebP de menos de 300 kB.');
+  }
+  return value;
+}
+
 export async function createGuild(
   userId: string,
-  data: { name: string; description?: string; emblem?: string }
+  data: { name: string; description?: string; emblem?: string; photoUrl?: unknown }
 ) {
   const existing = await prisma.guildMember.findUnique({ where: { userId } });
   if (existing) throw new Error('Ya perteneces a un gremio');
+  const photoUrl = guildPhoto(data.photoUrl) ?? null;
 
   return prisma.guild.create({
     data: {
       name: data.name,
       description: data.description,
       emblem: data.emblem ?? 'shield',
+      photoUrl,
       leaderId: userId,
       inviteCode: generateGuildCode(),
       members: { create: { userId, role: 'LEADER' } },
     },
     include: { members: { include: { user: { select: { id: true, username: true, displayName: true, level: true } } } } },
   });
+}
+
+/** Cambiar o quitar la foto del gremio: solo quien lo lidera (o un oficial). */
+export async function updateGuild(userId: string, guildId: string, data: { photoUrl?: unknown }) {
+  const member = await prisma.guildMember.findFirst({ where: { userId, guildId }, include: { guild: { select: { leaderId: true } } } });
+  if (!member) throw new Error('No perteneces a este gremio');
+  if (member.guild.leaderId !== userId && member.role !== 'LEADER' && member.role !== 'OFFICER') {
+    throw new Error('Solo quien lidera el gremio puede cambiar su foto');
+  }
+  const photoUrl = guildPhoto(data.photoUrl);
+  if (photoUrl === undefined) throw new Error('No hay cambios que guardar');
+  return prisma.guild.update({ where: { id: guildId }, data: { photoUrl }, select: { id: true, photoUrl: true } });
 }
 
 export async function joinGuild(userId: string, inviteCode: string) {

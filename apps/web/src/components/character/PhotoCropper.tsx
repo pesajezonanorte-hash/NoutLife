@@ -2,7 +2,7 @@
 // encuadrar, pellizcar / rueda / deslizador para el zoom y girar 90°. La imagen
 // siempre cubre el círculo: al soltar fuera de los bordes vuelve con un muelle
 // (mientras se arrastra hay resistencia elástica). El resultado es un JPEG
-// cuadrado de OUT px con exactamente lo que se ve dentro del círculo.
+// cuadrado de `size` px (512 por defecto) con exactamente lo que se ve dentro del círculo.
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
 import { animate, motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { RotateCcw, RotateCw, ZoomIn, ZoomOut } from 'lucide-react';
@@ -22,6 +22,8 @@ export interface PhotoCropperProps {
   src: string;
   onCancel: () => void;
   onApply: (dataUrl: string) => void;
+  /** Lado del JPEG resultante (px). */
+  size?: number;
 }
 
 /** Carga la imagen y la reduce a MAX_SRC (lado mayor) para que arrastrar sea fluido. */
@@ -146,7 +148,7 @@ function ZoomSlider({ value, onChange, onStep }: { value: number; onChange: (z: 
   );
 }
 
-export function PhotoCropper({ src, onCancel, onApply }: PhotoCropperProps) {
+export function PhotoCropper({ src, onCancel, onApply, size = OUT }: PhotoCropperProps) {
   const reduce = useMotionStore((s) => s.reduce);
   const frameRef = useRef<HTMLDivElement>(null);
   const [source, setSource] = useState<{ el: HTMLCanvasElement | HTMLImageElement; url: string; w: number; h: number } | null>(null);
@@ -289,13 +291,13 @@ export function PhotoCropper({ src, onCancel, onApply }: PhotoCropperProps) {
   function apply() {
     if (!source) return;
     const c = document.createElement('canvas');
-    c.width = OUT; c.height = OUT;
+    c.width = size; c.height = size;
     const ctx = c.getContext('2d');
     if (!ctx) return;
     ctx.imageSmoothingQuality = 'high';
     // Mismo orden que el transform en pantalla: traslación → giro → escala.
-    const k = OUT / circle;
-    ctx.translate(OUT / 2, OUT / 2);
+    const k = size / circle;
+    ctx.translate(size / 2, size / 2);
     ctx.scale(k, k);
     ctx.translate(x.get(), y.get());
     ctx.rotate((rot * Math.PI) / 180);
