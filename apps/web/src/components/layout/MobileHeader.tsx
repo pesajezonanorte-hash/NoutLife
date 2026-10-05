@@ -25,7 +25,7 @@ export function MobileHeader({ className }: { className?: string }) {
         <span className="truncate text-body-sm text-on-surface-light">{todayLabel()}</span>
       </Link>
       <div className="flex items-center">
-        <Button variant="icon" aria-label="Buscar" onClick={openCommandPalette}>
+        <Button variant="icon" data-tour="search" aria-label="Buscar" onClick={openCommandPalette}>
           <Search aria-hidden className="size-6" strokeWidth={1.75} />
         </Button>
         <NotificationBell />
