@@ -13,7 +13,7 @@ import { AmbientLight, ZoneShell } from '@/components/ambience';
 import { Mirror } from '@/components/glowup/Mirror';
 import { useToastStore } from '../../hooks/useToast';
 import api from '../../lib/api';
-import { Badge, Button, Card, ChipGroup, EmptyState, ErrorState, Field, IconChip, Input, Modal, ProgressBar, ProgressRing, Select, SegmentedControl, StepItem, Textarea, type Tone, PageLoader } from '@/components/ui/lq';
+import { Badge, Button, Card, ChipGroup, EmptyState, ErrorState, Field, IconChip, Input, Modal, ProgressBar, Select, SegmentedControl, StepItem, Textarea, type Tone, PageLoader } from '@/components/ui/lq';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -170,7 +170,7 @@ function CareSection({ onProgress }: CareProps) {
             const pct = r.steps.length ? Math.round((n / r.steps.length) * 100) : isToday(r.lastDoneAt) ? 100 : 0;
             return (
               <motion.li key={r.id} variants={item}>
-                <Card as="article" padding="lg" interactive aria-labelledby={`r-${r.id}`} className="flex h-full flex-col gap-4">
+                <Card as="article" padding="lg" interactive aria-labelledby={`r-${r.id}`} className="lq-marble lq-tray flex h-full flex-col gap-4">
                   <div className="flex items-center gap-4">
                     <IconChip icon={meta.icon} tone={meta.tone} />
                     <div className="min-w-0 flex-1">
@@ -475,23 +475,17 @@ export default function GlowUpPage() {
           <h1 className="text-display-sm md:text-display-md lg:text-display-lg">Glow up</h1>
           <p className="max-w-[540px] text-body-lg text-on-surface-light">Cuídate, vístete y preséntate. Pequeños rituales que cambian cómo te ves y cómo te sientes.</p>
         </div>
-        <div className="flex items-center gap-5">
-          <Mirror brightness={pct}>
-            <ProgressRing value={pct} tone="primary" size={120} stroke={10} label="Brillo de hoy" valueText={`${pct}%`}>
-              <span className="flex flex-col items-center" aria-live="polite">
-                <span className="font-mono text-heading-md font-bold tabular-nums">{pct}%</span>
-                <span className="text-body-sm text-on-surface-light">hoy</span>
-              </span>
-            </ProgressRing>
-          </Mirror>
-          <div className="flex flex-col gap-1">
-            <span className="text-label-lg">Brillo de hoy</span>
+        {/* El tocador: cada paso completado enciende otra bombilla y aclara el vidrio */}
+        <Mirror brightness={pct} className="w-full sm:w-[22rem]">
+          <div className="flex flex-col items-center gap-1 text-center" role="group" aria-label="Brillo de hoy">
+            <span className="text-label-lg text-on-surface">Brillo de hoy</span>
+            <span aria-live="polite" className="font-mono text-display-sm font-bold tabular-nums md:text-display-md">{pct}%</span>
             <span className="font-mono text-body-sm tabular-nums text-on-surface-light">{progress.done} de {progress.total} pasos</span>
             {progress.streak > 0 && (
-              <span className="flex items-center gap-1.5 text-body-sm text-warning-text"><Flame aria-hidden className="size-4" /><span className="font-mono tabular-nums">{progress.streak}</span> {progress.streak === 1 ? 'día' : 'días'} de racha</span>
+              <span className="mt-1 flex items-center gap-1.5 text-body-sm text-warning-text"><Flame aria-hidden className="size-4" /><span className="font-mono tabular-nums">{progress.streak}</span> {progress.streak === 1 ? 'día' : 'días'} de racha</span>
             )}
           </div>
-        </div>
+        </Mirror>
       </motion.section>
 
       <motion.div variants={item}>

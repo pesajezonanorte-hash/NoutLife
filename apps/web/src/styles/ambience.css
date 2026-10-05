@@ -623,3 +623,41 @@ html.dark .lq-tape { background: rgb(255 255 255 / .12); }
 /* Bloque de un evento: marca de resaltador del color de su categoría (--hl). */
 .lq-highlight { background: linear-gradient(100deg, rgb(var(--hl) / .2), rgb(var(--hl) / .12) 70%, rgb(var(--hl) / .2)); border-left: 3px solid rgb(var(--hl)); }
 html.dark .lq-highlight { background: linear-gradient(100deg, rgb(var(--hl) / .2), rgb(var(--hl) / .1) 70%, rgb(var(--hl) / .18)); }
+
+/* ───────── Glow up (tocador de camerino) ───────── */
+/* Marco del espejo: laca cálida con un filete dorado. */
+.lq-vanity-frame {
+  background: linear-gradient(160deg, color-mix(in srgb, rgb(var(--lq-secondary)) 22%, rgb(var(--lq-surface))), color-mix(in srgb, rgb(var(--lq-secondary)) 34%, rgb(var(--lq-surface-variant))));
+  box-shadow: inset 0 0 0 1px rgb(var(--lq-secondary) / .5), inset 0 2px 0 rgb(255 255 255 / .6), 0 22px 40px -20px rgb(var(--lq-jade-900) / .45);
+}
+html.dark .lq-vanity-frame {
+  background: linear-gradient(160deg, color-mix(in srgb, rgb(var(--lq-secondary)) 16%, rgb(var(--lq-surface-variant))), color-mix(in srgb, rgb(var(--lq-secondary)) 10%, rgb(var(--lq-surface))));
+  box-shadow: inset 0 0 0 1px rgb(var(--lq-secondary) / .35), 0 22px 40px -18px rgb(0 0 0 / .8);
+}
+/* Vidrio: frío y profundo, con su sombra en los bordes. */
+.lq-vanity-glass { background: linear-gradient(160deg, rgb(var(--lq-jade-50)), rgb(var(--lq-surface)) 45%, rgb(var(--lq-jade-100))); box-shadow: inset 0 0 0 1px rgb(var(--lq-on-background) / .08), inset 0 0 24px rgb(var(--lq-jade-700) / .12); }
+html.dark .lq-vanity-glass { background: linear-gradient(160deg, rgb(var(--lq-jade-900)), rgb(var(--lq-surface)) 50%, rgb(var(--lq-surface-variant))); box-shadow: inset 0 0 0 1px rgb(255 255 255 / .06), inset 0 0 30px rgb(0 0 0 / .5); }
+/* Bombillas: vidrio apagado o encendidas con su halo cálido. */
+.lq-bulb { background: radial-gradient(circle at 38% 34%, rgb(255 255 255 / .9), rgb(var(--lq-surface-variant)) 45%, rgb(var(--lq-border-strong) / .6)); box-shadow: 0 1px 2px rgb(0 0 0 / .25); }
+.lq-bulb-on { background: radial-gradient(circle at 38% 34%, rgb(255 255 255), color-mix(in srgb, rgb(var(--lq-warning)) 45%, white) 40%, rgb(var(--lq-warning))); box-shadow: 0 0 10px 3px rgb(var(--lq-warning) / .55), 0 0 26px 8px rgb(var(--lq-warning) / .25); }
+html.dark .lq-bulb { background: radial-gradient(circle at 38% 34%, rgb(255 255 255 / .35), rgb(var(--lq-surface-variant)) 45%, rgb(var(--lq-border))); }
+/* Mármol: blanco con vetas muy finas (gris jade), o mármol oscuro de noche. */
+.lq-marble {
+  background-color: rgb(var(--lq-surface));
+  background-image:
+    linear-gradient(115deg, transparent 38%, rgb(var(--lq-on-background) / .05) 40%, transparent 43%),
+    linear-gradient(160deg, transparent 58%, rgb(var(--lq-on-background) / .04) 60%, transparent 64%),
+    linear-gradient(35deg, transparent 70%, rgb(var(--lq-on-background) / .035) 71.5%, transparent 74%),
+    radial-gradient(120% 80% at 15% 0%, rgb(var(--lq-jade-100) / .6), transparent 60%);
+}
+html.dark .lq-marble {
+  background-color: rgb(var(--lq-surface-variant));
+  background-image:
+    linear-gradient(115deg, transparent 38%, rgb(255 255 255 / .025) 40%, transparent 43%),
+    linear-gradient(160deg, transparent 58%, rgb(255 255 255 / .02) 60%, transparent 64%),
+    linear-gradient(35deg, transparent 70%, rgb(255 255 255 / .015) 71.5%, transparent 74%);
+}
+.lq-ledge { box-shadow: 0 6px 12px -6px rgb(0 0 0 / .4), inset 0 1px 0 rgb(255 255 255 / .6); }
+/* Bandeja de mármol para cada rutina: borde de la bandeja y brillo. */
+.lq-tray { border: 1px solid rgb(var(--lq-border)); box-shadow: inset 0 0 0 5px rgb(var(--lq-surface) / .55), inset 0 0 0 6px rgb(var(--lq-secondary) / .25), var(--shadow-sm); }
+html.dark .lq-tray { box-shadow: inset 0 0 0 5px rgb(0 0 0 / .15), inset 0 0 0 6px rgb(var(--lq-secondary) / .18), var(--shadow-sm); }
