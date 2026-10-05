@@ -1,11 +1,16 @@
 // Relaciones — RelationsDesktop.dc.html. Cuenta atrás de la próxima fecha, tu círculo,
 // fechas especiales (agregar/eliminar) y regalos. Datos: love.service (sin cambios).
+// Zona ambientada: un jardín. Cada fecha especial es una flor que crece y se
+// abre; la próxima late suave y añadir un recuerdo hace brotar una flor nueva.
+// Pétalos que caen despacio y luz de atardecer; de noche, luciérnagas.
 import { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Cake, CalendarDays, Clock, Gift, Heart, Plus, Star, Trash2 } from 'lucide-react';
 import type { Relationship, LoveDashboard, ImportantDate } from '@lifequest/shared';
 import { cn } from '@/lib/utils';
 import { item, stagger } from '@/lib/motion';
+import { AmbientLight, Particles, ZoneShell, useParticleBudget } from '@/components/ambience';
+import { Garden } from '@/components/love/Garden';
 import { useToast } from '../../hooks/useToast';
 import * as loveService from '../../services/love.service';
 import api from '../../lib/api';
@@ -233,6 +238,10 @@ export default function LovePage() {
   const [showSetup, setShowSetup] = useState(false);
   const [showAddDate, setShowAddDate] = useState(false);
   const [tab, setTab] = useState<'jardin' | 'regalos'>('jardin');
+  /** Flor recién plantada (brota delante de ti) y fila resaltada al tocar una flor. */
+  const [sprout, setSprout] = useState<string | null>(null);
+  const [picked, setPicked] = useState<string | null>(null);
+  const budget = useParticleBudget();
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setState('loading');
@@ -266,7 +275,30 @@ export default function LovePage() {
   const initials = (rel?.name ?? '').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase() || '♥';
 
   return (
-    <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-6 md:gap-8">
+    <ZoneShell
+      zone="love"
+      contentClassName="gap-6 md:gap-8"
+      ambience={(
+        // Luz de atardecer que cambia muy despacio.
+        <span className="lq-amb-wander absolute -right-[10%] top-[-12%] block h-[36rem] w-[60%] [--d:34s]">
+          <AmbientLight tone="warning" alpha={0.14} darkAlpha={0.05} d={18} className="inset-0" />
+          <AmbientLight tone="error" alpha={0.07} darkAlpha={0.04} d={23} className="inset-[18%]" />
+        </span>
+      )}
+      view={(
+        <>
+          {/* De día caen pétalos; de noche flotan luciérnagas. */}
+          <span className="absolute inset-0 block dark:hidden">
+            <Particles count={budget(9)} kind="fall" seed={11} y={[-12, 10]} duration={[14, 22]} alpha={[0.35, 0.6]} size={[6, 10]} sx={[20, 60]} h={[420, 720]}
+              render={(sz, i) => <span className={`lq-petal block ${i % 2 ? 'bg-error/40' : 'bg-warning/40'}`} style={{ width: sz, height: sz * 0.7 }} />} />
+          </span>
+          <span className="absolute inset-0 hidden dark:block">
+            <Particles count={budget(12)} kind="glow" seed={5} y={[20, 90]} duration={[3.5, 6]} alpha={[0.5, 0.9]} size={[3, 5]} sx={[-10, 10]} sy={[-14, 6]}
+              render={(sz) => <span className="block rounded-full bg-warning shadow-[0_0_10px_2px_rgb(var(--lq-warning)/.6)]" style={{ width: sz, height: sz }} />} />
+          </span>
+        </>
+      )}
+    >
       <motion.section variants={item} className="flex flex-wrap items-end justify-between gap-6">
         <div className="flex min-w-0 flex-[1_1_360px] flex-col gap-2">
           <span className="text-label-lg text-primary-text">Relaciones</span>
@@ -346,9 +378,15 @@ export default function LovePage() {
                 {dates.length === 0 ? (
                   <p className="py-4 text-body-md text-on-surface-light">Sin fechas especiales aún.</p>
                 ) : (
-                  <ul>
+                  <>
+                  <Garden
+                    dates={dates.map(({ d, days }) => ({ id: d.id, label: d.label, days }))}
+                    fresh={sprout}
+                    onPick={(id) => { setPicked(id); document.getElementById(`love-date-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); window.setTimeout(() => setPicked(null), 1600); }}
+                  />
+                  <ul className="mt-2">
                     {dates.map(({ d, days }, i) => (
-                      <li key={d.id} className="flex min-h-[72px] items-center gap-4 border-b border-border last:border-0">
+                      <li key={d.id} id={`love-date-${d.id}`} className={cn('flex min-h-[72px] items-center gap-4 rounded-xl border-b border-border px-2 transition-colors duration-700 last:border-0', picked === d.id && 'bg-error/[var(--lq-soft-alpha)]')}>
                         <IconChip tone={i === 0 && days >= 0 ? 'error' : 'primary'} size="sm">
                           <E e={d.emoji ?? '💝'} s={20} />
                         </IconChip>
@@ -361,6 +399,7 @@ export default function LovePage() {
                       </li>
                     ))}
                   </ul>
+                  </>
                 )}
               </Card>
 
@@ -376,7 +415,12 @@ export default function LovePage() {
       </AnimatePresence>
 
       {showSetup && <SetupModal onClose={() => setShowSetup(false)} onSave={handleRelationshipSaved} existing={dashboard?.relationship} />}
-      {showAddDate && rel && <AddDateModal relationshipId={rel.id} onClose={() => setShowAddDate(false)} onSave={(r) => { setDashboard((prev) => ({ ...prev!, relationship: r })); setShowAddDate(false); void load(true); }} />}
-    </motion.div>
+      {showAddDate && rel && <AddDateModal relationshipId={rel.id} onClose={() => setShowAddDate(false)} onSave={(r) => {
+        const before = new Set(((rel.importantDates ?? []) as ImportantDate[]).map((d) => d.id));
+        const added = ((r.importantDates ?? []) as ImportantDate[]).find((d) => !before.has(d.id));
+        if (added) setSprout(added.id);
+        setDashboard((prev) => ({ ...prev!, relationship: r })); setShowAddDate(false); void load(true);
+      }} />}
+    </ZoneShell>
   );
 }

@@ -221,3 +221,12 @@ html.dark .lq-glint { background: radial-gradient(220px circle at var(--mx, 50%)
 /* Glow up: reflejo que cruza el espejo muy despacio (ida y vuelta). */
 .lq-mirror-glint { animation: lq-mirror-glint 16s ease-in-out infinite alternate; transform: translateX(-60%) skewX(-10deg); }
 @keyframes lq-mirror-glint { from { transform: translateX(-60%) skewX(-10deg); } to { transform: translateX(260%) skewX(-10deg); } }
+
+/* ───────── Relaciones (jardín) ───────── */
+/* Las flores se mecen con el aire al pasar el cursor o al enfocarlas. */
+.group:hover .lq-flower, .group:focus-visible .lq-flower { animation: lq-amb-sway 1.6s ease-in-out infinite alternate; }
+/* Latido suave de una fecha cercana: dos pulsos cada 1,6 s (muy por debajo de 3 Hz). */
+.lq-heartbeat { animation: lq-heartbeat 1.6s ease-in-out infinite; }
+@keyframes lq-heartbeat { 0%, 100% { transform: scale(1); } 14% { transform: scale(1.12); } 28% { transform: scale(1); } 42% { transform: scale(1.08); } 60% { transform: scale(1); } }
+/* Pétalo que cae: un óvalo torcido. */
+.lq-petal { border-radius: 60% 40% 60% 40%; }
