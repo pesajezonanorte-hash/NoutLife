@@ -1,6 +1,10 @@
 // Gremio (GuildDesktop). Sin gremio: crear (nombre + emblema en radiogroup) o
 // unirse con un código OTP de 6 casillas. En gremio: código copiable, jefe semanal,
 // miembros con aporte, meta semanal y actividad (chat del gremio).
+// Zona ambientada: una fogata. Al anochecer el fuego se enciende entre piedras y
+// leños, suben brasas y los miembros llegan a sentarse alrededor; al fondo, las
+// tiendas y el banderín del gremio. El tamaño del fuego es la meta semanal: crece
+// cuando el gremio avanza (desde tu última visita). Tocarlo lo aviva con chispas.
 import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -13,6 +17,8 @@ import { getMyGuild, createGuild, joinGuild, getGuildMessages, postGuildMessage,
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/useToast';
 import { AvatarDisplay } from '@/components/character/AvatarDisplay';
+import { AmbientLight, ZoneShell } from '@/components/ambience';
+import { Campfire } from '@/components/guild/Campfire';
 import {
   Badge, BossBar, Button, Card, ErrorState, Field, IconChip, Input, Modal, OtpInput, PageLoader, ProgressBar, ProgressRing, SpotCard, type Tone,
 } from '@/components/ui/lq';
@@ -37,6 +43,9 @@ const EMBLEMS: Array<{ id: string; name: string; icon: LucideIcon; tone: Exclude
 ];
 const emblemOf = (id: string) => EMBLEMS.find((e) => e.id === id) ?? EMBLEMS[0];
 const MAX_MEMBERS = 10;
+/** Tamaño del fuego visto la última vez por gremio (para que crezca si el gremio avanzó). */
+const FIRE_KEY = 'lq-guild-fire';
+const readFire = (id: string): number | null => { try { const v = JSON.parse(localStorage.getItem(FIRE_KEY) || '{}')[id]; return typeof v === 'number' ? v : null; } catch { return null; } };
 const BOSS_HP = 5000;
 const errMsg = (e: unknown) =>
   (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? (e as Error)?.message ?? 'Algo salió mal';
@@ -162,6 +171,11 @@ function InGuild({ guild, onLeft }: { guild: Guild; onLeft: () => void }) {
   // TODO(api): sin meta semanal; fallback = miembros con racha activa.
   const active = guild.members.filter((m) => (m.user.currentStreak ?? 0) > 0).length;
   const goalPct = guild.members.length ? Math.round((active / guild.members.length) * 100) : 0;
+  // Lo que se vio la última vez: si la meta subió, el fuego arranca más chico y crece.
+  const [prevFire] = useState(() => readFire(guild.id));
+  useEffect(() => {
+    try { localStorage.setItem(FIRE_KEY, JSON.stringify({ ...JSON.parse(localStorage.getItem(FIRE_KEY) || '{}'), [guild.id]: goalPct })); } catch { /* sin almacenamiento */ }
+  }, [guild.id, goalPct]);
 
   async function copy() {
     try { await navigator.clipboard.writeText(guild.inviteCode); setCopied(true); window.setTimeout(() => setCopied(false), 1800); }
@@ -183,10 +197,10 @@ function InGuild({ guild, onLeft }: { guild: Guild; onLeft: () => void }) {
 
   return (
     <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-8 md:gap-12">
-      <motion.div variants={item}>
-        <SpotCard className="flex flex-wrap items-center gap-6 md:gap-8">
+      <motion.div variants={item} className="flex flex-col gap-6">
+        <div className="flex flex-wrap items-center gap-6 md:gap-8">
           <motion.span variants={pop3} initial="initial" animate="animate">
-            <IconChip icon={em.icon} tone={em.tone} size="lg" className="lq-halo size-24 rounded-[32px] md:size-[120px] md:rounded-[36px] [&>svg]:size-12" />
+            <IconChip icon={em.icon} tone={em.tone} size="lg" className="lq-halo size-20 rounded-[28px] md:size-24 md:rounded-[32px] [&>svg]:size-10" />
           </motion.span>
           <div className="flex min-w-0 flex-[1_1_300px] flex-col gap-2">
             <span className="text-label-lg text-primary-text">Tu gremio · nivel {guild.level}</span>
@@ -207,7 +221,15 @@ function InGuild({ guild, onLeft }: { guild: Guild; onLeft: () => void }) {
               </Button>
             </div>
           </Card>
-        </SpotCard>
+        </div>
+        {/* La fogata del gremio: su tamaño es la meta semanal */}
+        <Campfire
+          campers={members.map((m) => ({
+            id: m.id, name: m.user.displayName.split(' ')[0], lead: m.userId === guild.leaderId, you: m.userId === String(me?.id),
+            avatar: (size: number) => <AvatarDisplay avatarConfig={m.user.avatarConfig} avatarUrl={m.user.avatarUrl} size={size} animate="none" className="rounded-full" />,
+          }))}
+          progress={goalPct} prevProgress={prevFire} emblem={em.icon} emblemTone={em.tone}
+        />
       </motion.div>
 
       <div className="flex flex-wrap items-start gap-6">
@@ -258,7 +280,7 @@ function InGuild({ guild, onLeft }: { guild: Guild; onLeft: () => void }) {
                 <span className="font-mono text-display-sm tabular-nums">{goalPct}%</span>
                 <span className="text-body-sm text-on-surface-light">con racha</span>
               </ProgressRing>
-              <p className="text-body-sm text-on-surface-light"><span className="font-mono">{active}</span> de <span className="font-mono">{guild.members.length}</span> miembros mantienen su racha.</p>
+              <p className="text-body-sm text-on-surface-light"><span className="font-mono">{active}</span> de <span className="font-mono">{guild.members.length}</span> miembros mantienen su racha. El fuego del gremio crece con esta meta.</p>
             </Card>
           </motion.div>
           <motion.div variants={item}>
@@ -318,11 +340,11 @@ export default function GuildPage() {
   if (state === 'error') return <ErrorState onRetry={() => void load()} />;
 
   return (
-    <div className="flex flex-col gap-8">
+    <ZoneShell zone="guild" contentClassName="gap-8" ambience={<AmbientLight tone="warning" alpha={0.1} darkAlpha={0.07} d={6} className="lq-candle left-[20%] top-[18%] h-[30rem] w-[60%]" breathe={false} />}>
       {guild
         ? <InGuild key={guild.id} guild={guild} onLeft={() => { toast.info('Saliste del gremio'); setGuild(null); }} />
         : <NoGuild onEntered={(msg) => { toast.success(msg); void load(true); }} />}
-    </div>
+    </ZoneShell>
   );
 }
 

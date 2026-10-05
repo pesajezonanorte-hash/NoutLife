@@ -1,6 +1,14 @@
 // Ayuda (HelpDesktop): búsqueda en vivo sin tildes + chips de categoría,
 // acordeones con aria-expanded y «¿Te sirvió?», estado sin resultados y 3 tarjetas de contacto.
-import { useMemo, useState } from 'react';
+// Zona ambientada: un mostrador de información. Un cartel «i» cuelga y se mece; el
+// buscador está sobre el mostrador y su timbre suena al buscar; las categorías son
+// placas de señalética; cada pregunta es una ficha del exhibidor que se saca al
+// abrirla. Al encontrar la respuesta, su ficha se resalta con calma y lo buscado
+// queda marcado en el texto. Las tarjetas de contacto son ventanillas.
+import { useMemo, useRef, useState } from 'react';
+import { ZoneShell } from '@/components/ambience';
+import { DeskBell, Highlight, InfoSign } from '@/components/help/HelpDesk';
+import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Check, MessageCircle, Search, ShieldCheck, Sparkles, ThumbsDown, ThumbsUp, Trophy, Zap, type LucideIcon } from 'lucide-react';
@@ -41,16 +49,30 @@ export default function FAQPage() {
   const [cat, setCat] = useState<'all' | CatId>('all');
   const [open, setOpen] = useState<Record<number, boolean>>({ 0: true });
   const [vote, setVote] = useState<Record<number, 'y' | 'n'>>({});
+  /** El timbre suena al empezar a buscar y al pulsar Enter. */
+  const [ring, setRing] = useState(0);
+  const wasEmpty = useRef(true);
+  const onSearch = (v: string) => {
+    if (wasEmpty.current && v.trim()) setRing((r) => r + 1);
+    wasEmpty.current = !v.trim();
+    setQ(v);
+  };
 
   const query = norm(q.trim());
   const list = useMemo(
     () => FAQ.map((f, i) => ({ f, i })).filter(({ f }) => (cat === 'all' || f.cat === cat) && (!query || norm(`${f.q} ${f.a}`).includes(query))),
     [cat, query],
   );
-  const options: ChipOption<'all' | CatId>[] = [{ value: 'all', label: 'Todo' }, ...(Object.keys(CATS) as CatId[]).map((id) => ({ value: id, label: CATS[id].label }))];
+  const options: ChipOption<'all' | CatId>[] = [{ value: 'all', label: 'Todo' }, ...(Object.keys(CATS) as CatId[]).map((id) => ({ value: id, label: CATS[id].label, icon: CATS[id].icon }))];
+  const found = Boolean(query) && list.length <= 2;
 
   return (
-    <motion.div variants={stagger} initial="initial" animate="animate" className="mx-auto flex max-w-[960px] flex-col gap-8 md:gap-12">
+    <ZoneShell
+      zone="faq"
+      className="lq-helpdesk mx-auto w-full max-w-[960px]"
+      contentClassName="gap-8 md:gap-12"
+      ambience={<InfoSign className="absolute right-[6%] top-[-1.5rem] hidden h-28 w-28 md:block" />}
+    >
       <PageHeader
         eyebrow="Ayuda y preguntas"
         title="¿En qué te ayudamos?"
@@ -58,12 +80,14 @@ export default function FAQPage() {
         aside={<Button variant="secondary" size="md" onClick={() => openFeedback(true)}><MessageCircle aria-hidden className="size-4" strokeWidth={1.75} />Enviar feedback</Button>}
       />
 
-      <motion.section variants={item} className="flex flex-col gap-4" aria-label="Buscar en la ayuda">
+      <motion.section variants={item} className="lq-counter relative flex flex-col gap-4 rounded-2xl p-5 md:p-6" aria-label="Buscar en la ayuda">
+        {/* El timbre del mostrador */}
+        <DeskBell ring={ring} className="absolute -top-6 right-6 h-10 w-12" />
         <div className="relative">
           <label htmlFor="help-q" className="sr-only">Buscar en la ayuda</label>
           <Search aria-hidden className="pointer-events-none absolute left-[18px] top-4 size-6 text-on-surface-light" strokeWidth={1.75} />
           <input
-            id="help-q" type="search" value={q} onChange={(e) => setQ(e.target.value)}
+            id="help-q" type="search" value={q} onChange={(e) => onSearch(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && setRing((r) => r + 1)}
             placeholder="Busca: XP, rachas, Sabio, datos…"
             className="min-h-14 w-full rounded-2xl border border-border-strong bg-background pl-[52px] pr-4 text-[1.0625rem] text-on-background transition-[border-color,box-shadow] placeholder:text-on-surface-light hover:border-on-surface-light focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/25"
           />
@@ -95,7 +119,8 @@ export default function FAQPage() {
               const isOpen = Boolean(open[i]) || (Boolean(query) && list.length <= 2);
               const v = vote[i];
               return (
-                <motion.div key={i} variants={item}>
+                // La ficha sale del exhibidor al abrirla; la respuesta encontrada se resalta con calma
+                <motion.div key={i} variants={item} data-open={isOpen} className={cn('lq-slot rounded-2xl', found && 'lq-found')}>
                   <AccordionItem
                     title={f.q}
                     open={isOpen}
@@ -104,7 +129,7 @@ export default function FAQPage() {
                   >
                     <div className="flex flex-col gap-3.5 px-4 pb-5 md:pl-[72px] md:pr-5">
                       <p className="text-body-md text-on-surface">
-                        {f.a}
+                        {query ? <Highlight text={f.a} query={q} /> : f.a}
                         {/* TODO: enlazar la política de privacidad vigente cuando exista su página. */}
                         {f.privacy && <> Consulta <Link to="/about" className="font-semibold text-primary-text underline-offset-4 hover:underline">Acerca de</Link> para el detalle.</>}
                       </p>
@@ -136,9 +161,11 @@ export default function FAQPage() {
           { icon: Sparkles, tone: 'primary' as const, title: 'Pregúntale al Sabio', body: 'Respuestas al instante sobre tu progreso.', onClick: () => openSage('Tengo una duda sobre Noutlife: ') },
           { icon: MessageCircle, tone: 'warning' as const, title: 'Reportar un problema', body: 'Cuéntanos qué pasó y lo revisamos.', onClick: () => openFeedback(true) },
           { icon: ShieldCheck, tone: 'success' as const, title: 'Privacidad', body: 'Cómo tratamos tus datos.', to: '/about' },
-        ].map((card) => {
+        ].map((card, idx) => {
           const inner = (
             <>
+              {/* El letrero de la ventanilla */}
+              <span aria-hidden="true" className="lq-window-sign -mx-4 -mt-4 mb-1 block rounded-t-2xl px-4 py-1.5 font-mono text-label-md md:-mx-6 md:-mt-6 md:px-6">Ventanilla {idx + 1}</span>
               <IconChip icon={card.icon} tone={card.tone} />
               <span className="text-heading-sm">{card.title}</span>
               <span className="text-body-sm text-on-surface-light">{card.body}</span>
@@ -151,6 +178,6 @@ export default function FAQPage() {
           );
         })}
       </motion.section>
-    </motion.div>
+    </ZoneShell>
   );
 }

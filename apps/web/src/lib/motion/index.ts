@@ -1,9 +1,13 @@
-// src/lib/motion.ts — Framer Motion 11 presets for Noutlife (docs/redesign/tokens/motion.ts, Motion v3).
+// src/lib/motion — Framer Motion 11 presets for Noutlife (docs/redesign/tokens/motion.ts, Motion v3).
+// La física con nombre de las zonas ambientadas (gentle/natural/heavy/snappy) vive en ./presets.
 // main.tsx envuelve la app en <MotionConfig>: solo el ajuste "Reducir movimiento"
 // de la app la apaga (la preferencia del sistema no, por decisión de producto).
 import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { animate, useReducedMotionConfig, type Transition, type Variants } from 'framer-motion';
 import { useMotionStore } from '@/store/motionStore';
+import { springs } from './presets';
+
+export * from './presets';
 
 /* ───────── Motion v3: curvas ───────── */
 export const expo = [0.16, 1, 0.3, 1] as const;         // --ease-expo: entradas
@@ -27,7 +31,7 @@ export const pressSpring: Transition = { type: 'spring', stiffness: 520, damping
 /* ───────── Peso (lenguaje del gimnasio, usado en toda la app) ─────────
    Masa alta = arranca lento, se pasa un poco y asienta, como un disco que se carga. */
 /** Muelle pesado: indicadores, barras y bloques que «se cargan». */
-export const heavy: Transition = { type: 'spring', stiffness: 170, damping: 19, mass: 1.5 };
+export const heavy: Transition = springs.heavy;
 /** Impacto: algo que cae y golpea (sellos, PR, discos). */
 export const slam: Transition = { type: 'spring', stiffness: 520, damping: 20, mass: 1.1 };
 /** Pulsación con peso: se hunde y rebota al soltar. */

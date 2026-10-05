@@ -1,15 +1,20 @@
 // Diálogos de Comida (sin prototipo propio: formularios del sistema).
 // AnalyzeMealDialog = CTA "Analizar comida" del prototipo, MealFormDialog =
-// registro manual, comida guardada o metas.
+// registro manual, comida guardada o metas. Al analizar, el servicio del chef:
+// la campana cubre el plato mientras se estima y se levanta para revelarlo.
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { motion } from 'framer-motion';
 import type { Meal } from '@lifequest/shared';
 import { AlertTriangle, ArrowLeft, Info, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { enter, staggerVariants } from '@/lib/motion';
 import { Button, Field, Input, ResponsiveDialog, Textarea } from '@/components/ui/lq';
 import { useToastStore } from '@/hooks/useToast';
 import * as mealService from '@/services/meal.service';
 import type { NutritionGoal, ParsedMeal, SavedMeal } from '@/services/meal.service';
 import { DEFAULT_GOAL, MACROS, MEAL_TYPES, mealTypeLabel, type FoodType } from './foodMeta';
+import { ChefService } from './Restaurant';
+import { solidBg } from '@/components/ui/lq/tones';
 
 type Draft = { name: string; type: FoodType; calories: string; protein: string; carbs: string; fat: string };
 const blank = (type: FoodType): Draft => ({ name: '', type, calories: '', protein: '', carbs: '', fat: '' });
@@ -167,8 +172,34 @@ export function AnalyzeMealDialog({ open, onClose, date, initialType, onSaved }:
       ? { tone: 'warning', icon: AlertTriangle, text: 'No pudimos estimar los macros de esta descripción. Complétalos a mano o déjalos vacíos.' }
       : { tone: 'info', icon: Info, text: 'El análisis automático no está disponible ahora. Completa los datos a mano.' });
 
+  const fmt = (n: number) => Math.round(n).toLocaleString('es-CO');
+  const served = Boolean(parsed && parsed.aiSucceeded && text.trim() && parsed.estimatedCalories > 0);
+
   return (
     <ResponsiveDialog open={open} onClose={onClose} title="Analizar comida" className="md:max-w-[560px]">
+      {/* Servicio del chef: la misma campana pasa de cubrir el plato (analizando) a levantarse (resultado) */}
+      {(analyzing || served) && parsed?.aiSucceeded !== false && (
+        <ChefService state={served ? 'served' : 'cooking'} className="-mt-1 mb-1">
+          {served && parsed && (
+            <div className="flex flex-col items-center gap-2 text-center">
+              <p className="max-w-full truncate px-4 text-heading-sm">{parsed.name || text.trim()}</p>
+              <p className="font-mono text-display-sm tabular-nums">{fmt(parsed.estimatedCalories)}<span className="text-body-md text-on-surface-light"> kcal</span></p>
+              <motion.ul variants={staggerVariants(0.12, 0.55)} initial="initial" animate="animate" className="flex flex-wrap justify-center gap-2" aria-label="Macros estimados">
+                {MACROS.map(({ key, label, tone }) => {
+                  const v = key === 'protein' ? parsed.estimatedProtein : key === 'carbs' ? parsed.estimatedCarbs : parsed.estimatedFat;
+                  return (
+                    <motion.li key={key} variants={enter.serve} className="flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 shadow-sm">
+                      <span aria-hidden className={cn('size-2.5 rounded-full', solidBg[tone])} />
+                      <span className="text-label-md text-on-surface-light">{label}</span>
+                      <span className="font-mono text-label-lg tabular-nums">{fmt(v)} g</span>
+                    </motion.li>
+                  );
+                })}
+              </motion.ul>
+            </div>
+          )}
+        </ChefService>
+      )}
       {!parsed ? (
         <form className="flex flex-col gap-6" onSubmit={(e) => void analyze(e)} noValidate>
           <p className="text-body-md text-on-surface">Describe lo que comiste y estimaremos las calorías y los macros por ti.</p>

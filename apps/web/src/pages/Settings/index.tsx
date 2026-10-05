@@ -1,6 +1,8 @@
 // Ajustes (SettingsDesktop): pestañas Perfil / Zonas / Juego / Datos / Acerca de,
 // tema en vivo, guardar con loading + toast, zona de peligro y resumen de cuenta.
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { ZoneShell } from '@/components/ambience';
+import { Gears, HangingTools, Workbench } from '@/components/settings/Workshop';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -52,21 +54,9 @@ const TIMEZONES = [
 ];
 const RESET_WORD = 'RESET_MY_LIFEQUEST';
 
-/** Tarjeta de sección (eyebrow + título + descripción). */
-function Section({ eyebrow, title, description, aside, children, className }: { eyebrow?: string; title: string; description?: string; aside?: ReactNode; children: ReactNode; className?: string }) {
-  return (
-    <Card padding="lg" className={cn('flex flex-col gap-5', className)}>
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="min-w-0">
-          {eyebrow && <span className="text-label-lg text-primary-text">{eyebrow}</span>}
-          <h2 className="text-heading-lg">{title}</h2>
-          {description && <p className="max-w-2xl text-body-sm text-on-surface-light">{description}</p>}
-        </div>
-        {aside}
-      </div>
-      {children}
-    </Card>
-  );
+/** Sección = banco de trabajo del taller (eyebrow + título + descripción); `fit` sube al guardar y las piezas encajan. */
+function Section(props: { eyebrow?: string; title: string; description?: string; aside?: ReactNode; children: ReactNode; className?: string; fit?: number }) {
+  return <Workbench {...props} />;
 }
 
 /** Fila con interruptor: etiqueta + ayuda a la izquierda. */
@@ -141,6 +131,12 @@ export default function SettingsPage() {
   const [testing, setTesting] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>(() => (typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'unsupported'));
+  /** Al guardar, las piezas encajan; cada valor que cambia hace girar los engranajes. */
+  const [fit, setFit] = useState(0);
+  const [turns, setTurns] = useState(0);
+  const sig = JSON.stringify([displayName, timezone, showPlaylist, audioEnabled, reduceMotion, mode, (user as { activeTheme?: string } | null)?.activeTheme, prefs]);
+  const lastSig = useRef(sig);
+  useEffect(() => { if (lastSig.current !== sig) { lastSig.current = sig; setTurns((t) => t + 1); } }, [sig]);
 
   useEffect(() => {
     setDisplayName(user?.displayName ?? ''); setTimezone(user?.timezone ?? 'America/Bogota');
@@ -158,6 +154,7 @@ export default function SettingsPage() {
     try {
       updateUser(await userService.updateProfile({ displayName: displayName.trim(), timezone, gymPlaylistUrl: showPlaylist && playlistUrl.trim() ? playlistUrl.trim() : null }));
       toast.success('Perfil guardado');
+      setFit((f) => f + 1);
     } catch { toast.error('No se pudieron guardar los cambios'); }
     finally { setSaving(false); }
   }
@@ -168,6 +165,7 @@ export default function SettingsPage() {
       document.documentElement.setAttribute('data-theme', id);
       updateUser({ ...(user as object), activeTheme: id } as never);
       toast.success(`Tema ${name} aplicado`);
+      setFit((f) => f + 1);
     } catch { toast.error('Aún no tienes ese tema. Desbloquéalo en la Tienda.'); }
     finally { setThemeLoading(null); }
   }
@@ -218,8 +216,18 @@ export default function SettingsPage() {
   ];
 
   return (
-    <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-8 md:gap-12">
-      <PageHeader eyebrow="Espacio personal" title="Ajustes" description="Tu experiencia, tus datos y las herramientas que acompañan tu progreso." />
+    <ZoneShell
+      zone="settings"
+      className="lq-workshop"
+      contentClassName="gap-8 md:gap-12"
+      ambience={(
+        // La pared del taller: tablero perforado con sus herramientas colgadas
+        <span className="lq-pegboard absolute inset-x-0 top-0 block h-[18rem] [mask-image:linear-gradient(to_bottom,#000_40%,transparent)]">
+          <HangingTools className="absolute right-[4%] top-6 hidden h-28 w-52 md:block" />
+        </span>
+      )}
+    >
+      <PageHeader eyebrow="Espacio personal" title="Ajustes" description="Tu experiencia, tus datos y las herramientas que acompañan tu progreso." aside={<Gears turns={turns} className="hidden sm:block" />} />
 
       <motion.div variants={item} className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
         <SegmentedControl label="Sección" value={tab} onChange={setTab} options={TABS} className="min-w-[520px] max-w-[720px]" />
@@ -227,10 +235,10 @@ export default function SettingsPage() {
 
       <div className="flex flex-wrap items-start gap-6">
         <section className="flex min-w-0 flex-[2_1_520px] flex-col gap-6">
-          <AnimatePresence mode="wait" initial={false}>
+          <AnimatePresence mode="wait">
             <motion.div key={tab} variants={pop3} initial="initial" animate="animate" exit={{ opacity: 0, transition: { duration: 0.15 } }} className="flex flex-col gap-6">
               {tab === 'profile' && (
-                <Section eyebrow="Tu identidad" title="Perfil" description="La información con la que Noutlife te acompaña cada día.">
+                <Section eyebrow="Tu identidad" title="Perfil" description="La información con la que Noutlife te acompaña cada día." fit={fit}>
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <Field label="Nombre de aventurero"><Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} autoComplete="name" /></Field>
                     <Field label="Correo" help="Se administra desde tu cuenta."><Input type="email" value={user?.email ?? ''} disabled readOnly /></Field>
@@ -278,7 +286,7 @@ export default function SettingsPage() {
                     </div>
                   </Section>
 
-                  <Section title="Paleta de Noutlife" description="Los temas comprados en la Tienda se aplican aquí sin cambiar tus datos.">
+                  <Section title="Paleta de Noutlife" description="Los temas comprados en la Tienda se aplican aquí sin cambiar tus datos." fit={fit}>
                     <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                       {THEMES.map((t) => {
                         const p = THEME_PALETTES[t.id];
@@ -371,6 +379,6 @@ export default function SettingsPage() {
       </div>
 
       <ResetDialog open={resetOpen} onClose={() => setResetOpen(false)} />
-    </motion.div>
+    </ZoneShell>
   );
 }

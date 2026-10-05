@@ -1,17 +1,20 @@
 // Tienda (ShopDesktop): Gold animado, destacado, categorías (incluye Temas con
 // vista previa), confirmar compra → el saldo baja animado, inventario / equipar.
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Coins, Crown, Frame, Gem, Lock, Package, Palette, Shirt, Sparkles, Ticket, Zap, type LucideIcon } from 'lucide-react';
+import { Crown, Frame, Gem, Lock, Package, Palette, Shirt, Sparkles, Ticket, Zap, type LucideIcon } from 'lucide-react';
 import type { InventoryItem, ShopItem as Item } from '@lifequest/shared';
 import { item as itemV, stagger } from '@/lib/motion';
+import { ZoneShell } from '@/components/ambience';
+import { CoinFlight } from '@/components/shop/CoinFlight';
+import { Awning, GoldBalance, PendantLamps, ShopWindow, winVars } from '@/components/shop/Storefront';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/useToast';
 import * as shopService from '@/services/shop.service';
 import { THEME_PALETTES, themeIdOf } from '@/lib/shopThemes';
 import { PageHeader } from '@/components/layout/PageHeader';
 import {
-  AnimatedValue, Badge, Button, Card, ChipGroup, EmptyState, ErrorState, GoldPrice, IconChip, PageLoader, PurchaseDialog,
+  Badge, Button, Card, ChipGroup, EmptyState, ErrorState, GoldPrice, IconChip, PageLoader, PurchaseDialog,
   SegmentedControl, ShopItem, SpotCard, ThemePreviewDialog, type ChipOption, type Tone,
 } from '@/components/ui/lq';
 
@@ -57,11 +60,17 @@ export default function ShopPage() {
   const isOwned = (it: Item) => Boolean(it.owned) || owned.has(it.id);
   const usable = (it: Item) => !(it as Locked).locked && (user?.level ?? 1) >= (it.levelRequired ?? 1);
 
-  const open = (it: Item) => { setPending(it); setPhase('ask'); };
+  /** Saldo al abrir el diálogo: la compra optimista no debe cambiar la cuenta que se muestra. */
+  const [askBalance, setAskBalance] = useState(0);
+  const open = (it: Item) => { setPending(it); setPhase('ask'); setAskBalance(user?.gold ?? 0); };
+  /** Monedas que salen del saldo al comprar (una ráfaga por compra). */
+  const balanceRef = useRef<HTMLSpanElement>(null);
+  const [coins, setCoins] = useState(0);
   async function confirm() {
     if (!pending || !user) return;
     setBuying(true);
     updateUser({ ...user, gold: user.gold - pending.cost }); // optimista: el saldo baja animado
+    setCoins((n) => n + 1);
     try {
       const r = await shopService.purchaseItem(pending.id);
       updateUser(r.user as never);
@@ -95,36 +104,52 @@ export default function ShopPage() {
   const previewId = preview ? themeIdOf(preview) : null;
 
   return (
-    <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-8 md:gap-12">
+    <ZoneShell
+      zone="shop"
+      contentClassName="gap-8 md:gap-12"
+      ambience={(
+        /* El pasaje: lámparas que cuelgan del techo y se encienden al abrir */
+        <PendantLamps lamps={[
+          { x: '58%', cord: 46, d: 8, className: 'hidden md:block' },
+          { x: '74%', cord: 78, d: 9.5, className: 'hidden md:block' },
+          { x: '64%', cord: 18, d: 9, className: 'md:hidden' },
+          { x: '90%', cord: 34, d: 7.5 },
+        ]} />
+      )}
+    >
       <PageHeader
         eyebrow="El mercado"
         title="Tienda"
         description="Gasta tu Gold sabiamente, héroe."
         aside={<>
-          <Badge variant="warning" size="lg" icon={Coins}>
-            <span aria-live="polite" className="font-mono tabular-nums"><AnimatedValue value={gold} /></span> Gold
-          </Badge>
+          <GoldBalance ref={balanceRef} value={gold} />
           <div className="w-full max-w-[300px] sm:w-[300px]">
             <SegmentedControl label="Vista" value={view} onChange={setView} options={[{ value: 'shop', label: 'Tienda' }, { value: 'inv', label: 'Inventario' }]} />
           </div>
         </>}
       />
 
-      <AnimatePresence mode="wait" initial={false}>
+      <AnimatePresence mode="wait">
         {view === 'shop' ? (
           <motion.div key="shop" variants={stagger} initial="initial" animate="animate" exit={{ opacity: 0, transition: { duration: 0.15 } }} className="flex flex-col gap-8">
             {featured && (
               <motion.div variants={itemV}>
-                <SpotCard aria-label="Artículo destacado" className="flex flex-wrap items-center gap-8">
-                  {featuredPalette ? (
-                    <div role="img" aria-label={`Vista previa del tema ${featured.name}`}
-                      className="grid aspect-[16/10] flex-[0_1_320px] animate-float grid-cols-4 overflow-hidden rounded-[20px] shadow-lg [.reduce-motion_&]:animate-none">
-                      {[featuredPalette.soft, featuredPalette.accent, featuredPalette.surface, featuredPalette.background].map((c, i) => <span key={i} style={{ background: c }} />)}
-                    </div>
-                  ) : (
-                    <IconChip icon={typeOf(featured.type).icon} tone={typeOf(featured.type).tone} size="lg" className="size-28 animate-float rounded-[32px] [.reduce-motion_&]:animate-none [&>svg]:size-14" />
-                  )}
-                  <div className="flex min-w-0 flex-[1_1_280px] flex-col gap-2.5">
+                <SpotCard aria-label="Artículo destacado" padding="none" style={winVars(typeOf(featured.type).tone)} className="relative">
+                  {/* La tienda principal del pasaje: toldo grande y escaparate con plataforma giratoria */}
+                  <Awning size="lg" delay={0.3} className="relative z-10" />
+                  <div className="flex flex-wrap items-center gap-8 px-6 pb-6 md:px-8 md:pb-8">
+                    <ShopWindow delay={0.65} turn={false} className="-mt-[15px] aspect-[4/3] w-full flex-[0_1_340px] rounded-b-2xl">
+                      <span className="lq-turntable block">
+                        {featuredPalette ? (
+                          <span role="img" aria-label={`Vista previa del tema ${featured.name}`} className="grid aspect-[16/10] w-44 grid-cols-4 overflow-hidden rounded-2xl shadow-lg md:w-52">
+                            {[featuredPalette.soft, featuredPalette.accent, featuredPalette.surface, featuredPalette.background].map((c, i) => <span key={i} style={{ background: c }} />)}
+                          </span>
+                        ) : (
+                          <IconChip icon={typeOf(featured.type).icon} tone={typeOf(featured.type).tone} size="lg" className="size-28 rounded-[32px] [&>svg]:size-14" />
+                        )}
+                      </span>
+                    </ShopWindow>
+                  <div className="flex min-w-0 flex-[1_1_280px] flex-col gap-2.5 md:pt-4">
                     <div className="flex flex-wrap items-center gap-2"><span className="text-label-lg text-primary-text">Artículo destacado</span><Badge variant={typeOf(featured.type).tone}>{typeOf(featured.type).label}</Badge></div>
                     <h2 className="text-display-sm">{featured.name}</h2>
                     {featured.description && <p className="text-body-md text-on-surface-light">{featured.description}</p>}
@@ -133,6 +158,7 @@ export default function ShopPage() {
                       {featuredPalette && <Button variant="secondary" onClick={() => setPreview(featured)}>Ver</Button>}
                       <Button disabled={featured.cost > gold} onClick={() => open(featured)}>{featured.cost > gold ? 'Sin Gold' : 'Comprar'}</Button>
                     </div>
+                  </div>
                   </div>
                 </SpotCard>
               </motion.div>
@@ -144,7 +170,7 @@ export default function ShopPage() {
               <EmptyState icon={Package} title="Nada en esta categoría" description="Vuelve pronto: el mercado se renueva." />
             ) : (
               <motion.ul key={cat} variants={stagger} initial="initial" animate="animate" className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-6 xl:grid-cols-3">
-                {filtered.map((it) => {
+                {filtered.map((it, idx) => {
                   const t = typeOf(it.type);
                   const lockedByLevel = !usable(it);
                   return (
@@ -156,6 +182,7 @@ export default function ShopPage() {
                         owned={isOwned(it)} affordable={!lockedByLevel && it.cost <= gold}
                         onBuy={() => open(it)}
                         onPreview={it.type === 'THEME' && themeIdOf(it) ? () => setPreview(it) : undefined}
+                        locked={lockedByLevel} index={idx}
                       />
                     </motion.li>
                   );
@@ -169,13 +196,16 @@ export default function ShopPage() {
               <EmptyState icon={Package} title="Tu inventario está vacío" description="Compra algo en la tienda y aparecerá aquí." action={<Button onClick={() => setView('shop')}>Ir a la tienda</Button>} />
             ) : (
               <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-6 xl:grid-cols-3">
-                {inventory.map((inv) => {
+                {inventory.map((inv, idx) => {
                   const t = typeOf(inv.shopItem.type);
                   const equippable = EQUIPPABLE.has(inv.shopItem.type);
                   return (
                     <motion.li key={inv.id} variants={itemV}>
-                      <Card interactive padding="lg" className="flex h-full flex-col gap-3.5">
-                        <IconChip icon={t.icon} tone={t.tone} className="size-14 rounded-2xl [&>svg]:size-8" />
+                      <Card interactive padding="lg" style={winVars(t.tone)} className="group flex h-full flex-col gap-3.5">
+                        {/* Tu propia vitrina: lo comprado, iluminado sobre su pedestal */}
+                        <ShopWindow delay={0.25 + idx * 0.08} className="aspect-[16/7] rounded-xl">
+                          <IconChip icon={t.icon} tone={t.tone} className="size-14 rounded-2xl [&>svg]:size-8" />
+                        </ShopWindow>
                         <div><h3 className="text-heading-sm">{inv.shopItem.name}</h3><p className="text-body-sm text-on-surface-light">{inv.shopItem.description ?? t.label}</p></div>
                         {equippable ? (
                           <Button size="md" variant={inv.isEquipped ? 'secondary' : 'primary'} aria-pressed={inv.isEquipped} onClick={() => void equip(inv)} className="mt-auto">
@@ -198,10 +228,11 @@ export default function ShopPage() {
           onClose={() => setPreview(null)} onBuy={() => { const p = preview; setPreview(null); open(p); }}
         />
       )}
+      {coins > 0 && <CoinFlight key={coins} from={balanceRef} />}
       <PurchaseDialog
-        open={Boolean(pending)} name={pending?.name ?? ''} price={pending?.cost ?? 0} balance={phase === 'ask' ? gold : gold + (pending?.cost ?? 0)}
+        open={Boolean(pending)} icon={pending ? typeOf(pending.type).icon : undefined} name={pending?.name ?? ''} price={pending?.cost ?? 0} balance={askBalance}
         phase={phase} busy={buying} onConfirm={confirm} onClose={() => setPending(null)}
       />
-    </motion.div>
+    </ZoneShell>
   );
 }

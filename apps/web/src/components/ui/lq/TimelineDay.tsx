@@ -22,6 +22,8 @@ export interface TimelineDayProps {
   /** Altura de una hora en px. */
   hourHeight?: number;
   label: string;
+  /** Hoja de agenda: medias horas punteadas y margen. */
+  ruled?: boolean;
   className?: string;
 }
 
@@ -55,7 +57,7 @@ function layout(items: TimelineItem[]) {
  * Día en horas: rejilla con etiquetas mono, bloques absolutos (entran con pop escalonado)
  * y línea "ahora" que aparece al final. Solo transform/opacity en la animación.
  */
-export function TimelineDay({ items, showNow, fromHour = 7, toHour = 20, hourHeight = 64, label, className }: TimelineDayProps) {
+export function TimelineDay({ items, showNow, fromHour = 7, toHour = 20, hourHeight = 64, label, ruled, className }: TimelineDayProps) {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     if (!showNow) return;
@@ -76,9 +78,12 @@ export function TimelineDay({ items, showNow, fromHour = 7, toHour = 20, hourHei
 
   return (
     <div role="group" aria-label={label} className={cn('relative ml-14', className)} style={{ height: (end - start) * hourHeight }}>
+      {/* Hoja de agenda: margen rojo y medias horas punteadas */}
+      {ruled && <span aria-hidden className="pointer-events-none absolute -left-2 bottom-0 top-0 w-px bg-error/40" />}
       {hours.map((h) => (
         <div key={h} aria-hidden className="absolute inset-x-0 border-t border-border" style={{ top: (h - start) * hourHeight }}>
           <span className="absolute -left-14 -top-3 font-mono text-body-sm tabular-nums text-on-surface-light">{String(h).padStart(2, '0')}:00</span>
+          {ruled && h < end && <span className="absolute inset-x-0 block border-t border-dashed border-border" style={{ top: hourHeight / 2 }} />}
         </div>
       ))}
       {nowVisible && (

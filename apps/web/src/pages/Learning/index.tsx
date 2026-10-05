@@ -1,20 +1,29 @@
 // Aprendizaje — LearningDesktop.dc.html. Biblioteca (KPIs count-up, estantería con
 // portadas y filtros de estado) y Pomodoro real. Notas y vocabulario por ítem.
+// Zona ambientada: una sala de lectura. Una estantería de madera con un estante
+// por estado y su placa de latón; los libros se colocan deslizándose uno a uno
+// (grosor según tamaño, marcapáginas según progreso) y asoman al pasar. En el
+// escritorio, la lámpara de banquero ilumina tu ficha de lectura; el catálogo son
+// fichas con sello. Terminar un libro lo lleva volando al estante de completados
+// con un brillo. Polvo flotando bajo la luz. Todo lento.
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  ArrowLeft, BookOpen, CheckCircle2, FileText, Globe, Headphones, MonitorPlay, NotebookPen, Plus, TrendingUp, Trophy, Video,
+  ArrowLeft, BookOpen, Globe, Headphones, MonitorPlay, NotebookPen, Plus, TrendingUp, Video,
   type LucideIcon,
 } from 'lucide-react';
 import type { LearningItem, LearningStats } from '@lifequest/shared';
 import { item, stagger } from '@/lib/motion';
+import { AmbientLight, Particles, ZoneShell, useParticleBudget } from '@/components/ambience';
+import { Bookcase, type Shelf } from '@/components/learning/Bookshelf';
+import { BankerLamp, CatalogCard, ReadingCard, StatusStamp } from '@/components/learning/Library';
 import { useUIStore } from '../../store/uiStore';
 import { useToast } from '../../hooks/useToast';
 import { refreshUser } from '../../hooks/useAuth';
 import * as learningService from '../../services/learning.service';
 import { PomodoroTimer, NotesPanel, VocabPanel } from '../../components/learning/LearningExtras';
 import { SageContextButton } from '../../components/sage/SageContextButton';
-import { Badge, BookCover, Button, Card, EmptyState, ErrorState, Field, Input, Modal, ProgressBar, SegmentedControl, Select, StatCard, type BadgeVariant, type Tone, PageLoader } from '@/components/ui/lq';
+import { Button, Card, EmptyState, ErrorState, Field, Input, Modal, ProgressBar, SegmentedControl, Select, type BadgeVariant, type Tone, PageLoader } from '@/components/ui/lq';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 
 const TYPE_META: Record<string, { label: string; icon: LucideIcon; tone: Exclude<Tone, 'muted'> }> = {
@@ -30,6 +39,19 @@ const STATUS_META: Record<string, { label: string; badge: BadgeVariant; bar: 'pr
   COMPLETED: { label: 'Completado', badge: 'success', bar: 'success' },
   ABANDONED: { label: 'Abandonado', badge: 'error', bar: 'error' },
 };
+
+/** Sello de goma de cada estado en su ficha. */
+const STAMP: Record<string, string> = {
+  neutral: 'border-on-surface-light/50 text-on-surface-light', primary: 'border-primary-text/60 text-primary-text',
+  success: 'border-success-text/60 text-success-text', error: 'border-error-text/60 text-error-text',
+};
+/** Un estante por estado (el de abandonados solo si hay alguno). */
+const SHELVES: { id: LearningItem['status']; label: string; empty: string }[] = [
+  { id: 'IN_PROGRESS', label: 'En progreso', empty: 'Empieza un libro o curso y aparecerá aquí.' },
+  { id: 'NOT_STARTED', label: 'Por empezar', empty: 'Lo que agregues espera aquí su turno.' },
+  { id: 'COMPLETED', label: 'Completados', empty: 'Aquí irán los que termines.' },
+  { id: 'ABANDONED', label: 'Abandonados', empty: '' },
+];
 
 const pctOf = (i: LearningItem) => (i.totalProgress > 0 ? Math.min(Math.round((i.currentProgress / i.totalProgress) * 100), 100) : 0);
 const unitOf = (i: LearningItem) => (i.type === 'BOOK' ? 'pág' : i.type === 'COURSE' ? 'lecciones' : 'unidades');
@@ -163,6 +185,11 @@ export default function LearningPage() {
   const [tab, setTab] = useState<Mode>('biblioteca');
   const [selectedItem, setSelectedItem] = useState<LearningItem | null>(null);
   const [detailTab, setDetailTab] = useState<'notas' | 'vocab'>('notas');
+  /** Libro que se acaba de terminar: se cierra y vuelve al estante. */
+  const [closing, setClosing] = useState<string | null>(null);
+  const budget = useParticleBudget();
+  /** La lámpara del escritorio (su cadena la enciende o la apaga). */
+  const [lamp, setLamp] = useState(true);
 
   const load = useCallback(async () => {
     setState('loading');
@@ -187,14 +214,29 @@ export default function LearningPage() {
   const openDetail = (it: LearningItem) => { setSelectedItem(it); setTab('detalle'); setDetailTab('notas'); };
 
   const kpis = stats ? [
-    { label: 'En progreso', value: stats.inProgress, icon: BookOpen, tone: 'primary' as const },
-    { label: 'Completados', value: stats.totalCompleted, icon: CheckCircle2, tone: 'success' as const },
-    { label: 'Este año', value: stats.completedThisYear, icon: Trophy, tone: 'warning' as const },
-    { label: 'Páginas', value: stats.totalPages, icon: FileText, tone: 'info' as const },
+    { label: 'En progreso', value: stats.inProgress },
+    { label: 'Completados', value: stats.totalCompleted },
+    { label: 'Este año', value: stats.completedThisYear },
+    { label: 'Páginas leídas', value: stats.totalPages },
   ] : [];
+  const toBook = (b: LearningItem) => ({ item: b, tone: (TYPE_META[b.type] ?? TYPE_META.BOOK).tone, label: (STATUS_META[b.status] ?? STATUS_META.NOT_STARTED).label, pct: pctOf(b) });
+  const shelves: Shelf[] = SHELVES
+    .map((sh) => ({ id: sh.id, label: sh.label, empty: sh.empty, books: items.filter((i) => i.status === sh.id).map(toBook) }))
+    .filter((sh) => sh.id !== 'ABANDONED' || sh.books.length > 0);
 
   return (
-    <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-6 md:gap-8">
+    <ZoneShell
+      zone="learning"
+      contentClassName="gap-6 md:gap-8"
+      ambience={<AmbientLight tone="warning" alpha={0.12} darkAlpha={0.07} d={18} className="right-[-6%] top-[-8%] h-[34rem] w-[46%]" />}
+      view={(
+        // Motas de polvo que flotan despacio bajo la lámpara.
+        <Particles
+          count={budget(14)} kind="drift" seed={23} x={[52, 98]} y={[4, 60]} duration={[14, 24]} alpha={[0.2, 0.45]} size={[1.5, 3]} sx={[-20, 20]} sy={[-26, 14]}
+          render={(sz) => <span className="block rounded-full bg-warning" style={{ width: sz, height: sz }} />}
+        />
+      )}
+    >
       <motion.section variants={item} className="flex flex-wrap items-end justify-between gap-6">
         <div className="flex min-w-0 flex-[1_1_360px] flex-col gap-2">
           <span className="text-label-lg text-primary-text">Aprendizaje</span>
@@ -214,7 +256,7 @@ export default function LearningPage() {
         />
       </motion.div>
 
-      <AnimatePresence mode="wait" initial={false}>
+      <AnimatePresence mode="wait">
         <motion.div key={tab} role="tabpanel" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="flex flex-col gap-6 md:gap-8">
           {tab === 'pomodoro' && <PomodoroTimer itemTitle={reading?.title} />}
 
@@ -236,15 +278,26 @@ export default function LearningPage() {
               <ErrorState title="No pudimos cargar tu biblioteca" description="Tus libros y cursos siguen guardados. Revisa tu conexión e inténtalo de nuevo." onRetry={() => void load()} />
             ) : (
               <>
-                {stats && (
-                  <section aria-label="Resumen" className="grid grid-cols-2 gap-4 lg:grid-cols-4 lg:gap-6">
-                    {kpis.map((k) => <StatCard key={k.label} icon={k.icon} tone={k.tone} value={k.value} label={k.label} />)}
-                  </section>
-                )}
-
                 <section className="flex flex-col gap-6" aria-labelledby="lib-shelf">
+                  <h2 id="lib-shelf" className="text-heading-lg">Tu estantería</h2>
+                  <div className="grid items-end gap-8 lg:grid-cols-[minmax(0,1fr)_17rem]">
+                    <Bookcase shelves={shelves} onPick={setUpdating} closing={closing} />
+                    {/* El escritorio: la lámpara ilumina tu ficha de lectura */}
+                    {stats && (
+                      <div className="relative mx-auto flex w-full max-w-[19rem] flex-col overflow-x-clip pt-2">
+                        <BankerLamp on={lamp} onToggle={() => setLamp((v) => !v)} className="relative z-10 -mb-3 mr-1 w-40 self-end" />
+                        {/* El escritorio de madera, con la ficha apoyada encima */}
+                        <div className="lq-wood lq-desk rounded-lg p-4 pb-5">
+                          <ReadingCard rows={kpis} className="-rotate-1" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </section>
+
+                <section className="flex flex-col gap-6" aria-labelledby="lib-catalog">
                   <div className="flex flex-wrap items-center justify-between gap-4">
-                    <h2 id="lib-shelf" className="text-heading-lg">Tu estantería</h2>
+                    <h2 id="lib-catalog" className="text-heading-lg">Catálogo</h2>
                     <SegmentedControl options={FILTERS} value={filter} onChange={setFilter} label="Estado" className="w-full overflow-x-auto sm:max-w-[520px]" />
                   </div>
 
@@ -264,12 +317,14 @@ export default function LearningPage() {
                         const pct = pctOf(b);
                         return (
                           <motion.li key={b.id} variants={item}>
-                            <Card as="article" padding="sm" interactive aria-labelledby={`bk-${b.id}`} className="flex h-full flex-col gap-3.5">
-                              <BookCover title={b.title} icon={t.icon} tone={t.tone} />
-                              <div className="flex flex-col gap-1">
-                                <div className="flex items-center justify-between gap-2"><Badge variant={s.badge}>{s.label}</Badge><span className="text-body-sm text-on-surface-light">{t.label}</span></div>
-                                <h3 id={`bk-${b.id}`} className="mt-1.5 text-label-lg">{b.title}</h3>
-                                {(b.author || b.platform) && <p className="text-body-sm text-on-surface-light">{b.author ?? b.platform}</p>}
+                            <CatalogCard edge={`var(--lq-${t.tone})`} aria-labelledby={`bk-${b.id}`}>
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="flex items-center gap-1.5 font-mono text-label-md text-on-surface-light"><t.icon aria-hidden className="size-4" strokeWidth={1.75} />{t.label}</span>
+                                <StatusStamp label={s.label} tone={STAMP[s.badge] ?? STAMP.neutral} />
+                              </div>
+                              <div className="mt-2 flex flex-col gap-1">
+                                <h3 id={`bk-${b.id}`} className="text-heading-sm">{b.title}</h3>
+                                {(b.author || b.platform) && <p className="font-mono text-body-sm text-on-surface-light">{b.author ?? b.platform}</p>}
                               </div>
                               <div className="mt-auto flex flex-col gap-1.5">
                                 {b.totalProgress > 0 && <ProgressBar value={pct} tone={s.bar} label={`Progreso de ${b.title}`} />}
@@ -281,7 +336,7 @@ export default function LearningPage() {
                                 <Button variant="secondary" size="sm" onClick={() => setUpdating(b)}><TrendingUp aria-hidden className="size-4" />Progreso</Button>
                                 <Button variant="ghost" size="sm" onClick={() => openDetail(b)}><NotebookPen aria-hidden className="size-4" />Notas</Button>
                               </div>
-                            </Card>
+                            </CatalogCard>
                           </motion.li>
                         );
                       })}
@@ -295,7 +350,11 @@ export default function LearningPage() {
       </AnimatePresence>
 
       {showAdd && <AddItemModal onClose={() => setShowAdd(false)} onSave={(it) => { setItems((prev) => [it, ...prev]); setShowAdd(false); }} />}
-      {updating && <ProgressModal item={updating} onClose={() => setUpdating(null)} onUpdate={(u) => { setItems((prev) => prev.map((i) => (i.id === u.id ? u : i))); setUpdating(null); }} />}
-    </motion.div>
+      {updating && <ProgressModal item={updating} onClose={() => setUpdating(null)} onUpdate={(u) => {
+        // Terminado ahora: el libro se cierra y vuelve al estante con un brillo.
+        if (u.status === 'COMPLETED' && updating.status !== 'COMPLETED') { setClosing(u.id); window.setTimeout(() => setClosing(null), 2600); }
+        setItems((prev) => prev.map((i) => (i.id === u.id ? u : i))); setUpdating(null);
+      }} />}
+    </ZoneShell>
   );
 }

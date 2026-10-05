@@ -1,6 +1,14 @@
 // Ranking (RankingDesktop): Global/Amigos, chips de métrica, podio que sube,
 // tu fila resaltada, tu posición con la distancia al siguiente y gestión de amigos.
+// Zona ambientada: una ceremonia olímpica. El podio de mármol sube desde el suelo
+// de un escenario nocturno con los focos del estadio; las medallas caen colgadas y
+// se mecen, el primero lleva laurel y las cifras cuentan. Los resultados son un
+// marcador donde tu fila brilla. Si subiste de puesto desde tu última visita, tu
+// fila asciende desde donde estabas hasta su nuevo lugar.
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { LaurelBranch, CeremonyPodium, ResultRow } from '@/components/leaderboard/Ceremony';
+import { ZoneShell } from '@/components/ambience';
+import { useMotionStore } from '@/store/motionStore';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, Dumbbell, Flame, HeartHandshake, PiggyBank, RefreshCw, Trophy, UserMinus, UserPlus, Users, X, type LucideIcon } from 'lucide-react';
 import { item, stagger } from '@/lib/motion';
@@ -13,7 +21,7 @@ import { useToast } from '@/hooks/useToast';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { AvatarDisplay } from '@/components/character/AvatarDisplay';
 import {
-  Button, Card, ChipGroup, EmptyState, ErrorState, Field, Input, LeaderRow, PageLoader, Podium, ProgressBar,
+  AnimatedValue, Button, Card, ChipGroup, EmptyState, ErrorState, Field, Input, PageLoader, ProgressBar,
   SegmentedControl, Skeleton, type ChipOption,
 } from '@/components/ui/lq';
 
@@ -42,6 +50,9 @@ const initials = (n: string) => n.split(/\s+/).map((w) => w[0]).join('').slice(0
 const avatarOf = (e: Pick<Entry, 'avatarConfig' | 'avatarUrl'>) => (size: number) => (
   <AvatarDisplay avatarConfig={e.avatarConfig} avatarUrl={e.avatarUrl} size={size} animate="none" className="rounded-full" />
 );
+/** Último puesto visto por métrica y alcance (para notar si subiste). */
+const RANK_KEY = 'lq-rank-last';
+const readRanks = (): Record<string, number> => { try { return JSON.parse(localStorage.getItem(RANK_KEY) || '{}'); } catch { return {}; } };
 const errText = (e: unknown, fallback: string) => (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? fallback;
 
 function Friends({ onChanged }: { onChanged: () => void }) {
@@ -135,17 +146,51 @@ export default function LeaderboardPage() {
   }, [category, scope]);
   useEffect(() => { void load(); }, [load]);
 
+  /** Orden que se muestra: si subiste, primero estás donde estabas y después asciendes. */
+  const [view, setView] = useState<Entry[]>([]);
+  const [rose, setRose] = useState(0);
+  const reduce = useMotionStore((s) => s.reduce);
+  useEffect(() => {
+    if (state !== 'ready') return;
+    const key = `${scope}:${category}`;
+    const ranks = readRanks();
+    const prev = ranks[key];
+    const idx = data.findIndex((e) => e.id === String(user?.id));
+    if (idx >= 0) { try { localStorage.setItem(RANK_KEY, JSON.stringify({ ...ranks, [key]: idx })); } catch { /* sin almacenamiento */ } }
+    if (idx >= 3 && prev != null && prev > idx && !reduce) {
+      const staged = [...data];
+      const [mine] = staged.splice(idx, 1);
+      staged.splice(Math.min(prev, staged.length), 0, mine);
+      setView(staged); setRose(prev - idx);
+      const t = window.setTimeout(() => setView(data), 1100);
+      return () => window.clearTimeout(t);
+    }
+    setView(data); setRose(idx >= 0 && prev != null && prev > idx ? prev - idx : 0);
+    return undefined;
+  }, [data, state, scope, category, user?.id, reduce]);
+
   const myIdx = data.findIndex((e) => e.id === String(user?.id));
   const me = myIdx >= 0 ? data[myIdx] : null;
   const ahead = myIdx > 0 ? data[myIdx - 1] : null;
   const gap = me && ahead ? Math.max(0, ahead.value - me.value) : 0;
+  const fmt = useCallback((n: number) => fmtValue(n, category), [category]);
   const top = useMemo(() => data.slice(0, 3).map((e) => ({
-    id: e.id, name: e.displayName.split(' ')[0], initials: initials(e.displayName), score: fmtValue(e.value, category), isYou: e.id === String(user?.id), avatar: avatarOf(e),
-  })), [data, category, user?.id]);
+    id: e.id, name: e.displayName.split(' ')[0], initials: initials(e.displayName), score: <AnimatedValue value={e.value} format={fmt} />, isYou: e.id === String(user?.id), avatar: avatarOf(e),
+  })), [data, fmt, user?.id]);
   const options: ChipOption<Category>[] = (Object.keys(METRICS) as Category[]).map((c) => ({ value: c, label: METRICS[c].label, icon: METRICS[c].icon }));
 
   return (
-    <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-8 md:gap-12">
+    <ZoneShell
+      zone="leaderboard"
+      contentClassName="gap-8 md:gap-12"
+      ambience={(
+        // Laureles discretos que enmarcan la tabla de honor
+        <>
+          <LaurelBranch className="absolute -left-3 top-2 hidden h-44 w-16 opacity-[.16] md:block lg:-left-6" />
+          <LaurelBranch flip className="absolute -right-3 top-2 hidden h-44 w-16 opacity-[.16] md:block lg:-right-6" />
+        </>
+      )}
+    >
       <PageHeader
         eyebrow="Comunidad"
         title="Tabla de líderes"
@@ -175,24 +220,20 @@ export default function LeaderboardPage() {
           {state === 'loading' ? <PageLoader size="sm" /> : state === 'error' ? <ErrorState onRetry={() => void load()} /> : data.length === 0 ? (
             <EmptyState icon={Users} title={scope === 'friends' ? 'Tu círculo está vacío' : 'Aún no hay clasificación'} description={scope === 'friends' ? 'Invita a amigos para compararte con ellos.' : 'Vuelve más tarde.'} />
           ) : (
-            <AnimatePresence mode="wait" initial={false}>
+            <AnimatePresence mode="wait">
               <motion.div key={`${scope}-${category}`} variants={stagger} initial="initial" animate="animate" exit={{ opacity: 0, transition: { duration: 0.15 } }} className="flex flex-col gap-6">
                 <motion.div variants={item}>
-                  <Card variant="elevated" padding="none" className="overflow-hidden px-4 pt-8 md:px-6 md:pt-10">
-                    <Podium top={top} />
-                  </Card>
+                  <CeremonyPodium top={top} />
                 </motion.div>
-                {data.length > 3 && (
+                {view.length > 3 && (
                   <motion.div variants={item}>
                     <Card padding="none" className="p-2">
-                      <motion.ol variants={stagger} initial="initial" animate="animate" className="flex flex-col">
-                        {data.slice(3).map((e, j) => (
-                          <motion.div key={e.id} variants={item}>
-                            <LeaderRow id={e.id} position={e.rank ?? j + 4} name={e.displayName} initials={initials(e.displayName)} avatar={avatarOf(e)} toneIndex={j}
-                              subtitle={`@${e.username} · Nivel ${e.level}`} score={fmtValue(e.value, category)} isYou={e.id === String(user?.id)} />
-                          </motion.div>
+                      <ol className="flex flex-col">
+                        {view.slice(3).map((e, j) => (
+                          <ResultRow key={e.id} id={e.id} position={j + 4} name={e.displayName} initials={initials(e.displayName)} avatar={avatarOf(e)}
+                            subtitle={`@${e.username} · Nivel ${e.level}`} score={<AnimatedValue value={e.value} format={fmt} />} isYou={e.id === String(user?.id)} rose={rose} />
                         ))}
-                      </motion.ol>
+                      </ol>
                     </Card>
                   </motion.div>
                 )}
@@ -202,12 +243,16 @@ export default function LeaderboardPage() {
         </motion.section>
 
         <motion.aside variants={item} className="flex min-w-0 flex-[1_1_300px] flex-col gap-6">
-          <Card padding="lg" className="flex flex-col gap-4 border-transparent bg-primary/[var(--lq-soft-alpha)]">
+          <Card padding="lg" className="lq-rank-plaque relative flex flex-col gap-4 overflow-hidden border-transparent">
+            {/* La placa de honor: tu puesto entre laureles */}
             <span className="text-label-lg text-on-surface">Tu posición</span>
-            <div className="flex items-baseline gap-3">
-              <span className="font-mono text-[4rem] font-bold leading-none tracking-[-2px] text-primary-text">{me ? `#${me.rank ?? myIdx + 1}` : '—'}</span>
+            <div className="flex items-center gap-3">
+              <span aria-hidden="true" className="flex items-center"><LaurelBranch className="h-16 w-7" /></span>
+              <span className="font-mono text-[4rem] font-bold leading-none tracking-[-2px] text-secondary-text">{me ? `#${me.rank ?? myIdx + 1}` : '—'}</span>
+              <span aria-hidden="true" className="flex items-center"><LaurelBranch flip className="h-16 w-7" /></span>
               <span className="text-body-md text-on-surface">de <span className="font-mono">{data.length}</span></span>
             </div>
+            {rose > 0 && <p className="text-label-lg text-success-text">Subiste {rose} {rose === 1 ? 'puesto' : 'puestos'} desde tu última visita</p>}
             {me && ahead ? (
               <div className="flex flex-col gap-1.5">
                 <div className="flex justify-between gap-2"><span className="text-body-sm text-on-surface">Para alcanzar el #{ahead.rank ?? myIdx}</span><span className="font-mono text-label-lg tabular-nums">{fmtValue(gap, category)}</span></div>
@@ -226,6 +271,6 @@ export default function LeaderboardPage() {
           )}
         </motion.aside>
       </div>
-    </motion.div>
+    </ZoneShell>
   );
 }

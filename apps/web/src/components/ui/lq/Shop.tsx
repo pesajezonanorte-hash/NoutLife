@@ -1,7 +1,11 @@
 // Tienda: ShopItem, PurchaseDialog y ThemePreviewDialog (prototipo ShopDesktop).
+// Zona ambientada: un pasaje comercial. Cada artículo es un escaparate con el toldo
+// de su categoría que se despliega, una luz que se enciende, el artículo sobre un
+// pedestal que gira al pasar y su etiqueta de precio colgada que se mece y destella;
+// al comprar, el artículo cae dentro de la bolsa.
 import type { CSSProperties } from 'react';
 import { motion } from 'framer-motion';
-import { Coins, Eye, ShoppingBag, type LucideIcon } from 'lucide-react';
+import { Check, Coins, Eye, ShoppingBag, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { expo, pop3 } from '@/lib/motion';
 import { Badge } from './Badge';
@@ -10,6 +14,7 @@ import { Card } from './Card';
 import { IconChip } from './IconChip';
 import { Modal } from './Modal';
 import type { Tone } from './tones';
+import { Awning, PriceTag, ShopWindow, winVars } from '@/components/shop/Storefront';
 
 const gold = (n: number) => n.toLocaleString('es-CO');
 
@@ -36,23 +41,37 @@ export interface ShopItemProps {
   onBuy: () => void;
   /** Temas: botón «Ver» con vista previa. */
   onPreview?: () => void;
+  /** Bloqueado por nivel: el escaparate queda en penumbra. */
+  locked?: boolean;
+  /** Posición en la lista: los escaparates se encienden uno tras otro. */
+  index?: number;
   className?: string;
 }
 
-export function ShopItem({ name, description, price, icon, tone = 'primary', category, owned, affordable = true, busy, onBuy, onPreview, className }: ShopItemProps) {
+export function ShopItem({ name, description, price, icon, tone = 'primary', category, owned, affordable = true, busy, onBuy, onPreview, locked, index = 0, className }: ShopItemProps) {
+  const delay = 0.4 + index * 0.09;
   return (
-    <Card interactive padding="lg" className={cn('flex h-full flex-col gap-3.5', className)}>
-      <div className="flex items-start justify-between gap-2">
-        <IconChip icon={icon} tone={tone} className="size-14 rounded-2xl [&>svg]:size-8" />
-        {category && <Badge>{category}</Badge>}
-      </div>
-      <div>
-        <h3 className="text-heading-sm">{name}</h3>
+    <Card interactive padding="none" style={winVars(tone)} className={cn('group relative isolate flex h-full flex-col overflow-hidden', className)}>
+      <Awning delay={delay} className="relative z-10" />
+      <ShopWindow
+        lit={!locked} delay={delay + 0.3}
+        className="mx-4 -mt-[11px] aspect-[16/9] rounded-b-xl"
+        tag={<PriceTag><GoldPrice value={price} className="text-label-lg" /></PriceTag>}
+      >
+        <IconChip icon={icon} tone={tone} size="lg" className="rounded-2xl" />
+      </ShopWindow>
+      {owned && (
+        <span aria-hidden="true" className="absolute left-7 top-10 z-10 inline-flex items-center gap-1 rounded-full bg-success-strong px-2 py-0.5 text-label-md text-on-success shadow-sm">
+          <Check className="size-3.5" strokeWidth={2.25} />Tuyo
+        </span>
+      )}
+      <div className="flex flex-1 flex-col gap-2 px-5 pb-5 pt-4">
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="text-heading-sm">{name}</h3>
+          {category && <Badge className="shrink-0">{category}</Badge>}
+        </div>
         {description && <p className="text-body-sm text-on-surface-light">{description}</p>}
-      </div>
-      <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
-        <GoldPrice value={price} className="text-label-lg md:text-body-md md:font-semibold" />
-        <span className="flex gap-2">
+        <div className="mt-auto flex flex-wrap items-center justify-end gap-2 pt-2">
           {onPreview && (
             <Button variant="ghost" size="md" onClick={onPreview} aria-label={`Vista previa de ${name}`}>
               <Eye aria-hidden className="size-4" strokeWidth={1.75} />Ver
@@ -66,7 +85,7 @@ export function ShopItem({ name, description, price, icon, tone = 'primary', cat
           >
             {owned ? 'Tienes' : affordable ? 'Comprar' : 'Sin Gold'}
           </Button>
-        </span>
+        </div>
       </div>
     </Card>
   );
@@ -74,6 +93,8 @@ export function ShopItem({ name, description, price, icon, tone = 'primary', cat
 
 export interface PurchaseDialogProps {
   open: boolean;
+  /** Ícono del artículo: cae dentro de la bolsa al terminar. */
+  icon?: LucideIcon;
   name: string;
   price: number;
   balance: number;
@@ -84,7 +105,7 @@ export interface PurchaseDialogProps {
 }
 
 /** Confirmar compra → «¡Es tuyo!» con pop + halo. */
-export function PurchaseDialog({ open, name, price, balance, phase, busy, onConfirm, onClose }: PurchaseDialogProps) {
+export function PurchaseDialog({ open, icon: ItemIcon, name, price, balance, phase, busy, onConfirm, onClose }: PurchaseDialogProps) {
   return (
     <Modal open={open} onClose={onClose} title={phase === 'ask' ? `¿Comprar ${name}?` : '¡Es tuyo!'} hideClose={phase === 'done'}>
       {phase === 'ask' ? (
@@ -99,9 +120,24 @@ export function PurchaseDialog({ open, name, price, balance, phase, busy, onConf
         </div>
       ) : (
         <div className="flex flex-col items-center gap-3 text-center">
-          <motion.span variants={pop3} initial="initial" animate="animate" className="lq-halo rounded-full">
-            <IconChip icon={ShoppingBag} tone="warning" size="lg" className="rounded-full" />
-          </motion.span>
+          <span className="relative flex flex-col items-center pt-10">
+            {/* El artículo cae dentro de la bolsa y la bolsa lo recibe */}
+            {ItemIcon && (
+              <motion.span
+                aria-hidden="true"
+                className="absolute top-0 flex size-10 items-center justify-center rounded-xl bg-surface-variant text-on-surface shadow-md"
+                initial={{ y: -10, opacity: 0, scale: 1 }}
+                animate={{ y: [-10, 0, 40], opacity: [0, 1, 0], scale: [1, 1, 0.5], transition: { duration: 0.9, times: [0, 0.3, 1], ease: ['easeOut', [0.5, 0, 0.75, 0]] } }}
+              >
+                <ItemIcon className="size-5" strokeWidth={1.75} />
+              </motion.span>
+            )}
+            <motion.span variants={pop3} initial="initial" animate="animate" className="lq-halo rounded-full">
+              <motion.span className="block" animate={{ scale: [1, 1.14, 0.97, 1], transition: { delay: 0.72, duration: 0.55, ease: 'easeOut' } }}>
+                <IconChip icon={ShoppingBag} tone="warning" size="lg" className="rounded-full" />
+              </motion.span>
+            </motion.span>
+          </span>
           <p className="text-body-md text-on-surface-light">{name} ya está en tu inventario.</p>
           <Button block onClick={onClose} autoFocus>Genial</Button>
         </div>

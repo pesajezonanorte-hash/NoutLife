@@ -1,5 +1,10 @@
 // Mis zonas (ZonesDesktop): composer «El Sabio» con texto de progreso → revisión
 // de la propuesta → la zona aparece con pop. Cada zona: hábitos, misiones y acciones.
+// Zona ambientada: un taller de pintura. El Sabio trabaja sobre un lienzo en su
+// caballete; cada zona es un cuadro enmarcado colgado de un clavo, pintado con una
+// pincelada de su color que se dibuja despacio, y se mece al pasar. Elegir color
+// mezcla la pintura y crear una zona la pinta con una salpicadura. La paleta es el
+// selector de color de la propuesta.
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -8,6 +13,8 @@ import {
 } from 'lucide-react';
 import api from '@/lib/api';
 import { item, pop3, stagger } from '@/lib/motion';
+import { ZoneShell } from '@/components/ambience';
+import { BrushStroke, Easel, HungFrame, PaintSplash } from '@/components/zones/Brush';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/useToast';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -98,7 +105,7 @@ function ActionForm({ action, zone, onDone }: { action: { label: string; type: s
   );
 }
 
-function ZoneCard({ zone: initial, onDeleted }: { zone: CustomZone; onDeleted: () => void }) {
+function ZoneCard({ zone: initial, onDeleted, index = 0, fresh }: { zone: CustomZone; onDeleted: () => void; index?: number; fresh?: boolean }) {
   const toast = useToast();
   const [zone, setZone] = useState(initial);
   const [open, setOpen] = useState(false);
@@ -126,7 +133,11 @@ function ZoneCard({ zone: initial, onDeleted }: { zone: CustomZone; onDeleted: (
   const panelId = `zone-${zone.id}`;
 
   return (
-    <Card as="article" interactive padding="lg" className="flex h-full flex-col gap-4">
+    <HungFrame>
+    <Card as="article" interactive padding="lg" style={zoneVars(zone.accentColor)} className="lq-tex-linen relative isolate flex h-full flex-col gap-4 overflow-hidden rounded-[3px]">
+      {/* La zona está pintada en el lienzo */}
+      <BrushStroke seed={index} delay={fresh ? 0.1 : 0.35 + index * 0.12} />
+      {fresh && <PaintSplash />}
       <div className="flex items-start gap-4">
         <ZoneIcon zone={zone} size="lg" />
         <div className="min-w-0 flex-1">
@@ -203,6 +214,7 @@ function ZoneCard({ zone: initial, onDeleted }: { zone: CustomZone; onDeleted: (
         </div>
       </Modal>
     </Card>
+    </HungFrame>
   );
 }
 
@@ -229,7 +241,11 @@ function Review({ s, onCancel, onCreated }: { s: Suggestion; onCancel: () => voi
   return (
     <motion.div variants={pop3} initial="initial" animate="animate" className="flex flex-col gap-5">
       <div className="flex items-center gap-4">
-        <ZoneIcon zone={{ icon: s.icon, accentColor: color }} size="lg" />
+        <span className="relative">
+          {/* La pintura se mezcla al cambiar de color (--zone registrada como color) */}
+          <span aria-hidden="true" style={zoneVars(color)} className="lq-mix absolute -inset-3 rounded-[40%_60%_55%_45%] bg-[var(--zone)] opacity-20 blur-[2px]" />
+          <ZoneIcon zone={{ icon: s.icon, accentColor: color }} size="lg" />
+        </span>
         <div className="min-w-0 flex-1"><span className="text-label-lg text-primary-text">Propuesta del Sabio</span><p className="text-body-md text-on-surface">{s.description}</p></div>
       </div>
       <Field label="Nombre de la zona"><Input value={name} onChange={(e) => setName(e.target.value)} /></Field>
@@ -239,7 +255,7 @@ function Review({ s, onCancel, onCreated }: { s: Suggestion; onCancel: () => voi
           {ZONE_COLORS.map((c, i) => (
             <button key={c} type="button" role="radio" aria-checked={color === c} aria-label={`Color ${i + 1}`} onClick={() => setColor(c)}
               style={{ background: c }}
-              className={cn('size-11 rounded-full border-2 transition-transform duration-500 ease-[cubic-bezier(.34,1.56,.64,1)]', color === c ? 'scale-110 border-on-background' : 'border-transparent')} />
+              className={cn('size-11 rounded-[46%_54%_50%_50%] border-2 transition-transform duration-500 ease-[var(--lq-ease-heavy)] hover:-rotate-6 hover:scale-105', color === c ? 'scale-110 border-on-background' : 'border-transparent')} />
           ))}
         </div>
       </fieldset>
@@ -268,6 +284,8 @@ export default function CustomZonesPage() {
   const [busy, setBusy] = useState(false);
   const [step, setStep] = useState(0);
   const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
+  /** Zona recién creada: el pincel la pinta con salpicadura. */
+  const [fresh, setFresh] = useState<string | null>(null);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setState('loading');
@@ -294,7 +312,11 @@ export default function CustomZonesPage() {
   const full = zones.length >= MAX_ZONES;
 
   return (
-    <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-8 md:gap-12">
+    <ZoneShell
+      zone="custom-zones"
+      contentClassName="gap-8 md:gap-12"
+      ambience={<span className="lq-tex-linen absolute inset-0 block opacity-60 [mask-image:radial-gradient(120%_70%_at_50%_0%,#000_30%,transparent_75%)]" />}
+    >
       <PageHeader
         eyebrow="Mis zonas"
         title="Crea tu propio espacio"
@@ -303,11 +325,13 @@ export default function CustomZonesPage() {
       />
 
       <motion.div variants={item}>
-        <SpotCard aria-label="El Sabio" className="border-primary/25">
-          <AnimatePresence mode="wait" initial={false}>
+        {/* El lienzo de El Sabio, sobre su caballete */}
+        <Easel className="mx-auto w-full max-w-5xl">
+        <SpotCard aria-label="El Sabio" className="lq-canvas lq-tex-linen">
+          <AnimatePresence mode="wait">
             {suggestion ? (
               <motion.div key="review" exit={{ opacity: 0, transition: { duration: 0.15 } }}>
-                <Review s={suggestion} onCancel={() => setSuggestion(null)} onCreated={(z) => { setSuggestion(null); setText(''); setZones((p) => [z, ...p]); void load(true); }} />
+                <Review s={suggestion} onCancel={() => setSuggestion(null)} onCreated={(z) => { setSuggestion(null); setText(''); setFresh(z.id); setZones((p) => [z, ...p]); void load(true); }} />
               </motion.div>
             ) : (
               <motion.div key="compose" exit={{ opacity: 0, transition: { duration: 0.15 } }}>
@@ -326,6 +350,7 @@ export default function CustomZonesPage() {
             )}
           </AnimatePresence>
         </SpotCard>
+        </Easel>
       </motion.div>
 
       <motion.section variants={item} className="flex flex-col gap-6" aria-labelledby="z-list">
@@ -333,15 +358,15 @@ export default function CustomZonesPage() {
         {zones.length === 0 ? (
           <EmptyState icon={MapPin} tone="muted" title="Aún no tienes zonas personalizadas" description="Escribe una idea arriba o elige una sugerencia para crear la primera." />
         ) : (
-          <motion.ul variants={stagger} initial="initial" animate="animate" className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 md:gap-6 xl:grid-cols-3">
-            {zones.map((z) => (
+          <motion.ul variants={stagger} initial="initial" animate="animate" className="grid grid-cols-1 items-start gap-6 md:grid-cols-2 md:gap-8 xl:grid-cols-3">
+            {zones.map((z, i) => (
               <motion.li key={z.id} variants={item} layout="position">
-                <ZoneCard zone={z} onDeleted={() => setZones((p) => p.filter((x) => x.id !== z.id))} />
+                <ZoneCard zone={z} index={i} fresh={fresh === z.id} onDeleted={() => setZones((p) => p.filter((x) => x.id !== z.id))} />
               </motion.li>
             ))}
           </motion.ul>
         )}
       </motion.section>
-    </motion.div>
+    </ZoneShell>
   );
 }

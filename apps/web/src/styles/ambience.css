@@ -1,0 +1,934 @@
+/* Zonas ambientadas: física compartida en CSS, texturas hechas con gradientes
+   de los tokens y la capa de ambiente (ZoneAmbience).
+   Reglas: todo lo decorativo va con aria-hidden y pointer-events: none; el
+   ambiente vive detrás del contenido con baja opacidad; solo se anima
+   transform y opacity (excepciones documentadas abajo); con «Reducir
+   movimiento» (.reduce-motion) los bucles se detienen y queda la composición
+   estática. Nada parpadea a más de 3 veces por segundo. */
+
+/* ───────── Física: los mismos muelles de lib/motion/presets.ts como linear() ───────── */
+:root {
+  --lq-ease-gentle: linear(0, 0.058, 0.178, 0.313, 0.439, 0.55, 0.643, 0.718, 0.779, 0.827, 0.865, 0.895, 0.918, 0.937, 0.951, 0.962, 0.97, 0.977, 0.982, 0.986, 0.989, 0.992, 0.994, 0.995, 0.996, 0.997, 0.998, 1);
+  --lq-dur-gentle: 1380ms;
+  --lq-ease-natural: linear(0, 0.049, 0.161, 0.296, 0.438, 0.569, 0.682, 0.774, 0.848, 0.904, 0.945, 0.973, 0.992, 1.003, 1.01, 1.013, 1.013, 1.012, 1.011, 1.009, 1.007, 1.005, 1.004, 1.003, 1.002, 1.001, 1.001, 1);
+  --lq-dur-natural: 560ms;
+  --lq-ease-heavy: linear(0, 0.069, 0.228, 0.421, 0.615, 0.784, 0.916, 1.009, 1.065, 1.092, 1.097, 1.088, 1.072, 1.052, 1.034, 1.018, 1.006, 0.998, 0.993, 0.991, 0.991, 0.992, 0.993, 0.995, 0.997, 0.998, 1, 1);
+  --lq-dur-heavy: 1010ms;
+  --lq-ease-snappy: linear(0, 0.056, 0.18, 0.332, 0.484, 0.622, 0.739, 0.831, 0.901, 0.95, 0.984, 1.004, 1.016, 1.021, 1.022, 1.02, 1.017, 1.014, 1.01, 1.008, 1.005, 1.003, 1.002, 1.001, 1, 1, 1, 1);
+  --lq-dur-snappy: 325ms;
+  /* Separación de las líneas de libreta (Hábitos, Diario). */
+  --lq-rule: 2.25rem;
+}
+
+/* ───────── Texturas (solo gradientes y tokens, sin imágenes) ───────── */
+@layer components {
+  /* Papel: grano fino irregular (dos tramas de puntos desfasadas). */
+  .lq-tex-paper {
+    background-color: rgb(var(--lq-surface));
+    background-image:
+      radial-gradient(rgb(var(--lq-on-background) / .035) .6px, transparent .8px),
+      radial-gradient(rgb(var(--lq-on-background) / .025) .5px, transparent .7px);
+    background-size: 7px 7px, 11px 13px;
+    background-position: 0 0, 3px 5px;
+  }
+  /* Líneas de libreta: una por --lq-rule; el margen va aparte (.lq-tex-margin). */
+  .lq-tex-ruled {
+    background-image: linear-gradient(to bottom, transparent calc(var(--lq-rule) - 1px), rgb(var(--lq-info) / .16) calc(var(--lq-rule) - 1px), rgb(var(--lq-info) / .16) var(--lq-rule));
+    background-size: 100% var(--lq-rule);
+  }
+  .lq-tex-margin { border-left: 1px solid rgb(var(--lq-error) / .4); box-shadow: -3px 0 0 -2px rgb(var(--lq-error) / .22); }
+  /* Vidrio esmerilado (vitrina, escaparates). */
+  .lq-tex-glass {
+    background: linear-gradient(135deg, rgb(var(--lq-surface) / .62), rgb(var(--lq-surface) / .32));
+    -webkit-backdrop-filter: blur(10px) saturate(1.1);
+    backdrop-filter: blur(10px) saturate(1.1);
+    border: 1px solid rgb(var(--lq-on-background) / .08);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / .35), var(--shadow-sm);
+  }
+  /* Lino: trama cruzada muy fina (mantel del restaurante). */
+  .lq-tex-linen {
+    background-image:
+      repeating-linear-gradient(0deg, rgb(var(--lq-on-background) / .022) 0 1px, transparent 1px 4px),
+      repeating-linear-gradient(90deg, rgb(var(--lq-on-background) / .018) 0 1px, transparent 1px 5px);
+  }
+  /* Pergamino: calidez irregular en las esquinas sobre papel. */
+  .lq-tex-parchment {
+    background-color: rgb(var(--lq-surface));
+    background-image:
+      radial-gradient(120% 80% at 15% 0%, rgb(var(--lq-secondary) / .10), transparent 60%),
+      radial-gradient(90% 70% at 100% 100%, rgb(var(--lq-warning) / .08), transparent 62%),
+      radial-gradient(rgb(var(--lq-on-background) / .03) .6px, transparent .8px);
+    background-size: auto, auto, 9px 9px;
+  }
+  /* Papel prensa: trama de puntos de imprenta. */
+  .lq-tex-newsprint {
+    background-image: radial-gradient(rgb(var(--lq-on-background) / .05) .55px, transparent .7px);
+    background-size: 4px 4px;
+  }
+  html.dark .lq-tex-ruled { background-image: linear-gradient(to bottom, transparent calc(var(--lq-rule) - 1px), rgb(var(--lq-info) / .13) calc(var(--lq-rule) - 1px), rgb(var(--lq-info) / .13) var(--lq-rule)); }
+  html.dark .lq-tex-glass { box-shadow: inset 0 1px 0 rgb(255 255 255 / .06), var(--shadow-sm); }
+}
+
+/* ───────── Capa de ambiente (ZoneAmbience) ───────── */
+.lq-amb { position: absolute; pointer-events: none; overflow: clip; }
+.lq-amb, .lq-amb * { pointer-events: none; }
+.lq-amb-page { inset: -1rem -1rem -2rem; }
+@media (min-width: 768px) { .lq-amb-page { inset: -2rem -2rem -3rem; } }
+.lq-amb-local { inset: 0; border-radius: inherit; }
+/* Ventana que acompaña al scroll (luz, partículas): se queda en pantalla dentro de la zona. */
+.lq-amb-view { position: sticky; top: 0; height: 100svh; width: 100%; overflow: hidden; }
+/* Fuera de pantalla o con la pestaña oculta, nada se mueve. */
+.lq-amb[data-paused] *, .lq-amb[data-paused] *::before, .lq-amb[data-paused] *::after { animation-play-state: paused !important; }
+
+/* Partículas: --x/--y fijan la posición de reposo (lo que se ve con «Reducir movimiento»);
+   la animación solo añade el desplazamiento. */
+.lq-p { position: absolute; left: var(--x); top: var(--y); opacity: var(--a, .5); will-change: transform, opacity; animation-duration: var(--d, 12s); animation-delay: var(--delay, 0s); animation-iteration-count: infinite; animation-timing-function: linear; }
+.lq-p-rise { animation-name: lq-p-rise; }
+.lq-p-fall { animation-name: lq-p-fall; }
+.lq-p-drift { animation-name: lq-p-drift; animation-timing-function: ease-in-out; animation-direction: alternate; }
+.lq-p-glow { animation-name: lq-p-glow; animation-timing-function: ease-in-out; }
+@keyframes lq-p-rise {
+  0% { transform: translate3d(0, 0, 0) scale(.8); opacity: 0; }
+  15% { opacity: var(--a, .5); }
+  60% { transform: translate3d(var(--sx, 8px), calc(var(--h, 80px) * -.6), 0) scale(1); }
+  100% { transform: translate3d(calc(var(--sx, 8px) * -.5), calc(var(--h, 80px) * -1), 0) scale(1.15); opacity: 0; }
+}
+@keyframes lq-p-fall {
+  0% { transform: translate3d(0, 0, 0) rotate(0deg); opacity: 0; }
+  10% { opacity: var(--a, .5); }
+  50% { transform: translate3d(var(--sx, 30px), calc(var(--h, 300px) * .5), 0) rotate(160deg); }
+  90% { opacity: var(--a, .5); }
+  100% { transform: translate3d(calc(var(--sx, 30px) * -.4), var(--h, 300px), 0) rotate(320deg); opacity: 0; }
+}
+@keyframes lq-p-drift {
+  0% { transform: translate3d(0, 0, 0); opacity: calc(var(--a, .5) * .4); }
+  50% { opacity: var(--a, .5); }
+  100% { transform: translate3d(var(--sx, 14px), var(--sy, -18px), 0); opacity: calc(var(--a, .5) * .6); }
+}
+/* Brillo suave (estrellas, luciérnagas): ciclos de varios segundos, muy por debajo de 3 Hz. */
+@keyframes lq-p-glow {
+  0%, 100% { opacity: calc(var(--a, .6) * .25); transform: translate3d(0, 0, 0) scale(.75); }
+  50% { opacity: var(--a, .6); transform: translate3d(var(--sx, 4px), var(--sy, -6px), 0) scale(1); }
+}
+
+/* Luz que respira (lámpara, foco, vela): solo opacidad y escala, ciclos largos. */
+.lq-amb-breathe { opacity: var(--rest, .75); animation: lq-amb-breathe var(--d, 9s) ease-in-out infinite; }
+@keyframes lq-amb-breathe { 0%, 100% { opacity: var(--lo, .55); transform: scale(.97); } 50% { opacity: var(--hi, .9); transform: scale(1.03); } }
+/* Deriva lenta de una luz o un reflejo por la superficie. */
+.lq-amb-wander { animation: lq-amb-wander var(--d, 26s) ease-in-out infinite alternate; }
+@keyframes lq-amb-wander { from { transform: translate3d(-6%, -3%, 0); } to { transform: translate3d(6%, 4%, 0); } }
+/* Vaivén de algo colgado o mecido (garabatos, flores, medallas). */
+.lq-amb-sway { animation: lq-amb-sway var(--d, 9s) ease-in-out infinite alternate; transform-origin: var(--o, 50% 0%); }
+@keyframes lq-amb-sway { from { transform: rotate(calc(var(--r, 2deg) * -1)); } to { transform: rotate(var(--r, 2deg)); } }
+
+/* ───────── Barrido de luz (Sheen) ───────── */
+.lq-sheen-sweep { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; pointer-events: none; }
+.lq-sheen-sweep::after {
+  content: ""; position: absolute; inset: -20% auto -20% 0; width: 45%;
+  background: linear-gradient(100deg, transparent, rgb(255 255 255 / var(--sheen-a, .28)) 50%, transparent);
+  transform: translateX(-160%) skewX(-12deg);
+  animation: lq-sheen-sweep var(--sheen-every, 9s) var(--lq-ease-gentle) var(--sheen-delay, 1.2s) infinite;
+}
+html.dark .lq-sheen-sweep::after { --sheen-a: .08; }
+/* Cruza en el primer 16 % del ciclo y descansa el resto. */
+@keyframes lq-sheen-sweep { 0% { transform: translateX(-160%) skewX(-12deg); } 16%, 100% { transform: translateX(360%) skewX(-12deg); } }
+
+/* ───────── Escritura y tinta ─────────
+   Excepción documentada: .lq-write revela el texto de izquierda a derecha con
+   mask-position (repinta mientras dura). Solo se usa en entradas cortas. */
+.lq-write {
+  -webkit-mask-image: linear-gradient(90deg, #000 45%, transparent 55%);
+  mask-image: linear-gradient(90deg, #000 45%, transparent 55%);
+  -webkit-mask-size: 230% 100%; mask-size: 230% 100%;
+  -webkit-mask-position: 100% 0; mask-position: 100% 0;
+  animation: lq-write var(--d, 520ms) cubic-bezier(.3, .2, .2, 1) var(--delay, 0ms) forwards;
+}
+@keyframes lq-write { to { -webkit-mask-position: 0 0; mask-position: 0 0; } }
+.reduce-motion .lq-write { -webkit-mask-image: none; mask-image: none; }
+
+/* Trazo dibujado a mano: el grosor no cambia al escalar el SVG. */
+.lq-ink { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+
+/* ───────── Holograma (documento del Perfil) ─────────
+   --mx/--my (0–100 %) los fija el puntero o la inclinación del móvil. */
+.lq-holo {
+  position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: .55;
+  background:
+    radial-gradient(55% 45% at var(--mx, 30%) var(--my, 20%), rgb(255 255 255 / .5), transparent 70%),
+    linear-gradient(115deg,
+      transparent 20%,
+      rgb(var(--lq-jade-300) / .22) calc(25% + var(--hx, 0%)),
+      rgb(var(--lq-info) / .16) calc(38% + var(--hx, 0%)),
+      rgb(var(--lq-secondary) / .2) calc(52% + var(--hx, 0%)),
+      rgb(var(--lq-jade-200) / .22) calc(64% + var(--hx, 0%)),
+      transparent 80%);
+  transition: opacity .4s ease-out;
+}
+html.dark .lq-holo { mix-blend-mode: screen; opacity: .3; }
+/* Guilloché: líneas finas de seguridad en el fondo del documento. */
+.lq-guilloche {
+  position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: .5;
+  background-image:
+    repeating-radial-gradient(circle at 85% 120%, transparent 0 9px, rgb(var(--lq-primary) / .06) 9px 10px),
+    repeating-radial-gradient(circle at -10% -30%, transparent 0 13px, rgb(var(--lq-info) / .05) 13px 14px);
+}
+
+/* ───────── Posada (Comida) ───────── */
+/* Vapor de un plato recién servido: sube, se estira y se disipa (ciclos de 3,4 s). */
+.lq-steam { opacity: .35; transform-origin: 50% 100%; animation: lq-steam 3.4s ease-in-out infinite; }
+@keyframes lq-steam {
+  0% { transform: translateY(4px) scaleY(.7); opacity: 0; }
+  30% { opacity: .55; }
+  100% { transform: translateY(-10px) scaleY(1.1) skewX(-8deg); opacity: 0; }
+}
+/* Luz de vela (modo oscuro): oscila suave e irregular, por debajo de 2 Hz. */
+.lq-candle { opacity: .7; animation: lq-candle 4.2s ease-in-out infinite; }
+@keyframes lq-candle {
+  0%, 100% { opacity: .62; transform: scale(1); }
+  14% { opacity: .74; transform: scale(1.02); }
+  31% { opacity: .66; transform: scale(.99); }
+  47% { opacity: .78; transform: scale(1.03); }
+  63% { opacity: .64; transform: scale(.985); }
+  81% { opacity: .72; transform: scale(1.015); }
+}
+
+/* Luz de ambiente (AmbientLight): halo de un token con intensidad propia en claro y en oscuro. */
+.lq-light { --amb-a: var(--a-l, .1); background: radial-gradient(closest-side, rgb(var(--lt) / var(--amb-a)), transparent); }
+html.dark .lq-light { --amb-a: var(--a-d, .06); }
+
+/* ───────── Logros (vitrina) ───────── */
+/* La medalla oscila con peso al pasar el cursor: amortiguada, de un solo vaivén. */
+.group:hover .lq-medal, .group:focus-visible .lq-medal { animation: lq-medal-swing 1.3s cubic-bezier(.3, .2, .2, 1); }
+@keyframes lq-medal-swing { 0% { transform: rotate(0); } 18% { transform: rotate(7deg); } 40% { transform: rotate(-4.5deg); } 62% { transform: rotate(2.2deg); } 82% { transform: rotate(-.8deg); } 100% { transform: rotate(0); } }
+/* Brillo que sigue al puntero sobre el cristal de la vitrina (--mx/--my). */
+.lq-glint { background: radial-gradient(220px circle at var(--mx, 50%) var(--my, 0%), rgb(255 255 255 / .35), transparent 60%); opacity: 0; transition: opacity .4s ease-out; }
+html.dark .lq-glint { background: radial-gradient(220px circle at var(--mx, 50%) var(--my, 0%), rgb(var(--lq-secondary) / .10), transparent 60%); }
+.group:hover .lq-glint { opacity: 1; }
+/* Desbloqueo: destello y partículas doradas contenidas en la vitrina (una vez). */
+.lq-flash { animation: lq-flash 1.1s cubic-bezier(.16, 1, .3, 1) .35s both; }
+@keyframes lq-flash { from { opacity: .95; transform: scale(.5); } to { opacity: 0; transform: scale(1.8); } }
+.lq-burst { animation: lq-burst 1.2s cubic-bezier(.16, 1, .3, 1) var(--delay, .4s) both; }
+@keyframes lq-burst { 0% { opacity: 0; transform: translate(0, 0) scale(.4); } 15% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(1); } }
+
+/* Papel cuadriculado muy tenue (Agenda): la sensación de orden. */
+.lq-tex-grid {
+  background-image:
+    linear-gradient(to right, rgb(var(--lq-on-background) / .045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(var(--lq-on-background) / .045) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+/* Glow up: reflejo que cruza el espejo muy despacio (ida y vuelta). */
+.lq-mirror-glint { animation: lq-mirror-glint 16s ease-in-out infinite alternate; transform: translateX(-60%) skewX(-10deg); }
+@keyframes lq-mirror-glint { from { transform: translateX(-60%) skewX(-10deg); } to { transform: translateX(260%) skewX(-10deg); } }
+
+/* ───────── Relaciones (jardín) ───────── */
+/* Las flores se mecen con el aire al pasar el cursor o al enfocarlas. */
+.group:hover .lq-flower, .group:focus-visible .lq-flower { animation: lq-amb-sway 1.6s ease-in-out infinite alternate; }
+/* Latido suave de una fecha cercana: dos pulsos cada 1,6 s (muy por debajo de 3 Hz). */
+.lq-heartbeat { animation: lq-heartbeat 1.6s ease-in-out infinite; }
+@keyframes lq-heartbeat { 0%, 100% { transform: scale(1); } 14% { transform: scale(1.12); } 28% { transform: scale(1); } 42% { transform: scale(1.08); } 60% { transform: scale(1); } }
+/* Pétalo que cae: un óvalo torcido. */
+.lq-petal { border-radius: 60% 40% 60% 40%; }
+/* Cielo: atardecer cálido de día; noche profunda con luna y estrellas. */
+.lq-garden { background: linear-gradient(180deg, rgb(var(--lq-warning) / .2) 0%, rgb(var(--lq-error) / .08) 34%, rgb(var(--lq-background)) 68%); }
+html.dark .lq-garden { background: linear-gradient(180deg, rgb(var(--lq-jade-900)) 0%, rgb(var(--lq-background)) 72%); }
+.lq-sun { background: radial-gradient(closest-side, rgb(var(--lq-warning) / .55), rgb(var(--lq-warning) / .22) 45%, transparent 72%); }
+.lq-sun::after { content: ""; position: absolute; inset: 34%; border-radius: 999px; background: rgb(var(--lq-warning) / .75); box-shadow: 0 0 24px 6px rgb(var(--lq-warning) / .35); }
+.lq-moon { background: radial-gradient(circle at 70% 30%, transparent 0 40%, rgb(var(--lq-jade-50)) 42%); box-shadow: 0 0 34px 4px rgb(var(--lq-jade-50) / .12); }
+/* Colinas al fondo y la cerca de madera. */
+.lq-hill-far { fill: rgb(var(--lq-jade-200) / .55); }
+.lq-hill-near { fill: rgb(var(--lq-jade-300) / .5); }
+html.dark .lq-hill-far { fill: rgb(var(--lq-jade-800) / .55); }
+html.dark .lq-hill-near { fill: rgb(var(--lq-jade-800) / .85); }
+.lq-fence {
+  --fp: rgb(var(--lq-surface)); --fe: rgb(var(--lq-border-strong) / .35);
+  background:
+    linear-gradient(to bottom, transparent 30%, var(--fp) 30% 38%, transparent 38% 68%, var(--fp) 68% 76%, transparent 76%),
+    radial-gradient(circle 6px at 7px 6px, var(--fp) 96%, transparent) 0 0 / 22px 100% repeat-x,
+    linear-gradient(to right, var(--fp) 0 14px, transparent 14px) 0 6px / 22px 100% repeat-x;
+  filter: drop-shadow(0 1px 0 var(--fe)) drop-shadow(1px 0 0 var(--fe));
+  opacity: .72;
+}
+html.dark .lq-fence { --fp: rgb(var(--lq-jade-800) / .9); --fe: rgb(0 0 0 / .4); opacity: .8; }
+/* La tierra: marrón de los tokens (texto de advertencia) con grano. */
+.lq-soil {
+  background:
+    radial-gradient(rgb(var(--lq-on-background) / .12) .8px, transparent 1.2px) 0 0 / 9px 7px,
+    linear-gradient(180deg, rgb(var(--lq-warning-text) / .42), rgb(var(--lq-warning-text) / .62));
+  box-shadow: inset 0 3px 4px -2px rgb(0 0 0 / .2);
+}
+html.dark .lq-soil { background: radial-gradient(rgb(0 0 0 / .35) .8px, transparent 1.2px) 0 0 / 9px 7px, linear-gradient(180deg, rgb(var(--lq-warning-text) / .22), rgb(var(--lq-warning-text) / .12)); }
+/* El pasto crece al llegar, se mece y se inclina con la brisa del cursor (--lean). */
+.lq-grass-grow { animation: lq-grow .8s var(--lq-ease-natural) var(--gd, 0s) both; }
+@keyframes lq-grow { from { transform: scaleY(0); } }
+.lq-blade { animation: lq-blade 4s ease-in-out infinite alternate; transform-origin: 50% 100%; }
+@keyframes lq-blade { from { transform: rotate(-3deg); } to { transform: rotate(3.5deg); } }
+.lq-lean { transform: rotate(calc(var(--lean, 0) * 1deg)); transition: transform 1.1s var(--lq-ease-gentle); }
+.lq-lean-half { transform: rotate(calc(var(--lean, 0) * .45deg)); }
+.reduce-motion .lq-lean { transform: none !important; }
+html.dark .lq-blade path { opacity: .8; }
+/* Estaca de madera con su etiqueta clavada en la tierra. */
+.lq-stake::before { content: ""; order: 2; width: 3px; height: .75rem; border-radius: 0 0 2px 2px; background: rgb(var(--lq-secondary-text) / .7); }
+.lq-stake-tag { border-radius: 4px; background: rgb(var(--lq-surface)); box-shadow: 0 1px 2px rgb(var(--lq-on-background) / .18), inset 0 0 0 1px rgb(var(--lq-border)); }
+html.dark .lq-stake-tag { background: rgb(var(--lq-surface-variant)); }
+/* Mariposas: un lazo lento por el jardín; las alas aletean (≈1,4 veces por segundo). */
+.lq-butterfly { width: 26px; height: 20px; display: flex; gap: 1px; animation-duration: 19s; animation-timing-function: ease-in-out; animation-iteration-count: infinite; }
+.lq-fly-1 { animation-name: lq-fly-1; }
+.lq-fly-2 { animation-name: lq-fly-2; animation-duration: 23s; }
+@keyframes lq-fly-1 { 0%, 100% { transform: translate(0, 0) rotate(-8deg); } 25% { transform: translate(120px, -28px) rotate(6deg); } 50% { transform: translate(220px, 10px) rotate(-4deg); } 75% { transform: translate(90px, 34px) rotate(10deg); } }
+@keyframes lq-fly-2 { 0%, 100% { transform: translate(0, 0) rotate(6deg); } 30% { transform: translate(-140px, 22px) rotate(-8deg); } 60% { transform: translate(-60px, -30px) rotate(4deg); } 80% { transform: translate(60px, 8px) rotate(-6deg); } }
+.lq-wing { width: 12px; height: 18px; border-radius: 70% 30% 60% 40%; animation: lq-wing .36s ease-in-out infinite alternate; }
+.lq-wing-l { transform-origin: 100% 60%; }
+.lq-wing-r { transform-origin: 0% 60%; border-radius: 30% 70% 40% 60%; }
+@keyframes lq-wing { from { transform: scaleX(1); } to { transform: scaleX(.25); } }
+/* Arbustos redondeados junto a la cerca (dos verdes) y flores silvestres en el pasto. */
+.lq-shrub { border-radius: 50% 50% 12% 12% / 70% 70% 10% 10%; background: radial-gradient(60% 70% at 40% 30%, rgb(var(--lq-jade-400)), rgb(var(--lq-jade-500)) 70%); box-shadow: inset -6px -4px 10px rgb(var(--lq-jade-700) / .35); }
+.lq-shrub-b { background: radial-gradient(60% 70% at 40% 30%, rgb(var(--lq-jade-300)), rgb(var(--lq-jade-500)) 75%); }
+html.dark .lq-shrub { background: radial-gradient(60% 70% at 40% 30%, rgb(var(--lq-jade-700)), rgb(var(--lq-jade-800)) 70%); box-shadow: inset -6px -4px 10px rgb(0 0 0 / .35); }
+html.dark .lq-shrub-b { background: radial-gradient(60% 70% at 40% 30%, rgb(var(--lq-jade-600) / .8), rgb(var(--lq-jade-800)) 75%); }
+.lq-wild { box-shadow: 0 0 0 1px rgb(var(--lq-on-background) / .06); }
+
+/* ───────── Rituales (lugar de paz) ───────── */
+/* La piedra del paso actual respira; el círculo de respiración sigue un ciclo de 8 s. */
+.lq-breath { animation: lq-breath 3.2s ease-in-out infinite; }
+@keyframes lq-breath { 0%, 100% { transform: scale(.9); } 50% { transform: scale(1.12); } }
+.lq-breath-slow { animation: lq-breath-slow 8s ease-in-out infinite; }
+@keyframes lq-breath-slow { 0%, 100% { transform: scale(.72); opacity: .55; } 45%, 55% { transform: scale(1.12); opacity: 1; } }
+/* Onda como en el agua al encender una piedra (una vez). */
+.lq-ripple { animation: lq-ripple 1.2s cubic-bezier(.16, 1, .3, 1) both; }
+@keyframes lq-ripple { from { opacity: .8; transform: scale(1); } to { opacity: 0; transform: scale(3.2); } }
+/* Onda de calma al completar un ritual entero (una vez). */
+.lq-calm-wave { animation: lq-calm-wave 2.2s cubic-bezier(.16, 1, .3, 1) both; }
+@keyframes lq-calm-wave { from { opacity: .55; transform: scale(.4); } to { opacity: 0; transform: scale(2.6); } }
+
+/* Mis zonas: el color de la zona como propiedad registrada, para que la pintura se mezcle al cambiarlo. */
+@property --zone { syntax: '<color>'; inherits: true; initial-value: rgb(84 143 111); }
+.lq-mix { transition: --zone .7s ease-out, transform .6s var(--lq-ease-heavy); }
+
+/* ───────── Tienda (pasaje comercial) ───────── */
+/* Toldo: franjas del color de la categoría (--win) en dos intensidades, faldón ondulado y su sombra. */
+.lq-awning {
+  --st: 22px;
+  height: 31px;
+  background:
+    linear-gradient(to bottom, rgb(255 255 255 / .2), transparent 45%, rgb(0 0 0 / .12)) 0 0 / 100% 20px no-repeat,
+    repeating-linear-gradient(90deg, rgb(var(--win)) 0 var(--st), rgb(var(--win) / .6) 0 calc(var(--st) * 2)) 0 0 / 100% 20px no-repeat,
+    radial-gradient(circle calc(var(--st) / 2) at calc(var(--st) / 2) 0, rgb(var(--win)) 96%, transparent) 0 20px / calc(var(--st) * 2) 11px repeat-x,
+    radial-gradient(circle calc(var(--st) / 2) at calc(var(--st) * 1.5) 0, rgb(var(--win) / .6) 96%, transparent) 0 20px / calc(var(--st) * 2) 11px repeat-x;
+  filter: drop-shadow(0 3px 2px rgb(var(--lq-on-background) / .16));
+}
+.lq-awning-lg {
+  --st: 30px;
+  height: 43px;
+  background-size: 100% 28px, 100% 28px, calc(var(--st) * 2) 15px, calc(var(--st) * 2) 15px;
+  background-position: 0 0, 0 0, 0 28px, 0 28px;
+}
+/* Escaparate: pared del fondo con la sombra del toldo y luz cenital (se enciende al llegar). */
+.lq-window {
+  background: linear-gradient(to bottom, rgb(var(--lq-surface-variant)), rgb(var(--lq-surface)) 80%);
+  box-shadow: inset 0 14px 14px -12px rgb(var(--lq-on-background) / .24), inset 0 0 0 1px rgb(var(--lq-on-background) / .06);
+}
+html.dark .lq-window {
+  background: linear-gradient(to bottom, rgb(var(--lq-background)), rgb(var(--lq-surface-variant)) 95%);
+  box-shadow: inset 0 14px 14px -12px rgb(0 0 0 / .7), inset 0 0 0 1px rgb(255 255 255 / .05);
+}
+.lq-window-light {
+  background:
+    linear-gradient(to bottom, rgb(var(--lq-secondary) / .7), transparent 3px) 50% 0 / 44% 100% no-repeat,
+    radial-gradient(58% 85% at 50% 0%, rgb(var(--lq-secondary) / .3), transparent 72%),
+    radial-gradient(42% 30% at 50% 86%, rgb(var(--win) / .16), transparent 70%);
+}
+html.dark .lq-window-light {
+  background:
+    linear-gradient(to bottom, rgb(var(--lq-secondary) / .85), transparent 3px) 50% 0 / 44% 100% no-repeat,
+    radial-gradient(58% 85% at 50% 0%, rgb(var(--lq-secondary) / .3), transparent 72%),
+    radial-gradient(42% 30% at 50% 86%, rgb(var(--win) / .2), transparent 70%);
+}
+/* Pedestal: un plinto corto con su sombra de contacto. */
+.lq-plinth {
+  position: relative; width: 5.5rem; height: 1rem; border-radius: 0 0 .45rem .45rem;
+  background: linear-gradient(to bottom, rgb(var(--lq-surface)), rgb(var(--lq-surface-variant)));
+  box-shadow: 0 9px 12px -7px rgb(var(--lq-on-background) / .28), inset 0 -1px 0 rgb(var(--lq-on-background) / .06);
+}
+.lq-plinth::before {
+  content: ""; position: absolute; left: 0; right: 0; top: -.3rem; height: .6rem; border-radius: 50%;
+  background: rgb(var(--lq-surface)); box-shadow: inset 0 -1px 0 rgb(var(--lq-on-background) / .1);
+}
+html.dark .lq-plinth { background: linear-gradient(to bottom, rgb(var(--lq-surface-variant)), rgb(var(--lq-surface))); box-shadow: 0 9px 12px -7px rgb(0 0 0 / .7); }
+html.dark .lq-plinth::before { background: rgb(var(--lq-border)); }
+/* El artículo gira un poco sobre su pedestal al pasar el cursor o al enfocar. */
+.lq-turn { transform: perspective(520px) rotateY(0deg); transition: transform var(--lq-dur-heavy) var(--lq-ease-heavy); }
+.group:hover .lq-turn, .group:focus-within .lq-turn { transform: perspective(520px) rotateY(22deg) translateY(-3px); }
+.reduce-motion .lq-turn { transform: none !important; }
+/* El escaparate destacado gira despacio sobre su plataforma. */
+.lq-turntable { animation: lq-turntable 10s ease-in-out infinite alternate; }
+@keyframes lq-turntable { from { transform: perspective(600px) rotateY(-14deg); } to { transform: perspective(600px) rotateY(14deg); } }
+/* Reflejo del vidrio: cruza una vez al pasar el cursor o al enfocar. */
+.lq-glass-sweep { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; pointer-events: none; }
+.lq-glass-sweep::after {
+  content: ""; position: absolute; inset: -20% auto -20% 0; width: 45%;
+  background: linear-gradient(100deg, transparent, rgb(255 255 255 / .34) 50%, transparent);
+  transform: translateX(-160%) skewX(-12deg);
+}
+html.dark .lq-glass-sweep::after { background: linear-gradient(100deg, transparent, rgb(255 255 255 / .08) 50%, transparent); }
+.group:hover .lq-glass-sweep::after, .group:focus-within .lq-glass-sweep::after { transform: translateX(360%) skewX(-12deg); transition: transform 1.1s var(--lq-ease-gentle); }
+/* Etiqueta de precio: cartulina con punta y ojal, colgada de un hilo; se mece con peso. */
+.lq-tag-swing { filter: drop-shadow(0 2px 2px rgb(var(--lq-on-background) / .18)); }
+.group:hover .lq-tag-swing, .group:focus-within .lq-tag-swing { animation: lq-medal-swing 1.3s cubic-bezier(.3, .2, .2, 1); }
+.lq-tag {
+  position: relative; overflow: hidden; background: rgb(var(--lq-surface)); border-radius: 0 0 4px 4px;
+  clip-path: polygon(50% 0, 100% 10px, 100% 100%, 0 100%, 0 10px);
+  -webkit-mask: radial-gradient(circle 2.5px at 50% 10px, transparent 96%, #000);
+  mask: radial-gradient(circle 2.5px at 50% 10px, transparent 96%, #000);
+}
+html.dark .lq-tag { background: rgb(var(--lq-surface-variant)); }
+/* El precio destella: un brillo cruza la etiqueta (una vez por visita del cursor). */
+.lq-tag::after {
+  content: ""; position: absolute; inset: 0 auto 0 0; width: 45%; pointer-events: none;
+  background: linear-gradient(100deg, transparent, rgb(var(--lq-secondary) / .45), transparent);
+  transform: translateX(-130%) skewX(-12deg);
+}
+.group:hover .lq-tag::after, .group:focus-within .lq-tag::after { animation: lq-price-flash .8s var(--lq-ease-gentle) .15s; }
+@keyframes lq-price-flash { from { transform: translateX(-130%) skewX(-12deg); } to { transform: translateX(330%) skewX(-12deg); } }
+/* Lámparas del pasaje: pantalla de metal, bombilla y cono de luz cálida. */
+.lq-lamp-shade path { fill: rgb(var(--lq-primary-strong)); }
+html.dark .lq-lamp-shade path { fill: rgb(var(--lq-surface-variant)); stroke: rgb(var(--lq-on-background) / .14); }
+.lq-lamp-cone { clip-path: polygon(43% 0, 57% 0, 100% 100%, 0 100%); background: linear-gradient(to bottom, rgb(var(--lq-secondary) / .15), rgb(var(--lq-secondary) / 0) 88%); }
+html.dark .lq-lamp-cone { background: linear-gradient(to bottom, rgb(var(--lq-secondary) / .15), rgb(var(--lq-secondary) / 0) 88%); }
+.lq-lamp-bulb { background: radial-gradient(closest-side, rgb(var(--lq-secondary) / .95), rgb(var(--lq-secondary) / 0)); }
+/* Moneda de oro (monedero, monedas que vuelan al comprar). */
+.lq-coin {
+  background:
+    radial-gradient(circle at 34% 30%, rgb(255 255 255 / .6), transparent 40%),
+    radial-gradient(circle, rgb(var(--lq-secondary)) 55%, rgb(var(--lq-secondary-text)) 57% 60%, rgb(var(--lq-secondary)) 62%);
+  box-shadow: inset 0 0 0 1.5px rgb(var(--lq-secondary-text) / .6), 0 2px 4px rgb(var(--lq-on-background) / .2);
+}
+
+/* ───────── Diario (diario de cuero) ───────── */
+/* Cuero de la tapa: jade profundo (igual en claro y en oscuro), con grano y desgaste en los bordes. */
+.lq-diary-case, .lq-diary-cover {
+  background-color: rgb(var(--lq-jade-800));
+  background-image:
+    radial-gradient(rgb(255 255 255 / .05) .6px, transparent .9px),
+    radial-gradient(rgb(0 0 0 / .22) .7px, transparent 1px),
+    linear-gradient(155deg, rgb(255 255 255 / .08), transparent 38%, rgb(0 0 0 / .24));
+  background-size: 5px 5px, 7px 7px, auto;
+  background-position: 0 0, 2px 3px, 0 0;
+}
+.lq-diary-case { box-shadow: 0 22px 40px -16px rgb(var(--lq-jade-900) / .5), 0 4px 10px rgb(var(--lq-jade-900) / .16); }
+html.dark .lq-diary-case { box-shadow: 0 22px 44px -14px rgb(0 0 0 / .85), inset 0 0 0 1px rgb(255 255 255 / .04); }
+.lq-diary-cover { box-shadow: inset 0 0 0 1px rgb(255 255 255 / .07), inset 7px 0 10px -6px rgb(0 0 0 / .55), 0 22px 40px -16px rgb(var(--lq-jade-900) / .55); }
+/* Marco repujado en dorado. */
+.lq-diary-cover::before { content: ""; position: absolute; inset: 16px 20px 16px 26px; border: 1px solid rgb(var(--lq-secondary) / .5); border-radius: 10px; box-shadow: inset 0 0 0 4px rgb(var(--lq-jade-800)), inset 0 0 0 5px rgb(var(--lq-secondary) / .22); }
+/* Letras de pan de oro. */
+.lq-foil {
+  background: linear-gradient(100deg, rgb(var(--lq-secondary-text)), rgb(var(--lq-secondary)) 35%, rgb(255 255 255 / .92) 50%, rgb(var(--lq-secondary)) 65%, rgb(var(--lq-secondary-text)));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  text-shadow: 0 1px 0 rgb(0 0 0 / .4);
+}
+/* El dorso de la tapa no deja ver sus letras al revés (también en capas propias de los hijos). */
+.lq-diary-cover, .lq-diary-cover * { -webkit-backface-visibility: hidden; backface-visibility: hidden; }
+/* Elástico. */
+.lq-diary-band { background: linear-gradient(to right, rgb(var(--lq-jade-900)), rgb(var(--lq-jade-900) / .9) 38%, rgb(255 255 255 / .1) 50%, rgb(var(--lq-jade-900))); box-shadow: 0 0 5px rgb(0 0 0 / .45); }
+/* Papel: grano y la curvatura hacia el lomo (oscurece junto a la costura). */
+.lq-diary-paper {
+  background-color: rgb(var(--lq-surface));
+  background-image: var(--curve, none), radial-gradient(rgb(var(--lq-on-background) / .03) .6px, transparent .8px);
+  background-size: auto, 7px 7px;
+}
+.lq-diary-paper-l { --curve: linear-gradient(to left, rgb(var(--lq-jade-900) / .1), rgb(var(--lq-jade-900) / .03) 5%, transparent 12%); }
+.lq-diary-paper-r { --curve: linear-gradient(to right, rgb(var(--lq-jade-900) / .1), rgb(var(--lq-jade-900) / .03) 5%, transparent 12%); }
+html.dark .lq-diary-paper-l { --curve: linear-gradient(to left, rgb(0 0 0 / .45), rgb(0 0 0 / .12) 5%, transparent 14%); }
+html.dark .lq-diary-paper-r { --curve: linear-gradient(to right, rgb(0 0 0 / .45), rgb(0 0 0 / .12) 5%, transparent 14%); }
+@media (max-width: 1023px) {
+  /* Una sola página: el lomo queda a la izquierda. */
+  .lq-diary-paper-l, .lq-diary-paper-r { --curve: linear-gradient(to right, rgb(var(--lq-jade-900) / .08), transparent 7%); }
+  html.dark .lq-diary-paper-l, html.dark .lq-diary-paper-r { --curve: linear-gradient(to right, rgb(0 0 0 / .4), transparent 8%); }
+}
+/* El lomo: sombra de la curvatura y la costura. */
+.lq-diary-gutter {
+  position: absolute; top: 0; bottom: 0; left: 50%; width: 2.75rem; margin-left: -1.375rem;
+  background: linear-gradient(to right, transparent, rgb(var(--lq-jade-900) / .06) 40%, rgb(var(--lq-jade-900) / .17) 50%, rgb(var(--lq-jade-900) / .06) 60%, transparent);
+}
+.lq-diary-gutter::after {
+  content: ""; position: absolute; top: 22px; bottom: 22px; left: 50%; width: 1.5px; margin-left: -.75px;
+  background: repeating-linear-gradient(to bottom, rgb(var(--lq-secondary-text) / .5) 0 7px, transparent 7px 17px);
+}
+html.dark .lq-diary-gutter { background: linear-gradient(to right, transparent, rgb(0 0 0 / .3) 40%, rgb(0 0 0 / .6) 50%, rgb(0 0 0 / .3) 60%, transparent); }
+html.dark .lq-diary-gutter::after { background: repeating-linear-gradient(to bottom, rgb(var(--lq-secondary) / .4) 0 7px, transparent 7px 17px); }
+/* Cinta marcapáginas: raso con brillo, punta en V. */
+.lq-ribbon { background: linear-gradient(to right, rgb(var(--lq-error-text)), rgb(var(--lq-error)) 45%, rgb(var(--lq-error-text))); box-shadow: 1px 1px 2px rgb(0 0 0 / .2); }
+html.dark .lq-ribbon { background: linear-gradient(to right, rgb(var(--lq-error) / .8), rgb(var(--lq-error)) 45%, rgb(var(--lq-error) / .8)); }
+.lq-ribbon-tail { clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 76%, 0 100%); }
+/* En el diario, el ánimo elegido queda como un sello torcido. */
+.lq-diary [role="radiogroup"] button { transition: rotate .5s var(--lq-ease-heavy), color .2s, background-color .2s, border-color .2s; }
+.lq-diary [role="radiogroup"] [aria-checked="true"] { border-style: dashed; rotate: -7deg; }
+/* Hoja de una entrada anterior: papel suelto que se levanta al pasar y dobla su esquina. */
+.lq-leaf {
+  position: relative;
+  background-color: rgb(var(--lq-surface));
+  background-image: radial-gradient(rgb(var(--lq-on-background) / .03) .6px, transparent .8px);
+  background-size: 7px 7px;
+  border-radius: 6px 12px 12px 6px;
+  box-shadow: 0 1px 2px rgb(var(--lq-on-background) / .06), 0 4px 10px -3px rgb(var(--lq-on-background) / .09);
+  transition: transform var(--lq-dur-heavy) var(--lq-ease-heavy), box-shadow .4s ease-out;
+}
+.group:hover .lq-leaf, .lq-leaf:focus-within { transform: translateY(-3px) rotate(-.35deg); box-shadow: 0 14px 26px -12px rgb(var(--lq-on-background) / .26), 0 2px 4px rgb(var(--lq-on-background) / .06); }
+html.dark .lq-leaf { border: 1px solid rgb(var(--lq-border)); box-shadow: 0 2px 6px rgb(0 0 0 / .45); }
+.reduce-motion .group:hover .lq-leaf, .reduce-motion .lq-leaf:focus-within { transform: none; }
+/* Esquina doblada: se dobla un poco más al pasar el cursor. */
+.lq-dogear {
+  position: absolute; right: 0; bottom: 0; width: 22px; height: 22px; border-radius: 0 0 12px 0; pointer-events: none;
+  background: linear-gradient(315deg, rgb(var(--lq-background)) 0 50%, rgb(var(--lq-surface-variant)) 50% 100%);
+  box-shadow: -1px -1px 2px rgb(var(--lq-on-background) / .08);
+  transform-origin: 100% 100%; transition: transform .5s var(--lq-ease-heavy);
+}
+.group:hover .lq-dogear, .lq-leaf:focus-within .lq-dogear { transform: scale(1.5); }
+.reduce-motion .lq-dogear { transform: none !important; }
+/* Renglones bajo el texto de una hoja (la línea cae en la base de cada renglón). */
+.lq-lines { line-height: var(--lq-rule); background-image: linear-gradient(to bottom, transparent calc(var(--lq-rule) - 1px), rgb(var(--lq-info) / .18) calc(var(--lq-rule) - 1px), rgb(var(--lq-info) / .18) var(--lq-rule)); background-size: 100% var(--lq-rule); }
+html.dark .lq-lines { background-image: linear-gradient(to bottom, transparent calc(var(--lq-rule) - 1px), rgb(var(--lq-info) / .14) calc(var(--lq-rule) - 1px), rgb(var(--lq-info) / .14) var(--lq-rule)); }
+
+/* ───────── Biblioteca (sala de lectura) ───────── */
+/* Madera de nogal: mezcla del marrón de los tokens con el jade más profundo, con veta. */
+.lq-wood {
+  --wood: color-mix(in srgb, rgb(var(--lq-warning-text)) 58%, rgb(var(--lq-jade-900)));
+  background-color: var(--wood);
+  background-image:
+    repeating-linear-gradient(90deg, rgb(255 255 255 / .035) 0 2px, transparent 2px 9px),
+    repeating-linear-gradient(90deg, rgb(0 0 0 / .07) 0 1px, transparent 1px 13px),
+    linear-gradient(180deg, rgb(255 255 255 / .07), transparent 40%, rgb(0 0 0 / .2));
+}
+html.dark .lq-wood { --wood: color-mix(in srgb, rgb(var(--lq-warning-text)) 28%, rgb(var(--lq-jade-900))); }
+.lq-bookcase { box-shadow: 0 24px 40px -18px rgb(var(--lq-jade-900) / .55), 0 3px 8px rgb(var(--lq-jade-900) / .2); }
+html.dark .lq-bookcase { box-shadow: 0 24px 44px -16px rgb(0 0 0 / .85); }
+/* Remate superior con moldura. */
+.lq-crown { background: linear-gradient(180deg, rgb(255 255 255 / .16), transparent 35%, rgb(0 0 0 / .25)), var(--wood); box-shadow: 0 3px 4px rgb(0 0 0 / .3); }
+/* Fondo de cada estante: más oscuro, con la sombra de la tabla de arriba. */
+.lq-shelf-back {
+  background: color-mix(in srgb, var(--wood) 62%, black);
+  box-shadow: inset 0 14px 18px -8px rgb(0 0 0 / .6), inset 10px 0 14px -10px rgb(0 0 0 / .5), inset -10px 0 14px -10px rgb(0 0 0 / .5);
+}
+/* La tabla: canto iluminado y sombra hacia abajo. */
+.lq-board { background: linear-gradient(180deg, rgb(255 255 255 / .2), transparent 30%, rgb(0 0 0 / .25)), var(--wood); box-shadow: 0 6px 8px -4px rgb(0 0 0 / .5); }
+/* Placa de latón con el nombre del estante. */
+.lq-brass { border-radius: 3px; color: rgb(var(--lq-jade-900)); background: linear-gradient(180deg, color-mix(in srgb, rgb(var(--lq-secondary)) 70%, white), rgb(var(--lq-secondary)) 55%, color-mix(in srgb, rgb(var(--lq-secondary)) 85%, rgb(var(--lq-secondary-text)))); box-shadow: inset 0 1px 0 rgb(255 255 255 / .55), 0 1px 2px rgb(0 0 0 / .45); font-weight: 600; }
+.lq-brass-fill { fill: rgb(var(--lq-secondary)); }
+.lq-brass-stroke { stroke: rgb(var(--lq-secondary-text)); fill: none; }
+.lq-brass-dot { background: radial-gradient(circle at 35% 30%, rgb(255 255 255 / .7), rgb(var(--lq-secondary)) 50%, rgb(var(--lq-secondary-text))); }
+/* Sujetalibros: escuadra de latón. */
+.lq-bookend { background: linear-gradient(90deg, rgb(var(--lq-secondary-text)), rgb(var(--lq-secondary)) 45%, rgb(var(--lq-secondary-text))); border-radius: 2px 2px 0 0; box-shadow: 2px 0 4px rgb(0 0 0 / .4); }
+.lq-bookend::after { content: ""; position: absolute; bottom: 0; left: 0; width: 1.6rem; height: 4px; background: inherit; border-radius: 2px; }
+/* Lomo: redondeo del cuero y bandas doradas. */
+.lq-spine { box-shadow: 2px 0 3px rgb(0 0 0 / .35); }
+.lq-spine::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, rgb(0 0 0 / .28), rgb(255 255 255 / .14) 28%, transparent 55%, rgb(0 0 0 / .22)); }
+.lq-band { background: rgb(var(--lq-secondary) / .85); }
+/* Lámpara de banquero: vidrio verde, cadena de latón y el cono de luz cálida. */
+.lq-shade { fill: rgb(var(--lq-jade-600)); }
+html.dark .lq-shade { fill: rgb(var(--lq-jade-700)); }
+.lq-chain { background: repeating-linear-gradient(to bottom, rgb(var(--lq-secondary)) 0 3px, rgb(var(--lq-secondary-text)) 3px 4px); border-radius: 2px; }
+.lq-lamp-light { background: radial-gradient(48% 60% at 50% 0%, rgb(var(--lq-warning) / .32), rgb(var(--lq-warning) / .1) 55%, transparent 75%); }
+html.dark .lq-lamp-light { background: radial-gradient(48% 60% at 50% 0%, rgb(var(--lq-warning) / .26), rgb(var(--lq-warning) / .07) 55%, transparent 75%); }
+/* Cartulina de ficha: color crema de los tokens, regla roja arriba y renglones; perforación al pie. */
+.lq-index-card {
+  border-radius: 6px;
+  background-color: color-mix(in srgb, rgb(var(--lq-surface)) 88%, rgb(var(--lq-secondary)));
+  background-image: linear-gradient(to bottom, transparent var(--rule-y, 3.5rem), rgb(var(--lq-error) / .45) var(--rule-y, 3.5rem), rgb(var(--lq-error) / .45) calc(var(--rule-y, 3.5rem) + 1px), transparent calc(var(--rule-y, 3.5rem) + 1px));
+  box-shadow: 0 1px 2px rgb(var(--lq-on-background) / .08), 0 6px 14px -6px rgb(var(--lq-on-background) / .16);
+}
+html.dark .lq-index-card { background-color: color-mix(in srgb, rgb(var(--lq-surface-variant)) 90%, rgb(var(--lq-secondary))); box-shadow: 0 2px 8px rgb(0 0 0 / .5); }
+.lq-catalog { border-left: 4px solid rgb(var(--edge, var(--lq-primary))); transition: transform var(--lq-dur-heavy) var(--lq-ease-heavy), box-shadow .4s ease-out; }
+.lq-catalog:hover, .lq-catalog:focus-within { transform: translateY(-4px) rotate(-.4deg); box-shadow: 0 16px 28px -14px rgb(var(--lq-on-background) / .3); }
+.reduce-motion .lq-catalog:hover, .reduce-motion .lq-catalog:focus-within { transform: none; }
+.lq-punch { background: rgb(var(--lq-background)); box-shadow: inset 0 1px 2px rgb(0 0 0 / .35); }
+.lq-leader { border-bottom: 2px dotted rgb(var(--lq-on-background) / .3); transform: translateY(-4px); }
+/* Escritorio: tablero de madera con su canto. */
+.lq-desk { box-shadow: inset 0 2px 0 rgb(255 255 255 / .14), 0 14px 22px -12px rgb(var(--lq-jade-900) / .5); }
+html.dark .lq-desk { box-shadow: inset 0 2px 0 rgb(255 255 255 / .06), 0 14px 22px -12px rgb(0 0 0 / .8); }
+
+/* ───────── Logros (vitrina de museo) ───────── */
+/* El mueble: laca jade profunda (igual en claro y oscuro) con doble filete de latón. */
+.lq-cabinet {
+  background: linear-gradient(180deg, rgb(var(--lq-jade-800)), rgb(var(--lq-jade-900)) 60%);
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--lq-secondary) / .45), inset 0 0 0 6px rgb(var(--lq-jade-900)), inset 0 0 0 7px rgb(var(--lq-secondary) / .22),
+    0 26px 44px -20px rgb(var(--lq-jade-900) / .65), 0 3px 8px rgb(var(--lq-jade-900) / .2);
+}
+html.dark .lq-cabinet { box-shadow: inset 0 0 0 1px rgb(var(--lq-secondary) / .35), inset 0 0 0 6px rgb(var(--lq-jade-900)), inset 0 0 0 7px rgb(var(--lq-secondary) / .16), 0 26px 44px -18px rgb(0 0 0 / .85); }
+/* Nicho de terciopelo con su sombra interior y el reflejo del cristal. */
+.lq-niche {
+  background:
+    radial-gradient(rgb(255 255 255 / .025) .6px, transparent .9px) 0 0 / 4px 4px,
+    radial-gradient(120% 90% at 50% 0%, rgb(var(--lq-jade-800)), rgb(var(--lq-jade-900)) 72%);
+  box-shadow: inset 0 12px 20px -6px rgb(0 0 0 / .65), inset 0 -1px 0 rgb(255 255 255 / .05), 0 1px 0 rgb(var(--lq-secondary) / .18);
+}
+.lq-niche::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(115deg, transparent 28%, rgb(255 255 255 / .07) 36%, transparent 44%); }
+/* Foco cenital: un cono de luz cálida desde el techo del nicho. */
+.lq-niche-spot { clip-path: polygon(38% 0, 62% 0, 100% 100%, 0 100%); background: linear-gradient(180deg, rgb(var(--lq-secondary) / .5), rgb(var(--lq-secondary) / .12) 60%, transparent 92%); }
+.lq-niche-spot::before { content: ""; position: absolute; left: 38%; right: 38%; top: 0; height: 3px; background: rgb(var(--lq-secondary)); box-shadow: 0 0 10px 3px rgb(var(--lq-secondary) / .6); }
+/* Cinta de la medalla en el color de la categoría (--rib), con una franja clara. */
+.lq-ribbon-l { fill: rgb(var(--rib)); }
+.lq-ribbon-r { fill: color-mix(in srgb, rgb(var(--rib)) 78%, black); }
+/* Medalla de oro con canto e hilo; la bloqueada es una silueta apagada. */
+.lq-medal-disc {
+  background:
+    radial-gradient(circle at 34% 28%, rgb(255 255 255 / .7), transparent 34%),
+    radial-gradient(circle, rgb(var(--lq-secondary)) 0 60%, rgb(var(--lq-secondary-text)) 62% 66%, rgb(var(--lq-secondary)) 68%);
+  box-shadow: 0 8px 14px rgb(0 0 0 / .5), inset 0 0 0 2px rgb(var(--lq-secondary-text) / .55);
+}
+.lq-medal-dim { background: rgb(255 255 255 / .03); box-shadow: inset 0 0 0 2px rgb(255 255 255 / .1); outline: 1px dashed rgb(255 255 255 / .16); outline-offset: 4px; }
+/* Soporte forrado de terciopelo. */
+.lq-stand { background: linear-gradient(180deg, rgb(var(--lq-jade-700)), rgb(var(--lq-jade-800))); box-shadow: 0 6px 10px -4px rgb(0 0 0 / .6), inset 0 1px 0 rgb(255 255 255 / .08); }
+.group:focus-visible .lq-medal { animation: lq-medal-swing 1.3s cubic-bezier(.3, .2, .2, 1); }
+
+/* ───────── Agenda (escritorio ordenado) ───────── */
+/* Vade de fieltro verde (jade profundo, igual en claro y oscuro) con esquineros de cuero. */
+.lq-mat {
+  background:
+    radial-gradient(rgb(255 255 255 / .03) .6px, transparent .9px) 0 0 / 3px 3px,
+    radial-gradient(rgb(0 0 0 / .18) .6px, transparent .9px) 1px 2px / 4px 4px,
+    linear-gradient(160deg, rgb(var(--lq-jade-700)), rgb(var(--lq-jade-800)) 55%, rgb(var(--lq-jade-900)));
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / .2), inset 0 2px 10px rgb(0 0 0 / .25), 0 18px 36px -18px rgb(var(--lq-jade-900) / .5);
+}
+html.dark .lq-mat { box-shadow: inset 0 0 0 1px rgb(255 255 255 / .04), inset 0 2px 10px rgb(0 0 0 / .4), 0 18px 36px -16px rgb(0 0 0 / .8); }
+.lq-mat-corner { background: linear-gradient(135deg, color-mix(in srgb, rgb(var(--lq-warning-text)) 55%, rgb(var(--lq-jade-900))) 0 50%, transparent 50%); border-top-left-radius: 1rem; filter: drop-shadow(1px 1px 1px rgb(0 0 0 / .35)); }
+/* La hoja de la agenda: papel con su grano. */
+.lq-planner-page {
+  background-color: rgb(var(--lq-surface));
+  background-image: radial-gradient(rgb(var(--lq-on-background) / .03) .6px, transparent .8px);
+  background-size: 7px 7px;
+  box-shadow: 0 1px 0 rgb(var(--lq-border)), 0 3px 0 -1px rgb(var(--lq-surface)), 0 4px 0 -1px rgb(var(--lq-border)), 0 12px 24px -12px rgb(0 0 0 / .45);
+}
+/* Anillas metálicas y su perforación. */
+.lq-ring { background: linear-gradient(90deg, rgb(var(--lq-on-surface-light)), rgb(255 255 255 / .9) 40%, rgb(var(--lq-on-surface-light)) 75%, rgb(var(--lq-on-background) / .6)); box-shadow: 0 2px 2px rgb(0 0 0 / .35); }
+html.dark .lq-ring { background: linear-gradient(90deg, rgb(var(--lq-on-surface-light) / .7), rgb(var(--lq-on-background)) 40%, rgb(var(--lq-on-surface-light) / .7) 75%, rgb(0 0 0 / .6)); }
+.lq-ring-hole { background: rgb(var(--lq-jade-800)); box-shadow: inset 0 1px 1px rgb(0 0 0 / .6); }
+/* Notas adhesivas: papel teñido de un token, torcidas (--tilt), con cinta translúcida. */
+.lq-note {
+  --note: rgb(var(--lq-warning));
+  background: color-mix(in srgb, var(--note) 26%, rgb(var(--lq-surface)));
+  border-radius: 2px 2px 6px 2px;
+  box-shadow: 0 1px 1px rgb(0 0 0 / .08), 0 10px 18px -10px rgb(0 0 0 / .45);
+  transform: rotate(var(--tilt, -1.5deg));
+  transition: transform var(--lq-dur-heavy) var(--lq-ease-heavy), box-shadow .4s ease-out;
+}
+.lq-note:hover, .lq-note:focus-within { transform: rotate(0deg) translateY(-3px); box-shadow: 0 2px 2px rgb(0 0 0 / .08), 0 18px 26px -12px rgb(0 0 0 / .5); }
+html.dark .lq-note { background: color-mix(in srgb, var(--note) 20%, rgb(var(--lq-surface-variant))); }
+.lq-note-info { --note: rgb(var(--lq-info)); }
+.lq-note-success { --note: rgb(var(--lq-success)); }
+.reduce-motion .lq-note, .reduce-motion .lq-note:hover { transform: rotate(var(--tilt, -1.5deg)); }
+.lq-tape { background: rgb(255 255 255 / .5); box-shadow: 0 1px 1px rgb(0 0 0 / .08); }
+html.dark .lq-tape { background: rgb(255 255 255 / .12); }
+/* Bloque de un evento: marca de resaltador del color de su categoría (--hl). */
+.lq-highlight { background: linear-gradient(100deg, rgb(var(--hl) / .2), rgb(var(--hl) / .12) 70%, rgb(var(--hl) / .2)); border-left: 3px solid rgb(var(--hl)); }
+html.dark .lq-highlight { background: linear-gradient(100deg, rgb(var(--hl) / .2), rgb(var(--hl) / .1) 70%, rgb(var(--hl) / .18)); }
+
+/* ───────── Glow up (tocador de camerino) ───────── */
+/* Marco del espejo: laca cálida con un filete dorado. */
+.lq-vanity-frame {
+  background: linear-gradient(160deg, color-mix(in srgb, rgb(var(--lq-secondary)) 22%, rgb(var(--lq-surface))), color-mix(in srgb, rgb(var(--lq-secondary)) 34%, rgb(var(--lq-surface-variant))));
+  box-shadow: inset 0 0 0 1px rgb(var(--lq-secondary) / .5), inset 0 2px 0 rgb(255 255 255 / .6), 0 22px 40px -20px rgb(var(--lq-jade-900) / .45);
+}
+html.dark .lq-vanity-frame {
+  background: linear-gradient(160deg, color-mix(in srgb, rgb(var(--lq-secondary)) 16%, rgb(var(--lq-surface-variant))), color-mix(in srgb, rgb(var(--lq-secondary)) 10%, rgb(var(--lq-surface))));
+  box-shadow: inset 0 0 0 1px rgb(var(--lq-secondary) / .35), 0 22px 40px -18px rgb(0 0 0 / .8);
+}
+/* Vidrio: frío y profundo, con su sombra en los bordes. */
+.lq-vanity-glass { background: linear-gradient(160deg, rgb(var(--lq-jade-50)), rgb(var(--lq-surface)) 45%, rgb(var(--lq-jade-100))); box-shadow: inset 0 0 0 1px rgb(var(--lq-on-background) / .08), inset 0 0 24px rgb(var(--lq-jade-700) / .12); }
+html.dark .lq-vanity-glass { background: linear-gradient(160deg, rgb(var(--lq-jade-900)), rgb(var(--lq-surface)) 50%, rgb(var(--lq-surface-variant))); box-shadow: inset 0 0 0 1px rgb(255 255 255 / .06), inset 0 0 30px rgb(0 0 0 / .5); }
+/* Bombillas: vidrio apagado o encendidas con su halo cálido. */
+.lq-bulb { background: radial-gradient(circle at 38% 34%, rgb(255 255 255 / .9), rgb(var(--lq-surface-variant)) 45%, rgb(var(--lq-border-strong) / .6)); box-shadow: 0 1px 2px rgb(0 0 0 / .25); }
+.lq-bulb-on { background: radial-gradient(circle at 38% 34%, rgb(255 255 255), color-mix(in srgb, rgb(var(--lq-warning)) 45%, white) 40%, rgb(var(--lq-warning))); box-shadow: 0 0 10px 3px rgb(var(--lq-warning) / .55), 0 0 26px 8px rgb(var(--lq-warning) / .25); }
+html.dark .lq-bulb { background: radial-gradient(circle at 38% 34%, rgb(255 255 255 / .35), rgb(var(--lq-surface-variant)) 45%, rgb(var(--lq-border))); }
+/* Mármol: blanco con vetas muy finas (gris jade), o mármol oscuro de noche. */
+.lq-marble {
+  background-color: rgb(var(--lq-surface));
+  background-image:
+    linear-gradient(115deg, transparent 38%, rgb(var(--lq-on-background) / .05) 40%, transparent 43%),
+    linear-gradient(160deg, transparent 58%, rgb(var(--lq-on-background) / .04) 60%, transparent 64%),
+    linear-gradient(35deg, transparent 70%, rgb(var(--lq-on-background) / .035) 71.5%, transparent 74%),
+    radial-gradient(120% 80% at 15% 0%, rgb(var(--lq-jade-100) / .6), transparent 60%);
+}
+html.dark .lq-marble {
+  background-color: rgb(var(--lq-surface-variant));
+  background-image:
+    linear-gradient(115deg, transparent 38%, rgb(255 255 255 / .025) 40%, transparent 43%),
+    linear-gradient(160deg, transparent 58%, rgb(255 255 255 / .02) 60%, transparent 64%),
+    linear-gradient(35deg, transparent 70%, rgb(255 255 255 / .015) 71.5%, transparent 74%);
+}
+.lq-ledge { box-shadow: 0 6px 12px -6px rgb(0 0 0 / .4), inset 0 1px 0 rgb(255 255 255 / .6); }
+/* Bandeja de mármol para cada rutina: borde de la bandeja y brillo. */
+.lq-tray { border: 1px solid rgb(var(--lq-border)); box-shadow: inset 0 0 0 5px rgb(var(--lq-surface) / .55), inset 0 0 0 6px rgb(var(--lq-secondary) / .25), var(--shadow-sm); }
+html.dark .lq-tray { box-shadow: inset 0 0 0 5px rgb(0 0 0 / .15), inset 0 0 0 6px rgb(var(--lq-secondary) / .18), var(--shadow-sm); }
+
+/* ───────── Rituales (jardín zen) ───────── */
+/* Arena: el dorado de los tokens muy diluido; el rastrillado, un poco más oscuro. */
+.lq-sand { --sand: color-mix(in srgb, rgb(var(--lq-secondary)) 20%, rgb(var(--lq-background))); background: var(--sand); }
+html.dark .lq-sand { --sand: color-mix(in srgb, rgb(var(--lq-secondary)) 9%, rgb(var(--lq-surface))); }
+.lq-sand-fill { fill: var(--sand); }
+.lq-rake path, .lq-rake-ring { stroke: rgb(var(--lq-secondary-text) / .2); }
+html.dark .lq-rake path, html.dark .lq-rake-ring { stroke: rgb(var(--lq-secondary) / .16); }
+.lq-zen-wave { stroke: rgb(var(--lq-success) / .6); transform-box: fill-box; }
+/* Bandeja de jardín zen: arena con marco de bambú claro. */
+.lq-zen-tray {
+  --sand: color-mix(in srgb, rgb(var(--lq-secondary)) 12%, rgb(var(--lq-surface)));
+  background-color: var(--sand) !important;
+  background-image: repeating-linear-gradient(180deg, transparent 0 9px, rgb(var(--lq-secondary-text) / .06) 9px 10px);
+  box-shadow: inset 0 0 0 1px rgb(var(--lq-secondary-text) / .25), inset 0 0 0 6px color-mix(in srgb, rgb(var(--lq-secondary)) 45%, rgb(var(--lq-surface))), inset 0 0 0 7px rgb(var(--lq-secondary-text) / .25), var(--shadow-sm);
+}
+html.dark .lq-zen-tray {
+  --sand: color-mix(in srgb, rgb(var(--lq-secondary)) 7%, rgb(var(--lq-surface)));
+  background-image: repeating-linear-gradient(180deg, transparent 0 9px, rgb(var(--lq-secondary) / .05) 9px 10px);
+  box-shadow: inset 0 0 0 1px rgb(var(--lq-secondary) / .2), inset 0 0 0 6px color-mix(in srgb, rgb(var(--lq-secondary)) 22%, rgb(var(--lq-surface-variant))), inset 0 0 0 7px rgb(var(--lq-secondary) / .18), var(--shadow-sm);
+}
+/* Bambú. */
+.lq-cane { fill: rgb(var(--lq-jade-500)); }
+.lq-cane-node { fill: rgb(var(--lq-jade-700) / .7); }
+.lq-leaf { fill: rgb(var(--lq-jade-400)); }
+html.dark .lq-cane { fill: rgb(var(--lq-jade-700)); }
+html.dark .lq-cane-node { fill: rgb(var(--lq-jade-900) / .8); }
+html.dark .lq-leaf { fill: rgb(var(--lq-jade-600)); }
+.lq-zen-tray.lq-lift:hover, .lq-zen-tray.lq-lift:focus-within { box-shadow: inset 0 0 0 1px rgb(var(--lq-secondary-text) / .25), inset 0 0 0 6px color-mix(in srgb, rgb(var(--lq-secondary)) 45%, rgb(var(--lq-surface))), inset 0 0 0 7px rgb(var(--lq-secondary-text) / .25), var(--shadow-lg); }
+html.dark .lq-zen-tray.lq-lift:hover, html.dark .lq-zen-tray.lq-lift:focus-within { box-shadow: inset 0 0 0 1px rgb(var(--lq-secondary) / .2), inset 0 0 0 6px color-mix(in srgb, rgb(var(--lq-secondary)) 22%, rgb(var(--lq-surface-variant))), inset 0 0 0 7px rgb(var(--lq-secondary) / .18), var(--shadow-lg); }
+
+/* ───────── Sabiduría (santuario de piedra) ───────── */
+/* Piedra: jade pálido con un toque dorado, grano y desgaste; de noche, piedra oscura. */
+.lq-stone {
+  --stone: color-mix(in srgb, rgb(var(--lq-jade-50)) 90%, rgb(var(--lq-secondary)));
+  background-color: var(--stone) !important;
+  background-image:
+    radial-gradient(rgb(0 0 0 / .05) .7px, transparent 1px),
+    radial-gradient(rgb(255 255 255 / .35) .6px, transparent .9px),
+    radial-gradient(120% 90% at 20% 10%, rgb(255 255 255 / .35), transparent 55%),
+    radial-gradient(90% 80% at 100% 100%, rgb(var(--lq-jade-900) / .06), transparent 60%);
+  background-size: 5px 5px, 7px 7px, auto, auto;
+  background-position: 0 0, 2px 3px, 0 0, 0 0;
+  border: 1px solid rgb(var(--lq-jade-900) / .12) !important;
+}
+html.dark .lq-stone {
+  --stone: color-mix(in srgb, rgb(var(--lq-surface-variant)) 84%, rgb(var(--lq-secondary)));
+  background-image:
+    radial-gradient(rgb(0 0 0 / .25) .7px, transparent 1px),
+    radial-gradient(rgb(255 255 255 / .05) .6px, transparent .9px),
+    radial-gradient(120% 90% at 20% 10%, rgb(255 255 255 / .05), transparent 55%),
+    radial-gradient(90% 80% at 100% 100%, rgb(0 0 0 / .3), transparent 60%);
+  border-color: rgb(255 255 255 / .06) !important;
+}
+/* Estela: esquinas irregulares, peso y sombra en el suelo. */
+.lq-tablet { border-radius: 26px 18px 30px 14px / 22px 28px 16px 24px; box-shadow: inset 0 2px 0 rgb(255 255 255 / .4), inset 0 -6px 14px rgb(var(--lq-jade-900) / .14), 0 24px 36px -20px rgb(var(--lq-jade-900) / .5); }
+html.dark .lq-tablet { box-shadow: inset 0 1px 0 rgb(255 255 255 / .06), inset 0 -6px 14px rgb(0 0 0 / .35), 0 24px 40px -18px rgb(0 0 0 / .85); }
+.lq-tablet-frame { box-shadow: inset 0 1px 1px rgb(var(--lq-jade-900) / .2), 0 1px 0 rgb(255 255 255 / .45); }
+html.dark .lq-tablet-frame { box-shadow: inset 0 1px 1px rgb(0 0 0 / .5), 0 1px 0 rgb(255 255 255 / .05); }
+/* Texto tallado en la piedra. */
+.lq-engraved { color: rgb(var(--lq-jade-900) / .88); text-shadow: 0 1px 0 rgb(255 255 255 / .5), 0 -1px 0 rgb(var(--lq-jade-900) / .12); }
+html.dark .lq-engraved { color: rgb(var(--lq-jade-50) / .92); text-shadow: 0 -1px 0 rgb(0 0 0 / .6), 0 1px 0 rgb(255 255 255 / .05); }
+/* Columna: capitel, fuste estriado con volumen y basa. */
+.lq-capital, .lq-abacus, .lq-col-base { background: linear-gradient(180deg, color-mix(in srgb, var(--col) 92%, white), var(--col)); box-shadow: 0 2px 3px rgb(0 0 0 / .18); }
+.lq-capital { --col: color-mix(in srgb, rgb(var(--lq-jade-50)) 90%, rgb(var(--lq-secondary))); border-radius: 4px 4px 8px 8px; }
+.lq-abacus, .lq-col-base { --col: color-mix(in srgb, rgb(var(--lq-jade-50)) 90%, rgb(var(--lq-secondary))); }
+.lq-shaft {
+  --col: color-mix(in srgb, rgb(var(--lq-jade-50)) 90%, rgb(var(--lq-secondary)));
+  background:
+    linear-gradient(90deg, rgb(0 0 0 / .18), transparent 28%, rgb(255 255 255 / .35) 45%, transparent 62%, rgb(0 0 0 / .22)),
+    repeating-linear-gradient(90deg, var(--col) 0 5px, color-mix(in srgb, var(--col) 82%, black) 5px 6.5px);
+}
+html.dark .lq-capital, html.dark .lq-abacus, html.dark .lq-col-base, html.dark .lq-shaft { --col: color-mix(in srgb, rgb(var(--lq-surface-variant)) 84%, rgb(var(--lq-secondary))); }
+/* Antorcha: copa y brazo de bronce; la llama oscila despacio. */
+.lq-torch-cup { background: linear-gradient(180deg, rgb(var(--lq-secondary-text)), color-mix(in srgb, rgb(var(--lq-secondary-text)) 60%, black)); box-shadow: inset 0 2px 0 rgb(255 255 255 / .25); }
+.lq-torch-arm { background: color-mix(in srgb, rgb(var(--lq-secondary-text)) 60%, black); }
+.lq-flame { transform-origin: 50% 90%; animation: lq-flame 1.05s ease-in-out infinite alternate; }
+@keyframes lq-flame { 0% { transform: scale(1, 1) skewX(-2deg); } 50% { transform: scale(.94, 1.06) skewX(2.5deg); } 100% { transform: scale(1.03, .96) skewX(-1deg); } }
+/* Placa cubierta de polvo: aún por desenterrar. */
+.lq-dusty { background-image: linear-gradient(170deg, color-mix(in srgb, rgb(var(--lq-secondary)) 22%, transparent), transparent 70%), radial-gradient(rgb(0 0 0 / .06) .7px, transparent 1px) !important; background-size: auto, 4px 4px !important; }
+/* Sobre la piedra clara, el texto secundario va un tono más oscuro para mantener el contraste AA. */
+.lq-stone .text-on-surface-light { color: rgb(var(--lq-on-surface)); }
+html.dark .lq-stone .text-on-surface-light { color: rgb(var(--lq-on-surface-light)); }
+
+/* ───────── Mis zonas (taller de pintura) ───────── */
+/* Lienzo tensado: el lino sobre el bastidor, con el canto en sombra. */
+.lq-canvas { border-radius: 4px !important; border-color: rgb(var(--lq-border-strong) / .25) !important; box-shadow: inset 0 0 0 1px rgb(255 255 255 / .5), inset 0 0 14px rgb(var(--lq-jade-900) / .08), 0 4px 0 -1px color-mix(in srgb, rgb(var(--lq-warning-text)) 55%, rgb(var(--lq-jade-900))), 0 22px 34px -18px rgb(var(--lq-jade-900) / .5) !important; }
+html.dark .lq-canvas { box-shadow: inset 0 0 0 1px rgb(255 255 255 / .04), inset 0 0 14px rgb(0 0 0 / .3), 0 4px 0 -1px color-mix(in srgb, rgb(var(--lq-warning-text)) 25%, rgb(var(--lq-jade-900))), 0 22px 34px -16px rgb(0 0 0 / .8) !important; }
+/* Patas del caballete. */
+.lq-easel-leg { stroke: color-mix(in srgb, rgb(var(--lq-warning-text)) 58%, rgb(var(--lq-jade-900))); }
+html.dark .lq-easel-leg { stroke: color-mix(in srgb, rgb(var(--lq-warning-text)) 32%, rgb(var(--lq-jade-900))); }
+/* Marco dorado del cuadro, cordel y clavo. */
+.lq-frame {
+  background: linear-gradient(135deg, color-mix(in srgb, rgb(var(--lq-secondary)) 70%, white), rgb(var(--lq-secondary)) 30%, rgb(var(--lq-secondary-text)) 55%, rgb(var(--lq-secondary)) 80%, color-mix(in srgb, rgb(var(--lq-secondary)) 70%, white));
+  box-shadow: inset 0 0 0 1px rgb(var(--lq-secondary-text) / .6), inset 0 0 0 7px rgb(255 255 255 / .12), inset 0 0 0 8px rgb(var(--lq-secondary-text) / .5), 0 18px 28px -16px rgb(var(--lq-jade-900) / .55);
+}
+html.dark .lq-frame { box-shadow: inset 0 0 0 1px rgb(0 0 0 / .4), inset 0 0 0 7px rgb(255 255 255 / .06), inset 0 0 0 8px rgb(0 0 0 / .35), 0 18px 28px -14px rgb(0 0 0 / .8); }
+.lq-cord { stroke: rgb(var(--lq-on-surface-light) / .6); }
+.lq-nail { background: radial-gradient(circle at 35% 30%, rgb(255 255 255 / .8), rgb(var(--lq-on-surface-light)) 55%, rgb(var(--lq-on-background) / .7)); box-shadow: 0 2px 2px rgb(0 0 0 / .35); }
+/* El cuadro se mece desde el clavo, con peso, una sola vez por visita del cursor. */
+.lq-hang { transform-origin: 50% 0.4rem; }
+.lq-hang:hover { animation: lq-frame-swing 1.6s cubic-bezier(.3, .2, .2, 1); }
+@keyframes lq-frame-swing { 0% { transform: rotate(0); } 18% { transform: rotate(1.8deg); } 40% { transform: rotate(-1.1deg); } 62% { transform: rotate(.6deg); } 82% { transform: rotate(-.2deg); } 100% { transform: rotate(0); } }
+
+/* ───────── Ranking (ceremonia olímpica) ───────── */
+/* Escenario de noche (jade profundo en claro y en oscuro) con focos del estadio al fondo. */
+.lq-stage { background: radial-gradient(120% 70% at 50% 0%, rgb(var(--lq-jade-800)), rgb(var(--lq-jade-900)) 70%); box-shadow: inset 0 0 0 1px rgb(var(--lq-secondary) / .25), 0 24px 40px -20px rgb(var(--lq-jade-900) / .6); }
+.lq-floodlights {
+  background:
+    radial-gradient(circle 9px at 12% 34%, rgb(255 255 255 / .55), transparent 70%), radial-gradient(circle 9px at 18% 30%, rgb(255 255 255 / .45), transparent 70%),
+    radial-gradient(circle 9px at 82% 30%, rgb(255 255 255 / .45), transparent 70%), radial-gradient(circle 9px at 88% 34%, rgb(255 255 255 / .55), transparent 70%),
+    radial-gradient(40% 90% at 15% 30%, rgb(var(--lq-secondary) / .18), transparent 70%), radial-gradient(40% 90% at 85% 30%, rgb(var(--lq-secondary) / .18), transparent 70%);
+  filter: blur(2px);
+}
+/* Foco sobre cada escalón del podio. */
+.lq-spotlight { clip-path: polygon(40% 0, 60% 0, 96% 100%, 4% 100%); background: linear-gradient(180deg, rgb(var(--lq-secondary) / .34), rgb(var(--lq-secondary) / .08) 70%, transparent); }
+/* Bloque del podio: mármol con filo dorado y número grabado en oro. */
+.lq-podium-block { border-radius: 10px 10px 2px 2px; box-shadow: inset 0 3px 0 rgb(var(--lq-secondary)), inset 0 4px 0 rgb(255 255 255 / .5), inset -8px 0 14px -8px rgb(0 0 0 / .2), inset 8px 0 14px -8px rgb(0 0 0 / .1); }
+.lq-engraved-gold { color: rgb(var(--lq-secondary-text)); text-shadow: 0 1px 0 rgb(255 255 255 / .6), 0 -1px 0 rgb(0 0 0 / .15); }
+html.dark .lq-engraved-gold { color: rgb(var(--lq-secondary)); text-shadow: 0 -1px 0 rgb(0 0 0 / .6); }
+.lq-stage-floor { background: linear-gradient(180deg, rgb(var(--lq-secondary) / .35), rgb(var(--lq-jade-900)) 60%); }
+/* Metales y cintas de las medallas. */
+.lq-metal-gold { color: rgb(var(--lq-jade-900) / .75); background: radial-gradient(circle at 34% 28%, rgb(255 255 255 / .75), transparent 36%), radial-gradient(circle, rgb(var(--lq-secondary)) 0 60%, rgb(var(--lq-secondary-text)) 62% 68%, rgb(var(--lq-secondary)) 70%); box-shadow: 0 6px 10px rgb(0 0 0 / .45); }
+.lq-metal-silver { color: rgb(var(--lq-jade-900) / .7); background: radial-gradient(circle at 34% 28%, rgb(255 255 255 / .85), transparent 36%), radial-gradient(circle, rgb(var(--lq-jade-100)) 0 60%, rgb(var(--lq-border-strong)) 62% 68%, rgb(var(--lq-jade-100)) 70%); box-shadow: 0 6px 10px rgb(0 0 0 / .45); }
+.lq-metal-bronze { color: rgb(255 255 255 / .85); background: radial-gradient(circle at 34% 28%, rgb(255 255 255 / .5), transparent 36%), radial-gradient(circle, color-mix(in srgb, rgb(var(--lq-warning-text)) 80%, rgb(var(--lq-warning))) 0 60%, color-mix(in srgb, rgb(var(--lq-warning-text)) 70%, black) 62% 68%, color-mix(in srgb, rgb(var(--lq-warning-text)) 80%, rgb(var(--lq-warning))) 70%); box-shadow: 0 6px 10px rgb(0 0 0 / .45); }
+.lq-rib-gold { fill: rgb(var(--lq-error)); }
+.lq-rib-silver { fill: rgb(var(--lq-info)); }
+.lq-rib-bronze { fill: rgb(var(--lq-success)); }
+/* Marcador de resultados: carril con el puesto y tu fila con su brillo. */
+.lq-lane { background: rgb(var(--lq-surface-variant)); color: rgb(var(--lq-on-surface)); }
+.lq-result + .lq-result { box-shadow: 0 -1px 0 rgb(var(--lq-border)); }
+.lq-result-you { background: rgb(var(--lq-secondary) / var(--lq-soft-alpha)); }
+.lq-result-you .lq-lane { background: rgb(var(--lq-secondary)); color: rgb(var(--lq-jade-900)); }
+.lq-result-you::before { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; box-shadow: 0 0 0 1.5px rgb(var(--lq-secondary) / .7), 0 0 20px rgb(var(--lq-secondary) / .35); animation: lq-you-glow 2.8s ease-in-out infinite; }
+@keyframes lq-you-glow { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+/* Placa de tu posición. */
+.lq-rank-plaque { background: radial-gradient(120% 90% at 50% 0%, rgb(var(--lq-secondary) / .16), transparent 60%), rgb(var(--lq-surface)); box-shadow: inset 0 0 0 1px rgb(var(--lq-secondary) / .4), var(--shadow-sm); }
+
+/* ───────── Gremio (fogata) ───────── */
+/* Cielo del anochecer (de noche, más profundo) y el claro del bosque. */
+.lq-camp { height: 22rem; background: linear-gradient(180deg, rgb(var(--lq-jade-900)) 0%, rgb(var(--lq-jade-800)) 46%, color-mix(in srgb, rgb(var(--lq-warning)) 14%, rgb(var(--lq-jade-800))) 72%); box-shadow: inset 0 0 0 1px rgb(var(--lq-secondary) / .2), 0 24px 40px -20px rgb(var(--lq-jade-900) / .6); }
+@media (min-width: 768px) { .lq-camp { height: 26rem; } }
+html.dark .lq-camp { background: linear-gradient(180deg, rgb(var(--lq-background)) 0%, rgb(var(--lq-jade-900)) 50%, color-mix(in srgb, rgb(var(--lq-warning)) 10%, rgb(var(--lq-jade-900))) 75%); box-shadow: inset 0 0 0 1px rgb(var(--lq-secondary) / .14), 0 24px 40px -18px rgb(0 0 0 / .85); }
+.lq-treeline { fill: rgb(var(--lq-jade-900) / .85); }
+html.dark .lq-treeline { fill: rgb(0 0 0 / .55); }
+.lq-camp-ground { background: radial-gradient(70% 90% at 50% 30%, color-mix(in srgb, rgb(var(--lq-warning-text)) 35%, rgb(var(--lq-jade-900))), rgb(var(--lq-jade-900)) 75%); }
+html.dark .lq-camp-ground { background: radial-gradient(70% 90% at 50% 30%, color-mix(in srgb, rgb(var(--lq-warning-text)) 18%, rgb(var(--lq-jade-900))), rgb(var(--lq-background)) 75%); }
+/* Resplandor del fuego: titila muy suave (menos de una vez por segundo). */
+.lq-fire-glow { background: radial-gradient(closest-side, rgb(var(--lq-warning) / .5), rgb(var(--lq-warning) / .16) 45%, transparent 72%); animation: lq-fire-glow 2.6s ease-in-out infinite alternate; }
+@keyframes lq-fire-glow { 0% { transform: scale(.96); } 50% { transform: scale(1.04); } 100% { transform: scale(.99); } }
+/* Llamas en capas, a destiempo. */
+.lq-flame-a, .lq-flame-b, .lq-flame-c { transform-box: fill-box; transform-origin: 50% 100%; }
+.lq-flame-a { animation: lq-flame-lick 1.3s ease-in-out infinite alternate; opacity: .9; }
+.lq-flame-b { animation: lq-flame-lick 1s ease-in-out -.4s infinite alternate; }
+.lq-flame-c { animation: lq-flame-lick .85s ease-in-out -.2s infinite alternate; }
+@keyframes lq-flame-lick { 0% { transform: scale(1, 1) skewX(-3deg); } 50% { transform: scale(.92, 1.08) skewX(3deg); } 100% { transform: scale(1.04, .95) skewX(-1deg); } }
+.group:hover .lq-flame-a, .group:focus-visible .lq-flame-a { animation-duration: .7s; }
+/* Leños, piedras, lona de las tiendas y banderín. */
+.lq-log { background: linear-gradient(180deg, color-mix(in srgb, rgb(var(--lq-warning-text)) 70%, black), color-mix(in srgb, rgb(var(--lq-warning-text)) 40%, black)); box-shadow: inset 0 1px 0 rgb(255 255 255 / .15); }
+.lq-ring-stone { background: radial-gradient(circle at 40% 30%, rgb(var(--lq-jade-200) / .7), rgb(var(--lq-jade-700)) 70%); box-shadow: 0 2px 2px rgb(0 0 0 / .4); }
+.lq-tent-lit { fill: color-mix(in srgb, rgb(var(--lq-secondary)) 55%, rgb(var(--lq-warning))); }
+.lq-tent-shade { fill: color-mix(in srgb, rgb(var(--lq-secondary)) 45%, rgb(var(--lq-jade-900))); }
+.lq-tent-door { fill: color-mix(in srgb, rgb(var(--lq-jade-900)) 85%, rgb(var(--lq-warning))); }
+html.dark .lq-tent-lit { fill: color-mix(in srgb, rgb(var(--lq-secondary)) 40%, rgb(var(--lq-jade-900))); }
+html.dark .lq-tent-shade { fill: color-mix(in srgb, rgb(var(--lq-secondary)) 22%, rgb(var(--lq-jade-900))); }
+.lq-pennant { background: rgb(var(--pen)); clip-path: polygon(0 0, 100% 50%, 0 100%); }
+/* Los miembros alrededor del fuego se balancean apenas. */
+.lq-camper { animation: lq-camper 3.6s ease-in-out infinite alternate; }
+@keyframes lq-camper { from { transform: translateY(0) rotate(-1.2deg); } to { transform: translateY(-2px) rotate(1.2deg); } }
+
+/* ───────── Temporada (periódico) ───────── */
+/* Papel prensa: blanco roto con la trama de puntos de imprenta y su sombra. */
+.lq-newspaper {
+  background-color: color-mix(in srgb, rgb(var(--lq-surface)) 92%, rgb(var(--lq-secondary)));
+  background-image: radial-gradient(rgb(var(--lq-on-background) / .05) .55px, transparent .7px);
+  background-size: 4px 4px;
+  box-shadow: 0 1px 0 rgb(var(--lq-border)), 0 3px 0 -1px color-mix(in srgb, rgb(var(--lq-surface)) 88%, rgb(var(--lq-secondary))), 0 4px 0 -1px rgb(var(--lq-border)), 0 22px 38px -20px rgb(var(--lq-jade-900) / .45);
+}
+html.dark .lq-newspaper { background-color: color-mix(in srgb, rgb(var(--lq-surface-variant)) 92%, rgb(var(--lq-secondary))); background-image: radial-gradient(rgb(255 255 255 / .035) .55px, transparent .7px); box-shadow: 0 22px 38px -18px rgb(0 0 0 / .8); }
+.lq-fold { background: linear-gradient(180deg, transparent, rgb(var(--lq-jade-900) / .045) 48%, rgb(255 255 255 / .25) 52%, transparent); }
+html.dark .lq-fold { background: linear-gradient(180deg, transparent, rgb(0 0 0 / .2) 48%, rgb(255 255 255 / .03) 52%, transparent); }
+/* Filetes de imprenta. */
+.lq-rule { height: 1px; background: rgb(var(--lq-on-background) / .55); }
+.lq-rule-double { height: 4px; border-top: 2px solid rgb(var(--lq-on-background) / .8); border-bottom: 1px solid rgb(var(--lq-on-background) / .55); }
+.lq-rule-v { border-left: 1px solid rgb(var(--lq-on-background) / .25); }
+/* Orejas de la cabecera: recuadros a los lados del título. */
+.lq-ear { border: 1px solid rgb(var(--lq-on-background) / .4); padding: .4rem .7rem; font-size: .75rem; line-height: 1.1rem; }
+/* La tinta: el texto se asienta un poco más oscuro, con la mínima rebaba de la imprenta. */
+.lq-ink-text { text-shadow: 0 0 .6px rgb(var(--lq-on-background) / .35); }
+/* Columnas de artículos con su filete vertical. */
+.lq-columns { column-gap: 2rem; column-rule: 1px solid rgb(var(--lq-on-background) / .2); }
+/* Sello «Noticia cumplida»: tinta roja con el borde gastado. */
+.lq-news-stamp { color: rgb(var(--lq-error-text)); border-color: rgb(var(--lq-error-text)); -webkit-mask: radial-gradient(rgb(0 0 0) 70%, rgb(0 0 0 / .55) 100%) 0 0 / 5px 5px; mask: radial-gradient(rgb(0 0 0) 70%, rgb(0 0 0 / .55) 100%) 0 0 / 5px 5px; }
+html.dark .lq-news-stamp { color: rgb(var(--lq-error)); border-color: rgb(var(--lq-error)); }
+
+/* ───────── Ajustes (taller) ───────── */
+/* Tablero perforado de la pared. */
+.lq-pegboard { background-image: radial-gradient(circle 2.4px, rgb(var(--lq-on-background) / .13) 98%, transparent); background-size: 22px 22px; background-color: color-mix(in srgb, rgb(var(--lq-secondary)) 9%, transparent); }
+html.dark .lq-pegboard { background-image: radial-gradient(circle 2.4px, rgb(0 0 0 / .45) 98%, transparent); background-color: color-mix(in srgb, rgb(var(--lq-secondary)) 5%, transparent); }
+.lq-tool { fill: rgb(var(--lq-on-background) / .14); }
+.lq-peg { fill: rgb(var(--lq-secondary-text) / .5); }
+/* Banco de trabajo: tablero de contrachapado con su canto y cuatro tornillos. */
+.lq-bench {
+  background-color: color-mix(in srgb, rgb(var(--lq-surface)) 90%, rgb(var(--lq-secondary)));
+  background-image: repeating-linear-gradient(90deg, transparent 0 34px, rgb(var(--lq-secondary-text) / .035) 34px 35px);
+  border: 1px solid rgb(var(--lq-border));
+  box-shadow: 0 6px 0 -2px color-mix(in srgb, rgb(var(--lq-warning-text)) 45%, rgb(var(--lq-secondary))), 0 7px 0 -2px rgb(var(--lq-on-background) / .2), 0 16px 24px -14px rgb(var(--lq-jade-900) / .35);
+}
+html.dark .lq-bench { background-color: color-mix(in srgb, rgb(var(--lq-surface)) 92%, rgb(var(--lq-secondary))); box-shadow: 0 6px 0 -2px color-mix(in srgb, rgb(var(--lq-warning-text)) 25%, rgb(var(--lq-jade-900))), 0 16px 24px -12px rgb(0 0 0 / .7); }
+.lq-screw { background: radial-gradient(circle at 35% 30%, rgb(255 255 255 / .9), rgb(var(--lq-border-strong)) 70%); box-shadow: 0 1px 1px rgb(0 0 0 / .3), inset 0 0 0 1px rgb(0 0 0 / .12); }
+/* Interruptores mecánicos: perilla de metal que viaja con muelle y su ranura hundida. */
+.lq-workshop [role="switch"] + span { box-shadow: inset 0 2px 4px rgb(0 0 0 / .2); }
+.lq-workshop [role="switch"] + span::after {
+  background: radial-gradient(circle at 35% 30%, rgb(255 255 255), rgb(var(--lq-surface-variant)) 55%, rgb(var(--lq-border-strong)));
+  box-shadow: 0 2px 3px rgb(0 0 0 / .32), inset 0 -1px 0 rgb(0 0 0 / .15);
+  transition: transform var(--lq-dur-heavy) var(--lq-ease-heavy), width .2s ease-out;
+}
+
+/* ───────── Ayuda (mostrador de información) ───────── */
+/* Cartel colgante y su tinta. */
+.lq-chain-line { stroke: rgb(var(--lq-on-surface-light) / .6); fill: none; }
+.lq-sign-plate { fill: rgb(var(--lq-info-text)); }
+.lq-sign-inner { fill: none; stroke: rgb(255 255 255 / .55); stroke-width: 1.5; }
+.lq-sign-ink { fill: rgb(255 255 255); }
+html.dark .lq-sign-plate { fill: color-mix(in srgb, rgb(var(--lq-info)) 55%, rgb(var(--lq-jade-900))); }
+/* El mostrador: tablero claro con el canto y el frente de madera. */
+.lq-counter { background: color-mix(in srgb, rgb(var(--lq-surface)) 94%, rgb(var(--lq-info))); border: 1px solid rgb(var(--lq-border)); box-shadow: 0 10px 0 -3px color-mix(in srgb, rgb(var(--lq-warning-text)) 50%, rgb(var(--lq-jade-900))), 0 11px 0 -3px rgb(0 0 0 / .2), 0 22px 30px -18px rgb(var(--lq-jade-900) / .45); }
+html.dark .lq-counter { background: color-mix(in srgb, rgb(var(--lq-surface)) 94%, rgb(var(--lq-info))); box-shadow: 0 10px 0 -3px color-mix(in srgb, rgb(var(--lq-warning-text)) 25%, rgb(var(--lq-jade-900))), 0 22px 30px -16px rgb(0 0 0 / .8); }
+/* Timbre de recepción. */
+.lq-bell-dome { fill: rgb(var(--lq-secondary)); }
+.lq-bell-top, .lq-bell-base { fill: color-mix(in srgb, rgb(var(--lq-secondary-text)) 70%, black); }
+/* Señalética: las categorías como placas de dirección. */
+.lq-helpdesk [role="radiogroup"] button, .lq-helpdesk [aria-pressed] { border-radius: 6px 16px 16px 6px; }
+/* Ficha del exhibidor: se saca hacia arriba al abrirla. */
+.lq-slot { transition: transform var(--lq-dur-heavy) var(--lq-ease-heavy), filter .3s; }
+.lq-slot[data-open="true"] { transform: translateY(-4px); filter: drop-shadow(0 10px 14px rgb(var(--lq-jade-900) / .14)); }
+.reduce-motion .lq-slot[data-open="true"] { transform: none; }
+/* La respuesta encontrada se resalta con calma: un aro suave que respira dos veces y queda. */
+.lq-found { position: relative; }
+.lq-found::after { content: ""; position: absolute; inset: -4px; border-radius: 20px; pointer-events: none; box-shadow: 0 0 0 2px rgb(var(--lq-secondary) / .55), 0 0 22px rgb(var(--lq-secondary) / .3); animation: lq-found 2.4s ease-in-out 2 both; }
+@keyframes lq-found { 0% { opacity: 0; } 40% { opacity: 1; } 100% { opacity: .55; } }
+.lq-found-mark { background: rgb(var(--lq-secondary) / .3); color: inherit; border-radius: 3px; padding: 0 2px; }
+/* Ventanillas de atención con su letrero. */
+.lq-window-sign { background: rgb(var(--lq-info-text)); color: rgb(255 255 255); }
+html.dark .lq-window-sign { background: color-mix(in srgb, rgb(var(--lq-info)) 55%, rgb(var(--lq-jade-900))); }
+
+/* ───────── Acerca de (museo) ───────── */
+/* Foco de galería: cono de luz cálida sobre la pared. */
+.lq-gallery-spot { clip-path: polygon(40% 0, 60% 0, 100% 100%, 0 100%); background: linear-gradient(180deg, rgb(var(--lq-secondary) / .2), rgb(var(--lq-secondary) / .05) 60%, transparent 88%); }
+html.dark .lq-gallery-spot { background: linear-gradient(180deg, rgb(var(--lq-secondary) / .16), rgb(var(--lq-secondary) / .03) 60%, transparent 88%); }
+/* Rótulo de cada sala. */
+.lq-room-sign { border: 1px solid rgb(var(--lq-on-background) / .35); border-radius: 3px; background: rgb(var(--lq-background) / .7); }
+/* Marcos: dorado o madera, con el paspartú y su sombra en la pared. */
+.lq-museum-frame { box-shadow: 0 2px 0 rgb(0 0 0 / .08), 0 24px 34px -20px rgb(var(--lq-jade-900) / .55); }
+html.dark .lq-museum-frame { box-shadow: 0 24px 34px -18px rgb(0 0 0 / .85); }
+.lq-museum-gold { background: linear-gradient(135deg, color-mix(in srgb, rgb(var(--lq-secondary)) 70%, white), rgb(var(--lq-secondary)) 28%, rgb(var(--lq-secondary-text)) 52%, rgb(var(--lq-secondary)) 78%, color-mix(in srgb, rgb(var(--lq-secondary)) 70%, white)); }
+.lq-museum-wood { background: linear-gradient(135deg, color-mix(in srgb, rgb(var(--lq-warning-text)) 60%, rgb(var(--lq-jade-900))), color-mix(in srgb, rgb(var(--lq-warning-text)) 40%, rgb(var(--lq-jade-900)))); }
+.lq-passepartout { background: color-mix(in srgb, rgb(var(--lq-surface)) 92%, rgb(var(--lq-secondary))); box-shadow: inset 0 0 0 1px rgb(0 0 0 / .08), inset 0 2px 6px rgb(0 0 0 / .12); }
+html.dark .lq-passepartout { background: color-mix(in srgb, rgb(var(--lq-surface-variant)) 92%, rgb(var(--lq-secondary))); }
+/* Placa: latón cepillado con el texto en tinta oscura (contraste AA). */
+.lq-plaque { border-radius: 4px; background: linear-gradient(180deg, color-mix(in srgb, rgb(var(--lq-secondary)) 22%, rgb(var(--lq-surface))), color-mix(in srgb, rgb(var(--lq-secondary)) 30%, rgb(var(--lq-surface)))); box-shadow: inset 0 1px 0 rgb(255 255 255 / .6), 0 1px 2px rgb(0 0 0 / .18); color: rgb(var(--lq-on-background)); }
+html.dark .lq-plaque { background: linear-gradient(180deg, color-mix(in srgb, rgb(var(--lq-secondary)) 16%, rgb(var(--lq-surface-variant))), color-mix(in srgb, rgb(var(--lq-secondary)) 10%, rgb(var(--lq-surface)))); box-shadow: inset 0 1px 0 rgb(255 255 255 / .06), 0 1px 2px rgb(0 0 0 / .5); }
+/* Pedestal de mármol. */
+.lq-pedestal { box-shadow: inset 8px 0 14px -10px rgb(0 0 0 / .2), inset -8px 0 14px -10px rgb(0 0 0 / .25); }
+.lq-pedestal-top { box-shadow: 0 2px 3px rgb(0 0 0 / .15); }
+/* La línea del recorrido y su pista. */
+.lq-tour-track { background: rgb(var(--lq-on-background) / .1); }
+.lq-tour-line { background: linear-gradient(180deg, rgb(var(--lq-secondary)), rgb(var(--lq-secondary-text))); box-shadow: 0 0 10px rgb(var(--lq-secondary) / .5); }
+/* Hito pendiente: un marco vacío con línea de puntos. */
+.lq-pending-exhibit { border: 2px dashed rgb(var(--lq-on-background) / .3); border-radius: 6px; }
+.lq-room-dot { background: rgb(var(--lq-secondary)); box-shadow: 0 0 0 4px rgb(var(--lq-background)), 0 0 0 5px rgb(var(--lq-secondary) / .5), 0 0 12px rgb(var(--lq-secondary) / .6); }

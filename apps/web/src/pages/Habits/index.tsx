@@ -1,16 +1,22 @@
 // Hábitos — Habits.dc.html (móvil) / HabitsDesktop.dc.html (desktop).
-import { useCallback, useEffect, useMemo, useState } from 'react';
+// Zona ambientada: una libreta de registro. La lista es una hoja con margen y
+// líneas; cada hábito se escribe en su línea, el check se traza con tinta y la
+// racha se lleva con marcas de conteo. El resumen de la semana va en notas
+// adhesivas. Completar el último hábito del día cierra la página con confeti.
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useSearchParams } from 'react-router-dom';
 import { CheckCircle2, Flame, ListChecks, Plus, Trophy } from 'lucide-react';
-import { item, stagger } from '@/lib/motion';
+import { item, stagger, zoneExit } from '@/lib/motion';
 import { dayKey, longDate } from '@/lib/lifeMeta';
 import { useAuthStore } from '@/store/authStore';
 import { useHabitCompletion } from '@/hooks/useHabitCompletion';
 import { useToastStore } from '@/hooks/useToast';
 import { Badge, BarChart, Button, Card, Confetti, EmptyState, ErrorState, IconChip, ProgressBar, ProgressRing, SegmentedControl, type BarDatum, PageLoader } from '@/components/ui/lq';
 import { LOADING_COPY } from '@/lib/loadingCopy';
-import { HabitListItem } from '@/components/habits/HabitListItem';
+import { HabitNotebookRow } from '@/components/habits/HabitNotebookRow';
+import { NotebookSheet, StickyNote } from '@/components/habits/NotebookSheet';
+import { SketchUnderline, ZoneAmbience } from '@/components/ambience';
 import { HabitFormDialog } from '@/components/habits/HabitFormDialog';
 import * as habitService from '@/services/habit.service';
 import type { Habit } from '@/services/habit.service';
@@ -43,13 +49,17 @@ function HabitsSkeleton() {
 export default function HabitsPage() {
   const user = useAuthStore((s) => s.user);
   const [habits, setHabits] = useState<Habit[]>([]);
+  const habitsRef = useRef(habits);
+  habitsRef.current = habits;
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [filter, setFilter] = useState<Filter>('all');
   const [history, setHistory] = useState<Record<string, Set<string>>>({});
   const [form, setForm] = useState<{ open: boolean; habit: Habit | null }>({ open: false, habit: null });
   const [searchParams, setSearchParams] = useSearchParams();
-  const { complete, pending, burst } = useHabitCompletion();
+  const { complete, pending } = useHabitCompletion();
+  /** Sube solo cuando se completa el último hábito del día (página cerrada). */
+  const [dayDone, setDayDone] = useState(0);
   const { todayKey, last7, week } = useDays();
 
   const load = useCallback(async () => {
@@ -82,6 +92,9 @@ export default function HabitsPage() {
   async function handleComplete(h: Habit) {
     const result = await complete(h);
     if (!result) return;
+    // ¿Era el último pendiente del día? (lista más reciente, no la del render que lanzó el toque)
+    const latest = habitsRef.current;
+    if (latest.length && !latest.every(isDone) && latest.every((x) => x.id === h.id || isDone(x))) setDayDone((n) => n + 1);
     setHabits((prev) => prev.map((x) => (x.id === h.id
       ? { ...x, todayStatus: 'completed', todayCompleted: true, currentStreak: result.currentStreak, longestStreak: result.longestStreak }
       : x)));
@@ -116,7 +129,10 @@ export default function HabitsPage() {
     <motion.section variants={item} className="flex flex-wrap items-center justify-between gap-6 lg:gap-8">
       <div className="flex min-w-0 flex-[1_1_420px] flex-col gap-1 md:gap-2">
         <span className="hidden text-label-lg text-primary-text md:block">{longDate()}</span>
-        <h1 className="text-display-sm md:text-display-md lg:text-display-lg">Hábitos</h1>
+        <h1 className="relative self-start text-display-sm md:text-display-md lg:text-display-lg">
+          Hábitos
+          <SketchUnderline className="absolute -bottom-1.5 left-0 w-full text-warning md:-bottom-2.5" delay={0.45} />
+        </h1>
         <p className="hidden max-w-[520px] text-body-lg text-on-surface-light md:block">
           Pequeñas acciones, todos los días. Cada hábito completado suma XP a tu personaje.
         </p>
@@ -162,66 +178,76 @@ export default function HabitsPage() {
   } else {
     body = (
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
-        <section aria-label="Lista de hábitos" className="flex min-w-0 flex-col gap-4 md:gap-6">
+        <div className="flex min-w-0 flex-col gap-4">
           <ProgressBar value={pct} tone="success" className="md:hidden" />
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <SegmentedControl label="Filtro" value={filter} onChange={setFilter} options={FILTERS} className="w-full md:max-w-[420px]" />
-            <span className="hidden text-body-sm text-on-surface-light md:block" aria-live="polite">
-              {shown.length} {shown.length === 1 ? 'hábito' : 'hábitos'}
-            </span>
-          </div>
-          {shown.length > 0 ? (
-            <motion.ul key={filter} variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-3">
-              {shown.map((h) => (
-                <HabitListItem
-                  key={h.id}
-                  habit={h}
-                  pending={pending === h.id}
-                  week={last7.map((k) => history[h.id]?.has(k) || (k === todayKey && isDone(h)))}
-                  onComplete={() => void handleComplete(h)}
-                />
-              ))}
-            </motion.ul>
-          ) : (
-            <EmptyState
-              icon={filter === 'done' ? CheckCircle2 : ListChecks}
-              tone="muted"
-              title="Nada por aquí"
-              description={filter === 'done' ? 'Aún no completas hábitos hoy.' : '¡Completaste todo lo de hoy!'}
-              className="py-12"
-            />
-          )}
-        </section>
+          <NotebookSheet
+            header={(
+              <>
+                <SegmentedControl label="Filtro" value={filter} onChange={setFilter} options={FILTERS} className="w-full md:max-w-[420px]" />
+                <span className="hidden text-body-sm text-on-surface-light md:block" aria-live="polite">
+                  {shown.length} {shown.length === 1 ? 'hábito' : 'hábitos'}
+                </span>
+              </>
+            )}
+          >
+            {shown.length > 0 ? (
+              <motion.ul key={filter} variants={stagger} initial="initial" animate="animate" className="flex flex-col">
+                {shown.map((h, i) => (
+                  <HabitNotebookRow
+                    key={h.id}
+                    index={i}
+                    habit={h}
+                    pending={pending === h.id}
+                    week={last7.map((k) => history[h.id]?.has(k) || (k === todayKey && isDone(h)))}
+                    onComplete={() => void handleComplete(h)}
+                  />
+                ))}
+              </motion.ul>
+            ) : (
+              <EmptyState
+                icon={filter === 'done' ? CheckCircle2 : ListChecks}
+                tone="muted"
+                title="Nada por aquí"
+                description={filter === 'done' ? 'Aún no completas hábitos hoy.' : '¡Completaste todo lo de hoy!'}
+                className="py-12"
+              />
+            )}
+          </NotebookSheet>
+        </div>
 
-        <aside className="flex min-w-0 flex-col gap-6">
-          <Card as="section" padding="lg" className="flex flex-col gap-4" aria-labelledby="week-title">
-            <div className="flex items-center justify-between">
-              <h2 id="week-title" className="text-heading-sm">Esta semana</h2>
-              <Badge variant="success">{weekRate}%</Badge>
-            </div>
-            <BarChart
-              data={weekBars}
-              label={`Hábitos completados por día esta semana: ${elapsed.map((b) => `${b.label} ${b.value}`).join(', ')}`}
-              tone="primary"
-              highlightTone="primary"
-              max={Math.max(1, total)}
-            />
-          </Card>
-          {best && best.currentStreak > 0 && (
-            <Card as="section" padding="lg" className="flex flex-col gap-3">
-              <IconChip icon={Trophy} tone="warning" className="animate-float [.reduce-motion_&]:animate-none" />
-              <h2 className="text-heading-sm">Mejor racha</h2>
-              <p className="text-body-md text-on-surface">
-                <b>{best.title}</b> lleva {best.currentStreak} {best.currentStreak === 1 ? 'día' : 'días'}. {nextMilestone - best.currentStreak} más para llegar a {nextMilestone}.
-              </p>
-              <ProgressBar
-                value={(best.currentStreak / nextMilestone) * 100}
-                tone="warning"
-                shine
-                label={`Progreso hacia ${nextMilestone} días`}
-                valueText={`${best.currentStreak} de ${nextMilestone} días`}
+        <aside className="flex min-w-0 flex-col gap-8 pt-2">
+          <StickyNote tilt={-0.8} delay={0.35}>
+            <Card as="section" padding="lg" className="flex flex-col gap-4" aria-labelledby="week-title">
+              <div className="flex items-center justify-between">
+                <h2 id="week-title" className="text-heading-sm">Esta semana</h2>
+                <Badge variant="success">{weekRate}%</Badge>
+              </div>
+              <BarChart
+                data={weekBars}
+                label={`Hábitos completados por día esta semana: ${elapsed.map((b) => `${b.label} ${b.value}`).join(', ')}`}
+                tone="primary"
+                highlightTone="primary"
+                max={Math.max(1, total)}
               />
             </Card>
+          </StickyNote>
+          {best && best.currentStreak > 0 && (
+            <StickyNote tilt={0.6} delay={0.5}>
+              <Card as="section" padding="lg" className="flex flex-col gap-3">
+                <IconChip icon={Trophy} tone="warning" className="animate-float [.reduce-motion_&]:animate-none" />
+                <h2 className="text-heading-sm">Mejor racha</h2>
+                <p className="text-body-md text-on-surface">
+                  <b>{best.title}</b> lleva {best.currentStreak} {best.currentStreak === 1 ? 'día' : 'días'}. {nextMilestone - best.currentStreak} más para llegar a {nextMilestone}.
+                </p>
+                <ProgressBar
+                  value={(best.currentStreak / nextMilestone) * 100}
+                  tone="warning"
+                  shine
+                  label={`Progreso hacia ${nextMilestone} días`}
+                  valueText={`${best.currentStreak} de ${nextMilestone} días`}
+                />
+              </Card>
+            </StickyNote>
           )}
         </aside>
       </div>
@@ -229,10 +255,16 @@ export default function HabitsPage() {
   }
 
   return (
-    <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-6 md:gap-12">
+    <motion.div variants={stagger} initial="initial" animate="animate" exit={zoneExit} className="relative">
+      {/* Mesa de trabajo: una lámpara cálida muy tenue sobre la libreta */}
+      <ZoneAmbience zone="habits">
+        <span className="lq-amb-breathe absolute -left-[10%] -top-[8%] block h-[70vh] w-[70%] rounded-full bg-[radial-gradient(closest-side,rgb(var(--lq-warning)/.07),transparent)] [--d:14s] [--hi:1] [--lo:.6] dark:bg-[radial-gradient(closest-side,rgb(var(--lq-jade-200)/.05),transparent)]" />
+      </ZoneAmbience>
+      <div className="relative flex flex-col gap-6 md:gap-12">
       {header}
       <motion.div variants={item}>{body}</motion.div>
-      {burst > 0 && <Confetti burst={burst} />}
+      </div>
+      {dayDone > 0 && <Confetti burst={dayDone} />}
       <HabitFormDialog
         open={form.open}
         habit={form.habit}
