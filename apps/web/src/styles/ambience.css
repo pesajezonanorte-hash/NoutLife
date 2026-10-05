@@ -191,3 +191,21 @@ html.dark .lq-holo { mix-blend-mode: screen; opacity: .3; }
   63% { opacity: .64; transform: scale(.985); }
   81% { opacity: .72; transform: scale(1.015); }
 }
+
+/* Luz de ambiente (AmbientLight): halo de un token con intensidad propia en claro y en oscuro. */
+.lq-light { --amb-a: var(--a-l, .1); background: radial-gradient(closest-side, rgb(var(--lt) / var(--amb-a)), transparent); }
+html.dark .lq-light { --amb-a: var(--a-d, .06); }
+
+/* ───────── Logros (vitrina) ───────── */
+/* La medalla oscila con peso al pasar el cursor: amortiguada, de un solo vaivén. */
+.group:hover .lq-medal, .group:focus-visible .lq-medal { animation: lq-medal-swing 1.3s cubic-bezier(.3, .2, .2, 1); }
+@keyframes lq-medal-swing { 0% { transform: rotate(0); } 18% { transform: rotate(7deg); } 40% { transform: rotate(-4.5deg); } 62% { transform: rotate(2.2deg); } 82% { transform: rotate(-.8deg); } 100% { transform: rotate(0); } }
+/* Brillo que sigue al puntero sobre el cristal de la vitrina (--mx/--my). */
+.lq-glint { background: radial-gradient(220px circle at var(--mx, 50%) var(--my, 0%), rgb(255 255 255 / .35), transparent 60%); opacity: 0; transition: opacity .4s ease-out; }
+html.dark .lq-glint { background: radial-gradient(220px circle at var(--mx, 50%) var(--my, 0%), rgb(var(--lq-secondary) / .10), transparent 60%); }
+.group:hover .lq-glint { opacity: 1; }
+/* Desbloqueo: destello y partículas doradas contenidas en la vitrina (una vez). */
+.lq-flash { animation: lq-flash 1.1s cubic-bezier(.16, 1, .3, 1) .35s both; }
+@keyframes lq-flash { from { opacity: .95; transform: scale(.5); } to { opacity: 0; transform: scale(1.8); } }
+.lq-burst { animation: lq-burst 1.2s cubic-bezier(.16, 1, .3, 1) var(--delay, .4s) both; }
+@keyframes lq-burst { 0% { opacity: 0; transform: translate(0, 0) scale(.4); } 15% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(1); } }
