@@ -1,9 +1,8 @@
-import { useRef } from 'react';
-import { useInView } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ChevronRight, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { fmtNumber, useCountUp } from '@/lib/motion';
+import { fmtNumber } from '@/lib/motion';
+import { Odometer } from './Odometer';
 import { Card } from './Card';
 import { IconChip } from './IconChip';
 import type { Tone } from './tones';
@@ -23,18 +22,10 @@ export interface StatCardProps {
   className?: string;
 }
 
-/** Número animado para la vista; los lectores reciben solo el valor final. */
-export function AnimatedValue({ value, format = fmtNumber }: { value: number; format?: (n: number) => string }) {
-  // Cuenta al aparecer en pantalla (no al montar), para que se vea aunque esté bajo el pliegue.
-  const ref = useRef<HTMLSpanElement>(null);
-  const seen = useInView(ref, { once: true, amount: 0.6 });
-  const v = useCountUp(seen ? value : 0);
-  return (
-    <>
-      <span ref={ref} aria-hidden>{format(v)}</span>
-      <span className="sr-only">{format(value)}</span>
-    </>
-  );
+/** Número animado (odómetro: los dígitos ruedan con peso al entrar en pantalla y al cambiar);
+ *  los lectores reciben solo el valor final. `quietUnits` suaviza moneda y sufijos. */
+export function AnimatedValue({ value, format = fmtNumber, quietUnits }: { value: number; format?: (n: number) => string; quietUnits?: boolean }) {
+  return <Odometer value={value} format={format} quietUnits={quietUnits} />;
 }
 
 /** Ícono + número (count-up) + label + enlace. Lift en hover. */

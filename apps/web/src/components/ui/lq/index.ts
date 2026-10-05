@@ -37,3 +37,6 @@ export { AreaChart, RadarChart, smoothPath, type AreaChartProps, type RadarChart
 export { BossBar, SeasonPassTrack, Podium, LeaderRow, QuoteCard, type BossBarProps, type PassReward, type Leader, type LeaderRowProps, type QuoteCardProps } from './Game';
 export { ShopItem, PurchaseDialog, ThemePreviewDialog, GoldPrice, type ShopItemProps, type ThemePalette } from './Shop';
 export { SabioComposer, type SabioComposerProps } from './SabioComposer';
+export { Odometer, type OdometerProps } from './Odometer';
+export { WeightBars, type WeightBar, type WeightBarsProps } from './WeightBars';
+export { Thud } from './Thud';
