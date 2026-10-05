@@ -1,19 +1,83 @@
-import { generateText, hasAIProvider } from '../lib/ai';
+import { generateText, hasAIProvider, AIQuotaError } from '../lib/ai';
 import { prisma } from '../lib/prisma';
 
 const SAGE_RATE_LIMIT = 20;
 
+// El nivel gratuito de Groq/Gemini tiene un tope DIARIO total por API key
+// (≈14.400 req/día con el modelo default llama-3.1-8b-instant en Groq), así que
+// lo repartimos entre usuarios: el Sabio queda limitado a N respuestas IA por
+// persona al día. Las respuestas fijas (saludos, ayuda, fallbacks) no cuentan.
+// Sobreescribible con SAGE_DAILY_AI_LIMIT.
+export const SAGE_DAILY_AI_LIMIT = Number(process.env.SAGE_DAILY_AI_LIMIT || 8);
+
+// Respuesta amable cuando TODO proveedor IA está sin cuota. Se devuelve como
+// texto normal (HTTP 200): el usuario recibe una respuesta del Sabio digna,
+// no un error rojo roto.
+export const SAGE_QUOTA_REPLY =
+  'Aghh… he consultado demasiado a los espíritus por hoy y mis pergaminos necesitan descansar. ' +
+  'Vuelve mañana y recuperaré mi magia. Mientras tanto, puedes seguir registrando tus hábitos, ' +
+  'misiones y finanzas: todo eso funciona sin conjuros y seguirá guardándose con normalidad.';
+
+interface SageDailyUsage {
+  /** Respuestas IA consumidas hoy (contador sageCallsToday del usuario). */
+  count: number;
+  /** Medianoche local: momento en que se reinicia el cupo. */
+  nextReset: Date;
+}
+
+function nextMidnight(): Date {
+  const tomorrow = new Date();
+  tomorrow.setHours(24, 0, 0, 0);
+  return tomorrow;
+}
+
+/** ¿Cuántas respuestas IA lleva el usuario hoy y cuándo se reinicia su cupo? */
+export async function getSageDailyUsage(userId: string): Promise<SageDailyUsage> {
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: { sageCallsToday: true, sageCallsResetAt: true },
+  });
+  const now = new Date();
+  const resetBase = new Date(user.sageCallsResetAt);
+  const sameDay =
+    now.getFullYear() === resetBase.getFullYear() &&
+    now.getMonth() === resetBase.getMonth() &&
+    now.getDate() === resetBase.getDate();
+  return { count: sameDay ? user.sageCallsToday : 0, nextReset: nextMidnight() };
+}
+
+/** Tope diario por usuario: el menor entre el configurado y el anti-spam del día. */
+export function sageDailyCap(): number {
+  return Math.min(SAGE_DAILY_AI_LIMIT, SAGE_RATE_LIMIT);
+}
+
+/**
+ * Consume una respuesta IA del día. Devuelve el uso actualizado, o null si el
+ * usuario ya llegó a su tope diario (y entonces NO se consume contador).
+ */
+export async function consumeSageDailyAI(userId: string): Promise<SageDailyUsage | null> {
+  const usage = await getSageDailyUsage(userId);
+  if (usage.count >= sageDailyCap()) return null;
+  const allowed = await checkAndIncrementRateLimit(userId); // contador diario anti-spam
+  if (!allowed) return null;
+  return getSageDailyUsage(userId);
+}
+
 async function callAI(prompt: string): Promise<string> {
   if (!hasAIProvider()) {
-    throw new Error('API Key no configurada (OPENAI_API_KEY o GEMINI_API_KEY)');
+    throw new Error('API Key no configurada (GROQ_API_KEY / GEMINI_API_KEY / etc.)');
   }
 
-  const text = await generateText([{ role: 'user', content: prompt }], {
-    temperature: 0.8,
-    maxTokens: 600,
-  });
-
-  return text;
+  try {
+    return await generateText([{ role: 'user', content: prompt }], {
+      temperature: 0.8,
+      maxTokens: 600,
+    });
+  } catch (err) {
+    // Cuota agotada en TODOS los proveedores: respuesta digna, nunca 5xx.
+    if (err instanceof AIQuotaError) return SAGE_QUOTA_REPLY;
+    throw err;
+  }
 }
 
 async function callAIWithMemory(
@@ -54,10 +118,22 @@ async function callAIWithMemory(
     { role: 'user' as const, content: userMessage },
   ];
 
-  const responseText = await generateText(messages, {
-    temperature: 0.8,
-    maxTokens: 600,
-  });
+  let responseText: string;
+  try {
+    responseText = await generateText(messages, {
+      temperature: 0.8,
+      maxTokens: 600,
+    });
+  } catch (err) {
+    // Cuota agotada en todos los proveedores: respuesta digna y no quemamos cuota
+    // guardando memoria de mensajes que realmente no se procesaron.
+    if (err instanceof AIQuotaError) return SAGE_QUOTA_REPLY;
+    throw err;
+  }
+
+  // Si la cuota diaria del USUARIO está agotada, la respuesta fija no se
+  // guarda como recuerdo (no es contenido real de la conversación).
+  if (responseText === SAGE_QUOTA_REPLY) return responseText;
 
   await prisma.sageMemory.createMany({
     data: [
@@ -231,16 +307,16 @@ Responde siempre en espanol. Usa los datos reales de arriba y nunca inventes dat
 }
 
 export async function sageChat(userId: string, message: string): Promise<string> {
-  const allowed = await checkAndIncrementRateLimit(userId);
-  if (!allowed) return 'Llegaste al limite de consultas por hoy. Intenta de nuevo manana.';
+  const usage = await consumeSageDailyAI(userId);
+  if (!usage) return 'Llegaste al limite de consultas por hoy. Intenta de nuevo manana.';
 
   const context = await buildSageContext(userId);
   return callAIWithMemory(userId, context, message);
 }
 
 export async function sageSuggestQuests(userId: string): Promise<string> {
-  const allowed = await checkAndIncrementRateLimit(userId);
-  if (!allowed) return '[]';
+  const usage = await consumeSageDailyAI(userId);
+  if (!usage) return '[]';
 
   const context = await buildSageContext(userId);
   const fullPrompt = `${context}
@@ -258,40 +334,57 @@ Responde SOLO con este JSON sin markdown ni texto extra:
 }
 
 export async function sageAnalyzeHabits(userId: string): Promise<string> {
-  const allowed = await checkAndIncrementRateLimit(userId);
-  if (!allowed) return 'Llegaste al limite de consultas por hoy. Intenta de nuevo manana.';
+  const usage = await consumeSageDailyAI(userId);
+  if (!usage) return 'Llegaste al limite de consultas por hoy. Intenta de nuevo manana.';
 
   const context = await buildSageContext(userId);
   return callAI(`${context}\n\nAnaliza los habitos del heroe. En 3 parrafos: cual tiene mas riesgo de romperse esta semana y por que, cual esta mas consolidado, y que habito nuevo recomendarias agregar dado sus metas actuales.`);
 }
 
 export async function sageAnalyzeFinances(userId: string): Promise<string> {
-  const allowed = await checkAndIncrementRateLimit(userId);
-  if (!allowed) return 'Llegaste al limite de consultas por hoy. Intenta de nuevo manana.';
+  const usage = await consumeSageDailyAI(userId);
+  if (!usage) return 'Llegaste al limite de consultas por hoy. Intenta de nuevo manana.';
 
   const context = await buildSageContext(userId);
   return callAI(`${context}\n\nAnaliza las finanzas del heroe este mes. En 3 parrafos concretos: en que categoria gasta mas de lo optimo, cuanto podria ahorrar mensualmente si ajusta eso, y cuando alcanzaria su meta de ahorro mas cercana.`);
 }
 
 export async function sagePlanWorkout(userId: string): Promise<string> {
-  const allowed = await checkAndIncrementRateLimit(userId);
-  if (!allowed) return 'Llegaste al limite de consultas por hoy. Intenta de nuevo manana.';
+  const usage = await consumeSageDailyAI(userId);
+  if (!usage) return 'Llegaste al limite de consultas por hoy. Intenta de nuevo manana.';
 
   const context = await buildSageContext(userId);
   return callAI(`${context}\n\nBasandote en el historial de entrenamientos del heroe, sugiere el proximo entrenamiento ideal: grupo muscular a trabajar, 4-5 ejercicios especificos con series y reps sugeridas, y justifica brevemente la eleccion.`);
 }
 
+// Cache del consejo diario en memoria de proceso: la llaman el scheduler (un
+// disparo diario por usuario) y el frontend (cada vez que abres la app). Con la
+// cache, la IA solo se consulta UNA vez al dia por usuario, como mucho.
+const dailyTipCache = new Map<string, { date: string; tip: string }>();
+
+const DAILY_TIP_FALLBACK = 'Sigue con tu racha — cada día cuenta.';
+
 export async function sageDailyTip(userId: string): Promise<string> {
-  const allowed = await checkAndIncrementRateLimit(userId);
-  if (!allowed) return 'Sigue con tu racha — cada día cuenta.';
+  const today = new Date().toISOString().slice(0, 10);
+  const hit = dailyTipCache.get(userId);
+  if (hit?.date === today) return hit.tip;
+
+  const usage = await consumeSageDailyAI(userId);
+  if (!usage) return DAILY_TIP_FALLBACK;
 
   const context = await buildSageContext(userId);
-  return callAI(`${context}\n\nDa UNA sola frase de consejo o motivación para hoy, basada en el estado actual del usuario. Máximo 15 palabras. Sin saludos, sin introducciones. Solo la frase, directa y útil.`);
+  const tip = await callAI(`${context}\\n\\nDa UNA sola frase de consejo o motivación para hoy, basada en el estado actual del usuario. Máximo 15 palabras. Sin saludos, sin introducciones. Solo la frase, directa y útil.`);
+  // No cachear la respuesta de cuota agotada ni el fallback: mañana podría
+  // haber cuota de nuevo y queremos reintentar la llamada a la IA.
+  if (tip !== SAGE_QUOTA_REPLY && tip !== DAILY_TIP_FALLBACK) {
+    dailyTipCache.set(userId, { date: today, tip });
+  }
+  return tip;
 }
 
 export async function sageDailySummary(userId: string): Promise<string> {
-  const allowed = await checkAndIncrementRateLimit(userId);
-  if (!allowed) return 'Llegaste al limite de consultas por hoy. Intenta de nuevo manana.';
+  const usage = await consumeSageDailyAI(userId);
+  if (!usage) return 'Llegaste al limite de consultas por hoy. Intenta de nuevo manana.';
 
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
@@ -302,21 +395,18 @@ export async function sageDailySummary(userId: string): Promise<string> {
   return callAI(`${context}\n\nEs el inicio del dia de ${user.displayName}. En 2 parrafos: resume que logro ayer y que deberia priorizar hoy segun sus misiones activas, habitos con riesgo de romperse y estado financiero.`);
 }
 
+// Información de cupo para el frontend: cuántas respuestas IA lleva el usuario
+// hoy, el tope diario (la repartición real del nivel gratuito, no solo el
+// anti-spam), cuántas quedan y cuándo se reinicia.
 export async function getSageRateInfo(
   userId: string
-): Promise<{ callsToday: number; limit: number; remaining: number }> {
-  const user = await prisma.user.findUniqueOrThrow({
-    where: { id: userId },
-    select: { sageCallsToday: true, sageCallsResetAt: true },
-  });
-
-  const now = new Date();
-  const resetAt = new Date(user.sageCallsResetAt);
-  const isNewDay =
-    now.getFullYear() !== resetAt.getFullYear() ||
-    now.getMonth() !== resetAt.getMonth() ||
-    now.getDate() !== resetAt.getDate();
-
-  const callsToday = isNewDay ? 0 : user.sageCallsToday;
-  return { callsToday, limit: SAGE_RATE_LIMIT, remaining: Math.max(0, SAGE_RATE_LIMIT - callsToday) };
+): Promise<{ callsToday: number; limit: number; remaining: number; resetAt: string }> {
+  const usage = await getSageDailyUsage(userId);
+  const limit = sageDailyCap();
+  return {
+    callsToday: usage.count,
+    limit,
+    remaining: Math.max(0, limit - usage.count),
+    resetAt: usage.nextReset.toISOString(),
+  };
 }

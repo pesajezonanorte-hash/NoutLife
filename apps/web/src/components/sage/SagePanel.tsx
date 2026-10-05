@@ -2,14 +2,14 @@
 // Topbar, a la derecha), pantalla completa en móvil. Modal: foco atrapado,
 // Escape cierra, el foco vuelve al disparador. Historial (8 últimos) en
 // localStorage como antes; la conversación es un role="log".
-import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, useReducedMotionConfig, type Variants } from 'framer-motion';
 import { BarChart2, Dumbbell, Send, Sparkles, Sword, Trash2, Wallet, X, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ease, scrim } from '@/lib/motion';
 import {
-  sageAnalyzeFinances, sageAnalyzeHabits, sageChat, sagePlanWorkout, sageSuggestQuests,
+  sageAnalyzeFinances, sageAnalyzeHabits, sageChat, sagePlanWorkout, sageRateInfo, sageSuggestQuests,
 } from '@/services/sage.service';
 import { useUIStore } from '@/store/uiStore';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -52,6 +52,15 @@ function loadHistory(): Message[] {
 
 const clean = (reply: unknown) => (typeof reply === 'string' && reply.trim() ? reply : FALLBACK);
 
+/** Mensaje legible de un error de axios (`{ error, message }` del API), si existe. */
+function extractApiError(err: unknown): string | null {
+  if (typeof err !== 'object' || err === null || !('response' in err)) return null;
+  const data = (err as { response?: { data?: unknown } }).response?.data;
+  if (typeof data !== 'object' || data === null) return null;
+  const msg = (data as { message?: unknown }).message;
+  return typeof msg === 'string' && msg.trim() ? msg : null;
+}
+
 /** Escritura progresiva de la última respuesta (visual); el texto completo va en sr-only. */
 function Typewriter({ text }: { text: string }) {
   const reduce = useReducedMotionConfig();
@@ -81,6 +90,16 @@ export function SagePanel({ onClose }: { onClose: () => void }) {
   const [typing, setTyping] = useState<number | null>(null);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  // Cupo diario de consultas IA del usuario (el servidor lo reparte del nivel
+  // gratuito de Groq/Gemini). Si es null, el endpoint falló y el panel sigue
+  // funcionando sin contador.
+  const [rate, setRate] = useState<{ remaining: number; limit: number; resetAt: string } | null>(null);
+  const refreshRate = useCallback(async () => {
+    try { setRate(await sageRateInfo()); } catch { /* sin contador */ }
+  }, []);
+  useEffect(() => { void refreshRate(); }, [refreshRate]);
+  const callsUsed = rate ? rate.limit - rate.remaining : null;
+  const outOfCalls = rate !== null && rate.remaining <= 0;
   const panelRef = useDialogBehavior(true, onClose);
   const endRef = useRef<HTMLDivElement>(null);
   const sentPending = useRef(false);
@@ -92,12 +111,13 @@ export function SagePanel({ onClose }: { onClose: () => void }) {
     setMessages((prev) => [...prev, { from: 'user', text: userText }]);
     setLoading(true);
     let reply = FALLBACK;
-    try { reply = clean(await request()); } catch { /* FALLBACK */ }
+    try { reply = clean(await request()); } catch (err) { reply = extractApiError(err) ?? FALLBACK; }
     setMessages((prev) => {
       setTyping(prev.length);
       return [...prev, { from: 'sage', text: reply }];
     });
     setLoading(false);
+    void refreshRate(); // cada respuesta consume cupo: refresca el contador
   }
 
   // Mensaje contextual pendiente (Dashboard, menú…): se envía al abrir.
@@ -119,20 +139,22 @@ export function SagePanel({ onClose }: { onClose: () => void }) {
   function submit(e: FormEvent) {
     e.preventDefault();
     const text = input.trim();
-    if (!text || loading) return;
+    if (!text || loading || outOfCalls) return;
     setInput('');
     void ask(text, async () => (await sageChat(text)).reply);
   }
 
   function runAction(a: (typeof ACTIONS)[number]) {
-    if (loading) return;
+    if (loading || outOfCalls) return;
     void ask(a.label, async () => {
       if (a.id === 'quests') {
-        const { quests } = await sageSuggestQuests();
+        const { quests, raw } = await sageSuggestQuests();
         const list = Array.isArray(quests) ? (quests as Array<{ title: string; description: string; difficulty: string }>) : [];
-        return list.length
-          ? `Te propongo estas misiones:\n\n${list.map((q) => `• ${q.title} (${q.difficulty})\n  ${q.description}`).join('\n\n')}`
-          : 'No tengo sugerencias de misiones por ahora.';
+        if (list.length) {
+          return `Te propongo estas misiones:\n\n${list.map((q) => `• ${q.title} (${q.difficulty})\n  ${q.description}`).join('\n\n')}`;
+        }
+        // raw: texto del Sabio que no era JSON (p. ej. aviso de cuota agotada).
+        return typeof raw === 'string' && raw.trim() ? raw : 'No tengo sugerencias de misiones por ahora.';
       }
       if (a.id === 'habits') return (await sageAnalyzeHabits()).reply;
       if (a.id === 'finances') return (await sageAnalyzeFinances()).reply;
@@ -214,10 +236,25 @@ export function SagePanel({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="flex flex-col gap-3 border-t border-border px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 md:px-6">
+          <div aria-live="polite" className="flex flex-col gap-1">
+            {callsUsed !== null && rate && (
+              <p className={cn('text-center text-body-sm', outOfCalls ? 'text-error-text' : 'text-on-surface-light')}>
+                Consultas del Sabio hoy: {callsUsed} de {rate.limit}
+                {' · '}se renueva a las{' '}
+                {new Date(rate.resetAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+              </p>
+            )}
+            {outOfCalls && (
+              <p className="text-center text-body-sm text-error-text">
+                El Sabio descansa hoy: agotaste tus consultas IA del día. El resto de la app
+                (hábitos, misiones, finanzas) sigue disponible sin IA.
+              </p>
+            )}
+          </div>
           <ul aria-label="Acciones rápidas" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-wrap md:overflow-visible md:px-0">
             {ACTIONS.map((a) => (
               <li key={a.id} className="shrink-0">
-                <Button variant="secondary" size="sm" disabled={loading} onClick={() => runAction(a)}>
+                <Button variant="secondary" size="sm" disabled={loading || outOfCalls} onClick={() => runAction(a)}>
                   <a.icon aria-hidden className="size-4" strokeWidth={1.75} />{a.label}
                 </Button>
               </li>
@@ -228,11 +265,12 @@ export function SagePanel({ onClose }: { onClose: () => void }) {
               aria-label="Mensaje para el Sabio"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Escribe tu pregunta…"
+              placeholder={outOfCalls ? 'El Sabio vuelve mañana…' : 'Escribe tu pregunta…'}
               maxLength={500}
+              disabled={outOfCalls}
               data-autofocus={isDesktop || undefined}
             />
-            <Button type="submit" aria-label="Enviar" disabled={!input.trim() || loading} className="size-12 shrink-0 rounded-full p-0">
+            <Button type="submit" aria-label="Enviar" disabled={!input.trim() || loading || outOfCalls} className="size-12 shrink-0 rounded-full p-0">
               <Send aria-hidden className="size-5" strokeWidth={1.75} />
             </Button>
           </form>
