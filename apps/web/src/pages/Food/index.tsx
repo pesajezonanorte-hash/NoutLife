@@ -259,7 +259,7 @@ export default function FoodPage() {
           </Button>
         </div>
         {/* Cambiar de día pasa la página de la carta */}
-        <AnimatePresence mode="wait" initial={false} custom={turn.current}>
+        <AnimatePresence mode="wait" custom={turn.current}>
           <motion.ol
             key={key}
             custom={turn.current}
