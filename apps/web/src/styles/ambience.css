@@ -1,0 +1,174 @@
+/* Zonas ambientadas: física compartida en CSS, texturas hechas con gradientes
+   de los tokens y la capa de ambiente (ZoneAmbience).
+   Reglas: todo lo decorativo va con aria-hidden y pointer-events: none; el
+   ambiente vive detrás del contenido con baja opacidad; solo se anima
+   transform y opacity (excepciones documentadas abajo); con «Reducir
+   movimiento» (.reduce-motion) los bucles se detienen y queda la composición
+   estática. Nada parpadea a más de 3 veces por segundo. */
+
+/* ───────── Física: los mismos muelles de lib/motion/presets.ts como linear() ───────── */
+:root {
+  --lq-ease-gentle: linear(0, 0.058, 0.178, 0.313, 0.439, 0.55, 0.643, 0.718, 0.779, 0.827, 0.865, 0.895, 0.918, 0.937, 0.951, 0.962, 0.97, 0.977, 0.982, 0.986, 0.989, 0.992, 0.994, 0.995, 0.996, 0.997, 0.998, 1);
+  --lq-dur-gentle: 1380ms;
+  --lq-ease-natural: linear(0, 0.049, 0.161, 0.296, 0.438, 0.569, 0.682, 0.774, 0.848, 0.904, 0.945, 0.973, 0.992, 1.003, 1.01, 1.013, 1.013, 1.012, 1.011, 1.009, 1.007, 1.005, 1.004, 1.003, 1.002, 1.001, 1.001, 1);
+  --lq-dur-natural: 560ms;
+  --lq-ease-heavy: linear(0, 0.069, 0.228, 0.421, 0.615, 0.784, 0.916, 1.009, 1.065, 1.092, 1.097, 1.088, 1.072, 1.052, 1.034, 1.018, 1.006, 0.998, 0.993, 0.991, 0.991, 0.992, 0.993, 0.995, 0.997, 0.998, 1, 1);
+  --lq-dur-heavy: 1010ms;
+  --lq-ease-snappy: linear(0, 0.056, 0.18, 0.332, 0.484, 0.622, 0.739, 0.831, 0.901, 0.95, 0.984, 1.004, 1.016, 1.021, 1.022, 1.02, 1.017, 1.014, 1.01, 1.008, 1.005, 1.003, 1.002, 1.001, 1, 1, 1, 1);
+  --lq-dur-snappy: 325ms;
+  /* Separación de las líneas de libreta (Hábitos, Diario). */
+  --lq-rule: 2.25rem;
+}
+
+/* ───────── Texturas (solo gradientes y tokens, sin imágenes) ───────── */
+@layer components {
+  /* Papel: grano fino irregular (dos tramas de puntos desfasadas). */
+  .lq-tex-paper {
+    background-color: rgb(var(--lq-surface));
+    background-image:
+      radial-gradient(rgb(var(--lq-on-background) / .035) .6px, transparent .8px),
+      radial-gradient(rgb(var(--lq-on-background) / .025) .5px, transparent .7px);
+    background-size: 7px 7px, 11px 13px;
+    background-position: 0 0, 3px 5px;
+  }
+  /* Líneas de libreta: una por --lq-rule; el margen va aparte (.lq-tex-margin). */
+  .lq-tex-ruled {
+    background-image: linear-gradient(to bottom, transparent calc(var(--lq-rule) - 1px), rgb(var(--lq-info) / .16) calc(var(--lq-rule) - 1px), rgb(var(--lq-info) / .16) var(--lq-rule));
+    background-size: 100% var(--lq-rule);
+  }
+  .lq-tex-margin { border-left: 1px solid rgb(var(--lq-error) / .28); box-shadow: -3px 0 0 -2px rgb(var(--lq-error) / .18); }
+  /* Vidrio esmerilado (vitrina, escaparates). */
+  .lq-tex-glass {
+    background: linear-gradient(135deg, rgb(var(--lq-surface) / .62), rgb(var(--lq-surface) / .32));
+    -webkit-backdrop-filter: blur(10px) saturate(1.1);
+    backdrop-filter: blur(10px) saturate(1.1);
+    border: 1px solid rgb(var(--lq-on-background) / .08);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / .35), var(--shadow-sm);
+  }
+  /* Lino: trama cruzada muy fina (mantel del restaurante). */
+  .lq-tex-linen {
+    background-image:
+      repeating-linear-gradient(0deg, rgb(var(--lq-on-background) / .022) 0 1px, transparent 1px 4px),
+      repeating-linear-gradient(90deg, rgb(var(--lq-on-background) / .018) 0 1px, transparent 1px 5px);
+  }
+  /* Pergamino: calidez irregular en las esquinas sobre papel. */
+  .lq-tex-parchment {
+    background-color: rgb(var(--lq-surface));
+    background-image:
+      radial-gradient(120% 80% at 15% 0%, rgb(var(--lq-secondary) / .10), transparent 60%),
+      radial-gradient(90% 70% at 100% 100%, rgb(var(--lq-warning) / .08), transparent 62%),
+      radial-gradient(rgb(var(--lq-on-background) / .03) .6px, transparent .8px);
+    background-size: auto, auto, 9px 9px;
+  }
+  /* Papel prensa: trama de puntos de imprenta. */
+  .lq-tex-newsprint {
+    background-image: radial-gradient(rgb(var(--lq-on-background) / .05) .55px, transparent .7px);
+    background-size: 4px 4px;
+  }
+  html.dark .lq-tex-ruled { background-image: linear-gradient(to bottom, transparent calc(var(--lq-rule) - 1px), rgb(var(--lq-info) / .13) calc(var(--lq-rule) - 1px), rgb(var(--lq-info) / .13) var(--lq-rule)); }
+  html.dark .lq-tex-glass { box-shadow: inset 0 1px 0 rgb(255 255 255 / .06), var(--shadow-sm); }
+}
+
+/* ───────── Capa de ambiente (ZoneAmbience) ───────── */
+.lq-amb { position: absolute; pointer-events: none; overflow: clip; }
+.lq-amb, .lq-amb * { pointer-events: none; }
+.lq-amb-page { inset: -1rem -1rem -2rem; }
+@media (min-width: 768px) { .lq-amb-page { inset: -2rem -2rem -3rem; } }
+.lq-amb-local { inset: 0; border-radius: inherit; }
+/* Ventana que acompaña al scroll (luz, partículas): se queda en pantalla dentro de la zona. */
+.lq-amb-view { position: sticky; top: 0; height: 100svh; width: 100%; overflow: hidden; }
+/* Fuera de pantalla o con la pestaña oculta, nada se mueve. */
+.lq-amb[data-paused] *, .lq-amb[data-paused] *::before, .lq-amb[data-paused] *::after { animation-play-state: paused !important; }
+
+/* Partículas: --x/--y fijan la posición de reposo (lo que se ve con «Reducir movimiento»);
+   la animación solo añade el desplazamiento. */
+.lq-p { position: absolute; left: var(--x); top: var(--y); opacity: var(--a, .5); will-change: transform, opacity; animation-duration: var(--d, 12s); animation-delay: var(--delay, 0s); animation-iteration-count: infinite; animation-timing-function: linear; }
+.lq-p-rise { animation-name: lq-p-rise; }
+.lq-p-fall { animation-name: lq-p-fall; }
+.lq-p-drift { animation-name: lq-p-drift; animation-timing-function: ease-in-out; animation-direction: alternate; }
+.lq-p-glow { animation-name: lq-p-glow; animation-timing-function: ease-in-out; }
+@keyframes lq-p-rise {
+  0% { transform: translate3d(0, 0, 0) scale(.8); opacity: 0; }
+  15% { opacity: var(--a, .5); }
+  60% { transform: translate3d(var(--sx, 8px), calc(var(--h, 80px) * -.6), 0) scale(1); }
+  100% { transform: translate3d(calc(var(--sx, 8px) * -.5), calc(var(--h, 80px) * -1), 0) scale(1.15); opacity: 0; }
+}
+@keyframes lq-p-fall {
+  0% { transform: translate3d(0, 0, 0) rotate(0deg); opacity: 0; }
+  10% { opacity: var(--a, .5); }
+  50% { transform: translate3d(var(--sx, 30px), calc(var(--h, 300px) * .5), 0) rotate(160deg); }
+  90% { opacity: var(--a, .5); }
+  100% { transform: translate3d(calc(var(--sx, 30px) * -.4), var(--h, 300px), 0) rotate(320deg); opacity: 0; }
+}
+@keyframes lq-p-drift {
+  0% { transform: translate3d(0, 0, 0); opacity: calc(var(--a, .5) * .4); }
+  50% { opacity: var(--a, .5); }
+  100% { transform: translate3d(var(--sx, 14px), var(--sy, -18px), 0); opacity: calc(var(--a, .5) * .6); }
+}
+/* Brillo suave (estrellas, luciérnagas): ciclos de varios segundos, muy por debajo de 3 Hz. */
+@keyframes lq-p-glow {
+  0%, 100% { opacity: calc(var(--a, .6) * .25); transform: translate3d(0, 0, 0) scale(.75); }
+  50% { opacity: var(--a, .6); transform: translate3d(var(--sx, 4px), var(--sy, -6px), 0) scale(1); }
+}
+
+/* Luz que respira (lámpara, foco, vela): solo opacidad y escala, ciclos largos. */
+.lq-amb-breathe { opacity: var(--rest, .75); animation: lq-amb-breathe var(--d, 9s) ease-in-out infinite; }
+@keyframes lq-amb-breathe { 0%, 100% { opacity: var(--lo, .55); transform: scale(.97); } 50% { opacity: var(--hi, .9); transform: scale(1.03); } }
+/* Deriva lenta de una luz o un reflejo por la superficie. */
+.lq-amb-wander { animation: lq-amb-wander var(--d, 26s) ease-in-out infinite alternate; }
+@keyframes lq-amb-wander { from { transform: translate3d(-6%, -3%, 0); } to { transform: translate3d(6%, 4%, 0); } }
+/* Vaivén de algo colgado o mecido (garabatos, flores, medallas). */
+.lq-amb-sway { animation: lq-amb-sway var(--d, 9s) ease-in-out infinite alternate; transform-origin: var(--o, 50% 0%); }
+@keyframes lq-amb-sway { from { transform: rotate(calc(var(--r, 2deg) * -1)); } to { transform: rotate(var(--r, 2deg)); } }
+
+/* ───────── Barrido de luz (Sheen) ───────── */
+.lq-sheen-sweep { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; pointer-events: none; }
+.lq-sheen-sweep::after {
+  content: ""; position: absolute; inset: -20% auto -20% 0; width: 45%;
+  background: linear-gradient(100deg, transparent, rgb(255 255 255 / var(--sheen-a, .28)) 50%, transparent);
+  transform: translateX(-160%) skewX(-12deg);
+  animation: lq-sheen-sweep var(--sheen-every, 9s) var(--lq-ease-gentle) var(--sheen-delay, 1.2s) infinite;
+}
+html.dark .lq-sheen-sweep::after { --sheen-a: .08; }
+/* Cruza en el primer 16 % del ciclo y descansa el resto. */
+@keyframes lq-sheen-sweep { 0% { transform: translateX(-160%) skewX(-12deg); } 16%, 100% { transform: translateX(360%) skewX(-12deg); } }
+
+/* ───────── Escritura y tinta ─────────
+   Excepción documentada: .lq-write revela el texto de izquierda a derecha con
+   mask-position (repinta mientras dura). Solo se usa en entradas cortas. */
+.lq-write {
+  -webkit-mask-image: linear-gradient(90deg, #000 45%, transparent 55%);
+  mask-image: linear-gradient(90deg, #000 45%, transparent 55%);
+  -webkit-mask-size: 230% 100%; mask-size: 230% 100%;
+  -webkit-mask-position: 100% 0; mask-position: 100% 0;
+  animation: lq-write var(--d, 520ms) cubic-bezier(.3, .2, .2, 1) var(--delay, 0ms) forwards;
+}
+@keyframes lq-write { to { -webkit-mask-position: 0 0; mask-position: 0 0; } }
+.reduce-motion .lq-write { -webkit-mask-image: none; mask-image: none; }
+
+/* Trazo dibujado a mano: el grosor no cambia al escalar el SVG. */
+.lq-ink { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+
+/* ───────── Holograma (documento del Perfil) ─────────
+   --mx/--my (0–100 %) los fija el puntero o la inclinación del móvil. */
+.lq-holo {
+  position: absolute; inset: 0; border-radius: inherit; pointer-events: none; mix-blend-mode: color-dodge; opacity: .38;
+  background:
+    radial-gradient(60% 50% at var(--mx, 30%) var(--my, 20%), rgb(255 255 255 / .55), transparent 70%),
+    linear-gradient(115deg,
+      transparent 20%,
+      rgb(var(--lq-jade-300) / .55) calc(25% + var(--hx, 0%)),
+      rgb(var(--lq-info) / .45) calc(38% + var(--hx, 0%)),
+      rgb(var(--lq-secondary) / .45) calc(52% + var(--hx, 0%)),
+      rgb(var(--lq-jade-200) / .5) calc(64% + var(--hx, 0%)),
+      transparent 80%);
+  transition: opacity .4s ease-out;
+}
+html.dark .lq-holo { mix-blend-mode: screen; opacity: .22; }
+/* Guilloché: líneas finas de seguridad en el fondo del documento. */
+.lq-guilloche {
+  position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: .5;
+  background-image:
+    repeating-radial-gradient(circle at 85% 120%, transparent 0 9px, rgb(var(--lq-primary) / .06) 9px 10px),
+    repeating-radial-gradient(circle at -10% -30%, transparent 0 13px, rgb(var(--lq-info) / .05) 13px 14px);
+}
