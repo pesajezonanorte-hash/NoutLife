@@ -4,19 +4,19 @@
 // (PerspectiveFlipCard): tocar el anverso lo gira; Escape o «Volver» lo
 // devuelven.
 //
-// Movimiento: la tarjeta sale de la cartera con peso, se asienta y el sello
-// oficial cae y estampa (la tarjeta acusa el golpe). Al pasar el cursor se
-// inclina en 3D y el holograma sigue a la luz; en Android sigue la inclinación
-// del móvil. Con «Reducir movimiento»: sin cartera, sin inclinación, el sello
-// ya puesto y el giro como fundido (lo resuelve el flip card).
+// Movimiento: la tarjeta aparece pixel a pixel, como el personaje en su creador,
+// y el sello oficial cae y estampa (la tarjeta acusa el golpe). Al pasar el
+// cursor se inclina en 3D y el holograma sigue a la luz; al salir, los reflejos
+// se quedan donde estaban y al volver se deslizan hasta el cursor. En Android
+// sigue la inclinación del móvil. Con «Reducir movimiento»: un fundido, sin
+// inclinación, el sello ya puesto y el giro como fundido (lo resuelve el flip card).
 import { useEffect, useState, type ReactNode } from 'react';
 import { motion, useAnimationControls } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { springs } from '@/lib/motion/presets';
 import { thud } from '@/lib/motion';
 import { useMotionStore } from '@/store/motionStore';
 import { PerspectiveFlipCard } from '@/components/ui/perspective-flip-card';
-import { useHoloTilt } from '@/components/ambience';
+import { PixelReveal, useHoloTilt } from '@/components/ambience';
 
 const CLASS_NAMES: Record<string, string> = { warrior: 'Guerrero', mage: 'Mago', merchant: 'Mercader', paladin: 'Paladín' };
 export const classLabel = (c?: string | null) => (c ? CLASS_NAMES[c] ?? c : 'Aventurero');
@@ -79,18 +79,19 @@ export interface IdCardProps {
 
 export function IdCard({ user, title, photo, back }: IdCardProps) {
   const reduce = useMotionStore((s) => s.reduce);
-  const holo = useHoloTilt<HTMLDivElement>(7);
   const card = useAnimationControls();
   const [flipped, setFlipped] = useState(false);
+  // Girada, la tarjeta deja de inclinarse para que el reverso se lea recto.
+  const holo = useHoloTilt<HTMLDivElement>(7, { frozen: flipped });
   const issued = new Date(user.createdAt);
   const doc = documentNumber(user.id);
   const [m1, m2] = mrzLines({ name: user.displayName, id: user.id, issued, level: user.level });
   const fmt = (d: Date) => d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/\./g, '');
 
-  // El sello cae a los ~1,1 s: la tarjeta acusa el golpe.
+  // El sello cae cuando la tarjeta ya está entera (~1,3 s): la tarjeta acusa el golpe.
   useEffect(() => {
     if (reduce) return;
-    const t = window.setTimeout(() => void card.start(thud), 1180);
+    const t = window.setTimeout(() => void card.start(thud), 1480);
     return () => window.clearTimeout(t);
   }, [card, reduce]);
 
@@ -124,7 +125,7 @@ export function IdCard({ user, title, photo, back }: IdCardProps) {
             className="pointer-events-none absolute -bottom-2 -right-5 block size-12 text-primary mix-blend-multiply dark:mix-blend-screen sm:-right-7 sm:size-[4.25rem]"
             initial={reduce ? { opacity: 0.72, rotate: -14 } : { opacity: 0, scale: 2.1, rotate: -40, y: -18 }}
             animate={{ opacity: 0.72, scale: 1, rotate: -14, y: 0 }}
-            transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 520, damping: 20, mass: 1.1, delay: 1.0, opacity: { duration: 0.12, delay: 1.0 } }}
+            transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 520, damping: 20, mass: 1.1, delay: 1.3, opacity: { duration: 0.12, delay: 1.3 } }}
           >
             <Seal className="size-full" />
           </motion.span>
@@ -164,44 +165,31 @@ export function IdCard({ user, title, photo, back }: IdCardProps) {
 
   return (
     <motion.div
-      // Sale de la cartera: sube con peso desde detrás del bolsillo.
       className="relative mx-auto w-full max-w-[30rem]"
-      initial={reduce ? false : { y: '40%' }}
-      animate={{ y: 0, transition: { ...springs.heavy, delay: 0.25 } }}
       exit={{ y: '12%', opacity: 0, transition: { duration: 0.2 } }}
     >
-      <motion.div animate={card}>
-        <div
-          ref={holo.ref}
-          onPointerMove={holo.onPointerMove}
-          onPointerLeave={holo.onPointerLeave}
-          // Girada, la tarjeta deja de inclinarse para que el reverso se lea recto.
-          className={cn('relative transition-transform duration-[560ms] ease-[var(--lq-ease-natural)]', !flipped && '[transform:perspective(1100px)_rotateX(var(--rx,0deg))_rotateY(var(--ry,0deg))]')}
-        >
-          <PerspectiveFlipCard
-            label={`Documento de ${user.displayName}`}
-            trigger="tap"
-            flipped={flipped}
-            onFlipChange={setFlipped}
-            className="aspect-[1.32] h-auto min-h-0 max-w-none sm:aspect-[1.586]"
-            frontClassName="overflow-hidden shadow-lg"
-            backClassName="overflow-hidden shadow-lg"
-            front={front}
-            back={back}
-          />
-        </div>
-      </motion.div>
-      {/* La cartera: el bolsillo del que sale la tarjeta */}
-      {!reduce && (
-        <motion.span
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-x-[-4%] bottom-[-50%] block h-[96%] rounded-[1.4rem] border border-jade-700/40 bg-jade-800 shadow-lg [background-image:linear-gradient(180deg,rgb(var(--lq-jade-700)/.6),rgb(var(--lq-jade-900)/.9))]"
-          initial={{ y: 0, opacity: 1 }}
-          animate={{ y: '70%', opacity: 0, transition: { ...springs.natural, delay: 0.55, opacity: { duration: 0.35, delay: 0.7 } } }}
-        >
-          <span className="absolute inset-2 rounded-[1rem] border border-dashed border-jade-300/30" />
-        </motion.span>
-      )}
+      <PixelReveal cols={30} rows={19} delay={140} spread={640} seed={user.id.length + 11}>
+        <motion.div animate={card}>
+          <div
+            ref={holo.ref}
+            onPointerMove={holo.onPointerMove}
+            onPointerLeave={holo.onPointerLeave}
+            className="relative [transform:perspective(1100px)_rotateX(var(--rx,0deg))_rotateY(var(--ry,0deg))]"
+          >
+            <PerspectiveFlipCard
+              label={`Documento de ${user.displayName}`}
+              trigger="tap"
+              flipped={flipped}
+              onFlipChange={setFlipped}
+              className="aspect-[1.32] h-auto min-h-0 max-w-none sm:aspect-[1.586]"
+              frontClassName="overflow-hidden shadow-lg"
+              backClassName="overflow-hidden shadow-lg"
+              front={front}
+              back={back}
+            />
+          </div>
+        </motion.div>
+      </PixelReveal>
     </motion.div>
   );
 }
