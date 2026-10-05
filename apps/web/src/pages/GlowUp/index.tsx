@@ -1,11 +1,16 @@
 // Glow up — GlowUpDesktop.dc.html. "Brillo de hoy" (anillo), SegmentedControl
 // Cuidado / Estilo / Presencia, rutinas con pasos que se marcan, armario con
 // filtros y autoevaluación semanal. Datos: /mirror/* (sin cambios).
+// Zona ambientada: el espejo. Llega empañado y se desempaña despacio; un reflejo
+// lo cruza muy lento y su resplandor sube de forma gradual con cada paso hecho.
+// Las secciones se funden entre sí; todo con física suave (gentle).
 import { useState, useEffect, useCallback, useMemo, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, Droplets, Flame, Moon, Plus, Shirt, Sparkles, Star, Sun, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { item, stagger } from '@/lib/motion';
+import { item, springs, stagger } from '@/lib/motion';
+import { AmbientLight, ZoneShell } from '@/components/ambience';
+import { Mirror } from '@/components/glowup/Mirror';
 import { useToastStore } from '../../hooks/useToast';
 import api from '../../lib/api';
 import { Badge, Button, Card, ChipGroup, EmptyState, ErrorState, Field, IconChip, Input, Modal, ProgressBar, ProgressRing, Select, SegmentedControl, StepItem, Textarea, type Tone, PageLoader } from '@/components/ui/lq';
@@ -459,7 +464,11 @@ export default function GlowUpPage() {
   const pct = progress.total ? Math.round((progress.done / progress.total) * 100) : 0;
 
   return (
-    <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-6 md:gap-8">
+    <ZoneShell
+      zone="glow-up"
+      contentClassName="gap-6 md:gap-8"
+      ambience={<AmbientLight tone="jade-200" alpha={0.5} darkAlpha={0.08} d={12} className="right-[-4%] top-[-10%] h-[30rem] w-[44%]" />}
+    >
       <motion.section variants={item} className="flex flex-wrap items-center justify-between gap-6 md:gap-8">
         <div className="flex min-w-0 flex-[1_1_360px] flex-col gap-2">
           <span className="text-label-lg text-primary-text">El espejo</span>
@@ -467,12 +476,14 @@ export default function GlowUpPage() {
           <p className="max-w-[540px] text-body-lg text-on-surface-light">Cuídate, vístete y preséntate. Pequeños rituales que cambian cómo te ves y cómo te sientes.</p>
         </div>
         <div className="flex items-center gap-5">
-          <ProgressRing value={pct} tone="primary" size={120} stroke={10} label="Brillo de hoy" valueText={`${pct}%`}>
-            <span className="flex flex-col items-center" aria-live="polite">
-              <span className="font-mono text-heading-md font-bold tabular-nums">{pct}%</span>
-              <span className="text-body-sm text-on-surface-light">hoy</span>
-            </span>
-          </ProgressRing>
+          <Mirror brightness={pct}>
+            <ProgressRing value={pct} tone="primary" size={120} stroke={10} label="Brillo de hoy" valueText={`${pct}%`}>
+              <span className="flex flex-col items-center" aria-live="polite">
+                <span className="font-mono text-heading-md font-bold tabular-nums">{pct}%</span>
+                <span className="text-body-sm text-on-surface-light">hoy</span>
+              </span>
+            </ProgressRing>
+          </Mirror>
           <div className="flex flex-col gap-1">
             <span className="text-label-lg">Brillo de hoy</span>
             <span className="font-mono text-body-sm tabular-nums text-on-surface-light">{progress.done} de {progress.total} pasos</span>
@@ -487,13 +498,14 @@ export default function GlowUpPage() {
         <SegmentedControl options={TABS} value={tab} onChange={setTab} label="Área" className="max-w-[560px]" />
       </motion.div>
 
+      {/* Las secciones se funden entre sí, sin saltos */}
       <AnimatePresence mode="wait">
-        <motion.div key={tab} role="tabpanel" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+        <motion.div key={tab} role="tabpanel" initial={{ opacity: 0, filter: 'blur(6px)' }} animate={{ opacity: 1, filter: 'blur(0px)', transition: springs.gentle, transitionEnd: { filter: 'none' } }} exit={{ opacity: 0, filter: 'blur(4px)', transition: { duration: 0.2 } }}>
           {tab === 'care' && <CareSection onProgress={onProgress} />}
           {tab === 'style' && <StyleSection />}
           {tab === 'presence' && <PresenceSection />}
         </motion.div>
       </AnimatePresence>
-    </motion.div>
+    </ZoneShell>
   );
 }

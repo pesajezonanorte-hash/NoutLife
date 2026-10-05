@@ -217,3 +217,7 @@ html.dark .lq-glint { background: radial-gradient(220px circle at var(--mx, 50%)
     linear-gradient(to bottom, rgb(var(--lq-on-background) / .045) 1px, transparent 1px);
   background-size: 28px 28px;
 }
+
+/* Glow up: reflejo que cruza el espejo muy despacio (ida y vuelta). */
+.lq-mirror-glint { animation: lq-mirror-glint 16s ease-in-out infinite alternate; transform: translateX(-60%) skewX(-10deg); }
+@keyframes lq-mirror-glint { from { transform: translateX(-60%) skewX(-10deg); } to { transform: translateX(260%) skewX(-10deg); } }
