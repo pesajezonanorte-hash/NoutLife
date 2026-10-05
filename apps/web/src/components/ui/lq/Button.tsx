@@ -1,7 +1,7 @@
 import { forwardRef, type ReactNode } from 'react';
 import { motion, type HTMLMotionProps, type TargetAndTransition } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { pressSpring } from '@/lib/motion';
+import { weightPress } from '@/lib/motion';
 import { Spinner } from './Spinner';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'icon';
@@ -37,9 +37,10 @@ export function buttonClasses(variant: ButtonVariant = 'primary', size: ButtonSi
   return cn(classesFor(variant, size, block), 'transition-[background-color,color,border-color,box-shadow,transform,scale] hover:-translate-y-px active:translate-y-0 active:[scale:.97] [.reduce-motion_&]:hover:translate-y-0');
 }
 
-// Hover −1 px y pulsación 0.97 con muelle; ghost no se eleva, icon solo escala.
+// Hover −1 px; al pulsar se hunde (+1 px, 0.96) y rebota al soltar, con peso.
+// Ghost no se eleva, icon solo escala.
 const lift: TargetAndTransition = { y: -1 };
-const press: TargetAndTransition = { y: 0, scale: 0.97 };
+const press: TargetAndTransition = { y: 1, scale: 0.96 };
 const hoverFor: Record<ButtonVariant, TargetAndTransition | undefined> = {
   primary: lift, secondary: lift, danger: lift, ghost: undefined, icon: { scale: 1.06 },
 };
@@ -74,7 +75,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       aria-busy={loading || undefined}
       whileHover={live ? hoverFor[variant] : undefined}
       whileTap={live ? tapFor[variant] : undefined}
-      transition={pressSpring}
+      transition={weightPress}
       className={cn(classesFor(variant, size, block), className)}
       {...rest}
     >

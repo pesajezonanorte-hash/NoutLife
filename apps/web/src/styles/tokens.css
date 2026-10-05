@@ -127,7 +127,7 @@ html.dark {
   /* Card interactiva (design system): lift −4 px con muelle suave + shadow-lg +
      borde primary/25; el ícono rebota con muelle. */
   .lq-lift {
-    transition: transform .42s cubic-bezier(.34, 1.4, .64, 1), box-shadow .3s cubic-bezier(.16, 1, .3, 1), border-color .2s ease-out;
+    transition: transform .6s cubic-bezier(.3, 1.35, .5, 1), scale .5s cubic-bezier(.3, 1.6, .5, 1), box-shadow .4s cubic-bezier(.16, 1, .3, 1), border-color .2s ease-out;
   }
   .lq-lift:hover, .lq-lift:focus-within {
     transform: translateY(-4px);
@@ -178,7 +178,7 @@ html.dark {
   }
 
   /* Pulsación: escala independiente (propiedad `scale`), compatible con el transform de Framer. */
-  .lq-lift:active { scale: .995; }
+  .lq-lift:active { scale: .985; transition-duration: .6s, .12s, .4s; }
 
   /* Brillo que cruza el botón primario al pasar el cursor. */
   .lq-shine { position: relative; overflow: hidden; isolation: isolate; }

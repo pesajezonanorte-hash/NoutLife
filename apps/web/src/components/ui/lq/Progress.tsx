@@ -1,7 +1,7 @@
 import { useRef, type ReactNode } from 'react';
 import { motion, useInView } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { ease, expo } from '@/lib/motion';
+import { ease, expo, heavy } from '@/lib/motion';
 import { solidBg, strokeTone, type Tone } from './tones';
 
 const clamp = (v: number) => Math.max(0, Math.min(100, v));
@@ -35,7 +35,7 @@ export function ProgressBar({ value, tone = 'primary', size = 'md', shine, label
         style={{ originX: 0 }}
         initial={{ scaleX: 0 }}
         animate={{ scaleX: seen ? v / 100 : 0 }}
-        transition={{ duration: 1.1, ease: expo, delay: 0.2 }}
+        transition={{ ...heavy, delay: 0.2 }}
       />
     </div>
   );

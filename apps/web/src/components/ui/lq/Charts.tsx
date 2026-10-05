@@ -1,7 +1,7 @@
 import { useId } from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { ease, expo, springSoft } from '@/lib/motion';
+import { ease, expo, heavy, springSoft } from '@/lib/motion';
 import { borderTone, fillSoftTone, solidBg, strokeTone, textTone, type Tone } from './tones';
 
 type ChartTone = Exclude<Tone, 'muted'>;
@@ -89,7 +89,7 @@ export function BarChart({
                 style={{ height: `${pct}%`, originY: 1 }}
                 initial={{ scaleY: 0 }}
                 animate={{ scaleY: 1 }}
-                transition={{ duration: 1, ease: expo, delay: 0.2 + i * 0.07 }}
+                transition={{ ...heavy, delay: 0.15 + i * 0.06 }}
               />
             </div>
           );
