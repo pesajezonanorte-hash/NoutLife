@@ -798,3 +798,35 @@ html.dark .lq-engraved-gold { color: rgb(var(--lq-secondary)); text-shadow: 0 -1
 @keyframes lq-you-glow { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
 /* Placa de tu posición. */
 .lq-rank-plaque { background: radial-gradient(120% 90% at 50% 0%, rgb(var(--lq-secondary) / .16), transparent 60%), rgb(var(--lq-surface)); box-shadow: inset 0 0 0 1px rgb(var(--lq-secondary) / .4), var(--shadow-sm); }
+
+/* ───────── Gremio (fogata) ───────── */
+/* Cielo del anochecer (de noche, más profundo) y el claro del bosque. */
+.lq-camp { height: 22rem; background: linear-gradient(180deg, rgb(var(--lq-jade-900)) 0%, rgb(var(--lq-jade-800)) 46%, color-mix(in srgb, rgb(var(--lq-warning)) 14%, rgb(var(--lq-jade-800))) 72%); box-shadow: inset 0 0 0 1px rgb(var(--lq-secondary) / .2), 0 24px 40px -20px rgb(var(--lq-jade-900) / .6); }
+@media (min-width: 768px) { .lq-camp { height: 26rem; } }
+html.dark .lq-camp { background: linear-gradient(180deg, rgb(var(--lq-background)) 0%, rgb(var(--lq-jade-900)) 50%, color-mix(in srgb, rgb(var(--lq-warning)) 10%, rgb(var(--lq-jade-900))) 75%); box-shadow: inset 0 0 0 1px rgb(var(--lq-secondary) / .14), 0 24px 40px -18px rgb(0 0 0 / .85); }
+.lq-treeline { fill: rgb(var(--lq-jade-900) / .85); }
+html.dark .lq-treeline { fill: rgb(0 0 0 / .55); }
+.lq-camp-ground { background: radial-gradient(70% 90% at 50% 30%, color-mix(in srgb, rgb(var(--lq-warning-text)) 35%, rgb(var(--lq-jade-900))), rgb(var(--lq-jade-900)) 75%); }
+html.dark .lq-camp-ground { background: radial-gradient(70% 90% at 50% 30%, color-mix(in srgb, rgb(var(--lq-warning-text)) 18%, rgb(var(--lq-jade-900))), rgb(var(--lq-background)) 75%); }
+/* Resplandor del fuego: titila muy suave (menos de una vez por segundo). */
+.lq-fire-glow { background: radial-gradient(closest-side, rgb(var(--lq-warning) / .5), rgb(var(--lq-warning) / .16) 45%, transparent 72%); animation: lq-fire-glow 2.6s ease-in-out infinite alternate; }
+@keyframes lq-fire-glow { 0% { transform: scale(.96); } 50% { transform: scale(1.04); } 100% { transform: scale(.99); } }
+/* Llamas en capas, a destiempo. */
+.lq-flame-a, .lq-flame-b, .lq-flame-c { transform-box: fill-box; transform-origin: 50% 100%; }
+.lq-flame-a { animation: lq-flame-lick 1.3s ease-in-out infinite alternate; opacity: .9; }
+.lq-flame-b { animation: lq-flame-lick 1s ease-in-out -.4s infinite alternate; }
+.lq-flame-c { animation: lq-flame-lick .85s ease-in-out -.2s infinite alternate; }
+@keyframes lq-flame-lick { 0% { transform: scale(1, 1) skewX(-3deg); } 50% { transform: scale(.92, 1.08) skewX(3deg); } 100% { transform: scale(1.04, .95) skewX(-1deg); } }
+.group:hover .lq-flame-a, .group:focus-visible .lq-flame-a { animation-duration: .7s; }
+/* Leños, piedras, lona de las tiendas y banderín. */
+.lq-log { background: linear-gradient(180deg, color-mix(in srgb, rgb(var(--lq-warning-text)) 70%, black), color-mix(in srgb, rgb(var(--lq-warning-text)) 40%, black)); box-shadow: inset 0 1px 0 rgb(255 255 255 / .15); }
+.lq-ring-stone { background: radial-gradient(circle at 40% 30%, rgb(var(--lq-jade-200) / .7), rgb(var(--lq-jade-700)) 70%); box-shadow: 0 2px 2px rgb(0 0 0 / .4); }
+.lq-tent-lit { fill: color-mix(in srgb, rgb(var(--lq-secondary)) 55%, rgb(var(--lq-warning))); }
+.lq-tent-shade { fill: color-mix(in srgb, rgb(var(--lq-secondary)) 45%, rgb(var(--lq-jade-900))); }
+.lq-tent-door { fill: color-mix(in srgb, rgb(var(--lq-jade-900)) 85%, rgb(var(--lq-warning))); }
+html.dark .lq-tent-lit { fill: color-mix(in srgb, rgb(var(--lq-secondary)) 40%, rgb(var(--lq-jade-900))); }
+html.dark .lq-tent-shade { fill: color-mix(in srgb, rgb(var(--lq-secondary)) 22%, rgb(var(--lq-jade-900))); }
+.lq-pennant { background: rgb(var(--pen)); clip-path: polygon(0 0, 100% 50%, 0 100%); }
+/* Los miembros alrededor del fuego se balancean apenas. */
+.lq-camper { animation: lq-camper 3.6s ease-in-out infinite alternate; }
+@keyframes lq-camper { from { transform: translateY(0) rotate(-1.2deg); } to { transform: translateY(-2px) rotate(1.2deg); } }
