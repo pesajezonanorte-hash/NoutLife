@@ -27,14 +27,21 @@ interface Entry {
 interface Friend { friendshipId: string; friend: { id: string; username: string; displayName: string; level: number; currentStreak: number; avatarConfig?: unknown; avatarUrl?: string | null } }
 interface Pending { id: string; requester: { id: string; username: string; displayName: string; level: number; avatarConfig?: unknown; avatarUrl?: string | null } }
 
-const METRICS: Record<Category, { label: string; icon: LucideIcon; unit: string }> = {
-  xp: { label: 'XP total', icon: Trophy, unit: 'XP' },
-  streak: { label: 'Racha activa', icon: Flame, unit: 'días' },
-  gym: { label: 'Entrenamiento', icon: Dumbbell, unit: 'sesiones' },
-  savings: { label: 'Ahorro', icon: PiggyBank, unit: '%' },
+const METRICS: Record<Category, { label: string; icon: LucideIcon; unit: [string, string]; hint: string }> = {
+  xp: { label: 'XP total', icon: Trophy, unit: ['XP', 'XP'], hint: 'Nivel y experiencia acumulada.' },
+  streak: { label: 'Racha activa', icon: Flame, unit: ['día', 'días'], hint: 'Días seguidos con actividad. Si alguien pasa un día entero sin actividad, su racha vuelve a 0.' },
+  gym: { label: 'Entrenamiento', icon: Dumbbell, unit: ['sesión', 'sesiones'], hint: 'Sesiones de gimnasio terminadas.' },
+  savings: { label: 'Ahorro', icon: PiggyBank, unit: ['%', '%'], hint: 'Parte de lo ingresado este mes que no se gastó, según los movimientos de Finanzas. Lo que registras en Ahorro o Inversión cuenta como ahorrado.' },
 };
-const fmtValue = (v: number, c: Category) => (c === 'savings' ? `${Math.round(v)}%` : `${Math.round(v).toLocaleString('es-CO')} ${METRICS[c].unit}`);
+const fmtValue = (v: number, c: Category) => {
+  const n = Math.round(v);
+  return c === 'savings' ? `${n}%` : `${n.toLocaleString('es-CO')} ${METRICS[c].unit[n === 1 ? 0 : 1]}`;
+};
 const initials = (n: string) => n.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+/** Foto (o avatar) del perfil dentro del círculo del ranking. */
+const avatarOf = (e: Pick<Entry, 'avatarConfig' | 'avatarUrl'>) => (size: number) => (
+  <AvatarDisplay avatarConfig={e.avatarConfig} avatarUrl={e.avatarUrl} size={size} animate="none" className="rounded-full" />
+);
 const errText = (e: unknown, fallback: string) => (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? fallback;
 
 function Friends({ onChanged }: { onChanged: () => void }) {
@@ -133,7 +140,7 @@ export default function LeaderboardPage() {
   const ahead = myIdx > 0 ? data[myIdx - 1] : null;
   const gap = me && ahead ? Math.max(0, ahead.value - me.value) : 0;
   const top = useMemo(() => data.slice(0, 3).map((e) => ({
-    id: e.id, name: e.displayName.split(' ')[0], initials: initials(e.displayName), score: fmtValue(e.value, category), isYou: e.id === String(user?.id),
+    id: e.id, name: e.displayName.split(' ')[0], initials: initials(e.displayName), score: fmtValue(e.value, category), isYou: e.id === String(user?.id), avatar: avatarOf(e),
   })), [data, category, user?.id]);
   const options: ChipOption<Category>[] = (Object.keys(METRICS) as Category[]).map((c) => ({ value: c, label: METRICS[c].label, icon: METRICS[c].icon }));
 
@@ -151,7 +158,17 @@ export default function LeaderboardPage() {
         </>}
       />
 
-      <motion.div variants={item}><ChipGroup label="Métrica" options={options} value={category} onChange={setCategory} /></motion.div>
+      <motion.div variants={item} className="flex flex-col gap-3">
+        <ChipGroup label="Métrica" options={options} value={category} onChange={setCategory} />
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.p
+            key={category} className="max-w-[68ch] text-body-sm text-on-surface-light"
+            initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, transition: { duration: 0.12 } }} transition={{ duration: 0.3 }}
+          >
+            {METRICS[category].hint}
+          </motion.p>
+        </AnimatePresence>
+      </motion.div>
 
       <div className="flex flex-wrap items-start gap-6">
         <motion.section variants={item} className="flex min-w-0 flex-[2_1_520px] flex-col gap-6" aria-label="Clasificación">
@@ -171,7 +188,7 @@ export default function LeaderboardPage() {
                       <motion.ol variants={stagger} initial="initial" animate="animate" className="flex flex-col">
                         {data.slice(3).map((e, j) => (
                           <motion.div key={e.id} variants={item}>
-                            <LeaderRow id={e.id} position={e.rank ?? j + 4} name={e.displayName} initials={initials(e.displayName)} toneIndex={j}
+                            <LeaderRow id={e.id} position={e.rank ?? j + 4} name={e.displayName} initials={initials(e.displayName)} avatar={avatarOf(e)} toneIndex={j}
                               subtitle={`@${e.username} · Nivel ${e.level}`} score={fmtValue(e.value, category)} isYou={e.id === String(user?.id)} />
                           </motion.div>
                         ))}

@@ -1,4 +1,16 @@
 import { prisma } from '../lib/prisma';
+import { effectiveActivityStreak } from './xp.service';
+
+// La racha guardada solo se corrige cuando su dueño entra; para mostrar rachas de
+// otros se calcula la vigente con su última actividad y su zona horaria.
+const STREAK_FIELDS = { currentStreak: true, lastActivityDate: true, timezone: true } as const;
+/** Movimientos que apartan dinero (no cuentan como gasto en la tasa de ahorro). */
+const SAVED_CATEGORIES = new Set<string>(['SAVINGS', 'INVESTMENT']);
+type StreakSource = { currentStreak: number; lastActivityDate: Date | null; timezone: string | null };
+function withLiveStreak<T extends StreakSource>(u: T, now = new Date()): Omit<T, 'lastActivityDate' | 'timezone'> {
+  const { lastActivityDate: _l, timezone: _t, ...rest } = u;
+  return { ...rest, currentStreak: effectiveActivityStreak(u, now) };
+}
 
 // ─── Friendship ───────────────────────────────────────────────────────────────
 
@@ -51,14 +63,14 @@ export async function getFriends(userId: string) {
       OR: [{ requesterId: userId }, { receiverId: userId }],
     },
     include: {
-      requester: { select: { id: true, username: true, displayName: true, level: true, currentStreak: true, avatarConfig: true, avatarUrl: true, inviteCode: true } },
-      receiver:  { select: { id: true, username: true, displayName: true, level: true, currentStreak: true, avatarConfig: true, avatarUrl: true, inviteCode: true } },
+      requester: { select: { id: true, username: true, displayName: true, level: true, ...STREAK_FIELDS, avatarConfig: true, avatarUrl: true, inviteCode: true } },
+      receiver:  { select: { id: true, username: true, displayName: true, level: true, ...STREAK_FIELDS, avatarConfig: true, avatarUrl: true, inviteCode: true } },
     },
   });
 
   return friendships.map((f) => ({
     friendshipId: f.id,
-    friend: f.requesterId === userId ? f.receiver : f.requester,
+    friend: withLiveStreak(f.requesterId === userId ? f.receiver : f.requester),
     since: f.updatedAt.toISOString(),
   }));
 }
@@ -84,7 +96,7 @@ export async function getPublicProfile(username: string, viewerId?: string) {
     where: { username, onboardingCompleted: true },
     select: {
       id: true, username: true, displayName: true, level: true, xp: true,
-      currentStreak: true, longestStreak: true, avatarConfig: true, inviteCode: true,
+      ...STREAK_FIELDS, longestStreak: true, avatarConfig: true, inviteCode: true,
       createdAt: true,
       achievements: {
         include: { achievement: { select: { title: true, icon: true, category: true } } },
@@ -109,7 +121,7 @@ export async function getPublicProfile(username: string, viewerId?: string) {
   }
 
   return {
-    ...user,
+    ...withLiveStreak(user),
     createdAt: user.createdAt.toISOString(),
     achievements: user.achievements.map((ua) => ({
       ...ua.achievement,
@@ -143,19 +155,32 @@ export async function getLeaderboard(
   }
 
   if (category === 'streak') {
+    // Se lee una ventana amplia y se ordena por la racha vigente: la guardada de quien
+    // lleva días sin entrar sigue alta hasta que vuelve a iniciar sesión.
+    const now = new Date();
     const users = await prisma.user.findMany({
       where: whereClause,
       orderBy: { currentStreak: 'desc' },
-      take: 50,
-      select: { id: true, username: true, displayName: true, level: true, currentStreak: true, avatarConfig: true, avatarUrl: true, equippedAura: true, equippedFrame: true, equippedHat: true },
+      take: 500,
+      select: { id: true, username: true, displayName: true, level: true, ...STREAK_FIELDS, avatarConfig: true, avatarUrl: true, equippedAura: true, equippedFrame: true, equippedHat: true },
     });
-    return users.map((u, i) => ({ rank: i + 1, ...u, value: u.currentStreak }));
+    const live = users.map((u) => withLiveStreak(u, now));
+    // Las rachas caducadas se guardan a 0, como haría reconcileUserActivityStreak al entrar.
+    const stale = users.filter((u, i) => u.currentStreak > 0 && live[i].currentStreak === 0).map((u) => u.id);
+    if (stale.length) prisma.user.updateMany({ where: { id: { in: stale } }, data: { currentStreak: 0 } }).catch(() => {});
+    return live
+      .sort((x, y) => y.currentStreak - x.currentStreak || y.level - x.level)
+      .slice(0, 50)
+      .map((u, i) => ({ rank: i + 1, ...u, value: u.currentStreak }));
   }
+
+  const userScope = friendIds ? { userId: { in: [...friendIds, userId] } } : {};
 
   if (category === 'gym') {
     // Top by total workout sessions
     const result = await prisma.workout.groupBy({
       by: ['userId'],
+      where: userScope,
       _count: { id: true },
       orderBy: { _count: { id: 'desc' } },
       take: 50,
@@ -182,16 +207,18 @@ export async function getLeaderboard(
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
     const txs = await prisma.transaction.findMany({
-      where: { date: { gte: startOfMonth } },
-      select: { userId: true, type: true, amount: true },
+      where: { ...userScope, date: { gte: startOfMonth } },
+      select: { userId: true, type: true, amount: true, category: true },
     });
 
+    // Tasa de ahorro del mes = lo que queda de lo ingresado. Lo que se aparta a
+    // Ahorro o Inversión es dinero ahorrado, no gastado, así que no la reduce.
     const byUser = new Map<string, { income: number; expenses: number }>();
     for (const t of txs) {
       if (!byUser.has(t.userId)) byUser.set(t.userId, { income: 0, expenses: 0 });
       const entry = byUser.get(t.userId)!;
       if (t.type === 'INCOME') entry.income += Number(t.amount);
-      else entry.expenses += Number(t.amount);
+      else if (!SAVED_CATEGORIES.has(t.category)) entry.expenses += Number(t.amount);
     }
 
     const ranked = Array.from(byUser.entries())
@@ -347,7 +374,7 @@ export async function getMyGuild(userId: string) {
         include: {
           members: {
             include: {
-              user: { select: { id: true, username: true, displayName: true, level: true, currentStreak: true, xp: true, avatarConfig: true, avatarUrl: true, equippedAura: true, equippedFrame: true, equippedHat: true } },
+              user: { select: { id: true, username: true, displayName: true, level: true, ...STREAK_FIELDS, xp: true, avatarConfig: true, avatarUrl: true, equippedAura: true, equippedFrame: true, equippedHat: true } },
             },
             orderBy: { joinedAt: 'asc' },
           },
@@ -356,7 +383,9 @@ export async function getMyGuild(userId: string) {
     },
   });
 
-  return membership?.guild ?? null;
+  if (!membership) return null;
+  const now = new Date();
+  return { ...membership.guild, members: membership.guild.members.map((m) => ({ ...m, user: withLiveStreak(m.user, now) })) };
 }
 
 export async function getGuildMessages(userId: string, guildId: string, limit = 50) {

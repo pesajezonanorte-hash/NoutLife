@@ -31,6 +31,8 @@ type Summary = { income: number; expenses: number; balance: number; byCategory: 
 type TxTab = 'all' | 'INCOME' | 'EXPENSE';
 type PlanTab = (typeof PLANNING_TABS)[number]['value'];
 const DAY_NAMES = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+/** Categorías de gasto que en realidad apartan dinero. */
+const SAVED_CATEGORIES = new Set<string>(['SAVINGS', 'INVESTMENT']);
 const EMPTY: Summary = { income: 0, expenses: 0, balance: 0, byCategory: {}, count: 0 };
 
 function summarize(txs: Transaction[]): Summary {
@@ -175,8 +177,11 @@ export default function FinancesPage() {
   }
 
   const s = summary ?? EMPTY;
-  const savingsRate = s.income > 0 ? Math.round((s.balance / s.income) * 100) : null;
-  const spentShare = s.income > 0 ? Math.min(1, s.expenses / s.income) : s.expenses > 0 ? 1 : 0;
+  // Lo que se aparta a Ahorro o Inversión es dinero ahorrado, no gastado (mismo criterio que el ranking de Ahorro).
+  const setAside = txs.filter((t) => t.type === 'EXPENSE' && SAVED_CATEGORIES.has(t.category)).reduce((a, t) => a + Number(t.amount), 0);
+  const spent = Math.max(0, s.expenses - setAside);
+  const savingsRate = s.income > 0 ? Math.round(((s.income - spent) / s.income) * 100) : null;
+  const spentShare = s.income > 0 ? Math.min(1, spent / s.income) : spent > 0 ? 1 : 0;
 
   // Gastos de los últimos 7 días del mes visible (hasta hoy si es el mes actual).
   const week: WeightBar[] = useMemo(() => {

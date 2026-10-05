@@ -136,6 +136,8 @@ export interface Leader {
   initials: string;
   score: string;
   isYou?: boolean;
+  /** Foto o avatar del perfil; si falta se muestran las iniciales. Recibe el tamaño del círculo. */
+  avatar?: (size: number) => ReactNode;
 }
 
 /** Podio 2 · 1 · 3: las bases suben con scaleY escalonado; el primero lleva halo dorado. */
@@ -156,9 +158,10 @@ export function Podium({ top }: { top: Leader[] }) {
                 first ? 'lq-halo size-[72px] text-heading-sm text-warning-text ring-2 ring-warning ring-offset-4 ring-offset-background' : 'size-[60px] text-label-lg ring-2 ring-offset-4 ring-offset-background',
                 !first && (p.isYou ? 'ring-primary' : 'ring-border'),
                 p.isYou ? 'bg-primary/[var(--lq-soft-alpha)] text-primary-text' : 'bg-surface-variant text-on-surface',
+                p.avatar && 'overflow-hidden',
               )}
             >
-              {p.initials}
+              {p.avatar ? p.avatar(first ? 72 : 60) : p.initials}
             </span>
             <div className="text-center">
               <div className="text-label-lg md:text-body-md md:font-semibold">{p.name}</div>
@@ -189,7 +192,7 @@ const AVATAR_TONES: Tone[] = ['primary', 'success', 'warning', 'info', 'forest']
 const TREND = { up: { cls: 'text-success-text', d: 'm6 15 6-6 6 6', sr: 'sube' }, down: { cls: 'text-error-text', d: 'm6 9 6 6 6-6', sr: 'baja' }, flat: { cls: 'text-on-surface-light', d: 'M6 12h12', sr: 'igual' } };
 
 /** Fila de clasificación: posición, avatar, nombre (+ «Tú»), tendencia y puntuación. */
-export function LeaderRow({ position, name, initials, score, isYou, subtitle, trend, toneIndex = 0 }: LeaderRowProps) {
+export function LeaderRow({ position, name, initials, score, isYou, subtitle, trend, toneIndex = 0, avatar }: LeaderRowProps) {
   const t = trend ? TREND[trend.dir] : null;
   return (
     <li
@@ -197,7 +200,7 @@ export function LeaderRow({ position, name, initials, score, isYou, subtitle, tr
       className={cn('flex min-h-16 items-center gap-3 rounded-xl px-3 md:gap-4', isYou && 'bg-primary/[var(--lq-soft-alpha)]')}
     >
       <span className="w-7 text-center font-mono text-label-lg tabular-nums text-on-surface-light">{position}</span>
-      <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-full text-label-lg font-bold', softTone[AVATAR_TONES[toneIndex % AVATAR_TONES.length]])}>{initials}</span>
+      <span className={cn('flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full text-label-lg font-bold', softTone[AVATAR_TONES[toneIndex % AVATAR_TONES.length]])}>{avatar ? avatar(40) : initials}</span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className={cn('truncate text-label-lg md:text-body-md md:font-semibold', isYou ? 'text-primary-text' : 'text-on-background')}>{name}</span>
