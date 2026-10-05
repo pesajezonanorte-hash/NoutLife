@@ -83,19 +83,19 @@ export function Skeleton({ className }: { className?: string }) {
 }
 
 export interface PageLoaderProps {
-  /** Texto principal (lectores de pantalla y primera frase de la terminal). */
+  /** Texto principal (lectores de pantalla y primera frase bajo el remolino). */
   label?: string;
-  /** Frases extra que la terminal va escribiendo después de `label`. */
+  /** Frases extra que se alternan después de `label`. */
   words?: readonly string[];
-  /** lg: página completa · sm: sección o tarjeta. */
+  /** lg: página completa · sm: sección, tarjeta o tabla. El remolino se ajusta al espacio. */
   size?: 'lg' | 'sm';
   className?: string;
 }
 
-/** Cargando página o sección: terminal animada (ModernLoader) centrada. */
+/** Cargando página o sección: remolino de hojas (ModernLoader) centrado y a la medida del hueco. */
 export function PageLoader({ label = 'Cargando tu aventura…', words = LOADING_COPY.page, size = 'lg', className }: PageLoaderProps) {
   return (
-    <div className={cn('flex items-center justify-center', size === 'lg' ? 'py-8' : 'py-2', className)}>
+    <div className={cn('flex w-full items-center justify-center', size === 'lg' ? 'py-4' : 'py-1', className)}>
       <ModernLoader label={label} words={[label, ...words.filter((w) => w !== label)]} size={size} />
     </div>
   );

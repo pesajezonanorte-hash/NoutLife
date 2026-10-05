@@ -1,66 +1,53 @@
-// Cargador "terminal": ventana con semáforo, un título que se escribe solo y
-// líneas de código que van apareciendo abajo mientras las viejas salen por arriba.
-// Todo lo visual es decorativo (aria-hidden); el estado se anuncia con role="status".
-// Solo transform/opacity: los segmentos crecen con scaleX desde la izquierda.
-import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+// Cargador «remolino de hojas»: las hojas del logo giran alrededor de un centro
+// como un pequeño remolino de tiempo. Cada hoja orbita a su ritmo (las de dentro
+// más rápido, como en un remolino de agua), se acerca y se aleja del centro y se
+// mece sobre su eje; un arco tenue barre el contorno como la aguja de un reloj.
+// El tamaño se adapta al hueco que ocupa: grande en una página, pequeño en una
+// tarjeta o tabla. Todo lo visual es decorativo (aria-hidden); el estado se anuncia
+// con role="status". CSS puro (lq-vortex en tokens.css): solo transform/opacity.
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { usePageVisibility } from '@/components/ui/LoadingGate';
 
-const TONES = ['bg-on-surface-light', 'bg-success', 'bg-primary', 'bg-on-surface-light', 'bg-info', 'bg-forest'];
-const TICK_MS = 200;
-const KEEP_LINES = 16;
+/** Hoja asimétrica, misma familia que las del logo. Centrada en (0,0), 20 de alto. */
+const LEAF = 'M0 -10C6.6 -6.4 6.2 4.6 0 10C-3.4 4.4 -4.2 -4.6 0 -10Z';
+const LEAF_TONES = ['fill-jade-300', 'fill-jade-500', 'fill-primary', 'fill-jade-400', 'fill-jade-600', 'fill-primary-text'];
 
-interface Segment { width: number; tone: string; dot: boolean }
-interface Line { id: number; indent: boolean; spaced: boolean; rule: boolean; segments: Segment[] }
-
-let seq = 0;
-const rand = (n: number) => Math.floor(Math.random() * n);
-function makeLine(): Line {
-  seq += 1;
-  return {
-    id: seq,
-    indent: Math.random() > 0.7,
-    spaced: seq % 4 === 0,
-    rule: seq % 6 === 0,
-    segments: Array.from({ length: rand(4) + 1 }, () => ({
-      width: rand(80) + 50,
-      tone: TONES[rand(TONES.length)],
-      dot: Math.random() > 0.93,
-    })),
-  };
-}
-
-/** Escribe y borra cada frase en bucle (lento, con pausa al completar). */
-function useTyped(words: readonly string[], active: boolean) {
-  const [index, setIndex] = useState(0);
-  const [count, setCount] = useState(0);
-  const [deleting, setDeleting] = useState(false);
-  const word = words[index % words.length] ?? '';
-
-  useEffect(() => {
-    if (!active) return;
-    const atEnd = count >= word.length;
-    const delay = deleting ? 40 : atEnd ? 2000 : 62;
-    const t = window.setTimeout(() => {
-      if (atEnd && !deleting) setDeleting(true);
-      else if (count === 0 && deleting) { setDeleting(false); setIndex((i) => (i + 1) % words.length); }
-      else setCount((c) => c + (deleting ? -1 : 1));
-    }, delay);
-    return () => window.clearTimeout(t);
-  }, [active, count, deleting, word, words.length]);
-
-  return word.slice(0, count);
-}
+/**
+ * Cada hoja: radios entre los que respira (fracción del diámetro), vueltas por
+ * segundo implícitas en `t` y desfase. Las interiores van más rápido.
+ */
+const LEAVES = [
+  { r1: 0.16, r2: 0.3, t: 1.9, t2: 1.3, s: 0.2, delay: 0 },
+  { r1: 0.38, r2: 0.24, t: 2.6, t2: 1.7, s: 0.22, delay: -0.9 },
+  { r1: 0.2, r2: 0.36, t: 2.2, t2: 1.5, s: 0.17, delay: -1.6 },
+  { r1: 0.44, r2: 0.3, t: 3.2, t2: 2.1, s: 0.21, delay: -0.4 },
+  { r1: 0.26, r2: 0.42, t: 2.9, t2: 1.9, s: 0.16, delay: -2.3 },
+  { r1: 0.46, r2: 0.36, t: 3.8, t2: 2.4, s: 0.19, delay: -1.2 },
+] as const;
 
 export interface ModernLoaderProps {
-  /** Frases que se van escribiendo en la barra de título. */
+  /** Frases que se van alternando bajo el remolino. */
   words?: readonly string[];
   /** Texto para lectores de pantalla (por defecto, la primera frase). */
   label?: string;
-  /** lg: página o splash (300 px) · sm: sección o tarjeta (200 px). */
+  /** lg: página completa · sm: sección, tarjeta o tabla. El diámetro final se ajusta al espacio disponible. */
   size?: 'lg' | 'sm';
   className?: string;
+}
+
+const LIMITS = { lg: { min: 72, max: 168, minH: 'min-h-[min(56vh,420px)]' }, sm: { min: 36, max: 104, minH: 'min-h-[140px]' } } as const;
+
+/** Alterna las frases con un fundido suave. */
+function useRotatingWord(words: readonly string[], active: boolean) {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    if (!active || words.length < 2) return;
+    const id = window.setInterval(() => setI((n) => (n + 1) % words.length), 2600);
+    return () => window.clearInterval(id);
+  }, [active, words.length]);
+  return words[i % words.length] ?? '';
 }
 
 export function ModernLoader({
@@ -70,85 +57,79 @@ export function ModernLoader({
   className,
 }: ModernLoaderProps) {
   const visible = usePageVisibility();
-  const [lines, setLines] = useState<Line[]>([]);
-  const typed = useTyped(words, visible);
+  const ref = useRef<HTMLDivElement>(null);
+  const lim = LIMITS[size];
+  const [d, setD] = useState<number>(size === 'lg' ? 132 : 64);
+  const word = useRotatingWord(words, visible);
 
-  useEffect(() => {
-    if (!visible) return;
-    const id = window.setInterval(() => setLines((old) => [...old.slice(-(KEEP_LINES - 1)), makeLine()]), TICK_MS);
-    return () => window.clearInterval(id);
-  }, [visible]);
+  // Diámetro según el hueco: ~40 % del ancho y ~50 % del alto, dentro de los límites del tamaño.
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => {
+      const { width, height } = el.getBoundingClientRect();
+      const next = Math.round(Math.max(lim.min, Math.min(lim.max, width * 0.42, height * 0.5)));
+      setD((prev) => (Math.abs(prev - next) > 2 ? next : prev));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [lim.min, lim.max]);
+
+  const compact = d < 64;
+  const leaves = compact ? LEAVES.slice(0, 4) : LEAVES;
 
   return (
-    <div role="status" aria-live="polite" aria-busy="true" className={cn('mx-auto w-full max-w-md', className)}>
+    <div
+      ref={ref} role="status" aria-live="polite" aria-busy="true"
+      className={cn('flex w-full flex-col items-center justify-center gap-4', lim.minH, className)}
+    >
       <span className="sr-only">{label ?? words[0]}</span>
       <motion.div
         aria-hidden
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.3 }}
-        className={cn(
-          'relative flex flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-lg',
-          size === 'lg' ? 'h-[300px]' : 'h-[200px]',
-        )}
+        className="lq-vortex"
+        data-paused={!visible || undefined}
+        style={{ '--d': `${d}px` } as CSSProperties}
+        initial={{ opacity: 0, scale: 0.6, rotate: -40 }}
+        animate={{ opacity: 1, scale: 1, rotate: 0 }}
+        transition={{ type: 'spring', stiffness: 170, damping: 19, mass: 1.2 }}
       >
-        <div className="flex h-12 shrink-0 items-center gap-3 border-b border-border px-4">
-          <span className="flex shrink-0 items-center gap-1.5">
-            <span className="size-2.5 rounded-full bg-error sm:size-3" />
-            <span className="size-2.5 rounded-full bg-warning sm:size-3" />
-            <span className="size-2.5 rounded-full bg-success sm:size-3" />
-          </span>
-          <motion.span
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="min-w-0 flex-1 truncate pr-12 text-center font-mono text-body-sm text-on-surface-light"
+        {/* Aguja: un arco tenue que barre el contorno */}
+        <svg className="lq-vortex-sweep" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="47" pathLength="100" strokeDasharray="22 78" strokeWidth={compact ? 3 : 1.6} strokeLinecap="round" className="fill-none stroke-primary/30" />
+        </svg>
+        <span className="lq-vortex-eye bg-primary/40" />
+        {leaves.map((l, i) => (
+          <span
+            key={i} className="lq-vortex-orbit"
+            style={{
+              '--t': `${l.t}s`, '--t2': `${l.t2}s`, '--delay': `${l.delay}s`,
+              '--r1': `${l.r1 * d}px`, '--r2': `${l.r2 * d}px`, '--s': `${Math.max(8, l.s * d)}px`,
+            } as CSSProperties}
           >
-            {typed}
-            <span className="ml-px inline-block h-3.5 w-px translate-y-0.5 bg-on-surface-light" />
-          </motion.span>
-        </div>
-
-        <div className="flex min-h-0 flex-1 flex-col justify-end gap-2 overflow-hidden px-5 py-4">
-          {lines.map((line) => (
-            <div key={line.id} className={cn('flex shrink-0 flex-col gap-2', line.spaced && 'mt-2')}>
-              <motion.div
-                initial={{ opacity: 0, x: -5 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.2, ease: 'easeOut' }}
-                className={cn('flex h-5 items-center gap-2', line.indent && 'pl-4')}
-              >
-                {line.segments.map((seg, i) => seg.dot ? (
-                  <motion.span
-                    key={i}
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ duration: 0.2, delay: 0.05 }}
-                    className={cn('size-4 shrink-0 rounded-full opacity-50', seg.tone)}
-                  />
-                ) : (
-                  <motion.span
-                    key={i}
-                    initial={{ scaleX: 0 }}
-                    animate={{ scaleX: 1 }}
-                    transition={{ duration: 0.25, ease: 'easeOut' }}
-                    style={{ width: seg.width }}
-                    className={cn('h-3 shrink-0 origin-left rounded-sm opacity-50', seg.tone)}
-                  />
-                ))}
-              </motion.div>
-              {line.rule && <span className="h-1 w-full rounded-sm bg-border opacity-60" />}
-            </div>
-          ))}
-          <div className={cn('flex h-5 shrink-0 items-center', lines.length % 3 === 1 && 'pl-4')}>
-            <motion.span
-              animate={{ opacity: [1, 1, 0, 0] }}
-              transition={{ duration: 1.06, repeat: Infinity, times: [0, 0.5, 0.5, 1] }}
-              className="h-3.5 w-0.5 bg-primary"
-            />
-          </div>
-        </div>
+            <span className="lq-vortex-drift">
+              <svg className="lq-vortex-leaf" viewBox="-10 -10 20 20"><path d={LEAF} className={LEAF_TONES[i % LEAF_TONES.length]} /></svg>
+            </span>
+          </span>
+        ))}
       </motion.div>
+      {!compact && (
+        <div aria-hidden className="relative h-5 w-full max-w-xs overflow-hidden text-center">
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.span
+              key={word}
+              className="absolute inset-x-0 truncate text-body-sm text-on-surface-light"
+              initial={{ opacity: 0, y: 6, filter: 'blur(4px)' }}
+              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, y: -6, filter: 'blur(4px)' }}
+              transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+            >
+              {word}
+            </motion.span>
+          </AnimatePresence>
+        </div>
+      )}
     </div>
   );
 }
