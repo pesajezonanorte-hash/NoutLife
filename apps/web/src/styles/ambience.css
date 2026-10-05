@@ -230,6 +230,64 @@ html.dark .lq-glint { background: radial-gradient(220px circle at var(--mx, 50%)
 @keyframes lq-heartbeat { 0%, 100% { transform: scale(1); } 14% { transform: scale(1.12); } 28% { transform: scale(1); } 42% { transform: scale(1.08); } 60% { transform: scale(1); } }
 /* Pétalo que cae: un óvalo torcido. */
 .lq-petal { border-radius: 60% 40% 60% 40%; }
+/* Cielo: atardecer cálido de día; noche profunda con luna y estrellas. */
+.lq-garden { background: linear-gradient(180deg, rgb(var(--lq-warning) / .2) 0%, rgb(var(--lq-error) / .08) 34%, rgb(var(--lq-background)) 68%); }
+html.dark .lq-garden { background: linear-gradient(180deg, rgb(var(--lq-jade-900)) 0%, rgb(var(--lq-background)) 72%); }
+.lq-sun { background: radial-gradient(closest-side, rgb(var(--lq-warning) / .55), rgb(var(--lq-warning) / .22) 45%, transparent 72%); }
+.lq-sun::after { content: ""; position: absolute; inset: 34%; border-radius: 999px; background: rgb(var(--lq-warning) / .75); box-shadow: 0 0 24px 6px rgb(var(--lq-warning) / .35); }
+.lq-moon { background: radial-gradient(circle at 70% 30%, transparent 0 40%, rgb(var(--lq-jade-50)) 42%); box-shadow: 0 0 34px 4px rgb(var(--lq-jade-50) / .12); }
+/* Colinas al fondo y la cerca de madera. */
+.lq-hill-far { fill: rgb(var(--lq-jade-200) / .55); }
+.lq-hill-near { fill: rgb(var(--lq-jade-300) / .5); }
+html.dark .lq-hill-far { fill: rgb(var(--lq-jade-800) / .55); }
+html.dark .lq-hill-near { fill: rgb(var(--lq-jade-800) / .85); }
+.lq-fence {
+  --fp: rgb(var(--lq-surface)); --fe: rgb(var(--lq-border-strong) / .35);
+  background:
+    linear-gradient(to bottom, transparent 30%, var(--fp) 30% 38%, transparent 38% 68%, var(--fp) 68% 76%, transparent 76%),
+    radial-gradient(circle 6px at 7px 6px, var(--fp) 96%, transparent) 0 0 / 22px 100% repeat-x,
+    linear-gradient(to right, var(--fp) 0 14px, transparent 14px) 0 6px / 22px 100% repeat-x;
+  filter: drop-shadow(0 1px 0 var(--fe)) drop-shadow(1px 0 0 var(--fe));
+  opacity: .72;
+}
+html.dark .lq-fence { --fp: rgb(var(--lq-jade-800) / .9); --fe: rgb(0 0 0 / .4); opacity: .8; }
+/* La tierra: marrón de los tokens (texto de advertencia) con grano. */
+.lq-soil {
+  background:
+    radial-gradient(rgb(var(--lq-on-background) / .12) .8px, transparent 1.2px) 0 0 / 9px 7px,
+    linear-gradient(180deg, rgb(var(--lq-warning-text) / .42), rgb(var(--lq-warning-text) / .62));
+  box-shadow: inset 0 3px 4px -2px rgb(0 0 0 / .2);
+}
+html.dark .lq-soil { background: radial-gradient(rgb(0 0 0 / .35) .8px, transparent 1.2px) 0 0 / 9px 7px, linear-gradient(180deg, rgb(var(--lq-warning-text) / .22), rgb(var(--lq-warning-text) / .12)); }
+/* El pasto crece al llegar, se mece y se inclina con la brisa del cursor (--lean). */
+.lq-grass-grow { animation: lq-grow .8s var(--lq-ease-natural) var(--gd, 0s) both; }
+@keyframes lq-grow { from { transform: scaleY(0); } }
+.lq-blade { animation: lq-blade 4s ease-in-out infinite alternate; transform-origin: 50% 100%; }
+@keyframes lq-blade { from { transform: rotate(-3deg); } to { transform: rotate(3.5deg); } }
+.lq-lean { transform: rotate(calc(var(--lean, 0) * 1deg)); transition: transform 1.1s var(--lq-ease-gentle); }
+.lq-lean-half { transform: rotate(calc(var(--lean, 0) * .45deg)); }
+.reduce-motion .lq-lean { transform: none !important; }
+html.dark .lq-blade path { opacity: .8; }
+/* Estaca de madera con su etiqueta clavada en la tierra. */
+.lq-stake::before { content: ""; order: 2; width: 3px; height: .75rem; border-radius: 0 0 2px 2px; background: rgb(var(--lq-secondary-text) / .7); }
+.lq-stake-tag { border-radius: 4px; background: rgb(var(--lq-surface)); box-shadow: 0 1px 2px rgb(var(--lq-on-background) / .18), inset 0 0 0 1px rgb(var(--lq-border)); }
+html.dark .lq-stake-tag { background: rgb(var(--lq-surface-variant)); }
+/* Mariposas: un lazo lento por el jardín; las alas aletean (≈1,4 veces por segundo). */
+.lq-butterfly { width: 26px; height: 20px; display: flex; gap: 1px; animation-duration: 19s; animation-timing-function: ease-in-out; animation-iteration-count: infinite; }
+.lq-fly-1 { animation-name: lq-fly-1; }
+.lq-fly-2 { animation-name: lq-fly-2; animation-duration: 23s; }
+@keyframes lq-fly-1 { 0%, 100% { transform: translate(0, 0) rotate(-8deg); } 25% { transform: translate(120px, -28px) rotate(6deg); } 50% { transform: translate(220px, 10px) rotate(-4deg); } 75% { transform: translate(90px, 34px) rotate(10deg); } }
+@keyframes lq-fly-2 { 0%, 100% { transform: translate(0, 0) rotate(6deg); } 30% { transform: translate(-140px, 22px) rotate(-8deg); } 60% { transform: translate(-60px, -30px) rotate(4deg); } 80% { transform: translate(60px, 8px) rotate(-6deg); } }
+.lq-wing { width: 12px; height: 18px; border-radius: 70% 30% 60% 40%; animation: lq-wing .36s ease-in-out infinite alternate; }
+.lq-wing-l { transform-origin: 100% 60%; }
+.lq-wing-r { transform-origin: 0% 60%; border-radius: 30% 70% 40% 60%; }
+@keyframes lq-wing { from { transform: scaleX(1); } to { transform: scaleX(.25); } }
+/* Arbustos redondeados junto a la cerca (dos verdes) y flores silvestres en el pasto. */
+.lq-shrub { border-radius: 50% 50% 12% 12% / 70% 70% 10% 10%; background: radial-gradient(60% 70% at 40% 30%, rgb(var(--lq-jade-400)), rgb(var(--lq-jade-500)) 70%); box-shadow: inset -6px -4px 10px rgb(var(--lq-jade-700) / .35); }
+.lq-shrub-b { background: radial-gradient(60% 70% at 40% 30%, rgb(var(--lq-jade-300)), rgb(var(--lq-jade-500)) 75%); }
+html.dark .lq-shrub { background: radial-gradient(60% 70% at 40% 30%, rgb(var(--lq-jade-700)), rgb(var(--lq-jade-800)) 70%); box-shadow: inset -6px -4px 10px rgb(0 0 0 / .35); }
+html.dark .lq-shrub-b { background: radial-gradient(60% 70% at 40% 30%, rgb(var(--lq-jade-600) / .8), rgb(var(--lq-jade-800)) 75%); }
+.lq-wild { box-shadow: 0 0 0 1px rgb(var(--lq-on-background) / .06); }
 
 /* ───────── Rituales (lugar de paz) ───────── */
 /* La piedra del paso actual respira; el círculo de respiración sigue un ciclo de 8 s. */
