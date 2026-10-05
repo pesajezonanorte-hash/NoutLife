@@ -81,25 +81,24 @@ export function SketchStrike({ drawn = true, delay = 0, duration = 0.32, classNa
 
 /**
  * Marcas de conteo (||||⧸): grupos de cinco con la quinta tachando a las cuatro.
- * Muestra el grupo en curso más el último completo; las semanas anteriores se
- * resumen en «×N». Cuando `count` sube, solo se dibuja la marca nueva (y el
+ * Hasta 4 grupos completos se dibujan todos; a partir de ahí se dibuja uno con
+ * «×N» y luego las marcas del grupo en curso. Cuando `count` sube, solo se dibuja la marca nueva (y el
  * tachado si cierra grupo), en menos de 400 ms.
  */
 export function TallyMarks({ count, className }: { count: number; className?: string }) {
   const n = Math.max(0, Math.floor(count));
   const full = Math.floor(n / 5);
   const rest = n % 5;
-  const shownFull = Math.min(full, rest === 0 ? 2 : 1);
-  const hidden = full - shownFull;
-  const groups = [...Array.from({ length: shownFull }, () => 5), ...(rest ? [rest] : [])];
+  const compact = full > 4;
+  const groups = [...Array.from({ length: compact ? 1 : full }, () => 5), ...(rest ? [rest] : [])];
   // La última marca (o el tachado) es la que acaba de llegar: se dibuja; el resto ya estaba.
   return (
     <span aria-hidden="true" className={cn('inline-flex items-center gap-1.5 text-warning-text', className)}>
-      {hidden > 0 && <span className="font-mono text-label-md tabular-nums opacity-80">{hidden * 5}+</span>}
       {groups.map((g, gi) => {
         const isLast = gi === groups.length - 1;
         return (
-          <svg key={`${n}-${gi}`} viewBox="0 0 26 20" className="h-4 w-[21px] overflow-visible">
+          <span key={`${n}-${gi}`} className="inline-flex items-center">
+          <svg viewBox="0 0 26 20" className="h-4 w-[21px] overflow-visible">
             {Array.from({ length: Math.min(g, 4) }, (_, i) => (
               <InkPath
                 key={i}
@@ -112,6 +111,8 @@ export function TallyMarks({ count, className }: { count: number; className?: st
             ))}
             {g === 5 && <InkPath d="M1.5 15.5C8 11.2 15.6 7.2 24.5 4" drawn delay={isLast ? 0.26 : 0} duration={isLast ? 0.12 : 0} strokeWidth={1.8} />}
           </svg>
+          {compact && gi === 0 && <span className="ml-0.5 font-mono text-label-md tabular-nums">×{full}</span>}
+          </span>
         );
       })}
     </span>

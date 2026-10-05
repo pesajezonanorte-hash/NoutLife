@@ -36,7 +36,7 @@
     background-image: linear-gradient(to bottom, transparent calc(var(--lq-rule) - 1px), rgb(var(--lq-info) / .16) calc(var(--lq-rule) - 1px), rgb(var(--lq-info) / .16) var(--lq-rule));
     background-size: 100% var(--lq-rule);
   }
-  .lq-tex-margin { border-left: 1px solid rgb(var(--lq-error) / .28); box-shadow: -3px 0 0 -2px rgb(var(--lq-error) / .18); }
+  .lq-tex-margin { border-left: 1px solid rgb(var(--lq-error) / .4); box-shadow: -3px 0 0 -2px rgb(var(--lq-error) / .22); }
   /* Vidrio esmerilado (vitrina, escaparates). */
   .lq-tex-glass {
     background: linear-gradient(135deg, rgb(var(--lq-surface) / .62), rgb(var(--lq-surface) / .32));
