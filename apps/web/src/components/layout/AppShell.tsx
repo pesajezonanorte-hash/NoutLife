@@ -30,6 +30,7 @@ import { MobileHeader } from './MobileHeader';
 import { MenuSheet } from './MenuSheet';
 import { QuickActions } from './QuickActions';
 import { FeedbackDialog } from './FeedbackDialog';
+import { WelcomeTour, useTourDone } from '../onboarding/WelcomeTour';
 
 /** Primera visita a una zona: tarjeta informativa descartable (sustituye al tooltip dorado). */
 function ZoneTip() {
@@ -97,6 +98,15 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   useUserSync(pathname);
 
+  // Primera vez en el inicio: el tutorial empieza cuando el panel ya entró.
+  const tourDone = useTourDone(user?.id);
+  const [tourReady, setTourReady] = useState(false);
+  useEffect(() => {
+    if (tourDone || pathname !== '/' || !user?.onboardingCompleted) return;
+    const t = window.setTimeout(() => setTourReady(true), 1100);
+    return () => window.clearTimeout(t);
+  }, [tourDone, pathname, user?.onboardingCompleted]);
+
   // Al cambiar de ruta: arriba del todo y menús cerrados.
   useEffect(() => {
     window.scrollTo({ top: 0 });
@@ -130,6 +140,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <TabBar className="md:hidden" />
       <Fab className="md:hidden" />
 
+      {tourReady && !tourDone && user && <WelcomeTour userId={user.id} name={user.displayName} />}
       <MenuSheet />
       <QuickActions />
       <FeedbackDialog />

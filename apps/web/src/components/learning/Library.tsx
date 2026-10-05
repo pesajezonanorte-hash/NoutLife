@@ -14,12 +14,22 @@ export function BankerLamp({ on, onToggle, className }: { on: boolean; onToggle:
   const reduce = useMotionStore((s) => s.reduce);
   return (
     <div className={cn('relative', className)}>
-      {/* Luz que cae sobre el escritorio: se enciende con un parpadeo de bombilla */}
+      {/* Luz que cae sobre el escritorio: un cono que se abre desde la pantalla hacia
+          la ficha y un charco cálido donde cae. Se enciende con un parpadeo de bombilla. */}
       <motion.span
         aria-hidden="true"
-        className="lq-lamp-light pointer-events-none absolute left-1/2 top-[3.4rem] -ml-[9.5rem] block h-[20rem] w-[19rem]"
+        className="lq-lamp-light pointer-events-none absolute right-0 top-[3.05rem] block h-[16rem] w-[17.25rem]"
         initial={{ opacity: 0 }}
         animate={{ opacity: on ? (reduce ? 1 : [0, 0.8, 0.35, 1]) : 0, transition: on ? { duration: reduce ? 0.3 : 0.9, times: reduce ? undefined : [0, 0.3, 0.5, 1], delay: 0.7 } : { duration: 0.35 } }}
+      >
+        <span className="lq-desk-beam" />
+        <span className="lq-desk-pool" />
+      </motion.span>
+      <motion.span
+        aria-hidden="true"
+        className="lq-desk-bulb pointer-events-none absolute left-[18%] right-[18%] top-[2.75rem] block h-5"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: on ? 1 : 0, transition: { duration: 0.4, delay: on ? 0.95 : 0 } }}
       />
       <svg aria-hidden="true" viewBox="0 0 200 150" className="relative block w-full overflow-visible">
         {/* Base, columna y brazo de latón */}

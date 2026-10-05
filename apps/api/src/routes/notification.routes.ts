@@ -4,6 +4,9 @@ import * as notificationController from '../controllers/notification.controller'
 
 const router = Router();
 
+// Pública: el navegador la necesita para suscribirse (no es secreta).
+router.get('/vapid-public-key', notificationController.vapidPublicKey);
+
 router.use(requireAuth);
 
 router.post('/subscribe',       notificationController.subscribe);

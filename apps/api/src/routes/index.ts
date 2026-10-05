@@ -39,6 +39,8 @@ import feedbackRoutes     from './feedback.routes';
 import mirrorRoutes       from './mirror.routes';
 // Custom Zones (Bloque 4)
 import customZonesRoutes  from './custom-zones.routes';
+// Recordatorios disparados desde fuera (serverless)
+import cronRoutes         from './cron.routes';
 
 const router = Router();
 
@@ -78,6 +80,7 @@ router.use('/wisdom',       wisdomRoutes);
 // Fase 10 routes
 router.use('/search',       searchRoutes);
 router.use('/export',       exportRoutes);
+router.use('/cron',         cronRoutes);
 router.use('/feedback',     feedbackRoutes);
 
 router.use('/mirror',       mirrorRoutes);

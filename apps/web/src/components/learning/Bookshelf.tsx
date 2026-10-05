@@ -77,7 +77,7 @@ function ShelfDecor({ kind }: { kind: number }) {
   const spines = [[132, 22, 'bg-forest/50'], [150, 26, 'bg-error-text/45'], [140, 18, 'bg-secondary-text/50'], [158, 24, 'bg-info-text/45']].slice(kind, kind + 3) as [number, number, string][];
   return (
     <span aria-hidden="true" className="relative ml-auto hidden shrink-0 items-end gap-0.5 pr-4 sm:flex">
-      {kind !== 1 && spines.map(([h, w, c], k) => <span key={k} className={cn('lq-spine block rounded-[2px]', c)} style={{ height: h, width: w, rotate: k === spines.length - 1 && kind === 2 ? '-8deg' : undefined, transformOrigin: '100% 100%' }} />)}
+      {kind !== 1 && spines.map(([h, w, c], k) => <span key={k} className={cn('lq-spine relative block rounded-[2px]', c)} style={{ height: h, width: w, rotate: k === spines.length - 1 && kind === 2 ? '-8deg' : undefined, transformOrigin: '100% 100%' }} />)}
       {kind === 0 && (
         // Pila de libros acostados
         <span className="ml-3 flex flex-col items-end">

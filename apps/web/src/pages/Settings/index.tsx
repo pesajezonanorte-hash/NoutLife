@@ -20,7 +20,7 @@ import { useToast } from '@/hooks/useToast';
 import { refreshUser } from '@/hooks/useAuth';
 import * as userService from '@/services/user.service';
 import {
-  getNotificationPreferences, requestPermissionAndSubscribe, sendTestNotification, updateNotificationPreferences,
+  getNotificationPreferences, enablePush, PUSH_MESSAGES, pushSupport, sendTestNotification, updateNotificationPreferences,
   type NotificationCategoryPreference, type NotificationPreferences,
 } from '@/services/notification.service';
 import { THEME_PALETTES } from '@/lib/shopThemes';
@@ -170,17 +170,24 @@ export default function SettingsPage() {
     finally { setThemeLoading(null); }
   }
   async function enableNotifications() {
-    try {
-      const ok = await requestPermissionAndSubscribe();
-      setPermission('Notification' in window ? Notification.permission : 'unsupported');
-      if (ok) toast.success('Notificaciones activadas'); else toast.error('El navegador no permitió las notificaciones');
-    } catch { toast.error('No se pudieron activar las notificaciones'); }
+    const result = await enablePush();
+    setPermission('Notification' in window ? Notification.permission : 'unsupported');
+    if (result === 'ok') toast.success(PUSH_MESSAGES.ok);
+    else if (result === 'ios-install') toast.info(PUSH_MESSAGES[result]);
+    else toast.error(PUSH_MESSAGES[result]);
   }
   async function testNotification() {
     setTesting(true);
-    try { await sendTestNotification(); toast.success('Notificación de prueba enviada'); }
-    catch { toast.error('No se pudo enviar la prueba'); }
-    finally { setTesting(false); }
+    try {
+      // Antes de probar, asegura que este dispositivo está suscrito.
+      const sub = await enablePush();
+      if (sub !== 'ok') { toast.error(PUSH_MESSAGES[sub]); return; }
+      await sendTestNotification();
+      toast.success('Aviso de prueba enviado. Debería llegarte en unos segundos.');
+    } catch (err) {
+      const msg = (err as { response?: { data?: { error?: string } } }).response?.data?.error;
+      toast.error(msg ?? 'No se pudo enviar la prueba');
+    } finally { setTesting(false); }
   }
   async function toggleCategory(category: NotificationCategoryPreference['category'], field: 'inAppEnabled' | 'pushEnabled') {
     if (!prefs || savingPrefs) return;
@@ -311,8 +318,9 @@ export default function SettingsPage() {
                   <Section title="Notificaciones" description="Elige qué avisos recibes y cuándo se silencian."
                     aside={notificationsOn
                       ? <Button size="md" variant="secondary" loading={testing} onClick={testNotification}><Bell aria-hidden className="size-4" />Probar aviso</Button>
-                      : <Button size="md" variant="secondary" disabled={permission === 'unsupported'} onClick={enableNotifications}><Bell aria-hidden className="size-4" />Activar avisos</Button>}>
+                      : <Button size="md" variant="secondary" disabled={permission === 'unsupported' && pushSupport() !== 'ios-install'} onClick={enableNotifications}><Bell aria-hidden className="size-4" />Activar avisos</Button>}>
                     <Badge variant={notificationsOn ? 'success' : 'neutral'} icon={notificationsOn ? Check : Bell} className="self-start">{notificationsOn ? 'Permiso concedido' : 'Sin permiso del navegador'}</Badge>
+                    {pushSupport() === 'ios-install' && <p className="max-w-prose text-body-sm text-on-surface-light">{PUSH_MESSAGES['ios-install']}</p>}
                     {prefs && (
                       <>
                         <div className="grid grid-cols-2 gap-3 sm:max-w-sm">

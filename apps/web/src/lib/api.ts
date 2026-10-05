@@ -2,8 +2,19 @@ import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
 import { clearRefreshSessionExpected, markRefreshSessionExpected } from './session-hint';
 
+/**
+ * En producción la API se pide en el mismo dominio de la web (/api/v1), que
+ * Vercel reenvía a la API (vercel.json). Así la cookie de sesión es de primera
+ * parte: Safari en iPhone bloquea las cookies de otro dominio y obligaba a
+ * iniciar sesión en cada visita. VITE_API_URL solo se usa si se pide a propósito
+ * con VITE_API_CROSS_ORIGIN=true (p. ej. una API sin proxy).
+ */
+export const API_BASE = import.meta.env.VITE_API_CROSS_ORIGIN === 'true' && import.meta.env.VITE_API_URL
+  ? import.meta.env.VITE_API_URL
+  : '/api/v1';
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? '/api/v1',
+  baseURL: API_BASE,
   withCredentials: true, // necesario para cookies de refresh token
 });
 
@@ -57,7 +68,7 @@ api.interceptors.response.use(
 
       try {
         const { data } = await axios.post(
-          `${import.meta.env.VITE_API_URL ?? '/api/v1'}/auth/refresh`,
+          `${API_BASE}/auth/refresh`,
           {},
           { withCredentials: true }
         );

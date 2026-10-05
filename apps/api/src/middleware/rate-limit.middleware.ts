@@ -14,6 +14,22 @@ interface Options {
   message?: string;
 }
 
+/**
+ * IP del cliente. La web reenvía /api/v1 a la API (mismo dominio para la cookie
+ * de sesión), así que la conexión llega desde el proxy: se prefiere la IP que
+ * anota la plataforma. En Vercel estas cabeceras las reescribe el borde.
+ */
+export function clientIp(r: Request): string {
+  const pick = (h: string | string[] | undefined) => (Array.isArray(h) ? h[0] : h)?.split(',')[0]?.trim();
+  return pick(r.headers['x-vercel-forwarded-for']) || pick(r.headers['x-real-ip']) || pick(r.headers['x-forwarded-for']) || r.ip || 'anon';
+}
+
+/** Correo o usuario del cuerpo: separa a quienes comparten la IP del proxy. */
+const who = (r: Request) => {
+  const b = (r.body ?? {}) as { email?: string; username?: string };
+  return String(b.email ?? b.username ?? '').toLowerCase();
+};
+
 function buildLimiter({ windowMs, max, key, message }: Options) {
   const store = new Map<string, Bucket>();
 
@@ -26,7 +42,7 @@ function buildLimiter({ windowMs, max, key, message }: Options) {
   }, Math.max(windowMs, 60_000)).unref?.();
 
   return (req: Request, res: Response, next: NextFunction): void => {
-    const k = (key ?? ((r) => (r as AuthRequest).userId ?? r.ip ?? 'anon'))(req);
+    const k = (key ?? ((r) => (r as AuthRequest).userId ?? clientIp(r)))(req);
     const now = Date.now();
     const b = store.get(k);
     if (!b || b.resetAt < now) {
@@ -49,7 +65,7 @@ function buildLimiter({ windowMs, max, key, message }: Options) {
 export const globalLimiter = buildLimiter({
   windowMs: 60_000,
   max: 200,
-  key: (r) => (r as AuthRequest).userId ?? r.ip ?? 'anon',
+  key: (r) => (r as AuthRequest).userId ?? clientIp(r),
   message: 'Demasiadas peticiones por minuto. Espera un momento.',
 });
 
@@ -57,7 +73,7 @@ export const globalLimiter = buildLimiter({
 export const loginLimiter = buildLimiter({
   windowMs: 15 * 60_000,
   max: 8,
-  key: (r) => `${r.ip ?? 'anon'}:${(r.body as { email?: string })?.email ?? ''}`,
+  key: (r) => `${clientIp(r)}:${who(r)}`,
   message: 'Demasiados intentos de inicio de sesión. Intenta en 15 minutos.',
 });
 
@@ -65,7 +81,7 @@ export const loginLimiter = buildLimiter({
 export const registerLimiter = buildLimiter({
   windowMs: 60 * 60_000,
   max: 5,
-  key: (r) => r.ip ?? 'anon',
+  key: (r) => `${clientIp(r)}:${who(r)}`,
   message: 'Demasiados registros desde esta IP. Intenta más tarde.',
 });
 
@@ -73,7 +89,7 @@ export const registerLimiter = buildLimiter({
 export const availabilityLimiter = buildLimiter({
   windowMs: 15 * 60_000,
   max: 30,
-  key: (r) => r.ip ?? 'anon',
+  key: (r) => `${clientIp(r)}:${who(r)}`,
   message: 'Demasiadas comprobaciones. Intenta en unos minutos.',
 });
 

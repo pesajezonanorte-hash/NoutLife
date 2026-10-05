@@ -62,10 +62,10 @@ export function Topbar({ className }: { className?: string }) {
         <div className="hidden lg:block"><Breadcrumb /></div>
       </div>
       <div className="flex items-center gap-1">
-        <Button variant="icon" aria-label="Buscar (Ctrl+K)" aria-keyshortcuts="Control+K" onClick={openCommandPalette}>
+        <Button variant="icon" data-tour="search" aria-label="Buscar (Ctrl+K)" aria-keyshortcuts="Control+K" onClick={openCommandPalette}>
           <Search aria-hidden className="size-6" strokeWidth={1.75} />
         </Button>
-        <Button variant="icon" aria-label={hasNew ? 'El Sabio, consejo nuevo' : 'El Sabio'} onClick={() => openSage()} className="relative">
+        <Button variant="icon" aria-label={hasNew ? 'El Sabio, consejo nuevo' : 'El Sabio'} onClick={() => openSage()} data-tour="sage" className="relative">
           <Sparkles aria-hidden className="size-6" strokeWidth={1.75} />
           {hasNew && <span aria-hidden className="absolute right-[11px] top-2.5 size-2 rounded-full bg-primary ring-2 ring-background" />}
         </Button>
@@ -74,7 +74,7 @@ export function Topbar({ className }: { className?: string }) {
           <Zap aria-hidden className="size-6" strokeWidth={1.75} />
         </Button>
         <OptionsMenu />
-        <Button size="md" className="ml-2" onClick={() => navigate('/habits?new=1')}>
+        <Button size="md" className="ml-2" data-tour="create" onClick={() => navigate('/habits?new=1')}>
           <Plus aria-hidden className="size-4" strokeWidth={2} />
           Nuevo hábito
         </Button>

@@ -89,7 +89,11 @@ async function enforceRetention(userId: string): Promise<void> {
 
 // ─── In-app notifications and optional push delivery ──────────────────────────
 
-export async function createNotification(userId: string, data: CreateNotificationInput) {
+/**
+ * `awaitPush`: espera a que el push salga. En serverless (Vercel) la función se
+ * congela al responder y un push pendiente puede perderse; los recordatorios lo usan.
+ */
+export async function createNotification(userId: string, data: CreateNotificationInput, opts: { awaitPush?: boolean } = {}) {
   const category = data.category ?? categoryForType(data.type);
   const preference = await getChannelPreference(userId, category);
   const now = new Date();
@@ -134,13 +138,13 @@ export async function createNotification(userId: string, data: CreateNotificatio
   // independently so disabling the in-app inbox does not silently override a
   // user's explicit push preference.
   if (preference.pushEnabled) {
-    void sendPush(userId, {
+    const push = sendPush(userId, {
       title: data.title,
       body: data.body,
-      icon: data.icon,
       tag: data.dedupeKey,
       data: data.link ? { link: data.link } : undefined,
-    }, category);
+    }, category).catch(() => 0);
+    if (opts.awaitPush) await push;
   }
 
   return notification;
@@ -208,34 +212,57 @@ export interface PushPayload {
   data?: Record<string, unknown>;
 }
 
-export async function sendPush(userId: string, payload: PushPayload, category: NotificationCategory = 'SYSTEM'): Promise<void> {
-  if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return;
+export function isPushConfigured(): boolean {
+  return Boolean(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY);
+}
+
+/** Envía el push a todos los dispositivos del usuario; devuelve cuántos lo aceptaron. */
+export async function sendPush(userId: string, payload: PushPayload, category: NotificationCategory = 'SYSTEM'): Promise<number> {
+  if (!isPushConfigured()) return 0;
 
   const [preference, legacyPreferences, user] = await Promise.all([
     getChannelPreference(userId, category),
     prisma.notificationPreferences.findUnique({ where: { userId } }),
     prisma.user.findUnique({ where: { id: userId }, select: { timezone: true } }),
   ]);
-  if (!preference.pushEnabled) return;
+  if (!preference.pushEnabled) return 0;
   // Quiet hours intentionally apply only to push. The persistent in-app inbox
   // remains available whenever the user returns to LifeQuest.
-  if (legacyPreferences && isInQuietHours(legacyPreferences.quietHoursStart, legacyPreferences.quietHoursEnd, user?.timezone)) return;
+  if (legacyPreferences && isInQuietHours(legacyPreferences.quietHoursStart, legacyPreferences.quietHoursEnd, user?.timezone)) return 0;
 
   const subscriptions = await prisma.pushSubscription.findMany({ where: { userId } });
+  const body = JSON.stringify({ icon: '/icons/icon-192.png', badge: '/icons/icon-96.png', ...payload });
+  let delivered = 0;
   const promises = subscriptions.map(async (sub) => {
     try {
+      // urgency high: Android/Chrome lo entregan aunque el dispositivo esté en reposo;
+      // TTL de 1 h: un recordatorio que llega tarde ya no sirve.
       await webpush.sendNotification(
         { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-        JSON.stringify(payload),
+        body,
+        { TTL: 3600, urgency: 'high' },
       );
+      delivered += 1;
     } catch (err: unknown) {
-      if (err && typeof err === 'object' && 'statusCode' in err && (err as { statusCode: number }).statusCode === 410) {
-        await prisma.pushSubscription.delete({ where: { id: sub.id } });
+      const status = err && typeof err === 'object' && 'statusCode' in err ? (err as { statusCode: number }).statusCode : 0;
+      // 404/410: la suscripción ya no existe (app desinstalada, permiso retirado).
+      if (status === 404 || status === 410) {
+        await prisma.pushSubscription.deleteMany({ where: { id: sub.id } });
       }
     }
   });
 
   await Promise.allSettled(promises);
+  return delivered;
+}
+
+export async function countSubscriptions(userId: string) {
+  return prisma.pushSubscription.count({ where: { userId } });
+}
+
+/** ¿Ya se avisó de esto alguna vez? Evita repetir un recordatorio en cada pasada del cron. */
+export async function wasNotified(userId: string, dedupeKey: string) {
+  return Boolean(await prisma.notification.findFirst({ where: { userId, dedupeKey }, select: { id: true } }));
 }
 
 export async function saveSubscription(userId: string, subscription: {
@@ -245,7 +272,7 @@ export async function saveSubscription(userId: string, subscription: {
   return prisma.pushSubscription.upsert({
     where: { endpoint: subscription.endpoint },
     create: { userId, endpoint: subscription.endpoint, p256dh: subscription.keys.p256dh, auth: subscription.keys.auth },
-    update: { userId },
+    update: { userId, p256dh: subscription.keys.p256dh, auth: subscription.keys.auth },
   });
 }
 

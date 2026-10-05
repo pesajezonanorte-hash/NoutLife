@@ -11,6 +11,7 @@ export function TabBar({ className }: { className?: string }) {
   return (
     <nav
       aria-label="Principal"
+      data-tour="nav"
       className={cn(
         'fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-border bg-background/[0.86] px-1 pt-1',
         'pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-xl backdrop-saturate-[1.8]',

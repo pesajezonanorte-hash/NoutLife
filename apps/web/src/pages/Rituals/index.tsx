@@ -253,7 +253,7 @@ export default function RitualsPage() {
       contentClassName="gap-8 md:gap-12"
       ambience={(
         // Un gradiente que se mueve muy despacio.
-        <span className="lq-amb-wander absolute -left-[15%] top-[-10%] block h-[40rem] w-[70%] [--d:40s]">
+        <span className="lq-amb-wander absolute left-[4%] top-[2%] block h-[38rem] w-[62%] [--d:40s]">
           <AmbientLight tone="info" alpha={0.1} darkAlpha={0.06} d={20} className="inset-0" />
           <AmbientLight tone="jade-300" alpha={0.18} darkAlpha={0.05} d={26} className="inset-[20%]" />
         </span>

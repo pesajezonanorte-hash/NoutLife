@@ -316,6 +316,7 @@ export function NotificationBell({ className }: { className?: string }) {
       <Button
         ref={triggerRef}
         variant="icon"
+        data-tour="bell"
         aria-label={label}
         aria-haspopup="dialog"
         aria-expanded={open}

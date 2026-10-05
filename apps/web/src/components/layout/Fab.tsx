@@ -11,6 +11,7 @@ export function Fab({ className }: { className?: string }) {
     <motion.button
       type="button"
       aria-label="Crear: acciones rápidas"
+      data-tour="create"
       aria-haspopup="dialog"
       aria-expanded={quickOpen}
       onClick={() => setQuickOpen(true)}

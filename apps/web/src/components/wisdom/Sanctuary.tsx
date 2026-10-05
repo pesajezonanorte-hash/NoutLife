@@ -9,7 +9,8 @@ import { cn } from '@/lib/utils';
 export function TorchFlame({ className }: { className?: string }) {
   return (
     <span aria-hidden="true" className={cn('pointer-events-none relative block h-12 w-8', className)}>
-      <span className="lq-candle absolute -inset-10 block rounded-full bg-[radial-gradient(closest-side,rgb(var(--lq-warning)/.45),transparent)]" />
+      {/* Resplandor: núcleo casi blanco, halo cálido largo; oscila con la llama */}
+      <span className="lq-candle lq-torch-glow absolute -inset-x-14 -inset-y-12 block rounded-full" />
       <svg viewBox="0 0 32 48" className="lq-flame absolute inset-0 block size-full overflow-visible">
         <path d="M16 2C22 14 28 20 28 31a12 12 0 0 1-24 0C4 20 10 14 16 2Z" className="fill-warning" />
         <path d="M16 16c3 7 6 10 6 16a6 6 0 0 1-12 0c0-6 3-9 6-16Z" className="fill-secondary" />
@@ -44,6 +45,8 @@ export function StoneTablet({ children, className, ...rest }: { children: ReactN
   return (
     <section className={cn('lq-stone lq-tablet relative', className)} {...rest}>
       <span aria-hidden="true" className="lq-tablet-frame pointer-events-none absolute inset-3 block rounded-[10px] md:inset-4" />
+      {/* La luz de las antorchas lame los cantos de la piedra (solo con columnas, md+) */}
+      <span aria-hidden="true" className="lq-torchlit pointer-events-none absolute inset-0 hidden rounded-[inherit] md:block" />
       <div className="relative">{children}</div>
     </section>
   );

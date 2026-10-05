@@ -236,7 +236,7 @@ export function Sidebar({ className }: { className?: string }) {
             <BrandLockup markSize={32} wordClassName={reveal} />
           </Link>
 
-          <nav aria-label="Principal" className="flex flex-col gap-3">
+          <nav aria-label="Principal" data-tour="nav" className="flex flex-col gap-3">
             <div className="flex flex-col gap-1">
               {nav.primary.map((it) => <SideLink key={it.to} {...it} />)}
             </div>

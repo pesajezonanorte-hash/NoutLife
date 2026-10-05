@@ -17,6 +17,8 @@ export function PWAInstallBanner() {
 
   useEffect(() => {
     if (localStorage.getItem('lq_pwa_dismissed')) return;
+    // Solo en móvil: en el ordenador el navegador ya ofrece instalar desde su barra y el aviso estorba.
+    if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
 
     const handler = (e: Event) => {
       e.preventDefault();
