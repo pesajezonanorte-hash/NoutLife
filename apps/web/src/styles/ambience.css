@@ -546,3 +546,38 @@ html.dark .lq-index-card { background-color: color-mix(in srgb, rgb(var(--lq-sur
 /* Escritorio: tablero de madera con su canto. */
 .lq-desk { box-shadow: inset 0 2px 0 rgb(255 255 255 / .14), 0 14px 22px -12px rgb(var(--lq-jade-900) / .5); }
 html.dark .lq-desk { box-shadow: inset 0 2px 0 rgb(255 255 255 / .06), 0 14px 22px -12px rgb(0 0 0 / .8); }
+
+/* ───────── Logros (vitrina de museo) ───────── */
+/* El mueble: laca jade profunda (igual en claro y oscuro) con doble filete de latón. */
+.lq-cabinet {
+  background: linear-gradient(180deg, rgb(var(--lq-jade-800)), rgb(var(--lq-jade-900)) 60%);
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--lq-secondary) / .45), inset 0 0 0 6px rgb(var(--lq-jade-900)), inset 0 0 0 7px rgb(var(--lq-secondary) / .22),
+    0 26px 44px -20px rgb(var(--lq-jade-900) / .65), 0 3px 8px rgb(var(--lq-jade-900) / .2);
+}
+html.dark .lq-cabinet { box-shadow: inset 0 0 0 1px rgb(var(--lq-secondary) / .35), inset 0 0 0 6px rgb(var(--lq-jade-900)), inset 0 0 0 7px rgb(var(--lq-secondary) / .16), 0 26px 44px -18px rgb(0 0 0 / .85); }
+/* Nicho de terciopelo con su sombra interior y el reflejo del cristal. */
+.lq-niche {
+  background:
+    radial-gradient(rgb(255 255 255 / .025) .6px, transparent .9px) 0 0 / 4px 4px,
+    radial-gradient(120% 90% at 50% 0%, rgb(var(--lq-jade-800)), rgb(var(--lq-jade-900)) 72%);
+  box-shadow: inset 0 12px 20px -6px rgb(0 0 0 / .65), inset 0 -1px 0 rgb(255 255 255 / .05), 0 1px 0 rgb(var(--lq-secondary) / .18);
+}
+.lq-niche::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(115deg, transparent 28%, rgb(255 255 255 / .07) 36%, transparent 44%); }
+/* Foco cenital: un cono de luz cálida desde el techo del nicho. */
+.lq-niche-spot { clip-path: polygon(38% 0, 62% 0, 100% 100%, 0 100%); background: linear-gradient(180deg, rgb(var(--lq-secondary) / .5), rgb(var(--lq-secondary) / .12) 60%, transparent 92%); }
+.lq-niche-spot::before { content: ""; position: absolute; left: 38%; right: 38%; top: 0; height: 3px; background: rgb(var(--lq-secondary)); box-shadow: 0 0 10px 3px rgb(var(--lq-secondary) / .6); }
+/* Cinta de la medalla en el color de la categoría (--rib), con una franja clara. */
+.lq-ribbon-l { fill: rgb(var(--rib)); }
+.lq-ribbon-r { fill: color-mix(in srgb, rgb(var(--rib)) 78%, black); }
+/* Medalla de oro con canto e hilo; la bloqueada es una silueta apagada. */
+.lq-medal-disc {
+  background:
+    radial-gradient(circle at 34% 28%, rgb(255 255 255 / .7), transparent 34%),
+    radial-gradient(circle, rgb(var(--lq-secondary)) 0 60%, rgb(var(--lq-secondary-text)) 62% 66%, rgb(var(--lq-secondary)) 68%);
+  box-shadow: 0 8px 14px rgb(0 0 0 / .5), inset 0 0 0 2px rgb(var(--lq-secondary-text) / .55);
+}
+.lq-medal-dim { background: rgb(255 255 255 / .03); box-shadow: inset 0 0 0 2px rgb(255 255 255 / .1); outline: 1px dashed rgb(255 255 255 / .16); outline-offset: 4px; }
+/* Soporte forrado de terciopelo. */
+.lq-stand { background: linear-gradient(180deg, rgb(var(--lq-jade-700)), rgb(var(--lq-jade-800))); box-shadow: 0 6px 10px -4px rgb(0 0 0 / .6), inset 0 1px 0 rgb(255 255 255 / .08); }
+.group:focus-visible .lq-medal { animation: lq-medal-swing 1.3s cubic-bezier(.3, .2, .2, 1); }
