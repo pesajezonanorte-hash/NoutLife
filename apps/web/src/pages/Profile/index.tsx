@@ -1,15 +1,18 @@
 // Perfil — Profile.dc.html (móvil) / ProfileDesktop.dc.html (desktop).
 // Héroe con XP, estadísticas, logros recientes, atributos y ajustes rápidos
 // (notificaciones, tema en vivo, idioma, reducir movimiento) + cuenta.
+// Zona ambientada: documento de identidad + perfil social. El documento sale de
+// la cartera, recibe el sello y se gira para ver el reverso con estadísticas;
+// debajo, métricas tipo red social y los logros como publicaciones.
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  Bell, CalendarCheck, ChevronRight, Coins, Flag, Flame, Globe, Heart, Lock, LogOut, Shield, SlidersHorizontal, Sun, Trophy, UserRound, Zap,
+  Bell, ChevronRight, Coins, Globe, Heart, LogOut, Shield, SlidersHorizontal, Sun, UserRound, Zap,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { fmtNumber, item, stagger } from '@/lib/motion';
+import { fmtNumber, item, stagger, zoneExit } from '@/lib/motion';
 import { getLevelTitle } from '@/lib/gameProgress';
 import { useAuthStore } from '@/store/authStore';
 import { useThemeStore, type ThemeMode } from '@/store/themeStore';
@@ -25,7 +28,9 @@ import { getStatsSummary } from '@/services/stats.service';
 import { fetchAchievements, type Achievement } from '@/services/achievement.service';
 import { getNotificationPreferences, updateNotificationPreferences, type NotificationPreferences } from '@/services/notification.service';
 import * as userService from '@/services/user.service';
-import { achievementCategory, achievementIcon } from '@/components/achievements/achievementMeta';
+import { IdCard, documentNumber } from '@/components/profile/IdCard';
+import { AchievementPosts } from '@/components/profile/AchievementPosts';
+import { ZoneAmbience } from '@/components/ambience';
 
 const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
   { value: 'light', label: 'Claro' },
@@ -140,93 +145,92 @@ export default function ProfilePage() {
     }
   }
 
-  const statItems: { to: string; icon: LucideIcon; tone: 'primary' | 'warning' | 'success'; value: number | undefined; short: string; long: string }[] = [
-    { to: '/quests', icon: Flag, tone: 'primary', value: quests, short: 'Misiones', long: 'Misiones completadas' },
-    { to: '/habits', icon: Flame, tone: 'warning', value: best, short: 'Mejor racha', long: 'Mejor racha de hábito' },
-    { to: '/stats', icon: CalendarCheck, tone: 'success', value: current, short: 'Días seguidos', long: 'Días seguidos activo' },
+  const metrics: { to: string; value: number | undefined; label: string }[] = [
+    { to: '/stats', value: user.level, label: 'Nivel' },
+    { to: '/habits', value: current, label: current === 1 ? 'Día de racha' : 'Días de racha' },
+    { to: '/achievements', value: achievements ? unlocked.length : undefined, label: unlocked.length === 1 ? 'Logro' : 'Logros' },
   ];
+  const doc = documentNumber(user.id);
+  const issued = new Date(user.createdAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  // Reverso del documento: estadísticas y código de barras.
+  const bars = Array.from({ length: 46 }, (_, i) => ((doc.raw.charCodeAt(i % 10) * (i + 7)) % 5) + 1);
+  const back = (
+    <div className="lq-tex-paper relative flex size-full flex-col rounded-[inherit] p-3.5 sm:p-5">
+      <span aria-hidden="true" className="lq-guilloche" />
+      <div className="relative pr-24">
+        <h2 className="text-label-lg text-on-background">Estadísticas del titular</h2>
+        <p className="font-mono text-label-md text-on-surface-light">{doc.pretty}</p>
+      </div>
+      <dl className="relative mt-2.5 grid flex-1 grid-cols-3 content-start gap-x-3 gap-y-2 sm:mt-4 sm:gap-y-4">
+        {([['Misiones', quests], ['Mejor racha', best], ['Días seguidos', current], ['Fuerza', user.strength], ['Intelecto', user.intelligence], ['Carisma', user.charisma]] as const).map(([k, v]) => (
+          <div key={k} className="min-w-0">
+            <dt className="truncate text-label-md text-on-surface-light">{k}</dt>
+            <dd className="font-mono text-heading-sm tabular-nums text-on-background sm:text-heading-md">{v === undefined ? '—' : fmtNumber(v)}</dd>
+          </div>
+        ))}
+      </dl>
+      <div className="relative flex items-end justify-between gap-3">
+        <span className="text-label-md text-on-surface-light">Expedido el {issued}</span>
+        <span aria-hidden="true" className="flex h-7 items-end gap-px sm:h-9">
+          {bars.map((w, i) => <span key={i} className="block h-full bg-on-background/80" style={{ width: w * 0.9 }} />)}
+        </span>
+      </div>
+    </div>
+  );
 
   const hero = (
-    <motion.section variants={item}>
-      {/* Móvil: centrado */}
-      <div className="flex flex-col items-center gap-4 text-center md:hidden">
-        <Avatar name={user.displayName} url={user.avatarUrl} config={user.avatarConfig} className="size-24 text-heading-lg" />
-        <div>
-          <h1 className="text-heading-lg">{user.displayName}</h1>
-          <p className="text-body-md text-on-surface-light">Nivel {user.level} · {title}</p>
-        </div>
-        <div className="flex w-full flex-col gap-1.5">
-          <ProgressBar value={pct} size="lg" label="Experiencia" valueText={`${fmtNumber(user.xp)} de ${fmtNumber(user.xpToNextLevel)} XP`} />
-          <div className="flex justify-between text-body-sm text-on-surface-light font-mono tabular-nums"><span>{fmtNumber(user.xp)} XP</span><span>{fmtNumber(user.xpToNextLevel)} XP</span></div>
-        </div>
-      </div>
-      {/* Desktop: tarjeta */}
-      <Card variant="elevated" padding="none" className="hidden flex-wrap items-center gap-8 p-10 md:flex">
-        <Avatar name={user.displayName} url={user.avatarUrl} config={user.avatarConfig} className="lq-halo size-28 animate-float text-display-sm [.reduce-motion_&]:animate-none" />
-        <div className="flex min-w-0 flex-[1_1_300px] flex-col gap-2">
+    <motion.section variants={item} aria-label="Documento del jugador" className="grid items-center gap-8 md:gap-10 lg:grid-cols-[minmax(0,30rem)_minmax(0,1fr)]">
+      <IdCard
+        user={user}
+        title={title}
+        photo={<Avatar name={user.displayName} url={user.avatarUrl} config={user.avatarConfig} className="size-full rounded-none text-heading-lg shadow-none" />}
+        back={back}
+      />
+      <div className="flex min-w-0 flex-col gap-5">
+        <div className="flex flex-col gap-1">
           <span className="text-label-lg text-primary-text">Miembro desde {since}</span>
-          <h1 className="text-display-md">{user.displayName}</h1>
-          <p className="text-body-lg text-on-surface-light">Nivel {user.level} · {title}</p>
+          <h1 className="text-display-sm md:text-display-md">{user.displayName}</h1>
+          <p className="text-body-lg text-on-surface-light">@{user.username} · Nivel {user.level} · {title}</p>
         </div>
-        <div className="flex min-w-0 flex-[1_1_320px] flex-col gap-2">
+        {/* Métricas al estilo de un perfil social */}
+        <ul aria-label="Resumen" className="grid grid-cols-3 divide-x divide-border rounded-2xl border border-border bg-surface">
+          {metrics.map((m) => (
+            <li key={m.to}>
+              <Link to={m.to} className="group flex min-h-20 flex-col items-center justify-center gap-0.5 rounded-2xl px-2 py-3 text-center transition-colors hover:bg-surface-variant/60">
+                <span className="text-heading-lg font-mono tabular-nums transition-transform duration-[560ms] ease-[var(--lq-ease-heavy)] group-hover:-translate-y-0.5 md:text-display-sm">
+                  {m.value === undefined ? <Skeleton className="inline-block h-8 w-10 rounded-md" /> : <AnimatedValue value={m.value} />}
+                </span>
+                <span className="text-body-sm text-on-surface-light">{m.label}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+        <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between gap-2">
             <span className="text-label-lg">Progreso al nivel {user.level + 1}</span>
             <span className="text-body-sm text-on-surface-light font-mono tabular-nums"><AnimatedValue value={user.xp} /> / {fmtNumber(user.xpToNextLevel)} XP</span>
           </div>
           <ProgressBar value={pct} size="lg" shine label="Experiencia" valueText={`${fmtNumber(user.xp)} de ${fmtNumber(user.xpToNextLevel)} XP`} className="h-3.5" />
         </div>
-      </Card>
+        <p className="text-body-sm text-on-surface-light">Toca el documento para ver el reverso.</p>
+      </div>
     </motion.section>
   );
 
-  const statsGrid = (
-    <motion.section variants={item} aria-label="Estadísticas" className="grid grid-cols-3 gap-3 md:gap-6">
-      {statItems.map((s) => (
-        <Card key={s.to} as={Link} to={s.to} interactive padding="none" className="flex min-w-0 flex-col gap-1 px-3 py-4 md:gap-3 md:p-6">
-          <s.icon aria-hidden className={cn('size-6 md:hidden', softTone[s.tone].split(' ')[1])} strokeWidth={1.75} />
-          <IconChip icon={s.icon} tone={s.tone} className="hidden md:inline-flex" />
-          <span className="text-heading-lg font-mono tabular-nums md:text-display-md">
-            {stats === undefined ? <Skeleton className="inline-block h-8 w-12 rounded-md" /> : s.value === undefined ? '—' : <AnimatedValue value={s.value} />}
-          </span>
-          <span className="text-body-sm text-on-surface-light md:text-body-md"><span className="md:hidden">{s.short}</span><span className="hidden md:inline">{s.long}</span></span>
-        </Card>
-      ))}
-    </motion.section>
-  );
-
-  const achievementsRow = (
-    <Card as={Link} to="/achievements" interactive className="flex items-center gap-4 md:hidden">
-      <IconChip icon={Trophy} tone="warning" />
-      <div className="min-w-0 flex-1"><div className="text-body-lg font-semibold">Logros</div><div className="text-body-sm text-on-surface-light">{achText}</div></div>
-      <ChevronRight aria-hidden className="size-6 text-on-surface-light" strokeWidth={1.75} />
-    </Card>
-  );
-
-  const achievementsCard = (
-    <Card as={Link} to="/achievements" interactive padding="lg" className="hidden flex-col gap-4 md:flex">
-      <div className="flex items-center justify-between"><h2 className="text-heading-sm">Logros recientes</h2><ChevronRight aria-hidden className="size-6 text-on-surface-light" strokeWidth={1.75} /></div>
-      {achievements === null ? (
-        <div className="flex gap-3">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="size-14 rounded-2xl" />)}</div>
-      ) : (
-        <motion.ul variants={stagger} initial="initial" animate="animate" className="flex flex-wrap gap-3">
-          {recent.map((a) => {
-            const Icon = achievementIcon(a);
-            return (
-              <motion.li key={a.id} variants={item} title={a.title} className={cn('flex size-14 items-center justify-center rounded-2xl', softTone[achievementCategory(a.category).tone])}>
-                <Icon aria-hidden className="size-8" strokeWidth={1.5} /><span className="sr-only">{a.title}</span>
-              </motion.li>
-            );
-          })}
-          {nextLocked && (
-            <motion.li variants={item} title={`Bloqueado: ${nextLocked.title}`} className={cn('flex size-14 items-center justify-center rounded-2xl', softTone.muted)}>
-              <Lock aria-hidden className="size-6" strokeWidth={1.75} /><span className="sr-only">Siguiente, bloqueado: {nextLocked.title}</span>
-            </motion.li>
-          )}
-          {!recent.length && !nextLocked && <li className="text-body-sm text-on-surface-light">Aún no hay logros.</li>}
-        </motion.ul>
-      )}
+  const posts = (
+    <motion.section variants={item} aria-labelledby="pf-posts" className="flex flex-col gap-4">
+      <div className="flex items-center justify-between gap-3">
+        <h2 id="pf-posts" className="text-heading-sm md:text-heading-lg">Logros</h2>
+        <Link to="/achievements" className="inline-flex min-h-11 items-center gap-1 rounded-md text-label-lg text-primary-text hover:underline hover:underline-offset-4">
+          Ver todos<ChevronRight aria-hidden className="size-5" strokeWidth={1.75} />
+        </Link>
+      </div>
+      {achievements === null
+        ? <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 md:gap-3 lg:grid-cols-6">{Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="aspect-square rounded-xl md:rounded-2xl" />)}</div>
+        : <AchievementPosts achievements={achievements} />}
       <span className="text-body-sm text-on-surface-light">{achText}</span>
-    </Card>
+    </motion.section>
   );
 
   const attributes = (
@@ -299,23 +303,27 @@ export default function ProfilePage() {
   );
 
   return (
-    <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-6 md:gap-8">
+    <motion.div variants={stagger} initial="initial" animate="animate" exit={zoneExit} className="relative">
+      {/* Ventanilla de documentos: una luz suave cae sobre el mostrador */}
+      <ZoneAmbience zone="profile">
+        <span className="lq-amb-breathe absolute left-[2%] top-[-4%] block h-[34rem] w-[min(44rem,92%)] rounded-full bg-[radial-gradient(closest-side,rgb(var(--lq-jade-200)/.28),transparent)] [--d:13s] [--hi:1] [--lo:.55] dark:bg-[radial-gradient(closest-side,rgb(var(--lq-jade-400)/.07),transparent)]" />
+      </ZoneAmbience>
+      <div className="relative flex flex-col gap-8 md:gap-12">
       {hero}
-      {statsGrid}
+      {posts}
       <motion.div variants={item} className="grid items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
         <div className="flex min-w-0 flex-col gap-6">
-          {achievementsRow}
           <section className="flex flex-col gap-3">
             <h2 className="text-heading-sm md:hidden">Ajustes</h2>
             {settings}
           </section>
         </div>
         <aside className="flex min-w-0 flex-col gap-6" aria-label="Resumen del personaje">
-          {achievementsCard}
           {attributes}
           {account}
         </aside>
       </motion.div>
+      </div>
       <AvatarCustomizer isOpen={customizer} onClose={() => setCustomizer(false)} />
     </motion.div>
   );

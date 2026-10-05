@@ -152,19 +152,19 @@ html.dark .lq-sheen-sweep::after { --sheen-a: .08; }
 /* ───────── Holograma (documento del Perfil) ─────────
    --mx/--my (0–100 %) los fija el puntero o la inclinación del móvil. */
 .lq-holo {
-  position: absolute; inset: 0; border-radius: inherit; pointer-events: none; mix-blend-mode: color-dodge; opacity: .38;
+  position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: .55;
   background:
-    radial-gradient(60% 50% at var(--mx, 30%) var(--my, 20%), rgb(255 255 255 / .55), transparent 70%),
+    radial-gradient(55% 45% at var(--mx, 30%) var(--my, 20%), rgb(255 255 255 / .5), transparent 70%),
     linear-gradient(115deg,
       transparent 20%,
-      rgb(var(--lq-jade-300) / .55) calc(25% + var(--hx, 0%)),
-      rgb(var(--lq-info) / .45) calc(38% + var(--hx, 0%)),
-      rgb(var(--lq-secondary) / .45) calc(52% + var(--hx, 0%)),
-      rgb(var(--lq-jade-200) / .5) calc(64% + var(--hx, 0%)),
+      rgb(var(--lq-jade-300) / .22) calc(25% + var(--hx, 0%)),
+      rgb(var(--lq-info) / .16) calc(38% + var(--hx, 0%)),
+      rgb(var(--lq-secondary) / .2) calc(52% + var(--hx, 0%)),
+      rgb(var(--lq-jade-200) / .22) calc(64% + var(--hx, 0%)),
       transparent 80%);
   transition: opacity .4s ease-out;
 }
-html.dark .lq-holo { mix-blend-mode: screen; opacity: .22; }
+html.dark .lq-holo { mix-blend-mode: screen; opacity: .3; }
 /* Guilloché: líneas finas de seguridad en el fondo del documento. */
 .lq-guilloche {
   position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: .5;
