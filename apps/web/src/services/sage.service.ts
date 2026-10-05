@@ -5,8 +5,10 @@ export async function sageChat(message: string): Promise<{ reply: string }> {
   return data;
 }
 
-export async function sageSuggestQuests(): Promise<{ quests: unknown[] }> {
-  const { data } = await api.post<{ quests: unknown[] }>('/sage/suggest-quests');
+// raw: texto del Sabio cuando la respuesta no fue JSON parseable (p. ej. la
+// respuesta fija de cuota agotada). El panel la puede mostrar tal cual.
+export async function sageSuggestQuests(): Promise<{ quests: unknown[]; raw?: string }> {
+  const { data } = await api.post<{ quests: unknown[]; raw?: string }>('/sage/suggest-quests');
   return data;
 }
 
@@ -35,7 +37,14 @@ export async function sageDailyTip(): Promise<{ tip: string }> {
   return data;
 }
 
-export async function sageRateInfo(): Promise<{ callsToday: number; limit: number; remaining: number }> {
-  const { data } = await api.get<{ callsToday: number; limit: number; remaining: number }>('/sage/rate-info');
+export interface SageRateInfo {
+  callsToday: number;
+  limit: number;
+  remaining: number;
+  resetAt: string;
+}
+
+export async function sageRateInfo(): Promise<SageRateInfo> {
+  const { data } = await api.get<SageRateInfo>('/sage/rate-info');
   return data;
 }

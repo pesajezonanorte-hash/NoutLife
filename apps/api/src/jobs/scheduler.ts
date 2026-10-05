@@ -64,6 +64,9 @@ export function initScheduler() {
 
       for (const user of users) {
         await generateDailyScroll(user.id).catch(() => null);
+        // Pace entre usuarios: el nivel gratuito de Groq/Gemini tiene tope por
+        // minuto; sin pausa, N usuarios seguidos disparan 429 en ráfaga.
+        await sleep(250);
       }
     } catch (err) {
       console.error('[Scheduler] Error generating daily scrolls:', err);
@@ -154,7 +157,13 @@ async function generateWeeklySummaries() {
     await generateWeeklySummaryForUser(user.id).catch((err) => {
       console.error(`[Scheduler] Weekly summary failed for ${user.id}:`, err);
     });
+    // Misma razón que en los pergaminos diarios: evitar ráfagas de 429.
+    await sleep(250);
   }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function generateWeeklySummaryForUser(userId: string) {
