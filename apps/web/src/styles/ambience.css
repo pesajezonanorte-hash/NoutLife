@@ -243,3 +243,7 @@ html.dark .lq-glint { background: radial-gradient(220px circle at var(--mx, 50%)
 /* Onda de calma al completar un ritual entero (una vez). */
 .lq-calm-wave { animation: lq-calm-wave 2.2s cubic-bezier(.16, 1, .3, 1) both; }
 @keyframes lq-calm-wave { from { opacity: .55; transform: scale(.4); } to { opacity: 0; transform: scale(2.6); } }
+
+/* Mis zonas: el color de la zona como propiedad registrada, para que la pintura se mezcle al cambiarlo. */
+@property --zone { syntax: '<color>'; inherits: true; initial-value: rgb(84 143 111); }
+.lq-mix { transition: --zone .7s ease-out, transform .6s var(--lq-ease-heavy); }
