@@ -1,7 +1,7 @@
 // Gimnasio — GymDesktop.dc.html. Asistencia semanal (DayDot + toast), sesión en
 // curso con cronómetro y series, resumen con confeti, volumen semanal, rutinas
 // y récords. La lógica de servicios es la de siempre (workout.service).
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -10,15 +10,16 @@ import {
 } from 'lucide-react';
 import type { Workout, Exercise, Routine } from '@lifequest/shared';
 import { cn } from '@/lib/utils';
-import { item, stagger } from '@/lib/motion';
+import { expo, heavy, item, slam, stagger, useCountUp } from '@/lib/motion';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { useToast } from '../../hooks/useToast';
-import { Badge, BarChart, Button, Card, ChipGroup, Confetti, DayDot, EmptyState, ErrorState, Field, IconChip, Input, Modal, ProgressBar, ResponsiveDialog, Timer, formatClock, type BarDatum, type DayStatus, type Tone, PageLoader } from '@/components/ui/lq';
+import { AnimatedValue, Badge, Button, Card, ChipGroup, Confetti, DayDot, EmptyState, ErrorState, Field, IconChip, Input, Modal, ProgressBar, ResponsiveDialog, formatClock, type DayStatus, type Tone, PageLoader } from '@/components/ui/lq';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 import * as workoutService from '../../services/workout.service';
 import { SageContextButton } from '../../components/sage/SageContextButton';
 import { BodyWeightTracker, OneRMCalculator, WeeklyVolumeWidget, ProgressPhotos, RestTimer } from '../../components/gym/GymExtras';
+import { Barbell, DropTitle, LiftBars, LoadBar, RollingClock, Thud, type LiftDay } from '../../components/gym/GymMotion';
 
 const MUSCLE_GROUPS = ['Todos', 'Pecho', 'Espalda', 'Hombros', 'Bíceps', 'Tríceps', 'Piernas', 'Core', 'Cardio'].map((m) => ({ value: m, label: m }));
 
@@ -35,6 +36,7 @@ const WEEKDAY_LABELS = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
 const DAY_MS = 86_400_000;
 const ROUTINE_TONES: Tone[] = ['primary', 'forest', 'warning', 'success'];
 
+const REST_SECONDS = 90;
 const kg = (n: number) => `${Math.round(n).toLocaleString('es-ES')} kg`;
 const longDate = (iso: string) => {
   const s = new Date(iso).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -149,6 +151,8 @@ function ActiveWorkoutView({
   const [activeWorkout, setActiveWorkout] = useState(workout);
   const [showExSearch, setShowExSearch] = useState(false);
   const [restTimer, setRestTimer] = useState<number | null>(null);
+  /** Cada descanso nuevo reinicia la barra que se vacía. */
+  const [restRun, setRestRun] = useState(0);
   const [newPRs, setNewPRs] = useState<Set<string>>(new Set()); // "exIdx-setIdx"
   const [now, setNow] = useState(Date.now());
 
@@ -199,7 +203,8 @@ function ActiveWorkoutView({
 
       // PR al completar una serie
       if (field === 'completed' && value === true) {
-        setRestTimer(90);
+        setRestTimer(REST_SECONDS);
+        setRestRun((n) => n + 1);
         const volume = (parseFloat(sets[setIdx].weight) || 0) * (parseFloat(sets[setIdx].reps) || 0);
         if (volume > 0 && volume > (ex.personalRecord ?? 0)) {
           exercises[exIdx] = { ...ex, sets, personalRecord: volume };
@@ -219,93 +224,154 @@ function ActiveWorkoutView({
 
   return (
     <div className="flex flex-col gap-6">
-      <Card as="section" variant="elevated" padding="lg" aria-label="Sesión en curso" className="flex flex-wrap items-center gap-6 border-primary/40 md:gap-8 md:p-8">
-        <div className="flex flex-col gap-2">
-          <span className={cn('flex items-center gap-2 text-label-lg uppercase', paused ? 'text-warning-text' : 'text-error-text')}>
-            <span aria-hidden className={cn('size-2 rounded-full', paused ? 'bg-warning' : 'animate-pulse bg-error [.reduce-motion_&]:animate-none')} />
-            {paused ? 'En pausa' : 'En curso'} · {activeWorkout.title}
-          </span>
-          <Timer seconds={elapsedMs(activeWorkout, now) / 1000} size="hero" label="Tiempo de entrenamiento" />
-          <span className="font-mono text-body-sm tabular-nums text-on-surface-light">
-            {totalSets} de {plannedSets} series{totalVolume > 0 ? ` · ${kg(totalVolume)}` : ''}
-          </span>
+      <Thud as="section" trigger={totalSets} aria-label="Sesión en curso" className="flex flex-col gap-6 rounded-2xl border border-primary/40 bg-background p-6 shadow-md md:gap-8 md:p-8">
+        <div className="flex flex-wrap items-center gap-6 md:gap-8">
+          <div className="flex flex-col gap-2">
+            <span className={cn('flex items-center gap-2 text-label-lg uppercase', paused ? 'text-warning-text' : 'text-error-text')}>
+              <span aria-hidden className={cn('size-2 rounded-full', paused ? 'bg-warning' : 'animate-pulse bg-error [.reduce-motion_&]:animate-none')} />
+              {paused ? 'En pausa' : 'En curso'} · {activeWorkout.title}
+            </span>
+            <RollingClock seconds={elapsedMs(activeWorkout, now) / 1000} label="Tiempo de entrenamiento" className={cn('text-display-lg transition-opacity duration-300', paused && 'opacity-50')} />
+            <span className="flex items-center gap-1 font-mono text-body-sm tabular-nums text-on-surface-light">
+              <motion.span key={totalSets} initial={{ y: -8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={slam} className="inline-block text-on-background">{totalSets}</motion.span>
+              de {plannedSets} series{totalVolume > 0 ? ` · ${kg(totalVolume)}` : ''}
+            </span>
+          </div>
+          <div className="ml-auto flex flex-wrap gap-2">
+            <Button variant="secondary" size="md" onClick={togglePause}>
+              {paused ? <Play aria-hidden className="size-4" /> : <Pause aria-hidden className="size-4" />}{paused ? 'Reanudar' : 'Pausar'}
+            </Button>
+            <Button size="md" onClick={() => onFinish(activeWorkout)}><Check aria-hidden className="size-4" />Terminar</Button>
+          </div>
         </div>
-        <div className="ml-auto flex flex-wrap gap-2">
-          <Button variant="secondary" size="md" onClick={togglePause}>
-            {paused ? <Play aria-hidden className="size-4" /> : <Pause aria-hidden className="size-4" />}{paused ? 'Reanudar' : 'Pausar'}
-          </Button>
-          <Button size="md" onClick={() => onFinish(activeWorkout)}><Check aria-hidden className="size-4" />Terminar</Button>
+        {/* Carga de la sesión: se llena con peso con cada serie completada */}
+        <div role="progressbar" aria-label="Series completadas" aria-valuemin={0} aria-valuemax={plannedSets || 1} aria-valuenow={totalSets} className="h-1.5 overflow-hidden rounded-full bg-surface-variant">
+          <motion.span className="block h-full rounded-full bg-primary" style={{ originX: 0 }} initial={{ scaleX: 0 }} animate={{ scaleX: plannedSets ? totalSets / plannedSets : 0 }} transition={heavy} />
         </div>
-      </Card>
+      </Thud>
 
       <AnimatePresence>
         {restTimer !== null && restTimer > 0 && (
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} role="status">
-            <Card variant="base" padding="sm" className="flex items-center gap-4 border-info/40">
+          <motion.div
+            key="rest" role="status"
+            initial={{ opacity: 0, y: -16, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8, scale: 0.98, transition: { duration: 0.2 } }}
+            transition={slam}
+          >
+            <Card variant="base" padding="sm" className="relative flex items-center gap-4 overflow-hidden border-info/40">
               <IconChip icon={TimerIcon} tone="info" size="sm" />
               <div className="flex-1">
-                <p className="text-label-lg text-info-text">Descanso</p>
-                <p className="font-mono text-heading-md font-bold tabular-nums">{formatClock(restTimer)}</p>
+                <p className="text-label-lg text-info-text">Descanso · recupera el aire</p>
+                <RollingClock seconds={restTimer} label="Descanso restante" className="text-heading-md" />
               </div>
               <Button variant="secondary" size="sm" onClick={() => setRestTimer(null)}>Saltar</Button>
+              {/* Barra que se vacía durante el descanso */}
+              <motion.span
+                key={restRun} aria-hidden className="absolute inset-x-0 bottom-0 h-1 bg-info"
+                style={{ originX: 0 }} initial={{ scaleX: 1 }} animate={{ scaleX: 0 }}
+                transition={{ duration: REST_SECONDS, ease: 'linear' }}
+              />
             </Card>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {activeWorkout.exercises.map((ex, exIdx) => {
-        const allDone = ex.sets.length > 0 && ex.sets.every((s) => s.completed);
-        const exVolume = ex.sets.filter((s) => s.completed).reduce((a, s) => a + (parseFloat(s.weight) || 0) * (parseFloat(s.reps) || 1), 0);
-        return (
-          <Card key={exIdx} as="section" aria-label={ex.name} padding="md" className="flex flex-col gap-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex min-w-0 items-center gap-3">
-                <h2 className="text-heading-sm">{ex.name}</h2>
-                {allDone && <Badge variant="success" icon={Check}>Completado</Badge>}
-                {ex.muscleGroup && <Badge variant="neutral">{ex.muscleGroup}</Badge>}
-              </div>
-              {ex.prevBest && <span className="font-mono text-body-sm tabular-nums text-on-surface-light">Mejor: {ex.prevBest.weight} kg × {ex.prevBest.reps}</span>}
-            </div>
+      <AnimatePresence initial={false}>
+        {activeWorkout.exercises.map((ex, exIdx) => {
+          const done = ex.sets.filter((s) => s.completed).length;
+          const allDone = ex.sets.length > 0 && done === ex.sets.length;
+          const exVolume = ex.sets.filter((s) => s.completed).reduce((a, s) => a + (parseFloat(s.weight) || 0) * (parseFloat(s.reps) || 1), 0);
+          return (
+            <motion.div
+              key={`${ex.exerciseId}-${exIdx}`} layout="position"
+              initial={{ opacity: 0, y: -28, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={slam}
+            >
+              <Thud as="section" trigger={done} aria-label={ex.name} className={cn('flex flex-col gap-3 rounded-2xl border bg-surface p-4 shadow-sm transition-colors duration-500 md:p-6', allDone ? 'border-success/50' : 'border-border')}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <h2 className="text-heading-sm">{ex.name}</h2>
+                    <AnimatePresence>
+                      {allDone && (
+                        <motion.span initial={{ opacity: 0, scale: 1.6 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} transition={slam}>
+                          <Badge variant="success" icon={Check}>Completado</Badge>
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                    {ex.muscleGroup && <Badge variant="neutral">{ex.muscleGroup}</Badge>}
+                  </div>
+                  <span className="font-mono text-body-sm tabular-nums text-on-surface-light">
+                    {done}/{ex.sets.length} series{ex.prevBest ? ` · mejor ${ex.prevBest.weight} kg × ${ex.prevBest.reps}` : ''}
+                  </span>
+                </div>
 
-            <ol className="flex flex-col gap-2">
-              {ex.sets.map((set, setIdx) => {
-                const isPR = newPRs.has(`${exIdx}-${setIdx}`);
-                return (
-                  <li key={set.id} className={cn('grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-xl bg-surface p-3 md:grid-cols-[2rem_auto_auto_1fr_auto]', set.completed && 'bg-success/[var(--lq-soft-alpha)]')}>
-                    <span className="font-mono text-label-lg tabular-nums text-on-surface-light">{setIdx + 1}</span>
-                    <div className="col-span-2 flex flex-wrap gap-3 md:col-span-1 md:contents">
-                      <NumericStepper label={`Kilos de la serie ${setIdx + 1}`} value={set.weight} onChange={(v) => updateSet(exIdx, setIdx, 'weight', v)} step={2.5} disabled={set.completed} />
-                      <NumericStepper label={`Repeticiones de la serie ${setIdx + 1}`} value={set.reps} onChange={(v) => updateSet(exIdx, setIdx, 'reps', v)} disabled={set.completed} />
-                    </div>
-                    <span className="hidden font-mono text-body-sm tabular-nums text-on-surface md:block">
-                      Anterior: {ex.prevBest ? `${ex.prevBest.weight}×${ex.prevBest.reps}` : '—'}
+                <ol className="flex flex-col gap-2">
+                  <AnimatePresence initial={false}>
+                    {ex.sets.map((set, setIdx) => {
+                      const isPR = newPRs.has(`${exIdx}-${setIdx}`);
+                      return (
+                        <motion.li
+                          key={set.id} layout="position"
+                          initial={{ opacity: 0, y: -14 }} animate={{ opacity: 1, y: 0 }} transition={slam}
+                          className="relative grid grid-cols-[auto_1fr_auto] items-center gap-3 overflow-hidden rounded-xl bg-surface-variant/50 p-3 md:grid-cols-[2rem_auto_auto_1fr_auto]"
+                        >
+                          {/* Barrido al completar la serie */}
+                          <motion.span
+                            aria-hidden className="pointer-events-none absolute inset-0 bg-success/[var(--lq-soft-alpha)]"
+                            style={{ originX: 0 }} initial={false}
+                            animate={{ scaleX: set.completed ? 1 : 0, opacity: set.completed ? 1 : 0 }}
+                            transition={set.completed ? heavy : { duration: 0.25, ease: expo }}
+                          />
+                          <span className="relative font-mono text-label-lg tabular-nums text-on-surface-light">{setIdx + 1}</span>
+                          <div className="relative col-span-2 flex flex-wrap gap-3 md:col-span-1 md:contents">
+                            <NumericStepper label={`Kilos de la serie ${setIdx + 1}`} value={set.weight} onChange={(v) => updateSet(exIdx, setIdx, 'weight', v)} step={2.5} disabled={set.completed} />
+                            <NumericStepper label={`Repeticiones de la serie ${setIdx + 1}`} value={set.reps} onChange={(v) => updateSet(exIdx, setIdx, 'reps', v)} disabled={set.completed} />
+                          </div>
+                          <span className="relative hidden font-mono text-body-sm tabular-nums text-on-surface md:block">
+                            Anterior: {ex.prevBest ? `${ex.prevBest.weight}×${ex.prevBest.reps}` : '—'}
+                          </span>
+                          <div className="relative col-span-3 flex items-center justify-between gap-2 md:col-span-1 md:justify-end">
+                            <AnimatePresence>
+                              {isPR && (
+                                <motion.span initial={{ opacity: 0, scale: 2, rotate: -10 }} animate={{ opacity: 1, scale: 1, rotate: 0 }} exit={{ opacity: 0 }} transition={slam}>
+                                  <Badge variant="warning" icon={Trophy}>PR</Badge>
+                                </motion.span>
+                              )}
+                            </AnimatePresence>
+                            <motion.button
+                              type="button" aria-pressed={set.completed}
+                              aria-label={`${set.completed ? 'Desmarcar' : 'Completar'} serie ${setIdx + 1} de ${ex.name}`}
+                              onClick={() => updateSet(exIdx, setIdx, 'completed', !set.completed)}
+                              whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.82 }}
+                              animate={{ scale: 1 }} transition={slam}
+                              className={cn(
+                                'flex size-11 items-center justify-center rounded-full border-2 transition-colors duration-200 md:ml-auto',
+                                set.completed ? 'border-success bg-success text-on-primary' : 'border-border-strong text-on-surface-light hover:border-success',
+                              )}
+                            >
+                              <motion.span initial={false} animate={set.completed ? { scale: 1, rotate: 0, opacity: 1 } : { scale: 0.4, rotate: -45, opacity: 0 }} transition={slam} className="flex">
+                                <Check aria-hidden className="size-5" strokeWidth={2.5} />
+                              </motion.span>
+                            </motion.button>
+                          </div>
+                        </motion.li>
+                      );
+                    })}
+                  </AnimatePresence>
+                </ol>
+
+                <div className="flex items-center justify-between">
+                  <Button variant="ghost" size="sm" onClick={() => addSet(exIdx)}><Plus aria-hidden className="size-4" />Serie</Button>
+                  {exVolume > 0 && (
+                    <span className="font-mono text-body-sm tabular-nums text-on-surface-light">
+                      Volumen: <motion.span key={exVolume} initial={{ y: -6, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={slam} className="inline-block text-on-background">{kg(exVolume)}</motion.span>
                     </span>
-                    <div className="col-span-3 flex items-center justify-between gap-2 md:col-span-1 md:justify-end">
-                      {isPR && <Badge variant="warning" icon={Trophy}>PR</Badge>}
-                      <motion.button
-                        type="button" whileTap={{ scale: 0.95 }} aria-pressed={set.completed}
-                        aria-label={`${set.completed ? 'Desmarcar' : 'Completar'} serie ${setIdx + 1} de ${ex.name}`}
-                        onClick={() => updateSet(exIdx, setIdx, 'completed', !set.completed)}
-                        className={cn(
-                          'flex size-11 items-center justify-center rounded-full border-2 transition-colors',
-                          set.completed ? 'border-success bg-success text-on-primary' : 'border-border-strong text-transparent hover:border-success',
-                        )}
-                      >
-                        <Check aria-hidden className="size-5" strokeWidth={2.5} />
-                      </motion.button>
-                    </div>
-                  </li>
-                );
-              })}
-            </ol>
-
-            <div className="flex items-center justify-between">
-              <Button variant="ghost" size="sm" onClick={() => addSet(exIdx)}><Plus aria-hidden className="size-4" />Serie</Button>
-              {exVolume > 0 && <span className="font-mono text-body-sm tabular-nums text-on-surface-light">Volumen: {kg(exVolume)}</span>}
-            </div>
-          </Card>
-        );
-      })}
+                  )}
+                </div>
+              </Thud>
+            </motion.div>
+          );
+        })}
+      </AnimatePresence>
 
       <Button variant="secondary" block onClick={() => setShowExSearch(true)}><Plus aria-hidden className="size-4" />Agregar ejercicio</Button>
 
@@ -316,12 +382,25 @@ function ActiveWorkoutView({
   );
 }
 
+/** XP del resumen: cuenta con peso y aterriza con un golpe. */
+function SummaryXP({ xp }: { xp: number }) {
+  const v = useCountUp(xp, 1.3);
+  return (
+    <motion.p
+      className="font-mono text-display-sm font-bold tabular-nums text-primary-text"
+      initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ ...slam, delay: 0.25 }}
+    >
+      <span aria-hidden>+{Math.round(v)} XP</span><span className="sr-only">+{xp} XP</span>
+    </motion.p>
+  );
+}
+
 function SessionHeader({ title, description, actions }: { title: string; description: string; actions: React.ReactNode }) {
   return (
     <motion.section variants={item} className="flex flex-wrap items-end justify-between gap-6">
       <div className="flex min-w-0 flex-[1_1_420px] flex-col gap-2">
         <span className="text-label-lg text-primary-text">Zona de entrenamiento</span>
-        <h1 className="text-display-sm md:text-display-md lg:text-display-lg">{title}</h1>
+        <DropTitle text={title} className="text-display-sm md:text-display-md lg:text-display-lg" />
         <p className="text-body-lg text-on-surface-light">{description}</p>
       </div>
       <div className="flex flex-wrap items-center gap-2">{actions}</div>
@@ -345,6 +424,12 @@ export default function GymPage() {
   const [showRestTimer, setShowRestTimer] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [tab, setTab] = useState<GymTab>('history');
+  /** Sentido del cambio de pestaña: el panel entra desde ese lado. */
+  const tabDir = useRef(1);
+  const changeTab = (next: GymTab) => {
+    tabDir.current = GYM_TABS.findIndex((t) => t.id === next) >= GYM_TABS.findIndex((t) => t.id === tab) ? 1 : -1;
+    setTab(next);
+  };
   const [summary, setSummary] = useState<Summary | null>(null);
 
   const load = useCallback(async () => {
@@ -491,8 +576,15 @@ export default function GymPage() {
     const days = Array.from({ length: 7 }, (_, i) => {
       const d = new Date(Date.now() - (6 - i) * DAY_MS);
       const key = calendarKey(d);
-      const vol = workouts.filter((w) => calendarKey(new Date(w.date)) === key).reduce((a, w) => a + workoutVolume(w), 0);
-      return { key, vol, label: d.toLocaleDateString('es-ES', { timeZone: tz, weekday: 'narrow' }).toUpperCase(), name: d.toLocaleDateString('es-ES', { timeZone: tz, weekday: 'long' }) };
+      const ws = workouts.filter((w) => calendarKey(new Date(w.date)) === key);
+      const vol = ws.reduce((a, w) => a + workoutVolume(w), 0);
+      const title = d.toLocaleDateString('es-ES', { timeZone: tz, weekday: 'long', day: 'numeric', month: 'short' }).replace(/\./g, '');
+      return {
+        key, vol, sessions: ws.map((w) => w.title),
+        title: title.charAt(0).toUpperCase() + title.slice(1),
+        label: d.toLocaleDateString('es-ES', { timeZone: tz, weekday: 'narrow' }).toUpperCase(),
+        name: d.toLocaleDateString('es-ES', { timeZone: tz, weekday: 'long' }),
+      };
     });
     const sumRange = (from: number, to: number) => workouts
       .filter((w) => { const t = new Date(w.date).getTime(); return t > Date.now() - to * DAY_MS && t <= Date.now() - from * DAY_MS; })
@@ -552,10 +644,10 @@ export default function GymPage() {
     );
   }
 
-  const volumeBars: BarDatum[] = weekly.days.map((d) => ({
-    label: d.label, value: d.vol, highlight: d.vol > 0 && d.vol === weekly.max, muted: d.vol === 0,
-    tip: d.vol ? `${d.name} · ${kg(d.vol)}` : `${d.name} · descanso`,
-  }));
+  const liftDays: LiftDay[] = weekly.days.map((d) => ({ key: d.key, label: d.label, title: d.title, value: d.vol, sessions: d.sessions }));
+  const latestTops = latest ? latest.exercises.map((ex) => Math.max(0, ...ex.sets.filter((s) => s.completed).map((s) => s.weight ?? 0))) : [];
+  const latestTop = Math.max(1, ...latestTops);
+  const platesThisWeek = attendanceDays.filter((d) => d.status === 'done').length;
 
   const lastCard = latest && (
     <Card as="article" variant="elevated" padding="lg" aria-labelledby="gym-last" className="flex flex-col gap-6 md:p-8">
@@ -569,23 +661,34 @@ export default function GymPage() {
         <Badge variant="primary" size="lg" icon={Sparkles}>+{latest.xpEarned} XP</Badge>
       </div>
       <dl className="grid grid-cols-3 gap-3 md:gap-4">
-        {[['Duración', latest.duration ? `${latest.duration} min` : '—'], ['Volumen', kg(workoutVolume(latest))], ['Series', String(workoutSets(latest))]].map(([k, v]) => (
-          <div key={k} className="rounded-2xl border border-border bg-background p-3 md:p-4">
+        {([
+          ['Duración', latest.duration ?? 0, (n: number) => (latest.duration ? `${Math.round(n)} min` : '—')],
+          ['Volumen', workoutVolume(latest), kg],
+          ['Series', workoutSets(latest), (n: number) => String(Math.round(n))],
+        ] as const).map(([k, v, f], i) => (
+          <motion.div
+            key={k} className="rounded-2xl border border-border bg-surface p-3 md:p-4"
+            initial={{ opacity: 0, y: -18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.6 }}
+            transition={{ ...slam, delay: 0.1 + i * 0.08 }}
+          >
             <dt className="text-body-sm text-on-surface-light">{k}</dt>
-            <dd className="font-mono text-heading-sm font-bold tabular-nums md:text-heading-md">{v}</dd>
-          </div>
+            <dd className="font-mono text-heading-sm font-bold tabular-nums md:text-heading-md"><AnimatedValue value={v} format={f} /></dd>
+          </motion.div>
         ))}
       </dl>
       {latest.exercises.length > 0 && (
-        <ul className="flex flex-col">
+        <ul className="flex flex-col" aria-label="Ejercicios y peso máximo">
           {latest.exercises.map((ex, i) => {
             const done = ex.sets.filter((s) => s.completed);
-            const top = Math.max(0, ...done.map((s) => s.weight ?? 0));
+            const top = latestTops[i];
             return (
-              <li key={ex.id ?? i} className="flex min-h-14 items-center gap-4 border-b border-border last:border-0">
-                <span className="min-w-0 flex-1 truncate text-body-md">{ex.exerciseName}</span>
-                <span className="font-mono text-body-sm tabular-nums text-on-surface-light">{done.length} series</span>
-                <span className="w-20 text-right font-mono text-label-lg tabular-nums">{top ? `${top} kg` : '—'}</span>
+              <li key={ex.id ?? i} className="group flex min-h-14 flex-col justify-center gap-2 border-b border-border py-2.5 last:border-0">
+                <div className="flex items-center gap-4">
+                  <span className="min-w-0 flex-1 truncate text-body-md transition-transform duration-300 ease-expo group-hover:translate-x-1">{ex.exerciseName}</span>
+                  <span className="font-mono text-body-sm tabular-nums text-on-surface-light">{done.length} series</span>
+                  <span className="w-20 text-right font-mono text-label-lg tabular-nums">{top ? `${top} kg` : '—'}</span>
+                </div>
+                {top > 0 && <LoadBar pct={top / latestTop} delay={i * 0.08} />}
               </li>
             );
           })}
@@ -611,23 +714,42 @@ export default function GymPage() {
     <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-6 md:gap-8">
       <SessionHeader title="Gimnasio" description="Forja tu cuerpo, héroe. Cada sesión suma XP y fortalece tu personaje." actions={startButtons} />
 
-      <motion.section variants={item} aria-label="Asistencia" className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border bg-surface p-4 shadow-sm md:gap-6 md:p-6">
-        <div className="flex flex-col gap-1">
-          <h2 className="text-heading-sm">Asistencia de la semana</h2>
-          <span className="flex items-center gap-1.5 text-body-sm text-warning-text"><Flame aria-hidden className="size-4" /><span className="font-mono tabular-nums">{streak}</span> {streak === 1 ? 'día seguido' : 'días seguidos'}</span>
-        </div>
-        <ol className="flex w-full items-center justify-between gap-1 sm:w-auto sm:gap-2.5" aria-label="Asistencia de los últimos siete días">
-          {attendanceDays.map((d) => (
-            <li key={d.key} aria-label={d.aria} className="flex flex-col items-center gap-1.5">
-              <DayDot status={d.status} label={d.label} />
-              <span aria-hidden className="text-label-md text-on-surface-light">{d.label}</span>
-            </li>
-          ))}
-        </ol>
-        <Button size="md" disabled={attendedToday} loading={recordingAttendance} onClick={() => void recordAttendance()}>
-          {attendedToday ? 'Registrada hoy' : 'Registrar asistencia'}
-        </Button>
-      </motion.section>
+      <motion.div variants={item}>
+        <Thud as="section" trigger={platesThisWeek} aria-label="Asistencia" className="flex flex-wrap items-center justify-between gap-x-6 gap-y-5 rounded-2xl border border-border bg-surface p-4 shadow-sm md:p-6">
+          <div className="flex min-w-0 flex-[1_1_240px] flex-col gap-3">
+            <div className="flex flex-col gap-1">
+              <h2 className="text-heading-sm">Asistencia de la semana</h2>
+              <span className="flex items-center gap-1.5 text-body-sm text-warning-text">
+                <Flame aria-hidden className="size-4" />
+                <motion.span key={streak} initial={{ y: -8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={slam} className="inline-block font-mono tabular-nums">{streak}</motion.span>
+                {streak === 1 ? 'día seguido' : 'días seguidos'}
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <Barbell plates={platesThisWeek} className="max-w-[220px]" />
+              <span className="whitespace-nowrap font-mono text-label-md tabular-nums text-on-surface-light">{platesThisWeek}/7 discos</span>
+            </div>
+          </div>
+          <ol className="flex w-full items-center justify-between gap-1 sm:w-auto sm:gap-2.5" aria-label="Asistencia de los últimos siete días">
+            {attendanceDays.map((d, i) => (
+              <li key={d.key} aria-label={d.aria} className="flex flex-col items-center gap-1.5">
+                <motion.span
+                  key={d.status} className="flex"
+                  initial={{ opacity: 0, scale: d.status === 'done' ? 1.5 : 0.7, y: d.status === 'done' ? -10 : 0 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  transition={{ ...slam, delay: 0.2 + i * 0.05, opacity: { duration: 0.15, delay: 0.2 + i * 0.05 } }}
+                >
+                  <DayDot status={d.status} label={d.label} />
+                </motion.span>
+                <span aria-hidden className="text-label-md text-on-surface-light">{d.label}</span>
+              </li>
+            ))}
+          </ol>
+          <Button size="md" disabled={attendedToday} loading={recordingAttendance} onClick={() => void recordAttendance()}>
+            {attendedToday ? <><Check aria-hidden className="size-4" />Registrada hoy</> : 'Registrar asistencia'}
+          </Button>
+        </Thud>
+      </motion.div>
 
       <motion.div variants={item} role="tablist" aria-label="Secciones del gimnasio" className="grid grid-cols-2 gap-4 lg:grid-cols-4"
         onKeyDown={(e) => {
@@ -636,7 +758,7 @@ export default function GymPage() {
           if (!d) return;
           e.preventDefault();
           const next = GYM_TABS[(i + d + GYM_TABS.length) % GYM_TABS.length];
-          setTab(next.id);
+          changeTab(next.id);
           document.getElementById(`gym-tab-${next.id}`)?.focus();
         }}>
         {GYM_TABS.map(({ id, label, helper, icon, tone }) => {
@@ -644,21 +766,38 @@ export default function GymPage() {
           return (
             <button
               key={id} id={`gym-tab-${id}`} type="button" role="tab" aria-selected={on} aria-controls={`gym-panel-${id}`} tabIndex={on ? 0 : -1}
-              onClick={() => setTab(id)}
-              className={cn('lq-lift flex min-h-[72px] min-w-0 items-center gap-2 rounded-2xl border bg-surface p-3 text-left md:gap-3 md:p-4 shadow-sm transition-colors', on ? 'border-primary/50 bg-primary/[var(--lq-soft-alpha)]' : 'border-border')}
+              onClick={() => changeTab(id)}
+              className="lq-lift relative flex min-h-[72px] min-w-0 items-center gap-2 rounded-2xl border border-border bg-surface p-3 text-left shadow-sm md:gap-3 md:p-4"
             >
-              <IconChip icon={icon} tone={tone} size="sm" />
-              <span className="min-w-0 flex-1">
+              {/* La selección se desliza entre pestañas con peso */}
+              {on && (
+                <motion.span
+                  layoutId="gym-tab-pill" aria-hidden transition={heavy}
+                  className="pointer-events-none absolute -inset-px rounded-2xl border border-primary/50 bg-primary/[var(--lq-soft-alpha)]"
+                />
+              )}
+              <IconChip icon={icon} tone={tone} size="sm" className="relative" />
+              <span className="relative min-w-0 flex-1">
                 <span className="block truncate text-label-lg">{label}</span>
-                <span className={cn('block truncate text-body-sm', on ? 'text-on-surface' : 'text-on-surface-light')}>{helper}</span>
+                <span className={cn('block truncate text-body-sm transition-colors duration-300', on ? 'text-on-surface' : 'text-on-surface-light')}>{helper}</span>
               </span>
-              <ChevronRight aria-hidden className="hidden size-4 shrink-0 text-on-surface-light lg:block" />
+              <ChevronRight aria-hidden className={cn('relative hidden size-4 shrink-0 transition-[transform,color] duration-500 ease-expo lg:block', on ? 'translate-x-0.5 text-primary-text' : 'text-on-surface-light')} />
             </button>
           );
         })}
       </motion.div>
 
-      <div id={`gym-panel-${tab}`} role="tabpanel" aria-labelledby={`gym-tab-${tab}`} className="flex flex-col gap-6 outline-none" tabIndex={-1}>
+      <AnimatePresence mode="wait" initial={false} custom={tabDir.current}>
+      <motion.div
+        key={`${tab}-${state}`} id={`gym-panel-${tab}`} role="tabpanel" aria-labelledby={`gym-tab-${tab}`} className="flex flex-col gap-6 outline-none" tabIndex={-1}
+        custom={tabDir.current}
+        variants={{
+          enter: (d: number) => ({ opacity: 0, x: d * 32 }),
+          center: { opacity: 1, x: 0, transition: heavy },
+          leave: (d: number) => ({ opacity: 0, x: d * -20, transition: { duration: 0.18, ease: expo } }),
+        }}
+        initial="enter" animate="center" exit="leave"
+      >
         {state === 'loading' ? (
           <PageLoader label="Calentando motores…" words={LOADING_COPY.gym} />
         ) : state === 'error' ? (
@@ -686,20 +825,26 @@ export default function GymPage() {
                       </span>
                     )}
                   </div>
-                  <BarChart data={volumeBars} label={`Volumen por día en kilos: ${weekly.days.map((d) => `${d.name} ${Math.round(d.vol)}`).join(', ')}`} height={180} highlightTone="primary" />
+                  <p className="-mt-3 text-body-sm text-on-surface-light">Kilos movidos cada día (peso × repeticiones). Pasa el cursor por una barra para ver el detalle.</p>
+                  <LiftBars days={liftDays} label={`Volumen por día en kilos: ${weekly.days.map((d) => `${d.name} ${Math.round(d.vol)}`).join(', ')}`} />
                 </Card>
                 {workouts.length > 1 && (
                   <Card as="section" padding="lg" aria-labelledby="gym-prev" className="flex flex-col gap-2">
                     <h2 id="gym-prev" className="mb-2 text-heading-sm">Sesiones anteriores</h2>
                     <ul className="flex flex-col">
-                      {workouts.slice(1, 9).map((w) => (
-                        <li key={w.id} className="flex min-h-16 flex-wrap items-center gap-x-4 gap-y-1 border-b border-border py-2 last:border-0">
+                      {workouts.slice(1, 9).map((w, i) => (
+                        <motion.li
+                          key={w.id}
+                          initial={{ opacity: 0, x: -16 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true, amount: 0.6 }}
+                          transition={{ ...heavy, delay: i * 0.05 }}
+                          className="group flex min-h-16 flex-wrap items-center gap-x-4 gap-y-1 border-b border-border py-2 last:border-0"
+                        >
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-label-lg">{w.title}</p>
                             <p className="text-body-sm text-on-surface-light">{new Date(w.date).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '')}{w.duration ? ` · ${w.duration} min` : ''} · {w.exercises?.length ?? 0} ejercicios</p>
                           </div>
                           <Badge variant="primary" icon={Sparkles}>+{w.xpEarned} XP</Badge>
-                        </li>
+                        </motion.li>
                       ))}
                     </ul>
                   </Card>
@@ -709,7 +854,7 @@ export default function GymPage() {
                 <Card as="section" padding="lg" aria-labelledby="gym-routines" className="flex flex-col gap-2">
                   <div className="mb-2 flex items-center justify-between">
                     <h2 id="gym-routines" className="text-heading-sm">Rutinas</h2>
-                    {routines.length > 0 && <Button variant="ghost" size="sm" onClick={() => setTab('routines')}>Ver todas</Button>}
+                    {routines.length > 0 && <Button variant="ghost" size="sm" onClick={() => changeTab('routines')}>Ver todas</Button>}
                   </div>
                   {routines.length === 0 ? <p className="text-body-sm text-on-surface-light">Aún no tienes rutinas guardadas.</p> : <ul>{routineRows(routines.slice(0, 4))}</ul>}
                 </Card>
@@ -766,7 +911,8 @@ export default function GymPage() {
         ) : (
           <ProgressPhotos />
         )}
-      </div>
+      </motion.div>
+      </AnimatePresence>
 
       {showRestTimer && <RestTimer onClose={() => setShowRestTimer(false)} />}
 
@@ -786,11 +932,21 @@ export default function GymPage() {
         {summary && (
           <>
             <Confetti />
-            <IconChip icon={Trophy} tone="success" size="lg" className="lq-halo mx-auto rounded-full" />
-            <p className="font-mono text-display-sm font-bold tabular-nums text-primary-text">+{summary.xp} XP</p>
-            <p className="font-mono text-body-md tabular-nums text-on-surface-light">
-              {formatClock(summary.seconds)} · {summary.sets} series · {kg(summary.volume)}
-            </p>
+            <motion.span className="mx-auto flex" initial={{ opacity: 0, scale: 0.4, y: -30 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ ...slam, delay: 0.1 }}>
+              <IconChip icon={Trophy} tone="success" size="lg" className="lq-halo rounded-full" />
+            </motion.span>
+            <SummaryXP xp={summary.xp} />
+            <dl className="grid grid-cols-3 gap-2">
+              {[['Tiempo', formatClock(summary.seconds)], ['Series', String(summary.sets)], ['Volumen', kg(summary.volume)]].map(([k, v], i) => (
+                <motion.div
+                  key={k} className="rounded-xl border border-border bg-surface px-2 py-3"
+                  initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} transition={{ ...slam, delay: 0.45 + i * 0.09 }}
+                >
+                  <dt className="text-label-md text-on-surface-light">{k}</dt>
+                  <dd className="font-mono text-label-lg font-bold tabular-nums">{v}</dd>
+                </motion.div>
+              ))}
+            </dl>
             <Button block onClick={() => setSummary(null)}>Continuar</Button>
           </>
         )}

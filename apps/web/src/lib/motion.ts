@@ -24,6 +24,17 @@ export const softSpring: Transition = { type: 'spring', stiffness: 220, damping:
 /** Muelle rápido para pulsaciones y hover de botones. */
 export const pressSpring: Transition = { type: 'spring', stiffness: 520, damping: 30, mass: 0.6 };
 
+/* ───────── Peso (lenguaje del gimnasio, usado en toda la app) ─────────
+   Masa alta = arranca lento, se pasa un poco y asienta, como un disco que se carga. */
+/** Muelle pesado: indicadores, barras y bloques que «se cargan». */
+export const heavy: Transition = { type: 'spring', stiffness: 170, damping: 19, mass: 1.5 };
+/** Impacto: algo que cae y golpea (sellos, PR, discos). */
+export const slam: Transition = { type: 'spring', stiffness: 520, damping: 20, mass: 1.1 };
+/** Pulsación con peso: se hunde y rebota al soltar. */
+export const weightPress: Transition = { type: 'spring', stiffness: 460, damping: 22, mass: 0.95 };
+/** Golpe seco que recorre un bloque cuando algo cae dentro (keyframes de y). */
+export const thud = { y: [0, 3, -1, 0], transition: { duration: 0.45, ease: expo, times: [0, 0.25, 0.6, 1] } };
+
 /** Transición de ruta (page3): AnimatePresence mode="wait" alrededor de las rutas. */
 export const page3: Variants = {
   initial: blurIn,
