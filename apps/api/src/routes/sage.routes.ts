@@ -7,14 +7,15 @@ import { getTodayProactiveNote, markProactiveNoteRead } from '../services/sage-p
 
 const router = Router();
 router.use(requireAuth);
-router.use(sageLimiter);
-router.use(sageDailyLimiter);
 
-router.post('/chat',             sage.chat);
-router.post('/suggest-quests',   sage.suggestQuests);
-router.post('/analyze-habits',   sage.analyzeHabits);
-router.post('/analyze-finances', sage.analyzeFinances);
-router.post('/plan-workout',     sage.planWorkout);
+// Solo el chat y sus botones llevan límites de ráfaga/día. El consejo y resumen
+// del día, la nota proactiva y el cupo no se limitan: nunca bloquean otras zonas.
+const chatLimits = [sageLimiter, sageDailyLimiter];
+router.post('/chat',             ...chatLimits, sage.chat);
+router.post('/suggest-quests',   ...chatLimits, sage.suggestQuests);
+router.post('/analyze-habits',   ...chatLimits, sage.analyzeHabits);
+router.post('/analyze-finances', ...chatLimits, sage.analyzeFinances);
+router.post('/plan-workout',     ...chatLimits, sage.planWorkout);
 router.get('/daily-summary',     sage.dailySummary);
 router.get('/daily-tip',         sage.dailyTip);
 router.get('/rate-info',         sage.rateInfo);

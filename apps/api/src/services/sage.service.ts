@@ -3,11 +3,26 @@ import { prisma } from '../lib/prisma';
 
 const SAGE_RATE_LIMIT = 1000;
 
-// Tope diario por persona, solo contra abuso: el uso normal no lo toca. La
-// capacidad real la dan los carriles de lib/ai.ts (varios modelos y llaves, cada
-// uno con su propio cupo gratuito). Las respuestas fijas (saludos, ayuda,
-// fallbacks) no cuentan. Sobreescribible con SAGE_DAILY_AI_LIMIT.
-export const SAGE_DAILY_AI_LIMIT = Number(process.env.SAGE_DAILY_AI_LIMIT || 500);
+// El CHAT del Sabio (mensajes y botones de acción del panel) es lo único que
+// tiene tope: cuesta una llamada a la IA por mensaje y es lo que más se puede
+// disparar. El resto de la IA (comida, dashboard, pergaminos, metas, consejo del
+// día...) NO pasa por este contador y sigue funcionando aunque el chat descanse.
+// El tope por persona deja margen para que varios usuarios nunca lleguen a él en
+// un día normal; SAGE_DAILY_AI_LIMIT lo sobreescribe.
+export const SAGE_DAILY_AI_LIMIT = Number(process.env.SAGE_DAILY_AI_LIMIT || 30);
+
+// Presupuesto global del chat por día (de este proceso): evita que muchos
+// usuarios charlando agoten las llaves y se lleven por delante las demás zonas.
+// Al llegar, el Sabio "descansa" para todos hasta medianoche.
+const SAGE_GLOBAL_CHAT_LIMIT = Number(process.env.SAGE_GLOBAL_CHAT_LIMIT || 4000);
+let globalChat = { day: '', count: 0 };
+function takeGlobalChatSlot(): boolean {
+  const day = new Date().toDateString();
+  if (globalChat.day !== day) globalChat = { day, count: 0 };
+  if (globalChat.count >= SAGE_GLOBAL_CHAT_LIMIT) return false;
+  globalChat.count += 1;
+  return true;
+}
 
 // Respuesta amable cuando TODO proveedor IA está sin cuota. Se devuelve como
 // texto normal (HTTP 200): el usuario recibe una respuesta del Sabio digna,
@@ -60,6 +75,20 @@ export async function consumeSageDailyAI(userId: string): Promise<SageDailyUsage
   const allowed = await checkAndIncrementRateLimit(userId); // contador diario anti-spam
   if (!allowed) return null;
   return getSageDailyUsage(userId);
+}
+
+// Respuesta del Sabio cuando su cupo de chat del día se agotó: en personaje y
+// con HTTP 200, sin error rojo. Aclara que el resto de la app sigue igual.
+export const SAGE_TIRED_REPLY =
+  'Hoy hemos conversado mucho y necesito reposar los ojos. Vuelve mañana y seguimos. ' +
+  'Mientras tanto, tus hábitos, misiones, comidas y todo lo demás siguen funcionando como siempre.';
+
+/** Cupo del chat: por persona y global. null = el Sabio descansa. */
+async function takeChatSlot(userId: string): Promise<SageDailyUsage | null> {
+  const usage = await consumeSageDailyAI(userId);
+  if (!usage) return null;
+  if (!takeGlobalChatSlot()) return null;
+  return usage;
 }
 
 async function callAI(prompt: string): Promise<string> {
@@ -306,16 +335,16 @@ Responde siempre en espanol. Usa los datos reales de arriba y nunca inventes dat
 }
 
 export async function sageChat(userId: string, message: string): Promise<string> {
-  const usage = await consumeSageDailyAI(userId);
-  if (!usage) return 'Llegaste al limite de consultas por hoy. Intenta de nuevo manana.';
+  const usage = await takeChatSlot(userId);
+  if (!usage) return SAGE_TIRED_REPLY;
 
   const context = await buildSageContext(userId);
   return callAIWithMemory(userId, context, message);
 }
 
 export async function sageSuggestQuests(userId: string): Promise<string> {
-  const usage = await consumeSageDailyAI(userId);
-  if (!usage) return '[]';
+  const usage = await takeChatSlot(userId);
+  if (!usage) return SAGE_TIRED_REPLY;
 
   const context = await buildSageContext(userId);
   const fullPrompt = `${context}
@@ -333,24 +362,24 @@ Responde SOLO con este JSON sin markdown ni texto extra:
 }
 
 export async function sageAnalyzeHabits(userId: string): Promise<string> {
-  const usage = await consumeSageDailyAI(userId);
-  if (!usage) return 'Llegaste al limite de consultas por hoy. Intenta de nuevo manana.';
+  const usage = await takeChatSlot(userId);
+  if (!usage) return SAGE_TIRED_REPLY;
 
   const context = await buildSageContext(userId);
   return callAI(`${context}\n\nAnaliza los habitos del heroe. En 3 parrafos: cual tiene mas riesgo de romperse esta semana y por que, cual esta mas consolidado, y que habito nuevo recomendarias agregar dado sus metas actuales.`);
 }
 
 export async function sageAnalyzeFinances(userId: string): Promise<string> {
-  const usage = await consumeSageDailyAI(userId);
-  if (!usage) return 'Llegaste al limite de consultas por hoy. Intenta de nuevo manana.';
+  const usage = await takeChatSlot(userId);
+  if (!usage) return SAGE_TIRED_REPLY;
 
   const context = await buildSageContext(userId);
   return callAI(`${context}\n\nAnaliza las finanzas del heroe este mes. En 3 parrafos concretos: en que categoria gasta mas de lo optimo, cuanto podria ahorrar mensualmente si ajusta eso, y cuando alcanzaria su meta de ahorro mas cercana.`);
 }
 
 export async function sagePlanWorkout(userId: string): Promise<string> {
-  const usage = await consumeSageDailyAI(userId);
-  if (!usage) return 'Llegaste al limite de consultas por hoy. Intenta de nuevo manana.';
+  const usage = await takeChatSlot(userId);
+  if (!usage) return SAGE_TIRED_REPLY;
 
   const context = await buildSageContext(userId);
   return callAI(`${context}\n\nBasandote en el historial de entrenamientos del heroe, sugiere el proximo entrenamiento ideal: grupo muscular a trabajar, 4-5 ejercicios especificos con series y reps sugeridas, y justifica brevemente la eleccion.`);
@@ -368,9 +397,6 @@ export async function sageDailyTip(userId: string): Promise<string> {
   const hit = dailyTipCache.get(userId);
   if (hit?.date === today) return hit.tip;
 
-  const usage = await consumeSageDailyAI(userId);
-  if (!usage) return DAILY_TIP_FALLBACK;
-
   const context = await buildSageContext(userId);
   const tip = await callAI(`${context}\\n\\nDa UNA sola frase de consejo o motivación para hoy, basada en el estado actual del usuario. Máximo 15 palabras. Sin saludos, sin introducciones. Solo la frase, directa y útil.`);
   // No cachear la respuesta de cuota agotada ni el fallback: mañana podría
@@ -381,9 +407,12 @@ export async function sageDailyTip(userId: string): Promise<string> {
   return tip;
 }
 
+const dailySummaryCache = new Map<string, { date: string; text: string }>();
+
 export async function sageDailySummary(userId: string): Promise<string> {
-  const usage = await consumeSageDailyAI(userId);
-  if (!usage) return 'Llegaste al limite de consultas por hoy. Intenta de nuevo manana.';
+  const today = new Date().toISOString().slice(0, 10);
+  const hit = dailySummaryCache.get(userId);
+  if (hit?.date === today) return hit.text;
 
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
@@ -391,7 +420,9 @@ export async function sageDailySummary(userId: string): Promise<string> {
   });
 
   const context = await buildSageContext(userId);
-  return callAI(`${context}\n\nEs el inicio del dia de ${user.displayName}. En 2 parrafos: resume que logro ayer y que deberia priorizar hoy segun sus misiones activas, habitos con riesgo de romperse y estado financiero.`);
+  const text = await callAI(`${context}\n\nEs el inicio del dia de ${user.displayName}. En 2 parrafos: resume que logro ayer y que deberia priorizar hoy segun sus misiones activas, habitos con riesgo de romperse y estado financiero.`);
+  if (text !== SAGE_QUOTA_REPLY) dailySummaryCache.set(userId, { date: today, text });
+  return text;
 }
 
 // Información de cupo para el frontend: cuántas respuestas IA lleva el usuario

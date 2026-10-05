@@ -237,17 +237,15 @@ export function SagePanel({ onClose }: { onClose: () => void }) {
 
         <div className="flex flex-col gap-3 border-t border-border px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 md:px-6">
           <div aria-live="polite" className="flex flex-col gap-1">
-            {callsUsed !== null && rate && rate.remaining <= rate.limit * 0.1 && (
-              <p className={cn('text-center text-body-sm', outOfCalls ? 'text-error-text' : 'text-on-surface-light')}>
-                Consultas del Sabio hoy: {callsUsed} de {rate.limit}
-                {' · '}se renueva a las{' '}
-                {new Date(rate.resetAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+            {callsUsed !== null && rate && !outOfCalls && rate.remaining <= rate.limit * 0.2 && (
+              <p className="text-center text-body-sm text-on-surface-light">
+                El Sabio se va cansando: te quedan {rate.remaining} {rate.remaining === 1 ? 'consulta' : 'consultas'} hoy.
               </p>
             )}
             {outOfCalls && (
-              <p className="text-center text-body-sm text-error-text">
-                El Sabio descansa hoy: agotaste tus consultas IA del día. El resto de la app
-                (hábitos, misiones, finanzas) sigue disponible sin IA.
+              <p className="text-center text-body-sm text-on-surface-light">
+                El Sabio descansa hasta mañana. Todo lo demás (hábitos, misiones, comidas, inicio) sigue
+                funcionando con normalidad.
               </p>
             )}
           </div>
