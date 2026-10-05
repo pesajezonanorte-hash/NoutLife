@@ -209,3 +209,11 @@ html.dark .lq-glint { background: radial-gradient(220px circle at var(--mx, 50%)
 @keyframes lq-flash { from { opacity: .95; transform: scale(.5); } to { opacity: 0; transform: scale(1.8); } }
 .lq-burst { animation: lq-burst 1.2s cubic-bezier(.16, 1, .3, 1) var(--delay, .4s) both; }
 @keyframes lq-burst { 0% { opacity: 0; transform: translate(0, 0) scale(.4); } 15% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(1); } }
+
+/* Papel cuadriculado muy tenue (Agenda): la sensación de orden. */
+.lq-tex-grid {
+  background-image:
+    linear-gradient(to right, rgb(var(--lq-on-background) / .045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(var(--lq-on-background) / .045) 1px, transparent 1px);
+  background-size: 28px 28px;
+}

@@ -1,5 +1,8 @@
 // Agenda — AgendaDesktop.dc.html. Día (línea de tiempo con "ahora" y bloques completables),
 // Semana, Mes y Google Calendar con estado. Servicios sin cambios (agenda.service).
+// Zona ambientada: un calendario que transmite orden. Las celdas se colocan en
+// cascada diagonal, hoy lleva un círculo dibujado y cambiar de mes, semana o día
+// pasa la hoja como en un calendario de escritorio (hacia arriba o hacia abajo).
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -7,7 +10,8 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { item, stagger } from '@/lib/motion';
+import { item, springs } from '@/lib/motion';
+import { ZoneShell } from '@/components/ambience';
 import { useToast } from '../../hooks/useToast';
 import * as agendaService from '../../services/agenda.service';
 import type { AgendaEvent } from '../../services/agenda.service';
@@ -192,11 +196,21 @@ function EventModal({ initial, defaultDate, onSave, onDelete, onClose }: {
 
 // ─── Agenda Page ──────────────────────────────────────────────────────────────
 
-function NavBar({ label, onPrev, onNext, prevLabel, nextLabel }: { label: string; onPrev: () => void; onNext: () => void; prevLabel: string; nextLabel: string }) {
+function NavBar({ label, onPrev, onNext, prevLabel, nextLabel, dir = 0 }: { label: string; onPrev: () => void; onNext: () => void; prevLabel: string; nextLabel: string; dir?: number }) {
   return (
     <div className="flex items-center justify-between gap-2">
       <Button variant="icon" aria-label={prevLabel} onClick={onPrev}><ChevronLeft aria-hidden className="size-6" strokeWidth={1.75} /></Button>
-      <h2 className="text-center text-heading-md" aria-live="polite">{label}</h2>
+      <h2 className="relative overflow-hidden text-center text-heading-md" aria-live="polite">
+        <AnimatePresence mode="popLayout" initial={false} custom={dir}>
+          <motion.span
+            key={label} className="block" custom={dir}
+            variants={{ enter: (d: number) => ({ y: d * 20, opacity: 0 }), center: { y: 0, opacity: 1 }, leave: (d: number) => ({ y: d * -20, opacity: 0 }) }}
+            initial="enter" animate="center" exit="leave" transition={springs.natural}
+          >
+            {label}
+          </motion.span>
+        </AnimatePresence>
+      </h2>
       <Button variant="icon" aria-label={nextLabel} onClick={onNext}><ChevronRight aria-hidden className="size-6" strokeWidth={1.75} /></Button>
     </div>
   );
@@ -277,7 +291,16 @@ export default function AgendaPage() {
     catch (err) { toast.error(errMsg(err, 'Error al desconectar Google Calendar')); }
   }
 
-  const shift = (days: number) => { const d = new Date(currentDate); d.setDate(d.getDate() + days); setCurrentDate(d); };
+  /** Sentido del último cambio (hoja hacia arriba = adelante). */
+  const [dir, setDir] = useState(0);
+  const shift = (days: number) => { setDir(Math.sign(days)); const d = new Date(currentDate); d.setDate(d.getDate() + days); setCurrentDate(d); };
+  const shiftMonth = (n: number) => { setDir(Math.sign(n)); setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + n, 1)); };
+  /** Pasar la hoja del calendario: sale hacia arriba (o abajo) desde la anilla superior. */
+  const flip = {
+    enter: (d: number) => ({ opacity: 0, rotateX: d >= 0 ? -16 : 16, y: d >= 0 ? 10 : -10 }),
+    center: { opacity: 1, rotateX: 0, y: 0, transition: springs.heavy },
+    leave: (d: number) => ({ opacity: 0, rotateX: d >= 0 ? 70 : -70, y: d >= 0 ? -14 : 14, transition: { duration: 0.24, ease: [0.4, 0, 1, 1] } }),
+  };
   const dayEvents = useMemo(() => events.filter((e) => isEventOnDay(e, currentDate)), [events, currentDate]);
   const timed = dayEvents.filter((e) => !e.isAllDay);
   const allDay = dayEvents.filter((e) => e.isAllDay);
@@ -302,14 +325,18 @@ export default function AgendaPage() {
 
 
   return (
-    <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-6 md:gap-8">
+    <ZoneShell
+      zone="agenda"
+      contentClassName="gap-6 md:gap-8"
+      ambience={<span className="lq-tex-grid absolute inset-x-0 top-0 block h-[38rem] [mask-image:linear-gradient(to_bottom,#000,transparent)]" />}
+    >
       <motion.section variants={item} className="flex flex-wrap items-end justify-between gap-6">
         <div className="flex min-w-0 flex-[1_1_360px] flex-col gap-2">
           <span className="text-label-lg text-primary-text">Agenda</span>
           <h1 className="text-display-sm md:text-display-md lg:text-display-lg">Tu tiempo, tus misiones</h1>
         </div>
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-          <Button variant="secondary" size="md" onClick={() => setCurrentDate(new Date())}>Hoy</Button>
+          <Button variant="secondary" size="md" onClick={() => { setDir(new Date() >= currentDate ? 1 : -1); setCurrentDate(new Date()); }}>Hoy</Button>
           <Button size="md" onClick={() => setShowModal(true)}><Plus aria-hidden className="size-4" />Evento</Button>
         </div>
       </motion.section>
@@ -349,7 +376,7 @@ export default function AgendaPage() {
             {view === 'day' && (
               <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
                 <Card as="section" padding="lg" aria-label="Día" className="flex flex-col gap-4">
-                  <NavBar label={upper1(currentDate.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }))} prevLabel="Día anterior" nextLabel="Día siguiente" onPrev={() => shift(-1)} onNext={() => shift(1)} />
+                  <NavBar dir={dir} label={upper1(currentDate.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }))} prevLabel="Día anterior" nextLabel="Día siguiente" onPrev={() => shift(-1)} onNext={() => shift(1)} />
                   {allDay.length > 0 && (
                     <ul aria-label="Todo el día" className="flex flex-wrap gap-2">
                       {allDay.map((e) => <li key={e.id}><button type="button" onClick={() => setEditingEvent(e)} className={cn('inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-label-lg md:min-h-9', softTone[catInfo(e.category).tone])}>{e.title}<span className="sr-only">, todo el día. Editar</span></button></li>)}
@@ -382,14 +409,15 @@ export default function AgendaPage() {
             )}
 
             {view === 'week' && (
-              <Card as="section" padding="lg" aria-label="Semana" className="flex flex-col gap-4">
-                <NavBar label={`${weekDays[0].toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })} — ${weekDays[6].toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}`} prevLabel="Semana anterior" nextLabel="Semana siguiente" onPrev={() => shift(-7)} onNext={() => shift(7)} />
-                <ol className="grid grid-cols-1 gap-3 md:grid-cols-7">
-                  {weekDays.map((day) => {
+              <Card as="section" padding="lg" aria-label="Semana" className="relative flex flex-col gap-4">
+                <NavBar dir={dir} label={`${weekDays[0].toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })} — ${weekDays[6].toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}`} prevLabel="Semana anterior" nextLabel="Semana siguiente" onPrev={() => shift(-7)} onNext={() => shift(7)} />
+                <AnimatePresence mode="popLayout" initial={false} custom={dir}>
+                <motion.ol key={weekDays[0].toDateString()} custom={dir} variants={flip} initial="enter" animate="center" exit="leave" style={{ transformPerspective: 1200, originY: 0 }} className="grid grid-cols-1 gap-3 md:grid-cols-7">
+                  {weekDays.map((day, di) => {
                     const evs = events.filter((e) => isEventOnDay(e, day));
                     const isToday = isSameDay(day, today);
                     return (
-                      <li key={day.toISOString()}>
+                      <motion.li key={day.toISOString()} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0, transition: { ...springs.natural, delay: 0.06 + di * 0.04 } }}>
                         <button
                           type="button" aria-current={isToday ? 'date' : undefined}
                           aria-label={`${day.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}, ${evs.length} ${evs.length === 1 ? 'evento' : 'eventos'}`}
@@ -397,27 +425,33 @@ export default function AgendaPage() {
                           className={cn('flex min-h-24 w-full flex-col gap-2 rounded-2xl p-3 text-left transition-colors md:min-h-[240px]', isToday ? 'bg-primary/[var(--lq-soft-alpha)]' : 'bg-surface-variant hover:bg-border')}
                         >
                           <span className="flex items-center justify-between"><span className="text-label-md uppercase text-on-surface">{day.toLocaleDateString('es-ES', { weekday: 'short' }).replace('.', '')}</span><span className={cn('font-mono text-heading-sm tabular-nums', isToday && 'text-primary-text')}>{day.getDate()}</span></span>
-                          {evs.slice(0, 4).map((e) => (
-                            <span key={e.id} className="flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1.5 text-body-sm"><span aria-hidden className={cn('size-2 shrink-0 rounded-full', solidBg[catInfo(e.category).tone])} /><span className="truncate">{e.title}</span></span>
+                          {evs.slice(0, 4).map((e, k) => (
+                            // Cada evento encaja en su franja: baja un poco y se asienta.
+                            <motion.span key={e.id} initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0, transition: { ...springs.snappy, delay: 0.25 + di * 0.04 + k * 0.05 } }} className="flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1.5 text-body-sm"><span aria-hidden className={cn('size-2 shrink-0 rounded-full', solidBg[catInfo(e.category).tone])} /><span className="truncate">{e.title}</span></motion.span>
                           ))}
                           {evs.length > 4 && <span className="text-body-sm text-on-surface-light">+{evs.length - 4} más</span>}
                         </button>
-                      </li>
+                      </motion.li>
                     );
                   })}
-                </ol>
+                </motion.ol>
+                </AnimatePresence>
               </Card>
             )}
 
             {view === 'month' && (
               <div className="flex flex-col gap-6">
-                <Card as="section" padding="lg" aria-label="Mes" className="flex flex-col gap-4">
-                  <NavBar label={upper1(currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }))} prevLabel="Mes anterior" nextLabel="Mes siguiente" onPrev={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))} onNext={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))} />
+                <Card as="section" padding="lg" aria-label="Mes" className="relative flex flex-col gap-4">
+                  <NavBar dir={dir} label={upper1(currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }))} prevLabel="Mes anterior" nextLabel="Mes siguiente" onPrev={() => shiftMonth(-1)} onNext={() => shiftMonth(1)} />
+                  <AnimatePresence mode="popLayout" initial={false} custom={dir}>
+                  <motion.div key={`${currentDate.getFullYear()}-${currentDate.getMonth()}`} custom={dir} variants={flip} initial="enter" animate="center" exit="leave" style={{ transformPerspective: 1200, originY: 0 }}>
                   <MonthGrid
                     month={currentDate} selected={currentDate} onSelect={setCurrentDate}
                     dots={(d) => events.filter((e) => isEventOnDay(e, d)).map((e) => catInfo(e.category).tone)}
                     describe={(d) => { const n = events.filter((e) => isEventOnDay(e, d)).length; return `${n} ${n === 1 ? 'evento' : 'eventos'}`; }}
                   />
+                  </motion.div>
+                  </AnimatePresence>
                 </Card>
                 <Card as="section" padding="lg" aria-labelledby="ag-sel" className="flex flex-col gap-2">
                   <h2 id="ag-sel" className="text-heading-sm">{upper1(currentDate.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }))}</h2>
@@ -436,6 +470,6 @@ export default function AgendaPage() {
         <EventModal initial={editingEvent} defaultDate={defaultDate} onSave={(d) => void handleUpdate(editingEvent.id, d as Partial<AgendaEvent>)}
           onDelete={editingEvent.eventType === 'habit' ? undefined : () => void handleDelete(editingEvent.id)} onClose={() => setEditingEvent(null)} />
       )}
-    </motion.div>
+    </ZoneShell>
   );
 }
