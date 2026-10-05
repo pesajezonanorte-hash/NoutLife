@@ -155,6 +155,9 @@ async function migrate() {
   // Idempotent mirror of prisma/migrations/20261005150000_guild_photo.
   await prisma.$executeRawUnsafe(`ALTER TABLE "guilds" ADD COLUMN IF NOT EXISTS "photoUrl" TEXT;`);
 
+  // Idempotent mirror of prisma/migrations/20261005180000_user_last_seen.
+  await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "lastSeenAt" TIMESTAMP(3);`);
+
   console.log('SUCCESS: Runtime database columns, indexes, ritual idempotency key, and legacy habit ritual cleanup applied.');
 }
 

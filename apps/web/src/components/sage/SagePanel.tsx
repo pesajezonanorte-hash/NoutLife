@@ -97,7 +97,12 @@ export function SagePanel({ onClose }: { onClose: () => void }) {
   const refreshRate = useCallback(async () => {
     try { setRate(await sageRateInfo()); } catch { /* sin contador */ }
   }, []);
-  useEffect(() => { void refreshRate(); }, [refreshRate]);
+  // El límite se reparte según la gente activa: se refresca mientras el panel está abierto.
+  useEffect(() => {
+    void refreshRate();
+    const id = setInterval(() => void refreshRate(), 2 * 60_000);
+    return () => clearInterval(id);
+  }, [refreshRate]);
   const callsUsed = rate ? rate.limit - rate.remaining : null;
   const outOfCalls = rate !== null && rate.remaining <= 0;
   const panelRef = useDialogBehavior(true, onClose);
@@ -180,6 +185,29 @@ export function SagePanel({ onClose }: { onClose: () => void }) {
             <h2 id={titleId} className="text-heading-sm">El Sabio</h2>
             <p className="text-body-sm text-on-surface-light">Tu consejero IA</p>
           </div>
+          {rate && (
+            <span
+              title="Tus mensajes de hoy. El límite cambia según cuánta gente usa el Sabio: con menos gente, tienes más."
+              className={cn(
+                'flex shrink-0 items-baseline gap-1 rounded-full border px-3 py-1 text-body-sm tabular-nums transition-colors',
+                outOfCalls ? 'border-border text-on-surface-light' : rate.remaining <= rate.limit * 0.2 ? 'border-warning/40 text-on-background' : 'border-border text-on-background',
+              )}
+            >
+              <span className="sr-only">Mensajes restantes hoy: </span>
+              <motion.span
+                key={rate.remaining}
+                initial={reduce ? false : { opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25 }}
+                className="font-medium"
+              >
+                {rate.remaining}
+              </motion.span>
+              <span aria-hidden className="text-on-surface-light">/ {rate.limit}</span>
+              <span className="sr-only">de {rate.limit}</span>
+              <span aria-hidden className="hidden text-on-surface-light sm:inline">hoy</span>
+            </span>
+          )}
           {messages.length > 0 && (
             <Button variant="icon" aria-label="Borrar conversación" disabled={loading} onClick={() => { setMessages([]); setTyping(null); }}>
               <Trash2 aria-hidden className="size-5" strokeWidth={1.75} />
@@ -197,6 +225,11 @@ export function SagePanel({ onClose }: { onClose: () => void }) {
               <div className="flex max-w-[300px] flex-col gap-1">
                 <p className="text-heading-sm">¿En qué te ayudo hoy?</p>
                 <p className="text-body-md text-on-surface-light">Pide ideas de misiones, analiza tus hábitos o tus finanzas, o pregunta lo que quieras.</p>
+                {rate && !outOfCalls && (
+                  <p className="text-body-sm text-on-surface-light">
+                    Hoy tienes {rate.limit} mensajes. Cuanta menos gente usa el Sabio, más mensajes tienes.
+                  </p>
+                )}
               </div>
             </div>
           ) : (

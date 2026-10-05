@@ -42,6 +42,8 @@ export interface SageRateInfo {
   limit: number;
   remaining: number;
   resetAt: string;
+  /** Personas activas hoy: el límite se reparte entre ellas. */
+  activeUsers?: number;
 }
 
 export async function sageRateInfo(): Promise<SageRateInfo> {

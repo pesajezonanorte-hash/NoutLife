@@ -7,21 +7,63 @@ const SAGE_RATE_LIMIT = 1000;
 // tiene tope: cuesta una llamada a la IA por mensaje y es lo que más se puede
 // disparar. El resto de la IA (comida, dashboard, pergaminos, metas, consejo del
 // día...) NO pasa por este contador y sigue funcionando aunque el chat descanse.
-// El tope por persona deja margen para que varios usuarios nunca lleguen a él en
-// un día normal; SAGE_DAILY_AI_LIMIT lo sobreescribe.
-export const SAGE_DAILY_AI_LIMIT = Number(process.env.SAGE_DAILY_AI_LIMIT || 30);
+//
+// El tope por persona es DINÁMICO: el presupuesto diario del chat se reparte
+// entre la gente que usa la app y el Sabio hoy. Pocos usuarios = tope alto;
+// muchos = tope menor, sin que el chat se coma la IA de las demás zonas.
 
-// Presupuesto global del chat por día (de este proceso): evita que muchos
-// usuarios charlando agoten las llaves y se lleven por delante las demás zonas.
-// Al llegar, el Sabio "descansa" para todos hasta medianoche.
-const SAGE_GLOBAL_CHAT_LIMIT = Number(process.env.SAGE_GLOBAL_CHAT_LIMIT || 4000);
-let globalChat = { day: '', count: 0 };
-function takeGlobalChatSlot(): boolean {
+/** Mensajes de chat al día para TODOS los usuarios juntos (la parte de la cuota IA reservada al Sabio). */
+const SAGE_DAILY_CHAT_BUDGET = Number(process.env.SAGE_DAILY_CHAT_BUDGET || process.env.SAGE_GLOBAL_CHAT_LIMIT || 3000);
+/** Tope por persona cuando hay poca gente (máximo) y cuando hay muchísima (mínimo). */
+export const SAGE_DAILY_AI_LIMIT = Number(process.env.SAGE_DAILY_AI_LIMIT || 60);
+const SAGE_MIN_DAILY_LIMIT = Number(process.env.SAGE_MIN_DAILY_LIMIT || 5);
+// De la gente que abre la app, cuántos se espera que charlen con el Sabio.
+const SAGE_CHAT_SHARE = 0.5;
+const PULSE_TTL_MS = 60_000;
+
+interface SagePulse {
+  day: string;
+  at: number;
+  /** Mensajes de chat ya gastados hoy entre todos. */
+  used: number;
+  /** Personas activas hoy (app o Sabio). */
+  activeUsers: number;
+  /** Tope por persona para hoy. */
+  cap: number;
+}
+
+let pulse: SagePulse | null = null;
+
+function startOfToday(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+/** Reparte el presupuesto: un número redondo (múltiplo de 5) entre el mínimo y el máximo. */
+function capFor(activeUsers: number, sageUsers: number): number {
+  const expected = Math.max(1, sageUsers + 1, Math.ceil(activeUsers * SAGE_CHAT_SHARE));
+  const raw = Math.floor(SAGE_DAILY_CHAT_BUDGET / expected / 5) * 5;
+  return Math.max(SAGE_MIN_DAILY_LIMIT, Math.min(SAGE_DAILY_AI_LIMIT, SAGE_RATE_LIMIT, raw));
+}
+
+/**
+ * Estado del Sabio hoy (cacheado 1 min): cuánto chat se gastó, cuánta gente
+ * hay activa y el tope por persona que resulta. Va a la base de datos, así que
+ * todas las instancias del API ven lo mismo.
+ */
+async function sagePulse(): Promise<SagePulse> {
   const day = new Date().toDateString();
-  if (globalChat.day !== day) globalChat = { day, count: 0 };
-  if (globalChat.count >= SAGE_GLOBAL_CHAT_LIMIT) return false;
-  globalChat.count += 1;
-  return true;
+  if (pulse && pulse.day === day && Date.now() - pulse.at < PULSE_TTL_MS) return pulse;
+  const today = startOfToday();
+  const since = new Date(Date.now() - 24 * 60 * 60_000);
+  const [spent, sageUsers, activeUsers] = await Promise.all([
+    prisma.user.aggregate({ where: { sageCallsResetAt: { gte: today } }, _sum: { sageCallsToday: true } }),
+    prisma.user.count({ where: { sageCallsResetAt: { gte: today }, sageCallsToday: { gt: 0 } } }),
+    prisma.user.count({ where: { OR: [{ lastSeenAt: { gte: since } }, { lastLoginAt: { gte: since } }, { sageCallsResetAt: { gte: today } }] } }),
+  ]);
+  pulse = { day, at: Date.now(), used: spent._sum.sageCallsToday ?? 0, activeUsers, cap: capFor(activeUsers, sageUsers) };
+  return pulse;
 }
 
 // Respuesta amable cuando TODO proveedor IA está sin cuota. Se devuelve como
@@ -60,9 +102,9 @@ export async function getSageDailyUsage(userId: string): Promise<SageDailyUsage>
   return { count: sameDay ? user.sageCallsToday : 0, nextReset: nextMidnight() };
 }
 
-/** Tope diario por usuario: el menor entre el configurado y el anti-spam del día. */
-export function sageDailyCap(): number {
-  return Math.min(SAGE_DAILY_AI_LIMIT, SAGE_RATE_LIMIT);
+/** Tope diario por usuario para hoy, según cuánta gente usa la app y el Sabio. */
+export async function sageDailyCap(): Promise<number> {
+  return (await sagePulse()).cap;
 }
 
 /**
@@ -71,7 +113,7 @@ export function sageDailyCap(): number {
  */
 export async function consumeSageDailyAI(userId: string): Promise<SageDailyUsage | null> {
   const usage = await getSageDailyUsage(userId);
-  if (usage.count >= sageDailyCap()) return null;
+  if (usage.count >= (await sageDailyCap())) return null;
   const allowed = await checkAndIncrementRateLimit(userId); // contador diario anti-spam
   if (!allowed) return null;
   return getSageDailyUsage(userId);
@@ -90,7 +132,7 @@ export const SAGE_ERROR_REPLY =
 
 /** Devuelve el cupo del chat cuando la IA no llegó a responder: ese mensaje no cuenta. */
 async function refundChatSlot(userId: string): Promise<void> {
-  if (globalChat.count > 0) globalChat.count -= 1;
+  if (pulse && pulse.used > 0) pulse.used -= 1;
   await prisma.user.updateMany({
     where: { id: userId, sageCallsToday: { gt: 0 } },
     data: { sageCallsToday: { decrement: 1 } },
@@ -106,9 +148,12 @@ async function chatTurn(userId: string, run: () => Promise<string>): Promise<str
 
 /** Cupo del chat: por persona y global. null = el Sabio descansa. */
 async function takeChatSlot(userId: string): Promise<SageDailyUsage | null> {
+  const p = await sagePulse();
+  // Presupuesto del día agotado entre todos: el Sabio descansa, el resto de la IA sigue.
+  if (p.used >= SAGE_DAILY_CHAT_BUDGET) return null;
   const usage = await consumeSageDailyAI(userId);
   if (!usage) return null;
-  if (!takeGlobalChatSlot()) return null;
+  p.used += 1;
   return usage;
 }
 
@@ -453,13 +498,16 @@ export async function sageDailySummary(userId: string): Promise<string> {
 // anti-spam), cuántas quedan y cuándo se reinicia.
 export async function getSageRateInfo(
   userId: string
-): Promise<{ callsToday: number; limit: number; remaining: number; resetAt: string }> {
-  const usage = await getSageDailyUsage(userId);
-  const limit = sageDailyCap();
+): Promise<{ callsToday: number; limit: number; remaining: number; resetAt: string; activeUsers: number }> {
+  const [usage, p] = await Promise.all([getSageDailyUsage(userId), sagePulse()]);
+  const limit = p.cap;
+  // Si el presupuesto común se acabó, a nadie le quedan consultas hoy.
+  const remaining = p.used >= SAGE_DAILY_CHAT_BUDGET ? 0 : Math.max(0, limit - usage.count);
   return {
     callsToday: usage.count,
     limit,
-    remaining: Math.max(0, limit - usage.count),
+    activeUsers: p.activeUsers,
+    remaining,
     resetAt: usage.nextReset.toISOString(),
   };
 }

@@ -153,6 +153,8 @@ model User {
 
   refreshTokenHash String?
   lastLoginAt      DateTime?
+  /// Última petición autenticada (como mucho una escritura por hora). Mide la gente activa hoy para repartir el cupo del Sabio.
+  lastSeenAt       DateTime?
 
   // Google Calendar Integration
   googleAccessToken         String?
