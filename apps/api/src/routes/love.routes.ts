@@ -25,13 +25,31 @@ router.get('/gift-ideas', async (req: AuthRequest, res) => {
   try { res.json(await getGiftIdeas(req.userId!, req.query.relationshipId as string)); }
   catch (err: any) { res.status(400).json({ message: publicErrorMessage(err) }); }
 });
+// Solo los campos del modelo: un campo de más hace fallar a Prisma.
+const giftFields = (b: Record<string, unknown>) => {
+  const text = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
+  const price = b.estimatedPrice === undefined || b.estimatedPrice === null || b.estimatedPrice === '' ? undefined : Number(b.estimatedPrice);
+  return {
+    name: text(b.name),
+    description: text(b.description),
+    url: text(b.url),
+    occasion: text(b.occasion),
+    relationshipId: text(b.relationshipId),
+    estimatedPrice: price !== undefined && Number.isFinite(price) && price >= 0 ? price : undefined,
+    ...(typeof b.isPurchased === 'boolean' ? { isPurchased: b.isPurchased } : {}),
+  };
+};
+
 router.post('/gift-ideas', async (req: AuthRequest, res) => {
-  try { res.status(201).json(await createGiftIdea(req.userId!, req.body)); }
+  const { isPurchased: _ignored, ...data } = giftFields(req.body ?? {});
+  if (!data.name) { res.status(400).json({ message: 'Escribe el nombre del regalo.' }); return; }
+  try { res.status(201).json(await createGiftIdea(req.userId!, { ...data, name: data.name })); }
   catch (err: any) { res.status(400).json({ message: publicErrorMessage(err) }); }
 });
 router.patch('/gift-ideas/:id', async (req: AuthRequest, res) => {
   try {
-    await updateGiftIdea(req.userId!, req.params.id, req.body);
+    const { relationshipId: _r, ...data } = giftFields(req.body ?? {});
+    await updateGiftIdea(req.userId!, req.params.id, Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined)));
     res.json({ success: true });
   } catch (err: any) { res.status(400).json({ message: publicErrorMessage(err) }); }
 });
