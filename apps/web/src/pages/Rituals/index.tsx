@@ -1,9 +1,15 @@
 // Rituales (RitualsDesktop): tarjetas con pasos numerados, modo guiado paso a paso
 // (anillo + cronómetro por paso) y estado vacío «Cargar rituales sugeridos».
+// Zona ambientada: un lugar de paz. Los pasos son un camino de piedras que se
+// encienden una a una; en el modo guiado cada paso hecho se ilumina con una onda
+// como en el agua y hay un círculo para respirar. Completar el ritual entero
+// enciende todas las piedras a la vez y expande una onda de calma.
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CheckCircle2, ChevronRight, Flame, Moon, Play, Plus, Sun, Trash2, X, Zap, type LucideIcon } from 'lucide-react';
-import { item, pop3, stagger } from '@/lib/motion';
+import { item, pop3, springs, stagger } from '@/lib/motion';
+import { AmbientLight, ZoneShell } from '@/components/ambience';
+import { BreathCircle, StonePath } from '@/components/rituals/StonePath';
 import { cn } from '@/lib/utils';
 import * as ritualsService from '@/services/rituals.service';
 import type { Ritual } from '@/services/rituals.service';
@@ -59,6 +65,7 @@ function Runner({ ritual, onExit, onDone }: { ritual: Ritual; onExit: () => void
         <span className="text-body-sm text-on-surface-light">pasos</span>
       </ProgressRing>
       <div className="flex min-w-0 flex-[1_1_300px] flex-col gap-3" aria-live="polite">
+        <StonePath total={ritual.steps.length} current={idx} />
         <span className="text-label-lg text-primary-text">{ritual.name} · paso {idx + 1}</span>
         <AnimatePresence mode="wait" initial={false}>
           <motion.h2 key={step?.id} ref={titleRef} tabIndex={-1} variants={pop3} initial="initial" animate="animate" exit={{ opacity: 0, transition: { duration: 0.15 } }}
@@ -70,7 +77,10 @@ function Runner({ ritual, onExit, onDone }: { ritual: Ritual; onExit: () => void
             {elapsed >= total && <Badge variant="success" icon={CheckCircle2}>Tiempo cumplido</Badge>}
           </div>
         ) : (
-          <p className="text-body-lg text-on-surface-light">Sin tiempo fijo: márcalo cuando lo termines.</p>
+          <div className="flex items-center gap-4">
+            <BreathCircle />
+            <p className="text-body-lg text-on-surface-light">Sin tiempo fijo: respira con el círculo y márcalo cuando lo termines.</p>
+          </div>
         )}
         <div className="mt-2 flex flex-wrap gap-3">
           <Button variant="secondary" onClick={onExit}><X aria-hidden className="size-4" strokeWidth={1.75} />Salir</Button>
@@ -84,7 +94,7 @@ function Runner({ ritual, onExit, onDone }: { ritual: Ritual; onExit: () => void
   );
 }
 
-function RitualCard({ ritual, doneToday, playing, onPlay }: { ritual: Ritual; doneToday: boolean; playing: boolean; onPlay: () => void }) {
+function RitualCard({ ritual, doneToday, playing, onPlay, celebrate }: { ritual: Ritual; doneToday: boolean; playing: boolean; onPlay: () => void; celebrate?: boolean }) {
   const k = typeOf(ritual.type);
   const [stats, setStats] = useState<{ streak: number; thisMonth: number } | null>(null);
   useEffect(() => {
@@ -92,7 +102,9 @@ function RitualCard({ ritual, doneToday, playing, onPlay }: { ritual: Ritual; do
   }, [ritual.id]);
   const mins = minutes(ritual);
   return (
-    <Card as="article" interactive padding="lg" className="flex h-full flex-col gap-5">
+    <Card as="article" interactive padding="lg" className="relative flex h-full flex-col gap-5 overflow-hidden">
+      {/* Ritual completo: una onda de calma se expande desde el camino */}
+      {celebrate && <span key="calm" aria-hidden="true" className="lq-calm-wave pointer-events-none absolute left-8 top-1/2 block size-80 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-success/50 bg-[radial-gradient(closest-side,rgb(var(--lq-success)/.16),transparent)]" />}
       <div className="flex items-start gap-4">
         <IconChip icon={k.icon} tone={k.tone} />
         <div className="min-w-0 flex-1">
@@ -101,10 +113,20 @@ function RitualCard({ ritual, doneToday, playing, onPlay }: { ritual: Ritual; do
         </div>
         <Badge variant={doneToday ? 'success' : 'neutral'} icon={doneToday ? CheckCircle2 : undefined}>{doneToday ? 'Hecho hoy' : 'Pendiente'}</Badge>
       </div>
-      <ol className="flex flex-col">
+      <ol className="relative flex flex-col">
+        {/* El sendero que une las piedras */}
+        <span aria-hidden="true" className="pointer-events-none absolute bottom-5 left-3 top-5 border-l border-dashed border-border-strong/50" />
         {ritual.steps.map((st, i) => (
-          <li key={st.id} className="flex min-h-10 items-center gap-3">
-            <span className={cn('flex size-6 shrink-0 items-center justify-center rounded-full text-label-md', doneToday ? 'bg-success text-background' : 'bg-surface-variant text-on-surface')}>{i + 1}</span>
+          <li key={st.id} className="relative flex min-h-10 items-center gap-3">
+            <motion.span
+              // Las piedras se encienden una a una; al completar el ritual brillan todas juntas.
+              className={cn('relative flex size-6 shrink-0 items-center justify-center rounded-[45%_55%_50%_50%] text-label-md transition-colors duration-700', doneToday ? 'bg-success text-background' : 'bg-surface-variant text-on-surface')}
+              initial={{ opacity: 0.3, scale: 0.7 }}
+              animate={{ opacity: 1, scale: celebrate ? [1, 1.25, 1] : 1, transition: celebrate ? { duration: 0.9, delay: 0.05 * i } : { ...springs.gentle, delay: 0.35 + i * 0.16 } }}
+            >
+              {(doneToday || celebrate) && <span aria-hidden="true" className="absolute -inset-2 rounded-full bg-[radial-gradient(closest-side,rgb(var(--lq-success)/.4),transparent)]" />}
+              <span className="relative">{i + 1}</span>
+            </motion.span>
             <span className={cn('min-w-0 flex-1 text-body-md', doneToday ? 'text-on-surface-light' : 'text-on-background')}>{st.title}</span>
             {st.durationMin ? <span className="font-mono text-body-sm tabular-nums text-on-surface-light">{st.durationMin} min</span> : null}
           </li>
@@ -198,6 +220,8 @@ export default function RitualsPage() {
   const [creating, setCreating] = useState(false);
   // TODO(api): la API no expone si el ritual ya se hizo hoy; se marca al completarlo en esta sesión.
   const [doneIds, setDoneIds] = useState<string[]>([]);
+  /** Ritual recién completado: todas sus piedras brillan y se expande la onda de calma. */
+  const [celebrating, setCelebrating] = useState<string | null>(null);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setState('loading');
@@ -219,7 +243,17 @@ export default function RitualsPage() {
   const ordered = (['morning', 'custom', 'night'] as RitualType[]).flatMap((t) => rituals.filter((r) => r.type === t));
 
   return (
-    <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-8 md:gap-12">
+    <ZoneShell
+      zone="rituals"
+      contentClassName="gap-8 md:gap-12"
+      ambience={(
+        // Un gradiente que se mueve muy despacio.
+        <span className="lq-amb-wander absolute -left-[15%] top-[-10%] block h-[40rem] w-[70%] [--d:40s]">
+          <AmbientLight tone="info" alpha={0.1} darkAlpha={0.06} d={20} className="inset-0" />
+          <AmbientLight tone="jade-300" alpha={0.18} darkAlpha={0.05} d={26} className="inset-[20%]" />
+        </span>
+      )}
+    >
       <PageHeader
         eyebrow="Rituales"
         title="Secuencias que te construyen"
@@ -252,6 +286,8 @@ export default function RitualsPage() {
                   onDone={(msg, already) => {
                     if (already) toast.info(msg); else toast.success(msg);
                     setDoneIds((d) => [...new Set([...d, playing.id])]);
+                    setCelebrating(playing.id);
+                    window.setTimeout(() => setCelebrating(null), 2400);
                     setPlaying(null);
                   }}
                 />
@@ -261,7 +297,7 @@ export default function RitualsPage() {
           <motion.ul variants={stagger} initial="initial" animate="animate" className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 xl:grid-cols-3">
             {ordered.map((r) => (
               <motion.li key={r.id} variants={item}>
-                <RitualCard ritual={r} doneToday={doneIds.includes(r.id)} playing={playing?.id === r.id}
+                <RitualCard ritual={r} doneToday={doneIds.includes(r.id)} playing={playing?.id === r.id} celebrate={celebrating === r.id}
                   onPlay={() => { setPlaying(r); window.scrollTo({ top: 0, behavior: 'smooth' }); }} />
               </motion.li>
             ))}
@@ -270,6 +306,6 @@ export default function RitualsPage() {
       )}
 
       <NewRitualDialog open={creating} onClose={() => setCreating(false)} onCreated={() => { setCreating(false); void load(true); }} />
-    </motion.div>
+    </ZoneShell>
   );
 }

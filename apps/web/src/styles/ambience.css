@@ -230,3 +230,16 @@ html.dark .lq-glint { background: radial-gradient(220px circle at var(--mx, 50%)
 @keyframes lq-heartbeat { 0%, 100% { transform: scale(1); } 14% { transform: scale(1.12); } 28% { transform: scale(1); } 42% { transform: scale(1.08); } 60% { transform: scale(1); } }
 /* Pétalo que cae: un óvalo torcido. */
 .lq-petal { border-radius: 60% 40% 60% 40%; }
+
+/* ───────── Rituales (lugar de paz) ───────── */
+/* La piedra del paso actual respira; el círculo de respiración sigue un ciclo de 8 s. */
+.lq-breath { animation: lq-breath 3.2s ease-in-out infinite; }
+@keyframes lq-breath { 0%, 100% { transform: scale(.9); } 50% { transform: scale(1.12); } }
+.lq-breath-slow { animation: lq-breath-slow 8s ease-in-out infinite; }
+@keyframes lq-breath-slow { 0%, 100% { transform: scale(.72); opacity: .55; } 45%, 55% { transform: scale(1.12); opacity: 1; } }
+/* Onda como en el agua al encender una piedra (una vez). */
+.lq-ripple { animation: lq-ripple 1.2s cubic-bezier(.16, 1, .3, 1) both; }
+@keyframes lq-ripple { from { opacity: .8; transform: scale(1); } to { opacity: 0; transform: scale(3.2); } }
+/* Onda de calma al completar un ritual entero (una vez). */
+.lq-calm-wave { animation: lq-calm-wave 2.2s cubic-bezier(.16, 1, .3, 1) both; }
+@keyframes lq-calm-wave { from { opacity: .55; transform: scale(.4); } to { opacity: 0; transform: scale(2.6); } }
