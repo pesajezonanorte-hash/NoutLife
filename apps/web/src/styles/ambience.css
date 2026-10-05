@@ -878,3 +878,31 @@ html.dark .lq-bench { background-color: color-mix(in srgb, rgb(var(--lq-surface)
   box-shadow: 0 2px 3px rgb(0 0 0 / .32), inset 0 -1px 0 rgb(0 0 0 / .15);
   transition: transform var(--lq-dur-heavy) var(--lq-ease-heavy), width .2s ease-out;
 }
+
+/* ───────── Ayuda (mostrador de información) ───────── */
+/* Cartel colgante y su tinta. */
+.lq-chain-line { stroke: rgb(var(--lq-on-surface-light) / .6); fill: none; }
+.lq-sign-plate { fill: rgb(var(--lq-info-text)); }
+.lq-sign-inner { fill: none; stroke: rgb(255 255 255 / .55); stroke-width: 1.5; }
+.lq-sign-ink { fill: rgb(255 255 255); }
+html.dark .lq-sign-plate { fill: color-mix(in srgb, rgb(var(--lq-info)) 55%, rgb(var(--lq-jade-900))); }
+/* El mostrador: tablero claro con el canto y el frente de madera. */
+.lq-counter { background: color-mix(in srgb, rgb(var(--lq-surface)) 94%, rgb(var(--lq-info))); border: 1px solid rgb(var(--lq-border)); box-shadow: 0 10px 0 -3px color-mix(in srgb, rgb(var(--lq-warning-text)) 50%, rgb(var(--lq-jade-900))), 0 11px 0 -3px rgb(0 0 0 / .2), 0 22px 30px -18px rgb(var(--lq-jade-900) / .45); }
+html.dark .lq-counter { background: color-mix(in srgb, rgb(var(--lq-surface)) 94%, rgb(var(--lq-info))); box-shadow: 0 10px 0 -3px color-mix(in srgb, rgb(var(--lq-warning-text)) 25%, rgb(var(--lq-jade-900))), 0 22px 30px -16px rgb(0 0 0 / .8); }
+/* Timbre de recepción. */
+.lq-bell-dome { fill: rgb(var(--lq-secondary)); }
+.lq-bell-top, .lq-bell-base { fill: color-mix(in srgb, rgb(var(--lq-secondary-text)) 70%, black); }
+/* Señalética: las categorías como placas de dirección. */
+.lq-helpdesk [role="radiogroup"] button, .lq-helpdesk [aria-pressed] { border-radius: 6px 16px 16px 6px; }
+/* Ficha del exhibidor: se saca hacia arriba al abrirla. */
+.lq-slot { transition: transform var(--lq-dur-heavy) var(--lq-ease-heavy), filter .3s; }
+.lq-slot[data-open="true"] { transform: translateY(-4px); filter: drop-shadow(0 10px 14px rgb(var(--lq-jade-900) / .14)); }
+.reduce-motion .lq-slot[data-open="true"] { transform: none; }
+/* La respuesta encontrada se resalta con calma: un aro suave que respira dos veces y queda. */
+.lq-found { position: relative; }
+.lq-found::after { content: ""; position: absolute; inset: -4px; border-radius: 20px; pointer-events: none; box-shadow: 0 0 0 2px rgb(var(--lq-secondary) / .55), 0 0 22px rgb(var(--lq-secondary) / .3); animation: lq-found 2.4s ease-in-out 2 both; }
+@keyframes lq-found { 0% { opacity: 0; } 40% { opacity: 1; } 100% { opacity: .55; } }
+.lq-found-mark { background: rgb(var(--lq-secondary) / .3); color: inherit; border-radius: 3px; padding: 0 2px; }
+/* Ventanillas de atención con su letrero. */
+.lq-window-sign { background: rgb(var(--lq-info-text)); color: rgb(255 255 255); }
+html.dark .lq-window-sign { background: color-mix(in srgb, rgb(var(--lq-info)) 55%, rgb(var(--lq-jade-900))); }
