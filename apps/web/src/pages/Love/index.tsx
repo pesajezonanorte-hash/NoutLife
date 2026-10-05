@@ -6,8 +6,16 @@
 // flor que se abre más cuanto más cerca está. La cuenta atrás es un capullo que se
 // abre; añadir una fecha hace brotar su flor. Pétalos que caen y luz de atardecer.
 import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Cake, CalendarDays, Clock, Gift, Heart, Plus, Sprout, Star, Trash2 } from 'lucide-react';
+import { CalendarDays, Clock, Gift, Heart, HeartCrack, Plus, Sprout, Star, Trash2, UserPlus } from 'lucide-react';
+import { springs } from '@/lib/motion/presets';
+import { BreakupScene } from '@/components/love/Breakup';
+import { PresenceAvatar } from '@/components/social/SocialBits';
+import {
+  apiError, breakUp, cancelPartnerInvite, getNetwork, invitePartner, respondPartnerInvite, timeAgo,
+  type FriendItem, type PublicUser,
+} from '@/services/network.service';
 import type { Relationship, LoveDashboard, ImportantDate } from '@lifequest/shared';
 import { cn } from '@/lib/utils';
 import { item, stagger } from '@/lib/motion';
@@ -227,9 +235,11 @@ function SetupModal({ onClose, onSave, existing }: { onClose: () => void; onSave
   async function save() {
     setSaving(true);
     try {
-      const relationship = await loveService.createRelationship({
-        name: name.trim(), type: 'romantic', isPartner: true, notes: startDate ? `startDate:${startDate}` : undefined,
-      });
+      // Editar actualiza el mismo jardín (crear otro duplicaría la pareja).
+      const notes = startDate ? `startDate:${startDate}` : undefined;
+      const relationship = existing
+        ? await loveService.updateRelationship(existing.id, { name: name.trim(), ...(notes ? { notes } : {}) })
+        : await loveService.createRelationship({ name: name.trim(), type: 'romantic', isPartner: true, notes });
       onSave(relationship);
       toast.success(name.trim() ? '¡Relación configurada!' : 'Nombre eliminado');
     } catch { toast.error('Error al configurar'); }
@@ -251,6 +261,85 @@ function SetupModal({ onClose, onSave, existing }: { onClose: () => void; onSave
   );
 }
 
+/** El jardín con lo que añade la red social: con quién se comparte y las invitaciones. */
+type GardenDashboard = LoveDashboard & {
+  linkStatus?: 'PENDING' | 'LINKED' | null;
+  partnerUser?: (PublicUser & { online: boolean; zone: string | null; lastSeen: string | null }) | null;
+  incomingInvites?: Array<{ relationshipId: string; from: PublicUser; createdAt: string }>;
+};
+
+/** Elegir a la pareja entre tus amigos de Noutlife para compartir el jardín. */
+function PartnerPicker({ open, onClose, onSent }: { open: boolean; onClose: () => void; onSent: () => void }) {
+  const toast = useToast();
+  const [friends, setFriends] = useState<FriendItem[] | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  useEffect(() => { if (open) getNetwork().then(setFriends).catch(() => setFriends([])); }, [open]);
+  async function invite(f: FriendItem) {
+    setBusy(f.friend.id);
+    try { await invitePartner(f.friend.id); toast.success(`Invitación enviada a ${f.friend.displayName.split(' ')[0]}`); onSent(); onClose(); }
+    catch (e) { toast.error(apiError(e, 'No se pudo enviar la invitación')); }
+    finally { setBusy(null); }
+  }
+  return (
+    <Modal open={open} onClose={onClose} title="¿Tu pareja usa Noutlife?">
+      <p className="-mt-2 text-body-sm text-on-surface-light">Elige a tu pareja entre tus amigos. Si acepta, cuidarán juntos este jardín: fechas, flores y recuerdos.</p>
+      {friends === null ? <PageLoader size="sm" /> : friends.length === 0 ? (
+        <p className="text-body-md text-on-surface-light">Primero agrégala como amiga en <Link to="/friends" className="text-primary-text underline">Amigos</Link>.</p>
+      ) : (
+        <ul className="flex max-h-[50vh] flex-col overflow-y-auto">
+          {friends.map((f) => (
+            <li key={f.friendshipId} className="flex min-h-[60px] items-center gap-3 border-b border-border py-2 last:border-0">
+              <PresenceAvatar user={f.friend} online={f.friend.online} size={44} />
+              <span className="min-w-0 flex-1"><span className="block truncate text-label-lg">{f.friend.displayName}</span><span className="text-body-sm text-on-surface-light">@{f.friend.username}</span></span>
+              <Button size="sm" variant="secondary" loading={busy === f.friend.id} onClick={() => void invite(f)}><Heart aria-hidden className="size-4" />Invitar</Button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Modal>
+  );
+}
+
+/** Alguien quiere compartir su jardín contigo: aceptar reemplaza tu jardín actual. */
+function InviteCard({ invite, hasGarden, onDone }: { invite: NonNullable<GardenDashboard['incomingInvites']>[number]; hasGarden: boolean; onDone: (linked: boolean) => void }) {
+  const toast = useToast();
+  const [busy, setBusy] = useState<'yes' | 'no' | null>(null);
+  const [confirm, setConfirm] = useState(false);
+  const first = invite.from.displayName.split(' ')[0];
+  async function answer(accept: boolean) {
+    setBusy(accept ? 'yes' : 'no');
+    try { const r = await respondPartnerInvite(invite.relationshipId, accept); toast.success(accept ? `Ahora comparten el jardín con ${first}` : 'Invitación rechazada'); onDone(r.linked); }
+    catch (e) { toast.error(apiError(e, 'No se pudo responder')); setBusy(null); }
+  }
+  return (
+    <motion.div layout initial={{ opacity: 0, y: -10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, scale: 0.97 }} transition={springs.heavy}>
+      <Card variant="elevated" padding="lg" className="flex flex-wrap items-center gap-4 border-error/30">
+        <span className="relative">
+          <PresenceAvatar user={invite.from} size={56} />
+          <motion.span aria-hidden animate={{ scale: [1, 1.18, 1] }} transition={{ duration: 1.6, repeat: Infinity }} className="absolute -bottom-1 -right-1 flex size-6 items-center justify-center rounded-full bg-error text-on-error">
+            <Heart className="size-3.5 fill-current" />
+          </motion.span>
+        </span>
+        <div className="min-w-0 flex-[1_1_240px]">
+          <p className="text-heading-sm">{invite.from.displayName} quiere compartir su jardín contigo</p>
+          <p className="text-body-sm text-on-surface-light">{hasGarden ? 'Si aceptas, tu jardín actual se reemplaza por el compartido.' : 'Cuidarán juntos fechas especiales, flores y recuerdos.'}</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="ghost" loading={busy === 'no'} onClick={() => void answer(false)}>Ahora no</Button>
+          <Button loading={busy === 'yes'} onClick={() => (hasGarden ? setConfirm(true) : void answer(true))}><Heart aria-hidden className="size-4" />Aceptar</Button>
+        </div>
+      </Card>
+      <Modal open={confirm} onClose={() => setConfirm(false)} title="¿Compartir el jardín?">
+        <p className="text-body-md text-on-surface">Tu jardín actual (sus fechas e ideas de regalo) se borra y pasas al jardín de {first}.</p>
+        <div className="flex justify-end gap-3">
+          <Button variant="secondary" size="md" onClick={() => setConfirm(false)}>Cancelar</Button>
+          <Button size="md" loading={busy === 'yes'} onClick={() => { setConfirm(false); void answer(true); }}>Sí, compartir</Button>
+        </div>
+      </Modal>
+    </motion.div>
+  );
+}
+
 function daysUntil(d: ImportantDate) {
   const target = new Date(d.date);
   if (d.isRecurring) { target.setFullYear(new Date().getFullYear()); if (target < new Date()) target.setFullYear(target.getFullYear() + 1); }
@@ -259,7 +348,11 @@ function daysUntil(d: ImportantDate) {
 
 export default function LovePage() {
   const toast = useToast();
-  const [dashboard, setDashboard] = useState<LoveDashboard | null>(null);
+  const [dashboard, setDashboard] = useState<GardenDashboard | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [endOpen, setEndOpen] = useState(false);
+  const [ending, setEnding] = useState(false);
+  const [breakupOpen, setBreakupOpen] = useState(false);
   const [state, setState] = useState<'loading' | 'error' | 'ready'>('loading');
   const [showSetup, setShowSetup] = useState(false);
   const [showAddDate, setShowAddDate] = useState(false);
@@ -298,7 +391,25 @@ export default function LovePage() {
   const startDate = rel?.notes?.match(/startDate:(\S+)/)?.[1];
   const next = dashboard?.nextImportantDate;
   const dates = ((rel?.importantDates ?? []) as ImportantDate[]).map((d) => ({ d, days: daysUntil(d) })).sort((a, b) => a.days - b.days);
-  const initials = (rel?.name ?? '').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase() || '♥';
+  const partnerUser = dashboard?.linkStatus === 'LINKED' ? dashboard.partnerUser ?? null : null;
+  const partnerName = partnerUser ? partnerUser.displayName : rel?.name || 'Tu pareja';
+  const initials = partnerName.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase() || '♥';
+  const invites = dashboard?.incomingInvites ?? [];
+
+  async function endGarden() {
+    setEnding(true);
+    try {
+      await breakUp();
+      setEndOpen(false);
+      setBreakupOpen(true);
+      setDashboard({ relationship: null, nextImportantDate: null, incomingInvites: invites });
+    } catch (e) { toast.error(apiError(e, 'No se pudo cerrar el jardín')); }
+    finally { setEnding(false); }
+  }
+  async function cancelInvite() {
+    try { await cancelPartnerInvite(); toast.success('Invitación cancelada'); void load(true); }
+    catch { toast.error('No se pudo cancelar'); }
+  }
 
   return (
     <ZoneShell
@@ -337,6 +448,12 @@ export default function LovePage() {
         </div>
       </motion.section>
 
+      <AnimatePresence initial={false}>
+        {invites.map((inv) => (
+          <InviteCard key={inv.relationshipId} invite={inv} hasGarden={Boolean(rel)} onDone={() => void load(true)} />
+        ))}
+      </AnimatePresence>
+
       <motion.div variants={item} className="w-full max-w-[300px]">
         <SegmentedControl options={[{ value: 'jardin', label: 'Jardín' }, { value: 'regalos', label: 'Regalos' }]} value={tab} onChange={setTab} label="Vista" />
       </motion.div>
@@ -353,13 +470,18 @@ export default function LovePage() {
               <GardenScene dates={[]} />
               <Card variant="elevated" padding="lg">
                 <EmptyState icon={Heart} tone="error" title="Tu jardín espera" description="Configura este espacio para guardar los momentos y fechas que quieres cuidar."
-                  action={<Button onClick={() => setShowSetup(true)}>Configurar mi jardín</Button>} className="py-6" />
+                  action={(
+                    <div className="flex flex-wrap justify-center gap-2">
+                      <Button onClick={() => setShowSetup(true)}>Configurar mi jardín</Button>
+                      <Button variant="secondary" onClick={() => setPickerOpen(true)}><UserPlus aria-hidden className="size-4" />Mi pareja usa Noutlife</Button>
+                    </div>
+                  )} className="py-6" />
               </Card>
             </>
           ) : (
             <>
               <GardenScene
-                partner={{ name: rel.name || 'Tu pareja', together: startDate ? togetherShort(`${startDate}T00:00:00`) : undefined }}
+                partner={{ name: partnerName, together: startDate ? togetherShort(`${startDate}T00:00:00`) : undefined }}
                 dates={dates.map(({ d, days }) => ({ id: d.id, label: d.label, days }))}
                 fresh={sprout}
                 onPick={(id) => { setPicked(id); document.getElementById(`love-date-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); window.setTimeout(() => setPicked(null), 1800); }}
@@ -392,12 +514,41 @@ export default function LovePage() {
                   <li>
                     <Card as="article" padding="lg" interactive className="flex h-full flex-col gap-4">
                       <div className="flex items-center gap-4">
-                        <span aria-hidden className="flex size-14 shrink-0 items-center justify-center rounded-full bg-error/[var(--lq-soft-alpha)] text-heading-sm text-error-text">{initials}</span>
-                        <div className="min-w-0 flex-1"><h3 className="truncate text-heading-sm">{rel.name || 'Tu pareja'}</h3><Badge variant="error">Pareja</Badge></div>
+                        {partnerUser ? (
+                          <Link to={`/u/${encodeURIComponent(partnerUser.username)}`} aria-label={`Perfil de ${partnerName}`}>
+                            <PresenceAvatar user={partnerUser} online={partnerUser.online} size={56} />
+                          </Link>
+                        ) : (
+                          <span aria-hidden className="flex size-14 shrink-0 items-center justify-center rounded-full bg-error/[var(--lq-soft-alpha)] text-heading-sm text-error-text">{initials}</span>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <h3 className="truncate text-heading-sm">{partnerName}</h3>
+                          <div className="flex flex-wrap gap-1.5">
+                            <Badge variant="error">Pareja</Badge>
+                            {partnerUser && <Badge variant="success">Jardín compartido</Badge>}
+                          </div>
+                          {partnerUser && (
+                            <p className="mt-1 text-body-sm text-on-surface-light">
+                              {partnerUser.online ? (partnerUser.zone ? `En línea · en ${partnerUser.zone}` : 'En línea') : partnerUser.lastSeen ? `Activo ${timeAgo(partnerUser.lastSeen)}` : ''}
+                            </p>
+                          )}
+                        </div>
                       </div>
                       {/* TODO(api): el prototipo muestra "Conexión %" y último contacto; la API no los ofrece. Se muestra el tiempo juntos. */}
                       <p className="flex items-center gap-2 text-body-sm text-on-surface"><Clock aria-hidden className="size-4 text-on-surface-light" />{startDate ? timeTogetherText(`${startDate}T00:00:00`) : 'Agrega una fecha de inicio'}</p>
-                      <Button variant="secondary" size="sm" className="mt-auto self-start" onClick={() => setShowSetup(true)}>Editar jardín</Button>
+                      {dashboard?.linkStatus === 'PENDING' && (
+                        <p className="flex flex-wrap items-center gap-2 text-body-sm text-on-surface-light">
+                          Invitación enviada. Esperando respuesta.
+                          <button type="button" onClick={() => void cancelInvite()} className="text-primary-text underline-offset-4 hover:underline">Cancelar</button>
+                        </p>
+                      )}
+                      <div className="mt-auto flex flex-wrap gap-2">
+                        <Button variant="secondary" size="sm" onClick={() => setShowSetup(true)}>Editar jardín</Button>
+                        {!partnerUser && dashboard?.linkStatus !== 'PENDING' && (
+                          <Button variant="ghost" size="sm" onClick={() => setPickerOpen(true)}><UserPlus aria-hidden className="size-4" />Vincular en Noutlife</Button>
+                        )}
+                        <Button variant="ghost" size="sm" className="text-error-text" onClick={() => setEndOpen(true)}><HeartCrack aria-hidden className="size-4" />Terminar o cambiar</Button>
+                      </div>
                     </Card>
                   </li>
                   <li>
@@ -452,6 +603,22 @@ export default function LovePage() {
         </motion.div>
       </AnimatePresence>
 
+      <PartnerPicker open={pickerOpen} onClose={() => setPickerOpen(false)} onSent={() => void load(true)} />
+      <Modal open={endOpen} onClose={() => setEndOpen(false)} title="¿Terminar o cambiar de pareja?">
+        <p className="text-body-md text-on-surface">
+          El jardín se reinicia por completo: se borran la pareja, sus fechas especiales y sus ideas de regalo.
+          {partnerUser ? ` También se cierra para ${partnerName.split(' ')[0]}.` : ''} Después puedes empezar uno nuevo.
+        </p>
+        <div className="flex justify-end gap-3">
+          <Button variant="secondary" size="md" onClick={() => setEndOpen(false)}>Cancelar</Button>
+          <Button variant="danger" size="md" loading={ending} onClick={() => void endGarden()}><HeartCrack aria-hidden className="size-4" />Reiniciar jardín</Button>
+        </div>
+      </Modal>
+      <BreakupScene
+        open={breakupOpen}
+        onClose={() => { setBreakupOpen(false); void load(true); }}
+        onRestart={() => { setBreakupOpen(false); setShowSetup(true); void load(true); }}
+      />
       {showSetup && <SetupModal onClose={() => setShowSetup(false)} onSave={handleRelationshipSaved} existing={dashboard?.relationship} />}
       {showAddDate && rel && <AddDateModal relationshipId={rel.id} onClose={() => setShowAddDate(false)} onSave={(r) => {
         const before = new Set(((rel.importantDates ?? []) as ImportantDate[]).map((d) => d.id));

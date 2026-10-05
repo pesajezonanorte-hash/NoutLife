@@ -10,40 +10,35 @@ import { LaurelBranch, CeremonyPodium, ResultRow } from '@/components/leaderboar
 import { ZoneShell } from '@/components/ambience';
 import { useMotionStore } from '@/store/motionStore';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Check, Dumbbell, Flame, HeartHandshake, PiggyBank, RefreshCw, Trophy, UserMinus, UserPlus, Users, X, type LucideIcon } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Dumbbell, Flame, HeartHandshake, RefreshCw, Trophy, UserPlus, Users, type LucideIcon } from 'lucide-react';
 import { item, stagger } from '@/lib/motion';
 import { cn } from '@/lib/utils';
-import {
-  getLeaderboard, sendFriendRequest, getFriends, getPendingRequests, respondFriendRequest, removeFriend,
-} from '@/services/social.service';
+import { getLeaderboard } from '@/services/social.service';
 import { useAuthStore } from '@/store/authStore';
-import { useToast } from '@/hooks/useToast';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { AvatarDisplay } from '@/components/character/AvatarDisplay';
 import {
-  AnimatedValue, Button, Card, ChipGroup, EmptyState, ErrorState, Field, Input, PageLoader, ProgressBar,
-  SegmentedControl, Skeleton, type ChipOption,
+  AnimatedValue, Button, Card, ChipGroup, EmptyState, ErrorState, PageLoader, ProgressBar,
+  SegmentedControl, type ChipOption,
 } from '@/components/ui/lq';
 
-type Category = 'xp' | 'streak' | 'gym' | 'savings';
+type Category = 'xp' | 'streak' | 'gym';
 type Scope = 'global' | 'friends';
 
 interface Entry {
   rank: number; id: string; username: string; displayName: string; level: number; value: number;
   avatarConfig?: unknown; avatarUrl?: string | null;
 }
-interface Friend { friendshipId: string; friend: { id: string; username: string; displayName: string; level: number; currentStreak: number; avatarConfig?: unknown; avatarUrl?: string | null } }
-interface Pending { id: string; requester: { id: string; username: string; displayName: string; level: number; avatarConfig?: unknown; avatarUrl?: string | null } }
 
 const METRICS: Record<Category, { label: string; icon: LucideIcon; unit: [string, string]; hint: string }> = {
   xp: { label: 'XP total', icon: Trophy, unit: ['XP', 'XP'], hint: 'Nivel y experiencia acumulada.' },
   streak: { label: 'Racha activa', icon: Flame, unit: ['día', 'días'], hint: 'Días seguidos con actividad. Si alguien pasa un día entero sin actividad, su racha vuelve a 0.' },
   gym: { label: 'Entrenamiento', icon: Dumbbell, unit: ['sesión', 'sesiones'], hint: 'Sesiones de gimnasio terminadas.' },
-  savings: { label: 'Ahorro', icon: PiggyBank, unit: ['%', '%'], hint: 'Parte de lo ingresado este mes que no se gastó, según los movimientos de Finanzas. Lo que registras en Ahorro o Inversión cuenta como ahorrado.' },
 };
 const fmtValue = (v: number, c: Category) => {
   const n = Math.round(v);
-  return c === 'savings' ? `${n}%` : `${n.toLocaleString('es-CO')} ${METRICS[c].unit[n === 1 ? 0 : 1]}`;
+  return `${n.toLocaleString('es-CO')} ${METRICS[c].unit[n === 1 ? 0 : 1]}`;
 };
 const initials = (n: string) => n.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
 /** Foto (o avatar) del perfil dentro del círculo del ranking. */
@@ -53,79 +48,16 @@ const avatarOf = (e: Pick<Entry, 'avatarConfig' | 'avatarUrl'>) => (size: number
 /** Último puesto visto por métrica y alcance (para notar si subiste). */
 const RANK_KEY = 'lq-rank-last';
 const readRanks = (): Record<string, number> => { try { return JSON.parse(localStorage.getItem(RANK_KEY) || '{}'); } catch { return {}; } };
-const errText = (e: unknown, fallback: string) => (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? fallback;
 
-function Friends({ onChanged }: { onChanged: () => void }) {
-  const toast = useToast();
-  const [friends, setFriends] = useState<Friend[]>([]);
-  const [pending, setPending] = useState<Pending[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [input, setInput] = useState('');
-  const [sending, setSending] = useState(false);
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [f, p] = await Promise.all([getFriends(), getPendingRequests()]);
-      setFriends(f as Friend[]); setPending(p as Pending[]);
-    } catch { setFriends([]); setPending([]); }
-    finally { setLoading(false); }
-  }, []);
-  useEffect(() => { void refresh(); }, [refresh]);
-
-  async function send() {
-    if (!input.trim()) return;
-    setSending(true); setMsg(null);
-    try { await sendFriendRequest(input.trim()); setMsg({ ok: true, text: 'Solicitud enviada. Aparecerá cuando la acepten.' }); setInput(''); }
-    catch (e) { setMsg({ ok: false, text: errText(e, 'No se pudo enviar la solicitud.') }); }
-    finally { setSending(false); }
-  }
-  async function respond(id: string, accept: boolean) {
-    try { await respondFriendRequest(id, accept); setPending((p) => p.filter((x) => x.id !== id)); if (accept) { await refresh(); onChanged(); } }
-    catch { toast.error('No se pudo actualizar la solicitud'); }
-  }
-  async function remove(id: string) {
-    try { await removeFriend(id); setFriends((f) => f.filter((x) => x.friendshipId !== id)); onChanged(); }
-    catch { toast.error('No se pudo eliminar a este amigo'); }
-  }
-
+/** El círculo de amigos vive en su propia zona: aquí solo se enlaza. */
+function FriendsLink() {
+  const navigate = useNavigate();
   return (
-    <Card padding="lg" className="flex flex-col gap-4">
-      <div className="flex items-center gap-2"><Users aria-hidden className="size-5 text-primary-text" strokeWidth={1.75} /><h2 className="text-heading-sm">Tu círculo</h2></div>
-      <form onSubmit={(e) => { e.preventDefault(); void send(); }} className="flex flex-col gap-2">
-        <Field label="Invitar a un amigo" error={msg && !msg.ok ? msg.text : undefined} help={msg?.ok ? msg.text : 'Su usuario o su código de invitación.'}>
-          <Input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Usuario o código" autoCapitalize="none" />
-        </Field>
-        <Button type="submit" size="md" loading={sending} disabled={!input.trim()} className="self-start"><UserPlus aria-hidden className="size-4" strokeWidth={1.75} />Enviar solicitud</Button>
-      </form>
-      {loading ? <Skeleton className="h-24 rounded-xl" /> : (
-        <>
-          {pending.length > 0 && (
-            <div className="flex flex-col gap-2">
-              <p className="text-label-md uppercase text-on-surface-light">Solicitudes · {pending.length}</p>
-              {pending.map((r) => (
-                <div key={r.id} className="flex items-center gap-3 rounded-xl border border-border bg-background p-2">
-                  <AvatarDisplay avatarConfig={r.requester.avatarConfig} avatarUrl={r.requester.avatarUrl} size={36} animate="none" className="shrink-0 overflow-hidden rounded-full" />
-                  <div className="min-w-0 flex-1"><p className="truncate text-label-lg">{r.requester.displayName}</p><p className="truncate text-body-sm text-on-surface-light">@{r.requester.username} · Nivel {r.requester.level}</p></div>
-                  <Button variant="icon" aria-label={`Aceptar a ${r.requester.displayName}`} onClick={() => void respond(r.id, true)} className="text-success-text"><Check aria-hidden className="size-5" /></Button>
-                  <Button variant="icon" aria-label={`Rechazar a ${r.requester.displayName}`} onClick={() => void respond(r.id, false)} className="text-error-text"><X aria-hidden className="size-5" /></Button>
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="flex flex-col gap-1">
-            <p className="text-label-md uppercase text-on-surface-light">Amigos · {friends.length}</p>
-            {friends.length === 0 ? <p className="text-body-sm text-on-surface-light">Aún no tienes amigos. Invita a alguien con su usuario.</p> : friends.map(({ friendshipId, friend }) => (
-              <div key={friendshipId} className="flex min-h-14 items-center gap-3">
-                <AvatarDisplay avatarConfig={friend.avatarConfig} avatarUrl={friend.avatarUrl} size={36} animate="none" className="shrink-0 overflow-hidden rounded-full" />
-                <div className="min-w-0 flex-1"><p className="truncate text-label-lg">{friend.displayName}</p><p className="truncate text-body-sm text-on-surface-light">Nivel {friend.level} · {friend.currentStreak} días de racha</p></div>
-                <Button variant="icon" aria-label={`Quitar a ${friend.displayName}`} onClick={() => void remove(friendshipId)}><UserMinus aria-hidden className="size-5" strokeWidth={1.75} /></Button>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
+    <Card padding="lg" className="flex flex-col gap-3">
+      <Users aria-hidden className="size-8 text-primary-text" strokeWidth={1.5} />
+      <h2 className="text-heading-sm">Tu círculo</h2>
+      <p className="text-body-md text-on-surface-light">Agrega amigos, escríbeles y sostengan rachas de fotos diarias en la zona de Amigos.</p>
+      <Button variant="secondary" size="md" className="self-start" onClick={() => navigate('/friends')}><UserPlus aria-hidden className="size-4" strokeWidth={1.75} />Ir a Amigos</Button>
     </Card>
   );
 }
@@ -261,7 +193,7 @@ export default function LeaderboardPage() {
             ) : me ? <p className="text-body-sm text-on-surface">¡Vas en cabeza en {METRICS[category].label.toLowerCase()}!</p>
               : <p className="text-body-sm text-on-surface">Aún no apareces en esta métrica. Registra actividad para entrar.</p>}
           </Card>
-          {scope === 'friends' ? <Friends onChanged={() => void load(true)} /> : (
+          {scope === 'friends' ? <FriendsLink /> : (
             <Card padding="lg" className="flex flex-col gap-3">
               <HeartHandshake aria-hidden className="size-8 text-success-text" strokeWidth={1.5} />
               <h2 className="text-heading-sm">Compite con calma</h2>

@@ -25,15 +25,16 @@ import {
 } from '@/services/notification.service';
 import { THEME_PALETTES } from '@/lib/shopThemes';
 import { ZoneToggleList } from '@/components/settings/ZoneOrderEditor';
+import { PrivacyPanel } from '@/components/settings/PrivacyPanel';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { PasswordInput } from '@/components/auth/PasswordInput';
 import {
   Badge, Button, Card, Field, IconChip, Input, Modal, ProgressBar, SegmentedControl, Select, Switch, AnimatedValue,
 } from '@/components/ui/lq';
 
-type TabId = 'profile' | 'zones' | 'game' | 'data' | 'about';
+type TabId = 'profile' | 'privacy' | 'zones' | 'game' | 'data' | 'about';
 const TABS: Array<{ value: TabId; label: string }> = [
-  { value: 'profile', label: 'Perfil' }, { value: 'zones', label: 'Zonas' }, { value: 'game', label: 'Juego' },
+  { value: 'profile', label: 'Perfil' }, { value: 'privacy', label: 'Privacidad' }, { value: 'zones', label: 'Zonas' }, { value: 'game', label: 'Juego' },
   { value: 'data', label: 'Datos' }, { value: 'about', label: 'Acerca de' },
 ];
 const NOTIF_LABELS: Record<NotificationCategoryPreference['category'], string> = {
@@ -118,7 +119,10 @@ export default function SettingsPage() {
   const reduceMotion = useMotionStore((s) => s.reduce);
   const setReduceMotion = useMotionStore((s) => s.setReduce);
 
-  const [tab, setTab] = useState<TabId>('profile');
+  const [tab, setTab] = useState<TabId>(() => {
+    const t = new URLSearchParams(window.location.search).get('tab');
+    return TABS.some((x) => x.value === t) ? (t as TabId) : 'profile';
+  });
   const [displayName, setDisplayName] = useState(user?.displayName ?? '');
   const [timezone, setTimezone] = useState(user?.timezone ?? 'America/Bogota');
   const [playlistUrl, setPlaylistUrl] = useState(user?.gymPlaylistUrl ?? '');
@@ -237,7 +241,7 @@ export default function SettingsPage() {
       <PageHeader eyebrow="Espacio personal" title="Ajustes" description="Tu experiencia, tus datos y las herramientas que acompañan tu progreso." aside={<Gears turns={turns} className="hidden sm:block" />} />
 
       <motion.div variants={item} className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
-        <SegmentedControl label="Sección" value={tab} onChange={setTab} options={TABS} className="min-w-[520px] max-w-[720px]" />
+        <SegmentedControl label="Sección" value={tab} onChange={setTab} options={TABS} className="min-w-[600px] max-w-[820px]" />
       </motion.div>
 
       <div className="flex flex-wrap items-start gap-6">
@@ -275,6 +279,8 @@ export default function SettingsPage() {
                   </div>
                 </Section>
               )}
+
+              {tab === 'privacy' && <PrivacyPanel Section={Section} />}
 
               {tab === 'zones' && <ZoneToggleList />}
 

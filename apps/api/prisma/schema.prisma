@@ -156,6 +156,17 @@ model User {
   /// Última petición autenticada (como mucho una escritura por hora). Mide la gente activa hoy para repartir el cupo del Sabio.
   lastSeenAt       DateTime?
 
+  // Red social: biografía, privacidad y presencia (en línea y zona actual).
+  bio          String?
+  /// { friendsList: 'public'|'friends'|'private', profile: 'public'|'friends', showOnline, showZone, readReceipts }
+  privacy      Json      @default("{}")
+  presenceAt   DateTime?
+  presenceZone String?
+
+  /// Racha general perdida hace poco: se puede revivir con oro durante 72 h.
+  lostStreak   Int       @default(0)
+  lostStreakAt DateTime?
+
   // Google Calendar Integration
   googleAccessToken         String?
   googleRefreshToken        String?
@@ -192,7 +203,11 @@ model User {
   receivedFriendRequests  Friendship[]             @relation("ReceivedRequests")
   createdChallenges       Challenge[]
   challengeParticipants   ChallengeParticipant[]
-  guildMembership         GuildMember?
+  guildMemberships        GuildMember[]
+  guildInvitesSent        GuildInvite[]            @relation("GuildInviter")
+  guildInvitesReceived    GuildInvite[]            @relation("GuildInvitee")
+  sentMessages            DirectMessage[]          @relation("DMSender")
+  receivedMessages        DirectMessage[]          @relation("DMReceiver")
   guildMessages           GuildMessage[]
   sageMemories            SageMemory[]
   sageInsights            SageInsight[]
@@ -301,6 +316,9 @@ model Habit {
 
   currentStreak Int @default(0)
   longestStreak Int @default(0)
+  /// Racha perdida hace poco (revivible con oro durante 72 h).
+  lostStreak    Int       @default(0)
+  lostStreakAt  DateTime?
 
   frequency    Json    @default("{\"type\":\"daily\",\"days\":[]}")
   resetTime    String  @default("04:00")
@@ -732,6 +750,9 @@ model Relationship {
   name      String
   type      String
   isPartner Boolean @default(false)
+  /// Pareja que también usa Noutlife: el jardín se comparte cuando acepta (PENDING → LINKED).
+  partnerUserId String?
+  linkStatus    String?
 
   importantDates Json   @default("[]")
   notes          String?
@@ -739,6 +760,7 @@ model Relationship {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([partnerUserId])
   @@map("relationships")
 }
 
@@ -766,6 +788,11 @@ model Friendship {
   receiverId  String
   receiver    User     @relation("ReceivedRequests", fields: [receiverId], references: [id], onDelete: Cascade)
   status      String   @default("PENDING") // PENDING | ACCEPTED | REJECTED
+  /// Racha de fotos diarias entre los dos (cuenta un día cuando ambos envían la suya).
+  streakCount Int      @default(0)
+  streakBest  Int      @default(0)
+  /// Último día (YYYY-MM-DD, zona de quien envió la solicitud) en que ambos enviaron foto.
+  streakDay   String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -820,9 +847,14 @@ model Guild {
   level       Int      @default(1)
   xp          Int      @default(0)
   inviteCode  String   @unique
+  /// Racha del gremio: cuenta un día cuando todos los miembros envían su foto.
+  streakCount Int      @default(0)
+  streakBest  Int      @default(0)
+  streakDay   String?
 
   members  GuildMember[]
   messages GuildMessage[]
+  invites  GuildInvite[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -834,11 +866,13 @@ model GuildMember {
   id       String   @id @default(cuid())
   guildId  String
   guild    Guild    @relation(fields: [guildId], references: [id], onDelete: Cascade)
-  userId   String   @unique
+  userId   String
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   role     String   @default("MEMBER") // LEADER | OFFICER | MEMBER
   joinedAt DateTime @default(now())
 
+  @@unique([guildId, userId])
+  @@index([userId])
   @@map("guild_members")
 }
 
@@ -849,9 +883,50 @@ model GuildMessage {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   content   String
+  /// TEXT | SNAP (foto del día que cuenta para la racha y daña al enemigo).
+  kind      String   @default("TEXT")
+  photoUrl  String?
+  dayKey    String?
   createdAt DateTime @default(now())
 
+  @@index([guildId, dayKey])
   @@map("guild_messages")
+}
+
+model GuildInvite {
+  id        String   @id @default(cuid())
+  guildId   String
+  guild     Guild    @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  inviterId String
+  inviter   User     @relation("GuildInviter", fields: [inviterId], references: [id], onDelete: Cascade)
+  inviteeId String
+  invitee   User     @relation("GuildInvitee", fields: [inviteeId], references: [id], onDelete: Cascade)
+  status    String   @default("PENDING") // PENDING | ACCEPTED | REJECTED
+  createdAt DateTime @default(now())
+
+  @@unique([guildId, inviteeId])
+  @@index([inviteeId, status])
+  @@map("guild_invites")
+}
+
+model DirectMessage {
+  id         String    @id @default(cuid())
+  senderId   String
+  sender     User      @relation("DMSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId String
+  receiver   User      @relation("DMReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  /// TEXT | SNAP (foto de un hábito del día, cuenta para la racha entre los dos).
+  kind       String    @default("TEXT")
+  content    String?
+  photoUrl   String?
+  habitTitle String?
+  dayKey     String?
+  readAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([senderId, receiverId, createdAt])
+  @@index([receiverId, readAt])
+  @@map("direct_messages")
 }
 
 // ─── Sage Memory ──────────────────────────────────────────────────────────────

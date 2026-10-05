@@ -1,11 +1,11 @@
 import { prisma } from '../lib/prisma';
 import { effectiveActivityStreak } from './xp.service';
+import { createNotification } from './notification.service';
+import { advanceStreak, dayKey, streakView, validPhoto } from './network.service';
 
 // La racha guardada solo se corrige cuando su dueño entra; para mostrar rachas de
 // otros se calcula la vigente con su última actividad y su zona horaria.
 const STREAK_FIELDS = { currentStreak: true, lastActivityDate: true, timezone: true } as const;
-/** Movimientos que apartan dinero (no cuentan como gasto en la tasa de ahorro). */
-const SAVED_CATEGORIES = new Set<string>(['SAVINGS', 'INVESTMENT']);
 type StreakSource = { currentStreak: number; lastActivityDate: Date | null; timezone: string | null };
 function withLiveStreak<T extends StreakSource>(u: T, now = new Date()): Omit<T, 'lastActivityDate' | 'timezone'> {
   const { lastActivityDate: _l, timezone: _t, ...rest } = u;
@@ -33,27 +33,46 @@ export async function sendFriendRequest(requesterId: string, identifier: string)
   });
   if (existing) {
     if (existing.status === 'ACCEPTED') throw new Error('Ya son amigos');
-    if (existing.status === 'PENDING') throw new Error('Ya hay una solicitud pendiente');
-    // REJECTED — allow resend by updating
-    if (existing.status === 'REJECTED') {
-      return prisma.friendship.update({
-        where: { id: existing.id },
-        data: { status: 'PENDING', requesterId, receiverId: target.id },
-      });
+    if (existing.status === 'PENDING') {
+      // Si esa persona ya te había escrito, enviarle una solicitud la acepta.
+      if (existing.requesterId === target.id) return respondFriendRequest(requesterId, existing.id, true);
+      throw new Error('Ya hay una solicitud pendiente');
     }
   }
 
-  return prisma.friendship.create({ data: { requesterId, receiverId: target.id } });
+  const friendship = existing
+    // REJECTED — allow resend by updating
+    ? await prisma.friendship.update({ where: { id: existing.id }, data: { status: 'PENDING', requesterId, receiverId: target.id } })
+    : await prisma.friendship.create({ data: { requesterId, receiverId: target.id } });
+
+  const requester = await prisma.user.findUniqueOrThrow({ where: { id: requesterId }, select: { displayName: true, username: true } });
+  createNotification(target.id, {
+    type: 'friend', category: 'SOCIAL', dedupeKey: `friend-request:${requesterId}`,
+    title: 'Nueva solicitud de amistad',
+    body: `${requester.displayName} (@${requester.username}) quiere ser tu amigo.`,
+    icon: 'friend', link: '/friends?tab=requests',
+  }).catch(() => null);
+  return friendship;
 }
 
 export async function respondFriendRequest(userId: string, friendshipId: string, accept: boolean) {
   const f = await prisma.friendship.findUniqueOrThrow({ where: { id: friendshipId } });
   if (f.receiverId !== userId) throw new Error('No autorizado');
   if (f.status !== 'PENDING') throw new Error('Esta solicitud ya fue procesada');
-  return prisma.friendship.update({
+  const updated = await prisma.friendship.update({
     where: { id: friendshipId },
     data: { status: accept ? 'ACCEPTED' : 'REJECTED' },
   });
+  if (accept) {
+    const who = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { displayName: true, username: true } });
+    createNotification(f.requesterId, {
+      type: 'friend', category: 'SOCIAL',
+      title: `${who.displayName} aceptó tu solicitud`,
+      body: 'Ya son amigos. Envíale tu foto del día para empezar una racha.',
+      icon: 'friend', link: `/friends?chat=${encodeURIComponent(who.username)}`,
+    }).catch(() => null);
+  }
+  return updated;
 }
 
 export async function getFriends(userId: string) {
@@ -134,7 +153,7 @@ export async function getPublicProfile(username: string, viewerId?: string) {
 // ─── Leaderboard ──────────────────────────────────────────────────────────────
 
 export async function getLeaderboard(
-  category: 'xp' | 'streak' | 'gym' | 'savings',
+  category: 'xp' | 'streak' | 'gym',
   userId: string,
   friendsOnly = false
 ) {
@@ -200,48 +219,6 @@ export async function getLeaderboard(
         ...userMap.get(r.userId),
         value: r._count.id,
       }));
-  }
-
-  if (category === 'savings') {
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
-    const txs = await prisma.transaction.findMany({
-      where: { ...userScope, date: { gte: startOfMonth } },
-      select: { userId: true, type: true, amount: true, category: true },
-    });
-
-    // Tasa de ahorro del mes = lo que queda de lo ingresado. Lo que se aparta a
-    // Ahorro o Inversión es dinero ahorrado, no gastado, así que no la reduce.
-    const byUser = new Map<string, { income: number; expenses: number }>();
-    for (const t of txs) {
-      if (!byUser.has(t.userId)) byUser.set(t.userId, { income: 0, expenses: 0 });
-      const entry = byUser.get(t.userId)!;
-      if (t.type === 'INCOME') entry.income += Number(t.amount);
-      else if (!SAVED_CATEGORIES.has(t.category)) entry.expenses += Number(t.amount);
-    }
-
-    const ranked = Array.from(byUser.entries())
-      .map(([uid, { income, expenses }]) => ({
-        userId: uid,
-        savingsPct: income > 0 ? Math.round(((income - expenses) / income) * 100) : 0,
-      }))
-      .filter((r) => r.savingsPct > 0)
-      .sort((a, b) => b.savingsPct - a.savingsPct)
-      .slice(0, 50);
-
-    const userIds = ranked.map((r) => r.userId);
-    const users = await prisma.user.findMany({
-      where: { onboardingCompleted: true, id: { in: userIds } },
-      select: { id: true, username: true, displayName: true, level: true, avatarConfig: true, avatarUrl: true, equippedAura: true, equippedFrame: true, equippedHat: true },
-    });
-
-    const userMap = new Map(users.map((u) => [u.id, u]));
-    return ranked.filter((r) => userMap.has(r.userId)).map((r, i) => ({
-      rank: i + 1,
-      ...userMap.get(r.userId),
-      value: r.savingsPct,
-    }));
   }
 
   return [];
@@ -327,7 +304,29 @@ export async function getChallenges(userId: string) {
   }));
 }
 
-// ─── Guild ────────────────────────────────────────────────────────────────────
+// ─── Guilds ───────────────────────────────────────────────────────────────────
+//
+// Una persona puede estar en varios gremios (como grupos). Cada día cada miembro
+// envía una foto haciendo un hábito: cada foto daña al enemigo del día y, cuando
+// todos envían la suya, la racha del gremio suma un día.
+
+/** Gremios por persona y aventureros por gremio. */
+export const MAX_GUILDS = 5;
+export const MAX_MEMBERS = 10;
+/** Vida que cada miembro aporta al enemigo del día (y daño de su foto). */
+const ENEMY_HP_PER_MEMBER = 100;
+
+const ENEMIES = [
+  'Titán del Sofá', 'Dragón de la Pereza', 'Espectro del "Mañana"', 'Gólem de la Rutina',
+  'Sirena del Scroll', 'Hidra de las Excusas', 'Lich del Desvelo', 'Ogro del Azúcar',
+  'Kraken del Caos', 'Basilisco de la Duda',
+];
+
+function enemyOf(guildId: string, day: string) {
+  let h = 0;
+  for (const ch of `${guildId}:${day}`) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return ENEMIES[h % ENEMIES.length];
+}
 
 function generateGuildCode(): string {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -347,12 +346,22 @@ function guildPhoto(value: unknown): string | null | undefined {
   return value;
 }
 
+async function assertCanJoinAnother(userId: string) {
+  const count = await prisma.guildMember.count({ where: { userId } });
+  if (count >= MAX_GUILDS) throw new Error(`Puedes estar en ${MAX_GUILDS} gremios como máximo`);
+}
+
+async function requireMember(userId: string, guildId: string) {
+  const member = await prisma.guildMember.findFirst({ where: { userId, guildId } });
+  if (!member) throw new Error('No perteneces a este gremio');
+  return member;
+}
+
 export async function createGuild(
   userId: string,
   data: { name: string; description?: string; emblem?: string; photoUrl?: unknown }
 ) {
-  const existing = await prisma.guildMember.findUnique({ where: { userId } });
-  if (existing) throw new Error('Ya perteneces a un gremio');
+  await assertCanJoinAnother(userId);
   const photoUrl = guildPhoto(data.photoUrl) ?? null;
 
   return prisma.guild.create({
@@ -381,51 +390,93 @@ export async function updateGuild(userId: string, guildId: string, data: { photo
   return prisma.guild.update({ where: { id: guildId }, data: { photoUrl }, select: { id: true, photoUrl: true } });
 }
 
-export async function joinGuild(userId: string, inviteCode: string) {
-  const guild = await prisma.guild.findUnique({ where: { inviteCode } });
-  if (!guild) throw new Error('Código de gremio inválido');
-
-  const memberCount = await prisma.guildMember.count({ where: { guildId: guild.id } });
-  if (memberCount >= 10) throw new Error('El gremio está lleno (máximo 10)');
-
-  const existing = await prisma.guildMember.findUnique({ where: { userId } });
-  if (existing) throw new Error('Ya perteneces a un gremio');
-
-  return prisma.guildMember.create({ data: { guildId: guild.id, userId, role: 'MEMBER' } });
+async function addMember(userId: string, guildId: string) {
+  const already = await prisma.guildMember.findFirst({ where: { userId, guildId } });
+  if (already) throw new Error('Ya perteneces a este gremio');
+  await assertCanJoinAnother(userId);
+  const memberCount = await prisma.guildMember.count({ where: { guildId } });
+  if (memberCount >= MAX_MEMBERS) throw new Error(`El gremio está lleno (máximo ${MAX_MEMBERS})`);
+  return prisma.guildMember.create({ data: { guildId, userId, role: 'MEMBER' } });
 }
 
-export async function getMyGuild(userId: string) {
-  const membership = await prisma.guildMember.findUnique({
+export async function joinGuild(userId: string, inviteCode: string) {
+  const guild = await prisma.guild.findUnique({ where: { inviteCode: inviteCode.toUpperCase() } });
+  if (!guild) throw new Error('Código de gremio inválido');
+  return addMember(userId, guild.id);
+}
+
+/** Día del gremio (zona horaria de quien lo lidera) y estado de su racha. */
+async function guildDay(guild: { id: string; leaderId: string; streakCount: number; streakBest: number; streakDay: string | null }) {
+  const leader = await prisma.user.findUnique({ where: { id: guild.leaderId }, select: { timezone: true } });
+  const today = dayKey(leader?.timezone);
+  return { today, streak: streakView(guild.streakCount, guild.streakBest, guild.streakDay, today) };
+}
+
+/** Tus gremios, para el selector: con su racha y cuántos enviaron foto hoy. */
+export async function getMyGuilds(userId: string) {
+  const memberships = await prisma.guildMember.findMany({
     where: { userId },
+    include: { guild: { include: { _count: { select: { members: true } } } } },
+    orderBy: { joinedAt: 'asc' },
+  });
+  return Promise.all(memberships.map(async ({ guild, role }) => {
+    const { today, streak } = await guildDay(guild);
+    const snapped = await prisma.guildMessage.findMany({ where: { guildId: guild.id, kind: 'SNAP', dayKey: today }, distinct: ['userId'], select: { userId: true } });
+    return {
+      id: guild.id, name: guild.name, emblem: guild.emblem, photoUrl: guild.photoUrl, level: guild.level, role,
+      members: guild._count.members, streak, snappedToday: snapped.length, mineToday: snapped.some((s) => s.userId === userId),
+    };
+  }));
+}
+
+export async function getGuild(userId: string, guildId: string) {
+  await requireMember(userId, guildId);
+  const guild = await prisma.guild.findUniqueOrThrow({
+    where: { id: guildId },
     include: {
-      guild: {
+      members: {
         include: {
-          members: {
-            include: {
-              user: { select: { id: true, username: true, displayName: true, level: true, ...STREAK_FIELDS, xp: true, avatarConfig: true, avatarUrl: true, equippedAura: true, equippedFrame: true, equippedHat: true } },
-            },
-            orderBy: { joinedAt: 'asc' },
-          },
+          user: { select: { id: true, username: true, displayName: true, level: true, ...STREAK_FIELDS, xp: true, avatarConfig: true, avatarUrl: true, equippedAura: true, equippedFrame: true, equippedHat: true } },
         },
+        orderBy: { joinedAt: 'asc' },
       },
     },
   });
-
-  if (!membership) return null;
   const now = new Date();
-  return { ...membership.guild, members: membership.guild.members.map((m) => ({ ...m, user: withLiveStreak(m.user, now) })) };
+  const { today, streak } = await guildDay(guild);
+  const snaps = await prisma.guildMessage.findMany({
+    where: { guildId, kind: 'SNAP', dayKey: today },
+    orderBy: { createdAt: 'asc' },
+    select: { id: true, userId: true, photoUrl: true, content: true, createdAt: true },
+  });
+  const snappedIds = [...new Set(snaps.map((s) => s.userId))];
+  const maxHp = Math.max(1, guild.members.length) * ENEMY_HP_PER_MEMBER;
+  return {
+    ...guild,
+    members: guild.members.map((m) => ({ ...m, user: withLiveStreak(m.user, now), snappedToday: snappedIds.includes(m.userId) })),
+    today: {
+      day: today,
+      snappedUserIds: snappedIds,
+      enemy: { name: enemyOf(guild.id, today), maxHp, hp: Math.max(0, maxHp - snappedIds.length * ENEMY_HP_PER_MEMBER), defeated: snappedIds.length >= guild.members.length },
+    },
+    streak,
+  };
 }
 
-export async function getGuildMessages(userId: string, guildId: string, limit = 50) {
-  const member = await prisma.guildMember.findFirst({ where: { userId, guildId } });
-  if (!member) throw new Error('No perteneces a este gremio');
+/** Compatibilidad: el primer gremio de la persona (o null). */
+export async function getMyGuild(userId: string) {
+  const first = await prisma.guildMember.findFirst({ where: { userId }, orderBy: { joinedAt: 'asc' }, select: { guildId: true } });
+  return first ? getGuild(userId, first.guildId) : null;
+}
 
-  const messages = await prisma.guildMessage.findMany({
-    where: { guildId },
-    include: { user: { select: { id: true, username: true, displayName: true, avatarConfig: true, avatarUrl: true, equippedAura: true, equippedFrame: true, equippedHat: true } } },
-    orderBy: { createdAt: 'asc' },
-    take: limit,
-  });
+const MESSAGE_USER = { select: { id: true, username: true, displayName: true, avatarConfig: true, avatarUrl: true, equippedAura: true, equippedFrame: true, equippedHat: true } } as const;
+
+export async function getGuildMessages(userId: string, guildId: string, limit = 50, after?: string) {
+  await requireMember(userId, guildId);
+  const since = after ? new Date(after) : null;
+  const messages = since && !Number.isNaN(since.getTime())
+    ? await prisma.guildMessage.findMany({ where: { guildId, createdAt: { gt: since } }, include: { user: MESSAGE_USER }, orderBy: { createdAt: 'asc' }, take: limit })
+    : (await prisma.guildMessage.findMany({ where: { guildId }, include: { user: MESSAGE_USER }, orderBy: { createdAt: 'desc' }, take: limit })).reverse();
 
   return messages.map((m) => ({
     ...m,
@@ -433,26 +484,57 @@ export async function getGuildMessages(userId: string, guildId: string, limit = 
   }));
 }
 
-export async function sendGuildMessage(userId: string, guildId: string, content: string) {
-  const member = await prisma.guildMember.findFirst({ where: { userId, guildId } });
-  if (!member) throw new Error('No perteneces a este gremio');
-  if (!content.trim()) throw new Error('Mensaje vacío');
-  if (content.length > 500) throw new Error('Mensaje demasiado largo');
+export async function sendGuildMessage(
+  userId: string,
+  guildId: string,
+  content: string,
+  extra: { kind?: unknown; photoUrl?: unknown } = {},
+) {
+  await requireMember(userId, guildId);
+  const kind = extra.kind === 'SNAP' ? 'SNAP' : 'TEXT';
+  const text = (content ?? '').trim();
+  const photoUrl = extra.photoUrl ? validPhoto(extra.photoUrl) : null;
+  if (kind === 'SNAP' && !photoUrl) throw new Error('La foto del día necesita una imagen');
+  if (kind === 'TEXT' && !text && !photoUrl) throw new Error('Mensaje vacío');
+  if (text.length > 500) throw new Error('Mensaje demasiado largo');
 
-  return prisma.guildMessage.create({
-    data: { guildId, userId, content: content.trim() },
-    include: { user: { select: { id: true, username: true, displayName: true, avatarConfig: true, avatarUrl: true, equippedAura: true, equippedFrame: true, equippedHat: true } } },
+  const guild = await prisma.guild.findUniqueOrThrow({ where: { id: guildId }, include: { members: { select: { userId: true } } } });
+  const { today } = await guildDay(guild);
+  const message = await prisma.guildMessage.create({
+    data: { guildId, userId, content: text, kind, photoUrl, dayKey: kind === 'SNAP' ? today : null },
+    include: { user: MESSAGE_USER },
   });
+
+  let streakCompleted = false;
+  if (kind === 'SNAP' && guild.streakDay !== today) {
+    const snapped = await prisma.guildMessage.findMany({ where: { guildId, kind: 'SNAP', dayKey: today }, distinct: ['userId'], select: { userId: true } });
+    const all = guild.members.every((m) => snapped.some((s) => s.userId === m.userId));
+    if (all) {
+      const next = advanceStreak(guild.streakCount, guild.streakBest, guild.streakDay, today);
+      await prisma.guild.update({ where: { id: guildId }, data: { ...next, xp: { increment: 50 * guild.members.length } } });
+      streakCompleted = true;
+      for (const m of guild.members) {
+        createNotification(m.userId, {
+          type: 'guild', category: 'SOCIAL', dedupeKey: `guild-streak:${guildId}`,
+          title: `${guild.name}: ¡enemigo derrotado!`,
+          body: `Todos enviaron su foto. Racha del gremio: ${next.streakCount} ${next.streakCount === 1 ? 'día' : 'días'}.`,
+          icon: 'guild', link: `/guild?id=${guildId}`,
+        }).catch(() => null);
+      }
+    }
+  }
+
+  return { ...message, createdAt: message.createdAt.toISOString(), streakCompleted };
 }
 
 export async function leaveGuild(userId: string, guildId: string) {
-  const member = await prisma.guildMember.findFirst({ where: { userId, guildId } });
-  if (!member) throw new Error('No perteneces a este gremio');
+  const member = await requireMember(userId, guildId);
 
   const guild = await prisma.guild.findUniqueOrThrow({ where: { id: guildId } });
   if (guild.leaderId === userId) {
     const others = await prisma.guildMember.findFirst({
       where: { guildId, userId: { not: userId } },
+      orderBy: { joinedAt: 'asc' },
     });
     if (others) {
       // Transfer leadership
@@ -472,4 +554,56 @@ export async function leaveGuild(userId: string, guildId: string) {
   }
 
   await prisma.guildMember.delete({ where: { id: member.id } });
+}
+
+// ─── Guild invites ────────────────────────────────────────────────────────────
+
+export async function inviteToGuild(userId: string, guildId: string, inviteeId: string) {
+  await requireMember(userId, guildId);
+  const friends = await getFriendIds(userId);
+  if (!friends.includes(inviteeId)) throw new Error('Solo puedes invitar a tus amigos');
+  if (await prisma.guildMember.findFirst({ where: { guildId, userId: inviteeId } })) throw new Error('Ya está en el gremio');
+  const guild = await prisma.guild.findUniqueOrThrow({ where: { id: guildId }, include: { _count: { select: { members: true } } } });
+  if (guild._count.members >= MAX_MEMBERS) throw new Error(`El gremio está lleno (máximo ${MAX_MEMBERS})`);
+
+  const invite = await prisma.guildInvite.upsert({
+    where: { guildId_inviteeId: { guildId, inviteeId } },
+    create: { guildId, inviterId: userId, inviteeId },
+    update: { inviterId: userId, status: 'PENDING', createdAt: new Date() },
+  });
+  const inviter = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { displayName: true } });
+  createNotification(inviteeId, {
+    type: 'guild', category: 'SOCIAL', dedupeKey: `guild-invite:${guildId}`,
+    title: `Invitación a ${guild.name}`,
+    body: `${inviter.displayName} te invitó a su gremio.`,
+    icon: 'guild', link: '/guild?invites=1',
+  }).catch(() => null);
+  return invite;
+}
+
+export async function getGuildInvites(userId: string) {
+  const invites = await prisma.guildInvite.findMany({
+    where: { inviteeId: userId, status: 'PENDING' },
+    include: {
+      guild: { select: { id: true, name: true, emblem: true, photoUrl: true, level: true, _count: { select: { members: true } } } },
+      inviter: { select: { id: true, username: true, displayName: true, avatarConfig: true, avatarUrl: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+  return invites.map((i) => ({ ...i, createdAt: i.createdAt.toISOString() }));
+}
+
+export async function respondGuildInvite(userId: string, inviteId: string, accept: boolean) {
+  const invite = await prisma.guildInvite.findFirst({ where: { id: inviteId, inviteeId: userId, status: 'PENDING' }, include: { guild: { select: { name: true } } } });
+  if (!invite) throw new Error('Esta invitación ya no está disponible');
+  if (accept) await addMember(userId, invite.guildId);
+  await prisma.guildInvite.update({ where: { id: invite.id }, data: { status: accept ? 'ACCEPTED' : 'REJECTED' } });
+  if (accept) {
+    const who = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { displayName: true } });
+    createNotification(invite.inviterId, {
+      type: 'guild', category: 'SOCIAL', title: `${who.displayName} se unió a ${invite.guild.name}`,
+      body: 'Ya puede enviar su foto del día con el gremio.', icon: 'guild', link: `/guild?id=${invite.guildId}`,
+    }).catch(() => null);
+  }
+  return { guildId: invite.guildId, accepted: accept };
 }

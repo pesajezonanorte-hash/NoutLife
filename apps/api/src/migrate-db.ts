@@ -1,6 +1,6 @@
 import { prisma } from './lib/prisma';
 import { shouldSkipBuildDbStep } from './lib/build-env';
-import { REMOVE_LEGACY_HABIT_RITUAL_FLAG_SQL } from './lib/schema-migrations';
+import { REMOVE_LEGACY_HABIT_RITUAL_FLAG_SQL, SOCIAL_NETWORK_SQL } from './lib/schema-migrations';
 
 const ignoreDuplicate = (sql: string) =>
   `DO $$ BEGIN ${sql}; EXCEPTION WHEN duplicate_object THEN NULL; END $$;`;
@@ -157,6 +157,9 @@ async function migrate() {
 
   // Idempotent mirror of prisma/migrations/20261005180000_user_last_seen.
   await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "lastSeenAt" TIMESTAMP(3);`);
+
+  // Idempotent mirror of prisma/migrations/20261005200000_social_network.
+  for (const sql of SOCIAL_NETWORK_SQL) await prisma.$executeRawUnsafe(sql);
 
   console.log('SUCCESS: Runtime database columns, indexes, ritual idempotency key, and legacy habit ritual cleanup applied.');
 }
