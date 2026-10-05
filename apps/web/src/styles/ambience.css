@@ -906,3 +906,29 @@ html.dark .lq-counter { background: color-mix(in srgb, rgb(var(--lq-surface)) 94
 /* Ventanillas de atención con su letrero. */
 .lq-window-sign { background: rgb(var(--lq-info-text)); color: rgb(255 255 255); }
 html.dark .lq-window-sign { background: color-mix(in srgb, rgb(var(--lq-info)) 55%, rgb(var(--lq-jade-900))); }
+
+/* ───────── Acerca de (museo) ───────── */
+/* Foco de galería: cono de luz cálida sobre la pared. */
+.lq-gallery-spot { clip-path: polygon(40% 0, 60% 0, 100% 100%, 0 100%); background: linear-gradient(180deg, rgb(var(--lq-secondary) / .2), rgb(var(--lq-secondary) / .05) 60%, transparent 88%); }
+html.dark .lq-gallery-spot { background: linear-gradient(180deg, rgb(var(--lq-secondary) / .16), rgb(var(--lq-secondary) / .03) 60%, transparent 88%); }
+/* Rótulo de cada sala. */
+.lq-room-sign { border: 1px solid rgb(var(--lq-on-background) / .35); border-radius: 3px; background: rgb(var(--lq-background) / .7); }
+/* Marcos: dorado o madera, con el paspartú y su sombra en la pared. */
+.lq-museum-frame { box-shadow: 0 2px 0 rgb(0 0 0 / .08), 0 24px 34px -20px rgb(var(--lq-jade-900) / .55); }
+html.dark .lq-museum-frame { box-shadow: 0 24px 34px -18px rgb(0 0 0 / .85); }
+.lq-museum-gold { background: linear-gradient(135deg, color-mix(in srgb, rgb(var(--lq-secondary)) 70%, white), rgb(var(--lq-secondary)) 28%, rgb(var(--lq-secondary-text)) 52%, rgb(var(--lq-secondary)) 78%, color-mix(in srgb, rgb(var(--lq-secondary)) 70%, white)); }
+.lq-museum-wood { background: linear-gradient(135deg, color-mix(in srgb, rgb(var(--lq-warning-text)) 60%, rgb(var(--lq-jade-900))), color-mix(in srgb, rgb(var(--lq-warning-text)) 40%, rgb(var(--lq-jade-900)))); }
+.lq-passepartout { background: color-mix(in srgb, rgb(var(--lq-surface)) 92%, rgb(var(--lq-secondary))); box-shadow: inset 0 0 0 1px rgb(0 0 0 / .08), inset 0 2px 6px rgb(0 0 0 / .12); }
+html.dark .lq-passepartout { background: color-mix(in srgb, rgb(var(--lq-surface-variant)) 92%, rgb(var(--lq-secondary))); }
+/* Placa: latón cepillado con el texto en tinta oscura (contraste AA). */
+.lq-plaque { border-radius: 4px; background: linear-gradient(180deg, color-mix(in srgb, rgb(var(--lq-secondary)) 22%, rgb(var(--lq-surface))), color-mix(in srgb, rgb(var(--lq-secondary)) 30%, rgb(var(--lq-surface)))); box-shadow: inset 0 1px 0 rgb(255 255 255 / .6), 0 1px 2px rgb(0 0 0 / .18); color: rgb(var(--lq-on-background)); }
+html.dark .lq-plaque { background: linear-gradient(180deg, color-mix(in srgb, rgb(var(--lq-secondary)) 16%, rgb(var(--lq-surface-variant))), color-mix(in srgb, rgb(var(--lq-secondary)) 10%, rgb(var(--lq-surface)))); box-shadow: inset 0 1px 0 rgb(255 255 255 / .06), 0 1px 2px rgb(0 0 0 / .5); }
+/* Pedestal de mármol. */
+.lq-pedestal { box-shadow: inset 8px 0 14px -10px rgb(0 0 0 / .2), inset -8px 0 14px -10px rgb(0 0 0 / .25); }
+.lq-pedestal-top { box-shadow: 0 2px 3px rgb(0 0 0 / .15); }
+/* La línea del recorrido y su pista. */
+.lq-tour-track { background: rgb(var(--lq-on-background) / .1); }
+.lq-tour-line { background: linear-gradient(180deg, rgb(var(--lq-secondary)), rgb(var(--lq-secondary-text))); box-shadow: 0 0 10px rgb(var(--lq-secondary) / .5); }
+/* Hito pendiente: un marco vacío con línea de puntos. */
+.lq-pending-exhibit { border: 2px dashed rgb(var(--lq-on-background) / .3); border-radius: 6px; }
+.lq-room-dot { background: rgb(var(--lq-secondary)); box-shadow: 0 0 0 4px rgb(var(--lq-background)), 0 0 0 5px rgb(var(--lq-secondary) / .5), 0 0 12px rgb(var(--lq-secondary) / .6); }
