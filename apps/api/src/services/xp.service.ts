@@ -65,6 +65,23 @@ function applyClassMultiplier(playerClass: string | null, category: QuestCategor
   return { xp: Math.round(xp * catMult), gold: Math.round(gold * goldMult) };
 }
 
+/**
+ * Racha general vigente sin escribir en la base: la guardada sigue viva si la última
+ * actividad fue hoy o ayer (en la zona horaria del usuario); si fue antes, ya hubo un
+ * día entero perdido y vale 0. La racha guardada solo se corrige cuando el propio
+ * usuario entra, así que quien lea rachas de otros (ranking, amigos) debe usar esto.
+ */
+export function effectiveActivityStreak(
+  user: { currentStreak: number; lastActivityDate: Date | null; timezone: string | null },
+  now = new Date(),
+): number {
+  if (user.currentStreak === 0 || !user.lastActivityDate) return user.currentStreak;
+  const today = getCalendarDay(user.timezone, now);
+  const yesterday = new Date(today);
+  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+  return getCalendarDay(user.timezone, user.lastActivityDate).getTime() < yesterday.getTime() ? 0 : user.currentStreak;
+}
+
 /** Restablece la racha general si ya pasó un día calendario completo sin actividad. */
 export async function reconcileUserActivityStreak(userId: string, now = new Date()): Promise<number> {
   const user = await prisma.user.findUnique({
@@ -75,14 +92,10 @@ export async function reconcileUserActivityStreak(userId: string, now = new Date
   if (!user || user.currentStreak === 0 || !user.lastActivityDate) return user?.currentStreak ?? 0;
 
   const today = getCalendarDay(user.timezone, now);
-  const yesterday = new Date(today);
-  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
-
-  const lastActivityDay = getCalendarDay(user.timezone, user.lastActivityDate);
 
   // Ayer todavía deja la racha viva: el usuario tiene hasta terminar hoy para
   // continuarla. Antes de ayer significa que ya hubo un día entero perdido.
-  if (lastActivityDay.getTime() < yesterday.getTime()) {
+  if (effectiveActivityStreak(user, now) === 0) {
     await prisma.user.update({ where: { id: userId }, data: { currentStreak: 0 } });
     // Un mensaje del Sabio guardado antes del reinicio puede mencionar una racha
     // que ya no existe. Se regenerará en la siguiente lectura con datos reales.
