@@ -1,11 +1,24 @@
 // Raíz de una zona ambientada: escalona la entrada de sus hijos, sale con la
 // salida común de zona y pone su capa de ambiente detrás del contenido sin
 // crear un contexto de apilamiento (los diálogos sin portal siguen encima).
-import type { CSSProperties, ReactNode } from 'react';
-import { motion } from 'framer-motion';
+import { useContext, useMemo, type CSSProperties, type ReactNode } from 'react';
+import { motion, PresenceContext } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { stagger, zoneExit } from '@/lib/motion';
 import { ZoneAmbience } from './ZoneAmbience';
+
+/**
+ * Deja ver las entradas aunque haya encima un AnimatePresence con initial={false}
+ * (el del router en la primera carga o un selector de vista): ese initial se queda
+ * en el contexto de presencia y bloquea toda animación inicial del subárbol, incluso
+ * la de lo que se monta después. Aquí se re-provee el mismo contexto sin él; el
+ * registro y onExitComplete son los mismos, así que las salidas siguen funcionando.
+ */
+export function AllowEntrance({ children }: { children: ReactNode }) {
+  const ctx = useContext(PresenceContext);
+  const value = useMemo(() => (ctx && ctx.initial === false ? { ...ctx, initial: undefined } : ctx), [ctx]);
+  return <PresenceContext.Provider value={value}>{children}</PresenceContext.Provider>;
+}
 
 export function ZoneShell({ zone, ambience, view, className, contentClassName, children }: {
   zone: string;
@@ -19,10 +32,12 @@ export function ZoneShell({ zone, ambience, view, className, contentClassName, c
   children: ReactNode;
 }) {
   return (
-    <motion.div variants={stagger} initial="initial" animate="animate" exit={zoneExit} className={cn('relative', className)}>
-      {(ambience || view) && <ZoneAmbience zone={zone} view={view}>{ambience}</ZoneAmbience>}
-      <div className={cn('relative flex flex-col gap-6 md:gap-12', contentClassName)}>{children}</div>
-    </motion.div>
+    <AllowEntrance>
+      <motion.div variants={stagger} initial="initial" animate="animate" exit={zoneExit} className={cn('relative', className)}>
+        {(ambience || view) && <ZoneAmbience zone={zone} view={view}>{ambience}</ZoneAmbience>}
+        <div className={cn('relative flex flex-col gap-6 md:gap-12', contentClassName)}>{children}</div>
+      </motion.div>
+    </AllowEntrance>
   );
 }
 
