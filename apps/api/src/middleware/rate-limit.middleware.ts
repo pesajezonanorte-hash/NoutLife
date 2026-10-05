@@ -96,15 +96,15 @@ export const availabilityLimiter = buildLimiter({
 // Sage limiter — per-minute burst guard
 export const sageLimiter = buildLimiter({
   windowMs: 60_000,
-  max: 10,
+  max: 30,
   message: 'Demasiadas consultas al Sabio por minuto. Espera un momento.',
 });
 
 // Sage daily limiter — prevents one user from exhausting all AI tokens
 export const sageDailyLimiter = buildLimiter({
   windowMs: 24 * 60 * 60_000,
-  max: 20,
-  message: 'Has alcanzado el límite diario de consultas al Sabio (20/día). Vuelve mañana.',
+  max: 1000,
+  message: 'Has alcanzado el límite diario de consultas al Sabio. Vuelve mañana.',
 });
 
 

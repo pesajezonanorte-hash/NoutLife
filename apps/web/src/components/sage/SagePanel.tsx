@@ -237,7 +237,7 @@ export function SagePanel({ onClose }: { onClose: () => void }) {
 
         <div className="flex flex-col gap-3 border-t border-border px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 md:px-6">
           <div aria-live="polite" className="flex flex-col gap-1">
-            {callsUsed !== null && rate && (
+            {callsUsed !== null && rate && rate.remaining <= rate.limit * 0.1 && (
               <p className={cn('text-center text-body-sm', outOfCalls ? 'text-error-text' : 'text-on-surface-light')}>
                 Consultas del Sabio hoy: {callsUsed} de {rate.limit}
                 {' · '}se renueva a las{' '}

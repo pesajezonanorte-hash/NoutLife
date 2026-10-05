@@ -1,14 +1,13 @@
 import { generateText, hasAIProvider, AIQuotaError } from '../lib/ai';
 import { prisma } from '../lib/prisma';
 
-const SAGE_RATE_LIMIT = 20;
+const SAGE_RATE_LIMIT = 1000;
 
-// El nivel gratuito de Groq/Gemini tiene un tope DIARIO total por API key
-// (≈14.400 req/día con el modelo default llama-3.1-8b-instant en Groq), así que
-// lo repartimos entre usuarios: el Sabio queda limitado a N respuestas IA por
-// persona al día. Las respuestas fijas (saludos, ayuda, fallbacks) no cuentan.
-// Sobreescribible con SAGE_DAILY_AI_LIMIT.
-export const SAGE_DAILY_AI_LIMIT = Number(process.env.SAGE_DAILY_AI_LIMIT || 8);
+// Tope diario por persona, solo contra abuso: el uso normal no lo toca. La
+// capacidad real la dan los carriles de lib/ai.ts (varios modelos y llaves, cada
+// uno con su propio cupo gratuito). Las respuestas fijas (saludos, ayuda,
+// fallbacks) no cuentan. Sobreescribible con SAGE_DAILY_AI_LIMIT.
+export const SAGE_DAILY_AI_LIMIT = Number(process.env.SAGE_DAILY_AI_LIMIT || 500);
 
 // Respuesta amable cuando TODO proveedor IA está sin cuota. Se devuelve como
 // texto normal (HTTP 200): el usuario recibe una respuesta del Sabio digna,

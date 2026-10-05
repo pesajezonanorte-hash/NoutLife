@@ -1,3 +1,8 @@
+function splitList(value: string | undefined, fallback: string[] = []): string[] {
+  const items = (value ?? '').split(',').map((v) => v.trim()).filter(Boolean);
+  return items.length ? items : fallback;
+}
+
 type ChatRole = 'system' | 'user' | 'assistant';
 
 export interface ChatMessage {
@@ -10,32 +15,35 @@ interface ChatOptions {
   maxTokens?: number;
 }
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const OPENAI_API_KEYS = splitList(process.env.OPENAI_API_KEY);
 const OPENAI_API_URL = process.env.OPENAI_API_URL || 'https://api.openai.com/v1/chat/completions';
-const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+const OPENAI_MODELS = splitList(process.env.OPENAI_MODEL, ['gpt-4o-mini']);
 
 // Groq — OpenAI-compatible, very generous free tier (14,400 req/day)
-const GROQ_API_KEY = process.env.GROQ_API_KEY;
+// Varias llaves (GROQ_API_KEY=k1,k2) multiplican el cupo diario: cada llave es de
+// una organización distinta y tiene su propio límite.
+const GROQ_API_KEYS = splitList(process.env.GROQ_API_KEY);
 // llama-3.1-8b-instant es el default a propósito: en el nivel gratuito de Groq
 // da ~14.400 req/día y 500K tokens/día, mientras llama-3.3-70b-versatile solo da
 // ~1.000 req/día y 100K tokens/día (se agotaba en horas y la IA "moría" al mediodía).
 // Para chat/coaching breve en español basta y sobra; el modelo grande queda
 // disponible con GROQ_MODEL=llama-3.3-70b-versatile si se quiere calidad extra.
-const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.1-8b-instant';
+// Cada modelo tiene su propio cupo diario: si el principal se agota, el Sabio
+// sigue con el siguiente en vez de callarse. GROQ_MODEL admite una lista separada por comas.
+const GROQ_MODELS = splitList(process.env.GROQ_MODEL, ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile']);
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash-lite';
-const GEMINI_API_URL =
-  process.env.GEMINI_API_URL ||
-  `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+const GEMINI_API_KEYS = splitList(process.env.GEMINI_API_KEY);
+const GEMINI_MODELS = splitList(process.env.GEMINI_MODEL, ['gemini-2.0-flash-lite', 'gemini-2.5-flash-lite', 'gemini-2.0-flash']);
+const geminiUrl = (model: string) =>
+  process.env.GEMINI_API_URL || `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 // One short retry covers a transient per-minute (RPM) blip. Anything longer
 // just holds the HTTP request open while the minute resets anyway, and the
 // provider chain below already gives real redundancy.
 const GEMINI_MAX_RETRIES = 1;
 
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'google/gemini-2.0-flash-lite-preview:free';
+const OPENROUTER_API_KEYS = splitList(process.env.OPENROUTER_API_KEY);
+const OPENROUTER_MODELS = splitList(process.env.OPENROUTER_MODEL, ['google/gemini-2.0-flash-lite-preview:free']);
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
 // ─── Per-provider circuit breaker ────────────────────────────────────────────
@@ -48,6 +56,8 @@ const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 // (or fails fast with an AIQuotaError the caller can translate gracefully).
 
 type ProviderName = 'groq' | 'gemini' | 'openrouter' | 'openai';
+/** Un carril = proveedor + llave + modelo; cada uno tiene su propio cupo y su propio breaker. */
+type LaneId = string;
 
 interface ProviderState {
   consecutiveFailures: number;
@@ -55,7 +65,7 @@ interface ProviderState {
   lastFailureWasQuota: boolean;
 }
 
-const providerStates = new Map<ProviderName, ProviderState>();
+const providerStates = new Map<LaneId, ProviderState>();
 
 const FAILURE_THRESHOLD = 2;
 const ERROR_COOLDOWN_MS = 60_000;
@@ -100,16 +110,16 @@ function retryDelayMsFrom(error: unknown): number | null {
   return Math.min(seconds * 1000, MAX_COOLDOWN_MS);
 }
 
-function isProviderAvailable(name: ProviderName): boolean {
+function isProviderAvailable(name: LaneId): boolean {
   const state = providerStates.get(name);
   return !state || state.unavailableUntil <= Date.now();
 }
 
-function registerProviderSuccess(name: ProviderName): void {
+function registerProviderSuccess(name: LaneId): void {
   providerStates.delete(name);
 }
 
-function registerProviderFailure(name: ProviderName, error: unknown): void {
+function registerProviderFailure(name: LaneId, error: unknown): void {
   const state = providerStates.get(name) ?? { consecutiveFailures: 0, unavailableUntil: 0, lastFailureWasQuota: false };
   state.consecutiveFailures += 1;
   state.lastFailureWasQuota = looksLikeQuotaFailure(error);
@@ -122,50 +132,68 @@ function registerProviderFailure(name: ProviderName, error: unknown): void {
 }
 
 export function hasAIProvider(): boolean {
-  return Boolean(GROQ_API_KEY || GEMINI_API_KEY || OPENROUTER_API_KEY || OPENAI_API_KEY);
+  return buildLanes().length > 0;
+}
+
+interface Lane {
+  id: LaneId;
+  provider: ProviderName;
+  run: (messages: ChatMessage[], options: ChatOptions) => Promise<string>;
+}
+
+/** Orden de prioridad: Groq → Gemini → OpenRouter → OpenAI; dentro de cada uno, modelos y luego llaves. */
+function buildLanes(): Lane[] {
+  const lanes: Lane[] = [];
+  const compat = (provider: ProviderName, url: string, keys: string[], models: string[]) => {
+    for (const model of models) {
+      keys.forEach((key, i) => {
+        lanes.push({
+          id: `${provider}:${model}:${i}`,
+          provider,
+          run: (m, o) => generateWithOpenAICompat(m, o, url, key, model),
+        });
+      });
+    }
+  };
+  compat('groq', GROQ_API_URL, GROQ_API_KEYS, GROQ_MODELS);
+  for (const model of GEMINI_MODELS) {
+    GEMINI_API_KEYS.forEach((key, i) => {
+      lanes.push({ id: `gemini:${model}:${i}`, provider: 'gemini', run: (m, o) => generateWithGemini(m, o, geminiUrl(model), key) });
+    });
+  }
+  compat('openrouter', OPENROUTER_API_URL, OPENROUTER_API_KEYS, OPENROUTER_MODELS);
+  compat('openai', OPENAI_API_URL, OPENAI_API_KEYS, OPENAI_MODELS);
+  return lanes;
 }
 
 export async function generateText(messages: ChatMessage[], options: ChatOptions = {}): Promise<string> {
   const errors: string[] = [];
   let quotaBlocked = 0;
-  let configured = 0;
 
-  const attempts: Array<{ name: ProviderName; apiKey?: string; run: () => Promise<string> }> = [
-    // 1. Prioritize GROQ (100% Free: 14,400 requests/day)
-    { name: 'groq', apiKey: GROQ_API_KEY, run: () => generateWithOpenAICompat(messages, options, GROQ_API_URL, GROQ_API_KEY!, GROQ_MODEL) },
-    // 2. Fallback to Gemini API Studio (100% Free: 1,500 requests/day)
-    { name: 'gemini', apiKey: GEMINI_API_KEY, run: () => generateWithGemini(messages, options) },
-    // 3. Fallback to OpenRouter (Free models)
-    { name: 'openrouter', apiKey: OPENROUTER_API_KEY, run: () => generateWithOpenAICompat(messages, options, OPENROUTER_API_URL, OPENROUTER_API_KEY!, OPENROUTER_MODEL) },
-    // 4. Fallback to OpenAI
-    { name: 'openai', apiKey: OPENAI_API_KEY, run: () => generateWithOpenAICompat(messages, options, OPENAI_API_URL, OPENAI_API_KEY!, OPENAI_MODEL) },
-  ];
+  const lanes = buildLanes();
 
-  for (const attempt of attempts) {
-    if (!attempt.apiKey) continue;
-    configured += 1;
-
-    if (!isProviderAvailable(attempt.name)) {
-      if (providerStates.get(attempt.name)?.lastFailureWasQuota) quotaBlocked += 1;
-      errors.push(`${attempt.name}: en espera por fallo reciente (circuit breaker abierto)`);
+  for (const lane of lanes) {
+    if (!isProviderAvailable(lane.id)) {
+      if (providerStates.get(lane.id)?.lastFailureWasQuota) quotaBlocked += 1;
+      errors.push(`${lane.id}: en espera por fallo reciente (circuit breaker abierto)`);
       continue;
     }
 
     try {
-      const text = await attempt.run();
-      registerProviderSuccess(attempt.name);
+      const text = await lane.run(messages, options);
+      registerProviderSuccess(lane.id);
       return text;
     } catch (err) {
-      registerProviderFailure(attempt.name, err);
+      registerProviderFailure(lane.id, err);
       if (looksLikeQuotaFailure(err)) quotaBlocked += 1;
       const msg = err instanceof Error ? err.message : String(err);
-      console.warn(`[AI_${attempt.name.toUpperCase()}_FALLBACK]`, msg);
-      errors.push(`${attempt.name}: ${msg}`);
+      console.warn(`[AI_${lane.provider.toUpperCase()}_FALLBACK]`, lane.id, msg);
+      errors.push(`${lane.id}: ${msg}`);
     }
   }
 
   if (errors.length > 0) {
-    if (configured > 0 && quotaBlocked === configured) {
+    if (lanes.length > 0 && quotaBlocked === lanes.length) {
       throw new AIQuotaError(`Los proveedores de IA están en pausa por límite de uso: ${errors.join(' | ')}`);
     }
     throw new Error(`Fallaron los proveedores de IA configurados: ${errors.join(' | ')}`);
@@ -209,7 +237,7 @@ async function generateWithOpenAICompat(
   return text;
 }
 
-async function generateWithGemini(messages: ChatMessage[], options: ChatOptions): Promise<string> {
+async function generateWithGemini(messages: ChatMessage[], options: ChatOptions, apiUrl: string, apiKey: string): Promise<string> {
   const systemMessages = messages.filter((message) => message.role === 'system');
   const nonSystemMessages = messages.filter((message) => message.role !== 'system');
 
@@ -236,7 +264,7 @@ async function generateWithGemini(messages: ChatMessage[], options: ChatOptions)
   let data: any = null;
 
   for (let attempt = 0; attempt <= GEMINI_MAX_RETRIES; attempt += 1) {
-    response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+    response = await fetch(`${apiUrl}?key=${apiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
