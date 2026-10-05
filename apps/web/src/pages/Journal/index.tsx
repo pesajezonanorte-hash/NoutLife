@@ -1,11 +1,16 @@
 // Diario — JournalDesktop.dc.html. Pregunta del día con editor inline + ánimo (5 caras),
 // KPIs, entradas con búsqueda y filtro por ánimo, editar/eliminar.
-import { useState, useEffect, useCallback, useRef } from 'react';
+// Zona ambientada: tu libreta del día. La tapa se abre sobre la página de hoy,
+// se escribe sobre renglones, el ánimo es un sello y borrar tacha a mano.
+// Guardar asienta la tinta y marca la página con el sello del día.
+import { useState, useEffect, useCallback, useRef, type CSSProperties } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BookOpen, Flame, MessageCircle, Plus, Search, Trash2, X } from 'lucide-react';
 import type { JournalEntry, JournalStreak } from '@lifequest/shared';
 import { cn } from '@/lib/utils';
 import { item, stagger } from '@/lib/motion';
+import { AmbientLight, SketchStrike, SketchUnderline, ZoneShell } from '@/components/ambience';
+import { DayStamp, NotebookPage } from '@/components/journal/Notebook';
 import { useToast } from '../../hooks/useToast';
 import { useDebounce } from '../../hooks/useDebounce';
 import * as journalService from '../../services/journal.service';
@@ -89,7 +94,7 @@ function EntryForm({ entry, onCancel, onSave, inline }: { entry?: JournalEntry; 
       <Field label="Título (opcional)"><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ej. Un día de foco" /></Field>
       {!inline && <Field label="Fecha"><DatePicker value={date} onChange={setDate} /></Field>}
       <Field label="Tu reflexión" help={`${content.length} caracteres · ${words} palabras`}>
-        <Textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="Escribe con calma…" rows={inline ? 5 : 8} autoFocus={!entry} className="resize-y" />
+        <Textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="Escribe con calma…" rows={inline ? 5 : 8} autoFocus={!entry} className="lq-tex-ruled resize-y bg-transparent leading-[1.75rem] [--lq-rule:1.75rem] [background-attachment:local] focus:bg-transparent" />
       </Field>
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-2 text-label-lg text-on-surface">¿Cómo te sientes? <span className="text-on-background">{moodOf(mood).name}</span></legend>
@@ -132,6 +137,10 @@ export default function JournalPage() {
   const [editing, setEditing] = useState<JournalEntry | null>(null);
   const [search, setSearch] = useState('');
   const [moodFilter, setMoodFilter] = useState('all');
+  /** La página de hoy recibe el sello al guardar. */
+  const [stamped, setStamped] = useState(false);
+  /** Entradas que se están tachando antes de desaparecer. */
+  const [striking, setStriking] = useState<Set<string>>(new Set());
   const debouncedSearch = useDebounce(search, 300);
   const todayPrompt = DAILY_PROMPTS[new Date().getDate() % DAILY_PROMPTS.length];
   const todayLabel = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }).replace(/^\p{L}/u, (c) => c.toUpperCase());
@@ -149,6 +158,7 @@ export default function JournalPage() {
   useEffect(() => { void load(); }, [load]);
 
   function handleSaved(entry: JournalEntry) {
+    if (entry.date.split('T')[0] === todayStr()) setStamped(true);
     setEntries((prev) => (prev.some((e) => e.id === entry.id) ? prev.map((e) => (e.id === entry.id ? entry : e)) : [entry, ...prev]));
     setComposing(false);
     setEditing(null);
@@ -156,6 +166,10 @@ export default function JournalPage() {
   }
 
   async function handleDelete(id: string) {
+    // Primero se tacha a mano; luego la entrada se va.
+    setStriking((prev) => new Set(prev).add(id));
+    await new Promise((r) => setTimeout(r, 380));
+    setStriking((prev) => { const n = new Set(prev); n.delete(id); return n; });
     setEntries((prev) => prev.filter((e) => e.id !== id));
     try { await journalService.deleteJournalEntry(id); }
     catch { toast.error('Error al eliminar'); void load(true); }
@@ -167,11 +181,18 @@ export default function JournalPage() {
   const filterOptions: ChipOption<string>[] = [{ value: 'all', label: 'Todos' }, ...MOODS.map((m) => ({ value: String(m.n), label: m.name }))];
 
   return (
-    <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-6 md:gap-8">
+    <ZoneShell
+      zone="journal"
+      contentClassName="gap-6 md:gap-8"
+      ambience={<AmbientLight tone="warning" alpha={0.08} darkAlpha={0.05} d={16} className="-left-[8%] top-[-6%] h-[32rem] w-[60%]" />}
+    >
       <motion.section variants={item} className="flex flex-wrap items-end justify-between gap-6">
         <div className="flex min-w-0 flex-[1_1_360px] flex-col gap-2">
           <span className="text-label-lg text-primary-text">{todayLabel}</span>
-          <h1 className="text-display-sm md:text-display-md lg:text-display-lg">Diario</h1>
+          <h1 className="relative self-start text-display-sm md:text-display-md lg:text-display-lg">
+            Diario
+            <SketchUnderline className="absolute -bottom-1.5 left-0 w-full text-info md:-bottom-2.5" delay={0.5} />
+          </h1>
           <p className="text-body-lg text-on-surface-light">Una pausa breve para registrar lo que importa de tu día.</p>
         </div>
         <SageContextButton message="Dame un tema profundo para reflexionar hoy en mi diario." label="Tema de reflexión" />
@@ -188,8 +209,18 @@ export default function JournalPage() {
       </motion.section>
 
       <motion.section variants={item} aria-labelledby="j-prompt">
-        <Card variant="elevated" padding="lg" className="flex flex-col gap-5 border-primary/40 md:p-8">
-          <span id="j-prompt" className="flex items-center gap-2 text-label-lg text-primary-text"><MessageCircle aria-hidden className="size-4" />Pregunta del día</span>
+        <NotebookPage>
+        <div className="relative flex flex-col gap-5 p-6 pl-11 md:p-8 md:pl-16">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex flex-col gap-1">
+              <span className="relative self-start text-label-lg text-on-surface">
+                {todayLabel}
+                <SketchUnderline className="absolute -bottom-2 left-0 w-full text-on-surface-light" delay={0.9} duration={0.5} strokeWidth={1.6} />
+              </span>
+              <span id="j-prompt" className="mt-2 flex items-center gap-2 text-label-lg text-primary-text"><MessageCircle aria-hidden className="size-4" />Pregunta del día</span>
+            </div>
+            {todayEntry && <DayStamp mood={todayEntry.mood ?? 3} date={new Date()} animate={stamped} className="-mr-1 -mt-1" />}
+          </div>
           <p className="text-heading-lg [text-wrap:balance] md:text-display-sm">“{todayPrompt}”</p>
           {composing ? (
             <EntryForm inline onCancel={() => setComposing(false)} onSave={handleSaved} />
@@ -199,7 +230,8 @@ export default function JournalPage() {
               {todayEntry && <Badge variant="success">Hoy escrito{todayEntry.title ? ` · ${todayEntry.title}` : ''}</Badge>}
             </div>
           )}
-        </Card>
+        </div>
+        </NotebookPage>
       </motion.section>
 
       <motion.section variants={item} className="flex flex-col gap-5" aria-labelledby="j-entries">
@@ -231,19 +263,21 @@ export default function JournalPage() {
                 const m = moodOf(e.mood);
                 const title = e.title ?? `Día ${new Date(e.date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}`;
                 return (
-                  <motion.li key={e.id} variants={item} exit={{ opacity: 0, transition: { duration: 0.2 } }} layout="position">
-                    <Card padding="lg" interactive className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-4 md:gap-5">
-                      <span title={`Ánimo: ${m.name}`} className={cn('flex size-12 shrink-0 items-center justify-center rounded-[14px]', softTone[m.tone])}>
+                  <motion.li key={e.id} variants={item} exit={{ opacity: 0, x: 24, transition: { duration: 0.22 } }} layout="position" className="group">
+                    <Card padding="lg" interactive className="lq-tex-paper relative grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-4 md:gap-5">
+                      {/* Sello de ánimo: anillo de tinta torcido */}
+                      <span title={`Ánimo: ${m.name}`} className={cn('flex size-12 shrink-0 -rotate-6 items-center justify-center rounded-full border-2 border-dashed transition-transform duration-[560ms] ease-[var(--lq-ease-heavy)] group-hover:rotate-0', softTone[m.tone])}>
                         <MoodFace mood={m.n} label={`Ánimo: ${m.name}`} />
                       </span>
                       <div className="flex min-w-0 flex-col gap-1.5">
                         <div className="flex flex-wrap items-baseline gap-x-3">
-                          <h3 className="text-heading-sm">
+                          <h3 className="relative text-heading-sm">
                             <button type="button" onClick={() => setEditing(e)} className="rounded-md text-left hover:underline hover:underline-offset-4">{title}</button>
+                            {striking.has(e.id) && <SketchStrike className="text-error" duration={0.3} strokeWidth={2.4} />}
                           </h3>
                           <span className="text-body-sm text-on-surface-light" title={new Date(e.date).toLocaleDateString('es-ES', { dateStyle: 'long' })}>{relativeTime(e.date)}</span>
                         </div>
-                        <p className="line-clamp-2 text-body-md text-on-surface">{e.content}</p>
+                        <p className={cn('lq-write line-clamp-2 text-body-md text-on-surface transition-opacity duration-300', striking.has(e.id) && 'opacity-40')} style={{ '--d': '700ms', '--delay': '250ms' } as CSSProperties}>{e.content}</p>
                         {e.tags.length > 0 && <ul className="flex flex-wrap gap-1.5">{e.tags.map((t) => <li key={t}><Badge variant="neutral">#{t}</Badge></li>)}</ul>}
                       </div>
                       <Button variant="icon" aria-label={`Eliminar ${title}`} onClick={() => void handleDelete(e.id)} className="-mr-2 -mt-2"><Trash2 aria-hidden className="size-5" strokeWidth={1.75} /></Button>
@@ -259,6 +293,6 @@ export default function JournalPage() {
       <ResponsiveDialog open={!!editing} onClose={() => setEditing(null)} title="Editar entrada" className="max-w-[560px]">
         {editing && <EntryForm entry={editing} onCancel={() => setEditing(null)} onSave={handleSaved} />}
       </ResponsiveDialog>
-    </motion.div>
+    </ZoneShell>
   );
 }
