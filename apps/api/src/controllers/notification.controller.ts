@@ -44,15 +44,26 @@ export async function updatePreferences(req: AuthRequest, res: Response): Promis
   }
 }
 
+export function vapidPublicKey(_req: AuthRequest, res: Response): void {
+  res.json({ key: process.env.VAPID_PUBLIC_KEY ?? null });
+}
+
 export async function sendTestNotification(req: AuthRequest, res: Response): Promise<void> {
   try {
-    await notificationService.sendPush(req.userId!, {
-      title: '🏆 LifeQuest te saluda',
-      body: '¡Las notificaciones están funcionando, héroe! Sigue adelante con tus misiones.',
-      icon: '/icon-192.png',
+    if (!notificationService.isPushConfigured()) {
+      res.status(503).json({ error: 'Los avisos push no están configurados en el servidor.' });
+      return;
+    }
+    if ((await notificationService.countSubscriptions(req.userId!)) === 0) {
+      res.status(409).json({ error: 'Este dispositivo todavía no tiene los avisos activados.' });
+      return;
+    }
+    const delivered = await notificationService.sendPush(req.userId!, {
+      title: 'Noutlife',
+      body: 'Los avisos funcionan. Así te llegarán tus recordatorios.',
       tag: 'test',
     });
-    res.json({ success: true });
+    res.json({ success: delivered > 0, delivered });
   } catch {
     res.status(500).json({ error: 'Error al enviar notificación de prueba.' });
   }

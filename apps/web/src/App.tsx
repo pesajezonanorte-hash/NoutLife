@@ -14,6 +14,9 @@ import { PageLoader as LqPageLoader, Spinner } from './components/ui/lq';
 import { page as pageVariants } from './lib/motion';
 import { LoadingGate, LOADER_DELAY_MS, useLoadingVisibility } from './components/ui/LoadingGate';
 import { useKeyboardAdjust } from './hooks/useKeyboardAdjust';
+import { useTourDone } from './components/onboarding/WelcomeTour';
+import { useLocalReminders } from './lib/localReminders';
+import { syncPushSubscription } from './services/notification.service';
 
 // Páginas diferidas. Los loaders viven en un mapa para poder precargarlos en
 // idle; así, al cambiar de zona, el módulo suele estar en caché y no aparece
@@ -326,6 +329,15 @@ export default function App() {
   const { initAudio } = useUIStore();
   const { user, isLoading, isAuthenticated } = useAuthStore();
   const { show: showNotifModal, setShow: setShowNotifModal } = useNotificationModalState();
+  // El tutorial de bienvenida pregunta por los avisos en su último paso.
+  const tourDone = useTourDone(user?.id);
+
+  // Avisos: renueva la suscripción push de este dispositivo en cada apertura y,
+  // con la app abierta, programa también los recordatorios de hoy.
+  useEffect(() => {
+    if (isAuthenticated) void syncPushSubscription();
+  }, [isAuthenticated, user?.id]);
+  useLocalReminders(isAuthenticated);
 
   // Precarga todas las zonas en idle para evitar flashes al navegar.
   useEffect(() => {
@@ -369,7 +381,7 @@ export default function App() {
     <ErrorBoundary>
       {showSplash && <SplashScreen ready={splashReady} onDone={() => setSplashDone(true)} />}
 
-      {isAuthenticated && showNotifModal && (
+      {isAuthenticated && showNotifModal && tourDone && user?.onboardingCompleted && (
         <NotificationPermissionModal onClose={() => setShowNotifModal(false)} />
       )}
 

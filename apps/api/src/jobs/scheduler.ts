@@ -5,6 +5,7 @@ import { createNotification } from '../services/notification.service';
 import { reconcileHabitStreaks } from '../services/habit.service';
 import { generateDailyScroll } from '../services/scrolls.service';
 import { seedWisdomCards } from '../services/wisdom.service';
+import { runReminderTick } from '../services/reminder.service';
 
 export function initScheduler() {
   cron.schedule('*/15 * * * *', async () => {
@@ -39,20 +40,10 @@ export function initScheduler() {
     }
   });
 
-  cron.schedule('0 * * * *', async () => {
-    try {
-      await sendDeadlineAlerts();
-    } catch (err) {
-      console.error('[Scheduler] Error sending deadline alerts:', err);
-    }
-  });
-
-  cron.schedule('0 21 * * *', async () => {
-    try {
-      await sendDailySummaries();
-    } catch (err) {
-      console.error('[Scheduler] Error sending daily summaries:', err);
-    }
+  // Recordatorios de hábitos y agenda, misiones por vencer y resumen diario (en la
+  // hora local de cada usuario). En serverless lo mismo lo dispara /cron/tick.
+  cron.schedule('*/5 * * * *', () => {
+    void runReminderTick();
   });
 
   cron.schedule('0 20 * * 0', async () => {
@@ -81,7 +72,7 @@ export function initScheduler() {
 
   seedWisdomCards().catch(() => null);
 
-  console.log('[Scheduler] Inicializado con 8 cron jobs activos (Bloques 13-16)');
+  console.log('[Scheduler] Inicializado con 7 cron jobs activos');
 }
 
 async function resetDailyQuestsForUsersInTimezone() {
@@ -150,62 +141,6 @@ async function penalizeInactiveHabitStreaks() {
   // Respaldo para procesos persistentes. Las lecturas de hábitos/dashboard también
   // hacen esta conciliación para que el resultado sea correcto en serverless.
   await reconcileHabitStreaks();
-}
-
-async function sendDeadlineAlerts() {
-  const twoHoursFromNow = new Date(Date.now() + 2 * 60 * 60 * 1000);
-  const oneHourFromNow = new Date(Date.now() + 60 * 60 * 1000);
-
-  const urgentQuests = await prisma.quest.findMany({
-    where: {
-      status: 'ACTIVE',
-      deadline: { gte: oneHourFromNow, lte: twoHoursFromNow },
-    },
-  });
-
-  for (const quest of urgentQuests) {
-    // createNotification persists the in-app record first and only then sends
-    // an optional push, respecting the category and quiet-hour preferences.
-    await createNotification(quest.userId, {
-      type: 'quest_deadline',
-      category: 'QUESTS',
-      dedupeKey: `deadline-${quest.id}`,
-      title: '⚠️ Misión por vencer',
-      body: `"${quest.title}" vence en 2 horas. Tú puedes.`,
-      link: '/quests',
-    });
-  }
-}
-
-async function sendDailySummaries() {
-  const users = await prisma.user.findMany({
-    where: { onboardingCompleted: true },
-    include: { notificationPreferences: true },
-  });
-
-  const todayStart = startOfDay(new Date());
-
-  for (const user of users) {
-    const prefs = user.notificationPreferences;
-    if (!prefs?.dailySummary) continue;
-
-    const [completions, xpEvents] = await Promise.all([
-      prisma.questCompletion.count({ where: { userId: user.id, completedAt: { gte: todayStart } } }),
-      prisma.xpEvent.aggregate({
-        where: { userId: user.id, createdAt: { gte: todayStart } },
-        _sum: { xpAmount: true },
-      }),
-    ]);
-
-    await createNotification(user.id, {
-      type: 'daily_summary',
-      category: 'SYSTEM',
-      dedupeKey: `daily-summary-${todayStart.toISOString().slice(0, 10)}`,
-      title: '📜 Tu día en LifeQuest',
-      body: `Completaste ${completions} misiones y ganaste ${xpEvents._sum.xpAmount ?? 0} XP hoy.`,
-      link: '/',
-    });
-  }
 }
 
 async function generateWeeklySummaries() {

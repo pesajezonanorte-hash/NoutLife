@@ -22,31 +22,113 @@ export interface NotificationPreferences {
 }
 
 export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null;
+  if (!('serviceWorker' in navigator)) return null;
   try {
-    return await navigator.serviceWorker.register('/sw.js');
+    await navigator.serviceWorker.register('/sw.js');
+    return await navigator.serviceWorker.ready;
   } catch {
     return null;
   }
 }
 
-export async function requestPermissionAndSubscribe(): Promise<boolean> {
-  const permission = await Notification.requestPermission();
-  if (permission !== 'granted') return false;
+/** iPhone/iPad (incluido el iPad que se presenta como Mac). */
+export function isIOS() {
+  if (typeof navigator === 'undefined') return false;
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
 
+/** Abierta como app instalada (pantalla de inicio), no en una pestaña del navegador. */
+export function isStandalone() {
+  if (typeof window === 'undefined') return false;
+  return window.matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
+}
+
+/**
+ * ok: el dispositivo puede recibir avisos push.
+ * ios-install: en iPhone los avisos web solo funcionan con Noutlife añadida a la pantalla de inicio.
+ * unsupported: este navegador no tiene avisos push.
+ */
+export function pushSupport(): 'ok' | 'ios-install' | 'unsupported' {
+  if (typeof window === 'undefined') return 'unsupported';
+  if (isIOS() && !isStandalone()) return 'ios-install';
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return 'unsupported';
+  return 'ok';
+}
+
+export type PushResult = 'ok' | 'denied' | 'unsupported' | 'ios-install' | 'no-server' | 'error';
+
+export const PUSH_MESSAGES: Record<PushResult, string> = {
+  ok: 'Avisos activados en este dispositivo',
+  denied: 'El navegador bloqueó los avisos. Actívalos en los permisos del sitio.',
+  unsupported: 'Este navegador no puede recibir avisos.',
+  'ios-install': 'En iPhone: toca Compartir y «Añadir a pantalla de inicio», abre Noutlife desde ahí y activa los avisos.',
+  'no-server': 'Los avisos push aún no están configurados en el servidor.',
+  error: 'No se pudieron activar los avisos. Inténtalo de nuevo.',
+};
+
+let vapidKey: string | null | undefined;
+async function getVapidKey(): Promise<string | null> {
+  if (vapidKey !== undefined) return vapidKey;
+  const fromEnv = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+  if (fromEnv) return (vapidKey = fromEnv);
+  try {
+    const { data } = await api.get<{ key: string | null }>('/notifications/vapid-public-key');
+    vapidKey = data.key ?? null;
+  } catch {
+    return null;
+  }
+  return vapidKey;
+}
+
+const sameKey = (a: ArrayBuffer | null | undefined, b: ArrayBuffer) => {
+  if (!a || a.byteLength !== b.byteLength) return false;
+  const x = new Uint8Array(a), y = new Uint8Array(b);
+  return x.every((v, i) => v === y[i]);
+};
+
+/** Suscribe este dispositivo (o renueva la suscripción) y la registra en el servidor. Sin pedir permiso. */
+async function subscribeDevice(): Promise<PushResult> {
+  const key = await getVapidKey();
+  if (!key) return 'no-server';
   const reg = await registerServiceWorker();
-  if (!reg) return false;
+  if (!reg) return 'unsupported';
+  const serverKey = urlBase64ToUint8Array(key);
+  let sub = await reg.pushManager.getSubscription();
+  // Si el servidor cambió de clave, la suscripción vieja ya no recibe nada.
+  if (sub && !sameKey(sub.options.applicationServerKey, serverKey)) {
+    await sub.unsubscribe().catch(() => false);
+    sub = null;
+  }
+  if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: serverKey });
+  await api.post('/notifications/subscribe', sub.toJSON());
+  return 'ok';
+}
 
-  const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
-  if (!vapidKey) return false;
+/** Pide permiso (debe llamarse desde un toque o clic) y activa los avisos de este dispositivo. */
+export async function enablePush(): Promise<PushResult> {
+  const support = pushSupport();
+  if (support !== 'ok') return support;
+  try {
+    const permission = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
+    if (permission !== 'granted') return 'denied';
+    return await subscribeDevice();
+  } catch {
+    return 'error';
+  }
+}
 
-  const subscription = await reg.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(vapidKey),
-  });
+export async function requestPermissionAndSubscribe(): Promise<boolean> {
+  return (await enablePush()) === 'ok';
+}
 
-  await api.post('/notifications/subscribe', subscription.toJSON());
-  return true;
+/**
+ * Al abrir la app con el permiso ya concedido: vuelve a registrar la suscripción.
+ * Las suscripciones caducan o cambian (el navegador las rota, se borran datos) y
+ * sin esto los avisos dejarían de llegar en silencio.
+ */
+export async function syncPushSubscription(): Promise<void> {
+  if (pushSupport() !== 'ok' || Notification.permission !== 'granted') return;
+  try { await subscribeDevice(); } catch { /* se reintenta en la próxima apertura */ }
 }
 
 export async function getNotificationPreferences(): Promise<NotificationPreferences> {
