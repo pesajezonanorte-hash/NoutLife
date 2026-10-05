@@ -1,8 +1,10 @@
 // Mis zonas (ZonesDesktop): composer «El Sabio» con texto de progreso → revisión
 // de la propuesta → la zona aparece con pop. Cada zona: hábitos, misiones y acciones.
-// Zona ambientada: un lienzo. Cada zona está pintada con una pincelada de su color
-// que se dibuja despacio; elegir color mezcla la pintura y crear una zona la pinta
-// con una salpicadura. La paleta es el selector de color de la propuesta.
+// Zona ambientada: un taller de pintura. El Sabio trabaja sobre un lienzo en su
+// caballete; cada zona es un cuadro enmarcado colgado de un clavo, pintado con una
+// pincelada de su color que se dibuja despacio, y se mece al pasar. Elegir color
+// mezcla la pintura y crear una zona la pinta con una salpicadura. La paleta es el
+// selector de color de la propuesta.
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -12,7 +14,7 @@ import {
 import api from '@/lib/api';
 import { item, pop3, stagger } from '@/lib/motion';
 import { ZoneShell } from '@/components/ambience';
-import { BrushStroke, PaintSplash } from '@/components/zones/Brush';
+import { BrushStroke, Easel, HungFrame, PaintSplash } from '@/components/zones/Brush';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/useToast';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -131,7 +133,8 @@ function ZoneCard({ zone: initial, onDeleted, index = 0, fresh }: { zone: Custom
   const panelId = `zone-${zone.id}`;
 
   return (
-    <Card as="article" interactive padding="lg" style={zoneVars(zone.accentColor)} className="relative isolate flex h-full flex-col gap-4 overflow-hidden">
+    <HungFrame>
+    <Card as="article" interactive padding="lg" style={zoneVars(zone.accentColor)} className="lq-tex-linen relative isolate flex h-full flex-col gap-4 overflow-hidden rounded-[3px]">
       {/* La zona está pintada en el lienzo */}
       <BrushStroke seed={index} delay={fresh ? 0.1 : 0.35 + index * 0.12} />
       {fresh && <PaintSplash />}
@@ -211,6 +214,7 @@ function ZoneCard({ zone: initial, onDeleted, index = 0, fresh }: { zone: Custom
         </div>
       </Modal>
     </Card>
+    </HungFrame>
   );
 }
 
@@ -321,8 +325,10 @@ export default function CustomZonesPage() {
       />
 
       <motion.div variants={item}>
-        <SpotCard aria-label="El Sabio" className="border-primary/25">
-          <AnimatePresence mode="wait" initial={false}>
+        {/* El lienzo de El Sabio, sobre su caballete */}
+        <Easel className="mx-auto w-full max-w-5xl">
+        <SpotCard aria-label="El Sabio" className="lq-canvas lq-tex-linen">
+          <AnimatePresence mode="wait">
             {suggestion ? (
               <motion.div key="review" exit={{ opacity: 0, transition: { duration: 0.15 } }}>
                 <Review s={suggestion} onCancel={() => setSuggestion(null)} onCreated={(z) => { setSuggestion(null); setText(''); setFresh(z.id); setZones((p) => [z, ...p]); void load(true); }} />
@@ -344,6 +350,7 @@ export default function CustomZonesPage() {
             )}
           </AnimatePresence>
         </SpotCard>
+        </Easel>
       </motion.div>
 
       <motion.section variants={item} className="flex flex-col gap-6" aria-labelledby="z-list">
@@ -351,7 +358,7 @@ export default function CustomZonesPage() {
         {zones.length === 0 ? (
           <EmptyState icon={MapPin} tone="muted" title="Aún no tienes zonas personalizadas" description="Escribe una idea arriba o elige una sugerencia para crear la primera." />
         ) : (
-          <motion.ul variants={stagger} initial="initial" animate="animate" className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 md:gap-6 xl:grid-cols-3">
+          <motion.ul variants={stagger} initial="initial" animate="animate" className="grid grid-cols-1 items-start gap-6 md:grid-cols-2 md:gap-8 xl:grid-cols-3">
             {zones.map((z, i) => (
               <motion.li key={z.id} variants={item} layout="position">
                 <ZoneCard zone={z} index={i} fresh={fresh === z.id} onDeleted={() => setZones((p) => p.filter((x) => x.id !== z.id))} />

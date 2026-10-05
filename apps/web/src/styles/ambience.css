@@ -744,3 +744,23 @@ html.dark .lq-capital, html.dark .lq-abacus, html.dark .lq-col-base, html.dark .
 /* Sobre la piedra clara, el texto secundario va un tono más oscuro para mantener el contraste AA. */
 .lq-stone .text-on-surface-light { color: rgb(var(--lq-on-surface)); }
 html.dark .lq-stone .text-on-surface-light { color: rgb(var(--lq-on-surface-light)); }
+
+/* ───────── Mis zonas (taller de pintura) ───────── */
+/* Lienzo tensado: el lino sobre el bastidor, con el canto en sombra. */
+.lq-canvas { border-radius: 4px !important; border-color: rgb(var(--lq-border-strong) / .25) !important; box-shadow: inset 0 0 0 1px rgb(255 255 255 / .5), inset 0 0 14px rgb(var(--lq-jade-900) / .08), 0 4px 0 -1px color-mix(in srgb, rgb(var(--lq-warning-text)) 55%, rgb(var(--lq-jade-900))), 0 22px 34px -18px rgb(var(--lq-jade-900) / .5) !important; }
+html.dark .lq-canvas { box-shadow: inset 0 0 0 1px rgb(255 255 255 / .04), inset 0 0 14px rgb(0 0 0 / .3), 0 4px 0 -1px color-mix(in srgb, rgb(var(--lq-warning-text)) 25%, rgb(var(--lq-jade-900))), 0 22px 34px -16px rgb(0 0 0 / .8) !important; }
+/* Patas del caballete. */
+.lq-easel-leg { stroke: color-mix(in srgb, rgb(var(--lq-warning-text)) 58%, rgb(var(--lq-jade-900))); }
+html.dark .lq-easel-leg { stroke: color-mix(in srgb, rgb(var(--lq-warning-text)) 32%, rgb(var(--lq-jade-900))); }
+/* Marco dorado del cuadro, cordel y clavo. */
+.lq-frame {
+  background: linear-gradient(135deg, color-mix(in srgb, rgb(var(--lq-secondary)) 70%, white), rgb(var(--lq-secondary)) 30%, rgb(var(--lq-secondary-text)) 55%, rgb(var(--lq-secondary)) 80%, color-mix(in srgb, rgb(var(--lq-secondary)) 70%, white));
+  box-shadow: inset 0 0 0 1px rgb(var(--lq-secondary-text) / .6), inset 0 0 0 7px rgb(255 255 255 / .12), inset 0 0 0 8px rgb(var(--lq-secondary-text) / .5), 0 18px 28px -16px rgb(var(--lq-jade-900) / .55);
+}
+html.dark .lq-frame { box-shadow: inset 0 0 0 1px rgb(0 0 0 / .4), inset 0 0 0 7px rgb(255 255 255 / .06), inset 0 0 0 8px rgb(0 0 0 / .35), 0 18px 28px -14px rgb(0 0 0 / .8); }
+.lq-cord { stroke: rgb(var(--lq-on-surface-light) / .6); }
+.lq-nail { background: radial-gradient(circle at 35% 30%, rgb(255 255 255 / .8), rgb(var(--lq-on-surface-light)) 55%, rgb(var(--lq-on-background) / .7)); box-shadow: 0 2px 2px rgb(0 0 0 / .35); }
+/* El cuadro se mece desde el clavo, con peso, una sola vez por visita del cursor. */
+.lq-hang { transform-origin: 50% 0.4rem; }
+.lq-hang:hover { animation: lq-frame-swing 1.6s cubic-bezier(.3, .2, .2, 1); }
+@keyframes lq-frame-swing { 0% { transform: rotate(0); } 18% { transform: rotate(1.8deg); } 40% { transform: rotate(-1.1deg); } 62% { transform: rotate(.6deg); } 82% { transform: rotate(-.2deg); } 100% { transform: rotate(0); } }
