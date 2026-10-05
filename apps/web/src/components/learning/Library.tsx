@@ -14,17 +14,6 @@ export function BankerLamp({ on, onToggle, className }: { on: boolean; onToggle:
   const reduce = useMotionStore((s) => s.reduce);
   return (
     <div className={cn('relative', className)}>
-      {/* Luz que cae sobre el escritorio: un cono que se abre desde la pantalla hacia
-          la ficha y un charco cálido donde cae. Se enciende con un parpadeo de bombilla. */}
-      <motion.span
-        aria-hidden="true"
-        className="lq-lamp-light pointer-events-none absolute right-0 top-[3.05rem] block h-[16rem] w-[17.25rem]"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: on ? (reduce ? 1 : [0, 0.8, 0.35, 1]) : 0, transition: on ? { duration: reduce ? 0.3 : 0.9, times: reduce ? undefined : [0, 0.3, 0.5, 1], delay: 0.7 } : { duration: 0.35 } }}
-      >
-        <span className="lq-desk-beam" />
-        <span className="lq-desk-pool" />
-      </motion.span>
       <motion.span
         aria-hidden="true"
         className="lq-desk-bulb pointer-events-none absolute left-[18%] right-[18%] top-[2.75rem] block h-5"
@@ -56,6 +45,32 @@ export function BankerLamp({ on, onToggle, className }: { on: boolean; onToggle:
         <span aria-hidden="true" className="lq-brass-dot -mt-px block size-2.5 rounded-full" />
       </motion.button>
     </div>
+  );
+}
+
+/** Encendido con parpadeo de bombilla (tres destellos lentos, muy por debajo de 3 Hz). */
+const flicker = (on: boolean, reduce: boolean, peak = 1) => ({
+  opacity: on ? (reduce ? peak : [0, peak * 0.8, peak * 0.35, peak]) : 0,
+  transition: on ? { duration: reduce ? 0.3 : 0.9, times: reduce ? undefined : [0, 0.3, 0.5, 1], delay: 0.7 } : { duration: 0.35 },
+});
+
+/**
+ * La luz de la lámpara sobre el escritorio. Va fuera de la lámpara y encima del
+ * escritorio para fundirse con lo que ilumina (mix-blend): el cono aclara el aire,
+ * el charco aclara de verdad la madera y la ficha donde cae, y lo que queda fuera
+ * del cono se hunde en penumbra. Cubre su contenedor posicionado; la lámpara va
+ * arriba a la derecha.
+ */
+export function DeskLight({ on }: { on: boolean }) {
+  const reduce = useMotionStore((s) => s.reduce);
+  return (
+    <span aria-hidden="true" className="pointer-events-none absolute inset-0 block">
+      <motion.span className="lq-desk-dusk absolute inset-x-0 bottom-0 top-[7.25rem] block rounded-lg" initial={{ opacity: 0 }} animate={flicker(on, reduce)} />
+      <motion.span className="lq-desk-beam absolute right-1 top-[3.55rem] block h-[15rem] w-[17.25rem] max-w-full" initial={{ opacity: 0 }} animate={flicker(on, reduce)}>
+        <span className="lq-desk-cone" />
+      </motion.span>
+      <motion.span className="lq-desk-pool absolute bottom-[9%] left-[16%] right-[2%] block h-[55%]" initial={{ opacity: 0 }} animate={flicker(on, reduce)} />
+    </span>
   );
 }
 

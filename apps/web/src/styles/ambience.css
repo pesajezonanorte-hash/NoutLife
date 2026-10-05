@@ -550,31 +550,57 @@ html.dark .lq-bookcase { box-shadow: 0 24px 44px -16px rgb(0 0 0 / .85); }
 .lq-shade { fill: rgb(var(--lq-jade-600)); }
 html.dark .lq-shade { fill: rgb(var(--lq-jade-700)); }
 .lq-chain { background: repeating-linear-gradient(to bottom, rgb(var(--lq-secondary)) 0 3px, rgb(var(--lq-secondary-text)) 3px 4px); border-radius: 2px; }
-/* La luz de la lámpara: un cono que se abre desde la pantalla y un charco cálido
-   donde cae. El cono se recorta con clip-path y su contenedor lo difumina, así los
-   bordes son penumbra y no aristas. */
-.lq-lamp-light { --beam: color-mix(in srgb, rgb(var(--lq-warning)) 72%, white); --k: 1; filter: blur(10px); }
-html.dark .lq-lamp-light { --beam: color-mix(in srgb, rgb(var(--lq-warning)) 60%, white); --k: .9; }
-.lq-desk-beam {
+/* La luz de la lámpara (DeskLight). Una luz de verdad no se pinta encima: aclara lo
+   que toca y deja en penumbra lo que no. Por eso cada capa se funde con lo que hay
+   debajo: «screen» suma luz (de noche), «soft-light» calienta sin lavar (de día) y
+   «multiply» oscurece los bordes del escritorio fuera del cono. */
+.lq-desk-beam, .lq-desk-pool, .lq-desk-dusk { --beam: color-mix(in srgb, rgb(var(--lq-warning)) 70%, white); }
+/* Cono: trapecio recortado y difuminado; bordes de penumbra, no aristas. */
+.lq-desk-beam { filter: blur(9px); mix-blend-mode: soft-light; }
+html.dark .lq-desk-beam { mix-blend-mode: screen; }
+.lq-desk-cone {
   position: absolute; inset: 0;
   clip-path: polygon(47% 0, 95% 0, 100% 100%, 3% 100%);
   background: linear-gradient(180deg,
-    color-mix(in srgb, var(--beam) calc(var(--k) * 46%), transparent),
-    color-mix(in srgb, var(--beam) calc(var(--k) * 24%), transparent) 30%,
-    color-mix(in srgb, var(--beam) calc(var(--k) * 11%), transparent) 62%,
-    color-mix(in srgb, var(--beam) calc(var(--k) * 4%), transparent) 88%,
+    color-mix(in srgb, var(--beam) 70%, transparent),
+    color-mix(in srgb, var(--beam) 34%, transparent) 28%,
+    color-mix(in srgb, var(--beam) 14%, transparent) 62%,
+    color-mix(in srgb, var(--beam) 4%, transparent) 90%,
     transparent);
 }
+html.dark .lq-desk-cone {
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--beam) 34%, transparent),
+    color-mix(in srgb, var(--beam) 16%, transparent) 30%,
+    color-mix(in srgb, var(--beam) 7%, transparent) 64%,
+    color-mix(in srgb, var(--beam) 2%, transparent) 90%,
+    transparent);
+}
+/* Charco: donde la luz toca la ficha y la madera. Núcleo caliente, caída larga. */
 .lq-desk-pool {
-  position: absolute; left: 14%; right: 2%; bottom: 4%; height: 46%; border-radius: 50%;
+  border-radius: 50%; mix-blend-mode: soft-light;
   background: radial-gradient(closest-side,
-    color-mix(in srgb, var(--beam) calc(var(--k) * 26%), transparent),
-    color-mix(in srgb, var(--beam) calc(var(--k) * 12%), transparent) 45%,
-    color-mix(in srgb, var(--beam) calc(var(--k) * 3%), transparent) 80%,
+    color-mix(in srgb, var(--beam) 85%, transparent),
+    color-mix(in srgb, var(--beam) 45%, transparent) 40%,
+    color-mix(in srgb, var(--beam) 12%, transparent) 75%,
     transparent);
 }
+html.dark .lq-desk-pool {
+  mix-blend-mode: screen;
+  background: radial-gradient(closest-side,
+    color-mix(in srgb, var(--beam) 30%, transparent),
+    color-mix(in srgb, var(--beam) 15%, transparent) 40%,
+    color-mix(in srgb, var(--beam) 4%, transparent) 75%,
+    transparent);
+}
+/* Penumbra: lo que el cono no alcanza (esquina izquierda y pie del escritorio). */
+.lq-desk-dusk {
+  mix-blend-mode: multiply;
+  background: radial-gradient(85% 75% at 66% 30%, transparent 40%, color-mix(in srgb, rgb(var(--lq-warning-text)) 10%, transparent) 75%, color-mix(in srgb, rgb(var(--lq-warning-text)) 20%, transparent));
+}
+html.dark .lq-desk-dusk { background: radial-gradient(85% 75% at 66% 30%, transparent 35%, rgb(0 0 0 / .32) 75%, rgb(0 0 0 / .5)); }
 /* La bombilla bajo la pantalla: un resplandor pequeño y muy brillante. */
-.lq-desk-bulb { background: radial-gradient(closest-side, color-mix(in srgb, var(--beam, rgb(var(--lq-warning))) 85%, transparent), color-mix(in srgb, rgb(var(--lq-warning)) 30%, transparent) 45%, transparent); filter: blur(3px); }
+.lq-desk-bulb { --beam: color-mix(in srgb, rgb(var(--lq-warning)) 70%, white); background: radial-gradient(closest-side, color-mix(in srgb, var(--beam) 90%, transparent), color-mix(in srgb, rgb(var(--lq-warning)) 30%, transparent) 45%, transparent); filter: blur(3px); }
 /* Cartulina de ficha: color crema de los tokens, regla roja arriba y renglones; perforación al pie. */
 .lq-index-card {
   border-radius: 6px;
@@ -792,13 +818,29 @@ html.dark .lq-capital, html.dark .lq-abacus, html.dark .lq-col-base, html.dark .
     transparent);
 }
 /* Luz de antorcha sobre la estela: entra por los dos cantos a la altura de la llama. */
+/* Se funde con la piedra: de noche suma luz (screen), de día la calienta (soft-light). */
 .lq-torchlit {
   --fire: rgb(var(--lq-warning));
+  mix-blend-mode: soft-light;
   background:
-    radial-gradient(38% 70% at 0% 26%, color-mix(in srgb, var(--fire) 16%, transparent), color-mix(in srgb, var(--fire) 5%, transparent) 55%, transparent),
-    radial-gradient(38% 70% at 100% 26%, color-mix(in srgb, var(--fire) 16%, transparent), color-mix(in srgb, var(--fire) 5%, transparent) 55%, transparent);
+    radial-gradient(42% 85% at 0% 36%, color-mix(in srgb, var(--fire) 75%, transparent), color-mix(in srgb, var(--fire) 30%, transparent) 45%, transparent 85%),
+    radial-gradient(42% 85% at 100% 36%, color-mix(in srgb, var(--fire) 75%, transparent), color-mix(in srgb, var(--fire) 30%, transparent) 45%, transparent 85%);
   animation: lq-torchlit 4.2s ease-in-out infinite;
 }
+html.dark .lq-torchlit {
+  mix-blend-mode: screen;
+  background:
+    radial-gradient(40% 80% at 0% 36%, color-mix(in srgb, var(--fire) 30%, transparent), color-mix(in srgb, var(--fire) 11%, transparent) 45%, transparent 85%),
+    radial-gradient(40% 80% at 100% 36%, color-mix(in srgb, var(--fire) 30%, transparent), color-mix(in srgb, var(--fire) 11%, transparent) 45%, transparent 85%);
+}
+/* La antorcha ilumina su columna: el fuste brilla del lado de la llama y a su altura. */
+.lq-shaft-lit { --fire: rgb(var(--lq-warning)); mix-blend-mode: soft-light; background: radial-gradient(120% 22% at var(--side, 100%) 20%, color-mix(in srgb, var(--fire) 80%, transparent), transparent 75%); animation: lq-torchlit 4.2s ease-in-out infinite; }
+html.dark .lq-shaft-lit { --fire: color-mix(in srgb, rgb(var(--lq-warning)) 75%, white); mix-blend-mode: screen; background: radial-gradient(120% 22% at var(--side, 100%) 20%, color-mix(in srgb, var(--fire) 38%, transparent), transparent 75%); }
+.reduce-motion .lq-shaft-lit { animation: none; }
+/* Rituales: luz que entra en diagonal, como en un jardín al amanecer (de noche, luna). */
+.lq-sunbeam { --ray: color-mix(in srgb, rgb(var(--lq-warning)) 45%, white); position: absolute; top: -12%; height: 130%; transform: rotate(24deg); transform-origin: 50% 0; filter: blur(16px);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ray) 34%, transparent), color-mix(in srgb, var(--ray) 12%, transparent) 45%, transparent 85%); }
+html.dark .lq-sunbeam { --ray: color-mix(in srgb, rgb(var(--lq-info)) 40%, white); background: linear-gradient(180deg, color-mix(in srgb, var(--ray) 12%, transparent), color-mix(in srgb, var(--ray) 4%, transparent) 45%, transparent 85%); }
 @keyframes lq-torchlit { 0%, 100% { opacity: .78; } 14% { opacity: .92; } 31% { opacity: .82; } 47% { opacity: 1; } 63% { opacity: .8; } 81% { opacity: .9; } }
 html.dark .lq-torchlit { --fire: color-mix(in srgb, rgb(var(--lq-warning)) 75%, white); }
 .reduce-motion .lq-torchlit { animation: none; opacity: .7; }

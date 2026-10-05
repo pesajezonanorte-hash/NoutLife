@@ -252,11 +252,19 @@ export default function RitualsPage() {
       zone="rituals"
       contentClassName="gap-8 md:gap-12"
       ambience={(
-        // Un gradiente que se mueve muy despacio.
-        <span className="lq-amb-wander absolute left-[4%] top-[2%] block h-[38rem] w-[62%] [--d:40s]">
-          <AmbientLight tone="info" alpha={0.1} darkAlpha={0.06} d={20} className="inset-0" />
-          <AmbientLight tone="jade-300" alpha={0.18} darkAlpha={0.05} d={26} className="inset-[20%]" />
-        </span>
+        <>
+          {/* Un gradiente que se mueve muy despacio. */}
+          <span className="lq-amb-wander absolute left-[4%] top-[2%] block h-[38rem] w-[62%] [--d:40s]">
+            <AmbientLight tone="info" alpha={0.1} darkAlpha={0.06} d={20} className="inset-0" />
+            <AmbientLight tone="jade-300" alpha={0.18} darkAlpha={0.05} d={26} className="inset-[20%]" />
+          </span>
+          {/* Rayos de luz en diagonal entre el bambú: respiran muy despacio. */}
+          {[{ l: '58%', w: '5rem', d: 16 }, { l: '68%', w: '8rem', d: 22 }, { l: '80%', w: '4rem', d: 19 }].map((r, k) => (
+            <span key={k} className="lq-amb-breathe absolute inset-0 block" style={{ ['--d' as string]: `${r.d}s`, ['--lo' as string]: 0.55, ['--hi' as string]: 1, animationDelay: `${-k * 5}s` }}>
+              <span className="lq-sunbeam block" style={{ left: r.l, width: r.w }} />
+            </span>
+          ))}
+        </>
       )}
     >
       <PageHeader
