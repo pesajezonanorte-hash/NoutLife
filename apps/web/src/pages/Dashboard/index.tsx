@@ -35,6 +35,7 @@ import { HabitListItem } from '@/components/habits/HabitListItem';
 import { questProgress } from '@/components/quests/questMeta';
 import { ClassSelectionModal } from '@/components/character/ClassSelectionModal';
 import { MorningBriefing } from '@/components/dashboard/MorningBriefing';
+import { StreakRevival } from '@/components/habits/StreakRevival';
 import { completeGuideDay, dismissGuide, fetchDashboard } from '@/services/user.service';
 import { fetchLifeScore, type LifeScore } from '@/services/lifescore.service';
 import { fetchUpcoming, type AgendaEvent } from '@/services/agenda.service';
@@ -257,6 +258,9 @@ export default function DashboardPage() {
   return (
     <ZoneShell zone="home" ambience={<RoomLight now={now} />}>
       {header}
+
+      {/* Rachas apagadas hace poco: se pueden revivir con oro */}
+      <StreakRevival onRevived={() => void load(true)} />
 
       {/* Resumen: 4 StatCards con count-up */}
       <motion.section variants={item} aria-label="Resumen" className="grid grid-cols-2 gap-4 md:grid-cols-[repeat(auto-fit,minmax(220px,1fr))] md:gap-6">

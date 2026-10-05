@@ -93,7 +93,8 @@ export async function reconcileHabitStreaks(userId?: string, now = new Date()): 
     // El guard evita borrar una racha que se haya actualizado concurrentemente.
     const result = await prisma.habit.updateMany({
       where: { id: habit.id, currentStreak: habit.currentStreak },
-      data: { currentStreak: 0 },
+      // La racha perdida queda guardada 72 h por si se quiere revivir con oro.
+      data: { currentStreak: 0, ...(habit.currentStreak >= 2 ? { lostStreak: habit.currentStreak, lostStreakAt: now } : {}) },
     });
 
     if (result.count === 0) continue;

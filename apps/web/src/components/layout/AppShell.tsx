@@ -11,6 +11,7 @@ import { ease } from '@/lib/motion';
 import { useAuthStore } from '@/store/authStore';
 import { useShellStore } from '@/store/shellStore';
 import { refreshUser } from '@/hooks/useAuth';
+import { sendPresence, zoneName } from '@/services/network.service';
 import { ZONE_TOOLTIPS } from '@/lib/gameProgress';
 import { Button, Toaster } from '@/components/ui/lq';
 import { LevelUpOverlay } from '../animations/LevelUpOverlay';
@@ -90,6 +91,17 @@ function useUserSync(pathname: string) {
   }, []);
 }
 
+/** Latido de presencia: en línea y zona actual (cada minuto, solo con la pestaña visible). */
+function usePresence(pathname: string) {
+  useEffect(() => {
+    const beat = () => { if (document.visibilityState === 'visible') sendPresence(zoneName(pathname)).catch(() => null); };
+    beat();
+    const id = window.setInterval(beat, 60_000);
+    document.addEventListener('visibilitychange', beat);
+    return () => { window.clearInterval(id); document.removeEventListener('visibilitychange', beat); };
+  }, [pathname]);
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
   const user = useAuthStore((s) => s.user);
@@ -97,6 +109,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const setFocusOpen = useShellStore((s) => s.setFocusOpen);
 
   useUserSync(pathname);
+  usePresence(pathname);
 
   // Primera vez en el inicio: el tutorial empieza cuando el panel ya entró.
   const tourDone = useTourDone(user?.id);

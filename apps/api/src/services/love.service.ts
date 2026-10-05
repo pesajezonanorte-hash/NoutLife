@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma';
+import { accessibleRelationship, gardenLinks, PARTNER_OF } from './network.service';
 
 export async function listRelationships(userId: string) {
   return prisma.relationship.findMany({ where: { userId }, orderBy: { createdAt: 'asc' } });
@@ -18,8 +19,11 @@ export async function createRelationship(userId: string, body: { name: string; t
 }
 
 export async function updateRelationship(userId: string, id: string, body: Record<string, unknown>) {
+  // El jardín compartido lo pueden editar los dos.
+  const rel = await prisma.relationship.findFirst({ where: accessibleRelationship(userId, id), select: { id: true } });
+  if (!rel) throw new Error('No encontrado');
   return prisma.relationship.update({
-    where: { id, userId },
+    where: { id: rel.id },
     data: {
       ...(body.name ? { name: body.name as string } : {}),
       ...(body.type ? { type: body.type as string } : {}),
@@ -43,12 +47,12 @@ export interface ImportantDateData {
 }
 
 export async function getImportantDates(userId: string, relationshipId: string) {
-  const rel = await prisma.relationship.findFirst({ where: { id: relationshipId, userId } });
+  const rel = await prisma.relationship.findFirst({ where: accessibleRelationship(userId, relationshipId) });
   return (rel?.importantDates as unknown as ImportantDateData[]) ?? [];
 }
 
 export async function addImportantDate(userId: string, relationshipId: string, body: { label: string; date: string; isRecurring?: boolean; emoji?: string }) {
-  const rel = await prisma.relationship.findFirst({ where: { id: relationshipId, userId } });
+  const rel = await prisma.relationship.findFirst({ where: accessibleRelationship(userId, relationshipId) });
   if (!rel) throw new Error('No encontrado');
 
   const dates = (rel.importantDates as unknown as ImportantDateData[]) ?? [];
@@ -67,7 +71,7 @@ export async function addImportantDate(userId: string, relationshipId: string, b
 }
 
 export async function updateImportantDate(userId: string, relationshipId: string, dateId: string, body: Partial<ImportantDateData>) {
-  const rel = await prisma.relationship.findFirst({ where: { id: relationshipId, userId } });
+  const rel = await prisma.relationship.findFirst({ where: accessibleRelationship(userId, relationshipId) });
   if (!rel) throw new Error('No encontrado');
 
   const dates = (rel.importantDates as unknown as ImportantDateData[]) ?? [];
@@ -77,7 +81,7 @@ export async function updateImportantDate(userId: string, relationshipId: string
 }
 
 export async function deleteImportantDate(userId: string, relationshipId: string, dateId: string) {
-  const rel = await prisma.relationship.findFirst({ where: { id: relationshipId, userId } });
+  const rel = await prisma.relationship.findFirst({ where: accessibleRelationship(userId, relationshipId) });
   if (!rel) throw new Error('No encontrado');
 
   const dates = (rel.importantDates as unknown as ImportantDateData[]) ?? [];
@@ -110,8 +114,8 @@ export async function deleteGiftIdea(userId: string, id: string) {
 }
 
 export async function getLoveDashboard(userId: string) {
-  const relationships = await listRelationships(userId);
-  const partner = relationships.find(r => r.isPartner) ?? null;
+  const partner = await prisma.relationship.findFirst({ where: PARTNER_OF(userId), orderBy: { createdAt: 'asc' } });
+  const links = await gardenLinks(userId, partner);
 
   let nextImportantDate = null;
   if (partner) {
@@ -133,5 +137,5 @@ export async function getLoveDashboard(userId: string) {
     nextImportantDate = upcoming[0] ?? null;
   }
 
-  return { relationship: partner ? { ...partner, createdAt: partner.createdAt.toISOString(), updatedAt: partner.updatedAt.toISOString() } : null, nextImportantDate };
+  return { relationship: partner ? { ...partner, createdAt: partner.createdAt.toISOString(), updatedAt: partner.updatedAt.toISOString() } : null, nextImportantDate, ...links };
 }

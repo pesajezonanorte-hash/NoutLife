@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { REMOVE_LEGACY_HABIT_RITUAL_FLAG_SQL } from './schema-migrations';
+import { REMOVE_LEGACY_HABIT_RITUAL_FLAG_SQL, SOCIAL_NETWORK_SQL } from './schema-migrations';
 import { ensureDefaultCatalog } from './default-catalog';
 
 function getDatabaseUrl(): string {
@@ -86,6 +86,10 @@ export function ensureDbMigrated(): Promise<void> {
         await prisma.$executeRawUnsafe(REMOVE_LEGACY_HABIT_RITUAL_FLAG_SQL);
         await prisma.$executeRawUnsafe(`ALTER TABLE "guilds" ADD COLUMN IF NOT EXISTS "photoUrl" TEXT;`);
         await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "lastSeenAt" TIMESTAMP(3);`);
+        // Each statement on its own: one failure must not skip the rest.
+        for (const sql of SOCIAL_NETWORK_SQL) {
+          await prisma.$executeRawUnsafe(sql).catch((err) => console.error('Runtime DB migration (social):', err));
+        }
 
         // Global catalog rows are not player-owned. Bootstrap missing entries on
         // cold production databases so Shop and Achievements never render as a

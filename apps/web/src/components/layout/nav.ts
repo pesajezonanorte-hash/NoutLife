@@ -5,7 +5,7 @@
 import {
   BarChart3, BookOpen, CalendarDays, HelpCircle, Dumbbell, Flag, Globe, Heart, Home,
   MapPin, Moon, NotebookPen, Scroll, Settings, ShoppingBag, Skull, Sparkles, Sun,
-  Trophy, User, Users, UtensilsCrossed, Wallet, CheckCircle2, type LucideIcon,
+  Trophy, User, Users, UtensilsCrossed, Wallet, CheckCircle2, MessageCircle, type LucideIcon,
 } from 'lucide-react';
 import { useMemo } from 'react';
 import { useAuthStore } from '@/store/authStore';
@@ -65,6 +65,7 @@ export const NAV_SECTIONS: NavSection[] = [
     label: 'Comunidad',
     collapsible: true,
     items: [
+      { to: '/friends', label: 'Amigos', icon: MessageCircle },
       { to: '/leaderboard', label: 'Ranking', icon: Globe },
       { to: '/guild', label: 'Gremio', icon: Users },
       { to: '/season', label: 'Campaña', icon: Skull },
@@ -141,6 +142,12 @@ export function buildCrumbs(pathname: string, detail?: string | null): Crumb[] {
   if (EXTRA_LABELS[pathname]) {
     if (entry && entry.to !== '/') crumbs.push({ label: entry.label, to: entry.to });
     crumbs.push({ label: EXTRA_LABELS[pathname] });
+    return crumbs;
+  }
+  // Perfiles sociales: Noutlife › Amigos › @usuario
+  if (pathname.startsWith('/u/')) {
+    crumbs.push({ label: 'Amigos', to: '/friends' });
+    crumbs.push({ label: detail ?? `@${decodeURIComponent(pathname.slice(3))}` });
     return crumbs;
   }
   if (!entry) {

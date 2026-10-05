@@ -96,7 +96,11 @@ export async function reconcileUserActivityStreak(userId: string, now = new Date
   // Ayer todavía deja la racha viva: el usuario tiene hasta terminar hoy para
   // continuarla. Antes de ayer significa que ya hubo un día entero perdido.
   if (effectiveActivityStreak(user, now) === 0) {
-    await prisma.user.update({ where: { id: userId }, data: { currentStreak: 0 } });
+    // La racha perdida queda guardada 72 h por si se quiere revivir con oro.
+    await prisma.user.update({
+      where: { id: userId },
+      data: { currentStreak: 0, ...(user.currentStreak >= 2 ? { lostStreak: user.currentStreak, lostStreakAt: now } : {}) },
+    });
     // Un mensaje del Sabio guardado antes del reinicio puede mencionar una racha
     // que ya no existe. Se regenerará en la siguiente lectura con datos reales.
     await prisma.sageProactiveNote.deleteMany({
@@ -187,6 +191,8 @@ export async function awardXpAndGold(
       lastActivityDate: new Date(),
       currentStreak: newStreak,
       longestStreak: newLongest,
+      // Se rompió sin que nadie la reconciliara antes: queda revivible.
+      ...(isNewDay && !isYesterday && user.currentStreak >= 2 ? { lostStreak: user.currentStreak, lostStreakAt: new Date() } : {}),
       ...(leveledUp && {
         maxHp: newMaxHp,
         maxMp: newMaxMp,

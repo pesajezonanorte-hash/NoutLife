@@ -43,6 +43,8 @@ const loaders = {
   SettingsPage: () => import('./pages/Settings'),
   LeaderboardPage: () => import('./pages/Leaderboard'),
   GuildPage: () => import('./pages/Guild'),
+  FriendsPage: () => import('./pages/Friends'),
+  UserProfilePage: () => import('./pages/UserProfile'),
   StatsPage: () => import('./pages/Stats'),
   SeasonPage: () => import('./pages/Season'),
   AgendaPage: () => import('./pages/Agenda'),
@@ -96,6 +98,7 @@ const routeLoaders: Record<string, () => Promise<unknown>> = {
   '/settings': loaders.SettingsPage,
   '/leaderboard': loaders.LeaderboardPage,
   '/guild': loaders.GuildPage,
+  '/friends': loaders.FriendsPage,
   '/stats': loaders.StatsPage,
   '/season': loaders.SeasonPage,
   '/agenda': loaders.AgendaPage,
@@ -198,6 +201,8 @@ function AnimatedRoutes({ location }: { location: ReturnType<typeof useLocation>
           <Route path="/settings"     element={<SafePage><DeferredLazyPage load={loaders.SettingsPage} /></SafePage>} />
           <Route path="/leaderboard"  element={<SafePage><DeferredLazyPage load={loaders.LeaderboardPage} /></SafePage>} />
           <Route path="/guild"        element={<SafePage><DeferredLazyPage load={loaders.GuildPage} /></SafePage>} />
+          <Route path="/friends"      element={<SafePage><DeferredLazyPage load={loaders.FriendsPage} /></SafePage>} />
+          <Route path="/u/:username"  element={<SafePage><DeferredLazyPage load={loaders.UserProfilePage} /></SafePage>} />
           <Route path="/stats"        element={<SafePage><DeferredLazyPage load={loaders.StatsPage} /></SafePage>} />
           <Route path="/season"       element={<SafePage><DeferredLazyPage load={loaders.SeasonPage} /></SafePage>} />
           <Route path="/agenda"       element={<SafePage><DeferredLazyPage load={loaders.AgendaPage} /></SafePage>} />

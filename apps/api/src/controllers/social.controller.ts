@@ -52,11 +52,11 @@ export async function publicProfile(req: AuthRequest, res: Response): Promise<vo
 export async function leaderboard(req: AuthRequest, res: Response): Promise<void> {
   const category = (req.query.category as string) ?? 'xp';
   const friendsOnly = req.query.friendsOnly === 'true';
-  if (!['xp', 'streak', 'gym', 'savings'].includes(category)) {
+  if (!['xp', 'streak', 'gym'].includes(category)) {
     res.status(400).json({ error: 'category inválida' }); return;
   }
   const data = await social.getLeaderboard(
-    category as 'xp' | 'streak' | 'gym' | 'savings',
+    category as 'xp' | 'streak' | 'gym',
     req.userId!,
     friendsOnly
   );
@@ -116,16 +116,16 @@ export async function myGuild(req: AuthRequest, res: Response): Promise<void> {
 
 export async function guildMessages(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const msgs = await social.getGuildMessages(req.userId!, req.params.guildId);
+    const msgs = await social.getGuildMessages(req.userId!, req.params.guildId, 50, typeof req.query.after === 'string' ? req.query.after : undefined);
     res.json(msgs);
   } catch (e: unknown) { res.status(400).json({ error: publicErrorMessage(e) }); }
 }
 
 export async function postGuildMessage(req: AuthRequest, res: Response): Promise<void> {
-  const { content } = req.body as { content?: string };
-  if (!content?.trim()) { res.status(400).json({ error: 'content requerido' }); return; }
+  const { content, kind, photoUrl } = (req.body ?? {}) as { content?: string; kind?: unknown; photoUrl?: unknown };
+  if (!content?.trim() && !photoUrl) { res.status(400).json({ error: 'content requerido' }); return; }
   try {
-    const msg = await social.sendGuildMessage(req.userId!, req.params.guildId, content);
+    const msg = await social.sendGuildMessage(req.userId!, req.params.guildId, content ?? '', { kind, photoUrl });
     res.status(201).json(msg);
   } catch (e: unknown) { res.status(400).json({ error: publicErrorMessage(e) }); }
 }

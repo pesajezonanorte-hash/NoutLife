@@ -21,6 +21,7 @@ import { HabitFormDialog } from '@/components/habits/HabitFormDialog';
 import * as habitService from '@/services/habit.service';
 import type { Habit } from '@/services/habit.service';
 import { Lettering } from '@/components/layout/Lettering';
+import { StreakRevival } from '@/components/habits/StreakRevival';
 
 type Filter = 'all' | 'active' | 'done';
 const FILTERS: { value: Filter; label: string }[] = [
@@ -263,6 +264,7 @@ export default function HabitsPage() {
       </ZoneAmbience>
       <div className="relative flex flex-col gap-6 md:gap-12">
       {header}
+      <StreakRevival scope="habits" onRevived={() => void load()} />
       <motion.div variants={item}>{body}</motion.div>
       </div>
       {dayDone > 0 && <Confetti burst={dayDone} />}
