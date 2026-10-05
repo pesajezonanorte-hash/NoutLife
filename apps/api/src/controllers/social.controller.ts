@@ -93,6 +93,13 @@ export async function createGuild(req: AuthRequest, res: Response): Promise<void
   } catch (e: unknown) { res.status(400).json({ error: publicErrorMessage(e) }); }
 }
 
+export async function updateGuild(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const g = await social.updateGuild(req.userId!, req.params.guildId, (req.body ?? {}) as { photoUrl?: unknown });
+    res.json(g);
+  } catch (e: unknown) { res.status(400).json({ error: publicErrorMessage(e) }); }
+}
+
 export async function joinGuild(req: AuthRequest, res: Response): Promise<void> {
   const { inviteCode } = req.body as { inviteCode?: string };
   if (!inviteCode?.trim()) { res.status(400).json({ error: 'inviteCode requerido' }); return; }

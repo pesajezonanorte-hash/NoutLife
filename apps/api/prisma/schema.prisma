@@ -812,6 +812,8 @@ model Guild {
   name        String   @unique
   description String?
   emblem      String   @default("shield")
+  /// Foto del gremio (data URL JPEG/PNG/WebP recortada en el cliente).
+  photoUrl    String?
   leaderId    String
   level       Int      @default(1)
   xp          Int      @default(0)
