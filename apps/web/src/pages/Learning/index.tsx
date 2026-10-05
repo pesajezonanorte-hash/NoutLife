@@ -16,7 +16,7 @@ import type { LearningItem, LearningStats } from '@lifequest/shared';
 import { item, stagger } from '@/lib/motion';
 import { AmbientLight, Particles, ZoneShell, useParticleBudget } from '@/components/ambience';
 import { Bookcase, type Shelf } from '@/components/learning/Bookshelf';
-import { BankerLamp, CatalogCard, ReadingCard, StatusStamp } from '@/components/learning/Library';
+import { BankerLamp, DeskLight, CatalogCard, ReadingCard, StatusStamp } from '@/components/learning/Library';
 import { useUIStore } from '../../store/uiStore';
 import { useToast } from '../../hooks/useToast';
 import { refreshUser } from '../../hooks/useAuth';
@@ -290,6 +290,7 @@ export default function LearningPage() {
                         <div className="lq-wood lq-desk rounded-lg p-4 pb-5">
                           <ReadingCard rows={kpis} className="-rotate-1" />
                         </div>
+                        <DeskLight on={lamp} />
                       </div>
                     )}
                   </div>

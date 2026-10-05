@@ -25,6 +25,17 @@ interface GiftIdea { id: string; title: string; description?: string; estimatedP
 
 const money = (n: number) => `$${n.toLocaleString('es-CO')}`;
 
+/** La API guarda el regalo como `name` y «para quién» en `occasion`; el precio llega como texto (Decimal). */
+interface GiftIdeaRow { id: string; name: string; description?: string | null; estimatedPrice?: string | number | null; isPurchased: boolean; occasion?: string | null }
+const fromApi = (g: GiftIdeaRow): GiftIdea => ({
+  id: g.id,
+  title: g.name,
+  description: g.description ?? undefined,
+  estimatedPrice: g.estimatedPrice != null ? Number(g.estimatedPrice) : undefined,
+  isPurchased: g.isPurchased,
+  forPerson: g.occasion ?? undefined,
+});
+
 function GiftWishlist({ relationshipId }: { relationshipId?: string }) {
   const toast = useToast();
   const [gifts, setGifts] = useState<GiftIdea[]>([]);
@@ -37,8 +48,8 @@ function GiftWishlist({ relationshipId }: { relationshipId?: string }) {
     setState('loading');
     try {
       const q = relationshipId ? `?relationshipId=${relationshipId}` : '';
-      const r = await api.get(`/love/gift-ideas${q}`);
-      setGifts(r.data ?? []);
+      const r = await api.get<GiftIdeaRow[]>(`/relationships/gift-ideas${q}`);
+      setGifts((r.data ?? []).map(fromApi));
       setState('ready');
     } catch { setState('error'); }
   }, [relationshipId]);
@@ -49,14 +60,14 @@ function GiftWishlist({ relationshipId }: { relationshipId?: string }) {
     if (!form.title.trim()) return;
     setSaving(true);
     try {
-      const r = await api.post('/love/gift-ideas', {
-        title: form.title,
+      const r = await api.post<GiftIdeaRow>('/relationships/gift-ideas', {
+        name: form.title.trim(),
         description: form.description || undefined,
         estimatedPrice: form.estimatedPrice ? Number(form.estimatedPrice) : undefined,
-        forPerson: form.forPerson || undefined,
+        occasion: form.forPerson.trim() || undefined,
         relationshipId: relationshipId || undefined,
       });
-      setGifts((prev) => [...prev, r.data]);
+      setGifts((prev) => [fromApi(r.data), ...prev]);
       setShowForm(false);
       setForm({ title: '', description: '', estimatedPrice: '', forPerson: '' });
     } catch { toast.error('No se pudo guardar la idea'); }
@@ -65,13 +76,13 @@ function GiftWishlist({ relationshipId }: { relationshipId?: string }) {
 
   async function togglePurchased(gift: GiftIdea) {
     setGifts((prev) => prev.map((g) => (g.id === gift.id ? { ...g, isPurchased: !g.isPurchased } : g)));
-    try { await api.patch(`/love/gift-ideas/${gift.id}`, { isPurchased: !gift.isPurchased }); }
+    try { await api.patch(`/relationships/gift-ideas/${gift.id}`, { isPurchased: !gift.isPurchased }); }
     catch { setGifts((prev) => prev.map((g) => (g.id === gift.id ? { ...g, isPurchased: gift.isPurchased } : g))); toast.error('No se pudo actualizar'); }
   }
 
   async function handleDelete(id: string) {
     try {
-      await api.delete(`/love/gift-ideas/${id}`);
+      await api.delete(`/relationships/gift-ideas/${id}`);
       setGifts((prev) => prev.filter((g) => g.id !== id));
     } catch { toast.error('No se pudo eliminar'); }
   }

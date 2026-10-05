@@ -27,6 +27,7 @@ export function Column({ side, className }: { side: 'left' | 'right'; className?
       <span className="lq-capital block h-8 w-full rounded-t-[3px]" />
       <span className="lq-abacus block h-2 w-[86%]" />
       <span className="lq-shaft relative block w-11 flex-1">
+        <span className="lq-shaft-lit absolute inset-0 block" style={{ ['--side' as string]: side === 'left' ? '100%' : '0%' }} />
         {/* Soporte de la antorcha */}
         <span className={cn('absolute top-[16%] flex flex-col items-center', side === 'left' ? '-right-4' : '-left-4')}>
           <TorchFlame className="-mb-1" />

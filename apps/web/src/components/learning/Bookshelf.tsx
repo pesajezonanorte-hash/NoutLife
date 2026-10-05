@@ -120,8 +120,11 @@ export function Bookcase({ shelves, onPick, closing, className }: { shelves: She
           {shelves.map((s, si) => (
             <div key={s.id} className="relative">
               <div className={cn('lq-shelf-back relative flex items-end rounded-sm', !closing && 'overflow-hidden', s.books.length ? 'min-h-[12.5rem]' : 'min-h-[9rem]')}>
-                {/* Mientras un libro cambia de estante nada lo recorta */}
-                <ul aria-labelledby={`shelf-${s.id}`} className={cn("relative flex min-w-0 items-end gap-1 px-3 pt-6 [scrollbar-width:thin]", closing ? "overflow-visible" : "overflow-x-auto")}>
+                {/* Mientras un libro cambia de estante nada lo recorta. Con muchos libros el
+                    estante se desliza en horizontal, sin barra: un libro que asoma, se inclina
+                    o vuela de estante no debe hacer aparecer barras de desplazamiento. */}
+                <ul aria-labelledby={`shelf-${s.id}`}
+                    className={cn("relative flex min-w-0 items-end gap-1 px-3 pt-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden", closing ? "overflow-visible" : "overflow-x-auto overflow-y-hidden")}>
                   {s.books.map((b) => <Spine key={b.item.id} b={b} i={n++} onPick={onPick} closing={closing === b.item.id} seen={seen.current.has(b.item.id)} />)}
                 </ul>
                 {s.books.length === 0 && <p className="relative self-center px-5 text-body-sm text-jade-50/70">{s.empty}</p>}
