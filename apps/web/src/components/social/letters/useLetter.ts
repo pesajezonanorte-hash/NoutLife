@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { refreshUser } from '@/hooks/useAuth';
 import { useToastStore } from '@/hooks/useToast';
+import { Lru } from '@/lib/lru';
 import { useAuthStore } from '@/store/authStore';
 import { useSocialStore } from '@/store/socialStore';
 import { liveHub, type LiveChatSection } from '@/lib/live';
@@ -93,13 +94,13 @@ export interface LetterApi {
 }
 
 /** Fotos de fondo ya descargadas, por carta y versión. */
-const bgCache = new Map<string, string>();
+const bgCache = new Lru<string>(12);
 interface Cached {
   conv?: Conversation; guild?: GuildDetail | null; messages: LetterMsg[]; hasMore: boolean;
   cursor?: string; lastAt?: string; reads?: Array<[string, number]>;
 }
 /** Cartas ya abiertas: se pintan al instante al volver. */
-const letterCache = new Map<string, Cached>();
+const letterCache = new Lru<Cached>(25);
 
 const toaster = () => useToastStore.getState();
 const tmpId = () => `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;

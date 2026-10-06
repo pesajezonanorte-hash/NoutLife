@@ -92,6 +92,15 @@ function kick(urgent = true) {
   state.ctl?.abort();
 }
 
+/** Lo último que se guardó por campo: si no cambió, no se vuelve a pintar (cada respuesta trae objetos nuevos). */
+const last: Record<string, string> = {};
+function changed(field: string, value: unknown) {
+  const next = JSON.stringify(value);
+  if (last[field] === next) return false;
+  last[field] = next;
+  return true;
+}
+
 function apply(r: LiveResponse) {
   state.seq = r.seq;
   if (r.inbox) {
@@ -102,14 +111,14 @@ function apply(r: LiveResponse) {
       useLive.setState((st) => ({ letters: st.letters + 1 }));
     }
   }
-  if (r.pulse) useSocialStore.setState({ pulse: r.pulse });
+  if (r.pulse && changed('pulse', r.pulse)) useSocialStore.setState({ pulse: r.pulse });
   const patch: Partial<ReturnType<typeof useLive.getState>> = { online: true };
   if (typeof r.notifications === 'number') patch.notifications = r.notifications;
-  if (r.typing) patch.typing = r.typing;
+  if (r.typing && changed('typing', r.typing)) patch.typing = r.typing;
   if (typeof r.seen === 'string') patch.seen = r.seen;
   if (r.zone) {
     state.zoneAt = Date.now();
-    patch.zone = r.zone;
+    if (changed('zone', r.zone)) patch.zone = r.zone;
     zoneListeners.forEach((fn) => fn(r.zone!));
   }
   useLive.setState(patch);
@@ -156,6 +165,7 @@ export const liveHub = {
   },
   stop() {
     state.running = false;
+    for (const k of Object.keys(last)) delete last[k];
     state.ctl?.abort();
     state.seq = null;
     state.inboxCursor = undefined;
@@ -165,6 +175,7 @@ export const liveHub = {
     if (state.zone === zone) return;
     state.zone = zone;
     state.zoneAt = 0;
+    delete last.zone;
     useLive.setState({ zone: null });
     if (state.running) kick();
   },

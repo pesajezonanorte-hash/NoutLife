@@ -3,13 +3,15 @@
 // cambian nunca). Lo que acabas de enviar ya está aquí, así que no se vuelve a pedir.
 import { useEffect, useRef, useState } from 'react';
 import { getMedia, getStickerImage, saveThumb, thumbOf } from '@/services/network.service';
+import { Lru } from './lru';
 
 type Side = 'dm' | 'guild';
 interface Media { photoUrl: string | null; audioUrl: string | null }
 
-const media = new Map<string, Media>();
+// Con tope: una foto pesa hasta 450 kB y la pestaña puede estar abierta horas.
+const media = new Lru<Media>(60);
 const inflight = new Map<string, Promise<Media>>();
-const stickers = new Map<string, string>();
+const stickers = new Lru<string>(300);
 const stickerInflight = new Map<string, Promise<string>>();
 const thumbed = new Set<string>();
 

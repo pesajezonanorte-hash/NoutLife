@@ -138,7 +138,7 @@ const THUMB_MAX = 6_000;
 const AUDIO = /^data:audio\/(webm|ogg|mp4|mpeg|aac|x-m4a|wav)(;s*codecs=[a-z0-9.,]+)?;base64,[A-Za-z0-9+/=]+$/i;
 const AUDIO_MAX = 1_000_000;
 const STICKER_IMG = /^data:image\/(webp|png);base64,[A-Za-z0-9+/=]+$/;
-const STICKER_MAX = 260_000;
+const STICKER_MAX = 400_000;
 export const VOICE_MAX_MS = 120_000;
 
 export function validPhoto(value: unknown): string {

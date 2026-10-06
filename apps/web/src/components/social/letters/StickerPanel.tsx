@@ -40,11 +40,22 @@ export function StickerImage({ hash, className, alt = 'Sticker' }: { hash: strin
 // ─── Hacer un sticker ─────────────────────────────────────────────────────────
 
 type Shape = 'circle' | 'rounded';
-const OUT = 320;
+/** Tamaños de salida: se baja de uno a otro si el archivo se pasa (Safari no sabe WebP y guarda PNG, que pesa mucho más). */
+const SIZES = [320, 256, 192];
+const MAX_CHARS = 240_000;
 
 /** Dibuja el sticker: la foto recortada con la forma, con su borde blanco de pegatina. */
 async function renderSticker(src: string, crop: { x: number; y: number; zoom: number }, shape: Shape, border: boolean) {
   const img = await new Promise<HTMLImageElement>((resolve, reject) => { const i = new Image(); i.onload = () => resolve(i); i.onerror = reject; i.src = src; });
+  let url = '';
+  for (const size of SIZES) {
+    url = drawSticker(img, crop, shape, border, size);
+    if (url.length <= MAX_CHARS) break;
+  }
+  return url;
+}
+
+function drawSticker(img: HTMLImageElement, crop: { x: number; y: number; zoom: number }, shape: Shape, border: boolean, OUT: number) {
   const c = document.createElement('canvas');
   c.width = OUT; c.height = OUT;
   const ctx = c.getContext('2d')!;
@@ -53,7 +64,7 @@ async function renderSticker(src: string, crop: { x: number; y: number; zoom: nu
     ctx.beginPath();
     if (shape === 'circle') { ctx.arc(OUT / 2, OUT / 2, OUT / 2 - inset, 0, Math.PI * 2); return; }
     // Cuadrado redondeado (a mano: roundRect no existe en navegadores algo antiguos).
-    const r = 56 - inset; const a = inset; const b = OUT - inset;
+    const r = OUT * 0.175 - inset; const a = inset; const b = OUT - inset;
     ctx.moveTo(a + r, a); ctx.arcTo(b, a, b, b, r); ctx.arcTo(b, b, a, b, r); ctx.arcTo(a, b, a, a, r); ctx.arcTo(a, a, b, a, r); ctx.closePath();
   };
   if (border) { path(2); ctx.fillStyle = '#ffffff'; ctx.fill(); }
