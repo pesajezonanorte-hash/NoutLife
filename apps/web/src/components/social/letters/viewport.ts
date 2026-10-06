@@ -34,11 +34,23 @@ export function useViewportBox(enabled = true): ViewportBox {
       });
     };
     on();
+    // iOS anima el teclado y la barra de sugerencias: se sigue leyendo mientras se acomoda.
+    let settle = 0;
+    const settling = () => {
+      window.clearInterval(settle);
+      let n = 0;
+      settle = window.setInterval(() => { on(); if (++n > 12) window.clearInterval(settle); }, 60);
+    };
+    window.addEventListener('focusin', settling);
+    window.addEventListener('focusout', settling);
     vv?.addEventListener('resize', on);
     vv?.addEventListener('scroll', on);
     window.addEventListener('resize', on);
     return () => {
       cancelAnimationFrame(raf);
+      window.clearInterval(settle);
+      window.removeEventListener('focusin', settling);
+      window.removeEventListener('focusout', settling);
       vv?.removeEventListener('resize', on);
       vv?.removeEventListener('scroll', on);
       window.removeEventListener('resize', on);

@@ -101,15 +101,18 @@ function EmptyPane() {
 function MobileLetter({ children }: { children: React.ReactNode }) {
   const box = useViewportBox();
   return (
+    // Capa opaca a pantalla completa (jamás se ve la bandeja detrás, ni mientras iOS acomoda el teclado)
+    // y, dentro, la carta con exactamente el alto visible por encima del teclado.
     <motion.div
       key="mobile-letter" data-keyboard-managed
       initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%', transition: { duration: 0.24, ease: [0.4, 0, 1, 1] } }}
       transition={springs.natural}
-      style={{ top: box.top, height: box.height }}
-      className="fixed inset-x-0 z-[60] flex origin-bottom flex-col overflow-hidden overscroll-none bg-background pt-[env(safe-area-inset-top)] [will-change:transform]"
+      className="fixed inset-0 z-[60] overflow-hidden overscroll-none bg-background [will-change:transform]"
     >
       <ScrollLock />
-      {children}
+      <div style={{ top: box.top, height: box.height }} className="absolute inset-x-0 flex flex-col overflow-hidden bg-background pt-[env(safe-area-inset-top)]">
+        {children}
+      </div>
     </motion.div>
   );
 }

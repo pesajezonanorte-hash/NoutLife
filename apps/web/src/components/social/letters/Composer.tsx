@@ -123,14 +123,15 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(prop
       return;
     }
     micReady.current = true;
-    // Soltó el dedo mientras el micrófono arrancaba: sigue grabando y queda el botón de enviar.
-    if (!press.current) setVoiceMode('locked');
+    // Soltó el dedo (o el sistema canceló el gesto) mientras el micrófono arrancaba: sigue grabando y queda el botón de enviar.
+    setVoiceMode(press.current ? 'hold' : 'locked');
   }
   /** El navegador canceló el gesto (menú de pulsación larga, cambio de app…): no se pierde la nota. */
   function micCancel() {
     if (voiceMode !== 'hold') return;
     press.current = null;
-    if (micReady.current) setVoiceMode('locked'); else setVoiceMode('off');
+    // Con el permiso del micrófono pendiente iOS cancela el gesto: se sigue y, si arranca, queda con el botón de enviar.
+    setVoiceMode('locked');
   }
   function micMove(e: PointerEvent<HTMLButtonElement>) {
     if (voiceMode !== 'hold' || !press.current) return;
@@ -150,7 +151,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(prop
     setCancelling(false);
     const clip = await rec.stop(send);
     if (!send) return;
-    if (!clip) { toaster().info('La nota de voz era demasiado corta'); return; }
+    if (!clip) { toaster().info('No se grabó la nota', 'Mantén pulsado el micrófono al menos un segundo o toca una vez y toca enviar.'); return; }
     try { await onVoice(clip); } catch (err) { toaster().error((err as Error).message); }
   }
 
