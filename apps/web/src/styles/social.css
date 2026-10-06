@@ -299,3 +299,9 @@ html.dark .lq-game-card { background-color: rgb(var(--lq-surface-variant)); }
 /* El esqueleto de la carta solo aparece si tarda (una carga rápida no parpadea). */
 .lq-skeleton-delay { animation: lq-skeleton-in .2s ease-out .25s both; }
 @keyframes lq-skeleton-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* Teléfono: sin lo decorativo que cuesta pintar (desenfoque y brillos que se mueven siempre). */
+@media (pointer: coarse) {
+  .lq-photo-tape { -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .lq-cam-glint { animation: none; }
+}

@@ -76,6 +76,8 @@ const state = {
   ctl: null as AbortController | null,
 };
 
+/** Esta pestaña (la API mantiene una espera larga por pestaña). */
+const TAB = Math.random().toString(36).slice(2, 10);
 const visible = () => document.visibilityState === 'visible';
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 function untilVisible() {
@@ -140,6 +142,7 @@ async function loop() {
     if (state.zone && Date.now() - state.zoneAt > 20_000) params.zr = '1';
     if (state.chat) { params.c = state.chat.key; if (cur.after) params.ca = cur.after; if (cur.changes) params.cc = cur.changes; }
     if (state.inboxCursor) params.ib = state.inboxCursor;
+    params.t = TAB;
     if (!urgent) params.w = '1';
     try {
       const { data } = await api.get<LiveResponse>('/social/live', { params, signal: ctl.signal, timeout: 20_000 });

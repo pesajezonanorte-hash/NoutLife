@@ -32,6 +32,8 @@ export interface LiveQuery {
   ib?: unknown;
   /** Esperar (petición larga). */
   w?: unknown;
+  /** Pestaña que pregunta (una espera larga por pestaña). */
+  t?: unknown;
 }
 
 /** Lo que te escribieron desde \`since\` (cartas de amigos y de tus gremios), sin bloqueados. */
@@ -109,7 +111,15 @@ async function chatSection(me: string, chat: string, q: LiveQuery) {
   }
 }
 
-export async function live(me: string, q: LiveQuery) {
+/**
+ * Una espera larga por persona y por instancia: la nueva reemplaza a la anterior, y la espera se corta
+ * si el cliente ya colgó. Sin esto, cada vez que el cliente reinicia su petición (cambia de zona,
+ * abre una carta) la vieja seguía consultando la base de datos hasta agotar su tiempo y el pool
+ * de conexiones (5) se llenaba: hasta el inicio de sesión fallaba.
+ */
+const holds = new Map<string, { stop: boolean }>();
+
+export async function live(me: string, q: LiveQuery, closed: () => boolean = () => false) {
   const zone = typeof q.z === 'string' ? q.z.trim().slice(0, 40) : null;
   const chat = typeof q.c === 'string' && /^(dm|guild):[A-Za-z0-9_-]{6,40}$/.test(q.c) ? q.c : null;
   const known = typeof q.s === 'string' && /^\d+$/.test(q.s) ? Number(q.s) : null;
@@ -123,8 +133,16 @@ export async function live(me: string, q: LiveQuery) {
 
   let seq = await signalOf(me);
   if (known !== null && seq <= known && q.w === '1') {
-    const rang = await holdUntil(async () => { const v = await signalOf(me); return v > known ? v : null; }, true);
-    if (rang) seq = rang;
+    const mine = { stop: false };
+    const slot = `${me}:${typeof q.t === 'string' ? q.t.slice(0, 24) : ''}`;
+    const previous = holds.get(slot);
+    if (previous) previous.stop = true;
+    holds.set(slot, mine);
+    try {
+      const rang = await holdUntil(async () => { const v = await signalOf(me); return v > known ? v : null; }, true, undefined, () => mine.stop || closed());
+      if (rang) seq = rang;
+    } finally { if (holds.get(slot) === mine) holds.delete(slot); }
+    if (mine.stop || closed()) return { seq: known };
   }
   const changed = known === null || seq > known;
   const out: Record<string, unknown> = { seq };

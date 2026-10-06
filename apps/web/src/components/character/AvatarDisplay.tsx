@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import { memo, useMemo, type CSSProperties } from 'react';
 import type { AvatarConfig, AvatarMode } from '@lifequest/shared';
 import { cn } from '@/lib/utils';
 import { PixelAvatar } from './pixel/PixelAvatar';
@@ -30,7 +30,7 @@ function resolveAvatarMode(config: Partial<AvatarConfig>, avatarUrl?: string | n
   return 'pixel';
 }
 
-export function AvatarDisplay({
+export const AvatarDisplay = memo(function AvatarDisplay({
   avatarConfig,
   avatarUrl,
   equippedAura,
@@ -41,6 +41,8 @@ export function AvatarDisplay({
   className = '',
 }: Props) {
   const cfg = (avatarConfig && typeof avatarConfig === 'object' ? avatarConfig : {}) as Partial<AvatarConfig>;
+  // Mismo personaje = mismo objeto: el dibujo del PixelAvatar no se recalcula en cada repintado de la lista.
+  const look = useMemo(() => lookFrom(avatarConfig), [avatarConfig]);
   const avatarMode = resolveAvatarMode(cfg, avatarUrl);
   const minecraftSkinUrl = typeof cfg.minecraftSkinUrl === 'string' ? cfg.minecraftSkinUrl : null;
   const isMinecraft = avatarMode === 'minecraft' && !!minecraftSkinUrl;
@@ -71,7 +73,7 @@ export function AvatarDisplay({
       ) : (
         // Personaje pixel: en el círculo se ve la cabeza (busto) sobre el fondo de superficie.
         <span className="flex items-end justify-center bg-surface-variant" style={{ width: size, height: size }}>
-          <PixelAvatar look={lookFrom(cfg)} size={size} crop="head" animate={animate} mood={mood} />
+          <PixelAvatar look={look} size={size} crop="head" animate={animate} mood={mood} />
         </span>
       )}
     </div>
@@ -85,4 +87,4 @@ export function AvatarDisplay({
       ) : face}
     </div>
   );
-}
+});

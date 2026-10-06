@@ -16,21 +16,25 @@ import * as revival from '../services/streak-revival.service';
 const router = Router();
 router.use(requireAuth);
 
-type Handler = (req: AuthRequest) => Promise<unknown>;
+type Handler = (req: AuthRequest, res: Response) => Promise<unknown>;
 /** Respuesta JSON; los errores de negocio vuelven como 400 con su mensaje. */
 const handle = (fn: Handler, status = 200) => async (req: AuthRequest, res: Response) => {
-  try { res.status(status).json(await fn(req)); }
+  try { res.status(status).json(await fn(req, res)); }
   catch (err) { res.status(400).json({ error: publicErrorMessage(err) }); }
 };
 /** Igual, pero la respuesta no cambia nunca (fotos, audios, stickers): el navegador la guarda. */
 const forever = (fn: Handler) => async (req: AuthRequest, res: Response) => {
-  try { res.set('Cache-Control', 'private, max-age=31536000, immutable').json(await fn(req)); }
+  try { res.set('Cache-Control', 'private, max-age=31536000, immutable').json(await fn(req, res)); }
   catch (err) { res.status(404).json({ error: publicErrorMessage(err) }); }
 };
 const str = (v: unknown) => (typeof v === 'string' ? v : undefined);
 
 // Chat en vivo: una petición larga que lo trae todo, "escribiendo…" y "cerré la carta"
-router.get('/live', handle((req) => live.live(req.userId!, req.query as live.LiveQuery)));
+router.get('/live', handle((req, res) => {
+  let closed = false;
+  res.on('close', () => { closed = true; });
+  return live.live(req.userId!, req.query as live.LiveQuery, () => closed);
+}));
 router.post('/typing', handle((req) => live.setTyping(req.userId!, req.body?.chat, req.body?.on)));
 router.post('/view/leave', handle((req) => live.leaveView(req.userId!, req.body?.key)));
 
