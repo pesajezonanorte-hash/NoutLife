@@ -135,7 +135,7 @@ const PHOTO = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
 const PHOTO_MAX = 600_000;
 const THUMB = /^data:image\/(jpeg|webp);base64,[A-Za-z0-9+/=]+$/;
 const THUMB_MAX = 6_000;
-const AUDIO = /^data:audio\/(webm|ogg|mp4|mpeg|aac|x-m4a|wav)(;codecs=[a-z0-9.,]+)?;base64,[A-Za-z0-9+/=]+$/i;
+const AUDIO = /^data:audio\/(webm|ogg|mp4|mpeg|aac|x-m4a|wav)(;s*codecs=[a-z0-9.,]+)?;base64,[A-Za-z0-9+/=]+$/i;
 const AUDIO_MAX = 1_000_000;
 const STICKER_IMG = /^data:image\/(webp|png);base64,[A-Za-z0-9+/=]+$/;
 const STICKER_MAX = 260_000;

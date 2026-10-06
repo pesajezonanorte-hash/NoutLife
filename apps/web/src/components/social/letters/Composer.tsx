@@ -56,7 +56,10 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(prop
   const input = useRef<HTMLTextAreaElement>(null);
   const [text, setText] = useState('');
   const [drawer, setDrawer] = useState(false);
-  const rec = useVoiceRecorder();
+  // Al llegar a los 2 minutos la nota se envía sola (así no se pierde).
+  const rec = useVoiceRecorder(() => void finishVoice(true));
+  /** El micrófono ya está grabando (la petición de permiso puede tardar). */
+  const micReady = useRef(false);
   const [voiceMode, setVoiceMode] = useState<'off' | 'hold' | 'locked'>('off');
   const [cancelling, setCancelling] = useState(false);
   const press = useRef<{ x: number; at: number } | null>(null);
@@ -117,7 +120,17 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(prop
       setVoiceMode('off');
       press.current = null;
       voiceFailed(result);
+      return;
     }
+    micReady.current = true;
+    // Soltó el dedo mientras el micrófono arrancaba: sigue grabando y queda el botón de enviar.
+    if (!press.current) setVoiceMode('locked');
+  }
+  /** El navegador canceló el gesto (menú de pulsación larga, cambio de app…): no se pierde la nota. */
+  function micCancel() {
+    if (voiceMode !== 'hold') return;
+    press.current = null;
+    if (micReady.current) setVoiceMode('locked'); else setVoiceMode('off');
   }
   function micMove(e: PointerEvent<HTMLButtonElement>) {
     if (voiceMode !== 'hold' || !press.current) return;
@@ -127,10 +140,12 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(prop
     if (voiceMode !== 'hold' || !press.current) return;
     const held = Date.now() - press.current.at;
     press.current = null;
-    if (held < 350) { setVoiceMode('locked'); return; } // un toque: grabar con las manos libres
+    // Un toque (o el micrófono aún arrancando): sigue grabando con las manos libres y con el botón de enviar.
+    if (held < 350 || !micReady.current) { setVoiceMode('locked'); return; }
     await finishVoice(!cancelling);
   }
   async function finishVoice(send: boolean) {
+    micReady.current = false;
     setVoiceMode('off');
     setCancelling(false);
     const clip = await rec.stop(send);
@@ -233,10 +248,10 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(prop
           ) : (
             <motion.button
               type="button" aria-label={recording ? 'Grabando: suelta para enviar' : 'Mantén pulsado para grabar una nota de voz'}
-              onPointerDown={(e) => void micDown(e)} onPointerMove={micMove} onPointerUp={() => void micUp()} onPointerCancel={() => void finishVoice(false)}
+              onPointerDown={(e) => void micDown(e)} onPointerMove={micMove} onPointerUp={() => void micUp()} onPointerCancel={micCancel} onContextMenu={(e) => e.preventDefault()}
               onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && !recording) { e.preventDefault(); void rec.start().then((r) => (r === 'recording' ? setVoiceMode('locked') : voiceFailed(r))); } }}
               animate={recording ? { scale: 1.25 } : { scale: 1 }} transition={springs.snappy}
-              className={cn('flex size-12 shrink-0 touch-none items-center justify-center rounded-full transition-colors', recording ? 'bg-error text-white shadow-lg' : 'bg-primary/12 text-primary-text hover:bg-primary/20')}
+              className={cn('flex size-12 shrink-0 touch-none select-none items-center justify-center rounded-full transition-colors [-webkit-touch-callout:none]', recording ? 'bg-error text-white shadow-lg' : 'bg-primary/12 text-primary-text hover:bg-primary/20')}
             >
               <Mic aria-hidden className="size-5" strokeWidth={1.9} />
             </motion.button>
