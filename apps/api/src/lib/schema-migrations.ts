@@ -151,3 +151,28 @@ export const LETTERS_AND_GESTURES_SQL: string[] = [
   );`,
   addFk("chat_views", "chat_views_userId_fkey", "userId", "users"),
 ];
+
+/**
+ * Idempotent mirror of prisma/migrations/20261008120000_social_pro: live signals,
+ * typing, edited/deleted messages, voice notes, chat prefs, blocks, stickers,
+ * the name color and exclusive shop items.
+ */
+export const SOCIAL_PRO_SQL: string[] = [
+  "ALTER TABLE \"direct_messages\" ADD COLUMN IF NOT EXISTS \"audioUrl\" TEXT, ADD COLUMN IF NOT EXISTS \"meta\" JSONB, ADD COLUMN IF NOT EXISTS \"editedAt\" TIMESTAMP(3), ADD COLUMN IF NOT EXISTS \"deletedAt\" TIMESTAMP(3);",
+  "ALTER TABLE \"guild_messages\" ADD COLUMN IF NOT EXISTS \"audioUrl\" TEXT, ADD COLUMN IF NOT EXISTS \"meta\" JSONB, ADD COLUMN IF NOT EXISTS \"editedAt\" TIMESTAMP(3), ADD COLUMN IF NOT EXISTS \"deletedAt\" TIMESTAMP(3);",
+  "ALTER TABLE \"chat_views\" ADD COLUMN IF NOT EXISTS \"typingAt\" TIMESTAMP(3);",
+  "ALTER TABLE \"users\" ADD COLUMN IF NOT EXISTS \"nameColor\" TEXT;",
+  "ALTER TABLE \"shop_items\" ADD COLUMN IF NOT EXISTS \"slot\" TEXT, ADD COLUMN IF NOT EXISTS \"value\" TEXT, ADD COLUMN IF NOT EXISTS \"stock\" INTEGER, ADD COLUMN IF NOT EXISTS \"sold\" INTEGER NOT NULL DEFAULT 0;",
+  "CREATE TABLE IF NOT EXISTS \"live_signals\" (\n    \"userId\" TEXT NOT NULL,\n    \"seq\" BIGINT NOT NULL DEFAULT 0,\n    \"at\" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,\n    CONSTRAINT \"live_signals_pkey\" PRIMARY KEY (\"userId\")\n);",
+  "CREATE TABLE IF NOT EXISTS \"chat_prefs\" (\n    \"userId\" TEXT NOT NULL,\n    \"key\" TEXT NOT NULL,\n    \"archivedAt\" TIMESTAMP(3),\n    \"clearedAt\" TIMESTAMP(3),\n    \"updatedAt\" TIMESTAMP(3) NOT NULL,\n    CONSTRAINT \"chat_prefs_pkey\" PRIMARY KEY (\"userId\", \"key\")\n);",
+  "DO $$ BEGIN ALTER TABLE \"chat_prefs\" ADD CONSTRAINT \"chat_prefs_userId_fkey\" FOREIGN KEY (\"userId\") REFERENCES \"users\"(\"id\") ON DELETE CASCADE ON UPDATE CASCADE; EXCEPTION WHEN duplicate_object THEN NULL; END $$;",
+  "CREATE TABLE IF NOT EXISTS \"user_blocks\" (\n    \"blockerId\" TEXT NOT NULL,\n    \"blockedId\" TEXT NOT NULL,\n    \"createdAt\" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,\n    CONSTRAINT \"user_blocks_pkey\" PRIMARY KEY (\"blockerId\", \"blockedId\")\n);",
+  "CREATE INDEX IF NOT EXISTS \"user_blocks_blockedId_idx\" ON \"user_blocks\"(\"blockedId\");",
+  "DO $$ BEGIN ALTER TABLE \"user_blocks\" ADD CONSTRAINT \"user_blocks_blockerId_fkey\" FOREIGN KEY (\"blockerId\") REFERENCES \"users\"(\"id\") ON DELETE CASCADE ON UPDATE CASCADE; EXCEPTION WHEN duplicate_object THEN NULL; END $$;",
+  "DO $$ BEGIN ALTER TABLE \"user_blocks\" ADD CONSTRAINT \"user_blocks_blockedId_fkey\" FOREIGN KEY (\"blockedId\") REFERENCES \"users\"(\"id\") ON DELETE CASCADE ON UPDATE CASCADE; EXCEPTION WHEN duplicate_object THEN NULL; END $$;",
+  "CREATE TABLE IF NOT EXISTS \"sticker_images\" (\n    \"hash\" TEXT NOT NULL,\n    \"imageUrl\" TEXT NOT NULL,\n    \"createdAt\" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,\n    CONSTRAINT \"sticker_images_pkey\" PRIMARY KEY (\"hash\")\n);",
+  "CREATE TABLE IF NOT EXISTS \"stickers\" (\n    \"id\" TEXT NOT NULL,\n    \"ownerId\" TEXT NOT NULL,\n    \"hash\" TEXT NOT NULL,\n    \"authorId\" TEXT,\n    \"createdAt\" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,\n    CONSTRAINT \"stickers_pkey\" PRIMARY KEY (\"id\")\n);",
+  "CREATE UNIQUE INDEX IF NOT EXISTS \"stickers_ownerId_hash_key\" ON \"stickers\"(\"ownerId\", \"hash\");",
+  "DO $$ BEGIN ALTER TABLE \"stickers\" ADD CONSTRAINT \"stickers_ownerId_fkey\" FOREIGN KEY (\"ownerId\") REFERENCES \"users\"(\"id\") ON DELETE CASCADE ON UPDATE CASCADE; EXCEPTION WHEN duplicate_object THEN NULL; END $$;",
+  "DO $$ BEGIN ALTER TABLE \"stickers\" ADD CONSTRAINT \"stickers_hash_fkey\" FOREIGN KEY (\"hash\") REFERENCES \"sticker_images\"(\"hash\") ON DELETE RESTRICT ON UPDATE CASCADE; EXCEPTION WHEN duplicate_object THEN NULL; END $$;",
+];

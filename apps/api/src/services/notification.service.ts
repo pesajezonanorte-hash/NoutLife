@@ -1,5 +1,6 @@
 import webpush from 'web-push';
 import { prisma } from '../lib/prisma';
+import { bump } from './chat-live.service';
 
 export const NOTIFICATION_CATEGORIES = [
   'HABITS',
@@ -135,6 +136,8 @@ export async function createNotification(userId: string, input: CreateNotificati
       });
     }
     await enforceRetention(userId);
+    // La campana se actualiza al momento (chat en vivo).
+    void bump([userId]);
   }
 
   // Push is a second delivery channel, not the source of truth. It is sent
@@ -181,6 +184,21 @@ export async function markRead(userId: string, id: string) {
     where: { id, userId },
     data: { isRead: true },
   });
+}
+
+/**
+ * Da por leídos los avisos de una carta (al abrirla o al contestar desde otro
+ * dispositivo). Las claves que terminan en ":" valen como prefijo.
+ */
+export async function markReadByKeys(userId: string, keys: string[]) {
+  const exact = keys.filter((k) => !k.endsWith(':'));
+  const prefixes = keys.filter((k) => k.endsWith(':'));
+  const r = await prisma.notification.updateMany({
+    where: { userId, isRead: false, OR: [{ dedupeKey: { in: exact } }, ...prefixes.map((p) => ({ dedupeKey: { startsWith: p } }))] },
+    data: { isRead: true },
+  }).catch(() => ({ count: 0 }));
+  if (r.count) void bump([userId]);
+  return r.count;
 }
 
 export async function markAllRead(userId: string) {

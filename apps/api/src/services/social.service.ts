@@ -1,12 +1,13 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
-import { effectiveActivityStreak } from './xp.service';
-import { createNotification } from './notification.service';
+import { effectiveActivityStreak, levelFromTotal } from './xp.service';
+import { createNotification, markReadByKeys } from './notification.service';
 import {
-  appActive, guildKey, holdUntil, isViewing, parseDate, reactionsFor, repliesFor, setReaction, snippet, touchView, validReaction, validReplyTo, viewing,
+  appActive, bump, chatPrefsOf, clearedAt, isBlocked, GUILD_LIGHT, guildKey, isViewing, letterBody, markTyping, parseDate, parseOutgoing, reactionsFor,
+  repliesFor, setReaction, snippet, TALK_KINDS, TYPING_MS, validReaction, validReplyTo, viewing, type Outgoing,
 } from './chat-live.service';
 import {
-  advanceStreak, backgroundMeta, dayKey, letterLink, messagePreview, saveBackground, STREAK_MIN, streakView, TALK_KINDS, validPhoto,
+  advanceStreak, backgroundMeta, dayKey, letterLink, messagePreview, saveBackground, STREAK_MIN, streakView,
 } from './network.service';
 
 /** Enlaces a la sección Social (amigos, cartas y gremios en un solo sitio). */
@@ -33,6 +34,7 @@ export async function sendFriendRequest(requesterId: string, identifier: string)
   });
   if (!target) throw new Error('Usuario no encontrado');
   if (target.id === requesterId) throw new Error('No puedes enviarte una solicitud a ti mismo');
+  if (await isBlocked(requesterId, target.id)) throw new Error('No puedes enviarle una paloma a esta persona');
 
   const existing = await prisma.friendship.findFirst({
     where: {
@@ -61,7 +63,7 @@ export async function sendFriendRequest(requesterId: string, identifier: string)
     type: 'friend', category: 'SOCIAL', dedupeKey: `friend-request:${requesterId}`,
     title: 'Llegó una paloma mensajera',
     body: `${requester.displayName} (@${requester.username}) quiere anotarte en su libreta de amigos.`,
-    icon: 'friend', link: '/social?tab=amigos&view=requests',
+    icon: 'friend', link: '/social?tab=directorio&view=requests',
   }).catch(() => null);
   return friendship;
 }
@@ -163,6 +165,14 @@ export async function getPublicProfile(username: string, viewerId?: string) {
 
 // ─── Leaderboard ──────────────────────────────────────────────────────────────
 
+/**
+ * Zonas que participan en el online (las que se comparan entre personas): solo su
+ * XP cuenta para el ranking. Las zonas personales (finanzas, comida, sueño,
+ * relaciones, diario, glow up, rituales, check-in, guía y logros) no compiten.
+ */
+export const ONLINE_XP_SOURCES = ['habit_completed', 'streak_recovery', 'quest_completed', 'workout', 'learning_complete', 'pomodoro', 'focus'] as const;
+export const ONLINE_ZONES = ['Hábitos', 'Misiones', 'Gimnasio', 'Aprendizaje'] as const;
+
 export async function getLeaderboard(
   category: 'xp' | 'streak' | 'gym',
   userId: string,
@@ -175,13 +185,25 @@ export async function getLeaderboard(
     : { onboardingCompleted: true };
 
   if (category === 'xp') {
-    const users = await prisma.user.findMany({
-      where: whereClause,
-      orderBy: [{ level: 'desc' }, { xp: 'desc' }],
-      take: 50,
-      select: { id: true, username: true, displayName: true, level: true, xp: true, xpToNextLevel: true, avatarConfig: true, avatarUrl: true, equippedAura: true, equippedFrame: true, equippedHat: true },
+    // XP de las zonas online por persona → su nivel y la XP dentro de ese nivel.
+    // Orden: primero el nivel y, dentro del mismo nivel, la XP (nivel 5 con 20 XP
+    // va por delante de nivel 4 con 500 XP).
+    const totals = await prisma.xpEvent.groupBy({
+      by: ['userId'],
+      where: { source: { in: [...ONLINE_XP_SOURCES] }, ...(friendIds ? { userId: { in: [...friendIds, userId] } } : {}) },
+      _sum: { xpAmount: true },
     });
-    return users.map((u, i) => ({ rank: i + 1, ...u, value: u.xp }));
+    const totalOf = new Map(totals.map((t) => [t.userId, Math.max(0, t._sum.xpAmount ?? 0)]));
+    const ids = friendIds ? [...friendIds, userId] : totals.filter((t) => (t._sum.xpAmount ?? 0) > 0).map((t) => t.userId);
+    const users = await prisma.user.findMany({
+      where: { ...whereClause, id: { in: ids } },
+      select: { id: true, username: true, displayName: true, nameColor: true, avatarConfig: true, avatarUrl: true, equippedAura: true, equippedFrame: true, equippedHat: true },
+    });
+    return users
+      .map((u) => { const total = totalOf.get(u.id) ?? 0; const l = levelFromTotal(total); return { ...u, level: l.level, value: l.xp, xpToNextLevel: l.next, totalXp: total }; })
+      .sort((a, b) => b.level - a.level || b.value - a.value || b.totalXp - a.totalXp)
+      .slice(0, 50)
+      .map((u, i) => ({ rank: i + 1, ...u }));
   }
 
   if (category === 'streak') {
@@ -390,16 +412,49 @@ export async function createGuild(
   });
 }
 
-/** Cambiar o quitar la foto del gremio: solo quien lo lidera (o un oficial). */
-export async function updateGuild(userId: string, guildId: string, data: { photoUrl?: unknown }) {
-  const member = await prisma.guildMember.findFirst({ where: { userId, guildId }, include: { guild: { select: { leaderId: true } } } });
-  if (!member) throw new Error('No perteneces a este gremio');
-  if (member.guild.leaderId !== userId && member.role !== 'LEADER' && member.role !== 'OFFICER') {
-    throw new Error('Solo quien lidera el gremio puede cambiar su foto');
+const GUILD_NAME_MIN = 2;
+const GUILD_NAME_MAX = 40;
+
+/**
+ * Cualquier miembro puede cambiarlo todo: nombre, descripción, emblema y foto.
+ * Queda un aviso en la carta para que todos sepan qué cambió y quién lo cambió.
+ */
+export async function updateGuild(
+  userId: string,
+  guildId: string,
+  data: { name?: unknown; description?: unknown; emblem?: unknown; photoUrl?: unknown },
+) {
+  await requireMember(userId, guildId);
+  const patch: Prisma.GuildUpdateInput = {};
+  const changed: string[] = [];
+  if (data.name !== undefined) {
+    const name = typeof data.name === 'string' ? data.name.trim().replace(/\s+/g, ' ') : '';
+    if (name.length < GUILD_NAME_MIN || name.length > GUILD_NAME_MAX) throw new Error(`El nombre debe tener entre ${GUILD_NAME_MIN} y ${GUILD_NAME_MAX} caracteres`);
+    const taken = await prisma.guild.findFirst({ where: { name: { equals: name, mode: 'insensitive' }, id: { not: guildId } }, select: { id: true } });
+    if (taken) throw new Error('Ya existe un gremio con ese nombre');
+    patch.name = name; changed.push('name');
+  }
+  if (data.description !== undefined) {
+    const description = typeof data.description === 'string' ? data.description.trim().slice(0, 200) : '';
+    patch.description = description || null; changed.push('description');
+  }
+  if (data.emblem !== undefined) {
+    if (typeof data.emblem !== 'string' || !/^[a-z_]{2,20}$/.test(data.emblem)) throw new Error('Ese emblema no existe');
+    patch.emblem = data.emblem; changed.push('emblem');
   }
   const photoUrl = guildPhoto(data.photoUrl);
-  if (photoUrl === undefined) throw new Error('No hay cambios que guardar');
-  return prisma.guild.update({ where: { id: guildId }, data: { photoUrl }, select: { id: true, photoUrl: true } });
+  if (photoUrl !== undefined) { patch.photoUrl = photoUrl; changed.push('photo'); }
+  if (!changed.length) throw new Error('No hay cambios que guardar');
+  const guild = await prisma.guild.update({ where: { id: guildId }, data: patch, select: { id: true, name: true, description: true, emblem: true, photoUrl: true } });
+  await prisma.guildMessage.create({ data: { guildId, userId, kind: 'EVENT', content: `edit:${changed.join(',')}` } });
+  await bump(await memberIdsOf(guildId));
+  return guild;
+}
+
+/** Ids de los miembros de un gremio. */
+async function memberIdsOf(guildId: string) {
+  const rows = await prisma.guildMember.findMany({ where: { guildId }, select: { userId: true } });
+  return rows.map((r) => r.userId);
 }
 
 async function addMember(userId: string, guildId: string) {
@@ -434,14 +489,25 @@ export async function getMyGuilds(userId: string) {
     include: { guild: { include: { _count: { select: { members: true } } } } },
     orderBy: { joinedAt: 'asc' },
   });
+  const prefs = await chatPrefsOf(userId);
   return Promise.all(memberships.map(async ({ guild, role, joinedAt, lastReadAt }) => {
     const { today, streak } = await guildDay(guild);
+    const pref = prefs.get(guildKey(guild.id));
+    const visible = pref?.clearedAt ? { createdAt: { gt: pref.clearedAt } } : {};
+    const readFrom = [lastReadAt ?? joinedAt, pref?.clearedAt].filter(Boolean).sort((a, b) => b!.getTime() - a!.getTime())[0]!;
     const [snapped, talked, last, unread] = await Promise.all([
       prisma.guildMessage.findMany({ where: { guildId: guild.id, kind: 'SNAP', dayKey: today }, distinct: ['userId'], select: { userId: true } }),
       prisma.guildMessage.findFirst({ where: { guildId: guild.id, userId, kind: { in: TALK_KINDS }, dayKey: today }, select: { id: true } }),
-      prisma.guildMessage.findFirst({ where: { guildId: guild.id }, orderBy: { createdAt: 'desc' }, select: { userId: true, kind: true, content: true, createdAt: true, user: { select: { displayName: true } } } }),
-      prisma.guildMessage.count({ where: { guildId: guild.id, userId: { not: userId }, createdAt: { gt: lastReadAt ?? joinedAt } } }),
+      prisma.guildMessage.findFirst({
+        where: { guildId: guild.id, ...visible }, orderBy: { createdAt: 'desc' },
+        select: { userId: true, kind: true, content: true, meta: true, deletedAt: true, createdAt: true, user: { select: { displayName: true } } },
+      }),
+      prisma.guildMessage.count({ where: { guildId: guild.id, userId: { not: userId }, createdAt: { gt: readFrom } } }),
     ]);
+    // Cuántos ya leyeron tu último mensaje (para el "visto").
+    const seenBy = last && last.userId === userId
+      ? await prisma.guildMember.count({ where: { guildId: guild.id, userId: { not: userId }, lastReadAt: { gte: last.createdAt } } })
+      : 0;
     return {
       id: guild.id, name: guild.name, emblem: guild.emblem, photoUrl: guild.photoUrl, level: guild.level, role,
       members: guild._count.members, streak, snappedToday: snapped.length,
@@ -450,8 +516,9 @@ export async function getMyGuilds(userId: string) {
       talkedToday: Boolean(talked),
       unread,
       lastMessage: last
-        ? { mine: last.userId === userId, author: last.user.displayName, kind: last.kind, preview: messagePreview(last), at: last.createdAt.toISOString() }
+        ? { mine: last.userId === userId, author: last.user.displayName, kind: last.kind, preview: messagePreview(last), at: last.createdAt.toISOString(), seenBy }
         : null,
+      archived: Boolean(pref?.archivedAt),
     };
   }));
 }
@@ -463,7 +530,7 @@ export async function getGuild(userId: string, guildId: string) {
     include: {
       members: {
         include: {
-          user: { select: { id: true, username: true, displayName: true, level: true, ...STREAK_FIELDS, xp: true, avatarConfig: true, avatarUrl: true, equippedAura: true, equippedFrame: true, equippedHat: true } },
+          user: { select: { id: true, username: true, displayName: true, nameColor: true, level: true, ...STREAK_FIELDS, xp: true, avatarConfig: true, avatarUrl: true, equippedAura: true, equippedFrame: true, equippedHat: true } },
         },
         orderBy: { joinedAt: 'asc' },
       },
@@ -498,49 +565,121 @@ export async function getMyGuild(userId: string) {
   return first ? getGuild(userId, first.guildId) : null;
 }
 
-const MESSAGE_USER = { select: { id: true, username: true, displayName: true, avatarConfig: true, avatarUrl: true, equippedAura: true, equippedFrame: true, equippedHat: true } } as const;
+const MESSAGE_USER = { select: { id: true, username: true, displayName: true, nameColor: true, avatarConfig: true, avatarUrl: true, equippedAura: true, equippedFrame: true, equippedHat: true } } as const;
+const GUILD_ROW = { ...GUILD_LIGHT, user: MESSAGE_USER } as const;
+type GuildRow = Prisma.GuildMessageGetPayload<{ select: typeof GUILD_ROW }>;
 
-/** Marca leída la carta del gremio hasta ahora (para las cartas sin leer). */
-function markGuildRead(userId: string, guildId: string) {
-  return prisma.guildMember.updateMany({ where: { userId, guildId }, data: { lastReadAt: new Date() } }).catch(() => null);
+/**
+ * Marca leída la carta del gremio hasta ahora (cartas sin leer y "visto por").
+ * Si había algo nuevo de otros, suena el timbre de todos: ven quién ya lo leyó.
+ */
+async function markGuildRead(userId: string, guildId: string) {
+  const member = await prisma.guildMember.findFirst({ where: { userId, guildId }, select: { id: true, lastReadAt: true, joinedAt: true } });
+  if (!member) return;
+  const pending = await prisma.guildMessage.findFirst({
+    where: { guildId, userId: { not: userId }, createdAt: { gt: member.lastReadAt ?? member.joinedAt } }, select: { id: true },
+  });
+  await prisma.guildMember.update({ where: { id: member.id }, data: { lastReadAt: new Date() } }).catch(() => null);
+  if (pending) {
+    await bump(await memberIdsOf(guildId));
+    void markReadByKeys(userId, [`guild-msg:${guildId}`, `guild-react:${guildId}:`]);
+  }
 }
 
+/** Mensajes listos para el cliente: autor, reacciones y el mensaje al que responden. */
+async function guildDtos(userId: string, guildId: string, rows: GuildRow[]) {
+  const [reactions, replies] = await Promise.all([
+    reactionsFor('guild', rows.map((m) => m.id), userId),
+    repliesFor('guild', rows, { guildId }),
+  ]);
+  return rows.map((m) => ({
+    ...letterBody(m, userId),
+    userId: m.userId,
+    user: m.user,
+    dayKey: m.dayKey,
+    replyTo: (m.replyToId && replies.get(m.replyToId)) || null,
+    reactions: m.deletedAt ? [] : reactions.get(m.id) ?? [],
+  }));
+}
+
+/** Lo que `userId` ve de la carta del gremio: todo, o desde que la vació. */
+async function visibleGuild(userId: string, guildId: string): Promise<Prisma.GuildMessageWhereInput> {
+  const cleared = await clearedAt(userId, guildKey(guildId));
+  return { guildId, ...(cleared ? { createdAt: { gt: cleared } } : {}) };
+}
+
+/** Hasta cuándo leyó cada miembro (para "visto por" en tus mensajes). */
+async function readsOf(guildId: string) {
+  const rows = await prisma.guildMember.findMany({ where: { guildId }, select: { userId: true, lastReadAt: true, joinedAt: true } });
+  return rows.map((r) => ({ userId: r.userId, at: (r.lastReadAt ?? r.joinedAt).toISOString() }));
+}
+
+/** Quién está escribiendo ahora en la carta del gremio. */
+async function typingIn(guildId: string, userId: string) {
+  const rows = await prisma.chatView.findMany({
+    where: { key: guildKey(guildId), userId: { not: userId }, typingAt: { gt: new Date(Date.now() - TYPING_MS) } },
+    select: { userId: true, typingAt: true },
+  });
+  return rows.map((r) => ({ userId: r.userId, until: new Date(r.typingAt!.getTime() + TYPING_MS).toISOString() }));
+}
+
+/** Mensajes del gremio (sin fotos ni audios: se piden aparte). `peek`: solo mirar, sin darla por leída. */
 export async function getGuildMessages(userId: string, guildId: string, limit = 50, after?: string, peek = false) {
   await requireMember(userId, guildId);
-  const since = after ? new Date(after) : null;
-  const polling = Boolean(since && !Number.isNaN(since.getTime()));
-  const messages = polling
-    ? await prisma.guildMessage.findMany({ where: { guildId, createdAt: { gt: since! } }, include: { user: MESSAGE_USER }, orderBy: { createdAt: 'asc' }, take: limit })
-    : (await prisma.guildMessage.findMany({ where: { guildId }, include: { user: MESSAGE_USER }, orderBy: { createdAt: 'desc' }, take: limit })).reverse();
-
+  const where = await visibleGuild(userId, guildId);
+  const since = parseDate(after);
+  const messages = since
+    ? await prisma.guildMessage.findMany({ where: { AND: [where, { createdAt: { gt: since } }] }, select: GUILD_ROW, orderBy: { createdAt: 'asc' }, take: limit })
+    : (await prisma.guildMessage.findMany({ where, select: GUILD_ROW, orderBy: { createdAt: 'desc' }, take: limit })).reverse();
   // Leer la carta la deja al día: al abrirla y cuando llega algo nuevo de otros.
-  if (!peek && (!polling || messages.some((m) => m.userId !== userId))) await markGuildRead(userId, guildId);
-
+  if (!peek && (!since || messages.some((m) => m.userId !== userId))) await markGuildRead(userId, guildId);
   return guildDtos(userId, guildId, messages);
 }
 
-type GuildRow = Prisma.GuildMessageGetPayload<{ include: { user: typeof MESSAGE_USER } }>;
-/** Mensajes del gremio listos para el cliente: con reacciones y el mensaje al que responden. */
-async function guildDtos(userId: string, guildId: string, messages: GuildRow[]) {
-  const [reactions, replies] = await Promise.all([
-    reactionsFor('guild', messages.map((m) => m.id), userId),
-    repliesFor('guild', messages, { guildId }),
+/** La carta del gremio al abrirla: los últimos 50 mensajes, quién leyó hasta dónde y quién escribe. */
+export async function getGuildLetter(userId: string, guildId: string, before?: string) {
+  await requireMember(userId, guildId);
+  const cursor = new Date().toISOString();
+  const where = await visibleGuild(userId, guildId);
+  const until = parseDate(before);
+  const rows = (await prisma.guildMessage.findMany({
+    where: until ? { AND: [where, { createdAt: { lt: until } }] } : where, select: GUILD_ROW, orderBy: { createdAt: 'desc' }, take: 50,
+  })).reverse();
+  if (!until) await markGuildRead(userId, guildId);
+  const [messages, reads, typing] = await Promise.all([guildDtos(userId, guildId, rows), readsOf(guildId), typingIn(guildId, userId)]);
+  return { messages, hasMore: rows.length === 50, cursor, reads, typing };
+}
+
+/** Lo que el chat en vivo recoge de la carta abierta del gremio. */
+export async function guildChatSection(userId: string, guildId: string, q: { after?: unknown; changes?: unknown }) {
+  await requireMember(userId, guildId);
+  const stamp = new Date();
+  const where = await visibleGuild(userId, guildId);
+  const after = parseDate(q.after);
+  const changes = parseDate(q.changes);
+  const [fresh, changedRows] = await Promise.all([
+    after ? prisma.guildMessage.findMany({ where: { AND: [where, { createdAt: { gt: after } }] }, select: GUILD_ROW, orderBy: { createdAt: 'asc' }, take: 100 }) : [],
+    changes ? prisma.guildMessage.findMany({ where: { AND: [where, { changedAt: { gt: changes } }] }, select: GUILD_ROW, orderBy: { createdAt: 'asc' }, take: 100 }) : [],
   ]);
-  return messages.map(({ reactedAt: _r, replyToId, ...m }) => ({
-    ...m,
-    createdAt: m.createdAt.toISOString(),
-    replyTo: (replyToId && replies.get(replyToId)) || null,
-    reactions: reactions.get(m.id) ?? [],
-  }));
+  if (fresh.some((m) => m.userId !== userId)) await markGuildRead(userId, guildId);
+  const freshIds = new Set(fresh.map((m) => m.id));
+  const [messages, changed, reads, typing] = await Promise.all([
+    guildDtos(userId, guildId, fresh),
+    guildDtos(userId, guildId, changedRows.filter((m) => !freshIds.has(m.id))),
+    readsOf(guildId),
+    typingIn(guildId, userId),
+  ]);
+  return { key: guildKey(guildId), cursor: stamp.toISOString(), messages, changed, reads, typing };
 }
 
 /** Reacciona (o quita la reacción) a un mensaje de la carta del gremio. */
 export async function reactGuild(userId: string, guildId: string, messageId: string, emoji: unknown) {
   await requireMember(userId, guildId);
   const wanted = validReaction(emoji);
-  const m = await prisma.guildMessage.findFirst({ where: { id: messageId, guildId, kind: { not: 'EVENT' } }, select: { id: true, userId: true, kind: true, content: true } });
+  const m = await prisma.guildMessage.findFirst({ where: { id: messageId, guildId, kind: { not: 'EVENT' }, deletedAt: null }, select: { id: true, userId: true, kind: true, content: true, meta: true } });
   if (!m) throw new Error('Mensaje no encontrado');
   const r = await setReaction('guild', m.id, userId, wanted);
+  await bump(await memberIdsOf(guildId));
   if (r.emoji && m.userId !== userId && !(await isViewing(m.userId, guildKey(guildId)))) {
     const [who, guild] = await Promise.all([
       prisma.user.findUnique({ where: { id: userId }, select: { displayName: true } }),
@@ -557,65 +696,38 @@ export async function reactGuild(userId: string, guildId: string, messageId: str
   return { id: m.id, ...r };
 }
 
-/** Carta del gremio en vivo: espera ~8 s y responde cuando hay mensajes o reacciones nuevas. */
-export async function liveGuildMessages(userId: string, guildId: string, q: { after?: unknown; since?: unknown; wait?: boolean }) {
+/**
+ * Guarda un mensaje en la carta del gremio: su día (racha y enemigo), el golpe al
+ * enemigo si es la primera foto de la cámara de hoy, la racha si ya escribieron
+ * todos, apaga tu "escribiendo…", suena el timbre de todos y avisa a quien no
+ * tiene la carta abierta.
+ */
+export async function createGuildMessage(userId: string, guildId: string, out: Outgoing, replyRaw?: unknown) {
   await requireMember(userId, guildId);
-  const after = parseDate(q.after);
-  const since = parseDate(q.since) ?? new Date();
-  const stamp = new Date();
-  await touchView(userId, guildKey(guildId));
-
-  const changed = await holdUntil(async () => {
-    const [fresh, reacted] = await Promise.all([
-      after ? prisma.guildMessage.findFirst({ where: { guildId, createdAt: { gt: after } }, select: { id: true } }) : null,
-      prisma.guildMessage.findFirst({ where: { guildId, reactedAt: { gt: since } }, select: { id: true } }),
-    ]);
-    return fresh || reacted ? true : null;
-  }, q.wait === true);
-  if (!changed) return { changed: false as const, cursor: stamp.toISOString(), messages: [], reacted: [] };
-
-  const messages = await getGuildMessages(userId, guildId, 50, after?.toISOString());
-  const reactedRows = await prisma.guildMessage.findMany({ where: { guildId, reactedAt: { gt: since } }, select: { id: true } });
-  const reactions = await reactionsFor('guild', reactedRows.map((r) => r.id), userId);
-  return {
-    changed: true as const,
-    cursor: stamp.toISOString(),
-    messages,
-    reacted: reactedRows.map((r) => ({ id: r.id, reactions: reactions.get(r.id) ?? [] })),
-  };
-}
-
-export async function sendGuildMessage(
-  userId: string,
-  guildId: string,
-  content: string,
-  extra: { kind?: unknown; photoUrl?: unknown; replyToId?: unknown } = {},
-) {
-  await requireMember(userId, guildId);
-  // SNAP: foto tomada en el momento con la cámara.
-  const kind = extra.kind === 'SNAP' ? 'SNAP' : 'TEXT';
-  const text = (content ?? '').trim();
-  const photoUrl = kind === 'SNAP' && extra.photoUrl ? validPhoto(extra.photoUrl) : null;
-  if (kind === 'SNAP' && !photoUrl) throw new Error('La foto no llegó. Vuelve a tomarla.');
-  if (kind === 'TEXT' && !text) throw new Error('Mensaje vacío');
-  if (text.length > 500) throw new Error('Mensaje demasiado largo');
-
   const guild = await prisma.guild.findUniqueOrThrow({ where: { id: guildId }, include: { members: { select: { userId: true } } } });
   const { today } = await guildDay(guild);
-  // ¿Ya había golpeado hoy al enemigo? Solo cuenta su primera foto de hoy.
-  const attackedBefore = kind === 'SNAP'
+  // ¿Ya había golpeado hoy al enemigo? Solo cuenta su primera foto de la cámara de hoy.
+  const attackedBefore = out.kind === 'SNAP'
     ? Boolean(await prisma.guildMessage.findFirst({ where: { guildId, userId, kind: 'SNAP', dayKey: today }, select: { id: true } }))
     : true;
-  const replyToId = await validReplyTo('guild', extra.replyToId, { guildId });
+  const replyToId = await validReplyTo('guild', replyRaw, { guildId });
   const message = await prisma.guildMessage.create({
-    data: { guildId, userId, content: text, kind, photoUrl, dayKey: today, replyToId },
-    include: { user: MESSAGE_USER },
+    data: {
+      guildId, userId, content: out.content, kind: out.kind, photoUrl: out.photoUrl, audioUrl: out.audioUrl,
+      meta: out.meta ? (out.meta as Prisma.InputJsonValue) : undefined, dayKey: today, replyToId,
+    },
+    select: GUILD_ROW,
   });
-  void markGuildRead(userId, guildId);
+  await markGuildRead(userId, guildId);
+  await markTyping(userId, guildKey(guildId), false).catch(() => undefined);
+  const memberIds = guild.members.map((m) => m.userId);
+  await bump(memberIds);
 
   // Aviso a los demás miembros, salvo a quien tiene esta carta abierta; a quien tiene la app
   // abierta le sale dentro de ella (con respuesta rápida), no como push del sistema.
-  const others = guild.members.map((m) => m.userId).filter((id) => id !== userId);
+  // Quien bloqueó a quien escribe no recibe su aviso.
+  const blockers = new Set((await prisma.userBlock.findMany({ where: { blockedId: userId, blockerId: { in: memberIds } }, select: { blockerId: true } })).map((b) => b.blockerId));
+  const others = memberIds.filter((id) => id !== userId && !blockers.has(id));
   const [reading, inApp] = await Promise.all([viewing(others, guildKey(guildId)), viewing(others, 'app', 20_000)]);
   const sender = message.user.displayName;
   for (const id of others) {
@@ -623,7 +735,7 @@ export async function sendGuildMessage(
     createNotification(id, {
       type: 'guild', category: 'SOCIAL', dedupeKey: `guild-msg:${guildId}`,
       title: guild.name,
-      body: `${sender}: ${snippet({ kind, content: text }, 100)}`,
+      body: `${sender}: ${snippet(message, 100)}`,
       icon: 'guild', link: guildChatLink(guildId),
       reply: { type: 'guild', id: guildId },
     }, { push: !inApp.has(id) }).catch(() => null);
@@ -650,7 +762,7 @@ export async function sendGuildMessage(
   // La racha suma cuando todos escribieron hoy; se enciende al tercer día.
   let streak = streakView(guild.streakCount, guild.streakBest, guild.streakDay, today);
   let streakCompleted = false;
-  if (guild.streakDay !== today) {
+  if (guild.streakDay !== today && TALK_KINDS.includes(out.kind)) {
     const talked = await prisma.guildMessage.findMany({ where: { guildId, kind: { in: TALK_KINDS }, dayKey: today }, distinct: ['userId'], select: { userId: true } });
     if (guild.members.every((m) => talked.some((t) => t.userId === m.userId))) {
       const next = advanceStreak(guild.streakCount, guild.streakBest, guild.streakDay, today);
@@ -674,6 +786,16 @@ export async function sendGuildMessage(
   return { ...dto, enemyDefeated, streakCompleted, streak };
 }
 
+export async function sendGuildMessage(
+  userId: string,
+  guildId: string,
+  body: { content?: unknown; kind?: unknown; photoUrl?: unknown; audioUrl?: unknown; meta?: unknown; replyToId?: unknown },
+) {
+  await requireMember(userId, guildId);
+  const out = await parseOutgoing(body, 500);
+  return createGuildMessage(userId, guildId, out, body.replyToId);
+}
+
 /** La foto del fondo de la carta del gremio (se pide aparte: pesa). */
 export async function getGuildBackground(userId: string, guildId: string) {
   await requireMember(userId, guildId);
@@ -687,8 +809,9 @@ export async function setGuildBackground(userId: string, guildId: string, body: 
   const { row, event } = await saveBackground({ guildId }, userId, body);
   if (event) {
     await prisma.guildMessage.create({ data: { guildId, userId, kind: 'EVENT', content: event } });
-    void markGuildRead(userId, guildId);
+    await markGuildRead(userId, guildId);
   }
+  await bump(await memberIdsOf(guildId));
   return { background: backgroundMeta(row, userId) };
 }
 

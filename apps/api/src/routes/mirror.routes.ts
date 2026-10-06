@@ -1,3 +1,4 @@
+import { settleLevel } from '../services/xp.service';
 import { Router } from 'express';
 import { requireAuth, type AuthRequest } from '../middleware/auth.middleware';
 import { prisma } from '../lib/prisma';
@@ -99,6 +100,7 @@ router.post('/routines/:id/complete', async (req, res, next) => {
       },
     });
     await prisma.user.update({ where: { id: userId }, data: { xp: { increment: 20 }, gold: { increment: 5 } } });
+    await settleLevel(userId);
 
     res.json({ success: true, routine });
   } catch (err) { next(err); }

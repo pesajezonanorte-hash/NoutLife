@@ -1,16 +1,16 @@
 // Red social de Noutlife: perfiles con privacidad, presencia (en línea y zona),
-// cartas (mensajes directos) con "visto" y fondo compartido, rachas entre amigos
-// que se encienden al tercer día hablando, gestos que se ven en el muñequito
-// pixel de cada amigo y el vínculo de pareja que comparte el jardín.
+// la lista de amigos con su última carta (enviada, vista o sin leer), el fondo
+// compartido de cada carta, rachas entre amigos que se encienden al tercer día
+// hablando, gestos que se ven en el muñequito pixel de cada amigo y el vínculo de
+// pareja que comparte el jardín. Los mensajes viven en dm.service.
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { addCalendarDays, getCalendarDay } from '../lib/calendar';
 import { effectiveActivityStreak } from './xp.service';
 import { createNotification } from './notification.service';
-import {
-  appActive, clearView, dmKey, holdUntil, isViewing, parseDate, reactionsFor, repliesFor, setReaction, snippet, touchView, validReaction, validReplyTo,
-  type ReactionCount, type ReplyRef,
-} from './chat-live.service';
+import { blockedWith, bump, chatPrefsOf, dmKey, snippet, TALK_KINDS } from './chat-live.service';
+
+export { TALK_KINDS, validPhoto } from './chat-live.service';
 
 // ─── Privacidad y presencia ───────────────────────────────────────────────────
 
@@ -62,34 +62,73 @@ export function presenceOf(u: PresenceSource, now = Date.now()) {
   };
 }
 
-export async function touchPresence(userId: string, zone: unknown) {
-  const z = typeof zone === 'string' ? zone.trim().slice(0, 40) : null;
-  await prisma.user.update({ where: { id: userId }, data: { presenceAt: new Date(), presenceZone: z || null } });
+/** Ids de los amigos de una persona. */
+export async function friendIdsOf(userId: string): Promise<string[]> {
+  const rows = await prisma.friendship.findMany({
+    where: { status: 'ACCEPTED', OR: [{ requesterId: userId }, { receiverId: userId }] },
+    select: { requesterId: true, receiverId: true },
+  });
+  return rows.map((f) => (f.requesterId === userId ? f.receiverId : f.requesterId));
 }
+
+/**
+ * Latido de presencia (lo manda el chat en vivo cada pocos segundos). Si cambió
+ * de zona, o vuelve tras estar fuera, suena el timbre de sus amigos: su muñequito
+ * aparece (o se va) al momento y su carta muestra la zona nueva.
+ */
+export async function touchPresence(userId: string, zone: unknown, opts: { leaving?: boolean } = {}) {
+  const z = opts.leaving ? null : typeof zone === 'string' ? zone.trim().slice(0, 40) || null : null;
+  const now = new Date();
+  const prev = await prisma.user.findUnique({ where: { id: userId }, select: { presenceAt: true, presenceZone: true } });
+  const wasOnline = Boolean(prev?.presenceAt && now.getTime() - prev.presenceAt.getTime() < ONLINE_MS);
+  const changed = opts.leaving ? wasOnline : !wasOnline || prev?.presenceZone !== z;
+  // Sin cambios, basta con renovar el latido de vez en cuando.
+  if (!changed && prev?.presenceAt && now.getTime() - prev.presenceAt.getTime() < 30_000) return { changed: false };
+  await prisma.user.update({
+    where: { id: userId },
+    data: opts.leaving ? { presenceAt: new Date(now.getTime() - ONLINE_MS), presenceZone: null } : { presenceAt: now, presenceZone: z },
+  });
+  if (changed) await bump(await friendIdsOf(userId));
+  return { changed };
+}
+
+/** Colores que se pueden elegir para el nombre (claves de la paleta del cliente). */
+export const NAME_COLORS = ['jade', 'bosque', 'oceano', 'cielo', 'lavanda', 'uva', 'rosa', 'coral', 'ambar', 'miel', 'tierra', 'grafito'] as const;
 
 export async function getMySocialSettings(userId: string) {
-  const u = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { bio: true, privacy: true } });
-  return { bio: u.bio ?? '', privacy: privacyOf(u.privacy) };
+  const u = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { bio: true, privacy: true, nameColor: true } });
+  return { bio: u.bio ?? '', privacy: privacyOf(u.privacy), nameColor: u.nameColor };
 }
 
-export async function updateMySocialSettings(userId: string, body: { bio?: unknown; privacy?: unknown }) {
+export async function updateMySocialSettings(userId: string, body: { bio?: unknown; privacy?: unknown; nameColor?: unknown }) {
   const current = await getMySocialSettings(userId);
   const privacy = body.privacy && typeof body.privacy === 'object'
     ? privacyOf({ ...current.privacy, ...(body.privacy as object) })
     : current.privacy;
   const bio = typeof body.bio === 'string' ? body.bio.trim().slice(0, 160) : undefined;
+  // El color del nombre: una clave de la paleta, o null para el color de siempre.
+  let nameColor: string | null | undefined;
+  if (body.nameColor !== undefined) {
+    if (body.nameColor !== null && !(NAME_COLORS as readonly unknown[]).includes(body.nameColor)) throw new Error('Ese color no está en la paleta');
+    nameColor = body.nameColor as string | null;
+  }
   const u = await prisma.user.update({
     where: { id: userId },
-    data: { privacy: privacy as unknown as Prisma.InputJsonValue, ...(bio !== undefined ? { bio: bio || null } : {}) },
-    select: { bio: true, privacy: true },
+    data: {
+      privacy: privacy as unknown as Prisma.InputJsonValue,
+      ...(bio !== undefined ? { bio: bio || null } : {}),
+      ...(nameColor !== undefined ? { nameColor } : {}),
+    },
+    select: { bio: true, privacy: true, nameColor: true },
   });
-  return { bio: u.bio ?? '', privacy: privacyOf(u.privacy) };
+  if (nameColor !== undefined) await bump(await friendIdsOf(userId));
+  return { bio: u.bio ?? '', privacy: privacyOf(u.privacy), nameColor: u.nameColor };
 }
 
 // ─── Utilidades ───────────────────────────────────────────────────────────────
 
 export const PUBLIC_USER = {
-  id: true, username: true, displayName: true, level: true,
+  id: true, username: true, displayName: true, level: true, nameColor: true,
   avatarConfig: true, avatarUrl: true, equippedAura: true, equippedFrame: true, equippedHat: true,
 } as const;
 const PRESENCE = { presenceAt: true, presenceZone: true, privacy: true } as const;
@@ -97,18 +136,8 @@ const STREAK = { currentStreak: true, lastActivityDate: true, timezone: true } a
 
 type PublicUser = Prisma.UserGetPayload<{ select: typeof PUBLIC_USER }>;
 
-/** Mensajes que cuentan como "hablar" para la racha (los avisos de la carta no). */
-export const TALK_KINDS = ['TEXT', 'SNAP'];
-
-/** Foto enviada desde el cliente: data URL JPEG/PNG/WebP (ya reducida a ~720 px). */
+/** Foto de fondo enviada desde el cliente: data URL JPEG/PNG/WebP. */
 const PHOTO = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
-const PHOTO_MAX = 600_000;
-export function validPhoto(value: unknown): string {
-  if (typeof value !== 'string' || value.length > PHOTO_MAX || !PHOTO.test(value)) {
-    throw new Error('La foto debe ser una imagen JPEG, PNG o WebP de menos de 450 kB.');
-  }
-  return value;
-}
 
 /** Fondo de una carta: la foto puede ser algo más grande (se ve a pantalla completa). */
 const BACKGROUND_MAX = 900_000;
@@ -211,7 +240,7 @@ async function friendshipBetween(a: string, b: string) {
   });
 }
 
-async function requireFriends(a: string, b: string) {
+export async function requireFriends(a: string, b: string) {
   const f = await friendshipBetween(a, b);
   if (!f || f.status !== 'ACCEPTED') throw new Error('Solo puedes hacer esto con tus amigos');
   return f;
@@ -239,8 +268,10 @@ export async function searchUsers(viewerId: string, q: string) {
       ],
     },
     select: PUBLIC_USER,
-    take: 12,
+    take: 16,
   });
+  const blocked = await blockedWith(viewerId);
+  users.splice(0, users.length, ...users.filter((u) => !blocked.has(u.id)).slice(0, 12));
   const links = await prisma.friendship.findMany({
     where: { OR: [{ requesterId: viewerId, receiverId: { in: users.map((u) => u.id) } }, { receiverId: viewerId, requesterId: { in: users.map((u) => u.id) } }] },
   });
@@ -258,10 +289,8 @@ function relationOf(viewerId: string, f: FriendshipRow) {
 }
 
 /** Texto corto de un mensaje para listas, avisos y el muñequito pixel. */
-export function messagePreview(m: { kind: string; content: string | null }) {
-  if (m.kind === 'SNAP') return m.content ? `Foto · ${m.content}` : 'Foto';
-  if (m.kind === 'EVENT') return m.content === 'bg-off' ? 'La carta volvió al papel' : 'Nuevo fondo para la carta';
-  return (m.content ?? '').slice(0, 80);
+export function messagePreview(m: { kind: string; content: string | null; deletedAt?: Date | null; meta?: unknown }) {
+  return snippet(m, 80);
 }
 
 /** Amigos con presencia, racha, cartas sin leer y el último mensaje. */
@@ -276,6 +305,11 @@ export async function getFriendsNetwork(userId: string) {
 
   const todayOf = new Map(rows.map((f) => [f.id, dayKey(f.requester.timezone, now)]));
   const keys = [...new Set(todayOf.values())];
+  const [prefs, receipts] = await Promise.all([
+    chatPrefsOf(userId),
+    prisma.user.findMany({ where: { id: { in: friendIds } }, select: { id: true, privacy: true } }),
+  ]);
+  const shareSeen = new Set(receipts.filter((u) => privacyOf(u.privacy).readReceipts).map((u) => u.id));
   const [talked, unread, recent] = await Promise.all([
     // Quién habló hoy con quién (cuenta para la racha).
     prisma.directMessage.findMany({
@@ -288,7 +322,7 @@ export async function getFriendsNetwork(userId: string) {
       where: { OR: [{ senderId: userId, receiverId: { in: friendIds } }, { receiverId: userId, senderId: { in: friendIds } }] },
       orderBy: { createdAt: 'desc' },
       take: 400,
-      select: { senderId: true, receiverId: true, kind: true, content: true, createdAt: true },
+      select: { senderId: true, receiverId: true, kind: true, content: true, meta: true, createdAt: true, readAt: true, deletedAt: true },
     }),
   ]);
 
@@ -297,7 +331,10 @@ export async function getFriendsNetwork(userId: string) {
     const today = todayOf.get(f.id)!;
     const mineToday = talked.some((s) => s.senderId === userId && s.receiverId === other.id && s.dayKey === today);
     const theirsToday = talked.some((s) => s.senderId === other.id && s.receiverId === userId && s.dayKey === today);
-    const last = recent.find((m) => m.senderId === other.id || m.receiverId === other.id);
+    const pref = prefs.get(dmKey(other.id));
+    const cleared = pref?.clearedAt?.getTime() ?? 0;
+    const last = recent.find((m) => (m.senderId === other.id || m.receiverId === other.id) && m.createdAt.getTime() > cleared);
+    const mine = last?.senderId === userId;
     const { presenceAt: _a, presenceZone: _z, privacy: _p, lastActivityDate: _l, timezone: _t, ...pub } = other;
     return {
       friendshipId: f.id,
@@ -306,8 +343,13 @@ export async function getFriendsNetwork(userId: string) {
       streak: { ...streakView(f.streakCount, f.streakBest, f.streakDay, today), mineToday, theirsToday },
       unread: unread.find((u) => u.senderId === other.id)?._count._all ?? 0,
       lastMessage: last
-        ? { mine: last.senderId === userId, kind: last.kind, preview: messagePreview(last), at: last.createdAt.toISOString() }
+        ? {
+          mine, kind: last.kind, preview: messagePreview(last), at: last.createdAt.toISOString(),
+          /** Tu último mensaje ya lo vio (solo si esa persona comparte el "visto"). */
+          seen: mine && Boolean(last.readAt) && shareSeen.has(other.id),
+        }
         : null,
+      archived: Boolean(pref?.archivedAt),
     };
   }).sort((a, b) => (b.lastMessage?.at ?? b.since).localeCompare(a.lastMessage?.at ?? a.since));
 }
@@ -326,6 +368,21 @@ export async function getProfile(viewerId: string, username: string) {
   if (!user) throw new Error('Usuario no encontrado');
   const now = new Date();
   const isSelf = user.id === viewerId;
+  // Bloqueos: quien te bloqueó no existe para ti; a quien bloqueaste solo lo ves para desbloquearlo.
+  if (!isSelf) {
+    const block = await prisma.userBlock.findFirst({ where: { OR: [{ blockerId: viewerId, blockedId: user.id }, { blockerId: user.id, blockedId: viewerId }] }, select: { blockerId: true } });
+    if (block && block.blockerId === user.id) throw new Error('Usuario no encontrado');
+    if (block) {
+      const { presenceAt: _a, presenceZone: _z, privacy: _p, lastActivityDate: _l, timezone: _t, ...pub } = user;
+      return {
+        user: { ...pub, createdAt: user.createdAt.toISOString(), currentStreak: 0 },
+        presence: { online: false, zone: null, lastSeen: null },
+        relation: { status: 'BLOCKED' as const, friendshipId: null },
+        friendStreak: null,
+        locked: true as const,
+      };
+    }
+  }
   const link = isSelf ? null : await friendshipBetween(viewerId, user.id);
   const relation = isSelf ? { status: 'SELF' as const, friendshipId: null } : relationOf(viewerId, link);
   const isFriend = relation.status === 'FRIENDS';
@@ -386,143 +443,8 @@ export async function getProfile(viewerId: string, username: string) {
   };
 }
 
-// ─── Mensajes directos ────────────────────────────────────────────────────────
-
-type DMRow = Prisma.DirectMessageGetPayload<object>;
-const toMessage = (me: string, reactions: Map<string, ReactionCount[]>, replies: Map<string, ReplyRef>) => (m: DMRow) => ({
-  id: m.id,
-  mine: m.senderId === me,
-  kind: m.kind,
-  content: m.content,
-  photoUrl: m.photoUrl,
-  habitTitle: m.habitTitle,
-  createdAt: m.createdAt.toISOString(),
-  replyTo: (m.replyToId && replies.get(m.replyToId)) || null,
-  reactions: reactions.get(m.id) ?? [],
-});
-
-const pairOf = (a: string, b: string) => ({ OR: [{ senderId: a, receiverId: b }, { senderId: b, receiverId: a }] });
-
-/** Mensajes listos para enviar al cliente: con sus reacciones y el mensaje al que responden. */
-async function dmDtos(me: string, otherId: string, rows: DMRow[]) {
-  const [reactions, replies] = await Promise.all([
-    reactionsFor('dm', rows.map((r) => r.id), me),
-    repliesFor('dm', rows, pairOf(me, otherId)),
-  ]);
-  return rows.map(toMessage(me, reactions, replies));
-}
-
-async function otherUser(id: string) {
-  const u = await prisma.user.findUnique({ where: { id }, select: { ...PUBLIC_USER, ...PRESENCE } });
-  if (!u) throw new Error('Usuario no encontrado');
-  return u;
-}
-
-/**
- * Conversación con un amigo. `after` (ISO) trae solo lo nuevo para el sondeo.
- * Al leerla se marcan como vistos sus mensajes; `seenUntil` es la fecha del
- * último mensaje tuyo que vio (solo si esa persona comparte el "visto").
- */
-export async function getConversation(me: string, otherId: string, after?: string) {
-  const f = await requireFriends(me, otherId);
-  const other = await otherUser(otherId);
-  const pair = pairOf(me, otherId);
-  const cursor = new Date().toISOString();
-  const since = after ? new Date(after) : null;
-  const rows = since && !Number.isNaN(since.getTime())
-    ? await prisma.directMessage.findMany({ where: { ...pair, createdAt: { gt: since } }, orderBy: { createdAt: 'asc' }, take: 100 })
-    : (await prisma.directMessage.findMany({ where: pair, orderBy: { createdAt: 'desc' }, take: 60 })).reverse();
-
-  await prisma.directMessage.updateMany({ where: { senderId: otherId, receiverId: me, readAt: null }, data: { readAt: new Date() } });
-
-  const lastSeen = privacyOf(other.privacy).readReceipts
-    ? await prisma.directMessage.findFirst({ where: { senderId: me, receiverId: otherId, readAt: { not: null } }, orderBy: { createdAt: 'desc' }, select: { createdAt: true } })
-    : null;
-
-  const today = dayKey(f.requester.timezone);
-  const [talkedToday, bg] = await Promise.all([
-    prisma.directMessage.findMany({ where: { ...pair, kind: { in: TALK_KINDS }, dayKey: today }, select: { senderId: true }, distinct: ['senderId'] }),
-    prisma.chatBackground.findUnique({ where: { friendshipId: f.id }, select: { fit: true, setById: true, updatedAt: true } }),
-  ]);
-  const { presenceAt: _a, presenceZone: _z, privacy: _p, ...pub } = other;
-  return {
-    friend: { ...pub, ...presenceOf(other) },
-    friendshipId: f.id,
-    messages: await dmDtos(me, otherId, rows),
-    /** Desde aquí se piden los cambios de reacciones en vivo. */
-    cursor,
-    seenUntil: lastSeen?.createdAt.toISOString() ?? null,
-    streak: {
-      ...streakView(f.streakCount, f.streakBest, f.streakDay, today),
-      mineToday: talkedToday.some((s) => s.senderId === me),
-      theirsToday: talkedToday.some((s) => s.senderId === otherId),
-    },
-    background: backgroundMeta(bg, me),
-  };
-}
-
 /** Enlace a una carta dentro de la sección Social. */
 export const letterLink = (username: string) => `/social?tab=cartas&chat=${encodeURIComponent(username)}`;
-
-export async function sendDirectMessage(
-  me: string,
-  otherId: string,
-  body: { content?: unknown; photoUrl?: unknown; kind?: unknown; replyToId?: unknown },
-) {
-  const f = await requireFriends(me, otherId);
-  // SNAP: foto tomada en el momento con la cámara (la app no deja elegirla de la galería).
-  const kind = body.kind === 'SNAP' ? 'SNAP' : 'TEXT';
-  const content = typeof body.content === 'string' ? body.content.trim().slice(0, 1000) : '';
-  const photoUrl = kind === 'SNAP' && body.photoUrl ? validPhoto(body.photoUrl) : null;
-  if (kind === 'SNAP' && !photoUrl) throw new Error('La foto no llegó. Vuelve a tomarla.');
-  if (kind === 'TEXT' && !content) throw new Error('Mensaje vacío');
-
-  // Todo lo que se dice lleva su día: así se sabe si los dos hablaron hoy.
-  const today = dayKey(f.requester.timezone);
-  const replyToId = await validReplyTo('dm', body.replyToId, pairOf(me, otherId));
-  const msg = await prisma.directMessage.create({
-    data: { senderId: me, receiverId: otherId, kind, content: content || null, photoUrl, dayKey: today, replyToId },
-  });
-
-  let streak = streakView(f.streakCount, f.streakBest, f.streakDay, today);
-  let completed = false;
-  if (f.streakDay !== today) {
-    const theirs = await prisma.directMessage.findFirst({ where: { senderId: otherId, receiverId: me, kind: { in: TALK_KINDS }, dayKey: today }, select: { id: true } });
-    if (theirs) {
-      const next = advanceStreak(f.streakCount, f.streakBest, f.streakDay, today);
-      await prisma.friendship.update({ where: { id: f.id }, data: next });
-      streak = streakView(next.streakCount, next.streakBest, next.streakDay, today);
-      completed = true;
-    }
-  }
-  const theirsToday = completed || Boolean(await prisma.directMessage.findFirst({
-    where: { senderId: otherId, receiverId: me, kind: { in: TALK_KINDS }, dayKey: today }, select: { id: true },
-  }));
-
-  const sender = await prisma.user.findUniqueOrThrow({ where: { id: me }, select: { displayName: true, username: true } });
-  const lit = completed && streak.active;
-  // Quien tiene esa carta abierta ya la está viendo: no se le avisa. Quien tiene la app
-  // abierta recibe el aviso dentro de ella (con su respuesta rápida), no como push.
-  if (!(await isViewing(otherId, dmKey(me)))) {
-    const inApp = await appActive(otherId);
-    createNotification(otherId, {
-      type: 'friend',
-      category: 'SOCIAL',
-      dedupeKey: `dm:${me}`,
-      title: kind === 'SNAP' ? `${sender.displayName} te envió una foto` : `Carta de ${sender.displayName}`,
-      body: [
-        kind === 'SNAP' ? (content || 'La tomó hace un momento.') : content.slice(0, 120),
-        lit ? (streak.count === STREAK_MIN ? '¡Se encendió su racha!' : `Racha de ${streak.count} días.`) : null,
-      ].filter(Boolean).join(' · '),
-      icon: 'friend',
-      link: letterLink(sender.username),
-      reply: { type: 'dm', id: me },
-    }, { push: !inApp }).catch(() => null);
-  }
-
-  const [message] = await dmDtos(me, otherId, [msg]);
-  return { message, streak: { ...streak, mineToday: true, theirsToday }, completed };
-}
 
 // ─── Fondo de la carta ────────────────────────────────────────────────────────
 
@@ -538,118 +460,11 @@ export async function setDirectBackground(me: string, otherId: string, body: { p
   const f = await requireFriends(me, otherId);
   const { row, event } = await saveBackground({ friendshipId: f.id }, me, body);
   if (event) await prisma.directMessage.create({ data: { senderId: me, receiverId: otherId, kind: 'EVENT', content: event } });
+  await bump([otherId, me]);
   return { background: backgroundMeta(row, me) };
 }
 
 // ─── Gestos y muñequitos en las zonas ─────────────────────────────────────────
-
-// ─── Reacciones, carta en vivo y bandeja de avisos ────────────────────────────
-
-/** Reacciona (o quita la reacción) a un mensaje de la carta con un amigo. */
-export async function reactDirect(me: string, otherId: string, messageId: string, emoji: unknown) {
-  await requireFriends(me, otherId);
-  const wanted = validReaction(emoji);
-  const m = await prisma.directMessage.findFirst({ where: { ...pairOf(me, otherId), id: messageId, kind: { not: 'EVENT' } }, select: { id: true, senderId: true, kind: true, content: true } });
-  if (!m) throw new Error('Mensaje no encontrado');
-  const r = await setReaction('dm', m.id, me, wanted);
-  // Si reaccionas al mensaje de otra persona, se entera (salvo que esté leyendo la carta).
-  if (r.emoji && m.senderId !== me && !(await isViewing(m.senderId, dmKey(me)))) {
-    const who = await prisma.user.findUnique({ where: { id: me }, select: { displayName: true, username: true } });
-    if (who) {
-      const inApp = await appActive(m.senderId);
-      createNotification(m.senderId, {
-        type: 'friend', category: 'SOCIAL', dedupeKey: `dm-react:${me}`,
-        title: `${who.displayName} reaccionó ${r.emoji}`, body: snippet(m, 90), icon: 'friend', link: letterLink(who.username),
-      }, { push: !inApp }).catch(() => null);
-    }
-  }
-  return { id: m.id, ...r };
-}
-
-/**
- * Carta en vivo. Se queda esperando hasta ~8 s y responde en cuanto algo cambia:
- * un mensaje nuevo (`after`), una reacción (`since`) o que lean lo tuyo (`seen`).
- * Además marca la carta como abierta, para que no te avisen de lo que llega a ella.
- */
-export async function liveConversation(me: string, otherId: string, q: { after?: unknown; since?: unknown; seen?: unknown; wait?: boolean }) {
-  await requireFriends(me, otherId);
-  const after = parseDate(q.after);
-  const since = parseDate(q.since) ?? new Date();
-  const seen = parseDate(q.seen);
-  const pair = pairOf(me, otherId);
-  const other = await prisma.user.findUniqueOrThrow({ where: { id: otherId }, select: { privacy: true } });
-  const receipts = privacyOf(other.privacy).readReceipts;
-  const stamp = new Date();
-  await touchView(me, dmKey(otherId));
-
-  const changed = await holdUntil(async () => {
-    const [fresh, reacted, read] = await Promise.all([
-      after ? prisma.directMessage.findFirst({ where: { ...pair, createdAt: { gt: after } }, select: { id: true } }) : null,
-      prisma.directMessage.findFirst({ where: { ...pair, reactedAt: { gt: since } }, select: { id: true } }),
-      receipts
-        ? prisma.directMessage.findFirst({ where: { senderId: me, receiverId: otherId, readAt: { not: null } }, orderBy: { createdAt: 'desc' }, select: { createdAt: true } })
-        : null,
-    ]);
-    const readAt = read?.createdAt.getTime() ?? 0;
-    return fresh || reacted || readAt > (seen?.getTime() ?? 0) ? true : null;
-  }, q.wait === true);
-  if (!changed) return { changed: false as const, cursor: stamp.toISOString() };
-
-  const conv = await getConversation(me, otherId, after?.toISOString());
-  const reactedRows = await prisma.directMessage.findMany({ where: { ...pair, reactedAt: { gt: since } }, select: { id: true } });
-  const reactions = await reactionsFor('dm', reactedRows.map((r) => r.id), me);
-  return {
-    changed: true as const,
-    ...conv,
-    cursor: stamp.toISOString(),
-    reacted: reactedRows.map((r) => ({ id: r.id, reactions: reactions.get(r.id) ?? [] })),
-  };
-}
-
-/** Cerraste la carta: desde ya te vuelven a avisar de lo que llegue. */
-export async function leaveView(me: string, key: string) {
-  await clearView(me, key);
-  return { ok: true };
-}
-
-/** Lo que te escribieron desde `since` (cartas de amigos y de tus gremios), para los avisos dentro de la app. */
-export async function inbox(me: string, q: { since?: unknown; wait?: boolean }) {
-  const stamp = new Date();
-  await touchView(me, 'app');
-  const since = parseDate(q.since);
-  if (!since) return { cursor: stamp.toISOString(), items: [] };
-  const memberships = await prisma.guildMember.findMany({ where: { userId: me }, select: { guildId: true } });
-  const guildIds = memberships.map((m) => m.guildId);
-
-  const items = await holdUntil(async () => {
-    const [dms, gms] = await Promise.all([
-      prisma.directMessage.findMany({
-        where: { receiverId: me, createdAt: { gt: since }, kind: { in: TALK_KINDS } },
-        orderBy: { createdAt: 'asc' }, take: 20,
-        include: { sender: { select: PUBLIC_USER } },
-      }),
-      guildIds.length
-        ? prisma.guildMessage.findMany({
-          where: { guildId: { in: guildIds }, userId: { not: me }, createdAt: { gt: since }, kind: { in: TALK_KINDS } },
-          orderBy: { createdAt: 'asc' }, take: 20,
-          include: { user: { select: PUBLIC_USER }, guild: { select: { name: true } } },
-        })
-        : [],
-    ]);
-    const list = [
-      ...dms.map((m) => ({
-        type: 'dm' as const, id: m.id, at: m.createdAt.toISOString(), from: m.sender, kind: m.kind, preview: snippet(m, 140), guild: null as { id: string; name: string } | null,
-      })),
-      ...gms.map((m) => ({
-        type: 'guild' as const, id: m.id, at: m.createdAt.toISOString(), from: m.user, kind: m.kind, preview: snippet(m, 140), guild: { id: m.guildId, name: m.guild.name } as { id: string; name: string } | null,
-      })),
-    ].sort((a, b) => a.at.localeCompare(b.at));
-    return list.length ? list : null;
-  }, q.wait === true);
-  // El siguiente sondeo sigue desde el último aviso entregado (así no se repite ninguno).
-  const list = items ?? [];
-  return { cursor: list.length ? list[list.length - 1].at : stamp.toISOString(), items: list };
-}
 
 export const GESTURES = ['wave', 'heart', 'dance', 'cheer', 'laugh', 'highfive'] as const;
 export type GestureKind = (typeof GESTURES)[number];
@@ -665,6 +480,7 @@ export async function sendGesture(me: string, toId: string, body: { kind?: unkno
   if (recent) return { ok: true, throttled: true };
   const zone = typeof body.zone === 'string' ? body.zone.trim().slice(0, 40) || null : null;
   await prisma.socialGesture.create({ data: { fromId: me, toId, kind, zone } });
+  await bump([toId]);
   // Los gestos duran poco: se limpian los de hace más de dos días.
   prisma.socialGesture.deleteMany({ where: { toId, createdAt: { lt: new Date(now - 2 * 86_400_000) } } }).catch(() => null);
   return { ok: true, throttled: false };
@@ -682,7 +498,8 @@ export async function zoneVisitors(me: string, zoneName: unknown) {
     where: { status: 'ACCEPTED', OR: [{ requesterId: me }, { receiverId: me }] },
     select: { requesterId: true, receiver: sel, requester: sel },
   });
-  const friends = rows.map((f) => (f.requesterId === me ? f.receiver : f.requester));
+  const blocked = await blockedWith(me);
+  const friends = rows.map((f) => (f.requesterId === me ? f.receiver : f.requester)).filter((u) => !blocked.has(u.id));
   const here = zone ? friends.filter((u) => { const p = presenceOf(u, now.getTime()); return p.online && p.zone === zone; }).slice(0, 8) : [];
   const [gestures, letters] = await Promise.all([
     friends.length

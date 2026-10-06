@@ -50,8 +50,30 @@ export const EXTRAS: Option<ExtraId>[] = [
   { id: 'auriculares', label: 'Auriculares' }, { id: 'pendientes', label: 'Pendientes' }, { id: 'bufanda', label: 'Bufanda' },
   { id: 'collar', label: 'Collar' }, { id: 'flor', label: 'Flor' }, { id: 'parche', label: 'Parche' },
 ];
-/** Solo un sombrero a la vez; gafas y gafas de sol tampoco se combinan. */
-export const EXCLUSIVE: ExtraId[][] = [['gorra', 'gorro', 'corona', 'auriculares'], ['gafas', 'gafas_sol', 'parche']];
+// ── De la Tienda ────────────────────────────────────────────────────────────
+// Se compran con Gold y, una vez comprados, aparecen en el estudio como los demás
+// (la API quita del personaje lo que no se compró). Mismos ids que en la API
+// (apps/api/src/lib/avatar-items.ts).
+export const SHOP_HAIRS: Option<HairId>[] = [{ id: 'samurai', label: 'Samurái' }, { id: 'rizos', label: 'Rizos salvajes' }];
+export const SHOP_TOPS: Option<TopId>[] = [{ id: 'armadura', label: 'Armadura' }, { id: 'kimono', label: 'Kimono' }, { id: 'traje', label: 'Traje de gala' }];
+export const SHOP_EXTRAS: Option<ExtraId>[] = [
+  { id: 'sombrero_aventurero', label: 'Sombrero de aventurero' }, { id: 'sombrero_mago', label: 'Sombrero de mago' },
+  { id: 'birrete', label: 'Birrete' }, { id: 'casco_vikingo', label: 'Casco vikingo' }, { id: 'bandana_ninja', label: 'Banda ninja' },
+  { id: 'corona_campeon', label: 'Corona del campeón' }, { id: 'corona_cristal', label: 'Corona de cristal' },
+  { id: 'antifaz', label: 'Antifaz' }, { id: 'monoculo', label: 'Monóculo' }, { id: 'capa', label: 'Capa' }, { id: 'alas', label: 'Alas de hada' },
+  { id: 'escudo', label: 'Escudo dorado' }, { id: 'dragoncito', label: 'Dragoncito' },
+];
+/** Parte del personaje que cambia un artículo de la Tienda («extra:capa», «hair:rizos», «top:kimono»). */
+export type ShopSlot = 'extra' | 'hair' | 'top';
+export const shopKey = (slot: ShopSlot, id: string) => `${slot}:${id}`;
+
+/** Solo uno de cada grupo a la vez: un sombrero, unas gafas o un antifaz, una cosa a la espalda y otra al costado. */
+export const EXCLUSIVE: ExtraId[][] = [
+  ['gorra', 'gorro', 'corona', 'auriculares', 'sombrero_aventurero', 'sombrero_mago', 'birrete', 'casco_vikingo', 'bandana_ninja', 'corona_campeon', 'corona_cristal'],
+  ['gafas', 'gafas_sol', 'parche', 'antifaz', 'monoculo'],
+  ['capa', 'alas'],
+  ['escudo', 'dragoncito'],
+];
 
 export const SKINS = [
   '#ffe4d1', '#fcd5b8', '#f5c6a0', '#eab48a', '#e0a779', '#d29468', '#c68642', '#a96b3d',
@@ -89,6 +111,7 @@ const TO_HAIR: Partial<Record<HairId, HairStyle>> = {
   corto: 'short', puntas: 'short', despeinado: 'short', raya: 'short', pixie: 'short', media: 'medium', bob: 'medium',
   largo: 'long', flequillo: 'long', coleta: 'recogido', dos_coletas: 'recogido', mono: 'recogido', mono_alto: 'recogido',
   rapado: 'shaved', calvo: 'shaved', mohicano: 'shaved', copete: 'copete', afro: 'afro', trenzas: 'trenzas', ondulado: 'ondulado',
+  samurai: 'recogido', rizos: 'afro',
 };
 const FROM_ACC: Partial<Record<Accessory, ExtraId>> = { glasses: 'gafas', cap: 'gorra', headband: 'cinta', earrings: 'pendientes', scarf: 'bufanda' };
 const TO_ACC: Partial<Record<ExtraId, Accessory>> = { gafas: 'glasses', gorra: 'cap', cinta: 'headband', pendientes: 'earrings', bufanda: 'scarf' };
@@ -151,6 +174,23 @@ export function toggleExtra(look: PixelLook, id: ExtraId): PixelLook {
   if (look.extras.includes(id)) return { ...look, extras: look.extras.filter((e) => e !== id) };
   const group = EXCLUSIVE.find((g) => g.includes(id)) ?? [];
   return { ...look, extras: [...look.extras.filter((e) => !group.includes(e)), id] };
+}
+
+const BASE_HAIR: Record<Body, HairId> = { male: 'puntas', female: 'bob' };
+
+/** Pone (o quita) un artículo de la Tienda en el personaje: lo mismo que hace la API al comprarlo. */
+export function wearShopItem(look: PixelLook, slot: ShopSlot, id: string, on = true): PixelLook {
+  if (slot === 'extra') {
+    const has = look.extras.includes(id as ExtraId);
+    return has === on ? look : toggleExtra(look, id as ExtraId);
+  }
+  if (slot === 'hair') return { ...look, hair: on ? (id as HairId) : look.hair === id ? BASE_HAIR[look.body] : look.hair };
+  return { ...look, top: on ? (id as TopId) : look.top === id ? 'camiseta' : look.top };
+}
+
+/** ¿Lo lleva puesto? */
+export function wearsShopItem(look: PixelLook, slot: ShopSlot, id: string) {
+  return slot === 'extra' ? look.extras.includes(id as ExtraId) : slot === 'hair' ? look.hair === id : look.top === id;
 }
 
 const pick = <T,>(list: readonly T[]) => list[Math.floor(Math.random() * list.length)];

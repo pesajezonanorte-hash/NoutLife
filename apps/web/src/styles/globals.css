@@ -2,6 +2,7 @@
 @import './tokens.css';
 @import './ambience.css';
 @import './social.css';
+@import './avatar.css';
 
 @tailwind base;
 @tailwind components;

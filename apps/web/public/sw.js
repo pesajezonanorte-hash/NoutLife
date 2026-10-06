@@ -58,15 +58,18 @@ self.addEventListener('notificationclick', (event) => {
     );
     return;
   }
-  const link = (event.notification.data && event.notification.data.link) || '/';
+  // Al chat o a la zona de la que viene el aviso.
+  const link = (data && data.link) || '/';
   const target = new URL(link, self.location.origin).href;
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (list) => {
-      for (const client of list) {
-        if (new URL(client.url).origin !== self.location.origin) continue;
-        await client.focus();
-        if ('navigate' in client && client.url !== target) await client.navigate(target).catch(() => undefined);
+      const mine = list.filter((c) => new URL(c.url).origin === self.location.origin);
+      // Con la app abierta: que vaya ella al enlace (sin recargar). Si no responde, se navega.
+      const client = mine.find((c) => c.focused) || mine.find((c) => c.visibilityState === 'visible') || mine[0];
+      if (client) {
+        try { await client.focus(); } catch (e) { /* algunos navegadores no dejan enfocar */ }
+        client.postMessage({ type: 'lq:navigate', link: new URL(target).pathname + new URL(target).search });
         return;
       }
       if (clients.openWindow) await clients.openWindow(target);
@@ -75,7 +78,7 @@ self.addEventListener('notificationclick', (event) => {
 });
 
 // ─── App shell cache ─────────────────────────────────────────────────────────
-const CACHE_NAME = 'noutlife-shell-v2';
+const CACHE_NAME = 'noutlife-shell-v3';
 const SHELL_URLS = ['/', '/index.html', '/manifest.json'];
 
 self.addEventListener('install', (event) => {

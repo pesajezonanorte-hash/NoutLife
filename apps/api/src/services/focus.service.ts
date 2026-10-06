@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma';
+import { settleLevel } from './xp.service';
 
 export async function logFocusSession(
   userId: string,
@@ -29,6 +30,7 @@ export async function logFocusSession(
       },
     }),
   ]);
+  await settleLevel(userId);
 
   return { xpEarned, message: `+${xpEarned} XP por ${durationMin} min de enfoque` };
 }

@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { LETTERS_AND_GESTURES_SQL, REMOVE_LEGACY_HABIT_RITUAL_FLAG_SQL, SOCIAL_NETWORK_SQL } from './schema-migrations';
+import { LETTERS_AND_GESTURES_SQL, REMOVE_LEGACY_HABIT_RITUAL_FLAG_SQL, SOCIAL_NETWORK_SQL, SOCIAL_PRO_SQL } from './schema-migrations';
 import { ensureDefaultCatalog } from './default-catalog';
 
 function getDatabaseUrl(): string {
@@ -92,6 +92,9 @@ export function ensureDbMigrated(): Promise<void> {
         }
         for (const sql of LETTERS_AND_GESTURES_SQL) {
           await prisma.$executeRawUnsafe(sql).catch((err) => console.error('Runtime DB migration (letters):', err));
+        }
+        for (const sql of SOCIAL_PRO_SQL) {
+          await prisma.$executeRawUnsafe(sql).catch((err) => console.error('Runtime DB migration (social pro):', err));
         }
 
         // Global catalog rows are not player-owned. Bootstrap missing entries on

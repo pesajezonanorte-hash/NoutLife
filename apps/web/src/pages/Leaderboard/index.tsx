@@ -28,11 +28,17 @@ type Scope = 'global' | 'friends';
 
 interface Entry {
   rank: number; id: string; username: string; displayName: string; level: number; value: number;
-  avatarConfig?: unknown; avatarUrl?: string | null;
+  /** Ranking de XP: lo que pide su nivel y su XP total de las zonas online. */
+  xpToNextLevel?: number; totalXp?: number;
+  nameColor?: string | null;
+  avatarConfig?: unknown; avatarUrl?: string | null; equippedAura?: string | null; equippedFrame?: string | null;
 }
 
+/** Zonas cuya XP cuenta para el ranking (las que participan en el online). */
+const ONLINE_ZONES = 'Hábitos, Misiones, Gimnasio y Aprendizaje';
+
 const METRICS: Record<Category, { label: string; icon: LucideIcon; unit: [string, string]; hint: string }> = {
-  xp: { label: 'XP total', icon: Trophy, unit: ['XP', 'XP'], hint: 'Nivel y experiencia acumulada.' },
+  xp: { label: 'Nivel y XP', icon: Trophy, unit: ['XP', 'XP'], hint: `Primero el nivel; con el mismo nivel, quien lleva más XP dentro de él. Solo cuenta la XP de las zonas online: ${ONLINE_ZONES}.` },
   streak: { label: 'Racha activa', icon: Flame, unit: ['día', 'días'], hint: 'Días seguidos con actividad. Si alguien pasa un día entero sin actividad, su racha vuelve a 0.' },
   gym: { label: 'Entrenamiento', icon: Dumbbell, unit: ['sesión', 'sesiones'], hint: 'Sesiones de gimnasio terminadas.' },
 };
@@ -40,10 +46,27 @@ const fmtValue = (v: number, c: Category) => {
   const n = Math.round(v);
   return `${n.toLocaleString('es-CO')} ${METRICS[c].unit[n === 1 ? 0 : 1]}`;
 };
+/** Nivel primero y la XP dentro de ese nivel (ranking de XP). */
+function LevelScore({ e, compact = false }: { e: Entry; compact?: boolean }) {
+  const pct = e.xpToNextLevel ? Math.min(100, Math.round((e.value / e.xpToNextLevel) * 100)) : 0;
+  return (
+    <span className="inline-flex flex-col items-end gap-1">
+      <span className="flex items-baseline gap-1.5 whitespace-nowrap">
+        <span className="font-mono text-label-lg tabular-nums">Nv {e.level}</span>
+        <span className="font-mono text-body-sm tabular-nums text-on-surface-light">· <AnimatedValue value={e.value} format={(n) => `${Math.round(n).toLocaleString('es-CO')} XP`} /></span>
+      </span>
+      {!compact && e.xpToNextLevel ? (
+        <span aria-hidden="true" className="block h-1 w-20 overflow-hidden rounded-full bg-on-background/10">
+          <span className="block h-full rounded-full bg-secondary" style={{ width: `${pct}%` }} />
+        </span>
+      ) : null}
+    </span>
+  );
+}
 const initials = (n: string) => n.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
 /** Foto (o avatar) del perfil dentro del círculo del ranking. */
-const avatarOf = (e: Pick<Entry, 'avatarConfig' | 'avatarUrl'>) => (size: number) => (
-  <AvatarDisplay avatarConfig={e.avatarConfig} avatarUrl={e.avatarUrl} size={size} animate="none" className="rounded-full" />
+const avatarOf = (e: Pick<Entry, 'avatarConfig' | 'avatarUrl' | 'equippedAura' | 'equippedFrame'>) => (size: number) => (
+  <AvatarDisplay avatarConfig={e.avatarConfig} avatarUrl={e.avatarUrl} equippedAura={e.equippedAura} equippedFrame={e.equippedFrame} size={size} animate="none" className="rounded-full" />
 );
 /** Último puesto visto por métrica y alcance (para notar si subiste). */
 const RANK_KEY = 'lq-rank-last';
@@ -56,8 +79,8 @@ function FriendsLink() {
     <Card padding="lg" className="flex flex-col gap-3">
       <Users aria-hidden className="size-8 text-primary-text" strokeWidth={1.5} />
       <h2 className="text-heading-sm">Tu círculo</h2>
-      <p className="text-body-md text-on-surface-light">Anota amigos en tu libreta de Social y escríbanse: al tercer día seguido se enciende su racha.</p>
-      <Button variant="secondary" size="md" className="self-start" onClick={() => navigate('/social?tab=amigos&view=search')}><UserPlus aria-hidden className="size-4" strokeWidth={1.75} />Buscar amigos</Button>
+      <p className="text-body-md text-on-surface-light">Anota amigos en tu directorio de Social y escríbanse: al tercer día seguido se enciende su racha.</p>
+      <Button variant="secondary" size="md" className="self-start" onClick={() => navigate('/social?tab=directorio&view=search')}><UserPlus aria-hidden className="size-4" strokeWidth={1.75} />Buscar amigos</Button>
     </Card>
   );
 }
@@ -105,10 +128,13 @@ export default function LeaderboardPage() {
   const me = myIdx >= 0 ? data[myIdx] : null;
   const ahead = myIdx > 0 ? data[myIdx - 1] : null;
   const gap = me && ahead ? Math.max(0, ahead.value - me.value) : 0;
+  const levelGap = category === 'xp' && me && ahead ? ahead.level - me.level : 0;
   const fmt = useCallback((n: number) => fmtValue(n, category), [category]);
   const top = useMemo(() => data.slice(0, 3).map((e) => ({
-    id: e.id, username: e.username, name: e.displayName.split(' ')[0], initials: initials(e.displayName), score: <AnimatedValue value={e.value} format={fmt} />, isYou: e.id === String(user?.id), avatar: avatarOf(e),
-  })), [data, fmt, user?.id]);
+    id: e.id, username: e.username, name: e.displayName.split(' ')[0], initials: initials(e.displayName),
+    score: category === 'xp' ? <LevelScore e={e} compact /> : <AnimatedValue value={e.value} format={fmt} />,
+    isYou: e.id === String(user?.id), avatar: avatarOf(e),
+  })), [category, data, fmt, user?.id]);
   const options: ChipOption<Category>[] = (Object.keys(METRICS) as Category[]).map((c) => ({ value: c, label: METRICS[c].label, icon: METRICS[c].icon }));
 
   return (
@@ -163,7 +189,8 @@ export default function LeaderboardPage() {
                       <ol className="flex flex-col">
                         {view.slice(3).map((e, j) => (
                           <ResultRow key={e.id} id={e.id} username={e.username} position={j + 4} name={e.displayName} initials={initials(e.displayName)} avatar={avatarOf(e)}
-                            subtitle={`@${e.username} · Nivel ${e.level}`} score={<AnimatedValue value={e.value} format={fmt} />} isYou={e.id === String(user?.id)} rose={rose} />
+                            subtitle={category === 'xp' ? `@${e.username}` : `@${e.username} · Nivel ${e.level}`}
+                            score={category === 'xp' ? <LevelScore e={e} /> : <AnimatedValue value={e.value} format={fmt} />} isYou={e.id === String(user?.id)} rose={rose} />
                         ))}
                       </ol>
                     </Card>
@@ -187,8 +214,9 @@ export default function LeaderboardPage() {
             {rose > 0 && <p className="text-label-lg text-success-text">Subiste {rose} {rose === 1 ? 'puesto' : 'puestos'} desde tu última visita</p>}
             {me && ahead ? (
               <div className="flex flex-col gap-1.5">
-                <div className="flex justify-between gap-2"><span className="text-body-sm text-on-surface">Para alcanzar el #{ahead.rank ?? myIdx}</span><span className="font-mono text-label-lg tabular-nums">{fmtValue(gap, category)}</span></div>
-                <ProgressBar value={ahead.value ? (me.value / ahead.value) * 100 : 0} shine label="Distancia al siguiente puesto" className="bg-background" />
+                <div className="flex justify-between gap-2"><span className="text-body-sm text-on-surface">Para alcanzar el #{ahead.rank ?? myIdx}</span><span className="font-mono text-label-lg tabular-nums">{levelGap > 0 ? `${levelGap} ${levelGap === 1 ? 'nivel' : 'niveles'}` : fmtValue(gap, category)}</span></div>
+                <ProgressBar value={levelGap > 0 ? (me.xpToNextLevel ? (me.value / me.xpToNextLevel) * 100 : 0) : ahead.value ? (me.value / ahead.value) * 100 : 0} shine label="Distancia al siguiente puesto" className="bg-background" />
+                {levelGap > 0 && <span className="text-body-sm text-on-surface-light">Tu nivel {me.level}: <span className="font-mono">{me.value.toLocaleString('es-CO')}/{(me.xpToNextLevel ?? 0).toLocaleString('es-CO')}</span> XP</span>}
               </div>
             ) : me ? <p className="text-body-sm text-on-surface">¡Vas en cabeza en {METRICS[category].label.toLowerCase()}!</p>
               : <p className="text-body-sm text-on-surface">Aún no apareces en esta métrica. Registra actividad para entrar.</p>}

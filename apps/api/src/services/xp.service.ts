@@ -11,6 +11,58 @@ export function xpForNextLevel(currentLevel: number): number {
   return Math.floor(100 * currentLevel * Math.pow(1.15, currentLevel - 1));
 }
 
+/** XP que pide el nivel 1 (el de una cuenta nueva). */
+export const FIRST_LEVEL_XP = 100;
+
+/**
+ * Nivel y XP dentro del nivel que corresponden a una XP total, con la misma
+ * escalera que el juego (nivel 1: 100 XP; después, xpForLevel(nivel)).
+ */
+export function levelFromTotal(total: number) {
+  let xp = Math.max(0, Math.floor(total));
+  let level = 1;
+  let next = FIRST_LEVEL_XP;
+  while (xp >= next) {
+    xp -= next;
+    level += 1;
+    next = xpForLevel(level);
+  }
+  return { level, xp, next };
+}
+
+/**
+ * Sube de nivel a quien acumuló XP sin pasar por awardXpAndGold (logros, enfoque,
+ * rituales, rutinas de cuidado): si su XP llega al umbral, sube los niveles que le
+ * tocan con sus mejoras de vida, maná y atributos. Idempotente.
+ */
+export async function settleLevel(userId: string) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user || user.xp < user.xpToNextLevel) return { leveledUp: false, level: user?.level ?? 1 };
+  let xp = user.xp;
+  let level = user.level;
+  let next = user.xpToNextLevel;
+  const gained: number[] = [];
+  while (xp >= next && gained.length < 200) {
+    xp -= next;
+    level += 1;
+    next = xpForLevel(level);
+    gained.push(level);
+  }
+  const bonus = gained.filter((l) => l % 5 === 0).length;
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      xp, level, xpToNextLevel: next,
+      maxHp: Math.min(user.maxHp + gained.length * 10, 300),
+      maxMp: Math.min(user.maxMp + gained.length * 5, 250),
+      strength: { increment: Math.ceil(gained.length / 3) + bonus },
+      intelligence: { increment: Math.ceil((gained.length - 1) / 3) + bonus },
+      charisma: { increment: Math.floor(gained.length / 3) + bonus },
+    },
+  });
+  return { leveledUp: true, level };
+}
+
 export interface StatIncreases {
   strength?: number;
   intelligence?: number;

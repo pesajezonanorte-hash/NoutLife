@@ -1,12 +1,15 @@
-// Ajustes → Privacidad: biografía del perfil social y qué ven los demás
-// (lista de amigos, perfil, en línea, zona actual y "visto").
+// Ajustes → Privacidad: biografía del perfil social, el color de tu nombre en
+// las cartas y gremios, qué ven los demás (lista de amigos, perfil, en línea,
+// zona actual y "visto") y las personas que bloqueaste.
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Save } from 'lucide-react';
+import { Check, Save } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/useToast';
-import { getSocialSettings, updateSocialSettings, type Privacy } from '@/services/network.service';
+import { apiError, getBlocked, getSocialSettings, unblockUser, updateSocialSettings, type Privacy, type PublicUser } from '@/services/network.service';
+import { NAME_COLORS, nameClass } from '@/lib/nameColors';
+import { AvatarDisplay } from '@/components/character/AvatarDisplay';
 import { useVisitorPrefs } from '@/components/social/ZoneVisitors';
 import { Button, Field, SegmentedControl, Skeleton, Switch, Textarea } from '@/components/ui/lq';
 
@@ -28,10 +31,31 @@ export function PrivacyPanel({ Section }: { Section: (p: { eyebrow?: string; tit
   const [bio, setBio] = useState('');
   const [savedBio, setSavedBio] = useState('');
   const [saving, setSaving] = useState(false);
+  const [color, setColor] = useState<string | null>(null);
+  const [blocked, setBlocked] = useState<Array<PublicUser & { blockedAt: string }> | null>(null);
+  const displayName = useAuthStore((s) => s.user?.displayName) ?? 'Tu nombre';
+  const updateUser = useAuthStore((s) => s.updateUser);
+  const user = useAuthStore((s) => s.user);
 
   useEffect(() => {
-    getSocialSettings().then((s) => { setPrivacy(s.privacy); setBio(s.bio); setSavedBio(s.bio); }).catch(() => toast.error('No se pudo cargar tu privacidad'));
+    getSocialSettings().then((s) => { setPrivacy(s.privacy); setBio(s.bio); setSavedBio(s.bio); setColor(s.nameColor); }).catch(() => toast.error('No se pudo cargar tu privacidad'));
+    getBlocked().then(setBlocked).catch(() => setBlocked([]));
   }, [toast]);
+
+  async function pickColor(next: string | null) {
+    const before = color;
+    setColor(next);
+    try {
+      const r = await updateSocialSettings({ nameColor: next });
+      setColor(r.nameColor);
+      if (user) updateUser({ ...user, nameColor: r.nameColor } as never);
+    } catch (e) { setColor(before); toast.error(apiError(e, 'No se pudo guardar el color')); }
+  }
+  async function unblock(u: PublicUser) {
+    setBlocked((l) => l?.filter((b) => b.id !== u.id) ?? l);
+    try { await unblockUser(u.id); toast.info(`Desbloqueaste a ${u.displayName.split(' ')[0]}`, 'Puede volver a enviarte una paloma.'); }
+    catch (e) { toast.error(apiError(e, 'No se pudo desbloquear')); getBlocked().then(setBlocked).catch(() => undefined); }
+  }
 
   async function change(patch: Partial<Privacy>) {
     if (!privacy) return;
@@ -59,6 +83,29 @@ export function PrivacyPanel({ Section }: { Section: (p: { eyebrow?: string; tit
         </div>
       </Section>
 
+      <Section eyebrow="En las cartas" title="El color de tu nombre" description="Así aparece tu nombre en los gremios y las cartas. Todos lo ven.">
+        <div className="flex flex-col gap-4">
+          <p className="lq-slip self-start px-4 py-2.5 text-body-lg">
+            <span className={cn('block text-label-lg', nameClass(color) || 'text-on-surface')}>{displayName.split(' ')[0]}</span>
+            ¡Hola a todos!
+          </p>
+          <div role="radiogroup" aria-label="Color del nombre" className="flex flex-wrap gap-2">
+            <button type="button" role="radio" aria-checked={!color} onClick={() => void pickColor(null)}
+              className={cn('flex min-h-11 items-center gap-1.5 rounded-full border px-3 text-label-md', !color ? 'border-primary bg-primary/10 text-primary-text' : 'border-border text-on-surface')}>
+              {!color && <Check aria-hidden className="size-4" />}Sin color
+            </button>
+            {NAME_COLORS.map((c) => (
+              <button key={c.key} type="button" role="radio" aria-checked={color === c.key} aria-label={c.label} title={c.label} onClick={() => void pickColor(c.key)}
+                className={cn('flex size-11 items-center justify-center rounded-full border-2 transition-transform active:scale-90', color === c.key ? 'border-on-background' : 'border-transparent')}>
+                <span className={cn('flex size-8 items-center justify-center rounded-full bg-current', nameClass(c.key))}>
+                  {color === c.key && <Check aria-hidden className="size-4 text-surface" strokeWidth={3} />}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </Section>
+
       <Section eyebrow="Privacidad" title="Quién ve qué" description="Los cambios se guardan al momento.">
         {!privacy ? <Skeleton className="h-64 rounded-2xl" /> : (
           <div className="flex flex-col">
@@ -78,10 +125,26 @@ export function PrivacyPanel({ Section }: { Section: (p: { eyebrow?: string; tit
             <Row id="pv-zone" label="Mostrar en qué zona estoy" description="Por ejemplo «En línea · en Gimnasio».">
               <Switch id="pv-zone" checked={privacy.showZone && privacy.showOnline} disabled={!privacy.showOnline} onChange={(e) => void change({ showZone: e.target.checked })} />
             </Row>
-            <Row id="pv-read" label="Confirmación de lectura" description="Tus amigos ven «Leída» cuando lees sus cartas." last>
+            <Row id="pv-read" label="Confirmación de lectura" description="Tus amigos ven «Visto» cuando lees sus cartas." last>
               <Switch id="pv-read" checked={privacy.readReceipts} onChange={(e) => void change({ readReceipts: e.target.checked })} />
             </Row>
           </div>
+        )}
+      </Section>
+
+      <Section eyebrow="Bloqueos" title="Personas bloqueadas" description="No pueden escribirte, enviarte palomas ni gestos, y no se ven en las zonas.">
+        {blocked === null ? <Skeleton className="h-16 rounded-2xl" /> : blocked.length === 0 ? (
+          <p className="text-body-md text-on-surface-light">No has bloqueado a nadie.</p>
+        ) : (
+          <ul className="flex flex-col">
+            {blocked.map((u, i) => (
+              <li key={u.id} className={cn('flex min-h-[64px] items-center gap-3 py-2', i < blocked.length - 1 && 'border-b border-border')}>
+                <AvatarDisplay avatarConfig={u.avatarConfig} avatarUrl={u.avatarUrl} size={40} animate="none" className="overflow-hidden rounded-full" />
+                <span className="min-w-0 flex-1"><span className="block truncate text-label-lg">{u.displayName}</span><span className="block truncate text-body-sm text-on-surface-light">@{u.username}</span></span>
+                <Button size="sm" variant="secondary" onClick={() => void unblock(u)}>Desbloquear</Button>
+              </li>
+            ))}
+          </ul>
         )}
       </Section>
 

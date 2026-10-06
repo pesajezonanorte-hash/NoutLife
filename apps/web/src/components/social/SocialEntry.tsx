@@ -11,21 +11,16 @@ import { springs } from '@/lib/motion/presets';
 import { useSocialStore, type SocialPulse } from '@/store/socialStore';
 import { AvatarDisplay } from '@/components/character/AvatarDisplay';
 
-/** Mantiene el pulso al día: al navegar y cada minuto con la pestaña visible. */
+/** El pulso llega en vivo (lib/live); al entrar en la app se pide una vez por si acaso. */
 export function useSocialPulseSync() {
-  const { pathname } = useLocation();
   const refresh = useSocialStore((s) => s.refresh);
-  useEffect(() => { void refresh(); }, [pathname, refresh]);
-  useEffect(() => {
-    const id = window.setInterval(() => { if (document.visibilityState === 'visible') void refresh(); }, 60_000);
-    return () => window.clearInterval(id);
-  }, [refresh]);
+  useEffect(() => { void refresh(); }, [refresh]);
 }
 
 /** Adónde ir según lo pendiente: cartas sin abrir, palomas recibidas o la sección. */
 function socialTarget(pulse: SocialPulse | null) {
   if (pulse && pulse.unreadMessages + pulse.guildUnread > 0) return '/social?tab=cartas';
-  if (pulse?.requests) return '/social?tab=amigos&view=requests';
+  if (pulse?.requests) return '/social?tab=directorio&view=requests';
   return '/social';
 }
 
@@ -88,7 +83,7 @@ export function SocialPortal({ className }: { className?: string }) {
     pulse?.requests ? { icon: UserPlus, text: `${pulse.requests} ${pulse.requests === 1 ? 'paloma por responder' : 'palomas por responder'}` } : null,
   ].filter((x): x is { icon: typeof Users; text: string } => Boolean(x));
   const title = !pulse ? 'Tu gente' : pulse.friends === 0 ? 'Encuentra a tu gente' : pulse.onlineCount > 0 ? `${pulse.onlineCount} ${pulse.onlineCount === 1 ? 'amigo en línea' : 'amigos en línea'}` : 'Tu gente';
-  const sub = !pulse ? 'Tu libreta de amigos, tus cartas y tus gremios.' : pulse.friends === 0 ? 'Envía una paloma a tus amigos y anótalos en tu libreta.' : lines.length ? null : 'Escríbeles una carta o envíales una foto.';
+  const sub = !pulse ? 'Tu directorio, tus cartas y tus gremios.' : pulse.friends === 0 ? 'Envía una paloma a tus amigos y anótalos en tu directorio.' : lines.length ? null : 'Escríbeles una carta o envíales una foto.';
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={springs.gentle} className={className}>

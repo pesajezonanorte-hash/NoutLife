@@ -9,16 +9,24 @@ export const H = 36;
 export type Body = 'male' | 'female';
 export type HairId =
   | 'calvo' | 'rapado' | 'corto' | 'puntas' | 'despeinado' | 'copete' | 'raya' | 'mohicano' | 'afro' | 'mono_alto'
-  | 'media' | 'bob' | 'flequillo' | 'pixie' | 'largo' | 'ondulado' | 'coleta' | 'dos_coletas' | 'mono' | 'trenzas';
+  | 'media' | 'bob' | 'flequillo' | 'pixie' | 'largo' | 'ondulado' | 'coleta' | 'dos_coletas' | 'mono' | 'trenzas'
+  // De la Tienda
+  | 'samurai' | 'rizos';
 export type EyesId = 'normal' | 'grandes' | 'felices' | 'entrecerrados' | 'guino';
 export type BrowsId = 'normales' | 'gruesas' | 'enfadadas' | 'preocupadas' | 'ninguna';
 export type MouthId = 'sonrisa' | 'neutral' | 'abierta' | 'sonrisota' | 'seria' | 'lengua';
 export type FacialId = 'ninguno' | 'bigote' | 'perilla' | 'barba_corta' | 'barba';
-export type TopId = 'camiseta' | 'manga_larga' | 'tirantes' | 'camisa' | 'uniforme' | 'sudadera' | 'chaqueta' | 'sueter' | 'vestido' | 'sin_camiseta';
+export type TopId =
+  | 'camiseta' | 'manga_larga' | 'tirantes' | 'camisa' | 'uniforme' | 'sudadera' | 'chaqueta' | 'sueter' | 'vestido' | 'sin_camiseta'
+  // De la Tienda
+  | 'armadura' | 'kimono' | 'traje';
 export type BottomId = 'pantalon' | 'shorts' | 'falda' | 'rotos';
 export type ShoesId = 'zapatillas' | 'botas' | 'sandalias' | 'descalzo';
 export type ExtraId =
-  | 'gafas' | 'gafas_sol' | 'cinta' | 'gorra' | 'gorro' | 'corona' | 'auriculares' | 'pendientes' | 'bufanda' | 'collar' | 'flor' | 'parche';
+  | 'gafas' | 'gafas_sol' | 'cinta' | 'gorra' | 'gorro' | 'corona' | 'auriculares' | 'pendientes' | 'bufanda' | 'collar' | 'flor' | 'parche'
+  // De la Tienda: sombreros, cara, espalda y al costado
+  | 'sombrero_aventurero' | 'sombrero_mago' | 'birrete' | 'casco_vikingo' | 'bandana_ninja' | 'corona_campeon' | 'corona_cristal'
+  | 'antifaz' | 'monoculo' | 'capa' | 'alas' | 'escudo' | 'dragoncito';
 
 export interface PixelLook {
   body: Body;
@@ -213,6 +221,47 @@ function paintTop(cv: Canvas, look: PixelLook) {
       cv.rect(9, 30, 22, 30, darken(c, 0.82), 'top');
       cv.rect(12, 25, 19, 25, lighten(c, 0.3), 'flat');
       break;
+    case 'armadura': {
+      // Placas de acero, cota de malla en los brazos, hombreras y cinturón dorado.
+      const steel = '#a9b2bd';
+      const mail = '#7f8894';
+      cv.spans(torso(look.body), steel, 'top');
+      cv.symRect(a0, 22, a1, 26, mail, 'top'); cv.sym(a1, 21, steel, 'top');
+      for (let y = 23; y <= 25; y += 2) cv.symRect(a0, y, a1, y, darken(mail, 0.82), 'flat');
+      cv.symRect(a0 - 1, 21, a1, 22, lighten(steel, 0.18), 'acc');
+      cv.rect(15, 22, 16, 25, lighten(steel, 0.32), 'flat');
+      for (const [x0, x1] of torso(look.body)[24]) cv.rect(x0, 24, x1, 24, darken(steel, 0.78), 'flat');
+      cv.rect(15, 24, 16, 24, lighten(steel, 0.2), 'flat');
+      for (const [x0, x1] of torso(look.body)[27]) cv.rect(x0, 27, x1, 27, '#5a3a22', 'flat');
+      cv.rect(15, 27, 16, 27, GOLD, 'flat');
+      cv.symRect(a0, 26, a1, 26, darken(steel, 0.85), 'top');
+      break;
+    }
+    case 'kimono': {
+      // Mangas amplias, cuello cruzado blanco y obi del color de los accesorios.
+      body();
+      cv.symRect(a0 - 1, 22, a1, 26, c, 'top'); cv.sym(a1, 21, c, 'top');
+      cv.symRect(a0 - 1, 26, a1, 26, darken(c, 0.8), 'flat');
+      cv.spans({ 28: [[11, 20]], 29: [[11, 20]], 30: [[10, 21]] }, c, 'top');
+      for (let y = 27; y <= 30; y++) cv.set(16, y, darken(c, 0.72), 'flat');
+      // Cuello en V: dos bandas blancas que se cruzan hasta el obi.
+      for (const [x, y] of [[13, 21], [14, 22], [15, 23], [18, 21], [17, 22], [16, 23]] as const) cv.set(x, y, WHITE, 'flat');
+      cv.rect(14, 21, 17, 21, darken(c, 0.7), 'flat');
+      const obi = look.extraColor;
+      for (const y of [25, 26]) for (const [x0, x1] of torso(look.body)[y]) cv.rect(x0, y, x1, y, obi, 'acc');
+      cv.rect(15, 25, 16, 26, darken(obi, 0.75), 'flat');
+      break;
+    }
+    case 'traje': {
+      // Chaqueta del color elegido, camisa blanca, solapas y corbata roja.
+      body(); sleeves(26);
+      cv.symRect(a0, 26, a1, 26, WHITE, 'flat');
+      cv.rect(14, 21, 17, 21, WHITE, 'flat'); cv.rect(15, 22, 16, 24, WHITE, 'flat');
+      cv.rect(15, 22, 16, 22, '#c0392b', 'flat'); cv.rect(15, 23, 16, 25, '#a8302a', 'flat'); cv.set(15, 26, '#a8302a', 'flat');
+      for (const [x, y] of [[13, 21], [14, 22], [14, 23], [18, 21], [17, 22], [17, 23]] as const) cv.set(x, y, darken(c, 0.72), 'flat');
+      cv.set(14, 26, darken(c, 0.6), 'flat'); cv.set(17, 26, darken(c, 0.6), 'flat');
+      break;
+    }
   }
 }
 
@@ -336,6 +385,14 @@ function paintHairBack(cv: Canvas, look: PixelLook) {
       cv.spans({ 0: [[13, 18]], 1: [[12, 19]], 2: [[12, 19]], 3: [[13, 18]] }, look.hairColor, 'hair'); break;
     case 'mono_alto':
       cv.spans({ 0: [[14, 17]], 1: [[13, 18]], 2: [[13, 18]] }, look.hairColor, 'hair'); break;
+    case 'rizos': {
+      // Volumen de rizos alrededor de la cabeza, con textura de bucles.
+      const rows = symRows({ 3: [[10, 15]], 4: [[7, 15]], 5: [[6, 15]], 6: [[5, 15]], 7: [[5, 15]], 8: [[5, 15]], 9: [[5, 15]], 10: [[5, 15]], 11: [[5, 15]], 12: [[5, 15]], 13: [[5, 15]], 14: [[5, 15]], 15: [[5, 15]], 16: [[5, 15]], 17: [[6, 15]], 18: [[6, 9]], 19: [[7, 8]] });
+      cv.spans(rows, c, g);
+      for (const [y, list] of Object.entries(rows)) for (const [a, b] of list) for (let x = a; x <= b; x++) if ((x + 2 * +y) % 4 === 0) cv.set(x, +y, darken(c, 0.82), 'flat');
+      for (const x of [5, 26]) cv.clear(x, 6);
+      break;
+    }
     default: break;
   }
 }
@@ -420,11 +477,72 @@ function paintHairFront(cv: Canvas, look: PixelLook) {
       for (let y = 11; y <= 26; y++) cv.spans(sides(y, y, 7, 8), y % 2 ? c : darken(c, 0.78), y % 2 ? g : 'flat');
       cv.symRect(7, 26, 8, 26, look.extraColor, 'flat'); cv.symRect(7, 27, 8, 28, c, g);
       break;
+    case 'samurai':
+      // Laterales rapados, el pelo peinado hacia atrás y el moño en lo alto.
+      cv.spans({ 5: [[9, 10], [21, 22]], 6: [[8, 10], [21, 23]], 7: [[8, 10], [21, 23]], 8: [[8, 10], [21, 23]], 9: [[8, 9], [22, 23]] }, mix(c, look.skin, 0.5), 'flat');
+      cv.spans({ 3: [[12, 19]], 4: [[11, 20]], 5: [[11, 20]], 6: [[11, 20]], 7: [[11, 20]], 8: [[11, 20]] }, c, g);
+      for (let y = 4; y <= 8; y++) cv.set(y % 2 ? 14 : 17, y, darken(c, 0.75), 'flat');
+      cv.spans({ 0: [[14, 17]], 1: [[13, 18]] }, c, g);
+      cv.rect(14, 2, 17, 2, look.extraColor, 'flat');
+      break;
+    case 'rizos':
+      cap();
+      cv.spans({ 9: [[7, 24]], 10: [[7, 10], [12, 13], [15, 16], [18, 19], [21, 24]], 11: [[7, 9], [22, 24]] }, c, g);
+      cv.spans(sides(12, 16, 6, 8), c, g);
+      for (let y = 3; y <= 16; y++) for (let x = 6; x <= 25; x++) {
+        const k = cv.get(x, y);
+        if (k?.g === g && (x + 2 * y) % 4 === 1) cv.set(x, y, lighten(c, 0.16), 'flat');
+      }
+      break;
   }
 }
 
 // ── Accesorios ──────────────────────────────────────────────────────────────
-const HATS: ExtraId[] = ['gorra', 'gorro', 'corona'];
+/** Sombreros y desde qué fila hacia arriba recortan el pelo que sobresale. */
+const HAT_CLIP: Partial<Record<ExtraId, number>> = {
+  gorra: 3, gorro: 2, corona: 2,
+  sombrero_aventurero: 6, sombrero_mago: 7, birrete: 5, casco_vikingo: 9, corona_campeon: 3, corona_cristal: 3,
+};
+
+/** Lo que va a la espalda (detrás del pelo largo y del cuerpo): capa y alas. */
+function paintBack(cv: Canvas, look: PixelLook) {
+  const e = new Set(look.extras);
+  if (e.has('capa')) {
+    const red = '#b02e45';
+    cv.rect(10, 20, 21, 20, red, 'acc');
+    for (let y = 21; y <= 33; y++) { const k = Math.floor((y - 21) / 4); cv.rect(8 - k, y, 23 + k, y, red, 'acc'); }
+    for (let y = 26; y <= 33; y++) for (const x of [7, 10, 21, 24]) if (cv.get(x, y)) cv.set(x, y, darken(red, 0.78), 'flat');
+  }
+  if (e.has('alas')) {
+    // Alas de hada: la de arriba más grande, la de abajo más corta; nervios claros.
+    const up: Record<number, [number, number][]> = { 15: [[2, 4]], 16: [[1, 6]], 17: [[1, 7]], 18: [[1, 7]], 19: [[2, 8]], 20: [[3, 9]], 21: [[4, 9]], 22: [[6, 9]] };
+    const low: Record<number, [number, number][]> = { 23: [[5, 9]], 24: [[3, 9]], 25: [[2, 8]], 26: [[2, 7]], 27: [[3, 6]], 28: [[4, 5]] };
+    cv.spans(symRows(up), '#cdeeff', 'flat');
+    cv.spans(symRows(low), '#e6dbff', 'flat');
+    for (const [x, y] of [[3, 17], [4, 18], [5, 19], [6, 20], [7, 21], [4, 26], [5, 25], [6, 25], [7, 24]] as const) cv.sym(x, y, '#8fc6ee', 'flat');
+    for (const [x, y] of [[2, 16], [2, 17], [3, 26]] as const) cv.sym(x, y, WHITE, 'flat');
+  }
+}
+
+/** Dragón pequeño que vuela a tu lado, junto al hombro, mirando hacia fuera. */
+function paintDragon(cv: Canvas) {
+  const g = '#4caf6a'; const d = '#2f8a55'; const wing = '#8fdcaa'; const belly = '#e3efb0'; const horn = '#f2e3b0';
+  // Dibujado en su propia rejilla (x 25–31) y bajado a la altura de la cara.
+  const px = (cells: [number, number][], c: string, grp: Group = 'flat') => { for (const [x, y] of cells) cv.set(x, y + 11, c, grp); };
+  // Ala abierta sobre el lomo: borde oscuro y membrana clara.
+  px([[25, 0], [25, 1], [26, 1], [25, 2], [27, 2], [26, 3]], d);
+  px([[26, 2]], wing);
+  px([[29, 1]], horn);
+  // Cabeza con el ojo y la nariz hacia fuera.
+  px([[28, 2], [29, 2], [30, 2], [27, 3], [28, 3], [29, 3], [31, 3], [27, 4], [28, 4], [29, 4], [30, 4]], g, 'acc');
+  px([[30, 3]], INK); px([[31, 4]], darken(g, 0.72)); px([[28, 2]], lighten(g, 0.3));
+  // Cuello, cuerpo con la panza clara y patas.
+  px([[27, 5], [28, 5], [26, 6], [27, 6], [28, 6], [29, 6], [26, 7], [27, 7], [28, 7], [29, 7], [30, 7], [27, 8], [28, 8], [29, 8], [30, 8]], g, 'acc');
+  px([[28, 5], [28, 6], [29, 7], [28, 7], [29, 8]], belly);
+  px([[27, 9], [30, 9]], d);
+  // Cola enroscada hacia atrás con la punta en flecha.
+  px([[25, 7], [25, 8], [26, 9]], g, 'acc'); px([[25, 6]], d);
+}
 
 function paintExtras(cv: Canvas, look: PixelLook) {
   const e = new Set(look.extras);
@@ -466,11 +584,91 @@ function paintExtras(cv: Canvas, look: PixelLook) {
     cv.rect(8, 5, 8, 10, '#2a2633', 'acc'); cv.rect(23, 5, 23, 10, '#2a2633', 'acc');
     cv.symRect(6, 11, 8, 15, c, 'acc');
   }
+  if (e.has('antifaz')) {
+    // Antifaz: banda oscura sobre los ojos, con dos aberturas y el nudo a un lado.
+    const m = '#1f1b29';
+    for (let y = 11; y <= 14; y++) for (let x = 9; x <= 22; x++) {
+      const hole = y >= 12 && (x === 12 || x === 13 || x === 18 || x === 19);
+      if (!hole) cv.set(x, y, y === 11 ? '#3b3550' : m, 'flat');
+    }
+    cv.set(23, 11, m, 'flat'); cv.set(24, 12, m, 'flat'); cv.set(24, 11, m, 'flat'); cv.set(25, 13, m, 'flat');
+  }
+  if (e.has('monoculo')) {
+    for (const [x, y] of [[18, 11], [19, 11], [17, 12], [17, 13], [17, 14], [20, 12], [20, 13], [20, 14], [18, 15], [19, 15]] as const) cv.set(x, y, GOLD, 'flat');
+    cv.set(19, 12, '#dff4ff', 'flat');
+    for (const [x, y] of [[21, 15], [21, 16], [21, 17], [22, 18], [22, 19]] as const) cv.set(x, y, '#c8902a', 'flat');
+  }
+  if (e.has('escudo')) {
+    // Escudo con borde dorado y cruz, sujeto a la altura de la mano.
+    const rim = '#e3b341'; const field = '#2f5fb3';
+    cv.rect(3, 21, 8, 21, rim, 'acc');
+    cv.rect(2, 22, 8, 26, rim, 'acc'); cv.rect(3, 22, 7, 26, field, 'acc');
+    cv.rect(3, 27, 7, 27, rim, 'acc'); cv.rect(4, 27, 6, 27, field, 'acc');
+    cv.rect(4, 28, 6, 28, rim, 'acc'); cv.set(5, 28, field, 'acc'); cv.set(5, 29, rim, 'acc');
+    cv.rect(5, 22, 5, 27, GOLD, 'flat'); cv.rect(3, 24, 7, 24, GOLD, 'flat');
+    cv.set(3, 22, lighten(field, 0.35), 'flat');
+  }
+  if (e.has('dragoncito')) paintDragon(cv);
+  if (e.has('capa')) { cv.set(12, 21, GOLD, 'flat'); cv.set(19, 21, GOLD, 'flat'); }
+
   // Sombreros: lo que sobresale del pelo por encima se recorta.
-  const hat = HATS.find((h) => e.has(h));
+  const hat = (Object.keys(HAT_CLIP) as ExtraId[]).find((h) => e.has(h));
   if (hat) {
-    const clearTop = hat === 'gorra' ? 3 : 2;
+    const clearTop = HAT_CLIP[hat] ?? 2;
     for (let y = 0; y < clearTop; y++) for (let x = 0; x < W; x++) { const k = cv.get(x, y); if (k && (k.g === 'hair' || k.g === 'hairB')) cv.clear(x, y); }
+  }
+  if (e.has('bandana_ninja')) {
+    const b = '#1f1d26';
+    cv.rect(8, 7, 23, 8, b, 'acc');
+    cv.rect(13, 7, 18, 8, '#b8c0cc', 'flat'); cv.rect(15, 7, 16, 8, '#6b7280', 'flat');
+    for (const [x, y] of [[24, 8], [25, 8], [25, 9], [26, 10], [24, 9], [24, 10], [25, 11]] as const) cv.set(x, y, b, 'acc');
+  }
+  if (hat === 'sombrero_aventurero') {
+    const felt = '#8a5a33';
+    cv.spans({ 1: [[12, 19]], 2: [[11, 20]], 3: [[11, 20]], 4: [[11, 20]], 5: [[11, 20]], 6: [[11, 20]] }, felt, 'acc');
+    cv.rect(11, 5, 20, 5, '#3b2a22', 'flat');
+    cv.rect(15, 1, 16, 1, darken(felt, 0.75), 'flat');
+    cv.spans({ 7: [[5, 26]], 8: [[7, 24]] }, darken(felt, 0.9), 'acc');
+  }
+  if (hat === 'sombrero_mago') {
+    const p = '#4b3a9c';
+    cv.spans({ 0: [[22, 23]], 1: [[20, 22]], 2: [[18, 21]], 3: [[16, 20]], 4: [[15, 20]], 5: [[13, 20]], 6: [[11, 21]] }, p, 'acc');
+    cv.spans({ 7: [[6, 25]], 8: [[8, 23]] }, darken(p, 0.85), 'acc');
+    cv.rect(11, 6, 21, 6, GOLD, 'flat');
+    cv.set(17, 4, GOLD, 'flat'); cv.set(19, 2, '#fff1b8', 'flat'); cv.set(14, 5, '#fff1b8', 'flat');
+  }
+  if (hat === 'birrete') {
+    const k = '#25222b';
+    cv.spans({ 2: [[11, 20]], 3: [[8, 23]] }, '#3a3644', 'acc');
+    cv.rect(6, 4, 25, 4, k, 'acc');
+    cv.rect(9, 5, 22, 7, k, 'acc');
+    cv.set(16, 2, GOLD, 'flat');
+    for (const [x, y] of [[17, 3], [19, 3], [21, 3], [23, 3], [24, 4], [24, 5], [24, 6], [24, 7]] as const) cv.set(x, y, GOLD, 'flat');
+    cv.rect(23, 8, 25, 9, GOLD, 'flat');
+  }
+  if (hat === 'casco_vikingo') {
+    const steel = '#9aa3ae'; const horn = '#efe6d0';
+    cv.spans({ 2: [[12, 19]], 3: [[10, 21]], 4: [[9, 22]], 5: [[8, 23]], 6: [[8, 23]], 7: [[8, 23]] }, steel, 'acc');
+    cv.rect(15, 2, 16, 7, lighten(steel, 0.25), 'flat');
+    cv.rect(8, 8, 23, 8, '#6c7480', 'acc');
+    for (const x of [10, 13, 18, 21]) cv.set(x, 8, lighten(steel, 0.35), 'flat');
+    cv.rect(15, 9, 16, 11, steel, 'acc');
+    for (const [x, y] of [[7, 6], [7, 5], [6, 5], [6, 4], [5, 4], [5, 3], [4, 3], [4, 2]] as const) cv.sym(x, y, horn, 'acc');
+    cv.sym(4, 1, darken(horn, 0.7), 'flat');
+  }
+  if (hat === 'corona_campeon') {
+    cv.spans({ 0: [[10, 10], [15, 16], [21, 21]], 1: [[10, 11], [15, 16], [20, 21]], 2: [[10, 11], [14, 17], [20, 21]], 3: [[10, 21]], 4: [[9, 22]], 5: [[9, 22]] }, GOLD, 'acc');
+    cv.set(10, 0, '#fff1b8', 'flat'); cv.set(21, 0, '#fff1b8', 'flat'); cv.rect(15, 0, 16, 0, '#fff1b8', 'flat');
+    cv.rect(15, 4, 16, 5, '#d62b45', 'flat'); cv.rect(11, 5, 12, 5, '#2fae6a', 'flat'); cv.rect(19, 5, 20, 5, '#2fae6a', 'flat');
+    cv.rect(9, 6, 22, 6, '#c8902a', 'acc');
+  }
+  if (hat === 'corona_cristal') {
+    const ice = '#bfeaff'; const deep = '#7fc8ee';
+    cv.spans({ 0: [[11, 11], [15, 16], [20, 20]], 1: [[11, 11], [14, 17], [20, 20]], 2: [[10, 12], [14, 17], [19, 21]], 3: [[10, 21]] }, ice, 'flat');
+    cv.spans({ 1: [[17, 17]], 2: [[12, 12], [17, 17], [21, 21]], 3: [[13, 13], [18, 18], [21, 21]] }, deep, 'flat');
+    cv.rect(9, 4, 22, 5, '#e6f6ff', 'acc');
+    cv.rect(15, 4, 16, 5, '#b79cff', 'flat'); cv.set(11, 4, '#ffffff', 'flat'); cv.set(20, 5, deep, 'flat');
+    cv.set(15, 0, '#ffffff', 'flat'); cv.set(11, 0, '#ffffff', 'flat');
   }
   if (hat === 'gorra') {
     cv.spans({ 3: [[12, 19]], 4: [[10, 21]], 5: [[9, 22]], 6: [[8, 23]], 7: [[8, 23]] }, c, 'acc');
@@ -496,6 +694,7 @@ export type PixelGrid = (string | null)[][];
 /** Rejilla final (con sombreado y contorno): un color por celda o null. */
 export function renderGrid(look: PixelLook, opts: { blink?: boolean } = {}): PixelGrid {
   const cv = new Canvas();
+  paintBack(cv, look);
   paintHairBack(cv, look);
   paintBody(cv, look);
   paintBottom(cv, look);

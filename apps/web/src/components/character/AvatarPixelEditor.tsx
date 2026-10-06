@@ -7,7 +7,7 @@
 // acerca a la cabeza o al cuerpo según la pestaña. Historial con deshacer/rehacer.
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, PresenceContext, motion, type Variants } from 'framer-motion';
-import { Check, Dices, Redo2, Undo2 } from 'lucide-react';
+import { Check, Dices, Gem, Redo2, Undo2 } from 'lucide-react';
 import type { AvatarConfig } from '@lifequest/shared';
 import { cn } from '@/lib/utils';
 import { Button, SegmentedControl, Switch, Tabs } from '@/components/ui/lq';
@@ -16,9 +16,10 @@ import { PixelStage, type StageFocus } from './pixel/PixelStage';
 import { ColorField } from './pixel/ColorField';
 import type { Body, PixelLook } from './pixel/engine';
 import {
-  BOTTOMS, BROWS, CLOTH_COLORS, EXTRAS, EYES, EYE_COLORS, FACIALS, HAIRS, HAIR_COLORS, MOUTHS, SHOES, SKINS, TOPS,
-  lookFrom, randomLook, switchBody, toConfig, toggleExtra, type Option,
+  BOTTOMS, BROWS, CLOTH_COLORS, EXTRAS, EYES, EYE_COLORS, FACIALS, HAIRS, HAIR_COLORS, MOUTHS, SHOES, SHOP_EXTRAS, SHOP_HAIRS, SHOP_TOPS, SKINS, TOPS,
+  lookFrom, randomLook, shopKey, switchBody, toConfig, toggleExtra, type Option, type ShopSlot,
 } from './pixel/look';
+import { useOwnedItems } from './ownedItems';
 
 /** Fondo de cuadros (tokens) para vistas previas pequeñas. */
 const STAGE = 'bg-surface-variant bg-[repeating-conic-gradient(rgb(var(--lq-primary)/0.09)_0_25%,transparent_0_50%)] bg-[length:16px_16px]';
@@ -87,9 +88,25 @@ function Selected({ id }: { id: string }) {
   );
 }
 
-function OptionGrid<T extends string>({ title, look, options, value, preview, crop, onSelect }: {
+/** Marca de lo comprado en la Tienda. */
+function ShopMark() {
+  return (
+    <span title="De la Tienda" className="absolute left-1.5 top-1.5 z-10 flex size-5 items-center justify-center rounded-full bg-warning/[var(--lq-soft-alpha)] text-warning-text">
+      <Gem aria-hidden className="size-3" strokeWidth={2} />
+      <span className="sr-only">De la Tienda</span>
+    </span>
+  );
+}
+
+/** Opciones del estudio más lo que la persona compró en la Tienda (y lo que ya lleva puesto). */
+function withShop<T extends string>(base: Option<T>[], shop: Option<T>[], slot: ShopSlot, owned: Set<string>, worn: (id: T) => boolean) {
+  const mine = shop.filter((o) => owned.has(shopKey(slot, o.id)) || worn(o.id));
+  return { options: [...base, ...mine], premium: new Set<string>(mine.map((o) => o.id)) };
+}
+
+function OptionGrid<T extends string>({ title, look, options, value, preview, crop, onSelect, premium }: {
   title: string; look: PixelLook; options: Option<T>[]; value: T; preview: (l: PixelLook, v: T) => PixelLook;
-  crop: 'head' | 'body'; onSelect: (v: T) => void;
+  crop: 'head' | 'body'; onSelect: (v: T) => void; premium?: Set<string>;
 }) {
   const name = useId();
   return (
@@ -101,6 +118,7 @@ function OptionGrid<T extends string>({ title, look, options, value, preview, cr
             <motion.label key={o.id} variants={tileV} custom={i} initial="initial" animate="animate" whileHover={{ y: -3 }} whileTap={{ scale: 0.95 }} className={tileCls}>
               <input type="radio" name={name} value={o.id} checked={on} onChange={() => onSelect(o.id)} className="sr-only" />
               {on && <Selected id={`sel-${name}`} />}
+              {premium?.has(o.id) && <ShopMark />}
               <span className="relative transition-transform duration-300 ease-[cubic-bezier(.34,1.56,.64,1)] group-hover:scale-110">
                 <PixelAvatar look={preview(look, o.id)} size={crop === 'body' ? 72 : 66} crop={crop} animate={on ? 'idle' : 'none'} />
               </span>
@@ -113,12 +131,16 @@ function OptionGrid<T extends string>({ title, look, options, value, preview, cr
   );
 }
 
-function ExtrasGrid({ look, onChange }: { look: PixelLook; onChange: (l: PixelLook) => void }) {
+/** Encuadre de la miniatura según dónde va el accesorio. */
+const EXTRA_CROP: Partial<Record<string, 'head' | 'body' | 'full'>> = { bufanda: 'body', collar: 'body', capa: 'full', alas: 'full', escudo: 'full', dragoncito: 'full' };
+
+function ExtrasGrid({ look, onChange, owned }: { look: PixelLook; onChange: (l: PixelLook) => void; owned: Set<string> }) {
+  const { options, premium } = withShop(EXTRAS, SHOP_EXTRAS, 'extra', owned, (id) => look.extras.includes(id));
   return (
-    <Section title="Accesorios" count={EXTRAS.length}>
-      <p className="-mt-1 text-body-sm text-on-surface-light">Combina los que quieras; solo un sombrero y unas gafas a la vez.</p>
+    <Section title="Accesorios" count={options.length}>
+      <p className="-mt-1 text-body-sm text-on-surface-light">Combina los que quieras: uno de cada tipo a la vez (sombrero, gafas, espalda y costado). Lo que compres en la Tienda aparece aquí.</p>
       <div className="grid grid-cols-3 gap-2 min-[420px]:grid-cols-4">
-        {EXTRAS.map((o, i) => {
+        {options.map((o, i) => {
           const on = look.extras.includes(o.id);
           return (
             <motion.label key={o.id} variants={tileV} custom={i} initial="initial" animate="animate" whileHover={{ y: -3 }} whileTap={{ scale: 0.95 }} className={tileCls}>
@@ -131,8 +153,9 @@ function ExtrasGrid({ look, onChange }: { look: PixelLook; onChange: (l: PixelLo
                   </motion.span>
                 )}
               </AnimatePresence>
+              {premium.has(o.id) && <ShopMark />}
               <span className="relative transition-transform duration-300 ease-[cubic-bezier(.34,1.56,.64,1)] group-hover:scale-110">
-                <PixelAvatar look={on ? look : toggleExtra(look, o.id)} size={66} crop={o.id === 'bufanda' || o.id === 'collar' ? 'body' : 'head'} animate={on ? 'idle' : 'none'} />
+                <PixelAvatar look={on ? look : toggleExtra(look, o.id)} size={EXTRA_CROP[o.id] === 'full' ? 60 : 66} crop={EXTRA_CROP[o.id] ?? 'head'} animate={on ? 'idle' : 'none'} />
               </span>
               <span className={cn('relative text-label-md leading-tight', on ? 'text-primary-text' : 'text-on-surface')}>{o.label}</span>
             </motion.label>
@@ -163,6 +186,9 @@ function Controls(props: { look: PixelLook; commit: (l: PixelLook) => void; tab:
 
 function ControlsInner({ look, commit, tab, setTab }: { look: PixelLook; commit: (l: PixelLook) => void; tab: Tab; setTab: (t: Tab) => void }) {
   const set = <K extends keyof PixelLook>(k: K) => (v: PixelLook[K]) => commit({ ...look, [k]: v });
+  const owned = useOwnedItems();
+  const hairs = withShop(HAIRS, SHOP_HAIRS, 'hair', owned, (id) => look.hair === id);
+  const tops = withShop(look.body === 'female' ? TOPS.filter((t) => t.id !== 'sin_camiseta') : TOPS, SHOP_TOPS, 'top', owned, (id) => look.top === id);
   const dir = useRef(0);
   const prev = useRef(tab);
   if (prev.current !== tab) { dir.current = TABS.findIndex((t) => t.value === tab) > TABS.findIndex((t) => t.value === prev.current) ? 1 : -1; prev.current = tab; }
@@ -195,7 +221,7 @@ function ControlsInner({ look, commit, tab, setTab }: { look: PixelLook; commit:
           )}
           {tab === 'pelo' && (
             <>
-              <OptionGrid title="Peinado" look={look} options={HAIRS} value={look.hair} preview={(l, v) => ({ ...l, hair: v, extras: [] })} crop="head" onSelect={set('hair')} />
+              <OptionGrid title="Peinado" look={look} options={hairs.options} premium={hairs.premium} value={look.hair} preview={(l, v) => ({ ...l, hair: v, extras: [] })} crop="head" onSelect={set('hair')} />
               <ColorField label="Color de pelo" value={look.hairColor} colors={HAIR_COLORS} onChange={set('hairColor')} />
               <OptionGrid title="Vello facial" look={look} options={FACIALS} value={look.facial} preview={(l, v) => ({ ...l, facial: v })} crop="head" onSelect={set('facial')} />
             </>
@@ -210,7 +236,7 @@ function ControlsInner({ look, commit, tab, setTab }: { look: PixelLook; commit:
           )}
           {tab === 'ropa' && (
             <>
-              <OptionGrid title="Parte de arriba" look={look} options={look.body === 'female' ? TOPS.filter((t) => t.id !== 'sin_camiseta') : TOPS} value={look.top} preview={(l, v) => ({ ...l, top: v })} crop="body" onSelect={set('top')} />
+              <OptionGrid title="Parte de arriba" look={look} options={tops.options} premium={tops.premium} value={look.top} preview={(l, v) => ({ ...l, top: v })} crop="body" onSelect={set('top')} />
               <ColorField label="Color de arriba" value={look.topColor} colors={CLOTH_COLORS} onChange={set('topColor')} />
               <OptionGrid title="Parte de abajo" look={look} options={BOTTOMS} value={look.bottom} preview={(l, v) => ({ ...l, bottom: v })} crop="body" onSelect={set('bottom')} />
               <ColorField label="Color de abajo" value={look.bottomColor} colors={CLOTH_COLORS} onChange={set('bottomColor')} />
@@ -220,7 +246,7 @@ function ControlsInner({ look, commit, tab, setTab }: { look: PixelLook; commit:
           )}
           {tab === 'extras' && (
             <>
-              <ExtrasGrid look={look} onChange={commit} />
+              <ExtrasGrid look={look} onChange={commit} owned={owned} />
               <ColorField label="Color de accesorios" value={look.extraColor} colors={CLOTH_COLORS} onChange={set('extraColor')} />
             </>
           )}

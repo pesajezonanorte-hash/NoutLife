@@ -15,6 +15,7 @@ import { page as pageVariants } from './lib/motion';
 import { LoadingGate, LOADER_DELAY_MS, useLoadingVisibility } from './components/ui/LoadingGate';
 import { useKeyboardAdjust } from './hooks/useKeyboardAdjust';
 import { useTourDone } from './components/onboarding/WelcomeTour';
+import { DetachPresence } from './components/ambience/ZoneShell';
 import { useLocalReminders } from './lib/localReminders';
 import { syncPushSubscription } from './services/notification.service';
 
@@ -43,6 +44,7 @@ const loaders = {
   SettingsPage: () => import('./pages/Settings'),
   LeaderboardPage: () => import('./pages/Leaderboard'),
   SocialPage: () => import('./pages/Social'),
+  GalleryPage: () => import('./pages/Gallery'),
   UserProfilePage: () => import('./pages/UserProfile'),
   StatsPage: () => import('./pages/Stats'),
   SeasonPage: () => import('./pages/Season'),
@@ -97,6 +99,7 @@ const routeLoaders: Record<string, () => Promise<unknown>> = {
   '/settings': loaders.SettingsPage,
   '/leaderboard': loaders.LeaderboardPage,
   '/social': loaders.SocialPage,
+  '/gallery': loaders.GalleryPage,
   '/stats': loaders.StatsPage,
   '/season': loaders.SeasonPage,
   '/agenda': loaders.AgendaPage,
@@ -165,7 +168,7 @@ function LegacyFriendsRedirect() {
   const next = new URLSearchParams();
   const chat = old.get('chat');
   if (chat) { next.set('tab', 'cartas'); next.set('chat', chat); }
-  else { next.set('tab', 'amigos'); if (old.get('tab') === 'requests') next.set('view', 'requests'); }
+  else { next.set('tab', 'directorio'); if (old.get('tab') === 'requests') next.set('view', 'requests'); }
   return <Navigate to={`/social?${next.toString()}`} replace />;
 }
 
@@ -196,6 +199,8 @@ function AnimatedRoutes({ location }: { location: ReturnType<typeof useLocation>
         // (el rectángulo feo encima del HUD).
         style={{ width: '100%' }}
       >
+        {/* Solo se espera la salida de este contenedor: nada de la página puede dejarla colgada. */}
+        <DetachPresence>
         <Routes location={location}>
           <Route path="/"             element={<SafePage><DeferredLazyPage load={loaders.DashboardPage} /></SafePage>} />
           <Route path="/profile"      element={<SafePage><DeferredLazyPage load={loaders.ProfilePage} /></SafePage>} />
@@ -217,6 +222,7 @@ function AnimatedRoutes({ location }: { location: ReturnType<typeof useLocation>
           <Route path="/settings"     element={<SafePage><DeferredLazyPage load={loaders.SettingsPage} /></SafePage>} />
           <Route path="/leaderboard"  element={<SafePage><DeferredLazyPage load={loaders.LeaderboardPage} /></SafePage>} />
           <Route path="/social"       element={<SafePage><DeferredLazyPage load={loaders.SocialPage} /></SafePage>} />
+          <Route path="/gallery"      element={<SafePage><DeferredLazyPage load={loaders.GalleryPage} /></SafePage>} />
           <Route path="/friends"      element={<LegacyFriendsRedirect />} />
           <Route path="/guild"        element={<LegacyGuildRedirect />} />
           <Route path="/u/:username"  element={<SafePage><DeferredLazyPage load={loaders.UserProfilePage} /></SafePage>} />
@@ -235,6 +241,7 @@ function AnimatedRoutes({ location }: { location: ReturnType<typeof useLocation>
           <Route path="/faq"      element={<SafePage><DeferredLazyPage load={loaders.FAQPage} /></SafePage>} />
           <Route path="*"         element={<SafePage><DeferredLazyPage load={loaders.NotFoundPage} /></SafePage>} />
         </Routes>
+        </DetachPresence>
       </motion.div>
     </AnimatePresence>
   );

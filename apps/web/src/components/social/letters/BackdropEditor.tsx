@@ -40,13 +40,23 @@ export function BackdropEditor({ open, onClose, current, shareWith, onSave }: Ba
   const { ref: boxRef, box } = useBoxSize<HTMLDivElement>();
   const img = useImageSize(photo);
   const drag = useRef<{ x: number; y: number } | null>(null);
+  const wasOpen = useRef(false);
 
+  // Se rellena solo al abrirse. Antes se rellenaba cada vez que la carta se
+  // repintaba (el chat en vivo la repinta a menudo) y la foto nueva elegida
+  // volvía a ser la anterior: no dejaba cambiar un fondo que ya existía.
   useEffect(() => {
-    if (!open) return;
-    setPhoto(current?.photoUrl ?? null);
-    setFit(current?.fit ?? DEFAULT_FIT);
-    setFresh(false); setError(null); setBusy(null);
+    if (open && !wasOpen.current) {
+      setPhoto(current?.photoUrl ?? null);
+      setFit(current?.fit ?? DEFAULT_FIT);
+      setFresh(false); setError(null); setBusy(null);
+    }
+    wasOpen.current = open;
   }, [open, current]);
+  // Si la foto del fondo llega con el editor ya abierto (y no elegiste otra), se muestra.
+  useEffect(() => {
+    if (open && !fresh && !photo && current?.photoUrl) { setPhoto(current.photoUrl); setFit(current.fit); }
+  }, [open, fresh, photo, current?.photoUrl, current?.fit]);
 
   async function pick(file?: File | null) {
     if (!file) return;

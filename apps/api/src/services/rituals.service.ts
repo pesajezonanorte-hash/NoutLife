@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma';
+import { settleLevel } from './xp.service';
 import { DEFAULT_TIMEZONE, addCalendarDays, getCalendarDay } from '../lib/calendar';
 
 const PRESET_RITUALS = [
@@ -105,7 +106,7 @@ export async function completeRitual(userId: string, ritualId: string) {
   const date = getCalendarDay(ritual.user.timezone ?? DEFAULT_TIMEZONE);
 
   try {
-    return await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       // Repeat the ownership check inside the transaction so the mutation's
       // authorization and its side effects are one logical operation.
       const ownedRitual = await tx.ritual.findFirst({ where: { id: ritualId, userId }, select: { id: true } });
@@ -136,6 +137,13 @@ export async function completeRitual(userId: string, ritualId: string) {
         message: '¡Ritual completado! +30 XP',
       };
     });
+    if (!result.alreadyDone) {
+      // La XP del ritual también cuenta para subir de nivel y queda en el historial.
+      await prisma.xpEvent.create({ data: { userId, xpAmount: RITUAL_XP, goldAmount: RITUAL_GOLD, source: 'ritual', sourceId: ritualId, description: 'Ritual completado' } }).catch(() => null);
+      // Si falla, el nivel se pone al día en la próxima recompensa: el ritual ya quedó hecho.
+      await settleLevel(userId).catch(() => null);
+    }
+    return result;
   } catch (error) {
     // Two taps may pass the transaction-local pre-check simultaneously. The
     // database unique key admits one; convert the loser into the same benign,

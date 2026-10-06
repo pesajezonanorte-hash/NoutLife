@@ -44,35 +44,48 @@ export const DEFAULT_ACHIEVEMENTS = [
 ] as const;
 
 export const DEFAULT_SHOP_ITEMS = [
-  { name: 'Sombrero de Aventurero', description: 'Un sombrero digno de un héroe', type: 'COSMETIC', cost: 200, imageKey: 'hat_adventurer', levelRequired: 1 },
-  { name: 'Capa del Guerrero', description: 'Una capa que ondea épicamente', type: 'COSMETIC', cost: 500, imageKey: 'cape_warrior', levelRequired: 5 },
-  { name: 'Mascota: Dragón Pixel', description: 'Un pequeño dragón te acompaña', type: 'COSMETIC', cost: 1000, imageKey: 'pet_dragon', levelRequired: 10 },
-  { name: 'Escudo Dorado', description: 'Un escudo épico que brilla', type: 'COSMETIC', cost: 750, imageKey: 'shield_gold', levelRequired: 5 },
+  // Para el personaje: se ven tal como son y se ponen al comprarlos (slot + value).
+  { name: 'Sombrero de Aventurero', description: 'Ala ancha y cinta de cuero: listo para la próxima expedición.', type: 'HAT', cost: 200, imageKey: 'hat_adventurer', levelRequired: 1, slot: 'extra', value: 'sombrero_aventurero' },
+  { name: 'Capa del Guerrero', description: 'Una capa que ondea a tu espalda, con broche dorado.', type: 'COSMETIC', cost: 500, imageKey: 'cape_warrior', levelRequired: 5, slot: 'extra', value: 'capa' },
+  { name: 'Mascota: Dragón Pixel', description: 'Un pequeño dragón que no se separa de ti.', type: 'COSMETIC', cost: 1000, imageKey: 'pet_dragon', levelRequired: 10, slot: 'extra', value: 'dragoncito' },
+  { name: 'Escudo Dorado', description: 'Un escudo con filo de oro que llevas al costado.', type: 'COSMETIC', cost: 750, imageKey: 'shield_gold', levelRequired: 5, slot: 'extra', value: 'escudo' },
   { name: 'Multiplicador de XP x2', description: 'Duplica tu XP por 24 horas', type: 'POWERUP', cost: 300, imageKey: 'xp_booster', levelRequired: 1 },
   { name: 'Imán de Gold', description: '+50% gold por 24 horas', type: 'POWERUP', cost: 250, imageKey: 'gold_magnet', levelRequired: 3 },
   { name: 'Poción de Energía', description: 'Recupera 50 HP al instante', type: 'POWERUP', cost: 100, imageKey: 'potion_energy', levelRequired: 1 },
   { name: 'Escudo Anti-Racha', description: 'Protege tu racha 3 días seguidos', type: 'POWERUP', cost: 500, imageKey: 'streak_shield', levelRequired: 5 },
   { name: 'Pase de Perdón', description: 'No pierdes racha si fallas un día', type: 'PASS', cost: 150, imageKey: 'streak_pass', levelRequired: 1 },
   { name: 'Pase VIP (7 días)', description: 'Desbloquea funciones premium por 7 días', type: 'PASS', cost: 800, imageKey: 'vip_pass', levelRequired: 1 },
-  { name: 'Gorra del Ninja', description: 'Velocidad y sigilo. Para los héroes discretos.', type: 'HAT', cost: 350, imageKey: 'hat_ninja', levelRequired: 1 },
-  { name: 'Corona del Campeón', description: 'Solo para los que llegan al top 10', type: 'HAT', cost: 900, imageKey: 'hat_crown', levelRequired: 10 },
-  { name: 'Birrete del Sabio', description: 'La sabiduría tiene su recompensa', type: 'HAT', cost: 600, imageKey: 'hat_scholar', levelRequired: 7 },
-  { name: 'Sombrero de Mago', description: 'Con estrellas y todo lo bueno', type: 'HAT', cost: 450, imageKey: 'hat_wizard', levelRequired: 4 },
-  { name: 'Marco Dorado', description: 'Un marco épico color oro que brilla', type: 'FRAME', cost: 500, imageKey: 'frame_gold', levelRequired: 1 },
-  { name: 'Marco de Diamante', description: 'Solo para leyendas', type: 'FRAME', cost: 1500, imageKey: 'frame_diamond', levelRequired: 20 },
-  { name: 'Marco de Fuego', description: 'Llamas que rodean tu avatar', type: 'FRAME', cost: 700, imageKey: 'frame_fire', levelRequired: 8 },
-  { name: 'Marco Cósmico', description: 'El universo a tu alrededor', type: 'FRAME', cost: 1200, imageKey: 'frame_cosmic', levelRequired: 15 },
-  { name: 'Aura de Fuego', description: 'Una llama que nunca se apaga', type: 'AURA', cost: 600, imageKey: 'aura_fire', levelRequired: 5 },
-  { name: 'Aura de Hielo', description: 'Frío como el acero, duro como el diamante', type: 'AURA', cost: 600, imageKey: 'aura_ice', levelRequired: 5 },
-  { name: 'Aura Dorada', description: 'El brillo del campeón', type: 'AURA', cost: 1000, imageKey: 'aura_gold', levelRequired: 10 },
-  { name: 'Aura de Tormenta', description: 'El poder del rayo', type: 'AURA', cost: 800, imageKey: 'aura_storm', levelRequired: 8 },
-  { name: 'Aura Arcoíris', description: 'Todos los colores, toda la vida', type: 'AURA', cost: 1200, imageKey: 'aura_rainbow', levelRequired: 12 },
-  { name: 'Tema: Aurora Boreal', description: 'Verde y morado, el tema por defecto', type: 'THEME', cost: 0, imageKey: 'theme_aurora', levelRequired: 1 },
-  { name: 'Tema: Océano Profundo', description: 'Azules y cyan, calma del mar', type: 'THEME', cost: 400, imageKey: 'theme_ocean', levelRequired: 1 },
-  { name: 'Tema: Lava Volcánica', description: 'Rojos y naranja, puro fuego', type: 'THEME', cost: 500, imageKey: 'theme_lava', levelRequired: 3 },
-  { name: 'Tema: Bosque Oscuro', description: 'Verdes oscuros, naturaleza salvaje', type: 'THEME', cost: 500, imageKey: 'theme_forest', levelRequired: 3 },
-  { name: 'Tema: Ciudad Neón', description: 'Cyberpunk. Rosa y cyan brillante.', type: 'THEME', cost: 700, imageKey: 'theme_neon', levelRequired: 6 },
-  { name: 'Tema: Galaxia', description: 'Morado cósmico, estrellas infinitas', type: 'THEME', cost: 800, imageKey: 'theme_galaxy', levelRequired: 8 },
+  { name: 'Gorra del Ninja', description: 'Una banda negra con las puntas al viento. Para los héroes discretos.', type: 'HAT', cost: 350, imageKey: 'hat_ninja', levelRequired: 1, slot: 'extra', value: 'bandana_ninja' },
+  { name: 'Corona del Campeón', description: 'Oro, rubí y dos esmeraldas para quien llega lejos.', type: 'HAT', cost: 900, imageKey: 'hat_crown', levelRequired: 10, slot: 'extra', value: 'corona_campeon' },
+  { name: 'Birrete del Sabio', description: 'La sabiduría tiene su recompensa (y su borla).', type: 'HAT', cost: 600, imageKey: 'hat_scholar', levelRequired: 7, slot: 'extra', value: 'birrete' },
+  { name: 'Sombrero de Mago', description: 'Puntiagudo, con estrellas y todo lo bueno.', type: 'HAT', cost: 450, imageKey: 'hat_wizard', levelRequired: 4, slot: 'extra', value: 'sombrero_mago' },
+  { name: 'Casco Vikingo', description: 'Hierro, cuernos y nada de miedo.', type: 'HAT', cost: 550, imageKey: 'hat_viking', levelRequired: 5, slot: 'extra', value: 'casco_vikingo' },
+  { name: 'Antifaz del Bandido', description: 'Nadie sabrá quién completó todos esos hábitos.', type: 'COSMETIC', cost: 300, imageKey: 'mask_bandit', levelRequired: 2, slot: 'extra', value: 'antifaz' },
+  { name: 'Monóculo Distinguido', description: 'Con su cadenita dorada. Muy de biblioteca.', type: 'COSMETIC', cost: 400, imageKey: 'monocle', levelRequired: 4, slot: 'extra', value: 'monoculo' },
+  { name: 'Armadura de Caballero', description: 'Placas de acero y cinturón dorado.', type: 'OUTFIT', cost: 800, imageKey: 'outfit_armor', levelRequired: 6, slot: 'top', value: 'armadura' },
+  { name: 'Kimono de Seda', description: 'Mangas amplias y un obi del color de tus accesorios.', type: 'OUTFIT', cost: 600, imageKey: 'outfit_kimono', levelRequired: 3, slot: 'top', value: 'kimono' },
+  { name: 'Traje de Gala', description: 'Chaqueta, camisa blanca y corbata roja.', type: 'OUTFIT', cost: 650, imageKey: 'outfit_suit', levelRequired: 4, slot: 'top', value: 'traje' },
+  { name: 'Peinado Samurái', description: 'Laterales rapados y el moño en lo alto.', type: 'HAIR', cost: 450, imageKey: 'hair_samurai', levelRequired: 3, slot: 'hair', value: 'samurai' },
+  { name: 'Rizos Salvajes', description: 'Rizos con volumen que no se dejan peinar.', type: 'HAIR', cost: 400, imageKey: 'hair_curls', levelRequired: 2, slot: 'hair', value: 'rizos' },
+  { name: 'Marco Dorado', description: 'Un marco épico color oro que brilla', type: 'FRAME', cost: 500, imageKey: 'frame_gold', levelRequired: 1, slot: 'frame', value: 'frame_gold' },
+  { name: 'Marco de Diamante', description: 'Solo para leyendas', type: 'FRAME', cost: 1500, imageKey: 'frame_diamond', levelRequired: 20, slot: 'frame', value: 'frame_diamond' },
+  { name: 'Marco de Fuego', description: 'Llamas que rodean tu avatar', type: 'FRAME', cost: 700, imageKey: 'frame_fire', levelRequired: 8, slot: 'frame', value: 'frame_fire' },
+  { name: 'Marco Cósmico', description: 'El universo a tu alrededor', type: 'FRAME', cost: 1200, imageKey: 'frame_cosmic', levelRequired: 15, slot: 'frame', value: 'frame_cosmic' },
+  { name: 'Aura de Fuego', description: 'Una llama que nunca se apaga', type: 'AURA', cost: 600, imageKey: 'aura_fire', levelRequired: 5, slot: 'aura', value: 'aura_fire' },
+  { name: 'Aura de Hielo', description: 'Frío como el acero, duro como el diamante', type: 'AURA', cost: 600, imageKey: 'aura_ice', levelRequired: 5, slot: 'aura', value: 'aura_ice' },
+  { name: 'Aura Dorada', description: 'El brillo del campeón', type: 'AURA', cost: 1000, imageKey: 'aura_gold', levelRequired: 10, slot: 'aura', value: 'aura_gold' },
+  { name: 'Aura de Tormenta', description: 'El poder del rayo', type: 'AURA', cost: 800, imageKey: 'aura_storm', levelRequired: 8, slot: 'aura', value: 'aura_storm' },
+  { name: 'Aura Arcoíris', description: 'Todos los colores, toda la vida', type: 'AURA', cost: 1200, imageKey: 'aura_rainbow', levelRequired: 12, slot: 'aura', value: 'aura_rainbow' },
+  // Exclusivos: unidades limitadas para toda la comunidad.
+  { name: 'Corona de Cristal', description: 'Tallada en cristal de cueva. Solo existen 25.', type: 'HAT', cost: 2500, imageKey: 'hat_crystal', levelRequired: 8, slot: 'extra', value: 'corona_cristal', isLimited: true, stock: 25 },
+  { name: 'Alas de Hada', description: 'Translúcidas y brillantes. Solo existen 40.', type: 'COSMETIC', cost: 3000, imageKey: 'wings_fairy', levelRequired: 10, slot: 'extra', value: 'alas', isLimited: true, stock: 40 },
+  { name: 'Aura de Cometa', description: 'Una estela que te sigue a todas partes. Solo existen 50.', type: 'AURA', cost: 2800, imageKey: 'aura_comet', levelRequired: 10, slot: 'aura', value: 'aura_comet', isLimited: true, stock: 50 },
+  { name: 'Tema: Aurora Boreal', description: 'Verde y morado, el tema por defecto', type: 'THEME', cost: 0, imageKey: 'theme_aurora', levelRequired: 1, slot: 'theme', value: 'theme_aurora' },
+  { name: 'Tema: Océano Profundo', description: 'Azules y cyan, calma del mar', type: 'THEME', cost: 400, imageKey: 'theme_ocean', levelRequired: 1, slot: 'theme', value: 'theme_ocean' },
+  { name: 'Tema: Lava Volcánica', description: 'Rojos y naranja, puro fuego', type: 'THEME', cost: 500, imageKey: 'theme_lava', levelRequired: 3, slot: 'theme', value: 'theme_lava' },
+  { name: 'Tema: Bosque Oscuro', description: 'Verdes oscuros, naturaleza salvaje', type: 'THEME', cost: 500, imageKey: 'theme_forest', levelRequired: 3, slot: 'theme', value: 'theme_forest' },
+  { name: 'Tema: Ciudad Neón', description: 'Cyberpunk. Rosa y cyan brillante.', type: 'THEME', cost: 700, imageKey: 'theme_neon', levelRequired: 6, slot: 'theme', value: 'theme_neon' },
+  { name: 'Tema: Galaxia', description: 'Morado cósmico, estrellas infinitas', type: 'THEME', cost: 800, imageKey: 'theme_galaxy', levelRequired: 8, slot: 'theme', value: 'theme_galaxy' },
 ] as const;
 
 type CatalogClient = Pick<PrismaClient, 'achievement' | 'shopItem'>;
@@ -92,4 +105,17 @@ export async function ensureDefaultCatalog(client: CatalogClient): Promise<void>
   if (missingShopItems.length > 0) {
     await Promise.all(missingShopItems.map((item) => client.shopItem.create({ data: item })));
   }
+
+  // Los artículos que ya existían aprenden qué parte del personaje cambian (y su tipo,
+  // descripción y unidades si son exclusivos). El precio y el nivel no se tocan.
+  const known = await client.shopItem.findMany({ select: { id: true, name: true, slot: true, value: true, type: true, description: true, stock: true } });
+  await Promise.all(DEFAULT_SHOP_ITEMS.map((item) => {
+    const row = known.find((k) => k.name === item.name);
+    const slot = 'slot' in item ? item.slot : null;
+    const value = 'value' in item ? item.value : null;
+    const stock = 'stock' in item ? item.stock : null;
+    if (!row || (row.slot === slot && row.value === value && row.type === item.type && row.description === item.description && row.stock === stock)) return null;
+    return client.shopItem.update({ where: { id: row.id }, data: { slot, value, type: item.type, description: item.description, stock, isLimited: stock !== null } });
+  }));
+
 }

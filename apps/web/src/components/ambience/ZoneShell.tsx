@@ -20,6 +20,22 @@ export function AllowEntrance({ children }: { children: ReactNode }) {
   return <PresenceContext.Provider value={value}>{children}</PresenceContext.Provider>;
 }
 
+const noRegister = () => () => {};
+const noExit = () => {};
+
+/**
+ * Las salidas del subárbol se animan (ven el mismo isPresent), pero el
+ * AnimatePresence de arriba ya no las espera: solo espera a su hijo directo.
+ * Sin esto, un indicador con layoutId que se desmonta al cambiar de pestaña
+ * queda registrado como salida pendiente para siempre y la página de destino
+ * nunca llega a montarse (la zona se quedaba en blanco al salir de Social).
+ */
+export function DetachPresence({ children }: { children: ReactNode }) {
+  const ctx = useContext(PresenceContext);
+  const value = useMemo(() => (ctx ? { ...ctx, register: noRegister, onExitComplete: noExit } : ctx), [ctx]);
+  return <PresenceContext.Provider value={value}>{children}</PresenceContext.Provider>;
+}
+
 export function ZoneShell({ zone, ambience, view, className, contentClassName, children }: {
   zone: string;
   /** Ambiente que recorre toda la zona. */

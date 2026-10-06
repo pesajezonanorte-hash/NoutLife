@@ -1,13 +1,14 @@
 import { prisma } from '../lib/prisma';
 import { awardXpAndGold } from './xp.service';
 import { createNotification } from './notification.service';
+import { sanitizeAvatar } from './shop.service';
 
 const USER_SELECT = {
   id: true, email: true, username: true, displayName: true,
   level: true, xp: true, xpToNextLevel: true, gold: true,
   hp: true, maxHp: true, mp: true, maxMp: true,
   strength: true, intelligence: true, charisma: true,
-  avatarConfig: true, avatarUrl: true, timezone: true, currency: true,
+  avatarConfig: true, avatarUrl: true, nameColor: true, timezone: true, currency: true,
   language: true, relationshipStatus: true,
   onboardingCompleted: true, birthDate: true,
   currentStreak: true, longestStreak: true, lastActivityDate: true,
@@ -52,9 +53,11 @@ export async function getCharacter(userId: string) {
 }
 
 export async function updateAvatar(userId: string, avatarConfig: Record<string, unknown>) {
+  // Lo de pago solo lo lleva quien lo compró en la Tienda.
+  const clean = await sanitizeAvatar(userId, avatarConfig);
   const updated = await prisma.user.update({
     where: { id: userId },
-    data: { avatarConfig: avatarConfig as Parameters<typeof prisma.user.update>[0]['data']['avatarConfig'] },
+    data: { avatarConfig: clean as Parameters<typeof prisma.user.update>[0]['data']['avatarConfig'] },
     select: USER_SELECT,
   });
 

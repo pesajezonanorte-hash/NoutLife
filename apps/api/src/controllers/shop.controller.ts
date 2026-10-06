@@ -41,6 +41,12 @@ export async function equipItem(req: AuthRequest, res: Response): Promise<void> 
   } catch { res.status(500).json({ error: 'Error al equipar.' }); }
 }
 
+/** Lo de pago que el estudio del personaje puede dejar elegir ("extra:capa", "hair:rizos"…). */
+export async function ownedItems(req: AuthRequest, res: Response): Promise<void> {
+  try { res.json({ items: [...(await svc.ownedAvatarItems(req.userId!))] }); }
+  catch { res.status(500).json({ error: 'Error al obtener tus artículos.' }); }
+}
+
 export async function useItem(req: AuthRequest, res: Response): Promise<void> {
   try {
     const item = await svc.useItem(req.userId!, req.params.id);
