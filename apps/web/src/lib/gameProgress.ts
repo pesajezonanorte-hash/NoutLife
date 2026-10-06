@@ -33,6 +33,6 @@ export const ZONE_TOOLTIPS: Record<string, { title: string; body: string }> = {
   '/food': { title: 'Posada', body: 'Registra comida y nutrición para cuidar el combustible del héroe.' },
   '/sleep': { title: 'Torre', body: 'Tu descanso también sube de nivel cuando lo haces visible.' },
   '/love': { title: 'Jardín', body: 'Relaciones, detalles y vínculos importantes viven aquí.' },
-  '/social': { title: 'Social', body: 'Tu libreta de amigos, tus cartas y tus gremios. Si hablan tres días seguidos con alguien, se enciende su racha.' },
+  '/social': { title: 'Social', body: 'Tus contactos y gremios en el directorio, y todas tus cartas. Si hablan tres días seguidos con alguien, se enciende su racha.' },
   '/glow-up': { title: 'Espejo', body: 'Rutinas de cuidado, estilo y presencia para pulir tu imagen.' },
 };

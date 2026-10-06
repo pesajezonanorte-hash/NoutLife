@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Check, Hand, Heart, Lock, Mail, MoreHorizontal, Send, Shield, UserMinus, Users, X } from 'lucide-react';
+import { Ban, Check, Hand, Heart, Lock, Mail, MoreHorizontal, Send, Shield, UserMinus, Users, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { fmtNumber, item, slam, stagger } from '@/lib/motion';
 import { springs } from '@/lib/motion/presets';
@@ -28,6 +28,7 @@ import { PigeonButton } from '@/components/social/Notebook';
 import { sendPigeon } from '@/components/social/CarrierPigeon';
 import { PresenceAvatar, StreakFlame, isLit } from '@/components/social/SocialBits';
 import {
+  blockUser, unblockUser,
   apiError, getMyGuilds, getProfile, invitePartner, inviteToGuild, removeFriend, respondFriendRequest, sendGesture, socialLink, timeAgo, zoneName,
   type GuildSummary, type ProfileData,
 } from '@/services/network.service';
@@ -99,7 +100,7 @@ export default function UserProfilePage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [menu, setMenu] = useState(false);
   const [guildOpen, setGuildOpen] = useState(false);
-  const [confirm, setConfirm] = useState<'remove' | 'partner' | null>(null);
+  const [confirm, setConfirm] = useState<'remove' | 'partner' | 'block' | null>(null);
   const [waved, setWaved] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -237,20 +238,32 @@ export default function UserProfilePage() {
                     >
                       <button role="menuitem" type="button" onClick={() => { setMenu(false); setConfirm('partner'); }} className={menuRow}><Heart aria-hidden className="size-4 text-error-text" />Compartir mi jardín</button>
                       <button role="menuitem" type="button" onClick={() => { setMenu(false); setGuildOpen(true); }} className={menuRow}><Shield aria-hidden className="size-4 text-warning-text" />Invitar a un gremio</button>
-                      <button role="menuitem" type="button" onClick={() => { setMenu(false); setConfirm('remove'); }} className={cn(menuRow, 'text-error-text')}><UserMinus aria-hidden className="size-4" />Borrar de mi libreta</button>
+                      <button role="menuitem" type="button" onClick={() => { setMenu(false); setConfirm('remove'); }} className={cn(menuRow, 'text-error-text')}><UserMinus aria-hidden className="size-4" />Borrar de mi directorio</button>
+                      <button role="menuitem" type="button" onClick={() => { setMenu(false); setConfirm('block'); }} className={cn(menuRow, 'text-error-text')}><Ban aria-hidden className="size-4" />Bloquear</button>
                     </motion.div>
                   )}
                 </AnimatePresence>
               </>
             ) : relation.status === 'PENDING_IN' ? (
               <>
-                <Button loading={busy === 'accept'} onClick={() => void act('accept', () => respondFriendRequest(relation.friendshipId!, true), `${first} ya está en tu libreta`)}><Check aria-hidden className="size-4" />Anotar en mi libreta</Button>
+                <Button loading={busy === 'accept'} onClick={() => void act('accept', () => respondFriendRequest(relation.friendshipId!, true), `${first} ya está en tu directorio`)}><Check aria-hidden className="size-4" />Anotar en mi directorio</Button>
                 <Button variant="ghost" onClick={() => void act('reject', () => respondFriendRequest(relation.friendshipId!, false), 'Solicitud rechazada')}><X aria-hidden className="size-4" />Rechazar</Button>
               </>
+            ) : relation.status === 'BLOCKED' ? (
+              <>
+                <span className="inline-flex min-h-11 items-center gap-1.5 text-label-lg text-on-surface-light"><Ban aria-hidden className="size-4" />Bloqueaste a {first}</span>
+                <Button variant="secondary" loading={busy === 'unblock'} onClick={() => void act('unblock', () => unblockUser(user.id), `Desbloqueaste a ${first}`)}>Desbloquear</Button>
+              </>
             ) : relation.status === 'PENDING_OUT' ? (
-              <span className="inline-flex min-h-11 items-center gap-1.5 text-label-lg text-on-surface-light"><Send aria-hidden className="size-4" />Tu paloma va en camino</span>
+              <>
+                <span className="inline-flex min-h-11 items-center gap-1.5 text-label-lg text-on-surface-light"><Send aria-hidden className="size-4" />Tu paloma va en camino</span>
+                <Button variant="ghost" onClick={() => setConfirm('block')}><Ban aria-hidden className="size-4" />Bloquear</Button>
+              </>
             ) : (
-              <PigeonButton user={user} relation={relation} size="md" onSent={() => void load(true)} />
+              <>
+                <PigeonButton user={user} relation={relation} size="md" onSent={() => void load(true)} />
+                <Button variant="ghost" onClick={() => setConfirm('block')}><Ban aria-hidden className="size-4" />Bloquear</Button>
+              </>
             )}
           </div>
 
@@ -314,7 +327,7 @@ export default function UserProfilePage() {
                       </motion.li>
                     ))}
                   </ul>
-                ) : <p className="text-body-sm text-on-surface-light">Su libreta todavía está en blanco.</p>}
+                ) : <p className="text-body-sm text-on-surface-light">Su directorio todavía está en blanco.</p>}
               </PassportPage>
             )}
           </div>
@@ -342,7 +355,7 @@ export default function UserProfilePage() {
 
             <PassportPage title="Amistades más cercanas" folio="05">
               {!data.friendsVisible ? (
-                <p className="flex items-center gap-2 text-body-sm text-on-surface-light"><Lock aria-hidden className="size-4" />{first} mantiene su libreta en privado.</p>
+                <p className="flex items-center gap-2 text-body-sm text-on-surface-light"><Lock aria-hidden className="size-4" />{first} mantiene su directorio en privado.</p>
               ) : data.closeFriends?.length ? (
                 <ul className="flex flex-col">
                   {data.closeFriends.map((f, i) => (
@@ -364,11 +377,18 @@ export default function UserProfilePage() {
       )}
 
       {friends && <GuildInviteModal open={guildOpen} onClose={() => setGuildOpen(false)} userId={user.id} name={first} />}
-      <Modal open={confirm === 'remove'} onClose={() => setConfirm(null)} title={`¿Borrar a ${first} de tu libreta?`}>
+      <Modal open={confirm === 'block'} onClose={() => setConfirm(null)} title={`¿Bloquear a ${first}?`}>
+        <p className="text-body-md text-on-surface">{friends ? 'Dejarán de ser amigos. ' : ''}No podrá escribirte, enviarte palomas ni gestos, y no se verán en las zonas ni en el buscador. Puedes desbloquearlo cuando quieras.</p>
+        <div className="flex justify-end gap-3">
+          <Button variant="secondary" size="md" onClick={() => setConfirm(null)}>Cancelar</Button>
+          <Button variant="danger" size="md" loading={busy === 'block'} onClick={() => void act('block', () => blockUser(user.id), `Bloqueaste a ${first}`)}><Ban aria-hidden className="size-4" />Bloquear</Button>
+        </div>
+      </Modal>
+      <Modal open={confirm === 'remove'} onClose={() => setConfirm(null)} title={`¿Borrar a ${first} de tu directorio?`}>
         <p className="text-body-md text-on-surface">Dejarán de ver su carta y su racha se perderá.</p>
         <div className="flex justify-end gap-3">
           <Button variant="secondary" size="md" onClick={() => setConfirm(null)}>Cancelar</Button>
-          <Button variant="danger" size="md" loading={busy === 'remove'} onClick={() => void act('remove', () => removeFriend(relation.friendshipId!), `${first} ya no está en tu libreta`)}>Borrar</Button>
+          <Button variant="danger" size="md" loading={busy === 'remove'} onClick={() => void act('remove', () => removeFriend(relation.friendshipId!), `${first} ya no está en tu directorio`)}>Borrar</Button>
         </div>
       </Modal>
       <Modal open={confirm === 'partner'} onClose={() => setConfirm(null)} title={`¿Compartir tu jardín con ${first}?`}>

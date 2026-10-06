@@ -249,3 +249,53 @@ html.dark .lq-picker { background: rgb(var(--lq-surface-variant)); box-shadow: 0
   box-shadow: 0 18px 40px -16px rgb(var(--lq-jade-900) / .55), 0 2px 8px rgb(0 0 0 / .12);
 }
 html.dark .lq-ping { background: rgb(var(--lq-surface-variant)); box-shadow: 0 18px 40px -12px rgb(0 0 0 / .75); }
+
+/* ─── Chat social pro ─────────────────────────────────────────────────────── */
+/* Color del nombre: cada uno con su tono para claro y oscuro (siempre legible sobre el papel). */
+.lq-name-jade { color: #0f7a5c; } html.dark .lq-name-jade { color: #5fd3aa; }
+.lq-name-bosque { color: #2f6b2a; } html.dark .lq-name-bosque { color: #8fd17f; }
+.lq-name-oceano { color: #0b6e8a; } html.dark .lq-name-oceano { color: #5cc8e6; }
+.lq-name-cielo { color: #2f5fb3; } html.dark .lq-name-cielo { color: #8fb4ff; }
+.lq-name-lavanda { color: #6a4fc0; } html.dark .lq-name-lavanda { color: #b7a2ff; }
+.lq-name-uva { color: #7d2f8c; } html.dark .lq-name-uva { color: #e09af0; }
+.lq-name-rosa { color: #b3306e; } html.dark .lq-name-rosa { color: #ff8fc0; }
+.lq-name-coral { color: #c0442f; } html.dark .lq-name-coral { color: #ff9a85; }
+.lq-name-ambar { color: #a35b00; } html.dark .lq-name-ambar { color: #ffb547; }
+.lq-name-miel { color: #8a6a00; } html.dark .lq-name-miel { color: #f2d36b; }
+.lq-name-tierra { color: #7a4a2a; } html.dark .lq-name-tierra { color: #d9a77e; }
+.lq-name-grafito { color: #3d4250; } html.dark .lq-name-grafito { color: #c3c8d4; }
+
+/* "Escribiendo…": tres puntos de tinta que saltan. */
+@keyframes lq-typing { 0%, 60%, 100% { transform: translateY(0); opacity: .45; } 30% { transform: translateY(-4px); opacity: 1; } }
+.lq-typing-dot { animation: lq-typing 1.1s ease-in-out infinite; }
+.reduce-motion .lq-typing-dot { animation: none; opacity: .7; }
+
+/* Mensaje borrado: el hueco en la carta. */
+.lq-slip-gone { background: transparent !important; box-shadow: none !important; border: 1.5px dashed rgb(var(--lq-border-strong) / .6); }
+
+/* Minijuego: una hoja cuadriculada pegada a la carta. */
+.lq-game-card {
+  background-color: rgb(var(--lq-surface));
+  background-image: linear-gradient(rgb(var(--lq-info) / .07) 1px, transparent 1px), linear-gradient(90deg, rgb(var(--lq-info) / .07) 1px, transparent 1px);
+  background-size: 14px 14px;
+  border: 1px solid rgb(var(--lq-border) / .9);
+  box-shadow: 0 1px 1px rgb(var(--lq-on-background) / .06), 0 10px 18px -12px rgb(var(--lq-jade-900) / .35);
+}
+html.dark .lq-game-card { background-color: rgb(var(--lq-surface-variant)); }
+
+/* Mesa para recortar stickers: cuadros como de tapete de corte. */
+.lq-sticker-stage {
+  background-color: rgb(var(--lq-surface-variant));
+  background-image: linear-gradient(45deg, rgb(var(--lq-on-background) / .05) 25%, transparent 25%, transparent 75%, rgb(var(--lq-on-background) / .05) 75%),
+    linear-gradient(45deg, rgb(var(--lq-on-background) / .05) 25%, transparent 25%, transparent 75%, rgb(var(--lq-on-background) / .05) 75%);
+  background-size: 18px 18px; background-position: 0 0, 9px 9px;
+}
+
+/* Foto que aún no llega (sin miniatura): película sin revelar. */
+.lq-photo-wait { background: radial-gradient(120% 120% at 50% 40%, color-mix(in srgb, rgb(var(--lq-jade-800)) 70%, rgb(var(--lq-info))), rgb(var(--lq-jade-900))); animation: lq-wait 1.6s ease-in-out infinite alternate; }
+@keyframes lq-wait { from { opacity: .8; } to { opacity: 1; } }
+.reduce-motion .lq-photo-wait { animation: none; }
+
+/* El esqueleto de la carta solo aparece si tarda (una carga rápida no parpadea). */
+.lq-skeleton-delay { animation: lq-skeleton-in .2s ease-out .25s both; }
+@keyframes lq-skeleton-in { from { opacity: 0; } to { opacity: 1; } }

@@ -166,7 +166,7 @@ function LegacyFriendsRedirect() {
   const next = new URLSearchParams();
   const chat = old.get('chat');
   if (chat) { next.set('tab', 'cartas'); next.set('chat', chat); }
-  else { next.set('tab', 'amigos'); if (old.get('tab') === 'requests') next.set('view', 'requests'); }
+  else { next.set('tab', 'directorio'); if (old.get('tab') === 'requests') next.set('view', 'requests'); }
   return <Navigate to={`/social?${next.toString()}`} replace />;
 }
 

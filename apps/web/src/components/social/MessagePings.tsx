@@ -14,7 +14,8 @@ import { useMotionStore } from '@/store/motionStore';
 import { useAuthStore } from '@/store/authStore';
 import { useChatFocus } from '@/store/chatFocusStore';
 import { useSocialStore } from '@/store/socialStore';
-import { apiError, getConversation, getInbox, postGuildText, sendMessage, socialLink, type InboxItem } from '@/services/network.service';
+import { apiError, getConversation, postGuildText, sendMessage, socialLink, type InboxItem } from '@/services/network.service';
+import { liveHub } from '@/lib/live';
 import { AvatarDisplay } from '@/components/character/AvatarDisplay';
 
 interface Ping {
@@ -25,8 +26,6 @@ interface Ping {
   count: number;
 }
 
-const visible = () => document.visibilityState === 'visible';
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const MAX_PINGS = 3;
 const SHOW_MS = 10_000;
 
@@ -60,7 +59,7 @@ function PingCard({ ping, onClose, onOpen }: { ping: Ping; onClose: () => void; 
       else {
         await sendMessage(last.from.id, { content, replyToId: last.id });
         // Responder es haberla leído: se marca como leída sin abrirla.
-        void getConversation(last.from.id, new Date().toISOString()).catch(() => undefined);
+        void getConversation(last.from.id, { after: new Date().toISOString() }).catch(() => undefined);
       }
       setState('sent');
       void useSocialStore.getState().refresh();
@@ -123,17 +122,13 @@ export function MessagePings() {
 
   useEffect(() => {
     if (!userId) return;
-    let alive = true;
-    const ctl = new AbortController();
     const seen = new Set<string>();
-    let cursor: string | undefined;
 
     const arrive = (items: InboxItem[]) => {
       const fresh = items.filter((i) => !seen.has(i.id));
       fresh.forEach((i) => seen.add(i.id));
       if (!fresh.length) return;
-      void useSocialStore.getState().refresh();
-      const focused = useChatFocus.getState().key;
+        const focused = useChatFocus.getState().key;
       const toShow = fresh.filter((i) => keyOf(i) !== focused);
       if (!toShow.length) return;
       setPings((list) => {
@@ -149,30 +144,8 @@ export function MessagePings() {
       });
     };
 
-    const run = async () => {
-      while (alive) {
-        if (!visible()) {
-          await new Promise<void>((resolve) => {
-            const done = () => { document.removeEventListener('visibilitychange', check); ctl.signal.removeEventListener('abort', done); resolve(); };
-            const check = () => { if (visible()) done(); };
-            document.addEventListener('visibilitychange', check);
-            ctl.signal.addEventListener('abort', done);
-          });
-          continue;
-        }
-        try {
-          const r = await getInbox(cursor, ctl.signal);
-          if (!alive) return;
-          cursor = r.cursor;
-          if (r.items.length) arrive(r.items);
-        } catch {
-          if (!alive || ctl.signal.aborted) return;
-          await sleep(4000);
-        }
-      }
-    };
-    void run();
-    return () => { alive = false; ctl.abort(); };
+    // Los mensajes que llegan los trae el chat en vivo (lib/live).
+    return liveHub.onInbox(arrive);
   }, [userId]);
 
   // Si abres la carta de un aviso que sigue a la vista, el aviso sobra.

@@ -5,13 +5,15 @@
 // La página hace scroll en window; el Sidebar es sticky y empuja la página al desplegarse.
 import { useEffect, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Info, X } from 'lucide-react';
 import { ease } from '@/lib/motion';
 import { useAuthStore } from '@/store/authStore';
 import { useShellStore } from '@/store/shellStore';
 import { refreshUser } from '@/hooks/useAuth';
-import { sendPresence, zoneName } from '@/services/network.service';
+import { zoneName } from '@/services/network.service';
+import { liveHub, sayGoodbye } from '@/lib/live';
+import { onNotificationNavigate } from '@/lib/systemNotifications';
 import { useSocialPulseSync } from '@/components/social/SocialEntry';
 import { ZoneVisitors } from '@/components/social/ZoneVisitors';
 import { PigeonLayer } from '@/components/social/CarrierPigeon';
@@ -95,15 +97,33 @@ function useUserSync(pathname: string) {
   }, []);
 }
 
-/** Latido de presencia: en línea y zona actual (cada minuto, solo con la pestaña visible). */
-function usePresence(pathname: string) {
+/**
+ * Chat en vivo y presencia: una sola petición larga (lib/live) que también es el
+ * latido de "en línea" y de la zona en la que estás. Al cambiar de zona, tus
+ * amigos lo ven al momento; al cerrar la app, dejas de estar en línea.
+ */
+function useLive(pathname: string, signedIn: boolean) {
+  const navigate = useNavigate();
   useEffect(() => {
-    const beat = () => { if (document.visibilityState === 'visible') sendPresence(zoneName(pathname)).catch(() => null); };
-    beat();
-    const id = window.setInterval(beat, 60_000);
-    document.addEventListener('visibilitychange', beat);
-    return () => { window.clearInterval(id); document.removeEventListener('visibilitychange', beat); };
-  }, [pathname]);
+    if (!signedIn) return;
+    liveHub.start();
+    // Pestaña oculta un rato (no un cambio rápido de app): deja de estar en línea.
+    let timer = 0;
+    const bye = () => {
+      window.clearTimeout(timer);
+      if (document.visibilityState === 'hidden') timer = window.setTimeout(sayGoodbye, 15_000);
+    };
+    window.addEventListener('pagehide', sayGoodbye);
+    document.addEventListener('visibilitychange', bye);
+    return () => {
+      liveHub.stop();
+      window.removeEventListener('pagehide', sayGoodbye);
+      document.removeEventListener('visibilitychange', bye);
+    };
+  }, [signedIn]);
+  useEffect(() => { liveHub.setZone(zoneName(pathname)); }, [pathname]);
+  // Tocar un aviso del sistema con la app abierta: a la carta o zona de la que viene.
+  useEffect(() => onNotificationNavigate((link) => navigate(link)), [navigate]);
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -113,7 +133,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const setFocusOpen = useShellStore((s) => s.setFocusOpen);
 
   useUserSync(pathname);
-  usePresence(pathname);
+  useLive(pathname, Boolean(user));
   useSocialPulseSync();
 
   // El tutorial sale una sola vez: la primera entrada al inicio de una cuenta

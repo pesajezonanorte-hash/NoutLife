@@ -1,11 +1,11 @@
-// La libreta de contactos: tus amigos anotados a mano en una agenda de
+// El directorio: tus contactos y tus gremios anotados a mano en una agenda de
 // direcciones. Hojas con renglones y margen, espiral en el lomo, pestañas del
 // índice alfabético en el canto (llevan a cada letra) y, en cada entrada, la foto
 // carné pegada, el nombre escrito con la letra de la marca, dónde anda ahora y
-// su racha si está encendida. Tocar una entrada abre su carta; el carné abre su
-// DNI. Arriba, las palomas recibidas (solicitudes de amistad e invitaciones a
-// gremios) y el buscador, que filtra tu libreta y busca en el directorio para
-// enviar una paloma a alguien nuevo.
+// su racha si está encendida. Tocar un contacto o un gremio abre su carta (en
+// Cartas); el carné abre su DNI. Arriba, las palomas recibidas (solicitudes de
+// amistad e invitaciones a gremios) y el buscador, que filtra tu directorio y
+// busca en Noutlife para enviar una paloma a alguien nuevo.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -16,8 +16,11 @@ import { useMotionStore } from '@/store/motionStore';
 import { useToastStore } from '@/hooks/useToast';
 import {
   apiError, respondFriendRequest, respondGuildInvite, searchUsers, sendFriendRequest, socialLink, timeAgo,
-  type FriendItem, type GuildInvite, type PendingRequest, type PublicUser, type Relation,
+  type FriendItem, type GuildInvite, type GuildSummary, type PendingRequest, type PublicUser, type Relation,
 } from '@/services/network.service';
+import { nameClass } from '@/lib/nameColors';
+import { GuildCrest } from '@/components/guild/GuildCrest';
+import { emblemOf } from '@/components/guild/emblems';
 import { AvatarDisplay } from '@/components/character/AvatarDisplay';
 import { Lettering, canLetter } from '@/components/layout/Lettering';
 import { Button, Skeleton } from '@/components/ui/lq';
@@ -69,7 +72,7 @@ function Entry({ f, active, index, onOpen }: { f: FriendItem; active: boolean; i
         </span>
         <span className="min-w-0 flex-1">
           {/* El nombre escrito a mano puede ocupar dos renglones; nunca se corta a media palabra. */}
-          <span className={cn('block text-[1.0625rem] leading-tight text-on-background md:text-heading-sm md:leading-tight', f.unread > 0 && 'text-primary-text', !canLetter(f.friend.displayName) && 'truncate')}>
+          <span className={cn('block text-[1.0625rem] leading-tight md:text-heading-sm md:leading-tight', nameClass(f.friend.nameColor) || (f.unread > 0 ? 'text-primary-text' : 'text-on-background'), !canLetter(f.friend.displayName) && 'truncate')}>
             <Handwritten text={f.friend.displayName} delay={0.15 + Math.min(index, 10) * 0.06} />
           </span>
           <span className={cn('mt-0.5 block truncate text-body-sm', f.friend.online ? 'text-success-text' : 'text-on-surface-light')}>{line}</span>
@@ -109,7 +112,7 @@ export function PigeonButton({ user, relation, onSent, size = 'sm' }: { user: Pu
       await sendFriendRequest(user.username);
       const accepted = state === 'PENDING_IN';
       setState(accepted ? 'FRIENDS' : 'PENDING_OUT');
-      toaster().success(accepted ? `${user.displayName.split(' ')[0]} ya está en tu libreta` : `Paloma enviada a ${user.displayName.split(' ')[0]}`);
+      toaster().success(accepted ? `${user.displayName.split(' ')[0]} ya está en tu directorio` : `Paloma enviada a ${user.displayName.split(' ')[0]}`);
       onSent?.();
     } catch (e) { toaster().error(apiError(e, 'La paloma no pudo salir')); }
     finally { setBusy(false); }
@@ -135,7 +138,7 @@ function Arrivals({ pending, invites, onChanged }: { pending: PendingRequest[]; 
     setGone((g) => [...g, r.id]);
     try {
       await respondFriendRequest(r.id, accept);
-      if (accept) toaster().success(`${r.requester.displayName.split(' ')[0]} ya está en tu libreta`);
+      if (accept) toaster().success(`${r.requester.displayName.split(' ')[0]} ya está en tu directorio`);
       onChanged();
     } catch (e) { setGone((g) => g.filter((x) => x !== r.id)); toaster().error(apiError(e, 'No se pudo responder')); }
   }
@@ -166,7 +169,7 @@ function Arrivals({ pending, invites, onChanged }: { pending: PendingRequest[]; 
                 <AvatarDisplay avatarConfig={r.requester.avatarConfig} avatarUrl={r.requester.avatarUrl} size={40} animate="none" className="overflow-hidden rounded-full" />
                 <span className="min-w-0">
                   <span className="block truncate text-label-lg">{r.requester.displayName}</span>
-                  <span className="block truncate text-body-sm text-on-surface-light">Quiere anotarte en su libreta · {timeAgo(r.createdAt)}</span>
+                  <span className="block truncate text-body-sm text-on-surface-light">Quiere anotarte en su directorio · {timeAgo(r.createdAt)}</span>
                 </span>
               </Link>
               <span className="flex gap-1">
@@ -201,7 +204,7 @@ function Arrivals({ pending, invites, onChanged }: { pending: PendingRequest[]; 
   );
 }
 
-/** Directorio: personas que no están en tu libreta. */
+/** Buscar en Noutlife: personas que no están en tu directorio. */
 function Directory({ term, known, onChanged }: { term: string; known: Set<string>; onChanged: () => void }) {
   const [results, setResults] = useState<Array<{ user: PublicUser; relation: Relation }> | null>(null);
   const [loading, setLoading] = useState(false);
@@ -217,8 +220,8 @@ function Directory({ term, known, onChanged }: { term: string; known: Set<string
   const others = (results ?? []).filter((r) => !known.has(r.user.id));
   if (term.trim().length < 2) return null;
   return (
-    <section aria-label="Directorio de Noutlife" className="flex flex-col gap-2 border-t border-dashed border-border-strong/50 pt-3">
-      <h3 className="text-label-lg text-on-surface-light">En el directorio</h3>
+    <section aria-label="Personas en Noutlife" className="flex flex-col gap-2 border-t border-dashed border-border-strong/50 pt-3">
+      <h3 className="text-label-lg text-on-surface-light">En Noutlife</h3>
       {loading ? <Skeleton className="h-14 rounded-xl" /> : others.length === 0 ? (
         <p className="text-body-sm text-on-surface-light">Nadie nuevo con ese nombre. Prueba con su @usuario o su código de invitación.</p>
       ) : (
@@ -239,8 +242,38 @@ function Directory({ term, known, onChanged }: { term: string; known: Set<string
   );
 }
 
+/** Un gremio anotado en el directorio: su escudo, su nombre a mano y las cartas sin abrir. */
+function GuildEntry({ g, index, onOpen }: { g: GuildSummary; index: number; onOpen: () => void }) {
+  const em = emblemOf(g.emblem);
+  return (
+    <li>
+      <button type="button" onClick={onOpen} aria-label={`Escribir en la carta de ${g.name}${g.unread ? `, ${g.unread} sin leer` : ''}`}
+        className="lq-entry group flex min-h-[var(--lq-rule-2)] w-full cursor-pointer items-center gap-3 rounded-lg py-1 pl-1 pr-1 text-left outline-none [--lq-rule-2:calc(var(--lq-rule)*2)]">
+        <span className="lq-snapshot relative shrink-0" style={{ rotate: `${((index % 5) - 2) * 1.4}deg` }}>
+          <GuildCrest photoUrl={g.photoUrl} emblem={em.icon} tone={em.tone} name={g.name} halo={false} className="size-10 rounded-[1px] [&>svg]:size-5" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className={cn('block text-[1.0625rem] leading-tight md:text-heading-sm md:leading-tight', g.unread > 0 ? 'text-primary-text' : 'text-on-background', !canLetter(g.name) && 'truncate')}>
+            <Handwritten text={g.name} delay={0.15 + Math.min(index, 6) * 0.06} />
+          </span>
+          <span className="mt-0.5 block truncate text-body-sm text-on-surface-light">
+            <span className="font-mono">{g.members}</span> {g.members === 1 ? 'miembro' : 'miembros'}{g.lastMessage ? ` · ${g.lastMessage.mine ? 'Tú' : g.lastMessage.author.split(' ')[0]}: ${g.lastMessage.preview}` : ''}
+          </span>
+        </span>
+        <StreakFlame streak={g.streak} size="sm" />
+        {g.unread > 0 && (
+          <span className="lq-wax flex h-8 min-w-8 items-center justify-center px-1.5 font-mono text-label-md">{g.unread > 9 ? '9+' : g.unread}<span className="sr-only"> cartas sin leer</span></span>
+        )}
+      </button>
+    </li>
+  );
+}
+
 export interface NotebookProps {
   friends: FriendItem[] | null;
+  guilds: GuildSummary[] | null;
+  onOpenGuild: (guildId: string) => void;
+  onNewGuild: () => void;
   pending: PendingRequest[];
   invites: GuildInvite[];
   error?: boolean;
@@ -251,7 +284,7 @@ export interface NotebookProps {
   onRetry: () => void;
 }
 
-export function Notebook({ friends, pending, invites, error, activeUsername, focus, onOpen, onChanged, onRetry }: NotebookProps) {
+export function Notebook({ friends, guilds, onOpenGuild, onNewGuild, pending, invites, error, activeUsername, focus, onOpen, onChanged, onRetry }: NotebookProps) {
   const reduce = useMotionStore((s) => s.reduce);
   const [term, setTerm] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
@@ -297,7 +330,7 @@ export function Notebook({ friends, pending, invites, error, activeUsername, foc
 
         {/* Pestañas del índice en el canto */}
         {showIndex && (
-          <nav aria-label="Índice de la libreta" className="absolute -right-3 top-3 bottom-3 z-10 hidden flex-col justify-between md:flex">
+          <nav aria-label="Índice del directorio" className="absolute -right-3 top-3 bottom-3 z-10 hidden flex-col justify-between md:flex">
             {ALPHABET.map((l) => (
               <button
                 key={l} type="button" disabled={!letters.has(l)} onClick={() => jump(l)}
@@ -312,13 +345,13 @@ export function Notebook({ friends, pending, invites, error, activeUsername, foc
 
         <div className="relative flex flex-col gap-4 pl-3 md:pl-4">
           <div className="flex items-center gap-2">
-            <h2 className="min-w-0 flex-1 text-heading-md text-on-background"><Lettering text="mi libreta" /></h2>
+            <h2 className="min-w-0 flex-1 text-heading-md text-on-background"><Lettering text="directorio" /></h2>
             <span className="text-body-sm text-on-surface-light">
               <span className="font-mono">{friends?.length ?? 0}</span> {friends?.length === 1 ? 'amigo' : 'amigos'}{online ? <> · <span className="font-mono text-success-text">{online}</span> en línea</> : null}
             </span>
           </div>
 
-          <label htmlFor="notebook-search" className="sr-only">Buscar en tu libreta o en el directorio</label>
+          <label htmlFor="notebook-search" className="sr-only">Buscar en tu directorio o en Noutlife</label>
           <div className="relative">
             <Search aria-hidden className="pointer-events-none absolute left-1 top-1/2 size-5 -translate-y-1/2 text-on-surface-light" strokeWidth={1.75} />
             <input
@@ -338,7 +371,7 @@ export function Notebook({ friends, pending, invites, error, activeUsername, foc
           <div ref={listRef} className="flex flex-col">
             {error ? (
               <div className="flex flex-col items-start gap-3 py-6">
-                <p className="text-body-md text-on-surface">No pudimos abrir tu libreta.</p>
+                <p className="text-body-md text-on-surface">No pudimos abrir tu directorio.</p>
                 <Button size="sm" variant="secondary" onClick={onRetry}>Reintentar</Button>
               </div>
             ) : friends === null ? (
@@ -346,11 +379,11 @@ export function Notebook({ friends, pending, invites, error, activeUsername, foc
             ) : friends.length === 0 && !q ? (
               <div className="flex flex-col items-start gap-3 py-6">
                 <p className="text-display-sm text-on-background"><Lettering text="en blanco" /></p>
-                <p className="max-w-[46ch] text-body-md text-on-surface-light">Tu libreta todavía no tiene a nadie. Busca a tus amigos arriba y envíales una paloma: cuando acepten, quedarán anotados aquí.</p>
+                <p className="max-w-[46ch] text-body-md text-on-surface-light">Tu directorio todavía no tiene a nadie. Busca a tus amigos arriba y envíales una paloma: cuando acepten, quedarán anotados aquí.</p>
                 <Button onClick={() => searchRef.current?.focus()}><Search aria-hidden className="size-4" />Buscar amigos</Button>
               </div>
             ) : shown.length === 0 ? (
-              <p className="py-3 text-body-sm text-on-surface-light">Nadie en tu libreta con «{term.trim()}».</p>
+              <p className="py-3 text-body-sm text-on-surface-light">Nadie en tu directorio con «{term.trim()}».</p>
             ) : (
               sections.map((s) => (
                 <section key={s.letter} data-letter={s.letter} aria-label={s.letter === '#' ? 'Otros' : `Letra ${s.letter}`} className="scroll-mt-28">
@@ -366,6 +399,24 @@ export function Notebook({ friends, pending, invites, error, activeUsername, foc
               ))
             )}
           </div>
+
+          {!q && (
+            <section aria-label="Tus gremios" className="flex flex-col border-t border-dashed border-border-strong/50 pt-2">
+              <div className="flex h-[var(--lq-rule)] items-end justify-between pb-1">
+                <h3 className="text-heading-lg leading-none text-primary-text/80"><Handwritten text="gremios" draw={false} /></h3>
+                <button type="button" onClick={onNewGuild} className="min-h-9 rounded-full px-3 text-label-md text-primary-text hover:bg-primary/10">Crear o unirme</button>
+              </div>
+              {guilds === null ? (
+                <Skeleton className="my-2 h-14 rounded-xl" />
+              ) : guilds.length === 0 ? (
+                <p className="py-3 text-body-sm text-on-surface-light">Todavía no estás en ningún gremio.</p>
+              ) : (
+                <ul className="flex flex-col">
+                  {guilds.map((g, i) => <GuildEntry key={g.id} g={g} index={i} onOpen={() => onOpenGuild(g.id)} />)}
+                </ul>
+              )}
+            </section>
+          )}
 
           <Directory term={term} known={known} onChanged={onChanged} />
         </div>

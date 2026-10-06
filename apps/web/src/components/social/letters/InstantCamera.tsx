@@ -1,51 +1,43 @@
-// Cámara instantánea de las cartas. Solo fotos tomadas en el momento: no hay
-// galería. Se abre una cámara clásica (plástico crema, franja de colores,
-// objetivo y disparador rojo) con el visor en vivo; al disparar, destello,
-// la cámara zumba y la foto sale por la ranura y se revela despacio. Se puede
-// escribir una nota en el borde, repetirla o enviarla: al enviar, quien abrió
-// la cámara recibe la posición de la foto para hacerla volar hasta la carta.
+// Cámara instantánea de las cartas. Se abre una cámara clásica (plástico crema,
+// franja de colores, objetivo y disparador rojo) con el visor en vivo; al
+// disparar, destello, la cámara zumba y la foto sale por la ranura y se revela
+// despacio. También se puede elegir una foto de la galería: sale igual, impresa
+// en su polaroid. Se puede escribir una nota en el borde, repetirla o enviarla:
+// al enviar, quien abrió la cámara recibe la posición de la foto para hacerla
+// volar hasta la carta.
 //
-// Sin acceso a getUserMedia en un móvil se usa la cámara del sistema
-// (capture), que tampoco ofrece la galería. Con «Reducir movimiento»: sin
-// destello ni vuelo, la foto aparece con un fundido.
+// En el teléfono el visor pide 720 px a 30 fps (suficiente para una foto
+// cuadrada de 720 px) y la foto se procesa sin bloquear la pantalla. Sin
+// getUserMedia se usa la cámara del sistema (capture). Con «Reducir movimiento»:
+// sin destello ni vuelo, la foto aparece con un fundido.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useAnimationControls } from 'framer-motion';
-import { CameraOff, RotateCcw, Send, SwitchCamera, X } from 'lucide-react';
+import { CameraOff, Image as ImageIcon, RotateCcw, Send, SwitchCamera, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { springs } from '@/lib/motion/presets';
 import { useMotionStore } from '@/store/motionStore';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { Lettering } from '@/components/layout/Lettering';
 import { Button, Spinner, useDialogBehavior } from '@/components/ui/lq';
+import { squarePhoto } from '@/services/network.service';
 import { InstantPhoto } from './InstantPhoto';
 
 type CamState = 'starting' | 'live' | 'shot' | 'denied' | 'unsupported' | 'error';
 
 /** Lado de la foto que viaja (cuadrada, como la película instantánea). */
 const OUT = 720;
-
-/** Recorta el centro en cuadrado y lo pasa a JPEG (más comprimido si hace falta). */
-function squareShot(src: CanvasImageSource, w: number, h: number, mirror: boolean): string | null {
-  const side = Math.min(w, h);
-  if (!side) return null;
-  const canvas = document.createElement('canvas');
-  canvas.width = OUT; canvas.height = OUT;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return null;
-  if (mirror) { ctx.translate(OUT, 0); ctx.scale(-1, 1); }
-  ctx.drawImage(src, (w - side) / 2, (h - side) / 2, side, side, 0, 0, OUT, OUT);
-  const url = canvas.toDataURL('image/jpeg', 0.8);
-  return url.length > 560_000 ? canvas.toDataURL('image/jpeg', 0.62) : url;
-}
+export type PhotoSource = 'camera' | 'gallery';
 
 export interface InstantCameraProps {
   open: boolean;
   onClose: () => void;
   /** Para quién es la foto (título y botón de enviar). */
   to: string;
-  /** La foto (data URL), la nota y dónde está la foto en pantalla para el vuelo. */
-  onSend: (photo: string, caption: string, from: DOMRect | null) => void;
+  /** La foto (data URL), la nota, dónde está la foto en pantalla para el vuelo y de dónde salió. */
+  onSend: (photo: string, caption: string, from: DOMRect | null, source: PhotoSource) => void;
+  /** Sin galería (el ataque al enemigo del gremio solo vale con la cámara). */
+  cameraOnly?: boolean;
 }
 
 export function InstantCamera(props: InstantCameraProps) {
@@ -55,7 +47,7 @@ export function InstantCamera(props: InstantCameraProps) {
   );
 }
 
-function CameraOverlay({ onClose, to, onSend }: InstantCameraProps) {
+function CameraOverlay({ onClose, to, onSend, cameraOnly = false }: InstantCameraProps) {
   const panelRef = useDialogBehavior(true, onClose);
   const reduce = useMotionStore((s) => s.reduce);
   const coarse = useMediaQuery('(pointer: coarse)');
@@ -65,6 +57,9 @@ function CameraOverlay({ onClose, to, onSend }: InstantCameraProps) {
   const printRef = useRef<HTMLElement>(null);
   const actionsRef = useRef<HTMLDivElement>(null);
   const fallbackRef = useRef<HTMLInputElement>(null);
+  const galleryRef = useRef<HTMLInputElement>(null);
+  const [source, setSource] = useState<PhotoSource>('camera');
+  const [busy, setBusy] = useState(false);
   const body = useAnimationControls();
   const [facing, setFacing] = useState<'environment' | 'user'>('environment');
   const [state, setState] = useState<CamState>('starting');
@@ -87,7 +82,7 @@ function CameraOverlay({ onClose, to, onSend }: InstantCameraProps) {
     setState('starting');
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: face }, width: { ideal: 1280 }, height: { ideal: 1280 } },
+        video: { facingMode: { ideal: face }, width: { ideal: 960 }, height: { ideal: 720 }, frameRate: { ideal: 30, max: 30 } },
         audio: false,
       });
       // Se cerró o se cambió de cámara mientras pedía permiso: se apaga enseguida.
@@ -111,7 +106,8 @@ function CameraOverlay({ onClose, to, onSend }: InstantCameraProps) {
     return stop;
   }, [facing, start, stop]);
 
-  function printed(url: string) {
+  function printed(url: string, from: PhotoSource = 'camera') {
+    setSource(from);
     setPhoto(url);
     setState('shot');
     stop();
@@ -123,25 +119,24 @@ function CameraOverlay({ onClose, to, onSend }: InstantCameraProps) {
     window.setTimeout(() => actionsRef.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'end' }), reduce ? 0 : 520);
   }
 
-  function shoot() {
+  async function shoot() {
     const v = videoRef.current;
-    if (!v || state !== 'live') return;
-    const url = squareShot(v, v.videoWidth, v.videoHeight, facing === 'user');
-    if (url) printed(url);
+    if (!v || state !== 'live' || busy) return;
+    setBusy(true);
+    // Se congela el cuadro al momento (el destello tapa el procesado).
+    v.pause();
+    try { printed(await squarePhoto(v, OUT, facing === 'user'), 'camera'); }
+    catch { void v.play(); }
+    finally { setBusy(false); }
   }
 
-  /** Cámara del sistema (móvil sin getUserMedia): también sin galería. */
-  function fromSystemCamera(file?: File | null) {
+  /** Foto de la cámara del sistema (sin getUserMedia) o de la galería. */
+  async function fromFile(file: File | null | undefined, from: PhotoSource) {
     if (!file) return;
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      const shot = squareShot(img, img.naturalWidth, img.naturalHeight, false);
-      URL.revokeObjectURL(url);
-      if (shot) printed(shot);
-    };
-    img.onerror = () => URL.revokeObjectURL(url);
-    img.src = url;
+    setBusy(true);
+    try { printed(await squarePhoto(file, OUT), from); }
+    catch { /* foto ilegible: no pasa nada */ }
+    finally { setBusy(false); }
   }
 
   function retake() {
@@ -152,7 +147,7 @@ function CameraOverlay({ onClose, to, onSend }: InstantCameraProps) {
 
   function send() {
     if (!photo) return;
-    onSend(photo, caption.trim(), printRef.current?.getBoundingClientRect() ?? null);
+    onSend(photo, caption.trim(), printRef.current?.getBoundingClientRect() ?? null, source);
     onClose();
   }
 
@@ -161,7 +156,7 @@ function CameraOverlay({ onClose, to, onSend }: InstantCameraProps) {
 
   return (
     <motion.div
-      className="fixed inset-0 z-[70] overflow-y-auto overscroll-contain bg-[rgb(var(--lq-jade-900)/.92)] backdrop-blur-md"
+      className="fixed inset-0 z-[70] overflow-y-auto overscroll-contain bg-[rgb(var(--lq-jade-900)/.96)]"
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.2, delay: 0.05 } }}
     >
       <div
@@ -205,7 +200,7 @@ function CameraOverlay({ onClose, to, onSend }: InstantCameraProps) {
             <div className="lq-cam-screen relative aspect-square overflow-hidden rounded-[14px]">
               <video
                 ref={videoRef} playsInline muted autoPlay aria-label="Vista de la cámara"
-                className={cn('size-full object-cover transition-opacity duration-300', facing === 'user' && '-scale-x-100', !live && 'opacity-0')}
+                className={cn('size-full object-cover transition-opacity duration-300 [transform:translateZ(0)]', facing === 'user' && '-scale-x-100', !live && 'opacity-0')}
               />
               {photo && <img src={photo} alt="" className="absolute inset-0 size-full object-cover" />}
               {live && (
@@ -223,7 +218,7 @@ function CameraOverlay({ onClose, to, onSend }: InstantCameraProps) {
                           {state === 'denied' ? 'Sin permiso para usar la cámara' : state === 'unsupported' ? (coarse ? 'Abre la cámara del teléfono' : 'No encontramos una cámara') : 'La cámara no respondió'}
                         </p>
                         <p className="text-body-sm text-jade-100/85">
-                          {state === 'denied' ? 'Actívalo en los permisos del navegador y vuelve a intentarlo.' : state === 'unsupported' ? (coarse ? 'La foto se toma en el momento, sin galería.' : 'Conecta una cámara o usa la app en tu teléfono.') : 'Ciérrala y vuelve a abrirla.'}
+                          {state === 'denied' ? 'Actívalo en los permisos del navegador o elige una foto de la galería.' : state === 'unsupported' ? (coarse ? 'Usa la cámara del teléfono o elige una foto.' : 'Conecta una cámara o elige una foto de la galería.') : 'Ciérrala y vuelve a abrirla.'}
                         </p>
                         {state === 'unsupported' && coarse ? (
                           <Button size="sm" onClick={() => fallbackRef.current?.click()}>Abrir cámara</Button>
@@ -250,7 +245,7 @@ function CameraOverlay({ onClose, to, onSend }: InstantCameraProps) {
               </span>
               <span className="flex flex-col items-center gap-1">
                 <button
-                  type="button" onClick={shoot} disabled={!live} aria-label="Tomar foto"
+                  type="button" onClick={() => void shoot()} disabled={!live || busy} aria-label="Tomar foto"
                   className="lq-cam-shutter size-16 rounded-full focus-visible:outline-offset-4"
                 />
                 <span aria-hidden="true" className="text-label-md text-jade-700">foto</span>
@@ -292,12 +287,25 @@ function CameraOverlay({ onClose, to, onSend }: InstantCameraProps) {
               <Button className="flex-1 bg-jade-50 text-jade-900 hover:bg-white" onClick={send} data-autofocus><Send aria-hidden className="size-4" />Enviar a {first}</Button>
             </div>
           ) : (
-            <p className="max-w-[22rem] text-center text-body-sm text-jade-100/80">La foto se toma ahora mismo y sale impresa al momento.</p>
+            <div className="flex w-full max-w-[22rem] flex-col items-center gap-3">
+              {!cameraOnly && (
+                <Button variant="secondary" onClick={() => galleryRef.current?.click()} disabled={busy}>
+                  <ImageIcon aria-hidden className="size-4" />Elegir de la galería
+                </Button>
+              )}
+              <p className="text-center text-body-sm text-jade-100/80">
+                {cameraOnly ? 'Para atacar al enemigo, la foto se toma ahora mismo con la cámara.' : 'Toma la foto ahora o elige una: sale impresa al momento.'}
+              </p>
+            </div>
           )}
         </div>
 
         <input ref={fallbackRef} type="file" accept="image/*" capture={facing === 'user' ? 'user' : 'environment'} className="sr-only" tabIndex={-1} aria-hidden="true"
-          onChange={(e) => { fromSystemCamera(e.target.files?.[0]); e.target.value = ''; }} />
+          onChange={(e) => { void fromFile(e.target.files?.[0], 'camera'); e.target.value = ''; }} />
+        {!cameraOnly && (
+          <input ref={galleryRef} type="file" accept="image/*" className="sr-only" tabIndex={-1} aria-hidden="true"
+            onChange={(e) => { void fromFile(e.target.files?.[0], 'gallery'); e.target.value = ''; }} />
+        )}
       </div>
     </motion.div>
   );

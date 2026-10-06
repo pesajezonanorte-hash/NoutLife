@@ -56,8 +56,8 @@ function FriendsLink() {
     <Card padding="lg" className="flex flex-col gap-3">
       <Users aria-hidden className="size-8 text-primary-text" strokeWidth={1.5} />
       <h2 className="text-heading-sm">Tu círculo</h2>
-      <p className="text-body-md text-on-surface-light">Anota amigos en tu libreta de Social y escríbanse: al tercer día seguido se enciende su racha.</p>
-      <Button variant="secondary" size="md" className="self-start" onClick={() => navigate('/social?tab=amigos&view=search')}><UserPlus aria-hidden className="size-4" strokeWidth={1.75} />Buscar amigos</Button>
+      <p className="text-body-md text-on-surface-light">Anota amigos en tu directorio de Social y escríbanse: al tercer día seguido se enciende su racha.</p>
+      <Button variant="secondary" size="md" className="self-start" onClick={() => navigate('/social?tab=directorio&view=search')}><UserPlus aria-hidden className="size-4" strokeWidth={1.75} />Buscar amigos</Button>
     </Card>
   );
 }

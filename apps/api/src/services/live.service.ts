@@ -75,13 +75,26 @@ async function typingAll(me: string) {
       userId: { not: me },
       OR: [{ key: dmKey(me) }, { key: { in: memberships.map((m) => guildKey(m.guildId)) } }],
     },
-    select: { userId: true, key: true, typingAt: true },
+    select: { userId: true, key: true, typingAt: true, user: { select: { displayName: true } } },
   });
   return rows.map((r) => ({
     chat: r.key === dmKey(me) ? dmKey(r.userId) : r.key,
     userId: r.userId,
+    name: r.user.displayName,
     until: new Date(r.typingAt!.getTime() + TYPING_MS).toISOString(),
   }));
+}
+
+/**
+ * Firma de "me leyeron": cambia cuando alguien lee lo que escribiste (en una carta de
+ * dos o en un gremio). La bandeja la usa para refrescar el ✓✓ sin pedir nada más.
+ */
+async function seenSignature(me: string) {
+  const [dm, guild] = await Promise.all([
+    prisma.directMessage.aggregate({ where: { senderId: me, readAt: { not: null } }, _max: { readAt: true } }),
+    prisma.guildMember.aggregate({ where: { userId: { not: me }, guild: { members: { some: { userId: me } } } }, _max: { lastReadAt: true } }),
+  ]);
+  return `${dm._max.readAt?.getTime() ?? 0}|${guild._max.lastReadAt?.getTime() ?? 0}`;
 }
 
 async function chatSection(me: string, chat: string, q: LiveQuery) {
@@ -119,16 +132,17 @@ export async function live(me: string, q: LiveQuery) {
   if (changed) {
     const since = parseDate(q.ib);
     const stamp = new Date();
-    const [pulse, notifications, typing, items, letter] = await Promise.all([
+    const [pulse, notifications, typing, items, letter, seen] = await Promise.all([
       socialPulse(me),
       countUnread(me),
       typingAll(me),
       since ? inboxSince(me, since) : Promise.resolve([]),
       chat ? chatSection(me, chat, q) : Promise.resolve(null),
+      seenSignature(me),
     ]);
     // El siguiente sondeo sigue desde el último aviso entregado (así no se repite ninguno).
     out.inbox = { cursor: items.length ? items[items.length - 1].at : stamp.toISOString(), items };
-    Object.assign(out, { pulse, notifications, typing, ...(letter ? { chat: letter } : {}) });
+    Object.assign(out, { pulse, notifications, typing, seen, ...(letter ? { chat: letter } : {}) });
   }
   if (zone && (changed || q.zr === '1')) out.zone = await zoneVisitors(me, zone);
   return out;

@@ -75,7 +75,7 @@ export const NAV_SECTIONS: NavSection[] = [
 
 /** Atajos a cada parte de Social (búsqueda rápida). */
 export const SOCIAL_SHORTCUTS: NavEntry[] = [
-  { to: '/social?tab=amigos', label: 'Amigos · libreta', icon: NotebookTabs },
+  { to: '/social?tab=directorio', label: 'Directorio', icon: NotebookTabs },
   { to: '/social?tab=cartas', label: 'Cartas', icon: Mail },
   { to: '/social?tab=gremios', label: 'Gremios', icon: Tent },
 ];

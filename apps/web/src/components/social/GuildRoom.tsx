@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Camera, Check, CheckCheck, Copy, Crown, Flame, LogIn, LogOut, Mail, Plus, Shield, Swords, UserPlus, Users } from 'lucide-react';
+import { Camera, Check, CheckCheck, Copy, Crown, Flame, LogIn, LogOut, Mail, Pencil, Plus, Shield, Swords, UserPlus, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { item, pop3, stagger } from '@/lib/motion';
 import { springs } from '@/lib/motion/presets';
@@ -19,9 +19,11 @@ import { useAuthStore } from '@/store/authStore';
 import { useToastStore } from '@/hooks/useToast';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import {
-  apiError, getGuild, getNetwork, inviteToGuild, peekGuildMessages, postGuildSnap, respondGuildInvite,
+  apiError, getGuild, getNetwork, inviteToGuild, peekGuildMessages, postGuildSnap, respondGuildInvite, thumbOf,
   type FriendItem, type GuildDetail, type GuildInvite, type GuildMessage, type GuildSummary,
 } from '@/services/network.service';
+import { useMedia, useNearScreen } from '@/lib/media';
+import { GuildEditDialog } from './GuildEditDialog';
 import { createGuild, joinGuild, leaveGuild, updateGuild } from '@/services/social.service';
 import { AvatarDisplay } from '@/components/character/AvatarDisplay';
 import { Campfire } from '@/components/guild/Campfire';
@@ -167,7 +169,7 @@ function InviteFriends({ open, onClose, guild }: { open: boolean; onClose: () =>
     <Modal open={open} onClose={onClose} title={`Invitar a ${guild.name}`}>
       <p className="-mt-2 text-body-sm text-on-surface-light">Les llegará una paloma con la invitación. También pueden entrar con el código <span className="font-mono">{guild.inviteCode}</span>.</p>
       {friends === null ? <PageLoader size="sm" /> : candidates.length === 0 ? (
-        <p className="text-body-md text-on-surface-light">{friends.length ? 'Todos tus amigos ya están aquí.' : 'Anota amigos en tu libreta para invitarlos.'}</p>
+        <p className="text-body-md text-on-surface-light">{friends.length ? 'Todos tus amigos ya están aquí.' : 'Anota amigos en tu directorio para invitarlos.'}</p>
       ) : (
         <ul className="flex max-h-[50vh] flex-col overflow-y-auto">
           {candidates.map((f) => (
@@ -182,6 +184,17 @@ function InviteFriends({ open, onClose, guild }: { open: boolean; onClose: () =>
         </ul>
       )}
     </Modal>
+  );
+}
+
+/** Una foto del muro de hoy (se pide al acercarse a la pantalla). */
+function WallPhoto({ m, tilt, mine }: { m: GuildMessage; tilt: number; mine: boolean }) {
+  const { ref, near } = useNearScreen<HTMLDivElement>();
+  const media = useMedia('guild', m.id, { enabled: near, hasThumb: Boolean(m.meta?.thumb) });
+  return (
+    <div ref={ref}>
+      <InstantPhoto src={media.photoUrl} thumb={m.meta?.thumb} alt={`Foto de ${mine ? 'ti' : m.user.displayName}`} tilt={tilt} caption={m.content || null} className="w-full" />
+    </div>
   );
 }
 
@@ -218,14 +231,16 @@ function InGuild({ guild, summary, onLeft, onChanged, onOpenLetter }: {
   const [leaving, setLeaving] = useState(false);
   const [photo, setPhoto] = useState<string | null>(guild.photoUrl ?? null);
   const [photoOpen, setPhotoOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [camera, setCamera] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [wall, setWall] = useState<GuildMessage[]>([]);
 
   const em = emblemOf(guild.emblem);
   const myId = String(me?.id);
-  const myRole = guild.members.find((m) => m.userId === myId)?.role;
-  const canEdit = guild.leaderId === myId || myRole === 'LEADER' || myRole === 'OFFICER';
+  // Cualquiera del gremio puede cambiar su nombre, descripción, emblema y foto.
+  const canEdit = guild.members.some((m) => m.userId === myId);
+  useEffect(() => { setPhoto(guild.photoUrl ?? null); }, [guild.photoUrl]);
   const snapped = new Set(guild.today.snappedUserIds);
   const mineToday = snapped.has(myId);
   const snapPct = guild.members.length ? Math.round((snapped.size / guild.members.length) * 100) : 0;
@@ -234,7 +249,7 @@ function InGuild({ guild, summary, onLeft, onChanged, onOpenLetter }: {
   useEffect(() => {
     let alive = true;
     peekGuildMessages(guild.id)
-      .then((list) => { if (alive) setWall(list.filter((m) => m.kind === 'SNAP' && m.photoUrl && m.dayKey === guild.today.day)); })
+      .then((list) => { if (alive) setWall(list.filter((m) => m.kind === 'SNAP' && m.media.photo && m.dayKey === guild.today.day)); })
       .catch(() => undefined);
     return () => { alive = false; };
   }, [guild.id, guild.today.day, snapped.size]);
@@ -243,6 +258,7 @@ function InGuild({ guild, summary, onLeft, onChanged, onOpenLetter }: {
     try {
       const res = await updateGuild(guild.id, { photoUrl: url });
       setPhoto(res.photoUrl);
+      onChanged();
       toaster().success(url ? 'Foto del gremio actualizada' : 'Foto del gremio quitada');
     } catch (e) {
       toaster().error(errMsg(e));
@@ -262,7 +278,8 @@ function InGuild({ guild, summary, onLeft, onChanged, onOpenLetter }: {
   }
   async function sendSnap(photoUrl: string, caption: string) {
     try {
-      const r = await postGuildSnap(guild.id, photoUrl, caption);
+      const thumb = await thumbOf(photoUrl);
+      const r = await postGuildSnap(guild.id, photoUrl, caption, thumb ? { thumb } : undefined);
       toaster().success(r.enemyDefeated ? `¡${guild.today.enemy.name} cayó!` : mineToday ? 'Foto pegada en la carta del gremio' : `Le quitaste ${ENEMY_HIT} HP a ${guild.today.enemy.name}`);
       onChanged();
     } catch (e) { toaster().error(apiError(e, 'No se pudo enviar la foto')); }
@@ -287,6 +304,7 @@ function InGuild({ guild, summary, onLeft, onChanged, onOpenLetter }: {
             {guild.description && <p className="text-body-md text-on-surface-light">{guild.description}</p>}
             <div className="flex flex-wrap items-center gap-2">
               <Badge size="lg" icon={Users}><span className="font-mono">{guild.members.length}/{MAX_MEMBERS}</span> aventureros</Badge>
+              {canEdit && <Button variant="ghost" size="sm" onClick={() => setEditOpen(true)}><Pencil aria-hidden className="size-4" />Editar gremio</Button>}
               {isLit(guild.streak) && <Badge size="lg" variant="warning"><StreakFlame streak={guild.streak} size="sm" label={`Racha del gremio: ${guild.streak.count} días`} /> racha del gremio</Badge>}
             </div>
           </div>
@@ -336,7 +354,7 @@ function InGuild({ guild, summary, onLeft, onChanged, onOpenLetter }: {
                 <ul className="flex gap-5 overflow-x-auto px-1 pb-3 pt-4">
                   {wall.map((m, i) => (
                     <motion.li key={m.id} className="w-40 shrink-0" initial={{ opacity: 0, y: -20, rotate: 0 }} animate={{ opacity: 1, y: 0 }} transition={{ ...springs.heavy, delay: i * 0.08 }}>
-                      <InstantPhoto src={m.photoUrl!} alt={`Foto de ${m.userId === myId ? 'ti' : m.user.displayName}`} tilt={((i % 3) - 1) * 2.5} caption={m.content || null} className="w-full" />
+                      <WallPhoto m={m} tilt={((i % 3) - 1) * 2.5} mine={m.userId === myId} />
                       <p className="mt-2 truncate text-center text-body-sm text-on-surface-light">{m.userId === myId ? 'Tú' : m.user.displayName.split(' ')[0]}</p>
                     </motion.li>
                   ))}
@@ -413,7 +431,8 @@ function InGuild({ guild, summary, onLeft, onChanged, onOpenLetter }: {
       {canEdit && (
         <GuildPhotoDialog open={photoOpen} onClose={() => setPhotoOpen(false)} name={guild.name} photoUrl={photo} emblem={em.icon} tone={em.tone} onSave={savePhoto} />
       )}
-      <InstantCamera open={camera} onClose={() => setCamera(false)} to={guild.name} onSend={(p, c) => void sendSnap(p, c)} />
+      <InstantCamera open={camera} onClose={() => setCamera(false)} to={guild.name} cameraOnly onSend={(p, c) => void sendSnap(p, c)} />
+      <GuildEditDialog open={editOpen} guild={{ ...guild, photoUrl: photo }} onClose={() => setEditOpen(false)} onSaved={(g) => { setPhoto(g.photoUrl ?? null); onChanged(); }} />
       <InviteFriends open={inviteOpen} onClose={() => setInviteOpen(false)} guild={guild} />
       <Modal open={confirmLeave} onClose={() => setConfirmLeave(false)} title="¿Salir del gremio?">
         <p className="text-body-md text-on-surface">Dejarás de ver su carta y de aportar al enemigo del día de {guild.name}. Podrás volver con el código.</p>

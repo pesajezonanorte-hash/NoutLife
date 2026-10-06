@@ -1,45 +1,49 @@
-// Social: amigos, cartas y gremios en un mismo sitio, para llegar rápido y
-// moverse entre ellos sin salir. Tres pestañas, cada una con su ambiente:
-//   Libreta  · tus amigos anotados en una agenda de direcciones, bajo la luz
-//              cálida de una lámpara de escritorio.
-//   Cartas   · el buzón con todas las conversaciones (amigos y gremios) como
-//              sobres, junto a una ventana.
-//   Gremios  · tus grupos alrededor de la fogata.
-// Al tocar a alguien (o un sobre) se abre su carta: al lado en escritorio y a
-// pantalla completa en el móvil, como una carta que se saca del sobre. La URL
-// guarda la pestaña y la carta abierta (?tab=…&chat=usuario | gchat=gremio |
+// Social: el directorio, las cartas y los gremios en un mismo sitio, para llegar
+// rápido y moverse entre ellos sin salir. Tres pestañas, cada una con su ambiente:
+//   Directorio · tus contactos y tus gremios anotados en una agenda de
+//                direcciones, bajo la luz cálida de una lámpara de escritorio.
+//   Cartas     · el buzón con todas las conversaciones (amigos y gremios) como
+//                sobres, junto a una ventana. Aquí se lee y se escribe.
+//   Gremios    · tus grupos alrededor de la fogata.
+// Tocar un contacto o un gremio del directorio abre su carta en Cartas: al lado
+// en escritorio y a pantalla completa en el móvil, pegada al teclado. Al entrar a
+// Social (o cambiar de pestaña) no queda ninguna carta abierta: se abre al tocar.
+// La URL guarda la pestaña y la carta abierta (?tab=…&chat=usuario | gchat=gremio |
 // guild=gremio), así que atrás cierra la carta y los avisos llevan directo.
-import { useCallback, useEffect, useMemo, useState, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, PresenceContext, motion } from 'framer-motion';
 import { Mail, NotebookTabs, PenLine, Send, Tent, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { item } from '@/lib/motion';
 import { springs } from '@/lib/motion/presets';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { useToastStore } from '@/hooks/useToast';
+import { useAuthStore } from '@/store/authStore';
 import { useSocialStore } from '@/store/socialStore';
 import {
-  getGuildInvites, getMyGuilds, getNetwork, getPendingRequests,
+  apiError, getGuildInvites, getMyGuilds, getNetwork, getPendingRequests, setChatPref,
   type FriendItem, type GuildInvite, type GuildSummary, type PendingRequest,
 } from '@/services/network.service';
 import { AmbientLight, Particles, SketchUnderline, ZoneShell } from '@/components/ambience';
 import { Lettering } from '@/components/layout/Lettering';
 import { lockScroll, unlockScroll } from '@/components/ui/lq/Modal';
-import { Button } from '@/components/ui/lq';
+import { Button, Modal } from '@/components/ui/lq';
 import { Notebook } from '@/components/social/Notebook';
 import { LetterTray, type TrayItem } from '@/components/social/LetterTray';
 import { GuildRoom } from '@/components/social/GuildRoom';
 import { DirectLetter, GuildLetter } from '@/components/social/letters/LetterView';
+import { useViewportBox } from '@/components/social/letters/viewport';
+import { useLive } from '@/lib/live';
 
-type Tab = 'amigos' | 'cartas' | 'gremios';
+type Tab = 'directorio' | 'cartas' | 'gremios';
 const TABS: Array<{ id: Tab; label: string; title: string; icon: LucideIcon; sub: string }> = [
-  { id: 'amigos', label: 'Libreta', title: 'libreta', icon: NotebookTabs, sub: 'Tus amigos anotados a mano. Toca a alguien para escribirle.' },
+  { id: 'directorio', label: 'Directorio', title: 'directorio', icon: NotebookTabs, sub: 'Tus contactos y tus gremios. Toca a alguien para escribirle.' },
   { id: 'cartas', label: 'Cartas', title: 'cartas', icon: Mail, sub: 'Todas tus conversaciones, con amigos y con tus gremios.' },
-  { id: 'gremios', label: 'Gremios', title: 'gremios', icon: Tent, sub: 'Tus grupos: su carta, su fogata y el enemigo del día.' },
+  { id: 'gremios', label: 'Gremios', title: 'gremios', icon: Tent, sub: 'Tus grupos: su fogata, el enemigo del día y quién está en cada uno.' },
 ];
-const LAST_TAB = 'lq-social-tab';
-const readLastTab = (): Tab | null => { try { const t = localStorage.getItem(LAST_TAB); return t === 'amigos' || t === 'cartas' || t === 'gremios' ? t : null; } catch { return null; } };
+const toaster = () => useToastStore.getState();
 
 /** Mientras está montado, la página de atrás no se desplaza. */
 function ScrollLock() {
@@ -52,7 +56,7 @@ function SocialAmbience({ tab }: { tab: Tab }) {
   return (
     <AnimatePresence mode="wait" initial={false}>
       <motion.div key={tab} className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1, transition: { duration: 0.6 } }} exit={{ opacity: 0, transition: { duration: 0.25 } }}>
-        {tab === 'amigos' && (
+        {tab === 'directorio' && (
           <>
             {/* La lámpara de escritorio: luz cálida desde arriba a la izquierda, con polvo flotando en ella */}
             <AmbientLight tone="warning" alpha={0.13} darkAlpha={0.08} d={12} className="left-[-12%] top-[-8%] h-[34rem] w-[64%]" />
@@ -80,7 +84,7 @@ function SocialAmbience({ tab }: { tab: Tab }) {
 }
 
 /** Panel vacío de la carta (escritorio): papel en blanco con la pluma. */
-function EmptyPane({ tab }: { tab: Tab }) {
+function EmptyPane() {
   return (
     <div className="lq-stationery relative flex min-h-[460px] flex-col items-center justify-center gap-3 overflow-hidden rounded-[22px] border border-border p-8 text-center shadow-md">
       <motion.span initial={{ rotate: -16, y: -8, opacity: 0 }} animate={{ rotate: -6, y: 0, opacity: 1 }} transition={springs.heavy}
@@ -88,10 +92,25 @@ function EmptyPane({ tab }: { tab: Tab }) {
         <PenLine aria-hidden className="size-8" strokeWidth={1.5} />
       </motion.span>
       <h2 className="text-heading-md text-on-background"><Lettering text="papel en blanco" /></h2>
-      <p className="max-w-[340px] text-body-md text-on-surface-light">
-        {tab === 'amigos' ? 'Elige a alguien de tu libreta para escribirle una carta.' : 'Abre un sobre del buzón para leer y responder.'}
-      </p>
+      <p className="max-w-[340px] text-body-md text-on-surface-light">Abre un sobre del buzón para leer y responder.</p>
     </div>
+  );
+}
+
+/** La carta a pantalla completa del móvil: exactamente lo visible sobre el teclado. */
+function MobileLetter({ children }: { children: React.ReactNode }) {
+  const box = useViewportBox();
+  return (
+    <motion.div
+      key="mobile-letter" data-keyboard-managed
+      initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%', transition: { duration: 0.24, ease: [0.4, 0, 1, 1] } }}
+      transition={springs.natural}
+      style={{ top: box.top, height: box.height }}
+      className="fixed inset-x-0 z-[60] flex origin-bottom flex-col overflow-hidden overscroll-none bg-background pt-[env(safe-area-inset-top)] [will-change:transform]"
+    >
+      <ScrollLock />
+      {children}
+    </motion.div>
   );
 }
 
@@ -99,13 +118,15 @@ export default function SocialPage() {
   const [params, setParams] = useSearchParams();
   const isDesktop = useMediaQuery('(min-width: 1024px)');
   const pulse = useSocialStore((s) => s.pulse);
+  const meId = String(useAuthStore((s) => s.user?.id) ?? '');
 
   const chat = params.get('chat');
   const gchat = params.get('gchat');
   const tabParam = params.get('tab');
-  const tab: Tab = tabParam === 'amigos' || tabParam === 'cartas' || tabParam === 'gremios'
+  const tab: Tab = tabParam === 'directorio' || tabParam === 'cartas' || tabParam === 'gremios'
     ? tabParam
-    : chat || gchat ? 'cartas' : params.get('guild') ? 'gremios' : readLastTab() ?? 'amigos';
+    : tabParam === 'amigos' ? 'directorio'
+      : chat || gchat ? 'cartas' : params.get('guild') ? 'gremios' : 'directorio';
   const guildParam = params.has('guild') ? params.get('guild') || null : undefined;
   const view = params.get('view');
 
@@ -114,6 +135,7 @@ export default function SocialPage() {
   const [invites, setInvites] = useState<GuildInvite[]>([]);
   const [guilds, setGuilds] = useState<GuildSummary[] | null>(null);
   const [error, setError] = useState(false);
+  const [clearing, setClearing] = useState<TrayItem | null>(null);
 
   const load = useCallback(async (silent = false) => {
     try {
@@ -124,14 +146,18 @@ export default function SocialPage() {
     } catch { if (!silent) setError(true); }
   }, []);
   useEffect(() => { void load(); }, [load]);
-  // La sección se refresca sola: presencia, rachas y cartas nuevas.
-  useEffect(() => {
-    const id = window.setInterval(() => { if (document.visibilityState === 'visible') void load(true); }, 20_000);
-    return () => window.clearInterval(id);
+  // La bandeja se refresca sola cuando el chat en vivo trae algo (el pulso cambia):
+  // cartas nuevas, vistos, solicitudes… Agrupado para no repintar a cada momento.
+  const refreshTimer = useRef(0);
+  const refreshQuiet = useCallback(() => {
+    window.clearTimeout(refreshTimer.current);
+    refreshTimer.current = window.setTimeout(() => { void load(true); }, 350);
   }, [load]);
-  const refreshQuiet = useCallback(() => { void load(true); void useSocialStore.getState().refresh(); }, [load]);
-
-  useEffect(() => { try { localStorage.setItem(LAST_TAB, tab); } catch { /* sin almacenamiento */ } }, [tab]);
+  const countsSig = pulse ? `${pulse.unreadMessages}|${pulse.guildUnread}|${pulse.requests}|${pulse.onlineCount}|${pulse.streaksWaiting}` : '';
+  const seenSig = useLive((st) => st.seen);
+  const letterBeat = useLive((st) => st.letters);
+  useEffect(() => { if (countsSig || seenSig || letterBeat) refreshQuiet(); }, [countsSig, seenSig, letterBeat, refreshQuiet]);
+  useEffect(() => () => window.clearTimeout(refreshTimer.current), []);
 
   const setQuery = useCallback((patch: Record<string, string | null>, replace = true) => {
     setParams((prev) => {
@@ -141,32 +167,54 @@ export default function SocialPage() {
     }, { replace });
   }, [setParams]);
 
-  const goTab = (t: Tab) => setQuery({ tab: t, view: null, ...(t === 'gremios' ? { chat: null, gchat: null } : {}) });
+  // Cambiar de pestaña cierra la carta abierta: al volver, se ve la pestaña tal cual.
+  const goTab = (t: Tab) => setQuery({ tab: t, view: null, chat: null, gchat: null });
   const openDm = (username: string) => {
-    setQuery({ chat: username, gchat: null }, false);
+    setQuery({ tab: 'cartas', chat: username, gchat: null, view: null }, false);
     setFriends((list) => list?.map((f) => (f.friend.username === username ? { ...f, unread: 0 } : f)) ?? list);
   };
   const openGuildLetter = (id: string) => {
-    setQuery({ gchat: id, chat: null }, false);
+    setQuery({ tab: 'cartas', gchat: id, chat: null, view: null }, false);
     setGuilds((list) => list?.map((g) => (g.id === id ? { ...g, unread: 0 } : g)) ?? list);
   };
   const closeLetter = () => setQuery({ chat: null, gchat: null });
+  const leaveLetter = () => { closeLetter(); refreshQuiet(); };
   const pickGuild = useCallback((id: string | null | undefined) => {
     setParams((prev) => {
       const next = new URLSearchParams(prev);
       next.set('tab', 'gremios');
+      next.delete('chat'); next.delete('gchat');
       if (id === undefined) next.delete('guild'); else next.set('guild', id ?? '');
       return next;
     }, { replace: true });
   }, [setParams]);
 
+  async function archive(it: TrayItem, archived: boolean) {
+    const mark = (v: boolean) => {
+      if (it.kind === 'dm') setFriends((l) => l?.map((f) => (f.friendshipId === it.friend.friendshipId ? { ...f, archived: v } : f)) ?? l);
+      else setGuilds((l) => l?.map((g) => (g.id === it.guild.id ? { ...g, archived: v } : g)) ?? l);
+    };
+    mark(archived);
+    try { await setChatPref(it.chat, { archived }); toaster().info(archived ? 'Carta archivada' : 'Carta fuera del archivo'); }
+    catch (e) { mark(!archived); toaster().error(apiError(e, 'No se pudo archivar')); }
+  }
+  async function clearChat(it: TrayItem) {
+    setClearing(null);
+    try {
+      await setChatPref(it.chat, { clear: true });
+      toaster().info('Chat eliminado', 'Se borró el historial solo para ti.');
+      if ((it.kind === 'dm' && chat === it.friend.friend.username) || (it.kind === 'guild' && gchat === it.guild.id)) closeLetter();
+      void load(true);
+    } catch (e) { toaster().error(apiError(e, 'No se pudo eliminar el chat')); }
+  }
+
   const chatFriend = useMemo(() => friends?.find((f) => f.friend.username === chat)?.friend ?? null, [friends, chat]);
   const online = friends?.filter((f) => f.friend.online).length ?? pulse?.onlineCount ?? 0;
   const dmUnread = friends?.reduce((n, f) => n + f.unread, 0) ?? pulse?.unreadMessages ?? 0;
   const guildUnread = guilds?.reduce((n, g) => n + g.unread, 0) ?? pulse?.guildUnread ?? 0;
-  const badges: Record<Tab, number> = { amigos: pending.length + invites.length, cartas: dmUnread + guildUnread, gremios: invites.length + guildUnread };
+  const badges: Record<Tab, number> = { directorio: pending.length + invites.length, cartas: dmUnread + guildUnread, gremios: invites.length };
   const meta = TABS.find((t) => t.id === tab)!;
-  const letterOpen = Boolean(chatFriend || gchat);
+  const letterOpen = tab === 'cartas' && Boolean(chatFriend || gchat);
   const activeKey = chatFriend ? `dm:${chatFriend.id}` : gchat ? `g:${gchat}` : null;
 
   const onTabKey = (e: KeyboardEvent<HTMLButtonElement>, i: number) => {
@@ -178,10 +226,11 @@ export default function SocialPage() {
     document.getElementById(`social-tab-${next.id}`)?.focus();
   };
 
-  const letter = chatFriend
-    ? <DirectLetter key={chatFriend.id} friend={chatFriend} onActivity={refreshQuiet} onBack={isDesktop ? undefined : closeLetter} className={isDesktop ? 'h-[max(540px,calc(100dvh-15rem))]' : 'h-full rounded-none border-0 shadow-none'} />
+  const letterClass = isDesktop ? 'h-[max(540px,calc(100dvh-15rem))]' : 'min-h-0 flex-1 rounded-none border-0 shadow-none';
+  const letter = !letterOpen ? null : chatFriend
+    ? <DirectLetter key={chatFriend.id} friend={chatFriend} onActivity={refreshQuiet} onBack={isDesktop ? undefined : closeLetter} onLeave={leaveLetter} className={letterClass} />
     : gchat
-      ? <GuildLetter key={gchat} guildId={gchat} onActivity={refreshQuiet} onBack={isDesktop ? undefined : closeLetter} className={isDesktop ? 'h-[max(540px,calc(100dvh-15rem))]' : 'h-full rounded-none border-0 shadow-none'} />
+      ? <GuildLetter key={gchat} guildId={gchat} onActivity={refreshQuiet} onBack={isDesktop ? undefined : closeLetter} onLeave={leaveLetter} className={letterClass} />
       : null;
 
   return (
@@ -198,48 +247,51 @@ export default function SocialPage() {
             </motion.p>
           </AnimatePresence>
         </div>
-        {tab === 'amigos' && (
+        {tab === 'directorio' && (
           <Button variant="secondary" onClick={() => { setQuery({ view: 'search' }); document.getElementById('notebook-search')?.focus(); }}>
             <Send aria-hidden className="size-4" />Enviar paloma
           </Button>
         )}
-        {tab === 'cartas' && <Button variant="secondary" onClick={() => goTab('amigos')}><PenLine aria-hidden className="size-4" />Escribir carta</Button>}
+        {tab === 'cartas' && <Button variant="secondary" onClick={() => goTab('directorio')}><PenLine aria-hidden className="size-4" />Escribir carta</Button>}
       </motion.section>
 
-      {/* Pestañas: siempre a mano al bajar */}
+      {/* Pestañas: siempre a mano al bajar. El indicador (layoutId) va aislado de la
+          presencia de la página: si no, al salir de Social la zona de destino se quedaba en blanco. */}
       <motion.div variants={item} className="sticky top-[calc(3.5rem+env(safe-area-inset-top))] z-10 -mx-4 border-b border-border bg-background/90 px-4 backdrop-blur-xl md:top-16 md:mx-0 md:rounded-t-xl md:px-1">
-        <div role="tablist" aria-label="Secciones de Social" className="flex">
-          {TABS.map((t, i) => {
-            const on = t.id === tab;
-            const n = badges[t.id];
-            return (
-              <button
-                key={t.id} id={`social-tab-${t.id}`} type="button" role="tab" aria-selected={on} aria-controls="social-panel" tabIndex={on ? 0 : -1}
-                onClick={() => goTab(t.id)} onKeyDown={(e) => onTabKey(e, i)}
-                className={cn('relative flex min-h-[52px] min-w-0 flex-1 items-center justify-center gap-1.5 px-1 text-label-md transition-colors sm:gap-2 sm:px-2 sm:text-label-lg md:flex-none md:px-6',
-                  on ? 'text-on-background' : 'text-on-surface-light hover:text-on-surface')}
-              >
-                <motion.span animate={on ? { rotate: [0, -10, 6, 0] } : { rotate: 0 }} transition={{ duration: 0.45 }} className="inline-flex shrink-0">
-                  <t.icon aria-hidden className="size-5" strokeWidth={1.75} />
-                </motion.span>
-                <span className="truncate">{t.label}</span>
-                <AnimatePresence>
-                  {n > 0 && (
-                    <motion.span key="n" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} transition={springs.snappy}
-                      className="flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-error-text px-1 font-mono text-[0.65rem] text-background sm:h-5 sm:min-w-5">
-                      {n > 9 ? '9+' : n}<span className="sr-only"> pendientes</span>
+        <PresenceContext.Provider value={null}>
+          <div role="tablist" aria-label="Secciones de Social" className="flex">
+            {TABS.map((t, i) => {
+              const on = t.id === tab;
+              const n = badges[t.id];
+              return (
+                <button
+                  key={t.id} id={`social-tab-${t.id}`} type="button" role="tab" aria-selected={on} aria-controls="social-panel" tabIndex={on ? 0 : -1}
+                  onClick={() => goTab(t.id)} onKeyDown={(e) => onTabKey(e, i)}
+                  className={cn('relative flex min-h-[52px] min-w-0 flex-1 items-center justify-center gap-1.5 px-1 text-label-md transition-colors sm:gap-2 sm:px-2 sm:text-label-lg md:flex-none md:px-6',
+                    on ? 'text-on-background' : 'text-on-surface-light hover:text-on-surface')}
+                >
+                  <motion.span animate={on ? { rotate: [0, -10, 6, 0] } : { rotate: 0 }} transition={{ duration: 0.45 }} className="inline-flex shrink-0">
+                    <t.icon aria-hidden className="size-5" strokeWidth={1.75} />
+                  </motion.span>
+                  <span className="truncate">{t.label}</span>
+                  <AnimatePresence>
+                    {n > 0 && (
+                      <motion.span key="n" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} transition={springs.snappy}
+                        className="flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-error-text px-1 font-mono text-[0.65rem] text-background sm:h-5 sm:min-w-5">
+                        {n > 9 ? '9+' : n}<span className="sr-only"> pendientes</span>
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                  {on && (
+                    <motion.span layoutId="social-tab-ink" aria-hidden="true" className="absolute inset-x-3 -bottom-[5px] text-primary" transition={springs.natural}>
+                      <SketchUnderline delay={0.05} duration={0.4} strokeWidth={2.4} />
                     </motion.span>
                   )}
-                </AnimatePresence>
-                {on && (
-                  <motion.span layoutId="social-tab-ink" aria-hidden="true" className="absolute inset-x-3 -bottom-[5px] text-primary" transition={springs.natural}>
-                    <SketchUnderline delay={0.05} duration={0.4} strokeWidth={2.4} />
-                  </motion.span>
-                )}
-              </button>
-            );
-          })}
-        </div>
+                </button>
+              );
+            })}
+          </div>
+        </PresenceContext.Provider>
       </motion.div>
 
       <div id="social-panel" role="tabpanel" aria-labelledby={`social-tab-${tab}`}>
@@ -252,35 +304,37 @@ export default function SocialPage() {
             {tab === 'gremios' ? (
               <GuildRoom
                 guilds={guilds} invites={invites} error={error && guilds === null} activeId={guildParam}
-                onPick={pickGuild} onListChanged={refreshQuiet} onOpenLetter={openGuildLetter} onRetry={() => void load()}
+                onPick={pickGuild} onListChanged={() => void load(true)} onOpenLetter={openGuildLetter} onRetry={() => void load()}
               />
+            ) : tab === 'directorio' ? (
+              <div className="max-w-[760px]">
+                <Notebook
+                  friends={friends} guilds={guilds} pending={pending} invites={invites} error={error && friends === null}
+                  activeUsername={null} focus={view === 'requests' || view === 'search' ? view : null}
+                  onOpen={openDm} onOpenGuild={openGuildLetter} onNewGuild={() => pickGuild(null)}
+                  onChanged={() => void load(true)} onRetry={() => void load()}
+                />
+              </div>
             ) : (
               <div className="flex flex-wrap items-start gap-6">
                 <div className="min-w-0 flex-[1_1_340px] lg:max-w-[460px]">
-                  {tab === 'amigos' ? (
-                    <Notebook
-                      friends={friends} pending={pending} invites={invites} error={error && friends === null}
-                      activeUsername={chatFriend?.username ?? null} focus={view === 'requests' || view === 'search' ? view : null}
-                      onOpen={openDm} onChanged={refreshQuiet} onRetry={() => void load()}
-                    />
-                  ) : (
-                    <LetterTray
-                      friends={friends} guilds={guilds} active={activeKey}
-                      onOpen={(it: TrayItem) => (it.kind === 'dm' ? openDm(it.friend.friend.username) : openGuildLetter(it.guild.id))}
-                      onGoNotebook={() => goTab('amigos')}
-                    />
-                  )}
+                  <LetterTray
+                    friends={friends} guilds={guilds} active={activeKey} meId={meId}
+                    onOpen={(it: TrayItem) => (it.kind === 'dm' ? openDm(it.friend.friend.username) : openGuildLetter(it.guild.id))}
+                    onGoDirectory={() => goTab('directorio')}
+                    onArchive={(it, v) => void archive(it, v)} onClear={(it) => setClearing(it)}
+                  />
                 </div>
                 {isDesktop && (
                   <div className="sticky top-36 min-w-0 flex-[2_1_480px]">
                     {/* Solo anima al abrir o cerrar la carta; al pasar de una a otra se cambia al instante, sin parpadeo. */}
-                    <AnimatePresence mode="wait">
+                    <AnimatePresence mode="wait" initial={false}>
                       <motion.div
-                        key={activeKey ? 'letter' : 'empty'}
+                        key={letter ? 'letter' : 'empty'}
                         initial={{ opacity: 0, y: 18, rotate: 0.6 }} animate={{ opacity: 1, y: 0, rotate: 0 }} exit={{ opacity: 0, y: -10, transition: { duration: 0.15 } }}
                         transition={springs.heavy}
                       >
-                        {letter ?? <EmptyPane tab={tab} />}
+                        {letter ?? <EmptyPane />}
                       </motion.div>
                     </AnimatePresence>
                   </div>
@@ -294,20 +348,18 @@ export default function SocialPage() {
       {/* En el móvil la carta sale del sobre y ocupa la pantalla (en el body, con el fondo quieto). */}
       {createPortal(
         <AnimatePresence>
-          {!isDesktop && letterOpen && letter && (
-            <motion.div
-              key="mobile-letter"
-              initial={{ y: '100%', rotate: 2 }} animate={{ y: 0, rotate: 0 }} exit={{ y: '100%', transition: { duration: 0.24, ease: [0.4, 0, 1, 1] } }}
-              transition={springs.natural}
-              className="fixed inset-0 z-[60] flex origin-bottom flex-col bg-background pt-[env(safe-area-inset-top)]"
-            >
-              <ScrollLock />
-              {letter}
-            </motion.div>
-          )}
+          {!isDesktop && letter && <MobileLetter key="mobile-letter">{letter}</MobileLetter>}
         </AnimatePresence>,
         document.body,
       )}
+
+      <Modal open={Boolean(clearing)} onClose={() => setClearing(null)} title="¿Eliminar este chat?">
+        <p className="text-body-md text-on-surface">Se borra el historial solo para ti; {clearing?.kind === 'guild' ? 'los demás miembros' : 'tu amigo'} lo seguirán viendo. Lo que se escriba a partir de ahora sí te llega.</p>
+        <div className="flex justify-end gap-3">
+          <Button variant="secondary" size="md" onClick={() => setClearing(null)}>Cancelar</Button>
+          <Button variant="danger" size="md" onClick={() => clearing && void clearChat(clearing)}>Eliminar chat</Button>
+        </div>
+      </Modal>
     </ZoneShell>
   );
 }

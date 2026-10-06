@@ -21,8 +21,9 @@ import { useToastStore } from '@/hooks/useToast';
 import { useKeyboardOpen } from '@/hooks/useKeyboardOpen';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import {
-  apiError, getZoneVisitors, sendGesture, socialLink, zoneName, type GestureKind, type ZoneVisitor,
+  apiError, sendGesture, socialLink, zoneName, type GestureKind, type ZoneSection, type ZoneVisitor,
 } from '@/services/network.service';
+import { liveHub, useLive } from '@/lib/live';
 import { PixelAvatar } from '@/components/character/pixel/PixelAvatar';
 import { lookFrom } from '@/components/character/pixel/look';
 import { Button } from '@/components/ui/lq';
@@ -306,15 +307,14 @@ export function ZoneVisitors() {
     later(() => setActs((a) => (a[id]?.key === act.key ? (({ [id]: _drop, ...rest }) => rest)(a) : a)), ms);
   }, []);
 
+  // Quién pasea por aquí llega en vivo (lib/live): si un amigo entra, sale o cambia
+  // de zona, su muñequito aparece o se va al momento.
   useEffect(() => {
     if (!show) { setVisitors([]); return; }
-    let alive = true;
     let first = true;
-    const pull = async () => {
-      if (document.visibilityState !== 'visible') return;
+    const take = (r: ZoneSection) => {
+      if (r.zone !== zone) return;
       try {
-        const r = await getZoneVisitors(zone);
-        if (!alive) return;
         setVisitors(r.visitors);
         // Carta nueva de alguien que pasea por aquí: bocadillo con lo que dice.
         for (const v of r.visitors) {
@@ -339,13 +339,11 @@ export function ZoneVisitors() {
           }
         });
         first = false;
-      } catch { /* sin conexión: se reintenta */ }
+      } catch { /* datos raros: se ignoran */ }
     };
-    void pull();
-    const id = window.setInterval(pull, 10_000);
-    const onVis = () => { if (document.visibilityState === 'visible') void pull(); };
-    document.addEventListener('visibilitychange', onVis);
-    return () => { alive = false; window.clearInterval(id); document.removeEventListener('visibilitychange', onVis); };
+    const now = useLive.getState().zone;
+    if (now) take(now);
+    return liveHub.onZone(take);
   }, [play, show, zone]);
 
   async function gesture(v: ZoneVisitor, kind: GestureKind) {

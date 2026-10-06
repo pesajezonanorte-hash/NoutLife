@@ -63,7 +63,7 @@ export async function sendFriendRequest(requesterId: string, identifier: string)
     type: 'friend', category: 'SOCIAL', dedupeKey: `friend-request:${requesterId}`,
     title: 'Llegó una paloma mensajera',
     body: `${requester.displayName} (@${requester.username}) quiere anotarte en su libreta de amigos.`,
-    icon: 'friend', link: '/social?tab=amigos&view=requests',
+    icon: 'friend', link: '/social?tab=directorio&view=requests',
   }).catch(() => null);
   return friendship;
 }

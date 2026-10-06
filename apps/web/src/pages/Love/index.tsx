@@ -284,7 +284,7 @@ function PartnerPicker({ open, onClose, onSent }: { open: boolean; onClose: () =
     <Modal open={open} onClose={onClose} title="¿Tu pareja usa Noutlife?">
       <p className="-mt-2 text-body-sm text-on-surface-light">Elige a tu pareja entre tus amigos. Si acepta, cuidarán juntos este jardín: fechas, flores y recuerdos.</p>
       {friends === null ? <PageLoader size="sm" /> : friends.length === 0 ? (
-        <p className="text-body-md text-on-surface-light">Primero agrégala como amiga en <Link to="/social?tab=amigos" className="text-primary-text underline">tu libreta de amigos</Link>.</p>
+        <p className="text-body-md text-on-surface-light">Primero agrégala como amiga en <Link to="/social?tab=directorio" className="text-primary-text underline">tu directorio</Link>.</p>
       ) : (
         <ul className="flex max-h-[50vh] flex-col overflow-y-auto">
           {friends.map((f) => (
