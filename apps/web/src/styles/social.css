@@ -212,3 +212,40 @@ html.dark .lq-walker-shadow { background: radial-gradient(closest-side, rgb(0 0 
 /* Bocadillo pixel (gestos y cartas). */
 .lq-bubble { position: relative; background: rgb(var(--lq-surface)); box-shadow: 0 0 0 2px rgb(var(--lq-on-background)), 0 3px 0 2px rgb(var(--lq-on-background) / .25); border-radius: 4px; }
 .lq-bubble::after { content: ""; position: absolute; left: 50%; bottom: -7px; width: 10px; height: 6px; margin-left: -5px; background: rgb(var(--lq-on-background)); clip-path: polygon(0 0, 100% 0, 50% 100%); }
+
+/* Cita de un mensaje al que se responde: una tira de papel con su margen jade. */
+.lq-quote {
+  display: block; width: 100%; text-align: left; cursor: pointer;
+  border-left: 3px solid rgb(var(--lq-primary) / .75); border-radius: 3px 8px 8px 3px;
+  background: rgb(var(--lq-on-background) / .05); padding: .3rem .6rem;
+}
+.lq-quote:hover { background: rgb(var(--lq-on-background) / .09); }
+.lq-slip-mine .lq-quote { background: rgb(var(--lq-jade-900) / .07); }
+html.dark .lq-slip-mine .lq-quote { background: rgb(0 0 0 / .22); }
+/* Al saltar a un mensaje citado, el papel se ilumina un momento. */
+@keyframes lq-flash { 0%, 100% { box-shadow: 0 0 0 0 transparent; } 25% { box-shadow: 0 0 0 4px rgb(var(--lq-warning) / .55), 0 0 22px rgb(var(--lq-warning) / .5); } }
+.lq-flash .lq-slip, .lq-flash .lq-print { animation: lq-flash 1.3s ease-out 1; }
+.reduce-motion .lq-flash .lq-slip, .reduce-motion .lq-flash .lq-print { animation: none; outline: 2px solid rgb(var(--lq-warning)); }
+/* Reacción: sello redondo pegado al borde de la tira. */
+.lq-react {
+  display: inline-flex; align-items: center; gap: .25rem; min-height: 1.75rem; padding: 0 .5rem;
+  border-radius: 999px; border: 1px solid rgb(var(--lq-border-strong) / .6); background: rgb(var(--lq-surface) / .96);
+  font-size: .8rem; line-height: 1; box-shadow: 0 2px 5px -2px rgb(var(--lq-jade-900) / .35);
+  transition: transform .15s ease, border-color .15s ease, background-color .15s ease;
+}
+.lq-react:hover { transform: translateY(-1px); }
+.lq-react[aria-pressed="true"] { border-color: rgb(var(--lq-primary)); background: color-mix(in srgb, rgb(var(--lq-jade-50)) 70%, rgb(var(--lq-surface))); }
+html.dark .lq-react { background: rgb(var(--lq-surface-variant) / .96); }
+html.dark .lq-react[aria-pressed="true"] { background: color-mix(in srgb, rgb(var(--lq-jade-800)) 55%, rgb(var(--lq-surface-variant))); }
+/* El selector de reacciones: una tira de papel flotante. */
+.lq-picker {
+  background: rgb(var(--lq-surface)); border: 1px solid rgb(var(--lq-border) / .9); border-radius: 22px;
+  box-shadow: 0 14px 34px -12px rgb(var(--lq-jade-900) / .5), 0 2px 6px rgb(0 0 0 / .12);
+}
+html.dark .lq-picker { background: rgb(var(--lq-surface-variant)); box-shadow: 0 14px 34px -10px rgb(0 0 0 / .7); }
+/* Aviso de mensaje dentro de la app: un sobre que llega. */
+.lq-ping {
+  background: rgb(var(--lq-surface)); border: 1px solid rgb(var(--lq-border) / .9); border-radius: 18px;
+  box-shadow: 0 18px 40px -16px rgb(var(--lq-jade-900) / .55), 0 2px 8px rgb(0 0 0 / .12);
+}
+html.dark .lq-ping { background: rgb(var(--lq-surface-variant)); box-shadow: 0 18px 40px -12px rgb(0 0 0 / .75); }

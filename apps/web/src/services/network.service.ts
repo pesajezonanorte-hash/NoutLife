@@ -59,8 +59,16 @@ export interface ProfileData {
 /** TEXT · SNAP (foto tomada con la cámara) · EVENT (aviso de la carta: "bg" o "bg-off"). */
 export type LetterKind = 'TEXT' | 'SNAP' | 'EVENT';
 
+/** Reacciones que se pueden poner a un mensaje. */
+export const REACTIONS = ['❤️', '👍', '😂', '😮', '😢', '🔥'] as const;
+export interface ReactionCount { emoji: string; count: number; mine: boolean }
+/** El mensaje al que responde otro (de la misma carta). */
+export interface ReplyRef { id: string; authorId: string; kind: string; content: string | null }
+
 export interface DM {
   id: string; mine: boolean; kind: LetterKind | string; content: string | null; photoUrl: string | null; habitTitle?: string | null; createdAt: string;
+  replyTo?: ReplyRef | null;
+  reactions?: ReactionCount[];
   /** Solo en el cliente: aún enviándose. */
   pending?: boolean;
 }
@@ -78,7 +86,13 @@ export interface Conversation {
   seenUntil: string | null;
   streak: StreakView & { mineToday: boolean; theirsToday: boolean };
   background: BackgroundMeta | null;
+  /** Desde aquí se piden las reacciones nuevas. */
+  cursor: string;
 }
+
+/** Respuesta de la carta en vivo: sin cambios, o lo nuevo (mensajes, reacciones, visto, racha). */
+export type LiveConversation = { changed: false; cursor: string } | (Conversation & { changed: true; reacted: Array<{ id: string; reactions: ReactionCount[] }> });
+export interface LiveGuild { changed: boolean; cursor: string; messages: GuildMessage[]; reacted: Array<{ id: string; reactions: ReactionCount[] }> }
 
 const d = <T>(p: Promise<{ data: T }>) => p.then((r) => r.data);
 
@@ -101,7 +115,11 @@ export const reviveFriendStreak = (friendshipId: string) => d<{ streak: StreakVi
 // Cartas (mensajes directos)
 export const getUnreadMessages = () => d<{ count: number }>(api.get('/social/messages/unread'));
 export const getConversation = (userId: string, after?: string) => d<Conversation>(api.get(`/social/messages/${userId}`, { params: after ? { after } : {} }));
-export const sendMessage = (userId: string, body: { content?: string; photoUrl?: string; kind?: 'TEXT' | 'SNAP' }) =>
+export const liveConversation = (userId: string, params: { after?: string; since?: string; seen?: string }, signal?: AbortSignal) =>
+  d<LiveConversation>(api.get(`/social/messages/${userId}/live`, { params: { ...params, wait: 1 }, signal, timeout: 20_000 }));
+export const reactDirect = (userId: string, messageId: string, emoji: string | null) =>
+  d<{ id: string; emoji: string | null; reactions: ReactionCount[] }>(api.put(`/social/messages/${userId}/${messageId}/reaction`, { emoji }));
+export const sendMessage = (userId: string, body: { content?: string; photoUrl?: string; kind?: 'TEXT' | 'SNAP'; replyToId?: string }) =>
   d<{ message: DM; streak: StreakView & { mineToday: boolean; theirsToday: boolean }; completed: boolean }>(api.post(`/social/messages/${userId}`, body));
 export const getDirectBackground = (userId: string) => d<Background | null>(api.get(`/social/messages/${userId}/background`));
 export const setDirectBackground = (userId: string, body: { photoUrl?: string | null; fit?: BackgroundFit }) =>
@@ -141,6 +159,8 @@ export interface GuildDetail {
 }
 export interface GuildMessage {
   id: string; content: string; createdAt: string; userId: string; kind: LetterKind | string; photoUrl?: string | null; dayKey?: string | null;
+  replyTo?: ReplyRef | null;
+  reactions?: ReactionCount[];
   user: { id?: string; username?: string; displayName: string; avatarConfig?: unknown; avatarUrl?: string | null };
 }
 export type GuildSendResult = GuildMessage & { enemyDefeated: boolean; streakCompleted: boolean; streak: StreakView };
@@ -153,7 +173,21 @@ export const inviteToGuild = (guildId: string, userId: string) => d(api.post(`/s
 export const getGuildMessagesAfter = (guildId: string, after?: string) => d<GuildMessage[]>(api.get(`/social/guilds/${guildId}/messages`, { params: after ? { after } : {} }));
 /** Solo mirar la carta (el muro de fotos del campamento) sin darla por leída. */
 export const peekGuildMessages = (guildId: string) => d<GuildMessage[]>(api.get(`/social/guilds/${guildId}/messages`, { params: { peek: 1 } }));
-export const postGuildText = (guildId: string, content: string) => d<GuildSendResult>(api.post(`/social/guilds/${guildId}/messages`, { content }));
+export const postGuildText = (guildId: string, content: string, replyToId?: string) => d<GuildSendResult>(api.post(`/social/guilds/${guildId}/messages`, { content, replyToId }));
+export const liveGuild = (guildId: string, params: { after?: string; since?: string }, signal?: AbortSignal) =>
+  d<LiveGuild>(api.get(`/social/guilds/${guildId}/live`, { params: { ...params, wait: 1 }, signal, timeout: 20_000 }));
+export const reactGuild = (guildId: string, messageId: string, emoji: string | null) =>
+  d<{ id: string; emoji: string | null; reactions: ReactionCount[] }>(api.put(`/social/guilds/${guildId}/messages/${messageId}/reaction`, { emoji }));
+
+// Avisos de mensajes en vivo
+export interface InboxItem {
+  type: 'dm' | 'guild'; id: string; at: string; kind: string; preview: string;
+  from: PublicUser; guild: { id: string; name: string } | null;
+}
+export const getInbox = (since: string | undefined, signal?: AbortSignal) =>
+  d<{ cursor: string; items: InboxItem[] }>(api.get('/social/inbox', { params: { ...(since ? { since } : {}), wait: 1 }, signal, timeout: 20_000 }));
+/** Cerraste una carta: desde ya te vuelven a avisar de lo que llegue a ella. */
+export const leaveLetterView = (key: string) => api.post('/social/view/leave', { key }).catch(() => undefined);
 export const postGuildSnap = (guildId: string, photoUrl: string, content: string) =>
   d<GuildSendResult>(api.post(`/social/guilds/${guildId}/messages`, { kind: 'SNAP', photoUrl, content }));
 export const getGuildBackground = (guildId: string) => d<Background | null>(api.get(`/social/guilds/${guildId}/background`));

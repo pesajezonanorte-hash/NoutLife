@@ -15,6 +15,7 @@ import { sendPresence, zoneName } from '@/services/network.service';
 import { useSocialPulseSync } from '@/components/social/SocialEntry';
 import { ZoneVisitors } from '@/components/social/ZoneVisitors';
 import { PigeonLayer } from '@/components/social/CarrierPigeon';
+import { MessagePings } from '@/components/social/MessagePings';
 import { ZONE_TOOLTIPS } from '@/lib/gameProgress';
 import { Button, Toaster } from '@/components/ui/lq';
 import { LevelUpOverlay } from '../animations/LevelUpOverlay';
@@ -171,6 +172,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <CommandPalette />
       <Toaster />
       <PigeonLayer />
+      <MessagePings />
       <OfflineIndicator />
       <ScrollToTop />
       <LevelUpOverlay />

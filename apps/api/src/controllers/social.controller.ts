@@ -123,10 +123,10 @@ export async function guildMessages(req: AuthRequest, res: Response): Promise<vo
 }
 
 export async function postGuildMessage(req: AuthRequest, res: Response): Promise<void> {
-  const { content, kind, photoUrl } = (req.body ?? {}) as { content?: string; kind?: unknown; photoUrl?: unknown };
+  const { content, kind, photoUrl, replyToId } = (req.body ?? {}) as { content?: string; kind?: unknown; photoUrl?: unknown; replyToId?: unknown };
   if (!content?.trim() && !photoUrl) { res.status(400).json({ error: 'content requerido' }); return; }
   try {
-    const msg = await social.sendGuildMessage(req.userId!, req.params.guildId, content ?? '', { kind, photoUrl });
+    const msg = await social.sendGuildMessage(req.userId!, req.params.guildId, content ?? '', { kind, photoUrl, replyToId });
     res.status(201).json(msg);
   } catch (e: unknown) { res.status(400).json({ error: publicErrorMessage(e) }); }
 }

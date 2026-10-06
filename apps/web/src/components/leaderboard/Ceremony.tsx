@@ -4,13 +4,14 @@
 // y el marcador de resultados donde tu fila tiene su propio brillo.
 // Lo decorativo es aria-hidden.
 import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { springs } from '@/lib/motion';
 import { Particles, ZoneAmbience, useParticleBudget } from '@/components/ambience';
 import { Badge } from '@/components/ui/lq';
 
-export interface Winner { id: string; name: string; initials: string; score: ReactNode; isYou?: boolean; avatar?: (size: number) => ReactNode }
+export interface Winner { id: string; username?: string; name: string; initials: string; score: ReactNode; isYou?: boolean; avatar?: (size: number) => ReactNode }
 
 const METAL = ['lq-metal-gold', 'lq-metal-silver', 'lq-metal-bronze'] as const;
 const RIBBON = ['lq-rib-gold', 'lq-rib-silver', 'lq-rib-bronze'] as const;
@@ -81,7 +82,8 @@ export function CeremonyPodium({ top }: { top: Winner[] }) {
           const first = i === 0;
           return (
             <div key={p.id} className="group flex max-w-[190px] flex-1 flex-col items-center">
-              {/* Atleta: foto, laurel del primero y su medalla */}
+              {/* Atleta: foto, laurel del primero y su medalla. Al tocarlo se abre su DNI. */}
+              <Link to={`/u/${encodeURIComponent(p.username ?? p.id)}`} aria-label={`Ver el DNI de ${p.name}`} className="flex flex-col items-center rounded-xl transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-secondary">
               <span className="relative flex items-center justify-center">
                 {first && (
                   <span aria-hidden="true" className="pointer-events-none absolute -inset-x-7 -bottom-1 -top-3 flex justify-between">
@@ -98,6 +100,7 @@ export function CeremonyPodium({ top }: { top: Winner[] }) {
                 <div className="flex items-center justify-center gap-1.5 text-label-lg text-jade-50 md:text-body-md md:font-semibold">{p.name}{p.isYou && <Badge variant="success">Tú</Badge>}</div>
                 <div className="font-mono text-body-sm tabular-nums text-secondary">{p.score}</div>
               </div>
+              </Link>
               {/* El bloque de mármol sube desde el suelo */}
               <span className="block w-full overflow-hidden" style={{ height: heights[i] }}>
                 <motion.span
@@ -119,8 +122,8 @@ export function CeremonyPodium({ top }: { top: Winner[] }) {
 }
 
 /** Fila del marcador de resultados; la tuya lleva su propio brillo dorado. */
-export function ResultRow({ id, position, name, initials, avatar, subtitle, score, isYou, rose }: {
-  id: string; position: number; name: string; initials: string; avatar?: (size: number) => ReactNode; subtitle?: string; score: ReactNode; isYou?: boolean; rose?: number;
+export function ResultRow({ id, username, position, name, initials, avatar, subtitle, score, isYou, rose }: {
+  id: string; username?: string; position: number; name: string; initials: string; avatar?: (size: number) => ReactNode; subtitle?: string; score: ReactNode; isYou?: boolean; rose?: number;
 }) {
   return (
     <motion.li
@@ -128,13 +131,17 @@ export function ResultRow({ id, position, name, initials, avatar, subtitle, scor
       layoutId={`row-${id}`}
       transition={{ layout: { ...springs.heavy } }}
       aria-current={isYou || undefined}
-      className={cn('lq-result relative flex min-h-16 items-center gap-3 rounded-xl px-3 md:gap-4', isYou && 'lq-result-you z-10')}
+      className={cn('lq-result relative flex min-h-16 items-center gap-3 rounded-xl px-3 transition-colors hover:bg-on-background/[.04] focus-within:bg-on-background/[.04] md:gap-4', isYou && 'lq-result-you z-10')}
     >
       <span className="lq-lane flex h-8 w-9 shrink-0 items-center justify-center rounded-md font-mono text-label-lg tabular-nums">{position}</span>
       <span className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-variant text-label-lg font-bold text-on-surface">{avatar ? avatar(40) : initials}</span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className={cn('truncate text-label-lg md:text-body-md md:font-semibold', isYou ? 'text-secondary-text' : 'text-on-background')}>{name}</span>
+          {/* Enlace extendido: toda la fila abre el DNI de esa persona (su privacidad decide cuánto se ve). */}
+          <Link
+            to={`/u/${encodeURIComponent(username ?? id)}`} aria-label={`Ver el DNI de ${name}`}
+            className={cn('truncate rounded text-label-lg after:absolute after:inset-0 after:rounded-xl after:content-[""] focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-primary md:text-body-md md:font-semibold', isYou ? 'text-secondary-text' : 'text-on-background')}
+          >{name}</Link>
           {isYou && <Badge variant="secondary">Tú</Badge>}
           {isYou && rose ? <span className="text-body-sm text-success-text">↑ {rose}</span> : null}
         </div>

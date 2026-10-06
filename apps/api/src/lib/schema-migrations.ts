@@ -124,4 +124,30 @@ export const LETTERS_AND_GESTURES_SQL: string[] = [
   `CREATE INDEX IF NOT EXISTS "social_gestures_fromId_toId_createdAt_idx" ON "social_gestures"("fromId", "toId", "createdAt");`,
   addFk('social_gestures', 'social_gestures_fromId_fkey', 'fromId', 'users'),
   addFk('social_gestures', 'social_gestures_toId_fkey', 'toId', 'users'),
+  `ALTER TABLE "direct_messages" ADD COLUMN IF NOT EXISTS "replyToId" TEXT, ADD COLUMN IF NOT EXISTS "reactedAt" TIMESTAMP(3);`,
+  `ALTER TABLE "guild_messages" ADD COLUMN IF NOT EXISTS "replyToId" TEXT, ADD COLUMN IF NOT EXISTS "reactedAt" TIMESTAMP(3);`,
+  `CREATE INDEX IF NOT EXISTS "direct_messages_senderId_receiverId_reactedAt_idx" ON "direct_messages"("senderId", "receiverId", "reactedAt");`,
+  `CREATE INDEX IF NOT EXISTS "guild_messages_guildId_createdAt_idx" ON "guild_messages"("guildId", "createdAt");`,
+  `CREATE INDEX IF NOT EXISTS "guild_messages_guildId_reactedAt_idx" ON "guild_messages"("guildId", "reactedAt");`,
+  `CREATE TABLE IF NOT EXISTS "message_reactions" (
+    "id" TEXT NOT NULL,
+    "dmId" TEXT,
+    "guildMessageId" TEXT,
+    "userId" TEXT NOT NULL,
+    "emoji" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "message_reactions_pkey" PRIMARY KEY ("id")
+  );`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "message_reactions_dmId_userId_key" ON "message_reactions"("dmId", "userId");`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "message_reactions_guildMessageId_userId_key" ON "message_reactions"("guildMessageId", "userId");`,
+  addFk("message_reactions", "message_reactions_dmId_fkey", "dmId", "direct_messages"),
+  addFk("message_reactions", "message_reactions_guildMessageId_fkey", "guildMessageId", "guild_messages"),
+  addFk("message_reactions", "message_reactions_userId_fkey", "userId", "users"),
+  `CREATE TABLE IF NOT EXISTS "chat_views" (
+    "userId" TEXT NOT NULL,
+    "key" TEXT NOT NULL,
+    "at" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "chat_views_pkey" PRIMARY KEY ("userId", "key")
+  );`,
+  addFk("chat_views", "chat_views_userId_fkey", "userId", "users"),
 ];

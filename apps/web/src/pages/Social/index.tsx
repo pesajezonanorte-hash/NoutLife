@@ -273,9 +273,10 @@ export default function SocialPage() {
                 </div>
                 {isDesktop && (
                   <div className="sticky top-36 min-w-0 flex-[2_1_480px]">
+                    {/* Solo anima al abrir o cerrar la carta; al pasar de una a otra se cambia al instante, sin parpadeo. */}
                     <AnimatePresence mode="wait">
                       <motion.div
-                        key={activeKey ?? 'empty'}
+                        key={activeKey ? 'letter' : 'empty'}
                         initial={{ opacity: 0, y: 18, rotate: 0.6 }} animate={{ opacity: 1, y: 0, rotate: 0 }} exit={{ opacity: 0, y: -10, transition: { duration: 0.15 } }}
                         transition={springs.heavy}
                       >

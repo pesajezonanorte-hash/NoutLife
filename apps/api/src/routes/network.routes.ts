@@ -25,6 +25,9 @@ router.patch('/me/settings', handle((req) => net.updateMySocialSettings(req.user
 
 // Amigos, búsqueda y perfiles
 router.get('/pulse', handle((req) => net.socialPulse(req.userId!)));
+// Avisos de mensajes en vivo (espera larga) y "cerré la carta"
+router.get('/inbox', handle((req) => net.inbox(req.userId!, { since: req.query.since, wait: req.query.wait === '1' })));
+router.post('/view/leave', handle((req) => net.leaveView(req.userId!, String(req.body?.key ?? ''))));
 router.get('/network', handle((req) => net.getFriendsNetwork(req.userId!)));
 router.get('/users/search', handle((req) => net.searchUsers(req.userId!, String(req.query.q ?? ''))));
 router.get('/users/:username', handle((req) => net.getProfile(req.userId!, req.params.username)));
@@ -36,6 +39,8 @@ router.post('/gestures', handle((req) => net.sendGesture(req.userId!, String(req
 
 // Cartas (mensajes directos) y su fondo compartido
 router.get('/messages/unread', handle(async (req) => ({ count: await net.unreadMessages(req.userId!) })));
+router.get('/messages/:userId/live', handle((req) => net.liveConversation(req.userId!, req.params.userId, { ...req.query, wait: req.query.wait === '1' })));
+router.put('/messages/:userId/:messageId/reaction', handle((req) => net.reactDirect(req.userId!, req.params.userId, req.params.messageId, req.body?.emoji)));
 router.get('/messages/:userId/background', handle((req) => net.getDirectBackground(req.userId!, req.params.userId)));
 router.put('/messages/:userId/background', handle((req) => net.setDirectBackground(req.userId!, req.params.userId, req.body ?? {})));
 router.get('/messages/:userId', handle((req) => net.getConversation(req.userId!, req.params.userId, typeof req.query.after === 'string' ? req.query.after : undefined)));
@@ -53,6 +58,8 @@ router.get('/guild-invites', handle((req) => social.getGuildInvites(req.userId!)
 router.post('/guild-invites/:id', handle((req) => social.respondGuildInvite(req.userId!, req.params.id, req.body?.accept === true)));
 router.get('/guilds/:guildId', handle((req) => social.getGuild(req.userId!, req.params.guildId)));
 router.post('/guilds/:guildId/invite', handle((req) => social.inviteToGuild(req.userId!, req.params.guildId, String(req.body?.userId ?? '')), 201));
+router.get('/guilds/:guildId/live', handle((req) => social.liveGuildMessages(req.userId!, req.params.guildId, { ...req.query, wait: req.query.wait === '1' })));
+router.put('/guilds/:guildId/messages/:messageId/reaction', handle((req) => social.reactGuild(req.userId!, req.params.guildId, req.params.messageId, req.body?.emoji)));
 router.get('/guilds/:guildId/background', handle((req) => social.getGuildBackground(req.userId!, req.params.guildId)));
 router.put('/guilds/:guildId/background', handle((req) => social.setGuildBackground(req.userId!, req.params.guildId, req.body ?? {})));
 
