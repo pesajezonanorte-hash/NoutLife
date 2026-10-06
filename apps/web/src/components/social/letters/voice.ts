@@ -81,6 +81,7 @@ export function useVoiceRecorder() {
         const type = r.mimeType || mime || 'audio/webm';
         const finish = done.current;
         done.current = null;
+        r.requestData?.();
         cleanup();
         setState('idle');
         setElapsed(0);
@@ -90,24 +91,35 @@ export function useVoiceRecorder() {
           finish?.({ audioUrl, durationMs, peaks: toPeaks(levels.current) });
         } catch { finish?.(null); }
       };
-      // Nivel en vivo para la onda.
-      const AC = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-      if (AC) {
-        const ac = new AC();
-        ctx.current = ac;
-        const analyser = ac.createAnalyser();
-        analyser.fftSize = 512;
-        ac.createMediaStreamSource(s).connect(analyser);
-        const buf = new Uint8Array(analyser.fftSize);
-        let last = 0;
-        const tick = (t: number) => {
-          analyser.getByteTimeDomainData(buf);
-          let sum = 0;
-          for (const v of buf) sum += ((v - 128) / 128) ** 2;
-          const rms = Math.sqrt(sum / buf.length);
-          if (t - last > 90) { levels.current.push(rms); last = t; setLevel(Math.min(1, rms * 4)); }
+      const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.userAgent.includes('Mac') && navigator.maxTouchPoints > 1);
+      if (!isIOS) {
+        const AC = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+        if (AC) {
+          const ac = new AC();
+          ctx.current = ac;
+          const analyser = ac.createAnalyser();
+          analyser.fftSize = 512;
+          ac.createMediaStreamSource(s).connect(analyser);
+          const buf = new Uint8Array(analyser.fftSize);
+          let last = 0;
+          const tick = (t: number) => {
+            analyser.getByteTimeDomainData(buf);
+            let sum = 0;
+            for (const v of buf) sum += ((v - 128) / 128) ** 2;
+            const rms = Math.sqrt(sum / buf.length);
+            if (t - last > 90) { levels.current.push(rms); last = t; setLevel(Math.min(1, rms * 4)); }
+            const ms = Date.now() - startedAt.current;
+            setElapsed(ms);
+            if (ms >= VOICE_MAX_MS) { keep.current = true; rec.current?.stop(); return; }
+            raf.current = requestAnimationFrame(tick);
+          };
+          raf.current = requestAnimationFrame(tick);
+        }
+      } else {
+        const tick = () => {
           const ms = Date.now() - startedAt.current;
           setElapsed(ms);
+          setLevel(Math.abs(Math.sin(ms / 200)) * 0.7);
           if (ms >= VOICE_MAX_MS) { keep.current = true; rec.current?.stop(); return; }
           raf.current = requestAnimationFrame(tick);
         };
