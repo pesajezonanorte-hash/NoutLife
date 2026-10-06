@@ -28,6 +28,14 @@ export function isTourDone(userId: string | undefined) {
   try { return localStorage.getItem(keyFor(userId)) === '1'; } catch { return true; }
 }
 
+/** Ya se mostró una vez (aunque no se terminara): no vuelve a salir. */
+export function isTourSeen(userId: string) {
+  try { return localStorage.getItem(`lq-tour-seen:${userId}`) === '1' || isTourDone(userId); } catch { return true; }
+}
+export function markTourSeen(userId: string) {
+  try { localStorage.setItem(`lq-tour-seen:${userId}`, '1'); } catch { /* sin storage */ }
+}
+
 function markTourDone(userId: string) {
   try { localStorage.setItem(keyFor(userId), '1'); } catch { /* sin storage */ }
   window.dispatchEvent(new Event(EVENT));

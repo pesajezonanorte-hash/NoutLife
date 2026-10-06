@@ -3,17 +3,25 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { spring } from '@/lib/motion';
 import { matchesRoute, useNav } from './nav';
+import { useKeyboardOpen } from '@/hooks/useKeyboardOpen';
 
 /** Barra inferior móvil (<768): 5 destinos, 56 px de alto táctil, fondo translúcido. */
 export function TabBar({ className }: { className?: string }) {
   const { pathname } = useLocation();
   const { primary } = useNav();
+  const keyboard = useKeyboardOpen();
   return (
-    <nav
+    // Siempre pegada abajo: con el teclado abierto se esconde (si no, subiría
+    // hasta la mitad de la pantalla) y vuelve al cerrarlo.
+    <motion.nav
       aria-label="Principal"
       data-tour="nav"
+      initial={false}
+      animate={{ y: keyboard ? '110%' : '0%' }}
+      transition={{ type: 'spring', stiffness: 380, damping: 36 }}
+      aria-hidden={keyboard || undefined}
       className={cn(
-        'fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-border bg-background/[0.86] px-1 pt-1',
+        'fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-border bg-background/[0.86] px-1 pt-1 [transform:translateZ(0)]',
         'pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-xl backdrop-saturate-[1.8]',
         className,
       )}
@@ -46,6 +54,6 @@ export function TabBar({ className }: { className?: string }) {
           </NavLink>
         );
       })}
-    </nav>
+    </motion.nav>
   );
 }

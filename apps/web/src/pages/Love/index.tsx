@@ -316,7 +316,7 @@ function InviteCard({ invite, hasGarden, onDone }: { invite: NonNullable<GardenD
       <Card variant="elevated" padding="lg" className="flex flex-wrap items-center gap-4 border-error/30">
         <span className="relative">
           <PresenceAvatar user={invite.from} size={56} />
-          <motion.span aria-hidden animate={{ scale: [1, 1.18, 1] }} transition={{ duration: 1.6, repeat: Infinity }} className="absolute -bottom-1 -right-1 flex size-6 items-center justify-center rounded-full bg-error text-on-error">
+          <motion.span aria-hidden animate={{ scale: [1, 1.18, 1] }} transition={{ duration: 1.6, repeat: Infinity }} className="absolute -bottom-1 -right-1 flex size-6 items-center justify-center rounded-full bg-error-text text-background">
             <Heart className="size-3.5 fill-current" />
           </motion.span>
         </span>

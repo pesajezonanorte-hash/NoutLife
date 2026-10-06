@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { springs } from '@/lib/motion/presets';
 import { refreshUser } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/useToast';
+import { useSocialStore } from '@/store/socialStore';
 import {
   apiError, getConversation, reviveFriendStreak, sendMessage, timeAgo,
   type Conversation, type DM, type PublicUser,
@@ -51,7 +52,7 @@ export function ChatPanel({ friend, onBack, onActivity, className }: {
       const c = await getConversation(friend.id, initial ? undefined : lastAt.current);
       setConv(c);
       setError(false);
-      if (initial) setMessages(c.messages);
+      if (initial) { setMessages(c.messages); void useSocialStore.getState().refresh(); }
       else if (c.messages.length) {
         setMessages((prev) => {
           const known = new Set(prev.map((m) => m.id));

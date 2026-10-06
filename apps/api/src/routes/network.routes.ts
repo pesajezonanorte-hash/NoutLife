@@ -23,6 +23,7 @@ router.get('/me/settings', handle((req) => net.getMySocialSettings(req.userId!))
 router.patch('/me/settings', handle((req) => net.updateMySocialSettings(req.userId!, req.body ?? {})));
 
 // Amigos, búsqueda y perfiles
+router.get('/pulse', handle((req) => net.socialPulse(req.userId!)));
 router.get('/network', handle((req) => net.getFriendsNetwork(req.userId!)));
 router.get('/users/search', handle((req) => net.searchUsers(req.userId!, String(req.query.q ?? ''))));
 router.get('/users/:username', handle((req) => net.getProfile(req.userId!, req.params.username)));

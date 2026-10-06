@@ -54,8 +54,8 @@ export function Toast({ type = 'success', message, subtitle, onClose, className 
 }
 
 /**
- * Pila de toasts del store global. Móvil: abajo al centro, por encima de la
- * tab bar. Desktop (≥768): abajo a la derecha. Vida 4 s (la gestiona el store).
+ * Pila de toasts del store global. Móvil: justo encima de la tab bar, suben
+ * desde detrás de ella con un muelle y se pueden apartar deslizando. Desktop (≥768): abajo a la derecha. Vida 4 s (la gestiona el store).
  */
 export function Toaster() {
   const toasts = useToastStore((s) => s.toasts);
@@ -63,7 +63,7 @@ export function Toaster() {
   return (
     <div
       aria-live="polite"
-      className="pointer-events-none fixed inset-x-4 bottom-[calc(11rem+env(safe-area-inset-bottom))] z-[60] flex flex-col items-center gap-2 md:inset-x-auto md:bottom-8 md:right-8 md:w-[380px] md:items-stretch"
+      className="pointer-events-none fixed inset-x-3 bottom-[calc(5.25rem+env(safe-area-inset-bottom))] z-[60] flex flex-col-reverse items-center gap-2 md:inset-x-auto md:bottom-8 md:right-8 md:w-[380px] md:flex-col md:items-stretch"
     >
       <AnimatePresence initial={false}>
         {toasts.map((t) => (
@@ -71,7 +71,9 @@ export function Toaster() {
             key={t.id}
             layout
             variants={toastVariants} initial="initial" animate="animate" exit="exit"
-            className="pointer-events-auto w-full max-w-[380px]"
+            drag="x" dragConstraints={{ left: 0, right: 0 }} dragElastic={0.6}
+            onDragEnd={(_, info) => { if (Math.abs(info.offset.x) > 90 || Math.abs(info.velocity.x) > 500) remove(t.id); }}
+            className="pointer-events-auto w-full max-w-[420px] touch-pan-y"
           >
             <Toast type={t.type} message={t.message} subtitle={t.subtitle} onClose={() => remove(t.id)} />
           </motion.div>

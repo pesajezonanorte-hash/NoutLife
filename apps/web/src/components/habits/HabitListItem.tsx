@@ -45,7 +45,7 @@ export function HabitListItem({ habit, onComplete, pending, week, variant = 'car
     <motion.li
       variants={item}
       className={cn(
-        'flex items-center gap-4',
+        'flex min-w-0 items-center gap-3 md:gap-4',
         variant === 'card' ? 'lq-lift rounded-2xl border border-border bg-surface py-3 pl-4 pr-3 shadow-sm md:gap-6 md:py-4 md:pl-6 md:pr-4' : 'py-2',
       )}
     >

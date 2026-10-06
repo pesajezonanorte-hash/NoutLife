@@ -4,6 +4,8 @@
 // Zona ambientada: un porche de noche con guirnaldas de luces; cada amigo
 // conectado enciende una bombilla. Las fotos del día caen como polaroids.
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { lockScroll, unlockScroll } from '@/components/ui/lq/Modal';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion, useReducedMotionConfig } from 'framer-motion';
 import { Camera, Check, MessageCircle, Search, Shield, UserPlus, Users, X } from 'lucide-react';
@@ -22,6 +24,12 @@ import {
   type FriendItem, type GuildInvite, type PublicUser, type Relation,
 } from '@/services/network.service';
 import { Badge, Button, Card, EmptyState, ErrorState, Input, SegmentedControl, Skeleton } from '@/components/ui/lq';
+
+/** Mientras está montado, la página de atrás no se desplaza. */
+function ScrollLock() {
+  useEffect(() => { lockScroll(); return unlockScroll; }, []);
+  return null;
+}
 
 type Tab = 'friends' | 'requests' | 'search';
 type Pending = { id: string; createdAt: string; requester: PublicUser };
@@ -341,18 +349,19 @@ export default function FriendsPage() {
         )}
       </motion.div>
 
-      {/* En móvil la conversación entra desde la derecha a pantalla completa. */}
-      <AnimatePresence>
+      {/* En móvil la conversación entra desde la derecha a pantalla completa (en el body, con el fondo quieto). */}
+      {createPortal(<AnimatePresence>
         {!isDesktop && chatWith && (
           <motion.div
             key="mobile-chat"
             initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%', transition: { duration: 0.22, ease: [0.4, 0, 1, 1] } }} transition={springs.natural}
             className="fixed inset-0 z-[60] flex flex-col bg-background pt-[env(safe-area-inset-top)]"
           >
+            <ScrollLock />
             <ChatPanel friend={chatWith} onBack={() => open(null)} onActivity={refreshQuiet} className="h-full rounded-none border-0" />
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>, document.body)}
     </ZoneShell>
   );
 }

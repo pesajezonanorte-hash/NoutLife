@@ -559,3 +559,42 @@ export async function gardenLinks(me: string, rel: { userId: string; partnerUser
 }
 
 export { PARTNER_OF };
+
+/**
+ * Pulso social ligero (cabecera y portal): mensajes sin leer, solicitudes,
+ * amigos en línea y rachas de fotos que piden tu foto hoy.
+ */
+export async function socialPulse(userId: string) {
+  const now = new Date();
+  const [rows, unread, friendRequests, guildInvites, partnerInvites] = await Promise.all([
+    prisma.friendship.findMany({
+      where: { status: 'ACCEPTED', OR: [{ requesterId: userId }, { receiverId: userId }] },
+      include: {
+        requester: { select: { ...PUBLIC_USER, ...PRESENCE, timezone: true } },
+        receiver: { select: { ...PUBLIC_USER, ...PRESENCE, timezone: true } },
+      },
+    }),
+    prisma.directMessage.count({ where: { receiverId: userId, readAt: null } }),
+    prisma.friendship.count({ where: { receiverId: userId, status: 'PENDING' } }),
+    prisma.guildInvite.count({ where: { inviteeId: userId, status: 'PENDING' } }),
+    prisma.relationship.count({ where: { partnerUserId: userId, linkStatus: 'PENDING' } }),
+  ]);
+  const online: Array<PublicUser & { zone: string | null }> = [];
+  let streaksWaiting = 0;
+  for (const f of rows) {
+    const other = f.requesterId === userId ? f.receiver : f.requester;
+    const p = presenceOf(other, now.getTime());
+    const { presenceAt: _a, presenceZone: _z, privacy: _p, timezone: _t, ...pub } = other;
+    if (p.online) online.push({ ...pub, zone: p.zone });
+    const v = streakView(f.streakCount, f.streakBest, f.streakDay, dayKey(f.requester.timezone, now));
+    if (v.alive && !v.doneToday) streaksWaiting += 1;
+  }
+  return {
+    unreadMessages: unread,
+    requests: friendRequests + guildInvites + partnerInvites,
+    friends: rows.length,
+    onlineCount: online.length,
+    online: online.slice(0, 5),
+    streaksWaiting,
+  };
+}

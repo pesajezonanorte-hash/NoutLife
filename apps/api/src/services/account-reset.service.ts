@@ -111,6 +111,13 @@ export async function resetAccountData(userId: string, password: string): Promis
     await remove('rituals', () => tx.ritual.deleteMany({ where: { userId } }));
     await remove('careRoutines', () => tx.careRoutine.deleteMany({ where: { userId } }));
     await remove('workouts', () => tx.workout.deleteMany({ where: { userId } }));
+    // Asistencia del gimnasio (calendario y racha de gym): sin esto el Gimnasio
+    // seguía mostrando los días entrenados después de reiniciar la cuenta.
+    await remove('gymAttendances', () => tx.gymAttendance.deleteMany({ where: { userId } }));
+    await remove('directMessages', () => tx.directMessage.deleteMany({ where: { OR: [{ senderId: userId }, { receiverId: userId }] } }));
+    await remove('guildInvites', () => tx.guildInvite.deleteMany({ where: { OR: [{ inviterId: userId }, { inviteeId: userId }] } }));
+    // Jardines compartidos: la otra persona conserva el suyo, ya sin vínculo.
+    await tx.relationship.updateMany({ where: { partnerUserId: userId }, data: { partnerUserId: null, linkStatus: null } });
     await remove('outfits', () => tx.outfit.deleteMany({ where: { userId } }));
     await remove('clothingItems', () => tx.clothingItem.deleteMany({ where: { userId } }));
     await remove('styleWishlist', () => tx.styleWishlist.deleteMany({ where: { userId } }));
@@ -208,6 +215,9 @@ export async function resetAccountData(userId: string, password: string): Promis
         relationshipLevel: 1,
         disciplineLevel: 1,
         focusMinutesTotal: 0,
+        gymPlaylistUrl: null,
+        lostStreak: 0,
+        lostStreakAt: null,
       },
       select: { level: true, xp: true, gold: true, onboardingCompleted: true },
     });

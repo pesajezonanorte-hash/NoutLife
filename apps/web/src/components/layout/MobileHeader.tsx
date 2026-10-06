@@ -4,6 +4,7 @@ import { BrandMark } from './Brand';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/lq';
 import { NotificationBell } from '@/components/ui/NotificationPanel';
+import { SocialButton } from '@/components/social/SocialEntry';
 import { useShellStore } from '@/store/shellStore';
 import { openCommandPalette } from './actions';
 import { todayLabel } from './Topbar';
@@ -28,6 +29,7 @@ export function MobileHeader({ className }: { className?: string }) {
         <Button variant="icon" data-tour="search" aria-label="Buscar" onClick={openCommandPalette}>
           <Search aria-hidden className="size-6" strokeWidth={1.75} />
         </Button>
+        <SocialButton />
         <NotificationBell />
         <Button variant="icon" aria-label="Menú" aria-haspopup="dialog" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}>
           <Menu aria-hidden className="size-6" strokeWidth={1.75} />

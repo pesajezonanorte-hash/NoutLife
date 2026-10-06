@@ -36,6 +36,7 @@ import { questProgress } from '@/components/quests/questMeta';
 import { ClassSelectionModal } from '@/components/character/ClassSelectionModal';
 import { MorningBriefing } from '@/components/dashboard/MorningBriefing';
 import { StreakRevival } from '@/components/habits/StreakRevival';
+import { SocialPortal } from '@/components/social/SocialEntry';
 import { completeGuideDay, dismissGuide, fetchDashboard } from '@/services/user.service';
 import { fetchLifeScore, type LifeScore } from '@/services/lifescore.service';
 import { fetchUpcoming, type AgendaEvent } from '@/services/agenda.service';
@@ -262,6 +263,9 @@ export default function DashboardPage() {
       {/* Rachas apagadas hace poco: se pueden revivir con oro */}
       <StreakRevival onRevived={() => void load(true)} />
 
+      {/* Portal a la red social */}
+      <motion.div variants={item}><SocialPortal /></motion.div>
+
       {/* Resumen: 4 StatCards con count-up */}
       <motion.section variants={item} aria-label="Resumen" className="grid grid-cols-2 gap-4 md:grid-cols-[repeat(auto-fit,minmax(220px,1fr))] md:gap-6">
         <StatCard icon={CheckCircle2} tone="success" value={`${done}/${habits.length}`} label="Hábitos hoy" to="/habits" size={statSize} />
@@ -271,8 +275,8 @@ export default function DashboardPage() {
       </motion.section>
 
       {/* Hábitos + Misiones */}
-      <motion.div variants={item} className="grid items-start gap-6 lg:grid-cols-2">
-        <section aria-labelledby="dash-habits" className="flex flex-col gap-4 md:rounded-2xl md:border md:border-border md:bg-surface md:p-6 md:shadow-sm">
+      <motion.div variants={item} className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2 [&>*]:min-w-0">
+        <section aria-labelledby="dash-habits" className="flex min-w-0 flex-col gap-4 md:rounded-2xl md:border md:border-border md:bg-surface md:p-6 md:shadow-sm">
           <SectionHead id="dash-habits" title={isDesktop ? 'Hábitos de hoy' : 'Pendiente hoy'} to="/habits" linkLabel="Ver todo" />
           {(isDesktop ? habits : pendingHabits).length > 0 ? (
             <motion.ul variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-3 md:gap-0 md:divide-y md:divide-border">
