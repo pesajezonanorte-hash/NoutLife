@@ -51,7 +51,8 @@ export interface PixelAvatarProps {
 export function PixelAvatar({ look, size = 96, animate = 'idle', crop = 'full', mood, className }: PixelAvatarProps) {
   const reduce = useReducedMotionConfig() ?? false;
   const [blink, setBlink] = useState(false);
-  const live = animate !== 'none' && !reduce;
+  // Las miniaturas no necesitan respirar ni parpadear (no se nota y cada una gastaba un temporizador y una animación).
+  const live = animate !== 'none' && !reduce && size >= 64;
 
   useEffect(() => {
     if (!live) return;
