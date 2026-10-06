@@ -5,7 +5,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 export const VOICE_MAX_MS = 120_000;
-const IOS = typeof navigator !== 'undefined' && (/iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
 const BARS = 48;
 
 export type RecorderState = 'idle' | 'starting' | 'recording' | 'denied' | 'unsupported';
@@ -38,11 +37,7 @@ const blobToDataUrl = (blob: Blob) => new Promise<string>((resolve, reject) => {
   r.readAsDataURL(blob);
 });
 
-/**
- * `onLimit` avisa de que se llegó al máximo (2 min): quien lo usa debe llamar a `stop(true)`
- * para no perder la nota.
- */
-export function useVoiceRecorder(onLimit?: () => void) {
+export function useVoiceRecorder() {
   const [state, setState] = useState<RecorderState>('idle');
   const [elapsed, setElapsed] = useState(0);
   const [level, setLevel] = useState(0);
@@ -55,12 +50,9 @@ export function useVoiceRecorder(onLimit?: () => void) {
   const ctx = useRef<AudioContext | null>(null);
   const done = useRef<((clip: VoiceClip | null) => void) | null>(null);
   const keep = useRef(false);
-  const limit = useRef(onLimit);
-  limit.current = onLimit;
 
   const cleanup = useCallback(() => {
     cancelAnimationFrame(raf.current);
-    window.clearTimeout(raf.current);
     stream.current?.getTracks().forEach((t) => t.stop());
     stream.current = null;
     void ctx.current?.close().catch(() => undefined);
@@ -86,10 +78,10 @@ export function useVoiceRecorder(onLimit?: () => void) {
       r.ondataavailable = (e) => { if (e.data.size) chunks.current.push(e.data); };
       r.onstop = async () => {
         const durationMs = Math.min(VOICE_MAX_MS, Date.now() - startedAt.current);
-        // Firefox escribe «audio/ogg; codecs=opus» (con espacio): el servidor espera el formato sin él.
-        const type = (r.mimeType || mime || 'audio/webm').replace(/s+/g, '');
+        const type = r.mimeType || mime || 'audio/webm';
         const finish = done.current;
         done.current = null;
+        r.requestData?.();
         cleanup();
         setState('idle');
         setElapsed(0);
@@ -99,46 +91,42 @@ export function useVoiceRecorder(onLimit?: () => void) {
           finish?.({ audioUrl, durationMs, peaks: toPeaks(levels.current) });
         } catch { finish?.(null); }
       };
-      // Nivel en vivo para la onda. En iPhone se omite: abrir un AudioContext sobre el mismo micrófono
-      // deja la grabación vacía o la corta.
-      const AC = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-      if (AC && !IOS) {
-        const ac = new AC();
-        ctx.current = ac;
-        const analyser = ac.createAnalyser();
-        analyser.fftSize = 512;
-        ac.createMediaStreamSource(s).connect(analyser);
-        const buf = new Uint8Array(analyser.fftSize);
-        let last = 0;
-        const tick = (t: number) => {
-          analyser.getByteTimeDomainData(buf);
-          let sum = 0;
-          for (const v of buf) sum += ((v - 128) / 128) ** 2;
-          const rms = Math.sqrt(sum / buf.length);
-          if (t - last > 90) { levels.current.push(rms); last = t; setLevel(Math.min(1, rms * 4)); }
+      const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.userAgent.includes('Mac') && navigator.maxTouchPoints > 1);
+      if (!isIOS) {
+        const AC = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+        if (AC) {
+          const ac = new AC();
+          ctx.current = ac;
+          const analyser = ac.createAnalyser();
+          analyser.fftSize = 512;
+          ac.createMediaStreamSource(s).connect(analyser);
+          const buf = new Uint8Array(analyser.fftSize);
+          let last = 0;
+          const tick = (t: number) => {
+            analyser.getByteTimeDomainData(buf);
+            let sum = 0;
+            for (const v of buf) sum += ((v - 128) / 128) ** 2;
+            const rms = Math.sqrt(sum / buf.length);
+            if (t - last > 90) { levels.current.push(rms); last = t; setLevel(Math.min(1, rms * 4)); }
+            const ms = Date.now() - startedAt.current;
+            setElapsed(ms);
+            if (ms >= VOICE_MAX_MS) { keep.current = true; rec.current?.stop(); return; }
+            raf.current = requestAnimationFrame(tick);
+          };
+          raf.current = requestAnimationFrame(tick);
+        }
+      } else {
+        const tick = () => {
           const ms = Date.now() - startedAt.current;
           setElapsed(ms);
-          if (ms >= VOICE_MAX_MS) { limit.current?.(); return; }
+          setLevel(Math.abs(Math.sin(ms / 200)) * 0.7);
+          if (ms >= VOICE_MAX_MS) { keep.current = true; rec.current?.stop(); return; }
           raf.current = requestAnimationFrame(tick);
         };
         raf.current = requestAnimationFrame(tick);
       }
       startedAt.current = Date.now();
-      if (IOS) {
-        // Sin onda real: se anima un nivel suave y el tiempo corre aparte.
-        const t0 = Date.now();
-        const tick = () => {
-          const ms = Date.now() - t0;
-          setElapsed(ms);
-          const v = 0.25 + 0.2 * Math.abs(Math.sin(ms / 160));
-          levels.current.push(v);
-          setLevel(v);
-          if (ms >= VOICE_MAX_MS) { limit.current?.(); return; }
-          raf.current = window.setTimeout(tick, 100) as unknown as number;
-        };
-        raf.current = window.setTimeout(tick, 100) as unknown as number;
-      }
-      r.start(IOS ? undefined : 250);
+      r.start(250);
       setState('recording');
       return 'recording';
     } catch (e) {
@@ -156,7 +144,6 @@ export function useVoiceRecorder(onLimit?: () => void) {
     if (!r || r.state === 'inactive') { resolve(null); return; }
     keep.current = send;
     done.current = resolve;
-    try { r.requestData(); } catch { /* ya no hay datos pendientes */ }
     r.stop();
   }), []);
 
