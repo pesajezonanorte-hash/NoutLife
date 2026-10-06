@@ -95,7 +95,7 @@ export async function createGuild(req: AuthRequest, res: Response): Promise<void
 
 export async function updateGuild(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const g = await social.updateGuild(req.userId!, req.params.guildId, (req.body ?? {}) as { photoUrl?: unknown });
+    const g = await social.updateGuild(req.userId!, req.params.guildId, req.body ?? {});
     res.json(g);
   } catch (e: unknown) { res.status(400).json({ error: publicErrorMessage(e) }); }
 }
@@ -123,10 +123,8 @@ export async function guildMessages(req: AuthRequest, res: Response): Promise<vo
 }
 
 export async function postGuildMessage(req: AuthRequest, res: Response): Promise<void> {
-  const { content, kind, photoUrl, replyToId } = (req.body ?? {}) as { content?: string; kind?: unknown; photoUrl?: unknown; replyToId?: unknown };
-  if (!content?.trim() && !photoUrl) { res.status(400).json({ error: 'content requerido' }); return; }
   try {
-    const msg = await social.sendGuildMessage(req.userId!, req.params.guildId, content ?? '', { kind, photoUrl, replyToId });
+    const msg = await social.sendGuildMessage(req.userId!, req.params.guildId, req.body ?? {});
     res.status(201).json(msg);
   } catch (e: unknown) { res.status(400).json({ error: publicErrorMessage(e) }); }
 }

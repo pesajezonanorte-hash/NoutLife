@@ -1,6 +1,7 @@
 import { prisma } from './lib/prisma';
+import { settleLevel } from './services/xp.service';
 import { shouldSkipBuildDbStep } from './lib/build-env';
-import { LETTERS_AND_GESTURES_SQL, REMOVE_LEGACY_HABIT_RITUAL_FLAG_SQL, SOCIAL_NETWORK_SQL } from './lib/schema-migrations';
+import { LETTERS_AND_GESTURES_SQL, REMOVE_LEGACY_HABIT_RITUAL_FLAG_SQL, SOCIAL_NETWORK_SQL, SOCIAL_PRO_SQL } from './lib/schema-migrations';
 
 const ignoreDuplicate = (sql: string) =>
   `DO $$ BEGIN ${sql}; EXCEPTION WHEN duplicate_object THEN NULL; END $$;`;
@@ -163,6 +164,15 @@ async function migrate() {
 
   // Idempotent mirror of prisma/migrations/20261006120000_letters_and_gestures.
   for (const sql of LETTERS_AND_GESTURES_SQL) await prisma.$executeRawUnsafe(sql);
+
+  // Idempotent mirror of prisma/migrations/20261008120000_social_pro.
+  for (const sql of SOCIAL_PRO_SQL) await prisma.$executeRawUnsafe(sql);
+
+  // XP that was added without leveling up (achievements, focus, rituals, care
+  // routines) left some players above their level threshold. Settle them once.
+  const overflowing = await prisma.$queryRawUnsafe<Array<{ id: string }>>(`SELECT "id" FROM "users" WHERE "xp" >= "xpToNextLevel"`);
+  for (const { id } of overflowing) await settleLevel(id);
+  if (overflowing.length) console.log(`Settled levels for ${overflowing.length} players.`);
 
   console.log('SUCCESS: Runtime database columns, indexes, ritual idempotency key, and legacy habit ritual cleanup applied.');
 }

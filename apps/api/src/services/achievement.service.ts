@@ -1,3 +1,4 @@
+import { settleLevel } from './xp.service';
 import { prisma } from '../lib/prisma';
 import type { QuestCategory, QuestDifficulty } from '@prisma/client';
 
@@ -219,6 +220,7 @@ export async function checkAchievements(
           where: { id: userId },
           data: { xp: { increment: achievement.xpReward } },
         });
+        await settleLevel(userId);
       }
 
       newly.push({

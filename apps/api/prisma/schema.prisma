@@ -160,6 +160,8 @@ model User {
   bio          String?
   /// { friendsList: 'public'|'friends'|'private', profile: 'public'|'friends', showOnline, showZone, readReceipts }
   privacy      Json      @default("{}")
+  /// Color del nombre en cartas y gremios (clave de la paleta: "jade", "coral"…).
+  nameColor    String?
   presenceAt   DateTime?
   presenceZone String?
 
@@ -212,6 +214,10 @@ model User {
   gesturesReceived        SocialGesture[]          @relation("GestureTo")
   messageReactions        MessageReaction[]
   chatViews               ChatView[]
+  chatPrefs               ChatPref[]
+  blocksMade              UserBlock[]              @relation("BlocksMade")
+  blocksReceived          UserBlock[]              @relation("BlocksReceived")
+  stickers                Sticker[]
   guildMessages           GuildMessage[]
   sageMemories            SageMemory[]
   sageInsights            SageInsight[]
@@ -643,6 +649,14 @@ model ShopItem {
   levelRequired Int     @default(1)
   isLimited     Boolean @default(false)
 
+  /// Parte del personaje que cambia: "extra" (accesorio pixel), "hair", "top", "aura", "frame", "theme"…
+  slot          String?
+  /// Valor que se aplica en esa parte (id del accesorio, peinado o prenda; clave del aura o marco).
+  value         String?
+  /// Exclusivo: unidades limitadas para toda la comunidad (null = sin límite).
+  stock         Int?
+  sold          Int     @default(0)
+
   inventoryItems InventoryItem[]
 
   createdAt DateTime @default(now())
@@ -895,19 +909,24 @@ model GuildMessage {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   content   String
-  /// TEXT | SNAP (foto tomada con la cámara: daña al enemigo del día) | EVENT (aviso de la carta: "bg" o "bg-off").
+  /// TEXT | SNAP (foto de la cámara: daña al enemigo del día) | PHOTO (de la galería) | VOICE | STICKER | GAME
+  /// | EVENT (aviso de la carta: "bg", "bg-off" o "edit:<campo>").
   kind      String   @default("TEXT")
   photoUrl  String?
+  audioUrl  String?
+  meta      Json?
   /// Día del gremio (zona de quien lo lidera) de los mensajes que cuentan para la racha y el enemigo.
   dayKey    String?
   createdAt DateTime @default(now())
   replyToId String?
-  reactedAt DateTime?
+  changedAt DateTime? @map("reactedAt")
+  editedAt  DateTime?
+  deletedAt DateTime?
   reactions MessageReaction[]
 
   @@index([guildId, dayKey])
   @@index([guildId, createdAt])
-  @@index([guildId, reactedAt])
+  @@index([guildId, changedAt])
   @@map("guild_messages")
 }
 
@@ -933,10 +952,16 @@ model DirectMessage {
   sender     User      @relation("DMSender", fields: [senderId], references: [id], onDelete: Cascade)
   receiverId String
   receiver   User      @relation("DMReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
-  /// TEXT | SNAP (foto tomada con la cámara) | EVENT (aviso de la carta: content "bg" o "bg-off").
+  /// TEXT | SNAP (foto de la cámara) | PHOTO (foto de la galería) | VOICE (nota de voz) | STICKER | GAME (minijuego)
+  /// | EVENT (aviso de la carta: content "bg" o "bg-off").
   kind       String    @default("TEXT")
   content    String?
   photoUrl   String?
+  /// Nota de voz (data URL de audio). Se pide aparte, como la foto.
+  audioUrl   String?
+  /// Datos ligeros que viajan con el mensaje: miniatura de la foto, forma de onda y
+  /// duración de la nota de voz, sticker, estado del minijuego…
+  meta       Json?
   habitTitle String?
   /// Día (YYYY-MM-DD, zona de quien envió la solicitud de amistad) de los mensajes que cuentan para la racha.
   dayKey     String?
@@ -944,11 +969,14 @@ model DirectMessage {
   createdAt  DateTime  @default(now())
   /// Mensaje al que responde (otro de la misma carta).
   replyToId  String?
-  /// Última vez que cambió una reacción: el sondeo en vivo la usa para avisar.
-  reactedAt  DateTime?
+  /// Última vez que cambió (reacción, edición, borrado o jugada): el chat en vivo lo usa para avisar.
+  changedAt  DateTime? @map("reactedAt")
+  editedAt   DateTime?
+  /// Borrado para todos: queda el hueco «Mensaje borrado» (las respuestas siguen teniendo a qué apuntar).
+  deletedAt  DateTime?
   reactions  MessageReaction[]
 
-  @@index([senderId, receiverId, reactedAt])
+  @@index([senderId, receiverId, changedAt])
   @@index([senderId, receiverId, createdAt])
   @@index([receiverId, readAt])
   @@map("direct_messages")
@@ -1608,11 +1636,80 @@ model MessageReaction {
 /// Qué carta tiene abierta cada persona ("dm:<id>" | "guild:<id>") o si la app está en primer plano ("app").
 /// Mientras está abierta no se le avisa de lo que llega a esa misma carta.
 model ChatView {
-  userId String
-  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  key    String
-  at     DateTime
+  userId   String
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key      String
+  at       DateTime
+  /// Escribiendo en esa carta (se apaga solo a los pocos segundos).
+  typingAt DateTime?
 
   @@id([userId, key])
   @@map("chat_views")
+}
+
+/// Timbre del chat en vivo: cada vez que algo le importa a una persona (un mensaje,
+/// una reacción, que alguien escriba, que un amigo cambie de zona…) su `seq` sube.
+/// La petición larga del cliente solo mira este número cada segundo.
+model LiveSignal {
+  userId String   @id
+  seq    BigInt   @default(0)
+  at     DateTime @default(now())
+
+  @@map("live_signals")
+}
+
+/// Ajustes de una carta para una persona: archivada o vaciada ("Eliminar chat" borra
+/// el historial solo para ella: no ve lo anterior a clearedAt).
+model ChatPref {
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// "dm:<amigo>" | "guild:<gremio>"
+  key        String
+  archivedAt DateTime?
+  clearedAt  DateTime?
+  updatedAt  DateTime  @updatedAt
+
+  @@id([userId, key])
+  @@map("chat_prefs")
+}
+
+/// Bloqueo: quien bloquea deja de ser amigo, no recibe cartas, solicitudes ni gestos
+/// de esa persona y no la ve en las zonas ni en el directorio (ni ella a quien la bloqueó).
+model UserBlock {
+  blockerId String
+  blocker   User     @relation("BlocksMade", fields: [blockerId], references: [id], onDelete: Cascade)
+  blockedId String
+  blocked   User     @relation("BlocksReceived", fields: [blockedId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([blockerId, blockedId])
+  @@index([blockedId])
+  @@map("user_blocks")
+}
+
+/// Imagen de un sticker, guardada una sola vez por su huella (sha256): los mensajes y
+/// las colecciones apuntan a ella.
+model StickerImage {
+  hash      String   @id
+  imageUrl  String
+  createdAt DateTime @default(now())
+
+  stickers Sticker[]
+
+  @@map("sticker_images")
+}
+
+/// Un sticker en la colección de alguien (creado por esa persona o guardado de una carta).
+model Sticker {
+  id        String       @id @default(cuid())
+  ownerId   String
+  owner     User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  hash      String
+  image     StickerImage @relation(fields: [hash], references: [hash])
+  /// Quién lo hizo (si se guardó de otra persona).
+  authorId  String?
+  createdAt DateTime     @default(now())
+
+  @@unique([ownerId, hash])
+  @@map("stickers")
 }

@@ -164,16 +164,151 @@ async function dailySummaries(now: Date) {
   return sent;
 }
 
+// ─── Recordatorios de cada zona ───────────────────────────────────────────────
+//
+// Cada zona recuerda lo suyo a su hora (local), solo a quien la usa y solo si
+// todavía no lo hizo hoy: la hora de dormir, el entrenamiento del día, apuntar
+// la comida, el diario, el estudio, la revisión semanal de finanzas, las rachas
+// con amigos que se apagan hoy y el enemigo del gremio. Un aviso por zona y día.
+
+interface ReminderUser { id: string; timezone: string | null; bedtimeGoal: string | null }
+type ZoneReminder = {
+  zone: string;
+  /** Minutos locales en los que toca (o null si hoy no toca). */
+  at: (u: ReminderUser, weekday: number) => number | null;
+  category: 'HABITS' | 'GYM' | 'FINANCE' | 'SOCIAL' | 'SYSTEM';
+  /** Qué avisar (null: no hace falta, ya lo hizo o no usa la zona). */
+  check: (u: ReminderUser, ctx: { since: Date; weekday: number; day: string }) => Promise<{ title: string; body: string; link: string } | null>;
+};
+
+const DAY_MS = 86_400_000;
+
+const ZONE_REMINDERS: ZoneReminder[] = [
+  {
+    zone: 'sueno', category: 'SYSTEM',
+    at: (u) => { const t = parseHHMM(u.bedtimeGoal); return t === null ? null : (t - 30 + 1440) % 1440; },
+    check: async (u) => ({ title: 'En media hora, a dormir', body: `Tu meta es acostarte a las ${u.bedtimeGoal}. Ve dejando la pantalla.`, link: '/sleep' }),
+  },
+  {
+    zone: 'gimnasio', category: 'GYM', at: () => 18 * 60,
+    check: async (u, { since, weekday }) => {
+      const routine = await prisma.routine.findFirst({
+        where: { userId: u.id, isActive: true, days: { some: { weekday, isRestDay: false } } }, select: { name: true },
+      });
+      if (!routine) return null;
+      const done = await prisma.workout.findFirst({ where: { userId: u.id, date: { gte: since } }, select: { id: true } });
+      return done ? null : { title: 'Hoy toca entrenar', body: `Tu rutina «${routine.name}» tiene día de entreno hoy.`, link: '/gym' };
+    },
+  },
+  {
+    zone: 'comida', category: 'SYSTEM', at: () => 14 * 60,
+    check: async (u, { since }) => {
+      const uses = await prisma.meal.findFirst({ where: { userId: u.id, date: { gte: new Date(since.getTime() - 7 * DAY_MS) } }, select: { id: true } });
+      if (!uses) return null;
+      const today = await prisma.meal.findFirst({ where: { userId: u.id, date: { gte: since } }, select: { id: true } });
+      return today ? null : { title: '¿Qué comiste hoy?', body: 'Apunta tus comidas mientras las recuerdas.', link: '/food' };
+    },
+  },
+  {
+    zone: 'aprendizaje', category: 'SYSTEM', at: () => 17 * 60 + 30,
+    check: async (u, { since }) => {
+      const item = await prisma.learningItem.findFirst({ where: { userId: u.id, status: 'IN_PROGRESS' }, select: { title: true } });
+      if (!item) return null;
+      const studied = await prisma.xpEvent.findFirst({ where: { userId: u.id, source: { in: ['pomodoro', 'learning_complete', 'focus'] }, createdAt: { gte: since } }, select: { id: true } });
+      return studied ? null : { title: 'Un rato de estudio', body: `Sigue con «${item.title}»: un pomodoro de 25 min basta.`, link: '/learning' };
+    },
+  },
+  {
+    zone: 'diario', category: 'SYSTEM', at: () => 21 * 60 + 30,
+    check: async (u, { since }) => {
+      const uses = await prisma.journalEntry.findFirst({ where: { userId: u.id, date: { gte: new Date(since.getTime() - 14 * DAY_MS) } }, select: { id: true } });
+      if (!uses) return null;
+      const today = await prisma.journalEntry.findFirst({ where: { userId: u.id, date: { gte: since } }, select: { id: true } });
+      return today ? null : { title: 'Tu diario te espera', body: '¿Cómo fue hoy? Dos líneas bastan.', link: '/journal' };
+    },
+  },
+  {
+    zone: 'finanzas', category: 'FINANCE', at: (_u, weekday) => (weekday === 0 ? 19 * 60 : null),
+    check: async (u, { since }) => {
+      const uses = await prisma.transaction.findFirst({ where: { userId: u.id, createdAt: { gte: new Date(since.getTime() - 30 * DAY_MS) } }, select: { id: true } });
+      return uses ? { title: 'Revisa tu semana', body: 'Mira en qué se fue el dinero estos siete días y ajusta tus presupuestos.', link: '/finances' } : null;
+    },
+  },
+  {
+    zone: 'rachas', category: 'SOCIAL', at: () => 20 * 60 + 30,
+    check: async (u, { day }) => {
+      // Rachas encendidas (3 días o más) que siguen vivas pero hoy aún no escribiste.
+      const rows = await prisma.friendship.findMany({
+        where: { status: 'ACCEPTED', streakCount: { gte: 3 }, OR: [{ requesterId: u.id }, { receiverId: u.id }] },
+        select: {
+          requesterId: true, receiverId: true, streakDay: true, streakCount: true,
+          requester: { select: { displayName: true, username: true } }, receiver: { select: { displayName: true, username: true } },
+        },
+      });
+      const yesterday = new Date(Date.parse(`${day}T00:00:00Z`) - DAY_MS).toISOString().slice(0, 10);
+      const alive = rows.filter((f) => f.streakDay === yesterday);
+      if (!alive.length) return null;
+      const otherId = (f: { requesterId: string; receiverId: string }) => (f.requesterId === u.id ? f.receiverId : f.requesterId);
+      const wrote = await prisma.directMessage.findMany({
+        where: { senderId: u.id, dayKey: day, receiverId: { in: alive.map(otherId) } },
+        select: { receiverId: true }, distinct: ['receiverId'],
+      });
+      const pending = alive.filter((f) => !wrote.some((w) => w.receiverId === otherId(f)));
+      if (!pending.length) return null;
+      const other = pending[0].requesterId === u.id ? pending[0].receiver : pending[0].requester;
+      const first = other.displayName.split(' ')[0];
+      return pending.length === 1
+        ? { title: `Tu racha con ${first} se apaga hoy`, body: `Llevan ${pending[0].streakCount} días. Escríbele algo para mantenerla.`, link: `/social?tab=cartas&chat=${encodeURIComponent(other.username)}` }
+        : { title: `${pending.length} rachas se apagan hoy`, body: `Escribe a ${first} y a los demás antes de que acabe el día.`, link: '/social?tab=cartas' };
+    },
+  },
+  {
+    zone: 'gremio', category: 'SOCIAL', at: () => 19 * 60,
+    check: async (u, { day }) => {
+      const memberships = await prisma.guildMember.findMany({ where: { userId: u.id }, select: { guildId: true, guild: { select: { name: true } } } });
+      for (const m of memberships) {
+        const mine = await prisma.guildMessage.findFirst({ where: { guildId: m.guildId, userId: u.id, kind: 'SNAP', dayKey: day }, select: { id: true } });
+        if (!mine) return { title: `${m.guild.name} necesita tu foto`, body: 'El enemigo del día sigue en pie. Tu foto con la cámara le quita vida.', link: `/social?tab=gremios&guild=${m.guildId}` };
+      }
+      return null;
+    },
+  },
+];
+
+async function zoneReminders(now: Date) {
+  const users = await prisma.user.findMany({ where: { onboardingCompleted: true }, select: { id: true, timezone: true, bedtimeGoal: true } });
+  let sent = 0;
+  for (const user of users) {
+    const minutes = localMinutes(user.timezone, now);
+    const local = getCalendarDay(user.timezone, now);
+    const weekday = local.getUTCDay();
+    const due = ZONE_REMINDERS.filter((r) => { const t = r.at(user, weekday); return t !== null && inWindow(minutes, t); });
+    if (!due.length) continue;
+    const day = local.toISOString().slice(0, 10);
+    const since = new Date(now.getTime() - minutes * 60_000);
+    for (const r of due) {
+      const dedupeKey = `zone-reminder:${r.zone}:${day}`;
+      if (await wasNotified(user.id, dedupeKey)) continue;
+      const notice = await r.check(user, { since, weekday, day });
+      if (!notice) continue;
+      await createNotification(user.id, { type: 'reminder', category: r.category, dedupeKey, ...notice }, { awaitPush: true });
+      sent += 1;
+    }
+  }
+  return sent;
+}
+
 /** Una pasada completa. Cada bloque falla por separado: un error no tumba los demás avisos. */
 export async function runReminderTick(now = new Date()) {
   const run = async (name: string, job: (n: Date) => Promise<number>) => {
     try { return await job(now); } catch (err) { console.error(`[Reminders] ${name}:`, err); return -1; }
   };
-  const [habits, agenda, quests, summaries] = await Promise.all([
+  const [habits, agenda, quests, summaries, zones] = await Promise.all([
     run('habits', habitReminders),
     run('agenda', agendaReminders),
     run('quests', questDeadlines),
     run('summaries', dailySummaries),
+    run('zones', zoneReminders),
   ]);
-  return { at: now.toISOString(), habits, agenda, quests, summaries };
+  return { at: now.toISOString(), habits, agenda, quests, summaries, zones };
 }

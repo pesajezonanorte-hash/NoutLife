@@ -15,6 +15,7 @@ import { page as pageVariants } from './lib/motion';
 import { LoadingGate, LOADER_DELAY_MS, useLoadingVisibility } from './components/ui/LoadingGate';
 import { useKeyboardAdjust } from './hooks/useKeyboardAdjust';
 import { useTourDone } from './components/onboarding/WelcomeTour';
+import { DetachPresence } from './components/ambience/ZoneShell';
 import { useLocalReminders } from './lib/localReminders';
 import { syncPushSubscription } from './services/notification.service';
 
@@ -196,6 +197,8 @@ function AnimatedRoutes({ location }: { location: ReturnType<typeof useLocation>
         // (el rectángulo feo encima del HUD).
         style={{ width: '100%' }}
       >
+        {/* Solo se espera la salida de este contenedor: nada de la página puede dejarla colgada. */}
+        <DetachPresence>
         <Routes location={location}>
           <Route path="/"             element={<SafePage><DeferredLazyPage load={loaders.DashboardPage} /></SafePage>} />
           <Route path="/profile"      element={<SafePage><DeferredLazyPage load={loaders.ProfilePage} /></SafePage>} />
@@ -235,6 +238,7 @@ function AnimatedRoutes({ location }: { location: ReturnType<typeof useLocation>
           <Route path="/faq"      element={<SafePage><DeferredLazyPage load={loaders.FAQPage} /></SafePage>} />
           <Route path="*"         element={<SafePage><DeferredLazyPage load={loaders.NotFoundPage} /></SafePage>} />
         </Routes>
+        </DetachPresence>
       </motion.div>
     </AnimatePresence>
   );
