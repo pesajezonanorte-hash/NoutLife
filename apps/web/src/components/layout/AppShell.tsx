@@ -12,6 +12,9 @@ import { useAuthStore } from '@/store/authStore';
 import { useShellStore } from '@/store/shellStore';
 import { refreshUser } from '@/hooks/useAuth';
 import { sendPresence, zoneName } from '@/services/network.service';
+import { useSocialPulseSync } from '@/components/social/SocialEntry';
+import { ZoneVisitors } from '@/components/social/ZoneVisitors';
+import { PigeonLayer } from '@/components/social/CarrierPigeon';
 import { ZONE_TOOLTIPS } from '@/lib/gameProgress';
 import { Button, Toaster } from '@/components/ui/lq';
 import { LevelUpOverlay } from '../animations/LevelUpOverlay';
@@ -31,7 +34,7 @@ import { MobileHeader } from './MobileHeader';
 import { MenuSheet } from './MenuSheet';
 import { QuickActions } from './QuickActions';
 import { FeedbackDialog } from './FeedbackDialog';
-import { WelcomeTour, useTourDone } from '../onboarding/WelcomeTour';
+import { WelcomeTour, isTourSeen, markTourSeen, useTourDone } from '../onboarding/WelcomeTour';
 
 /** Primera visita a una zona: tarjeta informativa descartable (sustituye al tooltip dorado). */
 function ZoneTip() {
@@ -110,15 +113,19 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   useUserSync(pathname);
   usePresence(pathname);
+  useSocialPulseSync();
 
-  // Primera vez en el inicio: el tutorial empieza cuando el panel ya entró.
+  // El tutorial sale una sola vez: la primera entrada al inicio de una cuenta
+  // recién creada. Se marca visto al empezar, así no vuelve al recargar, en
+  // otro dispositivo ni en cuentas que ya existían.
   const tourDone = useTourDone(user?.id);
   const [tourReady, setTourReady] = useState(false);
+  const isNewAccount = Boolean(user?.createdAt && Date.now() - new Date(user.createdAt).getTime() < 24 * 60 * 60_000);
   useEffect(() => {
-    if (tourDone || pathname !== '/' || !user?.onboardingCompleted) return;
-    const t = window.setTimeout(() => setTourReady(true), 1100);
+    if (tourReady || tourDone || pathname !== '/' || !user?.onboardingCompleted || !isNewAccount || isTourSeen(user.id)) return;
+    const t = window.setTimeout(() => { setTourReady(true); markTourSeen(user.id); }, 1100);
     return () => window.clearTimeout(t);
-  }, [tourDone, pathname, user?.onboardingCompleted]);
+  }, [tourReady, tourDone, pathname, user?.onboardingCompleted, user?.id, isNewAccount]);
 
   // Al cambiar de ruta: arriba del todo y menús cerrados.
   useEffect(() => {
@@ -126,8 +133,10 @@ export function AppShell({ children }: { children: ReactNode }) {
     useShellStore.setState({ menuOpen: false, quickOpen: false });
   }, [pathname]);
 
+  // overflow-x-clip: nada puede ensanchar la página (ni obligar a alejar el
+  // zoom en el móvil); a diferencia de hidden, clip no rompe los sticky.
   return (
-    <div className="min-h-dvh bg-background text-on-background md:flex">
+    <div className="min-h-dvh overflow-x-clip bg-background text-on-background md:flex">
       <a
         href="#main"
         className="sr-only z-[70] rounded-md bg-primary-strong px-4 py-3 text-label-lg text-on-primary focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
@@ -143,22 +152,25 @@ export function AppShell({ children }: { children: ReactNode }) {
         <main
           id="main"
           tabIndex={-1}
-          className="mx-auto w-full max-w-[1120px] flex-1 px-4 pb-[calc(10rem+env(safe-area-inset-bottom))] pt-2 outline-none md:px-8 md:pb-12 md:pt-8 lg:pt-12"
+          className="mx-auto w-full min-w-0 max-w-[1120px] flex-1 px-4 pb-[calc(10rem+env(safe-area-inset-bottom))] pt-2 outline-none md:px-8 md:pb-12 md:pt-8 lg:pt-12"
         >
           <ZoneTip />
           {children}
         </main>
+        {/* Tus amigos que están en esta misma zona pasean por el borde de abajo. */}
+        <ZoneVisitors />
       </div>
 
       <TabBar className="md:hidden" />
       <Fab className="md:hidden" />
 
-      {tourReady && !tourDone && user && <WelcomeTour userId={user.id} name={user.displayName} />}
+      {tourReady && user && <WelcomeTour userId={user.id} name={user.displayName} />}
       <MenuSheet />
       <QuickActions />
       <FeedbackDialog />
       <CommandPalette />
       <Toaster />
+      <PigeonLayer />
       <OfflineIndicator />
       <ScrollToTop />
       <LevelUpOverlay />

@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/useToast';
 import { getSocialSettings, updateSocialSettings, type Privacy } from '@/services/network.service';
+import { useVisitorPrefs } from '@/components/social/ZoneVisitors';
 import { Button, Field, SegmentedControl, Skeleton, Switch, Textarea } from '@/components/ui/lq';
 
 function Row({ id, label, description, children, last }: { id: string; label: string; description: string; children: ReactNode; last?: boolean }) {
@@ -21,6 +22,8 @@ function Row({ id, label, description, children, last }: { id: string; label: st
 export function PrivacyPanel({ Section }: { Section: (p: { eyebrow?: string; title: string; description?: string; children: ReactNode }) => JSX.Element }) {
   const toast = useToast();
   const username = useAuthStore((s) => s.user?.username);
+  const showWalkers = useVisitorPrefs((s) => s.show);
+  const setShowWalkers = useVisitorPrefs((s) => s.setShow);
   const [privacy, setPrivacy] = useState<Privacy | null>(null);
   const [bio, setBio] = useState('');
   const [savedBio, setSavedBio] = useState('');
@@ -75,11 +78,17 @@ export function PrivacyPanel({ Section }: { Section: (p: { eyebrow?: string; tit
             <Row id="pv-zone" label="Mostrar en qué zona estoy" description="Por ejemplo «En línea · en Gimnasio».">
               <Switch id="pv-zone" checked={privacy.showZone && privacy.showOnline} disabled={!privacy.showOnline} onChange={(e) => void change({ showZone: e.target.checked })} />
             </Row>
-            <Row id="pv-read" label="Confirmación de lectura" description="Tus amigos ven «Visto» cuando lees sus mensajes y fotos." last>
+            <Row id="pv-read" label="Confirmación de lectura" description="Tus amigos ven «Leída» cuando lees sus cartas." last>
               <Switch id="pv-read" checked={privacy.readReceipts} onChange={(e) => void change({ readReceipts: e.target.checked })} />
             </Row>
           </div>
         )}
+      </Section>
+
+      <Section eyebrow="En las zonas" title="Amigos paseando" description="Cuando un amigo está en tu misma zona, su muñequito pasea por abajo y puedes saludarlo.">
+        <Row id="pv-walkers" label="Ver a mis amigos en las zonas" description="Solo en este dispositivo. Para que no te vean a ti, apaga «Mostrar en qué zona estoy»." last>
+          <Switch id="pv-walkers" checked={showWalkers} onChange={(e) => setShowWalkers(e.target.checked)} />
+        </Row>
       </Section>
     </>
   );

@@ -2,11 +2,16 @@ import { motion } from 'framer-motion';
 import { Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useShellStore } from '@/store/shellStore';
+import { useToastStore } from '@/hooks/useToast';
+import { useKeyboardOpen } from '@/hooks/useKeyboardOpen';
 
 /** Botón flotante móvil (64 px) sobre la TabBar: abre las acciones rápidas. */
 export function Fab({ className }: { className?: string }) {
   const quickOpen = useShellStore((s) => s.quickOpen);
   const setQuickOpen = useShellStore((s) => s.setQuickOpen);
+  // Los avisos salen justo encima de la barra: el botón sube para dejarles sitio.
+  const toasts = useToastStore((s) => s.toasts.length);
+  const keyboard = useKeyboardOpen();
   return (
     <motion.button
       type="button"
@@ -16,7 +21,7 @@ export function Fab({ className }: { className?: string }) {
       aria-expanded={quickOpen}
       onClick={() => setQuickOpen(true)}
       initial={{ scale: 0, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
+      animate={{ scale: keyboard ? 0 : 1, opacity: keyboard ? 0 : 1, y: -Math.min(toasts, 2) * 76 }}
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
       transition={{ type: 'spring', stiffness: 420, damping: 24 }}

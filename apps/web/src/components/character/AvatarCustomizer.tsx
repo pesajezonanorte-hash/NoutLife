@@ -2,7 +2,9 @@
 // pestañas: Pixel, Foto y Skin de Minecraft. La lógica de guardado es la de
 // antes; cambia la presentación (lq) y el editor pixel compartido.
 import { useEffect, useId, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
+import { lockScroll, unlockScroll } from '@/components/ui/lq/Modal';
 import { Link as LinkIcon, Box, Check, Crop, Trash2, Upload, X } from 'lucide-react';
 import { MinecraftSkinAvatar } from './MinecraftSkinAvatar';
 import { PhotoCropper } from './PhotoCropper';
@@ -332,8 +334,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
   useEffect(() => {
     if (!isOpen) return;
     const opener = document.activeElement as HTMLElement | null;
-    const overflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    lockScroll();
     const t = window.setTimeout(() => closeRef.current?.focus(), 50);
     const onKey = (e: KeyboardEvent) => {
       // Con el recorte abierto, Escape solo lo cancela.
@@ -346,10 +347,11 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     };
     document.addEventListener('keydown', onKey);
-    return () => { window.clearTimeout(t); document.removeEventListener('keydown', onKey); document.body.style.overflow = overflow; opener?.focus?.(); };
+    return () => { window.clearTimeout(t); document.removeEventListener('keydown', onKey); unlockScroll(); opener?.focus?.(); };
   }, [isOpen, onClose]);
 
-  return (
+  // En el body: un ancestro con transform o filtro haría que el fixed se pintara dentro de la página.
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <motion.div key="studio" className="fixed inset-0 z-50 flex md:p-3">
@@ -492,6 +494,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }

@@ -284,7 +284,7 @@ function PartnerPicker({ open, onClose, onSent }: { open: boolean; onClose: () =
     <Modal open={open} onClose={onClose} title="¿Tu pareja usa Noutlife?">
       <p className="-mt-2 text-body-sm text-on-surface-light">Elige a tu pareja entre tus amigos. Si acepta, cuidarán juntos este jardín: fechas, flores y recuerdos.</p>
       {friends === null ? <PageLoader size="sm" /> : friends.length === 0 ? (
-        <p className="text-body-md text-on-surface-light">Primero agrégala como amiga en <Link to="/friends" className="text-primary-text underline">Amigos</Link>.</p>
+        <p className="text-body-md text-on-surface-light">Primero agrégala como amiga en <Link to="/social?tab=amigos" className="text-primary-text underline">tu libreta de amigos</Link>.</p>
       ) : (
         <ul className="flex max-h-[50vh] flex-col overflow-y-auto">
           {friends.map((f) => (
@@ -316,7 +316,7 @@ function InviteCard({ invite, hasGarden, onDone }: { invite: NonNullable<GardenD
       <Card variant="elevated" padding="lg" className="flex flex-wrap items-center gap-4 border-error/30">
         <span className="relative">
           <PresenceAvatar user={invite.from} size={56} />
-          <motion.span aria-hidden animate={{ scale: [1, 1.18, 1] }} transition={{ duration: 1.6, repeat: Infinity }} className="absolute -bottom-1 -right-1 flex size-6 items-center justify-center rounded-full bg-error text-on-error">
+          <motion.span aria-hidden animate={{ scale: [1, 1.18, 1] }} transition={{ duration: 1.6, repeat: Infinity }} className="absolute -bottom-1 -right-1 flex size-6 items-center justify-center rounded-full bg-error-text text-background">
             <Heart className="size-3.5 fill-current" />
           </motion.span>
         </span>

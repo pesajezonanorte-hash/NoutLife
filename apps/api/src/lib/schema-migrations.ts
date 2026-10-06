@@ -86,3 +86,42 @@ export const SOCIAL_NETWORK_SQL: string[] = [
   addFk('direct_messages', 'direct_messages_senderId_fkey', 'senderId', 'users'),
   addFk('direct_messages', 'direct_messages_receiverId_fkey', 'receiverId', 'users'),
 ];
+
+/**
+ * Idempotent mirror of prisma/migrations/20261006120000_letters_and_gestures:
+ * shared chat backgrounds (letter paper photo) for friends and guilds, gestures
+ * between friends shown on their pixel avatars, and how far each member read
+ * the guild letter.
+ */
+export const LETTERS_AND_GESTURES_SQL: string[] = [
+  `ALTER TABLE "guild_members" ADD COLUMN IF NOT EXISTS "lastReadAt" TIMESTAMP(3);`,
+  `CREATE TABLE IF NOT EXISTS "chat_backgrounds" (
+    "id" TEXT NOT NULL,
+    "friendshipId" TEXT,
+    "guildId" TEXT,
+    "photoUrl" TEXT NOT NULL,
+    "fit" JSONB NOT NULL DEFAULT '{}',
+    "setById" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "chat_backgrounds_pkey" PRIMARY KEY ("id")
+  );`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "chat_backgrounds_friendshipId_key" ON "chat_backgrounds"("friendshipId");`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "chat_backgrounds_guildId_key" ON "chat_backgrounds"("guildId");`,
+  addFk('chat_backgrounds', 'chat_backgrounds_friendshipId_fkey', 'friendshipId', 'friendships'),
+  addFk('chat_backgrounds', 'chat_backgrounds_guildId_fkey', 'guildId', 'guilds'),
+  `CREATE TABLE IF NOT EXISTS "social_gestures" (
+    "id" TEXT NOT NULL,
+    "fromId" TEXT NOT NULL,
+    "toId" TEXT NOT NULL,
+    "kind" TEXT NOT NULL,
+    "zone" TEXT,
+    "seenAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "social_gestures_pkey" PRIMARY KEY ("id")
+  );`,
+  `CREATE INDEX IF NOT EXISTS "social_gestures_toId_seenAt_createdAt_idx" ON "social_gestures"("toId", "seenAt", "createdAt");`,
+  `CREATE INDEX IF NOT EXISTS "social_gestures_fromId_toId_createdAt_idx" ON "social_gestures"("fromId", "toId", "createdAt");`,
+  addFk('social_gestures', 'social_gestures_fromId_fkey', 'fromId', 'users'),
+  addFk('social_gestures', 'social_gestures_toId_fkey', 'toId', 'users'),
+];

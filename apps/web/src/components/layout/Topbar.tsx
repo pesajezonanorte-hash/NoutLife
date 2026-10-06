@@ -3,6 +3,7 @@ import { ChevronRight, Plus, Search, Sparkles, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/lq';
 import { NotificationBell } from '@/components/ui/NotificationPanel';
+import { SocialButton } from '@/components/social/SocialEntry';
 import { useShellStore } from '@/store/shellStore';
 import { OptionsMenu } from './OptionsMenu';
 import { buildCrumbs } from './nav';
@@ -69,6 +70,7 @@ export function Topbar({ className }: { className?: string }) {
           <Sparkles aria-hidden className="size-6" strokeWidth={1.75} />
           {hasNew && <span aria-hidden className="absolute right-[11px] top-2.5 size-2 rounded-full bg-primary ring-2 ring-background" />}
         </Button>
+        <SocialButton />
         <NotificationBell />
         <Button variant="icon" aria-label="Acciones rápidas" aria-haspopup="dialog" onClick={() => setQuickOpen(true)}>
           <Zap aria-hidden className="size-6" strokeWidth={1.75} />

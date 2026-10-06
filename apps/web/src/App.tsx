@@ -42,8 +42,7 @@ const loaders = {
   ShopPage: () => import('./pages/Shop'),
   SettingsPage: () => import('./pages/Settings'),
   LeaderboardPage: () => import('./pages/Leaderboard'),
-  GuildPage: () => import('./pages/Guild'),
-  FriendsPage: () => import('./pages/Friends'),
+  SocialPage: () => import('./pages/Social'),
   UserProfilePage: () => import('./pages/UserProfile'),
   StatsPage: () => import('./pages/Stats'),
   SeasonPage: () => import('./pages/Season'),
@@ -97,8 +96,7 @@ const routeLoaders: Record<string, () => Promise<unknown>> = {
   '/shop': loaders.ShopPage,
   '/settings': loaders.SettingsPage,
   '/leaderboard': loaders.LeaderboardPage,
-  '/guild': loaders.GuildPage,
-  '/friends': loaders.FriendsPage,
+  '/social': loaders.SocialPage,
   '/stats': loaders.StatsPage,
   '/season': loaders.SeasonPage,
   '/agenda': loaders.AgendaPage,
@@ -112,7 +110,7 @@ const routeLoaders: Record<string, () => Promise<unknown>> = {
 };
 
 // Rutas que solo redirigen (no esperan ningún bundle).
-const REDIRECTS = new Set(['/goals', '/metas', '/rituales', '/character']);
+const REDIRECTS = new Set(['/goals', '/metas', '/rituales', '/character', '/friends', '/guild']);
 
 function loaderForPath(pathname: string) {
   if (REDIRECTS.has(pathname)) return null;
@@ -161,6 +159,24 @@ function DeferredLazyPage({ load }: { load: PageImport }) {
   );
 }
 
+/** Amigos y Gremio viven ahora en Social: los enlaces y avisos antiguos llegan a su sitio. */
+function LegacyFriendsRedirect() {
+  const old = new URLSearchParams(useLocation().search);
+  const next = new URLSearchParams();
+  const chat = old.get('chat');
+  if (chat) { next.set('tab', 'cartas'); next.set('chat', chat); }
+  else { next.set('tab', 'amigos'); if (old.get('tab') === 'requests') next.set('view', 'requests'); }
+  return <Navigate to={`/social?${next.toString()}`} replace />;
+}
+
+function LegacyGuildRedirect() {
+  const old = new URLSearchParams(useLocation().search);
+  const next = new URLSearchParams({ tab: 'gremios' });
+  const id = old.get('id');
+  if (id) next.set('guild', id);
+  return <Navigate to={`/social?${next.toString()}`} replace />;
+}
+
 function SafePage({ children }: { children: ReactNode }) {
   return <ErrorBoundary>{children}</ErrorBoundary>;
 }
@@ -200,8 +216,9 @@ function AnimatedRoutes({ location }: { location: ReturnType<typeof useLocation>
           <Route path="/shop"         element={<SafePage><DeferredLazyPage load={loaders.ShopPage} /></SafePage>} />
           <Route path="/settings"     element={<SafePage><DeferredLazyPage load={loaders.SettingsPage} /></SafePage>} />
           <Route path="/leaderboard"  element={<SafePage><DeferredLazyPage load={loaders.LeaderboardPage} /></SafePage>} />
-          <Route path="/guild"        element={<SafePage><DeferredLazyPage load={loaders.GuildPage} /></SafePage>} />
-          <Route path="/friends"      element={<SafePage><DeferredLazyPage load={loaders.FriendsPage} /></SafePage>} />
+          <Route path="/social"       element={<SafePage><DeferredLazyPage load={loaders.SocialPage} /></SafePage>} />
+          <Route path="/friends"      element={<LegacyFriendsRedirect />} />
+          <Route path="/guild"        element={<LegacyGuildRedirect />} />
           <Route path="/u/:username"  element={<SafePage><DeferredLazyPage load={loaders.UserProfilePage} /></SafePage>} />
           <Route path="/stats"        element={<SafePage><DeferredLazyPage load={loaders.StatsPage} /></SafePage>} />
           <Route path="/season"       element={<SafePage><DeferredLazyPage load={loaders.SeasonPage} /></SafePage>} />

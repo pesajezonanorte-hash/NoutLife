@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useDragControls } from 'framer-motion';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { dialog, scrim, sheet } from '@/lib/motion';
@@ -9,6 +9,30 @@ import { Button } from './Button';
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/**
+ * Bloqueo de scroll real (también en iOS, donde overflow:hidden no frena el
+ * arrastre): el body queda fijo en su posición y se restaura al cerrar. Con un
+ * contador, para diálogos abiertos uno encima de otro.
+ */
+let locks = 0;
+let saved: { y: number; style: string } | null = null;
+export function lockScroll() {
+  locks += 1;
+  if (locks > 1) return;
+  const y = window.scrollY;
+  saved = { y, style: document.body.getAttribute('style') ?? '' };
+  const gap = window.innerWidth - document.documentElement.clientWidth;
+  Object.assign(document.body.style, { position: 'fixed', top: `-${y}px`, left: '0', right: '0', width: '100%', overflow: 'hidden', paddingRight: gap ? `${gap}px` : '' });
+}
+export function unlockScroll() {
+  locks = Math.max(0, locks - 1);
+  if (locks > 0 || !saved) return;
+  const { y, style } = saved;
+  saved = null;
+  document.body.setAttribute('style', style);
+  window.scrollTo({ top: y, behavior: 'instant' as ScrollBehavior });
+}
 
 /** Focus trap + Escape + restaurar foco + bloquear scroll del body. */
 export function useDialogBehavior(open: boolean, onClose: () => void) {
@@ -19,8 +43,7 @@ export function useDialogBehavior(open: boolean, onClose: () => void) {
   useEffect(() => {
     if (!open) return;
     const previous = document.activeElement as HTMLElement | null;
-    const { overflow } = document.body.style;
-    document.body.style.overflow = 'hidden';
+    lockScroll();
 
     const panel = panelRef.current;
     const first = panel?.querySelector<HTMLElement>('[data-autofocus]') ?? panel?.querySelector<HTMLElement>(FOCUSABLE);
@@ -42,7 +65,7 @@ export function useDialogBehavior(open: boolean, onClose: () => void) {
     document.addEventListener('keydown', onKey);
     return () => {
       document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = overflow;
+      unlockScroll();
       previous?.focus?.();
     };
   }, [open]);
@@ -80,7 +103,7 @@ export function Modal({ open, onClose, title, hideClose, dismissible = true, cla
             ref={panelRef}
             role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}
             variants={dialog}
-            className={cn('flex max-h-[calc(100dvh-2rem)] w-full max-w-[440px] flex-col gap-4 overflow-y-auto rounded-3xl bg-background p-6 text-on-background shadow-lg outline-none', className)}
+            className={cn('flex max-h-[calc(100dvh-2rem)] w-full max-w-[440px] flex-col gap-4 overflow-y-auto overscroll-contain rounded-3xl bg-background p-6 text-on-background shadow-lg outline-none', className)}
           >
             <div className="flex items-start justify-between gap-4">
               <h2 id={titleId} className="min-w-0 flex-1 text-heading-md">{title}</h2>
@@ -103,34 +126,46 @@ export function Modal({ open, onClose, title, hideClose, dismissible = true, cla
 export function Sheet({ open, onClose, title, hideClose = true, dismissible = true, className, children }: ModalProps) {
   const titleId = useId();
   const panelRef = useDialogBehavior(open, onClose);
+  const drag = useDragControls();
   return createPortal(
     <AnimatePresence>
       {open && (
         <motion.div
           key="scrim"
           variants={scrim} initial="initial" animate="animate" exit="exit"
-          className="fixed inset-0 z-50 flex items-end justify-center bg-[var(--scrim)]"
+          className="fixed inset-0 z-50 flex items-end justify-center overscroll-none bg-[var(--scrim)]"
           onMouseDown={(e) => dismissible && e.target === e.currentTarget && onClose()}
         >
+          {/* Se arrastra hacia abajo desde el asa o el título para cerrarla. */}
           <motion.div
             ref={panelRef}
             role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}
             variants={sheet}
+            drag={dismissible ? 'y' : false} dragControls={drag} dragListener={false}
+            dragConstraints={{ top: 0, bottom: 0 }} dragElastic={{ top: 0.05, bottom: 0.7 }}
+            onDragEnd={(_, info) => { if (info.offset.y > 110 || info.velocity.y > 600) onClose(); }}
             className={cn(
-              'flex max-h-[90dvh] w-full max-w-xl flex-col gap-4 overflow-y-auto rounded-t-3xl bg-background px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-6 text-on-background shadow-lg outline-none',
+              'flex max-h-[92dvh] w-full max-w-xl flex-col rounded-t-3xl bg-background text-on-background shadow-lg outline-none',
               className,
             )}
           >
-            <span aria-hidden className="h-1 w-10 self-center rounded-full bg-border" />
-            <div className="flex items-start justify-between gap-4">
-              <h2 id={titleId} className="text-heading-lg">{title}</h2>
-              {!hideClose && (
-                <Button variant="icon" aria-label="Cerrar" onClick={onClose} className="-mr-2">
-                  <X aria-hidden className="size-6" strokeWidth={1.75} />
-                </Button>
-              )}
+            <div
+              onPointerDown={(e) => dismissible && drag.start(e)}
+              className="flex shrink-0 touch-none flex-col gap-3 px-4 pb-2 pt-3"
+            >
+              <span aria-hidden className="h-1.5 w-11 self-center rounded-full bg-border-strong/60" />
+              <div className="flex items-start justify-between gap-4">
+                <h2 id={titleId} className="text-heading-lg">{title}</h2>
+                {!hideClose && (
+                  <Button variant="icon" aria-label="Cerrar" onClick={onClose} onPointerDown={(e) => e.stopPropagation()} className="-mr-2">
+                    <X aria-hidden className="size-6" strokeWidth={1.75} />
+                  </Button>
+                )}
+              </div>
             </div>
-            {children}
+            <div className="flex min-h-0 flex-col gap-4 overflow-y-auto overscroll-contain px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-2">
+              {children}
+            </div>
           </motion.div>
         </motion.div>
       )}

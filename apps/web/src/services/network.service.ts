@@ -1,5 +1,6 @@
-// Cliente de la red social: amigos, perfiles, mensajes, rachas, pareja,
-// gremios múltiples y revivir rachas con oro.
+// Cliente de la red social: amigos (libreta), perfiles (DNI), cartas con fondo
+// compartido, rachas que se encienden al tercer día, gestos entre muñequitos,
+// pareja, gremios múltiples y revivir rachas con oro.
 import api from '../lib/api';
 
 export type Visibility = 'public' | 'friends' | 'private';
@@ -18,8 +19,14 @@ export interface PublicUser {
 }
 export interface Presence { online: boolean; zone: string | null; lastSeen: string | null }
 
+/** Días seguidos hablando para que una racha se encienda (igual que en la API). */
+export const STREAK_MIN = 3;
+
 export interface StreakView {
-  count: number; best: number; alive: boolean; doneToday: boolean; revivable: boolean; reviveCost: number; lost: number;
+  count: number; best: number; alive: boolean;
+  /** Encendida: viva y con al menos STREAK_MIN días. Antes no se muestra. */
+  active: boolean;
+  doneToday: boolean; revivable: boolean; reviveCost: number; lost: number;
   mineToday?: boolean; theirsToday?: boolean;
 }
 
@@ -36,7 +43,7 @@ export type RelationStatus = 'NONE' | 'FRIENDS' | 'PENDING_OUT' | 'PENDING_IN' |
 export interface Relation { status: RelationStatus; friendshipId: string | null }
 
 export interface ProfileData {
-  user: PublicUser & { bio?: string | null; currentStreak: number; longestStreak: number; xp: number; createdAt: string };
+  user: PublicUser & { bio?: string | null; currentStreak: number; longestStreak: number; xp: number; createdAt: string; playerClass?: string | null };
   presence: Presence;
   relation: Relation;
   friendStreak: StreakView | null;
@@ -49,17 +56,28 @@ export interface ProfileData {
   closeFriends?: Array<PublicUser & { friendStreak: number; best: number }>;
 }
 
+/** TEXT · SNAP (foto tomada con la cámara) · EVENT (aviso de la carta: "bg" o "bg-off"). */
+export type LetterKind = 'TEXT' | 'SNAP' | 'EVENT';
+
 export interface DM {
-  id: string; mine: boolean; kind: 'TEXT' | 'SNAP' | string; content: string | null; photoUrl: string | null; habitTitle: string | null; createdAt: string;
+  id: string; mine: boolean; kind: LetterKind | string; content: string | null; photoUrl: string | null; habitTitle?: string | null; createdAt: string;
   /** Solo en el cliente: aún enviándose. */
   pending?: boolean;
 }
+
+/** Encuadre del fondo de una carta: foco (x, y) 0–1, zoom 1–3 e intensidad del papel. */
+export interface BackgroundFit { x: number; y: number; zoom: number; paper: number }
+export interface BackgroundMeta { at: string; mine: boolean; fit: BackgroundFit }
+export type Background = BackgroundMeta & { photoUrl: string };
+export const DEFAULT_FIT: BackgroundFit = { x: 0.5, y: 0.5, zoom: 1, paper: 0.42 };
+
 export interface Conversation {
   friend: PublicUser & Presence;
   friendshipId: string;
   messages: DM[];
   seenUntil: string | null;
   streak: StreakView & { mineToday: boolean; theirsToday: boolean };
+  background: BackgroundMeta | null;
 }
 
 const d = <T>(p: Promise<{ data: T }>) => p.then((r) => r.data);
@@ -76,14 +94,18 @@ export const getProfile = (username: string) => d<ProfileData>(api.get(`/social/
 export const sendFriendRequest = (identifier: string) => d(api.post('/social/friends', { identifier }));
 export const respondFriendRequest = (id: string, accept: boolean) => d(api.patch(`/social/friends/${id}`, { accept }));
 export const removeFriend = (id: string) => api.delete(`/social/friends/${id}`);
-export const getPendingRequests = () => d<Array<{ id: string; createdAt: string; requester: PublicUser }>>(api.get('/social/friends/pending'));
+export interface PendingRequest { id: string; createdAt: string; requester: PublicUser }
+export const getPendingRequests = () => d<PendingRequest[]>(api.get('/social/friends/pending'));
 export const reviveFriendStreak = (friendshipId: string) => d<{ streak: StreakView; gold: number }>(api.post(`/social/friends/${friendshipId}/revive`));
 
-// Mensajes
+// Cartas (mensajes directos)
 export const getUnreadMessages = () => d<{ count: number }>(api.get('/social/messages/unread'));
 export const getConversation = (userId: string, after?: string) => d<Conversation>(api.get(`/social/messages/${userId}`, { params: after ? { after } : {} }));
-export const sendMessage = (userId: string, body: { content?: string; photoUrl?: string; kind?: 'TEXT' | 'SNAP'; habitTitle?: string }) =>
-  d<{ message: DM; streak: StreakView; completed: boolean }>(api.post(`/social/messages/${userId}`, body));
+export const sendMessage = (userId: string, body: { content?: string; photoUrl?: string; kind?: 'TEXT' | 'SNAP' }) =>
+  d<{ message: DM; streak: StreakView & { mineToday: boolean; theirsToday: boolean }; completed: boolean }>(api.post(`/social/messages/${userId}`, body));
+export const getDirectBackground = (userId: string) => d<Background | null>(api.get(`/social/messages/${userId}/background`));
+export const setDirectBackground = (userId: string, body: { photoUrl?: string | null; fit?: BackgroundFit }) =>
+  d<{ background: BackgroundMeta | null }>(api.put(`/social/messages/${userId}/background`, body));
 
 // Pareja
 export const invitePartner = (userId: string) => d(api.post(`/social/partner/${userId}`));
@@ -94,21 +116,60 @@ export const breakUp = () => d<{ closed: number }>(api.post('/social/breakup'));
 // Gremios
 export interface GuildSummary {
   id: string; name: string; emblem: string; photoUrl?: string | null; level: number; role: string;
-  members: number; streak: StreakView; snappedToday: number; mineToday: boolean;
+  members: number; streak: StreakView; snappedToday: number;
+  /** Tu foto de hoy ya golpeó al enemigo del día. */
+  mineToday: boolean;
+  talkedToday: boolean;
+  unread: number;
+  lastMessage: { mine: boolean; author: string; kind: string; preview: string; at: string } | null;
 }
 export interface GuildInvite {
   id: string; createdAt: string;
   guild: { id: string; name: string; emblem: string; photoUrl?: string | null; level: number; _count: { members: number } };
   inviter: PublicUser;
 }
+export interface GuildMemberRow {
+  id: string; userId: string; role: string; snappedToday: boolean;
+  user: PublicUser & { currentStreak: number; xp: number };
+}
+export interface GuildDetail {
+  id: string; name: string; description?: string | null; emblem: string; photoUrl?: string | null; leaderId: string; level: number; xp: number; inviteCode: string;
+  members: GuildMemberRow[];
+  today: { day: string; snappedUserIds: string[]; talkedUserIds: string[]; enemy: { name: string; hp: number; maxHp: number; defeated: boolean } };
+  streak: StreakView;
+  background: BackgroundMeta | null;
+}
+export interface GuildMessage {
+  id: string; content: string; createdAt: string; userId: string; kind: LetterKind | string; photoUrl?: string | null; dayKey?: string | null;
+  user: { id?: string; username?: string; displayName: string; avatarConfig?: unknown; avatarUrl?: string | null };
+}
+export type GuildSendResult = GuildMessage & { enemyDefeated: boolean; streakCompleted: boolean; streak: StreakView };
+
 export const getMyGuilds = () => d<GuildSummary[]>(api.get('/social/guilds'));
-export const getGuild = (id: string) => d<unknown>(api.get(`/social/guilds/${id}`));
+export const getGuild = (id: string) => d<GuildDetail>(api.get(`/social/guilds/${id}`));
 export const getGuildInvites = () => d<GuildInvite[]>(api.get('/social/guild-invites'));
 export const respondGuildInvite = (id: string, accept: boolean) => d<{ guildId: string; accepted: boolean }>(api.post(`/social/guild-invites/${id}`, { accept }));
 export const inviteToGuild = (guildId: string, userId: string) => d(api.post(`/social/guilds/${guildId}/invite`, { userId }));
-export const getGuildMessagesAfter = (guildId: string, after?: string) => d<unknown[]>(api.get(`/social/guilds/${guildId}/messages`, { params: after ? { after } : {} }));
+export const getGuildMessagesAfter = (guildId: string, after?: string) => d<GuildMessage[]>(api.get(`/social/guilds/${guildId}/messages`, { params: after ? { after } : {} }));
+/** Solo mirar la carta (el muro de fotos del campamento) sin darla por leída. */
+export const peekGuildMessages = (guildId: string) => d<GuildMessage[]>(api.get(`/social/guilds/${guildId}/messages`, { params: { peek: 1 } }));
+export const postGuildText = (guildId: string, content: string) => d<GuildSendResult>(api.post(`/social/guilds/${guildId}/messages`, { content }));
 export const postGuildSnap = (guildId: string, photoUrl: string, content: string) =>
-  d<{ streakCompleted?: boolean }>(api.post(`/social/guilds/${guildId}/messages`, { kind: 'SNAP', photoUrl, content }));
+  d<GuildSendResult>(api.post(`/social/guilds/${guildId}/messages`, { kind: 'SNAP', photoUrl, content }));
+export const getGuildBackground = (guildId: string) => d<Background | null>(api.get(`/social/guilds/${guildId}/background`));
+export const setGuildBackground = (guildId: string, body: { photoUrl?: string | null; fit?: BackgroundFit }) =>
+  d<{ background: BackgroundMeta | null }>(api.put(`/social/guilds/${guildId}/background`, body));
+
+// Muñequitos en las zonas y gestos
+export type GestureKind = 'wave' | 'heart' | 'dance' | 'cheer' | 'laugh' | 'highfive';
+export interface ZoneVisitor extends PublicUser {
+  letter: { preview: string; kind: string; at: string; count: number } | null;
+}
+export interface IncomingGesture {
+  id: string; fromId: string; fromName: string; fromUsername: string; kind: GestureKind; zone: string | null; at: string;
+}
+export const getZoneVisitors = (name: string) => d<{ zone: string; visitors: ZoneVisitor[]; gestures: IncomingGesture[] }>(api.get('/social/zone', { params: { name } }));
+export const sendGesture = (toUserId: string, kind: GestureKind, zone: string) => d<{ ok: boolean; throttled: boolean }>(api.post('/social/gestures', { toUserId, kind, zone }));
 
 // Rachas revivibles
 export interface Revival {
@@ -126,8 +187,8 @@ export const apiError = (e: unknown, fallback = 'Algo salió mal') =>
   ?? (e as { response?: { data?: { message?: string } } })?.response?.data?.message
   ?? fallback;
 
-/** Reduce una foto a `max` px (lado mayor) en JPEG: lo que viaja en los mensajes. */
-export function compressPhoto(file: File, max = 720, quality = 0.72): Promise<string> {
+/** Reduce una imagen a `max` px (lado mayor) en JPEG: lo que viaja en los mensajes. */
+export function compressPhoto(file: Blob, max = 720, quality = 0.72): Promise<string> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const img = new Image();
@@ -149,12 +210,12 @@ export function compressPhoto(file: File, max = 720, quality = 0.72): Promise<st
 
 /** Zona de Noutlife por ruta (lo que tus amigos ven si lo permites). */
 const ZONE_NAMES: Array<[string, string]> = [
-  ['/friends', 'Amigos'], ['/u/', 'Perfiles'], ['/habits', 'Hábitos'], ['/quests', 'Misiones'], ['/gym', 'Gimnasio'],
+  ['/social', 'Social'], ['/u/', 'Perfiles'], ['/habits', 'Hábitos'], ['/quests', 'Misiones'], ['/gym', 'Gimnasio'],
   ['/finances', 'Finanzas'], ['/food', 'Comida'], ['/sleep', 'Sueño'], ['/love', 'Jardín'], ['/journal', 'Diario'],
-  ['/agenda', 'Agenda'], ['/learning', 'Aprendizaje'], ['/guild', 'Gremio'], ['/leaderboard', 'Ranking'],
+  ['/agenda', 'Agenda'], ['/learning', 'Aprendizaje'], ['/leaderboard', 'Ranking'],
   ['/season', 'Campaña'], ['/shop', 'Tienda'], ['/glow-up', 'Glow up'], ['/rituals', 'Rituales'], ['/wisdom', 'Sabiduría'],
   ['/achievements', 'Logros'], ['/stats', 'Estadísticas'], ['/profile', 'Perfil'], ['/settings', 'Ajustes'],
-  ['/custom-zones', 'Mis zonas'], ['/history', 'Historial'],
+  ['/custom-zones', 'Mis zonas'], ['/history', 'Historial'], ['/friends', 'Social'], ['/guild', 'Social'],
 ];
 export function zoneName(pathname: string): string {
   if (pathname === '/') return 'Inicio';
@@ -171,3 +232,11 @@ export function timeAgo(iso: string | null | undefined): string {
   if (s < 172800) return 'ayer';
   return `hace ${Math.floor(s / 86400)} días`;
 }
+
+/** Enlaces dentro de la sección Social (libreta, cartas y gremios en un solo sitio). */
+export const socialLink = {
+  letter: (username: string) => `/social?tab=cartas&chat=${encodeURIComponent(username)}`,
+  guildLetter: (guildId: string) => `/social?tab=cartas&gchat=${encodeURIComponent(guildId)}`,
+  guild: (guildId?: string) => (guildId ? `/social?tab=gremios&guild=${encodeURIComponent(guildId)}` : '/social?tab=gremios'),
+  notebook: (view?: 'requests' | 'search') => (view ? `/social?tab=amigos&view=${view}` : '/social?tab=amigos'),
+};

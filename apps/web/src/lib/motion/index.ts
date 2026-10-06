@@ -108,8 +108,9 @@ export const sheet: Variants = { initial: { y: '100%' }, animate: { y: 0, transi
 
 /** Toast: bottom-center mobile, bottom-right desktop, 4 s */
 export const toast: Variants = {
-  initial: { opacity: 0, y: 16, scale: 0.96 }, animate: { opacity: 1, y: 0, scale: 1, transition: springSoft },
-  exit: { opacity: 0, transition: { duration: 0.2 } },
+  // Sube desde detrás de la barra inferior y se asienta; sale hundiéndose.
+  initial: { opacity: 0, y: 40, scale: 0.94 }, animate: { opacity: 1, y: 0, scale: 1, transition: { type: 'spring', stiffness: 380, damping: 26, mass: 0.8 } },
+  exit: { opacity: 0, y: 24, scale: 0.96, transition: { duration: 0.22, ease: [0.4, 0, 1, 1] } },
 };
 
 /** Habit check: rotate 360 + fill */

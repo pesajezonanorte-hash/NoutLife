@@ -116,7 +116,8 @@ export async function myGuild(req: AuthRequest, res: Response): Promise<void> {
 
 export async function guildMessages(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const msgs = await social.getGuildMessages(req.userId!, req.params.guildId, 50, typeof req.query.after === 'string' ? req.query.after : undefined);
+    // peek=1: solo mirar (el muro de fotos del campamento) sin dar la carta por leída.
+    const msgs = await social.getGuildMessages(req.userId!, req.params.guildId, 50, typeof req.query.after === 'string' ? req.query.after : undefined, req.query.peek === '1');
     res.json(msgs);
   } catch (e: unknown) { res.status(400).json({ error: publicErrorMessage(e) }); }
 }
