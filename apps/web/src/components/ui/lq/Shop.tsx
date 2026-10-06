@@ -3,7 +3,7 @@
 // de su categoría que se despliega, una luz que se enciende, el artículo sobre un
 // pedestal que gira al pasar y su etiqueta de precio colgada que se mece y destella;
 // al comprar, el artículo cae dentro de la bolsa.
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { Check, Coins, Eye, ShoppingBag, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -45,20 +45,29 @@ export interface ShopItemProps {
   locked?: boolean;
   /** Posición en la lista: los escaparates se encienden uno tras otro. */
   index?: number;
+  /** Cómo se ve el artículo (tu personaje con él puesto, el aura, el tema…): ocupa el lugar del ícono. */
+  visual?: ReactNode;
+  /** Etiquetas junto a la categoría (exclusivo, unidades que quedan). */
+  badges?: ReactNode;
+  /** Comprado y para el personaje: el botón lo pone o lo quita. */
+  worn?: boolean;
+  onWear?: () => void;
+  /** Exclusivo sin unidades. */
+  soldOut?: boolean;
   className?: string;
 }
 
-export function ShopItem({ name, description, price, icon, tone = 'primary', category, owned, affordable = true, busy, onBuy, onPreview, locked, index = 0, className }: ShopItemProps) {
+export function ShopItem({ name, description, price, icon, tone = 'primary', category, owned, affordable = true, busy, onBuy, onPreview, locked, index = 0, visual, badges, worn, onWear, soldOut, className }: ShopItemProps) {
   const delay = 0.4 + index * 0.09;
   return (
     <Card interactive padding="none" style={winVars(tone)} className={cn('group relative isolate flex h-full flex-col overflow-hidden', className)}>
       <Awning delay={delay} className="relative z-10" />
       <ShopWindow
         lit={!locked} delay={delay + 0.3}
-        className="mx-4 -mt-[11px] aspect-[16/9] rounded-b-xl"
+        className={cn('mx-4 -mt-[11px] rounded-b-xl', visual ? 'aspect-[4/3]' : 'aspect-[16/9]')}
         tag={<PriceTag><GoldPrice value={price} className="text-label-lg" /></PriceTag>}
       >
-        <IconChip icon={icon} tone={tone} size="lg" className="rounded-2xl" />
+        {visual ?? <IconChip icon={icon} tone={tone} size="lg" className="rounded-2xl" />}
       </ShopWindow>
       {owned && (
         <span aria-hidden="true" className="absolute left-7 top-10 z-10 inline-flex items-center gap-1 rounded-full bg-success-strong px-2 py-0.5 text-label-md text-on-success shadow-sm">
@@ -70,6 +79,7 @@ export function ShopItem({ name, description, price, icon, tone = 'primary', cat
           <h3 className="text-heading-sm">{name}</h3>
           {category && <Badge className="shrink-0">{category}</Badge>}
         </div>
+        {badges && <div className="flex flex-wrap gap-1.5">{badges}</div>}
         {description && <p className="text-body-sm text-on-surface-light">{description}</p>}
         <div className="mt-auto flex flex-wrap items-center justify-end gap-2 pt-2">
           {onPreview && (
@@ -77,14 +87,20 @@ export function ShopItem({ name, description, price, icon, tone = 'primary', cat
               <Eye aria-hidden className="size-4" strokeWidth={1.75} />Ver
             </Button>
           )}
-          <Button
-            variant={owned ? 'secondary' : 'primary'} size="md" loading={busy}
-            disabled={owned || !affordable}
-            onClick={onBuy}
-            aria-label={owned ? `${name}: ya lo tienes` : `Comprar ${name} por ${price} Gold`}
-          >
-            {owned ? 'Tienes' : affordable ? 'Comprar' : 'Sin Gold'}
-          </Button>
+          {owned && onWear ? (
+            <Button variant={worn ? 'secondary' : 'primary'} size="md" loading={busy} aria-pressed={worn} onClick={onWear}>
+              {worn ? 'Quitármelo' : 'Ponérmelo'}
+            </Button>
+          ) : (
+            <Button
+              variant={owned ? 'secondary' : 'primary'} size="md" loading={busy}
+              disabled={owned || soldOut || locked || !affordable}
+              onClick={onBuy}
+              aria-label={owned ? `${name}: ya lo tienes` : soldOut ? `${name}: agotado` : locked ? `${name}: aún bloqueado por nivel` : `Comprar ${name} por ${price} Gold`}
+            >
+              {owned ? 'Tienes' : soldOut ? 'Agotado' : locked ? 'Bloqueado' : affordable ? 'Comprar' : 'Sin Gold'}
+            </Button>
+          )}
         </div>
       </div>
     </Card>
@@ -100,12 +116,16 @@ export interface PurchaseDialogProps {
   balance: number;
   phase: 'ask' | 'done';
   busy?: boolean;
+  /** Al terminar: el artículo ya puesto (tu personaje con él) en lugar de la bolsa. */
+  visual?: ReactNode;
+  /** Texto al terminar (por defecto: «… ya está en tu inventario.»). */
+  doneText?: string;
   onConfirm: () => void;
   onClose: () => void;
 }
 
 /** Confirmar compra → «¡Es tuyo!» con pop + halo. */
-export function PurchaseDialog({ open, icon: ItemIcon, name, price, balance, phase, busy, onConfirm, onClose }: PurchaseDialogProps) {
+export function PurchaseDialog({ open, icon: ItemIcon, name, price, balance, phase, busy, visual, doneText, onConfirm, onClose }: PurchaseDialogProps) {
   return (
     <Modal open={open} onClose={onClose} title={phase === 'ask' ? `¿Comprar ${name}?` : '¡Es tuyo!'} hideClose={phase === 'done'}>
       {phase === 'ask' ? (
@@ -117,6 +137,14 @@ export function PurchaseDialog({ open, icon: ItemIcon, name, price, balance, pha
             <Button variant="secondary" size="md" onClick={onClose}>Cancelar</Button>
             <Button size="md" loading={busy} onClick={onConfirm}>Comprar</Button>
           </div>
+        </div>
+      ) : visual ? (
+        <div className="flex flex-col items-center gap-3 text-center">
+          <motion.span variants={pop3} initial="initial" animate="animate" className="lq-halo flex items-end justify-center rounded-[28px] bg-surface-variant px-6 pt-4">
+            {visual}
+          </motion.span>
+          <p className="text-body-md text-on-surface-light">{doneText ?? `${name} ya está en tu inventario.`}</p>
+          <Button block onClick={onClose} autoFocus>Genial</Button>
         </div>
       ) : (
         <div className="flex flex-col items-center gap-3 text-center">
@@ -138,7 +166,7 @@ export function PurchaseDialog({ open, icon: ItemIcon, name, price, balance, pha
               </motion.span>
             </motion.span>
           </span>
-          <p className="text-body-md text-on-surface-light">{name} ya está en tu inventario.</p>
+          <p className="text-body-md text-on-surface-light">{doneText ?? `${name} ya está en tu inventario.`}</p>
           <Button block onClick={onClose} autoFocus>Genial</Button>
         </div>
       )}

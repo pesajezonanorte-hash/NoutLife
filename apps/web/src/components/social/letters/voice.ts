@@ -63,9 +63,10 @@ export function useVoiceRecorder() {
 
   useEffect(() => () => { keep.current = false; rec.current?.stop(); cleanup(); }, [cleanup]);
 
-  const start = useCallback(async () => {
+  /** Empieza a grabar; devuelve cómo quedó (el estado de React aún no se ha actualizado al volver). */
+  const start = useCallback(async (): Promise<'recording' | 'denied' | 'unsupported'> => {
     const mime = pickMime();
-    if (mime === null || !navigator.mediaDevices?.getUserMedia) { setState('unsupported'); return false; }
+    if (mime === null || !navigator.mediaDevices?.getUserMedia) { setState('unsupported'); return 'unsupported'; }
     setState('starting');
     try {
       const s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
@@ -115,12 +116,13 @@ export function useVoiceRecorder() {
       startedAt.current = Date.now();
       r.start(250);
       setState('recording');
-      return true;
+      return 'recording';
     } catch (e) {
       cleanup();
       const name = (e as DOMException)?.name;
-      setState(name === 'NotAllowedError' || name === 'SecurityError' ? 'denied' : 'unsupported');
-      return false;
+      const failed = name === 'NotAllowedError' || name === 'SecurityError' ? 'denied' : 'unsupported';
+      setState(failed);
+      return failed;
     }
   }, [cleanup]);
 

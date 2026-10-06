@@ -44,6 +44,7 @@ const loaders = {
   SettingsPage: () => import('./pages/Settings'),
   LeaderboardPage: () => import('./pages/Leaderboard'),
   SocialPage: () => import('./pages/Social'),
+  GalleryPage: () => import('./pages/Gallery'),
   UserProfilePage: () => import('./pages/UserProfile'),
   StatsPage: () => import('./pages/Stats'),
   SeasonPage: () => import('./pages/Season'),
@@ -98,6 +99,7 @@ const routeLoaders: Record<string, () => Promise<unknown>> = {
   '/settings': loaders.SettingsPage,
   '/leaderboard': loaders.LeaderboardPage,
   '/social': loaders.SocialPage,
+  '/gallery': loaders.GalleryPage,
   '/stats': loaders.StatsPage,
   '/season': loaders.SeasonPage,
   '/agenda': loaders.AgendaPage,
@@ -220,6 +222,7 @@ function AnimatedRoutes({ location }: { location: ReturnType<typeof useLocation>
           <Route path="/settings"     element={<SafePage><DeferredLazyPage load={loaders.SettingsPage} /></SafePage>} />
           <Route path="/leaderboard"  element={<SafePage><DeferredLazyPage load={loaders.LeaderboardPage} /></SafePage>} />
           <Route path="/social"       element={<SafePage><DeferredLazyPage load={loaders.SocialPage} /></SafePage>} />
+          <Route path="/gallery"      element={<SafePage><DeferredLazyPage load={loaders.GalleryPage} /></SafePage>} />
           <Route path="/friends"      element={<LegacyFriendsRedirect />} />
           <Route path="/guild"        element={<LegacyGuildRedirect />} />
           <Route path="/u/:username"  element={<SafePage><DeferredLazyPage load={loaders.UserProfilePage} /></SafePage>} />

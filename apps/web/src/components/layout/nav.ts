@@ -5,7 +5,7 @@
 import {
   BarChart3, BookOpen, CalendarDays, HelpCircle, Dumbbell, Flag, Globe, Heart, Home,
   MapPin, Moon, NotebookPen, Scroll, Settings, ShoppingBag, Skull, Sparkles, Sun,
-  Trophy, User, UtensilsCrossed, Wallet, CheckCircle2, MessageCircle, Mail, NotebookTabs, Tent, type LucideIcon,
+  Trophy, User, UtensilsCrossed, Wallet, CheckCircle2, MessageCircle, Mail, NotebookTabs, Tent, Album, type LucideIcon,
 } from 'lucide-react';
 import { useMemo } from 'react';
 import { useAuthStore } from '@/store/authStore';
@@ -67,6 +67,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       // Amigos, cartas y gremios en un mismo sitio.
       { to: '/social', label: 'Social', icon: MessageCircle },
+      { to: '/gallery', label: 'Galería', icon: Album },
       { to: '/leaderboard', label: 'Ranking', icon: Globe },
       { to: '/season', label: 'Campaña', icon: Skull },
     ],

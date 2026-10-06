@@ -103,6 +103,8 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(prop
   }
 
   // ─── Notas de voz ──────────────────────────────────────────────────────────
+  const voiceFailed = (why: 'denied' | 'unsupported') =>
+    toaster().error(why === 'denied' ? 'Sin permiso para usar el micrófono' : 'Este navegador no puede grabar notas de voz');
   async function micDown(e: PointerEvent<HTMLButtonElement>) {
     if (voiceMode !== 'off') return;
     e.preventDefault();
@@ -110,11 +112,11 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(prop
     press.current = { x: e.clientX, at: Date.now() };
     setVoiceMode('hold');
     setCancelling(false);
-    const ok = await rec.start();
-    if (!ok) {
+    const result = await rec.start();
+    if (result !== 'recording') {
       setVoiceMode('off');
       press.current = null;
-      toaster().error(rec.state === 'denied' ? 'Sin permiso para usar el micrófono' : 'Este navegador no puede grabar notas de voz');
+      voiceFailed(result);
     }
   }
   function micMove(e: PointerEvent<HTMLButtonElement>) {
@@ -232,7 +234,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(prop
             <motion.button
               type="button" aria-label={recording ? 'Grabando: suelta para enviar' : 'Mantén pulsado para grabar una nota de voz'}
               onPointerDown={(e) => void micDown(e)} onPointerMove={micMove} onPointerUp={() => void micUp()} onPointerCancel={() => void finishVoice(false)}
-              onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && !recording) { e.preventDefault(); void rec.start().then((ok) => ok && setVoiceMode('locked')); } }}
+              onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && !recording) { e.preventDefault(); void rec.start().then((r) => (r === 'recording' ? setVoiceMode('locked') : voiceFailed(r))); } }}
               animate={recording ? { scale: 1.25 } : { scale: 1 }} transition={springs.snappy}
               className={cn('flex size-12 shrink-0 touch-none items-center justify-center rounded-full transition-colors', recording ? 'bg-error text-white shadow-lg' : 'bg-primary/12 text-primary-text hover:bg-primary/20')}
             >
