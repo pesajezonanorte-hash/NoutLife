@@ -140,7 +140,8 @@ export async function completeRitual(userId: string, ritualId: string) {
     if (!result.alreadyDone) {
       // La XP del ritual también cuenta para subir de nivel y queda en el historial.
       await prisma.xpEvent.create({ data: { userId, xpAmount: RITUAL_XP, goldAmount: RITUAL_GOLD, source: 'ritual', sourceId: ritualId, description: 'Ritual completado' } }).catch(() => null);
-      await settleLevel(userId);
+      // Si falla, el nivel se pone al día en la próxima recompensa: el ritual ya quedó hecho.
+      await settleLevel(userId).catch(() => null);
     }
     return result;
   } catch (error) {

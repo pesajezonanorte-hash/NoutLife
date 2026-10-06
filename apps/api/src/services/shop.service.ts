@@ -66,7 +66,8 @@ export async function purchaseItem(userId: string, shopItemId: string) {
   // Lo comprado para el personaje se lleva puesto desde ya.
   const wearable = EQUIP_TYPES.has(item.type) && item.type !== 'THEME' && (item.slot ? AVATAR_SLOTS.has(item.slot) || item.slot in USER_FIELD : false);
   const equipped = wearable ? await setEquipped(userId, inventoryItem.id, true) : inventoryItem;
-  const updatedUser = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+  // Solo lo que cambia en la cuenta (nunca la fila entera: lleva el hash de la contraseña).
+  const updatedUser = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: PUBLIC_USER_FIELDS });
   return { user: updatedUser, inventoryItem: equipped };
 }
 
