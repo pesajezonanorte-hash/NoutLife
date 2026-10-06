@@ -1,0 +1,214 @@
+/* Sección Social: la libreta de contactos (amigos), las cartas (chats) con su
+   fondo de foto sobre papel, la cámara instantánea, la paloma mensajera y los
+   muñequitos de los amigos que pasean por la zona.
+   Mismas reglas que ambience.css: lo decorativo es aria-hidden y sin eventos,
+   solo se anima transform y opacity (las excepciones van anotadas) y con
+   «Reducir movimiento» (.reduce-motion) los bucles se detienen. Los objetos
+   (cámara, foto instantánea, lacre) usan la escala Jade fija: se ven igual en
+   claro y en oscuro, como un objeto real. */
+
+/* ───────── La libreta de contactos ───────── */
+/* La página de una agenda de direcciones: papel con grano, renglones al paso de
+   --lq-rule y, debajo, el canto de las hojas siguientes. */
+.lq-addressbook {
+  background-color: rgb(var(--lq-surface));
+  background-image:
+    linear-gradient(to bottom, transparent calc(var(--lq-rule) - 1px), rgb(var(--lq-info) / .14) calc(var(--lq-rule) - 1px), rgb(var(--lq-info) / .14) var(--lq-rule)),
+    radial-gradient(rgb(var(--lq-on-background) / .03) .6px, transparent .8px);
+  background-size: 100% var(--lq-rule), 7px 7px;
+  box-shadow: 0 1px 0 rgb(var(--lq-border)), 0 3px 0 -1px rgb(var(--lq-surface)), 0 4px 0 -1px rgb(var(--lq-border)), 0 7px 0 -2px rgb(var(--lq-surface)), 0 8px 0 -2px rgb(var(--lq-border)), 0 22px 34px -18px rgb(var(--lq-jade-900) / .4);
+}
+html.dark .lq-addressbook {
+  background-image:
+    linear-gradient(to bottom, transparent calc(var(--lq-rule) - 1px), rgb(var(--lq-info) / .11) calc(var(--lq-rule) - 1px), rgb(var(--lq-info) / .11) var(--lq-rule)),
+    radial-gradient(rgb(var(--lq-on-background) / .03) .6px, transparent .8px);
+  box-shadow: 0 1px 0 rgb(var(--lq-border)), 0 3px 0 -1px rgb(var(--lq-surface)), 0 4px 0 -1px rgb(var(--lq-border)), 0 22px 34px -16px rgb(0 0 0 / .8);
+}
+/* Tapa de cuero que asoma por detrás de las hojas. */
+.lq-addressbook-cover {
+  background-color: rgb(var(--lq-jade-800));
+  background-image: radial-gradient(rgb(255 255 255 / .05) .6px, transparent .9px), radial-gradient(rgb(0 0 0 / .22) .7px, transparent 1px), linear-gradient(155deg, rgb(255 255 255 / .08), transparent 38%, rgb(0 0 0 / .24));
+  background-size: 5px 5px, 7px 7px, auto;
+  box-shadow: 0 24px 40px -20px rgb(var(--lq-jade-900) / .55);
+}
+html.dark .lq-addressbook-cover { box-shadow: 0 24px 44px -16px rgb(0 0 0 / .9), inset 0 0 0 1px rgb(255 255 255 / .04); }
+/* Perforación y espiral metálica del lomo. */
+.lq-coil-hole { background: rgb(var(--lq-jade-800)); box-shadow: inset 0 1px 2px rgb(0 0 0 / .55); }
+.lq-coil { border: 2.5px solid rgb(var(--lq-on-surface-light)); border-left-color: transparent; border-radius: 999px; box-shadow: 1px 1px 1px rgb(0 0 0 / .25); }
+html.dark .lq-coil { border-color: rgb(var(--lq-on-surface)); border-left-color: transparent; }
+/* Pestaña del índice alfabético: cartulina que sobresale del canto de la hoja. */
+.lq-thumb-tab {
+  background: color-mix(in srgb, rgb(var(--lq-jade-300)) 45%, rgb(var(--lq-surface)));
+  border-radius: 0 7px 7px 0;
+  box-shadow: 1px 1px 0 rgb(var(--lq-on-background) / .1), inset 1px 0 0 rgb(var(--lq-on-background) / .06);
+  transition: transform var(--lq-dur-snappy) var(--lq-ease-snappy), opacity .2s;
+}
+.lq-thumb-tab:nth-child(3n+2) { background: color-mix(in srgb, rgb(var(--lq-warning)) 28%, rgb(var(--lq-surface))); }
+.lq-thumb-tab:nth-child(3n) { background: color-mix(in srgb, rgb(var(--lq-info)) 22%, rgb(var(--lq-surface))); }
+html.dark .lq-thumb-tab { background: color-mix(in srgb, rgb(var(--lq-jade-700)) 55%, rgb(var(--lq-surface))); }
+html.dark .lq-thumb-tab:nth-child(3n+2) { background: color-mix(in srgb, rgb(var(--lq-warning)) 30%, rgb(var(--lq-surface))); }
+html.dark .lq-thumb-tab:nth-child(3n) { background: color-mix(in srgb, rgb(var(--lq-info)) 26%, rgb(var(--lq-surface))); }
+.lq-thumb-tab:hover:not(:disabled), .lq-thumb-tab:focus-visible { transform: translateX(3px); }
+.lq-thumb-tab:disabled { opacity: .28; box-shadow: none; }
+.reduce-motion .lq-thumb-tab { transform: none !important; }
+/* Foto carné pegada en cada contacto. */
+.lq-snapshot { background: color-mix(in srgb, rgb(var(--lq-jade-50)) 35%, white); padding: 2px 2px 5px; border-radius: 2px; box-shadow: 0 1px 2px rgb(var(--lq-jade-900) / .25), 0 4px 8px -4px rgb(var(--lq-jade-900) / .3); }
+html.dark .lq-snapshot { background: rgb(var(--lq-jade-100)); }
+/* La entrada de un contacto: se resalta como con un marcador al pasar. */
+.lq-entry { transition: background-color .2s ease-out; }
+.lq-entry:hover, .lq-entry:focus-visible, .lq-entry[aria-current="true"] { background: color-mix(in srgb, rgb(var(--lq-warning)) 9%, transparent); }
+/* Nota doblada que trae la paloma (solicitudes). */
+.lq-pigeon-note {
+  background: color-mix(in srgb, rgb(var(--lq-warning)) 14%, rgb(var(--lq-surface)));
+  border-radius: 3px 10px 10px 10px;
+  box-shadow: 0 1px 1px rgb(0 0 0 / .06), 0 10px 18px -12px rgb(var(--lq-jade-900) / .45);
+}
+html.dark .lq-pigeon-note { background: color-mix(in srgb, rgb(var(--lq-warning)) 12%, rgb(var(--lq-surface-variant))); }
+
+/* ───────── Cartas ───────── */
+/* Sobre: papel kraft claro con grano. */
+.lq-envelope {
+  --env: color-mix(in srgb, rgb(var(--lq-warning)) 11%, rgb(var(--lq-surface)));
+  background-color: var(--env);
+  background-image: radial-gradient(rgb(var(--lq-on-background) / .035) .6px, transparent .8px);
+  background-size: 6px 6px;
+  box-shadow: 0 1px 2px rgb(var(--lq-on-background) / .08), 0 10px 20px -14px rgb(var(--lq-jade-900) / .4);
+  transition: transform var(--lq-dur-natural) var(--lq-ease-natural), box-shadow .3s ease-out;
+}
+html.dark .lq-envelope { --env: color-mix(in srgb, rgb(var(--lq-warning)) 9%, rgb(var(--lq-surface-variant))); box-shadow: 0 2px 6px rgb(0 0 0 / .45); }
+.group:hover .lq-envelope, .group:focus-visible .lq-envelope { transform: translateY(-2px) rotate(-.3deg); box-shadow: 0 2px 3px rgb(var(--lq-on-background) / .08), 0 16px 26px -14px rgb(var(--lq-jade-900) / .45); }
+.group[aria-current="true"] .lq-envelope { box-shadow: 0 0 0 2px rgb(var(--lq-primary) / .55), 0 16px 26px -14px rgb(var(--lq-jade-900) / .45); }
+.reduce-motion .group:hover .lq-envelope, .reduce-motion .group:focus-visible .lq-envelope { transform: none; }
+/* Las diagonales del dorso del sobre. */
+.lq-envelope-folds {
+  background:
+    linear-gradient(to top right, transparent calc(50% - .6px), rgb(var(--lq-on-background) / .08) 50%, transparent calc(50% + .6px)) left bottom / 50% 70% no-repeat,
+    linear-gradient(to top left, transparent calc(50% - .6px), rgb(var(--lq-on-background) / .08) 50%, transparent calc(50% + .6px)) right bottom / 50% 70% no-repeat;
+}
+/* Solapa: se entreabre al pasar el cursor. */
+.lq-envelope-flap {
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--env) 88%, rgb(var(--lq-on-background))), color-mix(in srgb, var(--env) 95%, rgb(var(--lq-on-background))));
+  transform-origin: 50% 0; transition: transform var(--lq-dur-heavy) var(--lq-ease-heavy);
+}
+.group:hover .lq-envelope-flap, .group:focus-visible .lq-envelope-flap { transform: perspective(520px) rotateX(-32deg); }
+.reduce-motion .lq-envelope-flap { transform: none !important; }
+/* Estampilla: borde dentado (agujeros sobre el papel) con la imagen dentro. */
+.lq-stamp {
+  background: radial-gradient(circle at 3px 3px, transparent 1.5px, color-mix(in srgb, rgb(var(--lq-jade-50)) 40%, white) 1.9px) -3px -3px / 6px 6px;
+  filter: drop-shadow(0 1px 1px rgb(0 0 0 / .2));
+}
+/* Dentro, la imagen va sobre papel liso: los agujeros solo se ven en el borde. */
+.lq-stamp-face { background: color-mix(in srgb, rgb(var(--lq-jade-50)) 40%, white); }
+html.dark .lq-stamp-face { background: rgb(var(--lq-jade-100)); }
+html.dark .lq-stamp { background: radial-gradient(circle at 3px 3px, transparent 1.5px, rgb(var(--lq-jade-100)) 1.9px) -3px -3px / 6px 6px; }
+/* Lacre jade con la N de la marca en relieve. */
+.lq-wax {
+  background: radial-gradient(circle at 35% 30%, rgb(var(--lq-jade-500)), rgb(var(--lq-jade-700)) 55%, rgb(var(--lq-jade-800)));
+  border-radius: 46% 54% 50% 50% / 52% 48% 52% 48%;
+  box-shadow: inset 0 -2px 3px rgb(0 0 0 / .32), inset 0 2px 2px rgb(255 255 255 / .28), 0 2px 4px rgb(0 0 0 / .28);
+  color: rgb(var(--lq-jade-50));
+}
+/* Matasellos: aro con la fecha y las ondas de cancelación. */
+.lq-postmark { color: rgb(var(--lq-on-surface-light)); opacity: .85; }
+/* La carta sin foto: papel de carta con renglones finos. */
+.lq-stationery {
+  background-color: rgb(var(--lq-surface));
+  background-image:
+    linear-gradient(to bottom, transparent calc(var(--lq-rule) - 1px), rgb(var(--lq-info) / .09) calc(var(--lq-rule) - 1px), rgb(var(--lq-info) / .09) var(--lq-rule)),
+    radial-gradient(rgb(var(--lq-on-background) / .03) .6px, transparent .8px);
+  background-size: 100% var(--lq-rule), 7px 7px;
+}
+/* Un mensaje: tira de papel escrita a mano, con su sombra; las tuyas en tinta jade. */
+.lq-slip {
+  background: rgb(var(--lq-surface) / .95);
+  border-radius: 3px 14px 14px 14px;
+  box-shadow: 0 1px 1px rgb(var(--lq-on-background) / .06), 0 8px 16px -10px rgb(var(--lq-jade-900) / .32);
+}
+.lq-slip-mine { border-radius: 14px 3px 14px 14px; background: color-mix(in srgb, rgb(var(--lq-jade-50)) 55%, rgb(var(--lq-surface))); }
+html.dark .lq-slip { background: rgb(var(--lq-surface-variant) / .96); box-shadow: 0 2px 8px rgb(0 0 0 / .45); }
+html.dark .lq-slip-mine { background: color-mix(in srgb, rgb(var(--lq-jade-800)) 45%, rgb(var(--lq-surface-variant))); }
+/* El renglón donde se escribe la carta. */
+.lq-pen-line { background: transparent; border: 0; border-bottom: 1.5px dashed rgb(var(--lq-border-strong) / .7); border-radius: 0; }
+.lq-pen-line:focus { outline: none; border-bottom-style: solid; border-bottom-color: rgb(var(--lq-primary)); }
+/* Fondo de foto: impreso sobre el papel de la carta. */
+.lq-backdrop { background-color: rgb(var(--lq-surface)); }
+.lq-backdrop-photo { filter: sepia(.2) saturate(.92) contrast(.96); mix-blend-mode: multiply; max-width: none; }
+html.dark .lq-backdrop-photo { mix-blend-mode: normal; filter: sepia(.18) saturate(.85) brightness(.8) contrast(.96); }
+.lq-backdrop-wash { background-color: color-mix(in srgb, rgb(var(--lq-warning)) 6%, rgb(var(--lq-surface))); }
+.lq-backdrop-grain {
+  background-image:
+    radial-gradient(rgb(var(--lq-on-background) / .05) .6px, transparent .9px),
+    radial-gradient(rgb(var(--lq-warning-text) / .05) .7px, transparent 1px),
+    linear-gradient(to bottom, transparent calc(var(--lq-rule) - 1px), rgb(var(--lq-info) / .08) calc(var(--lq-rule) - 1px), rgb(var(--lq-info) / .08) var(--lq-rule));
+  background-size: 6px 6px, 11px 13px, 100% var(--lq-rule);
+}
+/* Bordes del papel algo gastados (viñeta cálida). */
+.lq-backdrop-edge { box-shadow: inset 0 0 0 1px rgb(var(--lq-on-background) / .05), inset 0 0 60px rgb(var(--lq-warning-text) / .14); }
+html.dark .lq-backdrop-edge { box-shadow: inset 0 0 0 1px rgb(255 255 255 / .04), inset 0 0 70px rgb(0 0 0 / .55); }
+
+/* ───────── Cámara instantánea ───────── */
+/* El cuerpo de la cámara: plástico crema. */
+.lq-cam {
+  background: linear-gradient(180deg, color-mix(in srgb, rgb(var(--lq-jade-50)) 55%, white) 0%, rgb(var(--lq-jade-50)) 62%, color-mix(in srgb, rgb(var(--lq-jade-100)) 80%, rgb(var(--lq-jade-300))) 100%);
+  box-shadow: inset 0 2px 0 rgb(255 255 255 / .8), inset 0 -8px 14px rgb(var(--lq-jade-900) / .14), 0 34px 60px -24px rgb(0 0 0 / .7), 0 2px 0 rgb(var(--lq-jade-300));
+  color: rgb(var(--lq-jade-800));
+}
+.lq-cam-top { background: linear-gradient(180deg, color-mix(in srgb, rgb(var(--lq-jade-900)) 88%, white), rgb(var(--lq-jade-900))); }
+.lq-cam-flash { background: linear-gradient(160deg, rgb(255 255 255 / .9), rgb(var(--lq-jade-100)) 45%, rgb(var(--lq-jade-300))); box-shadow: inset 0 0 0 2px rgb(0 0 0 / .35); }
+.lq-cam-screen { background: rgb(var(--lq-jade-900)); box-shadow: inset 0 0 0 3px rgb(0 0 0 / .55), 0 0 0 4px color-mix(in srgb, rgb(var(--lq-jade-900)) 80%, white), 0 1px 0 5px rgb(255 255 255 / .5); }
+.lq-cam-stripe { background: linear-gradient(to right, rgb(var(--lq-error)) 0 25%, rgb(var(--lq-warning)) 25% 50%, rgb(var(--lq-success)) 50% 75%, rgb(var(--lq-info)) 75%); }
+/* El objetivo: cristal oscuro con anillos y un reflejo que deriva despacio. */
+.lq-cam-lens {
+  background: radial-gradient(circle at 50% 50%, rgb(var(--lq-jade-900)) 0 30%, color-mix(in srgb, rgb(var(--lq-info)) 30%, rgb(var(--lq-jade-900))) 31% 46%, rgb(var(--lq-jade-900)) 47% 58%, color-mix(in srgb, rgb(var(--lq-jade-900)) 70%, white) 59% 62%, rgb(var(--lq-jade-900)) 63% 100%);
+  box-shadow: 0 0 0 5px color-mix(in srgb, rgb(var(--lq-jade-900)) 75%, white), 0 0 0 7px rgb(var(--lq-jade-200)), 0 4px 10px 6px rgb(0 0 0 / .25);
+}
+.lq-cam-glint { background: radial-gradient(closest-side, rgb(255 255 255 / .75), transparent); animation: lq-amb-wander 14s ease-in-out infinite alternate; }
+.reduce-motion .lq-cam-glint { animation: none; }
+/* El disparador rojo: se hunde al pulsarlo. */
+.lq-cam-shutter {
+  background: radial-gradient(circle at 35% 30%, color-mix(in srgb, rgb(var(--lq-error)) 65%, white), rgb(var(--lq-error)) 58%, rgb(var(--lq-error-text)));
+  box-shadow: 0 4px 0 color-mix(in srgb, rgb(var(--lq-error-text)) 80%, black), 0 8px 14px rgb(0 0 0 / .3);
+  transition: transform .09s ease-out, box-shadow .09s ease-out;
+}
+.lq-cam-shutter:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 0 0 color-mix(in srgb, rgb(var(--lq-error-text)) 80%, black), 0 3px 6px rgb(0 0 0 / .3); }
+.lq-cam-shutter:disabled { filter: saturate(.4); cursor: not-allowed; }
+/* La ranura por la que sale la foto. */
+.lq-cam-slot { background: rgb(var(--lq-jade-900)); box-shadow: inset 0 2px 3px rgb(0 0 0 / .7), 0 1px 0 rgb(255 255 255 / .6); }
+/* La foto instantánea: marco blanco con el borde inferior ancho. */
+.lq-print {
+  background: color-mix(in srgb, rgb(var(--lq-jade-50)) 30%, white);
+  box-shadow: 0 1px 1px rgb(0 0 0 / .12), 0 12px 22px -12px rgb(var(--lq-jade-900) / .55);
+  color: rgb(var(--lq-jade-900));
+}
+html.dark .lq-print { box-shadow: 0 2px 10px rgb(0 0 0 / .6); }
+/* Revelado: la imagen sale oscura y aparece poco a poco (solo opacidad). */
+.lq-develop { background: radial-gradient(120% 120% at 50% 40%, color-mix(in srgb, rgb(var(--lq-jade-800)) 70%, rgb(var(--lq-info))), rgb(var(--lq-jade-900))); animation: lq-develop var(--dev, 3.2s) cubic-bezier(.4, 0, .2, 1) forwards; }
+.lq-develop-warm { background: color-mix(in srgb, rgb(var(--lq-warning)) 40%, transparent); mix-blend-mode: soft-light; animation: lq-develop calc(var(--dev, 3.2s) * 1.6) ease-out forwards; }
+@keyframes lq-develop { 0% { opacity: 1; } 35% { opacity: .82; } 100% { opacity: 0; } }
+.reduce-motion .lq-develop, .reduce-motion .lq-develop-warm { animation: none; opacity: 0; }
+/* El destello del flash al disparar (una vez). */
+.lq-cam-flashburst { background: radial-gradient(circle, white, rgb(255 255 255 / .85) 40%, transparent 75%); }
+/* Cinta adhesiva que pega la foto a la carta. */
+.lq-photo-tape { background: rgb(255 255 255 / .55); box-shadow: 0 1px 1px rgb(0 0 0 / .1); -webkit-backdrop-filter: blur(1px); backdrop-filter: blur(1px); }
+html.dark .lq-photo-tape { background: rgb(255 255 255 / .2); }
+
+/* ───────── Paloma mensajera ───────── */
+/* Las alas baten (unas cuatro veces por segundo) mientras vuela. */
+.lq-pigeon-wing { transform-box: fill-box; transform-origin: 18% 85%; animation: lq-flap .24s ease-in-out infinite alternate; }
+@keyframes lq-flap { from { transform: rotate(-42deg) scaleY(1.06); } to { transform: rotate(16deg) scaleY(.82); } }
+/* Posada: la cabeza picotea de vez en cuando. */
+.lq-pigeon-head { transform-box: fill-box; transform-origin: 20% 100%; animation: lq-peck 3.2s ease-in-out infinite; }
+@keyframes lq-peck { 0%, 70%, 100% { transform: none; } 76% { transform: translate(1.5px, 1px) rotate(12deg); } 82% { transform: none; } 88% { transform: translate(1px, .5px) rotate(8deg); } }
+.reduce-motion .lq-pigeon-wing, .reduce-motion .lq-pigeon-head { animation: none; }
+
+/* ───────── Amigos que pasean por la zona ───────── */
+/* Paso del muñequito: un vaivén de dos tiempos mientras camina. */
+.lq-walk { animation: lq-walk .36s steps(2, jump-none) infinite; transform-origin: 50% 100%; }
+@keyframes lq-walk { from { transform: translateY(0) rotate(-2.5deg); } to { transform: translateY(-2px) rotate(2.5deg); } }
+.lq-walker-shadow { background: radial-gradient(closest-side, rgb(var(--lq-jade-900) / .3), transparent); }
+html.dark .lq-walker-shadow { background: radial-gradient(closest-side, rgb(0 0 0 / .6), transparent); }
+.reduce-motion .lq-walk { animation: none; }
+/* Bocadillo pixel (gestos y cartas). */
+.lq-bubble { position: relative; background: rgb(var(--lq-surface)); box-shadow: 0 0 0 2px rgb(var(--lq-on-background)), 0 3px 0 2px rgb(var(--lq-on-background) / .25); border-radius: 4px; }
+.lq-bubble::after { content: ""; position: absolute; left: 50%; bottom: -7px; width: 10px; height: 6px; margin-left: -5px; background: rgb(var(--lq-on-background)); clip-path: polygon(0 0, 100% 0, 50% 100%); }

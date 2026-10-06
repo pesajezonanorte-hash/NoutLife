@@ -13,6 +13,8 @@ import { useShellStore } from '@/store/shellStore';
 import { refreshUser } from '@/hooks/useAuth';
 import { sendPresence, zoneName } from '@/services/network.service';
 import { useSocialPulseSync } from '@/components/social/SocialEntry';
+import { ZoneVisitors } from '@/components/social/ZoneVisitors';
+import { PigeonLayer } from '@/components/social/CarrierPigeon';
 import { ZONE_TOOLTIPS } from '@/lib/gameProgress';
 import { Button, Toaster } from '@/components/ui/lq';
 import { LevelUpOverlay } from '../animations/LevelUpOverlay';
@@ -155,6 +157,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           <ZoneTip />
           {children}
         </main>
+        {/* Tus amigos que están en esta misma zona pasean por el borde de abajo. */}
+        <ZoneVisitors />
       </div>
 
       <TabBar className="md:hidden" />
@@ -166,6 +170,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <FeedbackDialog />
       <CommandPalette />
       <Toaster />
+      <PigeonLayer />
       <OfflineIndicator />
       <ScrollToTop />
       <LevelUpOverlay />

@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import { dialog, scrim } from '@/lib/motion';
 import { Spinner } from '@/components/ui/lq';
 import { softTone } from '@/components/ui/lq/tones';
-import { NAV_SECTIONS, PRIMARY_NAV, UTILITY_NAV } from '@/components/layout/nav';
+import { NAV_SECTIONS, PRIMARY_NAV, SOCIAL_SHORTCUTS, UTILITY_NAV } from '@/components/layout/nav';
 import { useUIStore } from '../../store/uiStore';
 import { useToastStore } from '../../hooks/useToast';
 import { fetchHabits, logHabit } from '../../services/habit.service';
@@ -27,7 +27,7 @@ interface Cmd {
   run: () => void | Promise<void>;
 }
 
-const NAV_CMDS = [...PRIMARY_NAV, ...NAV_SECTIONS.flatMap((s) => s.items), ...UTILITY_NAV];
+const NAV_CMDS = [...PRIMARY_NAV, ...NAV_SECTIONS.flatMap((s) => s.items), ...SOCIAL_SHORTCUTS, ...UTILITY_NAV];
 
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 

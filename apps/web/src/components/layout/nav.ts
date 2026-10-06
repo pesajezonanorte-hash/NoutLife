@@ -5,7 +5,7 @@
 import {
   BarChart3, BookOpen, CalendarDays, HelpCircle, Dumbbell, Flag, Globe, Heart, Home,
   MapPin, Moon, NotebookPen, Scroll, Settings, ShoppingBag, Skull, Sparkles, Sun,
-  Trophy, User, Users, UtensilsCrossed, Wallet, CheckCircle2, MessageCircle, type LucideIcon,
+  Trophy, User, UtensilsCrossed, Wallet, CheckCircle2, MessageCircle, Mail, NotebookTabs, Tent, type LucideIcon,
 } from 'lucide-react';
 import { useMemo } from 'react';
 import { useAuthStore } from '@/store/authStore';
@@ -65,13 +65,23 @@ export const NAV_SECTIONS: NavSection[] = [
     label: 'Comunidad',
     collapsible: true,
     items: [
-      { to: '/friends', label: 'Amigos', icon: MessageCircle },
+      // Amigos, cartas y gremios en un mismo sitio.
+      { to: '/social', label: 'Social', icon: MessageCircle },
       { to: '/leaderboard', label: 'Ranking', icon: Globe },
-      { to: '/guild', label: 'Gremio', icon: Users },
       { to: '/season', label: 'Campaña', icon: Skull },
     ],
   },
 ];
+
+/** Atajos a cada parte de Social (búsqueda rápida). */
+export const SOCIAL_SHORTCUTS: NavEntry[] = [
+  { to: '/social?tab=amigos', label: 'Amigos · libreta', icon: NotebookTabs },
+  { to: '/social?tab=cartas', label: 'Cartas', icon: Mail },
+  { to: '/social?tab=gremios', label: 'Gremios', icon: Tent },
+];
+
+/** Rutas que se unieron en otra (zonas fijadas o escondidas guardadas antes). */
+const MERGED: Record<string, string> = { '/friends': '/social', '/guild': '/social' };
 
 /** Todas las zonas que pueden ir en la navegación principal (entre Inicio y Perfil). */
 export const ZONES: NavEntry[] = NAV_SECTIONS.flatMap((s) => s.items);
@@ -79,13 +89,13 @@ export const ZONES: NavEntry[] = NAV_SECTIONS.flatMap((s) => s.items);
 /** Orden válido y completo: quita rutas desconocidas o repetidas y añade las que falten. */
 export function resolveOrder(order: string[] | undefined): string[] {
   const known = new Set(ZONES.map((z) => z.to));
-  const valid = [...new Set((order ?? DEFAULT_ORDER).filter((to) => known.has(to)))];
+  const valid = [...new Set((order ?? DEFAULT_ORDER).map((to) => MERGED[to] ?? to).filter((to) => known.has(to)))];
   return [...valid, ...ZONES.map((z) => z.to).filter((to) => !valid.includes(to))];
 }
 
 export function buildNav(order: string[] | undefined, hidden: string[] = []) {
   const pinned = resolveOrder(order).slice(0, PINNED_COUNT);
-  const off = new Set(hidden.filter((to) => !pinned.includes(to)));
+  const off = new Set(hidden.map((to) => MERGED[to] ?? to).filter((to) => !pinned.includes(to)));
   const byTo = new Map(ZONES.map((z) => [z.to, z]));
   return {
     primary: [HOME, ...pinned.map((to) => byTo.get(to)!), PROFILE],
@@ -144,9 +154,9 @@ export function buildCrumbs(pathname: string, detail?: string | null): Crumb[] {
     crumbs.push({ label: EXTRA_LABELS[pathname] });
     return crumbs;
   }
-  // Perfiles sociales: Noutlife › Amigos › @usuario
+  // Perfiles sociales (su DNI): Noutlife › Social › @usuario
   if (pathname.startsWith('/u/')) {
-    crumbs.push({ label: 'Amigos', to: '/friends' });
+    crumbs.push({ label: 'Social', to: '/social' });
     crumbs.push({ label: detail ?? `@${decodeURIComponent(pathname.slice(3))}` });
     return crumbs;
   }

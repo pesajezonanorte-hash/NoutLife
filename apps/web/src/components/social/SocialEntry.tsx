@@ -1,13 +1,14 @@
-// Accesos a la red social: el botón de la cabecera (móvil y escritorio) y el
-// portal del inicio, una puerta circular que gira despacio con tus amigos en
-// línea orbitando alrededor.
+// Accesos a Social (amigos, cartas y gremios): el botón de la cabecera (móvil y
+// escritorio) y el portal del inicio, una puerta circular que gira despacio con
+// tus amigos en línea orbitando alrededor. Los dos llevan a donde hay algo
+// pendiente: cartas sin abrir o palomas por responder.
 import { useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion, useReducedMotionConfig } from 'framer-motion';
-import { ArrowRight, Camera, MessageCircle, UserPlus, Users } from 'lucide-react';
+import { ArrowRight, Flame, MessageCircle, UserPlus, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { springs } from '@/lib/motion/presets';
-import { useSocialStore } from '@/store/socialStore';
+import { useSocialStore, type SocialPulse } from '@/store/socialStore';
 import { AvatarDisplay } from '@/components/character/AvatarDisplay';
 
 /** Mantiene el pulso al día: al navegar y cada minuto con la pestaña visible. */
@@ -21,23 +22,31 @@ export function useSocialPulseSync() {
   }, [refresh]);
 }
 
-/** Icono de Amigos en la cabecera: número de pendientes o punto verde si hay gente en línea. */
+/** Adónde ir según lo pendiente: cartas sin abrir, palomas recibidas o la sección. */
+function socialTarget(pulse: SocialPulse | null) {
+  if (pulse && pulse.unreadMessages + pulse.guildUnread > 0) return '/social?tab=cartas';
+  if (pulse?.requests) return '/social?tab=amigos&view=requests';
+  return '/social';
+}
+
+/** Icono de Social en la cabecera: número de pendientes o punto verde si hay gente en línea. */
 export function SocialButton({ className }: { className?: string }) {
   const pulse = useSocialStore((s) => s.pulse);
   const { pathname } = useLocation();
   const reduce = useReducedMotionConfig();
-  const count = (pulse?.unreadMessages ?? 0) + (pulse?.requests ?? 0);
+  const letters = (pulse?.unreadMessages ?? 0) + (pulse?.guildUnread ?? 0);
+  const count = letters + (pulse?.requests ?? 0);
   const online = (pulse?.onlineCount ?? 0) > 0;
-  const active = pathname.startsWith('/friends') || pathname.startsWith('/u/');
+  const active = pathname.startsWith('/social') || pathname.startsWith('/u/');
   const label = [
-    'Amigos',
-    pulse?.unreadMessages ? `${pulse.unreadMessages} mensajes sin leer` : null,
-    pulse?.requests ? `${pulse.requests} solicitudes` : null,
+    'Social',
+    letters ? `${letters} ${letters === 1 ? 'carta sin abrir' : 'cartas sin abrir'}` : null,
+    pulse?.requests ? `${pulse.requests} ${pulse.requests === 1 ? 'paloma por responder' : 'palomas por responder'}` : null,
     online ? `${pulse!.onlineCount} en línea` : null,
   ].filter(Boolean).join(', ');
   return (
     <Link
-      to="/friends" aria-label={label} aria-current={active ? 'page' : undefined}
+      to={socialTarget(pulse)} aria-label={label} aria-current={active ? 'page' : undefined}
       className={cn('relative inline-flex size-11 items-center justify-center rounded-full transition-colors',
         active ? 'bg-primary/[var(--lq-soft-alpha)] text-primary-text' : 'text-on-surface hover:bg-surface-variant', className)}
     >
@@ -67,23 +76,24 @@ export function SocialButton({ className }: { className?: string }) {
   );
 }
 
-/** El portal del inicio: entrada grande y viva a la red social. */
+/** El portal del inicio: entrada grande y viva a Social. */
 export function SocialPortal({ className }: { className?: string }) {
   const pulse = useSocialStore((s) => s.pulse);
   const reduce = useReducedMotionConfig();
   const online = pulse?.online ?? [];
+  const letters = (pulse?.unreadMessages ?? 0) + (pulse?.guildUnread ?? 0);
   const lines = [
-    pulse?.unreadMessages ? { icon: MessageCircle, text: `${pulse.unreadMessages} ${pulse.unreadMessages === 1 ? 'mensaje sin leer' : 'mensajes sin leer'}` } : null,
-    pulse?.streaksWaiting ? { icon: Camera, text: `${pulse.streaksWaiting} ${pulse.streaksWaiting === 1 ? 'racha espera' : 'rachas esperan'} tu foto` } : null,
-    pulse?.requests ? { icon: UserPlus, text: `${pulse.requests} ${pulse.requests === 1 ? 'solicitud' : 'solicitudes'}` } : null,
+    letters ? { icon: MessageCircle, text: `${letters} ${letters === 1 ? 'carta sin abrir' : 'cartas sin abrir'}` } : null,
+    pulse?.streaksWaiting ? { icon: Flame, text: `${pulse.streaksWaiting} ${pulse.streaksWaiting === 1 ? 'racha encendida espera' : 'rachas encendidas esperan'} que escribas hoy` } : null,
+    pulse?.requests ? { icon: UserPlus, text: `${pulse.requests} ${pulse.requests === 1 ? 'paloma por responder' : 'palomas por responder'}` } : null,
   ].filter((x): x is { icon: typeof Users; text: string } => Boolean(x));
   const title = !pulse ? 'Tu gente' : pulse.friends === 0 ? 'Encuentra a tu gente' : pulse.onlineCount > 0 ? `${pulse.onlineCount} ${pulse.onlineCount === 1 ? 'amigo en línea' : 'amigos en línea'}` : 'Tu gente';
-  const sub = !pulse ? 'Amigos, mensajes y rachas de fotos.' : pulse.friends === 0 ? 'Agrega amigos y sostengan rachas de fotos diarias.' : lines.length ? null : 'Escríbeles o envía tu foto del día.';
+  const sub = !pulse ? 'Tu libreta de amigos, tus cartas y tus gremios.' : pulse.friends === 0 ? 'Envía una paloma a tus amigos y anótalos en tu libreta.' : lines.length ? null : 'Escríbeles una carta o envíales una foto.';
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={springs.gentle} className={className}>
       <Link
-        to="/friends"
+        to={socialTarget(pulse)}
         className="group relative flex items-center gap-5 overflow-hidden rounded-3xl border border-border bg-surface p-4 shadow-sm transition-shadow hover:shadow-md md:gap-6 md:p-5"
       >
         {/* La puerta: un anillo que gira y respira; los amigos en línea orbitan alrededor. */}
@@ -123,7 +133,7 @@ export function SocialPortal({ className }: { className?: string }) {
           })}
         </span>
         <span className="flex min-w-0 flex-1 flex-col gap-1">
-          <span className="text-label-lg text-primary-text">Red social</span>
+          <span className="text-label-lg text-primary-text">Social</span>
           <span className="text-heading-sm md:text-heading-md">{title}</span>
           {sub && <span className="text-body-sm text-on-surface-light">{sub}</span>}
           {lines.length > 0 && (

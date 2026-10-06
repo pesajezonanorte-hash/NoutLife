@@ -1,12 +1,16 @@
-// Pulso de la red social para la cabecera y el portal del inicio: mensajes sin
-// leer, solicitudes, amigos en línea y rachas que esperan tu foto de hoy.
+// Pulso de la red social para la cabecera, el portal del inicio y las pestañas
+// de Social: cartas sin leer (de amigos y de gremios), solicitudes, amigos en
+// línea y rachas encendidas en las que hoy todavía no escribiste.
 import { create } from 'zustand';
 import api from '@/lib/api';
 import type { PublicUser } from '@/services/network.service';
 
 export interface SocialPulse {
   unreadMessages: number;
+  guildUnread: number;
   requests: number;
+  friendRequests: number;
+  guildInvites: number;
   friends: number;
   onlineCount: number;
   online: Array<PublicUser & { zone: string | null }>;
