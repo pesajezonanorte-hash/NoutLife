@@ -16,6 +16,13 @@ function getDatabaseUrl(): string {
       url += (url.includes('?') ? '&' : '?') + 'pgbouncer=true';
     }
   }
+  // El pool de Prisma trae 5 conexiones y 10 s de espera por defecto: con el chat en vivo se llenaba y
+  // hasta el inicio de sesión fallaba ("Timed out fetching a new connection"). Con pgbouncer sobran.
+  if (url) {
+    const add = (k: string, v: string) => { if (!new RegExp(`[?&]${k}=`).test(url)) url += (url.includes('?') ? '&' : '?') + `${k}=${v}`; };
+    add('connection_limit', '12');
+    add('pool_timeout', '25');
+  }
   return url;
 }
 

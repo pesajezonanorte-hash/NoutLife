@@ -45,11 +45,11 @@ export async function login(req: Request, res: Response): Promise<void> {
     const msg = err instanceof Error ? err.message : 'ERROR';
     if (msg === 'INVALID_CREDENTIALS') {
       res.status(401).json({ error: 'Email o contraseña incorrectos.' });
+    } else if (/connection pool|Timed out fetching|P2024|Can.t reach database|P1001|P1002/i.test(msg)) {
+      // Base de datos saturada: se dice con claridad (y sin volcar el error interno).
+      res.status(503).json({ error: 'El servidor está ocupado. Espera unos segundos e inténtalo de nuevo.' });
     } else {
-      res.status(500).json({
-        error: msg ? `Error al iniciar sesión: ${msg}` : 'Error al iniciar sesión en el servidor.',
-        message: msg,
-      });
+      res.status(500).json({ error: 'Error al iniciar sesión en el servidor. Inténtalo de nuevo.' });
     }
   }
 }

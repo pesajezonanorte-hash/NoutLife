@@ -33,15 +33,15 @@ export async function signalOf(userId: string): Promise<number> {
 
 /** Espera máxima de una petición larga (cabe en el límite de las funciones serverless). */
 export const HOLD_MS = 8_000;
-const TICK_MS = 1_000;
+const TICK_MS = 1_500;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** Repite `check` cada segundo hasta que devuelva algo o se acabe la espera. */
-export async function holdUntil<T>(check: () => Promise<T | null>, wait: boolean, holdMs = HOLD_MS): Promise<T | null> {
+export async function holdUntil<T>(check: () => Promise<T | null>, wait: boolean, holdMs = HOLD_MS, cancelled?: () => boolean): Promise<T | null> {
   const deadline = Date.now() + (wait ? holdMs : 0);
   for (;;) {
     const found = await check();
-    if (found || Date.now() >= deadline) return found;
+    if (found || Date.now() >= deadline || cancelled?.()) return found;
     await sleep(TICK_MS);
   }
 }

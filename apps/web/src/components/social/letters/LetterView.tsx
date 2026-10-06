@@ -443,6 +443,18 @@ function LetterShell({ api, label, to, shareWith, header, extraMenu = [], empty,
     setMenu(null);
     void api.react(m.id, emoji);
   }
+  // Manejadores con identidad fija: así las filas (memo) no se repintan cada vez que cambia algo ajeno
+  // (scroll, teclado, "escribiendo"). Siempre llaman a la versión más reciente.
+  const latest = useRef({ startReply, react, jump, move: api.move });
+  latest.current = { startReply, react, jump, move: api.move };
+  const rowHandlers = useMemo(() => ({
+    onMenu: (msg: LetterMsg, rect: DOMRect) => setMenu({ m: msg, rect }),
+    onReply: (msg: LetterMsg) => latest.current.startReply(msg),
+    onReact: (msg: LetterMsg, emoji: string) => latest.current.react(msg, emoji),
+    onOpenPhoto: (msg: LetterMsg, src: string | null) => setViewer({ m: msg, src }),
+    onJump: (id: string) => latest.current.jump(id),
+    onMove: (msg: LetterMsg, mv: number | RpsPick) => latest.current.move(msg.id, mv),
+  }), []);
   async function sendVoice(clip: { audioUrl: string; durationMs: number; peaks: number[] }) {
     const reply = replying;
     setReplying(null);
@@ -570,9 +582,7 @@ function LetterShell({ api, label, to, shareWith, header, extraMenu = [], empty,
                   <MessageRow
                     m={m} side={api.side} meId={api.meId} group={group} joined={joined} last={last || isLastMine} seen={seen} lastMine={isLastMine}
                     seenBy={isLastMine ? seenBy : undefined} coarse={!fine} flash={flash === m.id} nameOf={nameOf} colorOf={colorOf}
-                    onMenu={(msg, rect) => setMenu({ m: msg, rect })} onReply={startReply} onReact={react}
-                    onOpenPhoto={(msg, src) => setViewer({ m: msg, src })} onJump={jump}
-                    onMove={(msg, mv: number | RpsPick) => api.move(msg.id, mv)}
+                    {...rowHandlers}
                   />
                 )}
               </Fragment>

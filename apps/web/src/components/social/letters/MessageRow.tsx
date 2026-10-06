@@ -5,7 +5,7 @@
 // la hora y el visto. Deslizarlo hacia la derecha lo responde; mantenerlo pulsado
 // (o clic derecho) abre reacciones y acciones: responder, copiar, editar, borrar
 // o guardar el sticker.
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { memo, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { AnimatePresence, motion, useMotionValue, useTransform } from 'framer-motion';
@@ -206,7 +206,7 @@ export interface RowProps {
   onMove: (m: LetterMsg, move: number | RpsPick) => Promise<void>;
 }
 
-export function MessageRow({ m, side, meId, group, joined, last, seen, lastMine = false, seenBy, coarse, flash, nameOf, colorOf, onMenu, onReply, onReact, onOpenPhoto, onJump, onMove }: RowProps) {
+export const MessageRow = memo(function MessageRow({ m, side, meId, group, joined, last, seen, lastMine = false, seenBy, coarse, flash, nameOf, colorOf, onMenu, onReply, onReact, onOpenPhoto, onJump, onMove }: RowProps) {
   const reduce = useMotionStore((s) => s.reduce);
   const deleted = Boolean(m.deletedAt);
   const acts = !m.pending && !m.hidden;
@@ -321,7 +321,7 @@ export function MessageRow({ m, side, meId, group, joined, last, seen, lastMine 
       )}
     </div>
   );
-}
+});
 
 // ─── Menú de un mensaje ───────────────────────────────────────────────────────
 
