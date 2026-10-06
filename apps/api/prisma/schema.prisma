@@ -208,6 +208,8 @@ model User {
   guildInvitesReceived    GuildInvite[]            @relation("GuildInvitee")
   sentMessages            DirectMessage[]          @relation("DMSender")
   receivedMessages        DirectMessage[]          @relation("DMReceiver")
+  gesturesSent            SocialGesture[]          @relation("GestureFrom")
+  gesturesReceived        SocialGesture[]          @relation("GestureTo")
   guildMessages           GuildMessage[]
   sageMemories            SageMemory[]
   sageInsights            SageInsight[]
@@ -788,11 +790,14 @@ model Friendship {
   receiverId  String
   receiver    User     @relation("ReceivedRequests", fields: [receiverId], references: [id], onDelete: Cascade)
   status      String   @default("PENDING") // PENDING | ACCEPTED | REJECTED
-  /// Racha de fotos diarias entre los dos (cuenta un día cuando ambos envían la suya).
+  /// Racha entre los dos: cuenta un día cuando ambos se escriben (texto o foto).
+  /// Se enciende (se muestra) al tercer día seguido.
   streakCount Int      @default(0)
   streakBest  Int      @default(0)
-  /// Último día (YYYY-MM-DD, zona de quien envió la solicitud) en que ambos enviaron foto.
+  /// Último día (YYYY-MM-DD, zona de quien envió la solicitud) en que ambos se escribieron.
   streakDay   String?
+  /// Fondo de su carta (foto con estética de papel), compartido por los dos.
+  background  ChatBackground?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -847,7 +852,8 @@ model Guild {
   level       Int      @default(1)
   xp          Int      @default(0)
   inviteCode  String   @unique
-  /// Racha del gremio: cuenta un día cuando todos los miembros envían su foto.
+  /// Racha del gremio: cuenta un día cuando todos los miembros escriben en su carta.
+  /// Se enciende (se muestra) al tercer día seguido.
   streakCount Int      @default(0)
   streakBest  Int      @default(0)
   streakDay   String?
@@ -855,6 +861,8 @@ model Guild {
   members  GuildMember[]
   messages GuildMessage[]
   invites  GuildInvite[]
+  /// Fondo de la carta del gremio, compartido por todos los miembros.
+  background ChatBackground?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -870,6 +878,8 @@ model GuildMember {
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   role     String   @default("MEMBER") // LEADER | OFFICER | MEMBER
   joinedAt DateTime @default(now())
+  /// Hasta dónde leyó la carta del gremio (cartas sin leer en la sección Social).
+  lastReadAt DateTime?
 
   @@unique([guildId, userId])
   @@index([userId])
@@ -883,9 +893,10 @@ model GuildMessage {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   content   String
-  /// TEXT | SNAP (foto del día que cuenta para la racha y daña al enemigo).
+  /// TEXT | SNAP (foto tomada con la cámara: daña al enemigo del día) | EVENT (aviso de la carta: "bg" o "bg-off").
   kind      String   @default("TEXT")
   photoUrl  String?
+  /// Día del gremio (zona de quien lo lidera) de los mensajes que cuentan para la racha y el enemigo.
   dayKey    String?
   createdAt DateTime @default(now())
 
@@ -915,11 +926,12 @@ model DirectMessage {
   sender     User      @relation("DMSender", fields: [senderId], references: [id], onDelete: Cascade)
   receiverId String
   receiver   User      @relation("DMReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
-  /// TEXT | SNAP (foto de un hábito del día, cuenta para la racha entre los dos).
+  /// TEXT | SNAP (foto tomada con la cámara) | EVENT (aviso de la carta: content "bg" o "bg-off").
   kind       String    @default("TEXT")
   content    String?
   photoUrl   String?
   habitTitle String?
+  /// Día (YYYY-MM-DD, zona de quien envió la solicitud de amistad) de los mensajes que cuentan para la racha.
   dayKey     String?
   readAt     DateTime?
   createdAt  DateTime  @default(now())
@@ -927,6 +939,43 @@ model DirectMessage {
   @@index([senderId, receiverId, createdAt])
   @@index([receiverId, readAt])
   @@map("direct_messages")
+}
+
+/// Fondo de una carta (chat): una foto con estética de papel que ven todos los de la
+/// conversación. Pertenece a una amistad (carta entre dos) o a un gremio.
+model ChatBackground {
+  id           String      @id @default(cuid())
+  friendshipId String?     @unique
+  friendship   Friendship? @relation(fields: [friendshipId], references: [id], onDelete: Cascade)
+  guildId      String?     @unique
+  guild        Guild?      @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  /// Data URL JPEG/PNG/WebP (el cliente la reduce a ~1080 px).
+  photoUrl     String
+  /// Encuadre: { x, y } foco 0–1, { zoom } 1–3, { paper } intensidad del papel 0,2–0,9.
+  fit          Json        @default("{}")
+  setById      String
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@map("chat_backgrounds")
+}
+
+/// Gesto entre amigos (saludo, corazón, baile…). Quien lo recibe lo ve en el
+/// muñequito pixel de quien lo envió mientras pasea por su zona.
+model SocialGesture {
+  id        String    @id @default(cuid())
+  fromId    String
+  from      User      @relation("GestureFrom", fields: [fromId], references: [id], onDelete: Cascade)
+  toId      String
+  to        User      @relation("GestureTo", fields: [toId], references: [id], onDelete: Cascade)
+  kind      String
+  zone      String?
+  seenAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([toId, seenAt, createdAt])
+  @@index([fromId, toId, createdAt])
+  @@map("social_gestures")
 }
 
 // ─── Sage Memory ──────────────────────────────────────────────────────────────

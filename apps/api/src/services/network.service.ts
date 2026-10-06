@@ -1,6 +1,7 @@
 // Red social de Noutlife: perfiles con privacidad, presencia (en línea y zona),
-// mensajes directos con "visto", rachas de fotos diarias entre amigos y el
-// vínculo de pareja que comparte el jardín.
+// cartas (mensajes directos) con "visto" y fondo compartido, rachas entre amigos
+// que se encienden al tercer día hablando, gestos que se ven en el muñequito
+// pixel de cada amigo y el vínculo de pareja que comparte el jardín.
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { addCalendarDays, getCalendarDay } from '../lib/calendar';
@@ -92,6 +93,9 @@ const STREAK = { currentStreak: true, lastActivityDate: true, timezone: true } a
 
 type PublicUser = Prisma.UserGetPayload<{ select: typeof PUBLIC_USER }>;
 
+/** Mensajes que cuentan como "hablar" para la racha (los avisos de la carta no). */
+export const TALK_KINDS = ['TEXT', 'SNAP'];
+
 /** Foto enviada desde el cliente: data URL JPEG/PNG/WebP (ya reducida a ~720 px). */
 const PHOTO = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
 const PHOTO_MAX = 600_000;
@@ -102,17 +106,74 @@ export function validPhoto(value: unknown): string {
   return value;
 }
 
+/** Fondo de una carta: la foto puede ser algo más grande (se ve a pantalla completa). */
+const BACKGROUND_MAX = 900_000;
+function validBackground(value: unknown): string {
+  if (typeof value !== 'string' || value.length > BACKGROUND_MAX || !PHOTO.test(value)) {
+    throw new Error('El fondo debe ser una imagen JPEG, PNG o WebP de menos de 650 kB.');
+  }
+  return value;
+}
+
+/** Encuadre del fondo: foco (x, y) 0–1, zoom 1–3 e intensidad del papel 0,2–0,9. */
+export interface BackgroundFit { x: number; y: number; zoom: number; paper: number }
+export function fitOf(raw: unknown): BackgroundFit {
+  const f = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  const num = (v: unknown, lo: number, hi: number, d: number) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : d);
+  return { x: num(f.x, 0, 1, 0.5), y: num(f.y, 0, 1, 0.5), zoom: num(f.zoom, 1, 3, 1), paper: num(f.paper, 0.2, 0.9, 0.42) };
+}
+
+type BackgroundRow = { fit: unknown; setById: string; updatedAt: Date };
+/** Lo que viaja en cada sondeo: la versión del fondo (sin la foto, que pesa). */
+export const backgroundMeta = (bg: BackgroundRow | null, me: string) =>
+  (bg ? { at: bg.updatedAt.toISOString(), mine: bg.setById === me, fit: fitOf(bg.fit) } : null);
+
+/**
+ * Cambia el fondo de una carta. `photoUrl`: string = foto nueva · null = quitarla ·
+ * undefined = solo reencuadrar la que hay. Devuelve el aviso que se deja en la carta.
+ */
+export async function saveBackground(
+  where: { friendshipId: string } | { guildId: string },
+  me: string,
+  body: { photoUrl?: unknown; fit?: unknown },
+): Promise<{ row: BackgroundRow | null; event: 'bg' | 'bg-off' | null }> {
+  const current = await prisma.chatBackground.findUnique({ where, select: { id: true, fit: true } });
+  if (body.photoUrl === null || body.photoUrl === '') {
+    if (current) await prisma.chatBackground.delete({ where: { id: current.id } });
+    return { row: null, event: current ? 'bg-off' : null };
+  }
+  const fit = fitOf(body.fit ?? current?.fit) as unknown as Prisma.InputJsonValue;
+  if (body.photoUrl === undefined) {
+    if (!current) throw new Error('Esta carta todavía no tiene fondo');
+    const row = await prisma.chatBackground.update({ where: { id: current.id }, data: { fit, setById: me }, select: { fit: true, setById: true, updatedAt: true } });
+    return { row, event: null };
+  }
+  const photoUrl = validBackground(body.photoUrl);
+  const row = await prisma.chatBackground.upsert({
+    where,
+    create: { ...where, photoUrl, fit, setById: me },
+    update: { photoUrl, fit, setById: me },
+    select: { fit: true, setById: true, updatedAt: true },
+  });
+  return { row, event: 'bg' };
+}
+
 export const dayKey = (tz: string | null | undefined, now = new Date()) => getCalendarDay(tz, now).toISOString().slice(0, 10);
 export const shiftKey = (key: string, days: number) => addCalendarDays(new Date(`${key}T00:00:00.000Z`), days).toISOString().slice(0, 10);
 
 /** Coste en oro de revivir una racha de N días (más larga = más cara). */
 export const reviveCost = (days: number, base = 15, cap = 300) => Math.min(cap, base + days * 5);
 
+/** Una racha entre amigos (o de un gremio) se enciende al tercer día seguido hablando. */
+export const STREAK_MIN = 3;
+
 export interface StreakView {
   count: number;
   best: number;
   alive: boolean;
-  /** Hoy ya cuenta (los dos/todos enviaron). */
+  /** Encendida: viva y con al menos STREAK_MIN días. Antes no se muestra. */
+  active: boolean;
+  /** Hoy ya cuenta (los dos/todos hablaron). */
   doneToday: boolean;
   revivable: boolean;
   reviveCost: number;
@@ -124,9 +185,12 @@ export interface StreakView {
 export function streakView(count: number, best: number, lastDay: string | null, today: string): StreakView {
   const yesterday = shiftKey(today, -1);
   const alive = Boolean(lastDay && (lastDay === today || lastDay === yesterday) && count > 0);
-  // Perdida hace poco (1–2 días enteros sin completar): se puede revivir con oro.
-  const revivable = !alive && count > 1 && Boolean(lastDay && lastDay >= shiftKey(today, -3));
-  return { count: alive ? count : 0, best, alive, doneToday: lastDay === today, revivable, reviveCost: revivable ? reviveCost(count) : 0, lost: revivable ? count : 0 };
+  // Solo se revive una racha que llegó a encenderse y se apagó hace poco (1–2 días sin completar).
+  const revivable = !alive && count >= STREAK_MIN && Boolean(lastDay && lastDay >= shiftKey(today, -3));
+  return {
+    count: alive ? count : 0, best, alive, active: alive && count >= STREAK_MIN,
+    doneToday: lastDay === today, revivable, reviveCost: revivable ? reviveCost(count) : 0, lost: revivable ? count : 0,
+  };
 }
 
 /** Avanza una racha cuando el día `today` se completa. */
@@ -189,7 +253,14 @@ function relationOf(viewerId: string, f: FriendshipRow) {
   return { status: f.requesterId === viewerId ? ('PENDING_OUT' as const) : ('PENDING_IN' as const), friendshipId: f.id };
 }
 
-/** Amigos con presencia, racha de fotos, mensajes sin leer y el último mensaje. */
+/** Texto corto de un mensaje para listas, avisos y el muñequito pixel. */
+export function messagePreview(m: { kind: string; content: string | null }) {
+  if (m.kind === 'SNAP') return m.content ? `Foto · ${m.content}` : 'Foto';
+  if (m.kind === 'EVENT') return m.content === 'bg-off' ? 'La carta volvió al papel' : 'Nuevo fondo para la carta';
+  return (m.content ?? '').slice(0, 80);
+}
+
+/** Amigos con presencia, racha, cartas sin leer y el último mensaje. */
 export async function getFriendsNetwork(userId: string) {
   const sel = { select: { ...PUBLIC_USER, ...PRESENCE, ...STREAK } };
   const rows = await prisma.friendship.findMany({
@@ -201,25 +272,27 @@ export async function getFriendsNetwork(userId: string) {
 
   const todayOf = new Map(rows.map((f) => [f.id, dayKey(f.requester.timezone, now)]));
   const keys = [...new Set(todayOf.values())];
-  const [snaps, unread, recent] = await Promise.all([
+  const [talked, unread, recent] = await Promise.all([
+    // Quién habló hoy con quién (cuenta para la racha).
     prisma.directMessage.findMany({
-      where: { kind: 'SNAP', dayKey: { in: keys }, OR: [{ senderId: userId, receiverId: { in: friendIds } }, { receiverId: userId, senderId: { in: friendIds } }] },
+      where: { kind: { in: TALK_KINDS }, dayKey: { in: keys }, OR: [{ senderId: userId, receiverId: { in: friendIds } }, { receiverId: userId, senderId: { in: friendIds } }] },
       select: { senderId: true, receiverId: true, dayKey: true },
+      distinct: ['senderId', 'receiverId', 'dayKey'],
     }),
     prisma.directMessage.groupBy({ by: ['senderId'], where: { receiverId: userId, readAt: null, senderId: { in: friendIds } }, _count: { _all: true } }),
     prisma.directMessage.findMany({
       where: { OR: [{ senderId: userId, receiverId: { in: friendIds } }, { receiverId: userId, senderId: { in: friendIds } }] },
       orderBy: { createdAt: 'desc' },
       take: 400,
-      select: { senderId: true, receiverId: true, kind: true, content: true, habitTitle: true, createdAt: true },
+      select: { senderId: true, receiverId: true, kind: true, content: true, createdAt: true },
     }),
   ]);
 
   return rows.map((f) => {
     const other = f.requesterId === userId ? f.receiver : f.requester;
     const today = todayOf.get(f.id)!;
-    const mineToday = snaps.some((s) => s.senderId === userId && s.receiverId === other.id && s.dayKey === today);
-    const theirsToday = snaps.some((s) => s.senderId === other.id && s.receiverId === userId && s.dayKey === today);
+    const mineToday = talked.some((s) => s.senderId === userId && s.receiverId === other.id && s.dayKey === today);
+    const theirsToday = talked.some((s) => s.senderId === other.id && s.receiverId === userId && s.dayKey === today);
     const last = recent.find((m) => m.senderId === other.id || m.receiverId === other.id);
     const { presenceAt: _a, presenceZone: _z, privacy: _p, lastActivityDate: _l, timezone: _t, ...pub } = other;
     return {
@@ -229,12 +302,7 @@ export async function getFriendsNetwork(userId: string) {
       streak: { ...streakView(f.streakCount, f.streakBest, f.streakDay, today), mineToday, theirsToday },
       unread: unread.find((u) => u.senderId === other.id)?._count._all ?? 0,
       lastMessage: last
-        ? {
-          mine: last.senderId === userId,
-          kind: last.kind,
-          preview: last.kind === 'SNAP' ? `Foto${last.habitTitle ? ` · ${last.habitTitle}` : ''}` : (last.content ?? '').slice(0, 80),
-          at: last.createdAt.toISOString(),
-        }
+        ? { mine: last.senderId === userId, kind: last.kind, preview: messagePreview(last), at: last.createdAt.toISOString() }
         : null,
     };
   }).sort((a, b) => (b.lastMessage?.at ?? b.since).localeCompare(a.lastMessage?.at ?? a.since));
@@ -249,7 +317,7 @@ export async function unreadMessages(userId: string) {
 export async function getProfile(viewerId: string, username: string) {
   const user = await prisma.user.findFirst({
     where: { username, onboardingCompleted: true },
-    select: { ...PUBLIC_USER, ...PRESENCE, ...STREAK, bio: true, longestStreak: true, xp: true, createdAt: true },
+    select: { ...PUBLIC_USER, ...PRESENCE, ...STREAK, bio: true, longestStreak: true, xp: true, createdAt: true, playerClass: true },
   });
   if (!user) throw new Error('Usuario no encontrado');
   const now = new Date();
@@ -290,8 +358,9 @@ export async function getProfile(viewerId: string, username: string) {
     const { timezone: _tz, ...o } = other;
     return { user: o, streak: streakView(f.streakCount, f.streakBest, f.streakDay, dayKey(f.requester.timezone, now)) };
   });
+  // Las amistades más cercanas: las rachas encendidas primero, luego la mejor que tuvieron.
   const closest = [...friends]
-    .filter((f) => f.streak.count > 0 || f.streak.best > 0)
+    .filter((f) => f.streak.active || f.streak.best >= STREAK_MIN)
     .sort((a, b) => b.streak.count - a.streak.count || b.streak.best - a.streak.best)
     .slice(0, 3);
 
@@ -353,7 +422,10 @@ export async function getConversation(me: string, otherId: string, after?: strin
     : null;
 
   const today = dayKey(f.requester.timezone);
-  const snapsToday = await prisma.directMessage.findMany({ where: { ...pair, kind: 'SNAP', dayKey: today }, select: { senderId: true } });
+  const [talkedToday, bg] = await Promise.all([
+    prisma.directMessage.findMany({ where: { ...pair, kind: { in: TALK_KINDS }, dayKey: today }, select: { senderId: true }, distinct: ['senderId'] }),
+    prisma.chatBackground.findUnique({ where: { friendshipId: f.id }, select: { fit: true, setById: true, updatedAt: true } }),
+  ]);
   const { presenceAt: _a, presenceZone: _z, privacy: _p, ...pub } = other;
   return {
     friend: { ...pub, ...presenceOf(other) },
@@ -362,34 +434,39 @@ export async function getConversation(me: string, otherId: string, after?: strin
     seenUntil: lastSeen?.createdAt.toISOString() ?? null,
     streak: {
       ...streakView(f.streakCount, f.streakBest, f.streakDay, today),
-      mineToday: snapsToday.some((s) => s.senderId === me),
-      theirsToday: snapsToday.some((s) => s.senderId === otherId),
+      mineToday: talkedToday.some((s) => s.senderId === me),
+      theirsToday: talkedToday.some((s) => s.senderId === otherId),
     },
+    background: backgroundMeta(bg, me),
   };
 }
+
+/** Enlace a una carta dentro de la sección Social. */
+export const letterLink = (username: string) => `/social?tab=cartas&chat=${encodeURIComponent(username)}`;
 
 export async function sendDirectMessage(
   me: string,
   otherId: string,
-  body: { content?: unknown; photoUrl?: unknown; kind?: unknown; habitTitle?: unknown },
+  body: { content?: unknown; photoUrl?: unknown; kind?: unknown },
 ) {
   const f = await requireFriends(me, otherId);
+  // SNAP: foto tomada en el momento con la cámara (la app no deja elegirla de la galería).
   const kind = body.kind === 'SNAP' ? 'SNAP' : 'TEXT';
   const content = typeof body.content === 'string' ? body.content.trim().slice(0, 1000) : '';
-  const photoUrl = body.photoUrl ? validPhoto(body.photoUrl) : null;
-  const habitTitle = typeof body.habitTitle === 'string' ? body.habitTitle.trim().slice(0, 80) || null : null;
-  if (kind === 'SNAP' && !photoUrl) throw new Error('La racha del día necesita una foto');
-  if (kind === 'TEXT' && !content && !photoUrl) throw new Error('Mensaje vacío');
+  const photoUrl = kind === 'SNAP' && body.photoUrl ? validPhoto(body.photoUrl) : null;
+  if (kind === 'SNAP' && !photoUrl) throw new Error('La foto no llegó. Vuelve a tomarla.');
+  if (kind === 'TEXT' && !content) throw new Error('Mensaje vacío');
 
+  // Todo lo que se dice lleva su día: así se sabe si los dos hablaron hoy.
   const today = dayKey(f.requester.timezone);
   const msg = await prisma.directMessage.create({
-    data: { senderId: me, receiverId: otherId, kind, content: content || null, photoUrl, habitTitle, dayKey: kind === 'SNAP' ? today : null },
+    data: { senderId: me, receiverId: otherId, kind, content: content || null, photoUrl, dayKey: today },
   });
 
   let streak = streakView(f.streakCount, f.streakBest, f.streakDay, today);
   let completed = false;
-  if (kind === 'SNAP' && f.streakDay !== today) {
-    const theirs = await prisma.directMessage.findFirst({ where: { senderId: otherId, receiverId: me, kind: 'SNAP', dayKey: today }, select: { id: true } });
+  if (f.streakDay !== today) {
+    const theirs = await prisma.directMessage.findFirst({ where: { senderId: otherId, receiverId: me, kind: { in: TALK_KINDS }, dayKey: today }, select: { id: true } });
     if (theirs) {
       const next = advanceStreak(f.streakCount, f.streakBest, f.streakDay, today);
       await prisma.friendship.update({ where: { id: f.id }, data: next });
@@ -397,21 +474,111 @@ export async function sendDirectMessage(
       completed = true;
     }
   }
+  const theirsToday = completed || Boolean(await prisma.directMessage.findFirst({
+    where: { senderId: otherId, receiverId: me, kind: { in: TALK_KINDS }, dayKey: today }, select: { id: true },
+  }));
 
   const sender = await prisma.user.findUniqueOrThrow({ where: { id: me }, select: { displayName: true, username: true } });
+  const lit = completed && streak.active;
   createNotification(otherId, {
     type: 'friend',
     category: 'SOCIAL',
     dedupeKey: `dm:${me}`,
-    title: kind === 'SNAP' ? `${sender.displayName} te envió su foto del día` : `Mensaje de ${sender.displayName}`,
-    body: completed
-      ? `¡Racha de ${streak.count} ${streak.count === 1 ? 'día' : 'días'} entre los dos!`
-      : kind === 'SNAP' ? `${habitTitle ? `${habitTitle}. ` : ''}Envía la tuya para mantener la racha.` : content.slice(0, 120) || 'Te envió una foto',
+    title: kind === 'SNAP' ? `${sender.displayName} te envió una foto` : `Carta de ${sender.displayName}`,
+    body: [
+      kind === 'SNAP' ? (content || 'La tomó hace un momento.') : content.slice(0, 120),
+      lit ? (streak.count === STREAK_MIN ? '¡Se encendió su racha!' : `Racha de ${streak.count} días.`) : null,
+    ].filter(Boolean).join(' · '),
     icon: 'friend',
-    link: `/friends?chat=${encodeURIComponent(sender.username)}`,
+    link: letterLink(sender.username),
   }).catch(() => null);
 
-  return { message: toMessage(me)(msg), streak: { ...streak, mineToday: kind === 'SNAP' || undefined }, completed };
+  return { message: toMessage(me)(msg), streak: { ...streak, mineToday: true, theirsToday }, completed };
+}
+
+// ─── Fondo de la carta ────────────────────────────────────────────────────────
+
+/** La foto del fondo de la carta con un amigo (se pide aparte: pesa). */
+export async function getDirectBackground(me: string, otherId: string) {
+  const f = await requireFriends(me, otherId);
+  const bg = await prisma.chatBackground.findUnique({ where: { friendshipId: f.id } });
+  return bg ? { photoUrl: bg.photoUrl, ...backgroundMeta(bg, me)! } : null;
+}
+
+/** Cambia, reencuadra o quita el fondo; los dos lo ven y queda un aviso en la carta. */
+export async function setDirectBackground(me: string, otherId: string, body: { photoUrl?: unknown; fit?: unknown }) {
+  const f = await requireFriends(me, otherId);
+  const { row, event } = await saveBackground({ friendshipId: f.id }, me, body);
+  if (event) await prisma.directMessage.create({ data: { senderId: me, receiverId: otherId, kind: 'EVENT', content: event } });
+  return { background: backgroundMeta(row, me) };
+}
+
+// ─── Gestos y muñequitos en las zonas ─────────────────────────────────────────
+
+export const GESTURES = ['wave', 'heart', 'dance', 'cheer', 'laugh', 'highfive'] as const;
+export type GestureKind = (typeof GESTURES)[number];
+
+/** Un gesto a un amigo: lo verá en tu muñequito pixel (o como aviso si no estás en su zona). */
+export async function sendGesture(me: string, toId: string, body: { kind?: unknown; zone?: unknown }) {
+  const kind = GESTURES.find((g) => g === body.kind);
+  if (!kind) throw new Error('Ese gesto no existe');
+  await requireFriends(me, toId);
+  const now = Date.now();
+  // Sin ráfagas: como mucho un gesto cada 2 s a la misma persona.
+  const recent = await prisma.socialGesture.findFirst({ where: { fromId: me, toId, createdAt: { gt: new Date(now - 2000) } }, select: { id: true } });
+  if (recent) return { ok: true, throttled: true };
+  const zone = typeof body.zone === 'string' ? body.zone.trim().slice(0, 40) || null : null;
+  await prisma.socialGesture.create({ data: { fromId: me, toId, kind, zone } });
+  // Los gestos duran poco: se limpian los de hace más de dos días.
+  prisma.socialGesture.deleteMany({ where: { toId, createdAt: { lt: new Date(now - 2 * 86_400_000) } } }).catch(() => null);
+  return { ok: true, throttled: false };
+}
+
+/**
+ * Amigos que están ahora en tu misma zona (sus muñequitos pasean por ella), con
+ * su última carta sin leer; y los gestos que te enviaron (cada uno se entrega una vez).
+ */
+export async function zoneVisitors(me: string, zoneName: unknown) {
+  const zone = typeof zoneName === 'string' ? zoneName.trim().slice(0, 40) : '';
+  const now = new Date();
+  const sel = { select: { ...PUBLIC_USER, ...PRESENCE } };
+  const rows = await prisma.friendship.findMany({
+    where: { status: 'ACCEPTED', OR: [{ requesterId: me }, { receiverId: me }] },
+    select: { requesterId: true, receiver: sel, requester: sel },
+  });
+  const friends = rows.map((f) => (f.requesterId === me ? f.receiver : f.requester));
+  const here = zone ? friends.filter((u) => { const p = presenceOf(u, now.getTime()); return p.online && p.zone === zone; }).slice(0, 8) : [];
+  const [gestures, letters] = await Promise.all([
+    friends.length
+      ? prisma.socialGesture.findMany({
+        where: { toId: me, seenAt: null, createdAt: { gt: new Date(now.getTime() - 10 * 60_000) }, fromId: { in: friends.map((u) => u.id) } },
+        orderBy: { createdAt: 'asc' }, take: 20, select: { id: true, fromId: true, kind: true, zone: true, createdAt: true },
+      })
+      : [],
+    here.length
+      ? prisma.directMessage.findMany({
+        where: { receiverId: me, readAt: null, senderId: { in: here.map((u) => u.id) }, kind: { in: TALK_KINDS } },
+        orderBy: { createdAt: 'desc' }, take: 40, select: { senderId: true, kind: true, content: true, createdAt: true },
+      })
+      : [],
+  ]);
+  if (gestures.length) await prisma.socialGesture.updateMany({ where: { id: { in: gestures.map((g) => g.id) } }, data: { seenAt: now } });
+  const byId = new Map(friends.map((u) => [u.id, u]));
+  return {
+    zone,
+    visitors: here.map((u) => {
+      const { presenceAt: _a, presenceZone: _z, privacy: _p, ...pub } = u;
+      const mine = letters.filter((l) => l.senderId === u.id);
+      return {
+        ...pub,
+        letter: mine[0] ? { preview: messagePreview(mine[0]).slice(0, 60), kind: mine[0].kind, at: mine[0].createdAt.toISOString(), count: mine.length } : null,
+      };
+    }),
+    gestures: gestures.map((g) => {
+      const from = byId.get(g.fromId);
+      return { id: g.id, fromId: g.fromId, fromName: from?.displayName ?? '', fromUsername: from?.username ?? '', kind: g.kind, zone: g.zone, at: g.createdAt.toISOString() };
+    }),
+  };
 }
 
 export async function reviveFriendStreak(me: string, friendshipId: string) {
@@ -421,15 +588,15 @@ export async function reviveFriendStreak(me: string, friendshipId: string) {
   const view = streakView(f.streakCount, f.streakBest, f.streakDay, today);
   if (!view.revivable) throw new Error('Esta racha ya no se puede revivir');
   await spendGold(me, view.reviveCost);
-  // Queda viva como si ayer se hubiera completado: hoy los dos siguen con su foto.
+  // Queda viva como si ayer se hubiera completado: hoy los dos siguen hablando.
   await prisma.friendship.update({ where: { id: f.id }, data: { streakDay: shiftKey(today, -1) } });
   const otherId = f.requesterId === me ? f.receiverId : f.requesterId;
   const who = await prisma.user.findUniqueOrThrow({ where: { id: me }, select: { displayName: true, username: true, gold: true } });
   createNotification(otherId, {
     type: 'friend', category: 'SOCIAL',
     title: 'Su racha volvió a encenderse',
-    body: `${who.displayName} revivió su racha de ${f.streakCount} días. Envía tu foto de hoy.`,
-    icon: 'friend', link: `/friends?chat=${encodeURIComponent(who.username)}`,
+    body: `${who.displayName} revivió su racha de ${f.streakCount} días. Escríbanse hoy para mantenerla.`,
+    icon: 'friend', link: letterLink(who.username),
   }).catch(() => null);
   return { streak: streakView(f.streakCount, f.streakBest, shiftKey(today, -1), today), gold: who.gold };
 }
@@ -560,13 +727,23 @@ export async function gardenLinks(me: string, rel: { userId: string; partnerUser
 
 export { PARTNER_OF };
 
+/** Cartas de gremio sin leer: lo escrito por otros después de tu última lectura. */
+export async function guildUnreadCounts(userId: string) {
+  const memberships = await prisma.guildMember.findMany({ where: { userId }, select: { guildId: true, joinedAt: true, lastReadAt: true } });
+  return Promise.all(memberships.map(async (m) => ({
+    guildId: m.guildId,
+    unread: await prisma.guildMessage.count({ where: { guildId: m.guildId, userId: { not: userId }, createdAt: { gt: m.lastReadAt ?? m.joinedAt } } }),
+  })));
+}
+
 /**
- * Pulso social ligero (cabecera y portal): mensajes sin leer, solicitudes,
- * amigos en línea y rachas de fotos que piden tu foto hoy.
+ * Pulso social ligero (cabecera, portal y pestañas de Social): cartas sin leer
+ * (de amigos y de gremios), solicitudes, amigos en línea y rachas encendidas en
+ * las que hoy todavía no escribiste.
  */
 export async function socialPulse(userId: string) {
   const now = new Date();
-  const [rows, unread, friendRequests, guildInvites, partnerInvites] = await Promise.all([
+  const [rows, unread, friendRequests, guildInvites, partnerInvites, guildUnread] = await Promise.all([
     prisma.friendship.findMany({
       where: { status: 'ACCEPTED', OR: [{ requesterId: userId }, { receiverId: userId }] },
       include: {
@@ -578,7 +755,16 @@ export async function socialPulse(userId: string) {
     prisma.friendship.count({ where: { receiverId: userId, status: 'PENDING' } }),
     prisma.guildInvite.count({ where: { inviteeId: userId, status: 'PENDING' } }),
     prisma.relationship.count({ where: { partnerUserId: userId, linkStatus: 'PENDING' } }),
+    guildUnreadCounts(userId),
   ]);
+  const todayOf = new Map(rows.map((f) => [f.id, dayKey(f.requester.timezone, now)]));
+  const mineToday = rows.length
+    ? await prisma.directMessage.findMany({
+      where: { senderId: userId, kind: { in: TALK_KINDS }, dayKey: { in: [...new Set(todayOf.values())] }, receiverId: { in: rows.map((f) => (f.requesterId === userId ? f.receiverId : f.requesterId)) } },
+      select: { receiverId: true, dayKey: true },
+      distinct: ['receiverId', 'dayKey'],
+    })
+    : [];
   const online: Array<PublicUser & { zone: string | null }> = [];
   let streaksWaiting = 0;
   for (const f of rows) {
@@ -586,12 +772,16 @@ export async function socialPulse(userId: string) {
     const p = presenceOf(other, now.getTime());
     const { presenceAt: _a, presenceZone: _z, privacy: _p, timezone: _t, ...pub } = other;
     if (p.online) online.push({ ...pub, zone: p.zone });
-    const v = streakView(f.streakCount, f.streakBest, f.streakDay, dayKey(f.requester.timezone, now));
-    if (v.alive && !v.doneToday) streaksWaiting += 1;
+    const today = todayOf.get(f.id)!;
+    const v = streakView(f.streakCount, f.streakBest, f.streakDay, today);
+    if (v.active && !v.doneToday && !mineToday.some((m) => m.receiverId === other.id && m.dayKey === today)) streaksWaiting += 1;
   }
   return {
     unreadMessages: unread,
+    guildUnread: guildUnread.reduce((n, g) => n + g.unread, 0),
     requests: friendRequests + guildInvites + partnerInvites,
+    friendRequests,
+    guildInvites,
     friends: rows.length,
     onlineCount: online.length,
     online: online.slice(0, 5),

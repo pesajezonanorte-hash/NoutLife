@@ -86,6 +86,10 @@ void test('factory reset de cuenta', async (suite) => {
             },
           };
         }
+        if (delegate === 'relationship') {
+          // Los jardines compartidos de otras personas solo se desvinculan.
+          return { deleteMany: count('relationship.deleteMany'), updateMany: count('relationship.updateMany') };
+        }
         return { deleteMany: count(`${delegate}.deleteMany`) };
       },
     });
@@ -106,10 +110,12 @@ void test('factory reset de cuenta', async (suite) => {
       for (const key of [
         'habits', 'quests', 'rituals', 'transactions', 'inventoryItems',
         'userAchievements', 'notifications', 'pushSubscriptions', 'feedback',
+        'directMessages', 'socialGestures', 'guildInvites',
       ]) {
         assert.equal(result.deleted[key], 1, `expected ${key} to be deleted`);
       }
       assert.ok(calls.includes('challenge.updateMany'));
+      assert.ok(calls.includes('relationship.updateMany'), 'shared gardens of other people are only unlinked');
       assert.ok(calls.includes('guild.update'));
       assert.ok(calls.includes('guildMember.update'));
       assert.equal(userUpdate?.level, 1);

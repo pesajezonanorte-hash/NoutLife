@@ -115,6 +115,7 @@ export async function resetAccountData(userId: string, password: string): Promis
     // seguía mostrando los días entrenados después de reiniciar la cuenta.
     await remove('gymAttendances', () => tx.gymAttendance.deleteMany({ where: { userId } }));
     await remove('directMessages', () => tx.directMessage.deleteMany({ where: { OR: [{ senderId: userId }, { receiverId: userId }] } }));
+    await remove('socialGestures', () => tx.socialGesture.deleteMany({ where: { OR: [{ fromId: userId }, { toId: userId }] } }));
     await remove('guildInvites', () => tx.guildInvite.deleteMany({ where: { OR: [{ inviterId: userId }, { inviteeId: userId }] } }));
     // Jardines compartidos: la otra persona conserva el suyo, ya sin vínculo.
     await tx.relationship.updateMany({ where: { partnerUserId: userId }, data: { partnerUserId: null, linkStatus: null } });
