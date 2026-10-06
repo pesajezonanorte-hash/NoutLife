@@ -27,6 +27,8 @@ type CreateNotificationInput = {
   body: string;
   icon?: string;
   link?: string;
+  /** Carta a la que se puede contestar desde el aviso (push del sistema y aviso dentro de la app). */
+  reply?: { type: 'dm' | 'guild'; id: string };
 };
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -93,7 +95,8 @@ async function enforceRetention(userId: string): Promise<void> {
  * `awaitPush`: espera a que el push salga. En serverless (Vercel) la función se
  * congela al responder y un push pendiente puede perderse; los recordatorios lo usan.
  */
-export async function createNotification(userId: string, data: CreateNotificationInput, opts: { awaitPush?: boolean } = {}) {
+export async function createNotification(userId: string, input: CreateNotificationInput, opts: { awaitPush?: boolean; push?: boolean } = {}) {
+  const { reply, ...data } = input;
   const category = data.category ?? categoryForType(data.type);
   const preference = await getChannelPreference(userId, category);
   const now = new Date();
@@ -137,12 +140,12 @@ export async function createNotification(userId: string, data: CreateNotificatio
   // Push is a second delivery channel, not the source of truth. It is sent
   // independently so disabling the in-app inbox does not silently override a
   // user's explicit push preference.
-  if (preference.pushEnabled) {
+  if (preference.pushEnabled && opts.push !== false) {
     const push = sendPush(userId, {
       title: data.title,
       body: data.body,
       tag: data.dedupeKey,
-      data: data.link ? { link: data.link } : undefined,
+      data: data.link || reply ? { ...(data.link ? { link: data.link } : {}), ...(reply ? { reply } : {}) } : undefined,
     }, category).catch(() => 0);
     if (opts.awaitPush) await push;
   }

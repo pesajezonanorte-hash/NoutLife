@@ -7,6 +7,10 @@ import { prisma } from '../lib/prisma';
 import { addCalendarDays, getCalendarDay } from '../lib/calendar';
 import { effectiveActivityStreak } from './xp.service';
 import { createNotification } from './notification.service';
+import {
+  appActive, clearView, dmKey, holdUntil, isViewing, parseDate, reactionsFor, repliesFor, setReaction, snippet, touchView, validReaction, validReplyTo,
+  type ReactionCount, type ReplyRef,
+} from './chat-live.service';
 
 // ─── Privacidad y presencia ───────────────────────────────────────────────────
 
@@ -385,7 +389,7 @@ export async function getProfile(viewerId: string, username: string) {
 // ─── Mensajes directos ────────────────────────────────────────────────────────
 
 type DMRow = Prisma.DirectMessageGetPayload<object>;
-const toMessage = (me: string) => (m: DMRow) => ({
+const toMessage = (me: string, reactions: Map<string, ReactionCount[]>, replies: Map<string, ReplyRef>) => (m: DMRow) => ({
   id: m.id,
   mine: m.senderId === me,
   kind: m.kind,
@@ -393,7 +397,20 @@ const toMessage = (me: string) => (m: DMRow) => ({
   photoUrl: m.photoUrl,
   habitTitle: m.habitTitle,
   createdAt: m.createdAt.toISOString(),
+  replyTo: (m.replyToId && replies.get(m.replyToId)) || null,
+  reactions: reactions.get(m.id) ?? [],
 });
+
+const pairOf = (a: string, b: string) => ({ OR: [{ senderId: a, receiverId: b }, { senderId: b, receiverId: a }] });
+
+/** Mensajes listos para enviar al cliente: con sus reacciones y el mensaje al que responden. */
+async function dmDtos(me: string, otherId: string, rows: DMRow[]) {
+  const [reactions, replies] = await Promise.all([
+    reactionsFor('dm', rows.map((r) => r.id), me),
+    repliesFor('dm', rows, pairOf(me, otherId)),
+  ]);
+  return rows.map(toMessage(me, reactions, replies));
+}
 
 async function otherUser(id: string) {
   const u = await prisma.user.findUnique({ where: { id }, select: { ...PUBLIC_USER, ...PRESENCE } });
@@ -409,7 +426,8 @@ async function otherUser(id: string) {
 export async function getConversation(me: string, otherId: string, after?: string) {
   const f = await requireFriends(me, otherId);
   const other = await otherUser(otherId);
-  const pair = { OR: [{ senderId: me, receiverId: otherId }, { senderId: otherId, receiverId: me }] };
+  const pair = pairOf(me, otherId);
+  const cursor = new Date().toISOString();
   const since = after ? new Date(after) : null;
   const rows = since && !Number.isNaN(since.getTime())
     ? await prisma.directMessage.findMany({ where: { ...pair, createdAt: { gt: since } }, orderBy: { createdAt: 'asc' }, take: 100 })
@@ -430,7 +448,9 @@ export async function getConversation(me: string, otherId: string, after?: strin
   return {
     friend: { ...pub, ...presenceOf(other) },
     friendshipId: f.id,
-    messages: rows.map(toMessage(me)),
+    messages: await dmDtos(me, otherId, rows),
+    /** Desde aquí se piden los cambios de reacciones en vivo. */
+    cursor,
     seenUntil: lastSeen?.createdAt.toISOString() ?? null,
     streak: {
       ...streakView(f.streakCount, f.streakBest, f.streakDay, today),
@@ -447,7 +467,7 @@ export const letterLink = (username: string) => `/social?tab=cartas&chat=${encod
 export async function sendDirectMessage(
   me: string,
   otherId: string,
-  body: { content?: unknown; photoUrl?: unknown; kind?: unknown },
+  body: { content?: unknown; photoUrl?: unknown; kind?: unknown; replyToId?: unknown },
 ) {
   const f = await requireFriends(me, otherId);
   // SNAP: foto tomada en el momento con la cámara (la app no deja elegirla de la galería).
@@ -459,8 +479,9 @@ export async function sendDirectMessage(
 
   // Todo lo que se dice lleva su día: así se sabe si los dos hablaron hoy.
   const today = dayKey(f.requester.timezone);
+  const replyToId = await validReplyTo('dm', body.replyToId, pairOf(me, otherId));
   const msg = await prisma.directMessage.create({
-    data: { senderId: me, receiverId: otherId, kind, content: content || null, photoUrl, dayKey: today },
+    data: { senderId: me, receiverId: otherId, kind, content: content || null, photoUrl, dayKey: today, replyToId },
   });
 
   let streak = streakView(f.streakCount, f.streakBest, f.streakDay, today);
@@ -480,20 +501,27 @@ export async function sendDirectMessage(
 
   const sender = await prisma.user.findUniqueOrThrow({ where: { id: me }, select: { displayName: true, username: true } });
   const lit = completed && streak.active;
-  createNotification(otherId, {
-    type: 'friend',
-    category: 'SOCIAL',
-    dedupeKey: `dm:${me}`,
-    title: kind === 'SNAP' ? `${sender.displayName} te envió una foto` : `Carta de ${sender.displayName}`,
-    body: [
-      kind === 'SNAP' ? (content || 'La tomó hace un momento.') : content.slice(0, 120),
-      lit ? (streak.count === STREAK_MIN ? '¡Se encendió su racha!' : `Racha de ${streak.count} días.`) : null,
-    ].filter(Boolean).join(' · '),
-    icon: 'friend',
-    link: letterLink(sender.username),
-  }).catch(() => null);
+  // Quien tiene esa carta abierta ya la está viendo: no se le avisa. Quien tiene la app
+  // abierta recibe el aviso dentro de ella (con su respuesta rápida), no como push.
+  if (!(await isViewing(otherId, dmKey(me)))) {
+    const inApp = await appActive(otherId);
+    createNotification(otherId, {
+      type: 'friend',
+      category: 'SOCIAL',
+      dedupeKey: `dm:${me}`,
+      title: kind === 'SNAP' ? `${sender.displayName} te envió una foto` : `Carta de ${sender.displayName}`,
+      body: [
+        kind === 'SNAP' ? (content || 'La tomó hace un momento.') : content.slice(0, 120),
+        lit ? (streak.count === STREAK_MIN ? '¡Se encendió su racha!' : `Racha de ${streak.count} días.`) : null,
+      ].filter(Boolean).join(' · '),
+      icon: 'friend',
+      link: letterLink(sender.username),
+      reply: { type: 'dm', id: me },
+    }, { push: !inApp }).catch(() => null);
+  }
 
-  return { message: toMessage(me)(msg), streak: { ...streak, mineToday: true, theirsToday }, completed };
+  const [message] = await dmDtos(me, otherId, [msg]);
+  return { message, streak: { ...streak, mineToday: true, theirsToday }, completed };
 }
 
 // ─── Fondo de la carta ────────────────────────────────────────────────────────
@@ -514,6 +542,114 @@ export async function setDirectBackground(me: string, otherId: string, body: { p
 }
 
 // ─── Gestos y muñequitos en las zonas ─────────────────────────────────────────
+
+// ─── Reacciones, carta en vivo y bandeja de avisos ────────────────────────────
+
+/** Reacciona (o quita la reacción) a un mensaje de la carta con un amigo. */
+export async function reactDirect(me: string, otherId: string, messageId: string, emoji: unknown) {
+  await requireFriends(me, otherId);
+  const wanted = validReaction(emoji);
+  const m = await prisma.directMessage.findFirst({ where: { ...pairOf(me, otherId), id: messageId, kind: { not: 'EVENT' } }, select: { id: true, senderId: true, kind: true, content: true } });
+  if (!m) throw new Error('Mensaje no encontrado');
+  const r = await setReaction('dm', m.id, me, wanted);
+  // Si reaccionas al mensaje de otra persona, se entera (salvo que esté leyendo la carta).
+  if (r.emoji && m.senderId !== me && !(await isViewing(m.senderId, dmKey(me)))) {
+    const who = await prisma.user.findUnique({ where: { id: me }, select: { displayName: true, username: true } });
+    if (who) {
+      const inApp = await appActive(m.senderId);
+      createNotification(m.senderId, {
+        type: 'friend', category: 'SOCIAL', dedupeKey: `dm-react:${me}`,
+        title: `${who.displayName} reaccionó ${r.emoji}`, body: snippet(m, 90), icon: 'friend', link: letterLink(who.username),
+      }, { push: !inApp }).catch(() => null);
+    }
+  }
+  return { id: m.id, ...r };
+}
+
+/**
+ * Carta en vivo. Se queda esperando hasta ~8 s y responde en cuanto algo cambia:
+ * un mensaje nuevo (`after`), una reacción (`since`) o que lean lo tuyo (`seen`).
+ * Además marca la carta como abierta, para que no te avisen de lo que llega a ella.
+ */
+export async function liveConversation(me: string, otherId: string, q: { after?: unknown; since?: unknown; seen?: unknown; wait?: boolean }) {
+  await requireFriends(me, otherId);
+  const after = parseDate(q.after);
+  const since = parseDate(q.since) ?? new Date();
+  const seen = parseDate(q.seen);
+  const pair = pairOf(me, otherId);
+  const other = await prisma.user.findUniqueOrThrow({ where: { id: otherId }, select: { privacy: true } });
+  const receipts = privacyOf(other.privacy).readReceipts;
+  const stamp = new Date();
+  await touchView(me, dmKey(otherId));
+
+  const changed = await holdUntil(async () => {
+    const [fresh, reacted, read] = await Promise.all([
+      after ? prisma.directMessage.findFirst({ where: { ...pair, createdAt: { gt: after } }, select: { id: true } }) : null,
+      prisma.directMessage.findFirst({ where: { ...pair, reactedAt: { gt: since } }, select: { id: true } }),
+      receipts
+        ? prisma.directMessage.findFirst({ where: { senderId: me, receiverId: otherId, readAt: { not: null } }, orderBy: { createdAt: 'desc' }, select: { createdAt: true } })
+        : null,
+    ]);
+    const readAt = read?.createdAt.getTime() ?? 0;
+    return fresh || reacted || readAt > (seen?.getTime() ?? 0) ? true : null;
+  }, q.wait === true);
+  if (!changed) return { changed: false as const, cursor: stamp.toISOString() };
+
+  const conv = await getConversation(me, otherId, after?.toISOString());
+  const reactedRows = await prisma.directMessage.findMany({ where: { ...pair, reactedAt: { gt: since } }, select: { id: true } });
+  const reactions = await reactionsFor('dm', reactedRows.map((r) => r.id), me);
+  return {
+    changed: true as const,
+    ...conv,
+    cursor: stamp.toISOString(),
+    reacted: reactedRows.map((r) => ({ id: r.id, reactions: reactions.get(r.id) ?? [] })),
+  };
+}
+
+/** Cerraste la carta: desde ya te vuelven a avisar de lo que llegue. */
+export async function leaveView(me: string, key: string) {
+  await clearView(me, key);
+  return { ok: true };
+}
+
+/** Lo que te escribieron desde `since` (cartas de amigos y de tus gremios), para los avisos dentro de la app. */
+export async function inbox(me: string, q: { since?: unknown; wait?: boolean }) {
+  const stamp = new Date();
+  await touchView(me, 'app');
+  const since = parseDate(q.since);
+  if (!since) return { cursor: stamp.toISOString(), items: [] };
+  const memberships = await prisma.guildMember.findMany({ where: { userId: me }, select: { guildId: true } });
+  const guildIds = memberships.map((m) => m.guildId);
+
+  const items = await holdUntil(async () => {
+    const [dms, gms] = await Promise.all([
+      prisma.directMessage.findMany({
+        where: { receiverId: me, createdAt: { gt: since }, kind: { in: TALK_KINDS } },
+        orderBy: { createdAt: 'asc' }, take: 20,
+        include: { sender: { select: PUBLIC_USER } },
+      }),
+      guildIds.length
+        ? prisma.guildMessage.findMany({
+          where: { guildId: { in: guildIds }, userId: { not: me }, createdAt: { gt: since }, kind: { in: TALK_KINDS } },
+          orderBy: { createdAt: 'asc' }, take: 20,
+          include: { user: { select: PUBLIC_USER }, guild: { select: { name: true } } },
+        })
+        : [],
+    ]);
+    const list = [
+      ...dms.map((m) => ({
+        type: 'dm' as const, id: m.id, at: m.createdAt.toISOString(), from: m.sender, kind: m.kind, preview: snippet(m, 140), guild: null as { id: string; name: string } | null,
+      })),
+      ...gms.map((m) => ({
+        type: 'guild' as const, id: m.id, at: m.createdAt.toISOString(), from: m.user, kind: m.kind, preview: snippet(m, 140), guild: { id: m.guildId, name: m.guild.name } as { id: string; name: string } | null,
+      })),
+    ].sort((a, b) => a.at.localeCompare(b.at));
+    return list.length ? list : null;
+  }, q.wait === true);
+  // El siguiente sondeo sigue desde el último aviso entregado (así no se repite ninguno).
+  const list = items ?? [];
+  return { cursor: list.length ? list[list.length - 1].at : stamp.toISOString(), items: list };
+}
 
 export const GESTURES = ['wave', 'heart', 'dance', 'cheer', 'laugh', 'highfive'] as const;
 export type GestureKind = (typeof GESTURES)[number];

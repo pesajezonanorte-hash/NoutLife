@@ -107,7 +107,7 @@ export default function LeaderboardPage() {
   const gap = me && ahead ? Math.max(0, ahead.value - me.value) : 0;
   const fmt = useCallback((n: number) => fmtValue(n, category), [category]);
   const top = useMemo(() => data.slice(0, 3).map((e) => ({
-    id: e.id, name: e.displayName.split(' ')[0], initials: initials(e.displayName), score: <AnimatedValue value={e.value} format={fmt} />, isYou: e.id === String(user?.id), avatar: avatarOf(e),
+    id: e.id, username: e.username, name: e.displayName.split(' ')[0], initials: initials(e.displayName), score: <AnimatedValue value={e.value} format={fmt} />, isYou: e.id === String(user?.id), avatar: avatarOf(e),
   })), [data, fmt, user?.id]);
   const options: ChipOption<Category>[] = (Object.keys(METRICS) as Category[]).map((c) => ({ value: c, label: METRICS[c].label, icon: METRICS[c].icon }));
 
@@ -162,7 +162,7 @@ export default function LeaderboardPage() {
                     <Card padding="none" className="p-2">
                       <ol className="flex flex-col">
                         {view.slice(3).map((e, j) => (
-                          <ResultRow key={e.id} id={e.id} position={j + 4} name={e.displayName} initials={initials(e.displayName)} avatar={avatarOf(e)}
+                          <ResultRow key={e.id} id={e.id} username={e.username} position={j + 4} name={e.displayName} initials={initials(e.displayName)} avatar={avatarOf(e)}
                             subtitle={`@${e.username} · Nivel ${e.level}`} score={<AnimatedValue value={e.value} format={fmt} />} isYou={e.id === String(user?.id)} rose={rose} />
                         ))}
                       </ol>

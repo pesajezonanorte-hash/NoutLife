@@ -19,13 +19,45 @@ self.addEventListener('push', (event) => {
     data: payload.data ?? {},
     vibrate: [100, 50, 100],
   };
+  // Cartas de amigos y de gremio: se puede contestar desde el propio aviso.
+  if (payload.data && payload.data.reply) {
+    options.actions = [{ action: "reply", type: "text", title: "Responder", placeholder: "Escribe tu respuesta…" }];
+  }
 
   // Siempre se muestra algo: Chrome y Safari retiran el permiso a quien recibe push sin aviso visible.
   event.waitUntil(self.registration.showNotification(payload.title ?? 'Noutlife', options));
 });
 
+// Responde desde el aviso: pide un acceso nuevo con la sesión (cookie) y envía la carta.
+async function quickReply(reply, text) {
+  const auth = await fetch("/api/v1/auth/refresh", { method: "POST", credentials: "include" });
+  if (!auth.ok) throw new Error("sin sesión");
+  const { accessToken } = await auth.json();
+  const url = reply.type === "guild" ? "/api/v1/social/guilds/" + encodeURIComponent(reply.id) + "/messages" : "/api/v1/social/messages/" + encodeURIComponent(reply.id);
+  const sent = await fetch(url, {
+    method: "POST", credentials: "include",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer " + accessToken },
+    body: JSON.stringify({ content: text }),
+  });
+  if (!sent.ok) throw new Error("no se envió");
+}
+
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  const data = event.notification.data || {};
+  const text = typeof event.reply === "string" ? event.reply.trim() : "";
+  if (event.action === "reply" && text && data.reply) {
+    const tag = event.notification.tag || "noutlife";
+    event.waitUntil(
+      quickReply(data.reply, text)
+        .then(() => self.registration.showNotification("Respuesta enviada", { body: text.slice(0, 80), tag, icon: "/icons/icon-192.png", silent: true }))
+        .then(() => new Promise((r) => setTimeout(r, 2500)))
+        .then(() => self.registration.getNotifications({ tag }))
+        .then((list) => list.forEach((n) => n.close()))
+        .catch(() => clients.openWindow(new URL(data.link || "/", self.location.origin).href))
+    );
+    return;
+  }
   const link = (event.notification.data && event.notification.data.link) || '/';
   const target = new URL(link, self.location.origin).href;
 

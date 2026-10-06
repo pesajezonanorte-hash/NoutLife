@@ -6,19 +6,20 @@
 // y la tira cae en su sitio; la foto sale de la cámara y vuela hasta pegarse en
 // la carta. La racha solo se muestra encendida (tres días seguidos hablando).
 // Igual para la carta entre dos amigos y la de un gremio.
-import { Fragment, useEffect, useId, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode, type RefObject } from 'react';
+import { Fragment, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useMotionValue, useTransform } from 'framer-motion';
 import {
-  ArrowLeft, Camera, CheckCheck, Coins, Contact, Image as ImageIcon, ImagePlus, MoreHorizontal, Send, Tent, Trash2, type LucideIcon,
+  ArrowDown, ArrowLeft, Camera, CheckCheck, Coins, Contact, Image as ImageIcon, ImagePlus, MoreHorizontal, Reply, Send, SmilePlus, Tent, Trash2, X, type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { springs } from '@/lib/motion/presets';
 import { useMotionStore } from '@/store/motionStore';
+import { useChatFocus } from '@/store/chatFocusStore';
 import { useToastStore } from '@/hooks/useToast';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { DEFAULT_FIT, socialLink, timeAgo, type GuildDetail, type PublicUser } from '@/services/network.service';
+import { DEFAULT_FIT, REACTIONS, socialLink, timeAgo, type GuildDetail, type PublicUser, type ReplyRef } from '@/services/network.service';
 import { AvatarDisplay } from '@/components/character/AvatarDisplay';
 import { GuildCrest } from '@/components/guild/GuildCrest';
 import { emblemOf } from '@/components/guild/emblems';
@@ -90,22 +91,61 @@ function EventNote({ m }: { m: LetterMsg }) {
   );
 }
 
+/** Fragmento corto de un mensaje (o de la cita de uno). */
+const snippetOf = (m: { kind: string; content: string | null }) => (m.kind === 'SNAP' ? (m.content ? `Foto · ${m.content}` : 'Foto') : m.content ?? '');
+
+/** Mantener pulsado (en táctil) abre las opciones del mensaje. */
+function useLongPress(onLong: (el: HTMLElement) => void, ms = 450) {
+  const timer = useRef(0);
+  const start = useRef<{ x: number; y: number } | null>(null);
+  const clear = () => { window.clearTimeout(timer.current); start.current = null; };
+  return {
+    onPointerDown: (e: ReactPointerEvent<HTMLElement>) => {
+      if (e.pointerType === 'mouse') return;
+      const el = e.currentTarget;
+      start.current = { x: e.clientX, y: e.clientY };
+      timer.current = window.setTimeout(() => { start.current = null; onLong(el); }, ms);
+    },
+    onPointerMove: (e: ReactPointerEvent<HTMLElement>) => {
+      const s = start.current;
+      if (s && Math.hypot(e.clientX - s.x, e.clientY - s.y) > 8) clear();
+    },
+    onPointerUp: clear,
+    onPointerCancel: clear,
+    onPointerLeave: clear,
+  };
+}
+
+/** Cita del mensaje al que se responde; al tocarla, la carta salta a él. */
+function Quote({ r, name, onJump, className }: { r: ReplyRef; name: string; onJump?: (id: string) => void; className?: string }) {
+  const body = (
+    <>
+      <span className="block truncate text-label-md text-primary-text">{name}</span>
+      <span className="line-clamp-2 block break-words text-body-sm text-on-surface-light">{snippetOf(r) || 'Mensaje'}</span>
+    </>
+  );
+  return onJump
+    ? <button type="button" onClick={() => onJump(r.id)} aria-label={`Ir al mensaje de ${name}`} className={cn('lq-quote', className)}>{body}</button>
+    : <span className={cn('lq-quote cursor-default', className)}>{body}</span>;
+}
+
 /** Un mensaje: tira de papel. Lo que llega con la carta abierta se escribe solo. */
-function Slip({ m }: { m: LetterMsg }) {
+function Slip({ m, quote }: { m: LetterMsg; quote?: ReactNode }) {
   const reduce = useMotionStore((s) => s.reduce);
   const tilt = tiltOf(m.localId ?? m.id);
   const text = m.content ?? '';
   const write = Boolean(m.fresh) && !reduce && text.length <= 160;
   const sending = m.mine && m.pending;
   return (
-    <motion.p
+    <motion.div
       initial={reduce ? (m.fresh || sending ? { opacity: 0 } : false) : sending ? { opacity: 0, y: 26, scale: 0.9, rotate: tilt - 5 } : m.fresh ? { opacity: 0, y: 8, rotate: tilt } : false}
       animate={{ opacity: m.pending ? 0.72 : 1, y: 0, scale: 1, rotate: tilt }}
       transition={sending ? springs.heavy : springs.natural}
-      className={cn('lq-slip max-w-[min(32rem,84%)] whitespace-pre-wrap break-words px-4 py-2.5 text-body-lg', m.mine ? 'lq-slip-mine text-forest-text' : 'text-on-background')}
+      className={cn('lq-slip max-w-full whitespace-pre-wrap break-words px-4 py-2.5 text-body-lg [-webkit-touch-callout:none]', m.mine ? 'lq-slip-mine text-forest-text' : 'text-on-background')}
     >
+      {quote}
       <span className={cn(write && 'lq-write')} style={write ? { ['--d' as string]: `${Math.min(1100, 380 + text.length * 14)}ms` } : undefined}>{text}</span>
-    </motion.p>
+    </motion.div>
   );
 }
 
@@ -131,13 +171,172 @@ function LetterPhoto({ m, onOpen }: { m: LetterMsg; onOpen: (m: LetterMsg) => vo
   );
 }
 
-function AuthorTag({ author }: { author: LetterAuthor | null }) {
-  if (!author) return null;
+/** Foto de perfil junto a cada mensaje de un gremio: así se sabe de quién es. */
+function MessageAvatar({ author, mine }: { author: LetterAuthor | null; mine: boolean }) {
+  if (!author) return <span aria-hidden className="size-[30px] shrink-0" />;
+  const face = <AvatarDisplay avatarConfig={author.avatarConfig} avatarUrl={author.avatarUrl} size={30} animate="none" className="overflow-hidden rounded-full" />;
   return (
-    <span className="mb-1 inline-flex items-center gap-1.5 rounded-full bg-surface/90 py-0.5 pl-0.5 pr-2.5 text-label-md text-on-surface shadow-sm">
-      <AvatarDisplay avatarConfig={author.avatarConfig} avatarUrl={author.avatarUrl} size={20} animate="none" className="overflow-hidden rounded-full" />
-      {author.name.split(' ')[0]}
+    <span className="mb-0.5 inline-flex size-[30px] shrink-0 rounded-full bg-surface shadow-sm ring-2 ring-surface">
+      {!mine && author.username
+        ? <Link to={`/u/${encodeURIComponent(author.username)}`} aria-label={`Ver el DNI de ${author.name}`} className="rounded-full">{face}</Link>
+        : face}
     </span>
+  );
+}
+
+/** Arrastrar un mensaje hacia el centro de la carta (en táctil) lo responde. */
+function SwipeReply({ mine, enabled, onReply, children }: { mine: boolean; enabled: boolean; onReply: () => void; children: ReactNode }) {
+  const x = useMotionValue(0);
+  const icon = useTransform(x, mine ? [-64, -16] : [16, 64], mine ? [1, 0] : [0, 1]);
+  if (!enabled) return <>{children}</>;
+  return (
+    <div className="relative">
+      <motion.span aria-hidden style={{ opacity: icon }} className={cn('pointer-events-none absolute top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-full bg-surface text-primary-text shadow-sm', mine ? '-right-9' : '-left-9')}>
+        <Reply className="size-4" strokeWidth={2} />
+      </motion.span>
+      <motion.div
+        drag="x" dragDirectionLock dragConstraints={{ left: 0, right: 0 }} dragElastic={mine ? { left: 0.45, right: 0 } : { left: 0, right: 0.45 }}
+        style={{ x }} className="touch-pan-y"
+        onDragEnd={(_, info) => { if (mine ? info.offset.x < -56 : info.offset.x > 56) onReply(); }}
+      >
+        {children}
+      </motion.div>
+    </div>
+  );
+}
+
+/** Reacciones y "Responder", flotando junto al mensaje elegido. */
+function ReactionPicker({ target, current, onPick, onReply, onClose }: {
+  target: { rect: DOMRect }; current?: string; onPick: (emoji: string) => void; onReply: () => void; onClose: () => void;
+}) {
+  const reduce = useMotionStore((s) => s.reduce);
+  const { rect } = target;
+  const width = Math.min(336, window.innerWidth - 16);
+  const left = Math.min(Math.max(8, rect.left + rect.width / 2 - width / 2), window.innerWidth - width - 8);
+  const above = rect.top > 76;
+  const top = above ? rect.top - 62 : Math.min(rect.bottom + 8, window.innerHeight - 70);
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); onClose(); } };
+    const away = (e: PointerEvent) => { if (!(e.target as HTMLElement).closest('[data-picker]')) onClose(); };
+    document.addEventListener('keydown', key, true);
+    document.addEventListener('pointerdown', away, true);
+    window.addEventListener('resize', onClose);
+    return () => { document.removeEventListener('keydown', key, true); document.removeEventListener('pointerdown', away, true); window.removeEventListener('resize', onClose); };
+  }, [onClose]);
+  return createPortal(
+    <motion.div
+      data-picker role="menu" aria-label="Reaccionar o responder"
+      initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.8, y: above ? 10 : -10 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.1 } }} transition={springs.snappy}
+      style={{ left, top, width, originY: above ? 1 : 0 }}
+      className="lq-picker fixed z-[80] flex items-center justify-between gap-0.5 p-1.5"
+    >
+      {REACTIONS.map((emoji, i) => (
+        <motion.button
+          key={emoji} type="button" role="menuitem" aria-label={`Reaccionar con ${emoji}`} aria-pressed={current === emoji}
+          initial={reduce ? false : { opacity: 0, y: 8, scale: 0.6 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ ...springs.snappy, delay: reduce ? 0 : 0.03 * i }}
+          whileHover={reduce ? undefined : { scale: 1.25, y: -3 }} whileTap={reduce ? undefined : { scale: 0.85 }}
+          onClick={() => onPick(emoji)}
+          className={cn('flex size-11 items-center justify-center rounded-full text-[1.55rem] leading-none', current === emoji && 'bg-primary/15 ring-2 ring-primary/60')}
+        >
+          {emoji}
+        </motion.button>
+      ))}
+      <span aria-hidden className="mx-0.5 h-7 w-px bg-border" />
+      <button type="button" role="menuitem" aria-label="Responder" onClick={onReply} className="flex size-11 items-center justify-center rounded-full text-on-surface hover:bg-background focus-visible:bg-background">
+        <Reply aria-hidden className="size-5" strokeWidth={1.9} />
+      </button>
+    </motion.div>,
+    document.body,
+  );
+}
+
+interface RowProps {
+  m: LetterMsg;
+  group: boolean;
+  joined: boolean;
+  last: boolean;
+  seen: boolean;
+  coarse: boolean;
+  flash: boolean;
+  nameOf: (authorId: string) => string;
+  onPicker: (m: LetterMsg, rect: DOMRect) => void;
+  onReply: (m: LetterMsg) => void;
+  onReact: (m: LetterMsg, emoji: string) => void;
+  onOpenPhoto: (m: LetterMsg) => void;
+  onJump: (id: string) => void;
+}
+
+/** Un mensaje con su foto de perfil (en gremios), cita, reacciones y acciones. */
+function MessageRow({ m, group, joined, last, seen, coarse, flash, nameOf, onPicker, onReply, onReact, onOpenPhoto, onJump }: RowProps) {
+  const reduce = useMotionStore((s) => s.reduce);
+  const acts = !m.pending && !m.hidden;
+  const open = (el: HTMLElement) => { if (acts) onPicker(m, el.getBoundingClientRect()); };
+  const press = useLongPress(open);
+  const bubble = useRef<HTMLDivElement>(null);
+  const quote = m.replyTo ? <Quote r={m.replyTo} name={nameOf(m.replyTo.authorId)} onJump={onJump} className="mb-1.5" /> : null;
+  const firstName = m.author?.name.split(' ')[0] ?? '';
+  return (
+    <div data-msg={m.id} className={cn('group/msg relative flex w-full items-end gap-2', m.mine && 'flex-row-reverse', joined ? 'mt-1' : 'mt-3', flash && 'lq-flash')}>
+      {group && <MessageAvatar author={m.author} mine={m.mine} />}
+      <div className={cn('flex min-w-0 flex-col', m.mine ? 'items-end' : 'items-start', group ? 'max-w-[min(32rem,calc(100%-4.75rem))]' : 'max-w-[min(32rem,84%)]')}>
+        {group && !m.mine && !joined && (
+          <span className="mb-1 max-w-full truncate rounded-full bg-surface/90 px-2.5 py-0.5 text-label-md text-on-surface shadow-sm">{firstName}</span>
+        )}
+        <SwipeReply mine={m.mine} enabled={coarse && acts} onReply={() => onReply(m)}>
+          <div
+            ref={bubble} {...press}
+            onContextMenu={(e) => { if (!acts) return; e.preventDefault(); open(e.currentTarget); }}
+            onDoubleClick={() => { if (acts && m.kind !== 'SNAP') onReact(m, '❤️'); }}
+            className="max-w-full"
+          >
+            {m.kind === 'SNAP' && m.photoUrl ? <LetterPhoto m={m} onOpen={onOpenPhoto} /> : <Slip m={m} quote={quote} />}
+          </div>
+        </SwipeReply>
+        {m.reactions.length > 0 && !m.hidden && (
+          <div className={cn('relative z-[1] -mt-2 flex flex-wrap gap-1 px-2', m.mine ? 'justify-end' : 'justify-start')}>
+            <AnimatePresence initial={false}>
+              {m.reactions.map((r) => (
+                <motion.button
+                  key={r.emoji} type="button" layout={!reduce} aria-pressed={r.mine}
+                  initial={reduce ? false : { scale: 0.3, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.3, opacity: 0, transition: { duration: 0.12 } }} transition={springs.snappy}
+                  onClick={() => onReact(m, r.emoji)}
+                  aria-label={`${r.emoji} ${r.count} ${r.count === 1 ? 'persona' : 'personas'}${r.mine ? '. Tocar para quitar tu reacción' : '. Tocar para reaccionar igual'}`}
+                  className="lq-react"
+                >
+                  <span aria-hidden className="text-[0.95rem]">{r.emoji}</span>
+                  {r.count > 1 && <span className="font-mono text-[0.72rem] text-on-surface">{r.count}</span>}
+                </motion.button>
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
+        {last && !m.hidden && (
+          <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-surface/80 px-1.5 font-mono text-[0.72rem] text-on-surface-light">
+            {m.pending ? 'enviando…' : time(m.createdAt)}
+            <AnimatePresence>
+              {seen && (
+                <motion.span initial={{ opacity: 0, x: -4 }} animate={{ opacity: 1, x: 0 }} className="inline-flex items-center gap-0.5 font-sans text-info-text">
+                  <CheckCheck aria-hidden className="size-3.5" />Leída
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </span>
+        )}
+      </div>
+      {acts && (
+        <div className="hidden shrink-0 items-center gap-0.5 self-center opacity-0 transition-opacity focus-within:opacity-100 group-hover/msg:opacity-100 md:flex">
+          <button type="button" aria-label="Reaccionar" aria-haspopup="menu" onClick={() => bubble.current && onPicker(m, bubble.current.getBoundingClientRect())}
+            className="flex size-8 items-center justify-center rounded-full bg-surface/90 text-on-surface-light shadow-sm hover:text-on-background focus-visible:text-on-background">
+            <SmilePlus aria-hidden className="size-4" strokeWidth={1.8} />
+          </button>
+          <button type="button" aria-label="Responder" onClick={() => onReply(m)}
+            className="flex size-8 items-center justify-center rounded-full bg-surface/90 text-on-surface-light shadow-sm hover:text-on-background focus-visible:text-on-background">
+            <Reply aria-hidden className="size-4" strokeWidth={1.8} />
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -281,16 +480,44 @@ function LetterShell({ api, label, to, shareWith, header, extraMenu = [], empty,
   const [viewer, setViewer] = useState<LetterMsg | null>(null);
   const [flight, setFlight] = useState<{ id: string; src: string; caption: string; from: DOMRect } | null>(null);
   const [envelopes, setEnvelopes] = useState<Array<{ id: number; x: number; y: number }>>([]);
+  const [replying, setReplying] = useState<LetterMsg | null>(null);
+  const [picker, setPicker] = useState<{ m: LetterMsg; rect: DOMRect } | null>(null);
+  const [flash, setFlash] = useState<string | null>(null);
+  const [below, setBelow] = useState(0);
   const count = api.messages.length;
   const seenCount = useRef(0);
+  const stick = useRef(true);
 
-  // La carta baja sola hasta lo último (al abrirla, sin animación).
+  // La carta que está abierta: los avisos de lo que llega a ella no se muestran (ya la estás viendo).
+  useEffect(() => {
+    useChatFocus.getState().open(api.viewKey);
+    return () => useChatFocus.getState().close(api.viewKey);
+  }, [api.viewKey]);
+
+  // La carta baja sola hasta lo último si ya estabas abajo (o si lo escribiste tú); si estabas leyendo
+  // más arriba, se queda donde estás y avisa de lo nuevo.
   useEffect(() => {
     const el = listRef.current;
     if (!el || !count) return;
-    el.scrollTo({ top: el.scrollHeight, behavior: reduce || seenCount.current === 0 ? 'auto' : 'smooth' });
+    const last = api.messages[count - 1];
+    const first = seenCount.current === 0;
+    if (first || stick.current || last.mine) {
+      el.scrollTo({ top: el.scrollHeight, behavior: reduce || first ? 'auto' : 'smooth' });
+      if (first) requestAnimationFrame(() => el.scrollTo({ top: el.scrollHeight }));
+      setBelow(0);
+    } else if (count > seenCount.current) setBelow((n) => n + count - seenCount.current);
     seenCount.current = count;
-  }, [count, reduce]);
+  }, [count, reduce, api.messages]);
+
+  function onScroll() {
+    const el = listRef.current;
+    if (!el) return;
+    stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 140;
+    if (stick.current) setBelow(0);
+  }
+  function toBottom() {
+    listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: reduce ? 'auto' : 'smooth' });
+  }
 
   const grow = () => {
     const el = inputRef.current;
@@ -312,11 +539,12 @@ function LetterShell({ api, label, to, shareWith, header, extraMenu = [], empty,
     e?.preventDefault();
     const content = text.trim();
     if (!content) return;
-    setText('');
+    const reply = replying;
+    setText(''); setReplying(null);
     requestAnimationFrame(grow);
     flyEnvelope();
-    try { await api.sendText(content); }
-    catch (err) { setText(content); toaster().error((err as Error).message); }
+    try { await api.sendText(content, reply); }
+    catch (err) { setText(content); setReplying(reply); toaster().error((err as Error).message); }
   }
 
   function onCameraSend(photo: string, caption: string, from: DOMRect | null) {
@@ -331,6 +559,32 @@ function LetterShell({ api, label, to, shareWith, header, extraMenu = [], empty,
     setReviving(true);
     try { await api.revive(); } finally { setReviving(false); }
   }
+
+  // Nombre de quien escribió cada mensaje citado.
+  const authors = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const m of api.messages) if (m.author) map.set(m.author.id, m.author.name.split(' ')[0]);
+    return map;
+  }, [api.messages]);
+  const nameOf = (authorId: string) => (authorId === api.meId ? 'Tú' : authors.get(authorId) ?? (group ? 'Alguien' : to));
+
+  function startReply(m: LetterMsg) {
+    setPicker(null);
+    setReplying(m);
+    inputRef.current?.focus();
+  }
+  function jump(id: string) {
+    const el = listRef.current?.querySelector(`[data-msg="${CSS.escape(id)}"]`);
+    if (!el) return;
+    el.scrollIntoView({ block: 'center', behavior: reduce ? 'auto' : 'smooth' });
+    setFlash(id);
+    window.setTimeout(() => setFlash((c) => (c === id ? null : c)), 1400);
+  }
+  function react(m: LetterMsg, emoji: string) {
+    setPicker(null);
+    void api.react(m.id, emoji);
+  }
+  const coarse = !fine;
 
   const bg = api.background;
   const current = bg && api.backgroundPhoto ? { ...bg, photoUrl: api.backgroundPhoto } : null;
@@ -363,55 +617,72 @@ function LetterShell({ api, label, to, shareWith, header, extraMenu = [], empty,
         </div>
       )}
 
-      <div ref={listRef} role="log" aria-live="polite" aria-label="Carta" className="relative flex min-h-[280px] flex-1 flex-col overflow-y-auto overscroll-contain px-3 pb-5 pt-1 md:px-6">
-        {api.status === 'error' ? (
-          <div className="m-auto flex flex-col items-center gap-3 text-center">
-            <p className="text-body-md text-on-surface">No pudimos abrir la carta.</p>
-            <Button size="sm" variant="secondary" onClick={api.retry}>Reintentar</Button>
-          </div>
-        ) : api.status === 'loading' ? (
-          <div className="mt-6 flex flex-col gap-3">
-            <Skeleton className="h-11 w-2/3 rounded-2xl" />
-            <Skeleton className="ml-auto h-11 w-1/2 rounded-2xl" />
-            <Skeleton className="h-44 w-40 rounded-md" />
-          </div>
-        ) : count === 0 ? (
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={springs.gentle} className="m-auto flex max-w-[330px] flex-col items-center gap-3 text-center">
-            <p className="text-display-sm text-on-background"><Lettering text={empty.title} /></p>
-            <p className="rounded-xl bg-surface/85 px-3 py-2 text-body-md text-on-surface-light">{empty.hint}</p>
-          </motion.div>
-        ) : api.messages.map((m, i) => {
-          const prev = api.messages[i - 1];
-          const next = api.messages[i + 1];
-          const newDay = !prev || dayOf(prev.createdAt) !== dayOf(m.createdAt);
-          const joined = !newDay && sameGroup(prev, m);
-          const last = !next || !sameGroup(m, next);
-          const seen = m.mine && m.id === lastMine?.id && api.seenUntil > 0 && new Date(m.createdAt).getTime() <= api.seenUntil;
-          return (
-            <Fragment key={m.localId ?? m.id}>
-              {newDay && <Postmark iso={m.createdAt} />}
-              {m.kind === 'EVENT' ? <EventNote m={m} /> : (
-                <div className={cn('flex flex-col', m.mine ? 'items-end' : 'items-start', joined ? 'mt-1' : 'mt-3')}>
-                  {group && !m.mine && !joined && <AuthorTag author={m.author} />}
-                  {m.kind === 'SNAP' && m.photoUrl ? <LetterPhoto m={m} onOpen={setViewer} /> : <Slip m={m} />}
-                  {last && !m.hidden && (
-                    <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-surface/80 px-1.5 font-mono text-[0.72rem] text-on-surface-light">
-                      {m.pending ? 'enviando…' : time(m.createdAt)}
-                      <AnimatePresence>
-                        {seen && (
-                          <motion.span initial={{ opacity: 0, x: -4 }} animate={{ opacity: 1, x: 0 }} className="inline-flex items-center gap-0.5 font-sans text-info-text">
-                            <CheckCheck aria-hidden className="size-3.5" />Leída
-                          </motion.span>
-                        )}
-                      </AnimatePresence>
-                    </span>
-                  )}
-                </div>
-              )}
-            </Fragment>
-          );
-        })}
+      <div className="relative flex min-h-[280px] flex-1 flex-col overflow-hidden">
+        <div ref={listRef} onScroll={onScroll} role="log" aria-live="polite" aria-label="Carta" className="relative flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-3 pb-5 pt-1 md:px-6">
+          {api.status === 'error' ? (
+            <div className="m-auto flex flex-col items-center gap-3 text-center">
+              <p className="text-body-md text-on-surface">No pudimos abrir la carta.</p>
+              <Button size="sm" variant="secondary" onClick={api.retry}>Reintentar</Button>
+            </div>
+          ) : api.status === 'loading' ? (
+            <div className="mt-6 flex flex-col gap-3">
+              <Skeleton className="h-11 w-2/3 rounded-2xl" />
+              <Skeleton className="ml-auto h-11 w-1/2 rounded-2xl" />
+              <Skeleton className="h-44 w-40 rounded-md" />
+            </div>
+          ) : count === 0 ? (
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={springs.gentle} className="m-auto flex max-w-[330px] flex-col items-center gap-3 text-center">
+              <p className="text-display-sm text-on-background"><Lettering text={empty.title} /></p>
+              <p className="rounded-xl bg-surface/85 px-3 py-2 text-body-md text-on-surface-light">{empty.hint}</p>
+            </motion.div>
+          ) : api.messages.map((m, i) => {
+            const prev = api.messages[i - 1];
+            const next = api.messages[i + 1];
+            const newDay = !prev || dayOf(prev.createdAt) !== dayOf(m.createdAt);
+            const joined = !newDay && sameGroup(prev, m);
+            const last = !next || !sameGroup(m, next);
+            const seen = m.mine && m.id === lastMine?.id && api.seenUntil > 0 && new Date(m.createdAt).getTime() <= api.seenUntil;
+            return (
+              <Fragment key={m.localId ?? m.id}>
+                {newDay && <Postmark iso={m.createdAt} />}
+                {m.kind === 'EVENT' ? <EventNote m={m} /> : (
+                  <MessageRow
+                    m={m} group={group} joined={joined} last={last} seen={seen} coarse={coarse} flash={flash === m.id} nameOf={nameOf}
+                    onPicker={(msg, rect) => setPicker({ m: msg, rect })} onReply={startReply} onReact={react} onOpenPhoto={setViewer} onJump={jump}
+                  />
+                )}
+              </Fragment>
+            );
+          })}
+        </div>
+        <AnimatePresence>
+          {below > 0 && (
+            <motion.button
+              type="button" onClick={toBottom}
+              initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} transition={springs.snappy}
+              className="absolute bottom-3 left-1/2 flex min-h-10 -translate-x-1/2 items-center gap-1.5 rounded-full bg-primary px-4 text-label-md text-on-primary shadow-lg"
+            >
+              <ArrowDown aria-hidden className="size-4" />{below} {below === 1 ? 'mensaje nuevo' : 'mensajes nuevos'}
+            </motion.button>
+          )}
+        </AnimatePresence>
       </div>
+
+      <AnimatePresence initial={false}>
+        {replying && (
+          <motion.div
+            key="replying"
+            initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={springs.natural}
+            className="relative overflow-hidden border-t border-border/80 bg-surface/92 backdrop-blur-md"
+          >
+            <div className="flex items-center gap-2 px-3 py-2 md:px-5">
+              <Reply aria-hidden className="size-4 shrink-0 text-primary-text" strokeWidth={1.9} />
+              <Quote r={{ id: replying.id, authorId: replying.author?.id ?? '', kind: replying.kind, content: replying.content }} name={`Respondes a ${nameOf(replying.author?.id ?? '')}`} className="min-w-0 flex-1" />
+              <Button variant="icon" aria-label="Cancelar la respuesta" onClick={() => setReplying(null)}><X aria-hidden className="size-4" /></Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <form onSubmit={submit} className="relative flex items-end gap-2 border-t border-border/80 bg-surface/92 px-3 pb-[max(.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-md md:px-5">
         <Button type="button" variant="secondary" aria-label={`Tomar una foto para ${to}`} onClick={() => setCamera(true)} className="size-12 shrink-0 rounded-full p-0">
@@ -421,8 +692,11 @@ function LetterShell({ api, label, to, shareWith, header, extraMenu = [], empty,
         <textarea
           id={inputId} ref={inputRef} rows={1} value={text} maxLength={group ? 500 : 1000} autoComplete="off"
           onChange={(e) => { setText(e.target.value); grow(); }}
-          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && fine && !e.nativeEvent.isComposing) { e.preventDefault(); void submit(); } }}
-          placeholder={`Escribe a ${to}…`}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape' && replying) { e.stopPropagation(); setReplying(null); return; }
+            if (e.key === 'Enter' && !e.shiftKey && fine && !e.nativeEvent.isComposing) { e.preventDefault(); void submit(); }
+          }}
+          placeholder={replying ? 'Escribe tu respuesta…' : `Escribe a ${to}…`}
           className="lq-pen-line min-h-12 flex-1 resize-none px-1 py-3 text-body-lg text-on-background placeholder:text-on-surface-light/80"
         />
         <motion.button
@@ -434,6 +708,14 @@ function LetterShell({ api, label, to, shareWith, header, extraMenu = [], empty,
         </motion.button>
       </form>
 
+      <AnimatePresence>
+        {picker && (
+          <ReactionPicker
+            key={picker.m.id} target={picker} current={picker.m.reactions.find((r) => r.mine)?.emoji}
+            onPick={(emoji) => react(picker.m, emoji)} onReply={() => startReply(picker.m)} onClose={() => setPicker(null)}
+          />
+        )}
+      </AnimatePresence>
       <InstantCamera open={camera} onClose={() => setCamera(false)} to={to} onSend={onCameraSend} />
       <BackdropEditor open={editor} onClose={() => setEditor(false)} current={current} shareWith={shareWith} onSave={api.saveBackground} />
       {flight && <PhotoFlight flight={flight} listRef={listRef} onLanded={() => { api.reveal(flight.id); setFlight(null); }} />}
@@ -449,7 +731,6 @@ function LetterShell({ api, label, to, shareWith, header, extraMenu = [], empty,
     </section>
   );
 }
-
 // ─── Carta entre dos amigos y carta de un gremio ──────────────────────────────
 
 export function DirectLetter({ friend, onBack, onActivity, className }: { friend: PublicUser; onBack?: () => void; onActivity?: () => void; className?: string }) {
@@ -516,3 +797,4 @@ export function GuildLetter({ guildId, guild, reloadGuild, onBack, onActivity, c
     />
   );
 }
+

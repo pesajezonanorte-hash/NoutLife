@@ -210,6 +210,8 @@ model User {
   receivedMessages        DirectMessage[]          @relation("DMReceiver")
   gesturesSent            SocialGesture[]          @relation("GestureFrom")
   gesturesReceived        SocialGesture[]          @relation("GestureTo")
+  messageReactions        MessageReaction[]
+  chatViews               ChatView[]
   guildMessages           GuildMessage[]
   sageMemories            SageMemory[]
   sageInsights            SageInsight[]
@@ -899,8 +901,13 @@ model GuildMessage {
   /// Día del gremio (zona de quien lo lidera) de los mensajes que cuentan para la racha y el enemigo.
   dayKey    String?
   createdAt DateTime @default(now())
+  replyToId String?
+  reactedAt DateTime?
+  reactions MessageReaction[]
 
   @@index([guildId, dayKey])
+  @@index([guildId, createdAt])
+  @@index([guildId, reactedAt])
   @@map("guild_messages")
 }
 
@@ -935,7 +942,13 @@ model DirectMessage {
   dayKey     String?
   readAt     DateTime?
   createdAt  DateTime  @default(now())
+  /// Mensaje al que responde (otro de la misma carta).
+  replyToId  String?
+  /// Última vez que cambió una reacción: el sondeo en vivo la usa para avisar.
+  reactedAt  DateTime?
+  reactions  MessageReaction[]
 
+  @@index([senderId, receiverId, reactedAt])
   @@index([senderId, receiverId, createdAt])
   @@index([receiverId, readAt])
   @@map("direct_messages")
@@ -1573,4 +1586,33 @@ model Feedback {
   createdAt DateTime @default(now())
 
   @@map("feedback")
+}
+
+/// Reacción de una persona a un mensaje (una por persona y mensaje; tocarla otra vez la quita).
+model MessageReaction {
+  id             String         @id @default(cuid())
+  dmId           String?
+  dm             DirectMessage? @relation(fields: [dmId], references: [id], onDelete: Cascade)
+  guildMessageId String?
+  guildMessage   GuildMessage?  @relation(fields: [guildMessageId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emoji          String
+  createdAt      DateTime       @default(now())
+
+  @@unique([dmId, userId])
+  @@unique([guildMessageId, userId])
+  @@map("message_reactions")
+}
+
+/// Qué carta tiene abierta cada persona ("dm:<id>" | "guild:<id>") o si la app está en primer plano ("app").
+/// Mientras está abierta no se le avisa de lo que llega a esa misma carta.
+model ChatView {
+  userId String
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key    String
+  at     DateTime
+
+  @@id([userId, key])
+  @@map("chat_views")
 }
