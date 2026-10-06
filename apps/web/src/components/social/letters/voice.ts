@@ -37,7 +37,11 @@ const blobToDataUrl = (blob: Blob) => new Promise<string>((resolve, reject) => {
   r.readAsDataURL(blob);
 });
 
-export function useVoiceRecorder() {
+/**
+ * `onLimit` avisa de que se llegó al máximo (2 min): quien lo usa debe llamar a `stop(true)`
+ * para no perder la nota.
+ */
+export function useVoiceRecorder(onLimit?: () => void) {
   const [state, setState] = useState<RecorderState>('idle');
   const [elapsed, setElapsed] = useState(0);
   const [level, setLevel] = useState(0);
@@ -50,6 +54,8 @@ export function useVoiceRecorder() {
   const ctx = useRef<AudioContext | null>(null);
   const done = useRef<((clip: VoiceClip | null) => void) | null>(null);
   const keep = useRef(false);
+  const limit = useRef(onLimit);
+  limit.current = onLimit;
 
   const cleanup = useCallback(() => {
     cancelAnimationFrame(raf.current);
@@ -78,7 +84,8 @@ export function useVoiceRecorder() {
       r.ondataavailable = (e) => { if (e.data.size) chunks.current.push(e.data); };
       r.onstop = async () => {
         const durationMs = Math.min(VOICE_MAX_MS, Date.now() - startedAt.current);
-        const type = r.mimeType || mime || 'audio/webm';
+        // Firefox escribe «audio/ogg; codecs=opus» (con espacio): el servidor espera el formato sin él.
+        const type = (r.mimeType || mime || 'audio/webm').replace(/s+/g, '');
         const finish = done.current;
         done.current = null;
         cleanup();
@@ -108,7 +115,7 @@ export function useVoiceRecorder() {
           if (t - last > 90) { levels.current.push(rms); last = t; setLevel(Math.min(1, rms * 4)); }
           const ms = Date.now() - startedAt.current;
           setElapsed(ms);
-          if (ms >= VOICE_MAX_MS) { keep.current = true; rec.current?.stop(); return; }
+          if (ms >= VOICE_MAX_MS) { limit.current?.(); return; }
           raf.current = requestAnimationFrame(tick);
         };
         raf.current = requestAnimationFrame(tick);
