@@ -13,7 +13,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
-import { AnimatePresence, PresenceContext, motion } from 'framer-motion';
+import { AnimatePresence, PresenceContext, motion, useIsPresent } from 'framer-motion';
 import { Mail, NotebookTabs, PenLine, Send, Tent, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { item } from '@/lib/motion';
@@ -97,16 +97,27 @@ function EmptyPane() {
   );
 }
 
-/** La carta a pantalla completa del móvil: exactamente lo visible sobre el teclado. */
+/**
+ * La carta a pantalla completa del móvil: exactamente lo visible sobre el teclado.
+ * Entra como una hoja que se despliega desde abajo y sale igual. Al empezar a
+ * salir se suelta el foco: así el teclado se cierra antes de devolver el scroll
+ * a la página (si no, iOS dejaba la vista desplazada, la barra inferior oculta
+ * y la lista sin poder desplazarse).
+ */
 function MobileLetter({ children }: { children: React.ReactNode }) {
   const box = useViewportBox();
+  const present = useIsPresent();
+  useEffect(() => {
+    if (!present) (document.activeElement as HTMLElement | null)?.blur?.();
+  }, [present]);
   return (
     // Capa opaca a pantalla completa (jamás se ve la bandeja detrás, ni mientras iOS acomoda el teclado)
     // y, dentro, la carta con exactamente el alto visible por encima del teclado.
     <motion.div
       key="mobile-letter" data-keyboard-managed
-      initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%', transition: { duration: 0.24, ease: [0.4, 0, 1, 1] } }}
-      transition={springs.natural}
+      initial={{ y: '100%', rotate: 2.5, scale: 0.98 }} animate={{ y: 0, rotate: 0, scale: 1 }}
+      exit={{ y: '100%', rotate: -2, transition: { duration: 0.26, ease: [0.4, 0, 1, 1] } }}
+      transition={springs.natural} style={{ transformOrigin: '50% 100%' }}
       className="fixed inset-0 z-[60] overflow-hidden overscroll-none bg-background [will-change:transform]"
     >
       <ScrollLock />

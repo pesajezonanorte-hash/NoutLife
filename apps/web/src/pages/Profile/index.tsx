@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  Bell, ChevronRight, Coins, Globe, Heart, LogOut, Shield, SlidersHorizontal, Sun, UserRound, Zap,
+  Bell, ChevronRight, Coins, Globe, Heart, LogOut, Shield, SlidersHorizontal, Sun, UserRound,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -240,7 +240,7 @@ export default function ProfilePage() {
         <h2 id="pf-attr" className="text-heading-sm">Atributos</h2>
         <span className="flex items-center gap-1.5 text-label-lg text-warning-text font-mono tabular-nums"><Coins aria-hidden className="size-5" strokeWidth={1.75} />{fmtNumber(user.gold)}<span className="sr-only"> de oro</span></span>
       </div>
-      {([['Vida', Heart, user.hp, user.maxHp, 'error'], ['Maná', Zap, user.mp, user.maxMp, 'info']] as const).map(([name, Icon, v, max, tone]) => (
+      {([['Vida', Heart, user.hp, user.maxHp, 'error']] as const).map(([name, Icon, v, max, tone]) => (
         <div key={name} className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between text-body-sm">
             <span className="flex items-center gap-2 text-label-lg"><Icon aria-hidden className={cn('size-4', softTone[tone].split(' ')[1])} strokeWidth={1.75} />{name}</span>

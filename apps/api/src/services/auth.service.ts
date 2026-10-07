@@ -2,10 +2,9 @@ import bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
 import { prisma } from '../lib/prisma';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../lib/jwt';
-import type { RegisterInput, LoginInput } from '../schemas/auth.schemas';
+import type { OAuthInput } from '../schemas/auth.schemas';
+import { verifyIdToken, type OAuthIdentity } from '../lib/oauth';
 import { checkAchievements } from './achievement.service';
-
-const BCRYPT_ROUNDS = 12;
 
 function sanitizeUser(user: {
   id: string;
@@ -18,8 +17,6 @@ function sanitizeUser(user: {
   gold: number;
   hp: number;
   maxHp: number;
-  mp: number;
-  maxMp: number;
   strength: number;
   intelligence: number;
   charisma: number;
@@ -51,8 +48,6 @@ function sanitizeUser(user: {
     gold: user.gold,
     hp: user.hp,
     maxHp: user.maxHp,
-    mp: user.mp,
-    maxMp: user.maxMp,
     strength: user.strength,
     intelligence: user.intelligence,
     charisma: user.charisma,
@@ -75,20 +70,6 @@ function sanitizeUser(user: {
   };
 }
 
-/** Reports whether the email or username is already taken, without creating anything. */
-export async function checkAvailability(data: Pick<RegisterInput, 'email' | 'username'>) {
-  const normalizedEmail = data.email.trim().toLowerCase();
-  const username = data.username.trim();
-  const existing = await prisma.user.findMany({
-    where: { OR: [{ email: normalizedEmail }, { username }] },
-    select: { email: true, username: true },
-  });
-  return {
-    emailTaken: existing.some((u) => u.email === normalizedEmail),
-    usernameTaken: existing.some((u) => u.username === username),
-  };
-}
-
 /**
  * Sesiones: cada usuario tiene una «familia» (refreshTokenHash guarda su id, no
  * un hash por token). Todos sus dispositivos comparten la familia, así iniciar
@@ -106,69 +87,61 @@ async function issueSession(user: { id: string; email: string; refreshTokenHash:
   return { accessToken: signAccessToken(payload), refreshToken: signRefreshToken({ ...payload, fid }) };
 }
 
-export async function registerUser(data: RegisterInput) {
-  const normalizedEmail = data.email.trim().toLowerCase();
-  const existing = await prisma.user.findFirst({
-    where: { OR: [{ email: normalizedEmail }, { username: data.username.trim() }] },
-  });
-
-  if (existing) {
-    if (existing.email === normalizedEmail) throw new Error('EMAIL_TAKEN');
-    throw new Error('USERNAME_TAKEN');
+/** Usuario libre a partir del email o el nombre: 3–20 letras, números o _. */
+async function uniqueUsername(seed: string) {
+  const base = (seed.normalize('NFD').replace(/[^a-zA-Z0-9_]/g, '').slice(0, 14) || 'heroe').padEnd(3, '0');
+  for (let i = 0; i < 20; i++) {
+    const candidate = i === 0 ? base : `${base}${Math.floor(1000 + Math.random() * 9000)}`;
+    if (!await prisma.user.findUnique({ where: { username: candidate }, select: { id: true } })) return candidate;
   }
-
-  const passwordHash = await bcrypt.hash(data.password, BCRYPT_ROUNDS);
-  const bodyType = data.gender ?? 'male';
-  const avatarConfig = {
-    bodyType,
-    hairStyle: bodyType === 'female' ? 'long' : 'short',
-    hairColor: '#4a3728',
-    skinColor: '#c68642',
-    shirtColor: '#4d96ff',
-    pants: '#37474f',
-    accessory: 'none',
-    expression: 'normal',
-    pet: null,
-  };
-
-  const user = await prisma.user.create({
-    data: {
-      email: normalizedEmail,
-      username: data.username.trim(),
-      passwordHash,
-      displayName: data.displayName ?? data.username.trim(),
-      avatarConfig,
-    },
-  });
-
-  const { accessToken, refreshToken } = await issueSession(user);
-
-  // Trigger first_login achievement silently (don't block registration)
-  checkAchievements(user.id, 'user_registered', { currentStreak: 0 }).catch(() => {});
-
-  return { user: sanitizeUser(user), accessToken, refreshToken };
+  return `heroe${randomBytes(5).toString('hex')}`;
 }
 
-export async function loginUser(data: LoginInput) {
-  const normalizedEmail = data.email.trim().toLowerCase();
-  const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+/**
+ * Busca la cuenta por el id estable del proveedor; si no existe, la enlaza por
+ * email verificado (cuentas antiguas con contraseña) o crea una nueva. Las
+ * cuentas nuevas empiezan sin onboarding y la app las lleva a completarlo.
+ */
+async function findOrCreateUser(identity: OAuthIdentity, displayName?: string) {
+  const subField = identity.provider === 'google' ? 'googleSub' : 'appleSub';
+  const bySub = await prisma.user.findFirst({ where: { [subField]: identity.sub } });
+  if (bySub) return bySub;
 
-  if (!user) throw new Error('INVALID_CREDENTIALS');
+  if (!identity.email || !identity.emailVerified) throw new Error('OAUTH_EMAIL_UNVERIFIED');
 
-  const valid = await bcrypt.compare(data.password, user.passwordHash);
-  if (!valid) throw new Error('INVALID_CREDENTIALS');
+  const byEmail = await prisma.user.findUnique({ where: { email: identity.email } });
+  if (byEmail) {
+    return prisma.user.update({ where: { id: byEmail.id }, data: { [subField]: identity.sub } });
+  }
+
+  const name = (identity.name ?? displayName ?? '').trim().slice(0, 50);
+  const user = await prisma.user.create({
+    data: {
+      email: identity.email,
+      username: await uniqueUsername(identity.email.split('@')[0]),
+      displayName: name.length >= 2 ? name : 'Héroe',
+      [subField]: identity.sub,
+      avatarConfig: {
+        bodyType: 'male', hairStyle: 'short', hairColor: '#4a3728', skinColor: '#c68642',
+        shirtColor: '#4d96ff', pants: '#37474f', accessory: 'none', expression: 'normal', pet: null,
+      },
+    },
+  });
+  checkAchievements(user.id, 'user_registered', { currentStreak: 0 }).catch(() => {});
+  return user;
+}
+
+/** Inicio de sesión único: Google o Apple. No hay contraseñas. */
+export async function oauthSignIn(data: OAuthInput) {
+  const identity = await verifyIdToken(data.provider, data.idToken);
+  const user = await findOrCreateUser(identity, data.displayName);
 
   const { reconcileUserActivityStreak } = await import('./xp.service');
   const reconciledStreak = await reconcileUserActivityStreak(user.id);
-  const userForResponse = reconciledStreak === user.currentStreak
-    ? user
-    : { ...user, currentStreak: reconciledStreak };
+  const userForResponse = reconciledStreak === user.currentStreak ? user : { ...user, currentStreak: reconciledStreak };
 
   const { accessToken, refreshToken } = await issueSession(user);
-
-  // Check login_30 achievement silently
   checkAchievements(user.id, 'user_login', { currentStreak: userForResponse.currentStreak }).catch(() => {});
-
   return { user: sanitizeUser(userForResponse), accessToken, refreshToken };
 }
 

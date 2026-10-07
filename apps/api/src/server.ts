@@ -38,7 +38,9 @@ app.use(helmet());
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin) || /\.vercel\.app$/.test(origin)) {
+      // Exact origins only: a wildcard such as *.vercel.app would let any site
+      // deployed there make credentialed calls that carry the refresh cookie.
+      if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
         callback(new Error('Not allowed by CORS'));
@@ -65,22 +67,10 @@ app.get('/health', (_req, res) => {
   res.status(200).json({ status: 'ok' });
 });
 
-// Database connection check and schema sync
-app.get('/api/v1/db/push', async (_req, res) => {
-  try {
-    const { execSync } = await import('child_process');
-    const output = execSync('npx prisma db push --accept-data-loss', { encoding: 'utf-8' });
-    res.json({ status: 'success', output });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : 'DB push failed';
-    res.status(500).json({ error: msg });
-  }
-});
-
 // ─── Parsing ─────────────────────────────────────────────────────────────────
 // Las fotos (perfil y gremio) viajan como data URL JPEG: 100 kB por defecto se queda corto.
-// Las notas de voz y las fotos viajan como data URL (hasta ~1 MB cada una).
-app.use(express.json({ limit: '2mb' }));
+// Los videos (15 s, ~2 MB en base64) y las fotos viajan como data URL.
+app.use(express.json({ limit: '3mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 

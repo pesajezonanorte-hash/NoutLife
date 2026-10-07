@@ -37,7 +37,6 @@ export interface CompleteQuestResult {
       intelligence?: number;
       charisma?: number;
       hp?: number;
-      mp?: number;
     };
   };
   achievementsUnlocked: UnlockedAchievement[];

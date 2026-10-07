@@ -91,8 +91,11 @@ model User {
   id           String @id @default(cuid())
   email        String @unique
   username     String @unique
-  passwordHash String
-  displayName  String @default("Miguel Ángel")
+  /// Legacy: sign-in is Google/Apple only. Kept nullable for old accounts.
+  passwordHash String?
+  googleSub    String? @unique
+  appleSub     String? @unique
+  displayName  String @default("Héroe")
 
   level         Int @default(1)
   xp            Int @default(0)
@@ -101,8 +104,6 @@ model User {
 
   hp           Int @default(100)
   maxHp        Int @default(100)
-  mp           Int @default(100)
-  maxMp        Int @default(100)
   strength     Int @default(1)
   intelligence Int @default(1)
   charisma     Int @default(1)
@@ -144,11 +145,6 @@ model User {
 
   // Fase 9 — Glow Up
   lifeScore           Int @default(0)
-  fitnessLevel        Int @default(1)
-  financeLevel        Int @default(1)
-  mindLevel           Int @default(1)
-  relationshipLevel   Int @default(1)
-  disciplineLevel     Int @default(1)
   focusMinutesTotal   Int @default(0)
 
   refreshTokenHash String?

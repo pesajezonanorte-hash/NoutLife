@@ -13,7 +13,8 @@ router.post('/', async (req, res) => {
       return;
     }
 
-    const k = kind === 'bug' || kind === 'idea' ? kind : 'other';
+    // 'report': denuncia de una persona o un mensaje (moderación de contenido).
+    const k = kind === 'bug' || kind === 'idea' || kind === 'report' ? kind : 'other';
 
     await prisma.feedback.create({
       data: {

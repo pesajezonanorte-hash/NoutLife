@@ -40,8 +40,6 @@ export async function getDashboard(userId: string) {
         gold: true,
         hp: true,
         maxHp: true,
-        mp: true,
-        maxMp: true,
         strength: true,
         intelligence: true,
         charisma: true,

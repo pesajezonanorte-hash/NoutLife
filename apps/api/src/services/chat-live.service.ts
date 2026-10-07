@@ -127,7 +127,9 @@ export async function clearedAt(me: string, key: string): Promise<Date | null> {
 // ─── Tipos de mensaje ─────────────────────────────────────────────────────────
 
 /** Mensajes que cuentan como "hablar" para la racha (los avisos de la carta no). */
-export const TALK_KINDS = ['TEXT', 'SNAP', 'PHOTO', 'VOICE', 'STICKER', 'GAME'];
+export const TALK_KINDS = ['TEXT', 'SNAP', 'PHOTO', 'VOICE', 'VIDEO', 'STICKER', 'GAME'];
+/** Mensajes cuyo clip pesado (nota de voz antigua o video) viaja en la columna audioUrl. */
+export const CLIP_KINDS = ['VOICE', 'VIDEO'];
 /** Mensajes con foto (de la cámara o de la galería). */
 export const PHOTO_KINDS = ['SNAP', 'PHOTO'];
 
@@ -135,11 +137,12 @@ const PHOTO = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
 const PHOTO_MAX = 600_000;
 const THUMB = /^data:image\/(jpeg|webp);base64,[A-Za-z0-9+/=]+$/;
 const THUMB_MAX = 6_000;
-const AUDIO = /^data:audio\/(webm|ogg|mp4|mpeg|aac|x-m4a|wav)(;s*codecs=[a-z0-9.,]+)?;base64,[A-Za-z0-9+/=]+$/i;
-const AUDIO_MAX = 1_000_000;
+const VIDEO = /^data:video\/(mp4|webm|quicktime)(;\s*codecs=[a-z0-9.,"]+)?;base64,[A-Za-z0-9+/=]+$/i;
+/** ~15 s a 480p (unos 2 MB en base64). */
+const VIDEO_MAX = 2_800_000;
 const STICKER_IMG = /^data:image\/(webp|png);base64,[A-Za-z0-9+/=]+$/;
 const STICKER_MAX = 400_000;
-export const VOICE_MAX_MS = 120_000;
+export const VIDEO_MAX_MS = 15_000;
 
 export function validPhoto(value: unknown): string {
   if (typeof value !== 'string' || value.length > PHOTO_MAX || !PHOTO.test(value)) {
@@ -161,13 +164,13 @@ export interface MessageMeta {
   game?: unknown;
 }
 
-function voiceMeta(raw: Record<string, unknown>): MessageMeta {
+function videoMeta(raw: Record<string, unknown>): MessageMeta {
   const d = typeof raw.durationMs === 'number' && Number.isFinite(raw.durationMs) ? Math.round(raw.durationMs) : 0;
-  if (d < 300) throw new Error('La nota de voz es demasiado corta');
-  const peaks = Array.isArray(raw.peaks)
-    ? raw.peaks.slice(0, 64).map((v) => (typeof v === 'number' && Number.isFinite(v) ? Math.round(Math.min(1, Math.max(0, v)) * 100) / 100 : 0))
-    : [];
-  return { durationMs: Math.min(d, VOICE_MAX_MS), peaks };
+  if (d < 300) throw new Error('El video es demasiado corto');
+  // Medio segundo de margen: el grabador se detiene solo al llegar a 15 s.
+  if (d > VIDEO_MAX_MS + 500) throw new Error('El video dura más de 15 segundos');
+  const thumb = validThumb(raw.thumb);
+  return { durationMs: Math.min(d, VIDEO_MAX_MS), ...(thumb ? { thumb } : {}) };
 }
 
 export interface Outgoing {
@@ -180,10 +183,11 @@ export interface Outgoing {
 
 /**
  * Valida un mensaje que llega del cliente y lo deja listo para guardar.
- * TEXT · SNAP (foto de la cámara) · PHOTO (de la galería) · VOICE · STICKER.
+ * TEXT · SNAP (foto de la cámara) · PHOTO (de la galería) · VIDEO (hasta 15 s) · STICKER.
+ * Las notas de voz ya no se aceptan; las antiguas se siguen viendo.
  */
 export async function parseOutgoing(body: { kind?: unknown; content?: unknown; photoUrl?: unknown; audioUrl?: unknown; meta?: unknown }, maxText: number): Promise<Outgoing> {
-  const kind = typeof body.kind === 'string' && ['SNAP', 'PHOTO', 'VOICE', 'STICKER'].includes(body.kind) ? body.kind : 'TEXT';
+  const kind = typeof body.kind === 'string' && ['SNAP', 'PHOTO', 'VIDEO', 'STICKER'].includes(body.kind) ? body.kind : 'TEXT';
   const content = typeof body.content === 'string' ? body.content.trim() : '';
   const raw = (body.meta && typeof body.meta === 'object' ? body.meta : {}) as Record<string, unknown>;
   if (kind === 'TEXT') {
@@ -196,11 +200,12 @@ export async function parseOutgoing(body: { kind?: unknown; content?: unknown; p
     const thumb = validThumb(raw.thumb);
     return { kind, content: content.slice(0, 120), photoUrl: validPhoto(body.photoUrl), audioUrl: null, meta: thumb ? { thumb } : null };
   }
-  if (kind === 'VOICE') {
-    if (typeof body.audioUrl !== 'string' || body.audioUrl.length > AUDIO_MAX || !AUDIO.test(body.audioUrl)) {
-      throw new Error('La nota de voz no llegó bien. Grábala otra vez (máximo 2 minutos).');
+  if (kind === 'VIDEO') {
+    // El video viaja en audioUrl (la columna de clips) para no tocar el esquema.
+    if (typeof body.audioUrl !== 'string' || body.audioUrl.length > VIDEO_MAX || !VIDEO.test(body.audioUrl)) {
+      throw new Error('El video no llegó bien. Grábalo otra vez (máximo 15 segundos).');
     }
-    return { kind, content: '', photoUrl: null, audioUrl: body.audioUrl, meta: voiceMeta(raw) };
+    return { kind, content: content.slice(0, 120), photoUrl: null, audioUrl: body.audioUrl, meta: videoMeta(raw) };
   }
   // STICKER: solo viaja la huella de su imagen (guardada una vez).
   const hash = typeof raw.sticker === 'string' && /^[a-f0-9]{64}$/.test(raw.sticker) ? raw.sticker : null;
@@ -218,6 +223,7 @@ export function snippet(m: { kind: string; content: string | null; deletedAt?: D
       const d = (m.meta as MessageMeta | null)?.durationMs;
       return d ? `Nota de voz · ${Math.floor(d / 60000)}:${String(Math.round((d % 60000) / 1000)).padStart(2, '0')}` : 'Nota de voz';
     }
+    case 'VIDEO': return (m.content ? `Video · ${m.content}` : 'Video').slice(0, max);
     case 'STICKER': return 'Sticker';
     case 'GAME': return gameLabel(m.meta);
     case 'EVENT': return m.content === 'bg-off' ? 'La carta volvió al papel' : m.content?.startsWith('edit:') ? 'Cambios en el gremio' : 'Nuevo fondo para la carta';
@@ -265,7 +271,7 @@ export function letterBody(m: LightRow, me: string) {
     kind: m.kind,
     content: deleted ? null : m.content || null,
     meta: deleted ? null : publicMeta(m.meta, me),
-    media: { photo: !deleted && PHOTO_KINDS.includes(m.kind), audio: !deleted && m.kind === 'VOICE' },
+    media: { photo: !deleted && PHOTO_KINDS.includes(m.kind), audio: !deleted && CLIP_KINDS.includes(m.kind) },
     createdAt: m.createdAt.toISOString(),
     editedAt: m.editedAt?.toISOString() ?? null,
     deletedAt: m.deletedAt?.toISOString() ?? null,

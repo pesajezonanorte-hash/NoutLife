@@ -9,7 +9,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Ban, Check, Hand, Heart, Lock, Mail, MoreHorizontal, Send, Shield, UserMinus, Users, X } from 'lucide-react';
+import { Ban, Check, Flag, Hand, Heart, Lock, Mail, MoreHorizontal, Send, Shield, UserMinus, Users, X } from 'lucide-react';
+import { ReportDialog } from '@/components/social/ReportDialog';
 import { cn } from '@/lib/utils';
 import { fmtNumber, item, slam, stagger } from '@/lib/motion';
 import { springs } from '@/lib/motion/presets';
@@ -100,7 +101,7 @@ export default function UserProfilePage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [menu, setMenu] = useState(false);
   const [guildOpen, setGuildOpen] = useState(false);
-  const [confirm, setConfirm] = useState<'remove' | 'partner' | 'block' | null>(null);
+  const [confirm, setConfirm] = useState<'remove' | 'partner' | 'block' | 'report' | null>(null);
   const [waved, setWaved] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -239,6 +240,7 @@ export default function UserProfilePage() {
                       <button role="menuitem" type="button" onClick={() => { setMenu(false); setConfirm('partner'); }} className={menuRow}><Heart aria-hidden className="size-4 text-error-text" />Compartir mi jardín</button>
                       <button role="menuitem" type="button" onClick={() => { setMenu(false); setGuildOpen(true); }} className={menuRow}><Shield aria-hidden className="size-4 text-warning-text" />Invitar a un gremio</button>
                       <button role="menuitem" type="button" onClick={() => { setMenu(false); setConfirm('remove'); }} className={cn(menuRow, 'text-error-text')}><UserMinus aria-hidden className="size-4" />Borrar de mi directorio</button>
+                      <button role="menuitem" type="button" onClick={() => { setMenu(false); setConfirm('report'); }} className={cn(menuRow, 'text-error-text')}><Flag aria-hidden className="size-4" />Denunciar</button>
                       <button role="menuitem" type="button" onClick={() => { setMenu(false); setConfirm('block'); }} className={cn(menuRow, 'text-error-text')}><Ban aria-hidden className="size-4" />Bloquear</button>
                     </motion.div>
                   )}
@@ -377,6 +379,7 @@ export default function UserProfilePage() {
       )}
 
       {friends && <GuildInviteModal open={guildOpen} onClose={() => setGuildOpen(false)} userId={user.id} name={first} />}
+      <ReportDialog open={confirm === 'report'} onClose={() => setConfirm(null)} target={user} />
       <Modal open={confirm === 'block'} onClose={() => setConfirm(null)} title={`¿Bloquear a ${first}?`}>
         <p className="text-body-md text-on-surface">{friends ? 'Dejarán de ser amigos. ' : ''}No podrá escribirte, enviarte palomas ni gestos, y no se verán en las zonas ni en el buscador. Puedes desbloquearlo cuando quieras.</p>
         <div className="flex justify-end gap-3">

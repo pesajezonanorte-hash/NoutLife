@@ -96,6 +96,39 @@ const GYM_ATTENDANCE_AND_NOTIFICATION_CONTROLS_SQL = [
   ignoreDuplicate(`ALTER TABLE "notification_category_preferences" ADD CONSTRAINT "notification_category_preferences_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE`),
 ];
 
+/**
+ * One-time data fixes. Each op id is recorded in "_data_ops" and never runs
+ * again, so a fix that deletes data cannot repeat on a later deploy.
+ */
+async function runDataOpsOnce() {
+  await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "_data_ops" ("id" TEXT PRIMARY KEY, "ranAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);`);
+  const ops: Array<[string, () => Promise<void>]> = [
+    // An account reset of miguelhero ran before the reset covered the gym, so
+    // its workouts, routines, attendance and body tracking survived.
+    ['2026-10-09-reset-gym-miguelhero', async () => {
+      const user = await prisma.user.findUnique({ where: { username: 'miguelhero' }, select: { id: true } });
+      if (!user) return;
+      const userId = user.id;
+      await prisma.$transaction([
+        prisma.workoutExercise.deleteMany({ where: { workout: { userId } } }),
+        prisma.workout.deleteMany({ where: { userId } }),
+        prisma.routine.deleteMany({ where: { userId } }),
+        prisma.gymAttendance.deleteMany({ where: { userId } }),
+        prisma.bodyWeight.deleteMany({ where: { userId } }),
+        prisma.progressPhoto.deleteMany({ where: { userId } }),
+        prisma.user.update({ where: { id: userId }, data: { gymPlaylistUrl: null } }),
+      ]);
+      console.log('Gym data of miguelhero reset.');
+    }],
+  ];
+  for (const [id, run] of ops) {
+    const done = await prisma.$queryRawUnsafe<unknown[]>(`SELECT 1 FROM "_data_ops" WHERE "id" = $1`, id);
+    if (done.length) continue;
+    await run();
+    await prisma.$executeRawUnsafe(`INSERT INTO "_data_ops" ("id") VALUES ($1)`, id);
+  }
+}
+
 async function migrate() {
   console.log('Running database schema updates...');
   
@@ -167,6 +200,18 @@ async function migrate() {
 
   // Idempotent mirror of prisma/migrations/20261008120000_social_pro.
   for (const sql of SOCIAL_PRO_SQL) await prisma.$executeRawUnsafe(sql);
+
+  // Idempotent mirror of prisma/migrations/20261009120000_oauth_only_and_stats.
+  // The unused stat columns (mp, maxMp, per-area levels) are left in place here:
+  // the previous deployment may still be serving while this one builds.
+  await prisma.$executeRawUnsafe(`ALTER TABLE "users" ALTER COLUMN "passwordHash" DROP NOT NULL;`);
+  await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "googleSub" TEXT;`);
+  await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "appleSub" TEXT;`);
+  await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "users_googleSub_key" ON "users"("googleSub");`);
+  await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "users_appleSub_key" ON "users"("appleSub");`);
+  await prisma.$executeRawUnsafe(`ALTER TABLE "users" ALTER COLUMN "displayName" SET DEFAULT 'Héroe';`);
+
+  await runDataOpsOnce();
 
   // XP that was added without leveling up (achievements, focus, rituals, care
   // routines) left some players above their level threshold. Settle them once.

@@ -1,26 +1,25 @@
 import api from '../lib/api';
-import type { AuthResponse, LoginPayload, RegisterPayload } from '@lifequest/shared';
+import type { AuthResponse, OAuthPayload } from '@lifequest/shared';
 import {
   clearRefreshSessionExpected,
   markRefreshSessionExpected,
 } from '../lib/session-hint';
 
-export async function login(payload: LoginPayload): Promise<AuthResponse> {
-  const { data } = await api.post<AuthResponse>('/auth/login', payload);
+/** Ids públicos de Google y Apple (vienen de la API, no del build). */
+export async function getProviders() {
+  const { data } = await api.get<{ googleClientId: string | null; appleClientId: string | null; appleRedirectUri: string | null }>('/auth/providers');
+  return data;
+}
+
+export async function oauthSignIn(payload: OAuthPayload): Promise<AuthResponse> {
+  const { data } = await api.post<AuthResponse>('/auth/oauth', payload);
   markRefreshSessionExpected();
   return data;
 }
 
-export async function register(payload: RegisterPayload): Promise<AuthResponse> {
-  const { data } = await api.post<AuthResponse>('/auth/register', payload);
-  markRefreshSessionExpected();
-  return data;
-}
-
-/** Comprueba email y usuario sin crear la cuenta (se crea al terminar el onboarding). */
-export async function checkAvailability(payload: Pick<RegisterPayload, 'email' | 'username'>) {
-  const { data } = await api.post<{ emailTaken: boolean; usernameTaken: boolean }>('/auth/availability', payload);
-  return data;
+export async function deleteAccount(): Promise<void> {
+  await api.post('/auth/delete-account', { confirmation: 'DELETE_MY_ACCOUNT' });
+  clearRefreshSessionExpected();
 }
 
 export async function fetchMe(): Promise<AuthResponse['user']> {

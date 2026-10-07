@@ -32,6 +32,14 @@ export function unlockScroll() {
   saved = null;
   document.body.setAttribute('style', style);
   window.scrollTo({ top: y, behavior: 'instant' as ScrollBehavior });
+  // iOS: si el teclado aún se está cerrando, la vista queda desplazada y la
+  // barra inferior fuera de sitio. Se vuelve a colocar cuando termina.
+  const vv = window.visualViewport;
+  if (vv && vv.offsetTop > 0) {
+    const settle = () => { if (locks === 0) window.scrollTo({ top: y, behavior: 'instant' as ScrollBehavior }); };
+    vv.addEventListener('resize', settle, { once: true });
+    window.setTimeout(settle, 400);
+  }
 }
 
 /** Focus trap + Escape + restaurar foco + bloquear scroll del body. */
@@ -96,7 +104,7 @@ export function Modal({ open, onClose, title, hideClose, dismissible = true, cla
         <motion.div
           key="scrim"
           variants={scrim} initial="initial" animate="animate" exit="exit"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--scrim)] p-4"
+          className="fixed inset-0 z-[82] flex items-center justify-center bg-[var(--scrim)] p-4"
           onMouseDown={(e) => dismissible && e.target === e.currentTarget && onClose()}
         >
           <motion.div
@@ -133,7 +141,7 @@ export function Sheet({ open, onClose, title, hideClose = true, dismissible = tr
         <motion.div
           key="scrim"
           variants={scrim} initial="initial" animate="animate" exit="exit"
-          className="fixed inset-0 z-50 flex items-end justify-center overscroll-none bg-[var(--scrim)]"
+          className="fixed inset-0 z-[82] flex items-end justify-center overscroll-none bg-[var(--scrim)]"
           onMouseDown={(e) => dismissible && e.target === e.currentTarget && onClose()}
         >
           {/* Se arrastra hacia abajo desde el asa o el título para cerrarla. */}
