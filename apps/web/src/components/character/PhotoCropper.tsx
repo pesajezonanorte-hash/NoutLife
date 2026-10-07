@@ -24,6 +24,11 @@ export interface PhotoCropperProps {
   onApply: (dataUrl: string) => void;
   /** Lado del JPEG resultante (px). */
   size?: number;
+  /** Forma del encuadre: círculo (perfil) o cuadrado (fotos del chat). */
+  shape?: 'circle' | 'square';
+  /** Calidad JPEG del resultado (0-1). */
+  quality?: number;
+  title?: string;
 }
 
 /** Carga la imagen y la reduce a MAX_SRC (lado mayor) para que arrastrar sea fluido. */
@@ -148,7 +153,7 @@ function ZoomSlider({ value, onChange, onStep }: { value: number; onChange: (z: 
   );
 }
 
-export function PhotoCropper({ src, onCancel, onApply, size = OUT }: PhotoCropperProps) {
+export function PhotoCropper({ src, onCancel, onApply, size = OUT, shape = 'circle', quality = 0.88, title = 'Ajusta tu foto' }: PhotoCropperProps) {
   const reduce = useMotionStore((s) => s.reduce);
   const frameRef = useRef<HTMLDivElement>(null);
   const [source, setSource] = useState<{ el: HTMLCanvasElement | HTMLImageElement; url: string; w: number; h: number } | null>(null);
@@ -305,7 +310,7 @@ export function PhotoCropper({ src, onCancel, onApply, size = OUT }: PhotoCroppe
     ctx.scale(s, s);
     ctx.drawImage(source.el, -source.w / 2, -source.h / 2, source.w, source.h);
     try {
-      onApply(c.toDataURL('image/jpeg', 0.88));
+      onApply(c.toDataURL('image/jpeg', quality));
     } catch {
       // Enlace externo sin CORS: el lienzo queda «contaminado» y no se puede exportar.
       setFailed(true);
@@ -318,7 +323,7 @@ export function PhotoCropper({ src, onCancel, onApply, size = OUT }: PhotoCroppe
       className="flex flex-col gap-5"
     >
       <div>
-        <h3 className="text-heading-sm">Ajusta tu foto</h3>
+        <h3 className="text-heading-sm">{title}</h3>
         <p className="mt-1 text-body-sm text-on-surface-light">Arrastra para encuadrar y pellizca, usa la rueda o el deslizador para acercar.</p>
       </div>
 
@@ -357,11 +362,11 @@ export function PhotoCropper({ src, onCancel, onApply, size = OUT }: PhotoCroppe
         {/* Velo fuera del círculo + anillo + cuadrícula de tercios mientras se arrastra. */}
         <div
           aria-hidden
-          className="pointer-events-none absolute rounded-full shadow-[0_0_0_9999px_var(--scrim)] ring-2 ring-white/90"
+          className={cn('pointer-events-none absolute shadow-[0_0_0_9999px_var(--scrim)] ring-2 ring-white/90', shape === 'circle' ? 'rounded-full' : 'rounded-[14px]')}
           style={{ inset: PAD }}
         >
           <motion.div
-            className="absolute inset-0 overflow-hidden rounded-full"
+            className={cn('absolute inset-0 overflow-hidden', shape === 'circle' ? 'rounded-full' : 'rounded-[14px]')}
             animate={{ opacity: dragging ? 1 : 0 }} transition={{ duration: 0.2 }}
           >
             {[1, 2].map((i) => (

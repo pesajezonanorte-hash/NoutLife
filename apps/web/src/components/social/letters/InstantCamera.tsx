@@ -22,6 +22,7 @@ import { Lettering } from '@/components/layout/Lettering';
 import { Button, Spinner, useDialogBehavior } from '@/components/ui/lq';
 import { squarePhoto } from '@/services/network.service';
 import { InstantPhoto } from './InstantPhoto';
+import { PhotoCropper } from '@/components/character/PhotoCropper';
 
 type CamState = 'starting' | 'live' | 'shot' | 'denied' | 'unsupported' | 'error';
 
@@ -64,6 +65,8 @@ function CameraOverlay({ onClose, to, onSend, cameraOnly = false }: InstantCamer
   const [facing, setFacing] = useState<'environment' | 'user'>('environment');
   const [state, setState] = useState<CamState>('starting');
   const [photo, setPhoto] = useState<string | null>(null);
+  /** Foto de la galería esperando encuadre (zoom y posición) antes de imprimirse. */
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [caption, setCaption] = useState('');
   const [flash, setFlash] = useState(0);
   const [cams, setCams] = useState(1);
@@ -133,10 +136,33 @@ function CameraOverlay({ onClose, to, onSend, cameraOnly = false }: InstantCamer
   /** Foto de la cámara del sistema (sin getUserMedia) o de la galería. */
   async function fromFile(file: File | null | undefined, from: PhotoSource) {
     if (!file) return;
+    if (from === 'gallery') {
+      // Se deja ajustar zoom y posición antes de imprimirla.
+      const url = await new Promise<string | null>((resolve) => {
+        const fr = new FileReader();
+        fr.onload = () => resolve(typeof fr.result === 'string' ? fr.result : null);
+        fr.onerror = () => resolve(null);
+        fr.readAsDataURL(file);
+      });
+      if (url) { stop(); setCropSrc(url); }
+      return;
+    }
     setBusy(true);
     try { printed(await squarePhoto(file, OUT), from); }
     catch { /* foto ilegible: no pasa nada */ }
     finally { setBusy(false); }
+  }
+
+  async function applyCrop(url: string) {
+    setBusy(true);
+    try { printed(await squarePhoto(url, OUT), 'gallery'); setCropSrc(null); }
+    catch { /* foto ilegible: no pasa nada */ }
+    finally { setBusy(false); }
+  }
+
+  function cancelCrop() {
+    setCropSrc(null);
+    void start(facing);
   }
 
   function retake() {
@@ -177,10 +203,16 @@ function CameraOverlay({ onClose, to, onSend, cameraOnly = false }: InstantCamer
           ) : <span className="size-11" aria-hidden="true" />}
         </div>
 
+        {cropSrc && (
+          <div className="w-full rounded-[28px] bg-surface p-5 text-on-background">
+            <PhotoCropper src={cropSrc} shape="square" size={OUT} quality={0.9} title="Ajusta la foto" onCancel={cancelCrop} onApply={(u) => void applyCrop(u)} />
+          </div>
+        )}
+
         {/* La cámara */}
         <motion.div
           animate={body}
-          className="relative z-10"
+          className={cn('relative z-10', cropSrc && 'hidden')}
         >
           <motion.div
             className="lq-cam relative rounded-[30px]"
@@ -280,7 +312,7 @@ function CameraOverlay({ onClose, to, onSend, cameraOnly = false }: InstantCamer
           </AnimatePresence>
         </div>
 
-        <div ref={actionsRef} className="mt-auto flex w-full flex-col items-center gap-3 pt-5">
+        <div ref={actionsRef} className={cn('mt-auto flex w-full flex-col items-center gap-3 pt-5', cropSrc && 'hidden')}>
           {photo ? (
             <div className="flex w-full max-w-[22rem] gap-3">
               <Button variant="secondary" className="flex-1" onClick={retake}><RotateCcw aria-hidden className="size-4" />Repetir</Button>
