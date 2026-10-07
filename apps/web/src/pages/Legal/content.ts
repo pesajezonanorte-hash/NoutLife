@@ -1,8 +1,9 @@
 // Texto de las páginas legales públicas: /privacy, /terms y /copyright.
-// TODO(legal): revisar con asesoría legal antes de publicar y añadir el
-// responsable (nombre o razón social, país) y un email de contacto propio.
-// Mientras no exista un email, los avisos se reciben desde la propia app
-// (Ayuda → Enviar comentarios).
+
+export const CONTACT_EMAIL = 'Noutlife@hotmail.com';
+export const LEGAL_ENTITY = 'SIDPESAJE';
+
+const CONTACT = `Contacto para avisos legales, soporte y solicitudes DMCA: ${CONTACT_EMAIL}. También puedes escribirnos desde Ayuda → Enviar comentarios dentro de la app.`;
 
 export const LEGAL_UPDATED = '10 de octubre de 2026';
 
@@ -11,7 +12,8 @@ export type LegalSection = { h: string; p: string[] };
 export const PRIVACY: LegalSection[] = [
   { h: 'Qué datos recopilamos', p: [
     'Cuenta: el identificador, el correo y el nombre que Google nos entrega al iniciar sesión, y los datos de perfil que tú completas (usuario, avatar, bio).',
-    'Contraseñas: Noutlife solo permite entrar con Google, así que no pedimos ni guardamos contraseñas. Los tokens de sesión se guardan cifrados o con huella (hash), nunca en texto plano.',
+    'Autenticación: Noutlife utiliza exclusivamente autenticación federada con Google (Google OAuth). No tenemos registro con correo y contraseña, y NO recopilamos, pedimos ni guardamos contraseñas de ningún tipo. Tu contraseña de Google la gestiona solo Google y nunca llega a Noutlife.',
+    'Tras iniciar sesión guardamos únicamente un identificador de sesión propio, con huella (hash), para mantenerte dentro de la app.',
     'Lo que registras en la app: hábitos, misiones, agenda, diario, finanzas, comida, sueño, entrenamientos, peso, fotos de progreso, relaciones y demás zonas.',
     'Social: tu perfil público, amistades, gremios y las cartas que envías, con sus fotos, videos y stickers.',
     'Técnicos: la suscripción de avisos push de cada dispositivo, tu zona horaria e idioma, y la fecha de tu última actividad.',
@@ -52,7 +54,11 @@ export const PRIVACY: LegalSection[] = [
     'Puedes acceder a tus datos, corregirlos, oponerte a su tratamiento, exportarlos y eliminarlos.',
     'Exportación: en Ajustes → Datos puedes descargar una copia de tus datos.',
     'Eliminación total: en Ajustes → Datos puedes reiniciar tu cuenta o eliminarla para siempre, lo que borra tus datos.',
-    'Para cualquier otra solicitud, escríbenos desde Ayuda → Enviar comentarios. Respondemos en un plazo máximo de 30 días.',
+    'Para cualquier otra solicitud, escríbenos a Noutlife@hotmail.com o desde Ayuda → Enviar comentarios. Respondemos en un plazo máximo de 30 días.',
+  ] },
+  { h: 'Responsable y contacto', p: [
+    'Responsable del tratamiento y entidad comercial de respaldo: SIDPESAJE.',
+    CONTACT,
   ] },
   { h: 'Menores', p: [
     'Noutlife no está dirigida a menores de 13 años (16 en la Unión Europea). Si detectamos una cuenta de alguien menor, la eliminamos.',
@@ -93,6 +99,10 @@ export const TERMS: LegalSection[] = [
   { h: 'Fin de la relación', p: [
     'Puedes eliminar tu cuenta cuando quieras desde Ajustes. Si cambiamos estos términos de forma importante, te avisaremos en la app.',
   ] },
+  { h: 'Entidad y contacto', p: [
+    'SIDPESAJE actúa como entidad comercial de respaldo para efectos tributarios y legales de Noutlife.',
+    CONTACT,
+  ] },
 ];
 
 export const COPYRIGHT: LegalSection[] = [
@@ -115,11 +125,15 @@ export const COPYRIGHT: LegalSection[] = [
     'Spotify, Google (incluidos Calendar, Fit, YouTube y Gemini) y demás servicios que se integran en Noutlife son marcas y propiedad de sus respectivos dueños, y Noutlife no reclama derecho alguno sobre ellos.',
     'La arquitectura del ecosistema unificado que los reúne en una sola experiencia es exclusiva de Noutlife.',
   ] },
+  { h: 'Entidad de respaldo', p: [
+    'SIDPESAJE actúa como entidad corporativa y comercial de respaldo de Noutlife para efectos tributarios y legales. Esto no transfiere derechos: la propiedad intelectual, la marca, el diseño visual y el código de Noutlife corresponden en su totalidad a sus creadores originales.',
+  ] },
   { h: 'Tu contenido', p: [
     'Lo que creas en la app es tuyo (ver Términos de uso). Estas reservas se aplican a Noutlife como producto, no a tu contenido personal.',
   ] },
   { h: 'Procedimiento DMCA', p: [
-    'Si crees que algún contenido alojado en Noutlife infringe tus derechos de autor, envía un aviso desde Ayuda → Enviar comentarios con: (1) la identificación de la obra protegida; (2) dónde está el contenido infractor (enlace o descripción); (3) tus datos de contacto; (4) una declaración de buena fe de que el uso no está autorizado; y (5) una declaración, bajo pena de perjurio, de que la información es exacta y de que eres el titular o tienes autorización para actuar en su nombre, con tu firma.',
+    'Si crees que algún contenido alojado en Noutlife infringe tus derechos de autor, envía un aviso a Noutlife@hotmail.com (o desde Ayuda → Enviar comentarios) con: (1) la identificación de la obra protegida; (2) dónde está el contenido infractor (enlace o descripción); (3) tus datos de contacto; (4) una declaración de buena fe de que el uso no está autorizado; y (5) una declaración, bajo pena de perjurio, de que la información es exacta y de que eres el titular o tienes autorización para actuar en su nombre, con tu firma.',
     'Revisaremos el aviso, retiraremos el contenido cuando proceda y podremos suspender las cuentas que infrinjan de forma reiterada. La persona afectada puede enviar una contranotificación.',
+    CONTACT,
   ] },
 ];
