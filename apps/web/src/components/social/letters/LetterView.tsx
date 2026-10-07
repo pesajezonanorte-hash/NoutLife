@@ -12,7 +12,7 @@ import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  Archive, ArrowDown, ArrowLeft, Ban, Coins, Contact, Eraser, Image as ImageIcon, ImagePlus, MoreHorizontal, Pencil, Tent, Trash2, X, type LucideIcon,
+  Archive, ArrowDown, ArrowLeft, Ban, Coins, Contact, Eraser, Image as ImageIcon, ImagePlus, MoreHorizontal, Flag, Pencil, Tent, Trash2, X, type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { springs } from '@/lib/motion/presets';
@@ -33,6 +33,7 @@ import { Lettering } from '@/components/layout/Lettering';
 import { Button, Modal, Skeleton, useDialogBehavior } from '@/components/ui/lq';
 import { PresenceAvatar, StreakFlame, isLit } from '../SocialBits';
 import { GuildEditDialog } from '../GuildEditDialog';
+import { ReportDialog } from '../ReportDialog';
 import { BackdropEditor } from './BackdropEditor';
 import { Composer, type ComposerHandle } from './Composer';
 import { InstantCamera, type PhotoSource } from './InstantCamera';
@@ -331,7 +332,7 @@ function LetterShell({ api, label, to, shareWith, header, extraMenu = [], empty,
   const [menu, setMenu] = useState<{ m: LetterMsg; rect: DOMRect } | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
   const [below, setBelow] = useState(0);
-  const [confirm, setConfirm] = useState<'clear' | 'block' | 'delete' | null>(null);
+  const [confirm, setConfirm] = useState<'clear' | 'block' | 'delete' | 'report' | null>(null);
   const [pendingDelete, setPendingDelete] = useState<LetterMsg | null>(null);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [composerFocused, setComposerFocused] = useState(false);
@@ -545,7 +546,10 @@ function LetterShell({ api, label, to, shareWith, header, extraMenu = [], empty,
     ...extraMenu,
     { label: 'Archivar carta', icon: Archive, onSelect: () => void archive() },
     { label: 'Eliminar chat', icon: Eraser, danger: true, onSelect: () => setConfirm('clear') },
-    ...(blockTarget ? [{ label: `Bloquear a ${blockTarget.displayName.split(' ')[0]}`, icon: Ban, danger: true, onSelect: () => setConfirm('block') }] : []),
+    ...(blockTarget ? [
+      { label: `Denunciar a ${blockTarget.displayName.split(' ')[0]}`, icon: Flag, danger: true, onSelect: () => setConfirm('report') },
+      { label: `Bloquear a ${blockTarget.displayName.split(' ')[0]}`, icon: Ban, danger: true, onSelect: () => setConfirm('block') },
+    ] : []),
   ];
 
   return (
@@ -676,6 +680,7 @@ function LetterShell({ api, label, to, shareWith, header, extraMenu = [], empty,
           <Button variant="danger" size="md" onClick={() => void clearChat()}>Eliminar chat</Button>
         </div>
       </Modal>
+      {blockTarget && <ReportDialog open={confirm === 'report'} onClose={() => setConfirm(null)} target={blockTarget} />}
       {blockTarget && (
         <Modal open={confirm === 'block'} onClose={() => setConfirm(null)} title={`¿Bloquear a ${blockTarget.displayName.split(' ')[0]}?`}>
           <p className="text-body-md text-on-surface">Dejarán de ser amigos. No podrá escribirte, enviarte palomas ni gestos, y no se verán en las zonas. Puedes desbloquearlo cuando quieras en Ajustes → Privacidad.</p>

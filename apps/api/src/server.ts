@@ -38,7 +38,9 @@ app.use(helmet());
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin) || /\.vercel\.app$/.test(origin)) {
+      // Exact origins only: a wildcard such as *.vercel.app would let any site
+      // deployed there make credentialed calls that carry the refresh cookie.
+      if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
         callback(new Error('Not allowed by CORS'));
@@ -63,18 +65,6 @@ app.get('/', (_req, res) => {
 // Root-level health check (for Railway healthcheck probe)
 app.get('/health', (_req, res) => {
   res.status(200).json({ status: 'ok' });
-});
-
-// Database connection check and schema sync
-app.get('/api/v1/db/push', async (_req, res) => {
-  try {
-    const { execSync } = await import('child_process');
-    const output = execSync('npx prisma db push --accept-data-loss', { encoding: 'utf-8' });
-    res.json({ status: 'success', output });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : 'DB push failed';
-    res.status(500).json({ error: msg });
-  }
 });
 
 // ─── Parsing ─────────────────────────────────────────────────────────────────
