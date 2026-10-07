@@ -11,7 +11,7 @@ export type OAuthInput = z.infer<typeof oauthSchema>;
 
 /** Explicit confirmation prevents an accidental destructive account reset or deletion. */
 export const factoryResetSchema = z.object({
-  confirmation: z.literal('RESET_MY_LIFEQUEST'),
+  confirmation: z.literal('RESET_MY_NOUTLIFE'),
 });
 
 export const deleteAccountSchema = z.object({

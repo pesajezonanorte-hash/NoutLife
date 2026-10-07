@@ -1,5 +1,5 @@
 // Puente entre avatarConfig y el personaje pixel (ver pixel/look.ts).
-import type { AvatarConfig } from '@lifequest/shared';
+import type { AvatarConfig } from '@noutlife/shared';
 import { lookFrom, switchBody, toConfig } from './pixel/look';
 
 /** Configuración completa (con el aspecto pixel) a partir de una parcial o antigua. */

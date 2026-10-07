@@ -1,4 +1,4 @@
-# 🏆 LifeQuest — Proyecto Completo
+# 🏆 Noutlife — Proyecto Completo
 
 > RPG de Vida Real completamente funcional con IA, multijugador, estadísticas espectaculares, app móvil y deploy en producción.
 
@@ -6,7 +6,7 @@
 
 ## 📜 Resumen del Proyecto
 
-LifeQuest convierte tu vida en un RPG real. Cada hábito, misión, entrenamiento, decisión financiera y relación suma XP, sube tu nivel y forja a tu héroe. Construido en 10 fases durante 2025 para **Miguel Ángel Romero Torres**.
+Noutlife convierte tu vida en un RPG real. Cada hábito, misión, entrenamiento, decisión financiera y relación suma XP, sube tu nivel y forja a tu héroe. Construido en 10 fases durante 2025 para **Miguel Ángel Romero Torres**.
 
 **URL de producción:** https://tourmaline-sherbet-90125b.netlify.app/
 
@@ -247,7 +247,7 @@ lifequest/
 
 ## 🎉 Cierre
 
-**LifeQuest está completo.** 10 fases, cientos de horas de trabajo, un sistema RPG de vida real que convierte cada día en una aventura.
+**Noutlife está completo.** 10 fases, cientos de horas de trabajo, un sistema RPG de vida real que convierte cada día en una aventura.
 
 > *"La aventura de Miguel Ángel Romero Torres ha comenzado — y nunca termina."*
 

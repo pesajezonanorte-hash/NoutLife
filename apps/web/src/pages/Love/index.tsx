@@ -16,7 +16,7 @@ import {
   apiError, breakUp, cancelPartnerInvite, getNetwork, invitePartner, respondPartnerInvite, timeAgo,
   type FriendItem, type PublicUser,
 } from '@/services/network.service';
-import type { Relationship, LoveDashboard, ImportantDate } from '@lifequest/shared';
+import type { Relationship, LoveDashboard, ImportantDate } from '@noutlife/shared';
 import { cn } from '@/lib/utils';
 import { item, stagger } from '@/lib/motion';
 import { AmbientLight, Particles, ZoneShell, useParticleBudget } from '@/components/ambience';

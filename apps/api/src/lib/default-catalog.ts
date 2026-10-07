@@ -30,7 +30,7 @@ export const DEFAULT_ACHIEVEMENTS = [
   { key: 'health_20', title: 'Cuerpo Templo', description: 'Completa 20 misiones de Salud', icon: '🌿', category: 'category', xpReward: 200, progressType: 'category_quest_count', progressTarget: 20 },
   { key: 'early_bird', title: 'Madrugador', description: 'Completa una misión antes de las 7am', icon: '🌅', category: 'special', xpReward: 75, progressType: null, progressTarget: null },
   { key: 'night_owl', title: 'Búho Nocturno', description: 'Completa una misión después de las 11pm', icon: '🦉', category: 'special', xpReward: 75, progressType: null, progressTarget: null },
-  { key: 'birthday', title: 'Cumpleaños en LifeQuest', description: 'Completaste una misión en tu cumpleaños', icon: '🎂', category: 'special', xpReward: 200, progressType: null, progressTarget: null },
+  { key: 'birthday', title: 'Cumpleaños en Noutlife', description: 'Completaste una misión en tu cumpleaños', icon: '🎂', category: 'special', xpReward: 200, progressType: null, progressTarget: null },
   { key: 'login_30', title: 'Centinela', description: 'Login 30 días seguidos', icon: '📅', category: 'special', xpReward: 300, progressType: 'login_streak', progressTarget: 30 },
   { key: 'first_habit', title: 'Primer Hábito', description: 'Creaste tu primer hábito', icon: '✨', category: 'habit', xpReward: 50, progressType: null, progressTarget: null },
   { key: 'perfect_week', title: 'Semana Perfecta', description: 'Completaste todos tus hábitos diarios en una semana', icon: '🌈', category: 'habit', xpReward: 250, progressType: null, progressTarget: null },

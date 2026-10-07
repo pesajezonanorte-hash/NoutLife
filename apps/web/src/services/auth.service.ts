@@ -1,5 +1,5 @@
 import api from '../lib/api';
-import type { AuthResponse, OAuthPayload } from '@lifequest/shared';
+import type { AuthResponse, OAuthPayload } from '@noutlife/shared';
 import {
   clearRefreshSessionExpected,
   markRefreshSessionExpected,

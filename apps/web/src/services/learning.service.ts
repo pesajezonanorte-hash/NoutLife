@@ -1,5 +1,5 @@
 import api from '../lib/api';
-import type { LearningItem, LearningStats } from '@lifequest/shared';
+import type { LearningItem, LearningStats } from '@noutlife/shared';
 
 export async function fetchLearning(): Promise<LearningItem[]> {
   const { data } = await api.get<{ items: LearningItem[] }>('/learning');

@@ -11,7 +11,7 @@
     "resolveJsonModule": true,
     "rootDir": ".",
     "paths": {
-      "@lifequest/shared": ["../../packages/shared/src/index.ts"]
+      "@noutlife/shared": ["../../packages/shared/src/index.ts"]
     }
   },
   "include": ["src"],

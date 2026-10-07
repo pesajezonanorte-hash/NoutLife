@@ -7,7 +7,7 @@
 // Cambiar de día pasa la página de la carta.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import type { Meal } from '@lifequest/shared';
+import type { Meal } from '@noutlife/shared';
 import { Bookmark, BookmarkCheck, ChevronLeft, ChevronRight, Droplet, Minus, Pencil, Plus, Target, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { enter, item, springs, stagger, zoneExit } from '@/lib/motion';

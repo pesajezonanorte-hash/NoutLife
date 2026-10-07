@@ -1,5 +1,5 @@
 import { Apple, Coffee, Moon, Sun, type LucideIcon } from 'lucide-react';
-import type { Meal } from '@lifequest/shared';
+import type { Meal } from '@noutlife/shared';
 import type { NutritionGoal } from '@/services/meal.service';
 import type { Tone } from '@/components/ui/lq';
 

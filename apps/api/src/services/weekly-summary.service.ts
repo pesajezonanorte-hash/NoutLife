@@ -60,7 +60,7 @@ export async function generateWeeklySummary(userId: string): Promise<void> {
   let summary: string;
 
   if (hasAIProvider()) {
-    const prompt = `Eres El Sabio de LifeQuest. Genera un resumen semanal inspirador en español para el héroe.
+    const prompt = `Eres El Sabio de Noutlife. Genera un resumen semanal inspirador en español para el héroe.
 
 Datos de ${user.displayName} esta semana:
 - XP ganado: ${xpTotal}

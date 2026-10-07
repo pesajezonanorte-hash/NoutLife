@@ -2,7 +2,7 @@
 
 ## Alcance
 
-Se revisó el flujo de datos desde los registros de LifeQuest hasta las métricas y su presentación:
+Se revisó el flujo de datos desde los registros de Noutlife hasta las métricas y su presentación:
 
 - resumen de estadísticas, historial de XP, radar, heatmap, sueño, progresión de gimnasio, flujo financiero y predicciones;
 - Life Score estático/dinámico, zonas personalizadas, correlaciones y revisión anual;

@@ -27,7 +27,7 @@ export function LoginScreen() {
   return (
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.center}>
-        <Text style={styles.logo}>LIFEQUEST</Text>
+        <Text style={styles.logo}>NOUTLIFE</Text>
         <Text style={styles.tagline}>La aventura de tu vida empieza hoy</Text>
 
         <View style={styles.form}>
@@ -39,7 +39,7 @@ export function LoginScreen() {
             keyboardType="email-address"
             autoCapitalize="none"
             placeholderTextColor={colors.textSecondary}
-            placeholder="miguel@lifequest.com"
+            placeholder="miguel@noutlife.com"
           />
 
           <Text style={[styles.label, { marginTop: 12 }]}>CONTRASEÑA</Text>

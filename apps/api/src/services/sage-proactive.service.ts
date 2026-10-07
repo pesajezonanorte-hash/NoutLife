@@ -106,7 +106,7 @@ export async function generateProactiveNote(userId: string) {
 
   if (hasAIProvider()) {
     const newUserNote = isNewUser ? 'IMPORTANTE: Este héroe es NUEVO, acaba de unirse. Dales la bienvenida con entusiasmo, NO menciones rachas perdidas ni puntos críticos.' : '';
-    const prompt = `Eres El Sabio, el mentor de LifeQuest — una app RPG de vida real.
+    const prompt = `Eres El Sabio, el mentor de Noutlife — una app RPG de vida real.
 
 Datos del héroe ${user.displayName} (Nivel ${user.level}):
 - Racha actual: ${user.currentStreak} días
@@ -159,7 +159,7 @@ function buildFallbackMessage(
   tone: string
 ): string {
   if (user.longestStreak === 0 && user.currentStreak === 0) {
-    return `¡Bienvenido a LifeQuest, ${user.displayName}! Tu aventura comienza hoy. Crea tu primer hábito y empieza a ganar XP.`;
+    return `¡Bienvenido a Noutlife, ${user.displayName}! Tu aventura comienza hoy. Crea tu primer hábito y empieza a ganar XP.`;
   }
   if (tone === 'warning' && user.currentStreak === 0) {
     return `${user.displayName}, tu racha se ha roto. Hoy es el mejor momento para empezar una nueva.`;

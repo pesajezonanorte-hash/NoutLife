@@ -1,5 +1,5 @@
 import api from '../lib/api';
-import type { Quest, CreateQuestPayload } from '@lifequest/shared';
+import type { Quest, CreateQuestPayload } from '@noutlife/shared';
 
 export interface QuestFilters {
   type?: string;
@@ -40,7 +40,7 @@ export interface CompleteQuestResult {
     };
   };
   achievementsUnlocked: UnlockedAchievement[];
-  user: import('@lifequest/shared').User;
+  user: import('@noutlife/shared').User;
 }
 
 export async function fetchQuests(filters: QuestFilters = {}): Promise<Quest[]> {

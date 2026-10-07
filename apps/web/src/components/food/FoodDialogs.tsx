@@ -4,7 +4,7 @@
 // la campana cubre el plato mientras se estima y se levanta para revelarlo.
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { motion } from 'framer-motion';
-import type { Meal } from '@lifequest/shared';
+import type { Meal } from '@noutlife/shared';
 import { AlertTriangle, ArrowLeft, Info, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { enter, staggerVariants } from '@/lib/motion';

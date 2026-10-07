@@ -1,5 +1,5 @@
 import api from '../lib/api';
-import type { User, AvatarConfig } from '@lifequest/shared';
+import type { User, AvatarConfig } from '@noutlife/shared';
 
 export async function fetchCharacter(): Promise<User & { inventoryItems: unknown[]; achievements: unknown[] }> {
   const { data } = await api.get('/users/me/character');

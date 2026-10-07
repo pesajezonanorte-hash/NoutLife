@@ -8,7 +8,7 @@
 import { useState, useEffect, useCallback, useRef, type CSSProperties } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BookOpen, MessageCircle, PenLine, Plus, Search, Trash2, X } from 'lucide-react';
-import type { JournalEntry, JournalStreak } from '@lifequest/shared';
+import type { JournalEntry, JournalStreak } from '@noutlife/shared';
 import { cn } from '@/lib/utils';
 import { item, stagger } from '@/lib/motion';
 import { AmbientLight, SketchStrike, SketchUnderline, TallyMarks, ZoneShell } from '@/components/ambience';

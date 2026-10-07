@@ -187,7 +187,7 @@ function habitGoogleEventBody(habit: Habit, timezone: string) {
   const startDay = getCalendarDay(timezone);
   const startDate = dateKey(startDay);
   const recurrence = habitRecurrenceRule(habit.frequency);
-  const description = [habit.description?.trim(), 'Hábito creado y administrado desde LifeQuest.']
+  const description = [habit.description?.trim(), 'Hábito creado y administrado desde Noutlife.']
     .filter(Boolean)
     .join('\n\n');
 
@@ -319,7 +319,7 @@ async function importGoogleCalendarEvents(
   connection: GoogleCalendarConnection,
 ): Promise<number> {
   // Include the current calendar day too, so an all-day habit created now is
-  // immediately visible in LifeQuest instead of waiting for tomorrow's sync.
+  // immediately visible in Noutlife instead of waiting for tomorrow's sync.
   const now = new Date();
   const timeMin = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const timeMax = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
@@ -370,14 +370,14 @@ async function importGoogleCalendarEvents(
     const privateProperties = item.extendedProperties?.private;
     const seriesId = item.recurringEventId ?? item.id;
     const linkedHabit = managedHabitsBySeriesId.get(seriesId);
-    const isLifeQuestHabit = (
+    const isNoutlifeHabit = (
       privateProperties?.lifequestSource === 'habit' && Boolean(privateProperties.lifequestHabitId)
     ) || Boolean(linkedHabit);
     const habitCategory = privateProperties?.lifequestHabitCategory ?? linkedHabit?.category;
     const agendaCategory = habitCategory
       ? habitCategoryToAgendaCategory(habitCategory as Habit['category'])
       : 'personal';
-    const lifecycleData = isLifeQuestHabit
+    const lifecycleData = isNoutlifeHabit
       ? {
           category: agendaCategory,
           eventType: 'habit',
@@ -397,12 +397,12 @@ async function importGoogleCalendarEvents(
         startDate,
         endDate,
         isAllDay,
-        category: isLifeQuestHabit ? agendaCategory : 'work',
-        eventType: isLifeQuestHabit ? 'habit' : 'personal',
+        category: isNoutlifeHabit ? agendaCategory : 'work',
+        eventType: isNoutlifeHabit ? 'habit' : 'personal',
         googleEventId: item.id,
-        googleSeriesId: isLifeQuestHabit ? seriesId : null,
-        isRecurring: isLifeQuestHabit,
-        recurrenceRule: isLifeQuestHabit ? item.recurrence?.[0] ?? null : null,
+        googleSeriesId: isNoutlifeHabit ? seriesId : null,
+        isRecurring: isNoutlifeHabit,
+        recurrenceRule: isNoutlifeHabit ? item.recurrence?.[0] ?? null : null,
       },
       update: {
         title: item.summary,
@@ -452,7 +452,7 @@ export async function syncHabitWithGoogleCalendar(userId: string, habit: Habit) 
   return { synced: true, googleEventId, syncedCount };
 }
 
-/** Remove the remote recurring series and its imported LifeQuest Agenda rows. */
+/** Remove the remote recurring series and its imported Noutlife Agenda rows. */
 export async function removeHabitFromGoogleCalendar(userId: string, habit: Habit) {
   const googleEventId = habit.googleCalendarEventId;
   if (!googleEventId) return { removed: true };

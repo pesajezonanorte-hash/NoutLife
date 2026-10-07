@@ -1,5 +1,5 @@
 import api from '../lib/api';
-import type { Relationship, LoveDashboard } from '@lifequest/shared';
+import type { Relationship, LoveDashboard } from '@noutlife/shared';
 
 export async function fetchLoveDashboard(): Promise<LoveDashboard> {
   const { data } = await api.get<LoveDashboard>('/relationships/dashboard');

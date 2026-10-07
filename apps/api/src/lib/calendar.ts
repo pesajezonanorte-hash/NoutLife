@@ -1,5 +1,5 @@
 /**
- * LifeQuest stores calendar fields as stable UTC date keys (YYYY-MM-DD), while
+ * Noutlife stores calendar fields as stable UTC date keys (YYYY-MM-DD), while
  * interpreting those keys in the player's local calendar. Colombia is the
  * product default for records without a saved timezone; never fall back to the
  * server/Vercel timezone, which is usually UTC.

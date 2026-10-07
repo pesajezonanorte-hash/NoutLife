@@ -1,5 +1,5 @@
 import api from '../lib/api';
-import type { Transaction, Budget, FinancialGoal } from '@lifequest/shared';
+import type { Transaction, Budget, FinancialGoal } from '@noutlife/shared';
 
 export async function fetchTransactions(filters: { from?: string; to?: string; category?: string; type?: string; search?: string } = {}) {
   const params = new URLSearchParams();

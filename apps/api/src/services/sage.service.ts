@@ -369,7 +369,7 @@ async function buildSageContext(userId: string): Promise<string> {
     }).format(value);
 
   return `
-Eres el asistente personal de ${user.displayName} dentro de LifeQuest.
+Eres el asistente personal de ${user.displayName} dentro de Noutlife.
 Hablas en espanol con un tono natural, claro, cercano y motivador.
 Tu estilo debe sentirse humano y practico, no como personaje de fantasia.
 Evita hablar como sabio, heroe, reino, castillo o con frases demasiado teatrales, salvo que el usuario te lo pida.

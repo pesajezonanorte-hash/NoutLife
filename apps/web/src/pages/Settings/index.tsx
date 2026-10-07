@@ -95,7 +95,7 @@ function DangerDialog({ mode, onClose }: { mode: 'reset' | 'delete' | null; onCl
     setBusy(true); setError('');
     try {
       if (mode === 'delete') await authService.deleteAccount();
-      else await api.post('/auth/factory-reset', { confirmation: 'RESET_MY_LIFEQUEST' });
+      else await api.post('/auth/factory-reset', { confirmation: 'RESET_MY_NOUTLIFE' });
       clearLocalAccountState();
       window.location.assign(mode === 'delete' ? '/login' : '/');
     } catch (err) {

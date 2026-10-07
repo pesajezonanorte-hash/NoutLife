@@ -10,7 +10,7 @@
 // valor sin recargar la página.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import type { Transaction } from '@lifequest/shared';
+import type { Transaction } from '@noutlife/shared';
 import {
   ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, Info, Minus, Plus, Trash2, TrendingDown, TrendingUp, Wallet, X,
 } from 'lucide-react';

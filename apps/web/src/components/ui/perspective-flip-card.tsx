@@ -101,7 +101,7 @@ export function useNested3dSupport() {
 }
 
 /**
- * The LifeQuest adaptation of Card 14's real perspective flip.
+ * The Noutlife adaptation of Card 14's real perspective flip.
  *
  * One state-driven path powers hover, keyboard, and touch interactions so the
  * 3D and fallback presentations always agree on which face is active. The

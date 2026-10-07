@@ -13,7 +13,7 @@ import { withDefaults } from './avatarOptions';
 import { updateAvatar, updateProfile } from '../../services/user.service';
 import { useAuthStore } from '../../store/authStore';
 import { useToast } from '../../hooks/useToast';
-import type { AvatarConfig, AvatarMode } from '@lifequest/shared';
+import type { AvatarConfig, AvatarMode } from '@noutlife/shared';
 import { Badge, Button, Field, Input, SegmentedControl } from '@/components/ui/lq';
 
 interface Props {

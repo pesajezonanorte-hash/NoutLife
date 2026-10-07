@@ -168,7 +168,7 @@ router.post('/suggest', async (req, res, next) => {
     const { description } = req.body;
     if (!description) return res.status(400).json({ error: 'description required' });
 
-    const prompt = `El usuario quiere crear una zona personalizada en LifeQuest.
+    const prompt = `El usuario quiere crear una zona personalizada en Noutlife.
 Descripción: "${description}"
 
 Responde SOLO con JSON válido, sin markdown, sin explicaciones:

@@ -1,4 +1,4 @@
-# Auditoría de producción — LifeQuest
+# Auditoría de producción — Noutlife
 
 **Fecha:** 27 de septiembre de 2026 (America/Bogota)
 **Entorno:** `lifequest2-web.vercel.app` y `lifequest2-api.vercel.app/api/v1`

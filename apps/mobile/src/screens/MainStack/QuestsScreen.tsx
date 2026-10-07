@@ -4,7 +4,7 @@ import * as Haptics from 'expo-haptics';
 import { api } from '../../services/api';
 import { PixelPanel } from '../../components/PixelPanel';
 import { colors } from '../../theme/colors';
-import type { Quest } from '@lifequest/shared';
+import type { Quest } from '@noutlife/shared';
 
 const DIFF_COLORS: Record<string, string> = {
   EASY:   colors.accentGreen,

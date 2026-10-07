@@ -32,7 +32,7 @@ La API de exportación es por usuario, no una consulta administrativa global. Po
 
 ## Verificaciones realizadas
 
-1. **Prisma/API/Web:** cliente Prisma regenerado; `npm run test:fixes --workspace=@lifequest/api`; builds TypeScript de API y web correctos.
+1. **Prisma/API/Web:** cliente Prisma regenerado; `npm run test:fixes --workspace=@noutlife/api`; builds TypeScript de API y web correctos.
 2. **Guard de migración en una base PostgreSQL efímera:**
    - inventario limpio → elimina la columna;
    - un marcador heredado → rechaza la migración y conserva columna/dato;
@@ -54,5 +54,5 @@ La autorización directa de esta entrega no sustituye un staging. Antes de envia
 2. Ejecutar `prisma migrate deploy` (o el build `migrate-db.ts` usado por el entorno).
 3. Confirmar que la migración pasa; si falla con `Refusing to remove legacy Habit.isRitual`, inventariar/migrar esos hábitos antes de reintentar.
 4. Confirmar en `information_schema.columns` que `habits.isRitual` ya no existe y que los conteos de `habits`, `habit_logs`, `rituals`, `ritual_steps` y `ritual_logs` permanecen intactos.
-5. Ejecutar el E2E de routing y, en una cuenta de QA vacía, el de `ExecutionMode` con `LIFEQUEST_E2E_RITUAL_MUTATIONS=1`.
+5. Ejecutar el E2E de routing y, en una cuenta de QA vacía, el de `ExecutionMode` con `NOUTLIFE_E2E_RITUAL_MUTATIONS=1`.
 6. Sólo después de esa evidencia, aplicar el mismo release a producción.

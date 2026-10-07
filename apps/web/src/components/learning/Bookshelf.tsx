@@ -7,7 +7,7 @@
 // con un brillo. Cada lomo es un botón (abre «Actualizar progreso»).
 import { useEffect, useRef } from 'react';
 import { LayoutGroup, motion } from 'framer-motion';
-import type { LearningItem } from '@lifequest/shared';
+import type { LearningItem } from '@noutlife/shared';
 import { cn } from '@/lib/utils';
 import { springs } from '@/lib/motion';
 import type { Tone } from '@/components/ui/lq';

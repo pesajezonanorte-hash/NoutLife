@@ -10,7 +10,7 @@
 // ordenada (de lo que viene a lo que ya pasó) con sus botones.
 import { useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import type { Quest } from '@lifequest/shared';
+import type { Quest } from '@noutlife/shared';
 import { Check, Plus, Tent, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { springs } from '@/lib/motion';

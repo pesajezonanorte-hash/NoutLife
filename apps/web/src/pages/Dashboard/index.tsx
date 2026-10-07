@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import type { Quest } from '@lifequest/shared';
+import type { Quest } from '@noutlife/shared';
 import {
   CalendarDays, CheckCircle2, ChevronRight, ClipboardList, Dumbbell, Flag, Flame, HeartPulse, ListChecks, Moon, Plus,
   RotateCcw, Sparkles, Trophy, Wallet, X, Zap, type LucideIcon,

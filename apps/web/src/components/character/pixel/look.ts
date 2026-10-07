@@ -2,7 +2,7 @@
 // desde/hacia avatarConfig. El aspecto nuevo se guarda en avatarConfig.pixel
 // (la API acepta cualquier objeto); los campos antiguos (hairStyle, accessory…)
 // se mantienen sincronizados para el contrato compartido.
-import type { Accessory, AvatarConfig, Expression, HairStyle } from '@lifequest/shared';
+import type { Accessory, AvatarConfig, Expression, HairStyle } from '@noutlife/shared';
 import type { Body, BottomId, BrowsId, EyesId, ExtraId, FacialId, HairId, MouthId, PixelLook, ShoesId, TopId } from './engine';
 
 export interface Option<T extends string> { id: T; label: string }

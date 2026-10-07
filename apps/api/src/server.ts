@@ -53,12 +53,12 @@ app.use(
 // Root endpoint landing response
 app.get('/', (_req, res) => {
   res.status(200).json({
-    name: 'LifeQuest API',
+    name: 'Noutlife API',
     version: '2.0.0',
     status: 'online',
     health: '/health',
     endpoints: '/api/v1',
-    message: '⚔️ ¡Bienvenido a la API de LifeQuest, héroe!',
+    message: '⚔️ ¡Bienvenido a la API de Noutlife, héroe!',
   });
 });
 
@@ -93,7 +93,7 @@ if (process.env.NODE_ENV !== 'production') {
   app.listen(Number(PORT), '0.0.0.0', () => {
     console.log('');
     console.log('  ╔════════════════════════════════════╗');
-    console.log('  ║  ⚔️  LifeQuest API  •  v2.0.0      ║');
+    console.log('  ║  ⚔️  Noutlife API  •  v2.0.0      ║');
     console.log(`  ║  🏰 http://localhost:${PORT}/api/v1   ║`);
     console.log('  ╚════════════════════════════════════╝');
     console.log('');

@@ -8,7 +8,7 @@ import {
   Camera, Check, ChevronRight, ClipboardList, Dumbbell, ExternalLink, Flame, History, Minus, Music,
   Pause, Play, Plus, Sparkles, Timer as TimerIcon, Trophy, TrendingUp,
 } from 'lucide-react';
-import type { Workout, Exercise, Routine } from '@lifequest/shared';
+import type { Workout, Exercise, Routine } from '@noutlife/shared';
 import { cn } from '@/lib/utils';
 import { expo, heavy, item, slam, stagger, useCountUp } from '@/lib/motion';
 import { useAuthStore } from '../../store/authStore';

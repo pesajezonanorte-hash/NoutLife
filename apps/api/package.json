@@ -1,5 +1,5 @@
 {
-  "name": "@lifequest/api",
+  "name": "@noutlife/api",
   "version": "1.0.0",
   "scripts": {
     "dev": "tsx watch src/server.ts",
@@ -16,7 +16,7 @@
     "db:generate": "prisma generate"
   },
   "dependencies": {
-    "@lifequest/shared": "*",
+    "@noutlife/shared": "*",
     "@prisma/client": "^5.8.1",
     "bcrypt": "^5.1.1",
     "cookie-parser": "^1.4.6",

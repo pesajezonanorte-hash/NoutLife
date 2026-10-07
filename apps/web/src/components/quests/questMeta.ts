@@ -1,5 +1,5 @@
 import { FolderKanban, ListTodo, Repeat, Target, type LucideIcon } from 'lucide-react';
-import type { Quest } from '@lifequest/shared';
+import type { Quest } from '@noutlife/shared';
 import type { BadgeVariant } from '@/components/ui/lq';
 
 export const QUEST_TYPES: { value: 'SIDE' | 'MAIN' | 'META'; label: string; icon: LucideIcon; description: string }[] = [

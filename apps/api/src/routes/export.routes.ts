@@ -11,7 +11,7 @@ router.get('/json', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const data = await exportService.exportUserData(req.userId!);
     res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Content-Disposition', `attachment; filename="lifequest-backup-${new Date().toISOString().split('T')[0]}.json"`);
+    res.setHeader('Content-Disposition', `attachment; filename="noutlife-backup-${new Date().toISOString().split('T')[0]}.json"`);
     res.json(data);
   } catch {
     res.status(500).json({ error: 'Error exportando datos.' });

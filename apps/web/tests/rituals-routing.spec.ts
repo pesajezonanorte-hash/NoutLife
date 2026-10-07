@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
 
-const baseUrl = process.env.LIFEQUEST_E2E_BASE_URL;
-const email = process.env.LIFEQUEST_E2E_EMAIL;
-const password = process.env.LIFEQUEST_E2E_PASSWORD;
-const permitRitualMutations = process.env.LIFEQUEST_E2E_RITUAL_MUTATIONS === '1';
+const baseUrl = process.env.NOUTLIFE_E2E_BASE_URL;
+const email = process.env.NOUTLIFE_E2E_EMAIL;
+const password = process.env.NOUTLIFE_E2E_PASSWORD;
+const permitRitualMutations = process.env.NOUTLIFE_E2E_RITUAL_MUTATIONS === '1';
 
 function url(path: string): string {
   return new URL(path, baseUrl!).toString();
@@ -18,7 +18,7 @@ async function login(page: import('@playwright/test').Page) {
 }
 
 test.describe('Dedicated ritual routing', () => {
-  test.skip(!baseUrl || !email || !password, 'Set LIFEQUEST_E2E_BASE_URL, LIFEQUEST_E2E_EMAIL and LIFEQUEST_E2E_PASSWORD.');
+  test.skip(!baseUrl || !email || !password, 'Set NOUTLIFE_E2E_BASE_URL, NOUTLIFE_E2E_EMAIL and NOUTLIFE_E2E_PASSWORD.');
 
   test('CommandPalette opens the dedicated Rituals page and legacy habit query is inert', async ({ page }) => {
     await login(page);
@@ -49,7 +49,7 @@ test.describe('Dedicated ritual routing', () => {
 test.describe('Dedicated ritual execution', () => {
   test.skip(
     !baseUrl || !email || !password || !permitRitualMutations,
-    'Set LIFEQUEST_E2E_BASE_URL, LIFEQUEST_E2E_EMAIL, LIFEQUEST_E2E_PASSWORD and LIFEQUEST_E2E_RITUAL_MUTATIONS=1 to run the mutation check.',
+    'Set NOUTLIFE_E2E_BASE_URL, NOUTLIFE_E2E_EMAIL, NOUTLIFE_E2E_PASSWORD and NOUTLIFE_E2E_RITUAL_MUTATIONS=1 to run the mutation check.',
   );
 
   test('a seeded preset awards once through ExecutionMode and returns an idempotent second completion', async ({ page }) => {

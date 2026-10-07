@@ -1,7 +1,7 @@
 // Nueva transacción (sin prototipo propio: formulario del sistema). Mismo
 // payload que el antiguo TransactionModal.
 import { useEffect, useState, type FormEvent } from 'react';
-import type { Transaction, TransactionCategory } from '@lifequest/shared';
+import type { Transaction, TransactionCategory } from '@noutlife/shared';
 import { cn } from '@/lib/utils';
 import { Button, Field, Input, ResponsiveDialog, SegmentedControl, DatePicker } from '@/components/ui/lq';
 import { softTone } from '@/components/ui/lq/tones';

@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-const baseUrl = process.env.LIFEQUEST_E2E_BASE_URL;
+const baseUrl = process.env.NOUTLIFE_E2E_BASE_URL;
 
 const user = {
   id: 'flip-card-qa-user',
@@ -79,7 +79,7 @@ function flipLayer(page: Page) {
 }
 
 test.describe('PerspectiveFlipCard in the Biblioteca', () => {
-  test.skip(!baseUrl, 'Set LIFEQUEST_E2E_BASE_URL to run browser verification.');
+  test.skip(!baseUrl, 'Set NOUTLIFE_E2E_BASE_URL to run browser verification.');
 
   test('opens from the keyboard, exposes only the active face, and Escape returns to the summary', async ({ page }) => {
     await openLearning(page, 390);

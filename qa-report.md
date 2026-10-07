@@ -1,4 +1,4 @@
-# QA Report — LifeQuest (simulación de 30 días)
+# QA Report — Noutlife (simulación de 30 días)
 
 **Fecha:** 2026-10-02 · **Entorno:** producción (`lifequest2-web.vercel.app` + `lifequest2-api.vercel.app`) · **Cuenta:** ztafakss@gmail.com
 **Método:** ~230 llamadas a la API simulando 30 días (fechas retroactivas 2026-09-03 → 2026-10-02) + recorrido con Chrome headless (Playwright) de 32 rutas en 3 combinaciones (escritorio 1280 oscuro, móvil 390 claro, escritorio 1280 claro), con captura de consola, red y pantallazos. Evidencias en `qa-screenshots/`.

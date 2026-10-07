@@ -1,6 +1,6 @@
 ---
-name: LifeQuest project
-description: Estado de LifeQuest RPG en `LIFE GAME-handoff\lifequest\` — Fase 2 completa, sistemas de quest/XP/onboarding/personaje activos
+name: Noutlife project
+description: Estado de Noutlife RPG en `LIFE GAME-handoff\lifequest\` — Fase 2 completa, sistemas de quest/XP/onboarding/personaje activos
 type: project
 ---
 

@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, PresenceContext, motion, type Variants } from 'framer-motion';
 import { Check, Dices, Gem, Redo2, Undo2 } from 'lucide-react';
-import type { AvatarConfig } from '@lifequest/shared';
+import type { AvatarConfig } from '@noutlife/shared';
 import { cn } from '@/lib/utils';
 import { Button, SegmentedControl, Switch, Tabs } from '@/components/ui/lq';
 import { PixelAvatar, type PixelAnimation } from './pixel/PixelAvatar';

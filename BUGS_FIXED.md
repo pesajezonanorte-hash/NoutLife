@@ -90,7 +90,7 @@
 
 - ✅ Gemini model: `gemini-2.5-flash-lite` (configurado correctamente en `ai.ts`)
 - ✅ Avatar pantsColor: se pasa correctamente en Dashboard, Character y FinalCelebrationStep
-- ✅ Splash screen: muestra "LIFEQUEST" completo letra por letra
+- ✅ Splash screen: muestra "NOUTLIFE" completo letra por letra
 - ✅ Sidebar: tiene `overflow-y-auto` independiente del contenido
 - ✅ Token refresh: interceptor Axios funcionando correctamente
 - ✅ Cron jobs: 7 jobs activos en scheduler.ts

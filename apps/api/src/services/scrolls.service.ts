@@ -80,7 +80,7 @@ export async function generateDailyScroll(userId: string): Promise<void> {
     return `${g.title}: ${pct}%`;
   });
 
-  const prompt = `Eres el asistente personal de ${user.displayName} en LifeQuest.
+  const prompt = `Eres el asistente personal de ${user.displayName} en Noutlife.
 Tienes que generar UN mensaje corto y personalizado para motivarlo hoy.
 El mensaje debe ser específico, real, con datos reales. No genérico.
 Máximo 2 oraciones. Tono humano, cercano, con energía positiva (pero sin ser exagerado).

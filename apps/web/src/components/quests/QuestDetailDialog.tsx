@@ -1,7 +1,7 @@
 // Detalle de misión (sin prototipo propio: hoja/modal del sistema). Sustituye
 // al antiguo QuestModal: pasos marcables, completar, editar, fallar, archivar.
 import { useEffect, useRef, useState } from 'react';
-import type { Quest } from '@lifequest/shared';
+import type { Quest } from '@noutlife/shared';
 import { Archive, CalendarClock, Check, CheckCircle2, Pencil, Sparkles, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { categoryMeta } from '@/lib/lifeMeta';

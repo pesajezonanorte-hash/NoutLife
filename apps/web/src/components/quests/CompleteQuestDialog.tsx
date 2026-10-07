@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Trophy } from 'lucide-react';
-import type { Quest } from '@lifequest/shared';
+import type { Quest } from '@noutlife/shared';
 import { Button, Confetti, IconChip, ProgressBar, ResponsiveDialog } from '@/components/ui/lq';
 import { useAuthStore } from '@/store/authStore';
 import { useUIStore } from '@/store/uiStore';

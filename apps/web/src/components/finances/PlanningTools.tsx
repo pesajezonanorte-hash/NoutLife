@@ -2,7 +2,7 @@
 // recurrentes, proyección), rediseñadas con los componentes del sistema.
 // Mismos servicios que el antiguo FinancesExtras / página de Finanzas.
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
-import type { FinancialGoal, TransactionCategory } from '@lifequest/shared';
+import type { FinancialGoal, TransactionCategory } from '@noutlife/shared';
 import { ArrowDownLeft, ArrowUpRight, CalendarClock, PiggyBank, Plus, Repeat, Target, Trash2, TrendingUp, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatMoney } from '@/lib/lifeMeta';

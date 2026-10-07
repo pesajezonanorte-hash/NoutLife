@@ -1,5 +1,5 @@
 import api from '../lib/api';
-import type { SleepLog, SleepStats } from '@lifequest/shared';
+import type { SleepLog, SleepStats } from '@noutlife/shared';
 
 export async function fetchSleep(month?: string): Promise<SleepLog[]> {
   const params = month ? `?month=${month}` : '';

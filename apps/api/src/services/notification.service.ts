@@ -218,7 +218,7 @@ export async function deleteAllNotifications(userId: string) {
 
 if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
   webpush.setVapidDetails(
-    process.env.VAPID_SUBJECT ?? 'mailto:admin@lifequest.app',
+    process.env.VAPID_SUBJECT ?? 'mailto:admin@noutlife.app',
     process.env.VAPID_PUBLIC_KEY,
     process.env.VAPID_PRIVATE_KEY,
   );
@@ -248,7 +248,7 @@ export async function sendPush(userId: string, payload: PushPayload, category: N
   ]);
   if (!preference.pushEnabled) return 0;
   // Quiet hours intentionally apply only to push. The persistent in-app inbox
-  // remains available whenever the user returns to LifeQuest.
+  // remains available whenever the user returns to Noutlife.
   if (legacyPreferences && isInQuietHours(legacyPreferences.quietHoursStart, legacyPreferences.quietHoursEnd, user?.timezone)) return 0;
 
   const subscriptions = await prisma.pushSubscription.findMany({ where: { userId } });

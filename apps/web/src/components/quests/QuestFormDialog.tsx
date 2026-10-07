@@ -1,6 +1,6 @@
 // Crear / editar misión (sustituye al QuestWizard; mismo payload).
 import { useEffect, useState, type FormEvent } from 'react';
-import type { Quest } from '@lifequest/shared';
+import type { Quest } from '@noutlife/shared';
 import { Plus, X } from 'lucide-react';
 import { Button, Field, Input, ResponsiveDialog, SegmentedControl, Select, Textarea, DatePicker } from '@/components/ui/lq';
 import { CATEGORIES, CATEGORY_META } from '@/lib/lifeMeta';

@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { useSearchParams } from 'react-router-dom';
-import type { Quest } from '@lifequest/shared';
+import type { Quest } from '@noutlife/shared';
 import { Plus, Search, X } from 'lucide-react';
 import { item } from '@/lib/motion';
 import { useDebounce } from '@/hooks/useDebounce';

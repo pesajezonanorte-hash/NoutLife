@@ -2,7 +2,7 @@ import {
   BusFront, Clapperboard, CreditCard, GraduationCap, HeartPulse, Home, Lightbulb, Package, PiggyBank, Shirt, TrendingUp, Utensils,
   type LucideIcon,
 } from 'lucide-react';
-import type { TransactionCategory } from '@lifequest/shared';
+import type { TransactionCategory } from '@noutlife/shared';
 import type { Tone } from '@/components/ui/lq';
 
 type ChartTone = Exclude<Tone, 'muted'>;

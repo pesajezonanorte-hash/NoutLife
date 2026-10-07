@@ -3,7 +3,7 @@
   "compilerOptions": {
     "strict": true,
     "paths": {
-      "@lifequest/shared": ["../../packages/shared/src"]
+      "@noutlife/shared": ["../../packages/shared/src"]
     }
   }
 }

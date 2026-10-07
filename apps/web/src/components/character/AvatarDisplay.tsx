@@ -1,5 +1,5 @@
 import { memo, useMemo, type CSSProperties } from 'react';
-import type { AvatarConfig, AvatarMode } from '@lifequest/shared';
+import type { AvatarConfig, AvatarMode } from '@noutlife/shared';
 import { cn } from '@/lib/utils';
 import { PixelAvatar } from './pixel/PixelAvatar';
 import { lookFrom } from './pixel/look';

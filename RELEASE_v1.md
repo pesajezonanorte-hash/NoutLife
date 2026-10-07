@@ -1,4 +1,4 @@
-# RELEASE_v1.md — LifeQuest v1.0
+# RELEASE_v1.md — Noutlife v1.0
 
 ## ✅ Confirmación de Bloques Completados
 
@@ -86,7 +86,7 @@ Goals, Rituals, GlowUp, Wisdom, Character, Achievements, Settings, Onboarding
 
 ---
 
-## 🎉 LifeQuest v1.0 — lista para vivirse
+## 🎉 Noutlife v1.0 — lista para vivirse
 
 > La app que convierte la vida de Miguel Ángel Romero Torres en un RPG.
 > Cada quest completada, cada hábito mantenido, cada gold gastado —

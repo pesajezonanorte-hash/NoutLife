@@ -23,7 +23,7 @@ async function withMocks<T>(mocks: Client, run: () => Promise<T>): Promise<T> {
 void test('factory reset de cuenta', async (suite) => {
   await suite.test('requiere frase literal de confirmación', () => {
     assert.equal(factoryResetSchema.safeParse({}).success, false);
-    assert.equal(factoryResetSchema.safeParse({ confirmation: 'RESET_MY_LIFEQUEST' }).success, true);
+    assert.equal(factoryResetSchema.safeParse({ confirmation: 'RESET_MY_NOUTLIFE' }).success, true);
   });
 
   await suite.test('borra datos propios, protege datos compartidos y reinicia el perfil de juego', async () => {

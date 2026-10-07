@@ -1,5 +1,5 @@
 import api from '../lib/api';
-import type { JournalEntry, JournalStreak } from '@lifequest/shared';
+import type { JournalEntry, JournalStreak } from '@noutlife/shared';
 
 export async function fetchJournal(filters: { month?: string; tag?: string; search?: string } = {}): Promise<JournalEntry[]> {
   const params = new URLSearchParams();

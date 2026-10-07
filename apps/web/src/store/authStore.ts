@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { User } from '@lifequest/shared';
+import type { User } from '@noutlife/shared';
 
 interface AuthState {
   user: User | null;

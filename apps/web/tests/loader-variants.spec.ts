@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-const baseUrl = process.env.LIFEQUEST_E2E_BASE_URL;
+const baseUrl = process.env.NOUTLIFE_E2E_BASE_URL;
 
 const user = {
   id: 'loader-qa-user',
@@ -77,7 +77,7 @@ async function installApiMocks(page: Page, achievementDelayMs: number | null = 1
 }
 
 async function waitForSplashToLeave(page: Page) {
-  const splash = page.locator('[aria-label="Iniciando LifeQuest"]');
+  const splash = page.locator('[aria-label="Cargando Noutlife"]');
   await expect(splash).toBeVisible({ timeout: 4_000 });
   await expect(splash).toBeHidden({ timeout: 8_000 });
 }
@@ -85,7 +85,7 @@ async function waitForSplashToLeave(page: Page) {
 const LITERAL_LOADER = 'div.w-full.max-w-md.mx-auto.p-8';
 
 test.describe('literal terminal loader coverage', () => {
-  test.skip(!baseUrl, 'Set LIFEQUEST_E2E_BASE_URL to run browser verification.');
+  test.skip(!baseUrl, 'Set NOUTLIFE_E2E_BASE_URL to run browser verification.');
 
   test('keeps the page terminal stable through the shared minimum after a lazy route resolves', async ({ page }) => {
     let releaseLogin!: () => void;

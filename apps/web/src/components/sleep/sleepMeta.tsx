@@ -1,4 +1,4 @@
-import type { SleepLog } from '@lifequest/shared';
+import type { SleepLog } from '@noutlife/shared';
 import { cn } from '@/lib/utils';
 import { dayKey } from '@/lib/lifeMeta';
 import type { Tone } from '@/components/ui/lq';

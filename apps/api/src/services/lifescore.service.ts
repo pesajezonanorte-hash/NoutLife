@@ -217,7 +217,7 @@ function xpTrend(current: number, previous: number): string {
 }
 
 /**
- * Calculates every core LifeQuest area from records inside one selected period.
+ * Calculates every core Noutlife area from records inside one selected period.
  * Scores are only a compact rhythm indicator; the response always includes the
  * underlying count and state so the UI never invents activity for empty zones.
  */
@@ -755,7 +755,7 @@ export async function getMorningBriefing(userId: string): Promise<{
     return { briefing: fallback, cached: false };
   }
 
-  const prompt = `Eres el Sabio de LifeQuest RPG. Genera un briefing diario ULTRA MINIMALISTA de máximo 50 palabras para ${user.displayName}.
+  const prompt = `Eres el Sabio de Noutlife RPG. Genera un briefing diario ULTRA MINIMALISTA de máximo 50 palabras para ${user.displayName}.
 
 DATOS:
 - Nivel ${context.userLevel}, Eventos hoy: ${context.todayEvents.length}, Hábitos pendientes: ${context.pendingHabits}

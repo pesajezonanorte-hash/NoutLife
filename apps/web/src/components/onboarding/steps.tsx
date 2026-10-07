@@ -4,7 +4,7 @@ import { useId } from 'react';
 import {
   Apple, BookOpen, Check, Dumbbell, Heart, Leaf, Moon, Palette, Sparkles, Wallet, type LucideIcon,
 } from 'lucide-react';
-import type { AvatarConfig } from '@lifequest/shared';
+import type { AvatarConfig } from '@noutlife/shared';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Field, IconChip, Input, SegmentedControl, Select, type Tone, DatePicker } from '@/components/ui/lq';

@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { ArrowLeft, ArrowRight, Heart, Sparkles, Star } from 'lucide-react';
-import type { AvatarConfig } from '@lifequest/shared';
+import type { AvatarConfig } from '@noutlife/shared';
 import { ease } from '@/lib/motion';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/useToast';

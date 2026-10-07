@@ -1,5 +1,5 @@
 import api from '../lib/api';
-import type { Meal } from '@lifequest/shared';
+import type { Meal } from '@noutlife/shared';
 
 export async function fetchMeals(date?: string): Promise<Meal[]> {
   const params = date ? `?date=${date}` : '';

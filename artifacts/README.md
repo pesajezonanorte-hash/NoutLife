@@ -31,7 +31,7 @@ Capturas móviles a **390 × 844 px** para el mismo loader terminal literal basa
 
 | Caso | Archivo | Qué verifica |
 | --- | --- | --- |
-| Splash de arranque | `loader-splash.png` | El loader literal durante el bootstrap de LifeQuest. |
+| Splash de arranque | `loader-splash.png` | El loader literal durante el bootstrap de Noutlife. |
 | Zona autenticada | `loader-page.png` | El mismo loader durante la carga diferida de una zona, sin overflow a 390 px. |
 | Primera sección: Logros | `loader-section-achievements.png` | El mismo loader al resolver por primera vez los datos de la sección. |
 | Primera sección: Comida | `loader-section-food.png` | El mismo loader al resolver por primera vez las comidas de la sección. |
@@ -40,5 +40,5 @@ Capturas móviles a **390 × 844 px** para el mismo loader terminal literal basa
 
 - Timing compartido: **200 ms** antes de mostrar un loader y **400 ms** de visibilidad mínima, contado sólo desde que el loader aparece.
 - El loader literal se aplica al splash, a las rutas/zonas y a todos los estados iniciales de carga de sección que antes usaban la variante compacta.
-- `LIFEQUEST_E2E_BASE_URL=http://127.0.0.1:5173 npm run test:e2e --workspace=apps/web -- --grep 'literal terminal loader coverage'`: **4/4 aprobadas**. Cubre ruta lazy, primera carga de sección sin overflow en 360/390/430 px, ventana mínima visible y reduced motion habilitado.
+- `NOUTLIFE_E2E_BASE_URL=http://127.0.0.1:5173 npm run test:e2e --workspace=apps/web -- --grep 'literal terminal loader coverage'`: **4/4 aprobadas**. Cubre ruta lazy, primera carga de sección sin overflow en 360/390/430 px, ventana mínima visible y reduced motion habilitado.
 - Suite E2E completa: **5 aprobadas, 3 omitidas** porque requieren credenciales reales o permitir mutaciones de rituales.

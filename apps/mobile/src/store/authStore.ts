@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
 import { api } from '../services/api';
-import type { User } from '@lifequest/shared';
+import type { User } from '@noutlife/shared';
 
 interface AuthState {
   user: User | null;

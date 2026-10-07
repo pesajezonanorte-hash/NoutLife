@@ -1,5 +1,5 @@
 [phases.build]
-cmds = ["npm run build --workspace=@lifequest/api"]
+cmds = ["npm run build --workspace=@noutlife/api"]
 
 [start]
 cmd = "npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma && node apps/api/dist/server.js"

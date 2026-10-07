@@ -1,5 +1,5 @@
 import api from '../lib/api';
-import type { ShopItem, InventoryItem, User } from '@lifequest/shared';
+import type { ShopItem, InventoryItem, User } from '@noutlife/shared';
 
 /** Lo que cambia en la cuenta al comprar o ponerse algo (Gold, avatar, aura, marco, tema). */
 export type ShopUser = Partial<Pick<User, 'gold' | 'level' | 'avatarConfig' | 'avatarUrl' | 'equippedHat' | 'equippedAura' | 'equippedFrame' | 'equippedTheme'>> & { id: string };

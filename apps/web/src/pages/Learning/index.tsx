@@ -12,7 +12,7 @@ import {
   ArrowLeft, BookOpen, Globe, Headphones, MonitorPlay, NotebookPen, Plus, TrendingUp, Video,
   type LucideIcon,
 } from 'lucide-react';
-import type { LearningItem, LearningStats } from '@lifequest/shared';
+import type { LearningItem, LearningStats } from '@noutlife/shared';
 import { item, stagger } from '@/lib/motion';
 import { AmbientLight, Particles, ZoneShell, useParticleBudget } from '@/components/ambience';
 import { Bookcase, type Shelf } from '@/components/learning/Bookshelf';

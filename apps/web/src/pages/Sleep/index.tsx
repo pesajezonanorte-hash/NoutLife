@@ -5,7 +5,7 @@
 // Las siestas suman al descanso del día pero no cuentan como noche.
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { AnimatePresence, motion, PresenceContext } from 'framer-motion';
-import type { SleepLog, SleepStats } from '@lifequest/shared';
+import type { SleepLog, SleepStats } from '@noutlife/shared';
 import { Clock, CloudSun, Coffee, Dumbbell, MonitorSmartphone, Moon, Minus, Trash2, TrendingDown, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { item, pop3, springSoft, stagger, useCountUp } from '@/lib/motion';

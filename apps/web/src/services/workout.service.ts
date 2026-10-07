@@ -1,6 +1,6 @@
 import api from '../lib/api';
 import type { AchievementToast } from '../store/uiStore';
-import type { Workout, Exercise, Routine } from '@lifequest/shared';
+import type { Workout, Exercise, Routine } from '@noutlife/shared';
 
 export async function fetchWorkouts(limit = 20): Promise<Workout[]> {
   const { data } = await api.get<{ workouts: Workout[] }>(`/workouts?limit=${limit}`);

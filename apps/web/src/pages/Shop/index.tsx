@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Crown, Frame, Gem, Glasses, Lock, Package, Palette, Scissors, Shirt, Sparkles, Ticket, Zap, type LucideIcon } from 'lucide-react';
-import type { InventoryItem, ShopItem as Item, User } from '@lifequest/shared';
+import type { InventoryItem, ShopItem as Item, User } from '@noutlife/shared';
 import { item as itemV, stagger } from '@/lib/motion';
 import { ZoneShell } from '@/components/ambience';
 import { CoinFlight } from '@/components/shop/CoinFlight';

@@ -35,7 +35,7 @@ export default {
         'accent-purple':  '#548f6f',
 
         // ── Tokens semánticos shadcn (para componentes tipo shadcn: LiquidButton, etc.) ──
-        // Mapeados a las CSS vars del tema LifeQuest (globals.css). No colisionan
+        // Mapeados a las CSS vars del tema Noutlife (globals.css). No colisionan
         // con las keys anteriores ('text-primary' genera .text-text-primary, no .text-primary).
         'foreground':          'var(--text-primary)',
         'primary-foreground':  'var(--text-inv)',
@@ -50,7 +50,7 @@ export default {
         'input':               'var(--border-strong)',
         'ring':                'var(--primary)',
 
-        // ── Rediseño LifeQuest (README: bg-primary-strong, text-on-surface-light…) ──
+        // ── Rediseño Noutlife (README: bg-primary-strong, text-on-surface-light…) ──
         primary: { DEFAULT: c('primary'), strong: c('primary-strong'), hover: c('primary-hover'), text: c('primary-text') },
         'on-primary': c('on-primary'),
         jade: Object.fromEntries([50, 100, 200, 300, 400, 500, 600, 700, 800, 900].map((k) => [k, c(`jade-${k}`)])),

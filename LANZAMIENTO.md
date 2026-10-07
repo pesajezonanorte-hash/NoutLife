@@ -1,4 +1,4 @@
-# 🚀 LifeQuest — Fase Final de Lanzamiento
+# 🚀 Noutlife — Fase Final de Lanzamiento
 
 **Fecha:** 2026-05-17
 **Versión:** 11.2.0 (Fase Final Multi-Usuario)
@@ -113,7 +113,7 @@ API: _por confirmar_ — health check disponible en `/health`.
 
 > Hola 👋
 >
-> Te invito a probar **LifeQuest** — una app que convierte tu vida real en un RPG. Misiones, hábitos, gym, finanzas, sueño y diario, todo gamificado: ganas XP, subes de nivel, desbloqueas logros. Hay un Sabio con IA que te aconseja según lo que vas haciendo.
+> Te invito a probar **Noutlife** — una app que convierte tu vida real en un RPG. Misiones, hábitos, gym, finanzas, sueño y diario, todo gamificado: ganas XP, subes de nivel, desbloqueas logros. Hay un Sabio con IA que te aconseja según lo que vas haciendo.
 >
 > 👉 Entrá a {URL_AQUÍ}
 > Crea tu cuenta (te toma 1 minuto), pasa por el onboarding y empezás como Nivel 1.
@@ -128,10 +128,10 @@ API: _por confirmar_ — health check disponible en `/health`.
 
 1. **Verificar en producción** los 4 ítems de "Multi-usuario" (requiere acceso a la URL pública con 2 cuentas).
 2. **Aplicar el rate limiting** — el limiter es in-memory; si la API corre en múltiples instancias detrás de un load balancer cada instancia tiene su propio contador. Para tráfico bajo (amigos del autor) es suficiente. Migrar a Redis si se escala.
-3. **Crear `/og-image.png`** en `apps/web/public/` (1200x630, branding LifeQuest) — referenciada en index.html.
+3. **Crear `/og-image.png`** en `apps/web/public/` (1200x630, branding Noutlife) — referenciada en index.html.
 4. **Probar OAuth** con `JWT_SECRET` real en producción (el state usa la misma key — si rota durante un OAuth en curso, el callback falla con `?provider=error`).
 5. **Backup del `.feedback/entries.jsonl`** — los feedbacks se guardan en disco; en Vercel el filesystem es efímero. Considerar migrar a una tabla Prisma `Feedback` antes de tráfico real.
 
 ---
 
-🎉 **LifeQuest está lista para sus primeros usuarios reales.**
+🎉 **Noutlife está lista para sus primeros usuarios reales.**
