@@ -1,7 +1,7 @@
 // Texto de las páginas legales públicas: /privacy, /terms y /copyright.
 
 export const CONTACT_EMAIL = 'Noutlife@hotmail.com';
-export const LEGAL_ENTITY = 'SIDPESAJE';
+export const LEGAL_ENTITY = 'Servicios Inteligentes de Pesaje S.A.S.';
 
 const CONTACT = `Contacto para avisos legales, soporte y solicitudes DMCA: ${CONTACT_EMAIL}. También puedes escribirnos desde Ayuda → Enviar comentarios dentro de la app.`;
 
