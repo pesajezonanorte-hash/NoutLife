@@ -77,7 +77,7 @@ export default function LoginPage() {
 
   return (
     <AuthLayout
-      title="Entra a Noutlife"
+      title="Entra a NoutLife"
       subtitle="Usa tu cuenta de Google. Si es tu primera vez, creamos tu personaje."
       footer={<>Al continuar aceptas los <Link to="/terms" className="inline-flex min-h-11 items-center font-semibold text-primary-text underline-offset-4 hover:underline">Términos</Link> y la <Link to="/privacy" className="inline-flex min-h-11 items-center font-semibold text-primary-text underline-offset-4 hover:underline">Política de privacidad</Link>.<LegalFooter className="mt-2" /></>}
     >
