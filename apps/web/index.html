@@ -2,17 +2,20 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/brand/favicon-32.png" />
-    <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/brand/favicon-32.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <!-- iPhone: abierta desde la pantalla de inicio funciona como app (y puede recibir avisos). -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-title" content="Noutlife" />
+    <meta name="apple-mobile-web-app-title" content="NoutLife" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content, user-scalable=no" />
     <meta name="theme-color" content="#f9f7f3" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#070d0a" media="(prefers-color-scheme: dark)" />
-    <meta name="description" content="NoutLife — convierte tu vida real en un RPG. Misiones, hábitos, finanzas, gym y más, con XP, niveles y un Sabio que te guía." />
+    <meta name="title" content="NoutLife — El RPG de tu vida real" />
+    <meta name="description" content="Transforma tus hábitos, gimnasio, descanso y finanzas en un juego RPG. Sube de nivel en la vida real con NoutLife." />
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
@@ -20,13 +23,13 @@
     <meta property="og:url" content="https://noutlife.vercel.app/" />
     <link rel="canonical" href="https://noutlife.vercel.app/" />
     <meta property="og:title" content="NoutLife — El RPG de tu vida real" />
-    <meta property="og:description" content="Convierte tus metas, hábitos y rutinas diarias en quests épicas. Sube de nivel viviendo." />
+    <meta property="og:description" content="Transforma tus hábitos, gimnasio, descanso y finanzas en un juego RPG. Sube de nivel en la vida real con NoutLife." />
     <meta property="og:image" content="https://noutlife.vercel.app/brand/og-logo.png" />
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="NoutLife — El RPG de tu vida real" />
-    <meta name="twitter:description" content="Convierte tus metas, hábitos y rutinas diarias en quests épicas. Sube de nivel viviendo." />
+    <meta name="twitter:description" content="Transforma tus hábitos, gimnasio, descanso y finanzas en un juego RPG. Sube de nivel en la vida real con NoutLife." />
     <meta name="twitter:image" content="https://noutlife.vercel.app/brand/og-logo.png" />
 
     <link rel="manifest" href="/manifest.json" />
@@ -37,6 +40,15 @@
       rel="stylesheet"
     />
     <title>NoutLife — El RPG de tu vida real</title>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "NoutLife",
+        "alternateName": ["Noutlife", "NoutLife RPG"],
+        "url": "https://noutlife.vercel.app/"
+      }
+    </script>
     <meta name="google-site-verification" content="MyC3ZB7BGWD83R2TcF2oML6OxFE8rnFUE066NGibsAY" />
     <!-- Tema antes del primer pintado (misma lógica que store/themeStore) -->
     <script>
