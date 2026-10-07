@@ -3,7 +3,7 @@
 // Mismos servicios que el antiguo FinancesExtras / página de Finanzas.
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import type { FinancialGoal, TransactionCategory } from '@noutlife/shared';
-import { ArrowDownLeft, ArrowUpRight, CalendarClock, PiggyBank, Plus, Repeat, Target, Trash2, TrendingUp, type LucideIcon } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, CalendarClock, Landmark, PiggyBank, Plus, Repeat, Target, Trash2, TrendingUp, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatMoney } from '@/lib/lifeMeta';
 import { Badge, Button, Card, EmptyState, ErrorState, Field, IconChip, Input, LineChart, ProgressBar, ResponsiveDialog, SegmentedControl, Select, PageLoader, DatePicker } from '@/components/ui/lq';
@@ -458,7 +458,127 @@ export function ProjectionPanel({ money }: { money: Money }) {
   );
 }
 
+// ── Ahorro (alcancía) ────────────────────────────────────────────────────────
+
+const DEPOSIT_SOURCES = [
+  { value: 'GENERAL', label: 'Mi dinero' },
+  { value: 'EXTRA', label: 'Ingreso extra' },
+] as const;
+const WITHDRAW_TARGETS = [
+  { value: 'GENERAL', label: 'A mi dinero' },
+  { value: 'OUT', label: 'Gastarlo' },
+] as const;
+
+export function SavingsPanel({ money, onChanged }: { money: Money; onChanged: () => void }) {
+  const { data, failed, load } = useLoader(financeService.fetchSavings);
+  const [dialog, setDialog] = useState<'DEPOSIT' | 'WITHDRAW' | null>(null);
+  const [counterpart, setCounterpart] = useState<'GENERAL' | 'EXTRA' | 'OUT'>('GENERAL');
+  const [amount, setAmount] = useState('');
+  const [note, setNote] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  function open(kind: 'DEPOSIT' | 'WITHDRAW') {
+    setDialog(kind); setCounterpart('GENERAL'); setAmount(''); setNote('');
+  }
+
+  const value = Number(amount);
+  const tooMuch = dialog === 'WITHDRAW' && data ? value > data.balance : false;
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (!dialog || !(value > 0) || tooMuch) return;
+    setSaving(true);
+    try {
+      await financeService.moveSavings({ kind: dialog, counterpart, amount: value, note: note.trim() || undefined });
+      toast().success(dialog === 'DEPOSIT' ? 'Ahorro guardado' : 'Retiro registrado', money(value));
+      setDialog(null);
+      load();
+      onChanged();
+    } catch { toast().error('No se pudo registrar el movimiento'); } finally { setSaving(false); }
+  }
+
+  const share = data && data.monthIncome > 0 ? Math.min(100, Math.round((data.monthDeposited / data.monthIncome) * 100)) : null;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <PanelHead title="Mi ahorro" summary="Aparta una parte de tu dinero y llévala aquí." />
+      <PanelState failed={failed} loading={!data && !failed} onRetry={load} />
+      {data && (
+        <>
+          <div className="flex flex-col gap-3 rounded-2xl border border-border bg-background p-4">
+            <div className="flex items-center gap-3">
+              <IconChip icon={Landmark} tone="success" size="sm" />
+              <div className="min-w-0 flex-1">
+                <p className="text-body-sm text-on-surface-light">Ahorrado ahora</p>
+                <p className="truncate text-heading-md font-mono tabular-nums text-on-background">{money(data.balance)}</p>
+              </div>
+            </div>
+            {share !== null && (
+              <>
+                <ProgressBar value={share} tone="success" label="Porción de tus ingresos del mes que ahorraste" valueText={`${share} %`} />
+                <p className="text-body-sm text-on-surface-light">
+                  Este mes apartaste {money(data.monthDeposited)}, el {share} % de tus ingresos ({money(data.monthIncome)}).
+                </p>
+              </>
+            )}
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" onClick={() => open('DEPOSIT')}><ArrowDownLeft aria-hidden className="size-4" strokeWidth={2} />Meter dinero</Button>
+              <Button size="sm" variant="secondary" disabled={data.balance <= 0} onClick={() => open('WITHDRAW')}><ArrowUpRight aria-hidden className="size-4" strokeWidth={2} />Sacar dinero</Button>
+            </div>
+          </div>
+          {data.entries.length === 0
+            ? <EmptyState icon={PiggyBank} tone="muted" title="Aún no ahorras aquí" description="Mete una parte de tu dinero o de un ingreso extra." className="py-6" />
+            : (
+              <ul className="flex flex-col gap-2">
+                {data.entries.map((en) => {
+                  const dep = en.kind === 'DEPOSIT';
+                  const where = en.counterpart === 'EXTRA' ? 'Ingreso extra' : en.counterpart === 'OUT' ? 'Gastado' : dep ? 'De mi dinero' : 'A mi dinero';
+                  return (
+                    <li key={en.id} className="flex items-center gap-3 rounded-2xl border border-border bg-background px-4 py-3">
+                      <IconChip icon={dep ? ArrowDownLeft : ArrowUpRight} tone={dep ? 'success' : 'warning'} size="sm" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-label-lg text-on-background">{en.note || (dep ? 'Ahorro' : 'Retiro')}</span>
+                        <span className="block truncate text-body-sm text-on-surface-light">
+                          {where} · {new Date(en.createdAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
+                        </span>
+                      </span>
+                      <span className={cn('font-mono text-label-lg tabular-nums', dep ? 'text-success-text' : 'text-on-surface')}>{dep ? '+' : '−'}{money(en.amount)}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+        </>
+      )}
+      <ResponsiveDialog open={dialog !== null} onClose={() => setDialog(null)} title={dialog === 'WITHDRAW' ? 'Sacar del ahorro' : 'Meter al ahorro'}>
+        <form className="flex flex-col gap-4" onSubmit={(e) => void submit(e)}>
+          <SegmentedControl
+            role="radiogroup"
+            label={dialog === 'WITHDRAW' ? 'Destino' : 'Origen'}
+            value={counterpart}
+            onChange={setCounterpart}
+            options={(dialog === 'WITHDRAW' ? WITHDRAW_TARGETS : DEPOSIT_SOURCES).map((o) => ({ value: o.value, label: o.label }))}
+          />
+          <p className="text-body-sm text-on-surface-light">
+            {dialog === 'WITHDRAW'
+              ? counterpart === 'GENERAL' ? 'El dinero vuelve a tu saldo general.' : 'El dinero sale del ahorro y no vuelve a tu saldo.'
+              : counterpart === 'GENERAL' ? 'Se descuenta de tu saldo general.' : 'Dinero nuevo que va directo al ahorro, sin tocar tu saldo.'}
+          </p>
+          <Field label="Monto" help={tooMuch && data ? `Solo tienes ${money(data.balance)} ahorrado` : value > 0 ? money(value) : undefined} error={tooMuch ? 'Es más de lo que tienes ahorrado' : undefined}>
+            <Input data-autofocus type="number" inputMode="decimal" min="0" step="any" value={amount} onChange={(e) => setAmount(e.target.value)} />
+          </Field>
+          <Field label="Nota" help="Opcional">
+            <Input value={note} maxLength={120} onChange={(e) => setNote(e.target.value)} placeholder="Ej. Prima de diciembre" />
+          </Field>
+          <Button type="submit" block loading={saving} disabled={!(value > 0) || tooMuch}>Guardar</Button>
+        </form>
+      </ResponsiveDialog>
+    </div>
+  );
+}
+
 export const PLANNING_TABS = [
+  { value: 'savings', label: 'Ahorro', icon: Landmark },
   { value: 'budgets', label: 'Presupuestos', icon: Target },
   { value: 'goals', label: 'Metas', icon: PiggyBank },
   { value: 'debts', label: 'Deudas', icon: ArrowUpRight },

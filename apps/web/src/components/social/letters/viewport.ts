@@ -8,11 +8,20 @@ import { useEffect, useState } from 'react';
 
 export interface ViewportBox { top: number; height: number; keyboard: number }
 
+// Algunos Android (PWA instalada, WebView) dejan el teclado encima de la página sin
+// encoger la vista; ahí solo la VirtualKeyboard API informa de su alto.
+type VirtualKeyboardApi = EventTarget & { overlaysContent: boolean; boundingRect: DOMRect };
+const virtualKeyboard = (): VirtualKeyboardApi | null =>
+  typeof navigator !== 'undefined' ? ((navigator as unknown as { virtualKeyboard?: VirtualKeyboardApi }).virtualKeyboard ?? null) : null;
+
 const read = (): ViewportBox => {
   const vv = typeof window !== 'undefined' ? window.visualViewport : null;
   if (!vv) return { top: 0, height: typeof window !== 'undefined' ? window.innerHeight : 800, keyboard: 0 };
   const keyboard = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
-  return { top: Math.round(vv.offsetTop), height: Math.round(vv.height), keyboard: keyboard > 120 ? keyboard : 0 };
+  if (keyboard > 120) return { top: Math.round(vv.offsetTop), height: Math.round(vv.height), keyboard };
+  const overlay = Math.round(virtualKeyboard()?.boundingRect.height ?? 0);
+  if (overlay > 120) return { top: Math.round(vv.offsetTop), height: Math.round(vv.height) - overlay, keyboard: overlay };
+  return { top: Math.round(vv.offsetTop), height: Math.round(vv.height), keyboard: 0 };
 };
 
 let lastKeyboard = 0;
@@ -33,6 +42,10 @@ export function useViewportBox(enabled = true): ViewportBox {
         setBox((b) => (b.top === next.top && b.height === next.height && b.keyboard === next.keyboard ? b : next));
       });
     };
+    const vk = virtualKeyboard();
+    const prevOverlay = vk?.overlaysContent ?? false;
+    if (vk) vk.overlaysContent = true;
+    vk?.addEventListener('geometrychange', on);
     on();
     // iOS anima el teclado y la barra de sugerencias: se sigue leyendo mientras se acomoda.
     let settle = 0;
@@ -49,6 +62,8 @@ export function useViewportBox(enabled = true): ViewportBox {
     return () => {
       cancelAnimationFrame(raf);
       window.clearInterval(settle);
+      vk?.removeEventListener('geometrychange', on);
+      if (vk) vk.overlaysContent = prevOverlay;
       window.removeEventListener('focusin', settling);
       window.removeEventListener('focusout', settling);
       vv?.removeEventListener('resize', on);

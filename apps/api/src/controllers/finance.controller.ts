@@ -137,3 +137,20 @@ export async function getFinanceReport(req: AuthRequest, res: Response): Promise
     res.json({ report });
   } catch { res.status(500).json({ error: 'Error al obtener reporte.' }); }
 }
+
+export async function getSavings(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const d = await svc.getSavings(req.userId!);
+    res.json({ savings: { ...d, entries: d.entries.map((e) => ({ ...e, amount: Number(e.amount), createdAt: e.createdAt.toISOString() })) } });
+  } catch { res.status(500).json({ error: 'Error al cargar el ahorro.' }); }
+}
+
+export async function moveSavings(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    await svc.moveSavings(req.userId!, req.body);
+    res.status(201).json({ success: true });
+  } catch (e) {
+    if (e instanceof Error && e.message === 'INSUFFICIENT_SAVINGS') { res.status(400).json({ error: 'No tienes tanto ahorrado.' }); return; }
+    res.status(500).json({ error: 'Error al registrar el movimiento de ahorro.' });
+  }
+}

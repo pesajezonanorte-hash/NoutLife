@@ -25,7 +25,7 @@ import { solidBg } from '@/components/ui/lq/tones';
 import * as financeService from '@/services/finance.service';
 import { SHARE_TONES, monthRange, pctChange, txCategory } from '@/components/finances/financeMeta';
 import { TransactionFormDialog } from '@/components/finances/TransactionFormDialog';
-import { BudgetsPanel, DebtsPanel, GoalsPanel, PLANNING_TABS, ProjectionPanel, RecurringPanel } from '@/components/finances/PlanningTools';
+import { BudgetsPanel, DebtsPanel, GoalsPanel, PLANNING_TABS, ProjectionPanel, RecurringPanel, SavingsPanel } from '@/components/finances/PlanningTools';
 
 type Summary = { income: number; expenses: number; balance: number; byCategory: Record<string, number>; count: number };
 type TxTab = 'all' | 'INCOME' | 'EXPENSE';
@@ -111,7 +111,7 @@ export default function FinancesPage() {
   const [fetching, setFetching] = useState(false);
   const [txTab, setTxTab] = useState<TxTab>('all');
   const [showAll, setShowAll] = useState(false);
-  const [plan, setPlan] = useState<PlanTab>('budgets');
+  const [plan, setPlan] = useState<PlanTab>('savings');
   const [adding, setAdding] = useState(false);
   const [detail, setDetail] = useState<Transaction | null>(null);
   /** Enlaces entre gráfico, categorías y lista. */
@@ -483,6 +483,7 @@ export default function FinancesPage() {
                 key={plan}
                 initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0, transition: heavy }} exit={{ opacity: 0, y: -8, transition: { duration: 0.16, ease: expo } }}
               >
+                {plan === 'savings' && <SavingsPanel money={money} onChanged={() => void load(true)} />}
                 {plan === 'budgets' && <BudgetsPanel month={range.month} year={range.year} money={compact} />}
                 {plan === 'goals' && <GoalsPanel money={money} />}
                 {plan === 'debts' && <DebtsPanel money={money} />}

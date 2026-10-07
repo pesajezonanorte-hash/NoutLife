@@ -7,6 +7,7 @@ import {
   createBudgetSchema,
   createFinancialGoalSchema,
   createTransactionSchema,
+  savingsMoveSchema,
   updateBudgetSchema,
   updateFinancialGoalSchema,
   updateTransactionSchema,
@@ -29,6 +30,9 @@ router.post('/budgets', validate(createBudgetSchema), ctrl.createBudget);
 router.patch('/budgets/:id', validate(updateBudgetSchema), ctrl.updateBudget);
 router.delete('/budgets/:id',               ctrl.deleteBudget);
 router.get('/budgets/alert',                ctrl.getBudgetAlerts);
+
+router.get('/savings',                      ctrl.getSavings);
+router.post('/savings', validate(savingsMoveSchema), ctrl.moveSavings);
 
 router.get('/goals',                        ctrl.listFinancialGoals);
 router.post('/goals', validate(createFinancialGoalSchema), ctrl.createFinancialGoal);

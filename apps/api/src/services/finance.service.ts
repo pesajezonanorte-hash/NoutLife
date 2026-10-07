@@ -223,3 +223,50 @@ export async function getFinanceReport(userId: string, year: number, month: numb
 
   return { ...summary, savingsRate, text, month, year };
 }
+
+const MONEY = (v: unknown) => Number(v ?? 0);
+
+export async function getSavings(userId: string) {
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const [totals, month, income, entries] = await Promise.all([
+    prisma.savingsEntry.groupBy({ by: ['kind'], where: { userId }, _sum: { amount: true } }),
+    prisma.savingsEntry.aggregate({ where: { userId, kind: 'DEPOSIT', createdAt: { gte: monthStart } }, _sum: { amount: true } }),
+    prisma.transaction.aggregate({ where: { userId, type: 'INCOME', category: { not: 'SAVINGS' }, date: { gte: monthStart } }, _sum: { amount: true } }),
+    prisma.savingsEntry.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 15 }),
+  ]);
+  const sum = (kind: string) => MONEY(totals.find((t) => t.kind === kind)?._sum.amount);
+  const deposited = sum('DEPOSIT');
+  const withdrawn = sum('WITHDRAW');
+  return {
+    balance: deposited - withdrawn,
+    deposited,
+    withdrawn,
+    monthDeposited: MONEY(month._sum.amount),
+    monthIncome: MONEY(income._sum.amount),
+    entries,
+  };
+}
+
+export async function moveSavings(userId: string, body: { kind: 'DEPOSIT' | 'WITHDRAW'; counterpart: 'GENERAL' | 'EXTRA' | 'OUT'; amount: number; note?: string }) {
+  return prisma.$transaction(async (tx) => {
+    if (body.kind === 'WITHDRAW') {
+      const rows = await tx.savingsEntry.groupBy({ by: ['kind'], where: { userId }, _sum: { amount: true } });
+      const balance = MONEY(rows.find((r) => r.kind === 'DEPOSIT')?._sum.amount) - MONEY(rows.find((r) => r.kind === 'WITHDRAW')?._sum.amount);
+      if (body.amount > balance + 0.001) throw new Error('INSUFFICIENT_SAVINGS');
+    }
+    if (body.counterpart === 'GENERAL') {
+      await tx.transaction.create({
+        data: {
+          userId,
+          type: body.kind === 'DEPOSIT' ? 'EXPENSE' : 'INCOME',
+          amount: body.amount,
+          category: 'SAVINGS',
+          description: body.note || (body.kind === 'DEPOSIT' ? 'Ahorro' : 'Retiro de ahorro'),
+          date: new Date(),
+        },
+      });
+    }
+    return tx.savingsEntry.create({ data: { userId, kind: body.kind, counterpart: body.counterpart, amount: body.amount, note: body.note || null } });
+  });
+}

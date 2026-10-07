@@ -90,3 +90,13 @@ export const updateFinancialGoalSchema = z
 export const contributeToGoalSchema = z.object({
   amount: positiveMoney,
 }).strict();
+
+export const savingsMoveSchema = z.object({
+  kind: z.enum(['DEPOSIT', 'WITHDRAW']),
+  counterpart: z.enum(['GENERAL', 'EXTRA', 'OUT']),
+  amount: positiveMoney,
+  note: z.string().trim().max(120).optional(),
+}).strict().refine(
+  (v) => (v.kind === 'DEPOSIT' ? v.counterpart !== 'OUT' : v.counterpart !== 'EXTRA'),
+  'Origen o destino no válido para este movimiento.',
+);

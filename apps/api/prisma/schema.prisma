@@ -194,6 +194,7 @@ model User {
   transactions            Transaction[]
   budgets                 Budget[]
   financialGoals          FinancialGoal[]
+  savingsEntries          SavingsEntry[]
   workouts                Workout[]
   meals                   Meal[]
   sleepLogs               SleepLog[]
@@ -415,6 +416,21 @@ model Budget {
 
   @@unique([userId, category, month, year])
   @@map("budgets")
+}
+
+model SavingsEntry {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  kind        String // "DEPOSIT" | "WITHDRAW"
+  counterpart String // DEPOSIT: "GENERAL" | "EXTRA" · WITHDRAW: "GENERAL" | "OUT"
+  amount      Decimal  @db.Decimal(15, 2)
+  note        String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@map("savings_entries")
 }
 
 model FinancialGoal {

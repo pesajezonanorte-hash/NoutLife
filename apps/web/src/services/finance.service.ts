@@ -91,3 +91,15 @@ export async function fetchFinanceReport(year: number, month: number) {
   const { data } = await api.get(`/finances/report/${year}/${month}`);
   return data.report;
 }
+
+export type SavingsEntry = { id: string; kind: 'DEPOSIT' | 'WITHDRAW'; counterpart: 'GENERAL' | 'EXTRA' | 'OUT'; amount: number; note: string | null; createdAt: string };
+export type Savings = { balance: number; deposited: number; withdrawn: number; monthDeposited: number; monthIncome: number; entries: SavingsEntry[] };
+
+export async function fetchSavings(): Promise<Savings> {
+  const { data } = await api.get<{ savings: Savings }>('/finances/savings');
+  return data.savings;
+}
+
+export async function moveSavings(body: { kind: 'DEPOSIT' | 'WITHDRAW'; counterpart: 'GENERAL' | 'EXTRA' | 'OUT'; amount: number; note?: string }): Promise<void> {
+  await api.post('/finances/savings', body);
+}
