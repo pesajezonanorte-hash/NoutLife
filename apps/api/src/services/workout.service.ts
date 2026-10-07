@@ -39,7 +39,7 @@ export async function getWorkout(userId: string, id: string) {
   });
 }
 
-export async function createWorkout(userId: string, body: { title: string; date?: string; notes?: string; routineDayId?: string }) {
+export async function createWorkout(userId: string, body: { title: string; kind?: 'STRENGTH' | 'WALK' | 'CARDIO'; date?: string; notes?: string; routineDayId?: string }) {
   if (body.routineDayId) {
     const routineDay = await prisma.routineDay.findFirst({ where: { id: body.routineDayId, routine: { userId } }, select: { id: true } });
     if (!routineDay) throw new Error('ROUTINE_DAY_NOT_FOUND');
@@ -54,6 +54,7 @@ export async function createWorkout(userId: string, body: { title: string; date?
     data: {
       userId,
       title: body.title,
+      kind: body.kind ?? 'STRENGTH',
       date,
       notes: body.notes,
       routineDayId: body.routineDayId,
@@ -96,7 +97,7 @@ export async function updateWorkout(userId: string, id: string, body: Record<str
   });
 }
 
-export async function finishWorkout(userId: string, id: string, body: { notes?: string; duration?: number; exercises?: Array<{ exerciseId: string; sets: Array<{ weight?: number; reps?: number; completed: boolean }>; notes?: string; order?: number }> }) {
+export async function finishWorkout(userId: string, id: string, body: { notes?: string; duration?: number; distanceKm?: number; exercises?: Array<{ exerciseId: string; sets: Array<{ weight?: number; reps?: number; completed: boolean }>; notes?: string; order?: number }> }) {
   // Finishing is the point at which rewards and the stats event are written.
   // Guard it explicitly so a retry/double click cannot farm XP or corrupt the
   // workout timeline with multiple reward events.
@@ -117,7 +118,10 @@ export async function finishWorkout(userId: string, id: string, body: { notes?: 
     }
   }
 
-  const durationMinutes = body.duration ?? 45;
+  const durationMinutes = Math.min(Math.max(Math.round(body.duration ?? 45), 1), 1440);
+  const distanceKm = typeof body.distanceKm === 'number' && Number.isFinite(body.distanceKm) && body.distanceKm > 0
+    ? Math.min(Math.round(body.distanceKm * 100) / 100, 1000)
+    : undefined;
   const exercises = await prisma.workoutExercise.findMany({ where: { workoutId: id }, include: { exercise: true } });
   const totalVolume = (exercises as Array<{ sets: Array<{ weight?: number; reps?: number; completed?: boolean }> }>).reduce((acc, we) => {
     return acc + we.sets.filter(s => s.completed).reduce((a, s) => a + ((s.weight ?? 0) * (s.reps ?? 1)), 0);
@@ -132,7 +136,7 @@ export async function finishWorkout(userId: string, id: string, body: { notes?: 
 
   const workout = await prisma.workout.update({
     where: { id, userId },
-    data: { duration: durationMinutes, notes: body.notes, xpEarned: xp, goldEarned: gold, attendanceId: attendance.id },
+    data: { duration: durationMinutes, distanceKm, notes: body.notes, xpEarned: xp, goldEarned: gold, attendanceId: attendance.id },
     include: { exercises: { include: { exercise: true }, orderBy: { order: 'asc' } } },
   });
 

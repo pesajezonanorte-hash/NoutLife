@@ -217,6 +217,11 @@ async function migrate() {
   for (const { id } of overflowing) await settleLevel(id);
   if (overflowing.length) console.log(`Settled levels for ${overflowing.length} players.`);
 
+  // Idempotent mirror of prisma/migrations/20261011120000_workout_cardio.
+  await prisma.$executeRawUnsafe(ignoreDuplicate(`CREATE TYPE "WorkoutKind" AS ENUM ('STRENGTH', 'WALK', 'CARDIO')`));
+  await prisma.$executeRawUnsafe(`ALTER TABLE "workouts" ADD COLUMN IF NOT EXISTS "kind" "WorkoutKind" NOT NULL DEFAULT 'STRENGTH';`);
+  await prisma.$executeRawUnsafe(`ALTER TABLE "workouts" ADD COLUMN IF NOT EXISTS "distanceKm" DOUBLE PRECISION;`);
+
   // Runs last so tables created above are covered too.
   await prisma.$executeRawUnsafe(RLS_LOCKDOWN_SQL);
 

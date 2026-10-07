@@ -67,6 +67,7 @@ export const updateJournalSchema = createJournalSchema.partial();
 
 export const createWorkoutSchema = z.object({
   title: z.string().trim().min(1, 'El título es obligatorio.').max(200),
+  kind: z.enum(['STRENGTH', 'WALK', 'CARDIO']).optional(),
   date: parsableDate.optional(),
   notes: z.string().max(2000).optional(),
   routineDayId: z.string().min(1).optional(),

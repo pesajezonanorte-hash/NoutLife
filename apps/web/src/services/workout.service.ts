@@ -36,7 +36,7 @@ export interface GymAttendance {
   updatedAt: string;
 }
 
-export async function createWorkout(body: { title: string; date?: string; notes?: string; routineDayId?: string }): Promise<Workout> {
+export async function createWorkout(body: { title: string; kind?: 'STRENGTH' | 'WALK' | 'CARDIO'; date?: string; notes?: string; routineDayId?: string }): Promise<Workout> {
   const { data } = await api.post<{ workout: Workout }>('/workouts', body);
   return data.workout;
 }
@@ -46,7 +46,7 @@ export async function updateWorkout(id: string, body: Record<string, unknown>): 
   return data.workout;
 }
 
-export async function finishWorkout(id: string, body: { duration?: number; notes?: string; exercises?: unknown[] }): Promise<{ workout: Workout; rewards: unknown; user: unknown; achievementsUnlocked?: AchievementToast[] }> {
+export async function finishWorkout(id: string, body: { duration?: number; distanceKm?: number; notes?: string; exercises?: unknown[] }): Promise<{ workout: Workout; rewards: unknown; user: unknown; achievementsUnlocked?: AchievementToast[] }> {
   const { data } = await api.post(`/workouts/${id}/finish`, body);
   return data;
 }

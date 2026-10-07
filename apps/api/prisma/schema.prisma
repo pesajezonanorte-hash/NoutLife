@@ -70,6 +70,12 @@ enum RelationshipStatus {
   PREFER_NOT_TO_SAY
 }
 
+enum WorkoutKind {
+  STRENGTH
+  WALK
+  CARDIO
+}
+
 enum GymAttendanceSource {
   HABIT
   MANUAL
@@ -432,8 +438,10 @@ model Workout {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   title      String
+  kind       WorkoutKind @default(STRENGTH)
   notes      String?
   duration   Int?
+  distanceKm Float?
   date       DateTime
   xpEarned   Int      @default(0)
   goldEarned Int      @default(0)

@@ -21,8 +21,10 @@ export interface Workout {
   id: string;
   userId: string;
   title: string;
+  kind?: 'STRENGTH' | 'WALK' | 'CARDIO';
   notes?: string;
   duration?: number;
+  distanceKm?: number | null;
   date: string;
   xpEarned: number;
   goldEarned: number;

@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
-  Camera, Check, ChevronRight, ClipboardList, Dumbbell, ExternalLink, Flame, History, Minus, Music,
+  Camera, Check, ChevronRight, ClipboardList, Dumbbell, Footprints, ExternalLink, Flame, History, Minus, Music,
   Pause, Play, Plus, Sparkles, Timer as TimerIcon, Trophy, TrendingUp,
 } from 'lucide-react';
 import type { Workout, Exercise, Routine } from '@noutlife/shared';
@@ -80,7 +80,14 @@ function elapsedMs(w: ActiveWorkout, now: number) {
   return Math.max(0, now - w.startTime - paused);
 }
 
-interface Summary { title: string; xp: number; gold: number; seconds: number; sets: number; volume: number }
+interface Summary { title: string; xp: number; gold: number; seconds: number; sets: number; volume: number; cardio?: { label: string; distanceKm?: number } }
+
+type CardioKind = 'WALK' | 'CARDIO';
+const CARDIO_LABEL: Record<CardioKind, string> = { WALK: 'Caminata', CARDIO: 'Cardio general' };
+const CARDIO_OPTIONS: { value: CardioKind; label: string }[] = [
+  { value: 'WALK', label: 'Caminata' },
+  { value: 'CARDIO', label: 'Cardio general' },
+];
 
 // ▲▼ stepper
 function NumericStepper({
@@ -421,6 +428,11 @@ export default function GymPage() {
   const [state, setState] = useState<'loading' | 'error' | 'ready'>('loading');
   const [activeWorkout, setActiveWorkout] = useState<ActiveWorkout | null>(null);
   const [showStartModal, setShowStartModal] = useState(false);
+  const [showCardioModal, setShowCardioModal] = useState(false);
+  const [cardioKind, setCardioKind] = useState<CardioKind>('WALK');
+  const [cardioMinutes, setCardioMinutes] = useState('');
+  const [cardioKm, setCardioKm] = useState('');
+  const [cardioSaving, setCardioSaving] = useState(false);
   const [showRestTimer, setShowRestTimer] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [tab, setTab] = useState<GymTab>('history');
@@ -538,6 +550,34 @@ export default function GymPage() {
     }
   }
 
+  async function logCardio() {
+    const minutes = Math.round(Number(cardioMinutes));
+    const km = Number(cardioKm.replace(',', '.'));
+    if (!Number.isFinite(minutes) || minutes < 1 || minutes > 1440 || cardioSaving) return;
+    const distanceKm = Number.isFinite(km) && km > 0 ? km : undefined;
+    setCardioSaving(true);
+    try {
+      const created = await workoutService.createWorkout({ title: CARDIO_LABEL[cardioKind], kind: cardioKind });
+      const result = await workoutService.finishWorkout(created.id, { duration: minutes, distanceKm });
+      const rewards = result.rewards as { xpGained: number; goldGained: number; leveledUp: boolean; oldLevel: number; newLevel: number };
+      updateUser(result.user as never);
+      addFloatingXP(rewards.xpGained ?? 30, window.innerWidth / 2, 200);
+      if (rewards.leveledUp) {
+        triggerLevelUp({ oldLevel: rewards.oldLevel, newLevel: rewards.newLevel, xpEarned: rewards.xpGained, goldEarned: rewards.goldGained, statIncreases: {} });
+      }
+      setShowCardioModal(false);
+      setCardioMinutes('');
+      setCardioKm('');
+      setSummary({ title: CARDIO_LABEL[cardioKind], xp: rewards.xpGained ?? 0, gold: rewards.goldGained ?? 0, seconds: minutes * 60, sets: 0, volume: 0, cardio: { label: CARDIO_LABEL[cardioKind], distanceKm } });
+      for (const achievement of result.achievementsUnlocked ?? []) showAchievementToast(achievement);
+      await load();
+    } catch {
+      toast.error('No se pudo registrar el cardio');
+    } finally {
+      setCardioSaving(false);
+    }
+  }
+
   const tz = user?.timezone ?? 'America/Bogota';
   const calendarKey = useCallback((date: Date) => {
     const parts = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' })
@@ -613,6 +653,7 @@ export default function GymPage() {
     <>
       <SageContextButton message="¿Qué entreno hoy? Sugiere un workout basado en mi historial y los días que llevo sin entrenar." label="¿Qué entreno hoy?" />
       <Button variant="ghost" size="md" onClick={() => setShowRestTimer(true)}><TimerIcon aria-hidden className="size-4" />Descanso</Button>
+      <Button variant="secondary" onClick={() => setShowCardioModal(true)} disabled={sessionOpen}><Footprints aria-hidden className="size-4" />Registrar cardio</Button>
       <Button onClick={() => setShowStartModal(true)} disabled={sessionOpen}><Play aria-hidden className="size-4" />Iniciar entrenamiento</Button>
     </>
   );
@@ -841,7 +882,7 @@ export default function GymPage() {
                         >
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-label-lg">{w.title}</p>
-                            <p className="text-body-sm text-on-surface-light">{new Date(w.date).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '')}{w.duration ? ` · ${w.duration} min` : ''} · {w.exercises?.length ?? 0} ejercicios</p>
+                            <p className="text-body-sm text-on-surface-light">{new Date(w.date).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '')}{w.duration ? ` · ${w.duration} min` : ''} · {w.kind === 'WALK' || w.kind === 'CARDIO' ? `${w.kind === 'WALK' ? 'Caminata' : 'Cardio'}${w.distanceKm ? ` · ${w.distanceKm} km` : ''}` : `${w.exercises?.length ?? 0} ejercicios`}</p>
                           </div>
                           <Badge variant="primary" icon={Sparkles}>+{w.xpEarned} XP</Badge>
                         </motion.li>
@@ -928,6 +969,22 @@ export default function GymPage() {
         </form>
       </Modal>
 
+      <Modal open={showCardioModal} onClose={() => setShowCardioModal(false)} title="Registrar cardio">
+        <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); void logCardio(); }}>
+          <ChipGroup label="Tipo de actividad" options={CARDIO_OPTIONS} value={cardioKind} onChange={setCardioKind} />
+          <Field label="Tiempo (minutos)">
+            <Input type="number" inputMode="numeric" min={1} max={1440} step={1} value={cardioMinutes} onChange={(e) => setCardioMinutes(e.target.value)} placeholder="30" autoFocus />
+          </Field>
+          <Field label="Distancia (km, opcional)">
+            <Input type="number" inputMode="decimal" min={0} max={1000} step={0.1} value={cardioKm} onChange={(e) => setCardioKm(e.target.value)} placeholder="3,5" />
+          </Field>
+          <div className="flex gap-3">
+            <Button type="button" variant="ghost" className="flex-1" onClick={() => setShowCardioModal(false)}>Cancelar</Button>
+            <Button type="submit" className="flex-1" disabled={cardioSaving || !(Number(cardioMinutes) >= 1)}>Guardar</Button>
+          </div>
+        </form>
+      </Modal>
+
       <Modal open={!!summary} onClose={() => setSummary(null)} title="¡Sesión completada!" hideClose className="items-center text-center">
         {summary && (
           <>
@@ -937,7 +994,9 @@ export default function GymPage() {
             </motion.span>
             <SummaryXP xp={summary.xp} />
             <dl className="grid grid-cols-3 gap-2">
-              {[['Tiempo', formatClock(summary.seconds)], ['Series', String(summary.sets)], ['Volumen', kg(summary.volume)]].map(([k, v], i) => (
+              {(summary.cardio
+                ? [['Tiempo', formatClock(summary.seconds)], ['Distancia', summary.cardio.distanceKm ? `${summary.cardio.distanceKm} km` : '—'], ['Tipo', summary.cardio.label]]
+                : [['Tiempo', formatClock(summary.seconds)], ['Series', String(summary.sets)], ['Volumen', kg(summary.volume)]]).map(([k, v], i) => (
                 <motion.div
                   key={k} className="rounded-xl border border-border bg-surface px-2 py-3"
                   initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} transition={{ ...slam, delay: 0.45 + i * 0.09 }}

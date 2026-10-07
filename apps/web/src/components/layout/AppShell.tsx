@@ -40,45 +40,55 @@ import { FeedbackDialog } from './FeedbackDialog';
 import { LegalFooter } from '@/components/legal/LegalFooter';
 import { WelcomeTour, isTourSeen, markTourSeen, useTourDone } from '../onboarding/WelcomeTour';
 
-/** Primera visita a una zona: tarjeta informativa descartable (sustituye al tooltip dorado). */
+/**
+ * Primera visita a una zona: tarjeta informativa descartable. Se muestra una sola
+ * vez por persona y zona (clave con el id del usuario) y se cierra con una
+ * animación de colapso.
+ */
 function ZoneTip() {
   const { pathname } = useLocation();
+  const userId = useAuthStore((st) => st.user?.id);
   const [visible, setVisible] = useState(false);
   const tip = ZONE_TOOLTIPS[pathname];
 
-  const key = `lifequest_zone_tip_${pathname}`;
+  const key = userId ? `noutlife_banner_seen_${pathname}_${userId}` : null;
 
   useEffect(() => {
     let seen = false;
-    try { seen = localStorage.getItem(key) === 'seen'; } catch { /* sin storage */ }
-    setVisible(Boolean(tip) && !seen);
+    if (key) { try { seen = localStorage.getItem(key) === 'true'; } catch { /* sin storage */ } }
+    setVisible(Boolean(tip) && Boolean(key) && !seen);
   }, [key, tip]);
 
   // Se marca como vista cuando de verdad se mostró (idempotente en StrictMode).
   useEffect(() => {
-    if (!visible) return;
-    try { localStorage.setItem(key, 'seen'); } catch { /* sin storage */ }
+    if (!visible || !key) return;
+    try { localStorage.setItem(key, 'true'); } catch { /* sin storage */ }
   }, [visible, key]);
 
   return (
     <AnimatePresence initial={false}>
       {visible && tip && (
-        <motion.aside
-          aria-label="Sobre esta zona"
+        <motion.div
+          key={key}
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0, transition: { duration: 0.3, ease } }}
-          exit={{ opacity: 0, transition: { duration: 0.2 } }}
-          className="mb-6 flex items-start gap-3 rounded-2xl border border-info/30 bg-info/[var(--lq-soft-alpha)] p-4"
+          exit={{ opacity: 0, y: -20, height: 0, transition: { duration: 0.3, ease } }}
+          className="overflow-hidden"
         >
-          <Info aria-hidden className="mt-0.5 size-5 shrink-0 text-info-text" strokeWidth={1.75} />
-          <div className="min-w-0 flex-1">
-            <p className="text-label-lg text-info-text">{tip.title}</p>
-            <p className="mt-1 text-body-sm text-on-surface">{tip.body}</p>
-          </div>
-          <Button variant="icon" aria-label="Entendido, ocultar" onClick={() => setVisible(false)} className="-m-2">
-            <X aria-hidden className="size-5" strokeWidth={1.75} />
-          </Button>
-        </motion.aside>
+          <aside
+            aria-label="Sobre esta zona"
+            className="mb-6 flex items-start gap-3 rounded-2xl border border-info/30 bg-info/[var(--lq-soft-alpha)] p-4"
+          >
+            <Info aria-hidden className="mt-0.5 size-5 shrink-0 text-info-text" strokeWidth={1.75} />
+            <div className="min-w-0 flex-1">
+              <p className="text-label-lg text-info-text">{tip.title}</p>
+              <p className="mt-1 text-body-sm text-on-surface">{tip.body}</p>
+            </div>
+            <Button variant="icon" aria-label="Entendido, ocultar" onClick={() => setVisible(false)} className="-m-2">
+              <X aria-hidden className="size-5" strokeWidth={1.75} />
+            </Button>
+          </aside>
+        </motion.div>
       )}
     </AnimatePresence>
   );
