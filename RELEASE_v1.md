@@ -71,7 +71,7 @@
 ## Arquitectura Final
 
 ```
-lifequest/
+noutlife/
 ├── apps/
 │   ├── api/          Express + Prisma + PostgreSQL + JWT + node-cron
 │   ├── web/          React 18 + Vite + TailwindCSS + Framer Motion + Zustand

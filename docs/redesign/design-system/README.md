@@ -1,6 +1,6 @@
 # Noutlife
 
-*Grow your life like a lime.* Noutlife (formerly LifeQuest) is a gamified life-management app (habits, quests, finances, food, sleep, achievements) built with React 18, Vite, Tailwind 3.4 and Framer Motion 11. This system was synced from [lifequest2](https://github.com/pesajezonanorte-hash/lifequest2) (`apps/web/src/styles/tokens.css`, `globals.css`, `docs/redesign/`) and rebranded to the **Jade** palette.
+*Grow your life like a lime.* Noutlife is a gamified life-management app (habits, quests, finances, food, sleep, achievements) built with React 18, Vite, Tailwind 3.4 and Framer Motion 11. This system was synced from [lifequest2](https://github.com/pesajezonanorte-hash/lifequest2) (`apps/web/src/styles/tokens.css`, `globals.css`, `docs/redesign/`) and rebranded to the **Jade** palette.
 
 ## Brand direction
 

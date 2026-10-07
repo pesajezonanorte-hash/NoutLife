@@ -10,3 +10,17 @@ test-results/
 lifequest2-icons.bundle
 *.db
 *.db-journal
+
+# Security: env files, deploy credentials, generated Prisma output
+.env.*.local
+.env.*
+!.env.example
+.vercel/
+.netlify/
+.railway/
+*.pem
+*.key
+*.p12
+*.pfx
+service-account*.json
+apps/api/prisma/generated/

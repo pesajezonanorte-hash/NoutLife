@@ -1,6 +1,6 @@
 # Noutlife Redesign — Handoff v4 (rebrand Jade, 26 rutas)
 
-*Grow your life like a lime.* LifeQuest pasa a llamarse **Noutlife** y cambia de piel: paleta **Jade** (verdes bosque, neutros marfil con tinte verde y oro champán solo para recompensas), logo de hoja en forma de N y JetBrains Mono para los números. Especificación para `apps/web` (React 18 + Vite + Tailwind 3.4 + Framer Motion 11 + React Query + Zustand).
+*Grow your life like a lime.* El proyecto pasa a llamarse **Noutlife** y cambia de piel: paleta **Jade** (verdes bosque, neutros marfil con tinte verde y oro champán solo para recompensas), logo de hoja en forma de N y JetBrains Mono para los números. Especificación para `apps/web` (React 18 + Vite + Tailwind 3.4 + Framer Motion 11 + React Query + Zustand).
 
 ## Contenido
 

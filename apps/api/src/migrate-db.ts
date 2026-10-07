@@ -1,7 +1,7 @@
 import { prisma } from './lib/prisma';
 import { settleLevel } from './services/xp.service';
 import { shouldSkipBuildDbStep } from './lib/build-env';
-import { LETTERS_AND_GESTURES_SQL, REMOVE_LEGACY_HABIT_RITUAL_FLAG_SQL, SOCIAL_NETWORK_SQL, SOCIAL_PRO_SQL } from './lib/schema-migrations';
+import { LETTERS_AND_GESTURES_SQL, REMOVE_LEGACY_HABIT_RITUAL_FLAG_SQL, SOCIAL_NETWORK_SQL, SOCIAL_PRO_SQL, RLS_LOCKDOWN_SQL } from './lib/schema-migrations';
 
 const ignoreDuplicate = (sql: string) =>
   `DO $$ BEGIN ${sql}; EXCEPTION WHEN duplicate_object THEN NULL; END $$;`;
@@ -216,6 +216,9 @@ async function migrate() {
   const overflowing = await prisma.$queryRawUnsafe<Array<{ id: string }>>(`SELECT "id" FROM "users" WHERE "xp" >= "xpToNextLevel"`);
   for (const { id } of overflowing) await settleLevel(id);
   if (overflowing.length) console.log(`Settled levels for ${overflowing.length} players.`);
+
+  // Runs last so tables created above are covered too.
+  await prisma.$executeRawUnsafe(RLS_LOCKDOWN_SQL);
 
   console.log('SUCCESS: Runtime database columns, indexes, ritual idempotency key, and legacy habit ritual cleanup applied.');
 }

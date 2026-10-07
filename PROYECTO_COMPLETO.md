@@ -159,7 +159,7 @@ VITE_VAPID_PUBLIC_KEY="..."  # opcional
 ### Instalación y arranque
 ```bash
 # 1. Instalar dependencias
-cd lifequest
+cd noutlife
 pnpm install
 
 # 2. Sincronizar base de datos
@@ -220,7 +220,7 @@ npx prisma db push
 ## 📁 Estructura del Proyecto
 
 ```
-lifequest/
+noutlife/
 ├── apps/
 │   ├── api/                    # Backend Express + Prisma
 │   │   ├── prisma/

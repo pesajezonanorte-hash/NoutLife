@@ -176,3 +176,26 @@ export const SOCIAL_PRO_SQL: string[] = [
   "DO $$ BEGIN ALTER TABLE \"stickers\" ADD CONSTRAINT \"stickers_ownerId_fkey\" FOREIGN KEY (\"ownerId\") REFERENCES \"users\"(\"id\") ON DELETE CASCADE ON UPDATE CASCADE; EXCEPTION WHEN duplicate_object THEN NULL; END $$;",
   "DO $$ BEGIN ALTER TABLE \"stickers\" ADD CONSTRAINT \"stickers_hash_fkey\" FOREIGN KEY (\"hash\") REFERENCES \"sticker_images\"(\"hash\") ON DELETE RESTRICT ON UPDATE CASCADE; EXCEPTION WHEN duplicate_object THEN NULL; END $$;",
 ];
+
+// Idempotent mirror of prisma/migrations/20261010120000_enable_rls_lockdown.
+export const RLS_LOCKDOWN_SQL = `DO $$
+DECLARE
+  t record;
+  r text;
+BEGIN
+  FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP
+    EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t.tablename);
+  END LOOP;
+
+  FOREACH r IN ARRAY ARRAY['anon', 'authenticated'] LOOP
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = r) THEN
+      EXECUTE format('REVOKE ALL ON ALL TABLES IN SCHEMA public FROM %I', r);
+      EXECUTE format('REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM %I', r);
+      EXECUTE format('REVOKE ALL ON ALL FUNCTIONS IN SCHEMA public FROM %I', r);
+      EXECUTE format('REVOKE USAGE ON SCHEMA public FROM %I', r);
+      EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM %I', r);
+      EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON SEQUENCES FROM %I', r);
+      EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON FUNCTIONS FROM %I', r);
+    END IF;
+  END LOOP;
+END $$;`;
