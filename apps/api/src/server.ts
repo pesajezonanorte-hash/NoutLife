@@ -79,8 +79,8 @@ app.get('/api/v1/db/push', async (_req, res) => {
 
 // ─── Parsing ─────────────────────────────────────────────────────────────────
 // Las fotos (perfil y gremio) viajan como data URL JPEG: 100 kB por defecto se queda corto.
-// Las notas de voz y las fotos viajan como data URL (hasta ~1 MB cada una).
-app.use(express.json({ limit: '2mb' }));
+// Los videos (15 s, ~2 MB en base64) y las fotos viajan como data URL.
+app.use(express.json({ limit: '3mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 

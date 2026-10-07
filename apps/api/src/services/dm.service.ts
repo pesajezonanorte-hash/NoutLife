@@ -174,6 +174,7 @@ function noticeTitle(kind: string, name: string, meta?: MessageMeta | null) {
     case 'SNAP':
     case 'PHOTO': return `${name} te envió una foto`;
     case 'VOICE': return `${name} te mandó una nota de voz`;
+    case 'VIDEO': return `${name} te mandó un video`;
     case 'STICKER': return `${name} te mandó un sticker`;
     case 'GAME': return `${name} te retó: ${snippet({ kind, content: null, meta: meta as unknown as Prisma.JsonValue })}`;
     default: return `Carta de ${name}`;
