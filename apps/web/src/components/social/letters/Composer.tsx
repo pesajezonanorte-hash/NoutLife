@@ -179,6 +179,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(prop
         open={drawer} height={drawerHeight}
         onSticker={(hash) => { onSticker(hash); }}
         onGame={(type) => { setDrawer(false); onGame(type); }}
+        onClose={() => setDrawer(false)}
       />
     </div>
   );

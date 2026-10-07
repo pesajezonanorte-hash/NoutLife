@@ -207,12 +207,13 @@ function StickerTile({ row, onSend, onDelete }: { row: StickerRow; onSend: () =>
   );
 }
 
-export function StickerPanel({ open, height, onSticker, onGame }: {
+export function StickerPanel({ open, height, onSticker, onGame, onClose }: {
   open: boolean;
   /** Alto del cajón (el del teclado si ya se conoce). */
   height: number;
   onSticker: (hash: string) => void;
   onGame: (type: GameType) => void;
+  onClose?: () => void;
 }) {
   const reduce = useMotionStore((s) => s.reduce);
   const list = useCollection();
@@ -229,12 +230,20 @@ export function StickerPanel({ open, height, onSticker, onGame }: {
     <>
       <AnimatePresence initial={false}>
         {open && (
-          <motion.div
-            key="drawer"
-            initial={{ height: 0 }} animate={{ height }} exit={{ height: 0, transition: { duration: reduce ? 0 : 0.18 } }}
-            transition={reduce ? { duration: 0 } : springs.natural}
-            className="relative overflow-hidden border-t border-border/80 bg-surface"
-          >
+          <>
+            <motion.div
+              key="backdrop"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={onClose}
+              className="fixed inset-0 z-40"
+              aria-hidden="true"
+            />
+            <motion.div
+              key="drawer"
+              initial={{ height: 0 }} animate={{ height }} exit={{ height: 0, transition: { duration: reduce ? 0 : 0.18 } }}
+              transition={reduce ? { duration: 0 } : springs.natural}
+              className="relative z-50 overflow-hidden border-t border-border/80 bg-surface"
+            >
             <div className="flex h-full flex-col" style={{ height }}>
               <div role="tablist" aria-label="Cajón de la carta" className="flex shrink-0 gap-1 px-3 pt-2">
                 {([['stickers', 'Stickers', Smile], ['games', 'Juegos', Gamepad2]] as const).map(([id, label, Icon]) => (
@@ -281,7 +290,8 @@ export function StickerPanel({ open, height, onSticker, onGame }: {
                 )}
               </div>
             </div>
-          </motion.div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
       <StickerMaker open={maker} onClose={() => setMaker(false)} onCreated={(row) => addToCollection(row)} />
