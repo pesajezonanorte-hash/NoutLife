@@ -249,6 +249,30 @@ export function useDirectLetter(friend: PublicUser, onActivity?: () => void): Le
   useEffect(() => {
     let alive = true;
     closeSystemNotifications(`dm:${friend.id}`);
+    liveHub.setChat({
+      key: viewKey,
+      cursors: () => ({ after: lastAt.current, changes: cursor.current }),
+      onSection: (s: LiveChatSection) => {
+        if (s.error) { core.setGone(s.error); return; }
+        if (s.cursor) cursor.current = s.cursor;
+        const incoming = (s.messages ?? []) as DM[];
+        const changed = (s.changed ?? []) as DM[];
+        if (incoming.length || changed.length) {
+          setMessages((prev) => replaceChanged(incoming.length ? merge(prev, incoming.map((m) => toMsgRef.current(m, true))) : prev, changed.map((m) => toMsgRef.current(m))));
+        }
+        const n = newest(incoming);
+        if (n && n > (lastAt.current ?? '')) lastAt.current = n;
+        core.setTypingList(s.typing ?? []);
+        setConv((cv) => (cv ? {
+          ...cv,
+          seenUntil: s.seenUntil !== undefined ? s.seenUntil : cv.seenUntil,
+          streak: s.streak ? { ...cv.streak, ...s.streak } : cv.streak,
+          background: s.background !== undefined ? s.background : cv.background,
+          friend: s.friend ? { ...cv.friend, ...s.friend } : cv.friend,
+        } : cv));
+        if (incoming.some((m) => !m.mine)) activity.current?.();
+      },
+    });
     getConversation(friend.id)
       .then((c) => {
         if (!alive) return;
@@ -263,31 +287,6 @@ export function useDirectLetter(friend: PublicUser, onActivity?: () => void): Le
         lastAt.current = newest(c.messages) ?? c.cursor;
         core.setTypingList(c.typing ?? []);
         void useSocialStore.getState().refresh();
-        // Ya con los cursores: la carta pasa a estar en vivo.
-        liveHub.setChat({
-          key: viewKey,
-          cursors: () => ({ after: lastAt.current, changes: cursor.current }),
-          onSection: (s: LiveChatSection) => {
-            if (s.error) { core.setGone(s.error); return; }
-            if (s.cursor) cursor.current = s.cursor;
-            const incoming = (s.messages ?? []) as DM[];
-            const changed = (s.changed ?? []) as DM[];
-            if (incoming.length || changed.length) {
-              setMessages((prev) => replaceChanged(incoming.length ? merge(prev, incoming.map((m) => toMsgRef.current(m, true))) : prev, changed.map((m) => toMsgRef.current(m))));
-            }
-            const n = newest(incoming);
-            if (n && n > (lastAt.current ?? '')) lastAt.current = n;
-            core.setTypingList(s.typing ?? []);
-            setConv((cv) => (cv ? {
-              ...cv,
-              seenUntil: s.seenUntil !== undefined ? s.seenUntil : cv.seenUntil,
-              streak: s.streak ? { ...cv.streak, ...s.streak } : cv.streak,
-              background: s.background !== undefined ? s.background : cv.background,
-              friend: s.friend ? { ...cv.friend, ...s.friend } : cv.friend,
-            } : cv));
-            if (incoming.some((m) => !m.mine)) activity.current?.();
-          },
-        });
       })
       .catch(() => { if (alive && !letterCache.has(viewKey)) setStatus('error'); });
     return () => {
@@ -421,6 +420,25 @@ export function useGuildLetter(guildId: string, opts: { guild?: GuildDetail | nu
   useEffect(() => {
     let alive = true;
     closeSystemNotifications(`guild-msg:${guildId}`);
+    liveHub.setChat({
+      key: viewKey,
+      cursors: () => ({ after: lastAt.current, changes: cursor.current }),
+      onSection: (s: LiveChatSection) => {
+        if (s.error) { core.setGone(s.error); return; }
+        if (s.cursor) cursor.current = s.cursor;
+        const incoming = (s.messages ?? []) as GuildMessage[];
+        const changed = (s.changed ?? []) as GuildMessage[];
+        if (incoming.length || changed.length) {
+          setMessages((prev) => replaceChanged(incoming.length ? merge(prev, incoming.map((m) => toMsgRef.current(m, true))) : prev, changed.map((m) => toMsgRef.current(m))));
+        }
+        const n = newest(incoming);
+        if (n && n > (lastAt.current ?? '')) lastAt.current = n;
+        applyReads(s.reads);
+        core.setTypingList(s.typing ?? []);
+        if (incoming.some((m) => m.kind === 'EVENT' || m.kind === 'SNAP')) loadGuild();
+        if (incoming.some((m) => m.userId !== me.id)) ext.current.onActivity?.();
+      },
+    });
     getGuildLetter(guildId)
       .then((l) => {
         if (!alive) return;
@@ -436,25 +454,6 @@ export function useGuildLetter(guildId: string, opts: { guild?: GuildDetail | nu
         applyReads(l.reads);
         core.setTypingList(l.typing ?? []);
         void useSocialStore.getState().refresh();
-        liveHub.setChat({
-          key: viewKey,
-          cursors: () => ({ after: lastAt.current, changes: cursor.current }),
-          onSection: (s: LiveChatSection) => {
-            if (s.error) { core.setGone(s.error); return; }
-            if (s.cursor) cursor.current = s.cursor;
-            const incoming = (s.messages ?? []) as GuildMessage[];
-            const changed = (s.changed ?? []) as GuildMessage[];
-            if (incoming.length || changed.length) {
-              setMessages((prev) => replaceChanged(incoming.length ? merge(prev, incoming.map((m) => toMsgRef.current(m, true))) : prev, changed.map((m) => toMsgRef.current(m))));
-            }
-            const n = newest(incoming);
-            if (n && n > (lastAt.current ?? '')) lastAt.current = n;
-            applyReads(s.reads);
-            core.setTypingList(s.typing ?? []);
-            if (incoming.some((m) => m.kind === 'EVENT' || m.kind === 'SNAP')) loadGuild();
-            if (incoming.some((m) => m.userId !== me.id)) ext.current.onActivity?.();
-          },
-        });
       })
       .catch(() => { if (alive && !letterCache.has(viewKey)) setStatus('error'); });
     return () => {
