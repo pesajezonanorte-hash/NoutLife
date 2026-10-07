@@ -26,16 +26,16 @@ export const PRIVACY: LegalSection[] = [
   ] },
   { h: 'Para qué los usamos', p: [
     'Para que la app funcione: guardar tu progreso, calcular XP, rachas y estadísticas, y enviarte los avisos que activaste.',
-    'El Sabio y las funciones de IA: cuando las usas, enviamos un resumen de los datos necesarios a nuestros proveedores de IA (Groq y Gemini, de Google) para generar la respuesta.',
+    'El Sabio y las funciones de IA: cuando las usas, enviamos un resumen de los datos necesarios a nuestros proveedores de IA (Groq, Gemini de Google, OpenRouter y OpenAI) para generar la respuesta.',
     'Seguridad: limitar abusos, proteger cuentas y cumplir la ley.',
   ] },
   { h: 'Google Calendar', p: [
     'Si conectas Google Calendar, recibimos de Google un token de acceso que guardamos de forma segura. Lo usamos únicamente para prestar la función que activaste: sincronizar tus hábitos y eventos con tu calendario. Nunca lo usamos para otro fin ni lo compartimos.',
     'Puedes desconectar la integración desde Ajustes y revocar el acceso en la configuración de tu cuenta de Google en cualquier momento.',
   ] },
-  { h: 'Procesamiento con inteligencia artificial (Groq y Gemini)', p: [
-    'Las funciones de IA de Noutlife (como el Sabio y las sugerencias) usan las API de Groq y de Gemini (Google) para procesar tus consultas y el contexto necesario de tu cuenta.',
-    'Los datos enviados a Groq y a Gemini se usan exclusivamente para ofrecerte las características de IA de Noutlife. No autorizamos su uso para entrenar modelos de terceros, y solo enviamos lo necesario para generar cada respuesta.',
+  { h: 'Procesamiento con inteligencia artificial (Groq, Gemini, OpenRouter y OpenAI)', p: [
+    'Las funciones de IA de Noutlife (como el Sabio y las sugerencias) usan las API de Groq, Gemini (Google), OpenRouter y OpenAI para procesar tus consultas y el contexto necesario de tu cuenta.',
+    'Los datos enviados a Groq, Gemini, OpenRouter y OpenAI se usan exclusivamente para ofrecerte las características de IA de Noutlife. No autorizamos su uso para entrenar modelos de terceros, y solo enviamos lo necesario para generar cada respuesta.',
     'Cada proveedor trata esos datos según sus propias condiciones de API y de privacidad.',
   ] },
   { h: 'Divulgación de la API de Google', p: [
@@ -49,7 +49,7 @@ export const PRIVACY: LegalSection[] = [
   ] },
   { h: 'Quién más los ve', p: [
     'Otras personas solo ven lo que haces público o compartes con ellas, según tus ajustes de Privacidad. Las cartas solo las ven quienes participan en ellas.',
-    'Proveedores técnicos: alojamiento de la app y la API (Vercel), base de datos (Supabase), IA (Groq y Google Gemini), inicio de sesión y calendario (Google) y avisos push (el servicio de tu navegador).',
+    'Proveedores técnicos: alojamiento de la app y la API (Vercel), base de datos (Supabase), IA (Groq, Google Gemini, OpenRouter y OpenAI), inicio de sesión y calendario (Google) y avisos push (el servicio de tu navegador).',
   ] },
   { h: 'Cuánto tiempo', p: [
     'Mientras tengas cuenta. Si la eliminas, borramos tus datos de forma permanente en ese momento; las copias de seguridad del proveedor se sobrescriben en su ciclo normal.',
@@ -86,7 +86,7 @@ export const TERMS: LegalSection[] = [
     'Declaras que tienes derecho a subir lo que subes.',
   ] },
   { h: 'Servicios de terceros', p: [
-    'Noutlife usa servicios de terceros como Google (inicio de sesión, Calendar y Gemini), Groq, Supabase y Vercel. No controlamos su disponibilidad y no somos responsables de interrupciones, cambios o fallos de esos servicios. Su uso se rige además por sus propios términos.',
+    'Noutlife usa servicios de terceros como Google (inicio de sesión, Calendar y Gemini), Groq, OpenRouter, OpenAI, Supabase y Vercel. No controlamos su disponibilidad y no somos responsables de interrupciones, cambios o fallos de esos servicios. Su uso se rige además por sus propios términos.',
   ] },
   { h: 'Propiedad intelectual de Noutlife', p: [
     'La app, su diseño, marca y código son propiedad de sus creadores. Consulta los detalles y las prohibiciones en la página de Propiedad intelectual (/copyright).',
@@ -126,7 +126,7 @@ export const COPYRIGHT: LegalSection[] = [
     'Crear, publicar o distribuir aplicaciones derivadas, espejo o servicios que reproduzcan Noutlife.',
   ] },
   { h: 'Servicios de terceros', p: [
-    'Google (incluidos Calendar y Gemini), Groq y demás servicios que se integran en Noutlife son marcas y propiedad de sus respectivos dueños, y Noutlife no reclama derecho alguno sobre ellos.',
+    'Google (incluidos Calendar y Gemini), Groq, OpenRouter, OpenAI y demás servicios que se integran en Noutlife son marcas y propiedad de sus respectivos dueños, y Noutlife no reclama derecho alguno sobre ellos.',
     'La arquitectura del ecosistema unificado que los reúne en una sola experiencia es exclusiva de Noutlife.',
   ] },
   { h: 'Entidad de respaldo', p: [
