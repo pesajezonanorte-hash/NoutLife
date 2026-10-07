@@ -37,6 +37,7 @@ import { MobileHeader } from './MobileHeader';
 import { MenuSheet } from './MenuSheet';
 import { QuickActions } from './QuickActions';
 import { FeedbackDialog } from './FeedbackDialog';
+import { LegalFooter } from '@/components/legal/LegalFooter';
 import { WelcomeTour, isTourSeen, markTourSeen, useTourDone } from '../onboarding/WelcomeTour';
 
 /** Primera visita a una zona: tarjeta informativa descartable (sustituye al tooltip dorado). */
@@ -178,6 +179,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <ZoneTip />
           {children}
         </main>
+        <LegalFooter className="pb-28 md:pb-6" />
         {/* Tus amigos que están en esta misma zona pasean por el borde de abajo. */}
         <ZoneVisitors />
       </div>

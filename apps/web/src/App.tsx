@@ -1,3 +1,4 @@
+import { CookieNotice } from '@/components/legal/CookieNotice';
 import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence, useReducedMotionConfig } from 'framer-motion';
@@ -405,6 +406,7 @@ export default function App() {
 
   return (
     <ErrorBoundary>
+      {!showSplash && <CookieNotice />}
       {showSplash && <SplashScreen ready={splashReady} onDone={() => setSplashDone(true)} />}
 
       {isAuthenticated && showNotifModal && tourDone && user?.onboardingCompleted && (
@@ -426,6 +428,7 @@ export default function App() {
           {/* Legales: públicas, sin sesión (las piden las tiendas y el login). */}
           <Route path="/privacy" element={<DeferredLazyPage load={loaders.LegalPage} />} />
           <Route path="/terms" element={<DeferredLazyPage load={loaders.LegalPage} />} />
+          <Route path="/copyright" element={<DeferredLazyPage load={loaders.LegalPage} />} />
           <Route
             path="/onboarding"
             element={

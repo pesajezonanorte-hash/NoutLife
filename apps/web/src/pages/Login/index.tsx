@@ -1,5 +1,6 @@
 // Login — solo Google. Una cuenta nueva se crea al entrar por primera
 // vez y la guarda de rutas la lleva al onboarding.
+import { LegalFooter } from '@/components/legal/LegalFooter';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
@@ -78,7 +79,7 @@ export default function LoginPage() {
     <AuthLayout
       title="Entra a Noutlife"
       subtitle="Usa tu cuenta de Google. Si es tu primera vez, creamos tu personaje."
-      footer={<>Al continuar aceptas los <Link to="/terms" className="inline-flex min-h-11 items-center font-semibold text-primary-text underline-offset-4 hover:underline">Términos</Link> y la <Link to="/privacy" className="inline-flex min-h-11 items-center font-semibold text-primary-text underline-offset-4 hover:underline">Política de privacidad</Link>.</>}
+      footer={<>Al continuar aceptas los <Link to="/terms" className="inline-flex min-h-11 items-center font-semibold text-primary-text underline-offset-4 hover:underline">Términos</Link> y la <Link to="/privacy" className="inline-flex min-h-11 items-center font-semibold text-primary-text underline-offset-4 hover:underline">Política de privacidad</Link>.<LegalFooter className="mt-2" /></>}
     >
       <div className="flex flex-col items-stretch gap-3" aria-busy={busy}>
         {providers?.googleClientId && <div ref={googleRef} className="flex min-h-11 justify-center" />}

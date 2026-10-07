@@ -3,6 +3,7 @@ Allow: /$
 Allow: /login
 Allow: /privacy
 Allow: /terms
+Allow: /copyright
 Disallow: /api/
 Disallow: /onboarding
 Disallow: /profile
