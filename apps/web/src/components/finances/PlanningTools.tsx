@@ -11,7 +11,7 @@ import { LOADING_COPY } from '@/lib/loadingCopy';
 import { useToastStore } from '@/hooks/useToast';
 import * as financeService from '@/services/finance.service';
 import * as f2 from '@/services/finance2.service';
-import { TX_CATEGORIES, txCategory } from './financeMeta';
+import { categoriesFor, txCategory } from './financeMeta';
 
 type Money = (n: number) => string;
 const toast = () => useToastStore.getState();
@@ -159,7 +159,7 @@ export function BudgetsPanel({ month, year, money }: { month: number; year: numb
         <form className="flex flex-col gap-4" onSubmit={(e) => void create(e)}>
           <Field label="Categoría">
             <Select value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value as TransactionCategory }))}>
-              {TX_CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+              {categoriesFor('EXPENSE').map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
             </Select>
           </Field>
           <Field label="Tope mensual">
@@ -386,13 +386,13 @@ export function RecurringPanel({ money }: { money: Money }) {
       )}
       <ResponsiveDialog open={adding} onClose={() => setAdding(false)} title="Nuevo movimiento fijo">
         <form className="flex flex-col gap-4" onSubmit={(e) => void create(e)}>
-          <SegmentedControl role="radiogroup" label="Tipo" value={form.type} onChange={(t) => setForm((f) => ({ ...f, type: t }))} options={[{ value: 'EXPENSE', label: 'Gasto' }, { value: 'INCOME', label: 'Ingreso' }]} />
+          <SegmentedControl role="radiogroup" label="Tipo" value={form.type} onChange={(t) => setForm((f) => ({ ...f, type: t, category: t === 'INCOME' ? 'SALARY' : 'OTHER' }))} options={[{ value: 'EXPENSE', label: 'Gasto' }, { value: 'INCOME', label: 'Ingreso' }]} />
           <Field label="Descripción"><Input data-autofocus value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} placeholder="Ej. Netflix" /></Field>
           <div className="grid gap-4 sm:grid-cols-3">
             <Field label="Monto"><Input type="number" inputMode="decimal" min="0" value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} /></Field>
             <Field label="Categoría">
               <Select value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value as TransactionCategory }))}>
-                {TX_CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+                {categoriesFor(form.type).map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
               </Select>
             </Field>
             <Field label="Día del mes"><Input type="number" min="1" max="28" value={form.dayOfMonth} onChange={(e) => setForm((f) => ({ ...f, dayOfMonth: e.target.value }))} /></Field>

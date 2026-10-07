@@ -133,7 +133,7 @@ export const DatePicker = forwardRef<HTMLButtonElement, DatePickerProps>(functio
                 animate={{ opacity: 1, scale: 1, y: 0, transition: { type: 'spring', stiffness: 380, damping: 28 } }}
                 exit={{ opacity: 0, scale: 0.96, y: -6, transition: { duration: 0.14 } }}
                 style={{ transformOrigin: 'var(--radix-popover-content-transform-origin)' }}
-                className="z-[60] overflow-hidden rounded-2xl border border-border bg-surface p-3 text-on-background shadow-lg"
+                className="z-[90] overflow-hidden rounded-2xl border border-border bg-surface p-3 text-on-background shadow-lg"
               >
                 <div className="relative">
                   <Calendar

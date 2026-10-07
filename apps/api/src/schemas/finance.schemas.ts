@@ -14,6 +14,12 @@ export const TRANSACTION_CATEGORIES = [
   'UTILITIES',
   'HOUSING',
   'SUBSCRIPTIONS',
+  'SALARY',
+  'FREELANCE',
+  'BUSINESS',
+  'SALES',
+  'GIFT',
+  'RENTAL',
   'OTHER',
 ] as const;
 

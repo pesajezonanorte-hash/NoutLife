@@ -11,6 +11,12 @@ export type TransactionCategory =
   | 'UTILITIES'
   | 'HOUSING'
   | 'SUBSCRIPTIONS'
+  | 'SALARY'
+  | 'FREELANCE'
+  | 'BUSINESS'
+  | 'SALES'
+  | 'GIFT'
+  | 'RENTAL'
   | 'OTHER';
 
 export interface Transaction {

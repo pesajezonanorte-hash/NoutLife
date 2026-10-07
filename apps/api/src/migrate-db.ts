@@ -222,6 +222,14 @@ async function migrate() {
   await prisma.$executeRawUnsafe(`ALTER TABLE "workouts" ADD COLUMN IF NOT EXISTS "kind" "WorkoutKind" NOT NULL DEFAULT 'STRENGTH';`);
   await prisma.$executeRawUnsafe(`ALTER TABLE "workouts" ADD COLUMN IF NOT EXISTS "distanceKm" DOUBLE PRECISION;`);
 
+  // Idempotent mirror of prisma/migrations/20261012120000_income_categories.
+  await prisma.$executeRawUnsafe(`ALTER TYPE "TransactionCategory" ADD VALUE IF NOT EXISTS 'SALARY'`);
+  await prisma.$executeRawUnsafe(`ALTER TYPE "TransactionCategory" ADD VALUE IF NOT EXISTS 'FREELANCE'`);
+  await prisma.$executeRawUnsafe(`ALTER TYPE "TransactionCategory" ADD VALUE IF NOT EXISTS 'BUSINESS'`);
+  await prisma.$executeRawUnsafe(`ALTER TYPE "TransactionCategory" ADD VALUE IF NOT EXISTS 'SALES'`);
+  await prisma.$executeRawUnsafe(`ALTER TYPE "TransactionCategory" ADD VALUE IF NOT EXISTS 'GIFT'`);
+  await prisma.$executeRawUnsafe(`ALTER TYPE "TransactionCategory" ADD VALUE IF NOT EXISTS 'RENTAL'`);
+
   // Runs last so tables created above are covered too.
   await prisma.$executeRawUnsafe(RLS_LOCKDOWN_SQL);
 

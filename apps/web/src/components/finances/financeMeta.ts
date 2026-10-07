@@ -1,5 +1,5 @@
 import {
-  BusFront, Clapperboard, CreditCard, GraduationCap, HeartPulse, Home, Lightbulb, Package, PiggyBank, Shirt, TrendingUp, Utensils,
+  Briefcase, BusFront, Clapperboard, Gift, Key, Laptop, Store, Wallet, CreditCard, GraduationCap, HeartPulse, Home, Lightbulb, Package, PiggyBank, Shirt, TrendingUp, Utensils,
   type LucideIcon,
 } from 'lucide-react';
 import type { TransactionCategory } from '@noutlife/shared';
@@ -19,8 +19,22 @@ export const TX_CATEGORIES: { value: TransactionCategory; label: string; icon: L
   { value: 'SUBSCRIPTIONS', label: 'Suscripciones', icon: CreditCard, tone: 'forest' },
   { value: 'SAVINGS', label: 'Ahorro', icon: PiggyBank, tone: 'success' },
   { value: 'INVESTMENT', label: 'Inversión', icon: TrendingUp, tone: 'success' },
+  { value: 'SALARY', label: 'Salario', icon: Wallet, tone: 'success' },
+  { value: 'FREELANCE', label: 'Freelance', icon: Laptop, tone: 'info' },
+  { value: 'BUSINESS', label: 'Negocio', icon: Briefcase, tone: 'forest' },
+  { value: 'SALES', label: 'Ventas', icon: Store, tone: 'warning' },
+  { value: 'GIFT', label: 'Regalo', icon: Gift, tone: 'primary' },
+  { value: 'RENTAL', label: 'Alquiler', icon: Key, tone: 'forest' },
   { value: 'OTHER', label: 'Otros', icon: Package, tone: 'info' },
 ];
+
+const INCOME_VALUES = new Set<string>(['SALARY', 'FREELANCE', 'BUSINESS', 'SALES', 'GIFT', 'RENTAL', 'INVESTMENT', 'OTHER']);
+const EXPENSE_EXCLUDED = new Set<string>(['SALARY', 'FREELANCE', 'BUSINESS', 'SALES', 'GIFT', 'RENTAL']);
+
+/** Categorías disponibles según el tipo: el ingreso y el gasto no comparten lista. */
+export const INCOME_CATEGORIES = TX_CATEGORIES.filter((c) => INCOME_VALUES.has(c.value));
+export const EXPENSE_CATEGORIES = TX_CATEGORIES.filter((c) => !EXPENSE_EXCLUDED.has(c.value));
+export const categoriesFor = (type: 'INCOME' | 'EXPENSE') => (type === 'INCOME' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES);
 
 export function txCategory(c?: string | null) {
   return TX_CATEGORIES.find((x) => x.value === c) ?? TX_CATEGORIES[TX_CATEGORIES.length - 1];
