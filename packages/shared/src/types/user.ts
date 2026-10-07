@@ -62,9 +62,9 @@ export interface AuthResponse {
   accessToken: string;
 }
 
-/** Sign-in is only through Google or Apple ID tokens. */
+/** Sign-in is only through Google ID tokens. */
 export interface OAuthPayload {
-  provider: 'google' | 'apple';
+  provider: 'google';
   idToken: string;
   displayName?: string;
 }

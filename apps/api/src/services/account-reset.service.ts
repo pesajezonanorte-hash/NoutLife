@@ -15,7 +15,7 @@ export interface AccountResetSummary {
 
 /**
  * Fully resets one authenticated account's LifeQuest data while preserving its
- * login identity (Google/Apple link) and the explicitly retained Google Calendar
+ * login identity (Google link) and the explicitly retained Google Calendar
  * connection. The route requires a literal confirmation because this is
  * irreversible. Blocks the user made are kept on purpose: a reset must never
  * reopen a channel to someone they blocked.

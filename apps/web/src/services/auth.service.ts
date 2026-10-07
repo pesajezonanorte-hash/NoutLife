@@ -5,9 +5,9 @@ import {
   markRefreshSessionExpected,
 } from '../lib/session-hint';
 
-/** Ids públicos de Google y Apple (vienen de la API, no del build). */
+/** ID público de Google (viene de la API, no del build). */
 export async function getProviders() {
-  const { data } = await api.get<{ googleClientId: string | null; appleClientId: string | null; appleRedirectUri: string | null }>('/auth/providers');
+  const { data } = await api.get<{ googleClientId: string | null }>('/auth/providers');
   return data;
 }
 

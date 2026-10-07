@@ -98,20 +98,19 @@ async function uniqueUsername(seed: string) {
 }
 
 /**
- * Busca la cuenta por el id estable del proveedor; si no existe, la enlaza por
+ * Busca la cuenta por el id estable de Google; si no existe, la enlaza por
  * email verificado (cuentas antiguas con contraseña) o crea una nueva. Las
  * cuentas nuevas empiezan sin onboarding y la app las lleva a completarlo.
  */
 async function findOrCreateUser(identity: OAuthIdentity, displayName?: string) {
-  const subField = identity.provider === 'google' ? 'googleSub' : 'appleSub';
-  const bySub = await prisma.user.findFirst({ where: { [subField]: identity.sub } });
+  const bySub = await prisma.user.findFirst({ where: { googleSub: identity.sub } });
   if (bySub) return bySub;
 
   if (!identity.email || !identity.emailVerified) throw new Error('OAUTH_EMAIL_UNVERIFIED');
 
   const byEmail = await prisma.user.findUnique({ where: { email: identity.email } });
   if (byEmail) {
-    return prisma.user.update({ where: { id: byEmail.id }, data: { [subField]: identity.sub } });
+    return prisma.user.update({ where: { id: byEmail.id }, data: { googleSub: identity.sub } });
   }
 
   const name = (identity.name ?? displayName ?? '').trim().slice(0, 50);
@@ -120,7 +119,7 @@ async function findOrCreateUser(identity: OAuthIdentity, displayName?: string) {
       email: identity.email,
       username: await uniqueUsername(identity.email.split('@')[0]),
       displayName: name.length >= 2 ? name : 'Héroe',
-      [subField]: identity.sub,
+      googleSub: identity.sub,
       avatarConfig: {
         bodyType: 'male', hairStyle: 'short', hairColor: '#4a3728', skinColor: '#c68642',
         shirtColor: '#4d96ff', pants: '#37474f', accessory: 'none', expression: 'normal', pet: null,
@@ -131,7 +130,7 @@ async function findOrCreateUser(identity: OAuthIdentity, displayName?: string) {
   return user;
 }
 
-/** Inicio de sesión único: Google o Apple. No hay contraseñas. */
+/** Inicio de sesión único: Google. No hay contraseñas. */
 export async function oauthSignIn(data: OAuthInput) {
   const identity = await verifyIdToken(data.provider, data.idToken);
   const user = await findOrCreateUser(identity, data.displayName);

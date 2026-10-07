@@ -206,9 +206,7 @@ async function migrate() {
   // the previous deployment may still be serving while this one builds.
   await prisma.$executeRawUnsafe(`ALTER TABLE "users" ALTER COLUMN "passwordHash" DROP NOT NULL;`);
   await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "googleSub" TEXT;`);
-  await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "appleSub" TEXT;`);
   await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "users_googleSub_key" ON "users"("googleSub");`);
-  await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "users_appleSub_key" ON "users"("appleSub");`);
   await prisma.$executeRawUnsafe(`ALTER TABLE "users" ALTER COLUMN "displayName" SET DEFAULT 'Héroe';`);
 
   await runDataOpsOnce();

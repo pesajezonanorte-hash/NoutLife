@@ -91,10 +91,9 @@ model User {
   id           String @id @default(cuid())
   email        String @unique
   username     String @unique
-  /// Legacy: sign-in is Google/Apple only. Kept nullable for old accounts.
+  /// Legacy: sign-in is Google only. Kept nullable for old accounts.
   passwordHash String?
   googleSub    String? @unique
-  appleSub     String? @unique
   displayName  String @default("Héroe")
 
   level         Int @default(1)

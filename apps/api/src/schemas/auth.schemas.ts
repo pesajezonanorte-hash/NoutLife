@@ -1,10 +1,9 @@
 import { z } from 'zod';
 
-/** Único inicio de sesión: ID token firmado por Google o Apple. */
+/** Único inicio de sesión: ID token firmado por Google. */
 export const oauthSchema = z.object({
-  provider: z.enum(['google', 'apple']),
+  provider: z.enum(['google']),
   idToken: z.string().min(20).max(8192),
-  /** Apple solo entrega el nombre al cliente la primera vez. */
   displayName: z.string().trim().max(50).optional(),
 });
 

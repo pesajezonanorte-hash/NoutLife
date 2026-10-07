@@ -13,7 +13,7 @@ type Section = { h: string; p: string[] };
 
 const PRIVACY: Section[] = [
   { h: 'Qué datos guardamos', p: [
-    'Cuenta: el identificador, el email y el nombre que Google o Apple nos entregan al iniciar sesión. No guardamos contraseñas.',
+    'Cuenta: el identificador, el email y el nombre que Google nos entrega al iniciar sesión. No guardamos contraseñas.',
     'Lo que registras en la app: hábitos, misiones, agenda, diario, finanzas, comida, sueño, entrenamientos, peso, fotos de progreso, relaciones y demás zonas.',
     'Social: tu perfil público (usuario, nombre, avatar, nivel, bio), amistades, gremios y las cartas que envías, con sus fotos, videos y stickers.',
     'Técnicos: la suscripción de avisos push de cada dispositivo, tu zona horaria e idioma, y la fecha de tu última actividad.',
@@ -28,7 +28,7 @@ const PRIVACY: Section[] = [
   ] },
   { h: 'Quién más los ve', p: [
     'Otras personas solo ven lo que haces público o compartes con ellas, según tus ajustes de Privacidad. Las cartas solo las ven quienes participan en ellas.',
-    'Proveedores que tratan datos por nuestra cuenta: alojamiento de la app y la API (Vercel), base de datos (Supabase), IA (Google), inicio de sesión (Google y Apple) y avisos push (el servicio de tu navegador).',
+    'Proveedores que tratan datos por nuestra cuenta: alojamiento de la app y la API (Vercel), base de datos (Supabase), IA (Google), inicio de sesión (Google) y avisos push (el servicio de tu navegador).',
   ] },
   { h: 'Cuánto tiempo', p: [
     'Mientras tengas cuenta. Si la eliminas, borramos tus datos de forma permanente en ese momento; las copias de seguridad del proveedor se sobrescriben en su ciclo normal.',
@@ -44,7 +44,7 @@ const PRIVACY: Section[] = [
 
 const TERMS: Section[] = [
   { h: 'Tu cuenta', p: [
-    'Entras con Google o Apple. Eres responsable de lo que se hace con tu cuenta y debes tener al menos 13 años (16 en la Unión Europea).',
+    'Entras con Google. Eres responsable de lo que se hace con tu cuenta y debes tener al menos 13 años (16 en la Unión Europea).',
   ] },
   { h: 'Uso aceptable', p: [
     'No publiques ni envíes contenido ilegal, sexual con menores, de odio, acoso, amenazas, spam o que infrinja derechos de otros.',
