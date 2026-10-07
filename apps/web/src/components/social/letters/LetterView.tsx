@@ -263,6 +263,10 @@ function PhotoLightbox({ m, side, src, onClose }: { m: LetterMsg; side: 'dm' | '
   const media = useMedia(side, m.id, { enabled: !src, local: m.local });
   const photo = src ?? media.photoUrl;
   const title = m.mine ? 'Tu foto' : `Foto de ${m.author?.name.split(' ')[0] ?? ''}`;
+  const dragRef = useRef(false);
+  useEffect(() => {
+    return () => { dragRef.current = false; };
+  }, []);
   return (
     <motion.div
       className="fixed inset-0 z-[82] flex flex-col bg-[rgb(var(--lq-jade-900)/.94)] text-jade-50"
@@ -276,9 +280,10 @@ function PhotoLightbox({ m, side, src, onClose }: { m: LetterMsg; side: 'dm' | '
         </div>
         <div className="flex min-h-0 flex-1 items-center justify-center p-4">
           <motion.div
-            className="pointer-events-auto w-full max-w-[min(440px,90vw,70svh)] touch-none"
+            className="pointer-events-auto w-full max-w-[min(440px,90vw,70svh)]"
             drag={reduce ? false : 'y'} dragConstraints={{ top: 0, bottom: 0 }} dragElastic={0.6}
-            onDragEnd={(_, info) => { if (Math.abs(info.offset.y) > 110 || Math.abs(info.velocity.y) > 600) onClose(); }}
+            onDragStart={() => { dragRef.current = true; }}
+            onDragEnd={(_, info) => { dragRef.current = false; if (Math.abs(info.offset.y) > 110 || Math.abs(info.velocity.y) > 600) onClose(); }}
             initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.9, rotate: -4, y: 30 }}
             animate={{ opacity: 1, scale: 1, rotate: -1.5, y: 0 }}
             exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.94, y: 40 }}
