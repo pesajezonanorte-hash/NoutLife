@@ -200,7 +200,7 @@ function CameraOverlay({ onClose, to, onSend, cameraOnly = false }: InstantCamer
             <div className="lq-cam-screen relative aspect-square overflow-hidden rounded-[14px]">
               <video
                 ref={videoRef} playsInline muted autoPlay aria-label="Vista de la cámara"
-                className={cn('size-full object-cover transition-opacity duration-300 [transform:translateZ(0)]', facing === 'user' && '-scale-x-100', !live && 'opacity-0')}
+                className={cn('size-full object-cover transition-opacity duration-300 [transform:translateZ(0)]', !live && 'opacity-0')}
               />
               {photo && <img src={photo} alt="" className="absolute inset-0 size-full object-cover" />}
               {live && (
@@ -246,7 +246,7 @@ function CameraOverlay({ onClose, to, onSend, cameraOnly = false }: InstantCamer
               <span className="flex flex-col items-center gap-1">
                 <button
                   type="button" onClick={() => void shoot()} disabled={!live || busy} aria-label="Tomar foto"
-                  className="lq-cam-shutter size-16 rounded-full focus-visible:outline-offset-4"
+                  className="lq-cam-shutter size-16 rounded-full focus-visible:outline-offset-4 select-none"
                 />
                 <span aria-hidden="true" className="text-label-md text-jade-700">foto</span>
               </span>

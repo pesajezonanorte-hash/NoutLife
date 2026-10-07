@@ -162,7 +162,7 @@ function Recorder({ to, onClose, onSend }: { to: string; onClose: () => void; on
           initial={reduce ? false : { scale: 0.96 }} animate={{ scale: 1 }} transition={springs.natural}
         >
           <video ref={liveRef} playsInline muted autoPlay aria-label="Vista de la cámara"
-            className={cn('absolute inset-0 size-full object-cover', facing === 'user' && '-scale-x-100', (!live || preview) && 'opacity-0')} />
+            className={cn('absolute inset-0 size-full object-cover', (!live || preview) && 'opacity-0')} />
           {preview && <video src={preview} playsInline autoPlay loop controls={false} aria-label="Tu video" className="absolute inset-0 size-full bg-black object-contain" />}
 
           {!live && !preview && (
@@ -207,7 +207,7 @@ function Recorder({ to, onClose, onSend }: { to: string; onClose: () => void; on
               <button
                 type="button" disabled={!live} onClick={state === 'recording' ? stop : record}
                 aria-label={state === 'recording' ? `Parar (quedan ${secs} s)` : 'Grabar video (máximo 15 segundos)'}
-                className="relative flex size-20 items-center justify-center rounded-full disabled:opacity-40"
+                className="relative flex size-20 items-center justify-center rounded-full disabled:opacity-40 select-none"
               >
                 <svg aria-hidden viewBox="0 0 80 80" className="absolute inset-0 -rotate-90">
                   <circle cx="40" cy="40" r="36" fill="none" stroke="rgb(255 255 255 / .35)" strokeWidth="4" />
