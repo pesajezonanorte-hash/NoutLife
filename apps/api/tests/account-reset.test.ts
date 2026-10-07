@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import bcrypt from 'bcrypt';
 import { prisma } from '../src/lib/prisma';
 import { factoryResetSchema } from '../src/schemas/auth.schemas';
 import { resetAccountData } from '../src/services/account-reset.service';
@@ -23,25 +22,11 @@ async function withMocks<T>(mocks: Client, run: () => Promise<T>): Promise<T> {
 
 void test('factory reset de cuenta', async (suite) => {
   await suite.test('requiere frase literal de confirmación', () => {
-    assert.equal(factoryResetSchema.safeParse({ password: 'secret' }).success, false);
-    assert.equal(factoryResetSchema.safeParse({ password: 'secret', confirmation: 'RESET_MY_LIFEQUEST' }).success, true);
-  });
-
-  await suite.test('rechaza una contraseña incorrecta antes de abrir la transacción', async () => {
-    const passwordHash = await bcrypt.hash('correcta', 4);
-    let transactionOpened = false;
-
-    await withMocks({
-      user: { findUnique: async () => ({ passwordHash }) },
-      $transaction: async () => { transactionOpened = true; throw new Error('No debe ejecutarse'); },
-    }, async () => {
-      await assert.rejects(() => resetAccountData('user-1', 'incorrecta'), /INVALID_RESET_CREDENTIALS/);
-      assert.equal(transactionOpened, false);
-    });
+    assert.equal(factoryResetSchema.safeParse({}).success, false);
+    assert.equal(factoryResetSchema.safeParse({ confirmation: 'RESET_MY_LIFEQUEST' }).success, true);
   });
 
   await suite.test('borra datos propios, protege datos compartidos y reinicia el perfil de juego', async () => {
-    const passwordHash = await bcrypt.hash('correcta', 4);
     const calls: string[] = [];
     let userUpdate: Record<string, unknown> | null = null;
 
@@ -95,10 +80,9 @@ void test('factory reset de cuenta', async (suite) => {
     });
 
     await withMocks({
-      user: { findUnique: async () => ({ passwordHash }) },
       $transaction: async (operation: (transaction: typeof tx) => Promise<unknown>) => operation(tx),
     }, async () => {
-      const result = await resetAccountData('user-1', 'correcta');
+      const result = await resetAccountData('user-1');
 
       assert.equal(result.sharedChallengesCancelled, 1);
       assert.equal(result.guildLeadershipsTransferred, 1);
@@ -111,6 +95,8 @@ void test('factory reset de cuenta', async (suite) => {
         'habits', 'quests', 'rituals', 'transactions', 'inventoryItems',
         'userAchievements', 'notifications', 'pushSubscriptions', 'feedback',
         'directMessages', 'socialGestures', 'guildInvites',
+        'workouts', 'routines', 'gymAttendances', 'bodyWeights', 'progressPhotos',
+        'workoutExercises', 'stickers', 'chatPrefs', 'messageReactions',
       ]) {
         assert.equal(result.deleted[key], 1, `expected ${key} to be deleted`);
       }
@@ -124,6 +110,7 @@ void test('factory reset de cuenta', async (suite) => {
       assert.equal(userUpdate?.onboardingCompleted, false);
       assert.equal(userUpdate?.activeTheme, 'aurora');
       assert.equal(userUpdate?.playerClass, null);
+      assert.equal(userUpdate?.gymPlaylistUrl, null);
       assert.equal('googleAccessToken' in (userUpdate ?? {}), false, 'Google connection was explicitly retained');
     });
   });

@@ -270,7 +270,7 @@ export async function completeQuest(userId: string, questId: string) {
     select: {
       id: true, email: true, username: true, displayName: true,
       level: true, xp: true, xpToNextLevel: true, gold: true,
-      hp: true, maxHp: true, mp: true, maxMp: true,
+      hp: true, maxHp: true,
       strength: true, intelligence: true, charisma: true,
       avatarConfig: true, timezone: true, currency: true,
       language: true, relationshipStatus: true,

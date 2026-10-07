@@ -33,7 +33,7 @@ export function levelFromTotal(total: number) {
 /**
  * Sube de nivel a quien acumuló XP sin pasar por awardXpAndGold (logros, enfoque,
  * rituales, rutinas de cuidado): si su XP llega al umbral, sube los niveles que le
- * tocan con sus mejoras de vida, maná y atributos. Idempotente.
+ * tocan con sus mejoras de vida y atributos. Idempotente.
  */
 export async function settleLevel(userId: string) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -54,7 +54,6 @@ export async function settleLevel(userId: string) {
     data: {
       xp, level, xpToNextLevel: next,
       maxHp: Math.min(user.maxHp + gained.length * 10, 300),
-      maxMp: Math.min(user.maxMp + gained.length * 5, 250),
       strength: { increment: Math.ceil(gained.length / 3) + bonus },
       intelligence: { increment: Math.ceil((gained.length - 1) / 3) + bonus },
       charisma: { increment: Math.floor(gained.length / 3) + bonus },
@@ -68,7 +67,6 @@ export interface StatIncreases {
   intelligence?: number;
   charisma?: number;
   hp?: number;
-  mp?: number;
 }
 
 export interface AwardResult {
@@ -91,13 +89,28 @@ const CATEGORY_WEIGHTS: Record<QuestCategory, { str: number; int: number; cha: n
   CREATIVE: { str: 0.1,  int: 0.5, cha: 0.4 },
 };
 
-function pickStatFromCategory(category: QuestCategory | undefined): 'strength' | 'intelligence' | 'charisma' {
-  const weights = category ? CATEGORY_WEIGHTS[category] : { str: 0.33, int: 0.34, cha: 0.33 };
-  const roll = Math.random();
-  if (roll < weights.str) return 'strength';
-  if (roll < weights.str + weights.int) return 'intelligence';
-  return 'charisma';
+/** Zona de cada fuente de XP sin categoría propia. */
+const SOURCE_CATEGORY: Record<string, QuestCategory> = {
+  workout: 'FITNESS',
+  learning_complete: 'LEARNING',
+  pomodoro: 'LEARNING',
+  checkin: 'PERSONAL',
+};
+
+/**
+ * Cada zona entrena su atributo: gimnasio da Fuerza; finanzas, salud,
+ * aprendizaje y creatividad, Intelecto; amor y social, Carisma. Determinista,
+ * para que el perfil refleje en qué zonas se ha trabajado.
+ */
+function statFromCategory(category: QuestCategory | undefined): 'strength' | 'intelligence' | 'charisma' {
+  if (!category) return 'intelligence';
+  const w = CATEGORY_WEIGHTS[category];
+  if (w.str >= w.int && w.str >= w.cha) return 'strength';
+  return w.int >= w.cha ? 'intelligence' : 'charisma';
 }
+
+/** Las zonas de cuerpo (gimnasio, salud) suben la Vida máxima más rápido. */
+const hpPerLevel = (category: QuestCategory | undefined) => (category === 'FITNESS' || category === 'HEALTH' ? 15 : 10);
 
 const CLASS_MULTIPLIERS: Record<string, Partial<Record<QuestCategory, number>>> = {
   warrior: { FITNESS: 1.2, HEALTH: 1.1 },
@@ -172,7 +185,8 @@ export async function awardXpAndGold(
   options?: { sourceId?: string; description?: string; category?: QuestCategory }
 ): Promise<AwardResult> {
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
-  const multiplied = applyClassMultiplier(user.playerClass, options?.category, xp, gold);
+  const category = options?.category ?? SOURCE_CATEGORY[source];
+  const multiplied = applyClassMultiplier(user.playerClass, category, xp, gold);
   xp = multiplied.xp;
   gold = multiplied.gold;
 
@@ -193,15 +207,11 @@ export async function awardXpAndGold(
   const statIncreases: StatIncreases = {};
 
   if (leveledUp) {
-    // HP/MP increase per level
-    const hpIncrease = levelsGained.length * 10;
-    const mpIncrease = levelsGained.length * 5;
-    statIncreases.hp = hpIncrease;
-    statIncreases.mp = mpIncrease;
+    statIncreases.hp = levelsGained.length * hpPerLevel(category);
 
-    // Stat increase per level (weighted by category)
+    // Cada nivel suma +1 al atributo de la zona que lo provocó.
     for (const lvl of levelsGained) {
-      const statKey = pickStatFromCategory(options?.category);
+      const statKey = statFromCategory(category);
       statIncreases[statKey] = (statIncreases[statKey] ?? 0) + 1;
 
       // Every 5 levels: all stats +1 bonus
@@ -214,7 +224,6 @@ export async function awardXpAndGold(
   }
 
   const newMaxHp = Math.min(user.maxHp + (statIncreases.hp ?? 0), 300);
-  const newMaxMp = Math.min(user.maxMp + (statIncreases.mp ?? 0), 250);
 
   // Update streak according to the player's own calendar day, not the API host's UTC day.
   const today = getCalendarDay(user.timezone);
@@ -247,7 +256,6 @@ export async function awardXpAndGold(
       ...(isNewDay && !isYesterday && user.currentStreak >= 2 ? { lostStreak: user.currentStreak, lostStreakAt: new Date() } : {}),
       ...(leveledUp && {
         maxHp: newMaxHp,
-        maxMp: newMaxMp,
         strength: { increment: statIncreases.strength ?? 0 },
         intelligence: { increment: statIncreases.intelligence ?? 0 },
         charisma: { increment: statIncreases.charisma ?? 0 },

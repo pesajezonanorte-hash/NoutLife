@@ -1,30 +1,20 @@
 import { z } from 'zod';
 
-export const registerSchema = z.object({
-  email: z.string().email('Email invÃ¡lido'),
-  username: z
-    .string()
-    .min(3, 'MÃ­nimo 3 caracteres')
-    .max(20, 'MÃ¡ximo 20 caracteres')
-    .regex(/^[a-zA-Z0-9_]+$/, 'Solo letras, nÃºmeros y guion bajo'),
-  password: z.string().min(8, 'MÃ­nimo 8 caracteres'),
-  displayName: z.string().min(2, 'MÃ­nimo 2 caracteres').max(50).optional(),
-  gender: z.enum(['male', 'female']).optional(),
+/** Único inicio de sesión: ID token firmado por Google o Apple. */
+export const oauthSchema = z.object({
+  provider: z.enum(['google', 'apple']),
+  idToken: z.string().min(20).max(8192),
+  /** Apple solo entrega el nombre al cliente la primera vez. */
+  displayName: z.string().trim().max(50).optional(),
 });
 
-export const loginSchema = z.object({
-  email: z.string().email('Email invÃ¡lido'),
-  password: z.string().min(1, 'ContraseÃ±a requerida'),
-});
+export type OAuthInput = z.infer<typeof oauthSchema>;
 
-/** Pre-check used before onboarding: the account is only created once onboarding finishes. */
-export const availabilitySchema = registerSchema.pick({ email: true, username: true });
-
-export type RegisterInput = z.infer<typeof registerSchema>;
-export type LoginInput = z.infer<typeof loginSchema>;
-
-/** Explicit confirmation prevents an accidental destructive account reset. */
+/** Explicit confirmation prevents an accidental destructive account reset or deletion. */
 export const factoryResetSchema = z.object({
-  password: z.string().min(1, 'Contraseña requerida'),
   confirmation: z.literal('RESET_MY_LIFEQUEST'),
+});
+
+export const deleteAccountSchema = z.object({
+  confirmation: z.literal('DELETE_MY_ACCOUNT'),
 });

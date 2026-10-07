@@ -64,7 +64,6 @@ export function DashboardScreen() {
         <Text style={styles.level}>NIVEL {user.level}</Text>
         <View style={{ marginTop: 12 }}>
           <StatBar label="HP" value={user.hp}  max={user.maxHp}         color={colors.accentPink} />
-          <StatBar label="MP" value={user.mp}  max={user.maxMp}         color={colors.accentCyan} />
           <StatBar label="XP" value={user.xp}  max={user.xpToNextLevel} color={colors.accentGold} />
         </View>
         <View style={styles.statsRow}>

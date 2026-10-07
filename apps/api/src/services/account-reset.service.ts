@@ -1,4 +1,3 @@
-import bcrypt from 'bcrypt';
 import { prisma } from '../lib/prisma';
 
 export interface AccountResetSummary {
@@ -16,25 +15,17 @@ export interface AccountResetSummary {
 
 /**
  * Fully resets one authenticated account's LifeQuest data while preserving its
- * login identity and the explicitly retained Google Calendar connection. The
- * password check is deliberately repeated here rather than trusting a bearer
- * token alone because this operation is irreversible.
+ * login identity (Google/Apple link) and the explicitly retained Google Calendar
+ * connection. The route requires a literal confirmation because this is
+ * irreversible. Blocks the user made are kept on purpose: a reset must never
+ * reopen a channel to someone they blocked.
  *
  * Shared multiplayer records are handled conservatively: the caller's own
  * participation is erased, but a challenge with other participants is cancelled
  * rather than deleted. Guild leadership is transferred when possible so another
  * member's data is never removed as collateral damage.
  */
-export async function resetAccountData(userId: string, password: string): Promise<AccountResetSummary> {
-  const account = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { passwordHash: true },
-  });
-
-  if (!account || !await bcrypt.compare(password, account.passwordHash)) {
-    throw new Error('INVALID_RESET_CREDENTIALS');
-  }
-
+export async function resetAccountData(userId: string): Promise<AccountResetSummary> {
   return prisma.$transaction(async (tx) => {
     const deleted: Record<string, number> = {};
     const remove = async (key: string, operation: () => Promise<{ count: number }>) => {
@@ -114,6 +105,11 @@ export async function resetAccountData(userId: string, password: string): Promis
     // Asistencia del gimnasio (calendario y racha de gym): sin esto el Gimnasio
     // seguía mostrando los días entrenados después de reiniciar la cuenta.
     await remove('gymAttendances', () => tx.gymAttendance.deleteMany({ where: { userId } }));
+    await remove('messageReactions', () => tx.messageReaction.deleteMany({ where: { userId } }));
+    await remove('chatViews', () => tx.chatView.deleteMany({ where: { userId } }));
+    await remove('chatPrefs', () => tx.chatPref.deleteMany({ where: { userId } }));
+    await remove('stickers', () => tx.sticker.deleteMany({ where: { ownerId: userId } }));
+    await remove('notificationCategoryPreferences', () => tx.notificationCategoryPreference.deleteMany({ where: { userId } }));
     await remove('directMessages', () => tx.directMessage.deleteMany({ where: { OR: [{ senderId: userId }, { receiverId: userId }] } }));
     await remove('socialGestures', () => tx.socialGesture.deleteMany({ where: { OR: [{ fromId: userId }, { toId: userId }] } }));
     await remove('guildInvites', () => tx.guildInvite.deleteMany({ where: { OR: [{ inviterId: userId }, { inviteeId: userId }] } }));
@@ -184,8 +180,6 @@ export async function resetAccountData(userId: string, password: string): Promis
         gold: 0,
         hp: 100,
         maxHp: 100,
-        mp: 100,
-        maxMp: 100,
         strength: 1,
         intelligence: 1,
         charisma: 1,
@@ -210,15 +204,14 @@ export async function resetAccountData(userId: string, password: string): Promis
         equippedTheme: null,
         morningBriefingLastSeen: null,
         lifeScore: 0,
-        fitnessLevel: 1,
-        financeLevel: 1,
-        mindLevel: 1,
-        relationshipLevel: 1,
-        disciplineLevel: 1,
         focusMinutesTotal: 0,
         gymPlaylistUrl: null,
         lostStreak: 0,
         lostStreakAt: null,
+        bio: null,
+        nameColor: null,
+        presenceAt: null,
+        presenceZone: null,
       },
       select: { level: true, xp: true, gold: true, onboardingCompleted: true },
     });

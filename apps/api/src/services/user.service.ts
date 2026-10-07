@@ -6,7 +6,7 @@ import { sanitizeAvatar } from './shop.service';
 const USER_SELECT = {
   id: true, email: true, username: true, displayName: true,
   level: true, xp: true, xpToNextLevel: true, gold: true,
-  hp: true, maxHp: true, mp: true, maxMp: true,
+  hp: true, maxHp: true,
   strength: true, intelligence: true, charisma: true,
   avatarConfig: true, avatarUrl: true, nameColor: true, timezone: true, currency: true,
   language: true, relationshipStatus: true,

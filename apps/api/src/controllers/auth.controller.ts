@@ -4,52 +4,32 @@ import { REFRESH_COOKIE_OPTIONS } from '../lib/jwt';
 import type { AuthRequest } from '../middleware/auth.middleware';
 import { reconcileUserActivityStreak } from '../services/xp.service';
 import { resetAccountData } from '../services/account-reset.service';
+import { oauthConfig } from '../lib/oauth';
+import { prisma } from '../lib/prisma';
 
-export async function register(req: Request, res: Response): Promise<void> {
-  try {
-    const { user, accessToken, refreshToken } = await authService.registerUser(req.body);
-    res.cookie('refreshToken', refreshToken, REFRESH_COOKIE_OPTIONS);
-    res.status(201).json({ user, accessToken });
-  } catch (err) {
-    console.error('[REGISTER_ERROR]', err);
-    const msg = err instanceof Error ? err.message : 'ERROR';
-    if (msg === 'EMAIL_TAKEN') {
-      res.status(409).json({ error: 'Este email ya está en uso, héroe.' });
-    } else if (msg === 'USERNAME_TAKEN') {
-      res.status(409).json({ error: 'Este nombre de usuario ya existe.' });
-    } else {
-      res.status(500).json({
-        error: msg ? `Error al crear la cuenta: ${msg}` : 'Error al crear la cuenta.',
-        message: msg,
-      });
-    }
-  }
+/** Public client ids so the web needs no extra build-time variables. */
+export function providers(_req: Request, res: Response): void {
+  res.json(oauthConfig());
 }
 
-export async function availability(req: Request, res: Response): Promise<void> {
+export async function oauth(req: Request, res: Response): Promise<void> {
   try {
-    res.json(await authService.checkAvailability(req.body));
-  } catch (err) {
-    console.error('[AVAILABILITY_ERROR]', err);
-    res.status(500).json({ error: 'No se pudo comprobar la disponibilidad.' });
-  }
-}
-
-export async function login(req: Request, res: Response): Promise<void> {
-  try {
-    const { user, accessToken, refreshToken } = await authService.loginUser(req.body);
+    const { user, accessToken, refreshToken } = await authService.oauthSignIn(req.body);
     res.cookie('refreshToken', refreshToken, REFRESH_COOKIE_OPTIONS);
     res.json({ user, accessToken });
   } catch (err) {
-    console.error('[LOGIN_ERROR]', err);
     const msg = err instanceof Error ? err.message : 'ERROR';
-    if (msg === 'INVALID_CREDENTIALS') {
-      res.status(401).json({ error: 'Email o contraseña incorrectos.' });
+    if (msg === 'INVALID_OAUTH_TOKEN') {
+      res.status(401).json({ error: 'No pudimos verificar tu cuenta. Inténtalo de nuevo.' });
+    } else if (msg === 'OAUTH_EMAIL_UNVERIFIED') {
+      res.status(403).json({ error: 'Tu cuenta no tiene un email verificado.' });
+    } else if (msg === 'OAUTH_NOT_CONFIGURED') {
+      res.status(503).json({ error: 'Este método de inicio de sesión no está disponible ahora mismo.' });
     } else if (/connection pool|Timed out fetching|P2024|Can.t reach database|P1001|P1002/i.test(msg)) {
-      // Base de datos saturada: se dice con claridad (y sin volcar el error interno).
       res.status(503).json({ error: 'El servidor está ocupado. Espera unos segundos e inténtalo de nuevo.' });
     } else {
-      res.status(500).json({ error: 'Error al iniciar sesión en el servidor. Inténtalo de nuevo.' });
+      console.error('[OAUTH_ERROR]', err);
+      res.status(500).json({ error: 'Error al iniciar sesión. Inténtalo de nuevo.' });
     }
   }
 }
@@ -81,39 +61,44 @@ export async function logout(req: AuthRequest, res: Response): Promise<void> {
 }
 
 
-/**
- * Destructive self-service reset. Authentication plus the current password and
- * a literal confirmation are all required before any account data is changed.
- */
+/** Destructive self-service reset. Requires auth plus a literal confirmation. */
 export async function factoryReset(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const body = req.body as { password: string };
-    const summary = await resetAccountData(req.userId!, body.password);
-    res.json({
-      message: 'Tu progreso y datos de LifeQuest fueron reiniciados.',
-      summary,
-    });
+    const summary = await resetAccountData(req.userId!);
+    res.json({ message: 'Tu progreso y datos de Noutlife fueron reiniciados.', summary });
   } catch (err) {
-    const message = err instanceof Error ? err.message : '';
-    if (message === 'INVALID_RESET_CREDENTIALS') {
-      res.status(401).json({ error: 'La contraseña actual es incorrecta.' });
-      return;
-    }
     console.error('[FACTORY_RESET_ERROR]', err);
     res.status(500).json({ error: 'No se pudo reiniciar la cuenta. No se aplicaron cambios parciales.' });
+  }
+}
+
+/**
+ * Permanent account deletion (required by the App Store and Google Play). The
+ * reset first unwinds shared records (guild leadership, shared challenges)
+ * without touching other people's data; deleting the user cascades the rest.
+ */
+export async function deleteAccount(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    await resetAccountData(req.userId!);
+    await prisma.userBlock.deleteMany({ where: { OR: [{ blockerId: req.userId }, { blockedId: req.userId }] } });
+    await prisma.user.delete({ where: { id: req.userId } });
+    res.clearCookie('refreshToken', { path: '/api/v1' });
+    res.json({ message: 'Tu cuenta y todos tus datos fueron eliminados.' });
+  } catch (err) {
+    console.error('[DELETE_ACCOUNT_ERROR]', err);
+    res.status(500).json({ error: 'No se pudo eliminar la cuenta. Inténtalo de nuevo.' });
   }
 }
 
 export async function me(req: AuthRequest, res: Response): Promise<void> {
   try {
     await reconcileUserActivityStreak(req.userId!);
-    const { prisma } = await import('../lib/prisma');
     const user = await prisma.user.findUniqueOrThrow({
       where: { id: req.userId },
       select: {
         id: true, email: true, username: true, displayName: true,
         level: true, xp: true, xpToNextLevel: true, gold: true,
-        hp: true, maxHp: true, mp: true, maxMp: true,
+        hp: true, maxHp: true,
         strength: true, intelligence: true, charisma: true,
         avatarConfig: true, avatarUrl: true, nameColor: true, equippedAura: true, equippedFrame: true, timezone: true, currency: true,
         language: true, relationshipStatus: true, createdAt: true,

@@ -69,28 +69,12 @@ export const globalLimiter = buildLimiter({
   message: 'Demasiadas peticiones por minuto. Espera un momento.',
 });
 
-// Login limiter — protects against brute force; keyed by IP + email
+// Sign-in limiter — slows token replay and signup spam; keyed by IP
 export const loginLimiter = buildLimiter({
   windowMs: 15 * 60_000,
   max: 8,
   key: (r) => `${clientIp(r)}:${who(r)}`,
   message: 'Demasiados intentos de inicio de sesión. Intenta en 15 minutos.',
-});
-
-// Registration limit — slow signup spam per IP
-export const registerLimiter = buildLimiter({
-  windowMs: 60 * 60_000,
-  max: 5,
-  key: (r) => `${clientIp(r)}:${who(r)}`,
-  message: 'Demasiados registros desde esta IP. Intenta más tarde.',
-});
-
-// Availability check before onboarding — limits email/username probing per IP
-export const availabilityLimiter = buildLimiter({
-  windowMs: 15 * 60_000,
-  max: 30,
-  key: (r) => `${clientIp(r)}:${who(r)}`,
-  message: 'Demasiadas comprobaciones. Intenta en unos minutos.',
 });
 
 // Sage limiter — per-minute burst guard
@@ -108,8 +92,7 @@ export const sageDailyLimiter = buildLimiter({
 });
 
 
-// A destructive reset also requires the current password and a literal
-// confirmation, but limit it further to make accidental/replayed requests rare.
+// Destructive reset/deletion also requires a literal confirmation; limit it further to make accidental/replayed requests rare.
 export const factoryResetLimiter = buildLimiter({
   windowMs: 60 * 60_000,
   max: 3,

@@ -9,8 +9,6 @@ export interface User {
   gold: number;
   hp: number;
   maxHp: number;
-  mp: number;
-  maxMp: number;
   strength: number;
   intelligence: number;
   charisma: number;
