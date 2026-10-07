@@ -68,10 +68,10 @@ export interface ProfileData {
 }
 
 /**
- * TEXT · SNAP (foto de la cámara) · PHOTO (foto de la galería) · VOICE (nota de voz)
+ * TEXT · SNAP (foto de la cámara) · PHOTO (foto de la galería) · VIDEO (hasta 15 s) · VOICE (nota de voz antigua)
  * · STICKER · GAME (minijuego) · EVENT (aviso de la carta: "bg", "bg-off", "edit:…").
  */
-export type LetterKind = 'TEXT' | 'SNAP' | 'PHOTO' | 'VOICE' | 'STICKER' | 'GAME' | 'EVENT';
+export type LetterKind = 'TEXT' | 'SNAP' | 'PHOTO' | 'VIDEO' | 'VOICE' | 'STICKER' | 'GAME' | 'EVENT';
 export const PHOTO_KINDS = ['SNAP', 'PHOTO'];
 
 /** Reacciones que se pueden poner a un mensaje. */
@@ -156,7 +156,7 @@ export const unblockUser = (userId: string) => d(api.delete(`/social/blocks/${us
 
 // Cartas entre amigos
 export interface OutgoingBody {
-  kind?: 'TEXT' | 'SNAP' | 'PHOTO' | 'VOICE' | 'STICKER';
+  kind?: 'TEXT' | 'SNAP' | 'PHOTO' | 'VIDEO' | 'STICKER';
   content?: string; photoUrl?: string; audioUrl?: string; meta?: MessageMeta; replyToId?: string;
 }
 export const getUnreadMessages = () => d<{ count: number }>(api.get('/social/messages/unread'));

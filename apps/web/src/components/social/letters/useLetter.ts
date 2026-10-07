@@ -77,7 +77,7 @@ export interface LetterApi {
   backgroundPhoto: string | null;
   sendText: (text: string, reply?: LetterMsg | null) => Promise<void>;
   sendPhoto: (photo: string, caption: string, localId: string, hidden: boolean, source: 'camera' | 'gallery') => Promise<void>;
-  sendVoice: (audioUrl: string, durationMs: number, peaks: number[], reply?: LetterMsg | null) => Promise<void>;
+  sendVideo: (clip: { videoUrl: string; durationMs: number; thumb: string | null }, reply?: LetterMsg | null) => Promise<void>;
   sendSticker: (hash: string, reply?: LetterMsg | null) => Promise<void>;
   startGame: (type: GameType) => Promise<void>;
   move: (messageId: string, move: number | RpsPick) => Promise<void>;
@@ -548,8 +548,9 @@ function useLetterActions({ core, me, side, viewKey, send, notifyTyping, react: 
     );
   }, [send]);
 
-  const sendVoice = useCallback((audioUrl: string, durationMs: number, peaks: number[], reply?: LetterMsg | null) =>
-    send({ kind: 'VOICE', audioUrl, meta: { durationMs, peaks }, replyToId: reply?.id }, { local: { audioUrl }, replyTo: replyRefOf(reply) }), [send]);
+  // El video viaja en audioUrl (la columna de clips de la API).
+  const sendVideo = useCallback((clip: { videoUrl: string; durationMs: number; thumb: string | null }, reply?: LetterMsg | null) =>
+    send({ kind: 'VIDEO', audioUrl: clip.videoUrl, meta: { durationMs: clip.durationMs, ...(clip.thumb ? { thumb: clip.thumb } : {}) }, replyToId: reply?.id }, { local: { audioUrl: clip.videoUrl }, replyTo: replyRefOf(reply) }), [send]);
 
   const sendSticker = useCallback((hash: string, reply?: LetterMsg | null) =>
     send({ kind: 'STICKER', meta: { sticker: hash }, replyToId: reply?.id }, { replyTo: replyRefOf(reply) }), [send]);
@@ -609,7 +610,7 @@ function useLetterActions({ core, me, side, viewKey, send, notifyTyping, react: 
   return {
     status: core.status, gone: core.gone, side, meId: me.id, viewKey, messages: core.messages, hasMore: core.hasMore,
     typing: core.typing.filter((t) => t.userId !== me.id),
-    sendText, sendPhoto, sendVoice, sendSticker, startGame, move, edit, remove, react, reveal, notifyTyping,
+    sendText, sendPhoto, sendVideo, sendSticker, startGame, move, edit, remove, react, reveal, notifyTyping,
     retry: () => { letterCache.delete(viewKey); core.setStatus('loading'); core.setAttempt((n) => n + 1); },
   };
 }

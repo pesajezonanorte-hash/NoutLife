@@ -2,7 +2,6 @@ import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence, useReducedMotionConfig } from 'framer-motion';
 import { useAuthStore } from './store/authStore';
-import { useSignupStore } from './store/signupStore';
 import { useUIStore } from './store/uiStore';
 import { useBootstrapAuth } from './hooks/useAuth';
 import { AppShell } from './components/layout/AppShell';
@@ -24,7 +23,7 @@ import { syncPushSubscription } from './services/notification.service';
 // un flash de carga innecesario.
 const loaders = {
   LoginPage: () => import('./pages/Login'),
-  RegisterPage: () => import('./pages/Register'),
+  LegalPage: () => import('./pages/Legal'),
   DashboardPage: () => import('./pages/Dashboard'),
   ProfilePage: () => import('./pages/Profile'),
   OnboardingPage: () => import('./pages/Onboarding'),
@@ -332,12 +331,10 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
 
 function OnboardingRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading, user } = useAuthStore();
-  // Registro pendiente: el onboarding se hace antes de crear la cuenta.
-  const signingUp = useSignupStore((s) => Boolean(s.draft));
 
   return (
     <LoadingGate loading={isLoading} fallback={<PageLoader />}>
-      {isLoading ? null : !isAuthenticated ? (signingUp ? children : <Navigate to="/register" replace />) : user?.onboardingCompleted ? <Navigate to="/" replace /> : children}
+      {isLoading ? null : !isAuthenticated ? <Navigate to="/login" replace /> : user?.onboardingCompleted ? <Navigate to="/" replace /> : children}
     </LoadingGate>
   );
 }
@@ -425,12 +422,10 @@ export default function App() {
               <PublicRoute><DeferredLazyPage load={loaders.LoginPage} /></PublicRoute>
             }
           />
-          <Route
-            path="/register"
-            element={
-              <PublicRoute><DeferredLazyPage load={loaders.RegisterPage} /></PublicRoute>
-            }
-          />
+          <Route path="/register" element={<Navigate to="/login" replace />} />
+          {/* Legales: públicas, sin sesión (las piden las tiendas y el login). */}
+          <Route path="/privacy" element={<DeferredLazyPage load={loaders.LegalPage} />} />
+          <Route path="/terms" element={<DeferredLazyPage load={loaders.LegalPage} />} />
           <Route
             path="/onboarding"
             element={

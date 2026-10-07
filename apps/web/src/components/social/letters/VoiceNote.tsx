@@ -1,11 +1,11 @@
-// Nota de voz en la carta: botón de reproducir, la onda (dibujada con la forma
+// Nota de voz antigua en la carta (ya no se graban; solo se reproducen las que hay): botón de reproducir, la onda (dibujada con la forma
 // que viaja en el mensaje, sin descargar el audio) que se va entintando al sonar,
 // el tiempo y la velocidad (1×, 1,5×, 2×). El audio se pide al darle a reproducir.
 import { useEffect, useRef, useState } from 'react';
 import { Loader2, Pause, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { loadMedia, cachedMedia } from '@/lib/media';
-import { clock } from './voice';
+const clock = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, '0')}`;
 
 const SPEEDS = [1, 1.5, 2];
 

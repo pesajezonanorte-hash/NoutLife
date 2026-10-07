@@ -62,15 +62,9 @@ export interface AuthResponse {
   accessToken: string;
 }
 
-export interface LoginPayload {
-  email: string;
-  password: string;
-}
-
-export interface RegisterPayload {
-  email: string;
-  username: string;
-  password: string;
+/** Sign-in is only through Google or Apple ID tokens. */
+export interface OAuthPayload {
+  provider: 'google' | 'apple';
+  idToken: string;
   displayName?: string;
-  gender?: 'male' | 'female';
 }

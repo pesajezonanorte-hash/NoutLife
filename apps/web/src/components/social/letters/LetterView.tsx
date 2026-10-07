@@ -12,7 +12,7 @@ import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  Archive, ArrowDown, ArrowLeft, Ban, Coins, Contact, Eraser, Image as ImageIcon, ImagePlus, MoreHorizontal, Pencil, Tent, Trash2, type LucideIcon,
+  Archive, ArrowDown, ArrowLeft, Ban, Coins, Contact, Eraser, Image as ImageIcon, ImagePlus, MoreHorizontal, Pencil, Tent, Trash2, X, type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { springs } from '@/lib/motion/presets';
@@ -30,12 +30,13 @@ import { AvatarDisplay } from '@/components/character/AvatarDisplay';
 import { GuildCrest } from '@/components/guild/GuildCrest';
 import { emblemOf } from '@/components/guild/emblems';
 import { Lettering } from '@/components/layout/Lettering';
-import { Button, Modal, Skeleton } from '@/components/ui/lq';
+import { Button, Modal, Skeleton, useDialogBehavior } from '@/components/ui/lq';
 import { PresenceAvatar, StreakFlame, isLit } from '../SocialBits';
 import { GuildEditDialog } from '../GuildEditDialog';
 import { BackdropEditor } from './BackdropEditor';
 import { Composer, type ComposerHandle } from './Composer';
 import { InstantCamera, type PhotoSource } from './InstantCamera';
+import { VideoRecorder, type VideoClip } from './VideoRecorder';
 import { InstantPhoto } from './InstantPhoto';
 import { LetterBackdrop } from './LetterBackdrop';
 import { ACTION_ICONS, MessageMenu, MessageRow, snippetOf, tiltOf, time, type MenuAction } from './MessageRow';
@@ -244,19 +245,49 @@ function LetterMenu({ items }: { items: MenuItem[] }) {
   );
 }
 
-/** La foto en grande (si aún no había llegado, se pide aquí). */
+/**
+ * La foto en grande, por encima de la carta (si aún no había llegado, se pide
+ * aquí). Se cierra tocando fuera, con la X, con Escape o arrastrándola hacia abajo.
+ */
 function PhotoViewer({ m, side, src, onClose }: { m: LetterMsg | null; side: 'dm' | 'guild'; src: string | null; onClose: () => void }) {
-  const media = useMedia(side, m?.id ?? 'none', { enabled: Boolean(m && !src), local: m?.local });
+  return createPortal(
+    <AnimatePresence>{m && <PhotoLightbox key={m.id} m={m} side={side} src={src} onClose={onClose} />}</AnimatePresence>,
+    document.body,
+  );
+}
+
+function PhotoLightbox({ m, side, src, onClose }: { m: LetterMsg; side: 'dm' | 'guild'; src: string | null; onClose: () => void }) {
+  const panelRef = useDialogBehavior(true, onClose);
+  const reduce = useMotionStore((s) => s.reduce);
+  const media = useMedia(side, m.id, { enabled: !src, local: m.local });
   const photo = src ?? media.photoUrl;
+  const title = m.mine ? 'Tu foto' : `Foto de ${m.author?.name.split(' ')[0] ?? ''}`;
   return (
-    <Modal open={Boolean(m)} onClose={onClose} title={m?.mine ? 'Tu foto' : `Foto de ${m?.author?.name.split(' ')[0] ?? ''}`} className="max-w-[420px]">
-      {m && (
-        <div className="flex flex-col items-center gap-2 pb-2">
-          <InstantPhoto src={photo} thumb={m.meta?.thumb} alt={m.mine ? 'Tu foto' : `Foto de ${m.author?.name ?? ''}`} caption={m.content} tilt={-1.5} className="w-full max-w-[340px]" />
-          <p className="font-mono text-body-sm text-on-surface-light">{dayLabel(m.createdAt)} · {time(m.createdAt)}</p>
+    <motion.div
+      className="fixed inset-0 z-[82] flex flex-col bg-[rgb(var(--lq-jade-900)/.94)] text-jade-50"
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.18 } }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} className="pointer-events-none flex min-h-0 flex-1 flex-col outline-none">
+        <div className="pointer-events-auto flex items-center justify-between gap-3 px-3 pt-[max(.75rem,env(safe-area-inset-top))]">
+          <p className="min-w-0 truncate pl-2 text-label-lg">{title} <span className="font-mono text-body-sm text-jade-100/75">· {dayLabel(m.createdAt)} · {time(m.createdAt)}</span></p>
+          <Button variant="icon" aria-label="Cerrar" onClick={onClose} className="text-jade-50 hover:bg-white/10"><X aria-hidden className="size-6" /></Button>
         </div>
-      )}
-    </Modal>
+        <div className="flex min-h-0 flex-1 items-center justify-center p-4">
+          <motion.div
+            className="pointer-events-auto w-full max-w-[min(440px,90vw,70svh)] touch-none"
+            drag={reduce ? false : 'y'} dragConstraints={{ top: 0, bottom: 0 }} dragElastic={0.6}
+            onDragEnd={(_, info) => { if (Math.abs(info.offset.y) > 110 || Math.abs(info.velocity.y) > 600) onClose(); }}
+            initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.9, rotate: -4, y: 30 }}
+            animate={{ opacity: 1, scale: 1, rotate: -1.5, y: 0 }}
+            exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.94, y: 40 }}
+            transition={reduce ? { duration: 0.15 } : springs.natural}
+          >
+            <InstantPhoto src={photo} thumb={m.meta?.thumb} alt={title} caption={m.content} tilt={0} className="w-full shadow-2xl" />
+          </motion.div>
+        </div>
+      </div>
+    </motion.div>
   );
 }
 
@@ -289,6 +320,7 @@ function LetterShell({ api, label, to, shareWith, header, extraMenu = [], empty,
   const listRef = useRef<HTMLDivElement>(null);
   const composer = useRef<ComposerHandle>(null);
   const [camera, setCamera] = useState(false);
+  const [video, setVideo] = useState(false);
   const [editor, setEditor] = useState(false);
   const [reviving, setReviving] = useState(false);
   const [viewer, setViewer] = useState<{ m: LetterMsg; src: string | null } | null>(null);
@@ -455,11 +487,11 @@ function LetterShell({ api, label, to, shareWith, header, extraMenu = [], empty,
     onJump: (id: string) => latest.current.jump(id),
     onMove: (msg: LetterMsg, mv: number | RpsPick) => latest.current.move(msg.id, mv),
   }), []);
-  async function sendVoice(clip: { audioUrl: string; durationMs: number; peaks: number[] }) {
+  function sendVideo(clip: VideoClip) {
     const reply = replying;
     setReplying(null);
     stick.current = true;
-    await api.sendVoice(clip.audioUrl, clip.durationMs, clip.peaks, reply);
+    api.sendVideo(clip, reply).catch((err) => toaster().error((err as Error).message));
   }
   function sendSticker(hash: string) {
     const reply = replying;
@@ -610,7 +642,7 @@ function LetterShell({ api, label, to, shareWith, header, extraMenu = [], empty,
       <Composer
         ref={composer} to={to} maxLength={group ? 500 : 1000} replying={replying} editing={editing} nameOf={nameOf} colorOf={colorOf}
         onCancelReply={() => setReplying(null)} onCancelEdit={() => setEditing(null)}
-        onSend={sendText} onEdit={saveEdit} onCamera={() => setCamera(true)} onVoice={sendVoice} onSticker={sendSticker} onGame={startGame}
+        onSend={sendText} onEdit={saveEdit} onCamera={() => setCamera(true)} onVideo={() => setVideo(true)} onSticker={sendSticker} onGame={startGame}
         onTyping={api.notifyTyping} onFocusChange={setComposerFocused} keyboardHeight={knownKeyboard()}
       />
 
@@ -623,6 +655,7 @@ function LetterShell({ api, label, to, shareWith, header, extraMenu = [], empty,
         )}
       </AnimatePresence>
       <InstantCamera open={camera} onClose={() => setCamera(false)} to={to} onSend={onCameraSend} />
+      <VideoRecorder open={video} onClose={() => setVideo(false)} to={to} onSend={sendVideo} />
       <BackdropEditor open={editor} onClose={() => setEditor(false)} current={current} shareWith={shareWith} onSave={api.saveBackground} />
       {flight && <PhotoFlight flight={flight} listRef={listRef} onLanded={() => { api.reveal(flight.id); setFlight(null); }} />}
       <EnvelopeFlights items={envelopes} />

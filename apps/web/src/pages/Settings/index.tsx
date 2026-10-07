@@ -6,7 +6,7 @@ import { Gears, HangingTools, Workbench } from '@/components/settings/Workshop';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
-  AlertTriangle, Bell, Check, Download, FileText, Gamepad2, Info, Monitor, Moon, Music, Palette, RotateCcw, Save, Sun, User,
+  AlertTriangle, Bell, Check, Download, FileText, Gamepad2, Info, Monitor, Moon, Music, Palette, RotateCcw, Save, Sun, Trash2, User,
   type LucideIcon,
 } from 'lucide-react';
 import api from '@/lib/api';
@@ -17,7 +17,6 @@ import { useMotionStore } from '@/store/motionStore';
 import { useThemeStore, type ThemeMode } from '@/store/themeStore';
 import { useUIStore } from '@/store/uiStore';
 import { useToast } from '@/hooks/useToast';
-import { refreshUser } from '@/hooks/useAuth';
 import * as userService from '@/services/user.service';
 import {
   getNotificationPreferences, enablePush, PUSH_MESSAGES, pushSupport, sendTestNotification, updateNotificationPreferences,
@@ -27,7 +26,7 @@ import { THEME_PALETTES } from '@/lib/shopThemes';
 import { ZoneToggleList } from '@/components/settings/ZoneOrderEditor';
 import { PrivacyPanel } from '@/components/settings/PrivacyPanel';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { PasswordInput } from '@/components/auth/PasswordInput';
+import * as authService from '@/services/auth.service';
 import {
   Badge, Button, Card, Field, IconChip, Input, Modal, ProgressBar, SegmentedControl, Select, Switch, AnimatedValue,
 } from '@/components/ui/lq';
@@ -53,7 +52,21 @@ const TIMEZONES = [
   ['America/Mexico_City', 'Ciudad de México (UTC−6)'], ['America/Argentina/Buenos_Aires', 'Buenos Aires (UTC−3)'],
   ['America/Santiago', 'Santiago (UTC−4)'], ['Europe/Madrid', 'Madrid (UTC+1)'], ['UTC', 'UTC'],
 ];
-const RESET_WORD = 'RESET_MY_LIFEQUEST';
+/** Palabra que se escribe para confirmar cada acción irreversible. */
+const DANGER_WORD = { reset: 'REINICIAR', delete: 'ELIMINAR' } as const;
+
+/**
+ * Tras reiniciar o eliminar: borra el estado local de la cuenta (tutorial,
+ * borradores, Sabio…) y recarga, para que no quede nada de antes en pantalla.
+ * Se conservan solo las preferencias del dispositivo.
+ */
+function clearLocalAccountState() {
+  const keep = new Set(['lq_audio', 'lq_pwa_dismissed', 'lq-nav-sections']);
+  try {
+    for (const k of Object.keys(localStorage)) if (/^lq[-_]/.test(k) && !keep.has(k)) localStorage.removeItem(k);
+    sessionStorage.clear();
+  } catch { /* sin storage */ }
+}
 
 /** Sección = banco de trabajo del taller (eyebrow + título + descripción); `fit` sube al guardar y las piezas encajan. */
 function Section(props: { eyebrow?: string; title: string; description?: string; aside?: ReactNode; children: ReactNode; className?: string; fit?: number }) {
@@ -70,39 +83,40 @@ function SwitchRow({ id, label, description, checked, onChange, disabled, last }
   );
 }
 
-function ResetDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const toast = useToast();
-  const [password, setPassword] = useState('');
+function DangerDialog({ mode, onClose }: { mode: 'reset' | 'delete' | null; onClose: () => void }) {
   const [word, setWord] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  useEffect(() => { if (open) { setPassword(''); setWord(''); setError(''); } }, [open]);
+  useEffect(() => { if (mode) { setWord(''); setError(''); } }, [mode]);
+  const target = mode ? DANGER_WORD[mode] : '';
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     setBusy(true); setError('');
     try {
-      const { data } = await api.post<{ message: string }>('/auth/factory-reset', { password, confirmation: RESET_WORD });
-      toast.success(data.message);
-      onClose();
-      await refreshUser();
+      if (mode === 'delete') await authService.deleteAccount();
+      else await api.post('/auth/factory-reset', { confirmation: 'RESET_MY_LIFEQUEST' });
+      clearLocalAccountState();
+      window.location.assign(mode === 'delete' ? '/login' : '/');
     } catch (err) {
-      setError((err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'No se pudo reiniciar la cuenta.');
-    } finally { setBusy(false); }
+      setError((err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'No se pudo completar. Inténtalo de nuevo.');
+      setBusy(false);
+    }
   }
   return (
-    <Modal open={open} onClose={onClose} title="¿Reiniciar tu cuenta?">
+    <Modal open={mode !== null} onClose={onClose} title={mode === 'delete' ? '¿Eliminar tu cuenta?' : '¿Reiniciar tu cuenta?'}>
       <form noValidate onSubmit={submit} className="flex flex-col gap-4">
-        <p className="text-body-md text-on-surface">Se borran para siempre tu personaje, XP, Gold y registros. Tu cuenta y tu correo se conservan.</p>
-        <Field label="Tu contraseña actual" error={error || undefined}>
-          <PasswordInput autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
-        </Field>
-        <Field label={`Escribe ${RESET_WORD} para confirmar`}>
-          <Input value={word} onChange={(e) => setWord(e.target.value)} autoCapitalize="characters" spellCheck={false} className="font-mono" />
+        <p className="text-body-md text-on-surface">
+          {mode === 'delete'
+            ? 'Se borran para siempre tu cuenta y todos tus datos: personaje, zonas, cartas, fotos y videos. No se puede deshacer.'
+            : 'Se borran para siempre tu personaje, XP, Gold y todos tus registros, también los del gimnasio. Tu cuenta se conserva y empiezas de cero.'}
+        </p>
+        <Field label={`Escribe ${target} para confirmar`} error={error || undefined}>
+          <Input value={word} onChange={(e) => setWord(e.target.value.toUpperCase())} autoCapitalize="characters" spellCheck={false} className="font-mono" />
         </Field>
         <div className="flex justify-end gap-3">
           <Button variant="secondary" size="md" onClick={onClose}>Cancelar</Button>
-          <Button type="submit" variant="danger" size="md" loading={busy} disabled={!password || word !== RESET_WORD}>Reiniciar cuenta</Button>
+          <Button type="submit" variant="danger" size="md" loading={busy} disabled={word !== target}>{mode === 'delete' ? 'Eliminar cuenta' : 'Reiniciar cuenta'}</Button>
         </div>
       </form>
     </Modal>
@@ -133,7 +147,7 @@ export default function SettingsPage() {
   const [prefs, setPrefs] = useState<NotificationPreferences | null>(null);
   const [savingPrefs, setSavingPrefs] = useState(false);
   const [testing, setTesting] = useState(false);
-  const [resetOpen, setResetOpen] = useState(false);
+  const [danger, setDanger] = useState<'reset' | 'delete' | null>(null);
   const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>(() => (typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'unsupported'));
   /** Al guardar, las piezas encajan; cada valor que cambia hace girar los engranajes. */
   const [fit, setFit] = useState(0);
@@ -356,8 +370,11 @@ export default function SettingsPage() {
                   </div>
                   <div className="flex flex-wrap items-center gap-4 rounded-2xl bg-error/[var(--lq-soft-alpha)] p-5">
                     <AlertTriangle aria-hidden className="size-6 text-error-text" strokeWidth={1.75} />
-                    <div className="min-w-0 flex-[1_1_260px]"><div className="text-label-lg text-error-text md:text-body-md md:font-semibold">Zona de peligro</div><div className="text-body-sm text-on-surface">Reiniciar tu cuenta borra para siempre tu personaje, XP y Gold.</div></div>
-                    <Button variant="danger" size="md" onClick={() => setResetOpen(true)}><RotateCcw aria-hidden className="size-4" />Reiniciar cuenta</Button>
+                    <div className="min-w-0 flex-[1_1_260px]"><div className="text-label-lg text-error-text md:text-body-md md:font-semibold">Zona de peligro</div><div className="text-body-sm text-on-surface">Reiniciar borra tu progreso y empiezas de cero. Eliminar borra tu cuenta y todos tus datos para siempre.</div></div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button variant="danger" size="md" onClick={() => setDanger('reset')}><RotateCcw aria-hidden className="size-4" />Reiniciar cuenta</Button>
+                      <Button variant="danger" size="md" onClick={() => setDanger('delete')}><Trash2 aria-hidden className="size-4" />Eliminar cuenta</Button>
+                    </div>
                   </div>
                 </Section>
               )}
@@ -368,6 +385,8 @@ export default function SettingsPage() {
                   <div className="flex flex-wrap gap-2">
                     <Button variant="ghost" size="md" onClick={() => navigate('/about')}><Info aria-hidden className="size-4" />Acerca de</Button>
                     <Button variant="ghost" size="md" onClick={() => navigate('/faq')}>Ayuda</Button>
+                    <Button variant="ghost" size="md" onClick={() => navigate('/privacy')}>Privacidad</Button>
+                    <Button variant="ghost" size="md" onClick={() => navigate('/terms')}>Términos</Button>
                   </div>
                 </Section>
               )}
@@ -392,7 +411,7 @@ export default function SettingsPage() {
         </motion.aside>
       </div>
 
-      <ResetDialog open={resetOpen} onClose={() => setResetOpen(false)} />
+      <DangerDialog mode={danger} onClose={() => setDanger(null)} />
     </ZoneShell>
   );
 }

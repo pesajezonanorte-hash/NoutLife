@@ -5,7 +5,7 @@
 import { useEffect, useId, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Brain, Coins, Droplet, Dumbbell, Heart, Sparkles, Star, type LucideIcon } from 'lucide-react';
+import { Brain, Coins, Dumbbell, Heart, Sparkles, Star, type LucideIcon } from 'lucide-react';
 import { dialog, scrim, spring } from '@/lib/motion';
 import { getLevelTitle } from '@/lib/gameProgress';
 import { useUIStore, type StatIncreases } from '@/store/uiStore';
@@ -15,7 +15,6 @@ const AUTO_CLOSE_MS = 5000;
 
 const STATS: Array<{ key: keyof StatIncreases; label: string; icon: LucideIcon; variant: BadgeVariant }> = [
   { key: 'hp', label: 'HP', icon: Heart, variant: 'error' },
-  { key: 'mp', label: 'MP', icon: Droplet, variant: 'info' },
   { key: 'strength', label: 'Fuerza', icon: Dumbbell, variant: 'success' },
   { key: 'intelligence', label: 'Inteligencia', icon: Brain, variant: 'forest' },
   { key: 'charisma', label: 'Carisma', icon: Sparkles, variant: 'warning' },

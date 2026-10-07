@@ -9,7 +9,7 @@ import { memo, useEffect, useRef, useState, type PointerEvent as ReactPointerEve
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { AnimatePresence, motion, useMotionValue, useTransform } from 'framer-motion';
-import { Bookmark, CheckCheck, Copy, Pencil, Reply, SmilePlus, Trash2, type LucideIcon } from 'lucide-react';
+import { Bookmark, CheckCheck, Copy, Pencil, Play, Reply, SmilePlus, Trash2, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { springs } from '@/lib/motion/presets';
 import { useMotionStore } from '@/store/motionStore';
@@ -37,6 +37,7 @@ export function snippetOf(m: { kind: string; content: string | null; deleted?: b
   if (m.deleted || m.deletedAt) return 'Mensaje borrado';
   switch (m.kind) {
     case 'SNAP': case 'PHOTO': return m.content ? `Foto · ${m.content}` : 'Foto';
+    case 'VIDEO': return m.content ? `Video · ${m.content}` : 'Video';
     case 'VOICE': return 'Nota de voz';
     case 'STICKER': return 'Sticker';
     case 'GAME': return 'Minijuego';
@@ -124,6 +125,51 @@ function LetterPhoto({ m, side, onOpen }: { m: LetterMsg; side: 'dm' | 'guild'; 
           caption={m.content} tilt={tiltOf(id) * 3} develop={m.fresh} className={cn('w-full', m.pending && !m.hidden && 'opacity-90')}
         />
       </button>
+    </motion.div>
+  );
+}
+
+/**
+ * Video pegado en la carta como una polaroid: muestra su miniatura y la
+ * duración; el video se pide al acercarse y se reproduce al tocarlo.
+ */
+function LetterVideo({ m, side }: { m: LetterMsg; side: 'dm' | 'guild' }) {
+  const id = m.localId ?? m.id;
+  const { ref, near } = useNearScreen<HTMLDivElement>();
+  const media = useMedia(side, m.id, { enabled: near, local: m.local });
+  const video = useRef<HTMLVideoElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const secs = Math.round((m.meta?.durationMs ?? 0) / 1000);
+  function toggle() {
+    const v = video.current;
+    if (!v) return;
+    if (v.paused) void v.play().catch(() => undefined); else v.pause();
+  }
+  return (
+    <motion.div ref={ref} initial={false} animate={{ opacity: m.hidden ? 0 : 1 }} className="py-2">
+      <div className="relative w-[min(240px,62vw)] rounded-[3px] bg-white p-2 pb-7 shadow-md" style={{ rotate: `${tiltOf(id) * 3}deg` }}>
+        <div className="relative aspect-[3/4] overflow-hidden bg-black">
+          {media.audioUrl ? (
+            <video
+              ref={video} src={media.audioUrl} poster={m.meta?.thumb} playsInline preload="metadata"
+              onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onEnded={() => setPlaying(false)}
+              aria-label={m.mine ? 'Tu video' : `Video de ${m.author?.name ?? 'tu amigo'}`}
+              className="size-full object-cover"
+            />
+          ) : m.meta?.thumb ? <img src={m.meta.thumb} alt="" className="size-full object-cover blur-[2px]" /> : null}
+          <button
+            type="button" onClick={toggle} disabled={!media.audioUrl}
+            aria-label={playing ? 'Pausar el video' : 'Reproducir el video'}
+            className={cn('absolute inset-0 flex items-center justify-center transition-opacity', playing && 'opacity-0')}
+          >
+            <span className="flex size-12 items-center justify-center rounded-full bg-black/55 text-white"><Play aria-hidden className="ml-0.5 size-6" fill="currentColor" /></span>
+          </button>
+        </div>
+        <span className="absolute bottom-1.5 left-2.5 right-2.5 flex items-center justify-between text-body-sm text-jade-900">
+          <span className="truncate">{m.content}</span>
+          <span className="font-mono tabular-nums">0:{String(secs).padStart(2, '0')}</span>
+        </span>
+      </div>
     </motion.div>
   );
 }
@@ -225,6 +271,8 @@ export const MessageRow = memo(function MessageRow({ m, side, meId, group, joine
     );
   } else if ((m.kind === 'SNAP' || m.kind === 'PHOTO') && m.media.photo) {
     body = <LetterPhoto m={m} side={side} onOpen={onOpenPhoto} />;
+  } else if (m.kind === 'VIDEO' && m.media.audio) {
+    body = <LetterVideo m={m} side={side} />;
   } else if (m.kind === 'VOICE') {
     body = (
       <Slip m={m} quote={quote}>

@@ -6,7 +6,6 @@ export interface StatIncreases {
   intelligence?: number;
   charisma?: number;
   hp?: number;
-  mp?: number;
 }
 
 export interface LevelUpData {

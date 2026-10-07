@@ -4,12 +4,11 @@
 //     tope y entonces se desplaza siguiendo lo que escribes,
 //   · la carita: abre el cajón de stickers y juegos en el sitio del teclado,
 //   · el lacre: envía sin cerrar el teclado (como en Instagram). Con el renglón
-//     vacío es un micrófono: mantenlo pulsado para grabar y suelta para enviar
-//     (desliza a la izquierda para cancelar), o tócalo para grabar con las manos libres.
+//     vacío es la cámara de video: graba hasta 15 s para la carta.
 // Encima, la cita a la que respondes o el mensaje que editas.
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type FormEvent, type PointerEvent } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type FormEvent } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Camera, Mic, Pencil, Reply, Send, Smile, Trash2, X } from 'lucide-react';
+import { Camera, Pencil, Reply, Send, Smile, Video, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { springs } from '@/lib/motion/presets';
 import { useMotionStore } from '@/store/motionStore';
@@ -19,7 +18,6 @@ import { Button } from '@/components/ui/lq';
 import type { GameType } from '@/services/network.service';
 import { Quote, snippetOf } from './MessageRow';
 import { StickerPanel } from './StickerPanel';
-import { clock, useVoiceRecorder, type VoiceClip } from './voice';
 import type { LetterMsg } from './useLetter';
 
 const toaster = () => useToastStore.getState();
@@ -39,7 +37,8 @@ interface Props {
   onSend: (text: string) => Promise<void>;
   onEdit: (text: string) => Promise<void>;
   onCamera: () => void;
-  onVoice: (clip: VoiceClip) => Promise<void>;
+  /** Abre el grabador de video. */
+  onVideo: () => void;
   onSticker: (hash: string) => void;
   onGame: (type: GameType) => void;
   onTyping: (on: boolean) => void;
@@ -50,19 +49,12 @@ interface Props {
 }
 
 export const Composer = forwardRef<ComposerHandle, Props>(function Composer(props, handle) {
-  const { to, maxLength, replying, editing, nameOf, colorOf, onCancelReply, onCancelEdit, onSend, onEdit, onCamera, onVoice, onSticker, onGame, onTyping, onFocusChange, keyboardHeight } = props;
+  const { to, maxLength, replying, editing, nameOf, colorOf, onCancelReply, onCancelEdit, onSend, onEdit, onCamera, onVideo, onSticker, onGame, onTyping, onFocusChange, keyboardHeight } = props;
   const reduce = useMotionStore((s) => s.reduce);
   const fine = useMediaQuery('(pointer: fine)');
   const input = useRef<HTMLTextAreaElement>(null);
   const [text, setText] = useState('');
   const [drawer, setDrawer] = useState(false);
-  // Al llegar a los 2 minutos la nota se envía sola (así no se pierde).
-  const rec = useVoiceRecorder(() => void finishVoice(true));
-  /** El micrófono ya está grabando (la petición de permiso puede tardar). */
-  const micReady = useRef(false);
-  const [voiceMode, setVoiceMode] = useState<'off' | 'hold' | 'locked'>('off');
-  const [cancelling, setCancelling] = useState(false);
-  const press = useRef<{ x: number; at: number } | null>(null);
 
   useImperativeHandle(handle, () => ({ focus: () => input.current?.focus(), blur: () => input.current?.blur() }));
 
@@ -105,57 +97,6 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(prop
     }
   }
 
-  // ─── Notas de voz ──────────────────────────────────────────────────────────
-  const voiceFailed = (why: 'denied' | 'unsupported') =>
-    toaster().error(why === 'denied' ? 'Sin permiso para usar el micrófono' : 'Este navegador no puede grabar notas de voz');
-  async function micDown(e: PointerEvent<HTMLButtonElement>) {
-    if (voiceMode !== 'off') return;
-    e.preventDefault();
-    e.currentTarget.setPointerCapture?.(e.pointerId);
-    press.current = { x: e.clientX, at: Date.now() };
-    setVoiceMode('hold');
-    setCancelling(false);
-    const result = await rec.start();
-    if (result !== 'recording') {
-      setVoiceMode('off');
-      press.current = null;
-      voiceFailed(result);
-      return;
-    }
-    micReady.current = true;
-    // Soltó el dedo (o el sistema canceló el gesto) mientras el micrófono arrancaba: sigue grabando y queda el botón de enviar.
-    setVoiceMode(press.current ? 'hold' : 'locked');
-  }
-  /** El navegador canceló el gesto (menú de pulsación larga, cambio de app…): no se pierde la nota. */
-  function micCancel() {
-    if (voiceMode !== 'hold') return;
-    press.current = null;
-    // Con el permiso del micrófono pendiente iOS cancela el gesto: se sigue y, si arranca, queda con el botón de enviar.
-    setVoiceMode('locked');
-  }
-  function micMove(e: PointerEvent<HTMLButtonElement>) {
-    if (voiceMode !== 'hold' || !press.current) return;
-    setCancelling(e.clientX - press.current.x < -90);
-  }
-  async function micUp() {
-    if (voiceMode !== 'hold' || !press.current) return;
-    const held = Date.now() - press.current.at;
-    press.current = null;
-    // Un toque (o el micrófono aún arrancando): sigue grabando con las manos libres y con el botón de enviar.
-    if (held < 350 || !micReady.current) { setVoiceMode('locked'); return; }
-    await finishVoice(!cancelling);
-  }
-  async function finishVoice(send: boolean) {
-    micReady.current = false;
-    setVoiceMode('off');
-    setCancelling(false);
-    const clip = await rec.stop(send);
-    if (!send) return;
-    if (!clip) { toaster().info('No se grabó la nota', 'Mantén pulsado el micrófono al menos un segundo o toca una vez y toca enviar.'); return; }
-    try { await onVoice(clip); } catch (err) { toaster().error((err as Error).message); }
-  }
-
-  const recording = voiceMode !== 'off';
   const empty = !text.trim();
   const drawerHeight = Math.min(360, Math.max(250, keyboardHeight || 290));
 
@@ -182,31 +123,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(prop
       </AnimatePresence>
 
       <form onSubmit={submit} className="relative flex items-end gap-2 border-t border-border/80 bg-surface px-2.5 pt-2.5 md:px-5" style={{ paddingBottom: drawer ? '0.625rem' : 'max(.625rem, env(safe-area-inset-bottom))' }}>
-        <AnimatePresence mode="popLayout" initial={false}>
-          {recording ? (
-            <motion.div key="rec" initial={reduce ? false : { opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20, transition: { duration: 0.12 } }} transition={springs.snappy}
-              className="flex min-h-12 flex-1 items-center gap-3 pl-1">
-              <Button type="button" variant="icon" aria-label="Descartar la nota de voz" onClick={() => void finishVoice(false)} className="text-error-text">
-                <Trash2 aria-hidden className="size-5" />
-              </Button>
-              <span className="relative flex size-3 shrink-0" aria-hidden="true">
-                <span className="absolute inset-0 animate-ping rounded-full bg-error/60 [.reduce-motion_&]:hidden" />
-                <span className="relative size-3 rounded-full bg-error" />
-              </span>
-              <span className="font-mono text-label-lg tabular-nums text-on-background" role="timer" aria-live="off">{clock(rec.elapsed)}</span>
-              <span aria-hidden="true" className="flex h-7 flex-1 items-center gap-[3px] overflow-hidden">
-                {Array.from({ length: 18 }, (_, i) => (
-                  <span key={i} className="block w-[3px] rounded-full bg-error/70 transition-[height] duration-100" style={{ height: `${Math.max(12, Math.min(100, rec.level * 100 * (0.5 + ((i * 37) % 10) / 10)))}%` }} />
-                ))}
-              </span>
-              {voiceMode === 'hold' && (
-                <span className={cn('whitespace-nowrap text-body-sm transition-colors', cancelling ? 'text-error-text' : 'text-on-surface-light')}>
-                  {cancelling ? 'Suelta para cancelar' : '‹ Desliza para cancelar'}
-                </span>
-              )}
-            </motion.div>
-          ) : (
-            <motion.div key="write" initial={reduce ? false : { opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.1 } }} className="flex min-w-0 flex-1 items-end gap-2">
+            <div className="flex min-w-0 flex-1 items-end gap-2">
               <Button type="button" variant="secondary" aria-label={`Tomar o elegir una foto para ${to}`} onClick={onCamera} className="size-12 shrink-0 rounded-full p-0">
                 <Camera aria-hidden className="size-5" strokeWidth={1.75} />
               </Button>
@@ -233,30 +150,17 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(prop
                   <Smile aria-hidden className="size-6" strokeWidth={1.75} />
                 </button>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            </div>
 
         {empty && !editing ? (
-          recording && voiceMode === 'locked' ? (
-            <motion.button
-              type="button" aria-label="Enviar la nota de voz" onClick={() => void finishVoice(true)}
-              whileTap={reduce ? undefined : { scale: 0.86, rotate: -10 }}
-              className="lq-wax flex size-12 shrink-0 items-center justify-center"
-            >
-              <Send aria-hidden className="size-5" strokeWidth={1.75} />
-            </motion.button>
-          ) : (
-            <motion.button
-              type="button" aria-label={recording ? 'Grabando: suelta para enviar' : 'Mantén pulsado para grabar una nota de voz'}
-              onPointerDown={(e) => void micDown(e)} onPointerMove={micMove} onPointerUp={() => void micUp()} onPointerCancel={micCancel} onContextMenu={(e) => e.preventDefault()}
-              onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && !recording) { e.preventDefault(); void rec.start().then((r) => (r === 'recording' ? setVoiceMode('locked') : voiceFailed(r))); } }}
-              animate={recording ? { scale: 1.25 } : { scale: 1 }} transition={springs.snappy}
-              className={cn('flex size-12 shrink-0 touch-none select-none items-center justify-center rounded-full transition-colors [-webkit-touch-callout:none]', recording ? 'bg-error text-white shadow-lg' : 'bg-primary/12 text-primary-text hover:bg-primary/20')}
-            >
-              <Mic aria-hidden className="size-5" strokeWidth={1.9} />
-            </motion.button>
-          )
+          <motion.button
+            type="button" aria-label={`Grabar un video para ${to} (hasta 15 segundos)`} onClick={onVideo}
+            initial={reduce ? false : { scale: 0.6 }} animate={{ scale: 1 }} transition={springs.snappy}
+            whileTap={reduce ? undefined : { scale: 0.88 }}
+            className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary/12 text-primary-text transition-colors hover:bg-primary/20"
+          >
+            <Video aria-hidden className="size-5" strokeWidth={1.9} />
+          </motion.button>
         ) : (
           <motion.button
             type="submit" aria-label={editing ? 'Guardar el cambio' : 'Enviar carta'} disabled={empty}

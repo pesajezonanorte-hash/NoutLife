@@ -54,7 +54,6 @@ export interface GuideCompletionResult {
       intelligence?: number;
       charisma?: number;
       hp?: number;
-      mp?: number;
     };
   };
 }
