@@ -36,6 +36,8 @@ export interface ParsedMeal {
   estimatedFat: number;
   aiAvailable: boolean;
   aiSucceeded: boolean;
+  recognized: boolean;
+  needsIngredients: boolean;
 }
 
 /** null si el usuario aún no definió metas. */

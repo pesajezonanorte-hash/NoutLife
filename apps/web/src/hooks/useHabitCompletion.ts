@@ -41,5 +41,19 @@ export function useHabitCompletion() {
     }
   }, [addFloatingXP, triggerLevelUp, showAchievementToast]);
 
-  return { complete, pending, burst };
+  const undo = useCallback(async (habit: { id: string; title: string }) => {
+    setPending(habit.id);
+    try {
+      const result = await habitService.undoHabitLog(habit.id);
+      if (result.undone) useToastStore.getState().info(`${habit.title}: desmarcado hoy`, 'La racha queda protegida; no volverás a cobrar XP por este registro.');
+      return result;
+    } catch {
+      useToastStore.getState().error('No se pudo desmarcar el hábito', 'Inténtalo de nuevo');
+      return null;
+    } finally {
+      setPending(null);
+    }
+  }, []);
+
+  return { complete, undo, pending, burst };
 }

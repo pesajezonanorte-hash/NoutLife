@@ -89,8 +89,7 @@ export function HabitNotebookRow({ habit, onComplete, pending, week, index }: Ha
           <span aria-hidden className="text-label-md text-on-surface-light font-mono tabular-nums">{weekDone}/7</span>
         </span>
       )}
-      {/* TODO(api): no hay endpoint para deshacer un registro; una vez completado el check queda bloqueado. */}
-      <InkCheckButton name={habit.title} checked={done} locked pending={pending} onToggle={onComplete} />
+      <InkCheckButton name={habit.title} checked={done} pending={pending} onToggle={onComplete} />
     </motion.li>
   );
 }

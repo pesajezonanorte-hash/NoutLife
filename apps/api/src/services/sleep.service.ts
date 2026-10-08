@@ -1,5 +1,21 @@
 import { prisma } from '../lib/prisma';
 
+const MIN_NAP_HOURS = 5 / 60;
+const MAX_NAP_HOURS = 4;
+const MIN_NIGHT_HOURS = 0.5;
+const MAX_NIGHT_HOURS = 12;
+
+function durationHours(bedtime: Date, wakeTime: Date) {
+  const elapsed = (wakeTime.getTime() - bedtime.getTime()) / 3_600_000;
+  return elapsed < 0 ? elapsed + 24 : elapsed;
+}
+
+function validDuration(duration: number, isNap: boolean) {
+  return Number.isFinite(duration) && (isNap
+    ? duration >= MIN_NAP_HOURS && duration <= MAX_NAP_HOURS
+    : duration >= MIN_NIGHT_HOURS && duration <= MAX_NIGHT_HOURS);
+}
+
 export async function listSleep(userId: string, month?: string) {
   const where: Record<string, unknown> = { userId };
   if (month) {
@@ -28,11 +44,12 @@ export async function createSleep(
 ) {
   const bedtime = new Date(body.bedtime);
   const wakeTime = new Date(body.wakeTime);
-  let duration = (wakeTime.getTime() - bedtime.getTime()) / 3600000;
-  if (duration < 0) duration += 24;
+  const duration = durationHours(bedtime, wakeTime);
+  const isNap = body.isNap ?? false;
+  if (!validDuration(duration, isNap)) throw new Error('SLEEP_DURATION_INVALID');
 
   // Las siestas no tienen puntuación de noche (la hora de acostarse no aplica).
-  const sleepScore = body.isNap ? null : calcSleepScore(duration, body.quality, bedtime);
+  const sleepScore = isNap ? null : calcSleepScore(duration, body.quality, bedtime);
 
   return prisma.sleepLog.create({
     data: {
@@ -47,7 +64,7 @@ export async function createSleep(
       caffeineLate: body.caffeineLate,
       screensBeforeBed: body.screensBeforeBed,
       exercisedToday: body.exercisedToday,
-      isNap: body.isNap ?? false,
+      isNap,
     },
   });
 }
@@ -61,8 +78,8 @@ export async function updateSleep(userId: string, id: string, body: Partial<{ be
   const quality = body.quality ?? existing.quality;
   const shouldRecalculate = body.bedtime !== undefined || body.wakeTime !== undefined || body.quality !== undefined;
 
-  let duration = (wakeTime.getTime() - bedtime.getTime()) / 3600000;
-  if (duration < 0) duration += 24;
+  const duration = durationHours(bedtime, wakeTime);
+  if (shouldRecalculate && !validDuration(duration, existing.isNap)) throw new Error('SLEEP_DURATION_INVALID');
 
   return prisma.sleepLog.update({
     where: { id },

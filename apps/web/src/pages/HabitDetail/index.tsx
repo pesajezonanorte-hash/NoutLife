@@ -95,7 +95,7 @@ export default function HabitDetailPage() {
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const { complete, pending, burst } = useHabitCompletion();
+  const { complete, undo, pending, burst } = useHabitCompletion();
   const isDesktop = useMediaQuery('(min-width: 768px)');
 
   usePageCrumb(habit?.title);
@@ -126,6 +126,20 @@ export default function HabitDetailPage() {
     const result = await complete(habit, status);
     if (!result) return;
     setHabit((h) => h && { ...h, todayStatus: status, todayCompleted: status === 'completed', currentStreak: result.currentStreak, longestStreak: result.longestStreak });
+  }
+
+  async function toggleToday() {
+    if (!habit) return;
+    if (!todayDone) { await log('completed'); return; }
+    const result = await undo(habit);
+    if (!result?.undone) return;
+    setHabit((h) => h && { ...h, todayStatus: result.log?.status ?? 'pending', todayCompleted: false, currentStreak: result.currentStreak, longestStreak: result.longestStreak });
+    if (result.log) {
+      const key = result.log.date.slice(0, 10);
+      setEntries((prev) => prev.some((entry) => entry.date.slice(0, 10) === key)
+        ? prev.map((entry) => entry.date.slice(0, 10) === key ? { ...entry, status: 'pending', completed: false } : entry)
+        : [...prev, { date: key, status: 'pending', completed: false }]);
+    }
   }
 
   async function handleDelete() {
@@ -207,14 +221,18 @@ export default function HabitDetailPage() {
           </div>
         </div>
         <div className="flex flex-wrap gap-3">
-          {!habit.todayStatus && (
+          {todayDone ? (
+            <Button variant="secondary" onClick={() => void toggleToday()} loading={pending === habit.id}>
+              <Check aria-hidden className="size-5" strokeWidth={2} />Desmarcar hoy
+            </Button>
+          ) : !habit.todayStatus || habit.todayStatus === 'pending' ? (
             <>
-              <Button onClick={() => void log('completed')} loading={pending === habit.id}>
+              <Button onClick={() => void toggleToday()} loading={pending === habit.id}>
                 <Check aria-hidden className="size-5" strokeWidth={2} />Completar hoy
               </Button>
               <Button variant="ghost" onClick={() => void log('skipped')} disabled={pending === habit.id}>Omitir hoy</Button>
             </>
-          )}
+          ) : null}
           <span className="hidden gap-3 md:flex">
             <Button variant="secondary" size="md" onClick={() => setEditing(true)}><Pencil aria-hidden className="size-4" strokeWidth={1.75} />Editar</Button>
             <Button variant="danger" size="md" onClick={() => setConfirmDelete(true)}><Trash2 aria-hidden className="size-4" strokeWidth={1.75} />Eliminar</Button>

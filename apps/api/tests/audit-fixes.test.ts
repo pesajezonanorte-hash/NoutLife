@@ -7,11 +7,13 @@ import { createTransactionSchema } from '../src/schemas/finance.schemas';
 import { completeFocusSchema } from '../src/schemas/focus.schemas';
 import { createHabitSchema, habitLogSchema, updateHabitSchema } from '../src/schemas/habit.schemas';
 import {
+  computeHabitStreaks,
   createHabit,
   isHabitScheduledForDay,
   listHabits,
   logHabit,
   reconcileHabitStreaks,
+  undoHabitLog,
 } from '../src/services/habit.service';
 import { completeRitual, getRitualStats } from '../src/services/rituals.service';
 
@@ -174,11 +176,12 @@ void test('remediaciones de auditoría', async (suite) => {
   });
 
   await suite.test('P3/P5 log nuevo inicia en 1, el reintento conserva racha y el backfill es idempotente por fecha', async () => {
-    const logs = new Map<string, { id: string; habitId: string; date: Date; completed: boolean; status: string }>();
+    const logs = new Map<string, { id: string; habitId: string; date: Date; completed: boolean; status: string; rewardsGranted: boolean }>();
     const habit = {
       id: 'habit-1', userId: 'u-1', title: 'Leer', category: 'LEARNING' as const,
       currentStreak: 0, longestStreak: 0, frequency: { type: 'daily', days: [] },
-      xpReward: 20, goldReward: 5, icon: 'book', user: { timezone: 'America/Bogota' },
+      xpReward: 20, goldReward: 5, icon: 'book', isActive: true,
+      user: { timezone: 'America/Bogota' },
     };
     const user = {
       playerClass: null, xp: 0, level: 1, xpToNextLevel: 100, gold: 0,
@@ -207,10 +210,17 @@ void test('remediaciones de auditoría', async (suite) => {
       },
       habitLog: {
         findUnique: async ({ where }: { where: { habitId_date: { date: Date } } }) => logs.get(key(where.habitId_date.date)) ?? null,
+        findMany: async () => [...logs.values()].map(({ date, completed, status }) => ({ date, completed, status })),
         create: async ({ data }: { data: { habitId: string; date: Date; completed: boolean; status: string } }) => {
-          const log = { id: `log-${logs.size + 1}`, ...data };
+          const log = { id: `log-${logs.size + 1}`, ...data, rewardsGranted: false };
           logs.set(key(data.date), log);
           return log;
+        },
+        updateMany: async ({ where, data }: { where: { id: string; completed?: boolean; rewardsGranted?: boolean }; data: Record<string, unknown> }) => {
+          const log = [...logs.values()].find((entry) => entry.id === where.id);
+          if (!log || (where.completed !== undefined && log.completed !== where.completed) || (where.rewardsGranted !== undefined && log.rewardsGranted !== where.rewardsGranted)) return { count: 0 };
+          Object.assign(log, data);
+          return { count: 1 };
         },
         update: async ({ where, data }: { where: { id: string }; data: { completed: boolean; status: string } }) => {
           const log = [...logs.values()].find((entry) => entry.id === where.id)!;
@@ -252,7 +262,7 @@ void test('remediaciones de auditoría', async (suite) => {
       assert.equal(backfill.log.date.toISOString().slice(0, 10), yesterday);
       assert.equal(repeatBackfill.rewards, null);
       assert.equal(logs.size, 2);
-      assert.equal(habit.currentStreak, 1);
+      assert.equal(habit.currentStreak, 2);
       assert.equal(xpEvents, 2);
 
       const tomorrow = addCalendarDays(getCalendarDay('America/Bogota'), 1).toISOString().slice(0, 10);
@@ -260,6 +270,60 @@ void test('remediaciones de auditoría', async (suite) => {
       await assert.rejects(() => logHabit('u-1', 'habit-1', 'completed', undefined, ''), /INVALID_HABIT_LOG_DATE/);
       assert.equal(habitLogSchema.safeParse({ status: 'completed', date: '2026-02-30' }).success, false);
       assert.equal(habitLogSchema.safeParse({ status: 'completed', date: yesterday }).success, true);
+    });
+  });
+
+  await suite.test('P1 desmarcar conserva la racha previa y re-marcar no duplica XP', async () => {
+    const today = getCalendarDay('America/Bogota');
+    const yesterday = addCalendarDays(today, -1);
+    const key = (date: Date) => date.toISOString().slice(0, 10);
+    const logs = new Map<string, { id: string; habitId: string; userId: string; date: Date; completed: boolean; status: string; rewardsGranted: boolean }>([
+      [key(yesterday), { id: 'log-yesterday', habitId: 'habit-undo', userId: 'u-1', date: yesterday, completed: true, status: 'completed', rewardsGranted: true }],
+      [key(today), { id: 'log-today', habitId: 'habit-undo', userId: 'u-1', date: today, completed: true, status: 'completed', rewardsGranted: true }],
+    ]);
+    const habit = {
+      id: 'habit-undo', userId: 'u-1', title: 'Caminar', category: 'HEALTH' as const,
+      currentStreak: 2, longestStreak: 7, frequency: { type: 'daily', days: [] },
+      xpReward: 20, goldReward: 5, icon: 'walk', isActive: true, createsGymAttendance: false,
+      user: { timezone: 'America/Bogota' },
+    };
+    let deletedAttendance = 0;
+
+    await withMocks({
+      habit: {
+        findMany: async () => [],
+        findFirst: async () => habit,
+        findUnique: async () => habit,
+        update: async ({ data }: { data: Partial<typeof habit> }) => { Object.assign(habit, data); return habit; },
+      },
+      habitLog: {
+        findUnique: async ({ where }: { where: { id?: string; habitId_date?: { date: Date } } }) => {
+          if (where.id) return [...logs.values()].find((entry) => entry.id === where.id) ?? null;
+          return where.habitId_date ? logs.get(key(where.habitId_date.date)) ?? null : null;
+        },
+        findMany: async () => [...logs.values()].map(({ date, completed, status }) => ({ date, completed, status })),
+        updateMany: async ({ where, data }: { where: { id: string; completed?: boolean; rewardsGranted?: boolean }; data: Record<string, unknown> }) => {
+          const log = [...logs.values()].find((entry) => entry.id === where.id);
+          if (!log || (where.completed !== undefined && log.completed !== where.completed) || (where.rewardsGranted !== undefined && log.rewardsGranted !== where.rewardsGranted)) return { count: 0 };
+          Object.assign(log, data);
+          return { count: 1 };
+        },
+      },
+      gymAttendance: { deleteMany: async () => { deletedAttendance += 1; return { count: 0 }; } },
+      recoveryChallenge: { findFirst: async () => null },
+    }, async () => {
+      const undone = await undoHabitLog('u-1', 'habit-undo');
+      assert.equal(undone.undone, true);
+      assert.equal(undone.log?.status, 'pending');
+      assert.equal(undone.currentStreak, 1);
+      assert.equal(undone.longestStreak, 7);
+      assert.equal(deletedAttendance, 1);
+      assert.equal(computeHabitStreaks([...logs.values()], habit.frequency, today).current, 1);
+
+      const completedAgain = await logHabit('u-1', 'habit-undo', 'completed');
+      assert.equal(completedAgain.currentStreak, 2);
+      assert.equal(completedAgain.rewards, null);
+      assert.equal(logs.get(key(today))?.rewardsGranted, true);
     });
   });
 

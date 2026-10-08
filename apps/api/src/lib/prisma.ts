@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
-import { LETTERS_AND_GESTURES_SQL, REMOVE_LEGACY_HABIT_RITUAL_FLAG_SQL, SOCIAL_NETWORK_SQL, SOCIAL_PRO_SQL } from './schema-migrations';
+import { LETTERS_AND_GESTURES_SQL, REMOVE_LEGACY_HABIT_RITUAL_FLAG_SQL, RLS_LOCKDOWN_SQL, SOCIAL_NETWORK_SQL, SOCIAL_PRO_SQL } from './schema-migrations';
+import { BACKLOG_SQL, REVERSIBLE_HABIT_LOGS_SQL, WARDROBE_PHOTO_SQL } from './backlog-migrations';
 import { ensureDefaultCatalog } from './default-catalog';
 
 function getDatabaseUrl(): string {
@@ -103,6 +104,14 @@ export function ensureDbMigrated(): Promise<void> {
         for (const sql of SOCIAL_PRO_SQL) {
           await prisma.$executeRawUnsafe(sql).catch((err) => console.error('Runtime DB migration (social pro):', err));
         }
+        for (const sql of REVERSIBLE_HABIT_LOGS_SQL) {
+          await prisma.$executeRawUnsafe(sql).catch((err) => console.error('Runtime DB migration (reversible habit logs):', err));
+        }
+        await prisma.$executeRawUnsafe(WARDROBE_PHOTO_SQL).catch((err) => console.error('Runtime DB migration (wardrobe photo):', err));
+        for (const sql of BACKLOG_SQL) {
+          await prisma.$executeRawUnsafe(sql).catch((err) => console.error('Runtime DB migration (backlog):', err));
+        }
+        await prisma.$executeRawUnsafe(RLS_LOCKDOWN_SQL).catch((err) => console.error('Runtime RLS lockdown:', err));
 
         // Global catalog rows are not player-owned. Bootstrap missing entries on
         // cold production databases so Shop and Achievements never render as a

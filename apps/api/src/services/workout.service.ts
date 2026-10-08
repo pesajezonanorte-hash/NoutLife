@@ -148,6 +148,7 @@ export async function finishWorkout(userId: string, id: string, body: { notes?: 
     body: `+${result.xpGained} XP por tu entrenamiento.`,
     icon: '🏋️',
     link: '/gym',
+    silentForeground: true,
   }).catch(() => {});
 
   const achievementsUnlocked = await checkAchievements(userId, 'workout_finished').catch(() => []);

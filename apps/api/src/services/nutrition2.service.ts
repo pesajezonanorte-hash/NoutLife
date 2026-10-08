@@ -48,6 +48,8 @@ export interface ParsedMeal {
   estimatedFat: number;
   aiAvailable: boolean;
   aiSucceeded: boolean;
+  recognized: boolean;
+  needsIngredients: boolean;
 }
 
 const num = (v: unknown, fallback = 0): number => {
@@ -95,7 +97,7 @@ function extractJsonObject(raw: string): unknown | null {
 export async function parseMealWithAI(description: string): Promise<ParsedMeal> {
   const trimmed = (description ?? '').trim();
   if (!trimmed) {
-    return { name: '', estimatedCalories: 0, estimatedProtein: 0, estimatedCarbs: 0, estimatedFat: 0, aiAvailable: false, aiSucceeded: false };
+    return { name: '', estimatedCalories: 0, estimatedProtein: 0, estimatedCarbs: 0, estimatedFat: 0, aiAvailable: false, aiSucceeded: false, recognized: false, needsIngredients: false };
   }
 
   const fallback: ParsedMeal = {
@@ -106,20 +108,24 @@ export async function parseMealWithAI(description: string): Promise<ParsedMeal> 
     estimatedFat: 0,
     aiAvailable: hasAIProvider(),
     aiSucceeded: false,
+    recognized: false,
+    needsIngredients: false,
   };
 
   if (!hasAIProvider()) return fallback;
 
-  const prompt = `Eres un nutricionista experto. Estima los macros de la comida descrita.
+  const prompt = `Eres un nutricionista experto. Identifica la comida y estima sus macros sin inventar ingredientes.
 Responde SOLO con JSON válido, sin markdown, sin texto adicional.
 Formato exacto:
-{"name":"nombre resumido","estimatedCalories":NUMBER,"estimatedProtein":NUMBER,"estimatedCarbs":NUMBER,"estimatedFat":NUMBER}
+{"recognized":true,"needsIngredients":false,"name":"nombre resumido","estimatedCalories":NUMBER,"estimatedProtein":NUMBER,"estimatedCarbs":NUMBER,"estimatedFat":NUMBER}
 
 Reglas:
+- Si el plato es desconocido, ambiguo o no puedes identificar sus ingredientes principales, responde recognized=false y needsIngredients=true; no adivines macros y usa 0 en los valores.
+- Si es reconocible, responde recognized=true y needsIngredients=false.
 - Macros en gramos, calorías en kcal.
 - Si no se especifica cantidad, asume una porción típica (1 plato, 1 unidad, etc.).
-- Conocimiento de comida colombiana/latinoamericana.
-- Nunca devuelvas null o undefined; si no estás seguro, estima un valor razonable.
+- Ten en cuenta la comida colombiana y latinoamericana.
+- Nunca devuelvas null o undefined.
 
 Comida del usuario: "${trimmed}"`;
 
@@ -143,6 +149,21 @@ Comida del usuario: "${trimmed}"`;
   const name = typeof parsed.name === 'string' && parsed.name.trim().length > 0
     ? parsed.name.trim().slice(0, 80)
     : trimmed.slice(0, 80);
+  const recognized = parsed.recognized === true && parsed.needsIngredients !== true;
+
+  if (!recognized) {
+    return {
+      name,
+      estimatedCalories: 0,
+      estimatedProtein: 0,
+      estimatedCarbs: 0,
+      estimatedFat: 0,
+      aiAvailable: true,
+      aiSucceeded: true,
+      recognized: false,
+      needsIngredients: true,
+    };
+  }
 
   return {
     name,
@@ -152,6 +173,8 @@ Comida del usuario: "${trimmed}"`;
     estimatedFat:      num(parsed.estimatedFat      ?? parsed.fat),
     aiAvailable: true,
     aiSucceeded: true,
+    recognized: true,
+    needsIngredients: false,
   };
 }
 

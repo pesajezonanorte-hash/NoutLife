@@ -185,6 +185,7 @@ export function HabitFormDialog({ open, habit, onClose, onSubmit }: HabitFormDia
                 })}
               </div>
               {daysError && <span role="alert" className="text-body-sm text-error-text">{daysError}</span>}
+              <p className="text-body-sm text-on-surface-light">Los días sin seleccionar son de descanso y no rompen tu racha.</p>
             </div>
           )}
         </div>

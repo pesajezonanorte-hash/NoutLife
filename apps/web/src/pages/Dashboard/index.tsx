@@ -120,7 +120,7 @@ export default function DashboardPage() {
   const [events, setEvents] = useState<AgendaEvent[]>([]);
   const [modal, setModal] = useState<'class' | 'briefing' | null>(null);
   const [guideBusy, setGuideBusy] = useState(false);
-  const { complete, pending, burst } = useHabitCompletion();
+  const { complete, undo, pending, burst } = useHabitCompletion();
   const now = useNow();
 
   const load = useCallback(async (silent = false) => {
@@ -147,6 +147,16 @@ export default function DashboardPage() {
     const result = await complete(h);
     if (!result) return;
     setHabits((prev) => prev.map((x) => (x.id === h.id ? { ...x, todayStatus: 'completed', todayCompleted: true, currentStreak: result.currentStreak } : x)));
+    void load(true);
+  }
+
+  async function handleToggle(h: HabitSummary) {
+    if (!isDone(h)) { await handleComplete(h); return; }
+    const result = await undo(h);
+    if (!result?.undone) { if (result) void load(true); return; }
+    setHabits((prev) => prev.map((x) => (x.id === h.id ? {
+      ...x, todayStatus: result.log?.status ?? 'pending', todayCompleted: false, currentStreak: result.currentStreak,
+    } : x)));
     void load(true);
   }
 
@@ -286,7 +296,7 @@ export default function DashboardPage() {
                   habit={h}
                   variant={isDesktop ? 'row' : 'card'}
                   pending={pending === h.id}
-                  onComplete={() => void handleComplete(h)}
+                  onComplete={() => void handleToggle(h)}
                 />
               ))}
             </motion.ul>

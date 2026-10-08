@@ -5,7 +5,7 @@
 import {
   BarChart3, BookOpen, CalendarDays, HelpCircle, Dumbbell, Flag, Globe, Heart, Home,
   MapPin, Moon, NotebookPen, Scroll, Settings, ShoppingBag, Skull, Sparkles, Sun,
-  Trophy, User, UtensilsCrossed, Wallet, CheckCircle2, MessageCircle, Mail, NotebookTabs, Tent, Album, type LucideIcon,
+  Trophy, User, UtensilsCrossed, Wallet, CheckCircle2, MessageCircle, Mail, NotebookTabs, Tent, Album, ListChecks, ShieldOff, Target, type LucideIcon,
 } from 'lucide-react';
 import { useMemo } from 'react';
 import { useAuthStore } from '@/store/authStore';
@@ -46,10 +46,13 @@ export const NAV_SECTIONS: NavSection[] = [
     collapsible: true,
     items: [
       { to: '/habits', label: 'Hábitos', icon: CheckCircle2 },
+      { to: '/anti-habits', label: 'Anti-hábitos', icon: ShieldOff },
+      { to: '/checklists', label: 'Checklists', icon: ListChecks },
+      { to: '/goals', label: 'Metas maestras', icon: Target },
       { to: '/quests', label: 'Misiones', icon: Flag },
       { to: '/stats', label: 'Estadísticas', icon: BarChart3 },
       { to: '/gym', label: 'Gimnasio', icon: Dumbbell },
-      { to: '/glow-up', label: 'Glow up', icon: Sparkles },
+      { to: '/armario', label: 'Armario', icon: Sparkles },
       { to: '/learning', label: 'Aprendizaje', icon: BookOpen },
       { to: '/love', label: 'Relaciones', icon: Heart },
       { to: '/journal', label: 'Diario', icon: NotebookPen },
@@ -82,7 +85,7 @@ export const SOCIAL_SHORTCUTS: NavEntry[] = [
 ];
 
 /** Rutas que se unieron en otra (zonas fijadas o escondidas guardadas antes). */
-const MERGED: Record<string, string> = { '/friends': '/social', '/guild': '/social' };
+const MERGED: Record<string, string> = { '/friends': '/social', '/guild': '/social', '/glow-up': '/armario' };
 
 /** Todas las zonas que pueden ir en la navegación principal (entre Inicio y Perfil). */
 export const ZONES: NavEntry[] = NAV_SECTIONS.flatMap((s) => s.items);

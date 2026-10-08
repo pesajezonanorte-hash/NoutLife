@@ -12,12 +12,14 @@ import {
   ChevronUp,
   Loader2,
   Award,
+  Share2,
 } from "lucide-react";
 import { useToastStore } from "../../hooks/useToast";
 import * as goalsService from "../../services/goals.service";
 import type { MasterGoal } from "../../services/goals.service";
 import { E } from "@/components/ui/glyphs";
 import { DatePicker } from '@/components/ui/lq';
+import { ShareDialog } from '@/components/sharing/ShareDialog';
 
 const CATEGORIES = [
   {
@@ -106,9 +108,11 @@ function ProgressRing({
 function GoalCard({
   goal,
   onUpdate,
+  onShare,
 }: {
   goal: MasterGoal;
   onUpdate: () => void;
+  onShare: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
@@ -194,6 +198,16 @@ function GoalCard({
               </div>
               <div className="flex items-center gap-1 flex-shrink-0">
                 <button
+                  type="button"
+                  aria-label={`Compartir meta ${goal.title}`}
+                  onClick={onShare}
+                  className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel-light)] transition-colors"
+                >
+                  <Share2 size={16} />
+                </button>
+                <button
+                  type="button"
+                  aria-label={`${expanded ? 'Contraer' : 'Expandir'} ${goal.title}`}
                   onClick={() => setExpanded((v) => !v)}
                   className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel-light)] transition-colors"
                 >
@@ -611,6 +625,7 @@ export default function GoalsPage() {
   const [goals, setGoals] = useState<MasterGoal[]>([]);
   const [loading, setLoading] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
+  const [shareTarget, setShareTarget] = useState<MasterGoal | null>(null);
   const [filter, setFilter] = useState<
     "all" | "ACTIVE" | "ACHIEVED" | "PAUSED"
   >("all");
@@ -754,7 +769,7 @@ export default function GoalsPage() {
         <div className="space-y-4">
           <AnimatePresence>
             {filtered.map((goal) => (
-              <GoalCard key={goal.id} goal={goal} onUpdate={load} />
+              <GoalCard key={goal.id} goal={goal} onUpdate={load} onShare={() => setShareTarget(goal)} />
             ))}
           </AnimatePresence>
         </div>
@@ -766,6 +781,7 @@ export default function GoalsPage() {
           <GoalWizard onClose={() => setShowWizard(false)} onCreated={load} />
         )}
       </AnimatePresence>
+      {shareTarget && <ShareDialog open onClose={() => setShareTarget(null)} resourceType="GOAL" resourceId={shareTarget.id} title={shareTarget.title} />}
     </div>
   );
 }

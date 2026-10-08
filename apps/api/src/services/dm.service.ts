@@ -10,7 +10,7 @@ import {
   advanceStreak, backgroundMeta, dayKey, letterLink, presenceOf, privacyOf, PUBLIC_USER, requireFriends, STREAK_MIN, streakView,
 } from './network.service';
 import {
-  appActive, bump, clearedAt, DM_LIGHT, dmKey, isViewing, letterBody, markTyping, parseOutgoing, parseDate, reactionsFor,
+  bump, clearedAt, DM_LIGHT, dmKey, isViewing, letterBody, markTyping, parseOutgoing, parseDate, reactionsFor,
   repliesFor, setReaction, snippet, TALK_KINDS, TYPING_MS, validReaction, validReplyTo,
   type MessageMeta, type Outgoing, type ReactionCount, type ReplyRef,
 } from './chat-live.service';
@@ -213,10 +213,9 @@ export async function createDirectMessage(me: string, otherId: string, out: Outg
 
   const sender = await prisma.user.findUniqueOrThrow({ where: { id: me }, select: { displayName: true, username: true } });
   const lit = completed && streak.active;
-  // Quien tiene esa carta abierta ya la está viendo: no se le avisa. Quien tiene la app
-  // abierta recibe el aviso dentro de ella (con su respuesta rápida), no como push.
+  // Suprime la carta exacta en el servidor; si el aviso llega durante una carrera,
+  // el service worker vuelve a comprobar ese chat. Otras conversaciones sí conservan su push.
   if (!(await isViewing(otherId, dmKey(me)))) {
-    const inApp = await appActive(otherId);
     createNotification(otherId, {
       type: 'friend',
       category: 'SOCIAL',
@@ -229,7 +228,7 @@ export async function createDirectMessage(me: string, otherId: string, out: Outg
       icon: 'friend',
       link: letterLink(sender.username),
       reply: { type: 'dm', id: me },
-    }, { push: !inApp }).catch(() => null);
+    }).catch(() => null);
   }
 
   const [message] = await dmDtos(me, otherId, [msg]);
@@ -260,11 +259,11 @@ export async function reactDirect(me: string, otherId: string, messageId: string
   if (r.emoji && m.senderId !== me && !(await isViewing(m.senderId, dmKey(me)))) {
     const who = await prisma.user.findUnique({ where: { id: me }, select: { displayName: true, username: true } });
     if (who) {
-      const inApp = await appActive(m.senderId);
       createNotification(m.senderId, {
         type: 'friend', category: 'SOCIAL', dedupeKey: `dm-react:${me}`,
         title: `${who.displayName} reaccionó ${r.emoji}`, body: snippet(m, 90), icon: 'friend', link: letterLink(who.username),
-      }, { push: !inApp }).catch(() => null);
+        chatKey: dmKey(me),
+      }).catch(() => null);
     }
   }
   return { id: m.id, ...r };

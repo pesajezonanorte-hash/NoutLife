@@ -1,5 +1,46 @@
 // Service worker de Noutlife: avisos push (recordatorios) y caché del shell.
 
+const XP_ONLY_PUSH_TYPES = new Set(['xp', 'xp_gained', 'level_up', 'levelup']);
+
+async function foregroundClients() {
+  const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  return windows.filter((client) => client.visibilityState === 'visible');
+}
+
+async function foregroundChatIsOpen(clients, chatKey) {
+  if (!chatKey || clients.length === 0) return false;
+  const responses = await Promise.all(clients.map((client) => new Promise((resolve) => {
+    const channel = new MessageChannel();
+    let settled = false;
+    const finish = (matches) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      channel.port1.close();
+      resolve(matches);
+    };
+    const timeout = setTimeout(() => finish(false), 350);
+    channel.port1.onmessage = (message) => finish(message.data?.matches === true);
+    try {
+      client.postMessage({ type: 'lq:query-chat-focus', chatKey }, [channel.port2]);
+    } catch {
+      finish(false);
+    }
+  })));
+  return responses.some(Boolean);
+}
+
+async function shouldSilencePush(payload) {
+  const data = payload?.data ?? {};
+  const type = String(data.type ?? '').toLowerCase();
+  const visible = await foregroundClients();
+  // Level/XP-only banners add no new information while Noutlife is already open.
+  if (visible.length && (data.silentForeground === true || XP_ONLY_PUSH_TYPES.has(type))) return true;
+  // Keep notifications from other conversations: suppress only the exact open chat.
+  if (data.chatKey && await foregroundChatIsOpen(visible, data.chatKey)) return true;
+  return false;
+}
+
 self.addEventListener('push', (event) => {
   let payload = {};
   if (event.data) {
@@ -24,8 +65,25 @@ self.addEventListener('push', (event) => {
     options.actions = [{ action: "reply", type: "text", title: "Responder", placeholder: "Escribe tu respuesta…" }];
   }
 
-  // Siempre se muestra algo: Chrome y Safari retiran el permiso a quien recibe push sin aviso visible.
-  event.waitUntil(self.registration.showNotification(payload.title ?? 'Noutlife', options));
+  // Se silencia solo XP cuando la app está en primer plano, y solo el chat exacto
+  // que la persona está viendo; las demás conversaciones conservan su aviso.
+  event.waitUntil((async () => {
+    try { if (await shouldSilencePush(payload)) return; } catch { /* si falla la consulta, no perder el aviso */ }
+    await self.registration.showNotification(payload.title ?? 'Noutlife', options);
+  })());
+});
+
+// Al entrar a un chat, retira avisos del sistema que ya quedaron obsoletos.
+self.addEventListener('message', (event) => {
+  const data = event.data;
+  if (data?.type !== 'lq:close-chat-notifications' || typeof data.chatKey !== 'string') return;
+  event.waitUntil(self.registration.getNotifications().then((notifications) => {
+    for (const notification of notifications) {
+      const reply = notification.data?.reply;
+      const chatKey = notification.data?.chatKey ?? (reply ? `${reply.type}:${reply.id}` : null);
+      if (chatKey === data.chatKey) notification.close();
+    }
+  }));
 });
 
 // Responde desde el aviso: pide un acceso nuevo con la sesión (cookie) y envía la carta.

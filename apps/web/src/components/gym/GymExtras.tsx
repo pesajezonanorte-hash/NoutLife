@@ -9,6 +9,7 @@ import { Badge, BarChart, Button, Card, EmptyState, Field, IconChip, Input, Line
 import { LOADING_COPY } from '@/lib/loadingCopy';
 import { useToastStore } from '@/hooks/useToast';
 import * as gym2 from '../../services/gym2.service';
+import { PrivatePhotoNotice } from '@/components/privacy/PrivatePhotoNotice';
 
 // ─── Rest Timer ────────────────────────────────────────────────────────────────
 
@@ -375,6 +376,7 @@ export function ProgressPhotos() {
         <Button variant="secondary" size="sm" loading={uploading} onClick={() => fileRef.current?.click()}><Plus aria-hidden className="size-4" />Foto</Button>
         <input ref={fileRef} type="file" accept="image/*" className="hidden" aria-label="Subir foto de progreso" onChange={(e) => e.target.files?.[0] && void handleUpload(e.target.files[0])} />
       </div>
+      <PrivatePhotoNotice />
 
       {loading ? <PageLoader label="Buscando tus fotos…" words={LOADING_COPY.gym} size="sm" /> : photos.length === 0 ? (
         <EmptyState icon={Camera} tone="success" title="Aún no hay fotos" description="Sube tu primera foto para ver tu cambio con el tiempo." className="py-4" />

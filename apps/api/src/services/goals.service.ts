@@ -68,6 +68,7 @@ export async function updateGoal(
 
 export async function deleteGoal(userId: string, goalId: string) {
   await prisma.masterGoal.findFirstOrThrow({ where: { id: goalId, userId } });
+  await prisma.resourceShare.updateMany({ where: { ownerId: userId, resourceType: 'GOAL', resourceId: goalId }, data: { isActive: false } });
   return prisma.masterGoal.delete({ where: { id: goalId } });
 }
 
