@@ -59,7 +59,7 @@ export default function HabitsPage() {
   const [history, setHistory] = useState<Record<string, Set<string>>>({});
   const [form, setForm] = useState<{ open: boolean; habit: Habit | null }>({ open: false, habit: null });
   const [searchParams, setSearchParams] = useSearchParams();
-  const { complete, pending } = useHabitCompletion();
+  const { complete, undo, pending } = useHabitCompletion();
   /** Sube solo cuando se completa el último hábito del día (página cerrada). */
   const [dayDone, setDayDone] = useState(0);
   const { todayKey, last7, week } = useDays();
@@ -101,6 +101,23 @@ export default function HabitsPage() {
       ? { ...x, todayStatus: 'completed', todayCompleted: true, currentStreak: result.currentStreak, longestStreak: result.longestStreak }
       : x)));
     setHistory((prev) => ({ ...prev, [h.id]: new Set([...(prev[h.id] ?? []), todayKey]) }));
+  }
+
+  async function handleToggle(h: Habit) {
+    if (!isDone(h)) {
+      await handleComplete(h);
+      return;
+    }
+    const result = await undo(h);
+    if (!result) return;
+    setHabits((prev) => prev.map((x) => (x.id === h.id
+      ? { ...x, todayStatus: result.log?.status ?? null, todayCompleted: result.log?.completed ?? false, currentStreak: result.currentStreak, longestStreak: result.longestStreak }
+      : x)));
+    setHistory((prev) => {
+      const days = new Set(prev[h.id] ?? []);
+      days.delete(todayKey);
+      return { ...prev, [h.id]: days };
+    });
   }
 
   async function handleCreate(payload: habitService.CreateHabitPayload) {
@@ -201,7 +218,7 @@ export default function HabitsPage() {
                     habit={h}
                     pending={pending === h.id}
                     week={last7.map((k) => history[h.id]?.has(k) || (k === todayKey && isDone(h)))}
-                    onComplete={() => void handleComplete(h)}
+                    onComplete={() => void handleToggle(h)}
                   />
                 ))}
               </motion.ul>

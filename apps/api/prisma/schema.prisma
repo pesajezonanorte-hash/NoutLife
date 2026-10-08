@@ -256,6 +256,10 @@ model User {
   styleWishlists          StyleWishlist[]
   presenceCheckins        PresenceCheckin[]
   feedbackEntries         Feedback[]
+  checklists              Checklist[]
+  antiHabits              AntiHabit[]
+  antiHabitLogs           AntiHabitLog[]
+  resourceShares          ResourceShare[] @relation("ResourceShareOwner")
 
   @@map("users")
 }
@@ -368,7 +372,9 @@ model HabitLog {
   user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   completed Boolean
-  status    String   @default("completed") // "completed" | "failed" | "skipped"
+  status    String   @default("completed") // "completed" | "failed" | "skipped" | "pending" (desmarcado)
+  /// Una recompensa se concede una sola vez por entrada, incluso si el usuario la desmarca y vuelve a marcar.
+  rewardsGranted Boolean  @default(false)
   date      DateTime
   notes     String?
   loggedAt  DateTime @default(now())
@@ -1563,6 +1569,8 @@ model ClothingItem {
   category   String       // 'tops'|'bottoms'|'shoes'|'outerwear'|'accessories'
   color      String?
   brand      String?
+  /// Private, compressed JPEG encoded as base64. Returned only to the owner.
+  photoData  String?
   cost       Decimal?     @db.Decimal(15, 2)
   timesWorn  Int          @default(0)
   lastWornAt DateTime?
@@ -1737,4 +1745,90 @@ model Sticker {
 
   @@unique([ownerId, hash])
   @@map("stickers")
+}
+
+/// Checklist personal o plantilla reutilizable para crear listas futuras.
+model Checklist {
+  id          String          @id @default(cuid())
+  userId      String
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  category    String          @default("personal")
+  isTemplate  Boolean         @default(false)
+  items       ChecklistItem[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([userId, category, updatedAt])
+  @@map("checklists")
+}
+
+model ChecklistItem {
+  id          String    @id @default(cuid())
+  checklistId String
+  checklist   Checklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  title       String
+  isDone      Boolean   @default(false)
+  order       Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([checklistId, order])
+  @@map("checklist_items")
+}
+
+/// Conducta que la persona quiere reducir; logs distinguen recaída de impulso resistido.
+model AntiHabit {
+  id            String         @id @default(cuid())
+  userId        String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title         String
+  category      String         @default("general")
+  cue           String?
+  targetPerWeek Int?
+  isActive      Boolean        @default(true)
+  logs          AntiHabitLog[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([userId, isActive])
+  @@map("anti_habits")
+}
+
+model AntiHabitLog {
+  id          String    @id @default(cuid())
+  antiHabitId String
+  antiHabit   AntiHabit @relation(fields: [antiHabitId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Stable user's calendar date (UTC midnight key).
+  date        DateTime
+  occurred    Boolean   @default(false)
+  amount      Int       @default(1)
+  intensity   Int?
+  note        String?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId, date])
+  @@index([antiHabitId, date])
+  @@map("anti_habit_logs")
+}
+
+/// Link/code granting view or edit access to a checklist or master goal.
+model ResourceShare {
+  id           String   @id @default(cuid())
+  ownerId      String
+  owner        User     @relation("ResourceShareOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  resourceType String
+  resourceId   String
+  code         String   @unique @default(cuid())
+  permission   String   @default("VIEW")
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([ownerId, resourceType, resourceId])
+  @@index([resourceType, resourceId, isActive])
+  @@map("resource_shares")
 }

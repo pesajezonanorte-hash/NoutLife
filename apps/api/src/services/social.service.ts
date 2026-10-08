@@ -3,7 +3,7 @@ import { prisma } from '../lib/prisma';
 import { effectiveActivityStreak, levelFromTotal } from './xp.service';
 import { createNotification, markReadByKeys } from './notification.service';
 import {
-  appActive, bump, chatPrefsOf, clearedAt, isBlocked, GUILD_LIGHT, guildKey, isViewing, letterBody, markTyping, parseDate, parseOutgoing, reactionsFor,
+  bump, chatPrefsOf, clearedAt, isBlocked, GUILD_LIGHT, guildKey, isViewing, letterBody, markTyping, parseDate, parseOutgoing, reactionsFor,
   repliesFor, setReaction, snippet, TALK_KINDS, TYPING_MS, validReaction, validReplyTo, viewing, type Outgoing,
 } from './chat-live.service';
 import {
@@ -686,11 +686,11 @@ export async function reactGuild(userId: string, guildId: string, messageId: str
       prisma.guild.findUnique({ where: { id: guildId }, select: { name: true } }),
     ]);
     if (who && guild) {
-      const inApp = await appActive(m.userId);
       createNotification(m.userId, {
         type: 'guild', category: 'SOCIAL', dedupeKey: `guild-react:${guildId}:${userId}`,
         title: `${who.displayName} reaccionó ${r.emoji} en ${guild.name}`, body: snippet(m, 90), icon: 'guild', link: guildChatLink(guildId),
-      }, { push: !inApp }).catch(() => null);
+        chatKey: guildKey(guildId),
+      }).catch(() => null);
     }
   }
   return { id: m.id, ...r };
@@ -723,12 +723,12 @@ export async function createGuildMessage(userId: string, guildId: string, out: O
   const memberIds = guild.members.map((m) => m.userId);
   await bump(memberIds);
 
-  // Aviso a los demás miembros, salvo a quien tiene esta carta abierta; a quien tiene la app
-  // abierta le sale dentro de ella (con respuesta rápida), no como push del sistema.
+  // Avisa a los demás miembros, salvo a quien tiene esta carta abierta; el service worker
+  // vuelve a comprobar el chat exacto y conserva el push para las demás conversaciones.
   // Quien bloqueó a quien escribe no recibe su aviso.
   const blockers = new Set((await prisma.userBlock.findMany({ where: { blockedId: userId, blockerId: { in: memberIds } }, select: { blockerId: true } })).map((b) => b.blockerId));
   const others = memberIds.filter((id) => id !== userId && !blockers.has(id));
-  const [reading, inApp] = await Promise.all([viewing(others, guildKey(guildId)), viewing(others, 'app', 20_000)]);
+  const reading = await viewing(others, guildKey(guildId));
   const sender = message.user.displayName;
   for (const id of others) {
     if (reading.has(id)) continue;
@@ -738,7 +738,7 @@ export async function createGuildMessage(userId: string, guildId: string, out: O
       body: `${sender}: ${snippet(message, 100)}`,
       icon: 'guild', link: guildChatLink(guildId),
       reply: { type: 'guild', id: guildId },
-    }, { push: !inApp.has(id) }).catch(() => null);
+    }).catch(() => null);
   }
 
   // El enemigo cae con la última foto que faltaba: XP para el gremio.

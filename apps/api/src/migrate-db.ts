@@ -2,6 +2,7 @@ import { prisma } from './lib/prisma';
 import { settleLevel } from './services/xp.service';
 import { shouldSkipBuildDbStep } from './lib/build-env';
 import { LETTERS_AND_GESTURES_SQL, REMOVE_LEGACY_HABIT_RITUAL_FLAG_SQL, SOCIAL_NETWORK_SQL, SOCIAL_PRO_SQL, RLS_LOCKDOWN_SQL } from './lib/schema-migrations';
+import { BACKLOG_SQL, REVERSIBLE_HABIT_LOGS_SQL, WARDROBE_PHOTO_SQL } from './lib/backlog-migrations';
 
 const ignoreDuplicate = (sql: string) =>
   `DO $$ BEGIN ${sql}; EXCEPTION WHEN duplicate_object THEN NULL; END $$;`;
@@ -200,6 +201,13 @@ async function migrate() {
 
   // Idempotent mirror of prisma/migrations/20261008120000_social_pro.
   for (const sql of SOCIAL_PRO_SQL) await prisma.$executeRawUnsafe(sql);
+
+  // Idempotent mirrors of the undoable habit check and private wardrobe-photo migrations.
+  for (const sql of REVERSIBLE_HABIT_LOGS_SQL) await prisma.$executeRawUnsafe(sql);
+  await prisma.$executeRawUnsafe(WARDROBE_PHOTO_SQL);
+
+  // Idempotent mirror of the backlog's checklist, anti-habit and sharing tables.
+  for (const sql of BACKLOG_SQL) await prisma.$executeRawUnsafe(sql);
 
   // Idempotent mirror of prisma/migrations/20261009120000_oauth_only_and_stats.
   // The unused stat columns (mp, maxMp, per-area levels) are left in place here:

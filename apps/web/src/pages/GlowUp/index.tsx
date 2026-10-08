@@ -1,12 +1,12 @@
 // Glow up — GlowUpDesktop.dc.html. "Brillo de hoy" (anillo), SegmentedControl
 // Cuidado / Estilo / Presencia, rutinas con pasos que se marcan, armario con
 // filtros y autoevaluación semanal. Datos: /mirror/* (sin cambios).
-// Zona ambientada: el espejo. Llega empañado y se desempaña despacio; un reflejo
+// Zona ambientada: tu armario y tocador. El reflejo se desempaña despacio; un brillo
 // lo cruza muy lento y su resplandor sube de forma gradual con cada paso hecho.
 // Las secciones se funden entre sí; todo con física suave (gentle).
-import { useState, useEffect, useCallback, useMemo, type ReactNode } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Check, Droplets, Flame, Moon, Plus, Shirt, Sparkles, Star, Sun, Trash2 } from 'lucide-react';
+import { Camera, Check, Droplets, Flame, Moon, Plus, Shirt, Sparkles, Star, Sun, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { item, springs, stagger } from '@/lib/motion';
 import { AmbientLight, ZoneShell } from '@/components/ambience';
@@ -16,6 +16,7 @@ import api from '../../lib/api';
 import { Badge, Button, Card, ChipGroup, EmptyState, ErrorState, Field, IconChip, Input, Modal, ProgressBar, Select, SegmentedControl, StepItem, Textarea, type Tone, PageLoader } from '@/components/ui/lq';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 import { Lettering } from '@/components/layout/Lettering';
+import { PrivatePhotoNotice } from '@/components/privacy/PrivatePhotoNotice';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -26,8 +27,12 @@ interface CareRoutine {
 }
 
 interface ClothingItem {
-  id: string; name: string; category: string; color?: string;
-  brand?: string; cost?: number; timesWorn: number; isFavorite: boolean;
+  id: string; name: string; category: string; color?: string | null; photoData?: string | null;
+  brand?: string | null; cost?: number | string | null; timesWorn: number; isFavorite: boolean;
+}
+interface ClothingOutfit {
+  id: string; name?: string | null; occasion?: string | null;
+  items: Array<{ clothingItem: ClothingItem }>;
 }
 
 interface PresenceCheckin {
@@ -38,14 +43,44 @@ interface PresenceCheckin {
 type Tab = 'care' | 'style' | 'presence';
 const TABS = [
   { value: 'care' as const, label: 'Cuidado personal' },
-  { value: 'style' as const, label: 'Estilo' },
+  { value: 'style' as const, label: 'Armario' },
   { value: 'presence' as const, label: 'Presencia' },
 ];
 
 const CATEGORIES = ['tops', 'bottoms', 'shoes', 'outerwear', 'accessories'];
 const CATEGORY_LABELS: Record<string, string> = {
-  tops: 'Camisas y tops', bottoms: 'Pantalones', shoes: 'Zapatos', outerwear: 'Abrigos', accessories: 'Accesorios',
+  tops: 'Torso', bottoms: 'Piernas', shoes: 'Calzado', outerwear: 'Abrigos', accessories: 'Accesorios',
 };
+
+async function compressClothingPhoto(file: File): Promise<string> {
+  const bitmap = await createImageBitmap(file);
+  try {
+    let scale = Math.min(1, 1400 / Math.max(bitmap.width, bitmap.height));
+    for (let attempt = 0; attempt < 7; attempt += 1) {
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('No se pudo procesar la imagen.');
+      context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob((value) => value ? resolve(value) : reject(new Error('No se pudo comprimir la imagen.')), 'image/jpeg', Math.max(0.45, 0.84 - attempt * 0.07)));
+      if (blob.size <= 480 * 1024) {
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('No se pudo leer la imagen.'));
+          reader.onerror = () => reject(new Error('No se pudo leer la imagen.'));
+          reader.readAsDataURL(blob);
+        });
+        return dataUrl.split(',')[1] ?? '';
+      }
+      scale *= 0.78;
+    }
+    throw new Error('La foto no se pudo comprimir a menos de 500 KB.');
+  } finally {
+    bitmap.close();
+  }
+}
+
 const TIME_OF_DAY = ['morning', 'night', 'weekly', 'custom'];
 const TIME_META: Record<string, { label: string; tone: Tone; icon: typeof Sun }> = {
   morning: { label: 'Mañana', tone: 'warning', icon: Sun },
@@ -244,13 +279,24 @@ function StyleSection() {
   const [activeCategory, setActiveCategory] = useState('all');
   const [showNew, setShowNew] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ name: '', category: 'tops', color: '', brand: '', cost: '' });
+  const [photoProcessing, setPhotoProcessing] = useState(false);
+  const [outfits, setOutfits] = useState<ClothingOutfit[]>([]);
+  const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
+  const [showOutfit, setShowOutfit] = useState(false);
+  const [outfitName, setOutfitName] = useState('');
+  const [savingOutfit, setSavingOutfit] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const [form, setForm] = useState({ name: '', category: 'tops', color: '', brand: '', cost: '', photoData: '' });
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setState('loading');
     try {
-      const { data } = await api.get('/mirror/wardrobe');
-      setItems(data);
+      const [{ data: wardrobe }, { data: savedOutfits }] = await Promise.all([
+        api.get('/mirror/wardrobe'),
+        api.get('/mirror/outfits'),
+      ]);
+      setItems(wardrobe);
+      setOutfits(savedOutfits);
       setState('ready');
     } catch {
       if (!silent) setState('error');
@@ -266,16 +312,60 @@ function StyleSection() {
     ...CATEGORIES.map((c) => ({ value: c, label: CATEGORY_LABELS[c], count: items.filter((i) => i.category === c).length })),
   ], [items]);
 
+  async function handlePhotoChange(file?: File) {
+    if (!file) return;
+    setPhotoProcessing(true);
+    try {
+      const photoData = await compressClothingPhoto(file);
+      setForm((current) => ({ ...current, photoData }));
+      toast.success('Foto lista', 'Se guardará de forma privada en tu armario.');
+    } catch (error) {
+      toast.error('No se pudo usar esa foto', error instanceof Error ? error.message : undefined);
+    } finally {
+      setPhotoProcessing(false);
+      if (photoInputRef.current) photoInputRef.current.value = '';
+    }
+  }
+
   async function handleCreate() {
     setSaving(true);
     try {
-      await api.post('/mirror/wardrobe', { ...form, cost: form.cost ? Number(form.cost) : undefined });
+      await api.post('/mirror/wardrobe', { ...form, cost: form.cost ? Number(form.cost) : undefined, photoData: form.photoData || undefined });
       setShowNew(false);
-      setForm({ name: '', category: 'tops', color: '', brand: '', cost: '' });
+      setForm({ name: '', category: 'tops', color: '', brand: '', cost: '', photoData: '' });
       void load(true);
       toast.success('Prenda añadida');
     } catch { toast.error('No se pudo añadir la prenda'); }
     finally { setSaving(false); }
+  }
+
+  function toggleSelected(id: string) {
+    setSelectedItemIds((ids) => ids.includes(id) ? ids.filter((itemId) => itemId !== id) : [...ids, id]);
+  }
+
+  async function handleCreateOutfit() {
+    if (selectedItemIds.length < 2) return;
+    setSavingOutfit(true);
+    try {
+      await api.post('/mirror/outfits', {
+        name: outfitName.trim() || `Combinación ${outfits.length + 1}`,
+        itemIds: selectedItemIds,
+      });
+      setSelectedItemIds([]);
+      setOutfitName('');
+      setShowOutfit(false);
+      await load(true);
+      toast.success('Combinación guardada');
+    } catch { toast.error('No se pudo guardar la combinación'); }
+    finally { setSavingOutfit(false); }
+  }
+
+  async function handleDeleteOutfit(id: string) {
+    try {
+      await api.delete(`/mirror/outfits/${id}`);
+      setOutfits((current) => current.filter((outfit) => outfit.id !== id));
+      toast.success('Combinación eliminada');
+    } catch { toast.error('No se pudo eliminar la combinación'); }
   }
 
   async function handleWorn(id: string) {
@@ -289,10 +379,15 @@ function StyleSection() {
   return (
     <section className="flex flex-col gap-6" aria-labelledby="glow-style">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 id="glow-style" className="text-heading-lg">Armario cápsula</h2>
-        <Button size="md" onClick={() => setShowNew(true)}><Plus aria-hidden className="size-4" />Prenda</Button>
+        <h2 id="glow-style" className="text-heading-lg">Armario</h2>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" size="md" disabled={selectedItemIds.length < 2} onClick={() => setShowOutfit(true)}>
+            <Sparkles aria-hidden className="size-4" />Combinación ({selectedItemIds.length})
+          </Button>
+          <Button size="md" onClick={() => setShowNew(true)}><Plus aria-hidden className="size-4" />Prenda</Button>
+        </div>
       </div>
-      {/* TODO(api): el prototipo incluye "Outfits de la semana"; no existe endpoint de outfits. */}
+      <PrivatePhotoNotice />
       <ChipGroup label="Categoría de prenda" options={options} value={activeCategory} onChange={setActiveCategory} />
 
       {state === 'loading' ? (
@@ -306,29 +401,73 @@ function StyleSection() {
         </Card>
       ) : (
         <motion.ul variants={stagger} initial="initial" animate="animate" className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-          {displayed.map((it) => (
-            <motion.li key={it.id} variants={item}>
-              <Card as="article" padding="sm" interactive className="flex h-full flex-col gap-2">
-                <div className="flex items-start justify-between gap-1">
-                  <h3 className="min-w-0 truncate text-label-lg">{it.name}</h3>
-                  <Button variant="icon" size="sm" aria-label={`Eliminar ${it.name}`} onClick={() => void handleDelete(it.id)} className="-mr-2 -mt-2 size-11 md:size-9">
-                    <Trash2 aria-hidden className="size-4" strokeWidth={1.75} />
+          {displayed.map((it) => {
+            const selected = selectedItemIds.includes(it.id);
+            return (
+              <motion.li key={it.id} variants={item}>
+                <Card as="article" padding="sm" interactive className="flex h-full flex-col gap-2">
+                  {it.photoData ? (
+                    <img src={`data:image/jpeg;base64,${it.photoData}`} alt={`Foto de la prenda ${it.name}`} className="aspect-[4/3] w-full rounded-xl border border-border object-cover" />
+                  ) : (
+                    <div aria-hidden className="flex aspect-[4/3] items-center justify-center rounded-xl bg-surface-variant text-on-surface-light"><Shirt className="size-10" strokeWidth={1.25} /></div>
+                  )}
+                  <div className="flex items-start justify-between gap-1">
+                    <h3 className="min-w-0 truncate text-label-lg">{it.name}</h3>
+                    <Button variant="icon" size="sm" aria-label={`Eliminar ${it.name}`} onClick={() => void handleDelete(it.id)} className="-mr-2 -mt-2 size-11 md:size-9">
+                      <Trash2 aria-hidden className="size-4" strokeWidth={1.75} />
+                    </Button>
+                  </div>
+                  <p className="text-body-sm text-on-surface">{CATEGORY_LABELS[it.category] ?? it.category}</p>
+                  {it.brand && <p className="text-body-sm text-on-surface-light">{it.brand}</p>}
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-body-sm text-on-surface-light">
+                      <span className="font-mono tabular-nums">{it.timesWorn}</span> {it.timesWorn === 1 ? 'uso' : 'usos'}
+                      {it.cost && it.timesWorn > 0 ? <> · <span className="font-mono tabular-nums">${Math.round(Number(it.cost) / it.timesWorn).toLocaleString('es-CO')}</span>/uso</> : null}
+                    </p>
+                    {it.isFavorite && <Star aria-label="Favorita" className="size-4 shrink-0 fill-warning text-warning" />}
+                  </div>
+                  <Button variant={selected ? 'primary' : 'secondary'} size="sm" block aria-pressed={selected} onClick={() => toggleSelected(it.id)}>
+                    {selected ? <><Check aria-hidden className="size-4" />En combinación</> : 'Añadir a combinación'}
+                  </Button>
+                  <Button variant="secondary" size="sm" block className="mt-auto" onClick={() => void handleWorn(it.id)}>Usar hoy</Button>
+                </Card>
+              </motion.li>
+            );
+          })}
+        </motion.ul>
+      )}
+
+      {outfits.length > 0 && (
+        <section className="flex flex-col gap-3" aria-labelledby="saved-outfits">
+          <h3 id="saved-outfits" className="text-heading-sm">Combinaciones guardadas</h3>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {outfits.map((outfit) => (
+              <Card key={outfit.id} as="article" padding="sm" className="flex flex-col gap-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h4 className="text-label-lg">{outfit.name || 'Combinación'}</h4>
+                    {outfit.occasion && <p className="text-body-sm text-on-surface-light">{outfit.occasion}</p>}
+                  </div>
+                  <Button variant="icon" size="sm" aria-label={`Eliminar ${outfit.name || 'combinación'}`} onClick={() => void handleDeleteOutfit(outfit.id)}>
+                    <Trash2 aria-hidden className="size-4" />
                   </Button>
                 </div>
-                <p className="text-body-sm text-on-surface">{CATEGORY_LABELS[it.category] ?? it.category}</p>
-                {it.brand && <p className="text-body-sm text-on-surface-light">{it.brand}</p>}
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-body-sm text-on-surface-light">
-                    <span className="font-mono tabular-nums">{it.timesWorn}</span> {it.timesWorn === 1 ? 'uso' : 'usos'}
-                    {it.cost && it.timesWorn > 0 ? <> · <span className="font-mono tabular-nums">${Math.round(Number(it.cost) / it.timesWorn).toLocaleString('es-CO')}</span>/uso</> : null}
-                  </p>
-                  {it.isFavorite && <Star aria-label="Favorita" className="size-4 shrink-0 fill-warning text-warning" />}
+                <div className="grid grid-cols-3 gap-2">
+                  {outfit.items.map(({ clothingItem }) => (
+                    <div key={clothingItem.id} className="flex min-w-0 flex-col gap-1">
+                      {clothingItem.photoData ? (
+                        <img src={`data:image/jpeg;base64,${clothingItem.photoData}`} alt={`Foto de ${clothingItem.name}`} className="aspect-square w-full rounded-lg object-cover" />
+                      ) : (
+                        <div aria-hidden className="flex aspect-square items-center justify-center rounded-lg bg-surface-variant text-on-surface-light"><Shirt className="size-6" /></div>
+                      )}
+                      <span className="truncate text-body-sm">{clothingItem.name}</span>
+                    </div>
+                  ))}
                 </div>
-                <Button variant="secondary" size="sm" block className="mt-auto" onClick={() => void handleWorn(it.id)}>Usar hoy</Button>
               </Card>
-            </motion.li>
-          ))}
-        </motion.ul>
+            ))}
+          </div>
+        </section>
       )}
 
       <Modal open={showNew} onClose={() => setShowNew(false)} title="Nueva prenda">
@@ -339,6 +478,16 @@ function StyleSection() {
               {CATEGORIES.map((c) => <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>)}
             </Select>
           </Field>
+          <input ref={photoInputRef} type="file" accept="image/*" capture="environment" className="hidden" aria-label="Fotografiar prenda" onChange={(e) => void handlePhotoChange(e.target.files?.[0])} />
+          <div className="flex flex-col gap-2">
+            {form.photoData && <img src={`data:image/jpeg;base64,${form.photoData}`} alt="Vista previa de la prenda" className="aspect-[4/3] max-h-56 w-full rounded-xl border border-border object-cover" />}
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="secondary" loading={photoProcessing} onClick={() => photoInputRef.current?.click()}>
+                <Camera aria-hidden className="size-4" />{form.photoData ? 'Cambiar foto' : 'Fotografiar o elegir foto'}
+              </Button>
+              {form.photoData && <Button type="button" variant="ghost" onClick={() => setForm((f) => ({ ...f, photoData: '' }))}>Quitar foto</Button>}
+            </div>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Marca"><Input value={form.brand} onChange={(e) => setForm((f) => ({ ...f, brand: e.target.value }))} placeholder="Zara, Nike…" /></Field>
             <Field label="Color"><Input value={form.color} onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))} placeholder="Azul marino" /></Field>
@@ -346,7 +495,20 @@ function StyleSection() {
           <Field label="Precio (COP)"><Input type="number" inputMode="numeric" value={form.cost} onChange={(e) => setForm((f) => ({ ...f, cost: e.target.value }))} placeholder="50000" /></Field>
           <div className="flex gap-3">
             <Button type="button" variant="ghost" className="flex-1" onClick={() => setShowNew(false)}>Cancelar</Button>
-            <Button type="submit" className="flex-1" disabled={!form.name.trim()} loading={saving}>Añadir</Button>
+            <Button type="submit" className="flex-1" disabled={!form.name.trim() || photoProcessing} loading={saving}>Añadir</Button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal open={showOutfit} onClose={() => setShowOutfit(false)} title="Guardar combinación">
+        <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); void handleCreateOutfit(); }}>
+          <p className="text-body-sm text-on-surface-light">Prendas seleccionadas: {selectedItemIds.map((id) => items.find((entry) => entry.id === id)?.name).filter(Boolean).join(', ')}</p>
+          <Field label="Nombre del look" help="Opcional; puedes poner una ocasión o estilo">
+            <Input value={outfitName} onChange={(e) => setOutfitName(e.target.value)} placeholder="Casual de fin de semana" autoFocus />
+          </Field>
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <Button type="button" variant="secondary" onClick={() => setShowOutfit(false)}>Cancelar</Button>
+            <Button type="submit" loading={savingOutfit}>Guardar look</Button>
           </div>
         </form>
       </Modal>
@@ -466,15 +628,15 @@ export default function GlowUpPage() {
 
   return (
     <ZoneShell
-      zone="glow-up"
+      zone="armario"
       contentClassName="gap-6 md:gap-8"
       ambience={<AmbientLight tone="jade-200" alpha={0.5} darkAlpha={0.08} d={12} className="right-[-4%] top-[-10%] h-[30rem] w-[44%]" />}
     >
       <motion.section variants={item} className="flex flex-wrap items-center justify-between gap-6 md:gap-8">
         <div className="flex min-w-0 flex-[1_1_360px] flex-col gap-2">
-          <span className="text-label-lg text-primary-text">El espejo</span>
-          <h1 className="text-display-sm md:text-display-md lg:text-display-lg"><Lettering text="Glow up" /></h1>
-          <p className="max-w-[540px] text-body-lg text-on-surface-light">Cuídate, vístete y preséntate. Pequeños rituales que cambian cómo te ves y cómo te sientes.</p>
+          <span className="text-label-lg text-primary-text">Tu espacio personal</span>
+          <h1 className="text-display-sm md:text-display-md lg:text-display-lg"><Lettering text="Armario" /></h1>
+          <p className="max-w-[540px] text-body-lg text-on-surface-light">Fotografía y clasifica tus prendas, crea combinaciones y acompaña tu estilo con rutinas de cuidado personal.</p>
         </div>
         {/* El tocador: cada paso completado enciende otra bombilla y aclara el vidrio */}
         <Mirror brightness={pct} className="w-full sm:w-[22rem]">

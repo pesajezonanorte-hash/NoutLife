@@ -17,6 +17,7 @@ import { useKeyboardAdjust } from './hooks/useKeyboardAdjust';
 import { useTourDone } from './components/onboarding/WelcomeTour';
 import { DetachPresence } from './components/ambience/ZoneShell';
 import { useLocalReminders } from './lib/localReminders';
+import { touchLastActive } from './lib/sleepGapSuggestion';
 import { syncPushSubscription } from './services/notification.service';
 
 // Páginas diferidas. Los loaders viven en un mapa para poder precargarlos en
@@ -51,6 +52,9 @@ const loaders = {
   AgendaPage: () => import('./pages/Agenda'),
   LifePage: () => import('./pages/Life'),
   GoalsPage: () => import('./pages/Goals'),
+  ChecklistsPage: () => import('./pages/Checklists'),
+  AntiHabitsPage: () => import('./pages/AntiHabits'),
+  SharedResourcePage: () => import('./pages/SharedResource'),
   RitualsPage: () => import('./pages/Rituals'),
   GlowUpPage: () => import('./pages/GlowUp'),
   WisdomPage: () => import('./pages/Wisdom'),
@@ -104,16 +108,19 @@ const routeLoaders: Record<string, () => Promise<unknown>> = {
   '/season': loaders.SeasonPage,
   '/agenda': loaders.AgendaPage,
   '/life': loaders.LifePage,
+  '/goals': loaders.GoalsPage,
+  '/checklists': loaders.ChecklistsPage,
+  '/anti-habits': loaders.AntiHabitsPage,
   '/custom-zones': loaders.CustomZonesPage,
   '/rituals': loaders.RitualsPage,
-  '/glow-up': loaders.GlowUpPage,
+  '/armario': loaders.GlowUpPage,
   '/wisdom': loaders.WisdomPage,
   '/about': loaders.AboutPage,
   '/faq': loaders.FAQPage,
 };
 
 // Rutas que solo redirigen (no esperan ningún bundle).
-const REDIRECTS = new Set(['/goals', '/metas', '/rituales', '/character', '/friends', '/guild']);
+const REDIRECTS = new Set(['/metas', '/rituales', '/character', '/friends', '/guild', '/glow-up']);
 
 function loaderForPath(pathname: string) {
   if (REDIRECTS.has(pathname)) return null;
@@ -231,11 +238,14 @@ function AnimatedRoutes({ location }: { location: ReturnType<typeof useLocation>
           <Route path="/agenda"       element={<SafePage><DeferredLazyPage load={loaders.AgendaPage} /></SafePage>} />
           <Route path="/life"         element={<SafePage><DeferredLazyPage load={loaders.LifePage} /></SafePage>} />
           <Route path="/custom-zones" element={<SafePage><DeferredLazyPage load={loaders.CustomZonesPage} /></SafePage>} />
-          <Route path="/goals"    element={<Navigate to="/quests?filter=meta" replace />} />
-          <Route path="/metas"    element={<Navigate to="/quests?filter=meta" replace />} />
+          <Route path="/goals"    element={<SafePage><DeferredLazyPage load={loaders.GoalsPage} /></SafePage>} />
+          <Route path="/metas"    element={<Navigate to="/goals" replace />} />
+          <Route path="/checklists" element={<SafePage><DeferredLazyPage load={loaders.ChecklistsPage} /></SafePage>} />
+          <Route path="/anti-habits" element={<SafePage><DeferredLazyPage load={loaders.AntiHabitsPage} /></SafePage>} />
           <Route path="/rituals"  element={<SafePage><DeferredLazyPage load={loaders.RitualsPage} /></SafePage>} />
           <Route path="/rituales" element={<Navigate to="/rituals" replace />} />
-          <Route path="/glow-up"  element={<SafePage><DeferredLazyPage load={loaders.GlowUpPage} /></SafePage>} />
+          <Route path="/armario"  element={<SafePage><DeferredLazyPage load={loaders.GlowUpPage} /></SafePage>} />
+          <Route path="/glow-up" element={<Navigate to="/armario" replace />} />
           <Route path="/wisdom"   element={<SafePage><DeferredLazyPage load={loaders.WisdomPage} /></SafePage>} />
           <Route path="/about"    element={<SafePage><DeferredLazyPage load={loaders.AboutPage} /></SafePage>} />
           <Route path="/faq"      element={<SafePage><DeferredLazyPage load={loaders.FAQPage} /></SafePage>} />
@@ -366,6 +376,27 @@ export default function App() {
   }, [isAuthenticated, user?.id]);
   useLocalReminders(isAuthenticated);
 
+  // Se guarda la última actividad visible. Al volver tras una pausa nocturna,
+  // sleepGapSuggestion conserva una sugerencia para revisar en Sueño.
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id) return;
+    const userId = user.id;
+    const touch = () => touchLastActive(userId);
+    touch();
+    document.addEventListener('visibilitychange', touch);
+    window.addEventListener('pagehide', touch);
+    window.addEventListener('focus', touch);
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') touch();
+    }, 5 * 60_000);
+    return () => {
+      document.removeEventListener('visibilitychange', touch);
+      window.removeEventListener('pagehide', touch);
+      window.removeEventListener('focus', touch);
+      window.clearInterval(interval);
+    };
+  }, [isAuthenticated, user?.id]);
+
   // Precarga todas las zonas en idle para evitar flashes al navegar.
   useEffect(() => {
     preloadPages();
@@ -429,6 +460,7 @@ export default function App() {
           <Route path="/privacy" element={<DeferredLazyPage load={loaders.LegalPage} />} />
           <Route path="/terms" element={<DeferredLazyPage load={loaders.LegalPage} />} />
           <Route path="/copyright" element={<DeferredLazyPage load={loaders.LegalPage} />} />
+          <Route path="/shared/:code" element={<SafePage><DeferredLazyPage load={loaders.SharedResourcePage} /></SafePage>} />
           <Route
             path="/onboarding"
             element={

@@ -122,6 +122,7 @@ export function AnalyzeMealDialog({ open, onClose, date, initialType, onSaved }:
   onSaved: (m: Meal) => void;
 }) {
   const [text, setText] = useState('');
+  const [ingredients, setIngredients] = useState('');
   const [parsed, setParsed] = useState<ParsedMeal | null>(null);
   const [draft, setDraft] = useState<Draft>(blank(initialType));
   const [analyzing, setAnalyzing] = useState(false);
@@ -131,24 +132,26 @@ export function AnalyzeMealDialog({ open, onClose, date, initialType, onSaved }:
   const [error, setError] = useState<string | null>(null);
   const nameRef = useRef<HTMLInputElement>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
+  const ingredientsRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (!open) return;
-    setText(''); setParsed(null); setDraft(blank(initialType)); setTouched(false); setFavorite(false); setError(null);
+    setText(''); setIngredients(''); setParsed(null); setDraft(blank(initialType)); setTouched(false); setFavorite(false); setError(null);
   }, [open, initialType]);
 
   // Al cambiar de paso, el foco va al primer campo del paso nuevo.
-  useEffect(() => { if (parsed) nameRef.current?.focus(); }, [parsed]);
+  useEffect(() => {
+    if (parsed?.needsIngredients) ingredientsRef.current?.focus();
+    else if (parsed) nameRef.current?.focus();
+  }, [parsed]);
 
-  async function analyze(e: FormEvent) {
-    e.preventDefault();
-    if (!text.trim()) { setTouched(true); return; }
+  async function requestAnalysis(description: string) {
     setAnalyzing(true);
     setError(null);
     try {
-      const r = await mealService.parseMeal(text.trim());
+      const r = await mealService.parseMeal(description);
       setParsed(r);
-      const s = (n: number) => (r.aiSucceeded && n > 0 ? String(n) : '');
+      const s = (n: number) => (r.aiSucceeded && r.recognized && n > 0 ? String(n) : '');
       setDraft((d) => ({ ...d, name: r.name || text.trim().slice(0, 80), calories: s(r.estimatedCalories), protein: s(r.estimatedProtein), carbs: s(r.estimatedCarbs), fat: s(r.estimatedFat) }));
       setTouched(false);
     } catch {
@@ -156,6 +159,17 @@ export function AnalyzeMealDialog({ open, onClose, date, initialType, onSaved }:
     } finally {
       setAnalyzing(false);
     }
+  }
+
+  async function analyze(e: FormEvent) {
+    e.preventDefault();
+    if (!text.trim()) { setTouched(true); return; }
+    await requestAnalysis(text.trim());
+  }
+
+  async function retryWithIngredients() {
+    if (!ingredients.trim()) { setError('Cuéntame qué ingredientes lleva para volver a intentarlo.'); return; }
+    await requestAnalysis(`${text.trim()}\nIngredientes indicados por el usuario: ${ingredients.trim()}`);
   }
 
   async function save(e: FormEvent) {
@@ -166,14 +180,16 @@ export function AnalyzeMealDialog({ open, onClose, date, initialType, onSaved }:
     try { onSaved(await logMeal(draft, date, favorite)); } catch { setError('No se pudo guardar. Inténtalo de nuevo.'); } finally { setSaving(false); }
   }
 
-  const notice = parsed && (parsed.aiSucceeded
-    ? { tone: 'success', icon: Sparkles, text: 'Estimación lista. Revisa y ajusta antes de guardar.' }
-    : parsed.aiAvailable
-      ? { tone: 'warning', icon: AlertTriangle, text: 'No pudimos estimar los macros de esta descripción. Complétalos a mano o déjalos vacíos.' }
-      : { tone: 'info', icon: Info, text: 'El análisis automático no está disponible ahora. Completa los datos a mano.' });
+  const notice = parsed && (parsed.needsIngredients
+    ? { tone: 'warning', icon: AlertTriangle, text: 'No he podido identificar este plato con seguridad. Cuéntame sus ingredientes y vuelvo a estimarlo sin inventar datos.' }
+    : parsed.aiSucceeded
+      ? { tone: 'success', icon: Sparkles, text: 'Estimación lista. Revisa y ajusta antes de guardar.' }
+      : parsed.aiAvailable
+        ? { tone: 'warning', icon: AlertTriangle, text: 'No pudimos estimar los macros de esta descripción. Complétalos a mano o déjalos vacíos.' }
+        : { tone: 'info', icon: Info, text: 'El análisis automático no está disponible ahora. Completa los datos a mano.' });
 
   const fmt = (n: number) => Math.round(n).toLocaleString('es-CO');
-  const served = Boolean(parsed && parsed.aiSucceeded && text.trim() && parsed.estimatedCalories > 0);
+  const served = Boolean(parsed && parsed.aiSucceeded && parsed.recognized && !parsed.needsIngredients && text.trim() && parsed.estimatedCalories > 0);
 
   return (
     <ResponsiveDialog open={open} onClose={onClose} title="Analizar comida" className="md:max-w-[560px]">
@@ -211,10 +227,33 @@ export function AnalyzeMealDialog({ open, onClose, date, initialType, onSaved }:
           )}
           {error && <p role="alert" className="text-body-sm text-error-text">{error}</p>}
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-            <Button variant="secondary" onClick={() => { setParsed({ name: '', estimatedCalories: 0, estimatedProtein: 0, estimatedCarbs: 0, estimatedFat: 0, aiAvailable: true, aiSucceeded: true }); setDraft((d) => ({ ...d, name: text.trim().slice(0, 80) })); }}>
+            <Button variant="secondary" onClick={() => { setParsed({ name: '', estimatedCalories: 0, estimatedProtein: 0, estimatedCarbs: 0, estimatedFat: 0, aiAvailable: true, aiSucceeded: false, recognized: true, needsIngredients: false }); setDraft((d) => ({ ...d, name: text.trim().slice(0, 80) })); }}>
               Registrar a mano
             </Button>
             <Button type="submit" loading={analyzing}>{analyzing ? 'Analizando…' : <><Sparkles aria-hidden className="size-5" strokeWidth={1.75} />Analizar</>}</Button>
+          </div>
+        </form>
+      ) : parsed.needsIngredients ? (
+        <form className="flex flex-col gap-6" onSubmit={(e) => { e.preventDefault(); void retryWithIngredients(); }} noValidate>
+          {notice && text.trim() && (
+            <div role="status" className="flex items-start gap-3 rounded-xl bg-warning/[var(--lq-soft-alpha)] p-3">
+              <notice.icon aria-hidden className="mt-0.5 size-5 shrink-0 text-warning-text" strokeWidth={1.75} />
+              <p className="text-body-md text-on-surface">{notice.text}</p>
+            </div>
+          )}
+          <Field label="¿Qué ingredientes lleva?" help="Añade cantidades aproximadas si las conoces" error={error ?? undefined}>
+            <Textarea ref={ingredientsRef} rows={3} value={ingredients} onChange={(e) => setIngredients(e.target.value)} placeholder="Ej. papa, huevo, cebolla y queso; una porción mediana" />
+          </Field>
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:flex-wrap sm:justify-end">
+            <Button type="button" variant="ghost" onClick={() => { setParsed(null); setTimeout(() => textRef.current?.focus()); }}>
+              <ArrowLeft aria-hidden className="size-5" strokeWidth={1.75} />Volver
+            </Button>
+            <Button type="button" variant="secondary" onClick={() => {
+              setParsed({ ...parsed, aiSucceeded: false, recognized: true, needsIngredients: false });
+              setDraft((d) => ({ ...d, name: text.trim().slice(0, 80), calories: '', protein: '', carbs: '', fat: '' }));
+              setError(null);
+            }}>Seguir sin estimación</Button>
+            <Button type="submit" loading={analyzing} disabled={!ingredients.trim()}>Reintentar análisis</Button>
           </div>
         </form>
       ) : (

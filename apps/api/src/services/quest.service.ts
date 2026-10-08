@@ -243,6 +243,7 @@ export async function completeQuest(userId: string, questId: string) {
     body: `+${result.xpGained} XP y +${result.goldGained} gold. ${result.leveledUp ? `¡Subiste al nivel ${result.newLevel}! 🎉` : ''}`.trim(),
     icon: '⚔️',
     link: '/quests',
+    silentForeground: true,
   }).catch(() => {});
 
   if (result.leveledUp) {
@@ -252,6 +253,7 @@ export async function completeQuest(userId: string, questId: string) {
       body: `Tu perseverancia te ha llevado al nivel ${result.newLevel}. Nuevas aventuras te esperan.`,
       icon: '🌟',
       link: '/character',
+      silentForeground: true,
     }).catch(() => {});
   }
 

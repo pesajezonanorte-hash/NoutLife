@@ -30,6 +30,10 @@ type CreateNotificationInput = {
   link?: string;
   /** Carta a la que se puede contestar desde el aviso (push del sistema y aviso dentro de la app). */
   reply?: { type: 'dm' | 'guild'; id: string };
+  /** Silencia el push de XP solo mientras Noutlife está en primer plano. */
+  silentForeground?: boolean;
+  /** Chat al que pertenece un aviso, para no mostrarlo si ese chat está abierto. */
+  chatKey?: string;
 };
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -97,7 +101,7 @@ async function enforceRetention(userId: string): Promise<void> {
  * congela al responder y un push pendiente puede perderse; los recordatorios lo usan.
  */
 export async function createNotification(userId: string, input: CreateNotificationInput, opts: { awaitPush?: boolean; push?: boolean } = {}) {
-  const { reply, ...data } = input;
+  const { reply, silentForeground = false, chatKey, ...data } = input;
   const category = data.category ?? categoryForType(data.type);
   const preference = await getChannelPreference(userId, category);
   const now = new Date();
@@ -148,7 +152,14 @@ export async function createNotification(userId: string, input: CreateNotificati
       title: data.title,
       body: data.body,
       tag: data.dedupeKey,
-      data: data.link || reply ? { ...(data.link ? { link: data.link } : {}), ...(reply ? { reply } : {}) } : undefined,
+      data: {
+        ...(data.link ? { link: data.link } : {}),
+        ...(reply ? { reply } : {}),
+        ...(chatKey ? { chatKey } : reply ? { chatKey: reply.type === 'dm' ? `dm:${reply.id}` : `guild:${reply.id}` } : {}),
+        type: data.type,
+        category,
+        ...(silentForeground ? { silentForeground: true } : {}),
+      },
     }, category).catch(() => 0);
     if (opts.awaitPush) await push;
   }

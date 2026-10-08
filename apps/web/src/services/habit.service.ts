@@ -26,7 +26,7 @@ export interface Habit {
   createsGymAttendance: boolean;
   createdAt: string;
   updatedAt: string;
-  todayStatus?: 'completed' | 'failed' | 'skipped' | null;
+  todayStatus?: 'completed' | 'failed' | 'skipped' | 'pending' | null;
   todayCompleted?: boolean | null;
 }
 
@@ -35,7 +35,7 @@ export interface HabitLog {
   habitId: string;
   userId: string;
   completed: boolean;
-  status: string;
+  status: 'completed' | 'failed' | 'skipped' | 'pending';
   date: string;
   notes?: string;
   loggedAt: string;
@@ -120,6 +120,19 @@ export async function logHabit(
   date?: string,
 ): Promise<HabitLogResult> {
   const { data } = await api.post<HabitLogResult>(`/habits/${id}/log`, { status, notes, date });
+  return data;
+}
+
+export interface UndoHabitResult {
+  undone: boolean;
+  log: HabitLog | null;
+  habit: Habit;
+  currentStreak: number;
+  longestStreak: number;
+}
+
+export async function undoHabitLog(id: string): Promise<UndoHabitResult> {
+  const { data } = await api.post<UndoHabitResult>(`/habits/${id}/log/undo`);
   return data;
 }
 

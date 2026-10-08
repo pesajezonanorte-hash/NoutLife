@@ -79,8 +79,7 @@ export function HabitListItem({ habit, onComplete, pending, week, variant = 'car
           </span>
         </div>
       )}
-      {/* TODO(api): no hay endpoint para deshacer un registro; una vez completado el check queda bloqueado. */}
-      <CheckButton name={habit.title} checked={done} locked disabled={pending} onToggle={onComplete} />
+      <CheckButton name={habit.title} checked={done} disabled={pending} onToggle={onComplete} />
     </motion.li>
   );
 }

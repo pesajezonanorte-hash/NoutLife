@@ -10,6 +10,8 @@ import { Clock, CloudSun, Coffee, Dumbbell, MonitorSmartphone, Moon, Minus, Tras
 import { cn } from '@/lib/utils';
 import { item, pop3, springSoft, stagger, useCountUp } from '@/lib/motion';
 import { dayKey } from '@/lib/lifeMeta';
+import { dismissSleepGapSuggestion, readSleepGapSuggestion, type SleepGapSuggestion } from '@/lib/sleepGapSuggestion';
+import { useAuthStore } from '@/store/authStore';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useToastStore } from '@/hooks/useToast';
 import { Button, Card, EmptyState, ErrorState, Field, IconChip, Input, LineChart, SegmentedControl, Select, type LinePoint, PageLoader } from '@/components/ui/lq';
@@ -412,12 +414,79 @@ function MiniStat({ label, hours, sub, tone }: { label: string; hours: number; s
   );
 }
 
+function SleepGapCard({ suggestion, onDismiss, onSaved }: { suggestion: SleepGapSuggestion; onDismiss: () => void; onSaved: () => void }) {
+  const [q, setQ] = useState(3);
+  const [saving, setSaving] = useState(false);
+  const start = new Date(suggestion.bedtime);
+  const end = new Date(suggestion.wakeTime);
+  const time = (date: Date) => date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+
+  async function confirm() {
+    setSaving(true);
+    try {
+      await sleepService.createSleep({
+        bedtime: start.toISOString(),
+        wakeTime: end.toISOString(),
+        date: dayKey(end),
+        quality: q,
+      });
+      useToastStore.getState().success('Descanso registrado', `${hm(suggestion.durationHours)} · ${quality(q).name.toLowerCase()}`);
+      onSaved();
+      onDismiss();
+    } catch {
+      useToastStore.getState().error('No se pudo registrar el descanso', 'Comprueba que no haya un registro para esa noche.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Card as="section" padding="lg" aria-label="Sugerencia de descanso nocturno" className="flex flex-col gap-4 border-info/35 bg-info/[var(--lq-soft-alpha)]">
+      <div className="flex items-start gap-3">
+        <IconChip icon={Moon} tone="info" size="lg" />
+        <div className="min-w-0 flex-1">
+          <h2 className="text-heading-sm">¿Dormiste durante esta pausa?</h2>
+          <p className="mt-1 text-body-sm text-on-surface-light">
+            Noutlife detectó que volviste tras una pausa nocturna de <b className="font-mono text-on-surface">{hm(suggestion.durationHours)}</b> ({time(start)}–{time(end)}). Solo se guardará si lo confirmas.
+          </p>
+        </div>
+      </div>
+      <QualityPicker value={q} onChange={setQ} legend="¿Cómo descansaste?" />
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <Button type="button" variant="ghost" onClick={onDismiss}>No fue sueño</Button>
+        <Button type="button" loading={saving} onClick={() => void confirm()}>Registrar descanso</Button>
+      </div>
+    </Card>
+  );
+}
+
 export default function SleepPage() {
   const [logs, setLogs] = useState<SleepLog[]>([]);
   const [stats, setStats] = useState<SleepStats | null>(null);
   const [state, setState] = useState<'loading' | 'error' | 'ready'>('loading');
   const [showAll, setShowAll] = useState(false);
   const isDesktop = useMediaQuery('(min-width: 768px)');
+  const userId = useAuthStore((s) => s.user?.id);
+  const [gapSuggestion, setGapSuggestion] = useState<SleepGapSuggestion | null>(null);
+
+  useEffect(() => {
+    if (!userId) { setGapSuggestion(null); return; }
+    const sync = () => setGapSuggestion(readSleepGapSuggestion(userId));
+    sync();
+    const later = window.setTimeout(sync, 0);
+    window.addEventListener('focus', sync);
+    document.addEventListener('visibilitychange', sync);
+    return () => {
+      window.clearTimeout(later);
+      window.removeEventListener('focus', sync);
+      document.removeEventListener('visibilitychange', sync);
+    };
+  }, [userId]);
+
+  const dismissGapSuggestion = useCallback(() => {
+    if (userId) dismissSleepGapSuggestion(userId);
+    setGapSuggestion(null);
+  }, [userId]);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setState('loading');
@@ -431,6 +500,11 @@ export default function SleepPage() {
     }
   }, []);
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    if (!gapSuggestion) return;
+    const wakeDay = dayKey(new Date(gapSuggestion.wakeTime));
+    if (logs.some((log) => !isNap(log) && nightKey(log) === wakeDay)) dismissGapSuggestion();
+  }, [dismissGapSuggestion, gapSuggestion, logs]);
 
   async function remove(l: SleepLog) {
     setLogs((list) => list.filter((x) => x.id !== l.id));
@@ -607,6 +681,11 @@ export default function SleepPage() {
         <ErrorState title="No pudimos cargar tu sueño" onRetry={() => void load()} />
       ) : (
         <>
+          {gapSuggestion && (
+            <motion.div variants={item}>
+              <SleepGapCard suggestion={gapSuggestion} onDismiss={dismissGapSuggestion} onSaved={() => void load(true)} />
+            </motion.div>
+          )}
           <motion.div variants={item}><SleepHero night={lastNight} dayLogs={heroLogs} /></motion.div>
           <motion.div variants={stagger} className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
             <MiniStat label="Media de noches" hours={avg} sub={recent.length ? `Últimas ${recent.length}` : 'Sin noches aún'} tone="info" />

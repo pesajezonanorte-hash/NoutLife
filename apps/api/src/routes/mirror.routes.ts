@@ -6,6 +6,12 @@ import { prisma } from '../lib/prisma';
 const router = Router();
 router.use(requireAuth);
 
+const CLOTHING_CATEGORIES = new Set(['tops', 'bottoms', 'shoes', 'outerwear', 'accessories']);
+const MAX_PHOTO_DATA_LENGTH = 700_000; // ~500 KB JPEG after base64 encoding
+const isValidPhotoData = (value: unknown) => value == null || (
+  typeof value === 'string' && value.length <= MAX_PHOTO_DATA_LENGTH && /^[A-Za-z0-9+/]+={0,2}$/.test(value)
+);
+
 // ─── Care Routines ─────────────────────────────────────────────────────────────
 
 router.get('/routines', async (req, res, next) => {
@@ -119,9 +125,12 @@ router.get('/wardrobe', async (req, res, next) => {
 router.post('/wardrobe', async (req, res, next) => {
   try {
     const userId = (req as AuthRequest).userId!;
-    const { name, category, color, brand, cost } = req.body;
-    if (!name || !category) return res.status(400).json({ error: 'name and category required' });
-    const item = await prisma.clothingItem.create({ data: { userId, name, category, color, brand, cost } });
+    const { name, category, color, brand, cost, photoData } = req.body;
+    if (!name || typeof name !== 'string' || !name.trim() || typeof category !== 'string' || !CLOTHING_CATEGORIES.has(category)) {
+      return res.status(400).json({ error: 'name and a valid clothing category are required' });
+    }
+    if (!isValidPhotoData(photoData)) return res.status(400).json({ error: 'La foto debe ser JPEG/base64 comprimida (máximo 500 KB).' });
+    const item = await prisma.clothingItem.create({ data: { userId, name: name.trim().slice(0, 100), category, color, brand, cost, photoData } });
     res.status(201).json(item);
   } catch (err) { next(err); }
 });
@@ -129,9 +138,24 @@ router.post('/wardrobe', async (req, res, next) => {
 router.patch('/wardrobe/:id', async (req, res, next) => {
   try {
     const userId = (req as AuthRequest).userId!;
+    const { name, category, color, brand, cost, isFavorite, photoData } = req.body;
+    if (category !== undefined && (typeof category !== 'string' || !CLOTHING_CATEGORIES.has(category))) {
+      return res.status(400).json({ error: 'Categoría de prenda no válida.' });
+    }
+    if (photoData !== undefined && !isValidPhotoData(photoData)) {
+      return res.status(400).json({ error: 'La foto debe ser JPEG/base64 comprimida (máximo 500 KB).' });
+    }
     const item = await prisma.clothingItem.update({
       where: { id: req.params.id, userId },
-      data: req.body,
+      data: {
+        ...(typeof name === 'string' && { name: name.trim().slice(0, 100) }),
+        ...(category !== undefined && { category }),
+        ...(color !== undefined && { color }),
+        ...(brand !== undefined && { brand }),
+        ...(cost !== undefined && { cost }),
+        ...(isFavorite !== undefined && { isFavorite: Boolean(isFavorite) }),
+        ...(photoData !== undefined && { photoData }),
+      },
     });
     res.json(item);
   } catch (err) { next(err); }
@@ -140,7 +164,12 @@ router.patch('/wardrobe/:id', async (req, res, next) => {
 router.delete('/wardrobe/:id', async (req, res, next) => {
   try {
     const userId = (req as AuthRequest).userId!;
-    await prisma.clothingItem.delete({ where: { id: req.params.id, userId } });
+    const item = await prisma.clothingItem.findFirst({ where: { id: req.params.id, userId }, select: { id: true } });
+    if (!item) return res.status(404).json({ error: 'Prenda no encontrada.' });
+    await prisma.$transaction([
+      prisma.outfitItem.deleteMany({ where: { clothingItemId: item.id, outfit: { userId } } }),
+      prisma.clothingItem.delete({ where: { id: item.id } }),
+    ]);
     res.json({ success: true });
   } catch (err) { next(err); }
 });
@@ -174,10 +203,17 @@ router.post('/outfits', async (req, res, next) => {
   try {
     const userId = (req as AuthRequest).userId!;
     const { name, itemIds = [], occasion, rating } = req.body;
+    if (!Array.isArray(itemIds) || itemIds.length < 2 || itemIds.some((id) => typeof id !== 'string')) {
+      return res.status(400).json({ error: 'Elige al menos dos prendas para crear una combinación.' });
+    }
+    const uniqueIds = [...new Set(itemIds as string[])];
+    if (uniqueIds.length !== itemIds.length) return res.status(400).json({ error: 'No repitas prendas en una combinación.' });
+    const ownedItems = await prisma.clothingItem.count({ where: { userId, id: { in: uniqueIds } } });
+    if (ownedItems !== uniqueIds.length) return res.status(403).json({ error: 'Una o más prendas no pertenecen a tu armario.' });
     const outfit = await prisma.outfit.create({
       data: {
         userId, name, occasion, rating,
-        items: { create: (itemIds as string[]).map(id => ({ clothingItemId: id })) },
+        items: { create: uniqueIds.map((id) => ({ clothingItemId: id })) },
       },
       include: { items: { include: { clothingItem: true } } },
     });

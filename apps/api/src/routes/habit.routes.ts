@@ -14,6 +14,7 @@ router.get('/:id',              habitController.getHabit);
 router.patch('/:id', validate(updateHabitSchema), habitController.updateHabit);
 router.delete('/:id',           habitController.archiveHabit);
 router.post('/:id/log', validate(habitLogSchema), habitController.logHabit);
+router.post('/:id/log/undo',    habitController.undoHabitLog);
 router.get('/:id/heatmap',      habitController.getHabitHeatmap);
 
 export default router;

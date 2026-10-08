@@ -80,6 +80,17 @@ export async function logHabit(req: AuthRequest, res: Response): Promise<void> {
   }
 }
 
+export async function undoHabitLog(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const result = await habitService.undoHabitLog(req.userId!, req.params.id);
+    res.json(result);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : '';
+    if (msg === 'HABIT_NOT_FOUND') { res.status(404).json({ error: 'Hábito no encontrado.' }); return; }
+    res.status(500).json({ error: 'No se pudo desmarcar el hábito.' });
+  }
+}
+
 export async function getHabitHeatmap(req: AuthRequest, res: Response): Promise<void> {
   try {
     const days = parseInt(req.query.days as string) || 90;
