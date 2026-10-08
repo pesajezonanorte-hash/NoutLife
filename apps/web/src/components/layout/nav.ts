@@ -5,7 +5,7 @@
 import {
   BarChart3, BookOpen, CalendarDays, HelpCircle, Dumbbell, Flag, Globe, Heart, Home,
   MapPin, Moon, NotebookPen, Scroll, Settings, ShoppingBag, Skull, Sparkles, Sun,
-  Trophy, User, UtensilsCrossed, Wallet, CheckCircle2, MessageCircle, Mail, NotebookTabs, Tent, Album, ListChecks, ShieldOff, Target, type LucideIcon,
+  Trophy, User, UtensilsCrossed, Wallet, CheckCircle2, MessageCircle, Mail, NotebookTabs, Tent, Album, ListChecks, ShieldOff, type LucideIcon,
 } from 'lucide-react';
 import { useMemo } from 'react';
 import { useAuthStore } from '@/store/authStore';
@@ -48,7 +48,6 @@ export const NAV_SECTIONS: NavSection[] = [
       { to: '/habits', label: 'Hábitos', icon: CheckCircle2 },
       { to: '/anti-habits', label: 'Anti-hábitos', icon: ShieldOff },
       { to: '/checklists', label: 'Checklists', icon: ListChecks },
-      { to: '/goals', label: 'Metas maestras', icon: Target },
       { to: '/quests', label: 'Misiones', icon: Flag },
       { to: '/stats', label: 'Estadísticas', icon: BarChart3 },
       { to: '/gym', label: 'Gimnasio', icon: Dumbbell },
