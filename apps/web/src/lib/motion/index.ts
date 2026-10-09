@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { animate, useReducedMotionConfig, type Transition, type Variants } from 'framer-motion';
 import { useMotionStore } from '@/store/motionStore';
-import { springs } from './presets';
+import { reduced, springs } from './presets';
 
 export * from './presets';
 
@@ -15,11 +15,23 @@ export const softOut = [0.22, 1, 0.36, 1] as const;     // --ease-soft
 /** Muelle suave con ligero rebote: botones, switches, checks, píldoras, diálogos, toasts. */
 export const springSoft: Transition = { type: 'spring', stiffness: 300, damping: 24, mass: 0.9 };
 
-/** Reducir movimiento (ajuste de la app), leído al resolver la variante. */
-const reduced = () => useMotionStore.getState().reduce;
-/** Entrada v3: y 24 + scale .985 + blur 6 px → 0 (con «Reducir movimiento», solo opacidad). La blur es solo de entrada y
- *  termina en `filter: none` (un filtro residual crearía containing block para los fixed). */
+/**
+ * Entrada v3: y 24 + scale .985 + blur 6 px → 0 (con «Reducir movimiento», solo
+ * opacidad). La blur es solo de entrada y termina en `filter: none` (un filtro
+ * residual crearía containing block para los fixed). Se lee al resolver la variante.
+ */
 const blurIn = () => (reduced() ? { opacity: 0 } : { opacity: 0, y: 24, scale: 0.985, filter: 'blur(6px)' });
+
+/**
+ * «Reducir movimiento» en React: ajuste de la app o `prefers-reduced-motion`
+ * del sistema. Úsalo para quitar blur/desplazamientos de las animaciones
+ * hechas a mano; con él activo la interfaz debe quedar nítida y legible.
+ */
+export function useMotionReduced() {
+  const appReduce = useMotionStore((s) => s.reduce);
+  const systemReduce = useReducedMotionConfig() ?? false;
+  return appReduce || Boolean(systemReduce);
+}
 
 export const ease = [0.22, 1, 0.36, 1] as const;     // ease-out suave (out-quint)
 export const spring: Transition = { type: 'spring', stiffness: 420, damping: 30 };

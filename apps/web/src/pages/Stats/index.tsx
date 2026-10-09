@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
   AlertTriangle, Check, Dumbbell, Flag, Minus, Moon, RefreshCw, Share2, Sparkles, TrendingUp, Wallet, Zap, CheckCircle2,
 } from 'lucide-react';
-import { expo, item, stagger } from '@/lib/motion';
+import { expo, item, stagger, useMotionReduced } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 import {
   getActivityRadar, getFinanceTrend, getGymProgression, getHabitHeatmap, getPredictions, getSleepScatter, getStatsSummary, getXpHistory,
@@ -101,6 +101,7 @@ export default function StatsPage() {
   const [checkins, setCheckins] = useState<DailyCheckin[]>([]);
   const [summary, setSummary] = useState<StatsSummary | null>(null);
   const req = useRef(0);
+  const motionReduced = useMotionReduced();
   const { ref: canvasRef, share } = useShareCard();
 
   const load = useCallback(async (p: Period) => {
@@ -346,8 +347,9 @@ export default function StatsPage() {
                 <ChipGroup label="Ejercicio" value={lift} onChange={setLift} options={gym.slice(0, 8).map((g) => ({ value: g.name, label: g.name }))} />
                 <AnimatePresence mode="wait" initial={false}>
                   <motion.div key={lift} className="flex flex-col gap-4"
-                    initial={{ opacity: 0, y: 10, filter: 'blur(4px)' }} animate={{ opacity: 1, y: 0, filter: 'blur(0px)', transitionEnd: { filter: 'none' } }}
-                    exit={{ opacity: 0, y: -6, transition: { duration: 0.15 } }} transition={{ duration: 0.45, ease: expo }}>
+                    initial={motionReduced ? { opacity: 0 } : { opacity: 0, y: 10, filter: 'blur(4px)' }}
+                    animate={motionReduced ? { opacity: 1 } : { opacity: 1, y: 0, filter: 'blur(0px)', transitionEnd: { filter: 'none' } }}
+                    exit={motionReduced ? { opacity: 0, transition: { duration: 0.15 } } : { opacity: 0, y: -6, transition: { duration: 0.15 } }} transition={{ duration: motionReduced ? 0.15 : 0.45, ease: expo }}>
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                       {([
                         ['Récord', kg(liftBest), liftBestDay ? shortDate(liftBestDay) : ''],

@@ -19,13 +19,14 @@ if ('serviceWorker' in navigator) {
 }
 
 /**
- * "Reducir movimiento" de la app apaga las animaciones. Si no está activo, se
- * animan siempre: las del sistema de diseño son cortas y de pocos píxeles, y los
- * bucles decorativos se apagan aparte con la preferencia del sistema (tokens.css).
+ * "Reducir movimiento": con el ajuste de la app se apagan todas las animaciones;
+ * con la preferencia del sistema (`prefers-reduced-motion`) Framer simplifica a
+ * fundidos de opacidad (sin transform ni blur) y tokens.css apaga los bucles
+ * decorativos. En ningún caso se aplican desenfoques: la interfaz queda nítida.
  */
 function Motion({ children }: { children: ReactNode }) {
   const reduce = useMotionStore((s) => s.reduce);
-  return <MotionConfig reducedMotion={reduce ? 'always' : 'never'}>{children}</MotionConfig>;
+  return <MotionConfig reducedMotion={reduce ? 'always' : 'user'}>{children}</MotionConfig>;
 }
 
 createRoot(document.getElementById('root')!).render(

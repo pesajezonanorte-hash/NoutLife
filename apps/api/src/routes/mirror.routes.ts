@@ -125,12 +125,13 @@ router.get('/wardrobe', async (req, res, next) => {
 router.post('/wardrobe', async (req, res, next) => {
   try {
     const userId = (req as AuthRequest).userId!;
-    const { name, category, color, brand, cost, photoData } = req.body;
+    const { name, category, color, brand, photoData } = req.body;
     if (!name || typeof name !== 'string' || !name.trim() || typeof category !== 'string' || !CLOTHING_CATEGORIES.has(category)) {
       return res.status(400).json({ error: 'name and a valid clothing category are required' });
     }
     if (!isValidPhotoData(photoData)) return res.status(400).json({ error: 'La foto debe ser JPEG/base64 comprimida (máximo 500 KB).' });
-    const item = await prisma.clothingItem.create({ data: { userId, name: name.trim().slice(0, 100), category, color, brand, cost, photoData } });
+    // El precio ya no se pide al registrar una prenda (solo nombre, categoría y detalles).
+    const item = await prisma.clothingItem.create({ data: { userId, name: name.trim().slice(0, 100), category, color, brand, photoData } });
     res.status(201).json(item);
   } catch (err) { next(err); }
 });
@@ -138,7 +139,7 @@ router.post('/wardrobe', async (req, res, next) => {
 router.patch('/wardrobe/:id', async (req, res, next) => {
   try {
     const userId = (req as AuthRequest).userId!;
-    const { name, category, color, brand, cost, isFavorite, photoData } = req.body;
+    const { name, category, color, brand, isFavorite, photoData } = req.body;
     if (category !== undefined && (typeof category !== 'string' || !CLOTHING_CATEGORIES.has(category))) {
       return res.status(400).json({ error: 'Categoría de prenda no válida.' });
     }
@@ -152,7 +153,6 @@ router.patch('/wardrobe/:id', async (req, res, next) => {
         ...(category !== undefined && { category }),
         ...(color !== undefined && { color }),
         ...(brand !== undefined && { brand }),
-        ...(cost !== undefined && { cost }),
         ...(isFavorite !== undefined && { isFavorite: Boolean(isFavorite) }),
         ...(photoData !== undefined && { photoData }),
       },
@@ -209,7 +209,7 @@ router.post('/outfits', async (req, res, next) => {
     const uniqueIds = [...new Set(itemIds as string[])];
     if (uniqueIds.length !== itemIds.length) return res.status(400).json({ error: 'No repitas prendas en una combinación.' });
     const ownedItems = await prisma.clothingItem.count({ where: { userId, id: { in: uniqueIds } } });
-    if (ownedItems !== uniqueIds.length) return res.status(403).json({ error: 'Una o más prendas no pertenecen a tu armario.' });
+    if (ownedItems !== uniqueIds.length) return res.status(403).json({ error: 'Una o más prendas no pertenecen a tu espejo.' });
     const outfit = await prisma.outfit.create({
       data: {
         userId, name, occasion, rating,

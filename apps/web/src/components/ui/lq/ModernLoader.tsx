@@ -9,6 +9,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { usePageVisibility } from '@/components/ui/LoadingGate';
+import { useMotionReduced } from '@/lib/motion';
 
 /** Hoja asimétrica, misma familia que las del logo. Centrada en (0,0), 20 de alto. */
 const LEAF = 'M0 -10C6.6 -6.4 6.2 4.6 0 10C-3.4 4.4 -4.2 -4.6 0 -10Z';
@@ -79,6 +80,7 @@ export function ModernLoader({
 
   const compact = d < 64;
   const leaves = compact ? LEAVES.slice(0, 4) : LEAVES;
+  const reduce = useMotionReduced();
 
   return (
     <div
@@ -120,10 +122,10 @@ export function ModernLoader({
             <motion.span
               key={word}
               className="absolute inset-x-0 truncate text-body-sm text-on-surface-light"
-              initial={{ opacity: 0, y: 6, filter: 'blur(4px)' }}
-              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-              exit={{ opacity: 0, y: -6, filter: 'blur(4px)' }}
-              transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+              initial={reduce ? { opacity: 0 } : { opacity: 0, y: 6, filter: 'blur(4px)' }}
+              animate={reduce ? { opacity: 1 } : { opacity: 1, y: 0, filter: 'blur(0px)' }}
+              exit={reduce ? { opacity: 0 } : { opacity: 0, y: -6, filter: 'blur(4px)' }}
+              transition={{ duration: reduce ? 0.15 : 0.45, ease: [0.16, 1, 0.3, 1] }}
             >
               {word}
             </motion.span>

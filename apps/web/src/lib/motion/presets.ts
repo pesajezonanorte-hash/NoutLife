@@ -39,7 +39,14 @@ export const cssDur = (name: SpringName) => `var(--lq-dur-${name})`;
 /** Curva de salida rápida y limpia (todas las zonas salen igual de suave). */
 export const exitEase = [0.4, 0, 1, 1] as const;
 
-const reduced = () => useMotionStore.getState().reduce;
+/** Preferencia del sistema (prefers-reduced-motion), leída al vuelo. */
+export const systemReduced = () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+/**
+ * «Reducir movimiento» activo: ajuste de la app o preferencia del sistema.
+ * En ese modo las entradas quedan en un fundido de opacidad: sin desplazamientos,
+ * escalas ni filtros de desenfoque (la interfaz se mantiene totalmente nítida).
+ */
+export const reduced = () => useMotionStore.getState().reduce || systemReduced();
 const fade = { opacity: 0 };
 
 /** Contenedor que escalona a sus hijos. */
@@ -65,10 +72,15 @@ export const enter = {
     animate: { opacity: 1, y: 0, rotate: 0, transition: { ...springs.heavy, opacity: { duration: durations.quick } } },
     exit: { opacity: 0, y: 8, transition: { duration: durations.quick, ease: exitEase } },
   },
-  /** Emerge de la niebla: se enfoca despacio (citas, espejo). */
+  /** Emerge de la niebla: se enfoca despacio (citas, espejo). Con «Reducir movimiento», solo opacidad. */
   emerge: {
     initial: () => (reduced() ? fade : { opacity: 0, scale: 0.985, filter: 'blur(10px)' }),
-    animate: { opacity: 1, scale: 1, filter: 'blur(0px)', transition: { ...springs.gentle, opacity: { duration: durations.slow } }, transitionEnd: { filter: 'none' } },
+    animate: () => (reduced()
+      ? { opacity: 1, transition: { duration: durations.quick } }
+      : {
+          opacity: 1, scale: 1, filter: 'blur(0px)',
+          transition: { ...springs.gentle, opacity: { duration: durations.slow } }, transitionEnd: { filter: 'none' },
+        }),
     exit: { opacity: 0, transition: { duration: durations.quick, ease: exitEase } },
   },
   /** Se sirve: baja sobre la mesa con una pizca de escala (platos, artículos). */

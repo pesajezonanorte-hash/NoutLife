@@ -1,14 +1,15 @@
-// Glow up — GlowUpDesktop.dc.html. "Brillo de hoy" (anillo), SegmentedControl
-// Cuidado / Estilo / Presencia, rutinas con pasos que se marcan, armario con
+// Espejo — GlowUpDesktop.dc.html. "Brillo de hoy" (anillo), SegmentedControl
+// Cuidado / Prendas / Presencia, rutinas con pasos que se marcan, prendas con
 // filtros y autoevaluación semanal. Datos: /mirror/* (sin cambios).
-// Zona ambientada: tu armario y tocador. El reflejo se desempaña despacio; un brillo
+// Zona ambientada: tu espejo y tocador. El reflejo se desempaña despacio; un brillo
 // lo cruza muy lento y su resplandor sube de forma gradual con cada paso hecho.
 // Las secciones se funden entre sí; todo con física suave (gentle).
 import { useState, useEffect, useCallback, useMemo, useRef, type ReactNode } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Camera, Check, Droplets, Flame, Moon, Plus, Shirt, Sparkles, Star, Sun, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { item, springs, stagger } from '@/lib/motion';
+import { item, springs, stagger, useMotionReduced } from '@/lib/motion';
 import { AmbientLight, ZoneShell } from '@/components/ambience';
 import { Mirror } from '@/components/glowup/Mirror';
 import { useToastStore } from '../../hooks/useToast';
@@ -28,7 +29,7 @@ interface CareRoutine {
 
 interface ClothingItem {
   id: string; name: string; category: string; color?: string | null; photoData?: string | null;
-  brand?: string | null; cost?: number | string | null; timesWorn: number; isFavorite: boolean;
+  brand?: string | null; timesWorn: number; isFavorite: boolean;
 }
 interface ClothingOutfit {
   id: string; name?: string | null; occasion?: string | null;
@@ -43,7 +44,7 @@ interface PresenceCheckin {
 type Tab = 'care' | 'style' | 'presence';
 const TABS = [
   { value: 'care' as const, label: 'Cuidado personal' },
-  { value: 'style' as const, label: 'Armario' },
+  { value: 'style' as const, label: 'Prendas' },
   { value: 'presence' as const, label: 'Presencia' },
 ];
 
@@ -272,7 +273,7 @@ function CareSection({ onProgress }: CareProps) {
 
 // ─── Style Section ────────────────────────────────────────────────────────────
 
-function StyleSection() {
+function StyleSection({ autoOpenAdd, onAddOpened }: { autoOpenAdd?: boolean; onAddOpened?: () => void }) {
   const toast = useToastStore();
   const [items, setItems] = useState<ClothingItem[]>([]);
   const [state, setState] = useState<'loading' | 'error' | 'ready'>('loading');
@@ -286,7 +287,17 @@ function StyleSection() {
   const [outfitName, setOutfitName] = useState('');
   const [savingOutfit, setSavingOutfit] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
-  const [form, setForm] = useState({ name: '', category: 'tops', color: '', brand: '', cost: '', photoData: '' });
+  const [form, setForm] = useState({ name: '', category: 'tops', color: '', brand: '', photoData: '' });
+
+  // Llegar con ?add=prenda (desde Finanzas → «Ir al Espejo») abre directamente
+  // el formulario de nueva prenda, para registrar la compra recién hecha.
+  useEffect(() => {
+    if (!autoOpenAdd) return;
+    setShowNew(true);
+    onAddOpened?.();
+    // Solo al montar: el alta se ofrece una vez por navegación.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setState('loading');
@@ -300,7 +311,7 @@ function StyleSection() {
       setState('ready');
     } catch {
       if (!silent) setState('error');
-      else toast.error('No se pudo actualizar el armario');
+      else toast.error('No se pudo actualizar tus prendas');
     }
   }, [toast]);
 
@@ -318,7 +329,7 @@ function StyleSection() {
     try {
       const photoData = await compressClothingPhoto(file);
       setForm((current) => ({ ...current, photoData }));
-      toast.success('Foto lista', 'Se guardará de forma privada en tu armario.');
+      toast.success('Foto lista', 'Se guardará de forma privada en tu espejo.');
     } catch (error) {
       toast.error('No se pudo usar esa foto', error instanceof Error ? error.message : undefined);
     } finally {
@@ -330,9 +341,9 @@ function StyleSection() {
   async function handleCreate() {
     setSaving(true);
     try {
-      await api.post('/mirror/wardrobe', { ...form, cost: form.cost ? Number(form.cost) : undefined, photoData: form.photoData || undefined });
+      await api.post('/mirror/wardrobe', { ...form, photoData: form.photoData || undefined });
       setShowNew(false);
-      setForm({ name: '', category: 'tops', color: '', brand: '', cost: '', photoData: '' });
+      setForm({ name: '', category: 'tops', color: '', brand: '', photoData: '' });
       void load(true);
       toast.success('Prenda añadida');
     } catch { toast.error('No se pudo añadir la prenda'); }
@@ -379,7 +390,7 @@ function StyleSection() {
   return (
     <section className="flex flex-col gap-6" aria-labelledby="glow-style">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 id="glow-style" className="text-heading-lg">Armario</h2>
+        <h2 id="glow-style" className="text-heading-lg">Prendas</h2>
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" size="md" disabled={selectedItemIds.length < 2} onClick={() => setShowOutfit(true)}>
             <Sparkles aria-hidden className="size-4" />Combinación ({selectedItemIds.length})
@@ -391,12 +402,12 @@ function StyleSection() {
       <ChipGroup label="Categoría de prenda" options={options} value={activeCategory} onChange={setActiveCategory} />
 
       {state === 'loading' ? (
-        <PageLoader label="Abriendo tu armario…" words={LOADING_COPY.glowUpWardrobe} />
+        <PageLoader label="Abriendo tu espejo…" words={LOADING_COPY.glowUpWardrobe} />
       ) : state === 'error' ? (
-        <ErrorState title="No pudimos cargar tu armario" onRetry={() => void load()} />
+        <ErrorState title="No pudimos cargar tus prendas" onRetry={() => void load()} />
       ) : displayed.length === 0 ? (
         <Card variant="elevated" padding="lg">
-          <EmptyState icon={Shirt} tone="info" title="Tu armario está vacío" description="Añade tus prendas para saber cuánto uso le das a cada una."
+          <EmptyState icon={Shirt} tone="info" title="Tu espejo está vacío" description="Añade tus prendas para saber cuánto uso le das a cada una."
             action={<Button onClick={() => setShowNew(true)}><Plus aria-hidden className="size-4" />Añadir prenda</Button>} className="py-6" />
         </Card>
       ) : (
@@ -422,7 +433,6 @@ function StyleSection() {
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-body-sm text-on-surface-light">
                       <span className="font-mono tabular-nums">{it.timesWorn}</span> {it.timesWorn === 1 ? 'uso' : 'usos'}
-                      {it.cost && it.timesWorn > 0 ? <> · <span className="font-mono tabular-nums">${Math.round(Number(it.cost) / it.timesWorn).toLocaleString('es-CO')}</span>/uso</> : null}
                     </p>
                     {it.isFavorite && <Star aria-label="Favorita" className="size-4 shrink-0 fill-warning text-warning" />}
                   </div>
@@ -492,7 +502,6 @@ function StyleSection() {
             <Field label="Marca"><Input value={form.brand} onChange={(e) => setForm((f) => ({ ...f, brand: e.target.value }))} placeholder="Zara, Nike…" /></Field>
             <Field label="Color"><Input value={form.color} onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))} placeholder="Azul marino" /></Field>
           </div>
-          <Field label="Precio (COP)"><Input type="number" inputMode="numeric" value={form.cost} onChange={(e) => setForm((f) => ({ ...f, cost: e.target.value }))} placeholder="50000" /></Field>
           <div className="flex gap-3">
             <Button type="button" variant="ghost" className="flex-1" onClick={() => setShowNew(false)}>Cancelar</Button>
             <Button type="submit" className="flex-1" disabled={!form.name.trim() || photoProcessing} loading={saving}>Añadir</Button>
@@ -619,7 +628,19 @@ function PresenceSection() {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function GlowUpPage() {
-  const [tab, setTab] = useState<Tab>('care');
+  // ?add=prenda (botón «Ir al Espejo» en Finanzas) abre la pestaña de prendas
+  // con el formulario de nueva prenda listo para la compra recién hecha.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const autoOpenAdd = searchParams.get('add') === 'prenda';
+  const clearAddParam = useCallback(() => {
+    setSearchParams((params) => {
+      const next = new URLSearchParams(params);
+      next.delete('add');
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+  const [tab, setTab] = useState<Tab>(autoOpenAdd ? 'style' : 'care');
+  const motionReduced = useMotionReduced();
   const [progress, setProgress] = useState({ done: 0, total: 0, streak: 0 });
   const onProgress = useCallback((done: number, total: number, streak: number) => {
     setProgress((p) => (p.done === done && p.total === total && p.streak === streak ? p : { done, total, streak }));
@@ -628,14 +649,14 @@ export default function GlowUpPage() {
 
   return (
     <ZoneShell
-      zone="armario"
+      zone="espejo"
       contentClassName="gap-6 md:gap-8"
       ambience={<AmbientLight tone="jade-200" alpha={0.5} darkAlpha={0.08} d={12} className="right-[-4%] top-[-10%] h-[30rem] w-[44%]" />}
     >
       <motion.section variants={item} className="flex flex-wrap items-center justify-between gap-6 md:gap-8">
         <div className="flex min-w-0 flex-[1_1_360px] flex-col gap-2">
           <span className="text-label-lg text-primary-text">Tu espacio personal</span>
-          <h1 className="text-display-sm md:text-display-md lg:text-display-lg"><Lettering text="Armario" /></h1>
+          <h1 className="text-display-sm md:text-display-md lg:text-display-lg"><Lettering text="Espejo" /></h1>
           <p className="max-w-[540px] text-body-lg text-on-surface-light">Fotografía y clasifica tus prendas, crea combinaciones y acompaña tu estilo con rutinas de cuidado personal.</p>
         </div>
         {/* El tocador: cada paso completado enciende otra bombilla y aclara el vidrio */}
@@ -655,11 +676,19 @@ export default function GlowUpPage() {
         <SegmentedControl options={TABS} value={tab} onChange={setTab} label="Área" className="max-w-[560px]" />
       </motion.div>
 
-      {/* Las secciones se funden entre sí, sin saltos */}
+      {/* Las secciones se funden entre sí, sin saltos. Con «Reducir movimiento»
+          solo hay un fundido de opacidad: sin blur, la pantalla queda nítida. */}
       <AnimatePresence mode="wait">
-        <motion.div key={tab} role="tabpanel" initial={{ opacity: 0, filter: 'blur(6px)' }} animate={{ opacity: 1, filter: 'blur(0px)', transition: springs.gentle, transitionEnd: { filter: 'none' } }} exit={{ opacity: 0, filter: 'blur(4px)', transition: { duration: 0.2 } }}>
+        <motion.div
+          key={tab} role="tabpanel"
+          initial={motionReduced ? { opacity: 0 } : { opacity: 0, filter: 'blur(6px)' }}
+          animate={motionReduced
+            ? { opacity: 1, transition: { duration: 0.2 } }
+            : { opacity: 1, filter: 'blur(0px)', transition: springs.gentle, transitionEnd: { filter: 'none' } }}
+          exit={motionReduced ? { opacity: 0, transition: { duration: 0.15 } } : { opacity: 0, filter: 'blur(4px)', transition: { duration: 0.2 } }}
+        >
           {tab === 'care' && <CareSection onProgress={onProgress} />}
-          {tab === 'style' && <StyleSection />}
+          {tab === 'style' && <StyleSection autoOpenAdd={autoOpenAdd} onAddOpened={clearAddParam} />}
           {tab === 'presence' && <PresenceSection />}
         </motion.div>
       </AnimatePresence>
