@@ -19,14 +19,14 @@ if ('serviceWorker' in navigator) {
 }
 
 /**
- * "Reducir movimiento": con el ajuste de la app se apagan todas las animaciones;
- * con la preferencia del sistema (`prefers-reduced-motion`) Framer simplifica a
- * fundidos de opacidad (sin transform ni blur) y tokens.css apaga los bucles
- * decorativos. En ningún caso se aplican desenfoques: la interfaz queda nítida.
+ * "Reducir movimiento" solo lo decide el ajuste de la app (Perfil y Ajustes).
+ * La preferencia del sistema operativo (`prefers-reduced-motion`) NO apaga las
+ * animaciones: con el ajuste desactivado Framer ignora el sistema ('never') y
+ * las animaciones siguen activas en todos los equipos, también en PC.
  */
 function Motion({ children }: { children: ReactNode }) {
   const reduce = useMotionStore((s) => s.reduce);
-  return <MotionConfig reducedMotion={reduce ? 'always' : 'user'}>{children}</MotionConfig>;
+  return <MotionConfig reducedMotion={reduce ? 'always' : 'never'}>{children}</MotionConfig>;
 }
 
 createRoot(document.getElementById('root')!).render(

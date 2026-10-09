@@ -23,14 +23,12 @@ export const springSoft: Transition = { type: 'spring', stiffness: 300, damping:
 const blurIn = () => (reduced() ? { opacity: 0 } : { opacity: 0, y: 24, scale: 0.985, filter: 'blur(6px)' });
 
 /**
- * «Reducir movimiento» en React: ajuste de la app o `prefers-reduced-motion`
- * del sistema. Úsalo para quitar blur/desplazamientos de las animaciones
- * hechas a mano; con él activo la interfaz debe quedar nítida y legible.
+ * «Reducir movimiento» en React: solo el ajuste de la app. Úsalo para quitar
+ * blur/desplazamientos de las animaciones hechas a mano; con él activo la
+ * interfaz debe quedar nítida y legible.
  */
 export function useMotionReduced() {
-  const appReduce = useMotionStore((s) => s.reduce);
-  const systemReduce = useReducedMotionConfig() ?? false;
-  return appReduce || Boolean(systemReduce);
+  return useMotionStore((s) => s.reduce);
 }
 
 export const ease = [0.22, 1, 0.36, 1] as const;     // ease-out suave (out-quint)

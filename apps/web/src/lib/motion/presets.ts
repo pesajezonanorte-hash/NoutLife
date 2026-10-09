@@ -39,14 +39,12 @@ export const cssDur = (name: SpringName) => `var(--lq-dur-${name})`;
 /** Curva de salida rápida y limpia (todas las zonas salen igual de suave). */
 export const exitEase = [0.4, 0, 1, 1] as const;
 
-/** Preferencia del sistema (prefers-reduced-motion), leída al vuelo. */
-export const systemReduced = () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 /**
- * «Reducir movimiento» activo: ajuste de la app o preferencia del sistema.
+ * «Reducir movimiento» activo en la app (la preferencia del sistema no cuenta).
  * En ese modo las entradas quedan en un fundido de opacidad: sin desplazamientos,
  * escalas ni filtros de desenfoque (la interfaz se mantiene totalmente nítida).
  */
-export const reduced = () => useMotionStore.getState().reduce || systemReduced();
+export const reduced = () => useMotionStore.getState().reduce;
 const fade = { opacity: 0 };
 
 /** Contenedor que escalona a sus hijos. */
