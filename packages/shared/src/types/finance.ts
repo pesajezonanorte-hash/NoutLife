@@ -8,6 +8,7 @@ export type TransactionCategory =
   | 'HEALTH'
   | 'EDUCATION'
   | 'CLOTHING'
+  | 'CLOTHING_FOR_ME'
   | 'UTILITIES'
   | 'HOUSING'
   | 'SUBSCRIPTIONS'

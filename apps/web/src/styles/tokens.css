@@ -241,10 +241,12 @@ html.dark {
 .reduce-motion .lq-vortex-orbit, .reduce-motion .lq-vortex-drift, .reduce-motion .lq-vortex-leaf, .reduce-motion .lq-vortex-sweep { animation-play-state: paused; }
 @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 
-/* Política de movimiento: todas las animaciones están activas de base, también
-   con «reducir movimiento» del sistema operativo. Solo el ajuste de la app
-   (store/motionStore, clase .reduce-motion) las apaga y deja opacidad y color.
-   En Tailwind se usa la variante [.reduce-motion_&]: (no motion-reduce:). */
+/* Política de movimiento: las animaciones de la app se apagan con el ajuste
+   «Reducir movimiento» (store/motionStore, clase .reduce-motion) y también con
+   la preferencia del sistema `prefers-reduced-motion`. En ambos casos solo
+   quedan fundidos de opacidad y color: nunca filtros de desenfoque (blur), para
+   que la interfaz se mantenga totalmente nítida y legible.
+   En Tailwind se usa la variante [.reduce-motion_&]: para el ajuste de la app. */
 
 /* «Reducir movimiento» activado en la app (store/motionStore). */
 .reduce-motion *, .reduce-motion *::before, .reduce-motion *::after {
@@ -252,6 +254,27 @@ html.dark {
   animation-iteration-count: 1 !important;
   transition-duration: .01ms !important;
   scroll-behavior: auto !important;
+}
+
+/* Reducir movimiento (app o sistema): nada de blur «masivo». Los blur de
+   animación llegan como estilos en línea (Framer Motion, p. ej. blur(6px) al
+   entrar una página); esta regla los neutraliza y la pantalla queda nítida. */
+.reduce-motion [style*="blur"] { filter: none !important; }
+
+/* Preferencia del sistema operativo (prefers-reduced-motion): mismas reglas
+   que el ajuste de la app, para quien no entra a los Ajustes. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+  [style*="blur"] { filter: none !important; }
+  .lq-vortex-orbit, .lq-vortex-drift, .lq-vortex-leaf, .lq-vortex-sweep { animation-play-state: paused; }
+  .lq-halo::after { animation: none; }
+  .lq-shine::before { display: none; }
+  .lq-sheen::after, .lq-skeleton { animation: none; }
 }
 
 @keyframes lq-blink { 50% { opacity: 0; } }

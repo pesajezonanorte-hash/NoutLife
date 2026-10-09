@@ -36,7 +36,7 @@ import wisdomRoutes       from './wisdom.routes';
 import searchRoutes       from './search.routes';
 import exportRoutes       from './export.routes';
 import feedbackRoutes     from './feedback.routes';
-// Armario y cuidado personal (Bloque 3)
+// Espejo y cuidado personal (Bloque 3)
 import mirrorRoutes       from './mirror.routes';
 // Custom Zones (Bloque 4)
 import customZonesRoutes  from './custom-zones.routes';

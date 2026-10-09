@@ -52,7 +52,6 @@ const loaders = {
   AgendaPage: () => import('./pages/Agenda'),
   LifePage: () => import('./pages/Life'),
   ChecklistsPage: () => import('./pages/Checklists'),
-  AntiHabitsPage: () => import('./pages/AntiHabits'),
   SharedResourcePage: () => import('./pages/SharedResource'),
   RitualsPage: () => import('./pages/Rituals'),
   GlowUpPage: () => import('./pages/GlowUp'),
@@ -108,17 +107,16 @@ const routeLoaders: Record<string, () => Promise<unknown>> = {
   '/agenda': loaders.AgendaPage,
   '/life': loaders.LifePage,
   '/checklists': loaders.ChecklistsPage,
-  '/anti-habits': loaders.AntiHabitsPage,
   '/custom-zones': loaders.CustomZonesPage,
   '/rituals': loaders.RitualsPage,
-  '/armario': loaders.GlowUpPage,
+  '/espejo': loaders.GlowUpPage,
   '/wisdom': loaders.WisdomPage,
   '/about': loaders.AboutPage,
   '/faq': loaders.FAQPage,
 };
 
 // Rutas que solo redirigen (no esperan ningún bundle).
-const REDIRECTS = new Set(['/rituales', '/character', '/friends', '/guild', '/glow-up']);
+const REDIRECTS = new Set(['/rituales', '/character', '/friends', '/guild', '/glow-up', '/armario']);
 
 function loaderForPath(pathname: string) {
   if (REDIRECTS.has(pathname)) return null;
@@ -237,11 +235,11 @@ function AnimatedRoutes({ location }: { location: ReturnType<typeof useLocation>
           <Route path="/life"         element={<SafePage><DeferredLazyPage load={loaders.LifePage} /></SafePage>} />
           <Route path="/custom-zones" element={<SafePage><DeferredLazyPage load={loaders.CustomZonesPage} /></SafePage>} />
           <Route path="/checklists" element={<SafePage><DeferredLazyPage load={loaders.ChecklistsPage} /></SafePage>} />
-          <Route path="/anti-habits" element={<SafePage><DeferredLazyPage load={loaders.AntiHabitsPage} /></SafePage>} />
           <Route path="/rituals"  element={<SafePage><DeferredLazyPage load={loaders.RitualsPage} /></SafePage>} />
           <Route path="/rituales" element={<Navigate to="/rituals" replace />} />
-          <Route path="/armario"  element={<SafePage><DeferredLazyPage load={loaders.GlowUpPage} /></SafePage>} />
-          <Route path="/glow-up" element={<Navigate to="/armario" replace />} />
+          <Route path="/espejo"   element={<SafePage><DeferredLazyPage load={loaders.GlowUpPage} /></SafePage>} />
+          <Route path="/armario"  element={<Navigate to="/espejo" replace />} />
+          <Route path="/glow-up"  element={<Navigate to="/espejo" replace />} />
           <Route path="/wisdom"   element={<SafePage><DeferredLazyPage load={loaders.WisdomPage} /></SafePage>} />
           <Route path="/about"    element={<SafePage><DeferredLazyPage load={loaders.AboutPage} /></SafePage>} />
           <Route path="/faq"      element={<SafePage><DeferredLazyPage load={loaders.FAQPage} /></SafePage>} />

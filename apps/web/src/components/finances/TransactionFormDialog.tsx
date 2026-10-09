@@ -1,6 +1,9 @@
 // Nueva transacción (sin prototipo propio: formulario del sistema). Mismo
-// payload que el antiguo TransactionModal.
+// payload que el antiguo TransactionModal. Con el gasto «Ropa para mí» aparece
+// el atajo «Ir al Espejo» para registrar la prenda recién comprada.
 import { useEffect, useState, type FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Sparkles } from 'lucide-react';
 import type { Transaction, TransactionCategory } from '@noutlife/shared';
 import { cn } from '@/lib/utils';
 import { Button, Field, Input, ResponsiveDialog, SegmentedControl, DatePicker } from '@/components/ui/lq';
@@ -16,6 +19,7 @@ export function TransactionFormDialog({ open, onClose, onSaved }: {
   onClose: () => void;
   onSaved: (t: Transaction) => void;
 }) {
+  const navigate = useNavigate();
   const [type, setType] = useState<'EXPENSE' | 'INCOME'>('EXPENSE');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState<TransactionCategory>('FOOD');
@@ -88,6 +92,16 @@ export function TransactionFormDialog({ open, onClose, onSaved }: {
             })}
           </div>
         </fieldset>
+        {/* Atajo contextual: «Ropa para mí» conecta el gasto con el Espejo,
+            para registrar la prenda que acabas de comprar. */}
+        {type === 'EXPENSE' && category === 'CLOTHING_FOR_ME' && (
+          <div role="note" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/40 bg-primary/[var(--lq-soft-alpha)] p-3">
+            <p className="min-w-0 flex-1 text-body-sm text-on-surface">¿Acabas de comprar ropa? Añade la prenda a tu Espejo.</p>
+            <Button type="button" variant="secondary" size="sm" onClick={() => { onClose(); navigate('/espejo?add=prenda'); }}>
+              <Sparkles aria-hidden className="size-4" />Ir al Espejo
+            </Button>
+          </div>
+        )}
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Descripción" help="Opcional">
             <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={type === 'INCOME' ? 'Ej. Pago de nómina' : 'Ej. Supermercado'} />

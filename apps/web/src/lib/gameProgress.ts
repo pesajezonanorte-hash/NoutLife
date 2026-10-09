@@ -34,5 +34,5 @@ export const ZONE_TOOLTIPS: Record<string, { title: string; body: string }> = {
   '/sleep': { title: 'Torre', body: 'Tu descanso también sube de nivel cuando lo haces visible.' },
   '/love': { title: 'Jardín', body: 'Relaciones, detalles y vínculos importantes viven aquí.' },
   '/social': { title: 'Social', body: 'Tus contactos y gremios en el directorio, y todas tus cartas. Si hablan tres días seguidos con alguien, se enciende su racha.' },
-  '/armario': { title: 'Armario', body: 'Rutinas de cuidado, prendas y combinaciones para expresar tu estilo.' },
+  '/espejo': { title: 'Espejo', body: 'Rutinas de cuidado, prendas y combinaciones para expresar tu estilo.' },
 };
