@@ -56,6 +56,7 @@ const TIMEZONES = [
 ];
 /** Resumen del plan en una línea. */
 function planLine(sub: Subscription): string {
+  if (sub.complimentary) return 'Pro de cortesía, sin cobros.';
   if (sub.status === 'trialing') return `Prueba Pro: ${daysUntil(sub.trialEndsAt) === 1 ? 'queda 1 día' : `quedan ${daysUntil(sub.trialEndsAt)} días`}.`;
   if (sub.status === 'active') return `Se renueva el ${longDay(sub.accessEndsAt)}.`;
   if (sub.status === 'canceled') return `Pro hasta el ${longDay(sub.accessEndsAt)}.`;

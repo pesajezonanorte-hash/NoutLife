@@ -5,7 +5,7 @@ import { fingerprintSecret, paymentKey, type NequiProof } from '../lib/trial-key
 import { claimTrial, trialAvailable } from './trial.service';
 import {
   LITE_LIMITS, PRO_AMOUNT_IN_CENTS, PRO_CURRENCY, PRO_PRICE_COP, PRO_ZONES, RENEWAL_GRACE_MS, TRIAL_DAYS,
-  accessEndsAt, addDays, addMonth, hasProAccess, nextAction, paymentReference, paywallRequired, planOf, statusOf, trialEndOf, willRenew,
+  accessEndsAt, addDays, addMonth, complimentaryEmails, hasProAccess, nextAction, paymentReference, paywallRequired, planOf, statusOf, trialEndOf, willRenew,
   type Plan, type SubscriptionStatus,
 } from '../lib/plans';
 import {
@@ -35,7 +35,12 @@ const SUBSCRIPTION_SELECT = {
   lastPaymentError: true,
 } satisfies Prisma.UserSelect;
 
-type SubscriptionUser = Prisma.UserGetPayload<{ select: typeof SUBSCRIPTION_SELECT }>;
+type SubscriptionUser = Prisma.UserGetPayload<{ select: typeof SUBSCRIPTION_SELECT }> & { complimentary?: boolean };
+
+/** Marca la cuenta de cortesía según COMP_PRO_EMAILS: una variable de entorno, no un dato de la base. */
+function withComplimentary<T extends { email: string }>(user: T): T & { complimentary: boolean } {
+  return { ...user, complimentary: complimentaryEmails(process.env.COMP_PRO_EMAILS).has(user.email.toLowerCase()) };
+}
 
 const FINAL_STATUSES = new Set(['APPROVED', 'DECLINED', 'VOIDED', 'ERROR']);
 /** Un cobro sin id de Wompi (el proceso cayó entre guardar y cobrar) se da por fallido tras este tiempo. */
@@ -53,6 +58,8 @@ export interface SubscriptionView {
   accessEndsAt: string | null;
   /** Se cobrará automáticamente al vencer. */
   renews: boolean;
+  /** Pro de cortesía: sin cobros ni vencimiento (lo decide COMP_PRO_EMAILS). */
+  complimentary: boolean;
   hasPaymentMethod: boolean;
   /** Cuentas anteriores a Nequi no tienen tipo guardado: su medio de pago es una tarjeta. */
   paymentMethodType: 'CARD' | 'NEQUI' | null;
@@ -71,14 +78,16 @@ export interface SubscriptionView {
 export function subscriptionView(
   user: SubscriptionUser, now = new Date(), pendingPayment = false, canTrial = false, billingEnabled = wompiConfig().configured,
 ): SubscriptionView {
-  const status = statusOf(user);
+  // La cortesía se muestra como un Pro activo sin fecha: no hay cobro ni vencimiento que contar.
+  const status = user.complimentary ? 'active' : statusOf(user);
   return {
     status,
     plan: planOf(user, now),
     trialEndsAt: trialEndOf(user).toISOString(),
     currentPeriodEnd: user.currentPeriodEnd?.toISOString() ?? null,
-    accessEndsAt: status === 'lite' ? null : accessEndsAt(user).toISOString(),
+    accessEndsAt: status === 'lite' || user.complimentary ? null : accessEndsAt(user).toISOString(),
     renews: willRenew(user),
+    complimentary: Boolean(user.complimentary),
     hasPaymentMethod: Boolean(user.paymentSourceId),
     paymentMethodType: user.paymentSourceId ? (user.paymentMethodType === 'NEQUI' ? 'NEQUI' : 'CARD') : null,
     paymentMethodLabel: user.paymentMethodLabel,
@@ -94,13 +103,14 @@ export function subscriptionView(
 
 /** La prueba solo existe para cuentas en Lite que nunca pagaron y cuyo correo no la usó. */
 async function canStartTrial(user: SubscriptionUser): Promise<boolean> {
+  if (user.complimentary) return false;
   return statusOf(user) === 'lite' && !user.currentPeriodEnd && trialAvailable(user.email);
 }
 
 async function loadUser(userId: string): Promise<SubscriptionUser> {
   const user = await prisma.user.findUnique({ where: { id: userId }, select: SUBSCRIPTION_SELECT });
   if (!user) throw new BillingError('NOT_FOUND', 'Usuario no encontrado.', 404);
-  return user;
+  return withComplimentary(user);
 }
 
 async function getView(userId: string): Promise<SubscriptionView> {
@@ -117,7 +127,7 @@ export const getSubscription = getView;
 /** Plan efectivo ahora mismo (lectura pura: nunca cobra). Lo usan los límites de Lite. */
 export async function getPlan(userId: string): Promise<Plan> {
   const user = await prisma.user.findUnique({ where: { id: userId }, select: SUBSCRIPTION_SELECT });
-  return user ? planOf(user) : 'lite';
+  return user ? planOf(withComplimentary(user)) : 'lite';
 }
 
 export async function isPro(userId: string): Promise<boolean> {
@@ -382,6 +392,7 @@ export async function savePaymentMethod(userId: string, input: PaymentMethodInpu
 export async function subscribeNow(userId: string): Promise<SubscriptionView> {
   await syncSubscription(userId, { wait: true }); // aplica vencimientos pendientes primero
   const user = await loadUser(userId);
+  if (user.complimentary) return getView(userId); // nada que activar ni cobrar
   const status = statusOf(user);
   if (status === 'canceled') return resumeSubscription(userId);
   if (status !== 'lite') return getView(userId);
@@ -410,6 +421,7 @@ export async function subscribeNow(userId: string): Promise<SubscriptionView> {
 /** Cancelar en un clic: conserva el Pro hasta el fin de la prueba o del mes pagado, sin más cobros. */
 export async function cancelSubscription(userId: string): Promise<SubscriptionView> {
   const user = await loadUser(userId);
+  if (user.complimentary) throw new BillingError('COMPLIMENTARY', 'Tu Pro es de cortesía: no hay cobros que cancelar.', 409);
   const status = statusOf(user);
   if (status === 'lite') throw new BillingError('NOT_SUBSCRIBED', 'No tienes una suscripción activa.', 409);
   if (status !== 'canceled') {

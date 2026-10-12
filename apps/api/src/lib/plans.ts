@@ -65,6 +65,8 @@ export interface SubscriptionFields {
   currentPeriodEnd: Date | null;
   paymentSourceId: string | null;
   createdAt: Date;
+  /** Pro de cortesía (COMP_PRO_EMAILS): Pro sin fecha, sin paywall y sin cobros. Lo decide el servidor, no la base. */
+  complimentary?: boolean;
 }
 
 export function statusOf(user: Pick<SubscriptionFields, 'subscriptionStatus'>): SubscriptionStatus {
@@ -100,11 +102,13 @@ export function accessEndsAt(user: SubscriptionFields): Date {
 
 /** ¿Se intentará cobrar al vencer? Solo con tarjeta guardada y sin cancelar. */
 export function willRenew(user: SubscriptionFields): boolean {
+  if (user.complimentary) return false;
   const status = statusOf(user);
   return (status === 'trialing' || status === 'active') && Boolean(user.paymentSourceId);
 }
 
 export function hasProAccess(user: SubscriptionFields, now = new Date()): boolean {
+  if (user.complimentary) return true;
   if (statusOf(user) === 'lite') return false;
   const end = accessEndsAt(user).getTime();
   if (now.getTime() < end) return true;
@@ -118,15 +122,21 @@ export function planOf(user: SubscriptionFields, now = new Date()): Plan {
 
 /**
  * Paywall de entrada: sin medio de pago vinculado no se entra al Dashboard.
- * Sin llaves de Wompi no hay forma de vincularlo, así que no se exige.
+ * Sin llaves de Wompi no hay forma de vincularlo, así que no se exige. Las
+ * cuentas de cortesía entran sin él.
  */
-export function paywallRequired(user: Pick<SubscriptionFields, 'paymentSourceId'>, billingEnabled: boolean): boolean {
-  return billingEnabled && !user.paymentSourceId;
+export function paywallRequired(user: Pick<SubscriptionFields, 'paymentSourceId' | 'complimentary'>, billingEnabled: boolean): boolean {
+  return billingEnabled && !user.paymentSourceId && !user.complimentary;
+}
+
+/** Correos con Pro de cortesía (COMP_PRO_EMAILS, separados por comas). Sin distinguir mayúsculas. */
+export function complimentaryEmails(list: string | undefined): Set<string> {
+  return new Set((list ?? '').split(',').map((email) => email.trim().toLowerCase()).filter(Boolean));
 }
 
 /** Qué toca hacer con la suscripción ahora: nada, cobrar el periodo o pasar a Lite. */
 export function nextAction(user: SubscriptionFields, now = new Date()): 'none' | 'charge' | 'downgrade' {
-  if (statusOf(user) === 'lite') return 'none';
+  if (user.complimentary || statusOf(user) === 'lite') return 'none';
   if (now.getTime() < accessEndsAt(user).getTime()) return 'none';
   return willRenew(user) ? 'charge' : 'downgrade';
 }

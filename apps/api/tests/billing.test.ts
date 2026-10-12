@@ -210,6 +210,44 @@ test('the subscription view carries the paywall flag; a denied trial with a link
   assert.equal(subscriptionView(base, NOW, false, true, false).paywall, false);
 });
 
+test('COMP_PRO_EMAILS: a complimentary Pro needs no payment, never renews and never downgrades', async () => {
+  const { complimentaryEmails, nextAction, paywallRequired, planOf, willRenew } = await import('../src/lib/plans');
+  const list = complimentaryEmails(' Prizzy@Gmail.com , ,otra@example.com ');
+  assert.equal(list.has('prizzy@gmail.com'), true);
+  assert.equal(list.has('otra@example.com'), true);
+  assert.equal(complimentaryEmails(undefined).size, 0);
+
+  // En Lite y con la prueba vencida hace años: sigue Pro, sin paywall y sin pasar a Lite.
+  const comp = { subscriptionStatus: 'lite', trialEndsAt: addDays(NOW, -400), currentPeriodEnd: null, paymentSourceId: null, createdAt: addDays(NOW, -400), complimentary: true };
+  assert.equal(planOf(comp, NOW), 'pro');
+  assert.equal(paywallRequired(comp, true), false);
+  assert.equal(nextAction(comp, NOW), 'none');
+
+  // Con tarjeta y el periodo vencido: no cobra ni renueva.
+  const withCard = { ...comp, subscriptionStatus: 'active', currentPeriodEnd: addDays(NOW, -40), paymentSourceId: '3891' };
+  assert.equal(planOf(withCard, NOW), 'pro');
+  assert.equal(nextAction(withCard, NOW), 'none');
+  assert.equal(willRenew(withCard), false);
+});
+
+test('a complimentary account reads as an active Pro without dates or renewal', async () => {
+  const { subscriptionView } = await import('../src/services/billing.service');
+  const view = subscriptionView(
+    {
+      id: 'u2', email: 'prizzy@gmail.com', createdAt: addDays(NOW, -400), subscriptionStatus: 'lite', trialEndsAt: null,
+      currentPeriodEnd: null, paymentSourceId: null, paymentMethodType: null, paymentMethodLabel: null, liteSince: null,
+      lastPaymentError: null, complimentary: true,
+    },
+    NOW, false, false, true,
+  );
+  assert.equal(view.plan, 'pro');
+  assert.equal(view.status, 'active');
+  assert.equal(view.complimentary, true);
+  assert.equal(view.accessEndsAt, null);
+  assert.equal(view.renews, false);
+  assert.equal(view.paywall, false);
+});
+
 test('a Pro zone lock answers 402 with `lock` (not `feature`) so older web builds never open an unknown dialog', async () => {
   const { sendProLocked, proLockMessage } = await import('../src/middleware/plan.middleware');
   const { PRO_ZONES, PRO_ZONE_LABELS, LITE_LIMITS } = await import('../src/lib/plans');

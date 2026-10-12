@@ -45,6 +45,8 @@ export interface Subscription {
   accessEndsAt: string | null;
   /** Se cobrará automáticamente al vencer. */
   renews: boolean;
+  /** Pro de cortesía: sin cobros ni vencimiento. La lista la decide el servidor (COMP_PRO_EMAILS). Ausente en APIs anteriores. */
+  complimentary?: boolean;
   hasPaymentMethod: boolean;
   /** Solo para mostrar: «VISA •••• 4242» o «NEQUI •••• 1703». */
   paymentMethodLabel: string | null;

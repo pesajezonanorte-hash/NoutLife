@@ -41,6 +41,7 @@ function nextStep(sub: Subscription): string {
       ? 'Revisa tu app de Nequi: si te pide aprobar el cobro, apruébalo. Puede tardar unos minutos.'
       : 'Estamos confirmando tu pago con Wompi. Puede tardar unos minutos.';
   }
+  if (sub.complimentary) return 'Tu Pro es de cortesía: sigue activo, sin cobros ni fecha de vencimiento.';
   const date = longDay(sub.accessEndsAt);
   switch (sub.status) {
     case 'trialing':
@@ -120,7 +121,7 @@ export default function PlanPage() {
   const lite = sub.status === 'lite';
   const proLabel = sub.trialAvailable ? `Empezar mis ${TRIAL_DAYS} días gratis` : `Activar Pro por ${PRICE}/mes`;
   const trialLeft = daysUntil(sub.trialEndsAt);
-  const status = STATUS[sub.status];
+  const status = sub.complimentary ? { label: 'De cortesía', badge: 'secondary' as const } : STATUS[sub.status];
 
   return (
     <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-8 md:gap-12">
@@ -149,15 +150,18 @@ export default function PlanPage() {
             />
           )}
 
-          <div className="flex flex-wrap items-center gap-3 border-t border-border pt-5">
-            <CreditCard aria-hidden className="size-5 shrink-0 text-on-surface-light" strokeWidth={1.75} />
-            <span className="min-w-0 flex-[1_1_200px] text-body-md">
-              {sub.paymentMethodLabel ?? 'Sin método de pago'}
-            </span>
-            <Button variant="secondary" size="sm" onClick={() => setCard(sub.trialAvailable ? 'trial' : 'save')}>
-              {sub.hasPaymentMethod ? 'Cambiar método de pago' : 'Vincular método de pago'}
-            </Button>
-          </div>
+          {/* La cortesía no cobra: no hay método de pago que mostrar ni que cambiar. */}
+          {!sub.complimentary && (
+            <div className="flex flex-wrap items-center gap-3 border-t border-border pt-5">
+              <CreditCard aria-hidden className="size-5 shrink-0 text-on-surface-light" strokeWidth={1.75} />
+              <span className="min-w-0 flex-[1_1_200px] text-body-md">
+                {sub.paymentMethodLabel ?? 'Sin método de pago'}
+              </span>
+              <Button variant="secondary" size="sm" onClick={() => setCard(sub.trialAvailable ? 'trial' : 'save')}>
+                {sub.hasPaymentMethod ? 'Cambiar método de pago' : 'Vincular método de pago'}
+              </Button>
+            </div>
+          )}
 
           <div className="flex flex-wrap gap-3">
             {lite && (
@@ -166,7 +170,7 @@ export default function PlanPage() {
             {sub.status === 'canceled' && (
               <Button size="md" loading={busy === 'resume'} onClick={() => void run('resume')}>Reanudar suscripción</Button>
             )}
-            {(sub.status === 'trialing' || sub.status === 'active') && (
+            {(sub.status === 'trialing' || sub.status === 'active') && !sub.complimentary && (
               <Button variant="ghost" size="md" loading={busy === 'cancel'} onClick={() => void run('cancel')}>Cancelar suscripción</Button>
             )}
           </div>
