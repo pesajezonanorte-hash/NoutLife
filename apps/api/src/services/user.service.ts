@@ -278,6 +278,7 @@ export async function completeGuideDay(userId: string, day: number) {
     body: `${guideDay.title}: +${guideDay.xpBonus} XP.`,
     icon: '🗺️',
     link: guideDay.route,
+    silentForeground: true,
   }).catch(() => {});
 
   let achievementUnlocked = false;

@@ -2,7 +2,6 @@ import { prisma } from '../lib/prisma';
 import { generateText, hasAIProvider } from '../lib/ai';
 import { reconcileHabitStreaks } from './habit.service';
 import { reconcileUserActivityStreak } from './xp.service';
-import { buildSageHistory } from './sage-history.service';
 
 export async function getTodayProactiveNote(userId: string) {
   // Evita devolver un consejo ya guardado con una racha vencida.
@@ -43,7 +42,7 @@ export async function markProactiveNoteRead(userId: string, noteId: string) {
 
 export async function generateProactiveNote(userId: string) {
   // Gather user context
-  const [user, habits, recentQuests, recentLogs, checkin, streak, history] = await Promise.all([
+  const [user, habits, recentQuests, recentLogs, checkin, streak] = await Promise.all([
     prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: { displayName: true, level: true, currentStreak: true, longestStreak: true },
@@ -72,7 +71,6 @@ export async function generateProactiveNote(userId: string) {
       orderBy: { date: 'desc' },
     }),
     prisma.user.findUnique({ where: { id: userId }, select: { currentStreak: true } }),
-    buildSageHistory(userId).catch(() => ''),
   ]);
 
   const today = new Date();
@@ -120,12 +118,10 @@ Datos del héroe ${user.displayName} (Nivel ${user.level}):
 - Estado emocional último check-in: ${lastMood ? `${lastMood}/5` : 'sin datos'}
 - Energía último check-in: ${lastEnergy ? `${lastEnergy}/10` : 'sin datos'}
 - Hábitos completados hoy: ${todayLogs}
-${history ? `Historial de los últimos 30 días:
-${history}
-` : ''}${newUserNote}
+${newUserNote}
 
 Escribe UNA sola nota proactiva en español. Máximo 2 frases. Específica a los datos. Tono: ${tone}.
-Menciona datos reales (nombre del hábito, racha, etc). Si el historial muestra un hábito que falla, una racha rota o el gimnasio bajando, prioriza eso con una sugerencia concreta. NO uses saludos genéricos.
+Menciona datos reales (nombre del hábito, racha, etc). NO uses saludos genéricos.
 Responde SOLO el mensaje, sin comillas, sin explicaciones.`;
 
     try {

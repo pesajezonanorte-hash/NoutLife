@@ -9,10 +9,9 @@ import { ChevronDown, ChevronUp, GripVertical, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import { DEFAULT_ORDER, PINNED_COUNT, useNavStore } from '@/store/navStore';
-import { ZONES, resolveOrder, type NavEntry } from '@/components/layout/nav';
+import { ZONES, resolveOrder, useCustomZoneEntries, type NavEntry } from '@/components/layout/nav';
 import { Badge, Button, Card, Switch } from '@/components/ui/lq';
 
-const byTo = new Map(ZONES.map((z) => [z.to, z]));
 
 interface ZoneRowProps {
   zone: NavEntry; index: number; total: number; hidden: boolean;
@@ -76,7 +75,9 @@ export function ZoneToggleList() {
   const setOrder = useNavStore((s) => s.setOrder);
   const hidden = new Set(useNavStore((s) => s.hiddenByUser?.[userId]) ?? []);
   const setHidden = useNavStore((s) => s.setHidden);
-  const order = resolveOrder(stored);
+  const extra = useCustomZoneEntries();
+  const byTo = new Map([...ZONES, ...extra].map((z) => [z.to, z]));
+  const order = resolveOrder(stored, extra);
   const [announce, setAnnounce] = useState('');
 
   const save = (next: string[]) => setOrder(userId, next);
@@ -104,7 +105,7 @@ export function ZoneToggleList() {
           </p>
         </div>
         <Badge variant="primary" size="lg" className="font-mono tabular-nums">{visible} de {order.length} visibles</Badge>
-        <Button variant="secondary" size="sm" onClick={() => { save(resolveOrder(DEFAULT_ORDER)); setAnnounce('Zonas restablecidas'); }}>
+        <Button variant="secondary" size="sm" onClick={() => { save(resolveOrder(DEFAULT_ORDER, extra)); setAnnounce('Zonas restablecidas'); }}>
           <RotateCcw aria-hidden className="size-4" strokeWidth={1.75} />
           Restablecer
         </Button>

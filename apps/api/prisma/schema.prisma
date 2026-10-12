@@ -57,6 +57,7 @@ enum TransactionCategory {
   HEALTH
   EDUCATION
   CLOTHING
+  CLOTHING_FOR_ME
   UTILITIES
   HOUSING
   SUBSCRIPTIONS
@@ -162,9 +163,11 @@ model User {
   lastLoginAt      DateTime?
   /// Última petición autenticada (como mucho una escritura por hora). Mide la gente activa hoy para repartir el cupo del Sabio.
   lastSeenAt       DateTime?
+  /// Último uso visible de la app (latido del cliente cada ~5 min). La brecha entre el último uso nocturno y el primero de la mañana sugiere un descanso.
   lastActiveAt     DateTime?
-  nightGapStartAt  DateTime?
-  nightGapEndAt    DateTime?
+  /// Descanso detectado automáticamente pendiente de confirmar en Sueño.
+  sleepSuggestionStart DateTime?
+  sleepSuggestionEnd   DateTime?
 
   // Red social: biografía, privacidad y presencia (en línea y zona actual).
   bio          String?
@@ -186,7 +189,6 @@ model User {
   googleCalendarId          String?   @default("primary")
   googleCalendarSyncEnabled  Boolean   @default(false)
   googleCalendarLastSyncAt  DateTime?
-  checklists                Checklist[]
 
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
@@ -202,8 +204,6 @@ model User {
   workouts                Workout[]
   meals                   Meal[]
   sleepLogs               SleepLog[]
-  antiHabits              AntiHabit[]
-  antiHabitSlips          AntiHabitSlip[]
   journalEntries          JournalEntry[]
   inventoryItems          InventoryItem[]
   achievements            UserAchievement[]
@@ -262,6 +262,11 @@ model User {
   styleWishlists          StyleWishlist[]
   presenceCheckins        PresenceCheckin[]
   feedbackEntries         Feedback[]
+  checklists              Checklist[]
+  antiHabits              AntiHabit[]
+  antiHabitLogs           AntiHabitLog[]
+  resourceShares          ResourceShare[] @relation("ResourceShareOwner")
+  sharedWithMe            ResourceShareMember[]
 
   @@map("users")
 }
@@ -286,7 +291,6 @@ model Quest {
 
   deadline    DateTime?
   completedAt DateTime?
-  googleCalendarEventId String?
 
   isRecurring Boolean   @default(false)
   resetCron   String?
@@ -375,7 +379,9 @@ model HabitLog {
   user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   completed Boolean
-  status    String   @default("completed") // "completed" | "failed" | "skipped"
+  status    String   @default("completed") // "completed" | "failed" | "skipped" | "pending" (desmarcado)
+  /// Una recompensa se concede una sola vez por entrada, incluso si el usuario la desmarca y vuelve a marcar.
+  rewardsGranted Boolean  @default(false)
   date      DateTime
   notes     String?
   loggedAt  DateTime @default(now())
@@ -1570,14 +1576,12 @@ model ClothingItem {
   category   String       // 'tops'|'bottoms'|'shoes'|'outerwear'|'accessories'
   color      String?
   brand      String?
+  /// Private, compressed JPEG encoded as base64. Returned only to the owner.
+  photoData  String?
   cost       Decimal?     @db.Decimal(15, 2)
   timesWorn  Int          @default(0)
   lastWornAt DateTime?
   isFavorite Boolean      @default(false)
-  /// Zona del cuerpo: torso | piernas | calzado | accesorios | abrigo | cuerpo_completo.
-  zone       String?
-  /// Foto de la prenda (data URL JPEG reducida en el cliente).
-  photoUrl   String?
   outfitItems OutfitItem[]
   createdAt  DateTime     @default(now())
 
@@ -1593,8 +1597,6 @@ model Outfit {
   occasion   String?
   rating     Int?
   lastWornAt DateTime?
-  /// Foto del conjunto puesto (data URL JPEG).
-  photoUrl   String?
   createdAt  DateTime     @default(now())
 
   @@map("outfits")
@@ -1752,49 +1754,20 @@ model Sticker {
   @@map("stickers")
 }
 
-model AntiHabit {
-  id     String @id @default(cuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  name      String
-  icon      String?
-  createdAt DateTime @default(now())
-
-  slips AntiHabitSlip[]
-
-  @@index([userId])
-  @@map("anti_habits")
-}
-
-model AntiHabitSlip {
-  id          String    @id @default(cuid())
-  antiHabitId String
-  antiHabit   AntiHabit @relation(fields: [antiHabitId], references: [id], onDelete: Cascade)
-  userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  note       String?
-  occurredAt DateTime @default(now())
-
-  @@index([antiHabitId, occurredAt])
-  @@index([userId])
-  @@map("anti_habit_slips")
-}
-
+/// Checklist personal o plantilla reutilizable para crear listas futuras.
 model Checklist {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name      String
-  category  String   @default("General")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String          @id @default(cuid())
+  userId      String
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  category    String          @default("personal")
+  isTemplate  Boolean         @default(false)
+  items       ChecklistItem[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 
-  items  ChecklistItem[]
-  shares ChecklistShare[]
-
-  @@index([userId, category])
+  @@index([userId, category, updatedAt])
   @@map("checklists")
 }
 
@@ -1802,24 +1775,83 @@ model ChecklistItem {
   id          String    @id @default(cuid())
   checklistId String
   checklist   Checklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
-  text        String
-  done        Boolean   @default(false)
-  position    Int       @default(0)
+  title       String
+  isDone      Boolean   @default(false)
+  order       Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  @@index([checklistId, position])
+  @@index([checklistId, order])
   @@map("checklist_items")
 }
 
-model ChecklistShare {
+/// Conducta que la persona quiere reducir; logs distinguen recaída de impulso resistido.
+model AntiHabit {
+  id            String         @id @default(cuid())
+  userId        String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title         String
+  category      String         @default("general")
+  cue           String?
+  targetPerWeek Int?
+  isActive      Boolean        @default(true)
+  logs          AntiHabitLog[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([userId, isActive])
+  @@map("anti_habits")
+}
+
+model AntiHabitLog {
   id          String    @id @default(cuid())
-  checklistId String
-  checklist   Checklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
-  userId      String?
-  token       String    @unique
-  permission  String    @default("VIEW")
+  antiHabitId String
+  antiHabit   AntiHabit @relation(fields: [antiHabitId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Stable user's calendar date (UTC midnight key).
+  date        DateTime
+  occurred    Boolean   @default(false)
+  amount      Int       @default(1)
+  intensity   Int?
+  note        String?
   createdAt   DateTime  @default(now())
 
-  @@index([checklistId])
+  @@index([userId, date])
+  @@index([antiHabitId, date])
+  @@map("anti_habit_logs")
+}
+
+/// Link/code granting view or edit access to a checklist or master goal.
+model ResourceShare {
+  id           String   @id @default(cuid())
+  ownerId      String
+  owner        User     @relation("ResourceShareOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  resourceType String
+  resourceId   String
+  code         String   @unique @default(cuid())
+  permission   String   @default("VIEW")
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  members      ResourceShareMember[]
+
+  @@unique([ownerId, resourceType, resourceId])
+  @@index([resourceType, resourceId, isActive])
+  @@map("resource_shares")
+}
+
+/// Persona invitada por usuario o ID a una lista o meta compartida (no necesita el enlace público).
+model ResourceShareMember {
+  id         String        @id @default(cuid())
+  shareId    String
+  share      ResourceShare @relation(fields: [shareId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission String        @default("VIEW")
+  createdAt  DateTime      @default(now())
+
+  @@unique([shareId, userId])
   @@index([userId])
-  @@map("checklist_shares")
+  @@map("resource_share_members")
 }

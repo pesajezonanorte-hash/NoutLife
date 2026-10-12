@@ -1,7 +1,7 @@
 import { prisma } from '../lib/prisma';
 
 export async function exportUserData(userId: string) {
-  const [user, quests, habits, transactions, journals, workouts, sleep, meals, goals] =
+  const [user, quests, habits, transactions, journals, workouts, sleep, meals, goals, checklists, antiHabits] =
     await Promise.all([
       prisma.user.findUniqueOrThrow({
         where: { id: userId },
@@ -19,6 +19,8 @@ export async function exportUserData(userId: string) {
       prisma.sleepLog.findMany({ where: { userId }, orderBy: { date: 'desc' } }),
       prisma.meal.findMany({ where: { userId }, orderBy: { date: 'desc' } }),
       prisma.masterGoal.findMany({ where: { userId } }),
+      prisma.checklist.findMany({ where: { userId }, include: { items: true } }),
+      prisma.antiHabit.findMany({ where: { userId }, include: { logs: { orderBy: { date: 'desc' } } } }),
     ]);
 
   return {
@@ -33,6 +35,8 @@ export async function exportUserData(userId: string) {
     sleep,
     meals,
     goals,
+    checklists,
+    antiHabits,
   };
 }
 

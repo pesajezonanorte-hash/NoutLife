@@ -1,253 +1,131 @@
-// Listas: checklists reutilizables por categoría (Compras, Tareas del hogar,
-// Finanzas…), propias o compartidas. /checklists/join/:token abre la invitación.
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { Check, ListChecks, Plus, Search, Target, Users, X } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ListChecks, Plus } from 'lucide-react';
-import { item, stagger } from '@/lib/motion';
-import { Button, ChipGroup, EmptyState, ErrorState, Field, Input, Modal, PageLoader, ResponsiveDialog, Textarea } from '@/components/ui/lq';
-import { Lettering } from '@/components/layout/Lettering';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { AmbientLight, ZoneShell } from '@/components/ambience';
+import { Button, EmptyState, ErrorState, Field, Input, Modal, PageLoader, Select, Textarea } from '@/components/ui/lq';
+import { useToast } from '@/hooks/useToast';
+import { item } from '@/lib/motion';
+import * as checklistService from '@/services/checklist.service';
+import type { Checklist } from '@/services/checklist.service';
 import { ChecklistCard } from '@/components/checklists/ChecklistCard';
-import { ShareChecklistDialog } from '@/components/checklists/ShareChecklistDialog';
-import { useToastStore } from '@/hooks/useToast';
-import * as svc from '@/services/checklist.service';
-import type { Checklist, ChecklistInvite } from '@/services/checklist.service';
-
-const PRESETS = ['Compras', 'Tareas del hogar', 'Finanzas', 'General'];
-const OTHER = '__other__';
-
-function NewChecklistDialog({ open, onClose, onCreated, initialCategory }: {
-  open: boolean; onClose: () => void; onCreated: (list: Checklist) => void; initialCategory: string;
-}) {
-  const [name, setName] = useState('');
-  const [category, setCategory] = useState('Compras');
-  const [custom, setCustom] = useState('');
-  const [items, setItems] = useState('');
-  const [touched, setTouched] = useState(false);
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (!open) return;
-    setName(''); setItems(''); setTouched(false);
-    if (PRESETS.includes(initialCategory)) { setCategory(initialCategory); setCustom(''); }
-    else if (initialCategory) { setCategory(OTHER); setCustom(initialCategory); }
-    else { setCategory('Compras'); setCustom(''); }
-  }, [open, initialCategory]);
-
-  const finalCategory = category === OTHER ? custom.trim() : category;
-
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    setTouched(true);
-    if (!name.trim() || !finalCategory) return;
-    setSaving(true);
-    try {
-      const list = await svc.createChecklist({
-        name: name.trim(),
-        category: finalCategory,
-        items: items.split('\n').map((l) => l.trim()).filter(Boolean).slice(0, 300),
-      });
-      onCreated(list);
-    } catch (err) {
-      useToastStore.getState().error(svc.checklistError(err, 'No se pudo crear la lista'));
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <ResponsiveDialog open={open} onClose={onClose} title="Nueva lista" className="md:max-w-[520px]">
-      <form className="flex flex-col gap-5" onSubmit={(e) => void submit(e)} noValidate>
-        <Field label="Nombre" error={touched && !name.trim() ? 'Ponle un nombre' : undefined}>
-          <Input data-autofocus value={name} maxLength={80} onChange={(e) => setName(e.target.value)} placeholder="Ej. Mercado del sábado" />
-        </Field>
-        <div className="flex flex-col gap-2">
-          <ChipGroup label="Categoría" value={category} onChange={setCategory} options={[...PRESETS.map((p) => ({ value: p, label: p })), { value: OTHER, label: 'Otra' }]} />
-          {category === OTHER && (
-            <Field label="Nombre de la categoría" error={touched && !custom.trim() ? 'Escribe la categoría' : undefined}>
-              <Input value={custom} maxLength={40} onChange={(e) => setCustom(e.target.value)} placeholder="Ej. Viaje" />
-            </Field>
-          )}
-        </div>
-        <Field label="Elementos" help="Opcional · uno por línea">
-          <Textarea rows={4} value={items} onChange={(e) => setItems(e.target.value)} placeholder={'Leche\nPan\nHuevos'} />
-        </Field>
-        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button type="submit" loading={saving}>Crear lista</Button>
-        </div>
-      </form>
-    </ResponsiveDialog>
-  );
-}
+import { CHECKLIST_CATEGORIES, sameCategory } from '@/components/checklists/categories';
+import { ShareDialog } from '@/components/sharing/ShareDialog';
+import { Link } from 'react-router-dom';
+import { listSharedWithMe, removeShareMember, type SharedWithMe } from '@/services/share.service';
 
 export default function ChecklistsPage() {
-  const { token } = useParams<{ token?: string }>();
-  const navigate = useNavigate();
-  const [params, setParams] = useSearchParams();
-  const [lists, setLists] = useState<Checklist[] | null>(null);
+  const toast = useToast();
+  const [checklists, setChecklists] = useState<Checklist[]>([]);
+  const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [shareTarget, setShareTarget] = useState<Checklist | null>(null);
   const [category, setCategory] = useState('all');
-  const [creating, setCreating] = useState(false);
-  const [sharing, setSharing] = useState<Checklist | null>(null);
-  const [removing, setRemoving] = useState<Checklist | null>(null);
-  const [invite, setInvite] = useState<ChecklistInvite | null>(null);
-  const [joining, setJoining] = useState(false);
-  const focus = params.get('list');
+  const [search, setSearch] = useState('');
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [newCategory, setNewCategory] = useState('Compras');
+  const [itemsText, setItemsText] = useState('');
+  const [template, setTemplate] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const [sharedWithMe, setSharedWithMe] = useState<SharedWithMe[]>([]);
+  useEffect(() => { listSharedWithMe().then(setSharedWithMe).catch(() => setSharedWithMe([])); }, []);
+  async function leaveShared(entry: SharedWithMe) {
+    try { await removeShareMember(entry.memberId); setSharedWithMe((list) => list.filter((e) => e.memberId !== entry.memberId)); }
+    catch { toast.error('No se pudo salir de la lista'); }
+  }
 
   const load = useCallback(async () => {
-    setFailed(false);
-    try { setLists(await svc.fetchChecklists()); } catch { setFailed(true); }
+    try { setChecklists(await checklistService.listChecklists()); setFailed(false); }
+    catch { setFailed(true); }
+    finally { setLoading(false); }
   }, []);
   useEffect(() => { void load(); }, [load]);
 
-  // Invitación por enlace: se muestra antes de unirse.
-  useEffect(() => {
-    if (!token) return;
-    svc.previewInvite(token).then((inv) => {
-      if (inv.alreadyMember) navigate(`/checklists?list=${inv.checklistId}`, { replace: true });
-      else setInvite(inv);
-    }).catch((err) => {
-      useToastStore.getState().error(svc.checklistError(err, 'Este enlace ya no es válido'));
-      navigate('/checklists', { replace: true });
-    });
-  }, [token, navigate]);
-
-  // ?list=… (aviso, enlace): lleva a esa lista.
-  useEffect(() => {
-    if (!focus || !lists) return;
-    const t = window.setTimeout(() => document.getElementById(`checklist-${focus}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 250);
-    return () => window.clearTimeout(t);
-  }, [focus, lists]);
-
-  const categories = useMemo(() => [...new Set((lists ?? []).map((l) => l.category))].sort((a, b) => a.localeCompare(b, 'es')), [lists]);
-  const shown = (lists ?? []).filter((l) => category === 'all' || l.category === category);
-
-  const replace = (next: Checklist) => setLists((prev) => prev?.map((l) => (l.id === next.id ? next : l)) ?? prev);
-
-  async function join() {
-    if (!token) return;
-    setJoining(true);
-    try {
-      const list = await svc.joinChecklist(token);
-      useToastStore.getState().success('Te uniste a la lista', list.name);
-      setInvite(null);
-      await load();
-      navigate(`/checklists?list=${list.id}`, { replace: true });
-    } catch (err) {
-      useToastStore.getState().error(svc.checklistError(err, 'No se pudo unir'));
-    } finally {
-      setJoining(false);
+  // Las categorías base (Compras, Tareas del hogar, Finanzas…) siempre aparecen; luego las propias.
+  const categories = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const value of [...CHECKLIST_CATEGORIES.slice(0, 3), ...checklists.map((list) => list.category)]) {
+      if (!seen.has(value.toLowerCase())) seen.set(value.toLowerCase(), value);
     }
-  }
+    return [...seen.values()];
+  }, [checklists]);
+  const visible = useMemo(() => checklists.filter((list) => (category === 'all' || sameCategory(list.category, category)) && `${list.title} ${list.description ?? ''} ${list.category}`.toLowerCase().includes(search.trim().toLowerCase())), [checklists, category, search]);
 
-  async function confirmRemove() {
-    const list = removing;
-    if (!list) return;
-    setRemoving(null);
-    setLists((prev) => prev?.filter((l) => l.id !== list.id) ?? prev);
+  function resetForm() {
+    setTitle(''); setDescription(''); setNewCategory('Compras'); setItemsText(''); setTemplate(false);
+  }
+  async function create(event: FormEvent) {
+    event.preventDefault();
+    if (!title.trim()) return;
+    setSaving(true);
     try {
-      if (list.role === 'OWNER') await svc.deleteChecklist(list.id);
-      else await svc.leaveChecklist(list.id);
-      useToastStore.getState().success(list.role === 'OWNER' ? 'Lista eliminada' : 'Saliste de la lista');
-    } catch (err) {
-      useToastStore.getState().error(svc.checklistError(err, 'No se pudo completar'));
-      void load();
-    }
-  }
-
-  let body;
-  if (failed) body = <ErrorState title="No pudimos cargar tus listas" onRetry={() => void load()} />;
-  else if (!lists) body = <PageLoader label="Abriendo tus listas…" />;
-  else if (lists.length === 0) {
-    body = (
-      <EmptyState
-        icon={ListChecks}
-        title="Aún no tienes listas"
-        description="Crea una para las compras, las tareas de casa o tus pendientes de dinero, y compártela si quieres."
-        action={<Button onClick={() => setCreating(true)}><Plus aria-hidden className="size-4" strokeWidth={2} />Nueva lista</Button>}
-        className="py-16"
-      />
-    );
-  } else {
-    body = (
-      <div className="flex flex-col gap-4">
-        {categories.length > 1 && (
-          <div className="-mx-4 overflow-x-auto px-4 pb-1">
-            <ChipGroup label="Categoría" value={category} onChange={setCategory} options={[{ value: 'all', label: 'Todas' }, ...categories.map((c) => ({ value: c, label: c }))]} />
-          </div>
-        )}
-        <div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {shown.map((list) => (
-            <ChecklistCard
-              key={list.id}
-              list={list}
-              highlight={focus === list.id}
-              onChange={replace}
-              onShare={list.role === 'OWNER' ? () => setSharing(list) : undefined}
-              onRemove={() => setRemoving(list)}
-            />
-          ))}
-        </div>
-      </div>
-    );
+      await checklistService.createChecklist({
+        title: title.trim(), description: description.trim() || undefined, category: newCategory.trim() || 'personal', isTemplate: template,
+        items: itemsText.split('\n').map((value) => value.trim()).filter(Boolean).slice(0, 100).map((itemTitle) => ({ title: itemTitle })),
+      });
+      setCreateOpen(false); resetForm(); await load(); toast.success('Lista creada');
+    } catch { toast.error('No se pudo crear la lista'); }
+    finally { setSaving(false); }
   }
 
   return (
-    <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-6 md:gap-8">
-      <motion.section variants={item} className="flex flex-wrap items-end justify-between gap-4">
-        <div className="flex flex-col gap-1 md:gap-2">
-          <span className="hidden text-label-lg text-primary-text md:block">Organiza y comparte</span>
-          <h1 className="text-display-sm md:text-display-md lg:text-display-lg"><Lettering text="Listas" /></h1>
-          <p className="hidden max-w-[520px] text-body-lg text-on-surface-light md:block">Compras, tareas del hogar, finanzas… cada lista con su categoría, sola o en equipo.</p>
-        </div>
-        {lists && lists.length > 0 && (
-          <Button onClick={() => setCreating(true)}><Plus aria-hidden className="size-4" strokeWidth={2} />Nueva lista</Button>
-        )}
-      </motion.section>
+    <ZoneShell zone="custom" contentClassName="gap-6 md:gap-10" ambience={<AmbientLight tone="primary" alpha={0.09} darkAlpha={0.06} d={16} className="right-[8%] top-[8%] h-[34rem] w-[70%]" />}>
+      <PageHeader eyebrow="Organización personal" title="Listas y checklists" description="Crea listas por categoría, reutiliza plantillas y comparte pasos con quien te acompaña." aside={<Button onClick={() => setCreateOpen(true)}><Plus aria-hidden className="size-4" />Nueva lista</Button>} />
 
-      <motion.div variants={item}>{body}</motion.div>
+      <motion.div variants={item} className="flex flex-col gap-3 sm:flex-row">
+        <div className="relative min-w-0 flex-1"><Search aria-hidden className="pointer-events-none absolute left-4 top-3 size-5 text-on-surface-light" /><Input aria-label="Buscar listas" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre o categoría…" className="pl-11" /></div>
+        <Select aria-label="Filtrar categoría" value={category} onChange={(event) => setCategory(event.target.value)} className="sm:w-56"><option value="all">Todas las categorías</option>{categories.map((value) => <option key={value} value={value}>{value}</option>)}</Select>
+      </motion.div>
 
-      <NewChecklistDialog
-        open={creating}
-        initialCategory={category === 'all' ? '' : category}
-        onClose={() => setCreating(false)}
-        onCreated={(list) => {
-          setCreating(false);
-          setLists((prev) => [list, ...(prev ?? [])]);
-          setParams((p) => { p.set('list', list.id); return p; }, { replace: true });
-          useToastStore.getState().success('Lista creada');
-        }}
-      />
+      <motion.div variants={item} role="group" aria-label="Categorías rápidas" className="flex flex-wrap gap-2">
+        {['all', ...categories].map((value) => (
+          <button key={value} type="button" aria-pressed={category === value} onClick={() => setCategory(value)}
+            className={`min-h-11 rounded-full border px-4 text-label-lg transition-colors ${category === value ? 'border-primary bg-primary/[var(--lq-soft-alpha)] text-primary-text' : 'border-border text-on-surface hover:bg-surface-variant'}`}>
+            {value === 'all' ? 'Todas' : value}
+            <span className="ml-1.5 font-mono text-body-sm tabular-nums opacity-70">{value === 'all' ? checklists.length : checklists.filter((list) => sameCategory(list.category, value)).length}</span>
+          </button>
+        ))}
+      </motion.div>
 
-      <ShareChecklistDialog list={sharing} onClose={() => setSharing(null)} onChanged={() => void load()} />
+      {loading ? <PageLoader label="Cargando tus listas…" /> : failed ? <ErrorState title="No pudimos cargar tus listas" description="Vuelve a intentarlo. Tus datos siguen guardados." onRetry={() => void load()} /> : visible.length === 0 ? (
+        <EmptyState icon={ListChecks} title={checklists.length ? 'No hay listas con esos filtros' : 'Empieza con tu primera lista'} description={checklists.length ? 'Prueba con otra categoría o búsqueda.' : 'Crea una lista desde cero o conviértela en plantilla para reutilizarla.'} action={!checklists.length ? <Button onClick={() => setCreateOpen(true)}><Plus aria-hidden className="size-4" />Crear lista</Button> : undefined} />
+      ) : (
+        <motion.div variants={item} className="grid items-start gap-5 lg:grid-cols-2">{visible.map((list) => <ChecklistCard key={list.id} checklist={list} onRefresh={load} onShare={() => setShareTarget(list)} />)}</motion.div>
+      )}
 
-      <Modal open={Boolean(removing)} onClose={() => setRemoving(null)} title={removing?.role === 'OWNER' ? `¿Eliminar «${removing?.name}»?` : `¿Salir de «${removing?.name}»?`}>
-        <p className="text-body-md text-on-surface">
-          {removing?.role === 'OWNER'
-            ? 'Se borrará la lista para ti y para quienes la compartían. No se puede deshacer.'
-            : 'Dejarás de ver esta lista. Quien la creó puede volver a invitarte.'}
-        </p>
-        <div className="flex justify-end gap-3 pt-2">
-          <Button variant="secondary" onClick={() => setRemoving(null)}>Cancelar</Button>
-          <Button variant="danger" onClick={() => void confirmRemove()}>{removing?.role === 'OWNER' ? 'Eliminar' : 'Salir'}</Button>
-        </div>
+      {sharedWithMe.length > 0 && (
+        <motion.section variants={item} aria-labelledby="shared-with-me" className="flex flex-col gap-3">
+          <h2 id="shared-with-me" className="flex items-center gap-2 text-heading-md"><Users aria-hidden className="size-5 text-primary-text" />Compartido conmigo</h2>
+          <ul className="grid gap-3 sm:grid-cols-2">
+            {sharedWithMe.map((entry) => (
+              <li key={entry.memberId} className="flex min-h-16 items-center gap-3 rounded-2xl border border-border bg-surface p-3">
+                {entry.resourceType === 'GOAL' ? <Target aria-hidden className="size-5 shrink-0 text-primary-text" /> : <ListChecks aria-hidden className="size-5 shrink-0 text-primary-text" />}
+                <Link to={`/shared/${encodeURIComponent(entry.code)}`} className="min-w-0 flex-1">
+                  <span className="block truncate text-label-lg text-on-surface">{entry.title}</span>
+                  <span className="block truncate text-body-sm text-on-surface-light">De {entry.owner.displayName} · {entry.permission === 'EDIT' ? 'puedes editar' : 'solo ver'}</span>
+                </Link>
+                <Button variant="icon" aria-label={`Salir de ${entry.title}`} onClick={() => void leaveShared(entry)} className="size-9"><X aria-hidden className="size-4" /></Button>
+              </li>
+            ))}
+          </ul>
+        </motion.section>
+      )}
+
+      <Modal open={createOpen} onClose={() => { setCreateOpen(false); resetForm(); }} title="Nueva checklist">
+        <form onSubmit={create} className="flex flex-col gap-4">
+          <Field label="Nombre"><Input autoFocus value={title} onChange={(event) => setTitle(event.target.value)} maxLength={100} placeholder="Ej. Preparar la semana" required /></Field>
+          <Field label="Descripción (opcional)"><Textarea value={description} onChange={(event) => setDescription(event.target.value)} maxLength={500} placeholder="¿Para qué sirve esta lista?" /></Field>
+          <Field label="Categoría"><Input list="checklist-category-options" value={newCategory} onChange={(event) => setNewCategory(event.target.value)} maxLength={40} placeholder="Compras, Tareas del hogar, Finanzas…" required /></Field>
+          <datalist id="checklist-category-options">{CHECKLIST_CATEGORIES.map((value) => <option key={value} value={value} />)}</datalist>
+          <Field label="Pasos iniciales (uno por línea)"><Textarea value={itemsText} onChange={(event) => setItemsText(event.target.value)} maxLength={8000} placeholder={'Definir prioridades\nPreparar materiales\nRevisar al final'} /></Field>
+          <label className="flex min-h-11 items-center gap-3 text-body-md text-on-surface"><input type="checkbox" checked={template} onChange={(event) => setTemplate(event.target.checked)} className="size-5 accent-[rgb(var(--lq-primary))]" />Guardar también como plantilla reutilizable</label>
+          <div className="flex justify-end gap-2"><Button variant="secondary" onClick={() => { setCreateOpen(false); resetForm(); }}>Cancelar</Button><Button type="submit" loading={saving} disabled={!title.trim()}><Check aria-hidden className="size-4" />Crear lista</Button></div>
+        </form>
       </Modal>
-
-      <Modal open={Boolean(invite)} onClose={() => { setInvite(null); navigate('/checklists', { replace: true }); }} title="Te invitaron a una lista">
-        {invite && (
-          <>
-            <p className="text-body-md text-on-surface">
-              <b>{invite.owner.displayName}</b> te invita a «{invite.name}» ({invite.category}, {invite.itemCount} {invite.itemCount === 1 ? 'elemento' : 'elementos'}).
-              {' '}{invite.permission === 'EDIT' ? 'Podrás añadir y marcar elementos.' : 'Podrás verla.'}
-            </p>
-            <div className="flex justify-end gap-3 pt-2">
-              <Button variant="secondary" onClick={() => { setInvite(null); navigate('/checklists', { replace: true }); }}>Ahora no</Button>
-              <Button loading={joining} onClick={() => void join()}>Unirme</Button>
-            </div>
-          </>
-        )}
-      </Modal>
-    </motion.div>
+      {shareTarget && <ShareDialog open onClose={() => setShareTarget(null)} resourceType="CHECKLIST" resourceId={shareTarget.id} title={shareTarget.title} />}
+    </ZoneShell>
   );
 }

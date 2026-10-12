@@ -159,36 +159,9 @@ export function HabitFormDialog({ open, habit, onClose, onSubmit }: HabitFormDia
             role="radiogroup"
             label="Frecuencia"
             value={freq.type}
-            onChange={(t) => set('frequency', t === 'daily' ? { type: 'daily', days: [], restDays: freq.restDays ?? [] } : { type: 'days_per_week', days: freq.days.length ? freq.days : [1, 2, 3, 4, 5] })}
+            onChange={(t) => set('frequency', t === 'daily' ? { type: 'daily', days: [] } : { type: 'days_per_week', days: freq.days.length ? freq.days : [1, 2, 3, 4, 5] })}
             options={[{ value: 'daily', label: 'Todos los días' }, { value: 'days_per_week', label: 'Días concretos' }]}
           />
-          {freq.type === 'daily' && (
-            <div className="flex flex-col gap-1.5">
-              <span id="habit-rest-days" className="text-body-sm text-on-surface-light">Días de descanso (opcional): no se exigen ni rompen tu racha.</span>
-              <div role="group" aria-labelledby="habit-rest-days" className="grid grid-cols-7 gap-1.5">
-                {WEEK.map((d) => {
-                  const rest = freq.restDays ?? [];
-                  const on = rest.includes(d.value);
-                  return (
-                    <button
-                      key={d.value}
-                      type="button"
-                      aria-pressed={on}
-                      aria-label={`Descanso el ${d.name}`}
-                      disabled={!on && rest.length >= 6}
-                      onClick={() => set('frequency', { type: 'daily', days: [], restDays: on ? rest.filter((x) => x !== d.value) : [...rest, d.value] })}
-                      className={cn(
-                        'flex h-11 items-center justify-center rounded-xl border text-label-lg transition-colors disabled:opacity-40',
-                        on ? 'border-info bg-info/[var(--lq-soft-alpha)] text-info-text' : 'border-border text-on-surface-light hover:bg-surface-variant',
-                      )}
-                    >
-                      {d.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
           {freq.type === 'days_per_week' && (
             <div className="flex flex-col gap-1.5">
               <div role="group" aria-label="Días del hábito" className="grid grid-cols-7 gap-1.5">
@@ -212,6 +185,7 @@ export function HabitFormDialog({ open, habit, onClose, onSubmit }: HabitFormDia
                 })}
               </div>
               {daysError && <span role="alert" className="text-body-sm text-error-text">{daysError}</span>}
+              <p className="text-body-sm text-on-surface-light">Los días sin seleccionar son de descanso y no rompen tu racha.</p>
             </div>
           )}
         </div>

@@ -1,5 +1,57 @@
 // Service worker de Noutlife: avisos push (recordatorios) y caché del shell.
 
+const XP_ONLY_PUSH_TYPES = new Set(['xp', 'xp_gained', 'level_up', 'levelup']);
+
+async function foregroundClients() {
+  const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  return windows.filter((client) => client.visibilityState === 'visible');
+}
+
+async function foregroundChatIsOpen(clients, chatKey) {
+  if (!chatKey || clients.length === 0) return false;
+  const responses = await Promise.all(clients.map((client) => new Promise((resolve) => {
+    const channel = new MessageChannel();
+    let settled = false;
+    const finish = (matches) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      channel.port1.close();
+      resolve(matches);
+    };
+    const timeout = setTimeout(() => finish(false), 350);
+    channel.port1.onmessage = (message) => finish(message.data?.matches === true);
+    try {
+      client.postMessage({ type: 'lq:query-chat-focus', chatKey }, [channel.port2]);
+    } catch {
+      finish(false);
+    }
+  })));
+  return responses.some(Boolean);
+}
+
+// Safari retira el permiso si un push no muestra nada: ahí el aviso silenciado se
+// muestra sin sonido y se cierra al instante.
+const STRICT_PUSH = /Safari/.test(self.navigator.userAgent) && !/Chrome|Chromium|Android/.test(self.navigator.userAgent);
+
+async function silence(payload, options) {
+  if (!STRICT_PUSH) return;
+  await self.registration.showNotification(payload.title ?? 'Noutlife', { ...options, tag: 'lq-silenced', silent: true, actions: [] });
+  const shown = await self.registration.getNotifications({ tag: 'lq-silenced' });
+  shown.forEach((n) => n.close());
+}
+
+async function shouldSilencePush(payload) {
+  const data = payload?.data ?? {};
+  const type = String(data.type ?? '').toLowerCase();
+  const visible = await foregroundClients();
+  // Level/XP-only banners add no new information while Noutlife is already open.
+  if (visible.length && (data.silentForeground === true || XP_ONLY_PUSH_TYPES.has(type))) return true;
+  // Keep notifications from other conversations: suppress only the exact open chat.
+  if (data.chatKey && await foregroundChatIsOpen(visible, data.chatKey)) return true;
+  return false;
+}
+
 self.addEventListener('push', (event) => {
   let payload = {};
   if (event.data) {
@@ -21,57 +73,29 @@ self.addEventListener('push', (event) => {
   };
   // Cartas de amigos y de gremio: se puede contestar desde el propio aviso.
   if (payload.data && payload.data.reply) {
-    options.actions = [{ action: "reply", type: "text", title: "Responder", placeholder: "Escribe tu respuesta…" }, { action: "open", title: "Abrir" }];
+    options.actions = [{ action: "reply", type: "text", title: "Responder", placeholder: "Escribe tu respuesta…" }];
   }
 
-  event.waitUntil(handlePush(payload, options));
+  // Se silencia solo XP cuando la app está en primer plano, y solo el chat exacto
+  // que la persona está viendo; las demás conversaciones conservan su aviso.
+  event.waitUntil((async () => {
+    try { if (await shouldSilencePush(payload)) return silence(payload, options); } catch { /* si falla la consulta, no perder el aviso */ }
+    await self.registration.showNotification(payload.title ?? 'Noutlife', options);
+  })());
 });
 
-// Con la app a la vista: no hay aviso de XP, ni de la carta que ya se está leyendo.
-const XP_TYPES = ['habit_completed', 'quest_completed', 'level_up', 'levelup', 'achievement', 'streak', 'guide', 'workout'];
-
-function chatKeyOfTag(tag) {
-  if (typeof tag !== 'string') return null;
-  if (tag.startsWith('dm:')) return tag;
-  if (tag.startsWith('guild-msg:')) return 'guild:' + tag.slice('guild-msg:'.length);
-  return null;
-}
-
-function askOpenChat(client) {
-  return new Promise((resolve) => {
-    const ch = new MessageChannel();
-    const timer = setTimeout(() => resolve(null), 500);
-    ch.port1.onmessage = (e) => { clearTimeout(timer); resolve(e.data && e.data.key ? e.data.key : null); };
-    try { client.postMessage({ type: 'lq:which-chat' }, [ch.port2]); } catch (e) { clearTimeout(timer); resolve(null); }
-  });
-}
-
-// Safari retira el permiso si un push no muestra nada: ahí se muestra y se cierra al instante.
-const STRICT_PUSH = /Safari/.test(self.navigator.userAgent) && !/Chrome|Chromium|Android/.test(self.navigator.userAgent);
-
-async function silence(payload, options) {
-  if (!STRICT_PUSH) return;
-  await self.registration.showNotification(payload.title ?? 'NoutLife', { ...options, tag: 'lq-silenced', silent: true, actions: [] });
-  const shown = await self.registration.getNotifications({ tag: 'lq-silenced' });
-  shown.forEach((n) => n.close());
-}
-
-async function handlePush(payload, options) {
-  try {
-    const list = await clients.matchAll({ type: 'window', includeUncontrolled: true });
-    const visible = list.filter((c) => c.visibilityState === 'visible');
-    if (visible.length) {
-      if (payload.data && XP_TYPES.includes(payload.data.type)) return silence(payload, options);
-      const chat = chatKeyOfTag(payload.tag);
-      if (chat) {
-        const keys = await Promise.all(visible.map(askOpenChat));
-        if (keys.includes(chat)) return silence(payload, options);
-      }
+// Al entrar a un chat, retira avisos del sistema que ya quedaron obsoletos.
+self.addEventListener('message', (event) => {
+  const data = event.data;
+  if (data?.type !== 'lq:close-chat-notifications' || typeof data.chatKey !== 'string') return;
+  event.waitUntil(self.registration.getNotifications().then((notifications) => {
+    for (const notification of notifications) {
+      const reply = notification.data?.reply;
+      const chatKey = notification.data?.chatKey ?? (reply ? `${reply.type}:${reply.id}` : null);
+      if (chatKey === data.chatKey) notification.close();
     }
-  } catch (e) { /* si algo falla, se muestra */ }
-  // Siempre se muestra algo: Chrome y Safari retiran el permiso a quien recibe push sin aviso visible.
-  await self.registration.showNotification(payload.title ?? 'Noutlife', options);
-}
+  }));
+});
 
 // Responde desde el aviso: pide un acceso nuevo con la sesión (cookie) y envía la carta.
 async function quickReply(reply, text) {

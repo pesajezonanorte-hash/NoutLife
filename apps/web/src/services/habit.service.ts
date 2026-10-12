@@ -3,8 +3,6 @@ import api from '../lib/api';
 export interface HabitFrequency {
   type: 'daily' | 'days_per_week';
   days: number[];
-  /** Días de descanso (0 = domingo): ni se exigen ni rompen la racha. */
-  restDays?: number[];
 }
 
 export interface Habit {
@@ -28,7 +26,7 @@ export interface Habit {
   createsGymAttendance: boolean;
   createdAt: string;
   updatedAt: string;
-  todayStatus?: 'completed' | 'failed' | 'skipped' | null;
+  todayStatus?: 'completed' | 'failed' | 'skipped' | 'pending' | null;
   todayCompleted?: boolean | null;
 }
 
@@ -37,7 +35,7 @@ export interface HabitLog {
   habitId: string;
   userId: string;
   completed: boolean;
-  status: string;
+  status: 'completed' | 'failed' | 'skipped' | 'pending';
   date: string;
   notes?: string;
   loggedAt: string;
@@ -125,8 +123,18 @@ export async function logHabit(
   return data;
 }
 
-export async function revertHabitLog(id: string, date?: string): Promise<{ habit: Habit; currentStreak: number; longestStreak: number; xpRemoved: number; goldRemoved: number }> {
-  const { data } = await api.delete<{ habit: Habit; currentStreak: number; longestStreak: number; xpRemoved: number; goldRemoved: number }>(`/habits/${id}/log${date ? `?date=${date}` : ''}`);
+export interface UndoHabitResult {
+  undone: boolean;
+  xpRemoved: number;
+  goldRemoved: number;
+  log: HabitLog | null;
+  habit: Habit;
+  currentStreak: number;
+  longestStreak: number;
+}
+
+export async function undoHabitLog(id: string): Promise<UndoHabitResult> {
+  const { data } = await api.post<UndoHabitResult>(`/habits/${id}/log/undo`);
   return data;
 }
 

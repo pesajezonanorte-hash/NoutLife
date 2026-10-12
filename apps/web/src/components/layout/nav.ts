@@ -4,13 +4,14 @@
 // zonas" y Comunidad.
 import {
   BarChart3, BookOpen, CalendarDays, HelpCircle, Dumbbell, Flag, Globe, Heart, Home,
-  MapPin, Moon, NotebookPen, Scroll, Settings, ShoppingBag, Skull, Sparkles, Sun,
-  Trophy, User, UtensilsCrossed, Wallet, CheckCircle2, MessageCircle, Mail, NotebookTabs, Tent, Album, type LucideIcon,
+  MapPin, Moon, NotebookPen, Scroll, Settings, ShoppingBag, Skull, Sun,
+  Sparkles, Trophy, User, UtensilsCrossed, Wallet, CheckCircle2, MessageCircle, Mail, NotebookTabs, Tent, Album, ListChecks, ShieldAlert, type LucideIcon,
 } from 'lucide-react';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useAuthStore } from '@/store/authStore';
+import { useCustomZoneStore, type CustomZoneNav } from '@/store/customZoneStore';
+import { zoneIconOf } from '@/components/zones/zoneIcons';
 import { DEFAULT_ORDER, PINNED_COUNT, useNavStore } from '@/store/navStore';
-import { ZONE_PAGES } from '@/routes/zonePages';
 
 export interface NavEntry {
   to: string;
@@ -47,10 +48,12 @@ export const NAV_SECTIONS: NavSection[] = [
     collapsible: true,
     items: [
       { to: '/habits', label: 'Hábitos', icon: CheckCircle2 },
+      { to: '/checklists', label: 'Checklists', icon: ListChecks },
+      { to: '/obstaculos', label: 'Obstáculos', icon: ShieldAlert },
       { to: '/quests', label: 'Misiones', icon: Flag },
       { to: '/stats', label: 'Estadísticas', icon: BarChart3 },
       { to: '/gym', label: 'Gimnasio', icon: Dumbbell },
-      { to: '/glow-up', label: 'Espejo', icon: Sparkles },
+      { to: '/espejo', label: 'Espejo', icon: Sparkles },
       { to: '/learning', label: 'Aprendizaje', icon: BookOpen },
       { to: '/love', label: 'Relaciones', icon: Heart },
       { to: '/journal', label: 'Diario', icon: NotebookPen },
@@ -75,12 +78,6 @@ export const NAV_SECTIONS: NavSection[] = [
   },
 ];
 
-// Zonas del registro (routes/zonePages): entran en su sección sin tocar esta lista.
-for (const page of ZONE_PAGES) {
-  const section = NAV_SECTIONS.find((s) => s.id === page.section);
-  if (section && !section.items.some((it) => it.to === page.path)) section.items.push({ to: page.path, label: page.label, icon: page.icon });
-}
-
 /** Atajos a cada parte de Social (búsqueda rápida). */
 export const SOCIAL_SHORTCUTS: NavEntry[] = [
   { to: '/social?tab=directorio', label: 'Directorio', icon: NotebookTabs },
@@ -89,28 +86,52 @@ export const SOCIAL_SHORTCUTS: NavEntry[] = [
 ];
 
 /** Rutas que se unieron en otra (zonas fijadas o escondidas guardadas antes). */
-const MERGED: Record<string, string> = { '/friends': '/social', '/guild': '/social', '/espejo': '/glow-up', '/armario': '/glow-up' };
+const MERGED: Record<string, string> = { '/friends': '/social', '/guild': '/social', '/glow-up': '/espejo', '/armario': '/espejo' };
 
 /** Todas las zonas que pueden ir en la navegación principal (entre Inicio y Perfil). */
 export const ZONES: NavEntry[] = NAV_SECTIONS.flatMap((s) => s.items);
 
-/** Orden válido y completo: quita rutas desconocidas o repetidas y añade las que falten. */
-export function resolveOrder(order: string[] | undefined): string[] {
-  const known = new Set(ZONES.map((z) => z.to));
-  const valid = [...new Set((order ?? DEFAULT_ORDER).map((to) => MERGED[to] ?? to).filter((to) => known.has(to)))];
-  return [...valid, ...ZONES.map((z) => z.to).filter((to) => !valid.includes(to))];
+// ─── Zonas dinámicas ─────────────────────────────────────────────────────────
+// Además de las zonas fijas, la navegación admite zonas que se crean en tiempo de
+// ejecución (las zonas personalizadas del usuario, /zonas/:id). Entran en su propia
+// sección, se pueden fijar entre las principales, ordenar y ocultar como las demás.
+
+export const CUSTOM_ZONE_PREFIX = '/zonas/';
+
+export function customZoneEntries(zones: CustomZoneNav[]): NavEntry[] {
+  return zones.map((z) => ({ to: `${CUSTOM_ZONE_PREFIX}${z.id}`, label: z.name, icon: zoneIconOf(z.icon) }));
 }
 
-export function buildNav(order: string[] | undefined, hidden: string[] = []) {
-  const pinned = resolveOrder(order).slice(0, PINNED_COUNT);
+/** Orden válido y completo: quita rutas desconocidas o repetidas y añade las que falten. */
+export function resolveOrder(order: string[] | undefined, extra: NavEntry[] = []): string[] {
+  const all = [...ZONES, ...extra];
+  const known = new Set(all.map((z) => z.to));
+  const valid = [...new Set((order ?? DEFAULT_ORDER).map((to) => MERGED[to] ?? to).filter((to) => known.has(to)))];
+  return [...valid, ...all.map((z) => z.to).filter((to) => !valid.includes(to))];
+}
+
+export function buildNav(order: string[] | undefined, hidden: string[] = [], extra: NavEntry[] = []) {
+  const pinned = resolveOrder(order, extra).slice(0, PINNED_COUNT);
   const off = new Set(hidden.map((to) => MERGED[to] ?? to).filter((to) => !pinned.includes(to)));
-  const byTo = new Map(ZONES.map((z) => [z.to, z]));
+  const byTo = new Map([...ZONES, ...extra].map((z) => [z.to, z]));
+  const sections: NavSection[] = extra.length
+    ? [...NAV_SECTIONS, { id: 'custom', label: 'Mis zonas', collapsible: true, items: extra }]
+    : NAV_SECTIONS;
   return {
     primary: [HOME, ...pinned.map((to) => byTo.get(to)!), PROFILE],
-    sections: NAV_SECTIONS
+    sections: sections
       .map((s) => ({ ...s, items: s.items.filter((it) => !pinned.includes(it.to) && !off.has(it.to)) }))
       .filter((s) => s.items.length > 0),
   };
+}
+
+/** Entradas de las zonas personalizadas (las carga una vez por sesión). */
+export function useCustomZoneEntries(): NavEntry[] {
+  const userId = useAuthStore((s) => s.user?.id);
+  const zones = useCustomZoneStore((s) => s.zones);
+  const ensure = useCustomZoneStore((s) => s.ensure);
+  useEffect(() => { if (userId) ensure(String(userId)); }, [userId, ensure]);
+  return useMemo(() => customZoneEntries(zones), [zones]);
 }
 
 /** Navegación del usuario actual: Inicio + sus zonas principales + Perfil, y el resto por secciones. */
@@ -118,7 +139,8 @@ export function useNav() {
   const userId = String(useAuthStore((s) => s.user?.id) ?? 'anon');
   const order = useNavStore((s) => s.byUser[userId]);
   const hidden = useNavStore((s) => s.hiddenByUser?.[userId]);
-  return useMemo(() => buildNav(order, hidden), [order, hidden]);
+  const extra = useCustomZoneEntries();
+  return useMemo(() => buildNav(order, hidden, extra), [order, hidden, extra]);
 }
 
 /** Navegación por defecto (búsqueda rápida y breadcrumb). */
@@ -135,8 +157,6 @@ const EXTRA_LABELS: Record<string, string> = {
   '/life': 'Life Score',
   '/about': 'Acerca de',
   '/quests/new': 'Nueva misión',
-  '/espejo': 'Espejo',
-  '/armario': 'Espejo',
 };
 
 const ALL_NAV = [HOME, PROFILE, ...ZONES, ...UTILITY_NAV];
@@ -162,6 +182,12 @@ export function buildCrumbs(pathname: string, detail?: string | null): Crumb[] {
   if (EXTRA_LABELS[pathname]) {
     if (entry && entry.to !== '/') crumbs.push({ label: entry.label, to: entry.to });
     crumbs.push({ label: EXTRA_LABELS[pathname] });
+    return crumbs;
+  }
+  // Zonas personalizadas: Noutlife › Mis zonas › Nombre de la zona
+  if (pathname.startsWith(CUSTOM_ZONE_PREFIX)) {
+    crumbs.push({ label: 'Mis zonas', to: '/custom-zones' });
+    crumbs.push({ label: detail ?? 'Zona' });
     return crumbs;
   }
   // Perfiles sociales (su DNI): Noutlife › Social › @usuario

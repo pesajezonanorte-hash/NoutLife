@@ -70,6 +70,10 @@ export async function resetAccountData(userId: string): Promise<AccountResetSumm
     await remove('questCompletions', () => tx.questCompletion.deleteMany({ where: { userId } }));
     await remove('habitLogs', () => tx.habitLog.deleteMany({ where: { userId } }));
     await remove('recoveryChallenges', () => tx.recoveryChallenge.deleteMany({ where: { userId } }));
+    await remove('antiHabitLogs', () => tx.antiHabitLog.deleteMany({ where: { userId } }));
+    await remove('resourceShares', () => tx.resourceShare.deleteMany({ where: { ownerId: userId } }));
+    await remove('checklists', () => tx.checklist.deleteMany({ where: { userId } }));
+    await remove('antiHabits', () => tx.antiHabit.deleteMany({ where: { userId } }));
 
     await remove('transactions', () => tx.transaction.deleteMany({ where: { userId } }));
     await remove('agendaEvents', () => tx.agendaEvent.deleteMany({ where: { userId } }));

@@ -39,9 +39,9 @@ router.delete('/saved-meals/:id', async (req, res) => {
 
 router.post('/ai-parse', async (req, res) => {
   try {
-    const { description, details } = req.body;
+    const { description } = req.body;
     if (!description) return res.status(400).json({ message: 'description requerido' });
-    res.json(await parseMealWithAI(description, typeof details === 'string' ? details : undefined));
+    res.json(await parseMealWithAI(description));
   } catch (err: any) { res.status(400).json({ message: publicErrorMessage(err) }); }
 });
 

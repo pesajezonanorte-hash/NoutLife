@@ -71,6 +71,10 @@ export async function deleteWorkout(req: AuthRequest, res: Response): Promise<vo
   } catch (error) {
     const code = error instanceof Error ? error.message : '';
     if (code === 'WORKOUT_NOT_FOUND') { res.status(404).json({ error: 'Entrenamiento no encontrado.' }); return; }
+    if (code === 'WORKOUT_COMPLETED_CANNOT_DELETE') {
+      res.status(409).json({ error: 'No se puede eliminar un entrenamiento que ya otorgó XP. Puedes editarlo para corregirlo.' });
+      return;
+    }
     res.status(500).json({ error: 'Error al eliminar entrenamiento.' });
   }
 }

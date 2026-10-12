@@ -1,6 +1,4 @@
-// Galería con dos álbumes: el Álbum RPG (tus fotos de todas las zonas: gimnasio,
-// espejo y cartas; ver components/gallery/ZoneAlbum) y el de Cartas.
-// Cartas: todas las fotos de Noutlife en un álbum. Las que tomaste con la
+// Galería: todas las fotos de Noutlife en un álbum. Las que tomaste con la
 // cámara o elegiste de la galería y las que te enviaron, con amigos y en tus
 // gremios, como polaroids pegadas por meses (el mes escrito a mano). Se filtran
 // por mías, de amigos o de gremios; al tocar una se abre en grande y se pasa a
@@ -22,15 +20,19 @@ import { AmbientLight, ZoneShell } from '@/components/ambience';
 import { Lettering } from '@/components/layout/Lettering';
 import { AvatarDisplay } from '@/components/character/AvatarDisplay';
 import { InstantPhoto } from '@/components/social/letters/InstantPhoto';
-import { Button, EmptyState, ErrorState, SegmentedControl, Skeleton } from '@/components/ui/lq';
-import { ZoneAlbum } from '@/components/gallery/ZoneAlbum';
+import { Button, EmptyState, ErrorState, Skeleton } from '@/components/ui/lq';
+import { ZONE_ALBUMS, ZoneAlbum, useZonePhotos, type ZoneAlbumId } from '@/components/gallery/ZoneAlbum';
 
-const FILTERS: Array<{ id: GalleryFilter; label: string }> = [
-  { id: 'all', label: 'Todas' },
+type AlbumFilter = GalleryFilter | ZoneAlbumId;
+const FILTERS: Array<{ id: AlbumFilter; label: string }> = [
+  { id: 'all', label: 'Cartas' },
   { id: 'mine', label: 'Mías' },
   { id: 'friends', label: 'De amigos' },
   { id: 'guilds', label: 'De gremios' },
+  { id: 'gym', label: 'Gimnasio' },
+  { id: 'wardrobe', label: 'Espejo' },
 ];
+const isZone = (f: AlbumFilter): f is ZoneAlbumId => f === 'gym' || f === 'wardrobe';
 const monthOf = (iso: string) => new Date(iso).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
 const tiltOf = (id: string) => { let h = 0; for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0; return ((h % 7) - 3) * 0.9; };
 const placeOf = (it: GalleryItem) => (it.place.type === 'guild' ? it.place.guild.name : it.place.user.displayName.split(' ')[0]);
@@ -118,15 +120,9 @@ function Viewer({ items, index, onIndex, onClose }: { items: GalleryItem[]; inde
   );
 }
 
-type Mode = 'zones' | 'letters';
-const MODES: Array<{ value: Mode; label: string }> = [
-  { value: 'zones', label: 'Álbum RPG' },
-  { value: 'letters', label: 'Cartas' },
-];
-
 export default function GalleryPage() {
-  const [mode, setMode] = useState<Mode>('zones');
-  const [filter, setFilter] = useState<GalleryFilter>('all');
+  const [filter, setFilter] = useState<AlbumFilter>('all');
+  const zonePhotos = useZonePhotos();
   const [items, setItems] = useState<GalleryItem[] | null>(null);
   const [next, setNext] = useState<string | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -135,17 +131,17 @@ export default function GalleryPage() {
   const sentinel = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (isZone(filter)) return;
     let alive = true;
     setState('loading'); setItems(null); setNext(null);
-    if (mode !== 'letters') return () => { alive = false; };
     getGallery({ filter })
       .then((r) => { if (!alive) return; setItems(r.items); setNext(r.next); setState('ready'); })
       .catch(() => { if (alive) setState('error'); });
     return () => { alive = false; };
-  }, [filter, mode]);
+  }, [filter]);
 
   const loadMore = useCallback(async () => {
-    if (!next || more) return;
+    if (!next || more || isZone(filter)) return;
     setMore(true);
     try { const r = await getGallery({ filter, before: next }); setItems((l) => [...(l ?? []), ...r.items]); setNext(r.next); }
     catch { /* se reintenta al volver a bajar */ }
@@ -177,21 +173,25 @@ export default function GalleryPage() {
       ambience={<AmbientLight tone="warning" alpha={0.11} darkAlpha={0.07} d={14} className="left-[30%] top-[-10%] h-[30rem] w-[60%]" />}
     >
       <motion.section variants={item} className="flex flex-col gap-3 pt-6 md:pt-10">
-        <span className="text-label-lg text-primary-text">{mode === 'letters' && items ? `${items.length}${next ? '+' : ''} ${items.length === 1 ? 'foto' : 'fotos'}` : 'Galería'}</span>
+        <span className="text-label-lg text-primary-text">Álbum RPG</span>
         <h1 className="text-display-sm md:text-display-md"><Lettering text="galería" /></h1>
-        <p className="max-w-[56ch] text-body-lg text-on-surface-light">
-          {mode === 'zones'
-            ? 'Tu álbum RPG: las fotos de todas tus zonas (gimnasio, espejo y cartas) en un solo lugar.'
-            : 'Todas las fotos de tus cartas: las que tomaste o elegiste y las que te enviaron tus amigos y tus gremios.'}
-        </p>
+        <p className="max-w-[56ch] text-body-lg text-on-surface-light">Todas tus fotos en un solo álbum, por capítulos: las de tus cartas, tu progreso en el Gimnasio y las prendas del armario de tu Espejo.</p>
       </motion.section>
 
-      <motion.div variants={item}>
-        <SegmentedControl label="Álbum" value={mode} onChange={setMode} options={MODES} className="max-w-[420px]" />
+      {/* Capítulos del álbum: cuántas fotos guarda cada zona. */}
+      <motion.div variants={item} className="grid grid-cols-3 gap-3" role="group" aria-label="Capítulos del álbum">
+        {([
+          { id: 'all' as const, label: 'Cartas', icon: Mail, count: items && !isZone(filter) ? `${items.length}${next ? '+' : ''}` : '—' },
+          ...(['gym', 'wardrobe'] as const).map((z) => ({ id: z, label: ZONE_ALBUMS[z].label, icon: ZONE_ALBUMS[z].icon, count: zonePhotos ? String(zonePhotos.filter((p) => p.zone === z).length) : '—' })),
+        ]).map((ch) => (
+          <button key={ch.id} type="button" onClick={() => setFilter(ch.id)} aria-pressed={filter === ch.id || (ch.id === 'all' && !isZone(filter))}
+            className={cn('flex min-h-20 flex-col items-start justify-between rounded-2xl border p-3 text-left transition-colors', (filter === ch.id || (ch.id === 'all' && !isZone(filter))) ? 'border-primary bg-primary/10' : 'border-border bg-surface hover:border-primary/40')}>
+            <ch.icon aria-hidden className="size-5 text-primary-text" />
+            <span className="text-label-lg text-on-surface">{ch.label}</span>
+            <span className="font-mono text-body-sm tabular-nums text-on-surface-light">{ch.count} fotos</span>
+          </button>
+        ))}
       </motion.div>
-
-      {mode === 'zones' ? <motion.div variants={item}><ZoneAlbum /></motion.div> : (
-      <>
 
       <motion.div variants={item} role="radiogroup" aria-label="Qué fotos ver" className="-mx-4 flex gap-2 overflow-x-auto px-4 md:mx-0 md:px-0">
         {FILTERS.map((f) => (
@@ -202,7 +202,7 @@ export default function GalleryPage() {
         ))}
       </motion.div>
 
-      {state === 'error' ? <ErrorState onRetry={() => setFilter((f) => f)} /> : state === 'loading' ? (
+      {isZone(filter) ? <ZoneAlbum zone={filter} photos={zonePhotos} /> : state === 'error' ? <ErrorState onRetry={() => setFilter((f) => f)} /> : state === 'loading' ? (
         <ul className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">{[0, 1, 2, 3].map((i) => <li key={i}><Skeleton className="aspect-[0.86] rounded-[3px]" /></li>)}</ul>
       ) : !items?.length ? (
         <EmptyState icon={Album} title="Tu álbum está en blanco" description="Las fotos que tomes o envíes en las cartas, y las que te envíen, aparecerán aquí." />
@@ -223,10 +223,8 @@ export default function GalleryPage() {
       )}
 
       <AnimatePresence>
-        {open !== null && items?.[open] && <Viewer key="viewer" items={items} index={open} onIndex={setOpen} onClose={() => setOpen(null)} />}
+        {!isZone(filter) && open !== null && items?.[open] && <Viewer key="viewer" items={items} index={open} onIndex={setOpen} onClose={() => setOpen(null)} />}
       </AnimatePresence>
-      </>
-      )}
     </ZoneShell>
   );
 }

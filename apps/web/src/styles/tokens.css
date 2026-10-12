@@ -241,42 +241,24 @@ html.dark {
 .reduce-motion .lq-vortex-orbit, .reduce-motion .lq-vortex-drift, .reduce-motion .lq-vortex-leaf, .reduce-motion .lq-vortex-sweep { animation-play-state: paused; }
 @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 
-/* «Reducir movimiento» activado en la app (store/motionStore) o por preferencia del sistema.
-   Desactiva o simplifica únicamente las animaciones y transiciones, eliminando filtros de
-   desenfoque (blur) masivos para mantener la nitidez y legibilidad de la interfaz. */
+/* Política de movimiento: todas las animaciones están activas de base, también
+   con «reducir movimiento» del sistema operativo. Solo el ajuste de la app
+   (store/motionStore, clase .reduce-motion) las apaga y deja opacidad y color,
+   sin filtros de desenfoque (blur), para que la interfaz quede nítida.
+   En Tailwind se usa la variante [.reduce-motion_&]: (no motion-reduce:). */
+
+/* «Reducir movimiento» activado en la app (store/motionStore). */
 .reduce-motion *, .reduce-motion *::before, .reduce-motion *::after {
   animation-duration: .01ms !important;
   animation-iteration-count: 1 !important;
   transition-duration: .01ms !important;
   scroll-behavior: auto !important;
-  filter: none !important;
-  -webkit-filter: none !important;
 }
 
-.reduce-motion .backdrop-blur,
-.reduce-motion [class*="backdrop-blur"],
-.reduce-motion .lq-tex-glass {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: .01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: .01ms !important;
-    scroll-behavior: auto !important;
-    filter: none !important;
-    -webkit-filter: none !important;
-  }
-
-  .backdrop-blur,
-  [class*="backdrop-blur"],
-  .lq-tex-glass {
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-  }
-}
+/* Reducir movimiento (app o sistema): nada de blur «masivo». Los blur de
+   animación llegan como estilos en línea (Framer Motion, p. ej. blur(6px) al
+   entrar una página); esta regla los neutraliza y la pantalla queda nítida. */
+.reduce-motion [style*="blur"] { filter: none !important; }
 
 @keyframes lq-blink { 50% { opacity: 0; } }
 

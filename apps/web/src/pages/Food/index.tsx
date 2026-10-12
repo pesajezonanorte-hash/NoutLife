@@ -24,6 +24,7 @@ import { AnalyzeMealDialog, GoalDialog, MealFormDialog } from '@/components/food
 import { ClocheIcon, MacroPlate, Steam } from '@/components/food/Restaurant';
 import { ZoneAmbience } from '@/components/ambience';
 import { Lettering } from '@/components/layout/Lettering';
+import { CategoryChecklists } from '@/components/checklists/CategoryChecklists';
 
 const GLASS_ML = 250;
 const timeOf = (iso: string) => new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
@@ -429,6 +430,7 @@ export default function FoodPage() {
             <div className="flex min-w-0 flex-col gap-6">
               {hydration}
               {savedCard}
+              <CategoryChecklists category="Compras" title="Lista de compras" description="Lo que falta en la despensa." />
             </div>
           </motion.div>
         </>

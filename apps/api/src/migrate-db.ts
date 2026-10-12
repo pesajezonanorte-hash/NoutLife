@@ -2,6 +2,7 @@ import { prisma } from './lib/prisma';
 import { settleLevel } from './services/xp.service';
 import { shouldSkipBuildDbStep } from './lib/build-env';
 import { LETTERS_AND_GESTURES_SQL, REMOVE_LEGACY_HABIT_RITUAL_FLAG_SQL, SOCIAL_NETWORK_SQL, SOCIAL_PRO_SQL, RLS_LOCKDOWN_SQL } from './lib/schema-migrations';
+import { BACKLOG_SQL, BACKLOG_V2_SQL, REVERSIBLE_HABIT_LOGS_SQL, WARDROBE_PHOTO_SQL } from './lib/backlog-migrations';
 
 const ignoreDuplicate = (sql: string) =>
   `DO $$ BEGIN ${sql}; EXCEPTION WHEN duplicate_object THEN NULL; END $$;`;
@@ -201,6 +202,14 @@ async function migrate() {
   // Idempotent mirror of prisma/migrations/20261008120000_social_pro.
   for (const sql of SOCIAL_PRO_SQL) await prisma.$executeRawUnsafe(sql);
 
+  // Idempotent mirrors of the undoable habit check and private wardrobe-photo migrations.
+  for (const sql of REVERSIBLE_HABIT_LOGS_SQL) await prisma.$executeRawUnsafe(sql);
+  await prisma.$executeRawUnsafe(WARDROBE_PHOTO_SQL);
+
+  // Idempotent mirror of the backlog's checklist, anti-habit and sharing tables.
+  for (const sql of BACKLOG_SQL) await prisma.$executeRawUnsafe(sql);
+  for (const sql of BACKLOG_V2_SQL()) await prisma.$executeRawUnsafe(sql);
+
   // Idempotent mirror of prisma/migrations/20261009120000_oauth_only_and_stats.
   // The unused stat columns (mp, maxMp, per-area levels) are left in place here:
   // the previous deployment may still be serving while this one builds.
@@ -230,41 +239,14 @@ async function migrate() {
   await prisma.$executeRawUnsafe(`ALTER TYPE "TransactionCategory" ADD VALUE IF NOT EXISTS 'GIFT'`);
   await prisma.$executeRawUnsafe(`ALTER TYPE "TransactionCategory" ADD VALUE IF NOT EXISTS 'RENTAL'`);
 
+  // Idempotent mirror of prisma/migrations/20261016120000_clothing_for_me_category:
+  // «Ropa para mí», categoría de gasto con atajo al Espejo.
+  await prisma.$executeRawUnsafe(`ALTER TYPE "TransactionCategory" ADD VALUE IF NOT EXISTS 'CLOTHING_FOR_ME'`);
+
   // Idempotent mirror of prisma/migrations/20261013120000_savings_pot.
   await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "savings_entries" ("id" TEXT NOT NULL, "userId" TEXT NOT NULL, "kind" TEXT NOT NULL, "counterpart" TEXT NOT NULL, "amount" DECIMAL(15,2) NOT NULL, "note" TEXT, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "savings_entries_pkey" PRIMARY KEY ("id"))`);
   await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "savings_entries_userId_createdAt_idx" ON "savings_entries"("userId", "createdAt")`);
   await prisma.$executeRawUnsafe(ignoreDuplicate(`ALTER TABLE "savings_entries" ADD CONSTRAINT "savings_entries_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE`));
-
-  // Idempotent mirror of prisma/migrations/20261021120000_anti_habits_last_active.
-  await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "lastActiveAt" TIMESTAMP(3)`);
-  await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "nightGapStartAt" TIMESTAMP(3)`);
-  await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "nightGapEndAt" TIMESTAMP(3)`);
-  await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "anti_habits" ("id" TEXT NOT NULL, "userId" TEXT NOT NULL, "name" TEXT NOT NULL, "icon" TEXT, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "anti_habits_pkey" PRIMARY KEY ("id"))`);
-  await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "anti_habits_userId_idx" ON "anti_habits"("userId")`);
-  await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "anti_habit_slips" ("id" TEXT NOT NULL, "antiHabitId" TEXT NOT NULL, "userId" TEXT NOT NULL, "note" TEXT, "occurredAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "anti_habit_slips_pkey" PRIMARY KEY ("id"))`);
-  await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "anti_habit_slips_antiHabitId_occurredAt_idx" ON "anti_habit_slips"("antiHabitId", "occurredAt")`);
-  await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "anti_habit_slips_userId_idx" ON "anti_habit_slips"("userId")`);
-  await prisma.$executeRawUnsafe(ignoreDuplicate(`ALTER TABLE "anti_habits" ADD CONSTRAINT "anti_habits_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE`));
-  await prisma.$executeRawUnsafe(ignoreDuplicate(`ALTER TABLE "anti_habit_slips" ADD CONSTRAINT "anti_habit_slips_antiHabitId_fkey" FOREIGN KEY ("antiHabitId") REFERENCES "anti_habits"("id") ON DELETE CASCADE ON UPDATE CASCADE`));
-  await prisma.$executeRawUnsafe(ignoreDuplicate(`ALTER TABLE "anti_habit_slips" ADD CONSTRAINT "anti_habit_slips_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE`));
-
-  // Idempotent mirror of prisma/migrations/20261023120000_wardrobe_zones.
-  await prisma.$executeRawUnsafe(`ALTER TABLE "clothing_items" ADD COLUMN IF NOT EXISTS "zone" TEXT`);
-  await prisma.$executeRawUnsafe(`ALTER TABLE "clothing_items" ADD COLUMN IF NOT EXISTS "photoUrl" TEXT`);
-  await prisma.$executeRawUnsafe(`ALTER TABLE "outfits" ADD COLUMN IF NOT EXISTS "photoUrl" TEXT`);
-
-  await prisma.$executeRawUnsafe(`ALTER TABLE "quests" ADD COLUMN IF NOT EXISTS "googleCalendarEventId" TEXT`);
-  await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "checklists" ("id" TEXT NOT NULL, "userId" TEXT NOT NULL, "name" TEXT NOT NULL, "category" TEXT NOT NULL DEFAULT 'General', "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL, CONSTRAINT "checklists_pkey" PRIMARY KEY ("id"))`);
-  await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "checklists_userId_category_idx" ON "checklists"("userId", "category")`);
-  await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "checklist_items" ("id" TEXT NOT NULL, "checklistId" TEXT NOT NULL, "text" TEXT NOT NULL, "done" BOOLEAN NOT NULL DEFAULT false, "position" INTEGER NOT NULL DEFAULT 0, CONSTRAINT "checklist_items_pkey" PRIMARY KEY ("id"))`);
-  await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "checklist_items_checklistId_position_idx" ON "checklist_items"("checklistId", "position")`);
-  await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "checklist_shares" ("id" TEXT NOT NULL, "checklistId" TEXT NOT NULL, "userId" TEXT, "token" TEXT NOT NULL, "permission" TEXT NOT NULL DEFAULT 'VIEW', "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "checklist_shares_pkey" PRIMARY KEY ("id"))`);
-  await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "checklist_shares_token_key" ON "checklist_shares"("token")`);
-  await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "checklist_shares_checklistId_idx" ON "checklist_shares"("checklistId")`);
-  await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "checklist_shares_userId_idx" ON "checklist_shares"("userId")`);
-  await prisma.$executeRawUnsafe(ignoreDuplicate(`ALTER TABLE "checklists" ADD CONSTRAINT "checklists_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE`));
-  await prisma.$executeRawUnsafe(ignoreDuplicate(`ALTER TABLE "checklist_items" ADD CONSTRAINT "checklist_items_checklistId_fkey" FOREIGN KEY ("checklistId") REFERENCES "checklists"("id") ON DELETE CASCADE ON UPDATE CASCADE`));
-  await prisma.$executeRawUnsafe(ignoreDuplicate(`ALTER TABLE "checklist_shares" ADD CONSTRAINT "checklist_shares_checklistId_fkey" FOREIGN KEY ("checklistId") REFERENCES "checklists"("id") ON DELETE CASCADE ON UPDATE CASCADE`));
 
   // Runs last so tables created above are covered too.
   await prisma.$executeRawUnsafe(RLS_LOCKDOWN_SQL);

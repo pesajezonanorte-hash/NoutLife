@@ -33,10 +33,7 @@ export const badgeFor = (category?: string | null): BadgeVariant => categoryMeta
 const WEEKDAY_SHORT = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
 
 export function frequencyLabel(f?: HabitFrequency | null) {
-  const rest = f?.type === 'daily' && f.restDays?.length
-    ? ` · descansa ${[...f.restDays].sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map((d) => WEEKDAY_SHORT[d]).join(', ')}`
-    : '';
-  if (!f || f.type === 'daily' || f.days.length === 0 || f.days.length === 7) return `Diario${rest}`;
+  if (!f || f.type === 'daily' || f.days.length === 0 || f.days.length === 7) return 'Diario';
   return [...f.days].sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map((d) => WEEKDAY_SHORT[d]).join(', ');
 }
 

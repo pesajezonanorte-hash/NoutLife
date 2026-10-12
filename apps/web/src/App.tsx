@@ -1,7 +1,6 @@
 import { CookieNotice } from '@/components/legal/CookieNotice';
 import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
-import { Routes, Route, Navigate, matchPath, useLocation } from 'react-router-dom';
-import { ZONE_PAGES, zonePaths } from './routes/zonePages';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence, useReducedMotionConfig } from 'framer-motion';
 import { useAuthStore } from './store/authStore';
 import { useUIStore } from './store/uiStore';
@@ -18,6 +17,7 @@ import { useKeyboardAdjust } from './hooks/useKeyboardAdjust';
 import { useTourDone } from './components/onboarding/WelcomeTour';
 import { DetachPresence } from './components/ambience/ZoneShell';
 import { useLocalReminders } from './lib/localReminders';
+import { touchLastActive } from './lib/sleepGapSuggestion';
 import { syncPushSubscription } from './services/notification.service';
 
 // Páginas diferidas. Los loaders viven en un mapa para poder precargarlos en
@@ -51,7 +51,10 @@ const loaders = {
   SeasonPage: () => import('./pages/Season'),
   AgendaPage: () => import('./pages/Agenda'),
   LifePage: () => import('./pages/Life'),
-  GoalsPage: () => import('./pages/Goals'),
+  ChecklistsPage: () => import('./pages/Checklists'),
+  ObstaclesPage: () => import('./pages/Obstacles'),
+  CustomZoneDetailPage: () => import('./pages/CustomZoneDetail'),
+  SharedResourcePage: () => import('./pages/SharedResource'),
   RitualsPage: () => import('./pages/Rituals'),
   GlowUpPage: () => import('./pages/GlowUp'),
   WisdomPage: () => import('./pages/Wisdom'),
@@ -70,7 +73,7 @@ type PageImport = () => Promise<PageModule>;
 
 /** Calienta todos los módulos de página cuando el navegador está ocioso. */
 function preloadPages() {
-  const preload = () => [...Object.values(loaders), ...ZONE_PAGES.map((z) => z.load)].forEach((load) => void load());
+  const preload = () => Object.values(loaders).forEach((load) => void load());
   const idle = (window as { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number }).requestIdleCallback;
   if (idle) {
     idle(preload, { timeout: 3000 });
@@ -105,24 +108,25 @@ const routeLoaders: Record<string, () => Promise<unknown>> = {
   '/season': loaders.SeasonPage,
   '/agenda': loaders.AgendaPage,
   '/life': loaders.LifePage,
+  '/checklists': loaders.ChecklistsPage,
+  '/obstaculos': loaders.ObstaclesPage,
   '/custom-zones': loaders.CustomZonesPage,
   '/rituals': loaders.RitualsPage,
-  '/glow-up': loaders.GlowUpPage,
+  '/espejo': loaders.GlowUpPage,
   '/wisdom': loaders.WisdomPage,
   '/about': loaders.AboutPage,
   '/faq': loaders.FAQPage,
 };
 
-for (const zone of ZONE_PAGES) routeLoaders[zone.path] = zone.load;
-
 // Rutas que solo redirigen (no esperan ningún bundle).
-const REDIRECTS = new Set(['/goals', '/metas', '/rituales', '/character', '/friends', '/guild', '/espejo', '/armario']);
+const REDIRECTS = new Set(['/rituales', '/character', '/friends', '/guild', '/glow-up', '/armario']);
 
 function loaderForPath(pathname: string) {
   if (REDIRECTS.has(pathname)) return null;
   if (/^\/habits\/[^/]+$/.test(pathname)) return loaders.HabitDetailPage;
-  const zone = ZONE_PAGES.find((z) => zonePaths(z).some((path) => matchPath(path, pathname)));
-  return routeLoaders[pathname] ?? zone?.load ?? loaders.NotFoundPage;
+  // Zonas creadas por el usuario: rutas dinámicas /zonas/:id.
+  if (/^\/zonas\/[^/]+$/.test(pathname)) return loaders.CustomZoneDetailPage;
+  return routeLoaders[pathname] ?? loaders.NotFoundPage;
 }
 
 function PageLoader() {
@@ -235,19 +239,17 @@ function AnimatedRoutes({ location }: { location: ReturnType<typeof useLocation>
           <Route path="/agenda"       element={<SafePage><DeferredLazyPage load={loaders.AgendaPage} /></SafePage>} />
           <Route path="/life"         element={<SafePage><DeferredLazyPage load={loaders.LifePage} /></SafePage>} />
           <Route path="/custom-zones" element={<SafePage><DeferredLazyPage load={loaders.CustomZonesPage} /></SafePage>} />
-          <Route path="/goals"    element={<Navigate to="/quests?filter=meta" replace />} />
-          <Route path="/metas"    element={<Navigate to="/quests?filter=meta" replace />} />
+          <Route path="/zonas/:id" element={<SafePage><DeferredLazyPage load={loaders.CustomZoneDetailPage} /></SafePage>} />
+          <Route path="/checklists" element={<SafePage><DeferredLazyPage load={loaders.ChecklistsPage} /></SafePage>} />
+          <Route path="/obstaculos" element={<SafePage><DeferredLazyPage load={loaders.ObstaclesPage} /></SafePage>} />
           <Route path="/rituals"  element={<SafePage><DeferredLazyPage load={loaders.RitualsPage} /></SafePage>} />
           <Route path="/rituales" element={<Navigate to="/rituals" replace />} />
-          <Route path="/glow-up"  element={<SafePage><DeferredLazyPage load={loaders.GlowUpPage} /></SafePage>} />
-          <Route path="/espejo"   element={<Navigate to="/glow-up" replace />} />
-          <Route path="/armario"  element={<Navigate to="/glow-up" replace />} />
+          <Route path="/espejo"   element={<SafePage><DeferredLazyPage load={loaders.GlowUpPage} /></SafePage>} />
+          <Route path="/armario"  element={<Navigate to={{ pathname: '/espejo', search: window.location.search }} replace />} />
+          <Route path="/glow-up"  element={<Navigate to="/espejo" replace />} />
           <Route path="/wisdom"   element={<SafePage><DeferredLazyPage load={loaders.WisdomPage} /></SafePage>} />
           <Route path="/about"    element={<SafePage><DeferredLazyPage load={loaders.AboutPage} /></SafePage>} />
           <Route path="/faq"      element={<SafePage><DeferredLazyPage load={loaders.FAQPage} /></SafePage>} />
-          {ZONE_PAGES.flatMap((zone) => zonePaths(zone).map((path) => (
-            <Route key={path} path={path} element={<SafePage><DeferredLazyPage load={zone.load} /></SafePage>} />
-          )))}
           <Route path="*"         element={<SafePage><DeferredLazyPage load={loaders.NotFoundPage} /></SafePage>} />
         </Routes>
         </DetachPresence>
@@ -375,6 +377,27 @@ export default function App() {
   }, [isAuthenticated, user?.id]);
   useLocalReminders(isAuthenticated);
 
+  // Se guarda la última actividad visible. Al volver tras una pausa nocturna,
+  // sleepGapSuggestion conserva una sugerencia para revisar en Sueño.
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id) return;
+    const userId = user.id;
+    const touch = () => touchLastActive(userId);
+    touch();
+    document.addEventListener('visibilitychange', touch);
+    window.addEventListener('pagehide', touch);
+    window.addEventListener('focus', touch);
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') touch();
+    }, 5 * 60_000);
+    return () => {
+      document.removeEventListener('visibilitychange', touch);
+      window.removeEventListener('pagehide', touch);
+      window.removeEventListener('focus', touch);
+      window.clearInterval(interval);
+    };
+  }, [isAuthenticated, user?.id]);
+
   // Precarga todas las zonas en idle para evitar flashes al navegar.
   useEffect(() => {
     preloadPages();
@@ -438,6 +461,7 @@ export default function App() {
           <Route path="/privacy" element={<DeferredLazyPage load={loaders.LegalPage} />} />
           <Route path="/terms" element={<DeferredLazyPage load={loaders.LegalPage} />} />
           <Route path="/copyright" element={<DeferredLazyPage load={loaders.LegalPage} />} />
+          <Route path="/shared/:code" element={<SafePage><DeferredLazyPage load={loaders.SharedResourcePage} /></SafePage>} />
           <Route
             path="/onboarding"
             element={

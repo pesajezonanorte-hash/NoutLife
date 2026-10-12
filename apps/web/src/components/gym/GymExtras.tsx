@@ -6,10 +6,12 @@ import { motion } from 'framer-motion';
 import { Camera, Dumbbell, Scale, Timer as TimerIcon, Trash2, Plus, BarChart3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge, BarChart, Button, Card, EmptyState, Field, IconChip, Input, LineChart, Modal, ProgressRing, chipClasses, type BarDatum, type LinePoint, PageLoader } from '@/components/ui/lq';
-import { PrivacyNote } from '@/components/ui/PrivacyNote';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 import { useToastStore } from '@/hooks/useToast';
 import * as gym2 from '../../services/gym2.service';
+import { PrivatePhotoNotice } from '@/components/privacy/PrivatePhotoNotice';
+import { PhotoSourceButtons } from '@/components/media/PhotoSourceButtons';
+import { compressImageToBase64 } from '@/lib/imageCompress';
 
 // ─── Rest Timer ────────────────────────────────────────────────────────────────
 
@@ -323,35 +325,20 @@ export function ProgressPhotos() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [compare, setCompare] = useState<[string, string] | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
-  const cameraRef = useRef<HTMLInputElement>(null);
-
   useEffect(() => {
     gym2.fetchProgressPhotos().then(setPhotos).finally(() => setLoading(false));
   }, []);
 
   async function handleUpload(file: File) {
-    if (file.size > 500 * 1024) {
-      useToastStore.getState().warning('La foto pesa más de 500 KB', 'Comprime la imagen e inténtalo de nuevo.');
-      return;
-    }
     setUploading(true);
     try {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        try {
-          const base64 = (e.target?.result as string).split(',')[1];
-          await gym2.saveProgressPhoto(base64, new Date().toISOString().slice(0, 10));
-          setPhotos(await gym2.fetchProgressPhotos());
-        } catch {
-          useToastStore.getState().error('No se pudo subir la foto');
-        } finally {
-          setUploading(false);
-        }
-      };
-      reader.readAsDataURL(file);
-    } catch {
-      useToastStore.getState().error('No se pudo leer la foto');
+      // La foto de la cámara pesa varios MB: se comprime antes de subirla.
+      const base64 = await compressImageToBase64(file);
+      await gym2.saveProgressPhoto(base64, new Date().toISOString().slice(0, 10));
+      setPhotos(await gym2.fetchProgressPhotos());
+    } catch (error) {
+      useToastStore.getState().error('No se pudo subir la foto', error instanceof Error ? error.message : undefined);
+    } finally {
       setUploading(false);
     }
   }
@@ -374,14 +361,9 @@ export function ProgressPhotos() {
           <IconChip icon={Camera} tone="success" size="sm" />
           <h3 id="gym-photos" className="text-heading-sm">Progreso visual</h3>
         </div>
-        <div className="flex gap-2">
-          <Button variant="secondary" size="sm" loading={uploading} onClick={() => cameraRef.current?.click()}><Camera aria-hidden className="size-4" />Tomar foto</Button>
-          <Button variant="secondary" size="sm" disabled={uploading} onClick={() => fileRef.current?.click()}><Plus aria-hidden className="size-4" />Galería</Button>
-        </div>
-        <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" tabIndex={-1} aria-label="Tomar foto de progreso" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void handleUpload(f); }} />
-        <input ref={fileRef} type="file" accept="image/*" className="hidden" tabIndex={-1} aria-label="Subir foto de progreso desde la galería" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void handleUpload(f); }} />
+        <PhotoSourceButtons size="sm" loading={uploading} onPick={(file) => void handleUpload(file)} />
       </div>
-      <PrivacyNote />
+      <PrivatePhotoNotice />
 
       {loading ? <PageLoader label="Buscando tus fotos…" words={LOADING_COPY.gym} size="sm" /> : photos.length === 0 ? (
         <EmptyState icon={Camera} tone="success" title="Aún no hay fotos" description="Sube tu primera foto para ver tu cambio con el tiempo." className="py-4" />

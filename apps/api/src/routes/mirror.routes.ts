@@ -4,13 +4,13 @@ import { requireAuth, type AuthRequest } from '../middleware/auth.middleware';
 import { prisma } from '../lib/prisma';
 
 const router = Router();
-
-const ZONES = ['torso', 'piernas', 'calzado', 'accesorios', 'abrigo', 'cuerpo_completo'] as const;
-const ZONE_CATEGORY: Record<string, string> = { torso: 'tops', piernas: 'bottoms', calzado: 'shoes', accesorios: 'accessories', abrigo: 'outerwear', cuerpo_completo: 'tops' };
-const MAX_PHOTO = 900_000;
-const cleanPhoto = (v: unknown) => (typeof v === 'string' && /^data:image\/(jpeg|png|webp);base64,/.test(v) && v.length <= MAX_PHOTO ? v : null);
-const cleanText = (v: unknown, max: number) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null);
 router.use(requireAuth);
+
+const CLOTHING_CATEGORIES = new Set(['tops', 'bottoms', 'shoes', 'outerwear', 'accessories']);
+const MAX_PHOTO_DATA_LENGTH = 700_000; // ~500 KB JPEG after base64 encoding
+const isValidPhotoData = (value: unknown) => value == null || (
+  typeof value === 'string' && value.length <= MAX_PHOTO_DATA_LENGTH && /^[A-Za-z0-9+/]+={0,2}$/.test(value)
+);
 
 // ─── Care Routines ─────────────────────────────────────────────────────────────
 
@@ -125,12 +125,13 @@ router.get('/wardrobe', async (req, res, next) => {
 router.post('/wardrobe', async (req, res, next) => {
   try {
     const userId = (req as AuthRequest).userId!;
-    const { name, zone, color, brand, cost, photoUrl } = req.body;
-    if (!name || !ZONES.includes(zone)) return res.status(400).json({ error: 'name and valid zone required' });
-    if (photoUrl && !cleanPhoto(photoUrl)) return res.status(400).json({ error: 'invalid photo' });
-    const item = await prisma.clothingItem.create({
-      data: { userId, name: String(name).trim().slice(0, 80), zone, category: ZONE_CATEGORY[zone], color: cleanText(color, 40), brand: cleanText(brand, 60), cost: cost ? Number(cost) : undefined, photoUrl: cleanPhoto(photoUrl) },
-    });
+    const { name, category, color, brand, photoData } = req.body;
+    if (!name || typeof name !== 'string' || !name.trim() || typeof category !== 'string' || !CLOTHING_CATEGORIES.has(category)) {
+      return res.status(400).json({ error: 'name and a valid clothing category are required' });
+    }
+    if (!isValidPhotoData(photoData)) return res.status(400).json({ error: 'La foto debe ser JPEG/base64 comprimida (máximo 500 KB).' });
+    // El precio ya no se pide al registrar una prenda (solo nombre, categoría y detalles).
+    const item = await prisma.clothingItem.create({ data: { userId, name: name.trim().slice(0, 100), category, color, brand, photoData } });
     res.status(201).json(item);
   } catch (err) { next(err); }
 });
@@ -138,19 +139,22 @@ router.post('/wardrobe', async (req, res, next) => {
 router.patch('/wardrobe/:id', async (req, res, next) => {
   try {
     const userId = (req as AuthRequest).userId!;
-    const { name, zone, color, brand, cost, photoUrl, isFavorite } = req.body;
-    if (zone !== undefined && !ZONES.includes(zone)) return res.status(400).json({ error: 'invalid zone' });
-    if (photoUrl && !cleanPhoto(photoUrl)) return res.status(400).json({ error: 'invalid photo' });
+    const { name, category, color, brand, isFavorite, photoData } = req.body;
+    if (category !== undefined && (typeof category !== 'string' || !CLOTHING_CATEGORIES.has(category))) {
+      return res.status(400).json({ error: 'Categoría de prenda no válida.' });
+    }
+    if (photoData !== undefined && !isValidPhotoData(photoData)) {
+      return res.status(400).json({ error: 'La foto debe ser JPEG/base64 comprimida (máximo 500 KB).' });
+    }
     const item = await prisma.clothingItem.update({
       where: { id: req.params.id, userId },
       data: {
-        ...(typeof name === 'string' && name.trim() && { name: name.trim().slice(0, 80) }),
-        ...(zone !== undefined && { zone, category: ZONE_CATEGORY[zone] }),
-        ...(color !== undefined && { color: cleanText(color, 40) }),
-        ...(brand !== undefined && { brand: cleanText(brand, 60) }),
-        ...(cost !== undefined && { cost: cost === '' || cost === null ? null : Number(cost) }),
-        ...(photoUrl !== undefined && { photoUrl: photoUrl ? cleanPhoto(photoUrl) : null }),
-        ...(typeof isFavorite === 'boolean' && { isFavorite }),
+        ...(typeof name === 'string' && { name: name.trim().slice(0, 100) }),
+        ...(category !== undefined && { category }),
+        ...(color !== undefined && { color }),
+        ...(brand !== undefined && { brand }),
+        ...(isFavorite !== undefined && { isFavorite: Boolean(isFavorite) }),
+        ...(photoData !== undefined && { photoData }),
       },
     });
     res.json(item);
@@ -160,11 +164,11 @@ router.patch('/wardrobe/:id', async (req, res, next) => {
 router.delete('/wardrobe/:id', async (req, res, next) => {
   try {
     const userId = (req as AuthRequest).userId!;
-    const own = await prisma.clothingItem.findFirst({ where: { id: req.params.id, userId }, select: { id: true } });
-    if (!own) return res.status(404).json({ error: 'not found' });
+    const item = await prisma.clothingItem.findFirst({ where: { id: req.params.id, userId }, select: { id: true } });
+    if (!item) return res.status(404).json({ error: 'Prenda no encontrada.' });
     await prisma.$transaction([
-      prisma.outfitItem.deleteMany({ where: { clothingItemId: own.id } }),
-      prisma.clothingItem.delete({ where: { id: own.id } }),
+      prisma.outfitItem.deleteMany({ where: { clothingItemId: item.id, outfit: { userId } } }),
+      prisma.clothingItem.delete({ where: { id: item.id } }),
     ]);
     res.json({ success: true });
   } catch (err) { next(err); }
@@ -188,73 +192,32 @@ router.get('/outfits', async (req, res, next) => {
     const userId = (req as AuthRequest).userId!;
     const outfits = await prisma.outfit.findMany({
       where: { userId },
-      include: { items: { include: { clothingItem: { select: { id: true, name: true, zone: true, category: true, color: true } } } } },
+      include: { items: { include: { clothingItem: true } } },
       orderBy: { createdAt: 'desc' },
     });
     res.json(outfits);
   } catch (err) { next(err); }
 });
 
-async function ownedItemIds(userId: string, ids: unknown): Promise<string[] | null> {
-  if (!Array.isArray(ids)) return null;
-  const unique = [...new Set(ids.filter((i): i is string => typeof i === 'string'))];
-  if (!unique.length) return null;
-  const found = await prisma.clothingItem.count({ where: { userId, id: { in: unique } } });
-  return found === unique.length ? unique : null;
-}
-
 router.post('/outfits', async (req, res, next) => {
   try {
     const userId = (req as AuthRequest).userId!;
-    const { name, itemIds, occasion, rating, photoUrl } = req.body;
-    const ids = await ownedItemIds(userId, itemIds);
-    if (!ids) return res.status(400).json({ error: 'itemIds required' });
-    if (photoUrl && !cleanPhoto(photoUrl)) return res.status(400).json({ error: 'invalid photo' });
+    const { name, itemIds = [], occasion, rating } = req.body;
+    if (!Array.isArray(itemIds) || itemIds.length < 2 || itemIds.some((id) => typeof id !== 'string')) {
+      return res.status(400).json({ error: 'Elige al menos dos prendas para crear una combinación.' });
+    }
+    const uniqueIds = [...new Set(itemIds as string[])];
+    if (uniqueIds.length !== itemIds.length) return res.status(400).json({ error: 'No repitas prendas en una combinación.' });
+    const ownedItems = await prisma.clothingItem.count({ where: { userId, id: { in: uniqueIds } } });
+    if (ownedItems !== uniqueIds.length) return res.status(403).json({ error: 'Una o más prendas no pertenecen a tu espejo.' });
     const outfit = await prisma.outfit.create({
       data: {
-        userId, name: cleanText(name, 80), occasion: cleanText(occasion, 60), rating: Number.isInteger(rating) ? rating : undefined, photoUrl: cleanPhoto(photoUrl),
-        items: { create: ids.map(id => ({ clothingItemId: id })) },
+        userId, name, occasion, rating,
+        items: { create: uniqueIds.map((id) => ({ clothingItemId: id })) },
       },
       include: { items: { include: { clothingItem: true } } },
     });
     res.status(201).json(outfit);
-  } catch (err) { next(err); }
-});
-
-router.patch('/outfits/:id', async (req, res, next) => {
-  try {
-    const userId = (req as AuthRequest).userId!;
-    const { name, itemIds, occasion, photoUrl } = req.body;
-    const ids = itemIds === undefined ? undefined : await ownedItemIds(userId, itemIds);
-    if (itemIds !== undefined && !ids) return res.status(400).json({ error: 'invalid itemIds' });
-    if (photoUrl && !cleanPhoto(photoUrl)) return res.status(400).json({ error: 'invalid photo' });
-    const own = await prisma.outfit.findFirst({ where: { id: req.params.id, userId }, select: { id: true } });
-    if (!own) return res.status(404).json({ error: 'not found' });
-    const outfit = await prisma.outfit.update({
-      where: { id: own.id },
-      data: {
-        ...(name !== undefined && { name: cleanText(name, 80) }),
-        ...(occasion !== undefined && { occasion: cleanText(occasion, 60) }),
-        ...(photoUrl !== undefined && { photoUrl: photoUrl ? cleanPhoto(photoUrl) : null }),
-        ...(ids && { items: { deleteMany: {}, create: ids.map(id => ({ clothingItemId: id })) } }),
-      },
-      include: { items: { include: { clothingItem: true } } },
-    });
-    res.json(outfit);
-  } catch (err) { next(err); }
-});
-
-router.post('/outfits/:id/worn', async (req, res, next) => {
-  try {
-    const userId = (req as AuthRequest).userId!;
-    const own = await prisma.outfit.findFirst({ where: { id: req.params.id, userId }, include: { items: true } });
-    if (!own) return res.status(404).json({ error: 'not found' });
-    const now = new Date();
-    await prisma.$transaction([
-      prisma.outfit.update({ where: { id: own.id }, data: { lastWornAt: now } }),
-      prisma.clothingItem.updateMany({ where: { userId, id: { in: own.items.map(i => i.clothingItemId) } }, data: { timesWorn: { increment: 1 }, lastWornAt: now } }),
-    ]);
-    res.json({ success: true });
   } catch (err) { next(err); }
 });
 

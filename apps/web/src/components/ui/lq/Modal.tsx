@@ -111,7 +111,7 @@ export function Modal({ open, onClose, title, hideClose, dismissible = true, cla
             ref={panelRef}
             role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}
             variants={dialog}
-            className={cn('flex max-h-[calc(min(100dvh,var(--vvh,100dvh))-2rem)] w-full max-w-[440px] flex-col gap-4 overflow-y-auto overscroll-contain rounded-3xl bg-background p-6 text-on-background shadow-lg outline-none', className)}
+            className={cn('flex max-h-[calc(100dvh-2rem)] w-full max-w-[440px] flex-col gap-4 overflow-y-auto overscroll-contain rounded-3xl bg-background p-6 text-on-background shadow-lg outline-none', className)}
           >
             <div className="flex items-start justify-between gap-4">
               <h2 id={titleId} className="min-w-0 flex-1 text-heading-md">{title}</h2>
@@ -141,7 +141,9 @@ export function Sheet({ open, onClose, title, hideClose = true, dismissible = tr
         <motion.div
           key="scrim"
           variants={scrim} initial="initial" animate="animate" exit="exit"
-          className="fixed inset-0 z-[82] flex h-[var(--vvh,100%)] items-end justify-center overscroll-none bg-[var(--scrim)]"
+          className="fixed inset-0 z-[82] flex items-end justify-center overscroll-none bg-[var(--scrim)]"
+          // Con el teclado abierto (iOS no encoge el layout), la hoja sube por encima de él.
+          style={{ paddingBottom: 'var(--keyboard-inset, 0px)' }}
           onMouseDown={(e) => dismissible && e.target === e.currentTarget && onClose()}
         >
           {/* Se arrastra hacia abajo desde el asa o el título para cerrarla. */}
@@ -152,8 +154,9 @@ export function Sheet({ open, onClose, title, hideClose = true, dismissible = tr
             drag={dismissible ? 'y' : false} dragControls={drag} dragListener={false}
             dragConstraints={{ top: 0, bottom: 0 }} dragElastic={{ top: 0.05, bottom: 0.7 }}
             onDragEnd={(_, info) => { if (info.offset.y > 110 || info.velocity.y > 600) onClose(); }}
+            style={{ maxHeight: 'min(92dvh, calc(var(--vvh, 100dvh) - 1rem))' }}
             className={cn(
-              'flex max-h-[min(92dvh,calc(var(--vvh,100dvh)*0.92))] w-full max-w-xl flex-col rounded-t-3xl bg-background text-on-background shadow-lg outline-none',
+              'flex max-h-[92dvh] w-full max-w-xl flex-col rounded-t-3xl bg-background text-on-background shadow-lg outline-none',
               className,
             )}
           >

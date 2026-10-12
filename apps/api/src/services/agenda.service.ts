@@ -1,6 +1,6 @@
 import { prisma } from '../lib/prisma';
 import { addCalendarDays, getCalendarDay } from '../lib/calendar';
-import type { Habit, Quest } from '@prisma/client';
+import type { Habit } from '@prisma/client';
 
 export async function listEvents(
   userId: string,
@@ -59,7 +59,7 @@ export async function createEvent(
     color?: string;
   },
 ) {
-  return prisma.agendaEvent.create({
+  const created = await prisma.agendaEvent.create({
     data: {
       userId,
       title: body.title,
@@ -73,6 +73,8 @@ export async function createEvent(
       color: body.color,
     },
   });
+  queueGoogleTaskExport(userId);
+  return created;
 }
 
 async function assertEditableAgendaEvent(userId: string, id: string) {
@@ -102,12 +104,16 @@ export async function updateEvent(
   if (body.startDate) data.startDate = new Date(body.startDate as string);
   if (body.endDate) data.endDate = new Date(body.endDate as string);
 
-  return prisma.agendaEvent.update({ where: { id, userId }, data });
+  const updated = await prisma.agendaEvent.update({ where: { id, userId }, data });
+  queueGoogleTaskExport(userId);
+  return updated;
 }
 
 export async function deleteEvent(userId: string, id: string) {
   await assertEditableAgendaEvent(userId, id);
-  return prisma.agendaEvent.delete({ where: { id, userId } });
+  const deleted = await prisma.agendaEvent.delete({ where: { id, userId } });
+  queueGoogleTaskExport(userId);
+  return deleted;
 }
 
 // ─── Google Calendar Integration ─────────────────────────────────────────────
@@ -170,12 +176,7 @@ function habitCategoryToAgendaCategory(category: Habit['category']): string {
 }
 
 function habitRecurrenceRule(frequency: Habit['frequency']): string[] {
-  const value = frequency as { type?: string; days?: unknown; restDays?: unknown } | null;
-  if (value?.type !== 'days_per_week' && Array.isArray(value?.restDays) && value.restDays.length > 0) {
-    const rest = new Set(value.restDays);
-    const days = [0, 1, 2, 3, 4, 5, 6].filter((day) => !rest.has(day)).map((day) => GOOGLE_WEEKDAYS[day]);
-    if (days.length > 0 && days.length < 7) return [`RRULE:FREQ=WEEKLY;BYDAY=${days.join(',')}`];
-  }
+  const value = frequency as { type?: string; days?: unknown } | null;
   if (value?.type === 'days_per_week' && Array.isArray(value.days) && value.days.length > 0) {
     const days = [...new Set(value.days)]
       .filter((day): day is number => Number.isInteger(day) && day >= 0 && day <= 6)
@@ -364,7 +365,6 @@ async function importGoogleCalendarEvents(
 
   for (const item of items) {
     if (!item.summary) continue;
-    if (item.extendedProperties?.private?.lifequestSource === 'quest') continue;
 
     const startStr = item.start?.dateTime || item.start?.date;
     const endStr = item.end?.dateTime || item.end?.date;
@@ -374,6 +374,8 @@ async function importGoogleCalendarEvents(
     const endDate = endStr ? new Date(endStr) : new Date(startDate.getTime() + 60 * 60 * 1000);
     const isAllDay = Boolean(item.start?.date && !item.start?.dateTime);
     const privateProperties = item.extendedProperties?.private;
+    // Misiones y tareas publicadas desde Noutlife: el original vive aquí, no se reimporta.
+    if (privateProperties?.lifequestSource === 'quest' || privateProperties?.lifequestSource === 'agenda') continue;
     const seriesId = item.recurringEventId ?? item.id;
     const linkedHabit = managedHabitsBySeriesId.get(seriesId);
     const isNoutlifeHabit = (
@@ -480,94 +482,6 @@ export async function removeHabitFromGoogleCalendar(userId: string, habit: Habit
   }
 
   return { removed: true };
-}
-
-// ─── Misiones con fecha límite → evento de día completo en Google Calendar ──────
-
-function questGoogleEventBody(quest: Quest, timezone: string) {
-  const day = getCalendarDay(timezone, quest.deadline ?? new Date());
-  return {
-    summary: `⚔️ ${quest.title}`,
-    description: [quest.description?.trim(), 'Misión de NoutLife: vence este día.'].filter(Boolean).join('\n\n'),
-    start: { date: dateKey(day) },
-    end: { date: dateKey(addCalendarDays(day, 1)) },
-    extendedProperties: { private: { lifequestSource: 'quest', lifequestQuestId: quest.id } },
-  };
-}
-
-async function deleteQuestGoogleEvent(quest: Quest, connection: GoogleCalendarConnection) {
-  if (!quest.googleCalendarEventId) return;
-  const response = await fetch(
-    calendarApiUrl(connection.calendarId, `/events/${encodeURIComponent(quest.googleCalendarEventId)}`),
-    { method: 'DELETE', headers: { Authorization: `Bearer ${connection.accessToken}` } },
-  );
-  if (!response.ok && response.status !== 404 && response.status !== 410) {
-    await googleError(response, 'No se pudo quitar la misión de Google Calendar');
-  }
-  await prisma.quest.update({ where: { id: quest.id }, data: { googleCalendarEventId: null } });
-}
-
-async function upsertQuestGoogleEvent(quest: Quest, connection: GoogleCalendarConnection) {
-  const body = JSON.stringify(questGoogleEventBody(quest, connection.timezone));
-  const headers = { Authorization: `Bearer ${connection.accessToken}`, 'Content-Type': 'application/json' };
-  let response: Response | null = null;
-  if (quest.googleCalendarEventId) {
-    response = await fetch(
-      calendarApiUrl(connection.calendarId, `/events/${encodeURIComponent(quest.googleCalendarEventId)}`),
-      { method: 'PATCH', headers, body },
-    );
-    if (!response.ok && response.status !== 404 && response.status !== 410) {
-      await googleError(response, 'No se pudo actualizar la misión en Google Calendar');
-    }
-  }
-  if (!response || response.status === 404 || response.status === 410) {
-    response = await fetch(calendarApiUrl(connection.calendarId, '/events'), { method: 'POST', headers, body });
-    if (!response.ok) await googleError(response, 'No se pudo crear la misión en Google Calendar');
-  }
-  const remote = (await response.json()) as { id?: string };
-  if (remote.id && remote.id !== quest.googleCalendarEventId) {
-    await prisma.quest.update({ where: { id: quest.id }, data: { googleCalendarEventId: remote.id } });
-  }
-}
-
-const questBelongsInCalendar = (quest: Quest) => quest.status === 'ACTIVE' && Boolean(quest.deadline);
-
-/**
- * Refleja una misión en Google Calendar: activa y con fecha límite → evento de día
- * completo; completada, fallida, archivada o sin fecha → se retira. Sin conexión no hace nada.
- */
-export async function syncQuestWithGoogleCalendar(userId: string, questId: string) {
-  const connection = await getGoogleCalendarConnection(userId);
-  if (!connection) return { synced: false };
-  const quest = await prisma.quest.findFirst({ where: { id: questId, userId } });
-  if (!quest) return { synced: false };
-  if (questBelongsInCalendar(quest)) await upsertQuestGoogleEvent(quest, connection);
-  else await deleteQuestGoogleEvent(quest, connection);
-  return { synced: true };
-}
-
-async function syncAllQuests(userId: string, connection: GoogleCalendarConnection): Promise<number> {
-  const today = getCalendarDay(connection.timezone);
-  const quests = await prisma.quest.findMany({
-    where: {
-      userId,
-      OR: [
-        { status: 'ACTIVE', deadline: { gte: addCalendarDays(today, -1) }, googleCalendarEventId: null },
-        { status: { not: 'ACTIVE' }, googleCalendarEventId: { not: null } },
-        { deadline: null, googleCalendarEventId: { not: null } },
-      ],
-    },
-  });
-  let exported = 0;
-  for (const quest of quests) {
-    try {
-      if (questBelongsInCalendar(quest)) { await upsertQuestGoogleEvent(quest, connection); exported += 1; }
-      else await deleteQuestGoogleEvent(quest, connection);
-    } catch (error) {
-      console.error('[GOOGLE_CALENDAR_QUEST_SYNC_ERROR]', quest.id, error instanceof Error ? error.message : 'unknown');
-    }
-  }
-  return exported;
 }
 
 export function getGoogleAuthUrl(redirectUri: string): string {
@@ -689,6 +603,134 @@ export async function refreshGoogleToken(userId: string, refreshToken: string): 
   return data.access_token;
 }
 
+// ─── Misiones y tareas → Google Calendar ─────────────────────────────────────
+//
+// Cada sincronización publica en Google las misiones activas con fecha límite
+// (evento de día completo en su vencimiento) y las tareas creadas en la Agenda
+// de Noutlife. Se marcan con propiedades privadas (lifequestSource) para
+// actualizarlas sin duplicar y retirarlas cuando se completan o se borran.
+
+type ManagedSource = 'quest' | 'agenda';
+
+async function listManagedGoogleEvents(connection: GoogleCalendarConnection, source: ManagedSource) {
+  const params = new URLSearchParams({ privateExtendedProperty: `lifequestSource=${source}`, maxResults: '2500', showDeleted: 'false' });
+  const response = await fetch(`${calendarApiUrl(connection.calendarId, '/events')}?${params.toString()}`, {
+    headers: { Authorization: `Bearer ${connection.accessToken}` },
+  });
+  if (!response.ok) await googleError(response, 'Error al consultar Google Calendar');
+  const data = (await response.json()) as GoogleCalendarEventsResponse;
+  const byOwner = new Map<string, string>();
+  const key = source === 'quest' ? 'lifequestQuestId' : 'lifequestAgendaId';
+  for (const item of data.items ?? []) {
+    const owner = item.extendedProperties?.private?.[key];
+    if (owner) byOwner.set(owner, item.id);
+  }
+  return byOwner;
+}
+
+async function putGoogleEvent(connection: GoogleCalendarConnection, existingId: string | undefined, body: Record<string, unknown>): Promise<string | null> {
+  const headers = { Authorization: `Bearer ${connection.accessToken}`, 'Content-Type': 'application/json' };
+  if (existingId) {
+    const response = await fetch(calendarApiUrl(connection.calendarId, `/events/${encodeURIComponent(existingId)}`), { method: 'PATCH', headers, body: JSON.stringify(body) });
+    if (response.ok) return existingId;
+    if (response.status !== 404 && response.status !== 410) return null;
+  }
+  const response = await fetch(calendarApiUrl(connection.calendarId, '/events'), { method: 'POST', headers, body: JSON.stringify(body) });
+  if (!response.ok) return null;
+  const created = (await response.json()) as { id?: string };
+  return created.id ?? null;
+}
+
+async function deleteGoogleEvent(connection: GoogleCalendarConnection, eventId: string) {
+  await fetch(calendarApiUrl(connection.calendarId, `/events/${encodeURIComponent(eventId)}`), {
+    method: 'DELETE', headers: { Authorization: `Bearer ${connection.accessToken}` },
+  }).catch(() => null);
+}
+
+export async function exportQuestsAndTasksToGoogle(userId: string, connection: GoogleCalendarConnection) {
+  let exported = 0;
+  let removed = 0;
+
+  // Misiones activas con fecha límite: evento de día completo en el vencimiento.
+  const [quests, questEvents] = await Promise.all([
+    prisma.quest.findMany({ where: { userId, status: 'ACTIVE', deadline: { not: null } }, select: { id: true, title: true, description: true, deadline: true, type: true, difficulty: true, xpReward: true } }),
+    listManagedGoogleEvents(connection, 'quest'),
+  ]);
+  const liveQuests = new Set<string>();
+  for (const quest of quests) {
+    const day = getCalendarDay(connection.timezone, quest.deadline!);
+    const body = {
+      summary: `🎯 ${quest.title}`,
+      description: [quest.description?.trim(), `Misión ${quest.type} · ${quest.difficulty} · +${quest.xpReward} XP`, 'Sincronizada desde Noutlife.'].filter(Boolean).join('\n\n'),
+      start: { date: dateKey(day) },
+      end: { date: dateKey(addCalendarDays(day, 1)) },
+      extendedProperties: { private: { lifequestSource: 'quest', lifequestQuestId: quest.id } },
+    };
+    if (await putGoogleEvent(connection, questEvents.get(quest.id), body)) { exported += 1; liveQuests.add(quest.id); }
+  }
+  for (const [questId, eventId] of questEvents) {
+    if (!quests.some((quest) => quest.id === questId)) { await deleteGoogleEvent(connection, eventId); removed += 1; }
+  }
+
+  // Tareas y eventos creados en la Agenda de Noutlife (no los importados de Google ni los hábitos).
+  const now = new Date();
+  const [agendaEvents, taskEvents] = await Promise.all([
+    prisma.agendaEvent.findMany({
+      where: { userId, eventType: { not: 'habit' }, startDate: { gte: new Date(now.getTime() - 86_400_000), lte: new Date(now.getTime() + 90 * 86_400_000) } },
+      select: { id: true, title: true, description: true, location: true, startDate: true, endDate: true, isAllDay: true, isCompleted: true, googleEventId: true },
+    }),
+    listManagedGoogleEvents(connection, 'agenda'),
+  ]);
+  const remoteIds = new Set(taskEvents.values());
+  const localEvents = agendaEvents.filter((event) => !event.googleEventId || remoteIds.has(event.googleEventId));
+  for (const event of localEvents) {
+    const end = event.endDate ?? new Date(event.startDate.getTime() + 60 * 60_000);
+    const body = {
+      summary: event.isCompleted ? `✓ ${event.title}` : event.title,
+      description: [event.description?.trim(), 'Sincronizada desde Noutlife.'].filter(Boolean).join('\n\n'),
+      location: event.location ?? undefined,
+      ...(event.isAllDay
+        ? { start: { date: dateKey(getCalendarDay(connection.timezone, event.startDate)) }, end: { date: dateKey(addCalendarDays(getCalendarDay(connection.timezone, end), event.endDate ? 0 : 1)) } }
+        : { start: { dateTime: event.startDate.toISOString() }, end: { dateTime: end.toISOString() } }),
+      extendedProperties: { private: { lifequestSource: 'agenda', lifequestAgendaId: event.id } },
+    };
+    const id = await putGoogleEvent(connection, taskEvents.get(event.id) ?? event.googleEventId ?? undefined, body);
+    if (!id) continue;
+    exported += 1;
+    if (id !== event.googleEventId) await prisma.agendaEvent.update({ where: { id: event.id }, data: { googleEventId: id } }).catch(() => null);
+  }
+  const localIds = new Set(agendaEvents.map((event) => event.id));
+  for (const [agendaId, eventId] of taskEvents) {
+    if (localIds.has(agendaId)) continue;
+    // Solo se borra si la tarea ya no existe (fuera de la ventana de fechas se conserva).
+    const stillExists = await prisma.agendaEvent.findFirst({ where: { id: agendaId, userId }, select: { id: true } });
+    if (!stillExists) { await deleteGoogleEvent(connection, eventId); removed += 1; }
+  }
+
+  return { exported, removed };
+}
+
+const exportInFlight = new Set<string>();
+
+/**
+ * Publica en segundo plano las misiones y tareas tras crearlas o cambiarlas, si
+ * la persona tiene Google Calendar conectado. Nunca bloquea ni hace fallar la petición.
+ */
+export function queueGoogleTaskExport(userId: string): void {
+  if (exportInFlight.has(userId)) return;
+  exportInFlight.add(userId);
+  void (async () => {
+    try {
+      const connection = await getGoogleCalendarConnection(userId);
+      if (connection) await exportQuestsAndTasksToGoogle(userId, connection);
+    } catch (error) {
+      console.error('[GOOGLE_CALENDAR_TASK_EXPORT_ERROR]', error);
+    } finally {
+      exportInFlight.delete(userId);
+    }
+  })();
+}
+
 export async function syncGoogleCalendar(userId: string) {
   const connection = await getGoogleCalendarConnection(userId);
   if (!connection) {
@@ -718,13 +760,15 @@ export async function syncGoogleCalendar(userId: string) {
     }
   }
 
-  const exportedQuestCount = await syncAllQuests(userId, connection);
+  let tasks = { exported: 0, removed: 0 };
+  try {
+    tasks = await exportQuestsAndTasksToGoogle(userId, connection);
+  } catch (error) {
+    console.error('[GOOGLE_CALENDAR_TASK_EXPORT_ERROR]', error);
+  }
+
   const syncedCount = await importGoogleCalendarEvents(userId, connection);
-  const questSuffix = exportedQuestCount === 1
-    ? ' Se añadió 1 misión con fecha.'
-    : exportedQuestCount > 1
-      ? ` Se añadieron ${exportedQuestCount} misiones con fecha.`
-      : '';
+  const tasksSuffix = tasks.exported > 0 ? ` ${tasks.exported} misiones y tareas publicadas en Google.` : '';
   const exportSuffix = exportedHabitCount === 1
     ? ' Se añadió 1 hábito recurrente.'
     : exportedHabitCount > 1
@@ -737,8 +781,7 @@ export async function syncGoogleCalendar(userId: string) {
   return {
     syncedCount,
     exportedHabitCount,
-    exportedQuestCount,
-    message: `Sincronizados ${syncedCount} eventos de Google Calendar.${exportSuffix}${questSuffix}${cleanupSuffix}`,
+    message: `Sincronizados ${syncedCount} eventos de Google Calendar.${exportSuffix}${tasksSuffix}${cleanupSuffix}`,
   };
 }
 

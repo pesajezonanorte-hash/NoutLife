@@ -6,10 +6,12 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { AnimatePresence, motion, PresenceContext } from 'framer-motion';
 import type { SleepLog, SleepStats } from '@noutlife/shared';
-import { BedDouble, Clock, CloudSun, Coffee, Dumbbell, MonitorSmartphone, Moon, Minus, Trash2, TrendingDown, TrendingUp } from 'lucide-react';
+import { Clock, CloudSun, Coffee, Dumbbell, MonitorSmartphone, Moon, Minus, Trash2, TrendingDown, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { item, pop3, springSoft, stagger, useCountUp } from '@/lib/motion';
 import { dayKey } from '@/lib/lifeMeta';
+import { dismissSleepGapSuggestion, fetchServerSleepSuggestion, readSleepGapSuggestion, type SleepGapSuggestion } from '@/lib/sleepGapSuggestion';
+import { useAuthStore } from '@/store/authStore';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useToastStore } from '@/hooks/useToast';
 import { Button, Card, EmptyState, ErrorState, Field, IconChip, Input, LineChart, SegmentedControl, Select, type LinePoint, PageLoader } from '@/components/ui/lq';
@@ -23,6 +25,9 @@ import { DurationMeter, RestDial, SleepSky, SleepyMoon, type DialSegment } from 
 import { Lettering } from '@/components/layout/Lettering';
 
 const DAY = 86400000;
+// Límites amplios de descanso (mismos que la API): de una microsiesta a un turno largo.
+const REST_MIN_H = 1 / 60;
+const REST_MAX_H = 20;
 const weekday = (d: Date, style: 'short' | 'long' = 'short') => {
   const s = d.toLocaleDateString('es-ES', { weekday: style }).replace('.', '');
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -128,13 +133,13 @@ function NightForm({ logs, onSaved, idPrefix }: { logs: SleepLog[]; onSaved: () 
 
   const base = useMemo(() => new Date(Date.now() - wakeDay * DAY), [wakeDay]);
   const night = bed && wake ? nightFromTimes(bed, wake, base) : null;
-  const valid = night && night.hours >= 1 / 60 && night.hours < 24;
+  const valid = night && night.hours >= REST_MIN_H && night.hours <= REST_MAX_H;
   // Una noche por mañana; las siestas no cuentan.
   const existing = night ? logs.find((l) => !isNap(l) && nightKey(l) === dayKey(night.wakeTime)) : undefined;
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (!night || !valid) { setError('La noche debe durar entre 1 min y 24 h.'); return; }
+    if (!night || !valid) { setError('El descanso debe durar entre 1 min y 20 h.'); return; }
     setSaving(true);
     setError(null);
     try {
@@ -155,7 +160,7 @@ function NightForm({ logs, onSaved, idPrefix }: { logs: SleepLog[]; onSaved: () 
       <DaySelect id={`${idPrefix}-day`} label="Noche que terminó" value={wakeDay} onChange={setWakeDay} />
       <div className="grid grid-cols-2 gap-3">
         <Field label="Me dormí"><Input id={`${idPrefix}-in`} type="time" value={bed} onChange={(e) => setBed(e.target.value)} required /></Field>
-        <Field label="Desperté" error={night && !valid ? 'Entre 1 min y 24 h' : undefined}><Input id={`${idPrefix}-out`} type="time" value={wake} onChange={(e) => setWake(e.target.value)} required /></Field>
+        <Field label="Desperté" error={night && !valid ? 'Entre 1 min y 20 h' : undefined}><Input id={`${idPrefix}-out`} type="time" value={wake} onChange={(e) => setWake(e.target.value)} required /></Field>
       </div>
       <DurationMeter hours={night && valid ? night.hours : null} target={SLEEP_GOAL_H} targetLabel={`Meta: ${SLEEP_GOAL_H} h por noche`} />
       <QualityPicker value={q} onChange={setQ} legend="Calidad" />
@@ -201,17 +206,18 @@ function NapForm({ onSaved, idPrefix }: { onSaved: () => void; idPrefix: string 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const minutes = start && end ? fromHHMM(end) - fromHHMM(start) : 0;
+  // Una siesta puede cruzar la medianoche (turnos, descansos largos): fin < inicio = día siguiente.
+  const minutes = start && end ? (fromHHMM(end) - fromHHMM(start) + 1440) % 1440 : 0;
   const hours = minutes / 60;
-  const valid = minutes >= 1 && minutes < 1440;
+  const valid = hours >= REST_MIN_H && hours <= REST_MAX_H;
   const preset = NAP_PRESETS.find((p) => p.min === minutes)?.min;
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (!valid) { setError(minutes <= 0 ? 'La hora de fin debe ser posterior al inicio.' : 'La siesta debe durar entre 1 min y 24 h.'); return; }
+    if (!valid) { setError(minutes <= 0 ? 'La hora de fin debe ser distinta del inicio.' : 'El descanso debe durar entre 1 min y 20 h.'); return; }
     const base = new Date(Date.now() - day * DAY);
     const s = new Date(base); s.setHours(0, fromHHMM(start), 0, 0);
-    const w = new Date(base); w.setHours(0, fromHHMM(end), 0, 0);
+    const w = new Date(s.getTime() + minutes * 60_000);
     setSaving(true);
     setError(null);
     try {
@@ -254,7 +260,7 @@ function NapForm({ onSaved, idPrefix }: { onSaved: () => void; idPrefix: string 
       </fieldset>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Empecé"><Input id={`${idPrefix}-in`} type="time" value={start} onChange={(e) => setStart(e.target.value)} required /></Field>
-        <Field label="Terminé" error={start && end && !valid ? 'Entre 1 min y 24 h' : undefined}><Input id={`${idPrefix}-out`} type="time" value={end} onChange={(e) => setEnd(e.target.value)} required /></Field>
+        <Field label="Terminé" error={start && end && !valid ? 'Entre 1 min y 20 h' : undefined}><Input id={`${idPrefix}-out`} type="time" value={end} onChange={(e) => setEnd(e.target.value)} required /></Field>
       </div>
       <DurationMeter
         hours={valid ? hours : null}
@@ -412,61 +418,49 @@ function MiniStat({ label, hours, sub, tone }: { label: string; hours: number; s
   );
 }
 
-const DISMISSED_KEY = 'noutlife.sleep-suggestion-dismissed';
-
-/** «¿Dormiste de X a Y?»: la pausa entre tu último uso de la noche y el primero de la mañana. */
-function SleepSuggestionCard({ onSaved }: { onSaved: () => void }) {
-  const [suggestion, setSuggestion] = useState<sleepService.SleepSuggestion | null>(null);
+function SleepGapCard({ suggestion, onDismiss, onSaved }: { suggestion: SleepGapSuggestion; onDismiss: () => void; onSaved: () => void }) {
+  const [q, setQ] = useState(3);
   const [saving, setSaving] = useState(false);
+  const start = new Date(suggestion.bedtime);
+  const end = new Date(suggestion.wakeTime);
+  const time = (date: Date) => date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 
-  useEffect(() => {
-    let alive = true;
-    sleepService.fetchSleepSuggestion().then((s) => {
-      let dismissed: string | null = null;
-      try { dismissed = localStorage.getItem(DISMISSED_KEY); } catch { /* sin storage */ }
-      if (alive && s && s.bedtime !== dismissed) setSuggestion(s);
-    }).catch(() => null);
-    return () => { alive = false; };
-  }, []);
-
-  if (!suggestion) return null;
-
-  const dismiss = () => {
-    try { localStorage.setItem(DISMISSED_KEY, suggestion.bedtime); } catch { /* sin storage */ }
-    setSuggestion(null);
-  };
-
-  async function save() {
-    if (!suggestion) return;
+  async function confirm() {
     setSaving(true);
     try {
-      await sleepService.createSleep({ bedtime: suggestion.bedtime, wakeTime: suggestion.wake, quality: 3, date: dayKey(new Date(suggestion.wake)) });
-      useToastStore.getState().success('Noche registrada', hm(suggestion.hours, true));
-      dismiss();
+      await sleepService.createSleep({
+        bedtime: start.toISOString(),
+        wakeTime: end.toISOString(),
+        date: dayKey(end),
+        quality: q,
+      });
+      useToastStore.getState().success('Descanso registrado', `${hm(suggestion.durationHours)} · ${quality(q).name.toLowerCase()}`);
       onSaved();
+      onDismiss();
     } catch {
-      useToastStore.getState().error('No se pudo registrar la noche');
+      useToastStore.getState().error('No se pudo registrar el descanso', 'Comprueba que no haya un registro para esa noche.');
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <motion.div variants={item}>
-    <Card as="section" padding="none" aria-labelledby="sleep-suggestion" className="flex flex-wrap items-center gap-3 p-4 md:gap-4 md:p-5">
-      <IconChip icon={BedDouble} tone="info" size="sm" />
-      <div className="min-w-0 flex-[1_1_220px]">
-        <h2 id="sleep-suggestion" className="text-label-lg text-on-background">
-          ¿Dormiste de <span className="font-mono tabular-nums">{clock(suggestion.bedtime)}</span> a <span className="font-mono tabular-nums">{clock(suggestion.wake)}</span>?
-        </h2>
-        <p className="text-body-sm text-on-surface-light">Lo calculamos con tu último uso de anoche y el primero de hoy: {hm(suggestion.hours, true)}.</p>
+    <Card as="section" padding="lg" aria-label="Sugerencia de descanso nocturno" className="flex flex-col gap-4 border-info/35 bg-info/[var(--lq-soft-alpha)]">
+      <div className="flex items-start gap-3">
+        <IconChip icon={Moon} tone="info" size="lg" />
+        <div className="min-w-0 flex-1">
+          <h2 className="text-heading-sm">¿Dormiste durante esta pausa?</h2>
+          <p className="mt-1 text-body-sm text-on-surface-light">
+            Noutlife detectó que volviste tras una pausa nocturna de <b className="font-mono text-on-surface">{hm(suggestion.durationHours)}</b> ({time(start)}–{time(end)}). Solo se guardará si lo confirmas.
+          </p>
+        </div>
       </div>
-      <div className="flex gap-2">
-        <Button variant="ghost" size="sm" onClick={dismiss} disabled={saving}>No</Button>
-        <Button size="sm" loading={saving} onClick={() => void save()}>Registrar</Button>
+      <QualityPicker value={q} onChange={setQ} legend="¿Cómo descansaste?" />
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <Button type="button" variant="ghost" onClick={onDismiss}>No fue sueño</Button>
+        <Button type="button" loading={saving} onClick={() => void confirm()}>Registrar descanso</Button>
       </div>
     </Card>
-    </motion.div>
   );
 }
 
@@ -476,6 +470,34 @@ export default function SleepPage() {
   const [state, setState] = useState<'loading' | 'error' | 'ready'>('loading');
   const [showAll, setShowAll] = useState(false);
   const isDesktop = useMediaQuery('(min-width: 768px)');
+  const userId = useAuthStore((s) => s.user?.id);
+  const [gapSuggestion, setGapSuggestion] = useState<SleepGapSuggestion | null>(null);
+
+  useEffect(() => {
+    if (!userId) { setGapSuggestion(null); return; }
+    let alive = true;
+    // Primero la del servidor (detectada con lastActiveAt); si no hay, la de este dispositivo.
+    const sync = () => {
+      const local = readSleepGapSuggestion(userId);
+      setGapSuggestion(local);
+      void fetchServerSleepSuggestion().then((remote) => { if (alive && remote) setGapSuggestion(remote); });
+    };
+    sync();
+    const later = window.setTimeout(sync, 0);
+    window.addEventListener('focus', sync);
+    document.addEventListener('visibilitychange', sync);
+    return () => {
+      alive = false;
+      window.clearTimeout(later);
+      window.removeEventListener('focus', sync);
+      document.removeEventListener('visibilitychange', sync);
+    };
+  }, [userId]);
+
+  const dismissGapSuggestion = useCallback(() => {
+    if (userId) dismissSleepGapSuggestion(userId);
+    setGapSuggestion(null);
+  }, [userId]);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setState('loading');
@@ -489,6 +511,11 @@ export default function SleepPage() {
     }
   }, []);
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    if (!gapSuggestion) return;
+    const wakeDay = dayKey(new Date(gapSuggestion.wakeTime));
+    if (logs.some((log) => !isNap(log) && nightKey(log) === wakeDay)) dismissGapSuggestion();
+  }, [dismissGapSuggestion, gapSuggestion, logs]);
 
   async function remove(l: SleepLog) {
     setLogs((list) => list.filter((x) => x.id !== l.id));
@@ -665,7 +692,11 @@ export default function SleepPage() {
         <ErrorState title="No pudimos cargar tu sueño" onRetry={() => void load()} />
       ) : (
         <>
-          <SleepSuggestionCard onSaved={() => void load(true)} />
+          {gapSuggestion && (
+            <motion.div variants={item}>
+              <SleepGapCard suggestion={gapSuggestion} onDismiss={dismissGapSuggestion} onSaved={() => void load(true)} />
+            </motion.div>
+          )}
           <motion.div variants={item}><SleepHero night={lastNight} dayLogs={heroLogs} /></motion.div>
           <motion.div variants={stagger} className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
             <MiniStat label="Media de noches" hours={avg} sub={recent.length ? `Últimas ${recent.length}` : 'Sin noches aún'} tone="info" />

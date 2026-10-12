@@ -1,3 +1,0 @@
-ALTER TABLE "clothing_items" ADD COLUMN IF NOT EXISTS "zone" TEXT;
-ALTER TABLE "clothing_items" ADD COLUMN IF NOT EXISTS "photoUrl" TEXT;
-ALTER TABLE "outfits" ADD COLUMN IF NOT EXISTS "photoUrl" TEXT;

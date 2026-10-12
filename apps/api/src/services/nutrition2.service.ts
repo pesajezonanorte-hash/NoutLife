@@ -48,8 +48,8 @@ export interface ParsedMeal {
   estimatedFat: number;
   aiAvailable: boolean;
   aiSucceeded: boolean;
-  unknown?: boolean;
-  clarification?: string;
+  recognized: boolean;
+  needsIngredients: boolean;
 }
 
 const num = (v: unknown, fallback = 0): number => {
@@ -94,10 +94,10 @@ function extractJsonObject(raw: string): unknown | null {
   return null;
 }
 
-export async function parseMealWithAI(description: string, details?: string): Promise<ParsedMeal> {
+export async function parseMealWithAI(description: string): Promise<ParsedMeal> {
   const trimmed = (description ?? '').trim();
   if (!trimmed) {
-    return { name: '', estimatedCalories: 0, estimatedProtein: 0, estimatedCarbs: 0, estimatedFat: 0, aiAvailable: false, aiSucceeded: false };
+    return { name: '', estimatedCalories: 0, estimatedProtein: 0, estimatedCarbs: 0, estimatedFat: 0, aiAvailable: false, aiSucceeded: false, recognized: false, needsIngredients: false };
   }
 
   const fallback: ParsedMeal = {
@@ -108,24 +108,26 @@ export async function parseMealWithAI(description: string, details?: string): Pr
     estimatedFat: 0,
     aiAvailable: hasAIProvider(),
     aiSucceeded: false,
+    recognized: false,
+    needsIngredients: false,
   };
 
   if (!hasAIProvider()) return fallback;
 
-  const extra = (details ?? '').trim().slice(0, 500);
-  const prompt = `Eres un nutricionista experto. Estima los macros de la comida descrita.
+  const prompt = `Eres un nutricionista experto. Identifica la comida y estima sus macros sin inventar ingredientes.
 Responde SOLO con JSON válido, sin markdown, sin texto adicional.
 Formato exacto:
-{"name":"nombre resumido","estimatedCalories":NUMBER,"estimatedProtein":NUMBER,"estimatedCarbs":NUMBER,"estimatedFat":NUMBER}
+{"recognized":true,"needsIngredients":false,"name":"nombre resumido","estimatedCalories":NUMBER,"estimatedProtein":NUMBER,"estimatedCarbs":NUMBER,"estimatedFat":NUMBER}
 
 Reglas:
+- Si el plato es desconocido, ambiguo o no puedes identificar sus ingredientes principales, responde recognized=false y needsIngredients=true; no adivines macros y usa 0 en los valores.
+- Si es reconocible, responde recognized=true y needsIngredients=false.
 - Macros en gramos, calorías en kcal.
 - Si no se especifica cantidad, asume una porción típica (1 plato, 1 unidad, etc.).
-- Conocimiento de comida colombiana/latinoamericana.
-- Si no reconoces un plato o ingrediente local, NO inventes valores nutricionales. En su lugar, responde con un JSON que tenga "unknown": true y "clarification": "Descripción breve de lo que necesitas saber". El usuario te dará más contexto.
-- Si reconoces el plato, añade "unknown": false al JSON.
+- Ten en cuenta la comida colombiana y latinoamericana.
+- Nunca devuelvas null o undefined.
 
-Comida del usuario: "${trimmed}"${extra ? `\nDescripción/ingredientes/porción aportados por el usuario: "${extra}"` : ''}`;
+Comida del usuario: "${trimmed}"`;
 
   let text = '';
   try {
@@ -144,18 +146,24 @@ Comida del usuario: "${trimmed}"${extra ? `\nDescripción/ingredientes/porción 
     return fallback;
   }
 
-  if (parsed.unknown === true) {
-    return {
-      ...fallback,
-      aiSucceeded: false,
-      unknown: true,
-      clarification: typeof parsed.clarification === 'string' && parsed.clarification.trim() ? parsed.clarification.trim().slice(0, 200) : 'No reconocemos este plato. ¿Puedes dar más detalles?',
-    };
-  }
-
   const name = typeof parsed.name === 'string' && parsed.name.trim().length > 0
     ? parsed.name.trim().slice(0, 80)
     : trimmed.slice(0, 80);
+  const recognized = parsed.recognized === true && parsed.needsIngredients !== true;
+
+  if (!recognized) {
+    return {
+      name,
+      estimatedCalories: 0,
+      estimatedProtein: 0,
+      estimatedCarbs: 0,
+      estimatedFat: 0,
+      aiAvailable: true,
+      aiSucceeded: true,
+      recognized: false,
+      needsIngredients: true,
+    };
+  }
 
   return {
     name,
@@ -165,7 +173,8 @@ Comida del usuario: "${trimmed}"${extra ? `\nDescripción/ingredientes/porción 
     estimatedFat:      num(parsed.estimatedFat      ?? parsed.fat),
     aiAvailable: true,
     aiSucceeded: true,
-    unknown: false,
+    recognized: true,
+    needsIngredients: false,
   };
 }
 

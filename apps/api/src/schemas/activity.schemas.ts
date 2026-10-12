@@ -33,9 +33,9 @@ export const createSleepSchema = z
   })
   .refine((body) => {
     const hours = sleepHours(body.bedtime, body.wakeTime);
-    // Descansos cortos o sueños muy largos son válidos: de 1 min a 24 h.
-    return hours >= 1 / 60 && hours <= 24;
-  }, { message: 'La duración no es válida: debe estar entre 1 minuto y 24 horas.', path: ['wakeTime'] });
+    // Cualquier descanso real (siesta o noche): de 1 min a 20 h.
+    return hours >= 1 / 60 && hours <= 20;
+  }, { message: 'La duración no es válida: debe estar entre 1 min y 20 h.', path: ['wakeTime'] });
 
 export const updateSleepSchema = z.object({
   bedtime: parsableDate.optional(),

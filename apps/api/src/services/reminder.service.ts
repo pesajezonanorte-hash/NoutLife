@@ -176,7 +176,7 @@ type ZoneReminder = {
   zone: string;
   /** Minutos locales en los que toca (o null si hoy no toca). */
   at: (u: ReminderUser, weekday: number) => number | null;
-  category: 'HABITS' | 'GYM' | 'FINANCE' | 'SOCIAL' | 'SYSTEM';
+  category: 'HABITS' | 'GYM' | 'FINANCE' | 'SOCIAL' | 'SYSTEM' | 'QUESTS';
   /** Qué avisar (null: no hace falta, ya lo hizo o no usa la zona). */
   check: (u: ReminderUser, ctx: { since: Date; weekday: number; day: string }) => Promise<{ title: string; body: string; link: string } | null>;
 };
@@ -185,19 +185,45 @@ const DAY_MS = 86_400_000;
 
 const ZONE_REMINDERS: ZoneReminder[] = [
   {
+    zone: 'habitos-pendientes', category: 'HABITS', at: () => 21 * 60,
+    check: async (u, { day }) => {
+      const calendarDate = new Date(`${day}T00:00:00.000Z`);
+      const [habits, logs] = await Promise.all([
+        prisma.habit.findMany({ where: { userId: u.id, isActive: true }, select: { id: true, title: true, frequency: true } }),
+        prisma.habitLog.findMany({ where: { userId: u.id, date: calendarDate }, select: { habitId: true, completed: true, status: true } }),
+      ]);
+      const handled = new Set(logs.filter((log) => log.completed || log.status === 'skipped' || log.status === 'failed').map((log) => log.habitId));
+      const pending = habits.filter((habit) => isHabitScheduledForDay(calendarDate, habit.frequency) && !handled.has(habit.id));
+      if (!pending.length) return null;
+      const names = pending.slice(0, 3).map((habit) => `«${habit.title}»`).join(', ');
+      const extra = pending.length > 3 ? ` y ${pending.length - 3} más` : '';
+      return {
+        title: `${pending.length} ${pending.length === 1 ? 'hábito pendiente' : 'hábitos pendientes'}`,
+        body: `Si todavía puedes, completa ${names}${extra} antes de cerrar el día.`,
+        link: '/habits',
+      };
+    },
+  },
+  {
     zone: 'sueno', category: 'SYSTEM',
     at: (u) => { const t = parseHHMM(u.bedtimeGoal); return t === null ? null : (t - 30 + 1440) % 1440; },
     check: async (u) => ({ title: 'En media hora, a dormir', body: `Tu meta es acostarte a las ${u.bedtimeGoal}. Ve dejando la pantalla.`, link: '/sleep' }),
   },
   {
-    zone: 'gimnasio', category: 'GYM', at: () => 18 * 60,
-    check: async (u, { since, weekday }) => {
+    zone: 'gimnasio', category: 'GYM', at: () => 21 * 60,
+    check: async (u, { since, weekday, day }) => {
       const routine = await prisma.routine.findFirst({
         where: { userId: u.id, isActive: true, days: { some: { weekday, isRestDay: false } } }, select: { name: true },
       });
       if (!routine) return null;
-      const done = await prisma.workout.findFirst({ where: { userId: u.id, date: { gte: since } }, select: { id: true } });
-      return done ? null : { title: 'Hoy toca entrenar', body: `Tu rutina «${routine.name}» tiene día de entreno hoy.`, link: '/gym' };
+      const calendarDate = new Date(`${day}T00:00:00.000Z`);
+      const [workout, attendance] = await Promise.all([
+        prisma.workout.findFirst({ where: { userId: u.id, date: { gte: since } }, select: { id: true } }),
+        prisma.gymAttendance.findFirst({ where: { userId: u.id, date: calendarDate }, select: { id: true } }),
+      ]);
+      return workout || attendance
+        ? null
+        : { title: 'Tu entrenamiento sigue pendiente', body: `La rutina «${routine.name}» estaba programada para hoy. Aún puedes hacer una sesión corta.`, link: '/gym' };
     },
   },
   {
@@ -260,33 +286,6 @@ const ZONE_REMINDERS: ZoneReminder[] = [
       return pending.length === 1
         ? { title: `Tu racha con ${first} se apaga hoy`, body: `Llevan ${pending[0].streakCount} días. Escríbele algo para mantenerla.`, link: `/social?tab=cartas&chat=${encodeURIComponent(other.username)}` }
         : { title: `${pending.length} rachas se apagan hoy`, body: `Escribe a ${first} y a los demás antes de que acabe el día.`, link: '/social?tab=cartas' };
-    },
-  },
-  {
-    zone: 'cierre', category: 'HABITS', at: () => 20 * 60 + 30,
-    check: async (u, { since, weekday, day }) => {
-      const date = new Date(`${day}T00:00:00Z`);
-      const dayEnd = new Date(since.getTime() + DAY_MS);
-      const [habits, quests, goals, routine, attended] = await Promise.all([
-        prisma.habit.findMany({
-          where: { userId: u.id, isActive: true, logs: { none: { date } } },
-          select: { frequency: true },
-        }),
-        prisma.quest.count({ where: { userId: u.id, status: 'ACTIVE', deadline: { gte: new Date(), lt: dayEnd } } }),
-        prisma.masterGoal.count({ where: { userId: u.id, status: 'ACTIVE', targetDate: { gte: since, lt: dayEnd } } }),
-        prisma.routine.findFirst({ where: { userId: u.id, isActive: true, days: { some: { weekday, isRestDay: false } } }, select: { id: true } }),
-        prisma.gymAttendance.findUnique({ where: { userId_date: { userId: u.id, date } }, select: { id: true } }),
-      ]);
-      const pendingHabits = habits.filter((h) => isHabitScheduledForDay(date, h.frequency)).length;
-      const gym = Boolean(routine) && !attended;
-      const parts = [
-        pendingHabits ? `${pendingHabits} ${pendingHabits === 1 ? 'hábito' : 'hábitos'}` : null,
-        quests ? `${quests} ${quests === 1 ? 'misión vence' : 'misiones vencen'} hoy` : null,
-        goals ? `${goals} ${goals === 1 ? 'meta vence' : 'metas vencen'} hoy` : null,
-        gym ? 'tu entreno del día' : null,
-      ].filter(Boolean);
-      if (!parts.length) return null;
-      return { title: 'Aún estás a tiempo de cerrar el día', body: `Te falta: ${parts.join(', ')}.`, link: pendingHabits ? '/habits' : quests ? '/quests' : goals ? '/quests?filter=meta' : '/gym' };
     },
   },
   {

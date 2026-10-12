@@ -22,7 +22,6 @@ import * as habitService from '@/services/habit.service';
 import type { Habit } from '@/services/habit.service';
 import { Lettering } from '@/components/layout/Lettering';
 import { StreakRevival } from '@/components/habits/StreakRevival';
-import { ObstaclesPanel } from '@/components/habits/ObstaclesPanel';
 
 type Filter = 'all' | 'active' | 'done';
 const FILTERS: { value: Filter; label: string }[] = [
@@ -60,7 +59,7 @@ export default function HabitsPage() {
   const [history, setHistory] = useState<Record<string, Set<string>>>({});
   const [form, setForm] = useState<{ open: boolean; habit: Habit | null }>({ open: false, habit: null });
   const [searchParams, setSearchParams] = useSearchParams();
-  const { complete, revert, pending } = useHabitCompletion();
+  const { complete, undo, pending } = useHabitCompletion();
   /** Sube solo cuando se completa el último hábito del día (página cerrada). */
   const [dayDone, setDayDone] = useState(0);
   const { todayKey, last7, week } = useDays();
@@ -104,16 +103,20 @@ export default function HabitsPage() {
     setHistory((prev) => ({ ...prev, [h.id]: new Set([...(prev[h.id] ?? []), todayKey]) }));
   }
 
-  async function handleRevert(h: Habit) {
-    const result = await revert(h);
+  async function handleToggle(h: Habit) {
+    if (!isDone(h)) {
+      await handleComplete(h);
+      return;
+    }
+    const result = await undo(h);
     if (!result) return;
     setHabits((prev) => prev.map((x) => (x.id === h.id
-      ? { ...x, todayStatus: null, todayCompleted: false, currentStreak: result.currentStreak, longestStreak: result.longestStreak }
+      ? { ...x, todayStatus: result.log?.status ?? null, todayCompleted: result.log?.completed ?? false, currentStreak: result.currentStreak, longestStreak: result.longestStreak }
       : x)));
     setHistory((prev) => {
-      const next = new Set(prev[h.id] ?? []);
-      next.delete(todayKey);
-      return { ...prev, [h.id]: next };
+      const days = new Set(prev[h.id] ?? []);
+      days.delete(todayKey);
+      return { ...prev, [h.id]: days };
     });
   }
 
@@ -215,8 +218,7 @@ export default function HabitsPage() {
                     habit={h}
                     pending={pending === h.id}
                     week={last7.map((k) => history[h.id]?.has(k) || (k === todayKey && isDone(h)))}
-                    onComplete={() => void handleComplete(h)}
-                    onRevert={() => void handleRevert(h)}
+                    onComplete={() => void handleToggle(h)}
                   />
                 ))}
               </motion.ul>
@@ -281,7 +283,6 @@ export default function HabitsPage() {
       {header}
       <StreakRevival scope="habits" onRevived={() => void load()} />
       <motion.div variants={item}>{body}</motion.div>
-      {!loading && !failed && <motion.div variants={item}><ObstaclesPanel /></motion.div>}
       </div>
       {dayDone > 0 && <Confetti burst={dayDone} />}
       <HabitFormDialog

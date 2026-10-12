@@ -13,8 +13,7 @@ import { useShellStore } from '@/store/shellStore';
 import { refreshUser } from '@/hooks/useAuth';
 import { zoneName } from '@/services/network.service';
 import { liveHub, sayGoodbye } from '@/lib/live';
-import { answerOpenChat, onNotificationNavigate } from '@/lib/systemNotifications';
-import { useChatFocus } from '@/store/chatFocusStore';
+import { onNotificationNavigate } from '@/lib/systemNotifications';
 import { useSocialPulseSync } from '@/components/social/SocialEntry';
 import { ZoneVisitors } from '@/components/social/ZoneVisitors';
 import { PigeonLayer } from '@/components/social/CarrierPigeon';
@@ -136,7 +135,6 @@ function useLive(pathname: string, signedIn: boolean) {
   useEffect(() => { liveHub.setZone(zoneName(pathname)); }, [pathname]);
   // Tocar un aviso del sistema con la app abierta: a la carta o zona de la que viene.
   useEffect(() => onNotificationNavigate((link) => navigate(link)), [navigate]);
-  useEffect(() => answerOpenChat(() => useChatFocus.getState().key), []);
 }
 
 export function AppShell({ children }: { children: ReactNode }) {

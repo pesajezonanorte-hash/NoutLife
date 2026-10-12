@@ -1,71 +1,110 @@
 import { prisma } from '../lib/prisma';
-import { addCalendarDays, DEFAULT_TIMEZONE, getCalendarDay } from '../lib/calendar';
+import { addCalendarDays, getCalendarDay, parseCalendarDate } from '../lib/calendar';
 
-const DAY_MS = 86_400_000;
+type Tally = { falls: number; resisted: number };
+const tally = (logs: Array<{ occurred: boolean; amount: number }>): Tally => ({
+  falls: logs.filter((log) => log.occurred).reduce((sum, log) => sum + log.amount, 0),
+  resisted: logs.filter((log) => !log.occurred).length,
+});
 
-async function userTimezone(userId: string): Promise<string> {
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { timezone: true } });
-  return user?.timezone ?? DEFAULT_TIMEZONE;
-}
-
+/**
+ * Obstáculos (anti-hábitos) con sus métricas de frecuencia: hoy, esta semana
+ * (lunes a domingo), este mes y la serie diaria de los últimos 30 días, además
+ * de los días que llevas sin caer.
+ */
 export async function listAntiHabits(userId: string) {
-  const timezone = await userTimezone(userId);
-  const now = new Date();
-  const today = getCalendarDay(timezone, now);
-  const since = new Date(now.getTime() - 31 * DAY_MS);
-
-  const antiHabits = await prisma.antiHabit.findMany({
-    where: { userId },
-    orderBy: { createdAt: 'asc' },
-    include: {
-      slips: { where: { occurredAt: { gte: since } }, orderBy: { occurredAt: 'desc' } },
-    },
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { timezone: true } });
+  const today = getCalendarDay(user?.timezone);
+  const weekStart = addCalendarDays(today, -((today.getUTCDay() + 6) % 7));
+  const monthStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
+  const seriesStart = addCalendarDays(today, -29);
+  const from = new Date(Math.min(monthStart.getTime(), seriesStart.getTime(), weekStart.getTime()));
+  const tomorrow = addCalendarDays(today, 1);
+  const habits = await prisma.antiHabit.findMany({
+    where: { userId, isActive: true },
+    include: { logs: { where: { date: { gte: from, lt: tomorrow } }, orderBy: [{ date: 'desc' }, { createdAt: 'desc' }] } },
+    orderBy: [{ category: 'asc' }, { createdAt: 'asc' }],
   });
-  const lastSlips = await prisma.antiHabitSlip.groupBy({
+  const lastFalls = await prisma.antiHabitLog.groupBy({
     by: ['antiHabitId'],
-    where: { userId },
-    _max: { occurredAt: true },
+    where: { userId, occurred: true, antiHabitId: { in: habits.map((habit) => habit.id) } },
+    _max: { date: true },
   });
-  const lastByHabit = new Map(lastSlips.map((row) => [row.antiHabitId, row._max.occurredAt]));
+  const lastFallOf = new Map(lastFalls.map((row) => [row.antiHabitId, row._max.date]));
 
-  return antiHabits.map((habit) => {
-    const dayKeys = habit.slips.map((slip) => getCalendarDay(timezone, slip.occurredAt).getTime());
-    const daily = Array.from({ length: 7 }, (_, index) => {
-      const day = addCalendarDays(today, index - 6);
-      return { date: day.toISOString().slice(0, 10), count: dayKeys.filter((key) => key === day.getTime()).length };
+  return habits.map((habit) => {
+    const inRange = (start: Date) => habit.logs.filter((log) => log.date >= start && log.date < tomorrow);
+    const week = tally(inRange(weekStart));
+    const daily = Array.from({ length: 30 }, (_, i) => {
+      const day = addCalendarDays(seriesStart, i);
+      return { date: day.toISOString().slice(0, 10), ...tally(habit.logs.filter((log) => log.date.getTime() === day.getTime())) };
     });
-    const last30Start = addCalendarDays(today, -29).getTime();
-    const last7Start = addCalendarDays(today, -6).getTime();
-    const lastSlip = lastByHabit.get(habit.id) ?? null;
-    const reference = lastSlip ?? habit.createdAt;
+    const lastFall = lastFallOf.get(habit.id) ?? null;
+    const daysClean = lastFall ? Math.round((today.getTime() - lastFall.getTime()) / 86_400_000) : null;
     return {
-      id: habit.id,
-      name: habit.name,
-      icon: habit.icon,
-      createdAt: habit.createdAt,
-      lastSlipAt: lastSlip,
+      ...habit,
+      logs: habit.logs.slice(0, 20),
       metrics: {
-        today: dayKeys.filter((key) => key === today.getTime()).length,
-        last7Days: dayKeys.filter((key) => key >= last7Start).length,
-        last30Days: dayKeys.filter((key) => key >= last30Start).length,
-        cleanStreakDays: Math.max(0, Math.floor((now.getTime() - reference.getTime()) / DAY_MS)),
+        today: tally(inRange(today)),
+        week,
+        month: tally(inRange(monthStart)),
+        last30: tally(inRange(seriesStart)),
         daily,
+        daysClean,
       },
+      // Compatibilidad con clientes anteriores.
+      weeklyOccurrences: week.falls,
+      weeklyResisted: week.resisted,
+      weekStart: weekStart.toISOString().slice(0, 10),
     };
   });
 }
 
-export async function createAntiHabit(userId: string, input: { name: string; icon?: string }) {
-  return prisma.antiHabit.create({ data: { userId, name: input.name, icon: input.icon } });
+export async function createAntiHabit(userId: string, input: {
+  title: string; category: string; cue?: string; targetPerWeek?: number;
+}) {
+  return prisma.antiHabit.create({
+    data: {
+      userId,
+      title: input.title.trim(),
+      category: input.category.trim().toLowerCase(),
+      cue: input.cue?.trim() || null,
+      targetPerWeek: input.targetPerWeek,
+    },
+  });
 }
 
-export async function deleteAntiHabit(userId: string, id: string) {
-  const result = await prisma.antiHabit.deleteMany({ where: { id, userId } });
-  if (result.count === 0) throw new Error('ANTI_HABIT_NOT_FOUND');
+export async function archiveAntiHabit(userId: string, id: string) {
+  const result = await prisma.antiHabit.updateMany({ where: { id, userId, isActive: true }, data: { isActive: false } });
+  if (!result.count) throw new Error('ANTI_HABIT_NOT_FOUND');
 }
 
-export async function logSlip(userId: string, id: string, note?: string) {
-  const antiHabit = await prisma.antiHabit.findFirst({ where: { id, userId }, select: { id: true } });
-  if (!antiHabit) throw new Error('ANTI_HABIT_NOT_FOUND');
-  return prisma.antiHabitSlip.create({ data: { antiHabitId: id, userId, note } });
+export async function logAntiHabit(userId: string, id: string, input: {
+  occurred: boolean; amount?: number; intensity?: number; note?: string; date?: string;
+}) {
+  const habit = await prisma.antiHabit.findFirst({
+    where: { id, userId, isActive: true },
+    include: { user: { select: { timezone: true } } },
+  });
+  if (!habit) throw new Error('ANTI_HABIT_NOT_FOUND');
+  const date = input.date ? parseCalendarDate(input.date) : getCalendarDay(habit.user.timezone);
+  if (!date) throw new Error('INVALID_ANTI_HABIT_DATE');
+  const today = getCalendarDay(habit.user.timezone);
+  if (date.getTime() > today.getTime()) throw new Error('ANTI_HABIT_FUTURE_DATE');
+  return prisma.antiHabitLog.create({
+    data: {
+      antiHabitId: id,
+      userId,
+      date,
+      occurred: input.occurred,
+      amount: input.occurred ? (input.amount ?? 1) : 1,
+      intensity: input.intensity,
+      note: input.note?.trim() || null,
+    },
+  });
+}
+
+export async function deleteAntiHabitLog(userId: string, logId: string) {
+  const result = await prisma.antiHabitLog.deleteMany({ where: { id: logId, userId } });
+  if (!result.count) throw new Error('ANTI_HABIT_LOG_NOT_FOUND');
 }

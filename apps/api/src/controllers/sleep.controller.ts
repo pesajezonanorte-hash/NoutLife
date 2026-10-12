@@ -1,7 +1,6 @@
 import { Response } from 'express';
 import type { AuthRequest } from '../middleware/auth.middleware';
 import * as svc from '../services/sleep.service';
-import { getSleepSuggestion as findSuggestion } from '../services/sleep-suggestion.service';
 
 const s = (l: { createdAt: Date; date: Date; bedtime: Date; wakeTime: Date; [k: string]: unknown }) => ({
   ...l,
@@ -22,14 +21,30 @@ export async function createSleep(req: AuthRequest, res: Response): Promise<void
   try {
     const log = await svc.createSleep(req.userId!, req.body);
     res.status(201).json({ log: s(log) });
-  } catch { res.status(500).json({ error: 'Error al registrar sueño.' }); }
+  } catch (err) {
+    if (err instanceof Error && err.message === 'SLEEP_DURATION_INVALID') {
+      res.status(400).json({ error: 'La duración no es válida: debe estar entre 1 min y 20 h.' });
+      return;
+    }
+    res.status(500).json({ error: 'Error al registrar sueño.' });
+  }
 }
 
 export async function updateSleep(req: AuthRequest, res: Response): Promise<void> {
   try {
     const log = await svc.updateSleep(req.userId!, req.params.id, req.body);
     res.json({ log: s(log) });
-  } catch { res.status(500).json({ error: 'Error al actualizar sueño.' }); }
+  } catch (err) {
+    if (err instanceof Error && err.message === 'SLEEP_NOT_FOUND') {
+      res.status(404).json({ error: 'Registro de sueño no encontrado.' });
+      return;
+    }
+    if (err instanceof Error && err.message === 'SLEEP_DURATION_INVALID') {
+      res.status(400).json({ error: 'La duración no es válida: debe estar entre 1 min y 20 h.' });
+      return;
+    }
+    res.status(500).json({ error: 'Error al actualizar sueño.' });
+  }
 }
 
 export async function deleteSleep(req: AuthRequest, res: Response): Promise<void> {
@@ -46,9 +61,21 @@ export async function getSleepStats(req: AuthRequest, res: Response): Promise<vo
   } catch { res.status(500).json({ error: 'Error al obtener estadísticas.' }); }
 }
 
+export async function recordActivity(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    res.json({ suggestion: await svc.recordActivity(req.userId!) });
+  } catch { res.status(500).json({ error: 'No se pudo registrar la actividad.' }); }
+}
+
 export async function getSleepSuggestion(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const suggestion = await findSuggestion(req.userId!);
-    res.json({ suggestion });
-  } catch { res.status(500).json({ error: 'Error al obtener la sugerencia de sueño.' }); }
+    res.json({ suggestion: await svc.getSleepSuggestion(req.userId!) });
+  } catch { res.status(500).json({ error: 'No se pudo obtener la sugerencia de descanso.' }); }
+}
+
+export async function dismissSleepSuggestion(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    await svc.clearSleepSuggestion(req.userId!);
+    res.json({ success: true });
+  } catch { res.status(500).json({ error: 'No se pudo descartar la sugerencia.' }); }
 }

@@ -435,11 +435,10 @@ export default function GymPage() {
   const [cardioSaving, setCardioSaving] = useState(false);
   const [showRestTimer, setShowRestTimer] = useState(false);
   const [newTitle, setNewTitle] = useState('');
+  /** Confirmación antes de borrar una rutina o un entrenamiento guardado. */
+  const [pendingDelete, setPendingDelete] = useState<{ kind: 'workout' | 'routine'; id: string; name: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [tab, setTab] = useState<GymTab>('history');
-  const [workoutToDelete, setWorkoutToDelete] = useState<Workout | null>(null);
-  const [deletingWorkout, setDeletingWorkout] = useState(false);
-  const [routineToDelete, setRoutineToDelete] = useState<Routine | null>(null);
-  const [deletingRoutine, setDeletingRoutine] = useState(false);
   /** Sentido del cambio de pestaña: el panel entra desde ese lado. */
   const tabDir = useRef(1);
   const changeTab = (next: GymTab) => {
@@ -448,8 +447,8 @@ export default function GymPage() {
   };
   const [summary, setSummary] = useState<Summary | null>(null);
 
-  const load = useCallback(async (silent = false) => {
-    if (!silent) setState('loading');
+  const load = useCallback(async () => {
+    setState('loading');
     try {
       const [ws, rs, attendance] = await Promise.all([
         workoutService.fetchWorkouts(30),
@@ -461,39 +460,9 @@ export default function GymPage() {
       setAttendances(attendance);
       setState('ready');
     } catch {
-      if (!silent) setState('error');
+      setState('error');
     }
   }, []);
-
-  const confirmDeleteWorkout = async () => {
-    if (!workoutToDelete) return;
-    setDeletingWorkout(true);
-    try {
-      await workoutService.deleteWorkout(workoutToDelete.id);
-      toast.success('Entrenamiento eliminado');
-      setWorkoutToDelete(null);
-      void load(true);
-    } catch {
-      toast.error('No se pudo eliminar el entrenamiento');
-    } finally {
-      setDeletingWorkout(false);
-    }
-  };
-
-  const confirmDeleteRoutine = async () => {
-    if (!routineToDelete) return;
-    setDeletingRoutine(true);
-    try {
-      await workoutService.deleteRoutine(routineToDelete.id);
-      toast.success('Rutina eliminada');
-      setRoutineToDelete(null);
-      void load(true);
-    } catch {
-      toast.error('No se pudo eliminar la rutina');
-    } finally {
-      setDeletingRoutine(false);
-    }
-  };
 
   useEffect(() => { void load(); }, [load]);
 
@@ -553,6 +522,29 @@ export default function GymPage() {
       setActiveWorkout({ id: w.id, title: w.title, startTime: Date.now(), exercises });
     } catch {
       toast.error('Error al iniciar rutina');
+    }
+  }
+
+  /** Ejecuta la eliminación confirmada de una rutina o un entrenamiento guardado. */
+  async function confirmDelete() {
+    if (!pendingDelete || deleting) return;
+    const { kind, id, name } = pendingDelete;
+    setDeleting(true);
+    try {
+      if (kind === 'workout') {
+        await workoutService.deleteWorkout(id);
+        setWorkouts((current) => current.filter((w) => w.id !== id));
+        toast.success('Entrenamiento eliminado', name);
+      } else {
+        await workoutService.deleteRoutine(id);
+        setRoutines((current) => current.filter((r) => r.id !== id));
+        toast.success('Rutina eliminada', name);
+      }
+      setPendingDelete(null);
+    } catch {
+      toast.error(kind === 'workout' ? 'No se pudo eliminar el entrenamiento' : 'No se pudo eliminar la rutina');
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -733,18 +725,10 @@ export default function GymPage() {
           <h2 id="gym-last" className="text-heading-lg">{latest.title}</h2>
           <p className="text-body-sm text-on-surface-light">{longDate(latest.date)}{latest.duration ? ` · ${latest.duration} min` : ''}</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="primary" size="lg" icon={Sparkles}>+{latest.xpEarned} XP</Badge>
-          <Button
-            variant="icon"
-            size="sm"
-            aria-label={`Eliminar ${latest.title}`}
-            onClick={() => setWorkoutToDelete(latest)}
-            className="text-on-surface-light hover:text-error-text"
-          >
-            <Trash2 aria-hidden className="size-4" />
-          </Button>
-        </div>
+        <Badge variant="primary" size="lg" icon={Sparkles}>+{latest.xpEarned} XP</Badge>
+        <Button variant="icon" aria-label={`Eliminar entrenamiento ${latest.title}`} onClick={() => setPendingDelete({ kind: 'workout', id: latest.id, name: latest.title })}>
+          <Trash2 aria-hidden className="size-[18px]" strokeWidth={1.75} />
+        </Button>
       </div>
       <dl className="grid grid-cols-3 gap-3 md:gap-4">
         {([
@@ -790,14 +774,8 @@ export default function GymPage() {
         <p className="truncate text-label-lg">{r.name}</p>
         <p className="text-body-sm text-on-surface-light">{routineExerciseCount(r)} ejercicios{r.estimatedDuration ? ` · ${r.estimatedDuration} min` : ''}</p>
       </div>
-      <Button
-        variant="icon"
-        size="sm"
-        aria-label={`Eliminar ${r.name}`}
-        onClick={() => setRoutineToDelete(r)}
-        className="text-on-surface-light hover:text-error-text"
-      >
-        <Trash2 aria-hidden className="size-4" />
+      <Button variant="icon" aria-label={`Eliminar rutina ${r.name}`} onClick={() => setPendingDelete({ kind: 'routine', id: r.id, name: r.name })}>
+        <Trash2 aria-hidden className="size-[18px]" strokeWidth={1.75} />
       </Button>
       <Button variant="icon" aria-label={`Iniciar ${r.name}`} onClick={() => void startFromRoutine(r)} className="bg-primary/[var(--lq-soft-alpha)] text-primary-text hover:bg-primary/20">
         <Play aria-hidden className="size-[18px]" />
@@ -938,18 +916,10 @@ export default function GymPage() {
                             <p className="truncate text-label-lg">{w.title}</p>
                             <p className="text-body-sm text-on-surface-light">{new Date(w.date).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '')}{w.duration ? ` · ${w.duration} min` : ''} · {w.kind === 'WALK' || w.kind === 'CARDIO' ? `${w.kind === 'WALK' ? 'Caminata' : 'Cardio'}${w.distanceKm ? ` · ${w.distanceKm} km` : ''}` : `${w.exercises?.length ?? 0} ejercicios`}</p>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="primary" icon={Sparkles}>+{w.xpEarned} XP</Badge>
-                            <Button
-                              variant="icon"
-                              size="sm"
-                              aria-label={`Eliminar ${w.title}`}
-                              onClick={() => setWorkoutToDelete(w)}
-                              className="text-on-surface-light hover:text-error-text"
-                            >
-                              <Trash2 aria-hidden className="size-4" />
-                            </Button>
-                          </div>
+                          <Badge variant="primary" icon={Sparkles}>+{w.xpEarned} XP</Badge>
+                          <Button variant="icon" size="sm" aria-label={`Eliminar entrenamiento ${w.title}`} onClick={() => setPendingDelete({ kind: 'workout', id: w.id, name: w.title })}>
+                            <Trash2 aria-hidden className="size-4" strokeWidth={1.75} />
+                          </Button>
                         </motion.li>
                       ))}
                     </ul>
@@ -995,15 +965,6 @@ export default function GymPage() {
                       <h2 className="text-heading-sm">{r.name}</h2>
                       {r.description && <p className="text-body-sm text-on-surface-light">{r.description}</p>}
                     </div>
-                    <Button
-                      variant="icon"
-                      size="sm"
-                      aria-label={`Eliminar ${r.name}`}
-                      onClick={(e) => { e.stopPropagation(); setRoutineToDelete(r); }}
-                      className="text-on-surface-light hover:text-error-text"
-                    >
-                      <Trash2 aria-hidden className="size-4" />
-                    </Button>
                   </div>
                   <p className="text-body-sm text-on-surface">
                     {r.days.length > 0
@@ -1012,7 +973,12 @@ export default function GymPage() {
                   </p>
                   <div className="mt-auto flex items-center justify-between gap-3">
                     <span className="font-mono text-body-sm tabular-nums text-on-surface-light">{routineExerciseCount(r)} ejercicios{r.estimatedDuration ? ` · ~${r.estimatedDuration} min` : ''}</span>
-                    <Button size="md" onClick={() => void startFromRoutine(r)}><Play aria-hidden className="size-4" />Iniciar</Button>
+                    <div className="flex items-center gap-2">
+                      <Button variant="icon" aria-label={`Eliminar rutina ${r.name}`} onClick={() => setPendingDelete({ kind: 'routine', id: r.id, name: r.name })}>
+                        <Trash2 aria-hidden className="size-[18px]" strokeWidth={1.75} />
+                      </Button>
+                      <Button size="md" onClick={() => void startFromRoutine(r)}><Play aria-hidden className="size-4" />Iniciar</Button>
+                    </div>
                   </div>
                 </Card>
               ))}
@@ -1030,6 +996,20 @@ export default function GymPage() {
       </AnimatePresence>
 
       {showRestTimer && <RestTimer onClose={() => setShowRestTimer(false)} />}
+
+      {/* Confirmación para no borrar por accidente una rutina o un entrenamiento */}
+      <Modal open={!!pendingDelete} onClose={() => { if (!deleting) setPendingDelete(null); }} title={pendingDelete?.kind === 'routine' ? 'Eliminar rutina' : 'Eliminar entrenamiento'}>
+        <div className="flex flex-col gap-4">
+          <p className="text-body-md text-on-surface">
+            ¿Seguro que quieres eliminar {pendingDelete?.kind === 'routine' ? 'la rutina' : 'el entrenamiento'}{' '}
+            <span className="font-semibold">«{pendingDelete?.name}»</span>? Esta acción no se puede deshacer.
+          </p>
+          <div className="flex gap-3">
+            <Button variant="ghost" className="flex-1" disabled={deleting} onClick={() => setPendingDelete(null)}>Cancelar</Button>
+            <Button variant="danger" className="flex-1" loading={deleting} onClick={() => void confirmDelete()}>Eliminar</Button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal open={showStartModal} onClose={() => setShowStartModal(false)} title="Nuevo entrenamiento">
         <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); void startWorkout(); }}>
@@ -1083,42 +1063,6 @@ export default function GymPage() {
             <Button block onClick={() => setSummary(null)}>Continuar</Button>
           </>
         )}
-      </Modal>
-
-      <Modal
-        open={workoutToDelete !== null}
-        onClose={() => setWorkoutToDelete(null)}
-        title={workoutToDelete ? `¿Eliminar «${workoutToDelete.title}»?` : '¿Eliminar entrenamiento?'}
-      >
-        <p className="text-body-md text-on-surface">
-          Se borrará el registro de este entrenamiento. Esta acción no se puede deshacer.
-        </p>
-        <div className="flex justify-end gap-3 pt-2">
-          <Button variant="secondary" size="md" onClick={() => setWorkoutToDelete(null)} disabled={deletingWorkout}>
-            Cancelar
-          </Button>
-          <Button variant="danger" size="md" loading={deletingWorkout} onClick={() => void confirmDeleteWorkout()}>
-            Eliminar entrenamiento
-          </Button>
-        </div>
-      </Modal>
-
-      <Modal
-        open={routineToDelete !== null}
-        onClose={() => setRoutineToDelete(null)}
-        title={routineToDelete ? `¿Eliminar rutina «${routineToDelete.name}»?` : '¿Eliminar rutina?'}
-      >
-        <p className="text-body-md text-on-surface">
-          Se borrará esta rutina guardada. Tus entrenamientos ya completados no se verán afectados. Esta acción no se puede deshacer.
-        </p>
-        <div className="flex justify-end gap-3 pt-2">
-          <Button variant="secondary" size="md" onClick={() => setRoutineToDelete(null)} disabled={deletingRoutine}>
-            Cancelar
-          </Button>
-          <Button variant="danger" size="md" loading={deletingRoutine} onClick={() => void confirmDeleteRoutine()}>
-            Eliminar rutina
-          </Button>
-        </div>
       </Modal>
     </motion.div>
   );

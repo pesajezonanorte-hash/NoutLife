@@ -15,7 +15,7 @@ export interface CreateHabitInput {
   color?: string;
   xpReward?: number;
   goldReward?: number;
-  frequency?: { type: 'daily' | 'days_per_week'; days: number[]; restDays?: number[] };
+  frequency?: { type: 'daily' | 'days_per_week'; days: number[] };
   resetTime?: string;
   reminderTime?: string;
   syncToGoogleCalendar?: boolean;
@@ -30,7 +30,7 @@ export interface UpdateHabitInput {
   color?: string;
   xpReward?: number;
   goldReward?: number;
-  frequency?: { type: 'daily' | 'days_per_week'; days: number[]; restDays?: number[] };
+  frequency?: { type: 'daily' | 'days_per_week'; days: number[] };
   resetTime?: string;
   reminderTime?: string | null;
   syncToGoogleCalendar?: boolean;
@@ -77,7 +77,7 @@ export async function reconcileHabitStreaks(userId?: string, now = new Date()): 
     // A same-day retry reaches reconciliation before logHabit reads the
     // existing log. A valid entry for today must therefore protect the streak
     // from being reset merely because yesterday has no entry yet.
-    if (todayLog?.completed || todayLog?.status === 'skipped') return false;
+    if (todayLog?.completed || todayLog?.status === 'skipped' || todayLog?.status === 'pending') return false;
 
     const lastRequiredDay = getLastRequiredDay(today, habit.frequency);
     const lastLog = habit.logs.find((log) => log.date.getTime() === lastRequiredDay.getTime());
@@ -152,7 +152,7 @@ export function computeHabitStreaks(logs: StreakLog[], rawFrequency: unknown, to
   for (let day = new Date(first); day.getTime() <= today.getTime(); day = addCalendarDays(day, 1)) {
     const log = byDay.get(day.getTime());
     if (log?.completed) run += 1;
-    else if (log?.status === 'skipped') continue;
+    else if (log?.status === 'skipped' || log?.status === 'pending') continue;
     else if (day.getTime() === today.getTime() && !log) continue;
     else if (log || isHabitScheduledForDay(day, rawFrequency)) run = 0;
     longest = Math.max(longest, run);
@@ -163,9 +163,7 @@ export function computeHabitStreaks(logs: StreakLog[], rawFrequency: unknown, to
 export function isHabitScheduledForDay(date: Date, rawFrequency: unknown): boolean {
   if (!rawFrequency || typeof rawFrequency !== 'object' || Array.isArray(rawFrequency)) return true;
 
-  const frequency = rawFrequency as { type?: string; days?: unknown; restDays?: unknown };
-  // Un día de descanso ni se exige ni cuenta como fallo.
-  if (Array.isArray(frequency.restDays) && frequency.restDays.includes(date.getUTCDay())) return false;
+  const frequency = rawFrequency as { type?: string; days?: unknown };
   if (frequency.type !== 'days_per_week') return true;
   if (!Array.isArray(frequency.days) || frequency.days.length === 0) return true;
 
@@ -385,13 +383,15 @@ export async function logHabit(
   });
   let log: Awaited<ReturnType<typeof prisma.habitLog.create>>;
   let createdLog = false;
+  let completionClaimed = false;
 
   if (!existingLog) {
     try {
       log = await prisma.habitLog.create({
-        data: { habitId, userId, completed, status, date, notes },
+        data: { userId, habitId, completed, status, date, notes },
       });
       createdLog = true;
+      completionClaimed = completed;
     } catch (error) {
       // The database's habitId+date key is the idempotency boundary. In a
       // concurrent retry, only the request that inserted the log may earn XP.
@@ -406,19 +406,38 @@ export async function logHabit(
     log = existingLog;
   }
 
-  // A completed log has already granted rewards. Allowing it to become failed
-  // or skipped would leave the XP ledger and the habit timeline disagreeing.
+  // Only the dedicated undo operation may reverse a completed log. This keeps
+  // explicit failed/skipped writes from silently disagreeing with its rewards.
   if (existingLog?.completed && !completed) {
     throw new Error('HABIT_ALREADY_COMPLETED');
   }
 
-  const isNewCompletion = completed && (createdLog || !existingLog?.completed);
-
   if (!createdLog && existingLog && (existingLog.status !== status || existingLog.completed !== completed || notes !== undefined)) {
-    log = await prisma.habitLog.update({
-      where: { id: existingLog.id },
-      data: { completed, status, ...(notes !== undefined && { notes }) },
+    if (completed && !existingLog.completed) {
+      // Compare-and-set: simultaneous taps can only transition pending → done once.
+      const result = await prisma.habitLog.updateMany({
+        where: { id: existingLog.id, completed: false },
+        data: { completed, status, ...(notes !== undefined && { notes }) },
+      });
+      completionClaimed = result.count === 1;
+      log = (await prisma.habitLog.findUnique({ where: { id: existingLog.id } })) ?? existingLog;
+    } else {
+      log = await prisma.habitLog.update({
+        where: { id: existingLog.id },
+        data: { completed, status, ...(notes !== undefined && { notes }) },
+      });
+    }
+  }
+
+  const isNewCompletion = completed && (createdLog || completionClaimed);
+  let shouldGrantRewards = isNewCompletion && !existingLog?.rewardsGranted;
+  if (shouldGrantRewards) {
+    // Claim before side effects so retries/re-completions cannot mint XP twice.
+    const rewardClaim = await prisma.habitLog.updateMany({
+      where: { id: log.id, rewardsGranted: false },
+      data: { rewardsGranted: true },
     });
+    shouldGrantRewards = rewardClaim.count === 1;
   }
 
   // Update a streak only for a real state change. Repeated taps/retries on a
@@ -485,7 +504,7 @@ export async function logHabit(
   });
 
   if (isLoggingToday && activeRecovery) {
-    if (isNewCompletion) {
+    if (shouldGrantRewards) {
       const nextCurrentDays = activeRecovery.currentDays + 1;
       if (nextCurrentDays >= activeRecovery.requiredDays) {
         const restoredStreak = Math.max(currentStreak, Math.ceil(activeRecovery.lostStreak / 2));
@@ -521,6 +540,7 @@ export async function logHabit(
           body: `"${habit.title}" volvió a encenderse. +${bonusResult.xpGained} XP bonus.`,
           icon: '🔥',
           link: '/habits',
+          silentForeground: true,
         }).catch(() => {});
       } else {
         await prisma.recoveryChallenge.update({
@@ -544,7 +564,7 @@ export async function logHabit(
   let rewards = null;
   let achievementsUnlocked: Awaited<ReturnType<typeof checkAchievements>> = [];
 
-  if (isNewCompletion) {
+  if (shouldGrantRewards) {
     const result = await awardXpAndGold(userId, habit.xpReward, habit.goldReward, 'habit_completed', {
       sourceId: habitId,
       description: `Hábito completado: ${habit.title}`,
@@ -567,6 +587,7 @@ export async function logHabit(
       body: `+${result.xpGained} XP.${streakMsg}`,
       icon: habit.icon ?? '✅',
       link: '/habits',
+      silentForeground: true,
     }).catch(() => {});
 
     for (const ach of achievementsUnlocked) {
@@ -594,33 +615,41 @@ export async function logHabit(
   };
 }
 
-export async function revertHabitLog(userId: string, habitId: string, requestedDate?: string) {
+/**
+ * Desmarca únicamente el registro de hoy. La entrada se conserva como pending
+ * para que el día no rompa la racha. El XP y el oro que dio se descuentan (puede
+ * bajar de nivel) y `rewardsGranted` vuelve a false: completarlo de nuevo paga otra vez.
+ */
+export async function undoHabitLog(userId: string, habitId: string) {
   const habit = await prisma.habit.findFirst({
-    where: { id: habitId, userId },
+    where: { id: habitId, userId, isActive: true },
     include: { user: { select: { timezone: true } } },
   });
   if (!habit) throw new Error('HABIT_NOT_FOUND');
 
   const today = getCalendarDay(habit.user.timezone ?? DEFAULT_TIMEZONE);
-  const date = requestedDate !== undefined ? parseCalendarDate(requestedDate) : today;
-  if (!date) throw new Error('INVALID_HABIT_LOG_DATE');
-  const isToday = date.getTime() === today.getTime();
+  const existing = await prisma.habitLog.findUnique({
+    where: { habitId_date: { habitId, date: today } },
+  });
+  let undone = false;
 
-  const existing = await prisma.habitLog.findUnique({ where: { habitId_date: { habitId, date } } });
-  if (!existing) throw new Error('HABIT_LOG_NOT_FOUND');
-
-  const deleted = await prisma.habitLog.deleteMany({ where: { id: existing.id } });
-  if (deleted.count === 0) throw new Error('HABIT_LOG_NOT_FOUND');
+  if (existing?.completed) {
+    const result = await prisma.habitLog.updateMany({
+      where: { id: existing.id, completed: true },
+      data: { completed: false, status: 'pending' },
+    });
+    undone = result.count === 1;
+  }
 
   let xpRemoved = 0;
   let goldRemoved = 0;
-  if (existing.completed) {
+  if (undone && existing?.rewardsGranted) {
     const event = await prisma.xpEvent.findFirst({
       where: { userId, source: 'habit_completed', sourceId: habitId, createdAt: { gte: new Date(existing.loggedAt.getTime() - 60_000) } },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: 'desc' },
     });
     if (event) {
-      const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+      const user = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { xp: true, level: true, xpToNextLevel: true, gold: true } });
       let xp = user.xp - event.xpAmount;
       let level = user.level;
       let next = user.xpToNextLevel;
@@ -629,44 +658,55 @@ export async function revertHabitLog(userId: string, habitId: string, requestedD
         next = xpForLevel(level);
         xp += next;
       }
-      await prisma.user.update({
-        where: { id: userId },
-        data: { xp: Math.max(0, xp), level, xpToNextLevel: next, gold: Math.max(0, user.gold - event.goldAmount) },
-      });
-      await prisma.xpEvent.delete({ where: { id: event.id } });
+      await prisma.$transaction([
+        prisma.user.update({
+          where: { id: userId },
+          data: { xp: Math.max(0, xp), level, xpToNextLevel: next, gold: Math.max(0, user.gold - event.goldAmount) },
+        }),
+        prisma.xpEvent.delete({ where: { id: event.id } }),
+      ]);
       xpRemoved = event.xpAmount;
       goldRemoved = event.goldAmount;
     }
-
-    if (isToday) {
-      await prisma.recoveryChallenge.updateMany({
-        where: { userId, habitId, isCompleted: false, currentDays: { gt: 0 } },
-        data: { currentDays: { decrement: 1 } },
-      });
-    }
-
-    await prisma.gymAttendance.deleteMany({
-      where: { userId, date, source: 'HABIT', habitId, workouts: { none: {} } },
+    await prisma.habitLog.update({ where: { id: existing.id }, data: { rewardsGranted: false } });
+    await prisma.recoveryChallenge.updateMany({
+      where: { userId, habitId, isCompleted: false, currentDays: { gt: 0 } },
+      data: { currentDays: { decrement: 1 } },
     });
   }
 
-  // Hoy se deshace exactamente el +1 de la racha; un día pasado se recalcula desde los registros.
-  const logs = await prisma.habitLog.findMany({
-    where: { habitId },
-    select: { date: true, completed: true, status: true },
-  });
-  const streaks = computeHabitStreaks(logs, habit.frequency, today);
-  const currentStreak = isToday && existing.completed ? Math.max(0, habit.currentStreak - 1) : streaks.current;
-  const longestStreak = habit.longestStreak > habit.currentStreak
-    ? habit.longestStreak
-    : Math.max(streaks.longest, currentStreak);
+  if (undone) {
+    // Do not remove a manual visit (or one recorded by a workout).
+    await prisma.gymAttendance.deleteMany({
+      where: { userId, date: today, habitId, source: 'HABIT' },
+    });
+  }
 
+  const [updatedLog, logs] = await Promise.all([
+    prisma.habitLog.findUnique({ where: { habitId_date: { habitId, date: today } } }),
+    prisma.habitLog.findMany({
+      where: { habitId },
+      select: { date: true, completed: true, status: true },
+    }),
+  ]);
+  const streaks = computeHabitStreaks(logs, habit.frequency, today);
   const updatedHabit = await prisma.habit.update({
     where: { id: habitId },
-    data: { currentStreak, longestStreak },
+    data: {
+      currentStreak: streaks.current,
+      longestStreak: Math.max(habit.longestStreak, streaks.longest),
+    },
   });
 
-  return { habit: updatedHabit, currentStreak, longestStreak, xpRemoved, goldRemoved };
+  return {
+    undone,
+    xpRemoved,
+    goldRemoved,
+    log: updatedLog,
+    habit: updatedHabit,
+    currentStreak: updatedHabit.currentStreak,
+    longestStreak: updatedHabit.longestStreak,
+  };
 }
 
 function isUniqueConstraintError(error: unknown): boolean {

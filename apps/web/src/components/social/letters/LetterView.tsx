@@ -347,10 +347,24 @@ function LetterShell({ api, label, to, shareWith, header, extraMenu = [], empty,
   const anchor = useRef<{ height: number; top: number } | null>(null);
   const touch = useRef<{ x: number; y: number } | null>(null);
 
-  // La carta que está abierta: los avisos de lo que llega a ella no se muestran (ya la estás viendo).
+  // La carta que está abierta: se cierran sus avisos del sistema y el service
+  // worker puede comprobar el foco exacto antes de mostrar un push que llegó tarde.
   useEffect(() => {
     useChatFocus.getState().open(api.viewKey);
-    return () => useChatFocus.getState().close(api.viewKey);
+    const closeSystemNotifications = { type: 'lq:close-chat-notifications', chatKey: api.viewKey };
+    const worker = navigator.serviceWorker;
+    if (worker?.controller) worker.controller.postMessage(closeSystemNotifications);
+    else void worker?.ready.then((registration) => registration.active?.postMessage(closeSystemNotifications)).catch(() => {});
+    const onWorkerMessage = (event: MessageEvent) => {
+      const data = event.data as { type?: string; chatKey?: string } | null;
+      if (data?.type !== 'lq:query-chat-focus') return;
+      event.ports?.[0]?.postMessage({ matches: data.chatKey === useChatFocus.getState().key });
+    };
+    navigator.serviceWorker?.addEventListener('message', onWorkerMessage);
+    return () => {
+      navigator.serviceWorker?.removeEventListener('message', onWorkerMessage);
+      useChatFocus.getState().close(api.viewKey);
+    };
   }, [api.viewKey]);
 
   // Al cargar mensajes antiguos arriba, la vista se queda en el mismo mensaje.

@@ -41,20 +41,22 @@ export function useHabitCompletion() {
     }
   }, [addFloatingXP, triggerLevelUp, showAchievementToast]);
 
-  const revert = useCallback(async (habit: { id: string; title: string }) => {
+  const undo = useCallback(async (habit: { id: string; title: string }) => {
     setPending(habit.id);
     try {
-      const result = await habitService.revertHabitLog(habit.id);
-      useToastStore.getState().info(`${habit.title}: desmarcado`);
-      void refreshUser();
+      const result = await habitService.undoHabitLog(habit.id);
+      if (result.undone) {
+        useToastStore.getState().info(`${habit.title}: desmarcado hoy`, result.xpRemoved > 0 ? `Se descontaron ${result.xpRemoved} XP; si lo completas de nuevo, los recuperas.` : undefined);
+        void refreshUser();
+      }
       return result;
     } catch {
-      useToastStore.getState().error('No se pudo desmarcar el hábito');
+      useToastStore.getState().error('No se pudo desmarcar el hábito', 'Inténtalo de nuevo');
       return null;
     } finally {
       setPending(null);
     }
   }, []);
 
-  return { complete, revert, pending, burst };
+  return { complete, undo, pending, burst };
 }

@@ -2,13 +2,14 @@
 // tiene, su emblema. Quien lidera el gremio puede cambiarla desde la cabecera; el
 // diálogo deja subir una foto, encuadrarla (el mismo recorte que la foto de
 // perfil, a 384 px) o quitarla. La foto también ondea en el banderín de la fogata.
-import { useRef, useState, type ChangeEvent } from 'react';
+import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Camera, Trash2, Upload, type LucideIcon } from 'lucide-react';
+import { Camera, Trash2, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { springs } from '@/lib/motion';
 import { useToast } from '@/hooks/useToast';
 import { PhotoCropper } from '@/components/character/PhotoCropper';
+import { PhotoSourceButtons } from '@/components/media/PhotoSourceButtons';
 import { Button, IconChip, ResponsiveDialog, type Tone } from '@/components/ui/lq';
 
 /** Lado del JPEG de la foto del gremio (px): nítido en la cabecera y ligero de guardar. */
@@ -69,17 +70,12 @@ export interface GuildPhotoDialogProps {
 
 export function GuildPhotoDialog({ open, onClose, name, photoUrl, emblem, tone, onSave }: GuildPhotoDialogProps) {
   const toast = useToast();
-  const input = useRef<HTMLInputElement>(null);
-  const camera = useRef<HTMLInputElement>(null);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const close = () => { if (saving) return; setCropSrc(null); onClose(); };
 
-  async function pick(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
+  async function pick(file: File) {
     if (!file.type.startsWith('image/')) { toast.error('Elige un archivo de imagen'); return; }
     try { setCropSrc(await readAsDataUrl(file)); }
     catch { toast.error('No se pudo leer la imagen'); }
@@ -111,15 +107,8 @@ export function GuildPhotoDialog({ open, onClose, name, photoUrl, emblem, tone, 
               Una foto que represente a {name}. Se verá en la cabecera del gremio y en el banderín de la fogata.
             </p>
           </div>
-          <input ref={input} type="file" accept="image/*" aria-label="Subir foto del gremio" className="hidden" tabIndex={-1} onChange={(e) => void pick(e)} />
-          <input ref={camera} type="file" accept="image/*" capture="environment" aria-label="Tomar foto del gremio" className="hidden" tabIndex={-1} onChange={(e) => void pick(e)} />
           <div className="flex flex-col gap-2">
-            <Button block loading={saving} onClick={() => camera.current?.click()}>
-              <Camera aria-hidden className="size-5" strokeWidth={1.75} />Tomar foto
-            </Button>
-            <Button variant="secondary" block disabled={saving} onClick={() => input.current?.click()}>
-              <Upload aria-hidden className="size-5" strokeWidth={1.75} />{photoUrl ? 'Cambiar desde la galería' : 'Galería'}
-            </Button>
+            <PhotoSourceButtons onPick={(file) => void pick(file)} loading={saving} cameraLabel="Tomar foto" galleryLabel={photoUrl ? 'Cambiar desde la galería' : 'Galería'} className="grid grid-cols-2 gap-2" />
             {photoUrl && (
               <Button variant="ghost" block disabled={saving} onClick={() => void save(null)}>
                 <Trash2 aria-hidden className="size-5" strokeWidth={1.75} />Quitar foto

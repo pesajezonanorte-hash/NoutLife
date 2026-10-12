@@ -1,24 +1,25 @@
-// Glow up — GlowUpDesktop.dc.html. "Brillo de hoy" (anillo), SegmentedControl
-// Cuidado / Armario / Presencia: rutinas con pasos que se marcan, armario con
-// prendas fotografiadas por zona y conjuntos, y autoevaluación semanal. Datos: /mirror/*.
-// Zona ambientada: el espejo. Llega empañado y se desempaña despacio; un reflejo
+// Espejo (con el armario dentro) — GlowUpDesktop.dc.html. "Brillo de hoy" (anillo), SegmentedControl
+// Cuidado / Prendas / Presencia, rutinas con pasos que se marcan, prendas con
+// filtros y autoevaluación semanal. Datos: /mirror/* (sin cambios).
+// Zona ambientada: tu espejo y tocador. El reflejo se desempaña despacio; un brillo
 // lo cruza muy lento y su resplandor sube de forma gradual con cada paso hecho.
 // Las secciones se funden entre sí; todo con física suave (gentle).
-import { useState, useEffect, useCallback, type ReactNode } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, type ReactNode } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Check, Droplets, Flame, Moon, Plus, Sparkles, Sun } from 'lucide-react';
+import { Camera, Check, Droplets, Flame, Moon, Plus, Shirt, Sparkles, Star, Sun, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { item, springs, stagger } from '@/lib/motion';
+import { item, springs, stagger, useMotionReduced } from '@/lib/motion';
 import { AmbientLight, ZoneShell } from '@/components/ambience';
 import { Mirror } from '@/components/glowup/Mirror';
-import { WardrobeSection } from '@/components/glowup/Wardrobe';
-import { PrivacyNote } from '@/components/ui/PrivacyNote';
 import { useToastStore } from '../../hooks/useToast';
 import api from '../../lib/api';
-import { Badge, Button, Card, EmptyState, ErrorState, Field, IconChip, Input, Modal, ProgressBar, Select, SegmentedControl, StepItem, Textarea, type Tone, PageLoader } from '@/components/ui/lq';
+import { Badge, Button, Card, ChipGroup, EmptyState, ErrorState, Field, IconChip, Input, Modal, ProgressBar, Select, SegmentedControl, StepItem, Textarea, type Tone, PageLoader } from '@/components/ui/lq';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 import { Lettering } from '@/components/layout/Lettering';
-import { useMotionStore } from '@/store/motionStore';
+import { PrivatePhotoNotice } from '@/components/privacy/PrivatePhotoNotice';
+import { PhotoSourceButtons } from '@/components/media/PhotoSourceButtons';
+import { compressImageToBase64 } from '@/lib/imageCompress';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -28,6 +29,15 @@ interface CareRoutine {
   steps: { id: string; name: string; product?: string; order: number }[];
 }
 
+interface ClothingItem {
+  id: string; name: string; category: string; color?: string | null; photoData?: string | null;
+  brand?: string | null; timesWorn: number; isFavorite: boolean;
+}
+interface ClothingOutfit {
+  id: string; name?: string | null; occasion?: string | null;
+  items: Array<{ clothingItem: ClothingItem }>;
+}
+
 interface PresenceCheckin {
   id: string; week: string;
   posture: number; voice: number; confidence: number; communication: number;
@@ -35,10 +45,15 @@ interface PresenceCheckin {
 
 type Tab = 'care' | 'style' | 'presence';
 const TABS = [
-  { value: 'care' as const, label: 'Cuidado personal' },
   { value: 'style' as const, label: 'Armario' },
+  { value: 'care' as const, label: 'Cuidado personal' },
   { value: 'presence' as const, label: 'Presencia' },
 ];
+
+const CATEGORIES = ['tops', 'bottoms', 'shoes', 'outerwear', 'accessories'];
+const CATEGORY_LABELS: Record<string, string> = {
+  tops: 'Torso', bottoms: 'Piernas', shoes: 'Calzado', outerwear: 'Abrigos', accessories: 'Accesorios',
+};
 
 const TIME_OF_DAY = ['morning', 'night', 'weekly', 'custom'];
 const TIME_META: Record<string, { label: string; tone: Tone; icon: typeof Sun }> = {
@@ -229,6 +244,255 @@ function CareSection({ onProgress }: CareProps) {
   );
 }
 
+// ─── Style Section ────────────────────────────────────────────────────────────
+
+function StyleSection({ autoOpenAdd, onAddOpened }: { autoOpenAdd?: boolean; onAddOpened?: () => void }) {
+  const toast = useToastStore();
+  const [items, setItems] = useState<ClothingItem[]>([]);
+  const [state, setState] = useState<'loading' | 'error' | 'ready'>('loading');
+  const [activeCategory, setActiveCategory] = useState('all');
+  const [showNew, setShowNew] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [photoProcessing, setPhotoProcessing] = useState(false);
+  const [outfits, setOutfits] = useState<ClothingOutfit[]>([]);
+  const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
+  const [showOutfit, setShowOutfit] = useState(false);
+  const [outfitName, setOutfitName] = useState('');
+  const [savingOutfit, setSavingOutfit] = useState(false);
+  const [form, setForm] = useState({ name: '', category: 'tops', color: '', brand: '', photoData: '' });
+
+  // Llegar con ?add=prenda (desde Finanzas → «Ir al Espejo») abre directamente
+  // el formulario de nueva prenda, para registrar la compra recién hecha.
+  useEffect(() => {
+    if (!autoOpenAdd) return;
+    setShowNew(true);
+    onAddOpened?.();
+    // Solo al montar: el alta se ofrece una vez por navegación.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setState('loading');
+    try {
+      const [{ data: wardrobe }, { data: savedOutfits }] = await Promise.all([
+        api.get('/mirror/wardrobe'),
+        api.get('/mirror/outfits'),
+      ]);
+      setItems(wardrobe);
+      setOutfits(savedOutfits);
+      setState('ready');
+    } catch {
+      if (!silent) setState('error');
+      else toast.error('No se pudo actualizar tus prendas');
+    }
+  }, [toast]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  const displayed = activeCategory === 'all' ? items : items.filter((i) => i.category === activeCategory);
+  const options = useMemo(() => [
+    { value: 'all', label: 'Todas', count: items.length },
+    ...CATEGORIES.map((c) => ({ value: c, label: CATEGORY_LABELS[c], count: items.filter((i) => i.category === c).length })),
+  ], [items]);
+
+  async function handlePhotoChange(file?: File) {
+    if (!file) return;
+    setPhotoProcessing(true);
+    try {
+      const photoData = await compressImageToBase64(file);
+      setForm((current) => ({ ...current, photoData }));
+      toast.success('Foto lista', 'Se guardará de forma privada en tu armario.');
+    } catch (error) {
+      toast.error('No se pudo usar esa foto', error instanceof Error ? error.message : undefined);
+    } finally {
+      setPhotoProcessing(false);
+    }
+  }
+
+  async function handleCreate() {
+    setSaving(true);
+    try {
+      await api.post('/mirror/wardrobe', { ...form, photoData: form.photoData || undefined });
+      setShowNew(false);
+      setForm({ name: '', category: 'tops', color: '', brand: '', photoData: '' });
+      void load(true);
+      toast.success('Prenda añadida');
+    } catch { toast.error('No se pudo añadir la prenda'); }
+    finally { setSaving(false); }
+  }
+
+  function toggleSelected(id: string) {
+    setSelectedItemIds((ids) => ids.includes(id) ? ids.filter((itemId) => itemId !== id) : [...ids, id]);
+  }
+
+  async function handleCreateOutfit() {
+    if (selectedItemIds.length < 2) return;
+    setSavingOutfit(true);
+    try {
+      await api.post('/mirror/outfits', {
+        name: outfitName.trim() || `Combinación ${outfits.length + 1}`,
+        itemIds: selectedItemIds,
+      });
+      setSelectedItemIds([]);
+      setOutfitName('');
+      setShowOutfit(false);
+      await load(true);
+      toast.success('Combinación guardada');
+    } catch { toast.error('No se pudo guardar la combinación'); }
+    finally { setSavingOutfit(false); }
+  }
+
+  async function handleDeleteOutfit(id: string) {
+    try {
+      await api.delete(`/mirror/outfits/${id}`);
+      setOutfits((current) => current.filter((outfit) => outfit.id !== id));
+      toast.success('Combinación eliminada');
+    } catch { toast.error('No se pudo eliminar la combinación'); }
+  }
+
+  async function handleWorn(id: string) {
+    try { await api.post(`/mirror/wardrobe/${id}/worn`); void load(true); } catch { toast.error('No se pudo registrar el uso'); }
+  }
+
+  async function handleDelete(id: string) {
+    try { await api.delete(`/mirror/wardrobe/${id}`); void load(true); } catch { toast.error('No se pudo eliminar la prenda'); }
+  }
+
+  return (
+    <section className="flex flex-col gap-6" aria-labelledby="glow-style">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 id="glow-style" className="text-heading-lg">Prendas</h2>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" size="md" disabled={selectedItemIds.length < 2} onClick={() => setShowOutfit(true)}>
+            <Sparkles aria-hidden className="size-4" />Combinación ({selectedItemIds.length})
+          </Button>
+          <Button size="md" onClick={() => setShowNew(true)}><Plus aria-hidden className="size-4" />Prenda</Button>
+        </div>
+      </div>
+      <PrivatePhotoNotice />
+      <ChipGroup label="Categoría de prenda" options={options} value={activeCategory} onChange={setActiveCategory} />
+
+      {state === 'loading' ? (
+        <PageLoader label="Abriendo tu armario…" words={LOADING_COPY.glowUpWardrobe} />
+      ) : state === 'error' ? (
+        <ErrorState title="No pudimos cargar tus prendas" onRetry={() => void load()} />
+      ) : displayed.length === 0 ? (
+        <Card variant="elevated" padding="lg">
+          <EmptyState icon={Shirt} tone="info" title="Tu armario está vacío" description="Añade tus prendas para saber cuánto uso le das a cada una."
+            action={<Button onClick={() => setShowNew(true)}><Plus aria-hidden className="size-4" />Añadir prenda</Button>} className="py-6" />
+        </Card>
+      ) : (
+        <motion.ul variants={stagger} initial="initial" animate="animate" className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+          {displayed.map((it) => {
+            const selected = selectedItemIds.includes(it.id);
+            return (
+              <motion.li key={it.id} variants={item}>
+                <Card as="article" padding="sm" interactive className="flex h-full flex-col gap-2">
+                  {it.photoData ? (
+                    <img src={`data:image/jpeg;base64,${it.photoData}`} alt={`Foto de la prenda ${it.name}`} className="aspect-[4/3] w-full rounded-xl border border-border object-cover" />
+                  ) : (
+                    <div aria-hidden className="flex aspect-[4/3] items-center justify-center rounded-xl bg-surface-variant text-on-surface-light"><Shirt className="size-10" strokeWidth={1.25} /></div>
+                  )}
+                  <div className="flex items-start justify-between gap-1">
+                    <h3 className="min-w-0 truncate text-label-lg">{it.name}</h3>
+                    <Button variant="icon" size="sm" aria-label={`Eliminar ${it.name}`} onClick={() => void handleDelete(it.id)} className="-mr-2 -mt-2 size-11 md:size-9">
+                      <Trash2 aria-hidden className="size-4" strokeWidth={1.75} />
+                    </Button>
+                  </div>
+                  <p className="text-body-sm text-on-surface">{CATEGORY_LABELS[it.category] ?? it.category}</p>
+                  {it.brand && <p className="text-body-sm text-on-surface-light">{it.brand}</p>}
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-body-sm text-on-surface-light">
+                      <span className="font-mono tabular-nums">{it.timesWorn}</span> {it.timesWorn === 1 ? 'uso' : 'usos'}
+                    </p>
+                    {it.isFavorite && <Star aria-label="Favorita" className="size-4 shrink-0 fill-warning text-warning" />}
+                  </div>
+                  <Button variant={selected ? 'primary' : 'secondary'} size="sm" block aria-pressed={selected} onClick={() => toggleSelected(it.id)}>
+                    {selected ? <><Check aria-hidden className="size-4" />En combinación</> : 'Añadir a combinación'}
+                  </Button>
+                  <Button variant="secondary" size="sm" block className="mt-auto" onClick={() => void handleWorn(it.id)}>Usar hoy</Button>
+                </Card>
+              </motion.li>
+            );
+          })}
+        </motion.ul>
+      )}
+
+      {outfits.length > 0 && (
+        <section className="flex flex-col gap-3" aria-labelledby="saved-outfits">
+          <h3 id="saved-outfits" className="text-heading-sm">Combinaciones guardadas</h3>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {outfits.map((outfit) => (
+              <Card key={outfit.id} as="article" padding="sm" className="flex flex-col gap-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h4 className="text-label-lg">{outfit.name || 'Combinación'}</h4>
+                    {outfit.occasion && <p className="text-body-sm text-on-surface-light">{outfit.occasion}</p>}
+                  </div>
+                  <Button variant="icon" size="sm" aria-label={`Eliminar ${outfit.name || 'combinación'}`} onClick={() => void handleDeleteOutfit(outfit.id)}>
+                    <Trash2 aria-hidden className="size-4" />
+                  </Button>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {outfit.items.map(({ clothingItem }) => (
+                    <div key={clothingItem.id} className="flex min-w-0 flex-col gap-1">
+                      {clothingItem.photoData ? (
+                        <img src={`data:image/jpeg;base64,${clothingItem.photoData}`} alt={`Foto de ${clothingItem.name}`} className="aspect-square w-full rounded-lg object-cover" />
+                      ) : (
+                        <div aria-hidden className="flex aspect-square items-center justify-center rounded-lg bg-surface-variant text-on-surface-light"><Shirt className="size-6" /></div>
+                      )}
+                      <span className="truncate text-body-sm">{clothingItem.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <Modal open={showNew} onClose={() => setShowNew(false)} title="Nueva prenda">
+        <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); void handleCreate(); }}>
+          <Field label="Nombre"><Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Camiseta azul" autoFocus /></Field>
+          <Field label="Categoría">
+            <Select value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}>
+              {CATEGORIES.map((c) => <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>)}
+            </Select>
+          </Field>
+          <div className="flex flex-col gap-2">
+            {form.photoData && <img src={`data:image/jpeg;base64,${form.photoData}`} alt="Vista previa de la prenda" className="aspect-[4/3] max-h-56 w-full rounded-xl border border-border object-cover" />}
+            <div className="flex flex-wrap gap-2">
+              <PhotoSourceButtons loading={photoProcessing} cameraLabel={form.photoData ? 'Otra foto' : 'Fotografiar prenda'} onPick={(file) => void handlePhotoChange(file)} />
+              {form.photoData && <Button type="button" variant="ghost" onClick={() => setForm((f) => ({ ...f, photoData: '' }))}>Quitar foto</Button>}
+            </div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Marca"><Input value={form.brand} onChange={(e) => setForm((f) => ({ ...f, brand: e.target.value }))} placeholder="Zara, Nike…" /></Field>
+            <Field label="Color"><Input value={form.color} onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))} placeholder="Azul marino" /></Field>
+          </div>
+          <div className="flex gap-3">
+            <Button type="button" variant="ghost" className="flex-1" onClick={() => setShowNew(false)}>Cancelar</Button>
+            <Button type="submit" className="flex-1" disabled={!form.name.trim() || photoProcessing} loading={saving}>Añadir</Button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal open={showOutfit} onClose={() => setShowOutfit(false)} title="Guardar combinación">
+        <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); void handleCreateOutfit(); }}>
+          <p className="text-body-sm text-on-surface-light">Prendas seleccionadas: {selectedItemIds.map((id) => items.find((entry) => entry.id === id)?.name).filter(Boolean).join(', ')}</p>
+          <Field label="Nombre del look" help="Opcional; puedes poner una ocasión o estilo">
+            <Input value={outfitName} onChange={(e) => setOutfitName(e.target.value)} placeholder="Casual de fin de semana" autoFocus />
+          </Field>
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <Button type="button" variant="secondary" onClick={() => setShowOutfit(false)}>Cancelar</Button>
+            <Button type="submit" loading={savingOutfit}>Guardar look</Button>
+          </div>
+        </form>
+      </Modal>
+    </section>
+  );
+}
+
 // ─── Presence Section ─────────────────────────────────────────────────────────
 
 const AREAS = [
@@ -332,8 +596,19 @@ function PresenceSection() {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function GlowUpPage() {
-  const reduce = useMotionStore((s) => s.reduce);
-  const [tab, setTab] = useState<Tab>('care');
+  // ?add=prenda (botón «Ir al Espejo» en Finanzas) abre la pestaña del armario
+  // con el formulario de nueva prenda listo para la compra recién hecha.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const autoOpenAdd = searchParams.get('add') === 'prenda';
+  const clearAddParam = useCallback(() => {
+    setSearchParams((params) => {
+      const next = new URLSearchParams(params);
+      next.delete('add');
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+  const [tab, setTab] = useState<Tab>('style');
+  const motionReduced = useMotionReduced();
   const [progress, setProgress] = useState({ done: 0, total: 0, streak: 0 });
   const onProgress = useCallback((done: number, total: number, streak: number) => {
     setProgress((p) => (p.done === done && p.total === total && p.streak === streak ? p : { done, total, streak }));
@@ -342,15 +617,15 @@ export default function GlowUpPage() {
 
   return (
     <ZoneShell
-      zone="glow-up"
+      zone="espejo"
       contentClassName="gap-6 md:gap-8"
       ambience={<AmbientLight tone="jade-200" alpha={0.5} darkAlpha={0.08} d={12} className="right-[-4%] top-[-10%] h-[30rem] w-[44%]" />}
     >
       <motion.section variants={item} className="flex flex-wrap items-center justify-between gap-6 md:gap-8">
         <div className="flex min-w-0 flex-[1_1_360px] flex-col gap-2">
-          <span className="text-label-lg text-primary-text">Cuidado y estilo</span>
+          <span className="text-label-lg text-primary-text">Tu espacio personal</span>
           <h1 className="text-display-sm md:text-display-md lg:text-display-lg"><Lettering text="Espejo" /></h1>
-          <p className="max-w-[540px] text-body-lg text-on-surface-light">Cuídate, vístete y preséntate. Pequeños rituales que cambian cómo te ves y cómo te sientes.</p>
+          <p className="max-w-[540px] text-body-lg text-on-surface-light">Fotografía y clasifica tus prendas, crea combinaciones y acompaña tu estilo con rutinas de cuidado personal.</p>
         </div>
         {/* El tocador: cada paso completado enciende otra bombilla y aclara el vidrio */}
         <Mirror brightness={pct} className="w-full sm:w-[22rem]">
@@ -367,20 +642,21 @@ export default function GlowUpPage() {
 
       <motion.div variants={item}>
         <SegmentedControl options={TABS} value={tab} onChange={setTab} label="Área" className="max-w-[560px]" />
-        <PrivacyNote className="mt-3 max-w-[560px]" />
       </motion.div>
 
-      {/* Las secciones se funden entre sí, sin saltos */}
+      {/* Las secciones se funden entre sí, sin saltos. Con «Reducir movimiento»
+          solo hay un fundido de opacidad: sin blur, la pantalla queda nítida. */}
       <AnimatePresence mode="wait">
         <motion.div
-          key={tab}
-          role="tabpanel"
-          initial={reduce ? { opacity: 0, filter: 'none' } : { opacity: 0, filter: 'blur(6px)' }}
-          animate={reduce ? { opacity: 1, filter: 'none', transition: { duration: 0.15 } } : { opacity: 1, filter: 'blur(0px)', transition: springs.gentle, transitionEnd: { filter: 'none' } }}
-          exit={reduce ? { opacity: 0, filter: 'none', transition: { duration: 0.15 } } : { opacity: 0, filter: 'blur(4px)', transition: { duration: 0.2 } }}
+          key={tab} role="tabpanel"
+          initial={motionReduced ? { opacity: 0 } : { opacity: 0, filter: 'blur(6px)' }}
+          animate={motionReduced
+            ? { opacity: 1, transition: { duration: 0.2 } }
+            : { opacity: 1, filter: 'blur(0px)', transition: springs.gentle, transitionEnd: { filter: 'none' } }}
+          exit={motionReduced ? { opacity: 0, transition: { duration: 0.15 } } : { opacity: 0, filter: 'blur(4px)', transition: { duration: 0.2 } }}
         >
           {tab === 'care' && <CareSection onProgress={onProgress} />}
-          {tab === 'style' && <WardrobeSection />}
+          {tab === 'style' && <StyleSection autoOpenAdd={autoOpenAdd} onAddOpened={clearAddParam} />}
           {tab === 'presence' && <PresenceSection />}
         </motion.div>
       </AnimatePresence>
