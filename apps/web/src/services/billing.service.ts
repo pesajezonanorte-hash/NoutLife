@@ -138,22 +138,32 @@ export async function tokenizeCard(config: BillingConfig, card: CardInput): Prom
 /** Ventana para aprobar la vinculación en la app de Nequi. */
 export const NEQUI_APPROVAL_MS = 2 * 60_000;
 const NEQUI_POLL_MS = 2_500;
+/** Estados con los que Wompi cierra la vinculación sin aprobación. */
+const NEQUI_FAILED = new Set(['DECLINED', 'ERROR', 'VOIDED', 'REJECTED', 'EXPIRED']);
+
+/** Token de Nequi tal como lo devuelve Wompi: con el envoltorio `data` o sin él. */
+interface NequiToken { id?: string; status?: string }
+type NequiTokenResponse = NequiToken | { data: NequiToken };
+const tokenOf = (body: NequiTokenResponse): NequiToken => ('data' in body ? body.data : body);
 
 /** Pide a Wompi vincular el celular. Wompi manda la aprobación a la app de Nequi de la persona. */
 export async function tokenizeNequi(config: BillingConfig, phone: string): Promise<string> {
   if (!config.publicKey) throw new PaymentError('Los pagos no están disponibles en este momento.');
-  try {
-    const { data } = await axios.post<{ data: { id: string } }>(
+  const body = await axios
+    .post<NequiTokenResponse>(
       `${config.apiUrl}/tokens/nequi`,
       { phone_number: phone },
       { headers: { Authorization: `Bearer ${config.publicKey}` }, timeout: 20_000 },
-    );
-    return data.data.id;
-  } catch (error) {
-    if (wompiMessages(error)?.phone_number) throw new PaymentError('Wompi no aceptó este celular. Revísalo.', 'phone');
-    if (hasResponse(error)) throw new PaymentError('Wompi no pudo iniciar la vinculación con Nequi. Revisa el celular.', 'phone');
-    throw new PaymentError('No pudimos conectar con Wompi. Revisa tu conexión e inténtalo de nuevo.');
-  }
+    )
+    .then((r) => r.data)
+    .catch((error: unknown): never => {
+      if (wompiMessages(error)?.phone_number) throw new PaymentError('Wompi no aceptó este celular. Revísalo.', 'phone');
+      if (hasResponse(error)) throw new PaymentError('Wompi no pudo iniciar la vinculación con Nequi. Revisa el celular.', 'phone');
+      throw new PaymentError('No pudimos conectar con Wompi. Revisa tu conexión e inténtalo de nuevo.');
+    });
+  const id = tokenOf(body).id;
+  if (!id) throw new PaymentError('Wompi no devolvió la vinculación con Nequi. Inténtalo de nuevo.');
+  return id;
 }
 
 /**
@@ -162,20 +172,25 @@ export async function tokenizeNequi(config: BillingConfig, phone: string): Promi
  */
 export async function waitForNequiApproval(config: BillingConfig, tokenId: string, stop: () => boolean): Promise<void> {
   const deadline = Date.now() + NEQUI_APPROVAL_MS;
+  let failures = 0;
   while (Date.now() < deadline) {
     if (stop()) throw new PaymentError('La vinculación se canceló.');
-    let status: string;
+    let status: string | undefined;
     try {
-      const { data } = await axios.get<{ data: { status: string } }>(
+      const { data } = await axios.get<NequiTokenResponse>(
         `${config.apiUrl}/tokens/nequi/${encodeURIComponent(tokenId)}`,
         { headers: { Authorization: `Bearer ${config.publicKey}` }, timeout: 10_000 },
       );
-      status = data.data.status;
+      status = tokenOf(data).status;
+      failures = 0;
     } catch {
-      throw new PaymentError('No pudimos confirmar tu aprobación en Nequi. Revisa tu conexión e inténtalo de nuevo.');
+      // Un corte de red puntual no cancela la espera: solo tres fallos seguidos.
+      failures += 1;
+      if (failures >= 3) throw new PaymentError('No pudimos confirmar tu aprobación en Nequi. Revisa tu conexión e inténtalo de nuevo.');
     }
     if (status === 'APPROVED') return;
-    if (status !== 'PENDING') throw new PaymentError('Nequi no aprobó la vinculación. Inténtalo de nuevo.');
+    // Un estado de fallo corta; cualquier otro (PENDING u otro intermedio) sigue esperando hasta el plazo.
+    if (status && NEQUI_FAILED.has(status)) throw new PaymentError('Nequi no aprobó la vinculación. Inténtalo de nuevo.');
     await new Promise((resolve) => setTimeout(resolve, NEQUI_POLL_MS));
   }
   throw new PaymentError('No recibimos tu aprobación en Nequi a tiempo. Inténtalo de nuevo.');
