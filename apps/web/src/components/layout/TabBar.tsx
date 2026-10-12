@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { spring } from '@/lib/motion';
 import { matchesRoute, useNav } from './nav';
+import { NavLock } from './NavLock';
 import { useKeyboardOpen } from '@/hooks/useKeyboardOpen';
 
 /** Barra inferior móvil (<768): 5 destinos, 56 px de alto táctil, fondo translúcido. */
@@ -26,7 +27,7 @@ export function TabBar({ className }: { className?: string }) {
         className,
       )}
     >
-      {primary.map(({ to, label, icon: Icon }) => {
+      {primary.map(({ to, label, icon: Icon, locked }) => {
         const active = matchesRoute(pathname, to);
         return (
           <NavLink
@@ -49,6 +50,7 @@ export function TabBar({ className }: { className?: string }) {
                 />
               )}
               <Icon aria-hidden className="relative size-6 transition-transform duration-300 ease-[cubic-bezier(.34,1.56,.64,1)] group-active/tab:scale-[.82]" strokeWidth={1.75} />
+              {locked && <NavLock className="right-2 top-0" />}
             </span>
             {label}
           </NavLink>

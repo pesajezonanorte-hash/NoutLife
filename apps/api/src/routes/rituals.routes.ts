@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { requireAuth, type AuthRequest } from '../middleware/auth.middleware';
+import { limitActiveRoutines } from '../middleware/plan.middleware';
 import * as rituals from '../services/rituals.service';
 
 const router = Router();
@@ -19,7 +20,8 @@ router.post('/seed-presets', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.post('/', async (req, res, next) => {
+// Lite: como mucho LITE_LIMITS.activeRoutines rutinas activas.
+router.post('/', limitActiveRoutines, async (req, res, next) => {
   try {
     const ritual = await rituals.createRitual((req as AuthRequest).userId!, req.body);
     res.status(201).json(ritual);

@@ -84,9 +84,11 @@ export interface PaymentMethodFormProps {
   chargeDate?: string | null;
   onDone: (subscription: Subscription) => void;
   onCancel?: () => void;
+  /** Texto del botón que llama a `onCancel` antes de vincular («Ahora no» por defecto). */
+  cancelLabel?: string;
 }
 
-export function PaymentMethodForm({ intent, chargeDate, onDone, onCancel }: PaymentMethodFormProps) {
+export function PaymentMethodForm({ intent, chargeDate, onDone, onCancel, cancelLabel = 'Ahora no' }: PaymentMethodFormProps) {
   const updateUser = useAuthStore((s) => s.updateUser);
   const reduce = useMotionReduced();
   const consentId = useId();
@@ -331,7 +333,7 @@ export function PaymentMethodForm({ intent, chargeDate, onDone, onCancel }: Paym
               ? 'Pago seguro con Wompi. NoutLife nunca ve el número de tu tarjeta.'
               : 'Pago seguro con Wompi. NoutLife no guarda tu cédula en texto plano.'}
           </p>
-          {onCancel && <Button variant="ghost" size="md" onClick={onCancel} disabled={busy}>Ahora no</Button>}
+          {onCancel && <Button variant="ghost" size="md" onClick={onCancel} disabled={busy}>{cancelLabel}</Button>}
           {config?.sandbox && method === 'CARD' && (
             <p className="text-center text-body-sm text-warning-text">Modo de pruebas: usa la tarjeta 4242 4242 4242 4242 con cualquier fecha futura y CVC.</p>
           )}

@@ -19,6 +19,7 @@ import { ZoneVisitors } from '@/components/social/ZoneVisitors';
 import { PigeonLayer } from '@/components/social/CarrierPigeon';
 import { MessagePings } from '@/components/social/MessagePings';
 import { ZONE_TOOLTIPS } from '@/lib/gameProgress';
+import { proZoneOf } from '@/lib/plan';
 import { Button, Toaster } from '@/components/ui/lq';
 import { LevelUpOverlay } from '../animations/LevelUpOverlay';
 import { FloatingXPLayer } from '../animations/FloatingXP';
@@ -48,6 +49,8 @@ import { WelcomeTour, isTourSeen, markTourSeen, useTourDone } from '../onboardin
 function ZoneTip() {
   const { pathname } = useLocation();
   const userId = useAuthStore((st) => st.user?.id);
+  // Zona Pro con candado (Lite): la tarjeta espera a que la zona se abra.
+  const locked = useAuthStore((st) => st.user?.subscription?.plan === 'lite') && proZoneOf(pathname) !== null;
   const [visible, setVisible] = useState(false);
   const tip = ZONE_TOOLTIPS[pathname];
 
@@ -56,8 +59,8 @@ function ZoneTip() {
   useEffect(() => {
     let seen = false;
     if (key) { try { seen = localStorage.getItem(key) === 'true'; } catch { /* sin storage */ } }
-    setVisible(Boolean(tip) && Boolean(key) && !seen);
-  }, [key, tip]);
+    setVisible(Boolean(tip) && Boolean(key) && !seen && !locked);
+  }, [key, tip, locked]);
 
   // Se marca como vista cuando de verdad se mostró (idempotente en StrictMode).
   useEffect(() => {

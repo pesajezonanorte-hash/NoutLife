@@ -13,6 +13,7 @@ import { PrivatePhotoNotice } from '@/components/privacy/PrivatePhotoNotice';
 import { lockScroll, unlockScroll } from '@/components/ui/lq/Modal';
 import { springs } from '@/lib/motion/presets';
 import { useMotionStore } from '@/store/motionStore';
+import { useAuthStore } from '@/store/authStore';
 import api from '@/lib/api';
 import * as gym2 from '@/services/gym2.service';
 
@@ -27,14 +28,16 @@ export const ZONE_ALBUMS: Record<ZoneAlbumId, { label: string; icon: typeof Dumb
 
 const toSrc = (data: string) => (data.startsWith('data:') ? data : `data:image/jpeg;base64,${data}`);
 
-/** Fotos de las zonas (una sola carga por visita). */
+/** Fotos de las zonas (una sola carga por visita). Gimnasio y Espejo son de Pro: en Lite no se piden. */
 export function useZonePhotos() {
   const [photos, setPhotos] = useState<ZonePhoto[] | null>(null);
+  const lite = useAuthStore((s) => s.user?.subscription?.plan === 'lite');
   useEffect(() => {
     let alive = true;
+    type WardrobePhoto = { id: string; name: string; category: string; photoData?: string | null; createdAt: string };
     void Promise.all([
-      gym2.fetchProgressPhotos().catch(() => [] as gym2.ProgressPhoto[]),
-      api.get<Array<{ id: string; name: string; category: string; photoData?: string | null; createdAt: string }>>('/mirror/wardrobe').then((r) => r.data).catch(() => []),
+      lite ? [] as gym2.ProgressPhoto[] : gym2.fetchProgressPhotos().catch(() => [] as gym2.ProgressPhoto[]),
+      lite ? [] as WardrobePhoto[] : api.get<WardrobePhoto[]>('/mirror/wardrobe').then((r) => r.data).catch(() => [] as WardrobePhoto[]),
     ]).then(([gym, wardrobe]) => {
       if (!alive) return;
       const out: ZonePhoto[] = [
@@ -44,7 +47,7 @@ export function useZonePhotos() {
       setPhotos(out.sort((a, b) => b.at.localeCompare(a.at)));
     });
     return () => { alive = false; };
-  }, []);
+  }, [lite]);
   return photos;
 }
 

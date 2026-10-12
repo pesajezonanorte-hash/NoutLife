@@ -2,7 +2,7 @@ import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
 import { usePlanStore } from '../store/planStore';
 import { getDeviceId, rememberDeviceId } from './deviceId';
-import type { ProFeature } from './plan';
+import type { ProFeature, ProLock } from './plan';
 import { clearRefreshSessionExpected, markRefreshSessionExpected } from './session-hint';
 
 /**
@@ -65,11 +65,16 @@ api.interceptors.response.use(
     // access token can still revoke a valid refresh-cookie session.
     const bypassRefresh = /\/auth\/(?:login|register|refresh)(?:\?|$)/.test(requestUrl);
 
-    // Límite de NoutLife Lite (402): se abre el diálogo de Pro con el motivo.
-    // La petición sigue fallando para que la pantalla que llamó lo sepa.
-    const data = error.response?.data as { code?: string; feature?: ProFeature; error?: string } | undefined;
-    if (error.response?.status === 402 && data?.code === 'PRO_REQUIRED' && data.feature) {
-      usePlanStore.getState().openUpgrade(data.feature, data.error ?? null);
+    // Límite o zona de NoutLife Lite (402). Una acción de la persona abre el
+    // diálogo de Pro con el motivo; una lectura en segundo plano no abre nada:
+    // solo resincroniza el plan y la pantalla muestra su candado. La petición
+    // sigue fallando para que la pantalla que llamó lo sepa.
+    const data = error.response?.data as { code?: string; feature?: ProFeature; lock?: ProLock; error?: string } | undefined;
+    if (error.response?.status === 402 && data?.code === 'PRO_REQUIRED') {
+      const reason = data.feature ?? data.lock;
+      const read = String(originalRequest?.method ?? 'get').toLowerCase() === 'get';
+      if (reason && !read) usePlanStore.getState().openUpgrade(reason, data.error ?? null);
+      else usePlanStore.getState().requestSync();
     }
 
     if (error.response?.status === 401 && !bypassRefresh && !originalRequest._retry) {

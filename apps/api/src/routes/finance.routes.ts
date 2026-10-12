@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.middleware';
+import { requireProZone } from '../middleware/plan.middleware';
 import { validate } from '../middleware/validate.middleware';
 import * as ctrl from '../controllers/finance.controller';
 import {
@@ -15,6 +16,8 @@ import {
 
 const router = Router();
 router.use(requireAuth);
+// Zona Pro: en NoutLife Lite toda la zona responde 402 (lo guardado se conserva).
+router.use(requireProZone('finances'));
 
 router.get('/dashboard',                    ctrl.getFinanceDashboard);
 router.get('/report/:year/:month',          ctrl.getFinanceReport);

@@ -5,7 +5,10 @@
  *   trialing  7 días de Pro desde que se vincula un medio de pago. Al vencer se cobra el primer mes.
  *   active    mes pagado. Al vencer se cobra el siguiente.
  *   canceled  la persona canceló: conserva Pro hasta el fin de su prueba o mes pagado.
- *   lite      sin pago activo (y toda cuenta nueva). Nunca se bloquea: funciona con los límites de Lite.
+ *   lite      sin pago activo (y toda cuenta nueva). Funciona con los límites de Lite y las zonas Pro con candado.
+ *
+ * Paywall de entrada: con Wompi configurado, nadie entra al Dashboard sin
+ * vincular antes un medio de pago (paywallRequired).
  */
 export const TRIAL_DAYS = 7;
 // ponytail: «tarifa congelada» = esta constante. Antes de subir el precio, guarda el monto por usuario.
@@ -17,9 +20,32 @@ export const PRO_CURRENCY = 'COP';
 export const LITE_LIMITS = {
   /** Hábitos activos a la vez. */
   activeHabits: 3,
+  /** Rutinas (rituales) activas a la vez. */
+  activeRoutines: 3,
   /** Días de historial y estadísticas visibles. */
   historyDays: 5,
 } as const;
+
+/**
+ * Zonas solo de Pro (requireProZone). En Lite quedan con candado: lo guardado
+ * se conserva y vuelve a verse al activar Pro. Inicio, hábitos, misiones,
+ * logros, agenda, rituales y social siguen en Lite.
+ */
+export const PRO_ZONES = ['finances', 'gym', 'food', 'sleep', 'journal', 'learning', 'love', 'mirror', 'wisdom', 'custom-zones'] as const;
+export type ProZone = (typeof PRO_ZONES)[number];
+
+export const PRO_ZONE_LABELS: Record<ProZone, string> = {
+  finances: 'Finanzas',
+  gym: 'Gimnasio',
+  food: 'Comida',
+  sleep: 'Sueño',
+  journal: 'Diario',
+  learning: 'Aprendizaje',
+  love: 'Relaciones',
+  mirror: 'Espejo',
+  wisdom: 'Sabiduría',
+  'custom-zones': 'Mis zonas',
+};
 
 /**
  * Margen mientras se cobra una renovación: el cron corre cada 5 min, pero
@@ -88,6 +114,14 @@ export function hasProAccess(user: SubscriptionFields, now = new Date()): boolea
 
 export function planOf(user: SubscriptionFields, now = new Date()): Plan {
   return hasProAccess(user, now) ? 'pro' : 'lite';
+}
+
+/**
+ * Paywall de entrada: sin medio de pago vinculado no se entra al Dashboard.
+ * Sin llaves de Wompi no hay forma de vincularlo, así que no se exige.
+ */
+export function paywallRequired(user: Pick<SubscriptionFields, 'paymentSourceId'>, billingEnabled: boolean): boolean {
+  return billingEnabled && !user.paymentSourceId;
 }
 
 /** Qué toca hacer con la suscripción ahora: nada, cobrar el periodo o pasar a Lite. */

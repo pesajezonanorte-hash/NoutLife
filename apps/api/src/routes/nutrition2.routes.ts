@@ -6,10 +6,12 @@ import {
   getSavedMeals, createSavedMeal, deleteSavedMeal,
   parseMealWithAI, getDailyMacros,
 } from '../services/nutrition2.service';
-import { requirePro } from '../middleware/plan.middleware';
+import { requirePro, requireProZone } from '../middleware/plan.middleware';
 
 const router = Router();
 router.use(requireAuth);
+// Zona Pro: en NoutLife Lite toda la zona responde 402 (lo guardado se conserva).
+router.use(requireProZone('food'));
 
 router.get('/goals', async (req, res) => {
   try { res.json(await getNutritionGoal((req as AuthRequest).userId!)); }

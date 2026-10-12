@@ -1,10 +1,13 @@
 import { Router } from 'express';
 import { requireAuth, type AuthRequest } from '../middleware/auth.middleware';
+import { requireProZone } from '../middleware/plan.middleware';
 import { prisma } from '../lib/prisma';
 import * as wisdom from '../services/wisdom.service';
 
 const router = Router();
 router.use(requireAuth);
+// Zona Pro: en NoutLife Lite toda la zona responde 402 (lo guardado se conserva).
+router.use(requireProZone('wisdom'));
 
 router.get('/daily', async (req, res, next) => {
   try {

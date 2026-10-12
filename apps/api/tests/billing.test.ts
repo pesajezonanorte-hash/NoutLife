@@ -182,3 +182,46 @@ test('a charge on a Nequi source sends only the source, amount and signature; a 
   assert.deepEqual(card.payment_method, { installments: 1 });
   assert.equal(card.recurrent, true);
 });
+
+test('the entry paywall asks for a payment method only while billing is on and none is linked', async () => {
+  const { paywallRequired } = await import('../src/lib/plans');
+  assert.equal(paywallRequired({ paymentSourceId: null }, true), true);
+  assert.equal(paywallRequired({ paymentSourceId: '3891' }, true), false);
+  // Sin llaves de Wompi no hay cómo vincularlo: no se bloquea a nadie.
+  assert.equal(paywallRequired({ paymentSourceId: null }, false), false);
+});
+
+test('the subscription view carries the paywall flag; a denied trial with a linked method lets the person in on Lite', async () => {
+  const { subscriptionView } = await import('../src/services/billing.service');
+  const base = {
+    id: 'u1', email: 'ana@example.com', createdAt: addDays(NOW, -1), subscriptionStatus: 'lite', trialEndsAt: NOW,
+    currentPeriodEnd: null, paymentSourceId: null, paymentMethodType: null, paymentMethodLabel: null, liteSince: null, lastPaymentError: null,
+  };
+  const fresh = subscriptionView(base, NOW, false, true, true);
+  assert.equal(fresh.paywall, true);
+  assert.equal(fresh.trialAvailable, true);
+
+  const denied = subscriptionView(
+    { ...base, paymentSourceId: '3891', paymentMethodType: 'CARD', lastPaymentError: 'Este método de pago ya se usó en una prueba gratis.' },
+    NOW, false, false, true,
+  );
+  assert.equal(denied.paywall, false);
+  assert.equal(denied.plan, 'lite');
+  assert.equal(subscriptionView(base, NOW, false, true, false).paywall, false);
+});
+
+test('a Pro zone lock answers 402 with `lock` (not `feature`) so older web builds never open an unknown dialog', async () => {
+  const { sendProLocked, proLockMessage } = await import('../src/middleware/plan.middleware');
+  const { PRO_ZONES, PRO_ZONE_LABELS, LITE_LIMITS } = await import('../src/lib/plans');
+  let status = 0;
+  let body: Record<string, unknown> = {};
+  const res = { status(code: number) { status = code; return this; }, json(data: Record<string, unknown>) { body = data; return this; } };
+  sendProLocked(res as never, 'finances');
+  assert.equal(status, 402);
+  assert.equal(body.code, 'PRO_REQUIRED');
+  assert.equal(body.lock, 'finances');
+  assert.equal('feature' in body, false);
+  assert.match(String(body.error), /Finanzas es una zona de NoutLife Pro/);
+  assert.match(proLockMessage('routines'), new RegExp(`${LITE_LIMITS.activeRoutines} rutinas activas`));
+  for (const zone of PRO_ZONES) assert.ok(PRO_ZONE_LABELS[zone], `label for ${zone}`);
+});

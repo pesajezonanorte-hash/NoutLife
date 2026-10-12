@@ -12,15 +12,16 @@ import { useAuthStore } from '@/store/authStore';
 import { usePlanStore, type UpgradeReason } from '@/store/planStore';
 import { useToastStore } from '@/hooks/useToast';
 import { ease, useMotionReduced } from '@/lib/motion';
-import { LITE_LIMITS, PRO_PER_DAY_COP, PRO_PRICE_COP, TRIAL_DAYS, formatCop, longDay } from '@/lib/plan';
+import { LITE_LIMITS, PRO_PER_DAY_COP, PRO_PRICE_COP, PRO_ZONES, PRO_ZONE_COUNT, TRIAL_DAYS, formatCop, longDay } from '@/lib/plan';
 import { getBillingStatus, subscribe } from '@/services/billing.service';
 import { PaymentMethodForm, type PaymentMethodFormProps } from './PaymentMethodForm';
 
 const PRICE = formatCop(PRO_PRICE_COP);
 
 const BENEFITS = [
+  `Las ${PRO_ZONE_COUNT} zonas Pro: Finanzas, Gimnasio, Comida, Sueño, Diario y más`,
   'El Sabio con IA y análisis de hábitos, finanzas y entrenos',
-  'Hábitos ilimitados',
+  'Hábitos y rutinas ilimitados',
   'Historial y analíticas completas',
   `Tarifa congelada: ${PRICE}/mes mientras sigas en Pro`,
 ];
@@ -29,7 +30,13 @@ const BENEFITS = [
 const GLASS = 'bg-background/80 backdrop-blur-2xl backdrop-saturate-150';
 
 function copyFor(reason: UpgradeReason, sub: Subscription | null | undefined): { title: string; body: string } {
+  if (Object.prototype.hasOwnProperty.call(PRO_ZONES, reason)) {
+    const zone = PRO_ZONES[reason as keyof typeof PRO_ZONES];
+    return { title: `${zone.label} es de NoutLife Pro`, body: `${zone.pitch} Lo que ya guardaste sigue ahí y vuelve a abrirse con Pro.` };
+  }
   switch (reason) {
+    case 'routines':
+      return { title: 'Rutinas ilimitadas con Pro', body: `NoutLife Lite admite ${LITE_LIMITS.activeRoutines} rutinas activas. Las que ya tienes siguen ahí.` };
     case 'habits':
       return { title: 'Hábitos ilimitados con Pro', body: `NoutLife Lite admite ${LITE_LIMITS.activeHabits} hábitos activos. Los que ya tienes siguen ahí.` };
     case 'history':
@@ -45,6 +52,9 @@ function copyFor(reason: UpgradeReason, sub: Subscription | null | undefined): {
       return sub?.status === 'trialing'
         ? { title: 'Tu prueba Pro ya empezó', body: `Vincula un método de pago para seguir sin cortes. El primer cobro es el ${longDay(sub.trialEndsAt)}.` }
         : { title: `Prueba NoutLife Pro ${TRIAL_DAYS} días gratis`, body: 'Vincula un método de pago y empieza hoy. Durante la prueba no se cobra nada.' };
+    default:
+      // Un motivo nuevo de la API que esta versión aún no conoce.
+      return { title: 'Esto es de NoutLife Pro', body: 'Activa Pro para desbloquearlo. Lo que ya guardaste sigue ahí.' };
   }
 }
 
@@ -185,7 +195,7 @@ export function UpgradeModal() {
                   ? `Tienes NoutLife Pro gratis hasta el ${longDay(subscription.trialEndsAt)}. $0 hoy; puedes cancelar con 1 clic en Plan.`
                   : intent === 'save'
                     ? 'Método de pago actualizado.'
-                    : 'Ya tienes NoutLife Pro. Hábitos ilimitados, tu historial completo y la IA del Sabio están listos.'}
+                    : 'Ya tienes NoutLife Pro. Todas las zonas, hábitos ilimitados, tu historial completo y la IA del Sabio están listos.'}
             </p>
             <Button size="lg" block onClick={close}>Seguir</Button>
           </motion.div>

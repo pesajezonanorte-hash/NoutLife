@@ -9,6 +9,10 @@ import { AppShell } from './components/layout/AppShell';
 import { SplashScreen } from './components/animations/SplashScreen';
 import { SageWidget } from './components/sage/SageWidget';
 import { PlanGate } from './components/billing/PlanGate';
+import { Paywall } from './components/billing/Paywall';
+import { LockedZone } from './components/billing/LockedZone';
+import { usePlanStore } from './store/planStore';
+import type { ProZone } from './lib/plan';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { NotificationPermissionModal, useNotificationModalState } from './components/ui/NotificationPermissionModal';
 import { PageLoader as LqPageLoader, Spinner } from './components/ui/lq';
@@ -195,6 +199,19 @@ function SafePage({ children }: { children: ReactNode }) {
   return <ErrorBoundary>{children}</ErrorBoundary>;
 }
 
+/** Zona Pro: en NoutLife Lite se ve su candado en vez de la página (sus lecturas darían 402). */
+function ProZonePage({ zone, load }: { zone: ProZone; load: PageImport }) {
+  const lite = useAuthStore((s) => s.user?.subscription?.plan === 'lite');
+  return lite ? <LockedZone zone={zone} /> : <DeferredLazyPage load={load} />;
+}
+
+/** Paywall de entrada activo: lo decide la API; sigue en pantalla hasta que la persona entra. */
+function usePaywallActive(): boolean {
+  const required = useAuthStore((s) => Boolean(s.user?.subscription?.paywall));
+  const held = usePlanStore((s) => s.paywallHeld);
+  return required || held;
+}
+
 function AnimatedRoutes({ location }: { location: ReturnType<typeof useLocation> }) {
   return (
     <AnimatePresence mode="wait" initial={false}>
@@ -222,13 +239,13 @@ function AnimatedRoutes({ location }: { location: ReturnType<typeof useLocation>
           <Route path="/habits/:id"   element={<SafePage><DeferredLazyPage load={loaders.HabitDetailPage} /></SafePage>} />
           <Route path="/achievements" element={<SafePage><DeferredLazyPage load={loaders.AchievementsPage} /></SafePage>} />
           <Route path="/history"      element={<SafePage><DeferredLazyPage load={loaders.HistoryPage} /></SafePage>} />
-          <Route path="/gym"          element={<SafePage><DeferredLazyPage load={loaders.GymPage} /></SafePage>} />
-          <Route path="/finances"     element={<SafePage><DeferredLazyPage load={loaders.FinancesPage} /></SafePage>} />
-          <Route path="/sleep"        element={<SafePage><DeferredLazyPage load={loaders.SleepPage} /></SafePage>} />
-          <Route path="/food"         element={<SafePage><DeferredLazyPage load={loaders.FoodPage} /></SafePage>} />
-          <Route path="/learning"     element={<SafePage><DeferredLazyPage load={loaders.LearningPage} /></SafePage>} />
-          <Route path="/journal"      element={<SafePage><DeferredLazyPage load={loaders.JournalPage} /></SafePage>} />
-          <Route path="/love"         element={<SafePage><DeferredLazyPage load={loaders.LovePage} /></SafePage>} />
+          <Route path="/gym"          element={<SafePage><ProZonePage zone="gym" load={loaders.GymPage} /></SafePage>} />
+          <Route path="/finances"     element={<SafePage><ProZonePage zone="finances" load={loaders.FinancesPage} /></SafePage>} />
+          <Route path="/sleep"        element={<SafePage><ProZonePage zone="sleep" load={loaders.SleepPage} /></SafePage>} />
+          <Route path="/food"         element={<SafePage><ProZonePage zone="food" load={loaders.FoodPage} /></SafePage>} />
+          <Route path="/learning"     element={<SafePage><ProZonePage zone="learning" load={loaders.LearningPage} /></SafePage>} />
+          <Route path="/journal"      element={<SafePage><ProZonePage zone="journal" load={loaders.JournalPage} /></SafePage>} />
+          <Route path="/love"         element={<SafePage><ProZonePage zone="love" load={loaders.LovePage} /></SafePage>} />
           <Route path="/shop"         element={<SafePage><DeferredLazyPage load={loaders.ShopPage} /></SafePage>} />
           <Route path="/settings"     element={<SafePage><DeferredLazyPage load={loaders.SettingsPage} /></SafePage>} />
           <Route path="/leaderboard"  element={<SafePage><DeferredLazyPage load={loaders.LeaderboardPage} /></SafePage>} />
@@ -241,16 +258,16 @@ function AnimatedRoutes({ location }: { location: ReturnType<typeof useLocation>
           <Route path="/season"       element={<SafePage><DeferredLazyPage load={loaders.SeasonPage} /></SafePage>} />
           <Route path="/agenda"       element={<SafePage><DeferredLazyPage load={loaders.AgendaPage} /></SafePage>} />
           <Route path="/life"         element={<SafePage><DeferredLazyPage load={loaders.LifePage} /></SafePage>} />
-          <Route path="/custom-zones" element={<SafePage><DeferredLazyPage load={loaders.CustomZonesPage} /></SafePage>} />
-          <Route path="/zonas/:id" element={<SafePage><DeferredLazyPage load={loaders.CustomZoneDetailPage} /></SafePage>} />
+          <Route path="/custom-zones" element={<SafePage><ProZonePage zone="custom-zones" load={loaders.CustomZonesPage} /></SafePage>} />
+          <Route path="/zonas/:id" element={<SafePage><ProZonePage zone="custom-zones" load={loaders.CustomZoneDetailPage} /></SafePage>} />
           <Route path="/checklists" element={<SafePage><DeferredLazyPage load={loaders.ChecklistsPage} /></SafePage>} />
           <Route path="/obstaculos" element={<SafePage><DeferredLazyPage load={loaders.ObstaclesPage} /></SafePage>} />
           <Route path="/rituals"  element={<SafePage><DeferredLazyPage load={loaders.RitualsPage} /></SafePage>} />
           <Route path="/rituales" element={<Navigate to="/rituals" replace />} />
-          <Route path="/espejo"   element={<SafePage><DeferredLazyPage load={loaders.GlowUpPage} /></SafePage>} />
+          <Route path="/espejo"   element={<SafePage><ProZonePage zone="mirror" load={loaders.GlowUpPage} /></SafePage>} />
           <Route path="/armario"  element={<Navigate to={{ pathname: '/espejo', search: window.location.search }} replace />} />
           <Route path="/glow-up"  element={<Navigate to="/espejo" replace />} />
-          <Route path="/wisdom"   element={<SafePage><DeferredLazyPage load={loaders.WisdomPage} /></SafePage>} />
+          <Route path="/wisdom"   element={<SafePage><ProZonePage zone="wisdom" load={loaders.WisdomPage} /></SafePage>} />
           <Route path="/about"    element={<SafePage><DeferredLazyPage load={loaders.AboutPage} /></SafePage>} />
           <Route path="/faq"      element={<SafePage><DeferredLazyPage load={loaders.FAQPage} /></SafePage>} />
           <Route path="/plan"     element={<SafePage><DeferredLazyPage load={loaders.PlanPage} /></SafePage>} />
@@ -337,10 +354,16 @@ function DeferredRouteContent() {
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading, user } = useAuthStore();
   const pathname = window.location.pathname;
+  // Paywall de entrada: tras el registro, nadie llega al Dashboard sin vincular un método de pago.
+  const paywall = usePaywallActive();
 
   return (
     <LoadingGate loading={isLoading} fallback={<PageLoader />}>
-      {isLoading ? null : !isAuthenticated ? <Navigate to="/login" replace /> : user && !user.onboardingCompleted && pathname !== '/onboarding' ? <Navigate to="/onboarding" replace /> : children}
+      {isLoading ? null
+        : !isAuthenticated ? <Navigate to="/login" replace />
+        : user && !user.onboardingCompleted && pathname !== '/onboarding' ? <Navigate to="/onboarding" replace />
+        : paywall ? <Paywall />
+        : children}
     </LoadingGate>
   );
 }
@@ -373,6 +396,7 @@ export default function App() {
   const { show: showNotifModal, setShow: setShowNotifModal } = useNotificationModalState();
   // El tutorial de bienvenida pregunta por los avisos en su último paso.
   const tourDone = useTourDone(user?.id);
+  const paywall = usePaywallActive();
 
   // Avisos: renueva la suscripción push de este dispositivo en cada apertura y,
   // con la app abierta, programa también los recordatorios de hoy.
@@ -445,7 +469,7 @@ export default function App() {
       {!showSplash && <CookieNotice />}
       {showSplash && <SplashScreen ready={splashReady} onDone={() => setSplashDone(true)} />}
 
-      {isAuthenticated && showNotifModal && tourDone && user?.onboardingCompleted && (
+      {isAuthenticated && showNotifModal && tourDone && user?.onboardingCompleted && !paywall && (
         <NotificationPermissionModal onClose={() => setShowNotifModal(false)} />
       )}
 

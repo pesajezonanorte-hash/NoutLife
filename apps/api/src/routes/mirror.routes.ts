@@ -1,10 +1,13 @@
 import { settleLevel } from '../services/xp.service';
 import { Router } from 'express';
 import { requireAuth, type AuthRequest } from '../middleware/auth.middleware';
+import { requireProZone } from '../middleware/plan.middleware';
 import { prisma } from '../lib/prisma';
 
 const router = Router();
 router.use(requireAuth);
+// Zona Pro: en NoutLife Lite toda la zona responde 402 (lo guardado se conserva).
+router.use(requireProZone('mirror'));
 
 const CLOTHING_CATEGORIES = new Set(['tops', 'bottoms', 'shoes', 'outerwear', 'accessories']);
 const MAX_PHOTO_DATA_LENGTH = 700_000; // ~500 KB JPEG after base64 encoding

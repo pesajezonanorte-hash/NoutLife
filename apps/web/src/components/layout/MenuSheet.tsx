@@ -9,13 +9,14 @@ import { useShellStore } from '@/store/shellStore';
 import { useThemeStore, type ThemeMode } from '@/store/themeStore';
 import { getLevelTitle } from '@/lib/gameProgress';
 import { UTILITY_NAV, matchesRoute, useNav, type NavEntry } from './nav';
+import { NavLock } from './NavLock';
 import { useShellActions } from './actions';
 
 const THEMES: { value: ThemeMode; label: string }[] = [
   { value: 'light', label: 'Claro' }, { value: 'dark', label: 'Oscuro' }, { value: 'auto', label: 'Auto' },
 ];
 
-function Tile({ to, label, icon: Icon, onSelect }: NavEntry & { onSelect: () => void }) {
+function Tile({ to, label, icon: Icon, locked, onSelect }: NavEntry & { onSelect: () => void }) {
   const { pathname } = useLocation();
   const active = matchesRoute(pathname, to);
   return (
@@ -29,8 +30,9 @@ function Tile({ to, label, icon: Icon, onSelect }: NavEntry & { onSelect: () => 
           active ? 'border-primary/40 bg-primary/[var(--lq-soft-alpha)] text-primary-text' : 'border-border bg-surface text-on-surface',
         )}
       >
-        <span className={cn('lq-ichip flex size-10 items-center justify-center rounded-xl', active ? 'bg-background' : 'bg-primary/[var(--lq-soft-alpha)] text-primary-text')}>
+        <span className={cn('lq-ichip relative flex size-10 items-center justify-center rounded-xl', active ? 'bg-background' : 'bg-primary/[var(--lq-soft-alpha)] text-primary-text')}>
           <Icon aria-hidden className="size-5" strokeWidth={1.75} />
+          {locked && <NavLock />}
         </span>
         {label}
       </Link>

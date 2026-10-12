@@ -2,10 +2,12 @@ import { Router } from 'express';
 import { requireAuth, type AuthRequest } from '../middleware/auth.middleware';
 import { prisma } from '../lib/prisma';
 import { generateText, hasAIProvider } from '../lib/ai';
-import { limitActiveHabits, requirePro } from '../middleware/plan.middleware';
+import { limitActiveHabits, requirePro, requireProZone } from '../middleware/plan.middleware';
 
 const router = Router();
 router.use(requireAuth);
+// Zona Pro: en NoutLife Lite toda la zona responde 402 (lo guardado se conserva).
+router.use(requireProZone('custom-zones'));
 
 // List all custom zones for user
 router.get('/', async (req, res, next) => {

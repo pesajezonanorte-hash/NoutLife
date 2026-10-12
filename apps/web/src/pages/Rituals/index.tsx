@@ -17,6 +17,10 @@ import { cn } from '@/lib/utils';
 import * as ritualsService from '@/services/rituals.service';
 import type { Ritual } from '@/services/rituals.service';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { LiteNotice } from '@/components/billing/LiteNotice';
+import { LITE_LIMITS, isProRequired } from '@/lib/plan';
+import { useAuthStore } from '@/store/authStore';
+import { usePlanStore } from '@/store/planStore';
 import { useToast } from '@/hooks/useToast';
 import {
   Badge, Button, Card, EmptyState, ErrorState, Field, IconChip, Input, PageLoader, ProgressRing, ResponsiveDialog,
@@ -173,7 +177,11 @@ function NewRitualDialog({ open, onClose, onCreated }: { open: boolean; onClose:
       });
       toast.success('Ritual creado');
       onCreated();
-    } catch { toast.error('No se pudo crear el ritual'); }
+    } catch (error) {
+      // Límite de Lite: el diálogo de Pro ya explica el motivo.
+      if (isProRequired(error)) onClose();
+      else toast.error('No se pudo crear el ritual');
+    }
     finally { setSaving(false); }
   }
 
@@ -227,6 +235,11 @@ export default function RitualsPage() {
   const [doneIds, setDoneIds] = useState<string[]>([]);
   /** Ritual recién completado: todas sus piedras brillan y se expande la onda de calma. */
   const [celebrating, setCelebrating] = useState<string | null>(null);
+  const lite = useAuthStore((s) => s.user?.subscription?.plan === 'lite');
+  const openUpgrade = usePlanStore((s) => s.openUpgrade);
+  const activeCount = rituals.filter((r) => r.isActive).length;
+  const atLiteLimit = lite && activeCount >= LITE_LIMITS.activeRoutines;
+  const openNew = () => (atLiteLimit ? openUpgrade('routines') : setCreating(true));
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setState('loading');
@@ -274,10 +287,20 @@ export default function RitualsPage() {
         aside={(
           <div className="flex items-end gap-6">
             <Bamboo className="-mb-2 hidden md:flex [&_svg]:max-h-[9.5rem]" />
-            <Button onClick={() => setCreating(true)}><Plus aria-hidden className="size-4" strokeWidth={1.75} />Nuevo ritual</Button>
+            <Button onClick={openNew}><Plus aria-hidden className="size-4" strokeWidth={1.75} />Nuevo ritual</Button>
           </div>
         )}
       />
+
+      {lite && rituals.length > 0 && (
+        <motion.div variants={item}>
+          <LiteNotice feature="routines">
+            {activeCount > LITE_LIMITS.activeRoutines
+              ? `NoutLife Lite admite ${LITE_LIMITS.activeRoutines} rutinas activas. Tus ${activeCount} rituales siguen aquí; para crear más, pasa a Pro.`
+              : `Tienes ${activeCount} de ${LITE_LIMITS.activeRoutines} rutinas activas de NoutLife Lite.${atLiteLimit ? ' Con Pro, sin límite.' : ''}`}
+          </LiteNotice>
+        </motion.div>
+      )}
 
       {rituals.length === 0 ? (
         <motion.div variants={item}>
@@ -287,7 +310,7 @@ export default function RitualsPage() {
             description="Los rituales son secuencias de pasos que ejecutas cada día. Empieza con los sugeridos o crea los tuyos."
             action={
               <div className="flex flex-wrap justify-center gap-3">
-                <Button variant="secondary" onClick={() => setCreating(true)}>Crear el mío</Button>
+                <Button variant="secondary" onClick={openNew}>Crear el mío</Button>
                 <Button onClick={seed} loading={seeding}><Zap aria-hidden className="size-4" strokeWidth={1.75} />Cargar rituales sugeridos</Button>
               </div>
             }

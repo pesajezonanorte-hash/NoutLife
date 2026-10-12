@@ -291,9 +291,11 @@ model User {
   @@map("users")
 }
 
-/// Pruebas gratis ya concedidas. SIN relación con User a propósito: borrar o
-/// reiniciar la cuenta nunca borra esta tabla (ninguna ruta de la API la elimina).
-/// Un correo, una tarjeta o un dispositivo que ya aparecen aquí no reciben otra prueba.
+/// Pruebas gratis ya concedidas. Registro permanente: SIN relación con User a
+/// propósito (borrar o reiniciar la cuenta no la toca) y la base rechaza DELETE y
+/// TRUNCATE con disparadores (migración 20261022120000_used_trials_permanent).
+/// Un correo o un medio de pago que ya aparecen aquí no reciben otra prueba: van
+/// directo a Lite o al cobro. El dispositivo queda para auditoría (puede ser compartido).
 model UsedTrial {
   id          String   @id @default(cuid())
   /// Correo en minúsculas.

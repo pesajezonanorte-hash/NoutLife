@@ -1,6 +1,7 @@
 import { publicErrorMessage } from '../middleware/error.middleware';
 import { Router } from 'express';
 import { requireAuth, type AuthRequest } from '../middleware/auth.middleware';
+import { requireProZone } from '../middleware/plan.middleware';
 import { validate } from '../middleware/validate.middleware';
 import { importantDateSchema } from '../schemas/activity.schemas';
 import * as ctrl from '../controllers/love.controller';
@@ -8,6 +9,8 @@ import { getGiftIdeas, createGiftIdea, updateGiftIdea, deleteGiftIdea } from '..
 
 const router = Router();
 router.use(requireAuth);
+// Zona Pro: en NoutLife Lite toda la zona responde 402 (lo guardado se conserva).
+router.use(requireProZone('love'));
 
 router.get('/dashboard',                                     ctrl.getLoveDashboard);
 router.get('/',                                              ctrl.listRelationships);

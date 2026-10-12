@@ -1,6 +1,6 @@
 // Ajustes (SettingsDesktop): pestañas Perfil / Zonas / Juego / Datos / Acerca de,
 // tema en vivo, guardar con loading + toast, zona de peligro y resumen de cuenta.
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ZoneShell } from '@/components/ambience';
 import { Gears, HangingTools, Workbench } from '@/components/settings/Workshop';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -28,9 +28,9 @@ import type { Subscription } from '@noutlife/shared';
 import { ZoneToggleList } from '@/components/settings/ZoneOrderEditor';
 import { PrivacyPanel } from '@/components/settings/PrivacyPanel';
 import { PageHeader } from '@/components/layout/PageHeader';
-import * as authService from '@/services/auth.service';
+import { DangerDialog } from '@/components/settings/DangerDialog';
 import {
-  Badge, Button, Card, Field, IconChip, Input, Modal, ProgressBar, SegmentedControl, Select, Switch, AnimatedValue,
+  Badge, Button, Card, Field, IconChip, Input, ProgressBar, SegmentedControl, Select, Switch, AnimatedValue,
 } from '@/components/ui/lq';
 
 type TabId = 'profile' | 'privacy' | 'zones' | 'game' | 'data' | 'about';
@@ -62,22 +62,6 @@ function planLine(sub: Subscription): string {
   return 'NoutLife Lite, gratis.';
 }
 
-/** Palabra que se escribe para confirmar cada acción irreversible. */
-const DANGER_WORD = { reset: 'REINICIAR', delete: 'ELIMINAR' } as const;
-
-/**
- * Tras reiniciar o eliminar: borra el estado local de la cuenta (tutorial,
- * borradores, Sabio…) y recarga, para que no quede nada de antes en pantalla.
- * Se conservan solo las preferencias del dispositivo.
- */
-function clearLocalAccountState() {
-  const keep = new Set(['lq_audio', 'lq_pwa_dismissed', 'lq-nav-sections', 'lq_device_id']);
-  try {
-    for (const k of Object.keys(localStorage)) if (/^lq[-_]/.test(k) && !keep.has(k)) localStorage.removeItem(k);
-    sessionStorage.clear();
-  } catch { /* sin storage */ }
-}
-
 /** Sección = banco de trabajo del taller (eyebrow + título + descripción); `fit` sube al guardar y las piezas encajan. */
 function Section(props: { eyebrow?: string; title: string; description?: string; aside?: ReactNode; children: ReactNode; className?: string; fit?: number }) {
   return <Workbench {...props} />;
@@ -90,46 +74,6 @@ function SwitchRow({ id, label, description, checked, onChange, disabled, last }
       <div className="min-w-0 flex-1"><label htmlFor={id} className="text-label-lg md:text-body-md md:font-semibold">{label}</label><p className="text-body-sm text-on-surface-light">{description}</p></div>
       <Switch id={id} checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
     </div>
-  );
-}
-
-function DangerDialog({ mode, onClose }: { mode: 'reset' | 'delete' | null; onClose: () => void }) {
-  const [word, setWord] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  useEffect(() => { if (mode) { setWord(''); setError(''); } }, [mode]);
-  const target = mode ? DANGER_WORD[mode] : '';
-
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    setBusy(true); setError('');
-    try {
-      if (mode === 'delete') await authService.deleteAccount();
-      else await api.post('/auth/factory-reset', { confirmation: 'RESET_MY_NOUTLIFE' });
-      clearLocalAccountState();
-      window.location.assign(mode === 'delete' ? '/login' : '/');
-    } catch (err) {
-      setError((err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'No se pudo completar. Inténtalo de nuevo.');
-      setBusy(false);
-    }
-  }
-  return (
-    <Modal open={mode !== null} onClose={onClose} title={mode === 'delete' ? '¿Eliminar tu cuenta?' : '¿Reiniciar tu cuenta?'}>
-      <form noValidate onSubmit={submit} className="flex flex-col gap-4">
-        <p className="text-body-md text-on-surface">
-          {mode === 'delete'
-            ? 'Se borran para siempre tu cuenta y todos tus datos: personaje, zonas, cartas, fotos y videos. No se puede deshacer.'
-            : 'Se borran para siempre tu personaje, XP, Gold y todos tus registros, también los del gimnasio. Tu cuenta se conserva y empiezas de cero.'}
-        </p>
-        <Field label={`Escribe ${target} para confirmar`} error={error || undefined}>
-          <Input value={word} onChange={(e) => setWord(e.target.value.toUpperCase())} autoCapitalize="characters" spellCheck={false} className="font-mono" />
-        </Field>
-        <div className="flex justify-end gap-3">
-          <Button variant="secondary" size="md" onClick={onClose}>Cancelar</Button>
-          <Button type="submit" variant="danger" size="md" loading={busy} disabled={word !== target}>{mode === 'delete' ? 'Eliminar cuenta' : 'Reiniciar cuenta'}</Button>
-        </div>
-      </form>
-    </Modal>
   );
 }
 

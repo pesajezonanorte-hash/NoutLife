@@ -1,6 +1,7 @@
 import { publicErrorMessage } from '../middleware/error.middleware';
 import { Router } from 'express';
 import { requireAuth, AuthRequest } from '../middleware/auth.middleware';
+import { requireProZone } from '../middleware/plan.middleware';
 import {
   logBodyWeight,
   getBodyWeights,
@@ -15,6 +16,8 @@ import {
 
 const router = Router();
 router.use(requireAuth);
+// Zona Pro: en NoutLife Lite toda la zona responde 402 (lo guardado se conserva).
+router.use(requireProZone('gym'));
 
 // Body Weight
 router.post('/body-weight', async (req, res) => {

@@ -1,7 +1,7 @@
 import type { NextFunction, Response } from 'express';
 import type { AuthRequest } from './auth.middleware';
 import { prisma } from '../lib/prisma';
-import { LITE_LIMITS } from '../lib/plans';
+import { LITE_LIMITS, PRO_ZONE_LABELS, type ProZone } from '../lib/plans';
 import { getPlan } from '../services/billing.service';
 
 /** Funciones que Lite limita. El cliente abre el modal de Pro con el mensaje de cada una. */
@@ -18,6 +18,24 @@ export function sendProRequired(res: Response, feature: ProFeature): void {
   res.status(402).json({ error: PRO_MESSAGES[feature], code: 'PRO_REQUIRED', feature });
 }
 
+/** Candados de Lite añadidos con el paywall: las zonas Pro y el límite de rutinas. */
+export type ProLock = ProZone | 'routines';
+
+export function proLockMessage(lock: ProLock): string {
+  return lock === 'routines'
+    ? `NoutLife Lite admite ${LITE_LIMITS.activeRoutines} rutinas activas. Con Pro no hay límite.`
+    : `${PRO_ZONE_LABELS[lock]} es una zona de NoutLife Pro.`;
+}
+
+/**
+ * 402 de un candado. Va en `lock` y no en `feature` a propósito: las versiones
+ * de la web anteriores a los candados solo abren el diálogo con `feature`, y
+ * con un motivo que no conocen fallarían al pintarlo.
+ */
+export function sendProLocked(res: Response, lock: ProLock): void {
+  res.status(402).json({ error: proLockMessage(lock), code: 'PRO_REQUIRED', lock });
+}
+
 /** Solo Pro: toda acción de IA que la persona pide (el 402 abre el diálogo de Pro). */
 export function requirePro(feature: ProFeature) {
   return async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
@@ -30,12 +48,36 @@ export function requirePro(feature: ProFeature) {
   };
 }
 
+/** Zona solo de Pro: en Lite, toda la API de la zona responde 402. Lo guardado no se toca. */
+export function requireProZone(zone: ProZone) {
+  return async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      if ((await getPlan(req.userId!)) === 'pro') { next(); return; }
+      sendProLocked(res, zone);
+    } catch (err) {
+      next(err);
+    }
+  };
+}
+
 /** Lite: como mucho LITE_LIMITS.activeHabits hábitos activos. Los que ya existían se conservan. */
 export async function limitActiveHabits(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     if ((await getPlan(req.userId!)) === 'pro') { next(); return; }
     const active = await prisma.habit.count({ where: { userId: req.userId!, isActive: true } });
     if (active >= LITE_LIMITS.activeHabits) { sendProRequired(res, 'habits'); return; }
+    next();
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** Lite: como mucho LITE_LIMITS.activeRoutines rutinas activas. Las que ya existían se conservan. */
+export async function limitActiveRoutines(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    if ((await getPlan(req.userId!)) === 'pro') { next(); return; }
+    const active = await prisma.ritual.count({ where: { userId: req.userId!, isActive: true } });
+    if (active >= LITE_LIMITS.activeRoutines) { sendProLocked(res, 'routines'); return; }
     next();
   } catch (err) {
     next(err);

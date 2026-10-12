@@ -10,7 +10,7 @@ import type { Subscription } from '@noutlife/shared';
 import { AccordionItem, Badge, Button, Card } from '@/components/ui/lq';
 import { cn } from '@/lib/utils';
 import { useMotionReduced } from '@/lib/motion';
-import { LITE_LIMITS, PLAN_ROWS, PRO_PER_DAY_COP, PRO_PRICE_COP, TRIAL_DAYS, formatCop } from '@/lib/plan';
+import { LITE_LIMITS, PLAN_ROWS, PRO_PER_DAY_COP, PRO_PRICE_COP, PRO_ZONE_COUNT, TRIAL_DAYS, formatCop } from '@/lib/plan';
 import { TrialRibbon } from './TrialRibbon';
 
 const PRICE = formatCop(PRO_PRICE_COP);
@@ -19,17 +19,17 @@ const PER_DAY = formatCop(PRO_PER_DAY_COP);
 export const PRICING_HOOK = `${TRIAL_DAYS} días de Pro gratis. $0 hoy.`;
 
 const LITE_POINTS = [
-  `Hasta ${LITE_LIMITS.activeHabits} hábitos activos`,
+  'Inicio, misiones, logros, agenda y social',
+  `Hasta ${LITE_LIMITS.activeHabits} hábitos y ${LITE_LIMITS.activeRoutines} rutinas activos`,
   `Historial de los últimos ${LITE_LIMITS.historyDays} días`,
-  'Sin IA: el Sabio y los análisis son de Pro',
-  'Todas las zonas, misiones y logros',
+  'Zonas Pro con candado y sin IA',
 ];
 
 const PRO_POINTS = [
+  `Las ${PRO_ZONE_COUNT} zonas: Finanzas, Gimnasio, Comida, Sueño, Diario y más`,
   'El Sabio con IA y análisis de hábitos, finanzas y entrenos',
-  'Hábitos ilimitados',
+  'Hábitos y rutinas ilimitados',
   'Historial y analíticas completas',
-  'Misiones sugeridas por el Sabio',
   `Tarifa congelada: ${PRICE}/mes mientras sigas en Pro`,
 ];
 
@@ -44,7 +44,7 @@ const FAQ: Array<{ q: string; a: string }> = [
   },
   {
     q: '¿Qué pasa si cancelo o falla el cobro?',
-    a: `Tu cuenta pasa a NoutLife Lite y sigue funcionando. No se borra nada: si tenías más de ${LITE_LIMITS.activeHabits} hábitos se conservan todos, y tu historial completo vuelve a verse cuando activas Pro.`,
+    a: `Tu cuenta pasa a NoutLife Lite y sigue funcionando. No se borra nada: si tenías más de ${LITE_LIMITS.activeHabits} hábitos se conservan todos, y las zonas Pro y tu historial completo vuelven a abrirse cuando activas Pro.`,
   },
   {
     q: '¿Mi método de pago está seguro?',
@@ -163,7 +163,7 @@ export function PricingSection({ mode, subscription, title, description, showRib
             <span className="text-body-md text-on-surface-light">siempre</span>
           </p>
           <Points items={LITE_POINTS} tone="lite" />
-          <p className="mt-auto border-t border-border pt-4 text-body-sm text-on-surface-light">No pide método de pago. Es donde queda tu cuenta si no continúas con Pro, con todo lo que ya guardaste.</p>
+          <p className="mt-auto border-t border-border pt-4 text-body-sm text-on-surface-light">Nunca se cobra. Es donde queda tu cuenta si no continúas con Pro, con todo lo que ya guardaste.</p>
         </Card>
       </div>
 

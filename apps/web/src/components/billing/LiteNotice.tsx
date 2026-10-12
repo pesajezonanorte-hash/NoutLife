@@ -3,10 +3,10 @@ import { Gem } from 'lucide-react';
 import { Button } from '@/components/ui/lq';
 import { cn } from '@/lib/utils';
 import { usePlanStore } from '@/store/planStore';
-import type { ProFeature } from '@/lib/plan';
+import type { ProFeature, ProLock } from '@/lib/plan';
 
 /** Aviso discreto de un límite de NoutLife Lite, con acceso al diálogo de Pro. */
-export function LiteNotice({ feature, children, className }: { feature: ProFeature; children: ReactNode; className?: string }) {
+export function LiteNotice({ feature, children, className }: { feature: ProFeature | ProLock; children: ReactNode; className?: string }) {
   const openUpgrade = usePlanStore((s) => s.openUpgrade);
   return (
     <div className={cn('flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl border border-secondary/40 bg-secondary/[var(--lq-soft-alpha)] py-2 pl-4 pr-2', className)}>

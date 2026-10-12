@@ -12,11 +12,14 @@ import { useAuthStore } from '@/store/authStore';
 import { useCustomZoneStore, type CustomZoneNav } from '@/store/customZoneStore';
 import { zoneIconOf } from '@/components/zones/zoneIcons';
 import { DEFAULT_ORDER, PINNED_COUNT, useNavStore } from '@/store/navStore';
+import { proZoneOf } from '@/lib/plan';
 
 export interface NavEntry {
   to: string;
   label: string;
   icon: LucideIcon;
+  /** Zona Pro vista desde NoutLife Lite: se muestra con candado. */
+  locked?: boolean;
 }
 
 export interface NavSection {
@@ -125,22 +128,34 @@ export function buildNav(order: string[] | undefined, hidden: string[] = [], ext
   };
 }
 
-/** Entradas de las zonas personalizadas (las carga una vez por sesión). */
+/**
+ * Entradas de las zonas personalizadas (las carga una vez por sesión). «Mis
+ * zonas» es de Pro: en Lite no se piden (la API respondería 402).
+ */
 export function useCustomZoneEntries(): NavEntry[] {
   const userId = useAuthStore((s) => s.user?.id);
+  const lite = useAuthStore((s) => s.user?.subscription?.plan === 'lite');
   const zones = useCustomZoneStore((s) => s.zones);
   const ensure = useCustomZoneStore((s) => s.ensure);
-  useEffect(() => { if (userId) ensure(String(userId)); }, [userId, ensure]);
-  return useMemo(() => customZoneEntries(zones), [zones]);
+  useEffect(() => { if (userId && !lite) ensure(String(userId)); }, [userId, lite, ensure]);
+  return useMemo(() => (lite ? [] : customZoneEntries(zones)), [zones, lite]);
+}
+
+/** En Lite, las zonas Pro llevan candado (siguen visibles: así se sabe qué abre Pro). */
+function withLocks(nav: ReturnType<typeof buildNav>, lite: boolean): ReturnType<typeof buildNav> {
+  if (!lite) return nav;
+  const lock = (entry: NavEntry): NavEntry => (proZoneOf(entry.to) ? { ...entry, locked: true } : entry);
+  return { primary: nav.primary.map(lock), sections: nav.sections.map((s) => ({ ...s, items: s.items.map(lock) })) };
 }
 
 /** Navegación del usuario actual: Inicio + sus zonas principales + Perfil, y el resto por secciones. */
 export function useNav() {
   const userId = String(useAuthStore((s) => s.user?.id) ?? 'anon');
+  const lite = useAuthStore((s) => s.user?.subscription?.plan === 'lite');
   const order = useNavStore((s) => s.byUser[userId]);
   const hidden = useNavStore((s) => s.hiddenByUser?.[userId]);
   const extra = useCustomZoneEntries();
-  return useMemo(() => buildNav(order, hidden, extra), [order, hidden, extra]);
+  return useMemo(() => withLocks(buildNav(order, hidden, extra), lite), [order, hidden, extra, lite]);
 }
 
 /** Navegación por defecto (búsqueda rápida y breadcrumb). */

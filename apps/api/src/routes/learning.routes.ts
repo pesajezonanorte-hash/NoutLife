@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.middleware';
+import { requireProZone } from '../middleware/plan.middleware';
 import type { AuthRequest } from '../middleware/auth.middleware';
 import { Response } from 'express';
 import { validate } from '../middleware/validate.middleware';
@@ -9,6 +10,8 @@ import * as svc from '../services/learning.service';
 
 const router = Router();
 router.use(requireAuth);
+// Zona Pro: en NoutLife Lite toda la zona responde 402 (lo guardado se conserva).
+router.use(requireProZone('learning'));
 
 router.get('/',        ctrl.listLearning);
 router.post('/',       validate(createLearningSchema), ctrl.createLearning);

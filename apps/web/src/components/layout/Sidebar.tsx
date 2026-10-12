@@ -15,6 +15,7 @@ import { ease } from '@/lib/motion';
 import { useAuthStore } from '@/store/authStore';
 import { getLevelTitle } from '@/lib/gameProgress';
 import { BrandLockup } from './Brand';
+import { NavLock } from './NavLock';
 import { UTILITY_NAV, matchesRoute, useNav, type NavEntry, type NavSection } from './nav';
 
 const OPEN_KEY = 'lq-nav-sections';
@@ -33,7 +34,7 @@ const reveal =
  * Ítem: ícono fijo a 24 px del borde (centrado en 72 px). El fondo de hover/activo
  * es una capa absoluta de 48 px que se estira al desplegar, sin afectar al layout.
  */
-function SideLink({ to, label, icon: Icon }: NavEntry) {
+function SideLink({ to, label, icon: Icon, locked }: NavEntry) {
   const { pathname } = useLocation();
   const active = matchesRoute(pathname, to);
   return (
@@ -56,7 +57,10 @@ function SideLink({ to, label, icon: Icon }: NavEntry) {
       {active && (
         <span aria-hidden className="absolute -left-3 bottom-2.5 top-2.5 w-[3px] origin-center animate-grow-y rounded-r-[3px] bg-primary" />
       )}
-      <Icon aria-hidden className="relative size-6 shrink-0 transition-transform duration-300 ease-[cubic-bezier(.34,1.56,.64,1)] group-hover/link:scale-110 group-active/link:scale-95" strokeWidth={1.75} />
+      <span className="relative flex shrink-0">
+        <Icon aria-hidden className="relative size-6 shrink-0 transition-transform duration-300 ease-[cubic-bezier(.34,1.56,.64,1)] group-hover/link:scale-110 group-active/link:scale-95" strokeWidth={1.75} />
+        {locked && <NavLock />}
+      </span>
       <span className={cn('relative truncate', reveal)}>{label}</span>
     </NavLink>
   );

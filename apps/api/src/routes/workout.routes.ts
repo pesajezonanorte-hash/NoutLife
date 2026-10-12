@@ -1,11 +1,14 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.middleware';
+import { requireProZone } from '../middleware/plan.middleware';
 import { validate } from '../middleware/validate.middleware';
 import { createWorkoutSchema } from '../schemas/activity.schemas';
 import * as ctrl from '../controllers/workout.controller';
 
 const router = Router();
 router.use(requireAuth);
+// Zona Pro: en NoutLife Lite toda la zona responde 402 (lo guardado se conserva).
+router.use(requireProZone('gym'));
 
 router.get('/',              ctrl.listWorkouts);
 router.post('/',             validate(createWorkoutSchema), ctrl.createWorkout);

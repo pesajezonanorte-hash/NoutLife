@@ -4,12 +4,15 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Angry, CheckCircle2, ChevronRight, Flag, Frown, Laugh, Meh, NotebookPen, Plus, Smile, Wallet, Zap, type LucideIcon,
+  Angry, CheckCircle2, ChevronRight, Flag, Frown, Laugh, Lock, Meh, NotebookPen, Plus, Smile, Wallet, Zap, type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button, CheckButton, EmptyState, Field, Input, ResponsiveDialog, SegmentedControl, Textarea, type Tone, PageLoader } from '@/components/ui/lq';
 import { LOADING_COPY } from '@/lib/loadingCopy';
+import type { ProZone } from '@/lib/plan';
 import { softTone } from '@/components/ui/lq/tones';
+import { useAuthStore } from '@/store/authStore';
+import { usePlanStore } from '@/store/planStore';
 import { useShellStore, type QuickAction } from '@/store/shellStore';
 import { useUIStore } from '@/store/uiStore';
 import { useToastStore } from '@/hooks/useToast';
@@ -30,6 +33,9 @@ const ACTIONS: ActionDef[] = [
   { id: 'note', label: 'Nota rápida', description: 'Guárdala en tu diario', icon: NotebookPen, tone: 'info' },
   { id: 'checkin', label: 'Check-in', description: 'Ánimo y energía de hoy', icon: Zap, tone: 'error' },
 ];
+
+/** Acciones que escriben en una zona Pro: en NoutLife Lite llevan candado y abren el diálogo de Pro. */
+const ACTION_ZONES: Partial<Record<ActionDef['id'], ProZone>> = { expense: 'finances', note: 'journal' };
 
 function useSubmit(fn: () => Promise<void>) {
   const [saving, setSaving] = useState(false);
@@ -262,10 +268,25 @@ export function QuickActions() {
   const setOpen = useShellStore((s) => s.setQuickOpen);
   const action = useShellStore((s) => s.quickAction);
   const openAction = useShellStore((s) => s.openQuickAction);
+  const lite = useAuthStore((s) => s.user?.subscription?.plan === 'lite');
+  const openUpgrade = usePlanStore((s) => s.openUpgrade);
   const done = () => openAction(null);
+  const lockOf = (id: ActionDef['id']) => (lite ? ACTION_ZONES[id] : undefined);
+
+  // Una acción de zona Pro abierta desde otro sitio también pasa por el candado.
+  useEffect(() => {
+    const zone = action && lite ? ACTION_ZONES[action] : undefined;
+    if (!zone) return;
+    openAction(null);
+    openUpgrade(zone);
+  }, [action, lite, openAction, openUpgrade]);
 
   const choose = (id: ActionDef['id']) => {
-    if (id === 'new-habit') {
+    const zone = lockOf(id);
+    if (zone) {
+      setOpen(false);
+      openUpgrade(zone);
+    } else if (id === 'new-habit') {
       setOpen(false);
       navigate('/habits?new=1');
     } else {
@@ -289,9 +310,11 @@ export function QuickActions() {
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-label-lg text-on-background">{label}</span>
-                  <span className="block truncate text-body-sm text-on-surface-light">{description}</span>
+                  <span className="block truncate text-body-sm text-on-surface-light">{lockOf(id) ? 'Con NoutLife Pro' : description}</span>
                 </span>
-                <ChevronRight aria-hidden className="size-5 shrink-0 text-on-surface-light" strokeWidth={1.75} />
+                {lockOf(id)
+                  ? <Lock aria-hidden className="size-4 shrink-0 text-secondary-text" strokeWidth={2} />
+                  : <ChevronRight aria-hidden className="size-5 shrink-0 text-on-surface-light" strokeWidth={1.75} />}
               </button>
             </li>
           ))}

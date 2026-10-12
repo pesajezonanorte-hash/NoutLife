@@ -55,6 +55,11 @@ export interface Subscription {
   pendingPayment: boolean;
   /** Puede empezar los 7 días de Pro vinculando un medio de pago (el servidor lo confirma al vincularlo). */
   trialAvailable: boolean;
+  /**
+   * Paywall de entrada: no entra al Dashboard hasta vincular un medio de pago.
+   * Lo decide la API (false sin llaves de Wompi). Ausente en APIs anteriores: no bloquea.
+   */
+  paywall?: boolean;
   priceCop: number;
   trialDays: number;
 }

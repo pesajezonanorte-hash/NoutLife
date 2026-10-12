@@ -1,6 +1,7 @@
 import { publicErrorMessage } from '../middleware/error.middleware';
 import { Router } from 'express';
 import { requireAuth, AuthRequest } from '../middleware/auth.middleware';
+import { requireProZone } from '../middleware/plan.middleware';
 import {
   getRecurringTransactions, createRecurringTransaction, updateRecurringTransaction, deleteRecurringTransaction,
   getDebts, createDebt, updateDebt, addDebtPayment, deleteDebt,
@@ -9,6 +10,8 @@ import {
 
 const router = Router();
 router.use(requireAuth);
+// Zona Pro: en NoutLife Lite toda la zona responde 402 (lo guardado se conserva).
+router.use(requireProZone('finances'));
 
 // Recurring Transactions
 router.get('/recurring', async (req, res) => {

@@ -4,8 +4,8 @@ import { hasAIProvider } from '../lib/ai';
 import { fingerprintSecret, paymentKey, type NequiProof } from '../lib/trial-keys';
 import { claimTrial, trialAvailable } from './trial.service';
 import {
-  LITE_LIMITS, PRO_AMOUNT_IN_CENTS, PRO_CURRENCY, PRO_PRICE_COP, RENEWAL_GRACE_MS, TRIAL_DAYS,
-  accessEndsAt, addDays, addMonth, hasProAccess, nextAction, paymentReference, planOf, statusOf, trialEndOf, willRenew,
+  LITE_LIMITS, PRO_AMOUNT_IN_CENTS, PRO_CURRENCY, PRO_PRICE_COP, PRO_ZONES, RENEWAL_GRACE_MS, TRIAL_DAYS,
+  accessEndsAt, addDays, addMonth, hasProAccess, nextAction, paymentReference, paywallRequired, planOf, statusOf, trialEndOf, willRenew,
   type Plan, type SubscriptionStatus,
 } from '../lib/plans';
 import {
@@ -62,11 +62,15 @@ export interface SubscriptionView {
   pendingPayment: boolean;
   /** Puede empezar la prueba vinculando un medio de pago (el servidor la confirma al vincularlo). */
   trialAvailable: boolean;
+  /** Paywall de entrada: no entra al Dashboard hasta vincular un medio de pago. */
+  paywall: boolean;
   priceCop: number;
   trialDays: number;
 }
 
-export function subscriptionView(user: SubscriptionUser, now = new Date(), pendingPayment = false, canTrial = false): SubscriptionView {
+export function subscriptionView(
+  user: SubscriptionUser, now = new Date(), pendingPayment = false, canTrial = false, billingEnabled = wompiConfig().configured,
+): SubscriptionView {
   const status = statusOf(user);
   return {
     status,
@@ -82,6 +86,7 @@ export function subscriptionView(user: SubscriptionUser, now = new Date(), pendi
     lastPaymentError: user.lastPaymentError,
     pendingPayment,
     trialAvailable: canTrial,
+    paywall: paywallRequired(user, billingEnabled),
     priceCop: PRO_PRICE_COP,
     trialDays: TRIAL_DAYS,
   };
@@ -124,7 +129,7 @@ export async function canUseAI(userId: string): Promise<boolean> {
   return hasAIProvider() && isPro(userId);
 }
 
-/** Pasa la cuenta a Lite. Sin bloqueo: todo sigue guardado y funciona con los límites de Lite. */
+/** Pasa la cuenta a Lite. No se borra nada: funciona con los límites de Lite y las zonas Pro quedan con candado. */
 async function moveToLite(userId: string, error: string | null): Promise<void> {
   await prisma.user.updateMany({
     where: { id: userId, NOT: { subscriptionStatus: 'lite' } },
@@ -457,6 +462,7 @@ export async function getBillingConfig() {
     priceCop: PRO_PRICE_COP,
     trialDays: TRIAL_DAYS,
     liteLimits: LITE_LIMITS,
+    proZones: PRO_ZONES,
     termsUrl: acceptance?.termsUrl ?? null,
     personalDataUrl: acceptance?.personalDataUrl ?? null,
   };
