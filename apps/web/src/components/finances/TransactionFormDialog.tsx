@@ -1,6 +1,6 @@
 // Nueva transacción (sin prototipo propio: formulario del sistema). Mismo
 // payload que el antiguo TransactionModal. Con el gasto «Ropa para mí» aparece
-// el atajo «Ir al Espejo» para registrar la prenda recién comprada.
+// el atajo «Ir al Armario» para registrar la prenda recién comprada.
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles } from 'lucide-react';
@@ -92,13 +92,13 @@ export function TransactionFormDialog({ open, onClose, onSaved }: {
             })}
           </div>
         </fieldset>
-        {/* Atajo contextual: «Ropa para mí» conecta el gasto con el Espejo,
+        {/* Atajo contextual: «Ropa para mí» conecta el gasto con el Armario,
             para registrar la prenda que acabas de comprar. */}
         {type === 'EXPENSE' && category === 'CLOTHING_FOR_ME' && (
           <div role="note" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/40 bg-primary/[var(--lq-soft-alpha)] p-3">
-            <p className="min-w-0 flex-1 text-body-sm text-on-surface">¿Acabas de comprar ropa? Añade la prenda a tu Espejo.</p>
-            <Button type="button" variant="secondary" size="sm" onClick={() => { onClose(); navigate('/espejo?add=prenda'); }}>
-              <Sparkles aria-hidden className="size-4" />Ir al Espejo
+            <p className="min-w-0 flex-1 text-body-sm text-on-surface">¿Acabas de comprar ropa? Añade la prenda a tu Armario.</p>
+            <Button type="button" variant="secondary" size="sm" onClick={() => { onClose(); navigate('/armario?add=prenda'); }}>
+              <Sparkles aria-hidden className="size-4" />Ir al Armario
             </Button>
           </div>
         )}

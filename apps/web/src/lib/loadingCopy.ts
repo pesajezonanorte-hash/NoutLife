@@ -38,7 +38,7 @@ export const LOADING_COPY = {
     'Abriendo tu tocador…',
   ],
   glowUpWardrobe: [
-    'Abriendo tu espejo…',
+    'Abriendo tu armario…',
     'Ordenando tus prendas…',
     'Preparando tu estilo…',
   ],

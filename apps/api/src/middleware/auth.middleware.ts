@@ -45,3 +45,16 @@ export function requireAuth(req: AuthRequest, res: Response, next: NextFunction)
     res.status(401).json({ error: 'Token inválido o expirado' });
   }
 }
+
+/** Identifica a la persona si trae token válido, sin exigirlo (enlaces públicos que también aceptan invitados). */
+export function optionalAuth(req: AuthRequest, _res: Response, next: NextFunction): void {
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith('Bearer ')) {
+    try {
+      const payload = verifyAccessToken(authHeader.slice(7));
+      req.userId = payload.userId;
+      req.userEmail = payload.email;
+    } catch { /* token caducado: se trata como anónimo */ }
+  }
+  next();
+}

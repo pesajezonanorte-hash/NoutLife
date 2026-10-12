@@ -11,8 +11,8 @@ export function PrivatePhotoNotice({ className }: { className?: string }) {
     >
       <ShieldCheck aria-hidden className="mt-0.5 size-5 shrink-0" strokeWidth={1.75} />
       <div className="flex flex-col gap-0.5">
-        <p className="text-label-md">Tus fotos son privadas</p>
-        <p className="text-body-sm text-on-surface-light">Se guardan en tu cuenta y solo tú puedes verlas; no se publican ni se comparten sin tu permiso.</p>
+        <p className="text-label-md">Privacidad garantizada</p>
+        <p className="text-body-sm text-on-surface-light">Tus fotos son estrictamente privadas, se almacenan de forma segura y nadie más tiene acceso a ellas.</p>
       </div>
     </aside>
   );

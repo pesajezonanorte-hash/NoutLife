@@ -52,6 +52,8 @@ const loaders = {
   AgendaPage: () => import('./pages/Agenda'),
   LifePage: () => import('./pages/Life'),
   ChecklistsPage: () => import('./pages/Checklists'),
+  ObstaclesPage: () => import('./pages/Obstacles'),
+  CustomZoneDetailPage: () => import('./pages/CustomZoneDetail'),
   SharedResourcePage: () => import('./pages/SharedResource'),
   RitualsPage: () => import('./pages/Rituals'),
   GlowUpPage: () => import('./pages/GlowUp'),
@@ -107,20 +109,23 @@ const routeLoaders: Record<string, () => Promise<unknown>> = {
   '/agenda': loaders.AgendaPage,
   '/life': loaders.LifePage,
   '/checklists': loaders.ChecklistsPage,
+  '/obstaculos': loaders.ObstaclesPage,
   '/custom-zones': loaders.CustomZonesPage,
   '/rituals': loaders.RitualsPage,
-  '/espejo': loaders.GlowUpPage,
+  '/armario': loaders.GlowUpPage,
   '/wisdom': loaders.WisdomPage,
   '/about': loaders.AboutPage,
   '/faq': loaders.FAQPage,
 };
 
 // Rutas que solo redirigen (no esperan ningún bundle).
-const REDIRECTS = new Set(['/rituales', '/character', '/friends', '/guild', '/glow-up', '/armario']);
+const REDIRECTS = new Set(['/rituales', '/character', '/friends', '/guild', '/glow-up', '/espejo']);
 
 function loaderForPath(pathname: string) {
   if (REDIRECTS.has(pathname)) return null;
   if (/^\/habits\/[^/]+$/.test(pathname)) return loaders.HabitDetailPage;
+  // Zonas creadas por el usuario: rutas dinámicas /zonas/:id.
+  if (/^\/zonas\/[^/]+$/.test(pathname)) return loaders.CustomZoneDetailPage;
   return routeLoaders[pathname] ?? loaders.NotFoundPage;
 }
 
@@ -234,12 +239,14 @@ function AnimatedRoutes({ location }: { location: ReturnType<typeof useLocation>
           <Route path="/agenda"       element={<SafePage><DeferredLazyPage load={loaders.AgendaPage} /></SafePage>} />
           <Route path="/life"         element={<SafePage><DeferredLazyPage load={loaders.LifePage} /></SafePage>} />
           <Route path="/custom-zones" element={<SafePage><DeferredLazyPage load={loaders.CustomZonesPage} /></SafePage>} />
+          <Route path="/zonas/:id" element={<SafePage><DeferredLazyPage load={loaders.CustomZoneDetailPage} /></SafePage>} />
           <Route path="/checklists" element={<SafePage><DeferredLazyPage load={loaders.ChecklistsPage} /></SafePage>} />
+          <Route path="/obstaculos" element={<SafePage><DeferredLazyPage load={loaders.ObstaclesPage} /></SafePage>} />
           <Route path="/rituals"  element={<SafePage><DeferredLazyPage load={loaders.RitualsPage} /></SafePage>} />
           <Route path="/rituales" element={<Navigate to="/rituals" replace />} />
-          <Route path="/espejo"   element={<SafePage><DeferredLazyPage load={loaders.GlowUpPage} /></SafePage>} />
-          <Route path="/armario"  element={<Navigate to="/espejo" replace />} />
-          <Route path="/glow-up"  element={<Navigate to="/espejo" replace />} />
+          <Route path="/armario"  element={<SafePage><DeferredLazyPage load={loaders.GlowUpPage} /></SafePage>} />
+          <Route path="/espejo"   element={<Navigate to={{ pathname: '/armario', search: window.location.search }} replace />} />
+          <Route path="/glow-up"  element={<Navigate to="/armario" replace />} />
           <Route path="/wisdom"   element={<SafePage><DeferredLazyPage load={loaders.WisdomPage} /></SafePage>} />
           <Route path="/about"    element={<SafePage><DeferredLazyPage load={loaders.AboutPage} /></SafePage>} />
           <Route path="/faq"      element={<SafePage><DeferredLazyPage load={loaders.FAQPage} /></SafePage>} />

@@ -234,7 +234,7 @@ export async function getActivityRadar(userId: string, period = 'week', now = ne
     { subject: 'Torre', value: ratioPercent(values.sleep, intervalDays) },
     { subject: 'Biblioteca', value: ratioPercent(values.learning, weeks * 2) },
     { subject: 'Diario', value: ratioPercent(values.journal, intervalDays) },
-    { subject: 'Espejo', value: ratioPercent(values.mirror, intervalDays) },
+    { subject: 'Armario', value: ratioPercent(values.mirror, intervalDays) },
   ];
 
   return { current: normalise(current), previous: normalise(previous) };

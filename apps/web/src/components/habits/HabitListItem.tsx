@@ -58,7 +58,7 @@ export function HabitListItem({ habit, onComplete, pending, week, variant = 'car
         <span className={cn('flex items-center gap-1 text-body-sm text-warning-text font-mono tabular-nums', variant === 'card' && 'md:hidden')}>
           <Flame aria-hidden className="size-4" strokeWidth={1.75} />
           {habit.currentStreak} {habit.currentStreak === 1 ? 'día' : 'días'}
-          {skipped && <span className="ml-1 text-on-surface-light">· omitido hoy</span>}
+          {skipped && <span className="ml-1 text-on-surface-light">· descanso hoy (no rompe la racha)</span>}
         </span>
       </Link>
       {variant === 'card' && (

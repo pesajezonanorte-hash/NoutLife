@@ -10,6 +10,30 @@ export const REVERSIBLE_HABIT_LOGS_SQL: string[] = [
   `UPDATE "habit_logs" SET "rewardsGranted" = true WHERE "completed" = true;`,
 ];
 
+export const SLEEP_DETECTION_SQL: string[] = [
+  `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "lastActiveAt" TIMESTAMP(3);`,
+  `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "sleepSuggestionStart" TIMESTAMP(3);`,
+  `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "sleepSuggestionEnd" TIMESTAMP(3);`,
+];
+
+export const SHARE_MEMBERS_SQL: string[] = [
+  `CREATE TABLE IF NOT EXISTS "resource_share_members" (
+    "id" TEXT NOT NULL,
+    "shareId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "permission" TEXT NOT NULL DEFAULT 'VIEW',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "resource_share_members_pkey" PRIMARY KEY ("id")
+  );`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "resource_share_members_shareId_userId_key" ON "resource_share_members"("shareId", "userId");`,
+  `CREATE INDEX IF NOT EXISTS "resource_share_members_userId_idx" ON "resource_share_members"("userId");`,
+  addFk('resource_share_members', 'resource_share_members_shareId_fkey', 'shareId', 'resource_shares'),
+  addFk('resource_share_members', 'resource_share_members_userId_fkey', 'userId', 'users'),
+];
+
+/** Segunda tanda del backlog (detección de sueño, miembros de listas compartidas…). */
+export const BACKLOG_V2_SQL = (): string[] => [...SLEEP_DETECTION_SQL, ...SHARE_MEMBERS_SQL];
+
 export const WARDROBE_PHOTO_SQL = `ALTER TABLE "clothing_items" ADD COLUMN IF NOT EXISTS "photoData" TEXT;`;
 
 export const BACKLOG_SQL: string[] = [

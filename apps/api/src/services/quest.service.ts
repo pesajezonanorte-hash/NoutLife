@@ -1,3 +1,4 @@
+import { queueGoogleTaskExport } from './agenda.service';
 import { prisma } from '../lib/prisma';
 import { awardXpAndGold } from './xp.service';
 import { checkAchievements } from './achievement.service';
@@ -61,7 +62,7 @@ export async function createQuest(userId: string, input: CreateQuestInput) {
     completed: obj.completed ?? false,
   }));
 
-  return prisma.quest.create({
+  const saved = await prisma.quest.create({
     data: {
       userId,
       title: input.title,
@@ -77,6 +78,8 @@ export async function createQuest(userId: string, input: CreateQuestInput) {
       parentQuestId: input.parentQuestId,
     },
   });
+  queueGoogleTaskExport(userId);
+  return saved;
 }
 
 export async function listQuests(userId: string, filters: QuestFilters = {}) {
@@ -136,7 +139,7 @@ export async function updateQuest(userId: string, questId: string, input: Update
       }))
     : undefined;
 
-  return prisma.quest.update({
+  const saved = await prisma.quest.update({
     where: { id: questId },
     data: {
       ...(input.title !== undefined && { title: input.title }),
@@ -149,16 +152,20 @@ export async function updateQuest(userId: string, questId: string, input: Update
       ...(subObjectives !== undefined && { subObjectives }),
     },
   });
+  queueGoogleTaskExport(userId);
+  return saved;
 }
 
 export async function archiveQuest(userId: string, questId: string) {
   const quest = await prisma.quest.findFirst({ where: { id: questId, userId } });
   if (!quest) throw new Error('QUEST_NOT_FOUND');
 
-  return prisma.quest.update({
+  const saved = await prisma.quest.update({
     where: { id: questId },
     data: { status: 'ARCHIVED' },
   });
+  queueGoogleTaskExport(userId);
+  return saved;
 }
 
 export async function failQuest(userId: string, questId: string) {
@@ -167,10 +174,12 @@ export async function failQuest(userId: string, questId: string) {
   });
   if (!quest) throw new Error('QUEST_NOT_FOUND');
 
-  return prisma.quest.update({
+  const saved = await prisma.quest.update({
     where: { id: questId },
     data: { status: 'FAILED' },
   });
+  queueGoogleTaskExport(userId);
+  return saved;
 }
 
 export async function toggleSubObjective(userId: string, questId: string, subObjectiveId: string, completed: boolean) {
@@ -200,6 +209,8 @@ export async function completeQuest(userId: string, questId: string) {
     where: { id: questId },
     data: { status: 'COMPLETED', completedAt: now },
   });
+  // La misión completada sale de Google Calendar.
+  queueGoogleTaskExport(userId);
 
   await prisma.questCompletion.create({
     data: { questId, userId, xpEarned: quest.xpReward, goldEarned: quest.goldReward },

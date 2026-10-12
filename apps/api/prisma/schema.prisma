@@ -163,6 +163,11 @@ model User {
   lastLoginAt      DateTime?
   /// Última petición autenticada (como mucho una escritura por hora). Mide la gente activa hoy para repartir el cupo del Sabio.
   lastSeenAt       DateTime?
+  /// Último uso visible de la app (latido del cliente cada ~5 min). La brecha entre el último uso nocturno y el primero de la mañana sugiere un descanso.
+  lastActiveAt     DateTime?
+  /// Descanso detectado automáticamente pendiente de confirmar en Sueño.
+  sleepSuggestionStart DateTime?
+  sleepSuggestionEnd   DateTime?
 
   // Red social: biografía, privacidad y presencia (en línea y zona actual).
   bio          String?
@@ -261,6 +266,7 @@ model User {
   antiHabits              AntiHabit[]
   antiHabitLogs           AntiHabitLog[]
   resourceShares          ResourceShare[] @relation("ResourceShareOwner")
+  sharedWithMe            ResourceShareMember[]
 
   @@map("users")
 }
@@ -1828,8 +1834,24 @@ model ResourceShare {
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  members      ResourceShareMember[]
 
   @@unique([ownerId, resourceType, resourceId])
   @@index([resourceType, resourceId, isActive])
   @@map("resource_shares")
+}
+
+/// Persona invitada por usuario o ID a una lista o meta compartida (no necesita el enlace público).
+model ResourceShareMember {
+  id         String        @id @default(cuid())
+  shareId    String
+  share      ResourceShare @relation(fields: [shareId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission String        @default("VIEW")
+  createdAt  DateTime      @default(now())
+
+  @@unique([shareId, userId])
+  @@index([userId])
+  @@map("resource_share_members")
 }

@@ -319,7 +319,7 @@ async function buildSageContext(userId: string): Promise<string> {
   const habitHistoryStart = addCalendarDays(today, -29);
   const tomorrow = addCalendarDays(today, 1);
 
-  const [activeQuests, habits, monthTx, workouts, sleepLogs, habitLogs] = await Promise.all([
+  const [activeQuests, habits, monthTx, workouts, sleepLogs, habitLogs, failedQuests, antiHabits] = await Promise.all([
     prisma.quest.findMany({ where: { userId, status: 'ACTIVE' }, orderBy: { deadline: 'asc' }, take: 8 }),
     prisma.habit.findMany({
       where: { userId, isActive: true },
@@ -331,13 +331,24 @@ async function buildSageContext(userId: string): Promise<string> {
     prisma.workout.findMany({
       where: { userId, date: { gte: ninetyDaysAgo, lte: now } },
       orderBy: { date: 'desc' },
-      select: { date: true, exercises: { select: { exercise: { select: { muscleGroup: true } } } } },
+      select: { date: true, exercises: { select: { sets: true, exercise: { select: { name: true, muscleGroup: true } } } } },
     }),
     prisma.sleepLog.findMany({ where: { userId, isNap: false, date: { gte: sevenDaysAgo } }, select: { duration: true } }),
     prisma.habitLog.findMany({
       where: { userId, completed: true, date: { gte: habitHistoryStart, lt: tomorrow } },
       select: { habitId: true, date: true },
     }),
+    prisma.quest.findMany({
+      where: { userId, status: 'FAILED', updatedAt: { gte: thirtyDaysAgo } },
+      orderBy: { updatedAt: 'desc' },
+      take: 5,
+      select: { title: true, category: true },
+    }),
+    prisma.antiHabit.findMany({
+      where: { userId, isActive: true },
+      take: 8,
+      select: { title: true, targetPerWeek: true, logs: { where: { date: { gte: addCalendarDays(today, -29) } }, select: { date: true, occurred: true, amount: true } } },
+    }).catch(() => []),
   ]);
 
   let monthIncome = 0;
@@ -369,8 +380,15 @@ async function buildSageContext(userId: string): Promise<string> {
       if (loggedDays.has(date.getTime())) completed += 1;
     }
     const rate = scheduled ? Math.round((completed / scheduled) * 100) : 0;
-    return `- ${habit.title}: ${completed}/${scheduled} días programados (${rate}%) en 30 días; racha actual ${habit.currentStreak}, máxima ${habit.longestStreak}.`;
+    return { title: habit.title, missed: scheduled - completed, rate, scheduled,
+      line: `- ${habit.title}: ${completed}/${scheduled} días programados (${rate}%) en 30 días; racha actual ${habit.currentStreak}, máxima ${habit.longestStreak}.` };
   });
+  // Los hábitos que más se fallan: el Sabio los menciona sin esperar a que se lo pidan.
+  const struggling = habitHistory
+    .filter((h) => h.scheduled >= 4 && h.rate < 60)
+    .sort((a, b) => a.rate - b.rate)
+    .slice(0, 3)
+    .map((h) => `«${h.title}» (${h.missed} días fallados, ${h.rate}% de cumplimiento)`);
 
   const lastWorkout = workouts[0];
   const daysSinceLast = lastWorkout ? Math.max(0, Math.floor((now.getTime() - lastWorkout.date.getTime()) / 86400000)) : null;
@@ -383,6 +401,38 @@ async function buildSageContext(userId: string): Promise<string> {
       if (group) muscleCounts.set(group, (muscleCounts.get(group) ?? 0) + 1);
     }
   }
+  // Progreso de fuerza: mejor peso de cada ejercicio frecuente, últimos 30 días vs. los 60 anteriores.
+  const bestWeight = (sets: unknown) => Array.isArray(sets)
+    ? sets.reduce((max: number, set) => Math.max(max, Number((set as { weight?: unknown })?.weight) || 0), 0)
+    : 0;
+  const lifts = new Map<string, { recent: number; before: number; sessions: number }>();
+  for (const workout of workouts) {
+    for (const row of workout.exercises) {
+      const name = row.exercise.name;
+      const weight = bestWeight(row.sets);
+      if (!name || weight <= 0) continue;
+      const entry = lifts.get(name) ?? { recent: 0, before: 0, sessions: 0 };
+      entry.sessions += 1;
+      if (workout.date >= thirtyDaysAgo) entry.recent = Math.max(entry.recent, weight);
+      else entry.before = Math.max(entry.before, weight);
+      lifts.set(name, entry);
+    }
+  }
+  const strengthSummary = [...lifts.entries()]
+    .sort((a, b) => b[1].sessions - a[1].sessions)
+    .slice(0, 4)
+    .map(([name, l]) => l.before && l.recent
+      ? `${name}: ${l.before} → ${l.recent} kg (${l.recent >= l.before ? '+' : ''}${Math.round(((l.recent - l.before) / l.before) * 100)}%)`
+      : `${name}: mejor marca ${Math.max(l.recent, l.before)} kg`)
+    .join('; ');
+
+  const obstacleLines = antiHabits.map((anti) => {
+    const falls = anti.logs.filter((log) => log.occurred).reduce((sum, log) => sum + log.amount, 0);
+    const resisted = anti.logs.filter((log) => !log.occurred).length;
+    const lastWeek = anti.logs.filter((log) => log.occurred && log.date >= addCalendarDays(today, -6)).reduce((sum, log) => sum + log.amount, 0);
+    return `- ${anti.title}: ${falls} caídas y ${resisted} tentaciones resistidas en 30 días; ${lastWeek} caídas esta semana${anti.targetPerWeek != null ? ` (límite ${anti.targetPerWeek}/semana)` : ''}.`;
+  });
+
   const muscleSummary = [...muscleCounts.entries()]
     .sort((a, b) => b[1] - a[1])
     .slice(0, 3)
@@ -413,7 +463,13 @@ ${activeQuests.length > 0
   : '- Sin misiones activas aún'}
 
 HÁBITOS — HISTORIAL DE LOS ÚLTIMOS 30 DÍAS:
-${habitHistory.length > 0 ? habitHistory.join('\n') : '- Sin hábitos creados aún'}
+${habitHistory.length > 0 ? habitHistory.map((h) => h.line).join('\n') : '- Sin hábitos creados aún'}
+${struggling.length > 0 ? `Hábitos que más está fallando: ${struggling.join(', ')}.` : ''}
+
+MISIONES FALLIDAS (30 días): ${failedQuests.length > 0 ? failedQuests.map((quest) => `«${quest.title}»`).join(', ') : 'ninguna'}
+
+OBSTÁCULOS (anti-hábitos):
+${obstacleLines.length > 0 ? obstacleLines.join('\n') : '- Sin obstáculos registrados'}
 
 FINANZAS ESTE MES:
 - Ingresos: ${formatCOP(monthIncome)} | Gastos: ${formatCOP(monthExpenses)} | Balance: ${formatCOP(monthIncome - monthExpenses)}
@@ -421,8 +477,10 @@ FINANZAS ESTE MES:
 GYM — HISTORIAL:
 - ${recentWorkouts} entrenamientos en los últimos 30 días; ${previousWorkouts} en los 30 días anteriores; ${workouts.length} en los últimos 90 días.
 - ${daysSinceLast === null ? 'Sin entrenamientos registrados en 90 días.' : `Último entrenamiento hace ${daysSinceLast} días.`}${muscleSummary ? ` Grupos más trabajados: ${muscleSummary}.` : ''}
+${strengthSummary ? `- Progreso de fuerza: ${strengthSummary}.` : ''}
 SUEÑO: Promedio ${avgSleep.toFixed(1)} h en los últimos 7 días.
 
+SÉ PROACTIVO: si ves un patrón relevante en el historial (un hábito que se cae, días sin entrenar, una caída de fuerza, un obstáculo que se repite), menciónalo con tacto y propone un paso pequeño y concreto, aunque el usuario no lo haya preguntado. Una sola sugerencia por respuesta.
 Responde siempre en español. Usa los datos reales de arriba y nunca inventes datos.
   `.trim();
 }

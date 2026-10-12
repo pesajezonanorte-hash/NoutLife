@@ -26,6 +26,7 @@ import * as financeService from '@/services/finance.service';
 import { SHARE_TONES, monthRange, pctChange, txCategory } from '@/components/finances/financeMeta';
 import { TransactionFormDialog } from '@/components/finances/TransactionFormDialog';
 import { BudgetsPanel, DebtsPanel, GoalsPanel, PLANNING_TABS, ProjectionPanel, RecurringPanel, SavingsPanel } from '@/components/finances/PlanningTools';
+import { CategoryChecklists } from '@/components/checklists/CategoryChecklists';
 
 type Summary = { income: number; expenses: number; balance: number; byCategory: Record<string, number>; count: number };
 type TxTab = 'all' | 'INCOME' | 'EXPENSE';
@@ -501,6 +502,7 @@ export default function FinancesPage() {
     <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-6 md:gap-12">
       {header}
       <motion.div variants={item}>{body}</motion.div>
+      <motion.div variants={item}><CategoryChecklists category="Finanzas" title="Pendientes financieros" description="Pagos, trámites y revisiones por hacer." /></motion.div>
       <ResponsiveDialog open={Boolean(detail)} onClose={() => setDetail(null)} title={detail ? (detail.description || txCategory(detail.category).label) : ''}>
         {detail && (() => {
           const cat = txCategory(detail.category);

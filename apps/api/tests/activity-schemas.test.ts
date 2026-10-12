@@ -17,16 +17,16 @@ test('sleep: accepts a normal night, rejects bad quality, duration and dates', (
   assert.ok(!ok(createSleepSchema, { ...night, quality: 99 }));
   assert.ok(!ok(createSleepSchema, { ...night, quality: 0 }));
   assert.ok(!ok(createSleepSchema, { ...night, wakeTime: night.bedtime }), '0 hours');
-  assert.ok(!ok(createSleepSchema, { ...night, wakeTime: '2026-10-01T14:00' }), '15 hours');
+  assert.ok(ok(createSleepSchema, { ...night, wakeTime: '2026-10-01T14:00' }), '15 hours (turno largo)');
+  assert.ok(!ok(createSleepSchema, { ...night, wakeTime: '2026-10-01T20:00' }), '21 hours');
   assert.ok(!ok(createSleepSchema, { ...night, bedtime: 'garbage' }));
   assert.ok(!ok(createSleepSchema, {}));
 });
 
-test('sleep: validates siestas en el servidor con límites propios', () => {
-  assert.ok(ok(createSleepSchema, { bedtime: '2026-10-01T14:00', wakeTime: '2026-10-01T14:05', quality: 3, isNap: true }), '5 min');
-  assert.ok(ok(createSleepSchema, { bedtime: '2026-10-01T14:00', wakeTime: '2026-10-01T18:00', quality: 3, isNap: true }), '4 h');
-  assert.ok(!ok(createSleepSchema, { bedtime: '2026-10-01T14:00', wakeTime: '2026-10-01T18:01', quality: 3, isNap: true }), 'más de 4 h');
-  assert.ok(!ok(createSleepSchema, { bedtime: '2026-10-01T14:00', wakeTime: '2026-10-01T19:00', quality: 3, isNap: true }), 'siesta de 5 h');
+test('sleep: las siestas aceptan descansos fuera del antiguo rango 5 min–4 h', () => {
+  assert.ok(ok(createSleepSchema, { bedtime: '2026-10-01T14:00', wakeTime: '2026-10-01T14:02', quality: 3, isNap: true }), '2 min');
+  assert.ok(ok(createSleepSchema, { bedtime: '2026-10-01T14:00', wakeTime: '2026-10-01T19:00', quality: 3, isNap: true }), 'siesta de 5 h');
+  assert.ok(!ok(createSleepSchema, { bedtime: '2026-10-01T14:00', wakeTime: '2026-10-01T14:00', quality: 3, isNap: true }), '0 min');
 });
 
 test('meals: requires a name and rejects negative macros', () => {

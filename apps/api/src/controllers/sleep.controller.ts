@@ -23,7 +23,7 @@ export async function createSleep(req: AuthRequest, res: Response): Promise<void
     res.status(201).json({ log: s(log) });
   } catch (err) {
     if (err instanceof Error && err.message === 'SLEEP_DURATION_INVALID') {
-      res.status(400).json({ error: 'La duración no es válida: siestas de 5 min a 4 h, noches de 30 min a 12 h.' });
+      res.status(400).json({ error: 'La duración no es válida: debe estar entre 1 min y 20 h.' });
       return;
     }
     res.status(500).json({ error: 'Error al registrar sueño.' });
@@ -40,7 +40,7 @@ export async function updateSleep(req: AuthRequest, res: Response): Promise<void
       return;
     }
     if (err instanceof Error && err.message === 'SLEEP_DURATION_INVALID') {
-      res.status(400).json({ error: 'La duración no es válida: siestas de 5 min a 4 h, noches de 30 min a 12 h.' });
+      res.status(400).json({ error: 'La duración no es válida: debe estar entre 1 min y 20 h.' });
       return;
     }
     res.status(500).json({ error: 'Error al actualizar sueño.' });
@@ -59,4 +59,23 @@ export async function getSleepStats(req: AuthRequest, res: Response): Promise<vo
     const stats = await svc.getSleepStats(req.userId!);
     res.json({ stats });
   } catch { res.status(500).json({ error: 'Error al obtener estadísticas.' }); }
+}
+
+export async function recordActivity(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    res.json({ suggestion: await svc.recordActivity(req.userId!) });
+  } catch { res.status(500).json({ error: 'No se pudo registrar la actividad.' }); }
+}
+
+export async function getSleepSuggestion(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    res.json({ suggestion: await svc.getSleepSuggestion(req.userId!) });
+  } catch { res.status(500).json({ error: 'No se pudo obtener la sugerencia de descanso.' }); }
+}
+
+export async function dismissSleepSuggestion(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    await svc.clearSleepSuggestion(req.userId!);
+    res.json({ success: true });
+  } catch { res.status(500).json({ error: 'No se pudo descartar la sugerencia.' }); }
 }

@@ -8,9 +8,11 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  BookOpen, Brain, Check, ChevronDown, Code2, Dumbbell, Flame, Heart, Leaf, MapPin, Moon, Music, NotebookPen, Plus, Sparkles, Star, Target, Trash2, Wallet,
-  type LucideIcon,
+  ArrowUpRight, Check, ChevronDown, Flame, MapPin, Plus, Sparkles, Trash2,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { zoneIconOf } from '@/components/zones/zoneIcons';
+import { useCustomZoneStore } from '@/store/customZoneStore';
 import api from '@/lib/api';
 import { item, pop3, stagger } from '@/lib/motion';
 import { ZoneShell } from '@/components/ambience';
@@ -24,7 +26,7 @@ import {
 
 interface ZoneQuest { id: string; title: string; status: string; xpReward: number; difficulty: string }
 interface ZoneHabit { id: string; title: string; currentStreak: number; icon: string; xpReward: number }
-interface CustomZone {
+export interface CustomZone {
   id: string; name: string; description?: string; icon: string; accentColor: string; isMeasurable: boolean;
   sections?: { type: string; title: string; description: string }[];
   actions?: { label: string; type: string }[];
@@ -38,11 +40,7 @@ interface Suggestion {
 }
 
 const MAX_ZONES = 10;
-const ICONS: Record<string, LucideIcon> = {
-  target: Target, book: BookOpen, brain: Brain, money: Wallet, heart: Heart, leaf: Leaf,
-  music: Music, star: Star, gym: Dumbbell, notes: NotebookPen, code: Code2, moon: Moon,
-};
-const iconOf = (k: string) => ICONS[k] ?? Target;
+const iconOf = zoneIconOf;
 /** Colores de acento de zona: dato de la zona (se guarda en la API), no estilo de componente. */
 const ZONE_COLORS = ['#548f6f', '#b08d57', '#3a9b67', '#d4952a', '#c8463f', '#3b7ea6', '#70b48d', '#6b8a78'];
 const IDEAS = [
@@ -105,10 +103,10 @@ function ActionForm({ action, zone, onDone }: { action: { label: string; type: s
   );
 }
 
-function ZoneCard({ zone: initial, onDeleted, index = 0, fresh }: { zone: CustomZone; onDeleted: () => void; index?: number; fresh?: boolean }) {
+export function ZoneCard({ zone: initial, onDeleted, index = 0, fresh, defaultOpen = false }: { zone: CustomZone; onDeleted: () => void; index?: number; fresh?: boolean; defaultOpen?: boolean }) {
   const toast = useToast();
   const [zone, setZone] = useState(initial);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [action, setAction] = useState<{ label: string; type: string } | null>(null);
   const [completing, setCompleting] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -124,7 +122,7 @@ function ZoneCard({ zone: initial, onDeleted, index = 0, fresh }: { zone: Custom
   }
   async function remove() {
     setDeleting(true);
-    try { await api.delete(`/custom-zones/${zone.id}`); toast.success('Zona eliminada'); onDeleted(); }
+    try { await api.delete(`/custom-zones/${zone.id}`); toast.success('Zona eliminada'); void useCustomZoneStore.getState().refresh(); onDeleted(); }
     catch { toast.error('No se pudo eliminar la zona'); setDeleting(false); }
   }
 
@@ -141,8 +139,11 @@ function ZoneCard({ zone: initial, onDeleted, index = 0, fresh }: { zone: Custom
       <div className="flex items-start gap-4">
         <ZoneIcon zone={zone} size="lg" />
         <div className="min-w-0 flex-1">
-          <h3 className="text-heading-sm">{zone.name}</h3>
-          <Badge variant="success" icon={Check}>Activa</Badge>
+          <h3 className="text-heading-sm"><Link to={`/zonas/${zone.id}`} className="hover:underline">{zone.name}</Link></h3>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="success" icon={Check}>Activa</Badge>
+            <Link to={`/zonas/${zone.id}`} className="inline-flex items-center gap-1 text-label-md text-primary-text hover:underline">Página propia<ArrowUpRight aria-hidden className="size-3.5" /></Link>
+          </div>
         </div>
         <Button variant="icon" aria-label={`Eliminar ${zone.name}`} onClick={() => setConfirmDelete(true)}><Trash2 aria-hidden className="size-5" strokeWidth={1.75} /></Button>
       </div>
@@ -331,7 +332,7 @@ export default function CustomZonesPage() {
           <AnimatePresence mode="wait">
             {suggestion ? (
               <motion.div key="review" exit={{ opacity: 0, transition: { duration: 0.15 } }}>
-                <Review s={suggestion} onCancel={() => setSuggestion(null)} onCreated={(z) => { setSuggestion(null); setText(''); setFresh(z.id); setZones((p) => [z, ...p]); void load(true); }} />
+                <Review s={suggestion} onCancel={() => setSuggestion(null)} onCreated={(z) => { setSuggestion(null); setText(''); setFresh(z.id); setZones((p) => [z, ...p]); void load(true); void useCustomZoneStore.getState().refresh(); }} />
               </motion.div>
             ) : (
               <motion.div key="compose" exit={{ opacity: 0, transition: { duration: 0.15 } }}>

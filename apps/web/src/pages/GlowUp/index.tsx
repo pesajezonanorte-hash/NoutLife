@@ -1,4 +1,4 @@
-// Espejo — GlowUpDesktop.dc.html. "Brillo de hoy" (anillo), SegmentedControl
+// Armario (antes Espejo) — GlowUpDesktop.dc.html. "Brillo de hoy" (anillo), SegmentedControl
 // Cuidado / Prendas / Presencia, rutinas con pasos que se marcan, prendas con
 // filtros y autoevaluación semanal. Datos: /mirror/* (sin cambios).
 // Zona ambientada: tu espejo y tocador. El reflejo se desempaña despacio; un brillo
@@ -18,6 +18,8 @@ import { Badge, Button, Card, ChipGroup, EmptyState, ErrorState, Field, IconChip
 import { LOADING_COPY } from '@/lib/loadingCopy';
 import { Lettering } from '@/components/layout/Lettering';
 import { PrivatePhotoNotice } from '@/components/privacy/PrivatePhotoNotice';
+import { PhotoSourceButtons } from '@/components/media/PhotoSourceButtons';
+import { compressImageToBase64 } from '@/lib/imageCompress';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -43,8 +45,8 @@ interface PresenceCheckin {
 
 type Tab = 'care' | 'style' | 'presence';
 const TABS = [
+  { value: 'style' as const, label: 'Prendas y outfits' },
   { value: 'care' as const, label: 'Cuidado personal' },
-  { value: 'style' as const, label: 'Prendas' },
   { value: 'presence' as const, label: 'Presencia' },
 ];
 
@@ -52,35 +54,6 @@ const CATEGORIES = ['tops', 'bottoms', 'shoes', 'outerwear', 'accessories'];
 const CATEGORY_LABELS: Record<string, string> = {
   tops: 'Torso', bottoms: 'Piernas', shoes: 'Calzado', outerwear: 'Abrigos', accessories: 'Accesorios',
 };
-
-async function compressClothingPhoto(file: File): Promise<string> {
-  const bitmap = await createImageBitmap(file);
-  try {
-    let scale = Math.min(1, 1400 / Math.max(bitmap.width, bitmap.height));
-    for (let attempt = 0; attempt < 7; attempt += 1) {
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-      const context = canvas.getContext('2d');
-      if (!context) throw new Error('No se pudo procesar la imagen.');
-      context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-      const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob((value) => value ? resolve(value) : reject(new Error('No se pudo comprimir la imagen.')), 'image/jpeg', Math.max(0.45, 0.84 - attempt * 0.07)));
-      if (blob.size <= 480 * 1024) {
-        const dataUrl = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('No se pudo leer la imagen.'));
-          reader.onerror = () => reject(new Error('No se pudo leer la imagen.'));
-          reader.readAsDataURL(blob);
-        });
-        return dataUrl.split(',')[1] ?? '';
-      }
-      scale *= 0.78;
-    }
-    throw new Error('La foto no se pudo comprimir a menos de 500 KB.');
-  } finally {
-    bitmap.close();
-  }
-}
 
 const TIME_OF_DAY = ['morning', 'night', 'weekly', 'custom'];
 const TIME_META: Record<string, { label: string; tone: Tone; icon: typeof Sun }> = {
@@ -286,10 +259,9 @@ function StyleSection({ autoOpenAdd, onAddOpened }: { autoOpenAdd?: boolean; onA
   const [showOutfit, setShowOutfit] = useState(false);
   const [outfitName, setOutfitName] = useState('');
   const [savingOutfit, setSavingOutfit] = useState(false);
-  const photoInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({ name: '', category: 'tops', color: '', brand: '', photoData: '' });
 
-  // Llegar con ?add=prenda (desde Finanzas → «Ir al Espejo») abre directamente
+  // Llegar con ?add=prenda (desde Finanzas → «Ir al Armario») abre directamente
   // el formulario de nueva prenda, para registrar la compra recién hecha.
   useEffect(() => {
     if (!autoOpenAdd) return;
@@ -327,14 +299,13 @@ function StyleSection({ autoOpenAdd, onAddOpened }: { autoOpenAdd?: boolean; onA
     if (!file) return;
     setPhotoProcessing(true);
     try {
-      const photoData = await compressClothingPhoto(file);
+      const photoData = await compressImageToBase64(file);
       setForm((current) => ({ ...current, photoData }));
-      toast.success('Foto lista', 'Se guardará de forma privada en tu espejo.');
+      toast.success('Foto lista', 'Se guardará de forma privada en tu armario.');
     } catch (error) {
       toast.error('No se pudo usar esa foto', error instanceof Error ? error.message : undefined);
     } finally {
       setPhotoProcessing(false);
-      if (photoInputRef.current) photoInputRef.current.value = '';
     }
   }
 
@@ -402,12 +373,12 @@ function StyleSection({ autoOpenAdd, onAddOpened }: { autoOpenAdd?: boolean; onA
       <ChipGroup label="Categoría de prenda" options={options} value={activeCategory} onChange={setActiveCategory} />
 
       {state === 'loading' ? (
-        <PageLoader label="Abriendo tu espejo…" words={LOADING_COPY.glowUpWardrobe} />
+        <PageLoader label="Abriendo tu armario…" words={LOADING_COPY.glowUpWardrobe} />
       ) : state === 'error' ? (
         <ErrorState title="No pudimos cargar tus prendas" onRetry={() => void load()} />
       ) : displayed.length === 0 ? (
         <Card variant="elevated" padding="lg">
-          <EmptyState icon={Shirt} tone="info" title="Tu espejo está vacío" description="Añade tus prendas para saber cuánto uso le das a cada una."
+          <EmptyState icon={Shirt} tone="info" title="Tu armario está vacío" description="Añade tus prendas para saber cuánto uso le das a cada una."
             action={<Button onClick={() => setShowNew(true)}><Plus aria-hidden className="size-4" />Añadir prenda</Button>} className="py-6" />
         </Card>
       ) : (
@@ -488,13 +459,10 @@ function StyleSection({ autoOpenAdd, onAddOpened }: { autoOpenAdd?: boolean; onA
               {CATEGORIES.map((c) => <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>)}
             </Select>
           </Field>
-          <input ref={photoInputRef} type="file" accept="image/*" capture="environment" className="hidden" aria-label="Fotografiar prenda" onChange={(e) => void handlePhotoChange(e.target.files?.[0])} />
           <div className="flex flex-col gap-2">
             {form.photoData && <img src={`data:image/jpeg;base64,${form.photoData}`} alt="Vista previa de la prenda" className="aspect-[4/3] max-h-56 w-full rounded-xl border border-border object-cover" />}
             <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="secondary" loading={photoProcessing} onClick={() => photoInputRef.current?.click()}>
-                <Camera aria-hidden className="size-4" />{form.photoData ? 'Cambiar foto' : 'Fotografiar o elegir foto'}
-              </Button>
+              <PhotoSourceButtons loading={photoProcessing} cameraLabel={form.photoData ? 'Otra foto' : 'Fotografiar prenda'} onPick={(file) => void handlePhotoChange(file)} />
               {form.photoData && <Button type="button" variant="ghost" onClick={() => setForm((f) => ({ ...f, photoData: '' }))}>Quitar foto</Button>}
             </div>
           </div>
@@ -628,7 +596,7 @@ function PresenceSection() {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function GlowUpPage() {
-  // ?add=prenda (botón «Ir al Espejo» en Finanzas) abre la pestaña de prendas
+  // ?add=prenda (botón «Ir al Armario» en Finanzas) abre la pestaña de prendas
   // con el formulario de nueva prenda listo para la compra recién hecha.
   const [searchParams, setSearchParams] = useSearchParams();
   const autoOpenAdd = searchParams.get('add') === 'prenda';
@@ -639,7 +607,7 @@ export default function GlowUpPage() {
       return next;
     }, { replace: true });
   }, [setSearchParams]);
-  const [tab, setTab] = useState<Tab>(autoOpenAdd ? 'style' : 'care');
+  const [tab, setTab] = useState<Tab>('style');
   const motionReduced = useMotionReduced();
   const [progress, setProgress] = useState({ done: 0, total: 0, streak: 0 });
   const onProgress = useCallback((done: number, total: number, streak: number) => {
@@ -656,7 +624,7 @@ export default function GlowUpPage() {
       <motion.section variants={item} className="flex flex-wrap items-center justify-between gap-6 md:gap-8">
         <div className="flex min-w-0 flex-[1_1_360px] flex-col gap-2">
           <span className="text-label-lg text-primary-text">Tu espacio personal</span>
-          <h1 className="text-display-sm md:text-display-md lg:text-display-lg"><Lettering text="Espejo" /></h1>
+          <h1 className="text-display-sm md:text-display-md lg:text-display-lg"><Lettering text="Armario" /></h1>
           <p className="max-w-[540px] text-body-lg text-on-surface-light">Fotografía y clasifica tus prendas, crea combinaciones y acompaña tu estilo con rutinas de cuidado personal.</p>
         </div>
         {/* El tocador: cada paso completado enciende otra bombilla y aclara el vidrio */}

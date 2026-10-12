@@ -10,6 +10,8 @@ import { LOADING_COPY } from '@/lib/loadingCopy';
 import { useToastStore } from '@/hooks/useToast';
 import * as gym2 from '../../services/gym2.service';
 import { PrivatePhotoNotice } from '@/components/privacy/PrivatePhotoNotice';
+import { PhotoSourceButtons } from '@/components/media/PhotoSourceButtons';
+import { compressImageToBase64 } from '@/lib/imageCompress';
 
 // ─── Rest Timer ────────────────────────────────────────────────────────────────
 
@@ -323,34 +325,20 @@ export function ProgressPhotos() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [compare, setCompare] = useState<[string, string] | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
-
   useEffect(() => {
     gym2.fetchProgressPhotos().then(setPhotos).finally(() => setLoading(false));
   }, []);
 
   async function handleUpload(file: File) {
-    if (file.size > 500 * 1024) {
-      useToastStore.getState().warning('La foto pesa más de 500 KB', 'Comprime la imagen e inténtalo de nuevo.');
-      return;
-    }
     setUploading(true);
     try {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        try {
-          const base64 = (e.target?.result as string).split(',')[1];
-          await gym2.saveProgressPhoto(base64, new Date().toISOString().slice(0, 10));
-          setPhotos(await gym2.fetchProgressPhotos());
-        } catch {
-          useToastStore.getState().error('No se pudo subir la foto');
-        } finally {
-          setUploading(false);
-        }
-      };
-      reader.readAsDataURL(file);
-    } catch {
-      useToastStore.getState().error('No se pudo leer la foto');
+      // La foto de la cámara pesa varios MB: se comprime antes de subirla.
+      const base64 = await compressImageToBase64(file);
+      await gym2.saveProgressPhoto(base64, new Date().toISOString().slice(0, 10));
+      setPhotos(await gym2.fetchProgressPhotos());
+    } catch (error) {
+      useToastStore.getState().error('No se pudo subir la foto', error instanceof Error ? error.message : undefined);
+    } finally {
       setUploading(false);
     }
   }
@@ -373,8 +361,7 @@ export function ProgressPhotos() {
           <IconChip icon={Camera} tone="success" size="sm" />
           <h3 id="gym-photos" className="text-heading-sm">Progreso visual</h3>
         </div>
-        <Button variant="secondary" size="sm" loading={uploading} onClick={() => fileRef.current?.click()}><Plus aria-hidden className="size-4" />Foto</Button>
-        <input ref={fileRef} type="file" accept="image/*" className="hidden" aria-label="Subir foto de progreso" onChange={(e) => e.target.files?.[0] && void handleUpload(e.target.files[0])} />
+        <PhotoSourceButtons size="sm" loading={uploading} onPick={(file) => void handleUpload(file)} />
       </div>
       <PrivatePhotoNotice />
 

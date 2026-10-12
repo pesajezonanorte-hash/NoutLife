@@ -5,7 +5,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { lockScroll, unlockScroll } from '@/components/ui/lq/Modal';
-import { Link as LinkIcon, Box, Check, Crop, Trash2, Upload, X } from 'lucide-react';
+import { Link as LinkIcon, Box, Camera, Check, Crop, Trash2, Upload, X } from 'lucide-react';
 import { MinecraftSkinAvatar } from './MinecraftSkinAvatar';
 import { PhotoCropper } from './PhotoCropper';
 import { AvatarPreview, AvatarStudio } from './AvatarPixelEditor';
@@ -147,6 +147,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
   /** Se incrementa al guardar el pixel: el escenario celebra antes de cerrar. */
   const [celebrate, setCelebrate] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const selfieInputRef = useRef<HTMLInputElement>(null);
   const skinInputRef = useRef<HTMLInputElement>(null);
   const initializedModalUserRef = useRef<string | undefined>(undefined);
   const hasInitializedModalRef = useRef(false);
@@ -421,7 +422,12 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
                         {photoUrl && <Badge variant="success" className="absolute bottom-0 left-1/2 -translate-x-1/2">Foto activa</Badge>}
                       </div>
                       <input type="file" aria-label="Subir foto" ref={fileInputRef} onChange={handleFileSelect} accept="image/*" className="hidden" tabIndex={-1} />
-                      <Button variant="secondary" block onClick={() => fileInputRef.current?.click()}>
+                      {/* La cámara frontal abre directamente en Android/iOS dentro de la PWA. */}
+                      <input type="file" aria-label="Tomar selfie" ref={selfieInputRef} onChange={handleFileSelect} accept="image/*" capture="user" className="hidden" tabIndex={-1} />
+                      <Button variant="secondary" block onClick={() => selfieInputRef.current?.click()}>
+                        <Camera aria-hidden className="size-5" strokeWidth={1.75} />Tomar selfie
+                      </Button>
+                      <Button variant="ghost" block onClick={() => fileInputRef.current?.click()}>
                         <Upload aria-hidden className="size-5" strokeWidth={1.75} />Subir desde el dispositivo
                       </Button>
                       {photoUrl && (

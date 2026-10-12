@@ -1,3 +1,5 @@
+import api from './api';
+
 export interface SleepGapSuggestion {
   bedtime: string;
   wakeTime: string;
@@ -13,6 +15,7 @@ function key(userId: string, suffix: 'lastActive' | 'sleepGap') {
  * a long gap that overlaps the night, keep a suggestion for the sleep page.
  */
 export function touchLastActive(userId: string, now = new Date()): void {
+  pingServerActivity(now);
   try {
     const last = Number(localStorage.getItem(key(userId, 'lastActive')));
     const elapsed = now.getTime() - last;
@@ -54,6 +57,30 @@ export function readSleepGapSuggestion(userId: string): SleepGapSuggestion | nul
 
 export function dismissSleepGapSuggestion(userId: string): void {
   try { localStorage.removeItem(key(userId, 'sleepGap')); } catch { /* optional storage */ }
+  void api.delete('/sleep/suggestion').catch(() => undefined);
+}
+
+// ─── Latido en el servidor ───────────────────────────────────────────────────
+// lastActiveAt vive en la base de datos: la brecha nocturna se detecta aunque
+// cambies de dispositivo o borres el almacenamiento. Como mucho un latido cada 4 min.
+const PING_EVERY_MS = 4 * 60_000;
+let lastPing = 0;
+
+function pingServerActivity(now: Date): void {
+  if (now.getTime() - lastPing < PING_EVERY_MS) return;
+  lastPing = now.getTime();
+  void api.post('/sleep/activity').catch(() => { lastPing = 0; });
+}
+
+/** Sugerencia guardada en el servidor (registra también este uso como actividad). */
+export async function fetchServerSleepSuggestion(): Promise<SleepGapSuggestion | null> {
+  try {
+    lastPing = Date.now();
+    const { data } = await api.post<{ suggestion: SleepGapSuggestion | null }>('/sleep/activity');
+    return data.suggestion;
+  } catch {
+    return null;
+  }
 }
 
 function overlapsNight(from: number, to: number): boolean {

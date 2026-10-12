@@ -12,7 +12,10 @@ export interface ResourceShare {
   permission: SharePermission;
   isActive: boolean;
   updatedAt: string;
+  members?: ShareMember[];
 }
+export interface ShareMember { id: string; permission: SharePermission; createdAt: string; user: { id: string; username: string; displayName: string } }
+export interface SharedWithMe { memberId: string; code: string; resourceType: ShareResourceType; permission: SharePermission; title: string; category: string; owner: { username: string; displayName: string } }
 export type SharedResource =
   | { resourceType: 'CHECKLIST'; permission: SharePermission; resource: Pick<Checklist, 'id' | 'title' | 'description' | 'category' | 'isTemplate' | 'items'> }
   | { resourceType: 'GOAL'; permission: SharePermission; resource: Pick<MasterGoal, 'id' | 'title' | 'description' | 'category' | 'icon' | 'targetDate' | 'why' | 'status' | 'progress' | 'milestones'> };
@@ -37,3 +40,15 @@ export async function updateSharedResource(code: string, payload: Record<string,
   return data;
 }
 export const shareUrl = (code: string) => `${window.location.origin}/shared/${encodeURIComponent(code)}`;
+
+export async function addShareMember(type: ShareResourceType, id: string, user: string, permission: SharePermission) {
+  const { data } = await api.post<ShareMember>('/shares/members', { resourceType: type, resourceId: id, user, permission });
+  return data;
+}
+export async function removeShareMember(memberId: string) {
+  await api.delete(`/shares/members/${encodeURIComponent(memberId)}`);
+}
+export async function listSharedWithMe() {
+  const { data } = await api.get<SharedWithMe[]>('/shares/with-me');
+  return data;
+}

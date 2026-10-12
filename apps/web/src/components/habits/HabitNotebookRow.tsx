@@ -76,7 +76,7 @@ export function HabitNotebookRow({ habit, onComplete, pending, week, index }: Ha
             {days}
           </span>
           {habit.currentStreak > 0 && <TallyMarks count={habit.currentStreak} />}
-          {skipped && <span className="text-on-surface-light">· omitido hoy</span>}
+          {skipped && <span className="text-on-surface-light">· descanso hoy (no rompe la racha)</span>}
         </span>
       </div>
       {week && (

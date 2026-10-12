@@ -408,7 +408,7 @@ export default function AgendaPage() {
               <span className="text-label-lg">Google Calendar</span>
               <Badge variant={googleConnected ? 'success' : 'warning'} icon={googleConnected ? Check : undefined}>{googleConnected ? 'Conectado' : 'Sin conectar'}</Badge>
             </div>
-            <p className="text-body-sm text-on-surface-light">Sincroniza tus reuniones y eventos; los hábitos que elijas se añaden como series recurrentes separadas.</p>
+            <p className="text-body-sm text-on-surface-light">Sincroniza tus reuniones y eventos. Tus misiones con fecha límite y las tareas de la agenda se publican en Google, y los hábitos que elijas se añaden como series recurrentes.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             {googleConnected ? (

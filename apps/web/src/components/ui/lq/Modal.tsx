@@ -142,6 +142,8 @@ export function Sheet({ open, onClose, title, hideClose = true, dismissible = tr
           key="scrim"
           variants={scrim} initial="initial" animate="animate" exit="exit"
           className="fixed inset-0 z-[82] flex items-end justify-center overscroll-none bg-[var(--scrim)]"
+          // Con el teclado abierto (iOS no encoge el layout), la hoja sube por encima de él.
+          style={{ paddingBottom: 'var(--keyboard-inset, 0px)' }}
           onMouseDown={(e) => dismissible && e.target === e.currentTarget && onClose()}
         >
           {/* Se arrastra hacia abajo desde el asa o el título para cerrarla. */}
@@ -152,6 +154,7 @@ export function Sheet({ open, onClose, title, hideClose = true, dismissible = tr
             drag={dismissible ? 'y' : false} dragControls={drag} dragListener={false}
             dragConstraints={{ top: 0, bottom: 0 }} dragElastic={{ top: 0.05, bottom: 0.7 }}
             onDragEnd={(_, info) => { if (info.offset.y > 110 || info.velocity.y > 600) onClose(); }}
+            style={{ maxHeight: 'min(92dvh, calc(var(--vvh, 100dvh) - 1rem))' }}
             className={cn(
               'flex max-h-[92dvh] w-full max-w-xl flex-col rounded-t-3xl bg-background text-on-background shadow-lg outline-none',
               className,

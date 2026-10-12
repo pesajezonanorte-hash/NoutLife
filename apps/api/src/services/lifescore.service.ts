@@ -478,7 +478,7 @@ export async function calculateDynamicLifeScore(userId: string, period = 'month'
   const mirrorTracking = careRoutines.length > 0 || historicalCareLogCount > 0 || clothingItems.length > 0 || outfits.length > 0;
   zones.push(makeZone({
     id: 'mirror',
-    name: 'El Espejo',
+    name: 'El Armario',
     icon: 'sparkles',
     color: '#9274c9',
     score: ratioPercent(completedCareLogs.length, expectedCareSlots),

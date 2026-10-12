@@ -217,7 +217,7 @@ export default function HabitDetailPage() {
             <Badge variant={meta.tone} className="md:hidden">{meta.label}</Badge>
             <Badge variant="success" icon={Sparkles} size="lg">+{habit.xpReward} XP / día</Badge>
             {todayDone && <Badge variant="success" icon={CheckCircle2} size="lg">Hecho hoy</Badge>}
-            {habit.todayStatus === 'skipped' && <Badge variant="neutral" icon={SkipForward} size="lg">Omitido hoy</Badge>}
+            {habit.todayStatus === 'skipped' && <Badge variant="neutral" icon={SkipForward} size="lg">Descanso hoy</Badge>}
           </div>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -230,7 +230,7 @@ export default function HabitDetailPage() {
               <Button onClick={() => void toggleToday()} loading={pending === habit.id}>
                 <Check aria-hidden className="size-5" strokeWidth={2} />Completar hoy
               </Button>
-              <Button variant="ghost" onClick={() => void log('skipped')} disabled={pending === habit.id}>Omitir hoy</Button>
+              <Button variant="ghost" onClick={() => void log('skipped')} disabled={pending === habit.id}>Día de descanso</Button>
             </>
           ) : null}
           <span className="hidden gap-3 md:flex">
