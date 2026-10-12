@@ -41,5 +41,20 @@ export function useHabitCompletion() {
     }
   }, [addFloatingXP, triggerLevelUp, showAchievementToast]);
 
-  return { complete, pending, burst };
+  const revert = useCallback(async (habit: { id: string; title: string }) => {
+    setPending(habit.id);
+    try {
+      const result = await habitService.revertHabitLog(habit.id);
+      useToastStore.getState().info(`${habit.title}: desmarcado`);
+      void refreshUser();
+      return result;
+    } catch {
+      useToastStore.getState().error('No se pudo desmarcar el hábito');
+      return null;
+    } finally {
+      setPending(null);
+    }
+  }, []);
+
+  return { complete, revert, pending, burst };
 }

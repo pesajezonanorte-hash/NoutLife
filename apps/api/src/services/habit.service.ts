@@ -1,6 +1,6 @@
 import { prisma } from '../lib/prisma';
 import { addCalendarDays, DEFAULT_TIMEZONE, getCalendarDay, parseCalendarDate } from '../lib/calendar';
-import { awardXpAndGold } from './xp.service';
+import { awardXpAndGold, xpForLevel } from './xp.service';
 import { checkAchievements } from './achievement.service';
 import { createNotification } from './notification.service';
 import { removeHabitFromGoogleCalendar, syncHabitWithGoogleCalendar } from './agenda.service';
@@ -15,7 +15,7 @@ export interface CreateHabitInput {
   color?: string;
   xpReward?: number;
   goldReward?: number;
-  frequency?: { type: 'daily' | 'days_per_week'; days: number[] };
+  frequency?: { type: 'daily' | 'days_per_week'; days: number[]; restDays?: number[] };
   resetTime?: string;
   reminderTime?: string;
   syncToGoogleCalendar?: boolean;
@@ -30,7 +30,7 @@ export interface UpdateHabitInput {
   color?: string;
   xpReward?: number;
   goldReward?: number;
-  frequency?: { type: 'daily' | 'days_per_week'; days: number[] };
+  frequency?: { type: 'daily' | 'days_per_week'; days: number[]; restDays?: number[] };
   resetTime?: string;
   reminderTime?: string | null;
   syncToGoogleCalendar?: boolean;
@@ -163,7 +163,9 @@ export function computeHabitStreaks(logs: StreakLog[], rawFrequency: unknown, to
 export function isHabitScheduledForDay(date: Date, rawFrequency: unknown): boolean {
   if (!rawFrequency || typeof rawFrequency !== 'object' || Array.isArray(rawFrequency)) return true;
 
-  const frequency = rawFrequency as { type?: string; days?: unknown };
+  const frequency = rawFrequency as { type?: string; days?: unknown; restDays?: unknown };
+  // Un día de descanso ni se exige ni cuenta como fallo.
+  if (Array.isArray(frequency.restDays) && frequency.restDays.includes(date.getUTCDay())) return false;
   if (frequency.type !== 'days_per_week') return true;
   if (!Array.isArray(frequency.days) || frequency.days.length === 0) return true;
 
@@ -590,6 +592,81 @@ export async function logHabit(
     recoveryCompleted,
     gymAttendance,
   };
+}
+
+export async function revertHabitLog(userId: string, habitId: string, requestedDate?: string) {
+  const habit = await prisma.habit.findFirst({
+    where: { id: habitId, userId },
+    include: { user: { select: { timezone: true } } },
+  });
+  if (!habit) throw new Error('HABIT_NOT_FOUND');
+
+  const today = getCalendarDay(habit.user.timezone ?? DEFAULT_TIMEZONE);
+  const date = requestedDate !== undefined ? parseCalendarDate(requestedDate) : today;
+  if (!date) throw new Error('INVALID_HABIT_LOG_DATE');
+  const isToday = date.getTime() === today.getTime();
+
+  const existing = await prisma.habitLog.findUnique({ where: { habitId_date: { habitId, date } } });
+  if (!existing) throw new Error('HABIT_LOG_NOT_FOUND');
+
+  const deleted = await prisma.habitLog.deleteMany({ where: { id: existing.id } });
+  if (deleted.count === 0) throw new Error('HABIT_LOG_NOT_FOUND');
+
+  let xpRemoved = 0;
+  let goldRemoved = 0;
+  if (existing.completed) {
+    const event = await prisma.xpEvent.findFirst({
+      where: { userId, source: 'habit_completed', sourceId: habitId, createdAt: { gte: new Date(existing.loggedAt.getTime() - 60_000) } },
+      orderBy: { createdAt: 'asc' },
+    });
+    if (event) {
+      const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+      let xp = user.xp - event.xpAmount;
+      let level = user.level;
+      let next = user.xpToNextLevel;
+      while (xp < 0 && level > 1) {
+        level -= 1;
+        next = xpForLevel(level);
+        xp += next;
+      }
+      await prisma.user.update({
+        where: { id: userId },
+        data: { xp: Math.max(0, xp), level, xpToNextLevel: next, gold: Math.max(0, user.gold - event.goldAmount) },
+      });
+      await prisma.xpEvent.delete({ where: { id: event.id } });
+      xpRemoved = event.xpAmount;
+      goldRemoved = event.goldAmount;
+    }
+
+    if (isToday) {
+      await prisma.recoveryChallenge.updateMany({
+        where: { userId, habitId, isCompleted: false, currentDays: { gt: 0 } },
+        data: { currentDays: { decrement: 1 } },
+      });
+    }
+
+    await prisma.gymAttendance.deleteMany({
+      where: { userId, date, source: 'HABIT', habitId, workouts: { none: {} } },
+    });
+  }
+
+  // Hoy se deshace exactamente el +1 de la racha; un día pasado se recalcula desde los registros.
+  const logs = await prisma.habitLog.findMany({
+    where: { habitId },
+    select: { date: true, completed: true, status: true },
+  });
+  const streaks = computeHabitStreaks(logs, habit.frequency, today);
+  const currentStreak = isToday && existing.completed ? Math.max(0, habit.currentStreak - 1) : streaks.current;
+  const longestStreak = habit.longestStreak > habit.currentStreak
+    ? habit.longestStreak
+    : Math.max(streaks.longest, currentStreak);
+
+  const updatedHabit = await prisma.habit.update({
+    where: { id: habitId },
+    data: { currentStreak, longestStreak },
+  });
+
+  return { habit: updatedHabit, currentStreak, longestStreak, xpRemoved, goldRemoved };
 }
 
 function isUniqueConstraintError(error: unknown): boolean {

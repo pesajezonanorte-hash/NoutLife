@@ -263,6 +263,33 @@ const ZONE_REMINDERS: ZoneReminder[] = [
     },
   },
   {
+    zone: 'cierre', category: 'HABITS', at: () => 20 * 60 + 30,
+    check: async (u, { since, weekday, day }) => {
+      const date = new Date(`${day}T00:00:00Z`);
+      const dayEnd = new Date(since.getTime() + DAY_MS);
+      const [habits, quests, goals, routine, attended] = await Promise.all([
+        prisma.habit.findMany({
+          where: { userId: u.id, isActive: true, logs: { none: { date } } },
+          select: { frequency: true },
+        }),
+        prisma.quest.count({ where: { userId: u.id, status: 'ACTIVE', deadline: { gte: new Date(), lt: dayEnd } } }),
+        prisma.masterGoal.count({ where: { userId: u.id, status: 'ACTIVE', targetDate: { gte: since, lt: dayEnd } } }),
+        prisma.routine.findFirst({ where: { userId: u.id, isActive: true, days: { some: { weekday, isRestDay: false } } }, select: { id: true } }),
+        prisma.gymAttendance.findUnique({ where: { userId_date: { userId: u.id, date } }, select: { id: true } }),
+      ]);
+      const pendingHabits = habits.filter((h) => isHabitScheduledForDay(date, h.frequency)).length;
+      const gym = Boolean(routine) && !attended;
+      const parts = [
+        pendingHabits ? `${pendingHabits} ${pendingHabits === 1 ? 'hábito' : 'hábitos'}` : null,
+        quests ? `${quests} ${quests === 1 ? 'misión vence' : 'misiones vencen'} hoy` : null,
+        goals ? `${goals} ${goals === 1 ? 'meta vence' : 'metas vencen'} hoy` : null,
+        gym ? 'tu entreno del día' : null,
+      ].filter(Boolean);
+      if (!parts.length) return null;
+      return { title: 'Aún estás a tiempo de cerrar el día', body: `Te falta: ${parts.join(', ')}.`, link: pendingHabits ? '/habits' : quests ? '/quests' : goals ? '/quests?filter=meta' : '/gym' };
+    },
+  },
+  {
     zone: 'gremio', category: 'SOCIAL', at: () => 19 * 60,
     check: async (u, { day }) => {
       const memberships = await prisma.guildMember.findMany({ where: { userId: u.id }, select: { guildId: true, guild: { select: { name: true } } } });

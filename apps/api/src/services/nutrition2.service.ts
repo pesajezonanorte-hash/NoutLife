@@ -48,6 +48,8 @@ export interface ParsedMeal {
   estimatedFat: number;
   aiAvailable: boolean;
   aiSucceeded: boolean;
+  unknown?: boolean;
+  clarification?: string;
 }
 
 const num = (v: unknown, fallback = 0): number => {
@@ -92,7 +94,7 @@ function extractJsonObject(raw: string): unknown | null {
   return null;
 }
 
-export async function parseMealWithAI(description: string): Promise<ParsedMeal> {
+export async function parseMealWithAI(description: string, details?: string): Promise<ParsedMeal> {
   const trimmed = (description ?? '').trim();
   if (!trimmed) {
     return { name: '', estimatedCalories: 0, estimatedProtein: 0, estimatedCarbs: 0, estimatedFat: 0, aiAvailable: false, aiSucceeded: false };
@@ -110,6 +112,7 @@ export async function parseMealWithAI(description: string): Promise<ParsedMeal> 
 
   if (!hasAIProvider()) return fallback;
 
+  const extra = (details ?? '').trim().slice(0, 500);
   const prompt = `Eres un nutricionista experto. Estima los macros de la comida descrita.
 Responde SOLO con JSON válido, sin markdown, sin texto adicional.
 Formato exacto:
@@ -119,9 +122,10 @@ Reglas:
 - Macros en gramos, calorías en kcal.
 - Si no se especifica cantidad, asume una porción típica (1 plato, 1 unidad, etc.).
 - Conocimiento de comida colombiana/latinoamericana.
-- Nunca devuelvas null o undefined; si no estás seguro, estima un valor razonable.
+- Si no reconoces un plato o ingrediente local, NO inventes valores nutricionales. En su lugar, responde con un JSON que tenga "unknown": true y "clarification": "Descripción breve de lo que necesitas saber". El usuario te dará más contexto.
+- Si reconoces el plato, añade "unknown": false al JSON.
 
-Comida del usuario: "${trimmed}"`;
+Comida del usuario: "${trimmed}"${extra ? `\nDescripción/ingredientes/porción aportados por el usuario: "${extra}"` : ''}`;
 
   let text = '';
   try {
@@ -140,6 +144,15 @@ Comida del usuario: "${trimmed}"`;
     return fallback;
   }
 
+  if (parsed.unknown === true) {
+    return {
+      ...fallback,
+      aiSucceeded: false,
+      unknown: true,
+      clarification: typeof parsed.clarification === 'string' && parsed.clarification.trim() ? parsed.clarification.trim().slice(0, 200) : 'No reconocemos este plato. ¿Puedes dar más detalles?',
+    };
+  }
+
   const name = typeof parsed.name === 'string' && parsed.name.trim().length > 0
     ? parsed.name.trim().slice(0, 80)
     : trimmed.slice(0, 80);
@@ -152,6 +165,7 @@ Comida del usuario: "${trimmed}"`;
     estimatedFat:      num(parsed.estimatedFat      ?? parsed.fat),
     aiAvailable: true,
     aiSucceeded: true,
+    unknown: false,
   };
 }
 

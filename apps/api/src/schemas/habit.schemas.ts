@@ -6,6 +6,7 @@ const CATEGORIES = ['HEALTH', 'FITNESS', 'FINANCE', 'LEARNING', 'LOVE', 'SOCIAL'
 const frequencySchema = z.object({
   type: z.enum(['daily', 'days_per_week']),
   days: z.array(z.number().int().min(0).max(6)),
+  restDays: z.array(z.number().int().min(0).max(6)).max(6).optional(),
 });
 
 const calendarDateSchema = z

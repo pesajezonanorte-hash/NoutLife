@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { Camera, Dumbbell, Scale, Timer as TimerIcon, Trash2, Plus, BarChart3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge, BarChart, Button, Card, EmptyState, Field, IconChip, Input, LineChart, Modal, ProgressRing, chipClasses, type BarDatum, type LinePoint, PageLoader } from '@/components/ui/lq';
+import { PrivacyNote } from '@/components/ui/PrivacyNote';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 import { useToastStore } from '@/hooks/useToast';
 import * as gym2 from '../../services/gym2.service';
@@ -323,6 +324,7 @@ export function ProgressPhotos() {
   const [uploading, setUploading] = useState(false);
   const [compare, setCompare] = useState<[string, string] | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     gym2.fetchProgressPhotos().then(setPhotos).finally(() => setLoading(false));
@@ -372,9 +374,14 @@ export function ProgressPhotos() {
           <IconChip icon={Camera} tone="success" size="sm" />
           <h3 id="gym-photos" className="text-heading-sm">Progreso visual</h3>
         </div>
-        <Button variant="secondary" size="sm" loading={uploading} onClick={() => fileRef.current?.click()}><Plus aria-hidden className="size-4" />Foto</Button>
-        <input ref={fileRef} type="file" accept="image/*" className="hidden" aria-label="Subir foto de progreso" onChange={(e) => e.target.files?.[0] && void handleUpload(e.target.files[0])} />
+        <div className="flex gap-2">
+          <Button variant="secondary" size="sm" loading={uploading} onClick={() => cameraRef.current?.click()}><Camera aria-hidden className="size-4" />Tomar foto</Button>
+          <Button variant="secondary" size="sm" disabled={uploading} onClick={() => fileRef.current?.click()}><Plus aria-hidden className="size-4" />Galería</Button>
+        </div>
+        <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" tabIndex={-1} aria-label="Tomar foto de progreso" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void handleUpload(f); }} />
+        <input ref={fileRef} type="file" accept="image/*" className="hidden" tabIndex={-1} aria-label="Subir foto de progreso desde la galería" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void handleUpload(f); }} />
       </div>
+      <PrivacyNote />
 
       {loading ? <PageLoader label="Buscando tus fotos…" words={LOADING_COPY.gym} size="sm" /> : photos.length === 0 ? (
         <EmptyState icon={Camera} tone="success" title="Aún no hay fotos" description="Sube tu primera foto para ver tu cambio con el tiempo." className="py-4" />

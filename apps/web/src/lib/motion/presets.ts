@@ -39,8 +39,11 @@ export const cssDur = (name: SpringName) => `var(--lq-dur-${name})`;
 /** Curva de salida rápida y limpia (todas las zonas salen igual de suave). */
 export const exitEase = [0.4, 0, 1, 1] as const;
 
-const reduced = () => useMotionStore.getState().reduce;
-const fade = { opacity: 0 };
+const reduced = () => {
+  return useMotionStore.getState().reduce ||
+    (typeof window !== 'undefined' && Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches));
+};
+const fade = { opacity: 0, filter: 'none' };
 
 /** Contenedor que escalona a sus hijos. */
 export function staggerVariants(stagger = 0.07, delay = 0.05): Variants {
@@ -68,8 +71,10 @@ export const enter = {
   /** Emerge de la niebla: se enfoca despacio (citas, espejo). */
   emerge: {
     initial: () => (reduced() ? fade : { opacity: 0, scale: 0.985, filter: 'blur(10px)' }),
-    animate: { opacity: 1, scale: 1, filter: 'blur(0px)', transition: { ...springs.gentle, opacity: { duration: durations.slow } }, transitionEnd: { filter: 'none' } },
-    exit: { opacity: 0, transition: { duration: durations.quick, ease: exitEase } },
+    animate: () => (reduced()
+      ? { opacity: 1, filter: 'none', transition: { duration: durations.quick } }
+      : { opacity: 1, scale: 1, filter: 'blur(0px)', transition: { ...springs.gentle, opacity: { duration: durations.slow } }, transitionEnd: { filter: 'none' } }),
+    exit: { opacity: 0, filter: 'none', transition: { duration: durations.quick, ease: exitEase } },
   },
   /** Se sirve: baja sobre la mesa con una pizca de escala (platos, artículos). */
   serve: {

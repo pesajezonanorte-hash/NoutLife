@@ -1,21 +1,24 @@
 // Glow up — GlowUpDesktop.dc.html. "Brillo de hoy" (anillo), SegmentedControl
-// Cuidado / Estilo / Presencia, rutinas con pasos que se marcan, armario con
-// filtros y autoevaluación semanal. Datos: /mirror/* (sin cambios).
+// Cuidado / Armario / Presencia: rutinas con pasos que se marcan, armario con
+// prendas fotografiadas por zona y conjuntos, y autoevaluación semanal. Datos: /mirror/*.
 // Zona ambientada: el espejo. Llega empañado y se desempaña despacio; un reflejo
 // lo cruza muy lento y su resplandor sube de forma gradual con cada paso hecho.
 // Las secciones se funden entre sí; todo con física suave (gentle).
-import { useState, useEffect, useCallback, useMemo, type ReactNode } from 'react';
+import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Check, Droplets, Flame, Moon, Plus, Shirt, Sparkles, Star, Sun, Trash2 } from 'lucide-react';
+import { Check, Droplets, Flame, Moon, Plus, Sparkles, Sun } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { item, springs, stagger } from '@/lib/motion';
 import { AmbientLight, ZoneShell } from '@/components/ambience';
 import { Mirror } from '@/components/glowup/Mirror';
+import { WardrobeSection } from '@/components/glowup/Wardrobe';
+import { PrivacyNote } from '@/components/ui/PrivacyNote';
 import { useToastStore } from '../../hooks/useToast';
 import api from '../../lib/api';
-import { Badge, Button, Card, ChipGroup, EmptyState, ErrorState, Field, IconChip, Input, Modal, ProgressBar, Select, SegmentedControl, StepItem, Textarea, type Tone, PageLoader } from '@/components/ui/lq';
+import { Badge, Button, Card, EmptyState, ErrorState, Field, IconChip, Input, Modal, ProgressBar, Select, SegmentedControl, StepItem, Textarea, type Tone, PageLoader } from '@/components/ui/lq';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 import { Lettering } from '@/components/layout/Lettering';
+import { useMotionStore } from '@/store/motionStore';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -23,11 +26,6 @@ interface CareRoutine {
   id: string; name: string; timeOfDay: string;
   currentStreak: number; longestStreak: number; lastDoneAt?: string;
   steps: { id: string; name: string; product?: string; order: number }[];
-}
-
-interface ClothingItem {
-  id: string; name: string; category: string; color?: string;
-  brand?: string; cost?: number; timesWorn: number; isFavorite: boolean;
 }
 
 interface PresenceCheckin {
@@ -38,14 +36,10 @@ interface PresenceCheckin {
 type Tab = 'care' | 'style' | 'presence';
 const TABS = [
   { value: 'care' as const, label: 'Cuidado personal' },
-  { value: 'style' as const, label: 'Estilo' },
+  { value: 'style' as const, label: 'Armario' },
   { value: 'presence' as const, label: 'Presencia' },
 ];
 
-const CATEGORIES = ['tops', 'bottoms', 'shoes', 'outerwear', 'accessories'];
-const CATEGORY_LABELS: Record<string, string> = {
-  tops: 'Camisas y tops', bottoms: 'Pantalones', shoes: 'Zapatos', outerwear: 'Abrigos', accessories: 'Accesorios',
-};
 const TIME_OF_DAY = ['morning', 'night', 'weekly', 'custom'];
 const TIME_META: Record<string, { label: string; tone: Tone; icon: typeof Sun }> = {
   morning: { label: 'Mañana', tone: 'warning', icon: Sun },
@@ -235,125 +229,6 @@ function CareSection({ onProgress }: CareProps) {
   );
 }
 
-// ─── Style Section ────────────────────────────────────────────────────────────
-
-function StyleSection() {
-  const toast = useToastStore();
-  const [items, setItems] = useState<ClothingItem[]>([]);
-  const [state, setState] = useState<'loading' | 'error' | 'ready'>('loading');
-  const [activeCategory, setActiveCategory] = useState('all');
-  const [showNew, setShowNew] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ name: '', category: 'tops', color: '', brand: '', cost: '' });
-
-  const load = useCallback(async (silent = false) => {
-    if (!silent) setState('loading');
-    try {
-      const { data } = await api.get('/mirror/wardrobe');
-      setItems(data);
-      setState('ready');
-    } catch {
-      if (!silent) setState('error');
-      else toast.error('No se pudo actualizar el armario');
-    }
-  }, [toast]);
-
-  useEffect(() => { void load(); }, [load]);
-
-  const displayed = activeCategory === 'all' ? items : items.filter((i) => i.category === activeCategory);
-  const options = useMemo(() => [
-    { value: 'all', label: 'Todas', count: items.length },
-    ...CATEGORIES.map((c) => ({ value: c, label: CATEGORY_LABELS[c], count: items.filter((i) => i.category === c).length })),
-  ], [items]);
-
-  async function handleCreate() {
-    setSaving(true);
-    try {
-      await api.post('/mirror/wardrobe', { ...form, cost: form.cost ? Number(form.cost) : undefined });
-      setShowNew(false);
-      setForm({ name: '', category: 'tops', color: '', brand: '', cost: '' });
-      void load(true);
-      toast.success('Prenda añadida');
-    } catch { toast.error('No se pudo añadir la prenda'); }
-    finally { setSaving(false); }
-  }
-
-  async function handleWorn(id: string) {
-    try { await api.post(`/mirror/wardrobe/${id}/worn`); void load(true); } catch { toast.error('No se pudo registrar el uso'); }
-  }
-
-  async function handleDelete(id: string) {
-    try { await api.delete(`/mirror/wardrobe/${id}`); void load(true); } catch { toast.error('No se pudo eliminar la prenda'); }
-  }
-
-  return (
-    <section className="flex flex-col gap-6" aria-labelledby="glow-style">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 id="glow-style" className="text-heading-lg">Armario cápsula</h2>
-        <Button size="md" onClick={() => setShowNew(true)}><Plus aria-hidden className="size-4" />Prenda</Button>
-      </div>
-      {/* TODO(api): el prototipo incluye "Outfits de la semana"; no existe endpoint de outfits. */}
-      <ChipGroup label="Categoría de prenda" options={options} value={activeCategory} onChange={setActiveCategory} />
-
-      {state === 'loading' ? (
-        <PageLoader label="Abriendo tu armario…" words={LOADING_COPY.glowUpWardrobe} />
-      ) : state === 'error' ? (
-        <ErrorState title="No pudimos cargar tu armario" onRetry={() => void load()} />
-      ) : displayed.length === 0 ? (
-        <Card variant="elevated" padding="lg">
-          <EmptyState icon={Shirt} tone="info" title="Tu armario está vacío" description="Añade tus prendas para saber cuánto uso le das a cada una."
-            action={<Button onClick={() => setShowNew(true)}><Plus aria-hidden className="size-4" />Añadir prenda</Button>} className="py-6" />
-        </Card>
-      ) : (
-        <motion.ul variants={stagger} initial="initial" animate="animate" className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-          {displayed.map((it) => (
-            <motion.li key={it.id} variants={item}>
-              <Card as="article" padding="sm" interactive className="flex h-full flex-col gap-2">
-                <div className="flex items-start justify-between gap-1">
-                  <h3 className="min-w-0 truncate text-label-lg">{it.name}</h3>
-                  <Button variant="icon" size="sm" aria-label={`Eliminar ${it.name}`} onClick={() => void handleDelete(it.id)} className="-mr-2 -mt-2 size-11 md:size-9">
-                    <Trash2 aria-hidden className="size-4" strokeWidth={1.75} />
-                  </Button>
-                </div>
-                <p className="text-body-sm text-on-surface">{CATEGORY_LABELS[it.category] ?? it.category}</p>
-                {it.brand && <p className="text-body-sm text-on-surface-light">{it.brand}</p>}
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-body-sm text-on-surface-light">
-                    <span className="font-mono tabular-nums">{it.timesWorn}</span> {it.timesWorn === 1 ? 'uso' : 'usos'}
-                    {it.cost && it.timesWorn > 0 ? <> · <span className="font-mono tabular-nums">${Math.round(Number(it.cost) / it.timesWorn).toLocaleString('es-CO')}</span>/uso</> : null}
-                  </p>
-                  {it.isFavorite && <Star aria-label="Favorita" className="size-4 shrink-0 fill-warning text-warning" />}
-                </div>
-                <Button variant="secondary" size="sm" block className="mt-auto" onClick={() => void handleWorn(it.id)}>Usar hoy</Button>
-              </Card>
-            </motion.li>
-          ))}
-        </motion.ul>
-      )}
-
-      <Modal open={showNew} onClose={() => setShowNew(false)} title="Nueva prenda">
-        <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); void handleCreate(); }}>
-          <Field label="Nombre"><Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Camiseta azul" autoFocus /></Field>
-          <Field label="Categoría">
-            <Select value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}>
-              {CATEGORIES.map((c) => <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>)}
-            </Select>
-          </Field>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Marca"><Input value={form.brand} onChange={(e) => setForm((f) => ({ ...f, brand: e.target.value }))} placeholder="Zara, Nike…" /></Field>
-            <Field label="Color"><Input value={form.color} onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))} placeholder="Azul marino" /></Field>
-          </div>
-          <Field label="Precio (COP)"><Input type="number" inputMode="numeric" value={form.cost} onChange={(e) => setForm((f) => ({ ...f, cost: e.target.value }))} placeholder="50000" /></Field>
-          <div className="flex gap-3">
-            <Button type="button" variant="ghost" className="flex-1" onClick={() => setShowNew(false)}>Cancelar</Button>
-            <Button type="submit" className="flex-1" disabled={!form.name.trim()} loading={saving}>Añadir</Button>
-          </div>
-        </form>
-      </Modal>
-    </section>
-  );
-}
-
 // ─── Presence Section ─────────────────────────────────────────────────────────
 
 const AREAS = [
@@ -457,6 +332,7 @@ function PresenceSection() {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function GlowUpPage() {
+  const reduce = useMotionStore((s) => s.reduce);
   const [tab, setTab] = useState<Tab>('care');
   const [progress, setProgress] = useState({ done: 0, total: 0, streak: 0 });
   const onProgress = useCallback((done: number, total: number, streak: number) => {
@@ -472,8 +348,8 @@ export default function GlowUpPage() {
     >
       <motion.section variants={item} className="flex flex-wrap items-center justify-between gap-6 md:gap-8">
         <div className="flex min-w-0 flex-[1_1_360px] flex-col gap-2">
-          <span className="text-label-lg text-primary-text">El espejo</span>
-          <h1 className="text-display-sm md:text-display-md lg:text-display-lg"><Lettering text="Glow up" /></h1>
+          <span className="text-label-lg text-primary-text">Cuidado y estilo</span>
+          <h1 className="text-display-sm md:text-display-md lg:text-display-lg"><Lettering text="Espejo" /></h1>
           <p className="max-w-[540px] text-body-lg text-on-surface-light">Cuídate, vístete y preséntate. Pequeños rituales que cambian cómo te ves y cómo te sientes.</p>
         </div>
         {/* El tocador: cada paso completado enciende otra bombilla y aclara el vidrio */}
@@ -491,13 +367,20 @@ export default function GlowUpPage() {
 
       <motion.div variants={item}>
         <SegmentedControl options={TABS} value={tab} onChange={setTab} label="Área" className="max-w-[560px]" />
+        <PrivacyNote className="mt-3 max-w-[560px]" />
       </motion.div>
 
       {/* Las secciones se funden entre sí, sin saltos */}
       <AnimatePresence mode="wait">
-        <motion.div key={tab} role="tabpanel" initial={{ opacity: 0, filter: 'blur(6px)' }} animate={{ opacity: 1, filter: 'blur(0px)', transition: springs.gentle, transitionEnd: { filter: 'none' } }} exit={{ opacity: 0, filter: 'blur(4px)', transition: { duration: 0.2 } }}>
+        <motion.div
+          key={tab}
+          role="tabpanel"
+          initial={reduce ? { opacity: 0, filter: 'none' } : { opacity: 0, filter: 'blur(6px)' }}
+          animate={reduce ? { opacity: 1, filter: 'none', transition: { duration: 0.15 } } : { opacity: 1, filter: 'blur(0px)', transition: springs.gentle, transitionEnd: { filter: 'none' } }}
+          exit={reduce ? { opacity: 0, filter: 'none', transition: { duration: 0.15 } } : { opacity: 0, filter: 'blur(4px)', transition: { duration: 0.2 } }}
+        >
           {tab === 'care' && <CareSection onProgress={onProgress} />}
-          {tab === 'style' && <StyleSection />}
+          {tab === 'style' && <WardrobeSection />}
           {tab === 'presence' && <PresenceSection />}
         </motion.div>
       </AnimatePresence>

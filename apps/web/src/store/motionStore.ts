@@ -6,8 +6,15 @@ import { persist } from 'zustand/middleware';
 // operativo pida reducir movimiento. main.tsx pasa el valor a <MotionConfig> y
 // la clase .reduce-motion en <html> lo aplica en CSS (tokens.css).
 
+function detectSystemReduce(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+}
+
 function applyClass(reduce: boolean) {
-  document.documentElement.classList.toggle('reduce-motion', reduce);
+  if (typeof document !== 'undefined') {
+    document.documentElement.classList.toggle('reduce-motion', reduce);
+  }
 }
 
 interface MotionState {
@@ -18,7 +25,7 @@ interface MotionState {
 export const useMotionStore = create<MotionState>()(
   persist(
     (set) => ({
-      reduce: false,
+      reduce: detectSystemReduce(),
       setReduce: (reduce) => {
         applyClass(reduce);
         set({ reduce });
@@ -27,11 +34,19 @@ export const useMotionStore = create<MotionState>()(
     {
       name: 'lq-motion',
       partialize: (s) => ({ reduce: s.reduce }),
-      // v1: todas las animaciones activas de base; se reinicia lo guardado antes.
-      version: 1,
-      migrate: () => ({ reduce: false }),
+      version: 2,
+      migrate: () => ({ reduce: detectSystemReduce() }),
     },
   ),
 );
 
-applyClass(useMotionStore.getState().reduce);
+if (typeof window !== 'undefined') {
+  applyClass(useMotionStore.getState().reduce || detectSystemReduce());
+  window.matchMedia?.('(prefers-reduced-motion: reduce)')?.addEventListener('change', (e) => {
+    if (!localStorage.getItem('lq-motion')) {
+      useMotionStore.getState().setReduce(e.matches);
+    } else {
+      applyClass(useMotionStore.getState().reduce || e.matches);
+    }
+  });
+}

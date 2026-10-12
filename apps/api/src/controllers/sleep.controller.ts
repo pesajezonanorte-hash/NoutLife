@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import type { AuthRequest } from '../middleware/auth.middleware';
 import * as svc from '../services/sleep.service';
+import { getSleepSuggestion as findSuggestion } from '../services/sleep-suggestion.service';
 
 const s = (l: { createdAt: Date; date: Date; bedtime: Date; wakeTime: Date; [k: string]: unknown }) => ({
   ...l,
@@ -43,4 +44,11 @@ export async function getSleepStats(req: AuthRequest, res: Response): Promise<vo
     const stats = await svc.getSleepStats(req.userId!);
     res.json({ stats });
   } catch { res.status(500).json({ error: 'Error al obtener estadísticas.' }); }
+}
+
+export async function getSleepSuggestion(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const suggestion = await findSuggestion(req.userId!);
+    res.json({ suggestion });
+  } catch { res.status(500).json({ error: 'Error al obtener la sugerencia de sueño.' }); }
 }

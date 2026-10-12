@@ -12,5 +12,6 @@ router.post('/',         validate(createSleepSchema), ctrl.createSleep);
 router.patch('/:id',     validate(updateSleepSchema), ctrl.updateSleep);
 router.delete('/:id',    ctrl.deleteSleep);
 router.get('/stats',     ctrl.getSleepStats);
+router.get('/suggestion', ctrl.getSleepSuggestion);
 
 export default router;

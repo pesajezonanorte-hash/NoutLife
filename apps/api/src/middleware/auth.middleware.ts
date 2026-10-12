@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyAccessToken } from '../lib/jwt';
 import { prisma } from '../lib/prisma';
+import { recordActivity } from '../services/sleep-suggestion.service';
 
 // Marca de actividad (lastSeenAt) como mucho una vez por hora y usuario, sin
 // bloquear la petición: sirve para saber cuánta gente usa la app hoy.
@@ -11,6 +12,16 @@ function markSeen(userId: string): void {
   if (now - (lastSeen.get(userId) ?? 0) < SEEN_EVERY_MS) return;
   lastSeen.set(userId, now);
   prisma.user.updateMany({ where: { id: userId }, data: { lastSeenAt: new Date(now) } }).catch(() => null);
+}
+
+// Actividad fina (cada pocos minutos) para detectar la pausa nocturna y sugerir el sueño.
+const ACTIVE_EVERY_MS = 3 * 60_000;
+const lastActiveTouch = new Map<string, number>();
+function markActive(userId: string): void {
+  const now = Date.now();
+  if (now - (lastActiveTouch.get(userId) ?? 0) < ACTIVE_EVERY_MS) return;
+  lastActiveTouch.set(userId, now);
+  recordActivity(userId, new Date(now)).catch(() => null);
 }
 
 export interface AuthRequest extends Request {
@@ -40,6 +51,7 @@ export function requireAuth(req: AuthRequest, res: Response, next: NextFunction)
     req.userId = payload.userId;
     req.userEmail = payload.email;
     markSeen(payload.userId);
+    markActive(payload.userId);
     next();
   } catch {
     res.status(401).json({ error: 'Token inválido o expirado' });

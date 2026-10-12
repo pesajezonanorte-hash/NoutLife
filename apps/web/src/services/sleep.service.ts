@@ -25,3 +25,11 @@ export async function fetchSleepStats(): Promise<SleepStats> {
   const { data } = await api.get<{ stats: SleepStats }>('/sleep/stats');
   return data.stats;
 }
+
+export interface SleepSuggestion { bedtime: string; wake: string; hours: number }
+
+/** Pausa nocturna detectada por la actividad en la app (null si no hay ninguna reciente). */
+export async function fetchSleepSuggestion(): Promise<SleepSuggestion | null> {
+  const { data } = await api.get<{ suggestion: SleepSuggestion | null }>('/sleep/suggestion');
+  return data.suggestion;
+}

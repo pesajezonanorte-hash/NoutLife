@@ -33,9 +33,9 @@ export const createSleepSchema = z
   })
   .refine((body) => {
     const hours = sleepHours(body.bedtime, body.wakeTime);
-    // Siesta: de 5 min a 4 h; noche: de 30 min a 12 h.
-    return body.isNap ? hours >= 5 / 60 && hours <= 4 : hours >= 0.5 && hours <= 12;
-  }, { message: 'La duración no es válida: siestas de 5 min a 4 h, noches de 30 min a 12 h.', path: ['wakeTime'] });
+    // Descansos cortos o sueños muy largos son válidos: de 1 min a 24 h.
+    return hours >= 1 / 60 && hours <= 24;
+  }, { message: 'La duración no es válida: debe estar entre 1 minuto y 24 horas.', path: ['wakeTime'] });
 
 export const updateSleepSchema = z.object({
   bedtime: parsableDate.optional(),

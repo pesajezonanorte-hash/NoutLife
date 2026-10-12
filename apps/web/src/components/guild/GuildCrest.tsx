@@ -70,6 +70,7 @@ export interface GuildPhotoDialogProps {
 export function GuildPhotoDialog({ open, onClose, name, photoUrl, emblem, tone, onSave }: GuildPhotoDialogProps) {
   const toast = useToast();
   const input = useRef<HTMLInputElement>(null);
+  const camera = useRef<HTMLInputElement>(null);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -111,9 +112,13 @@ export function GuildPhotoDialog({ open, onClose, name, photoUrl, emblem, tone, 
             </p>
           </div>
           <input ref={input} type="file" accept="image/*" aria-label="Subir foto del gremio" className="hidden" tabIndex={-1} onChange={(e) => void pick(e)} />
+          <input ref={camera} type="file" accept="image/*" capture="environment" aria-label="Tomar foto del gremio" className="hidden" tabIndex={-1} onChange={(e) => void pick(e)} />
           <div className="flex flex-col gap-2">
-            <Button block loading={saving} onClick={() => input.current?.click()}>
-              <Upload aria-hidden className="size-5" strokeWidth={1.75} />{photoUrl ? 'Cambiar foto' : 'Subir foto'}
+            <Button block loading={saving} onClick={() => camera.current?.click()}>
+              <Camera aria-hidden className="size-5" strokeWidth={1.75} />Tomar foto
+            </Button>
+            <Button variant="secondary" block disabled={saving} onClick={() => input.current?.click()}>
+              <Upload aria-hidden className="size-5" strokeWidth={1.75} />{photoUrl ? 'Cambiar desde la galería' : 'Galería'}
             </Button>
             {photoUrl && (
               <Button variant="ghost" block disabled={saving} onClick={() => void save(null)}>

@@ -23,6 +23,8 @@ export interface HabitItemData {
 export interface HabitListItemProps {
   habit: HabitItemData;
   onComplete: () => void;
+  /** Si se pasa, tocar un hábito ya completado lo desmarca. */
+  onRevert?: () => void;
   pending?: boolean;
   /** Últimos 7 días (L→hoy) para los puntos semanales en md+. */
   week?: boolean[];
@@ -34,7 +36,7 @@ export interface HabitListItemProps {
  * Fila de hábito (Habits.dc.html / HabitsDesktop): IconChip por categoría,
  * nombre → detalle, racha (ícono + texto), puntos de la semana y check 48 px.
  */
-export function HabitListItem({ habit, onComplete, pending, week, variant = 'card' }: HabitListItemProps) {
+export function HabitListItem({ habit, onComplete, onRevert, pending, week, variant = 'card' }: HabitListItemProps) {
   const meta = categoryMeta(habit.category);
   const done = Boolean(habit.todayCompleted) || habit.todayStatus === 'completed';
   const skipped = habit.todayStatus === 'skipped';
@@ -80,7 +82,7 @@ export function HabitListItem({ habit, onComplete, pending, week, variant = 'car
         </div>
       )}
       {/* TODO(api): no hay endpoint para deshacer un registro; una vez completado el check queda bloqueado. */}
-      <CheckButton name={habit.title} checked={done} locked disabled={pending} onToggle={onComplete} />
+      <CheckButton name={habit.title} checked={done} locked={!onRevert} disabled={pending} onToggle={done && onRevert ? onRevert : onComplete} />
     </motion.li>
   );
 }

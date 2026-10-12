@@ -14,6 +14,7 @@ const REPLAN_MS = 15 * 60 * 1000;
 const dayKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 function scheduledToday(h: Habit, now: Date) {
+  if (h.frequency?.restDays?.includes(now.getDay())) return false;
   if (h.frequency?.type !== 'days_per_week' || !h.frequency.days?.length) return true;
   return h.frequency.days.includes(now.getDay());
 }

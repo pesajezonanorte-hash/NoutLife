@@ -4,6 +4,12 @@ import { requireAuth, type AuthRequest } from '../middleware/auth.middleware';
 import { prisma } from '../lib/prisma';
 
 const router = Router();
+
+const ZONES = ['torso', 'piernas', 'calzado', 'accesorios', 'abrigo', 'cuerpo_completo'] as const;
+const ZONE_CATEGORY: Record<string, string> = { torso: 'tops', piernas: 'bottoms', calzado: 'shoes', accesorios: 'accessories', abrigo: 'outerwear', cuerpo_completo: 'tops' };
+const MAX_PHOTO = 900_000;
+const cleanPhoto = (v: unknown) => (typeof v === 'string' && /^data:image\/(jpeg|png|webp);base64,/.test(v) && v.length <= MAX_PHOTO ? v : null);
+const cleanText = (v: unknown, max: number) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null);
 router.use(requireAuth);
 
 // ─── Care Routines ─────────────────────────────────────────────────────────────
@@ -119,9 +125,12 @@ router.get('/wardrobe', async (req, res, next) => {
 router.post('/wardrobe', async (req, res, next) => {
   try {
     const userId = (req as AuthRequest).userId!;
-    const { name, category, color, brand, cost } = req.body;
-    if (!name || !category) return res.status(400).json({ error: 'name and category required' });
-    const item = await prisma.clothingItem.create({ data: { userId, name, category, color, brand, cost } });
+    const { name, zone, color, brand, cost, photoUrl } = req.body;
+    if (!name || !ZONES.includes(zone)) return res.status(400).json({ error: 'name and valid zone required' });
+    if (photoUrl && !cleanPhoto(photoUrl)) return res.status(400).json({ error: 'invalid photo' });
+    const item = await prisma.clothingItem.create({
+      data: { userId, name: String(name).trim().slice(0, 80), zone, category: ZONE_CATEGORY[zone], color: cleanText(color, 40), brand: cleanText(brand, 60), cost: cost ? Number(cost) : undefined, photoUrl: cleanPhoto(photoUrl) },
+    });
     res.status(201).json(item);
   } catch (err) { next(err); }
 });
@@ -129,9 +138,20 @@ router.post('/wardrobe', async (req, res, next) => {
 router.patch('/wardrobe/:id', async (req, res, next) => {
   try {
     const userId = (req as AuthRequest).userId!;
+    const { name, zone, color, brand, cost, photoUrl, isFavorite } = req.body;
+    if (zone !== undefined && !ZONES.includes(zone)) return res.status(400).json({ error: 'invalid zone' });
+    if (photoUrl && !cleanPhoto(photoUrl)) return res.status(400).json({ error: 'invalid photo' });
     const item = await prisma.clothingItem.update({
       where: { id: req.params.id, userId },
-      data: req.body,
+      data: {
+        ...(typeof name === 'string' && name.trim() && { name: name.trim().slice(0, 80) }),
+        ...(zone !== undefined && { zone, category: ZONE_CATEGORY[zone] }),
+        ...(color !== undefined && { color: cleanText(color, 40) }),
+        ...(brand !== undefined && { brand: cleanText(brand, 60) }),
+        ...(cost !== undefined && { cost: cost === '' || cost === null ? null : Number(cost) }),
+        ...(photoUrl !== undefined && { photoUrl: photoUrl ? cleanPhoto(photoUrl) : null }),
+        ...(typeof isFavorite === 'boolean' && { isFavorite }),
+      },
     });
     res.json(item);
   } catch (err) { next(err); }
@@ -140,7 +160,12 @@ router.patch('/wardrobe/:id', async (req, res, next) => {
 router.delete('/wardrobe/:id', async (req, res, next) => {
   try {
     const userId = (req as AuthRequest).userId!;
-    await prisma.clothingItem.delete({ where: { id: req.params.id, userId } });
+    const own = await prisma.clothingItem.findFirst({ where: { id: req.params.id, userId }, select: { id: true } });
+    if (!own) return res.status(404).json({ error: 'not found' });
+    await prisma.$transaction([
+      prisma.outfitItem.deleteMany({ where: { clothingItemId: own.id } }),
+      prisma.clothingItem.delete({ where: { id: own.id } }),
+    ]);
     res.json({ success: true });
   } catch (err) { next(err); }
 });
@@ -163,25 +188,73 @@ router.get('/outfits', async (req, res, next) => {
     const userId = (req as AuthRequest).userId!;
     const outfits = await prisma.outfit.findMany({
       where: { userId },
-      include: { items: { include: { clothingItem: true } } },
+      include: { items: { include: { clothingItem: { select: { id: true, name: true, zone: true, category: true, color: true } } } } },
       orderBy: { createdAt: 'desc' },
     });
     res.json(outfits);
   } catch (err) { next(err); }
 });
 
+async function ownedItemIds(userId: string, ids: unknown): Promise<string[] | null> {
+  if (!Array.isArray(ids)) return null;
+  const unique = [...new Set(ids.filter((i): i is string => typeof i === 'string'))];
+  if (!unique.length) return null;
+  const found = await prisma.clothingItem.count({ where: { userId, id: { in: unique } } });
+  return found === unique.length ? unique : null;
+}
+
 router.post('/outfits', async (req, res, next) => {
   try {
     const userId = (req as AuthRequest).userId!;
-    const { name, itemIds = [], occasion, rating } = req.body;
+    const { name, itemIds, occasion, rating, photoUrl } = req.body;
+    const ids = await ownedItemIds(userId, itemIds);
+    if (!ids) return res.status(400).json({ error: 'itemIds required' });
+    if (photoUrl && !cleanPhoto(photoUrl)) return res.status(400).json({ error: 'invalid photo' });
     const outfit = await prisma.outfit.create({
       data: {
-        userId, name, occasion, rating,
-        items: { create: (itemIds as string[]).map(id => ({ clothingItemId: id })) },
+        userId, name: cleanText(name, 80), occasion: cleanText(occasion, 60), rating: Number.isInteger(rating) ? rating : undefined, photoUrl: cleanPhoto(photoUrl),
+        items: { create: ids.map(id => ({ clothingItemId: id })) },
       },
       include: { items: { include: { clothingItem: true } } },
     });
     res.status(201).json(outfit);
+  } catch (err) { next(err); }
+});
+
+router.patch('/outfits/:id', async (req, res, next) => {
+  try {
+    const userId = (req as AuthRequest).userId!;
+    const { name, itemIds, occasion, photoUrl } = req.body;
+    const ids = itemIds === undefined ? undefined : await ownedItemIds(userId, itemIds);
+    if (itemIds !== undefined && !ids) return res.status(400).json({ error: 'invalid itemIds' });
+    if (photoUrl && !cleanPhoto(photoUrl)) return res.status(400).json({ error: 'invalid photo' });
+    const own = await prisma.outfit.findFirst({ where: { id: req.params.id, userId }, select: { id: true } });
+    if (!own) return res.status(404).json({ error: 'not found' });
+    const outfit = await prisma.outfit.update({
+      where: { id: own.id },
+      data: {
+        ...(name !== undefined && { name: cleanText(name, 80) }),
+        ...(occasion !== undefined && { occasion: cleanText(occasion, 60) }),
+        ...(photoUrl !== undefined && { photoUrl: photoUrl ? cleanPhoto(photoUrl) : null }),
+        ...(ids && { items: { deleteMany: {}, create: ids.map(id => ({ clothingItemId: id })) } }),
+      },
+      include: { items: { include: { clothingItem: true } } },
+    });
+    res.json(outfit);
+  } catch (err) { next(err); }
+});
+
+router.post('/outfits/:id/worn', async (req, res, next) => {
+  try {
+    const userId = (req as AuthRequest).userId!;
+    const own = await prisma.outfit.findFirst({ where: { id: req.params.id, userId }, include: { items: true } });
+    if (!own) return res.status(404).json({ error: 'not found' });
+    const now = new Date();
+    await prisma.$transaction([
+      prisma.outfit.update({ where: { id: own.id }, data: { lastWornAt: now } }),
+      prisma.clothingItem.updateMany({ where: { userId, id: { in: own.items.map(i => i.clothingItemId) } }, data: { timesWorn: { increment: 1 }, lastWornAt: now } }),
+    ]);
+    res.json({ success: true });
   } catch (err) { next(err); }
 });
 

@@ -3,6 +3,8 @@ import api from '../lib/api';
 export interface HabitFrequency {
   type: 'daily' | 'days_per_week';
   days: number[];
+  /** Días de descanso (0 = domingo): ni se exigen ni rompen la racha. */
+  restDays?: number[];
 }
 
 export interface Habit {
@@ -120,6 +122,11 @@ export async function logHabit(
   date?: string,
 ): Promise<HabitLogResult> {
   const { data } = await api.post<HabitLogResult>(`/habits/${id}/log`, { status, notes, date });
+  return data;
+}
+
+export async function revertHabitLog(id: string, date?: string): Promise<{ habit: Habit; currentStreak: number; longestStreak: number; xpRemoved: number; goldRemoved: number }> {
+  const { data } = await api.delete<{ habit: Habit; currentStreak: number; longestStreak: number; xpRemoved: number; goldRemoved: number }>(`/habits/${id}/log${date ? `?date=${date}` : ''}`);
   return data;
 }
 

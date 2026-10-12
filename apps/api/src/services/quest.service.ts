@@ -2,6 +2,14 @@ import { prisma } from '../lib/prisma';
 import { awardXpAndGold } from './xp.service';
 import { checkAchievements } from './achievement.service';
 import { createNotification } from './notification.service';
+import { syncQuestWithGoogleCalendar } from './agenda.service';
+
+/** Refleja la misión en Google Calendar si está conectado; nunca bloquea ni rompe la acción. */
+function mirrorToCalendar(userId: string, questId: string) {
+  return syncQuestWithGoogleCalendar(userId, questId).catch((error) => {
+    console.error('[GOOGLE_CALENDAR_QUEST_SYNC_ERROR]', questId, error instanceof Error ? error.message : 'unknown');
+  });
+}
 import type { QuestCategory, QuestDifficulty, QuestStatus, QuestType } from '@prisma/client';
 
 export interface CreateQuestInput {
@@ -61,7 +69,7 @@ export async function createQuest(userId: string, input: CreateQuestInput) {
     completed: obj.completed ?? false,
   }));
 
-  return prisma.quest.create({
+  const created = await prisma.quest.create({
     data: {
       userId,
       title: input.title,
@@ -77,6 +85,8 @@ export async function createQuest(userId: string, input: CreateQuestInput) {
       parentQuestId: input.parentQuestId,
     },
   });
+  if (created.deadline) await mirrorToCalendar(userId, created.id);
+  return created;
 }
 
 export async function listQuests(userId: string, filters: QuestFilters = {}) {
@@ -136,7 +146,7 @@ export async function updateQuest(userId: string, questId: string, input: Update
       }))
     : undefined;
 
-  return prisma.quest.update({
+  const updated = await prisma.quest.update({
     where: { id: questId },
     data: {
       ...(input.title !== undefined && { title: input.title }),
@@ -149,16 +159,20 @@ export async function updateQuest(userId: string, questId: string, input: Update
       ...(subObjectives !== undefined && { subObjectives }),
     },
   });
+  if (updated.deadline || quest.googleCalendarEventId) await mirrorToCalendar(userId, questId);
+  return updated;
 }
 
 export async function archiveQuest(userId: string, questId: string) {
   const quest = await prisma.quest.findFirst({ where: { id: questId, userId } });
   if (!quest) throw new Error('QUEST_NOT_FOUND');
 
-  return prisma.quest.update({
+  const archived = await prisma.quest.update({
     where: { id: questId },
     data: { status: 'ARCHIVED' },
   });
+  if (quest.googleCalendarEventId) await mirrorToCalendar(userId, questId);
+  return archived;
 }
 
 export async function failQuest(userId: string, questId: string) {
@@ -167,10 +181,12 @@ export async function failQuest(userId: string, questId: string) {
   });
   if (!quest) throw new Error('QUEST_NOT_FOUND');
 
-  return prisma.quest.update({
+  const failed = await prisma.quest.update({
     where: { id: questId },
     data: { status: 'FAILED' },
   });
+  if (quest.googleCalendarEventId) await mirrorToCalendar(userId, questId);
+  return failed;
 }
 
 export async function toggleSubObjective(userId: string, questId: string, subObjectiveId: string, completed: boolean) {
@@ -200,6 +216,7 @@ export async function completeQuest(userId: string, questId: string) {
     where: { id: questId },
     data: { status: 'COMPLETED', completedAt: now },
   });
+  if (quest.googleCalendarEventId) void mirrorToCalendar(userId, questId);
 
   await prisma.questCompletion.create({
     data: { questId, userId, xpEarned: quest.xpReward, goldEarned: quest.goldReward },

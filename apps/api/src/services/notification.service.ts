@@ -148,7 +148,7 @@ export async function createNotification(userId: string, input: CreateNotificati
       title: data.title,
       body: data.body,
       tag: data.dedupeKey,
-      data: data.link || reply ? { ...(data.link ? { link: data.link } : {}), ...(reply ? { reply } : {}) } : undefined,
+      data: { category, type: data.type, ...(data.link ? { link: data.link } : {}), ...(reply ? { reply } : {}) },
     }, category).catch(() => 0);
     if (opts.awaitPush) await push;
   }

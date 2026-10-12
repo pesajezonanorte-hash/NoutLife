@@ -10,6 +10,8 @@ import notificationRoutes from './notification.routes';
 import workoutRoutes      from './workout.routes';
 import financeRoutes      from './finance.routes';
 import sleepRoutes        from './sleep.routes';
+import antiHabitRoutes    from './anti-habit.routes';
+import checklistRoutes    from './checklist.routes';
 import mealRoutes         from './meal.routes';
 import learningRoutes     from './learning.routes';
 import journalRoutes      from './journal.routes';
@@ -38,6 +40,7 @@ import exportRoutes       from './export.routes';
 import feedbackRoutes     from './feedback.routes';
 // El Espejo (Bloque 3)
 import mirrorRoutes       from './mirror.routes';
+import albumRoutes        from './album.routes';
 // Custom Zones (Bloque 4)
 import customZonesRoutes  from './custom-zones.routes';
 // Recordatorios disparados desde fuera (serverless)
@@ -56,6 +59,8 @@ router.use('/notifications', notificationRoutes);
 router.use('/workouts',      workoutRoutes);
 router.use('/finances',      financeRoutes);
 router.use('/sleep',         sleepRoutes);
+router.use('/anti-habits',   antiHabitRoutes);
+router.use('/checklists',    checklistRoutes);
 router.use('/meals',         mealRoutes);
 router.use('/learning',      learningRoutes);
 router.use('/journal',       journalRoutes);
@@ -86,6 +91,7 @@ router.use('/cron',         cronRoutes);
 router.use('/feedback',     feedbackRoutes);
 
 router.use('/mirror',       mirrorRoutes);
+router.use('/album',        albumRoutes);
 router.use('/custom-zones', customZonesRoutes);
 
 router.get('/health', (_req, res) => {

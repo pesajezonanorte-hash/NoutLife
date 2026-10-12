@@ -36,6 +36,8 @@ export interface ParsedMeal {
   estimatedFat: number;
   aiAvailable: boolean;
   aiSucceeded: boolean;
+  unknown?: boolean;
+  clarification?: string;
 }
 
 /** null si el usuario aún no definió metas. */
@@ -63,7 +65,7 @@ export async function deleteSavedMeal(id: string): Promise<void> {
   await api.delete(`/nutrition/saved-meals/${id}`);
 }
 
-export async function parseMeal(description: string): Promise<ParsedMeal> {
-  const { data } = await api.post<ParsedMeal>('/nutrition/ai-parse', { description });
+export async function parseMeal(description: string, details?: string): Promise<ParsedMeal> {
+  const { data } = await api.post<ParsedMeal>('/nutrition/ai-parse', { description, details });
   return data;
 }

@@ -1,6 +1,7 @@
 import { CookieNotice } from '@/components/legal/CookieNotice';
 import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, matchPath, useLocation } from 'react-router-dom';
+import { ZONE_PAGES, zonePaths } from './routes/zonePages';
 import { motion, AnimatePresence, useReducedMotionConfig } from 'framer-motion';
 import { useAuthStore } from './store/authStore';
 import { useUIStore } from './store/uiStore';
@@ -69,7 +70,7 @@ type PageImport = () => Promise<PageModule>;
 
 /** Calienta todos los módulos de página cuando el navegador está ocioso. */
 function preloadPages() {
-  const preload = () => Object.values(loaders).forEach((load) => void load());
+  const preload = () => [...Object.values(loaders), ...ZONE_PAGES.map((z) => z.load)].forEach((load) => void load());
   const idle = (window as { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number }).requestIdleCallback;
   if (idle) {
     idle(preload, { timeout: 3000 });
@@ -112,13 +113,16 @@ const routeLoaders: Record<string, () => Promise<unknown>> = {
   '/faq': loaders.FAQPage,
 };
 
+for (const zone of ZONE_PAGES) routeLoaders[zone.path] = zone.load;
+
 // Rutas que solo redirigen (no esperan ningún bundle).
-const REDIRECTS = new Set(['/goals', '/metas', '/rituales', '/character', '/friends', '/guild']);
+const REDIRECTS = new Set(['/goals', '/metas', '/rituales', '/character', '/friends', '/guild', '/espejo', '/armario']);
 
 function loaderForPath(pathname: string) {
   if (REDIRECTS.has(pathname)) return null;
   if (/^\/habits\/[^/]+$/.test(pathname)) return loaders.HabitDetailPage;
-  return routeLoaders[pathname] ?? loaders.NotFoundPage;
+  const zone = ZONE_PAGES.find((z) => zonePaths(z).some((path) => matchPath(path, pathname)));
+  return routeLoaders[pathname] ?? zone?.load ?? loaders.NotFoundPage;
 }
 
 function PageLoader() {
@@ -236,9 +240,14 @@ function AnimatedRoutes({ location }: { location: ReturnType<typeof useLocation>
           <Route path="/rituals"  element={<SafePage><DeferredLazyPage load={loaders.RitualsPage} /></SafePage>} />
           <Route path="/rituales" element={<Navigate to="/rituals" replace />} />
           <Route path="/glow-up"  element={<SafePage><DeferredLazyPage load={loaders.GlowUpPage} /></SafePage>} />
+          <Route path="/espejo"   element={<Navigate to="/glow-up" replace />} />
+          <Route path="/armario"  element={<Navigate to="/glow-up" replace />} />
           <Route path="/wisdom"   element={<SafePage><DeferredLazyPage load={loaders.WisdomPage} /></SafePage>} />
           <Route path="/about"    element={<SafePage><DeferredLazyPage load={loaders.AboutPage} /></SafePage>} />
           <Route path="/faq"      element={<SafePage><DeferredLazyPage load={loaders.FAQPage} /></SafePage>} />
+          {ZONE_PAGES.flatMap((zone) => zonePaths(zone).map((path) => (
+            <Route key={path} path={path} element={<SafePage><DeferredLazyPage load={zone.load} /></SafePage>} />
+          )))}
           <Route path="*"         element={<SafePage><DeferredLazyPage load={loaders.NotFoundPage} /></SafePage>} />
         </Routes>
         </DetachPresence>

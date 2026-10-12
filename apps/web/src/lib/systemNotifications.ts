@@ -21,3 +21,13 @@ export function onNotificationNavigate(go: (link: string) => void) {
   navigator.serviceWorker.addEventListener('message', handler);
   return () => navigator.serviceWorker.removeEventListener('message', handler);
 }
+
+/** Responde al service worker qué carta está abierta (para no avisar de lo que ya estás viendo). */
+export function answerOpenChat(current: () => string | null) {
+  if (!('serviceWorker' in navigator)) return () => undefined;
+  const handler = (e: MessageEvent) => {
+    if ((e.data as { type?: string } | null)?.type === 'lq:which-chat') e.ports[0]?.postMessage({ key: current() });
+  };
+  navigator.serviceWorker.addEventListener('message', handler);
+  return () => navigator.serviceWorker.removeEventListener('message', handler);
+}

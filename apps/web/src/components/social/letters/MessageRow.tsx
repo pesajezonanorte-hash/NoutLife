@@ -218,8 +218,8 @@ function SwipeReply({ enabled, onReply, children }: { enabled: boolean; onReply:
       <motion.div
         drag="x" dragDirectionLock dragConstraints={{ left: 0, right: 0 }} dragElastic={{ left: 0, right: 0.5 }} dragSnapToOrigin
         style={{ x, touchAction: 'pan-y' }}
-        onDrag={(_, info) => { const on = info.offset.x > 56; if (on && !armed.current) navigator.vibrate?.(10); armed.current = on; }}
-        onDragEnd={(_, info) => { armed.current = false; if (info.offset.x > 56) onReply(); }}
+        onDrag={(_, info) => { const on = info.offset.x > 60; if (on && !armed.current) navigator.vibrate?.(10); armed.current = on; }}
+        onDragEnd={(_, info) => { armed.current = false; if (info.offset.x > 60) onReply(); }}
       >
         {children}
       </motion.div>

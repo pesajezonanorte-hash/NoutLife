@@ -3,6 +3,7 @@
 // notas de voz, stickers y minijuegos), rachas que se encienden al tercer día,
 // gestos entre muñequitos, pareja, gremios múltiples, bloqueos, galería y
 // revivir rachas con oro. Lo que llega en vivo viaja por lib/live.
+import { ZONE_PAGES } from '@/routes/zonePages';
 import api from '../lib/api';
 
 export type Visibility = 'public' | 'friends' | 'private';
@@ -390,13 +391,15 @@ const ZONE_NAMES: Array<[string, string]> = [
   ['/social', 'Social'], ['/u/', 'Perfiles'], ['/habits', 'Hábitos'], ['/quests', 'Misiones'], ['/gym', 'Gimnasio'],
   ['/finances', 'Finanzas'], ['/food', 'Comida'], ['/sleep', 'Sueño'], ['/love', 'Jardín'], ['/journal', 'Diario'],
   ['/agenda', 'Agenda'], ['/learning', 'Aprendizaje'], ['/leaderboard', 'Ranking'], ['/gallery', 'Galería'],
-  ['/season', 'Campaña'], ['/shop', 'Tienda'], ['/glow-up', 'Glow up'], ['/rituals', 'Rituales'], ['/wisdom', 'Sabiduría'],
+  ['/season', 'Campaña'], ['/shop', 'Tienda'], ['/glow-up', 'Espejo'], ['/espejo', 'Espejo'], ['/armario', 'Espejo'], ['/rituals', 'Rituales'], ['/wisdom', 'Sabiduría'],
   ['/achievements', 'Logros'], ['/stats', 'Estadísticas'], ['/profile', 'Perfil'], ['/settings', 'Ajustes'],
   ['/custom-zones', 'Mis zonas'], ['/history', 'Historial'], ['/friends', 'Social'], ['/guild', 'Social'],
 ];
 export function zoneName(pathname: string): string {
   if (pathname === '/') return 'Inicio';
-  return ZONE_NAMES.find(([p]) => pathname.startsWith(p))?.[1] ?? 'Noutlife';
+  return ZONE_NAMES.find(([p]) => pathname.startsWith(p))?.[1]
+    ?? ZONE_PAGES.find((z) => pathname.startsWith(z.path))?.label
+    ?? 'Noutlife';
 }
 
 /** "hace 5 min", "ayer"… para la última conexión. */

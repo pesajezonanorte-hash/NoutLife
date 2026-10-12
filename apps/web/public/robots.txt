@@ -34,5 +34,6 @@ Disallow: /custom-zones
 Disallow: /rituals
 Disallow: /glow-up
 Disallow: /wisdom
+Disallow: /checklists
 
 Sitemap: https://noutlife.vercel.app/sitemap.xml

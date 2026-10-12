@@ -5,7 +5,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { lockScroll, unlockScroll } from '@/components/ui/lq/Modal';
-import { Link as LinkIcon, Box, Check, Crop, Trash2, Upload, X } from 'lucide-react';
+import { Link as LinkIcon, Box, Camera, Check, Crop, Trash2, Upload, X } from 'lucide-react';
 import { MinecraftSkinAvatar } from './MinecraftSkinAvatar';
 import { PhotoCropper } from './PhotoCropper';
 import { AvatarPreview, AvatarStudio } from './AvatarPixelEditor';
@@ -147,6 +147,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
   /** Se incrementa al guardar el pixel: el escenario celebra antes de cerrar. */
   const [celebrate, setCelebrate] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const skinInputRef = useRef<HTMLInputElement>(null);
   const initializedModalUserRef = useRef<string | undefined>(undefined);
   const hasInitializedModalRef = useRef(false);
@@ -421,9 +422,15 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
                         {photoUrl && <Badge variant="success" className="absolute bottom-0 left-1/2 -translate-x-1/2">Foto activa</Badge>}
                       </div>
                       <input type="file" aria-label="Subir foto" ref={fileInputRef} onChange={handleFileSelect} accept="image/*" className="hidden" tabIndex={-1} />
-                      <Button variant="secondary" block onClick={() => fileInputRef.current?.click()}>
-                        <Upload aria-hidden className="size-5" strokeWidth={1.75} />Subir desde el dispositivo
-                      </Button>
+                      <input type="file" aria-label="Tomar foto" ref={cameraInputRef} onChange={handleFileSelect} accept="image/*" capture="user" className="hidden" tabIndex={-1} />
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button variant="secondary" onClick={() => cameraInputRef.current?.click()}>
+                          <Camera aria-hidden className="size-5" strokeWidth={1.75} />Tomar foto
+                        </Button>
+                        <Button variant="secondary" onClick={() => fileInputRef.current?.click()}>
+                          <Upload aria-hidden className="size-5" strokeWidth={1.75} />Galería
+                        </Button>
+                      </div>
                       {photoUrl && (
                         <Button variant="ghost" block onClick={() => setCropSrc(photoUrl)}>
                           <Crop aria-hidden className="size-5" strokeWidth={1.75} />Ajustar encuadre

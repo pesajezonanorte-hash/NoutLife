@@ -162,6 +162,9 @@ model User {
   lastLoginAt      DateTime?
   /// Última petición autenticada (como mucho una escritura por hora). Mide la gente activa hoy para repartir el cupo del Sabio.
   lastSeenAt       DateTime?
+  lastActiveAt     DateTime?
+  nightGapStartAt  DateTime?
+  nightGapEndAt    DateTime?
 
   // Red social: biografía, privacidad y presencia (en línea y zona actual).
   bio          String?
@@ -183,6 +186,7 @@ model User {
   googleCalendarId          String?   @default("primary")
   googleCalendarSyncEnabled  Boolean   @default(false)
   googleCalendarLastSyncAt  DateTime?
+  checklists                Checklist[]
 
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
@@ -198,6 +202,8 @@ model User {
   workouts                Workout[]
   meals                   Meal[]
   sleepLogs               SleepLog[]
+  antiHabits              AntiHabit[]
+  antiHabitSlips          AntiHabitSlip[]
   journalEntries          JournalEntry[]
   inventoryItems          InventoryItem[]
   achievements            UserAchievement[]
@@ -280,6 +286,7 @@ model Quest {
 
   deadline    DateTime?
   completedAt DateTime?
+  googleCalendarEventId String?
 
   isRecurring Boolean   @default(false)
   resetCron   String?
@@ -1567,6 +1574,10 @@ model ClothingItem {
   timesWorn  Int          @default(0)
   lastWornAt DateTime?
   isFavorite Boolean      @default(false)
+  /// Zona del cuerpo: torso | piernas | calzado | accesorios | abrigo | cuerpo_completo.
+  zone       String?
+  /// Foto de la prenda (data URL JPEG reducida en el cliente).
+  photoUrl   String?
   outfitItems OutfitItem[]
   createdAt  DateTime     @default(now())
 
@@ -1582,6 +1593,8 @@ model Outfit {
   occasion   String?
   rating     Int?
   lastWornAt DateTime?
+  /// Foto del conjunto puesto (data URL JPEG).
+  photoUrl   String?
   createdAt  DateTime     @default(now())
 
   @@map("outfits")
@@ -1737,4 +1750,76 @@ model Sticker {
 
   @@unique([ownerId, hash])
   @@map("stickers")
+}
+
+model AntiHabit {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name      String
+  icon      String?
+  createdAt DateTime @default(now())
+
+  slips AntiHabitSlip[]
+
+  @@index([userId])
+  @@map("anti_habits")
+}
+
+model AntiHabitSlip {
+  id          String    @id @default(cuid())
+  antiHabitId String
+  antiHabit   AntiHabit @relation(fields: [antiHabitId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  note       String?
+  occurredAt DateTime @default(now())
+
+  @@index([antiHabitId, occurredAt])
+  @@index([userId])
+  @@map("anti_habit_slips")
+}
+
+model Checklist {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  category  String   @default("General")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items  ChecklistItem[]
+  shares ChecklistShare[]
+
+  @@index([userId, category])
+  @@map("checklists")
+}
+
+model ChecklistItem {
+  id          String    @id @default(cuid())
+  checklistId String
+  checklist   Checklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  text        String
+  done        Boolean   @default(false)
+  position    Int       @default(0)
+
+  @@index([checklistId, position])
+  @@map("checklist_items")
+}
+
+model ChecklistShare {
+  id          String    @id @default(cuid())
+  checklistId String
+  checklist   Checklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  userId      String?
+  token       String    @unique
+  permission  String    @default("VIEW")
+  createdAt   DateTime  @default(now())
+
+  @@index([checklistId])
+  @@index([userId])
+  @@map("checklist_shares")
 }

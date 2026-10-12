@@ -15,6 +15,7 @@ import {
 import { fetchDynamicLifeScore, fetchLifeScore, type DynamicLifeScoreData, type LifeScore } from '@/services/lifescore.service';
 import { getCheckinHistory, type DailyCheckin } from '@/services/checkin.service';
 import { useAuthStore } from '@/store/authStore';
+import { useMotionStore } from '@/store/motionStore';
 import { PageHeader } from '@/components/layout/PageHeader';
 import {
   AnimatedValue, Badge, Button, Card, ChipGroup, IconChip, MoodFace, ProgressBar, ProgressRing,
@@ -83,6 +84,7 @@ const zoneStatus = {
 };
 
 export default function StatsPage() {
+  const reduce = useMotionStore((s) => s.reduce);
   const user = useAuthStore((s) => s.user);
   const currency = user?.currency ?? 'COP';
   const [period, setPeriod] = useState<Period>('month');
@@ -346,8 +348,9 @@ export default function StatsPage() {
                 <ChipGroup label="Ejercicio" value={lift} onChange={setLift} options={gym.slice(0, 8).map((g) => ({ value: g.name, label: g.name }))} />
                 <AnimatePresence mode="wait" initial={false}>
                   <motion.div key={lift} className="flex flex-col gap-4"
-                    initial={{ opacity: 0, y: 10, filter: 'blur(4px)' }} animate={{ opacity: 1, y: 0, filter: 'blur(0px)', transitionEnd: { filter: 'none' } }}
-                    exit={{ opacity: 0, y: -6, transition: { duration: 0.15 } }} transition={{ duration: 0.45, ease: expo }}>
+                    initial={reduce ? { opacity: 0, y: 10, filter: 'none' } : { opacity: 0, y: 10, filter: 'blur(4px)' }}
+                    animate={reduce ? { opacity: 1, y: 0, filter: 'none' } : { opacity: 1, y: 0, filter: 'blur(0px)', transitionEnd: { filter: 'none' } }}
+                    exit={reduce ? { opacity: 0, y: -6, filter: 'none', transition: { duration: 0.15 } } : { opacity: 0, y: -6, transition: { duration: 0.15 } }} transition={{ duration: 0.45, ease: expo }}>
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                       {([
                         ['Récord', kg(liftBest), liftBestDay ? shortDate(liftBestDay) : ''],

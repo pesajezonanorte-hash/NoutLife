@@ -15,11 +15,15 @@ export const softOut = [0.22, 1, 0.36, 1] as const;     // --ease-soft
 /** Muelle suave con ligero rebote: botones, switches, checks, píldoras, diálogos, toasts. */
 export const springSoft: Transition = { type: 'spring', stiffness: 300, damping: 24, mass: 0.9 };
 
-/** Reducir movimiento (ajuste de la app), leído al resolver la variante. */
-const reduced = () => useMotionStore.getState().reduce;
-/** Entrada v3: y 24 + scale .985 + blur 6 px → 0 (con «Reducir movimiento», solo opacidad). La blur es solo de entrada y
- *  termina en `filter: none` (un filtro residual crearía containing block para los fixed). */
-const blurIn = () => (reduced() ? { opacity: 0 } : { opacity: 0, y: 24, scale: 0.985, filter: 'blur(6px)' });
+/** Reducir movimiento (ajuste de la app o preferencia del sistema), leído al resolver la variante. */
+export const isReduced = () => {
+  return useMotionStore.getState().reduce ||
+    (typeof window !== 'undefined' && Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches));
+};
+const reduced = isReduced;
+
+/** Entrada v3: y 24 + scale .985 + blur 6 px → 0 (con «Reducir movimiento», solo opacidad nítida sin blur). */
+const blurIn = () => (reduced() ? { opacity: 0, filter: 'none' } : { opacity: 0, y: 24, scale: 0.985, filter: 'blur(6px)' });
 
 export const ease = [0.22, 1, 0.36, 1] as const;     // ease-out suave (out-quint)
 export const spring: Transition = { type: 'spring', stiffness: 420, damping: 30 };
@@ -43,13 +47,13 @@ export const thud = { y: [0, 3, -1, 0], transition: { duration: 0.45, ease: expo
 export const page3: Variants = {
   initial: blurIn,
   animate: () => (reduced()
-    ? { opacity: 1, transition: { duration: 0.2, staggerChildren: 0.06 } }
+    ? { opacity: 1, filter: 'none', transition: { duration: 0.15, staggerChildren: 0.04 } }
     : {
         opacity: 1, y: 0, scale: 1, filter: 'blur(0px)',
         transition: { duration: 0.8, ease: expo, staggerChildren: 0.06 },
         transitionEnd: { filter: 'none' },
       }),
-  exit: { opacity: 0, transition: { duration: 0.2 } },
+  exit: () => (reduced() ? { opacity: 0, filter: 'none', transition: { duration: 0.15 } } : { opacity: 0, transition: { duration: 0.2 } }),
 };
 export const page = page3;
 
@@ -58,7 +62,7 @@ export const stagger: Variants = { animate: { transition: { staggerChildren: 0.0
 export const item3: Variants = {
   initial: blurIn,
   animate: () => (reduced()
-    ? { opacity: 1, transition: { duration: 0.2 } }
+    ? { opacity: 1, filter: 'none', transition: { duration: 0.15 } }
     : {
         opacity: 1, y: 0, scale: 1, filter: 'blur(0px)',
         transition: { duration: 0.7, ease: expo },

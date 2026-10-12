@@ -55,7 +55,7 @@ export function Mirror({ brightness, children, className }: { brightness: number
           {/* Vaho sobre el vidrio (detrás de lo escrito): se disipa al llegar y lo que queda se aclara con tu brillo */}
           <motion.span
             aria-hidden="true"
-            className="pointer-events-none absolute inset-0 block bg-surface/70 backdrop-blur-md"
+            className={cn('pointer-events-none absolute inset-0 block bg-surface/70', !reduce && 'backdrop-blur-md')}
             initial={{ opacity: reduce ? 0.55 * (1 - b) : 1 }}
             animate={{ opacity: 0.5 * (1 - b), transition: { duration: 1.8, delay: 0.35, ease: [0.25, 0.1, 0.25, 1] } }}
           />

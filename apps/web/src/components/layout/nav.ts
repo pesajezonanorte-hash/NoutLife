@@ -10,6 +10,7 @@ import {
 import { useMemo } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { DEFAULT_ORDER, PINNED_COUNT, useNavStore } from '@/store/navStore';
+import { ZONE_PAGES } from '@/routes/zonePages';
 
 export interface NavEntry {
   to: string;
@@ -49,7 +50,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { to: '/quests', label: 'Misiones', icon: Flag },
       { to: '/stats', label: 'Estadísticas', icon: BarChart3 },
       { to: '/gym', label: 'Gimnasio', icon: Dumbbell },
-      { to: '/glow-up', label: 'Glow up', icon: Sparkles },
+      { to: '/glow-up', label: 'Espejo', icon: Sparkles },
       { to: '/learning', label: 'Aprendizaje', icon: BookOpen },
       { to: '/love', label: 'Relaciones', icon: Heart },
       { to: '/journal', label: 'Diario', icon: NotebookPen },
@@ -74,6 +75,12 @@ export const NAV_SECTIONS: NavSection[] = [
   },
 ];
 
+// Zonas del registro (routes/zonePages): entran en su sección sin tocar esta lista.
+for (const page of ZONE_PAGES) {
+  const section = NAV_SECTIONS.find((s) => s.id === page.section);
+  if (section && !section.items.some((it) => it.to === page.path)) section.items.push({ to: page.path, label: page.label, icon: page.icon });
+}
+
 /** Atajos a cada parte de Social (búsqueda rápida). */
 export const SOCIAL_SHORTCUTS: NavEntry[] = [
   { to: '/social?tab=directorio', label: 'Directorio', icon: NotebookTabs },
@@ -82,7 +89,7 @@ export const SOCIAL_SHORTCUTS: NavEntry[] = [
 ];
 
 /** Rutas que se unieron en otra (zonas fijadas o escondidas guardadas antes). */
-const MERGED: Record<string, string> = { '/friends': '/social', '/guild': '/social' };
+const MERGED: Record<string, string> = { '/friends': '/social', '/guild': '/social', '/espejo': '/glow-up', '/armario': '/glow-up' };
 
 /** Todas las zonas que pueden ir en la navegación principal (entre Inicio y Perfil). */
 export const ZONES: NavEntry[] = NAV_SECTIONS.flatMap((s) => s.items);
@@ -128,6 +135,8 @@ const EXTRA_LABELS: Record<string, string> = {
   '/life': 'Life Score',
   '/about': 'Acerca de',
   '/quests/new': 'Nueva misión',
+  '/espejo': 'Espejo',
+  '/armario': 'Espejo',
 };
 
 const ALL_NAV = [HOME, PROFILE, ...ZONES, ...UTILITY_NAV];

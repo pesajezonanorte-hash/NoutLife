@@ -131,22 +131,30 @@ export function AnalyzeMealDialog({ open, onClose, date, initialType, onSaved }:
   const [error, setError] = useState<string | null>(null);
   const nameRef = useRef<HTMLInputElement>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
+  const [unrecognized, setUnrecognized] = useState<string | null>(null);
+  const [details, setDetails] = useState('');
 
   useEffect(() => {
     if (!open) return;
+    setUnrecognized(null); setDetails('');
     setText(''); setParsed(null); setDraft(blank(initialType)); setTouched(false); setFavorite(false); setError(null);
   }, [open, initialType]);
 
   // Al cambiar de paso, el foco va al primer campo del paso nuevo.
   useEffect(() => { if (parsed) nameRef.current?.focus(); }, [parsed]);
 
-  async function analyze(e: FormEvent) {
+  async function analyze(e: FormEvent, extra?: string) {
     e.preventDefault();
     if (!text.trim()) { setTouched(true); return; }
     setAnalyzing(true);
     setError(null);
     try {
-      const r = await mealService.parseMeal(text.trim());
+      const r = await mealService.parseMeal(text.trim(), extra);
+      if (r.unknown === true) {
+        setUnrecognized(r.clarification || 'No reconocemos este plato.');
+        return;
+      }
+      setUnrecognized(null);
       setParsed(r);
       const s = (n: number) => (r.aiSucceeded && n > 0 ? String(n) : '');
       setDraft((d) => ({ ...d, name: r.name || text.trim().slice(0, 80), calories: s(r.estimatedCalories), protein: s(r.estimatedProtein), carbs: s(r.estimatedCarbs), fat: s(r.estimatedFat) }));
@@ -176,6 +184,7 @@ export function AnalyzeMealDialog({ open, onClose, date, initialType, onSaved }:
   const served = Boolean(parsed && parsed.aiSucceeded && text.trim() && parsed.estimatedCalories > 0);
 
   return (
+    <>
     <ResponsiveDialog open={open} onClose={onClose} title="Analizar comida" className="md:max-w-[560px]">
       {/* Servicio del chef: la misma campana pasa de cubrir el plato (analizando) a levantarse (resultado) */}
       {(analyzing || served) && parsed?.aiSucceeded !== false && (
@@ -237,6 +246,26 @@ export function AnalyzeMealDialog({ open, onClose, date, initialType, onSaved }:
         </form>
       )}
     </ResponsiveDialog>
+      <ResponsiveDialog open={unrecognized !== null} onClose={() => setUnrecognized(null)} title="No reconocemos este plato" className="md:max-w-[480px]">
+        <form
+          className="flex flex-col gap-6"
+          noValidate
+          onSubmit={(e) => {
+            if (!details.trim()) { e.preventDefault(); return; }
+            void analyze(e, details.trim());
+          }}
+        >
+          <p className="text-body-md text-on-surface">{unrecognized} Cuéntanos cómo es, qué ingredientes lleva y, si puedes, la porción para estimarlo mejor.</p>
+          <Field label="Descripción, ingredientes o porción">
+            <Textarea data-autofocus rows={4} value={details} onChange={(e) => setDetails(e.target.value)} placeholder="Ej. Mojarra frita entera (~300 g) con patacón y arroz de coco" />
+          </Field>
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <Button variant="secondary" onClick={() => setUnrecognized(null)}>Cancelar</Button>
+            <Button type="submit" loading={analyzing} disabled={!details.trim()}>Analizar de nuevo</Button>
+          </div>
+        </form>
+      </ResponsiveDialog>
+    </>
   );
 }
 

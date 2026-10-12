@@ -52,6 +52,20 @@ export async function archiveHabit(req: AuthRequest, res: Response): Promise<voi
   }
 }
 
+export async function revertHabitLog(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const date = typeof req.query.date === 'string' ? req.query.date : undefined;
+    const result = await habitService.revertHabitLog(req.userId!, req.params.id, date);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : '';
+    if (msg === 'HABIT_NOT_FOUND') { res.status(404).json({ error: 'Hábito no encontrado.' }); return; }
+    if (msg === 'HABIT_LOG_NOT_FOUND') { res.status(404).json({ error: 'No hay registro para deshacer.' }); return; }
+    if (msg === 'INVALID_HABIT_LOG_DATE') { res.status(400).json({ error: 'Fecha inválida.' }); return; }
+    res.status(500).json({ error: 'Error al deshacer el registro.' });
+  }
+}
+
 export async function logHabit(req: AuthRequest, res: Response): Promise<void> {
   try {
     const { status, notes, date } = req.body;

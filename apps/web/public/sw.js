@@ -21,12 +21,57 @@ self.addEventListener('push', (event) => {
   };
   // Cartas de amigos y de gremio: se puede contestar desde el propio aviso.
   if (payload.data && payload.data.reply) {
-    options.actions = [{ action: "reply", type: "text", title: "Responder", placeholder: "Escribe tu respuesta…" }];
+    options.actions = [{ action: "reply", type: "text", title: "Responder", placeholder: "Escribe tu respuesta…" }, { action: "open", title: "Abrir" }];
   }
 
-  // Siempre se muestra algo: Chrome y Safari retiran el permiso a quien recibe push sin aviso visible.
-  event.waitUntil(self.registration.showNotification(payload.title ?? 'Noutlife', options));
+  event.waitUntil(handlePush(payload, options));
 });
+
+// Con la app a la vista: no hay aviso de XP, ni de la carta que ya se está leyendo.
+const XP_TYPES = ['habit_completed', 'quest_completed', 'level_up', 'levelup', 'achievement', 'streak', 'guide', 'workout'];
+
+function chatKeyOfTag(tag) {
+  if (typeof tag !== 'string') return null;
+  if (tag.startsWith('dm:')) return tag;
+  if (tag.startsWith('guild-msg:')) return 'guild:' + tag.slice('guild-msg:'.length);
+  return null;
+}
+
+function askOpenChat(client) {
+  return new Promise((resolve) => {
+    const ch = new MessageChannel();
+    const timer = setTimeout(() => resolve(null), 500);
+    ch.port1.onmessage = (e) => { clearTimeout(timer); resolve(e.data && e.data.key ? e.data.key : null); };
+    try { client.postMessage({ type: 'lq:which-chat' }, [ch.port2]); } catch (e) { clearTimeout(timer); resolve(null); }
+  });
+}
+
+// Safari retira el permiso si un push no muestra nada: ahí se muestra y se cierra al instante.
+const STRICT_PUSH = /Safari/.test(self.navigator.userAgent) && !/Chrome|Chromium|Android/.test(self.navigator.userAgent);
+
+async function silence(payload, options) {
+  if (!STRICT_PUSH) return;
+  await self.registration.showNotification(payload.title ?? 'NoutLife', { ...options, tag: 'lq-silenced', silent: true, actions: [] });
+  const shown = await self.registration.getNotifications({ tag: 'lq-silenced' });
+  shown.forEach((n) => n.close());
+}
+
+async function handlePush(payload, options) {
+  try {
+    const list = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const visible = list.filter((c) => c.visibilityState === 'visible');
+    if (visible.length) {
+      if (payload.data && XP_TYPES.includes(payload.data.type)) return silence(payload, options);
+      const chat = chatKeyOfTag(payload.tag);
+      if (chat) {
+        const keys = await Promise.all(visible.map(askOpenChat));
+        if (keys.includes(chat)) return silence(payload, options);
+      }
+    }
+  } catch (e) { /* si algo falla, se muestra */ }
+  // Siempre se muestra algo: Chrome y Safari retiran el permiso a quien recibe push sin aviso visible.
+  await self.registration.showNotification(payload.title ?? 'Noutlife', options);
+}
 
 // Responde desde el aviso: pide un acceso nuevo con la sesión (cookie) y envía la carta.
 async function quickReply(reply, text) {

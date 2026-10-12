@@ -29,6 +29,8 @@ const rule: Variants = {
 export interface HabitNotebookRowProps {
   habit: HabitItemData;
   onComplete: () => void;
+  /** Si se pasa, tocar un hábito ya completado lo desmarca. */
+  onRevert?: () => void;
   pending?: boolean;
   /** Últimos 7 días (L→hoy). */
   week?: boolean[];
@@ -36,7 +38,7 @@ export interface HabitNotebookRowProps {
   index: number;
 }
 
-export function HabitNotebookRow({ habit, onComplete, pending, week, index }: HabitNotebookRowProps) {
+export function HabitNotebookRow({ habit, onComplete, onRevert, pending, week, index }: HabitNotebookRowProps) {
   const meta = categoryMeta(habit.category);
   const done = Boolean(habit.todayCompleted) || habit.todayStatus === 'completed';
   const skipped = habit.todayStatus === 'skipped';
@@ -89,8 +91,7 @@ export function HabitNotebookRow({ habit, onComplete, pending, week, index }: Ha
           <span aria-hidden className="text-label-md text-on-surface-light font-mono tabular-nums">{weekDone}/7</span>
         </span>
       )}
-      {/* TODO(api): no hay endpoint para deshacer un registro; una vez completado el check queda bloqueado. */}
-      <InkCheckButton name={habit.title} checked={done} locked pending={pending} onToggle={onComplete} />
+      <InkCheckButton name={habit.title} checked={done} locked={!onRevert} pending={pending} onToggle={done && onRevert ? onRevert : onComplete} />
     </motion.li>
   );
 }

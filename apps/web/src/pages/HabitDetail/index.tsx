@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Check, CheckCircle2, Flame, Minus, Pencil, SearchX, SkipForward, Sparkles, Trash2 } from 'lucide-react';
+import { ArrowLeft, Check, CheckCircle2, Flame, Minus, Pencil, SearchX, SkipForward, Sparkles, Trash2, Undo2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { item, stagger } from '@/lib/motion';
 import { categoryMeta, dayKey, frequencyLabel } from '@/lib/lifeMeta';
@@ -95,7 +95,7 @@ export default function HabitDetailPage() {
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const { complete, pending, burst } = useHabitCompletion();
+  const { complete, revert, pending, burst } = useHabitCompletion();
   const isDesktop = useMediaQuery('(min-width: 768px)');
 
   usePageCrumb(habit?.title);
@@ -126,6 +126,14 @@ export default function HabitDetailPage() {
     const result = await complete(habit, status);
     if (!result) return;
     setHabit((h) => h && { ...h, todayStatus: status, todayCompleted: status === 'completed', currentStreak: result.currentStreak, longestStreak: result.longestStreak });
+  }
+
+  async function undoToday() {
+    if (!habit) return;
+    const result = await revert(habit);
+    if (!result) return;
+    setHabit((h) => h && { ...h, todayStatus: null, todayCompleted: false, currentStreak: result.currentStreak, longestStreak: result.longestStreak });
+    void load();
   }
 
   async function handleDelete() {
@@ -214,6 +222,11 @@ export default function HabitDetailPage() {
               </Button>
               <Button variant="ghost" onClick={() => void log('skipped')} disabled={pending === habit.id}>Omitir hoy</Button>
             </>
+          )}
+          {habit.todayStatus && (
+            <Button variant="secondary" onClick={() => void undoToday()} loading={pending === habit.id}>
+              <Undo2 aria-hidden className="size-5" strokeWidth={1.75} />{habit.todayStatus === 'completed' ? 'Desmarcar hoy' : 'Deshacer omitir'}
+            </Button>
           )}
           <span className="hidden gap-3 md:flex">
             <Button variant="secondary" size="md" onClick={() => setEditing(true)}><Pencil aria-hidden className="size-4" strokeWidth={1.75} />Editar</Button>

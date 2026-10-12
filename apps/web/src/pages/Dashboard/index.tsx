@@ -120,7 +120,7 @@ export default function DashboardPage() {
   const [events, setEvents] = useState<AgendaEvent[]>([]);
   const [modal, setModal] = useState<'class' | 'briefing' | null>(null);
   const [guideBusy, setGuideBusy] = useState(false);
-  const { complete, pending, burst } = useHabitCompletion();
+  const { complete, revert, pending, burst } = useHabitCompletion();
   const now = useNow();
 
   const load = useCallback(async (silent = false) => {
@@ -147,6 +147,13 @@ export default function DashboardPage() {
     const result = await complete(h);
     if (!result) return;
     setHabits((prev) => prev.map((x) => (x.id === h.id ? { ...x, todayStatus: 'completed', todayCompleted: true, currentStreak: result.currentStreak } : x)));
+    void load(true);
+  }
+
+  async function handleRevert(h: HabitSummary) {
+    const result = await revert(h);
+    if (!result) return;
+    setHabits((prev) => prev.map((x) => (x.id === h.id ? { ...x, todayStatus: null, todayCompleted: false, currentStreak: result.currentStreak } : x)));
     void load(true);
   }
 
@@ -287,6 +294,7 @@ export default function DashboardPage() {
                   variant={isDesktop ? 'row' : 'card'}
                   pending={pending === h.id}
                   onComplete={() => void handleComplete(h)}
+                  onRevert={() => void handleRevert(h)}
                 />
               ))}
             </motion.ul>

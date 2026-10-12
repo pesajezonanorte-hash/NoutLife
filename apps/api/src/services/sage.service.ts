@@ -1,3 +1,4 @@
+import { buildSageHistory } from './sage-history.service';
 import { generateText, hasAIProvider, AIQuotaError } from '../lib/ai';
 import { prisma } from '../lib/prisma';
 
@@ -203,7 +204,7 @@ async function callAIWithMemory(
   })) as Array<{ role: 'user' | 'assistant'; content: string }>;
 
   const insightContext = insights.length > 0
-    ? `\n\nPATRONES QUE HAS OBSERVADO DE MIGUEL:\n${insights.map((insight) => `- ${insight.insight}`).join('\n')}`
+    ? `\n\nPATRONES QUE HAS OBSERVADO DEL USUARIO:\n${insights.map((insight) => `- ${insight.insight}`).join('\n')}`
     : '';
 
   const fullSystemPrompt = systemPrompt + insightContext;
@@ -301,7 +302,7 @@ async function buildSageContext(userId: string): Promise<string> {
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-  const [user, activeQuests, habits, monthTx, workouts, sleepLogs] = await Promise.all([
+  const [user, activeQuests, habits, monthTx, workouts, sleepLogs, history] = await Promise.all([
     prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: {
@@ -339,6 +340,7 @@ async function buildSageContext(userId: string): Promise<string> {
       where: { userId, isNap: false, date: { gte: sevenDaysAgo } },
       select: { duration: true },
     }),
+    buildSageHistory(userId).catch(() => ''),
   ]);
 
   let monthIncome = 0;
@@ -397,7 +399,12 @@ FINANZAS ESTE MES:
 
 GYM: ${workouts.length} entrenamientos esta semana. Ultimo hace ${daysSinceLast} dias.
 SUENO: Promedio ${avgSleep.toFixed(1)}h ultimos 7 dias.
+${history ? `
+HISTORIAL (ULTIMOS 30 DIAS):
+${history}
 
+Se proactivo con este historial: si un habito falla, una racha se rompio o el gimnasio va bajando, mencionalo cuando venga al caso con una sugerencia concreta y amable, sin regañar. Celebra los progresos reales.
+` : ''}
 Responde siempre en espanol. Usa los datos reales de arriba y nunca inventes datos.
   `.trim();
 }

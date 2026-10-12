@@ -1,4 +1,6 @@
-// Galería: todas las fotos de Noutlife en un álbum. Las que tomaste con la
+// Galería con dos álbumes: el Álbum RPG (tus fotos de todas las zonas: gimnasio,
+// espejo y cartas; ver components/gallery/ZoneAlbum) y el de Cartas.
+// Cartas: todas las fotos de Noutlife en un álbum. Las que tomaste con la
 // cámara o elegiste de la galería y las que te enviaron, con amigos y en tus
 // gremios, como polaroids pegadas por meses (el mes escrito a mano). Se filtran
 // por mías, de amigos o de gremios; al tocar una se abre en grande y se pasa a
@@ -20,7 +22,8 @@ import { AmbientLight, ZoneShell } from '@/components/ambience';
 import { Lettering } from '@/components/layout/Lettering';
 import { AvatarDisplay } from '@/components/character/AvatarDisplay';
 import { InstantPhoto } from '@/components/social/letters/InstantPhoto';
-import { Button, EmptyState, ErrorState, Skeleton } from '@/components/ui/lq';
+import { Button, EmptyState, ErrorState, SegmentedControl, Skeleton } from '@/components/ui/lq';
+import { ZoneAlbum } from '@/components/gallery/ZoneAlbum';
 
 const FILTERS: Array<{ id: GalleryFilter; label: string }> = [
   { id: 'all', label: 'Todas' },
@@ -115,7 +118,14 @@ function Viewer({ items, index, onIndex, onClose }: { items: GalleryItem[]; inde
   );
 }
 
+type Mode = 'zones' | 'letters';
+const MODES: Array<{ value: Mode; label: string }> = [
+  { value: 'zones', label: 'Álbum RPG' },
+  { value: 'letters', label: 'Cartas' },
+];
+
 export default function GalleryPage() {
+  const [mode, setMode] = useState<Mode>('zones');
   const [filter, setFilter] = useState<GalleryFilter>('all');
   const [items, setItems] = useState<GalleryItem[] | null>(null);
   const [next, setNext] = useState<string | null>(null);
@@ -127,11 +137,12 @@ export default function GalleryPage() {
   useEffect(() => {
     let alive = true;
     setState('loading'); setItems(null); setNext(null);
+    if (mode !== 'letters') return () => { alive = false; };
     getGallery({ filter })
       .then((r) => { if (!alive) return; setItems(r.items); setNext(r.next); setState('ready'); })
       .catch(() => { if (alive) setState('error'); });
     return () => { alive = false; };
-  }, [filter]);
+  }, [filter, mode]);
 
   const loadMore = useCallback(async () => {
     if (!next || more) return;
@@ -166,10 +177,21 @@ export default function GalleryPage() {
       ambience={<AmbientLight tone="warning" alpha={0.11} darkAlpha={0.07} d={14} className="left-[30%] top-[-10%] h-[30rem] w-[60%]" />}
     >
       <motion.section variants={item} className="flex flex-col gap-3 pt-6 md:pt-10">
-        <span className="text-label-lg text-primary-text">{items ? `${items.length}${next ? '+' : ''} ${items.length === 1 ? 'foto' : 'fotos'}` : 'Galería'}</span>
+        <span className="text-label-lg text-primary-text">{mode === 'letters' && items ? `${items.length}${next ? '+' : ''} ${items.length === 1 ? 'foto' : 'fotos'}` : 'Galería'}</span>
         <h1 className="text-display-sm md:text-display-md"><Lettering text="galería" /></h1>
-        <p className="max-w-[56ch] text-body-lg text-on-surface-light">Todas las fotos de tus cartas: las que tomaste o elegiste y las que te enviaron tus amigos y tus gremios.</p>
+        <p className="max-w-[56ch] text-body-lg text-on-surface-light">
+          {mode === 'zones'
+            ? 'Tu álbum RPG: las fotos de todas tus zonas (gimnasio, espejo y cartas) en un solo lugar.'
+            : 'Todas las fotos de tus cartas: las que tomaste o elegiste y las que te enviaron tus amigos y tus gremios.'}
+        </p>
       </motion.section>
+
+      <motion.div variants={item}>
+        <SegmentedControl label="Álbum" value={mode} onChange={setMode} options={MODES} className="max-w-[420px]" />
+      </motion.div>
+
+      {mode === 'zones' ? <motion.div variants={item}><ZoneAlbum /></motion.div> : (
+      <>
 
       <motion.div variants={item} role="radiogroup" aria-label="Qué fotos ver" className="-mx-4 flex gap-2 overflow-x-auto px-4 md:mx-0 md:px-0">
         {FILTERS.map((f) => (
@@ -203,6 +225,8 @@ export default function GalleryPage() {
       <AnimatePresence>
         {open !== null && items?.[open] && <Viewer key="viewer" items={items} index={open} onIndex={setOpen} onClose={() => setOpen(null)} />}
       </AnimatePresence>
+      </>
+      )}
     </ZoneShell>
   );
 }
