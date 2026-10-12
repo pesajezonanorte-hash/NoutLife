@@ -10,11 +10,10 @@ import type { Subscription } from '@noutlife/shared';
 import { AccordionItem, Badge, Button, Card } from '@/components/ui/lq';
 import { cn } from '@/lib/utils';
 import { useMotionReduced } from '@/lib/motion';
-import { LITE_LIMITS, PLAN_ROWS, PRO_PER_DAY_COP, PRO_PRICE_COP, PRO_ZONE_COUNT, TRIAL_DAYS, formatCop } from '@/lib/plan';
+import { LITE_LIMITS, PLAN_ROWS, PRO_FRAMING, PRO_PRICE_COP, PRO_ZONE_COUNT, TRIAL_DAYS, formatCop } from '@/lib/plan';
 import { TrialRibbon } from './TrialRibbon';
 
 const PRICE = formatCop(PRO_PRICE_COP);
-const PER_DAY = formatCop(PRO_PER_DAY_COP);
 
 export const PRICING_HOOK = `${TRIAL_DAYS} días de Pro gratis. $0 hoy.`;
 
@@ -139,7 +138,7 @@ export function PricingSection({ mode, subscription, title, description, showRib
               <span className="text-display-md tabular-nums tracking-tight md:text-display-lg">{PRICE}</span>
               <span className="text-body-lg text-on-surface-light">COP/mes</span>
             </p>
-            <p className="text-body-sm text-on-surface-light">Unos {PER_DAY} al día.</p>
+            <p className="text-body-sm text-on-background">{PRO_FRAMING}</p>
           </div>
           <Points items={PRO_POINTS} tone="pro" />
           {proAction && (

@@ -5,13 +5,13 @@
 // explícitamente sus dos documentos: una sola casilla, en micro-texto.
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { AlertCircle, CreditCard, Lock, Smartphone, type LucideIcon } from 'lucide-react';
+import { AlertCircle, CreditCard, Gem, Lock, Smartphone, type LucideIcon } from 'lucide-react';
 import type { Subscription } from '@noutlife/shared';
 import { Button, Field, Input } from '@/components/ui/lq';
 import { useAuthStore } from '@/store/authStore';
 import { ease, useMotionReduced } from '@/lib/motion';
 import { cn } from '@/lib/utils';
-import { PRO_PRICE_COP, TRIAL_DAYS, formatCop, longDay } from '@/lib/plan';
+import { PRO_FRAMING, PRO_FRAMING_TRIAL, PRO_PRICE_COP, TRIAL_DAYS, formatCop, longDay } from '@/lib/plan';
 import {
   PaymentError, getBillingConfig, isValidCardNumber, savePaymentMethod, subscribe, tokenizeCard, tokenizeNequi,
   waitForNequiApproval, type BillingConfig, type CardInput, type PaymentField, type PaymentMethodLink,
@@ -71,6 +71,16 @@ function MethodOption({ active, icon: Icon, label, hint, onClick }: { active: bo
         <span className="text-label-sm">{hint}</span>
       </span>
     </button>
+  );
+}
+
+/** Reencuadre del precio, justo encima del botón que cobra: la cuota dicha en días quita la objeción. */
+function PriceFraming({ trial }: { trial: boolean }) {
+  return (
+    <p className="flex items-start gap-2 rounded-xl bg-secondary/[var(--lq-soft-alpha)] px-4 py-3 text-body-sm text-on-background">
+      <Gem aria-hidden className="mt-0.5 size-4 shrink-0 text-secondary-text" strokeWidth={1.75} />
+      {trial ? PRO_FRAMING_TRIAL : PRO_FRAMING}
+    </p>
   );
 }
 
@@ -218,6 +228,7 @@ export function PaymentMethodForm({ intent, chargeDate, onDone, onCancel, cancel
             {denied} Tu método de pago quedó vinculado: activa Pro y sigue sin límites.
           </p>
           {errorBox}
+          <PriceFraming trial={false} />
           <Button size="lg" block loading={busy} onClick={() => void payNow()}>Activar Pro por {PRICE}/mes</Button>
           <p className="text-center text-label-sm text-on-surface-light">Cancela en cualquier momento con 1 clic.</p>
           {onCancel && <Button variant="ghost" size="md" onClick={onCancel} disabled={busy}>Seguir en NoutLife Lite</Button>}
@@ -302,6 +313,8 @@ export function PaymentMethodForm({ intent, chargeDate, onDone, onCancel, cancel
           )}
 
           {errorBox}
+
+          {intent !== 'save' && <PriceFraming trial={intent === 'trial'} />}
 
           <Button type="submit" size="lg" block loading={busy} disabled={!config}>
             {intent === 'trial' ? `Empezar mis ${TRIAL_DAYS} días gratis` : intent === 'charge' ? `Pagar ${PRICE} y activar Pro` : 'Vincular método de pago'}

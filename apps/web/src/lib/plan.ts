@@ -82,6 +82,11 @@ export interface PlanRow {
 /** «$9.900 → $330 al día»: ancla el precio en algo pequeño y cotidiano. */
 export const PRO_PER_DAY_COP = Math.round(PRO_PRICE_COP / 30);
 
+/** Reencuadre del precio (framing): la cuota dicha en días, justo antes de pagar. Igual en todas las pantallas Pro. */
+export const PRO_FRAMING = `Solo ${formatCop(PRO_PER_DAY_COP)} COP al día para desbloquear todo tu potencial.`;
+/** Lo mismo durante la prueba: el primer cobro llega después de los días gratis. */
+export const PRO_FRAMING_TRIAL = `Después de tu prueba: solo ${formatCop(PRO_PER_DAY_COP)} COP al día para desbloquear todo tu potencial.`;
+
 /** Cuántas zonas desbloquea Pro (para los textos). */
 export const PRO_ZONE_COUNT = Object.keys(PRO_ZONES).length;
 

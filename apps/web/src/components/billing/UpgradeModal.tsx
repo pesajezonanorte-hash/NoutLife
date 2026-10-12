@@ -12,7 +12,7 @@ import { useAuthStore } from '@/store/authStore';
 import { usePlanStore, type UpgradeReason } from '@/store/planStore';
 import { useToastStore } from '@/hooks/useToast';
 import { ease, useMotionReduced } from '@/lib/motion';
-import { LITE_LIMITS, PRO_PER_DAY_COP, PRO_PRICE_COP, PRO_ZONES, PRO_ZONE_COUNT, TRIAL_DAYS, formatCop, longDay } from '@/lib/plan';
+import { LITE_LIMITS, PRO_FRAMING, PRO_FRAMING_TRIAL, PRO_PRICE_COP, PRO_ZONES, PRO_ZONE_COUNT, TRIAL_DAYS, formatCop, longDay } from '@/lib/plan';
 import { getBillingStatus, subscribe } from '@/services/billing.service';
 import { PaymentMethodForm, type PaymentMethodFormProps } from './PaymentMethodForm';
 
@@ -132,11 +132,12 @@ export function UpgradeModal() {
                 <>
                   <p className="text-display-md font-semibold tracking-tight tabular-nums">$0 hoy</p>
                   <p className="text-body-sm text-on-surface-light">{TRIAL_DAYS} días gratis, luego {PRICE} COP/mes.</p>
+                  <p className="text-body-sm text-on-background">{PRO_FRAMING_TRIAL}</p>
                 </>
               ) : (
                 <>
                   <p className="flex items-baseline gap-1.5"><span className="text-display-md font-semibold tracking-tight tabular-nums">{PRICE}</span><span className="text-body-md text-on-surface-light">COP/mes</span></p>
-                  <p className="text-body-sm text-on-surface-light">Unos {formatCop(PRO_PER_DAY_COP)} al día.</p>
+                  <p className="text-body-sm text-on-background">{PRO_FRAMING}</p>
                 </>
               )}
               <p className="text-body-sm font-semibold text-on-background">Cancela en cualquier momento con 1 clic.</p>

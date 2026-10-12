@@ -14,7 +14,7 @@ import { BrandLockup } from '@/components/layout/Brand';
 import { DangerDialog } from '@/components/settings/DangerDialog';
 import { Badge, Button, Confetti } from '@/components/ui/lq';
 import { ease, useMotionReduced } from '@/lib/motion';
-import { LITE_LIMITS, PRO_PER_DAY_COP, PRO_PRICE_COP, PRO_ZONE_COUNT, TRIAL_DAYS, formatCop, longDay } from '@/lib/plan';
+import { LITE_LIMITS, PRO_FRAMING, PRO_FRAMING_TRIAL, PRO_PRICE_COP, PRO_ZONE_COUNT, TRIAL_DAYS, formatCop, longDay } from '@/lib/plan';
 import * as authService from '@/services/auth.service';
 import { getBillingConfig, getBillingStatus } from '@/services/billing.service';
 import { useAuthStore } from '@/store/authStore';
@@ -189,12 +189,13 @@ export function Paywall() {
         exit: { opacity: 0, x: -28, transition: { duration: 0.18 } },
       };
 
-  const offer: { title: string; lead: string; price: string; unit?: string; fine: string } = primary === 'trial'
+  const offer: { title: string; lead: string; price: string; unit?: string; fine?: string; framing?: string } = primary === 'trial'
     ? {
         title: `${TRIAL_DAYS} días de Pro, gratis`,
         lead: 'Todas las zonas, hábitos ilimitados y el Sabio con IA desde hoy.',
         price: '$0 hoy',
         fine: `Luego ${PRICE} COP/mes.`,
+        framing: PRO_FRAMING_TRIAL,
       }
     : primary === 'save'
       ? {
@@ -208,7 +209,7 @@ export function Paywall() {
           lead: 'Ya usaste tu prueba gratis. Activa Pro y sigue con todo NoutLife desde hoy.',
           price: PRICE,
           unit: 'COP/mes',
-          fine: `Unos ${formatCop(PRO_PER_DAY_COP)} al día.`,
+          framing: PRO_FRAMING,
         };
 
   const formTitle = intent === 'charge' ? 'Activa NoutLife Pro' : intent === 'save' && !keepsPro ? 'Entra a NoutLife Lite' : 'Configura tu método de pago';
@@ -256,7 +257,8 @@ export function Paywall() {
                     {offer.unit && <span className="text-body-lg text-on-surface-light">{offer.unit}</span>}
                   </p>
                   <p className="mt-1 text-body-md font-semibold text-on-background [text-wrap:balance]">Cancela en cualquier momento con 1 clic.</p>
-                  <p className="mt-0.5 text-body-sm text-on-surface-light">{offer.fine}</p>
+                  {offer.fine && <p className="mt-0.5 text-body-sm text-on-surface-light">{offer.fine}</p>}
+                  {offer.framing && <p className="mt-3 text-body-sm text-on-background [text-wrap:balance]">{offer.framing}</p>}
                 </div>
 
                 {primary === 'trial' && (
