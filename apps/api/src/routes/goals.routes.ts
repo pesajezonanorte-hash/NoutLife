@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { requireAuth, type AuthRequest } from '../middleware/auth.middleware';
 import * as goals from '../services/goals.service';
+import { requirePro } from '../middleware/plan.middleware';
 
 const router = Router();
 router.use(requireAuth);
@@ -54,7 +55,7 @@ router.delete('/milestones/:milestoneId', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.post('/:id/ai-breakdown', async (req, res, next) => {
+router.post('/:id/ai-breakdown', requirePro('ai'), async (req, res, next) => {
   try {
     const milestones = await goals.aiBreakdownGoal((req as AuthRequest).userId!, req.params.id);
     res.json(milestones);

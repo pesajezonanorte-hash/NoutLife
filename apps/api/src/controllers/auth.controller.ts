@@ -13,15 +13,9 @@ export function providers(_req: Request, res: Response): void {
   res.json(oauthConfig());
 }
 
-/** Id del navegador/PWA (cabecera X-Device-Id). Ausente o con formato raro = sin comprobación de dispositivo. */
-function deviceIdOf(req: Request): string | null {
-  const id = req.header('x-device-id') ?? '';
-  return /^[\w-]{16,64}$/.test(id) ? id : null;
-}
-
 export async function oauth(req: Request, res: Response): Promise<void> {
   try {
-    const { user, accessToken, refreshToken } = await authService.oauthSignIn(req.body, deviceIdOf(req));
+    const { user, accessToken, refreshToken } = await authService.oauthSignIn(req.body);
     res.cookie('refreshToken', refreshToken, REFRESH_COOKIE_OPTIONS);
     res.json({ user, accessToken });
   } catch (err) {

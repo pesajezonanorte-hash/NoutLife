@@ -11,8 +11,8 @@ export interface BillingConfig {
   sandbox: boolean;
   priceCop: number;
   trialDays: number;
-  liteLimits: { activeHabits: number; historyDays: number; sageChatPerDay: number };
-  /** Contratos de Wompi que la persona acepta antes de guardar la tarjeta. */
+  liteLimits: { activeHabits: number; historyDays: number };
+  /** Contratos de Wompi que la persona acepta antes de vincular su método de pago. */
   termsUrl: string | null;
   personalDataUrl: string | null;
 }
@@ -27,15 +27,14 @@ export interface BillingPayment {
   createdAt: string;
 }
 
-/** Token de tarjeta de Wompi y sus datos públicos (el servidor calcula la huella anti-abuso). */
+/**
+ * Token de Wompi. Es lo único que va a la API: la huella anti-abuso (BIN,
+ * últimos 4, vencimiento) la lee el servidor directo en Wompi. `brand` es solo
+ * para la etiqueta.
+ */
 export interface CardToken {
   token: string;
   brand?: string;
-  lastFour: string;
-  bin: string;
-  expMonth: string;
-  expYear: string;
-  holder: string;
 }
 
 let configPromise: Promise<BillingConfig> | null = null;
@@ -101,7 +100,7 @@ const WOMPI_FIELDS: Record<string, keyof CardInput> = {
 export async function tokenizeCard(config: BillingConfig, card: CardInput): Promise<CardToken> {
   if (!config.publicKey) throw new CardError('Los pagos no están disponibles en este momento.');
   try {
-    const { data } = await axios.post<{ data: { id: string; brand?: string; last_four: string; bin: string; exp_month: string; exp_year: string; card_holder: string } }>(
+    const { data } = await axios.post<{ data: { id: string; brand?: string } }>(
       `${config.apiUrl}/tokens/cards`,
       {
         number: card.number.replace(/\D/g, ''),
@@ -112,8 +111,7 @@ export async function tokenizeCard(config: BillingConfig, card: CardInput): Prom
       },
       { headers: { Authorization: `Bearer ${config.publicKey}` }, timeout: 20_000 },
     );
-    const t = data.data;
-    return { token: t.id, brand: t.brand, lastFour: t.last_four, bin: t.bin, expMonth: t.exp_month, expYear: t.exp_year, holder: t.card_holder };
+    return { token: data.data.id, brand: data.data.brand };
   } catch (error) {
     const messages = (error as { response?: { data?: { error?: { messages?: Record<string, string[]> } } } }).response?.data?.error?.messages;
     const field = messages ? Object.keys(messages).map((k) => WOMPI_FIELDS[k]).find(Boolean) : undefined;

@@ -1,7 +1,8 @@
-// Planes: Lite y Pro lado a lado. Se usa en la portada pública (debajo del
-// inicio de sesión) y en /plan. Pro lleva el oro champán del sistema de diseño
-// (reservado a lo premium); Lite, el jade neutro. Sin degradados ni etiquetas
-// en mayúsculas: el único momento animado es la cinta de la prueba.
+// Planes: Pro y Lite lado a lado. Se usa en la portada pública (debajo del
+// inicio de sesión) y en /plan. Anclaje: Pro va primero, grande y completo;
+// Lite después, con sus límites a la vista. Pro lleva el oro champán del
+// sistema de diseño (reservado a lo premium); Lite, el jade neutro. El único
+// momento animado es la cinta de la prueba.
 import { useId, useState, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { Check, Minus } from 'lucide-react';
@@ -9,33 +10,33 @@ import type { Subscription } from '@noutlife/shared';
 import { AccordionItem, Badge, Button, Card } from '@/components/ui/lq';
 import { cn } from '@/lib/utils';
 import { useMotionReduced } from '@/lib/motion';
-import { LITE_LIMITS, PLAN_ROWS, PRO_PRICE_COP, TRIAL_DAYS, formatCop } from '@/lib/plan';
+import { LITE_LIMITS, PLAN_ROWS, PRO_PER_DAY_COP, PRO_PRICE_COP, TRIAL_DAYS, formatCop } from '@/lib/plan';
 import { TrialRibbon } from './TrialRibbon';
 
 const PRICE = formatCop(PRO_PRICE_COP);
-const PER_DAY = formatCop(Math.round(PRO_PRICE_COP / 30));
+const PER_DAY = formatCop(PRO_PER_DAY_COP);
 
-export const PRICING_HOOK = `${TRIAL_DAYS} días de prueba gratis, luego ${PRICE} COP/mes.`;
+export const PRICING_HOOK = `${TRIAL_DAYS} días de Pro gratis. $0 hoy.`;
 
 const LITE_POINTS = [
   `Hasta ${LITE_LIMITS.activeHabits} hábitos activos`,
   `Historial de los últimos ${LITE_LIMITS.historyDays} días`,
-  `${LITE_LIMITS.sageChatPerDay} mensajes al día con el Sabio`,
+  'Sin IA: el Sabio y los análisis son de Pro',
   'Todas las zonas, misiones y logros',
 ];
 
 const PRO_POINTS = [
-  'Hábitos sin límite',
-  'Todo tu historial y tus estadísticas',
-  'Análisis de IA de tus hábitos, finanzas y entrenos',
+  'El Sabio con IA y análisis de hábitos, finanzas y entrenos',
+  'Hábitos ilimitados',
+  'Historial y analíticas completas',
   'Misiones sugeridas por el Sabio',
-  'Cupo completo de mensajes con el Sabio',
+  `Tarifa congelada: ${PRICE}/mes mientras sigas en Pro`,
 ];
 
 const FAQ: Array<{ q: string; a: string }> = [
   {
     q: '¿Me cobran algo al empezar la prueba?',
-    a: `No. Guardas tu tarjeta con Wompi y durante ${TRIAL_DAYS} días no se cobra nada. El día ${TRIAL_DAYS + 1} se cobran ${PRICE} y después cada mes, el mismo día.`,
+    a: `No: $0 hoy. Vinculas un método de pago con Wompi y durante ${TRIAL_DAYS} días no se cobra nada. El día ${TRIAL_DAYS + 1} se cobran ${PRICE} y después cada mes, el mismo día. La prueba es una por persona y por método de pago.`,
   },
   {
     q: '¿Cómo cancelo?',
@@ -46,8 +47,8 @@ const FAQ: Array<{ q: string; a: string }> = [
     a: `Tu cuenta pasa a NoutLife Lite y sigue funcionando. No se borra nada: si tenías más de ${LITE_LIMITS.activeHabits} hábitos se conservan todos, y tu historial completo vuelve a verse cuando activas Pro.`,
   },
   {
-    q: '¿Mis datos de tarjeta están seguros?',
-    a: 'La tarjeta viaja cifrada directo a Wompi, la pasarela de pagos. NoutLife nunca recibe ni guarda su número: solo una referencia para cobrar la suscripción.',
+    q: '¿Mi método de pago está seguro?',
+    a: 'Los datos viajan cifrados directo a Wompi, la pasarela de pagos. NoutLife nunca recibe ni guarda el número de tu tarjeta: solo una referencia para cobrar la suscripción.',
   },
 ];
 
@@ -103,7 +104,7 @@ export function PricingSection({ mode, subscription, title, description, showRib
       <div className="flex max-w-[640px] flex-col gap-3">
         <h2 id={headingId} className="text-display-sm [text-wrap:balance] md:text-display-md">{title ?? PRICING_HOOK}</h2>
         <p className="text-body-lg text-on-surface-light">
-          {description ?? 'Cancela cuando quieras con un solo clic. Si cancelas o un cobro falla, tu cuenta sigue en NoutLife Lite y no pierdes nada.'}
+          {description ?? `Luego ${PRICE} COP/mes. Cancela en cualquier momento con 1 clic. Si cancelas o un cobro falla, tu cuenta sigue en NoutLife Lite y no pierdes nada.`}
         </p>
       </div>
 
@@ -115,23 +116,7 @@ export function PricingSection({ mode, subscription, title, description, showRib
         />
       )}
 
-      <div className="grid items-stretch gap-4 lg:grid-cols-[5fr_7fr] lg:gap-6">
-        <Card padding="lg" className="flex flex-col gap-6">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex flex-col gap-1">
-              <h3 className="text-heading-md">NoutLife Lite</h3>
-              <p className="text-body-sm text-on-surface-light">Lo esencial, gratis para siempre.</p>
-            </div>
-            {current === 'lite' && <Badge variant="neutral">Tu plan</Badge>}
-          </div>
-          <p className="flex items-baseline gap-2">
-            <span className="text-display-sm tabular-nums">$0</span>
-            <span className="text-body-md text-on-surface-light">siempre</span>
-          </p>
-          <Points items={LITE_POINTS} tone="lite" />
-          <p className="mt-auto border-t border-border pt-4 text-body-sm text-on-surface-light">No pide tarjeta. Es donde queda tu cuenta si no continúas con Pro, con todo lo que ya guardaste.</p>
-        </Card>
-
+      <div className="grid items-stretch gap-4 lg:grid-cols-[7fr_5fr] lg:gap-6">
         <Card
           padding="lg"
           variant="elevated"
@@ -147,7 +132,7 @@ export function PricingSection({ mode, subscription, title, description, showRib
             </div>
             {current === 'pro'
               ? <Badge variant="secondary">Tu plan</Badge>
-              : mode === 'public' && <Badge variant="secondary">{TRIAL_DAYS} días gratis</Badge>}
+              : (mode === 'public' || subscription?.trialAvailable) && <Badge variant="secondary">{TRIAL_DAYS} días gratis</Badge>}
           </div>
           <div className="flex flex-col gap-1">
             <p className="flex flex-wrap items-baseline gap-x-2">
@@ -164,24 +149,40 @@ export function PricingSection({ mode, subscription, title, description, showRib
             </div>
           )}
         </Card>
+
+        <Card padding="lg" className="flex flex-col gap-6">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex flex-col gap-1">
+              <h3 className="text-heading-md">NoutLife Lite</h3>
+              <p className="text-body-sm text-on-surface-light">Lo esencial, gratis para siempre.</p>
+            </div>
+            {current === 'lite' && <Badge variant="neutral">Tu plan</Badge>}
+          </div>
+          <p className="flex items-baseline gap-2">
+            <span className="text-display-sm tabular-nums">$0</span>
+            <span className="text-body-md text-on-surface-light">siempre</span>
+          </p>
+          <Points items={LITE_POINTS} tone="lite" />
+          <p className="mt-auto border-t border-border pt-4 text-body-sm text-on-surface-light">No pide método de pago. Es donde queda tu cuenta si no continúas con Pro, con todo lo que ya guardaste.</p>
+        </Card>
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-border bg-surface">
         <table className="w-full border-collapse text-left text-body-sm md:text-body-md">
-          <caption className="sr-only">Comparación entre NoutLife Lite y NoutLife Pro</caption>
+          <caption className="sr-only">Comparación entre NoutLife Pro y NoutLife Lite</caption>
           <thead>
             <tr className="border-b border-border">
               <th scope="col" className="px-3 py-3 font-semibold md:px-6">Qué incluye</th>
-              <th scope="col" className="w-[26%] px-2 py-3 text-center font-semibold md:px-4">Lite</th>
               <th scope="col" className="w-[28%] bg-secondary/[var(--lq-soft-alpha)] px-2 py-3 text-center font-semibold text-secondary-text md:px-4">Pro</th>
+              <th scope="col" className="w-[26%] px-2 py-3 text-center font-semibold md:px-4">Lite</th>
             </tr>
           </thead>
           <tbody>
             {PLAN_ROWS.map((row) => (
               <tr key={row.label} className="border-b border-border last:border-b-0">
                 <th scope="row" className="px-3 py-3 font-normal text-on-background md:px-6">{row.label}</th>
-                <td className="px-2 py-3 text-center text-on-surface-light md:px-4"><Mark value={row.lite} /></td>
                 <td className="bg-secondary/[var(--lq-soft-alpha)] px-2 py-3 text-center font-semibold text-on-background md:px-4"><Mark value={row.pro} /></td>
+                <td className="px-2 py-3 text-center text-on-surface-light md:px-4"><Mark value={row.lite} /></td>
               </tr>
             ))}
           </tbody>

@@ -105,10 +105,25 @@ test('event checksum follows signature.properties order, then timestamp, then th
   assert.equal(verifyEventChecksum(tampered, 'test_events_secret', expected), false);
 });
 
-test('emailKey ignores case and spaces; cardKey ignores holder formatting but not the card', async () => {
-  const { emailKey, cardKey } = await import('../src/lib/trial-keys');
+test('emailKey ignores case and spaces', async () => {
+  const { emailKey } = await import('../src/lib/trial-keys');
   assert.equal(emailKey('  Ana.Perez@Gmail.com '), 'ana.perez@gmail.com');
-  const card = { bin: '424242', lastFour: '4242', expMonth: '8', expYear: '2028', holder: 'José Pérez' };
-  assert.equal(cardKey(card), cardKey({ ...card, expMonth: '08', expYear: '28', holder: 'JOSE  PEREZ' }));
-  assert.notEqual(cardKey(card), cardKey({ ...card, lastFour: '1111' }));
+});
+
+test('paymentKey uses only the card data Wompi returns: a new holder name or a longer BIN is the same card', async () => {
+  const { paymentKey } = await import('../src/lib/trial-keys');
+  // public_data de GET /payment_sources/:id (Wompi), no lo que manda el navegador.
+  const card = { type: 'CARD', bin: '424242', last_four: '4242', exp_month: '8', exp_year: '2028' };
+  const key = paymentKey(card);
+  assert.match(key ?? '', /^[0-9a-f]{64}$/);
+  assert.equal(paymentKey({ ...card, exp_month: '08', exp_year: '28', card_holder: 'OTRO NOMBRE' } as typeof card), key);
+  assert.equal(paymentKey({ ...card, bin: '42424200' }), key);
+  assert.notEqual(paymentKey({ ...card, last_four: '1111' }), key);
+  assert.notEqual(paymentKey({ ...card, exp_year: '29' }), key);
+  // Nequi: el celular, con o sin indicativo.
+  assert.equal(paymentKey({ type: 'NEQUI', phone_number: '3105671703' }), paymentKey({ type: 'NEQUI', phone_number: '+57 310 567 1703' }));
+  assert.notEqual(paymentKey({ type: 'NEQUI', phone_number: '3105671703' }), key);
+  // Sin datos reales de Wompi no hay huella: el servidor no concede la prueba.
+  assert.equal(paymentKey({ type: 'CARD' }), null);
+  assert.equal(paymentKey({}), null);
 });

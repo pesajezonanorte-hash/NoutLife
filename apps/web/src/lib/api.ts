@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
 import { usePlanStore } from '../store/planStore';
-import { getDeviceId } from './deviceId';
+import { getDeviceId, rememberDeviceId } from './deviceId';
 import type { ProFeature } from './plan';
 import { clearRefreshSessionExpected, markRefreshSessionExpected } from './session-hint';
 
@@ -22,12 +22,12 @@ const api = axios.create({
 });
 
 // Inyectar access token en cada request
-api.interceptors.request.use((config) => {
+api.interceptors.request.use(async (config) => {
   const token = useAuthStore.getState().accessToken;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  const deviceId = getDeviceId();
+  const deviceId = await getDeviceId().catch(() => '');
   if (deviceId) config.headers['X-Device-Id'] = deviceId;
   return config;
 });
@@ -48,7 +48,14 @@ function processQueue(error: unknown, token: string | null) {
 
 // Auto-refresh del access token cuando expira
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // La API manda el id de su cookie HttpOnly: las capas locales se alinean con él.
+    const deviceId = response.headers['x-device-id'];
+    if (typeof deviceId === 'string' && deviceId) {
+      void getDeviceId().then((mine) => { if (mine !== deviceId) rememberDeviceId(deviceId); });
+    }
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
     const requestUrl = String(originalRequest?.url ?? '');

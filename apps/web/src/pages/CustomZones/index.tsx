@@ -19,6 +19,7 @@ import { ZoneShell } from '@/components/ambience';
 import { BrushStroke, Easel, HungFrame, PaintSplash } from '@/components/zones/Brush';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/useToast';
+import { isProRequired } from '@/lib/plan';
 import { PageHeader } from '@/components/layout/PageHeader';
 import {
   Badge, Button, Card, EmptyState, ErrorState, Field, Input, Modal, PageLoader, ProgressBar, SabioComposer, SegmentedControl, SpotCard, Switch,
@@ -304,7 +305,8 @@ export default function CustomZonesPage() {
     if (!text.trim()) return;
     setBusy(true); setStep(0);
     try { setSuggestion((await api.post<Suggestion>('/custom-zones/suggest', { description: text.trim() })).data); }
-    catch { toast.error('El Sabio no pudo proponer la zona. Inténtalo de nuevo.'); }
+    // 402 de Lite: ya se abrió el diálogo de Pro.
+    catch (err) { if (!isProRequired(err)) toast.error('El Sabio no pudo proponer la zona. Inténtalo de nuevo.'); }
     finally { setBusy(false); }
   }
 

@@ -1,48 +1,35 @@
 import { prisma } from '../lib/prisma';
 import { emailKey } from '../lib/trial-keys';
 
-const isUnique = (error: unknown) => (error as { code?: unknown }).code === 'P2002';
+export type TrialOutcome = 'granted' | 'email_used' | 'payment_used';
+
+/** ¿Este correo aún no tuvo prueba? Pista para la interfaz: la decisión real es claimTrial. */
+export async function trialAvailable(email: string): Promise<boolean> {
+  return !(await prisma.usedTrial.findUnique({ where: { emailKey: emailKey(email) }, select: { id: true } }));
+}
 
 /**
- * Reclama la prueba gratis de una cuenta nueva. false si el correo o el
- * dispositivo ya usaron una. Al reclamarla queda registrada para siempre.
+ * Reclama la prueba al vincular el primer medio de pago. Una por correo y una
+ * por medio de pago, para siempre: borrar la cuenta, cambiar de correo o
+ * limpiar el navegador no la devuelve. Las claves únicas de used_trials deciden,
+ * así que dos registros simultáneos no pueden ganar los dos. El dispositivo
+ * nunca bloquea (puede ser compartido): solo queda para auditoría.
  */
-export async function claimTrial(email: string, deviceId: string | null): Promise<boolean> {
+export async function claimTrial(email: string, paymentKey: string, deviceId: string | null): Promise<TrialOutcome> {
   const key = emailKey(email);
-  const seen = await prisma.usedTrial.findFirst({
-    where: { OR: [{ emailKey: key }, ...(deviceId ? [{ deviceId }] : [])] },
-    select: { id: true },
-  });
-  if (seen) return false;
   try {
-    await prisma.usedTrial.create({ data: { emailKey: key, deviceId } });
-    return true;
+    await prisma.usedTrial.create({ data: { emailKey: key, paymentKey, deviceId } });
   } catch (error) {
-    if (isUnique(error)) return false; // otro registro simultáneo con el mismo correo
-    throw error;
+    if ((error as { code?: unknown }).code !== 'P2002') throw error;
+    const used = await prisma.usedTrial.findFirst({ where: { OR: [{ emailKey: key }, { paymentKey }] } });
+    // Mismo correo y mismo medio: esta misma reclamación llegó dos veces (doble toque).
+    if (used?.emailKey === key && used.paymentKey === paymentKey) return 'granted';
+    return used?.emailKey === key ? 'email_used' : 'payment_used';
   }
-}
-
-/** Deshace una reclamación cuando la cuenta no llegó a crearse (la prueba nunca se activó). */
-export async function releaseTrial(email: string): Promise<void> {
-  await prisma.usedTrial.deleteMany({ where: { emailKey: emailKey(email) } }).catch(() => null);
-}
-
-/**
- * Asocia la tarjeta a la prueba de este correo. true si la tarjeta ya figura
- * en la prueba de OTRO correo.
- */
-export async function bindCard(email: string, paymentKey: string): Promise<boolean> {
-  const mine = emailKey(email);
-  const other = await prisma.usedTrial.findFirst({
-    where: { paymentKeys: { has: paymentKey }, NOT: { emailKey: mine } },
-    select: { id: true },
-  });
-  const record = await prisma.usedTrial.findUnique({ where: { emailKey: mine } });
-  if (!record) {
-    await prisma.usedTrial.create({ data: { emailKey: mine, paymentKeys: [paymentKey] } }).catch((e) => { if (!isUnique(e)) throw e; });
-  } else if (!record.paymentKeys.includes(paymentKey)) {
-    await prisma.usedTrial.update({ where: { id: record.id }, data: { paymentKeys: { push: paymentKey } } });
+  if (deviceId && (await prisma.usedTrial.count({ where: { deviceId } })) > 1) {
+    // Dispositivo compartido con correo y medio de pago nuevos: se permite. Auditoría:
+    // SELECT * FROM used_trials WHERE "deviceId" = '<id>' (el log no lleva correos).
+    console.warn('[TRIAL_SHARED_DEVICE]', deviceId);
   }
-  return Boolean(other);
+  return 'granted';
 }

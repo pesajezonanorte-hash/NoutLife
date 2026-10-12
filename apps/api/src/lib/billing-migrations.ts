@@ -63,4 +63,8 @@ export const SUBSCRIPTIONS_SQL: string[] = [
     END IF;
   END $$;`,
   `ALTER TABLE "used_trials" ENABLE ROW LEVEL SECURITY;`,
+  // Mirror of prisma/migrations/20261020120000_trial_payment_key: huella del medio de pago
+  // calculada en el servidor, única (un medio de pago, una prueba, incluso con registros simultáneos).
+  `ALTER TABLE "used_trials" ADD COLUMN IF NOT EXISTS "paymentKey" TEXT;`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "used_trials_paymentKey_key" ON "used_trials"("paymentKey");`,
 ];

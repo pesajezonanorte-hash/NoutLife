@@ -10,7 +10,7 @@ export type ProFeature = 'habits' | 'history' | 'ai';
 export const PRO_MESSAGES: Record<ProFeature, string> = {
   habits: `NoutLife Lite admite ${LITE_LIMITS.activeHabits} hábitos activos. Con Pro no hay límite.`,
   history: `NoutLife Lite muestra tus últimos ${LITE_LIMITS.historyDays} días. Con Pro ves todo tu historial.`,
-  ai: 'Actualiza a Pro para desbloquear los análisis de IA y más mensajes con el Sabio.',
+  ai: 'La IA de NoutLife (el Sabio y sus análisis) es de Pro.',
 };
 
 /** 402 Payment Required: `error` es el texto para la persona; el cliente lo reconoce por `code: 'PRO_REQUIRED'`. */
@@ -18,7 +18,7 @@ export function sendProRequired(res: Response, feature: ProFeature): void {
   res.status(402).json({ error: PRO_MESSAGES[feature], code: 'PRO_REQUIRED', feature });
 }
 
-/** Solo Pro (análisis de IA del Sabio). */
+/** Solo Pro: toda acción de IA que la persona pide (el 402 abre el diálogo de Pro). */
 export function requirePro(feature: ProFeature) {
   return async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
     try {

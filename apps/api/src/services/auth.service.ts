@@ -6,8 +6,6 @@ import type { OAuthInput } from '../schemas/auth.schemas';
 import { verifyIdToken, type OAuthIdentity } from '../lib/oauth';
 import { checkAchievements } from './achievement.service';
 import { syncSubscription, type SubscriptionView } from './billing.service';
-import { TRIAL_DAYS, addDays } from '../lib/plans';
-import { claimTrial, releaseTrial } from './trial.service';
 
 function sanitizeUser(user: {
   id: string;
@@ -105,7 +103,7 @@ async function uniqueUsername(seed: string) {
  * email verificado (cuentas antiguas con contraseña) o crea una nueva. Las
  * cuentas nuevas empiezan sin onboarding y la app las lleva a completarlo.
  */
-async function findOrCreateUser(identity: OAuthIdentity, displayName?: string, deviceId: string | null = null) {
+async function findOrCreateUser(identity: OAuthIdentity, displayName?: string) {
   const bySub = await prisma.user.findFirst({ where: { googleSub: identity.sub } });
   if (bySub) return bySub;
 
@@ -117,33 +115,22 @@ async function findOrCreateUser(identity: OAuthIdentity, displayName?: string, d
   }
 
   const name = (identity.name ?? displayName ?? '').trim().slice(0, 50);
-  // Una prueba por correo y por dispositivo, para siempre (tabla used_trials).
-  // Si ya se usó, la cuenta nace en Lite y la app la lleva a pagar.
-  const now = new Date();
-  const trial = await claimTrial(identity.email, deviceId);
-  let user;
-  try {
-    user = await prisma.user.create({
-      data: {
-        email: identity.email,
-        username: await uniqueUsername(identity.email.split('@')[0]),
-        displayName: name.length >= 2 ? name : 'Héroe',
-        googleSub: identity.sub,
-        ...(trial
-          // 7 días de Pro desde el alta; la app pide la tarjeta después del tutorial.
-          ? { subscriptionStatus: 'trialing', trialEndsAt: addDays(now, TRIAL_DAYS) }
-          : { subscriptionStatus: 'lite', trialEndsAt: now, liteSince: now, lastPaymentError: 'Ya usaste tu prueba gratis.' }),
-        avatarConfig: {
-          bodyType: 'male', hairStyle: 'short', hairColor: '#4a3728', skinColor: '#c68642',
-          shirtColor: '#4d96ff', pants: '#37474f', accessory: 'none', expression: 'normal', pet: null,
-        },
+  const user = await prisma.user.create({
+    data: {
+      email: identity.email,
+      username: await uniqueUsername(identity.email.split('@')[0]),
+      displayName: name.length >= 2 ? name : 'Héroe',
+      googleSub: identity.sub,
+      // Toda cuenta nace en Lite. Los 7 días de Pro empiezan al vincular un medio
+      // de pago, y ahí el servidor valida la prueba (billing.service savePaymentMethod).
+      subscriptionStatus: 'lite',
+      trialEndsAt: new Date(),
+      avatarConfig: {
+        bodyType: 'male', hairStyle: 'short', hairColor: '#4a3728', skinColor: '#c68642',
+        shirtColor: '#4d96ff', pants: '#37474f', accessory: 'none', expression: 'normal', pet: null,
       },
-    });
-  } catch (error) {
-    // La cuenta no existe, así que la prueba nunca se activó: se devuelve para el reintento.
-    if (trial) await releaseTrial(identity.email);
-    throw error;
-  }
+    },
+  });
   checkAchievements(user.id, 'user_registered', { currentStreak: 0 }).catch(() => {});
   return user;
 }
@@ -161,9 +148,9 @@ async function checkSubscription(userId: string): Promise<SubscriptionView | nul
 }
 
 /** Inicio de sesión único: Google. No hay contraseñas. */
-export async function oauthSignIn(data: OAuthInput, deviceId: string | null = null) {
+export async function oauthSignIn(data: OAuthInput) {
   const identity = await verifyIdToken(data.provider, data.idToken);
-  const user = await findOrCreateUser(identity, data.displayName, deviceId);
+  const user = await findOrCreateUser(identity, data.displayName);
 
   const { reconcileUserActivityStreak } = await import('./xp.service');
   const reconciledStreak = await reconcileUserActivityStreak(user.id);

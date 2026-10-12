@@ -1,4 +1,5 @@
 import { createHash, timingSafeEqual } from 'crypto';
+import type { PaymentPublicData } from './trial-keys';
 
 /**
  * Cliente mínimo de la API de Wompi (Colombia). Docs: https://docs.wompi.co
@@ -174,6 +175,16 @@ export async function createPaymentSource(input: { token: string; customerEmail:
     },
   });
   return { id: String(data.id), status: data.status };
+}
+
+/** Datos públicos reales de una fuente de pago (BIN, últimos 4, vencimiento o celular Nequi), leídos con la llave privada. */
+export async function getPaymentSource(id: string): Promise<{ id: string; status: string; publicData: PaymentPublicData }> {
+  const { privateKey } = wompiConfig();
+  const { data } = await request<{ data: { id: number | string; status: string; public_data?: PaymentPublicData } }>(
+    `/payment_sources/${encodeURIComponent(id)}`,
+    { key: privateKey },
+  );
+  return { id: String(data.id), status: data.status, publicData: data.public_data ?? {} };
 }
 
 export interface WompiTransaction {

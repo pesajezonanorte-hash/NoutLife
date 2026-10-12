@@ -1,14 +1,15 @@
 import type { Prisma, SubscriptionPayment } from '@prisma/client';
 import { prisma } from '../lib/prisma';
-import { cardKey } from '../lib/trial-keys';
-import { bindCard } from './trial.service';
+import { hasAIProvider } from '../lib/ai';
+import { paymentKey } from '../lib/trial-keys';
+import { claimTrial, trialAvailable } from './trial.service';
 import {
   LITE_LIMITS, PRO_AMOUNT_IN_CENTS, PRO_CURRENCY, PRO_PRICE_COP, RENEWAL_GRACE_MS, TRIAL_DAYS,
   accessEndsAt, addDays, addMonth, hasProAccess, nextAction, paymentReference, planOf, statusOf, trialEndOf, willRenew,
   type Plan, type SubscriptionStatus,
 } from '../lib/plans';
 import {
-  WompiError, createPaymentSource, createTransaction, getAcceptance, getTransaction, verifyEventChecksum, wompiConfig,
+  WompiError, createPaymentSource, createTransaction, getAcceptance, getPaymentSource, getTransaction, verifyEventChecksum, wompiConfig,
   type WompiEvent,
 } from '../lib/wompi';
 
@@ -54,11 +55,13 @@ export interface SubscriptionView {
   liteSince: string | null;
   lastPaymentError: string | null;
   pendingPayment: boolean;
+  /** Puede empezar la prueba vinculando un medio de pago (el servidor la confirma al vincularlo). */
+  trialAvailable: boolean;
   priceCop: number;
   trialDays: number;
 }
 
-export function subscriptionView(user: SubscriptionUser, now = new Date(), pendingPayment = false): SubscriptionView {
+export function subscriptionView(user: SubscriptionUser, now = new Date(), pendingPayment = false, canTrial = false): SubscriptionView {
   const status = statusOf(user);
   return {
     status,
@@ -72,9 +75,15 @@ export function subscriptionView(user: SubscriptionUser, now = new Date(), pendi
     liteSince: user.liteSince?.toISOString() ?? null,
     lastPaymentError: user.lastPaymentError,
     pendingPayment,
+    trialAvailable: canTrial,
     priceCop: PRO_PRICE_COP,
     trialDays: TRIAL_DAYS,
   };
+}
+
+/** La prueba solo existe para cuentas en Lite que nunca pagaron y cuyo correo no la usó. */
+async function canStartTrial(user: SubscriptionUser): Promise<boolean> {
+  return statusOf(user) === 'lite' && !user.currentPeriodEnd && trialAvailable(user.email);
 }
 
 async function loadUser(userId: string): Promise<SubscriptionUser> {
@@ -88,7 +97,7 @@ async function getView(userId: string): Promise<SubscriptionView> {
     loadUser(userId),
     prisma.subscriptionPayment.count({ where: { userId, status: 'PENDING' } }),
   ]);
-  return subscriptionView(user, new Date(), pending > 0);
+  return subscriptionView(user, new Date(), pending > 0, await canStartTrial(user));
 }
 
 /** Estado de la suscripción sin aplicar vencimientos (lectura rápida para /auth/me). */
@@ -102,6 +111,11 @@ export async function getPlan(userId: string): Promise<Plan> {
 
 export async function isPro(userId: string): Promise<boolean> {
   return (await getPlan(userId)) === 'pro';
+}
+
+/** IA solo en Pro: en NoutLife Lite cada función usa su texto sin IA. */
+export async function canUseAI(userId: string): Promise<boolean> {
+  return hasAIProvider() && isPro(userId);
 }
 
 /** Pasa la cuenta a Lite. Sin bloqueo: todo sigue guardado y funciona con los límites de Lite. */
@@ -268,50 +282,68 @@ export async function syncSubscription(userId: string, options: { wait?: boolean
 }
 
 export interface PaymentMethodInput {
-  /** Token de tarjeta de Wompi (tok_…), creado en el navegador. */
+  /** Token de Wompi (tok_…) creado en el navegador: lo único del cliente que cuenta. */
   token: string;
+  /** Solo para la etiqueta («VISA •••• 4242»). */
   brand?: string;
-  lastFour: string;
-  bin: string;
-  expMonth: string;
-  expYear: string;
-  holder: string;
+  /** Cookie HttpOnly o cabecera del dispositivo. Solo auditoría: nunca bloquea. */
+  deviceId: string | null;
 }
 
-/** Guarda la tarjeta como fuente de pago de Wompi. No cobra nada. */
+/**
+ * Vincula el medio de pago como fuente de Wompi. No cobra nada. Si la cuenta
+ * nunca tuvo prueba, aquí empieza: el servidor lee de Wompi los datos reales
+ * del medio de pago (no los del navegador) y concede los 7 días solo si ni el
+ * correo ni ese medio de pago tuvieron ya una prueba. Si no, sigue en Lite.
+ */
 export async function savePaymentMethod(userId: string, input: PaymentMethodInput): Promise<SubscriptionView> {
   if (!wompiConfig().configured) throw new BillingError('BILLING_DISABLED', 'Los pagos no están disponibles en este momento.', 503);
   const user = await loadUser(userId);
 
   let source;
+  let details;
   try {
     const acceptance = await getAcceptance({ fresh: true });
     source = await createPaymentSource({ token: input.token, customerEmail: user.email, acceptance });
+    details = await getPaymentSource(source.id);
   } catch (error) {
     if (error instanceof WompiError) {
       console.error('[BILLING_PAYMENT_SOURCE_ERROR]', userId, error.message);
-      throw new BillingError('CARD_REJECTED', 'No pudimos guardar la tarjeta. Revisa los datos e inténtalo de nuevo.', 422);
+      throw new BillingError('CARD_REJECTED', 'No pudimos vincular tu método de pago. Revisa los datos e inténtalo de nuevo.', 422);
     }
     throw error;
   }
   if (source.status !== 'AVAILABLE') {
-    throw new BillingError('CARD_REJECTED', 'Wompi no pudo verificar esta tarjeta. Prueba con otra.', 422);
+    throw new BillingError('CARD_REJECTED', 'Wompi no pudo verificar este método de pago. Prueba con otro.', 422);
   }
 
   const now = new Date();
-  const brand = input.brand?.trim().toUpperCase() || 'Tarjeta';
+  const pub = details.publicData;
+  const brand = input.brand?.trim().toUpperCase() || (pub.type === 'NEQUI' ? 'NEQUI' : 'Tarjeta');
+  const lastFour = pub.last_four ?? pub.phone_number?.slice(-4);
   const data: Prisma.UserUpdateInput = {
     paymentSourceId: source.id,
-    paymentMethodLabel: input.lastFour ? `${brand} •••• ${input.lastFour}` : brand,
+    paymentMethodLabel: lastFour ? `${brand} •••• ${lastFour}` : brand,
     lastPaymentError: null,
   };
-  // Guardar una tarjeta durante una cancelación vigente la deshace.
+  // Vincular un medio de pago durante una cancelación vigente la deshace.
   if (statusOf(user) === 'canceled' && now < accessEndsAt(user)) {
     data.subscriptionStatus = user.currentPeriodEnd && user.currentPeriodEnd > now ? 'active' : 'trialing';
   }
-  // Tarjeta ya usada en la prueba de otro correo: sin prueba gratis, la cuenta pasa a Lite.
-  if (await bindCard(user.email, cardKey(input)) && statusOf(user) !== 'lite' && !user.currentPeriodEnd) {
-    Object.assign(data, { subscriptionStatus: 'lite', trialEndsAt: now, liteSince: now, lastPaymentError: 'Esta tarjeta ya se usó en una prueba gratis.' });
+
+  if (await canStartTrial(user)) {
+    const key = paymentKey(pub);
+    if (!key) {
+      // Sin huella real no se concede: fallar cerrado y avisar (nunca confiar en el navegador).
+      console.error('[BILLING_NO_PAYMENT_KEY]', userId, source.id, Object.keys(pub));
+      throw new BillingError('PAYMENT_UNVERIFIED', 'No pudimos verificar tu método de pago con Wompi. Inténtalo de nuevo en unos minutos.', 502);
+    }
+    const outcome = await claimTrial(user.email, key, input.deviceId);
+    if (outcome === 'granted') {
+      Object.assign(data, { subscriptionStatus: 'trialing', trialEndsAt: addDays(now, TRIAL_DAYS), liteSince: null });
+    } else {
+      data.lastPaymentError = outcome === 'payment_used' ? 'Este método de pago ya se usó en una prueba gratis.' : 'Ya usaste tu prueba gratis.';
+    }
   }
   await prisma.user.update({ where: { id: userId }, data });
   return getView(userId);
@@ -325,7 +357,7 @@ export async function subscribeNow(userId: string): Promise<SubscriptionView> {
   if (status === 'canceled') return resumeSubscription(userId);
   if (status !== 'lite') return getView(userId);
 
-  if (!user.paymentSourceId) throw new BillingError('PAYMENT_METHOD_REQUIRED', 'Agrega una tarjeta para activar Pro.', 409);
+  if (!user.paymentSourceId) throw new BillingError('PAYMENT_METHOD_REQUIRED', 'Agrega un método de pago para activar Pro.', 409);
   if (!wompiConfig().configured) throw new BillingError('BILLING_DISABLED', 'Los pagos no están disponibles en este momento.', 503);
 
   const now = new Date();

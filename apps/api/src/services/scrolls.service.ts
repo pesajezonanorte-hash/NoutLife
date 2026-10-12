@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma';
-import { generateText, hasAIProvider } from '../lib/ai';
+import { generateText } from '../lib/ai';
+import { canUseAI } from './billing.service';
 
 export async function getUnreadScrolls(userId: string) {
   return prisma.sageScroll.findMany({
@@ -100,7 +101,7 @@ Responde SOLO con JSON sin markdown:
 
 Usa "praise" si algo va muy bien, "warning" si algo necesita atención, "nudge" si hay algo que empujar, "milestone" si logró algo importante.`;
 
-  if (!hasAIProvider()) {
+  if (!(await canUseAI(userId))) {
     // Fallback: rule-based scroll
     let message = `Llevas ${user.currentStreak} días de racha. ¡Cada día que apareces es una victoria!`;
     let category = 'praise';

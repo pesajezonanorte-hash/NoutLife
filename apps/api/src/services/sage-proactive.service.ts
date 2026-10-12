@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma';
-import { generateText, hasAIProvider } from '../lib/ai';
+import { generateText } from '../lib/ai';
+import { canUseAI } from './billing.service';
 import { reconcileHabitStreaks } from './habit.service';
 import { reconcileUserActivityStreak } from './xp.service';
 
@@ -104,7 +105,7 @@ export async function generateProactiveNote(userId: string) {
   // Generate AI message or use fallback
   let message: string;
 
-  if (hasAIProvider()) {
+  if (await canUseAI(userId)) {
     const newUserNote = isNewUser ? 'IMPORTANTE: Este héroe es NUEVO, acaba de unirse. Dales la bienvenida con entusiasmo, NO menciones rachas perdidas ni puntos críticos.' : '';
     const prompt = `Eres El Sabio, el mentor de Noutlife — una app RPG de vida real.
 

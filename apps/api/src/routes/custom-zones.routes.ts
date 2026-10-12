@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { requireAuth, type AuthRequest } from '../middleware/auth.middleware';
 import { prisma } from '../lib/prisma';
 import { generateText, hasAIProvider } from '../lib/ai';
+import { limitActiveHabits, requirePro } from '../middleware/plan.middleware';
 
 const router = Router();
 router.use(requireAuth);
@@ -134,7 +135,7 @@ router.post('/:id/quests', async (req, res, next) => {
 });
 
 // Create habit inside a zone
-router.post('/:id/habits', async (req, res, next) => {
+router.post('/:id/habits', limitActiveHabits, async (req, res, next) => {
   try {
     const userId = (req as AuthRequest).userId!;
     const zone = await prisma.customZone.findFirst({ where: { id: req.params.id, userId, isActive: true } });
@@ -163,7 +164,7 @@ router.post('/:id/habits', async (req, res, next) => {
 });
 
 // AI zone suggestion wizard (step 1)
-router.post('/suggest', async (req, res, next) => {
+router.post('/suggest', requirePro('ai'), async (req, res, next) => {
   try {
     const { description } = req.body;
     if (!description) return res.status(400).json({ error: 'description required' });

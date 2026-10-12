@@ -5,9 +5,7 @@
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, useReducedMotionConfig, type Variants } from 'framer-motion';
-import { BarChart2, Dumbbell, Lock, Send, Sparkles, Sword, Trash2, Wallet, X, type LucideIcon } from 'lucide-react';
-import { LiteNotice } from '@/components/billing/LiteNotice';
-import { LITE_LIMITS } from '@/lib/plan';
+import { BarChart2, Dumbbell, Send, Sparkles, Sword, Trash2, Wallet, X, type LucideIcon } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { usePlanStore } from '@/store/planStore';
 import { cn } from '@/lib/utils';
@@ -97,11 +95,16 @@ export function SagePanel({ onClose }: { onClose: () => void }) {
   // Cupo diario de consultas IA del usuario (el servidor lo reparte del nivel
   // gratuito de Groq/Gemini). Si es null, el endpoint falló y el panel sigue
   // funcionando sin contador.
-  const [rate, setRate] = useState<{ remaining: number; limit: number; resetAt: string; plan?: 'pro' | 'lite' } | null>(null);
-  // NoutLife Lite: tope fijo de mensajes y análisis de IA bloqueados (son de Pro).
-  const storeLite = useAuthStore((s) => s.user?.subscription?.plan === 'lite');
-  const lite = rate?.plan ? rate.plan === 'lite' : storeLite;
+  const [rate, setRate] = useState<{ remaining: number; limit: number; resetAt: string } | null>(null);
+  // NoutLife Lite no tiene IA: el Sabio se cierra y se abre el diálogo de Pro, venga de donde venga.
+  // La API también lo bloquea (402), así que un estado viejo aquí no abre nada.
+  const lite = useAuthStore((s) => s.user?.subscription?.plan === 'lite');
   const openUpgrade = usePlanStore((s) => s.openUpgrade);
+  useEffect(() => {
+    if (!lite) return;
+    onClose();
+    openUpgrade('ai');
+  }, [lite, onClose, openUpgrade]);
   const refreshRate = useCallback(async () => {
     try { setRate(await sageRateInfo()); } catch { /* sin contador */ }
   }, []);
@@ -138,6 +141,7 @@ export function SagePanel({ onClose }: { onClose: () => void }) {
     if (!pending || sentPending.current) return;
     sentPending.current = true; // StrictMode monta dos veces
     clearPending();
+    if (lite) return; // Lite: va al diálogo de Pro, no al chat
     void ask(pending, async () => (await sageChat(pending)).reply);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -158,12 +162,6 @@ export function SagePanel({ onClose }: { onClose: () => void }) {
   }
 
   function runAction(a: (typeof ACTIONS)[number]) {
-    if (lite) {
-      // Un solo diálogo a la vez: el Sabio se cierra y se abre el de Pro.
-      onClose();
-      openUpgrade('ai');
-      return;
-    }
     if (loading || outOfCalls) return;
     void ask(a.label, async () => {
       if (a.id === 'quests') {
@@ -180,6 +178,8 @@ export function SagePanel({ onClose }: { onClose: () => void }) {
       return (await sagePlanWorkout()).reply;
     });
   }
+
+  if (lite) return null; // el efecto de arriba lo cierra y abre el diálogo de Pro
 
   return createPortal(
     <motion.div
@@ -241,9 +241,7 @@ export function SagePanel({ onClose }: { onClose: () => void }) {
                 <p className="text-body-md text-on-surface-light">Pide ideas de misiones, analiza tus hábitos o tus finanzas, o pregunta lo que quieras.</p>
                 {rate && !outOfCalls && (
                   <p className="text-body-sm text-on-surface-light">
-                    {lite
-                      ? `Con NoutLife Lite tienes ${rate.limit} mensajes al día.`
-                      : `Hoy tienes ${rate.limit} mensajes. Cuanta menos gente usa el Sabio, más mensajes tienes.`}
+                    Hoy tienes {rate.limit} mensajes. Cuanta menos gente usa el Sabio, más mensajes tienes.
                   </p>
                 )}
               </div>
@@ -291,29 +289,18 @@ export function SagePanel({ onClose }: { onClose: () => void }) {
                 El Sabio se va cansando: te quedan {rate.remaining} {rate.remaining === 1 ? 'consulta' : 'consultas'} hoy.
               </p>
             )}
-            {outOfCalls && !lite && (
+            {outOfCalls && (
               <p className="text-center text-body-sm text-on-surface-light">
                 El Sabio descansa hasta mañana. Todo lo demás (hábitos, misiones, comidas, inicio) sigue
                 funcionando con normalidad.
               </p>
             )}
           </div>
-          {lite && (
-            <LiteNotice feature="ai">
-              {outOfCalls
-                ? `Usaste tus ${LITE_LIMITS.sageChatPerDay} mensajes de hoy. Actualiza a Pro para desbloquear los análisis de IA y más mensajes.`
-                : 'Actualiza a Pro para desbloquear los análisis de IA y más mensajes con el Sabio.'}
-            </LiteNotice>
-          )}
           <ul aria-label="Acciones rápidas" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-wrap md:overflow-visible md:px-0">
             {ACTIONS.map((a) => (
               <li key={a.id} className="shrink-0">
-                <Button variant="secondary" size="sm" disabled={!lite && (loading || outOfCalls)} onClick={() => runAction(a)}>
-                  {lite
-                    ? <Lock aria-hidden className="size-4 text-secondary-text" strokeWidth={1.75} />
-                    : <a.icon aria-hidden className="size-4" strokeWidth={1.75} />}
-                  {a.label}
-                  {lite && <span className="sr-only"> (solo Pro)</span>}
+                <Button variant="secondary" size="sm" disabled={loading || outOfCalls} onClick={() => runAction(a)}>
+                  <a.icon aria-hidden className="size-4" strokeWidth={1.75} />{a.label}
                 </Button>
               </li>
             ))}

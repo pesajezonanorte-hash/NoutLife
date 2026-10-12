@@ -6,6 +6,7 @@ import {
   getSavedMeals, createSavedMeal, deleteSavedMeal,
   parseMealWithAI, getDailyMacros,
 } from '../services/nutrition2.service';
+import { requirePro } from '../middleware/plan.middleware';
 
 const router = Router();
 router.use(requireAuth);
@@ -37,7 +38,7 @@ router.delete('/saved-meals/:id', async (req, res) => {
   } catch (err: any) { res.status(400).json({ message: publicErrorMessage(err) }); }
 });
 
-router.post('/ai-parse', async (req, res) => {
+router.post('/ai-parse', requirePro('ai'), async (req, res) => {
   try {
     const { description } = req.body;
     if (!description) return res.status(400).json({ message: 'description requerido' });

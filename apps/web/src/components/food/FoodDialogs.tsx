@@ -10,6 +10,8 @@ import { cn } from '@/lib/utils';
 import { enter, staggerVariants } from '@/lib/motion';
 import { Button, Field, Input, ResponsiveDialog, Textarea } from '@/components/ui/lq';
 import { useToastStore } from '@/hooks/useToast';
+import { useAuthStore } from '@/store/authStore';
+import { usePlanStore } from '@/store/planStore';
 import * as mealService from '@/services/meal.service';
 import type { NutritionGoal, ParsedMeal, SavedMeal } from '@/services/meal.service';
 import { DEFAULT_GOAL, MACROS, MEAL_TYPES, mealTypeLabel, type FoodType } from './foodMeta';
@@ -132,6 +134,13 @@ export function AnalyzeMealDialog({ open, onClose, date, initialType, onSaved }:
   const [error, setError] = useState<string | null>(null);
   const nameRef = useRef<HTMLInputElement>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
+  // El análisis es IA: en NoutLife Lite se va directo al diálogo de Pro (la API también lo bloquea).
+  const lite = useAuthStore((s) => s.user?.subscription?.plan === 'lite');
+  useEffect(() => {
+    if (!open || !lite) return;
+    onClose();
+    usePlanStore.getState().openUpgrade('ai');
+  }, [open, lite, onClose]);
   const ingredientsRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {

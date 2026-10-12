@@ -2,8 +2,7 @@ import { generateText, hasAIProvider, AIQuotaError } from '../lib/ai';
 import { prisma } from '../lib/prisma';
 import { addCalendarDays, getCalendarDay } from '../lib/calendar';
 import { isHabitScheduledForDay } from './habit.service';
-import { isPro } from './billing.service';
-import { LITE_LIMITS } from '../lib/plans';
+import { canUseAI } from './billing.service';
 
 const SAGE_RATE_LIMIT = 1000;
 
@@ -111,19 +110,13 @@ export async function sageDailyCap(): Promise<number> {
   return (await sagePulse()).cap;
 }
 
-/** Tope de hoy para esta persona: Pro usa el reparto dinámico; NoutLife Lite, un tope fijo menor. */
-export async function sageCapFor(userId: string): Promise<number> {
-  const cap = await sageDailyCap();
-  return (await isPro(userId)) ? cap : Math.min(cap, LITE_LIMITS.sageChatPerDay);
-}
-
 /**
  * Consume una respuesta IA del día. Devuelve el uso actualizado, o null si el
  * usuario ya llegó a su tope diario (y entonces NO se consume contador).
  */
 export async function consumeSageDailyAI(userId: string): Promise<SageDailyUsage | null> {
   const usage = await getSageDailyUsage(userId);
-  if (usage.count >= (await sageCapFor(userId))) return null;
+  if (usage.count >= (await sageDailyCap())) return null;
   const allowed = await checkAndIncrementRateLimit(userId); // contador diario anti-spam
   if (!allowed) return null;
   return getSageDailyUsage(userId);
@@ -134,18 +127,6 @@ export async function consumeSageDailyAI(userId: string): Promise<SageDailyUsage
 export const SAGE_TIRED_REPLY =
   'Hoy hemos conversado mucho y necesito reposar los ojos. Vuelve mañana y seguimos. ' +
   'Mientras tanto, tus hábitos, misiones, comidas y todo lo demás siguen funcionando como siempre.';
-
-// NoutLife Lite: se acabaron sus mensajes del día. Explica el límite sin culpa y cómo quitarlo.
-export const SAGE_LITE_REPLY =
-  `Con NoutLife Lite tienes ${LITE_LIMITS.sageChatPerDay} mensajes al día conmigo y ya los usamos. ` +
-  'Vuelve mañana y seguimos. Con NoutLife Pro conversamos más cada día y te preparo análisis de tus hábitos, finanzas y entrenos.';
-
-/** Respuesta cuando el chat no tiene cupo: la de Lite si fue su tope, la de descanso si no. */
-async function restReply(userId: string): Promise<string> {
-  if (await isPro(userId)) return SAGE_TIRED_REPLY;
-  const { count } = await getSageDailyUsage(userId);
-  return count >= LITE_LIMITS.sageChatPerDay ? SAGE_LITE_REPLY : SAGE_TIRED_REPLY;
-}
 
 // Respuesta cuando la IA falla por otra razón (modelo retirado, red...): en
 // personaje, nunca el error técnico de los proveedores.
@@ -507,7 +488,7 @@ Responde siempre en español. Usa los datos reales de arriba y nunca inventes da
 
 export async function sageChat(userId: string, message: string): Promise<string> {
   const usage = await takeChatSlot(userId);
-  if (!usage) return restReply(userId);
+  if (!usage) return SAGE_TIRED_REPLY;
 
   return chatTurn(userId, async () => callAIWithMemory(userId, await buildSageContext(userId), message));
 }
@@ -566,6 +547,7 @@ export async function sageDailyTip(userId: string): Promise<string> {
   const today = new Date().toISOString().slice(0, 10);
   const hit = dailyTipCache.get(userId);
   if (hit?.date === today) return hit.tip;
+  if (!(await canUseAI(userId))) return DAILY_TIP_FALLBACK; // NoutLife Lite: sin IA
 
   const context = await buildSageContext(userId);
   const tip = await callAI(`${context}\\n\\nDa UNA sola frase de consejo o motivación para hoy, basada en el estado actual del usuario. Máximo 15 palabras. Sin saludos, sin introducciones. Solo la frase, directa y útil.`);
@@ -584,6 +566,7 @@ export async function sageDailySummary(userId: string): Promise<string> {
   const today = new Date().toISOString().slice(0, 10);
   const hit = dailySummaryCache.get(userId);
   if (hit?.date === today) return hit.text;
+  if (!(await canUseAI(userId))) return 'Tu resumen diario con IA es de NoutLife Pro.'; // Lite: sin IA
 
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
@@ -601,9 +584,9 @@ export async function sageDailySummary(userId: string): Promise<string> {
 // anti-spam), cuántas quedan y cuándo se reinicia.
 export async function getSageRateInfo(
   userId: string
-): Promise<{ callsToday: number; limit: number; remaining: number; resetAt: string; activeUsers: number; plan: 'pro' | 'lite' }> {
-  const [usage, p, pro] = await Promise.all([getSageDailyUsage(userId), sagePulse(), isPro(userId)]);
-  const limit = pro ? p.cap : Math.min(p.cap, LITE_LIMITS.sageChatPerDay);
+): Promise<{ callsToday: number; limit: number; remaining: number; resetAt: string; activeUsers: number }> {
+  const [usage, p] = await Promise.all([getSageDailyUsage(userId), sagePulse()]);
+  const limit = p.cap;
   // Si el presupuesto común se acabó, a nadie le quedan consultas hoy.
   const remaining = p.used >= SAGE_DAILY_CHAT_BUDGET ? 0 : Math.max(0, limit - usage.count);
   return {
@@ -612,6 +595,5 @@ export async function getSageRateInfo(
     activeUsers: p.activeUsers,
     remaining,
     resetAt: usage.nextReset.toISOString(),
-    plan: pro ? 'pro' : 'lite',
   };
 }

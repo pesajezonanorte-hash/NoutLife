@@ -44,8 +44,6 @@ export interface SageRateInfo {
   resetAt: string;
   /** Personas activas hoy: el límite se reparte entre ellas. */
   activeUsers?: number;
-  /** En Lite el tope es fijo y los análisis son de Pro. */
-  plan?: 'pro' | 'lite';
 }
 
 export async function sageRateInfo(): Promise<SageRateInfo> {

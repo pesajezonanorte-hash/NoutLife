@@ -2,23 +2,23 @@
  * Planes de NoutLife. Reglas puras (sin base de datos) para que el cobro, los
  * límites de Lite y las pruebas usen exactamente la misma lógica.
  *
- *   trialing  7 días de Pro al crear la cuenta. Con tarjeta, al vencer se cobra el primer mes.
+ *   trialing  7 días de Pro desde que se vincula un medio de pago. Al vencer se cobra el primer mes.
  *   active    mes pagado. Al vencer se cobra el siguiente.
  *   canceled  la persona canceló: conserva Pro hasta el fin de su prueba o mes pagado.
- *   lite      sin pago activo. Nunca se bloquea la cuenta: funciona con los límites de Lite.
+ *   lite      sin pago activo (y toda cuenta nueva). Nunca se bloquea: funciona con los límites de Lite.
  */
 export const TRIAL_DAYS = 7;
+// ponytail: «tarifa congelada» = esta constante. Antes de subir el precio, guarda el monto por usuario.
 export const PRO_PRICE_COP = 9900;
 export const PRO_AMOUNT_IN_CENTS = PRO_PRICE_COP * 100;
 export const PRO_CURRENCY = 'COP';
 
+/** NoutLife Lite. La IA es solo de Pro (requirePro('ai') y canUseAI). */
 export const LITE_LIMITS = {
   /** Hábitos activos a la vez. */
   activeHabits: 3,
   /** Días de historial y estadísticas visibles. */
-  historyDays: 7,
-  /** Mensajes al día con el Sabio. Los análisis de IA son solo de Pro. */
-  sageChatPerDay: 3,
+  historyDays: 5,
 } as const;
 
 /**

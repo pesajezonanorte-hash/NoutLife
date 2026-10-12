@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma';
-import { generateText, hasAIProvider } from '../lib/ai';
+import { generateText } from '../lib/ai';
+import { canUseAI } from './billing.service';
 import { addCalendarDays, getCalendarDay } from '../lib/calendar';
 import { isHabitScheduledForDay } from './habit.service';
 import { periodRange } from './stats.service';
@@ -749,7 +750,7 @@ export async function getMorningBriefing(userId: string): Promise<{
     playerClass: user.playerClass,
   };
 
-  if (!hasAIProvider()) {
+  if (!(await canUseAI(userId))) {
     const fallback = `⚡ **Eventos hoy:** ${agendaToday.length} · **Hábitos pendientes:** ${pendingHabits}\n💡 ¡Avanza paso a paso y conquista tu día!`;
     await prisma.user.update({ where: { id: userId }, data: { morningBriefingLastSeen: now } });
     return { briefing: fallback, cached: false };

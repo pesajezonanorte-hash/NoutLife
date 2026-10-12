@@ -85,7 +85,7 @@ export default function LoginPage() {
             label: `Empieza tus ${TRIAL_DAYS} días gratis`,
             // El acceso con Google está arriba: se vuelve a él.
             onClick: () => window.scrollTo({ top: 0, behavior: 'smooth' }),
-            note: 'Sin cobro hoy. Cancela en un clic.',
+            note: '$0 hoy. Cancela en cualquier momento con 1 clic.',
           }}
         />
       )}
@@ -105,7 +105,7 @@ export default function LoginPage() {
         )}
 
         <p className="text-center text-body-sm text-on-surface-light">
-          Las cuentas nuevas empiezan con {TRIAL_DAYS} días de Pro gratis.{' '}
+          Prueba Pro {TRIAL_DAYS} días gratis vinculando un método de pago: $0 hoy.{' '}
           <a href="#planes" className="inline-flex min-h-11 items-center font-semibold text-primary-text underline-offset-4 hover:underline">Ver planes</a>
         </p>
       </div>

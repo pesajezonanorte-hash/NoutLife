@@ -296,9 +296,12 @@ model UsedTrial {
   id          String   @id @default(cuid())
   /// Correo en minúsculas.
   emailKey    String   @unique
-  /// Id del navegador/PWA (localStorage). Null si el cliente no lo envió.
+  /// Id del dispositivo (cookie HttpOnly, localStorage o IndexedDB). Solo auditoría: nunca bloquea.
   deviceId    String?
-  /// Huellas SHA-256 de las tarjetas guardadas (nunca el número).
+  /// Huella SHA-256 del medio de pago con que empezó la prueba, calculada con datos de Wompi
+  /// en el servidor (nunca el número). Única: un medio de pago, una prueba.
+  paymentKey  String?  @unique
+  /// Sin uso: huellas armadas con datos del navegador. Se conserva para no romper el despliegue en curso.
   paymentKeys String[] @default([])
   createdAt   DateTime @default(now())
 

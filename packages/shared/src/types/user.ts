@@ -51,6 +51,8 @@ export interface Subscription {
   liteSince: string | null;
   lastPaymentError: string | null;
   pendingPayment: boolean;
+  /** Puede empezar los 7 días de Pro vinculando un medio de pago (el servidor lo confirma al vincularlo). */
+  trialAvailable: boolean;
   priceCop: number;
   trialDays: number;
 }

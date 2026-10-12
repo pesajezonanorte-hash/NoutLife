@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma';
-import { generateText, hasAIProvider } from '../lib/ai';
+import { generateText } from '../lib/ai';
+import { canUseAI } from './billing.service';
 
 export async function getGlowUpData(userId: string) {
   const [
@@ -68,7 +69,7 @@ export async function getGlowUpData(userId: string) {
 
   // Projection from AI
   let projection: string | null = null;
-  if (hasAIProvider() && user.currentStreak > 0) {
+  if (user.currentStreak > 0 && (await canUseAI(userId))) {
     try {
       const prompt = `El usuario ${user.displayName} lleva ${user.currentStreak} días de racha activa, está en nivel ${user.level},
 ha completado ${totalQuests} misiones y registrado ${totalHabits} hábitos.

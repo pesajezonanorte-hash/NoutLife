@@ -11,7 +11,7 @@ const router = Router();
 const cardLimiter = buildLimiter({
   windowMs: 60 * 60_000,
   max: 6,
-  message: 'Demasiados intentos con tarjetas. Inténtalo de nuevo en una hora.',
+  message: 'Demasiados intentos con métodos de pago. Inténtalo de nuevo en una hora.',
 });
 const chargeLimiter = buildLimiter({
   windowMs: 10 * 60_000,

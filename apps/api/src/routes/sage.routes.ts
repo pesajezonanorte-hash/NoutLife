@@ -12,9 +12,9 @@ router.use(requireAuth);
 // Solo el chat y sus botones llevan límites de ráfaga/día. El consejo y resumen
 // del día, la nota proactiva y el cupo no se limitan: nunca bloquean otras zonas.
 const chatLimits = [sageLimiter, sageDailyLimiter];
-router.post('/chat',             ...chatLimits, sage.chat);
-// Los análisis son de Pro; en Lite el chat tiene su propio tope diario (sage.service).
+// Toda la IA es de Pro. En Lite, el consejo y el resumen usan su texto sin IA.
 const proAI = requirePro('ai');
+router.post('/chat',             proAI, ...chatLimits, sage.chat);
 router.post('/suggest-quests',   proAI, ...chatLimits, sage.suggestQuests);
 router.post('/analyze-habits',   proAI, ...chatLimits, sage.analyzeHabits);
 router.post('/analyze-finances', proAI, ...chatLimits, sage.analyzeFinances);

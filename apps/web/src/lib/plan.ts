@@ -5,7 +5,8 @@ import type { Subscription } from '@noutlife/shared';
 
 export const PRO_PRICE_COP = 9900;
 export const TRIAL_DAYS = 7;
-export const LITE_LIMITS = { activeHabits: 3, historyDays: 7, sageChatPerDay: 3 } as const;
+/** NoutLife Lite. La IA es solo de Pro. */
+export const LITE_LIMITS = { activeHabits: 3, historyDays: 5 } as const;
 
 /** Funciones que Lite limita (la API responde 402 con `feature`). */
 export type ProFeature = 'habits' | 'history' | 'ai';
@@ -41,13 +42,16 @@ export interface PlanRow {
   pro: string | boolean;
 }
 
-/** Comparación Lite / Pro. true = incluido, false = no incluido, texto = el límite. */
+/** «$9.900 → $330 al día»: ancla el precio en algo pequeño y cotidiano. */
+export const PRO_PER_DAY_COP = Math.round(PRO_PRICE_COP / 30);
+
+/** Comparación Pro / Lite. true = incluido, false = no incluido, texto = el límite. */
 export const PLAN_ROWS: PlanRow[] = [
-  { label: 'Hábitos activos', lite: `Hasta ${LITE_LIMITS.activeHabits}`, pro: 'Sin límite' },
-  { label: 'Historial y estadísticas', lite: `Últimos ${LITE_LIMITS.historyDays} días`, pro: 'Todo tu historial' },
-  { label: 'Mensajes con el Sabio', lite: `${LITE_LIMITS.sageChatPerDay} al día`, pro: 'Cupo completo del día' },
+  { label: 'Hábitos activos', lite: `Hasta ${LITE_LIMITS.activeHabits}`, pro: 'Ilimitados' },
+  { label: 'Historial y analíticas', lite: `Últimos ${LITE_LIMITS.historyDays} días`, pro: 'Completos' },
+  { label: 'El Sabio con IA', lite: false, pro: true },
   { label: 'Análisis de IA de hábitos, finanzas y entrenos', lite: false, pro: true },
-  { label: 'Misiones sugeridas por el Sabio', lite: false, pro: true },
+  { label: 'Tarifa congelada mientras sigas en Pro', lite: false, pro: true },
   { label: 'Zonas, misiones, logros y social', lite: true, pro: true },
   { label: 'Exportar tus datos', lite: true, pro: true },
 ];

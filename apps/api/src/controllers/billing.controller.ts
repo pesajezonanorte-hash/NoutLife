@@ -1,8 +1,28 @@
+import { randomUUID } from 'crypto';
 import type { Request, Response } from 'express';
 import type { AuthRequest } from '../middleware/auth.middleware';
 import * as billing from '../services/billing.service';
 import type { PaymentMethodBody } from '../schemas/billing.schemas';
 import type { WompiEvent } from '../lib/wompi';
+import { REFRESH_COOKIE_OPTIONS } from '../lib/jwt';
+
+const DEVICE_COOKIE = 'nl_did';
+const isDeviceId = (v: unknown): v is string => typeof v === 'string' && /^[\w-]{16,64}$/.test(v);
+
+/**
+ * Id del dispositivo en tres capas: cookie HttpOnly/Secure (la fija el
+ * servidor; el JS no la ve ni la borra), y localStorage + IndexedDB en el
+ * cliente (cabecera X-Device-Id). Cada capa restaura a las otras: la cookie se
+ * renueva y el id vuelve al cliente en la respuesta. Solo sirve para auditar.
+ */
+function deviceIdOf(req: Request, res: Response): string {
+  const cookie = req.cookies?.[DEVICE_COOKIE];
+  const header = req.header('x-device-id');
+  const id = isDeviceId(cookie) ? cookie : isDeviceId(header) ? header : randomUUID();
+  res.cookie(DEVICE_COOKIE, id, { ...REFRESH_COOKIE_OPTIONS, maxAge: 400 * 24 * 60 * 60 * 1000 }); // 400 d: tope de Chrome
+  res.setHeader('X-Device-Id', id);
+  return id;
+}
 
 function sendError(res: Response, error: unknown, operation: string): void {
   if (error instanceof billing.BillingError) {
@@ -32,8 +52,8 @@ export async function status(req: AuthRequest, res: Response): Promise<void> {
 
 export async function paymentMethod(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const { token, brand, lastFour, bin, expMonth, expYear, holder } = req.body as PaymentMethodBody;
-    res.json({ subscription: await billing.savePaymentMethod(req.userId!, { token, brand, lastFour, bin, expMonth, expYear, holder }) });
+    const { token, brand } = req.body as PaymentMethodBody;
+    res.json({ subscription: await billing.savePaymentMethod(req.userId!, { token, brand, deviceId: deviceIdOf(req, res) }) });
   } catch (error) {
     sendError(res, error, 'PAYMENT_METHOD');
   }

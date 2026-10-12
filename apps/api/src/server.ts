@@ -48,6 +48,8 @@ app.use(
       }
     },
     credentials: true,
+    // El cliente re-sincroniza su id de dispositivo con el de la cookie HttpOnly.
+    exposedHeaders: ['X-Device-Id'],
   })
 );
 

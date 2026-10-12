@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma';
-import { generateText, hasAIProvider } from '../lib/ai';
+import { generateText } from '../lib/ai';
+import { canUseAI } from './billing.service';
 import { createNotification } from './notification.service';
 
 export async function generateWeeklySummary(userId: string): Promise<void> {
@@ -59,7 +60,7 @@ export async function generateWeeklySummary(userId: string): Promise<void> {
   // Generate AI summary
   let summary: string;
 
-  if (hasAIProvider()) {
+  if (await canUseAI(userId)) {
     const prompt = `Eres El Sabio de Noutlife. Genera un resumen semanal inspirador en español para el héroe.
 
 Datos de ${user.displayName} esta semana:

@@ -1,5 +1,5 @@
-// Plan: estado de la suscripción (prueba, mes pagado, cancelada o Lite), la
-// tarjeta guardada, los cobros y la comparación de planes. Cancelar es un clic.
+// Plan: estado de la suscripción (prueba, mes pagado, cancelada o Lite), el
+// método de pago, los cobros y la comparación de planes. Cancelar es un clic.
 import { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { CreditCard, Receipt } from 'lucide-react';
@@ -42,12 +42,13 @@ function nextStep(sub: Subscription): string {
     case 'trialing':
       return sub.hasPaymentMethod
         ? `El ${date} se cobran ${PRICE} y empieza tu primer mes Pro.`
-        : `El ${date} tu cuenta pasa a NoutLife Lite. Guarda una tarjeta para seguir en Pro.`;
+        : `El ${date} tu cuenta pasa a NoutLife Lite. Vincula un método de pago para seguir en Pro.`;
     case 'active':
       return `Se renueva el ${date} por ${PRICE}.`;
     case 'canceled':
       return `Tienes Pro hasta el ${date}. Después pasas a NoutLife Lite, sin más cobros.`;
     case 'lite':
+      if (sub.trialAvailable) return `Prueba Pro ${TRIAL_DAYS} días gratis: $0 hoy y cancelas con 1 clic.`;
       return sub.lastPaymentError
         ? `${sub.lastPaymentError} Tu cuenta sigue en Lite y no perdiste nada.`
         : 'Tu cuenta funciona con los límites de Lite. Todo sigue guardado y vuelve a verse completo con Pro.';
@@ -60,7 +61,7 @@ export default function PlanPage() {
   const [payments, setPayments] = useState<BillingPayment[]>([]);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>(user?.subscription ? 'ready' : 'loading');
   const [busy, setBusy] = useState<'cancel' | 'resume' | 'subscribe' | null>(null);
-  const [card, setCard] = useState<'save' | 'charge' | null>(null);
+  const [card, setCard] = useState<'trial' | 'save' | 'charge' | null>(null);
   const sub = user?.subscription ?? null;
 
   const load = useCallback(() => {
@@ -104,7 +105,8 @@ export default function PlanPage() {
   }
 
   function activatePro() {
-    if (sub?.hasPaymentMethod) void run('subscribe');
+    if (sub?.trialAvailable) setCard('trial');
+    else if (sub?.hasPaymentMethod) void run('subscribe');
     else setCard('charge');
   }
 
@@ -112,6 +114,7 @@ export default function PlanPage() {
   if (state === 'error' || !sub) return <ErrorState onRetry={() => { setState('loading'); load(); }} />;
 
   const lite = sub.status === 'lite';
+  const proLabel = sub.trialAvailable ? `Empezar mis ${TRIAL_DAYS} días gratis` : `Activar Pro por ${PRICE}/mes`;
   const trialLeft = daysUntil(sub.trialEndsAt);
   const status = STATUS[sub.status];
 
@@ -145,16 +148,16 @@ export default function PlanPage() {
           <div className="flex flex-wrap items-center gap-3 border-t border-border pt-5">
             <CreditCard aria-hidden className="size-5 shrink-0 text-on-surface-light" strokeWidth={1.75} />
             <span className="min-w-0 flex-[1_1_200px] text-body-md">
-              {sub.paymentMethodLabel ?? 'Sin tarjeta guardada'}
+              {sub.paymentMethodLabel ?? 'Sin método de pago'}
             </span>
-            <Button variant="secondary" size="sm" onClick={() => setCard('save')}>
-              {sub.hasPaymentMethod ? 'Cambiar tarjeta' : 'Agregar tarjeta'}
+            <Button variant="secondary" size="sm" onClick={() => setCard(sub.trialAvailable ? 'trial' : 'save')}>
+              {sub.hasPaymentMethod ? 'Cambiar método de pago' : 'Vincular método de pago'}
             </Button>
           </div>
 
           <div className="flex flex-wrap gap-3">
             {lite && (
-              <Button size="md" loading={busy === 'subscribe'} onClick={activatePro}>Activar Pro por {PRICE}/mes</Button>
+              <Button size="md" loading={busy === 'subscribe'} onClick={activatePro}>{proLabel}</Button>
             )}
             {sub.status === 'canceled' && (
               <Button size="md" loading={busy === 'resume'} onClick={() => void run('resume')}>Reanudar suscripción</Button>
@@ -192,15 +195,23 @@ export default function PlanPage() {
         <PricingSection
           mode="app"
           subscription={sub}
-          title={lite ? `Vuelve a Pro por ${PRICE} COP/mes.` : 'Lite y Pro, lado a lado.'}
-          description={lite
-            ? 'Se cobra hoy y después cada mes. Cancela cuando quieras con un solo clic.'
-            : 'Si cancelas o un cobro falla, tu cuenta pasa a Lite y no pierdes nada.'}
-          proAction={lite ? { label: `Activar Pro por ${PRICE}/mes`, onClick: activatePro, loading: busy === 'subscribe' } : undefined}
+          title={sub.trialAvailable ? `${TRIAL_DAYS} días de Pro gratis. $0 hoy.` : lite ? `Vuelve a Pro por ${PRICE} COP/mes.` : 'Pro y Lite, lado a lado.'}
+          description={sub.trialAvailable
+            ? `Luego ${PRICE} COP/mes. Cancela en cualquier momento con 1 clic.`
+            : lite
+              ? 'Se cobra hoy y después cada mes. Cancela en cualquier momento con 1 clic.'
+              : 'Si cancelas o un cobro falla, tu cuenta pasa a Lite y no pierdes nada.'}
+          showRibbon={sub.trialAvailable}
+          proAction={lite ? { label: proLabel, onClick: activatePro, loading: busy === 'subscribe' } : undefined}
         />
       </motion.div>
 
-      <ResponsiveDialog open={card !== null} onClose={() => setCard(null)} title={card === 'charge' ? 'Activa NoutLife Pro' : sub.hasPaymentMethod ? 'Cambia tu tarjeta' : 'Guarda tu tarjeta'}>
+      <ResponsiveDialog
+        open={card !== null}
+        onClose={() => setCard(null)}
+        title={card === 'trial' ? `${TRIAL_DAYS} días de Pro gratis` : card === 'charge' ? 'Activa NoutLife Pro' : 'Tu método de pago'}
+        className="bg-background/80 backdrop-blur-2xl backdrop-saturate-150"
+      >
         {card && (
           <CardForm
             intent={card}
@@ -208,7 +219,11 @@ export default function PlanPage() {
             onCancel={() => setCard(null)}
             onDone={(next) => {
               setCard(null);
-              useToastStore.getState().success(card === 'charge' && next.plan === 'pro' ? 'Ya tienes NoutLife Pro' : 'Tarjeta guardada');
+              useToastStore.getState().success(
+                card === 'trial' && next.status === 'trialing' ? 'Empezó tu prueba Pro'
+                  : lite && next.plan === 'pro' ? 'Ya tienes NoutLife Pro'
+                    : 'Método de pago vinculado',
+              );
               load();
             }}
           />

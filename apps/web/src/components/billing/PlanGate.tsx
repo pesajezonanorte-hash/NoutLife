@@ -1,7 +1,7 @@
 // Revisión del plan al entrar (lado cliente). La API ya aplicó el vencimiento
 // al iniciar sesión o renovar la sesión; aquí se avisa una sola vez:
 //  · la cuenta pasó a Lite → diálogo con el motivo y cómo volver a Pro;
-//  · prueba sin tarjeta → invitación a guardarla, tras el tutorial.
+//  · cuenta nueva (o prueba sin método de pago) → invitación a los 7 días gratis, tras el tutorial.
 // También aloja el diálogo de Pro que abren los límites de Lite.
 import { useEffect } from 'react';
 import { useAuthStore } from '@/store/authStore';
@@ -29,7 +29,8 @@ export function PlanGate({ blocked = false }: { blocked?: boolean }) {
       openUpgrade('downgraded');
       return;
     }
-    if (sub.status === 'trialing' && !sub.hasPaymentMethod && user.onboardingCompleted && tourDone && !read(key('trial'))) {
+    const invite = sub.trialAvailable || (sub.status === 'trialing' && !sub.hasPaymentMethod);
+    if (invite && user.onboardingCompleted && tourDone && !read(key('trial'))) {
       const timer = window.setTimeout(() => {
         write(key('trial'), '1');
         openUpgrade('trial');

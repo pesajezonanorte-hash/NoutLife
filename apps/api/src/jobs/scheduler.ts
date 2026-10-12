@@ -1,12 +1,12 @@
 import cron from 'node-cron';
 import { prisma } from '../lib/prisma';
-import { generateText, hasAIProvider } from '../lib/ai';
+import { generateText } from '../lib/ai';
 import { createNotification } from '../services/notification.service';
 import { reconcileHabitStreaks } from '../services/habit.service';
 import { generateDailyScroll } from '../services/scrolls.service';
 import { seedWisdomCards } from '../services/wisdom.service';
 import { runReminderTick } from '../services/reminder.service';
-import { runBillingTick } from '../services/billing.service';
+import { canUseAI, runBillingTick } from '../services/billing.service';
 
 export function initScheduler() {
   cron.schedule('*/15 * * * *', async () => {
@@ -260,7 +260,7 @@ async function generateWeeklySummaryForUser(userId: string) {
     balance: totalBalance,
   };
 
-  const summary = await buildWeeklySummary(weekData);
+  const summary = await buildWeeklySummary(weekData, await canUseAI(userId));
 
   await prisma.weeklySummary.create({
     data: {
@@ -299,8 +299,9 @@ async function buildWeeklySummary(weekData: {
   bestHabitName: string;
   gymSessions: number;
   balance: number;
-}) {
-  if (!hasAIProvider()) {
+}, ai: boolean) {
+  // Sin IA (NoutLife Lite o sin proveedor): resumen armado con los datos.
+  if (!ai) {
     return [
       `${weekData.displayName}, tu semana cerró con Life Score ${weekData.lifeScore}/100 frente a ${weekData.prevScore}/100 la semana pasada. Completaste ${weekData.questsCompleted} de ${weekData.questsCreated} misiones creadas y tu mejor racha fue de ${weekData.bestStreak} días en "${weekData.bestHabitName}".`,
       `${weekData.gymSessions > 0 ? `Entrenaste ${weekData.gymSessions} veces` : 'El Coliseo quedó en pausa'} y tu frente financiero se sostiene en ${formatCOP(weekData.balance)}. Hubo avance, pero todavía puedes volver más consistente lo que ya empezó a funcionar.`,
