@@ -1,5 +1,6 @@
 import type { Response } from 'express';
 import type { AuthRequest } from '../middleware/auth.middleware';
+import { calendarRedirectUri } from '../lib/oauth';
 import * as svc from '../services/agenda.service';
 
 export async function listEvents(req: AuthRequest, res: Response) {
@@ -65,7 +66,7 @@ export async function getGoogleCalendarStatus(req: AuthRequest, res: Response) {
 
 export async function getGoogleAuthUrl(req: AuthRequest, res: Response) {
   try {
-    const redirectUri = (req.query.redirectUri as string) || `${req.headers.origin}/agenda`;
+    const redirectUri = calendarRedirectUri(req.query.redirectUri, req.headers.origin);
     const clientId = process.env.GOOGLE_CLIENT_ID;
     if (!clientId) {
       return res.status(400).json({
@@ -82,10 +83,11 @@ export async function getGoogleAuthUrl(req: AuthRequest, res: Response) {
 
 export async function handleGoogleCallback(req: AuthRequest, res: Response) {
   try {
-    const { code, redirectUri } = req.body as { code: string; redirectUri: string };
+    const { code, redirectUri } = req.body as { code: string; redirectUri?: string };
     if (!code) return res.status(400).json({ error: 'Código de autorización requerido.' });
 
-    const result = await svc.handleGoogleCallback(req.userId!, code, redirectUri);
+    // La misma URL con la que se pidió el permiso: si difiere, Google rechaza el canje.
+    const result = await svc.handleGoogleCallback(req.userId!, code, calendarRedirectUri(redirectUri, req.headers.origin));
     return res.json({ success: true, user: result });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Error al vincular Google Calendar';

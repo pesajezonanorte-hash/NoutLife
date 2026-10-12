@@ -23,6 +23,21 @@ export const oauthConfig = () => ({
   googleClientId: list(process.env.GOOGLE_CLIENT_ID)[0] ?? null,
 });
 
+/**
+ * URL de retorno del permiso de Google Calendar. Debe ser idéntica al pedir el
+ * permiso y al canjear el código, y estar registrada en Google Cloud Console
+ * («URIs de redireccionamiento autorizados»); si no, Google responde
+ * redirect_uri_mismatch. GOOGLE_CALENDAR_REDIRECT_URI manda; sin ella, la
+ * página desde la que se conectó (la manda la web) o /agenda del origen o de WEB_URL.
+ */
+export function calendarRedirectUri(fromClient: unknown, origin?: string): string {
+  const configured = (process.env.GOOGLE_CALENDAR_REDIRECT_URI ?? '').trim();
+  if (configured) return configured;
+  if (typeof fromClient === 'string' && /^https?:\/\//.test(fromClient)) return fromClient;
+  const base = (origin || process.env.WEB_URL || '').trim().replace(/\/+$/, '');
+  return `${base}/agenda`;
+}
+
 export async function verifyIdToken(provider: OAuthProvider, idToken: string): Promise<OAuthIdentity> {
   if (provider !== 'google') throw new Error('OAUTH_PROVIDER_NOT_SUPPORTED');
   const audience = list(process.env.GOOGLE_CLIENT_ID);
