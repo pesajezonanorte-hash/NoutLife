@@ -6,7 +6,7 @@ import { CreditCard, Receipt } from 'lucide-react';
 import type { Subscription, SubscriptionStatus } from '@noutlife/shared';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Badge, Button, Card, ErrorState, PageLoader, ResponsiveDialog, type BadgeVariant } from '@/components/ui/lq';
-import { CardForm } from '@/components/billing/CardForm';
+import { PaymentMethodForm } from '@/components/billing/PaymentMethodForm';
 import { PricingSection } from '@/components/billing/PricingSection';
 import { TrialRibbon } from '@/components/billing/TrialRibbon';
 import { item, stagger } from '@/lib/motion';
@@ -36,7 +36,11 @@ const PAYMENT_STATUS: Record<string, { label: string; badge: BadgeVariant }> = {
 
 /** Qué pasa después, en una frase. */
 function nextStep(sub: Subscription): string {
-  if (sub.pendingPayment) return 'Estamos confirmando tu pago con Wompi. Puede tardar unos minutos.';
+  if (sub.pendingPayment) {
+    return sub.paymentMethodType === 'NEQUI'
+      ? 'Revisa tu app de Nequi: si te pide aprobar el cobro, apruébalo. Puede tardar unos minutos.'
+      : 'Estamos confirmando tu pago con Wompi. Puede tardar unos minutos.';
+  }
   const date = longDay(sub.accessEndsAt);
   switch (sub.status) {
     case 'trialing':
@@ -213,7 +217,7 @@ export default function PlanPage() {
         className="bg-background/80 backdrop-blur-2xl backdrop-saturate-150"
       >
         {card && (
-          <CardForm
+          <PaymentMethodForm
             intent={card}
             chargeDate={lite ? null : sub.accessEndsAt}
             onCancel={() => setCard(null)}

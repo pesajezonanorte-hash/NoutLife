@@ -52,8 +52,8 @@ export async function status(req: AuthRequest, res: Response): Promise<void> {
 
 export async function paymentMethod(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const { token, brand } = req.body as PaymentMethodBody;
-    res.json({ subscription: await billing.savePaymentMethod(req.userId!, { token, brand, deviceId: deviceIdOf(req, res) }) });
+    const body = req.body as PaymentMethodBody;
+    res.json({ subscription: await billing.savePaymentMethod(req.userId!, { ...body, deviceId: deviceIdOf(req, res) }) });
   } catch (error) {
     sendError(res, error, 'PAYMENT_METHOD');
   }

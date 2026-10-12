@@ -120,10 +120,65 @@ test('paymentKey uses only the card data Wompi returns: a new holder name or a l
   assert.equal(paymentKey({ ...card, bin: '42424200' }), key);
   assert.notEqual(paymentKey({ ...card, last_four: '1111' }), key);
   assert.notEqual(paymentKey({ ...card, exp_year: '29' }), key);
-  // Nequi: el celular, con o sin indicativo.
-  assert.equal(paymentKey({ type: 'NEQUI', phone_number: '3105671703' }), paymentKey({ type: 'NEQUI', phone_number: '+57 310 567 1703' }));
-  assert.notEqual(paymentKey({ type: 'NEQUI', phone_number: '3105671703' }), key);
   // Sin datos reales de Wompi no hay huella: el servidor no concede la prueba.
   assert.equal(paymentKey({ type: 'CARD' }), null);
   assert.equal(paymentKey({}), null);
+});
+
+test('Nequi paymentKey: celular de Wompi + cédula, con HMAC y un secreto del servidor', async () => {
+  const { paymentKey } = await import('../src/lib/trial-keys');
+  const proof = { documentNumber: '1032456789', secret: 'test_fingerprint_secret' };
+  const nequi = { type: 'NEQUI', phone_number: '3105671703' };
+  const key = paymentKey(nequi, proof);
+  assert.match(key ?? '', /^[0-9a-f]{64}$/);
+  // El celular se compara sin indicativo ni espacios.
+  assert.equal(paymentKey({ ...nequi, phone_number: '+57 310 567 1703' }, proof), key);
+  // Otra cédula u otro secreto no es la misma huella.
+  assert.notEqual(paymentKey(nequi, { ...proof, documentNumber: '1032456780' }), key);
+  assert.notEqual(paymentKey(nequi, { ...proof, secret: 'otro_secreto' }), key);
+  // Sin cédula, sin secreto o sin un celular de 10 dígitos: no hay huella y no se concede la prueba.
+  assert.equal(paymentKey(nequi), null);
+  assert.equal(paymentKey(nequi, { documentNumber: '', secret: proof.secret }), null);
+  assert.equal(paymentKey(nequi, { documentNumber: proof.documentNumber, secret: '' }), null);
+  assert.equal(paymentKey({ type: 'NEQUI', phone_number: '12' }, proof), null);
+  // No es un SHA-256 plano: sin el secreto, una tabla filtrada no basta para revertir la huella.
+  assert.notEqual(key, createHash('sha256').update('NEQUI|3105671703|1032456789').digest('hex'));
+});
+
+test('payment method body: Nequi needs a 6–10 digit cédula; a body without method is a card (old clients)', async () => {
+  const { paymentMethodSchema } = await import('../src/schemas/billing.schemas');
+  const nequi = { method: 'NEQUI', nequiToken: 'nequi_prod_abc123', documentNumber: '1032456789', acceptTerms: true, acceptPersonalData: true };
+  assert.equal(paymentMethodSchema.safeParse(nequi).success, true);
+  assert.equal(paymentMethodSchema.safeParse({ ...nequi, documentNumber: '123' }).success, false);
+  assert.equal(paymentMethodSchema.safeParse({ ...nequi, documentNumber: '10.324.567' }).success, false);
+  assert.equal(paymentMethodSchema.safeParse({ ...nequi, acceptPersonalData: false }).success, false);
+  const legacy = paymentMethodSchema.parse({ token: 'tok_test_123', brand: 'VISA', acceptTerms: true, acceptPersonalData: true });
+  assert.equal(legacy.method, 'CARD');
+});
+
+test('a charge on a Nequi source sends only the source, amount and signature; a card charge keeps payment_method and recurrent', async () => {
+  const { createTransaction } = await import('../src/lib/wompi');
+  process.env.WOMPI_PUBLIC_KEY = 'pub_test_fake';
+  process.env.WOMPI_PRIVATE_KEY = 'prv_test_fake';
+  process.env.WOMPI_INTEGRITY_SECRET = 'test_integrity_secret';
+  const sent: Array<Record<string, unknown>> = [];
+  const original = globalThis.fetch;
+  globalThis.fetch = (async (_url: string | URL | Request, init?: RequestInit) => {
+    sent.push(JSON.parse(String(init?.body)));
+    return new Response(JSON.stringify({ data: { id: '9001', status: 'PENDING', reference: 'NL-x', amount_in_cents: 990000, currency: 'COP' } }), { status: 200 });
+  }) as typeof fetch;
+  const charge = { paymentSourceId: '3891', reference: 'NL-x', amountInCents: 990000, currency: 'COP', customerEmail: 'ana@example.com' };
+  try {
+    await createTransaction({ ...charge, sourceType: 'NEQUI' });
+    await createTransaction({ ...charge, sourceType: 'CARD' });
+  } finally {
+    globalThis.fetch = original;
+  }
+  const [nequi, card] = sent;
+  assert.equal(nequi.payment_source_id, 3891);
+  assert.equal(nequi.signature, integritySignature('NL-x', 990000, 'COP', 'test_integrity_secret'));
+  assert.equal('payment_method' in nequi, false);
+  assert.equal('recurrent' in nequi, false);
+  assert.deepEqual(card.payment_method, { installments: 1 });
+  assert.equal(card.recurrent, true);
 });

@@ -199,7 +199,9 @@ model User {
   currentPeriodEnd   DateTime?
   /// Id de la fuente de pago de Wompi. La tarjeta nunca pasa por este servidor.
   paymentSourceId    String?
-  /// Solo para mostrar: «VISA •••• 4242».
+  /// 'CARD' | 'NEQUI'. Null en cuentas anteriores a Nequi: su medio de pago es una tarjeta.
+  paymentMethodType  String?
+  /// Solo para mostrar: «VISA •••• 4242» o «NEQUI •••• 1703».
   paymentMethodLabel String?
   /// Momento en que la cuenta pasó a Lite (el cliente avisa una sola vez).
   liteSince          DateTime?

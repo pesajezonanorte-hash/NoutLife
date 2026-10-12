@@ -67,4 +67,6 @@ export const SUBSCRIPTIONS_SQL: string[] = [
   // calculada en el servidor, única (un medio de pago, una prueba, incluso con registros simultáneos).
   `ALTER TABLE "used_trials" ADD COLUMN IF NOT EXISTS "paymentKey" TEXT;`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "used_trials_paymentKey_key" ON "used_trials"("paymentKey");`,
+  // Mirror of prisma/migrations/20261021120000_nequi_payment_method: tipo del medio de pago ('CARD' | 'NEQUI').
+  `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "paymentMethodType" TEXT;`,
 ];

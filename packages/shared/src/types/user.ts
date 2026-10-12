@@ -46,8 +46,10 @@ export interface Subscription {
   /** Se cobrará automáticamente al vencer. */
   renews: boolean;
   hasPaymentMethod: boolean;
-  /** Solo para mostrar: «VISA •••• 4242». */
+  /** Solo para mostrar: «VISA •••• 4242» o «NEQUI •••• 1703». */
   paymentMethodLabel: string | null;
+  /** Tipo del medio de pago. Sirve para decir en qué app aprobar un cobro. */
+  paymentMethodType?: 'CARD' | 'NEQUI' | null;
   liteSince: string | null;
   lastPaymentError: string | null;
   pendingPayment: boolean;

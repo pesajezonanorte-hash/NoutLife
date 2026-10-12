@@ -14,7 +14,7 @@ import { useToastStore } from '@/hooks/useToast';
 import { ease, useMotionReduced } from '@/lib/motion';
 import { LITE_LIMITS, PRO_PER_DAY_COP, PRO_PRICE_COP, TRIAL_DAYS, formatCop, longDay } from '@/lib/plan';
 import { getBillingStatus, subscribe } from '@/services/billing.service';
-import { CardForm, type CardFormProps } from './CardForm';
+import { PaymentMethodForm, type PaymentMethodFormProps } from './PaymentMethodForm';
 
 const PRICE = formatCop(PRO_PRICE_COP);
 
@@ -73,7 +73,7 @@ export function UpgradeModal() {
   const lite = subscription?.plan === 'lite';
   const trial = Boolean(subscription?.trialAvailable);
   // Qué hace el formulario: empezar la prueba, cobrar desde Lite o solo vincular (prueba o mes en curso).
-  const intent: CardFormProps['intent'] = trial ? 'trial' : lite ? 'charge' : 'save';
+  const intent: PaymentMethodFormProps['intent'] = trial ? 'trial' : lite ? 'charge' : 'save';
   const payDirectly = lite && !trial && subscription?.hasPaymentMethod;
 
   async function activate() {
@@ -163,7 +163,7 @@ export function UpgradeModal() {
 
         {step === 'card' && (
           <motion.div key="card" {...fade}>
-            <CardForm intent={intent} chargeDate={subscription?.accessEndsAt} onDone={finish} onCancel={() => setStep('pitch')} />
+            <PaymentMethodForm intent={intent} chargeDate={subscription?.accessEndsAt} onDone={finish} onCancel={() => setStep('pitch')} />
           </motion.div>
         )}
 
@@ -178,7 +178,9 @@ export function UpgradeModal() {
             </motion.span>
             <p className="text-body-md text-on-surface">
               {subscription?.pendingPayment
-                ? 'Estamos confirmando tu pago con Wompi. Tu cuenta se actualiza sola en unos minutos.'
+                ? subscription.paymentMethodType === 'NEQUI'
+                  ? 'Revisa tu app de Nequi y aprueba el cobro si te lo pide. Tu cuenta se actualiza sola en unos minutos.'
+                  : 'Estamos confirmando tu pago con Wompi. Tu cuenta se actualiza sola en unos minutos.'
                 : subscription?.status === 'trialing'
                   ? `Tienes NoutLife Pro gratis hasta el ${longDay(subscription.trialEndsAt)}. $0 hoy; puedes cancelar con 1 clic en Plan.`
                   : intent === 'save'

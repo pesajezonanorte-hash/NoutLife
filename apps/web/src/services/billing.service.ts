@@ -5,6 +5,8 @@ import api from '../lib/api';
 export interface BillingConfig {
   /** false si la API no tiene llaves de Wompi: la app sigue funcionando sin cobros. */
   enabled: boolean;
+  /** Nequi solo se ofrece si la API tiene configurada la huella anti-abuso. */
+  nequiEnabled: boolean;
   publicKey: string | null;
   /** URL base de la API de Wompi (sandbox o producción). */
   apiUrl: string;
@@ -28,14 +30,15 @@ export interface BillingPayment {
 }
 
 /**
- * Token de Wompi. Es lo único que va a la API: la huella anti-abuso (BIN,
- * últimos 4, vencimiento) la lee el servidor directo en Wompi. `brand` es solo
- * para la etiqueta.
+ * Medio de pago que va a la API. Solo viajan tokens: la huella anti-abuso la
+ * lee el servidor directo en Wompi. Con Nequi viaja además la cédula, que solo
+ * entra en la huella y nunca se guarda en texto plano.
  */
-export interface CardToken {
-  token: string;
-  brand?: string;
-}
+export type PaymentMethodLink =
+  /** Token de la tarjeta (tok_…). `brand` es solo para la etiqueta. */
+  | { method: 'CARD'; token: string; brand?: string }
+  /** Token de Nequi (nequi_…) ya aprobado en la app, y la cédula de la persona. */
+  | { method: 'NEQUI'; nequiToken: string; documentNumber: string };
 
 let configPromise: Promise<BillingConfig> | null = null;
 
@@ -52,8 +55,8 @@ export async function getBillingStatus(): Promise<{ subscription: Subscription; 
   return data;
 }
 
-export async function savePaymentMethod(body: CardToken): Promise<Subscription> {
-  const { data } = await api.post<{ subscription: Subscription }>('/billing/payment-method', { ...body, acceptTerms: true, acceptPersonalData: true });
+export async function savePaymentMethod(link: PaymentMethodLink): Promise<Subscription> {
+  const { data } = await api.post<{ subscription: Subscription }>('/billing/payment-method', { ...link, acceptTerms: true, acceptPersonalData: true });
   return data.subscription;
 }
 
@@ -82,23 +85,34 @@ export interface CardInput {
   holder: string;
 }
 
-export class CardError extends Error {
-  constructor(message: string, readonly field?: keyof CardInput) {
+/** Campos del formulario de pago que pueden tener un error. */
+export type PaymentField = 'number' | 'expiry' | 'cvc' | 'holder' | 'phone' | 'documentNumber';
+
+/** Error apto para mostrar. `field` indica el campo que hay que corregir. */
+export class PaymentError extends Error {
+  constructor(message: string, readonly field?: PaymentField) {
     super(message);
   }
 }
 
-const WOMPI_FIELDS: Record<string, keyof CardInput> = {
-  number: 'number', cvc: 'cvc', exp_month: 'expMonth', exp_year: 'expYear', card_holder: 'holder',
+const WOMPI_CARD_FIELDS: Record<string, PaymentField> = {
+  number: 'number', cvc: 'cvc', exp_month: 'expiry', exp_year: 'expiry', card_holder: 'holder',
 };
+
+/** Mensajes de validación de Wompi, por campo. */
+function wompiMessages(error: unknown): Record<string, string[]> | undefined {
+  return (error as { response?: { data?: { error?: { messages?: Record<string, string[]> } } } }).response?.data?.error?.messages;
+}
+
+const hasResponse = (error: unknown) => Boolean((error as { response?: unknown }).response);
 
 /**
  * Tokeniza la tarjeta directo con Wompi usando la llave pública. Va con axios
  * «limpio» a propósito: la instancia `api` añadiría el token de sesión de
  * NoutLife a una petición de otro dominio. El número nunca pasa por la API.
  */
-export async function tokenizeCard(config: BillingConfig, card: CardInput): Promise<CardToken> {
-  if (!config.publicKey) throw new CardError('Los pagos no están disponibles en este momento.');
+export async function tokenizeCard(config: BillingConfig, card: CardInput): Promise<PaymentMethodLink> {
+  if (!config.publicKey) throw new PaymentError('Los pagos no están disponibles en este momento.');
   try {
     const { data } = await axios.post<{ data: { id: string; brand?: string } }>(
       `${config.apiUrl}/tokens/cards`,
@@ -111,14 +125,60 @@ export async function tokenizeCard(config: BillingConfig, card: CardInput): Prom
       },
       { headers: { Authorization: `Bearer ${config.publicKey}` }, timeout: 20_000 },
     );
-    return { token: data.data.id, brand: data.data.brand };
+    return { method: 'CARD', token: data.data.id, brand: data.data.brand };
   } catch (error) {
-    const messages = (error as { response?: { data?: { error?: { messages?: Record<string, string[]> } } } }).response?.data?.error?.messages;
-    const field = messages ? Object.keys(messages).map((k) => WOMPI_FIELDS[k]).find(Boolean) : undefined;
-    if (field) throw new CardError('Wompi no aceptó este dato. Revísalo.', field);
-    if ((error as { response?: unknown }).response) throw new CardError('Wompi no pudo validar la tarjeta. Revisa los datos.');
-    throw new CardError('No pudimos conectar con Wompi. Revisa tu conexión e inténtalo de nuevo.');
+    const messages = wompiMessages(error);
+    const field = messages ? Object.keys(messages).map((k) => WOMPI_CARD_FIELDS[k]).find(Boolean) : undefined;
+    if (field) throw new PaymentError('Wompi no aceptó este dato. Revísalo.', field);
+    if (hasResponse(error)) throw new PaymentError('Wompi no pudo validar la tarjeta. Revisa los datos.');
+    throw new PaymentError('No pudimos conectar con Wompi. Revisa tu conexión e inténtalo de nuevo.');
   }
+}
+
+/** Ventana para aprobar la vinculación en la app de Nequi. */
+export const NEQUI_APPROVAL_MS = 2 * 60_000;
+const NEQUI_POLL_MS = 2_500;
+
+/** Pide a Wompi vincular el celular. Wompi manda la aprobación a la app de Nequi de la persona. */
+export async function tokenizeNequi(config: BillingConfig, phone: string): Promise<string> {
+  if (!config.publicKey) throw new PaymentError('Los pagos no están disponibles en este momento.');
+  try {
+    const { data } = await axios.post<{ data: { id: string } }>(
+      `${config.apiUrl}/tokens/nequi`,
+      { phone_number: phone },
+      { headers: { Authorization: `Bearer ${config.publicKey}` }, timeout: 20_000 },
+    );
+    return data.data.id;
+  } catch (error) {
+    if (wompiMessages(error)?.phone_number) throw new PaymentError('Wompi no aceptó este celular. Revísalo.', 'phone');
+    if (hasResponse(error)) throw new PaymentError('Wompi no pudo iniciar la vinculación con Nequi. Revisa el celular.', 'phone');
+    throw new PaymentError('No pudimos conectar con Wompi. Revisa tu conexión e inténtalo de nuevo.');
+  }
+}
+
+/**
+ * Espera a que la persona apruebe la vinculación en su app de Nequi. `stop`
+ * cancela la espera (la persona salió del formulario).
+ */
+export async function waitForNequiApproval(config: BillingConfig, tokenId: string, stop: () => boolean): Promise<void> {
+  const deadline = Date.now() + NEQUI_APPROVAL_MS;
+  while (Date.now() < deadline) {
+    if (stop()) throw new PaymentError('La vinculación se canceló.');
+    let status: string;
+    try {
+      const { data } = await axios.get<{ data: { status: string } }>(
+        `${config.apiUrl}/tokens/nequi/${encodeURIComponent(tokenId)}`,
+        { headers: { Authorization: `Bearer ${config.publicKey}` }, timeout: 10_000 },
+      );
+      status = data.data.status;
+    } catch {
+      throw new PaymentError('No pudimos confirmar tu aprobación en Nequi. Revisa tu conexión e inténtalo de nuevo.');
+    }
+    if (status === 'APPROVED') return;
+    if (status !== 'PENDING') throw new PaymentError('Nequi no aprobó la vinculación. Inténtalo de nuevo.');
+    await new Promise((resolve) => setTimeout(resolve, NEQUI_POLL_MS));
+  }
+  throw new PaymentError('No recibimos tu aprobación en Nequi a tiempo. Inténtalo de nuevo.');
 }
 
 /** Algoritmo de Luhn: descarta números mal escritos antes de enviarlos. */

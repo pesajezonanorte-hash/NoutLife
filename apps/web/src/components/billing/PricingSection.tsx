@@ -36,7 +36,7 @@ const PRO_POINTS = [
 const FAQ: Array<{ q: string; a: string }> = [
   {
     q: '¿Me cobran algo al empezar la prueba?',
-    a: `No: $0 hoy. Vinculas un método de pago con Wompi y durante ${TRIAL_DAYS} días no se cobra nada. El día ${TRIAL_DAYS + 1} se cobran ${PRICE} y después cada mes, el mismo día. La prueba es una por persona y por método de pago.`,
+    a: `No: $0 hoy. Para empezar la prueba vinculas una tarjeta o tu Nequi con Wompi desde el primer día, y durante ${TRIAL_DAYS} días no se cobra nada. El día ${TRIAL_DAYS + 1} se cobran ${PRICE} y después cada mes, el mismo día. La prueba es una por persona y por medio de pago.`,
   },
   {
     q: '¿Cómo cancelo?',
@@ -48,7 +48,7 @@ const FAQ: Array<{ q: string; a: string }> = [
   },
   {
     q: '¿Mi método de pago está seguro?',
-    a: 'Los datos viajan cifrados directo a Wompi, la pasarela de pagos. NoutLife nunca recibe ni guarda el número de tu tarjeta: solo una referencia para cobrar la suscripción.',
+    a: 'Los datos viajan cifrados directo a Wompi, la pasarela de pagos. NoutLife nunca recibe ni guarda el número de tu tarjeta. Con Nequi guardamos tu celular para cobrar y una huella cifrada de tu cédula para evitar pruebas repetidas.',
   },
 ];
 

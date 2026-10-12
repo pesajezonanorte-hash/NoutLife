@@ -1,7 +1,7 @@
 import type { Prisma, SubscriptionPayment } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { hasAIProvider } from '../lib/ai';
-import { paymentKey } from '../lib/trial-keys';
+import { fingerprintSecret, paymentKey, type NequiProof } from '../lib/trial-keys';
 import { claimTrial, trialAvailable } from './trial.service';
 import {
   LITE_LIMITS, PRO_AMOUNT_IN_CENTS, PRO_CURRENCY, PRO_PRICE_COP, RENEWAL_GRACE_MS, TRIAL_DAYS,
@@ -29,6 +29,7 @@ const SUBSCRIPTION_SELECT = {
   trialEndsAt: true,
   currentPeriodEnd: true,
   paymentSourceId: true,
+  paymentMethodType: true,
   paymentMethodLabel: true,
   liteSince: true,
   lastPaymentError: true,
@@ -39,6 +40,8 @@ type SubscriptionUser = Prisma.UserGetPayload<{ select: typeof SUBSCRIPTION_SELE
 const FINAL_STATUSES = new Set(['APPROVED', 'DECLINED', 'VOIDED', 'ERROR']);
 /** Un cobro sin id de Wompi (el proceso cayó entre guardar y cobrar) se da por fallido tras este tiempo. */
 const STALE_PENDING_MS = 30 * 60_000;
+/** Un cobro que Wompi sigue sin resolver (p. ej. el push de Nequi nunca se aprobó) cuenta como fallido tras un día. Si llega APPROVED después, el webhook lo reactiva. */
+const PENDING_TIMEOUT_MS = 24 * 60 * 60_000;
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export interface SubscriptionView {
@@ -51,6 +54,8 @@ export interface SubscriptionView {
   /** Se cobrará automáticamente al vencer. */
   renews: boolean;
   hasPaymentMethod: boolean;
+  /** Cuentas anteriores a Nequi no tienen tipo guardado: su medio de pago es una tarjeta. */
+  paymentMethodType: 'CARD' | 'NEQUI' | null;
   paymentMethodLabel: string | null;
   liteSince: string | null;
   lastPaymentError: string | null;
@@ -71,6 +76,7 @@ export function subscriptionView(user: SubscriptionUser, now = new Date(), pendi
     accessEndsAt: status === 'lite' ? null : accessEndsAt(user).toISOString(),
     renews: willRenew(user),
     hasPaymentMethod: Boolean(user.paymentSourceId),
+    paymentMethodType: user.paymentSourceId ? (user.paymentMethodType === 'NEQUI' ? 'NEQUI' : 'CARD') : null,
     paymentMethodLabel: user.paymentMethodLabel,
     liteSince: user.liteSince?.toISOString() ?? null,
     lastPaymentError: user.lastPaymentError,
@@ -192,6 +198,9 @@ async function refreshPendingPayment(payment: SubscriptionPayment, wait: boolean
       return;
     }
   }
+  if (Date.now() - payment.createdAt.getTime() > PENDING_TIMEOUT_MS) {
+    await settlePayment(payment.id, 'ERROR', 'Wompi no confirmó el cobro a tiempo.');
+  }
 }
 
 /**
@@ -220,8 +229,8 @@ async function chargePeriod(user: SubscriptionUser, periodKey: Date, periodStart
     let tx;
     try {
       tx = await createTransaction({
-        paymentSourceId: user.paymentSourceId, reference, amountInCents: payment.amountInCents,
-        currency: payment.currency, customerEmail: user.email,
+        paymentSourceId: user.paymentSourceId, sourceType: user.paymentMethodType === 'NEQUI' ? 'NEQUI' : 'CARD',
+        reference, amountInCents: payment.amountInCents, currency: payment.currency, customerEmail: user.email,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Error desconocido';
@@ -281,14 +290,15 @@ export async function syncSubscription(userId: string, options: { wait?: boolean
   return getView(userId);
 }
 
-export interface PaymentMethodInput {
-  /** Token de Wompi (tok_…) creado en el navegador: lo único del cliente que cuenta. */
-  token: string;
-  /** Solo para la etiqueta («VISA •••• 4242»). */
-  brand?: string;
+export type PaymentMethodInput = {
   /** Cookie HttpOnly o cabecera del dispositivo. Solo auditoría: nunca bloquea. */
   deviceId: string | null;
-}
+} & (
+  /** Token de Wompi (tok_…) creado en el navegador: lo único del cliente que cuenta. `brand` solo sirve para la etiqueta. */
+  | { method: 'CARD'; token: string; brand?: string }
+  /** Token de Nequi (nequi_…) aprobado en la app. La cédula solo entra en la huella: nunca se guarda en texto plano ni se registra. */
+  | { method: 'NEQUI'; nequiToken: string; documentNumber: string }
+);
 
 /**
  * Vincula el medio de pago como fuente de Wompi. No cobra nada. Si la cuenta
@@ -298,31 +308,43 @@ export interface PaymentMethodInput {
  */
 export async function savePaymentMethod(userId: string, input: PaymentMethodInput): Promise<SubscriptionView> {
   if (!wompiConfig().configured) throw new BillingError('BILLING_DISABLED', 'Los pagos no están disponibles en este momento.', 503);
+  const secret = fingerprintSecret();
+  if (input.method === 'NEQUI' && !secret) throw new BillingError('NEQUI_DISABLED', 'Nequi no está disponible en este momento.', 503);
   const user = await loadUser(userId);
+  const rejected = (message: string) => new BillingError(input.method === 'CARD' ? 'CARD_REJECTED' : 'NEQUI_REJECTED', message, 422);
 
   let source;
   let details;
   try {
     const acceptance = await getAcceptance({ fresh: true });
-    source = await createPaymentSource({ token: input.token, customerEmail: user.email, acceptance });
+    source = await createPaymentSource({
+      type: input.method,
+      token: input.method === 'CARD' ? input.token : input.nequiToken,
+      customerEmail: user.email,
+      acceptance,
+    });
     details = await getPaymentSource(source.id);
   } catch (error) {
     if (error instanceof WompiError) {
-      console.error('[BILLING_PAYMENT_SOURCE_ERROR]', userId, error.message);
-      throw new BillingError('CARD_REJECTED', 'No pudimos vincular tu método de pago. Revisa los datos e inténtalo de nuevo.', 422);
+      console.error('[BILLING_PAYMENT_SOURCE_ERROR]', userId, input.method, error.message);
+      throw rejected(input.method === 'CARD'
+        ? 'No pudimos vincular tu método de pago. Revisa los datos e inténtalo de nuevo.'
+        : 'No pudimos vincular tu Nequi. Aprueba la vinculación en tu app de Nequi e inténtalo de nuevo.');
     }
     throw error;
   }
   if (source.status !== 'AVAILABLE') {
-    throw new BillingError('CARD_REJECTED', 'Wompi no pudo verificar este método de pago. Prueba con otro.', 422);
+    throw rejected(input.method === 'CARD' ? 'Wompi no pudo verificar este método de pago. Prueba con otro.' : 'Wompi no pudo verificar tu Nequi. Inténtalo de nuevo.');
   }
 
   const now = new Date();
   const pub = details.publicData;
-  const brand = input.brand?.trim().toUpperCase() || (pub.type === 'NEQUI' ? 'NEQUI' : 'Tarjeta');
+  if (input.method === 'NEQUI' && pub.type !== 'NEQUI') throw rejected('Wompi no pudo verificar tu Nequi. Inténtalo de nuevo.');
+  const brand = input.method === 'NEQUI' ? 'NEQUI' : input.brand?.trim().toUpperCase() || 'Tarjeta';
   const lastFour = pub.last_four ?? pub.phone_number?.slice(-4);
   const data: Prisma.UserUpdateInput = {
     paymentSourceId: source.id,
+    paymentMethodType: input.method,
     paymentMethodLabel: lastFour ? `${brand} •••• ${lastFour}` : brand,
     lastPaymentError: null,
   };
@@ -332,7 +354,9 @@ export async function savePaymentMethod(userId: string, input: PaymentMethodInpu
   }
 
   if (await canStartTrial(user)) {
-    const key = paymentKey(pub);
+    // Nequi: la huella combina el celular de Wompi con la cédula que dio la persona.
+    const proof: NequiProof | null = input.method === 'NEQUI' && secret ? { documentNumber: input.documentNumber, secret } : null;
+    const key = paymentKey(pub, proof);
     if (!key) {
       // Sin huella real no se concede: fallar cerrado y avisar (nunca confiar en el navegador).
       console.error('[BILLING_NO_PAYMENT_KEY]', userId, source.id, Object.keys(pub));
@@ -425,6 +449,8 @@ export async function getBillingConfig() {
   if (config.configured) acceptance = await getAcceptance().catch(() => null);
   return {
     enabled: config.configured,
+    // Nequi también necesita el secreto de la huella anti-abuso (TRIAL_FINGERPRINT_SECRET).
+    nequiEnabled: config.configured && Boolean(fingerprintSecret()),
     publicKey: config.publicKey,
     apiUrl: config.baseUrl,
     sandbox: config.sandbox,

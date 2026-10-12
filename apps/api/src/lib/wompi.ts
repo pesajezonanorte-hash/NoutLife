@@ -160,14 +160,17 @@ export async function getAcceptance(options: { fresh?: boolean } = {}): Promise<
   return value;
 }
 
-/** Guarda la tarjeta tokenizada como fuente de pago reutilizable (sin cobrar nada). */
-export async function createPaymentSource(input: { token: string; customerEmail: string; acceptance: MerchantAcceptance }): Promise<{ id: string; status: string }> {
+/**
+ * Guarda el medio de pago tokenizado como fuente reutilizable, sin cobrar nada.
+ * CARD: token tok_… de la tarjeta. NEQUI: token nequi_… que la persona ya aprobó en su app.
+ */
+export async function createPaymentSource(input: { type: 'CARD' | 'NEQUI'; token: string; customerEmail: string; acceptance: MerchantAcceptance }): Promise<{ id: string; status: string }> {
   const { privateKey } = wompiConfig();
   const { data } = await request<{ data: { id: number | string; status: string } }>('/payment_sources', {
     method: 'POST',
     key: privateKey,
     body: {
-      type: 'CARD',
+      type: input.type,
       token: input.token,
       customer_email: input.customerEmail,
       acceptance_token: input.acceptance.acceptanceToken,
@@ -209,8 +212,12 @@ const toTransaction = ({ data }: TransactionResponse): WompiTransaction => ({
   currency: data.currency,
 });
 
-/** Cobra a una fuente de pago guardada. `recurrent` marca el cobro periódico (COF) en VISA/Mastercard. */
-export async function createTransaction(input: { paymentSourceId: string; reference: string; amountInCents: number; currency: string; customerEmail: string }): Promise<WompiTransaction> {
+/**
+ * Cobra a una fuente de pago guardada. Tarjeta: `payment_method` con cuotas y
+ * `recurrent` (cobro periódico, COF). Nequi: la documentación de Wompi para
+ * fuentes NEQUI pide la fuente, el monto y la firma, sin `payment_method`.
+ */
+export async function createTransaction(input: { paymentSourceId: string; sourceType: 'CARD' | 'NEQUI'; reference: string; amountInCents: number; currency: string; customerEmail: string }): Promise<WompiTransaction> {
   const { privateKey, integritySecret } = wompiConfig();
   if (!integritySecret) throw new WompiError('Falta WOMPI_INTEGRITY_SECRET.');
   const sourceId = /^\d+$/.test(input.paymentSourceId) ? Number(input.paymentSourceId) : input.paymentSourceId;
@@ -222,10 +229,9 @@ export async function createTransaction(input: { paymentSourceId: string; refere
       currency: input.currency,
       signature: integritySignature(input.reference, input.amountInCents, input.currency, integritySecret),
       customer_email: input.customerEmail,
-      payment_method: { installments: 1 },
       reference: input.reference,
       payment_source_id: sourceId,
-      recurrent: true,
+      ...(input.sourceType === 'CARD' ? { payment_method: { installments: 1 }, recurrent: true } : {}),
     },
   }));
 }
