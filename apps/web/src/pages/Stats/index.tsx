@@ -15,6 +15,8 @@ import {
 import { fetchDynamicLifeScore, fetchLifeScore, type DynamicLifeScoreData, type LifeScore } from '@/services/lifescore.service';
 import { getCheckinHistory, type DailyCheckin } from '@/services/checkin.service';
 import { useAuthStore } from '@/store/authStore';
+import { usePlanStore } from '@/store/planStore';
+import { LiteNotice } from '@/components/billing/LiteNotice';
 import { PageHeader } from '@/components/layout/PageHeader';
 import {
   AnimatedValue, Badge, Button, Card, ChipGroup, IconChip, MoodFace, ProgressBar, ProgressRing,
@@ -85,7 +87,11 @@ const zoneStatus = {
 export default function StatsPage() {
   const user = useAuthStore((s) => s.user);
   const currency = user?.currency ?? 'COP';
-  const [period, setPeriod] = useState<Period>('month');
+  // NoutLife Lite: la API entrega la última semana; los periodos largos abren el diálogo de Pro.
+  const lite = user?.subscription?.plan === 'lite';
+  const openUpgrade = usePlanStore((s) => s.openUpgrade);
+  const [period, setPeriodState] = useState<Period>(lite ? 'week' : 'month');
+  const setPeriod = (next: Period) => (lite && next !== 'week' ? openUpgrade('history') : setPeriodState(next));
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(0);
   const [life, setLife] = useState<LifeScore | null>(null);
@@ -155,6 +161,12 @@ export default function StatsPage() {
           <Button variant="secondary" size="md" onClick={() => share(user, life)}><Share2 aria-hidden className="size-4" strokeWidth={1.75} />Compartir</Button>
         </>}
       />
+
+      {lite && (
+        <motion.div variants={item}>
+          <LiteNotice feature="history">En NoutLife Lite ves la última semana. Con Pro, tus estadísticas de meses y años.</LiteNotice>
+        </motion.div>
+      )}
 
       {failed > 0 && !loading && (
         <motion.div variants={item} role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-error/[var(--lq-soft-alpha)] px-4 py-3">

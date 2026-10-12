@@ -21,9 +21,11 @@ interface Props {
   children: ReactNode;
   /** Enlace secundario bajo el formulario ("¿No tienes cuenta?…"). */
   footer?: ReactNode;
+  /** Contenido de portada bajo el acceso (p. ej. los planes). */
+  after?: ReactNode;
 }
 
-export function AuthLayout({ title, subtitle, children, footer }: Props) {
+export function AuthLayout({ title, subtitle, children, footer, after }: Props) {
   return (
     <div className="min-h-dvh bg-background text-on-background">
       <div className="mx-auto grid min-h-dvh max-w-[1200px] lg:grid-cols-[1fr_440px] lg:gap-16 lg:p-8">
@@ -64,6 +66,7 @@ export function AuthLayout({ title, subtitle, children, footer }: Props) {
           </motion.div>
         </main>
       </div>
+      {after && <div className="mx-auto max-w-[1200px] px-4 pb-16 pt-8 sm:px-8 lg:pt-16">{after}</div>}
     </div>
   );
 }

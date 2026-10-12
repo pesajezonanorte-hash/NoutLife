@@ -1,9 +1,12 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.middleware';
 import * as stats from '../controllers/stats.controller';
+import { liteHistoryWindow } from '../middleware/plan.middleware';
 
 const router = Router();
 router.use(requireAuth);
+// NoutLife Lite: estadísticas de la última semana.
+router.use(liteHistoryWindow);
 
 router.get('/summary',       stats.summary);
 router.get('/xp-history',    stats.xpHistory);

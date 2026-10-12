@@ -47,7 +47,8 @@ export async function financeTrend(req: AuthRequest, res: Response): Promise<voi
 
 export async function habitHeatmap(req: AuthRequest, res: Response): Promise<void> {
   try {
-    res.json(await stats.getHabitHeatmap(req.userId!));
+    // NoutLife Lite: solo los últimos días (liteHistoryWindow); Pro, el año completo.
+    res.json(await stats.getHabitHeatmap(req.userId!, (req as AuthRequest & { historyDays?: number }).historyDays));
   } catch (error) {
     sendStatsError(res, error, 'heatmap');
   }

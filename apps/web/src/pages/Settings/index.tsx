@@ -6,7 +6,7 @@ import { Gears, HangingTools, Workbench } from '@/components/settings/Workshop';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
-  AlertTriangle, Bell, Check, Download, FileText, Gamepad2, Info, Monitor, Moon, Music, Palette, RotateCcw, Save, Sun, Trash2, User,
+  AlertTriangle, Bell, Check, Download, FileText, Gamepad2, Gem, Info, Monitor, Moon, Music, Palette, RotateCcw, Save, Sun, Trash2, User,
   type LucideIcon,
 } from 'lucide-react';
 import api from '@/lib/api';
@@ -23,6 +23,8 @@ import {
   type NotificationCategoryPreference, type NotificationPreferences,
 } from '@/services/notification.service';
 import { THEME_PALETTES } from '@/lib/shopThemes';
+import { daysUntil, longDay } from '@/lib/plan';
+import type { Subscription } from '@noutlife/shared';
 import { ZoneToggleList } from '@/components/settings/ZoneOrderEditor';
 import { PrivacyPanel } from '@/components/settings/PrivacyPanel';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -52,6 +54,14 @@ const TIMEZONES = [
   ['America/Mexico_City', 'Ciudad de México (UTC−6)'], ['America/Argentina/Buenos_Aires', 'Buenos Aires (UTC−3)'],
   ['America/Santiago', 'Santiago (UTC−4)'], ['Europe/Madrid', 'Madrid (UTC+1)'], ['UTC', 'UTC'],
 ];
+/** Resumen del plan en una línea. */
+function planLine(sub: Subscription): string {
+  if (sub.status === 'trialing') return `Prueba Pro: ${daysUntil(sub.trialEndsAt) === 1 ? 'queda 1 día' : `quedan ${daysUntil(sub.trialEndsAt)} días`}.`;
+  if (sub.status === 'active') return `Se renueva el ${longDay(sub.accessEndsAt)}.`;
+  if (sub.status === 'canceled') return `Pro hasta el ${longDay(sub.accessEndsAt)}.`;
+  return 'NoutLife Lite, gratis.';
+}
+
 /** Palabra que se escribe para confirmar cada acción irreversible. */
 const DANGER_WORD = { reset: 'REINICIAR', delete: 'ELIMINAR' } as const;
 
@@ -61,7 +71,7 @@ const DANGER_WORD = { reset: 'REINICIAR', delete: 'ELIMINAR' } as const;
  * Se conservan solo las preferencias del dispositivo.
  */
 function clearLocalAccountState() {
-  const keep = new Set(['lq_audio', 'lq_pwa_dismissed', 'lq-nav-sections']);
+  const keep = new Set(['lq_audio', 'lq_pwa_dismissed', 'lq-nav-sections', 'lq_device_id']);
   try {
     for (const k of Object.keys(localStorage)) if (/^lq[-_]/.test(k) && !keep.has(k)) localStorage.removeItem(k);
     sessionStorage.clear();
@@ -408,6 +418,15 @@ export default function SettingsPage() {
             </div>
             <ProgressBar value={((user?.xp ?? 0) / Math.max(1, user?.xpToNextLevel ?? 1)) * 100} shine label="Experiencia hasta el siguiente nivel" />
           </Card>
+          {user?.subscription && (
+            <Card padding="lg" className="flex flex-col gap-3">
+              <div className="flex items-start justify-between gap-3">
+                <div><h2 className="text-heading-sm">Tu plan</h2><p className="text-body-sm text-on-surface-light">{planLine(user.subscription)}</p></div>
+                <Badge variant={user.subscription.plan === 'pro' ? 'secondary' : 'neutral'} icon={Gem}>{user.subscription.plan === 'pro' ? 'Pro' : 'Lite'}</Badge>
+              </div>
+              <Button variant="secondary" size="md" onClick={() => navigate('/plan')}>Ver mi plan</Button>
+            </Card>
+          )}
         </motion.aside>
       </div>
 

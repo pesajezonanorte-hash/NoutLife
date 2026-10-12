@@ -6,6 +6,7 @@ import { reconcileHabitStreaks } from '../services/habit.service';
 import { generateDailyScroll } from '../services/scrolls.service';
 import { seedWisdomCards } from '../services/wisdom.service';
 import { runReminderTick } from '../services/reminder.service';
+import { runBillingTick } from '../services/billing.service';
 
 export function initScheduler() {
   cron.schedule('*/15 * * * *', async () => {
@@ -44,6 +45,8 @@ export function initScheduler() {
   // hora local de cada usuario). En serverless lo mismo lo dispara /cron/tick.
   cron.schedule('*/5 * * * *', () => {
     void runReminderTick();
+    // Suscripciones vencidas: cobro mensual o paso a Lite.
+    runBillingTick().catch((err) => console.error('[Scheduler] Error en el cobro de suscripciones:', err));
   });
 
   cron.schedule('0 20 * * 0', async () => {

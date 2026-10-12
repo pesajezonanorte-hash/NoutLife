@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { LETTERS_AND_GESTURES_SQL, REMOVE_LEGACY_HABIT_RITUAL_FLAG_SQL, RLS_LOCKDOWN_SQL, SOCIAL_NETWORK_SQL, SOCIAL_PRO_SQL } from './schema-migrations';
 import { BACKLOG_SQL, BACKLOG_V2_SQL, REVERSIBLE_HABIT_LOGS_SQL, WARDROBE_PHOTO_SQL } from './backlog-migrations';
+import { SUBSCRIPTIONS_SQL } from './billing-migrations';
 import { ensureDefaultCatalog } from './default-catalog';
 
 function getDatabaseUrl(): string {
@@ -113,6 +114,9 @@ export function ensureDbMigrated(): Promise<void> {
         }
         for (const sql of BACKLOG_V2_SQL()) {
           await prisma.$executeRawUnsafe(sql).catch((err) => console.error('Runtime DB migration (backlog v2):', err));
+        }
+        for (const sql of SUBSCRIPTIONS_SQL) {
+          await prisma.$executeRawUnsafe(sql).catch((err) => console.error('Runtime DB migration (subscriptions):', err));
         }
         await prisma.$executeRawUnsafe(RLS_LOCKDOWN_SQL).catch((err) => console.error('Runtime RLS lockdown:', err));
 

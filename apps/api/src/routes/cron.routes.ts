@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import { runReminderTick } from '../services/reminder.service';
+import { runBillingTick } from '../services/billing.service';
 
 // Disparador externo de los recordatorios (cron-job.org, GitHub Actions o Vercel
 // Cron). Protegido con CRON_SECRET: «Authorization: Bearer <secreto>» (lo que
@@ -15,7 +16,12 @@ async function tick(req: Request, res: Response) {
     return;
   }
   const result = await runReminderTick();
-  res.json({ ok: true, ...result });
+  // Suscripciones: cobra o pasa a Lite las vencidas. Un fallo aquí no frena los recordatorios.
+  const billing = await runBillingTick().catch((err) => {
+    console.error('[CRON_BILLING_ERROR]', err);
+    return { billingError: true };
+  });
+  res.json({ ok: true, ...result, ...billing });
 }
 
 router.get('/tick', tick);

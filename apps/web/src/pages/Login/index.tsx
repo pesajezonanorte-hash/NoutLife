@@ -7,7 +7,8 @@ import { AlertCircle } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import * as authService from '@/services/auth.service';
 import { AuthLayout } from '@/components/auth/AuthLayout';
-import { Button } from '@/components/ui/lq';
+import { PricingSection } from '@/components/billing/PricingSection';
+import { TRIAL_DAYS } from '@/lib/plan';
 
 type Providers = { googleClientId: string | null };
 
@@ -77,6 +78,17 @@ export default function LoginPage() {
 
   return (
     <AuthLayout
+      after={(
+        <PricingSection
+          mode="public"
+          proAction={{
+            label: `Empieza tus ${TRIAL_DAYS} días gratis`,
+            // El acceso con Google está arriba: se vuelve a él.
+            onClick: () => window.scrollTo({ top: 0, behavior: 'smooth' }),
+            note: 'Sin cobro hoy. Cancela en un clic.',
+          }}
+        />
+      )}
       title="Entra a NoutLife"
       subtitle="Usa tu cuenta de Google. Si es tu primera vez, creamos tu personaje."
       footer={<>Al continuar aceptas los <Link to="/terms" className="inline-flex min-h-11 items-center font-semibold text-primary-text underline-offset-4 hover:underline">Términos</Link> y la <Link to="/privacy" className="inline-flex min-h-11 items-center font-semibold text-primary-text underline-offset-4 hover:underline">Política de privacidad</Link>.<LegalFooter className="mt-2" /></>}
@@ -91,6 +103,11 @@ export default function LoginPage() {
             {apiError}
           </p>
         )}
+
+        <p className="text-center text-body-sm text-on-surface-light">
+          Las cuentas nuevas empiezan con {TRIAL_DAYS} días de Pro gratis.{' '}
+          <a href="#planes" className="inline-flex min-h-11 items-center font-semibold text-primary-text underline-offset-4 hover:underline">Ver planes</a>
+        </p>
       </div>
     </AuthLayout>
   );

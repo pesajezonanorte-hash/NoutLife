@@ -5,6 +5,9 @@ import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../lib/jw
 import type { OAuthInput } from '../schemas/auth.schemas';
 import { verifyIdToken, type OAuthIdentity } from '../lib/oauth';
 import { checkAchievements } from './achievement.service';
+import { syncSubscription, type SubscriptionView } from './billing.service';
+import { TRIAL_DAYS, addDays } from '../lib/plans';
+import { claimTrial, releaseTrial } from './trial.service';
 
 function sanitizeUser(user: {
   id: string;
@@ -102,7 +105,7 @@ async function uniqueUsername(seed: string) {
  * email verificado (cuentas antiguas con contraseña) o crea una nueva. Las
  * cuentas nuevas empiezan sin onboarding y la app las lleva a completarlo.
  */
-async function findOrCreateUser(identity: OAuthIdentity, displayName?: string) {
+async function findOrCreateUser(identity: OAuthIdentity, displayName?: string, deviceId: string | null = null) {
   const bySub = await prisma.user.findFirst({ where: { googleSub: identity.sub } });
   if (bySub) return bySub;
 
@@ -114,26 +117,53 @@ async function findOrCreateUser(identity: OAuthIdentity, displayName?: string) {
   }
 
   const name = (identity.name ?? displayName ?? '').trim().slice(0, 50);
-  const user = await prisma.user.create({
-    data: {
-      email: identity.email,
-      username: await uniqueUsername(identity.email.split('@')[0]),
-      displayName: name.length >= 2 ? name : 'Héroe',
-      googleSub: identity.sub,
-      avatarConfig: {
-        bodyType: 'male', hairStyle: 'short', hairColor: '#4a3728', skinColor: '#c68642',
-        shirtColor: '#4d96ff', pants: '#37474f', accessory: 'none', expression: 'normal', pet: null,
+  // Una prueba por correo y por dispositivo, para siempre (tabla used_trials).
+  // Si ya se usó, la cuenta nace en Lite y la app la lleva a pagar.
+  const now = new Date();
+  const trial = await claimTrial(identity.email, deviceId);
+  let user;
+  try {
+    user = await prisma.user.create({
+      data: {
+        email: identity.email,
+        username: await uniqueUsername(identity.email.split('@')[0]),
+        displayName: name.length >= 2 ? name : 'Héroe',
+        googleSub: identity.sub,
+        ...(trial
+          // 7 días de Pro desde el alta; la app pide la tarjeta después del tutorial.
+          ? { subscriptionStatus: 'trialing', trialEndsAt: addDays(now, TRIAL_DAYS) }
+          : { subscriptionStatus: 'lite', trialEndsAt: now, liteSince: now, lastPaymentError: 'Ya usaste tu prueba gratis.' }),
+        avatarConfig: {
+          bodyType: 'male', hairStyle: 'short', hairColor: '#4a3728', skinColor: '#c68642',
+          shirtColor: '#4d96ff', pants: '#37474f', accessory: 'none', expression: 'normal', pet: null,
+        },
       },
-    },
-  });
+    });
+  } catch (error) {
+    // La cuenta no existe, así que la prueba nunca se activó: se devuelve para el reintento.
+    if (trial) await releaseTrial(identity.email);
+    throw error;
+  }
   checkAchievements(user.id, 'user_registered', { currentStreak: 0 }).catch(() => {});
   return user;
 }
 
+/**
+ * Revisión del plan en cada inicio de sesión (y al reabrir la app, que renueva
+ * la sesión): si la prueba o el mes vencieron, cobra con la tarjeta guardada o
+ * pasa la cuenta a Lite. Un fallo de pagos nunca impide entrar.
+ */
+async function checkSubscription(userId: string): Promise<SubscriptionView | null> {
+  return syncSubscription(userId).catch((error) => {
+    console.error('[AUTH_SUBSCRIPTION_SYNC_ERROR]', userId, error);
+    return null;
+  });
+}
+
 /** Inicio de sesión único: Google. No hay contraseñas. */
-export async function oauthSignIn(data: OAuthInput) {
+export async function oauthSignIn(data: OAuthInput, deviceId: string | null = null) {
   const identity = await verifyIdToken(data.provider, data.idToken);
-  const user = await findOrCreateUser(identity, data.displayName);
+  const user = await findOrCreateUser(identity, data.displayName, deviceId);
 
   const { reconcileUserActivityStreak } = await import('./xp.service');
   const reconciledStreak = await reconcileUserActivityStreak(user.id);
@@ -141,7 +171,8 @@ export async function oauthSignIn(data: OAuthInput) {
 
   const { accessToken, refreshToken } = await issueSession(user);
   checkAchievements(user.id, 'user_login', { currentStreak: userForResponse.currentStreak }).catch(() => {});
-  return { user: sanitizeUser(userForResponse), accessToken, refreshToken };
+  const subscription = await checkSubscription(user.id);
+  return { user: { ...sanitizeUser(userForResponse), subscription }, accessToken, refreshToken };
 }
 
 export async function refreshAccessToken(refreshToken: string) {
@@ -168,7 +199,8 @@ export async function refreshAccessToken(refreshToken: string) {
 
   // Renovación deslizante: cada refresh entrega un token nuevo de la misma familia.
   const { accessToken, refreshToken: nextRefreshToken } = await issueSession(user);
-  return { accessToken, refreshToken: nextRefreshToken, user: sanitizeUser(userForResponse) };
+  const subscription = await checkSubscription(user.id);
+  return { accessToken, refreshToken: nextRefreshToken, user: { ...sanitizeUser(userForResponse), subscription } };
 }
 
 export async function logoutUser(userId: string) {

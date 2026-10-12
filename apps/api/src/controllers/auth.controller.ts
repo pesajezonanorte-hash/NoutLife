@@ -6,15 +6,22 @@ import { reconcileUserActivityStreak } from '../services/xp.service';
 import { resetAccountData } from '../services/account-reset.service';
 import { oauthConfig } from '../lib/oauth';
 import { prisma } from '../lib/prisma';
+import { getSubscription } from '../services/billing.service';
 
 /** Public client ids so the web needs no extra build-time variables. */
 export function providers(_req: Request, res: Response): void {
   res.json(oauthConfig());
 }
 
+/** Id del navegador/PWA (cabecera X-Device-Id). Ausente o con formato raro = sin comprobación de dispositivo. */
+function deviceIdOf(req: Request): string | null {
+  const id = req.header('x-device-id') ?? '';
+  return /^[\w-]{16,64}$/.test(id) ? id : null;
+}
+
 export async function oauth(req: Request, res: Response): Promise<void> {
   try {
-    const { user, accessToken, refreshToken } = await authService.oauthSignIn(req.body);
+    const { user, accessToken, refreshToken } = await authService.oauthSignIn(req.body, deviceIdOf(req));
     res.cookie('refreshToken', refreshToken, REFRESH_COOKIE_OPTIONS);
     res.json({ user, accessToken });
   } catch (err) {
@@ -106,11 +113,13 @@ export async function me(req: AuthRequest, res: Response): Promise<void> {
         currentStreak: true, longestStreak: true,
       },
     });
+    const subscription = await getSubscription(user.id).catch(() => null);
     res.json({
       user: {
         ...user,
         createdAt: user.createdAt.toISOString(),
         birthDate: user.birthDate?.toISOString() ?? null,
+        subscription,
       },
     });
   } catch {

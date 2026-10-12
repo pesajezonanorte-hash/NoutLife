@@ -3,6 +3,7 @@ import { settleLevel } from './services/xp.service';
 import { shouldSkipBuildDbStep } from './lib/build-env';
 import { LETTERS_AND_GESTURES_SQL, REMOVE_LEGACY_HABIT_RITUAL_FLAG_SQL, SOCIAL_NETWORK_SQL, SOCIAL_PRO_SQL, RLS_LOCKDOWN_SQL } from './lib/schema-migrations';
 import { BACKLOG_SQL, BACKLOG_V2_SQL, REVERSIBLE_HABIT_LOGS_SQL, WARDROBE_PHOTO_SQL } from './lib/backlog-migrations';
+import { SUBSCRIPTIONS_SQL } from './lib/billing-migrations';
 
 const ignoreDuplicate = (sql: string) =>
   `DO $$ BEGIN ${sql}; EXCEPTION WHEN duplicate_object THEN NULL; END $$;`;
@@ -247,6 +248,9 @@ async function migrate() {
   await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "savings_entries" ("id" TEXT NOT NULL, "userId" TEXT NOT NULL, "kind" TEXT NOT NULL, "counterpart" TEXT NOT NULL, "amount" DECIMAL(15,2) NOT NULL, "note" TEXT, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "savings_entries_pkey" PRIMARY KEY ("id"))`);
   await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "savings_entries_userId_createdAt_idx" ON "savings_entries"("userId", "createdAt")`);
   await prisma.$executeRawUnsafe(ignoreDuplicate(`ALTER TABLE "savings_entries" ADD CONSTRAINT "savings_entries_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE`));
+
+  // Idempotent mirror of prisma/migrations/20261019120000_subscriptions.
+  for (const sql of SUBSCRIPTIONS_SQL) await prisma.$executeRawUnsafe(sql);
 
   // Runs last so tables created above are covered too.
   await prisma.$executeRawUnsafe(RLS_LOCKDOWN_SQL);

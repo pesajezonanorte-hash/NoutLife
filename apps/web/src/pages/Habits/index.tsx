@@ -22,6 +22,9 @@ import * as habitService from '@/services/habit.service';
 import type { Habit } from '@/services/habit.service';
 import { Lettering } from '@/components/layout/Lettering';
 import { StreakRevival } from '@/components/habits/StreakRevival';
+import { LiteNotice } from '@/components/billing/LiteNotice';
+import { LITE_LIMITS, isProRequired } from '@/lib/plan';
+import { usePlanStore } from '@/store/planStore';
 
 type Filter = 'all' | 'active' | 'done';
 const FILTERS: { value: Filter; label: string }[] = [
@@ -63,6 +66,11 @@ export default function HabitsPage() {
   /** Sube solo cuando se completa el último hábito del día (página cerrada). */
   const [dayDone, setDayDone] = useState(0);
   const { todayKey, last7, week } = useDays();
+  // NoutLife Lite: hasta 3 hábitos activos. Al llegar al tope, «Nuevo hábito» abre el diálogo de Pro.
+  const lite = user?.subscription?.plan === 'lite';
+  const atLiteLimit = lite && habits.length >= LITE_LIMITS.activeHabits;
+  const openUpgrade = usePlanStore((s) => s.openUpgrade);
+  const openNew = () => (atLiteLimit ? openUpgrade('habits') : setForm({ open: true, habit: null }));
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -86,10 +94,11 @@ export default function HabitsPage() {
 
   // ?new=1 (FAB, Topbar, paleta): abre el formulario de nuevo hábito.
   useEffect(() => {
-    if (searchParams.get('new') !== '1') return;
-    setForm({ open: true, habit: null });
+    if (searchParams.get('new') !== '1' || loading) return;
+    openNew();
     setSearchParams((p) => { p.delete('new'); return p; }, { replace: true });
-  }, [searchParams, setSearchParams]);
+    // openNew solo depende de la lista ya cargada.
+  }, [searchParams, setSearchParams, loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleComplete(h: Habit) {
     const result = await complete(h);
@@ -121,7 +130,13 @@ export default function HabitsPage() {
   }
 
   async function handleCreate(payload: habitService.CreateHabitPayload) {
-    await habitService.createHabit(payload);
+    try {
+      await habitService.createHabit(payload);
+    } catch (error) {
+      // Tope de Lite: se cierra el formulario y queda solo el diálogo de Pro (lo abre api.ts).
+      if (isProRequired(error)) { setForm({ open: false, habit: null }); return; }
+      throw error;
+    }
     setForm({ open: false, habit: null });
     useToastStore.getState().success('Hábito creado', 'Complétalo hoy para empezar tu racha');
     await load();
@@ -190,7 +205,7 @@ export default function HabitsPage() {
         icon={ListChecks}
         title="Sin hábitos aún"
         description="Tu aventura empieza con un hábito pequeño. Cada día completado te da XP."
-        action={<Button onClick={() => setForm({ open: true, habit: null })}><Plus aria-hidden className="size-4" strokeWidth={2} />Nuevo hábito</Button>}
+        action={<Button onClick={openNew}><Plus aria-hidden className="size-4" strokeWidth={2} />Nuevo hábito</Button>}
         className="py-16"
       />
     );
@@ -281,6 +296,15 @@ export default function HabitsPage() {
       </ZoneAmbience>
       <div className="relative flex flex-col gap-6 md:gap-12">
       {header}
+      {lite && !loading && (
+        <motion.div variants={item}>
+          <LiteNotice feature="habits">
+            {habits.length > LITE_LIMITS.activeHabits
+              ? `NoutLife Lite admite ${LITE_LIMITS.activeHabits} hábitos activos. Tus ${habits.length} hábitos siguen aquí; para crear más, pasa a Pro.`
+              : `Tienes ${habits.length} de ${LITE_LIMITS.activeHabits} hábitos activos de NoutLife Lite.${atLiteLimit ? ' Con Pro, sin límite.' : ''}`}
+          </LiteNotice>
+        </motion.div>
+      )}
       <StreakRevival scope="habits" onRevived={() => void load()} />
       <motion.div variants={item}>{body}</motion.div>
       </div>

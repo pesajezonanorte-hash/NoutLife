@@ -1,5 +1,8 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
+import { usePlanStore } from '../store/planStore';
+import { getDeviceId } from './deviceId';
+import type { ProFeature } from './plan';
 import { clearRefreshSessionExpected, markRefreshSessionExpected } from './session-hint';
 
 /**
@@ -24,6 +27,8 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  const deviceId = getDeviceId();
+  if (deviceId) config.headers['X-Device-Id'] = deviceId;
   return config;
 });
 
@@ -52,6 +57,13 @@ api.interceptors.response.use(
     // refresh request. Logout intentionally remains refreshable so an expired
     // access token can still revoke a valid refresh-cookie session.
     const bypassRefresh = /\/auth\/(?:login|register|refresh)(?:\?|$)/.test(requestUrl);
+
+    // Límite de NoutLife Lite (402): se abre el diálogo de Pro con el motivo.
+    // La petición sigue fallando para que la pantalla que llamó lo sepa.
+    const data = error.response?.data as { code?: string; feature?: ProFeature; error?: string } | undefined;
+    if (error.response?.status === 402 && data?.code === 'PRO_REQUIRED' && data.feature) {
+      usePlanStore.getState().openUpgrade(data.feature, data.error ?? null);
+    }
 
     if (error.response?.status === 401 && !bypassRefresh && !originalRequest._retry) {
       if (isRefreshing) {

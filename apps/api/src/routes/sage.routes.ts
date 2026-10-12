@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { requireAuth, type AuthRequest } from '../middleware/auth.middleware';
 import { sageLimiter, sageDailyLimiter } from '../middleware/rate-limit.middleware';
 import * as sage from '../controllers/sage.controller';
+import { requirePro } from '../middleware/plan.middleware';
 import { getTodayProactiveNote, markProactiveNoteRead } from '../services/sage-proactive.service';
 
 const router = Router();
@@ -12,10 +13,12 @@ router.use(requireAuth);
 // del día, la nota proactiva y el cupo no se limitan: nunca bloquean otras zonas.
 const chatLimits = [sageLimiter, sageDailyLimiter];
 router.post('/chat',             ...chatLimits, sage.chat);
-router.post('/suggest-quests',   ...chatLimits, sage.suggestQuests);
-router.post('/analyze-habits',   ...chatLimits, sage.analyzeHabits);
-router.post('/analyze-finances', ...chatLimits, sage.analyzeFinances);
-router.post('/plan-workout',     ...chatLimits, sage.planWorkout);
+// Los análisis son de Pro; en Lite el chat tiene su propio tope diario (sage.service).
+const proAI = requirePro('ai');
+router.post('/suggest-quests',   proAI, ...chatLimits, sage.suggestQuests);
+router.post('/analyze-habits',   proAI, ...chatLimits, sage.analyzeHabits);
+router.post('/analyze-finances', proAI, ...chatLimits, sage.analyzeFinances);
+router.post('/plan-workout',     proAI, ...chatLimits, sage.planWorkout);
 router.get('/daily-summary',     sage.dailySummary);
 router.get('/daily-tip',         sage.dailyTip);
 router.get('/rate-info',         sage.rateInfo);

@@ -297,10 +297,15 @@ export async function getFinanceTrend(userId: string, period = 'month', now = ne
 
 // ─── Habit heatmap ────────────────────────────────────────────────────────────
 
-export async function getHabitHeatmap(userId: string) {
+export async function getHabitHeatmap(userId: string, days?: number) {
   const now = new Date();
   const yearAgo = new Date(now);
-  yearAgo.setFullYear(yearAgo.getFullYear() - 1);
+  if (days) {
+    yearAgo.setDate(yearAgo.getDate() - (days - 1));
+    yearAgo.setHours(0, 0, 0, 0);
+  } else {
+    yearAgo.setFullYear(yearAgo.getFullYear() - 1);
+  }
 
   const logs = await prisma.habitLog.findMany({
     where: { userId, date: { gte: yearAgo, lte: now }, completed: true },

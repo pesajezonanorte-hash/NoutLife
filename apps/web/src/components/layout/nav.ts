@@ -3,7 +3,7 @@
 // (onboarding o Ajustes → Zonas) + Perfil; el resto queda en Bienestar, "Más
 // zonas" y Comunidad.
 import {
-  BarChart3, BookOpen, CalendarDays, HelpCircle, Dumbbell, Flag, Globe, Heart, Home,
+  BarChart3, BookOpen, CalendarDays, Gem, HelpCircle, Dumbbell, Flag, Globe, Heart, Home,
   MapPin, Moon, NotebookPen, Scroll, Settings, ShoppingBag, Skull, Sun,
   Sparkles, Trophy, User, UtensilsCrossed, Wallet, CheckCircle2, MessageCircle, Mail, NotebookTabs, Tent, Album, ListChecks, ShieldAlert, type LucideIcon,
 } from 'lucide-react';
@@ -147,6 +147,7 @@ export function useNav() {
 export const PRIMARY_NAV: NavEntry[] = buildNav(undefined).primary;
 
 export const UTILITY_NAV: NavEntry[] = [
+  { to: '/plan', label: 'Plan', icon: Gem },
   { to: '/settings', label: 'Ajustes', icon: Settings },
   { to: '/faq', label: 'Ayuda', icon: HelpCircle },
 ];

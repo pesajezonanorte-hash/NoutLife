@@ -8,6 +8,7 @@ import { useBootstrapAuth } from './hooks/useAuth';
 import { AppShell } from './components/layout/AppShell';
 import { SplashScreen } from './components/animations/SplashScreen';
 import { SageWidget } from './components/sage/SageWidget';
+import { PlanGate } from './components/billing/PlanGate';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { NotificationPermissionModal, useNotificationModalState } from './components/ui/NotificationPermissionModal';
 import { PageLoader as LqPageLoader, Spinner } from './components/ui/lq';
@@ -62,6 +63,7 @@ const loaders = {
   NotFoundPage: () => import('./pages/NotFound'),
   AboutPage: () => import('./pages/About'),
   FAQPage: () => import('./pages/FAQ'),
+  PlanPage: () => import('./pages/Plan'),
 } as const;
 
 // Playground del rediseño: solo se enruta en desarrollo (fuera de `loaders`
@@ -116,6 +118,7 @@ const routeLoaders: Record<string, () => Promise<unknown>> = {
   '/wisdom': loaders.WisdomPage,
   '/about': loaders.AboutPage,
   '/faq': loaders.FAQPage,
+  '/plan': loaders.PlanPage,
 };
 
 // Rutas que solo redirigen (no esperan ningún bundle).
@@ -250,6 +253,7 @@ function AnimatedRoutes({ location }: { location: ReturnType<typeof useLocation>
           <Route path="/wisdom"   element={<SafePage><DeferredLazyPage load={loaders.WisdomPage} /></SafePage>} />
           <Route path="/about"    element={<SafePage><DeferredLazyPage load={loaders.AboutPage} /></SafePage>} />
           <Route path="/faq"      element={<SafePage><DeferredLazyPage load={loaders.FAQPage} /></SafePage>} />
+          <Route path="/plan"     element={<SafePage><DeferredLazyPage load={loaders.PlanPage} /></SafePage>} />
           <Route path="*"         element={<SafePage><DeferredLazyPage load={loaders.NotFoundPage} /></SafePage>} />
         </Routes>
         </DetachPresence>
@@ -479,6 +483,8 @@ export default function App() {
                   </AppShell>
                 </ErrorBoundary>
                 <SageWidget />
+                {/* Plan: aviso de paso a Lite, tarjeta en la prueba y diálogo de Pro de los límites. */}
+                <PlanGate blocked={showNotifModal && tourDone && Boolean(user?.onboardingCompleted)} />
               </ProtectedRoute>
             }
           />

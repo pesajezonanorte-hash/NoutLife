@@ -7,6 +7,9 @@ import { fetchDayDetail, fetchHistory } from '@/services/history.service';
 import type { DayDetail, HistorySummary } from '@/services/history.service';
 import { item, stagger } from '@/lib/motion';
 import { cn } from '@/lib/utils';
+import { LiteNotice } from '@/components/billing/LiteNotice';
+import { LITE_LIMITS } from '@/lib/plan';
+import { useAuthStore } from '@/store/authStore';
 
 type View = 'calendar' | 'charts';
 
@@ -37,15 +40,18 @@ export default function HistoryPage() {
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [dayDetail, setDayDetail] = useState<DayDetail | null>(null);
   const [view, setView] = useState<View>('calendar');
+  // NoutLife Lite: la API solo devuelve los últimos 7 días; el calendario muestra esos.
+  const lite = useAuthStore((s) => s.user?.subscription?.plan === 'lite');
+  const span = lite ? LITE_LIMITS.historyDays : 30;
 
   const load = useCallback(() => {
     setState('loading');
     const to = isoDay(new Date());
-    const from = isoDay(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
+    const from = isoDay(new Date(Date.now() - (span - 1) * 24 * 60 * 60 * 1000));
     fetchHistory(from, to)
       .then((s) => { setSummary(s); setState('ready'); })
       .catch(() => setState('error'));
-  }, []);
+  }, [span]);
 
   useEffect(load, [load]);
 
@@ -60,9 +66,9 @@ export default function HistoryPage() {
 
   const today = new Date();
   const todayIso = isoDay(today);
-  const calendarDays = Array.from({ length: 30 }, (_, i) => {
+  const calendarDays = Array.from({ length: span }, (_, i) => {
     const date = new Date(today);
-    date.setDate(date.getDate() - (29 - i));
+    date.setDate(date.getDate() - (span - 1 - i));
     return isoDay(date);
   });
   const days = summary?.days ?? [];
@@ -75,10 +81,16 @@ export default function HistoryPage() {
     <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-8 md:gap-12">
       <PageHeader
         eyebrow="Historial"
-        title="Tus últimos 30 días"
+        title={`Tus últimos ${span} días`}
         description="Cada día, lo que completaste y lo que ganaste."
         aside={<div className="w-full max-w-[320px] sm:w-[300px]"><SegmentedControl label="Vista" value={view} onChange={setView} options={VIEWS} /></div>}
       />
+
+      {lite && (
+        <motion.div variants={item}>
+          <LiteNotice feature="history">NoutLife Lite muestra tus últimos {LITE_LIMITS.historyDays} días. Con Pro ves todo tu historial: nada se borra.</LiteNotice>
+        </motion.div>
+      )}
 
       {summary && (
         <motion.ul variants={stagger} className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -197,7 +209,7 @@ export default function HistoryPage() {
               <Card padding="lg" className="flex flex-col gap-4">
                 <h2 className="text-heading-md">XP por día</h2>
                 {xpData.length ? (
-                  <BarChart data={xpData} label="XP ganada por día en los últimos 30 días" tone="primary" height={200} grid />
+                  <BarChart data={xpData} label={`XP ganada por día en los últimos ${span} días`} tone="primary" height={200} grid />
                 ) : (
                   <EmptyState icon={Zap} title="Sin XP registrada" description="Completa hábitos y misiones para ver tu progreso." className="py-4" />
                 )}

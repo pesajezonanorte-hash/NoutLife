@@ -190,6 +190,21 @@ model User {
   googleCalendarSyncEnabled  Boolean   @default(false)
   googleCalendarLastSyncAt  DateTime?
 
+  // Suscripción NoutLife Pro (Wompi). Cada cuenta nueva empieza con 7 días de
+  // prueba; sin pago al vencer, pasa a Lite (nunca se bloquea).
+  /// 'trialing' | 'active' | 'canceled' | 'lite'
+  subscriptionStatus String    @default("trialing")
+  trialEndsAt        DateTime?
+  /// Fin del mes ya pagado (null mientras no haya cobros aprobados).
+  currentPeriodEnd   DateTime?
+  /// Id de la fuente de pago de Wompi. La tarjeta nunca pasa por este servidor.
+  paymentSourceId    String?
+  /// Solo para mostrar: «VISA •••• 4242».
+  paymentMethodLabel String?
+  /// Momento en que la cuenta pasó a Lite (el cliente avisa una sola vez).
+  liteSince          DateTime?
+  lastPaymentError   String?
+
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
@@ -267,8 +282,53 @@ model User {
   antiHabitLogs           AntiHabitLog[]
   resourceShares          ResourceShare[] @relation("ResourceShareOwner")
   sharedWithMe            ResourceShareMember[]
+  subscriptionPayments    SubscriptionPayment[]
 
+  @@index([subscriptionStatus, trialEndsAt])
+  @@index([subscriptionStatus, currentPeriodEnd])
   @@map("users")
+}
+
+/// Pruebas gratis ya concedidas. SIN relación con User a propósito: borrar o
+/// reiniciar la cuenta nunca borra esta tabla (ninguna ruta de la API la elimina).
+/// Un correo, una tarjeta o un dispositivo que ya aparecen aquí no reciben otra prueba.
+model UsedTrial {
+  id          String   @id @default(cuid())
+  /// Correo en minúsculas.
+  emailKey    String   @unique
+  /// Id del navegador/PWA (localStorage). Null si el cliente no lo envió.
+  deviceId    String?
+  /// Huellas SHA-256 de las tarjetas guardadas (nunca el número).
+  paymentKeys String[] @default([])
+  createdAt   DateTime @default(now())
+
+  @@index([deviceId])
+  @@map("used_trials")
+}
+
+/// Un cobro mensual de NoutLife Pro. La referencia es única por usuario y
+/// periodo: dos disparos a la vez (inicio de sesión y cron) nunca cobran dos veces.
+model SubscriptionPayment {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  reference          String   @unique
+  wompiTransactionId String?  @unique
+  amountInCents      Int
+  currency           String   @default("COP")
+  /// 'PENDING' | 'APPROVED' | 'DECLINED' | 'VOIDED' | 'ERROR'
+  status             String   @default("PENDING")
+  statusMessage      String?
+  periodStart        DateTime
+  periodEnd          DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@map("subscription_payments")
 }
 
 model Quest {

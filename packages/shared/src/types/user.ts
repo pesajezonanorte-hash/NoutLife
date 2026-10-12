@@ -28,6 +28,31 @@ export interface User {
   equippedFrame?: string | null;
   equippedTheme?: string | null;
   createdAt: string;
+  /** Plan del usuario. Llega al iniciar sesión, al renovar la sesión y en /auth/me. */
+  subscription?: Subscription | null;
+}
+
+/** 'trialing' prueba de 7 días · 'active' mes pagado · 'canceled' Pro hasta fin de periodo · 'lite' gratis con límites */
+export type SubscriptionStatus = 'trialing' | 'active' | 'canceled' | 'lite';
+export type Plan = 'pro' | 'lite';
+
+export interface Subscription {
+  status: SubscriptionStatus;
+  plan: Plan;
+  trialEndsAt: string;
+  currentPeriodEnd: string | null;
+  /** Fin del Pro ya concedido (prueba o mes pagado). null en Lite. */
+  accessEndsAt: string | null;
+  /** Se cobrará automáticamente al vencer. */
+  renews: boolean;
+  hasPaymentMethod: boolean;
+  /** Solo para mostrar: «VISA •••• 4242». */
+  paymentMethodLabel: string | null;
+  liteSince: string | null;
+  lastPaymentError: string | null;
+  pendingPayment: boolean;
+  priceCop: number;
+  trialDays: number;
 }
 
 export type HairStyle = 'short' | 'medium' | 'long' | 'shaved' | 'copete' | 'afro' | 'recogido' | 'trenzas' | 'ondulado';

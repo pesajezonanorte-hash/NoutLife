@@ -93,7 +93,10 @@ export async function undoHabitLog(req: AuthRequest, res: Response): Promise<voi
 
 export async function getHabitHeatmap(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const days = parseInt(req.query.days as string) || 90;
+    const asked = parseInt(req.query.days as string) || 90;
+    // NoutLife Lite: como mucho los últimos 7 días.
+    const limit = (req as AuthRequest & { historyDays?: number }).historyDays;
+    const days = limit ? Math.min(asked, limit) : asked;
     const heatmap = await habitService.getHabitHeatmap(req.userId!, req.params.id, days);
     res.json({ heatmap });
   } catch (err) {
