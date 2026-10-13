@@ -2,11 +2,18 @@ import { createHash, createHmac } from 'crypto';
 
 export const emailKey = (email: string): string => email.trim().toLowerCase();
 
-/** `public_data` de una fuente de pago, tal como la devuelve Wompi (GET /payment_sources/:id). */
+/**
+ * `public_data` de una fuente de pago, tal como la devuelve Wompi (GET /payment_sources/:id).
+ * Tarjeta en producción (12-10-2026): bin, last_four, card_holder, validity_ends_at y type.
+ * Wompi no manda exp_month ni exp_year. Nequi: type y phone_number.
+ */
 export interface PaymentPublicData {
   type?: string;
   bin?: string;
   last_four?: string;
+  card_holder?: string;
+  validity_ends_at?: string;
+  /** Solo en respuestas de otros ambientes o versiones: la huella no los usa. */
   exp_month?: string;
   exp_year?: string;
   phone_number?: string;
@@ -31,17 +38,19 @@ export const fingerprintSecret = (): string | null => process.env.TRIAL_FINGERPR
  * Huella del medio de pago con los datos que Wompi entrega al servidor, nunca
  * con los que manda el navegador. null si faltan datos: el servidor no concede la prueba.
  *
- *  - Tarjeta: SHA-256 de BIN + últimos 4 + vencimiento. El titular se escribe a
- *    mano, así que no cuenta. No revela el número completo.
+ *  - Tarjeta: SHA-256 de BIN (6) + últimos 4: lo único estable que Wompi entrega.
+ *    El titular se escribe a mano y Wompi no manda el vencimiento
+ *    (validity_ends_at no está documentado, así que no entra). No revela el número completo.
  *  - Nequi: HMAC de celular (el de Wompi) + cédula, con un secreto del servidor.
  *    Celular y cédula tienen pocos dígitos: con un SHA-256 plano, una tabla
  *    filtrada se revierte en segundos. Sin el secreto, la huella no sirve.
  */
 export function paymentKey(data: PaymentPublicData, proof: NequiProof | null = null): string | null {
   if (data.type === 'CARD') {
-    if (!data.bin || !data.last_four || !data.exp_month || !data.exp_year) return null;
-    const raw = `CARD|${data.bin.slice(0, 6)}|${data.last_four}|${data.exp_month.padStart(2, '0')}/${data.exp_year.slice(-2)}`;
-    return createHash('sha256').update(raw).digest('hex');
+    const bin = (data.bin ?? '').replace(/\D/g, '').slice(0, 6);
+    const lastFour = (data.last_four ?? '').replace(/\D/g, '');
+    if (bin.length !== 6 || lastFour.length !== 4) return null;
+    return createHash('sha256').update(`CARD|${bin}|${lastFour}`).digest('hex');
   }
   if (data.type === 'NEQUI') {
     const phone = nequiPhone(data.phone_number);
@@ -49,4 +58,12 @@ export function paymentKey(data: PaymentPublicData, proof: NequiProof | null = n
     return createHmac('sha256', proof.secret).update(`NEQUI|${phone}|${proof.documentNumber}`).digest('hex');
   }
   return null;
+}
+
+/** Para los logs: qué campos trajo `public_data` y con qué forma (letras → a, dígitos → 9), nunca sus valores. */
+export function publicDataShape(data: PaymentPublicData): Record<string, string> {
+  return Object.fromEntries(Object.entries(data).map(([field, value]) => [
+    field,
+    field === 'type' ? String(value) : String(value ?? '').replace(/\p{L}/gu, 'a').replace(/\d/g, '9'),
+  ]));
 }

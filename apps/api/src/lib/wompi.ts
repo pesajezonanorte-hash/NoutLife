@@ -24,9 +24,15 @@ export interface WompiConfig {
   eventsSecret: string | null;
   baseUrl: string;
   sandbox: boolean;
-  /** Llaves suficientes para guardar tarjetas y cobrar. */
+  /** La llave pública y la privada son del mismo ambiente (las dos de pruebas o las dos de producción). */
+  keysMatch: boolean;
+  /** Llaves suficientes, y del mismo ambiente, para guardar tarjetas y cobrar. */
   configured: boolean;
 }
+
+/** Ambiente de una llave de Wompi por su prefijo (pub_test_, prv_prod_…). null si no se reconoce. */
+const keyEnvironment = (key: string | null) => (key?.includes('_test_') ? 'pruebas' : key?.includes('_prod_') ? 'producción' : null);
+let mismatchLogged = false;
 
 export function wompiConfig(): WompiConfig {
   const read = (name: string) => process.env[name]?.trim() || null;
@@ -37,9 +43,18 @@ export function wompiConfig(): WompiConfig {
   // Las llaves de pruebas empiezan por pub_test_ / prv_test_.
   const sandbox = (publicKey ?? privateKey ?? '').includes('_test_');
   const baseUrl = (read('WOMPI_API_URL') ?? (sandbox ? 'https://sandbox.wompi.co/v1' : 'https://production.wompi.co/v1')).replace(/\/+$/, '');
+  // Un token creado con la llave pública de un ambiente no existe en el otro: con llaves
+  // cruzadas fallaría cada vínculo y cada cobro. Mejor sin pagos (Lite) que un paywall roto.
+  const publicEnv = keyEnvironment(publicKey);
+  const privateEnv = keyEnvironment(privateKey);
+  const keysMatch = !publicEnv || !privateEnv || publicEnv === privateEnv;
+  if (!keysMatch && !mismatchLogged) {
+    mismatchLogged = true;
+    console.error('[BILLING_ERROR]', { step: 'config', reason: `WOMPI_PUBLIC_KEY es de ${publicEnv} y WOMPI_PRIVATE_KEY de ${privateEnv}: deben ser del mismo ambiente.` });
+  }
   return {
-    publicKey, privateKey, integritySecret, eventsSecret, baseUrl, sandbox,
-    configured: Boolean(publicKey && privateKey && integritySecret),
+    publicKey, privateKey, integritySecret, eventsSecret, baseUrl, sandbox, keysMatch,
+    configured: Boolean(publicKey && privateKey && integritySecret && keysMatch),
   };
 }
 

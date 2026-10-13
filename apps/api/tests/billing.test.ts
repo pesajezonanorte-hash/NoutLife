@@ -110,19 +110,51 @@ test('emailKey ignores case and spaces', async () => {
   assert.equal(emailKey('  Ana.Perez@Gmail.com '), 'ana.perez@gmail.com');
 });
 
-test('paymentKey uses only the card data Wompi returns: a new holder name or a longer BIN is the same card', async () => {
+test('paymentKey uses only the card data Wompi returns: BIN + last four, whatever the holder or validity', async () => {
   const { paymentKey } = await import('../src/lib/trial-keys');
-  // public_data de GET /payment_sources/:id (Wompi), no lo que manda el navegador.
-  const card = { type: 'CARD', bin: '424242', last_four: '4242', exp_month: '8', exp_year: '2028' };
+  // public_data real de GET /payment_sources/:id en producción (12-10-2026): sin exp_month ni exp_year.
+  const card = { type: 'CARD', bin: '424242', last_four: '4242', card_holder: 'PEDRO PEREZ', validity_ends_at: '2029-12-31T23:59:59.000Z' };
   const key = paymentKey(card);
   assert.match(key ?? '', /^[0-9a-f]{64}$/);
-  assert.equal(paymentKey({ ...card, exp_month: '08', exp_year: '28', card_holder: 'OTRO NOMBRE' } as typeof card), key);
+  assert.equal(paymentKey({ ...card, card_holder: 'OTRO NOMBRE', validity_ends_at: '2031-01-31T23:59:59.000Z' }), key);
   assert.equal(paymentKey({ ...card, bin: '42424200' }), key);
+  // Una respuesta con vencimiento (otro ambiente) es la misma tarjeta: el vencimiento no entra.
+  assert.equal(paymentKey({ type: 'CARD', bin: '424242', last_four: '4242', exp_month: '8', exp_year: '2028' }), key);
   assert.notEqual(paymentKey({ ...card, last_four: '1111' }), key);
-  assert.notEqual(paymentKey({ ...card, exp_year: '29' }), key);
+  assert.notEqual(paymentKey({ ...card, bin: '411111' }), key);
   // Sin datos reales de Wompi no hay huella: el servidor no concede la prueba.
   assert.equal(paymentKey({ type: 'CARD' }), null);
+  assert.equal(paymentKey({ type: 'CARD', bin: '4242', last_four: '4242' }), null);
   assert.equal(paymentKey({}), null);
+});
+
+test('the payment_key log shows which fields Wompi sent and their format, never the values', async () => {
+  const { publicDataShape } = await import('../src/lib/trial-keys');
+  assert.deepEqual(
+    publicDataShape({ type: 'CARD', bin: '424242', last_four: '4242', card_holder: 'José Pérez', validity_ends_at: '2029-12-31T23:59:59.000Z' }),
+    { type: 'CARD', bin: '999999', last_four: '9999', card_holder: 'aaaa aaaaa', validity_ends_at: '9999-99-99a99:99:99.999a' },
+  );
+});
+
+test('Wompi keys from different environments turn billing off instead of failing every payment', async () => {
+  const { wompiConfig } = await import('../src/lib/wompi');
+  const names = ['WOMPI_PUBLIC_KEY', 'WOMPI_PRIVATE_KEY', 'WOMPI_INTEGRITY_SECRET'] as const;
+  const saved = Object.fromEntries(names.map((name) => [name, process.env[name]]));
+  try {
+    process.env.WOMPI_INTEGRITY_SECRET = 'test_integrity_fake';
+    process.env.WOMPI_PUBLIC_KEY = 'pub_test_fake';
+    process.env.WOMPI_PRIVATE_KEY = 'prv_prod_fake';
+    assert.equal(wompiConfig().keysMatch, false);
+    assert.equal(wompiConfig().configured, false);
+    process.env.WOMPI_PRIVATE_KEY = 'prv_test_fake';
+    assert.equal(wompiConfig().keysMatch, true);
+    assert.equal(wompiConfig().configured, true);
+  } finally {
+    for (const name of names) {
+      if (saved[name] === undefined) delete process.env[name];
+      else process.env[name] = saved[name];
+    }
+  }
 });
 
 test('Nequi paymentKey: celular de Wompi + cédula, con HMAC y un secreto del servidor', async () => {

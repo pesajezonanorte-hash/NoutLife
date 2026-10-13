@@ -1,7 +1,7 @@
 import type { Prisma, SubscriptionPayment } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { hasAIProvider } from '../lib/ai';
-import { fingerprintSecret, paymentKey, type NequiProof } from '../lib/trial-keys';
+import { fingerprintSecret, paymentKey, publicDataShape, type NequiProof } from '../lib/trial-keys';
 import { claimTrial, trialAvailable } from './trial.service';
 import {
   LITE_LIMITS, PRO_AMOUNT_IN_CENTS, PRO_CURRENCY, PRO_PRICE_COP, PRO_ZONES, RENEWAL_GRACE_MS, TRIAL_DAYS,
@@ -48,6 +48,13 @@ const STALE_PENDING_MS = 30 * 60_000;
 /** Un cobro que Wompi sigue sin resolver (p. ej. el push de Nequi nunca se aprobó) cuenta como fallido tras un día. Si llega APPROVED después, el webhook lo reactiva. */
 const PENDING_TIMEOUT_MS = 24 * 60 * 60_000;
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** Para los logs: la respuesta de Wompi sin correos y con solo los últimos 4 de cualquier número largo. */
+function redactForLog(value: unknown): string {
+  if (value === undefined || value === null) return '';
+  const text = typeof value === 'string' ? value : JSON.stringify(value);
+  return text.replace(/[^\s"@]+@[^\s"@]+\.[^\s"@]+/g, '<correo>').replace(/\d{7,}/g, (digits) => `…${digits.slice(-4)}`);
+}
 
 export interface SubscriptionView {
   status: SubscriptionStatus;
@@ -341,7 +348,8 @@ export async function savePaymentMethod(userId: string, input: PaymentMethodInpu
     details = await getPaymentSource(source.id);
   } catch (error) {
     if (error instanceof WompiError) {
-      console.error('[BILLING_PAYMENT_SOURCE_ERROR]', userId, input.method, error.message);
+      // La respuesta exacta de Wompi (estado HTTP y cuerpo), sin datos de la persona.
+      console.error('[BILLING_ERROR]', { step: 'payment_source', userId, method: input.method, status: error.status ?? null, message: error.message, wompi: redactForLog(error.details) });
       throw rejected(input.method === 'CARD'
         ? 'No pudimos vincular tu método de pago. Revisa los datos e inténtalo de nuevo.'
         : 'No pudimos vincular tu Nequi. Aprueba la vinculación en tu app de Nequi e inténtalo de nuevo.');
@@ -349,6 +357,7 @@ export async function savePaymentMethod(userId: string, input: PaymentMethodInpu
     throw error;
   }
   if (source.status !== 'AVAILABLE') {
+    console.error('[BILLING_ERROR]', { step: 'payment_source_status', userId, method: input.method, sourceId: source.id, status: source.status });
     throw rejected(input.method === 'CARD' ? 'Wompi no pudo verificar este método de pago. Prueba con otro.' : 'Wompi no pudo verificar tu Nequi. Inténtalo de nuevo.');
   }
 
@@ -373,15 +382,17 @@ export async function savePaymentMethod(userId: string, input: PaymentMethodInpu
     const proof: NequiProof | null = input.method === 'NEQUI' && secret ? { documentNumber: input.documentNumber, secret } : null;
     const key = paymentKey(pub, proof);
     if (!key) {
-      // Sin huella real no se concede: fallar cerrado y avisar (nunca confiar en el navegador).
-      console.error('[BILLING_NO_PAYMENT_KEY]', userId, source.id, Object.keys(pub));
-      throw new BillingError('PAYMENT_UNVERIFIED', 'No pudimos verificar tu método de pago con Wompi. Inténtalo de nuevo en unos minutos.', 502);
-    }
-    const outcome = await claimTrial(user.email, key, input.deviceId);
-    if (outcome === 'granted') {
-      Object.assign(data, { subscriptionStatus: 'trialing', trialEndsAt: addDays(now, TRIAL_DAYS), liteSince: null });
+      // Sin huella real no hay prueba (nunca se confía en el navegador), pero el medio de pago
+      // sí queda guardado: la persona puede activar Pro o seguir en Lite. El log dice qué faltó.
+      console.error('[BILLING_ERROR]', { step: 'payment_key', userId, method: input.method, sourceId: source.id, publicData: publicDataShape(pub) });
+      data.lastPaymentError = 'No pudimos verificar este medio de pago para la prueba gratis. Puedes activar Pro o seguir en NoutLife Lite.';
     } else {
-      data.lastPaymentError = outcome === 'payment_used' ? 'Este método de pago ya se usó en una prueba gratis.' : 'Ya usaste tu prueba gratis.';
+      const outcome = await claimTrial(user.email, key, input.deviceId);
+      if (outcome === 'granted') {
+        Object.assign(data, { subscriptionStatus: 'trialing', trialEndsAt: addDays(now, TRIAL_DAYS), liteSince: null });
+      } else {
+        data.lastPaymentError = outcome === 'payment_used' ? 'Este método de pago ya se usó en una prueba gratis.' : 'Ya usaste tu prueba gratis.';
+      }
     }
   }
   await prisma.user.update({ where: { id: userId }, data });
