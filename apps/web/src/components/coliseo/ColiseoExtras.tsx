@@ -1,6 +1,6 @@
-// Extras de Gimnasio (rediseño): descanso entre series, peso corporal, 1RM,
+// Extras del Coliseo (rediseño): descanso entre series, peso corporal, 1RM,
 // volumen semanal por músculo y fotos de progreso. Misma lógica y servicios
-// (gym2.service); solo cambia la piel a componentes/tokens lq.
+// (coliseo.service); solo cambia la piel a componentes/tokens lq.
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Camera, Dumbbell, Scale, Timer as TimerIcon, Trash2, Plus, BarChart3 } from 'lucide-react';
@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 import { Badge, BarChart, Button, Card, EmptyState, Field, IconChip, Input, LineChart, Modal, ProgressRing, chipClasses, type BarDatum, type LinePoint, PageLoader } from '@/components/ui/lq';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 import { useToastStore } from '@/hooks/useToast';
-import * as gym2 from '../../services/gym2.service';
+import * as coliseo from '../../services/coliseo.service';
 import { PrivatePhotoNotice } from '@/components/privacy/PrivatePhotoNotice';
 import { PhotoSourceButtons } from '@/components/media/PhotoSourceButtons';
 import { compressImageToBase64 } from '@/lib/imageCompress';
@@ -141,21 +141,21 @@ export function RestTimer({ onClose }: { onClose: () => void }) {
 // ─── Body Weight Tracker ───────────────────────────────────────────────────────
 
 export function BodyWeightTracker() {
-  const [records, setRecords] = useState<gym2.BodyWeight[]>([]);
+  const [records, setRecords] = useState<coliseo.BodyWeight[]>([]);
   const [weight, setWeight] = useState('');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    gym2.fetchBodyWeights().then(setRecords).finally(() => setLoading(false));
+    coliseo.fetchBodyWeights().then(setRecords).finally(() => setLoading(false));
   }, []);
 
   async function handleSave() {
     if (!weight) return;
     setSaving(true);
     try {
-      const rec = await gym2.logBodyWeight(parseFloat(weight), new Date().toISOString().slice(0, 10), notes || undefined);
+      const rec = await coliseo.logBodyWeight(parseFloat(weight), new Date().toISOString().slice(0, 10), notes || undefined);
       setRecords((prev) => [...prev, rec].sort((a, b) => a.date.localeCompare(b.date)));
       setWeight('');
       setNotes('');
@@ -166,7 +166,7 @@ export function BodyWeightTracker() {
 
   async function handleDelete(id: string) {
     try {
-      await gym2.deleteBodyWeight(id);
+      await coliseo.deleteBodyWeight(id);
       setRecords((prev) => prev.filter((r) => r.id !== id));
     } catch {
       useToastStore.getState().error('No se pudo eliminar el registro');
@@ -184,11 +184,11 @@ export function BodyWeightTracker() {
   const hi = Math.ceil(Math.max(...records.map((r) => r.weight)) + 1);
 
   return (
-    <Card as="section" aria-labelledby="gym-weight" padding="lg" className="flex flex-col gap-4">
+    <Card as="section" aria-labelledby="coliseo-weight" padding="lg" className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <IconChip icon={Scale} tone="info" size="sm" />
-          <h3 id="gym-weight" className="text-heading-sm">Peso corporal</h3>
+          <h3 id="coliseo-weight" className="text-heading-sm">Peso corporal</h3>
         </div>
         {latest && (
           <div className="text-right">
@@ -202,7 +202,7 @@ export function BodyWeightTracker() {
         )}
       </div>
 
-      {loading ? <PageLoader label="Leyendo tu peso…" words={LOADING_COPY.gym} size="sm" /> : records.length > 1 && (
+      {loading ? <PageLoader label="Leyendo tu peso…" words={LOADING_COPY.coliseo} size="sm" /> : records.length > 1 && (
         <LineChart data={points} min={lo} max={hi} label={`Peso corporal: de ${first.weight} a ${latest.weight} kg`} tone="info" height={140} dots />
       )}
 
@@ -251,10 +251,10 @@ export function OneRMCalculator() {
   })) : [];
 
   return (
-    <Card as="section" aria-labelledby="gym-1rm" padding="lg" className="flex flex-col gap-4">
+    <Card as="section" aria-labelledby="coliseo-1rm" padding="lg" className="flex flex-col gap-4">
       <div className="flex items-center gap-3">
         <IconChip icon={Dumbbell} tone="warning" size="sm" />
-        <h3 id="gym-1rm" className="text-heading-sm">Calculadora 1RM</h3>
+        <h3 id="coliseo-1rm" className="text-heading-sm">Calculadora 1RM</h3>
       </div>
       <form className="grid gap-3 sm:grid-cols-[1fr_8rem_auto] sm:items-end" onSubmit={(e) => { e.preventDefault(); calc(); }}>
         <Field label="Peso (kg)"><Input type="number" inputMode="decimal" step="0.5" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="80" /></Field>
@@ -285,11 +285,11 @@ export function OneRMCalculator() {
 // ─── Weekly Volume ─────────────────────────────────────────────────────────────
 
 export function WeeklyVolumeWidget() {
-  const [data, setData] = useState<gym2.WeeklyVolume>({});
+  const [data, setData] = useState<coliseo.WeeklyVolume>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    gym2.fetchWeeklyVolume().then(setData).finally(() => setLoading(false));
+    coliseo.fetchWeeklyVolume().then(setData).finally(() => setLoading(false));
   }, []);
 
   const rows = Object.entries(data)
@@ -299,14 +299,14 @@ export function WeeklyVolumeWidget() {
     label: r.muscle.slice(0, 5), value: r.sets, tip: `${r.muscle} · ${r.sets} series · ${r.volume.toLocaleString('es-ES')} kg·reps`, highlight: i === 0,
   }));
 
-  if (loading) return <PageLoader label="Sumando tus récords…" words={LOADING_COPY.gym} size="sm" />;
+  if (loading) return <PageLoader label="Sumando tus récords…" words={LOADING_COPY.coliseo} size="sm" />;
   if (rows.length === 0) return null;
 
   return (
-    <Card as="section" aria-labelledby="gym-muscle" padding="lg" className="flex flex-col gap-4">
+    <Card as="section" aria-labelledby="coliseo-muscle" padding="lg" className="flex flex-col gap-4">
       <div className="flex items-center gap-3">
         <IconChip icon={BarChart3} tone="primary" size="sm" />
-        <h3 id="gym-muscle" className="text-heading-sm">Volumen semanal por músculo</h3>
+        <h3 id="coliseo-muscle" className="text-heading-sm">Volumen semanal por músculo</h3>
       </div>
       <BarChart data={bars} label={`Series por músculo: ${rows.map((r) => `${r.muscle} ${r.sets}`).join(', ')}`} height={160} showValues />
       <ul className="flex flex-wrap gap-2">
@@ -321,12 +321,12 @@ export function WeeklyVolumeWidget() {
 // ─── Progress Photos ───────────────────────────────────────────────────────────
 
 export function ProgressPhotos() {
-  const [photos, setPhotos] = useState<gym2.ProgressPhoto[]>([]);
+  const [photos, setPhotos] = useState<coliseo.ProgressPhoto[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [compare, setCompare] = useState<[string, string] | null>(null);
   useEffect(() => {
-    gym2.fetchProgressPhotos().then(setPhotos).finally(() => setLoading(false));
+    coliseo.fetchProgressPhotos().then(setPhotos).finally(() => setLoading(false));
   }, []);
 
   async function handleUpload(file: File) {
@@ -334,8 +334,8 @@ export function ProgressPhotos() {
     try {
       // La foto de la cámara pesa varios MB: se comprime antes de subirla.
       const base64 = await compressImageToBase64(file);
-      await gym2.saveProgressPhoto(base64, new Date().toISOString().slice(0, 10));
-      setPhotos(await gym2.fetchProgressPhotos());
+      await coliseo.saveProgressPhoto(base64, new Date().toISOString().slice(0, 10));
+      setPhotos(await coliseo.fetchProgressPhotos());
     } catch (error) {
       useToastStore.getState().error('No se pudo subir la foto', error instanceof Error ? error.message : undefined);
     } finally {
@@ -355,17 +355,17 @@ export function ProgressPhotos() {
   const selected = (id: string) => !!compare && (compare[0] === id || compare[1] === id);
 
   return (
-    <Card as="section" aria-labelledby="gym-photos" padding="lg" className="flex flex-col gap-4">
+    <Card as="section" aria-labelledby="coliseo-photos" padding="lg" className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <IconChip icon={Camera} tone="success" size="sm" />
-          <h3 id="gym-photos" className="text-heading-sm">Progreso visual</h3>
+          <h3 id="coliseo-photos" className="text-heading-sm">Progreso visual</h3>
         </div>
         <PhotoSourceButtons size="sm" loading={uploading} onPick={(file) => void handleUpload(file)} />
       </div>
       <PrivatePhotoNotice />
 
-      {loading ? <PageLoader label="Buscando tus fotos…" words={LOADING_COPY.gym} size="sm" /> : photos.length === 0 ? (
+      {loading ? <PageLoader label="Buscando tus fotos…" words={LOADING_COPY.coliseo} size="sm" /> : photos.length === 0 ? (
         <EmptyState icon={Camera} tone="success" title="Aún no hay fotos" description="Sube tu primera foto para ver tu cambio con el tiempo." className="py-4" />
       ) : (
         <>

@@ -6,11 +6,11 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
   AlertTriangle, Check, Dumbbell, Flag, Minus, Moon, RefreshCw, Share2, Sparkles, TrendingUp, Wallet, Zap, CheckCircle2,
 } from 'lucide-react';
-import { expo, item, stagger, useMotionReduced } from '@/lib/motion';
+import { blurFrom, blurTo, expo, item, stagger, useMotionReduced } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 import {
-  getActivityRadar, getFinanceTrend, getGymProgression, getHabitHeatmap, getPredictions, getSleepScatter, getStatsSummary, getXpHistory,
-  type FinanceTrendPoint, type GymProgression, type HeatmapPoint, type SleepTrendPoint, type StatsPredictions, type StatsSummary, type XpHistoryPoint,
+  getActivityRadar, getFinanceTrend, getColiseoProgression, getHabitHeatmap, getPredictions, getSleepScatter, getStatsSummary, getXpHistory,
+  type FinanceTrendPoint, type ColiseoProgression, type HeatmapPoint, type SleepTrendPoint, type StatsPredictions, type StatsSummary, type XpHistoryPoint,
 } from '@/services/stats.service';
 import { fetchDynamicLifeScore, fetchLifeScore, type DynamicLifeScoreData, type LifeScore } from '@/services/lifescore.service';
 import { getCheckinHistory, type DailyCheckin } from '@/services/checkin.service';
@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/lq';
 import { GroupedBars, HabitHeatmap, RadarPlus, TipHead, TipRow, TrendChart } from '@/components/stats/InteractiveCharts';
 import { SLEEP_GOAL_H, hm, quality } from '@/components/sleep/sleepMeta';
+import { useLifeChange } from '@/lib/lifeSync';
 
 type Period = 'week' | 'month' | '3months' | 'year';
 const PERIODS: Array<{ value: Period; label: string; long: string }> = [
@@ -101,7 +102,7 @@ export default function StatsPage() {
   const [finance, setFinance] = useState<FinanceTrendPoint[]>([]);
   const [heat, setHeat] = useState<HeatmapPoint[]>([]);
   const [sleep, setSleep] = useState<SleepTrendPoint[]>([]);
-  const [gym, setGym] = useState<GymProgression[]>([]);
+  const [coliseo, setColiseo] = useState<ColiseoProgression[]>([]);
   const [lift, setLift] = useState('');
   const [pred, setPred] = useState<StatsPredictions | null>(null);
   const [checkins, setCheckins] = useState<DailyCheckin[]>([]);
@@ -110,12 +111,12 @@ export default function StatsPage() {
   const motionReduced = useMotionReduced();
   const { ref: canvasRef, share } = useShareCard();
 
-  const load = useCallback(async (p: Period) => {
+  const load = useCallback(async (p: Period, silent = false) => {
     const id = ++req.current;
-    setLoading(true);
+    if (!silent) setLoading(true);
     const r = await Promise.allSettled([
       fetchLifeScore(), fetchDynamicLifeScore(p), getXpHistory(p), getActivityRadar(p), getFinanceTrend(p), getHabitHeatmap(),
-      getSleepScatter(p), getGymProgression(p), getPredictions(), getCheckinHistory(30), getStatsSummary(p),
+      getSleepScatter(p), getColiseoProgression(p), getPredictions(), getCheckinHistory(30), getStatsSummary(p),
     ]);
     if (id !== req.current) return; // una respuesta lenta de otro periodo no pisa la actual
     const v = <T,>(x: PromiseSettledResult<T>, set: (val: T) => void, fallback?: T) => { if (x.status === 'fulfilled') set(x.value); else if (fallback !== undefined) set(fallback); };
@@ -124,12 +125,14 @@ export default function StatsPage() {
       const prev = new Map(r[3].value.previous.map((i) => [i.subject, i.value]));
       setRadar(r[3].value.current.map((i) => ({ label: i.subject, value: i.value, previous: prev.get(i.subject) ?? 0 })));
     } else setRadar([]);
-    v(r[4], setFinance, []); v(r[5], setHeat); v(r[6], setSleep, []); v(r[7], setGym, []); v(r[8], setPred); v(r[9], setCheckins); v(r[10], setSummary, null);
+    v(r[4], setFinance, []); v(r[5], setHeat); v(r[6], setSleep, []); v(r[7], setColiseo, []); v(r[8], setPred); v(r[9], setCheckins); v(r[10], setSummary, null);
     setFailed(r.filter((x) => x.status === 'rejected').length);
     setLoading(false);
   }, []);
   useEffect(() => { void load(period); }, [load, period]);
-  useEffect(() => { if (gym.length && !gym.some((g) => g.name === lift)) setLift(gym[0].name); }, [gym, lift]);
+  // Un registro en cualquier zona (botón rápido, Sabio, paleta…) se refleja aquí sin recargar la página.
+  useLifeChange(() => void load(period, true));
+  useEffect(() => { if (coliseo.length && !coliseo.some((g) => g.name === lift)) setLift(coliseo[0].name); }, [coliseo, lift]);
 
   const per = PERIODS.find((p) => p.value === period)!;
   const zones = dyn?.zones ?? [];
@@ -142,7 +145,7 @@ export default function StatsPage() {
   const fin = finance.reduce((a, f) => ({ inc: a.inc + f.income, exp: a.exp + f.expenses }), { inc: 0, exp: 0 });
   const finData = finance.slice(-14);
   const compactMoney = (n: number) => new Intl.NumberFormat('es-CO', { style: 'currency', currency, notation: 'compact', maximumFractionDigits: 1 }).format(n);
-  const liftData = gym.find((g) => g.name === lift)?.data ?? [];
+  const liftData = coliseo.find((g) => g.name === lift)?.data ?? [];
   const liftBest = Math.max(0, ...liftData.map((d) => d.weight));
   const liftFirst = liftData[0]?.weight ?? 0, liftLast = liftData[liftData.length - 1]?.weight ?? 0;
   const liftBestDay = liftData.find((d) => d.weight === liftBest)?.date;
@@ -354,13 +357,13 @@ export default function StatsPage() {
 
           <Card padding="lg" className="flex flex-col gap-5">
             <div className="flex items-center gap-3"><IconChip icon={Dumbbell} tone="warning" size="sm" /><div><h3 className="text-heading-sm">Progresión de fuerza</h3><p className="text-body-sm text-on-surface-light">El peso más alto que levantaste en cada sesión de un ejercicio</p></div></div>
-            {gym.length === 0 ? <p className="text-body-sm text-on-surface-light">Sin entrenamientos con peso en este periodo.</p> : (
+            {coliseo.length === 0 ? <p className="text-body-sm text-on-surface-light">Sin entrenamientos con peso en este periodo.</p> : (
               <>
-                <ChipGroup label="Ejercicio" value={lift} onChange={setLift} options={gym.slice(0, 8).map((g) => ({ value: g.name, label: g.name }))} />
+                <ChipGroup label="Ejercicio" value={lift} onChange={setLift} options={coliseo.slice(0, 8).map((g) => ({ value: g.name, label: g.name }))} />
                 <AnimatePresence mode="wait" initial={false}>
                   <motion.div key={lift} className="flex flex-col gap-4"
-                    initial={motionReduced ? { opacity: 0 } : { opacity: 0, y: 10, filter: 'blur(4px)' }}
-                    animate={motionReduced ? { opacity: 1 } : { opacity: 1, y: 0, filter: 'blur(0px)', transitionEnd: { filter: 'none' } }}
+                    initial={motionReduced ? { opacity: 0 } : { opacity: 0, y: 10, ...blurFrom(4) }}
+                    animate={motionReduced ? { opacity: 1 } : { opacity: 1, y: 0, ...blurTo() }}
                     exit={motionReduced ? { opacity: 0, transition: { duration: 0.15 } } : { opacity: 0, y: -6, transition: { duration: 0.15 } }} transition={{ duration: motionReduced ? 0.15 : 0.45, ease: expo }}>
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                       {([
@@ -435,7 +438,7 @@ export default function StatsPage() {
         {radar.length > 0 && (
           <Reveal as="div">
             <SpotCard padding="md" className="flex flex-col gap-4 md:p-6">
-              <div><h2 className="text-heading-sm">Ritmo por área</h2><p className="text-body-sm text-on-surface-light">Cuánto registraste en cada área frente al periodo anterior · pasa el cursor por un vértice</p></div>
+              <div><h2 className="text-heading-sm">Ritmo por área</h2><p className="text-body-sm text-on-surface-light">Cuánto registraste en cada área frente al periodo anterior. Toca un vértice para ver el detalle.</p></div>
               <RadarPlus key={period} axes={radar} label={radar.map((r) => `${r.label} ${Math.round(r.value)}%`).join(', ')} />
               <div className="flex flex-wrap justify-center gap-5 text-body-sm text-on-surface">
                 <span className="flex items-center gap-1.5"><span aria-hidden className="h-[3px] w-3.5 bg-primary" />Este periodo</span>

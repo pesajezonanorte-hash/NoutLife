@@ -14,9 +14,9 @@ Monorepo con npm workspaces: React + Vite (web), Node.js + Express + Prisma + Po
 - Rituales, Glow Up, Sabiduría y zonas personalizadas creadas con IA.
 - Tutorial de bienvenida para jugadores nuevos.
 
-**Zonas de vida**: Gimnasio, Comida, Sueño, Finanzas, Aprendizaje, Diario, Amor y Agenda. Cada zona tiene su propia ambientación.
+**Zonas de vida**: Coliseo (cualquier entrenamiento físico), Comida, Sueño, Recreación (la sala de cine: películas, series, juegos, salidas y hobbies), Finanzas, Aprendizaje, Diario, Relaciones y Agenda. Cada zona tiene su propia ambientación, y todas están conectadas: un registro en cualquiera actualiza al momento el HUD, Inicio, Estadísticas y Life Score.
 
-**El Sabio (IA)**: chat y briefings diarios. Prueba proveedores en cadena (Groq → Gemini → OpenRouter → OpenAI) con varias llaves y modelos. Solo el chat tiene tope diario, que se adapta a la cantidad de gente activa.
+**El Sabio (IA)**: chat y briefings diarios con visión de todas las zonas. Recibe un resumen compacto de la cuenta (≈800 tokens como máximo, `life-context.service.ts`) con señales que cruzan zonas (sueño y entreno, proteína y entreno, ocio y ánimo). Prueba proveedores en cadena (Groq → Gemini → OpenRouter → OpenAI) con varias llaves y modelos. Solo el chat tiene tope diario, que se adapta a la cantidad de gente activa y se descuenta de forma atómica.
 
 **Social**
 - Cartas (chat) en vivo entre amigos y gremios: respuestas, reacciones, ediciones, stickers, juegos, fotos y videos de hasta 15 s.
@@ -31,6 +31,12 @@ Monorepo con npm workspaces: React + Vite (web), Node.js + Express + Prisma + Po
 
 ## 🆕 Cambios recientes
 
+- **Gimnasio ahora es Coliseo**: rutas `/coliseo` (y `/gym` redirige), componentes, servicios y modelos (`ColiseoAttendance`, `coliseoPlaylistUrl`…). La base de datos no cambia: el esquema usa `@map`/`@@map` con los nombres de siempre y la API acepta los campos y rutas `gym` de clientes viejos.
+- **Zona de Recreación** (`/recreacion`, Pro): sala de cine con telón, cartelera de lo que quieres ver y boletas de lo que viviste. Cada función vivida da 15 XP y oro (hasta 3 al día).
+- **Comidas guardadas**: se añaden en el momento que elijas (desayuno, almuerzo, merienda o cena); ya no caen en «Almuerzo» por defecto. La API solo acepta esos momentos.
+- **Google Calendar**: un solo permiso (`calendar.events`), `state` firmado contra CSRF, la desconexión revoca el acceso y el archivo de verificación de Search Console se publica con la web. El aviso «app no verificada» solo lo quita la verificación de Google (pasos en `.env.example`).
+- **Estadísticas**: el radar usa los nombres actuales (Coliseo, Sueño, Nutrición, Recreación, Finanzas, Mente, Enfoque, Espejo…).
+- **Móvil más fluido**: entradas sin desenfoque en táctil, barras fijas sin `backdrop-filter` en móvil, barras de progreso con `scaleX` y hover solo en punteros que lo admiten.
 - **Chat más rápido al cambiar de conversación**: la suscripción en vivo se activa antes de pedir el historial, así los mensajes nuevos llegan sin esperar la carga (`useLetter.ts`).
 - Se corrigió el bloqueo de la página al cerrar el visor de fotos, el zoom accidental y el cierre del cajón de stickers y juegos.
 - Mejoras en la cámara y el grabador de video del chat.

@@ -18,7 +18,7 @@ const user = {
 
 const ROUTES = [
   '/', '/habits', '/quests', '/colosseum', '/achievements', '/finances', '/food', '/sleep', '/profile',
-  '/gym', '/glow-up', '/learning', '/love', '/journal', '/agenda', '/rituals', '/wisdom', '/custom-zones',
+  '/coliseo', '/glow-up', '/learning', '/love', '/journal', '/agenda', '/rituals', '/wisdom', '/custom-zones',
   '/shop', '/leaderboard', '/settings', '/stats', '/guild', '/season', '/faq', '/life', '/history', '/about',
 ];
 const DARK = ['/', '/habits', '/finances', '/sleep', '/stats', '/shop'];

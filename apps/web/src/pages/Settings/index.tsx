@@ -39,7 +39,7 @@ const TABS: Array<{ value: TabId; label: string }> = [
   { value: 'data', label: 'Datos' }, { value: 'about', label: 'Acerca de' },
 ];
 const NOTIF_LABELS: Record<NotificationCategoryPreference['category'], string> = {
-  HABITS: 'Hábitos', QUESTS: 'Misiones', GYM: 'Gimnasio', FINANCE: 'Finanzas', SOCIAL: 'Social', ACHIEVEMENTS: 'Logros', SYSTEM: 'Sistema',
+  HABITS: 'Hábitos', QUESTS: 'Misiones', COLISEO: 'Coliseo', FINANCE: 'Finanzas', SOCIAL: 'Social', ACHIEVEMENTS: 'Logros', SYSTEM: 'Sistema',
 };
 const THEMES: Array<{ id: string; name: string; description: string; cost: number }> = [
   { id: 'aurora', name: 'Aurora', description: 'La experiencia Noutlife original.', cost: 0 },
@@ -57,6 +57,7 @@ const TIMEZONES = [
 /** Resumen del plan en una línea. */
 function planLine(sub: Subscription): string {
   if (sub.complimentary) return 'Pro de cortesía, sin cobros.';
+  if (sub.status === 'pending_approval') return 'Esperando la aprobación de tu Nequi.';
   if (sub.status === 'trialing') return `Prueba Pro: ${daysUntil(sub.trialEndsAt) === 1 ? 'queda 1 día' : `quedan ${daysUntil(sub.trialEndsAt)} días`}.`;
   if (sub.status === 'active') return `Se renueva el ${longDay(sub.accessEndsAt)}.`;
   if (sub.status === 'canceled') return `Pro hasta el ${longDay(sub.accessEndsAt)}.`;
@@ -94,8 +95,8 @@ export default function SettingsPage() {
   });
   const [displayName, setDisplayName] = useState(user?.displayName ?? '');
   const [timezone, setTimezone] = useState(user?.timezone ?? 'America/Bogota');
-  const [playlistUrl, setPlaylistUrl] = useState(user?.gymPlaylistUrl ?? '');
-  const [showPlaylist, setShowPlaylist] = useState(Boolean(user?.gymPlaylistUrl));
+  const [playlistUrl, setPlaylistUrl] = useState(user?.coliseoPlaylistUrl ?? '');
+  const [showPlaylist, setShowPlaylist] = useState(Boolean(user?.coliseoPlaylistUrl));
   const [saving, setSaving] = useState(false);
   const [themeLoading, setThemeLoading] = useState<string | null>(null);
   const [exporting, setExporting] = useState<'json' | 'csv' | null>(null);
@@ -113,7 +114,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     setDisplayName(user?.displayName ?? ''); setTimezone(user?.timezone ?? 'America/Bogota');
-    setPlaylistUrl(user?.gymPlaylistUrl ?? ''); setShowPlaylist(Boolean(user?.gymPlaylistUrl));
+    setPlaylistUrl(user?.coliseoPlaylistUrl ?? ''); setShowPlaylist(Boolean(user?.coliseoPlaylistUrl));
   }, [user]);
   useEffect(() => { getNotificationPreferences().then(setPrefs).catch(() => null); }, []);
 
@@ -125,7 +126,7 @@ export default function SettingsPage() {
     if (!displayName.trim()) { toast.warning('Escribe un nombre para tu perfil'); return; }
     setSaving(true);
     try {
-      updateUser(await userService.updateProfile({ displayName: displayName.trim(), timezone, gymPlaylistUrl: showPlaylist && playlistUrl.trim() ? playlistUrl.trim() : null }));
+      updateUser(await userService.updateProfile({ displayName: displayName.trim(), timezone, coliseoPlaylistUrl: showPlaylist && playlistUrl.trim() ? playlistUrl.trim() : null }));
       toast.success('Perfil guardado');
       setFit((f) => f + 1);
     } catch { toast.error('No se pudieron guardar los cambios'); }
@@ -229,7 +230,7 @@ export default function SettingsPage() {
                     </Field>
                   </div>
                   <div className="flex flex-col gap-3 border-t border-border pt-4">
-                    <SwitchRow id="st-playlist" label="Playlist del gimnasio" description="Tu música de Spotify a mano en el Gimnasio." checked={showPlaylist} onChange={setShowPlaylist} last />
+                    <SwitchRow id="st-playlist" label="Playlist del Coliseo" description="Tu música de Spotify a mano mientras entrenas en el Coliseo." checked={showPlaylist} onChange={setShowPlaylist} last />
                     {showPlaylist && (
                       <Field label="Enlace de Spotify" help="Pega el enlace de una playlist.">
                         <Input type="url" value={playlistUrl} onChange={(e) => setPlaylistUrl(e.target.value)} placeholder="https://open.spotify.com/playlist/…" />

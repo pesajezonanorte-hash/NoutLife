@@ -318,12 +318,19 @@ export default function AgendaPage() {
   }, []);
 
   useEffect(() => {
-    const code = new URLSearchParams(window.location.search).get('code');
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    // Cancelar o cerrar la pantalla de Google vuelve con ?error=access_denied.
+    if (params.get('error')) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+      toast.info('No se conectó Google Calendar. Puedes intentarlo cuando quieras.');
+      return;
+    }
     if (code && handledCodeRef.current !== code) {
       handledCodeRef.current = code;
       const redirectUri = window.location.origin + window.location.pathname;
       window.history.replaceState({}, document.title, window.location.pathname);
-      agendaService.handleGoogleCallback(code, redirectUri)
+      agendaService.handleGoogleCallback(code, redirectUri, params.get('state') ?? undefined)
         .then(() => { toast.success('¡Google Calendar vinculado con éxito!'); setGoogleConnected(true); void load(); })
         .catch((err: unknown) => toast.error(errMsg(err, 'Error al vincular Google Calendar')));
     }

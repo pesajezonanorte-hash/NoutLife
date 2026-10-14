@@ -5,7 +5,7 @@ import { bump } from './chat-live.service';
 export const NOTIFICATION_CATEGORIES = [
   'HABITS',
   'QUESTS',
-  'GYM',
+  'COLISEO',
   'FINANCE',
   'SOCIAL',
   'ACHIEVEMENTS',
@@ -13,6 +13,11 @@ export const NOTIFICATION_CATEGORIES = [
 ] as const;
 
 export type NotificationCategory = (typeof NOTIFICATION_CATEGORIES)[number];
+
+/** «GYM» es el nombre anterior de COLISEO (clientes viejos, enlaces guardados). */
+export function normalizeNotificationCategory(raw: string): string {
+  return raw === 'GYM' ? 'COLISEO' : raw;
+}
 
 type CategoryPreferenceInput = {
   category: NotificationCategory;
@@ -42,7 +47,7 @@ const RETENTION_LIMIT = 100;
 function categoryForType(type: string): NotificationCategory {
   if (['habit_completed', 'streak', 'reminder'].includes(type)) return 'HABITS';
   if (['quest_completed', 'quest_deadline'].includes(type)) return 'QUESTS';
-  if (['workout', 'gym'].includes(type)) return 'GYM';
+  if (['workout', 'gym', 'coliseo'].includes(type)) return 'COLISEO';
   if (['finance', 'budget'].includes(type)) return 'FINANCE';
   if (['friend', 'guild', 'social'].includes(type)) return 'SOCIAL';
   if (['achievement', 'level_up', 'levelup'].includes(type)) return 'ACHIEVEMENTS';
@@ -347,7 +352,8 @@ export async function updateNotificationPreferences(userId: string, data: {
   });
 
   if (categoryPreferences) {
-    for (const preference of categoryPreferences) {
+    for (const raw of categoryPreferences) {
+      const preference = { ...raw, category: normalizeNotificationCategory(raw.category) as NotificationCategory };
       if (!NOTIFICATION_CATEGORIES.includes(preference.category)) continue;
       await prisma.notificationCategoryPreference.upsert({
         where: { userId_category: { userId, category: preference.category } },

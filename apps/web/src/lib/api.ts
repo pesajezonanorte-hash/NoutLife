@@ -4,6 +4,7 @@ import { usePlanStore } from '../store/planStore';
 import { getDeviceId, rememberDeviceId } from './deviceId';
 import type { ProFeature, ProLock } from './plan';
 import { clearRefreshSessionExpected, markRefreshSessionExpected } from './session-hint';
+import { announceLifeChange, lifeZoneOf } from './lifeSync';
 
 /**
  * En producción la API se pide en el mismo dominio de la web (/api/v1), que
@@ -53,6 +54,11 @@ api.interceptors.response.use(
     const deviceId = response.headers['x-device-id'];
     if (typeof deviceId === 'string' && deviceId) {
       void getDeviceId().then((mine) => { if (mine !== deviceId) rememberDeviceId(deviceId); });
+    }
+    // Una escritura en una zona de vida se anuncia a toda la app (lib/lifeSync).
+    if (String(response.config.method ?? 'get').toLowerCase() !== 'get') {
+      const zone = lifeZoneOf(String(response.config.url ?? ''));
+      if (zone) announceLifeChange(zone);
     }
     return response;
   },

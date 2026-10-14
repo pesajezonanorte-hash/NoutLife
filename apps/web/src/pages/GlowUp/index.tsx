@@ -9,7 +9,7 @@ import { useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Camera, Check, Droplets, Flame, Moon, Plus, Shirt, Sparkles, Star, Sun, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { item, springs, stagger, useMotionReduced } from '@/lib/motion';
+import { blurFrom, blurTo, item, springs, stagger, useMotionReduced } from '@/lib/motion';
 import { AmbientLight, ZoneShell } from '@/components/ambience';
 import { Mirror } from '@/components/glowup/Mirror';
 import { useToastStore } from '../../hooks/useToast';
@@ -649,11 +649,11 @@ export default function GlowUpPage() {
       <AnimatePresence mode="wait">
         <motion.div
           key={tab} role="tabpanel"
-          initial={motionReduced ? { opacity: 0 } : { opacity: 0, filter: 'blur(6px)' }}
+          initial={motionReduced ? { opacity: 0 } : { opacity: 0, ...blurFrom(6) }}
           animate={motionReduced
             ? { opacity: 1, transition: { duration: 0.2 } }
-            : { opacity: 1, filter: 'blur(0px)', transition: springs.gentle, transitionEnd: { filter: 'none' } }}
-          exit={motionReduced ? { opacity: 0, transition: { duration: 0.15 } } : { opacity: 0, filter: 'blur(4px)', transition: { duration: 0.2 } }}
+            : { opacity: 1, ...blurTo(), transition: springs.gentle }}
+          exit={motionReduced ? { opacity: 0, transition: { duration: 0.15 } } : { opacity: 0, ...blurFrom(4), transition: { duration: 0.2 } }}
         >
           {tab === 'care' && <CareSection onProgress={onProgress} />}
           {tab === 'style' && <StyleSection autoOpenAdd={autoOpenAdd} onAddOpened={clearAddParam} />}

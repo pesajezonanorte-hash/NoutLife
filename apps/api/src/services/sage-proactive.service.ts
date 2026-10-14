@@ -3,6 +3,7 @@ import { generateText } from '../lib/ai';
 import { canUseAI } from './billing.service';
 import { reconcileHabitStreaks } from './habit.service';
 import { reconcileUserActivityStreak } from './xp.service';
+import { buildLifeSnapshot, packSections } from './life-context.service';
 
 export async function getTodayProactiveNote(userId: string) {
   // Evita devolver un consejo ya guardado con una racha vencida.
@@ -83,7 +84,6 @@ export async function generateProactiveNote(userId: string) {
   });
 
   const topHabit = habits[0];
-  const lastMood = checkin?.mood ?? null;
   const lastEnergy = checkin?.energy ?? null;
 
   // Determine tone based on data
@@ -107,21 +107,16 @@ export async function generateProactiveNote(userId: string) {
 
   if (await canUseAI(userId)) {
     const newUserNote = isNewUser ? 'IMPORTANTE: Este héroe es NUEVO, acaba de unirse. Dales la bienvenida con entusiasmo, NO menciones rachas perdidas ni puntos críticos.' : '';
+    // Las mismas zonas que ve el chat, en un presupuesto más corto: la nota es de 2 frases.
+    const snapshot = await buildLifeSnapshot(userId);
     const prompt = `Eres El Sabio, el mentor de Noutlife — una app RPG de vida real.
 
-Datos del héroe ${user.displayName} (Nivel ${user.level}):
-- Racha actual: ${user.currentStreak} días
-- Racha más larga: ${user.longestStreak} días
-- Hábitos activos: ${habits.length}
-- Mejor hábito (racha): ${topHabit ? `${topHabit.title} — ${topHabit.currentStreak} días` : 'ninguno'}
-- Misiones esta semana: ${recentQuests}
-- Registros de hábitos esta semana: ${recentLogs}
-- Estado emocional último check-in: ${lastMood ? `${lastMood}/5` : 'sin datos'}
-- Energía último check-in: ${lastEnergy ? `${lastEnergy}/10` : 'sin datos'}
-- Hábitos completados hoy: ${todayLogs}
+Datos de ${user.displayName} (todas sus zonas):
+${packSections(snapshot.sections, 1400)}
+Hábitos completados hoy: ${todayLogs}; registros de hábitos esta semana: ${recentLogs}; misiones esta semana: ${recentQuests}.
 ${newUserNote}
 
-Escribe UNA sola nota proactiva en español. Máximo 2 frases. Específica a los datos. Tono: ${tone}.
+Escribe UNA sola nota proactiva en español. Máximo 2 frases. Específica a los datos; si dos zonas se conectan (sueño y entreno, comida y energía, ocio y ánimo), úsalo. Tono: ${tone}.
 Menciona datos reales (nombre del hábito, racha, etc). NO uses saludos genéricos.
 Responde SOLO el mensaje, sin comillas, sin explicaciones.`;
 

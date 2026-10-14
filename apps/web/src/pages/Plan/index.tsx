@@ -24,6 +24,7 @@ const STATUS: Record<SubscriptionStatus, { label: string; badge: BadgeVariant }>
   active: { label: 'Activo', badge: 'success' },
   canceled: { label: 'Cancelado', badge: 'warning' },
   lite: { label: 'Gratis', badge: 'neutral' },
+  pending_approval: { label: 'Esperando aprobación', badge: 'warning' },
 };
 
 const PAYMENT_STATUS: Record<string, { label: string; badge: BadgeVariant }> = {
@@ -52,6 +53,8 @@ function nextStep(sub: Subscription): string {
       return `Se renueva el ${date} por ${PRICE}.`;
     case 'canceled':
       return `Tienes Pro hasta el ${date}. Después pasas a NoutLife Lite, sin más cobros.`;
+    case 'pending_approval':
+      return 'Aprueba el cobro en tu app de Nequi. Cuando lo apruebes, tu Pro se activa solo.';
     case 'lite':
       if (sub.trialAvailable) return `Prueba Pro ${TRIAL_DAYS} días gratis: $0 hoy y cancelas con 1 clic.`;
       return sub.lastPaymentError

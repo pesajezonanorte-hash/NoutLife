@@ -22,7 +22,7 @@ export interface User {
   birthDate: string | null;
   currentStreak: number;
   longestStreak: number;
-  gymPlaylistUrl?: string | null;
+  coliseoPlaylistUrl?: string | null;
   equippedHat?: string | null;
   equippedAura?: string | null;
   equippedFrame?: string | null;
@@ -33,7 +33,8 @@ export interface User {
 }
 
 /** 'trialing' prueba de 7 días · 'active' mes pagado · 'canceled' Pro hasta fin de periodo · 'lite' gratis con límites */
-export type SubscriptionStatus = 'trialing' | 'active' | 'canceled' | 'lite';
+/** 'pending_approval': un cobro de Nequi espera la aprobación del celular. La API lo deriva del cobro; no se guarda como estado. */
+export type SubscriptionStatus = 'trialing' | 'active' | 'canceled' | 'lite' | 'pending_approval';
 export type Plan = 'pro' | 'lite';
 
 export interface Subscription {

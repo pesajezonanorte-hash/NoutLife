@@ -19,7 +19,7 @@ import { PaymentMethodForm, type PaymentMethodFormProps } from './PaymentMethodF
 const PRICE = formatCop(PRO_PRICE_COP);
 
 const BENEFITS = [
-  `Las ${PRO_ZONE_COUNT} zonas Pro: Finanzas, Gimnasio, Comida, Sueño, Diario y más`,
+  `Las ${PRO_ZONE_COUNT} zonas Pro: Finanzas, Coliseo, Comida, Sueño, Diario y más`,
   'El Sabio con IA y análisis de hábitos, finanzas y entrenos',
   'Hábitos y rutinas ilimitados',
   'Historial y analíticas completas',

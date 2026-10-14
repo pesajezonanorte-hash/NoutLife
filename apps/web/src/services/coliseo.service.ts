@@ -6,26 +6,26 @@ export interface ExerciseHistory { exercise: { name: string; muscleGroup?: strin
 export interface WeeklyVolume { [muscle: string]: { sets: number; volume: number }; }
 
 export const logBodyWeight = (weight: number, date: string, notes?: string) =>
-  api.post('/gym/body-weight', { weight, date, notes }).then(r => r.data as BodyWeight);
+  api.post('/coliseo/body-weight', { weight, date, notes }).then(r => r.data as BodyWeight);
 
 export const fetchBodyWeights = (from?: string, to?: string) =>
-  api.get<BodyWeight[]>('/gym/body-weight', { params: { from, to } }).then(r => r.data);
+  api.get<BodyWeight[]>('/coliseo/body-weight', { params: { from, to } }).then(r => r.data);
 
-export const deleteBodyWeight = (id: string) => api.delete(`/gym/body-weight/${id}`);
+export const deleteBodyWeight = (id: string) => api.delete(`/coliseo/body-weight/${id}`);
 
 export const saveProgressPhoto = (photoData: string, date: string, notes?: string) =>
-  api.post('/gym/progress-photos', { photoData, date, notes }).then(r => r.data);
+  api.post('/coliseo/progress-photos', { photoData, date, notes }).then(r => r.data);
 
 export const fetchProgressPhotos = () =>
-  api.get<ProgressPhoto[]>('/gym/progress-photos').then(r => r.data);
+  api.get<ProgressPhoto[]>('/coliseo/progress-photos').then(r => r.data);
 
-export const deleteProgressPhoto = (id: string) => api.delete(`/gym/progress-photos/${id}`);
+export const deleteProgressPhoto = (id: string) => api.delete(`/coliseo/progress-photos/${id}`);
 
 export const fetchExerciseHistory = (exerciseId: string) =>
-  api.get<ExerciseHistory>(`/gym/exercises/${exerciseId}/history`).then(r => r.data);
+  api.get<ExerciseHistory>(`/coliseo/exercises/${exerciseId}/history`).then(r => r.data);
 
 export const fetchWeeklyVolume = () =>
-  api.get<WeeklyVolume>('/gym/volume-weekly').then(r => r.data);
+  api.get<WeeklyVolume>('/coliseo/volume-weekly').then(r => r.data);
 
 export const calculate1RM = (weight: number, reps: number) =>
-  api.post<{ oneRepMax: number }>('/gym/1rm', { weight, reps }).then(r => r.data.oneRepMax);
+  api.post<{ oneRepMax: number }>('/coliseo/1rm', { weight, reps }).then(r => r.data.oneRepMax);

@@ -1,5 +1,23 @@
 import { z } from 'zod';
 
+/**
+ * Acepta nombres de campo anteriores a un renombre (p. ej. Gimnasio → Coliseo):
+ * un cliente viejo sigue funcionando y el campo nuevo gana si llegan los dos.
+ */
+export function withLegacyKeys<T extends z.ZodTypeAny>(schema: T, legacy: Record<string, string>) {
+  return z.preprocess((body) => {
+    if (!body || typeof body !== 'object' || Array.isArray(body)) return body;
+    const copy: Record<string, unknown> = { ...(body as Record<string, unknown>) };
+    for (const [old, now] of Object.entries(legacy)) {
+      if (old in copy) {
+        if (!(now in copy)) copy[now] = copy[old];
+        delete copy[old];
+      }
+    }
+    return copy;
+  }, schema);
+}
+
 const parsableDate = z
   .string()
   .refine((value) => !Number.isNaN(Date.parse(value)), 'La fecha no es válida.');
@@ -44,9 +62,12 @@ export const updateSleepSchema = z.object({
   notes: z.string().max(2000).optional(),
 });
 
+/** Momentos de comida válidos (WATER = registro de hidratación). Se guarda el que la persona eligió, sin valor por defecto. */
+export const MEAL_TYPES = ['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK', 'WATER'] as const;
+
 export const createMealSchema = z.object({
   name: z.string().trim().min(1, 'El nombre es obligatorio.').max(200),
-  mealType: z.string().trim().min(1, 'El tipo de comida es obligatorio.'),
+  mealType: z.enum(MEAL_TYPES, { errorMap: () => ({ message: 'Elige el momento de la comida: desayuno, almuerzo, merienda o cena.' }) }),
   calories: nonNegative('Las calorías').optional(),
   protein: nonNegative('La proteína').optional(),
   carbs: nonNegative('Los carbohidratos').optional(),
@@ -54,6 +75,21 @@ export const createMealSchema = z.object({
   waterMl: nonNegative('El agua').optional(),
   date: parsableDate.optional(),
 });
+
+/** Recreación: qué tipo de ocio fue y si ya se vivió o está en cartelera. */
+export const RECREATION_KINDS = ['MOVIE', 'SERIES', 'GAME', 'OUTING', 'HOBBY', 'MUSIC', 'OTHER'] as const;
+export const RECREATION_STATUSES = ['DONE', 'PLANNED'] as const;
+const recreationFields = {
+  title: z.string().trim().min(1, 'Ponle nombre a la función.').max(120),
+  kind: z.enum(RECREATION_KINDS, { errorMap: () => ({ message: 'Elige qué tipo de ocio fue.' }) }),
+  status: z.enum(RECREATION_STATUSES).optional(),
+  rating: z.number().int().min(1).max(5).nullable().optional(),
+  minutes: z.number().int().min(1).max(24 * 60).nullable().optional(),
+  notes: z.string().trim().max(1000).nullable().optional(),
+  date: parsableDate.optional(),
+};
+export const createRecreationSchema = z.object(recreationFields);
+export const updateRecreationSchema = z.object(recreationFields).partial();
 
 export const createJournalSchema = z.object({
   title: z.string().trim().max(200).optional(),
@@ -82,14 +118,14 @@ export const createLearningSchema = z.object({
   notes: z.string().max(5000).optional(),
 });
 
-export const updateProfileSchema = z.object({
+export const updateProfileSchema = withLegacyKeys(z.object({
   displayName: z.string().trim().min(1, 'El nombre no puede estar vacío.').max(50).optional(),
   timezone: z.string().min(1).optional(),
   currency: z.string().min(1).optional(),
   language: z.string().min(1).optional(),
-  gymPlaylistUrl: z.string().nullable().optional(),
+  coliseoPlaylistUrl: z.string().nullable().optional(),
   avatarUrl: z.string().nullable().optional(),
-});
+}), { gymPlaylistUrl: 'coliseoPlaylistUrl' });
 
 export const importantDateSchema = z.object({
   label: z.string().trim().min(1, 'El nombre de la fecha es obligatorio.').max(100),

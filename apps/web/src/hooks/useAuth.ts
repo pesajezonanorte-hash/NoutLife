@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import * as authService from '../services/auth.service';
 import { shouldBootstrapSession } from '../lib/session-hint';
+import { lifeGeneration } from '../lib/lifeSync';
 
 /**
  * At mount, recover a session with the httpOnly refresh cookie only when it is
@@ -37,17 +38,33 @@ export function useBootstrapAuth() {
  * Re-sincroniza el usuario desde el servidor (XP, gold, nivel, rachas, stats…).
  *
  * El store solo se poblaba al hacer boot de la app, así que cualquier XP/gold
- * ganado durante la sesión (hábitos, misiones, gym, focus…) no se reflejaba en
+ * ganado durante la sesión (hábitos, misiones, Coliseo, focus…) no se reflejaba en
  * el HUD ni en "Ficha del héroe" aunque el leaderboard (que lee la BD) sí lo
  * mostraba. Llamar a esto después de cualquier acción que otorgue recompensas.
  *
  * Falla en silencio: un error de red no debe romper la UI.
  */
-export async function refreshUser(): Promise<void> {
-  try {
-    const user = await authService.fetchMe();
-    useAuthStore.getState().updateUser(user);
-  } catch {
-    // no-op: conservamos los datos actuales del store
-  }
+let inFlight: Promise<void> | null = null;
+let inFlightGeneration = -1;
+
+export function refreshUser(): Promise<void> {
+  // Varias pantallas piden lo mismo tras una acción (la propia zona y el aviso de
+  // lib/lifeSync): si ya hay una lectura en curso desde el último cambio, se comparte.
+  const generation = lifeGeneration();
+  if (inFlight && inFlightGeneration === generation) return inFlight;
+  const run = async () => {
+    try {
+      const user = await authService.fetchMe();
+      useAuthStore.getState().updateUser(user);
+    } catch {
+      // no-op: conservamos los datos actuales del store
+    }
+  };
+  // Si la lectura en curso es anterior al último cambio, se encadena otra detrás.
+  const current: Promise<void> = (inFlight ? inFlight.then(run) : run()).finally(() => {
+    if (inFlight === current) inFlight = null;
+  });
+  inFlight = current;
+  inFlightGeneration = generation;
+  return current;
 }

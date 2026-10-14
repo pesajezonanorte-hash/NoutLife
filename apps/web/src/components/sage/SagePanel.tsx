@@ -22,13 +22,13 @@ interface Message {
   text: string;
 }
 
-type Action = 'quests' | 'habits' | 'finances' | 'gym';
+type Action = 'quests' | 'habits' | 'finances' | 'coliseo';
 
 const ACTIONS: Array<{ id: Action; label: string; icon: LucideIcon }> = [
   { id: 'quests', label: 'Ideas de misiones', icon: Sword },
   { id: 'habits', label: 'Analiza mis hábitos', icon: BarChart2 },
   { id: 'finances', label: 'Revisa mis finanzas', icon: Wallet },
-  { id: 'gym', label: 'Plan de entrenamiento', icon: Dumbbell },
+  { id: 'coliseo', label: 'Plan de entrenamiento', icon: Dumbbell },
 ];
 
 const STORAGE_KEY = 'sage-history';

@@ -84,7 +84,7 @@ export async function globalSearch(userId: string, query: string): Promise<Searc
       id: w.id,
       title: w.title,
       subtitle: new Date(w.date).toLocaleDateString('es-CO'),
-      link: '/gym',
+      link: '/coliseo',
       icon: '💪',
     })),
     ...events.map((e) => ({

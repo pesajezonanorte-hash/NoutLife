@@ -22,7 +22,7 @@ const CREATOR = { name: 'Miguel Angel Romero', initials: 'MR', instagram: 'migux
 const TAGLINE = 'Tu vida real, jugada como la mejor partida.';
 
 const PILLARS = [
-  { icon: Swords, title: 'Una aventura, no una lista', text: 'Hábitos, misiones, finanzas, sueño o gimnasio dejan de ser tareas sueltas: cada avance suma XP, sube tu nivel y hace crecer a tu personaje.', tone: 'bg-primary/[var(--lq-soft-alpha)] text-primary-text' },
+  { icon: Swords, title: 'Una aventura, no una lista', text: 'Hábitos, misiones, finanzas, sueño o entrenamientos dejan de ser tareas sueltas: cada avance suma XP, sube tu nivel y hace crecer a tu personaje.', tone: 'bg-primary/[var(--lq-soft-alpha)] text-primary-text' },
   { icon: Target, title: 'Constancia antes que perfección', text: 'Las rachas, los rituales y los pequeños logros premian volver cada día, aunque sea un poco. El progreso se construye así.', tone: 'bg-warning/[var(--lq-soft-alpha)] text-warning-text' },
   { icon: Compass, title: 'Toda tu vida en un lugar', text: 'Ver tus zonas juntas te ayuda a notar qué va bien, qué se está quedando atrás y dónde poner la energía esta semana.', tone: 'bg-info/[var(--lq-soft-alpha)] text-info-text' },
   { icon: ShieldCheck, title: 'Tus datos son tuyos', text: 'Puedes exportar todo lo que registras o borrarlo cuando quieras desde Ajustes.', tone: 'bg-success/[var(--lq-soft-alpha)] text-success-text' },

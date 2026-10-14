@@ -12,7 +12,7 @@ const USER_SELECT = {
   language: true, relationshipStatus: true,
   onboardingCompleted: true, birthDate: true,
   currentStreak: true, longestStreak: true, lastActivityDate: true,
-  gymPlaylistUrl: true,
+  coliseoPlaylistUrl: true,
   equippedHat: true, equippedAura: true, equippedFrame: true, equippedTheme: true,
   createdAt: true,
 } as const;
@@ -20,8 +20,8 @@ const USER_SELECT = {
 const SEVEN_DAY_GUIDE = [
   { day: 1, title: 'Tu primera misión', zone: 'misiones', route: '/quests', xpBonus: 50 },
   { day: 2, title: 'Tu primer hábito', zone: 'habitos', route: '/habits', xpBonus: 50 },
-  { day: 3, title: 'Conoce tu Bóveda', zone: 'boveda', route: '/finances', xpBonus: 50 },
-  { day: 4, title: 'El Coliseo te espera', zone: 'coliseo', route: '/gym', xpBonus: 50 },
+  { day: 3, title: 'Conoce tus Finanzas', zone: 'boveda', route: '/finances', xpBonus: 50 },
+  { day: 4, title: 'El Coliseo te espera', zone: 'coliseo', route: '/coliseo', xpBonus: 50 },
   { day: 5, title: 'Habla con el Sabio', zone: 'sabio', route: '/wisdom', xpBonus: 75 },
   { day: 6, title: 'Escribe en el Diario', zone: 'diario', route: '/journal', xpBonus: 50 },
   { day: 7, title: 'Revisa tu Life Score', zone: 'estadisticas', route: '/stats', xpBonus: 100, celebration: true },
@@ -123,7 +123,7 @@ export async function completeOnboarding(userId: string, data: OnboardingData) {
   };
 }
 
-export async function updateProfile(userId: string, data: { displayName?: string; timezone?: string; currency?: string; language?: string; gymPlaylistUrl?: string | null; avatarUrl?: string | null }) {
+export async function updateProfile(userId: string, data: { displayName?: string; timezone?: string; currency?: string; language?: string; coliseoPlaylistUrl?: string | null; avatarUrl?: string | null }) {
   const updated = await prisma.user.update({
     where: { id: userId },
     data: {
@@ -131,10 +131,10 @@ export async function updateProfile(userId: string, data: { displayName?: string
       ...(data.timezone !== undefined ? { timezone: data.timezone } : {}),
       ...(data.currency !== undefined ? { currency: data.currency } : {}),
       ...(data.language !== undefined ? { language: data.language } : {}),
-      ...(data.gymPlaylistUrl !== undefined ? { gymPlaylistUrl: data.gymPlaylistUrl } : {}),
+      ...(data.coliseoPlaylistUrl !== undefined ? { coliseoPlaylistUrl: data.coliseoPlaylistUrl } : {}),
       ...(data.avatarUrl !== undefined ? { avatarUrl: data.avatarUrl } : {}),
     },
-    select: { ...USER_SELECT, gymPlaylistUrl: true },
+    select: { ...USER_SELECT, coliseoPlaylistUrl: true },
   });
   return {
     ...updated,

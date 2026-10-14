@@ -114,10 +114,10 @@ export function DynamicLifeScore({ totalScore, zones, size = 220, stroke = 13, g
               </div>
               <div className="h-2 rounded-full overflow-hidden" style={{ background: `${z.color}18` }}>
                 <motion.div
-                  className="h-full rounded-full"
+                  className="h-full origin-left rounded-full"
                   style={{ background: z.color }}
-                  initial={{ width: 0 }}
-                  animate={{ width: `${z.score}%` }}
+                  initial={{ scaleX: 0 }}
+                  animate={{ scaleX: z.score / 100 }}
                   transition={{ duration: 1, ease: 'easeOut' }}
                 />
               </div>

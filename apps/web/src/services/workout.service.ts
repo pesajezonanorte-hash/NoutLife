@@ -7,16 +7,16 @@ export async function fetchWorkouts(limit = 20): Promise<Workout[]> {
   return data.workouts;
 }
 
-export async function fetchGymAttendances(from?: string, to?: string): Promise<GymAttendance[]> {
+export async function fetchColiseoAttendances(from?: string, to?: string): Promise<ColiseoAttendance[]> {
   const params = new URLSearchParams();
   if (from) params.set('from', from);
   if (to) params.set('to', to);
-  const { data } = await api.get<{ attendances: GymAttendance[] }>(`/workouts/attendance?${params}`);
+  const { data } = await api.get<{ attendances: ColiseoAttendance[] }>(`/workouts/attendance?${params}`);
   return data.attendances;
 }
 
-export async function recordGymAttendance(date?: string): Promise<GymAttendance> {
-  const { data } = await api.post<{ attendance: GymAttendance }>('/workouts/attendance', date ? { date } : {});
+export async function recordColiseoAttendance(date?: string): Promise<ColiseoAttendance> {
+  const { data } = await api.post<{ attendance: ColiseoAttendance }>('/workouts/attendance', date ? { date } : {});
   return data.attendance;
 }
 
@@ -25,7 +25,7 @@ export async function fetchWorkout(id: string): Promise<Workout> {
   return data.workout;
 }
 
-export interface GymAttendance {
+export interface ColiseoAttendance {
   id: string;
   userId: string;
   date: string;

@@ -25,7 +25,7 @@ const LITE_POINTS = [
 ];
 
 const PRO_POINTS = [
-  `Las ${PRO_ZONE_COUNT} zonas: Finanzas, Gimnasio, Comida, Sueño, Diario y más`,
+  `Las ${PRO_ZONE_COUNT} zonas: Finanzas, Coliseo, Comida, Sueño, Diario y más`,
   'El Sabio con IA y análisis de hábitos, finanzas y entrenos',
   'Hábitos y rutinas ilimitados',
   'Historial y analíticas completas',

@@ -54,7 +54,7 @@ export function Topbar({ className }: { className?: string }) {
     <header
       className={cn(
         'sticky top-0 z-20 min-h-16 flex-wrap items-center justify-between gap-4 border-b border-border',
-        'bg-background/[0.86] px-8 py-3 backdrop-blur-xl backdrop-saturate-[1.8]',
+        'lq-bar-glass px-8 py-3',
         className,
       )}
     >

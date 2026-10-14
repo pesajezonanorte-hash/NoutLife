@@ -14,7 +14,8 @@ router.get('/radar',         stats.activityRadar);
 router.get('/finance-trend', stats.financeTrend);
 router.get('/heatmap',       stats.habitHeatmap);
 router.get('/sleep',         stats.sleepScatter);
-router.get('/gym',           stats.gymProgression);
+router.get('/coliseo',       stats.coliseoProgression);
+router.get('/gym',           stats.coliseoProgression); // alias legado
 router.get('/predictions',   stats.predictions);
 
 export default router;

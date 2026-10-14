@@ -1,4 +1,4 @@
-// Gimnasio — GymDesktop.dc.html. Asistencia semanal (DayDot + toast), sesión en
+// Coliseo (antes Gimnasio) — GymDesktop.dc.html. Cualquier entrenamiento físico. Asistencia semanal (DayDot + toast), sesión en
 // curso con cronómetro y series, resumen con confeti, volumen semanal, rutinas
 // y récords. La lógica de servicios es la de siempre (workout.service).
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -18,14 +18,14 @@ import { AnimatedValue, Badge, Button, Card, ChipGroup, Confetti, DayDot, EmptyS
 import { LOADING_COPY } from '@/lib/loadingCopy';
 import * as workoutService from '../../services/workout.service';
 import { SageContextButton } from '../../components/sage/SageContextButton';
-import { BodyWeightTracker, OneRMCalculator, WeeklyVolumeWidget, ProgressPhotos, RestTimer } from '../../components/gym/GymExtras';
-import { Barbell, DropTitle, LiftBars, LoadBar, RollingClock, Thud, type LiftDay } from '../../components/gym/GymMotion';
+import { BodyWeightTracker, OneRMCalculator, WeeklyVolumeWidget, ProgressPhotos, RestTimer } from '../../components/coliseo/ColiseoExtras';
+import { Barbell, DropTitle, LiftBars, LoadBar, RollingClock, Thud, type LiftDay } from '../../components/coliseo/ColiseoMotion';
 
 const MUSCLE_GROUPS = ['Todos', 'Pecho', 'Espalda', 'Hombros', 'Bíceps', 'Tríceps', 'Piernas', 'Core', 'Cardio'].map((m) => ({ value: m, label: m }));
 
-type GymTab = 'history' | 'routines' | 'analytics' | 'photos';
+type ColiseoTab = 'history' | 'routines' | 'analytics' | 'photos';
 
-const GYM_TABS: Array<{ id: GymTab; label: string; helper: string; icon: typeof History; tone: Tone }> = [
+const COLISEO_TABS: Array<{ id: ColiseoTab; label: string; helper: string; icon: typeof History; tone: Tone }> = [
   { id: 'history', label: 'Historial', helper: 'Tus sesiones', icon: History, tone: 'primary' },
   { id: 'routines', label: 'Rutinas', helper: 'Planes listos', icon: ClipboardList, tone: 'forest' },
   { id: 'analytics', label: 'Análisis', helper: 'Tu rendimiento', icon: TrendingUp, tone: 'info' },
@@ -415,7 +415,7 @@ function SessionHeader({ title, description, actions }: { title: string; descrip
   );
 }
 
-export default function GymPage() {
+export default function ColiseoPage() {
   const { addFloatingXP, triggerLevelUp, showAchievementToast } = useUIStore();
   const { updateUser, user } = useAuthStore();
   const navigate = useNavigate();
@@ -423,7 +423,7 @@ export default function GymPage() {
 
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [routines, setRoutines] = useState<Routine[]>([]);
-  const [attendances, setAttendances] = useState<workoutService.GymAttendance[]>([]);
+  const [attendances, setAttendances] = useState<workoutService.ColiseoAttendance[]>([]);
   const [recordingAttendance, setRecordingAttendance] = useState(false);
   const [state, setState] = useState<'loading' | 'error' | 'ready'>('loading');
   const [activeWorkout, setActiveWorkout] = useState<ActiveWorkout | null>(null);
@@ -438,11 +438,11 @@ export default function GymPage() {
   /** Confirmación antes de borrar una rutina o un entrenamiento guardado. */
   const [pendingDelete, setPendingDelete] = useState<{ kind: 'workout' | 'routine'; id: string; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [tab, setTab] = useState<GymTab>('history');
+  const [tab, setTab] = useState<ColiseoTab>('history');
   /** Sentido del cambio de pestaña: el panel entra desde ese lado. */
   const tabDir = useRef(1);
-  const changeTab = (next: GymTab) => {
-    tabDir.current = GYM_TABS.findIndex((t) => t.id === next) >= GYM_TABS.findIndex((t) => t.id === tab) ? 1 : -1;
+  const changeTab = (next: ColiseoTab) => {
+    tabDir.current = COLISEO_TABS.findIndex((t) => t.id === next) >= COLISEO_TABS.findIndex((t) => t.id === tab) ? 1 : -1;
     setTab(next);
   };
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -453,7 +453,7 @@ export default function GymPage() {
       const [ws, rs, attendance] = await Promise.all([
         workoutService.fetchWorkouts(30),
         workoutService.fetchRoutines(),
-        workoutService.fetchGymAttendances(),
+        workoutService.fetchColiseoAttendances(),
       ]);
       setWorkouts(ws);
       setRoutines(rs);
@@ -469,7 +469,7 @@ export default function GymPage() {
   async function recordAttendance() {
     setRecordingAttendance(true);
     try {
-      const attendance = await workoutService.recordGymAttendance();
+      const attendance = await workoutService.recordColiseoAttendance();
       setAttendances((current) => [...current.filter((i) => i.id !== attendance.id), attendance]);
       toast.success('Asistencia registrada', 'Tu visita de hoy ya cuenta.');
     } catch {
@@ -686,10 +686,10 @@ export default function GymPage() {
 
   const playlist = (
     <Card variant="base" padding="sm" className="flex flex-wrap items-center justify-between gap-3">
-      <p className="flex items-center gap-2 text-body-sm text-on-surface"><Music aria-hidden className="size-4 text-success-text" />{user?.gymPlaylistUrl ? 'Playlist de entrenamiento' : 'Sin playlist configurada'}</p>
-      {user?.gymPlaylistUrl ? (
+      <p className="flex items-center gap-2 text-body-sm text-on-surface"><Music aria-hidden className="size-4 text-success-text" />{user?.coliseoPlaylistUrl ? 'Playlist de entrenamiento' : 'Sin playlist configurada'}</p>
+      {user?.coliseoPlaylistUrl ? (
         <div className="flex gap-2">
-          <a href={user.gymPlaylistUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-1.5 rounded-md bg-success/[var(--lq-soft-alpha)] px-4 text-label-lg text-success-text md:min-h-9">
+          <a href={user.coliseoPlaylistUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-1.5 rounded-md bg-success/[var(--lq-soft-alpha)] px-4 text-label-lg text-success-text md:min-h-9">
             Abrir Spotify<ExternalLink aria-hidden className="size-4" /><span className="sr-only">(se abre en una pestaña nueva)</span>
           </a>
           <Button variant="ghost" size="sm" onClick={() => navigate('/settings')}>Editar</Button>
@@ -703,7 +703,7 @@ export default function GymPage() {
   if (activeWorkout) {
     return (
       <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-6 md:gap-8">
-        <SessionHeader title="Gimnasio" description="Cada serie suma XP y fortalece a tu personaje." actions={<Button variant="ghost" size="md" onClick={() => setShowRestTimer(true)}><TimerIcon aria-hidden className="size-4" />Descanso</Button>} />
+        <SessionHeader title="Coliseo" description="Cada serie suma XP y fortalece a tu personaje." actions={<Button variant="ghost" size="md" onClick={() => setShowRestTimer(true)}><TimerIcon aria-hidden className="size-4" />Descanso</Button>} />
         {playlist}
         <ActiveWorkoutView workout={activeWorkout} onUpdate={setActiveWorkout} onFinish={finishWorkout} />
         {showRestTimer && <RestTimer onClose={() => setShowRestTimer(false)} />}
@@ -717,12 +717,12 @@ export default function GymPage() {
   const platesThisWeek = attendanceDays.filter((d) => d.status === 'done').length;
 
   const lastCard = latest && (
-    <Card as="article" variant="elevated" padding="lg" aria-labelledby="gym-last" className="flex flex-col gap-6 md:p-8">
+    <Card as="article" variant="elevated" padding="lg" aria-labelledby="coliseo-last" className="flex flex-col gap-6 md:p-8">
       <div className="flex flex-wrap items-center gap-5">
         <IconChip icon={Dumbbell} tone="warning" size="md" className="lq-halo" />
         <div className="min-w-0 flex-1">
           <span className="text-label-lg text-primary-text">Último entrenamiento</span>
-          <h2 id="gym-last" className="text-heading-lg">{latest.title}</h2>
+          <h2 id="coliseo-last" className="text-heading-lg">{latest.title}</h2>
           <p className="text-body-sm text-on-surface-light">{longDate(latest.date)}{latest.duration ? ` · ${latest.duration} min` : ''}</p>
         </div>
         <Badge variant="primary" size="lg" icon={Sparkles}>+{latest.xpEarned} XP</Badge>
@@ -785,7 +785,7 @@ export default function GymPage() {
 
   return (
     <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-6 md:gap-8">
-      <SessionHeader title="Gimnasio" description="Forja tu cuerpo, héroe. Cada sesión suma XP y fortalece tu personaje." actions={startButtons} />
+      <SessionHeader title="Coliseo" description="Pesas, cardio, deporte o una caminata: cada sesión suma XP y fortalece a tu personaje." actions={startButtons} />
 
       <motion.div variants={item}>
         <Thud as="section" trigger={platesThisWeek} aria-label="Asistencia" className="flex flex-wrap items-center justify-between gap-x-6 gap-y-5 rounded-2xl border border-border bg-surface p-4 shadow-sm md:p-6">
@@ -824,28 +824,28 @@ export default function GymPage() {
         </Thud>
       </motion.div>
 
-      <motion.div variants={item} role="tablist" aria-label="Secciones del gimnasio" className="grid grid-cols-2 gap-4 lg:grid-cols-4"
+      <motion.div variants={item} role="tablist" aria-label="Secciones del Coliseo" className="grid grid-cols-2 gap-4 lg:grid-cols-4"
         onKeyDown={(e) => {
-          const i = GYM_TABS.findIndex((t) => t.id === tab);
+          const i = COLISEO_TABS.findIndex((t) => t.id === tab);
           const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
           if (!d) return;
           e.preventDefault();
-          const next = GYM_TABS[(i + d + GYM_TABS.length) % GYM_TABS.length];
+          const next = COLISEO_TABS[(i + d + COLISEO_TABS.length) % COLISEO_TABS.length];
           changeTab(next.id);
-          document.getElementById(`gym-tab-${next.id}`)?.focus();
+          document.getElementById(`coliseo-tab-${next.id}`)?.focus();
         }}>
-        {GYM_TABS.map(({ id, label, helper, icon, tone }) => {
+        {COLISEO_TABS.map(({ id, label, helper, icon, tone }) => {
           const on = tab === id;
           return (
             <button
-              key={id} id={`gym-tab-${id}`} type="button" role="tab" aria-selected={on} aria-controls={`gym-panel-${id}`} tabIndex={on ? 0 : -1}
+              key={id} id={`coliseo-tab-${id}`} type="button" role="tab" aria-selected={on} aria-controls={`coliseo-panel-${id}`} tabIndex={on ? 0 : -1}
               onClick={() => changeTab(id)}
               className="lq-lift relative flex min-h-[72px] min-w-0 items-center gap-2 rounded-2xl border border-border bg-surface p-3 text-left shadow-sm md:gap-3 md:p-4"
             >
               {/* La selección se desliza entre pestañas con peso */}
               {on && (
                 <motion.span
-                  layoutId="gym-tab-pill" aria-hidden transition={heavy}
+                  layoutId="coliseo-tab-pill" aria-hidden transition={heavy}
                   className="pointer-events-none absolute -inset-px rounded-2xl border border-primary/50 bg-primary/[var(--lq-soft-alpha)]"
                 />
               )}
@@ -862,7 +862,7 @@ export default function GymPage() {
 
       <AnimatePresence mode="wait" initial={false} custom={tabDir.current}>
       <motion.div
-        key={`${tab}-${state}`} id={`gym-panel-${tab}`} role="tabpanel" aria-labelledby={`gym-tab-${tab}`} className="flex flex-col gap-6 outline-none" tabIndex={-1}
+        key={`${tab}-${state}`} id={`coliseo-panel-${tab}`} role="tabpanel" aria-labelledby={`coliseo-tab-${tab}`} className="flex flex-col gap-6 outline-none" tabIndex={-1}
         custom={tabDir.current}
         variants={{
           enter: (d: number) => ({ opacity: 0, x: d * 32 }),
@@ -872,14 +872,14 @@ export default function GymPage() {
         initial="enter" animate="center" exit="leave"
       >
         {state === 'loading' ? (
-          <PageLoader label="Calentando motores…" words={LOADING_COPY.gym} />
+          <PageLoader label="Calentando motores…" words={LOADING_COPY.coliseo} />
         ) : state === 'error' ? (
-          <ErrorState title="No pudimos cargar tu gimnasio" onRetry={() => void load()} />
+          <ErrorState title="No pudimos cargar tu Coliseo" onRetry={() => void load()} />
         ) : tab === 'history' ? (
           workouts.length === 0 ? (
             <Card variant="elevated" padding="lg">
               <EmptyState
-                icon={Dumbbell} tone="warning" title="El gimnasio está listo para ti"
+                icon={Dumbbell} tone="warning" title="El Coliseo está listo para ti"
                 description="Registra ejercicios, pesos y repeticiones para convertir cada entrenamiento en progreso visible."
                 action={<Button onClick={() => setShowStartModal(true)}><Play aria-hidden className="size-4" />Iniciar entrenamiento</Button>}
                 className="py-6"
@@ -889,9 +889,9 @@ export default function GymPage() {
             <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
               <div className="flex min-w-0 flex-col gap-6">
                 {lastCard}
-                <Card as="section" padding="lg" aria-labelledby="gym-vol" className="flex flex-col gap-5">
+                <Card as="section" padding="lg" aria-labelledby="coliseo-vol" className="flex flex-col gap-5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h2 id="gym-vol" className="text-heading-sm">Volumen semanal</h2>
+                    <h2 id="coliseo-vol" className="text-heading-sm">Volumen semanal</h2>
                     {weekly.delta !== null && (
                       <span className={cn('flex items-center gap-1.5 text-body-sm', weekly.delta >= 0 ? 'text-success-text' : 'text-warning-text')}>
                         <TrendingUp aria-hidden className={cn('size-4', weekly.delta < 0 && '-scale-y-100')} />{weekly.delta >= 0 ? '+' : ''}{weekly.delta}% vs. semana pasada
@@ -902,8 +902,8 @@ export default function GymPage() {
                   <LiftBars days={liftDays} label={`Volumen por día en kilos: ${weekly.days.map((d) => `${d.name} ${Math.round(d.vol)}`).join(', ')}`} />
                 </Card>
                 {workouts.length > 1 && (
-                  <Card as="section" padding="lg" aria-labelledby="gym-prev" className="flex flex-col gap-2">
-                    <h2 id="gym-prev" className="mb-2 text-heading-sm">Sesiones anteriores</h2>
+                  <Card as="section" padding="lg" aria-labelledby="coliseo-prev" className="flex flex-col gap-2">
+                    <h2 id="coliseo-prev" className="mb-2 text-heading-sm">Sesiones anteriores</h2>
                     <ul className="flex flex-col">
                       {workouts.slice(1, 9).map((w, i) => (
                         <motion.li
@@ -927,15 +927,15 @@ export default function GymPage() {
                 )}
               </div>
               <aside className="flex min-w-0 flex-col gap-6">
-                <Card as="section" padding="lg" aria-labelledby="gym-routines" className="flex flex-col gap-2">
+                <Card as="section" padding="lg" aria-labelledby="coliseo-routines" className="flex flex-col gap-2">
                   <div className="mb-2 flex items-center justify-between">
-                    <h2 id="gym-routines" className="text-heading-sm">Rutinas</h2>
+                    <h2 id="coliseo-routines" className="text-heading-sm">Rutinas</h2>
                     {routines.length > 0 && <Button variant="ghost" size="sm" onClick={() => changeTab('routines')}>Ver todas</Button>}
                   </div>
                   {routines.length === 0 ? <p className="text-body-sm text-on-surface-light">Aún no tienes rutinas guardadas.</p> : <ul>{routineRows(routines.slice(0, 4))}</ul>}
                 </Card>
-                <Card as="section" padding="lg" aria-labelledby="gym-prs" className="flex flex-col gap-3">
-                  <h2 id="gym-prs" className="text-heading-sm">Récords personales</h2>
+                <Card as="section" padding="lg" aria-labelledby="coliseo-prs" className="flex flex-col gap-3">
+                  <h2 id="coliseo-prs" className="text-heading-sm">Récords personales</h2>
                   {records.length === 0 ? <p className="text-body-sm text-on-surface-light">Completa series con peso para ver tus récords.</p> : records.map((p) => (
                     <div key={p.name} className="flex flex-col gap-1.5">
                       <div className="flex items-center justify-between"><span className="text-body-md">{p.name}</span><span className="font-mono text-label-lg tabular-nums">{p.weight} kg</span></div>

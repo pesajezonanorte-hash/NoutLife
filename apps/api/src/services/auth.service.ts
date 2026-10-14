@@ -31,7 +31,7 @@ function sanitizeUser(user: {
   birthDate: Date | null;
   currentStreak: number;
   longestStreak: number;
-  gymPlaylistUrl?: string | null;
+  coliseoPlaylistUrl?: string | null;
   equippedHat?: string | null;
   equippedAura?: string | null;
   equippedFrame?: string | null;
@@ -62,7 +62,7 @@ function sanitizeUser(user: {
     birthDate: user.birthDate?.toISOString() ?? null,
     currentStreak: user.currentStreak,
     longestStreak: user.longestStreak,
-    gymPlaylistUrl: user.gymPlaylistUrl ?? null,
+    coliseoPlaylistUrl: user.coliseoPlaylistUrl ?? null,
     equippedHat: user.equippedHat ?? null,
     equippedAura: user.equippedAura ?? null,
     equippedFrame: user.equippedFrame ?? null,

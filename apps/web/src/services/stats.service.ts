@@ -62,7 +62,7 @@ export interface SleepTrendPoint {
   quality: number;
 }
 
-export interface GymProgression {
+export interface ColiseoProgression {
   name: string;
   data: Array<{ date: string; weight: number }>;
 }
@@ -103,8 +103,8 @@ export const getHabitHeatmap = () =>
 export const getSleepScatter = (period = 'month') =>
   api.get<SleepTrendPoint[]>('/stats/sleep', p(period)).then(({ data }) => data);
 
-export const getGymProgression = (period = 'month') =>
-  api.get<GymProgression[]>('/stats/gym', p(period)).then(({ data }) => data);
+export const getColiseoProgression = (period = 'month') =>
+  api.get<ColiseoProgression[]>('/stats/coliseo', p(period)).then(({ data }) => data);
 
 export const getPredictions = () =>
   api.get<StatsPredictions>('/stats/predictions').then(({ data }) => data);

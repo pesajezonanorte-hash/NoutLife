@@ -455,10 +455,17 @@ export function RadarPlus({ axes, label, tone = 'primary' }: { axes: RadarPlusAx
   const inView = useInView(ref, { once: true, amount: 0.35 });
   const reduce = useReducedMotionConfig() ?? false;
   const [active, setActive] = useState<number | null>(null);
-  const H = 320, R = Math.min(118, (Math.min(w, H) - 90) / 2), cx = w / 2, cy = H / 2;
   const n = axes.length;
+  const angle = (i: number) => -Math.PI / 2 + (i * 2 * Math.PI) / n;
+  // Las etiquetas laterales tienen que caber en el ancho (un móvil mide ~330 px):
+  // el radio se ajusta a la más exigente. ≈6,6 px por carácter a 12 px seminegrita.
+  const fit = Math.min(...axes.map((ax, i) => {
+    const c = Math.abs(Math.cos(angle(i)));
+    return c < 0.15 ? Infinity : (w / 2 - (ax.label.length * 6.6 + 6)) / c - 22;
+  }));
+  const H = 320, R = Math.max(56, Math.min(118, (Math.min(w, H) - 90) / 2, fit)), cx = w / 2, cy = H / 2;
   const pt = (i: number, r: number) => {
-    const ang = -Math.PI / 2 + (i * 2 * Math.PI) / n;
+    const ang = angle(i);
     return [cx + Math.cos(ang) * r, cy + Math.sin(ang) * r] as const;
   };
   const poly = (vals: number[]) => vals.map((v, i) => pt(i, R * Math.max(0, Math.min(1, v / 100))).map((q) => q.toFixed(1)).join(',')).join(' ');

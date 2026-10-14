@@ -1,5 +1,8 @@
 import { z } from 'zod';
 import { isValidCalendarDate } from '../lib/calendar';
+import { withLegacyKeys } from './activity.schemas';
+
+const LEGACY = { createsGymAttendance: 'createsColiseoAttendance' };
 
 const CATEGORIES = ['HEALTH', 'FITNESS', 'FINANCE', 'LEARNING', 'LOVE', 'SOCIAL', 'PERSONAL', 'CREATIVE'] as const;
 
@@ -12,7 +15,7 @@ const calendarDateSchema = z
   .string()
   .refine(isValidCalendarDate, 'La fecha debe tener el formato calendario YYYY-MM-DD y ser real.');
 
-export const createHabitSchema = z.object({
+export const createHabitSchema = withLegacyKeys(z.object({
   title: z.string().min(1).max(100),
   description: z.string().max(300).optional(),
   category: z.enum(CATEGORIES),
@@ -24,10 +27,10 @@ export const createHabitSchema = z.object({
   resetTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
   reminderTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
   syncToGoogleCalendar: z.boolean().optional(),
-  createsGymAttendance: z.boolean().optional(),
-});
+  createsColiseoAttendance: z.boolean().optional(),
+}), LEGACY);
 
-export const updateHabitSchema = z.object({
+export const updateHabitSchema = withLegacyKeys(z.object({
   title: z.string().min(1).max(100).optional(),
   description: z.string().max(300).optional(),
   category: z.enum(CATEGORIES).optional(),
@@ -39,8 +42,8 @@ export const updateHabitSchema = z.object({
   resetTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
   reminderTime: z.string().regex(/^\d{2}:\d{2}$/).nullable().optional(),
   syncToGoogleCalendar: z.boolean().optional(),
-  createsGymAttendance: z.boolean().optional(),
-});
+  createsColiseoAttendance: z.boolean().optional(),
+}), LEGACY);
 
 export const habitLogSchema = z.object({
   status: z.enum(['completed', 'failed', 'skipped']),

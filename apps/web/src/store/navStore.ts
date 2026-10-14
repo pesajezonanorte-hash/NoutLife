@@ -9,11 +9,11 @@ import { persist } from 'zustand/middleware';
 // TODO(api): persistir orden y zonas ocultas en la cuenta para que viajen entre dispositivos.
 
 export const PINNED_COUNT = 3;
-export const DEFAULT_ORDER = ['/habits', '/quests', '/gym'];
+export const DEFAULT_ORDER = ['/habits', '/quests', '/coliseo'];
 
 /** Áreas del onboarding (GOALS) y la zona que abren. */
 export const GOAL_ZONE: Record<string, string> = {
-  FITNESS: '/gym',
+  FITNESS: '/coliseo',
   HEALTH: '/food',
   SLEEP: '/sleep',
   FINANCE: '/finances',

@@ -12,13 +12,7 @@ export const MEAL_TYPES: { value: FoodType; label: string; icon: LucideIcon; at:
   { value: 'SNACK', label: 'Merienda', icon: Apple, at: 17 * 60 },
   { value: 'DINNER', label: 'Cena', icon: Moon, at: 20 * 60 + 30 },
 ];
-export const mealTypeLabel = (t: string) => MEAL_TYPES.find((m) => m.value === t)?.label ?? 'Comida';
-
-/** Tipo sugerido según la hora (para "Añadir" una comida guardada). */
-export function typeForNow(d = new Date()): FoodType {
-  const h = d.getHours();
-  return h < 11 ? 'BREAKFAST' : h < 16 ? 'LUNCH' : h < 19 ? 'SNACK' : 'DINNER';
-}
+export const mealTypeLabel = (t: string | null | undefined) => MEAL_TYPES.find((m) => m.value === t)?.label ?? 'Comida';
 
 export type MacroKey = 'protein' | 'carbs' | 'fat';
 export const MACROS: { key: MacroKey; label: string; short: string; tone: Exclude<Tone, 'muted'> }[] = [

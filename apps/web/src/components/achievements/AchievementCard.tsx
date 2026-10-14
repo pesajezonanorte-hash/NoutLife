@@ -62,10 +62,11 @@ export function AchievementCard({ achievement, onClick }: Props) {
             <span className="text-text-secondary">{progress}/{target}</span>
           </div>
           <div className="h-1 bg-bg-deep border border-border-pixel">
+            {/* scaleX, no width: la barra se compone en GPU sin recalcular el layout en cada fotograma. */}
             <motion.div
-              className="h-full bg-accent-gold/50"
-              initial={{ width: 0 }}
-              animate={{ width: `${pct}%` }}
+              className="h-full origin-left bg-accent-gold/50"
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: pct / 100 }}
               transition={{ duration: 0.8, ease: 'easeOut', delay: 0.2 }}
             />
           </div>

@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma';
+import type { MEAL_TYPES } from '../schemas/activity.schemas';
 
 function parseDateRange(dateStr?: string) {
   if (!dateStr) return undefined;
@@ -35,7 +36,7 @@ export async function listMeals(userId: string, date?: string) {
   return prisma.meal.findMany({ where, orderBy: { date: 'asc' } });
 }
 
-export async function createMeal(userId: string, body: { name: string; mealType: string; calories?: number; protein?: number; carbs?: number; fat?: number; waterMl?: number; date?: string }) {
+export async function createMeal(userId: string, body: { name: string; mealType: (typeof MEAL_TYPES)[number]; calories?: number; protein?: number; carbs?: number; fat?: number; waterMl?: number; date?: string }) {
   return prisma.meal.create({
     data: {
       userId,

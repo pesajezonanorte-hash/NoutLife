@@ -70,6 +70,18 @@ export async function cancelSubscription(): Promise<Subscription> {
   return data.subscription;
 }
 
+/** Estado de la suscripción sin consultar a Wompi: lo lee el aviso de Nequi cada 5 s. */
+export async function getSubscriptionState(): Promise<Subscription> {
+  const { data } = await api.get<Subscription>('/billing/subscription');
+  return data;
+}
+
+/** «Ya lo aprobé»: la API consulta el cobro en Wompi y devuelve el estado ya aplicado. */
+export async function refreshPendingApproval(): Promise<Subscription> {
+  const { data } = await api.post<Subscription>('/billing/pending/refresh');
+  return data;
+}
+
 export async function resumeSubscription(): Promise<Subscription> {
   const { data } = await api.post<{ subscription: Subscription }>('/billing/resume');
   return data.subscription;

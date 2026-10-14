@@ -198,7 +198,9 @@ export async function getXpHistory(userId: string, period = 'month', now = new D
  * Compares the selected interval with its immediately preceding interval. The
  * radar is intentionally limited to the core tracked areas; custom zones stay
  * individually visible in the zone ledger instead of being merged into a vague
- * catch-all value.
+ * catch-all value. Labels use the current zone names (Coliseo, Mente, Enfoque,
+ * Recreación…); the old RPG names (Torre, Posada, Bóveda, Biblioteca) are gone.
+ * The order keeps short labels on the near-horizontal spokes so they fit on phones.
  */
 export async function getActivityRadar(userId: string, period = 'week', now = new Date()) {
   const { start, end, prevStart, prevEnd } = periodRange(period, now);
@@ -208,7 +210,7 @@ export async function getActivityRadar(userId: string, period = 'week', now = ne
   const weeks = Math.max(1, Math.ceil(intervalDays / 7));
 
   const score = async (range: { gte: Date; lt: Date }) => {
-    const [gym, finance, habits, quests, sleep, learning, journal, mirror] = await Promise.all([
+    const [coliseo, finance, habits, quests, sleep, learning, journal, mirror, mealDates, focus, recreation] = await Promise.all([
       prisma.workout.count({ where: { userId, date: range, ...isCompletedWorkoutFilter() } }),
       prisma.transaction.count({ where: { userId, date: range } }),
       prisma.habitLog.count({ where: { userId, date: range, completed: true } }),
@@ -217,8 +219,13 @@ export async function getActivityRadar(userId: string, period = 'week', now = ne
       prisma.learningItem.count({ where: { userId, updatedAt: range } }),
       prisma.journalEntry.count({ where: { userId, date: range } }),
       prisma.careLog.count({ where: { userId, date: range, completed: true } }),
+      // Nutrición cuenta días con comida registrada (el agua sola no cuenta).
+      prisma.meal.findMany({ where: { userId, date: range, mealType: { not: 'WATER' } }, select: { date: true } }),
+      prisma.focusSession.count({ where: { userId, completedAt: range } }),
+      prisma.recreationEntry.count({ where: { userId, status: 'DONE', date: range } }),
     ]);
-    return { gym, finance, habits, quests, sleep, learning, journal, mirror };
+    const nutritionDays = new Set(mealDates.map((meal) => meal.date.toISOString().slice(0, 10))).size;
+    return { coliseo, finance, habits, quests, sleep, learning, journal, mirror, nutritionDays, focus, recreation };
   };
 
   const [current, previous] = await Promise.all([
@@ -227,13 +234,17 @@ export async function getActivityRadar(userId: string, period = 'week', now = ne
   ]);
 
   const normalise = (values: Awaited<ReturnType<typeof score>>) => [
-    { subject: 'Misiones', value: ratioPercent(values.quests, weeks * 3) },
     { subject: 'Hábitos', value: ratioPercent(values.habits, intervalDays) },
-    { subject: 'Coliseo', value: ratioPercent(values.gym, weeks * 3) },
-    { subject: 'Bóveda', value: ratioPercent(values.finance, weeks * 2) },
-    { subject: 'Torre', value: ratioPercent(values.sleep, intervalDays) },
-    { subject: 'Biblioteca', value: ratioPercent(values.learning, weeks * 2) },
-    { subject: 'Diario', value: ratioPercent(values.journal, intervalDays) },
+    { subject: 'Misiones', value: ratioPercent(values.quests, weeks * 3) },
+    { subject: 'Coliseo', value: ratioPercent(values.coliseo, weeks * 3) },
+    { subject: 'Sueño', value: ratioPercent(values.sleep, intervalDays) },
+    { subject: 'Nutrición', value: ratioPercent(values.nutritionDays, intervalDays) },
+    { subject: 'Recreación', value: ratioPercent(values.recreation, weeks * 3) },
+    { subject: 'Finanzas', value: ratioPercent(values.finance, weeks * 2) },
+    // Mente: estudiar (Aprendizaje) y escribir (Diario), a partes iguales.
+    { subject: 'Mente', value: Math.round((ratioPercent(values.learning, weeks * 2) + ratioPercent(values.journal, intervalDays)) / 2) },
+    // Enfoque: sesiones de concentración (pomodoro), una por día laborable.
+    { subject: 'Enfoque', value: ratioPercent(values.focus, weeks * 5) },
     { subject: 'Espejo', value: ratioPercent(values.mirror, intervalDays) },
   ];
 
@@ -340,9 +351,9 @@ export async function getSleepScatter(userId: string, period = 'month') {
   }));
 }
 
-// ─── Gym progression ─────────────────────────────────────────────────────────
+// ─── Coliseo progression ─────────────────────────────────────────────────────
 
-export async function getGymProgression(userId: string, period = 'month') {
+export async function getColiseoProgression(userId: string, period = 'month') {
   const { start, end } = periodRange(period);
   const exercises = await prisma.workoutExercise.findMany({
     where: {

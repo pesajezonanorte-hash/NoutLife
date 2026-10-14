@@ -40,6 +40,7 @@ import { SocialPortal } from '@/components/social/SocialEntry';
 import { completeGuideDay, dismissGuide, fetchDashboard } from '@/services/user.service';
 import { fetchLifeScore, type LifeScore } from '@/services/lifescore.service';
 import { fetchUpcoming, type AgendaEvent } from '@/services/agenda.service';
+import { useLifeChange } from '@/lib/lifeSync';
 
 interface HabitSummary {
   id: string;
@@ -141,13 +142,19 @@ export default function DashboardPage() {
     fetchUpcoming().then((e) => setEvents(e.slice(0, 3))).catch(() => null);
   }, [load]);
 
+  // Inicio resume todas las zonas: cualquier registro (aquí, en el botón rápido o
+  // desde el Sabio) lo actualiza en silencio, también el Life Score.
+  useLifeChange(() => {
+    void load(true);
+    fetchLifeScore().then(setLifeScore).catch(() => null);
+  });
+
   if (!user) return null;
 
   async function handleComplete(h: HabitSummary) {
     const result = await complete(h);
     if (!result) return;
     setHabits((prev) => prev.map((x) => (x.id === h.id ? { ...x, todayStatus: 'completed', todayCompleted: true, currentStreak: result.currentStreak } : x)));
-    void load(true);
   }
 
   async function handleToggle(h: HabitSummary) {
@@ -157,7 +164,6 @@ export default function DashboardPage() {
     setHabits((prev) => prev.map((x) => (x.id === h.id ? {
       ...x, todayStatus: result.log?.status ?? 'pending', todayCompleted: false, currentStreak: result.currentStreak,
     } : x)));
-    void load(true);
   }
 
   async function handleGuide(action: 'complete' | 'dismiss') {
@@ -409,7 +415,7 @@ export default function DashboardPage() {
             </span>
           </button>
           <MiniStat icon={Moon} tone="info" label="Sueño · media 7 días" value={data?.sleepAvg7d ? `${data.sleepAvg7d.toFixed(1)} h` : 'Sin datos'} to="/sleep" />
-          <MiniStat icon={Dumbbell} tone="success" label="Último entrenamiento" value={data?.recentWorkout ? relativeTime(data.recentWorkout.date) : 'Sin registro'} to="/gym" />
+          <MiniStat icon={Dumbbell} tone="success" label="Último entrenamiento" value={data?.recentWorkout ? relativeTime(data.recentWorkout.date) : 'Sin registro'} to="/coliseo" />
           {lifeScore && (
             <Link to="/life" className="lq-lift flex items-center gap-4 rounded-2xl border border-border bg-surface p-4 shadow-sm">
               <ProgressRing value={lifeScore.total} size={48} stroke={5} label="Life Score" valueText={`${lifeScore.total} de 100`}>

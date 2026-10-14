@@ -280,6 +280,23 @@ test('a complimentary account reads as an active Pro without dates or renewal', 
   assert.equal(view.paywall, false);
 });
 
+test('a Nequi charge waiting for approval shows as pending_approval, keeps the plan and never blocks the paywall', async () => {
+  const { subscriptionView } = await import('../src/services/billing.service');
+  const renewing = {
+    id: 'u3', email: 'ana@example.com', createdAt: addDays(NOW, -40), subscriptionStatus: 'active', trialEndsAt: null,
+    currentPeriodEnd: addDays(NOW, -1), paymentSourceId: '3891', paymentMethodType: 'NEQUI' as const,
+    paymentMethodLabel: 'NEQUI •••• 1703', liteSince: null, lastPaymentError: null,
+  };
+  const waiting = subscriptionView(renewing, NOW, true, false, true, true);
+  assert.equal(waiting.status, 'pending_approval');
+  assert.equal(waiting.pendingPayment, true);
+  // Renovación dentro del margen: sigue en Pro mientras Wompi responde, y no pide otro método de pago.
+  assert.equal(waiting.plan, 'pro');
+  assert.equal(waiting.paywall, false);
+  // Sin cobro en espera, la vista no cambia.
+  assert.equal(subscriptionView(renewing, NOW, false, false, true, false).status, 'active');
+});
+
 test('a Pro zone lock answers 402 with `lock` (not `feature`) so older web builds never open an unknown dialog', async () => {
   const { sendProLocked, proLockMessage } = await import('../src/middleware/plan.middleware');
   const { PRO_ZONES, PRO_ZONE_LABELS, LITE_LIMITS } = await import('../src/lib/plans');

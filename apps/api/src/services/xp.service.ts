@@ -98,7 +98,7 @@ const SOURCE_CATEGORY: Record<string, QuestCategory> = {
 };
 
 /**
- * Cada zona entrena su atributo: gimnasio da Fuerza; finanzas, salud,
+ * Cada zona entrena su atributo: el Coliseo da Fuerza; finanzas, salud,
  * aprendizaje y creatividad, Intelecto; amor y social, Carisma. Determinista,
  * para que el perfil refleje en qué zonas se ha trabajado.
  */
@@ -109,7 +109,7 @@ function statFromCategory(category: QuestCategory | undefined): 'strength' | 'in
   return w.int >= w.cha ? 'intelligence' : 'charisma';
 }
 
-/** Las zonas de cuerpo (gimnasio, salud) suben la Vida máxima más rápido. */
+/** Las zonas de cuerpo (Coliseo, salud) suben la Vida máxima más rápido. */
 const hpPerLevel = (category: QuestCategory | undefined) => (category === 'FITNESS' || category === 'HEALTH' ? 15 : 10);
 
 const CLASS_MULTIPLIERS: Record<string, Partial<Record<QuestCategory, number>>> = {

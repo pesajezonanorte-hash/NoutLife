@@ -28,7 +28,7 @@ export interface ZoneAmbienceProps {
 }
 
 /** Pausa por viewport y por visibilidad de la pestaña. */
-function usePaused<T extends Element>() {
+export function usePaused<T extends Element>() {
   const ref = useRef<T>(null);
   const [inView, setInView] = useState(true);
   const [visible, setVisible] = useState(() => typeof document === 'undefined' || !document.hidden);

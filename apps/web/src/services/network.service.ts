@@ -387,8 +387,8 @@ export async function thumbOf(src: string): Promise<string | null> {
 
 /** Zona de Noutlife por ruta (lo que tus amigos ven si lo permites). */
 const ZONE_NAMES: Array<[string, string]> = [
-  ['/social', 'Social'], ['/u/', 'Perfiles'], ['/habits', 'Hábitos'], ['/quests', 'Misiones'], ['/gym', 'Gimnasio'],
-  ['/finances', 'Finanzas'], ['/food', 'Comida'], ['/sleep', 'Sueño'], ['/love', 'Jardín'], ['/journal', 'Diario'],
+  ['/social', 'Social'], ['/u/', 'Perfiles'], ['/habits', 'Hábitos'], ['/quests', 'Misiones'], ['/coliseo', 'Coliseo'], ['/gym', 'Coliseo'], ['/recreacion', 'Recreación'],
+  ['/finances', 'Finanzas'], ['/food', 'Comida'], ['/sleep', 'Sueño'], ['/love', 'Relaciones'], ['/journal', 'Diario'],
   ['/agenda', 'Agenda'], ['/learning', 'Aprendizaje'], ['/leaderboard', 'Ranking'], ['/gallery', 'Galería'],
   ['/season', 'Campaña'], ['/shop', 'Tienda'], ['/espejo', 'Espejo'], ['/armario', 'Espejo'], ['/glow-up', 'Espejo'], ['/rituals', 'Rituales'], ['/wisdom', 'Sabiduría'],
   ['/achievements', 'Logros'], ['/stats', 'Estadísticas'], ['/profile', 'Perfil'], ['/settings', 'Ajustes'],

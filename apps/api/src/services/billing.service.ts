@@ -42,11 +42,12 @@ function withComplimentary<T extends { email: string }>(user: T): T & { complime
   return { ...user, complimentary: complimentaryEmails(process.env.COMP_PRO_EMAILS).has(user.email.toLowerCase()) };
 }
 
-const FINAL_STATUSES = new Set(['APPROVED', 'DECLINED', 'VOIDED', 'ERROR']);
+/** Estados finales de Wompi (EXPIRED por si Wompi lo usa para un cobro que nunca se aprobó). */
+const FINAL_STATUSES = new Set(['APPROVED', 'DECLINED', 'VOIDED', 'ERROR', 'EXPIRED']);
 /** Un cobro sin id de Wompi (el proceso cayó entre guardar y cobrar) se da por fallido tras este tiempo. */
 const STALE_PENDING_MS = 30 * 60_000;
-/** Un cobro que Wompi sigue sin resolver (p. ej. el push de Nequi nunca se aprobó) cuenta como fallido tras un día. Si llega APPROVED después, el webhook lo reactiva. */
-const PENDING_TIMEOUT_MS = 24 * 60 * 60_000;
+/** Un cobro que Wompi sigue sin resolver tras 45 min (lo que dura la aprobación en el celular de Nequi) cuenta como vencido. Si llega APPROVED después, el webhook lo reactiva. */
+const PENDING_TIMEOUT_MS = 45 * 60_000;
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Para los logs: la respuesta de Wompi sin correos y con solo los últimos 4 de cualquier número largo. */
@@ -56,8 +57,11 @@ function redactForLog(value: unknown): string {
   return text.replace(/[^\s"@]+@[^\s"@]+\.[^\s"@]+/g, '<correo>').replace(/\d{7,}/g, (digits) => `…${digits.slice(-4)}`);
 }
 
+/** Lo que ve la app: el estado de la base o «pending_approval» mientras un cobro de Nequi espera la aprobación del celular. */
+export type SubscriptionViewStatus = SubscriptionStatus | 'pending_approval';
+
 export interface SubscriptionView {
-  status: SubscriptionStatus;
+  status: SubscriptionViewStatus;
   plan: Plan;
   trialEndsAt: string;
   currentPeriodEnd: string | null;
@@ -83,16 +87,18 @@ export interface SubscriptionView {
 }
 
 export function subscriptionView(
-  user: SubscriptionUser, now = new Date(), pendingPayment = false, canTrial = false, billingEnabled = wompiConfig().configured,
+  user: SubscriptionUser, now = new Date(), pendingPayment = false, canTrial = false,
+  billingEnabled = wompiConfig().configured, awaitingApproval = false,
 ): SubscriptionView {
   // La cortesía se muestra como un Pro activo sin fecha: no hay cobro ni vencimiento que contar.
-  const status = user.complimentary ? 'active' : statusOf(user);
+  const dbStatus = user.complimentary ? 'active' : statusOf(user);
   return {
-    status,
+    // El cobro de Nequi en espera no se guarda como estado: se muestra así mientras Wompi no responde.
+    status: awaitingApproval ? 'pending_approval' : dbStatus,
     plan: planOf(user, now),
     trialEndsAt: trialEndOf(user).toISOString(),
     currentPeriodEnd: user.currentPeriodEnd?.toISOString() ?? null,
-    accessEndsAt: status === 'lite' || user.complimentary ? null : accessEndsAt(user).toISOString(),
+    accessEndsAt: dbStatus === 'lite' || user.complimentary ? null : accessEndsAt(user).toISOString(),
     renews: willRenew(user),
     complimentary: Boolean(user.complimentary),
     hasPaymentMethod: Boolean(user.paymentSourceId),
@@ -125,11 +131,22 @@ async function getView(userId: string): Promise<SubscriptionView> {
     loadUser(userId),
     prisma.subscriptionPayment.count({ where: { userId, status: 'PENDING' } }),
   ]);
-  return subscriptionView(user, new Date(), pending > 0, await canStartTrial(user));
+  // Un cobro PENDING con Nequi es el que la persona debe aprobar en su celular.
+  const awaitingApproval = pending > 0 && user.paymentMethodType === 'NEQUI';
+  return subscriptionView(user, new Date(), pending > 0, await canStartTrial(user), undefined, awaitingApproval);
 }
 
-/** Estado de la suscripción sin aplicar vencimientos (lectura rápida para /auth/me). */
+/** Estado de la suscripción sin aplicar vencimientos (lectura rápida para /auth/me y el aviso de Nequi). */
 export const getSubscription = getView;
+
+/** «Ya lo aprobé»: consulta a Wompi el cobro en espera y aplica el resultado ahora, sin esperar al cron. */
+export async function refreshPendingApproval(userId: string): Promise<SubscriptionView> {
+  const pending = await prisma.subscriptionPayment.findFirst({ where: { userId, status: 'PENDING' }, orderBy: { createdAt: 'desc' } });
+  if (pending) {
+    await refreshPendingPayment(pending, true).catch((error) => console.error('[BILLING_PENDING_ERROR]', pending.id, error));
+  }
+  return getView(userId);
+}
 
 /** Plan efectivo ahora mismo (lectura pura: nunca cobra). Lo usan los límites de Lite. */
 export async function getPlan(userId: string): Promise<Plan> {

@@ -4,7 +4,7 @@ import { awardXpAndGold, xpForLevel } from './xp.service';
 import { checkAchievements } from './achievement.service';
 import { createNotification } from './notification.service';
 import { removeHabitFromGoogleCalendar, syncHabitWithGoogleCalendar } from './agenda.service';
-import { recordHabitGymAttendance } from './gym-attendance.service';
+import { recordHabitColiseoAttendance } from './coliseo-attendance.service';
 import type { QuestCategory } from '@prisma/client';
 
 export interface CreateHabitInput {
@@ -19,7 +19,7 @@ export interface CreateHabitInput {
   resetTime?: string;
   reminderTime?: string;
   syncToGoogleCalendar?: boolean;
-  createsGymAttendance?: boolean;
+  createsColiseoAttendance?: boolean;
 }
 
 export interface UpdateHabitInput {
@@ -34,7 +34,7 @@ export interface UpdateHabitInput {
   resetTime?: string;
   reminderTime?: string | null;
   syncToGoogleCalendar?: boolean;
-  createsGymAttendance?: boolean;
+  createsColiseoAttendance?: boolean;
 }
 
 /**
@@ -217,7 +217,7 @@ export async function createHabit(userId: string, input: CreateHabitInput) {
       resetTime: input.resetTime ?? '04:00',
       reminderTime: input.reminderTime,
       syncToGoogleCalendar: input.syncToGoogleCalendar ?? false,
-      createsGymAttendance: input.createsGymAttendance ?? false,
+      createsColiseoAttendance: input.createsColiseoAttendance ?? false,
     },
   });
 
@@ -297,7 +297,7 @@ export async function updateHabit(userId: string, habitId: string, input: Update
       ...(input.resetTime !== undefined && { resetTime: input.resetTime }),
       ...(input.reminderTime !== undefined && { reminderTime: input.reminderTime }),
       ...(input.syncToGoogleCalendar !== undefined && { syncToGoogleCalendar: input.syncToGoogleCalendar }),
-      ...(input.createsGymAttendance !== undefined && { createsGymAttendance: input.createsGymAttendance }),
+      ...(input.createsColiseoAttendance !== undefined && { createsColiseoAttendance: input.createsColiseoAttendance }),
     },
   });
 
@@ -556,9 +556,9 @@ export async function logHabit(
     }
   }
 
-  let gymAttendance: Awaited<ReturnType<typeof recordHabitGymAttendance>> | null = null;
-  if (isNewCompletion && habit.createsGymAttendance) {
-    gymAttendance = await recordHabitGymAttendance(userId, habitId, date);
+  let coliseoAttendance: Awaited<ReturnType<typeof recordHabitColiseoAttendance>> | null = null;
+  if (isNewCompletion && habit.createsColiseoAttendance) {
+    coliseoAttendance = await recordHabitColiseoAttendance(userId, habitId, date);
   }
 
   let rewards = null;
@@ -611,7 +611,7 @@ export async function logHabit(
     rewards,
     achievementsUnlocked,
     recoveryCompleted,
-    gymAttendance,
+    coliseoAttendance,
   };
 }
 
@@ -677,7 +677,7 @@ export async function undoHabitLog(userId: string, habitId: string) {
 
   if (undone) {
     // Do not remove a manual visit (or one recorded by a workout).
-    await prisma.gymAttendance.deleteMany({
+    await prisma.coliseoAttendance.deleteMany({
       where: { userId, date: today, habitId, source: 'HABIT' },
     });
   }

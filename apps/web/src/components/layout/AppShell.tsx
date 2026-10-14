@@ -11,6 +11,7 @@ import { ease } from '@/lib/motion';
 import { useAuthStore } from '@/store/authStore';
 import { useShellStore } from '@/store/shellStore';
 import { refreshUser } from '@/hooks/useAuth';
+import { useLifeChange } from '@/lib/lifeSync';
 import { zoneName } from '@/services/network.service';
 import { liveHub, sayGoodbye } from '@/lib/live';
 import { onNotificationNavigate } from '@/lib/systemNotifications';
@@ -97,9 +98,10 @@ function ZoneTip() {
   );
 }
 
-/** Mantiene XP/oro/nivel frescos al navegar y al volver a la pestaña. */
+/** Mantiene XP/oro/nivel frescos al navegar, al volver a la pestaña y tras cualquier registro en una zona. */
 function useUserSync(pathname: string) {
   useEffect(() => { void refreshUser(); }, [pathname]);
+  useLifeChange(() => void refreshUser(), 0);
   useEffect(() => {
     const sync = () => { if (document.visibilityState === 'visible') void refreshUser(); };
     window.addEventListener('focus', sync);
@@ -214,7 +216,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <FloatingXPLayer />
       <ScreenFlash />
       <AchievementUnlockedToast />
-      <MusicPlayer url={user?.gymPlaylistUrl} />
+      <MusicPlayer url={user?.coliseoPlaylistUrl} />
       <AnimatePresence>
         {focusOpen && <FocusMode onClose={() => setFocusOpen(false)} />}
       </AnimatePresence>

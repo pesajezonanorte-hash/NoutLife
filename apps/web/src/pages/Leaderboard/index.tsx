@@ -11,7 +11,7 @@ import { ZoneShell } from '@/components/ambience';
 import { useMotionStore } from '@/store/motionStore';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Dumbbell, Flame, HeartHandshake, RefreshCw, Trophy, UserPlus, Users, type LucideIcon } from 'lucide-react';
+import { Flame, Swords, HeartHandshake, RefreshCw, Trophy, UserPlus, Users, type LucideIcon } from 'lucide-react';
 import { item, stagger } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 import { getLeaderboard } from '@/services/social.service';
@@ -23,7 +23,7 @@ import {
   SegmentedControl, type ChipOption,
 } from '@/components/ui/lq';
 
-type Category = 'xp' | 'streak' | 'gym';
+type Category = 'xp' | 'streak' | 'coliseo';
 type Scope = 'global' | 'friends';
 
 interface Entry {
@@ -35,12 +35,12 @@ interface Entry {
 }
 
 /** Zonas cuya XP cuenta para el ranking (las que participan en el online). */
-const ONLINE_ZONES = 'Hábitos, Misiones, Gimnasio y Aprendizaje';
+const ONLINE_ZONES = 'Hábitos, Misiones, Coliseo y Aprendizaje';
 
 const METRICS: Record<Category, { label: string; icon: LucideIcon; unit: [string, string]; hint: string }> = {
   xp: { label: 'Nivel y XP', icon: Trophy, unit: ['XP', 'XP'], hint: `Primero el nivel; con el mismo nivel, quien lleva más XP dentro de él. Solo cuenta la XP de las zonas online: ${ONLINE_ZONES}.` },
   streak: { label: 'Racha activa', icon: Flame, unit: ['día', 'días'], hint: 'Días seguidos con actividad. Si alguien pasa un día entero sin actividad, su racha vuelve a 0.' },
-  gym: { label: 'Entrenamiento', icon: Dumbbell, unit: ['sesión', 'sesiones'], hint: 'Sesiones de gimnasio terminadas.' },
+  coliseo: { label: 'Entrenamiento', icon: Swords, unit: ['sesión', 'sesiones'], hint: 'Sesiones terminadas en el Coliseo.' },
 };
 const fmtValue = (v: number, c: Category) => {
   const n = Math.round(v);

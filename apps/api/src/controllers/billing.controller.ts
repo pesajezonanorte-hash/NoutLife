@@ -83,6 +83,24 @@ export async function resume(req: AuthRequest, res: Response): Promise<void> {
   }
 }
 
+/** Estado para el aviso de Nequi: lectura pura, sin consultar a Wompi. */
+export async function subscription(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    res.json(await billing.getSubscription(req.userId!));
+  } catch (error) {
+    sendError(res, error, 'SUBSCRIPTION');
+  }
+}
+
+/** «Ya lo aprobé»: revisa en Wompi el cobro en espera de Nequi. */
+export async function refreshPending(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    res.json(await billing.refreshPendingApproval(req.userId!));
+  } catch (error) {
+    sendError(res, error, 'REFRESH_PENDING');
+  }
+}
+
 /** Eventos de Wompi. Responde 200 solo si el evento se procesó o no nos concierne; Wompi reintenta lo demás. */
 export async function webhook(req: Request, res: Response): Promise<void> {
   try {

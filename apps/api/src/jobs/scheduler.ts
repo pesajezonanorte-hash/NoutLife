@@ -256,7 +256,7 @@ async function generateWeeklySummaryForUser(userId: string) {
     questsCreated,
     bestStreak: Math.max(topHabit?.longestStreak ?? 0, topHabit?.currentStreak ?? 0),
     bestHabitName: topHabit?.title ?? 'tu disciplina',
-    gymSessions: workoutsCount,
+    coliseoSessions: workoutsCount,
     balance: totalBalance,
   };
 
@@ -297,14 +297,14 @@ async function buildWeeklySummary(weekData: {
   questsCreated: number;
   bestStreak: number;
   bestHabitName: string;
-  gymSessions: number;
+  coliseoSessions: number;
   balance: number;
 }, ai: boolean) {
   // Sin IA (NoutLife Lite o sin proveedor): resumen armado con los datos.
   if (!ai) {
     return [
       `${weekData.displayName}, tu semana cerró con Life Score ${weekData.lifeScore}/100 frente a ${weekData.prevScore}/100 la semana pasada. Completaste ${weekData.questsCompleted} de ${weekData.questsCreated} misiones creadas y tu mejor racha fue de ${weekData.bestStreak} días en "${weekData.bestHabitName}".`,
-      `${weekData.gymSessions > 0 ? `Entrenaste ${weekData.gymSessions} veces` : 'El Coliseo quedó en pausa'} y tu frente financiero se sostiene en ${formatCOP(weekData.balance)}. Hubo avance, pero todavía puedes volver más consistente lo que ya empezó a funcionar.`,
+      `${weekData.coliseoSessions > 0 ? `Entrenaste ${weekData.coliseoSessions} veces` : 'El Coliseo quedó en pausa'} y tu frente financiero se sostiene en ${formatCOP(weekData.balance)}. Hubo avance, pero todavía puedes volver más consistente lo que ya empezó a funcionar.`,
       `La próxima semana protege una sola ancla: repite "${weekData.bestHabitName}" al inicio del día y deja que ese impulso arrastre el resto.`,
     ].join('\n\n');
   }
@@ -316,7 +316,7 @@ Específico con sus datos reales. Épico pero directo. Máximo 3 párrafos.
 DATOS: Life Score ${weekData.lifeScore}/100 (vs ${weekData.prevScore} semana pasada).
 Quests: ${weekData.questsCompleted}/${weekData.questsCreated}.
 Mejor racha: ${weekData.bestStreak} días en "${weekData.bestHabitName}".
-Gym: ${weekData.gymSessions} sesiones. Finanzas: ${formatCOP(weekData.balance)}.
+Coliseo: ${weekData.coliseoSessions} sesiones. Finanzas: ${formatCOP(weekData.balance)}.
 
 Párrafo 1: lo que logró.
 Párrafo 2: qué puede mejorar.

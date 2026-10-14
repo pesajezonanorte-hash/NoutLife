@@ -328,7 +328,7 @@ export default function HabitDetailPage() {
                 <span className={cn('text-label-lg font-mono tabular-nums', i === arr.length - 1 && 'text-primary-text')}>{v}</span>
               </div>
             ))}
-            {habit.createsGymAttendance && <p className="mt-2 text-body-sm text-on-surface-light">Cuenta como asistencia al gimnasio.</p>}
+            {habit.createsColiseoAttendance && <p className="mt-2 text-body-sm text-on-surface-light">Cuenta como asistencia al Coliseo.</p>}
           </Card>
         </aside>
       </motion.div>

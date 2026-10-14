@@ -9,6 +9,7 @@ import {
 import { fetchCorrelations, fetchLifeScore, fetchYearInReview } from '@/services/lifescore.service';
 import type { LifeScore, YearInReview } from '@/services/lifescore.service';
 import { item, stagger } from '@/lib/motion';
+import { useLifeChange } from '@/lib/lifeSync';
 
 type Tab = 'score' | 'correlations' | 'year';
 type Bar = Exclude<Tone, 'muted' | 'secondary'>;
@@ -39,14 +40,15 @@ export default function LifePage() {
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [tab, setTab] = useState<Tab>('score');
 
-  const load = useCallback(() => {
-    setState('loading');
+  const load = useCallback((silent?: unknown) => {
+    if (silent !== true) setState('loading');
     Promise.all([fetchLifeScore(), fetchCorrelations(), fetchYearInReview()])
       .then(([ls, cr, yr]) => { setLifeScore(ls); setCorrelations(cr); setYearReview(yr); setState('ready'); })
       .catch(() => setState('error'));
   }, []);
 
-  useEffect(load, [load]);
+  useEffect(() => load(), [load]);
+  useLifeChange(() => load(true));
 
   if (state === 'loading') return <PageLoader label="Calculando tu Life Score" />;
   if (state === 'error') return <ErrorState onRetry={load} />;

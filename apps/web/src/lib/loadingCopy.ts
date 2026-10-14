@@ -142,7 +142,12 @@ export const LOADING_COPY = {
     'Desplegando el mapa…',
     'Revisando tus objetivos…',
   ],
-  gym: [
+  recreation: [
+    'Apagando las luces…',
+    'Preparando la función…',
+    'Rebobinando la cinta…',
+  ],
+  coliseo: [
     'Calentando motores…',
     'Cargando tus rutinas…',
     'Sumando tu volumen…',

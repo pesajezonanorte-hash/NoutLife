@@ -8,7 +8,7 @@ import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 
 import { AnimatePresence, motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
-  Bell, BookOpen, Check, CheckCheck, Clock, Dumbbell, Flame, Heart, Mail, Map as MapIcon, Megaphone, Moon, NotebookPen, Sparkles, Star, Target, Tent,
+  Bell, BookOpen, Check, CheckCheck, Clock, Flame, Heart, Mail, Map as MapIcon, Megaphone, Moon, NotebookPen, Sparkles, Star, Swords, Target, Tent,
   Trash2, Trophy, UtensilsCrossed, Wallet, type LucideIcon,
 } from 'lucide-react';
 import { useLive } from '@/lib/live';
@@ -59,7 +59,8 @@ const TYPE_ICON: Record<string, { icon: LucideIcon; tone: Tone }> = {
 };
 /** Los recordatorios llevan el ícono de su zona (por adónde llevan). */
 const ZONE_ICON: Array<[string, { icon: LucideIcon; tone: Tone }]> = [
-  ['/gym', { icon: Dumbbell, tone: 'error' }], ['/sleep', { icon: Moon, tone: 'info' }], ['/food', { icon: UtensilsCrossed, tone: 'warning' }],
+  // '/gym': avisos anteriores al renombre a Coliseo.
+  ['/coliseo', { icon: Swords, tone: 'error' }], ['/gym', { icon: Swords, tone: 'error' }], ['/sleep', { icon: Moon, tone: 'info' }], ['/food', { icon: UtensilsCrossed, tone: 'warning' }],
   ['/journal', { icon: NotebookPen, tone: 'forest' }], ['/learning', { icon: BookOpen, tone: 'primary' }], ['/finances', { icon: Wallet, tone: 'success' }],
   ['/habits', { icon: Flame, tone: 'error' }], ['/social', { icon: Mail, tone: 'primary' }],
 ];

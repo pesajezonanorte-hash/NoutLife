@@ -63,12 +63,12 @@ export async function sleepScatter(req: AuthRequest, res: Response): Promise<voi
   }
 }
 
-export async function gymProgression(req: AuthRequest, res: Response): Promise<void> {
+export async function coliseoProgression(req: AuthRequest, res: Response): Promise<void> {
   try {
     const period = (req.query.period as string) ?? 'month';
-    res.json(await stats.getGymProgression(req.userId!, period));
+    res.json(await stats.getColiseoProgression(req.userId!, period));
   } catch (error) {
-    sendStatsError(res, error, 'gym');
+    sendStatsError(res, error, 'coliseo');
   }
 }
 

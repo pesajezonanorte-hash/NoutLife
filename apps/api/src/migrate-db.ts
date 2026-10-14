@@ -8,6 +8,27 @@ import { SUBSCRIPTIONS_SQL } from './lib/billing-migrations';
 const ignoreDuplicate = (sql: string) =>
   `DO $$ BEGIN ${sql}; EXCEPTION WHEN duplicate_object THEN NULL; END $$;`;
 
+// Zona de Recreación (sala de cine).
+const RECREATION_SQL = [
+  `CREATE TABLE IF NOT EXISTS "recreation_entries" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "kind" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'DONE',
+    "rating" INTEGER,
+    "minutes" INTEGER,
+    "notes" TEXT,
+    "date" TIMESTAMP(3) NOT NULL,
+    "xpEarned" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "recreation_entries_pkey" PRIMARY KEY ("id")
+  );`,
+  `CREATE INDEX IF NOT EXISTS "recreation_entries_userId_date_idx" ON "recreation_entries"("userId", "date");`,
+  ignoreDuplicate(`ALTER TABLE "recreation_entries" ADD CONSTRAINT "recreation_entries_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE`),
+];
+
 // Idempotent mirror of prisma/migrations/20260930180000_gym_attendance_and_notification_controls.
 const GYM_ATTENDANCE_AND_NOTIFICATION_CONTROLS_SQL = [
   ignoreDuplicate(`CREATE TYPE "GymAttendanceSource" AS ENUM ('HABIT', 'MANUAL')`),
@@ -115,10 +136,10 @@ async function runDataOpsOnce() {
         prisma.workoutExercise.deleteMany({ where: { workout: { userId } } }),
         prisma.workout.deleteMany({ where: { userId } }),
         prisma.routine.deleteMany({ where: { userId } }),
-        prisma.gymAttendance.deleteMany({ where: { userId } }),
+        prisma.coliseoAttendance.deleteMany({ where: { userId } }),
         prisma.bodyWeight.deleteMany({ where: { userId } }),
         prisma.progressPhoto.deleteMany({ where: { userId } }),
-        prisma.user.update({ where: { id: userId }, data: { gymPlaylistUrl: null } }),
+        prisma.user.update({ where: { id: userId }, data: { coliseoPlaylistUrl: null } }),
       ]);
       console.log('Gym data of miguelhero reset.');
     }],
@@ -251,6 +272,9 @@ async function migrate() {
 
   // Idempotent mirror of prisma/migrations/20261019120000_subscriptions.
   for (const sql of SUBSCRIPTIONS_SQL) await prisma.$executeRawUnsafe(sql);
+
+  // Idempotent mirror of prisma/migrations/20261023120000_recreation_zone.
+  for (const sql of RECREATION_SQL) await prisma.$executeRawUnsafe(sql);
 
   // Runs last so tables created above are covered too.
   await prisma.$executeRawUnsafe(RLS_LOCKDOWN_SQL);

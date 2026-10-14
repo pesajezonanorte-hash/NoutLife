@@ -1,3 +1,4 @@
+import { createHmac, randomBytes, timingSafeEqual } from 'crypto';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 
 /**
@@ -33,9 +34,53 @@ export const oauthConfig = () => ({
 export function calendarRedirectUri(fromClient: unknown, origin?: string): string {
   const configured = (process.env.GOOGLE_CALENDAR_REDIRECT_URI ?? '').trim();
   if (configured) return configured;
-  if (typeof fromClient === 'string' && /^https?:\/\//.test(fromClient)) return fromClient;
+  // La página que manda la web solo vale si es del mismo origen de la petición
+  // (que CORS ya validó): nadie puede colar otro dominio como retorno.
+  if (typeof fromClient === 'string' && /^https?:\/\//.test(fromClient) && origin) {
+    try { if (new URL(fromClient).origin === new URL(origin).origin) return fromClient; } catch { /* URL inválida: se ignora */ }
+  }
   const base = (origin || process.env.WEB_URL || '').trim().replace(/\/+$/, '');
   return `${base}/agenda`;
+}
+
+/**
+ * Único permiso que pide la integración: ver y editar eventos (publica hábitos,
+ * misiones y tareas, e importa los eventos a la Agenda). `calendar.readonly`
+ * sobraba: `calendar.events` ya permite leerlos, y cada permiso sensible extra
+ * alarga la pantalla de consentimiento y la verificación de Google.
+ */
+export const GOOGLE_CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.events';
+
+const STATE_TTL_MS = 10 * 60_000;
+
+function stateMac(payload: string): Buffer {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) throw new Error('JWT_SECRET no configurado.');
+  return createHmac('sha256', secret).update(`gcal-state:${payload}`).digest();
+}
+
+/**
+ * `state` del permiso de Google Calendar: firmado y atado a la persona que lo
+ * pidió, con caducidad. Sin él, cualquiera podía hacer llegar a otra persona a
+ * /agenda?code=… con un código suyo y enlazar la cuenta de la víctima a su
+ * calendario (CSRF del flujo OAuth).
+ */
+export function signCalendarState(userId: string, now = Date.now()): string {
+  const payload = `${userId}.${now.toString(36)}.${randomBytes(8).toString('hex')}`;
+  return `${Buffer.from(payload).toString('base64url')}.${stateMac(payload).toString('base64url')}`;
+}
+
+export function verifyCalendarState(state: unknown, userId: string, now = Date.now()): boolean {
+  if (typeof state !== 'string' || state.length > 512) return false;
+  const [encoded, mac] = state.split('.');
+  if (!encoded || !mac) return false;
+  const payload = Buffer.from(encoded, 'base64url').toString();
+  const expected = stateMac(payload);
+  const given = Buffer.from(mac, 'base64url');
+  if (given.length !== expected.length || !timingSafeEqual(given, expected)) return false;
+  const [owner, issued] = payload.split('.');
+  const age = now - parseInt(issued ?? '', 36);
+  return owner === userId && age >= 0 && age <= STATE_TTL_MS;
 }
 
 export async function verifyIdToken(provider: OAuthProvider, idToken: string): Promise<OAuthIdentity> {

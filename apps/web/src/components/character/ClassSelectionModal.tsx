@@ -10,7 +10,7 @@ import { useAuthStore } from '@/store/authStore';
 import { Button, IconChip, ResponsiveDialog, type Tone } from '@/components/ui/lq';
 
 const CLASSES: Array<{ id: string; icon: LucideIcon; tone: Exclude<Tone, 'muted'>; name: string; description: string; bonus: string; stat: string }> = [
-  { id: 'warrior', icon: Swords, tone: 'error', name: 'Guerrero', description: 'Maestro del fitness y la disciplina', bonus: '+20% XP en misiones de Gym', stat: 'Fuerza +2 por nivel' },
+  { id: 'warrior', icon: Swords, tone: 'error', name: 'Guerrero', description: 'Maestro del fitness y la disciplina', bonus: '+20% XP en el Coliseo y en misiones de fitness', stat: 'Fuerza +2 por nivel' },
   { id: 'mage', icon: Wand2, tone: 'forest', name: 'Mago', description: 'Sabio del conocimiento', bonus: '+20% XP en misiones de Aprendizaje', stat: 'Inteligencia +2 por nivel' },
   { id: 'merchant', icon: Coins, tone: 'warning', name: 'Mercader', description: 'Maestro de las finanzas y el ahorro', bonus: '+20% de oro en todas las misiones', stat: 'Acumula riqueza más rápido' },
   { id: 'paladin', icon: Heart, tone: 'success', name: 'Paladín', description: 'Guardián de las relaciones y el bienestar', bonus: '+20% XP en misiones de Amor y Salud', stat: 'Carisma +2 por nivel' },

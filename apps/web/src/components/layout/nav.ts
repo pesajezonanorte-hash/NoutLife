@@ -3,9 +3,9 @@
 // (onboarding o Ajustes → Zonas) + Perfil; el resto queda en Bienestar, "Más
 // zonas" y Comunidad.
 import {
-  BarChart3, BookOpen, CalendarDays, Gem, HelpCircle, Dumbbell, Flag, Globe, Heart, Home,
+  BarChart3, BookOpen, CalendarDays, Clapperboard, Gem, HelpCircle, Flag, Globe, Heart, Home,
   MapPin, Moon, NotebookPen, Scroll, Settings, ShoppingBag, Skull, Sun,
-  Sparkles, Trophy, User, UtensilsCrossed, Wallet, CheckCircle2, MessageCircle, Mail, NotebookTabs, Tent, Album, ListChecks, ShieldAlert, type LucideIcon,
+  Sparkles, Swords, Trophy, User, UtensilsCrossed, Wallet, CheckCircle2, MessageCircle, Mail, NotebookTabs, Tent, Album, ListChecks, ShieldAlert, type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useMemo } from 'react';
 import { useAuthStore } from '@/store/authStore';
@@ -42,6 +42,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { to: '/finances', label: 'Finanzas', icon: Wallet },
       { to: '/food', label: 'Comida', icon: UtensilsCrossed },
       { to: '/sleep', label: 'Sueño', icon: Moon },
+      { to: '/recreacion', label: 'Recreación', icon: Clapperboard },
       { to: '/achievements', label: 'Logros', icon: Trophy },
     ],
   },
@@ -55,7 +56,8 @@ export const NAV_SECTIONS: NavSection[] = [
       { to: '/obstaculos', label: 'Obstáculos', icon: ShieldAlert },
       { to: '/quests', label: 'Misiones', icon: Flag },
       { to: '/stats', label: 'Estadísticas', icon: BarChart3 },
-      { to: '/gym', label: 'Gimnasio', icon: Dumbbell },
+      // Coliseo (antes Gimnasio): cualquier entrenamiento físico, no solo el gimnasio.
+      { to: '/coliseo', label: 'Coliseo', icon: Swords },
       { to: '/espejo', label: 'Espejo', icon: Sparkles },
       { to: '/learning', label: 'Aprendizaje', icon: BookOpen },
       { to: '/love', label: 'Relaciones', icon: Heart },
@@ -89,7 +91,7 @@ export const SOCIAL_SHORTCUTS: NavEntry[] = [
 ];
 
 /** Rutas que se unieron en otra (zonas fijadas o escondidas guardadas antes). */
-const MERGED: Record<string, string> = { '/friends': '/social', '/guild': '/social', '/glow-up': '/espejo', '/armario': '/espejo' };
+const MERGED: Record<string, string> = { '/friends': '/social', '/guild': '/social', '/glow-up': '/espejo', '/armario': '/espejo', '/gym': '/coliseo' };
 
 /** Todas las zonas que pueden ir en la navegación principal (entre Inicio y Perfil). */
 export const ZONES: NavEntry[] = NAV_SECTIONS.flatMap((s) => s.items);

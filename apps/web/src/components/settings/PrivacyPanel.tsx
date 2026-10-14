@@ -122,7 +122,7 @@ export function PrivacyPanel({ Section }: { Section: (p: { eyebrow?: string; tit
             <Row id="pv-online" label="Mostrar si estoy en línea" description="Tus amigos ven el punto verde y tu última conexión.">
               <Switch id="pv-online" checked={privacy.showOnline} onChange={(e) => void change({ showOnline: e.target.checked })} />
             </Row>
-            <Row id="pv-zone" label="Mostrar en qué zona estoy" description="Por ejemplo «En línea · en Gimnasio».">
+            <Row id="pv-zone" label="Mostrar en qué zona estoy" description="Por ejemplo «En línea · en Coliseo».">
               <Switch id="pv-zone" checked={privacy.showZone && privacy.showOnline} disabled={!privacy.showOnline} onChange={(e) => void change({ showZone: e.target.checked })} />
             </Row>
             <Row id="pv-read" label="Confirmación de lectura" description="Tus amigos ven «Visto» cuando lees sus cartas." last>

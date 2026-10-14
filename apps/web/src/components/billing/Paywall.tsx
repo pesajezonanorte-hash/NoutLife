@@ -29,7 +29,7 @@ type Step = 'offer' | 'form' | 'done';
 
 /** Ancla Pro / Lite: lo que abre Pro y lo que en Lite queda con candado o con tope. */
 const ROWS: Array<{ label: string; detail?: string; pro: string | true; lite: string | false }> = [
-  { label: `${PRO_ZONE_COUNT} zonas Pro`, detail: 'Finanzas, Gimnasio, Comida, Sueño…', pro: true, lite: false },
+  { label: `${PRO_ZONE_COUNT} zonas Pro`, detail: 'Finanzas, Coliseo, Comida, Sueño…', pro: true, lite: false },
   { label: 'Hábitos y rutinas activos', pro: 'Ilimitados', lite: `Hasta ${LITE_LIMITS.activeHabits}` },
   { label: 'Historial y analíticas', pro: 'Completos', lite: `${LITE_LIMITS.historyDays} días` },
   { label: 'El Sabio con IA', pro: true, lite: false },

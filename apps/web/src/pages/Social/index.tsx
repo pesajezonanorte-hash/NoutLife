@@ -271,7 +271,7 @@ export default function SocialPage() {
 
       {/* Pestañas: siempre a mano al bajar. El indicador (layoutId) va aislado de la
           presencia de la página: si no, al salir de Social la zona de destino se quedaba en blanco. */}
-      <motion.div variants={item} className="sticky top-[calc(3.5rem+env(safe-area-inset-top))] z-10 -mx-4 border-b border-border bg-background/90 px-4 backdrop-blur-xl md:top-16 md:mx-0 md:rounded-t-xl md:px-1">
+      <motion.div variants={item} className="lq-bar-glass sticky top-[calc(3.5rem+env(safe-area-inset-top))] z-10 -mx-4 border-b border-border px-4 md:top-16 md:mx-0 md:rounded-t-xl md:px-1">
         <PresenceContext.Provider value={null}>
           <div role="tablist" aria-label="Secciones de Social" className="flex">
             {TABS.map((t, i) => {

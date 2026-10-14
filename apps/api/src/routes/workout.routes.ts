@@ -8,7 +8,7 @@ import * as ctrl from '../controllers/workout.controller';
 const router = Router();
 router.use(requireAuth);
 // Zona Pro: en NoutLife Lite toda la zona responde 402 (lo guardado se conserva).
-router.use(requireProZone('gym'));
+router.use(requireProZone('coliseo'));
 
 router.get('/',              ctrl.listWorkouts);
 router.post('/',             validate(createWorkoutSchema), ctrl.createWorkout);

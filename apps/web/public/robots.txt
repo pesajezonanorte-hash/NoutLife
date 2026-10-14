@@ -12,6 +12,8 @@ Disallow: /habits
 Disallow: /achievements
 Disallow: /history
 Disallow: /gym
+Disallow: /coliseo
+Disallow: /recreacion
 Disallow: /finances
 Disallow: /sleep
 Disallow: /food

@@ -74,7 +74,7 @@ export async function sendTestNotification(req: AuthRequest, res: Response): Pro
 export async function listInApp(req: AuthRequest, res: Response): Promise<void> {
   try {
     const limit = Math.min(Number(req.query['limit']) || 30, 30);
-    const rawCategory = req.query.category as string | undefined;
+    const rawCategory = typeof req.query.category === 'string' ? notificationService.normalizeNotificationCategory(req.query.category) : undefined;
     if (rawCategory && !notificationService.NOTIFICATION_CATEGORIES.includes(rawCategory as notificationService.NotificationCategory)) {
       res.status(400).json({ error: 'Categoría de notificación inválida.' });
       return;

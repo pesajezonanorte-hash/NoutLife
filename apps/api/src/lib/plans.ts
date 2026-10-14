@@ -31,12 +31,13 @@ export const LITE_LIMITS = {
  * se conserva y vuelve a verse al activar Pro. Inicio, hábitos, misiones,
  * logros, agenda, rituales y social siguen en Lite.
  */
-export const PRO_ZONES = ['finances', 'gym', 'food', 'sleep', 'journal', 'learning', 'love', 'mirror', 'wisdom', 'custom-zones'] as const;
+export const PRO_ZONES = ['finances', 'coliseo', 'recreation', 'food', 'sleep', 'journal', 'learning', 'love', 'mirror', 'wisdom', 'custom-zones'] as const;
 export type ProZone = (typeof PRO_ZONES)[number];
 
 export const PRO_ZONE_LABELS: Record<ProZone, string> = {
   finances: 'Finanzas',
-  gym: 'Gimnasio',
+  coliseo: 'Coliseo',
+  recreation: 'Recreación',
   food: 'Comida',
   sleep: 'Sueño',
   journal: 'Diario',
