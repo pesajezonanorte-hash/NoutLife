@@ -1155,3 +1155,88 @@ html.dark .lq-curtain { background: repeating-linear-gradient(90deg, color-mix(i
 }
 .lq-sunpatch[data-phase="dusk"], .lq-sunpatch[data-phase="dawn"] { background: linear-gradient(180deg, rgb(var(--lq-warning) / .24), rgb(var(--lq-error) / .08) 50%, transparent 92%); }
 html.dark .lq-sunpatch { mix-blend-mode: screen; opacity: .55; }
+
+/* ───────── Recreación (sala de cine) ───────── */
+/* La sala siempre está a oscuras (también en tema claro): la luz es de la pantalla.
+   Terciopelo = el rojo de los tokens hundido en sombra; latón = el oro de recompensas. */
+.lq-cine-room {
+  --velvet: color-mix(in srgb, rgb(var(--lq-error)) 56%, black);
+  --velvet-deep: color-mix(in srgb, rgb(var(--lq-error)) 30%, black);
+  --velvet-lit: color-mix(in srgb, rgb(var(--lq-error)) 76%, black);
+  background:
+    radial-gradient(120% 60% at 50% 0%, color-mix(in srgb, var(--velvet) 34%, transparent), transparent 70%),
+    linear-gradient(180deg, color-mix(in srgb, rgb(var(--lq-jade-900)) 72%, black), color-mix(in srgb, rgb(var(--lq-jade-900)) 92%, black));
+  color: rgb(var(--lq-jade-50));
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .05), 0 24px 48px -28px rgb(0 0 0 / .7);
+}
+/* Telón: pliegues verticales; al recogerse (scaleX) se juntan como tela real. */
+.lq-cine-curtain {
+  background: repeating-linear-gradient(90deg, var(--velvet-deep) 0 6px, var(--velvet) 6px 18px, var(--velvet-lit) 18px 22px, var(--velvet) 22px 32px);
+  box-shadow: inset -18px 0 24px -12px rgb(0 0 0 / .55);
+}
+.lq-cine-curtain-r { box-shadow: inset 18px 0 24px -12px rgb(0 0 0 / .55); }
+/* Bambalina: el remate de arriba, con un filo de latón. */
+.lq-cine-valance {
+  background: linear-gradient(180deg, var(--velvet-deep), var(--velvet) 70%, var(--velvet-deep));
+  border-bottom: 2px solid color-mix(in srgb, rgb(var(--lq-secondary)) 70%, black);
+  box-shadow: 0 6px 12px -6px rgb(0 0 0 / .6);
+}
+/* Haz del proyector: abanico de luz desde arriba. Su intensidad varía poco y despacio
+   (cambios suaves, muy por debajo de 3 por segundo): se siente, no parpadea. */
+.lq-cine-beam {
+  background: conic-gradient(from 180deg at 50% 0%, transparent 152deg, rgb(255 255 255 / .07) 168deg, rgb(255 255 255 / .12) 180deg, rgb(255 255 255 / .07) 192deg, transparent 208deg);
+  mix-blend-mode: screen;
+  animation: lq-cine-flicker 6s linear infinite;
+}
+@keyframes lq-cine-flicker { 0%, 100% { opacity: .9; } 17% { opacity: .78; } 33% { opacity: 1; } 52% { opacity: .84; } 71% { opacity: .96; } 86% { opacity: .8; } }
+/* Grano de película: un mosaico de ruido fijo que salta de sitio dos veces por segundo. */
+.lq-cine-grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: .07;
+  mix-blend-mode: overlay;
+  animation: lq-cine-grain 1.5s steps(3) infinite;
+}
+@keyframes lq-cine-grain { 0% { transform: translate3d(0, 0, 0); } 33% { transform: translate3d(-4%, 3%, 0); } 66% { transform: translate3d(3%, -2%, 0); } 100% { transform: translate3d(0, 0, 0); } }
+/* La pantalla: plata que recibe la luz; en tema oscuro, más tenue para no deslumbrar. */
+.lq-cine-screen {
+  background: linear-gradient(180deg, color-mix(in srgb, rgb(var(--lq-info)) 10%, rgb(244 246 247)), color-mix(in srgb, rgb(var(--lq-info)) 18%, rgb(226 231 234)));
+  color: rgb(var(--lq-jade-900));
+  box-shadow: 0 0 0 1px rgb(255 255 255 / .35), 0 0 36px rgb(var(--lq-info) / .28), 0 0 110px rgb(var(--lq-info) / .14);
+}
+html.dark .lq-cine-screen { background: linear-gradient(180deg, color-mix(in srgb, rgb(var(--lq-info)) 14%, rgb(206 212 216)), color-mix(in srgb, rgb(var(--lq-info)) 22%, rgb(186 194 199))); }
+/* Bombillas de la marquesina: la «persecución» sale de los retrasos escalonados (solo opacidad). */
+.lq-bulb {
+  display: block; width: 7px; height: 7px; border-radius: 999px;
+  background: color-mix(in srgb, rgb(var(--lq-secondary)) 80%, white);
+  box-shadow: 0 0 6px 1px rgb(var(--lq-secondary) / .55);
+  animation: lq-bulb 2.4s ease-in-out infinite;
+  animation-delay: calc(var(--i, 0) * -.15s);
+}
+@keyframes lq-bulb { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+/* Fuera de pantalla o con la pestaña oculta, la sala se queda quieta. */
+.lq-cine-room[data-paused] *, .lq-cine-room[data-paused] *::before, .lq-cine-room[data-paused] *::after { animation-play-state: paused !important; }
+.reduce-motion .lq-cine-beam, .reduce-motion .lq-cine-grain, .reduce-motion .lq-bulb { animation: none; }
+.reduce-motion .lq-bulb { opacity: .85; }
+/* Boleta: talón perforado a la izquierda. Las muescas son un recorte (mask), no un dibujo encima. */
+.lq-ticket {
+  --stub: 4.75rem;
+  background: rgb(var(--lq-surface));
+  border-radius: 14px;
+  box-shadow: inset 0 0 0 1px rgb(var(--lq-border));
+  -webkit-mask: radial-gradient(circle 8px at var(--stub) 0, transparent 97%, #000) top / 100% 51% no-repeat, radial-gradient(circle 8px at var(--stub) 100%, transparent 97%, #000) bottom / 100% 51% no-repeat;
+  mask: radial-gradient(circle 8px at var(--stub) 0, transparent 97%, #000) top / 100% 51% no-repeat, radial-gradient(circle 8px at var(--stub) 100%, transparent 97%, #000) bottom / 100% 51% no-repeat;
+}
+.lq-ticket:focus-visible { outline: 2px solid rgb(var(--lq-primary)); outline-offset: 3px; }
+.lq-ticket-stub {
+  background: color-mix(in srgb, rgb(var(--lq-error)) 9%, rgb(var(--lq-surface)));
+  border-right: 2px dashed rgb(var(--lq-border-strong) / .6);
+  border-radius: 14px 0 0 14px;
+  color: rgb(var(--lq-error-text));
+}
+html.dark .lq-ticket-stub { background: color-mix(in srgb, rgb(var(--lq-error)) 14%, rgb(var(--lq-surface))); }
+/* Póster de la cartelera: el tono del tipo de ocio sobre la sombra de la sala. */
+.lq-poster {
+  background: linear-gradient(160deg, color-mix(in srgb, var(--tone) 55%, rgb(var(--lq-jade-900))), color-mix(in srgb, var(--tone) 16%, rgb(var(--lq-jade-900))) 78%);
+  color: rgb(var(--lq-jade-50));
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .08), var(--shadow-sm);
+}

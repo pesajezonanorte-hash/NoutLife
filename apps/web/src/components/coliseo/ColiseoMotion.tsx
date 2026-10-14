@@ -1,4 +1,4 @@
-// Piezas de movimiento del gimnasio: todo tiene masa. La barra carga un disco
+// Piezas de movimiento del Coliseo: todo tiene masa. La barra carga un disco
 // por día entrenado y «cae» al recibirlo, el cronómetro gira dígito a dígito,
 // las barras de volumen se levantan como una repetición y los bloques acusan el
 // golpe cuando algo cae dentro. Solo transform/opacity (más `r`/scale en SVG).

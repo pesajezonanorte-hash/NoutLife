@@ -50,13 +50,15 @@ export async function publicProfile(req: AuthRequest, res: Response): Promise<vo
 // ─── Leaderboard ──────────────────────────────────────────────────────────────
 
 export async function leaderboard(req: AuthRequest, res: Response): Promise<void> {
-  const category = (req.query.category as string) ?? 'xp';
+  const raw = (req.query.category as string) ?? 'xp';
+  // «gym» es el nombre anterior de «coliseo».
+  const category = raw === 'gym' ? 'coliseo' : raw;
   const friendsOnly = req.query.friendsOnly === 'true';
-  if (!['xp', 'streak', 'gym'].includes(category)) {
+  if (!['xp', 'streak', 'coliseo'].includes(category)) {
     res.status(400).json({ error: 'category inválida' }); return;
   }
   const data = await social.getLeaderboard(
-    category as 'xp' | 'streak' | 'gym',
+    category as 'xp' | 'streak' | 'coliseo',
     req.userId!,
     friendsOnly
   );

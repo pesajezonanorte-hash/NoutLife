@@ -29,7 +29,7 @@ function initialForm(h?: Habit | null): CreateHabitPayload {
     reminderTime: h?.reminderTime ?? '',
     frequency: h?.frequency ?? { type: 'daily', days: [] },
     syncToGoogleCalendar: h?.syncToGoogleCalendar ?? false,
-    createsGymAttendance: h?.createsGymAttendance ?? false,
+    createsColiseoAttendance: h?.createsColiseoAttendance ?? false,
   };
 }
 
@@ -198,10 +198,10 @@ export function HabitFormDialog({ open, habit, onClose, onSubmit }: HabitFormDia
           <label className="flex items-center gap-3 p-4">
             <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-xl', softTone.success)}><Dumbbell aria-hidden className="size-5" strokeWidth={1.75} /></span>
             <span className="min-w-0 flex-1">
-              <span className="block text-label-lg text-on-background">Cuenta como asistencia al gym</span>
-              <span className="block text-body-sm text-on-surface-light">Completar este hábito registra un día de gimnasio.</span>
+              <span className="block text-label-lg text-on-background">Cuenta como asistencia al Coliseo</span>
+              <span className="block text-body-sm text-on-surface-light">Completar este hábito registra un día de entrenamiento en el Coliseo.</span>
             </span>
-            <Switch checked={Boolean(form.createsGymAttendance)} onChange={(e) => set('createsGymAttendance', e.target.checked)} />
+            <Switch checked={Boolean(form.createsColiseoAttendance)} onChange={(e) => set('createsColiseoAttendance', e.target.checked)} />
           </label>
           <div className="flex items-center gap-3 p-4">
             <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-xl', softTone.info)}><CalendarDays aria-hidden className="size-5" strokeWidth={1.75} /></span>

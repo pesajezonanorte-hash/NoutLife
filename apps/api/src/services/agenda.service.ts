@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma';
+import { GOOGLE_CALENDAR_SCOPE } from '../lib/oauth';
 import { addCalendarDays, getCalendarDay } from '../lib/calendar';
 import type { Habit } from '@prisma/client';
 
@@ -142,10 +143,6 @@ interface GoogleCalendarEventsResponse {
   items?: GoogleCalendarItem[];
 }
 
-const GOOGLE_CALENDAR_SCOPE = [
-  'https://www.googleapis.com/auth/calendar.readonly',
-  'https://www.googleapis.com/auth/calendar.events',
-].join(' ');
 
 const GOOGLE_WEEKDAYS = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'] as const;
 
@@ -484,9 +481,25 @@ export async function removeHabitFromGoogleCalendar(userId: string, habit: Habit
   return { removed: true };
 }
 
-export function getGoogleAuthUrl(redirectUri: string): string {
-  const clientId = process.env.GOOGLE_CLIENT_ID || '';
-  return `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(GOOGLE_CALENDAR_SCOPE)}&access_type=offline&prompt=consent`;
+/**
+ * Pantalla de permiso de Google. `state` ata la vuelta a quien la pidió;
+ * include_granted_scopes suma Calendar a lo que ya concedió al iniciar sesión
+ * (autorización incremental) y login_hint abre directamente su cuenta. Con
+ * prompt=consent Google entrega siempre el refresh token (al desconectar se revoca).
+ */
+export function getGoogleAuthUrl(redirectUri: string, state: string, loginHint?: string): string {
+  const params = new URLSearchParams({
+    client_id: (process.env.GOOGLE_CLIENT_ID || '').split(',')[0].trim(),
+    redirect_uri: redirectUri,
+    response_type: 'code',
+    scope: GOOGLE_CALENDAR_SCOPE,
+    access_type: 'offline',
+    include_granted_scopes: 'true',
+    prompt: 'consent',
+    state,
+    ...(loginHint ? { login_hint: loginHint } : {}),
+  });
+  return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
 }
 
 export async function getGoogleCalendarStatus(userId: string) {
@@ -538,14 +551,24 @@ export async function handleGoogleCallback(userId: string, code: string, redirec
     if (errorData.includes('invalid_grant')) {
       throw new Error('El código de autorización ya fue usado o expiró. Intenta conectar tu cuenta de Google nuevamente.');
     }
-    throw new Error(`Error de autenticación con Google: ${errorData}`);
+    if (errorData.includes('redirect_uri_mismatch')) {
+      throw new Error('La URL de retorno no está registrada en Google Cloud Console. Revisa GOOGLE_CALENDAR_REDIRECT_URI.');
+    }
+    // El detalle de Google queda en los registros; a la persona no le sirve.
+    throw new Error('Google no aceptó la conexión. Inténtalo de nuevo en un momento.');
   }
 
   const tokens = (await tokenResponse.json()) as {
     access_token: string;
     refresh_token?: string;
     expires_in: number;
+    scope?: string;
   };
+  // Con el consentimiento granular de Google, la persona puede desmarcar el
+  // calendario y aun así volver con un código: sin el permiso, sincronizar fallaría.
+  if (tokens.scope && !tokens.scope.split(' ').includes(GOOGLE_CALENDAR_SCOPE)) {
+    throw new Error('No diste permiso para tu calendario. Vuelve a conectar y marca la casilla de Google Calendar.');
+  }
   const expiresAt = new Date(Date.now() + tokens.expires_in * 1000);
 
   const updatedUser = await prisma.user.update({
@@ -828,7 +851,25 @@ async function cleanDetachedHabitCalendarEvents(userId: string, connection: Goog
   return removedCount;
 }
 
+/** Retira el permiso en Google (best-effort): la app deja de aparecer en «Apps con acceso a tu cuenta». */
+async function revokeGoogleToken(token: string | null | undefined): Promise<void> {
+  if (!token) return;
+  try {
+    await fetch('https://oauth2.googleapis.com/revoke', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ token }),
+      signal: AbortSignal.timeout(5000),
+    });
+  } catch (error) {
+    console.error('[GOOGLE_OAUTH_REVOKE_ERROR]', error instanceof Error ? error.message : error);
+  }
+}
+
 export async function disconnectGoogleCalendar(userId: string) {
+  const tokens = await prisma.user.findUnique({ where: { id: userId }, select: { googleRefreshToken: true, googleAccessToken: true } });
+  // Revocar el refresh token anula también sus access tokens.
+  await revokeGoogleToken(tokens?.googleRefreshToken ?? tokens?.googleAccessToken);
   await prisma.user.update({
     where: { id: userId },
     data: {

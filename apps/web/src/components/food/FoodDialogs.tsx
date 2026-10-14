@@ -18,16 +18,19 @@ import { DEFAULT_GOAL, MACROS, MEAL_TYPES, mealTypeLabel, type FoodType } from '
 import { ChefService } from './Restaurant';
 import { solidBg } from '@/components/ui/lq/tones';
 
-type Draft = { name: string; type: FoodType; calories: string; protein: string; carbs: string; fat: string };
-const blank = (type: FoodType): Draft => ({ name: '', type, calories: '', protein: '', carbs: '', fat: '' });
+// `type` empieza vacío salvo que la persona haya tocado un momento concreto
+// (un hueco de la línea de tiempo): nunca se asigna uno por la hora ni por defecto.
+type Draft = { name: string; type: FoodType | null; calories: string; protein: string; carbs: string; fat: string };
+const blank = (type: FoodType | null): Draft => ({ name: '', type, calories: '', protein: '', carbs: '', fat: '' });
 const num = (v: string) => (v.trim() === '' ? undefined : Math.max(0, Number(v.replace(',', '.'))));
 const invalidNum = (v: string) => v.trim() !== '' && !(Number(v.replace(',', '.')) >= 0);
+const TYPE_ERROR = 'Elige el momento del día';
 
-function TypePicker({ value, onChange }: { value: FoodType; onChange: (t: FoodType) => void }) {
+function TypePicker({ value, onChange, error }: { value: FoodType | null; onChange: (t: FoodType) => void; error?: string }) {
   return (
-    <fieldset className="flex flex-col gap-2">
+    <fieldset className="flex flex-col gap-2" aria-invalid={error ? true : undefined}>
       <legend className="mb-2 text-label-lg text-on-surface">Momento del día</legend>
-      <div role="radiogroup" aria-label="Momento del día" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div role="radiogroup" aria-label="Momento del día" aria-describedby={error ? 'meal-type-error' : undefined} className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {MEAL_TYPES.map(({ value: v, label, icon: Icon }) => {
           const on = v === value;
           return (
@@ -48,7 +51,27 @@ function TypePicker({ value, onChange }: { value: FoodType; onChange: (t: FoodTy
           );
         })}
       </div>
+      {error && <p id="meal-type-error" role="alert" className="text-body-sm text-error-text">{error}</p>}
     </fieldset>
+  );
+}
+
+/**
+ * Añadir una comida guardada: un botón por momento del día. El toque elige el
+ * momento y registra a la vez; no hay momento por defecto.
+ */
+export function AddAsTypeButtons({ name, busy, onPick }: { name: string; busy: FoodType | null; onPick: (t: FoodType) => void }) {
+  return (
+    <div role="group" aria-label={`Añadir ${name} como`} className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      {MEAL_TYPES.map(({ value, label, icon: Icon }) => (
+        <Button
+          key={value} variant="secondary" size="md" loading={busy === value} disabled={busy !== null && busy !== value}
+          aria-label={`Añadir ${name} como ${label.toLowerCase()}`} onClick={() => onPick(value)} className="min-h-14"
+        >
+          <Icon aria-hidden className="size-5" strokeWidth={1.75} />{label}
+        </Button>
+      ))}
+    </div>
   );
 }
 
@@ -65,7 +88,7 @@ function MealFields({ draft, set, touched, withType, nameRef }: {
       <Field label="Nombre" error={touched && !draft.name.trim() ? 'Escribe qué comiste' : undefined}>
         <Input ref={nameRef} data-autofocus value={draft.name} maxLength={80} onChange={(e) => set({ name: e.target.value })} placeholder="Ej. Pollo con arroz y ensalada" />
       </Field>
-      {withType && <TypePicker value={draft.type} onChange={(type) => set({ type })} />}
+      {withType && <TypePicker value={draft.type} onChange={(type) => set({ type })} error={touched && !draft.type ? TYPE_ERROR : undefined} />}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <Field label="Calorías" help="kcal" error={touched && invalidNum(draft.calories) ? 'Número no válido' : undefined}>
           <Input type="number" inputMode="numeric" min="0" value={draft.calories} onChange={(e) => set({ calories: e.target.value })} placeholder="0" className="font-mono tabular-nums" />
@@ -80,12 +103,15 @@ function MealFields({ draft, set, touched, withType, nameRef }: {
   );
 }
 
-const draftValid = (d: Draft) => d.name.trim() !== '' && !(['calories', 'protein', 'carbs', 'fat'] as const).some((k) => invalidNum(d[k]));
+/** Un registro del día necesita además el momento elegido; una comida guardada, no. */
+const draftValid = (d: Draft, needsType: boolean) =>
+  d.name.trim() !== '' && (!needsType || d.type !== null) && !(['calories', 'protein', 'carbs', 'fat'] as const).some((k) => invalidNum(d[k]));
 const draftBody = (d: Draft) => ({ name: d.name.trim(), calories: num(d.calories), protein: num(d.protein), carbs: num(d.carbs), fat: num(d.fat) });
 
+/** Solo se llama con un borrador válido (draftValid con momento). */
 async function logMeal(d: Draft, date: string, favorite: boolean): Promise<Meal> {
   const body = draftBody(d);
-  const meal = await mealService.createMeal({ ...body, mealType: d.type, date });
+  const meal = await mealService.createMeal({ ...body, mealType: d.type!, date });
   if (favorite) await mealService.createSavedMeal(body).catch(() => useToastStore.getState().error('No se pudo guardar en Guardadas'));
   useToastStore.getState().success(`${mealTypeLabel(d.type)} registrado`, body.calories ? `${body.calories} kcal` : undefined);
   return meal;
@@ -120,7 +146,8 @@ export function AnalyzeMealDialog({ open, onClose, date, initialType, onSaved }:
   open: boolean;
   onClose: () => void;
   date: string;
-  initialType: FoodType;
+  /** Momento que la persona tocó (hueco de la línea de tiempo) o null: entonces lo elige en el formulario. */
+  initialType: FoodType | null;
   onSaved: (m: Meal) => void;
 }) {
   const [text, setText] = useState('');
@@ -184,7 +211,7 @@ export function AnalyzeMealDialog({ open, onClose, date, initialType, onSaved }:
   async function save(e: FormEvent) {
     e.preventDefault();
     setTouched(true);
-    if (!draftValid(draft)) return;
+    if (!draftValid(draft, true)) return;
     setSaving(true);
     try { onSaved(await logMeal(draft, date, favorite)); } catch { setError('No se pudo guardar. Inténtalo de nuevo.'); } finally { setSaving(false); }
   }
@@ -291,12 +318,13 @@ export function AnalyzeMealDialog({ open, onClose, date, initialType, onSaved }:
 // ───────────────────────────── Manual / guardada ─────────────────────────────
 
 /** `kind="log"` registra una comida del día; `kind="saved"` crea una comida guardada. */
-export function MealFormDialog({ open, onClose, kind, date, initialType, onSaved }: {
+export function MealFormDialog({ open, onClose, kind, date, initialType = null, onSaved }: {
   open: boolean;
   onClose: () => void;
   kind: 'log' | 'saved';
   date: string;
-  initialType: FoodType;
+  /** Solo para `kind="log"`: el momento tocado o null (se elige en el formulario). */
+  initialType?: FoodType | null;
   onSaved: (m: Meal | SavedMeal) => void;
 }) {
   const [draft, setDraft] = useState<Draft>(blank(initialType));
@@ -313,7 +341,7 @@ export function MealFormDialog({ open, onClose, kind, date, initialType, onSaved
   async function submit(e: FormEvent) {
     e.preventDefault();
     setTouched(true);
-    if (!draftValid(draft)) return;
+    if (!draftValid(draft, kind === 'log')) return;
     setSaving(true);
     setError(null);
     try {

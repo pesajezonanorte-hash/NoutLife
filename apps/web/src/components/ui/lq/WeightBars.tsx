@@ -1,4 +1,4 @@
-// Barras con peso (lenguaje compartido de Gimnasio y Finanzas): suben como una
+// Barras con peso (lenguaje compartido del Coliseo y Finanzas): suben como una
 // repetición —arrancan lentas, se pasan un poco y asientan—, cambian de altura con
 // el mismo muelle cuando cambian los datos y reaccionan entre sí: al pasar o enfocar
 // una, las demás bajan de tono y aparece un tooltip con el detalle.

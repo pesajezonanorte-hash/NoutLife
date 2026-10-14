@@ -34,6 +34,10 @@ test('meals: requires a name and rejects negative macros', () => {
   assert.ok(!ok(createMealSchema, { mealType: 'LUNCH' }));
   assert.ok(!ok(createMealSchema, { name: 'Arepa', mealType: 'LUNCH', calories: -300 }));
   assert.ok(!ok(createMealSchema, { name: 'Arepa', mealType: 'LUNCH', protein: -1 }));
+  // El momento es obligatorio y solo uno de los válidos: nunca se cae en «almuerzo» por defecto.
+  assert.ok(!ok(createMealSchema, { name: 'Arepa' }));
+  assert.ok(!ok(createMealSchema, { name: 'Arepa', mealType: 'almuerzo' }));
+  for (const mealType of ['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK', 'WATER']) assert.ok(ok(createMealSchema, { name: 'Arepa', mealType }));
 });
 
 test('journal, workouts and learning reject empty input', () => {
@@ -68,4 +72,13 @@ test('default validation messages are in Spanish', async () => {
   assert.deepEqual(messages(createHabitSchema.safeParse({ title: '', category: 'HEALTH' })), ['Este campo no puede estar vacío.']);
   assert.match(messages(createHabitSchema.safeParse({ title: 'x', category: 'NOPE' }))[0], /^Valor no válido\. Opciones: HEALTH/);
   assert.deepEqual(messages(createHabitSchema.safeParse({ title: 'x', category: 'HEALTH', color: 'red' })), ['El formato no es válido.']);
+});
+
+test('Coliseo: los nombres de campo de «gym» de clientes viejos siguen funcionando', async () => {
+  const { updateProfileSchema } = await import('../src/schemas/activity.schemas');
+  const { createHabitSchema, updateHabitSchema } = await import('../src/schemas/habit.schemas');
+  assert.deepEqual(updateProfileSchema.parse({ gymPlaylistUrl: 'https://open.spotify.com/x' }), { coliseoPlaylistUrl: 'https://open.spotify.com/x' });
+  assert.equal(createHabitSchema.parse({ title: 'Entrenar', category: 'FITNESS', createsGymAttendance: true }).createsColiseoAttendance, true);
+  // Si llegan los dos, gana el nombre nuevo.
+  assert.equal(updateHabitSchema.parse({ createsGymAttendance: true, createsColiseoAttendance: false }).createsColiseoAttendance, false);
 });

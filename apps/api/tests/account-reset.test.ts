@@ -95,7 +95,7 @@ void test('factory reset de cuenta', async (suite) => {
         'habits', 'quests', 'rituals', 'transactions', 'inventoryItems',
         'userAchievements', 'notifications', 'pushSubscriptions', 'feedback',
         'directMessages', 'socialGestures', 'guildInvites',
-        'workouts', 'routines', 'gymAttendances', 'bodyWeights', 'progressPhotos',
+        'workouts', 'routines', 'coliseoAttendances', 'bodyWeights', 'progressPhotos',
         'workoutExercises', 'stickers', 'chatPrefs', 'messageReactions',
       ]) {
         assert.equal(result.deleted[key], 1, `expected ${key} to be deleted`);
@@ -110,7 +110,7 @@ void test('factory reset de cuenta', async (suite) => {
       assert.equal(userUpdate?.onboardingCompleted, false);
       assert.equal(userUpdate?.activeTheme, 'aurora');
       assert.equal(userUpdate?.playerClass, null);
-      assert.equal(userUpdate?.gymPlaylistUrl, null);
+      assert.equal(userUpdate?.coliseoPlaylistUrl, null);
       assert.equal('googleAccessToken' in (userUpdate ?? {}), false, 'Google connection was explicitly retained');
     });
   });

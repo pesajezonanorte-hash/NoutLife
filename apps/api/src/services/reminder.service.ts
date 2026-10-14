@@ -176,7 +176,7 @@ type ZoneReminder = {
   zone: string;
   /** Minutos locales en los que toca (o null si hoy no toca). */
   at: (u: ReminderUser, weekday: number) => number | null;
-  category: 'HABITS' | 'GYM' | 'FINANCE' | 'SOCIAL' | 'SYSTEM' | 'QUESTS';
+  category: 'HABITS' | 'COLISEO' | 'FINANCE' | 'SOCIAL' | 'SYSTEM' | 'QUESTS';
   /** Qué avisar (null: no hace falta, ya lo hizo o no usa la zona). */
   check: (u: ReminderUser, ctx: { since: Date; weekday: number; day: string }) => Promise<{ title: string; body: string; link: string } | null>;
 };
@@ -210,7 +210,8 @@ const ZONE_REMINDERS: ZoneReminder[] = [
     check: async (u) => ({ title: 'En media hora, a dormir', body: `Tu meta es acostarte a las ${u.bedtimeGoal}. Ve dejando la pantalla.`, link: '/sleep' }),
   },
   {
-    zone: 'gimnasio', category: 'GYM', at: () => 21 * 60,
+    // «gimnasio» se queda: es la clave de deduplicación de avisos ya enviados.
+    zone: 'gimnasio', category: 'COLISEO', at: () => 21 * 60,
     check: async (u, { since, weekday, day }) => {
       const routine = await prisma.routine.findFirst({
         where: { userId: u.id, isActive: true, days: { some: { weekday, isRestDay: false } } }, select: { name: true },
@@ -219,11 +220,11 @@ const ZONE_REMINDERS: ZoneReminder[] = [
       const calendarDate = new Date(`${day}T00:00:00.000Z`);
       const [workout, attendance] = await Promise.all([
         prisma.workout.findFirst({ where: { userId: u.id, date: { gte: since } }, select: { id: true } }),
-        prisma.gymAttendance.findFirst({ where: { userId: u.id, date: calendarDate }, select: { id: true } }),
+        prisma.coliseoAttendance.findFirst({ where: { userId: u.id, date: calendarDate }, select: { id: true } }),
       ]);
       return workout || attendance
         ? null
-        : { title: 'Tu entrenamiento sigue pendiente', body: `La rutina «${routine.name}» estaba programada para hoy. Aún puedes hacer una sesión corta.`, link: '/gym' };
+        : { title: 'Tu entrenamiento sigue pendiente', body: `La rutina «${routine.name}» estaba programada para hoy. Aún puedes hacer una sesión corta.`, link: '/coliseo' };
     },
   },
   {

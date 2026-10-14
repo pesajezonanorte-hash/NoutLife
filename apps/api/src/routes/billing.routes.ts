@@ -28,5 +28,9 @@ router.post('/payment-method', requireAuth, cardLimiter, validate(paymentMethodS
 router.post('/subscribe', requireAuth, chargeLimiter, billing.subscribe);
 router.post('/cancel', requireAuth, billing.cancel);
 router.post('/resume', requireAuth, billing.resume);
+// Aviso de Nequi: el estado se lee sin consultar a Wompi; «Ya lo aprobé» sí consulta, con su propio límite.
+router.get('/subscription', requireAuth, billing.subscription);
+const pendingLimiter = buildLimiter({ windowMs: 60_000, max: 12, message: 'Espera un momento antes de volver a revisar tu pago.' });
+router.post('/pending/refresh', requireAuth, pendingLimiter, billing.refreshPending);
 
 export default router;

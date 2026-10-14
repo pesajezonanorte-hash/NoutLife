@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { animate, useReducedMotionConfig, type Transition, type Variants } from 'framer-motion';
 import { useMotionStore } from '@/store/motionStore';
-import { reduced, springs } from './presets';
+import { lite, reduced, springs } from './presets';
 
 export * from './presets';
 
@@ -19,8 +19,10 @@ export const springSoft: Transition = { type: 'spring', stiffness: 300, damping:
  * Entrada v3: y 24 + scale .985 + blur 6 px → 0 (con «Reducir movimiento», solo
  * opacidad). La blur es solo de entrada y termina en `filter: none` (un filtro
  * residual crearía containing block para los fixed). Se lee al resolver la variante.
+ * En móvil (lite) la entrada es solo opacidad + y 14: cada ítem de una lista con
+ * blur repintaba en cada fotograma y la entrada de las zonas daba tirones.
  */
-const blurIn = () => (reduced() ? { opacity: 0 } : { opacity: 0, y: 24, scale: 0.985, filter: 'blur(6px)' });
+const blurIn = () => (reduced() ? { opacity: 0 } : lite() ? { opacity: 0, y: 14 } : { opacity: 0, y: 24, scale: 0.985, filter: 'blur(6px)' });
 
 /**
  * «Reducir movimiento» en React: solo el ajuste de la app. Úsalo para quitar
@@ -38,7 +40,7 @@ export const softSpring: Transition = { type: 'spring', stiffness: 220, damping:
 /** Muelle rápido para pulsaciones y hover de botones. */
 export const pressSpring: Transition = { type: 'spring', stiffness: 520, damping: 30, mass: 0.6 };
 
-/* ───────── Peso (lenguaje del gimnasio, usado en toda la app) ─────────
+/* ───────── Peso (lenguaje del Coliseo, usado en toda la app) ─────────
    Masa alta = arranca lento, se pasa un poco y asienta, como un disco que se carga. */
 /** Muelle pesado: indicadores, barras y bloques que «se cargan». */
 export const heavy: Transition = springs.heavy;
@@ -54,12 +56,15 @@ export const page3: Variants = {
   initial: blurIn,
   animate: () => (reduced()
     ? { opacity: 1, transition: { duration: 0.2, staggerChildren: 0.06 } }
-    : {
-        opacity: 1, y: 0, scale: 1, filter: 'blur(0px)',
-        transition: { duration: 0.8, ease: expo, staggerChildren: 0.06 },
-        transitionEnd: { filter: 'none' },
-      }),
-  exit: { opacity: 0, transition: { duration: 0.2 } },
+    : lite()
+      ? { opacity: 1, y: 0, transition: { duration: 0.42, ease: expo, staggerChildren: 0.04 } }
+      : {
+          opacity: 1, y: 0, scale: 1, filter: 'blur(0px)',
+          transition: { duration: 0.8, ease: expo, staggerChildren: 0.06 },
+          transitionEnd: { filter: 'none' },
+        }),
+  // Con mode="wait" la salida se suma a la espera: en táctil se acorta.
+  exit: () => ({ opacity: 0, transition: { duration: lite() ? 0.12 : 0.2 } }),
 };
 export const page = page3;
 
@@ -69,11 +74,13 @@ export const item3: Variants = {
   initial: blurIn,
   animate: () => (reduced()
     ? { opacity: 1, transition: { duration: 0.2 } }
-    : {
-        opacity: 1, y: 0, scale: 1, filter: 'blur(0px)',
-        transition: { duration: 0.7, ease: expo },
-        transitionEnd: { filter: 'none' },
-      }),
+    : lite()
+      ? { opacity: 1, y: 0, transition: { duration: 0.45, ease: expo } }
+      : {
+          opacity: 1, y: 0, scale: 1, filter: 'blur(0px)',
+          transition: { duration: 0.7, ease: expo },
+          transitionEnd: { filter: 'none' },
+        }),
 };
 export const item = item3;
 export const pop3: Variants = { initial: { opacity: 0, scale: 0.88 }, animate: { opacity: 1, scale: 1, transition: springSoft } };

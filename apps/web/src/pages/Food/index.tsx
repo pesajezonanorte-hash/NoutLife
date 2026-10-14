@@ -18,9 +18,9 @@ import { LOADING_COPY } from '@/lib/loadingCopy';
 import * as mealService from '@/services/meal.service';
 import type { NutritionGoal, SavedMeal } from '@/services/meal.service';
 import {
-  MACROS, MEAL_TYPES, effectiveGoal, fmtInt, macroLine, mealTypeLabel, totals, typeForNow, type FoodType,
+  MACROS, MEAL_TYPES, effectiveGoal, fmtInt, macroLine, mealTypeLabel, totals, type FoodType,
 } from '@/components/food/foodMeta';
-import { AnalyzeMealDialog, GoalDialog, MealFormDialog } from '@/components/food/FoodDialogs';
+import { AddAsTypeButtons, AnalyzeMealDialog, GoalDialog, MealFormDialog } from '@/components/food/FoodDialogs';
 import { ClocheIcon, MacroPlate, Steam } from '@/components/food/Restaurant';
 import { ZoneAmbience } from '@/components/ambience';
 import { Lettering } from '@/components/layout/Lettering';
@@ -56,8 +56,10 @@ export default function FoodPage() {
   const [goal, setGoal] = useState<NutritionGoal | null>(null);
   const [saved, setSaved] = useState<SavedMeal[] | null>(null);
   const [state, setState] = useState<'loading' | 'error' | 'ready'>('loading');
-  const [analyze, setAnalyze] = useState<FoodType | null>(null);
-  const [manual, setManual] = useState<FoodType | null>(null);
+  // Diálogo abierto con el momento que se tocó (un hueco de la línea de tiempo) o sin momento: se elige dentro.
+  const [analyze, setAnalyze] = useState<{ type: FoodType | null } | null>(null);
+  const [manual, setManual] = useState<{ type: FoodType | null } | null>(null);
+  const [addingAs, setAddingAs] = useState<FoodType | null>(null);
   const [newSaved, setNewSaved] = useState(false);
   const [goalOpen, setGoalOpen] = useState(false);
   const [detail, setDetail] = useState<Meal | null>(null);
@@ -115,17 +117,18 @@ export default function FoodPage() {
     try { await mealService.deleteMeal(m.id); toast().success('Comida eliminada'); } catch { toast().error('No se pudo eliminar'); void load(true); }
   }
 
-  async function addSaved(s: SavedMeal) {
-    const type = offset === 0 ? typeForNow() : 'LUNCH';
-    setBusy(s.id);
+  /** Registra una guardada en el momento que la persona eligió (nunca uno por defecto). */
+  async function addSaved(s: SavedMeal, type: FoodType) {
+    setAddingAs(type);
     try {
       const m = await mealService.createMeal({ name: s.name, mealType: type, calories: s.calories ?? undefined, protein: s.protein ?? undefined, carbs: s.carbs ?? undefined, fat: s.fat ?? undefined, date: key });
       setMeals((list) => [...list, m]);
+      setSavedDetail(null);
       toast().success(`Añadida como ${mealTypeLabel(type).toLowerCase()}`, s.name);
     } catch {
       toast().error('No se pudo añadir');
     } finally {
-      setBusy(null);
+      setAddingAs(null);
     }
   }
 
@@ -221,7 +224,7 @@ export default function FoodPage() {
 
   const cta = (
     <>
-      <Button block onClick={() => setAnalyze(offset === 0 ? typeForNow() : 'LUNCH')} className="group min-h-14 text-body-lg md:hidden">
+      <Button block onClick={() => setAnalyze({ type: null })} className="group min-h-14 text-body-lg md:hidden">
         <ClocheIcon className="size-6" />Analizar comida
       </Button>
       <div className="lq-tex-linen relative hidden flex-wrap items-center gap-6 overflow-hidden rounded-2xl border border-border bg-surface p-8 shadow-sm md:flex">
@@ -234,8 +237,8 @@ export default function FoodPage() {
           <p className="text-body-md text-on-surface">Describe lo que comiste y el chef estimará las calorías y los macros.</p>
         </div>
         <div className="relative flex flex-wrap items-center gap-2">
-          <Button variant="ghost" onClick={() => setManual(offset === 0 ? typeForNow() : 'LUNCH')}>Registrar a mano</Button>
-          <Button onClick={() => setAnalyze(offset === 0 ? typeForNow() : 'LUNCH')} className="group min-h-14 px-8 text-body-lg">
+          <Button variant="ghost" onClick={() => setManual({ type: null })}>Registrar a mano</Button>
+          <Button onClick={() => setAnalyze({ type: null })} className="group min-h-14 px-8 text-body-lg">
             <ClocheIcon className="size-6" />Analizar comida
           </Button>
         </div>
@@ -256,7 +259,7 @@ export default function FoodPage() {
         <span aria-hidden="true" className="pointer-events-none absolute inset-3 hidden rounded-xl border border-border md:block" />
         <div className="relative flex items-center justify-between gap-2">
           <h2 id="food-day" className="text-heading-sm md:text-heading-lg">Comidas de {dayWord}</h2>
-          <Button variant="ghost" size="sm" onClick={() => setManual(offset === 0 ? typeForNow() : 'LUNCH')} className="md:hidden">
+          <Button variant="ghost" size="sm" onClick={() => setManual({ type: null })} className="md:hidden">
             <Plus aria-hidden className="size-4" strokeWidth={2} />A mano
           </Button>
         </div>
@@ -307,7 +310,7 @@ export default function FoodPage() {
                   ) : (
                     <button
                       type="button"
-                      onClick={() => setAnalyze(e.type)}
+                      onClick={() => setAnalyze({ type: e.type })}
                       className="mb-3 flex flex-col gap-0.5 rounded-xl border border-dashed border-border-strong px-4 py-3 text-left transition-[background-color,transform] duration-[560ms] ease-[var(--lq-ease-natural)] hover:-translate-y-0.5 hover:bg-surface-variant/60 md:px-5 md:py-4"
                     >
                       <span className="flex w-full items-center justify-between gap-2">
@@ -350,13 +353,13 @@ export default function FoodPage() {
                 </div>
               </div>
               <Button
-                variant="secondary" size="md" loading={busy === s.id} aria-label={`Añadir ${s.name} a ${dayWord}`} onClick={() => void addSaved(s)}
+                variant="secondary" size="md" aria-haspopup="dialog" aria-label={`Añadir ${s.name} a ${dayWord}`} onClick={() => setSavedDetail(s)}
                 className="relative z-[1] px-3.5 md:hidden"
               >
                 <Plus aria-hidden className="size-4" strokeWidth={2} />Añadir
               </Button>
               <Button
-                variant="icon" loading={busy === s.id} aria-label={`Añadir ${s.name} a ${dayWord}`} onClick={() => void addSaved(s)}
+                variant="icon" aria-haspopup="dialog" aria-label={`Añadir ${s.name} a ${dayWord}`} onClick={() => setSavedDetail(s)}
                 className="relative z-[1] hidden bg-surface-variant text-primary-text hover:bg-primary/[var(--lq-soft-alpha)] md:inline-flex"
               >
                 <Plus aria-hidden className="size-5" strokeWidth={2} />
@@ -437,10 +440,10 @@ export default function FoodPage() {
       )}
       </div>
 
-      <AnalyzeMealDialog open={analyze !== null} onClose={() => setAnalyze(null)} date={key} initialType={analyze ?? 'LUNCH'} onSaved={added} />
-      <MealFormDialog open={manual !== null} onClose={() => setManual(null)} kind="log" date={key} initialType={manual ?? 'LUNCH'} onSaved={added} />
+      <AnalyzeMealDialog open={analyze !== null} onClose={() => setAnalyze(null)} date={key} initialType={analyze?.type ?? null} onSaved={added} />
+      <MealFormDialog open={manual !== null} onClose={() => setManual(null)} kind="log" date={key} initialType={manual?.type ?? null} onSaved={added} />
       <MealFormDialog
-        open={newSaved} onClose={() => setNewSaved(false)} kind="saved" date={key} initialType="LUNCH"
+        open={newSaved} onClose={() => setNewSaved(false)} kind="saved" date={key}
         onSaved={(s) => { setNewSaved(false); setSaved((list) => [...(list ?? []), s as SavedMeal].sort((a, b) => a.name.localeCompare(b.name))); }}
       />
       <GoalDialog open={goalOpen} onClose={() => setGoalOpen(false)} goal={goal} onSaved={(ng) => { setGoal(ng); setGoalOpen(false); }} />
@@ -477,10 +480,11 @@ export default function FoodPage() {
           <div className="flex flex-col gap-5">
             <span className="text-display-sm font-mono tabular-nums">{savedDetail.calories ? `${fmtInt(savedDetail.calories)} kcal` : 'Sin calorías'}</span>
             <p className="text-body-md text-on-surface">{macroLine(savedDetail) || 'Sin macros registrados'}</p>
-            <div className="flex flex-col gap-3 sm:flex-row-reverse">
-              <Button block onClick={() => { const s = savedDetail; setSavedDetail(null); void addSaved(s); }}><Plus aria-hidden className="size-5" strokeWidth={2} />Añadir a {dayWord}</Button>
-              <Button variant="danger" block onClick={() => void removeSaved(savedDetail)}><Trash2 aria-hidden className="size-5" strokeWidth={1.75} />Quitar de Guardadas</Button>
+            <div className="flex flex-col gap-2">
+              <p className="text-label-lg text-on-surface">Añadir a {dayWord} como</p>
+              <AddAsTypeButtons name={savedDetail.name} busy={addingAs} onPick={(type) => void addSaved(savedDetail, type)} />
             </div>
+            <Button variant="danger" block disabled={addingAs !== null} onClick={() => void removeSaved(savedDetail)}><Trash2 aria-hidden className="size-5" strokeWidth={1.75} />Quitar de Guardadas</Button>
           </div>
         )}
       </ResponsiveDialog>

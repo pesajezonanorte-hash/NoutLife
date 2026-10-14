@@ -1,11 +1,11 @@
 // Capítulos del Álbum RPG: las fotos privadas que tomaste en cada zona
-// (progreso del Gimnasio y prendas del armario del Espejo) junto a las de las cartas.
+// (progreso del Coliseo y prendas del armario del Espejo) junto a las de las cartas.
 // Solo las ve su dueño; se cargan desde los endpoints de cada zona.
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Dumbbell, Shirt, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Shirt, Swords, X } from 'lucide-react';
 import { Button, EmptyState, Skeleton } from '@/components/ui/lq';
 import { InstantPhoto } from '@/components/social/letters/InstantPhoto';
 import { Lettering } from '@/components/layout/Lettering';
@@ -15,20 +15,20 @@ import { springs } from '@/lib/motion/presets';
 import { useMotionStore } from '@/store/motionStore';
 import { useAuthStore } from '@/store/authStore';
 import api from '@/lib/api';
-import * as gym2 from '@/services/gym2.service';
+import * as coliseo from '@/services/coliseo.service';
 
-export type ZoneAlbumId = 'gym' | 'wardrobe';
+export type ZoneAlbumId = 'coliseo' | 'wardrobe';
 
 export interface ZonePhoto { id: string; zone: ZoneAlbumId; at: string; caption: string | null; src: string }
 
-export const ZONE_ALBUMS: Record<ZoneAlbumId, { label: string; icon: typeof Dumbbell; link: string; empty: string }> = {
-  gym: { label: 'Gimnasio', icon: Dumbbell, link: '/gym', empty: 'Sube tu primera foto de progreso en el Gimnasio.' },
+export const ZONE_ALBUMS: Record<ZoneAlbumId, { label: string; icon: typeof Swords; link: string; empty: string }> = {
+  coliseo: { label: 'Coliseo', icon: Swords, link: '/coliseo', empty: 'Sube tu primera foto de progreso en el Coliseo.' },
   wardrobe: { label: 'Espejo', icon: Shirt, link: '/espejo', empty: 'Fotografía una prenda en el armario del Espejo para empezar este capítulo.' },
 };
 
 const toSrc = (data: string) => (data.startsWith('data:') ? data : `data:image/jpeg;base64,${data}`);
 
-/** Fotos de las zonas (una sola carga por visita). Gimnasio y Espejo son de Pro: en Lite no se piden. */
+/** Fotos de las zonas (una sola carga por visita). Coliseo y Espejo son de Pro: en Lite no se piden. */
 export function useZonePhotos() {
   const [photos, setPhotos] = useState<ZonePhoto[] | null>(null);
   const lite = useAuthStore((s) => s.user?.subscription?.plan === 'lite');
@@ -36,12 +36,12 @@ export function useZonePhotos() {
     let alive = true;
     type WardrobePhoto = { id: string; name: string; category: string; photoData?: string | null; createdAt: string };
     void Promise.all([
-      lite ? [] as gym2.ProgressPhoto[] : gym2.fetchProgressPhotos().catch(() => [] as gym2.ProgressPhoto[]),
+      lite ? [] as coliseo.ProgressPhoto[] : coliseo.fetchProgressPhotos().catch(() => [] as coliseo.ProgressPhoto[]),
       lite ? [] as WardrobePhoto[] : api.get<WardrobePhoto[]>('/mirror/wardrobe').then((r) => r.data).catch(() => [] as WardrobePhoto[]),
-    ]).then(([gym, wardrobe]) => {
+    ]).then(([coliseo, wardrobe]) => {
       if (!alive) return;
       const out: ZonePhoto[] = [
-        ...gym.filter((p) => p.photoData).map((p) => ({ id: p.id, zone: 'gym' as const, at: p.date || p.createdAt, caption: p.notes ?? null, src: toSrc(p.photoData!) })),
+        ...coliseo.filter((p) => p.photoData).map((p) => ({ id: p.id, zone: 'coliseo' as const, at: p.date || p.createdAt, caption: p.notes ?? null, src: toSrc(p.photoData!) })),
         ...wardrobe.filter((w) => w.photoData).map((w) => ({ id: w.id, zone: 'wardrobe' as const, at: w.createdAt, caption: w.name, src: toSrc(w.photoData!) })),
       ];
       setPhotos(out.sort((a, b) => b.at.localeCompare(a.at)));

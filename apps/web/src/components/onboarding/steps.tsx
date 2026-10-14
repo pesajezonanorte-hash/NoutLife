@@ -73,7 +73,7 @@ export function AvatarContent({ config, onChange, celebrate = 0 }: { config: Ava
 
 // ── Metas ────────────────────────────────────────────────────────────────────
 export const GOALS: Array<{ id: string; icon: LucideIcon; tone: Exclude<Tone, 'muted'>; label: string; desc: string }> = [
-  { id: 'FITNESS', icon: Dumbbell, tone: 'success', label: 'Gimnasio y fuerza', desc: 'Entrenar, ganar músculo, perder grasa' },
+  { id: 'FITNESS', icon: Dumbbell, tone: 'success', label: 'Entrenamiento', desc: 'Pesas, cardio, deporte o caminatas' },
   { id: 'HEALTH', icon: Apple, tone: 'error', label: 'Nutrición y salud', desc: 'Comer mejor, hidratación, descanso' },
   { id: 'SLEEP', icon: Moon, tone: 'info', label: 'Sueño', desc: 'Dormir bien y recuperarte' },
   { id: 'FINANCE', icon: Wallet, tone: 'warning', label: 'Finanzas', desc: 'Ahorrar, invertir, controlar gastos' },

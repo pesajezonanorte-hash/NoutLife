@@ -106,7 +106,7 @@ export function MenuSheet() {
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <ToolButton icon={Sparkles} label="Preguntar al Sabio" onClick={then(() => openSage('¿En qué parte de mi aventura me recomiendas enfocarme ahora?'))} />
           <ToolButton icon={Zap} label="Modo enfoque" onClick={then(() => setFocusOpen(true))} />
-          {parseEmbed(user?.gymPlaylistUrl).embedUrl && (
+          {parseEmbed(user?.coliseoPlaylistUrl).embedUrl && (
             <ToolButton icon={Music} label="Música" onClick={then(() => setMusicOpen(true))} />
           )}
           <ToolButton icon={audioEnabled ? Volume2 : VolumeX} label={audioEnabled ? 'Silenciar sonidos' : 'Activar sonidos'} onClick={toggleAudio} />

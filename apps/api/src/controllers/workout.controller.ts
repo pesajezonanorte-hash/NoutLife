@@ -89,7 +89,7 @@ export async function listAttendances(req: AuthRequest, res: Response): Promise<
       updatedAt: attendance.updatedAt.toISOString(),
     })) });
   } catch {
-    res.status(500).json({ error: 'Error al obtener asistencia de gimnasio.' });
+    res.status(500).json({ error: 'Error al obtener la asistencia del Coliseo.' });
   }
 }
 
@@ -108,7 +108,7 @@ export async function recordAttendance(req: AuthRequest, res: Response): Promise
       res.status(400).json({ error: 'La asistencia debe corresponder a una fecha válida que no sea futura.' });
       return;
     }
-    res.status(500).json({ error: 'Error al registrar asistencia de gimnasio.' });
+    res.status(500).json({ error: 'Error al registrar la asistencia del Coliseo.' });
   }
 }
 

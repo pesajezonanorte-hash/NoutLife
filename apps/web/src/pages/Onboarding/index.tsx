@@ -99,7 +99,7 @@ function Shell({ step, title, subtitle, children, footer, wide }: { step: number
         </AnimatePresence>
       </main>
 
-      <footer className="sticky bottom-0 border-t border-border bg-background/95 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
+      <footer className="lq-bar-glass sticky bottom-0 border-t border-border px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
         <div className={cn('mx-auto flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-between', width)}>{footer}</div>
       </footer>
     </div>

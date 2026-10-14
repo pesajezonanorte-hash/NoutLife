@@ -15,7 +15,7 @@ import { useToastStore } from '../../hooks/useToast';
 import { fetchHabits, logHabit } from '../../services/habit.service';
 import { globalSearch, type SearchResult } from '../../services/notification.service';
 import { refreshUser } from '../../hooks/useAuth';
-import { logBodyWeight } from '../../services/gym2.service';
+import { logBodyWeight } from '../../services/coliseo.service';
 
 interface Cmd {
   id: string;
@@ -110,7 +110,7 @@ export function CommandPalette() {
       { id: 'new-habit', group: 'Acciones', label: 'Nuevo hábito', icon: Plus, keywords: 'crear habito nuevo', run: go('/habits?new=1') },
       { id: 'new-quest', group: 'Acciones', label: 'Nueva misión', icon: Plus, keywords: 'crear mision quest nueva', run: go('/quests?new=1') },
       { id: 'sage', group: 'Acciones', label: 'Preguntar al Sabio', icon: Sparkles, keywords: 'sabio ia consejo ayuda', run: () => openSage() },
-      { id: 'weight', group: 'Acciones', label: 'Registrar peso', sublabel: 'Escribe "peso 79.5"', icon: Scale, keywords: 'peso kg gym', run: () => { setQuery('peso '); inputRef.current?.focus(); } },
+      { id: 'weight', group: 'Acciones', label: 'Registrar peso', sublabel: 'Escribe "peso 79.5"', icon: Scale, keywords: 'peso kg coliseo gym entrenamiento', run: () => { setQuery('peso '); inputRef.current?.focus(); } },
       ...habits.map((h) => ({
         id: `habit-${h.id}`,
         group: 'Hábitos de hoy' as const,

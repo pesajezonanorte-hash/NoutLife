@@ -10,6 +10,7 @@ import { SplashScreen } from './components/animations/SplashScreen';
 import { SageWidget } from './components/sage/SageWidget';
 import { PlanGate } from './components/billing/PlanGate';
 import { Paywall } from './components/billing/Paywall';
+import { PendingApprovalGate } from './components/billing/PendingApprovalGate';
 import { LockedZone } from './components/billing/LockedZone';
 import { usePlanStore } from './store/planStore';
 import type { ProZone } from './lib/plan';
@@ -39,7 +40,8 @@ const loaders = {
   HabitDetailPage: () => import('./pages/HabitDetail'),
   AchievementsPage: () => import('./pages/Achievements'),
   HistoryPage: () => import('./pages/History'),
-  GymPage: () => import('./pages/Gym'),
+  ColiseoPage: () => import('./pages/Coliseo'),
+  RecreationPage: () => import('./pages/Recreation'),
   FinancesPage: () => import('./pages/Finances'),
   SleepPage: () => import('./pages/Sleep'),
   FoodPage: () => import('./pages/Food'),
@@ -98,7 +100,8 @@ const routeLoaders: Record<string, () => Promise<unknown>> = {
   '/habits': loaders.HabitsPage,
   '/achievements': loaders.AchievementsPage,
   '/history': loaders.HistoryPage,
-  '/gym': loaders.GymPage,
+  '/coliseo': loaders.ColiseoPage,
+  '/recreacion': loaders.RecreationPage,
   '/finances': loaders.FinancesPage,
   '/sleep': loaders.SleepPage,
   '/food': loaders.FoodPage,
@@ -126,7 +129,7 @@ const routeLoaders: Record<string, () => Promise<unknown>> = {
 };
 
 // Rutas que solo redirigen (no esperan ningún bundle).
-const REDIRECTS = new Set(['/rituales', '/character', '/friends', '/guild', '/glow-up', '/armario']);
+const REDIRECTS = new Set(['/rituales', '/character', '/friends', '/guild', '/glow-up', '/armario', '/gym']);
 
 function loaderForPath(pathname: string) {
   if (REDIRECTS.has(pathname)) return null;
@@ -239,7 +242,10 @@ function AnimatedRoutes({ location }: { location: ReturnType<typeof useLocation>
           <Route path="/habits/:id"   element={<SafePage><DeferredLazyPage load={loaders.HabitDetailPage} /></SafePage>} />
           <Route path="/achievements" element={<SafePage><DeferredLazyPage load={loaders.AchievementsPage} /></SafePage>} />
           <Route path="/history"      element={<SafePage><DeferredLazyPage load={loaders.HistoryPage} /></SafePage>} />
-          <Route path="/gym"          element={<SafePage><ProZonePage zone="gym" load={loaders.GymPage} /></SafePage>} />
+          <Route path="/coliseo"      element={<SafePage><ProZonePage zone="coliseo" load={loaders.ColiseoPage} /></SafePage>} />
+          <Route path="/recreacion"   element={<SafePage><ProZonePage zone="recreation" load={loaders.RecreationPage} /></SafePage>} />
+          {/* Gimnasio pasó a llamarse Coliseo: enlaces, avisos y marcadores antiguos llegan a su sitio. */}
+          <Route path="/gym"          element={<Navigate to={{ pathname: '/coliseo', search: window.location.search }} replace />} />
           <Route path="/finances"     element={<SafePage><ProZonePage zone="finances" load={loaders.FinancesPage} /></SafePage>} />
           <Route path="/sleep"        element={<SafePage><ProZonePage zone="sleep" load={loaders.SleepPage} /></SafePage>} />
           <Route path="/food"         element={<SafePage><ProZonePage zone="food" load={loaders.FoodPage} /></SafePage>} />
@@ -358,13 +364,17 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
   const paywall = usePaywallActive();
 
   return (
-    <LoadingGate loading={isLoading} fallback={<PageLoader />}>
-      {isLoading ? null
-        : !isAuthenticated ? <Navigate to="/login" replace />
-        : user && !user.onboardingCompleted && pathname !== '/onboarding' ? <Navigate to="/onboarding" replace />
-        : paywall ? <Paywall />
-        : children}
-    </LoadingGate>
+    <>
+      <LoadingGate loading={isLoading} fallback={<PageLoader />}>
+        {isLoading ? null
+          : !isAuthenticated ? <Navigate to="/login" replace />
+          : user && !user.onboardingCompleted && pathname !== '/onboarding' ? <Navigate to="/onboarding" replace />
+          : paywall ? <Paywall />
+          : children}
+      </LoadingGate>
+      {/* Cobro de Nequi en espera: pantalla de bloqueo hasta que Wompi responde. */}
+      <PendingApprovalGate />
+    </>
   );
 }
 

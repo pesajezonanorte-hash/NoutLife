@@ -29,10 +29,10 @@ const FILTERS: Array<{ id: AlbumFilter; label: string }> = [
   { id: 'mine', label: 'Mías' },
   { id: 'friends', label: 'De amigos' },
   { id: 'guilds', label: 'De gremios' },
-  { id: 'gym', label: 'Gimnasio' },
+  { id: 'coliseo', label: 'Coliseo' },
   { id: 'wardrobe', label: 'Espejo' },
 ];
-const isZone = (f: AlbumFilter): f is ZoneAlbumId => f === 'gym' || f === 'wardrobe';
+const isZone = (f: AlbumFilter): f is ZoneAlbumId => f === 'coliseo' || f === 'wardrobe';
 const monthOf = (iso: string) => new Date(iso).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
 const tiltOf = (id: string) => { let h = 0; for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0; return ((h % 7) - 3) * 0.9; };
 const placeOf = (it: GalleryItem) => (it.place.type === 'guild' ? it.place.guild.name : it.place.user.displayName.split(' ')[0]);
@@ -175,14 +175,14 @@ export default function GalleryPage() {
       <motion.section variants={item} className="flex flex-col gap-3 pt-6 md:pt-10">
         <span className="text-label-lg text-primary-text">Álbum RPG</span>
         <h1 className="text-display-sm md:text-display-md"><Lettering text="galería" /></h1>
-        <p className="max-w-[56ch] text-body-lg text-on-surface-light">Todas tus fotos en un solo álbum, por capítulos: las de tus cartas, tu progreso en el Gimnasio y las prendas del armario de tu Espejo.</p>
+        <p className="max-w-[56ch] text-body-lg text-on-surface-light">Todas tus fotos en un solo álbum, por capítulos: las de tus cartas, tu progreso en el Coliseo y las prendas del armario de tu Espejo.</p>
       </motion.section>
 
       {/* Capítulos del álbum: cuántas fotos guarda cada zona. */}
       <motion.div variants={item} className="grid grid-cols-3 gap-3" role="group" aria-label="Capítulos del álbum">
         {([
           { id: 'all' as const, label: 'Cartas', icon: Mail, count: items && !isZone(filter) ? `${items.length}${next ? '+' : ''}` : '—' },
-          ...(['gym', 'wardrobe'] as const).map((z) => ({ id: z, label: ZONE_ALBUMS[z].label, icon: ZONE_ALBUMS[z].icon, count: zonePhotos ? String(zonePhotos.filter((p) => p.zone === z).length) : '—' })),
+          ...(['coliseo', 'wardrobe'] as const).map((z) => ({ id: z, label: ZONE_ALBUMS[z].label, icon: ZONE_ALBUMS[z].icon, count: zonePhotos ? String(zonePhotos.filter((p) => p.zone === z).length) : '—' })),
         ]).map((ch) => (
           <button key={ch.id} type="button" onClick={() => setFilter(ch.id)} aria-pressed={filter === ch.id || (ch.id === 'all' && !isZone(filter))}
             className={cn('flex min-h-20 flex-col items-start justify-between rounded-2xl border p-3 text-left transition-colors', (filter === ch.id || (ch.id === 'all' && !isZone(filter))) ? 'border-primary bg-primary/10' : 'border-border bg-surface hover:border-primary/40')}>

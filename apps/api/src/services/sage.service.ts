@@ -1,8 +1,7 @@
-import { generateText, hasAIProvider, AIQuotaError } from '../lib/ai';
+import { generateText, hasAIProvider, AIQuotaError, type ChatMessage } from '../lib/ai';
 import { prisma } from '../lib/prisma';
-import { addCalendarDays, getCalendarDay } from '../lib/calendar';
-import { isHabitScheduledForDay } from './habit.service';
 import { canUseAI } from './billing.service';
+import { buildLifeSnapshot, packSections, CONTEXT_BUDGET_CHARS, type SectionKey } from './life-context.service';
 
 const SAGE_RATE_LIMIT = 1000;
 
@@ -113,12 +112,26 @@ export async function sageDailyCap(): Promise<number> {
 /**
  * Consume una respuesta IA del día. Devuelve el uso actualizado, o null si el
  * usuario ya llegó a su tope diario (y entonces NO se consume contador).
+ *
+ * Cada paso es un UPDATE condicional de una sola fila: dos mensajes a la vez
+ * no pueden leer «queda 1» y pasar los dos (antes se leía y luego se sumaba).
  */
 export async function consumeSageDailyAI(userId: string): Promise<SageDailyUsage | null> {
-  const usage = await getSageDailyUsage(userId);
-  if (usage.count >= (await sageDailyCap())) return null;
-  const allowed = await checkAndIncrementRateLimit(userId); // contador diario anti-spam
-  if (!allowed) return null;
+  const cap = Math.min(await sageDailyCap(), SAGE_RATE_LIMIT);
+  const today = startOfToday();
+  const sameDay = () => prisma.user.updateMany({
+    where: { id: userId, sageCallsResetAt: { gte: today }, sageCallsToday: { lt: cap } },
+    data: { sageCallsToday: { increment: 1 } },
+  });
+  if ((await sameDay()).count === 0) {
+    // Primer mensaje del día: el contador vuelve a 1. Si otra petición ya lo
+    // reinició en paralelo, se intenta sumar otra vez (respetando el tope).
+    const fresh = await prisma.user.updateMany({
+      where: { id: userId, sageCallsResetAt: { lt: today } },
+      data: { sageCallsToday: 1, sageCallsResetAt: new Date() },
+    });
+    if (fresh.count === 0 && (await sameDay()).count === 0) return null;
+  }
   return getSageDailyUsage(userId);
 }
 
@@ -178,6 +191,37 @@ async function callAI(prompt: string): Promise<string> {
   }
 }
 
+// ─── Presupuesto de tokens del chat ─────────────────────────────────────────
+// El contexto de vida va acotado (packSections); el historial también: solo
+// los últimos mensajes, recortados, para que una charla larga no multiplique
+// el costo de cada respuesta.
+const HISTORY_MESSAGES = 6;
+const HISTORY_MESSAGE_CHARS = 480;
+const HISTORY_TOTAL_CHARS = 2000;
+/** Un mensaje del usuario más largo se recorta (pegar un libro no debe vaciar la cuota). */
+export const SAGE_MESSAGE_MAX_CHARS = 1500;
+
+const clipText = (text: string, max: number) => (text.length > max ? `${text.slice(0, max - 1)}…` : text);
+
+/**
+ * Historial que se reenvía al modelo: los más recientes primero hasta llenar el
+ * presupuesto, luego en orden cronológico. Empieza por un mensaje del usuario y
+ * termina en una respuesta (Gemini exige turnos alternos; el mensaje nuevo va después).
+ */
+export function trimHistory(memories: Array<{ role: string; content: string }>): ChatMessage[] {
+  const picked: ChatMessage[] = [];
+  let used = 0;
+  for (const memory of memories.slice(0, HISTORY_MESSAGES)) {
+    const content = clipText(memory.content, HISTORY_MESSAGE_CHARS);
+    if (used + content.length > HISTORY_TOTAL_CHARS) break;
+    used += content.length;
+    picked.unshift({ role: memory.role === 'user' ? 'user' : 'assistant', content });
+  }
+  while (picked[0]?.role === 'assistant') picked.shift();
+  while (picked.at(-1)?.role === 'user') picked.pop();
+  return picked;
+}
+
 async function callAIWithMemory(
   userId: string,
   systemPrompt: string,
@@ -190,30 +234,27 @@ async function callAIWithMemory(
   const [memories, insights] = await Promise.all([
     prisma.sageMemory.findMany({
       where: { userId },
-      orderBy: { createdAt: 'desc' },
-      take: 10,
+      // Cada par pregunta/respuesta se guarda en el mismo instante: el id (cuid, creciente) desempata.
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: HISTORY_MESSAGES,
+      select: { role: true, content: true },
     }),
     prisma.sageInsight.findMany({
       where: { userId, isActive: true },
       orderBy: { createdAt: 'desc' },
-      take: 5,
+      take: 3,
+      select: { insight: true },
     }),
   ]);
 
-  const conversationHistory = memories.reverse().map((memory) => ({
-    role: memory.role === 'user' ? 'user' : 'assistant',
-    content: memory.content,
-  })) as Array<{ role: 'user' | 'assistant'; content: string }>;
-
   const insightContext = insights.length > 0
-    ? `\n\nPATRONES QUE HAS OBSERVADO DE MIGUEL:\n${insights.map((insight) => `- ${insight.insight}`).join('\n')}`
+    ? `\nPATRONES QUE YA OBSERVASTE:\n${insights.map((insight) => `- ${clipText(insight.insight, 160)}`).join('\n')}`
     : '';
 
-  const fullSystemPrompt = systemPrompt + insightContext;
-  const messages = [
-    { role: 'system' as const, content: fullSystemPrompt },
-    ...conversationHistory,
-    { role: 'user' as const, content: userMessage },
+  const messages: ChatMessage[] = [
+    { role: 'system', content: systemPrompt + insightContext },
+    ...trimHistory(memories),
+    { role: 'user', content: userMessage },
   ];
 
   let responseText: string;
@@ -269,228 +310,37 @@ Tu respuesta anterior fue: ${lastResponse.slice(0, 300)}`;
   }
 }
 
-async function checkAndIncrementRateLimit(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUniqueOrThrow({
-    where: { id: userId },
-    select: { sageCallsToday: true, sageCallsResetAt: true },
-  });
-
-  const now = new Date();
-  const resetAt = new Date(user.sageCallsResetAt);
-  const isNewDay =
-    now.getFullYear() !== resetAt.getFullYear() ||
-    now.getMonth() !== resetAt.getMonth() ||
-    now.getDate() !== resetAt.getDate();
-
-  if (isNewDay) {
-    await prisma.user.update({
-      where: { id: userId },
-      data: { sageCallsToday: 1, sageCallsResetAt: now },
-    });
-    return true;
-  }
-
-  if (user.sageCallsToday >= SAGE_RATE_LIMIT) return false;
-
-  await prisma.user.update({
-    where: { id: userId },
-    data: { sageCallsToday: { increment: 1 } },
-  });
-  return true;
+interface ContextOptions {
+  /** Sección que el análisis necesita entera (hábitos, finanzas, Coliseo…). */
+  focus?: SectionKey;
+  /** Presupuesto del bloque de datos, en caracteres. */
+  budget?: number;
 }
 
-async function buildSageContext(userId: string): Promise<string> {
-  const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-  const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
-  const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+/**
+ * Prompt de sistema del Sabio: instrucciones breves + los datos de TODAS las
+ * zonas (life-context.service), dentro de un presupuesto fijo de caracteres.
+ */
+async function buildSageContext(userId: string, options: ContextOptions = {}): Promise<string> {
+  const snapshot = await buildLifeSnapshot(userId, options.focus);
+  const data = packSections(snapshot.sections, options.budget ?? CONTEXT_BUDGET_CHARS);
+  return `Eres el Sabio, el mentor de ${snapshot.name} en NoutLife (su vida convertida en un juego de rol).
+Habla en español natural, cercano y práctico; nada de tono de fantasía salvo que te lo pidan.
+Máximo 3 párrafos cortos, sin listas largas ni relleno.
+Usa solo los datos de abajo y nunca los inventes; si falta un dato, dilo.
+Ves todas sus zonas: conéctalas cuando ayude (sueño y entreno, comida y energía, ocio y ánimo, gasto y metas).
+Sé proactivo: si notas un patrón importante, menciónalo con tacto y propone un solo paso pequeño y concreto.
 
-  const user = await prisma.user.findUniqueOrThrow({
-    where: { id: userId },
-    select: {
-      displayName: true, timezone: true,
-      level: true, xp: true, xpToNextLevel: true, gold: true,
-      hp: true, maxHp: true, currentStreak: true,
-      strength: true, intelligence: true, charisma: true,
-    },
-  });
-  const today = getCalendarDay(user.timezone, now);
-  const habitHistoryStart = addCalendarDays(today, -29);
-  const tomorrow = addCalendarDays(today, 1);
-
-  const [activeQuests, habits, monthTx, workouts, sleepLogs, habitLogs, failedQuests, antiHabits] = await Promise.all([
-    prisma.quest.findMany({ where: { userId, status: 'ACTIVE' }, orderBy: { deadline: 'asc' }, take: 8 }),
-    prisma.habit.findMany({
-      where: { userId, isActive: true },
-      orderBy: [{ currentStreak: 'desc' }, { title: 'asc' }],
-      take: 20,
-      select: { id: true, title: true, frequency: true, currentStreak: true, longestStreak: true },
-    }),
-    prisma.transaction.findMany({ where: { userId, date: { gte: startOfMonth } }, select: { type: true, amount: true } }),
-    prisma.workout.findMany({
-      where: { userId, date: { gte: ninetyDaysAgo, lte: now } },
-      orderBy: { date: 'desc' },
-      select: { date: true, exercises: { select: { sets: true, exercise: { select: { name: true, muscleGroup: true } } } } },
-    }),
-    prisma.sleepLog.findMany({ where: { userId, isNap: false, date: { gte: sevenDaysAgo } }, select: { duration: true } }),
-    prisma.habitLog.findMany({
-      where: { userId, completed: true, date: { gte: habitHistoryStart, lt: tomorrow } },
-      select: { habitId: true, date: true },
-    }),
-    prisma.quest.findMany({
-      where: { userId, status: 'FAILED', updatedAt: { gte: thirtyDaysAgo } },
-      orderBy: { updatedAt: 'desc' },
-      take: 5,
-      select: { title: true, category: true },
-    }),
-    prisma.antiHabit.findMany({
-      where: { userId, isActive: true },
-      take: 8,
-      select: { title: true, targetPerWeek: true, logs: { where: { date: { gte: addCalendarDays(today, -29) } }, select: { date: true, occurred: true, amount: true } } },
-    }).catch(() => []),
-  ]);
-
-  let monthIncome = 0;
-  let monthExpenses = 0;
-  for (const transaction of monthTx) {
-    const amount = Number(transaction.amount);
-    if (transaction.type === 'INCOME') monthIncome += amount;
-    else monthExpenses += amount;
-  }
-
-  const avgSleep = sleepLogs.length > 0
-    ? sleepLogs.reduce((sum, log) => sum + log.duration, 0) / sleepLogs.length
-    : 0;
-
-  const doneByHabit = new Map<string, Set<number>>();
-  for (const log of habitLogs) {
-    const dates = doneByHabit.get(log.habitId) ?? new Set<number>();
-    dates.add(log.date.getTime());
-    doneByHabit.set(log.habitId, dates);
-  }
-  const habitHistory = habits.map((habit) => {
-    let scheduled = 0;
-    let completed = 0;
-    const loggedDays = doneByHabit.get(habit.id) ?? new Set<number>();
-    for (let offset = 0; offset < 30; offset += 1) {
-      const date = addCalendarDays(habitHistoryStart, offset);
-      if (date.getTime() > today.getTime() || !isHabitScheduledForDay(date, habit.frequency)) continue;
-      scheduled += 1;
-      if (loggedDays.has(date.getTime())) completed += 1;
-    }
-    const rate = scheduled ? Math.round((completed / scheduled) * 100) : 0;
-    return { title: habit.title, missed: scheduled - completed, rate, scheduled,
-      line: `- ${habit.title}: ${completed}/${scheduled} días programados (${rate}%) en 30 días; racha actual ${habit.currentStreak}, máxima ${habit.longestStreak}.` };
-  });
-  // Los hábitos que más se fallan: el Sabio los menciona sin esperar a que se lo pidan.
-  const struggling = habitHistory
-    .filter((h) => h.scheduled >= 4 && h.rate < 60)
-    .sort((a, b) => a.rate - b.rate)
-    .slice(0, 3)
-    .map((h) => `«${h.title}» (${h.missed} días fallados, ${h.rate}% de cumplimiento)`);
-
-  const lastWorkout = workouts[0];
-  const daysSinceLast = lastWorkout ? Math.max(0, Math.floor((now.getTime() - lastWorkout.date.getTime()) / 86400000)) : null;
-  const recentWorkouts = workouts.filter((workout) => workout.date >= thirtyDaysAgo).length;
-  const previousWorkouts = workouts.filter((workout) => workout.date >= sixtyDaysAgo && workout.date < thirtyDaysAgo).length;
-  const muscleCounts = new Map<string, number>();
-  for (const workout of workouts) {
-    for (const row of workout.exercises) {
-      const group = row.exercise.muscleGroup?.trim();
-      if (group) muscleCounts.set(group, (muscleCounts.get(group) ?? 0) + 1);
-    }
-  }
-  // Progreso de fuerza: mejor peso de cada ejercicio frecuente, últimos 30 días vs. los 60 anteriores.
-  const bestWeight = (sets: unknown) => Array.isArray(sets)
-    ? sets.reduce((max: number, set) => Math.max(max, Number((set as { weight?: unknown })?.weight) || 0), 0)
-    : 0;
-  const lifts = new Map<string, { recent: number; before: number; sessions: number }>();
-  for (const workout of workouts) {
-    for (const row of workout.exercises) {
-      const name = row.exercise.name;
-      const weight = bestWeight(row.sets);
-      if (!name || weight <= 0) continue;
-      const entry = lifts.get(name) ?? { recent: 0, before: 0, sessions: 0 };
-      entry.sessions += 1;
-      if (workout.date >= thirtyDaysAgo) entry.recent = Math.max(entry.recent, weight);
-      else entry.before = Math.max(entry.before, weight);
-      lifts.set(name, entry);
-    }
-  }
-  const strengthSummary = [...lifts.entries()]
-    .sort((a, b) => b[1].sessions - a[1].sessions)
-    .slice(0, 4)
-    .map(([name, l]) => l.before && l.recent
-      ? `${name}: ${l.before} → ${l.recent} kg (${l.recent >= l.before ? '+' : ''}${Math.round(((l.recent - l.before) / l.before) * 100)}%)`
-      : `${name}: mejor marca ${Math.max(l.recent, l.before)} kg`)
-    .join('; ');
-
-  const obstacleLines = antiHabits.map((anti) => {
-    const falls = anti.logs.filter((log) => log.occurred).reduce((sum, log) => sum + log.amount, 0);
-    const resisted = anti.logs.filter((log) => !log.occurred).length;
-    const lastWeek = anti.logs.filter((log) => log.occurred && log.date >= addCalendarDays(today, -6)).reduce((sum, log) => sum + log.amount, 0);
-    return `- ${anti.title}: ${falls} caídas y ${resisted} tentaciones resistidas en 30 días; ${lastWeek} caídas esta semana${anti.targetPerWeek != null ? ` (límite ${anti.targetPerWeek}/semana)` : ''}.`;
-  });
-
-  const muscleSummary = [...muscleCounts.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3)
-    .map(([group, count]) => `${group} (${count})`)
-    .join(', ');
-
-  const formatCOP = (value: number) => new Intl.NumberFormat('es-CO', {
-    style: 'currency', currency: 'COP', maximumFractionDigits: 0,
-  }).format(value);
-
-  return `
-Eres el asistente personal de ${user.displayName} dentro de Noutlife.
-Hablas en español con un tono natural, claro, cercano y motivador.
-Tu estilo debe sentirse humano y práctico, no como personaje de fantasía.
-Evita hablar como sabio, héroe, reino, castillo o con frases demasiado teatrales, salvo que el usuario te lo pida.
-Adapta tu forma de responder al estilo del usuario: conversacional, simple, directa y con buena energía.
-Eres conciso: máximo 3 párrafos por respuesta. Nunca listas largas ni relleno.
-Prioriza claridad, utilidad y recomendaciones concretas.
-
-ESTADO ACTUAL:
-- Nivel: ${user.level} | XP: ${user.xp}/${user.xpToNextLevel} | Racha general: ${user.currentStreak} días
-- HP: ${user.hp}/${user.maxHp} | Gold: ${user.gold}
-- Stats: STR ${user.strength} | INT ${user.intelligence} | CHA ${user.charisma}
-
-MISIONES ACTIVAS (${activeQuests.length}):
-${activeQuests.length > 0
-  ? activeQuests.map((quest) => `- [${quest.type}][${quest.difficulty}] ${quest.title} - vence: ${quest.deadline ? new Date(quest.deadline).toLocaleDateString('es-CO') : 'sin límite'}`).join('\n')
-  : '- Sin misiones activas aún'}
-
-HÁBITOS — HISTORIAL DE LOS ÚLTIMOS 30 DÍAS:
-${habitHistory.length > 0 ? habitHistory.map((h) => h.line).join('\n') : '- Sin hábitos creados aún'}
-${struggling.length > 0 ? `Hábitos que más está fallando: ${struggling.join(', ')}.` : ''}
-
-MISIONES FALLIDAS (30 días): ${failedQuests.length > 0 ? failedQuests.map((quest) => `«${quest.title}»`).join(', ') : 'ninguna'}
-
-OBSTÁCULOS (anti-hábitos):
-${obstacleLines.length > 0 ? obstacleLines.join('\n') : '- Sin obstáculos registrados'}
-
-FINANZAS ESTE MES:
-- Ingresos: ${formatCOP(monthIncome)} | Gastos: ${formatCOP(monthExpenses)} | Balance: ${formatCOP(monthIncome - monthExpenses)}
-
-GYM — HISTORIAL:
-- ${recentWorkouts} entrenamientos en los últimos 30 días; ${previousWorkouts} en los 30 días anteriores; ${workouts.length} en los últimos 90 días.
-- ${daysSinceLast === null ? 'Sin entrenamientos registrados en 90 días.' : `Último entrenamiento hace ${daysSinceLast} días.`}${muscleSummary ? ` Grupos más trabajados: ${muscleSummary}.` : ''}
-${strengthSummary ? `- Progreso de fuerza: ${strengthSummary}.` : ''}
-SUEÑO: Promedio ${avgSleep.toFixed(1)} h en los últimos 7 días.
-
-SÉ PROACTIVO: si ves un patrón relevante en el historial (un hábito que se cae, días sin entrenar, una caída de fuerza, un obstáculo que se repite), menciónalo con tacto y propone un paso pequeño y concreto, aunque el usuario no lo haya preguntado. Una sola sugerencia por respuesta.
-Responde siempre en español. Usa los datos reales de arriba y nunca inventes datos.
-  `.trim();
+DATOS DE ${snapshot.name.toUpperCase()} (${snapshot.dateLabel}):
+${data}`;
 }
 
 export async function sageChat(userId: string, message: string): Promise<string> {
   const usage = await takeChatSlot(userId);
   if (!usage) return SAGE_TIRED_REPLY;
 
-  return chatTurn(userId, async () => callAIWithMemory(userId, await buildSageContext(userId), message));
+  const text = clipText(message, SAGE_MESSAGE_MAX_CHARS);
+  return chatTurn(userId, async () => callAIWithMemory(userId, await buildSageContext(userId), text));
 }
 
 export async function sageSuggestQuests(userId: string): Promise<string> {
@@ -516,7 +366,7 @@ export async function sageAnalyzeHabits(userId: string): Promise<string> {
   const usage = await takeChatSlot(userId);
   if (!usage) return SAGE_TIRED_REPLY;
 
-  const context = await buildSageContext(userId);
+  const context = await buildSageContext(userId, { focus: 'habits' });
   return chatTurn(userId, () => callAI(`${context}\n\nAnaliza los habitos del heroe. En 3 parrafos: cual tiene mas riesgo de romperse esta semana y por que, cual esta mas consolidado, y que habito nuevo recomendarias agregar dado sus metas actuales.`));
 }
 
@@ -524,7 +374,7 @@ export async function sageAnalyzeFinances(userId: string): Promise<string> {
   const usage = await takeChatSlot(userId);
   if (!usage) return SAGE_TIRED_REPLY;
 
-  const context = await buildSageContext(userId);
+  const context = await buildSageContext(userId, { focus: 'finances' });
   return chatTurn(userId, () => callAI(`${context}\n\nAnaliza las finanzas del heroe este mes. En 3 parrafos concretos: en que categoria gasta mas de lo optimo, cuanto podria ahorrar mensualmente si ajusta eso, y cuando alcanzaria su meta de ahorro mas cercana.`));
 }
 
@@ -532,8 +382,8 @@ export async function sagePlanWorkout(userId: string): Promise<string> {
   const usage = await takeChatSlot(userId);
   if (!usage) return SAGE_TIRED_REPLY;
 
-  const context = await buildSageContext(userId);
-  return chatTurn(userId, () => callAI(`${context}\n\nBasandote en el historial de entrenamientos del heroe, sugiere el proximo entrenamiento ideal: grupo muscular a trabajar, 4-5 ejercicios especificos con series y reps sugeridas, y justifica brevemente la eleccion.`));
+  const context = await buildSageContext(userId, { focus: 'coliseo' });
+  return chatTurn(userId, () => callAI(`${context}\n\nBasandote en su historial del Coliseo, su sueño y su nutrición, sugiere el proximo entrenamiento ideal (puede ser fuerza, cardio, caminata o deporte): que trabajar, 4-5 ejercicios o bloques con series, reps o tiempo, y justifica brevemente la eleccion considerando su recuperacion.`));
 }
 
 // Cache del consejo diario en memoria de proceso: la llaman el scheduler (un
@@ -549,8 +399,8 @@ export async function sageDailyTip(userId: string): Promise<string> {
   if (hit?.date === today) return hit.tip;
   if (!(await canUseAI(userId))) return DAILY_TIP_FALLBACK; // NoutLife Lite: sin IA
 
-  const context = await buildSageContext(userId);
-  const tip = await callAI(`${context}\\n\\nDa UNA sola frase de consejo o motivación para hoy, basada en el estado actual del usuario. Máximo 15 palabras. Sin saludos, sin introducciones. Solo la frase, directa y útil.`);
+  const context = await buildSageContext(userId, { budget: 1200 });
+  const tip = await callAI(`${context}\n\nDa UNA sola frase de consejo o motivación para hoy, basada en el estado actual del usuario. Máximo 15 palabras. Sin saludos, sin introducciones. Solo la frase, directa y útil.`);
   // No cachear la respuesta de cuota agotada ni el fallback: mañana podría
   // haber cuota de nuevo y queremos reintentar la llamada a la IA.
   if (tip === SAGE_QUOTA_REPLY || tip === SAGE_ERROR_REPLY) return DAILY_TIP_FALLBACK;
@@ -573,7 +423,7 @@ export async function sageDailySummary(userId: string): Promise<string> {
     select: { displayName: true },
   });
 
-  const context = await buildSageContext(userId);
+  const context = await buildSageContext(userId, { budget: 2000 });
   const text = await callAI(`${context}\n\nEs el inicio del dia de ${user.displayName}. En 2 parrafos: resume que logro ayer y que deberia priorizar hoy segun sus misiones activas, habitos con riesgo de romperse y estado financiero.`);
   if (text !== SAGE_QUOTA_REPLY && text !== SAGE_ERROR_REPLY) dailySummaryCache.set(userId, { date: today, text });
   return text;

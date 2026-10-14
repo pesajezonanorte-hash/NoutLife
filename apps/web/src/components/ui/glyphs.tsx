@@ -28,6 +28,7 @@ import {
   CalendarDays,
   Camera,
   Check,
+  Clapperboard,
   CheckCircle2,
   Cherry,
   Circle,
@@ -231,6 +232,8 @@ const GLYPHS: Record<string, LucideIcon> = {
   sea: Waves, heart: Heart, gift: Gift, calendar: Calendar,
   quest: Swords, expense: Banknote, habit: Flame, journal: StickyNote,
   checkin: Zap, warrior: Swords, mage: Wand2, merchant: Coins, paladin: Shield,
+  // Íconos de zona del Life Score.
+  coliseo: Swords, recreation: Clapperboard,
 };
 
 /** Resuelve una clave (emoji legado o id) a su icono lucide. */

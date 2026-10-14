@@ -171,10 +171,10 @@ export async function getPublicProfile(username: string, viewerId?: string) {
  * relaciones, diario, glow up, rituales, check-in, guía y logros) no compiten.
  */
 export const ONLINE_XP_SOURCES = ['habit_completed', 'streak_recovery', 'quest_completed', 'workout', 'learning_complete', 'pomodoro', 'focus'] as const;
-export const ONLINE_ZONES = ['Hábitos', 'Misiones', 'Gimnasio', 'Aprendizaje'] as const;
+export const ONLINE_ZONES = ['Hábitos', 'Misiones', 'Coliseo', 'Aprendizaje'] as const;
 
 export async function getLeaderboard(
-  category: 'xp' | 'streak' | 'gym',
+  category: 'xp' | 'streak' | 'coliseo',
   userId: string,
   friendsOnly = false
 ) {
@@ -228,7 +228,7 @@ export async function getLeaderboard(
 
   const userScope = friendIds ? { userId: { in: [...friendIds, userId] } } : {};
 
-  if (category === 'gym') {
+  if (category === 'coliseo') {
     // Top by total workout sessions
     const result = await prisma.workout.groupBy({
       by: ['userId'],

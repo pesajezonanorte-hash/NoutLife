@@ -68,8 +68,9 @@ export async function getGoogleAuthUrl(redirectUri?: string): Promise<string> {
   return data.url;
 }
 
-export async function handleGoogleCallback(code: string, redirectUri: string): Promise<void> {
-  await api.post('/agenda/google/callback', { code, redirectUri });
+/** `state` es el que Google devuelve: la API comprueba que esta misma persona pidió el permiso. */
+export async function handleGoogleCallback(code: string, redirectUri: string, state?: string): Promise<void> {
+  await api.post('/agenda/google/callback', { code, redirectUri, state });
 }
 
 export async function syncGoogleCalendar(): Promise<{ syncedCount: number; exportedHabitCount?: number; message: string }> {

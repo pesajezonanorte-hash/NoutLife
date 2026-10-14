@@ -47,6 +47,27 @@ export const exitEase = [0.4, 0, 1, 1] as const;
 export const reduced = () => useMotionStore.getState().reduce;
 const fade = { opacity: 0 };
 
+let liteCache: boolean | null = null;
+/**
+ * Movimiento ligero: pantallas táctiles o angostas y equipos de 4 núcleos o menos.
+ * Las entradas quedan en opacidad + desplazamiento (solo transform/opacity, que la
+ * GPU compone sin repintar); el desenfoque y la escala de entrada, que en un móvil
+ * cuestan un repintado por fotograma y por elemento, se quedan para escritorio.
+ */
+export function lite(): boolean {
+  if (liteCache !== null) return liteCache;
+  if (typeof window === 'undefined' || !window.matchMedia) return false;
+  const weak = (navigator.hardwareConcurrency ?? 8) <= 4;
+  const query = window.matchMedia('(pointer: coarse), (max-width: 767px)');
+  liteCache = weak || query.matches;
+  query.addEventListener?.('change', (e) => { liteCache = weak || e.matches; });
+  return liteCache;
+}
+
+/** Desenfoque de entrada (`filter: blur`) solo donde no cuesta fotogramas. */
+export const blurFrom = (px: number) => (lite() ? {} : { filter: `blur(${px}px)` });
+export const blurTo = () => (lite() ? {} : { filter: 'blur(0px)', transitionEnd: { filter: 'none' } });
+
 /** Contenedor que escalona a sus hijos. */
 export function staggerVariants(stagger = 0.07, delay = 0.05): Variants {
   return {
@@ -72,12 +93,12 @@ export const enter = {
   },
   /** Emerge de la niebla: se enfoca despacio (citas, espejo). Con «Reducir movimiento», solo opacidad. */
   emerge: {
-    initial: () => (reduced() ? fade : { opacity: 0, scale: 0.985, filter: 'blur(10px)' }),
+    initial: () => (reduced() ? fade : { opacity: 0, scale: 0.985, ...blurFrom(10) }),
     animate: () => (reduced()
       ? { opacity: 1, transition: { duration: durations.quick } }
       : {
-          opacity: 1, scale: 1, filter: 'blur(0px)',
-          transition: { ...springs.gentle, opacity: { duration: durations.slow } }, transitionEnd: { filter: 'none' },
+          opacity: 1, scale: 1, ...blurTo(),
+          transition: { ...springs.gentle, opacity: { duration: durations.slow } },
         }),
     exit: { opacity: 0, transition: { duration: durations.quick, ease: exitEase } },
   },

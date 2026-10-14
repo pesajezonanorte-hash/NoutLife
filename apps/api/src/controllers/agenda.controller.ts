@@ -1,6 +1,6 @@
 import type { Response } from 'express';
 import type { AuthRequest } from '../middleware/auth.middleware';
-import { calendarRedirectUri } from '../lib/oauth';
+import { calendarRedirectUri, signCalendarState, verifyCalendarState } from '../lib/oauth';
 import * as svc from '../services/agenda.service';
 
 export async function listEvents(req: AuthRequest, res: Response) {
@@ -73,7 +73,7 @@ export async function getGoogleAuthUrl(req: AuthRequest, res: Response) {
         error: 'GOOGLE_CLIENT_ID no configurado en Vercel. Por favor añade GOOGLE_CLIENT_ID en las variables de entorno.',
       });
     }
-    const url = svc.getGoogleAuthUrl(redirectUri);
+    const url = svc.getGoogleAuthUrl(redirectUri, signCalendarState(req.userId!), req.userEmail);
     return res.json({ url });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Error al obtener URL de autenticación de Google';
@@ -83,8 +83,12 @@ export async function getGoogleAuthUrl(req: AuthRequest, res: Response) {
 
 export async function handleGoogleCallback(req: AuthRequest, res: Response) {
   try {
-    const { code, redirectUri } = req.body as { code: string; redirectUri?: string };
+    const { code, redirectUri, state } = req.body as { code: string; redirectUri?: string; state?: string };
     if (!code) return res.status(400).json({ error: 'Código de autorización requerido.' });
+    // La vuelta de Google tiene que ser la que esta misma persona pidió hace poco.
+    if (!verifyCalendarState(state, req.userId!)) {
+      return res.status(400).json({ error: 'El enlace de Google Calendar no es válido o expiró. Vuelve a conectar desde la Agenda.' });
+    }
 
     // La misma URL con la que se pidió el permiso: si difiere, Google rechaza el canje.
     const result = await svc.handleGoogleCallback(req.userId!, code, calendarRedirectUri(redirectUri, req.headers.origin));

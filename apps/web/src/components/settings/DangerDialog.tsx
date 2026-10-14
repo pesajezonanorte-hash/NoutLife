@@ -48,7 +48,7 @@ export function DangerDialog({ mode, onClose }: { mode: 'reset' | 'delete' | nul
         <p className="text-body-md text-on-surface">
           {mode === 'delete'
             ? 'Se borran para siempre tu cuenta y todos tus datos: personaje, zonas, cartas, fotos y videos. No se puede deshacer.'
-            : 'Se borran para siempre tu personaje, XP, Gold y todos tus registros, también los del gimnasio. Tu cuenta se conserva y empiezas de cero.'}
+            : 'Se borran para siempre tu personaje, XP, Gold y todos tus registros, también los del Coliseo. Tu cuenta se conserva y empiezas de cero.'}
         </p>
         <Field label={`Escribe ${target} para confirmar`} error={error || undefined}>
           <Input value={word} onChange={(e) => setWord(e.target.value.toUpperCase())} autoCapitalize="characters" spellCheck={false} className="font-mono" />

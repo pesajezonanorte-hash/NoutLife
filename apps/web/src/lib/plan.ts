@@ -12,7 +12,7 @@ export const LITE_LIMITS = { activeHabits: 3, activeRoutines: 3, historyDays: 5 
 export type ProFeature = 'habits' | 'history' | 'ai';
 
 /** Zonas solo de Pro. En Lite se ven con candado (la API responde 402 con `lock`). */
-export type ProZone = 'finances' | 'gym' | 'food' | 'sleep' | 'journal' | 'learning' | 'love' | 'mirror' | 'wisdom' | 'custom-zones';
+export type ProZone = 'finances' | 'coliseo' | 'recreation' | 'food' | 'sleep' | 'journal' | 'learning' | 'love' | 'mirror' | 'wisdom' | 'custom-zones';
 /** Candados de Lite: una zona Pro o el límite de rutinas activas. */
 export type ProLock = ProZone | 'routines';
 
@@ -24,7 +24,8 @@ export interface ProZoneInfo {
 
 export const PRO_ZONES: Record<ProZone, ProZoneInfo> = {
   finances: { label: 'Finanzas', pitch: 'Presupuestos, metas de ahorro y cada gasto bajo control.' },
-  gym: { label: 'Gimnasio', pitch: 'Rutinas, récords, fotos de progreso y tu volumen semana a semana.' },
+  coliseo: { label: 'Coliseo', pitch: 'Cualquier entrenamiento: rutinas, cardio, caminatas, récords y fotos de progreso.' },
+  recreation: { label: 'Recreación', pitch: 'Tu sala de cine: películas, series, juegos y salidas que también suman XP.' },
   food: { label: 'Comida', pitch: 'Comidas, macros y tus platos guardados en un solo lugar.' },
   sleep: { label: 'Sueño', pitch: 'Tus horas de descanso, su calidad y cómo evoluciona noche a noche.' },
   journal: { label: 'Diario', pitch: 'Tu diario privado, con tu ánimo y lo que vives cada día.' },
@@ -37,7 +38,7 @@ export const PRO_ZONES: Record<ProZone, ProZoneInfo> = {
 
 /** Ruta de cada zona Pro. Las zonas personalizadas (/zonas/:id) cuentan como «Mis zonas». */
 const PRO_ZONE_PATHS: Record<string, ProZone> = {
-  '/finances': 'finances', '/gym': 'gym', '/food': 'food', '/sleep': 'sleep', '/journal': 'journal',
+  '/finances': 'finances', '/coliseo': 'coliseo', '/gym': 'coliseo', '/recreacion': 'recreation', '/food': 'food', '/sleep': 'sleep', '/journal': 'journal',
   '/learning': 'learning', '/love': 'love', '/espejo': 'mirror', '/wisdom': 'wisdom', '/custom-zones': 'custom-zones',
 };
 
@@ -92,7 +93,7 @@ export const PRO_ZONE_COUNT = Object.keys(PRO_ZONES).length;
 
 /** Comparación Pro / Lite. true = incluido, false = no incluido, texto = el límite. */
 export const PLAN_ROWS: PlanRow[] = [
-  { label: `Zonas Pro: Finanzas, Gimnasio, Comida, Sueño, Diario y ${PRO_ZONE_COUNT - 5} más`, lite: false, pro: true },
+  { label: `Zonas Pro: Finanzas, Coliseo, Comida, Sueño, Diario y ${PRO_ZONE_COUNT - 5} más`, lite: false, pro: true },
   { label: 'Hábitos activos', lite: `Hasta ${LITE_LIMITS.activeHabits}`, pro: 'Ilimitados' },
   { label: 'Rutinas activas', lite: `Hasta ${LITE_LIMITS.activeRoutines}`, pro: 'Ilimitadas' },
   { label: 'Historial y analíticas', lite: `Últimos ${LITE_LIMITS.historyDays} días`, pro: 'Completos' },

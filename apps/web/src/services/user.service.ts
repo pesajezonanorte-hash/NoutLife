@@ -27,7 +27,7 @@ export async function completeOnboarding(payload: OnboardingPayload): Promise<Us
   return data.user;
 }
 
-export async function updateProfile(payload: { displayName?: string; timezone?: string; currency?: string; language?: string; gymPlaylistUrl?: string | null; avatarUrl?: string | null }): Promise<User> {
+export async function updateProfile(payload: { displayName?: string; timezone?: string; currency?: string; language?: string; coliseoPlaylistUrl?: string | null; avatarUrl?: string | null }): Promise<User> {
   const { data } = await api.patch<{ user: User }>('/users/me/profile', payload);
   return data.user;
 }

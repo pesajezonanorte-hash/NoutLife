@@ -1,6 +1,6 @@
 import api from '../lib/api';
 
-export const NOTIFICATION_CATEGORIES = ['HABITS', 'QUESTS', 'GYM', 'FINANCE', 'SOCIAL', 'ACHIEVEMENTS', 'SYSTEM'] as const;
+export const NOTIFICATION_CATEGORIES = ['HABITS', 'QUESTS', 'COLISEO', 'FINANCE', 'SOCIAL', 'ACHIEVEMENTS', 'SYSTEM'] as const;
 export type NotificationCategory = (typeof NOTIFICATION_CATEGORIES)[number];
 
 export interface NotificationCategoryPreference {

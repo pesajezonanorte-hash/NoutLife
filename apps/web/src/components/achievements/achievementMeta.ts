@@ -1,4 +1,4 @@
-import { Dumbbell, Flag, Flame, LayoutGrid, Sparkles, Star, Trophy, type LucideIcon } from 'lucide-react';
+import { Flag, Flame, LayoutGrid, Sparkles, Star, Swords, Trophy, type LucideIcon } from 'lucide-react';
 import type { Tone } from '@/components/ui/lq';
 import { resolveGlyph } from '@/components/ui/glyphs';
 import type { Achievement } from '@/services/achievement.service';
@@ -7,7 +7,8 @@ export const ACHIEVEMENT_CATEGORY: Record<string, { label: string; tone: Exclude
   quest: { label: 'Misiones', tone: 'primary', icon: Flag },
   habit: { label: 'Hábitos', tone: 'warning', icon: Flame },
   level: { label: 'Nivel', tone: 'forest', icon: Star },
-  gym: { label: 'Gimnasio', tone: 'success', icon: Dumbbell },
+  // «gym» es la categoría guardada de los logros del Coliseo.
+  gym: { label: 'Coliseo', tone: 'success', icon: Swords },
   category: { label: 'Zonas', tone: 'info', icon: LayoutGrid },
   special: { label: 'Especiales', tone: 'error', icon: Sparkles },
 };

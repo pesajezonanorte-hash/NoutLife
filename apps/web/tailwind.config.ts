@@ -7,6 +7,9 @@ const c = (v: string) => `rgb(var(--lq-${v}) / <alpha-value>)`;
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   darkMode: 'class',
+  // hover: solo en dispositivos con puntero que pasa por encima: en táctil, un toque
+  // dejaba el estado hover «pegado» (tarjetas levantadas, colores) hasta tocar otra cosa.
+  future: { hoverOnlyWhenSupported: true },
   theme: {
     extend: {
       colors: {

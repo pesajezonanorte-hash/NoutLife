@@ -90,6 +90,7 @@ export async function resetAccountData(userId: string): Promise<AccountResetSumm
     await remove('bodyWeights', () => tx.bodyWeight.deleteMany({ where: { userId } }));
     await remove('progressPhotos', () => tx.progressPhoto.deleteMany({ where: { userId } }));
     await remove('meals', () => tx.meal.deleteMany({ where: { userId } }));
+    await remove('recreationEntries', () => tx.recreationEntry.deleteMany({ where: { userId } }));
     await remove('savedMeals', () => tx.savedMeal.deleteMany({ where: { userId } }));
     await remove('nutritionGoals', () => tx.nutritionGoal.deleteMany({ where: { userId } }));
     await remove('sleepLogs', () => tx.sleepLog.deleteMany({ where: { userId } }));
@@ -106,9 +107,9 @@ export async function resetAccountData(userId: string): Promise<AccountResetSumm
     await remove('rituals', () => tx.ritual.deleteMany({ where: { userId } }));
     await remove('careRoutines', () => tx.careRoutine.deleteMany({ where: { userId } }));
     await remove('workouts', () => tx.workout.deleteMany({ where: { userId } }));
-    // Asistencia del gimnasio (calendario y racha de gym): sin esto el Gimnasio
+    // Asistencia del Coliseo (calendario y racha de entrenos): sin esto el Coliseo
     // seguía mostrando los días entrenados después de reiniciar la cuenta.
-    await remove('gymAttendances', () => tx.gymAttendance.deleteMany({ where: { userId } }));
+    await remove('coliseoAttendances', () => tx.coliseoAttendance.deleteMany({ where: { userId } }));
     await remove('messageReactions', () => tx.messageReaction.deleteMany({ where: { userId } }));
     await remove('chatViews', () => tx.chatView.deleteMany({ where: { userId } }));
     await remove('chatPrefs', () => tx.chatPref.deleteMany({ where: { userId } }));
@@ -209,7 +210,7 @@ export async function resetAccountData(userId: string): Promise<AccountResetSumm
         morningBriefingLastSeen: null,
         lifeScore: 0,
         focusMinutesTotal: 0,
-        gymPlaylistUrl: null,
+        coliseoPlaylistUrl: null,
         lostStreak: 0,
         lostStreakAt: null,
         bio: null,

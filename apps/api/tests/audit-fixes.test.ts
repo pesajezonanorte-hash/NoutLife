@@ -286,7 +286,7 @@ void test('remediaciones de auditoría', async (suite) => {
     const habit = {
       id: 'habit-undo', userId: 'u-1', title: 'Caminar', category: 'HEALTH' as const,
       currentStreak: 2, longestStreak: 7, frequency: { type: 'daily', days: [] },
-      xpReward: 20, goldReward: 5, icon: 'walk', isActive: true, createsGymAttendance: false,
+      xpReward: 20, goldReward: 5, icon: 'walk', isActive: true, createsColiseoAttendance: false,
       user: { timezone: 'America/Bogota' },
     };
     // Recién subido al nivel 2 con 10 XP: descontar 20 lo devuelve al nivel 1.
@@ -340,7 +340,7 @@ void test('remediaciones de auditoría', async (suite) => {
         create: async ({ data }: { data: (typeof ledger)[number] }) => { ledger.push({ ...data, id: `xp-${ledger.length + 2}`, createdAt: new Date() }); return data; },
       },
       $transaction: async (ops: Promise<unknown>[]) => Promise.all(ops),
-      gymAttendance: { deleteMany: async () => { deletedAttendance += 1; return { count: 0 }; } },
+      coliseoAttendance: { deleteMany: async () => { deletedAttendance += 1; return { count: 0 }; } },
       recoveryChallenge: { findFirst: async () => null, updateMany: async () => ({ count: 0 }) },
       achievement: { findMany: async () => [] },
       userAchievement: { findMany: async () => [] },

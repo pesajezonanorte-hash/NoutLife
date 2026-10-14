@@ -12,12 +12,12 @@ import {
   getExerciseHistory,
   getWeeklyVolume,
   calculate1RM,
-} from '../services/gym2.service';
+} from '../services/coliseo.service';
 
 const router = Router();
 router.use(requireAuth);
 // Zona Pro: en NoutLife Lite toda la zona responde 402 (lo guardado se conserva).
-router.use(requireProZone('gym'));
+router.use(requireProZone('coliseo'));
 
 // Body Weight
 router.post('/body-weight', async (req, res) => {

@@ -3,12 +3,12 @@ import { DEFAULT_TIMEZONE, getCalendarDay, parseCalendarDate } from '../lib/cale
 import { awardXpAndGold } from './xp.service';
 import { checkAchievements } from './achievement.service';
 import { createNotification } from './notification.service';
-import { listGymAttendances, recordManualGymAttendance, recordWorkoutGymAttendance } from './gym-attendance.service';
+import { listColiseoAttendances, recordManualColiseoAttendance, recordWorkoutColiseoAttendance } from './coliseo-attendance.service';
 
 /**
  * A bare calendar key ("2026-09-07") is stored at 12:00 UTC so converting it to
  * the player's timezone keeps the same day. Midnight UTC fell on the previous
- * day in America/Bogota and shifted the gym attendance.
+ * day in America/Bogota and shifted the Coliseo attendance.
  * ponytail: noon UTC holds for UTC-12..UTC+11; use the user's local noon if UTC+12+ players appear.
  */
 export function workoutDate(input?: string): Date {
@@ -131,7 +131,7 @@ export async function finishWorkout(userId: string, id: string, body: { notes?: 
   const gold = Math.floor(xp * 0.3);
   // Validate/record the visit before granting rewards so a future-dated draft
   // cannot become a completed workout with XP but no valid attendance.
-  const attendance = await recordWorkoutGymAttendance(userId, existing.date);
+  const attendance = await recordWorkoutColiseoAttendance(userId, existing.date);
   const result = await awardXpAndGold(userId, xp, gold, 'workout', { sourceId: id, description: 'Entrenamiento completado' });
 
   const workout = await prisma.workout.update({
@@ -142,12 +142,12 @@ export async function finishWorkout(userId: string, id: string, body: { notes?: 
 
   createNotification(userId, {
     type: 'workout',
-    category: 'GYM',
+    category: 'COLISEO',
     dedupeKey: `workout-${id}`,
     title: `🏋️ "${workout.title}" completado`,
     body: `+${result.xpGained} XP por tu entrenamiento.`,
     icon: '🏋️',
-    link: '/gym',
+    link: '/coliseo',
     silentForeground: true,
   }).catch(() => {});
 
@@ -164,7 +164,7 @@ export async function deleteWorkout(userId: string, id: string) {
   if (!workout) throw new Error('WORKOUT_NOT_FOUND');
 
   // Deleting a rewarded session would leave its XP event in the ledger while
-  // removing the session from gym stats. Completed workouts remain editable,
+  // removing the session from Coliseo stats. Completed workouts remain editable,
   // but are intentionally protected from deletion until a true reward reversal
   // flow exists.
   if (workout.xpEarned > 0) throw new Error('WORKOUT_COMPLETED_CANNOT_DELETE');
@@ -323,9 +323,9 @@ export async function deleteRoutine(userId: string, id: string) {
 }
 
 export async function listAttendances(userId: string, from?: string, to?: string) {
-  return listGymAttendances(userId, from, to);
+  return listColiseoAttendances(userId, from, to);
 }
 
 export async function recordAttendance(userId: string, date?: string) {
-  return recordManualGymAttendance(userId, date);
+  return recordManualColiseoAttendance(userId, date);
 }

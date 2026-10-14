@@ -4,7 +4,7 @@ import { prisma } from '../src/lib/prisma';
 import {
   getActivityRadar,
   getFinanceTrend,
-  getGymProgression,
+  getColiseoProgression,
   getHabitHeatmap,
   getPredictions,
   getSleepScatter,
@@ -16,7 +16,7 @@ import { calculateDynamicLifeScore, calculateLifeScore, getYearInReview } from '
 import { getHistorySummary } from '../src/services/history.service';
 import { getTransactionSummary } from '../src/services/finance.service';
 import { getFinancialProjection } from '../src/services/finance2.service';
-import { getExerciseHistory, getWeeklyVolume } from '../src/services/gym2.service';
+import { getExerciseHistory, getWeeklyVolume } from '../src/services/coliseo.service';
 import { summary as statsSummaryController } from '../src/controllers/stats.controller';
 import { logHabit } from '../src/services/habit.service';
 import { getSleepStats, updateSleep } from '../src/services/sleep.service';
@@ -137,7 +137,10 @@ void test('auditoría de contratos analíticos', async (suite) => {
       learningItem: [2, 0],
       journalEntry: [2, 1],
       careLog: [1, 0],
+      focusSession: [3, 1],
+      recreationEntry: [2, 0],
     };
+    const mealDays = [[{ date: new Date('2026-09-25T12:00:00Z') }, { date: new Date('2026-09-25T19:00:00Z') }, { date: new Date('2026-09-26T08:00:00Z') }], []];
     await withMocks({
       workout: { count: async () => counts.workout.shift() },
       transaction: { count: async () => counts.transaction.shift() },
@@ -147,10 +150,15 @@ void test('auditoría de contratos analíticos', async (suite) => {
       learningItem: { count: async () => counts.learningItem.shift() },
       journalEntry: { count: async () => counts.journalEntry.shift() },
       careLog: { count: async () => counts.careLog.shift() },
+      meal: { findMany: async () => mealDays.shift() },
+      focusSession: { count: async () => counts.focusSession.shift() },
+      recreationEntry: { count: async () => counts.recreationEntry.shift() },
     }, async () => {
       const radar = await getActivityRadar('u-1', 'week', new Date('2026-09-26T15:00:00Z'));
-      assert.deepEqual(radar.current.map((item) => item.value), [33, 43, 67, 100, 71, 100, 29, 14]);
-      assert.deepEqual(radar.previous.map((item) => item.value), [0, 14, 33, 100, 14, 0, 14, 0]);
+      // Nombres actuales: ninguno de los antiguos (Torre, Posada, Bóveda, Biblioteca).
+      assert.deepEqual(radar.current.map((item) => item.subject), ['Hábitos', 'Misiones', 'Coliseo', 'Sueño', 'Nutrición', 'Recreación', 'Finanzas', 'Mente', 'Enfoque', 'Espejo']);
+      assert.deepEqual(radar.current.map((item) => item.value), [43, 33, 67, 71, 29, 67, 100, 65, 60, 14]);
+      assert.deepEqual(radar.previous.map((item) => item.value), [14, 0, 33, 14, 0, 0, 100, 7, 20, 0]);
     });
 
     await withMocks({
@@ -234,7 +242,7 @@ void test('auditoría de contratos analíticos', async (suite) => {
         ],
       },
     }, async () => {
-      assert.deepEqual(await getGymProgression('u-1', 'month'), [
+      assert.deepEqual(await getColiseoProgression('u-1', 'month'), [
         { name: 'Sentadilla', data: [{ date: '2026-09-01', weight: 80 }, { date: '2026-09-03', weight: 90 }] },
         { name: 'Press', data: [{ date: '2026-09-02', weight: 50 }] },
       ]);
@@ -412,6 +420,7 @@ void test('auditoría de contratos analíticos', async (suite) => {
       presenceCheckin: { findMany: async () => [] },
       meal: { findMany: async () => [], count: async () => 0 },
       nutritionGoal: { findUnique: async () => null },
+      recreationEntry: { findMany: async () => [], count: async () => 0 },
       relationship: { findMany: async () => [] },
       giftIdea: { findMany: async () => [] },
       xpEvent: {
@@ -420,7 +429,7 @@ void test('auditoría de contratos analíticos', async (suite) => {
       },
     }, async () => {
       const dynamic = await calculateDynamicLifeScore('u-1', 'week', new Date('2026-09-26T15:00:00Z'));
-      const expectedCoreZones = ['quests', 'habits', 'gym', 'finances', 'sleep', 'learning', 'journal', 'mirror', 'nutrition', 'relationships'];
+      const expectedCoreZones = ['quests', 'habits', 'coliseo', 'finances', 'sleep', 'learning', 'journal', 'mirror', 'nutrition', 'recreation', 'relationships'];
       for (const id of expectedCoreZones) assert.ok(dynamic.zones.some((zone) => zone.id === id), `${id} debe estar visible`);
 
       const customZone = dynamic.zones.find((zone) => zone.id === 'zone-1');

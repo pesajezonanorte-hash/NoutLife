@@ -67,12 +67,12 @@ export async function calculateLifeScore(userId: string): Promise<{
     : 50;
 
   // Fitness score (0-100)
-  const gymSessionsThisWeek = workouts.length;
+  const coliseoSessionsThisWeek = workouts.length;
   const sleepScoreAvg = sleepLogs.length
     ? sleepLogs.reduce((sum, s) => sum + (s.sleepScore ?? calculateSleepScore(s.duration, s.quality, s.bedtime)), 0) / sleepLogs.length
     : 50;
   const fitnessScore = Math.min(100, Math.round(
-    (Math.min(gymSessionsThisWeek / 3, 1) * 50) + (sleepScoreAvg * 0.5)
+    (Math.min(coliseoSessionsThisWeek / 3, 1) * 50) + (sleepScoreAvg * 0.5)
   ));
 
   // Finances score (0-100)
@@ -257,6 +257,8 @@ export async function calculateDynamicLifeScore(userId: string, period = 'month'
     meals,
     historicalMealCount,
     nutritionGoal,
+    recreationEntries,
+    historicalRecreationCount,
     relationships,
     giftIdeas,
     zoneXpEvents,
@@ -315,6 +317,8 @@ export async function calculateDynamicLifeScore(userId: string, period = 'month'
     prisma.meal.findMany({ where: { userId, date: currentRange }, select: { date: true } }),
     prisma.meal.count({ where: { userId } }),
     prisma.nutritionGoal.findUnique({ where: { userId }, select: { userId: true } }),
+    prisma.recreationEntry.findMany({ where: { userId, status: 'DONE', date: currentRange }, select: { date: true } }),
+    prisma.recreationEntry.count({ where: { userId } }),
     prisma.relationship.findMany({ where: { userId }, select: { id: true, createdAt: true, updatedAt: true } }),
     prisma.giftIdea.findMany({ where: { userId, createdAt: currentRange }, select: { id: true, createdAt: true, isPurchased: true } }),
     prisma.xpEvent.findMany({ where: { userId, createdAt: currentRange }, select: { sourceId: true, xpAmount: true } }),
@@ -370,13 +374,13 @@ export async function calculateDynamicLifeScore(userId: string, period = 'month'
   }));
 
   // Coliseo — a completed workout is an entry with awarded XP.
-  const gymTarget = weeksInPeriod * 3;
+  const coliseoTarget = weeksInPeriod * 3;
   zones.push(makeZone({
-    id: 'gym',
+    id: 'coliseo',
     name: 'Coliseo',
-    icon: 'gym',
+    icon: 'coliseo',
     color: '#c85a50',
-    score: ratioPercent(workouts.length, gymTarget),
+    score: ratioPercent(workouts.length, coliseoTarget),
     scoreAvailable: historicalWorkoutCount > 0,
     hasData: workouts.length > 0,
     isTracking: historicalWorkoutCount > 0,
@@ -384,7 +388,7 @@ export async function calculateDynamicLifeScore(userId: string, period = 'month'
     activityLabel: workouts.length ? `${plural(workouts.length, 'entrenamiento')} terminado${workouts.length === 1 ? '' : 's'}` : 'Sin entrenamientos registrados',
   }));
 
-  // Bóveda — percentage reflects actual net saving rate; expenses without any
+  // Finanzas — percentage reflects actual net saving rate; expenses without any
   // income are not treated as a fictitious 50% score.
   const income = transactions.filter((transaction) => transaction.type === 'INCOME')
     .reduce((sum, transaction) => sum + Number(transaction.amount), 0);
@@ -394,7 +398,7 @@ export async function calculateDynamicLifeScore(userId: string, period = 'month'
   const financeTracking = historicalTransactionCount > 0 || budgets.length > 0 || financialGoals.length > 0;
   zones.push(makeZone({
     id: 'finances',
-    name: 'Bóveda',
+    name: 'Finanzas',
     icon: 'money',
     color: '#419872',
     score: financeScore,
@@ -407,14 +411,14 @@ export async function calculateDynamicLifeScore(userId: string, period = 'month'
       : 'Sin transacciones registradas',
   }));
 
-  // Torre — use a persisted sleep score when available, otherwise calculate it
+  // Sueño — use a persisted sleep score when available, otherwise calculate it
   // from the actual duration, quality and bedtime values.
   const sleepAverage = sleepLogs.length
     ? sleepLogs.reduce((sum, log) => sum + (log.sleepScore ?? calculateSleepScore(log.duration, log.quality, log.bedtime)), 0) / sleepLogs.length
     : 0;
   zones.push(makeZone({
     id: 'sleep',
-    name: 'Torre',
+    name: 'Sueño',
     icon: 'moon',
     color: '#6570c8',
     score: clampPercent(sleepAverage),
@@ -425,7 +429,7 @@ export async function calculateDynamicLifeScore(userId: string, period = 'month'
     activityLabel: sleepLogs.length ? `${plural(sleepLogs.length, 'noche')} registrada${sleepLogs.length === 1 ? '' : 's'}` : 'Sin noches registradas',
   }));
 
-  // Biblioteca — progress is only calculated for records edited/completed in
+  // Aprendizaje — progress is only calculated for records edited/completed in
   // this interval. Existing items still remain visible with an honest empty state.
   const touchedLearning = learningItems.filter((item) => (
     (item.updatedAt >= start && item.updatedAt < end) ||
@@ -441,7 +445,7 @@ export async function calculateDynamicLifeScore(userId: string, period = 'month'
     : 0;
   zones.push(makeZone({
     id: 'learning',
-    name: 'Biblioteca',
+    name: 'Aprendizaje',
     icon: 'book',
     color: '#378fa0',
     score: clampPercent(learningScore),
@@ -467,7 +471,7 @@ export async function calculateDynamicLifeScore(userId: string, period = 'month'
     activityLabel: journalEntries.length ? `${plural(journalEntries.length, 'entrada')} registrada${journalEntries.length === 1 ? '' : 's'}` : 'Sin entradas registradas',
   }));
 
-  // El Espejo — care routines form the measurable denominator; wardrobe,
+  // Espejo — care routines form the measurable denominator; wardrobe,
   // outfits and presence check-ins are genuine supplementary records but do not
   // get converted into invented completion percentages.
   const expectedCareSlots = careRoutines.reduce((total, routine) => (
@@ -479,7 +483,7 @@ export async function calculateDynamicLifeScore(userId: string, period = 'month'
   const mirrorTracking = careRoutines.length > 0 || historicalCareLogCount > 0 || clothingItems.length > 0 || outfits.length > 0;
   zones.push(makeZone({
     id: 'mirror',
-    name: 'El Espejo',
+    name: 'Espejo',
     icon: 'sparkles',
     color: '#9274c9',
     score: ratioPercent(completedCareLogs.length, expectedCareSlots),
@@ -505,6 +509,21 @@ export async function calculateDynamicLifeScore(userId: string, period = 'month'
     isTracking: nutritionTracking,
     activityCount: meals.length,
     activityLabel: meals.length ? `${plural(meals.length, 'comida')} registrada${meals.length === 1 ? '' : 's'}` : 'Sin comidas registradas',
+  }));
+
+  // Recreación — leisure that was actually lived (planned items don't score).
+  // Three functions a week fill the zone, the same rhythm as the radar.
+  zones.push(makeZone({
+    id: 'recreation',
+    name: 'Recreación',
+    icon: 'recreation',
+    color: '#9b3d4a',
+    score: ratioPercent(recreationEntries.length, weeksInPeriod * 3),
+    scoreAvailable: historicalRecreationCount > 0,
+    hasData: recreationEntries.length > 0,
+    isTracking: historicalRecreationCount > 0,
+    activityCount: recreationEntries.length,
+    activityLabel: recreationEntries.length ? `${plural(recreationEntries.length, 'función', 'funciones')} vivida${recreationEntries.length === 1 ? '' : 's'}` : 'Sin funciones registradas',
   }));
 
   // Relationships have setup records but no interaction-log model yet. Keep the
@@ -641,20 +660,20 @@ export async function getCorrelations(userId: string): Promise<string[]> {
     }
   }
 
-  // Gym days and mood correlation
+  // Coliseo days and mood correlation
   if (workouts.length >= 8 && journalEntries.some((j) => j.mood !== null)) {
-    const moodGymDays = journalEntries
+    const moodTrainingDays = journalEntries
       .filter((j) => j.mood !== null && workoutDates.has(j.date.toISOString().slice(0, 10)))
       .map((j) => j.mood as number);
-    const moodNoGymDays = journalEntries
+    const moodRestDays = journalEntries
       .filter((j) => j.mood !== null && !workoutDates.has(j.date.toISOString().slice(0, 10)))
       .map((j) => j.mood as number);
 
-    if (moodGymDays.length >= 4 && moodNoGymDays.length >= 4) {
-      const avgGym = moodGymDays.reduce((sum, m) => sum + m, 0) / moodGymDays.length;
-      const avgNoGym = moodNoGymDays.reduce((sum, m) => sum + m, 0) / moodNoGymDays.length;
-      if (avgGym > avgNoGym + 0.5) {
-        correlations.push(`En días de gym, tu mood promedio es ${(avgGym - avgNoGym).toFixed(1)} puntos más alto.`);
+    if (moodTrainingDays.length >= 4 && moodRestDays.length >= 4) {
+      const avgTraining = moodTrainingDays.reduce((sum, m) => sum + m, 0) / moodTrainingDays.length;
+      const avgRest = moodRestDays.reduce((sum, m) => sum + m, 0) / moodRestDays.length;
+      if (avgTraining > avgRest + 0.5) {
+        correlations.push(`En los días que entrenas en el Coliseo, tu ánimo promedio es ${(avgTraining - avgRest).toFixed(1)} puntos más alto.`);
       }
     }
   }

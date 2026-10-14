@@ -16,7 +16,7 @@ export function MobileHeader({ className }: { className?: string }) {
   return (
     <header
       className={cn(
-        'sticky top-0 z-20 flex h-14 items-center justify-between bg-background/[0.86] pl-4 pr-2 backdrop-blur-xl backdrop-saturate-[1.8]',
+        'lq-bar-glass sticky top-0 z-20 flex h-14 items-center justify-between pl-4 pr-2',
         'pt-[env(safe-area-inset-top)] box-content',
         className,
       )}

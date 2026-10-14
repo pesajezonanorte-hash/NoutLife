@@ -83,15 +83,20 @@ enum WorkoutKind {
   CARDIO
 }
 
-enum GymAttendanceSource {
+// Coliseo (antes Gimnasio): cualquier entrenamiento físico. Los nombres de
+// tablas, columnas y valores de la base siguen siendo los de «gym» (@map/@@map),
+// así el renombre no toca datos ni necesita migración.
+enum ColiseoAttendanceSource {
   HABIT
   MANUAL
+
+  @@map("GymAttendanceSource")
 }
 
 enum NotificationCategory {
   HABITS
   QUESTS
-  GYM
+  COLISEO @map("GYM")
   FINANCE
   SOCIAL
   ACHIEVEMENTS
@@ -142,7 +147,7 @@ model User {
   sageCallsToday     Int      @default(0)
   sageCallsResetAt   DateTime @default(now())
 
-  gymPlaylistUrl     String?
+  coliseoPlaylistUrl String? @map("gymPlaylistUrl")
 
   playerClass    String?
   classChosenAt  DateTime?
@@ -220,13 +225,14 @@ model User {
   savingsEntries          SavingsEntry[]
   workouts                Workout[]
   meals                   Meal[]
+  recreationEntries       RecreationEntry[]
   sleepLogs               SleepLog[]
   journalEntries          JournalEntry[]
   inventoryItems          InventoryItem[]
   achievements            UserAchievement[]
   relationships           Relationship[]
   routines                Routine[]
-  gymAttendances          GymAttendance[]
+  coliseoAttendances      ColiseoAttendance[]
   learningItems           LearningItem[]
   xpEvents                XpEvent[]
   pushSubscriptions       PushSubscription[]
@@ -420,8 +426,8 @@ model Habit {
   resetTime    String  @default("04:00")
   reminderTime String?
   isActive     Boolean @default(true)
-  // Completing this habit creates attendance in the Gym for the same local day.
-  createsGymAttendance Boolean @default(false)
+  // Completing this habit creates attendance in the Coliseo for the same local day.
+  createsColiseoAttendance Boolean @default(false) @map("createsGymAttendance")
 
   // If enabled, Noutlife owns a recurring event in the linked Google Calendar.
   // The instances are imported back into Agenda using their Google IDs.
@@ -433,7 +439,7 @@ model Habit {
 
   logs HabitLog[]
   recoveryChallenges RecoveryChallenge[]
-  gymAttendances GymAttendance[] @relation("GymAttendanceHabit")
+  coliseoAttendances ColiseoAttendance[] @relation("ColiseoAttendanceHabit")
 
   @@map("habits")
 }
@@ -551,7 +557,7 @@ model Workout {
   routineDayId String?
   routineDay   RoutineDay? @relation(fields: [routineDayId], references: [id], onDelete: SetNull)
   attendanceId String?
-  attendance   GymAttendance? @relation(fields: [attendanceId], references: [id], onDelete: SetNull)
+  attendance   ColiseoAttendance? @relation(fields: [attendanceId], references: [id], onDelete: SetNull)
 
   exercises WorkoutExercise[]
 
@@ -604,6 +610,33 @@ model Meal {
   createdAt DateTime @default(now())
 
   @@map("meals")
+}
+
+/// Zona de Recreación (la sala de cine): el ocio que la persona registra o planea.
+/// kind y status son texto validado en la API (como Meal.mealType), sin enum de Postgres.
+model RecreationEntry {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title    String
+  /// MOVIE | SERIES | GAME | OUTING | HOBBY | MUSIC | OTHER
+  kind     String
+  /// DONE (ya la viviste) | PLANNED (en cartelera, por ver)
+  status   String  @default("DONE")
+  /// 1–5 estrellas
+  rating   Int?
+  minutes  Int?
+  notes    String?
+  /// Cuándo fue (DONE) o para cuándo se planea (PLANNED).
+  date     DateTime
+  xpEarned Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, date])
+  @@map("recreation_entries")
 }
 
 model SleepLog {
@@ -699,15 +732,15 @@ model RoutineDayExercise {
   @@map("routine_day_exercises")
 }
 
-model GymAttendance {
+model ColiseoAttendance {
   id     String @id @default(cuid())
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   // Calendar-date key in the user's timezone, normalized to UTC midnight.
   date   DateTime
-  source GymAttendanceSource @default(MANUAL)
+  source ColiseoAttendanceSource @default(MANUAL)
   habitId String?
-  habit   Habit? @relation("GymAttendanceHabit", fields: [habitId], references: [id], onDelete: SetNull)
+  habit   Habit? @relation("ColiseoAttendanceHabit", fields: [habitId], references: [id], onDelete: SetNull)
   workouts Workout[]
 
   createdAt DateTime @default(now())
@@ -1132,7 +1165,7 @@ model SageMemory {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   role      String   // 'user' | 'sage'
   content   String
-  topic     String?  // 'habits' | 'finances' | 'gym' | 'general' | 'quests'
+  topic     String?  // 'habits' | 'finances' | 'gym' (Coliseo) | 'general' | 'quests'
   createdAt DateTime @default(now())
 
   @@index([userId, createdAt])
