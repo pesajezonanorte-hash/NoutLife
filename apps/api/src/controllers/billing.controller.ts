@@ -67,6 +67,15 @@ export async function subscribe(req: AuthRequest, res: Response): Promise<void> 
   }
 }
 
+/** Paywall de entrada: «Continuar con el Plan Lite». Sin tarjeta ni cobros. */
+export async function chooseLite(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    res.json({ subscription: await billing.chooseLite(req.userId!) });
+  } catch (error) {
+    sendError(res, error, 'LITE');
+  }
+}
+
 export async function cancel(req: AuthRequest, res: Response): Promise<void> {
   try {
     res.json({ subscription: await billing.cancelSubscription(req.userId!) });

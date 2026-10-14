@@ -1,5 +1,6 @@
 // Paywall de entrada: nadie entra al Dashboard sin vincular antes un método de
-// pago (tarjeta o Nequi, con Wompi). Con la prueba disponible: $0 hoy, 7 días
+// pago (tarjeta o Nequi, con Wompi) ni elegir «Continuar con el Plan Lite», que
+// entra sin tarjeta. Con la prueba disponible: $0 hoy, 7 días
 // de Pro y luego $9.900 COP/mes, cancelable con 1 clic. Si el correo o el
 // medio de pago ya usaron su prueba, el servidor la niega y la persona elige
 // entre pagar Pro o entrar a NoutLife Lite (también con el medio vinculado).
@@ -16,7 +17,7 @@ import { Badge, Button, Confetti } from '@/components/ui/lq';
 import { ease, useMotionReduced } from '@/lib/motion';
 import { LITE_LIMITS, PRO_FRAMING, PRO_FRAMING_TRIAL, PRO_PRICE_COP, PRO_ZONE_COUNT, TRIAL_DAYS, formatCop, longDay } from '@/lib/plan';
 import * as authService from '@/services/auth.service';
-import { getBillingConfig, getBillingStatus } from '@/services/billing.service';
+import { chooseLite, getBillingConfig, getBillingStatus } from '@/services/billing.service';
 import { useAuthStore } from '@/store/authStore';
 import { usePlanStore } from '@/store/planStore';
 import { PaymentMethodForm, type PaymentMethodFormProps } from './PaymentMethodForm';
@@ -128,6 +129,8 @@ export function Paywall() {
   const [nequi, setNequi] = useState(false);
   const [danger, setDanger] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [liteBusy, setLiteBusy] = useState(false);
+  const [liteError, setLiteError] = useState<string | null>(null);
   /** El primer paso no roba el foco al cargar; los siguientes sí. */
   const moved = useRef(false);
 
@@ -174,6 +177,19 @@ export function Paywall() {
     else go('offer');
   }
 
+  /** Entra a Lite sin tarjeta: el servidor marca la cuenta y el Dashboard se abre sin pasar por Wompi. */
+  async function continueLite() {
+    setLiteBusy(true);
+    setLiteError(null);
+    try {
+      updateUser({ subscription: await chooseLite() });
+      releasePaywall();
+    } catch (error) {
+      setLiteError((error as { response?: { data?: { error?: string } } }).response?.data?.error ?? 'No pudimos abrir tu cuenta. Inténtalo de nuevo.');
+      setLiteBusy(false);
+    }
+  }
+
   async function logout() {
     setLeaving(true);
     try { await authService.logout(); } catch { /* el estado local se limpia igual */ }
@@ -212,7 +228,7 @@ export function Paywall() {
           framing: PRO_FRAMING,
         };
 
-  const formTitle = intent === 'charge' ? 'Activa NoutLife Pro' : intent === 'save' && !keepsPro ? 'Entra a NoutLife Lite' : 'Configura tu método de pago';
+  const formTitle = intent === 'charge' ? 'Activa NoutLife Pro' : 'Configura tu método de pago';
   const done = result ? doneCopy(result, intent) : null;
   const celebrate = Boolean(result && !result.pendingPayment && result.plan === 'pro');
 
@@ -277,9 +293,10 @@ export function Paywall() {
                     <Lock aria-hidden className="size-3.5 shrink-0" strokeWidth={1.75} />
                     {nequi ? 'Tarjeta o Nequi · Pago seguro con Wompi' : 'Tarjeta débito o crédito · Pago seguro con Wompi'}
                   </p>
-                  {primary === 'charge' && (
-                    <Button variant="ghost" size="md" onClick={() => start('save')}>Prefiero NoutLife Lite</Button>
-                  )}
+                  <Button variant="secondary" size="md" block loading={liteBusy} onClick={() => void continueLite()}>Continuar con el Plan Lite</Button>
+                  {liteError
+                    ? <p role="alert" className="text-center text-label-sm text-error-text">{liteError}</p>
+                    : <p className="text-center text-label-sm text-on-surface-light">Sin tarjeta ni cobros. Activa tu prueba o Pro cuando quieras desde Plan.</p>}
                 </div>
               </motion.section>
             )}
@@ -288,9 +305,6 @@ export function Paywall() {
               <motion.section key="form" {...slide} aria-labelledby={titleId} className="flex flex-col gap-5">
                 <div className="flex flex-col gap-1.5">
                   <StepTitle id={titleId} focus={moved.current}>{formTitle}</StepTitle>
-                  {intent === 'save' && !keepsPro && (
-                    <p className="text-body-sm text-on-surface-light">NoutLife Lite es gratis. Para entrar también se vincula un método de pago; hoy no se cobra nada.</p>
-                  )}
                 </div>
                 <PaymentMethodForm
                   intent={intent}

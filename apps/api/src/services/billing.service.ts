@@ -388,6 +388,7 @@ export async function savePaymentMethod(userId: string, input: PaymentMethodInpu
     paymentMethodType: input.method,
     paymentMethodLabel: lastFour ? `${brand} •••• ${lastFour}` : brand,
     lastPaymentError: null,
+    liteSince: null, // la marca de Lite sin tarjeta no aplica con una tarjeta vinculada
   };
   // Vincular un medio de pago durante una cancelación vigente la deshace.
   if (statusOf(user) === 'canceled' && now < accessEndsAt(user)) {
@@ -406,13 +407,32 @@ export async function savePaymentMethod(userId: string, input: PaymentMethodInpu
     } else {
       const outcome = await claimTrial(user.email, key, input.deviceId);
       if (outcome === 'granted') {
-        Object.assign(data, { subscriptionStatus: 'trialing', trialEndsAt: addDays(now, TRIAL_DAYS), liteSince: null });
+        Object.assign(data, { subscriptionStatus: 'trialing', trialEndsAt: addDays(now, TRIAL_DAYS) });
       } else {
         data.lastPaymentError = outcome === 'payment_used' ? 'Este método de pago ya se usó en una prueba gratis.' : 'Ya usaste tu prueba gratis.';
       }
     }
   }
   await prisma.user.update({ where: { id: userId }, data });
+  return getView(userId);
+}
+
+/**
+ * «Continuar con el Plan Lite» del paywall de entrada: entra sin tarjeta y sin
+ * cobros, y no gasta la prueba (sigue disponible desde Plan). Una cuenta que aún
+ * tiene Pro por una prueba anterior lo conserva hasta que venza.
+ */
+export async function chooseLite(userId: string): Promise<SubscriptionView> {
+  const user = await loadUser(userId);
+  if (user.complimentary || user.paymentSourceId) return getView(userId);
+  const now = new Date();
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      ...(hasProAccess(user, now) ? {} : { subscriptionStatus: 'lite' }),
+      liteSince: user.liteSince ?? now,
+    },
+  });
   return getView(userId);
 }
 

@@ -221,6 +221,8 @@ test('the entry paywall asks for a payment method only while billing is on and n
   assert.equal(paywallRequired({ paymentSourceId: '3891' }, true), false);
   // Sin llaves de Wompi no hay cómo vincularlo: no se bloquea a nadie.
   assert.equal(paywallRequired({ paymentSourceId: null }, false), false);
+  // Quien eligió Lite sin tarjeta entra: basta la marca liteSince.
+  assert.equal(paywallRequired({ paymentSourceId: null, liteSince: NOW }, true), false);
 });
 
 test('the subscription view carries the paywall flag; a denied trial with a linked method lets the person in on Lite', async () => {

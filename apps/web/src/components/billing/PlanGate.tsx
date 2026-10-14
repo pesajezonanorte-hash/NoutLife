@@ -1,6 +1,6 @@
 // Revisión del plan al entrar (lado cliente). La API ya aplicó el vencimiento
 // al iniciar sesión o renovar la sesión; aquí se avisa una sola vez:
-//  · la cuenta pasó a Lite → diálogo con el motivo y cómo volver a Pro;
+//  · la cuenta con tarjeta pasó a Lite → diálogo con el motivo y cómo volver a Pro;
 //  · cuenta en Lite que aún puede probar Pro → invitación a los 7 días gratis, tras el tutorial.
 // El paywall de entrada (sin medio de pago) vive en App, antes del Dashboard.
 // También aloja el diálogo de Pro que abren los límites y las zonas de Lite, y
@@ -39,7 +39,8 @@ export function PlanGate({ blocked = false }: { blocked?: boolean }) {
     if (!user || !sub || blocked || reason) return;
     const key = (name: string) => `lq_plan_${name}_${user.id}`;
 
-    if (sub.status === 'lite' && sub.liteSince && read(key('lite')) !== sub.liteSince) {
+    // Solo con tarjeta: sin ella, elegir Lite fue decisión de la persona y no una baja.
+    if (sub.status === 'lite' && sub.liteSince && sub.hasPaymentMethod && read(key('lite')) !== sub.liteSince) {
       write(key('lite'), sub.liteSince);
       openUpgrade('downgraded');
       return;
