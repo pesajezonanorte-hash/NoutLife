@@ -26,6 +26,7 @@ router.post('/webhook', billing.webhook);
 router.get('/status', requireAuth, billing.status);
 router.post('/payment-method', requireAuth, cardLimiter, validate(paymentMethodSchema), billing.paymentMethod);
 router.post('/subscribe', requireAuth, chargeLimiter, billing.subscribe);
+router.post('/lite', requireAuth, billing.chooseLite);
 router.post('/cancel', requireAuth, billing.cancel);
 router.post('/resume', requireAuth, billing.resume);
 // Aviso de Nequi: el estado se lee sin consultar a Wompi; «Ya lo aprobé» sí consulta, con su propio límite.

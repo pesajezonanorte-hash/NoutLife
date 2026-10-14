@@ -8,7 +8,7 @@
  *   lite      sin pago activo (y toda cuenta nueva). Funciona con los límites de Lite y las zonas Pro con candado.
  *
  * Paywall de entrada: con Wompi configurado, nadie entra al Dashboard sin
- * vincular antes un medio de pago (paywallRequired).
+ * vincular antes un medio de pago ni elegir Lite sin tarjeta (paywallRequired).
  */
 export const TRIAL_DAYS = 7;
 // ponytail: «tarifa congelada» = esta constante. Antes de subir el precio, guarda el monto por usuario.
@@ -122,12 +122,15 @@ export function planOf(user: SubscriptionFields, now = new Date()): Plan {
 }
 
 /**
- * Paywall de entrada: sin medio de pago vinculado no se entra al Dashboard.
- * Sin llaves de Wompi no hay forma de vincularlo, así que no se exige. Las
- * cuentas de cortesía entran sin él.
+ * Paywall de entrada: sin medio de pago vinculado no se entra al Dashboard, salvo
+ * que la persona haya elegido Lite sin tarjeta (liteSince). Sin llaves de Wompi
+ * no hay forma de vincularlo, así que no se exige. Las cuentas de cortesía entran sin él.
  */
-export function paywallRequired(user: Pick<SubscriptionFields, 'paymentSourceId' | 'complimentary'>, billingEnabled: boolean): boolean {
-  return billingEnabled && !user.paymentSourceId && !user.complimentary;
+export function paywallRequired(
+  user: Pick<SubscriptionFields, 'paymentSourceId' | 'complimentary'> & { liteSince?: Date | null },
+  billingEnabled: boolean,
+): boolean {
+  return billingEnabled && !user.paymentSourceId && !user.complimentary && !user.liteSince;
 }
 
 /** Correos con Pro de cortesía (COMP_PRO_EMAILS, separados por comas). Sin distinguir mayúsculas. */
