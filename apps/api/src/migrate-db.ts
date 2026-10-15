@@ -82,6 +82,22 @@ const GENDER_CYCLE_AND_SHIELDS_SQL = [
   `ALTER TABLE "cycle_logs" ADD COLUMN IF NOT EXISTS "waterGlasses" INTEGER;`,
 ];
 
+// Idempotent mirror of prisma/migrations/20261016120000_habit_rituals_hygiene (rituales y Higiene Personal).
+const HABIT_RITUALS_HYGIENE_SQL = [
+  `ALTER TYPE "QuestCategory" ADD VALUE IF NOT EXISTS 'HYGIENE'`,
+  `ALTER TABLE "habits" ADD COLUMN IF NOT EXISTS "kind" TEXT NOT NULL DEFAULT 'habit'`,
+  `ALTER TABLE "habits" ADD COLUMN IF NOT EXISTS "careRoutineId" TEXT`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "habits_careRoutineId_key" ON "habits"("careRoutineId")`,
+  `CREATE TABLE IF NOT EXISTS "habit_steps" ("id" TEXT NOT NULL, "habitId" TEXT NOT NULL, "title" TEXT NOT NULL, "order" INTEGER NOT NULL, CONSTRAINT "habit_steps_pkey" PRIMARY KEY ("id"))`,
+  `CREATE TABLE IF NOT EXISTS "habit_step_logs" ("id" TEXT NOT NULL, "stepId" TEXT NOT NULL, "habitId" TEXT NOT NULL, "userId" TEXT NOT NULL, "date" TIMESTAMP(3) NOT NULL, "completedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "habit_step_logs_pkey" PRIMARY KEY ("id"))`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "habit_step_logs_stepId_date_key" ON "habit_step_logs"("stepId", "date")`,
+  ignoreDuplicate(`ALTER TABLE "habits" ADD CONSTRAINT "habits_careRoutineId_fkey" FOREIGN KEY ("careRoutineId") REFERENCES "care_routines"("id") ON DELETE SET NULL ON UPDATE CASCADE`),
+  ignoreDuplicate(`ALTER TABLE "habit_steps" ADD CONSTRAINT "habit_steps_habitId_fkey" FOREIGN KEY ("habitId") REFERENCES "habits"("id") ON DELETE CASCADE ON UPDATE CASCADE`),
+  ignoreDuplicate(`ALTER TABLE "habit_step_logs" ADD CONSTRAINT "habit_step_logs_stepId_fkey" FOREIGN KEY ("stepId") REFERENCES "habit_steps"("id") ON DELETE CASCADE ON UPDATE CASCADE`),
+  ignoreDuplicate(`ALTER TABLE "habit_step_logs" ADD CONSTRAINT "habit_step_logs_habitId_fkey" FOREIGN KEY ("habitId") REFERENCES "habits"("id") ON DELETE CASCADE ON UPDATE CASCADE`),
+  ignoreDuplicate(`ALTER TABLE "habit_step_logs" ADD CONSTRAINT "habit_step_logs_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE`),
+];
+
 // Idempotent mirror of prisma/migrations/20260930180000_gym_attendance_and_notification_controls.
 const GYM_ATTENDANCE_AND_NOTIFICATION_CONTROLS_SQL = [
   ignoreDuplicate(`CREATE TYPE "GymAttendanceSource" AS ENUM ('HABIT', 'MANUAL')`),
@@ -242,6 +258,7 @@ async function migrate() {
   // Va primero: este cliente de Prisma ya lee "gender" y "streakShieldDays" en
   // cualquier consulta de users sin select (settleLevel, más abajo).
   for (const sql of GENDER_CYCLE_AND_SHIELDS_SQL) await prisma.$executeRawUnsafe(sql);
+  for (const sql of HABIT_RITUALS_HYGIENE_SQL) await prisma.$executeRawUnsafe(sql);
   // Idempotent mirror of prisma/migrations/20261025120000_wisdom_source (antes del seed de Sabiduría).
   await prisma.$executeRawUnsafe(`ALTER TABLE "wisdom_cards" ADD COLUMN IF NOT EXISTS "source" TEXT;`);
 

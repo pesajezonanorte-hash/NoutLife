@@ -6,7 +6,7 @@
 import { useState, type CSSProperties } from 'react';
 import { motion, type Variants } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Flame } from 'lucide-react';
+import { Check, Flame } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { springs } from '@/lib/motion/presets';
 import { IconChip } from '@/components/ui/lq';
@@ -34,9 +34,11 @@ export interface HabitNotebookRowProps {
   week?: boolean[];
   /** Posición en la lista: escalona la escritura. */
   index: number;
+  /** Marca o desmarca un paso del ritual de hoy. */
+  onStep?: (stepId: string, completed: boolean) => void;
 }
 
-export function HabitNotebookRow({ habit, onComplete, pending, week, index }: HabitNotebookRowProps) {
+export function HabitNotebookRow({ habit, onComplete, pending, week, index, onStep }: HabitNotebookRowProps) {
   const meta = categoryMeta(habit.category);
   const done = Boolean(habit.todayCompleted) || habit.todayStatus === 'completed';
   const skipped = habit.todayStatus === 'skipped';
@@ -45,6 +47,8 @@ export function HabitNotebookRow({ habit, onComplete, pending, week, index }: Ha
   // La escritura se quita al terminar: una máscara residual recortaría el anillo de foco.
   const [written, setWritten] = useState(false);
   const days = `${habit.currentStreak} ${habit.currentStreak === 1 ? 'día' : 'días'}`;
+  const steps = habit.kind === 'ritual' ? habit.steps ?? [] : [];
+  const stepDone = new Set(habit.todayStepIds ?? []);
 
   return (
     <motion.li
@@ -76,6 +80,7 @@ export function HabitNotebookRow({ habit, onComplete, pending, week, index }: Ha
             {days}
           </span>
           {habit.currentStreak > 0 && <TallyMarks count={habit.currentStreak} />}
+          {steps.length > 0 && <span className="font-mono tabular-nums text-on-surface-light">{steps.filter((st) => stepDone.has(st.id)).length}/{steps.length} pasos</span>}
           {skipped && <span className="text-on-surface-light">· descanso hoy (no rompe la racha)</span>}
         </span>
       </div>
@@ -90,6 +95,30 @@ export function HabitNotebookRow({ habit, onComplete, pending, week, index }: Ha
         </span>
       )}
       <InkCheckButton name={habit.title} checked={done} pending={pending} onToggle={onComplete} />
+      {steps.length > 0 && (
+        <ol aria-label={`Pasos de ${habit.title}`} className="col-span-full flex flex-col gap-0.5 pb-3 pl-[3rem] md:pl-[5rem]">
+          {steps.map((st, i) => {
+            const on = stepDone.has(st.id);
+            return (
+              <li key={st.id}>
+                <button
+                  type="button"
+                  aria-pressed={on}
+                  disabled={!onStep}
+                  onClick={() => onStep?.(st.id, !on)}
+                  className="flex min-h-11 w-full items-center gap-3 rounded-lg px-2 text-left text-body-sm transition-colors hover:bg-surface-variant disabled:opacity-60"
+                >
+                  <span aria-hidden className={cn('flex size-5 shrink-0 items-center justify-center rounded-[5px] border', on ? 'border-success bg-success text-on-success' : 'border-border-strong')}>
+                    {on && <Check className="size-3.5" strokeWidth={2.25} />}
+                  </span>
+                  <span className="font-mono text-label-md tabular-nums text-on-surface-light">{i + 1}</span>
+                  <span className={cn(on ? 'text-on-surface-light line-through' : 'text-on-background')}>{st.title}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+      )}
     </motion.li>
   );
 }

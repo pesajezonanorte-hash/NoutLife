@@ -4,7 +4,10 @@ import { withLegacyKeys } from './activity.schemas';
 
 const LEGACY = { createsGymAttendance: 'createsColiseoAttendance' };
 
-const CATEGORIES = ['HEALTH', 'FITNESS', 'FINANCE', 'LEARNING', 'LOVE', 'SOCIAL', 'PERSONAL', 'CREATIVE'] as const;
+const CATEGORIES = ['HEALTH', 'FITNESS', 'FINANCE', 'LEARNING', 'LOVE', 'SOCIAL', 'PERSONAL', 'CREATIVE', 'HYGIENE'] as const;
+
+// Un ritual tiene pasos ordenados; cada paso es un texto corto.
+const stepsSchema = z.array(z.string().trim().min(1).max(100)).max(12);
 
 const frequencySchema = z.object({
   type: z.enum(['daily', 'days_per_week']),
@@ -19,6 +22,8 @@ export const createHabitSchema = withLegacyKeys(z.object({
   title: z.string().min(1).max(100),
   description: z.string().max(300).optional(),
   category: z.enum(CATEGORIES),
+  kind: z.enum(['habit', 'ritual']).optional(),
+  steps: stepsSchema.optional(),
   icon: z.string().max(10).optional(),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
   xpReward: z.number().int().min(1).max(500).optional(),
@@ -34,6 +39,8 @@ export const updateHabitSchema = withLegacyKeys(z.object({
   title: z.string().min(1).max(100).optional(),
   description: z.string().max(300).optional(),
   category: z.enum(CATEGORIES).optional(),
+  kind: z.enum(['habit', 'ritual']).optional(),
+  steps: stepsSchema.optional(),
   icon: z.string().max(10).optional(),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
   xpReward: z.number().int().min(1).max(500).optional(),
@@ -44,6 +51,10 @@ export const updateHabitSchema = withLegacyKeys(z.object({
   syncToGoogleCalendar: z.boolean().optional(),
   createsColiseoAttendance: z.boolean().optional(),
 }), LEGACY);
+
+export const habitStepSchema = z.object({
+  completed: z.boolean(),
+});
 
 export const habitLogSchema = z.object({
   status: z.enum(['completed', 'failed', 'skipped']),

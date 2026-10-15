@@ -69,6 +69,7 @@ const CATEGORY_WEIGHTS: Record<QuestCategory, { str: number; int: number; cha: n
   SOCIAL:   { str: 0.1,  int: 0.3, cha: 0.6 },
   PERSONAL: { str: 0.2,  int: 0.4, cha: 0.4 },
   CREATIVE: { str: 0.1,  int: 0.5, cha: 0.4 },
+  HYGIENE:  { str: 0.2,  int: 0.3, cha: 0.5 },
 };
 
 /** Zona de cada fuente de XP sin categoría propia. */

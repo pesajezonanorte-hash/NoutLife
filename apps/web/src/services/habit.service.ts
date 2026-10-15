@@ -5,6 +5,12 @@ export interface HabitFrequency {
   days: number[];
 }
 
+export interface HabitStep {
+  id: string;
+  title: string;
+  order: number;
+}
+
 export interface Habit {
   id: string;
   userId: string;
@@ -28,6 +34,12 @@ export interface Habit {
   updatedAt: string;
   todayStatus?: 'completed' | 'failed' | 'skipped' | 'pending' | null;
   todayCompleted?: boolean | null;
+  /** 'ritual': pasos ordenados y cuáles están hechos hoy. */
+  kind?: 'habit' | 'ritual';
+  steps?: HabitStep[];
+  todayStepIds?: string[];
+  /** Rutina de Cuidado Personal (Espejo) enlazada, si es Higiene Personal. */
+  careRoutineId?: string | null;
 }
 
 export interface HabitLog {
@@ -72,6 +84,8 @@ export interface CreateHabitPayload {
   title: string;
   description?: string;
   category: string;
+  kind?: 'habit' | 'ritual';
+  steps?: string[];
   icon?: string;
   color?: string;
   xpReward?: number;
@@ -107,6 +121,12 @@ export async function createHabit(payload: CreateHabitPayload): Promise<Habit> {
 export async function updateHabit(id: string, payload: Partial<CreateHabitPayload>): Promise<Habit> {
   const { data } = await api.patch<{ habit: Habit }>(`/habits/${id}`, payload);
   return data.habit;
+}
+
+/** Marca o desmarca un paso del ritual de hoy. Con todos hechos, el ritual se completa. */
+export async function toggleHabitStep(id: string, stepId: string, completed: boolean): Promise<{ stepIds: string[]; completed: boolean }> {
+  const { data } = await api.post<{ stepIds: string[]; completed: boolean }>(`/habits/${id}/steps/${stepId}`, { completed });
+  return data;
 }
 
 export async function archiveHabit(id: string): Promise<void> {

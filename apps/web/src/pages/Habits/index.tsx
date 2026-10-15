@@ -103,6 +103,12 @@ export default function HabitsPage() {
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+  // Espejo puede cambiar estos hábitos (rutinas de Higiene Personal): al volver a la pestaña se relee la lista.
+  useEffect(() => {
+    const onFocus = () => { void habitService.fetchHabits().then(setHabits).catch(() => null); };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, []);
 
   // Obstáculos: se leen al entrar para que su separador muestre cuántos hay.
   const [obstacles, setObstacles] = useState<AntiHabit[]>([]);
@@ -150,6 +156,20 @@ export default function HabitsPage() {
       days.delete(todayKey);
       return { ...prev, [h.id]: days };
     });
+  }
+
+  /** Marca un paso del ritual de hoy. Con todos los pasos, el ritual se completa y suma recompensa. */
+  async function handleStep(h: Habit, stepId: string, completed: boolean) {
+    try {
+      const r = await habitService.toggleHabitStep(h.id, stepId, completed);
+      setHabits((prev) => prev.map((x) => (x.id === h.id
+        ? { ...x, todayStepIds: r.stepIds, todayCompleted: r.completed, todayStatus: r.completed ? 'completed' : x.todayStatus === 'completed' ? 'pending' : x.todayStatus }
+        : x)));
+      if (r.completed && !isDone(h)) useToastStore.getState().success('Ritual completado', h.title);
+      void habitService.fetchHabits().then(setHabits).catch(() => null);
+    } catch {
+      useToastStore.getState().error('No se pudo marcar el paso');
+    }
   }
 
   /** Descanso de hoy (lo sugiere Ciclo): no suma XP ni rompe la racha. */
@@ -262,6 +282,7 @@ export default function HabitsPage() {
             pending={pending === h.id}
             week={last7.map((k) => history[h.id]?.has(k) || (k === todayKey && isDone(h)))}
             onComplete={() => void handleToggle(h)}
+            onStep={(stepId, completed) => void handleStep(h, stepId, completed)}
           />
         ))}
       </motion.ul>

@@ -64,6 +64,7 @@ void test('remediaciones de auditoría', async (suite) => {
     };
 
     await withMocks({
+      habitStepLog: { findMany: async () => [] },
       habit: {
         create: async ({ data }: { data: Record<string, unknown> }) => {
           createData = data;
@@ -298,6 +299,7 @@ void test('remediaciones de auditoría', async (suite) => {
     let deletedAttendance = 0;
 
     await withMocks({
+      habitStepLog: { deleteMany: async () => ({ count: 0 }) },
       habit: {
         findMany: async () => [],
         findFirst: async () => habit,

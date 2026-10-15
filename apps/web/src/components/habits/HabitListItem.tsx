@@ -18,6 +18,9 @@ export interface HabitItemData {
   todayStatus?: string | null;
   frequency?: HabitFrequency;
   reminderTime?: string;
+  kind?: 'habit' | 'ritual';
+  steps?: { id: string; title: string; order: number }[];
+  todayStepIds?: string[];
 }
 
 export interface HabitListItemProps {

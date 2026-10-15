@@ -1,6 +1,6 @@
 // Crear / editar hábito (rediseño del antiguo HabitModal, mismo payload).
 import { useEffect, useState, type FormEvent } from 'react';
-import { CalendarDays, Dumbbell } from 'lucide-react';
+import { ArrowDown, ArrowUp, CalendarDays, Dumbbell, Plus, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button, Field, Input, ResponsiveDialog, SegmentedControl, Switch, Textarea } from '@/components/ui/lq';
 import { softTone } from '@/components/ui/lq/tones';
@@ -30,8 +30,16 @@ function initialForm(h?: Habit | null): CreateHabitPayload {
     frequency: h?.frequency ?? { type: 'daily', days: [] },
     syncToGoogleCalendar: h?.syncToGoogleCalendar ?? false,
     createsColiseoAttendance: h?.createsColiseoAttendance ?? false,
+    kind: h?.kind ?? 'habit',
+    steps: [...(h?.steps ?? [])].sort((a, b) => a.order - b.order).map((st) => st.title),
   };
 }
+
+const KIND_OPTIONS: { value: 'habit' | 'ritual'; label: string }[] = [
+  { value: 'habit', label: 'Hábito' },
+  { value: 'ritual', label: 'Ritual' },
+];
+const MAX_STEPS = 12;
 
 function apiError(err: unknown) {
   const data = (err as { response?: { data?: { error?: string; details?: { message: string }[] } } }).response?.data;
@@ -71,10 +79,13 @@ export function HabitFormDialog({ open, habit, onClose, onSubmit }: HabitFormDia
     e.preventDefault();
     setTouched(true);
     if (!form.title.trim() || (freq.type === 'days_per_week' && freq.days.length === 0)) return;
+    const kind = form.kind ?? 'habit';
+    const steps = (form.steps ?? []).map((st) => st.trim()).filter(Boolean);
+    if (kind === 'ritual' && steps.length === 0) { setError('Añade al menos un paso al ritual.'); return; }
     setSaving(true);
     setError(null);
     try {
-      await onSubmit({ ...form, title: form.title.trim(), description: form.description?.trim() || undefined, reminderTime: form.reminderTime || undefined });
+      await onSubmit({ ...form, title: form.title.trim(), description: form.description?.trim() || undefined, reminderTime: form.reminderTime || undefined, kind, steps: kind === 'ritual' ? steps : [] });
     } catch (err) {
       setError(apiError(err));
     } finally {
@@ -102,6 +113,39 @@ export function HabitFormDialog({ open, habit, onClose, onSubmit }: HabitFormDia
         </Field>
 
         <fieldset className="flex flex-col gap-2">
+          <legend className="mb-2 text-label-lg text-on-surface">Tipo</legend>
+          <SegmentedControl role="radiogroup" label="Tipo" value={form.kind ?? 'habit'} onChange={(v) => set('kind', v)} options={KIND_OPTIONS} />
+          <p className="text-body-sm text-on-surface-light">
+            {(form.kind ?? 'habit') === 'ritual' ? 'Un ritual tiene pasos en orden. Los marcas uno a uno; al marcar el último, el ritual queda hecho.' : 'Un hábito se marca de una vez.'}
+          </p>
+        </fieldset>
+
+        {(form.kind ?? 'habit') === 'ritual' && (
+          <fieldset className="flex flex-col gap-2">
+            <legend className="mb-2 text-label-lg text-on-surface">Pasos, en orden</legend>
+            <ol className="flex flex-col gap-2">
+              {(form.steps ?? []).map((title, i, all) => (
+                <li key={i} className="flex items-center gap-2">
+                  <span aria-hidden className="w-5 shrink-0 text-center font-mono text-label-md tabular-nums text-on-surface-light">{i + 1}</span>
+                  <Input
+                    aria-label={`Paso ${i + 1}`} value={title} maxLength={100} placeholder="Ej. Tomar agua"
+                    onChange={(e) => set('steps', all.map((t, j) => (j === i ? e.target.value : t)))}
+                  />
+                  <Button type="button" variant="ghost" size="sm" aria-label={`Subir paso ${i + 1}`} disabled={i === 0}
+                    onClick={() => set('steps', all.map((t, j) => (j === i - 1 ? all[i] : j === i ? all[i - 1] : t)))}><ArrowUp aria-hidden className="size-4" /></Button>
+                  <Button type="button" variant="ghost" size="sm" aria-label={`Bajar paso ${i + 1}`} disabled={i === all.length - 1}
+                    onClick={() => set('steps', all.map((t, j) => (j === i + 1 ? all[i] : j === i ? all[i + 1] : t)))}><ArrowDown aria-hidden className="size-4" /></Button>
+                  <Button type="button" variant="ghost" size="sm" aria-label={`Quitar paso ${i + 1}`}
+                    onClick={() => set('steps', all.filter((_, j) => j !== i))}><X aria-hidden className="size-4" /></Button>
+                </li>
+              ))}
+            </ol>
+            <Button type="button" variant="secondary" size="sm" disabled={(form.steps ?? []).length >= MAX_STEPS}
+              onClick={() => set('steps', [...(form.steps ?? []), ''])} className="self-start"><Plus aria-hidden className="size-4" />Añadir paso</Button>
+          </fieldset>
+        )}
+
+        <fieldset className="flex flex-col gap-2">
           <legend className="mb-2 text-label-lg text-on-surface">Categoría</legend>
           <div role="radiogroup" aria-label="Categoría" className="grid grid-cols-4 gap-2">
             {CATEGORIES.map((c) => {
@@ -126,6 +170,9 @@ export function HabitFormDialog({ open, habit, onClose, onSubmit }: HabitFormDia
               );
             })}
           </div>
+          {form.category === 'HYGIENE' && (
+            <p className="text-body-sm text-on-surface-light">Aparece también en Cuidado Personal (Espejo). Lo que marques en uno cuenta en el otro.</p>
+          )}
         </fieldset>
 
         <fieldset className="flex flex-col gap-2">

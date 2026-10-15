@@ -41,6 +41,7 @@ enum QuestCategory {
   SOCIAL
   PERSONAL
   CREATIVE
+  HYGIENE
 }
 
 enum TransactionType {
@@ -225,6 +226,7 @@ model User {
   questCompletions        QuestCompletion[]
   habits                  Habit[]
   habitLogs               HabitLog[]
+  habitStepLogs           HabitStepLog[]
   transactions            Transaction[]
   budgets                 Budget[]
   financialGoals          FinancialGoal[]
@@ -418,6 +420,11 @@ model Habit {
   title       String
   description String?
   category    QuestCategory
+  /// 'habit' | 'ritual': un ritual es un hábito con pasos ordenados (HabitStep).
+  kind        String  @default("habit")
+  /// Rutina de Cuidado Personal (Espejo) enlazada. Solo para la categoría HYGIENE.
+  careRoutineId String?       @unique
+  careRoutine   CareRoutine? @relation(fields: [careRoutineId], references: [id], onDelete: SetNull)
 
   icon  String @default("⭐")
   color String @default("#ffd23f")
@@ -447,6 +454,8 @@ model Habit {
   updatedAt DateTime @updatedAt
 
   logs HabitLog[]
+  steps HabitStep[]
+  stepLogs HabitStepLog[]
   recoveryChallenges RecoveryChallenge[]
   coliseoAttendances ColiseoAttendance[] @relation("ColiseoAttendanceHabit")
 
@@ -470,6 +479,34 @@ model HabitLog {
 
   @@unique([habitId, date])
   @@map("habit_logs")
+}
+
+/// Un paso ordenado de un ritual (hábito tipo ritual).
+model HabitStep {
+  id      String @id @default(cuid())
+  habitId String
+  habit   Habit  @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  title   String
+  order   Int
+  logs    HabitStepLog[]
+
+  @@map("habit_steps")
+}
+
+/// Paso completado en un día del ritual (fecha de calendario, como HabitLog.date).
+model HabitStepLog {
+  id          String   @id @default(cuid())
+  stepId      String
+  step        HabitStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  habitId     String
+  habit       Habit    @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date        DateTime
+  completedAt DateTime @default(now())
+
+  @@unique([stepId, date])
+  @@map("habit_step_logs")
 }
 
 model Transaction {
@@ -1646,6 +1683,7 @@ model CareRoutine {
   timeOfDay     String     // 'morning' | 'night' | 'weekly' | 'custom'
   steps         CareStep[]
   logs          CareLog[]
+  habit         Habit?
   currentStreak Int        @default(0)
   longestStreak Int        @default(0)
   lastDoneAt    DateTime?

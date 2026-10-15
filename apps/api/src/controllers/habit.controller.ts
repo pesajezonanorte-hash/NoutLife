@@ -20,6 +20,17 @@ export async function createHabit(req: AuthRequest, res: Response): Promise<void
   }
 }
 
+export async function toggleStep(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const result = await habitService.toggleHabitStep(req.userId!, req.params.id, req.params.stepId, req.body.completed);
+    res.json(result);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : '';
+    if (msg === 'HABIT_NOT_FOUND' || msg === 'STEP_NOT_FOUND') { res.status(404).json({ error: 'Paso no encontrado.' }); return; }
+    res.status(500).json({ error: 'Error al marcar el paso.' });
+  }
+}
+
 export async function getHabit(req: AuthRequest, res: Response): Promise<void> {
   try {
     const habit = await habitService.getHabitById(req.userId!, req.params.id);

@@ -6,11 +6,17 @@ import { createNotification } from './notification.service';
 import { removeHabitFromGoogleCalendar, syncHabitWithGoogleCalendar } from './agenda.service';
 import { recordHabitColiseoAttendance } from './coliseo-attendance.service';
 import type { QuestCategory } from '@prisma/client';
+import {
+  cleanStepTitles, clearCareDoneForHabit, clearStepsForDay, fillStepsForDay, markCareDoneForHabit, replaceSteps, syncHabitToCare,
+} from './habit-rituals.service';
 
 export interface CreateHabitInput {
   title: string;
   description?: string;
   category: QuestCategory;
+  /** 'ritual': el hábito tiene pasos ordenados (steps). */
+  kind?: 'habit' | 'ritual';
+  steps?: string[];
   icon?: string;
   color?: string;
   xpReward?: number;
@@ -26,6 +32,9 @@ export interface UpdateHabitInput {
   title?: string;
   description?: string;
   category?: QuestCategory;
+  kind?: 'habit' | 'ritual';
+  /** Lista completa de pasos, en orden. Sustituye la anterior. */
+  steps?: string[];
   icon?: string;
   color?: string;
   xpReward?: number;
@@ -209,6 +218,8 @@ export async function createHabit(userId: string, input: CreateHabitInput) {
       title: input.title,
       description: input.description,
       category: input.category,
+      kind: input.kind === 'ritual' && cleanStepTitles(input.steps).length ? 'ritual' : 'habit',
+      steps: { create: cleanStepTitles(input.steps).map((title, order) => ({ title, order })) },
       icon: input.icon ?? '⭐',
       color: input.color ?? '#ffd23f',
       xpReward: input.xpReward ?? 20,
@@ -220,6 +231,7 @@ export async function createHabit(userId: string, input: CreateHabitInput) {
       createsColiseoAttendance: input.createsColiseoAttendance ?? false,
     },
   });
+  if (habit.category === 'HYGIENE') await syncHabitToCare(userId, habit.id);
 
   if (habit.syncToGoogleCalendar) {
     try {
@@ -241,17 +253,21 @@ export async function listHabits(userId: string) {
 
   const habits = await prisma.habit.findMany({
     where: { userId, isActive: true },
+    include: { steps: { orderBy: { order: 'asc' } } },
     orderBy: { createdAt: 'asc' },
   });
 
   // Attach today's log using the user's calendar, not the server's UTC date.
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { timezone: true } });
   const today = getCalendarDay(user?.timezone);
-  const logs = await prisma.habitLog.findMany({
-    where: { userId, date: today },
-  });
+  const hasRituals = habits.some((h) => (h.steps ?? []).length > 0);
+  const [logs, stepLogs] = await Promise.all([
+    prisma.habitLog.findMany({ where: { userId, date: today } }),
+    hasRituals ? prisma.habitStepLog.findMany({ where: { userId, date: today }, select: { stepId: true } }) : Promise.resolve([]),
+  ]);
 
   const logMap = new Map(logs.map((l) => [l.habitId, l]));
+  const doneSteps = new Set(stepLogs.map((l) => l.stepId));
 
   return habits.map((h) => {
     const todayLog = logMap.get(h.id);
@@ -260,6 +276,7 @@ export async function listHabits(userId: string) {
       frequency: h.frequency as { type: string; days: number[] },
       todayStatus: todayLog?.status ?? null,
       todayCompleted: todayLog?.completed ?? null,
+      todayStepIds: (h.steps ?? []).filter((st) => doneSteps.has(st.id)).map((st) => st.id),
     };
   });
 }
@@ -289,6 +306,7 @@ export async function updateHabit(userId: string, habitId: string, input: Update
       ...(input.title !== undefined && { title: input.title }),
       ...(input.description !== undefined && { description: input.description }),
       ...(input.category !== undefined && { category: input.category }),
+      ...(input.kind !== undefined && { kind: input.kind }),
       ...(input.icon !== undefined && { icon: input.icon }),
       ...(input.color !== undefined && { color: input.color }),
       ...(input.xpReward !== undefined && { xpReward: input.xpReward }),
@@ -300,6 +318,13 @@ export async function updateHabit(userId: string, habitId: string, input: Update
       ...(input.createsColiseoAttendance !== undefined && { createsColiseoAttendance: input.createsColiseoAttendance }),
     },
   });
+
+  if (input.steps !== undefined) await replaceSteps(habitId, cleanStepTitles(input.steps));
+  // Un ritual sin pasos vuelve a ser hábito normal.
+  if (updatedHabit.kind === 'ritual' && (await prisma.habitStep.count({ where: { habitId } })) === 0) {
+    await prisma.habit.update({ where: { id: habitId }, data: { kind: 'habit' } });
+  }
+  if (updatedHabit.category === 'HYGIENE' || updatedHabit.careRoutineId) await syncHabitToCare(userId, habitId);
 
   if (input.syncToGoogleCalendar === false && habit.googleCalendarEventId) {
     try {
@@ -342,13 +367,15 @@ export async function archiveHabit(userId: string, habitId: string) {
     }
   }
 
-  return prisma.habit.update({
+  const archived = await prisma.habit.update({
     where: { id: habitId },
     data: {
       isActive: false,
       ...(remoteRemoved && { syncToGoogleCalendar: false, googleCalendarEventId: null }),
     },
   });
+  if (archived.careRoutineId) await syncHabitToCare(userId, habitId);
+  return archived;
 }
 
 export type HabitLogStatus = 'completed' | 'failed' | 'skipped';
@@ -601,6 +628,11 @@ export async function logHabit(
     }
   }
 
+  if (completed) {
+    if (habit.kind === 'ritual') await fillStepsForDay(userId, habitId, date);
+    if (habit.careRoutineId) await markCareDoneForHabit(userId, habit.careRoutineId, date, isLoggingToday);
+  }
+
   const updatedHabit = await prisma.habit.findUnique({ where: { id: habitId } });
 
   return {
@@ -682,6 +714,11 @@ export async function undoHabitLog(userId: string, habitId: string) {
     });
   }
 
+  if (undone) {
+    await clearStepsForDay(habitId, today);
+    if (habit.careRoutineId) await clearCareDoneForHabit(userId, habit.careRoutineId, today, true);
+  }
+
   const [updatedLog, logs] = await Promise.all([
     prisma.habitLog.findUnique({ where: { habitId_date: { habitId, date: today } } }),
     prisma.habitLog.findMany({
@@ -707,6 +744,44 @@ export async function undoHabitLog(userId: string, habitId: string) {
     currentStreak: updatedHabit.currentStreak,
     longestStreak: updatedHabit.longestStreak,
   };
+}
+
+/**
+ * Marca o desmarca un paso del ritual de hoy. Con todos los pasos hechos, el
+ * ritual se completa (recompensa incluida); si se desmarca uno de un ritual ya
+ * completado, el ritual se deshace.
+ */
+export async function toggleHabitStep(userId: string, habitId: string, stepId: string, completed: boolean) {
+  const habit = await prisma.habit.findFirst({
+    where: { id: habitId, userId, isActive: true },
+    include: { user: { select: { timezone: true } }, steps: { select: { id: true } } },
+  });
+  if (!habit) throw new Error('HABIT_NOT_FOUND');
+  if (!habit.steps.some((st) => st.id === stepId)) throw new Error('STEP_NOT_FOUND');
+
+  const today = getCalendarDay(habit.user.timezone ?? DEFAULT_TIMEZONE);
+  if (completed) {
+    await prisma.habitStepLog.upsert({
+      where: { stepId_date: { stepId, date: today } },
+      create: { stepId, habitId, userId, date: today },
+      update: {},
+    });
+  } else {
+    await prisma.habitStepLog.deleteMany({ where: { stepId, date: today } });
+  }
+
+  const doneRows = await prisma.habitStepLog.findMany({ where: { habitId, date: today }, select: { stepId: true } });
+  const stepIds = doneRows.map((r) => r.stepId);
+  const allDone = habit.steps.length > 0 && habit.steps.every((st) => stepIds.includes(st.id));
+  const isDone = (await prisma.habitLog.findUnique({ where: { habitId_date: { habitId, date: today } } }))?.completed === true;
+
+  if (habit.kind === 'ritual') {
+    if (allDone && !isDone) await logHabit(userId, habitId, 'completed');
+    else if (!allDone && isDone) await undoHabitLog(userId, habitId);
+  }
+
+  const finalDone = (await prisma.habitLog.findUnique({ where: { habitId_date: { habitId, date: today } } }))?.completed === true;
+  return { stepIds, completed: finalDone };
 }
 
 function isUniqueConstraintError(error: unknown): boolean {

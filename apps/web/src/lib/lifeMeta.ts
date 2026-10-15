@@ -2,13 +2,13 @@
 // sistema + etiqueta + ícono. El color hex que guarda cada hábito no se usa en
 // el rediseño (regla "sin hex en componentes"); el tono sale de la categoría.
 import {
-  BookOpen, Coins, Dumbbell, Heart, HeartPulse, Palette, User, Users, type LucideIcon,
+  BookOpen, Coins, Dumbbell, Heart, HeartPulse, Palette, Sparkles, User, Users, type LucideIcon,
 } from 'lucide-react';
 import type { Tone } from '@/components/ui/lq';
 import type { BadgeVariant } from '@/components/ui/lq';
 import type { HabitFrequency } from '@/services/habit.service';
 
-export const CATEGORIES = ['HEALTH', 'FITNESS', 'FINANCE', 'LEARNING', 'LOVE', 'SOCIAL', 'PERSONAL', 'CREATIVE'] as const;
+export const CATEGORIES = ['HEALTH', 'FITNESS', 'FINANCE', 'LEARNING', 'LOVE', 'SOCIAL', 'PERSONAL', 'CREATIVE', 'HYGIENE'] as const;
 export type Category = (typeof CATEGORIES)[number];
 
 interface CategoryMeta { label: string; tone: Exclude<Tone, 'muted'>; icon: LucideIcon }
@@ -22,6 +22,7 @@ export const CATEGORY_META: Record<Category, CategoryMeta> = {
   SOCIAL: { label: 'Social', tone: 'info', icon: Users },
   PERSONAL: { label: 'Personal', tone: 'forest', icon: User },
   CREATIVE: { label: 'Creativo', tone: 'forest', icon: Palette },
+  HYGIENE: { label: 'Higiene personal', tone: 'success', icon: Sparkles },
 };
 
 export function categoryMeta(category?: string | null): CategoryMeta {

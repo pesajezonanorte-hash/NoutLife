@@ -27,6 +27,8 @@ interface CareRoutine {
   id: string; name: string; timeOfDay: string;
   currentStreak: number; longestStreak: number; lastDoneAt?: string;
   steps: { id: string; name: string; product?: string; order: number }[];
+  /** Hábito enlazado en la Libreta (Higiene Personal), si lo hay. */
+  habit?: { id: string } | null;
 }
 
 interface ClothingItem {
@@ -106,6 +108,12 @@ function CareSection({ onProgress }: CareProps) {
   }, [toast]);
 
   useEffect(() => { void load(); }, [load]);
+  // Los hábitos de Higiene Personal pueden marcar estas rutinas: al volver a la pestaña se relee.
+  useEffect(() => {
+    const onFocus = () => { void load(true); };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [load]);
 
   const doneOf = useCallback((r: CareRoutine) => (
     isToday(r.lastDoneAt) ? r.steps.length : r.steps.filter((s) => ticks[`${r.id}:${s.id}`]).length
@@ -188,6 +196,7 @@ function CareSection({ onProgress }: CareProps) {
                       <p className="text-body-sm text-on-surface-light">
                         {meta.label}
                         {r.currentStreak > 0 && <span className="ml-2 inline-flex items-center gap-1 text-warning-text"><Flame aria-hidden className="size-3.5" /><span className="font-mono tabular-nums">{r.currentStreak}</span> {r.currentStreak === 1 ? 'día' : 'días'}</span>}
+                        {r.habit && <span className="ml-2 text-body-sm text-on-surface-light">· También en Hábitos</span>}
                       </p>
                     </div>
                     {r.steps.length > 0 && <Badge variant={full ? 'success' : 'neutral'} icon={full ? Check : undefined}><span className="font-mono tabular-nums">{n}/{r.steps.length}</span></Badge>}

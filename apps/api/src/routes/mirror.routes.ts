@@ -3,6 +3,8 @@ import { Router } from 'express';
 import { requireAuth, type AuthRequest } from '../middleware/auth.middleware';
 import { requireProZone } from '../middleware/plan.middleware';
 import { prisma } from '../lib/prisma';
+import { getCalendarDay } from '../lib/calendar';
+import { markHabitDoneFromCare, syncRoutineToHabit } from '../services/habit-rituals.service';
 
 const router = Router();
 router.use(requireAuth);
@@ -22,7 +24,7 @@ router.get('/routines', async (req, res, next) => {
     const userId = (req as AuthRequest).userId!;
     const routines = await prisma.careRoutine.findMany({
       where: { userId, isActive: true },
-      include: { steps: { orderBy: { order: 'asc' } } },
+      include: { steps: { orderBy: { order: 'asc' } }, habit: { select: { id: true } } },
       orderBy: { createdAt: 'asc' },
     });
     res.json(routines);
@@ -45,6 +47,7 @@ router.post('/routines', async (req, res, next) => {
       },
       include: { steps: { orderBy: { order: 'asc' } } },
     });
+    await syncRoutineToHabit(userId, routine.id);
     res.status(201).json(routine);
   } catch (err) { next(err); }
 });
@@ -70,6 +73,7 @@ router.patch('/routines/:id', async (req, res, next) => {
       },
       include: { steps: { orderBy: { order: 'asc' } } },
     });
+    await syncRoutineToHabit(userId, routine.id);
     res.json(routine);
   } catch (err) { next(err); }
 });
@@ -78,6 +82,7 @@ router.delete('/routines/:id', async (req, res, next) => {
   try {
     const userId = (req as AuthRequest).userId!;
     await prisma.careRoutine.update({ where: { id: req.params.id, userId }, data: { isActive: false } });
+    await syncRoutineToHabit(userId, req.params.id);
     res.json({ success: true });
   } catch (err) { next(err); }
 });
@@ -85,8 +90,9 @@ router.delete('/routines/:id', async (req, res, next) => {
 router.post('/routines/:id/complete', async (req, res, next) => {
   try {
     const userId = (req as AuthRequest).userId!;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Día del calendario de la usuaria (el mismo que usan los hábitos).
+    const owner = await prisma.user.findUnique({ where: { id: userId }, select: { timezone: true } });
+    const today = getCalendarDay(owner?.timezone);
 
     const existing = await prisma.careLog.findFirst({
       where: { routineId: req.params.id, userId, date: today },
@@ -110,6 +116,7 @@ router.post('/routines/:id/complete', async (req, res, next) => {
     });
     await prisma.user.update({ where: { id: userId }, data: { xp: { increment: 20 }, gold: { increment: 5 } } });
     await settleLevel(userId);
+    await markHabitDoneFromCare(userId, req.params.id, today);
 
     res.json({ success: true, routine });
   } catch (err) { next(err); }
