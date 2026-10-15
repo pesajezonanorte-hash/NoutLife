@@ -13,10 +13,14 @@ const s = (obj: { createdAt: Date; updatedAt?: Date; date?: Date; [k: string]: u
   date: obj.date instanceof Date ? obj.date.toISOString() : obj.date,
 });
 
+/** El ejercicio llega como relación; el contrato compartido (WorkoutExercise) lo expone plano: nombre y grupo muscular. */
+const flat = <E extends { exercise: { name: string; muscleGroup: string | null } }>(e: E) =>
+  ({ ...e, workout: undefined, exerciseName: e.exercise.name, muscleGroup: e.exercise.muscleGroup ?? undefined });
+
 export async function listWorkouts(req: AuthRequest, res: Response): Promise<void> {
   try {
     const workouts = await svc.listWorkouts(req.userId!, Number(req.query.limit) || 20);
-    res.json({ workouts: workouts.map(w => ({ ...s(w), exercises: w.exercises.map(e => ({ ...e, workout: undefined })) })) });
+    res.json({ workouts: workouts.map(w => ({ ...s(w), exercises: w.exercises.map(flat) })) });
   } catch { res.status(500).json({ error: 'Error al obtener entrenamientos.' }); }
 }
 
@@ -24,7 +28,7 @@ export async function getWorkout(req: AuthRequest, res: Response): Promise<void>
   try {
     const workout = await svc.getWorkout(req.userId!, req.params.id);
     if (!workout) { res.status(404).json({ error: 'No encontrado.' }); return; }
-    res.json({ workout: { ...s(workout), exercises: workout.exercises.map(e => ({ ...e, workout: undefined })) } });
+    res.json({ workout: { ...s(workout), exercises: workout.exercises.map(flat) } });
   } catch { res.status(500).json({ error: 'Error al obtener entrenamiento.' }); }
 }
 
@@ -44,7 +48,7 @@ export async function updateWorkout(req: AuthRequest, res: Response): Promise<vo
   try {
     const workout = await svc.updateWorkout(req.userId!, req.params.id, req.body);
     if (!workout) { res.status(404).json({ error: 'No encontrado.' }); return; }
-    res.json({ workout: { ...s(workout), exercises: workout.exercises.map(e => ({ ...e, workout: undefined })) } });
+    res.json({ workout: { ...s(workout), exercises: workout.exercises.map(flat) } });
   } catch { res.status(500).json({ error: 'Error al actualizar entrenamiento.' }); }
 }
 

@@ -110,6 +110,38 @@ export const createWorkoutSchema = z.object({
   routineDayId: z.string().min(1).optional(),
 });
 
+/** Clase de serie (packages/shared SetType). Sin tipo = 'normal'. */
+export const SET_TYPES = ['normal', 'warmup', 'drop', 'myo', 'rest_pause', 'failure'] as const;
+
+// Las series se guardan tal cual en JSON: aquí se acotan. Límites holgados para no
+// rechazar al terminar una sesión real; las claves desconocidas se descartan.
+const workoutSetSchema = z.object({
+  weight: z.number().finite().min(0).max(10000).optional(),
+  reps: z.number().finite().min(0).max(10000).optional(),
+  duration: z.number().finite().min(0).max(86400).optional(),
+  completed: z.boolean(),
+  type: z.enum(SET_TYPES).optional(),
+  rpe: z.number().min(1, 'El RPE va de 1 a 10.').max(10, 'El RPE va de 1 a 10.').optional(),
+  rir: z.number().int().min(0, 'Las repeticiones en reserva van de 0 a 4.').max(4, 'Las repeticiones en reserva van de 0 a 4.').optional(),
+});
+
+/** Cuerpo de POST /workouts/:id/finish (el servicio acota duración y distancia). */
+export const finishWorkoutSchema = z.object({
+  notes: z.string().max(2000).optional(),
+  duration: z.number().finite().min(0).optional(),
+  distanceKm: z.number().finite().min(0).optional(),
+  exercises: z.array(z.object({
+    exerciseId: z.string().min(1).max(64),
+    sets: z.array(workoutSetSchema).max(100),
+    notes: z.string().max(2000).optional(),
+    order: z.number().int().min(0).max(1000).optional(),
+  })).max(100).optional(),
+});
+
+export const updateWorkoutSchema = finishWorkoutSchema.extend({
+  title: z.string().trim().min(1).max(200).optional(),
+});
+
 export const createLearningSchema = z.object({
   type: z.string().trim().min(1, 'El tipo es obligatorio.'),
   title: z.string().trim().min(1, 'El título es obligatorio.').max(300),

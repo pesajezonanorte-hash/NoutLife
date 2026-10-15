@@ -1,11 +1,16 @@
-// Extras del Coliseo (rediseño): descanso entre series, peso corporal, 1RM,
-// volumen semanal por músculo y fotos de progreso. Misma lógica y servicios
-// (coliseo.service); solo cambia la piel a componentes/tokens lq.
+// Extras del Coliseo: descanso entre series, peso corporal, 1RM, discos, series
+// efectivas por músculo, balance empuje/tirón/pierna y fotos de progreso. Los
+// cálculos viven en lib/coliseo; los datos, en coliseo.service.
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Camera, Dumbbell, Scale, Timer as TimerIcon, Trash2, Plus, BarChart3 } from 'lucide-react';
+import { AlertTriangle, BarChart3, Camera, Check, Disc, Dumbbell, Gauge, Plus, Scale, Timer as TimerIcon, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Badge, BarChart, Button, Card, EmptyState, Field, IconChip, Input, LineChart, Modal, ProgressRing, chipClasses, type BarDatum, type LinePoint, PageLoader } from '@/components/ui/lq';
+import { heavy } from '@/lib/motion';
+import {
+  MUSCLES, MUSCLE_IDS, WEEKLY_RANGE, oneRepMax, platesPerSide, rangeOf,
+  type Balance, type Muscle, type MuscleState, type OneRmFormula,
+} from '@/lib/coliseo';
+import { Button, Card, EmptyState, Field, IconChip, Input, LineChart, Modal, ProgressRing, SegmentedControl, chipClasses, type LinePoint, type SegmentOption, PageLoader } from '@/components/ui/lq';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 import { useToastStore } from '@/hooks/useToast';
 import * as coliseo from '../../services/coliseo.service';
@@ -232,17 +237,18 @@ export function BodyWeightTracker() {
 
 // ─── 1RM Calculator ────────────────────────────────────────────────────────────
 
+const FORMULAS: SegmentOption<OneRmFormula>[] = [{ value: 'epley', label: 'Epley' }, { value: 'brzycki', label: 'Brzycki' }];
+
+/** 1RM automático: se recalcula al escribir, con la fórmula elegida y la otra como referencia. */
 export function OneRMCalculator() {
   const [weight, setWeight] = useState('');
   const [reps, setReps] = useState('');
-  const [result, setResult] = useState<number | null>(null);
-
-  function calc() {
-    const w = parseFloat(weight);
-    const r = parseInt(reps);
-    if (!w || !r || r < 1) return;
-    setResult(r === 1 ? w : Math.round(w * (1 + r / 30)));
-  }
+  const [formula, setFormula] = useState<OneRmFormula>('epley');
+  const w = parseFloat(weight.replace(',', '.'));
+  const r = parseInt(reps, 10);
+  const result = Math.round(oneRepMax(w, r, formula)) || null;
+  const other = formula === 'epley' ? 'brzycki' : 'epley';
+  const otherResult = Math.round(oneRepMax(w, r, other));
 
   const percentages = result ? [100, 95, 90, 85, 80, 75, 70].map((pct) => ({
     pct,
@@ -256,22 +262,29 @@ export function OneRMCalculator() {
         <IconChip icon={Dumbbell} tone="warning" size="sm" />
         <h3 id="coliseo-1rm" className="text-heading-sm">Calculadora 1RM</h3>
       </div>
-      <form className="grid gap-3 sm:grid-cols-[1fr_8rem_auto] sm:items-end" onSubmit={(e) => { e.preventDefault(); calc(); }}>
+      <div className="grid grid-cols-2 gap-3">
         <Field label="Peso (kg)"><Input type="number" inputMode="decimal" step="0.5" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="80" /></Field>
         <Field label="Repeticiones"><Input type="number" inputMode="numeric" min="1" value={reps} onChange={(e) => setReps(e.target.value)} placeholder="5" /></Field>
-        <Button type="submit" variant="secondary" disabled={!weight || !reps}>Calcular</Button>
-      </form>
-      {result !== null && (
+      </div>
+      <SegmentedControl label="Fórmula del 1RM" role="radiogroup" options={FORMULAS} value={formula} onChange={setFormula} />
+      {result === null ? (
+        <p className="text-body-sm text-on-surface-light">
+          {formula === 'brzycki' && r >= 37 ? 'Brzycki solo vale hasta 36 repeticiones: usa Epley.' : 'Escribe el peso y las repeticiones de una serie dura y verás tu 1RM al momento.'}
+        </p>
+      ) : (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-4" aria-live="polite">
           <p className="text-center">
             <span className="font-mono text-display-sm font-bold tabular-nums text-primary-text">{result}</span>
             <span className="ml-2 text-body-sm text-on-surface-light">kg · 1RM estimado</span>
+            {otherResult > 0 && otherResult !== result && (
+              <span className="block text-body-sm text-on-surface-light">Con {other === 'epley' ? 'Epley' : 'Brzycki'}: <span className="font-mono tabular-nums">{otherResult} kg</span></span>
+            )}
           </p>
           <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4">
             {percentages.map(({ pct, weight: w, reps: r }) => (
               <li key={pct} className="rounded-xl bg-surface-variant p-3 text-center">
                 <p className="text-label-md text-on-surface-light">{pct}%</p>
-                <p className="font-mono text-label-lg tabular-nums">{w} kg</p>
+                <p className="font-mono text-label-lg tabular-nums">{w.toLocaleString('es-ES')} kg</p>
                 <p className="font-mono text-label-md tabular-nums text-on-surface-light">×{r}</p>
               </li>
             ))}
@@ -282,38 +295,165 @@ export function OneRMCalculator() {
   );
 }
 
-// ─── Weekly Volume ─────────────────────────────────────────────────────────────
+// ─── Plate Calculator ──────────────────────────────────────────────────────────
 
-export function WeeklyVolumeWidget() {
-  const [data, setData] = useState<coliseo.WeeklyVolume>({});
-  const [loading, setLoading] = useState(true);
+/** Código de color de competición (IWF) sobre los tonos del tema: 25 rojo, 20 azul, 15 amarillo, 10 verde… */
+const PLATE_LOOK: Record<number, string> = {
+  25: 'h-16 bg-error', 20: 'h-14 bg-info', 15: 'h-12 bg-warning', 10: 'h-10 bg-success',
+  5: 'h-8 border border-border-strong bg-background', 2.5: 'h-7 bg-on-surface', 1.25: 'h-6 bg-on-surface-light/50',
+};
+const BARS: SegmentOption<'20' | '15' | '10'>[] = [{ value: '20', label: 'Barra 20 kg' }, { value: '15', label: '15 kg' }, { value: '10', label: '10 kg' }];
+const kgText = (n: number) => `${n.toLocaleString('es-ES')} kg`;
 
-  useEffect(() => {
-    coliseo.fetchWeeklyVolume().then(setData).finally(() => setLoading(false));
-  }, []);
-
-  const rows = Object.entries(data)
-    .sort((a, b) => b[1].sets - a[1].sets)
-    .map(([muscle, { sets, volume }]) => ({ muscle, sets, volume: Math.round(volume) }));
-  const bars: BarDatum[] = rows.map((r, i) => ({
-    label: r.muscle.slice(0, 5), value: r.sets, tip: `${r.muscle} · ${r.sets} series · ${r.volume.toLocaleString('es-ES')} kg·reps`, highlight: i === 0,
-  }));
-
-  if (loading) return <PageLoader label="Sumando tus récords…" words={LOADING_COPY.coliseo} size="sm" />;
-  if (rows.length === 0) return null;
+export function PlateCalculator() {
+  const [total, setTotal] = useState('');
+  const [bar, setBar] = useState<'20' | '15' | '10'>('20');
+  const t = Number(total.replace(',', '.'));
+  const barKg = Number(bar);
+  const { plates, rest } = platesPerSide(t, barKg);
 
   return (
-    <Card as="section" aria-labelledby="coliseo-muscle" padding="lg" className="flex flex-col gap-4">
+    <Card as="section" aria-labelledby="coliseo-plates" padding="lg" className="flex flex-col gap-4">
+      <div className="flex items-center gap-3">
+        <IconChip icon={Disc} tone="info" size="sm" />
+        <h3 id="coliseo-plates" className="text-heading-sm">Calculadora de discos</h3>
+      </div>
+      <Field label="Peso total con la barra (kg)">
+        <Input type="number" inputMode="decimal" step="1.25" min="0" value={total} onChange={(e) => setTotal(e.target.value)} placeholder="100" />
+      </Field>
+      <SegmentedControl label="Peso de la barra" role="radiogroup" options={BARS} value={bar} onChange={setBar} />
+      <div aria-live="polite" className="flex min-h-24 flex-col justify-center gap-3">
+        {!(t > 0) ? (
+          <p className="text-body-sm text-on-surface-light">Escribe el peso que quieres levantar y te digo qué discos poner en cada lado.</p>
+        ) : t < barKg ? (
+          <p className="text-body-sm text-warning-text">Es menos que la barra sola ({kgText(barKg)}).</p>
+        ) : (
+          <>
+            <div aria-hidden className="flex h-16 items-center">
+              <span className="h-2 w-8 rounded-l-full bg-on-surface-light/40" />
+              <span className="h-10 w-2 rounded-sm bg-on-surface-light/70" />
+              {plates.map((p, i) => (
+                <motion.span
+                  key={`${i}-${p}`} className={cn('ml-0.5 w-3.5 rounded-sm', PLATE_LOOK[p])}
+                  initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} transition={{ ...heavy, delay: i * 0.06 }}
+                />
+              ))}
+              <span className="h-2 flex-1 rounded-r-full bg-on-surface-light/25" />
+            </div>
+            <p className="text-body-md">
+              {plates.length ? <>Por lado: <span className="font-mono font-semibold tabular-nums">{plates.map((p) => p.toLocaleString('es-ES')).join(' + ')}</span> kg</> : 'Solo la barra.'}
+            </p>
+            {rest > 0 && (
+              <p className="text-body-sm text-warning-text">No cuadra exacto con discos de 1,25 kg: carga {kgText(t - rest)} o {kgText(t - rest + 2.5)}.</p>
+            )}
+          </>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+// ─── Weekly effective sets vs. hypertrophy range ───────────────────────────────
+
+const RANGE_LOOK = {
+  low: { label: 'Bajo', bar: 'bg-info', text: 'text-info-text' },
+  optimal: { label: 'Óptimo', bar: 'bg-success', text: 'text-success-text' },
+  high: { label: 'Alto', bar: 'bg-warning', text: 'text-warning-text' },
+} as const;
+const SCALE = 25;
+const setsText = (n: number) => n.toLocaleString('es-ES', { maximumFractionDigits: 1 });
+
+export function WeeklySets({ states }: { states: Record<Muscle, MuscleState> }) {
+  const [lo, hi] = WEEKLY_RANGE;
+  const inRange = MUSCLE_IDS.filter((m) => rangeOf(states[m].weekSets) === 'optimal').length;
+  return (
+    <Card as="section" aria-labelledby="coliseo-sets" padding="lg" className="flex flex-col gap-4">
       <div className="flex items-center gap-3">
         <IconChip icon={BarChart3} tone="primary" size="sm" />
-        <h3 id="coliseo-muscle" className="text-heading-sm">Volumen semanal por músculo</h3>
+        <h3 id="coliseo-sets" className="text-heading-sm">Series efectivas por semana</h3>
       </div>
-      <BarChart data={bars} label={`Series por músculo: ${rows.map((r) => `${r.muscle} ${r.sets}`).join(', ')}`} height={160} showValues />
-      <ul className="flex flex-wrap gap-2">
-        {rows.map(({ muscle, sets }) => (
-          <li key={muscle}><Badge variant="neutral">{muscle}: <span className="font-mono tabular-nums">{sets}</span> series</Badge></li>
-        ))}
+      <p className="-mt-2 text-body-sm text-on-surface-light">
+        <span className="font-mono tabular-nums text-on-background">{inRange}</span> de {MUSCLE_IDS.length} músculos en el rango de hipertrofia ({lo}–{hi} series en 7 días). El calentamiento no cuenta; como músculo secundario, una serie suma media.
+      </p>
+      <ul className="flex flex-col gap-1.5">
+        {MUSCLE_IDS.map((m, i) => {
+          const n = states[m].weekSets;
+          const look = RANGE_LOOK[rangeOf(n)];
+          return (
+            <li key={m} className="grid grid-cols-[minmax(0,6.5rem)_1fr_2.25rem_3.25rem] items-center gap-2 sm:gap-3">
+              <span className="truncate text-body-sm">{MUSCLES[m].label}</span>
+              <span aria-hidden className="relative h-2.5 overflow-hidden rounded-full bg-surface-variant">
+                <span className="absolute inset-y-0 bg-success/[var(--lq-soft-alpha)]" style={{ left: `${(lo / SCALE) * 100}%`, width: `${((hi - lo) / SCALE) * 100}%` }} />
+                <motion.span
+                  className={cn('absolute inset-0 rounded-full', look.bar)} style={{ originX: 0 }}
+                  initial={{ scaleX: 0 }} animate={{ scaleX: Math.min(n, SCALE) / SCALE }} transition={{ ...heavy, delay: 0.1 + i * 0.03 }}
+                />
+                {[lo, hi].map((x) => <span key={x} className="absolute inset-y-0 w-px bg-on-surface-light/70" style={{ left: `${(x / SCALE) * 100}%` }} />)}
+              </span>
+              <span className="text-right font-mono text-label-md tabular-nums">{setsText(n)}<span className="sr-only"> series</span></span>
+              <span className={cn('text-label-md', look.text)}>{look.label}</span>
+            </li>
+          );
+        })}
       </ul>
+      <p className="flex items-center gap-2 text-label-md text-on-surface-light">
+        <span aria-hidden className="h-2.5 w-6 rounded-sm border-x border-on-surface-light/70 bg-success/[var(--lq-soft-alpha)]" />
+        Rango {lo}–{hi} series
+      </p>
+    </Card>
+  );
+}
+
+// ─── Push / pull / legs balance ────────────────────────────────────────────────
+
+const SPLITS = [
+  // Un solo tono en tres intensidades: se distinguen en cualquier tema y no chocan con los colores de estado.
+  { key: 'push', label: 'Empuje', dot: 'bg-primary' },
+  { key: 'pull', label: 'Tirón', dot: 'bg-primary/55' },
+  { key: 'legs', label: 'Pierna', dot: 'bg-primary/25' },
+] as const;
+
+export function BalanceCard({ balance }: { balance: Balance }) {
+  const { total } = balance;
+  return (
+    <Card as="section" aria-labelledby="coliseo-balance" padding="lg" className="flex flex-col gap-4">
+      <div className="flex items-center gap-3">
+        <IconChip icon={Gauge} tone="forest" size="sm" />
+        <h3 id="coliseo-balance" className="text-heading-sm">Balance muscular</h3>
+      </div>
+      <p className="-mt-2 text-body-sm text-on-surface-light">Series efectivas de las últimas 4 semanas, según el músculo principal de cada ejercicio.</p>
+      {total === 0 ? (
+        <p className="text-body-sm text-on-surface">Aún no hay series de fuerza en las últimas 4 semanas.</p>
+      ) : (
+        <>
+          <div aria-hidden className="flex h-3 gap-0.5 overflow-hidden rounded-full">
+            {SPLITS.filter((s) => balance[s.key] > 0).map((s) => (
+              <span key={s.key} className={s.dot} style={{ width: `${(balance[s.key] / total) * 100}%` }} />
+            ))}
+          </div>
+          <dl className="grid grid-cols-3 gap-2">
+            {SPLITS.map((s) => (
+              <div key={s.key} className="flex flex-col gap-0.5">
+                <dt className="flex items-center gap-1.5 text-label-md text-on-surface"><span aria-hidden className={cn('size-2.5 rounded-full', s.dot)} />{s.label}</dt>
+                <dd className="font-mono text-heading-sm tabular-nums">
+                  {balance[s.key]}<span className="ml-1 text-label-md text-on-surface-light">{Math.round((balance[s.key] / total) * 100)} %</span>
+                </dd>
+              </div>
+            ))}
+          </dl>
+          {balance.notes.length > 0 ? (
+            <ul className="flex flex-col gap-2">
+              {balance.notes.map((n) => (
+                <li key={n} className="flex gap-2 text-body-sm text-warning-text"><AlertTriangle aria-hidden className="mt-0.5 size-4 shrink-0" />{n}</li>
+              ))}
+            </ul>
+          ) : total >= 6 ? (
+            <p className="flex gap-2 text-body-sm text-success-text"><Check aria-hidden className="mt-0.5 size-4 shrink-0" />Buen balance entre empuje, tirón y pierna.</p>
+          ) : (
+            <p className="text-body-sm text-on-surface-light">Con 6 series o más te digo si hay desequilibrio.</p>
+          )}
+        </>
+      )}
     </Card>
   );
 }
