@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import { fmtNumber, item, stagger, zoneExit } from '@/lib/motion';
 import { getLevelTitle } from '@/lib/gameProgress';
 import { useAuthStore } from '@/store/authStore';
+import { refreshUser } from '@/hooks/useAuth';
 import { useThemeStore, type ThemeMode } from '@/store/themeStore';
 import { useMotionStore } from '@/store/motionStore';
 import { useToastStore } from '@/hooks/useToast';
@@ -99,6 +100,8 @@ export default function ProfilePage() {
   const [customizer, setCustomizer] = useState(false);
 
   useEffect(() => {
+    // Nivel, XP y racha recién leídos de la base: los mismos que ve el Ranking.
+    void refreshUser();
     getStatsSummary('all')
       .then((s) => setStats({ quests: s.totals.questsCompleted, best: s.bestStreak, current: s.currentStreak }))
       .catch(() => setStats(null));

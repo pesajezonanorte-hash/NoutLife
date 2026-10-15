@@ -4,6 +4,8 @@ import { shouldSkipBuildDbStep } from './lib/build-env';
 import { LETTERS_AND_GESTURES_SQL, REMOVE_LEGACY_HABIT_RITUAL_FLAG_SQL, SOCIAL_NETWORK_SQL, SOCIAL_PRO_SQL, RLS_LOCKDOWN_SQL } from './lib/schema-migrations';
 import { BACKLOG_SQL, BACKLOG_V2_SQL, REVERSIBLE_HABIT_LOGS_SQL, WARDROBE_PHOTO_SQL } from './lib/backlog-migrations';
 import { SUBSCRIPTIONS_SQL } from './lib/billing-migrations';
+import { DEFAULT_SHOP_ITEMS } from './lib/default-catalog';
+import { MAX_SHIELD_DAYS, STREAK_SHIELDS, shieldDaysOf } from './lib/streak-shields';
 
 const ignoreDuplicate = (sql: string) =>
   `DO $$ BEGIN ${sql}; EXCEPTION WHEN duplicate_object THEN NULL; END $$;`;
@@ -27,6 +29,50 @@ const RECREATION_SQL = [
   );`,
   `CREATE INDEX IF NOT EXISTS "recreation_entries_userId_date_idx" ON "recreation_entries"("userId", "date");`,
   ignoreDuplicate(`ALTER TABLE "recreation_entries" ADD CONSTRAINT "recreation_entries_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE`),
+];
+
+// Idempotent mirror of prisma/migrations/20261024120000_gender_cycle_and_streak_shields:
+// género declarado, escudo de la racha general y la zona Ciclo.
+const GENDER_CYCLE_AND_SHIELDS_SQL = [
+  `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "gender" TEXT;`,
+  `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "streakShieldDays" INTEGER NOT NULL DEFAULT 0;`,
+  `CREATE TABLE IF NOT EXISTS "cycle_settings" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "cycleLength" INTEGER NOT NULL DEFAULT 28,
+    "periodLength" INTEGER NOT NULL DEFAULT 5,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "cycle_settings_pkey" PRIMARY KEY ("id")
+  );`,
+  `CREATE TABLE IF NOT EXISTS "cycle_periods" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "startDate" TIMESTAMP(3) NOT NULL,
+    "endDate" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "cycle_periods_pkey" PRIMARY KEY ("id")
+  );`,
+  `CREATE TABLE IF NOT EXISTS "cycle_logs" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "date" TIMESTAMP(3) NOT NULL,
+    "flow" TEXT,
+    "mood" INTEGER,
+    "energy" INTEGER,
+    "symptoms" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "notes" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "cycle_logs_pkey" PRIMARY KEY ("id")
+  );`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "cycle_settings_userId_key" ON "cycle_settings"("userId");`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "cycle_periods_userId_startDate_key" ON "cycle_periods"("userId", "startDate");`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "cycle_logs_userId_date_key" ON "cycle_logs"("userId", "date");`,
+  ignoreDuplicate(`ALTER TABLE "cycle_settings" ADD CONSTRAINT "cycle_settings_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE`),
+  ignoreDuplicate(`ALTER TABLE "cycle_periods" ADD CONSTRAINT "cycle_periods_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE`),
+  ignoreDuplicate(`ALTER TABLE "cycle_logs" ADD CONSTRAINT "cycle_logs_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE`),
 ];
 
 // Idempotent mirror of prisma/migrations/20260930180000_gym_attendance_and_notification_controls.
@@ -123,28 +169,49 @@ const GYM_ATTENDANCE_AND_NOTIFICATION_CONTROLS_SQL = [
  * One-time data fixes. Each op id is recorded in "_data_ops" and never runs
  * again, so a fix that deletes data cannot repeat on a later deploy.
  */
+const DATA_OPS: Array<[string, () => Promise<void>]> = [
+  // An account reset of miguelhero ran before the reset covered the gym, so
+  // its workouts, routines, attendance and body tracking survived.
+  ['2026-10-09-reset-gym-miguelhero', async () => {
+    const user = await prisma.user.findUnique({ where: { username: 'miguelhero' }, select: { id: true } });
+    if (!user) return;
+    const userId = user.id;
+    await prisma.$transaction([
+      prisma.workoutExercise.deleteMany({ where: { workout: { userId } } }),
+      prisma.workout.deleteMany({ where: { userId } }),
+      prisma.routine.deleteMany({ where: { userId } }),
+      prisma.coliseoAttendance.deleteMany({ where: { userId } }),
+      prisma.bodyWeight.deleteMany({ where: { userId } }),
+      prisma.progressPhoto.deleteMany({ where: { userId } }),
+      prisma.user.update({ where: { id: userId }, data: { coliseoPlaylistUrl: null } }),
+    ]);
+    console.log('Gym data of miguelhero reset.');
+  }],
+  // Proteger una racha pasa a costar menos que revivirla. Los protectores ya
+  // existentes bajan de precio, y las compras anteriores (que no protegían
+  // nada) se convierten en días de escudo, con el tope de siempre.
+  ['2026-10-24-streak-shield-economy', async () => {
+    for (const item of DEFAULT_SHOP_ITEMS) {
+      if (shieldDaysOf(item.imageKey) === 0) continue;
+      await prisma.shopItem.updateMany({ where: { imageKey: item.imageKey }, data: { cost: item.cost, description: item.description } });
+    }
+    const bought = await prisma.inventoryItem.findMany({
+      where: { shopItem: { imageKey: { in: Object.keys(STREAK_SHIELDS) } } },
+      select: { id: true, userId: true, shopItem: { select: { imageKey: true } } },
+    });
+    const days = new Map<string, number>();
+    for (const row of bought) days.set(row.userId, (days.get(row.userId) ?? 0) + shieldDaysOf(row.shopItem.imageKey));
+    for (const [userId, total] of days) {
+      await prisma.user.update({ where: { id: userId }, data: { streakShieldDays: Math.min(MAX_SHIELD_DAYS, total) } });
+    }
+    if (bought.length) await prisma.inventoryItem.updateMany({ where: { id: { in: bought.map((row) => row.id) } }, data: { usedAt: new Date() } });
+    console.log(`Streak shields: ${days.size} players credited.`);
+  }],
+];
+
 async function runDataOpsOnce() {
   await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "_data_ops" ("id" TEXT PRIMARY KEY, "ranAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);`);
-  const ops: Array<[string, () => Promise<void>]> = [
-    // An account reset of miguelhero ran before the reset covered the gym, so
-    // its workouts, routines, attendance and body tracking survived.
-    ['2026-10-09-reset-gym-miguelhero', async () => {
-      const user = await prisma.user.findUnique({ where: { username: 'miguelhero' }, select: { id: true } });
-      if (!user) return;
-      const userId = user.id;
-      await prisma.$transaction([
-        prisma.workoutExercise.deleteMany({ where: { workout: { userId } } }),
-        prisma.workout.deleteMany({ where: { userId } }),
-        prisma.routine.deleteMany({ where: { userId } }),
-        prisma.coliseoAttendance.deleteMany({ where: { userId } }),
-        prisma.bodyWeight.deleteMany({ where: { userId } }),
-        prisma.progressPhoto.deleteMany({ where: { userId } }),
-        prisma.user.update({ where: { id: userId }, data: { coliseoPlaylistUrl: null } }),
-      ]);
-      console.log('Gym data of miguelhero reset.');
-    }],
-  ];
-  for (const [id, run] of ops) {
+  for (const [id, run] of DATA_OPS) {
     const done = await prisma.$queryRawUnsafe<unknown[]>(`SELECT 1 FROM "_data_ops" WHERE "id" = $1`, id);
     if (done.length) continue;
     await run();
@@ -154,7 +221,12 @@ async function runDataOpsOnce() {
 
 async function migrate() {
   console.log('Running database schema updates...');
-  
+
+  // Idempotent mirror of prisma/migrations/20261024120000_gender_cycle_and_streak_shields.
+  // Va primero: este cliente de Prisma ya lee "gender" y "streakShieldDays" en
+  // cualquier consulta de users sin select (settleLevel, más abajo).
+  for (const sql of GENDER_CYCLE_AND_SHIELDS_SQL) await prisma.$executeRawUnsafe(sql);
+
   await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "avatarUrl" TEXT;`);
   await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "googleAccessToken" TEXT;`);
   await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "googleRefreshToken" TEXT;`);

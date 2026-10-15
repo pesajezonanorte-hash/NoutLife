@@ -24,6 +24,8 @@ export interface ShopItem {
   remaining?: number | null;
   /** Se desbloquea en un nivel más alto que el tuyo. */
   locked?: boolean;
+  /** Protector de racha: días de escudo que suma cada compra (se puede volver a comprar). */
+  shieldDays?: number;
 }
 
 export interface InventoryItem {

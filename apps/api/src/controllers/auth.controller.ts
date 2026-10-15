@@ -104,7 +104,7 @@ export async function me(req: AuthRequest, res: Response): Promise<void> {
         avatarConfig: true, avatarUrl: true, nameColor: true, equippedAura: true, equippedFrame: true, timezone: true, currency: true,
         language: true, relationshipStatus: true, createdAt: true,
         onboardingCompleted: true, birthDate: true,
-        currentStreak: true, longestStreak: true,
+        currentStreak: true, longestStreak: true, streakShieldDays: true, gender: true,
       },
     });
     const subscription = await getSubscription(user.id).catch(() => null);

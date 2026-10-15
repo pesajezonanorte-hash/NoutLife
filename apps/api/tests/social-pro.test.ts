@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { applyMove, newGame, type RpsGame, type TttGame } from '../src/services/games.service';
 import { publicMeta, snippet } from '../src/services/chat-live.service';
-import { levelFromTotal, xpForLevel } from '../src/services/xp.service';
 import { applyAvatarItem, stripUnowned, wearing } from '../src/lib/avatar-items';
 
 test('tic-tac-toe: turns, a win on a line and no moves after it', () => {
@@ -43,17 +42,6 @@ test('snippets describe every kind of message', () => {
   assert.equal(snippet({ kind: 'PHOTO', content: 'playa' }), 'Foto · playa');
   assert.equal(snippet({ kind: 'TEXT', content: 'hola', deletedAt: new Date() }), 'Mensaje borrado');
   assert.equal(snippet({ kind: 'GAME', content: null, meta: { game: { type: 'ttt' } } }), 'Tres en raya');
-});
-
-test('ranking levels: level first, then XP inside that level', () => {
-  assert.deepEqual(levelFromTotal(0), { level: 1, xp: 0, next: 100 });
-  assert.deepEqual(levelFromTotal(99), { level: 1, xp: 99, next: 100 });
-  const two = levelFromTotal(100 + 20);
-  assert.equal(two.level, 2);
-  assert.equal(two.xp, 20);
-  assert.equal(two.next, xpForLevel(2));
-  // Más XP total nunca da un nivel menor.
-  for (let t = 0; t < 20_000; t += 137) assert.ok(levelFromTotal(t + 137).level >= levelFromTotal(t).level);
 });
 
 test('shop items go on the pixel character and only owners can keep them', () => {

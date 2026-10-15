@@ -385,7 +385,10 @@ export async function thumbOf(src: string): Promise<string | null> {
   } catch { return null; }
 }
 
-/** Zona de Noutlife por ruta (lo que tus amigos ven si lo permites). */
+/**
+ * Zona de Noutlife por ruta (lo que tus amigos ven si lo permites). Ciclo no
+ * aparece a propósito: es salud privada y se ve como «Noutlife».
+ */
 const ZONE_NAMES: Array<[string, string]> = [
   ['/social', 'Social'], ['/u/', 'Perfiles'], ['/habits', 'Hábitos'], ['/quests', 'Misiones'], ['/coliseo', 'Coliseo'], ['/gym', 'Coliseo'], ['/recreacion', 'Recreación'],
   ['/finances', 'Finanzas'], ['/food', 'Comida'], ['/sleep', 'Sueño'], ['/love', 'Relaciones'], ['/journal', 'Diario'],

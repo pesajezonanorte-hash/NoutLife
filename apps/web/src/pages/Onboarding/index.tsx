@@ -7,14 +7,14 @@ import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { ArrowLeft, ArrowRight, Heart, Sparkles, Star } from 'lucide-react';
-import type { AvatarConfig } from '@noutlife/shared';
+import type { AvatarConfig, Gender } from '@noutlife/shared';
 import { ease } from '@/lib/motion';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/useToast';
 import * as authService from '@/services/auth.service';
 import { completeOnboarding } from '@/services/user.service';
 import { orderFromGoals, useNavStore } from '@/store/navStore';
-import { getHeroLabel, getWelcomeLabel } from '@/utils/gender';
+import { bodyFor, getHeroLabel, getReadyLabel, getWelcomeLabel } from '@/utils/gender';
 import { BrandLockup } from '@/components/layout/Brand';
 import { Badge, Button, Confetti, ModernLoader } from '@/components/ui/lq';
 import { LOADING_COPY } from '@/lib/loadingCopy';
@@ -33,7 +33,7 @@ interface OnboardingState {
   displayName: string;
   birthDate: string;
   timezone: string;
-  gender: 'male' | 'female';
+  gender: Gender | '';
   avatarConfig: Partial<AvatarConfig>;
   goalCategories: string[];
   mainQuestTitle: string;
@@ -125,7 +125,7 @@ export default function OnboardingPage() {
   const [displayName, setDisplayName] = useState(saved.displayName ?? user?.displayName ?? '');
   const [birthDate, setBirthDate] = useState(saved.birthDate ?? '');
   const [timezone] = useState(saved.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone);
-  const [gender, setGender] = useState<'male' | 'female'>(savedOrRegisteredGender ?? 'male');
+  const [gender, setGender] = useState<Gender | ''>(savedOrRegisteredGender ?? '');
   const [avatarConfig, setAvatarConfig] = useState<Partial<AvatarConfig>>(saved.avatarConfig ?? user?.avatarConfig ?? {});
   const [goalCategories, setGoalCategories] = useState<string[]>(saved.goalCategories ?? []);
   const [mainQuestTitle, setMainQuestTitle] = useState(saved.mainQuestTitle ?? '');
@@ -140,16 +140,16 @@ export default function OnboardingPage() {
     save({ step, displayName, birthDate, timezone, gender, avatarConfig, goalCategories, mainQuestTitle, mainQuestCategory, mainQuestDeadline });
   }, [step, displayName, birthDate, timezone, gender, avatarConfig, goalCategories, mainQuestTitle, mainQuestCategory, mainQuestDeadline]);
 
-  const config = withDefaults(avatarConfig, gender);
+  const config = withDefaults(avatarConfig, bodyFor(gender || null));
   /** Se incrementa al salir del paso del avatar: el escenario celebra. */
   const [celebrate, setCelebrate] = useState(0);
   const go = (s: number) => { setTried(false); setStep(s); };
 
   function submitIdentity() {
-    if (!displayName.trim()) { setTried(true); return; }
+    if (!displayName.trim() || !gender) { setTried(true); return; }
     setDisplayName(displayName.trim());
     // El cuerpo del personaje sigue al género elegido (luego se puede cambiar en el estudio).
-    setAvatarConfig((c) => withBody(c, gender));
+    setAvatarConfig((c) => withBody(c, bodyFor(gender)));
     go(1);
   }
 
@@ -162,7 +162,7 @@ export default function OnboardingPage() {
     if (userId) useNavStore.getState().setOrder(String(userId), orderFromGoals(goalCategories));
     try {
       const updated = await completeOnboarding({
-        displayName, birthDate: birthDate || undefined, timezone, avatarConfig: config, goalCategories,
+        displayName, birthDate: birthDate || undefined, timezone, gender: gender || undefined, avatarConfig: config, goalCategories,
         mainQuestTitle: mainQuestTitle.trim(), mainQuestCategory, mainQuestDeadline,
       });
       // Se aplica al pulsar «Empezar»: con onboardingCompleted la guarda de
@@ -203,8 +203,8 @@ export default function OnboardingPage() {
             <AvatarPreview config={config} size={120} animate="celebrate" className="lq-halo" />
             <div className="flex flex-col gap-2">
               <span className="text-label-lg text-primary-text">Nivel 1</span>
-              <h1 className="text-display-sm"><Lettering text={`¡${getWelcomeLabel(gender)}, ${displayName}!`} /></h1>
-              <p className="text-body-lg text-on-surface-light">Tu {getHeroLabel(gender)} está {gender === 'female' ? 'lista' : 'listo'}. Tu primera misión ya te espera.</p>
+              <h1 className="text-display-sm"><Lettering text={`¡${getWelcomeLabel(gender || null)}, ${displayName}!`} /></h1>
+              <p className="text-body-lg text-on-surface-light">Tu {getHeroLabel(gender || null)} está {getReadyLabel(gender || null)}. Tu primera misión ya te espera.</p>
             </div>
             <ul aria-label="Atributos iniciales" className="flex flex-wrap justify-center gap-2">
               <li><Badge variant="error" size="lg" icon={Heart}>100 HP</Badge></li>
@@ -231,7 +231,8 @@ export default function OnboardingPage() {
         <IdentityFields
           name={displayName} onName={setDisplayName} nameError={tried && !displayName.trim() ? 'Escribe un nombre para continuar' : undefined}
           birthDate={birthDate} onBirthDate={setBirthDate}
-          gender={gender} onGender={setGender} lockGender={Boolean(savedOrRegisteredGender)}
+          gender={gender} onGender={setGender} genderError={tried && !gender ? 'Elige una opción para continuar' : undefined}
+          lockGender={Boolean(savedOrRegisteredGender)}
           timezone={timezone}
         />
       </Shell>

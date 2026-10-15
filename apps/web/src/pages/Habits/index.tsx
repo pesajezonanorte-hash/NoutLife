@@ -3,10 +3,12 @@
 // líneas; cada hábito se escribe en su línea, el check se traza con tinta y la
 // racha se lleva con marcas de conteo. El resumen de la semana va en notas
 // adhesivas. Completar el último hábito del día cierra la página con confeti.
+// La libreta tiene dos separadores: Hábitos y Obstáculos (lo que quieres dejar),
+// que antes era una zona aparte (/obstaculos llega aquí).
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useSearchParams } from 'react-router-dom';
-import { CheckCircle2, Flame, ListChecks, Plus, Trophy } from 'lucide-react';
+import { CheckCircle2, Flame, ListChecks, Plus, ShieldAlert, ShieldCheck, Trophy } from 'lucide-react';
 import { item, stagger, zoneExit } from '@/lib/motion';
 import { dayKey, longDate } from '@/lib/lifeMeta';
 import { useAuthStore } from '@/store/authStore';
@@ -15,11 +17,15 @@ import { useToastStore } from '@/hooks/useToast';
 import { Badge, BarChart, Button, Card, Confetti, EmptyState, ErrorState, IconChip, ProgressBar, ProgressRing, SegmentedControl, type BarDatum, PageLoader } from '@/components/ui/lq';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 import { HabitNotebookRow } from '@/components/habits/HabitNotebookRow';
-import { NotebookSheet, StickyNote } from '@/components/habits/NotebookSheet';
+import { NotebookSheet, NotebookTabs, StickyNote } from '@/components/habits/NotebookSheet';
+import { ObstacleFormDialog, ObstaclesSheet, OBSTACLE_PERIODS, type ObstaclePeriod } from '@/components/habits/ObstaclesSheet';
 import { SketchUnderline, ZoneAmbience } from '@/components/ambience';
 import { HabitFormDialog } from '@/components/habits/HabitFormDialog';
+import { CycleHabitsHint } from '@/components/cycle/CycleHints';
 import * as habitService from '@/services/habit.service';
 import type { Habit } from '@/services/habit.service';
+import * as antiHabits from '@/services/antiHabit.service';
+import type { AntiHabit } from '@/services/antiHabit.service';
 import { Lettering } from '@/components/layout/Lettering';
 import { StreakRevival } from '@/components/habits/StreakRevival';
 import { LiteNotice } from '@/components/billing/LiteNotice';
@@ -33,6 +39,9 @@ const FILTERS: { value: Filter; label: string }[] = [
 const WEEK_LABELS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 const MILESTONES = [7, 14, 21, 30, 60, 100, 180, 365];
 
+type SheetId = 'habitos' | 'obstaculos';
+const sheetId = (s: SheetId) => `habits-sheet-${s}`;
+
 const isDone = (h: Habit) => Boolean(h.todayCompleted) || h.todayStatus === 'completed';
 
 /** Días de los últimos 7 (hoy al final) y de la semana actual (lunes→domingo). */
@@ -45,10 +54,6 @@ function useDays() {
     const week = Array.from({ length: 7 }, (_, i) => { const d = new Date(monday); d.setDate(monday.getDate() + i); return dayKey(d); });
     return { todayKey: dayKey(today), last7, week };
   }, []);
-}
-
-function HabitsSkeleton() {
-  return <PageLoader label="Cargando tus hábitos…" words={LOADING_COPY.habits} />;
 }
 
 export default function HabitsPage() {
@@ -72,6 +77,13 @@ export default function HabitsPage() {
   const openUpgrade = usePlanStore((s) => s.openUpgrade);
   const openNew = () => (atLiteLimit ? openUpgrade('habits') : setForm({ open: true, habit: null }));
 
+  // Separador abierto (?tab=obstaculos): así los enlaces y la ruta antigua llegan a su hoja.
+  const sheet: SheetId = searchParams.get('tab') === 'obstaculos' ? 'obstaculos' : 'habitos';
+  const openSheet = (next: SheetId) => setSearchParams((p) => {
+    if (next === 'obstaculos') p.set('tab', next); else p.delete('tab');
+    return p;
+  }, { replace: true });
+
   const load = useCallback(async () => {
     setLoading(true);
     setFailed(false);
@@ -91,6 +103,17 @@ export default function HabitsPage() {
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+
+  // Obstáculos: se leen al entrar para que su separador muestre cuántos hay.
+  const [obstacles, setObstacles] = useState<AntiHabit[]>([]);
+  const [obstacleState, setObstacleState] = useState<'loading' | 'error' | 'ready'>('loading');
+  const [period, setPeriod] = useState<ObstaclePeriod>('week');
+  const [obstacleForm, setObstacleForm] = useState<{ open: boolean; obstacle: AntiHabit | null }>({ open: false, obstacle: null });
+  const loadObstacles = useCallback(async () => {
+    try { setObstacles(await antiHabits.listAntiHabits()); setObstacleState('ready'); }
+    catch { setObstacleState('error'); }
+  }, []);
+  useEffect(() => { void loadObstacles(); }, [loadObstacles]);
 
   // ?new=1 (FAB, Topbar, paleta): abre el formulario de nuevo hábito.
   useEffect(() => {
@@ -129,6 +152,12 @@ export default function HabitsPage() {
     });
   }
 
+  /** Descanso de hoy (lo sugiere Ciclo): no suma XP ni rompe la racha. */
+  async function handleRest(h: Habit) {
+    await habitService.logHabit(h.id, 'skipped');
+    setHabits((prev) => prev.map((x) => (x.id === h.id ? { ...x, todayStatus: 'skipped' } : x)));
+  }
+
   async function handleCreate(payload: habitService.CreateHabitPayload) {
     try {
       await habitService.createHabit(payload);
@@ -158,6 +187,9 @@ export default function HabitsPage() {
 
   const best = habits.reduce<Habit | null>((b, h) => (!b || h.currentStreak > b.currentStreak ? h : b), null);
   const nextMilestone = best ? MILESTONES.find((m) => m > best.currentStreak) ?? best.currentStreak + 30 : 0;
+
+  const obstacleTotals = obstacles.reduce((acc, o) => ({ falls: acc.falls + o.metrics[period].falls, resisted: acc.resisted + o.metrics[period].resisted }), { falls: 0, resisted: 0 });
+  const periodLabel = OBSTACLE_PERIODS.find((p) => p.value === period)?.label.toLowerCase() ?? '';
 
   const header = (
     <motion.section variants={item} className="flex flex-wrap items-center justify-between gap-6 lg:gap-8">
@@ -194,13 +226,13 @@ export default function HabitsPage() {
     </motion.section>
   );
 
-  let body;
+  let habitsContent;
   if (loading) {
-    body = <HabitsSkeleton />;
+    habitsContent = <PageLoader size="sm" label="Cargando tus hábitos…" words={LOADING_COPY.habits} />;
   } else if (failed) {
-    body = <ErrorState title="No pudimos cargar tus hábitos" description="Tus hábitos siguen guardados." onRetry={() => void load()} />;
+    habitsContent = <ErrorState title="No pudimos cargar tus hábitos" description="Tus hábitos siguen guardados." onRetry={() => void load()} />;
   } else if (total === 0) {
-    body = (
+    habitsContent = (
       <EmptyState
         icon={ListChecks}
         title="Sin hábitos aún"
@@ -209,84 +241,105 @@ export default function HabitsPage() {
         className="py-16"
       />
     );
+  } else if (shown.length === 0) {
+    habitsContent = (
+      <EmptyState
+        icon={filter === 'done' ? CheckCircle2 : ListChecks}
+        tone="muted"
+        title="Nada por aquí"
+        description={filter === 'done' ? 'Aún no completas hábitos hoy.' : '¡Completaste todo lo de hoy!'}
+        className="py-12"
+      />
+    );
   } else {
-    body = (
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
-        <div className="flex min-w-0 flex-col gap-4">
-          <ProgressBar value={pct} tone="success" className="md:hidden" />
-          <NotebookSheet
-            header={(
-              <>
-                <SegmentedControl label="Filtro" value={filter} onChange={setFilter} options={FILTERS} className="w-full md:max-w-[420px]" />
-                <span className="hidden text-body-sm text-on-surface-light md:block" aria-live="polite">
-                  {shown.length} {shown.length === 1 ? 'hábito' : 'hábitos'}
-                </span>
-              </>
-            )}
-          >
-            {shown.length > 0 ? (
-              <motion.ul key={filter} variants={stagger} initial="initial" animate="animate" className="flex flex-col">
-                {shown.map((h, i) => (
-                  <HabitNotebookRow
-                    key={h.id}
-                    index={i}
-                    habit={h}
-                    pending={pending === h.id}
-                    week={last7.map((k) => history[h.id]?.has(k) || (k === todayKey && isDone(h)))}
-                    onComplete={() => void handleToggle(h)}
-                  />
-                ))}
-              </motion.ul>
-            ) : (
-              <EmptyState
-                icon={filter === 'done' ? CheckCircle2 : ListChecks}
-                tone="muted"
-                title="Nada por aquí"
-                description={filter === 'done' ? 'Aún no completas hábitos hoy.' : '¡Completaste todo lo de hoy!'}
-                className="py-12"
-              />
-            )}
-          </NotebookSheet>
-        </div>
-
-        <aside className="flex min-w-0 flex-col gap-8 pt-2">
-          <StickyNote tilt={-0.8} delay={0.35}>
-            <Card as="section" padding="lg" className="flex flex-col gap-4" aria-labelledby="week-title">
-              <div className="flex items-center justify-between">
-                <h2 id="week-title" className="text-heading-sm">Esta semana</h2>
-                <Badge variant="success">{weekRate}%</Badge>
-              </div>
-              <BarChart
-                data={weekBars}
-                label={`Hábitos completados por día esta semana: ${elapsed.map((b) => `${b.label} ${b.value}`).join(', ')}`}
-                tone="primary"
-                highlightTone="primary"
-                max={Math.max(1, total)}
-              />
-            </Card>
-          </StickyNote>
-          {best && best.currentStreak > 0 && (
-            <StickyNote tilt={0.6} delay={0.5}>
-              <Card as="section" padding="lg" className="flex flex-col gap-3">
-                <IconChip icon={Trophy} tone="warning" className="animate-float [.reduce-motion_&]:animate-none" />
-                <h2 className="text-heading-sm">Mejor racha</h2>
-                <p className="text-body-md text-on-surface">
-                  <b>{best.title}</b> lleva {best.currentStreak} {best.currentStreak === 1 ? 'día' : 'días'}. {nextMilestone - best.currentStreak} más para llegar a {nextMilestone}.
-                </p>
-                <ProgressBar
-                  value={(best.currentStreak / nextMilestone) * 100}
-                  tone="warning"
-                  shine
-                  label={`Progreso hacia ${nextMilestone} días`}
-                  valueText={`${best.currentStreak} de ${nextMilestone} días`}
-                />
-              </Card>
-            </StickyNote>
-          )}
-        </aside>
-      </div>
+    habitsContent = (
+      <motion.ul key={filter} variants={stagger} initial="initial" animate="animate" className="flex flex-col">
+        {shown.map((h, i) => (
+          <HabitNotebookRow
+            key={h.id}
+            index={i}
+            habit={h}
+            pending={pending === h.id}
+            week={last7.map((k) => history[h.id]?.has(k) || (k === todayKey && isDone(h)))}
+            onComplete={() => void handleToggle(h)}
+          />
+        ))}
+      </motion.ul>
     );
   }
+
+  const habitsSheet = (
+    <NotebookSheet
+      id={`${sheetId('habitos')}-panel`} labelledBy={`${sheetId('habitos')}-tab`} tabbed
+      header={total > 0 ? (
+        <>
+          <SegmentedControl label="Filtro" value={filter} onChange={setFilter} options={FILTERS} className="w-full md:max-w-[420px]" />
+          <span className="hidden text-body-sm text-on-surface-light md:block" aria-live="polite">
+            {shown.length} {shown.length === 1 ? 'hábito' : 'hábitos'}
+          </span>
+        </>
+      ) : <span className="text-body-md text-on-surface-light">Tu libreta de hábitos</span>}
+    >
+      {habitsContent}
+    </NotebookSheet>
+  );
+
+  const habitsAside = total > 0 && !loading && (
+    <>
+      <StickyNote tilt={-0.8} delay={0.35}>
+        <Card as="section" padding="lg" className="flex flex-col gap-4" aria-labelledby="week-title">
+          <div className="flex items-center justify-between">
+            <h2 id="week-title" className="text-heading-sm">Esta semana</h2>
+            <Badge variant="success">{weekRate}%</Badge>
+          </div>
+          <BarChart
+            data={weekBars}
+            label={`Hábitos completados por día esta semana: ${elapsed.map((b) => `${b.label} ${b.value}`).join(', ')}`}
+            tone="primary"
+            highlightTone="primary"
+            max={Math.max(1, total)}
+          />
+        </Card>
+      </StickyNote>
+      {best && best.currentStreak > 0 && (
+        <StickyNote tilt={0.6} delay={0.5}>
+          <Card as="section" padding="lg" className="flex flex-col gap-3">
+            <IconChip icon={Trophy} tone="warning" className="animate-float [.reduce-motion_&]:animate-none" />
+            <h2 className="text-heading-sm">Mejor racha</h2>
+            <p className="text-body-md text-on-surface">
+              <b>{best.title}</b> lleva {best.currentStreak} {best.currentStreak === 1 ? 'día' : 'días'}. {nextMilestone - best.currentStreak} más para llegar a {nextMilestone}.
+            </p>
+            <ProgressBar
+              value={(best.currentStreak / nextMilestone) * 100}
+              tone="warning"
+              shine
+              label={`Progreso hacia ${nextMilestone} días`}
+              valueText={`${best.currentStreak} de ${nextMilestone} días`}
+            />
+          </Card>
+        </StickyNote>
+      )}
+    </>
+  );
+
+  const obstaclesAside = obstacleState === 'ready' && obstacles.length > 0 && (
+    <StickyNote tilt={-0.6} delay={0.2}>
+      <Card as="section" padding="lg" className="flex flex-col gap-3" aria-labelledby="obstacles-summary">
+        <h2 id="obstacles-summary" className="text-heading-sm">Resumen · {periodLabel}</h2>
+        <dl className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-1">
+            <dt className="flex items-center gap-1.5 text-body-sm text-success-text"><ShieldCheck aria-hidden className="size-4" strokeWidth={1.75} />Resistidas</dt>
+            <dd className="font-mono text-heading-lg tabular-nums">{obstacleTotals.resisted}</dd>
+          </div>
+          <div className="flex flex-col gap-1">
+            <dt className="flex items-center gap-1.5 text-body-sm text-error-text"><ShieldAlert aria-hidden className="size-4" strokeWidth={1.75} />Caídas</dt>
+            <dd className="font-mono text-heading-lg tabular-nums">{obstacleTotals.falls}</dd>
+          </div>
+        </dl>
+        <p className="text-body-sm text-on-surface-light">Anota el detonante de cada obstáculo: saber qué te hace caer ayuda a esquivarlo.</p>
+      </Card>
+    </StickyNote>
+  );
 
   return (
     <motion.div variants={stagger} initial="initial" animate="animate" exit={zoneExit} className="relative">
@@ -306,7 +359,32 @@ export default function HabitsPage() {
         </motion.div>
       )}
       <StreakRevival scope="habits" onRevived={() => void load()} />
-      <motion.div variants={item}>{body}</motion.div>
+      {!loading && <CycleHabitsHint habits={habits} onRest={handleRest} />}
+      <motion.div variants={item} className="grid items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
+        <div className="flex min-w-0 flex-col gap-4">
+          {sheet === 'habitos' && total > 0 && !loading && <ProgressBar value={pct} tone="success" className="md:hidden" />}
+          <div className="flex flex-col">
+            <NotebookTabs
+              label="Secciones de la libreta" value={sheet} onChange={openSheet} idOf={sheetId}
+              tabs={[
+                { value: 'habitos', label: 'Hábitos', icon: CheckCircle2, count: loading ? undefined : total },
+                { value: 'obstaculos', label: 'Obstáculos', icon: ShieldAlert, count: obstacleState === 'ready' ? obstacles.length : undefined },
+              ]}
+            />
+            {sheet === 'habitos' ? habitsSheet : (
+              <ObstaclesSheet
+                list={obstacles} state={obstacleState} period={period} onPeriod={setPeriod} onReload={loadObstacles}
+                onNew={() => setObstacleForm({ open: true, obstacle: null })}
+                onEdit={(o) => setObstacleForm({ open: true, obstacle: o })}
+                panelId={`${sheetId('obstaculos')}-panel`} labelledBy={`${sheetId('obstaculos')}-tab`}
+              />
+            )}
+          </div>
+        </div>
+        <aside className="flex min-w-0 flex-col gap-8 pt-2 lg:pt-12">
+          {sheet === 'habitos' ? habitsAside : obstaclesAside}
+        </aside>
+      </motion.div>
       </div>
       {dayDone > 0 && <Confetti burst={dayDone} />}
       <HabitFormDialog
@@ -314,6 +392,12 @@ export default function HabitsPage() {
         habit={form.habit}
         onClose={() => setForm({ open: false, habit: null })}
         onSubmit={handleCreate}
+      />
+      <ObstacleFormDialog
+        open={obstacleForm.open}
+        obstacle={obstacleForm.obstacle}
+        onClose={() => setObstacleForm({ open: false, obstacle: null })}
+        onSaved={loadObstacles}
       />
     </motion.div>
   );

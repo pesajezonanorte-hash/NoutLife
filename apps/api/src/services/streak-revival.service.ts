@@ -1,5 +1,7 @@
 // Revivir rachas con oro: la racha general y la de cada hábito se pueden
 // recuperar durante 72 h después de perderse. Cuanto más larga, más cuesta.
+// Revivir cuesta siempre más que haberla protegido: el revivir más barato (una
+// racha de 2 días) supera al protector más caro de la Tienda (lib/streak-shields).
 import { prisma } from '../lib/prisma';
 import { addCalendarDays, DEFAULT_TIMEZONE, getCalendarDay } from '../lib/calendar';
 import { effectiveActivityStreak } from './xp.service';
@@ -8,8 +10,8 @@ import { reviveCost, spendGold } from './network.service';
 
 export const REVIVE_WINDOW_MS = 72 * 60 * 60_000;
 
-const activityCost = (days: number) => reviveCost(days, 25, 400);
-const habitCost = (days: number) => reviveCost(days, 15, 300);
+export const activityCost = (days: number) => reviveCost(days, 120, 500, 10);
+export const habitCost = (days: number) => reviveCost(days, 90, 400, 8);
 
 const recent = (at: Date | null, now: number) => Boolean(at && now - at.getTime() < REVIVE_WINDOW_MS);
 

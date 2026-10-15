@@ -53,7 +53,8 @@ export function MoodPicker({ value, onChange, label = 'Ánimo', className }: Moo
             key={m.n}
             ref={(el) => (refs.current[i] = el)}
             type="button" role="radio" aria-checked={on} aria-label={m.name} title={m.name}
-            tabIndex={on ? 0 : -1}
+            // Sin ánimo elegido (0), la cara del medio recibe el foco del Tab.
+            tabIndex={on || (!MOODS.some((x) => x.n === value) && m.n === 3) ? 0 : -1}
             animate={{ scale: on ? 1.08 : 1 }}
             whileTap={{ scale: 0.95 }}
             transition={{ type: 'spring', stiffness: 420, damping: 24 }}

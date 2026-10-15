@@ -4,11 +4,74 @@
 // se traza de arriba abajo y los garabatos se dibujan despacio; después el
 // papel «respira» con una luz que deriva muy lenta. Todo lo decorativo va en
 // <ZoneAmbience> (aria-hidden, sin eventos, en pausa fuera de pantalla).
-import type { ReactNode } from 'react';
+import { useId, useRef, type KeyboardEvent, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
+import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { springs } from '@/lib/motion/presets';
 import { InkPath, ZoneAmbience } from '@/components/ambience';
+
+export interface NotebookTab<T extends string> { value: T; label: string; icon: LucideIcon; count?: number }
+
+/**
+ * Separadores de la libreta: pestañas de papel que asoman sobre la hoja. La
+ * activa es del mismo papel que la hoja y se funde con ella; las demás quedan
+ * detrás, un poco más abajo. Flechas izquierda/derecha cambian de pestaña.
+ * Cada pestaña controla la hoja con id `${idOf(valor)}-panel`.
+ */
+export function NotebookTabs<T extends string>({ value, onChange, tabs, label, idOf }: {
+  value: T;
+  onChange: (value: T) => void;
+  tabs: NotebookTab<T>[];
+  label: string;
+  idOf: (value: T) => string;
+}) {
+  const ink = useId();
+  const refs = useRef<(HTMLButtonElement | null)[]>([]);
+  const onKey = (e: KeyboardEvent, i: number) => {
+    const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+    if (!d) return;
+    e.preventDefault();
+    const next = (i + d + tabs.length) % tabs.length;
+    onChange(tabs[next].value);
+    refs.current[next]?.focus();
+  };
+  return (
+    <div role="tablist" aria-label={label} className="relative z-[1] -mb-px flex gap-1.5">
+      {tabs.map((t, i) => {
+        const on = t.value === value;
+        const Icon = t.icon;
+        return (
+          <button
+            key={t.value}
+            ref={(el) => (refs.current[i] = el)}
+            id={`${idOf(t.value)}-tab`}
+            type="button"
+            role="tab"
+            aria-selected={on}
+            aria-controls={`${idOf(t.value)}-panel`}
+            tabIndex={on ? 0 : -1}
+            onClick={() => onChange(t.value)}
+            onKeyDown={(e) => onKey(e, i)}
+            className={cn(
+              'relative inline-flex min-h-11 items-center gap-2 rounded-t-xl border border-b-0 px-4 text-label-lg',
+              'transition-[transform,color,background-color] duration-[325ms] ease-[var(--lq-ease-snappy)] [.reduce-motion_&]:transition-none',
+              on
+                ? 'lq-tex-paper border-border text-on-background'
+                : 'translate-y-1 border-transparent bg-surface-variant text-on-surface hover:translate-y-0.5 hover:text-on-background',
+            )}
+          >
+            {/* Cinta de color en el borde del separador activo */}
+            {on && <motion.span layoutId={ink} aria-hidden="true" className="absolute inset-x-3 top-0 h-[3px] rounded-b-full bg-warning" transition={springs.natural} />}
+            <Icon aria-hidden className="size-4" strokeWidth={1.75} />
+            {t.label}
+            {t.count !== undefined && <span className="font-mono text-label-md tabular-nums text-on-surface-light">{t.count}</span>}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 /** Garabatos de margen: estrella, espiral, flecha y nube. */
 const DOODLES = [
@@ -17,17 +80,24 @@ const DOODLES = [
   { d: 'M3 15.5c4.6-.9 9.1-3.6 12.8-7.7M12.4 6.8l3.9.6-.4 4', box: '0 0 20 20', cls: 'bottom-6 left-[3.75rem] size-6 md:left-[6rem] md:size-7', r: '3deg', d0: 1.45 },
 ] as const;
 
-export function NotebookSheet({ header, children, className, lines = 3 }: {
+export function NotebookSheet({ header, children, className, lines = 3, label = 'Lista de hábitos', id, labelledBy, tabbed }: {
   header: ReactNode;
   children: ReactNode;
   className?: string;
   /** Líneas vacías al final de la hoja. */
   lines?: number;
+  label?: string;
+  id?: string;
+  /** Hoja de un separador (NotebookTabs): la nombra su pestaña. */
+  labelledBy?: string;
+  /** Lleva separadores encima: la esquina superior izquierda queda recta bajo la primera pestaña. */
+  tabbed?: boolean;
 }) {
   return (
     <motion.section
-      aria-label="Lista de hábitos"
-      className={cn('lq-tex-paper relative overflow-hidden rounded-2xl border border-border shadow-md', className)}
+      id={id}
+      {...(labelledBy ? { role: 'tabpanel', 'aria-labelledby': labelledBy } : { 'aria-label': label })}
+      className={cn('lq-tex-paper relative overflow-hidden rounded-2xl border border-border shadow-md', tabbed && 'rounded-tl-none', className)}
       initial={{ y: 14, rotate: -0.35 }}
       animate={{ y: 0, rotate: 0, transition: springs.heavy }}
       exit={{ y: -10, opacity: 0, transition: { duration: 0.2 } }}

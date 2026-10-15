@@ -1,7 +1,7 @@
 import { prisma } from '../lib/prisma';
 
 export async function exportUserData(userId: string) {
-  const [user, quests, habits, transactions, journals, workouts, sleep, meals, goals, checklists, antiHabits, recreation] =
+  const [user, quests, habits, transactions, journals, workouts, sleep, meals, goals, checklists, antiHabits, recreation, cyclePeriods, cycleLogs] =
     await Promise.all([
       prisma.user.findUniqueOrThrow({
         where: { id: userId },
@@ -22,6 +22,8 @@ export async function exportUserData(userId: string) {
       prisma.checklist.findMany({ where: { userId }, include: { items: true } }),
       prisma.antiHabit.findMany({ where: { userId }, include: { logs: { orderBy: { date: 'desc' } } } }),
       prisma.recreationEntry.findMany({ where: { userId }, orderBy: { date: 'desc' } }),
+      prisma.cyclePeriod.findMany({ where: { userId }, orderBy: { startDate: 'desc' } }),
+      prisma.cycleLog.findMany({ where: { userId }, orderBy: { date: 'desc' } }),
     ]);
 
   return {
@@ -39,6 +41,7 @@ export async function exportUserData(userId: string) {
     checklists,
     antiHabits,
     recreation,
+    cycle: { periods: cyclePeriods, logs: cycleLogs },
   };
 }
 

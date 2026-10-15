@@ -74,6 +74,22 @@ export async function createAntiHabit(userId: string, input: {
   });
 }
 
+/** Edita un obstáculo activo. `cue` y `targetPerWeek` en null los quitan. */
+export async function updateAntiHabit(userId: string, id: string, input: {
+  title?: string; category?: string; cue?: string | null; targetPerWeek?: number | null;
+}) {
+  const result = await prisma.antiHabit.updateMany({
+    where: { id, userId, isActive: true },
+    data: {
+      ...(input.title !== undefined ? { title: input.title.trim() } : {}),
+      ...(input.category !== undefined ? { category: input.category.trim().toLowerCase() } : {}),
+      ...(input.cue !== undefined ? { cue: input.cue?.trim() || null } : {}),
+      ...(input.targetPerWeek !== undefined ? { targetPerWeek: input.targetPerWeek } : {}),
+    },
+  });
+  if (!result.count) throw new Error('ANTI_HABIT_NOT_FOUND');
+}
+
 export async function archiveAntiHabit(userId: string, id: string) {
   const result = await prisma.antiHabit.updateMany({ where: { id, userId, isActive: true }, data: { isActive: false } });
   if (!result.count) throw new Error('ANTI_HABIT_NOT_FOUND');

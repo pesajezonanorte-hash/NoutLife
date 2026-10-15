@@ -24,7 +24,8 @@ import {
 } from '@/services/notification.service';
 import { THEME_PALETTES } from '@/lib/shopThemes';
 import { daysUntil, longDay } from '@/lib/plan';
-import type { Subscription } from '@noutlife/shared';
+import type { Gender, Subscription } from '@noutlife/shared';
+import { GENDER_OPTIONS, canUseCycle } from '@/utils/gender';
 import { ZoneToggleList } from '@/components/settings/ZoneOrderEditor';
 import { PrivacyPanel } from '@/components/settings/PrivacyPanel';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -95,6 +96,7 @@ export default function SettingsPage() {
   });
   const [displayName, setDisplayName] = useState(user?.displayName ?? '');
   const [timezone, setTimezone] = useState(user?.timezone ?? 'America/Bogota');
+  const [gender, setGender] = useState<Gender | ''>(user?.gender ?? '');
   const [playlistUrl, setPlaylistUrl] = useState(user?.coliseoPlaylistUrl ?? '');
   const [showPlaylist, setShowPlaylist] = useState(Boolean(user?.coliseoPlaylistUrl));
   const [saving, setSaving] = useState(false);
@@ -108,12 +110,12 @@ export default function SettingsPage() {
   /** Al guardar, las piezas encajan; cada valor que cambia hace girar los engranajes. */
   const [fit, setFit] = useState(0);
   const [turns, setTurns] = useState(0);
-  const sig = JSON.stringify([displayName, timezone, showPlaylist, audioEnabled, reduceMotion, mode, (user as { activeTheme?: string } | null)?.activeTheme, prefs]);
+  const sig = JSON.stringify([displayName, timezone, gender, showPlaylist, audioEnabled, reduceMotion, mode, (user as { activeTheme?: string } | null)?.activeTheme, prefs]);
   const lastSig = useRef(sig);
   useEffect(() => { if (lastSig.current !== sig) { lastSig.current = sig; setTurns((t) => t + 1); } }, [sig]);
 
   useEffect(() => {
-    setDisplayName(user?.displayName ?? ''); setTimezone(user?.timezone ?? 'America/Bogota');
+    setDisplayName(user?.displayName ?? ''); setTimezone(user?.timezone ?? 'America/Bogota'); setGender(user?.gender ?? '');
     setPlaylistUrl(user?.coliseoPlaylistUrl ?? ''); setShowPlaylist(Boolean(user?.coliseoPlaylistUrl));
   }, [user]);
   useEffect(() => { getNotificationPreferences().then(setPrefs).catch(() => null); }, []);
@@ -126,8 +128,13 @@ export default function SettingsPage() {
     if (!displayName.trim()) { toast.warning('Escribe un nombre para tu perfil'); return; }
     setSaving(true);
     try {
-      updateUser(await userService.updateProfile({ displayName: displayName.trim(), timezone, coliseoPlaylistUrl: showPlaylist && playlistUrl.trim() ? playlistUrl.trim() : null }));
-      toast.success('Perfil guardado');
+      const cycleBefore = canUseCycle(user?.gender);
+      updateUser(await userService.updateProfile({
+        displayName: displayName.trim(), timezone, gender: gender || null,
+        coliseoPlaylistUrl: showPlaylist && playlistUrl.trim() ? playlistUrl.trim() : null,
+      }));
+      const cycleNow = canUseCycle(gender || null);
+      toast.success('Perfil guardado', cycleNow && !cycleBefore ? 'La zona Ciclo ya está en tu menú, en Bienestar.' : !cycleNow && cycleBefore ? 'La zona Ciclo se ocultó. Tus registros siguen guardados.' : undefined);
       setFit((f) => f + 1);
     } catch { toast.error('No se pudieron guardar los cambios'); }
     finally { setSaving(false); }
@@ -226,6 +233,12 @@ export default function SettingsPage() {
                     <Field label="Zona horaria">
                       <Select value={timezone} onChange={(e) => setTimezone(e.target.value)}>
                         {TIMEZONES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                      </Select>
+                    </Field>
+                    <Field label="¿Cómo te identificas?" help="Si eliges Mujer, se activa la zona Ciclo.">
+                      <Select value={gender} onChange={(e) => setGender(e.target.value as Gender | '')}>
+                        {!gender && <option value="">Sin indicar</option>}
+                        {GENDER_OPTIONS.map((g) => <option key={g.value} value={g.value}>{g.label}</option>)}
                       </Select>
                     </Field>
                   </div>

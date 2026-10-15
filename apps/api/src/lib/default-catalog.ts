@@ -52,8 +52,10 @@ export const DEFAULT_SHOP_ITEMS = [
   { name: 'Multiplicador de XP x2', description: 'Duplica tu XP por 24 horas', type: 'POWERUP', cost: 300, imageKey: 'xp_booster', levelRequired: 1 },
   { name: 'Imán de Gold', description: '+50% gold por 24 horas', type: 'POWERUP', cost: 250, imageKey: 'gold_magnet', levelRequired: 3 },
   { name: 'Poción de Energía', description: 'Recupera 50 HP al instante', type: 'POWERUP', cost: 100, imageKey: 'potion_energy', levelRequired: 1 },
-  { name: 'Escudo Anti-Racha', description: 'Protege tu racha 3 días seguidos', type: 'POWERUP', cost: 500, imageKey: 'streak_shield', levelRequired: 5 },
-  { name: 'Pase de Perdón', description: 'No pierdes racha si fallas un día', type: 'PASS', cost: 150, imageKey: 'streak_pass', levelRequired: 1 },
+  // Protectores de la racha general (lib/streak-shields): se activan al comprarlos y
+  // cuestan menos que revivir cualquier racha perdida (streak-revival.service).
+  { name: 'Escudo Anti-Racha', description: 'Protege tu racha general durante 3 días sin actividad. Se activa al comprarlo.', type: 'POWERUP', cost: 100, imageKey: 'streak_shield', levelRequired: 5 },
+  { name: 'Pase de Perdón', description: 'Si un día no registras actividad, tu racha general sigue. Se activa al comprarlo.', type: 'PASS', cost: 40, imageKey: 'streak_pass', levelRequired: 1 },
   { name: 'Pase VIP (7 días)', description: 'Desbloquea funciones premium por 7 días', type: 'PASS', cost: 800, imageKey: 'vip_pass', levelRequired: 1 },
   { name: 'Gorra del Ninja', description: 'Una banda negra con las puntas al viento. Para los héroes discretos.', type: 'HAT', cost: 350, imageKey: 'hat_ninja', levelRequired: 1, slot: 'extra', value: 'bandana_ninja' },
   { name: 'Corona del Campeón', description: 'Oro, rubí y dos esmeraldas para quien llega lejos.', type: 'HAT', cost: 900, imageKey: 'hat_crown', levelRequired: 10, slot: 'extra', value: 'corona_campeon' },

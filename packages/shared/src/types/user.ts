@@ -22,6 +22,10 @@ export interface User {
   birthDate: string | null;
   currentStreak: number;
   longestStreak: number;
+  /** Días sin actividad que la racha general aguanta (protectores de la Tienda). */
+  streakShieldDays?: number;
+  /** Cómo se identifica (onboarding y Ajustes). Solo 'female' abre la zona Ciclo. Null en cuentas anteriores. */
+  gender?: Gender | null;
   coliseoPlaylistUrl?: string | null;
   equippedHat?: string | null;
   equippedAura?: string | null;
@@ -87,6 +91,8 @@ export interface AvatarConfig {
   /** A normalized standard 64×64 Minecraft skin PNG stored as a data URL. */
   minecraftSkinUrl?: string | null;
 }
+
+export type Gender = 'female' | 'male' | 'other' | 'unspecified';
 
 export type RelationshipStatus =
   | 'SINGLE'

@@ -48,6 +48,8 @@ import sharesRoutes       from './shares.routes';
 import cronRoutes         from './cron.routes';
 // NoutLife Pro / Lite (Wompi)
 import billingRoutes      from './billing.routes';
+// Ciclo menstrual (solo cuentas con gender = 'female')
+import cycleRoutes        from './cycle.routes';
 
 const router = Router();
 
@@ -100,6 +102,7 @@ router.use('/checklists',   checklistRoutes);
 router.use('/anti-habits',  antiHabitRoutes);
 router.use('/shares',       sharesRoutes);
 router.use('/billing',      billingRoutes);
+router.use('/cycle',        cycleRoutes);
 
 router.get('/health', (_req, res) => {
   res.json({ status: 'ok', version: '10.0.0', timestamp: new Date().toISOString() });

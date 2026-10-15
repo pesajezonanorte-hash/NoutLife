@@ -1,6 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
-import { effectiveActivityStreak, levelFromTotal } from './xp.service';
+import { effectiveActivityStreak, reconcileUserActivityStreak } from './xp.service';
 import { createNotification, markReadByKeys } from './notification.service';
 import {
   bump, chatPrefsOf, clearedAt, isBlocked, GUILD_LIGHT, guildKey, isViewing, letterBody, markTyping, parseDate, parseOutgoing, reactionsFor,
@@ -16,11 +16,11 @@ const guildLink = (guildId?: string) => (guildId ? `/social?tab=gremios&guild=${
 const guildChatLink = (guildId: string) => `/social?tab=cartas&gchat=${guildId}`;
 
 // La racha guardada solo se corrige cuando su dueño entra; para mostrar rachas de
-// otros se calcula la vigente con su última actividad y su zona horaria.
-const STREAK_FIELDS = { currentStreak: true, lastActivityDate: true, timezone: true } as const;
-type StreakSource = { currentStreak: number; lastActivityDate: Date | null; timezone: string | null };
-function withLiveStreak<T extends StreakSource>(u: T, now = new Date()): Omit<T, 'lastActivityDate' | 'timezone'> {
-  const { lastActivityDate: _l, timezone: _t, ...rest } = u;
+// otros se calcula la vigente con su última actividad, su zona horaria y su escudo.
+const STREAK_FIELDS = { currentStreak: true, lastActivityDate: true, timezone: true, streakShieldDays: true } as const;
+type StreakSource = { currentStreak: number; lastActivityDate: Date | null; timezone: string | null; streakShieldDays: number };
+function withLiveStreak<T extends StreakSource>(u: T, now = new Date()): Omit<T, 'lastActivityDate' | 'timezone' | 'streakShieldDays'> {
+  const { lastActivityDate: _l, timezone: _t, streakShieldDays: _s, ...rest } = u;
   return { ...rest, currentStreak: effectiveActivityStreak(u, now) };
 }
 
@@ -165,96 +165,91 @@ export async function getPublicProfile(username: string, viewerId?: string) {
 
 // ─── Leaderboard ──────────────────────────────────────────────────────────────
 
+type LeaderboardCategory = 'xp' | 'streak' | 'coliseo';
+
+/** Lo que la tabla muestra de cada persona (el nivel y la XP son los de su perfil). */
+const RANKING_USER = {
+  id: true, username: true, displayName: true, nameColor: true, avatarConfig: true, avatarUrl: true, equippedAura: true, equippedFrame: true, equippedHat: true,
+  level: true, xp: true, xpToNextLevel: true, ...STREAK_FIELDS,
+} as const;
+type RankingUser = Prisma.UserGetPayload<{ select: typeof RANKING_USER }>;
+
+export interface RankingEntry extends Omit<RankingUser, 'xp' | 'currentStreak' | 'lastActivityDate' | 'timezone' | 'streakShieldDays'> {
+  /** Puesto; null para quien está en pausa (sin racha activa). */
+  rank: number | null;
+  /** Lo que mide la métrica: XP dentro del nivel, días de racha o sesiones del Coliseo. */
+  value: number;
+  /** Racha general vigente (días). */
+  streak: number;
+  /** Solo compite quien mantiene su racha: al menos un día de actividad hoy o ayer. */
+  active: boolean;
+}
+
+const rankOrder: Record<LeaderboardCategory, (a: RankingEntry, b: RankingEntry) => number> = {
+  // Primero el nivel; con el mismo nivel, quien lleva más XP dentro de él.
+  xp: (a, b) => b.level - a.level || b.value - a.value || b.streak - a.streak,
+  streak: (a, b) => b.value - a.value || b.level - a.level,
+  coliseo: (a, b) => b.value - a.value || b.streak - a.streak,
+};
+
 /**
- * Zonas que participan en el online (las que se comparan entre personas): solo su
- * XP cuenta para el ranking. Las zonas personales (finanzas, comida, sueño,
- * relaciones, diario, glow up, rituales, check-in, guía y logros) no compiten.
+ * Ordena la tabla: compiten solo quienes tienen la racha activa (1 día o más),
+ * con su puesto; los demás no aparecen en la global y, entre amigos, quedan
+ * al final en pausa, sin puesto. Top 50.
  */
-export const ONLINE_XP_SOURCES = ['habit_completed', 'streak_recovery', 'quest_completed', 'workout', 'learning_complete', 'pomodoro', 'focus'] as const;
-export const ONLINE_ZONES = ['Hábitos', 'Misiones', 'Coliseo', 'Aprendizaje'] as const;
+export function rankEntries(category: LeaderboardCategory, entries: RankingEntry[], includePaused: boolean): RankingEntry[] {
+  const order = rankOrder[category];
+  const ranked = entries.filter((e) => e.active).sort(order).slice(0, 50).map((e, i) => ({ ...e, rank: i + 1 }));
+  const paused = includePaused ? entries.filter((e) => !e.active).sort(order).map((e) => ({ ...e, rank: null })) : [];
+  return [...ranked, ...paused];
+}
 
-export async function getLeaderboard(
-  category: 'xp' | 'streak' | 'coliseo',
-  userId: string,
-  friendsOnly = false
-) {
+export async function getLeaderboard(category: LeaderboardCategory, userId: string, friendsOnly = false) {
+  const now = new Date();
   const friendIds = friendsOnly ? await getFriendIds(userId) : null;
-  // Only accounts that finished onboarding appear in rankings.
-  const whereClause = friendIds
-    ? { onboardingCompleted: true, id: { in: [...friendIds, userId] } }
-    : { onboardingCompleted: true };
+  const scope = friendIds ? [...friendIds, userId] : null;
+  // Solo cuentas con el onboarding hecho. En la global, una racha guardada en 0
+  // nunca puede estar activa: ni se lee.
+  const where: Prisma.UserWhereInput = scope
+    ? { onboardingCompleted: true, id: { in: scope } }
+    : { onboardingCompleted: true, currentStreak: { gt: 0 } };
 
-  if (category === 'xp') {
-    // XP de las zonas online por persona → su nivel y la XP dentro de ese nivel.
-    // Orden: primero el nivel y, dentro del mismo nivel, la XP (nivel 5 con 20 XP
-    // va por delante de nivel 4 con 500 XP).
-    const totals = await prisma.xpEvent.groupBy({
-      by: ['userId'],
-      where: { source: { in: [...ONLINE_XP_SOURCES] }, ...(friendIds ? { userId: { in: [...friendIds, userId] } } : {}) },
-      _sum: { xpAmount: true },
-    });
-    const totalOf = new Map(totals.map((t) => [t.userId, Math.max(0, t._sum.xpAmount ?? 0)]));
-    const ids = friendIds ? [...friendIds, userId] : totals.filter((t) => (t._sum.xpAmount ?? 0) > 0).map((t) => t.userId);
-    const users = await prisma.user.findMany({
-      where: { ...whereClause, id: { in: ids } },
-      select: { id: true, username: true, displayName: true, nameColor: true, avatarConfig: true, avatarUrl: true, equippedAura: true, equippedFrame: true, equippedHat: true },
-    });
-    return users
-      .map((u) => { const total = totalOf.get(u.id) ?? 0; const l = levelFromTotal(total); return { ...u, level: l.level, value: l.xp, xpToNextLevel: l.next, totalXp: total }; })
-      .sort((a, b) => b.level - a.level || b.value - a.value || b.totalXp - a.totalXp)
-      .slice(0, 50)
-      .map((u, i) => ({ rank: i + 1, ...u }));
-  }
-
-  if (category === 'streak') {
-    // Se lee una ventana amplia y se ordena por la racha vigente: la guardada de quien
-    // lleva días sin entrar sigue alta hasta que vuelve a iniciar sesión.
-    const now = new Date();
-    const users = await prisma.user.findMany({
-      where: whereClause,
-      orderBy: { currentStreak: 'desc' },
-      take: 500,
-      select: { id: true, username: true, displayName: true, level: true, ...STREAK_FIELDS, avatarConfig: true, avatarUrl: true, equippedAura: true, equippedFrame: true, equippedHat: true },
-    });
-    const live = users.map((u) => withLiveStreak(u, now));
-    // Las rachas caducadas se guardan a 0, como haría reconcileUserActivityStreak al entrar.
-    const stale = users.filter((u, i) => u.currentStreak > 0 && live[i].currentStreak === 0).map((u) => u.id);
-    if (stale.length) prisma.user.updateMany({ where: { id: { in: stale } }, data: { currentStreak: 0 } }).catch(() => {});
-    return live
-      .sort((x, y) => y.currentStreak - x.currentStreak || y.level - x.level)
-      .slice(0, 50)
-      .map((u, i) => ({ rank: i + 1, ...u, value: u.currentStreak }));
-  }
-
-  const userScope = friendIds ? { userId: { in: [...friendIds, userId] } } : {};
-
+  let users: RankingUser[];
+  let valueOf: (u: RankingUser, streak: number) => number;
   if (category === 'coliseo') {
-    // Top by total workout sessions
-    const result = await prisma.workout.groupBy({
+    const sessions = await prisma.workout.groupBy({
       by: ['userId'],
-      where: userScope,
+      where: scope ? { userId: { in: scope } } : {},
       _count: { id: true },
       orderBy: { _count: { id: 'desc' } },
-      take: 50,
+      take: 500,
     });
-
-    const userIds = result.map((r) => r.userId);
-    const users = await prisma.user.findMany({
-      where: { onboardingCompleted: true, id: { in: userIds } },
-      select: { id: true, username: true, displayName: true, level: true, avatarConfig: true, avatarUrl: true, equippedAura: true, equippedFrame: true, equippedHat: true },
+    const count = new Map(sessions.map((s) => [s.userId, s._count.id]));
+    users = await prisma.user.findMany({ where: { AND: [where, { id: { in: [...count.keys()] } }] }, select: RANKING_USER });
+    valueOf = (u) => count.get(u.id) ?? 0;
+  } else {
+    // Nivel y XP salen de la misma fila que lee el perfil: los dos muestran lo mismo.
+    users = await prisma.user.findMany({
+      where,
+      orderBy: category === 'xp' ? [{ level: 'desc' }, { xp: 'desc' }] : { currentStreak: 'desc' },
+      take: 500,
+      select: RANKING_USER,
     });
-
-    const userMap = new Map(users.map((u) => [u.id, u]));
-    return result
-      .filter((r) => userMap.has(r.userId))
-      .map((r, i) => ({
-        rank: i + 1,
-        ...userMap.get(r.userId),
-        value: r._count.id,
-      }));
+    valueOf = category === 'xp' ? (u) => u.xp : (_u, streak) => streak;
   }
 
-  return [];
+  const entries = users.map((u): RankingEntry => {
+    const streak = effectiveActivityStreak(u, now);
+    const { xp: _x, currentStreak: _c, lastActivityDate: _l, timezone: _t, streakShieldDays: _s, ...pub } = u;
+    return { ...pub, rank: null, value: valueOf(u, streak), streak, active: streak > 0 };
+  });
+
+  // Rachas guardadas que ya caducaron: se reconcilian como al entrar (queda la
+  // racha perdida para revivirla y se gasta el escudo que la cubra).
+  users.filter((u, i) => u.currentStreak > 0 && !entries[i].active).slice(0, 50)
+    .forEach((u) => { reconcileUserActivityStreak(u.id, now).catch(() => {}); });
+
+  return rankEntries(category, entries, Boolean(scope));
 }
 
 async function getFriendIds(userId: string): Promise<string[]> {

@@ -91,6 +91,9 @@ export async function resetAccountData(userId: string): Promise<AccountResetSumm
     await remove('progressPhotos', () => tx.progressPhoto.deleteMany({ where: { userId } }));
     await remove('meals', () => tx.meal.deleteMany({ where: { userId } }));
     await remove('recreationEntries', () => tx.recreationEntry.deleteMany({ where: { userId } }));
+    await remove('cycleLogs', () => tx.cycleLog.deleteMany({ where: { userId } }));
+    await remove('cyclePeriods', () => tx.cyclePeriod.deleteMany({ where: { userId } }));
+    await remove('cycleSettings', () => tx.cycleSettings.deleteMany({ where: { userId } }));
     await remove('savedMeals', () => tx.savedMeal.deleteMany({ where: { userId } }));
     await remove('nutritionGoals', () => tx.nutritionGoal.deleteMany({ where: { userId } }));
     await remove('sleepLogs', () => tx.sleepLog.deleteMany({ where: { userId } }));
@@ -213,6 +216,9 @@ export async function resetAccountData(userId: string): Promise<AccountResetSumm
         coliseoPlaylistUrl: null,
         lostStreak: 0,
         lostStreakAt: null,
+        streakShieldDays: 0,
+        // El onboarding vuelve a preguntarlo.
+        gender: null,
         bio: null,
         nameColor: null,
         presenceAt: null,

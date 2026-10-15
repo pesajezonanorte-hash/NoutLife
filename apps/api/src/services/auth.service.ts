@@ -36,6 +36,8 @@ function sanitizeUser(user: {
   equippedAura?: string | null;
   equippedFrame?: string | null;
   equippedTheme?: string | null;
+  gender?: string | null;
+  streakShieldDays?: number;
   createdAt: Date;
 }) {
   return {
@@ -67,6 +69,8 @@ function sanitizeUser(user: {
     equippedAura: user.equippedAura ?? null,
     equippedFrame: user.equippedFrame ?? null,
     equippedTheme: user.equippedTheme ?? null,
+    gender: user.gender ?? null,
+    streakShieldDays: user.streakShieldDays ?? 0,
     createdAt: user.createdAt.toISOString(),
   };
 }
