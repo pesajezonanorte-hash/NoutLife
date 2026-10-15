@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Coins, LogOut, MessageSquarePlus, Music, Sparkles, Volume2, VolumeX, Zap, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button, ProgressBar, SegmentedControl, Sheet } from '@/components/ui/lq';
+import { SkinModeNote } from '@/components/settings/SkinModeNote';
 import { useAuthStore } from '@/store/authStore';
 import { useUIStore } from '@/store/uiStore';
 import { parseEmbed } from '@/components/ui/MusicPlayer';
@@ -65,6 +66,7 @@ export function MenuSheet() {
   const { audioEnabled, toggleAudio } = useUIStore();
   const mode = useThemeStore((s) => s.mode);
   const setMode = useThemeStore((s) => s.setMode);
+  const skin = useThemeStore((s) => s.skin);
   const { logout, openSage } = useShellActions();
   const close = () => setOpen(false);
   const then = (fn: () => void) => () => { close(); fn(); };
@@ -116,7 +118,7 @@ export function MenuSheet() {
 
       <section className="flex flex-col gap-3">
         <h3 className="text-label-md uppercase text-on-surface-light">Tema</h3>
-        <SegmentedControl role="radiogroup" label="Tema" value={mode} onChange={setMode} options={THEMES} />
+        {skin ? <SkinModeNote /> : <SegmentedControl role="radiogroup" label="Tema" value={mode} onChange={setMode} options={THEMES} />}
       </section>
 
       <div className="flex flex-col gap-2 border-t border-border pt-4">

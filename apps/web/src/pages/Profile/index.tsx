@@ -21,6 +21,7 @@ import { useMotionStore } from '@/store/motionStore';
 import { useToastStore } from '@/hooks/useToast';
 import { useShellActions } from '@/components/layout/actions';
 import { AnimatedValue, Button, Card, IconChip, ProgressBar, SegmentedControl, Select, Skeleton, Switch } from '@/components/ui/lq';
+import { SkinModeNote } from '@/components/settings/SkinModeNote';
 import { softTone } from '@/components/ui/lq/tones';
 import { AvatarCustomizer } from '@/components/character/AvatarCustomizer';
 import { PixelAvatar } from '@/components/character/pixel/PixelAvatar';
@@ -91,6 +92,7 @@ export default function ProfilePage() {
   const updateUser = useAuthStore((s) => s.updateUser);
   const mode = useThemeStore((s) => s.mode);
   const setMode = useThemeStore((s) => s.setMode);
+  const skin = useThemeStore((s) => s.skin);
   const reduce = useMotionStore((s) => s.reduce);
   const setReduce = useMotionStore((s) => s.setReduce);
   const { logout } = useShellActions();
@@ -270,10 +272,12 @@ export default function ProfilePage() {
         <Switch id="pf-notif" checked={notifOn} disabled={!prefs} onChange={(e) => void toggleNotifications(e.target.checked)} />
       </SettingRow>
       <SettingRow icon={Sun} title="Tema" hint="Se aplica al instante" labelId="pf-theme" stack className="md:flex-nowrap">
-        <SegmentedControl
-          role="radiogroup" label="Tema" value={mode} onChange={setMode} options={THEME_OPTIONS}
-          className="w-full md:w-[300px] md:shrink-0"
-        />
+        {skin ? <SkinModeNote className="md:max-w-[300px]" /> : (
+          <SegmentedControl
+            role="radiogroup" label="Tema" value={mode} onChange={setMode} options={THEME_OPTIONS}
+            className="w-full md:w-[300px] md:shrink-0"
+          />
+        )}
       </SettingRow>
       <SettingRow icon={Globe} title="Idioma" hint="Preferencia de tu cuenta" htmlFor="pf-lang">
         <div className="w-40 shrink-0 sm:w-[220px]">

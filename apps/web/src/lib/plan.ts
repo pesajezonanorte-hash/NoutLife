@@ -32,7 +32,7 @@ export const PRO_ZONES: Record<ProZone, ProZoneInfo> = {
   learning: { label: 'Aprendizaje', pitch: 'Tus libros y cursos, con el progreso de cada uno.' },
   love: { label: 'Relaciones', pitch: 'Fechas importantes, ideas de regalo y las personas que te importan.' },
   mirror: { label: 'Espejo', pitch: 'Tu armario, outfits y rutinas de cuidado personal.' },
-  wisdom: { label: 'Sabiduría', pitch: 'Ideas y frases que desbloqueas al subir de nivel.' },
+  wisdom: { label: 'Sabiduría', pitch: 'Citas de filósofos, estrategas y atletas históricos. Subir de nivel abre más.' },
   'custom-zones': { label: 'Mis zonas', pitch: 'Zonas a tu medida, con sus propios hábitos, misiones y métricas.' },
 };
 

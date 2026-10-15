@@ -174,31 +174,6 @@ export async function chooseClass(userId: string, playerClass: string) {
   });
 }
 
-// ─── Theme ────────────────────────────────────────────────────────────────────
-
-const FREE_THEMES = ['aurora'];
-const PAID_THEMES: Record<string, number> = { cyber: 200, forest: 200, ocean: 200, sunset: 300, retro_snes: 500 };
-
-export async function setTheme(userId: string, theme: string) {
-  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { gold: true } });
-
-  if (!FREE_THEMES.includes(theme)) {
-    const cost = PAID_THEMES[theme];
-    if (cost === undefined) throw new Error('Tema no existe');
-    // Check inventory (purchased theme)
-    const owned = await prisma.inventoryItem.findFirst({
-      where: { userId, shopItem: { name: { contains: theme, mode: 'insensitive' } } },
-    });
-    if (!owned) throw new Error(`Necesitas comprar el tema ${theme} en la tienda`);
-  }
-
-  return prisma.user.update({
-    where: { id: userId },
-    data: { activeTheme: theme },
-    select: { activeTheme: true },
-  });
-}
-
 // ─── Bedtime Goal ─────────────────────────────────────────────────────────────
 
 export async function setBedtimeGoal(userId: string, bedtimeGoal: string | null) {

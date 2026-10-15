@@ -73,10 +73,12 @@ export default {
         'on-surface': { DEFAULT: c('on-surface'), light: c('on-surface-light') },
       },
       fontFamily: {
-        sans:  ['Montserrat', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
-        pixel: ['Montserrat', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+        sans:  ['var(--lq-font-sans)', 'Montserrat', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+        pixel: ['var(--lq-font-sans)', 'Montserrat', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+        // Citas de Sabiduría (y el cuerpo del tema Papiro).
+        serif: ['EB Garamond', 'Garamond', 'Georgia', 'serif'],
         mono:  ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
-        vt:    ['Montserrat', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+        vt:    ['var(--lq-font-sans)', 'Montserrat', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
       },
       boxShadow: {
         pixel:       'var(--shadow-sm)',

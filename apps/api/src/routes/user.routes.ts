@@ -5,7 +5,7 @@ import { validate } from '../middleware/validate.middleware';
 import { avatarSchema, onboardingSchema } from '../schemas/quest.schemas';
 import { updateProfileSchema } from '../schemas/activity.schemas';
 import * as userController from '../controllers/user.controller';
-import { chooseClass, setTheme, setBedtimeGoal } from '../services/user.service';
+import { chooseClass, setBedtimeGoal } from '../services/user.service';
 
 const router = Router();
 
@@ -21,11 +21,6 @@ router.post('/me/guide/dismiss', userController.dismissGuide);
 
 router.post('/me/class', async (req: AuthRequest, res) => {
   try { res.json(await chooseClass(req.userId!, req.body.playerClass)); }
-  catch (err: any) { res.status(400).json({ message: publicErrorMessage(err) }); }
-});
-
-router.patch('/me/theme', async (req: AuthRequest, res) => {
-  try { res.json(await setTheme(req.userId!, req.body.theme)); }
   catch (err: any) { res.status(400).json({ message: publicErrorMessage(err) }); }
 });
 

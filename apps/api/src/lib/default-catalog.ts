@@ -82,12 +82,15 @@ export const DEFAULT_SHOP_ITEMS = [
   { name: 'Corona de Cristal', description: 'Tallada en cristal de cueva. Solo existen 25.', type: 'HAT', cost: 2500, imageKey: 'hat_crystal', levelRequired: 8, slot: 'extra', value: 'corona_cristal', isLimited: true, stock: 25 },
   { name: 'Alas de Hada', description: 'Translúcidas y brillantes. Solo existen 40.', type: 'COSMETIC', cost: 3000, imageKey: 'wings_fairy', levelRequired: 10, slot: 'extra', value: 'alas', isLimited: true, stock: 40 },
   { name: 'Aura de Cometa', description: 'Una estela que te sigue a todas partes. Solo existen 50.', type: 'AURA', cost: 2800, imageKey: 'aura_comet', levelRequired: 10, slot: 'aura', value: 'aura_comet', isLimited: true, stock: 50 },
-  { name: 'Tema: Aurora Boreal', description: 'Verde y morado, el tema por defecto', type: 'THEME', cost: 0, imageKey: 'theme_aurora', levelRequired: 1, slot: 'theme', value: 'theme_aurora' },
-  { name: 'Tema: Océano Profundo', description: 'Azules y cyan, calma del mar', type: 'THEME', cost: 400, imageKey: 'theme_ocean', levelRequired: 1, slot: 'theme', value: 'theme_ocean' },
-  { name: 'Tema: Lava Volcánica', description: 'Rojos y naranja, puro fuego', type: 'THEME', cost: 500, imageKey: 'theme_lava', levelRequired: 3, slot: 'theme', value: 'theme_lava' },
-  { name: 'Tema: Bosque Oscuro', description: 'Verdes oscuros, naturaleza salvaje', type: 'THEME', cost: 500, imageKey: 'theme_forest', levelRequired: 3, slot: 'theme', value: 'theme_forest' },
-  { name: 'Tema: Ciudad Neón', description: 'Cyberpunk. Rosa y cyan brillante.', type: 'THEME', cost: 700, imageKey: 'theme_neon', levelRequired: 6, slot: 'theme', value: 'theme_neon' },
-  { name: 'Tema: Galaxia', description: 'Morado cósmico, estrellas infinitas', type: 'THEME', cost: 800, imageKey: 'theme_galaxy', levelRequired: 8, slot: 'theme', value: 'theme_galaxy' },
+  { name: 'Tema: Aurora Boreal', description: 'El tema de siempre: jade y marfil, en claro u oscuro.', type: 'THEME', cost: 0, imageKey: 'theme_aurora', levelRequired: 1, slot: 'theme', value: 'theme_aurora' },
+  { name: 'Tema: Minimalista Oscuro', description: 'Negro puro y blanco. Sin color, sin sombras, nada que distraiga.', type: 'THEME', cost: 300, imageKey: 'theme_mono', levelRequired: 1, slot: 'theme', value: 'theme_mono' },
+  { name: 'Tema: Océano Profundo', description: 'El abismo azul marino con luz bioluminiscente.', type: 'THEME', cost: 400, imageKey: 'theme_ocean', levelRequired: 1, slot: 'theme', value: 'theme_ocean' },
+  { name: 'Tema: Naturaleza', description: 'Un claro de bosque: hojas, madera y sol que se cuela.', type: 'THEME', cost: 450, imageKey: 'theme_forest', levelRequired: 2, slot: 'theme', value: 'theme_forest' },
+  { name: 'Tema: Lava Volcánica', description: 'Basalto negro y roca fundida que brilla desde abajo.', type: 'THEME', cost: 500, imageKey: 'theme_lava', levelRequired: 3, slot: 'theme', value: 'theme_lava' },
+  { name: 'Tema: Papiro Antiguo', description: 'Pergamino gastado, tinta sepia y letra de códice.', type: 'THEME', cost: 600, imageKey: 'theme_papyrus', levelRequired: 4, slot: 'theme', value: 'theme_papyrus' },
+  { name: 'Tema: Ciudad Neón', description: 'Noche violeta con letreros rosa y cian que brillan.', type: 'THEME', cost: 700, imageKey: 'theme_neon', levelRequired: 6, slot: 'theme', value: 'theme_neon' },
+  { name: 'Tema: Galaxia', description: 'Índigo profundo, nebulosas y un campo de estrellas.', type: 'THEME', cost: 800, imageKey: 'theme_galaxy', levelRequired: 8, slot: 'theme', value: 'theme_galaxy' },
+  { name: 'Tema: Cyberpunk', description: 'Amarillo de advertencia, cortes rectos y líneas de escaneo.', type: 'THEME', cost: 900, imageKey: 'theme_cyber', levelRequired: 10, slot: 'theme', value: 'theme_cyber' },
 ] as const;
 
 type CatalogClient = Pick<PrismaClient, 'achievement' | 'shopItem'>;

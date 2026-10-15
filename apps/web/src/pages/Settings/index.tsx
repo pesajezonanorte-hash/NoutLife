@@ -10,6 +10,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import api from '@/lib/api';
+import * as shopService from '@/services/shop.service';
 import { item, pop3, stagger } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
@@ -22,14 +23,15 @@ import {
   getNotificationPreferences, enablePush, PUSH_MESSAGES, pushSupport, sendTestNotification, updateNotificationPreferences,
   type NotificationCategoryPreference, type NotificationPreferences,
 } from '@/services/notification.service';
-import { THEME_PALETTES } from '@/lib/shopThemes';
+import { SKINS, THEME_PALETTES, skinOf, themeIdOf } from '@/lib/shopThemes';
 import { daysUntil, longDay } from '@/lib/plan';
-import type { Gender, Subscription } from '@noutlife/shared';
+import type { Gender, InventoryItem, ShopItem, Subscription, User as Account } from '@noutlife/shared';
 import { GENDER_OPTIONS, canUseCycle } from '@/utils/gender';
 import { ZoneToggleList } from '@/components/settings/ZoneOrderEditor';
 import { PrivacyPanel } from '@/components/settings/PrivacyPanel';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DangerDialog } from '@/components/settings/DangerDialog';
+import { SkinModeNote } from '@/components/settings/SkinModeNote';
 import {
   Badge, Button, Card, Field, IconChip, Input, ProgressBar, SegmentedControl, Select, Switch, AnimatedValue,
 } from '@/components/ui/lq';
@@ -42,14 +44,6 @@ const TABS: Array<{ value: TabId; label: string }> = [
 const NOTIF_LABELS: Record<NotificationCategoryPreference['category'], string> = {
   HABITS: 'Hábitos', QUESTS: 'Misiones', COLISEO: 'Coliseo', FINANCE: 'Finanzas', SOCIAL: 'Social', ACHIEVEMENTS: 'Logros', SYSTEM: 'Sistema',
 };
-const THEMES: Array<{ id: string; name: string; description: string; cost: number }> = [
-  { id: 'aurora', name: 'Aurora', description: 'La experiencia Noutlife original.', cost: 0 },
-  { id: 'cyber', name: 'Cyber', description: 'Contraste sobrio y preciso.', cost: 200 },
-  { id: 'forest', name: 'Bosque', description: 'Una paleta tranquila para concentrarte.', cost: 200 },
-  { id: 'ocean', name: 'Océano', description: 'Neutros fríos para sesiones largas.', cost: 200 },
-  { id: 'sunset', name: 'Atardecer', description: 'Contraste suave con un toque cálido.', cost: 300 },
-  { id: 'retro', name: 'Retro', description: 'Un homenaje minimalista a los RPG clásicos.', cost: 500 },
-];
 const TIMEZONES = [
   ['America/Bogota', 'Bogotá (UTC−5)'], ['America/New_York', 'Nueva York (UTC−5)'], ['America/Chicago', 'Chicago (UTC−6)'],
   ['America/Mexico_City', 'Ciudad de México (UTC−6)'], ['America/Argentina/Buenos_Aires', 'Buenos Aires (UTC−3)'],
@@ -101,6 +95,8 @@ export default function SettingsPage() {
   const [showPlaylist, setShowPlaylist] = useState(Boolean(user?.coliseoPlaylistUrl));
   const [saving, setSaving] = useState(false);
   const [themeLoading, setThemeLoading] = useState<string | null>(null);
+  /** Temas del catálogo y lo comprado: la Tienda es la fuente (users.equippedTheme). */
+  const [themes, setThemes] = useState<{ items: ShopItem[]; inv: InventoryItem[] } | null>(null);
   const [exporting, setExporting] = useState<'json' | 'csv' | null>(null);
   const [prefs, setPrefs] = useState<NotificationPreferences | null>(null);
   const [savingPrefs, setSavingPrefs] = useState(false);
@@ -110,7 +106,7 @@ export default function SettingsPage() {
   /** Al guardar, las piezas encajan; cada valor que cambia hace girar los engranajes. */
   const [fit, setFit] = useState(0);
   const [turns, setTurns] = useState(0);
-  const sig = JSON.stringify([displayName, timezone, gender, showPlaylist, audioEnabled, reduceMotion, mode, (user as { activeTheme?: string } | null)?.activeTheme, prefs]);
+  const sig = JSON.stringify([displayName, timezone, gender, showPlaylist, audioEnabled, reduceMotion, mode, user?.equippedTheme, prefs]);
   const lastSig = useRef(sig);
   useEffect(() => { if (lastSig.current !== sig) { lastSig.current = sig; setTurns((t) => t + 1); } }, [sig]);
 
@@ -119,8 +115,13 @@ export default function SettingsPage() {
     setPlaylistUrl(user?.coliseoPlaylistUrl ?? ''); setShowPlaylist(Boolean(user?.coliseoPlaylistUrl));
   }, [user]);
   useEffect(() => { getNotificationPreferences().then(setPrefs).catch(() => null); }, []);
+  useEffect(() => {
+    Promise.all([shopService.fetchShopItems(), shopService.fetchInventory()])
+      .then(([items, inv]) => setThemes({ items: items.filter((i) => i.type === 'THEME' && themeIdOf(i)), inv }))
+      .catch(() => setThemes({ items: [], inv: [] }));
+  }, []);
 
-  const activeTheme = (user as { activeTheme?: string } | null)?.activeTheme ?? 'aurora';
+  const activeTheme = skinOf(user?.equippedTheme) ?? 'aurora';
   const notificationsOn = permission === 'granted';
   const spotifyId = playlistUrl.match(/playlist\/([a-zA-Z0-9]+)/)?.[1] ?? null;
 
@@ -139,15 +140,20 @@ export default function SettingsPage() {
     } catch { toast.error('No se pudieron guardar los cambios'); }
     finally { setSaving(false); }
   }
-  async function applyTheme(id: string, name: string) {
+  /** Aurora quita el tema puesto; cualquier otro se equipa (si está comprado). */
+  async function applyTheme(it: ShopItem) {
+    const id = themeIdOf(it);
+    const inv = id === 'aurora'
+      ? themes?.inv.find((i) => i.shopItem.slot === 'theme' && i.shopItem.value === user?.equippedTheme)
+      : themes?.inv.find((i) => i.shopItemId === it.id);
+    if (!inv || !id) return;
     setThemeLoading(id);
     try {
-      await api.patch('/users/me/theme', { theme: id });
-      document.documentElement.setAttribute('data-theme', id);
-      updateUser({ ...(user as object), activeTheme: id } as never);
-      toast.success(`Tema ${name} aplicado`);
+      const r = await shopService.equipItem(inv.id);
+      if (r.user) updateUser(r.user as Partial<Account>);
+      toast.success(id === 'aurora' ? 'Volviste a Aurora, el tema de siempre' : `${it.name}: toda la app cambió`);
       setFit((f) => f + 1);
-    } catch { toast.error('Aún no tienes ese tema. Desbloquéalo en la Tienda.'); }
+    } catch { toast.error('No se pudo cambiar el tema. Inténtalo de nuevo.'); }
     finally { setThemeLoading(null); }
   }
   async function enableNotifications() {
@@ -276,32 +282,51 @@ export default function SettingsPage() {
                     </div>
                     <div className="flex flex-col gap-3 border-t border-border pt-5">
                       <span id="st-theme" className="text-label-lg md:text-body-md md:font-semibold">Tema</span>
-                      <div className="max-w-[360px]">
-                        <SegmentedControl role="radiogroup" label="Tema" value={mode} onChange={setMode} options={modes.map(({ value, label }) => ({ value, label }))} />
-                      </div>
+                      {activeTheme === 'aurora' ? (
+                        <div className="max-w-[360px]">
+                          <SegmentedControl role="radiogroup" label="Tema" value={mode} onChange={setMode} options={modes.map(({ value, label }) => ({ value, label }))} />
+                        </div>
+                      ) : (
+                        <SkinModeNote />
+                      )}
                     </div>
                   </Section>
 
-                  <Section title="Paleta de Noutlife" description="Los temas comprados en la Tienda se aplican aquí sin cambiar tus datos." fit={fit}>
-                    <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                      {THEMES.map((t) => {
-                        const p = THEME_PALETTES[t.id];
-                        const on = activeTheme === t.id;
-                        return (
-                          <li key={t.id}>
-                            <Card padding="sm" interactive className={cn('flex h-full flex-col gap-3', on && 'border-primary')}>
-                              <div className="flex items-start justify-between gap-2">
-                                <IconChip icon={Palette} tone={on ? 'primary' : 'muted'} size="sm" />
-                                {on ? <Badge variant="success" icon={Check}>En uso</Badge> : t.cost > 0 && <Badge variant="warning"><span className="font-mono">{t.cost}</span> Gold</Badge>}
-                              </div>
-                              <div><p className="text-label-lg">{t.name}</p><p className="text-body-sm text-on-surface-light">{t.description}</p></div>
-                              <div aria-hidden className="flex gap-1.5">{[p.accent, p.soft, p.background].map((c, i) => <span key={i} className="h-2.5 flex-1 rounded-full" style={{ background: c }} />)}</div>
-                              <Button size="sm" variant={on ? 'secondary' : 'primary'} disabled={on} loading={themeLoading === t.id} onClick={() => void applyTheme(t.id, t.name)} className="mt-auto">{on ? 'En uso' : 'Aplicar'}</Button>
-                            </Card>
-                          </li>
-                        );
-                      })}
-                    </ul>
+                  <Section title="Tema de la app" description="Cada tema cambia fondos, tarjetas, botones, bordes, sombras y letra de toda la app. Se compran en la Tienda y se quedan en tu cuenta." fit={fit}>
+                    {!themes ? <p className="text-body-sm text-on-surface-light">Cargando temas…</p> : (
+                      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                        {themes.items.map((it) => {
+                          const id = themeIdOf(it)!;
+                          const p = THEME_PALETTES[id];
+                          const on = activeTheme === id;
+                          const owned = id === 'aurora' || themes.inv.some((i) => i.shopItemId === it.id);
+                          return (
+                            <li key={it.id}>
+                              <Card padding="sm" interactive className={cn('flex h-full flex-col gap-3', on && 'border-primary')}>
+                                {/* Muestra del tema con sus propios colores */}
+                                <div aria-hidden className="flex h-16 gap-2 rounded-lg p-2" style={{ background: p.background }}>
+                                  <span className="w-6 rounded-md" style={{ background: p.accent }} />
+                                  <span className="flex flex-1 flex-col justify-center gap-1.5 rounded-md px-2" style={{ background: p.surface }}>
+                                    <span className="h-1.5 w-3/4 rounded-full" style={{ background: p.text }} />
+                                    <span className="h-1.5 w-1/2 rounded-full" style={{ background: p.soft }} />
+                                  </span>
+                                </div>
+                                <div className="flex items-start justify-between gap-2">
+                                  <div><p className="text-label-lg">{it.name.replace(/^Tema: /, '')}</p><p className="text-body-sm text-on-surface-light">{it.description}</p></div>
+                                  {on ? <Badge variant="success" icon={Check} className="shrink-0">En uso</Badge> : !owned && <Badge variant="warning" className="shrink-0"><span className="font-mono">{it.cost}</span> Gold</Badge>}
+                                </div>
+                                <p className="text-body-sm text-on-surface-light">{id === 'aurora' ? 'Claro, oscuro o automático' : SKINS[id].scheme === 'dark' ? 'Siempre oscuro' : 'Siempre claro'}</p>
+                                {owned ? (
+                                  <Button size="sm" variant={on ? 'secondary' : 'primary'} disabled={on} loading={themeLoading === id} onClick={() => void applyTheme(it)} className="mt-auto">{on ? 'En uso' : 'Usar este tema'}</Button>
+                                ) : (
+                                  <Button size="sm" variant="secondary" onClick={() => navigate('/shop')} className="mt-auto"><Palette aria-hidden className="size-4" />Ver en la Tienda</Button>
+                                )}
+                              </Card>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
                   </Section>
 
                   <Section title="Notificaciones" description="Elige qué avisos recibes y cuándo se silencian."

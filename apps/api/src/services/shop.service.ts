@@ -1,6 +1,8 @@
 // La Tienda: comprar con Gold y llevarlo puesto. Lo que es para el personaje
 // (sombreros, accesorios, ropa, peinados, auras y marcos) se pone en cuanto se
 // compra y luego se quita o se vuelve a poner desde el inventario o el estudio.
+// Los temas también se ponen al comprarlos: users.equippedTheme es la fuente de
+// verdad que la web aplica a toda la interfaz.
 // Los exclusivos tienen unidades limitadas para toda la comunidad.
 // Los protectores de racha (Pase de Perdón, Escudo) no se poseen: cada compra
 // suma días de escudo a la racha general y se puede volver a comprar.
@@ -90,8 +92,8 @@ export async function purchaseItem(userId: string, shopItemId: string) {
     return tx.inventoryItem.create({ data: { userId, shopItemId }, include: { shopItem: true } });
   });
 
-  // Lo comprado para el personaje se lleva puesto desde ya.
-  const wearable = EQUIP_TYPES.has(item.type) && item.type !== 'THEME' && (item.slot ? AVATAR_SLOTS.has(item.slot) || item.slot in USER_FIELD : false);
+  // Lo comprado se lleva puesto desde ya (personaje, aura, marco o tema).
+  const wearable = EQUIP_TYPES.has(item.type) && (item.slot ? AVATAR_SLOTS.has(item.slot) || item.slot in USER_FIELD : false);
   const equipped = wearable ? await setEquipped(userId, inventoryItem.id, true) : inventoryItem;
   // Solo lo que cambia en la cuenta (nunca la fila entera: lleva el hash de la contraseña).
   const updatedUser = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: PUBLIC_USER_FIELDS });

@@ -1525,7 +1525,9 @@ model WisdomCard {
   id          String  @id @default(cuid())
   quote       String
   author      String?
-  category    String  // 'discipline' | 'mindset' | 'finance' | 'health' | 'relationships' | 'growth'
+  /// Obra u ocasión de la cita (Meditaciones, Cartas a Lucilio…).
+  source      String?
+  category    String  // 'discipline' | 'mindset' | 'strategy' | 'finance' | 'health' | 'relationships' | 'growth'
   levelRequired Int   @default(1)
 
   @@map("wisdom_cards")

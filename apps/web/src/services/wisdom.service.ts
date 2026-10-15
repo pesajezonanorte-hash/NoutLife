@@ -4,6 +4,8 @@ export interface WisdomCard {
   id: string;
   quote: string;
   author?: string;
+  /** Obra u ocasión de la cita. */
+  source?: string | null;
   category: string;
   levelRequired: number;
 }
