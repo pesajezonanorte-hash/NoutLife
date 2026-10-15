@@ -50,6 +50,7 @@ import cronRoutes         from './cron.routes';
 import billingRoutes      from './billing.routes';
 // Ciclo menstrual (solo cuentas con gender = 'female')
 import cycleRoutes        from './cycle.routes';
+import adminRoutes        from './admin.routes';
 
 const router = Router();
 
@@ -103,6 +104,7 @@ router.use('/anti-habits',  antiHabitRoutes);
 router.use('/shares',       sharesRoutes);
 router.use('/billing',      billingRoutes);
 router.use('/cycle',        cycleRoutes);
+router.use('/admin',        adminRoutes);
 
 router.get('/health', (_req, res) => {
   res.json({ status: 'ok', version: '10.0.0', timestamp: new Date().toISOString() });

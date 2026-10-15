@@ -4,6 +4,7 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence, useReducedMotionConfig } from 'framer-motion';
 import { useAuthStore } from './store/authStore';
 import { useThemeStore } from './store/themeStore';
+import { isAdminEmail } from './utils/admin';
 import { skinOf } from './lib/shopThemes';
 import { useUIStore } from './store/uiStore';
 import { useBootstrapAuth } from './hooks/useAuth';
@@ -36,6 +37,7 @@ const loaders = {
   LegalPage: () => import('./pages/Legal'),
   DashboardPage: () => import('./pages/Dashboard'),
   ProfilePage: () => import('./pages/Profile'),
+  AdminPage: () => import('./pages/Admin'),
   OnboardingPage: () => import('./pages/Onboarding'),
   QuestsPage: () => import('./pages/Quests'),
   HabitsPage: () => import('./pages/Habits'),
@@ -237,6 +239,8 @@ function AnimatedRoutes({ location }: { location: ReturnType<typeof useLocation>
         <Routes location={location}>
           <Route path="/"             element={<SafePage><DeferredLazyPage load={loaders.DashboardPage} /></SafePage>} />
           <Route path="/profile"      element={<SafePage><DeferredLazyPage load={loaders.ProfilePage} /></SafePage>} />
+          {/* Administración: solo las cuentas de utils/admin (el servidor vuelve a comprobarlo). */}
+          <Route path="/admin"        element={<AdminRoute><SafePage><DeferredLazyPage load={loaders.AdminPage} /></SafePage></AdminRoute>} />
           <Route path="/character"    element={<Navigate to="/profile" replace />} />
           <Route path="/quests"       element={<SafePage><DeferredLazyPage load={loaders.QuestsPage} /></SafePage>} />
           <Route path="/quests/new"   element={<SafePage><DeferredLazyPage load={loaders.QuestsPage} /></SafePage>} />
@@ -359,6 +363,11 @@ function DeferredRouteContent() {
       </AnimatePresence>
     </div>
   );
+}
+
+function AdminRoute({ children }: { children: ReactNode }) {
+  const email = useAuthStore((s) => s.user?.email);
+  return isAdminEmail(email) ? <>{children}</> : <Navigate to="/" replace />;
 }
 
 function ProtectedRoute({ children }: { children: ReactNode }) {

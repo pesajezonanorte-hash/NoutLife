@@ -4,7 +4,8 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ZoneShell } from '@/components/ambience';
 import { Gears, HangingTools, Workbench } from '@/components/settings/Workshop';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { isAdminEmail } from '@/utils/admin';
 import {
   AlertTriangle, Bell, Check, Download, FileText, Gamepad2, Gem, Info, Monitor, Moon, Music, Palette, RotateCcw, Save, Sun, Trash2, User,
   type LucideIcon,
@@ -222,6 +223,9 @@ export default function SettingsPage() {
       )}
     >
       <PageHeader eyebrow="Espacio personal" title="Ajustes" description="Tu experiencia, tus datos y las herramientas que acompañan tu progreso." aside={<Gears turns={turns} className="hidden sm:block" />} />
+      {isAdminEmail(user?.email) && (
+        <Link to="/admin" className="self-start text-label-lg text-primary-text underline underline-offset-2">Administración: cuentas y pagos</Link>
+      )}
 
       <motion.div variants={item} className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
         <SegmentedControl label="Sección" value={tab} onChange={setTab} options={TABS} className="min-w-[600px] max-w-[820px]" />
