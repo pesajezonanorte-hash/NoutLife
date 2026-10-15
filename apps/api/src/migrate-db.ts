@@ -207,6 +207,15 @@ const DATA_OPS: Array<[string, () => Promise<void>]> = [
     if (bought.length) await prisma.inventoryItem.updateMany({ where: { id: { in: bought.map((row) => row.id) } }, data: { usedAt: new Date() } });
     console.log(`Streak shields: ${days.size} players credited.`);
   }],
+  // Temas rediseñados: los que ya existían toman su nombre, descripción, precio y
+  // nivel nuevos (por imageKey, así quien los compró los conserva). Bosque Oscuro
+  // pasa a ser Naturaleza. Los temas nuevos los crea ensureDefaultCatalog.
+  ['2026-10-25-theme-rework', async () => {
+    for (const item of DEFAULT_SHOP_ITEMS) {
+      if (item.type !== 'THEME') continue;
+      await prisma.shopItem.updateMany({ where: { imageKey: item.imageKey }, data: { name: item.name, description: item.description, cost: item.cost, levelRequired: item.levelRequired } });
+    }
+  }],
 ];
 
 async function runDataOpsOnce() {
@@ -226,6 +235,8 @@ async function migrate() {
   // Va primero: este cliente de Prisma ya lee "gender" y "streakShieldDays" en
   // cualquier consulta de users sin select (settleLevel, más abajo).
   for (const sql of GENDER_CYCLE_AND_SHIELDS_SQL) await prisma.$executeRawUnsafe(sql);
+  // Idempotent mirror of prisma/migrations/20261025120000_wisdom_source (antes del seed de Sabiduría).
+  await prisma.$executeRawUnsafe(`ALTER TABLE "wisdom_cards" ADD COLUMN IF NOT EXISTS "source" TEXT;`);
 
   await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "avatarUrl" TEXT;`);
   await prisma.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "googleAccessToken" TEXT;`);

@@ -1,0 +1,237 @@
+/* Temas de la Tienda (skins). Cada tema redefine TODOS los tokens --lq-* del
+   sistema de diseño (fondos, superficies, bordes, texto, acentos, semánticos,
+   escala jade de ilustraciones), además de radios, sombras, la fuente de la app
+   y un fondo propio (--lq-backdrop). Los alias heredados (--bg-deep, --border…)
+   se derivan de --lq-*, así que barras laterales, modales, tarjetas y botones
+   cambian todos a la vez.
+   Cada tema tiene un solo esquema (claro u oscuro): store/themeStore pone la
+   clase .dark/.light que le toca. Aurora (sin data-theme de tema) es la paleta
+   Jade de tokens.css. Va después de tokens.css: igual especificidad que
+   html.dark, gana por orden. Texto sobre superficie ≥ 4.5:1 en todos. */
+
+:root { --lq-font-sans: 'Montserrat'; --lq-backdrop: none; }
+
+/* ── Océano Profundo: abismo azul marino con luz bioluminiscente ─────────── */
+html[data-theme="ocean"] {
+  --lq-jade-50: 227 244 255; --lq-jade-100: 201 235 251; --lq-jade-200: 163 220 245;
+  --lq-jade-300: 111 198 236; --lq-jade-400: 63 176 224; --lq-jade-500: 31 147 198;
+  --lq-jade-600: 22 115 158; --lq-jade-700: 17 86 121; --lq-jade-800: 12 58 85; --lq-jade-900: 4 17 31;
+  --lq-primary: 46 230 214; --lq-primary-strong: 46 230 214; --lq-primary-hover: 127 243 232; --lq-primary-text: 111 240 228; --lq-on-primary: 3 32 42;
+  --lq-secondary: 242 196 109; --lq-secondary-text: 242 196 109;
+  --lq-forest: 158 201 255; --lq-forest-text: 158 201 255;
+  --lq-success: 61 220 151; --lq-success-text: 61 220 151; --lq-success-strong: 61 220 151; --lq-on-success: 3 32 42;
+  --lq-warning: 255 181 71; --lq-warning-text: 255 181 71;
+  --lq-error: 255 107 122; --lq-error-text: 255 154 165;
+  --lq-info: 95 180 255; --lq-info-text: 156 208 255;
+  --lq-background: 4 17 31; --lq-surface: 10 29 51; --lq-surface-variant: 16 42 71;
+  --lq-border: 23 57 92; --lq-border-strong: 63 120 168;
+  --lq-on-background: 227 244 255; --lq-on-surface: 180 220 245; --lq-on-surface-light: 127 169 201;
+  --lq-soft-alpha: .16;
+  --radius-sm: 8px; --radius-md: 12px; --radius-lg: 20px;
+  --shadow-sm: 0 1px 3px rgb(0 0 0 / .45);
+  --shadow-md: 0 6px 18px rgb(0 8 20 / .55), 0 0 0 1px rgb(46 230 214 / .05);
+  --shadow-lg: 0 16px 40px rgb(0 8 20 / .6), 0 0 28px rgb(46 230 214 / .1);
+  --lq-backdrop:
+    radial-gradient(110% 55% at 50% -12%, rgb(46 230 214 / .16), transparent 62%),
+    radial-gradient(70% 45% at 100% 105%, rgb(31 147 198 / .22), transparent 70%),
+    radial-gradient(45% 35% at 0% 80%, rgb(95 180 255 / .1), transparent 70%);
+}
+
+/* ── Lava Volcánica: basalto negro con grietas de roca fundida ───────────── */
+html[data-theme="lava"] {
+  --lq-jade-50: 255 240 230; --lq-jade-100: 255 217 194; --lq-jade-200: 255 185 143;
+  --lq-jade-300: 255 148 89; --lq-jade-400: 255 106 31; --lq-jade-500: 224 78 11;
+  --lq-jade-600: 179 58 8; --lq-jade-700: 133 42 7; --lq-jade-800: 82 26 6; --lq-jade-900: 18 8 6;
+  --lq-primary: 255 106 31; --lq-primary-strong: 255 106 31; --lq-primary-hover: 255 140 77; --lq-primary-text: 255 154 92; --lq-on-primary: 26 7 0;
+  --lq-secondary: 255 194 71; --lq-secondary-text: 255 194 71;
+  --lq-forest: 232 160 122; --lq-forest-text: 232 160 122;
+  --lq-success: 139 212 106; --lq-success-text: 139 212 106; --lq-success-strong: 139 212 106; --lq-on-success: 18 8 6;
+  --lq-warning: 255 176 32; --lq-warning-text: 255 176 32;
+  --lq-error: 255 59 48; --lq-error-text: 255 138 128;
+  --lq-info: 127 196 232; --lq-info-text: 160 214 240;
+  --lq-background: 18 8 6; --lq-surface: 30 15 11; --lq-surface-variant: 43 22 16;
+  --lq-border: 61 32 23; --lq-border-strong: 165 83 47;
+  --lq-on-background: 255 240 230; --lq-on-surface: 245 205 181; --lq-on-surface-light: 201 147 122;
+  --lq-soft-alpha: .16;
+  --radius-sm: 4px; --radius-md: 8px; --radius-lg: 12px;
+  --shadow-sm: 0 1px 3px rgb(0 0 0 / .5);
+  --shadow-md: 0 6px 18px rgb(0 0 0 / .5), 0 0 14px rgb(255 80 20 / .12);
+  --shadow-lg: 0 16px 40px rgb(0 0 0 / .6), 0 0 36px rgb(255 80 20 / .22);
+  --lq-backdrop:
+    radial-gradient(90% 50% at 50% 112%, rgb(255 90 20 / .3), transparent 70%),
+    radial-gradient(45% 30% at 0% 100%, rgb(255 59 48 / .18), transparent 70%),
+    radial-gradient(40% 25% at 100% 0%, rgb(255 176 32 / .08), transparent 70%);
+}
+
+/* ── Naturaleza: claro de bosque, luz que se cuela entre las hojas ───────── */
+html[data-theme="forest"] {
+  --lq-font-sans: 'Nunito';
+  --lq-jade-50: 241 246 228; --lq-jade-100: 226 237 200; --lq-jade-200: 201 222 158;
+  --lq-jade-300: 168 201 114; --lq-jade-400: 134 178 75; --lq-jade-500: 101 154 47;
+  --lq-jade-600: 77 125 34; --lq-jade-700: 58 97 26; --lq-jade-800: 40 68 19; --lq-jade-900: 22 38 11;
+  --lq-primary: 61 122 30; --lq-primary-strong: 47 99 22; --lq-primary-hover: 74 140 39; --lq-primary-text: 47 99 22; --lq-on-primary: 255 255 255;
+  --lq-secondary: 176 122 18; --lq-secondary-text: 138 92 6;
+  --lq-forest: 107 74 43; --lq-forest-text: 107 74 43;
+  --lq-success: 47 143 78; --lq-success-text: 35 112 59; --lq-success-strong: 35 112 59; --lq-on-success: 255 255 255;
+  --lq-warning: 201 138 11; --lq-warning-text: 138 90 0;
+  --lq-error: 194 65 45; --lq-error-text: 158 47 30;
+  --lq-info: 47 127 158; --lq-info-text: 35 99 124;
+  --lq-background: 238 242 224; --lq-surface: 251 252 243; --lq-surface-variant: 223 232 200;
+  --lq-border: 205 216 176; --lq-border-strong: 111 128 72;
+  --lq-on-background: 31 42 18; --lq-on-surface: 51 68 28; --lq-on-surface-light: 90 104 56;
+  --lq-soft-alpha: .12;
+  --radius-sm: 10px; --radius-md: 16px; --radius-lg: 24px;
+  --shadow-sm: 0 1px 2px rgb(40 60 10 / .06), 0 2px 6px rgb(40 60 10 / .06);
+  --shadow-md: 0 6px 16px rgb(40 60 10 / .1), 0 2px 4px rgb(40 60 10 / .05);
+  --shadow-lg: 0 16px 36px rgb(40 60 10 / .14), 0 4px 10px rgb(40 60 10 / .06);
+  --lq-backdrop:
+    radial-gradient(38% 28% at 14% 8%, rgb(255 232 140 / .5), transparent 70%),
+    radial-gradient(30% 22% at 82% 26%, rgb(255 232 140 / .32), transparent 70%),
+    radial-gradient(70% 40% at 50% 112%, rgb(101 154 47 / .22), transparent 70%);
+}
+
+/* ── Ciudad Neón: noche violeta, letreros rosa y cian que brillan ────────── */
+html[data-theme="neon"] {
+  --lq-font-sans: 'Space Grotesk';
+  --lq-jade-50: 255 230 250; --lq-jade-100: 255 199 243; --lq-jade-200: 255 158 234;
+  --lq-jade-300: 255 111 227; --lq-jade-400: 255 43 214; --lq-jade-500: 214 26 181;
+  --lq-jade-600: 163 18 138; --lq-jade-700: 115 12 98; --lq-jade-800: 69 8 59; --lq-jade-900: 11 6 20;
+  --lq-primary: 255 43 214; --lq-primary-strong: 255 43 214; --lq-primary-hover: 255 111 227; --lq-primary-text: 255 122 230; --lq-on-primary: 26 0 22;
+  --lq-secondary: 255 225 77; --lq-secondary-text: 255 225 77;
+  --lq-forest: 34 229 255; --lq-forest-text: 34 229 255;
+  --lq-success: 59 255 157; --lq-success-text: 59 255 157; --lq-success-strong: 59 255 157; --lq-on-success: 11 6 20;
+  --lq-warning: 255 176 32; --lq-warning-text: 255 176 32;
+  --lq-error: 255 77 109; --lq-error-text: 255 143 163;
+  --lq-info: 34 229 255; --lq-info-text: 138 242 255;
+  --lq-background: 11 6 20; --lq-surface: 21 11 38; --lq-surface-variant: 31 17 55;
+  --lq-border: 46 26 82; --lq-border-strong: 138 79 209;
+  --lq-on-background: 251 239 255; --lq-on-surface: 226 201 247; --lq-on-surface-light: 169 140 201;
+  --lq-soft-alpha: .18;
+  --radius-sm: 8px; --radius-md: 12px; --radius-lg: 18px;
+  --shadow-sm: 0 0 0 1px rgb(255 43 214 / .14), 0 2px 8px rgb(0 0 0 / .5);
+  --shadow-md: 0 0 18px rgb(255 43 214 / .24), 0 4px 14px rgb(0 0 0 / .5);
+  --shadow-lg: 0 0 32px rgb(255 43 214 / .32), 0 0 70px rgb(34 229 255 / .14);
+  --lq-backdrop:
+    linear-gradient(rgb(255 43 214 / .07) 1px, transparent 1px) 0 0 / 44px 44px,
+    linear-gradient(90deg, rgb(34 229 255 / .06) 1px, transparent 1px) 0 0 / 44px 44px,
+    radial-gradient(60% 40% at 85% -5%, rgb(255 43 214 / .22), transparent 70%),
+    radial-gradient(55% 40% at 0% 100%, rgb(34 229 255 / .16), transparent 70%);
+}
+html[data-theme="neon"] :focus-visible { outline-color: rgb(34 229 255); }
+
+/* ── Galaxia: índigo profundo, nebulosas y un campo de estrellas ─────────── */
+html[data-theme="galaxy"] {
+  --lq-jade-50: 243 239 255; --lq-jade-100: 228 220 255; --lq-jade-200: 203 188 255;
+  --lq-jade-300: 177 155 253; --lq-jade-400: 167 139 250; --lq-jade-500: 139 108 240;
+  --lq-jade-600: 109 79 214; --lq-jade-700: 81 56 168; --lq-jade-800: 51 36 110; --lq-jade-900: 7 6 23;
+  --lq-primary: 167 139 250; --lq-primary-strong: 167 139 250; --lq-primary-hover: 196 181 253; --lq-primary-text: 196 181 253; --lq-on-primary: 18 10 51;
+  --lq-secondary: 255 210 122; --lq-secondary-text: 255 210 122;
+  --lq-forest: 240 171 252; --lq-forest-text: 240 171 252;
+  --lq-success: 94 234 212; --lq-success-text: 94 234 212; --lq-success-strong: 94 234 212; --lq-on-success: 7 6 23;
+  --lq-warning: 251 191 36; --lq-warning-text: 251 191 36;
+  --lq-error: 251 113 133; --lq-error-text: 253 164 175;
+  --lq-info: 125 211 252; --lq-info-text: 165 224 253;
+  --lq-background: 7 6 23; --lq-surface: 16 13 43; --lq-surface-variant: 25 20 63;
+  --lq-border: 38 30 87; --lq-border-strong: 122 104 224;
+  --lq-on-background: 241 237 255; --lq-on-surface: 210 201 255; --lq-on-surface-light: 157 147 214;
+  --lq-soft-alpha: .18;
+  --radius-sm: 8px; --radius-md: 14px; --radius-lg: 22px;
+  --shadow-sm: 0 1px 3px rgb(0 0 0 / .5);
+  --shadow-md: 0 6px 20px rgb(4 2 20 / .6), 0 0 16px rgb(167 139 250 / .1);
+  --shadow-lg: 0 18px 44px rgb(4 2 20 / .7), 0 0 40px rgb(167 139 250 / .18);
+  --lq-backdrop:
+    radial-gradient(1.2px 1.2px at 12% 18%, rgb(255 255 255 / .85), transparent 100%) 0 0 / 240px 240px,
+    radial-gradient(1px 1px at 64% 42%, rgb(255 255 255 / .6), transparent 100%) 0 0 / 240px 240px,
+    radial-gradient(1.5px 1.5px at 36% 78%, rgb(203 188 255 / .8), transparent 100%) 0 0 / 240px 240px,
+    radial-gradient(1px 1px at 88% 86%, rgb(255 255 255 / .5), transparent 100%) 0 0 / 240px 240px,
+    radial-gradient(1px 1px at 22% 58%, rgb(240 171 252 / .55), transparent 100%) 0 0 / 170px 170px,
+    radial-gradient(60% 42% at 80% 10%, rgb(139 108 240 / .28), transparent 70%),
+    radial-gradient(50% 38% at 10% 90%, rgb(240 171 252 / .16), transparent 70%);
+}
+
+/* ── Papiro Antiguo: pergamino gastado, tinta sepia y pan de oro ─────────── */
+html[data-theme="papyrus"] {
+  --lq-font-sans: 'EB Garamond';
+  --lq-jade-50: 246 238 216; --lq-jade-100: 239 226 192; --lq-jade-200: 226 205 156;
+  --lq-jade-300: 207 178 118; --lq-jade-400: 184 148 90; --lq-jade-500: 154 118 66;
+  --lq-jade-600: 124 92 50; --lq-jade-700: 94 68 38; --lq-jade-800: 66 47 26; --lq-jade-900: 36 24 11;
+  --lq-primary: 122 46 28; --lq-primary-strong: 107 36 22; --lq-primary-hover: 140 58 38; --lq-primary-text: 107 36 22; --lq-on-primary: 248 239 216;
+  --lq-secondary: 168 120 30; --lq-secondary-text: 125 90 18;
+  --lq-forest: 63 90 58; --lq-forest-text: 63 90 58;
+  --lq-success: 63 110 42; --lq-success-text: 53 92 35; --lq-success-strong: 53 92 35; --lq-on-success: 248 239 216;
+  --lq-warning: 176 112 15; --lq-warning-text: 125 78 5;
+  --lq-error: 158 42 26; --lq-error-text: 138 34 20;
+  --lq-info: 44 90 120; --lq-info-text: 35 74 99;
+  --lq-background: 233 220 188; --lq-surface: 244 234 208; --lq-surface-variant: 224 207 166;
+  --lq-border: 205 185 138; --lq-border-strong: 138 109 59;
+  --lq-on-background: 43 29 14; --lq-on-surface: 68 48 26; --lq-on-surface-light: 110 85 50;
+  --lq-soft-alpha: .12;
+  --radius-sm: 3px; --radius-md: 5px; --radius-lg: 8px;
+  --shadow-sm: 0 1px 2px rgb(70 45 15 / .14);
+  --shadow-md: 0 3px 10px rgb(70 45 15 / .16), 0 0 0 1px rgb(120 90 40 / .06);
+  --shadow-lg: 0 12px 28px rgb(70 45 15 / .22), 0 2px 6px rgb(70 45 15 / .1);
+  --lq-backdrop:
+    radial-gradient(120% 90% at 50% 40%, transparent 55%, rgb(120 80 30 / .24) 100%),
+    repeating-linear-gradient(0deg, rgb(120 90 40 / .035) 0 1px, transparent 1px 3px),
+    radial-gradient(30% 20% at 20% 30%, rgb(160 110 50 / .09), transparent 70%),
+    radial-gradient(25% 18% at 76% 72%, rgb(160 110 50 / .08), transparent 70%);
+}
+/* Garamond tiene el ojo pequeño: un punto más de cuerpo para que se lea igual. */
+html[data-theme="papyrus"] body { font-size: 16.5px; letter-spacing: 0; }
+
+/* ── Minimalista Oscuro: negro puro, blanco, sin color ni sombras ────────── */
+html[data-theme="mono"] {
+  --lq-font-sans: 'Inter';
+  --lq-jade-50: 250 250 250; --lq-jade-100: 240 240 240; --lq-jade-200: 212 212 212;
+  --lq-jade-300: 181 181 181; --lq-jade-400: 143 143 143; --lq-jade-500: 110 110 110;
+  --lq-jade-600: 82 82 82; --lq-jade-700: 58 58 58; --lq-jade-800: 34 34 34; --lq-jade-900: 0 0 0;
+  --lq-primary: 250 250 250; --lq-primary-strong: 250 250 250; --lq-primary-hover: 212 212 212; --lq-primary-text: 255 255 255; --lq-on-primary: 0 0 0;
+  --lq-secondary: 207 198 176; --lq-secondary-text: 207 198 176;
+  --lq-forest: 163 163 163; --lq-forest-text: 190 190 190;
+  --lq-success: 134 239 172; --lq-success-text: 134 239 172; --lq-success-strong: 134 239 172; --lq-on-success: 0 0 0;
+  --lq-warning: 252 211 77; --lq-warning-text: 252 211 77;
+  --lq-error: 248 113 113; --lq-error-text: 252 165 165;
+  --lq-info: 147 197 253; --lq-info-text: 147 197 253;
+  --lq-background: 0 0 0; --lq-surface: 10 10 10; --lq-surface-variant: 20 20 20;
+  --lq-border: 38 38 38; --lq-border-strong: 100 100 100;
+  --lq-on-background: 250 250 250; --lq-on-surface: 212 212 212; --lq-on-surface-light: 143 143 143;
+  --lq-soft-alpha: .1;
+  --radius-sm: 2px; --radius-md: 4px; --radius-lg: 6px;
+  --shadow-sm: 0 0 0 1px rgb(255 255 255 / .04);
+  --shadow-md: 0 0 0 1px rgb(255 255 255 / .07);
+  --shadow-lg: 0 0 0 1px rgb(255 255 255 / .1);
+}
+
+/* ── Cyberpunk: amarillo de advertencia, cortes rectos, líneas de escaneo ── */
+html[data-theme="cyber"] {
+  --lq-font-sans: 'Chakra Petch';
+  --lq-jade-50: 255 253 224; --lq-jade-100: 255 249 176; --lq-jade-200: 255 243 107;
+  --lq-jade-300: 252 238 10; --lq-jade-400: 224 210 0; --lq-jade-500: 179 166 0;
+  --lq-jade-600: 133 124 0; --lq-jade-700: 92 86 0; --lq-jade-800: 51 48 0; --lq-jade-900: 13 13 10;
+  --lq-primary: 252 238 10; --lq-primary-strong: 252 238 10; --lq-primary-hover: 255 245 102; --lq-primary-text: 252 238 10; --lq-on-primary: 13 13 10;
+  --lq-secondary: 255 184 0; --lq-secondary-text: 255 184 0;
+  --lq-forest: 0 240 255; --lq-forest-text: 0 240 255;
+  --lq-success: 60 255 143; --lq-success-text: 60 255 143; --lq-success-strong: 60 255 143; --lq-on-success: 13 13 10;
+  --lq-warning: 255 158 27; --lq-warning-text: 255 158 27;
+  --lq-error: 255 0 60; --lq-error-text: 255 92 122;
+  --lq-info: 0 240 255; --lq-info-text: 102 247 255;
+  --lq-background: 13 13 10; --lq-surface: 22 22 15; --lq-surface-variant: 33 33 20;
+  --lq-border: 57 57 28; --lq-border-strong: 179 166 0;
+  --lq-on-background: 255 253 224; --lq-on-surface: 240 234 160; --lq-on-surface-light: 181 173 106;
+  --lq-soft-alpha: .14;
+  --radius-sm: 0px; --radius-md: 2px; --radius-lg: 3px;
+  --shadow-sm: 2px 2px 0 rgb(252 238 10 / .3);
+  --shadow-md: 4px 4px 0 rgb(252 238 10 / .4);
+  --shadow-lg: 6px 6px 0 rgb(255 0 60 / .55);
+  --lq-backdrop:
+    repeating-linear-gradient(0deg, rgb(252 238 10 / .03) 0 1px, transparent 1px 3px),
+    linear-gradient(135deg, rgb(255 0 60 / .12), transparent 38%),
+    radial-gradient(60% 40% at 100% 0%, rgb(0 240 255 / .12), transparent 70%);
+}
+html[data-theme="cyber"] :focus-visible { outline-color: rgb(0 240 255); outline-offset: 3px; }
+
+/* Fondo del tema: capa fija detrás de la app (no se repinta al hacer scroll). */
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background: var(--lq-backdrop);
+}

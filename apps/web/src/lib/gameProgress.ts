@@ -27,7 +27,7 @@ export const ZONE_TOOLTIPS: Record<string, { title: string; body: string }> = {
   '/finances': { title: 'Finanzas', body: 'Registra ingresos y gastos para que tu oro tenga dirección.' },
   '/recreacion': { title: 'Recreación', body: 'Lo que ves, juegas o vives para desconectar. El descanso activo también sube de nivel.' },
   '/coliseo': { title: 'Coliseo', body: 'Pesas, cardio, deporte o caminatas: cada sesión suma y fortalece tu versión física.' },
-  '/wisdom': { title: 'Sabiduría', body: 'Ideas y frases que desbloqueas al subir de nivel.' },
+  '/wisdom': { title: 'Sabiduría', body: 'Citas de filósofos, estrategas y atletas históricos. Subir de nivel abre más.' },
   '/journal': { title: 'Diario', body: 'Vacía la mente, captura ideas y ordena lo que estás viviendo.' },
   '/stats': { title: 'Estadísticas', body: 'Aquí ves si tu progreso está realmente equilibrado.' },
   '/learning': { title: 'Aprendizaje', body: 'Convierte estudio y práctica en avance acumulado.' },

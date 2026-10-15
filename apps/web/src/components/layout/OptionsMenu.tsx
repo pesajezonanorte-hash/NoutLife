@@ -30,13 +30,15 @@ export function OptionsMenu() {
   const { audioEnabled, toggleAudio } = useUIStore();
   const mode = useThemeStore((s) => s.mode);
   const setMode = useThemeStore((s) => s.setMode);
+  // Con un tema de la Tienda, claro/oscuro lo fija el tema.
+  const skin = useThemeStore((s) => s.skin);
   const setFocusOpen = useShellStore((s) => s.setFocusOpen);
   const setFeedbackOpen = useShellStore((s) => s.setFeedbackOpen);
   const { logout } = useShellActions();
 
   const theme = THEME_NEXT[mode];
   const items: Item[] = [
-    { label: theme.label, hint: 'Cambiar', icon: theme.icon, onSelect: () => setMode(theme.next) },
+    ...(skin ? [] : [{ label: theme.label, hint: 'Cambiar', icon: theme.icon, onSelect: () => setMode(theme.next) }]),
     { label: audioEnabled ? 'Silenciar sonidos' : 'Activar sonidos', icon: audioEnabled ? Volume2 : VolumeX, onSelect: toggleAudio },
     { label: 'Modo enfoque', icon: Zap, onSelect: () => setFocusOpen(true) },
     { label: 'Enviar feedback', icon: MessageSquarePlus, onSelect: () => setFeedbackOpen(true) },

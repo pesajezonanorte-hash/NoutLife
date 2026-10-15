@@ -227,6 +227,8 @@ export interface QuoteCardProps {
   tone: Exclude<Tone, 'muted'>;
   text?: string;
   author?: string;
+  /** Obra u ocasión de la cita. */
+  source?: string | null;
   /** Si no hay texto, nivel en que se desbloquea. */
   unlockLevel?: number;
   action?: ReactNode;
@@ -234,7 +236,7 @@ export interface QuoteCardProps {
 }
 
 /** Principio abierto (cita) o bloqueado (líneas fantasma + «Se desbloquea en el nivel N»). */
-export function QuoteCard({ category, icon: Icon, tone, text, author, unlockLevel, action, className }: QuoteCardProps) {
+export function QuoteCard({ category, icon: Icon, tone, text, author, source, unlockLevel, action, className }: QuoteCardProps) {
   const open = Boolean(text);
   return (
     <div className={cn('flex h-full flex-col gap-4', className)}>
@@ -246,8 +248,13 @@ export function QuoteCard({ category, icon: Icon, tone, text, author, unlockLeve
       </div>
       {open ? (
         <blockquote className="flex flex-1 flex-col gap-2">
-          <p className="text-heading-sm font-medium">“{text}”</p>
-          {author && <footer className="text-body-sm text-on-surface-light">— {author}</footer>}
+          <p className="font-serif text-[1.3125rem] leading-snug text-on-background [text-wrap:pretty]">“{text}”</p>
+          {author && (
+            <footer className="mt-auto flex flex-col pt-2">
+              <cite className="text-label-lg not-italic text-on-surface">{author}</cite>
+              {source && <span className="font-serif text-body-md italic text-on-surface-light">{source}</span>}
+            </footer>
+          )}
         </blockquote>
       ) : (
         <div className="flex flex-1 flex-col gap-2" aria-label={`Bloqueado hasta el nivel ${unlockLevel}`}>

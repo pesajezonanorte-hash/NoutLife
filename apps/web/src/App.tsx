@@ -3,6 +3,8 @@ import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence, useReducedMotionConfig } from 'framer-motion';
 import { useAuthStore } from './store/authStore';
+import { useThemeStore } from './store/themeStore';
+import { skinOf } from './lib/shopThemes';
 import { useUIStore } from './store/uiStore';
 import { useBootstrapAuth } from './hooks/useAuth';
 import { AppShell } from './components/layout/AppShell';
@@ -443,10 +445,11 @@ export default function App() {
     preloadPages();
   }, []);
 
+  // Tema de la Tienda: lo manda la cuenta (users.equippedTheme). Sin sesión, Aurora.
+  const skin = skinOf(user?.equippedTheme);
   useEffect(() => {
-    const theme = (user as any)?.activeTheme ?? 'aurora';
-    document.documentElement.setAttribute('data-theme', theme);
-  }, [(user as any)?.activeTheme]);
+    if (!isLoading) useThemeStore.getState().setSkin(user ? skin : null);
+  }, [isLoading, Boolean(user), skin]);
 
   const [splashDone, setSplashDone] = useState(false);
   const [minimumSplashElapsed, setMinimumSplashElapsed] = useState(false);

@@ -73,8 +73,13 @@ function wearLocally(user: User, it: Item, on: boolean): Partial<User> {
   if (isAvatarItem(it)) return { avatarConfig: toConfig(wearShopItem(lookFrom(user.avatarConfig), it.slot, it.value, on), user.avatarConfig) };
   if (it.slot === 'aura') return { equippedAura: on ? it.value : null };
   if (it.slot === 'frame') return { equippedFrame: on ? it.value : null };
+  if (it.slot === 'theme') return { equippedTheme: on ? it.value : null };
   return {};
 }
+
+/** Tema de la Tienda con paleta conocida: se pone y se quita como lo demás, y cambia toda la app. */
+const isTheme = (it: Item) => it.slot === 'theme' && Boolean(themeIdOf(it));
+const THEME_WEAR = { on: 'Usar este tema', off: 'Volver a Aurora' };
 
 /** Cómo se ve el artículo: tu personaje con él puesto, tu avatar con el aura o el marco, o la paleta del tema. */
 function ItemVisual({ it, user, look, size = 120, live = false }: { it: Item; user: User; look: PixelLook; size?: number; live?: boolean }) {
@@ -147,8 +152,8 @@ export default function ShopPage() {
   const isOwned = (it: Item) => !isShield(it) && (Boolean(it.owned) || invByItem.has(it.id));
   const shieldDays = user?.streakShieldDays ?? 0;
   const usable = (it: Item) => !it.locked && (user?.level ?? 1) >= (it.levelRequired ?? 1);
-  /** Se pone y se quita desde la Tienda: lo del personaje, auras y marcos. */
-  const wearable = (it: Item) => isAvatarItem(it) || it.slot === 'aura' || it.slot === 'frame';
+  /** Se pone y se quita desde la Tienda: lo del personaje, auras, marcos y temas. */
+  const wearable = (it: Item) => isAvatarItem(it) || it.slot === 'aura' || it.slot === 'frame' || isTheme(it);
 
   /** Saldo al abrir el diálogo: la compra optimista no debe cambiar la cuenta que se muestra. */
   const [askBalance, setAskBalance] = useState(0);
@@ -182,14 +187,15 @@ export default function ShopPage() {
     const inv = invByItem.get(it.id);
     if (!inv || !user || wearing) return;
     const on = !wornOf(it, user, look);
-    const before: Partial<User> = { avatarConfig: user.avatarConfig, equippedAura: user.equippedAura, equippedFrame: user.equippedFrame };
+    const before: Partial<User> = { avatarConfig: user.avatarConfig, equippedAura: user.equippedAura, equippedFrame: user.equippedFrame, equippedTheme: user.equippedTheme };
     updateUser(wearLocally(user, it, on));
     setWearing(it.id);
     try {
       const r = await shopService.equipItem(inv.id);
       if (r.user) updateUser(r.user as Partial<User>);
       setInventory((p) => p.map((i) => (i.id === r.id ? { ...i, isEquipped: r.isEquipped } : i)));
-      toast.info(on ? `Te pusiste ${it.name}` : `Te quitaste ${it.name}`);
+      if (isTheme(it)) toast.success(on && themeIdOf(it) !== 'aurora' ? `${it.name}: toda la app cambió` : 'Volviste a Aurora, el tema de siempre');
+      else toast.info(on ? `Te pusiste ${it.name}` : `Te quitaste ${it.name}`);
     } catch (e) {
       updateUser(before);
       toast.error(apiError(e, 'No se pudo cambiar'));
@@ -326,6 +332,7 @@ export default function ShopPage() {
                           ? <Badge variant="warning" icon={ShieldCheck}>+{it.shieldDays} {it.shieldDays === 1 ? 'día' : 'días'} de escudo</Badge>
                           : isExclusive(it) || worn ? <>{worn && <Badge variant="success">Lo llevas puesto</Badge>}<StockBadges it={it} /></> : undefined}
                         worn={worn} onWear={owned && wearable(it) ? () => void wear(it) : undefined} busy={wearing === it.id}
+                        wearLabels={isTheme(it) ? THEME_WEAR : undefined}
                         onBuy={() => open(it)}
                         onPreview={it.type === 'THEME' && themeIdOf(it) ? () => setPreview(it) : undefined}
                         locked={lockedByLevel} index={idx}
@@ -356,7 +363,7 @@ export default function ShopPage() {
                         <div><h3 className="text-heading-sm">{it.name}</h3><p className="text-body-sm text-on-surface-light">{it.description ?? t.label}</p></div>
                         {wearable(it) ? (
                           <Button size="md" variant={worn ? 'secondary' : 'primary'} aria-pressed={worn} loading={wearing === it.id} onClick={() => void wear(it)} className="mt-auto">
-                            {worn ? 'Quitármelo' : 'Ponérmelo'}
+                            {isTheme(it) ? (worn ? THEME_WEAR.off : THEME_WEAR.on) : worn ? 'Quitármelo' : 'Ponérmelo'}
                           </Button>
                         ) : EQUIPPABLE.has(it.type) ? (
                           <Button size="md" variant={inv.isEquipped ? 'secondary' : 'primary'} aria-pressed={inv.isEquipped} onClick={() => void equip(inv)} className="mt-auto">
@@ -386,7 +393,9 @@ export default function ShopPage() {
         open={Boolean(pending)} icon={pending ? typeOfItem(pending).icon : undefined} name={pending?.name ?? ''} price={pending?.cost ?? 0} balance={askBalance}
         phase={phase} busy={buying} onConfirm={confirm} onClose={() => setPending(null)}
         visual={pending && phase === 'done' && wearable(pending) ? visualOf(pending, 150, true) : undefined}
-        doneText={pending && wearable(pending)
+        doneText={pending && isTheme(pending)
+          ? `${pending.name} ya está puesto en toda la app. Vuelves a Aurora cuando quieras desde la Tienda, el inventario o Ajustes.`
+          : pending && wearable(pending)
           ? `Ya llevas puesto ${pending.name}. Te lo quitas cuando quieras desde el inventario o el estudio del personaje.`
           : pending && isShield(pending)
             ? `Tu racha general tiene ahora ${shieldDays} ${shieldDays === 1 ? 'día' : 'días'} de escudo. Si un día no registras actividad, se usa solo.`

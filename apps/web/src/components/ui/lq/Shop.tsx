@@ -52,12 +52,14 @@ export interface ShopItemProps {
   /** Comprado y para el personaje: el botón lo pone o lo quita. */
   worn?: boolean;
   onWear?: () => void;
+  /** Texto del botón de ponerlo y quitarlo (por defecto «Ponérmelo» / «Quitármelo»). */
+  wearLabels?: { on: string; off: string };
   /** Exclusivo sin unidades. */
   soldOut?: boolean;
   className?: string;
 }
 
-export function ShopItem({ name, description, price, icon, tone = 'primary', category, owned, affordable = true, busy, onBuy, onPreview, locked, index = 0, visual, badges, worn, onWear, soldOut, className }: ShopItemProps) {
+export function ShopItem({ name, description, price, icon, tone = 'primary', category, owned, affordable = true, busy, onBuy, onPreview, locked, index = 0, visual, badges, worn, onWear, wearLabels = { on: 'Ponérmelo', off: 'Quitármelo' }, soldOut, className }: ShopItemProps) {
   const delay = 0.4 + index * 0.09;
   return (
     <Card interactive padding="none" style={winVars(tone)} className={cn('group relative isolate flex h-full flex-col overflow-hidden', className)}>
@@ -89,7 +91,7 @@ export function ShopItem({ name, description, price, icon, tone = 'primary', cat
           )}
           {owned && onWear ? (
             <Button variant={worn ? 'secondary' : 'primary'} size="md" loading={busy} aria-pressed={worn} onClick={onWear}>
-              {worn ? 'Quitármelo' : 'Ponérmelo'}
+              {worn ? wearLabels.off : wearLabels.on}
             </Button>
           ) : (
             <Button

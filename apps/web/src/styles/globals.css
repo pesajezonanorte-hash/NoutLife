@@ -1,5 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500;700&display=swap');
 @import './tokens.css';
+@import './skins.css';
 @import './ambience.css';
 @import './social.css';
 @import './avatar.css';
@@ -105,7 +106,7 @@ body {
   position: relative;
   background: var(--bg-deep);
   color: var(--text-primary);
-  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: var(--lq-font-sans), 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   font-size: 15px;
   line-height: 1.45;
   letter-spacing: -0.01em;
@@ -194,7 +195,7 @@ input[type='number']::-webkit-outer-spin-button {
   }
 
   .pixel-btn {
-    font-family: 'Montserrat', sans-serif;
+    font-family: var(--lq-font-sans), 'Montserrat', sans-serif;
     font-size: 14px;
     font-weight: 600;
     border: 1px solid transparent;
@@ -263,7 +264,7 @@ input[type='number']::-webkit-outer-spin-button {
     border: 1px solid var(--border);
     border-radius: 10px;
     color: var(--text-primary);
-    font-family: 'Montserrat', sans-serif;
+    font-family: var(--lq-font-sans), 'Montserrat', sans-serif;
     font-size: 14px;
     padding: 11px 14px;
     width: 100%;
@@ -526,127 +527,6 @@ input[type='number']::-webkit-outer-spin-button {
 
 .chromatic-aberration {
   animation: chromatic 0.5s ease-in-out;
-}
-
-/* ─── Visual Themes (Fase 8 Bloque 13) ──────────────────────────────────────── */
-
-/* Aurora — neutro clásico profundo (la piel base apenas afinada) */
-/* (sin overrides: Aurora es el tema por defecto y usa los tokens del rediseño) */
-
-/* Cyber — alto contraste puro */
-html.light[data-theme="cyber"] {
-  --bg-deep: #ffffff;
-  --bg-panel: #ffffff;
-  --bg-panel-light: #f5f5f5;
-  --text-primary: #000000;
-  --text-secondary: #2a2a2a;
-  --border: #c8c8c8;
-  --border-strong: #000000;
-}
-html.dark[data-theme="cyber"] {
-  --bg-deep: #000000;
-  --bg-panel: #050505;
-  --bg-panel-light: #0d0d0d;
-  --bg-card: #050505;
-  --bg-muted: #0a0a0a;
-  --text-primary: #ffffff;
-  --text-secondary: #cfcfcf;
-  --text-muted: #7a7a7a;
-  --border: #333333;
-  --border-strong: #666666;
-}
-
-/* Forest — neutros cálidos */
-html.light[data-theme="forest"] {
-  --bg-deep: #faf9f6;
-  --bg-panel: #ffffff;
-  --bg-panel-light: #f4f2ec;
-  --text-primary: #14120e;
-  --text-secondary: #57534a;
-  --border: #e7e3da;
-  --border-strong: #d4cfc2;
-}
-html.dark[data-theme="forest"] {
-  --bg-deep: #0e0d0b;
-  --bg-panel: #151411;
-  --bg-panel-light: #1c1a16;
-  --bg-card: #151411;
-  --bg-muted: #12110e;
-  --text-primary: #f0ede6;
-  --text-secondary: #b0aa9c;
-  --text-muted: #706a5e;
-  --border: #2d2b26;
-  --border-strong: #3f3c35;
-}
-
-/* Ocean — neutros fríos */
-html.light[data-theme="ocean"] {
-  --bg-deep: #f8f9fa;
-  --bg-panel: #ffffff;
-  --bg-panel-light: #f0f2f4;
-  --text-primary: #0d0f12;
-  --text-secondary: #50565e;
-  --border: #e2e5e9;
-  --border-strong: #c9ced4;
-}
-html.dark[data-theme="ocean"] {
-  --bg-deep: #0b0c0e;
-  --bg-panel: #121316;
-  --bg-panel-light: #181a1e;
-  --bg-card: #121316;
-  --bg-muted: #0e0f11;
-  --text-primary: #e9ecef;
-  --text-secondary: #a6adb6;
-  --text-muted: #6a7078;
-  --border: #262a30;
-  --border-strong: #3a3f47;
-}
-
-/* Sunset — contraste suave */
-html.light[data-theme="sunset"] {
-  --bg-deep: #f7f7f7;
-  --bg-panel: #fdfdfd;
-  --bg-panel-light: #efefef;
-  --text-primary: #232323;
-  --text-secondary: #616161;
-  --text-muted: #9c9c9c;
-  --border: #e0e0e0;
-  --border-strong: #c6c6c6;
-}
-html.dark[data-theme="sunset"] {
-  --bg-deep: #121212;
-  --bg-panel: #1a1a1a;
-  --bg-panel-light: #212121;
-  --bg-card: #1a1a1a;
-  --bg-muted: #161616;
-  --text-primary: #dcdcdc;
-  --text-secondary: #9c9c9c;
-  --text-muted: #666666;
-  --border: #2f2f2f;
-  --border-strong: #444444;
-}
-
-/* Retro SNES — 16-bit blanco y negro */
-html.light[data-theme="retro"] {
-  --bg-deep: #f2f2f2;
-  --bg-panel: #ffffff;
-  --bg-panel-light: #e8e8e8;
-  --text-primary: #000000;
-  --text-secondary: #3d3d3d;
-  --border: #bdbdbd;
-  --border-strong: #8a8a8a;
-}
-html.dark[data-theme="retro"] {
-  --bg-deep: #0a0a0a;
-  --bg-panel: #141414;
-  --bg-panel-light: #1c1c1c;
-  --bg-card: #141414;
-  --bg-muted: #101010;
-  --text-primary: #f0f0f0;
-  --text-secondary: #adadad;
-  --text-muted: #6f6f6f;
-  --border: #3f3f3f;
-  --border-strong: #5a5a5a;
 }
 
 /* ── Compatibilidad AA para utilidades heredadas ─────────────────────────────

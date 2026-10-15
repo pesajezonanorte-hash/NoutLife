@@ -57,10 +57,12 @@
     <!-- Tema antes del primer pintado (misma lógica que store/themeStore) -->
     <script>
       try {
-        var m = (JSON.parse(localStorage.getItem('lq-theme') || 'null') || {}).state;
-        m = m && m.mode;
+        var t = (JSON.parse(localStorage.getItem('lq-theme') || 'null') || {}).state || {};
+        var m = t.mode;
         if (!m) { var l = localStorage.getItem('theme'); m = l === 'dark' ? 'dark' : l === 'system' ? 'auto' : 'light'; }
         var d = m === 'dark' || (m === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+        // Un tema de la Tienda fija su esquema (skinDark) y su data-theme.
+        if (t.skin && typeof t.skinDark === 'boolean') { d = t.skinDark; document.documentElement.setAttribute('data-theme', t.skin); }
         document.documentElement.classList.add(d ? 'dark' : 'light');
       } catch (e) {}
     </script>
