@@ -1241,10 +1241,10 @@ html.dark .lq-ticket-stub { background: color-mix(in srgb, rgb(var(--lq-error)) 
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / .08), var(--shadow-sm);
 }
 
-/* ───────── Ciclo (las cuatro estaciones interiores) ───────── */
+/* ───────── Ciclo Menstrual (cuatro fases) ───────── */
 /* Una paleta por fase. Relleno ≥3:1 sobre la superficie; *-text ≥4.5:1 (AA).
-   Invierno = periodo (baya), primavera = folicular (brote), verano = ovulación
-   (sol), otoño = lútea (cobre). El color siempre va con su glifo y su nombre. */
+   Menstruación (rosa), fase folicular (verde), ovulación (ámbar) y fase lútea
+   (cobre). El color siempre va con su ícono y su nombre. */
 :root {
   --cy-menstrual: 184 71 109;  --cy-menstrual-text: 154 47 85;
   --cy-follicular: 107 154 46; --cy-follicular-text: 76 122 30;
@@ -1261,7 +1261,7 @@ html.dark {
 .lq-cy-breathe { animation: lq-cy-breathe 6.5s ease-in-out infinite; }
 @keyframes lq-cy-breathe { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
 .reduce-motion .lq-cy-breathe { animation: none; }
-/* Luz de la estación: el tono de la fase de hoy, muy diluido, detrás de la zona. */
+/* Luz de la fase: el tono de la fase de hoy, muy diluido, detrás de la zona. */
 .lq-cy-light { background: radial-gradient(closest-side, rgb(var(--tone) / .16), transparent); }
 html.dark .lq-cy-light { background: radial-gradient(closest-side, rgb(var(--tone) / .08), transparent); }
 /* Día del calendario: el color de su fase en el borde inferior. */

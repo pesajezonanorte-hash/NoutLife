@@ -1,4 +1,4 @@
-// La rueda de las estaciones: el ciclo como un anillo que empieza arriba (día 1)
+// La rueda del ciclo: el ciclo como un anillo que empieza arriba (día 1)
 // y avanza en el sentido del reloj. Cada fase es un arco con el largo que tiene
 // en su ciclo; al llegar, los arcos se trazan uno detrás de otro y una semilla
 // de luz recorre el anillo desde el día 1 hasta hoy. La fase de hoy respira
@@ -32,7 +32,7 @@ function arc(r: number, from: number, to: number) {
 /** Posición en % del lienzo (para lo que va en HTML encima del SVG). */
 const pct = (r: number, deg: number) => { const p = polar(r, deg); return { left: `${(p.x / SIZE) * 100}%`, top: `${(p.y / SIZE) * 100}%` }; };
 
-export interface SeasonWheelProps {
+export interface CycleRingProps {
   shape: CycleShape;
   cycleDay: number;
   phase: CyclePhase;
@@ -45,7 +45,7 @@ export interface SeasonWheelProps {
   className?: string;
 }
 
-export function SeasonWheel({ shape, cycleDay, phase, bleedDays = [], loggedDays = [], children, className }: SeasonWheelProps) {
+export function CycleRing({ shape, cycleDay, phase, bleedDays = [], loggedDays = [], children, className }: CycleRingProps) {
   const reduce = useMotionReduced();
   // Con retraso, el anillo se estira para que hoy siga dentro.
   const days = Math.max(shape.length, cycleDay);
@@ -55,7 +55,7 @@ export function SeasonWheel({ shape, cycleDay, phase, bleedDays = [], loggedDays
   const logged = new Set(loggedDays);
   const fertileFrom = (shape.ovulationDay - 6) * step;
   const fertileTo = (shape.ovulationDay + 1) * step;
-  const label = `Día ${cycleDay} de unos ${shape.length}: ${PHASE_META[phase].name} (${PHASE_META[phase].season.toLowerCase()}).`;
+  const label = `Día ${cycleDay} de unos ${shape.length}: ${PHASE_META[phase].name}.`;
 
   return (
     <div role="img" aria-label={label} className={cn('relative mx-auto aspect-square w-full max-w-[360px]', className)}>
@@ -111,7 +111,7 @@ export function SeasonWheel({ shape, cycleDay, phase, bleedDays = [], loggedDays
         })}
       </svg>
 
-      {/* Glifo de cada estación por fuera de su arco */}
+      {/* Ícono de cada fase por fuera de su arco */}
       {PHASES.map((p) => {
         const r = shape.ranges[p];
         if (r.end < r.start) return null;

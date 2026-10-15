@@ -122,7 +122,7 @@ const routeLoaders: Record<string, () => Promise<unknown>> = {
   '/agenda': loaders.AgendaPage,
   '/life': loaders.LifePage,
   '/checklists': loaders.ChecklistsPage,
-  '/ciclo': loaders.CyclePage,
+  '/ciclo-menstrual': loaders.CyclePage,
   '/custom-zones': loaders.CustomZonesPage,
   '/rituals': loaders.RitualsPage,
   '/espejo': loaders.GlowUpPage,
@@ -275,7 +275,8 @@ function AnimatedRoutes({ location }: { location: ReturnType<typeof useLocation>
           <Route path="/checklists" element={<SafePage><DeferredLazyPage load={loaders.ChecklistsPage} /></SafePage>} />
           {/* Obstáculos vive ahora dentro de la libreta de Hábitos. */}
           <Route path="/obstaculos" element={<Navigate to="/habits?tab=obstaculos" replace />} />
-          <Route path="/ciclo"     element={<SafePage><DeferredLazyPage load={loaders.CyclePage} /></SafePage>} />
+          <Route path="/ciclo-menstrual" element={<SafePage><DeferredLazyPage load={loaders.CyclePage} /></SafePage>} />
+          <Route path="/ciclo" element={<Navigate to="/ciclo-menstrual" replace />} />
           <Route path="/rituals"  element={<SafePage><DeferredLazyPage load={loaders.RitualsPage} /></SafePage>} />
           <Route path="/rituales" element={<Navigate to="/rituals" replace />} />
           <Route path="/espejo"   element={<SafePage><ProZonePage zone="mirror" load={loaders.GlowUpPage} /></SafePage>} />

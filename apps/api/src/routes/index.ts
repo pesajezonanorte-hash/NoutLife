@@ -103,7 +103,7 @@ router.use('/checklists',   checklistRoutes);
 router.use('/anti-habits',  antiHabitRoutes);
 router.use('/shares',       sharesRoutes);
 router.use('/billing',      billingRoutes);
-router.use('/cycle',        cycleRoutes);
+router.use('/menstrual-cycle', cycleRoutes);
 router.use('/admin',        adminRoutes);
 
 router.get('/health', (_req, res) => {

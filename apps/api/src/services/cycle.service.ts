@@ -1,12 +1,12 @@
-// Zona Ciclo: ajustes, periodos y registro diario de cada usuaria, con su fase
-// de hoy, las predicciones y los consejos que leen el Coliseo y Hábitos.
-// Solo para cuentas con gender = 'female' (routes/cycle.routes). Nada de esto
-// entra en el contexto del Sabio: son datos de salud y se quedan aquí.
+// Ciclo Menstrual: ajustes, periodos, registro diario y analítica de cada usuaria,
+// con su fase de hoy, las predicciones y los consejos que leen el Coliseo y
+// Hábitos. Solo para cuentas con gender = 'female' (routes/cycle.routes). Nada de
+// esto entra en el contexto del Sabio: son datos de salud y se quedan aquí.
 import { prisma } from '../lib/prisma';
 import { addCalendarDays, getCalendarDay, parseCalendarDate } from '../lib/calendar';
 import {
-  BLEEDING, adviceFor, averages, dayKey, diffDays, patterns, periodBefore, snapshot,
-  type DayLogRow, type Flow, type PeriodRow, type Symptom,
+  BLEEDING, adviceFor, analytics, averages, dayKey, diffDays, patterns, periodBefore, snapshot,
+  type Contraceptive, type DayLogRow, type Flow, type Mood, type PeriodRow, type SexualActivity, type Symptom,
 } from '../lib/cycle';
 
 /** Se ignoran registros con más de un año para promedios y patrones. */
@@ -40,8 +40,23 @@ const serPeriod = (p: { id: string; startDate: Date; endDate: Date | null }) => 
   length: p.endDate ? diffDays(p.endDate, p.startDate) + 1 : null,
 });
 
-const serLog = (l: { date: Date; flow: string | null; mood: number | null; energy: number | null; symptoms: string[]; notes: string | null }) => ({
-  date: dayKey(l.date), flow: l.flow, mood: l.mood, energy: l.energy, symptoms: l.symptoms, notes: l.notes,
+type LogRow = {
+  date: Date; flow: string | null; energy: number | null; symptoms: string[]; notes: string | null;
+  moods: string[]; sexualActivity: string | null; contraception: string | null;
+  sleepQuality: number | null; stress: number | null; waterGlasses: number | null;
+};
+const serLog = (l: LogRow) => ({
+  date: dayKey(l.date),
+  flow: l.flow,
+  moods: l.moods,
+  energy: l.energy,
+  symptoms: l.symptoms,
+  sexualActivity: l.sexualActivity as SexualActivity | null,
+  contraception: l.contraception as Contraceptive | null,
+  sleepQuality: l.sleepQuality,
+  stress: l.stress,
+  waterGlasses: l.waterGlasses,
+  notes: l.notes,
 });
 
 /** Días con flujo del periodo abierto (para no darlo por terminado antes de tiempo). */
@@ -56,9 +71,9 @@ function bleedDaysOf(today: Date, periods: PeriodRow[], logs: DayLogRow[]): numb
 async function load(userId: string) {
   const today = await todayOf(userId);
   const [settings, periods, logs] = await Promise.all([
-    prisma.cycleSettings.findUnique({ where: { userId } }),
-    prisma.cyclePeriod.findMany({ where: { userId }, orderBy: { startDate: 'desc' }, take: 24 }),
-    prisma.cycleLog.findMany({ where: { userId, date: { gte: addCalendarDays(today, -HISTORY_DAYS) } }, orderBy: { date: 'desc' } }),
+    prisma.menstrualSettings.findUnique({ where: { userId } }),
+    prisma.menstrualPeriod.findMany({ where: { userId }, orderBy: { startDate: 'desc' }, take: 24 }),
+    prisma.menstrualLog.findMany({ where: { userId, date: { gte: addCalendarDays(today, -HISTORY_DAYS) } }, orderBy: { date: 'desc' } }),
   ]);
   const fallback = { cycleLength: settings?.cycleLength ?? 28, periodLength: settings?.periodLength ?? 5 };
   const avg = averages(periods, fallback);
@@ -81,6 +96,7 @@ export async function getCycle(userId: string) {
     todayLog: todayLog ? serLog(todayLog) : null,
     snapshot: snap,
     advice,
+    analytics: analytics(logs, periods, avg),
   };
 }
 
@@ -96,7 +112,7 @@ export async function getCycleAdvice(userId: string) {
  */
 export async function saveSettings(userId: string, input: { cycleLength?: number; periodLength?: number; lastPeriodStart?: string }) {
   const today = await todayOf(userId);
-  const settings = await prisma.cycleSettings.upsert({
+  const settings = await prisma.menstrualSettings.upsert({
     where: { userId },
     create: { userId, cycleLength: input.cycleLength ?? 28, periodLength: input.periodLength ?? 5 },
     update: {
@@ -112,14 +128,18 @@ export async function saveSettings(userId: string, input: { cycleLength?: number
   return getCycle(userId);
 }
 
-/** Un periodo nuevo. Si había uno abierto antes, se cierra en su duración típica. */
+/**
+ * Un periodo nuevo, también de meses pasados (historial retroactivo). Si hay
+ * otro abierto antes, se cierra en su duración típica. Cada periodo cambia los
+ * promedios, la regularidad y la próxima regla: todo se recalcula al leer.
+ */
 export async function addPeriod(userId: string, input: { startDate: string; endDate?: string | null }) {
   const today = await todayOf(userId);
   const start = dayFrom(input.startDate, today);
   const end = input.endDate ? dayFrom(input.endDate, today) : null;
   if (end && (end.getTime() < start.getTime() || diffDays(end, start) + 1 > MAX_PERIOD_DAYS)) throw new CycleError('Revisa las fechas: el fin va después del inicio y un periodo dura como mucho 15 días.');
 
-  const periods = await prisma.cyclePeriod.findMany({ where: { userId }, orderBy: { startDate: 'desc' }, take: 24 });
+  const periods = await prisma.menstrualPeriod.findMany({ where: { userId }, orderBy: { startDate: 'desc' }, take: 24 });
   // Un periodo abierto anterior no choca: se cierra justo abajo.
   const last = (end ?? start).getTime();
   const overlaps = periods.some((p) => (p.endDate
@@ -127,39 +147,44 @@ export async function addPeriod(userId: string, input: { startDate: string; endD
     : p.startDate.getTime() >= start.getTime() && p.startDate.getTime() <= last));
   if (overlaps) throw new CycleError('Ya hay un periodo anotado en esas fechas.');
 
-  const settings = await prisma.cycleSettings.findUnique({ where: { userId } });
+  const settings = await prisma.menstrualSettings.findUnique({ where: { userId } });
   const open = periods.find((p) => !p.endDate && p.startDate.getTime() < start.getTime());
   if (open) {
     const typical = addCalendarDays(open.startDate, (settings?.periodLength ?? 5) - 1);
     const dayBefore = addCalendarDays(start, -1);
-    await prisma.cyclePeriod.update({ where: { id: open.id }, data: { endDate: typical.getTime() < dayBefore.getTime() ? typical : dayBefore } });
+    await prisma.menstrualPeriod.update({ where: { id: open.id }, data: { endDate: typical.getTime() < dayBefore.getTime() ? typical : dayBefore } });
   }
-  if (!settings) await prisma.cycleSettings.create({ data: { userId } });
-  return serPeriod(await prisma.cyclePeriod.create({ data: { userId, startDate: start, endDate: end } }));
+  if (!settings) await prisma.menstrualSettings.create({ data: { userId } });
+  return serPeriod(await prisma.menstrualPeriod.create({ data: { userId, startDate: start, endDate: end } }));
 }
 
 export async function updatePeriod(userId: string, id: string, input: { startDate?: string; endDate?: string | null }) {
   const today = await todayOf(userId);
-  const period = await prisma.cyclePeriod.findFirst({ where: { id, userId } });
+  const period = await prisma.menstrualPeriod.findFirst({ where: { id, userId } });
   if (!period) return null;
   const start = input.startDate ? dayFrom(input.startDate, today) : period.startDate;
   const end = input.endDate === null ? null : input.endDate ? dayFrom(input.endDate, today) : period.endDate;
   if (end && (end.getTime() < start.getTime() || diffDays(end, start) + 1 > MAX_PERIOD_DAYS)) throw new CycleError('Revisa las fechas: el fin va después del inicio y un periodo dura como mucho 15 días.');
-  const clash = await prisma.cyclePeriod.findFirst({ where: { userId, id: { not: id }, startDate: start } });
+  const clash = await prisma.menstrualPeriod.findFirst({ where: { userId, id: { not: id }, startDate: start } });
   if (clash) throw new CycleError('Ya hay un periodo que empieza ese día.');
-  return serPeriod(await prisma.cyclePeriod.update({ where: { id }, data: { startDate: start, endDate: end } }));
+  return serPeriod(await prisma.menstrualPeriod.update({ where: { id }, data: { startDate: start, endDate: end } }));
 }
 
 export async function deletePeriod(userId: string, id: string) {
-  const { count } = await prisma.cyclePeriod.deleteMany({ where: { id, userId } });
+  const { count } = await prisma.menstrualPeriod.deleteMany({ where: { id, userId } });
   return count > 0;
 }
 
 export interface DayLogInput {
   flow?: Flow | null;
-  mood?: number | null;
+  moods?: Mood[];
   energy?: number | null;
   symptoms?: Symptom[];
+  sexualActivity?: SexualActivity | null;
+  contraception?: Contraceptive | null;
+  sleepQuality?: number | null;
+  stress?: number | null;
+  waterGlasses?: number | null;
   notes?: string | null;
 }
 
@@ -172,12 +197,17 @@ export async function logDay(userId: string, dateKey: string, input: DayLogInput
   const date = dayFrom(dateKey, today);
   const data = {
     ...(input.flow !== undefined ? { flow: input.flow } : {}),
-    ...(input.mood !== undefined ? { mood: input.mood } : {}),
+    ...(input.moods !== undefined ? { moods: [...new Set(input.moods)] } : {}),
     ...(input.energy !== undefined ? { energy: input.energy } : {}),
     ...(input.symptoms !== undefined ? { symptoms: [...new Set(input.symptoms)] } : {}),
+    ...(input.sexualActivity !== undefined ? { sexualActivity: input.sexualActivity } : {}),
+    ...(input.contraception !== undefined ? { contraception: input.contraception } : {}),
+    ...(input.sleepQuality !== undefined ? { sleepQuality: input.sleepQuality } : {}),
+    ...(input.stress !== undefined ? { stress: input.stress } : {}),
+    ...(input.waterGlasses !== undefined ? { waterGlasses: input.waterGlasses } : {}),
     ...(input.notes !== undefined ? { notes: input.notes?.trim() || null } : {}),
   };
-  const log = await prisma.cycleLog.upsert({
+  const log = await prisma.menstrualLog.upsert({
     where: { userId_date: { userId, date } },
     create: { userId, date, ...data },
     update: data,
@@ -185,12 +215,12 @@ export async function logDay(userId: string, dateKey: string, input: DayLogInput
 
   let period: 'started' | 'extended' | null = null;
   if (input.flow && BLEEDING.includes(input.flow)) {
-    const periods = await prisma.cyclePeriod.findMany({ where: { userId, startDate: { lte: date } }, orderBy: { startDate: 'desc' }, take: 1 });
+    const periods = await prisma.menstrualPeriod.findMany({ where: { userId, startDate: { lte: date } }, orderBy: { startDate: 'desc' }, take: 1 });
     const last = periods[0];
     const inside = last && (!last.endDate || last.endDate.getTime() >= date.getTime()) && diffDays(date, last.startDate) < MAX_PERIOD_DAYS;
     if (!inside) {
       if (last?.endDate && diffDays(date, last.endDate) <= SAME_PERIOD_GAP) {
-        await prisma.cyclePeriod.update({ where: { id: last.id }, data: { endDate: date } });
+        await prisma.menstrualPeriod.update({ where: { id: last.id }, data: { endDate: date } });
         period = 'extended';
       } else {
         await addPeriod(userId, { startDate: dayKey(date) });
@@ -204,5 +234,5 @@ export async function logDay(userId: string, dateKey: string, input: DayLogInput
 export async function clearDay(userId: string, dateKey: string) {
   const today = await todayOf(userId);
   const date = dayFrom(dateKey, today);
-  await prisma.cycleLog.deleteMany({ where: { userId, date } });
+  await prisma.menstrualLog.deleteMany({ where: { userId, date } });
 }

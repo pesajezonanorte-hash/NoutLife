@@ -56,7 +56,7 @@ function HintShell({ advice, zone, title, children }: { advice: CycleAdvice; zon
         {children}
         <p className="text-body-sm text-on-surface-light">
           Energía {advice.energy}/5, {SOURCE_LABEL[advice.energySource]}.{' '}
-          <Link to="/ciclo" className="inline-flex items-center gap-0.5 font-semibold text-primary-text underline-offset-4 hover:underline">Ver mi ciclo<ArrowUpRight aria-hidden className="size-3.5" /></Link>
+          <Link to="/ciclo-menstrual" className="inline-flex items-center gap-0.5 font-semibold text-primary-text underline-offset-4 hover:underline">Ver mi ciclo<ArrowUpRight aria-hidden className="size-3.5" /></Link>
         </p>
       </div>
       <button

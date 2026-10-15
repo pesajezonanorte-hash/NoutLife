@@ -17,7 +17,7 @@ async function requireCycle(req: AuthRequest, res: Response, next: NextFunction)
   try {
     const user = await prisma.user.findUnique({ where: { id: req.userId! }, select: { gender: true } });
     if (!canUseCycle(user?.gender)) {
-      res.status(403).json({ error: 'La zona Ciclo se activa cuando en tu perfil indicas que eres mujer.', code: 'CYCLE_UNAVAILABLE' });
+      res.status(403).json({ error: 'La zona Ciclo Menstrual se activa cuando en tu perfil indicas que eres mujer.', code: 'CYCLE_UNAVAILABLE' });
       return;
     }
     next();

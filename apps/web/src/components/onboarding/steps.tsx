@@ -29,7 +29,7 @@ export function IdentityFields({ name, onName, nameError, birthDate, onBirthDate
           <ChipGroup<Gender | ''> label="¿Cómo te identificas?" value={gender} onChange={(g) => g && onGender(g)} options={GENDER_OPTIONS} />
           {genderError
             ? <span role="alert" className="text-body-sm text-error-text">{genderError}</span>
-            : <span className="text-body-sm text-on-surface-light">Lo usamos para hablarte bien y para mostrarte zonas como Ciclo. Puedes cambiarlo en Ajustes.</span>}
+            : <span className="text-body-sm text-on-surface-light">Lo usamos para hablarte bien y para mostrarte zonas como Ciclo Menstrual. Puedes cambiarlo en Ajustes.</span>}
         </div>
       )}
       <Field label="Fecha de nacimiento" help="Opcional. Para celebrar tu cumpleaños en Noutlife.">

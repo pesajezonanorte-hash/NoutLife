@@ -46,7 +46,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { to: '/sleep', label: 'Sueño', icon: Moon },
       { to: '/recreacion', label: 'Recreación', icon: Clapperboard },
       // Solo para quien indica que es mujer (zonesUnavailableFor).
-      { to: '/ciclo', label: 'Ciclo', icon: Flower2 },
+      { to: '/ciclo-menstrual', label: 'Ciclo Menstrual', icon: Flower2 },
       { to: '/achievements', label: 'Logros', icon: Trophy },
     ],
   },
@@ -102,7 +102,7 @@ const ABSORBED = new Set(['/obstaculos']);
 export const ZONES: NavEntry[] = NAV_SECTIONS.flatMap((s) => s.items);
 
 /** Zonas que dependen de cómo se identifica la persona. */
-const GENDERED_ZONES: Record<string, (gender: Gender | null | undefined) => boolean> = { '/ciclo': canUseCycle };
+const GENDERED_ZONES: Record<string, (gender: Gender | null | undefined) => boolean> = { '/ciclo-menstrual': canUseCycle };
 
 /** Rutas que esta persona no tiene (no salen en menús, buscador ni zonas principales). */
 export function zonesUnavailableFor(gender: Gender | null | undefined): Set<string> {

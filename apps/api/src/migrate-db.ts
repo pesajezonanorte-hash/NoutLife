@@ -73,6 +73,13 @@ const GENDER_CYCLE_AND_SHIELDS_SQL = [
   ignoreDuplicate(`ALTER TABLE "cycle_settings" ADD CONSTRAINT "cycle_settings_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE`),
   ignoreDuplicate(`ALTER TABLE "cycle_periods" ADD CONSTRAINT "cycle_periods_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE`),
   ignoreDuplicate(`ALTER TABLE "cycle_logs" ADD CONSTRAINT "cycle_logs_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE`),
+  // Ciclo Menstrual: mirror de prisma/migrations/20261015120000_menstrual_cycle_tracking.
+  `ALTER TABLE "cycle_logs" ADD COLUMN IF NOT EXISTS "moods" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];`,
+  `ALTER TABLE "cycle_logs" ADD COLUMN IF NOT EXISTS "sexualActivity" TEXT;`,
+  `ALTER TABLE "cycle_logs" ADD COLUMN IF NOT EXISTS "contraception" TEXT;`,
+  `ALTER TABLE "cycle_logs" ADD COLUMN IF NOT EXISTS "sleepQuality" INTEGER;`,
+  `ALTER TABLE "cycle_logs" ADD COLUMN IF NOT EXISTS "stress" INTEGER;`,
+  `ALTER TABLE "cycle_logs" ADD COLUMN IF NOT EXISTS "waterGlasses" INTEGER;`,
 ];
 
 // Idempotent mirror of prisma/migrations/20260930180000_gym_attendance_and_notification_controls.

@@ -22,8 +22,8 @@ export async function exportUserData(userId: string) {
       prisma.checklist.findMany({ where: { userId }, include: { items: true } }),
       prisma.antiHabit.findMany({ where: { userId }, include: { logs: { orderBy: { date: 'desc' } } } }),
       prisma.recreationEntry.findMany({ where: { userId }, orderBy: { date: 'desc' } }),
-      prisma.cyclePeriod.findMany({ where: { userId }, orderBy: { startDate: 'desc' } }),
-      prisma.cycleLog.findMany({ where: { userId }, orderBy: { date: 'desc' } }),
+      prisma.menstrualPeriod.findMany({ where: { userId }, orderBy: { startDate: 'desc' } }),
+      prisma.menstrualLog.findMany({ where: { userId }, orderBy: { date: 'desc' } }),
     ]);
 
   return {

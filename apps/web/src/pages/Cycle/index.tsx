@@ -1,10 +1,9 @@
-// Ciclo — zona de salud femenina (solo para quien indica que es mujer).
-// Zona ambientada: el jardín de las cuatro estaciones interiores. El ciclo es una
-// rueda: el periodo es el invierno, la fase folicular la primavera, la ovulación
-// el verano y la fase lútea el otoño. Una semilla de luz recorre la rueda hasta
-// hoy; la luz de la zona toma el color de la estación en la que estás.
-// Debajo: qué esperar hoy, cómo ajustar el Coliseo y los hábitos, el registro del
-// día, el calendario con lo previsto y tus ciclos. Nada de esto llega al Sabio.
+// Ciclo Menstrual: zona de salud femenina (solo para quien indica que es mujer).
+// Una rueda con las cuatro fases (menstruación, fase folicular, ovulación y fase
+// lútea). Una semilla de luz recorre la rueda hasta hoy; la luz de la zona toma el
+// color de la fase en la que estás. Debajo: qué esperar hoy, cómo ajustar el
+// Coliseo y los hábitos, el registro del día, el calendario, las tendencias y tus
+// ciclos. Nada de esto llega al Sabio.
 import { useCallback, useEffect, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -23,12 +22,13 @@ import {
 import { SketchUnderline, ZoneShell } from '@/components/ambience';
 import { Lettering } from '@/components/layout/Lettering';
 import { Button, Card, DatePicker, EmptyState, ErrorState, Field, PageLoader, ResponsiveDialog } from '@/components/ui/lq';
-import { SeasonWheel } from '@/components/cycle/SeasonWheel';
+import { CycleRing } from '@/components/cycle/CycleRing';
+import { CycleAnalyticsPanel } from '@/components/cycle/CycleAnalytics';
 import { DayLogForm } from '@/components/cycle/DayLogForm';
 import { CycleCalendar, type DayInfo } from '@/components/cycle/CycleCalendar';
 import { PeriodHistory, Stepper } from '@/components/cycle/PeriodHistory';
 import {
-  PHASES, PHASE_META, SOURCE_LABEL, SYMPTOM_LABELS, daysBetween, energyLabel, intensityLine, isBleeding, longDay, phaseFill, phaseInk,
+  FERTILITY_LABEL, PHASES, PHASE_META, SOURCE_LABEL, SYMPTOM_LABELS, daysBetween, energyLabel, intensityLine, isBleeding, longDay, phaseFill, phaseInk,
 } from '@/components/cycle/cycleMeta';
 
 /** Primer arranque: su último periodo y sus largos de siempre. */
@@ -131,10 +131,10 @@ export default function CyclePage() {
       <div className="flex min-w-0 flex-col gap-1 md:gap-2">
         <span className="hidden text-label-lg text-primary-text md:block">{longDate()}</span>
         <h1 className="relative self-start text-display-sm md:text-display-md">
-          <Lettering text="Ciclo" />
+          <Lettering text="Ciclo Menstrual" />
           <span style={{ color: snap ? phaseFill(snap.phase) : 'rgb(var(--cy-follicular))' }}><SketchUnderline className="absolute -bottom-1.5 left-0 w-full md:-bottom-2.5" delay={0.75} /></span>
         </h1>
-        <p className="max-w-[560px] text-body-md text-on-surface-light md:text-body-lg">Tu ciclo como cuatro estaciones: sabes dónde estás, qué esperar y cómo ajustar tu día.</p>
+        <p className="max-w-[560px] text-body-md text-on-surface-light md:text-body-lg">Las cuatro fases de tu ciclo: sabes dónde estás, qué esperar y cómo ajustar tu día.</p>
       </div>
       {snap && (
         snap.onPeriod && snap.periodOpen
@@ -159,21 +159,23 @@ export default function CyclePage() {
       ? `Tu periodo va ${snap.lateDays} ${snap.lateDays === 1 ? 'día' : 'días'} tarde según tu promedio. Los ciclos varían; si te preocupa, consulta con un profesional de salud.`
       : snap.onPeriod
         ? `Estás en tu periodo: día ${snap.cycleDay}.`
-        : `Próximo periodo hacia el ${longDay(snap.nextPeriod)} (en ${snap.daysUntilNextPeriod} ${snap.daysUntilNextPeriod === 1 ? 'día' : 'días'}).`;
+        : snap.nextPeriodEarliest && snap.nextPeriodLatest && snap.nextPeriodEarliest !== snap.nextPeriodLatest
+          ? `Próximo periodo entre el ${longDay(snap.nextPeriodEarliest)} y el ${longDay(snap.nextPeriodLatest)}, hacia el ${longDay(snap.nextPeriod)}.`
+          : `Próximo periodo hacia el ${longDay(snap.nextPeriod)} (en ${snap.daysUntilNextPeriod} ${snap.daysUntilNextPeriod === 1 ? 'día' : 'días'}).`;
 
     body = (
       <>
         {/* La rueda y lo que significa hoy */}
         <motion.section variants={item} aria-label="Hoy en tu ciclo" className="grid items-center gap-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-12">
-          <SeasonWheel shape={snap.shape} cycleDay={snap.cycleDay} phase={snap.phase} bleedDays={bleedDays} loggedDays={loggedDays}>
-            <span className="text-label-lg" style={{ color: phaseInk(snap.phase) }}>{meta.season}</span>
+          <CycleRing shape={snap.shape} cycleDay={snap.cycleDay} phase={snap.phase} bleedDays={bleedDays} loggedDays={loggedDays}>
+            <span className="text-label-lg" style={{ color: phaseInk(snap.phase) }}>{meta.name}</span>
             <span className="font-mono text-display-md leading-none tabular-nums md:text-display-lg">{snap.cycleDay}</span>
             <span className="text-body-sm text-on-surface-light">día de tu ciclo</span>
-          </SeasonWheel>
+          </CycleRing>
           <div className="flex min-w-0 flex-col gap-5">
             <div className="flex flex-col gap-1.5">
               <span className="flex items-center gap-2 text-label-lg" style={{ color: phaseInk(snap.phase) }}>
-                <meta.icon aria-hidden className="size-4" strokeWidth={1.75} />{meta.season} interior
+                <meta.icon aria-hidden className="size-4" strokeWidth={1.75} />Fase del ciclo
               </span>
               <h2 className="text-display-sm">{meta.name}</h2>
               <p className="text-body-md text-on-surface">
@@ -207,7 +209,7 @@ export default function CyclePage() {
               </dl>
             )}
             <p className="text-body-sm text-on-surface-light">
-              Ventana fértil estimada: del {longDay(snap.fertileStart)} al {longDay(snap.fertileEnd)}. Es una estimación: no sirve como método anticonceptivo.
+              {FERTILITY_LABEL[snap.fertility]}: del {longDay(snap.fertileStart)} al {longDay(snap.fertileEnd)}. Es una estimación a partir de tus ciclos: no sirve como método anticonceptivo.
             </p>
           </div>
         </motion.section>
@@ -260,9 +262,9 @@ export default function CyclePage() {
           </Card>
         </motion.div>
 
-        {/* Las cuatro estaciones de este ciclo */}
-        <motion.section variants={item} aria-labelledby="cy-seasons" className="flex flex-col gap-4">
-          <h2 id="cy-seasons" className="text-heading-lg">Tus cuatro estaciones</h2>
+        {/* Las cuatro fases de este ciclo */}
+        <motion.section variants={item} aria-labelledby="cy-phases" className="flex flex-col gap-4">
+          <h2 id="cy-phases" className="text-heading-lg">Tus cuatro fases</h2>
           <ol className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {PHASES.map((p) => {
               const r = snap.shape.ranges[p];
@@ -276,7 +278,7 @@ export default function CyclePage() {
                   style={now ? { background: phaseFill(p, 0.1), boxShadow: `inset 0 0 0 1.5px ${phaseFill(p, 0.55)}` } : undefined}
                 >
                   <span className="flex items-center justify-between gap-2">
-                    <span className="flex items-center gap-2 text-label-lg" style={{ color: phaseInk(p) }}><m.icon aria-hidden className="size-4" strokeWidth={1.75} />{m.season}</span>
+                    <span className="flex items-center gap-2 text-label-lg" style={{ color: phaseInk(p) }}><m.icon aria-hidden className="size-4" strokeWidth={1.75} /></span>
                     <span className="font-mono text-label-md tabular-nums text-on-surface-light">días {r.start}–{p === 'luteal' ? Math.max(r.end, snap.cycleDay) : r.end}</span>
                   </span>
                   <h3 className="text-heading-sm">{m.name}{now && <span className="sr-only"> (estás aquí)</span>}</h3>
@@ -285,6 +287,14 @@ export default function CyclePage() {
               );
             })}
           </ol>
+        </motion.section>
+
+        <motion.section variants={item} aria-labelledby="cy-trends" className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <h2 id="cy-trends" className="text-heading-lg">Tendencias</h2>
+            <p className="text-body-sm text-on-surface-light">Cómo han sido tus ciclos y periodos, y qué síntomas aparecen en cada fase.</p>
+          </div>
+          <Card padding="lg"><CycleAnalyticsPanel data={data} /></Card>
         </motion.section>
 
         <motion.section variants={item} aria-labelledby="cy-history" className="flex flex-col gap-4">

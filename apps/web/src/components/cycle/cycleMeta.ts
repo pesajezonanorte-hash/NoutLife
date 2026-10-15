@@ -1,14 +1,15 @@
-// La zona Ciclo cuenta el ciclo como cuatro estaciones interiores: el periodo es
-// el invierno (descanso), la fase folicular la primavera (la energía vuelve),
-// la ovulación el verano (el pico) y la fase lútea el otoño (la energía baja).
-// Cada fase tiene su color (styles/ambience.css, --cy-*), su glifo y su texto:
-// el color nunca va solo.
-import { Leaf, Snowflake, Sprout, Sun, type LucideIcon } from 'lucide-react';
-import type { CycleFlow, CycleIntensity, CyclePhase, CycleSymptom } from '@/services/cycle.service';
+// Ciclo Menstrual: terminología médica para las cuatro fases (menstruación, fase
+// folicular, ovulación y fase lútea). Cada fase tiene su color (styles/ambience.css,
+// --cy-*), su ícono y su texto: el color nunca va solo. Las opciones del registro
+// diario (flujo, síntomas, ánimo, estilo de vida) también viven aquí, con su ícono.
+import {
+  ArrowUpDown, Bone, BatteryLow, Brain, Cookie, Droplet, Flame, Frown, Heart, Moon, Smile, Sparkle, Sprout, Activity, Wind, Zap, CircleDot,
+  type LucideIcon,
+} from 'lucide-react';
+import type { CycleContraceptive, CycleFlow, CycleIntensity, CycleMood, CyclePhase, CycleSexualActivity, CycleSymptom } from '@/services/cycle.service';
 
 export interface PhaseMeta {
   name: string;
-  season: string;
   icon: LucideIcon;
   /** Una línea: qué suele pasar en esta fase. */
   summary: string;
@@ -17,10 +18,10 @@ export interface PhaseMeta {
 export const PHASES: CyclePhase[] = ['menstrual', 'follicular', 'ovulation', 'luteal'];
 
 export const PHASE_META: Record<CyclePhase, PhaseMeta> = {
-  menstrual: { name: 'Menstruación', season: 'Invierno', icon: Snowflake, summary: 'El cuerpo se renueva: descansa más y muévete con suavidad.' },
-  follicular: { name: 'Fase folicular', season: 'Primavera', icon: Sprout, summary: 'La energía vuelve día a día. Buen momento para empezar cosas.' },
-  ovulation: { name: 'Ovulación', season: 'Verano', icon: Sun, summary: 'Suele ser el pico de energía y de ganas de socializar.' },
-  luteal: { name: 'Fase lútea', season: 'Otoño', icon: Leaf, summary: 'La energía baja poco a poco; al final pueden llegar antojos o cambios de ánimo.' },
+  menstrual: { name: 'Menstruación', icon: Droplet, summary: 'El cuerpo se renueva: descansa más y muévete con suavidad.' },
+  follicular: { name: 'Fase folicular', icon: Sprout, summary: 'La energía vuelve día a día. Buen momento para empezar cosas.' },
+  ovulation: { name: 'Ovulación', icon: CircleDot, summary: 'Suele ser el pico de energía y de ganas de socializar.' },
+  luteal: { name: 'Fase lútea', icon: Moon, summary: 'La energía baja poco a poco; al final pueden llegar antojos o cambios de ánimo.' },
 };
 
 /** Color de la fase (relleno de gráficos) con transparencia opcional. */
@@ -32,26 +33,53 @@ export const FLOW_OPTIONS: { value: CycleFlow; label: string; drops: number }[] 
   { value: 'none', label: 'Sin flujo', drops: 0 },
   { value: 'spotting', label: 'Manchado', drops: 0 },
   { value: 'light', label: 'Ligero', drops: 1 },
-  { value: 'medium', label: 'Medio', drops: 2 },
+  { value: 'medium', label: 'Moderado', drops: 2 },
   { value: 'heavy', label: 'Abundante', drops: 3 },
 ];
 export const isBleeding = (flow: CycleFlow | null | undefined) => flow === 'light' || flow === 'medium' || flow === 'heavy';
 
-export const SYMPTOM_LABELS: Record<CycleSymptom, string> = {
-  cramps: 'Cólicos',
-  headache: 'Dolor de cabeza',
-  bloating: 'Hinchazón',
-  breast_tenderness: 'Senos sensibles',
-  back_pain: 'Dolor de espalda',
-  acne: 'Acné',
-  nausea: 'Náuseas',
-  fatigue: 'Cansancio',
-  cravings: 'Antojos',
-  insomnia: 'Insomnio',
-  anxiety: 'Ansiedad',
-  irritability: 'Irritabilidad',
+export const SYMPTOM_META: Record<CycleSymptom, { label: string; icon: LucideIcon }> = {
+  cramps: { label: 'Cólicos', icon: Activity },
+  headache: { label: 'Dolor de cabeza', icon: Brain },
+  bloating: { label: 'Hinchazón', icon: Wind },
+  breast_tenderness: { label: 'Sensibilidad mamaria', icon: Heart },
+  back_pain: { label: 'Dolor lumbar', icon: Bone },
+  acne: { label: 'Brotes o acné', icon: Sparkle },
+  nausea: { label: 'Náuseas', icon: Frown },
+  fatigue: { label: 'Cansancio', icon: BatteryLow },
+  cravings: { label: 'Antojos', icon: Cookie },
+  insomnia: { label: 'Insomnio', icon: Moon },
+  anxiety: { label: 'Ansiedad', icon: Wind },
+  irritability: { label: 'Irritabilidad', icon: Flame },
 };
-export const SYMPTOMS = Object.keys(SYMPTOM_LABELS) as CycleSymptom[];
+export const SYMPTOM_LABELS = Object.fromEntries(Object.entries(SYMPTOM_META).map(([k, v]) => [k, v.label])) as Record<CycleSymptom, string>;
+export const SYMPTOMS = Object.keys(SYMPTOM_META) as CycleSymptom[];
+
+export const MOOD_META: Record<CycleMood, { label: string; icon: LucideIcon }> = {
+  happy: { label: 'Feliz', icon: Smile },
+  energetic: { label: 'Enérgica', icon: Zap },
+  sensitive: { label: 'Sensible', icon: Heart },
+  anxious: { label: 'Ansiosa', icon: Wind },
+  irritable: { label: 'Irritable', icon: Flame },
+  mood_swings: { label: 'Altibajos', icon: ArrowUpDown },
+};
+export const MOODS = Object.keys(MOOD_META) as CycleMood[];
+
+export const SEXUAL_OPTIONS: { value: CycleSexualActivity; label: string }[] = [
+  { value: 'none', label: 'Sin actividad' },
+  { value: 'protected', label: 'Con protección' },
+  { value: 'unprotected', label: 'Sin protección' },
+];
+
+export const CONTRACEPTIVE_OPTIONS: { value: CycleContraceptive; label: string }[] = [
+  { value: 'none', label: 'Ninguno' },
+  { value: 'pill', label: 'Pastillas' },
+  { value: 'iud', label: 'DIU' },
+  { value: 'implant', label: 'Implante' },
+  { value: 'injection', label: 'Inyección' },
+  { value: 'condom', label: 'Condón' },
+  { value: 'other', label: 'Otro' },
+];
 
 export const ENERGY_LABELS = ['Agotada', 'Baja', 'Normal', 'Buena', 'A tope'] as const;
 export const energyLabel = (n: number) => ENERGY_LABELS[Math.min(5, Math.max(1, n)) - 1];
@@ -91,3 +119,9 @@ export function cycleRanges(cycleLength: number, periodLength: number): Record<C
     luteal: { start: ovulationDay + 2, end: length },
   };
 }
+
+export const FERTILITY_LABEL = {
+  peak: 'Pico de fertilidad estimado',
+  high: 'Ventana fértil estimada',
+  low: 'Fertilidad baja estimada',
+} as const;

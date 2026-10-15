@@ -136,7 +136,7 @@ export default function SettingsPage() {
         coliseoPlaylistUrl: showPlaylist && playlistUrl.trim() ? playlistUrl.trim() : null,
       }));
       const cycleNow = canUseCycle(gender || null);
-      toast.success('Perfil guardado', cycleNow && !cycleBefore ? 'La zona Ciclo ya está en tu menú, en Bienestar.' : !cycleNow && cycleBefore ? 'La zona Ciclo se ocultó. Tus registros siguen guardados.' : undefined);
+      toast.success('Perfil guardado', cycleNow && !cycleBefore ? 'La zona Ciclo Menstrual ya está en tu menú, en Bienestar.' : !cycleNow && cycleBefore ? 'La zona Ciclo Menstrual se ocultó. Tus registros siguen guardados.' : undefined);
       setFit((f) => f + 1);
     } catch { toast.error('No se pudieron guardar los cambios'); }
     finally { setSaving(false); }
@@ -245,7 +245,7 @@ export default function SettingsPage() {
                         {TIMEZONES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                       </Select>
                     </Field>
-                    <Field label="¿Cómo te identificas?" help="Si eliges Mujer, se activa la zona Ciclo.">
+                    <Field label="¿Cómo te identificas?" help="Si eliges Mujer, se activa la zona Ciclo Menstrual.">
                       <Select value={gender} onChange={(e) => setGender(e.target.value as Gender | '')}>
                         {!gender && <option value="">Sin indicar</option>}
                         {GENDER_OPTIONS.map((g) => <option key={g.value} value={g.value}>{g.label}</option>)}

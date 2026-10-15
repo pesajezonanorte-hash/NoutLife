@@ -297,9 +297,9 @@ model User {
   resourceShares          ResourceShare[] @relation("ResourceShareOwner")
   sharedWithMe            ResourceShareMember[]
   subscriptionPayments    SubscriptionPayment[]
-  cycleSettings           CycleSettings?
-  cyclePeriods            CyclePeriod[]
-  cycleLogs               CycleLog[]
+  menstrualSettings       MenstrualSettings?
+  menstrualPeriods        MenstrualPeriod[]
+  menstrualLogs           MenstrualLog[]
 
   @@index([subscriptionStatus, trialEndsAt])
   @@index([subscriptionStatus, currentPeriodEnd])
@@ -1971,7 +1971,7 @@ model ResourceShareMember {
 
 /// Duraciones típicas que declara la usuaria. Con historial, las predicciones
 /// usan el promedio real de sus periodos y estas quedan como respaldo.
-model CycleSettings {
+model MenstrualSettings {
   id           String   @id @default(cuid())
   userId       String   @unique
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1986,7 +1986,7 @@ model CycleSettings {
 }
 
 /// Un periodo, del primer al último día de sangrado. endDate es null mientras dura.
-model CyclePeriod {
+model MenstrualPeriod {
   id        String    @id @default(cuid())
   userId    String
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -2001,7 +2001,7 @@ model CyclePeriod {
 }
 
 /// Registro de un día: flujo, ánimo, energía, síntomas y una nota.
-model CycleLog {
+model MenstrualLog {
   id        String   @id @default(cuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -2009,12 +2009,24 @@ model CycleLog {
   date      DateTime
   /// 'none' | 'spotting' | 'light' | 'medium' | 'heavy'
   flow      String?
-  /// 1–5
+  /// Legado (1–5): ya no se escribe. Los registros nuevos usan moods.
   mood      Int?
+  /// Estados de ánimo (lib/cycle MOODS).
+  moods     String[] @default([])
   /// 1–5
   energy    Int?
   /// Claves de SYMPTOMS (lib/cycle.ts): 'cramps', 'headache'…
   symptoms  String[] @default([])
+  /// Actividad sexual del día (SEXUAL_ACTIVITY).
+  sexualActivity String?
+  /// Método anticonceptivo usado (CONTRACEPTIVES).
+  contraception  String?
+  /// 1–5
+  sleepQuality   Int?
+  /// 1–5
+  stress         Int?
+  /// Vasos de agua del día.
+  waterGlasses   Int?
   notes     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
