@@ -132,7 +132,7 @@ export const PUBLIC_USER = {
   avatarConfig: true, avatarUrl: true, equippedAura: true, equippedFrame: true, equippedHat: true,
 } as const;
 const PRESENCE = { presenceAt: true, presenceZone: true, privacy: true } as const;
-const STREAK = { currentStreak: true, lastActivityDate: true, timezone: true } as const;
+const STREAK = { currentStreak: true, lastActivityDate: true, timezone: true, streakShieldDays: true } as const;
 
 type PublicUser = Prisma.UserGetPayload<{ select: typeof PUBLIC_USER }>;
 
@@ -195,7 +195,7 @@ export const dayKey = (tz: string | null | undefined, now = new Date()) => getCa
 export const shiftKey = (key: string, days: number) => addCalendarDays(new Date(`${key}T00:00:00.000Z`), days).toISOString().slice(0, 10);
 
 /** Coste en oro de revivir una racha de N días (más larga = más cara). */
-export const reviveCost = (days: number, base = 15, cap = 300) => Math.min(cap, base + days * 5);
+export const reviveCost = (days: number, base = 15, cap = 300, perDay = 5) => Math.min(cap, base + days * perDay);
 
 /** Una racha entre amigos (o de un gremio) se enciende al tercer día seguido hablando. */
 export const STREAK_MIN = 3;
@@ -335,7 +335,7 @@ export async function getFriendsNetwork(userId: string) {
     const cleared = pref?.clearedAt?.getTime() ?? 0;
     const last = recent.find((m) => (m.senderId === other.id || m.receiverId === other.id) && m.createdAt.getTime() > cleared);
     const mine = last?.senderId === userId;
-    const { presenceAt: _a, presenceZone: _z, privacy: _p, lastActivityDate: _l, timezone: _t, ...pub } = other;
+    const { presenceAt: _a, presenceZone: _z, privacy: _p, lastActivityDate: _l, timezone: _t, streakShieldDays: _s, ...pub } = other;
     return {
       friendshipId: f.id,
       since: f.updatedAt.toISOString(),
@@ -373,7 +373,7 @@ export async function getProfile(viewerId: string, username: string) {
     const block = await prisma.userBlock.findFirst({ where: { OR: [{ blockerId: viewerId, blockedId: user.id }, { blockerId: user.id, blockedId: viewerId }] }, select: { blockerId: true } });
     if (block && block.blockerId === user.id) throw new Error('Usuario no encontrado');
     if (block) {
-      const { presenceAt: _a, presenceZone: _z, privacy: _p, lastActivityDate: _l, timezone: _t, ...pub } = user;
+      const { presenceAt: _a, presenceZone: _z, privacy: _p, lastActivityDate: _l, timezone: _t, streakShieldDays: _s, ...pub } = user;
       return {
         user: { ...pub, createdAt: user.createdAt.toISOString(), currentStreak: 0 },
         presence: { online: false, zone: null, lastSeen: null },
@@ -387,7 +387,7 @@ export async function getProfile(viewerId: string, username: string) {
   const relation = isSelf ? { status: 'SELF' as const, friendshipId: null } : relationOf(viewerId, link);
   const isFriend = relation.status === 'FRIENDS';
   const privacy = privacyOf(user.privacy);
-  const { presenceAt: _a, presenceZone: _z, privacy: _p, lastActivityDate: _l, timezone: _t, ...pub } = user;
+  const { presenceAt: _a, presenceZone: _z, privacy: _p, lastActivityDate: _l, timezone: _t, streakShieldDays: _s, ...pub } = user;
 
   const base = {
     user: { ...pub, createdAt: user.createdAt.toISOString(), currentStreak: effectiveActivityStreak(user, now) },
@@ -571,9 +571,13 @@ export async function invitePartner(me: string, otherId: string) {
   await requireFriends(me, otherId);
   const taken = await prisma.relationship.findFirst({
     where: { isPartner: true, linkStatus: 'LINKED', OR: [{ userId: otherId }, { partnerUserId: otherId }] },
-    select: { id: true },
+    select: { userId: true, partnerUserId: true },
   });
-  if (taken) throw new Error('Esa persona ya comparte su jardín con alguien');
+  if (taken) {
+    // Volver a invitar a quien ya cuida tu mismo jardín no es «otra persona».
+    const withMe = taken.userId === me || taken.partnerUserId === me;
+    throw new Error(withMe ? 'Esta persona ya comparte un jardín contigo.' : 'Esa persona ya comparte su jardín con otra persona.');
+  }
 
   const [mine, other, meUser] = await Promise.all([
     prisma.relationship.findFirst({ where: PARTNER_OF(me), orderBy: { createdAt: 'asc' } }),

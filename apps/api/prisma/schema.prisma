@@ -186,6 +186,12 @@ model User {
   /// Racha general perdida hace poco: se puede revivir con oro durante 72 h.
   lostStreak   Int       @default(0)
   lostStreakAt DateTime?
+  /// Días sin actividad que la racha general aguanta sin romperse (Pase de Perdón y Escudo de la Tienda).
+  streakShieldDays Int   @default(0)
+
+  /// Cómo se identifica la persona: 'female' | 'male' | 'other' | 'unspecified'. Null en cuentas anteriores.
+  /// Solo 'female' abre la zona Ciclo.
+  gender       String?
 
   // Google Calendar Integration
   googleAccessToken         String?
@@ -291,6 +297,9 @@ model User {
   resourceShares          ResourceShare[] @relation("ResourceShareOwner")
   sharedWithMe            ResourceShareMember[]
   subscriptionPayments    SubscriptionPayment[]
+  cycleSettings           CycleSettings?
+  cyclePeriods            CyclePeriod[]
+  cycleLogs               CycleLog[]
 
   @@index([subscriptionStatus, trialEndsAt])
   @@index([subscriptionStatus, currentPeriodEnd])
@@ -1954,4 +1963,60 @@ model ResourceShareMember {
   @@unique([shareId, userId])
   @@index([userId])
   @@map("resource_share_members")
+}
+
+// ─── Ciclo menstrual (solo cuentas con gender = 'female') ────────────────────
+
+/// Duraciones típicas que declara la usuaria. Con historial, las predicciones
+/// usan el promedio real de sus periodos y estas quedan como respaldo.
+model CycleSettings {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Días de un ciclo completo (18–60).
+  cycleLength  Int      @default(28)
+  /// Días de sangrado (2–10).
+  periodLength Int      @default(5)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("cycle_settings")
+}
+
+/// Un periodo, del primer al último día de sangrado. endDate es null mientras dura.
+model CyclePeriod {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Claves de día del calendario de la usuaria (medianoche UTC), como HabitLog.date.
+  startDate DateTime
+  endDate   DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@unique([userId, startDate])
+  @@map("cycle_periods")
+}
+
+/// Registro de un día: flujo, ánimo, energía, síntomas y una nota.
+model CycleLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Clave de día del calendario de la usuaria (medianoche UTC).
+  date      DateTime
+  /// 'none' | 'spotting' | 'light' | 'medium' | 'heavy'
+  flow      String?
+  /// 1–5
+  mood      Int?
+  /// 1–5
+  energy    Int?
+  /// Claves de SYMPTOMS (lib/cycle.ts): 'cramps', 'headache'…
+  symptoms  String[] @default([])
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, date])
+  @@map("cycle_logs")
 }

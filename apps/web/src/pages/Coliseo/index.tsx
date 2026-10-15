@@ -20,6 +20,7 @@ import * as workoutService from '../../services/workout.service';
 import { SageContextButton } from '../../components/sage/SageContextButton';
 import { BodyWeightTracker, OneRMCalculator, WeeklyVolumeWidget, ProgressPhotos, RestTimer } from '../../components/coliseo/ColiseoExtras';
 import { Barbell, DropTitle, LiftBars, LoadBar, RollingClock, Thud, type LiftDay } from '../../components/coliseo/ColiseoMotion';
+import { CycleColiseoHint } from '../../components/cycle/CycleHints';
 
 const MUSCLE_GROUPS = ['Todos', 'Pecho', 'Espalda', 'Hombros', 'Bíceps', 'Tríceps', 'Piernas', 'Core', 'Cardio'].map((m) => ({ value: m, label: m }));
 
@@ -786,6 +787,9 @@ export default function ColiseoPage() {
   return (
     <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-6 md:gap-8">
       <SessionHeader title="Coliseo" description="Pesas, cardio, deporte o una caminata: cada sesión suma XP y fortalece a tu personaje." actions={startButtons} />
+
+      {/* Ciclo: intensidad sugerida para hoy (solo si la persona tiene la zona Ciclo) */}
+      <motion.div variants={item}><CycleColiseoHint /></motion.div>
 
       <motion.div variants={item}>
         <Thud as="section" trigger={platesThisWeek} aria-label="Asistencia" className="flex flex-wrap items-center justify-between gap-x-6 gap-y-5 rounded-2xl border border-border bg-surface p-4 shadow-sm md:p-6">

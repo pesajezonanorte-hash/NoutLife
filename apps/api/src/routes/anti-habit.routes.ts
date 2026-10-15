@@ -36,6 +36,18 @@ router.post('/', async (req, res) => {
   catch { res.status(500).json({ error: 'No se pudo registrar el anti-hábito.' }); }
 });
 
+router.patch('/:id', async (req, res) => {
+  const { title, category, cue, targetPerWeek } = req.body ?? {};
+  if ((title !== undefined && !cleanText(title, 100)) || (category !== undefined && !cleanText(category, 32)) ||
+    (cue !== undefined && cue !== null && (typeof cue !== 'string' || cue.length > 200)) ||
+    (targetPerWeek !== undefined && targetPerWeek !== null && (!Number.isInteger(targetPerWeek) || targetPerWeek < 1 || targetPerWeek > 100))) {
+    res.status(400).json({ error: 'Revisa el título, la categoría y la meta semanal.' });
+    return;
+  }
+  try { await antiHabits.updateAntiHabit(userIdOf(req as AuthRequest), req.params.id, { title, category, cue, targetPerWeek }); res.json({ success: true }); }
+  catch (err) { fail(res, err); }
+});
+
 router.post('/:id/logs', async (req, res) => {
   const { occurred, amount = 1, intensity, note, date } = req.body ?? {};
   if (typeof occurred !== 'boolean' || !Number.isInteger(amount) || amount < 1 || amount > 999 ||

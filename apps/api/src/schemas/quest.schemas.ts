@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { GENDERS } from '../lib/gender';
 
 const QUEST_TYPES = ['MAIN', 'SIDE', 'DAILY', 'WEEKLY', 'META'] as const;
 const DIFFICULTIES = ['EASY', 'NORMAL', 'HARD', 'EPIC'] as const;
@@ -53,6 +54,7 @@ export const onboardingSchema = z.object({
   displayName: z.string().min(1).max(60).optional(),
   birthDate: z.string().optional(),
   timezone: z.string().optional(),
+  gender: z.enum(GENDERS).optional(),
   avatarConfig: z.record(z.unknown()).optional(),
   goalCategories: z.array(z.string()).optional(),
   mainQuestTitle: z.string().min(1).max(120).optional(),

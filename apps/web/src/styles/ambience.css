@@ -1240,3 +1240,38 @@ html.dark .lq-ticket-stub { background: color-mix(in srgb, rgb(var(--lq-error)) 
   color: rgb(var(--lq-jade-50));
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / .08), var(--shadow-sm);
 }
+
+/* ───────── Ciclo (las cuatro estaciones interiores) ───────── */
+/* Una paleta por fase. Relleno ≥3:1 sobre la superficie; *-text ≥4.5:1 (AA).
+   Invierno = periodo (baya), primavera = folicular (brote), verano = ovulación
+   (sol), otoño = lútea (cobre). El color siempre va con su glifo y su nombre. */
+:root {
+  --cy-menstrual: 184 71 109;  --cy-menstrual-text: 154 47 85;
+  --cy-follicular: 107 154 46; --cy-follicular-text: 76 122 30;
+  --cy-ovulation: 185 130 7;   --cy-ovulation-text: 138 90 0;
+  --cy-luteal: 201 105 47;     --cy-luteal-text: 154 74 31;
+}
+html.dark {
+  --cy-menstrual: 236 143 174; --cy-menstrual-text: 240 165 190;
+  --cy-follicular: 168 212 108; --cy-follicular-text: 186 222 134;
+  --cy-ovulation: 242 196 90;  --cy-ovulation-text: 245 208 120;
+  --cy-luteal: 240 160 112;    --cy-luteal-text: 244 180 140;
+}
+/* La fase de hoy respira en la rueda (solo opacidad, ~0,15 Hz). */
+.lq-cy-breathe { animation: lq-cy-breathe 6.5s ease-in-out infinite; }
+@keyframes lq-cy-breathe { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
+.reduce-motion .lq-cy-breathe { animation: none; }
+/* Luz de la estación: el tono de la fase de hoy, muy diluido, detrás de la zona. */
+.lq-cy-light { background: radial-gradient(closest-side, rgb(var(--tone) / .16), transparent); }
+html.dark .lq-cy-light { background: radial-gradient(closest-side, rgb(var(--tone) / .08), transparent); }
+/* Día del calendario: el color de su fase en el borde inferior. */
+.lq-cy-day { box-shadow: inset 0 -3px 0 rgb(var(--tone) / .85); }
+
+/* ───────── Ranking: el juramento ───────── */
+/* Inscripción grabada en el mármol del estadio, al pie de la tabla. */
+.lq-oath {
+  box-shadow: inset 0 0 0 1px rgb(var(--lq-secondary) / .35), inset 0 0 0 6px rgb(var(--lq-surface) / .5), inset 0 0 0 7px rgb(var(--lq-secondary) / .2), var(--shadow-sm);
+}
+html.dark .lq-oath { box-shadow: inset 0 0 0 1px rgb(var(--lq-secondary) / .3), inset 0 0 0 6px rgb(0 0 0 / .15), inset 0 0 0 7px rgb(var(--lq-secondary) / .16), var(--shadow-sm); }
+.lq-engraved { color: rgb(var(--lq-on-background) / .86); text-shadow: 0 1px 0 rgb(255 255 255 / .7), 0 -1px 0 rgb(0 0 0 / .08); }
+html.dark .lq-engraved { color: rgb(var(--lq-on-background) / .9); text-shadow: 0 -1px 0 rgb(0 0 0 / .6); }

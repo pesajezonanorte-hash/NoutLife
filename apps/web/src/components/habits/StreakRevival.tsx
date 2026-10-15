@@ -2,6 +2,7 @@
 // encender con oro. Al revivirla la brasa se aviva, saltan chispas y la llama
 // sube de nuevo. Sale en el inicio (racha general y hábitos) y en Hábitos.
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { AnimatePresence, motion, useReducedMotionConfig } from 'framer-motion';
 import { Coins, Flame } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -106,7 +107,10 @@ export function StreakRevival({ scope = 'all', onRevived, className }: { scope?:
           <h2 className="text-heading-sm">Todavía puedes revivirlas</h2>
           <span className="inline-flex items-center gap-1 font-mono text-body-sm tabular-nums text-warning-text"><Coins aria-hidden className="size-4" />{data.gold.toLocaleString('es-CO')}</span>
         </div>
-        <p className="text-body-sm text-on-surface-light">Una racha que se apagó hace poco se puede encender otra vez con oro.</p>
+        <p className="text-body-sm text-on-surface-light">
+          Una racha que se apagó hace poco se puede encender otra vez con oro. Para la próxima, protegerla sale más barato:{' '}
+          <Link to="/shop" className="font-semibold text-primary-text underline-offset-4 hover:underline">ver protectores de racha</Link>.
+        </p>
         <ul className="flex flex-col divide-y divide-border">
           <AnimatePresence initial={false}>
             {activity && (

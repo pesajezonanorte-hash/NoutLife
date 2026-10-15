@@ -59,7 +59,7 @@ const loaders = {
   AgendaPage: () => import('./pages/Agenda'),
   LifePage: () => import('./pages/Life'),
   ChecklistsPage: () => import('./pages/Checklists'),
-  ObstaclesPage: () => import('./pages/Obstacles'),
+  CyclePage: () => import('./pages/Cycle'),
   CustomZoneDetailPage: () => import('./pages/CustomZoneDetail'),
   SharedResourcePage: () => import('./pages/SharedResource'),
   RitualsPage: () => import('./pages/Rituals'),
@@ -118,7 +118,7 @@ const routeLoaders: Record<string, () => Promise<unknown>> = {
   '/agenda': loaders.AgendaPage,
   '/life': loaders.LifePage,
   '/checklists': loaders.ChecklistsPage,
-  '/obstaculos': loaders.ObstaclesPage,
+  '/ciclo': loaders.CyclePage,
   '/custom-zones': loaders.CustomZonesPage,
   '/rituals': loaders.RitualsPage,
   '/espejo': loaders.GlowUpPage,
@@ -129,7 +129,7 @@ const routeLoaders: Record<string, () => Promise<unknown>> = {
 };
 
 // Rutas que solo redirigen (no esperan ningún bundle).
-const REDIRECTS = new Set(['/rituales', '/character', '/friends', '/guild', '/glow-up', '/armario', '/gym']);
+const REDIRECTS = new Set(['/rituales', '/character', '/friends', '/guild', '/glow-up', '/armario', '/gym', '/obstaculos']);
 
 function loaderForPath(pathname: string) {
   if (REDIRECTS.has(pathname)) return null;
@@ -267,7 +267,9 @@ function AnimatedRoutes({ location }: { location: ReturnType<typeof useLocation>
           <Route path="/custom-zones" element={<SafePage><ProZonePage zone="custom-zones" load={loaders.CustomZonesPage} /></SafePage>} />
           <Route path="/zonas/:id" element={<SafePage><ProZonePage zone="custom-zones" load={loaders.CustomZoneDetailPage} /></SafePage>} />
           <Route path="/checklists" element={<SafePage><DeferredLazyPage load={loaders.ChecklistsPage} /></SafePage>} />
-          <Route path="/obstaculos" element={<SafePage><DeferredLazyPage load={loaders.ObstaclesPage} /></SafePage>} />
+          {/* Obstáculos vive ahora dentro de la libreta de Hábitos. */}
+          <Route path="/obstaculos" element={<Navigate to="/habits?tab=obstaculos" replace />} />
+          <Route path="/ciclo"     element={<SafePage><DeferredLazyPage load={loaders.CyclePage} /></SafePage>} />
           <Route path="/rituals"  element={<SafePage><DeferredLazyPage load={loaders.RitualsPage} /></SafePage>} />
           <Route path="/rituales" element={<Navigate to="/rituals" replace />} />
           <Route path="/espejo"   element={<SafePage><ProZonePage zone="mirror" load={loaders.GlowUpPage} /></SafePage>} />

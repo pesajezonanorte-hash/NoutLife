@@ -1,5 +1,5 @@
 import api from '../lib/api';
-import type { User, AvatarConfig } from '@noutlife/shared';
+import type { User, AvatarConfig, Gender } from '@noutlife/shared';
 
 export async function fetchCharacter(): Promise<User & { inventoryItems: unknown[]; achievements: unknown[] }> {
   const { data } = await api.get('/users/me/character');
@@ -15,6 +15,7 @@ export interface OnboardingPayload {
   displayName?: string;
   birthDate?: string;
   timezone?: string;
+  gender?: Gender;
   avatarConfig?: Partial<AvatarConfig>;
   goalCategories?: string[];
   mainQuestTitle?: string;
@@ -27,7 +28,7 @@ export async function completeOnboarding(payload: OnboardingPayload): Promise<Us
   return data.user;
 }
 
-export async function updateProfile(payload: { displayName?: string; timezone?: string; currency?: string; language?: string; coliseoPlaylistUrl?: string | null; avatarUrl?: string | null }): Promise<User> {
+export async function updateProfile(payload: { displayName?: string; timezone?: string; currency?: string; language?: string; coliseoPlaylistUrl?: string | null; avatarUrl?: string | null; gender?: Gender | null }): Promise<User> {
   const { data } = await api.patch<{ user: User }>('/users/me/profile', payload);
   return data.user;
 }

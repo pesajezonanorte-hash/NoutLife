@@ -3,16 +3,18 @@
 // (onboarding o Ajustes → Zonas) + Perfil; el resto queda en Bienestar, "Más
 // zonas" y Comunidad.
 import {
-  BarChart3, BookOpen, CalendarDays, Clapperboard, Gem, HelpCircle, Flag, Globe, Heart, Home,
+  BarChart3, BookOpen, CalendarDays, Clapperboard, Flower2, Gem, HelpCircle, Flag, Globe, Heart, Home,
   MapPin, Moon, NotebookPen, Scroll, Settings, ShoppingBag, Skull, Sun,
-  Sparkles, Swords, Trophy, User, UtensilsCrossed, Wallet, CheckCircle2, MessageCircle, Mail, NotebookTabs, Tent, Album, ListChecks, ShieldAlert, type LucideIcon,
+  Sparkles, Swords, Trophy, User, UtensilsCrossed, Wallet, CheckCircle2, MessageCircle, Mail, NotebookTabs, Tent, Album, ListChecks, type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useMemo } from 'react';
+import type { Gender } from '@noutlife/shared';
 import { useAuthStore } from '@/store/authStore';
 import { useCustomZoneStore, type CustomZoneNav } from '@/store/customZoneStore';
 import { zoneIconOf } from '@/components/zones/zoneIcons';
 import { DEFAULT_ORDER, PINNED_COUNT, useNavStore } from '@/store/navStore';
 import { proZoneOf } from '@/lib/plan';
+import { canUseCycle } from '@/utils/gender';
 
 export interface NavEntry {
   to: string;
@@ -43,6 +45,8 @@ export const NAV_SECTIONS: NavSection[] = [
       { to: '/food', label: 'Comida', icon: UtensilsCrossed },
       { to: '/sleep', label: 'Sueño', icon: Moon },
       { to: '/recreacion', label: 'Recreación', icon: Clapperboard },
+      // Solo para quien indica que es mujer (zonesUnavailableFor).
+      { to: '/ciclo', label: 'Ciclo', icon: Flower2 },
       { to: '/achievements', label: 'Logros', icon: Trophy },
     ],
   },
@@ -53,7 +57,6 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { to: '/habits', label: 'Hábitos', icon: CheckCircle2 },
       { to: '/checklists', label: 'Checklists', icon: ListChecks },
-      { to: '/obstaculos', label: 'Obstáculos', icon: ShieldAlert },
       { to: '/quests', label: 'Misiones', icon: Flag },
       { to: '/stats', label: 'Estadísticas', icon: BarChart3 },
       // Coliseo (antes Gimnasio): cualquier entrenamiento físico, no solo el gimnasio.
@@ -90,11 +93,27 @@ export const SOCIAL_SHORTCUTS: NavEntry[] = [
   { to: '/social?tab=gremios', label: 'Gremios', icon: Tent },
 ];
 
-/** Rutas que se unieron en otra (zonas fijadas o escondidas guardadas antes). */
-const MERGED: Record<string, string> = { '/friends': '/social', '/guild': '/social', '/glow-up': '/espejo', '/armario': '/espejo', '/gym': '/coliseo' };
+/** Rutas que se unieron en otra (zonas fijadas o escondidas guardadas antes). Obstáculos vive ahora en la libreta de Hábitos. */
+const MERGED: Record<string, string> = { '/friends': '/social', '/guild': '/social', '/glow-up': '/espejo', '/armario': '/espejo', '/gym': '/coliseo', '/obstaculos': '/habits' };
+/** Zonas que pasaron a ser parte de otra: fijarlas fija la nueva, pero haberlas ocultado no oculta la nueva. */
+const ABSORBED = new Set(['/obstaculos']);
 
 /** Todas las zonas que pueden ir en la navegación principal (entre Inicio y Perfil). */
 export const ZONES: NavEntry[] = NAV_SECTIONS.flatMap((s) => s.items);
+
+/** Zonas que dependen de cómo se identifica la persona. */
+const GENDERED_ZONES: Record<string, (gender: Gender | null | undefined) => boolean> = { '/ciclo': canUseCycle };
+
+/** Rutas que esta persona no tiene (no salen en menús, buscador ni zonas principales). */
+export function zonesUnavailableFor(gender: Gender | null | undefined): Set<string> {
+  return new Set(Object.entries(GENDERED_ZONES).filter(([, allowed]) => !allowed(gender)).map(([to]) => to));
+}
+
+/** Rutas que la persona actual no tiene. */
+export function useUnavailableZones(): Set<string> {
+  const gender = useAuthStore((s) => s.user?.gender);
+  return useMemo(() => zonesUnavailableFor(gender), [gender]);
+}
 
 // ─── Zonas dinámicas ─────────────────────────────────────────────────────────
 // Además de las zonas fijas, la navegación admite zonas que se crean en tiempo de
@@ -107,17 +126,20 @@ export function customZoneEntries(zones: CustomZoneNav[]): NavEntry[] {
   return zones.map((z) => ({ to: `${CUSTOM_ZONE_PREFIX}${z.id}`, label: z.name, icon: zoneIconOf(z.icon) }));
 }
 
-/** Orden válido y completo: quita rutas desconocidas o repetidas y añade las que falten. */
-export function resolveOrder(order: string[] | undefined, extra: NavEntry[] = []): string[] {
-  const all = [...ZONES, ...extra];
+/**
+ * Orden válido y completo: quita rutas desconocidas, repetidas o que esta persona
+ * no tiene (`unavailable`) y añade las que falten.
+ */
+export function resolveOrder(order: string[] | undefined, extra: NavEntry[] = [], unavailable: ReadonlySet<string> = new Set()): string[] {
+  const all = [...ZONES, ...extra].filter((z) => !unavailable.has(z.to));
   const known = new Set(all.map((z) => z.to));
   const valid = [...new Set((order ?? DEFAULT_ORDER).map((to) => MERGED[to] ?? to).filter((to) => known.has(to)))];
   return [...valid, ...all.map((z) => z.to).filter((to) => !valid.includes(to))];
 }
 
-export function buildNav(order: string[] | undefined, hidden: string[] = [], extra: NavEntry[] = []) {
-  const pinned = resolveOrder(order, extra).slice(0, PINNED_COUNT);
-  const off = new Set(hidden.map((to) => MERGED[to] ?? to).filter((to) => !pinned.includes(to)));
+export function buildNav(order: string[] | undefined, hidden: string[] = [], extra: NavEntry[] = [], unavailable: ReadonlySet<string> = new Set()) {
+  const pinned = resolveOrder(order, extra, unavailable).slice(0, PINNED_COUNT);
+  const off = new Set(hidden.filter((to) => !ABSORBED.has(to)).map((to) => MERGED[to] ?? to).filter((to) => !pinned.includes(to)));
   const byTo = new Map([...ZONES, ...extra].map((z) => [z.to, z]));
   const sections: NavSection[] = extra.length
     ? [...NAV_SECTIONS, { id: 'custom', label: 'Mis zonas', collapsible: true, items: extra }]
@@ -125,7 +147,7 @@ export function buildNav(order: string[] | undefined, hidden: string[] = [], ext
   return {
     primary: [HOME, ...pinned.map((to) => byTo.get(to)!), PROFILE],
     sections: sections
-      .map((s) => ({ ...s, items: s.items.filter((it) => !pinned.includes(it.to) && !off.has(it.to)) }))
+      .map((s) => ({ ...s, items: s.items.filter((it) => !pinned.includes(it.to) && !off.has(it.to) && !unavailable.has(it.to)) }))
       .filter((s) => s.items.length > 0),
   };
 }
@@ -157,7 +179,8 @@ export function useNav() {
   const order = useNavStore((s) => s.byUser[userId]);
   const hidden = useNavStore((s) => s.hiddenByUser?.[userId]);
   const extra = useCustomZoneEntries();
-  return useMemo(() => withLocks(buildNav(order, hidden, extra), lite), [order, hidden, extra, lite]);
+  const unavailable = useUnavailableZones();
+  return useMemo(() => withLocks(buildNav(order, hidden, extra, unavailable), lite), [order, hidden, extra, unavailable, lite]);
 }
 
 /** Navegación por defecto (búsqueda rápida y breadcrumb). */

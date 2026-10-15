@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import { dialog, scrim } from '@/lib/motion';
 import { Spinner } from '@/components/ui/lq';
 import { softTone } from '@/components/ui/lq/tones';
-import { NAV_SECTIONS, PRIMARY_NAV, SOCIAL_SHORTCUTS, UTILITY_NAV } from '@/components/layout/nav';
+import { NAV_SECTIONS, PRIMARY_NAV, SOCIAL_SHORTCUTS, UTILITY_NAV, useUnavailableZones } from '@/components/layout/nav';
 import { useUIStore } from '../../store/uiStore';
 import { useToastStore } from '../../hooks/useToast';
 import { fetchHabits, logHabit } from '../../services/habit.service';
@@ -57,6 +57,7 @@ export function CommandPalette() {
   const inputRef = useRef<HTMLInputElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
   const listId = useId();
+  const unavailable = useUnavailableZones();
 
   const close = useCallback(() => {
     setOpen(false);
@@ -106,7 +107,7 @@ export function CommandPalette() {
   const commands = useMemo<Cmd[]>(() => {
     const go = (to: string) => () => navigate(to);
     return [
-      ...NAV_CMDS.map((n) => ({ id: `nav-${n.to}`, group: 'Ir a' as const, label: n.label, icon: n.icon, keywords: n.label, run: go(n.to) })),
+      ...NAV_CMDS.filter((n) => !unavailable.has(n.to)).map((n) => ({ id: `nav-${n.to}`, group: 'Ir a' as const, label: n.label, icon: n.icon, keywords: n.label, run: go(n.to) })),
       { id: 'new-habit', group: 'Acciones', label: 'Nuevo hábito', icon: Plus, keywords: 'crear habito nuevo', run: go('/habits?new=1') },
       { id: 'new-quest', group: 'Acciones', label: 'Nueva misión', icon: Plus, keywords: 'crear mision quest nueva', run: go('/quests?new=1') },
       { id: 'sage', group: 'Acciones', label: 'Preguntar al Sabio', icon: Sparkles, keywords: 'sabio ia consejo ayuda', run: () => openSage() },
@@ -125,7 +126,7 @@ export function CommandPalette() {
         },
       })),
     ];
-  }, [habits, navigate, openSage, addFloatingXP]);
+  }, [habits, navigate, openSage, addFloatingXP, unavailable]);
 
   const filtered = useMemo(() => {
     const q = norm(query.trim());

@@ -2,6 +2,7 @@ import { prisma } from '../lib/prisma';
 import { getCalendarDay } from '../lib/calendar';
 import type { QuestCategory } from '@prisma/client';
 import { damageSeasonBoss } from './season.service';
+import { createNotification } from './notification.service';
 
 export function xpForLevel(level: number): number {
   return Math.round(level * 100 * Math.pow(1.15, level));
@@ -9,25 +10,6 @@ export function xpForLevel(level: number): number {
 
 export function xpForNextLevel(currentLevel: number): number {
   return Math.floor(100 * currentLevel * Math.pow(1.15, currentLevel - 1));
-}
-
-/** XP que pide el nivel 1 (el de una cuenta nueva). */
-export const FIRST_LEVEL_XP = 100;
-
-/**
- * Nivel y XP dentro del nivel que corresponden a una XP total, con la misma
- * escalera que el juego (nivel 1: 100 XP; después, xpForLevel(nivel)).
- */
-export function levelFromTotal(total: number) {
-  let xp = Math.max(0, Math.floor(total));
-  let level = 1;
-  let next = FIRST_LEVEL_XP;
-  while (xp >= next) {
-    xp -= next;
-    level += 1;
-    next = xpForLevel(level);
-  }
-  return { level, xp, next };
 }
 
 /**
@@ -130,37 +112,71 @@ function applyClassMultiplier(playerClass: string | null, category: QuestCategor
   return { xp: Math.round(xp * catMult), gold: Math.round(gold * goldMult) };
 }
 
+const DAY_MS = 24 * 60 * 60_000;
+
+type StreakState = { currentStreak: number; lastActivityDate: Date | null; timezone: string | null; streakShieldDays?: number | null };
+
 /**
- * Racha general vigente sin escribir en la base: la guardada sigue viva si la última
- * actividad fue hoy o ayer (en la zona horaria del usuario); si fue antes, ya hubo un
- * día entero perdido y vale 0. La racha guardada solo se corrige cuando el propio
- * usuario entra, así que quien lea rachas de otros (ranking, amigos) debe usar esto.
+ * Días calendario enteros sin actividad desde la última (en la zona horaria del
+ * usuario). Hoy o ayer: 0. Anteayer: 1.
  */
-export function effectiveActivityStreak(
-  user: { currentStreak: number; lastActivityDate: Date | null; timezone: string | null },
-  now = new Date(),
-): number {
-  if (user.currentStreak === 0 || !user.lastActivityDate) return user.currentStreak;
+export function missedActivityDays(user: Pick<StreakState, 'lastActivityDate' | 'timezone'>, now = new Date()): number {
+  if (!user.lastActivityDate) return 0;
   const today = getCalendarDay(user.timezone, now);
-  const yesterday = new Date(today);
-  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
-  return getCalendarDay(user.timezone, user.lastActivityDate).getTime() < yesterday.getTime() ? 0 : user.currentStreak;
+  const last = getCalendarDay(user.timezone, user.lastActivityDate);
+  return Math.max(0, Math.round((today.getTime() - last.getTime()) / DAY_MS) - 1);
 }
 
-/** Restablece la racha general si ya pasó un día calendario completo sin actividad. */
+/**
+ * Racha general vigente sin escribir en la base: la guardada sigue viva si la última
+ * actividad fue hoy o ayer (en la zona horaria del usuario), o si los días enteros
+ * perdidos caben en su escudo; si no, vale 0. La racha guardada solo se corrige
+ * cuando el propio usuario entra, así que quien lea rachas de otros (ranking,
+ * amigos) debe usar esto.
+ */
+export function effectiveActivityStreak(user: StreakState, now = new Date()): number {
+  if (user.currentStreak === 0 || !user.lastActivityDate) return user.currentStreak;
+  const missed = missedActivityDays(user, now);
+  return missed === 0 || missed <= (user.streakShieldDays ?? 0) ? user.currentStreak : 0;
+}
+
+/**
+ * Restablece la racha general si ya pasó un día calendario completo sin actividad.
+ * Si el escudo cubre esos días, los gasta y la racha sigue como si ayer hubiera
+ * habido actividad.
+ */
 export async function reconcileUserActivityStreak(userId: string, now = new Date()): Promise<number> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { currentStreak: true, lastActivityDate: true, timezone: true },
+    select: { currentStreak: true, lastActivityDate: true, timezone: true, streakShieldDays: true },
   });
 
   if (!user || user.currentStreak === 0 || !user.lastActivityDate) return user?.currentStreak ?? 0;
 
   const today = getCalendarDay(user.timezone, now);
+  const missed = missedActivityDays(user, now);
+
+  if (missed > 0 && missed <= user.streakShieldDays) {
+    // Compare-and-set sobre la última actividad: si varias lecturas llegan a la
+    // vez al abrir la app, solo una gasta el escudo.
+    const spent = await prisma.user.updateMany({
+      where: { id: userId, lastActivityDate: user.lastActivityDate, streakShieldDays: { gte: missed } },
+      data: { lastActivityDate: new Date(now.getTime() - DAY_MS), streakShieldDays: { decrement: missed } },
+    });
+    if (spent.count) {
+      createNotification(userId, {
+        type: 'streak', category: 'HABITS', dedupeKey: `streak-shield:${today.toISOString().slice(0, 10)}`,
+        title: 'Tu escudo protegió tu racha',
+        body: `${missed === 1 ? 'Un día' : `${missed} días`} sin actividad no rompieron tus ${user.currentStreak} días. ${user.streakShieldDays - missed > 0 ? `Te quedan ${user.streakShieldDays - missed} de escudo.` : 'Ya no te queda escudo.'}`,
+        icon: '🛡️', link: '/shop',
+      }).catch(() => null);
+    }
+    return user.currentStreak;
+  }
 
   // Ayer todavía deja la racha viva: el usuario tiene hasta terminar hoy para
   // continuarla. Antes de ayer significa que ya hubo un día entero perdido.
-  if (effectiveActivityStreak(user, now) === 0) {
+  if (missed > 0) {
     // La racha perdida queda guardada 72 h por si se quiere revivir con oro.
     await prisma.user.update({
       where: { id: userId },
@@ -235,10 +251,13 @@ export async function awardXpAndGold(
   const yesterday = new Date(today);
   yesterday.setUTCDate(yesterday.getUTCDate() - 1);
   const isYesterday = lastActivity && lastActivity.getTime() === yesterday.getTime();
+  // Días perdidos que el escudo cubre: la racha continúa en vez de volver a 1.
+  const missed = isNewDay && !isYesterday && user.currentStreak > 0 ? missedActivityDays(user) : 0;
+  const shielded = missed > 0 && missed <= (user.streakShieldDays ?? 0);
 
   let newStreak = user.currentStreak;
   if (isNewDay) {
-    newStreak = isYesterday ? user.currentStreak + 1 : 1;
+    newStreak = isYesterday || shielded ? user.currentStreak + 1 : 1;
   }
   const newLongest = Math.max(user.longestStreak, newStreak);
 
@@ -252,8 +271,9 @@ export async function awardXpAndGold(
       lastActivityDate: new Date(),
       currentStreak: newStreak,
       longestStreak: newLongest,
+      ...(shielded ? { streakShieldDays: { decrement: missed } } : {}),
       // Se rompió sin que nadie la reconciliara antes: queda revivible.
-      ...(isNewDay && !isYesterday && user.currentStreak >= 2 ? { lostStreak: user.currentStreak, lostStreakAt: new Date() } : {}),
+      ...(isNewDay && !isYesterday && !shielded && user.currentStreak >= 2 ? { lostStreak: user.currentStreak, lostStreakAt: new Date() } : {}),
       ...(leveledUp && {
         maxHp: newMaxHp,
         strength: { increment: statIncreases.strength ?? 0 },

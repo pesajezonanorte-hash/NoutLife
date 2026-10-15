@@ -2,6 +2,7 @@ import { prisma } from '../lib/prisma';
 import { awardXpAndGold } from './xp.service';
 import { createNotification } from './notification.service';
 import { sanitizeAvatar } from './shop.service';
+import type { Gender } from '../lib/gender';
 
 const USER_SELECT = {
   id: true, email: true, username: true, displayName: true,
@@ -11,9 +12,10 @@ const USER_SELECT = {
   avatarConfig: true, avatarUrl: true, nameColor: true, timezone: true, currency: true,
   language: true, relationshipStatus: true,
   onboardingCompleted: true, birthDate: true,
-  currentStreak: true, longestStreak: true, lastActivityDate: true,
+  currentStreak: true, longestStreak: true, lastActivityDate: true, streakShieldDays: true,
   coliseoPlaylistUrl: true,
   equippedHat: true, equippedAura: true, equippedFrame: true, equippedTheme: true,
+  gender: true,
   createdAt: true,
 } as const;
 
@@ -73,6 +75,7 @@ export interface OnboardingData {
   displayName?: string;
   birthDate?: string;
   timezone?: string;
+  gender?: Gender;
   avatarConfig?: Record<string, unknown>;
   goalCategories?: string[];
   mainQuestTitle?: string;
@@ -89,6 +92,7 @@ export async function completeOnboarding(userId: string, data: OnboardingData) {
       displayName: data.displayName,
       birthDate: data.birthDate ? new Date(data.birthDate) : undefined,
       timezone: data.timezone,
+      gender: data.gender,
       avatarConfig: data.avatarConfig as Parameters<typeof prisma.user.update>[0]['data']['avatarConfig'],
     },
   });
@@ -123,11 +127,12 @@ export async function completeOnboarding(userId: string, data: OnboardingData) {
   };
 }
 
-export async function updateProfile(userId: string, data: { displayName?: string; timezone?: string; currency?: string; language?: string; coliseoPlaylistUrl?: string | null; avatarUrl?: string | null }) {
+export async function updateProfile(userId: string, data: { displayName?: string; timezone?: string; currency?: string; language?: string; coliseoPlaylistUrl?: string | null; avatarUrl?: string | null; gender?: Gender | null }) {
   const updated = await prisma.user.update({
     where: { id: userId },
     data: {
       ...(data.displayName !== undefined ? { displayName: data.displayName } : {}),
+      ...(data.gender !== undefined ? { gender: data.gender } : {}),
       ...(data.timezone !== undefined ? { timezone: data.timezone } : {}),
       ...(data.currency !== undefined ? { currency: data.currency } : {}),
       ...(data.language !== undefined ? { language: data.language } : {}),

@@ -6,7 +6,7 @@
 // o desde el estudio. Los exclusivos tienen unidades contadas para todos.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Crown, Frame, Gem, Glasses, Lock, Package, Palette, Scissors, Shirt, Sparkles, Ticket, Zap, type LucideIcon } from 'lucide-react';
+import { Crown, Frame, Gem, Glasses, Lock, Package, Palette, Scissors, ShieldCheck, Shirt, Sparkles, Ticket, Zap, type LucideIcon } from 'lucide-react';
 import type { InventoryItem, ShopItem as Item, User } from '@noutlife/shared';
 import { item as itemV, stagger } from '@/lib/motion';
 import { ZoneShell } from '@/components/ambience';
@@ -43,6 +43,10 @@ const TYPES: Record<string, { label: string; plural: string; icon: LucideIcon; t
 /** Orden de las categorías: primero lo que se pone el personaje. */
 const ORDER = Object.keys(TYPES);
 const typeOf = (t: string) => TYPES[t] ?? { label: t, plural: t, icon: Package, tone: 'primary' as const };
+/** Protector de racha (Pase de Perdón, Escudo): se activa al comprarlo y se puede volver a comprar. */
+const isShield = (it: Item) => Boolean(it.shieldDays);
+const SHIELD_TYPE = { label: 'Protector de racha', plural: 'Racha', icon: ShieldCheck, tone: 'warning' as const };
+const typeOfItem = (it: Item) => (isShield(it) ? SHIELD_TYPE : typeOf(it.type));
 const EQUIPPABLE = new Set(['COSMETIC', 'HAT', 'AURA', 'FRAME', 'THEME', 'OUTFIT', 'HAIR']);
 /** Partes del personaje (avatarConfig.pixel) frente a las que viven en la cuenta. */
 const AVATAR_SLOTS = new Set(['extra', 'hair', 'top']);
@@ -140,7 +144,8 @@ export default function ShopPage() {
   const gold = user?.gold ?? 0;
   const look = useMemo(() => lookFrom(user?.avatarConfig), [user?.avatarConfig]);
   const invByItem = useMemo(() => new Map(inventory.map((i) => [i.shopItemId, i])), [inventory]);
-  const isOwned = (it: Item) => Boolean(it.owned) || invByItem.has(it.id);
+  const isOwned = (it: Item) => !isShield(it) && (Boolean(it.owned) || invByItem.has(it.id));
+  const shieldDays = user?.streakShieldDays ?? 0;
   const usable = (it: Item) => !it.locked && (user?.level ?? 1) >= (it.levelRequired ?? 1);
   /** Se pone y se quita desde la Tienda: lo del personaje, auras y marcos. */
   const wearable = (it: Item) => isAvatarItem(it) || it.slot === 'aura' || it.slot === 'frame';
@@ -161,7 +166,7 @@ export default function ShopPage() {
       const r = await shopService.purchaseItem(it.id);
       updateUser(r.user as Partial<User>);
       setInventory((p) => [r.inventoryItem, ...p]);
-      setItems((p) => p.map((i) => (i.id === it.id ? { ...i, owned: true, remaining: isExclusive(i) ? Math.max(0, (i.remaining ?? 1) - 1) : i.remaining } : i)));
+      setItems((p) => p.map((i) => (i.id === it.id ? { ...i, owned: !isShield(i), remaining: isExclusive(i) ? Math.max(0, (i.remaining ?? 1) - 1) : i.remaining } : i)));
       if (isAvatarItem(it)) markOwned(shopKey(it.slot, it.value));
       setPhase('done');
     } catch (e) {
@@ -206,14 +211,16 @@ export default function ShopPage() {
   if (state === 'loading') return <PageLoader />;
   if (state === 'error' || !user) return <ErrorState onRetry={() => void load()} />;
 
-  const present = new Set(items.map((i) => i.type));
+  const present = new Set(items.filter((i) => !isShield(i)).map((i) => i.type));
   const exclusives = items.filter(isExclusive);
+  const shields = items.filter(isShield).sort((a, b) => a.cost - b.cost);
   const options: ChipOption<string>[] = [
     { value: 'all', label: 'Todo' },
     ...(exclusives.length ? [{ value: 'exclusive', label: 'Exclusivos' }] : []),
+    ...(shields.length ? [{ value: 'streak', label: SHIELD_TYPE.plural }] : []),
     ...[...ORDER.filter((t) => present.has(t as Item['type'])), ...[...present].filter((t) => !ORDER.includes(t))].map((t) => ({ value: t, label: typeOf(t).plural })),
   ];
-  const filtered = cat === 'all' ? items : cat === 'exclusive' ? exclusives : items.filter((i) => i.type === cat);
+  const filtered = cat === 'all' ? items : cat === 'exclusive' ? exclusives : cat === 'streak' ? shields : items.filter((i) => i.type === cat && !isShield(i));
   const featured = exclusives.find((i) => !isOwned(i) && !soldOutOf(i) && usable(i))
     ?? items.find((i) => isAvatarItem(i) && !isOwned(i) && usable(i))
     ?? items.find((i) => !isOwned(i) && usable(i))
@@ -253,21 +260,21 @@ export default function ShopPage() {
           <motion.div key="shop" variants={stagger} initial="initial" animate="animate" exit={{ opacity: 0, transition: { duration: 0.15 } }} className="flex flex-col gap-8">
             {featured && (
               <motion.div variants={itemV}>
-                <SpotCard aria-label="Artículo destacado" padding="none" style={winVars(typeOf(featured.type).tone)} className="relative">
+                <SpotCard aria-label="Artículo destacado" padding="none" style={winVars(typeOfItem(featured).tone)} className="relative">
                   {/* La tienda principal del pasaje: toldo grande y escaparate con plataforma giratoria */}
                   <Awning size="lg" delay={0.3} className="relative z-10" />
                   <div className="flex flex-wrap items-center gap-8 px-6 pb-6 md:px-8 md:pb-8">
                     <ShopWindow delay={0.65} turn={false} className="-mt-[15px] aspect-[4/3] w-full flex-[0_1_340px] rounded-b-2xl">
                       <span className="lq-turntable block">
                         {hasVisual(featured) ? visualOf(featured, 144, true) : (
-                          <IconChip icon={typeOf(featured.type).icon} tone={typeOf(featured.type).tone} size="lg" className="size-28 rounded-[32px] [&>svg]:size-14" />
+                          <IconChip icon={typeOfItem(featured).icon} tone={typeOfItem(featured).tone} size="lg" className="size-28 rounded-[32px] [&>svg]:size-14" />
                         )}
                       </span>
                     </ShopWindow>
                     <div className="flex min-w-0 flex-[1_1_280px] flex-col gap-2.5 md:pt-4">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-label-lg text-primary-text">{isExclusive(featured) ? 'Exclusivo de temporada' : 'Artículo destacado'}</span>
-                        <Badge variant={typeOf(featured.type).tone}>{typeOf(featured.type).label}</Badge>
+                        <Badge variant={typeOfItem(featured).tone}>{typeOfItem(featured).label}</Badge>
                       </div>
                       <h2 className="text-display-sm">{featured.name}</h2>
                       {featured.description && <p className="text-body-md text-on-surface-light">{featured.description}</p>}
@@ -283,6 +290,19 @@ export default function ShopPage() {
               </motion.div>
             )}
 
+            {shields.length > 0 && (
+              <motion.aside variants={itemV} aria-label="Cuida tu racha" className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-2xl border border-warning/30 bg-warning/[var(--lq-soft-alpha)] px-4 py-3 md:px-5">
+                <ShieldCheck aria-hidden className="size-6 shrink-0 text-warning-text" strokeWidth={1.75} />
+                <p className="min-w-0 flex-[1_1_260px] text-body-md text-on-surface">
+                  <span className="font-semibold">Proteger tu racha cuesta menos que revivirla.</span>{' '}
+                  {shieldDays > 0
+                    ? `Tu racha general tiene ${shieldDays} ${shieldDays === 1 ? 'día' : 'días'} de escudo: si un día no registras actividad, se usa solo.`
+                    : `Desde ${shields[0].cost} de oro, un día sin actividad ya no rompe tu racha general.`}
+                </p>
+                {cat !== 'streak' && <Button size="sm" variant="secondary" onClick={() => setCat('streak')}>Ver protectores</Button>}
+              </motion.aside>
+            )}
+
             <motion.div variants={itemV}><ChipGroup label="Categoría" options={options} value={cat} onChange={setCat} /></motion.div>
 
             {filtered.length === 0 ? (
@@ -290,7 +310,7 @@ export default function ShopPage() {
             ) : (
               <motion.ul key={cat} variants={stagger} initial="initial" animate="animate" className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-6 xl:grid-cols-3">
                 {filtered.map((it, idx) => {
-                  const t = typeOf(it.type);
+                  const t = typeOfItem(it);
                   const lockedByLevel = !usable(it);
                   const owned = isOwned(it);
                   const worn = owned && wornOf(it, user, look);
@@ -302,7 +322,9 @@ export default function ShopPage() {
                         price={it.cost} icon={lockedByLevel ? Lock : t.icon} tone={lockedByLevel ? 'muted' : t.tone} category={t.label}
                         owned={owned} affordable={!lockedByLevel && it.cost <= gold} soldOut={!owned && soldOutOf(it)}
                         visual={hasVisual(it) ? visualOf(it) : undefined}
-                        badges={isExclusive(it) || worn ? <>{worn && <Badge variant="success">Lo llevas puesto</Badge>}<StockBadges it={it} /></> : undefined}
+                        badges={isShield(it)
+                          ? <Badge variant="warning" icon={ShieldCheck}>+{it.shieldDays} {it.shieldDays === 1 ? 'día' : 'días'} de escudo</Badge>
+                          : isExclusive(it) || worn ? <>{worn && <Badge variant="success">Lo llevas puesto</Badge>}<StockBadges it={it} /></> : undefined}
                         worn={worn} onWear={owned && wearable(it) ? () => void wear(it) : undefined} busy={wearing === it.id}
                         onBuy={() => open(it)}
                         onPreview={it.type === 'THEME' && themeIdOf(it) ? () => setPreview(it) : undefined}
@@ -322,7 +344,7 @@ export default function ShopPage() {
               <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-6 xl:grid-cols-3">
                 {inventory.map((inv, idx) => {
                   const it = inv.shopItem;
-                  const t = typeOf(it.type);
+                  const t = typeOfItem(it);
                   const worn = wornOf(it, user, look);
                   return (
                     <motion.li key={inv.id} variants={itemV}>
@@ -340,7 +362,9 @@ export default function ShopPage() {
                           <Button size="md" variant={inv.isEquipped ? 'secondary' : 'primary'} aria-pressed={inv.isEquipped} onClick={() => void equip(inv)} className="mt-auto">
                             {inv.isEquipped ? 'Equipado' : 'Equipar'}
                           </Button>
-                        ) : <Badge className="mt-auto self-start">{inv.usedAt ? 'Usado' : 'Listo para usar'}</Badge>}
+                        ) : isShield(it)
+                          ? <Badge variant="success" icon={ShieldCheck} className="mt-auto self-start">Activado: +{it.shieldDays} {it.shieldDays === 1 ? 'día' : 'días'} de escudo</Badge>
+                          : <Badge className="mt-auto self-start">{inv.usedAt ? 'Usado' : 'Listo para usar'}</Badge>}
                       </Card>
                     </motion.li>
                   );
@@ -359,10 +383,14 @@ export default function ShopPage() {
       )}
       {coins > 0 && <CoinFlight key={coins} from={balanceRef} />}
       <PurchaseDialog
-        open={Boolean(pending)} icon={pending ? typeOf(pending.type).icon : undefined} name={pending?.name ?? ''} price={pending?.cost ?? 0} balance={askBalance}
+        open={Boolean(pending)} icon={pending ? typeOfItem(pending).icon : undefined} name={pending?.name ?? ''} price={pending?.cost ?? 0} balance={askBalance}
         phase={phase} busy={buying} onConfirm={confirm} onClose={() => setPending(null)}
         visual={pending && phase === 'done' && wearable(pending) ? visualOf(pending, 150, true) : undefined}
-        doneText={pending && wearable(pending) ? `Ya llevas puesto ${pending.name}. Te lo quitas cuando quieras desde el inventario o el estudio del personaje.` : undefined}
+        doneText={pending && wearable(pending)
+          ? `Ya llevas puesto ${pending.name}. Te lo quitas cuando quieras desde el inventario o el estudio del personaje.`
+          : pending && isShield(pending)
+            ? `Tu racha general tiene ahora ${shieldDays} ${shieldDays === 1 ? 'día' : 'días'} de escudo. Si un día no registras actividad, se usa solo.`
+            : undefined}
       />
     </ZoneShell>
   );

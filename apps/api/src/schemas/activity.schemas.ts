@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { GENDERS } from '../lib/gender';
 
 /**
  * Acepta nombres de campo anteriores a un renombre (p. ej. Gimnasio → Coliseo):
@@ -125,6 +126,7 @@ export const updateProfileSchema = withLegacyKeys(z.object({
   language: z.string().min(1).optional(),
   coliseoPlaylistUrl: z.string().nullable().optional(),
   avatarUrl: z.string().nullable().optional(),
+  gender: z.enum(GENDERS).nullable().optional(),
 }), { gymPlaylistUrl: 'coliseoPlaylistUrl' });
 
 export const importantDateSchema = z.object({

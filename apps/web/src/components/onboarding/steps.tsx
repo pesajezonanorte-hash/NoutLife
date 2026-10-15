@@ -4,17 +4,18 @@ import { useId } from 'react';
 import {
   Apple, BookOpen, Check, Dumbbell, Heart, Leaf, Moon, Palette, Sparkles, Wallet, type LucideIcon,
 } from 'lucide-react';
-import type { AvatarConfig } from '@noutlife/shared';
+import type { AvatarConfig, Gender } from '@noutlife/shared';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { Field, IconChip, Input, SegmentedControl, Select, type Tone, DatePicker } from '@/components/ui/lq';
+import { GENDER_OPTIONS } from '@/utils/gender';
+import { ChipGroup, Field, IconChip, Input, Select, type Tone, DatePicker } from '@/components/ui/lq';
 import { AvatarPreview, AvatarStudio } from '@/components/character/AvatarPixelEditor';
 
 // ── Identidad ────────────────────────────────────────────────────────────────
-export function IdentityFields({ name, onName, nameError, birthDate, onBirthDate, gender, onGender, lockGender, timezone }: {
+export function IdentityFields({ name, onName, nameError, birthDate, onBirthDate, gender, onGender, genderError, lockGender, timezone }: {
   name: string; onName: (v: string) => void; nameError?: string;
   birthDate: string; onBirthDate: (v: string) => void;
-  gender: 'male' | 'female'; onGender: (g: 'male' | 'female') => void; lockGender: boolean;
+  gender: Gender | ''; onGender: (g: Gender) => void; genderError?: string; lockGender: boolean;
   timezone: string;
 }) {
   return (
@@ -24,9 +25,11 @@ export function IdentityFields({ name, onName, nameError, birthDate, onBirthDate
       </Field>
       {!lockGender && (
         <div className="flex flex-col gap-2">
-          <span aria-hidden className="text-label-lg text-on-surface">Tu personaje</span>
-          <SegmentedControl role="radiogroup" label="Tu personaje" value={gender} onChange={onGender}
-            options={[{ value: 'male', label: 'Héroe' }, { value: 'female', label: 'Heroína' }]} />
+          <span aria-hidden className="text-label-lg text-on-surface">¿Cómo te identificas?</span>
+          <ChipGroup<Gender | ''> label="¿Cómo te identificas?" value={gender} onChange={(g) => g && onGender(g)} options={GENDER_OPTIONS} />
+          {genderError
+            ? <span role="alert" className="text-body-sm text-error-text">{genderError}</span>
+            : <span className="text-body-sm text-on-surface-light">Lo usamos para hablarte bien y para mostrarte zonas como Ciclo. Puedes cambiarlo en Ajustes.</span>}
         </div>
       )}
       <Field label="Fecha de nacimiento" help="Opcional. Para celebrar tu cumpleaños en Noutlife.">

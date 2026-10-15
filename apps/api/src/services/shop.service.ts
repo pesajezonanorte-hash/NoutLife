@@ -2,9 +2,12 @@
 // (sombreros, accesorios, ropa, peinados, auras y marcos) se pone en cuanto se
 // compra y luego se quita o se vuelve a poner desde el inventario o el estudio.
 // Los exclusivos tienen unidades limitadas para toda la comunidad.
+// Los protectores de racha (Pase de Perdón, Escudo) no se poseen: cada compra
+// suma días de escudo a la racha general y se puede volver a comprar.
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { applyAvatarItem, stripUnowned, wearing } from '../lib/avatar-items';
+import { MAX_SHIELD_DAYS, shieldDaysOf } from '../lib/streak-shields';
 
 /** Partes del personaje que viven en avatarConfig.pixel. */
 const AVATAR_SLOTS = new Set(['extra', 'hair', 'top']);
@@ -14,6 +17,7 @@ const EQUIP_TYPES = new Set(['COSMETIC', 'HAT', 'AURA', 'FRAME', 'THEME', 'OUTFI
 
 const PUBLIC_USER_FIELDS = {
   id: true, gold: true, level: true, avatarConfig: true, avatarUrl: true, equippedHat: true, equippedAura: true, equippedFrame: true, equippedTheme: true,
+  streakShieldDays: true,
 } as const;
 
 type ItemRow = { type: string; slot: string | null; value: string | null; imageKey: string | null };
@@ -33,7 +37,8 @@ export async function listShopItems(userId: string) {
     prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { level: true, avatarConfig: true, equippedAura: true, equippedFrame: true, equippedTheme: true } }),
   ]);
   return items.map((item) => {
-    const owned = inventory.some((inv) => inv.shopItemId === item.id);
+    const shieldDays = shieldDaysOf(item.imageKey);
+    const owned = !shieldDays && inventory.some((inv) => inv.shopItemId === item.id);
     return {
       ...item,
       createdAt: item.createdAt.toISOString(),
@@ -41,8 +46,29 @@ export async function listShopItems(userId: string) {
       equipped: owned && isWorn(item, user),
       locked: item.levelRequired > user.level,
       remaining: item.stock === null ? null : Math.max(0, item.stock - item.sold),
+      ...(shieldDays ? { shieldDays } : {}),
     };
   });
+}
+
+/** Protector de racha: cobra y suma sus días de escudo (sin pasar del tope). */
+async function purchaseShield(userId: string, item: { id: string; cost: number; imageKey: string | null }) {
+  const days = shieldDaysOf(item.imageKey);
+  const inventoryItem = await prisma.$transaction(async (tx) => {
+    const paid = await tx.user.updateMany({
+      where: { id: userId, gold: { gte: item.cost }, streakShieldDays: { lte: MAX_SHIELD_DAYS - days } },
+      data: { gold: { decrement: item.cost }, streakShieldDays: { increment: days } },
+    });
+    if (!paid.count) {
+      const now = await tx.user.findUniqueOrThrow({ where: { id: userId }, select: { gold: true, streakShieldDays: true } });
+      if (now.gold < item.cost) throw new Error('No te alcanza el Gold');
+      throw new Error(`Tu racha ya tiene ${now.streakShieldDays} días de escudo y el máximo es ${MAX_SHIELD_DAYS}. Compra más cuando lo uses.`);
+    }
+    // Queda en el inventario como compra ya activada.
+    return tx.inventoryItem.create({ data: { userId, shopItemId: item.id, usedAt: new Date() }, include: { shopItem: true } });
+  });
+  const updatedUser = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: PUBLIC_USER_FIELDS });
+  return { user: updatedUser, inventoryItem };
 }
 
 /** Compra (y, si es para el personaje, se lo pone). Los exclusivos no pasan de su stock. */
@@ -50,6 +76,7 @@ export async function purchaseItem(userId: string, shopItemId: string) {
   const item = await prisma.shopItem.findUniqueOrThrow({ where: { id: shopItemId } });
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { level: true } });
   if (user.level < item.levelRequired) throw new Error(`Se desbloquea en el nivel ${item.levelRequired}`);
+  if (shieldDaysOf(item.imageKey)) return purchaseShield(userId, item);
   const existing = await prisma.inventoryItem.findFirst({ where: { userId, shopItemId } });
   if (existing) throw new Error('Ya tienes este artículo');
 
@@ -77,7 +104,14 @@ export async function listInventory(userId: string) {
     prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { avatarConfig: true, equippedAura: true, equippedFrame: true, equippedTheme: true } }),
   ]);
   // Lo que se lleva puesto se lee del personaje (se puede quitar también desde el estudio).
-  return items.map((inv) => ({ ...inv, isEquipped: inv.shopItem.slot ? isWorn(inv.shopItem, user) : inv.isEquipped }));
+  return items.map((inv) => {
+    const shieldDays = shieldDaysOf(inv.shopItem.imageKey);
+    return {
+      ...inv,
+      shopItem: shieldDays ? { ...inv.shopItem, shieldDays } : inv.shopItem,
+      isEquipped: inv.shopItem.slot ? isWorn(inv.shopItem, user) : inv.isEquipped,
+    };
+  });
 }
 
 /** Pone o quita un artículo comprado. */
@@ -129,6 +163,7 @@ export async function useItem(userId: string, inventoryItemId: string) {
   });
   if (!item) throw new Error('No encontrado');
   if (item.shopItem.type !== 'POWERUP' && item.shopItem.type !== 'PASS') throw new Error('No es un consumible');
+  if (shieldDaysOf(item.shopItem.imageKey)) throw new Error('Este protector se activó al comprarlo');
 
   return prisma.inventoryItem.update({
     where: { id: inventoryItemId },
