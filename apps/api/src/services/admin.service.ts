@@ -4,6 +4,8 @@
 import { prisma } from '../lib/prisma';
 import { accessEndsAt, planOf, statusOf, trialEndOf, willRenew } from '../lib/plans';
 import { subscriptionView } from './billing.service';
+import { resetAccountData } from './account-reset.service';
+import { isAdminEmail } from '../lib/admin';
 
 export async function listUsers(now = new Date()) {
   const users = await prisma.user.findMany({
@@ -60,4 +62,20 @@ export async function listUsers(now = new Date()) {
       lastPaymentError: u.lastPaymentError,
     };
   });
+}
+
+export class AdminError extends Error {
+  constructor(message: string, public status: number) { super(message); }
+}
+
+/** Borra una cuenta y todos sus datos. Nunca una cuenta admin ni la propia. */
+export async function deleteUser(adminId: string, targetId: string) {
+  if (adminId === targetId) throw new AdminError('No puedes borrar tu propia cuenta desde aquí.', 400);
+  const target = await prisma.user.findUnique({ where: { id: targetId }, select: { email: true } });
+  if (!target) throw new AdminError('Usuario no encontrado.', 404);
+  if (isAdminEmail(target.email)) throw new AdminError('No se borra una cuenta de administración.', 400);
+  await resetAccountData(targetId);
+  await prisma.userBlock.deleteMany({ where: { OR: [{ blockerId: targetId }, { blockedId: targetId }] } });
+  await prisma.user.delete({ where: { id: targetId } });
+  return { deleted: true as const, email: target.email };
 }

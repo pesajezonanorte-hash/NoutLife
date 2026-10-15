@@ -54,3 +54,19 @@ test('listUsers never exposes the payment source id and computes what is paid an
     assert.equal(beto.nextEventAt, '2026-10-20T00:00:00.000Z');
   } finally { Object.assign(client, originals); }
 });
+
+test('deleteUser refuses self-delete and admin accounts, and never touches data for them', async () => {
+  const { deleteUser, AdminError } = await import('../src/services/admin.service');
+  const client = prisma as unknown as Record<string, unknown>;
+  const original = client.user;
+  let deletes = 0;
+  try {
+    client.user = {
+      findUnique: async ({ where }: { where: { id: string } }) => ({ email: where.id === 'admin2' ? 'prizzypelo@gmail.com' : 'beto@x.com' }),
+      delete: async () => { deletes += 1; return {}; },
+    };
+    await assert.rejects(() => deleteUser('me', 'me'), (e: unknown) => e instanceof AdminError && e.status === 400);
+    await assert.rejects(() => deleteUser('me', 'admin2'), (e: unknown) => e instanceof AdminError && e.status === 400);
+    assert.equal(deletes, 0);
+  } finally { client.user = original; }
+});

@@ -3,7 +3,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { Badge, Button, Card, ChipGroup, ErrorState, Field, Input, PageLoader, type ChipOption } from '@/components/ui/lq';
+import { Badge, Button, Card, ChipGroup, ErrorState, Field, Input, Modal, PageLoader, type ChipOption } from '@/components/ui/lq';
+import { useToast } from '@/hooks/useToast';
+import { apiError } from '@/services/network.service';
+import { isAdminEmail } from '@/utils/admin';
 import * as adminService from '@/services/admin.service';
 import type { AdminUser } from '@/services/admin.service';
 
@@ -29,6 +32,23 @@ export default function AdminPage() {
   const [error, setError] = useState(false);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
+  const [toDelete, setToDelete] = useState<AdminUser | null>(null);
+  const [typed, setTyped] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const toast = useToast();
+
+  const confirmDelete = async () => {
+    if (!toDelete) return;
+    setDeleting(true);
+    try {
+      await adminService.deleteUser(toDelete.id);
+      setUsers((list) => (list ?? []).filter((u) => u.id !== toDelete.id));
+      toast.success(`Cuenta de ${toDelete.email} borrada`);
+      setToDelete(null);
+    } catch (e) {
+      toast.error(apiError(e, 'No se pudo borrar la cuenta'));
+    } finally { setDeleting(false); }
+  };
 
   const load = () => {
     setError(false);
@@ -115,12 +135,31 @@ export default function AdminPage() {
                 {u.status === 'trialing' && <p className="text-on-surface-light">Prueba hasta {fmtDate(u.trialEndsAt)}</p>}
                 {u.currentPeriodEnd && <p className="text-on-surface-light">Mes pagado hasta {fmtDate(u.currentPeriodEnd)}</p>}
               </div>
+              {!isAdminEmail(u.email) && (
+                <div className="md:col-span-4 flex justify-end">
+                  <Button variant="ghost" size="sm" onClick={() => { setTyped(''); setToDelete(u); }}>Borrar cuenta</Button>
+                </div>
+              )}
             </Card>
           </li>
         ))}
       </ul>
 
       {shown.length === 0 && <p className="text-body-md text-on-surface-light">Ninguna cuenta coincide con el filtro.</p>}
+      <Modal open={Boolean(toDelete)} onClose={() => !deleting && setToDelete(null)} title="Borrar cuenta">
+        {toDelete && (
+          <div className="flex flex-col gap-4">
+            <p className="text-body-md">Se borran <strong>{toDelete.email}</strong>, su progreso, sus hábitos, sus pagos registrados y todo lo que tenga guardado. No se puede deshacer.</p>
+            <Field label={`Escribe "${toDelete.email}" para confirmar`}>
+              <Input value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" />
+            </Field>
+            <div className="flex justify-end gap-3">
+              <Button variant="ghost" onClick={() => setToDelete(null)} disabled={deleting}>Cancelar</Button>
+              <Button variant="danger" loading={deleting} disabled={typed.trim().toLowerCase() !== toDelete.email.toLowerCase()} onClick={() => void confirmDelete()}>Borrar para siempre</Button>
+            </div>
+          </div>
+        )}
+      </Modal>
       <Link to="/" className="self-start"><Button variant="ghost">Volver al inicio</Button></Link>
     </div>
   );

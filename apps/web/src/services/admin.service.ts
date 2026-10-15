@@ -36,3 +36,8 @@ export async function listUsers(): Promise<AdminUser[]> {
   const { data } = await api.get<{ users: AdminUser[] }>('/admin/users');
   return data.users;
 }
+
+/** Borra la cuenta y todos sus datos. Irreversible. */
+export async function deleteUser(id: string): Promise<void> {
+  await api.delete(`/admin/users/${id}`);
+}
