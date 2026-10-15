@@ -6,6 +6,7 @@ import {
   createMealSchema,
   createSleepSchema,
   createWorkoutSchema,
+  finishWorkoutSchema,
 } from '../src/schemas/activity.schemas';
 
 const night = { bedtime: '2026-09-30T23:00', wakeTime: '2026-10-01T07:00', quality: 4 };
@@ -48,6 +49,22 @@ test('journal, workouts and learning reject empty input', () => {
   assert.ok(!ok(createWorkoutSchema, {}));
   assert.ok(ok(createLearningSchema, { type: 'BOOK', title: 'Atomic Habits', totalProgress: 320 }));
   assert.ok(!ok(createLearningSchema, {}));
+});
+
+test('Coliseo: al terminar, cada serie admite tipo y RPE/RIR y se acota lo demás', () => {
+  const finish = (sets: unknown[]) => finishWorkoutSchema.safeParse({ duration: 50, exercises: [{ exerciseId: 'ex1', sets }] });
+  // Cliente anterior (sin tipo ni esfuerzo) y cardio sin ejercicios.
+  assert.ok(finish([{ weight: 80, reps: 8, completed: true }]).success);
+  assert.ok(ok(finishWorkoutSchema, { duration: 30, distanceKm: 3.5 }));
+  assert.ok(finish([{ weight: 60, reps: 10, completed: true, type: 'warmup' }, { weight: 80, reps: 8, completed: true, type: 'failure', rpe: 10 }, { weight: 70, reps: 9, completed: false, type: 'drop', rir: 0 }]).success);
+  assert.ok(!finish([{ weight: 80, reps: 8, completed: true, type: 'superserie' }]).success);
+  assert.ok(!finish([{ weight: 80, reps: 8, completed: true, rpe: 11 }]).success);
+  assert.ok(!finish([{ weight: 80, reps: 8, completed: true, rir: 5 }]).success);
+  assert.ok(!finish([{ weight: -5, reps: 8, completed: true }]).success);
+  assert.ok(!finish([{ weight: '80', reps: 8, completed: true }]).success);
+  // Las claves que no son de una serie no llegan a la base de datos.
+  const parsed = finishWorkoutSchema.parse({ exercises: [{ exerciseId: 'ex1', sets: [{ weight: 80, reps: 8, completed: true, html: '<b>' }] }] });
+  assert.deepEqual(parsed.exercises?.[0].sets[0], { weight: 80, reps: 8, completed: true });
 });
 
 test('profile and important dates reject empty names', async () => {

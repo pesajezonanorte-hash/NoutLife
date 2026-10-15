@@ -1,9 +1,16 @@
+/** Clase de serie. Las series guardadas antes de existir el campo no lo traen: cuentan como 'normal' (efectiva). */
+export type SetType = 'normal' | 'warmup' | 'drop' | 'myo' | 'rest_pause' | 'failure';
+
 export interface WorkoutSet {
   id: string;
   weight?: number;
   reps?: number;
   duration?: number;
   completed: boolean;
+  type?: SetType;
+  /** Esfuerzo percibido, opcional: RPE 1–10 o repeticiones en reserva (RIR 0–4). */
+  rpe?: number;
+  rir?: number;
 }
 
 export interface WorkoutExercise {
