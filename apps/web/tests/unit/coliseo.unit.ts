@@ -2,10 +2,13 @@
 // (.unit.ts para que Playwright, que recoge *.test.ts y *.spec.ts de tests/, no lo tome).
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { Box3, Mesh, MeshBasicMaterial, Raycaster, Vector3 } from 'three';
 import type { Workout } from '@noutlife/shared';
 import {
-  muscleStates, oneRepMax, platesPerSide, pplBalance, previousBest, restFor, tonnage,
+  MUSCLE_IDS, muscleStates, oneRepMax, platesPerSide, pplBalance, previousBest, restFor, tonnage,
 } from '../../src/lib/coliseo';
+import { buildFigure } from '../../src/components/coliseo/muscle3d/figure';
+import { heatColor, type HeatTokens } from '../../src/components/coliseo/muscle3d/heat';
 
 const HOUR = 3_600_000;
 const NOW = Date.parse('2026-10-15T18:00:00.000Z');
@@ -22,31 +25,37 @@ function workout(hoursAgo: number, exercises: Ex[], xpEarned = 120): Workout {
   };
 }
 const legDay: Ex[] = [
-  ['Sentadilla', 'Piernas', [{ weight: 40, reps: 10, type: 'warmup' }, ...Array(4).fill({ weight: 100, reps: 5 })]],
+  ['Sentadilla', 'Piernas', [{ weight: 40, reps: 10, type: 'warmup' }, ...Array(5).fill({ weight: 100, reps: 5 })]],
   ['Press de Banca', 'Pecho', Array(4).fill({ weight: 80, reps: 8 })],
 ];
 
-test('registrar una rutina pone en rojo sus músculos y se recuperan en los días siguientes', () => {
+test('registrar una rutina pinta sus músculos por bandas de fatiga y se recuperan en los días siguientes', () => {
   assert.equal(muscleStates([], NOW).quads.status, 'idle');
 
   const fresh = muscleStates([workout(0, legDay)], NOW);
-  assert.equal(fresh.quads.status, 'high');
+  assert.equal(fresh.quads.fatiguePct, 83, '5 series duras de 6 posibles');
+  assert.equal(fresh.quads.status, 'high', 'más de 70 %: fatiga alta');
   assert.equal(fresh.glutes.status, 'high');
-  assert.equal(fresh.chest.status, 'high');
+  assert.equal(fresh.chest.fatiguePct, 67);
+  assert.equal(fresh.chest.status, 'moderate', 'de 31 a 70 %: moderada');
   assert.equal(fresh.hamstrings.status, 'moderate', 'secundario: media serie por serie');
   assert.equal(fresh.triceps.status, 'moderate');
   assert.equal(fresh.biceps.status, 'idle', 'lo que no se entrenó no cambia');
-  assert.equal(fresh.quads.weekSets, 4, 'el calentamiento no cuenta');
+  assert.equal(fresh.quads.weekSets, 5, 'el calentamiento no cuenta');
   assert.equal(fresh.triceps.weekSets, 2);
+  assert.equal(fresh.quads.fullIn, 72, 'los músculos grandes tardan 72 h en recuperarse del todo');
 
   const nextDay = muscleStates([workout(24, legDay)], NOW);
   assert.equal(nextDay.quads.status, 'moderate');
-  assert.equal(nextDay.quads.readyIn, 22);
+  assert.equal(nextDay.quads.readyIn, 22, 'horas hasta bajar a 30 %');
+  assert.equal(nextDay.quads.fullIn, 48, 'horas hasta 0 %');
+  assert.equal(nextDay.triceps.fullIn, 24, 'los pequeños, 48 h');
 
   const recovered = muscleStates([workout(80, legDay)], NOW);
   assert.equal(recovered.quads.status, 'fresh');
   assert.equal(recovered.quads.recovered, 100);
   assert.equal(recovered.quads.readyIn, 0);
+  assert.equal(recovered.quads.fullIn, 0);
 
   assert.equal(muscleStates([workout(8 * 24, legDay)], NOW).quads.status, 'idle', 'fuera de la semana');
   assert.equal(muscleStates([workout(0, legDay, 0)], NOW).quads.status, 'idle', 'un borrador sin terminar no cuenta');
@@ -62,9 +71,61 @@ test('el balance avisa cuando el empuje supera al tirón', () => {
   assert.equal(pplBalance([workout(2, [['Sentadilla', 'Piernas', Array(5).fill({ weight: 60, reps: 5 })]])], NOW).notes.length, 0, 'menos de 6 series: sin juicio');
 });
 
+test('las bandas cortan en 30 y 70 % y el % tiene tope en 100', () => {
+  // 6 series = 100 %; los cuádriceps se recuperan en línea recta durante 72 h.
+  const quads = (hoursAgo: number, n = 6) =>
+    muscleStates([workout(hoursAgo, [['Extensión de Cuádriceps', 'Piernas', Array(n).fill({ weight: 40, reps: 12 })]])], NOW).quads;
+  const band = (s: ReturnType<typeof quads>) => [s.fatiguePct, s.status];
+  assert.deepEqual(band(quads(50.4)), [30, 'fresh']);
+  assert.deepEqual(band(quads(49.68)), [31, 'moderate']);
+  assert.deepEqual(band(quads(21.6)), [70, 'moderate']);
+  assert.deepEqual(band(quads(20.88)), [71, 'high']);
+  const over = quads(0, 9);
+  assert.equal(over.fatiguePct, 100, '9 series pasan de 1, pero se muestra 100 %');
+  assert.equal(over.recovered, 0);
+});
+
+test('el color va de azul claro a verde, de amarillo a naranja y de rojo a carmesí', () => {
+  const t: HeatTokens = { success: [58, 155, 103], warning: [212, 149, 42], error: [200, 70, 63], info: [59, 126, 166] };
+  assert.deepEqual(heatColor(30, t), t.success, '30 % es el verde del tema');
+  assert.deepEqual(heatColor(71, t), t.error, '71 % es el rojo del tema');
+  assert.ok(heatColor(0, t)[2] > t.success[2], '0 % tira a azul');
+  const [yellow, orange] = [heatColor(31, t), heatColor(70, t)];
+  assert.ok(yellow[1] / yellow[0] > orange[1] / orange[0], 'de amarillo a naranja baja el verde');
+  assert.ok(heatColor(100, t).reduce((a, b) => a + b) < t.error.reduce((a, b) => a + b), 'el carmesí es más oscuro que el rojo');
+});
+
+test('la figura 3D tiene los 16 músculos en espejo y cada toque cae en su músculo', () => {
+  const fig = buildFigure();
+  const material = new MeshBasicMaterial(); // FrontSide: un rayo solo choca con caras que miran hacia él
+  const meshes = [new Mesh(fig.body, material), ...MUSCLE_IDS.map((m) => Object.assign(new Mesh(fig.muscles[m], material), { name: m }))];
+  for (const m of MUSCLE_IDS) {
+    const g = fig.muscles[m];
+    assert.ok(g.index!.count >= 300, `${m}: tiene malla`);
+    const box = new Box3().setFromBufferAttribute(g.getAttribute('position') as never);
+    assert.ok(Math.abs(box.min.x + box.max.x) < 1e-6, `${m}: los dos lados son espejo`);
+    assert.ok(box.min.y > 0 && box.max.y < 1.6, `${m}: dentro del cuerpo`);
+  }
+  // Rayo horizontal desde delante (+z) o desde detrás (−z) hacia (x, y), lado derecho.
+  const hit = (x: number, y: number, front: boolean) =>
+    new Raycaster(new Vector3(x, y, front ? 3 : -3), new Vector3(0, 0, front ? -1 : 1)).intersectObjects(meshes, false)[0]?.object.name || 'maniquí';
+  const front: Array<[number, number, string]> = [
+    [0.09, 1.32, 'chest'], [0.03, 1.21, 'abs'], [0.03, 1.15, 'abs'], [0.135, 1.15, 'obliques'], [0.2, 1.4, 'frontDelts'],
+    [0.22, 1.25, 'biceps'], [0.275, 1.04, 'forearms'], [0.1, 0.7, 'quads'], [0, 1.65, 'maniquí'],
+  ];
+  const back: Array<[number, number, string]> = [
+    [0.03, 1.38, 'traps'], [0.14, 1.22, 'lats'], [0.03, 1.06, 'lowerBack'], [0.2, 1.4, 'rearDelts'], [0.22, 1.25, 'triceps'],
+    [0.08, 0.88, 'glutes'], [0.1, 0.66, 'hamstrings'], [0.1, 0.36, 'calves'],
+  ];
+  for (const [x, y, m] of front) assert.equal(hit(x, y, true), m, `de frente en (${x}, ${y})`);
+  for (const [x, y, m] of back) assert.equal(hit(x, y, false), m, `de espaldas en (${x}, ${y})`);
+  assert.equal(hit(-0.09, 1.32, true), 'chest', 'el lado izquierdo también');
+  assert.deepEqual([fig.facing.chest, fig.facing.glutes, fig.facing.sideDelts], [1, -1, 0]);
+});
+
 test('tonelaje por sesión, semana y mes', () => {
   const t = tonnage([workout(1, legDay), workout(10 * 24, legDay)], NOW);
-  const session = 40 * 10 + 4 * 100 * 5 + 4 * 80 * 8;
+  const session = 40 * 10 + 5 * 100 * 5 + 4 * 80 * 8;
   assert.deepEqual(t, { session, week: session, month: session * 2, prevWeek: session });
 });
 

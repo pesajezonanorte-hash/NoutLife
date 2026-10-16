@@ -158,19 +158,32 @@ export function platesPerSide(total: number, bar = 20): { plates: number[]; rest
 
 /** Series duras que deja una sesión intensa: con 6 recién hechas, el músculo está al 100 % de fatiga. */
 const CAPACITY = 6;
-const MODERATE = 0.25;
-const HIGH = 0.6;
 
 export type Recovery = 'idle' | 'fresh' | 'moderate' | 'high';
+
+/** Bandas en % entero de fatiga: recuperado hasta 30, moderada de 31 a 70, alta de 71 a 100. */
+export const FATIGUE_BANDS = { fresh: 30, moderate: 70 } as const;
+
+/** % de fatiga que se muestra (entero, 0–100). El color sale de este número, así que siempre coinciden. */
+export const fatiguePct = (fatigue: number) => Math.round(100 * Math.min(1, Math.max(0, fatigue)));
+
+const bandOf = (fatigue: number): Exclude<Recovery, 'idle'> => {
+  const pct = fatiguePct(fatigue);
+  return pct > FATIGUE_BANDS.moderate ? 'high' : pct > FATIGUE_BANDS.fresh ? 'moderate' : 'fresh';
+};
 
 export interface MuscleState {
   /** 0 = descansado, 1 = sesión dura recién terminada (puede pasar de 1). */
   fatigue: number;
+  /** Fatiga 0–100 % (entero, con tope en 100). */
+  fatiguePct: number;
   /** Recuperación 0–100 %. */
   recovered: number;
   status: Recovery;
-  /** Horas hasta bajar de fatiga moderada (0 = listo para entrenar). */
+  /** Horas hasta volver a recuperado, ≤ 30 % de fatiga (0 = listo para entrenar). */
   readyIn: number;
+  /** Horas hasta la recuperación total, 0 % de fatiga. */
+  fullIn: number;
   /** Series efectivas de los últimos 7 días; las de músculo secundario cuentan media. */
   weekSets: number;
   lastTrained: number | null;
@@ -211,14 +224,19 @@ export function muscleStates(workouts: Workout[], now = Date.now()): Record<Musc
     const mine = all.filter((h) => h.muscle === muscle);
     const fatigue = fatigueAt(mine, hours, now);
     let readyIn = 0;
-    while (readyIn < hours && fatigueAt(mine, hours, now + readyIn * HOUR) >= MODERATE) readyIn += 1;
+    while (readyIn < hours && bandOf(fatigueAt(mine, hours, now + readyIn * HOUR)) !== 'fresh') readyIn += 1;
+    const lastTrained = mine.length ? Math.max(...mine.map((h) => h.at)) : null;
+    const pct = fatiguePct(fatigue);
     states[muscle] = {
       fatigue,
-      recovered: Math.round(100 * (1 - Math.min(1, fatigue))),
-      status: !mine.length ? 'idle' : fatigue >= HIGH ? 'high' : fatigue >= MODERATE ? 'moderate' : 'fresh',
+      fatiguePct: pct,
+      recovered: 100 - pct,
+      status: !mine.length ? 'idle' : bandOf(fatigue),
       readyIn,
+      // La última sesión es la que más tarda en borrarse: todas se recuperan en las mismas horas.
+      fullIn: lastTrained === null ? 0 : Math.max(0, Math.ceil((lastTrained + hours * HOUR - now) / HOUR)),
       weekSets: mine.reduce((a, h) => a + h.sets, 0),
-      lastTrained: mine.length ? Math.max(...mine.map((h) => h.at)) : null,
+      lastTrained,
     };
   }
   return states;

@@ -1,21 +1,46 @@
-// Mapa muscular del Coliseo: figura de frente y de espalda pintada según la
-// fatiga de cada músculo (lib/coliseo muscleStates). Verde = recuperado,
-// ámbar = fatiga moderada, rojo = fatiga alta, gris = sin trabajo esta semana.
-// Cada músculo es un botón; la lectura de la derecha da el detalle y las
-// listas de abajo son la alternativa sin color (y con dianas grandes) al dibujo.
-import { Fragment, useMemo, useState, type KeyboardEvent } from 'react';
+// Mapa muscular del Coliseo: el cuerpo en 3D (o de frente y de espalda en plano)
+// pintado según la fatiga de cada músculo (lib/coliseo muscleStates). Verde =
+// recuperado (0–30 %), ámbar = fatiga moderada (31–70 %), rojo = fatiga alta
+// (71–100 %), gris = sin trabajo esta semana. La lectura de la derecha da el
+// detalle y las listas de abajo son la alternativa sin color (y con dianas
+// grandes) al dibujo, también para el teclado.
+import { Fragment, Suspense, lazy, useEffect, useMemo, useState, type ComponentType, type KeyboardEvent } from 'react';
 import { BatteryFull, BatteryLow, BatteryMedium, ChevronDown, CircleDashed, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { MUSCLES, MUSCLE_IDS, type Muscle, type MuscleState, type Recovery } from '@/lib/coliseo';
-import { Badge, Card, ProgressBar, chipClasses, type BadgeVariant } from '@/components/ui/lq';
+import { FATIGUE_BANDS, MUSCLES, MUSCLE_IDS, type Muscle, type MuscleState, type Recovery } from '@/lib/coliseo';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { Badge, Card, ProgressBar, SegmentedControl, Skeleton, chipClasses, type BadgeVariant } from '@/components/ui/lq';
+import type { MuscleViewer3DProps } from './muscle3d/MuscleViewer3D';
 
-const STATUS: Record<Recovery, { label: string; fill: string; badge: BadgeVariant; icon: LucideIcon; group: string }> = {
-  high: { label: 'Fatiga alta', fill: 'fill-error', badge: 'error', icon: BatteryLow, group: 'Necesitan descanso' },
-  moderate: { label: 'Fatiga moderada', fill: 'fill-warning', badge: 'warning', icon: BatteryMedium, group: 'Fatiga moderada' },
-  fresh: { label: 'Recuperado', fill: 'fill-success', badge: 'success', icon: BatteryFull, group: 'Listos para entrenar' },
-  idle: { label: 'Sin trabajo esta semana', fill: 'fill-on-surface-light/25', badge: 'neutral', icon: CircleDashed, group: 'Sin trabajo esta semana' },
+/** Si three.js no llega a descargarse (sin red), la tarjeta vuelve al mapa plano en vez de romper la zona. */
+function Unavailable({ onUnavailable }: MuscleViewer3DProps) {
+  useEffect(() => { onUnavailable(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return null;
+}
+// three.js solo se descarga si se abre la vista 3D.
+const MuscleViewer3D = lazy<ComponentType<MuscleViewer3DProps>>(() => import('./muscle3d/MuscleViewer3D').catch(() => ({ default: Unavailable })));
+
+const STATUS: Record<Recovery, { label: string; range: string; fill: string; badge: BadgeVariant; icon: LucideIcon; group: string }> = {
+  high: { label: 'Fatiga alta', range: `${FATIGUE_BANDS.moderate + 1}–100 %`, fill: 'fill-error', badge: 'error', icon: BatteryLow, group: 'Necesitan descanso' },
+  moderate: { label: 'Fatiga moderada', range: `${FATIGUE_BANDS.fresh + 1}–${FATIGUE_BANDS.moderate} %`, fill: 'fill-warning', badge: 'warning', icon: BatteryMedium, group: 'Fatiga moderada' },
+  fresh: { label: 'Recuperado', range: `0–${FATIGUE_BANDS.fresh} %`, fill: 'fill-success', badge: 'success', icon: BatteryFull, group: 'Listos para entrenar' },
+  idle: { label: 'Sin trabajo esta semana', range: '', fill: 'fill-on-surface-light/25', badge: 'neutral', icon: CircleDashed, group: 'Sin trabajo esta semana' },
 };
 const ORDER: Recovery[] = ['high', 'moderate', 'fresh', 'idle'];
+
+type View = '3d' | 'flat';
+const VIEWS: Array<{ value: View; label: string }> = [{ value: '3d', label: '3D' }, { value: 'flat', label: 'Plano' }];
+const VIEW_KEY = 'coliseo.muscle-view';
+// Alto de la tarjeta flotante del visor en móvil (más su margen): la figura se encuadra debajo.
+const FLOAT_INSET = 96;
+const hasWebGL2 = () => typeof window !== 'undefined' && 'WebGL2RenderingContext' in window;
+function readView(): View {
+  try {
+    return localStorage.getItem(VIEW_KEY) === 'flat' ? 'flat' : '3d';
+  } catch {
+    return '3d';
+  }
+}
 
 /* Media figura (x < 100, viewBox 200 × 420); la otra mitad es su espejo. Curvas
    Catmull-Rom suavizadas a Bézier; las formas de la línea media cierran en recto. */
@@ -59,6 +84,41 @@ const sets = (n: number) => n.toLocaleString('es-ES', { maximumFractionDigits: 1
 function ago(t: number, now: number) {
   const h = Math.floor((now - t) / HOUR);
   return h < 1 ? 'hace menos de 1 h' : h < 24 ? `hace ${h} h` : h < 48 ? 'ayer' : `hace ${Math.floor(h / 24)} días`;
+}
+const toneOf = (s: MuscleState) => (s.status === 'high' ? 'error' : s.status === 'moderate' ? 'warning' : 'success');
+const fullText = (s: MuscleState) => (s.fullIn > 0 ? `en ~${s.fullIn} h` : 'completa');
+
+/** Tarjeta flotante del visor 3D en móvil: lo que dice el panel lateral, en una línea, junto al dedo. */
+function FloatingReadout({ muscle, state }: { muscle: Muscle | null; state: MuscleState | null }) {
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-x-3 top-3 h-[84px] rounded-xl border border-border bg-background/90 px-3 py-2.5 shadow-sm md:hidden">
+      {muscle && state ? (
+        <div className="flex h-full flex-col justify-between">
+          <div className="flex items-center justify-between gap-2">
+            <span className="truncate text-label-lg text-on-background">{MUSCLES[muscle].label}</span>
+            <Badge variant={STATUS[state.status].badge} icon={STATUS[state.status].icon}>{STATUS[state.status].label}</Badge>
+          </div>
+          <dl className="grid grid-cols-[auto_1fr_auto] gap-x-4 text-caption text-on-surface-light">
+            <div><dt>Fatiga</dt><dd className="font-mono text-label-lg tabular-nums text-on-background">{state.fatiguePct} %</dd></div>
+            <div><dt>Recuperación total</dt><dd className="font-mono text-label-lg tabular-nums text-on-background">{fullText(state)}</dd></div>
+            <div><dt>Series 7 días</dt><dd className="font-mono text-label-lg tabular-nums text-on-background">{sets(state.weekSets)}</dd></div>
+          </dl>
+        </div>
+      ) : (
+        <p className="flex h-full items-center text-body-sm text-on-surface">Toca un músculo para ver su fatiga y cuándo se recupera.</p>
+      )}
+    </div>
+  );
+}
+
+/** Mientras llega three.js: el mismo hueco que el visor, para que nada salte. */
+function ViewerFallback() {
+  return (
+    <div className="flex flex-col gap-3">
+      <Skeleton className="h-[460px] rounded-2xl sm:h-[480px] md:h-[500px]" />
+      <Skeleton className="h-[52px] w-48 rounded-[0.875rem]" />
+    </div>
+  );
 }
 
 function Figure({ shapes, label, states, selected, onSelect }: {
@@ -122,6 +182,15 @@ export function MuscleMap({ states, now }: { states: Record<Muscle, MuscleState>
   const selected = picked ?? worst;
   const s = selected ? states[selected] : null;
   const trained = MUSCLE_IDS.some((m) => states[m].status !== 'idle');
+  const compact = !useMediaQuery('(min-width: 768px)');
+  const [view, setView] = useState<View>(readView);
+  // Sin WebGL 2 (o si el navegador no da el contexto) solo queda el mapa plano.
+  const [can3d, setCan3d] = useState(hasWebGL2);
+  const show3d = can3d && view === '3d';
+  const changeView = (next: View) => {
+    setView(next);
+    try { localStorage.setItem(VIEW_KEY, next); } catch { /* sin almacenamiento: vale para esta visita */ }
+  };
   const groups = ORDER.map((status) => ({ status, muscles: MUSCLE_IDS.filter((m) => states[m].status === status) }))
     .filter((g) => g.muscles.length > 0);
   // Lista de músculos por estado: alternativa sin color al dibujo, con dianas de 44 px para los músculos pequeños.
@@ -142,22 +211,39 @@ export function MuscleMap({ states, now }: { states: Record<Muscle, MuscleState>
 
   return (
     <Card as="section" aria-labelledby="coliseo-map" padding="lg" className="flex flex-col gap-5 md:p-8">
-      <div className="flex flex-col gap-1">
-        <h2 id="coliseo-map" className="text-heading-sm">Recuperación muscular</h2>
-        <p className="text-body-sm text-on-surface-light">Según tus series de los últimos 7 días. Toca un músculo para ver cuándo vuelve a estar listo.</p>
+      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+        <div className="flex min-w-0 flex-[1_1_280px] flex-col gap-1">
+          <h2 id="coliseo-map" className="text-heading-sm">Recuperación muscular</h2>
+          <p className="text-body-sm text-on-surface-light">
+            {show3d
+              ? 'Según tus series de los últimos 7 días. Gira el cuerpo y toca un músculo para ver cuándo se recupera.'
+              : 'Según tus series de los últimos 7 días. Toca un músculo para ver cuándo vuelve a estar listo.'}
+          </p>
+        </div>
+        {can3d && <SegmentedControl options={VIEWS} value={view} onChange={changeView} label="Vista del mapa" role="radiogroup" className="w-40" />}
       </div>
 
       <div className="grid items-start gap-6 md:grid-cols-[minmax(0,1fr)_minmax(260px,320px)]">
         <div className="flex flex-col gap-4">
-          <div className="flex justify-center gap-2 sm:gap-6">
-            <Figure shapes={FRONT} label="Frente" states={states} selected={selected} onSelect={setPicked} />
-            <Figure shapes={BACK} label="Espalda" states={states} selected={selected} onSelect={setPicked} />
-          </div>
+          {show3d ? (
+            <Suspense fallback={<ViewerFallback />}>
+              <MuscleViewer3D
+                states={states} selected={selected} onSelect={setPicked} onUnavailable={() => setCan3d(false)}
+                topInset={compact ? FLOAT_INSET : 0} overlay={<FloatingReadout muscle={selected} state={s} />}
+              />
+            </Suspense>
+          ) : (
+            <div className="flex justify-center gap-2 sm:gap-6">
+              <Figure shapes={FRONT} label="Frente" states={states} selected={selected} onSelect={setPicked} />
+              <Figure shapes={BACK} label="Espalda" states={states} selected={selected} onSelect={setPicked} />
+            </div>
+          )}
           <ul className="flex flex-wrap justify-center gap-x-4 gap-y-2" aria-label="Leyenda">
             {ORDER.map((status) => (
               <li key={status} className="flex items-center gap-1.5 text-label-md text-on-surface">
                 <svg aria-hidden viewBox="0 0 10 10" className={cn('size-3', STATUS[status].fill)}><circle cx="5" cy="5" r="5" /></svg>
                 {STATUS[status].label}
+                {STATUS[status].range && <span className="font-normal tabular-nums text-on-surface-light">{STATUS[status].range}</span>}
               </li>
             ))}
           </ul>
@@ -172,24 +258,26 @@ export function MuscleMap({ states, now }: { states: Record<Muscle, MuscleState>
                   <Badge variant={STATUS[s.status].badge} icon={STATUS[s.status].icon}>{STATUS[s.status].label}</Badge>
                 </div>
                 <ProgressBar
-                  key={selected} value={s.recovered}
-                  tone={s.status === 'high' ? 'error' : s.status === 'moderate' ? 'warning' : 'success'}
-                  label={`Recuperación de ${MUSCLES[selected].label}`} valueText={`${s.recovered} %`}
+                  key={selected} value={s.fatiguePct} tone={toneOf(s)}
+                  label={`Fatiga de ${MUSCLES[selected].label}`} valueText={`${s.fatiguePct} %`}
                 />
                 <dl className="grid grid-cols-3 gap-2 text-center">
                   {([
-                    ['Recuperado', `${s.recovered} %`],
-                    ['Listo', s.readyIn > 0 ? `en ~${s.readyIn} h` : 'ya'],
+                    ['Fatiga', `${s.fatiguePct} %`],
+                    ['Recuperación total', fullText(s)],
                     ['Series 7 días', sets(s.weekSets)],
                   ] as const).map(([k, v]) => (
-                    <div key={k} className="rounded-xl bg-surface-variant/60 px-1 py-2">
+                    <div key={k} className="flex flex-col justify-between gap-0.5 rounded-xl bg-surface-variant/60 px-1 py-2">
                       <dt className="text-label-md text-on-surface-light">{k}</dt>
                       <dd className="font-mono text-label-lg tabular-nums">{v}</dd>
                     </div>
                   ))}
                 </dl>
                 <p className="text-body-sm text-on-surface-light">
-                  {s.lastTrained ? `Último trabajo ${ago(s.lastTrained, now)}.` : 'Sin series esta semana.'}
+                  {s.status === 'idle' ? 'Sin series esta semana.' : [
+                    s.readyIn > 0 ? `Se puede volver a entrenar en ~${s.readyIn} h.` : 'Se puede entrenar ya.',
+                    s.lastTrained ? `Último trabajo ${ago(s.lastTrained, now)}.` : '',
+                  ].filter(Boolean).join(' ')}
                 </p>
               </>
             ) : (
