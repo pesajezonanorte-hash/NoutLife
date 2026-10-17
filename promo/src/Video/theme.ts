@@ -98,12 +98,15 @@ export const gradientText = (from: string, to: string, angle = 100): Record<stri
  * - `card` rebota poco (tarjetas que se levantan de la pantalla).
  * - `phone` casi no rebota y es lento: el teléfono es un objeto pesado.
  * - `swing` es el giro del teléfono entre zonas, con un rebote corto.
+ * - `glide` es críticamente amortiguado: llega sin rebote (las palabras del gancho entran).
  */
-export const SPRING: Record<'smooth' | 'slam' | 'pop' | 'card' | 'phone' | 'swing', Partial<SpringConfig>> = {
+export const SPRING: Record<'smooth' | 'slam' | 'pop' | 'card' | 'phone' | 'swing' | 'glide', Partial<SpringConfig>> = {
   smooth: { damping: 200 },
   slam: { stiffness: 420, damping: 26, mass: 0.6 },
   pop: { stiffness: 260, damping: 15, mass: 0.6 },
   card: { stiffness: 150, damping: 16, mass: 0.9 },
   phone: { stiffness: 70, damping: 17, mass: 1.2 },
   swing: { stiffness: 120, damping: 15, mass: 1 },
+  // ζ ≈ 1: sin rebote. ω = √stiffness rad/s: ~0,6 s hasta casi quieta
+  glide: { stiffness: 140, damping: 24, mass: 1 },
 };

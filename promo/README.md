@@ -55,8 +55,8 @@ La rejilla es de 120 BPM: 1 pulso = 15 fotogramas. Los cambios grandes caen en e
 | Tiempo | Escena | Qué pasa |
 |---|---|---|
 | 0–3 s | Gancho | «Tu rutina.», «Tu cuerpo.», «Tu mente.»: cada palabra cae de golpe con su color |
-| 3–6 s | Gancho | «Todo en un solo lugar.» palabra a palabra, con los tres colores juntos; la frase se encoge hasta un punto de luz |
-| 6–8 s | Marca | del punto salen las tres hojas del isotipo, cada una con el color de una palabra, y se funden en jade; «Noutlife» letra a letra |
+| 3–6 s | Gancho | «Todo en un solo lugar.» palabra a palabra, con un muelle sin rebote (escala, opacidad y desenfoque a la vez); la frase se encoge hacia el isotipo mientras tres luces de color convergen en él |
+| 6–8 s | Marca | la luz se vuelve núcleo y resplandor jade; de él se posan las tres hojas del isotipo, cada una con el color de una palabra, y se funden en jade; «Noutlife» letra a letra |
 | 8–10 s | Teléfono | la cámara se aleja: el logo era la pantalla de arranque de un teléfono; el logo vuela a la cabecera, aparece el inicio y el teléfono se inclina |
 | 10–16 s | Zonas | un toque abre el Coliseo (mapa de calor y 1RM); luego Ciclo Menstrual y Hábitos y Rituales. Con cada zona el teléfono gira, el fondo se tiñe de su color y sus tarjetas se levantan de la pantalla |
 | 16–20 s | El Sabio | el teléfono gira, una onda violeta lo envuelve, el borde de la pantalla brilla y las zonas le mandan su señal; la IA responde y su consejo se levanta para leerse grande; al final, «Y muchas zonas más...» |

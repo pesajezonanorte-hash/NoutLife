@@ -48,6 +48,16 @@ export const pulse = (frame: number, at: number, width: number) => Math.exp(-(((
 /** Caída exponencial desde `at` (0 antes): el brillo que deja un golpe. */
 export const decay = (frame: number, at: number, tau: number) => (frame < at ? 0 : Math.exp(-(frame - at) / tau));
 
+/**
+ * Destello que sube en `attack` fotogramas y se apaga con caída exponencial de constante `tau`.
+ * A diferencia de `decay`, nunca aparece de golpe a plena intensidad (eso era un salto visible).
+ */
+export function flash(frame: number, at: number, attack: number, tau: number) {
+  if (frame <= at) return 0;
+  if (frame < at + attack) return ramp(frame, at, at + attack, EASE.out);
+  return Math.exp(-(frame - at - attack) / tau);
+}
+
 /** Pseudoaleatorio con semilla (mulberry32): el mismo resultado en cada render. */
 export function rng(seed: number) {
   let s = seed >>> 0;

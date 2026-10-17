@@ -9,9 +9,9 @@
 //  2,0 s   f60   «Tu mente.» (azul y violeta)                         golpe
 //  3,0 s   f90   «Todo en un solo lugar.» palabra a palabra           una nota por palabra
 //  4,0 s   f120  cae «lugar.»: los tres colores se juntan             impacto
-//  5,4 s   f162  la frase se encoge hasta un solo punto de luz        aspiración (crece el impacto cinemático)
-//  6,0 s   f180  del punto salen las tres hojas del isotipo           impacto cinemático + tres campanas
-//  6,6 s   f198  «Noutlife» letra a letra; las hojas se vuelven jade  glass
+//  5,0 s   f150  la frase se encoge hacia el isotipo (sin rebote); las luces de color convergen  aspiración (crece el impacto cinemático)
+//  6,0 s   f180  nace la luz: las tres hojas del isotipo se posan sobre el resplandor           impacto cinemático + tres campanas
+//  6,3 s   f188  «Noutlife» letra a letra; a 6,7 s el brillo recorre las hojas                  glass
 //  8,0 s   f240  la cámara se aleja: el logo era la pantalla de un    whoosh y entra el ritmo
 //                teléfono; aparece el inicio de la app y se inclina
 //  9,5 s   f285  toque en la baldosa del Coliseo                      click
@@ -45,8 +45,8 @@ export const DURATION = beat(48);
  * para que la forma que cruza el corte (el punto, el logo, el teléfono) no desaparezca.
  */
 export const SEQUENCES = {
-  hook: { from: 0, to: 184 },
-  brand: { from: 176, to: 246 },
+  hook: { from: 0, to: 180 },
+  brand: { from: 146, to: 252 },
   device: { from: 234, to: DURATION },
   cta: { from: 596, to: DURATION },
 } as const;
@@ -69,8 +69,8 @@ export const HOOK = {
     { text: 'solo', at: beat(7.5), line: 1 },
     { text: 'lugar.', at: beat(8), line: 1 },
   ],
-  /** La frase se encoge hasta un punto (5,4 → 6,0 s). */
-  collapse: { from: 162, to: beat(12) },
+  /** La frase se encoge hacia el isotipo (5,0 → 6,0 s), con un muelle sin rebote. */
+  collapse: { from: 150, to: beat(12) },
 } as const;
 
 /** Escena 2: el isotipo nace del punto. */

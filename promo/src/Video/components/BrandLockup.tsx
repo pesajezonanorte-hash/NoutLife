@@ -3,7 +3,7 @@
 // (el teléfono con la pantalla del tamaño del lienzo) las dos imágenes coinciden.
 import type React from 'react';
 import { COLORS, HOOK_TINT, SPRING, rgba } from '../theme';
-import { EASE, clamp, decay, lerp, ramp, springAt } from '../lib/anim';
+import { EASE, clamp, flash, lerp, ramp, springAt } from '../lib/anim';
 import { LOCKUP } from '../layout';
 import { BRAND } from '../timeline';
 import { BLADE_OFFSET, NoutLifeMark, Wordmark, type Blade, type BladeState } from './Brand';
@@ -46,7 +46,8 @@ export function lockupState(frame: number): LockupState {
     blades,
     sheen: sheen > 0 && sheen < 1 ? sheen : null,
     letters: (i) => springAt(frame, BRAND.wordmark + i * 2.2, SPRING.smooth, 18),
-    glow: 0.8 + 0.9 * decay(frame, BRAND.burst, 9),
+    // El halo sube sin saltos: la luz de la escena 2 ya lo envuelve al nacer el logo
+    glow: 0.8 * ramp(frame, 176, 200, EASE.out) + 0.35 * flash(frame, BRAND.burst, 4, 14),
     push: 1 + 0.035 * ramp(frame, BRAND.burst, BRAND.handoff.to, EASE.linear),
   };
 }
