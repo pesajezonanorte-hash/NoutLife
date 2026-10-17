@@ -1,0 +1,28 @@
+{
+  "name": "@noutlife/promo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "NoutLife: vídeo promocional vertical 9:16 (Reels, TikTok, Shorts) hecho con Remotion",
+  "scripts": {
+    "dev": "remotion studio",
+    "preview": "remotion preview",
+    "render": "remotion render NoutLifePromoVertical out/noutlife-promo.mp4",
+    "still": "remotion still NoutLifePromoVertical out/still.png",
+    "music": "node scripts/build-music.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.530",
+    "@remotion/fonts": "4.0.530",
+    "@remotion/motion-blur": "4.0.530",
+    "lucide-react": "0.323.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "4.0.530"
+  },
+  "devDependencies": {
+    "@types/react": "18.3.28",
+    "@types/react-dom": "18.3.7",
+    "typescript": "5.9.3"
+  }
+}

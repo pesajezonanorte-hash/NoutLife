@@ -1,0 +1,3 @@
+# Renders (MP4, fotogramas sueltos): se regeneran con `npm run render`.
+out/
+node_modules/
