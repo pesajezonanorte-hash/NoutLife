@@ -17,7 +17,7 @@ import { BrandLockup, lockupState } from '../components/BrandLockup';
 import { MARK_SIZE, NoutLifeMark, Wordmark } from '../components/Brand';
 import { IconChip, ProBadge } from '../components/ui';
 import { LOCKUP, PHONE, POSE_CTA, POSE_HANDOFF, POSE_HERO, POSE_HOME, POSE_SABIO, TITLE, type PhonePose } from '../layout';
-import { BRAND, CTA, DEVICE, SEQUENCES, ZONE_ORDER, ZONE_TIMES } from '../timeline';
+import { BRAND, CTA, DEVICE, MORE_ZONES, SEQUENCES, ZONE_ORDER, ZONE_TIMES } from '../timeline';
 import { CardPops, SH, SW, Tap, type PopCard } from '../screens/kit';
 import { HEADER_LOGO, HomeScreen, TILE_RECTS, homeCards } from '../screens/HomeScreen';
 import { ColiseoScreen, coliseoCards } from '../screens/ColiseoScreen';
@@ -435,6 +435,50 @@ const ZoneTitles: React.FC<{ frame: number }> = ({ frame }) => (
   </>
 );
 
+/** «Y muchas zonas más...»: cierra la presentación de las zonas, en el sitio de sus títulos, y se va antes del titular. */
+const MoreZones: React.FC<{ frame: number }> = ({ frame }) => {
+  if (frame < MORE_ZONES.from || frame > MORE_ZONES.gone) return null;
+  const out = ramp(frame, MORE_ZONES.hold, MORE_ZONES.gone, EASE.in);
+  const words = ['Y', 'muchas', 'zonas', 'más...'];
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        top: TITLE.titleTop,
+        textAlign: 'center',
+        fontFamily: FONT.sans,
+        fontWeight: 700,
+        fontSize: 70,
+        lineHeight: 1.1,
+        letterSpacing: '-0.02em',
+        color: COLORS.textSoft,
+        whiteSpace: 'nowrap',
+        opacity: 1 - out,
+      }}
+    >
+      {words.map((w, i) => {
+        const p = springAt(frame, MORE_ZONES.from + i * 2, SPRING.smooth, 16);
+        return (
+          <span
+            key={w}
+            style={{
+              display: 'inline-block',
+              marginRight: i < words.length - 1 ? '0.24em' : 0,
+              transform: `translateY(${(1 - p) * 36}px)`,
+              opacity: p,
+              filter: p < 0.99 ? `blur(${(1 - p) * 8}px)` : undefined,
+            }}
+          >
+            {w}
+          </span>
+        );
+      })}
+    </div>
+  );
+};
+
 /** El Sabio: las zonas le mandan su señal como cintas de luz que entran en el teléfono. */
 const SOURCES: Array<{ label: string; icon: LucideIcon; color: string; x: number; y: number }> = [
   { label: 'Sueño', icon: Moon, color: '#8fd0ff', x: 150, y: 640 },
@@ -556,6 +600,7 @@ export const DeviceScene: React.FC = () => {
       <PhoneStage frame={frame} pose={pose} />
       <SabioWave frame={frame} pose={pose} front />
       <ZoneTitles frame={frame} />
+      <MoreZones frame={frame} />
     </AbsoluteFill>
   );
 };

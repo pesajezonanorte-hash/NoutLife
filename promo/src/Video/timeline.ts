@@ -22,9 +22,10 @@
 // 16,0 s   f480  El Sabio (azul y violeta): el teléfono gira y la IA  whoosh + glass; se va el bombo
 //                lo envuelve en luz; las zonas le mandan su señal
 // 19,0 s   f570  el teléfono baja al centro                           redoble hacia el final
+// 19,2 s   f576  «Y muchas zonas más...» en el sitio de los títulos   —
 // 20,0 s   f600  «Diseña tu versión Pro.»                             impacto cinemático y vuelve el ritmo
 // 21,0 s   f630  el teléfono sube de nivel                            confirm
-// 21,5 s   f645  botón «Empieza gratis en NoutLife Lite»              pop
+// 21,5 s   f645  botón «Empieza ahora en NoutLife»                    pop
 // 23,0 s   f690  toque en el botón, acorde final                      click + ring-out
 // 24,0 s   f720  fin
 
@@ -101,6 +102,8 @@ export const ZONE_TIMES = {
   sabio: { from: beat(32), to: 572 },
 } as const;
 export const ZONE_ORDER = ['coliseo', 'ciclo', 'habitos', 'sabio'] as const;
+/** «Y muchas zonas más...»: aparece al irse la última zona (El Sabio) y se despide antes del titular. */
+export const MORE_ZONES = { from: 576, hold: 590, gone: 598 } as const;
 
 /** Las tarjetas bajan antes del barrido a Ciclo (f357). */
 export const COLISEO = { lift: 306, drop: 342 } as const;
@@ -125,8 +128,8 @@ export const VO_CUES = [
   { id: 'gancho', from: 2, to: 150, text: 'Tu rutina. Tu cuerpo. Tu mente. Todo en un solo lugar.' },
   { id: 'marca', from: 184, to: 236, text: 'NoutLife.' },
   { id: 'zonas', from: 290, to: 476, text: 'Entrena en el Coliseo. Entiende tu ciclo. Suma hábitos y rituales.' },
-  { id: 'sabio', from: 484, to: 590, text: 'Y El Sabio, tu consejero con IA, une todas las piezas.' },
-  { id: 'cta', from: 600, to: 712, text: 'Diseña tu versión Pro. Empieza gratis en NoutLife Lite.' },
+  { id: 'sabio', from: 484, to: 590, text: 'Y El Sabio, tu consejero con IA, une todas las piezas. Y muchas zonas más...' },
+  { id: 'cta', from: 600, to: 712, text: 'Diseña tu versión Pro. Empieza ahora en NoutLife.' },
 ] as const;
 
 /** Efectos de sonido (archivos CC0 en public/audio/sfx, créditos en public/audio/CREDITS.md). */

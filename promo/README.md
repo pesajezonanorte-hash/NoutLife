@@ -59,8 +59,8 @@ La rejilla es de 120 BPM: 1 pulso = 15 fotogramas. Los cambios grandes caen en e
 | 6–8 s | Marca | del punto salen las tres hojas del isotipo, cada una con el color de una palabra, y se funden en jade; «Noutlife» letra a letra |
 | 8–10 s | Teléfono | la cámara se aleja: el logo era la pantalla de arranque de un teléfono; el logo vuela a la cabecera, aparece el inicio y el teléfono se inclina |
 | 10–16 s | Zonas | un toque abre el Coliseo (mapa de calor y 1RM); luego Ciclo Menstrual y Hábitos y Rituales. Con cada zona el teléfono gira, el fondo se tiñe de su color y sus tarjetas se levantan de la pantalla |
-| 16–20 s | El Sabio | el teléfono gira, una onda violeta lo envuelve, el borde de la pantalla brilla y las zonas le mandan su señal; la IA responde y su consejo se levanta para leerse grande |
-| 20–24 s | Cierre | «Diseña tu versión Pro.», el teléfono sube de nivel, el botón «Empieza gratis en NoutLife Lite» y la URL; un toque en el botón |
+| 16–20 s | El Sabio | el teléfono gira, una onda violeta lo envuelve, el borde de la pantalla brilla y las zonas le mandan su señal; la IA responde y su consejo se levanta para leerse grande; al final, «Y muchas zonas más...» |
+| 20–24 s | Cierre | «Diseña tu versión Pro.», el teléfono sube de nivel, el botón «Empieza ahora en NoutLife» y la URL; un toque en el botón |
 
 ## Audio
 
@@ -83,7 +83,7 @@ Props de la composición (se editan en el panel Inspector del Studio, que las gu
 
 ## Notas
 
-- Coliseo y El Sabio llevan la insignia **PRO** porque en la app son de Pro: en NoutLife Lite se ven con candado. Así el vídeo no promete gratis lo que no lo es.
+- Coliseo y El Sabio llevan la insignia **PRO** porque en la app son de Pro: en NoutLife Lite se ven con candado.
 - El consejo de El Sabio cruza el sueño y el Coliseo, como hace la IA de la app; las señales que le llegan son de zonas que de verdad ve (sueño, Coliseo, hábitos, comida). El Ciclo no está entre ellas porque la IA no lo lee.
 - Los datos de las pantallas son de ejemplo («Hola, Ana», 1RM de 102,5 kg, día 14 del ciclo). El vídeo no afirma cifras de usuarios ni valoraciones.
 - Los colores de cada zona son los tonos de la app (fatiga, menstruación, éxito, info) más saturados para el vídeo.

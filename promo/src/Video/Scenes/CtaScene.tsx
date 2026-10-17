@@ -1,7 +1,7 @@
 // Escena 4 (20–24 s): llamada a la acción, encima del teléfono (que vive en
 // DeviceScene y aquí ya está en el centro, inclinado, subiendo de nivel).
 // «Diseña tu versión Pro.» cae palabra a palabra, con «Pro.» en champán y un
-// destello; luego el botón «Empieza gratis en NoutLife Lite», que late con el
+// destello; luego el botón «Empieza ahora en NoutLife», que late con el
 // pulso, brilla y recibe un toque al final, y la URL que se escribe sola.
 import type React from 'react';
 import { ArrowRight } from 'lucide-react';
@@ -12,6 +12,8 @@ import { BUTTON, HEADLINE_TOP, URL_Y } from '../layout';
 import { CTA, SEQUENCES } from '../timeline';
 
 const URL = 'noutlife.vercel.app';
+/** Ancho medido de «Empieza ahora en NoutLife» (Montserrat 800, 37 px, −0,01 em): sitúa el dedo sobre la flecha. */
+const BUTTON_LABEL_W = 522;
 const LINES = [
   [
     { text: 'Diseña', at: CTA.headline },
@@ -49,11 +51,12 @@ export const CtaScene: React.FC = () => {
   const shimmerX = frame < CTA.tap ? shimmer(CTA.shimmer) : shimmer(CTA.tap + 14);
   const tapFlash = decay(frame, CTA.tap, 8);
 
-  // Toque: el dedo aparece, presiona y deja una onda (sobre la flecha: «Lite» sigue a la vista)
+  // Toque: el dedo aparece, presiona y deja una onda (sobre la flecha, para que el texto quede a la vista)
   const finger = ramp(frame, CTA.tap - 14, CTA.tap - 6, EASE.out) * (1 - ramp(frame, CTA.tap + 8, CTA.tap + 16));
   const fingerScale = 1.15 - 0.15 * ramp(frame, CTA.tap - 14, CTA.tap - 6, EASE.out) - 0.16 * press + 0.16 * release;
   const ripple = ramp(frame, CTA.tap, CTA.tap + 22, EASE.out);
-  const tapX = 540 + BUTTON.w / 2 - 66;
+  // Texto, hueco de 16 px y flecha de 38 px, centrados en el botón: el centro de la flecha queda a W/2 + 8
+  const tapX = 540 + BUTTON_LABEL_W / 2 + 8;
 
   return (
     <AbsoluteFill style={{ fontFamily: FONT.sans }}>
@@ -152,7 +155,7 @@ export const CtaScene: React.FC = () => {
             transform: 'skewX(-20deg)',
           }}
         />
-        <span style={{ position: 'relative' }}>Empieza gratis en NoutLife Lite</span>
+        <span style={{ position: 'relative' }}>Empieza ahora en NoutLife</span>
         <ArrowRight size={38} strokeWidth={2.8} color={COLORS.jade900} style={{ position: 'relative' }} />
       </div>
 
