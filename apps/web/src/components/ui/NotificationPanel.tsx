@@ -19,6 +19,7 @@ import { Button, EmptyState, Sheet, Skeleton, type Tone } from '@/components/ui/
 import { softTone } from '@/components/ui/lq/tones';
 import * as notifService from '../../services/notification.service';
 import type { InAppNotification } from '../../services/notification.service';
+import { syncAppBadge } from '@/lib/systemNotifications';
 
 function timeAgo(iso: string): string {
   const diff = (Date.now() - new Date(iso).getTime()) / 1000;
@@ -142,6 +143,8 @@ function useNotifications(open: boolean) {
   const live = useLive((st) => st.notifications);
   useEffect(() => { notifService.getUnreadCount().then(setUnread).catch(() => null); }, []);
   useEffect(() => { if (typeof live === 'number') setUnread(live); }, [live]);
+  // El número del icono de la app sigue a los avisos sin leer (el service worker lo sube al llegar uno).
+  useEffect(() => { syncAppBadge(unread); }, [unread]);
 
   const load = useCallback(() => {
     setLoading(true);

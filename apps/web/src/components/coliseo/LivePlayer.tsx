@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Check, ChevronDown, ChevronLeft, ChevronRight, Dumbbell, Minus, Music, Pause, Play, Plus, Trophy } from 'lucide-react';
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Dumbbell, Minus, Music, Pause, Play, Plus, Trophy, X } from 'lucide-react';
 import type { Exercise, SetType } from '@noutlife/shared';
 import { cn } from '@/lib/utils';
 import { slam } from '@/lib/motion';
@@ -15,6 +15,7 @@ import { SET_TYPES, oneRepMax, platesPerSide, previousBest, restFor, setTonnage,
 import { Badge, Button, ChipGroup, IconChip, Input, Modal, ResponsiveDialog, SegmentedControl, chipClasses, type SegmentOption } from '@/components/ui/lq';
 import { lockScroll, unlockScroll } from '@/components/ui/lq/Modal';
 import { playChime } from '@/components/focus/ambientSound';
+import { notifyLocal } from '@/lib/systemNotifications';
 import * as workoutService from '@/services/workout.service';
 import * as coliseo from '@/services/coliseo.service';
 import { RollingClock } from './ColiseoMotion';
@@ -42,7 +43,10 @@ export interface ActiveWorkout {
 }
 export type UpdateWorkout = (fn: (w: ActiveWorkout) => ActiveWorkout) => void;
 
-export const blankSet = (id: number, weight = '', reps = ''): ActiveSet => ({ id: String(id), weight, reps, completed: false, type: 'normal' });
+export const blankSet = (id: number | string, weight = '', reps = ''): ActiveSet => ({ id: String(id), weight, reps, completed: false, type: 'normal' });
+
+/** Id de una serie nueva: el mayor de la lista + 1, así no choca con otra serie tras borrar una. */
+export const nextSetId = (sets: ActiveSet[]) => String(Math.max(0, ...sets.map((s) => Number(s.id) || 0)) + 1);
 
 /** Tiempo activo de la sesión (descuenta las pausas). */
 export function elapsedMs(w: ActiveWorkout, now: number) {
@@ -159,6 +163,8 @@ function EffortPicker({ scale, set, label, quick, onChange }: { scale: Scale; se
 }
 
 interface Rest { endAt: number; total: number; reason: string; exIdx: number; setId: string; done?: boolean }
+/** Bloqueo de pantalla (Screen Wake Lock); el tipo de la librería DOM no siempre lo trae. */
+interface ScreenLock { release(): Promise<void>; addEventListener?: (type: 'release', fn: () => void) => void }
 
 export function LivePlayer({ workout, update, playlistUrl, onMinimize, onFinish, onDiscard }: {
   workout: ActiveWorkout;
@@ -182,6 +188,8 @@ export function LivePlayer({ workout, update, playlistUrl, onMinimize, onFinish,
   const asked = useRef(new Set<string>());
   /** Ejercicios cuyo historial no se pudo leer: sin banner en vez de «Buscando…» para siempre. */
   const [noHistory, setNoHistory] = useState<Set<string>>(() => new Set());
+  /** Serie borrada que se puede deshacer (5 s). */
+  const [undo, setUndo] = useState<{ exIdx: number; index: number; set: ActiveSet } | null>(null);
 
   useEffect(() => {
     lockScroll();
@@ -217,6 +225,42 @@ export function LivePlayer({ workout, update, playlistUrl, onMinimize, onFinish,
     if (audio.current) playChime(audio.current);
     navigator.vibrate?.([200, 100, 200]);
   }, [now, rest]);
+  // Con la app en segundo plano, el fin del descanso va a la barra de avisos del móvil.
+  // Su temporizador se borra al cancelar el descanso: si lo saltas, no suena ni avisa.
+  useEffect(() => {
+    if (!rest || rest.done) return;
+    const id = window.setTimeout(() => {
+      if (document.hidden) void notifyLocal('Descanso terminado', { body: 'Ya puedes hacer la siguiente serie.', tag: 'coliseo-rest', renotify: true, data: { link: '/coliseo' } });
+    }, Math.max(0, rest.endAt - Date.now()));
+    return () => window.clearTimeout(id);
+  }, [rest?.endAt, rest?.done]);
+  // Pantalla encendida mientras entrenas (Wake Lock): el descanso avisa con el móvil en la mano.
+  useEffect(() => {
+    const device = navigator as Navigator & { wakeLock?: { request: (type: 'screen') => Promise<ScreenLock> } };
+    let lock: ScreenLock | null = null;
+    let active = true;
+    const hold = () => {
+      if (!active || lock || document.visibilityState !== 'visible' || !device.wakeLock) return;
+      device.wakeLock.request('screen').then((s) => {
+        if (!active) { void s.release().catch(() => undefined); return; }
+        lock = s;
+        s.addEventListener?.('release', () => { if (lock === s) lock = null; });
+      }).catch(() => undefined);
+    };
+    hold();
+    document.addEventListener('visibilitychange', hold);
+    return () => {
+      active = false;
+      document.removeEventListener('visibilitychange', hold);
+      void lock?.release().catch(() => undefined);
+    };
+  }, []);
+  // «Deshacer» de una serie borrada: dura 5 s.
+  useEffect(() => {
+    if (!undo) return;
+    const id = window.setTimeout(() => setUndo(null), 5000);
+    return () => window.clearTimeout(id);
+  }, [undo]);
   useEffect(() => {
     if (!rest?.done) return;
     const id = setTimeout(() => setRest(null), 4000);
@@ -270,11 +314,14 @@ export function LivePlayer({ workout, update, playlistUrl, onMinimize, onFinish,
   function addSet() {
     if (!ex) return;
     const last = ex.sets[ex.sets.length - 1];
+    const id = nextSetId(ex.sets);
     update((w) => ({
       ...w,
-      exercises: w.exercises.map((e, i) => (i !== exIdx ? e : { ...e, sets: [...e.sets, blankSet(e.sets.length + 1, last?.weight, last?.reps)] })),
+      exercises: w.exercises.map((e, i) => (i !== exIdx ? e : { ...e, sets: [...e.sets, blankSet(id, last?.weight, last?.reps)] })),
     }));
     setPicked(ex.sets.length);
+    // La serie nueva pasa a ser la que toca: el descanso anterior se cancela en silencio.
+    setRest(null);
   }
 
   function addExercise(x: Exercise) {
@@ -285,13 +332,25 @@ export function LivePlayer({ workout, update, playlistUrl, onMinimize, onFinish,
     }));
     setPicked(null);
     setSearching(false);
+    setRest(null);
   }
+
+  /** Cambiar de serie o de ejercicio a mano corta el descanso en silencio: no suena ni avisa. */
+  const jumpTo = (i: number) => {
+    if (i !== exIdx) setRest(null);
+    goTo(i);
+  };
+  const pickSet = (j: number) => {
+    if (j !== setIdx) setRest(null);
+    setPicked(j);
+  };
 
   function toggleSet() {
     if (!ex || !set) return;
     if (set.completed) {
       patchSet(exIdx, set.id, { completed: false });
       setPicked(setIdx);
+      setRest(null);
       return;
     }
     primeAudio();
@@ -315,6 +374,30 @@ export function LivePlayer({ workout, update, playlistUrl, onMinimize, onFinish,
       const next = workout.exercises.findIndex((e, i) => i > exIdx && e.sets.some((s) => !s.completed));
       if (next >= 0) goTo(next);
     }
+  }
+
+  /** Borra una serie (hecha, cancelada o anotada por error) de un toque; se puede deshacer unos segundos. */
+  function removeSet(j: number) {
+    const removed = ex?.sets[j];
+    if (!removed) return;
+    update((w) => ({
+      ...w,
+      exercises: w.exercises.map((e, i) => (i !== exIdx ? e : { ...e, sets: e.sets.filter((s) => s.id !== removed.id) })),
+    }));
+    // Si el descanso era de esta serie, ya no tiene sentido: se cancela en silencio.
+    if (rest && rest.exIdx === exIdx && rest.setId === removed.id) setRest(null);
+    setPicked(j);
+    setUndo({ exIdx, index: j, set: removed });
+  }
+
+  function undoRemove() {
+    if (!undo) return;
+    const { exIdx: i, index, set: s } = undo;
+    update((w) => ({
+      ...w,
+      exercises: w.exercises.map((e, k) => (k !== i ? e : { ...e, sets: [...e.sets.slice(0, index), { ...s, id: nextSetId(e.sets) }, ...e.sets.slice(index)] })),
+    }));
+    setUndo(null);
   }
 
   async function run(kind: 'finish' | 'discard') {
@@ -389,14 +472,14 @@ export function LivePlayer({ workout, update, playlistUrl, onMinimize, onFinish,
         ) : (
           <div className="mx-auto flex max-w-lg flex-col gap-5">
             {n > 1 && (
-              <ol aria-label="Ejercicios de la sesión" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+              <ol aria-label="Ejercicios de la sesión" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [touch-action:pan-x] [overscroll-behavior-x:contain]">
                 {workout.exercises.map((e, i) => {
                   const d = e.sets.filter((s) => s.completed).length;
                   const on = i === exIdx;
                   return (
                     <li key={`${e.exerciseId}-${i}`} className="shrink-0">
                       <button
-                        type="button" aria-current={on ? 'step' : undefined} onClick={() => goTo(i)}
+                        type="button" aria-current={on ? 'step' : undefined} onClick={() => jumpTo(i)}
                         className={cn(chipClasses(on), 'max-w-[11rem]', d === e.sets.length && d > 0 && !on && 'text-success-text')}
                       >
                         {d === e.sets.length && d > 0 && <Check aria-hidden className="size-4" />}
@@ -410,14 +493,14 @@ export function LivePlayer({ workout, update, playlistUrl, onMinimize, onFinish,
             )}
 
             <div className="flex items-center gap-1">
-              <Button variant="icon" aria-label="Ejercicio anterior" disabled={exIdx === 0} onClick={() => goTo(exIdx - 1)}>
+              <Button variant="icon" aria-label="Ejercicio anterior" disabled={exIdx === 0} onClick={() => jumpTo(exIdx - 1)}>
                 <ChevronLeft aria-hidden className="size-6" />
               </Button>
               <div className="min-w-0 flex-1 text-center">
                 <h2 className="text-heading-lg">{ex.name}</h2>
                 <p className="text-body-sm text-on-surface-light">{[ex.muscleGroup, ex.equipment].filter(Boolean).join(' · ')}{n > 1 ? ` · ${exIdx + 1} de ${n}` : ''}</p>
               </div>
-              <Button variant="icon" aria-label="Ejercicio siguiente" disabled={exIdx >= n - 1} onClick={() => goTo(exIdx + 1)}>
+              <Button variant="icon" aria-label="Ejercicio siguiente" disabled={exIdx >= n - 1} onClick={() => jumpTo(exIdx + 1)}>
                 <ChevronRight aria-hidden className="size-6" />
               </Button>
             </div>
@@ -450,15 +533,15 @@ export function LivePlayer({ workout, update, playlistUrl, onMinimize, onFinish,
             )}
 
             {ex.sets.length > 0 && (
-              <ol aria-label={`Series de ${ex.name}`} className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+              <ol aria-label={`Series de ${ex.name}`} className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 pt-2 [touch-action:pan-x] [overscroll-behavior-x:contain]">
                 {ex.sets.map((s, j) => {
                   const on = j === setIdx;
                   const type = setTypeOf(s.type);
                   const pr = prs.has(`${exIdx}-${s.id}`);
                   return (
-                    <li key={s.id} className="shrink-0">
+                    <li key={s.id} className="relative shrink-0">
                       <button
-                        type="button" aria-pressed={on} onClick={() => setPicked(j)}
+                        type="button" aria-pressed={on} onClick={() => pickSet(j)}
                         aria-label={`Serie ${j + 1}${type.short ? `, ${type.label.toLowerCase()}` : ''}${s.completed ? `, hecha: ${s.weight || 0} kg por ${s.reps || 0}` : ', pendiente'}${pr ? ', récord' : ''}`}
                         className={cn(
                           'flex min-h-14 min-w-16 flex-col items-center justify-center rounded-2xl border px-3 transition-colors',
@@ -471,6 +554,12 @@ export function LivePlayer({ workout, update, playlistUrl, onMinimize, onFinish,
                           {type.short || j + 1}
                         </span>
                         <span className="font-mono text-label-md tabular-nums">{s.weight || s.reps ? pair(s.weight, s.reps) : '–'}</span>
+                      </button>
+                      <button
+                        type="button" aria-label={`Eliminar la serie ${j + 1}`} onClick={() => removeSet(j)}
+                        className="absolute -right-1.5 -top-1.5 flex size-8 items-center justify-center rounded-full border border-border bg-background text-on-surface-light shadow-sm transition-colors hover:text-error-text"
+                      >
+                        <X aria-hidden className="size-4" />
                       </button>
                     </li>
                   );
@@ -569,6 +658,12 @@ export function LivePlayer({ workout, update, playlistUrl, onMinimize, onFinish,
             )}
           </AnimatePresence>
 
+          {undo && (
+            <div role="status" className="flex items-center justify-between gap-3 rounded-2xl bg-surface-variant px-4 py-2 text-body-sm">
+              <span>Serie {undo.index + 1} eliminada</span>
+              <Button variant="ghost" size="sm" onClick={undoRemove}>Deshacer</Button>
+            </div>
+          )}
           {set && (
             <motion.button
               type="button" onClick={toggleSet} whileTap={{ scale: 0.97 }} transition={slam}

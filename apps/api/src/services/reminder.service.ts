@@ -7,26 +7,10 @@
 // La ventana de 30 min deja margen a un cron impuntual sin avisar a destiempo.
 import { prisma } from '../lib/prisma';
 import { DEFAULT_TIMEZONE, getCalendarDay } from '../lib/calendar';
+import { WINDOW_MS, inWindow, localMinutes, parseHHMM } from '../lib/smart-reminders';
 import { isHabitScheduledForDay } from './habit.service';
 import { createNotification, wasNotified } from './notification.service';
-
-const WINDOW_MS = 30 * 60 * 1000;
-
-/** Minutos desde la medianoche local del usuario. */
-function localMinutes(timezone: string | null | undefined, now: Date): number {
-  const fmt = (tz: string) => new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(now);
-  let parts: Intl.DateTimeFormatPart[];
-  try { parts = fmt(timezone || DEFAULT_TIMEZONE); } catch { parts = fmt(DEFAULT_TIMEZONE); }
-  const hour = Number(parts.find((p) => p.type === 'hour')?.value ?? 0);
-  const minute = Number(parts.find((p) => p.type === 'minute')?.value ?? 0);
-  return hour * 60 + minute;
-}
-
-function parseHHMM(value: string | null | undefined): number | null {
-  const m = /^(\d{2}):(\d{2})$/.exec(value ?? '');
-  if (!m) return null;
-  return Number(m[1]) * 60 + Number(m[2]);
-}
+import { smartReminders } from './smart-reminder.service';
 
 function localTimeLabel(timezone: string | null | undefined, date: Date) {
   try {
@@ -34,12 +18,6 @@ function localTimeLabel(timezone: string | null | undefined, date: Date) {
   } catch {
     return new Intl.DateTimeFormat('es-ES', { timeZone: DEFAULT_TIMEZONE, hour: '2-digit', minute: '2-digit' }).format(date);
   }
-}
-
-/** ¿La hora objetivo (minutos locales) cayó en la ventana que termina ahora? */
-function inWindow(nowMinutes: number, target: number) {
-  const diff = nowMinutes - target;
-  return diff >= 0 && diff * 60_000 < WINDOW_MS;
 }
 
 async function habitReminders(now: Date) {
@@ -70,6 +48,9 @@ async function habitReminders(now: Date) {
       title: `Hora de: ${habit.title}`,
       body: 'Márcalo cuando lo hagas y tu racha sigue viva.',
       link: '/habits',
+      quick: 'habit_done',
+      quickRef: habit.id,
+      day: day.toISOString().slice(0, 10),
     }, { awaitPush: true });
     sent += 1;
   }
@@ -330,12 +311,13 @@ export async function runReminderTick(now = new Date()) {
   const run = async (name: string, job: (n: Date) => Promise<number>) => {
     try { return await job(now); } catch (err) { console.error(`[Reminders] ${name}:`, err); return -1; }
   };
-  const [habits, agenda, quests, summaries, zones] = await Promise.all([
+  const [habits, agenda, quests, summaries, zones, smart] = await Promise.all([
     run('habits', habitReminders),
     run('agenda', agendaReminders),
     run('quests', questDeadlines),
     run('summaries', dailySummaries),
     run('zones', zoneReminders),
+    run('smart', smartReminders),
   ]);
-  return { at: now.toISOString(), habits, agenda, quests, summaries, zones };
+  return { at: now.toISOString(), habits, agenda, quests, summaries, zones, smart };
 }

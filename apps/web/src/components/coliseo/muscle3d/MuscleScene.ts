@@ -159,8 +159,10 @@ export class MuscleScene {
     c.minPolarAngle = Math.PI * 0.3;
     c.maxPolarAngle = Math.PI * 0.62;
     c.cursorStyle = 'grab';
-    // OrbitControls pone touch-action: none; así un dedo en vertical sigue desplazando la página.
-    canvas.style.touchAction = 'pan-y';
+    // El modelo se gira con un dedo en cualquier dirección y la página no se mueve mientras
+    // se toca el visor. Con «pan-y» un arrastre vertical desplazaba la página (y el giro
+    // vertical nunca llegaba a OrbitControls).
+    canvas.style.touchAction = 'none';
     c.addEventListener('change', this.onChange);
     c.addEventListener('start', this.onStart);
 

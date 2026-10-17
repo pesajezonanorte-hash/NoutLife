@@ -9,6 +9,19 @@ export interface NotificationCategoryPreference {
   pushEnabled: boolean;
 }
 
+/** Horarios de los avisos inteligentes (espejo de lib/smart-reminders.ts de la API). */
+export interface SmartReminderSettings {
+  coliseo: { time: string | null };
+  care: { enabled: boolean; morning: string; night: string };
+  cycle: { enabled: boolean };
+  hydration: { enabled: boolean; everyHours: 1 | 2 | 3 | 4; from: string; to: string };
+  meals: { enabled: boolean; times: string[] };
+  wisdom: { enabled: boolean; time: string };
+}
+
+/** Cambio parcial: basta con la zona (y dentro, el campo) que se quiere cambiar. */
+export type SmartReminderPatch = { [K in keyof SmartReminderSettings]?: Partial<SmartReminderSettings[K]> };
+
 export interface NotificationPreferences {
   habitReminders: boolean;
   questDeadlineAlerts: boolean;
@@ -19,6 +32,7 @@ export interface NotificationPreferences {
   quietHoursStart?: string | null;
   quietHoursEnd?: string | null;
   categories: NotificationCategoryPreference[];
+  reminderSettings: SmartReminderSettings;
 }
 
 export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
@@ -136,7 +150,7 @@ export async function getNotificationPreferences(): Promise<NotificationPreferen
   return data.preferences;
 }
 
-export async function updateNotificationPreferences(prefs: Partial<NotificationPreferences> & { categoryPreferences?: NotificationCategoryPreference[] }) {
+export async function updateNotificationPreferences(prefs: Partial<Omit<NotificationPreferences, 'reminderSettings'>> & { categoryPreferences?: NotificationCategoryPreference[]; reminderSettings?: SmartReminderPatch }) {
   const { data } = await api.patch<{ preferences: NotificationPreferences }>('/notifications/preferences', prefs);
   return data.preferences;
 }

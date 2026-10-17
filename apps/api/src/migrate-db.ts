@@ -82,6 +82,11 @@ const GENDER_CYCLE_AND_SHIELDS_SQL = [
   `ALTER TABLE "cycle_logs" ADD COLUMN IF NOT EXISTS "waterGlasses" INTEGER;`,
 ];
 
+// Idempotent mirror of prisma/migrations/20261026120000_smart_reminders (horarios de los avisos inteligentes).
+const SMART_REMINDERS_SQL = [
+  `ALTER TABLE "notification_preferences" ADD COLUMN IF NOT EXISTS "reminderSettings" JSONB;`,
+];
+
 // Idempotent mirror of prisma/migrations/20261016120000_habit_rituals_hygiene (rituales y Higiene Personal).
 const HABIT_RITUALS_HYGIENE_SQL = [
   `ALTER TYPE "QuestCategory" ADD VALUE IF NOT EXISTS 'HYGIENE'`,
@@ -259,6 +264,7 @@ async function migrate() {
   // cualquier consulta de users sin select (settleLevel, más abajo).
   for (const sql of GENDER_CYCLE_AND_SHIELDS_SQL) await prisma.$executeRawUnsafe(sql);
   for (const sql of HABIT_RITUALS_HYGIENE_SQL) await prisma.$executeRawUnsafe(sql);
+  for (const sql of SMART_REMINDERS_SQL) await prisma.$executeRawUnsafe(sql);
   // Idempotent mirror of prisma/migrations/20261025120000_wisdom_source (antes del seed de Sabiduría).
   await prisma.$executeRawUnsafe(`ALTER TABLE "wisdom_cards" ADD COLUMN IF NOT EXISTS "source" TEXT;`);
 

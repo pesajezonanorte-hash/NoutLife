@@ -1,5 +1,6 @@
 import webpush from 'web-push';
 import { prisma } from '../lib/prisma';
+import { mergeSmartSettings, sanitizeSmartSettings } from '../lib/smart-reminders';
 import { bump } from './chat-live.service';
 
 export const NOTIFICATION_CATEGORIES = [
@@ -39,6 +40,14 @@ type CreateNotificationInput = {
   silentForeground?: boolean;
   /** Chat al que pertenece un aviso, para no mostrarlo si ese chat está abierto. */
   chatKey?: string;
+  /** Aviso sin importancia: llega sin sonido ni vibración (igualmente visible en la barra). */
+  priority?: 'low' | 'normal';
+  /** Acción rápida en la barra de avisos: marcar un hábito o sumar agua sin abrir la app. */
+  quick?: 'habit_done' | 'water_250';
+  /** Hábito al que se refiere la acción rápida. */
+  quickRef?: string;
+  /** Día (AAAA-MM-DD, en la zona de la persona) al que se aplica la acción rápida. */
+  day?: string;
 };
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -106,7 +115,7 @@ async function enforceRetention(userId: string): Promise<void> {
  * congela al responder y un push pendiente puede perderse; los recordatorios lo usan.
  */
 export async function createNotification(userId: string, input: CreateNotificationInput, opts: { awaitPush?: boolean; push?: boolean } = {}) {
-  const { reply, silentForeground = false, chatKey, ...data } = input;
+  const { reply, silentForeground = false, chatKey, priority, quick, quickRef, day, ...data } = input;
   const category = data.category ?? categoryForType(data.type);
   const preference = await getChannelPreference(userId, category);
   const now = new Date();
@@ -164,6 +173,8 @@ export async function createNotification(userId: string, input: CreateNotificati
         type: data.type,
         category,
         ...(silentForeground ? { silentForeground: true } : {}),
+        ...(priority ? { priority } : {}),
+        ...(quick ? { quick, quickRef, day } : {}),
       },
     }, category).catch(() => 0);
     if (opts.awaitPush) await push;
@@ -268,7 +279,8 @@ export async function sendPush(userId: string, payload: PushPayload, category: N
   if (legacyPreferences && isInQuietHours(legacyPreferences.quietHoursStart, legacyPreferences.quietHoursEnd, user?.timezone)) return 0;
 
   const subscriptions = await prisma.pushSubscription.findMany({ where: { userId } });
-  const body = JSON.stringify({ icon: '/icons/icon-192.png', badge: '/icons/icon-96.png', ...payload });
+  // `unread` alimenta el número del icono de la app (Badging API) cuando llega el aviso.
+  const body = JSON.stringify({ icon: '/icons/icon-192.png', badge: '/icons/icon-96.png', unread: await countUnread(userId), ...payload });
   let delivered = 0;
   const promises = subscriptions.map(async (sub) => {
     try {
@@ -330,7 +342,7 @@ export async function getNotificationPreferences(userId: string) {
     return preference ?? { category, ...legacyCategoryDefaults(category, preferences) };
   });
 
-  return { ...preferences, categories };
+  return { ...preferences, reminderSettings: sanitizeSmartSettings(preferences.reminderSettings), categories };
 }
 
 export async function updateNotificationPreferences(userId: string, data: {
@@ -343,13 +355,20 @@ export async function updateNotificationPreferences(userId: string, data: {
   quietHoursStart?: string | null;
   quietHoursEnd?: string | null;
   categoryPreferences?: CategoryPreferenceInput[];
+  /** Cambio parcial por zona: lo que no se envía se conserva. */
+  reminderSettings?: unknown;
 }) {
-  const { categoryPreferences, ...legacyData } = data;
+  const { categoryPreferences, reminderSettings, ...legacyData } = data;
   await prisma.notificationPreferences.upsert({
     where: { userId },
     create: { userId, ...legacyData },
     update: legacyData,
   });
+  if (reminderSettings !== undefined) {
+    const current = await prisma.notificationPreferences.findUnique({ where: { userId }, select: { reminderSettings: true } });
+    const merged = mergeSmartSettings(current?.reminderSettings, reminderSettings);
+    await prisma.notificationPreferences.update({ where: { userId }, data: { reminderSettings: merged as never } });
+  }
 
   if (categoryPreferences) {
     for (const raw of categoryPreferences) {

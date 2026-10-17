@@ -910,6 +910,9 @@ model NotificationPreferences {
   quietHoursStart String? // "22:00"
   quietHoursEnd   String? // "07:00"
 
+  /// Horarios de los avisos inteligentes por zona (lib/smart-reminders.ts). Null = valores por defecto.
+  reminderSettings Json?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

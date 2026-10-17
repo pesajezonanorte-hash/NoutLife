@@ -1,0 +1,131 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import {
+  CARE_COPY, CYCLE_COPY, DEFAULT_SMART_SETTINGS, bestOneRepMax, categoryOfXpSource, focusCategory, hydrationSlots,
+  inWindow, maxEffortSets, mergeSmartSettings, newRecords, oneRepMaxOf, parseHHMM, pickQuote, sanitizeSmartSettings,
+} from '../src/lib/smart-reminders';
+
+test('sin ajustes guardados se usan los valores por defecto', () => {
+  assert.deepEqual(sanitizeSmartSettings(undefined), DEFAULT_SMART_SETTINGS);
+  assert.deepEqual(sanitizeSmartSettings(null), DEFAULT_SMART_SETTINGS);
+  assert.deepEqual(sanitizeSmartSettings('no es un objeto'), DEFAULT_SMART_SETTINGS);
+});
+
+test('las horas y los intervalos inválidos vuelven al valor por defecto', () => {
+  const s = sanitizeSmartSettings({
+    coliseo: { time: '25:99' },
+    care: { morning: '8:00', night: 'tarde' },
+    hydration: { everyHours: 7, from: '9am', to: '21:00' },
+    wisdom: { time: '07:30' },
+  });
+  assert.equal(s.coliseo.time, null);
+  assert.equal(s.care.morning, DEFAULT_SMART_SETTINGS.care.morning);
+  assert.equal(s.care.night, DEFAULT_SMART_SETTINGS.care.night);
+  assert.equal(s.hydration.everyHours, DEFAULT_SMART_SETTINGS.hydration.everyHours);
+  assert.equal(s.hydration.from, DEFAULT_SMART_SETTINGS.hydration.from);
+  assert.equal(s.hydration.to, '21:00');
+  assert.equal(s.wisdom.time, '07:30');
+});
+
+test('las horas de comida se ordenan, no se repiten y son como mucho cuatro', () => {
+  const s = sanitizeSmartSettings({ meals: { times: ['20:00', '08:00', '20:00', 'x', '13:00', '09:00', '18:00'] } });
+  assert.deepEqual(s.meals.times, ['08:00', '09:00', '13:00', '18:00']);
+});
+
+test('un cambio parcial por zona conserva el resto', () => {
+  const saved = mergeSmartSettings(undefined, { hydration: { enabled: true, everyHours: 3 } });
+  assert.equal(saved.hydration.enabled, true);
+  assert.equal(saved.hydration.everyHours, 3);
+  assert.equal(saved.hydration.from, DEFAULT_SMART_SETTINGS.hydration.from);
+  assert.deepEqual(saved.care, DEFAULT_SMART_SETTINGS.care);
+
+  const cleared = mergeSmartSettings(saved, { coliseo: { time: '18:30' } });
+  assert.equal(cleared.coliseo.time, '18:30');
+  assert.equal(cleared.hydration.enabled, true, 'el cambio de Coliseo no toca el agua');
+
+  assert.equal(mergeSmartSettings(cleared, { coliseo: { time: null } }).coliseo.time, null);
+});
+
+test('parseHHMM acepta solo horas válidas', () => {
+  assert.equal(parseHHMM('00:00'), 0);
+  assert.equal(parseHHMM('23:59'), 1439);
+  assert.equal(parseHHMM('24:00'), null);
+  assert.equal(parseHHMM('7:00'), null);
+  assert.equal(parseHHMM(null), null);
+});
+
+test('la ventana de avisos dura 30 minutos desde la hora objetivo', () => {
+  assert.equal(inWindow(540, 540), true);
+  assert.equal(inWindow(569, 540), true);
+  assert.equal(inWindow(570, 540), false, 'a los 30 min ya no es ventana');
+  assert.equal(inWindow(539, 540), false);
+});
+
+test('las franjas de agua van cada N horas y cruzan la medianoche', () => {
+  assert.deepEqual(hydrationSlots('09:00', '21:00', 2), [540, 660, 780, 900, 1020, 1140, 1260]);
+  assert.deepEqual(hydrationSlots('22:00', '02:00', 2), [1320, 0, 120]);
+  assert.deepEqual(hydrationSlots('09:00', '09:00', 4), [540]);
+  assert.deepEqual(hydrationSlots('bad', '21:00', 2), []);
+});
+
+test('los textos del ciclo no nombran la salud (se ven en la pantalla de bloqueo)', () => {
+  const health = /ciclo|periodo|menstru|regla|ovul|f[eé]rtil|sangr|sexual|anticon/i;
+  for (const copy of [CYCLE_COPY.check, CYCLE_COPY.upcoming, CYCLE_COPY.phase]) {
+    assert.doesNotMatch(copy.title, health);
+    assert.doesNotMatch(copy.body, health);
+  }
+});
+
+test('los textos de cuidado cambian según la franja', () => {
+  assert.notEqual(CARE_COPY.morning.body, CARE_COPY.night.body);
+});
+
+test('1RM estimado: peso directo con una repetición y fórmula de Epley en lo demás', () => {
+  assert.equal(oneRepMaxOf(100, 1), 100);
+  assert.ok(Math.abs(oneRepMaxOf(100, 5) - 116.67) < 0.01);
+  assert.equal(oneRepMaxOf(0, 5), 0);
+  assert.equal(oneRepMaxOf(50, 0), 0);
+});
+
+test('un récord cuenta solo si el ejercicio ya se había hecho y se supera su marca', () => {
+  const best = new Map([['press', 100], ['remo', 60]]);
+  const records = newRecords([
+    { exerciseId: 'press', name: 'Press banca', sets: [{ weight: 105, reps: 1, completed: true }] },
+    { exerciseId: 'remo', name: 'Remo', sets: [{ weight: 60, reps: 1, completed: true }] },
+    { exerciseId: 'nuevo', name: 'Sentadilla', sets: [{ weight: 200, reps: 1, completed: true }] },
+  ], best);
+  assert.deepEqual(records, [{ name: 'Press banca', oneRepMax: 105 }]);
+});
+
+test('las series sin completar no cuentan para el récord', () => {
+  assert.equal(bestOneRepMax([{ weight: 150, reps: 1, completed: false }, { weight: 80, reps: 1, completed: true }]), 80);
+});
+
+test('el esfuerzo máximo cuenta solo series completadas a RPE 10', () => {
+  assert.equal(maxEffortSets([
+    { sets: [{ rpe: 10, completed: true }, { rpe: 9, completed: true }, { rpe: 10, completed: false }] },
+    { sets: [{ rpe: 10, completed: true }] },
+  ]), 2);
+});
+
+test('la categoría de sabiduría sigue el XP de la última semana', () => {
+  assert.equal(categoryOfXpSource('workout'), 'health');
+  assert.equal(categoryOfXpSource('habit_completed'), 'discipline');
+  assert.equal(categoryOfXpSource('pomodoro'), 'growth');
+  assert.equal(categoryOfXpSource('algo_nuevo'), 'mindset');
+  assert.equal(focusCategory(new Map([['workout', 100], ['habit_completed', 50]])), 'health');
+  assert.equal(focusCategory(new Map()), 'discipline');
+});
+
+test('la cita del día es estable para la misma persona y día, y prefiere su categoría', () => {
+  const cards = [
+    { id: 'a', category: 'health', quote: 'a' },
+    { id: 'b', category: 'discipline', quote: 'b' },
+    { id: 'c', category: 'discipline', quote: 'c' },
+  ];
+  const first = pickQuote(cards, 'discipline', 'u1:2026-10-16');
+  assert.equal(pickQuote(cards, 'discipline', 'u1:2026-10-16')?.id, first?.id);
+  assert.equal(first?.category, 'discipline');
+  assert.equal(pickQuote(cards, 'growth', 'u1:2026-10-16')?.category, 'health', 'sin citas de la categoría, cualquiera');
+  assert.equal(pickQuote([], 'discipline', 'x'), null);
+});

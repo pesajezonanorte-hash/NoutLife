@@ -62,19 +62,32 @@ self.addEventListener('push', (event) => {
     }
   }
 
+  const data = payload.data ?? {};
+  // Avisos sin importancia (agua, cita del día): sin sonido ni vibración, igual de visibles.
+  const quiet = data.priority === 'low';
   const options = {
     body: payload.body ?? '',
     icon: payload.icon && payload.icon.startsWith('/') ? payload.icon : '/icons/icon-192.png',
     badge: '/icons/icon-96.png',
     // Misma etiqueta que el aviso local de la app: si llegan los dos, se ve uno.
     tag: payload.tag ?? 'noutlife',
-    data: payload.data ?? {},
-    vibrate: [100, 50, 100],
+    data,
+    timestamp: Date.now(),
+    silent: quiet,
+    renotify: !quiet,
   };
-  // Cartas de amigos y de gremio: se puede contestar desde el propio aviso.
-  if (payload.data && payload.data.reply) {
-    options.actions = [{ action: "reply", type: "text", title: "Responder", placeholder: "Escribe tu respuesta…" }];
+  if (!quiet) options.vibrate = [100, 50, 100];
+  // Acciones rápidas: contestar una carta, marcar un hábito o sumar agua sin abrir la app
+  // (Android y escritorio; iPhone las omite y abre la app al tocar el aviso).
+  if (data.reply) {
+    options.actions = [{ action: 'reply', type: 'text', title: 'Responder', placeholder: 'Escribe tu respuesta…' }];
+  } else if (data.quick === 'habit_done') {
+    options.actions = [{ action: 'habit_done', title: 'Hecho ✓' }];
+  } else if (data.quick === 'water_250') {
+    options.actions = [{ action: 'water_250', title: '+250 ml' }];
   }
+  // Número en el icono de la app: avisos que siguen sin leer.
+  if (typeof payload.unread === 'number') setAppBadge(payload.unread);
 
   // Se silencia solo XP cuando la app está en primer plano, y solo el chat exacto
   // que la persona está viendo; las demás conversaciones conservan su aviso.
@@ -97,18 +110,54 @@ self.addEventListener('message', (event) => {
   }));
 });
 
-// Responde desde el aviso: pide un acceso nuevo con la sesión (cookie) y envía la carta.
-async function quickReply(reply, text) {
+// Llama a la API desde el aviso: pide un acceso nuevo con la sesión (cookie) y lo usa.
+async function apiCall(path, method, body) {
   const auth = await fetch("/api/v1/auth/refresh", { method: "POST", credentials: "include" });
   if (!auth.ok) throw new Error("sin sesión");
   const { accessToken } = await auth.json();
-  const url = reply.type === "guild" ? "/api/v1/social/guilds/" + encodeURIComponent(reply.id) + "/messages" : "/api/v1/social/messages/" + encodeURIComponent(reply.id);
-  const sent = await fetch(url, {
-    method: "POST", credentials: "include",
+  const res = await fetch("/api/v1" + path, {
+    method, credentials: "include",
     headers: { "Content-Type": "application/json", Authorization: "Bearer " + accessToken },
-    body: JSON.stringify({ content: text }),
+    body: body === undefined ? undefined : JSON.stringify(body),
   });
-  if (!sent.ok) throw new Error("no se envió");
+  if (!res.ok) throw new Error("la API respondió " + res.status);
+  return res;
+}
+
+// Responde desde el aviso: envía la carta.
+async function quickReply(reply, text) {
+  const path = reply.type === "guild" ? "/social/guilds/" + encodeURIComponent(reply.id) + "/messages" : "/social/messages/" + encodeURIComponent(reply.id);
+  await apiCall(path, "POST", { content: text });
+}
+
+// Acciones rápidas de los avisos: marcar el hábito o sumar un vaso de agua sin abrir la app.
+async function quickAction(action, data) {
+  if (action === "habit_done" && data.quickRef) {
+    await apiCall("/habits/" + encodeURIComponent(data.quickRef) + "/log", "POST", { status: "completed", date: data.day });
+    return "Hábito marcado. Tu racha sigue viva.";
+  }
+  if (action === "water_250") {
+    await apiCall("/meals", "POST", { name: "Agua", mealType: "WATER", waterMl: 250, date: data.day });
+    return "+250 ml de agua registrados.";
+  }
+  throw new Error("acción desconocida");
+}
+
+// Confirma la acción en silencio y retira la confirmación poco después.
+async function confirmQuick(message) {
+  const tag = "lq-quick-ok";
+  await self.registration.showNotification("Noutlife", { body: message, tag, icon: "/icons/icon-192.png", badge: "/icons/icon-96.png", silent: true });
+  await new Promise((r) => setTimeout(r, 2500));
+  const list = await self.registration.getNotifications({ tag });
+  list.forEach((n) => n.close());
+}
+
+// Número en el icono de la app (Badging API): Android y iPhone con la app instalada.
+function setAppBadge(count) {
+  const nav = self.navigator;
+  const run = count > 0 ? nav.setAppBadge : nav.clearAppBadge;
+  if (typeof run !== "function") return;
+  Promise.resolve().then(() => (count > 0 ? run.call(nav, count) : run.call(nav))).catch(() => undefined);
 }
 
 self.addEventListener('notificationclick', (event) => {
@@ -123,6 +172,15 @@ self.addEventListener('notificationclick', (event) => {
         .then(() => new Promise((r) => setTimeout(r, 2500)))
         .then(() => self.registration.getNotifications({ tag }))
         .then((list) => list.forEach((n) => n.close()))
+        .catch(() => clients.openWindow(new URL(data.link || "/", self.location.origin).href))
+    );
+    return;
+  }
+  // Acción rápida (hábito o agua): se registra desde la barra, sin abrir la app.
+  if ((event.action === "habit_done" || event.action === "water_250") && data.quick) {
+    event.waitUntil(
+      quickAction(event.action, data)
+        .then(confirmQuick)
         .catch(() => clients.openWindow(new URL(data.link || "/", self.location.origin).href))
     );
     return;

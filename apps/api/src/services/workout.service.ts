@@ -4,6 +4,7 @@ import { awardXpAndGold } from './xp.service';
 import { checkAchievements } from './achievement.service';
 import { createNotification } from './notification.service';
 import { listColiseoAttendances, recordManualColiseoAttendance, recordWorkoutColiseoAttendance } from './coliseo-attendance.service';
+import { bestOneRepMax, maxEffortSets, newRecords, type LoggedSet } from '../lib/smart-reminders';
 
 /**
  * A bare calendar key ("2026-09-07") is stored at 12:00 UTC so converting it to
@@ -97,6 +98,25 @@ export async function updateWorkout(userId: string, id: string, body: Record<str
   });
 }
 
+/**
+ * Récords personales (1RM estimado por encima de la mejor marca anterior) y series a RPE 10
+ * de la sesión que se cierra. Un ejercicio nuevo no cuenta como récord.
+ */
+async function sessionHighlights(userId: string, workoutId: string, session: Array<{ exerciseId: string; name: string; sets: unknown }>) {
+  const past = await prisma.workoutExercise.findMany({
+    where: { exerciseId: { in: [...new Set(session.map((ex) => ex.exerciseId))] }, workoutId: { not: workoutId }, workout: { userId, xpEarned: { gt: 0 } } },
+    select: { exerciseId: true, sets: true },
+  });
+  const previousBest = new Map<string, number>();
+  for (const row of past) {
+    previousBest.set(row.exerciseId, Math.max(previousBest.get(row.exerciseId) ?? 0, bestOneRepMax(row.sets as LoggedSet[])));
+  }
+  return {
+    records: newRecords(session.map((ex) => ({ exerciseId: ex.exerciseId, name: ex.name, sets: ex.sets as LoggedSet[] })), previousBest),
+    maxEffort: maxEffortSets(session.map((ex) => ({ sets: ex.sets as LoggedSet[] }))),
+  };
+}
+
 export async function finishWorkout(userId: string, id: string, body: { notes?: string; duration?: number; distanceKm?: number; exercises?: Array<{ exerciseId: string; sets: Array<{ weight?: number; reps?: number; completed: boolean }>; notes?: string; order?: number }> }) {
   // Finishing is the point at which rewards and the stats event are written.
   // Guard it explicitly so a retry/double click cannot farm XP or corrupt the
@@ -150,6 +170,23 @@ export async function finishWorkout(userId: string, id: string, body: { notes?: 
     link: '/coliseo',
     silentForeground: true,
   }).catch(() => {});
+
+  // Récord personal o esfuerzo máximo: un solo aviso por sesión (la clave evita repetirlo al reintentar).
+  const highlights = await sessionHighlights(userId, id, exercises.map((we) => ({ exerciseId: we.exerciseId, name: we.exercise.name, sets: we.sets }))).catch(() => null);
+  if (highlights && (highlights.records.length || highlights.maxEffort)) {
+    const lines = [
+      ...highlights.records.map((r) => `${r.name}: 1RM est. ${r.oneRepMax} kg`),
+      ...(highlights.maxEffort ? [`${highlights.maxEffort} ${highlights.maxEffort === 1 ? 'serie' : 'series'} a RPE 10`] : []),
+    ];
+    await createNotification(userId, {
+      type: 'workout_highlight',
+      category: 'COLISEO',
+      dedupeKey: `workout-highlight-${id}`,
+      title: highlights.records.length ? '🏆 Nuevo récord personal' : '🔥 Esfuerzo máximo',
+      body: lines.join(' · '),
+      link: '/coliseo',
+    }, { awaitPush: true }).catch(() => null);
+  }
 
   const achievementsUnlocked = await checkAchievements(userId, 'workout_finished').catch(() => []);
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });

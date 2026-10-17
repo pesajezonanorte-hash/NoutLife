@@ -22,8 +22,9 @@ import { useToast } from '@/hooks/useToast';
 import * as userService from '@/services/user.service';
 import {
   getNotificationPreferences, enablePush, PUSH_MESSAGES, pushSupport, sendTestNotification, updateNotificationPreferences,
-  type NotificationCategoryPreference, type NotificationPreferences,
+  type NotificationCategoryPreference, type NotificationPreferences, type SmartReminderPatch,
 } from '@/services/notification.service';
+import { SmartRemindersPanel } from '@/components/settings/SmartRemindersPanel';
 import { SKINS, THEME_PALETTES, skinOf, themeIdOf } from '@/lib/shopThemes';
 import { daysUntil, longDay } from '@/lib/plan';
 import type { Gender, InventoryItem, ShopItem, Subscription, User as Account } from '@noutlife/shared';
@@ -193,6 +194,16 @@ export default function SettingsPage() {
     try { setPrefs(await updateNotificationPreferences({ [field]: value || null })); }
     catch { setPrefs(before); toast.error('No se pudo actualizar el horario silencioso'); }
   }
+  /** Cambia los avisos inteligentes: se ve al instante y, si el servidor lo rechaza, vuelve atrás. */
+  async function smartReminders(patch: SmartReminderPatch) {
+    if (!prefs) return;
+    const before = prefs;
+    const local: Record<string, object> = { ...prefs.reminderSettings };
+    for (const [zone, change] of Object.entries(patch)) local[zone] = { ...local[zone], ...change };
+    setPrefs({ ...prefs, reminderSettings: local as unknown as NotificationPreferences['reminderSettings'] });
+    try { setPrefs(await updateNotificationPreferences({ reminderSettings: patch })); }
+    catch { setPrefs(before); toast.error('No se pudieron guardar los avisos inteligentes'); }
+  }
   async function exportData(format: 'json' | 'csv') {
     setExporting(format);
     try {
@@ -354,6 +365,7 @@ export default function SettingsPage() {
                             </li>
                           ))}
                         </ul>
+                        <SmartRemindersPanel settings={prefs.reminderSettings} isFemale={user?.gender === 'female'} onChange={(patch) => void smartReminders(patch)} />
                       </>
                     )}
                   </Section>
