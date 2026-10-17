@@ -1,12 +1,15 @@
 // Música original del vídeo, sintetizada nota a nota: sin samples ni licencias de
 // terceros, y determinista (siempre produce el mismo archivo). 120 BPM en La menor,
-// 25 s, con los mismos cortes que src/Video/timeline.ts:
-//    0–4 s   intro: pad Am9 que se abre poco a poco y un pulso apagado
-//    4 s     marca: golpe sub y tres campanas (las tres hojas del isotipo)
-//    6 s     entra el bombo; a los 8 s, groove completo (bombo, palmas, hats, bajo, arpegio)
-//   16 s     ecosistema: redoble de palmas y el filtro se abre; el bombo calla en el último pulso
-//   18 s     llamada a la acción: golpe sub y groove
-//   23,5 s   acorde final con el toque del botón; resuena hasta el final
+// 24 s, con los mismos cortes que src/Video/timeline.ts:
+//    0–3 s   gancho: un golpe (bombo, sub y acorde) con cada palabra; hats en semicorcheas
+//    3–4 s   «Todo en un solo lugar.»: una nota por palabra y redoble; golpe en «lugar.»
+//    5,3 s   platillo al revés: la frase se encoge hasta un punto
+//    6 s     marca: golpe sub y tres campanas (las tres hojas del isotipo)
+//    8 s     entra el groove con el teléfono (bombo, palmas, hats, bajo, arpegio)
+//   16 s     El Sabio: se va el bombo y brilla un arpegio en semicorcheas
+//   19 s     redoble y barrido hacia el cierre, con un instante de silencio
+//   20 s     llamada a la acción: golpe y groove
+//   23 s     acorde final con el toque del botón; resuena hasta el final
 //
 // Uso: node scripts/build-music.mjs  →  public/audio/noutlife-music.wav (48 kHz, 16 bits, estéreo)
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -16,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 const SR = 48000;
 const BPM = 120;
 const BEAT = 60 / BPM;
-const DUR = 25;
+const DUR = 24;
 const N = Math.ceil(DUR * SR);
 /** Volumen del lecho musical: los efectos van encima y el total queda cerca de −16 LUFS. */
 const TARGET_LUFS = -17;
@@ -27,6 +30,7 @@ const OUT = join(dirname(fileURLToPath(import.meta.url)), '..', 'public', 'audio
 const midiHz = (m) => 440 * 2 ** ((m - 69) / 12);
 const clamp = (x, lo = 0, hi = 1) => Math.min(hi, Math.max(lo, x));
 const smooth = (x) => { x = clamp(x); return x * x * (3 - 2 * x); };
+const mix = (a, b, t) => a + (b - a) * smooth(t);
 
 function rng(seed) {
   let s = seed >>> 0;
@@ -97,12 +101,16 @@ const CHORDS = {
   Cadd9: { root: 36, pad: [55, 60, 62, 64, 67], arp: [79, 76, 74, 72, 76, 79, 74, 76] },
   G6: { root: 31, pad: [55, 59, 62, 64, 67], arp: [74, 71, 67, 71, 74, 76, 79, 74] },
 };
-/** Segundo → acorde. Termina en Do (la resolución) justo con el toque del botón. */
+/**
+ * Segundo → acorde. El gancho sube de La menor a Sol y resuelve en Do con «lugar.»;
+ * el cierre vuelve a resolver en Do con el toque del botón.
+ */
 const PROGRESSION = [
-  [0, 'Am9'], [4, 'Fmaj9'], [6, 'Cadd9'], [7, 'G6'],
+  [0, 'Am9'], [1, 'Fmaj9'], [2, 'G6'], [4, 'Cadd9'],
+  [6, 'Fmaj9'], [7, 'G6'],
   [8, 'Am9'], [10, 'Fmaj9'], [12, 'Cadd9'], [14, 'G6'],
-  [16, 'Fmaj9'], [17, 'G6'],
-  [18, 'Cadd9'], [20, 'Am9'], [22, 'Fmaj9'], [23, 'G6'], [23.5, 'Cadd9'],
+  [16, 'Fmaj9'], [18, 'G6'],
+  [20, 'Cadd9'], [21, 'Am9'], [22, 'Fmaj9'], [22.5, 'G6'], [23, 'Cadd9'],
 ];
 const SEGMENTS = PROGRESSION.map(([start, name], i) => ({
   start,
@@ -110,6 +118,9 @@ const SEGMENTS = PROGRESSION.map(([start, name], i) => ({
   chord: CHORDS[name],
 }));
 const chordAt = (t) => SEGMENTS.find((s) => t >= s.start && t < s.end)?.chord ?? CHORDS.Cadd9;
+
+/** Tramos con groove (bombo a negras, palmas, bajo pulsado, arpegio). */
+const GROOVE = [...range(16, 32), ...range(40, 46)];
 
 // ─── Batería ─────────────────────────────────────────────────────────────────
 const kickNoise = noiseBuffer(11, SR);
@@ -165,21 +176,56 @@ function hat(t0, vel, open = false) {
   }
 }
 
-// Pulso apagado en la intro (late como un corazón) y el bombo desde los 6 s
-for (const b of range(1, 8)) kick(at(b), 0.14 + 0.025 * b, true);
-for (const b of range(12, 16)) kick(at(b), 0.55);
-for (const b of range(16, 35)) kick(at(b), 1);
-for (const b of range(36, 47)) kick(at(b), 1);
-kick(at(47), 1.1);
+/** Platillo: ruido agudo con cola larga y mucha reverb (los golpes grandes). */
+const crashNoise = noiseBuffer(55, 3 * SR);
+function crash(t0, vel) {
+  const i0 = Math.round(t0 * SR);
+  const len = Math.floor(2.4 * SR);
+  const hpL = svf(4200, 0.7), hpR = svf(4600, 0.7);
+  for (let k = 0; k < len; k++) {
+    const t = k / SR;
+    const env = Math.exp(-t / 0.55) * clamp(t / 0.002) * vel * 0.2;
+    const l = hpL.hp(crashNoise[k]) * env;
+    const r = hpR.hp(crashNoise[(k + 12011) % crashNoise.length]) * env;
+    add(drums, i0 + k, l, r);
+    add(reverbSend, i0 + k, l * 0.5, r * 0.5);
+  }
+}
 
-for (const b of [...range(16, 32), ...range(36, 47)]) if (b % 4 === 1 || b % 4 === 3) clap(at(b), 1);
-clap(at(33), 1);
-// Redoble de palmas en semicorcheas hacia la llamada a la acción
-for (const b of range(34, 36, 0.25)) clap(at(b), 0.25 + 0.55 * ((b - 34) / 2));
+// Gancho: un golpe con cada palabra («Tu rutina.», «Tu cuerpo.», «Tu mente.»)
+for (const t of [0, 1, 2]) { kick(t, 1.05); clap(t, 0.5); }
+kick(3, 0.6);
+// Redoble de palmas en semicorcheas hacia «lugar.»
+for (const b of range(6, 8, 0.25)) clap(at(b), 0.12 + 0.5 * ((b - 6) / 2));
+kick(4, 1.1);
+crash(4, 0.9);
+for (const b of range(0, 6, 0.25)) hat(at(b), 0.1 + 0.16 * (b / 6) * (b % 1 === 0.5 ? 1.4 : 1));
 
-for (const b of range(4, 8, 0.25)) hat(at(b), 0.08 + 0.18 * ((b - 4) / 4));
-for (const b of [...range(14, 32), ...range(32, 34), ...range(36, 47)]) hat(at(b + 0.5), b % 4 === 3 ? 0.9 : 0.75, b % 4 === 3 && b >= 16);
-for (const b of range(34, 36, 0.25)) hat(at(b), 0.3 + 0.4 * ((b - 34) / 2));
+// Marca: golpe, latido apagado y hats que crecen hacia el groove
+kick(6, 1);
+for (const b of [14, 14.5, 15, 15.5]) kick(at(b), 0.18 + 0.08 * (b - 14), true);
+for (const b of range(14, 16, 0.25)) hat(at(b), 0.06 + 0.24 * ((b - 14) / 2));
+
+// Groove con el teléfono (8 s) y en la llamada a la acción (20 s)
+for (const b of GROOVE) kick(at(b), 1);
+for (const b of GROOVE) if (b % 4 === 1 || b % 4 === 3) clap(at(b), b === 31 ? 0.6 : 1);
+for (const b of GROOVE) hat(at(b + 0.5), b % 4 === 3 ? 0.9 : 0.75, b % 4 === 3);
+crash(8, 0.8);
+crash(12, 0.35);
+crash(14, 0.35);
+// Antes de El Sabio, el último pulso se queda sin bombo: redoble corto
+for (const b of range(31, 32, 0.25)) clap(at(b), 0.2 + 0.3 * (b - 31));
+
+// El Sabio: sin bombo; hats muy suaves en semicorcheas que dan movimiento
+for (const b of range(32, 38, 0.25)) hat(at(b), b % 1 === 0.5 ? 0.16 : 0.08);
+crash(16, 0.3);
+
+// Hacia el cierre: bombo en corcheas que crece, redoble y un instante de silencio
+for (const b of range(38, 39.5, 0.5)) kick(at(b), 0.5 + 0.3 * ((b - 38) / 1.5));
+for (const b of range(38, 39.75, 0.25)) clap(at(b), 0.15 + 0.65 * ((b - 38) / 1.75));
+crash(20, 1);
+kick(at(46), 1.15);
+crash(at(46), 0.6);
 
 // ─── Bajo ────────────────────────────────────────────────────────────────────
 // Sub (seno con armónicos para que se oiga en el altavoz del móvil) y un bajo
@@ -197,9 +243,13 @@ function subBass(from, to, level) {
     add(bass, i, s, s);
   }
 }
-subBass(4, 8, 0.16);
-subBass(8, at(35), 0.34);
-subBass(18, at(47) + 0.02, 0.34);
+subBass(0, 3.95, 0.16);
+subBass(4, 5.3, 0.18);
+subBass(6, 7.95, 0.16);
+subBass(8, 15.95, 0.34);
+subBass(16, 18.95, 0.2);
+subBass(19, 19.9, 0.24);
+subBass(20, 23.02, 0.34);
 
 function pluckBass(t0, root) {
   const i0 = Math.round(t0 * SR);
@@ -218,14 +268,14 @@ function pluckBass(t0, root) {
     add(bass, i0 + k, s, s);
   }
 }
-for (const b of [...range(16, 35), ...range(36, 47)]) pluckBass(at(b + 0.5), chordAt(at(b + 0.5)).root);
+for (const b of GROOVE) pluckBass(at(b + 0.5), chordAt(at(b + 0.5)).root);
 
 // ─── Pad ─────────────────────────────────────────────────────────────────────
 // Tres sierras desafinadas por nota y canal (ancho estéreo), filtradas después.
 const DETUNE = [[-11, -3, 6], [-6, 3, 11]];
 for (const seg of SEGMENTS) {
   const rel = seg.end >= DUR ? 0 : 0.5;
-  const attack = seg.start === 0 ? 1.4 : 0.12;
+  const attack = seg.start === 0 ? 0.25 : 0.12;
   const i0 = Math.round(seg.start * SR);
   const i1 = Math.min(N, Math.round((seg.end + rel) * SR));
   for (const note of seg.chord.pad) {
@@ -246,27 +296,34 @@ for (const seg of SEGMENTS) {
   }
 }
 
-/** Corte del filtro del pad (Hz) en el tiempo: se abre en la intro, respira en el groove. */
+/** Corte del filtro del pad (Hz): oscuro en el gancho, se abre con «lugar.», se cierra en el punto. */
 function padCutoff(t) {
-  if (t < 3.5) return 380 + 720 * smooth(t / 3.5);
-  if (t < 4) return 1100 + 1300 * smooth((t - 3.5) / 0.5);
-  if (t < 8) return 2400 - 500 * smooth((t - 4) / 4);
+  if (t < 3) return 520 + 280 * smooth(t / 3);
+  if (t < 4) return mix(800, 2600, t - 3);
+  if (t < 5.3) return mix(2600, 1900, (t - 4) / 1.3);
+  if (t < 6) return mix(1900, 280, (t - 5.3) / 0.7);
+  if (t < 8) return mix(2500, 1700, (t - 6) / 2);
   if (t < 16) return 1700 + 350 * Math.sin((t - 8) * Math.PI * 0.25);
-  if (t < 18) return 1700 + 2000 * smooth((t - 16) / 2);
-  if (t < 23.5) return 2600;
-  return 2600 - 1800 * smooth((t - 23.5) / 1.5);
+  if (t < 19) return mix(2200, 3400, (t - 16) / 3);
+  if (t < 20) return mix(1500, 4500, t - 19);
+  if (t < 23) return 2800;
+  return mix(2800, 1000, t - 23);
 }
-/** Nivel del pad por sección (en el groove deja sitio a la batería). */
+/** Nivel del pad por tramo (en el groove deja sitio a la batería). */
 function padLevel(t) {
-  if (t < 4) return 1.25;
-  if (t < 8) return 1.15;
-  if (t < 18) return 0.82;
-  if (t < 23.5) return 0.95;
-  return 1.1 * (1 - smooth((t - 24.2) / 0.8));
+  if (t < 4) return 0.9;
+  if (t < 5.3) return 1.3;
+  if (t < 6) return 1.3 * (1 - smooth((t - 5.3) / 0.65));
+  if (t < 8) return 1.2;
+  if (t < 16) return 0.82;
+  if (t < 19) return 1.25;
+  if (t < 20) return 1.0;
+  if (t < 23) return 0.95;
+  return 1.1 * (1 - smooth((t - 23.2) / 0.8));
 }
 
-// ─── Teclas: arpegio, campanas ───────────────────────────────────────────────
-function pluck(t0, note, vel, p) {
+// ─── Teclas: acordes, notas, arpegios y campanas ─────────────────────────────
+function pluck(t0, note, vel, p, echo = 0.4) {
   const i0 = Math.round(t0 * SR);
   const len = Math.floor(0.7 * SR);
   const f = midiHz(note);
@@ -276,7 +333,7 @@ function pluck(t0, note, vel, p) {
     const index = 2.1 * Math.exp(-t / 0.07);
     const s = Math.sin(2 * Math.PI * f * t + index * Math.sin(2 * Math.PI * 2 * f * t)) * clamp(t / 0.002) * Math.exp(-t / 0.2) * vel * 0.3;
     add(keys, i0 + k, s * l, s * r);
-    add(delaySend, i0 + k, s * 0.4, s * 0.4);
+    add(delaySend, i0 + k, s * echo, s * echo);
     add(reverbSend, i0 + k, s * 0.3 * l, s * 0.3 * r);
   }
 }
@@ -293,25 +350,42 @@ function bell(t0, note, vel, p = 0) {
     add(reverbSend, i0 + k, s * 0.55, s * 0.55);
   }
 }
-for (const b of [...range(16, 32), ...range(36, 47)].flatMap((b) => [b, b + 0.5])) {
+/** Acorde corto del golpe: las notas del pad una octava arriba, abiertas en estéreo. */
+function stab(t0, vel) {
+  chordAt(t0).pad.forEach((note, i, all) => pluck(t0, note + 12, vel, -0.5 + i / (all.length - 1), 0.2));
+}
+
+// Gancho: un acorde en cada golpe y una nota por palabra de «Todo en un solo»
+for (const t of [0, 1, 2]) stab(t, 0.75);
+[67, 71, 74, 76].forEach((note, i) => pluck(3 + i * 0.25, note, 0.9, i % 2 ? 0.3 : -0.3));
+// «lugar.»: campanas en Do
+bell(4, 72, 0.9, -0.25);
+bell(4, 79, 0.75, 0.25);
+bell(4, 86, 0.55, 0);
+// Las tres hojas del isotipo (6,0 · 6,033 · 6,067 s, un fotograma cada una)
+bell(6, 81, 1, -0.3);
+bell(6 + 1 / 30, 84, 0.9, 0.3);
+bell(6 + 2 / 30, 88, 0.8, 0);
+// Arpegio del groove en corcheas
+for (const b of GROOVE.flatMap((b) => [b, b + 0.5])) {
   const chord = chordAt(at(b));
   const step = Math.round((b % 4) * 2);
   pluck(at(b), chord.arp[step], b % 1 === 0 ? 1 : 0.75, step % 2 === 0 ? -0.35 : 0.35);
 }
-// En el ecosistema el arpegio sube en semicorcheas
-for (const b of range(32, 35.5, 0.25)) {
+// El Sabio: el arpegio sube una octava, en semicorcheas, con más eco
+for (const b of range(32, 38, 0.25)) {
   const chord = chordAt(at(b));
-  pluck(at(b), chord.arp[Math.round(((b - 32) * 4) % 8)] + (b >= 34 ? 12 : 0), 0.55 + 0.3 * ((b - 32) / 3.5), (b * 4) % 2 === 0 ? -0.4 : 0.4);
+  const step = Math.round(((b - 32) * 4) % 8);
+  pluck(at(b), chord.arp[step] + 12, 0.32 + 0.2 * ((b % 1) === 0 ? 1 : 0), (b * 4) % 2 === 0 ? -0.6 : 0.6, 0.6);
 }
-// Las tres hojas del isotipo (4,1 · 4,2 · 4,3 s) y el acorde final con el toque
-bell(4.1, 81, 1, -0.3);
-bell(4.2, 84, 0.9, 0.3);
-bell(4.3, 88, 0.8, 0);
-bell(23.5, 72, 1, -0.2);
-bell(23.5, 79, 0.85, 0.2);
-bell(23.5, 88, 0.7, 0);
+bell(16, 88, 0.6, -0.4);
+bell(16.05, 91, 0.5, 0.4);
+// Acorde final con el toque del botón
+bell(23, 72, 1, -0.2);
+bell(23, 79, 0.85, 0.2);
+bell(23, 88, 0.7, 0);
 
-// ─── Efectos: golpes sub, aire, barridos ─────────────────────────────────────
+// ─── Efectos: golpes sub, aire, barridos, platillo al revés ──────────────────
 function boom(t0, vel) {
   const i0 = Math.round(t0 * SR);
   const len = Math.floor(1.8 * SR);
@@ -323,15 +397,20 @@ function boom(t0, vel) {
     add(fx, i0 + k, s, s);
   }
 }
-boom(4, 1);
-boom(18, 1);
-boom(23.5, 0.7);
+boom(0, 0.6);
+boom(1, 0.55);
+boom(2, 0.6);
+boom(4, 0.9);
+boom(6, 1);
+boom(8, 0.75);
+boom(20, 1);
+boom(23, 0.7);
 
 const airNoise = noiseBuffer(44, N);
 const airL = svf(900, 0.6), airR = svf(950, 0.6);
 for (let i = 0; i < N; i++) {
   const t = i / SR;
-  const level = 0.05 * smooth(t / 1.2) * (1 - smooth((t - 3.8) / 0.6));
+  const level = 0.045 * (smooth(t / 0.6) * (1 - smooth((t - 3) / 0.8)) + smooth((t - 4) / 0.4) * (1 - smooth((t - 5.6) / 0.4)));
   if (level <= 0) continue;
   add(fx, i, airL.lp(airNoise[i]) * level, airR.lp(airNoise[(i + 7919) % N]) * level);
 }
@@ -348,8 +427,21 @@ function sweep(from, to, f0, f1, level) {
     add(reverbSend, i, s * 0.3, s * 0.3);
   }
 }
+sweep(3, 4, 800, 6000, 0.22);
 sweep(7, 8, 1200, 7000, 0.35);
-sweep(16.5, 18, 300, 6500, 0.45);
+sweep(19, 19.95, 300, 6500, 0.45);
+/** Platillo al revés: crece y se corta en seco justo antes del golpe. */
+function reverseSwell(from, to, level) {
+  const hp = svf(3000, 0.7);
+  const i0 = Math.round(from * SR);
+  const i1 = Math.round(to * SR);
+  for (let i = i0; i < i1; i++) {
+    const p = (i - i0) / (i1 - i0);
+    const s = hp.hp(crashNoise[(i - i0) % crashNoise.length]) * level * p ** 3;
+    add(fx, i, s, s * 0.92);
+  }
+}
+reverseSwell(5.25, 5.98, 0.5);
 
 // ─── Compresión lateral (sidechain) del bombo ────────────────────────────────
 const kickEnv = new Float32Array(N);

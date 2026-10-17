@@ -38,6 +38,27 @@ export const CYCLE = {
   luteal: '#f0a070',
 } as const;
 
+/**
+ * Acento de cada zona en el vídeo: los tonos de la app (error/advertencia del mapa de
+ * fatiga, rosa de la menstruación, verde de éxito, azul de info), más saturados para
+ * que brillen como neón sobre el negro. `from → to` es el degradado de los títulos,
+ * `glow` el halo y `deep` el fondo que se tiñe.
+ */
+export const ZONE = {
+  coliseo: { from: '#ffb070', to: '#ff4f4f', glow: '#ff6247', deep: '#3a0d06' },
+  ciclo: { from: '#ffc4d6', to: '#ff7d98', glow: '#ff8aa8', deep: '#3d0f1f' },
+  habitos: { from: '#c9f8de', to: '#3ad98f', glow: '#46dc9a', deep: '#06301f' },
+  sabio: { from: '#9fc6ff', to: '#8a68ff', glow: '#7a66ff', deep: '#170f45' },
+} as const;
+export type ZoneId = keyof typeof ZONE;
+
+/** Las tres palabras del gancho y su color: la rutina (hábitos), el cuerpo (Coliseo), la mente (El Sabio). */
+export const HOOK_TINT = {
+  rutina: ZONE.habitos,
+  cuerpo: ZONE.coliseo,
+  mente: ZONE.sabio,
+} as const;
+
 /** Degradados del isotipo (noutlife-mark-on-dark.svg). */
 export const LOGO_GRADIENTS = {
   a: [['0', '#a8d9c1'], ['.35', '#5aa58c'], ['.72', '#2a7262'], ['1', '#1a5547']],
@@ -51,19 +72,38 @@ export const FONT = {
   serif: '"EB Garamond", Georgia, serif',
 } as const;
 
-/** `#rrggbb` → `rgba(r, g, b, a)`. */
-export function rgba(hex: string, alpha: number): string {
-  const n = Number.parseInt(hex.slice(1), 16);
+/** `#rrggbb` (o un `rgb()`/`rgba()` de interpolateColors) → `rgba(r, g, b, a)`. */
+export function rgba(color: string, alpha: number): string {
+  if (color.startsWith('rgb')) {
+    const [r, g, b, a = '1'] = color.slice(color.indexOf('(') + 1, -1).split(',');
+    return `rgba(${r.trim()}, ${g.trim()}, ${b.trim()}, ${Number(a) * alpha})`;
+  }
+  const n = Number.parseInt(color.slice(1), 16);
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
 }
 
+/** Texto relleno con un degradado (los titulares de cada zona, «Pro.»). */
+export const gradientText = (from: string, to: string, angle = 100): Record<string, string> => ({
+  backgroundImage: `linear-gradient(${angle}deg, ${from} 0%, ${to} 100%)`,
+  WebkitBackgroundClip: 'text',
+  backgroundClip: 'text',
+  color: 'transparent',
+});
+
 /**
- * Muelles calibrados. `smooth` no rebota (textos, cámara); `card` rebota una vez,
- * poco (tarjetas); `snappy` es corto y firme (chips, checks, botón).
+ * Muelles calibrados (Remotion `spring`):
+ * - `smooth` no rebota (textos, fundidos de interfaz).
+ * - `slam` es muy rígido y apenas rebota: las palabras del gancho caen como un golpe.
+ * - `pop` rebota una vez, visible (chips, checks, botones).
+ * - `card` rebota poco (tarjetas que se levantan de la pantalla).
+ * - `phone` casi no rebota y es lento: el teléfono es un objeto pesado.
+ * - `swing` es el giro del teléfono entre zonas, con un rebote corto.
  */
-export const SPRING: Record<'smooth' | 'card' | 'snappy' | 'soft', Partial<SpringConfig>> = {
+export const SPRING: Record<'smooth' | 'slam' | 'pop' | 'card' | 'phone' | 'swing', Partial<SpringConfig>> = {
   smooth: { damping: 200 },
-  card: { damping: 15, stiffness: 120, mass: 0.9 },
-  snappy: { damping: 14, stiffness: 240, mass: 0.55 },
-  soft: { damping: 24, stiffness: 80, mass: 1.1 },
+  slam: { stiffness: 420, damping: 26, mass: 0.6 },
+  pop: { stiffness: 260, damping: 15, mass: 0.6 },
+  card: { stiffness: 150, damping: 16, mass: 0.9 },
+  phone: { stiffness: 70, damping: 17, mass: 1.2 },
+  swing: { stiffness: 120, damping: 15, mass: 1 },
 };

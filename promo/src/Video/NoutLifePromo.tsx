@@ -1,17 +1,17 @@
-// Composición principal: NoutLife en 25 s, vertical 9:16, para Reels, TikTok y Shorts.
-// Capas, de atrás adelante: fondo y partículas (todo el vídeo), las cuatro escenas
-// (cada una en su Sequence, con unos fotogramas de solape para las transiciones),
-// viñeta y grano, y la banda sonora.
+// Composición principal: NoutLife en 24 s, vertical 9:16, para Reels, TikTok y Shorts.
+// Capas, de atrás adelante: fondo con la luz de cada momento y polvo de luz (todo el
+// vídeo), las cuatro escenas (cada una en su Sequence, con unos fotogramas de
+// solape para los relevos), viñeta y grano, y la banda sonora.
 import type React from 'react';
 import { AbsoluteFill, Sequence, useCurrentFrame } from 'remotion';
 import './fonts';
-import { COLORS, FONT } from './theme';
+import { FONT } from './theme';
 import { SEQUENCES } from './timeline';
 import { Backdrop, Grain, Particles, Vignette } from './components/Atmosphere';
 import { Guides } from './components/Guides';
-import { HookScene, hookWarp } from './Scenes/HookScene';
-import { BrandRevealScene } from './Scenes/BrandRevealScene';
-import { ZonesScene } from './Scenes/ZonesScene';
+import { HookScene } from './Scenes/HookScene';
+import { BrandScene } from './Scenes/BrandScene';
+import { DeviceScene } from './Scenes/DeviceScene';
 import { CtaScene } from './Scenes/CtaScene';
 import { Soundtrack, type SoundtrackProps } from './audio/Soundtrack';
 
@@ -26,21 +26,21 @@ const seq = (s: { from: number; to: number }) => ({ from: s.from, durationInFram
 export const NoutLifePromo: React.FC<PromoProps> = ({ showGuides, ...sound }) => {
   const frame = useCurrentFrame();
   return (
-    <AbsoluteFill style={{ backgroundColor: COLORS.bg, fontFamily: FONT.sans }}>
+    <AbsoluteFill style={{ backgroundColor: '#040706', fontFamily: FONT.sans }}>
       <Backdrop frame={frame} />
-      <Particles frame={frame} warp={hookWarp(frame)} />
+      <Particles frame={frame} />
 
       <Sequence name="1 · Gancho" {...seq(SEQUENCES.hook)}>
         <HookScene />
       </Sequence>
       <Sequence name="2 · Marca" {...seq(SEQUENCES.brand)}>
-        <BrandRevealScene />
+        <BrandScene />
       </Sequence>
-      {/* Las tarjetas vuelan hacia el teléfono: la escena 3 va por encima de la 4 en el solape */}
-      <Sequence name="3 · Zonas" {...seq(SEQUENCES.zones)} style={{ zIndex: 2 }}>
-        <ZonesScene />
+      {/* El teléfono aparece encima del logo con su pantalla de arranque (el mismo logo) */}
+      <Sequence name="3 · Teléfono y zonas" {...seq(SEQUENCES.device)}>
+        <DeviceScene />
       </Sequence>
-      <Sequence name="4 · Llamada a la acción" {...seq(SEQUENCES.cta)} style={{ zIndex: 1 }}>
+      <Sequence name="4 · Llamada a la acción" {...seq(SEQUENCES.cta)}>
         <CtaScene />
       </Sequence>
 

@@ -27,6 +27,27 @@ export function springAt(frame: number, start: number, config?: Partial<SpringCo
   return spring({ frame: frame - start, fps: FPS, config, durationInFrames });
 }
 
+/**
+ * Un valor que cambia de objetivo varias veces y va hacia cada uno con su muelle:
+ * `track(f, 0, [[30, 1], [60, -1, SPRING.swing]])`. Los muelles se suman, así que un
+ * cambio a mitad de camino sigue siendo continuo.
+ */
+export function track(frame: number, from: number, keys: ReadonlyArray<readonly [number, number, Partial<SpringConfig>?]>) {
+  let value = from;
+  let previous = from;
+  for (const [at, target, config] of keys) {
+    value += (target - previous) * springAt(frame, at, config);
+    previous = target;
+  }
+  return value;
+}
+
+/** Campana centrada en `at`: 1 en `at`, casi 0 a dos anchos de distancia (destellos, golpes). */
+export const pulse = (frame: number, at: number, width: number) => Math.exp(-(((frame - at) / width) ** 2));
+
+/** Caída exponencial desde `at` (0 antes): el brillo que deja un golpe. */
+export const decay = (frame: number, at: number, tau: number) => (frame < at ? 0 : Math.exp(-(frame - at) / tau));
+
 /** Pseudoaleatorio con semilla (mulberry32): el mismo resultado en cada render. */
 export function rng(seed: number) {
   let s = seed >>> 0;
@@ -44,27 +65,3 @@ export const typed = (text: string, frame: number, start: number, cps = 1) =>
 
 /** 12480 → «12.480» (separador de miles colombiano, como la app). */
 export const thousands = (n: number) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-
-/** Pose 3D de un objeto en el escenario (px y grados). `o` = opacidad. */
-export interface Pose {
-  x: number;
-  y: number;
-  z: number;
-  rx: number;
-  ry: number;
-  rz: number;
-  s: number;
-  o: number;
-}
-
-/** Mezcla dos poses. `t` puede pasarse de 1 (muelles con rebote); la opacidad no. */
-export const mixPose = (a: Pose, b: Pose, t: number): Pose => ({
-  x: lerp(a.x, b.x, t),
-  y: lerp(a.y, b.y, t),
-  z: lerp(a.z, b.z, t),
-  rx: lerp(a.rx, b.rx, t),
-  ry: lerp(a.ry, b.ry, t),
-  rz: lerp(a.rz, b.rz, t),
-  s: lerp(a.s, b.s, t),
-  o: lerp(a.o, b.o, clamp(t)),
-});

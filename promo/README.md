@@ -1,7 +1,7 @@
 # NoutLife · vídeo promocional vertical
 
-Vídeo de 25 s en 9:16 (1080 × 1920, 30 fps) para Reels, TikTok y Shorts, hecho con [Remotion](https://www.remotion.dev) (React).
-Usa la marca real de la app: isotipo y logotipo de `apps/web/public/brand`, la paleta Jade oscura de `tokens.css`, Montserrat, el mapa muscular del Coliseo y la rueda del Ciclo.
+Vídeo de 24 s en 9:16 (1080 × 1920, 30 fps) para Reels, TikTok y Shorts, hecho con [Remotion](https://www.remotion.dev) (React).
+Usa la marca real de la app: el isotipo y el logotipo de `apps/web/public/brand`, la paleta Jade oscura de `tokens.css`, Montserrat, el mapa muscular del Coliseo, la rueda del Ciclo y los atajos de El Sabio. Cada zona lleva su color: rojo y naranja (Coliseo), rosa (Ciclo), menta (Hábitos) y azul y violeta (El Sabio).
 
 Es un proyecto aparte: no forma parte de los workspaces de npm de la raíz, así que Vercel no lo instala ni lo construye.
 
@@ -29,16 +29,18 @@ src/
   Root.tsx                     composición «NoutLifePromoVertical»
   Video/
     NoutLifePromo.tsx          composición principal: capas, escenas y audio
-    timeline.ts                guion en fotogramas: escenas, tarjetas, efectos y locución
-    layout.ts                  geometría compartida entre escenas y zona segura
-    theme.ts                   colores, fuentes y muelles (spring)
+    timeline.ts                guion en fotogramas: escenas, zonas, efectos y locución
+    layout.ts                  geometría compartida: logo, poses del teléfono, títulos, botón
+    palette.ts                 la luz de color de cada momento (fondo y halo del teléfono)
+    theme.ts                   colores de la app y de cada zona, fuentes y muelles (spring)
     Scenes/
-      HookScene.tsx            1 · gancho (0–4 s)
-      BrandRevealScene.tsx     2 · revelación de marca (4–8 s)
-      ZonesScene.tsx           3 · zonas y ecosistema (8–18 s)
-      zones/                   tarjetas: Coliseo, Ciclo, Hábitos y Rituales, El Sabio
-      CtaScene.tsx             4 · llamada a la acción (18–25 s)
-    components/                fondo, logo, mapa muscular, rueda del ciclo, ondas, teléfono
+      HookScene.tsx            1 · gancho tipográfico (0–6 s)
+      BrandScene.tsx           2 · el isotipo nace del punto de luz (6–8 s)
+      DeviceScene.tsx          3 · el teléfono 3D, las zonas y El Sabio (8–20 s; sigue hasta el final)
+      CtaScene.tsx             4 · titular, botón y URL (20–24 s)
+    screens/                   pantallas de la app dentro del teléfono: inicio, Coliseo, Ciclo,
+                               Hábitos, El Sabio, y las piezas que se levantan en 3D
+    components/                teléfono, logo, mapa muscular, rueda del ciclo, fondo
     audio/Soundtrack.tsx       música, efectos y huecos de locución
 scripts/build-music.mjs        sintetiza la música
 public/                        fuentes (OFL), música y efectos (CC0)
@@ -48,14 +50,17 @@ Todo se anima en función del fotograma (`useCurrentFrame`, `spring`, `interpola
 
 ## Guion
 
-La rejilla es de 120 BPM: 1 pulso = 15 fotogramas. Los cortes caen en pulsos y la tipografía en corcheas. La hoja completa, con el sonido de cada momento, está al principio de `src/Video/timeline.ts`.
+La rejilla es de 120 BPM: 1 pulso = 15 fotogramas. Los cambios grandes caen en el primer pulso del compás y la tipografía en corcheas. La hoja completa, con el sonido de cada momento, está al principio de `src/Video/timeline.ts`.
 
 | Tiempo | Escena | Qué pasa |
 |---|---|---|
-| 0–4 s | Gancho | «Tu vida no es una lista de tareas aburrida.» palabra a palabra; un trazo jade tacha «aburrida» y la cámara entra en el punto final |
-| 4–8 s | Marca | el punto es una luz; las tres hojas del isotipo salen de ella, «Noutlife» sube letra a letra y aparece «Evoluciona en todas tus áreas con NoutLife.» |
-| 8–18 s | Zonas | el punto de la «i» se vuelve un nodo; Coliseo, Ciclo Menstrual, Hábitos y Rituales y El Sabio entran como tarjetas 3D; al final, las cuatro alrededor del nodo |
-| 18–25 s | CTA | las zonas entran al teléfono, que sube de nivel; «Toma el control de tu leyenda personal.» y el botón «Empieza gratis en NoutLife Lite» |
+| 0–3 s | Gancho | «Tu rutina.», «Tu cuerpo.», «Tu mente.»: cada palabra cae de golpe con su color |
+| 3–6 s | Gancho | «Todo en un solo lugar.» palabra a palabra, con los tres colores juntos; la frase se encoge hasta un punto de luz |
+| 6–8 s | Marca | del punto salen las tres hojas del isotipo, cada una con el color de una palabra, y se funden en jade; «Noutlife» letra a letra |
+| 8–10 s | Teléfono | la cámara se aleja: el logo era la pantalla de arranque de un teléfono; el logo vuela a la cabecera, aparece el inicio y el teléfono se inclina |
+| 10–16 s | Zonas | un toque abre el Coliseo (mapa de calor y 1RM); luego Ciclo Menstrual y Hábitos y Rituales. Con cada zona el teléfono gira, el fondo se tiñe de su color y sus tarjetas se levantan de la pantalla |
+| 16–20 s | El Sabio | el teléfono gira, una onda violeta lo envuelve, el borde de la pantalla brilla y las zonas le mandan su señal; la IA responde y su consejo se levanta para leerse grande |
+| 20–24 s | Cierre | «Diseña tu versión Pro.», el teléfono sube de nivel, el botón «Empieza gratis en NoutLife Lite» y la URL; un toque en el botón |
 
 ## Audio
 
@@ -79,7 +84,10 @@ Props de la composición (se editan en el panel Inspector del Studio, que las gu
 ## Notas
 
 - Coliseo y El Sabio llevan la insignia **PRO** porque en la app son de Pro: en NoutLife Lite se ven con candado. Así el vídeo no promete gratis lo que no lo es.
-- Los datos de las tarjetas son de ejemplo (12.480 kg de volumen, día 14 del ciclo, «Hola, Ana»). El vídeo no afirma cifras de usuarios ni valoraciones.
+- El consejo de El Sabio cruza el sueño y el Coliseo, como hace la IA de la app; las señales que le llegan son de zonas que de verdad ve (sueño, Coliseo, hábitos, comida). El Ciclo no está entre ellas porque la IA no lo lee.
+- Los datos de las pantallas son de ejemplo («Hola, Ana», 1RM de 102,5 kg, día 14 del ciclo). El vídeo no afirma cifras de usuarios ni valoraciones.
+- Los colores de cada zona son los tonos de la app (fatiga, menstruación, éxito, info) más saturados para el vídeo.
+- El teléfono es 3D de verdad (`transform-style: preserve-3d`): en sus capas no puede haber `filter`, `overflow` ni `opacity`, porque aplanan la escena. Los efectos van dentro de la pantalla, que es plana.
+- Nada de `box-shadow` con desenfoque grande en elementos que se escalan con `transform`: Chrome deja una costura cuadrada alrededor. Para halos, un `radial-gradient`.
 - Remotion está fijado en 4.0.530. La 4.0.531 se publicó con `@remotion/cli/dist/render-queue/queue.js` vacío y el Studio no abre («getRenderQueue is not a function»), aunque el render funciona. Al actualizar, todos los paquetes `remotion` y `@remotion/*` deben ir a la misma versión exacta.
-- Nada de `box-shadow` con desenfoque grande en elementos que se escalan con `transform`: Chrome deja una costura cuadrada alrededor (pasaba en la luz de la escena 2). Para halos, un `radial-gradient`.
 - Remotion es gratis para personas y equipos de hasta 3 personas; una empresa más grande necesita su licencia de empresa ([remotion.pro](https://www.remotion.pro)).

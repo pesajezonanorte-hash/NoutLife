@@ -1,7 +1,7 @@
 // Isotipo y logotipo de NoutLife con los trazados reales de
 // apps/web/public/brand/noutlife-logo-horizontal-on-dark.svg. El isotipo son tres
-// hojas que se animan por separado; las letras de «Noutlife» también, y el punto
-// de la «i» es su propio trazado para que pueda soltarse y volverse el nodo.
+// hojas que se animan por separado (y pueden llegar teñidas de otro color); las
+// letras de «Noutlife» también.
 import type React from 'react';
 import { useId } from 'react';
 import { COLORS, LOGO_GRADIENTS } from '../theme';
@@ -35,6 +35,8 @@ export interface BladeState {
   x?: number;
   y?: number;
   o?: number;
+  /** Color que cubre la hoja: `amount` 1 = todo el color, 0 = el degradado de la marca. */
+  tint?: { color: string; amount: number };
 }
 
 export const NoutLifeMark: React.FC<{
@@ -80,9 +82,17 @@ export const NoutLifeMark: React.FC<{
           <stop offset="1" stopColor="#ffffff" stopOpacity="0" />
         </linearGradient>
       </defs>
-      <path d={MARK_PATHS.c} fill={`url(#${uid}c)`} style={bladeStyle('c')} />
-      <path d={MARK_PATHS.a} fill={`url(#${uid}a)`} style={bladeStyle('a')} />
-      <path d={MARK_PATHS.b} fill={`url(#${uid}b)`} style={bladeStyle('b')} />
+      {(['c', 'a', 'b'] as const).map((k) => {
+        const tint = blades[k]?.tint;
+        return (
+          <g key={k}>
+            <path d={MARK_PATHS[k]} fill={`url(#${uid}${k})`} style={bladeStyle(k)} />
+            {tint && tint.amount > 0.001 && (
+              <path d={MARK_PATHS[k]} fill={tint.color} style={{ ...bladeStyle(k), opacity: (blades[k]?.o ?? 1) * tint.amount }} />
+            )}
+          </g>
+        );
+      })}
       {showSheen && (
         <g clipPath={`url(#${uid}clip)`}>
           <rect x={-520 + sheen * 1500} y={-120} width={240} height={1040} fill={`url(#${uid}sheen)`} transform="skewX(-20)" opacity={0.55} />
@@ -94,10 +104,8 @@ export const NoutLifeMark: React.FC<{
 
 /** Caja del logotipo «Noutlife» en unidades de la fuente (línea base en y = 0). */
 export const WORDMARK_BOX = { x: 100, y: -760, w: 3840, h: 770 };
-/** El punto de la «i»: centro y radio en unidades de la fuente. */
-export const I_DOT = { cx: 2896.35, cy: -694.45, r: 62.35 };
 
-const LETTERS: Array<{ d: string; order: number; dot?: boolean }> = [
+const LETTERS: Array<{ d: string; order: number }> = [
   { order: 0, d: 'M105.1 0V-700H187.2L649.5 -125.2H607.3V-700H706.6V0H624.6L162.3 -574.8H204.5V0Z' },
   {
     order: 1,
@@ -115,7 +123,6 @@ const LETTERS: Array<{ d: string; order: number; dot?: boolean }> = [
   { order: 5, d: 'M2848.4 0V-529.7H2944.4V0Z' },
   {
     order: 5,
-    dot: true,
     d: 'M2896.4 -632.1Q2868.6 -632.1 2850.1 -650.3Q2831.5 -668.4 2831.5 -694.4Q2831.5 -720.6 2850.1 -738.7Q2868.6 -756.8 2896.4 -756.8Q2924.2 -756.8 2942.7 -739.5Q2961.2 -722.3 2961.2 -696.1Q2961.2 -669.2 2943.1 -650.7Q2925.1 -632.1 2896.4 -632.1Z',
   },
   {
@@ -132,10 +139,9 @@ const LETTERS: Array<{ d: string; order: number; dot?: boolean }> = [
 export const Wordmark: React.FC<{
   width: number;
   progress?: (order: number) => number;
-  hideDot?: boolean;
   color?: string;
   style?: React.CSSProperties;
-}> = ({ width, progress = () => 1, hideDot = false, color = COLORS.ivory, style }) => {
+}> = ({ width, progress = () => 1, color = COLORS.ivory, style }) => {
   const height = (width * WORDMARK_BOX.h) / WORDMARK_BOX.w;
   return (
     <svg
@@ -145,7 +151,6 @@ export const Wordmark: React.FC<{
       style={{ overflow: 'visible', ...style }}
     >
       {LETTERS.map((l, i) => {
-        if (l.dot && hideDot) return null;
         const p = progress(l.order);
         return (
           <path

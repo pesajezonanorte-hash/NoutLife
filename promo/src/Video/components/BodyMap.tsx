@@ -66,7 +66,8 @@ const MUSCLES: Array<{ id: string; status: Status; paths: string[] }> = [
   },
 ];
 
-const FATIGUE_COLOR: Record<Status, string> = {
+/** Colores de fatiga de la app (MuscleMap.tsx); el vídeo los pasa más encendidos. */
+export const FATIGUE_COLORS: Record<Status, string> = {
   high: COLORS.error,
   moderate: COLORS.warning,
   fresh: COLORS.success,
@@ -74,8 +75,13 @@ const FATIGUE_COLOR: Record<Status, string> = {
 };
 const UNPAINTED = '#2a3a31';
 
-/** `local` = fotogramas desde que entra la tarjeta. */
-export const BodyMap: React.FC<{ local: number; frame: number; height: number }> = ({ local, frame, height }) => {
+/** `local` = fotogramas desde que empieza a pintarse. */
+export const BodyMap: React.FC<{ local: number; frame: number; height: number; palette?: Record<Status, string> }> = ({
+  local,
+  frame,
+  height,
+  palette = FATIGUE_COLORS,
+}) => {
   const width = (height * 200) / 420;
   const pulse = 0.65 + 0.35 * Math.sin(frame / 7);
   return (
@@ -87,8 +93,9 @@ export const BodyMap: React.FC<{ local: number; frame: number; height: number }>
       </g>
       {MUSCLES.map((m, i) => {
         const p = ramp(local, 6 + i * 2.2, 16 + i * 2.2, EASE.out);
-        const fill = interpolateColors(p, [0, 1], [UNPAINTED, FATIGUE_COLOR[m.status]]);
-        const glow = m.status === 'high' && p > 0.5;
+        const fill = interpolateColors(p, [0, 1], [UNPAINTED, palette[m.status]]);
+        const glow = m.status !== 'idle' && m.status !== 'fresh' && p > 0.5;
+        const strength = m.status === 'high' ? 1 : 0.55;
         return (
           <g
             key={m.id}
@@ -96,7 +103,7 @@ export const BodyMap: React.FC<{ local: number; frame: number; height: number }>
             stroke="#0c1611"
             strokeWidth={1.5}
             strokeLinejoin="round"
-            style={glow ? { filter: `drop-shadow(0 0 ${4 + 4 * pulse}px ${rgba(COLORS.error, 0.85)})` } : undefined}
+            style={glow ? { filter: `drop-shadow(0 0 ${(4 + 4 * pulse) * strength}px ${rgba(palette[m.status], 0.85)})` } : undefined}
           >
             {m.paths.map((d) => (
               <g key={d}>

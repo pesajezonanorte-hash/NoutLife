@@ -1,261 +1,315 @@
-// Escena 1 (0–4 s): el gancho. Una lista de tareas gris y aburrida al fondo, la
-// frase entra palabra a palabra en corcheas, un trazo jade tacha «aburrida» y la
-// cámara se mete en el punto final, que ya es la luz de la escena 2.
+// Escena 1 (0–6 s): el gancho, al estilo de una keynote. «Tu» queda fijo y cada
+// palabra cae de golpe en un pulso, enorme y con su color (la rutina en menta, el
+// cuerpo en rojo, la mente en violeta), empujando hacia el fondo a la anterior.
+// Luego «Todo en un solo lugar.» en corcheas, donde se juntan los tres colores, y la
+// frase entera se encoge hasta un solo punto de luz: de ahí nace el isotipo.
 import type React from 'react';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { AbsoluteFill, Easing, continueRender, delayRender, interpolateColors, useCurrentFrame } from 'remotion';
-import { COLORS, FONT, SPRING, rgba } from '../theme';
-import { EASE, clamp, lerp, ramp, springAt } from '../lib/anim';
-import { fontsReady } from '../fonts';
-import { ORB } from '../layout';
-import { SEQUENCES } from '../timeline';
+import { CameraMotionBlur } from '@remotion/motion-blur';
+import { AbsoluteFill, Easing, useCurrentFrame } from 'remotion';
+import { COLORS, FONT, HOOK_TINT, SPRING, gradientText, rgba } from '../theme';
+import { EASE, clamp, decay, lerp, pulse, ramp, springAt } from '../lib/anim';
+import { HOOK_CENTER, LOCKUP } from '../layout';
+import { HOOK, SEQUENCES } from '../timeline';
 
-const FONT_SIZE = 124;
-const TEXT_LEFT = 92;
-const TEXT_TOP = 650;
-/** Diámetro del punto final, en em (el punto de Montserrat ExtraBold). */
-const DOT_EM = 0.15;
+const NOUN_SIZE = 236;
+const TU_SIZE = 92;
+const PHRASE_SIZE = 148;
+/** El centro del isotipo: allí se encoge la frase y allí nacen las hojas. */
+const POINT = LOCKUP.mark;
+const COLLAPSE_EASE = Easing.bezier(0.7, 0, 0.84, 0);
 
-/** Palabras y su fotograma: en corcheas (7,5 f), las fuertes sobre el pulso. */
-const LINES: Array<Array<[string, number]>> = [
-  [['Tu', 8], ['vida', 15], ['no', 23], ['es', 30]],
-  [['una', 38], ['lista', 45]],
-  [['de', 53], ['tareas', 60]],
+/** Fotogramas con desenfoque de movimiento real: cada golpe de palabra y la caída al punto. */
+const BLUR_WINDOWS: Array<[number, number]> = [
+  [0, 6],
+  [HOOK.nouns[1].at - 1, HOOK.nouns[1].at + 7],
+  [HOOK.nouns[2].at - 1, HOOK.nouns[2].at + 7],
+  [HOOK.out - 1, HOOK.phrase[3].at + 6],
+  [HOOK.phrase[4].at - 1, HOOK.phrase[4].at + 8],
+  [HOOK.collapse.from + 6, HOOK.collapse.to + 1],
 ];
-const DULL_AT = 75;
-const STRIKE = { from: 84, to: 95 };
-const HOOK_ZOOM = { from: 96, to: 120 };
-/** Escala final del zoom: el punto llega con el diámetro de la luz de la escena 2. */
-const S_END = ORB.d / (DOT_EM * FONT_SIZE);
 
-const zoomProgress = (frame: number) => ramp(frame, HOOK_ZOOM.from, HOOK_ZOOM.to, Easing.bezier(0.45, 0, 0.85, 0.4));
+/** Cuándo se va cada palabra: cuando cae la siguiente (la última, antes de «Todo»). */
+const nounOut = (i: number) => (i + 1 < HOOK.nouns.length ? HOOK.nouns[i + 1].at : HOOK.out);
 
-/** Las partículas se estiran con el zoom: la cámara parece entrar de verdad. */
-export const hookWarp = (frame: number) => {
-  const z = zoomProgress(frame);
-  return z > 0 && frame < HOOK_ZOOM.to + 4 ? { s: Math.pow(S_END, z * 0.32), x: ORB.x, y: ORB.y } : undefined;
-};
-
-/** Posición de `el` dentro de `root` sin contar transformaciones (offsetLeft/Top). */
-function offsetWithin(el: HTMLElement, root: HTMLElement) {
-  let x = 0;
-  let y = 0;
-  let node: HTMLElement | null = el;
-  while (node && node !== root) {
-    x += node.offsetLeft;
-    y += node.offsetTop;
-    node = node.offsetParent as HTMLElement | null;
-  }
-  return { x, y };
+/** Golpe: llega desde grande (cerca de la cámara) y se posa; al irse, retrocede y se apaga. */
+function slam(frame: number, at: number, out: number | null, from = 1.75) {
+  const p = springAt(frame, at, SPRING.slam);
+  const q = out === null ? 0 : ramp(frame, out, out + 7, EASE.out);
+  return {
+    scale: lerp(from, 1, p) * lerp(1, 0.76, q),
+    opacity: clamp(p * 2.5) * (1 - q),
+    blur: (1 - clamp(p)) * 10 + q * 12,
+  };
 }
 
-const Word: React.FC<{ frame: number; at: number; children: React.ReactNode; style?: React.CSSProperties; last?: boolean }> = ({
-  frame,
-  at,
-  children,
-  style,
-  last,
-}) => {
-  const p = springAt(frame, at, SPRING.smooth, 14);
+const Glow: React.FC<{ color: string; children: React.ReactNode; style?: React.CSSProperties }> = ({ color, children, style }) => (
+  <span aria-hidden style={{ position: 'absolute', inset: 0, color, filter: 'blur(26px)', opacity: 0.55, ...style }}>
+    {children}
+  </span>
+);
+
+/** «Tu» y las tres palabras. */
+const Nouns: React.FC<{ frame: number }> = ({ frame }) => {
+  const tu = slam(frame, HOOK.nouns[0].at, HOOK.out, 1.4);
+  const bump = Math.max(...HOOK.nouns.slice(1).map((n) => pulse(frame, n.at + 2, 3)));
   return (
-    <span
-      style={{
-        display: 'inline-block',
-        marginRight: last ? 0 : '0.24em',
-        opacity: p,
-        transform: `translateY(${(1 - p) * 52}px) scale(${0.94 + 0.06 * p})`,
-        filter: p < 0.99 ? `blur(${(1 - p) * 12}px)` : undefined,
-        ...style,
-      }}
-    >
-      {children}
-    </span>
+    <>
+      <div
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          top: HOOK_CENTER.y - 214,
+          textAlign: 'center',
+          fontWeight: 600,
+          fontSize: TU_SIZE,
+          letterSpacing: '-0.02em',
+          color: rgba(COLORS.text, 0.78),
+          transform: `scale(${tu.scale * (1 + 0.05 * bump)})`,
+          opacity: tu.opacity,
+          filter: tu.blur > 0.3 ? `blur(${tu.blur}px)` : undefined,
+        }}
+      >
+        Tu
+      </div>
+      {HOOK.nouns.map((n, i) => {
+        const s = slam(frame, n.at, nounOut(i));
+        if (s.opacity <= 0.002) return null;
+        const tint = HOOK_TINT[n.tint];
+        return (
+          <div
+            key={n.text}
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              top: HOOK_CENTER.y - 108,
+              textAlign: 'center',
+              fontWeight: 800,
+              fontSize: NOUN_SIZE,
+              lineHeight: 1,
+              letterSpacing: '-0.05em',
+              whiteSpace: 'nowrap',
+              transform: `scale(${s.scale})`,
+              opacity: s.opacity,
+              filter: s.blur > 0.3 ? `blur(${s.blur}px)` : undefined,
+            }}
+          >
+            <span style={{ position: 'relative', display: 'inline-block' }}>
+              <Glow color={tint.glow}>{n.text}</Glow>
+              <span style={{ position: 'relative', ...gradientText(tint.from, tint.to, 100) }}>{n.text}</span>
+            </span>
+          </div>
+        );
+      })}
+    </>
   );
 };
 
-/** La lista de tareas de siempre: casillas vacías y renglones grises. */
-const GhostList: React.FC<{ frame: number }> = ({ frame }) => {
-  const widths = [430, 300, 520, 360, 470, 280, 500, 340, 410, 300, 460];
+/** «Todo en un solo lugar.»: blanco arriba; «solo lugar.» con los tres colores juntos. */
+const Phrase: React.FC<{ frame: number }> = ({ frame }) => {
+  const shine = ramp(frame, HOOK.phrase[4].at + 2, HOOK.phrase[4].at + 26, EASE.inOut);
+  const lines = [0, 1].map((line) => HOOK.phrase.filter((w) => w.line === line));
+  const colorOf = (text: string): React.CSSProperties => {
+    if (text === 'solo') return gradientText(HOOK_TINT.rutina.glow, HOOK_TINT.cuerpo.glow, 100);
+    if (text === 'lugar.') return gradientText(HOOK_TINT.cuerpo.glow, HOOK_TINT.mente.glow, 100);
+    return { color: '#f4f8f5' };
+  };
   return (
     <div
       style={{
         position: 'absolute',
-        left: 150,
-        top: 120 - frame * 0.9,
-        transform: 'perspective(1400px) rotateX(16deg) rotateZ(-5deg)',
-        transformOrigin: '50% 40%',
+        left: 0,
+        right: 0,
+        top: HOOK_CENTER.y - PHRASE_SIZE * 1.02,
+        textAlign: 'center',
+        fontWeight: 800,
+        fontSize: PHRASE_SIZE,
+        lineHeight: 1.02,
+        letterSpacing: '-0.045em',
       }}
     >
-      {widths.map((w, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 34, height: 150 }}>
-          <div style={{ width: 46, height: 46, borderRadius: 12, boxShadow: `inset 0 0 0 3px ${rgba('#9aa8a1', 0.2)}` }} />
-          <div style={{ width: w, height: 18, borderRadius: 9, background: rgba('#9aa8a1', 0.1) }} />
+      {lines.map((words, li) => (
+        <div key={li} style={{ whiteSpace: 'nowrap' }}>
+          {words.map((w, wi) => {
+            const last = w.text === 'lugar.';
+            const s = slam(frame, w.at, null, last ? 2.1 : 1.5);
+            const style = colorOf(w.text);
+            return (
+              <span
+                key={w.text}
+                style={{
+                  position: 'relative',
+                  display: 'inline-block',
+                  marginRight: wi < words.length - 1 ? '0.24em' : 0,
+                  transform: `scale(${s.scale})`,
+                  opacity: s.opacity,
+                  filter: s.blur > 0.3 ? `blur(${s.blur}px)` : undefined,
+                }}
+              >
+                {li === 1 && <Glow color={w.text === 'solo' ? HOOK_TINT.rutina.glow : HOOK_TINT.mente.glow}>{w.text}</Glow>}
+                <span style={{ position: 'relative', ...style }}>{w.text}</span>
+                {/* Un brillo cruza «solo lugar.» cuando cae la última palabra */}
+                {li === 1 && shine > 0 && shine < 1 && (
+                  <span
+                    aria-hidden
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      ...gradientText('transparent', 'transparent'),
+                      backgroundImage: 'linear-gradient(100deg, transparent 40%, rgba(255, 255, 255, 0.9) 50%, transparent 60%)',
+                      backgroundSize: '300% 100%',
+                      backgroundPosition: `${lerp(100, 0, shine) + (w.text === 'solo' ? 0 : -18)}% 0`,
+                      backgroundRepeat: 'no-repeat',
+                    }}
+                  >
+                    {w.text}
+                  </span>
+                )}
+              </span>
+            );
+          })}
         </div>
       ))}
     </div>
   );
 };
 
-export const HookScene: React.FC = () => {
+/** El texto en movimiento. Lee el fotograma él mismo para que el desenfoque lo congele por submuestras. */
+const Type: React.FC = () => {
   const frame = useCurrentFrame() + SEQUENCES.hook.from;
-  const blockRef = useRef<HTMLDivElement>(null);
-  const dotRef = useRef<HTMLSpanElement>(null);
-  const [dot, setDot] = useState<{ x: number; y: number } | null>(null);
-  const [handle] = useState(() => delayRender('Midiendo el punto final del gancho'));
-
-  // El zoom apunta al punto final, así que hay que saber dónde quedó con la fuente real.
-  useLayoutEffect(() => {
-    let alive = true;
-    fontsReady.then(() => {
-      if (!alive) return;
-      const el = dotRef.current;
-      const root = blockRef.current;
-      if (!el || !root) {
-        setDot({ x: 720, y: 1040 });
-        return;
-      }
-      const { x, y } = offsetWithin(el, root);
-      setDot({ x: TEXT_LEFT + x + el.offsetWidth / 2, y: TEXT_TOP + y + el.offsetHeight / 2 });
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
-  useEffect(() => {
-    if (dot) continueRender(handle);
-  }, [dot, handle]);
-
-  const p = dot ?? { x: 720, y: 1040 };
-  const z = zoomProgress(frame);
-  const move = ramp(frame, HOOK_ZOOM.from, HOOK_ZOOM.to, EASE.inOut);
-  const s = Math.pow(S_END, z);
-  const camera = `translate(${lerp(p.x, ORB.x, move) - s * p.x}px, ${lerp(p.y, ORB.y, move) - s * p.y}px) scale(${s})`;
-  const listScale = Math.pow(S_END, z * 0.45);
-  const listCamera = `translate(${lerp(p.x, ORB.x, move) - listScale * p.x}px, ${lerp(p.y, ORB.y, move) - listScale * p.y}px) scale(${listScale})`;
-
-  // El texto pasa junto a la cámara antes de desvanecerse
-  const textFade = 1 - ramp(frame, 103, 116, EASE.in);
-  const listOpacity = (0.75 - 0.43 * ramp(frame, 20, 60)) * (1 - ramp(frame, 98, 114));
-  const strike = ramp(frame, STRIKE.from, STRIKE.to, EASE.out);
-  const lit = ramp(frame, 90, 102, EASE.out);
-  const dull = springAt(frame, DULL_AT, SPRING.smooth, 14);
-  const dotColor = interpolateColors(lit, [0, 1], [COLORS.textMuted, COLORS.jade300]);
-  // Destello anamórfico sutil al empezar
-  const flare = ramp(frame, 0, 18, EASE.out) * (1 - ramp(frame, 34, 80));
-  const flareX = lerp(160, 520, ramp(frame, 0, 90, EASE.linear));
-
+  // La frase respira hacia la cámara mientras se lee y luego cae al punto
+  const breathe = 1 + 0.04 * ramp(frame, HOOK.phrase[4].at, HOOK.collapse.from, EASE.linear);
+  const c = ramp(frame, HOOK.collapse.from, HOOK.collapse.to, COLLAPSE_EASE);
+  const scale = breathe * (1 - c);
   return (
-    <AbsoluteFill style={{ opacity: frame < HOOK_ZOOM.to ? 1 : 0 }}>
-      <AbsoluteFill style={{ transformOrigin: '0 0', transform: listCamera, opacity: listOpacity }}>
-        <GhostList frame={frame} />
-      </AbsoluteFill>
-
-      {/* Destello: un trazo horizontal de luz y su núcleo */}
-      <AbsoluteFill style={{ opacity: flare * 0.9 }}>
-        <div
+    <AbsoluteFill style={{ fontFamily: FONT.sans }}>
+      {frame < HOOK.out + 10 && <Nouns frame={frame} />}
+      {frame >= HOOK.phrase[0].at - 1 && c < 0.995 && (
+        <AbsoluteFill
           style={{
-            position: 'absolute',
-            left: flareX - 700,
-            top: 352,
-            width: 1400,
-            height: 3,
-            background: `linear-gradient(90deg, transparent, ${rgba('#dbe9e1', 0.5)} 50%, transparent)`,
-          }}
-        />
-        <div
-          style={{
-            position: 'absolute',
-            left: flareX - 180,
-            top: 353 - 180,
-            width: 360,
-            height: 360,
-            borderRadius: '50%',
-            background: `radial-gradient(circle, ${rgba('#e6f2e8', 0.32)} 0%, ${rgba('#c4e2ca', 0.08)} 30%, transparent 65%)`,
-          }}
-        />
-      </AbsoluteFill>
-
-      <AbsoluteFill style={{ transformOrigin: '0 0', transform: camera }}>
-        <div
-          ref={blockRef}
-          style={{
-            position: 'absolute',
-            left: TEXT_LEFT,
-            top: TEXT_TOP,
-            fontFamily: FONT.sans,
-            fontWeight: 800,
-            fontSize: FONT_SIZE,
-            lineHeight: 1.02,
-            letterSpacing: '-0.035em',
-            color: COLORS.text,
+            transformOrigin: `${POINT.x}px ${POINT.y}px`,
+            transform: `scale(${scale})`,
+            filter: c > 0.01 ? `blur(${c * 7}px) brightness(${1 + 1.6 * c})` : undefined,
+            opacity: 1 - ramp(frame, HOOK.collapse.to - 4, HOOK.collapse.to),
           }}
         >
-          {LINES.map((line, li) => (
-            <div key={li} style={{ whiteSpace: 'nowrap', opacity: textFade }}>
-              {line.map(([text, at], wi) => (
-                <Word key={wi} frame={frame} at={at} last={wi === line.length - 1}>
-                  {text}
-                </Word>
-              ))}
-            </div>
-          ))}
-          <div style={{ whiteSpace: 'nowrap' }}>
-            <span
+          <Phrase frame={frame} />
+        </AbsoluteFill>
+      )}
+    </AbsoluteFill>
+  );
+};
+
+/** Un destello horizontal en cada golpe, del color de la palabra. */
+const Flares: React.FC<{ frame: number }> = ({ frame }) => {
+  const hits = [
+    ...HOOK.nouns.map((n) => ({ at: Math.max(0, n.at + 2), color: HOOK_TINT[n.tint].glow, y: HOOK_CENTER.y + 10, k: 1 })),
+    { at: HOOK.phrase[4].at, color: '#ffffff', y: HOOK_CENTER.y + 70, k: 1.3 },
+  ];
+  return (
+    <AbsoluteFill style={{ mixBlendMode: 'screen' }}>
+      {hits.map((h, i) => {
+        const e = decay(frame, h.at, 9) * h.k;
+        if (e < 0.01) return null;
+        return (
+          <div key={i}>
+            <div
               style={{
-                position: 'relative',
-                display: 'inline-block',
-                color: COLORS.textMuted,
-                opacity: dull * (1 - 0.45 * strike) * textFade,
-                transform: `translateY(${(1 - dull) * 52}px) scale(${0.94 + 0.06 * dull})`,
-                filter: dull < 0.99 ? `blur(${(1 - dull) * 12}px)` : undefined,
+                position: 'absolute',
+                left: -200,
+                width: 1480,
+                top: h.y - 3,
+                height: 6,
+                background: `linear-gradient(90deg, transparent, ${rgba(h.color, 0.85)} 50%, transparent)`,
+                opacity: e,
+                transform: `scaleX(${0.6 + 0.4 * (1 - e)})`,
               }}
-            >
-              aburrida
-              {/* El tachado: un trazo jade con brillo */}
-              <span
-                style={{
-                  position: 'absolute',
-                  left: '-0.04em',
-                  right: '-0.06em',
-                  top: '0.56em',
-                  height: '0.085em',
-                  borderRadius: 999,
-                  background: `linear-gradient(90deg, ${COLORS.jade300}, ${COLORS.jade})`,
-                  boxShadow: `0 0 22px ${rgba(COLORS.jade, 0.75)}, 0 0 5px ${COLORS.jade300}`,
-                  transform: `scaleX(${strike})`,
-                  transformOrigin: 'left center',
-                  opacity: strike > 0 ? 1 : 0,
-                }}
-              />
-            </span>
-            {/* El punto final: un círculo sobre la línea base, para poder volverlo luz */}
-            <span
-              ref={dotRef}
+            />
+            <div
               style={{
-                position: 'relative',
-                display: 'inline-block',
-                width: `${DOT_EM}em`,
-                height: `${DOT_EM}em`,
-                marginLeft: '0.05em',
+                position: 'absolute',
+                left: 540 - 520,
+                top: h.y - 160,
+                width: 1040,
+                height: 320,
                 borderRadius: '50%',
-                background: dotColor,
-                opacity: clamp(dull * 1.2),
+                background: `radial-gradient(closest-side, ${rgba(h.color, 0.32)}, transparent)`,
+                opacity: e,
               }}
-            >
-              {/* Halo con degradado y no con box-shadow: la cámara escala el punto hasta 8× */}
-              <span
-                style={{
-                  position: 'absolute',
-                  inset: '-170%',
-                  borderRadius: '50%',
-                  background: `radial-gradient(circle closest-side, ${rgba(COLORS.jade, 0.6)} 0%, ${rgba(COLORS.jade, 0.25)} 40%, ${rgba(COLORS.jade, 0.08)} 70%, transparent 100%)`,
-                  opacity: lit,
-                }}
-              />
-            </span>
+            />
           </div>
-        </div>
-      </AbsoluteFill>
+        );
+      })}
+    </AbsoluteFill>
+  );
+};
+
+/** Tres luces (los tres colores del gancho) giran hacia el punto mientras la frase se encoge. */
+const Converge: React.FC<{ frame: number }> = ({ frame }) => {
+  const t = ramp(frame, HOOK.phrase[4].at + 10, HOOK.collapse.to, Easing.bezier(0.5, 0, 0.9, 0.6));
+  if (t <= 0 || frame > HOOK.collapse.to + 2) return null;
+  const colors = [HOOK_TINT.rutina.glow, HOOK_TINT.cuerpo.glow, HOOK_TINT.mente.glow];
+  const core = ramp(frame, HOOK.collapse.from + 8, HOOK.collapse.to, EASE.in);
+  return (
+    <AbsoluteFill style={{ mixBlendMode: 'screen' }}>
+      {colors.map((color, i) =>
+        [0, 1, 2, 3, 4].map((trail) => {
+          const tt = clamp(t - trail * 0.018);
+          const radius = lerp(470, 0, tt);
+          const angle = (i / 3) * Math.PI * 2 + tt * Math.PI * 2.6 - Math.PI / 2;
+          const x = POINT.x + Math.cos(angle) * radius;
+          const y = POINT.y + Math.sin(angle) * radius * 0.86;
+          const size = lerp(150, 60, tt) * (1 - trail * 0.16);
+          return (
+            <div
+              key={`${i}-${trail}`}
+              style={{
+                position: 'absolute',
+                left: x - size / 2,
+                top: y - size / 2,
+                width: size,
+                height: size,
+                borderRadius: '50%',
+                background: `radial-gradient(closest-side, ${rgba('#ffffff', 0.9)} 0%, ${rgba(color, 0.75)} 30%, ${rgba(color, 0)} 100%)`,
+                opacity: clamp(t * 4) * (1 - trail * 0.2),
+              }}
+            />
+          );
+        }),
+      )}
+      {/* El punto: un núcleo blanco que se carga de luz */}
+      <div
+        style={{
+          position: 'absolute',
+          left: POINT.x - 120,
+          top: POINT.y - 120,
+          width: 240,
+          height: 240,
+          borderRadius: '50%',
+          background: `radial-gradient(closest-side, #ffffff 0%, ${rgba('#ffffff', 0.85)} 18%, ${rgba('#e9fff4', 0.35)} 45%, transparent 100%)`,
+          transform: `scale(${lerp(0.05, 1, core)})`,
+          opacity: core,
+        }}
+      />
+    </AbsoluteFill>
+  );
+};
+
+export const HookScene: React.FC = () => {
+  const frame = useCurrentFrame() + SEQUENCES.hook.from;
+  const blur = BLUR_WINDOWS.some(([a, b]) => frame >= a && frame <= b);
+  return (
+    <AbsoluteFill>
+      <Flares frame={frame} />
+      {blur ? (
+        <CameraMotionBlur samples={8} shutterAngle={180}>
+          <Type />
+        </CameraMotionBlur>
+      ) : (
+        <Type />
+      )}
+      <Converge frame={frame} />
     </AbsoluteFill>
   );
 };
