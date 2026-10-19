@@ -1,15 +1,16 @@
 // Libreta abierta: ocupa toda la pantalla, como un cuaderno sobre la mesa. Arriba,
 // el título y el guardado; debajo, las herramientas (escribir con formato o dibujar
-// con pluma, marcador y borrador; pegar notas adhesivas e imágenes); abajo, el paso
-// de página. Cada página se guarda sola al dejar de escribir y al pasar de hoja.
-// El paso de página es un giro 3D sobre las anillas (solo transform: 60 fps); con
-// «Reducir movimiento», un fundido.
-import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+// con pluma, marcador y borrador; pegar notas adhesivas e imágenes); abajo, la barra
+// de páginas. Cada página se guarda sola al dejar de escribir y al pasar de hoja.
+// La hoja pasa con un giro corto y muelle (solo transform y opacidad: 60 fps); con
+// «Reducir movimiento» o en Lite, un fundido. Ctrl+Z y Ctrl+Mayús+Z deshacen y
+// rehacen los cambios de la libreta (texto, trazos, notas e imágenes).
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { AnimatePresence, motion, useIsPresent, useMotionValue, useTransform, type Variants } from 'framer-motion';
+import { AnimatePresence, motion, useIsPresent, type Variants } from 'framer-motion';
 import {
   ArrowLeft, Bold, ChevronLeft, ChevronRight, Cloud, CloudOff, Eraser, FilePlus2, Heading, Highlighter, ImagePlus, Italic,
-  List, ListOrdered, Loader2, PenLine, Settings2, StickyNote, Strikethrough, Underline, Undo2, type LucideIcon,
+  List, ListOrdered, Loader2, PenLine, Redo2, Settings2, StickyNote, Strikethrough, Underline, Undo2, type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { compressImageToBase64 } from '@/lib/imageCompress';
@@ -25,6 +26,7 @@ import {
 } from '@/services/notebook.service';
 import { EMPTY_PAGE, INKS, PAGE_H, PAGE_W, SIZES, STICKY_COLORS, categoryLabel, sanitizeHtml, uid } from './paper';
 import { PageSheet, type Mode, type Tool } from './PageSheet';
+import { PageProgress } from './PageProgress';
 
 type Status = 'saved' | 'saving' | 'error';
 const SAVE_DELAY = 900;
@@ -32,55 +34,80 @@ const HIGHLIGHT = 'rgba(250, 204, 21, 0.45)';
 const lastPageKey = (id: string) => `lq-nb-page:${id}`;
 
 // ─── Paso de página ─────────────────────────────────────────────────────────────
-/** Dirección del último paso (1 adelante, −1 atrás): la leen también las hojas que se van. */
-const FlipDir = createContext(1);
-const EASE = [0.32, 0.72, 0, 1] as const;
-const flip: Variants = {
-  // Adelante: la hoja actual gira sobre las anillas y descubre la siguiente, que ya está debajo.
-  // Atrás: la anterior vuelve girando por encima de la actual.
-  enter: (dir: number) => ({ rotateY: dir > 0 ? 0 : -180 }),
-  center: { rotateY: 0, transition: { duration: 0.75, ease: EASE } },
-  exit: (dir: number) => ({ rotateY: dir > 0 ? -180 : 0, transition: { duration: 0.75, ease: EASE } }),
-};
-const fade: Variants = {
-  enter: { opacity: 0 }, center: { opacity: 1, transition: { duration: 0.2 } }, exit: { opacity: 0, transition: { duration: 0.15 } },
+/** Sentido del paso (1 adelante, −1 atrás) y si va sin movimiento (Reducir movimiento o Lite). */
+type Turn = { dir: number; plain: boolean };
+/** La hoja que sale se aleja hacia el lado contrario y se desvanece deprisa; la que entra llega con muelle desde el otro lado. */
+const turn: Variants = {
+  enter: ({ dir, plain }: Turn) => (plain ? { opacity: 0 } : { opacity: 0, x: dir * 56, rotateY: dir * -14, scale: 0.97 }),
+  center: {
+    opacity: 1, x: 0, rotateY: 0, scale: 1,
+    transition: {
+      x: { type: 'spring', stiffness: 260, damping: 26 },
+      rotateY: { type: 'spring', stiffness: 260, damping: 26 },
+      scale: { type: 'spring', stiffness: 260, damping: 26 },
+      opacity: { duration: 0.3 },
+    },
+  },
+  exit: ({ dir, plain }: Turn) => (plain
+    ? { opacity: 0, transition: { duration: 0.16 } }
+    : { opacity: 0, x: dir * -40, rotateY: dir * 12, scale: 0.97, transition: { duration: 0.26, ease: [0.4, 0, 1, 1] } }),
 };
 
-function FlipPage({ children, reduce }: { children: (present: boolean) => ReactNode; reduce: boolean }) {
+/** Una hoja del paso. AnimatePresence la conserva durante su salida (useIsPresent). */
+function TurnPage({ turn: t, children }: { turn: Turn; children: (present: boolean) => ReactNode }) {
   const present = useIsPresent();
-  const dir = useContext(FlipDir);
-  const rotateY = useMotionValue(0);
-  // La hoja se oscurece al levantarse (sombra del giro).
-  const shade = useTransform(rotateY, [-180, -90, 0], [0.2, 0.75, 0]);
-  // Encima va la que gira: la que se va (adelante) o la que vuelve (atrás).
-  const z = present ? (dir > 0 ? 1 : 3) : (dir > 0 ? 3 : 1);
   return (
     <motion.div
-      custom={dir} variants={reduce ? fade : flip} initial="enter" animate="center" exit="exit"
+      custom={t} variants={turn} initial="enter" animate="center" exit="exit"
       className={cn('absolute inset-0', !present && 'pointer-events-none')}
-      style={{ rotateY, zIndex: z, transformOrigin: 'left center', transformStyle: 'preserve-3d', willChange: 'transform' }}
+      style={{ transformOrigin: 'left center', transformPerspective: 1600, zIndex: present ? 2 : 1, willChange: 'transform, opacity' }}
     >
-      <div className="absolute inset-0 [-webkit-backface-visibility:hidden] [backface-visibility:hidden]">{children(present)}</div>
-      {/* Dorso de la hoja: se ve mientras gira */}
-      <div aria-hidden className="lq-tex-paper absolute inset-0 rounded-l-[10px] [-webkit-backface-visibility:hidden] [backface-visibility:hidden] [transform:rotateY(180deg)]" />
-      {/* Sombra del giro: más oscura junto a las anillas */}
-      <motion.div aria-hidden className="pointer-events-none absolute inset-0 rounded-r-[10px] bg-[linear-gradient(90deg,rgb(0_0_0/.55),rgb(0_0_0/.12)_65%,rgb(0_0_0/.04))]" style={{ opacity: shade }} />
+      {children(present)}
     </motion.div>
   );
 }
 
+// ─── Historial (Ctrl+Z) ─────────────────────────────────────────────────────────
+/** Un cambio de una hoja: lo que había antes y lo que hay ahora. */
+type Step = { index: number; before: PageContent; after: PageContent; kind: 'text' | 'note' | 'object'; at: number };
+/** Lo que se escribe seguido (texto o notas) cuenta como un solo paso de deshacer. */
+const GROUP_MS = 900;
+const MAX_STEPS = 200;
+
+/** Qué cambió: solo el texto de la hoja, solo el texto de una nota, o algo más (trazo, imagen, nota movida…). */
+function kindOf(a: PageContent, b: PageContent): Step['kind'] {
+  const sameStickyLayout = a.stickies.length === b.stickies.length && a.stickies.every((s, k) => {
+    const t = b.stickies[k];
+    return s.id === t.id && s.x === t.x && s.y === t.y && s.color === t.color && s.rot === t.rot;
+  });
+  if (a.strokes !== b.strokes || a.images !== b.images || !sameStickyLayout) return 'object';
+  if (a.html !== b.html) return 'text';
+  return a.stickies.some((s, k) => s.text !== b.stickies[k].text) ? 'note' : 'object';
+}
+
+/** Pone el cursor al final del texto (tras deshacer, para seguir escribiendo). */
+function placeCaretAtEnd(el: HTMLElement) {
+  el.focus();
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  range.collapse(false);
+  const sel = window.getSelection();
+  sel?.removeAllRanges();
+  sel?.addRange(range);
+}
+
 // ─── Barra de herramientas ──────────────────────────────────────────────────────
-function ToolButton({ icon: Icon, label, active, onClick, keepFocus, className }: {
-  icon: LucideIcon; label: string; active?: boolean; onClick: () => void; keepFocus?: boolean; className?: string;
+function ToolButton({ icon: Icon, label, active, disabled, onClick, keepFocus, className }: {
+  icon: LucideIcon; label: string; active?: boolean; disabled?: boolean; onClick: () => void; keepFocus?: boolean; className?: string;
 }) {
   return (
     <button
-      type="button" aria-label={label} title={label} aria-pressed={active}
+      type="button" aria-label={label} title={label} aria-pressed={active} disabled={disabled}
       // Los botones de formato no se llevan el foco: la selección del texto sigue viva.
       onPointerDown={keepFocus ? (e) => e.preventDefault() : undefined}
       onClick={onClick}
       className={cn(
-        'flex size-10 shrink-0 items-center justify-center rounded-xl text-on-surface transition-colors hover:bg-surface-variant',
+        'flex size-10 shrink-0 items-center justify-center rounded-xl text-on-surface transition-colors hover:bg-surface-variant disabled:pointer-events-none disabled:opacity-40',
         active && 'bg-primary/[var(--lq-soft-alpha)] text-primary-text',
         className,
       )}
@@ -122,7 +149,7 @@ export function NotebookEditor({ notebook, lite, onClose, onEdit, onAddPage }: {
 }) {
   const reduce = useMotionStore((s) => s.reduce);
   const openUpgrade = usePlanStore((s) => s.openUpgrade);
-  /** Lite pasa las hojas con un fundido: el giro 3D es de Pro. */
+  /** Lite pasa las hojas con un fundido: el giro es de Pro. */
   const plain = reduce || lite;
   const keyboard = useKeyboardOpen();
   const toast = useToastStore.getState;
@@ -139,6 +166,11 @@ export function NotebookEditor({ notebook, lite, onClose, onEdit, onAddPage }: {
   const [failed, setFailed] = useState<number | null>(null);
   const [uploading, setUploading] = useState(false);
   const [size, setSize] = useState({ w: 0, h: 0 });
+  // Historial de Ctrl+Z. La versión solo sirve para repintar los botones de deshacer y rehacer.
+  const undoSteps = useRef<Step[]>([]);
+  const redoSteps = useRef<Step[]>([]);
+  const [, setHistoryVersion] = useState(0);
+  const turnArg: Turn = { dir, plain };
 
   const pages = useRef(new Map<number, PageContent>());
   const loading = useRef(new Set<number>());
@@ -151,7 +183,6 @@ export function NotebookEditor({ notebook, lite, onClose, onEdit, onAddPage }: {
   const bump = () => setVersion((v) => v + 1);
   /** El texto de la hoja que está a la vista (la que se va no cuenta). */
   const textEl = () => stage.current?.querySelector<HTMLDivElement>('[data-nb-current]') ?? null;
-  const [scrub, setScrub] = useState<number | null>(null);
 
   // Fondo quieto mientras la libreta está abierta; el foco entra en ella (teclado y lectores de pantalla).
   useEffect(() => { lockScroll(); dialog.current?.focus(); return () => unlockScroll(); }, []);
@@ -212,11 +243,33 @@ export function NotebookEditor({ notebook, lite, onClose, onEdit, onAddPage }: {
     };
   }, [flushAll]);
 
-  const update = useCallback((i: number, next: PageContent) => { pages.current.set(i, next); bump(); schedule(i); }, [schedule]);
+  // ─── Cambios (con historial para Ctrl+Z) ───
+  /** Guarda un cambio para deshacerlo; uno nuevo borra lo que se había deshecho. */
+  const remember = (i: number, before: PageContent, after: PageContent, kind: Step['kind']) => {
+    const counts = [undoSteps.current.length, redoSteps.current.length];
+    const now = Date.now();
+    const last = undoSteps.current[undoSteps.current.length - 1];
+    if (last && last.index === i && last.kind === kind && kind !== 'object' && now - last.at < GROUP_MS) {
+      last.after = after;
+      last.at = now;
+    } else {
+      undoSteps.current.push({ index: i, before, after, kind, at: now });
+      if (undoSteps.current.length > MAX_STEPS) undoSteps.current.shift();
+    }
+    redoSteps.current = [];
+    if (counts[0] !== undoSteps.current.length || counts[1] !== 0) setHistoryVersion((v) => v + 1);
+  };
+  const update = useCallback((i: number, next: PageContent) => {
+    const before = pages.current.get(i);
+    if (before) remember(i, before, next, kindOf(before, next));
+    pages.current.set(i, next); bump(); schedule(i);
+  }, [schedule]);
   const updateHtml = useCallback((i: number, html: string) => {
     const page = pages.current.get(i);
-    if (!page) return;
-    pages.current.set(i, { ...page, html }); // sin volver a pintar: el contentEditable ya lo muestra
+    if (!page || page.html === html) return;
+    const next = { ...page, html };
+    remember(i, page, next, 'text');
+    pages.current.set(i, next); // sin volver a pintar: el contentEditable ya lo muestra
     schedule(i);
   }, [schedule]);
 
@@ -239,10 +292,46 @@ export function NotebookEditor({ notebook, lite, onClose, onEdit, onAddPage }: {
     if (await onAddPage()) { setDir(1); void saveNow(index); setIndex(notebook.pageCount); }
   }
 
+  /** Pone una versión de una hoja (al deshacer o rehacer). Si esa hoja no es la que se ve, la abre. */
+  function restore(i: number, content: PageContent, kind: Step['kind']) {
+    pages.current.set(i, content);
+    schedule(i);
+    if (i !== index) { setDir(i > index ? 1 : -1); setIndex(i); }
+    else if (kind === 'text') {
+      // El texto no es un estado de React: se repone en el DOM y el cursor queda al final.
+      const el = textEl();
+      if (el) {
+        const focused = el.contains(document.activeElement);
+        el.innerHTML = content.html;
+        if (focused) placeCaretAtEnd(el);
+      }
+    }
+    bump();
+    setHistoryVersion((v) => v + 1);
+  }
+  function undo() {
+    const step = undoSteps.current.pop();
+    if (!step) return;
+    redoSteps.current.push(step);
+    restore(step.index, step.before, step.kind);
+  }
+  function redo() {
+    const step = redoSteps.current.pop();
+    if (!step) return;
+    undoSteps.current.push(step);
+    restore(step.index, step.after, step.kind);
+  }
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       // Con un diálogo encima (ajustes de la libreta), las teclas son suyas.
       if (document.querySelectorAll('[aria-modal="true"]').length > 1) return;
+      // Ctrl+Z deshace y Ctrl+Mayús+Z (o Ctrl+Y) rehace, también escribiendo en el texto o en una nota.
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.isComposing) {
+        const k = e.key.toLowerCase();
+        if (k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); return; }
+        if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); redo(); return; }
+      }
       const el = document.activeElement as HTMLElement | null;
       const typing = Boolean(el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName)));
       if (e.key === 'PageDown' || (!typing && e.key === 'ArrowRight')) { e.preventDefault(); go(index + 1); }
@@ -313,14 +402,12 @@ export function NotebookEditor({ notebook, lite, onClose, onEdit, onAddPage }: {
     const on = /250,\s*204,\s*21/.test(String(document.queryCommandValue('hiliteColor') || document.queryCommandValue('backColor')));
     if (!document.execCommand('hiliteColor', false, on ? 'transparent' : HIGHLIGHT)) format('backColor', on ? 'transparent' : HIGHLIGHT);
   };
-  function undo() {
-    if (mode === 'draw') { if (current?.strokes.length) update(index, { ...current, strokes: current.strokes.slice(0, -1) }); }
-    else format('undo');
-  }
 
   const last = index === notebook.pageCount - 1;
   const pageCap = lite ? LITE_LIMITS.notebookPages : 200;
   const canGrow = notebook.pageCount < pageCap;
+  const canUndo = undoSteps.current.length > 0;
+  const canRedo = redoSteps.current.length > 0;
 
   return createPortal(
     <motion.div
@@ -392,7 +479,8 @@ export function NotebookEditor({ notebook, lite, onClose, onEdit, onAddPage }: {
             </>
           )}
           <Divider />
-          <ToolButton icon={Undo2} label="Deshacer" keepFocus={mode === 'write'} onClick={undo} />
+          <ToolButton icon={Undo2} label="Deshacer (Ctrl+Z)" keepFocus disabled={!canUndo} onClick={undo} />
+          <ToolButton icon={Redo2} label="Rehacer (Ctrl+Mayús+Z)" keepFocus disabled={!canRedo} onClick={redo} />
         </div>
       </div>
 
@@ -400,35 +488,33 @@ export function NotebookEditor({ notebook, lite, onClose, onEdit, onAddPage }: {
       <div ref={stage} className={cn('relative min-h-0 flex-1', keyboard ? 'overflow-y-auto' : 'overflow-hidden')}>
         {size.w > 0 && (
           <div className="flex min-h-full items-center justify-center p-3 sm:p-8">
-            <div className="relative" style={{ width: size.w, height: size.h, perspective: 2400 }}>
-              <FlipDir.Provider value={dir}>
-                <AnimatePresence initial={false} custom={dir}>
-                  <FlipPage key={index} reduce={plain}>
-                    {(present) => {
-                      const page = pages.current.get(index);
-                      if (!page) {
-                        return (
-                          <div className="lq-tex-paper flex size-full items-center justify-center rounded-r-[10px] shadow-lg">
-                            {failed === index
-                              ? <Button variant="secondary" onClick={() => { setFailed(null); ensure(index); }}>No se pudo abrir la página · reintentar</Button>
-                              : <Spinner label="Abriendo la página" />}
-                          </div>
-                        );
-                      }
+            <div className="relative" style={{ width: size.w, height: size.h }}>
+              <AnimatePresence initial={false} custom={turnArg}>
+                <TurnPage key={index} turn={turnArg}>
+                  {(present) => {
+                    const page = pages.current.get(index);
+                    if (!page) {
                       return (
-                        <PageSheet
-                          notebookId={notebook.id} paper={notebook.paper} content={page} number={index + 1} width={size.w}
-                          mode={mode} tool={tool} interactive={present} richStickies={!lite}
-                          onHtml={(html) => updateHtml(index, html)}
-                          onChange={(next) => update(index, next)}
-                          onDropImages={(files, at) => void addImages(files, at)}
-                          onNext={last ? (canGrow ? () => void addPage() : undefined) : () => go(index + 1)}
-                        />
+                        <div className="lq-tex-paper flex size-full items-center justify-center rounded-r-[10px] shadow-lg">
+                          {failed === index
+                            ? <Button variant="secondary" onClick={() => { setFailed(null); ensure(index); }}>No se pudo abrir la página · reintentar</Button>
+                            : <Spinner label="Abriendo la página" />}
+                        </div>
                       );
-                    }}
-                  </FlipPage>
-                </AnimatePresence>
-              </FlipDir.Provider>
+                    }
+                    return (
+                      <PageSheet
+                        notebookId={notebook.id} paper={notebook.paper} content={page} number={index + 1} width={size.w}
+                        mode={mode} tool={tool} interactive={present} richStickies={!lite}
+                        onHtml={(html) => updateHtml(index, html)}
+                        onChange={(next) => update(index, next)}
+                        onDropImages={(files, at) => void addImages(files, at)}
+                        onNext={last ? (canGrow ? () => void addPage() : undefined) : () => go(index + 1)}
+                      />
+                    );
+                  }}
+                </TurnPage>
+              </AnimatePresence>
               {/* Esquinas dobladas: tocar o arrastrar para pasar la hoja */}
               {mode === 'write' && (
                 <>
@@ -455,21 +541,10 @@ export function NotebookEditor({ notebook, lite, onClose, onEdit, onAddPage }: {
         )}
       </div>
 
-      {/* Paso de página */}
+      {/* Barra de páginas: avanza con cada hoja */}
       <footer className="lq-bar-glass flex shrink-0 items-center gap-2 border-t border-border px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 sm:px-4">
         <Button variant="icon" aria-label="Página anterior" disabled={index === 0} onClick={() => go(index - 1)}><ChevronLeft aria-hidden className="size-6" strokeWidth={1.75} /></Button>
-        <label className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="text-center font-mono text-label-md tabular-nums text-on-surface-light">{scrub ?? index + 1} / {notebook.pageCount}</span>
-          <input
-            type="range" min={1} max={notebook.pageCount} value={scrub ?? index + 1} aria-label="Ir a la página"
-            // Mientras se arrastra solo cambia el número; la hoja pasa al soltar (un solo giro).
-            onChange={(e) => setScrub(Number(e.target.value))}
-            onPointerUp={() => { if (scrub !== null) go(scrub - 1); setScrub(null); }}
-            onKeyUp={() => { if (scrub !== null) go(scrub - 1); setScrub(null); }}
-            onBlur={() => { if (scrub !== null) go(scrub - 1); setScrub(null); }}
-            className="h-6 w-full accent-[rgb(var(--lq-primary))]"
-          />
-        </label>
+        <PageProgress value={index + 1} total={notebook.pageCount} onCommit={(n) => go(n - 1)} />
         {last && canGrow ? (
           <Button variant="secondary" size="sm" onClick={() => void addPage()}><FilePlus2 aria-hidden className="size-4" />Añadir página</Button>
         ) : last && lite ? (
