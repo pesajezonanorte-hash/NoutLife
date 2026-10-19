@@ -1,7 +1,7 @@
 import { prisma } from '../lib/prisma';
 
 export async function exportUserData(userId: string) {
-  const [user, quests, habits, transactions, journals, workouts, sleep, meals, goals, checklists, antiHabits, recreation, cyclePeriods, cycleLogs] =
+  const [user, quests, habits, transactions, journals, workouts, sleep, meals, goals, checklists, antiHabits, recreation, cyclePeriods, cycleLogs, notebooks] =
     await Promise.all([
       prisma.user.findUniqueOrThrow({
         where: { id: userId },
@@ -24,6 +24,8 @@ export async function exportUserData(userId: string) {
       prisma.recreationEntry.findMany({ where: { userId }, orderBy: { date: 'desc' } }),
       prisma.menstrualPeriod.findMany({ where: { userId }, orderBy: { startDate: 'desc' } }),
       prisma.menstrualLog.findMany({ where: { userId }, orderBy: { date: 'desc' } }),
+      // Libreta: páginas completas; de las imágenes solo el id (pesan mucho para la copia).
+      prisma.notebook.findMany({ where: { userId }, orderBy: { updatedAt: 'desc' }, include: { pages: { orderBy: { index: 'asc' } } } }),
     ]);
 
   return {
@@ -42,6 +44,7 @@ export async function exportUserData(userId: string) {
     antiHabits,
     recreation,
     cycle: { periods: cyclePeriods, logs: cycleLogs },
+    notebooks,
   };
 }
 

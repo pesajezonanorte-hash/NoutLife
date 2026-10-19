@@ -6,15 +6,17 @@ import type { Subscription } from '@noutlife/shared';
 export const PRO_PRICE_COP = 9900;
 export const TRIAL_DAYS = 7;
 /** NoutLife Lite. La IA es solo de Pro. */
-export const LITE_LIMITS = { activeHabits: 3, activeRoutines: 3, historyDays: 5 } as const;
+export const LITE_LIMITS = { activeHabits: 3, activeRoutines: 3, historyDays: 5, notebooks: 2, notebookPages: 10 } as const;
 
 /** Funciones que Lite limita (la API responde 402 con `feature`). */
 export type ProFeature = 'habits' | 'history' | 'ai';
 
 /** Zonas solo de Pro. En Lite se ven con candado (la API responde 402 con `lock`). */
 export type ProZone = 'finances' | 'coliseo' | 'recreation' | 'food' | 'sleep' | 'journal' | 'learning' | 'love' | 'mirror' | 'wisdom' | 'custom-zones';
-/** Candados de Lite: una zona Pro o el límite de rutinas activas. */
-export type ProLock = ProZone | 'routines';
+/** Candados de la Libreta en Lite (la API responde 402 con `lock`). */
+export type NotebookLock = 'notebooks' | 'notebook-pages' | 'notebook-draw' | 'notebook-images' | 'notebook-stickies';
+/** Candados de Lite: una zona Pro, el límite de rutinas activas o lo que es de Pro en la Libreta. */
+export type ProLock = ProZone | 'routines' | NotebookLock;
 
 export interface ProZoneInfo {
   label: string;

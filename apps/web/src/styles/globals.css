@@ -155,22 +155,32 @@ input[type='number']::-webkit-outer-spin-button {
   margin: 0;
 }
 
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+/* Barras de scroll finas solo con ratón. En táctil no se dibujan (el scroll con el
+   dedo sigue): pintar ::-webkit-scrollbar en Android quita la barra flotante del
+   sistema y deja una fija encima del contenido. */
+@media (pointer: fine) {
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+    border-radius: 999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+  }
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--border-strong);
-  border-radius: 999px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
+@media (pointer: coarse) {
+  * { scrollbar-width: none; }
+  *::-webkit-scrollbar { display: none; }
 }
 
 @layer components {
@@ -542,11 +552,19 @@ input[type='number']::-webkit-outer-spin-button {
 .text-accent-red { color: rgb(var(--lq-error-text)); }
 
 /* ── Táctil y rendimiento (móvil) ──────────────────────────────────────────── */
-/* Sin el destello gris del toque en Android/iOS: cada control ya tiene su estado
-   de presión. touch-action: manipulation quita la espera del doble toque en los
-   controles (el zoom con dos dedos sigue funcionando). */
-html { -webkit-tap-highlight-color: transparent; }
+/* Sensación de app nativa. Sin el destello del toque en Android/iOS: cada control ya
+   tiene su estado de presión. pan-x pan-y en la raíz quita el zoom de pellizco y el
+   de doble toque (iOS ignora user-scalable=no); manipulation en los controles quita
+   la espera del doble toque. */
+html { -webkit-tap-highlight-color: transparent; touch-action: pan-x pan-y; }
 a, button, [role='button'], [role='tab'], [role='radio'], label, summary, input, select, textarea { touch-action: manipulation; }
+/* Sin selección de texto ni menú de «Copiar / Buscar» al mantener pulsado, salvo en
+   los campos donde se escribe (y .lq-selectable). main.tsx bloquea el menú contextual. */
+body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+input, textarea, [contenteditable]:not([contenteditable='false']), .lq-selectable {
+  -webkit-user-select: text; user-select: text; -webkit-touch-callout: default;
+}
+img { -webkit-user-drag: none; }
 
 /* Barras fijas (encabezado, pestañas, filtros pegados). El desenfoque del fondo se
    recalcula en cada fotograma de scroll; en táctil o pantallas angostas se cambia por
@@ -561,3 +579,18 @@ a, button, [role='button'], [role='tab'], [role='radio'], label, summary, input,
   /* Lo mismo para los vidrios de las zonas (vitrinas, escaparates). */
   .lq-tex-glass { -webkit-backdrop-filter: none; backdrop-filter: none; background: linear-gradient(135deg, rgb(var(--lq-surface) / .94), rgb(var(--lq-surface) / .86)); }
 }
+
+/* ── Libreta: texto de la página ───────────────────────────────────────────────
+   Tamaños en unidades de página (--u: píxeles por unidad, components/notebook):
+   el renglón mide 60 u, así la hoja se ve igual en cualquier pantalla. El reset
+   de Tailwind quita viñetas y tamaños de título: aquí vuelven. */
+.lq-nb-text { -webkit-user-select: text; user-select: text; overflow-wrap: anywhere; caret-color: rgb(var(--lq-primary)); }
+.lq-nb-text:empty::before { content: attr(data-placeholder); color: rgb(var(--lq-on-surface-light) / .75); pointer-events: none; }
+.lq-nb-text h3 { font-size: 1.4em; font-weight: 700; line-height: calc(var(--u) * 120px); }
+.lq-nb-text b, .lq-nb-text strong { font-weight: 700; }
+.lq-nb-text u { text-decoration: underline; text-underline-offset: .15em; }
+.lq-nb-text s, .lq-nb-text strike { text-decoration: line-through; }
+.lq-nb-text ul, .lq-nb-text ol { padding-left: 1.3em; }
+.lq-nb-text ul { list-style: disc; }
+.lq-nb-text ol { list-style: decimal; }
+.lq-nb-text span[style*='background-color'] { border-radius: 2px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }

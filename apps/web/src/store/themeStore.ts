@@ -41,6 +41,9 @@ function apply(mode: ThemeMode, systemDark: boolean, skin: string | null) {
   root.classList.toggle('dark', dark);
   root.classList.toggle('light', !dark);
   root.setAttribute('data-theme', skin ?? 'aurora');
+  // Barra de estado del móvil (app instalada): el fondo del tema, no el del sistema.
+  const bar = (skin && SKINS[skin]?.palette.background) || (dark ? '#070d0a' : '#f9f7f3');
+  document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute('content', bar));
   loadFont(skin);
 }
 

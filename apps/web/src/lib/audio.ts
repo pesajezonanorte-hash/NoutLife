@@ -1,12 +1,59 @@
 // Web Audio API procedural sound engine — no external files, no CDN
 type SoundType = 'blip' | 'questComplete' | 'levelUp' | 'error' | 'coin' | 'achievement' | 'hover' | 'tick' | 'welcome';
 
+/** Sonido de los avisos dentro de la app (aparte de los efectos del juego). Encendido de base. */
+const ALERT_KEY = 'lq_alert_sound';
+
 class AudioEngine {
   private ctx: AudioContext | null = null;
   private _enabled = false;
+  private _alerts = true;
 
   load(): void {
-    this._enabled = localStorage.getItem('lq_audio') === '1';
+    try {
+      this._enabled = localStorage.getItem('lq_audio') === '1';
+      this._alerts = localStorage.getItem(ALERT_KEY) !== '0';
+    } catch { /* sin storage: valores de base */ }
+    // El navegador solo deja sonar audio tras un toque: el primero prepara el contexto,
+    // así un aviso que llega más tarde (incluso con la pestaña en segundo plano) suena.
+    // (iPhone solo lo acepta al soltar el dedo: por eso también touchend y click.)
+    const unlock = () => { try { this.getCtx(); } catch { /* sin Web Audio */ } };
+    for (const type of ['pointerdown', 'touchend', 'click', 'keydown']) window.addEventListener(type, unlock, { once: true, capture: true });
+  }
+
+  get alertSound(): boolean {
+    return this._alerts;
+  }
+
+  setAlertSound(on: boolean): void {
+    this._alerts = on;
+    try { localStorage.setItem(ALERT_KEY, on ? '1' : '0'); } catch { /* sin storage */ }
+    if (on) this.chime();
+  }
+
+  /**
+   * Campana suave de los avisos: dos notas de seno con caída larga (una sola y más
+   * baja si el aviso es de poca importancia). No depende del interruptor de efectos.
+   */
+  chime(soft = false): void {
+    if (!this._alerts) return;
+    let ctx: AudioContext;
+    try { ctx = this.getCtx(); } catch { return; }
+    if (ctx.state !== 'running') return;
+    const notes: Array<[number, number, number]> = soft ? [[784, 0, 0.07]] : [[880, 0, 0.11], [1318.5, 0.16, 0.08]];
+    for (const [freq, delay, vol] of notes) {
+      const t = ctx.currentTime + delay;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t);
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(vol, t + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 1.4);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(t);
+      osc.stop(t + 1.45);
+    }
   }
 
   get enabled(): boolean {

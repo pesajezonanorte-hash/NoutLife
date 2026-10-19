@@ -1,8 +1,7 @@
 // Jardín zen de cada ritual: arena rastrillada en líneas paralelas y, alrededor
 // de cada piedra (un paso), anillos concéntricos que se dibujan al llegar. Las
 // piedras caen y se asientan; con el ritual hecho hoy les crece musgo y al
-// completarlo una onda recorre la arena desde cada piedra. También el bambú que
-// se mece junto al título. Decorativo (aria-hidden): los pasos se leen en la lista.
+// completarlo una onda recorre la arena desde cada piedra. Decorativo (aria-hidden): los pasos se leen en la lista.
 import { useMemo, type CSSProperties } from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -59,23 +58,5 @@ export function ZenGarden({ steps, done, celebrate, seed = 1, className }: { ste
         </g>
       ))}
     </svg>
-  );
-}
-
-/** Bambú: tres cañas que se mecen despacio con sus hojas. */
-export function Bamboo({ className }: { className?: string }) {
-  return (
-    <span aria-hidden="true" className={cn('pointer-events-none flex items-end gap-3', className)}>
-      {[[180, 9, 0], [230, 11, -2.6], [150, 8, -5.2]].map(([h, w, delay], k) => (
-        <span key={k} className="lq-amb-sway block origin-bottom [--o:50%_100%] [--r:1.6deg]" style={{ ['--d' as string]: `${7 + k * 1.3}s`, animationDelay: `${delay}s` }}>
-          <svg viewBox={`0 0 40 ${h}`} style={{ height: h, width: 40 }} className="block overflow-visible">
-            <rect x={20 - w / 2} y="0" width={w} height={h} rx={w / 2} className="lq-cane" />
-            {Array.from({ length: Math.floor(h / 46) }, (_, j) => <rect key={j} x={20 - w / 2 - 1} y={34 + j * 46} width={w + 2} height="3" rx="1.5" className="lq-cane-node" />)}
-            <path d={`M20 ${h * 0.22}C32 ${h * 0.16} 40 ${h * 0.18} 46 ${h * 0.12}C38 ${h * 0.2} 30 ${h * 0.23} 20 ${h * 0.25}Z`} className="lq-leaf" />
-            <path d={`M20 ${h * 0.42}C8 ${h * 0.36} 0 ${h * 0.38} -6 ${h * 0.32}C2 ${h * 0.4} 10 ${h * 0.44} 20 ${h * 0.45}Z`} className="lq-leaf" />
-          </svg>
-        </span>
-      ))}
-    </span>
   );
 }

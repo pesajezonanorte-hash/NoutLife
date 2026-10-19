@@ -758,12 +758,8 @@ html.dark .lq-zen-tray {
   background-image: repeating-linear-gradient(180deg, transparent 0 9px, rgb(var(--lq-secondary) / .05) 9px 10px);
   box-shadow: inset 0 0 0 1px rgb(var(--lq-secondary) / .2), inset 0 0 0 6px color-mix(in srgb, rgb(var(--lq-secondary)) 22%, rgb(var(--lq-surface-variant))), inset 0 0 0 7px rgb(var(--lq-secondary) / .18), var(--shadow-sm);
 }
-/* Bambú. */
-.lq-cane { fill: rgb(var(--lq-jade-500)); }
-.lq-cane-node { fill: rgb(var(--lq-jade-700) / .7); }
+/* Hoja (fill): también la heredan los SVG sin relleno propio dentro de .lq-leaf del Diario. */
 .lq-leaf { fill: rgb(var(--lq-jade-400)); }
-html.dark .lq-cane { fill: rgb(var(--lq-jade-700)); }
-html.dark .lq-cane-node { fill: rgb(var(--lq-jade-900) / .8); }
 html.dark .lq-leaf { fill: rgb(var(--lq-jade-600)); }
 .lq-zen-tray.lq-lift:hover, .lq-zen-tray.lq-lift:focus-within { box-shadow: inset 0 0 0 1px rgb(var(--lq-secondary-text) / .25), inset 0 0 0 6px color-mix(in srgb, rgb(var(--lq-secondary)) 45%, rgb(var(--lq-surface))), inset 0 0 0 7px rgb(var(--lq-secondary-text) / .25), var(--shadow-lg); }
 html.dark .lq-zen-tray.lq-lift:hover, html.dark .lq-zen-tray.lq-lift:focus-within { box-shadow: inset 0 0 0 1px rgb(var(--lq-secondary) / .2), inset 0 0 0 6px color-mix(in srgb, rgb(var(--lq-secondary)) 22%, rgb(var(--lq-surface-variant))), inset 0 0 0 7px rgb(var(--lq-secondary) / .18), var(--shadow-lg); }
@@ -842,10 +838,6 @@ html.dark .lq-torchlit {
 .lq-shaft-lit { --fire: rgb(var(--lq-warning)); mix-blend-mode: soft-light; background: radial-gradient(120% 22% at var(--side, 100%) 20%, color-mix(in srgb, var(--fire) 80%, transparent), transparent 75%); animation: lq-torchlit 4.2s ease-in-out infinite; }
 html.dark .lq-shaft-lit { --fire: color-mix(in srgb, rgb(var(--lq-warning)) 75%, white); mix-blend-mode: screen; background: radial-gradient(120% 22% at var(--side, 100%) 20%, color-mix(in srgb, var(--fire) 38%, transparent), transparent 75%); }
 .reduce-motion .lq-shaft-lit { animation: none; }
-/* Rituales: luz que entra en diagonal, como en un jardín al amanecer (de noche, luna). */
-.lq-sunbeam { --ray: color-mix(in srgb, rgb(var(--lq-warning)) 45%, white); position: absolute; top: -12%; height: 130%; transform: rotate(24deg); transform-origin: 50% 0; filter: blur(16px);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--ray) 34%, transparent), color-mix(in srgb, var(--ray) 12%, transparent) 45%, transparent 85%); }
-html.dark .lq-sunbeam { --ray: color-mix(in srgb, rgb(var(--lq-info)) 40%, white); background: linear-gradient(180deg, color-mix(in srgb, var(--ray) 12%, transparent), color-mix(in srgb, var(--ray) 4%, transparent) 45%, transparent 85%); }
 @keyframes lq-torchlit { 0%, 100% { opacity: .78; } 14% { opacity: .92; } 31% { opacity: .82; } 47% { opacity: 1; } 63% { opacity: .8; } 81% { opacity: .9; } }
 html.dark .lq-torchlit { --fire: color-mix(in srgb, rgb(var(--lq-warning)) 75%, white); }
 .reduce-motion .lq-torchlit { animation: none; opacity: .7; }

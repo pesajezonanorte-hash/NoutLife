@@ -1,21 +1,38 @@
+import { useId } from 'react';
 import { cn } from '@/lib/utils';
+
+/** Las tres hojas de la N (misma geometría que /brand/noutlife-mark.svg y el splash de index.html). */
+const LEAVES = [
+  { key: 'c', d: 'M474 198C581.2 230.2 670.1 305.6 669.0 500.0L669 760C669 776 666 783 662 785L500 600L474 489Z', line: [520, 210, 669, 780], stops: [[0, 'c0'], [0.45, 'c1'], [1, 'c2']] },
+  { key: 'a', d: 'M1 0C124.1 148.2 331.6 191.3 474.0 489.0L662 785C314.2 532.2 633.0 710.9 118.0 399.0C-22.3 290.2 2.6 200.5 0.0 150.0L0 4Z', line: [60, 40, 650, 770], stops: [[0, 'a0'], [0.35, 'a1'], [0.72, 'a2'], [1, 'a3']] },
+  { key: 'b', d: 'M2 271C93.4 468.0 228.1 416.0 251.0 545.0L251 743C76.1 695.7 -13.2 587.2 0.0 380.0L0 275Z', line: [30, 290, 250, 740], stops: [[0, 'b0'], [1, 'b1']] },
+] as const;
 
 /**
  * Marca de Noutlife (docs/redesign/design-system/logos): la N de hojas.
- * En oscuro se usa la versión -on-dark (degradado más claro). Nunca se
- * recolorea, rota, estira ni lleva sombra o glow. Mínimo 24 px de alto.
+ * Sus degradados salen de --lq-brand-* (tokens.css): jade en Aurora (más claro
+ * en oscuro) y la escala de color de cada tema de la Tienda (skins.css), así el
+ * logo nunca desentona con el tema puesto. No se rota, estira ni lleva sombra o
+ * glow. Mínimo 24 px de alto.
  *
  * `tile` la coloca en una baldosa (como el ícono de app) para avatares y
  * cabeceras grandes; sin `tile` es el mark solo.
  */
 export function BrandMark({ size = 32, tile, className, alt = '' }: { size?: number; tile?: boolean; className?: string; alt?: string }) {
+  // Ids únicos por instancia: varias marcas en pantalla no comparten degradado.
+  const uid = useId().replace(/:/g, '');
   const img = (
-    <>
-      <img src="/brand/noutlife-mark.svg" alt={alt} aria-hidden={!alt || undefined} width={size} height={size}
-        className={cn('object-contain dark:hidden', tile ? 'size-[62%]' : 'size-full')} draggable={false} />
-      <img src="/brand/noutlife-mark-on-dark.svg" alt="" aria-hidden width={size} height={size}
-        className={cn('hidden object-contain dark:block', tile ? 'size-[62%]' : 'size-full')} draggable={false} />
-    </>
+    <svg viewBox="0 0 670 786" width={size} height={size} role={alt ? 'img' : undefined} aria-label={alt || undefined} aria-hidden={!alt || undefined}
+      className={tile ? 'size-[62%]' : 'size-full'}>
+      <defs>
+        {LEAVES.map(({ key, line: [x1, y1, x2, y2], stops }) => (
+          <linearGradient key={key} id={`${uid}${key}`} gradientUnits="userSpaceOnUse" x1={x1} y1={y1} x2={x2} y2={y2}>
+            {stops.map(([offset, v]) => <stop key={v} offset={offset} style={{ stopColor: `var(--lq-brand-${v})` }} />)}
+          </linearGradient>
+        ))}
+      </defs>
+      {LEAVES.map(({ key, d }) => <path key={key} fill={`url(#${uid}${key})`} d={d} />)}
+    </svg>
   );
   if (tile) {
     return (

@@ -1,6 +1,17 @@
 import { Response } from 'express';
 import type { AuthRequest } from '../middleware/auth.middleware';
 import * as notificationService from '../services/notification.service';
+import * as snoozeService from '../services/snooze.service';
+
+export async function snooze(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const row = await snoozeService.snoozeReminder(req.userId!, req.body);
+    res.status(201).json({ success: true, dueAt: row.dueAt });
+  } catch (err) {
+    if (err instanceof snoozeService.SnoozeError) { res.status(409).json({ error: err.message }); return; }
+    res.status(500).json({ error: 'No se pudo posponer el aviso.' });
+  }
+}
 
 export async function subscribe(req: AuthRequest, res: Response): Promise<void> {
   try {

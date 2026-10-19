@@ -61,12 +61,12 @@ const loaders = {
   StatsPage: () => import('./pages/Stats'),
   SeasonPage: () => import('./pages/Season'),
   AgendaPage: () => import('./pages/Agenda'),
+  NotebookPage: () => import('./pages/Notebook'),
   LifePage: () => import('./pages/Life'),
   ChecklistsPage: () => import('./pages/Checklists'),
   CyclePage: () => import('./pages/Cycle'),
   CustomZoneDetailPage: () => import('./pages/CustomZoneDetail'),
   SharedResourcePage: () => import('./pages/SharedResource'),
-  RitualsPage: () => import('./pages/Rituals'),
   GlowUpPage: () => import('./pages/GlowUp'),
   WisdomPage: () => import('./pages/Wisdom'),
   CustomZonesPage: () => import('./pages/CustomZones'),
@@ -120,11 +120,11 @@ const routeLoaders: Record<string, () => Promise<unknown>> = {
   '/stats': loaders.StatsPage,
   '/season': loaders.SeasonPage,
   '/agenda': loaders.AgendaPage,
+  '/libreta': loaders.NotebookPage,
   '/life': loaders.LifePage,
   '/checklists': loaders.ChecklistsPage,
   '/ciclo-menstrual': loaders.CyclePage,
   '/custom-zones': loaders.CustomZonesPage,
-  '/rituals': loaders.RitualsPage,
   '/espejo': loaders.GlowUpPage,
   '/wisdom': loaders.WisdomPage,
   '/about': loaders.AboutPage,
@@ -133,7 +133,7 @@ const routeLoaders: Record<string, () => Promise<unknown>> = {
 };
 
 // Rutas que solo redirigen (no esperan ningún bundle).
-const REDIRECTS = new Set(['/rituales', '/character', '/friends', '/guild', '/glow-up', '/armario', '/gym', '/obstaculos']);
+const REDIRECTS = new Set(['/rituals', '/rituales', '/character', '/friends', '/guild', '/glow-up', '/armario', '/gym', '/obstaculos']);
 
 function loaderForPath(pathname: string) {
   if (REDIRECTS.has(pathname)) return null;
@@ -269,6 +269,7 @@ function AnimatedRoutes({ location }: { location: ReturnType<typeof useLocation>
           <Route path="/stats"        element={<SafePage><DeferredLazyPage load={loaders.StatsPage} /></SafePage>} />
           <Route path="/season"       element={<SafePage><DeferredLazyPage load={loaders.SeasonPage} /></SafePage>} />
           <Route path="/agenda"       element={<SafePage><DeferredLazyPage load={loaders.AgendaPage} /></SafePage>} />
+          <Route path="/libreta"      element={<SafePage><DeferredLazyPage load={loaders.NotebookPage} /></SafePage>} />
           <Route path="/life"         element={<SafePage><DeferredLazyPage load={loaders.LifePage} /></SafePage>} />
           <Route path="/custom-zones" element={<SafePage><ProZonePage zone="custom-zones" load={loaders.CustomZonesPage} /></SafePage>} />
           <Route path="/zonas/:id" element={<SafePage><ProZonePage zone="custom-zones" load={loaders.CustomZoneDetailPage} /></SafePage>} />
@@ -277,8 +278,9 @@ function AnimatedRoutes({ location }: { location: ReturnType<typeof useLocation>
           <Route path="/obstaculos" element={<Navigate to="/habits?tab=obstaculos" replace />} />
           <Route path="/ciclo-menstrual" element={<SafePage><DeferredLazyPage load={loaders.CyclePage} /></SafePage>} />
           <Route path="/ciclo" element={<Navigate to="/ciclo-menstrual" replace />} />
-          <Route path="/rituals"  element={<SafePage><DeferredLazyPage load={loaders.RitualsPage} /></SafePage>} />
-          <Route path="/rituales" element={<Navigate to="/rituals" replace />} />
+          {/* Rituales vive ahora dentro de la libreta de Hábitos. */}
+          <Route path="/rituals"  element={<Navigate to="/habits?tab=rituales" replace />} />
+          <Route path="/rituales" element={<Navigate to="/habits?tab=rituales" replace />} />
           <Route path="/espejo"   element={<SafePage><ProZonePage zone="mirror" load={loaders.GlowUpPage} /></SafePage>} />
           <Route path="/armario"  element={<Navigate to={{ pathname: '/espejo', search: window.location.search }} replace />} />
           <Route path="/glow-up"  element={<Navigate to="/espejo" replace />} />

@@ -6,8 +6,8 @@
 import { useEffect, useRef } from 'react';
 
 const EVENT = 'lq:life-changed';
-/** Escrituras que no tocan las zonas de vida: sesión, chat del Sabio, avisos, red social, pagos… */
-const NOT_LIFE = new Set(['auth', 'sage', 'notifications', 'social', 'billing', 'cron', 'feedback', 'search', 'export', 'shares']);
+/** Escrituras que no tocan las zonas de vida: sesión, chat del Sabio, avisos, red social, pagos, la Libreta (se guarda sola al escribir)… */
+const NOT_LIFE = new Set(['auth', 'sage', 'notifications', 'social', 'billing', 'cron', 'feedback', 'search', 'export', 'shares', 'notebooks']);
 /** Latidos en segundo plano (actividad para detectar el sueño): no son registros de la persona. */
 const BACKGROUND = /^\/?sleep\/(?:activity|suggestion)\b/;
 const ALIAS: Record<string, string> = { gym: 'coliseo', workouts: 'coliseo', meals: 'nutrition' };

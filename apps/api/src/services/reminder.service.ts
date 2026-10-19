@@ -11,6 +11,7 @@ import { WINDOW_MS, inWindow, localMinutes, parseHHMM } from '../lib/smart-remin
 import { isHabitScheduledForDay } from './habit.service';
 import { createNotification, wasNotified } from './notification.service';
 import { smartReminders } from './smart-reminder.service';
+import { deliverDueSnoozes } from './snooze.service';
 
 function localTimeLabel(timezone: string | null | undefined, date: Date) {
   try {
@@ -151,6 +152,7 @@ async function dailySummaries(now: Date) {
 // todavía no lo hizo hoy: la hora de dormir, el entrenamiento del día, apuntar
 // la comida, el diario, el estudio, la revisión semanal de finanzas, las rachas
 // con amigos que se apagan hoy y el enemigo del gremio. Un aviso por zona y día.
+// Los hábitos pendientes del día van con los avisos inteligentes (hora elegible).
 
 interface ReminderUser { id: string; timezone: string | null; bedtimeGoal: string | null }
 type ZoneReminder = {
@@ -165,26 +167,6 @@ type ZoneReminder = {
 const DAY_MS = 86_400_000;
 
 const ZONE_REMINDERS: ZoneReminder[] = [
-  {
-    zone: 'habitos-pendientes', category: 'HABITS', at: () => 21 * 60,
-    check: async (u, { day }) => {
-      const calendarDate = new Date(`${day}T00:00:00.000Z`);
-      const [habits, logs] = await Promise.all([
-        prisma.habit.findMany({ where: { userId: u.id, isActive: true }, select: { id: true, title: true, frequency: true } }),
-        prisma.habitLog.findMany({ where: { userId: u.id, date: calendarDate }, select: { habitId: true, completed: true, status: true } }),
-      ]);
-      const handled = new Set(logs.filter((log) => log.completed || log.status === 'skipped' || log.status === 'failed').map((log) => log.habitId));
-      const pending = habits.filter((habit) => isHabitScheduledForDay(calendarDate, habit.frequency) && !handled.has(habit.id));
-      if (!pending.length) return null;
-      const names = pending.slice(0, 3).map((habit) => `«${habit.title}»`).join(', ');
-      const extra = pending.length > 3 ? ` y ${pending.length - 3} más` : '';
-      return {
-        title: `${pending.length} ${pending.length === 1 ? 'hábito pendiente' : 'hábitos pendientes'}`,
-        body: `Si todavía puedes, completa ${names}${extra} antes de cerrar el día.`,
-        link: '/habits',
-      };
-    },
-  },
   {
     zone: 'sueno', category: 'SYSTEM',
     at: (u) => { const t = parseHHMM(u.bedtimeGoal); return t === null ? null : (t - 30 + 1440) % 1440; },
@@ -311,13 +293,14 @@ export async function runReminderTick(now = new Date()) {
   const run = async (name: string, job: (n: Date) => Promise<number>) => {
     try { return await job(now); } catch (err) { console.error(`[Reminders] ${name}:`, err); return -1; }
   };
-  const [habits, agenda, quests, summaries, zones, smart] = await Promise.all([
+  const [habits, agenda, quests, summaries, zones, smart, snoozes] = await Promise.all([
     run('habits', habitReminders),
     run('agenda', agendaReminders),
     run('quests', questDeadlines),
     run('summaries', dailySummaries),
     run('zones', zoneReminders),
     run('smart', smartReminders),
+    run('snoozes', deliverDueSnoozes),
   ]);
-  return { at: now.toISOString(), habits, agenda, quests, summaries, zones, smart };
+  return { at: now.toISOString(), habits, agenda, quests, summaries, zones, smart, snoozes };
 }

@@ -6,9 +6,10 @@ import { prisma } from '../lib/prisma';
 import { getCalendarDay } from '../lib/calendar';
 import { averages, snapshot, type PeriodRow } from '../lib/cycle';
 import {
-  CARE_COPY, CYCLE_COPY, focusCategory, hydrationSlots, inWindow, localMinutes, parseHHMM, pickQuote,
+  BREAK_TIPS, CARE_COPY, CYCLE_COPY, breakSlots, focusCategory, hydrationSlots, inWindow, localMinutes, parseHHMM, pickQuote,
   sanitizeSmartSettings, type SmartReminderSettings,
 } from '../lib/smart-reminders';
+import { isHabitScheduledForDay } from './habit.service';
 import { createNotification, wasNotified, type NotificationCategory } from './notification.service';
 
 const DAY_MS = 86_400_000;
@@ -113,9 +114,48 @@ async function careReminders(c: Ctx): Promise<number> {
     if (!slots.includes(slot)) continue;
     const done = await prisma.ritualLog.findFirst({ where: { ritualId: r.id, userId: c.userId, date: c.calendarDate }, select: { id: true } });
     if (done) continue;
-    sent += await notifyOnce(c, `ritual-${r.id}-${c.day}`, { category: 'HABITS', title: r.name, body: CARE_COPY[slot].body, link: '/rituals' });
+    sent += await notifyOnce(c, `ritual-${r.id}-${c.day}`, { category: 'HABITS', title: r.name, body: CARE_COPY[slot].body, link: '/habits?tab=rituales' });
   }
   return sent;
+}
+
+/** Hábitos de hoy sin marcar, a la hora elegida (antes iba fijo a las 21:00 para todos). */
+async function pendingHabits(c: Ctx): Promise<number> {
+  if (!c.settings.habits.enabled || !slotDue(c, c.settings.habits.time)) return 0;
+  // Misma clave que el aviso fijo de antes: el día del cambio no llega dos veces.
+  const dedupeKey = `zone-reminder:habitos-pendientes:${c.day}`;
+  if (await wasNotified(c.userId, dedupeKey)) return 0;
+  const [habits, logs] = await Promise.all([
+    prisma.habit.findMany({ where: { userId: c.userId, isActive: true }, select: { id: true, title: true, frequency: true } }),
+    prisma.habitLog.findMany({ where: { userId: c.userId, date: c.calendarDate }, select: { habitId: true, completed: true, status: true } }),
+  ]);
+  const handled = new Set(logs.filter((log) => log.completed || log.status === 'skipped' || log.status === 'failed').map((log) => log.habitId));
+  const pending = habits.filter((habit) => isHabitScheduledForDay(c.calendarDate, habit.frequency) && !handled.has(habit.id));
+  if (!pending.length) return 0;
+  const names = pending.slice(0, 3).map((habit) => `«${habit.title}»`).join(', ');
+  const extra = pending.length > 3 ? ` y ${pending.length - 3} más` : '';
+  return notifyOnce(c, dedupeKey, {
+    category: 'HABITS',
+    title: `${pending.length} ${pending.length === 1 ? 'hábito pendiente' : 'hábitos pendientes'}`,
+    body: `Si todavía puedes, completa ${names}${extra} antes de cerrar el día.`,
+    link: '/habits',
+  });
+}
+
+// ─── Descansos: pausas activas durante la jornada ────────────────────────────
+
+async function breakReminders(c: Ctx): Promise<number> {
+  const b = c.settings.breaks;
+  if (!b.enabled || (b.workdays && (c.weekday === 0 || c.weekday === 6))) return 0;
+  const slots = breakSlots(b.from, b.to, b.everyMinutes);
+  const i = slots.findIndex((m) => inWindow(c.minutes, m));
+  if (i < 0) return 0;
+  return notifyOnce(c, `break-${c.day}-${slots[i]}`, {
+    category: 'SYSTEM',
+    title: 'Pausa activa',
+    body: BREAK_TIPS[i % BREAK_TIPS.length],
+    link: '/',
+  });
 }
 
 // ─── Ciclo: solo para usuarias con Ciclo; avisos discretos (ver CYCLE_COPY) ───
@@ -230,7 +270,7 @@ export async function smartReminders(now: Date): Promise<number> {
     where: { onboardingCompleted: true },
     select: { id: true, timezone: true, gender: true, level: true, notificationPreferences: { select: { reminderSettings: true } } },
   });
-  const jobs = [coliseoScheduled, careReminders, cycleReminders, hydrationReminders, mealReminders, wisdomReminder];
+  const jobs = [coliseoScheduled, careReminders, pendingHabits, breakReminders, cycleReminders, hydrationReminders, mealReminders, wisdomReminder];
   let sent = 0;
   for (const user of users) {
     const minutes = localMinutes(user.timezone, now);

@@ -23,6 +23,7 @@ import seasonRoutes       from './season.routes';
 import agendaRoutes       from './agenda.routes';
 import coliseoRoutes      from './coliseo.routes';
 import recreationRoutes   from './recreation.routes';
+import notebookRoutes     from './notebook.routes';
 import finance2Routes     from './finance2.routes';
 import nutrition2Routes   from './nutrition2.routes';
 import lifescoreRoutes    from './lifescore.routes';
@@ -80,6 +81,7 @@ router.use('/coliseo',       coliseoRoutes);
 // Alias legado: clientes y enlaces anteriores al renombre (Gimnasio → Coliseo).
 router.use('/gym',           coliseoRoutes);
 router.use('/recreation',    recreationRoutes);
+router.use('/notebooks',     notebookRoutes);
 router.use('/finances',      finance2Routes);
 router.use('/nutrition',     nutrition2Routes);
 router.use('/life',          lifescoreRoutes);

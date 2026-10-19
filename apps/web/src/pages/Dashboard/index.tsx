@@ -349,7 +349,7 @@ export default function DashboardPage() {
 
       {/* Avisos accionables (sin prototipo: Card + IconChip + ProgressBar) */}
       {(recovery || guide) && (
-        <motion.div variants={item} className="grid gap-6 md:grid-cols-2">
+        <motion.div variants={item} className="grid grid-cols-1 gap-6 md:grid-cols-2 [&>*]:min-w-0">
           {recovery && (
             <Card as="section" padding="lg" aria-labelledby="dash-recovery" className="flex flex-col gap-3 border-warning/40">
               <div className="flex items-start gap-3">
@@ -402,7 +402,7 @@ export default function DashboardPage() {
             <Button variant="ghost" size="sm" onClick={() => setModal('briefing')}><ClipboardList aria-hidden className="size-4" strokeWidth={1.75} />Briefing del día</Button>
           </div>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 [&>*]:min-w-0">
           <button
             type="button"
             onClick={() => openQuickAction('checkin')}
@@ -443,7 +443,7 @@ export default function DashboardPage() {
       </motion.section>
 
       {(events.length > 0 || (data?.recentAchievements?.length ?? 0) > 0 || data?.latestWeeklySummary) && (
-        <motion.div variants={item} className="grid items-start gap-6 lg:grid-cols-2">
+        <motion.div variants={item} className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2 [&>*]:min-w-0">
           {events.length > 0 && (
             <Card as="section" padding="lg" aria-labelledby="dash-agenda" className="flex flex-col gap-4">
               <SectionHead id="dash-agenda" title="Próximo en tu agenda" to="/agenda" linkLabel="Agenda" />
@@ -473,7 +473,7 @@ export default function DashboardPage() {
                       <span className="block truncate text-label-lg text-on-background">{a.title}</span>
                       <span className="block truncate text-body-sm text-on-surface-light">{a.description}</span>
                     </span>
-                    <span className="text-caption text-on-surface-light">{relativeTime(a.unlockedAt)}</span>
+                    <span className="shrink-0 whitespace-nowrap text-caption text-on-surface-light">{relativeTime(a.unlockedAt)}</span>
                   </li>
                 ))}
               </ul>

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  CARE_COPY, CYCLE_COPY, DEFAULT_SMART_SETTINGS, bestOneRepMax, categoryOfXpSource, focusCategory, hydrationSlots,
+  BREAK_TIPS, CARE_COPY, CYCLE_COPY, DEFAULT_SMART_SETTINGS, bestOneRepMax, breakSlots, categoryOfXpSource, focusCategory, hydrationSlots,
   inWindow, maxEffortSets, mergeSmartSettings, newRecords, oneRepMaxOf, parseHHMM, pickQuote, sanitizeSmartSettings,
 } from '../src/lib/smart-reminders';
 
@@ -128,4 +128,25 @@ test('la cita del día es estable para la misma persona y día, y prefiere su ca
   assert.equal(first?.category, 'discipline');
   assert.equal(pickQuote(cards, 'growth', 'u1:2026-10-16')?.category, 'health', 'sin citas de la categoría, cualquiera');
   assert.equal(pickQuote([], 'discipline', 'x'), null);
+});
+
+test('las pausas activas: intervalo válido, días laborables y sin aviso al empezar', () => {
+  const s = sanitizeSmartSettings({ breaks: { enabled: true, everyMinutes: 50, from: '08:00', to: 'tarde', workdays: 'sí' } });
+  assert.equal(s.breaks.enabled, true);
+  assert.equal(s.breaks.everyMinutes, DEFAULT_SMART_SETTINGS.breaks.everyMinutes, '50 min no es un intervalo de la lista');
+  assert.equal(s.breaks.from, '08:00');
+  assert.equal(s.breaks.to, DEFAULT_SMART_SETTINGS.breaks.to);
+  assert.equal(s.breaks.workdays, DEFAULT_SMART_SETTINGS.breaks.workdays);
+  assert.equal(DEFAULT_SMART_SETTINGS.breaks.enabled, false, 'apagadas hasta que la persona las active');
+  assert.deepEqual(breakSlots('09:00', '12:00', 60), [600, 660, 720]);
+  assert.deepEqual(breakSlots('09:00', '10:00', 30), [570, 600]);
+  assert.deepEqual(breakSlots('bad', '10:00', 30), []);
+  assert.ok(BREAK_TIPS.length >= 3);
+});
+
+test('los hábitos pendientes conservan las 21:00 de antes y aceptan otra hora', () => {
+  assert.deepEqual(DEFAULT_SMART_SETTINGS.habits, { enabled: true, time: '21:00' });
+  const s = mergeSmartSettings(undefined, { habits: { time: '19:30' } });
+  assert.deepEqual(s.habits, { enabled: true, time: '19:30' });
+  assert.equal(sanitizeSmartSettings({ habits: { time: '7pm' } }).habits.time, '21:00');
 });

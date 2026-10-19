@@ -19,7 +19,8 @@ export const GOAL_ZONE: Record<string, string> = {
   FINANCE: '/finances',
   LEARNING: '/learning',
   LOVE: '/love',
-  PERSONAL: '/rituals',
+  // Bienestar mental: los rituales viven en la libreta de Hábitos.
+  PERSONAL: '/habits',
   CREATIVE: '/journal',
 };
 

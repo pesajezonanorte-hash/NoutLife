@@ -4,7 +4,7 @@
 // zonas" y Comunidad.
 import {
   BarChart3, BookOpen, CalendarDays, Clapperboard, Flower2, Gem, HelpCircle, Flag, Globe, Heart, Home,
-  MapPin, Moon, NotebookPen, Scroll, Settings, ShoppingBag, Skull, Sun,
+  MapPin, Moon, Notebook, NotebookPen, Scroll, Settings, ShoppingBag, Skull,
   Sparkles, Swords, Trophy, User, UtensilsCrossed, Wallet, CheckCircle2, MessageCircle, Mail, NotebookTabs, Tent, Album, ListChecks, type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useMemo } from 'react';
@@ -66,7 +66,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { to: '/love', label: 'Relaciones', icon: Heart },
       { to: '/journal', label: 'Diario', icon: NotebookPen },
       { to: '/agenda', label: 'Agenda', icon: CalendarDays },
-      { to: '/rituals', label: 'Rituales', icon: Sun },
+      { to: '/libreta', label: 'Libreta', icon: Notebook },
       { to: '/wisdom', label: 'Sabiduría', icon: Scroll },
       { to: '/custom-zones', label: 'Mis zonas', icon: MapPin },
       { to: '/shop', label: 'Tienda', icon: ShoppingBag },
@@ -93,10 +93,10 @@ export const SOCIAL_SHORTCUTS: NavEntry[] = [
   { to: '/social?tab=gremios', label: 'Gremios', icon: Tent },
 ];
 
-/** Rutas que se unieron en otra (zonas fijadas o escondidas guardadas antes). Obstáculos vive ahora en la libreta de Hábitos. */
-const MERGED: Record<string, string> = { '/friends': '/social', '/guild': '/social', '/glow-up': '/espejo', '/armario': '/espejo', '/gym': '/coliseo', '/obstaculos': '/habits' };
+/** Rutas que se unieron en otra (zonas fijadas o escondidas guardadas antes). Obstáculos y Rituales viven ahora en la libreta de Hábitos. */
+const MERGED: Record<string, string> = { '/friends': '/social', '/guild': '/social', '/glow-up': '/espejo', '/armario': '/espejo', '/gym': '/coliseo', '/obstaculos': '/habits', '/rituals': '/habits' };
 /** Zonas que pasaron a ser parte de otra: fijarlas fija la nueva, pero haberlas ocultado no oculta la nueva. */
-const ABSORBED = new Set(['/obstaculos']);
+const ABSORBED = new Set(['/obstaculos', '/rituals']);
 
 /** Todas las zonas que pueden ir en la navegación principal (entre Inicio y Perfil). */
 export const ZONES: NavEntry[] = NAV_SECTIONS.flatMap((s) => s.items);

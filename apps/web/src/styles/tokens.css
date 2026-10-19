@@ -48,6 +48,12 @@
 
   --lq-soft-alpha: .10;              /* tint for chips/badges */
 
+  /* Logo (las tres hojas de la N, components/layout/Brand + splash de index.html).
+     Aurora usa los degradados oficiales; cada tema de la Tienda los cambia en skins.css. */
+  --lq-brand-a0: #5fae97; --lq-brand-a1: #2f7565; --lq-brand-a2: #0a3a33; --lq-brand-a3: #05302b;
+  --lq-brand-b0: #8ec7ad; --lq-brand-b1: #2c7362;
+  --lq-brand-c0: #4f9c84; --lq-brand-c1: #2a6f60; --lq-brand-c2: #06302b;
+
   /* Radios: chips/checks 6 · botones/inputs 10 · cards/paneles/modales 16 */
   --radius-sm: 6px;
   --radius-md: 10px;
@@ -85,6 +91,11 @@ html.dark {
   --lq-on-surface-light: 143 174 156;/* #8fae9c */
 
   --lq-soft-alpha: .16;
+
+  /* Logo en oscuro: la versión -on-dark (degradado más claro). */
+  --lq-brand-a0: #a8d9c1; --lq-brand-a1: #5aa58c; --lq-brand-a2: #2a7262; --lq-brand-a3: #1a5547;
+  --lq-brand-b0: #c4e6d4; --lq-brand-b1: #5aa58c;
+  --lq-brand-c0: #86c5aa; --lq-brand-c1: #4c957d; --lq-brand-c2: #1a5547;
 
   --shadow-sm: 0 1px 2px rgb(0 0 0 / .3);
   --shadow-md: 0 4px 12px rgb(0 0 0 / .35);

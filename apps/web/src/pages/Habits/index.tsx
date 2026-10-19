@@ -3,12 +3,13 @@
 // líneas; cada hábito se escribe en su línea, el check se traza con tinta y la
 // racha se lleva con marcas de conteo. El resumen de la semana va en notas
 // adhesivas. Completar el último hábito del día cierra la página con confeti.
-// La libreta tiene dos separadores: Hábitos y Obstáculos (lo que quieres dejar),
-// que antes era una zona aparte (/obstaculos llega aquí).
+// La libreta tiene tres separadores: Hábitos, Obstáculos (lo que quieres dejar) y
+// Rituales (secuencias de pasos con modo guiado). Los dos últimos antes eran zonas
+// aparte: /obstaculos y /rituals llegan aquí.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useSearchParams } from 'react-router-dom';
-import { CheckCircle2, Flame, ListChecks, Plus, ShieldAlert, ShieldCheck, Trophy } from 'lucide-react';
+import { CheckCircle2, Flame, ListChecks, Plus, ShieldAlert, ShieldCheck, Sun, Trophy } from 'lucide-react';
 import { item, stagger, zoneExit } from '@/lib/motion';
 import { dayKey, longDate } from '@/lib/lifeMeta';
 import { useAuthStore } from '@/store/authStore';
@@ -19,6 +20,9 @@ import { LOADING_COPY } from '@/lib/loadingCopy';
 import { HabitNotebookRow } from '@/components/habits/HabitNotebookRow';
 import { NotebookSheet, NotebookTabs, StickyNote } from '@/components/habits/NotebookSheet';
 import { ObstacleFormDialog, ObstaclesSheet, OBSTACLE_PERIODS, type ObstaclePeriod } from '@/components/habits/ObstaclesSheet';
+import { RitualsSheet } from '@/components/habits/RitualsSheet';
+import * as ritualsService from '@/services/rituals.service';
+import type { Ritual } from '@/services/rituals.service';
 import { SketchUnderline, ZoneAmbience } from '@/components/ambience';
 import { HabitFormDialog } from '@/components/habits/HabitFormDialog';
 import { CycleHabitsHint } from '@/components/cycle/CycleHints';
@@ -39,7 +43,7 @@ const FILTERS: { value: Filter; label: string }[] = [
 const WEEK_LABELS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 const MILESTONES = [7, 14, 21, 30, 60, 100, 180, 365];
 
-type SheetId = 'habitos' | 'obstaculos';
+type SheetId = 'habitos' | 'obstaculos' | 'rituales';
 const sheetId = (s: SheetId) => `habits-sheet-${s}`;
 
 const isDone = (h: Habit) => Boolean(h.todayCompleted) || h.todayStatus === 'completed';
@@ -77,10 +81,11 @@ export default function HabitsPage() {
   const openUpgrade = usePlanStore((s) => s.openUpgrade);
   const openNew = () => (atLiteLimit ? openUpgrade('habits') : setForm({ open: true, habit: null }));
 
-  // Separador abierto (?tab=obstaculos): así los enlaces y la ruta antigua llegan a su hoja.
-  const sheet: SheetId = searchParams.get('tab') === 'obstaculos' ? 'obstaculos' : 'habitos';
+  // Separador abierto (?tab=obstaculos | rituales): así los enlaces y las rutas antiguas llegan a su hoja.
+  const tabParam = searchParams.get('tab');
+  const sheet: SheetId = tabParam === 'obstaculos' || tabParam === 'rituales' ? tabParam : 'habitos';
   const openSheet = (next: SheetId) => setSearchParams((p) => {
-    if (next === 'obstaculos') p.set('tab', next); else p.delete('tab');
+    if (next === 'habitos') p.delete('tab'); else p.set('tab', next);
     return p;
   }, { replace: true });
 
@@ -120,6 +125,15 @@ export default function HabitsPage() {
     catch { setObstacleState('error'); }
   }, []);
   useEffect(() => { void loadObstacles(); }, [loadObstacles]);
+
+  // Rituales: igual, para el contador de su separador.
+  const [rituals, setRituals] = useState<Ritual[]>([]);
+  const [ritualState, setRitualState] = useState<'loading' | 'error' | 'ready'>('loading');
+  const loadRituals = useCallback(async () => {
+    try { setRituals(await ritualsService.listRituals()); setRitualState('ready'); }
+    catch { setRitualState('error'); }
+  }, []);
+  useEffect(() => { void loadRituals(); }, [loadRituals]);
 
   // ?new=1 (FAB, Topbar, paleta): abre el formulario de nuevo hábito.
   useEffect(() => {
@@ -220,7 +234,7 @@ export default function HabitsPage() {
           <SketchUnderline className="absolute -bottom-1.5 left-0 w-full text-warning md:-bottom-2.5" delay={0.75} />
         </h1>
         <p className="hidden max-w-[520px] text-body-lg text-on-surface-light md:block">
-          Pequeñas acciones, todos los días. Cada hábito completado suma XP a tu personaje.
+          Pequeñas acciones y rituales, todos los días. Cada hábito completado suma XP a tu personaje.
         </p>
         {!loading && !failed && total > 0 && (
           <p className="text-body-md text-on-surface-light md:hidden" aria-live="polite">
@@ -362,6 +376,18 @@ export default function HabitsPage() {
     </StickyNote>
   );
 
+  const ritualsAside = ritualState === 'ready' && rituals.length > 0 && (
+    <StickyNote tilt={0.6} delay={0.2}>
+      <Card as="section" padding="lg" className="flex flex-col gap-3" aria-labelledby="rituals-summary">
+        <IconChip icon={Sun} tone="warning" />
+        <h2 id="rituals-summary" className="text-heading-sm">Uno detrás de otro</h2>
+        <p className="text-body-md text-on-surface">
+          Pulsa <b>Comenzar</b> y sigue cada paso con su cronómetro. Al terminar el último, el ritual suma su recompensa del día.
+        </p>
+      </Card>
+    </StickyNote>
+  );
+
   return (
     <motion.div variants={stagger} initial="initial" animate="animate" exit={zoneExit} className="relative">
       {/* Mesa de trabajo: una lámpara cálida muy tenue sobre la libreta */}
@@ -390,9 +416,15 @@ export default function HabitsPage() {
               tabs={[
                 { value: 'habitos', label: 'Hábitos', icon: CheckCircle2, count: loading ? undefined : total },
                 { value: 'obstaculos', label: 'Obstáculos', icon: ShieldAlert, count: obstacleState === 'ready' ? obstacles.length : undefined },
+                { value: 'rituales', label: 'Rituales', icon: Sun, count: ritualState === 'ready' ? rituals.length : undefined },
               ]}
             />
-            {sheet === 'habitos' ? habitsSheet : (
+            {sheet === 'habitos' ? habitsSheet : sheet === 'rituales' ? (
+              <RitualsSheet
+                list={rituals} state={ritualState} onReload={loadRituals}
+                panelId={`${sheetId('rituales')}-panel`} labelledBy={`${sheetId('rituales')}-tab`}
+              />
+            ) : (
               <ObstaclesSheet
                 list={obstacles} state={obstacleState} period={period} onPeriod={setPeriod} onReload={loadObstacles}
                 onNew={() => setObstacleForm({ open: true, obstacle: null })}
@@ -403,7 +435,7 @@ export default function HabitsPage() {
           </div>
         </div>
         <aside className="flex min-w-0 flex-col gap-8 pt-2 lg:pt-12">
-          {sheet === 'habitos' ? habitsAside : obstaclesAside}
+          {sheet === 'habitos' ? habitsAside : sheet === 'obstaculos' ? obstaclesAside : ritualsAside}
         </aside>
       </motion.div>
       </div>

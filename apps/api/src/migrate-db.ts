@@ -31,6 +31,61 @@ const RECREATION_SQL = [
   ignoreDuplicate(`ALTER TABLE "recreation_entries" ADD CONSTRAINT "recreation_entries_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE`),
 ];
 
+// Idempotent mirror of prisma/migrations/20261027120000_notebooks: la zona Libreta.
+const NOTEBOOKS_SQL = [
+  `CREATE TABLE IF NOT EXISTS "notebooks" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "category" TEXT NOT NULL DEFAULT 'personal',
+    "color" TEXT NOT NULL DEFAULT 'jade',
+    "paper" TEXT NOT NULL DEFAULT 'ruled',
+    "pageCount" INTEGER NOT NULL DEFAULT 20,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "notebooks_pkey" PRIMARY KEY ("id")
+  );`,
+  `CREATE TABLE IF NOT EXISTS "notebook_pages" (
+    "id" TEXT NOT NULL,
+    "notebookId" TEXT NOT NULL,
+    "index" INTEGER NOT NULL,
+    "content" JSONB NOT NULL,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "notebook_pages_pkey" PRIMARY KEY ("id")
+  );`,
+  `CREATE TABLE IF NOT EXISTS "notebook_images" (
+    "id" TEXT NOT NULL,
+    "notebookId" TEXT NOT NULL,
+    "mime" TEXT NOT NULL,
+    "data" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "notebook_images_pkey" PRIMARY KEY ("id")
+  );`,
+  `CREATE INDEX IF NOT EXISTS "notebooks_userId_updatedAt_idx" ON "notebooks"("userId", "updatedAt");`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "notebook_pages_notebookId_index_key" ON "notebook_pages"("notebookId", "index");`,
+  `CREATE INDEX IF NOT EXISTS "notebook_images_notebookId_idx" ON "notebook_images"("notebookId");`,
+  ignoreDuplicate(`ALTER TABLE "notebooks" ADD CONSTRAINT "notebooks_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE`),
+  ignoreDuplicate(`ALTER TABLE "notebook_pages" ADD CONSTRAINT "notebook_pages_notebookId_fkey" FOREIGN KEY ("notebookId") REFERENCES "notebooks"("id") ON DELETE CASCADE ON UPDATE CASCADE`),
+  ignoreDuplicate(`ALTER TABLE "notebook_images" ADD CONSTRAINT "notebook_images_notebookId_fkey" FOREIGN KEY ("notebookId") REFERENCES "notebooks"("id") ON DELETE CASCADE ON UPDATE CASCADE`),
+];
+
+// Idempotent mirror of prisma/migrations/20261028120000_reminder_snoozes: avisos pospuestos.
+const REMINDER_SNOOZES_SQL = [
+  `CREATE TABLE IF NOT EXISTS "reminder_snoozes" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "tag" TEXT NOT NULL,
+    "data" JSONB NOT NULL,
+    "dueAt" TIMESTAMP(3) NOT NULL,
+    "sentAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "reminder_snoozes_pkey" PRIMARY KEY ("id")
+  );`,
+  `CREATE INDEX IF NOT EXISTS "reminder_snoozes_dueAt_sentAt_idx" ON "reminder_snoozes"("dueAt", "sentAt");`,
+  `CREATE INDEX IF NOT EXISTS "reminder_snoozes_userId_tag_idx" ON "reminder_snoozes"("userId", "tag");`,
+  ignoreDuplicate(`ALTER TABLE "reminder_snoozes" ADD CONSTRAINT "reminder_snoozes_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE`),
+];
+
 // Idempotent mirror of prisma/migrations/20261024120000_gender_cycle_and_streak_shields:
 // género declarado, escudo de la racha general y la zona Ciclo.
 const GENDER_CYCLE_AND_SHIELDS_SQL = [
@@ -388,6 +443,11 @@ async function migrate() {
 
   // Idempotent mirror of prisma/migrations/20261023120000_recreation_zone.
   for (const sql of RECREATION_SQL) await prisma.$executeRawUnsafe(sql);
+
+  // Idempotent mirror of prisma/migrations/20261027120000_notebooks.
+  for (const sql of NOTEBOOKS_SQL) await prisma.$executeRawUnsafe(sql);
+  // Idempotent mirror of prisma/migrations/20261028120000_reminder_snoozes.
+  for (const sql of REMINDER_SNOOZES_SQL) await prisma.$executeRawUnsafe(sql);
 
   // Runs last so tables created above are covered too.
   await prisma.$executeRawUnsafe(RLS_LOCKDOWN_SQL);

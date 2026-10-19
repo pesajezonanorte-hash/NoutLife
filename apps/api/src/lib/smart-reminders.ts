@@ -1,5 +1,6 @@
 // Avisos inteligentes: horarios que la persona ajusta en Ajustes (Coliseo, cuidado,
-// ciclo, agua, comidas y sabiduría), textos discretos y cálculos de récords. Sin base
+// ciclo, agua, comidas, sabiduría, pausas activas y hábitos pendientes), textos
+// discretos y cálculos de récords. Sin base
 // de datos: lo que lee y escribe la base vive en services/smart-reminder.service.ts.
 import { DEFAULT_TIMEZONE } from './calendar';
 
@@ -18,7 +19,14 @@ export interface SmartReminderSettings {
   meals: { enabled: boolean; times: string[] };
   /** Cita del día, elegida según el progreso de la última semana. */
   wisdom: { enabled: boolean; time: string };
+  /** Pausas activas cada `everyMinutes` entre `from` y `to` (sin la de `from`); `workdays`: solo de lunes a viernes. */
+  breaks: { enabled: boolean; everyMinutes: BreakMinutes; from: string; to: string; workdays: boolean };
+  /** Hábitos de hoy sin marcar: un aviso a esta hora si queda alguno. */
+  habits: { enabled: boolean; time: string };
 }
+
+export const BREAK_MINUTES = [30, 45, 60, 90, 120] as const;
+export type BreakMinutes = (typeof BREAK_MINUTES)[number];
 
 export const DEFAULT_SMART_SETTINGS: SmartReminderSettings = {
   coliseo: { time: null },
@@ -27,6 +35,9 @@ export const DEFAULT_SMART_SETTINGS: SmartReminderSettings = {
   hydration: { enabled: false, everyHours: 2, from: '09:00', to: '21:00' },
   meals: { enabled: false, times: ['09:00', '14:00', '20:00'] },
   wisdom: { enabled: true, time: '08:00' },
+  breaks: { enabled: false, everyMinutes: 60, from: '09:00', to: '18:00', workdays: true },
+  // Mismo aviso que antes iba fijo a las 21:00 para todos: ahora la hora se elige.
+  habits: { enabled: true, time: '21:00' },
 };
 
 const HHMM = /^([01]\d|2[0-3]):([0-5]\d)$/;
@@ -55,6 +66,9 @@ export function sanitizeSmartSettings(raw: unknown): SmartReminderSettings {
   const hydration = sec('hydration');
   const meals = sec('meals');
   const wisdom = sec('wisdom');
+  const breaks = sec('breaks');
+  const habits = sec('habits');
+  const breakEvery = Number(breaks.everyMinutes);
 
   const hours = Number(hydration.everyHours);
   const times = Array.isArray(meals.times)
@@ -73,6 +87,14 @@ export function sanitizeSmartSettings(raw: unknown): SmartReminderSettings {
     },
     meals: { enabled: bool(meals.enabled, d.meals.enabled), times },
     wisdom: { enabled: bool(wisdom.enabled, d.wisdom.enabled), time: hhmm(wisdom.time, d.wisdom.time) },
+    breaks: {
+      enabled: bool(breaks.enabled, d.breaks.enabled),
+      everyMinutes: (BREAK_MINUTES as readonly number[]).includes(breakEvery) ? (breakEvery as BreakMinutes) : d.breaks.everyMinutes,
+      from: hhmm(breaks.from, d.breaks.from),
+      to: hhmm(breaks.to, d.breaks.to),
+      workdays: bool(breaks.workdays, d.breaks.workdays),
+    },
+    habits: { enabled: bool(habits.enabled, d.habits.enabled), time: hhmm(habits.time, d.habits.time) },
   };
 }
 
@@ -105,18 +127,27 @@ export function inWindow(nowMinutes: number, target: number) {
 }
 
 /**
- * Minutos del día de cada aviso de agua: desde `from` cada `everyHours` horas hasta `to`.
+ * Minutos del día desde `from` cada `stepMinutes` hasta `to` (ambos incluidos si caen).
  * Si `to` es anterior a `from`, el rango cruza medianoche.
  */
-export function hydrationSlots(from: string, to: string, everyHours: number): number[] {
+export function slotsEvery(from: string, to: string, stepMinutes: number): number[] {
   const start = parseHHMM(from);
   const end = parseHHMM(to);
-  if (start === null || end === null || everyHours < 1) return [];
+  if (start === null || end === null || stepMinutes < 1) return [];
   const span = end >= start ? end - start : end + 1440 - start;
-  const step = everyHours * 60;
   const out: number[] = [];
-  for (let offset = 0; offset <= span; offset += step) out.push((start + offset) % 1440);
+  for (let offset = 0; offset <= span; offset += stepMinutes) out.push((start + offset) % 1440);
   return out;
+}
+
+/** Minutos del día de cada aviso de agua: desde `from` cada `everyHours` horas hasta `to`. */
+export function hydrationSlots(from: string, to: string, everyHours: number): number[] {
+  return everyHours < 1 ? [] : slotsEvery(from, to, everyHours * 60);
+}
+
+/** Pausas activas: la primera llega un intervalo después de empezar (a la hora de empezar no hace falta). */
+export function breakSlots(from: string, to: string, everyMinutes: number): number[] {
+  return slotsEvery(from, to, everyMinutes).slice(1);
 }
 
 // ─── Textos ───────────────────────────────────────────────────────────────────
@@ -126,6 +157,15 @@ export const CYCLE_COPY = {
   upcoming: { title: 'Recordatorio personal', body: 'Revisa tus sugerencias de hoy en tu calendario.', link: '/cycle' },
   phase: { title: 'Recordatorio personal', body: 'Tus sugerencias de entrenamiento y descanso se actualizaron.', link: '/cycle' },
 } as const;
+
+/** Pausas activas: un consejo distinto en cada franja del día. */
+export const BREAK_TIPS = [
+  'Levántate, estira la espalda y mira a lo lejos 20 segundos.',
+  'Suelta los hombros y respira hondo tres veces. Un minuto basta.',
+  'Camina un poco y bebe agua antes de seguir.',
+  'Estira el cuello y las muñecas: 30 segundos por lado.',
+  'Cierra los ojos un momento y relaja la mandíbula.',
+] as const;
 
 export const CARE_COPY: Record<'morning' | 'night', { body: string }> = {
   morning: { body: 'Empieza el día con tu rutina. Te toma pocos minutos.' },

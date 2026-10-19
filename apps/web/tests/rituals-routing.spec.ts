@@ -17,36 +17,22 @@ async function login(page: import('@playwright/test').Page) {
   await page.waitForURL((location) => !location.pathname.endsWith('/login'), { timeout: 20_000 });
 }
 
-test.describe('Dedicated ritual routing', () => {
+test.describe('Rituals inside the Habits notebook', () => {
   test.skip(!baseUrl || !email || !password, 'Set NOUTLIFE_E2E_BASE_URL, NOUTLIFE_E2E_EMAIL and NOUTLIFE_E2E_PASSWORD.');
 
-  test('CommandPalette opens the dedicated Rituals page and legacy habit query is inert', async ({ page }) => {
+  test('/rituals and /rituales open the Rituales tab of Habits', async ({ page }) => {
     await login(page);
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto(url('/'), { waitUntil: 'networkidle' });
-
-    await page.getByTitle('Barra de comandos (Ctrl+K)').click();
-    const commandInput = page.getByPlaceholder('Buscar o escribir un comando...');
-    await expect(commandInput).toBeVisible();
-    await commandInput.fill('ritual');
-    await page.getByRole('button', { name: /rituales.*rutinas de vida/i }).click();
-
-    await expect(page).toHaveURL(/\/rituals$/);
-    await expect(page.getByRole('heading', { name: 'Rituales', exact: true })).toBeVisible();
-
-    // Spanish remains a canonical alias for the same dedicated screen.
-    await page.goto(url('/rituales'), { waitUntil: 'networkidle' });
-    await expect(page).toHaveURL(/\/rituals$/);
-    await expect(page.getByRole('heading', { name: 'Rituales', exact: true })).toBeVisible();
-
-    // The old query is harmless but cannot revive System A inside Habits.
-    await page.goto(url('/habits?filter=ritual'), { waitUntil: 'networkidle' });
-    await expect(page.getByText('TUS HÁBITOS DIARIOS')).toBeVisible();
-    await expect(page.getByText('TUS RITUALES')).toHaveCount(0);
+    for (const path of ['/rituals', '/rituales']) {
+      await page.goto(url(path), { waitUntil: 'networkidle' });
+      await expect(page).toHaveURL(/\/habits\?tab=rituales$/);
+      await expect(page.getByRole('tab', { name: /rituales/i })).toHaveAttribute('aria-selected', 'true');
+    }
+    // Rituales ya no tiene entrada propia en la navegación.
+    await expect(page.getByRole('link', { name: /^rituales$/i })).toHaveCount(0);
   });
 });
 
-test.describe('Dedicated ritual execution', () => {
+test.describe('Ritual execution', () => {
   test.skip(
     !baseUrl || !email || !password || !permitRitualMutations,
     'Set NOUTLIFE_E2E_BASE_URL, NOUTLIFE_E2E_EMAIL, NOUTLIFE_E2E_PASSWORD and NOUTLIFE_E2E_RITUAL_MUTATIONS=1 to run the mutation check.',
@@ -58,14 +44,14 @@ test.describe('Dedicated ritual execution', () => {
     const listResponse = page.waitForResponse((response) => (
       response.request().method() === 'GET' && /\/api\/v1\/rituals(?:\?.*)?$/.test(response.url())
     ));
-    await page.goto(url('/rituals'), { waitUntil: 'networkidle' });
+    await page.goto(url('/habits?tab=rituales'), { waitUntil: 'networkidle' });
     const initialResponse = await listResponse;
     const initialRituals = await initialResponse.json() as Array<{ id: string }>;
     test.skip(initialRituals.length > 0, 'Use an empty, disposable E2E account before seeding presets.');
 
     const listUrl = initialResponse.url();
     const authorization = initialResponse.request().headers().authorization;
-    expect(authorization, 'The app must authenticate the dedicated ritual request.').toBeTruthy();
+    expect(authorization, 'The app must authenticate the ritual request.').toBeTruthy();
     const authHeaders = { authorization: authorization! };
     const seeded: Array<{ id: string }> = [];
 
@@ -80,13 +66,13 @@ test.describe('Dedicated ritual execution', () => {
       seeded.push(...seededRituals);
       expect(seeded.length).toBeGreaterThan(0);
 
-      const execute = page.getByRole('button', { name: /ejecutar/i }).first();
+      const execute = page.getByRole('button', { name: /^(comenzar|repetir)$/i }).first();
       await expect(execute).toBeVisible();
 
       async function completeExecution() {
         await execute.click();
         for (let step = 0; step < 12; step += 1) {
-          const complete = page.getByRole('button', { name: /completar ritual/i });
+          const complete = page.getByRole('button', { name: /^terminar$/i });
           if (await complete.isVisible().catch(() => false)) {
             const completedResponse = page.waitForResponse((response) => (
               response.request().method() === 'POST' && /\/api\/v1\/rituals\/[^/]+\/complete(?:\?.*)?$/.test(response.url())
@@ -94,14 +80,14 @@ test.describe('Dedicated ritual execution', () => {
             await complete.click();
             return completedResponse;
           }
-          await page.getByRole('button', { name: /^hecho/i }).click();
+          await page.getByRole('button', { name: /siguiente paso/i }).click();
         }
         throw new Error('ExecutionMode did not reach the completion action.');
       }
 
       const first = await (await completeExecution()).json() as { alreadyDone: boolean; xpEarned: number; goldEarned: number };
       expect(first).toMatchObject({ alreadyDone: false, xpEarned: 30, goldEarned: 5 });
-      await expect(page.getByRole('button', { name: /ejecutar/i }).first()).toBeVisible();
+      await expect(page.getByRole('button', { name: /^(comenzar|repetir)$/i }).first()).toBeVisible();
 
       const second = await (await completeExecution()).json() as { alreadyDone: boolean; xpEarned: number; goldEarned: number };
       expect(second).toMatchObject({ alreadyDone: true, xpEarned: 0, goldEarned: 0 });

@@ -52,6 +52,16 @@ function copyFor(reason: UpgradeReason, sub: Subscription | null | undefined): {
       return sub?.status === 'trialing'
         ? { title: 'Tu prueba Pro ya empezó', body: `Vincula un método de pago para seguir sin cortes. El primer cobro es el ${longDay(sub.trialEndsAt)}.` }
         : { title: `Prueba NoutLife Pro ${TRIAL_DAYS} días gratis`, body: 'Vincula un método de pago y empieza hoy. Durante la prueba no se cobra nada.' };
+    case 'notebooks':
+      return { title: 'Libretas ilimitadas con Pro', body: `NoutLife Lite admite ${LITE_LIMITS.notebooks} libretas. Las que ya tienes siguen ahí.` };
+    case 'notebook-pages':
+      return { title: 'Páginas sin límite con Pro', body: `En Lite cada libreta tiene hasta ${LITE_LIMITS.notebookPages} páginas. Lo que ya escribiste sigue ahí.` };
+    case 'notebook-draw':
+      return { title: 'El dibujo libre es de Pro', body: 'Con Pro dibujas con pluma, marcador y borrador, en todas las tintas. Lo que ya tienes sigue ahí.' };
+    case 'notebook-images':
+      return { title: 'Imágenes en la libreta con Pro', body: 'Con Pro pegas las fotos que quieras y las mueves por la página.' };
+    case 'notebook-stickies':
+      return { title: 'Notas de colores con Pro', body: 'Con Pro eliges el color de cada nota adhesiva. Las amarillas siguen siendo gratis.' };
     default:
       // Un motivo nuevo de la API que esta versión aún no conoce.
       return { title: 'Esto es de NoutLife Pro', body: 'Activa Pro para desbloquearlo. Lo que ya guardaste sigue ahí.' };

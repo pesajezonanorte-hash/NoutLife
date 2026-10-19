@@ -19,6 +19,7 @@ import { useSocialPulseSync } from '@/components/social/SocialEntry';
 import { ZoneVisitors } from '@/components/social/ZoneVisitors';
 import { PigeonLayer } from '@/components/social/CarrierPigeon';
 import { MessagePings } from '@/components/social/MessagePings';
+import { ReminderPings } from '@/components/ui/ReminderPings';
 import { ZONE_TOOLTIPS } from '@/lib/gameProgress';
 import { proZoneOf } from '@/lib/plan';
 import { Button, Toaster } from '@/components/ui/lq';
@@ -189,12 +190,12 @@ export function AppShell({ children }: { children: ReactNode }) {
         <main
           id="main"
           tabIndex={-1}
-          className="mx-auto w-full min-w-0 max-w-[1120px] flex-1 px-4 pb-[calc(10rem+env(safe-area-inset-bottom))] pt-2 outline-none md:px-8 md:pb-12 md:pt-8 lg:pt-12"
+          className="mx-auto w-full min-w-0 max-w-[1120px] flex-1 px-4 pb-6 pt-2 outline-none md:px-8 md:pb-12 md:pt-8 lg:pt-12"
         >
           <ZoneTip />
           {children}
         </main>
-        <LegalFooter className="pb-28 md:pb-6" />
+        <LegalFooter className="pb-[calc(7rem+env(safe-area-inset-bottom))] md:pb-6" />
         {/* Tus amigos que están en esta misma zona pasean por el borde de abajo. */}
         <ZoneVisitors />
       </div>
@@ -210,6 +211,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <Toaster />
       <PigeonLayer />
       <MessagePings />
+      <ReminderPings />
       <OfflineIndicator />
       <ScrollToTop />
       <LevelUpOverlay />

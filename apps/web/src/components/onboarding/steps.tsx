@@ -67,7 +67,7 @@ export function AvatarContent({ config, onChange, celebrate = 0 }: { config: Ava
   return (
     <motion.div
       initial={{ opacity: 0, y: 16, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 260, damping: 28 }}
-      className="flex h-[calc(100dvh-340px)] min-h-[560px] flex-col overflow-hidden rounded-[28px] border border-border bg-background shadow-lg md:h-[calc(100dvh-370px)] md:min-h-[560px]"
+      className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[28px] border border-border bg-background shadow-lg"
     >
       <AvatarStudio config={config} onChange={onChange} celebrate={celebrate} doneLabel="¡Listo!" />
     </motion.div>

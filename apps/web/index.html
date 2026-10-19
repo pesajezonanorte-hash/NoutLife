@@ -11,7 +11,8 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="NoutLife" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content, user-scalable=no" />
+    <!-- Sensación de app: sin zoom de pellizco ni de doble toque (iOS además lo bloquea en main.tsx y globals.css). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
     <meta name="theme-color" content="#f9f7f3" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#070d0a" media="(prefers-color-scheme: dark)" />
     <meta name="title" content="NoutLife | El RPG de tu vida real" />
@@ -75,13 +76,16 @@
          pintado, antes del JS; SplashScreen (React) solo decide cuándo desvanecerlo.
          Solo transform/opacity (+ stroke-dashoffset para dibujar el nombre). -->
     <style>
-      #lq-boot { --bg: 249 247 243; --fg: 14 29 22; --mt: 79 107 92; --pr: 30 54 41;
-        --a0: #5fae97; --a1: #2f7565; --a2: #0a3a33; --a3: #05302b; --b0: #8ec7ad; --b1: #2c7362; --c0: #4f9c84; --c1: #2a6f60; --c2: #06302b;
+      /* Colores del tema puesto (tokens.css / skins.css, ya cargados en producción); los literales son Aurora. */
+      #lq-boot { --bg: var(--lq-background, 249 247 243); --fg: var(--lq-on-background, 14 29 22); --mt: var(--lq-on-surface-light, 79 107 92); --pr: var(--lq-primary, 30 54 41);
+        --a0: var(--lq-brand-a0, #5fae97); --a1: var(--lq-brand-a1, #2f7565); --a2: var(--lq-brand-a2, #0a3a33); --a3: var(--lq-brand-a3, #05302b);
+        --b0: var(--lq-brand-b0, #8ec7ad); --b1: var(--lq-brand-b1, #2c7362); --c0: var(--lq-brand-c0, #4f9c84); --c1: var(--lq-brand-c1, #2a6f60); --c2: var(--lq-brand-c2, #06302b);
         position: fixed; inset: 0; z-index: 300; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px;
         padding: 0 16px; background: rgb(var(--bg)); color: rgb(var(--fg)); font-family: Montserrat, system-ui, sans-serif; overflow: hidden;
         transition: opacity .55s cubic-bezier(.22,1,.36,1), transform .55s cubic-bezier(.22,1,.36,1); }
-      html.dark #lq-boot { --bg: 7 13 10; --fg: 230 242 232; --mt: 143 174 156; --pr: 133 199 161;
-        --a0: #a8d9c1; --a1: #5aa58c; --a2: #2a7262; --a3: #1a5547; --b0: #c4e6d4; --b1: #5aa58c; --c0: #86c5aa; --c1: #4c957d; --c2: #1a5547; }
+      html.dark #lq-boot { --bg: var(--lq-background, 7 13 10); --fg: var(--lq-on-background, 230 242 232); --mt: var(--lq-on-surface-light, 143 174 156); --pr: var(--lq-primary, 133 199 161);
+        --a0: var(--lq-brand-a0, #a8d9c1); --a1: var(--lq-brand-a1, #5aa58c); --a2: var(--lq-brand-a2, #2a7262); --a3: var(--lq-brand-a3, #1a5547);
+        --b0: var(--lq-brand-b0, #c4e6d4); --b1: var(--lq-brand-b1, #5aa58c); --c0: var(--lq-brand-c0, #86c5aa); --c1: var(--lq-brand-c1, #4c957d); --c2: var(--lq-brand-c2, #1a5547); }
       #lq-boot.out { opacity: 0; transform: scale(1.02); pointer-events: none; }
       #lq-boot .mk { position: relative; width: 128px; height: 150px; animation: lqb-settle .7s cubic-bezier(.34,1.56,.64,1) 1.62s both; }
       #lq-boot .mk svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; opacity: 0;

@@ -261,18 +261,18 @@ type History = ReturnType<typeof useLookHistory>;
 function StageBar({ look, history, onRoll }: { look: PixelLook; history: History; onRoll: () => void }) {
   const [spin, setSpin] = useState(0);
   return (
-    <div className="flex items-center justify-center gap-1.5 sm:gap-2">
+    <div className="flex items-center justify-center gap-1 sm:gap-2">
       <SegmentedControl
-        role="radiogroup" label="Tipo de cuerpo" className="w-48 sm:w-56"
+        role="radiogroup" label="Tipo de cuerpo" className="shrink-0 sm:w-56 [&_button]:text-label-md sm:[&_button]:text-label-lg"
         value={look.body} onChange={(b: Body) => history.commit(switchBody(look, b))}
         options={[{ value: 'male', label: 'Masculino' }, { value: 'female', label: 'Femenino' }]}
       />
-      <Button variant="secondary" size="sm" aria-label="Personaje aleatorio" onClick={() => { setSpin((s) => s + 1); onRoll(); }} className="px-3">
+      <Button variant="secondary" size="sm" aria-label="Personaje aleatorio" onClick={() => { setSpin((s) => s + 1); onRoll(); }} className="px-2.5 sm:px-3">
         <motion.span animate={{ rotate: spin * 360 }} transition={{ type: 'spring', stiffness: 160, damping: 14 }} className="flex"><Dices aria-hidden className="size-5" strokeWidth={1.75} /></motion.span>
         <span className="hidden sm:inline">Aleatorio</span>
       </Button>
-      <Button variant="icon" aria-label="Deshacer" disabled={!history.canUndo} onClick={history.undo}><Undo2 aria-hidden className="size-5" strokeWidth={1.75} /></Button>
-      <Button variant="icon" aria-label="Rehacer" disabled={!history.canRedo} onClick={history.redo}><Redo2 aria-hidden className="size-5" strokeWidth={1.75} /></Button>
+      <Button variant="icon" aria-label="Deshacer" disabled={!history.canUndo} onClick={history.undo} className="size-10 sm:size-11"><Undo2 aria-hidden className="size-5" strokeWidth={1.75} /></Button>
+      <Button variant="icon" aria-label="Rehacer" disabled={!history.canRedo} onClick={history.redo} className="size-10 sm:size-11"><Redo2 aria-hidden className="size-5" strokeWidth={1.75} /></Button>
     </div>
   );
 }
@@ -325,14 +325,15 @@ export function AvatarPixelEditor({ config, onChange }: EditorProps) {
 export function AvatarStudio({ config, onChange, celebrate = 0, doneLabel }: EditorProps & { celebrate?: number; doneLabel?: string }) {
   const { look, history, tab, setTab, roll } = useEditor(config, onChange);
   return (
-    <div className="grid min-h-0 flex-1 grid-rows-[minmax(300px,46dvh)_minmax(0,1fr)] md:grid-cols-[minmax(0,1fr)_minmax(380px,500px)] md:grid-rows-1">
+    // Móvil: el escenario se queda con un tercio de la pantalla y el panel de opciones con el resto (con su propio scroll).
+    <div className="grid min-h-0 flex-1 grid-rows-[minmax(170px,32dvh)_minmax(0,1fr)] md:grid-cols-[minmax(0,1fr)_minmax(380px,500px)] md:grid-rows-1">
       <div className="relative flex min-h-0 flex-col">
         <PixelStage look={look} focus={FOCUS[tab]} celebrate={celebrate} doneLabel={doneLabel} className="min-h-0 flex-1 pb-16 md:pb-24" />
         <motion.div
           initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ type: 'spring', stiffness: 260, damping: 26, delay: 0.2 }}
-          className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center px-3 md:bottom-8"
+          className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center px-2 sm:px-3 md:bottom-8"
         >
-          <div className="pointer-events-auto rounded-2xl border border-border bg-background/85 p-1.5 shadow-lg backdrop-blur-md">
+          <div className="pointer-events-auto rounded-2xl border border-border bg-background/85 p-1 shadow-lg backdrop-blur-md sm:p-1.5">
             <StageBar look={look} history={history} onRoll={roll} />
           </div>
         </motion.div>

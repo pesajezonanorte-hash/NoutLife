@@ -98,6 +98,9 @@ export async function resetAccountData(userId: string): Promise<AccountResetSumm
     await remove('nutritionGoals', () => tx.nutritionGoal.deleteMany({ where: { userId } }));
     await remove('sleepLogs', () => tx.sleepLog.deleteMany({ where: { userId } }));
     await remove('journalEntries', () => tx.journalEntry.deleteMany({ where: { userId } }));
+    // Libreta: sus páginas e imágenes se van con ella (ON DELETE CASCADE).
+    await remove('notebooks', () => tx.notebook.deleteMany({ where: { userId } }));
+    await remove('reminderSnoozes', () => tx.reminderSnooze.deleteMany({ where: { userId } }));
     await remove('learningItems', () => tx.learningItem.deleteMany({ where: { userId } }));
     await remove('routines', () => tx.routine.deleteMany({ where: { userId } }));
     await remove('financialGoals', () => tx.financialGoal.deleteMany({ where: { userId } }));

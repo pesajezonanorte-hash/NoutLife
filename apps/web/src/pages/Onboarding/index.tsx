@@ -66,10 +66,13 @@ function Shell({ step, title, subtitle, children, footer, wide }: { step: number
   // El paso del avatar usa el estudio a todo lo ancho; el resto, columna de lectura.
   const width = wide ? 'max-w-[1200px]' : 'max-w-[640px]';
 
+  // Pantalla de app: mide exactamente el alto visible (100dvh). Cabecera y botones
+  // quedan fijos; si un paso no cabe, solo se desplaza su contenido (el estudio del
+  // avatar desplaza solo su panel de opciones).
   return (
-    <div className="flex min-h-dvh flex-col bg-background text-on-background">
-      <header className={cn('mx-auto flex w-full flex-col gap-4 px-4 pt-6 md:pt-10', width)}>
-        <BrandLockup />
+    <div className="flex h-dvh flex-col overflow-hidden bg-background text-on-background">
+      <header className={cn('mx-auto flex w-full shrink-0 flex-col gap-3 px-4 pt-[max(1rem,env(safe-area-inset-top))] md:gap-4 md:pt-10', width)}>
+        <BrandLockup markSize={30} />
         <div className="flex flex-col gap-2">
           <span className="text-label-lg text-on-surface-light">Paso {step + 1} de {TOTAL_STEPS}</span>
           <div role="progressbar" aria-label="Progreso del registro" aria-valuemin={1} aria-valuemax={TOTAL_STEPS} aria-valuenow={step + 1}
@@ -81,26 +84,26 @@ function Shell({ step, title, subtitle, children, footer, wide }: { step: number
         </div>
       </header>
 
-      <main id="main" className={cn('mx-auto flex w-full flex-1 flex-col px-4 pb-6', wide ? 'pt-6' : 'pt-8', width)}>
+      <main id="main" className={cn('mx-auto flex min-h-0 w-full flex-1 flex-col px-4 pb-4', wide ? 'pt-4 md:pt-6' : 'overflow-y-auto overscroll-contain pt-6 md:pt-8', width)}>
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={step}
             initial={{ opacity: 0, x: 24 }}
             animate={{ opacity: 1, x: 0, transition: { duration: 0.25, ease } }}
             exit={{ opacity: 0, x: -24, transition: { duration: 0.15 } }}
-            className={cn('flex flex-col', wide ? 'gap-5' : 'gap-8')}
+            className={cn('flex flex-col', wide ? 'min-h-0 flex-1 gap-3 md:gap-5' : 'gap-6 md:gap-8')}
           >
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1 md:gap-2">
               <StepTitle focus={step !== initialStep.current}>{title}</StepTitle>
-              <p className="text-body-lg text-on-surface-light">{subtitle}</p>
+              <p className={cn('text-body-lg text-on-surface-light', wide && 'hidden sm:block')}>{subtitle}</p>
             </div>
             {children}
           </motion.div>
         </AnimatePresence>
       </main>
 
-      <footer className="lq-bar-glass sticky bottom-0 border-t border-border px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
-        <div className={cn('mx-auto flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-between', width)}>{footer}</div>
+      <footer className="lq-bar-glass shrink-0 border-t border-border px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
+        <div className={cn('mx-auto flex w-full items-center justify-between gap-3', width)}>{footer}</div>
       </footer>
     </div>
   );
@@ -110,7 +113,7 @@ const back = (onClick: () => void, label = 'Atrás') => (
   <Button variant="ghost" onClick={onClick}><ArrowLeft aria-hidden className="size-5" strokeWidth={1.75} />{label}</Button>
 );
 const next = (onClick: () => void, label = 'Siguiente') => (
-  <Button size="lg" onClick={onClick} className="sm:min-w-[200px]">{label}<ArrowRight aria-hidden className="size-5" strokeWidth={1.75} /></Button>
+  <Button size="lg" onClick={onClick} className="flex-1 sm:flex-none sm:min-w-[200px]">{label}<ArrowRight aria-hidden className="size-5" strokeWidth={1.75} /></Button>
 );
 
 export default function OnboardingPage() {
@@ -269,7 +272,7 @@ export default function OnboardingPage() {
         step={3} title="¿Qué quieres mejorar?" subtitle={`Elige hasta ${MAX_GOALS} áreas para empezar.`}
         footer={<>
           {back(() => go(2))}
-          <Button size="lg" disabled={goalCategories.length === 0} onClick={() => go(4)} className="sm:min-w-[200px]">
+          <Button size="lg" disabled={goalCategories.length === 0} onClick={() => go(4)} className="flex-1 sm:flex-none sm:min-w-[200px]">
             Siguiente<ArrowRight aria-hidden className="size-5" strokeWidth={1.75} />
           </Button>
         </>}

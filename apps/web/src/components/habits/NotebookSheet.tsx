@@ -17,7 +17,8 @@ export interface NotebookTab<T extends string> { value: T; label: string; icon: 
  * Separadores de la libreta: pestañas de papel que asoman sobre la hoja. La
  * activa es del mismo papel que la hoja y se funde con ella; las demás quedan
  * detrás, un poco más abajo. Flechas izquierda/derecha cambian de pestaña.
- * Cada pestaña controla la hoja con id `${idOf(valor)}-panel`.
+ * Cada pestaña controla la hoja con id `${idOf(valor)}-panel`. En móvil van sin ícono y,
+ * si aun así no caben (pantallas de 320 px), la fila se desliza con el dedo.
  */
 export function NotebookTabs<T extends string>({ value, onChange, tabs, label, idOf }: {
   value: T;
@@ -37,7 +38,7 @@ export function NotebookTabs<T extends string>({ value, onChange, tabs, label, i
     refs.current[next]?.focus();
   };
   return (
-    <div role="tablist" aria-label={label} className="relative z-[1] -mb-px flex gap-1.5">
+    <div role="tablist" aria-label={label} className="relative z-[1] -mb-px flex gap-1 overflow-x-auto [scrollbar-width:none] sm:gap-1.5 sm:overflow-visible [&::-webkit-scrollbar]:hidden">
       {tabs.map((t, i) => {
         const on = t.value === value;
         const Icon = t.icon;
@@ -54,7 +55,7 @@ export function NotebookTabs<T extends string>({ value, onChange, tabs, label, i
             onClick={() => onChange(t.value)}
             onKeyDown={(e) => onKey(e, i)}
             className={cn(
-              'relative inline-flex min-h-11 items-center gap-2 rounded-t-xl border border-b-0 px-4 text-label-lg',
+              'relative inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-t-xl border border-b-0 px-2.5 text-label-lg sm:gap-2 sm:px-4',
               'transition-[transform,color,background-color] duration-[325ms] ease-[var(--lq-ease-snappy)] [.reduce-motion_&]:transition-none',
               on
                 ? 'lq-tex-paper border-border text-on-background'
@@ -63,7 +64,7 @@ export function NotebookTabs<T extends string>({ value, onChange, tabs, label, i
           >
             {/* Cinta de color en el borde del separador activo */}
             {on && <motion.span layoutId={ink} aria-hidden="true" className="absolute inset-x-3 top-0 h-[3px] rounded-b-full bg-warning" transition={springs.natural} />}
-            <Icon aria-hidden className="size-4" strokeWidth={1.75} />
+            <Icon aria-hidden className="hidden size-4 sm:block" strokeWidth={1.75} />
             {t.label}
             {t.count !== undefined && <span className="font-mono text-label-md tabular-nums text-on-surface-light">{t.count}</span>}
           </button>

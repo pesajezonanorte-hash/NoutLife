@@ -17,6 +17,10 @@ export interface SmartReminderSettings {
   hydration: { enabled: boolean; everyHours: 1 | 2 | 3 | 4; from: string; to: string };
   meals: { enabled: boolean; times: string[] };
   wisdom: { enabled: boolean; time: string };
+  /** Pausas activas durante la jornada (la primera, un intervalo después de `from`). */
+  breaks: { enabled: boolean; everyMinutes: 30 | 45 | 60 | 90 | 120; from: string; to: string; workdays: boolean };
+  /** Hábitos de hoy sin marcar: un aviso a esta hora. */
+  habits: { enabled: boolean; time: string };
 }
 
 /** Cambio parcial: basta con la zona (y dentro, el campo) que se quiere cambiar. */
@@ -153,6 +157,14 @@ export async function getNotificationPreferences(): Promise<NotificationPreferen
 export async function updateNotificationPreferences(prefs: Partial<Omit<NotificationPreferences, 'reminderSettings'>> & { categoryPreferences?: NotificationCategoryPreference[]; reminderSettings?: SmartReminderPatch }) {
   const { data } = await api.patch<{ preferences: NotificationPreferences }>('/notifications/preferences', prefs);
   return data.preferences;
+}
+
+/** Pospone un aviso 10 min: el servidor lo vuelve a enviar a su hora, aunque la app esté cerrada. */
+export async function snoozeReminder(alert: { tag: string; title: string; body?: string; link?: string; quick?: string; quickRef?: string; day?: string; quiet?: boolean }): Promise<void> {
+  await api.post('/notifications/snooze', {
+    tag: alert.tag, title: alert.title, body: alert.body ?? '', link: alert.link, quick: alert.quick, quickRef: alert.quickRef, day: alert.day,
+    priority: alert.quiet ? 'low' : 'normal',
+  });
 }
 
 export async function sendTestNotification(): Promise<void> {

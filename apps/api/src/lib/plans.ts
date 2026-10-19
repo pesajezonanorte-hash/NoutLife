@@ -24,7 +24,22 @@ export const LITE_LIMITS = {
   activeRoutines: 3,
   /** Días de historial y estadísticas visibles. */
   historyDays: 5,
+  /** Libretas que se pueden crear. */
+  notebooks: 2,
+  /** Páginas por libreta (Pro no tiene límite). */
+  notebookPages: 10,
 } as const;
+
+/** Candados de la Libreta en Lite (la API responde 402 con `lock`). */
+export type NotebookLock = 'notebooks' | 'notebook-pages' | 'notebook-draw' | 'notebook-images' | 'notebook-stickies';
+
+export const NOTEBOOK_LOCK_MESSAGES: Record<NotebookLock, string> = {
+  notebooks: `NoutLife Lite admite ${LITE_LIMITS.notebooks} libretas. Con Pro no hay límite.`,
+  'notebook-pages': `NoutLife Lite admite ${LITE_LIMITS.notebookPages} páginas por libreta. Con Pro, las que quieras.`,
+  'notebook-draw': 'Dibujar en la libreta es de NoutLife Pro.',
+  'notebook-images': 'Pegar imágenes en la libreta es de NoutLife Pro.',
+  'notebook-stickies': 'Las notas adhesivas de colores son de NoutLife Pro.',
+};
 
 /**
  * Zonas solo de Pro (requireProZone). En Lite quedan con candado: lo guardado

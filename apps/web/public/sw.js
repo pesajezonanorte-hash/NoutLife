@@ -30,6 +30,39 @@ async function foregroundChatIsOpen(clients, chatKey) {
   return responses.some(Boolean);
 }
 
+// Con Noutlife a la vista, los recordatorios se ven dentro de la app (una nota con
+// una campana suave, components/ui/ReminderPings) en vez del aviso del sistema. Solo
+// se silencia el del sistema si alguna ventana confirma que lo mostró.
+const IN_APP_TYPES = new Set(['reminder', 'quest_deadline', 'daily_summary']);
+
+async function shownInApp(clients, payload) {
+  const data = payload?.data ?? {};
+  if (!clients.length || data.reply || data.chatKey || !IN_APP_TYPES.has(String(data.type ?? ''))) return false;
+  const alert = {
+    tag: payload.tag ?? 'noutlife', title: payload.title ?? 'Noutlife', body: payload.body ?? '', link: data.link,
+    quick: data.quick, quickRef: data.quickRef, day: data.day, quiet: data.priority === 'low',
+  };
+  const answers = await Promise.all(clients.map((client) => new Promise((resolve) => {
+    const channel = new MessageChannel();
+    let settled = false;
+    const finish = (shown) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      channel.port1.close();
+      resolve(shown);
+    };
+    const timeout = setTimeout(() => finish(false), 350);
+    channel.port1.onmessage = (message) => finish(message.data?.shown === true);
+    try {
+      client.postMessage({ type: 'lq:in-app-alert', alert }, [channel.port2]);
+    } catch {
+      finish(false);
+    }
+  })));
+  return answers.some(Boolean);
+}
+
 // Safari retira el permiso si un push no muestra nada: ahí el aviso silenciado se
 // muestra sin sonido y se cierra al instante.
 const STRICT_PUSH = /Safari/.test(self.navigator.userAgent) && !/Chrome|Chromium|Android/.test(self.navigator.userAgent);
@@ -49,6 +82,8 @@ async function shouldSilencePush(payload) {
   if (visible.length && (data.silentForeground === true || XP_ONLY_PUSH_TYPES.has(type))) return true;
   // Keep notifications from other conversations: suppress only the exact open chat.
   if (data.chatKey && await foregroundChatIsOpen(visible, data.chatKey)) return true;
+  // Recordatorios: la app abierta los muestra ella.
+  if (await shownInApp(visible, payload)) return true;
   return false;
 }
 
@@ -79,13 +114,13 @@ self.addEventListener('push', (event) => {
   if (!quiet) options.vibrate = [100, 50, 100];
   // Acciones rápidas: contestar una carta, marcar un hábito o sumar agua sin abrir la app
   // (Android y escritorio; iPhone las omite y abre la app al tocar el aviso).
-  if (data.reply) {
-    options.actions = [{ action: 'reply', type: 'text', title: 'Responder', placeholder: 'Escribe tu respuesta…' }];
-  } else if (data.quick === 'habit_done') {
-    options.actions = [{ action: 'habit_done', title: 'Hecho ✓' }];
-  } else if (data.quick === 'water_250') {
-    options.actions = [{ action: 'water_250', title: '+250 ml' }];
-  }
+  // Hasta dos acciones: completar, sumar agua y posponer 10 min (los avisos de respuesta solo tienen «Responder»).
+  const actions = [];
+  if (data.reply) actions.push({ action: 'reply', type: 'text', title: 'Responder', placeholder: 'Escribe tu respuesta…' });
+  if (data.quick === 'habit_done') actions.push({ action: 'habit_done', title: 'Completar' });
+  if (data.quick === 'water_250') actions.push({ action: 'water_250', title: '+250 ml' });
+  if (data.type === 'reminder' && !data.reply) actions.push({ action: 'snooze', title: 'Posponer 10 min' });
+  if (actions.length) options.actions = actions.slice(0, 2);
   // Número en el icono de la app: avisos que siguen sin leer.
   if (typeof payload.unread === 'number') setAppBadge(payload.unread);
 
@@ -176,6 +211,19 @@ self.addEventListener('notificationclick', (event) => {
     );
     return;
   }
+  // Posponer 10 min: el servidor vuelve a enviar el aviso a su hora (también con la app cerrada).
+  if (event.action === 'snooze') {
+    const n = event.notification;
+    event.waitUntil(
+      apiCall('/notifications/snooze', 'POST', {
+        title: n.title || 'Noutlife', body: n.body || '', tag: n.tag || 'noutlife',
+        link: data.link, quick: data.quick, quickRef: data.quickRef, day: data.day, priority: data.priority,
+      })
+        .then(() => confirmQuick('Listo: te lo recuerdo en 10 min.'))
+        .catch(() => clients.openWindow(new URL(data.link || '/', self.location.origin).href))
+    );
+    return;
+  }
   // Acción rápida (hábito o agua): se registra desde la barra, sin abrir la app.
   if ((event.action === "habit_done" || event.action === "water_250") && data.quick) {
     event.waitUntil(
@@ -225,6 +273,8 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
+  // Solo nuestro propio origen: un recurso de terceros con una ruta parecida no entra en la caché.
+  if (url.origin !== self.location.origin) return;
   // La API (y su cookie de sesión) nunca pasa por la caché.
   if (url.pathname.startsWith('/api/')) return;
   // Navigation: network-first, fallback to cached shell
@@ -234,13 +284,23 @@ self.addEventListener('fetch', (event) => {
     );
     return;
   }
-  // Static assets: cache-first
+  // Assets con hash (/assets/) e iconos: cache-first.
   if (url.pathname.startsWith('/assets/') || url.pathname.startsWith('/icons/')) {
     event.respondWith(
       caches.match(event.request).then((cached) => cached ?? fetch(event.request).then((res) => {
         if (res.ok) { const copy = res.clone(); caches.open(CACHE_NAME).then((c) => c.put(event.request, copy)); }
         return res;
       }))
+    );
+    return;
+  }
+  // Logos y favicon: red primero (sin quedarse con una versión vieja) y caché si no hay conexión.
+  if (url.pathname.startsWith('/brand/') || url.pathname === '/icon.svg' || url.pathname === '/favicon.ico') {
+    event.respondWith(
+      fetch(event.request).then((res) => {
+        if (res.ok) { const copy = res.clone(); caches.open(CACHE_NAME).then((c) => c.put(event.request, copy)); }
+        return res;
+      }).catch(() => caches.match(event.request))
     );
   }
 });

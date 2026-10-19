@@ -9,6 +9,15 @@ import './store/themeStore';
 import { useMotionStore } from './store/motionStore';
 import './styles/globals.css';
 
+// Sensación de app: iOS hace zoom con dos dedos aunque el viewport lo prohíba, y
+// mantener pulsado abre el menú del sistema. Ambos se cortan fuera de los campos
+// donde se escribe (allí se puede seleccionar, copiar y pegar).
+const EDITABLE = 'input, textarea, [contenteditable]:not([contenteditable="false"]), .lq-selectable';
+document.addEventListener('gesturestart', (e) => e.preventDefault());
+document.addEventListener('contextmenu', (e) => {
+  if (!(e.target instanceof Element && e.target.closest(EDITABLE))) e.preventDefault();
+});
+
 // Register service worker
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {

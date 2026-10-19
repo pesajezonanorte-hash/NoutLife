@@ -1,7 +1,7 @@
 import type { NextFunction, Response } from 'express';
 import type { AuthRequest } from './auth.middleware';
 import { prisma } from '../lib/prisma';
-import { LITE_LIMITS, PRO_ZONE_LABELS, type ProZone } from '../lib/plans';
+import { LITE_LIMITS, NOTEBOOK_LOCK_MESSAGES, PRO_ZONE_LABELS, type NotebookLock, type ProZone } from '../lib/plans';
 import { getPlan } from '../services/billing.service';
 
 /** Funciones que Lite limita. El cliente abre el modal de Pro con el mensaje de cada una. */
@@ -18,13 +18,13 @@ export function sendProRequired(res: Response, feature: ProFeature): void {
   res.status(402).json({ error: PRO_MESSAGES[feature], code: 'PRO_REQUIRED', feature });
 }
 
-/** Candados de Lite añadidos con el paywall: las zonas Pro y el límite de rutinas. */
-export type ProLock = ProZone | 'routines';
+/** Candados de Lite: las zonas Pro, el límite de rutinas y lo que es de Pro en la Libreta. */
+export type ProLock = ProZone | 'routines' | NotebookLock;
 
 export function proLockMessage(lock: ProLock): string {
-  return lock === 'routines'
-    ? `NoutLife Lite admite ${LITE_LIMITS.activeRoutines} rutinas activas. Con Pro no hay límite.`
-    : `${PRO_ZONE_LABELS[lock]} es una zona de NoutLife Pro.`;
+  if (lock === 'routines') return `NoutLife Lite admite ${LITE_LIMITS.activeRoutines} rutinas activas. Con Pro no hay límite.`;
+  if (lock in NOTEBOOK_LOCK_MESSAGES) return NOTEBOOK_LOCK_MESSAGES[lock as NotebookLock];
+  return `${PRO_ZONE_LABELS[lock as ProZone]} es una zona de NoutLife Pro.`;
 }
 
 /**

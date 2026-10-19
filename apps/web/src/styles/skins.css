@@ -230,6 +230,20 @@ html[data-theme="cyber"] {
 }
 html[data-theme="cyber"] :focus-visible { outline-color: rgb(0 240 255); outline-offset: 3px; }
 
+/* Logo (Brand + splash): con un tema puesto, las hojas de la N se tiñen con la
+   escala propia del tema (--lq-jade-*). En los oscuros, la parte clara de la escala;
+   en los claros, la oscura: el logo siempre contrasta con su fondo. */
+html[data-theme]:not([data-theme="aurora"]).dark {
+  --lq-brand-a0: rgb(var(--lq-jade-200)); --lq-brand-a1: rgb(var(--lq-jade-400)); --lq-brand-a2: rgb(var(--lq-jade-600)); --lq-brand-a3: rgb(var(--lq-jade-700));
+  --lq-brand-b0: rgb(var(--lq-jade-100)); --lq-brand-b1: rgb(var(--lq-jade-400));
+  --lq-brand-c0: rgb(var(--lq-jade-300)); --lq-brand-c1: rgb(var(--lq-jade-500)); --lq-brand-c2: rgb(var(--lq-jade-700));
+}
+html[data-theme]:not([data-theme="aurora"]).light {
+  --lq-brand-a0: rgb(var(--lq-jade-400)); --lq-brand-a1: rgb(var(--lq-jade-600)); --lq-brand-a2: rgb(var(--lq-jade-800)); --lq-brand-a3: rgb(var(--lq-jade-900));
+  --lq-brand-b0: rgb(var(--lq-jade-300)); --lq-brand-b1: rgb(var(--lq-jade-600));
+  --lq-brand-c0: rgb(var(--lq-jade-500)); --lq-brand-c1: rgb(var(--lq-jade-700)); --lq-brand-c2: rgb(var(--lq-jade-900));
+}
+
 /* Fondo del tema: capa fija detrás de la app (no se repinta al hacer scroll). */
 body::before {
   content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;

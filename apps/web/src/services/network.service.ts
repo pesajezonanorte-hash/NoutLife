@@ -393,7 +393,7 @@ const ZONE_NAMES: Array<[string, string]> = [
   ['/social', 'Social'], ['/u/', 'Perfiles'], ['/habits', 'Hábitos'], ['/quests', 'Misiones'], ['/coliseo', 'Coliseo'], ['/gym', 'Coliseo'], ['/recreacion', 'Recreación'],
   ['/finances', 'Finanzas'], ['/food', 'Comida'], ['/sleep', 'Sueño'], ['/love', 'Relaciones'], ['/journal', 'Diario'],
   ['/agenda', 'Agenda'], ['/learning', 'Aprendizaje'], ['/leaderboard', 'Ranking'], ['/gallery', 'Galería'],
-  ['/season', 'Campaña'], ['/shop', 'Tienda'], ['/espejo', 'Espejo'], ['/armario', 'Espejo'], ['/glow-up', 'Espejo'], ['/rituals', 'Rituales'], ['/wisdom', 'Sabiduría'],
+  ['/season', 'Campaña'], ['/shop', 'Tienda'], ['/espejo', 'Espejo'], ['/armario', 'Espejo'], ['/glow-up', 'Espejo'], ['/wisdom', 'Sabiduría'], ['/libreta', 'Libreta'],
   ['/achievements', 'Logros'], ['/stats', 'Estadísticas'], ['/profile', 'Perfil'], ['/settings', 'Ajustes'],
   ['/custom-zones', 'Mis zonas'], ['/history', 'Historial'], ['/friends', 'Social'], ['/guild', 'Social'],
 ];

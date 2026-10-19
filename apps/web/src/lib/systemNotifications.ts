@@ -37,6 +37,50 @@ export function syncAppBadge(count: number) {
   pending?.catch(() => undefined);
 }
 
+// ─── Avisos dentro de la app ───────────────────────────────────────────────────
+// Con Noutlife a la vista, un recordatorio (push del servidor o programado por la
+// pestaña) se muestra como nota dentro de la app, con una campana suave, en vez del
+// aviso del sistema. Lo pinta components/ui/ReminderPings.
+
+export interface InAppAlert {
+  /** Misma etiqueta que el push: si llegan los dos, se ve uno. */
+  tag: string;
+  title: string;
+  body: string;
+  link?: string;
+  quick?: 'habit_done' | 'water_250';
+  quickRef?: string;
+  day?: string;
+  /** Poca importancia (agua, cita del día): campana más baja. */
+  quiet?: boolean;
+}
+
+let alertSink: ((alert: InAppAlert) => boolean) | null = null;
+
+/** Lo registra ReminderPings: devuelve true si mostró el aviso. */
+export function onInAppAlert(sink: (alert: InAppAlert) => boolean) {
+  alertSink = sink;
+  return () => { if (alertSink === sink) alertSink = null; };
+}
+
+/** Muestra el aviso dentro de la app. false si no hay quién lo pinte (fuera del shell). */
+export function showInAppAlert(alert: InAppAlert): boolean {
+  return alertSink?.(alert) ?? false;
+}
+
+/** El service worker pregunta si la app, a la vista, muestra ella el aviso (y responde por el puerto). */
+export function onServiceWorkerAlert() {
+  if (!('serviceWorker' in navigator)) return () => undefined;
+  const handler = (e: MessageEvent) => {
+    const data = e.data as { type?: string; alert?: InAppAlert } | null;
+    if (data?.type !== 'lq:in-app-alert' || !data.alert) return;
+    const shown = document.visibilityState === 'visible' && showInAppAlert(data.alert);
+    e.ports[0]?.postMessage({ shown });
+  };
+  navigator.serviceWorker.addEventListener('message', handler);
+  return () => navigator.serviceWorker.removeEventListener('message', handler);
+}
+
 /** Escucha al service worker: "lleva a la persona a este enlace" (sin recargar la app). */
 export function onNotificationNavigate(go: (link: string) => void) {
   if (!('serviceWorker' in navigator)) return () => undefined;

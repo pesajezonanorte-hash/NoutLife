@@ -124,6 +124,9 @@ export default function SettingsPage() {
   }, []);
 
   const activeTheme = skinOf(user?.equippedTheme) ?? 'aurora';
+  // Ajustes solo muestra tus temas (Aurora y los comprados); el resto está en la Tienda.
+  const ownedThemes = themes?.items.filter((it) => themeIdOf(it) === 'aurora' || themes.inv.some((i) => i.shopItemId === it.id)) ?? [];
+  const moreThemes = (themes?.items.length ?? 0) > ownedThemes.length;
   const notificationsOn = permission === 'granted';
   const spotifyId = playlistUrl.match(/playlist\/([a-zA-Z0-9]+)/)?.[1] ?? null;
 
@@ -307,14 +310,14 @@ export default function SettingsPage() {
                     </div>
                   </Section>
 
-                  <Section title="Tema de la app" description="Cada tema cambia fondos, tarjetas, botones, bordes, sombras y letra de toda la app. Se compran en la Tienda y se quedan en tu cuenta." fit={fit}>
+                  <Section title="Tus temas" description="Cada tema cambia fondos, tarjetas, botones, letra y el color del logo en toda la app. Aquí están los que tienes; los demás se consiguen en la Tienda." fit={fit}
+                    aside={moreThemes ? <Button size="md" variant="secondary" onClick={() => navigate('/shop')}><Palette aria-hidden className="size-4" />Más temas en la Tienda</Button> : undefined}>
                     {!themes ? <p className="text-body-sm text-on-surface-light">Cargando temas…</p> : (
                       <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                        {themes.items.map((it) => {
+                        {ownedThemes.map((it) => {
                           const id = themeIdOf(it)!;
                           const p = THEME_PALETTES[id];
                           const on = activeTheme === id;
-                          const owned = id === 'aurora' || themes.inv.some((i) => i.shopItemId === it.id);
                           return (
                             <li key={it.id}>
                               <Card padding="sm" interactive className={cn('flex h-full flex-col gap-3', on && 'border-primary')}>
@@ -328,14 +331,10 @@ export default function SettingsPage() {
                                 </div>
                                 <div className="flex items-start justify-between gap-2">
                                   <div><p className="text-label-lg">{it.name.replace(/^Tema: /, '')}</p><p className="text-body-sm text-on-surface-light">{it.description}</p></div>
-                                  {on ? <Badge variant="success" icon={Check} className="shrink-0">En uso</Badge> : !owned && <Badge variant="warning" className="shrink-0"><span className="font-mono">{it.cost}</span> Gold</Badge>}
+                                  {on && <Badge variant="success" icon={Check} className="shrink-0">En uso</Badge>}
                                 </div>
                                 <p className="text-body-sm text-on-surface-light">{id === 'aurora' ? 'Claro, oscuro o automático' : SKINS[id].scheme === 'dark' ? 'Siempre oscuro' : 'Siempre claro'}</p>
-                                {owned ? (
-                                  <Button size="sm" variant={on ? 'secondary' : 'primary'} disabled={on} loading={themeLoading === id} onClick={() => void applyTheme(it)} className="mt-auto">{on ? 'En uso' : 'Usar este tema'}</Button>
-                                ) : (
-                                  <Button size="sm" variant="secondary" onClick={() => navigate('/shop')} className="mt-auto"><Palette aria-hidden className="size-4" />Ver en la Tienda</Button>
-                                )}
+                                <Button size="sm" variant={on ? 'secondary' : 'primary'} disabled={on} loading={themeLoading === id} onClick={() => void applyTheme(it)} className="mt-auto">{on ? 'En uso' : 'Usar este tema'}</Button>
                               </Card>
                             </li>
                           );

@@ -17,6 +17,7 @@ import { thud } from '@/lib/motion';
 import { useMotionStore } from '@/store/motionStore';
 import { PerspectiveFlipCard } from '@/components/ui/perspective-flip-card';
 import { PixelReveal, useHoloTilt } from '@/components/ambience';
+import { BrandMark } from '@/components/layout/Brand';
 
 const CLASS_NAMES: Record<string, string> = { warrior: 'Guerrero', mage: 'Mago', merchant: 'Mercader', paladin: 'Paladín' };
 export const classLabel = (c?: string | null) => (c ? CLASS_NAMES[c] ?? c : 'Aventurero');
@@ -101,8 +102,7 @@ export function IdCard({ user, title, photo, back }: IdCardProps) {
       {/* Franja superior */}
       <div className="relative flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
-          <img src="/brand/noutlife-mark.svg" alt="" aria-hidden="true" className="size-6 dark:hidden sm:size-7" draggable={false} />
-          <img src="/brand/noutlife-mark-on-dark.svg" alt="" aria-hidden="true" className="hidden size-6 dark:block sm:size-7" draggable={false} />
+          <BrandMark size={24} className="sm:!size-7" />
           <span className="flex flex-col leading-tight">
             <span className="text-label-lg text-on-background">Noutlife</span>
             <span className="text-label-md text-on-surface-light">Documento de identidad</span>

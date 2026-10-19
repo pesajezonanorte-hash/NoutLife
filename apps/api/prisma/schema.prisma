@@ -234,6 +234,8 @@ model User {
   workouts                Workout[]
   meals                   Meal[]
   recreationEntries       RecreationEntry[]
+  notebooks               Notebook[]
+  reminderSnoozes         ReminderSnooze[]
   sleepLogs               SleepLog[]
   journalEntries          JournalEntry[]
   inventoryItems          InventoryItem[]
@@ -683,6 +685,76 @@ model RecreationEntry {
 
   @@index([userId, date])
   @@map("recreation_entries")
+}
+
+/// Libreta: cuadernos con páginas de texto, dibujo, notas adhesivas e imágenes.
+model Notebook {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title     String
+  /// personal | trabajo | ideas | proyectos | estudio
+  category  String @default("personal")
+  /// Color de la tapa (tono del tema): jade | ambar | oceano | coral | bosque | oro
+  color     String @default("jade")
+  /// ruled | grid | dots | plain
+  paper     String @default("ruled")
+  pageCount Int    @default(20)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  pages  NotebookPage[]
+  images NotebookImage[]
+
+  @@index([userId, updatedAt])
+  @@map("notebooks")
+}
+
+/// Una página escrita (las vacías no se guardan). content: { html, strokes, stickies, images }.
+model NotebookPage {
+  id         String   @id @default(cuid())
+  notebookId String
+  notebook   Notebook @relation(fields: [notebookId], references: [id], onDelete: Cascade)
+  index      Int
+  content    Json
+  updatedAt  DateTime @updatedAt
+
+  @@unique([notebookId, index])
+  @@map("notebook_pages")
+}
+
+/// Imagen pegada en una página (base64, ya comprimida en el cliente). La página guarda solo su id.
+model NotebookImage {
+  id         String   @id @default(cuid())
+  notebookId String
+  notebook   Notebook @relation(fields: [notebookId], references: [id], onDelete: Cascade)
+  mime       String
+  data       String
+  createdAt  DateTime @default(now())
+
+  @@index([notebookId])
+  @@map("notebook_images")
+}
+
+/// Aviso pospuesto («Posponer 10 min»): el cron lo envía a su hora, también con la app cerrada.
+model ReminderSnooze {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Etiqueta del aviso original: posponer otra vez el mismo aviso cambia su hora.
+  tag       String
+  /// Título, texto, enlace y acción rápida, tal como se enviarán.
+  data      Json
+  dueAt     DateTime
+  sentAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([dueAt, sentAt])
+  @@index([userId, tag])
+  @@map("reminder_snoozes")
 }
 
 model SleepLog {

@@ -1,22 +1,18 @@
-// Rituales (RitualsDesktop): tarjetas con pasos numerados, modo guiado paso a paso
-// (anillo + cronómetro por paso) y estado vacío «Cargar rituales sugeridos».
-// Zona ambientada: un jardín zen. Cada ritual es una bandeja de arena con marco de
-// bambú: sus pasos son piedras que caen y se asientan mientras se rastrillan los
-// anillos a su alrededor. Hecho hoy, a las piedras les crece musgo. En el modo
-// guiado cada paso se ilumina con una onda y hay un círculo para respirar.
-// Completar el ritual enciende todas las piedras y una onda recorre la arena.
-// Bambú que se mece junto al título.
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+// Rituales dentro de la libreta de Hábitos (antes una zona aparte: /rituals llega
+// aquí). Tarjetas con pasos numerados, modo guiado paso a paso (anillo + cronómetro
+// por paso) y estado vacío «Cargar rituales sugeridos». Cada ritual es una bandeja
+// de arena con marco de bambú: sus pasos son piedras que caen y se asientan; hecho
+// hoy, a las piedras les crece musgo. Completar el ritual enciende todas las piedras
+// y una onda recorre la arena.
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CheckCircle2, ChevronRight, Flame, Moon, Play, Plus, Sun, Trash2, X, Zap, type LucideIcon } from 'lucide-react';
 import { item, pop3, springs, stagger } from '@/lib/motion';
-import { AmbientLight, ZoneShell } from '@/components/ambience';
 import { BreathCircle, StonePath } from '@/components/rituals/StonePath';
-import { Bamboo, ZenGarden } from '@/components/rituals/ZenGarden';
+import { ZenGarden } from '@/components/rituals/ZenGarden';
 import { cn } from '@/lib/utils';
 import * as ritualsService from '@/services/rituals.service';
 import type { Ritual } from '@/services/rituals.service';
-import { PageHeader } from '@/components/layout/PageHeader';
 import { LiteNotice } from '@/components/billing/LiteNotice';
 import { LITE_LIMITS, isProRequired } from '@/lib/plan';
 import { useAuthStore } from '@/store/authStore';
@@ -26,6 +22,7 @@ import {
   Badge, Button, Card, EmptyState, ErrorState, Field, IconChip, Input, PageLoader, ProgressRing, ResponsiveDialog,
   SegmentedControl, SpotCard, Timer, type Tone,
 } from '@/components/ui/lq';
+import { NotebookSheet } from './NotebookSheet';
 
 type RitualType = Ritual['type'];
 const TYPES: Record<RitualType, { label: string; tone: Exclude<Tone, 'muted'>; icon: LucideIcon }> = {
@@ -66,17 +63,17 @@ function Runner({ ritual, onExit, onDone }: { ritual: Ritual; onExit: () => void
 
   const k = typeOf(ritual.type);
   return (
-    <SpotCard aria-label="Ritual en curso" className="lq-zen-tray flex flex-wrap items-center gap-8 md:gap-10">
-      <ProgressRing value={((idx + 1) / ritual.steps.length) * 100} size={180} stroke={8} label="Progreso del ritual" valueText={`Paso ${idx + 1} de ${ritual.steps.length}`}>
+    <SpotCard aria-label="Ritual en curso" className="lq-zen-tray flex flex-wrap items-center gap-6 md:gap-10">
+      <ProgressRing value={((idx + 1) / ritual.steps.length) * 100} size={150} stroke={8} label="Progreso del ritual" valueText={`Paso ${idx + 1} de ${ritual.steps.length}`}>
         <span className="font-mono text-display-sm tabular-nums">{idx + 1}/{ritual.steps.length}</span>
         <span className="text-body-sm text-on-surface-light">pasos</span>
       </ProgressRing>
-      <div className="flex min-w-0 flex-[1_1_300px] flex-col gap-3" aria-live="polite">
+      <div className="flex min-w-0 flex-[1_1_260px] flex-col gap-3" aria-live="polite">
         <StonePath total={ritual.steps.length} current={idx} />
         <span className="text-label-lg text-primary-text">{ritual.name} · paso {idx + 1}</span>
         <AnimatePresence mode="wait" initial={false}>
-          <motion.h2 key={step?.id} ref={titleRef} tabIndex={-1} variants={pop3} initial="initial" animate="animate" exit={{ opacity: 0, transition: { duration: 0.15 } }}
-            className="text-display-sm outline-none">{step?.title}</motion.h2>
+          <motion.h3 key={step?.id} ref={titleRef} tabIndex={-1} variants={pop3} initial="initial" animate="animate" exit={{ opacity: 0, transition: { duration: 0.15 } }}
+            className="text-display-sm outline-none">{step?.title}</motion.h3>
         </AnimatePresence>
         {total > 0 ? (
           <div className="flex items-center gap-3">
@@ -109,19 +106,19 @@ function RitualCard({ ritual, doneToday, playing, onPlay, celebrate }: { ritual:
   }, [ritual.id]);
   const mins = minutes(ritual);
   return (
-    <Card as="article" interactive padding="lg" className="lq-zen-tray relative flex h-full flex-col gap-5 overflow-hidden">
+    <Card as="article" interactive padding="lg" className="lq-zen-tray relative flex h-full flex-col gap-5 overflow-hidden p-4 sm:p-6">
       {/* Ritual completo: una onda de calma se expande desde el camino */}
       {celebrate && <span key="calm" aria-hidden="true" className="lq-calm-wave pointer-events-none absolute left-8 top-1/2 block size-80 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-success/50 bg-[radial-gradient(closest-side,rgb(var(--lq-success)/.16),transparent)]" />}
       <div className="flex items-start gap-4">
         <IconChip icon={k.icon} tone={k.tone} />
         <div className="min-w-0 flex-1">
-          <h2 className="text-heading-sm">{ritual.name}</h2>
+          <h3 className="text-heading-sm">{ritual.name}</h3>
           <p className="text-body-sm text-on-surface-light">{ritual.steps.length} pasos{mins ? ` · ${mins} min` : ''} · {k.label}</p>
         </div>
-        <Badge variant={doneToday ? 'success' : 'neutral'} icon={doneToday ? CheckCircle2 : undefined}>{doneToday ? 'Hecho hoy' : 'Pendiente'}</Badge>
+        <Badge variant={doneToday ? 'success' : 'neutral'} icon={doneToday ? CheckCircle2 : undefined} className="hidden sm:inline-flex">{doneToday ? 'Hecho hoy' : 'Pendiente'}</Badge>
       </div>
       {/* El jardín de piedras del ritual: una por paso */}
-      <ZenGarden steps={ritual.steps.length} done={doneToday} celebrate={celebrate} seed={[...ritual.id].reduce((a, c) => a + c.charCodeAt(0), 0) % 7} className="h-28" />
+      <ZenGarden steps={ritual.steps.length} done={doneToday} celebrate={celebrate} seed={[...ritual.id].reduce((a, c) => a + c.charCodeAt(0), 0) % 7} className="h-24" />
       <ol className="relative flex flex-col">
         {/* El sendero que une las piedras */}
         <span aria-hidden="true" className="pointer-events-none absolute bottom-5 left-3 top-5 border-l border-dashed border-border-strong/50" />
@@ -155,7 +152,7 @@ function RitualCard({ ritual, doneToday, playing, onPlay, celebrate }: { ritual:
 }
 
 /** Crear ritual: nombre, tipo y pasos (título + minutos opcionales). */
-function NewRitualDialog({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: () => void }) {
+export function NewRitualDialog({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: () => void }) {
   const toast = useToast();
   const [name, setName] = useState('');
   const [type, setType] = useState<RitualType>('morning');
@@ -192,7 +189,7 @@ function NewRitualDialog({ open, onClose, onCreated }: { open: boolean; onClose:
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej. Ritual de enfoque" />
         </Field>
         <div className="flex flex-col gap-2">
-          <span id="rt-type" className="text-label-lg text-on-surface">Momento</span>
+          <span className="text-label-lg text-on-surface">Momento</span>
           <SegmentedControl role="radiogroup" label="Momento" value={type} onChange={setType}
             options={(Object.keys(TYPES) as RitualType[]).map((t) => ({ value: t, label: TYPES[t].label }))} />
         </div>
@@ -224,10 +221,15 @@ function NewRitualDialog({ open, onClose, onCreated }: { open: boolean; onClose:
   );
 }
 
-export default function RitualsPage() {
+/** Hoja «Rituales» de la libreta: la lista la carga Hábitos (su separador muestra cuántos hay). */
+export function RitualsSheet({ list, state, onReload, panelId, labelledBy }: {
+  list: Ritual[];
+  state: 'loading' | 'error' | 'ready';
+  onReload: () => Promise<void>;
+  panelId: string;
+  labelledBy: string;
+}) {
   const toast = useToast();
-  const [rituals, setRituals] = useState<Ritual[]>([]);
-  const [state, setState] = useState<'loading' | 'error' | 'ready'>('loading');
   const [seeding, setSeeding] = useState(false);
   const [playing, setPlaying] = useState<Ritual | null>(null);
   const [creating, setCreating] = useState(false);
@@ -235,118 +237,92 @@ export default function RitualsPage() {
   const [doneIds, setDoneIds] = useState<string[]>([]);
   /** Ritual recién completado: todas sus piedras brillan y se expande la onda de calma. */
   const [celebrating, setCelebrating] = useState<string | null>(null);
+  const runnerRef = useRef<HTMLDivElement>(null);
   const lite = useAuthStore((s) => s.user?.subscription?.plan === 'lite');
   const openUpgrade = usePlanStore((s) => s.openUpgrade);
-  const activeCount = rituals.filter((r) => r.isActive).length;
+  const activeCount = list.filter((r) => r.isActive).length;
   const atLiteLimit = lite && activeCount >= LITE_LIMITS.activeRoutines;
   const openNew = () => (atLiteLimit ? openUpgrade('routines') : setCreating(true));
 
-  const load = useCallback(async (silent = false) => {
-    if (!silent) setState('loading');
-    try { setRituals(await ritualsService.listRituals()); setState('ready'); }
-    catch { if (!silent) setState('error'); }
-  }, []);
-  useEffect(() => { void load(); }, [load]);
-
   async function seed() {
     setSeeding(true);
-    try { await ritualsService.seedPresets(); await load(true); toast.success('Rituales sugeridos listos'); }
+    try { await ritualsService.seedPresets(); await onReload(); toast.success('Rituales sugeridos listos'); }
     catch { toast.error('No se pudieron cargar los sugeridos'); }
     finally { setSeeding(false); }
   }
 
-  if (state === 'loading') return <PageLoader />;
-  if (state === 'error') return <ErrorState onRetry={() => void load()} />;
+  const ordered = (['morning', 'custom', 'night'] as RitualType[]).flatMap((t) => list.filter((r) => r.type === t));
 
-  const ordered = (['morning', 'custom', 'night'] as RitualType[]).flatMap((t) => rituals.filter((r) => r.type === t));
-
-  return (
-    <ZoneShell
-      zone="rituals"
-      contentClassName="gap-8 md:gap-12"
-      ambience={(
-        <>
-          {/* Un gradiente que se mueve muy despacio. */}
-          <span className="lq-amb-wander absolute left-[4%] top-[2%] block h-[38rem] w-[62%] [--d:40s]">
-            <AmbientLight tone="info" alpha={0.1} darkAlpha={0.06} d={20} className="inset-0" />
-            <AmbientLight tone="jade-300" alpha={0.18} darkAlpha={0.05} d={26} className="inset-[20%]" />
-          </span>
-          {/* Rayos de luz en diagonal entre el bambú: respiran muy despacio. */}
-          {[{ l: '58%', w: '5rem', d: 16 }, { l: '68%', w: '8rem', d: 22 }, { l: '80%', w: '4rem', d: 19 }].map((r, k) => (
-            <span key={k} className="lq-amb-breathe absolute inset-0 block" style={{ ['--d' as string]: `${r.d}s`, ['--lo' as string]: 0.55, ['--hi' as string]: 1, animationDelay: `${-k * 5}s` }}>
-              <span className="lq-sunbeam block" style={{ left: r.l, width: r.w }} />
-            </span>
-          ))}
-        </>
-      )}
-    >
-      <PageHeader
-        eyebrow="Rituales"
-        title="Secuencias que te construyen"
-        description="Pasos encadenados que ejecutas cada día. Uno detrás de otro, sin pensar."
-        aside={(
-          <div className="flex items-end gap-6">
-            <Bamboo className="-mb-2 hidden md:flex [&_svg]:max-h-[9.5rem]" />
-            <Button onClick={openNew}><Plus aria-hidden className="size-4" strokeWidth={1.75} />Nuevo ritual</Button>
+  let content;
+  if (state === 'loading') content = <PageLoader size="sm" label="Preparando tus rituales…" />;
+  else if (state === 'error') content = <ErrorState title="No pudimos cargar tus rituales" description="Tus rituales siguen guardados." onRetry={() => void onReload()} />;
+  else if (list.length === 0) {
+    content = (
+      <EmptyState
+        icon={Zap} tone="warning"
+        title="Sin rituales todavía"
+        description="Un ritual es una secuencia de pasos que haces cada día, uno detrás de otro. Empieza con los sugeridos o crea el tuyo."
+        action={
+          <div className="flex flex-wrap justify-center gap-3">
+            <Button variant="secondary" onClick={openNew}>Crear el mío</Button>
+            <Button onClick={seed} loading={seeding}><Zap aria-hidden className="size-4" strokeWidth={1.75} />Cargar rituales sugeridos</Button>
           </div>
-        )}
+        }
+        className="py-12"
       />
-
-      {lite && rituals.length > 0 && (
-        <motion.div variants={item}>
+    );
+  } else {
+    // En móvil las bandejas tapan el margen de la hoja: así tienen todo el ancho.
+    content = (
+      <div className="flex flex-col gap-6 px-3 py-4 md:pl-[6rem] md:pr-4">
+        {lite && (
           <LiteNotice feature="routines">
             {activeCount > LITE_LIMITS.activeRoutines
               ? `NoutLife Lite admite ${LITE_LIMITS.activeRoutines} rutinas activas. Tus ${activeCount} rituales siguen aquí; para crear más, pasa a Pro.`
               : `Tienes ${activeCount} de ${LITE_LIMITS.activeRoutines} rutinas activas de NoutLife Lite.${atLiteLimit ? ' Con Pro, sin límite.' : ''}`}
           </LiteNotice>
-        </motion.div>
-      )}
+        )}
+        <AnimatePresence initial={false}>
+          {playing && (
+            <motion.div key="runner" ref={runnerRef} variants={pop3} initial="initial" animate="animate" exit={{ opacity: 0, transition: { duration: 0.2 } }} className="scroll-mt-24">
+              <Runner
+                ritual={playing}
+                onExit={() => setPlaying(null)}
+                onDone={(msg, already) => {
+                  if (already) toast.info(msg); else toast.success(msg);
+                  setDoneIds((d) => [...new Set([...d, playing.id])]);
+                  setCelebrating(playing.id);
+                  window.setTimeout(() => setCelebrating(null), 2400);
+                  setPlaying(null);
+                }}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <motion.ul variants={stagger} initial="initial" animate="animate" className="grid grid-cols-1 gap-4 md:gap-6 xl:grid-cols-2">
+          {ordered.map((r) => (
+            <motion.li key={r.id} variants={item}>
+              <RitualCard ritual={r} doneToday={doneIds.includes(r.id)} playing={playing?.id === r.id} celebrate={celebrating === r.id}
+                onPlay={() => { setPlaying(r); window.setTimeout(() => runnerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60); }} />
+            </motion.li>
+          ))}
+        </motion.ul>
+      </div>
+    );
+  }
 
-      {rituals.length === 0 ? (
-        <motion.div variants={item}>
-          <EmptyState
-            icon={Zap} tone="warning"
-            title="Sin rituales todavía"
-            description="Los rituales son secuencias de pasos que ejecutas cada día. Empieza con los sugeridos o crea los tuyos."
-            action={
-              <div className="flex flex-wrap justify-center gap-3">
-                <Button variant="secondary" onClick={openNew}>Crear el mío</Button>
-                <Button onClick={seed} loading={seeding}><Zap aria-hidden className="size-4" strokeWidth={1.75} />Cargar rituales sugeridos</Button>
-              </div>
-            }
-          />
-        </motion.div>
-      ) : (
+  return (
+    <NotebookSheet
+      id={panelId} labelledBy={labelledBy} tabbed lines={2}
+      header={(
         <>
-          <AnimatePresence initial={false}>
-            {playing && (
-              <motion.div key="runner" variants={pop3} initial="initial" animate="animate" exit={{ opacity: 0, transition: { duration: 0.2 } }}>
-                <Runner
-                  ritual={playing}
-                  onExit={() => setPlaying(null)}
-                  onDone={(msg, already) => {
-                    if (already) toast.info(msg); else toast.success(msg);
-                    setDoneIds((d) => [...new Set([...d, playing.id])]);
-                    setCelebrating(playing.id);
-                    window.setTimeout(() => setCelebrating(null), 2400);
-                    setPlaying(null);
-                  }}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
-          <motion.ul variants={stagger} initial="initial" animate="animate" className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 xl:grid-cols-3">
-            {ordered.map((r) => (
-              <motion.li key={r.id} variants={item}>
-                <RitualCard ritual={r} doneToday={doneIds.includes(r.id)} playing={playing?.id === r.id} celebrate={celebrating === r.id}
-                  onPlay={() => { setPlaying(r); window.scrollTo({ top: 0, behavior: 'smooth' }); }} />
-              </motion.li>
-            ))}
-          </motion.ul>
+          <span className="text-body-md text-on-surface-light">Pasos encadenados, uno detrás de otro</span>
+          {list.length > 0 && <Button size="sm" onClick={openNew}><Plus aria-hidden className="size-4" strokeWidth={1.75} />Nuevo ritual</Button>}
         </>
       )}
-
-      <NewRitualDialog open={creating} onClose={() => setCreating(false)} onCreated={() => { setCreating(false); void load(true); }} />
-    </ZoneShell>
+    >
+      {content}
+      <NewRitualDialog open={creating} onClose={() => setCreating(false)} onCreated={() => { setCreating(false); void onReload(); }} />
+    </NotebookSheet>
   );
 }

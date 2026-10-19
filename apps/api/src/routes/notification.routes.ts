@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.middleware';
 import * as notificationController from '../controllers/notification.controller';
+import { validate } from '../middleware/validate.middleware';
+import { snoozeSchema } from '../schemas/snooze.schemas';
 
 const router = Router();
 
@@ -14,6 +16,8 @@ router.delete('/unsubscribe',   notificationController.unsubscribe);
 router.get('/preferences',      notificationController.getPreferences);
 router.patch('/preferences',    notificationController.updatePreferences);
 router.post('/test',            notificationController.sendTestNotification);
+// Posponer un aviso 10 min: el cron lo envía a su hora, también con la app cerrada.
+router.post('/snooze',          validate(snoozeSchema), notificationController.snooze);
 
 // In-app notifications
 router.get('/',                 notificationController.listInApp);
