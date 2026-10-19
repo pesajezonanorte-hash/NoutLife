@@ -1,0 +1,32 @@
+{
+  "name": "@noutlife/presentacion",
+  "version": "1.0.0",
+  "private": true,
+  "description": "De consumidores a creadores: presentación animada (Remotion) para las charlas del proyecto de grado, con NoutLife como caso real",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "studio": "remotion studio",
+    "render": "remotion render Presentacion out/presentacion.mp4",
+    "still": "remotion still Presentacion out/still.png",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.530",
+    "@remotion/fonts": "4.0.530",
+    "@remotion/player": "4.0.530",
+    "@remotion/transitions": "4.0.530",
+    "lucide-react": "0.323.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "4.0.530"
+  },
+  "devDependencies": {
+    "@types/react": "18.3.28",
+    "@types/react-dom": "18.3.7",
+    "@vitejs/plugin-react": "4.7.0",
+    "typescript": "5.9.3",
+    "vite": "6.4.4"
+  }
+}

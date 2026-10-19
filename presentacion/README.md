@@ -1,0 +1,41 @@
+# De consumidores a creadores
+
+Presentación animada para las charlas del proyecto de grado (Colegio Jorge Isaacs, grado 11°), con NoutLife como caso real. Está hecha con Remotion: 1920 × 1080 a 60 fps, cinco diapositivas enlazadas con `<TransitionSeries>`.
+
+Es un proyecto aparte, fuera de los `workspaces` de la raíz (igual que `promo/`), para que Vercel nunca instale Remotion.
+
+## Dar la charla
+
+```bash
+npm install
+npm run dev        # abre http://localhost:5190
+```
+
+Cada «siguiente» reproduce la animación de un paso y se detiene sola al terminar. Si lo pulsas mientras anima, salta al final del paso. Un control remoto de diapositivas también funciona, porque envía las mismas teclas.
+
+| Tecla | Acción |
+| --- | --- |
+| → ↓ Espacio Enter AvPág, o clic | Siguiente paso |
+| ← ↑ RePág Retroceso | Paso anterior |
+| 1–5 | Ir a una diapositiva (ya completa) |
+| Inicio / Fin | Principio / final |
+| F | Pantalla completa |
+| T | Cronómetro de 2 minutos (para la actividad del aula) |
+| P | Reproducir o pausar sin detenerse en los pasos |
+
+La barra de controles se esconde sola tras 2,5 s sin mover el ratón. Las fuentes van incluidas en `public/fonts`, así que la charla funciona sin internet. Para llevarla en una memoria USB, ejecuta `npm run build` y luego `npx vite preview`.
+
+## Editar y exportar
+
+```bash
+npm run studio     # Remotion Studio, para editar viendo cada fotograma
+npm run render     # out/presentacion.mp4 (avanza solo, sin pausas)
+```
+
+- `src/timeline.ts`: orden de las diapositivas, transición de entrada y paradas de cada una.
+- `src/slides/Slide1Portada.tsx` … `Slide5Conclusion.tsx`: una diapositiva por archivo. Cada una exporta sus paradas, que son los fotogramas locales donde termina cada paso.
+- `src/components/`: `GlassCard`, `AnimatedText`, `PhoneMockup`, `TalkingPoints` (ideas clave del expositor, por paso), la transición `zoomBlur`, el fondo (`Backdrop`) y el logo (`Brand`, copiado de `promo/`).
+- `src/screens/AppScreens.tsx`: pantallas de NoutLife dentro del teléfono (inicio, libreta y hábitos), con datos de ejemplo.
+- `src/app/`: el Player en modo presentación.
+
+Mantén todos los paquetes `remotion` y `@remotion/*` en la misma versión exacta (4.0.530, como `promo/`).
