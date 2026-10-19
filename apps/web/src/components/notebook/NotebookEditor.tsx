@@ -30,6 +30,8 @@ import { PageProgress } from './PageProgress';
 
 type Status = 'saved' | 'saving' | 'error';
 const SAVE_DELAY = 900;
+/** Desvanecer al salir del cuaderno (ms). */
+const FADE_MS = 160;
 const HIGHLIGHT = 'rgba(250, 204, 21, 0.45)';
 const lastPageKey = (id: string) => `lq-nb-page:${id}`;
 
@@ -165,6 +167,8 @@ export function NotebookEditor({ notebook, lite, onClose, onEdit, onAddPage }: {
   const [, setVersion] = useState(0);
   const [failed, setFailed] = useState<number | null>(null);
   const [uploading, setUploading] = useState(false);
+  /** Se está cerrando: se desvanece y luego la página lo quita. */
+  const [leaving, setLeaving] = useState(false);
   const [size, setSize] = useState({ w: 0, h: 0 });
   // Historial de Ctrl+Z. La versión solo sirve para repintar los botones de deshacer y rehacer.
   const undoSteps = useRef<Step[]>([]);
@@ -179,6 +183,7 @@ export function NotebookEditor({ notebook, lite, onClose, onEdit, onAddPage }: {
   const stage = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const leaveArmed = useRef(false);
+  const leaveTimer = useRef<number | undefined>(undefined);
   const dialog = useRef<HTMLDivElement>(null);
   const bump = () => setVersion((v) => v + 1);
   /** El texto de la hoja que está a la vista (la que se va no cuenta). */
@@ -239,6 +244,7 @@ export function NotebookEditor({ notebook, lite, onClose, onEdit, onAddPage }: {
       document.removeEventListener('visibilitychange', hidden);
       window.removeEventListener('pagehide', online);
       window.removeEventListener('online', online);
+      window.clearTimeout(leaveTimer.current);
       void flushAll();
     };
   }, [flushAll]);
@@ -273,11 +279,18 @@ export function NotebookEditor({ notebook, lite, onClose, onEdit, onAddPage }: {
     schedule(i);
   }, [schedule]);
 
+  // Sale del cuaderno: guarda, se desvanece y luego la página lo quita. No usa
+  // AnimatePresence: una salida con presencia puede quedar colgada y dejar esta capa
+  // a pantalla completa encima de todo (ver noutlife-libreta-close-stall).
   async function close() {
-    if (await flushAll()) { onClose(); return; }
-    if (leaveArmed.current) { onClose(); return; }
-    leaveArmed.current = true;
-    toast().error('No se pudo guardar', 'Revisa tu conexión. Pulsa volver otra vez para salir sin guardar.');
+    if (leaving) return;
+    if (!(await flushAll()) && !leaveArmed.current) {
+      leaveArmed.current = true;
+      toast().error('No se pudo guardar', 'Revisa tu conexión. Pulsa volver otra vez para salir sin guardar.');
+      return;
+    }
+    setLeaving(true);
+    leaveTimer.current = window.setTimeout(onClose, FADE_MS);
   }
 
   // ─── Páginas ───
@@ -413,8 +426,8 @@ export function NotebookEditor({ notebook, lite, onClose, onEdit, onAddPage }: {
     <motion.div
       ref={dialog} tabIndex={-1}
       role="dialog" aria-modal="true" aria-label={`Libreta ${notebook.title}`}
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.15 } }}
-      className="fixed inset-0 z-[60] flex flex-col bg-surface-variant text-on-background outline-none"
+      initial={{ opacity: 0 }} animate={{ opacity: leaving ? 0 : 1 }} transition={{ duration: FADE_MS / 1000 }}
+      className={cn('fixed inset-0 z-[60] flex flex-col bg-surface-variant text-on-background outline-none', leaving && 'pointer-events-none')}
     >
       {/* Encabezado */}
       <header className="lq-bar-glass flex shrink-0 items-center gap-1 border-b border-border px-2 pt-[env(safe-area-inset-top)] sm:gap-2 sm:px-4">

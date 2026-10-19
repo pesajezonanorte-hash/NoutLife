@@ -3,7 +3,7 @@
 // páginas que elijas. Al abrirla, el cuaderno ocupa toda la pantalla
 // (components/notebook/NotebookEditor) y la URL lleva ?n=<id>: el botón atrás la cierra.
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { MoreHorizontal, Notebook as NotebookIcon, Plus, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -297,11 +297,8 @@ export default function NotebookPage() {
         </div>
       </Modal>
 
-      <AnimatePresence>
-        {book && (
-          <NotebookEditor key={book.id} notebook={book} lite={lite} onClose={close} onEdit={() => setDialog({ book })} onAddPage={addPage} />
-        )}
-      </AnimatePresence>
+      {/* Sin AnimatePresence: al salir, el propio editor se desvanece y luego la página lo quita. */}
+      {book && <NotebookEditor key={book.id} notebook={book} lite={lite} onClose={close} onEdit={() => setDialog({ book })} onAddPage={addPage} />}
     </ZoneShell>
   );
 }
