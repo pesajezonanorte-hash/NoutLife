@@ -14,6 +14,8 @@ export type Mode = 'write' | 'draw';
 export interface Tool { t: Stroke['t']; c: string; w: number }
 
 const STICKY = 320;
+/** Un trazo se corta al pasar de este número de coordenadas (el servidor admite 8000 por trazo). */
+const STROKE_SPLIT = 7000;
 const STICKY_ORDER = Object.keys(STICKY_COLORS) as StickyColor[];
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 /** Grosor real: el marcador y el borrador van más anchos que la pluma. */
@@ -268,6 +270,11 @@ function InkLayer({ strokes, width, height, active, tool, onCommit }: {
           if (!c || e.pointerId !== c.id) return;
           const events = e.nativeEvent.getCoalescedEvents?.() ?? [e.nativeEvent];
           for (const ev of events.length ? events : [e.nativeEvent]) c.s.p.push(...point(ev));
+          // Un trazo muy largo (p. ej. un garabato sin levantar el dedo) se corta en dos.
+          if (c.s.p.length >= STROKE_SPLIT) {
+            onCommit({ ...c.s, p: simplifyPoints(c.s.p) });
+            cur.current = { id: c.id, s: { ...c.s, p: c.s.p.slice(-2) } };
+          }
           if (!frame.current) frame.current = requestAnimationFrame(paint);
         }}
         onPointerUp={finish}

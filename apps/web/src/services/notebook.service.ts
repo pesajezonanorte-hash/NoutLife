@@ -46,14 +46,16 @@ export async function deleteNotebook(id: string): Promise<void> {
   await api.delete(`/notebooks/${id}`);
 }
 
-/** null: página en blanco. */
-export async function fetchPage(id: string, index: number): Promise<PageContent | null> {
-  const { data } = await api.get<{ page: { content: PageContent } | null }>(`/notebooks/${id}/pages/${index}`);
-  return data.page?.content ?? null;
+/** null: página en blanco. `updatedAt`: versión del servidor (para no pisar cambios de otro dispositivo). */
+export async function fetchPage(id: string, index: number): Promise<{ content: PageContent; updatedAt: string } | null> {
+  const { data } = await api.get<{ page: { content: PageContent; updatedAt: string } | null }>(`/notebooks/${id}/pages/${index}`);
+  return data.page ?? null;
 }
 
-export async function savePage(id: string, index: number, content: PageContent): Promise<void> {
-  await api.put(`/notebooks/${id}/pages/${index}`, content);
+/** Devuelve la versión nueva del servidor (updatedAt), o null si la página quedó en blanco. */
+export async function savePage(id: string, index: number, content: PageContent): Promise<string | null> {
+  const { data } = await api.put<{ page: { updatedAt: string } | null }>(`/notebooks/${id}/pages/${index}`, content);
+  return data.page?.updatedAt ?? null;
 }
 
 export async function uploadImage(id: string, body: { mime: string; data: string }): Promise<string> {

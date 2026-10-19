@@ -48,6 +48,15 @@ test('página: trazos en pares, con tope de tamaño y sin campos extra', () => {
   assert.equal(pageContentSchema.safeParse({ ...blank, strokes: heavy }).success, false, 'demasiados trazos');
 });
 
+test('una hoja admite lo que el cliente deja pegar: 60 imágenes, 100 notas y 6000 trazos', () => {
+  const image = { id: 'i1', x: 0, y: 0, w: 100, ratio: 1 };
+  const sticky = { id: 'n1', x: 10, y: 10, text: '', color: 'yellow', rot: 0 };
+  assert.equal(pageContentSchema.safeParse({ ...blank, images: Array.from({ length: 60 }, (_, k) => ({ ...image, id: `i${k}` })) }).success, true);
+  assert.equal(pageContentSchema.safeParse({ ...blank, images: Array.from({ length: 61 }, (_, k) => ({ ...image, id: `i${k}` })) }).success, false);
+  assert.equal(pageContentSchema.safeParse({ ...blank, stickies: Array.from({ length: 100 }, (_, k) => ({ ...sticky, id: `n${k}` })) }).success, true);
+  assert.equal(pageContentSchema.safeParse({ ...blank, strokes: Array.from({ length: 6000 }, () => stroke) }).success, true);
+});
+
 test('imagen: solo base64 de jpeg, png o webp', () => {
   assert.equal(notebookImageSchema.safeParse({ mime: 'image/jpeg', data: 'QUJDREVGR0hJSktMTU5PUA==' }).success, true);
   assert.equal(notebookImageSchema.safeParse({ mime: 'image/svg+xml', data: 'QUJDREVGR0hJSktMTU5PUA==' }).success, false);

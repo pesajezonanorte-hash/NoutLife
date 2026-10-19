@@ -64,10 +64,10 @@ const imageRefSchema = z.object({
 
 export const pageContentSchema = z.object({
   /** Texto enriquecido (HTML ya saneado en el cliente; solo lo lee su dueño). */
-  html: z.string().max(60_000),
-  strokes: z.array(strokeSchema).max(3000),
-  stickies: z.array(stickySchema).max(30),
-  images: z.array(imageRefSchema).max(12),
+  html: z.string().max(200_000),
+  strokes: z.array(strokeSchema).max(6000),
+  stickies: z.array(stickySchema).max(100),
+  images: z.array(imageRefSchema).max(60),
 }).strict().superRefine((page, ctx) => {
   const numbers = page.strokes.reduce((n, s) => n + s.p.length, 0);
   if (numbers > MAX_STROKE_NUMBERS) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['strokes'], message: 'La página tiene demasiados trazos. Sigue en la página siguiente.' });

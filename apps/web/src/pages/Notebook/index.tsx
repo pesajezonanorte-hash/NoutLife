@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/useToast';
 import {
   Button, ChipGroup, EmptyState, ErrorState, Field, Input, Modal, PageLoader, ResponsiveDialog,
 } from '@/components/ui/lq';
-import { NotebookEditor } from '@/components/notebook/NotebookEditor';
+import { NotebookEditor, clearNotebookDrafts } from '@/components/notebook/NotebookEditor';
 import { LiteNotice } from '@/components/billing/LiteNotice';
 import { useAuthStore } from '@/store/authStore';
 import { usePlanStore } from '@/store/planStore';
@@ -213,6 +213,7 @@ export default function NotebookPage() {
     setBusy(true);
     try {
       await svc.deleteNotebook(deleting.id);
+      clearNotebookDrafts(deleting.id);
       setBooks((list) => list.filter((x) => x.id !== deleting.id));
       toast.success('Libreta eliminada');
       if (openId === deleting.id) close();

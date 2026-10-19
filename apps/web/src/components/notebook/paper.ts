@@ -118,3 +118,19 @@ export function hasContent(page: PageContent): boolean {
 }
 
 export const uid = () => Math.random().toString(36).slice(2, 10);
+
+// Límites de una hoja (los mismos que la API): por encima, la hoja no se puede guardar, así que se evita antes.
+export const MAX_PAGE_HTML = 200_000;
+export const MAX_PAGE_STROKES = 6000;
+export const MAX_PAGE_STICKIES = 100;
+export const MAX_PAGE_IMAGES = 60;
+export const MAX_STROKE_NUMBERS = 200_000;
+
+/** ¿La hoja se pasa de los límites del servidor? */
+export function exceedsPageLimits(page: PageContent): boolean {
+  if (page.html.length > MAX_PAGE_HTML || page.strokes.length > MAX_PAGE_STROKES) return true;
+  if (page.stickies.length > MAX_PAGE_STICKIES || page.images.length > MAX_PAGE_IMAGES) return true;
+  let numbers = 0;
+  for (const s of page.strokes) numbers += s.p.length;
+  return numbers > MAX_STROKE_NUMBERS;
+}

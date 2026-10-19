@@ -24,7 +24,7 @@ import { LITE_LIMITS } from '@/lib/plan';
 import {
   fetchPage, primeImage, savePage, uploadImage, type Notebook, type PageContent, type PageImage, type Sticky,
 } from '@/services/notebook.service';
-import { EMPTY_PAGE, INKS, PAGE_H, PAGE_W, SIZES, STICKY_COLORS, categoryLabel, sanitizeHtml, uid } from './paper';
+import { EMPTY_PAGE, INKS, MAX_PAGE_IMAGES, MAX_PAGE_STICKIES, PAGE_H, PAGE_W, SIZES, STICKY_COLORS, categoryLabel, exceedsPageLimits, sanitizeHtml, uid } from './paper';
 import { PageSheet, type Mode, type Tool } from './PageSheet';
 import { PageProgress } from './PageProgress';
 
@@ -34,6 +34,36 @@ const SAVE_DELAY = 900;
 const FADE_MS = 160;
 const HIGHLIGHT = 'rgba(250, 204, 21, 0.45)';
 const lastPageKey = (id: string) => `lq-nb-page:${id}`;
+/** Un guardado que no responde en este tiempo cuenta como fallido: nunca puede dejar la libreta colgada. */
+const SAVE_TIMEOUT_MS = 15_000;
+/** Borrador en este dispositivo: lo último escrito que el servidor aún no confirmó. `base` es la versión del servidor sobre la que se escribió. */
+type Draft = { base: string | null; page: PageContent };
+const draftKey = (id: string, i: number) => `lq-nb-draft:${id}:${i}`;
+function readDraft(id: string, i: number): Draft | null {
+  try { const raw = localStorage.getItem(draftKey(id, i)); return raw ? (JSON.parse(raw) as Draft) : null; } catch { return null; }
+}
+function writeDraft(id: string, i: number, draft: Draft) {
+  try { localStorage.setItem(draftKey(id, i), JSON.stringify(draft)); } catch { /* sin espacio: el guardado sigue intentándose */ }
+}
+function removeDraft(id: string, i: number) {
+  try { localStorage.removeItem(draftKey(id, i)); } catch { /* sin storage */ }
+}
+/** Borra los borradores de una libreta (al eliminarla). */
+export function clearNotebookDrafts(id: string) {
+  try {
+    for (let k = localStorage.length - 1; k >= 0; k--) {
+      const key = localStorage.key(k);
+      if (key?.startsWith(`lq-nb-draft:${id}:`)) localStorage.removeItem(key);
+    }
+  } catch { /* sin storage */ }
+}
+/** Falla si la promesa no responde a tiempo. */
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error('timeout')), ms);
+    promise.then((v) => { window.clearTimeout(timer); resolve(v); }, (e: unknown) => { window.clearTimeout(timer); reject(e); });
+  });
+}
 
 // ─── Paso de página ─────────────────────────────────────────────────────────────
 /** Sentido del paso (1 adelante, −1 atrás) y si va sin movimiento (Reducir movimiento o Lite). */
@@ -182,7 +212,8 @@ export function NotebookEditor({ notebook, lite, onClose, onEdit, onAddPage }: {
   const timers = useRef(new Map<number, number>());
   const stage = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
-  const leaveArmed = useRef(false);
+  /** Versión del servidor de cada hoja (updatedAt): base sobre la que se escribe el borrador. */
+  const bases = useRef(new Map<number, string | null>());
   const leaveTimer = useRef<number | undefined>(undefined);
   const dialog = useRef<HTMLDivElement>(null);
   const bump = () => setVersion((v) => v + 1);
@@ -193,16 +224,6 @@ export function NotebookEditor({ notebook, lite, onClose, onEdit, onAddPage }: {
   useEffect(() => { lockScroll(); dialog.current?.focus(); return () => unlockScroll(); }, []);
   useEffect(() => { try { localStorage.setItem(lastPageKey(notebook.id), String(index)); } catch { /* sin storage */ } }, [notebook.id, index]);
 
-  // ─── Carga ───
-  const ensure = useCallback((i: number) => {
-    if (i < 0 || i >= notebook.pageCount || pages.current.has(i) || loading.current.has(i)) return;
-    loading.current.add(i);
-    fetchPage(notebook.id, i)
-      .then((page) => { pages.current.set(i, page ? { ...EMPTY_PAGE, ...page, html: sanitizeHtml(page.html) } : EMPTY_PAGE); setFailed((f) => (f === i ? null : f)); bump(); })
-      .catch(() => setFailed(i))
-      .finally(() => loading.current.delete(i));
-  }, [notebook.id, notebook.pageCount]);
-  useEffect(() => { ensure(index); ensure(index + 1); ensure(index - 1); }, [ensure, index]);
 
   // ─── Guardado ───
   const saveNow = useCallback(async (i: number): Promise<boolean> => {
@@ -212,9 +233,15 @@ export function NotebookEditor({ notebook, lite, onClose, onEdit, onAddPage }: {
     const page = pages.current.get(i);
     if (!page) return true;
     dirty.current.delete(i);
+    const clean: PageContent = { ...page, html: sanitizeHtml(page.html) };
+    // El borrador va antes de la petición: si no llega (sin red, pestaña cerrada), queda aquí.
+    writeDraft(notebook.id, i, { base: bases.current.get(i) ?? null, page: clean });
     setStatus('saving');
     try {
-      await savePage(notebook.id, i, { ...page, html: sanitizeHtml(page.html) });
+      const updatedAt = await withTimeout(savePage(notebook.id, i, clean), SAVE_TIMEOUT_MS);
+      bases.current.set(i, updatedAt);
+      // Si nada cambió mientras se subía, el servidor ya tiene lo mismo: se borra el borrador.
+      if (!dirty.current.has(i)) removeDraft(notebook.id, i);
       if (dirty.current.size === 0) setStatus('saved');
       return true;
     } catch {
@@ -227,11 +254,36 @@ export function NotebookEditor({ notebook, lite, onClose, onEdit, onAddPage }: {
 
   const schedule = useCallback((i: number) => {
     dirty.current.add(i);
-    leaveArmed.current = false;
     setStatus('saving');
     window.clearTimeout(timers.current.get(i));
     timers.current.set(i, window.setTimeout(() => void saveNow(i), SAVE_DELAY));
   }, [saveNow]);
+
+  // ─── Carga: si hay un borrador de este dispositivo y la hoja no cambió en el servidor, manda el borrador ───
+  const ensure = useCallback((i: number) => {
+    if (i < 0 || i >= notebook.pageCount || pages.current.has(i) || loading.current.has(i)) return;
+    loading.current.add(i);
+    fetchPage(notebook.id, i)
+      .then((res) => {
+        const base = res?.updatedAt ?? null;
+        bases.current.set(i, base);
+        const draft = readDraft(notebook.id, i);
+        if (draft && draft.base === base) {
+          // Quedó sin subir (sin red o cierre a mitad): se sube ahora desde la copia de este dispositivo.
+          pages.current.set(i, draft.page);
+          dirty.current.add(i);
+          schedule(i);
+        } else {
+          if (draft) removeDraft(notebook.id, i); // la hoja cambió en el servidor: manda el servidor
+          pages.current.set(i, res ? { ...EMPTY_PAGE, ...res.content, html: sanitizeHtml(res.content.html) } : EMPTY_PAGE);
+        }
+        setFailed((f) => (f === i ? null : f));
+        bump();
+      })
+      .catch(() => setFailed(i))
+      .finally(() => loading.current.delete(i));
+  }, [notebook.id, notebook.pageCount, schedule]);
+  useEffect(() => { ensure(index); ensure(index + 1); ensure(index - 1); }, [ensure, index]);
 
   // Se guarda también al ocultar la app, al recuperar la conexión y al cerrar la libreta.
   useEffect(() => {
@@ -267,6 +319,7 @@ export function NotebookEditor({ notebook, lite, onClose, onEdit, onAddPage }: {
   };
   const update = useCallback((i: number, next: PageContent) => {
     const before = pages.current.get(i);
+    if (exceedsPageLimits(next)) { toast().warning('Esta hoja está llena', 'Pasa a otra hoja para seguir escribiendo o dibujando.'); return; }
     if (before) remember(i, before, next, kindOf(before, next));
     pages.current.set(i, next); bump(); schedule(i);
   }, [schedule]);
@@ -279,18 +332,16 @@ export function NotebookEditor({ notebook, lite, onClose, onEdit, onAddPage }: {
     schedule(i);
   }, [schedule]);
 
-  // Sale del cuaderno: guarda, se desvanece y luego la página lo quita. No usa
-  // AnimatePresence: una salida con presencia puede quedar colgada y dejar esta capa
-  // a pantalla completa encima de todo (ver noutlife-libreta-close-stall).
-  async function close() {
+  // Sale del cuaderno sin esperar a la red: se desvanece y la página lo quita. Lo que no se
+  // subió queda como borrador en este dispositivo y se sube al volver a abrirla. Sin
+  // AnimatePresence: una salida con presencia puede quedarse colgada y dejar esta capa a pantalla completa encima de todo.
+  function close() {
     if (leaving) return;
-    if (!(await flushAll()) && !leaveArmed.current) {
-      leaveArmed.current = true;
-      toast().error('No se pudo guardar', 'Revisa tu conexión. Pulsa volver otra vez para salir sin guardar.');
-      return;
-    }
     setLeaving(true);
     leaveTimer.current = window.setTimeout(onClose, FADE_MS);
+    void flushAll().then((ok) => {
+      if (!ok) toast().info('Cambios guardados en este dispositivo', 'Se subirán cuando vuelvas a abrir la libreta con conexión.');
+    });
   }
 
   // ─── Páginas ───
@@ -374,6 +425,7 @@ export function NotebookEditor({ notebook, lite, onClose, onEdit, onAddPage }: {
   const current = pages.current.get(index);
   function addSticky() {
     if (!current) return;
+    if (current.stickies.length >= MAX_PAGE_STICKIES) { toast().warning('Esta hoja ya tiene muchas notas', 'Pasa a otra hoja para seguir.'); return; }
     const colors = Object.keys(STICKY_COLORS) as Sticky['color'][];
     const n = current.stickies.length;
     const note: Sticky = { id: uid(), x: 330 + ((n * 70) % 280), y: 260 + ((n * 110) % 700), text: '', color: lite ? 'yellow' : colors[n % colors.length], rot: Math.round((Math.random() * 6 - 3) * 10) / 10 };
@@ -384,7 +436,9 @@ export function NotebookEditor({ notebook, lite, onClose, onEdit, onAddPage }: {
   async function addImages(files: File[], at?: { x: number; y: number }) {
     if (lite) { openUpgrade('notebook-images'); return; }
     const i = index;
-    if (!pages.current.get(i)) return;
+    const cur = pages.current.get(i);
+    if (!cur) return;
+    if (cur.images.length >= MAX_PAGE_IMAGES) { toast().warning('Esta hoja ya tiene muchas imágenes', `Hasta ${MAX_PAGE_IMAGES} por hoja. Pasa a otra hoja para seguir.`); return; }
     setUploading(true);
     try {
       for (const file of files.slice(0, 4)) {
