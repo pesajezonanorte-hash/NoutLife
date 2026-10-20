@@ -3,15 +3,17 @@
 // Lo demás (boletas, cartelera) queda quieto hasta que la persona actúa. Solo se
 // anima transform y opacity; con «Reducir movimiento» el telón ya está abierto y
 // las bombillas, el haz y el grano se quedan quietos. Fuera de pantalla, todo se pausa.
-import type { CSSProperties, ReactNode } from 'react';
+import { useState, type CSSProperties, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { springs, useMotionReduced } from '@/lib/motion';
 import { usePaused } from '@/components/ambience';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { useToastStore } from '@/hooks/useToast';
+import * as recreationService from '@/services/recreation.service';
 import type { RecreationEntry } from '@/services/recreation.service';
-import { kindOf, minutesLabel, stubDate } from './recreationMeta';
+import { kindOf, minutesLabel, seriesPosition, seriesProgress, stubDate } from './recreationMeta';
 
 const CURTAIN_EASE = [0.65, 0, 0.35, 1] as const;
 
@@ -91,32 +93,64 @@ export function Stars({ value, onChange, className }: { value: number | null; on
   );
 }
 
-/** Boleta de una función vivida: talón perforado con la fecha y el tipo de ocio. */
-export function Ticket({ entry, onOpen }: { entry: RecreationEntry; onOpen: () => void }) {
+/** Boleta de una función vivida: talón perforado con la fecha y el tipo de ocio. Las series traen su capítulo al día y un botón para sumar uno. */
+export function Ticket({ entry, onOpen, onUpdated }: { entry: RecreationEntry; onOpen: () => void; onUpdated: (entry: RecreationEntry) => void }) {
   const kind = kindOf(entry.kind);
   const d = stubDate(entry.date);
+  const position = seriesPosition(entry);
+  const progress = seriesProgress(entry);
+  const series = entry.kind === 'SERIES';
+  const finished = progress === 100;
+  const [advancing, setAdvancing] = useState(false);
+
+  async function nextEpisode() {
+    setAdvancing(true);
+    try { onUpdated(await recreationService.advanceRecreationSeries(entry.id, 'episode')); }
+    catch { useToastStore.getState().error('No se pudo avanzar el capítulo', entry.title); }
+    finally { setAdvancing(false); }
+  }
+
   return (
-    <button
-      type="button" aria-haspopup="dialog" onClick={onOpen}
-      aria-label={`${entry.title}, ${kind.label}, ${d.weekday} ${d.day} ${d.month}${entry.rating ? `, ${entry.rating} estrellas` : ''}`}
-      className="lq-ticket grid w-full grid-cols-[var(--stub)_minmax(0,1fr)] text-left transition-transform duration-[325ms] ease-[var(--lq-ease-snappy)] active:scale-[.985]"
-    >
-      <span aria-hidden="true" className="lq-ticket-stub flex flex-col items-center justify-center gap-0.5 py-3">
-        <kind.icon className="mb-0.5 size-5" strokeWidth={1.75} />
-        <span className="text-label-md">{d.weekday}</span>
-        <span className="font-mono text-heading-sm leading-none tabular-nums">{d.day}</span>
-        <span className="text-label-md">{d.month}</span>
-      </span>
-      <span className="flex min-w-0 flex-col justify-center gap-1 px-4 py-3">
-        <span className="truncate text-body-lg font-semibold">{entry.title}</span>
-        <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-body-sm text-on-surface-light">
-          <span>{kind.label}</span>
-          {entry.minutes ? <span className="font-mono tabular-nums">{minutesLabel(entry.minutes)}</span> : null}
-          <Stars value={entry.rating} />
-          {entry.xpEarned > 0 && <span className="font-mono text-secondary-text tabular-nums">+{entry.xpEarned} XP</span>}
+    <div className="relative">
+      <button
+        type="button" aria-haspopup="dialog" onClick={onOpen}
+        aria-label={`${entry.title}, ${kind.label}, ${d.weekday} ${d.day} ${d.month}${position ? `, ${position}` : ''}${entry.rating ? `, ${entry.rating} estrellas` : ''}`}
+        className="lq-ticket grid w-full grid-cols-[var(--stub)_minmax(0,1fr)] text-left transition-transform duration-[325ms] ease-[var(--lq-ease-snappy)] active:scale-[.985]"
+      >
+        <span aria-hidden="true" className="lq-ticket-stub flex flex-col items-center justify-center gap-0.5 py-3">
+          <kind.icon className="mb-0.5 size-5" strokeWidth={1.75} />
+          <span className="text-label-md">{d.weekday}</span>
+          <span className="font-mono text-heading-sm leading-none tabular-nums">{d.day}</span>
+          <span className="text-label-md">{d.month}</span>
         </span>
-      </span>
-    </button>
+        <span className={cn('flex min-w-0 flex-col justify-center gap-1 px-4 py-3', series && 'pr-44')}>
+          <span className="truncate text-body-lg font-semibold">{entry.title}</span>
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-body-sm text-on-surface-light">
+            <span>{kind.label}</span>
+            {position && <span>{position}</span>}
+            {entry.minutes ? <span className="font-mono tabular-nums">{minutesLabel(entry.minutes)}</span> : null}
+            <Stars value={entry.rating} />
+            {entry.xpEarned > 0 && <span className="font-mono text-secondary-text tabular-nums">+{entry.xpEarned} XP</span>}
+          </span>
+          {progress !== null && (
+            <span className="flex items-center gap-3 pt-1 text-label-md text-on-surface-light">
+              <span role="progressbar" aria-label={`Capítulos vistos de ${entry.title}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} className="relative h-1.5 w-24 shrink-0 overflow-hidden rounded-full bg-surface-variant">
+                <span className="absolute inset-y-0 left-0 rounded-full bg-secondary" style={{ width: `${progress}%` }} />
+              </span>
+              <span className="font-mono tabular-nums">{entry.episodesWatched} de {entry.totalEpisodes}</span>
+            </span>
+          )}
+        </span>
+      </button>
+      {series && entry.status === 'DONE' && (
+        <button
+          type="button" onClick={() => void nextEpisode()} disabled={advancing || finished}
+          className="absolute right-3 top-1/2 inline-flex min-h-11 -translate-y-1/2 items-center rounded-full bg-secondary/[var(--lq-soft-alpha)] px-4 text-body-sm font-semibold text-secondary-text transition-opacity disabled:opacity-50"
+        >
+          {finished ? 'Serie terminada' : 'Siguiente capítulo'}
+        </button>
+      )}
+    </div>
   );
 }
 

@@ -10,12 +10,24 @@ import type { RecreationEntry, RecreationKind, RecreationResult, RecreationStatu
 import { KINDS, kindOf, localDay } from './recreationMeta';
 import { Stars } from './Cinema';
 
-type Draft = { title: string; kind: RecreationKind | null; status: RecreationStatus; rating: number | null; minutes: string; date: string; notes: string };
+type Draft = {
+  title: string; kind: RecreationKind | null; status: RecreationStatus; rating: number | null; minutes: string; date: string; notes: string;
+  season: string; episode: string; totalSeasons: string; totalEpisodes: string; watched: string;
+};
 
 const fromEntry = (e: RecreationEntry): Draft => ({
   title: e.title, kind: e.kind, status: e.status, rating: e.rating, minutes: e.minutes ? String(e.minutes) : '', date: localDay(new Date(e.date)), notes: e.notes ?? '',
+  season: e.season ? String(e.season) : '', episode: e.episode ? String(e.episode) : '',
+  totalSeasons: e.totalSeasons ? String(e.totalSeasons) : '', totalEpisodes: e.totalEpisodes ? String(e.totalEpisodes) : '',
+  watched: e.episodesWatched ? String(e.episodesWatched) : '',
 });
-const blank = (status: RecreationStatus): Draft => ({ title: '', kind: null, status, rating: null, minutes: '', date: localDay(), notes: '' });
+const blank = (status: RecreationStatus): Draft => ({
+  title: '', kind: null, status, rating: null, minutes: '', date: localDay(), notes: '',
+  season: '', episode: '', totalSeasons: '', totalEpisodes: '', watched: '',
+});
+
+const whole = (text: string) => (text.trim() === '' ? null : Math.round(Number(text)));
+const inRange = (n: number | null, min: number, max: number) => n === null || (n >= min && n <= max);
 
 const STATUS_OPTIONS = [
   { value: 'DONE' as const, label: 'Ya la viví' },
@@ -46,7 +58,16 @@ export function RecreationDialog({ open, onClose, entry, initialStatus = 'DONE',
   const set = (patch: Partial<Draft>) => setDraft((d) => ({ ...d, ...patch }));
   const minutes = draft.minutes.trim() === '' ? null : Math.round(Number(draft.minutes));
   const minutesBad = minutes !== null && !(minutes >= 1 && minutes <= 1440);
-  const valid = draft.title.trim() !== '' && draft.kind !== null && !minutesBad;
+  const series = {
+    season: whole(draft.season), episode: whole(draft.episode), totalSeasons: whole(draft.totalSeasons),
+    totalEpisodes: whole(draft.totalEpisodes), episodesWatched: whole(draft.watched),
+  };
+  const seriesBad = draft.kind === 'SERIES' && (
+    !inRange(series.season, 1, 99) || !inRange(series.episode, 1, 999) || !inRange(series.totalSeasons, 1, 99) ||
+    !inRange(series.totalEpisodes, 1, 9999) || !inRange(series.episodesWatched, 0, 9999) ||
+    (series.totalEpisodes !== null && series.episodesWatched !== null && series.episodesWatched > series.totalEpisodes)
+  );
+  const valid = draft.title.trim() !== '' && draft.kind !== null && !minutesBad && !seriesBad;
 
   function celebrate(result: RecreationResult) {
     const r = result.rewards;
@@ -64,6 +85,7 @@ export function RecreationDialog({ open, onClose, entry, initialStatus = 'DONE',
     const body = {
       title: draft.title.trim(), kind: draft.kind!, status, rating: status === 'DONE' ? draft.rating : null,
       minutes, date: draft.date || undefined, notes: draft.notes.trim() || null,
+      ...(draft.kind === 'SERIES' && { ...series, episodesWatched: series.episodesWatched ?? 0 }),
     };
     try {
       const result = entry ? await recreationService.updateRecreation(entry.id, body) : await recreationService.createRecreation(body);
@@ -123,6 +145,29 @@ export function RecreationDialog({ open, onClose, entry, initialStatus = 'DONE',
             <Input type="date" value={draft.date} max={planned ? undefined : localDay()} onChange={(e) => set({ date: e.target.value })} />
           </Field>
         </div>
+        {draft.kind === 'SERIES' && (
+          <div className="flex flex-col gap-4 rounded-2xl border border-border p-4">
+            <span className="text-label-lg text-on-surface">Seguimiento de la serie</span>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Temporada actual">
+                <Input type="number" inputMode="numeric" min="1" max="99" value={draft.season} onChange={(e) => set({ season: e.target.value })} placeholder="1" className="font-mono tabular-nums" />
+              </Field>
+              <Field label="Capítulo actual">
+                <Input type="number" inputMode="numeric" min="1" max="999" value={draft.episode} onChange={(e) => set({ episode: e.target.value })} placeholder="1" className="font-mono tabular-nums" />
+              </Field>
+              <Field label="Capítulos vistos" help="En todas las temporadas">
+                <Input type="number" inputMode="numeric" min="0" max="9999" value={draft.watched} onChange={(e) => set({ watched: e.target.value })} placeholder="0" className="font-mono tabular-nums" />
+              </Field>
+              <Field label="Capítulos en total" help="Opcional">
+                <Input type="number" inputMode="numeric" min="1" max="9999" value={draft.totalEpisodes} onChange={(e) => set({ totalEpisodes: e.target.value })} placeholder="62" className="font-mono tabular-nums" />
+              </Field>
+              <Field label="Temporadas en total" help="Opcional">
+                <Input type="number" inputMode="numeric" min="1" max="99" value={draft.totalSeasons} onChange={(e) => set({ totalSeasons: e.target.value })} placeholder="5" className="font-mono tabular-nums" />
+              </Field>
+            </div>
+            {touched && seriesBad && <p role="alert" className="text-body-sm text-error-text">Revisa los números: temporada hasta 99, capítulo hasta 999, y no más capítulos vistos que el total.</p>}
+          </div>
+        )}
         <Field label="Notas" help="Opcional">
           <Textarea rows={2} maxLength={1000} value={draft.notes} onChange={(e) => set({ notes: e.target.value })} placeholder={planned ? 'Con quién, dónde la ves…' : 'Lo que más te gustó'} />
         </Field>

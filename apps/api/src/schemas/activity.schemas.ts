@@ -88,9 +88,15 @@ const recreationFields = {
   minutes: z.number().int().min(1).max(24 * 60).nullable().optional(),
   notes: z.string().trim().max(1000).nullable().optional(),
   date: parsableDate.optional(),
+  season: z.number().int().min(1).max(99).nullable().optional(),
+  episode: z.number().int().min(1).max(999).nullable().optional(),
+  totalSeasons: z.number().int().min(1).max(99).nullable().optional(),
+  totalEpisodes: z.number().int().min(1).max(9999).nullable().optional(),
+  episodesWatched: z.number().int().min(0).max(9999).optional(),
 };
 export const createRecreationSchema = z.object(recreationFields);
 export const updateRecreationSchema = z.object(recreationFields).partial();
+export const recreationProgressSchema = z.object({ step: z.enum(['episode', 'season']) });
 
 export const createJournalSchema = z.object({
   title: z.string().trim().max(200).optional(),

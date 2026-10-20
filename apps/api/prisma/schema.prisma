@@ -676,6 +676,13 @@ model RecreationEntry {
   rating   Int?
   minutes  Int?
   notes    String?
+  /// Serie: temporada y capítulo en que va (1 en adelante) y el total de la serie.
+  season          Int?
+  episode         Int?
+  totalSeasons    Int?
+  totalEpisodes   Int?
+  /// Capítulos vistos en todas las temporadas: de aquí sale el progreso global.
+  episodesWatched Int      @default(0)
   /// Cuándo fue (DONE) o para cuándo se planea (PLANNED).
   date     DateTime
   xpEarned Int     @default(0)

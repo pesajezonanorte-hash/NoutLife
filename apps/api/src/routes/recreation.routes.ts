@@ -3,8 +3,8 @@ import { requireAuth, type AuthRequest } from '../middleware/auth.middleware';
 import { requireProZone } from '../middleware/plan.middleware';
 import { validate } from '../middleware/validate.middleware';
 import { publicErrorMessage } from '../middleware/error.middleware';
-import { createRecreationSchema, updateRecreationSchema } from '../schemas/activity.schemas';
-import { createRecreation, deleteRecreation, listRecreation, updateRecreation } from '../services/recreation.service';
+import { createRecreationSchema, recreationProgressSchema, updateRecreationSchema } from '../schemas/activity.schemas';
+import { advanceSeries, createRecreation, deleteRecreation, listRecreation, updateRecreation } from '../services/recreation.service';
 
 const router = Router();
 router.use(requireAuth);
@@ -26,6 +26,14 @@ router.patch('/:id', validate(updateRecreationSchema), async (req, res) => {
     const result = await updateRecreation((req as AuthRequest).userId!, req.params.id, req.body);
     if (!result) { res.status(404).json({ error: 'Esa función ya no existe.' }); return; }
     res.json(result);
+  } catch (err) { res.status(500).json({ error: publicErrorMessage(err) }); }
+});
+
+router.post('/:id/progress', validate(recreationProgressSchema), async (req, res) => {
+  try {
+    const entry = await advanceSeries((req as AuthRequest).userId!, req.params.id, req.body.step);
+    if (!entry) { res.status(404).json({ error: 'Esa serie ya no existe.' }); return; }
+    res.json({ entry });
   } catch (err) { res.status(500).json({ error: publicErrorMessage(err) }); }
 });
 

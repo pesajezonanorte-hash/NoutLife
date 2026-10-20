@@ -18,6 +18,11 @@ export interface RecreationInput {
   minutes?: number | null;
   notes?: string | null;
   date?: string;
+  season?: number | null;
+  episode?: number | null;
+  totalSeasons?: number | null;
+  totalEpisodes?: number | null;
+  episodesWatched?: number;
 }
 
 /** «2026-10-13» cae al mediodía UTC: el mismo día del calendario en cualquier zona de América. */
@@ -64,6 +69,11 @@ export async function createRecreation(userId: string, input: RecreationInput & 
       minutes: input.minutes ?? null,
       notes: input.notes || null,
       date: parseDate(input.date),
+      season: input.season ?? null,
+      episode: input.episode ?? null,
+      totalSeasons: input.totalSeasons ?? null,
+      totalEpisodes: input.totalEpisodes ?? null,
+      episodesWatched: input.episodesWatched ?? 0,
     },
   });
   const rewards = await rewardIfDone(userId, entry);
@@ -84,10 +94,29 @@ export async function updateRecreation(userId: string, id: string, input: Recrea
       ...(input.minutes !== undefined && { minutes: input.minutes }),
       ...(input.notes !== undefined && { notes: input.notes || null }),
       ...(input.date !== undefined && { date: parseDate(input.date) }),
+      ...(input.season !== undefined && { season: input.season }),
+      ...(input.episode !== undefined && { episode: input.episode }),
+      ...(input.totalSeasons !== undefined && { totalSeasons: input.totalSeasons }),
+      ...(input.totalEpisodes !== undefined && { totalEpisodes: input.totalEpisodes }),
+      ...(input.episodesWatched !== undefined && { episodesWatched: input.episodesWatched }),
     },
   });
   const rewards = await rewardIfDone(userId, entry);
   return { entry, rewards };
+}
+
+/** Siguiente capítulo (suma al progreso global, sin pasar del total) o siguiente temporada (capítulo 1). null si no es de la persona o no es una serie. */
+export async function advanceSeries(userId: string, id: string, step: 'episode' | 'season') {
+  const entry = await prisma.recreationEntry.findFirst({ where: { id, userId, kind: 'SERIES' } });
+  if (!entry) return null;
+  if (step === 'season') {
+    return prisma.recreationEntry.update({ where: { id }, data: { season: (entry.season ?? 1) + 1, episode: 1 } });
+  }
+  if (entry.totalEpisodes !== null && entry.episodesWatched >= entry.totalEpisodes) return entry;
+  return prisma.recreationEntry.update({
+    where: { id },
+    data: { season: entry.season ?? 1, episode: (entry.episode ?? 0) + 1, episodesWatched: entry.episodesWatched + 1 },
+  });
 }
 
 export async function deleteRecreation(userId: string, id: string) {

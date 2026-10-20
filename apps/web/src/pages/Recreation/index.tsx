@@ -57,6 +57,7 @@ export default function RecreationPage() {
     setEntries((list) => [entry, ...list.filter((e) => e.id !== entry.id)]);
     setDialog(null);
   };
+  const replaceEntry = (entry: RecreationEntry) => setEntries((list) => list.map((e) => (e.id === entry.id ? entry : e)));
   const deleted = (id: string) => {
     setEntries((list) => list.filter((e) => e.id !== id));
     setDialog(null);
@@ -136,7 +137,7 @@ export default function RecreationPage() {
 
   const ticketList = (list: RecreationEntry[]) => (
     <ul className="flex flex-col gap-2">
-      {list.map((e) => <li key={e.id}><Ticket entry={e} onOpen={() => open(e)} /></li>)}
+      {list.map((e) => <li key={e.id}><Ticket entry={e} onOpen={() => open(e)} onUpdated={replaceEntry} /></li>)}
     </ul>
   );
 

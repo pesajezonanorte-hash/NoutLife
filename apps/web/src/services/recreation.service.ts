@@ -14,6 +14,11 @@ export interface RecreationEntry {
   notes: string | null;
   date: string;
   xpEarned: number;
+  season: number | null;
+  episode: number | null;
+  totalSeasons: number | null;
+  totalEpisodes: number | null;
+  episodesWatched: number;
   createdAt: string;
 }
 
@@ -35,6 +40,11 @@ export interface RecreationInput {
   notes?: string | null;
   /** YYYY-MM-DD */
   date?: string;
+  season?: number | null;
+  episode?: number | null;
+  totalSeasons?: number | null;
+  totalEpisodes?: number | null;
+  episodesWatched?: number;
 }
 
 export interface RecreationResult { entry: RecreationEntry; rewards: RecreationRewards | null }
@@ -52,6 +62,11 @@ export async function createRecreation(body: RecreationInput & { title: string; 
 export async function updateRecreation(id: string, body: RecreationInput): Promise<RecreationResult> {
   const { data } = await api.patch<RecreationResult>(`/recreation/${id}`, body);
   return data;
+}
+
+export async function advanceRecreationSeries(id: string, step: 'episode' | 'season'): Promise<RecreationEntry> {
+  const { data } = await api.post<{ entry: RecreationEntry }>(`/recreation/${id}/progress`, { step });
+  return data.entry;
 }
 
 export async function deleteRecreation(id: string): Promise<void> {

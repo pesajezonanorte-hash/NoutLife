@@ -86,6 +86,15 @@ const REMINDER_SNOOZES_SQL = [
   ignoreDuplicate(`ALTER TABLE "reminder_snoozes" ADD CONSTRAINT "reminder_snoozes_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE`),
 ];
 
+// Idempotent mirror of prisma/migrations/20261029120000_series_progress: temporadas y capítulos de las series.
+const SERIES_PROGRESS_SQL = [
+  `ALTER TABLE "recreation_entries" ADD COLUMN IF NOT EXISTS "season" INTEGER;`,
+  `ALTER TABLE "recreation_entries" ADD COLUMN IF NOT EXISTS "episode" INTEGER;`,
+  `ALTER TABLE "recreation_entries" ADD COLUMN IF NOT EXISTS "totalSeasons" INTEGER;`,
+  `ALTER TABLE "recreation_entries" ADD COLUMN IF NOT EXISTS "totalEpisodes" INTEGER;`,
+  `ALTER TABLE "recreation_entries" ADD COLUMN IF NOT EXISTS "episodesWatched" INTEGER NOT NULL DEFAULT 0;`,
+];
+
 // Idempotent mirror of prisma/migrations/20261024120000_gender_cycle_and_streak_shields:
 // género declarado, escudo de la racha general y la zona Ciclo.
 const GENDER_CYCLE_AND_SHIELDS_SQL = [
@@ -448,6 +457,7 @@ async function migrate() {
   for (const sql of NOTEBOOKS_SQL) await prisma.$executeRawUnsafe(sql);
   // Idempotent mirror of prisma/migrations/20261028120000_reminder_snoozes.
   for (const sql of REMINDER_SNOOZES_SQL) await prisma.$executeRawUnsafe(sql);
+  for (const sql of SERIES_PROGRESS_SQL) await prisma.$executeRawUnsafe(sql);
 
   // Runs last so tables created above are covered too.
   await prisma.$executeRawUnsafe(RLS_LOCKDOWN_SQL);

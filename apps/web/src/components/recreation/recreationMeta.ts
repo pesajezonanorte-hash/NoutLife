@@ -22,6 +22,19 @@ export function minutesLabel(minutes: number | null | undefined): string {
   return h ? `${h} h${m ? ` ${m} min` : ''}` : `${m} min`;
 }
 
+/** «Temporada 2, capítulo 5», o solo la temporada si no hay capítulo. */
+export function seriesPosition(entry: RecreationEntry): string | null {
+  if (entry.kind !== 'SERIES') return null;
+  if (entry.episode !== null) return `Temporada ${entry.season ?? 1}, capítulo ${entry.episode}`;
+  return entry.season !== null ? `Temporada ${entry.season}` : null;
+}
+
+/** Porcentaje de capítulos vistos (0–100) si la serie tiene el total; null si no. */
+export function seriesProgress(entry: RecreationEntry): number | null {
+  if (entry.kind !== 'SERIES' || !entry.totalEpisodes) return null;
+  return Math.min(100, Math.round((entry.episodesWatched / entry.totalEpisodes) * 100));
+}
+
 /** «vie 10 oct» para el talón de la boleta. */
 export function stubDate(iso: string) {
   const d = new Date(iso);
