@@ -1,16 +1,17 @@
 // La composición: fondo común, las cinco diapositivas enlazadas con
-// <TransitionSeries> y un pie con el ponente y el avance (desde la segunda).
+// <TransitionSeries> y, desde la segunda, una cabecera como la de un sitio de
+// NoutLife: el lockup a la izquierda y el avance a la derecha.
 import React from 'react';
 import { linearTiming, TransitionSeries } from '@remotion/transitions';
 import { AbsoluteFill, useCurrentFrame } from 'remotion';
 import { Backdrop } from './components/Backdrop';
-import { NoutLifeMark } from './components/Brand';
+import { NoutLifeMark, Wordmark } from './components/Brand';
 import { COLORS, FONT, rgba } from './theme';
 import { EASE, TRANSITION, ramp } from './lib';
 import { SLIDES, SLIDE_STARTS, slideAt } from './timeline';
 import './fonts';
 
-const Footer: React.FC = () => {
+const Header: React.FC = () => {
   const frame = useCurrentFrame();
   const current = slideAt(frame);
   const show = ramp(frame, SLIDE_STARTS[1], SLIDE_STARTS[1] + TRANSITION);
@@ -19,27 +20,23 @@ const Footer: React.FC = () => {
     <div
       style={{
         position: 'absolute',
-        left: 120,
-        right: 120,
-        bottom: 40,
+        left: 140,
+        right: 140,
+        top: 56,
         display: 'flex',
         alignItems: 'center',
         gap: 14,
-        fontSize: 18,
-        color: COLORS.faint,
         opacity: show,
+        transform: `translateY(${(1 - show) * -16}px)`,
       }}
     >
-      <NoutLifeMark height={22} />
-      <span style={{ fontWeight: 600 }}>Miguel Ángel Romero Torres</span>
-      <span>Colegio Jorge Isaacs</span>
-      <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+      <NoutLifeMark height={34} />
+      <Wordmark height={22} />
+      <span style={{ marginLeft: 'auto', fontSize: 19, fontWeight: 500, color: COLORS.muted }}>{SLIDES[current].title}</span>
+      <span style={{ display: 'flex', gap: 6, marginLeft: 18 }}>
         {SLIDES.map((s, i) => (
-          <span key={s.title} style={{ width: 30, height: 4, borderRadius: 2, background: i <= current ? COLORS.indigo : rgba(COLORS.muted, 0.25) }} />
+          <span key={s.title} style={{ width: 26, height: 4, borderRadius: 2, background: i <= current ? COLORS.jade : rgba(COLORS.text, 0.12) }} />
         ))}
-      </span>
-      <span style={{ fontFamily: FONT.mono, minWidth: 48, textAlign: 'right' }}>
-        {current + 1}/{SLIDES.length}
       </span>
     </div>
   );
@@ -58,6 +55,6 @@ export const Presentacion: React.FC = () => (
         </React.Fragment>
       ))}
     </TransitionSeries>
-    <Footer />
+    <Header />
   </AbsoluteFill>
 );

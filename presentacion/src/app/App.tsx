@@ -3,19 +3,24 @@
 // mientras anima, salta al final del paso. Teclado (y control remoto de diapositivas,
 // que envía las mismas teclas):
 //   → ↓ Espacio Enter AvPág / clic: siguiente     ← ↑ RePág Retroceso: anterior
-//   1–5: ir a una diapositiva     Inicio/Fin     F: pantalla completa
+//   1–7: ir a una diapositiva     Inicio/Fin     F: pantalla completa
+//   N: abrir las notas del expositor en otra ventana (llévala a la pantalla del portátil)
 //   T: cronómetro de 2 minutos (para la actividad del aula)     P: reproducir/pausar libre
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Player, type PlayerRef } from '@remotion/player';
-import { ChevronLeft, ChevronRight, Maximize, Pause, Play, Timer } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Maximize, NotebookPen, Pause, Play, Timer } from 'lucide-react';
 import { Presentacion } from '../Presentacion';
 import { FPS, HEIGHT, WIDTH } from '../lib';
 import { COLORS, FONT, rgba } from '../theme';
-import { DURATION, SLIDES, SLIDE_STARTS, STOPS, slideAt } from '../timeline';
+import { DURATION, SLIDES, SLIDE_STARTS, STOPS, slideAt, stepAt } from '../timeline';
+import { openChannel, type DeckMessage } from './channel';
 
 const TIMER_MS = 2 * 60 * 1000;
-/** Última parada de cada diapositiva (para saltar con 1–5 o los puntos). */
+/** Última parada de cada diapositiva (para saltar con 1–7 o los puntos). */
 const SLIDE_END = SLIDES.map((s, i) => SLIDE_STARTS[i] + s.stops[s.stops.length - 1]);
+
+const openNotes = () => window.open('?notas', 'noutlife-notas', 'popup,width=980,height=760');
+const toggleFullscreen = () => (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen());
 
 const button: React.CSSProperties = {
   width: 48,
@@ -33,6 +38,7 @@ export const App: React.FC = () => {
   const player = useRef<PlayerRef>(null);
   /** Parada en la que debe detenerse la reproducción en curso. */
   const target = useRef<number | null>(null);
+  const channel = useMemo(openChannel, []);
   const [frame, setFrame] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [idle, setIdle] = useState(false);
@@ -88,6 +94,20 @@ export const App: React.FC = () => {
     };
   }, [jump]);
 
+  // Ventana de notas: se le anuncia el paso; ella puede avanzar, retroceder y cronometrar
+  const step = stepAt(frame);
+  useEffect(() => {
+    channel.postMessage({ type: 'step', step } satisfies DeckMessage);
+  }, [channel, step]);
+  useEffect(() => {
+    channel.onmessage = (e: MessageEvent<DeckMessage>) => {
+      const m = e.data;
+      if (m.type === 'hello') channel.postMessage({ type: 'step', step } satisfies DeckMessage);
+      else if (m.type === 'cmd') ({ next, prev, timer: toggleTimer })[m.cmd]();
+    };
+  }, [channel, step, next, prev, toggleTimer]);
+  useEffect(() => () => channel.close(), [channel]);
+
   // Teclado
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -98,10 +118,9 @@ export const App: React.FC = () => {
       else if (k === 'Home') jump(0);
       else if (k === 'End') jump(STOPS[STOPS.length - 1]);
       else if (k >= '1' && k <= String(SLIDES.length)) jump(SLIDE_END[Number(k) - 1]);
-      else if (k === 'f' || k === 'F') {
-        if (document.fullscreenElement) document.exitFullscreen();
-        else document.documentElement.requestFullscreen();
-      } else if (k === 't' || k === 'T') toggleTimer();
+      else if (k === 'f' || k === 'F') toggleFullscreen();
+      else if (k === 'n' || k === 'N') openNotes();
+      else if (k === 't' || k === 'T') toggleTimer();
       else if (k === 'p' || k === 'P') {
         target.current = null;
         player.current?.toggle();
@@ -139,7 +158,7 @@ export const App: React.FC = () => {
   const secs = Math.ceil(left / 1000);
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: COLORS.inkDeep, cursor: idle ? 'none' : 'default', fontFamily: FONT.sans }}>
+    <div style={{ position: 'fixed', inset: 0, background: COLORS.bgDeep, cursor: idle ? 'none' : 'default', fontFamily: FONT.sans }}>
       <div onClick={next} style={{ position: 'absolute', inset: 0 }}>
         <Player
           ref={player}
@@ -160,7 +179,7 @@ export const App: React.FC = () => {
 
       {frame === 0 && !playing && (
         <div style={{ position: 'absolute', left: 0, right: 0, bottom: '12%', textAlign: 'center', color: COLORS.muted, fontSize: 18, pointerEvents: 'none' }}>
-          Pulsa → o haz clic para empezar. F: pantalla completa.
+          Pulsa → o haz clic para empezar. F: pantalla completa. N: notas del expositor.
         </div>
       )}
 
@@ -180,13 +199,13 @@ export const App: React.FC = () => {
             fontFamily: FONT.mono,
             fontSize: 30,
             fontWeight: 700,
-            color: secs === 0 ? COLORS.inkDeep : COLORS.amber,
-            background: secs === 0 ? COLORS.amber : rgba('#0b1222', 0.75),
-            boxShadow: `inset 0 0 0 1.5px ${rgba(COLORS.amber, 0.5)}`,
+            color: secs === 0 ? COLORS.bg : COLORS.jade,
+            background: secs === 0 ? COLORS.jade : rgba(COLORS.surface, 0.8),
+            boxShadow: `inset 0 0 0 1px ${COLORS.border}`,
             backdropFilter: 'blur(16px)',
           }}
         >
-          <Timer size={26} />
+          <Timer size={26} strokeWidth={1.75} />
           {secs === 0 ? '¡Tiempo!' : `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`}
         </div>
       )}
@@ -205,14 +224,14 @@ export const App: React.FC = () => {
           gap: 6,
           padding: 6,
           borderRadius: 20,
-          background: rgba('#0b1222', 0.72),
-          boxShadow: `inset 0 0 0 1px ${rgba('#ffffff', 0.1)}`,
+          background: rgba(COLORS.surface, 0.8),
+          boxShadow: `inset 0 0 0 1px ${COLORS.border}`,
           backdropFilter: 'blur(20px)',
           color: COLORS.text,
         }}
       >
         <button type="button" aria-label="Anterior" title="Anterior (←)" style={button} onClick={prev}>
-          <ChevronLeft size={26} />
+          <ChevronLeft size={26} strokeWidth={1.75} />
         </button>
         <button
           type="button"
@@ -224,10 +243,10 @@ export const App: React.FC = () => {
             player.current?.toggle();
           }}
         >
-          {playing ? <Pause size={22} /> : <Play size={22} />}
+          {playing ? <Pause size={22} strokeWidth={1.75} /> : <Play size={22} strokeWidth={1.75} />}
         </button>
         <button type="button" aria-label="Siguiente" title="Siguiente (→)" style={button} onClick={next}>
-          <ChevronRight size={26} />
+          <ChevronRight size={26} strokeWidth={1.75} />
         </button>
         <span style={{ display: 'flex', gap: 4, padding: '0 10px' }}>
           {SLIDES.map((s, i) => (
@@ -239,21 +258,24 @@ export const App: React.FC = () => {
               onClick={() => jump(SLIDE_END[i])}
               style={{ ...button, width: 30, height: 44, borderRadius: 8 }}
             >
-              <span style={{ width: 22, height: 5, borderRadius: 3, background: i <= current ? COLORS.indigo : rgba(COLORS.muted, 0.35) }} />
+              <span style={{ width: 22, height: 4, borderRadius: 2, background: i <= current ? COLORS.jade : rgba(COLORS.text, 0.2) }} />
             </button>
           ))}
         </span>
-        <button type="button" aria-label="Cronómetro de 2 minutos" title="Cronómetro de 2 minutos (T)" style={{ ...button, color: timerEnd ? COLORS.amber : COLORS.text }} onClick={toggleTimer}>
-          <Timer size={22} />
+        <button type="button" aria-label="Notas del expositor" title="Notas del expositor (N)" style={button} onClick={openNotes}>
+          <NotebookPen size={21} strokeWidth={1.75} />
         </button>
         <button
           type="button"
-          aria-label="Pantalla completa"
-          title="Pantalla completa (F)"
-          style={button}
-          onClick={() => (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen())}
+          aria-label="Cronómetro de 2 minutos"
+          title="Cronómetro de 2 minutos (T)"
+          style={{ ...button, color: timerEnd ? COLORS.jade : COLORS.text }}
+          onClick={toggleTimer}
         >
-          <Maximize size={20} />
+          <Timer size={22} strokeWidth={1.75} />
+        </button>
+        <button type="button" aria-label="Pantalla completa" title="Pantalla completa (F)" style={button} onClick={toggleFullscreen}>
+          <Maximize size={20} strokeWidth={1.75} />
         </button>
       </nav>
     </div>

@@ -17,10 +17,13 @@ export const PhoneMockup: React.FC<{
   /** Giro en Y (grados) ya en reposo. */
   tilt?: number;
   glow?: string;
+  /** Reloj propio: para seguir el mismo vaivén cuando otra diapositiva recoge el teléfono. */
+  clock?: number;
   style?: React.CSSProperties;
   children: React.ReactNode;
-}> = ({ width, at = 0, tilt = 12, glow = COLORS.jade, style, children }) => {
-  const frame = useCurrentFrame();
+}> = ({ width, at = 0, tilt = 12, glow = COLORS.jade, clock, style, children }) => {
+  const sequenceFrame = useCurrentFrame();
+  const frame = clock ?? sequenceFrame;
   const p = springAt(frame, at, SPRING.phone);
   const s = width / PHONE.w;
   const ry = lerp(tilt * 2.5, tilt, p) + Math.sin(frame / 95) * 2;
@@ -32,7 +35,7 @@ export const PhoneMockup: React.FC<{
         style={{
           position: 'absolute',
           inset: '-18% -45%',
-          background: `radial-gradient(closest-side, ${rgba(glow, 0.3)}, ${rgba(glow, 0.08)} 55%, transparent)`,
+          background: `radial-gradient(closest-side, ${rgba(glow, 0.14)}, ${rgba(glow, 0.04)} 55%, transparent)`,
           opacity: clamp(p * 1.2),
         }}
       />
