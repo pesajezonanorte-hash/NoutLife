@@ -95,6 +95,12 @@ export async function archiveAntiHabit(userId: string, id: string) {
   if (!result.count) throw new Error('ANTI_HABIT_NOT_FOUND');
 }
 
+/** Borra el obstáculo y sus registros. A diferencia de archivar, no se puede deshacer. */
+export async function deleteAntiHabit(userId: string, id: string) {
+  const result = await prisma.antiHabit.deleteMany({ where: { id, userId } });
+  if (!result.count) throw new Error('ANTI_HABIT_NOT_FOUND');
+}
+
 export async function logAntiHabit(userId: string, id: string, input: {
   occurred: boolean; amount?: number; intensity?: number; note?: string; date?: string;
 }) {

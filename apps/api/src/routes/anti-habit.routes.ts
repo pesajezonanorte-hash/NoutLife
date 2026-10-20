@@ -66,6 +66,11 @@ router.delete('/:id', async (req, res) => {
   catch (err) { fail(res, err); }
 });
 
+router.delete('/:id/permanent', async (req, res) => {
+  try { await antiHabits.deleteAntiHabit(userIdOf(req as AuthRequest), req.params.id); res.json({ success: true }); }
+  catch (err) { fail(res, err); }
+});
+
 router.delete('/logs/:logId', async (req, res) => {
   try { await antiHabits.deleteAntiHabitLog(userIdOf(req as AuthRequest), req.params.logId); res.json({ success: true }); }
   catch (err) { fail(res, err); }

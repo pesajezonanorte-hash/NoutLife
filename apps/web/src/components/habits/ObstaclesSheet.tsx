@@ -5,7 +5,7 @@
 // de la libreta.
 import { useState, type FormEvent } from 'react';
 import { AnimatePresence, motion, type Variants } from 'framer-motion';
-import { Archive, ChevronDown, Pencil, Plus, ShieldAlert, ShieldCheck, Undo2 } from 'lucide-react';
+import { Archive, ChevronDown, Pencil, Plus, ShieldAlert, ShieldCheck, Trash2, Undo2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { springs } from '@/lib/motion/presets';
 import { useToast } from '@/hooks/useToast';
@@ -109,31 +109,37 @@ function ObstacleRow({ obstacle, period, onChanged, onEdit }: { obstacle: AntiHa
     try { await antiHabits.archiveAntiHabit(obstacle.id); await onChanged(); toast.info('Obstáculo archivado'); }
     catch { toast.error('No se pudo archivar'); }
   }
+  async function remove() {
+    if (!window.confirm(`¿Eliminar «${obstacle.title}» para siempre? Se borran también sus registros.`)) return;
+    try { await antiHabits.deleteAntiHabitPermanently(obstacle.id); await onChanged(); toast.info('Obstáculo eliminado'); }
+    catch { toast.error('No se pudo eliminar'); }
+  }
 
   return (
-    <motion.li variants={row} className="relative">
+    <motion.li variants={row} layout className="relative">
       <span aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-info/25" />
       <div className="grid min-h-[calc(var(--lq-rule)*2)] grid-cols-[3rem_minmax(0,1fr)] items-center gap-x-3 py-2 pr-2 md:grid-cols-[5rem_minmax(0,1fr)_auto] md:gap-x-5 md:pr-4">
         <span className="flex justify-center"><IconChip icon={over ? ShieldAlert : ShieldCheck} tone={over ? 'error' : 'warning'} size="sm" /></span>
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <button
-            type="button" aria-expanded={open} aria-controls={detailId} onClick={() => setOpen((o) => !o)}
-            className="group flex min-h-11 min-w-0 items-center gap-1.5 self-start rounded-md text-left"
-          >
+        <button
+          type="button" aria-expanded={open} aria-controls={detailId} onClick={() => setOpen((o) => !o)}
+          className="group flex min-h-11 min-w-0 flex-col items-start gap-0.5 rounded-md text-left"
+        >
+          <span className="flex min-w-0 max-w-full items-center gap-1.5">
             <span className="truncate text-body-md font-semibold text-on-background md:text-heading-sm">{obstacle.title}</span>
             <ChevronDown aria-hidden className={cn('size-4 shrink-0 text-on-surface-light transition-transform duration-[325ms] ease-[var(--lq-ease-snappy)]', open && 'rotate-180')} strokeWidth={1.75} />
-            <span className="sr-only">{open ? 'Ocultar detalle' : 'Ver detalle'}</span>
-          </button>
+          </span>
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-body-sm text-on-surface-light">
             <span className="capitalize">{obstacle.category}</span>
             {obstacle.cue && <span className="truncate">· {obstacle.cue}</span>}
             {m.daysClean !== null && <Badge variant={m.daysClean >= 7 ? 'success' : 'neutral'}>{plural(m.daysClean, 'día', 'días')} sin caer</Badge>}
             {over && <span className="text-error-text">· superaste tu límite semanal</span>}
           </span>
-        </div>
+          <span className="sr-only">{open ? 'Ocultar detalle' : 'Ver detalle'}</span>
+        </button>
         <div className="col-span-2 flex flex-wrap gap-2 pl-[3.75rem] md:col-span-1 md:pl-0">
           <Button variant="secondary" size="sm" loading={busy === 'resist'} onClick={() => void log(false)}><ShieldCheck aria-hidden className="size-4" />Resistí</Button>
           <Button variant="ghost" size="sm" loading={busy === 'fall'} onClick={() => void log(true)} className="text-error-text"><ShieldAlert aria-hidden className="size-4" />Caí</Button>
+          <Button variant="icon" aria-label={`Eliminar ${obstacle.title}`} onClick={() => void remove()} className="ml-auto text-on-surface-light md:ml-0"><Trash2 aria-hidden className="size-4" strokeWidth={1.75} /></Button>
         </div>
       </div>
       <AnimatePresence initial={false}>
@@ -202,7 +208,9 @@ export function ObstaclesSheet({ list, state, period, onPeriod, onReload, onNew,
         />
       ) : (
         <motion.ul key={period} initial="initial" animate="animate" variants={{ animate: { transition: { staggerChildren: 0.05 } } }} className="flex flex-col">
-          {list.map((o) => <ObstacleRow key={o.id} obstacle={o} period={period} onChanged={onReload} onEdit={() => onEdit(o)} />)}
+          <AnimatePresence initial={false}>
+            {list.map((o) => <ObstacleRow key={o.id} obstacle={o} period={period} onChanged={onReload} onEdit={() => onEdit(o)} />)}
+          </AnimatePresence>
         </motion.ul>
       )}
     </NotebookSheet>
