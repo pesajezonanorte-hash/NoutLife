@@ -12,10 +12,10 @@ export type ThemeMode = 'light' | 'dark' | 'auto';
 
 const media = () => window.matchMedia('(prefers-color-scheme: dark)');
 
-/** Valor previo a este store: localStorage['theme'] = light | dark | system. */
+/** Valor previo a este store: localStorage['theme'] = light | dark | system. Sin nada guardado (visita nueva), sigue al sistema. */
 function legacyMode(): ThemeMode {
   const v = localStorage.getItem('theme');
-  return v === 'dark' ? 'dark' : v === 'system' ? 'auto' : 'light';
+  return v === 'dark' ? 'dark' : v === 'light' ? 'light' : 'auto';
 }
 
 export function resolveDark(mode: ThemeMode, systemDark = media().matches, skin: string | null = null): boolean {

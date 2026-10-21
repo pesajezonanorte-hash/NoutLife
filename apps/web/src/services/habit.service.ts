@@ -1,4 +1,18 @@
 import api from '../lib/api';
+import { track } from '../lib/analytics';
+
+/** Guarda el id del primer hábito cumplido ('1' si fue un ritual). */
+export const FIRST_CHECK_KEY = 'lq_first_check';
+/** Evento de ventana tras el primer hábito o ritual cumplido: ahí se piden los avisos (detail: id del hábito). */
+export const FIRST_CHECK_EVENT = 'lq:first-check';
+
+/** Hábito o ritual cumplido: mide el embudo y, la primera vez en este dispositivo, abre el momento de pedir avisos. */
+export function noteHabitChecked(habitId?: string) {
+  let first = false;
+  try { first = !localStorage.getItem(FIRST_CHECK_KEY); if (first) localStorage.setItem(FIRST_CHECK_KEY, habitId ?? '1'); } catch { /* sin storage */ }
+  track('habit_checked', { first });
+  if (first) window.dispatchEvent(new CustomEvent(FIRST_CHECK_EVENT, { detail: habitId }));
+}
 
 export interface HabitFrequency {
   type: 'daily' | 'days_per_week';
@@ -113,8 +127,9 @@ export async function fetchHabit(id: string): Promise<Habit> {
   return data.habit;
 }
 
-export async function createHabit(payload: CreateHabitPayload): Promise<Habit> {
+export async function createHabit(payload: CreateHabitPayload, source: 'pack' | 'custom' = 'custom'): Promise<Habit> {
   const { data } = await api.post<{ habit: Habit }>('/habits', payload);
+  track('habit_created', { source });
   return data.habit;
 }
 
@@ -126,6 +141,7 @@ export async function updateHabit(id: string, payload: Partial<CreateHabitPayloa
 /** Marca o desmarca un paso del ritual de hoy. Con todos hechos, el ritual se completa. */
 export async function toggleHabitStep(id: string, stepId: string, completed: boolean): Promise<{ stepIds: string[]; completed: boolean }> {
   const { data } = await api.post<{ stepIds: string[]; completed: boolean }>(`/habits/${id}/steps/${stepId}`, { completed });
+  if (completed && data.completed) noteHabitChecked(id);
   return data;
 }
 
@@ -140,6 +156,7 @@ export async function logHabit(
   date?: string,
 ): Promise<HabitLogResult> {
   const { data } = await api.post<HabitLogResult>(`/habits/${id}/log`, { status, notes, date });
+  if (status === 'completed') noteHabitChecked(id);
   return data;
 }
 

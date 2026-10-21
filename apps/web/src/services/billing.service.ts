@@ -60,12 +60,6 @@ export async function savePaymentMethod(link: PaymentMethodLink): Promise<Subscr
   return data.subscription;
 }
 
-/** Paywall de entrada: entra en NoutLife Lite sin medio de pago. No cobra ni gasta la prueba. */
-export async function chooseLite(): Promise<Subscription> {
-  const { data } = await api.post<{ subscription: Subscription }>('/billing/lite');
-  return data.subscription;
-}
-
 export async function subscribe(): Promise<Subscription> {
   const { data } = await api.post<{ subscription: Subscription }>('/billing/subscribe');
   return data.subscription;

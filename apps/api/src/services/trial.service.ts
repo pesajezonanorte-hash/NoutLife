@@ -9,6 +9,20 @@ export async function trialAvailable(email: string): Promise<boolean> {
 }
 
 /**
+ * Prueba inversa: Pro sin medio de pago al crear la cuenta. Se registra solo por
+ * correo (una vez para siempre); el dispositivo queda para auditoría y nunca bloquea.
+ */
+export async function claimReverseTrial(email: string, deviceId: string | null = null): Promise<boolean> {
+  try {
+    await prisma.usedTrial.create({ data: { emailKey: emailKey(email), deviceId } });
+    return true;
+  } catch (error) {
+    if ((error as { code?: unknown }).code === 'P2002') return false;
+    throw error;
+  }
+}
+
+/**
  * Reclama la prueba al vincular el primer medio de pago. Una por correo y una
  * por medio de pago, para siempre: borrar la cuenta, cambiar de correo o
  * limpiar el navegador no la devuelve. Las claves únicas de used_trials deciden,

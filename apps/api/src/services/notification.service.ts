@@ -1,6 +1,9 @@
+import { AsyncLocalStorage } from 'async_hooks';
 import webpush from 'web-push';
 import { prisma } from '../lib/prisma';
-import { mergeSmartSettings, sanitizeSmartSettings } from '../lib/smart-reminders';
+import {
+  INACTIVE_PAUSE_DAYS, UNSCHEDULED_PREFIXES, localMinutes, mergeSmartSettings, planPushes, sanitizeSmartSettings,
+} from '../lib/smart-reminders';
 import { bump } from './chat-live.service';
 
 export const NOTIFICATION_CATEGORIES = [
@@ -110,6 +113,59 @@ async function enforceRetention(userId: string): Promise<void> {
 
 // ─── In-app notifications and optional push delivery ──────────────────────────
 
+interface BatchedPush { userId: string; category: NotificationCategory; payload: PushPayload }
+const pushBatch = new AsyncLocalStorage<BatchedPush[]>();
+
+/** Corre `job` guardando sus push (createNotification) para enviarlos juntos al final. */
+export async function withPushBatch<T>(job: () => Promise<T>): Promise<{ result: T; pushes: BatchedPush[] }> {
+  const pushes: BatchedPush[] = [];
+  const result = await pushBatch.run(pushes, job);
+  return { result, pushes };
+}
+
+const DAY_MS = 86_400_000;
+
+/**
+ * Push inteligente al cerrar una pasada: por persona aplica el tope diario, el
+ * horario de silencio y la pausa por inactividad a lo no programado, y agrupa lo
+ * que queda en un solo aviso (lib/smart-reminders planPushes). Devuelve cuántos salieron.
+ */
+export async function deliverBatchedPushes(pushes: BatchedPush[], now = new Date()): Promise<number> {
+  const byUser = new Map<string, BatchedPush[]>();
+  for (const p of pushes) byUser.set(p.userId, [...(byUser.get(p.userId) ?? []), p]);
+  let sent = 0;
+  for (const [userId, items] of byUser) {
+    try {
+      const user = await prisma.user.findUnique({ where: { id: userId }, select: { timezone: true, lastSeenAt: true, lastLoginAt: true } });
+      if (!user) continue;
+      const minutes = localMinutes(user.timezone, now);
+      // Medianoche local: ahora menos los minutos transcurridos del día.
+      const since = new Date(now.getTime() - minutes * 60_000);
+      // ponytail: cuenta los avisos no programados creados hoy (también los que el tope dejó sin push): conservador. Si se mide el envío (T8), contar eso.
+      const sentToday = await prisma.notification.count({
+        where: { userId, createdAt: { gte: since, lt: now }, OR: UNSCHEDULED_PREFIXES.map((p) => ({ dedupeKey: { startsWith: p } })) },
+      });
+      const seen = user.lastSeenAt ?? user.lastLoginAt;
+      const inactive = !seen || now.getTime() - seen.getTime() > INACTIVE_PAUSE_DAYS * DAY_MS;
+      const allowed: Array<BatchedPush & { key?: string; title: string; body: string; link?: string }> = [];
+      for (const item of items) {
+        if ((await getChannelPreference(userId, item.category)).pushEnabled) {
+          allowed.push({ ...item, key: item.payload.tag, title: item.payload.title, body: item.payload.body, link: item.payload.data?.link as string | undefined });
+        }
+      }
+      const { send, group } = planPushes(allowed, { minutes, sentToday, inactive });
+      if (group) {
+        sent += await sendPush(userId, { title: group.title, body: group.body, tag: group.key, data: { link: group.link, type: 'reminder', group: true } }, allowed[0].category).then(() => 1, () => 0);
+      } else {
+        for (const item of send) sent += await sendPush(userId, item.payload, item.category).then(() => 1, () => 0);
+      }
+    } catch (err) {
+      console.error('[PushBatch]', userId, err);
+    }
+  }
+  return sent;
+}
+
 /**
  * `awaitPush`: espera a que el push salga. En serverless (Vercel) la función se
  * congela al responder y un push pendiente puede perderse; los recordatorios lo usan.
@@ -162,7 +218,7 @@ export async function createNotification(userId: string, input: CreateNotificati
   // independently so disabling the in-app inbox does not silently override a
   // user's explicit push preference.
   if (preference.pushEnabled && opts.push !== false) {
-    const push = sendPush(userId, {
+    const payload: PushPayload = {
       title: data.title,
       body: data.body,
       tag: data.dedupeKey,
@@ -176,8 +232,14 @@ export async function createNotification(userId: string, input: CreateNotificati
         ...(priority ? { priority } : {}),
         ...(quick ? { quick, quickRef, day } : {}),
       },
-    }, category).catch(() => 0);
-    if (opts.awaitPush) await push;
+    };
+    // Dentro de una pasada de recordatorios, el push espera al final (deliverBatchedPushes).
+    const batch = pushBatch.getStore();
+    if (batch) batch.push({ userId, category, payload });
+    else {
+      const push = sendPush(userId, payload, category).catch(() => 0);
+      if (opts.awaitPush) await push;
+    }
   }
 
   return notification;

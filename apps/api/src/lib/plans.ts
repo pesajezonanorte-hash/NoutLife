@@ -2,13 +2,13 @@
  * Planes de NoutLife. Reglas puras (sin base de datos) para que el cobro, los
  * límites de Lite y las pruebas usen exactamente la misma lógica.
  *
- *   trialing  7 días de Pro desde que se vincula un medio de pago. Al vencer se cobra el primer mes.
+ *   trialing  7 días de Pro. Toda cuenta nueva nace así, sin medio de pago (prueba inversa): al
+ *             vencer pasa sola a Lite sin perder nada. Con un medio de pago vinculado, al vencer se cobra el primer mes.
  *   active    mes pagado. Al vencer se cobra el siguiente.
  *   canceled  la persona canceló: conserva Pro hasta el fin de su prueba o mes pagado.
- *   lite      sin pago activo (y toda cuenta nueva). Funciona con los límites de Lite y las zonas Pro con candado.
+ *   lite      sin pago activo. Funciona con los límites de Lite y las zonas Pro con candado.
  *
- * Paywall de entrada: con Wompi configurado, nadie entra al Dashboard sin
- * vincular antes un medio de pago ni elegir Lite sin tarjeta (paywallRequired).
+ * No hay paywall de entrada: nadie tiene que vincular un medio de pago para entrar.
  */
 export const TRIAL_DAYS = 7;
 // ponytail: «tarifa congelada» = esta constante. Antes de subir el precio, guarda el monto por usuario.
@@ -134,18 +134,6 @@ export function hasProAccess(user: SubscriptionFields, now = new Date()): boolea
 
 export function planOf(user: SubscriptionFields, now = new Date()): Plan {
   return hasProAccess(user, now) ? 'pro' : 'lite';
-}
-
-/**
- * Paywall de entrada: sin medio de pago vinculado no se entra al Dashboard, salvo
- * que la persona haya elegido Lite sin tarjeta (liteSince). Sin llaves de Wompi
- * no hay forma de vincularlo, así que no se exige. Las cuentas de cortesía entran sin él.
- */
-export function paywallRequired(
-  user: Pick<SubscriptionFields, 'paymentSourceId' | 'complimentary'> & { liteSince?: Date | null },
-  billingEnabled: boolean,
-): boolean {
-  return billingEnabled && !user.paymentSourceId && !user.complimentary && !user.liteSince;
 }
 
 /** Correos con Pro de cortesía (COMP_PRO_EMAILS, separados por comas). Sin distinguir mayúsculas. */

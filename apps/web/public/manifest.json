@@ -2,7 +2,7 @@
   "id": "/",
   "name": "NoutLife",
   "short_name": "NoutLife",
-  "description": "Gamifica tu vida real. Gana XP, sube de nivel y conquista tus metas.",
+  "description": "Tu rutina, tu mente y tus ideas en un solo lugar.",
   "lang": "es",
   "start_url": "/",
   "scope": "/",
@@ -10,7 +10,7 @@
   "orientation": "portrait",
   "background_color": "#070d0a",
   "theme_color": "#070d0a",
-  "categories": ["lifestyle", "productivity", "games"],
+  "categories": ["productivity", "lifestyle"],
   "icons": [
     { "src": "/icons/icon-72.png",  "sizes": "72x72",   "type": "image/png", "purpose": "any" },
     { "src": "/icons/icon-96.png",  "sizes": "96x96",   "type": "image/png", "purpose": "any" },
@@ -25,8 +25,8 @@
   ],
   "screenshots": [],
   "shortcuts": [
-    { "name": "Misiones",  "short_name": "Quests",  "description": "Ver tus misiones activas", "url": "/quests",  "icons": [{ "src": "/icons/icon-96.png", "sizes": "96x96" }] },
-    { "name": "Hábitos",   "short_name": "Hábitos", "description": "Registrar hábitos del día", "url": "/habits",  "icons": [{ "src": "/icons/icon-96.png", "sizes": "96x96" }] },
-    { "name": "Finanzas",  "short_name": "Gold",    "description": "Revisar tu bóveda",        "url": "/finances","icons": [{ "src": "/icons/icon-96.png", "sizes": "96x96" }] }
+    { "name": "Hábitos", "short_name": "Hábitos", "description": "Marcar los hábitos de hoy",  "url": "/habits",  "icons": [{ "src": "/icons/icon-96.png", "sizes": "96x96" }] },
+    { "name": "Libreta", "short_name": "Libreta", "description": "Anotar una idea",            "url": "/libreta", "icons": [{ "src": "/icons/icon-96.png", "sizes": "96x96" }] },
+    { "name": "Agenda",  "short_name": "Agenda",  "description": "Ver lo que tienes hoy",      "url": "/agenda",  "icons": [{ "src": "/icons/icon-96.png", "sizes": "96x96" }] }
   ]
 }

@@ -12,10 +12,8 @@ import { AppShell } from './components/layout/AppShell';
 import { SplashScreen } from './components/animations/SplashScreen';
 import { SageWidget } from './components/sage/SageWidget';
 import { PlanGate } from './components/billing/PlanGate';
-import { Paywall } from './components/billing/Paywall';
 import { PendingApprovalGate } from './components/billing/PendingApprovalGate';
 import { LockedZone } from './components/billing/LockedZone';
-import { usePlanStore } from './store/planStore';
 import type { ProZone } from './lib/plan';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { NotificationPermissionModal, useNotificationModalState } from './components/ui/NotificationPermissionModal';
@@ -212,13 +210,6 @@ function ProZonePage({ zone, load }: { zone: ProZone; load: PageImport }) {
   return lite ? <LockedZone zone={zone} /> : <DeferredLazyPage load={load} />;
 }
 
-/** Paywall de entrada activo: lo decide la API; sigue en pantalla hasta que la persona entra. */
-function usePaywallActive(): boolean {
-  const required = useAuthStore((s) => Boolean(s.user?.subscription?.paywall));
-  const held = usePlanStore((s) => s.paywallHeld);
-  return required || held;
-}
-
 function AnimatedRoutes({ location }: { location: ReturnType<typeof useLocation> }) {
   return (
     <AnimatePresence mode="wait" initial={false}>
@@ -376,8 +367,6 @@ function AdminRoute({ children }: { children: ReactNode }) {
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading, user } = useAuthStore();
   const pathname = window.location.pathname;
-  // Paywall de entrada: tras el registro, nadie llega al Dashboard sin vincular un método de pago.
-  const paywall = usePaywallActive();
 
   return (
     <>
@@ -385,7 +374,6 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
         {isLoading ? null
           : !isAuthenticated ? <Navigate to="/login" replace />
           : user && !user.onboardingCompleted && pathname !== '/onboarding' ? <Navigate to="/onboarding" replace />
-          : paywall ? <Paywall />
           : children}
       </LoadingGate>
       {/* Cobro de Nequi en espera: pantalla de bloqueo hasta que Wompi responde. */}
@@ -420,9 +408,8 @@ export default function App() {
   const { initAudio } = useUIStore();
   const { user, isLoading, isAuthenticated } = useAuthStore();
   const { show: showNotifModal, setShow: setShowNotifModal } = useNotificationModalState();
-  // El tutorial de bienvenida pregunta por los avisos en su último paso.
+  // Los avisos se piden tras el primer hábito cumplido, nunca encima del tutorial.
   const tourDone = useTourDone(user?.id);
-  const paywall = usePaywallActive();
 
   // Avisos: renueva la suscripción push de este dispositivo en cada apertura y,
   // con la app abierta, programa también los recordatorios de hoy.
@@ -496,7 +483,7 @@ export default function App() {
       {!showSplash && <CookieNotice />}
       {showSplash && <SplashScreen ready={splashReady} onDone={() => setSplashDone(true)} />}
 
-      {isAuthenticated && showNotifModal && tourDone && user?.onboardingCompleted && !paywall && (
+      {isAuthenticated && showNotifModal && tourDone && user?.onboardingCompleted && (
         <NotificationPermissionModal onClose={() => setShowNotifModal(false)} />
       )}
 

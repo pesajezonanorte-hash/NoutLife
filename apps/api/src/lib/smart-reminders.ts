@@ -150,6 +150,47 @@ export function breakSlots(from: string, to: string, everyMinutes: number): numb
   return slotsEvery(from, to, everyMinutes).slice(1);
 }
 
+// ─── Push inteligente: presupuesto, silencio, pausa y agrupación ──────────────
+// Lo que la persona programó (la hora de un hábito, un evento, una pausa, el agua…)
+// sale siempre. Lo que no programó (Sabiduría, hábitos pendientes, avisos de zona,
+// resumen y vencimientos) tiene tope diario, horario de silencio y se pausa si la
+// persona dejó de abrir la app. Los avisos que caen en la misma pasada salen juntos.
+
+/** Claves de deduplicación de avisos que la persona no programó. */
+export const UNSCHEDULED_PREFIXES = ['wisdom-', 'zone-reminder:', 'daily-summary-', 'deadline-'] as const;
+/** Avisos no programados por día, como máximo. */
+export const DAILY_UNSCHEDULED_CAP = 2;
+/** Sin abrir la app en estos días, los avisos no programados se pausan hasta que vuelva. */
+export const INACTIVE_PAUSE_DAYS = 7;
+const QUIET_FROM = 22 * 60;
+const QUIET_TO = 7 * 60;
+
+export const isUnscheduled = (key: string | undefined) => Boolean(key && UNSCHEDULED_PREFIXES.some((p) => key.startsWith(p)));
+
+export interface QueuedPush { key?: string; title: string; body: string; link?: string }
+
+/**
+ * Qué sale de lo encolado en una pasada para una persona. `sentToday`: avisos no
+ * programados que ya se enviaron hoy; `minutes`: hora local; `inactive`: lleva
+ * INACTIVE_PAUSE_DAYS sin abrir la app. `send`: los avisos que pasan; `group`: si
+ * pasan dos o más, el único aviso que sale en su lugar («3 cosas para esta tarde»).
+ */
+export function planPushes<T extends QueuedPush>(queued: T[], opts: { minutes: number; sentToday: number; inactive: boolean }): { send: T[]; group: QueuedPush | null } {
+  const quiet = opts.minutes >= QUIET_FROM || opts.minutes < QUIET_TO;
+  let budget = opts.inactive || quiet ? 0 : Math.max(0, DAILY_UNSCHEDULED_CAP - opts.sentToday);
+  const out = queued.filter((p) => !isUnscheduled(p.key) || budget-- > 0);
+  if (out.length < 2) return { send: out, group: null };
+  const names = out.map((p) => p.title.replace(/^Hora de: /, ''));
+  const part = opts.minutes < 12 * 60 ? 'esta mañana' : opts.minutes < 19 * 60 ? 'esta tarde' : 'esta noche';
+  const links = new Set(out.map((p) => p.link?.split('?')[0]));
+  return { send: out, group: {
+    key: `group-${out[0].key ?? 'x'}`,
+    title: `${out.length} cosas para ${part}`,
+    body: names.length > 3 ? `${names.slice(0, 3).join(', ')} y ${names.length - 3} más.` : `${names.slice(0, -1).join(', ')} y ${names[names.length - 1]}.`,
+    link: links.size === 1 ? out[0].link : '/',
+  } };
+}
+
 // ─── Textos ───────────────────────────────────────────────────────────────────
 // El ciclo se avisa sin nombrarlo: la notificación se ve en la pantalla de bloqueo.
 export const CYCLE_COPY = {

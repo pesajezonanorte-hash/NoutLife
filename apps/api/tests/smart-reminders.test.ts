@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   BREAK_TIPS, CARE_COPY, CYCLE_COPY, DEFAULT_SMART_SETTINGS, bestOneRepMax, breakSlots, categoryOfXpSource, focusCategory, hydrationSlots,
-  inWindow, maxEffortSets, mergeSmartSettings, newRecords, oneRepMaxOf, parseHHMM, pickQuote, sanitizeSmartSettings,
+  inWindow, maxEffortSets, mergeSmartSettings, newRecords, oneRepMaxOf, parseHHMM, pickQuote, planPushes, sanitizeSmartSettings,
 } from '../src/lib/smart-reminders';
 
 test('sin ajustes guardados se usan los valores por defecto', () => {
@@ -149,4 +149,31 @@ test('los hábitos pendientes conservan las 21:00 de antes y aceptan otra hora',
   const s = mergeSmartSettings(undefined, { habits: { time: '19:30' } });
   assert.deepEqual(s.habits, { enabled: true, time: '19:30' });
   assert.equal(sanitizeSmartSettings({ habits: { time: '7pm' } }).habits.time, '21:00');
+});
+
+test('push inteligente: lo programado sale siempre; lo no programado respeta tope, silencio y pausa; dos o más se agrupan', () => {
+  const habit = { key: 'habit-reminder-h1-2026-10-20', title: 'Hora de: Leer', body: '', link: '/habits' };
+  const water = { key: 'hydration-2026-10-20-900', title: 'Hora de hidratarte', body: '', link: '/food' };
+  const wisdom = { key: 'wisdom-2026-10-20', title: 'Sabiduría del día', body: '', link: '/' };
+  const pending = { key: 'zone-reminder:habitos-pendientes:2026-10-20', title: '2 hábitos pendientes', body: '', link: '/habits' };
+  const day = { minutes: 15 * 60, sentToday: 0, inactive: false };
+
+  // Uno solo: sale tal cual.
+  assert.deepEqual(planPushes([habit], day), { send: [habit], group: null });
+  // Tope diario: con 2 no programados ya enviados, Sabiduría no sale; el hábito sí.
+  assert.deepEqual(planPushes([habit, wisdom], { ...day, sentToday: 2 }).send, [habit]);
+  // Tope dentro de la misma pasada: de tres no programados salen dos.
+  assert.equal(planPushes([wisdom, pending, { ...pending, key: 'deadline-q1' }], day).send.length, 2);
+  // Silencio 22:00–07:00 y pausa por inactividad: solo lo programado.
+  assert.deepEqual(planPushes([wisdom, habit], { ...day, minutes: 23 * 60 }).send, [habit]);
+  assert.deepEqual(planPushes([wisdom, habit], { ...day, minutes: 6 * 60 }).send, [habit]);
+  assert.deepEqual(planPushes([wisdom, habit], { ...day, inactive: true }).send, [habit]);
+
+  // Agrupado: un solo aviso con los nombres y la franja.
+  const { group } = planPushes([habit, water, pending], day);
+  assert.equal(group?.title, '3 cosas para esta tarde');
+  assert.equal(group?.body, 'Leer, Hora de hidratarte y 2 hábitos pendientes.');
+  assert.equal(group?.link, '/');
+  assert.equal(planPushes([habit, pending], { ...day, minutes: 8 * 60 }).group?.title, '2 cosas para esta mañana');
+  assert.equal(planPushes([habit, pending], day).group?.link, '/habits');
 });

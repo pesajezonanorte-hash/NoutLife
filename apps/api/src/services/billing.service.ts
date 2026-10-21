@@ -5,7 +5,7 @@ import { fingerprintSecret, paymentKey, publicDataShape, type NequiProof } from 
 import { claimTrial, trialAvailable } from './trial.service';
 import {
   LITE_LIMITS, PRO_AMOUNT_IN_CENTS, PRO_CURRENCY, PRO_PRICE_COP, PRO_ZONES, RENEWAL_GRACE_MS, TRIAL_DAYS,
-  accessEndsAt, addDays, addMonth, complimentaryEmails, hasProAccess, nextAction, paymentReference, paywallRequired, planOf, statusOf, trialEndOf, willRenew,
+  accessEndsAt, addDays, addMonth, complimentaryEmails, hasProAccess, nextAction, paymentReference, planOf, statusOf, trialEndOf, willRenew,
   type Plan, type SubscriptionStatus,
 } from '../lib/plans';
 import {
@@ -80,15 +80,15 @@ export interface SubscriptionView {
   pendingPayment: boolean;
   /** Puede empezar la prueba vinculando un medio de pago (el servidor la confirma al vincularlo). */
   trialAvailable: boolean;
-  /** Paywall de entrada: no entra al Dashboard hasta vincular un medio de pago. */
-  paywall: boolean;
+  /** Ya no hay paywall de entrada (prueba inversa): siempre false, se conserva para versiones viejas de la app. */
+  paywall: false;
   priceCop: number;
   trialDays: number;
 }
 
 export function subscriptionView(
   user: SubscriptionUser, now = new Date(), pendingPayment = false, canTrial = false,
-  billingEnabled = wompiConfig().configured, awaitingApproval = false,
+  awaitingApproval = false,
 ): SubscriptionView {
   // La cortesía se muestra como un Pro activo sin fecha: no hay cobro ni vencimiento que contar.
   const dbStatus = user.complimentary ? 'active' : statusOf(user);
@@ -108,7 +108,7 @@ export function subscriptionView(
     lastPaymentError: user.lastPaymentError,
     pendingPayment,
     trialAvailable: canTrial,
-    paywall: paywallRequired(user, billingEnabled),
+    paywall: false,
     priceCop: PRO_PRICE_COP,
     trialDays: TRIAL_DAYS,
   };
@@ -133,7 +133,7 @@ async function getView(userId: string): Promise<SubscriptionView> {
   ]);
   // Un cobro PENDING con Nequi es el que la persona debe aprobar en su celular.
   const awaitingApproval = pending > 0 && user.paymentMethodType === 'NEQUI';
-  return subscriptionView(user, new Date(), pending > 0, await canStartTrial(user), undefined, awaitingApproval);
+  return subscriptionView(user, new Date(), pending > 0, await canStartTrial(user), awaitingApproval);
 }
 
 /** Estado de la suscripción sin aplicar vencimientos (lectura rápida para /auth/me y el aviso de Nequi). */

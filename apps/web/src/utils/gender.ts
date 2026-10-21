@@ -13,16 +13,3 @@ export const canUseCycle = (gender: Gender | null | undefined) => gender === 'fe
 
 /** Cuerpo del personaje que sigue al género elegido (luego se cambia en el estudio). */
 export const bodyFor = (gender: Gender | null | undefined): 'male' | 'female' => (gender === 'female' ? 'female' : 'male');
-
-export function getHeroLabel(gender: Gender | null | undefined): string {
-  return gender === 'female' ? 'heroína' : gender === 'male' ? 'héroe' : 'personaje';
-}
-
-/** «lista» / «listo» para acompañar a getHeroLabel. */
-export function getReadyLabel(gender: Gender | null | undefined): string {
-  return gender === 'female' ? 'lista' : 'listo';
-}
-
-export function getWelcomeLabel(gender: Gender | null | undefined): string {
-  return gender === 'female' ? 'Bienvenida' : gender === 'male' ? 'Bienvenido' : 'Te damos la bienvenida';
-}

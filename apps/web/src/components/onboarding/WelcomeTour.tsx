@@ -2,7 +2,7 @@
 // recorre las piezas reales de la interfaz (zonas, crear, el Sabio, buscar y
 // avisos). El foco viaja con un muelle de un sitio a otro y la tarjeta lo sigue,
 // cambiando de tamaño sin saltos; el texto de cada paso entra deslizándose.
-// El último paso activa los recordatorios (el permiso necesita un toque real).
+// Los avisos se piden después del primer hábito cumplido (NotificationPermissionModal), no aquí.
 //
 // Teclado: → o Intro avanza, ← vuelve, Esc lo cierra. Con «Reducir movimiento»
 // todo cambia con un fundido corto. Se ve una vez por usuario y dispositivo.
@@ -14,9 +14,6 @@ import { BrandMark } from '@/components/layout/Brand';
 import { Button } from '@/components/ui/lq';
 import { springs } from '@/lib/motion';
 import { useMotionStore } from '@/store/motionStore';
-import { useToastStore } from '@/hooks/useToast';
-import { enablePush, PUSH_MESSAGES, pushSupport } from '@/services/notification.service';
-import { markNotificationsAsked } from '@/components/ui/NotificationPermissionModal';
 
 /* ───────── Estado «ya lo vio» ───────── */
 
@@ -67,12 +64,12 @@ const isDesktop = () => window.matchMedia('(min-width: 768px)').matches;
 
 function buildSteps(name: string): Step[] {
   return [
-    { id: 'hola', icon: Compass, title: `Hola, ${name}. Esto es Noutlife.`, body: 'Tu vida real como una partida: cada hábito que cumples te da XP y Gold, y subes de nivel de verdad. Te enseñamos lo básico en medio minuto.' },
+    { id: 'hola', icon: Compass, title: `Hola, ${name}. Este es tu espacio.`, body: 'Tu rutina, tu mente y tus ideas en un solo lugar. Te enseñamos lo básico en medio minuto.' },
     { id: 'zonas', target: 'nav', icon: Compass, title: 'Cada parte de tu vida es un lugar', body: 'Hábitos, finanzas, sueño, tu diario… Cada zona se ve y se siente como lo que es. Muévete entre ellas desde aquí.' },
-    { id: 'crear', target: 'create', icon: Plus, title: 'Empieza por un hábito', body: 'Algo pequeño que quieras repetir. Cada vez que lo marcas ganas XP y tu racha crece.' },
+    { id: 'crear', target: 'create', icon: Plus, title: 'Empieza por un hábito', body: 'Algo pequeño que quieras repetir. Cada vez que lo marcas, tu racha crece.' },
     { id: 'sabio', target: 'sage', optional: true, icon: Sparkles, title: 'El Sabio te acompaña', body: 'Lee tu progreso y te da un consejo concreto cuando lo necesitas.' },
     { id: 'buscar', target: 'search', icon: Search, title: 'Encuentra cualquier cosa', body: isDesktop() ? 'Hábitos, misiones o zonas, desde cualquier pantalla. También con Ctrl + K.' : 'Hábitos, misiones o zonas, desde cualquier pantalla.' },
-    { id: 'avisos', target: 'bell', icon: Bell, title: 'Que no se te pase nada', body: 'Te avisamos a la hora de tus hábitos y antes de tus eventos, aunque tengas Noutlife cerrada.' },
+    { id: 'avisos', target: 'bell', icon: Bell, title: 'Que no se te pase nada', body: 'Cuando cumplas tu primer hábito te preguntamos si quieres recordatorios, a la hora que elijas.' },
   ];
 }
 
@@ -121,7 +118,6 @@ function cardPos(spot: Box | null, card: { w: number; h: number }): { x: number;
 
 export function WelcomeTour({ userId, name }: { userId: string; name: string }) {
   const reduce = useMotionStore((s) => s.reduce);
-  const toast = useToastStore();
   const all = useMemo(() => buildSteps(name.split(' ')[0] || name), [name]);
   const [steps, setSteps] = useState(all);
   const [i, setI] = useState(0);
@@ -129,14 +125,12 @@ export function WelcomeTour({ userId, name }: { userId: string; name: string }) 
   const [open, setOpen] = useState(true);
   const [spot, setSpot] = useState<Box | null>(null);
   const [cardSize, setCardSize] = useState({ w: 360, h: 220 });
-  const [busy, setBusy] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const [bodyH, setBodyH] = useState<number | null>(null);
   const primaryRef = useRef<HTMLButtonElement>(null);
   const step = steps[i];
   const last = i === steps.length - 1;
-  const support = useMemo(() => pushSupport(), []);
 
   // Los pasos cuyo elemento no se ve en este tamaño de pantalla se quitan al empezar.
   useEffect(() => { setSteps(all.filter((s) => !s.optional || findTarget(s.target))); }, [all]);
@@ -185,16 +179,6 @@ export function WelcomeTour({ userId, name }: { userId: string; name: string }) 
     setDir(d); setI(n);
   }, [i, steps.length, close]);
 
-  async function activate() {
-    setBusy(true);
-    markNotificationsAsked();
-    const result = await enablePush();
-    setBusy(false);
-    if (result === 'ok') toast.success('Recordatorios activados', 'Te avisaremos a la hora de tus hábitos.');
-    else if (result !== 'denied') toast.info(PUSH_MESSAGES[result]);
-    close();
-  }
-
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -220,7 +204,6 @@ export function WelcomeTour({ userId, name }: { userId: string; name: string }) 
   // Sin elemento, el foco se encoge en el centro: queda solo el velo.
   const hole = spot ?? { x: window.innerWidth / 2, y: window.innerHeight / 2, w: 0, h: 0 };
   const Icon = step.icon;
-  const askPush = step.id === 'avisos' && support !== 'unsupported';
 
   return createPortal(
     <AnimatePresence>
@@ -278,7 +261,7 @@ export function WelcomeTour({ userId, name }: { userId: string; name: string }) 
                   <h2 id="lq-tour-title" className="text-heading-sm">{step.title}</h2>
                 </div>
                 <p id="lq-tour-body" className="text-body-md text-on-surface">
-                  {askPush && support === 'ios-install' ? PUSH_MESSAGES['ios-install'] : step.body}
+                  {step.body}
                 </p>
                 </div>
               </motion.div>
@@ -301,17 +284,10 @@ export function WelcomeTour({ userId, name }: { userId: string; name: string }) 
               <div className="flex items-center gap-1">
                 {i === 0 ? (
                   <Button size="sm" variant="ghost" onClick={close}>Saltar</Button>
-                ) : !(last && askPush && support === 'ok') && (
+                ) : (
                   <Button size="sm" variant="ghost" onClick={() => go(-1)}>Atrás</Button>
                 )}
-                {last && askPush && support === 'ok' ? (
-                  <>
-                    <Button size="sm" variant="ghost" onClick={close}>Ahora no</Button>
-                    <Button ref={primaryRef} size="sm" loading={busy} onClick={() => void activate()}>Activar avisos</Button>
-                  </>
-                ) : (
-                  <Button ref={primaryRef} size="sm" onClick={() => go(1)}>{i === 0 ? 'Empezar' : last ? 'Listo' : 'Siguiente'}</Button>
-                )}
+                <Button ref={primaryRef} size="sm" onClick={() => go(1)}>{i === 0 ? 'Empezar' : last ? 'Listo' : 'Siguiente'}</Button>
               </div>
             </div>
           </motion.div>

@@ -1,6 +1,5 @@
 // Acciones irreversibles de la cuenta: reiniciar o eliminar. Se confirman
-// escribiendo una palabra. Lo usan Ajustes y el paywall de entrada (quien no
-// quiere continuar puede eliminar su cuenta sin vincular un método de pago).
+// escribiendo una palabra. Lo usa Ajustes.
 import { useEffect, useState, type FormEvent } from 'react';
 import api from '@/lib/api';
 import * as authService from '@/services/auth.service';
