@@ -75,6 +75,9 @@ function isEventOnDay(event: AgendaEvent, day: Date) {
   return isSameDay(eventDate, day);
 }
 
+const dayKey = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+const NO_TONES: Tone[] = [];
+
 const minutesOf = (iso: string) => { const d = new Date(iso); return d.getHours() * 60 + d.getMinutes(); };
 const durationOf = (e: AgendaEvent) => (e.endDate ? Math.max(15, (new Date(e.endDate).getTime() - new Date(e.startDate).getTime()) / 60000) : 60);
 const timeLabel = (e: AgendaEvent) => (e.isAllDay ? 'Todo el día' : `${formatTime(e.startDate)}${e.endDate ? ` – ${formatTime(e.endDate)}` : ''}`);
@@ -269,22 +272,27 @@ export default function AgendaPage() {
   const [view, setView] = useState<ViewMode>('day');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<AgendaEvent[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Solo la primera carga muestra el cargador: después, cambiar de día, semana o mes nunca
+  // desmonta el calendario (antes, una agenda vacía parpadeaba con el cargador en cada toque).
+  const [loaded, setLoaded] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState<AgendaEvent | null>(null);
   const [syncingGoogle, setSyncingGoogle] = useState(false);
   const [googleConnected, setGoogleConnected] = useState(false);
   const handledCodeRef = useRef<string | null>(null);
 
+  // Se pide por mes, no por día: elegir otro día del mismo mes no vuelve a cargar nada.
+  const monthKey = `${currentDate.getFullYear()}-${currentDate.getMonth()}`;
   const load = useCallback(async () => {
-    setLoading(true);
+    const [y, m] = monthKey.split('-').map(Number);
     try {
-      const from = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).toISOString();
-      const to = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, 1).toISOString();
+      // Desde una semana antes: la vista semanal puede empezar en el mes anterior.
+      const from = new Date(y, m, 1 - 7).toISOString();
+      const to = new Date(y, m + 2, 1).toISOString();
       setEvents(await agendaService.fetchEvents({ from, to }));
     } catch { /* se mantiene la lista anterior */ }
-    finally { setLoading(false); }
-  }, [currentDate]);
+    finally { setLoaded(true); }
+  }, [monthKey]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -362,6 +370,19 @@ export default function AgendaPage() {
     leave: (d: number) => ({ opacity: 0, rotateX: d >= 0 ? 70 : -70, y: d >= 0 ? -14 : 14, transition: { duration: 0.24, ease: [0.4, 0, 1, 1] } }),
   };
   const dayEvents = useMemo(() => events.filter((e) => isEventOnDay(e, currentDate)), [events, currentDate]);
+  // Puntos del mes: un mapa por día calculado una vez por lista de eventos (no 42 filtros por render).
+  const tonesByDay = useMemo(() => {
+    const map = new Map<string, Tone[]>();
+    for (const e of events) {
+      const d = new Date(e.startDate);
+      // Igual que isEventOnDay: los de todo el día van por su fecha UTC.
+      const key = e.isAllDay ? `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}` : dayKey(d);
+      map.set(key, [...(map.get(key) ?? []), catInfo(e.category).tone]);
+    }
+    return map;
+  }, [events]);
+  const dotsOf = useCallback((d: Date) => tonesByDay.get(dayKey(d)) ?? NO_TONES, [tonesByDay]);
+  const describeDay = useCallback((d: Date) => { const n = dotsOf(d).length; return `${n} ${n === 1 ? 'evento' : 'eventos'}`; }, [dotsOf]);
   const timed = dayEvents.filter((e) => !e.isAllDay);
   const allDay = dayEvents.filter((e) => e.isAllDay);
   const doneN = dayEvents.filter((e) => e.isCompleted).length;
@@ -430,12 +451,13 @@ export default function AgendaPage() {
         </Card>
       </motion.section>
 
-      {loading && events.length === 0 ? (
+      {!loaded ? (
         <PageLoader label="Ordenando tu agenda…" words={LOADING_COPY.agenda} />
       ) : (
         <DeskMat>
-        <AnimatePresence mode="wait">
-          <motion.div key={view} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+        {/* Cambio de vista: la nueva entra en el sitio de la anterior, sin hueco entre las dos (antes la
+            salida dejaba el contenedor vacío un instante y la página saltaba). */}
+          <motion.div key={view} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
             {view === 'day' && (
               <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)]">
                 <PlannerPage aria-label="Día" className="flex flex-col gap-4 px-4 pb-6 md:px-7">
@@ -551,8 +573,8 @@ export default function AgendaPage() {
                   <motion.div key={`${currentDate.getFullYear()}-${currentDate.getMonth()}`} custom={dir} variants={flip} initial="enter" animate="center" exit="leave" style={{ transformPerspective: 1200, originY: 0 }}>
                   <MonthGrid
                     month={currentDate} selected={currentDate} onSelect={setCurrentDate}
-                    dots={(d) => events.filter((e) => isEventOnDay(e, d)).map((e) => catInfo(e.category).tone)}
-                    describe={(d) => { const n = events.filter((e) => isEventOnDay(e, d)).length; return `${n} ${n === 1 ? 'evento' : 'eventos'}`; }}
+                    dots={dotsOf}
+                    describe={describeDay}
                   />
                   </motion.div>
                   </AnimatePresence>
@@ -566,7 +588,6 @@ export default function AgendaPage() {
               </div>
             )}
           </motion.div>
-        </AnimatePresence>
         </DeskMat>
       )}
 
