@@ -9,11 +9,6 @@ export const REFERRAL_MONTHLY_CAP_DAYS = 30;
 /** Días distintos con al menos un hábito cumplido para activar la invitación. */
 export const REFERRAL_ACTIVATION_CHECKINS = 3;
 
-/** Primer instante del mes (UTC) en el que cae `now`. */
-export function referralMonthStart(now: Date): Date {
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-}
-
 /** Días que todavía caben en el tope mensual, sin pasar de `wanted`. */
 export function grantableDays(gainedThisMonth: number, wanted = REFERRAL_REWARD_DAYS): number {
   return Math.max(0, Math.min(wanted, REFERRAL_MONTHLY_CAP_DAYS - gainedThisMonth));
@@ -28,11 +23,12 @@ export function proExtension(
   user: SubscriptionFields & { liteSince?: Date | null },
   days: number,
   now = new Date(),
-): { subscriptionStatus?: string; trialEndsAt?: Date; currentPeriodEnd?: Date | null; liteSince?: null } | null {
+): { subscriptionStatus?: string; trialEndsAt?: Date; currentPeriodEnd?: Date | null; liteSince?: null; giftTrial?: boolean } | null {
   if (days <= 0 || user.complimentary) return null;
   const later = (a: Date) => new Date(Math.max(a.getTime(), now.getTime()));
   if (statusOf(user) === 'lite') {
-    return { subscriptionStatus: 'trialing', trialEndsAt: addDays(now, days), currentPeriodEnd: null, liteSince: null };
+    // Regalo sin cobro: aunque haya tarjeta guardada, al vencer vuelve a Lite sin cargo (giftTrial).
+    return { subscriptionStatus: 'trialing', trialEndsAt: addDays(now, days), currentPeriodEnd: null, liteSince: null, giftTrial: true };
   }
   if (user.currentPeriodEnd) return { currentPeriodEnd: addDays(later(user.currentPeriodEnd), days) };
   return { trialEndsAt: addDays(later(trialEndOf(user)), days) };

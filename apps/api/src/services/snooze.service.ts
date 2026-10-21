@@ -61,7 +61,8 @@ export async function deliverDueSnoozes(now = new Date(), limit = 100): Promise<
     const d = row.data as unknown as Stored;
     if (await alreadyDone(d)) continue;
     await createNotification(row.userId, {
-      type: 'reminder', dedupeKey: row.tag, title: d.title, body: d.body, link: d.link, category: d.category,
+      // Lo pospuso la persona: sale a su hora, sin tope ni pausa.
+      type: 'reminder', userScheduled: true, dedupeKey: row.tag, title: d.title, body: d.body, link: d.link, category: d.category,
       quick: d.quick, quickRef: d.quickRef, day: d.day, priority: d.priority,
     }, { awaitPush: true });
     sent += 1;

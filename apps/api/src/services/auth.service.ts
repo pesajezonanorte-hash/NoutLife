@@ -162,7 +162,7 @@ async function giftTrialToLite(userId: string): Promise<void> {
   });
   if (!user?.onboardingCompleted || user.subscriptionStatus !== 'lite' || user.currentPeriodEnd || user.paymentSourceId) return;
   if (!(await claimReverseTrial(user.email))) return;
-  await prisma.user.update({ where: { id: userId }, data: { subscriptionStatus: 'trialing', trialEndsAt: addDays(new Date(), TRIAL_DAYS), liteSince: null } });
+  await prisma.user.update({ where: { id: userId }, data: { subscriptionStatus: 'trialing', trialEndsAt: addDays(new Date(), TRIAL_DAYS), liteSince: null, giftTrial: true } });
 }
 
 async function checkSubscription(userId: string): Promise<SubscriptionView | null> {

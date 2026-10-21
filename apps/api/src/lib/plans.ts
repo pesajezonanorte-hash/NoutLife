@@ -83,6 +83,8 @@ export interface SubscriptionFields {
   createdAt: Date;
   /** Pro de cortesía (COMP_PRO_EMAILS): Pro sin fecha, sin paywall y sin cobros. Lo decide el servidor, no la base. */
   complimentary?: boolean;
+  /** Prueba de regalo: vence sin cobro aunque la cuenta tenga tarjeta guardada. */
+  giftTrial?: boolean;
 }
 
 export function statusOf(user: Pick<SubscriptionFields, 'subscriptionStatus'>): SubscriptionStatus {
@@ -118,7 +120,7 @@ export function accessEndsAt(user: SubscriptionFields): Date {
 
 /** ¿Se intentará cobrar al vencer? Solo con tarjeta guardada y sin cancelar. */
 export function willRenew(user: SubscriptionFields): boolean {
-  if (user.complimentary) return false;
+  if (user.complimentary || user.giftTrial) return false;
   const status = statusOf(user);
   return (status === 'trialing' || status === 'active') && Boolean(user.paymentSourceId);
 }

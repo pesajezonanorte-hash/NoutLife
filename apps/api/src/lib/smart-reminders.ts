@@ -22,7 +22,8 @@ export interface SmartReminderSettings {
   /** Pausas activas cada `everyMinutes` entre `from` y `to` (sin la de `from`); `workdays`: solo de lunes a viernes. */
   breaks: { enabled: boolean; everyMinutes: BreakMinutes; from: string; to: string; workdays: boolean };
   /** Hábitos de hoy sin marcar: un aviso a esta hora si queda alguno. */
-  habits: { enabled: boolean; time: string };
+  /** manual: la persona eligió la hora. Sin elegirla, la hora aprendida puede reemplazar a time. */
+  habits: { enabled: boolean; time: string; manual: boolean };
 }
 
 export const BREAK_MINUTES = [30, 45, 60, 90, 120] as const;
@@ -37,7 +38,7 @@ export const DEFAULT_SMART_SETTINGS: SmartReminderSettings = {
   wisdom: { enabled: true, time: '08:00' },
   breaks: { enabled: false, everyMinutes: 60, from: '09:00', to: '18:00', workdays: true },
   // Mismo aviso que antes iba fijo a las 21:00 para todos: ahora la hora se elige.
-  habits: { enabled: true, time: '21:00' },
+  habits: { enabled: true, time: '21:00', manual: false },
 };
 
 const HHMM = /^([01]\d|2[0-3]):([0-5]\d)$/;
@@ -94,7 +95,12 @@ export function sanitizeSmartSettings(raw: unknown): SmartReminderSettings {
       to: hhmm(breaks.to, d.breaks.to),
       workdays: bool(breaks.workdays, d.breaks.workdays),
     },
-    habits: { enabled: bool(habits.enabled, d.habits.enabled), time: hhmm(habits.time, d.habits.time) },
+    habits: {
+      enabled: bool(habits.enabled, d.habits.enabled),
+      time: hhmm(habits.time, d.habits.time),
+      // Lo guardado antes de este campo: si la hora ya no es la por defecto, la eligió la persona.
+      manual: bool(habits.manual, hhmm(habits.time, d.habits.time) !== d.habits.time),
+    },
   };
 }
 
@@ -106,6 +112,11 @@ export function mergeSmartSettings(current: unknown, patch: unknown): SmartRemin
   for (const key of Object.keys(base)) {
     const part = changes[key];
     merged[key] = { ...base[key], ...(isObject(part) ? part : {}) };
+  }
+  // Una hora distinta de la guardada es una elección de la persona: gana siempre a la aprendida.
+  const habitsPatch = isObject(changes.habits) ? changes.habits : {};
+  if (habitsPatch.time !== undefined && habitsPatch.time !== base.habits.time && habitsPatch.manual === undefined) {
+    (merged.habits as Record<string, unknown>).manual = true;
   }
   return sanitizeSmartSettings(merged);
 }
@@ -151,46 +162,80 @@ export function breakSlots(from: string, to: string, everyMinutes: number): numb
 }
 
 // ─── Push inteligente: presupuesto, silencio, pausa y agrupación ──────────────
-// Lo que la persona programó (la hora de un hábito, un evento, una pausa, el agua…)
-// sale siempre. Lo que no programó (Sabiduría, hábitos pendientes, avisos de zona,
-// resumen y vencimientos) tiene tope diario, horario de silencio y se pausa si la
-// persona dejó de abrir la app. Los avisos que caen en la misma pasada salen juntos.
+// Dos clases de aviso. Los programados por la persona (su hora de hábito, de agua, de
+// comida o de descanso, una cita, un posponer) salen siempre: sin tope, sin silencio
+// automático, sin pausa y sin agrupar. Los automáticos o de enganche (Sabiduría, hábitos
+// pendientes, avisos de zona, resumen, vencimientos y ciclo) tienen tope diario, horario
+// de silencio, pausa por inactividad y se agrupan si caen en la misma pasada.
 
-/** Claves de deduplicación de avisos que la persona no programó. */
-export const UNSCHEDULED_PREFIXES = ['wisdom-', 'zone-reminder:', 'daily-summary-', 'deadline-'] as const;
-/** Avisos no programados por día, como máximo. */
-export const DAILY_UNSCHEDULED_CAP = 2;
-/** Sin abrir la app en estos días, los avisos no programados se pausan hasta que vuelva (plan v3: 21 días). */
+/** Claves de avisos automáticos o de enganche. Todo lo demás se trata como programado. */
+export const AUTOMATIC_PREFIXES = [
+  'wisdom-',
+  'daily-summary-',
+  'deadline-',
+  'cycle-',
+  'zone-reminder:habitos-pendientes:',
+  'zone-reminder:comida:',
+  'zone-reminder:aprendizaje:',
+  'zone-reminder:diario:',
+  'zone-reminder:finanzas:',
+  'zone-reminder:rachas:',
+  'zone-reminder:gremio:',
+  'zone-reminder:gimnasio:',
+] as const;
+/** Avisos automáticos por día, como máximo. */
+export const DAILY_AUTOMATIC_CAP = 2;
+/** Sin abrir la app en estos días, los automáticos se pausan hasta que vuelva (plan v3: 21 días). */
 export const INACTIVE_PAUSE_DAYS = 21;
 const QUIET_FROM = 22 * 60;
 const QUIET_TO = 7 * 60;
 
-export const isUnscheduled = (key: string | undefined) => Boolean(key && UNSCHEDULED_PREFIXES.some((p) => key.startsWith(p)));
+export function isAutomatic(key: string | undefined): boolean {
+  return Boolean(key && AUTOMATIC_PREFIXES.some((p) => key.startsWith(p)));
+}
 
-export interface QueuedPush { key?: string; title: string; body: string; link?: string }
+export interface QueuedPush {
+  key?: string;
+  title: string;
+  body: string;
+  link?: string;
+  category?: string;
+  /** La persona lo programó (hora de un hábito, un posponer…): nunca tiene límites. */
+  userScheduled?: boolean;
+}
+
+/** Un aviso sujeto a tope, silencio, pausa y agrupación: automático y no programado por la persona. */
+export function isRestricted(p: QueuedPush): boolean {
+  return !p.userScheduled && isAutomatic(p.key);
+}
 
 /**
- * Qué sale de lo encolado en una pasada para una persona. `sentToday`: avisos no
- * programados que ya se enviaron hoy; `minutes`: hora local; `inactive`: lleva
- * INACTIVE_PAUSE_DAYS sin abrir la app. `send`: los avisos que pasan; `group`: si
- * pasan dos o más, el único aviso que sale en su lugar («3 cosas para esta tarde»).
+ * Qué sale de lo encolado en una pasada para una persona. `sentToday`: automáticos que ya se
+ * enviaron hoy; `minutes`: hora local; `inactive`: lleva INACTIVE_PAUSE_DAYS sin abrir la app;
+ * `ignored`: los últimos 3 automáticos siguen sin abrir (el tope baja a la mitad).
+ * `send`: los avisos que salen tal cual (todos los programados y los automáticos que caben).
+ * `group`: si caen dos o más automáticos, un solo aviso («3 cosas para esta tarde») en su lugar.
  */
 export function planPushes<T extends QueuedPush>(queued: T[], opts: { minutes: number; sentToday: number; inactive: boolean; ignored?: boolean }): { send: T[]; group: QueuedPush | null } {
   const quiet = opts.minutes >= QUIET_FROM || opts.minutes < QUIET_TO;
-  // Frenado: con 3 avisos seguidos sin abrir, el tope baja a la mitad (1 al día).
-  const cap = opts.ignored ? Math.floor(DAILY_UNSCHEDULED_CAP / 2) : DAILY_UNSCHEDULED_CAP;
+  const cap = opts.ignored ? Math.floor(DAILY_AUTOMATIC_CAP / 2) : DAILY_AUTOMATIC_CAP;
   let budget = opts.inactive || quiet ? 0 : Math.max(0, cap - opts.sentToday);
-  const out = queued.filter((p) => !isUnscheduled(p.key) || budget-- > 0);
-  if (out.length < 2) return { send: out, group: null };
-  const names = out.map((p) => p.title.replace(/^Hora de: /, ''));
+  const scheduled = queued.filter((p) => !isRestricted(p));
+  const automatic = queued.filter(isRestricted).filter(() => budget-- > 0);
+  if (automatic.length < 2) return { send: [...scheduled, ...automatic], group: null };
+  const names = automatic.map((p) => p.title.replace(/^Hora de: /, ''));
   const part = opts.minutes < 12 * 60 ? 'esta mañana' : opts.minutes < 19 * 60 ? 'esta tarde' : 'esta noche';
-  const links = new Set(out.map((p) => p.link?.split('?')[0]));
-  return { send: out, group: {
-    key: `group-${out[0].key ?? 'x'}`,
-    title: `${out.length} cosas para ${part}`,
-    body: names.length > 3 ? `${names.slice(0, 3).join(', ')} y ${names.length - 3} más.` : `${names.slice(0, -1).join(', ')} y ${names[names.length - 1]}.`,
-    link: links.size === 1 ? out[0].link : '/',
-  } };
+  const links = new Set(automatic.map((p) => p.link?.split('?')[0]));
+  return {
+    send: scheduled,
+    group: {
+      key: `group-${automatic[0].key ?? 'x'}`,
+      title: `${automatic.length} cosas para ${part}`,
+      body: names.length > 3 ? `${names.slice(0, 3).join(', ')} y ${names.length - 3} más.` : `${names.slice(0, -1).join(', ')} y ${names[names.length - 1]}.`,
+      link: links.size === 1 ? automatic[0].link : '/',
+      category: automatic[0].category,
+    },
+  };
 }
 
 // ─── Textos ───────────────────────────────────────────────────────────────────

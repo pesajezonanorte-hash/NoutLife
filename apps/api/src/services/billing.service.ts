@@ -34,6 +34,7 @@ const SUBSCRIPTION_SELECT = {
   paymentMethodLabel: true,
   liteSince: true,
   lastPaymentError: true,
+  giftTrial: true,
 } satisfies Prisma.UserSelect;
 
 type SubscriptionUser = Prisma.UserGetPayload<{ select: typeof SUBSCRIPTION_SELECT }> & { complimentary?: boolean };
@@ -116,13 +117,24 @@ export function subscriptionView(
 }
 
 /**
- * Suma días de Pro (regalo por invitación): ver proExtension. Con tarjeta guardada, una
- * cuenta que pasó de Lite a prueba cobrará al vencer, igual que cualquier prueba.
+ * Suma días de Pro (regalo por invitación): ver proExtension. Lite pasa a prueba de regalo,
+ * que vence sin cobro aunque haya tarjeta (giftTrial). Las demás extienden lo que ya tienen.
  */
-export async function extendProAccess(userId: string, days: number, now = new Date()): Promise<void> {
-  const user = await loadUser(userId);
-  const data = proExtension(user, days, now);
-  if (data) await prisma.user.update({ where: { id: userId }, data: data as Prisma.UserUpdateInput });
+type Db = Pick<Prisma.TransactionClient, 'user'>;
+async function extendWith(db: Db, userId: string, days: number, now: Date): Promise<void> {
+  const user = await db.user.findUnique({ where: { id: userId }, select: SUBSCRIPTION_SELECT });
+  if (!user) return;
+  const data = proExtension(withComplimentary(user), days, now);
+  if (data) await db.user.update({ where: { id: userId }, data: data as Prisma.UserUpdateInput });
+}
+
+export function extendProAccess(userId: string, days: number, now = new Date()): Promise<void> {
+  return extendWith(prisma, userId, days, now);
+}
+
+/** Igual que extendProAccess, dentro de una transacción (invitaciones con tope estricto). */
+export function extendProAccessTx(tx: Prisma.TransactionClient, userId: string, days: number, now = new Date()): Promise<void> {
+  return extendWith(tx, userId, days, now);
 }
 
 /** La prueba solo existe para cuentas en Lite que nunca pagaron y cuyo correo no la usó. */
@@ -178,7 +190,7 @@ export async function canUseAI(userId: string): Promise<boolean> {
 async function moveToLite(userId: string, error: string | null): Promise<void> {
   await prisma.user.updateMany({
     where: { id: userId, NOT: { subscriptionStatus: 'lite' } },
-    data: { subscriptionStatus: 'lite', liteSince: new Date() },
+    data: { subscriptionStatus: 'lite', liteSince: new Date(), giftTrial: false },
   });
   await prisma.user.update({ where: { id: userId }, data: { lastPaymentError: error } });
 }
@@ -400,6 +412,7 @@ export async function savePaymentMethod(userId: string, input: PaymentMethodInpu
     paymentMethodLabel: lastFour ? `${brand} •••• ${lastFour}` : brand,
     lastPaymentError: null,
     liteSince: null, // la marca de Lite sin tarjeta no aplica con una tarjeta vinculada
+    giftTrial: false, // quien vincula tarjeta decide cobrar: la prueba de regalo deja de ser sin cobro
   };
   // Vincular un medio de pago durante una cancelación vigente la deshace.
   if (statusOf(user) === 'canceled' && now < accessEndsAt(user)) {
@@ -496,7 +509,7 @@ export async function resumeSubscription(userId: string): Promise<SubscriptionVi
   if (now >= accessEndsAt(user)) throw new BillingError('EXPIRED', 'Tu acceso Pro ya terminó. Actívalo de nuevo desde Planes.', 409);
   await prisma.user.update({
     where: { id: userId },
-    data: { subscriptionStatus: user.currentPeriodEnd && user.currentPeriodEnd > now ? 'active' : 'trialing' },
+    data: { subscriptionStatus: user.currentPeriodEnd && user.currentPeriodEnd > now ? 'active' : 'trialing', giftTrial: false },
   });
   return getView(userId);
 }

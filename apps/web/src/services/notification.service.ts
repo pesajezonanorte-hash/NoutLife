@@ -20,7 +20,7 @@ export interface SmartReminderSettings {
   /** Pausas activas durante la jornada (la primera, un intervalo después de `from`). */
   breaks: { enabled: boolean; everyMinutes: 30 | 45 | 60 | 90 | 120; from: string; to: string; workdays: boolean };
   /** Hábitos de hoy sin marcar: un aviso a esta hora. */
-  habits: { enabled: boolean; time: string };
+  habits: { enabled: boolean; time: string; manual?: boolean };
 }
 
 /** Cambio parcial: basta con la zona (y dentro, el campo) que se quiere cambiar. */

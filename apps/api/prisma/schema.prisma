@@ -217,6 +217,8 @@ model User {
   paymentMethodLabel String?
   /// Momento en que la cuenta pasó a Lite (el cliente avisa una sola vez).
   liteSince          DateTime?
+  /// Prueba de regalo (invitación o cuenta Lite): nunca se cobra al vencer, aunque haya tarjeta guardada.
+  giftTrial          Boolean   @default(false)
   lastPaymentError   String?
 
   createdAt        DateTime  @default(now())

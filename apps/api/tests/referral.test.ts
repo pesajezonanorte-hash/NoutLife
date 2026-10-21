@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { grantableDays, proExtension, referralMonthStart, REFERRAL_MONTHLY_CAP_DAYS } from '../src/lib/referrals';
+import { nextAction, planOf, willRenew } from '../src/lib/plans';
+import { grantableDays, proExtension, REFERRAL_MONTHLY_CAP_DAYS } from '../src/lib/referrals';
 
 const NOW = new Date('2026-10-20T12:00:00.000Z');
 const DAY = 24 * 60 * 60_000;
@@ -14,17 +15,27 @@ test('referral rewards stop at 30 days a month per person', () => {
   assert.equal(grantableDays(0, 3), 3);
 });
 
-test('the monthly cap resets on the first day of the UTC month', () => {
-  assert.equal(referralMonthStart(NOW).toISOString(), '2026-10-01T00:00:00.000Z');
-  assert.equal(referralMonthStart(new Date('2026-10-31T23:59:00.000Z')).toISOString(), '2026-10-01T00:00:00.000Z');
-});
-
 test('Lite becomes a gift trial of the reward days, without the old Lite date', () => {
   const lite = { subscriptionStatus: 'lite', trialEndsAt: days(-30), currentPeriodEnd: days(-10), paymentSourceId: null, createdAt: days(-60) };
   const data = proExtension(lite, 7, NOW);
   assert.equal(data?.subscriptionStatus, 'trialing');
   assert.equal(data?.trialEndsAt?.toISOString(), days(7).toISOString());
   assert.equal(data?.currentPeriodEnd, null);
+  assert.equal(data?.giftTrial, true);
+});
+
+test('a gift trial with a saved card never renews: it ends in Lite without a charge', () => {
+  const gift = { subscriptionStatus: 'trialing', trialEndsAt: days(7), currentPeriodEnd: null, paymentSourceId: '3891', createdAt: days(-30), giftTrial: true };
+  assert.equal(willRenew(gift), false);
+  assert.equal(planOf(gift, NOW), 'pro');
+  const ended = { ...gift, trialEndsAt: days(-1) };
+  assert.equal(nextAction(ended, NOW), 'downgrade');
+  assert.equal(planOf(ended, NOW), 'lite');
+});
+
+test('linking a card ends the gift: the trial renews again (the flag is cleared by the server)', () => {
+  const linked = { subscriptionStatus: 'trialing', trialEndsAt: days(7), currentPeriodEnd: null, paymentSourceId: '3891', createdAt: days(-30), giftTrial: false };
+  assert.equal(willRenew(linked), true);
 });
 
 test('a running trial is extended from its end, not from today', () => {

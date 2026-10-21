@@ -44,6 +44,7 @@ async function habitReminders(now: Date) {
     if (await wasNotified(habit.userId, dedupeKey)) continue;
     await createNotification(habit.userId, {
       type: 'reminder',
+      userScheduled: true,
       category: 'HABITS',
       dedupeKey,
       title: `Hora de: ${habit.title}`,
@@ -81,6 +82,7 @@ async function agendaReminders(now: Date) {
       : mins <= 1 ? 'Empieza ahora.' : mins < 90 ? `Empieza en ${mins} min.` : `Empieza a las ${localTimeLabel(event.user.timezone, event.startDate)}.`;
     await createNotification(event.userId, {
       type: 'reminder',
+      userScheduled: true,
       category: 'SYSTEM',
       dedupeKey,
       title: event.title,
@@ -281,7 +283,7 @@ async function zoneReminders(now: Date) {
       if (await wasNotified(user.id, dedupeKey)) continue;
       const notice = await r.check(user, { since, weekday, day });
       if (!notice) continue;
-      await createNotification(user.id, { type: 'reminder', category: r.category, dedupeKey, ...notice }, { awaitPush: true });
+      await createNotification(user.id, { type: 'reminder', category: r.category, dedupeKey, userScheduled: r.zone === 'sueno', ...notice }, { awaitPush: true });
       sent += 1;
     }
   }

@@ -6,7 +6,7 @@ import { prisma } from '../lib/prisma';
 import { getCalendarDay } from '../lib/calendar';
 import { averages, snapshot, type PeriodRow } from '../lib/cycle';
 import {
-  BREAK_TIPS, CARE_COPY, CYCLE_COPY, DEFAULT_SMART_SETTINGS, breakSlots, focusCategory, hydrationSlots, inWindow, learnedHabitTime, localMinutes, parseHHMM, pickQuote,
+  BREAK_TIPS, CARE_COPY, CYCLE_COPY, breakSlots, focusCategory, hydrationSlots, inWindow, learnedHabitTime, localMinutes, parseHHMM, pickQuote,
   sanitizeSmartSettings, type SmartReminderSettings,
 } from '../lib/smart-reminders';
 import { complimentaryEmails, planOf } from '../lib/plans';
@@ -43,6 +43,8 @@ interface Ctx {
 }
 
 type Notice = {
+  /** Programado por la persona (su hora de cuidado, de agua, de comida…): sin tope ni pausa. */
+  userScheduled?: boolean;
   category: NotificationCategory;
   title: string;
   body: string;
@@ -80,6 +82,7 @@ async function coliseoScheduled(c: Ctx): Promise<number> {
   ]);
   if (workout || attendance) return 0;
   return notifyOnce(c, `coliseo-scheduled-${c.day}`, {
+    userScheduled: true,
     category: 'COLISEO',
     title: 'Hoy toca entrenar',
     body: `«${routine.name}» te espera. Empieza cuando quieras.`,
@@ -111,14 +114,14 @@ async function careReminders(c: Ctx): Promise<number> {
     if (!slots.includes(slot)) continue;
     const done = await prisma.careLog.findFirst({ where: { routineId: r.id, userId: c.userId, date: c.calendarDate, completed: true }, select: { id: true } });
     if (done) continue;
-    sent += await notifyOnce(c, `care-${r.id}-${c.day}`, { category: 'HABITS', title: r.name, body: CARE_COPY[slot].body, link: '/habits' });
+    sent += await notifyOnce(c, `care-${r.id}-${c.day}`, { userScheduled: true, category: 'HABITS', title: r.name, body: CARE_COPY[slot].body, link: '/habits' });
   }
   for (const r of rituals) {
     const slot = r.type === 'night' ? 'night' : 'morning';
     if (!slots.includes(slot)) continue;
     const done = await prisma.ritualLog.findFirst({ where: { ritualId: r.id, userId: c.userId, date: c.calendarDate }, select: { id: true } });
     if (done) continue;
-    sent += await notifyOnce(c, `ritual-${r.id}-${c.day}`, { category: 'HABITS', title: r.name, body: CARE_COPY[slot].body, link: '/habits?tab=rituales' });
+    sent += await notifyOnce(c, `ritual-${r.id}-${c.day}`, { userScheduled: true, category: 'HABITS', title: r.name, body: CARE_COPY[slot].body, link: '/habits?tab=rituales' });
   }
   return sent;
 }
@@ -145,10 +148,9 @@ async function learnedHabitTarget(c: Ctx): Promise<number | null> {
 
 async function pendingHabits(c: Ctx): Promise<number> {
   if (!c.settings.habits.enabled) return 0;
-  // Hora aprendida: si la persona dejó la hora por defecto, el aviso sale 30 min antes de
-  // su hora habitual. Una hora elegida a mano se respeta siempre.
-  const usesDefault = c.settings.habits.time === DEFAULT_SMART_SETTINGS.habits.time;
-  const learned = usesDefault ? await learnedHabitTarget(c) : null;
+  // Hora aprendida: solo si la persona nunca eligió la hora; el aviso sale 30 min antes de su
+  // hora habitual. Una hora elegida a mano siempre gana.
+  const learned = c.settings.habits.manual ? null : await learnedHabitTarget(c);
   const due = learned !== null ? inWindow(c.minutes, learned) : slotDue(c, c.settings.habits.time);
   if (!due) return 0;
   // Misma clave que el aviso fijo de antes: el día del cambio no llega dos veces.
@@ -180,6 +182,7 @@ async function breakReminders(c: Ctx): Promise<number> {
   const i = slots.findIndex((m) => inWindow(c.minutes, m));
   if (i < 0) return 0;
   return notifyOnce(c, `break-${c.day}-${slots[i]}`, {
+    userScheduled: true,
     category: 'SYSTEM',
     title: 'Pausa activa',
     body: BREAK_TIPS[i % BREAK_TIPS.length],
@@ -239,6 +242,7 @@ async function hydrationReminders(c: Ctx): Promise<number> {
   if (drank >= target) return 0;
   const liters = (ml: number) => (ml / 1000).toLocaleString('es-ES', { maximumFractionDigits: 1 });
   return notifyOnce(c, `hydration-${c.day}-${slot}`, {
+    userScheduled: true,
     category: 'SYSTEM',
     title: 'Hora de hidratarte',
     body: `Llevas ${liters(drank)} de ${liters(target)} L. Un vaso ahora suma.`,
@@ -260,6 +264,7 @@ async function mealReminders(c: Ctx): Promise<number> {
   });
   if (eaten) return 0;
   return notifyOnce(c, `meal-${c.day}-${slot}`, {
+    userScheduled: true,
     category: 'SYSTEM',
     title: '¿Ya comiste?',
     body: 'Apúntala mientras la recuerdas.',

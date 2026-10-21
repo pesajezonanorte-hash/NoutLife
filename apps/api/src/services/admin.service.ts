@@ -13,7 +13,7 @@ export async function listUsers(now = new Date()) {
     select: {
       id: true, email: true, displayName: true, username: true, level: true, createdAt: true, lastSeenAt: true,
       subscriptionStatus: true, trialEndsAt: true, currentPeriodEnd: true, paymentSourceId: true,
-      paymentMethodType: true, paymentMethodLabel: true, liteSince: true, lastPaymentError: true, gender: true,
+      paymentMethodType: true, paymentMethodLabel: true, liteSince: true, lastPaymentError: true, gender: true, giftTrial: true,
     },
   });
   const payments = await prisma.subscriptionPayment.findMany({
