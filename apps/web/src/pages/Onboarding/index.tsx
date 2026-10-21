@@ -8,11 +8,11 @@
 // hábitos de los packs se crean al tocarlos, así se pueden marcar en el mismo paso.
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, type Variants } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { ArrowLeft, ArrowRight, Check, Plus } from 'lucide-react';
 import type { AvatarConfig, Gender } from '@noutlife/shared';
-import { ease } from '@/lib/motion';
+import { ease, springs } from '@/lib/motion';
 import { useAuthStore } from '@/store/authStore';
 import { useThemeStore, type ThemeMode } from '@/store/themeStore';
 import { useToast } from '@/hooks/useToast';
@@ -30,7 +30,7 @@ import { LOADING_COPY } from '@/lib/loadingCopy';
 import { AvatarPreview } from '@/components/character/AvatarPixelEditor';
 import { withBody, withDefaults } from '@/components/character/avatarOptions';
 import {
-  AvatarContent, GoalsContent, IdentityFields, LightChoice, MAX_GOALS, PACKS, goalCategoryOf, type HowFound, type Pack,
+  AvatarContent, ChoiceMark, GoalsContent, IdentityFields, LightChoice, MAX_GOALS, PACKS, cascade, goalCategoryOf, rise, type HowFound, type Pack,
 } from '@/components/onboarding/steps';
 import { Lettering, TitleText } from '@/components/layout/Lettering';
 
@@ -74,7 +74,18 @@ function StepTitle({ children, focus }: { children: ReactNode; focus: boolean })
   return <h1 ref={ref} tabIndex={-1} className="text-heading-lg outline-none md:text-display-sm"><TitleText>{children}</TitleText></h1>;
 }
 
-function Shell({ step, title, subtitle, children, footer }: { step: number; title: string; subtitle: string; children: ReactNode; footer: ReactNode }) {
+/**
+ * Cambio de paso según la dirección (adelante entra desde la derecha, atrás desde la
+ * izquierda) y, dentro, los bloques en cascada (variantes rise/cascade de los pasos).
+ * Solo transform y opacidad: corre a 60 fps en el compositor.
+ */
+const stepMotion: Variants = {
+  enter: (dir: number) => ({ opacity: 0, x: dir * 32 }),
+  center: { opacity: 1, x: 0, transition: { duration: 0.32, ease, staggerChildren: 0.05, delayChildren: 0.03 } },
+  exit: (dir: number) => ({ opacity: 0, x: dir * -24, transition: { duration: 0.16, ease } }),
+};
+
+function Shell({ step, dir, title, subtitle, children, footer }: { step: number; dir: number; title: string; subtitle: string; children: ReactNode; footer: ReactNode }) {
   const initialStep = useRef(step);
   // Pantalla de app: mide exactamente el alto visible (100dvh). Cabecera y botones
   // quedan fijos; si un paso no cabe, solo se desplaza su contenido.
@@ -83,28 +94,48 @@ function Shell({ step, title, subtitle, children, footer }: { step: number; titl
       <header className="mx-auto flex w-full max-w-[640px] shrink-0 flex-col gap-3 px-4 pt-[max(1rem,env(safe-area-inset-top))] md:gap-4 md:pt-10">
         <BrandLockup markSize={30} />
         <div className="flex flex-col gap-2">
-          <span className="text-label-lg text-on-surface-light">Paso {step + 1} de {TOTAL_STEPS}</span>
+          <span className="flex text-label-lg text-on-surface-light">
+            Paso&nbsp;
+            <span className="relative inline-flex overflow-hidden tabular-nums">
+              <AnimatePresence mode="popLayout" initial={false} custom={dir}>
+                <motion.span key={step} custom={dir} initial={{ y: dir * 14, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: dir * -14, opacity: 0 }} transition={springs.natural}>
+                  {step + 1}
+                </motion.span>
+              </AnimatePresence>
+            </span>
+            &nbsp;de {TOTAL_STEPS}
+          </span>
+          {/* Cada tramo se llena con un muelle; el actual brilla con la luz jade. */}
           <div role="progressbar" aria-label="Progreso" aria-valuemin={1} aria-valuemax={TOTAL_STEPS} aria-valuenow={step + 1} className="grid grid-cols-4 gap-1.5">
             {Array.from({ length: TOTAL_STEPS }, (_, i) => (
-              <span key={i} className={i <= step ? 'h-1.5 rounded-full bg-primary transition-colors duration-300' : 'h-1.5 rounded-full bg-surface-variant transition-colors duration-300'} />
+              <span key={i} className="h-1.5 overflow-hidden rounded-full bg-surface-variant">
+                <motion.span
+                  className={cn('block h-full origin-left rounded-full bg-primary', i === step && 'shadow-[0_0_10px_rgb(var(--lq-primary)/0.7)]')}
+                  initial={false}
+                  animate={{ scaleX: i <= step ? 1 : 0 }}
+                  transition={{ ...springs.natural, delay: i === step && dir > 0 ? 0.08 : 0 }}
+                />
+              </span>
             ))}
           </div>
         </div>
       </header>
 
       <main id="main" className="mx-auto flex min-h-0 w-full max-w-[640px] flex-1 flex-col overflow-y-auto overscroll-contain px-4 pb-4 pt-6 md:pt-8">
-        <AnimatePresence mode="wait" initial={false}>
+        <AnimatePresence mode="wait" initial={false} custom={dir}>
           <motion.div
             key={step}
-            initial={{ opacity: 0, x: 24 }}
-            animate={{ opacity: 1, x: 0, transition: { duration: 0.25, ease } }}
-            exit={{ opacity: 0, x: -24, transition: { duration: 0.15 } }}
+            custom={dir}
+            variants={stepMotion}
+            initial="enter"
+            animate="center"
+            exit="exit"
             className="flex flex-col gap-6 md:gap-8"
           >
-            <div className="flex flex-col gap-1 md:gap-2">
+            <motion.div variants={rise} className="flex flex-col gap-1 md:gap-2">
               <StepTitle focus={step !== initialStep.current}>{title}</StepTitle>
               <p className="text-body-lg text-on-surface-light">{subtitle}</p>
-            </div>
+            </motion.div>
             {children}
           </motion.div>
         </AnimatePresence>
@@ -158,7 +189,23 @@ export default function OnboardingPage() {
   useEffect(() => { track('onboarding_step_viewed', { step: step + 1 }); }, [step]);
 
   const config = withDefaults(avatarConfig, bodyFor(gender || null));
-  const go = (s: number) => { setTried(false); setStep(s); };
+  const [dir, setDir] = useState(1);
+  const go = (s: number) => { setTried(false); setDir(s > step ? 1 : -1); setStep(s); };
+  // Al cerrar el estudio, el personaje celebra en su sitio.
+  const [avatarAnim, setAvatarAnim] = useState<'idle' | 'celebrate'>('idle');
+  function closeAvatar() {
+    setEditingAvatar(false);
+    setAvatarAnim('celebrate');
+    window.setTimeout(() => setAvatarAnim('idle'), 1400);
+  }
+
+  /** La luz cambia con un fundido nativo (View Transitions) donde existe; si no, al instante. */
+  function chooseLight(mode: ThemeMode) {
+    const apply = () => useThemeStore.getState().setMode(mode);
+    const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown };
+    if (doc.startViewTransition && !document.documentElement.classList.contains('reduce-motion')) doc.startViewTransition(apply);
+    else apply();
+  }
 
   function submitIdentity() {
     if (!displayName.trim() || !gender) { setTried(true); return; }
@@ -269,120 +316,126 @@ export default function OnboardingPage() {
     );
   }
 
-  if (step === 0) {
-    return (
-      <>
-        <Shell
-          step={0} title="¿Cómo te llamamos?" subtitle="Tu espacio te espera. Empecemos por ti."
-          footer={<>
-            <Button variant="ghost" onClick={() => void leave('/login')}>Usar otra cuenta</Button>
-            {next(submitIdentity)}
-          </>}
-        >
-          <IdentityFields
-            name={displayName} onName={setDisplayName} nameError={tried && !displayName.trim() ? 'Escribe un nombre para continuar' : undefined}
-            gender={gender} onGender={chooseGender} genderError={tried && !gender ? 'Elige una opción para continuar' : undefined}
-            lockGender={Boolean(savedOrRegisteredGender)}
-            config={config} onEditAvatar={() => setEditingAvatar(true)}
-            howFound={howFound} onHowFound={setHowFound}
-            birthDate={birthDate} onBirthDate={setBirthDate}
-          />
-        </Shell>
-        {/* El estudio del personaje, encima del paso: se abre y se cierra sin perder lo escrito. */}
-        <AnimatePresence>
-          {editingAvatar && (
-            <motion.div
-              role="dialog" aria-modal="true" aria-label="Crea tu avatar"
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.15 } }}
-              className="fixed inset-0 z-50 flex flex-col gap-3 bg-background px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] md:p-8"
-            >
-              <h2 className="text-heading-md">Crea tu avatar</h2>
-              <AvatarContent config={config} onChange={setAvatarConfig} />
-              <Button size="lg" className="self-end sm:min-w-[200px]" onClick={() => setEditingAvatar(false)}>
-                <Check aria-hidden className="size-5" strokeWidth={2} />Listo
-              </Button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </>
-    );
-  }
-
-  if (step === 1) {
-    return (
-      <Shell
-        step={1} title="Elige tu luz" subtitle="Así se verá tu espacio."
-        footer={<>{back(() => go(0))}{next(() => { track('theme_chosen', { mode: light }); go(2); })}</>}
-      >
-        <LightChoice mode={light} onMode={(m: ThemeMode) => useThemeStore.getState().setMode(m)} />
-      </Shell>
-    );
-  }
-
-  if (step === 2) {
-    return (
-      <Shell
-        step={2} title="¿Qué quieres ordenar primero?" subtitle={`Elige hasta ${MAX_GOALS} áreas. Serán tus zonas principales.`}
-        footer={<>{back(() => go(1))}{next(() => go(3), 'Siguiente', goalCategories.length === 0)}</>}
-      >
+  // Un solo Shell para los cuatro pasos: así el progreso y el cambio de paso se animan siempre.
+  const checkable = created.filter((h) => h.daily);
+  const steps: Array<{ title: string; subtitle: string; footer: ReactNode; body: ReactNode }> = [
+    {
+      title: '¿Cómo te llamamos?', subtitle: 'Tu espacio te espera. Empecemos por ti.',
+      footer: <><Button variant="ghost" onClick={() => void leave('/login')}>Usar otra cuenta</Button>{next(submitIdentity)}</>,
+      body: (
+        <IdentityFields
+          name={displayName} onName={setDisplayName} nameError={tried && !displayName.trim() ? 'Escribe un nombre para continuar' : undefined}
+          gender={gender} onGender={chooseGender} genderError={tried && !gender ? 'Elige una opción para continuar' : undefined}
+          lockGender={Boolean(savedOrRegisteredGender)}
+          config={config} avatarAnimate={avatarAnim} onEditAvatar={() => setEditingAvatar(true)}
+          howFound={howFound} onHowFound={setHowFound}
+          birthDate={birthDate} onBirthDate={setBirthDate}
+        />
+      ),
+    },
+    {
+      title: 'Elige tu luz', subtitle: 'Así se verá tu espacio.',
+      footer: <>{back(() => go(0))}{next(() => { track('theme_chosen', { mode: light }); go(2); })}</>,
+      body: <LightChoice mode={light} onMode={chooseLight} />,
+    },
+    {
+      title: '¿Qué quieres ordenar primero?', subtitle: `Elige hasta ${MAX_GOALS} áreas. Serán tus zonas principales.`,
+      footer: <>{back(() => go(1))}{next(() => go(3), 'Siguiente', goalCategories.length === 0)}</>,
+      body: (
         <GoalsContent
           selected={goalCategories}
           onToggle={(id) => setGoalCategories((s) => (s.includes(id) ? s.filter((x) => x !== id) : s.length < MAX_GOALS ? [...s, id] : s))}
           yearGoal={yearGoal} onYearGoal={setYearGoal}
         />
-      </Shell>
-    );
-  }
+      ),
+    },
+    {
+      title: 'Tu primer hábito', subtitle: 'Agrega un pack con un toque. Puedes editarlo después.',
+      footer: <>{back(() => go(2))}{next(() => void finish(), created.length ? 'Listo' : 'Saltar por ahora')}</>,
+      body: (
+        <>
+          <motion.ul variants={cascade} className="flex flex-col gap-3">
+            {PACKS.map((pack) => {
+              const added = packs.includes(pack.id);
+              return (
+                <motion.li key={pack.id} variants={rise}>
+                  <button
+                    type="button" disabled={added || Boolean(adding)} aria-pressed={added} aria-busy={adding === pack.id || undefined}
+                    onClick={() => void addPack(pack)}
+                    className={cn(
+                      'lq-choice flex min-h-11 w-full items-center gap-3 rounded-2xl border-2 border-border bg-surface p-3 text-left',
+                      'hover:border-border-strong focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-primary',
+                      added && 'border-primary bg-background',
+                      adding === pack.id && 'opacity-70',
+                    )}
+                  >
+                    <IconChip icon={pack.icon} tone="primary" size="sm" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-label-lg">{pack.name}</span>
+                      <span className="block text-body-sm text-on-surface-light">{pack.desc}</span>
+                    </span>
+                    <ChoiceMark on={added} round off={<Plus className="size-4" strokeWidth={2.5} />} />
+                    <span className="sr-only">{added ? 'Agregado' : adding === pack.id ? 'Agregando…' : 'Agregar'}</span>
+                  </button>
+                </motion.li>
+              );
+            })}
+          </motion.ul>
 
-  const checkable = created.filter((h) => h.daily);
-  return (
-    <Shell
-      step={3} title="Tu primer hábito" subtitle="Agrega un pack con un toque. Puedes editarlo después."
-      footer={<>{back(() => go(2))}{next(() => void finish(), created.length ? 'Listo' : 'Saltar por ahora')}</>}
-    >
-      <ul className="flex flex-col gap-3">
-        {PACKS.map((pack) => {
-          const added = packs.includes(pack.id);
-          return (
-            <li key={pack.id}>
-              <button
-                type="button" disabled={added || Boolean(adding)} aria-pressed={added}
-                onClick={() => void addPack(pack)}
-                className={cn(
-                  'flex min-h-11 w-full items-center gap-3 rounded-2xl border-2 border-border bg-surface p-3 text-left',
-                  'hover:border-border-strong focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-primary',
-                  added && 'border-primary bg-background',
-                )}
+          <AnimatePresence initial={false}>
+            {checkable.length > 0 && (
+              <motion.section
+                key="check" aria-labelledby="lq-check-today" className="flex flex-col gap-3"
+                initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0, transition: springs.natural }} exit={{ opacity: 0 }}
               >
-                <IconChip icon={pack.icon} tone="primary" size="sm" />
-                <span className="min-w-0 flex-1">
-                  <span className="block text-label-lg">{pack.name}</span>
-                  <span className="block text-body-sm text-on-surface-light">{pack.desc}</span>
-                </span>
-                <span aria-hidden className={cn('flex size-8 shrink-0 items-center justify-center rounded-full', added ? 'bg-primary-strong text-on-primary' : 'border-2 border-border-strong')}>
-                  {added ? <Check className="size-4" strokeWidth={3} /> : <Plus className="size-4" strokeWidth={2.5} />}
-                </span>
-                <span className="sr-only">{added ? 'Agregado' : adding === pack.id ? 'Agregando…' : 'Agregar'}</span>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+                <h2 id="lq-check-today" className="text-label-lg">¿Ya hiciste alguno hoy? Márcalo.</h2>
+                <ul className="flex flex-col gap-2">
+                  {checkable.map((h, i) => (
+                    <motion.li
+                      key={h.id} className="flex min-h-11 items-center gap-3 rounded-2xl bg-surface px-3 py-2"
+                      initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0, transition: { ...springs.natural, delay: i * 0.04 } }}
+                    >
+                      <CheckButton checked={h.done} locked onToggle={() => void checkToday(h)} name={h.title} />
+                      <span className={cn('min-w-0 flex-1 text-body-md transition-colors duration-300', h.done && 'text-on-surface-light')}>{h.title}</span>
+                      <AnimatePresence>
+                        {h.xp ? (
+                          <motion.span key="xp" className="text-label-sm tabular-nums text-primary-text"
+                            initial={{ opacity: 0, y: 6, scale: 0.8 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={springs.snappy}>
+                            +{h.xp} XP
+                          </motion.span>
+                        ) : null}
+                      </AnimatePresence>
+                    </motion.li>
+                  ))}
+                </ul>
+              </motion.section>
+            )}
+          </AnimatePresence>
+        </>
+      ),
+    },
+  ];
+  const current = steps[step] ?? steps[0];
 
-      {checkable.length > 0 && (
-        <section aria-labelledby="lq-check-today" className="flex flex-col gap-3">
-          <h2 id="lq-check-today" className="text-label-lg">¿Ya hiciste alguno hoy? Márcalo.</h2>
-          <ul className="flex flex-col gap-2">
-            {checkable.map((h) => (
-              <li key={h.id} className="flex min-h-11 items-center gap-3 rounded-2xl bg-surface px-3 py-2">
-                <CheckButton checked={h.done} locked onToggle={() => void checkToday(h)} name={h.title} />
-                <span className={cn('min-w-0 flex-1 text-body-md', h.done && 'text-on-surface-light')}>{h.title}</span>
-                {h.xp ? <span className="text-label-sm tabular-nums text-primary-text">+{h.xp} XP</span> : null}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-    </Shell>
+  return (
+    <>
+      <Shell step={step} dir={dir} title={current.title} subtitle={current.subtitle} footer={current.footer}>{current.body}</Shell>
+      {/* El estudio del personaje, encima del paso: se abre y se cierra sin perder lo escrito. */}
+      <AnimatePresence>
+        {editingAvatar && (
+          <motion.div
+            role="dialog" aria-modal="true" aria-label="Crea tu personaje"
+            initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0, transition: springs.natural }} exit={{ opacity: 0, y: 16, transition: { duration: 0.16 } }}
+            className="fixed inset-0 z-50 flex flex-col gap-3 bg-background px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] md:p-8"
+          >
+            <h2 className="text-heading-md">Crea tu personaje</h2>
+            <AvatarContent config={config} onChange={setAvatarConfig} />
+            <Button size="lg" className="self-end sm:min-w-[200px]" onClick={closeAvatar}>
+              <Check aria-hidden className="size-5" strokeWidth={2} />Listo
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }

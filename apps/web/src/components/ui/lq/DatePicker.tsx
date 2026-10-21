@@ -54,10 +54,12 @@ export const DatePicker = forwardRef<HTMLButtonElement, DatePickerProps>(functio
   const [view, setView] = useState<'days' | 'years'>('days');
   const [month, setMonth] = useState(() => startOfMonth(clamp(selected ?? today)));
 
-  // Al abrir, el calendario muestra el mes de la fecha elegida.
-  useEffect(() => {
-    if (open) { setMonth(startOfMonth(clamp(selected ?? today))); setView('days'); }
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Al abrir, el calendario ya nace en el mes de la fecha elegida. Antes se corregía en un
+  // efecto después de pintar: se veía un mes y saltaba al otro (parpadeo).
+  function toggle(next: boolean) {
+    if (next) { setMonth(startOfMonth(clamp(selected ?? today))); setView('days'); }
+    setOpen(next);
+  }
 
   const disabledDays = [minDate && { before: minDate }, maxDate && { after: maxDate }].filter(Boolean) as Array<{ before: Date } | { after: Date }>;
 
@@ -71,7 +73,7 @@ export const DatePicker = forwardRef<HTMLButtonElement, DatePickerProps>(functio
   const label = selected ? format(selected, "d 'de' MMMM 'de' yyyy", { locale: es }) : placeholder;
 
   return (
-    <Popover.Root open={open} onOpenChange={setOpen}>
+    <Popover.Root open={open} onOpenChange={toggle}>
       <Popover.Trigger asChild disabled={disabled}>
         <button
           ref={ref}
@@ -141,6 +143,8 @@ export const DatePicker = forwardRef<HTMLButtonElement, DatePickerProps>(functio
                     autoFocus
                     selected={selected}
                     onSelect={pick}
+                    // 6 semanas siempre: la ventana no cambia de alto (ni de lado) al pasar de mes.
+                    fixedWeeks
                     month={month}
                     onMonthChange={setMonth}
                     startMonth={start}

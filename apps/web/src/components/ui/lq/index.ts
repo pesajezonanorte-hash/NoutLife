@@ -20,7 +20,7 @@ export { ModernLoader, type ModernLoaderProps } from './ModernLoader';
 export { Confetti } from './Confetti';
 export { BarChart, LineChart, Heatmap, type BarDatum, type LinePoint, type HeatLevel } from './Charts';
 export type { Tone } from './tones';
-export { ChipGroup, chipClasses, type ChipOption, type ChipGroupProps } from './Chip';
+export { ChipGroup, chipClasses, type ChipIcon, type ChipOption, type ChipGroupProps } from './Chip';
 export { DayDot, type DayStatus, type DayDotProps } from './DayDot';
 export { StepItem, type StepItemProps } from './StepItem';
 export { Timer, formatClock, type TimerProps } from './Timer';

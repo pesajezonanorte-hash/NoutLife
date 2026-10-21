@@ -29,7 +29,9 @@ export function MonthGrid({ month, selected, onSelect, dots, describe, className
   const m = month.getMonth();
   const offset = (new Date(year, m, 1).getDay() + 6) % 7;
   const total = new Date(year, m + 1, 0).getDate();
+  // Siempre 6 semanas (42 celdas): todos los meses miden lo mismo y cambiar de mes no mueve la página.
   const cells: (Date | null)[] = [...Array(offset).fill(null), ...Array.from({ length: total }, (_, i) => new Date(year, m, i + 1))];
+  while (cells.length < 42) cells.push(null);
   const today = new Date();
 
   return (
@@ -39,7 +41,7 @@ export function MonthGrid({ month, selected, onSelect, dots, describe, className
       </div>
       <div className="grid grid-cols-7 gap-1.5 md:gap-2">
         {cells.map((day, i) => {
-          if (!day) return <span key={i} aria-hidden />;
+          if (!day) return <span key={i} aria-hidden className="min-h-11 md:aspect-[1.3]" />;
           const tones = dots?.(day) ?? [];
           const isSel = !!selected && sameDay(day, selected);
           const isToday = sameDay(day, today);

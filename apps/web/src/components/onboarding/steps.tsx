@@ -1,41 +1,55 @@
 // Pasos del onboarding con el sistema lq. El shell (progreso, título, botones)
 // vive en pages/Onboarding; aquí solo el contenido de cada paso.
-import { useId } from 'react';
+// Movimiento: cada bloque entra en cascada con las variantes del paso (enter → center,
+// solo transform y opacidad) y las opciones elegidas laten con borde de luz (.lq-choice).
+import { useEffect, useId, useState, type ReactNode } from 'react';
 import {
-  Apple, BookOpen, Check, Dumbbell, Heart, Leaf, Monitor, Moon, MoonStar, Palette, Sun, Sunrise, Wallet, CalendarCheck, type LucideIcon,
+  Apple, BookOpen, Check, Dumbbell, Globe, Heart, Instagram, Leaf, Monitor, Moon, MoonStar, Palette, Sparkle, Star, Sun, Sunrise, Users, Wallet, CalendarCheck, type LucideIcon,
 } from 'lucide-react';
 import type { AvatarConfig, Gender } from '@noutlife/shared';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion, type Variants } from 'framer-motion';
+import { springs } from '@/lib/motion';
+import type { PixelAnimation } from '@/components/character/pixel/PixelAvatar';
+import { GenderOther, Mars, TikTok, Venus } from './symbols';
 import { cn } from '@/lib/utils';
 import { GENDER_OPTIONS } from '@/utils/gender';
-import { ChipGroup, Field, IconChip, Input, type Tone, DatePicker } from '@/components/ui/lq';
+import { ChipGroup, type ChipIcon, Field, IconChip, Input, type Tone, DatePicker } from '@/components/ui/lq';
 import { AvatarPreview, AvatarStudio } from '@/components/character/AvatarPixelEditor';
 import { HomeWindow, useNow } from '@/components/dashboard/HomeWindow';
 import type { ThemeMode } from '@/store/themeStore';
 import type { CreateHabitPayload } from '@/services/habit.service';
 
+// ── Movimiento ───────────────────────────────────────────────────────────────
+/** Un bloque del paso: sube y aparece (hereda enter/center del paso). */
+export const rise: Variants = { enter: { opacity: 0, y: 14 }, center: { opacity: 1, y: 0, transition: springs.natural } };
+/** Lista o rejilla cuyos hijos (rise) entran uno tras otro. */
+export const cascade: Variants = { enter: {}, center: { transition: { staggerChildren: 0.04 } } };
+
 // ── Identidad y personaje ────────────────────────────────────────────────────
 export const HOW_FOUND = [
-  { value: 'tiktok', label: 'TikTok' },
-  { value: 'instagram', label: 'Instagram' },
-  { value: 'friend', label: 'Una persona' },
-  { value: 'creator', label: 'Un creador' },
-  { value: 'other', label: 'Otro' },
+  { value: 'tiktok', label: 'TikTok', icon: TikTok },
+  { value: 'instagram', label: 'Instagram', icon: Instagram },
+  { value: 'friend', label: 'Una persona', icon: Users },
+  { value: 'creator', label: 'Un creador', icon: Star },
+  { value: 'other', label: 'Otro', icon: Globe },
 ] as const;
 export type HowFound = (typeof HOW_FOUND)[number]['value'];
 
-export function IdentityFields({ name, onName, nameError, gender, onGender, genderError, lockGender, config, onEditAvatar, howFound, onHowFound, birthDate, onBirthDate }: {
+const GENDER_ICON: Record<Gender, ChipIcon> = { female: Venus, male: Mars, other: GenderOther, unspecified: Sparkle };
+const GENDER_CHIPS = GENDER_OPTIONS.map((o) => ({ ...o, icon: GENDER_ICON[o.value] }));
+
+export function IdentityFields({ name, onName, nameError, gender, onGender, genderError, lockGender, config, avatarAnimate = 'idle', onEditAvatar, howFound, onHowFound, birthDate, onBirthDate }: {
   name: string; onName: (v: string) => void; nameError?: string;
   gender: Gender | ''; onGender: (g: Gender) => void; genderError?: string; lockGender: boolean;
-  config: AvatarConfig; onEditAvatar: () => void;
+  config: AvatarConfig; avatarAnimate?: PixelAnimation; onEditAvatar: () => void;
   howFound: HowFound | ''; onHowFound: (v: HowFound) => void;
   birthDate: string; onBirthDate: (v: string) => void;
 }) {
   return (
-    <div className="flex flex-col gap-6">
+    <motion.div variants={cascade} className="flex flex-col gap-6">
       {/* El personaje: se ve desde el primer paso y se personaliza en su estudio. */}
-      <div className="flex items-center gap-4">
-        <AvatarPreview config={config} size={72} className="shrink-0" />
+      <motion.div variants={rise} className="flex items-center gap-4">
+        <AvatarPreview config={config} size={72} animate={avatarAnimate} className="shrink-0" />
         <div className="flex min-w-0 flex-col items-start gap-1">
           <span className="text-label-lg">Tu personaje</span>
           <span className="text-body-sm text-on-surface-light">Te acompaña en tu espacio. Puedes cambiarlo cuando quieras.</span>
@@ -43,27 +57,31 @@ export function IdentityFields({ name, onName, nameError, gender, onGender, gend
             Crea tu avatar
           </button>
         </div>
-      </div>
-      <Field label="Tu nombre" error={nameError}>
-        <Input value={name} onChange={(e) => onName(e.target.value)} placeholder="Tu nombre" maxLength={60} autoComplete="nickname" />
-      </Field>
+      </motion.div>
+      <motion.div variants={rise}>
+        <Field label="Tu nombre" error={nameError}>
+          <Input value={name} onChange={(e) => onName(e.target.value)} placeholder="Tu nombre" maxLength={60} autoComplete="nickname" />
+        </Field>
+      </motion.div>
       {!lockGender && (
-        <div className="flex flex-col gap-2">
+        <motion.div variants={rise} className="flex flex-col gap-2">
           <span aria-hidden className="text-label-lg text-on-surface">¿Cómo te identificas?</span>
-          <ChipGroup<Gender | ''> label="¿Cómo te identificas?" value={gender} onChange={(g) => g && onGender(g)} options={GENDER_OPTIONS} />
+          <ChipGroup<Gender | ''> label="¿Cómo te identificas?" value={gender} onChange={(g) => g && onGender(g)} options={GENDER_CHIPS} />
           {genderError
             ? <span role="alert" className="text-body-sm text-error-text">{genderError}</span>
             : <span className="text-body-sm text-on-surface-light">Para hablarte bien y mostrarte zonas como Ciclo. Puedes cambiarlo en Ajustes.</span>}
-        </div>
+        </motion.div>
       )}
-      <div className="flex flex-col gap-2">
+      <motion.div variants={rise} className="flex flex-col gap-2">
         <span aria-hidden className="text-label-lg text-on-surface">¿Cómo nos conociste? <span className="font-normal text-on-surface-light">(opcional)</span></span>
         <ChipGroup<HowFound | ''> label="¿Cómo nos conociste? (opcional)" value={howFound} onChange={(v) => v && onHowFound(v)} options={[...HOW_FOUND]} />
-      </div>
-      <Field label="Fecha de nacimiento" help="Opcional. Para celebrar tu cumpleaños.">
-        <DatePicker clearable value={birthDate} onChange={onBirthDate} max={new Date().toISOString().slice(0, 10)} placeholder="Tu cumpleaños" />
-      </Field>
-    </div>
+      </motion.div>
+      <motion.div variants={rise}>
+        <Field label="Fecha de nacimiento" help="Opcional. Para celebrar tu cumpleaños.">
+          <DatePicker clearable value={birthDate} onChange={onBirthDate} max={new Date().toISOString().slice(0, 10)} placeholder="Tu cumpleaños" />
+        </Field>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -89,16 +107,21 @@ const LIGHTS: Array<{ mode: ThemeMode; icon: LucideIcon; label: string; desc: st
 /** Tres opciones; al elegir, toda la pantalla cambia al momento (la vista previa es la app misma). */
 export function LightChoice({ mode, onMode }: { mode: ThemeMode; onMode: (m: ThemeMode) => void }) {
   const now = useNow();
+  // La ventana es la pieza más pesada del paso: se monta cuando el paso ya terminó de entrar,
+  // así el deslizamiento no pierde cuadros en móviles. Su caja queda reservada (sin saltos).
+  const [windowReady, setWindowReady] = useState(false);
+  useEffect(() => { const t = window.setTimeout(() => setWindowReady(true), 380); return () => window.clearTimeout(t); }, []);
   return (
-    <div className="flex flex-col gap-6">
-      <HomeWindow now={now} className="max-w-[320px]" />
-      <fieldset className="grid gap-3 sm:grid-cols-3">
+    <motion.div variants={cascade} className="flex flex-col gap-6">
+      <motion.div variants={rise} className="min-h-[226px]">{windowReady && <HomeWindow now={now} className="max-w-[320px]" />}</motion.div>
+      <motion.fieldset variants={cascade} className="grid gap-3 sm:grid-cols-3">
         <legend className="sr-only">Elige tu luz</legend>
         {LIGHTS.map((l) => (
-          <label
+          <motion.label
             key={l.mode}
+            variants={rise}
             className={cn(
-              'flex min-h-11 cursor-pointer items-center gap-3 rounded-2xl border-2 border-border bg-surface p-3 sm:flex-col sm:items-start',
+              'lq-choice flex min-h-11 cursor-pointer items-center gap-3 rounded-2xl border-2 border-border bg-surface p-3 sm:flex-col sm:items-start',
               'hover:border-border-strong has-[:checked]:border-primary has-[:checked]:bg-background',
               'has-[:focus-visible]:outline has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary',
             )}
@@ -109,11 +132,11 @@ export function LightChoice({ mode, onMode }: { mode: ThemeMode; onMode: (m: The
               <span className="block text-label-lg">{l.label}</span>
               <span className="block text-body-sm text-on-surface-light">{l.desc}</span>
             </span>
-          </label>
+          </motion.label>
         ))}
-      </fieldset>
-      <p className="text-body-sm text-on-surface-light">Puedes cambiarla cuando quieras en Ajustes.</p>
-    </div>
+      </motion.fieldset>
+      <motion.p variants={rise} className="text-body-sm text-on-surface-light">Puedes cambiarla cuando quieras en Ajustes.</motion.p>
+    </motion.div>
   );
 }
 
@@ -133,22 +156,38 @@ export const MAX_GOALS = 3;
 /** Categoría de la meta del año según la primera área elegida (Sueño cuenta como Salud). */
 export const goalCategoryOf = (areas: string[]) => (areas[0] === 'SLEEP' ? 'HEALTH' : areas[0] ?? 'PERSONAL');
 
+/** Marca de una opción elegida: la palomita entra con un muelle. */
+export function ChoiceMark({ on, off = null, round }: { on: boolean; off?: ReactNode; round?: boolean }) {
+  return (
+    <span aria-hidden className={cn('flex shrink-0 items-center justify-center transition-colors duration-200', round ? 'size-8 rounded-full' : 'size-6 rounded-md', on ? 'bg-primary-strong text-on-primary' : 'border-2 border-border-strong')}>
+      <AnimatePresence mode="popLayout" initial={false}>
+        {on ? (
+          <motion.span key="on" initial={{ scale: 0, rotate: -30 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0 }} transition={springs.snappy}>
+            <Check className="size-4" strokeWidth={3} />
+          </motion.span>
+        ) : off && <motion.span key="off" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} transition={springs.snappy}>{off}</motion.span>}
+      </AnimatePresence>
+    </span>
+  );
+}
+
 export function GoalsContent({ selected, onToggle, yearGoal, onYearGoal }: { selected: string[]; onToggle: (id: string) => void; yearGoal: string; onYearGoal: (v: string) => void }) {
   const countId = useId();
   return (
-    <div className="flex flex-col gap-6">
+    <motion.div variants={cascade} className="flex flex-col gap-6">
       <fieldset aria-describedby={countId} className="flex flex-col gap-3">
         <legend className="sr-only">Áreas para empezar</legend>
-        <p id={countId} aria-live="polite" className="text-label-lg text-primary-text">{selected.length} de {MAX_GOALS} elegidas</p>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <motion.p variants={rise} id={countId} aria-live="polite" className="text-label-lg text-primary-text">{selected.length} de {MAX_GOALS} elegidas</motion.p>
+        <motion.div variants={cascade} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {GOALS.map((g) => {
             const on = selected.includes(g.id);
             const disabled = !on && selected.length >= MAX_GOALS;
             return (
-              <label
+              <motion.label
                 key={g.id}
+                variants={rise}
                 className={cn(
-                  'relative flex min-h-11 cursor-pointer items-center gap-3 rounded-2xl border-2 border-border bg-surface p-3',
+                  'lq-choice relative flex min-h-11 cursor-pointer items-center gap-3 rounded-2xl border-2 border-border bg-surface p-3',
                   'hover:border-border-strong has-[:checked]:border-primary has-[:checked]:bg-background',
                   'has-[:focus-visible]:outline has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary',
                   disabled && 'cursor-not-allowed opacity-50',
@@ -160,18 +199,18 @@ export function GoalsContent({ selected, onToggle, yearGoal, onYearGoal }: { sel
                   <span className="block text-label-lg">{g.label}</span>
                   <span className="block text-body-sm text-on-surface-light">{g.desc}</span>
                 </span>
-                <span aria-hidden className={cn('flex size-6 shrink-0 items-center justify-center rounded-md', on ? 'bg-primary-strong text-on-primary' : 'border-2 border-border-strong')}>
-                  {on && <Check className="size-4" strokeWidth={3} />}
-                </span>
-              </label>
+                <ChoiceMark on={on} />
+              </motion.label>
             );
           })}
-        </div>
+        </motion.div>
       </fieldset>
+      <motion.div variants={rise}>
       <Field label="Define tu meta del año" help={`Opcional. Queda como tu meta principal hasta el 31 de diciembre de ${new Date().getFullYear()}.`}>
         <Input value={yearGoal} onChange={(e) => onYearGoal(e.target.value)} placeholder="Ej. Correr mi primera carrera de 10 km" maxLength={120} />
       </Field>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 

@@ -1,11 +1,14 @@
-import { useRef, type KeyboardEvent } from 'react';
+import { useRef, type KeyboardEvent, type ReactElement } from 'react';
 import type { LucideIcon } from 'lucide-react';
+
+/** Ícono de una opción: de lucide u otro SVG con la misma forma (className, strokeWidth). */
+export type ChipIcon = LucideIcon | ((props: { className?: string; strokeWidth?: number | string }) => ReactElement);
 import { cn } from '@/lib/utils';
 
 export interface ChipOption<T extends string> {
   value: T;
   label: string;
-  icon?: LucideIcon;
+  icon?: ChipIcon;
   /** Contador opcional a la derecha del texto. */
   count?: number;
 }
@@ -24,7 +27,7 @@ export function chipClasses(selected: boolean) {
   return cn(
     'inline-flex min-h-11 items-center gap-1.5 whitespace-nowrap rounded-full border px-4 text-label-lg transition-[background-color,border-color,color,transform] duration-200 active:scale-[.97]',
     selected
-      ? 'border-primary/40 bg-primary/[var(--lq-soft-alpha)] text-primary-text'
+      ? 'lq-pop border-primary/40 bg-primary/[var(--lq-soft-alpha)] text-primary-text'
       : 'border-border bg-background text-on-surface hover:border-primary/40 hover:text-on-background',
   );
 }
@@ -65,7 +68,7 @@ export function ChipGroup<T extends string>({ options, value, onChange, label, c
             onKeyDown={(e) => onKey(e, i)}
             className={chipClasses(on)}
           >
-            {Icon && <Icon aria-hidden className="size-4" strokeWidth={1.75} />}
+            {Icon && <span aria-hidden="true" className="flex"><Icon className="size-4" strokeWidth={1.75} /></span>}
             {o.label}
             {o.count !== undefined && <span className="font-mono text-label-md tabular-nums opacity-80">{o.count}</span>}
           </button>
