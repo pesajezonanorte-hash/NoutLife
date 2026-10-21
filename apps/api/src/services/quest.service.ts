@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma';
 import { awardXpAndGold } from './xp.service';
 import { checkAchievements } from './achievement.service';
 import { createNotification } from './notification.service';
+import { onSpaceUsed } from './referral.service';
 import type { QuestCategory, QuestDifficulty, QuestStatus, QuestType } from '@prisma/client';
 
 export interface CreateQuestInput {
@@ -79,6 +80,8 @@ export async function createQuest(userId: string, input: CreateQuestInput) {
     },
   });
   queueGoogleTaskExport(userId);
+  // La meta principal (misión MAIN) cuenta como uso real para una invitación pendiente (T9).
+  if (input.type === 'MAIN') await onSpaceUsed(userId);
   return saved;
 }
 

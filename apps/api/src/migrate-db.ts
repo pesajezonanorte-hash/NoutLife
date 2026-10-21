@@ -6,6 +6,7 @@ import { BACKLOG_SQL, BACKLOG_V2_SQL, REVERSIBLE_HABIT_LOGS_SQL, WARDROBE_PHOTO_
 import { SUBSCRIPTIONS_SQL } from './lib/billing-migrations';
 import { REFERRALS_PUSH_EVENTS_SQL } from './lib/referral-migrations';
 import { GIFT_TRIAL_SQL } from './lib/gift-trial-migrations';
+import { REFERRAL_ANTI_ABUSE_SQL } from './lib/anti-abuse-migrations';
 import { DEFAULT_SHOP_ITEMS } from './lib/default-catalog';
 import { MAX_SHIELD_DAYS, STREAK_SHIELDS, shieldDaysOf } from './lib/streak-shields';
 
@@ -454,6 +455,7 @@ async function migrate() {
   // Antes de RLS_LOCKDOWN_SQL: las tablas nuevas también quedan con RLS activo.
   for (const sql of REFERRALS_PUSH_EVENTS_SQL) await prisma.$executeRawUnsafe(sql);
   for (const sql of GIFT_TRIAL_SQL) await prisma.$executeRawUnsafe(sql);
+  for (const sql of REFERRAL_ANTI_ABUSE_SQL) await prisma.$executeRawUnsafe(sql);
 
   // Idempotent mirror of prisma/migrations/20261023120000_recreation_zone.
   for (const sql of RECREATION_SQL) await prisma.$executeRawUnsafe(sql);

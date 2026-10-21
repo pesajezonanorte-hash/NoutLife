@@ -1,6 +1,7 @@
 import { prisma } from '../lib/prisma';
 import { awardXpAndGold } from './xp.service';
 import { createNotification } from './notification.service';
+import { onSpaceUsed } from './referral.service';
 import { sanitizeAvatar } from './shop.service';
 import type { Gender } from '../lib/gender';
 
@@ -112,6 +113,8 @@ export async function completeOnboarding(userId: string, data: OnboardingData) {
         subObjectives: [],
       },
     });
+    // La meta del año del onboarding también cuenta como uso real (T9).
+    await onSpaceUsed(userId);
   }
 
   const updated = await prisma.user.findUniqueOrThrow({

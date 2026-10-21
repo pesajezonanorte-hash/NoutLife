@@ -33,3 +33,56 @@ export function proExtension(
   if (user.currentPeriodEnd) return { currentPeriodEnd: addDays(later(user.currentPeriodEnd), days) };
   return { trialEndsAt: addDays(later(trialEndOf(user)), days) };
 }
+
+/** Separación mínima entre dos días con hábitos cumplidos que cuentan para la activación. */
+export const REFERRAL_MIN_GAP_MS = 12 * 60 * 60_000;
+
+/**
+ * Cuántos cumplimientos válidos hay (hasta `need`): días distintos y, entre dos elegidos,
+ * al menos `minGapMs` de separación. Greedy por fecha: toma el primero de cada día que
+ * cumpla la separación. `day` es el día de calendario del hábito (AAAA-MM-DD); `at` es el
+ * instante en que se marcó.
+ */
+export function pickSpacedCheckins(
+  logs: Array<{ day: string; at: Date }>,
+  need = REFERRAL_ACTIVATION_CHECKINS,
+  minGapMs = REFERRAL_MIN_GAP_MS,
+): number {
+  const sorted = [...logs].sort((a, b) => a.at.getTime() - b.at.getTime());
+  const days = new Set<string>();
+  let last: number | null = null;
+  let count = 0;
+  for (const log of sorted) {
+    if (count >= need) break;
+    if (days.has(log.day)) continue;
+    if (last !== null && log.at.getTime() - last < minGapMs) continue;
+    days.add(log.day);
+    last = log.at.getTime();
+    count += 1;
+  }
+  return count;
+}
+
+/** ¿Hay algún dispositivo en común entre las dos listas? */
+export function sharesDevice(a: readonly string[], b: readonly string[]): boolean {
+  if (a.length === 0 || b.length === 0) return false;
+  const mine = new Set(a);
+  return b.some((id) => mine.has(id));
+}
+
+export type ReferralVerdict = 'flag' | 'activate' | 'wait';
+
+/**
+ * Decisión sobre una invitación pendiente. 'flag': auto-referido (marca permanente, sin
+ * recompensa). 'activate': cumple los dos requisitos de uso real. 'wait': todavía no.
+ */
+export function referralVerdict(state: {
+  flagged: boolean;
+  sharedDevice: boolean;
+  spacedCheckins: number;
+  spaceInteraction: boolean;
+}): ReferralVerdict {
+  if (state.flagged || state.sharedDevice) return 'flag';
+  if (state.spacedCheckins >= REFERRAL_ACTIVATION_CHECKINS && state.spaceInteraction) return 'activate';
+  return 'wait';
+}

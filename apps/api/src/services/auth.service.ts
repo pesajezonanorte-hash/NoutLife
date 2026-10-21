@@ -7,7 +7,7 @@ import { verifyIdToken, type OAuthIdentity } from '../lib/oauth';
 import { checkAchievements } from './achievement.service';
 import { syncSubscription, type SubscriptionView } from './billing.service';
 import { claimReverseTrial } from './trial.service';
-import { attachReferral } from './referral.service';
+import { attachReferral, recordDevice } from './referral.service';
 import { TRIAL_DAYS, addDays } from '../lib/plans';
 
 function sanitizeUser(user: {
@@ -110,7 +110,7 @@ async function uniqueUsername(seed: string) {
  * email verificado (cuentas antiguas con contraseña) o crea una nueva. Las
  * cuentas nuevas empiezan sin onboarding y la app las lleva a completarlo.
  */
-async function findOrCreateUser(identity: OAuthIdentity, displayName?: string, referredBy?: string) {
+async function findOrCreateUser(identity: OAuthIdentity, displayName?: string, referredBy?: string, deviceId?: string | null) {
   const bySub = await prisma.user.findFirst({ where: { googleSub: identity.sub } });
   if (bySub) return bySub;
 
@@ -142,7 +142,7 @@ async function findOrCreateUser(identity: OAuthIdentity, displayName?: string, r
   });
   checkAchievements(user.id, 'user_registered', { currentStreak: 0 }).catch(() => {});
   // Invitación (T9): la cuenta nueva queda ligada a quien la invitó. Un fallo no impide entrar.
-  if (referredBy) await attachReferral(user.id, referredBy).catch((error) => console.error('[AUTH_REFERRAL_ERROR]', user.id, error));
+  if (referredBy) await attachReferral(user.id, referredBy, deviceId).catch((error) => console.error('[AUTH_REFERRAL_ERROR]', user.id, error));
   return user;
 }
 
@@ -174,9 +174,10 @@ async function checkSubscription(userId: string): Promise<SubscriptionView | nul
 }
 
 /** Inicio de sesión único: Google. No hay contraseñas. */
-export async function oauthSignIn(data: OAuthInput) {
+export async function oauthSignIn(data: OAuthInput, deviceId?: string | null) {
   const identity = await verifyIdToken(data.provider, data.idToken);
-  const user = await findOrCreateUser(identity, data.displayName, data.referredBy);
+  const user = await findOrCreateUser(identity, data.displayName, data.referredBy, deviceId);
+  await recordDevice(user.id, deviceId);
 
   const { reconcileUserActivityStreak } = await import('./xp.service');
   const reconciledStreak = await reconcileUserActivityStreak(user.id);
@@ -188,7 +189,7 @@ export async function oauthSignIn(data: OAuthInput) {
   return { user: { ...sanitizeUser(userForResponse), subscription }, accessToken, refreshToken };
 }
 
-export async function refreshAccessToken(refreshToken: string) {
+export async function refreshAccessToken(refreshToken: string, deviceId?: string | null) {
   let payload: { userId: string; email: string };
   try {
     payload = verifyRefreshToken(refreshToken);
@@ -211,6 +212,7 @@ export async function refreshAccessToken(refreshToken: string) {
     : { ...user, currentStreak: reconciledStreak };
 
   // Renovación deslizante: cada refresh entrega un token nuevo de la misma familia.
+  await recordDevice(user.id, deviceId);
   const { accessToken, refreshToken: nextRefreshToken } = await issueSession(user);
   const subscription = await checkSubscription(user.id);
   return { accessToken, refreshToken: nextRefreshToken, user: { ...sanitizeUser(userForResponse), subscription } };

@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma';
+import { onSpaceUsed } from './referral.service';
 import { addCalendarDays, getCalendarDay, parseCalendarDate } from '../lib/calendar';
 
 type Tally = { falls: number; resisted: number };
@@ -63,7 +64,7 @@ export async function listAntiHabits(userId: string) {
 export async function createAntiHabit(userId: string, input: {
   title: string; category: string; cue?: string; targetPerWeek?: number;
 }) {
-  return prisma.antiHabit.create({
+  const created = await prisma.antiHabit.create({
     data: {
       userId,
       title: input.title.trim(),
@@ -72,6 +73,9 @@ export async function createAntiHabit(userId: string, input: {
       targetPerWeek: input.targetPerWeek,
     },
   });
+  // Un obstáculo creado cuenta como uso real para una invitación pendiente (T9).
+  await onSpaceUsed(userId);
+  return created;
 }
 
 /** Edita un obstáculo activo. `cue` y `targetPerWeek` en null los quitan. */

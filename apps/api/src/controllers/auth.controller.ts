@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import * as authService from '../services/auth.service';
 import { REFRESH_COOKIE_OPTIONS } from '../lib/jwt';
+import { deviceIdOf } from '../lib/device';
 import type { AuthRequest } from '../middleware/auth.middleware';
 import { reconcileUserActivityStreak } from '../services/xp.service';
 import { resetAccountData } from '../services/account-reset.service';
@@ -15,7 +16,7 @@ export function providers(_req: Request, res: Response): void {
 
 export async function oauth(req: Request, res: Response): Promise<void> {
   try {
-    const { user, accessToken, refreshToken } = await authService.oauthSignIn(req.body);
+    const { user, accessToken, refreshToken } = await authService.oauthSignIn(req.body, deviceIdOf(req, res));
     res.cookie('refreshToken', refreshToken, REFRESH_COOKIE_OPTIONS);
     res.json({ user, accessToken });
   } catch (err) {
@@ -44,7 +45,7 @@ export async function refresh(req: Request, res: Response): Promise<void> {
   }
 
   try {
-    const { accessToken, refreshToken, user } = await authService.refreshAccessToken(token);
+    const { accessToken, refreshToken, user } = await authService.refreshAccessToken(token, deviceIdOf(req, res));
     res.cookie('refreshToken', refreshToken, REFRESH_COOKIE_OPTIONS);
     res.json({ accessToken, user });
   } catch {

@@ -249,6 +249,7 @@ model User {
   xpEvents                XpEvent[]
   pushSubscriptions       PushSubscription[]
   pushEvents              PushEvent[]
+  userDevices             UserDevice[]
   referralsSent           Referral[]              @relation("ReferralInviter")
   referralReceived        Referral?               @relation("ReferralInvitee")
   notificationPreferences NotificationPreferences?
@@ -978,12 +979,29 @@ model Referral {
   status      String    @default("PENDING")
   inviterDays Int       @default(0)
   inviteeDays Int       @default(0)
+  /// Invitador y invitado comparten un dispositivo: no reciben recompensa (anti auto-referido).
+  flaggedSelfReferral Boolean @default(false)
   createdAt   DateTime  @default(now())
   activatedAt DateTime?
 
   @@index([inviterId, activatedAt])
   @@index([inviteeId, activatedAt])
   @@map("referrals")
+}
+
+/// Dispositivos con los que una cuenta ha iniciado sesión o renovado sesión (id de cliente).
+/// Solo se usa para detectar auto-referidos; nunca bloquea el acceso.
+model UserDevice {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceId    String
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+
+  @@unique([userId, deviceId])
+  @@index([deviceId])
+  @@map("user_devices")
 }
 
 /// Medición de avisos web push (T8): envío, clic y desactivación, por categoría.

@@ -4,6 +4,7 @@
 // está en NoutLife Lite; lo que es solo de Pro responde 402 con su candado.
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
+import { onSpaceUsed } from './referral.service';
 import { LITE_LIMITS, NOTEBOOK_LOCK_MESSAGES, type NotebookLock } from '../lib/plans';
 import {
   MAX_IMAGES_PER_NOTEBOOK, MAX_NOTEBOOKS, isEmptyPage,
@@ -83,6 +84,8 @@ export async function savePage(userId: string, id: string, index: number, conten
     : await prisma.notebookPage.upsert({ where, create: { notebookId: id, index, content: json }, update: { content: json }, select: { index: true, content: true, updatedAt: true } });
   // La libreta usada más reciente sale primero en la estantería.
   await prisma.notebook.update({ where: { id }, data: { updatedAt: new Date() } });
+  // Una página escrita cuenta como uso real para una invitación pendiente (T9).
+  if (page) await onSpaceUsed(userId);
   return { page };
 }
 
