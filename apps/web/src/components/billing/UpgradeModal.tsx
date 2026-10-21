@@ -13,7 +13,8 @@ import { usePlanStore, type UpgradeReason } from '@/store/planStore';
 import { useToastStore } from '@/hooks/useToast';
 import { ease, useMotionReduced } from '@/lib/motion';
 import { LITE_LIMITS, PRO_FRAMING, PRO_FRAMING_TRIAL, PRO_PRICE_COP, PRO_ZONES, PRO_ZONE_COUNT, TRIAL_DAYS, formatCop, longDay } from '@/lib/plan';
-import { getBillingStatus, subscribe } from '@/services/billing.service';
+import { getBillingStatus, getPlanPreview, subscribe } from '@/services/billing.service';
+import { contextFor, type PlanPreview } from '@/lib/planPreview';
 import { PaymentMethodForm, type PaymentMethodFormProps } from './PaymentMethodForm';
 
 const PRICE = formatCop(PRO_PRICE_COP);
@@ -78,6 +79,7 @@ export function UpgradeModal() {
   const [step, setStep] = useState<'pitch' | 'card' | 'done'>('pitch');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [preview, setPreview] = useState<PlanPreview | null>(null);
 
   // Cada apertura empieza de cero y trae el estado real (el 402 puede llegar con datos viejos).
   useEffect(() => {
@@ -85,11 +87,14 @@ export function UpgradeModal() {
     setStep('pitch');
     setError('');
     getBillingStatus().then(({ subscription: fresh }) => updateUser({ subscription: fresh })).catch(() => null);
+    getPlanPreview().then(setPreview).catch(() => setPreview(null));
   }, [reason, updateUser]);
 
   if (!reason) return <ResponsiveDialog open={false} onClose={close} title="" />;
 
   const copy = copyFor(reason, subscription);
+  // Datos reales de la persona (T11): «Tus 23 días de historial están guardados…».
+  const context = contextFor(reason, preview);
   const lite = subscription?.plan === 'lite';
   const trial = Boolean(subscription?.trialAvailable);
   // Qué hace el formulario: empezar la prueba, cobrar desde Lite o solo vincular (prueba o mes en curso).
@@ -135,6 +140,7 @@ export function UpgradeModal() {
         {step === 'pitch' && (
           <motion.div key="pitch" {...fade} className="flex flex-col gap-5">
             <p className="text-body-md text-on-surface">{copy.body}</p>
+            {context && <p className="rounded-2xl bg-surface-variant px-4 py-3 text-body-md text-on-surface">{context}</p>}
 
             {/* Ancla: el precio grande y lo que cuesta al día; con prueba, el $0 de hoy manda. */}
             <div className="flex flex-col items-center gap-1 rounded-3xl border border-secondary/40 bg-secondary/[var(--lq-soft-alpha)] px-4 py-5 text-center">

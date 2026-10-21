@@ -79,3 +79,29 @@ export async function deleteUser(adminId: string, targetId: string) {
   await prisma.user.delete({ where: { id: targetId } });
   return { deleted: true as const, email: target.email };
 }
+
+/**
+ * Tasas de avisos web push de los últimos 30 días, por categoría (T8): envíos, clics y
+ * desactivaciones. Sirve para el tablero de tasa de clics y bajas por tipo de aviso.
+ */
+export async function pushStats(now = new Date()) {
+  const since = new Date(now.getTime() - 30 * 86_400_000);
+  const rows = await prisma.pushEvent.groupBy({
+    by: ['category', 'kind'],
+    where: { createdAt: { gte: since } },
+    _count: { _all: true },
+  });
+  const byCategory: Record<string, { sent: number; clicked: number; disabled: number; clickRate: number | null; disableRate: number | null }> = {};
+  for (const row of rows) {
+    const entry = (byCategory[row.category] ??= { sent: 0, clicked: 0, disabled: 0, clickRate: null, disableRate: null });
+    const n = row._count._all;
+    if (row.kind === 'sent') entry.sent += n;
+    else if (row.kind === 'clicked') entry.clicked += n;
+    else if (row.kind === 'disabled') entry.disabled += n;
+  }
+  for (const entry of Object.values(byCategory)) {
+    entry.clickRate = entry.sent ? entry.clicked / entry.sent : null;
+    entry.disableRate = entry.sent ? entry.disabled / entry.sent : null;
+  }
+  return { since: since.toISOString(), byCategory };
+}

@@ -332,6 +332,16 @@ export function isPushConfigured(): boolean {
   return Boolean(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY);
 }
 
+/**
+ * Medición de avisos (T8). kind: sent (entregado a algún dispositivo), clicked (la persona lo
+ * tocó) o disabled (el navegador retiró la suscripción). Nunca rompe el envío.
+ */
+export function recordPushEvent(userId: string, kind: 'sent' | 'clicked' | 'disabled', category: string): Promise<void> {
+  return prisma.pushEvent.create({ data: { userId, kind, category } }).then(() => undefined, (error) => {
+    console.error('[PUSH_EVENT_ERROR]', kind, error);
+  });
+}
+
 /** Envía el push a todos los dispositivos del usuario; devuelve cuántos lo aceptaron. */
 export async function sendPush(userId: string, payload: PushPayload, category: NotificationCategory = 'SYSTEM'): Promise<number> {
   if (!isPushConfigured()) return 0;
@@ -365,11 +375,13 @@ export async function sendPush(userId: string, payload: PushPayload, category: N
       // 404/410: la suscripción ya no existe (app desinstalada, permiso retirado).
       if (status === 404 || status === 410) {
         await prisma.pushSubscription.deleteMany({ where: { id: sub.id } });
+        await recordPushEvent(userId, 'disabled', category);
       }
     }
   });
 
   await Promise.allSettled(promises);
+  if (delivered > 0) await recordPushEvent(userId, 'sent', category);
   return delivered;
 }
 

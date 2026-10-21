@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma';
 import { hasAIProvider } from '../lib/ai';
 import { fingerprintSecret, paymentKey, publicDataShape, type NequiProof } from '../lib/trial-keys';
 import { claimTrial, trialAvailable } from './trial.service';
+import { proExtension } from '../lib/referrals';
 import {
   LITE_LIMITS, PRO_AMOUNT_IN_CENTS, PRO_CURRENCY, PRO_PRICE_COP, PRO_ZONES, RENEWAL_GRACE_MS, TRIAL_DAYS,
   accessEndsAt, addDays, addMonth, complimentaryEmails, hasProAccess, nextAction, paymentReference, planOf, statusOf, trialEndOf, willRenew,
@@ -112,6 +113,16 @@ export function subscriptionView(
     priceCop: PRO_PRICE_COP,
     trialDays: TRIAL_DAYS,
   };
+}
+
+/**
+ * Suma días de Pro (regalo por invitación): ver proExtension. Con tarjeta guardada, una
+ * cuenta que pasó de Lite a prueba cobrará al vencer, igual que cualquier prueba.
+ */
+export async function extendProAccess(userId: string, days: number, now = new Date()): Promise<void> {
+  const user = await loadUser(userId);
+  const data = proExtension(user, days, now);
+  if (data) await prisma.user.update({ where: { id: userId }, data: data as Prisma.UserUpdateInput });
 }
 
 /** La prueba solo existe para cuentas en Lite que nunca pagaron y cuyo correo no la usó. */
@@ -587,4 +598,25 @@ export async function runBillingTick(now = new Date(), limit = 20): Promise<{ bi
     await prisma.subscriptionPayment.updateMany({ where: { id: payment.id, status: 'PENDING' }, data: { updatedAt: new Date() } });
   }
   return { billingDue: due.length, billingPending: pending.length };
+}
+
+/**
+ * Qué cambia al pasar a Lite con los datos reales de la persona (aviso de los días 5 y 6
+ * de la prueba y diálogo de Pro). Lite no pausa lo que ya existe: solo impide crear más
+ * hábitos, rutinas y libretas por encima del límite, y recorta el historial visible.
+ */
+export async function getPlanPreview(userId: string, now = new Date()) {
+  const [activeHabits, activeRoutines, notebooks, firstLog] = await Promise.all([
+    prisma.habit.count({ where: { userId, isActive: true } }),
+    prisma.ritual.count({ where: { userId, isActive: true } }),
+    prisma.notebook.count({ where: { userId } }),
+    prisma.habitLog.findFirst({ where: { userId }, orderBy: { date: 'asc' }, select: { date: true } }),
+  ]);
+  const historyDays = firstLog ? Math.max(1, Math.floor((now.getTime() - firstLog.date.getTime()) / (24 * 60 * 60_000)) + 1) : 0;
+  return {
+    activeHabits, habitLimit: LITE_LIMITS.activeHabits,
+    activeRoutines, routineLimit: LITE_LIMITS.activeRoutines,
+    notebooks, notebookLimit: LITE_LIMITS.notebooks,
+    historyDays, historyLimit: LITE_LIMITS.historyDays,
+  };
 }

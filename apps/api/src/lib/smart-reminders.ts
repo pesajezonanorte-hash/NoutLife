@@ -301,3 +301,22 @@ export function pickQuote<T extends { category: string }>(cards: T[], category: 
   const list = pool.length ? pool : cards;
   return list[hashString(seed) % list.length];
 }
+
+// ─── Hora aprendida (T7) ──────────────────────────────────────────────────────
+
+/** Cumplimientos mínimos en 14 días para confiar en la hora habitual. */
+export const LEARN_MIN_SAMPLES = 3;
+/** El aviso sale esta antelación antes de la hora habitual. */
+export const LEARN_LEAD_MIN = 30;
+
+/**
+ * Hora del aviso (minutos del día) a partir de los minutos locales de cada cumplimiento:
+ * la mediana menos LEARN_LEAD_MIN. null si hay menos de LEARN_MIN_SAMPLES cumplimientos.
+ */
+export function learnedHabitTime(minutesOfDay: number[]): number | null {
+  if (minutesOfDay.length < LEARN_MIN_SAMPLES) return null;
+  const sorted = [...minutesOfDay].sort((a, b) => a - b);
+  const mid = sorted.length >> 1;
+  const median = sorted.length % 2 ? sorted[mid] : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
+  return (median - LEARN_LEAD_MIN + 1440) % 1440;
+}

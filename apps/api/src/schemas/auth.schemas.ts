@@ -5,6 +5,8 @@ export const oauthSchema = z.object({
   provider: z.enum(['google']),
   idToken: z.string().min(20).max(8192),
   displayName: z.string().trim().max(50).optional(),
+  /** Usuario de quien invitó (portada /i/:username). Solo cuenta si la cuenta es nueva. */
+  referredBy: z.string().regex(/^[A-Za-z0-9_]{3,20}$/).optional(),
 });
 
 export type OAuthInput = z.infer<typeof oauthSchema>;

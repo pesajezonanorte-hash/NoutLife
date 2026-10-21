@@ -45,6 +45,7 @@ import customZonesRoutes  from './custom-zones.routes';
 import checklistRoutes    from './checklist.routes';
 import antiHabitRoutes    from './anti-habit.routes';
 import sharesRoutes       from './shares.routes';
+import referralRoutes     from './referral.routes';
 // Recordatorios disparados desde fuera (serverless)
 import cronRoutes         from './cron.routes';
 // NoutLife Pro / Lite (Wompi)
@@ -104,6 +105,7 @@ router.use('/custom-zones', customZonesRoutes);
 router.use('/checklists',   checklistRoutes);
 router.use('/anti-habits',  antiHabitRoutes);
 router.use('/shares',       sharesRoutes);
+router.use('/referrals',    referralRoutes);
 router.use('/billing',      billingRoutes);
 router.use('/menstrual-cycle', cycleRoutes);
 router.use('/admin',        adminRoutes);

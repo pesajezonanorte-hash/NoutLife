@@ -10,7 +10,6 @@ import { useAuthStore } from '@/store/authStore';
 import { usePlanStore } from '@/store/planStore';
 import { useTourDone } from '@/components/onboarding/WelcomeTour';
 import { getBillingStatus } from '@/services/billing.service';
-import { daysUntil } from '@/lib/plan';
 import { UpgradeModal } from './UpgradeModal';
 
 const read = (key: string) => { try { return localStorage.getItem(key); } catch { return null; } };
@@ -46,8 +45,8 @@ export function PlanGate({ blocked = false }: { blocked?: boolean }) {
       openUpgrade('downgraded');
       return;
     }
-    // Prueba inversa: los primeros días son para usar Pro, no para pagarlo. El aviso llega al final.
-    const invite = sub.trialAvailable || (sub.status === 'trialing' && !sub.hasPaymentMethod && daysUntil(sub.trialEndsAt) <= 2);
+    // Prueba inversa: el aviso de los días 5 y 6 lo muestra TrialNotice; aquí solo quien aún puede empezar la prueba.
+    const invite = sub.trialAvailable;
     if (invite && user.onboardingCompleted && tourDone && !read(key('trial'))) {
       const timer = window.setTimeout(() => {
         write(key('trial'), '1');

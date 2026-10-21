@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   BREAK_TIPS, CARE_COPY, CYCLE_COPY, DEFAULT_SMART_SETTINGS, bestOneRepMax, breakSlots, categoryOfXpSource, focusCategory, hydrationSlots,
-  inWindow, maxEffortSets, mergeSmartSettings, newRecords, oneRepMaxOf, parseHHMM, pickQuote, planPushes, sanitizeSmartSettings,
+  inWindow, maxEffortSets, mergeSmartSettings, newRecords, oneRepMaxOf, parseHHMM, learnedHabitTime, pickQuote, planPushes, sanitizeSmartSettings,
 } from '../src/lib/smart-reminders';
 
 test('sin ajustes guardados se usan los valores por defecto', () => {
@@ -178,4 +178,14 @@ test('push inteligente: lo programado sale siempre; lo no programado respeta top
   assert.equal(group?.link, '/');
   assert.equal(planPushes([habit, pending], { ...day, minutes: 8 * 60 }).group?.title, '2 cosas para esta mañana');
   assert.equal(planPushes([habit, pending], day).group?.link, '/habits');
+});
+
+test('hora aprendida: mediana de los cumplimientos menos 30 min; sin datos suficientes no hay hora', () => {
+  assert.equal(learnedHabitTime([]), null);
+  assert.equal(learnedHabitTime([1200, 1230]), null);
+  assert.equal(learnedHabitTime([1200, 1230, 1260]), 1200);
+  assert.equal(learnedHabitTime([1200, 1260, 1320, 1380]), 1260);
+  assert.equal(learnedHabitTime([30, 40, 50]), 10);
+  // Cruza medianoche: 00:05–00:15 → aviso a las 23:40.
+  assert.equal(learnedHabitTime([5, 10, 15]), 1420);
 });

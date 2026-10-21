@@ -42,6 +42,14 @@ export async function config(_req: Request, res: Response): Promise<void> {
   }
 }
 
+export async function preview(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    res.json(await billing.getPlanPreview(req.userId!));
+  } catch {
+    res.status(500).json({ error: 'No se pudo calcular tu plan.' });
+  }
+}
+
 export async function status(req: AuthRequest, res: Response): Promise<void> {
   try {
     res.json(await billing.getBillingStatus(req.userId!));

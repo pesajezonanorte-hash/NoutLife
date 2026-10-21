@@ -15,7 +15,8 @@
     "db:studio": "prisma studio",
     "db:generate": "prisma generate",
     "test:billing": "tsx --test tests/billing.test.ts",
-    "test:calendar": "tsx --test tests/google-calendar.test.ts"
+    "test:calendar": "tsx --test tests/google-calendar.test.ts",
+    "test": "tsx --test tests/*.test.ts"
   },
   "dependencies": {
     "@noutlife/shared": "*",

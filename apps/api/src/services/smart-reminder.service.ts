@@ -6,7 +6,7 @@ import { prisma } from '../lib/prisma';
 import { getCalendarDay } from '../lib/calendar';
 import { averages, snapshot, type PeriodRow } from '../lib/cycle';
 import {
-  BREAK_TIPS, CARE_COPY, CYCLE_COPY, breakSlots, focusCategory, hydrationSlots, inWindow, localMinutes, parseHHMM, pickQuote,
+  BREAK_TIPS, CARE_COPY, CYCLE_COPY, DEFAULT_SMART_SETTINGS, breakSlots, focusCategory, hydrationSlots, inWindow, learnedHabitTime, localMinutes, parseHHMM, pickQuote,
   sanitizeSmartSettings, type SmartReminderSettings,
 } from '../lib/smart-reminders';
 import { complimentaryEmails, planOf } from '../lib/plans';
@@ -30,6 +30,7 @@ interface Ctx {
   level: number;
   /** NoutLife Lite: Sabiduría es zona Pro, así que su aviso abre Inicio y no un candado. */
   lite: boolean;
+  timezone: string | null;
   /** Minutos locales de ahora. */
   minutes: number;
   /** Inicio del día local (para «hoy» en consultas por instante). */
@@ -123,8 +124,33 @@ async function careReminders(c: Ctx): Promise<number> {
 }
 
 /** Hábitos de hoy sin marcar, a la hora elegida (antes iba fijo a las 21:00 para todos). */
+/** Hora habitual de cumplir, cacheada una hora por persona (la consulta corre cada 5 min). */
+const learnedCache = new Map<string, { at: number; target: number | null }>();
+const LEARN_TTL_MS = 60 * 60_000;
+
+async function learnedHabitTarget(c: Ctx): Promise<number | null> {
+  const hit = learnedCache.get(c.userId);
+  if (hit && c.now.getTime() - hit.at < LEARN_TTL_MS) return hit.target;
+  const logs = await prisma.habitLog.findMany({
+    where: { userId: c.userId, completed: true, loggedAt: { gte: new Date(c.now.getTime() - 14 * DAY_MS) } },
+    select: { loggedAt: true },
+    take: 500,
+  });
+  const target = learnedHabitTime(logs.map((l) => localMinutes(c.timezone, l.loggedAt)));
+  // Sin tope fijo: se reinicia al desplegar y en cada arranque en frío (serverless).
+  if (learnedCache.size > 5000) learnedCache.clear();
+  learnedCache.set(c.userId, { at: c.now.getTime(), target });
+  return target;
+}
+
 async function pendingHabits(c: Ctx): Promise<number> {
-  if (!c.settings.habits.enabled || !slotDue(c, c.settings.habits.time)) return 0;
+  if (!c.settings.habits.enabled) return 0;
+  // Hora aprendida: si la persona dejó la hora por defecto, el aviso sale 30 min antes de
+  // su hora habitual. Una hora elegida a mano se respeta siempre.
+  const usesDefault = c.settings.habits.time === DEFAULT_SMART_SETTINGS.habits.time;
+  const learned = usesDefault ? await learnedHabitTarget(c) : null;
+  const due = learned !== null ? inWindow(c.minutes, learned) : slotDue(c, c.settings.habits.time);
+  if (!due) return 0;
   // Misma clave que el aviso fijo de antes: el día del cambio no llega dos veces.
   const dedupeKey = `zone-reminder:habitos-pendientes:${c.day}`;
   if (await wasNotified(c.userId, dedupeKey)) return 0;
@@ -292,6 +318,7 @@ export async function smartReminders(now: Date): Promise<number> {
       minutes,
       since: new Date(now.getTime() - minutes * 60_000),
       day,
+      timezone: user.timezone,
       calendarDate: new Date(`${day}T00:00:00.000Z`),
       weekday: local.getUTCDay(),
       settings: sanitizeSmartSettings(user.notificationPreferences?.reminderSettings),

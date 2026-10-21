@@ -1,6 +1,7 @@
 import axios from 'axios';
 import type { Subscription } from '@noutlife/shared';
 import api from '../lib/api';
+import type { PlanPreview } from '@/lib/planPreview';
 
 export interface BillingConfig {
   /** false si la API no tiene llaves de Wompi: la app sigue funcionando sin cobros. */
@@ -219,4 +220,10 @@ export function isValidCardNumber(value: string): boolean {
     sum += d;
   }
   return sum % 10 === 0;
+}
+
+/** Qué cambia al pasar a Lite con tus datos reales (aviso de días 5 y 6 y diálogo de Pro). */
+export async function getPlanPreview(): Promise<PlanPreview> {
+  const { data } = await api.get<PlanPreview>('/billing/preview');
+  return data;
 }

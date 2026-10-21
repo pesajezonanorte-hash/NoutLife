@@ -7,7 +7,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test:e2e": "playwright test",
-    "test:unit": "tsx --test tests/unit/coliseo.unit.ts tests/unit/notebook.unit.ts tests/unit/funnel.unit.ts"
+    "test:unit": "tsx --test tests/unit/coliseo.unit.ts tests/unit/notebook.unit.ts tests/unit/funnel.unit.ts tests/unit/planPreview.unit.ts",
+    "test": "tsx --test tests/unit/*.unit.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",

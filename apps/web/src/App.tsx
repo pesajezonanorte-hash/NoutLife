@@ -12,6 +12,7 @@ import { AppShell } from './components/layout/AppShell';
 import { SplashScreen } from './components/animations/SplashScreen';
 import { SageWidget } from './components/sage/SageWidget';
 import { PlanGate } from './components/billing/PlanGate';
+import { TrialNotice } from './components/billing/TrialNotice';
 import { PendingApprovalGate } from './components/billing/PendingApprovalGate';
 import { LockedZone } from './components/billing/LockedZone';
 import type { ProZone } from './lib/plan';
@@ -72,6 +73,7 @@ const loaders = {
   AboutPage: () => import('./pages/About'),
   FAQPage: () => import('./pages/FAQ'),
   PlanPage: () => import('./pages/Plan'),
+  InvitePage: () => import('./pages/Invite'),
 } as const;
 
 // Playground del rediseño: solo se enruta en desarrollo (fuera de `loaders`
@@ -504,6 +506,7 @@ export default function App() {
           <Route path="/terms" element={<DeferredLazyPage load={loaders.LegalPage} />} />
           <Route path="/copyright" element={<DeferredLazyPage load={loaders.LegalPage} />} />
           <Route path="/shared/:code" element={<SafePage><DeferredLazyPage load={loaders.SharedResourcePage} /></SafePage>} />
+          <Route path="/i/:username" element={<SafePage><DeferredLazyPage load={loaders.InvitePage} /></SafePage>} />
           <Route
             path="/onboarding"
             element={
@@ -523,6 +526,7 @@ export default function App() {
                 <SageWidget />
                 {/* Plan: aviso de paso a Lite, tarjeta en la prueba y diálogo de Pro de los límites. */}
                 <PlanGate blocked={showNotifModal && tourDone && Boolean(user?.onboardingCompleted)} />
+                <TrialNotice />
               </ProtectedRoute>
             }
           />

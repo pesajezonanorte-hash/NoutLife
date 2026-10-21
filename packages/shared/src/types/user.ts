@@ -107,4 +107,6 @@ export interface OAuthPayload {
   provider: 'google';
   idToken: string;
   displayName?: string;
+  /** Usuario de quien invitó (portada /i/:username). Solo se usa si la cuenta es nueva. */
+  referredBy?: string;
 }

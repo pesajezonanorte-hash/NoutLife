@@ -246,6 +246,9 @@ model User {
   learningItems           LearningItem[]
   xpEvents                XpEvent[]
   pushSubscriptions       PushSubscription[]
+  pushEvents              PushEvent[]
+  referralsSent           Referral[]              @relation("ReferralInviter")
+  referralReceived        Referral?               @relation("ReferralInvitee")
   notificationPreferences NotificationPreferences?
   notificationCategoryPreferences NotificationCategoryPreference[]
   sentFriendRequests      Friendship[]             @relation("SentRequests")
@@ -958,6 +961,43 @@ model Achievement {
   userAchievements UserAchievement[]
 
   @@map("achievements")
+}
+
+/// Invitación de una persona a otra (plan v3, T9). Cada cuenta nueva tiene como
+/// mucho un invitador. PENDING: cuenta creada. ACTIVE: 3 días con hábitos cumplidos;
+/// ya se dieron los días a los dos (inviterDays / inviteeDays).
+model Referral {
+  id          String    @id @default(cuid())
+  inviterId   String
+  inviter     User      @relation("ReferralInviter", fields: [inviterId], references: [id], onDelete: Cascade)
+  inviteeId   String    @unique
+  invitee     User      @relation("ReferralInvitee", fields: [inviteeId], references: [id], onDelete: Cascade)
+
+  status      String    @default("PENDING")
+  inviterDays Int       @default(0)
+  inviteeDays Int       @default(0)
+  createdAt   DateTime  @default(now())
+  activatedAt DateTime?
+
+  @@index([inviterId, activatedAt])
+  @@index([inviteeId, activatedAt])
+  @@map("referrals")
+}
+
+/// Medición de avisos web push (T8): envío, clic y desactivación, por categoría.
+model PushEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// sent | clicked | disabled
+  kind      String
+  category  String
+  createdAt DateTime @default(now())
+
+  @@index([kind, category, createdAt])
+  @@index([userId, createdAt])
+  @@map("push_events")
 }
 
 model PushSubscription {

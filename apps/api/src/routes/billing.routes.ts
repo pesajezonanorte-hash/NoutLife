@@ -24,6 +24,7 @@ router.get('/config', billing.config);
 router.post('/webhook', billing.webhook);
 
 router.get('/status', requireAuth, billing.status);
+router.get('/preview', requireAuth, billing.preview);
 router.post('/payment-method', requireAuth, cardLimiter, validate(paymentMethodSchema), billing.paymentMethod);
 router.post('/subscribe', requireAuth, chargeLimiter, billing.subscribe);
 router.post('/lite', requireAuth, billing.chooseLite);

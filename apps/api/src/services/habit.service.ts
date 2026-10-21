@@ -6,6 +6,7 @@ import { createNotification } from './notification.service';
 import { removeHabitFromGoogleCalendar, syncHabitWithGoogleCalendar } from './agenda.service';
 import { recordHabitColiseoAttendance } from './coliseo-attendance.service';
 import type { QuestCategory } from '@prisma/client';
+import { checkReferralActivation } from './referral.service';
 import {
   cleanStepTitles, clearCareDoneForHabit, clearStepsForDay, fillStepsForDay, markCareDoneForHabit, replaceSteps, syncHabitToCare,
 } from './habit-rituals.service';
@@ -457,6 +458,8 @@ export async function logHabit(
   }
 
   const isNewCompletion = completed && (createdLog || completionClaimed);
+  // Invitaciones (T9): el tercer día con hábitos cumplidos de la persona invitada activa la recompensa.
+  if (isNewCompletion) await checkReferralActivation(userId).catch((error) => console.error('[REFERRAL_ACTIVATION_ERROR]', userId, error));
   let shouldGrantRewards = isNewCompletion && !existingLog?.rewardsGranted;
   if (shouldGrantRewards) {
     // Claim before side effects so retries/re-completions cannot mint XP twice.

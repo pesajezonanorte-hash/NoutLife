@@ -3,6 +3,11 @@ import type { AuthRequest } from '../middleware/auth.middleware';
 import * as notificationService from '../services/notification.service';
 import * as snoozeService from '../services/snooze.service';
 
+export async function pushClick(req: AuthRequest, res: Response): Promise<void> {
+  await notificationService.recordPushEvent(req.userId!, 'clicked', req.body.category);
+  res.status(204).end();
+}
+
 export async function snooze(req: AuthRequest, res: Response): Promise<void> {
   try {
     const row = await snoozeService.snoozeReminder(req.userId!, req.body);

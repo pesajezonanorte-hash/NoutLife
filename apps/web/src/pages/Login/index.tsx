@@ -22,6 +22,7 @@ import { ease } from '@/lib/motion';
 import { track } from '@/lib/analytics';
 import { PRO_PER_DAY_COP, TRIAL_DAYS, formatCop } from '@/lib/plan';
 import { useIsDark } from '@/store/themeStore';
+import { clearReferral, readReferral } from '@/services/referral.service';
 
 type Providers = { googleClientId: string | null };
 
@@ -77,7 +78,10 @@ export default function LoginPage() {
     setBusy(true);
     track('signup_started', { provider });
     try {
-      const { user, accessToken } = await authService.oauthSignIn({ provider, idToken, displayName });
+      // Invitación (T9): solo la usa el servidor si la cuenta es nueva.
+      const referredBy = readReferral();
+      const { user, accessToken } = await authService.oauthSignIn({ provider, idToken, displayName, referredBy });
+      clearReferral();
       setAuth(user, accessToken);
       const isNew = !user.onboardingCompleted;
       track(isNew ? 'signup_completed' : 'login_completed');

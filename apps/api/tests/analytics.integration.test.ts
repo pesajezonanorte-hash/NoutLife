@@ -1,3 +1,6 @@
+// Los rangos usan la hora local del servidor. Vercel corre en UTC: el test fija UTC igual que producción
+// (sin esto, una máquina con otra zona horaria falla por el desfase y no por un error real).
+process.env.TZ = 'UTC';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { prisma } from '../src/lib/prisma';

@@ -7,6 +7,7 @@ import { verifyIdToken, type OAuthIdentity } from '../lib/oauth';
 import { checkAchievements } from './achievement.service';
 import { syncSubscription, type SubscriptionView } from './billing.service';
 import { claimReverseTrial } from './trial.service';
+import { attachReferral } from './referral.service';
 import { TRIAL_DAYS, addDays } from '../lib/plans';
 
 function sanitizeUser(user: {
@@ -109,7 +110,7 @@ async function uniqueUsername(seed: string) {
  * email verificado (cuentas antiguas con contraseña) o crea una nueva. Las
  * cuentas nuevas empiezan sin onboarding y la app las lleva a completarlo.
  */
-async function findOrCreateUser(identity: OAuthIdentity, displayName?: string) {
+async function findOrCreateUser(identity: OAuthIdentity, displayName?: string, referredBy?: string) {
   const bySub = await prisma.user.findFirst({ where: { googleSub: identity.sub } });
   if (bySub) return bySub;
 
@@ -140,6 +141,8 @@ async function findOrCreateUser(identity: OAuthIdentity, displayName?: string) {
     },
   });
   checkAchievements(user.id, 'user_registered', { currentStreak: 0 }).catch(() => {});
+  // Invitación (T9): la cuenta nueva queda ligada a quien la invitó. Un fallo no impide entrar.
+  if (referredBy) await attachReferral(user.id, referredBy).catch((error) => console.error('[AUTH_REFERRAL_ERROR]', user.id, error));
   return user;
 }
 
@@ -173,7 +176,7 @@ async function checkSubscription(userId: string): Promise<SubscriptionView | nul
 /** Inicio de sesión único: Google. No hay contraseñas. */
 export async function oauthSignIn(data: OAuthInput) {
   const identity = await verifyIdToken(data.provider, data.idToken);
-  const user = await findOrCreateUser(identity, data.displayName);
+  const user = await findOrCreateUser(identity, data.displayName, data.referredBy);
 
   const { reconcileUserActivityStreak } = await import('./xp.service');
   const reconciledStreak = await reconcileUserActivityStreak(user.id);
