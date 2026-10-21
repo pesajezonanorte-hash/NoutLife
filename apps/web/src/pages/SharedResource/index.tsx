@@ -4,6 +4,7 @@ import { Check, CheckCircle2, Circle, Link2, ListChecks, Target } from 'lucide-r
 import { BrandLockup } from '@/components/layout/Brand';
 import { Badge, Button, Card, ErrorState, PageLoader } from '@/components/ui/lq';
 import { useToast } from '@/hooks/useToast';
+import { track } from '@/lib/analytics';
 import { resolveShare, updateSharedResource, type SharedResource } from '@/services/share.service';
 
 export default function SharedResourcePage() {
@@ -83,7 +84,10 @@ export default function SharedResourcePage() {
             )}
 
             <p className="flex items-start gap-2 text-body-sm text-on-surface-light"><Check aria-hidden className="mt-0.5 size-4 shrink-0 text-primary-text" />{editable ? 'Los cambios quedan guardados en la lista original para todas las personas.' : 'Tienes acceso de solo lectura. Pídele al dueño un enlace con permiso de edición si necesitas colaborar.'}</p>
-            <div className="flex justify-center"><Button variant="secondary" onClick={() => window.location.assign('/')}><Link2 aria-hidden className="size-4" />Ir a NoutLife</Button></div>
+            <div className="flex flex-col items-center gap-2 pt-2 text-center">
+              <Button onClick={() => { track('shared_cta_clicked'); window.location.assign('/login?ref=shared'); }}>Crea tu propio espacio gratis en NoutLife</Button>
+              <p className="text-body-sm text-on-surface-light">7 días de Pro incluidos, sin tarjeta.</p>
+            </div>
           </>
         )}
       </div>

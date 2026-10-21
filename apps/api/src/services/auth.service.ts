@@ -148,7 +148,22 @@ async function findOrCreateUser(identity: OAuthIdentity, displayName?: string) {
  * la sesión): si la prueba o el mes vencieron, cobra con la tarjeta guardada o
  * pasa la cuenta a Lite. Un fallo de pagos nunca impide entrar.
  */
+/**
+ * Regalo único: 7 días de Pro sin tarjeta a la cuenta Lite que nunca probó Pro ni pagó
+ * (cuentas anteriores a la prueba inversa). La fila de used_trials lo hace de una sola vez.
+ */
+async function giftTrialToLite(userId: string): Promise<void> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true, subscriptionStatus: true, currentPeriodEnd: true, paymentSourceId: true, onboardingCompleted: true },
+  });
+  if (!user?.onboardingCompleted || user.subscriptionStatus !== 'lite' || user.currentPeriodEnd || user.paymentSourceId) return;
+  if (!(await claimReverseTrial(user.email))) return;
+  await prisma.user.update({ where: { id: userId }, data: { subscriptionStatus: 'trialing', trialEndsAt: addDays(new Date(), TRIAL_DAYS), liteSince: null } });
+}
+
 async function checkSubscription(userId: string): Promise<SubscriptionView | null> {
+  await giftTrialToLite(userId).catch((error) => console.error('[AUTH_TRIAL_GIFT_ERROR]', userId, error));
   return syncSubscription(userId).catch((error) => {
     console.error('[AUTH_SUBSCRIPTION_SYNC_ERROR]', userId, error);
     return null;

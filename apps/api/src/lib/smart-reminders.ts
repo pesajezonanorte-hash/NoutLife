@@ -160,8 +160,8 @@ export function breakSlots(from: string, to: string, everyMinutes: number): numb
 export const UNSCHEDULED_PREFIXES = ['wisdom-', 'zone-reminder:', 'daily-summary-', 'deadline-'] as const;
 /** Avisos no programados por día, como máximo. */
 export const DAILY_UNSCHEDULED_CAP = 2;
-/** Sin abrir la app en estos días, los avisos no programados se pausan hasta que vuelva. */
-export const INACTIVE_PAUSE_DAYS = 7;
+/** Sin abrir la app en estos días, los avisos no programados se pausan hasta que vuelva (plan v3: 21 días). */
+export const INACTIVE_PAUSE_DAYS = 21;
 const QUIET_FROM = 22 * 60;
 const QUIET_TO = 7 * 60;
 
@@ -175,9 +175,11 @@ export interface QueuedPush { key?: string; title: string; body: string; link?: 
  * INACTIVE_PAUSE_DAYS sin abrir la app. `send`: los avisos que pasan; `group`: si
  * pasan dos o más, el único aviso que sale en su lugar («3 cosas para esta tarde»).
  */
-export function planPushes<T extends QueuedPush>(queued: T[], opts: { minutes: number; sentToday: number; inactive: boolean }): { send: T[]; group: QueuedPush | null } {
+export function planPushes<T extends QueuedPush>(queued: T[], opts: { minutes: number; sentToday: number; inactive: boolean; ignored?: boolean }): { send: T[]; group: QueuedPush | null } {
   const quiet = opts.minutes >= QUIET_FROM || opts.minutes < QUIET_TO;
-  let budget = opts.inactive || quiet ? 0 : Math.max(0, DAILY_UNSCHEDULED_CAP - opts.sentToday);
+  // Frenado: con 3 avisos seguidos sin abrir, el tope baja a la mitad (1 al día).
+  const cap = opts.ignored ? Math.floor(DAILY_UNSCHEDULED_CAP / 2) : DAILY_UNSCHEDULED_CAP;
+  let budget = opts.inactive || quiet ? 0 : Math.max(0, cap - opts.sentToday);
   const out = queued.filter((p) => !isUnscheduled(p.key) || budget-- > 0);
   if (out.length < 2) return { send: out, group: null };
   const names = out.map((p) => p.title.replace(/^Hora de: /, ''));

@@ -15,6 +15,7 @@ import {
 import { fetchDynamicLifeScore, fetchLifeScore, type DynamicLifeScoreData, type LifeScore } from '@/services/lifescore.service';
 import { getCheckinHistory, type DailyCheckin } from '@/services/checkin.service';
 import { useAuthStore } from '@/store/authStore';
+import { track } from '@/lib/analytics';
 import { usePlanStore } from '@/store/planStore';
 import { LiteNotice } from '@/components/billing/LiteNotice';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -50,31 +51,65 @@ function Reveal({ children, className, as = 'section', ...rest }: { children: Re
   return <Tag variants={item} initial="initial" whileInView="animate" viewport={{ once: true, amount: 0.12 }} className={className} {...rest}>{children}</Tag>;
 }
 
-/** Tarjeta PNG para compartir; los colores salen de los tokens (--lq-*). */
+/** Datos de la tarjeta «Mi semana». */
+interface WeekCard { name: string; activeDays: number; days: number; habits: number; streak: number; period: string }
+
+/**
+ * Tarjeta «Mi semana»: PNG vertical de 1080 × 1920 (Historias de Instagram y Estados de
+ * WhatsApp) con la estética Aurora: fondo del tema, vidrio suave y tipografía de la marca.
+ * Los colores salen de los tokens (--lq-*). Se comparte con el menú nativo del teléfono y,
+ * donde no existe, se descarga.
+ */
 function useShareCard() {
   const ref = useRef<HTMLCanvasElement>(null);
-  const share = (user: ReturnType<typeof useAuthStore.getState>['user'], score: LifeScore | null) => {
+  const share = async (d: WeekCard) => {
     const c = ref.current; const ctx = c?.getContext('2d');
     if (!c || !ctx) return;
+    const W = 1080, H = 1920;
     const css = getComputedStyle(document.documentElement);
     const tok = (n: string, a = 1) => `rgb(${css.getPropertyValue(`--lq-${n}`).trim()} / ${a})`;
-    c.width = 600; c.height = 380;
-    ctx.fillStyle = tok('background'); ctx.fillRect(0, 0, 600, 380);
-    ctx.strokeStyle = tok('primary', 0.5); ctx.lineWidth = 2; ctx.roundRect(4, 4, 592, 372, 16); ctx.stroke();
-    ctx.fillStyle = tok('primary-text'); ctx.font = 'bold 28px Montserrat, system-ui'; ctx.fillText('Noutlife', 32, 56);
-    ctx.fillStyle = tok('on-surface-light'); ctx.font = '16px Montserrat, system-ui'; ctx.fillText(user?.displayName ?? 'Héroe', 32, 84);
-    ctx.fillStyle = tok('on-background'); ctx.font = 'bold 18px Montserrat, system-ui'; ctx.fillText(`Nivel ${user?.level ?? 1}`, 32, 128);
-    if (score) {
-      ctx.font = 'bold 72px Montserrat, system-ui'; ctx.fillText(String(score.total), 400, 160);
-      ctx.fillStyle = tok('on-surface-light'); ctx.font = '18px Montserrat, system-ui'; ctx.fillText('Life Score', 400, 188);
+    const font = (px: number, w = 500) => `${w} ${px}px Montserrat, system-ui, sans-serif`;
+    c.width = W; c.height = H;
+    ctx.fillStyle = tok('background'); ctx.fillRect(0, 0, W, H);
+    // Luz jade suave arriba, como el cielo de la ventana de Inicio.
+    const glow = ctx.createRadialGradient(W * 0.75, 260, 20, W * 0.75, 260, 760);
+    glow.addColorStop(0, tok('primary', 0.28)); glow.addColorStop(1, tok('primary', 0));
+    ctx.fillStyle = glow; ctx.fillRect(0, 0, W, 1100);
+    // Panel de vidrio.
+    ctx.fillStyle = tok('surface', 0.72); ctx.strokeStyle = tok('border', 1); ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.roundRect(80, 520, W - 160, 900, 56); ctx.fill(); ctx.stroke();
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = tok('on-background'); ctx.font = font(64, 700); ctx.fillText('noutlife', 80, 190);
+    ctx.fillStyle = tok('on-surface-light'); ctx.font = font(44); ctx.fillText('Mi semana', 80, 330);
+    ctx.fillStyle = tok('on-background'); ctx.font = font(76, 700); ctx.fillText(d.name.slice(0, 22), 80, 430);
+    // Cifra principal: días activos.
+    ctx.fillStyle = tok('primary-text'); ctx.font = font(300, 700); ctx.fillText(String(d.activeDays), 150, 880);
+    ctx.fillStyle = tok('on-surface-light'); ctx.font = font(56);
+    ctx.fillText(`de ${d.days} ${d.days === 1 ? 'día activo' : 'días activos'}`, 150, 970);
+    // Puntos de la semana.
+    for (let i = 0; i < Math.min(d.days, 7); i++) {
+      ctx.fillStyle = i < d.activeDays ? tok('primary') : tok('border-strong', 0.6);
+      ctx.beginPath(); ctx.arc(170 + i * 120, 1060, 32, 0, Math.PI * 2); ctx.fill();
     }
-    ctx.fillStyle = tok('on-surface'); ctx.font = '15px Montserrat, system-ui';
-    ctx.fillText(`Racha: ${user?.currentStreak ?? 0} días`, 32, 200);
-    ctx.fillText(`XP: ${fmt(user?.xp ?? 0)}`, 32, 228);
-    ctx.fillStyle = tok('on-surface-light'); ctx.font = '13px Montserrat, system-ui';
-    ctx.fillText(new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' }), 32, 340);
+    ctx.fillStyle = tok('on-background'); ctx.font = font(60, 600);
+    ctx.fillText(`${d.habits} ${d.habits === 1 ? 'hábito cumplido' : 'hábitos cumplidos'}`, 150, 1200);
+    ctx.fillStyle = tok('on-surface-light'); ctx.font = font(52);
+    ctx.fillText(`Racha de ${d.streak} ${d.streak === 1 ? 'día' : 'días'}`, 150, 1290);
+    ctx.fillStyle = tok('on-surface-light'); ctx.font = font(40); ctx.fillText(d.period, 80, 1520);
+    ctx.fillStyle = tok('on-background'); ctx.font = font(52, 600); ctx.fillText('Tu rutina, tu mente y tus ideas', 80, 1700);
+    ctx.fillText('en un solo lugar.', 80, 1770);
+    ctx.fillStyle = tok('primary-text'); ctx.font = font(44, 600); ctx.fillText('noutlife.vercel.app', 80, 1850);
+    const blob = await new Promise<Blob | null>((r) => c.toBlob(r, 'image/png'));
+    if (!blob) return;
+    const file = new File([blob], `mi-semana-${new Date().toISOString().slice(0, 10)}.png`, { type: 'image/png' });
+    if (navigator.canShare?.({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: 'Mi semana en NoutLife' }); track('share_card_shared', { target: 'native' }); return; }
+      catch (e) { if ((e as Error).name === 'AbortError') return; }
+    }
     const a = document.createElement('a');
-    a.download = `noutlife-${new Date().toISOString().slice(0, 10)}.png`; a.href = c.toDataURL('image/png'); a.click();
+    a.download = file.name; a.href = URL.createObjectURL(blob); a.click();
+    URL.revokeObjectURL(a.href);
+    track('share_card_shared', { target: 'download' });
   };
   return { ref, share };
 }
@@ -161,7 +196,7 @@ export default function StatsPage() {
         description="Todo calculado a partir de lo que registras de verdad."
         aside={<>
           <div className="w-full max-w-[460px] sm:w-[440px]"><SegmentedControl label="Periodo" value={period} onChange={setPeriod} options={PERIODS} /></div>
-          <Button variant="secondary" size="md" onClick={() => share(user, life)}><Share2 aria-hidden className="size-4" strokeWidth={1.75} />Compartir</Button>
+          <Button variant="secondary" size="md" onClick={() => void share({ name: user?.displayName || 'NoutLife', activeDays: xp?.activeDays ?? 0, days: xp?.daysInPeriod ?? 7, habits: summary?.totals.habitCompletions ?? 0, streak: user?.currentStreak ?? 0, period: per.long })}><Share2 aria-hidden className="size-4" strokeWidth={1.75} />Compartir</Button>
         </>}
       />
 

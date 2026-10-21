@@ -153,7 +153,13 @@ export async function deliverBatchedPushes(pushes: BatchedPush[], now = new Date
           allowed.push({ ...item, key: item.payload.tag, title: item.payload.title, body: item.payload.body, link: item.payload.data?.link as string | undefined });
         }
       }
-      const { send, group } = planPushes(allowed, { minutes, sentToday, inactive });
+      // Frenado automático: los últimos 3 avisos no programados, todos sin abrir en la última semana.
+      const recent = await prisma.notification.findMany({
+        where: { userId, OR: UNSCHEDULED_PREFIXES.map((p) => ({ dedupeKey: { startsWith: p } })) },
+        orderBy: { createdAt: 'desc' }, take: 3, select: { isRead: true, createdAt: true },
+      });
+      const ignored = recent.length === 3 && recent.every((n) => !n.isRead && now.getTime() - n.createdAt.getTime() < 7 * DAY_MS);
+      const { send, group } = planPushes(allowed, { minutes, sentToday, inactive, ignored });
       if (group) {
         sent += await sendPush(userId, { title: group.title, body: group.body, tag: group.key, data: { link: group.link, type: 'reminder', group: true } }, allowed[0].category).then(() => 1, () => 0);
       } else {

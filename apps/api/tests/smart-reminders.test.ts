@@ -168,6 +168,8 @@ test('push inteligente: lo programado sale siempre; lo no programado respeta top
   assert.deepEqual(planPushes([wisdom, habit], { ...day, minutes: 23 * 60 }).send, [habit]);
   assert.deepEqual(planPushes([wisdom, habit], { ...day, minutes: 6 * 60 }).send, [habit]);
   assert.deepEqual(planPushes([wisdom, habit], { ...day, inactive: true }).send, [habit]);
+  // Frenado por avisos ignorados: el tope baja a 1 al día.
+  assert.equal(planPushes([wisdom, pending], { ...day, ignored: true }).send.length, 1);
 
   // Agrupado: un solo aviso con los nombres y la franja.
   const { group } = planPushes([habit, water, pending], day);
