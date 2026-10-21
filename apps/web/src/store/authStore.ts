@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { User } from '@noutlife/shared';
+import { identify, resetIdentity } from '@/lib/analytics';
 
 interface AuthState {
   user: User | null;
@@ -20,8 +21,10 @@ export const useAuthStore = create<AuthState>((set) => ({
   isAuthenticated: false,
   isLoading: true,
 
-  setAuth: (user, accessToken) =>
-    set({ user, accessToken, isAuthenticated: true, isLoading: false }),
+  setAuth: (user, accessToken) => {
+    identify(String(user.id), { plan: user.subscription?.plan });
+    set({ user, accessToken, isAuthenticated: true, isLoading: false });
+  },
 
   setAccessToken: (accessToken) => set({ accessToken }),
 
@@ -30,8 +33,10 @@ export const useAuthStore = create<AuthState>((set) => ({
       user: state.user ? { ...state.user, ...partial } : null,
     })),
 
-  logout: () =>
-    set({ user: null, accessToken: null, isAuthenticated: false, isLoading: false }),
+  logout: () => {
+    resetIdentity();
+    set({ user: null, accessToken: null, isAuthenticated: false, isLoading: false });
+  },
 
   setLoading: (isLoading) => set({ isLoading }),
 }));

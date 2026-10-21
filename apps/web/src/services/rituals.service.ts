@@ -1,4 +1,5 @@
 import api from '../lib/api';
+import { noteHabitChecked } from './habit.service';
 
 export interface RitualStep {
   id: string;
@@ -61,6 +62,7 @@ export interface CompleteRitualResult {
 
 export async function completeRitual(id: string): Promise<CompleteRitualResult> {
   const { data } = await api.post<CompleteRitualResult>(`/rituals/${id}/complete`);
+  if (!data.alreadyDone) noteHabitChecked();
   return data;
 }
 

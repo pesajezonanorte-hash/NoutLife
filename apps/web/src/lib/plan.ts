@@ -51,6 +51,16 @@ export function proZoneOf(pathname: string): ProZone | null {
   return PRO_ZONE_PATHS[base] ?? null;
 }
 
+/**
+ * En Lite, las zonas principales de la barra son las primeras que sí se pueden usar
+ * y no están ocultas (el orden elegido se respeta dentro de cada grupo).
+ */
+export function usableOrder(order: string[], lite: boolean, hidden: string[] = []): string[] {
+  if (!lite) return order;
+  const shown = order.filter((to) => !hidden.includes(to));
+  return [...shown.filter((to) => !proZoneOf(to)), ...shown.filter((to) => proZoneOf(to))];
+}
+
 /** «$9.900» con separador de miles colombiano. */
 export const formatCop = (value: number) => `$${value.toLocaleString('es-CO')}`;
 

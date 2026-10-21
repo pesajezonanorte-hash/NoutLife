@@ -27,7 +27,7 @@ const CATS: Record<CatId, { label: string; tone: Exclude<Tone, 'muted'>; icon: L
 };
 
 const FAQ: Array<{ cat: CatId; q: string; a: string; privacy?: boolean }> = [
-  { cat: 'start', q: '¿Qué es Noutlife?', a: 'Un RPG para tu vida real. Conviertes metas, hábitos, entrenamientos, finanzas y aprendizaje en misiones: ganas XP, subes de nivel y desbloqueas logros según lo que haces de verdad.' },
+  { cat: 'start', q: '¿Qué es Noutlife?', a: 'Tu rutina, tu mente y tus ideas en un solo lugar: hábitos, libreta, obstáculos, bienestar y metas en un espacio en calma. Las rachas, los logros y tu personaje te acompañan mientras avanzas.' },
   { cat: 'game', q: '¿Cómo funcionan las misiones?', a: 'Las misiones son objetivos más grandes que un hábito, con dificultad, fecha límite y pasos. Al completar el último paso puedes cerrarlas y recibir su XP y oro. Las acciones recurrentes se crean como hábitos.' },
   { cat: 'game', q: '¿Cómo se calculan el XP y los niveles?', a: 'Cada acción registrada suma XP: hábitos, misiones, entrenamientos, sueño, entradas del diario y más. Cada nivel pide algo más de XP que el anterior; tu barra de nivel muestra cuánto falta.' },
   { cat: 'game', q: '¿Qué son los hábitos y las rachas?', a: 'Un hábito es una acción recurrente. La racha cuenta los días seguidos que lo completas; si fallas un día se reinicia, salvo que uses un Pase de perdón de la Tienda.' },

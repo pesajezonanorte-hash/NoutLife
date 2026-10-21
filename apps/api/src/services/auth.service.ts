@@ -6,6 +6,8 @@ import type { OAuthInput } from '../schemas/auth.schemas';
 import { verifyIdToken, type OAuthIdentity } from '../lib/oauth';
 import { checkAchievements } from './achievement.service';
 import { syncSubscription, type SubscriptionView } from './billing.service';
+import { claimReverseTrial } from './trial.service';
+import { TRIAL_DAYS, addDays } from '../lib/plans';
 
 function sanitizeUser(user: {
   id: string;
@@ -119,16 +121,18 @@ async function findOrCreateUser(identity: OAuthIdentity, displayName?: string) {
   }
 
   const name = (identity.name ?? displayName ?? '').trim().slice(0, 50);
+  // Prueba inversa: 7 días de Pro sin medio de pago; al vencer pasa sola a Lite
+  // (billing.service syncSubscription). Un correo que ya tuvo prueba nace en Lite.
+  const now = new Date();
+  const trial = await claimReverseTrial(identity.email);
   const user = await prisma.user.create({
     data: {
       email: identity.email,
       username: await uniqueUsername(identity.email.split('@')[0]),
       displayName: name.length >= 2 ? name : 'Héroe',
       googleSub: identity.sub,
-      // Toda cuenta nace en Lite. Los 7 días de Pro empiezan al vincular un medio
-      // de pago, y ahí el servidor valida la prueba (billing.service savePaymentMethod).
-      subscriptionStatus: 'lite',
-      trialEndsAt: new Date(),
+      subscriptionStatus: trial ? 'trialing' : 'lite',
+      trialEndsAt: trial ? addDays(now, TRIAL_DAYS) : now,
       avatarConfig: {
         bodyType: 'male', hairStyle: 'short', hairColor: '#4a3728', skinColor: '#c68642',
         shirtColor: '#4d96ff', pants: '#37474f', accessory: 'none', expression: 'normal', pet: null,

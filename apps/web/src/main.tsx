@@ -7,6 +7,7 @@ import { PWAInstallBanner } from './components/ui/PWAInstallBanner';
 // Aplica .dark/.light en <html> al importarse, antes del primer render (sin parpadeo).
 import './store/themeStore';
 import { useMotionStore } from './store/motionStore';
+import { captureAttribution, track } from './lib/analytics';
 import './styles/globals.css';
 
 // Sensación de app: iOS hace zoom con dos dedos aunque el viewport lo prohíba, y
@@ -17,6 +18,10 @@ document.addEventListener('gesturestart', (e) => e.preventDefault());
 document.addEventListener('contextmenu', (e) => {
   if (!(e.target instanceof Element && e.target.closest(EDITABLE))) e.preventDefault();
 });
+
+// Embudo: UTM y ref del primer toque, y la instalación de la PWA.
+captureAttribution();
+window.addEventListener('appinstalled', () => track('pwa_installed'));
 
 // Register service worker
 if ('serviceWorker' in navigator) {

@@ -6,6 +6,7 @@ import { NotificationBell } from '@/components/ui/NotificationPanel';
 import { SocialButton } from '@/components/social/SocialEntry';
 import { useShellStore } from '@/store/shellStore';
 import { OptionsMenu } from './OptionsMenu';
+import { TrialPill } from '@/components/billing/TrialPill';
 import { buildCrumbs } from './nav';
 import { openCommandPalette, sageHasNew, useShellActions } from './actions';
 
@@ -63,6 +64,7 @@ export function Topbar({ className }: { className?: string }) {
         <div className="hidden lg:block"><Breadcrumb /></div>
       </div>
       <div className="flex items-center gap-1">
+        <TrialPill className="mr-2" />
         <Button variant="icon" data-tour="search" aria-label="Buscar (Ctrl+K)" aria-keyshortcuts="Control+K" onClick={openCommandPalette}>
           <Search aria-hidden className="size-6" strokeWidth={1.75} />
         </Button>

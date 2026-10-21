@@ -27,6 +27,14 @@ test('a new account is Pro during its 7-day trial, with or without a card', () =
   assert.equal(nextAction(user(), NOW), 'none');
 });
 
+test('reverse trial: day 8 without a card is Lite, keeping the account (only the status changes)', () => {
+  const created = addDays(NOW, -8);
+  const reverse = user({ createdAt: created, trialEndsAt: addDays(created, TRIAL_DAYS) });
+  assert.equal(planOf(reverse, addDays(created, TRIAL_DAYS - 1)), 'pro');
+  assert.equal(planOf(reverse, NOW), 'lite');
+  assert.equal(nextAction(reverse, NOW), 'downgrade');
+});
+
 test('an expired trial without a card downgrades to Lite', () => {
   const expired = user({ trialEndsAt: new Date(NOW.getTime() - HOUR) });
   assert.equal(planOf(expired, NOW), 'lite');
@@ -215,37 +223,26 @@ test('a charge on a Nequi source sends only the source, amount and signature; a 
   assert.equal(card.recurrent, true);
 });
 
-test('the entry paywall asks for a payment method only while billing is on and none is linked', async () => {
-  const { paywallRequired } = await import('../src/lib/plans');
-  assert.equal(paywallRequired({ paymentSourceId: null }, true), true);
-  assert.equal(paywallRequired({ paymentSourceId: '3891' }, true), false);
-  // Sin llaves de Wompi no hay cómo vincularlo: no se bloquea a nadie.
-  assert.equal(paywallRequired({ paymentSourceId: null }, false), false);
-  // Quien eligió Lite sin tarjeta entra: basta la marca liteSince.
-  assert.equal(paywallRequired({ paymentSourceId: null, liteSince: NOW }, true), false);
-});
-
-test('the subscription view carries the paywall flag; a denied trial with a linked method lets the person in on Lite', async () => {
+test('there is no entry paywall: a fresh account without a payment method enters; a denied trial with a linked method stays on Lite', async () => {
   const { subscriptionView } = await import('../src/services/billing.service');
   const base = {
     id: 'u1', email: 'ana@example.com', createdAt: addDays(NOW, -1), subscriptionStatus: 'lite', trialEndsAt: NOW,
     currentPeriodEnd: null, paymentSourceId: null, paymentMethodType: null, paymentMethodLabel: null, liteSince: null, lastPaymentError: null,
   };
-  const fresh = subscriptionView(base, NOW, false, true, true);
-  assert.equal(fresh.paywall, true);
+  const fresh = subscriptionView(base, NOW, false, true);
+  assert.equal(fresh.paywall, false);
   assert.equal(fresh.trialAvailable, true);
 
   const denied = subscriptionView(
     { ...base, paymentSourceId: '3891', paymentMethodType: 'CARD', lastPaymentError: 'Este método de pago ya se usó en una prueba gratis.' },
-    NOW, false, false, true,
+    NOW, false, false,
   );
   assert.equal(denied.paywall, false);
   assert.equal(denied.plan, 'lite');
-  assert.equal(subscriptionView(base, NOW, false, true, false).paywall, false);
 });
 
 test('COMP_PRO_EMAILS: a complimentary Pro needs no payment, never renews and never downgrades', async () => {
-  const { complimentaryEmails, nextAction, paywallRequired, planOf, willRenew } = await import('../src/lib/plans');
+  const { complimentaryEmails, nextAction, planOf, willRenew } = await import('../src/lib/plans');
   const list = complimentaryEmails(' Prizzy@Gmail.com , ,otra@example.com ');
   assert.equal(list.has('prizzy@gmail.com'), true);
   assert.equal(list.has('otra@example.com'), true);
@@ -254,7 +251,6 @@ test('COMP_PRO_EMAILS: a complimentary Pro needs no payment, never renews and ne
   // En Lite y con la prueba vencida hace años: sigue Pro, sin paywall y sin pasar a Lite.
   const comp = { subscriptionStatus: 'lite', trialEndsAt: addDays(NOW, -400), currentPeriodEnd: null, paymentSourceId: null, createdAt: addDays(NOW, -400), complimentary: true };
   assert.equal(planOf(comp, NOW), 'pro');
-  assert.equal(paywallRequired(comp, true), false);
   assert.equal(nextAction(comp, NOW), 'none');
 
   // Con tarjeta y el periodo vencido: no cobra ni renueva.
@@ -272,7 +268,7 @@ test('a complimentary account reads as an active Pro without dates or renewal', 
       currentPeriodEnd: null, paymentSourceId: null, paymentMethodType: null, paymentMethodLabel: null, liteSince: null,
       lastPaymentError: null, complimentary: true,
     },
-    NOW, false, false, true,
+    NOW, false, false,
   );
   assert.equal(view.plan, 'pro');
   assert.equal(view.status, 'active');
@@ -289,14 +285,14 @@ test('a Nequi charge waiting for approval shows as pending_approval, keeps the p
     currentPeriodEnd: addDays(NOW, -1), paymentSourceId: '3891', paymentMethodType: 'NEQUI' as const,
     paymentMethodLabel: 'NEQUI •••• 1703', liteSince: null, lastPaymentError: null,
   };
-  const waiting = subscriptionView(renewing, NOW, true, false, true, true);
+  const waiting = subscriptionView(renewing, NOW, true, false, true);
   assert.equal(waiting.status, 'pending_approval');
   assert.equal(waiting.pendingPayment, true);
   // Renovación dentro del margen: sigue en Pro mientras Wompi responde, y no pide otro método de pago.
   assert.equal(waiting.plan, 'pro');
   assert.equal(waiting.paywall, false);
   // Sin cobro en espera, la vista no cambia.
-  assert.equal(subscriptionView(renewing, NOW, false, false, true, false).status, 'active');
+  assert.equal(subscriptionView(renewing, NOW, false, false, false).status, 'active');
 });
 
 test('a Pro zone lock answers 402 with `lock` (not `feature`) so older web builds never open an unknown dialog', async () => {

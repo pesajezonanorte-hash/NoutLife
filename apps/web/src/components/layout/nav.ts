@@ -13,7 +13,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useCustomZoneStore, type CustomZoneNav } from '@/store/customZoneStore';
 import { zoneIconOf } from '@/components/zones/zoneIcons';
 import { DEFAULT_ORDER, PINNED_COUNT, useNavStore } from '@/store/navStore';
-import { proZoneOf } from '@/lib/plan';
+import { proZoneOf, usableOrder } from '@/lib/plan';
 import { canUseCycle } from '@/utils/gender';
 
 export interface NavEntry {
@@ -165,11 +165,12 @@ export function useCustomZoneEntries(): NavEntry[] {
   return useMemo(() => (lite ? [] : customZoneEntries(zones)), [zones, lite]);
 }
 
-/** En Lite, las zonas Pro llevan candado (siguen visibles: así se sabe qué abre Pro). */
+/** En Lite, las zonas Pro llevan candado (siguen visibles: así se sabe qué abre Pro) y van después de las que sí se usan. */
 function withLocks(nav: ReturnType<typeof buildNav>, lite: boolean): ReturnType<typeof buildNav> {
   if (!lite) return nav;
   const lock = (entry: NavEntry): NavEntry => (proZoneOf(entry.to) ? { ...entry, locked: true } : entry);
-  return { primary: nav.primary.map(lock), sections: nav.sections.map((s) => ({ ...s, items: s.items.map(lock) })) };
+  const usableFirst = (items: NavEntry[]) => [...items].sort((a, b) => Number(Boolean(a.locked)) - Number(Boolean(b.locked)));
+  return { primary: nav.primary.map(lock), sections: nav.sections.map((s) => ({ ...s, items: usableFirst(s.items.map(lock)) })) };
 }
 
 /** Navegación del usuario actual: Inicio + sus zonas principales + Perfil, y el resto por secciones. */
@@ -180,7 +181,10 @@ export function useNav() {
   const hidden = useNavStore((s) => s.hiddenByUser?.[userId]);
   const extra = useCustomZoneEntries();
   const unavailable = useUnavailableZones();
-  return useMemo(() => withLocks(buildNav(order, hidden, extra, unavailable), lite), [order, hidden, extra, unavailable, lite]);
+  return useMemo(
+    () => withLocks(buildNav(usableOrder(resolveOrder(order, extra, unavailable), lite, hidden), hidden, extra, unavailable), lite),
+    [order, hidden, extra, unavailable, lite],
+  );
 }
 
 /** Navegación por defecto (búsqueda rápida y breadcrumb). */

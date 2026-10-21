@@ -1,8 +1,8 @@
 // Revisión del plan al entrar (lado cliente). La API ya aplicó el vencimiento
 // al iniciar sesión o renovar la sesión; aquí se avisa una sola vez:
 //  · la cuenta con tarjeta pasó a Lite → diálogo con el motivo y cómo volver a Pro;
-//  · cuenta en Lite que aún puede probar Pro → invitación a los 7 días gratis, tras el tutorial.
-// El paywall de entrada (sin medio de pago) vive en App, antes del Dashboard.
+//  · cuenta en Lite que aún puede probar Pro → invitación a los 7 días gratis, tras el tutorial;
+//  · prueba inversa (Pro sin medio de pago) → recordatorio cuando quedan 2 días o menos.
 // También aloja el diálogo de Pro que abren los límites y las zonas de Lite, y
 // resincroniza el plan cuando la API niega una lectura (el del cliente estaba viejo).
 import { useEffect, useRef } from 'react';
@@ -10,6 +10,7 @@ import { useAuthStore } from '@/store/authStore';
 import { usePlanStore } from '@/store/planStore';
 import { useTourDone } from '@/components/onboarding/WelcomeTour';
 import { getBillingStatus } from '@/services/billing.service';
+import { daysUntil } from '@/lib/plan';
 import { UpgradeModal } from './UpgradeModal';
 
 const read = (key: string) => { try { return localStorage.getItem(key); } catch { return null; } };
@@ -45,7 +46,8 @@ export function PlanGate({ blocked = false }: { blocked?: boolean }) {
       openUpgrade('downgraded');
       return;
     }
-    const invite = sub.trialAvailable || (sub.status === 'trialing' && !sub.hasPaymentMethod);
+    // Prueba inversa: los primeros días son para usar Pro, no para pagarlo. El aviso llega al final.
+    const invite = sub.trialAvailable || (sub.status === 'trialing' && !sub.hasPaymentMethod && daysUntil(sub.trialEndsAt) <= 2);
     if (invite && user.onboardingCompleted && tourDone && !read(key('trial'))) {
       const timer = window.setTimeout(() => {
         write(key('trial'), '1');

@@ -15,7 +15,7 @@ import { TrialRibbon } from './TrialRibbon';
 
 const PRICE = formatCop(PRO_PRICE_COP);
 
-export const PRICING_HOOK = `${TRIAL_DAYS} días de Pro gratis. $0 hoy.`;
+export const PRICING_HOOK = `${TRIAL_DAYS} días de Pro incluidos, sin tarjeta.`;
 
 const LITE_POINTS = [
   'Inicio, misiones, logros, agenda y social',
@@ -34,8 +34,8 @@ const PRO_POINTS = [
 
 const FAQ: Array<{ q: string; a: string }> = [
   {
-    q: '¿Me cobran algo al empezar la prueba?',
-    a: `No: $0 hoy. Para empezar la prueba vinculas una tarjeta o tu Nequi con Wompi desde el primer día, y durante ${TRIAL_DAYS} días no se cobra nada. El día ${TRIAL_DAYS + 1} se cobran ${PRICE} y después cada mes, el mismo día. La prueba es una por persona y por medio de pago.`,
+    q: '¿Necesito tarjeta para empezar?',
+    a: `No. Toda cuenta nueva tiene ${TRIAL_DAYS} días de Pro completo, sin tarjeta. El día ${TRIAL_DAYS + 1} pasa sola a NoutLife Lite, gratis para siempre, sin perder nada. Si quieres seguir en Pro, vinculas tu tarjeta o tu Nequi y se cobran ${PRICE} al mes. La prueba es una por persona.`,
   },
   {
     q: '¿Cómo cancelo?',

@@ -9,6 +9,7 @@ import {
   BREAK_TIPS, CARE_COPY, CYCLE_COPY, breakSlots, focusCategory, hydrationSlots, inWindow, localMinutes, parseHHMM, pickQuote,
   sanitizeSmartSettings, type SmartReminderSettings,
 } from '../lib/smart-reminders';
+import { complimentaryEmails, planOf } from '../lib/plans';
 import { isHabitScheduledForDay } from './habit.service';
 import { createNotification, wasNotified, type NotificationCategory } from './notification.service';
 
@@ -27,6 +28,8 @@ interface Ctx {
   userId: string;
   gender: string | null;
   level: number;
+  /** NoutLife Lite: Sabiduría es zona Pro, así que su aviso abre Inicio y no un candado. */
+  lite: boolean;
   /** Minutos locales de ahora. */
   minutes: number;
   /** Inicio del día local (para «hoy» en consultas por instante). */
@@ -261,15 +264,19 @@ async function wisdomReminder(c: Ctx): Promise<number> {
   if (!card) return 0;
   const full = `«${card.quote}»${card.author ? ` — ${card.author}` : ''}`;
   const body = full.length > QUOTE_MAX_CHARS ? `${full.slice(0, QUOTE_MAX_CHARS - 1)}…` : full;
-  return notifyOnce(c, dedupeKey, { category: 'SYSTEM', title: 'Sabiduría del día', body, link: '/wisdom', priority: 'low' });
+  return notifyOnce(c, dedupeKey, { category: 'SYSTEM', title: 'Sabiduría del día', body, link: c.lite ? '/' : '/wisdom', priority: 'low' });
 }
 
 /** Una pasada: revisa a cada persona con la sesión iniciada en su zona horaria. */
 export async function smartReminders(now: Date): Promise<number> {
   const users = await prisma.user.findMany({
     where: { onboardingCompleted: true },
-    select: { id: true, timezone: true, gender: true, level: true, notificationPreferences: { select: { reminderSettings: true } } },
+    select: {
+      id: true, email: true, timezone: true, gender: true, level: true, notificationPreferences: { select: { reminderSettings: true } },
+      subscriptionStatus: true, trialEndsAt: true, currentPeriodEnd: true, paymentSourceId: true, createdAt: true,
+    },
   });
+  const comp = complimentaryEmails(process.env.COMP_PRO_EMAILS);
   const jobs = [coliseoScheduled, careReminders, pendingHabits, breakReminders, cycleReminders, hydrationReminders, mealReminders, wisdomReminder];
   let sent = 0;
   for (const user of users) {
@@ -281,6 +288,7 @@ export async function smartReminders(now: Date): Promise<number> {
       userId: user.id,
       gender: user.gender,
       level: user.level,
+      lite: planOf({ ...user, complimentary: comp.has(user.email.toLowerCase()) }, now) === 'lite',
       minutes,
       since: new Date(now.getTime() - minutes * 60_000),
       day,

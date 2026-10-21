@@ -4,6 +4,7 @@ import { Download, PlusSquare, Share, X } from 'lucide-react';
 import { BrandMark } from '@/components/layout/Brand';
 import { Button } from '@/components/ui/lq';
 import { springSoft } from '@/lib/motion';
+import { cn } from '@/lib/utils';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -37,6 +38,28 @@ function isIosSafari(): boolean {
   const isIos = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const isSafari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS|FBAN|FBAV|Instagram|GSA|Line\//.test(ua);
   return isIos && isSafari;
+}
+
+/** Guía de Safari en iPhone: Compartir → «Agregar a la pantalla de inicio». */
+export function IosInstallSteps({ className }: { className?: string }) {
+  return (
+    <ol className={cn('space-y-3', className)}>
+      <li className="flex items-center gap-3 text-body-sm text-on-background">
+        <span className="grid size-7 shrink-0 place-items-center rounded-full bg-primary text-label-sm text-on-primary">1</span>
+        <span className="min-w-0 flex-1">Toca el botón <strong>Compartir</strong></span>
+        <Share aria-hidden className="size-5 shrink-0 text-on-surface-light" strokeWidth={1.75} />
+      </li>
+      <li className="flex items-center gap-3 text-body-sm text-on-background">
+        <span className="grid size-7 shrink-0 place-items-center rounded-full bg-primary text-label-sm text-on-primary">2</span>
+        <span className="min-w-0 flex-1">Selecciona <strong>«Agregar a la pantalla de inicio»</strong></span>
+        <PlusSquare aria-hidden className="size-5 shrink-0 text-on-surface-light" strokeWidth={1.75} />
+      </li>
+      <li className="flex items-center gap-3 text-body-sm text-on-background">
+        <span className="grid size-7 shrink-0 place-items-center rounded-full bg-primary text-label-sm text-on-primary">3</span>
+        <span className="min-w-0 flex-1">Abre NoutLife desde tu pantalla de inicio</span>
+      </li>
+    </ol>
+  );
 }
 
 export function PWAInstallBanner() {
@@ -122,18 +145,7 @@ export function PWAInstallBanner() {
                 Instalar NoutLife
               </Button>
             ) : (
-              <ol className="mt-4 space-y-3">
-                <li className="flex items-center gap-3 text-body-sm text-on-background">
-                  <span className="grid size-7 shrink-0 place-items-center rounded-full bg-primary text-label-sm text-on-primary">1</span>
-                  <span className="min-w-0 flex-1">Toca el botón <strong>Compartir</strong></span>
-                  <Share aria-hidden className="size-5 shrink-0 text-on-surface-light" strokeWidth={1.75} />
-                </li>
-                <li className="flex items-center gap-3 text-body-sm text-on-background">
-                  <span className="grid size-7 shrink-0 place-items-center rounded-full bg-primary text-label-sm text-on-primary">2</span>
-                  <span className="min-w-0 flex-1">Selecciona <strong>«Agregar a la pantalla de inicio»</strong></span>
-                  <PlusSquare aria-hidden className="size-5 shrink-0 text-on-surface-light" strokeWidth={1.75} />
-                </li>
-              </ol>
+              <IosInstallSteps className="mt-4" />
             )}
           </div>
         </motion.div>

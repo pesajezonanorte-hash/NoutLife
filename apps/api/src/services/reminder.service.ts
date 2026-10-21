@@ -9,7 +9,7 @@ import { prisma } from '../lib/prisma';
 import { DEFAULT_TIMEZONE, getCalendarDay } from '../lib/calendar';
 import { WINDOW_MS, inWindow, localMinutes, parseHHMM } from '../lib/smart-reminders';
 import { isHabitScheduledForDay } from './habit.service';
-import { createNotification, wasNotified } from './notification.service';
+import { createNotification, deliverBatchedPushes, wasNotified, withPushBatch } from './notification.service';
 import { smartReminders } from './smart-reminder.service';
 import { deliverDueSnoozes } from './snooze.service';
 
@@ -288,12 +288,16 @@ async function zoneReminders(now: Date) {
   return sent;
 }
 
-/** Una pasada completa. Cada bloque falla por separado: un error no tumba los demás avisos. */
+/**
+ * Una pasada completa. Cada bloque falla por separado: un error no tumba los demás avisos.
+ * Los push esperan al final: por persona se aplican el tope, el silencio y la pausa, y
+ * lo que cae en la misma pasada sale en un solo aviso (deliverBatchedPushes).
+ */
 export async function runReminderTick(now = new Date()) {
   const run = async (name: string, job: (n: Date) => Promise<number>) => {
     try { return await job(now); } catch (err) { console.error(`[Reminders] ${name}:`, err); return -1; }
   };
-  const [habits, agenda, quests, summaries, zones, smart, snoozes] = await Promise.all([
+  const { result: [habits, agenda, quests, summaries, zones, smart, snoozes], pushes } = await withPushBatch(() => Promise.all([
     run('habits', habitReminders),
     run('agenda', agendaReminders),
     run('quests', questDeadlines),
@@ -301,6 +305,7 @@ export async function runReminderTick(now = new Date()) {
     run('zones', zoneReminders),
     run('smart', smartReminders),
     run('snoozes', deliverDueSnoozes),
-  ]);
-  return { at: now.toISOString(), habits, agenda, quests, summaries, zones, smart, snoozes };
+  ]));
+  const pushed = await deliverBatchedPushes(pushes, now).catch((err) => { console.error('[Reminders] push:', err); return -1; });
+  return { at: now.toISOString(), habits, agenda, quests, summaries, zones, smart, snoozes, pushed };
 }

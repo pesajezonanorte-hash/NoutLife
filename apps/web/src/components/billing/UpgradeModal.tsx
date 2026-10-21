@@ -50,7 +50,7 @@ function copyFor(reason: UpgradeReason, sub: Subscription | null | undefined): {
       };
     case 'trial':
       return sub?.status === 'trialing'
-        ? { title: 'Tu prueba Pro ya empezó', body: `Vincula un método de pago para seguir sin cortes. El primer cobro es el ${longDay(sub.trialEndsAt)}.` }
+        ? { title: `Tu Pro gratis termina el ${longDay(sub.trialEndsAt)}`, body: 'Todo lo que creaste se queda contigo. Para seguir con Pro sin cortes, vincula un método de pago; si no, sigues en Lite sin perder nada.' }
         : { title: `Prueba NoutLife Pro ${TRIAL_DAYS} días gratis`, body: 'Vincula un método de pago y empieza hoy. Durante la prueba no se cobra nada.' };
     case 'notebooks':
       return { title: 'Libretas ilimitadas con Pro', body: `NoutLife Lite admite ${LITE_LIMITS.notebooks} libretas. Las que ya tienes siguen ahí.` };
