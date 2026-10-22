@@ -1,25 +1,35 @@
-# Dispara los recordatorios (hábitos, agenda, misiones por vencer, resumen diario).
+# Dispara los recordatorios (hábitos, agenda, misiones por vencer, resumen diario,
+# avisos inteligentes y cobros vencidos) para que lleguen con la app cerrada.
 # La API corre en Vercel (serverless) y no tiene procesos en segundo plano, así que
-# algo externo debe llamar a /api/v1/cron/tick cada pocos minutos.
+# algo externo debe llamar a /api/v1/cron/tick cada pocos minutos. El cron de Vercel
+# (apps/api/vercel.json) solo corre una vez al día y queda como red de seguridad.
 #
-# Secretos del repositorio necesarios:
-#   REMINDERS_API_URL  p. ej. https://lifequest2-api.vercel.app
-#   CRON_SECRET        el mismo valor que la variable CRON_SECRET de la API
+# Secretos del repositorio necesarios (Settings → Secrets and variables → Actions):
+#   REMINDERS_API_URL  p. ej. https://lifequest2-api.vercel.app (sin barra final)
+#   CRON_SECRET        el mismo valor que la variable CRON_SECRET de la API en Vercel
 #
-# GitHub puede retrasar los cron unos minutos; la API acepta avisos con hasta 30 min
-# de retraso y nunca envía uno dos veces. Para puntualidad al minuto, usa además
-# cron-job.org con la URL  <API>/api/v1/cron/tick?key=<CRON_SECRET>.
+# Cada aviso tiene una ventana de 30 min y una clave por día: con un disparo cada
+# 15 min tiene dos oportunidades y nunca sale dos veces. GitHub puede retrasar los
+# cron programados; para puntualidad al minuto, usa además cron-job.org con la URL
+# <API>/api/v1/cron/tick?key=<CRON_SECRET>.
 name: Recordatorios
 
 on:
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '*/15 * * * *'
   workflow_dispatch:
+
+# Una sola pasada a la vez: si una se atrasa, la siguiente no se encima.
+concurrency:
+  group: reminders-tick
+  cancel-in-progress: false
+
+permissions: {}
 
 jobs:
   tick:
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 3
     steps:
       - name: Disparar recordatorios
         env:
@@ -27,8 +37,12 @@ jobs:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           if [ -z "$API_URL" ] || [ -z "$CRON_SECRET" ]; then
-            # Aviso visible en el resumen de la ejecución: sin los secretos sale en verde sin llamar a la API.
-            echo "::warning::Faltan los secretos REMINDERS_API_URL o CRON_SECRET; no se dispara nada."
+            # Sin los secretos no se llama a la API: aviso visible en el resumen y la ejecución sigue en verde.
+            echo "::warning title=Recordatorios sin configurar::Faltan los secretos REMINDERS_API_URL o CRON_SECRET; no se dispara nada y los avisos no llegan con la app cerrada."
             exit 0
           fi
-          curl -fsS --max-time 60 -X POST -H "Authorization: Bearer $CRON_SECRET" "$API_URL/api/v1/cron/tick"
+          URL="${API_URL%/}/api/v1/cron/tick"
+          # -f: un 401/503/500 hace fallar el job, para que un secreto equivocado se vea en rojo.
+          curl -fsS --max-time 90 --retry 2 --retry-delay 10 --retry-all-errors \
+            -X POST -H "Authorization: Bearer $CRON_SECRET" "$URL"
+          echo
