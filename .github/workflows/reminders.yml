@@ -27,7 +27,8 @@ jobs:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           if [ -z "$API_URL" ] || [ -z "$CRON_SECRET" ]; then
-            echo "Faltan los secretos REMINDERS_API_URL o CRON_SECRET; no se dispara nada."
+            # Aviso visible en el resumen de la ejecución: sin los secretos sale en verde sin llamar a la API.
+            echo "::warning::Faltan los secretos REMINDERS_API_URL o CRON_SECRET; no se dispara nada."
             exit 0
           fi
           curl -fsS --max-time 60 -X POST -H "Authorization: Bearer $CRON_SECRET" "$API_URL/api/v1/cron/tick"

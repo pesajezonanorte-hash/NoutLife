@@ -46,7 +46,8 @@ export async function listUsers(now = new Date()) {
       createdAt: u.createdAt.toISOString(),
       lastSeenAt: u.lastSeenAt?.toISOString() ?? null,
       plan: planOf(u, now),
-      status: u.complimentary ? 'active' : statusOf(u),
+      // Estado real: una prueba o un mes vencidos que el cron aún no pasó a Lite se ven como Lite.
+      status: u.complimentary ? 'active' : planOf(u, now) === 'lite' ? 'lite' : statusOf(u),
       hasPaid: pays.approved.length > 0,
       paidCount: pays.approved.length,
       paidTotalCop: pays.approved.reduce((sum, p) => sum + p.amountInCents, 0) / 100,
