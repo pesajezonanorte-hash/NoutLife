@@ -1,11 +1,11 @@
 // Bienvenida al regalo de 7 días de Pro (plan v3, cuentas Lite actuales). Se abre una vez por
-// cuenta y dispositivo, después del tutorial, mientras el regalo esté vigente. No bloquea la app.
+// cuenta y dispositivo en cuanto el regalo se activa (en una cuenta nueva, después del tutorial). No bloquea la app.
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, ResponsiveDialog } from '@/components/ui/lq';
 import { useAuthStore } from '@/store/authStore';
 import { useTourDone } from '@/components/onboarding/WelcomeTour';
-import { GIFT_WELCOME, giftWelcomeKey, shouldShowGiftWelcome } from '@/lib/gift';
+import { GIFT_WELCOME, giftWelcomeKey, giftWelcomeWaitsForTour, shouldShowGiftWelcome } from '@/lib/gift';
 import { track } from '@/lib/analytics';
 
 const read = (key: string) => { try { return localStorage.getItem(key); } catch { return null; } };
@@ -19,15 +19,16 @@ export function GiftWelcome() {
   const [open, setOpen] = useState(false);
 
   // Se evalúa al cambiar de cuenta o de estado del regalo (no en cada render).
+  const waitsForTour = giftWelcomeWaitsForTour(tourDone, user?.createdAt);
   useEffect(() => {
-    if (!user || !tourDone) return;
+    if (!user || waitsForTour) return;
     const dismissed = read(giftWelcomeKey(user.id)) === '1';
     if (shouldShowGiftWelcome(sub, dismissed)) {
       setOpen(true);
       track('gift_welcome_viewed');
     }
     // sub se reduce a sus campos que deciden el aviso: el objeto cambia en cada lectura de /auth/me.
-  }, [user?.id, sub?.giftTrial, sub?.status, sub?.plan, tourDone]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user?.id, sub?.giftTrial, sub?.status, sub?.plan, waitsForTour]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!open || !user) return null;
 

@@ -42,6 +42,7 @@ import { QuickActions } from './QuickActions';
 import { FeedbackDialog } from './FeedbackDialog';
 import { LegalFooter } from '@/components/legal/LegalFooter';
 import { WelcomeTour, isTourSeen, markTourSeen, useTourDone } from '../onboarding/WelcomeTour';
+import { isNewAccount } from '@/lib/new-account';
 
 /**
  * Primera visita a una zona: tarjeta informativa descartable. Se muestra una sola
@@ -158,12 +159,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   // otro dispositivo ni en cuentas que ya existían.
   const tourDone = useTourDone(user?.id);
   const [tourReady, setTourReady] = useState(false);
-  const isNewAccount = Boolean(user?.createdAt && Date.now() - new Date(user.createdAt).getTime() < 24 * 60 * 60_000);
+  const newAccount = isNewAccount(user?.createdAt);
   useEffect(() => {
-    if (tourReady || tourDone || pathname !== '/' || !user?.onboardingCompleted || !isNewAccount || isTourSeen(user.id)) return;
+    if (tourReady || tourDone || pathname !== '/' || !user?.onboardingCompleted || !newAccount || isTourSeen(user.id)) return;
     const t = window.setTimeout(() => { setTourReady(true); markTourSeen(user.id); }, 1100);
     return () => window.clearTimeout(t);
-  }, [tourReady, tourDone, pathname, user?.onboardingCompleted, user?.id, isNewAccount]);
+  }, [tourReady, tourDone, pathname, user?.onboardingCompleted, user?.id, newAccount]);
 
   // Al cambiar de ruta: arriba del todo y menús cerrados.
   useEffect(() => {

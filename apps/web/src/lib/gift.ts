@@ -2,6 +2,7 @@
 // aviso de bienvenida. Son funciones puras: lo que muestran coincide con lo que decide la API
 // (giftTrial en la suscripción).
 import type { Subscription } from '@noutlife/shared';
+import { isNewAccount } from './new-account';
 
 const DAY_MS = 24 * 60 * 60_000;
 
@@ -21,6 +22,15 @@ export const giftWelcomeKey = (userId: string) => `lq_gift_welcome:${userId}`;
 /** ¿Mostrar la bienvenida? Solo si el regalo está vigente y aún no se cerró en este dispositivo. */
 export function shouldShowGiftWelcome(sub: Subscription | null | undefined, dismissed: boolean, now = Date.now()): boolean {
   return !dismissed && giftProgress(sub, now) !== null;
+}
+
+/**
+ * ¿La bienvenida espera al tutorial? Solo en una cuenta nueva que aún no lo terminó: el
+ * tutorial solo sale a cuentas nuevas. Una cuenta anterior que vuelve a entrar (en este u
+ * otro dispositivo, sin la marca del tutorial) ve la bienvenida en el mismo momento.
+ */
+export function giftWelcomeWaitsForTour(tourDone: boolean, createdAt: string | null | undefined, now = Date.now()): boolean {
+  return !tourDone && isNewAccount(createdAt, now);
 }
 
 /** Texto de la bienvenida. El último renglón evita la sorpresa: no hay cobro al terminar. */

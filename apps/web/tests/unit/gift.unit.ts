@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { Subscription } from '@noutlife/shared';
-import { GIFT_WELCOME, giftProgress, shouldShowGiftWelcome } from '../../src/lib/gift';
+import { GIFT_WELCOME, giftProgress, giftWelcomeWaitsForTour, shouldShowGiftWelcome } from '../../src/lib/gift';
 
 const DAY = 24 * 60 * 60_000;
 const NOW = Date.parse('2026-10-22T12:00:00.000Z');
@@ -38,4 +38,14 @@ test('the welcome tells the truth about the end: no charge, back to Lite', () =>
   assert.match(GIFT_WELCOME.title, /7 días de NoutLife Pro/);
   assert.match(GIFT_WELCOME.ending, /Lite/);
   assert.match(GIFT_WELCOME.ending, /No hay cobros/);
+});
+
+test('a returning account sees the gift welcome on entry even without the tour mark on this device', () => {
+  const old = new Date(NOW - 30 * DAY).toISOString();
+  const fresh = new Date(NOW - 2 * 60 * 60_000).toISOString();
+  // Cuenta anterior (más de 24 h): el tutorial nunca sale, así que no se espera.
+  assert.equal(giftWelcomeWaitsForTour(false, old, NOW), false);
+  // Cuenta nueva: espera a que termine el tutorial.
+  assert.equal(giftWelcomeWaitsForTour(false, fresh, NOW), true);
+  assert.equal(giftWelcomeWaitsForTour(true, fresh, NOW), false);
 });
