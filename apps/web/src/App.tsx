@@ -13,6 +13,7 @@ import { SplashScreen } from './components/animations/SplashScreen';
 import { SageWidget } from './components/sage/SageWidget';
 import { PlanGate } from './components/billing/PlanGate';
 import { TrialNotice } from './components/billing/TrialNotice';
+import { GiftWelcome } from './components/billing/GiftWelcome';
 import { PendingApprovalGate } from './components/billing/PendingApprovalGate';
 import { LockedZone } from './components/billing/LockedZone';
 import type { ProZone } from './lib/plan';
@@ -527,6 +528,7 @@ export default function App() {
                 {/* Plan: aviso de paso a Lite, tarjeta en la prueba y diálogo de Pro de los límites. */}
                 <PlanGate blocked={showNotifModal && tourDone && Boolean(user?.onboardingCompleted)} />
                 <TrialNotice />
+                <GiftWelcome />
               </ProtectedRoute>
             }
           />

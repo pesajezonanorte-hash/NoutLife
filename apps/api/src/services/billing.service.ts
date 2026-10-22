@@ -86,6 +86,8 @@ export interface SubscriptionView {
   paywall: false;
   priceCop: number;
   trialDays: number;
+  /** Prueba de regalo (cuenta Lite actual o invitación): vence sin cobro, aunque haya tarjeta. */
+  giftTrial: boolean;
 }
 
 export function subscriptionView(
@@ -113,6 +115,7 @@ export function subscriptionView(
     paywall: false,
     priceCop: PRO_PRICE_COP,
     trialDays: TRIAL_DAYS,
+    giftTrial: Boolean(user.giftTrial),
   };
 }
 

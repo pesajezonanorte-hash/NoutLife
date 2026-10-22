@@ -66,6 +66,8 @@ export interface Subscription {
   paywall?: boolean;
   priceCop: number;
   trialDays: number;
+  /** Prueba de regalo: vence sin cobro aunque haya tarjeta. Ausente en APIs anteriores. */
+  giftTrial?: boolean;
 }
 
 export type HairStyle = 'short' | 'medium' | 'long' | 'shaved' | 'copete' | 'afro' | 'recogido' | 'trenzas' | 'ondulado';

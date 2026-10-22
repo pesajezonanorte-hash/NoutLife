@@ -25,7 +25,7 @@ export function MobileHeader({ className }: { className?: string }) {
       )}
     >
       <div className="flex min-w-0 items-center gap-2.5">
-        <Link to="/" className="flex min-h-11 min-w-0 items-center gap-2.5 rounded-md">
+        <Link to="/" className="flex min-h-11 shrink-0 items-center gap-2.5 rounded-md">
           <BrandMark size={28} alt="Noutlife, inicio ·" />
           {!trial && <span className="truncate text-body-sm text-on-surface-light">{todayLabel()}</span>}
         </Link>
