@@ -1,6 +1,7 @@
 // Textos del cambio a Lite con los datos reales de la persona (aviso de los días 5 y 6 y
 // diálogo de Pro). Son reglas puras: lo que dicen coincide con lo que hace la API.
-import { PRO_PRICE_COP, formatCop, PRO_PER_DAY_COP } from '@/lib/plan';
+import type { Subscription } from '@noutlife/shared';
+import { PRO_PRICE_COP, formatCop, PRO_PER_DAY_COP, longDay } from '@/lib/plan';
 
 export interface PlanPreview {
   activeHabits: number; habitLimit: number;
@@ -57,3 +58,64 @@ export const trialNoticeTitle = (daysLeft: number) => (daysLeft === 1 ? 'Mañana
 
 /** Precio de Miembro Fundador: se congela mientras sigas en Pro. */
 export const foundingPriceLine = () => `${formatCop(PRO_PRICE_COP)} COP al mes (unos ${formatCop(PRO_PER_DAY_COP)} al día), tarifa congelada mientras sigas en Pro.`;
+
+// ── Cobro al terminar la prueba con tarjeta vinculada (decisión 15, 22 de octubre) ──────────
+// Quien vincula un medio de pago durante la prueba sabe cuándo y cuánto se cobra. Los avisos
+// dicen solo lo que pasa: la fecha, el monto, cómo cancelar y que, si cancela antes, no se
+// cobra. Sin cuenta regresiva ni urgencia. Vale para cualquier prueba con tarjeta, también la
+// del regalo: al vincular la tarjeta el servidor quita la marca giftTrial, y el cobro es real.
+
+export type CardTrialKind = 'linked' | 'pre-charge';
+
+type TrialSub = Pick<Subscription, 'status' | 'trialEndsAt' | 'hasPaymentMethod' | 'paymentMethodLabel' | 'paymentMethodType'> & { complimentary?: boolean };
+
+const DAY_MS = 24 * 60 * 60_000;
+const PRICE = formatCop(PRO_PRICE_COP);
+
+/** Días de prueba que quedan, redondeando hacia arriba; 0 si ya terminó. */
+export function trialDaysLeft(trialEndsAt: string, now = Date.now()): number {
+  return Math.max(0, Math.ceil((new Date(trialEndsAt).getTime() - now) / DAY_MS));
+}
+
+/**
+ * Qué aviso de cobro toca, si alguno: 'linked' la primera vez que se ve la prueba con tarjeta
+ * (justo después de vincularla), y 'pre-charge' dos días antes del cobro. Null si no hay tarjeta
+ * vinculada en prueba (ahí aplica el aviso de los días 5 y 6 y su paso a Lite) o si es de cortesía.
+ */
+export function cardTrialDue(sub: TrialSub | null | undefined, wasShown: (kind: CardTrialKind) => boolean, now = Date.now()): CardTrialKind | null {
+  if (!sub || sub.status !== 'trialing' || !sub.hasPaymentMethod || sub.complimentary) return null;
+  if (!wasShown('linked')) return 'linked';
+  if (trialDaysLeft(sub.trialEndsAt, now) === 2 && !wasShown('pre-charge')) return 'pre-charge';
+  return null;
+}
+
+/** Clave local por prueba: si hay otra prueba con tarjeta, el aviso vuelve a salir. */
+export const cardTrialKey = (userId: string, kind: CardTrialKind, trialEndsAt: string) => `lq_card_trial:${userId}:${kind}:${trialEndsAt.slice(0, 10)}`;
+
+const medioDePago = (sub: TrialSub) => sub.paymentMethodLabel ?? (sub.paymentMethodType === 'NEQUI' ? 'Nequi' : 'tarjeta');
+
+/** Texto del aviso, con la fecha de fin de prueba y el medio de pago de la persona. */
+export function cardTrialCopy(kind: CardTrialKind, sub: TrialSub): { title: string; body: string; primary: string; secondary: string } {
+  const fecha = longDay(sub.trialEndsAt);
+  if (kind === 'linked') {
+    return {
+      title: `Tu prueba Pro termina el ${fecha}`,
+      body: `Hasta el ${fecha} tienes NoutLife Pro completo. Ese día se cobran ${PRICE} COP (unos ${formatCop(PRO_PER_DAY_COP)} COP al día) para seguir con Pro. Puedes cancelar cuando quieras, con un clic en Plan. Si cancelas antes del ${fecha}, no se cobra nada.`,
+      primary: 'Seguir con Pro',
+      secondary: 'Ver mi plan',
+    };
+  }
+  return {
+    title: 'En 2 días se cobra tu primer mes',
+    body: `El ${fecha} se cobran ${PRICE} COP a tu ${medioDePago(sub)}. Lo que construiste (hábitos, libreta e historial) sigue contigo. Si no quieres seguir, cancela con un clic en Plan antes de esa fecha.`,
+    primary: 'Seguir con Pro',
+    secondary: 'Cancelar en Plan',
+  };
+}
+
+/** Línea final del paso de vinculación (UpgradeModal): con tarjeta, qué se cobra y cuándo. */
+export function trialDoneLine(sub: TrialSub): string {
+  const fecha = longDay(sub.trialEndsAt);
+  if (!sub.hasPaymentMethod) return `Tienes NoutLife Pro gratis hasta el ${fecha}. $0 hoy; puedes cancelar con 1 clic en Plan.`;
+  return `Tienes NoutLife Pro gratis hasta el ${fecha}. Hoy no se cobra nada. El ${fecha} se cobran ${PRICE} COP para seguir con Pro, y puedes cancelar con un clic en Plan antes de esa fecha.`;
+}

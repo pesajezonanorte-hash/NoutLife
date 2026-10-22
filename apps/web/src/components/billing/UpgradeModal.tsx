@@ -14,7 +14,7 @@ import { useToastStore } from '@/hooks/useToast';
 import { ease, useMotionReduced } from '@/lib/motion';
 import { LITE_LIMITS, PRO_FRAMING, PRO_FRAMING_TRIAL, PRO_PRICE_COP, PRO_ZONES, PRO_ZONE_COUNT, TRIAL_DAYS, formatCop, longDay } from '@/lib/plan';
 import { getBillingStatus, getPlanPreview, subscribe } from '@/services/billing.service';
-import { contextFor, type PlanPreview } from '@/lib/planPreview';
+import { contextFor, trialDoneLine, type PlanPreview } from '@/lib/planPreview';
 import { PaymentMethodForm, type PaymentMethodFormProps } from './PaymentMethodForm';
 
 const PRICE = formatCop(PRO_PRICE_COP);
@@ -209,7 +209,7 @@ export function UpgradeModal() {
                   ? 'Revisa tu app de Nequi y aprueba el cobro si te lo pide. Tu cuenta se actualiza sola en unos minutos.'
                   : 'Estamos confirmando tu pago con Wompi. Tu cuenta se actualiza sola en unos minutos.'
                 : subscription?.status === 'trialing'
-                  ? `Tienes NoutLife Pro gratis hasta el ${longDay(subscription.trialEndsAt)}. $0 hoy; puedes cancelar con 1 clic en Plan.`
+                  ? trialDoneLine(subscription)
                   : intent === 'save'
                     ? 'Método de pago actualizado.'
                     : 'Ya tienes NoutLife Pro. Todas las zonas, hábitos ilimitados, tu historial completo y la IA del Sabio están listos.'}

@@ -1,12 +1,16 @@
-// Aviso de los días 5 y 6 de la prueba (plan v3, T11): dice qué cambia al pasar a Lite con
-// los datos reales de la persona y el precio de Miembro Fundador. Sale una vez por día de
-// prueba y se puede cerrar; no bloquea la app.
+// Avisos de la prueba (plan v3). Dos casos, nunca a la vez:
+// · Sin tarjeta: el aviso de los días 5 y 6 con los datos reales de la persona (T11).
+// · Con tarjeta vinculada: qué se cobra y cuándo, una vez al vincular y dos días antes del cobro
+//   (decisión 15). Dice la fecha, el monto y cómo cancelar; sin urgencia. Se puede cerrar.
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ResponsiveDialog, Button } from '@/components/ui/lq';
 import { useAuthStore } from '@/store/authStore';
 import { getPlanPreview } from '@/services/billing.service';
-import { contextFor, foundingPriceLine, trialNoticeDaysLeft, trialNoticeTitle, type PlanPreview } from '@/lib/planPreview';
+import {
+  cardTrialCopy, cardTrialDue, cardTrialKey, contextFor, foundingPriceLine, trialNoticeDaysLeft, trialNoticeTitle,
+  type CardTrialKind, type PlanPreview,
+} from '@/lib/planPreview';
 import { track } from '@/lib/analytics';
 
 const shownKey = (userId: string, daysLeft: number) => `lq_trial_notice:${userId}:${daysLeft}`;
@@ -19,6 +23,21 @@ export function TrialNotice() {
   const daysLeft = trialNoticeDaysLeft(user?.subscription);
   const [preview, setPreview] = useState<PlanPreview | null>(null);
   const [open, setOpen] = useState(false);
+  const [card, setCard] = useState<CardTrialKind | null>(null);
+
+  const sub = user?.subscription;
+  const userId = user?.id;
+
+  // Con tarjeta: se recalcula cada vez que cambia la suscripción (al vincular, al cambiar de día).
+  useEffect(() => {
+    if (!userId || !sub) return;
+    const next = cardTrialDue(sub, (kind) => read(cardTrialKey(userId, kind, sub.trialEndsAt)) !== null);
+    if (next) setCard(next);
+  }, [userId, sub]);
+
+  useEffect(() => {
+    if (card) track('upgrade_prompt_viewed', { reason: card === 'linked' ? 'card_trial_linked' : 'card_charge_pre' });
+  }, [card]);
 
   useEffect(() => {
     if (!user || daysLeft === null || read(shownKey(user.id, daysLeft))) return;
@@ -28,6 +47,27 @@ export function TrialNotice() {
       .catch(() => { /* sin datos no hay aviso: mejor nada que un texto inventado */ });
     return () => { active = false; };
   }, [user, daysLeft]);
+
+  if (card && sub && userId) {
+    const copy = cardTrialCopy(card, sub);
+    // Cerrar el aviso lo marca como visto para esta prueba: no vuelve a salir por la misma razón.
+    const close = (toPlan: boolean) => {
+      write(cardTrialKey(userId, card, sub.trialEndsAt));
+      setCard(null);
+      if (toPlan) navigate('/plan');
+    };
+    return (
+      <ResponsiveDialog open onClose={() => close(false)} title={copy.title}>
+        <div className="flex flex-col gap-5">
+          <p className="text-body-md text-on-surface">{copy.body}</p>
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <Button variant="secondary" size="md" onClick={() => close(true)}>{copy.secondary}</Button>
+            <Button size="md" onClick={() => close(false)}>{copy.primary}</Button>
+          </div>
+        </div>
+      </ResponsiveDialog>
+    );
+  }
 
   if (!open || !user || daysLeft === null || !preview) return null;
 
