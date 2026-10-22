@@ -50,6 +50,12 @@ export async function listUsers(): Promise<AdminUser[]> {
   return data.users;
 }
 
+/** Vuelve a consultar en Wompi los cobros cerrados por tiempo. `approved`: cobros que Wompi sí aprobó. */
+export async function recheckBilling(id: string): Promise<{ checked: number; approved: number }> {
+  const { data } = await api.post<{ checked: number; approved: number }>(`/admin/users/${id}/billing-recheck`);
+  return data;
+}
+
 export async function getMetrics(): Promise<AdminMetrics> {
   const { data } = await api.get<AdminMetrics>('/admin/metrics');
   return data;

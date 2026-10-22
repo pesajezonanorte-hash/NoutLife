@@ -81,6 +81,19 @@ export default function AdminPage() {
     } finally { setDeleting(false); }
   };
 
+  const [rechecking, setRechecking] = useState<string | null>(null);
+  const recheck = async (u: AdminUser) => {
+    setRechecking(u.id);
+    try {
+      const { checked, approved } = await adminService.recheckBilling(u.id);
+      if (approved > 0) toast.success(`Wompi aprobó ${approved === 1 ? 'el cobro' : `${approved} cobros`}: ${u.email} queda en Pro pagado`);
+      else toast.success(checked ? 'Wompi no tiene cobros aprobados de esta cuenta' : 'No hay cobros vencidos por tiempo para revisar');
+      load();
+    } catch (e) {
+      toast.error(apiError(e, 'No se pudo revisar el cobro'));
+    } finally { setRechecking(null); }
+  };
+
   const load = () => {
     setError(false);
     adminService.listUsers().then(setUsers).catch(() => setError(true));
@@ -222,6 +235,9 @@ export default function AdminPage() {
                 <p>{u.hasPaid ? <>Pagó <span className="font-mono">{cop(u.paidTotalCop)}</span> ({u.paidCount} {u.paidCount === 1 ? 'vez' : 'veces'})</> : 'Aún no ha pagado'}</p>
                 <p className="text-on-surface-light">Último pago {fmtDate(u.lastPaidAt)}</p>
                 {u.lastPaymentError && <p className="text-error-text">Error: {u.lastPaymentError}</p>}
+                {u.lastPaymentError && (
+                  <Button variant="ghost" size="sm" loading={rechecking === u.id} onClick={() => void recheck(u)}>Revisar cobro en Wompi</Button>
+                )}
               </div>
               <div className="text-body-sm">
                 <p>{u.hasPaymentMethod ? u.paymentMethod : 'Sin medio de pago'}</p>

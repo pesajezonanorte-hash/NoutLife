@@ -219,6 +219,8 @@ model User {
   liteSince          DateTime?
   /// Prueba de regalo (invitación o cuenta Lite): nunca se cobra al vencer, aunque haya tarjeta guardada.
   giftTrial          Boolean   @default(false)
+  /// Pro de cortesía permanente (equipo): sin fecha, sin cobros y sin paso a Lite. Se suma a COMP_PRO_EMAILS.
+  compPro            Boolean   @default(false)
   lastPaymentError   String?
 
   createdAt        DateTime  @default(now())

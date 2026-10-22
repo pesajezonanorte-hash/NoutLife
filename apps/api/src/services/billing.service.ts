@@ -6,7 +6,7 @@ import { claimTrial, trialAvailable } from './trial.service';
 import { proExtension } from '../lib/referrals';
 import {
   LITE_LIMITS, PRO_AMOUNT_IN_CENTS, PRO_CURRENCY, PRO_PRICE_COP, PRO_ZONES, RENEWAL_GRACE_MS, TRIAL_DAYS,
-  accessEndsAt, addDays, addMonth, complimentaryEmails, hasProAccess, nextAction, paymentReference, planOf, statusOf, trialEndOf, willRenew,
+  accessEndsAt, addDays, addMonth, hasProAccess, isComplimentary, nextAction, paymentReference, planOf, statusOf, trialEndOf, willRenew,
   type Plan, type SubscriptionStatus,
 } from '../lib/plans';
 import {
@@ -35,13 +35,14 @@ const SUBSCRIPTION_SELECT = {
   liteSince: true,
   lastPaymentError: true,
   giftTrial: true,
+  compPro: true,
 } satisfies Prisma.UserSelect;
 
 type SubscriptionUser = Prisma.UserGetPayload<{ select: typeof SUBSCRIPTION_SELECT }> & { complimentary?: boolean };
 
-/** Marca la cuenta de cortesía según COMP_PRO_EMAILS: una variable de entorno, no un dato de la base. */
-function withComplimentary<T extends { email: string }>(user: T): T & { complimentary: boolean } {
-  return { ...user, complimentary: complimentaryEmails(process.env.COMP_PRO_EMAILS).has(user.email.toLowerCase()) };
+/** Marca la cuenta de cortesía: compPro en la base o COMP_PRO_EMAILS (isComplimentary). */
+function withComplimentary<T extends { email: string; compPro?: boolean | null }>(user: T): T & { complimentary: boolean } {
+  return { ...user, complimentary: isComplimentary(user) };
 }
 
 /** Estados finales de Wompi (EXPIRED por si Wompi lo usa para un cobro que nunca se aprobó). */
@@ -50,6 +51,8 @@ const FINAL_STATUSES = new Set(['APPROVED', 'DECLINED', 'VOIDED', 'ERROR', 'EXPI
 const STALE_PENDING_MS = 30 * 60_000;
 /** Un cobro que Wompi sigue sin resolver tras 45 min (lo que dura la aprobación en el celular de Nequi) cuenta como vencido. Si llega APPROVED después, el webhook lo reactiva. */
 const PENDING_TIMEOUT_MS = 45 * 60_000;
+/** Mensaje con que se cierra un cobro que Wompi no resolvió en PENDING_TIMEOUT_MS. */
+const TIMEOUT_MESSAGE = 'Wompi no confirmó el cobro a tiempo.';
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Para los logs: la respuesta de Wompi sin correos y con solo los últimos 4 de cualquier número largo. */
@@ -264,8 +267,49 @@ async function refreshPendingPayment(payment: SubscriptionPayment, wait: boolean
     }
   }
   if (Date.now() - payment.createdAt.getTime() > PENDING_TIMEOUT_MS) {
-    await settlePayment(payment.id, 'ERROR', 'Wompi no confirmó el cobro a tiempo.');
+    await settlePayment(payment.id, 'ERROR', TIMEOUT_MESSAGE);
   }
+}
+
+/** Días durante los que se vuelve a preguntar a Wompi por un cobro cerrado por tiempo. */
+const RECHECK_WINDOW_MS = 7 * 86_400_000;
+
+/**
+ * Cobros cerrados por tiempo (Nequi sin aprobar a los 45 min) que tienen id de Wompi: se
+ * vuelven a consultar. Si Wompi los aprobó después y el webhook no llegó, se aplica el pago
+ * (la cuenta vuelve a Pro y cuenta como pagada). Rechazado o anulado solo queda anotado en
+ * el cobro: la cuenta ya se resolvió al vencer. `minAgeMs` evita consultar el mismo cobro
+ * en cada pasada del cron; el panel de administración lo pide sin esperar.
+ */
+export async function recheckTimedOutPayments(
+  now = new Date(),
+  options: { userId?: string; minAgeMs?: number; limit?: number } = {},
+): Promise<{ checked: number; approved: number }> {
+  const { userId, minAgeMs = 60 * 60_000, limit = 10 } = options;
+  const rows = await prisma.subscriptionPayment.findMany({
+    where: {
+      status: 'ERROR', statusMessage: TIMEOUT_MESSAGE, wompiTransactionId: { not: null },
+      createdAt: { gte: new Date(now.getTime() - RECHECK_WINDOW_MS) },
+      updatedAt: { lte: new Date(now.getTime() - minAgeMs) },
+      ...(userId ? { userId } : {}),
+    },
+    orderBy: { updatedAt: 'asc' },
+    take: limit,
+  });
+  let approved = 0;
+  for (const payment of rows) {
+    const tx = await getTransaction(payment.wompiTransactionId!).catch(() => null);
+    if (tx?.status === 'APPROVED') {
+      await settlePayment(payment.id, 'APPROVED', tx.statusMessage);
+      approved += 1;
+    } else if (tx && FINAL_STATUSES.has(tx.status)) {
+      await prisma.subscriptionPayment.update({ where: { id: payment.id }, data: { status: tx.status, statusMessage: tx.statusMessage } });
+    } else {
+      // Sigue sin resolverse (o Wompi no respondió): se rota la cola.
+      await prisma.subscriptionPayment.update({ where: { id: payment.id }, data: { updatedAt: now } });
+    }
+  }
+  return { checked: rows.length, approved };
 }
 
 /**
@@ -583,7 +627,7 @@ export async function handleWompiEvent(event: WompiEvent, headerChecksum?: strin
  * suscripciones vencidas y consulta los cobros en curso. Lotes pequeños para
  * caber en el tiempo de una función serverless.
  */
-export async function runBillingTick(now = new Date(), limit = 20): Promise<{ billingDue: number; billingPending: number }> {
+export async function runBillingTick(now = new Date(), limit = 20): Promise<{ billingDue: number; billingPending: number; billingRechecked: number }> {
   const due = await prisma.user.findMany({
     where: {
       subscriptionStatus: { in: ['trialing', 'active', 'canceled'] },
@@ -613,7 +657,8 @@ export async function runBillingTick(now = new Date(), limit = 20): Promise<{ bi
     // Rota la cola: el siguiente tick empieza por otros cobros.
     await prisma.subscriptionPayment.updateMany({ where: { id: payment.id, status: 'PENDING' }, data: { updatedAt: new Date() } });
   }
-  return { billingDue: due.length, billingPending: pending.length };
+  const rechecked = await recheckTimedOutPayments(now);
+  return { billingDue: due.length, billingPending: pending.length, billingRechecked: rechecked.checked };
 }
 
 /**

@@ -9,7 +9,7 @@ import {
   BREAK_TIPS, CARE_COPY, CYCLE_COPY, breakSlots, focusCategory, hydrationSlots, inWindow, learnedHabitTime, localMinutes, parseHHMM, pickQuote,
   sanitizeSmartSettings, type SmartReminderSettings,
 } from '../lib/smart-reminders';
-import { complimentaryEmails, planOf } from '../lib/plans';
+import { isComplimentary, planOf } from '../lib/plans';
 import { isHabitScheduledForDay } from './habit.service';
 import { createNotification, wasNotified, type NotificationCategory } from './notification.service';
 
@@ -304,10 +304,9 @@ export async function smartReminders(now: Date): Promise<number> {
     where: { onboardingCompleted: true },
     select: {
       id: true, email: true, timezone: true, gender: true, level: true, notificationPreferences: { select: { reminderSettings: true } },
-      subscriptionStatus: true, trialEndsAt: true, currentPeriodEnd: true, paymentSourceId: true, createdAt: true,
+      subscriptionStatus: true, trialEndsAt: true, currentPeriodEnd: true, paymentSourceId: true, createdAt: true, compPro: true,
     },
   });
-  const comp = complimentaryEmails(process.env.COMP_PRO_EMAILS);
   const jobs = [coliseoScheduled, careReminders, pendingHabits, breakReminders, cycleReminders, hydrationReminders, mealReminders, wisdomReminder];
   let sent = 0;
   for (const user of users) {
@@ -319,7 +318,7 @@ export async function smartReminders(now: Date): Promise<number> {
       userId: user.id,
       gender: user.gender,
       level: user.level,
-      lite: planOf({ ...user, complimentary: comp.has(user.email.toLowerCase()) }, now) === 'lite',
+      lite: planOf({ ...user, complimentary: isComplimentary(user) }, now) === 'lite',
       minutes,
       since: new Date(now.getTime() - minutes * 60_000),
       day,

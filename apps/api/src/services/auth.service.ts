@@ -8,7 +8,7 @@ import { checkAchievements } from './achievement.service';
 import { syncSubscription, type SubscriptionView } from './billing.service';
 import { claimReverseTrial } from './trial.service';
 import { attachReferral, recordDevice } from './referral.service';
-import { TRIAL_DAYS, addDays, complimentaryEmails, giftEligible } from '../lib/plans';
+import { TRIAL_DAYS, addDays, giftEligible, isComplimentary } from '../lib/plans';
 
 function sanitizeUser(user: {
   id: string;
@@ -155,13 +155,13 @@ async function findOrCreateUser(identity: OAuthIdentity, displayName?: string, r
  * Regalo único: 7 días de Pro sin tarjeta a la cuenta Lite que nunca probó Pro ni pagó
  * (cuentas anteriores a la prueba inversa). La fila de used_trials lo hace de una sola vez.
  */
-async function giftTrialToLite(userId: string): Promise<void> {
+export async function giftTrialToLite(userId: string): Promise<void> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { email: true, subscriptionStatus: true, currentPeriodEnd: true, paymentSourceId: true, onboardingCompleted: true },
+    select: { email: true, subscriptionStatus: true, currentPeriodEnd: true, paymentSourceId: true, onboardingCompleted: true, compPro: true },
   });
   if (!user) return;
-  const complimentary = complimentaryEmails(process.env.COMP_PRO_EMAILS).has(user.email.toLowerCase());
+  const complimentary = isComplimentary(user);
   // Las reglas baratas van antes: la consulta de cobros solo corre para quien aún puede recibir el regalo.
   if (!user.onboardingCompleted || user.subscriptionStatus !== 'lite' || user.currentPeriodEnd || user.paymentSourceId || complimentary) return;
   const paidBefore = Boolean(await prisma.subscriptionPayment.findFirst({ where: { userId, status: 'APPROVED' }, select: { id: true } }));

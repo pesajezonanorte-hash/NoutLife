@@ -144,6 +144,14 @@ export function complimentaryEmails(list: string | undefined): Set<string> {
 }
 
 /**
+ * ¿Pro de cortesía? Por la marca compPro de la base (equipo, sin publicar correos en el repo)
+ * o por COMP_PRO_EMAILS. Gana sobre la prueba, el regalo, el cobro y el paso a Lite.
+ */
+export function isComplimentary(user: { email: string; compPro?: boolean | null }, list = process.env.COMP_PRO_EMAILS): boolean {
+  return Boolean(user.compPro) || complimentaryEmails(list).has(user.email.trim().toLowerCase());
+}
+
+/**
  * Regalo de 7 días a una cuenta Lite actual (cuentas anteriores a la prueba inversa): solo si
  * completó el onboarding, está en Lite, nunca tuvo periodo pagado ni tarjeta, nunca pagó un cobro
  * aprobado y no es de cortesía. La fila de used_trials (claimReverseTrial) evita el segundo regalo.

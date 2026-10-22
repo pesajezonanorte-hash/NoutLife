@@ -2,8 +2,8 @@
 // cobra o vence. Lee la base; no cambia nada. Nunca devuelve la fuente de pago
 // de Wompi ni el correo de los pagos: solo la etiqueta que ya ve la persona.
 import { prisma } from '../lib/prisma';
-import { accessEndsAt, planOf, statusOf, trialEndOf, willRenew } from '../lib/plans';
-import { subscriptionView } from './billing.service';
+import { accessEndsAt, isComplimentary, planOf, statusOf, trialEndOf, willRenew } from '../lib/plans';
+import { recheckTimedOutPayments, subscriptionView, syncSubscription } from './billing.service';
 import { resetAccountData } from './account-reset.service';
 import { isAdminEmail } from '../lib/admin';
 import { giftFunnel, referralMetrics } from '../lib/admin-metrics';
@@ -14,7 +14,7 @@ export async function listUsers(now = new Date()) {
     select: {
       id: true, email: true, displayName: true, username: true, level: true, createdAt: true, lastSeenAt: true,
       subscriptionStatus: true, trialEndsAt: true, currentPeriodEnd: true, paymentSourceId: true,
-      paymentMethodType: true, paymentMethodLabel: true, liteSince: true, lastPaymentError: true, gender: true, giftTrial: true,
+      paymentMethodType: true, paymentMethodLabel: true, liteSince: true, lastPaymentError: true, gender: true, giftTrial: true, compPro: true,
     },
   });
   const payments = await prisma.subscriptionPayment.findMany({
@@ -30,7 +30,9 @@ export async function listUsers(now = new Date()) {
     byUser.set(p.userId, row);
   }
 
-  return users.map((u) => {
+  return users.map((row) => {
+    // La cortesía gana sobre lo guardado (cancelado, Lite o fechas viejas), igual que en la app.
+    const u = { ...row, complimentary: isComplimentary(row) };
     const pays = byUser.get(u.id) ?? { approved: [], pending: 0 };
     const access = accessEndsAt(u);
     const view = subscriptionView(u, now, pays.pending > 0);
@@ -44,7 +46,7 @@ export async function listUsers(now = new Date()) {
       createdAt: u.createdAt.toISOString(),
       lastSeenAt: u.lastSeenAt?.toISOString() ?? null,
       plan: planOf(u, now),
-      status: statusOf(u),
+      status: u.complimentary ? 'active' : statusOf(u),
       hasPaid: pays.approved.length > 0,
       paidCount: pays.approved.length,
       paidTotalCop: pays.approved.reduce((sum, p) => sum + p.amountInCents, 0) / 100,
@@ -106,6 +108,16 @@ export async function pushStats(now = new Date()) {
     entry.disableRate = entry.sent ? entry.disabled / entry.sent : null;
   }
   return { since: since.toISOString(), byCategory };
+}
+
+/**
+ * Revisa en Wompi los cobros de la persona que se cerraron por tiempo (sin esperar al cron) y
+ * después aplica vencimientos. Si Wompi aprobó el cobro, la cuenta queda en Pro pagado.
+ */
+export async function recheckBilling(userId: string, now = new Date()) {
+  const result = await recheckTimedOutPayments(now, { userId, minAgeMs: 0 });
+  const subscription = await syncSubscription(userId);
+  return { ...result, subscription };
 }
 
 /**

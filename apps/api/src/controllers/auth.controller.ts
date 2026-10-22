@@ -95,6 +95,8 @@ export async function deleteAccount(req: AuthRequest, res: Response): Promise<vo
 export async function me(req: AuthRequest, res: Response): Promise<void> {
   try {
     await reconcileUserActivityStreak(req.userId!);
+    // Abrir la app con la sesión vigente (sin pasar por /auth/refresh) también entrega el regalo de 7 días.
+    await authService.giftTrialToLite(req.userId!).catch((error) => console.error('[AUTH_TRIAL_GIFT_ERROR]', req.userId, error));
     const user = await prisma.user.findUniqueOrThrow({
       where: { id: req.userId },
       select: {
