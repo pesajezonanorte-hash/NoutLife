@@ -5,7 +5,7 @@ export const LEGAL_ENTITY = 'Servicios Inteligentes de Pesaje S.A.S.';
 
 const CONTACT = `Contacto para avisos legales, soporte y solicitudes DMCA: ${CONTACT_EMAIL}. También puedes escribirnos desde Ayuda → Enviar comentarios dentro de la app.`;
 
-export const LEGAL_UPDATED = '10 de octubre de 2026';
+export const LEGAL_UPDATED = '22 de octubre de 2026';
 
 export type LegalSection = { h: string; p: string[] };
 
@@ -17,6 +17,15 @@ export const PRIVACY: LegalSection[] = [
     'Lo que registras en la app: hábitos, misiones, agenda, diario, finanzas, comida, sueño, entrenamientos, peso, fotos de progreso, relaciones y demás zonas.',
     'Social: tu perfil público, amistades, gremios y las cartas que envías, con sus fotos, videos y stickers.',
     'Técnicos: la suscripción de avisos push de cada dispositivo, tu zona horaria e idioma, y la fecha de tu última actividad.',
+    'Dispositivo: un identificador de dispositivo que se guarda en tu navegador y en una cookie. Lo explicamos en «Dispositivos, pruebas y analítica».',
+    'Analítica de producto: PostHog registra las pantallas que abres y acciones generales de la app. Lo explicamos en «Dispositivos, pruebas y analítica».',
+  ] },
+  { h: 'Dispositivos, pruebas y analítica', p: [
+    'Para evitar pruebas gratis repetidas y para validar las recompensas de invitación, guardamos un identificador de dispositivo. Ese identificador se guarda en tu navegador y en una cookie, y lo registramos cada vez que inicias sesión o renuevas tu sesión. Queda vinculado a tu cuenta.',
+    'Usamos esos datos solo para dos cosas: detectar cuentas que comparten dispositivo para una misma prueba o recompensa, y auditar las invitaciones. Un dispositivo compartido nunca bloquea tu cuenta ni tu prueba por sí solo.',
+    'Cuando eliminas tu cuenta, borramos tus datos, salvo el registro de pruebas. Ese registro conserva el correo en minúsculas, una huella del medio de pago y el identificador del dispositivo, para evitar pruebas gratis repetidas.',
+    'Para analítica de producto usamos PostHog. Registra las rutas de las pantallas que abres y acciones generales (por ejemplo, abrir una zona o marcar un hábito), y de dónde llegaste: parámetros de campaña y código de invitación. Si iniciaste sesión, también se asocia el identificador de tu cuenta y tu plan; si no, se usa un identificador anónimo que se genera en tu navegador.',
+    'PostHog nunca accede a contenido privado: ni tu diario, ni tu ciclo, ni tu libreta, ni tus finanzas. Tampoco recibe el identificador de dispositivo.',
   ] },
   { h: 'No vendemos tus datos', p: [
     'Noutlife NO vende, alquila ni cede tus datos personales a terceros, ni los usa para publicidad. Solo los compartimos con los proveedores técnicos indicados más abajo, que los tratan por nuestra cuenta para que la app funcione.',
@@ -43,16 +52,16 @@ export const PRIVACY: LegalSection[] = [
     'En concreto: solo usamos los datos de Google para ofrecerte las funciones visibles de Noutlife; no los transferimos a terceros salvo que sea necesario para prestar esas funciones, cumplir la ley o proteger la seguridad; no los usamos para publicidad; y ninguna persona los lee salvo con tu consentimiento, por seguridad o por obligación legal.',
   ] },
   { h: 'Almacenamiento local (localStorage)', p: [
-    'Usamos el almacenamiento local de tu navegador (localStorage), no cookies de seguimiento. Sirve para recordar que tu sesión está activa, tu tema visual (claro u oscuro), la preferencia de movimiento y avisos que ya viste.',
-    'La sesión usa además una cookie técnica necesaria para renovar el acceso. No usamos cookies ni almacenamiento con fines publicitarios ni de analítica de terceros.',
+    'Usamos el almacenamiento local de tu navegador (localStorage e IndexedDB). Sirve para recordar que tu sesión está activa, tu tema visual (claro u oscuro), la preferencia de movimiento, los avisos que ya viste, el identificador de dispositivo y el identificador anónimo de la analítica.',
+    'La sesión usa además una cookie técnica necesaria para renovar el acceso, y el identificador de dispositivo se guarda en una cookie. No usamos cookies con fines publicitarios. La analítica de producto (PostHog) sí guarda en tu navegador un identificador anónimo y los parámetros de campaña, como se explica en «Dispositivos, pruebas y analítica».',
     'Puedes borrar estos datos desde la configuración de tu navegador; tendrás que volver a iniciar sesión.',
   ] },
   { h: 'Quién más los ve', p: [
     'Otras personas solo ven lo que haces público o compartes con ellas, según tus ajustes de Privacidad. Las cartas solo las ven quienes participan en ellas.',
-    'Proveedores técnicos: alojamiento de la app y la API (Vercel), base de datos (Supabase), IA (Groq, Google Gemini, OpenRouter y OpenAI), inicio de sesión y calendario (Google) y avisos push (el servicio de tu navegador).',
+    'Proveedores técnicos: alojamiento de la app y la API (Vercel), base de datos (Supabase), analítica de producto (PostHog), IA (Groq, Google Gemini, OpenRouter y OpenAI), inicio de sesión y calendario (Google) y avisos push (el servicio de tu navegador).',
   ] },
   { h: 'Cuánto tiempo', p: [
-    'Mientras tengas cuenta. Si la eliminas, borramos tus datos de forma permanente en ese momento; las copias de seguridad del proveedor se sobrescriben en su ciclo normal.',
+    'Mientras tengas cuenta. Si la eliminas, borramos tus datos de forma permanente en ese momento, salvo el registro de pruebas que explicamos en «Dispositivos, pruebas y analítica». Las copias de seguridad del proveedor se sobrescriben en su ciclo normal.',
   ] },
   { h: 'Tus derechos (Habeas Data / RGPD)', p: [
     'Puedes acceder a tus datos, corregirlos, oponerte a su tratamiento, exportarlos y eliminarlos.',
