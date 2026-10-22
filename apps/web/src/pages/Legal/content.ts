@@ -23,7 +23,7 @@ export const PRIVACY: LegalSection[] = [
   { h: 'Dispositivos, pruebas y analítica', p: [
     'Para evitar pruebas gratis repetidas y para validar las recompensas de invitación, guardamos un identificador de dispositivo. Ese identificador se guarda en tu navegador y en una cookie, y lo registramos cada vez que inicias sesión o renuevas tu sesión. Queda vinculado a tu cuenta.',
     'Usamos esos datos solo para dos cosas: detectar cuentas que comparten dispositivo para una misma prueba o recompensa, y auditar las invitaciones. Un dispositivo compartido nunca bloquea tu cuenta ni tu prueba por sí solo.',
-    'Cuando eliminas tu cuenta, borramos tus datos, salvo el registro de pruebas. Ese registro conserva el correo en minúsculas, una huella del medio de pago y el identificador del dispositivo, para evitar pruebas gratis repetidas.',
+    'Cuando eliminas tu cuenta, borramos tus datos, salvo el registro de pruebas, que se conserva hasta 3 años después de tu solicitud de eliminación. Ese registro conserva el correo en minúsculas, una huella del medio de pago y el identificador del dispositivo, para evitar pruebas gratis repetidas.',
     'Para analítica de producto usamos PostHog. Registra las rutas de las pantallas que abres y acciones generales (por ejemplo, abrir una zona o marcar un hábito), y de dónde llegaste: parámetros de campaña y código de invitación. Si iniciaste sesión, también se asocia el identificador de tu cuenta y tu plan; si no, se usa un identificador anónimo que se genera en tu navegador.',
     'PostHog nunca accede a contenido privado: ni tu diario, ni tu ciclo, ni tu libreta, ni tus finanzas. Tampoco recibe el identificador de dispositivo.',
   ] },
@@ -61,16 +61,16 @@ export const PRIVACY: LegalSection[] = [
     'Proveedores técnicos: alojamiento de la app y la API (Vercel), base de datos (Supabase), analítica de producto (PostHog), IA (Groq, Google Gemini, OpenRouter y OpenAI), inicio de sesión y calendario (Google) y avisos push (el servicio de tu navegador).',
   ] },
   { h: 'Cuánto tiempo', p: [
-    'Mientras tengas cuenta. Si la eliminas, borramos tus datos de forma permanente en ese momento, salvo el registro de pruebas que explicamos en «Dispositivos, pruebas y analítica». Las copias de seguridad del proveedor se sobrescriben en su ciclo normal.',
+    'Mientras tengas cuenta. Si la eliminas, borramos tus datos de forma permanente en ese momento, salvo el registro mínimo para prevenir el abuso de pruebas gratuitas (correo, huella del medio de pago e identificador de dispositivo), que conservamos hasta 3 años después de tu solicitud de eliminación y luego anonimizamos o eliminamos. Las copias de seguridad del proveedor se sobrescriben en su ciclo normal.',
   ] },
   { h: 'Tus derechos (Habeas Data / RGPD)', p: [
     'Puedes acceder a tus datos, corregirlos, oponerte a su tratamiento, exportarlos y eliminarlos.',
     'Exportación: en Ajustes → Datos puedes descargar una copia de tus datos.',
     'Eliminación total: en Ajustes → Datos puedes reiniciar tu cuenta o eliminarla para siempre, lo que borra tus datos.',
-    'Para cualquier otra solicitud, escríbenos a Noutlife@hotmail.com o desde Ayuda → Enviar comentarios. Respondemos en un plazo máximo de 30 días.',
+    'Para cualquier otra solicitud, escríbenos a Noutlife@hotmail.com o desde Ayuda → Enviar comentarios. Respondemos consultas en 10 días hábiles (prorrogables por 5 días hábiles, con aviso previo), y reclamos, correcciones y supresiones en 15 días hábiles (prorrogables por 8 días hábiles).',
   ] },
   { h: 'Responsable y contacto', p: [
-    'Responsable del tratamiento y entidad comercial de respaldo: SIDPESAJE.',
+    'Responsable del tratamiento: Servicios Inteligentes de Pesaje S.A.S. (en adelante, «SIDPESAJE» o «NoutLife»).',
     CONTACT,
   ] },
   { h: 'Menores', p: [
