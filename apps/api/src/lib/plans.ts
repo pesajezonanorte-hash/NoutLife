@@ -143,6 +143,23 @@ export function complimentaryEmails(list: string | undefined): Set<string> {
   return new Set((list ?? '').split(',').map((email) => email.trim().toLowerCase()).filter(Boolean));
 }
 
+/**
+ * Regalo de 7 días a una cuenta Lite actual (cuentas anteriores a la prueba inversa): solo si
+ * completó el onboarding, está en Lite, nunca tuvo periodo pagado ni tarjeta, nunca pagó un cobro
+ * aprobado y no es de cortesía. La fila de used_trials (claimReverseTrial) evita el segundo regalo.
+ */
+export function giftEligible(
+  user: { subscriptionStatus: string; currentPeriodEnd: Date | null; paymentSourceId: string | null; onboardingCompleted: boolean; complimentary?: boolean },
+  paidBefore: boolean,
+): boolean {
+  return user.onboardingCompleted
+    && statusOf(user) === 'lite'
+    && !user.currentPeriodEnd
+    && !user.paymentSourceId
+    && !user.complimentary
+    && !paidBefore;
+}
+
 /** Qué toca hacer con la suscripción ahora: nada, cobrar el periodo o pasar a Lite. */
 export function nextAction(user: SubscriptionFields, now = new Date()): 'none' | 'charge' | 'downgrade' {
   if (user.complimentary || statusOf(user) === 'lite') return 'none';

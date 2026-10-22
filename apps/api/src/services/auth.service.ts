@@ -8,7 +8,7 @@ import { checkAchievements } from './achievement.service';
 import { syncSubscription, type SubscriptionView } from './billing.service';
 import { claimReverseTrial } from './trial.service';
 import { attachReferral, recordDevice } from './referral.service';
-import { TRIAL_DAYS, addDays } from '../lib/plans';
+import { TRIAL_DAYS, addDays, complimentaryEmails, giftEligible } from '../lib/plans';
 
 function sanitizeUser(user: {
   id: string;
@@ -160,7 +160,12 @@ async function giftTrialToLite(userId: string): Promise<void> {
     where: { id: userId },
     select: { email: true, subscriptionStatus: true, currentPeriodEnd: true, paymentSourceId: true, onboardingCompleted: true },
   });
-  if (!user?.onboardingCompleted || user.subscriptionStatus !== 'lite' || user.currentPeriodEnd || user.paymentSourceId) return;
+  if (!user) return;
+  const complimentary = complimentaryEmails(process.env.COMP_PRO_EMAILS).has(user.email.toLowerCase());
+  // Las reglas baratas van antes: la consulta de cobros solo corre para quien aún puede recibir el regalo.
+  if (!user.onboardingCompleted || user.subscriptionStatus !== 'lite' || user.currentPeriodEnd || user.paymentSourceId || complimentary) return;
+  const paidBefore = Boolean(await prisma.subscriptionPayment.findFirst({ where: { userId, status: 'APPROVED' }, select: { id: true } }));
+  if (!giftEligible({ ...user, complimentary }, paidBefore)) return;
   if (!(await claimReverseTrial(user.email))) return;
   await prisma.user.update({ where: { id: userId }, data: { subscriptionStatus: 'trialing', trialEndsAt: addDays(new Date(), TRIAL_DAYS), liteSince: null, giftTrial: true } });
 }
