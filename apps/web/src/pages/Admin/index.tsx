@@ -148,7 +148,8 @@ export default function AdminPage() {
       {metrics && (
         <Section title="Regalo de 7 días Pro" note="Cuentas Lite e invitaciones. Convertidas: con un cobro aprobado después del regalo.">
           <Stats items={[
-            ['Regalos vigentes', String(metrics.gift.active)], ['Recibieron regalo', String(metrics.gift.received)],
+            ['Disponibles sin activar', String(metrics.gift.available)], ['Regalos vigentes', String(metrics.gift.active)],
+            ['Recibieron regalo', String(metrics.gift.received)],
             ['Pasaron a Pro pagado', String(metrics.gift.converted)], ['Conversión', pct(metrics.gift.conversionRate)],
             ['Volvieron a Lite', String(metrics.gift.backToLite)],
           ]} />
@@ -229,6 +230,7 @@ export default function AdminPage() {
                 <Badge variant={u.plan === 'pro' ? 'success' : 'neutral'}>{STATUS_LABEL[u.status]}</Badge>
                 {u.complimentary && <Badge variant="secondary">Cortesía</Badge>}
                 {u.giftTrial && u.status === 'trialing' && <Badge variant="primary">Regalo</Badge>}
+                {u.giftAvailable && <Badge variant="info">Regalo al entrar</Badge>}
                 {u.pendingPayments > 0 && <Badge variant="warning">{u.pendingPayments} en espera</Badge>}
               </div>
               <div className="text-body-sm">

@@ -32,10 +32,12 @@ export interface AdminUser {
   lastPaymentError: string | null;
   /** Prueba de regalo (cuenta Lite o invitación): vence sin cobro. */
   giftTrial: boolean;
+  /** Regalo disponible, todavía sin activar: se activa cuando la persona vuelve a entrar. */
+  giftAvailable: boolean;
 }
 
 export interface AdminMetrics {
-  gift: { active: number; received: number; converted: number; conversionRate: number | null; backToLite: number };
+  gift: { available: number; active: number; received: number; converted: number; conversionRate: number | null; backToLite: number };
   referrals: {
     total: number; pending: number; activated: number; flagged: number;
     monthStart: string; activatedThisMonth: number; daysGrantedThisMonth: number; capDays: number; atCap: number;

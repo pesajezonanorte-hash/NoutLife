@@ -167,7 +167,8 @@ export async function giftTrialToLite(userId: string): Promise<void> {
   const paidBefore = Boolean(await prisma.subscriptionPayment.findFirst({ where: { userId, status: 'APPROVED' }, select: { id: true } }));
   if (!giftEligible({ ...user, complimentary }, paidBefore)) return;
   if (!(await claimReverseTrial(user.email))) return;
-  await prisma.user.update({ where: { id: userId }, data: { subscriptionStatus: 'trialing', trialEndsAt: addDays(new Date(), TRIAL_DAYS), liteSince: null, giftTrial: true } });
+  // Se activa al volver a entrar: desde ahora corren los 7 días y la respuesta ya lleva giftTrial (bienvenida).
+  await prisma.user.update({ where: { id: userId }, data: { subscriptionStatus: 'trialing', trialEndsAt: addDays(new Date(), TRIAL_DAYS), liteSince: null, giftTrial: true, giftAvailable: false } });
 }
 
 async function checkSubscription(userId: string): Promise<SubscriptionView | null> {

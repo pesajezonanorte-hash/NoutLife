@@ -221,6 +221,8 @@ model User {
   giftTrial          Boolean   @default(false)
   /// Pro de cortesía permanente (equipo): sin fecha, sin cobros y sin paso a Lite. Se suma a COMP_PRO_EMAILS.
   compPro            Boolean   @default(false)
+  /// Regalo de 7 días disponible y aún sin activar: se activa al volver a entrar (giftTrialToLite).
+  giftAvailable      Boolean   @default(false)
   lastPaymentError   String?
 
   createdAt        DateTime  @default(now())

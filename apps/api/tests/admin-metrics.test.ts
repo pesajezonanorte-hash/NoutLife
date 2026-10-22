@@ -41,7 +41,7 @@ test('giftFunnel counts live gifts, conversions paid after the gift and gifts th
     { userId: 'paid', createdAt: day('2026-10-08') },
     { userId: 'paid-before', createdAt: day('2026-09-15') },
   ], NOW);
-  assert.deepEqual(funnel, { active: 1, received: 4, converted: 1, conversionRate: 0.25, backToLite: 1 });
+  assert.deepEqual(funnel, { available: 0, active: 1, received: 4, converted: 1, conversionRate: 0.25, backToLite: 1 });
 });
 
 test('giftFunnel has no conversion rate without gifts', () => {

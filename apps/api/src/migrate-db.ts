@@ -5,7 +5,7 @@ import { LETTERS_AND_GESTURES_SQL, REMOVE_LEGACY_HABIT_RITUAL_FLAG_SQL, SOCIAL_N
 import { BACKLOG_SQL, BACKLOG_V2_SQL, REVERSIBLE_HABIT_LOGS_SQL, WARDROBE_PHOTO_SQL } from './lib/backlog-migrations';
 import { SUBSCRIPTIONS_SQL } from './lib/billing-migrations';
 import { REFERRALS_PUSH_EVENTS_SQL } from './lib/referral-migrations';
-import { COMP_PRO_SQL, GIFT_TRIAL_SQL } from './lib/gift-trial-migrations';
+import { COMP_PRO_SQL, GIFT_AVAILABLE_SQL, GIFT_TRIAL_SQL, MARK_GIFT_AVAILABLE_SQL } from './lib/gift-trial-migrations';
 import { REFERRAL_ANTI_ABUSE_SQL } from './lib/anti-abuse-migrations';
 import { DEFAULT_SHOP_ITEMS } from './lib/default-catalog';
 import { MAX_SHIELD_DAYS, STREAK_SHIELDS, shieldDaysOf } from './lib/streak-shields';
@@ -456,6 +456,8 @@ async function migrate() {
   for (const sql of REFERRALS_PUSH_EVENTS_SQL) await prisma.$executeRawUnsafe(sql);
   for (const sql of GIFT_TRIAL_SQL) await prisma.$executeRawUnsafe(sql);
   for (const sql of COMP_PRO_SQL) await prisma.$executeRawUnsafe(sql);
+  for (const sql of GIFT_AVAILABLE_SQL) await prisma.$executeRawUnsafe(sql);
+  await prisma.$executeRawUnsafe(MARK_GIFT_AVAILABLE_SQL);
   for (const sql of REFERRAL_ANTI_ABUSE_SQL) await prisma.$executeRawUnsafe(sql);
 
   // Idempotent mirror of prisma/migrations/20261023120000_recreation_zone.

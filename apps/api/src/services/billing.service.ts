@@ -2,7 +2,7 @@ import type { Prisma, SubscriptionPayment } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { hasAIProvider } from '../lib/ai';
 import { fingerprintSecret, paymentKey, publicDataShape, type NequiProof } from '../lib/trial-keys';
-import { claimTrial, trialAvailable } from './trial.service';
+import { claimTrial, markGiftAvailability, trialAvailable } from './trial.service';
 import { proExtension } from '../lib/referrals';
 import {
   LITE_LIMITS, PRO_AMOUNT_IN_CENTS, PRO_CURRENCY, PRO_PRICE_COP, PRO_ZONES, RENEWAL_GRACE_MS, TRIAL_DAYS,
@@ -658,6 +658,8 @@ export async function runBillingTick(now = new Date(), limit = 20): Promise<{ bi
     await prisma.subscriptionPayment.updateMany({ where: { id: payment.id, status: 'PENDING' }, data: { updatedAt: new Date() } });
   }
   const rechecked = await recheckTimedOutPayments(now);
+  // Solo registra la disponibilidad del regalo: la activación ocurre cuando la persona entra.
+  await markGiftAvailability().catch((error) => console.error('[BILLING_GIFT_MARK_ERROR]', error));
   return { billingDue: due.length, billingPending: pending.length, billingRechecked: rechecked.checked };
 }
 

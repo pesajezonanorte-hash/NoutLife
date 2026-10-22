@@ -14,7 +14,7 @@ export async function listUsers(now = new Date()) {
     select: {
       id: true, email: true, displayName: true, username: true, level: true, createdAt: true, lastSeenAt: true,
       subscriptionStatus: true, trialEndsAt: true, currentPeriodEnd: true, paymentSourceId: true,
-      paymentMethodType: true, paymentMethodLabel: true, liteSince: true, lastPaymentError: true, gender: true, giftTrial: true, compPro: true,
+      paymentMethodType: true, paymentMethodLabel: true, liteSince: true, lastPaymentError: true, gender: true, giftTrial: true, compPro: true, giftAvailable: true,
     },
   });
   const payments = await prisma.subscriptionPayment.findMany({
@@ -65,6 +65,7 @@ export async function listUsers(now = new Date()) {
       liteSince: u.liteSince?.toISOString() ?? null,
       lastPaymentError: u.lastPaymentError,
       giftTrial: u.giftTrial,
+      giftAvailable: u.giftAvailable,
     };
   });
 }
@@ -127,7 +128,7 @@ export async function recheckBilling(userId: string, now = new Date()) {
  */
 export async function metrics(now = new Date()) {
   const [users, usedTrials, payments, referrals] = await Promise.all([
-    prisma.user.findMany({ select: { id: true, email: true, createdAt: true, subscriptionStatus: true, trialEndsAt: true, giftTrial: true } }),
+    prisma.user.findMany({ select: { id: true, email: true, createdAt: true, subscriptionStatus: true, trialEndsAt: true, giftTrial: true, giftAvailable: true } }),
     prisma.usedTrial.findMany({ select: { emailKey: true, paymentKey: true, paymentKeys: true, createdAt: true } }),
     prisma.subscriptionPayment.findMany({ where: { status: 'APPROVED' }, select: { userId: true, createdAt: true } }),
     prisma.referral.findMany({ select: { inviterId: true, inviteeId: true, status: true, inviterDays: true, inviteeDays: true, flaggedSelfReferral: true, activatedAt: true } }),

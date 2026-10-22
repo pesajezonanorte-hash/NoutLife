@@ -1,5 +1,11 @@
 import { prisma } from '../lib/prisma';
 import { emailKey } from '../lib/trial-keys';
+import { MARK_GIFT_AVAILABLE_SQL } from '../lib/gift-trial-migrations';
+
+/** Registra qué cuentas Lite tienen el regalo de 7 días disponible (cron diario y cada build). Devuelve las filas que cambiaron. */
+export function markGiftAvailability(): Promise<number> {
+  return prisma.$executeRawUnsafe(MARK_GIFT_AVAILABLE_SQL);
+}
 
 export type TrialOutcome = 'granted' | 'email_used' | 'payment_used';
 

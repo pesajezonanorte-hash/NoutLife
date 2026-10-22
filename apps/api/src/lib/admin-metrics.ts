@@ -12,6 +12,8 @@ export interface GiftUserRow {
   subscriptionStatus: string;
   trialEndsAt: Date | null;
   giftTrial: boolean;
+  /** Regalo registrado como disponible, todavía sin activar (se activa al volver a entrar). */
+  giftAvailable?: boolean;
 }
 
 export interface UsedTrialRow {
@@ -22,6 +24,8 @@ export interface UsedTrialRow {
 }
 
 export interface GiftFunnel {
+  /** Regalos disponibles que esperan a que la persona vuelva a entrar. */
+  available: number;
   /** Pruebas de regalo vigentes ahora (cuentas Lite e invitaciones). */
   active: number;
   /** Cuentas que recibieron el regalo alguna vez. */
@@ -68,7 +72,8 @@ export function giftFunnel(
     else if (statusOf(user) === 'lite') backToLite += 1;
   }
   const received = dates.size;
-  return { active, received, converted, conversionRate: received ? converted / received : null, backToLite };
+  const available = users.filter((user) => user.giftAvailable).length;
+  return { available, active, received, converted, conversionRate: received ? converted / received : null, backToLite };
 }
 
 export interface ReferralRow {
