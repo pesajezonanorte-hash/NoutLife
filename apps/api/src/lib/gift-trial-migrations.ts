@@ -18,16 +18,18 @@ export const GIFT_AVAILABLE_SQL: string[] = [
 
 /**
  * Deja registrado a quién le corresponde el regalo y todavía no lo activó: cuenta Lite sin
- * periodo pagado, sin medio de pago, sin cortesía, sin prueba usada (used_trials) y sin cobros
- * aprobados. Quien deja de cumplirlo (vinculó un medio, ya lo activó) pierde la marca. Las
- * cuentas sin onboarding quedan marcadas: lo activan al entrar después de terminarlo.
+ * periodo pagado, sin medio de pago, sin cortesía y sin cobros aprobados. La marca nueva solo
+ * se pone si el correo no usó prueba (used_trials); una marca ya puesta es la reserva del
+ * regalo y se conserva aunque exista la fila. Quien deja de cumplir lo demás (vinculó un medio,
+ * ya lo activó) la pierde. Las cuentas sin onboarding quedan marcadas: lo activan al entrar
+ * después de terminarlo.
  */
 export const MARK_GIFT_AVAILABLE_SQL = `
   WITH eligible AS (
     SELECT u.id, (
       u."subscriptionStatus" = 'lite' AND u."currentPeriodEnd" IS NULL AND u."paymentSourceId" IS NULL AND u."compPro" = false
-      AND NOT EXISTS (SELECT 1 FROM "used_trials" t WHERE t."emailKey" = lower(trim(u."email")))
       AND NOT EXISTS (SELECT 1 FROM "subscription_payments" p WHERE p."userId" = u.id AND p."status" = 'APPROVED')
+      AND (u."giftAvailable" OR NOT EXISTS (SELECT 1 FROM "used_trials" t WHERE t."emailKey" = lower(trim(u."email"))))
     ) AS ok
     FROM "users" u
   )

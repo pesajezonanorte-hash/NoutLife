@@ -153,12 +153,13 @@ async function findOrCreateUser(identity: OAuthIdentity, displayName?: string, r
  */
 /**
  * Regalo único: 7 días de Pro sin tarjeta a la cuenta Lite que nunca probó Pro ni pagó
- * (cuentas anteriores a la prueba inversa). La fila de used_trials lo hace de una sola vez.
+ * (cuentas anteriores a la prueba inversa). La fila de used_trials lo hace de una sola vez;
+ * una cuenta con el regalo reservado (giftAvailable) lo activa aunque la fila ya exista.
  */
 export async function giftTrialToLite(userId: string): Promise<void> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { email: true, subscriptionStatus: true, currentPeriodEnd: true, paymentSourceId: true, onboardingCompleted: true, compPro: true },
+    select: { email: true, subscriptionStatus: true, currentPeriodEnd: true, paymentSourceId: true, onboardingCompleted: true, compPro: true, giftAvailable: true },
   });
   if (!user) return;
   const complimentary = isComplimentary(user);
@@ -166,9 +167,13 @@ export async function giftTrialToLite(userId: string): Promise<void> {
   if (!user.onboardingCompleted || user.subscriptionStatus !== 'lite' || user.currentPeriodEnd || user.paymentSourceId || complimentary) return;
   const paidBefore = Boolean(await prisma.subscriptionPayment.findFirst({ where: { userId, status: 'APPROVED' }, select: { id: true } }));
   if (!giftEligible({ ...user, complimentary }, paidBefore)) return;
-  if (!(await claimReverseTrial(user.email))) return;
+  if (!(await claimReverseTrial(user.email)) && !user.giftAvailable) return;
   // Se activa al volver a entrar: desde ahora corren los 7 días y la respuesta ya lleva giftTrial (bienvenida).
-  await prisma.user.update({ where: { id: userId }, data: { subscriptionStatus: 'trialing', trialEndsAt: addDays(new Date(), TRIAL_DAYS), liteSince: null, giftTrial: true, giftAvailable: false } });
+  // Solo desde Lite: dos peticiones a la vez (refresh y /auth/me) no lo activan dos veces.
+  await prisma.user.updateMany({
+    where: { id: userId, subscriptionStatus: 'lite' },
+    data: { subscriptionStatus: 'trialing', trialEndsAt: addDays(new Date(), TRIAL_DAYS), liteSince: null, giftTrial: true, giftAvailable: false },
+  });
 }
 
 async function checkSubscription(userId: string): Promise<SubscriptionView | null> {

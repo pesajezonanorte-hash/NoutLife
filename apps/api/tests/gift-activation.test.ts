@@ -14,7 +14,7 @@ test('entering the app activates an available gift: 7 days from now, giftTrial o
   try {
     client.user = {
       findUnique: async () => ({ email: 'Ana@x.com', subscriptionStatus: 'lite', currentPeriodEnd: null, paymentSourceId: null, onboardingCompleted: true, compPro: false }),
-      update: async ({ data }: { data: Record<string, unknown> }) => { updates.push(data); return {}; },
+      updateMany: async ({ where, data }: { where: Record<string, unknown>; data: Record<string, unknown> }) => { assert.equal(where.subscriptionStatus, 'lite'); updates.push(data); return { count: 1 }; },
     };
     client.subscriptionPayment = { findFirst: async () => null };
     client.usedTrial = { create: async ({ data }: { data: { emailKey: string } }) => { claimed.push(data.emailKey); return {}; } };
@@ -32,6 +32,25 @@ test('entering the app activates an available gift: 7 days from now, giftTrial o
   } finally { Object.assign(client, originals); }
 });
 
+test('a reserved gift (giftAvailable) activates on entry even if its used_trials row exists; without the reservation it does not', async () => {
+  const { giftTrialToLite } = await import('../src/services/auth.service');
+  const client = prisma as unknown as Record<string, unknown>;
+  const originals = { user: client.user, subscriptionPayment: client.subscriptionPayment, usedTrial: client.usedTrial };
+  try {
+    for (const [giftAvailable, activates] of [[true, true], [false, false]] as const) {
+      let activated = false;
+      client.user = {
+        findUnique: async () => ({ email: 'ana@x.com', subscriptionStatus: 'lite', currentPeriodEnd: null, paymentSourceId: null, onboardingCompleted: true, compPro: false, giftAvailable }),
+        updateMany: async () => { activated = true; return { count: 1 }; },
+      };
+      client.subscriptionPayment = { findFirst: async () => null };
+      client.usedTrial = { create: async () => { throw Object.assign(new Error('dup'), { code: 'P2002' }); } };
+      await giftTrialToLite('u3');
+      assert.equal(activated, activates, `giftAvailable=${giftAvailable}`);
+    }
+  } finally { Object.assign(client, originals); }
+});
+
 test('a team courtesy account never activates the gift nor spends its used_trials row', async () => {
   const { giftTrialToLite } = await import('../src/services/auth.service');
   const client = prisma as unknown as Record<string, unknown>;
@@ -40,7 +59,7 @@ test('a team courtesy account never activates the gift nor spends its used_trial
   try {
     client.user = {
       findUnique: async () => ({ email: 'pao@x.com', subscriptionStatus: 'lite', currentPeriodEnd: null, paymentSourceId: null, onboardingCompleted: true, compPro: true }),
-      update: async () => { touched = true; return {}; },
+      updateMany: async () => { touched = true; return { count: 1 }; },
     };
     client.usedTrial = { create: async () => { touched = true; return {}; } };
     await giftTrialToLite('u2');
