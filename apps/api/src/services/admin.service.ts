@@ -6,6 +6,7 @@ import { accessEndsAt, planOf, statusOf, trialEndOf, willRenew } from '../lib/pl
 import { subscriptionView } from './billing.service';
 import { resetAccountData } from './account-reset.service';
 import { isAdminEmail } from '../lib/admin';
+import { giftFunnel, referralMetrics } from '../lib/admin-metrics';
 
 export async function listUsers(now = new Date()) {
   const users = await prisma.user.findMany({
@@ -60,6 +61,7 @@ export async function listUsers(now = new Date()) {
       nextEvent: view.complimentary || statusOf(u) === 'lite' ? 'none' : willRenew(u) ? 'charge' : 'expire',
       liteSince: u.liteSince?.toISOString() ?? null,
       lastPaymentError: u.lastPaymentError,
+      giftTrial: u.giftTrial,
     };
   });
 }
@@ -104,4 +106,18 @@ export async function pushStats(now = new Date()) {
     entry.disableRate = entry.sent ? entry.disabled / entry.sent : null;
   }
   return { since: since.toISOString(), byCategory };
+}
+
+/**
+ * Métricas del plan v3 (solo lectura): embudo del regalo de 7 días (vigentes, recibidos,
+ * convertidos a Pro pagado) e invitaciones con el tope mensual en UTC.
+ */
+export async function metrics(now = new Date()) {
+  const [users, usedTrials, payments, referrals] = await Promise.all([
+    prisma.user.findMany({ select: { id: true, email: true, createdAt: true, subscriptionStatus: true, trialEndsAt: true, giftTrial: true } }),
+    prisma.usedTrial.findMany({ select: { emailKey: true, paymentKey: true, paymentKeys: true, createdAt: true } }),
+    prisma.subscriptionPayment.findMany({ where: { status: 'APPROVED' }, select: { userId: true, createdAt: true } }),
+    prisma.referral.findMany({ select: { inviterId: true, inviteeId: true, status: true, inviterDays: true, inviteeDays: true, flaggedSelfReferral: true, activatedAt: true } }),
+  ]);
+  return { gift: giftFunnel(users, usedTrials, payments, now), referrals: referralMetrics(referrals, now) };
 }

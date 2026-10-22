@@ -22,4 +22,8 @@ router.get('/push-stats', async (_req, res, next) => {
   try { res.json(await admin.pushStats()); } catch (err) { next(err); }
 });
 
+router.get('/metrics', async (_req, res, next) => {
+  try { res.json(await admin.metrics()); } catch (err) { next(err); }
+});
+
 export default router;

@@ -1,6 +1,6 @@
 // Zona de administración: una fila por cuenta con su plan, pagos, medio de pago
 // y cuándo cobra o vence la prueba. Solo lectura. El servidor exige el correo.
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Badge, Button, Card, ChipGroup, ErrorState, Field, Input, Modal, PageLoader, type ChipOption } from '@/components/ui/lq';
@@ -8,20 +8,49 @@ import { useToast } from '@/hooks/useToast';
 import { apiError } from '@/services/network.service';
 import { isAdminEmail } from '@/utils/admin';
 import * as adminService from '@/services/admin.service';
-import type { AdminUser } from '@/services/admin.service';
+import type { AdminMetrics, AdminUser, PushStats } from '@/services/admin.service';
+import { ACTIVITY_SEGMENT_LABEL, PLAN_SEGMENT_LABEL, segmentUsers, type ActivitySegment, type PlanSegment } from '@/lib/admin-segments';
 
 const dateFmt = new Intl.DateTimeFormat('es-CO', { day: 'numeric', month: 'short', year: 'numeric' });
 const fmtDate = (iso: string | null) => (iso ? dateFmt.format(new Date(iso)) : '—');
 const cop = (n: number) => `$${Math.round(n).toLocaleString('es-CO')}`;
+const pct = (rate: number | null) => (rate === null ? '—' : `${Math.round(rate * 100)}%`);
+
+/** Fila de cifras: etiqueta arriba, número abajo. */
+function Stats({ items }: { items: ReadonlyArray<readonly [string, string]> }) {
+  return (
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+      {items.map(([label, value]) => (
+        <Card key={label} padding="sm">
+          <p className="text-body-sm text-on-surface-light">{label}</p>
+          <p className="font-mono text-heading-md tabular-nums">{value}</p>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function Section({ title, note, children }: { title: string; note?: string; children: ReactNode }) {
+  return (
+    <section className="flex flex-col gap-3">
+      <div>
+        <h2 className="text-heading-sm">{title}</h2>
+        {note && <p className="text-body-sm text-on-surface-light">{note}</p>}
+      </div>
+      {children}
+    </section>
+  );
+}
 
 const STATUS_LABEL: Record<AdminUser['status'], string> = { trialing: 'En prueba', active: 'Pro pagado', canceled: 'Cancelado', lite: 'Lite' };
 const NEXT_LABEL: Record<AdminUser['nextEvent'], string> = { charge: 'Cobra', expire: 'Pasa a Lite', none: '—' };
 
-type Filter = 'all' | 'paid' | 'trialing' | 'card' | 'lite' | 'complimentary';
+type Filter = 'all' | 'paid' | 'trialing' | 'gift' | 'card' | 'lite' | 'complimentary';
 const FILTERS: ChipOption<Filter>[] = [
   { value: 'all', label: 'Todos' },
   { value: 'paid', label: 'Han pagado' },
   { value: 'trialing', label: 'En prueba' },
+  { value: 'gift', label: 'Regalo' },
   { value: 'card', label: 'Con medio de pago' },
   { value: 'lite', label: 'Lite' },
   { value: 'complimentary', label: 'Cortesía' },
@@ -29,6 +58,8 @@ const FILTERS: ChipOption<Filter>[] = [
 
 export default function AdminPage() {
   const [users, setUsers] = useState<AdminUser[] | null>(null);
+  const [metrics, setMetrics] = useState<AdminMetrics | null>(null);
+  const [push, setPush] = useState<PushStats | null>(null);
   const [error, setError] = useState(false);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
@@ -53,6 +84,9 @@ export default function AdminPage() {
   const load = () => {
     setError(false);
     adminService.listUsers().then(setUsers).catch(() => setError(true));
+    // Las métricas no bloquean la lista: si fallan, su sección no aparece.
+    adminService.getMetrics().then(setMetrics).catch(() => setMetrics(null));
+    adminService.getPushStats().then(setPush).catch(() => setPush(null));
   };
   useEffect(load, []);
 
@@ -66,12 +100,18 @@ export default function AdminPage() {
       cobrado: list.reduce((sum, u) => sum + u.paidTotalCop, 0),
     };
   }, [users]);
+  const segments = useMemo(() => segmentUsers(users ?? []), [users]);
+  const pushRows = useMemo(
+    () => Object.entries(push?.byCategory ?? {}).sort(([, a], [, b]) => b.sent - a.sent),
+    [push],
+  );
 
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
     return (users ?? []).filter((u) => {
       if (filter === 'paid' && !u.hasPaid) return false;
       if (filter === 'trialing' && u.status !== 'trialing') return false;
+      if (filter === 'gift' && !(u.giftTrial && u.status === 'trialing')) return false;
       if (filter === 'card' && !u.hasPaymentMethod) return false;
       if (filter === 'lite' && u.plan !== 'lite') return false;
       if (filter === 'complimentary' && !u.complimentary) return false;
@@ -87,17 +127,72 @@ export default function AdminPage() {
     <div className="flex flex-col gap-6 p-4 md:p-8">
       <PageHeader eyebrow="Administración" title="Cuentas y pagos" description="Solo lectura: lo que pagó cada persona, su medio de pago y cuándo cobra o vence su prueba." />
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-        {([
-          ['Cuentas', String(totals.all)], ['Han pagado', String(totals.paid)], ['En prueba', String(totals.trialing)],
-          ['Con medio de pago', String(totals.card)], ['Total cobrado', cop(totals.cobrado)],
-        ] as const).map(([label, value]) => (
-          <Card key={label} padding="sm">
-            <p className="text-body-sm text-on-surface-light">{label}</p>
-            <p className="font-mono text-heading-md tabular-nums">{value}</p>
-          </Card>
-        ))}
-      </div>
+      <Stats items={[
+        ['Cuentas', String(totals.all)], ['Han pagado', String(totals.paid)], ['En prueba', String(totals.trialing)],
+        ['Con medio de pago', String(totals.card)], ['Total cobrado', cop(totals.cobrado)],
+      ]} />
+
+      {metrics && (
+        <Section title="Regalo de 7 días Pro" note="Cuentas Lite e invitaciones. Convertidas: con un cobro aprobado después del regalo.">
+          <Stats items={[
+            ['Regalos vigentes', String(metrics.gift.active)], ['Recibieron regalo', String(metrics.gift.received)],
+            ['Pasaron a Pro pagado', String(metrics.gift.converted)], ['Conversión', pct(metrics.gift.conversionRate)],
+            ['Volvieron a Lite', String(metrics.gift.backToLite)],
+          ]} />
+        </Section>
+      )}
+
+      {metrics && (
+        <Section
+          title="Invitaciones"
+          note={`Mes UTC desde ${fmtDate(metrics.referrals.monthStart)} · tope ${metrics.referrals.capDays} días de Pro por persona`}
+        >
+          <Stats items={[
+            ['Invitaciones', String(metrics.referrals.total)], ['Pendientes', String(metrics.referrals.pending)],
+            ['Activadas (total)', String(metrics.referrals.activated)], ['Activadas este mes', String(metrics.referrals.activatedThisMonth)],
+            ['Días dados este mes', String(metrics.referrals.daysGrantedThisMonth)], ['En el tope', String(metrics.referrals.atCap)],
+            ['Auto-referidos', String(metrics.referrals.flagged)],
+          ]} />
+        </Section>
+      )}
+
+      {push && (
+        <Section title="Avisos web push" note={`Últimos 30 días, desde ${fmtDate(push.since)}`}>
+          {pushRows.length === 0 ? <p className="text-body-sm text-on-surface-light">Aún no hay avisos registrados.</p> : (
+            <Card padding="sm" className="overflow-x-auto">
+              <table className="w-full text-body-sm tabular-nums">
+                <thead className="text-on-surface-light">
+                  <tr className="text-left">
+                    <th className="py-1 pr-3 font-normal">Categoría</th>
+                    <th className="py-1 pr-3 text-right font-normal">Envíos</th>
+                    <th className="py-1 pr-3 text-right font-normal">Clics</th>
+                    <th className="py-1 pr-3 text-right font-normal">Tasa clic</th>
+                    <th className="py-1 pr-3 text-right font-normal">Bajas</th>
+                    <th className="py-1 text-right font-normal">Tasa baja</th>
+                  </tr>
+                </thead>
+                <tbody className="font-mono">
+                  {pushRows.map(([category, s]) => (
+                    <tr key={category} className="border-t border-border">
+                      <td className="py-1 pr-3 font-sans">{category}</td>
+                      <td className="py-1 pr-3 text-right">{s.sent}</td>
+                      <td className="py-1 pr-3 text-right">{s.clicked}</td>
+                      <td className="py-1 pr-3 text-right">{pct(s.clickRate)}</td>
+                      <td className="py-1 pr-3 text-right">{s.disabled}</td>
+                      <td className="py-1 text-right">{pct(s.disableRate)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Card>
+          )}
+        </Section>
+      )}
+
+      <Section title="Segmentos" note={`${segments.newThisWeek} cuentas nuevas en los últimos 7 días`}>
+        <Stats items={(Object.keys(PLAN_SEGMENT_LABEL) as PlanSegment[]).map((k) => [PLAN_SEGMENT_LABEL[k], String(segments.plan[k])] as const)} />
+        <Stats items={(Object.keys(ACTIVITY_SEGMENT_LABEL) as ActivitySegment[]).map((k) => [ACTIVITY_SEGMENT_LABEL[k], String(segments.activity[k])] as const)} />
+      </Section>
 
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <Field label="Buscar por correo, nombre o usuario" className="md:max-w-sm">
@@ -120,6 +215,7 @@ export default function AdminPage() {
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant={u.plan === 'pro' ? 'success' : 'neutral'}>{STATUS_LABEL[u.status]}</Badge>
                 {u.complimentary && <Badge variant="secondary">Cortesía</Badge>}
+                {u.giftTrial && u.status === 'trialing' && <Badge variant="primary">Regalo</Badge>}
                 {u.pendingPayments > 0 && <Badge variant="warning">{u.pendingPayments} en espera</Badge>}
               </div>
               <div className="text-body-sm">
