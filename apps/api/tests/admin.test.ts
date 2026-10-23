@@ -5,10 +5,11 @@ import { prisma } from '../src/lib/prisma';
 import { requireAdmin } from '../src/middleware/admin.middleware';
 import { listUsers } from '../src/services/admin.service';
 
-test('only the two owner accounts are admins, case-insensitive', () => {
-  assert.deepEqual([...ADMIN_EMAILS].sort(), ['prizzypelo@gmail.com', 'ztafakss@gmail.com']);
+test('only the authorized admin accounts are admins, case-insensitive', () => {
+  assert.deepEqual([...ADMIN_EMAILS].sort(), ['eduard.c.t.07@gmail.com', 'prizzypelo@gmail.com', 'ztafakss@gmail.com']);
   assert.ok(isAdminEmail('ZTafakss@Gmail.com'));
   assert.ok(isAdminEmail(' prizzypelo@gmail.com'));
+  assert.ok(isAdminEmail('Eduard.C.T.07@Gmail.com '));
   assert.ok(!isAdminEmail('otra@gmail.com'));
   assert.ok(!isAdminEmail(null));
 });
@@ -17,7 +18,7 @@ test('requireAdmin answers 403 for other users and calls next for admins', async
   const client = prisma as unknown as { user: unknown };
   const original = client.user;
   try {
-    for (const [email, allowed] of [['otra@gmail.com', false], ['ztafakss@gmail.com', true]] as const) {
+    for (const [email, allowed] of [['otra@gmail.com', false], ['ztafakss@gmail.com', true], ['eduard.c.t.07@gmail.com', true]] as const) {
       client.user = { findUnique: async () => ({ email }) };
       let status = 0; let called = false;
       const res = { status(code: number) { status = code; return this; }, json() { return this; } };
