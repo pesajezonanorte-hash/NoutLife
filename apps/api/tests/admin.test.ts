@@ -5,10 +5,11 @@ import { prisma } from '../src/lib/prisma';
 import { requireAdmin } from '../src/middleware/admin.middleware';
 import { listUsers } from '../src/services/admin.service';
 
-test('only the two owner accounts are admins, case-insensitive', () => {
-  assert.deepEqual([...ADMIN_EMAILS].sort(), ['prizzypelo@gmail.com', 'ztafakss@gmail.com']);
+test('only the owner accounts are admins, case-insensitive', () => {
+  assert.deepEqual([...ADMIN_EMAILS].sort(), ['eduard.c.t.07@gmail.com', 'prizzypelo@gmail.com', 'ztafakss@gmail.com']);
   assert.ok(isAdminEmail('ZTafakss@Gmail.com'));
   assert.ok(isAdminEmail(' prizzypelo@gmail.com'));
+  assert.ok(isAdminEmail('Eduard.c.t.07@Gmail.com'));
   assert.ok(!isAdminEmail('otra@gmail.com'));
   assert.ok(!isAdminEmail(null));
 });
