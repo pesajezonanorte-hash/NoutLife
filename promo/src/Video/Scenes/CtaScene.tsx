@@ -11,7 +11,7 @@ import { EASE, clamp, decay, lerp, ramp, springAt, typed } from '../lib/anim';
 import { BUTTON, HEADLINE_TOP, URL_Y } from '../layout';
 import { CTA, SEQUENCES } from '../timeline';
 
-const URL = 'noutlife.vercel.app';
+const URL = 'noutlife.site';
 /** Ancho medido de «Empieza ahora en NoutLife» (Montserrat 800, 37 px, −0,01 em): sitúa el dedo sobre la flecha. */
 const BUTTON_LABEL_W = 522;
 const LINES = [

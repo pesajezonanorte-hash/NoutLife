@@ -64,9 +64,17 @@ export async function getGoogleCalendarStatus(req: AuthRequest, res: Response) {
   }
 }
 
+function requestOrigin(req: AuthRequest): string | undefined {
+  if (req.headers.origin) return req.headers.origin;
+  if (req.headers.referer) {
+    try { return new URL(req.headers.referer).origin; } catch { /* ignore */ }
+  }
+  return undefined;
+}
+
 export async function getGoogleAuthUrl(req: AuthRequest, res: Response) {
   try {
-    const redirectUri = calendarRedirectUri(req.query.redirectUri, req.headers.origin);
+    const redirectUri = calendarRedirectUri(req.query.redirectUri, requestOrigin(req));
     const clientId = process.env.GOOGLE_CLIENT_ID;
     if (!clientId) {
       return res.status(400).json({
@@ -91,7 +99,7 @@ export async function handleGoogleCallback(req: AuthRequest, res: Response) {
     }
 
     // La misma URL con la que se pidió el permiso: si difiere, Google rechaza el canje.
-    const result = await svc.handleGoogleCallback(req.userId!, code, calendarRedirectUri(redirectUri, req.headers.origin));
+    const result = await svc.handleGoogleCallback(req.userId!, code, calendarRedirectUri(redirectUri, requestOrigin(req)));
     return res.json({ success: true, user: result });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Error al vincular Google Calendar';

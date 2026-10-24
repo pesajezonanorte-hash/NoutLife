@@ -14,8 +14,8 @@ test('in-app browsers are detected from the user agent', () => {
 
 test('the Android intent opens the same page in Chrome and falls back to it', () => {
   assert.equal(
-    chromeIntent('https://noutlife.vercel.app/login?utm_source=tiktok'),
-    'intent://noutlife.vercel.app/login?utm_source=tiktok#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=https%3A%2F%2Fnoutlife.vercel.app%2Flogin%3Futm_source%3Dtiktok;end',
+    chromeIntent('https://noutlife.site/login?utm_source=tiktok'),
+    'intent://noutlife.site/login?utm_source=tiktok#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=https%3A%2F%2Fnoutlife.site%2Flogin%3Futm_source%3Dtiktok;end',
   );
 });
 

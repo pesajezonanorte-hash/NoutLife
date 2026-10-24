@@ -43,4 +43,4 @@ Disallow: /obstaculos
 Disallow: /zonas/
 Disallow: /shared/
 
-Sitemap: https://noutlife.vercel.app/sitemap.xml
+Sitemap: https://noutlife.site/sitemap.xml

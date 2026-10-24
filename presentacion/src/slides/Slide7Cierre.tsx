@@ -30,7 +30,7 @@ export const CONCLUSION_NOTES = [
   ],
   [
     'El reto: escoger un problema del colegio o de la casa y dar el primer paso esta semana.',
-    'NoutLife sirve de ejemplo: noutlife.vercel.app.',
+    'NoutLife sirve de ejemplo: noutlife.site.',
     'Agradece y abre el espacio de preguntas.',
   ],
 ];
@@ -167,7 +167,7 @@ export const Slide7Cierre: React.FC = () => {
             <NoutLifeMark height={46} />
             <span style={{ fontSize: 30, fontWeight: 700 }}>Conoce el caso</span>
           </div>
-          <div style={{ marginTop: 20, fontFamily: FONT.mono, fontSize: 34, fontWeight: 600, color: COLORS.jade }}>noutlife.vercel.app</div>
+          <div style={{ marginTop: 20, fontFamily: FONT.mono, fontSize: 34, fontWeight: 600, color: COLORS.jade }}>noutlife.site</div>
         </GlassCard>
       </div>
       <div style={{ position: 'absolute', left: 0, right: 0, top: 790, textAlign: 'center', fontSize: 92, color: COLORS.jade }}>

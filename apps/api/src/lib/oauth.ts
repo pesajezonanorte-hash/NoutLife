@@ -18,7 +18,77 @@ export interface OAuthIdentity {
 
 const GOOGLE_JWKS = createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'));
 
-const list = (v: string | undefined) => (v ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+export const DEFAULT_SITE_URL = 'https://noutlife.site';
+
+const normalizeOrigin = (value: string): string => {
+  const trimmed = value.trim().replace(/^["']|["']$/g, '').replace(/\/+$/, '');
+  if (!trimmed) return '';
+  try {
+    return new URL(trimmed).origin;
+  } catch {
+    return trimmed;
+  }
+};
+
+const list = (v: string | undefined) =>
+  (v ?? '')
+    .split(',')
+    .map((s) => s.trim().replace(/^["']|["']$/g, ''))
+    .filter(Boolean);
+
+/**
+ * Origen público principal configurado por variables de entorno o el dominio de
+ * producción por defecto (`https://noutlife.site`).
+ */
+export function siteOrigin(): string {
+  const configured = [
+    process.env.WEB_URL,
+    process.env.NEXT_PUBLIC_SITE_URL,
+    process.env.NEXTAUTH_URL,
+    process.env.SITE_URL,
+    process.env.VITE_SITE_URL,
+    process.env.CORS_ORIGIN,
+  ]
+    .map((v) => (v ? normalizeOrigin(v) : ''))
+    .find(Boolean);
+  return configured || DEFAULT_SITE_URL;
+}
+
+/**
+ * Lista de orígenes permitidos para CORS y validación de redirecciones OAuth.
+ */
+export function getAllowedOrigins(): string[] {
+  const envOrigins = [
+    process.env.CORS_ORIGIN,
+    process.env.CORS_ORIGIN_2,
+    process.env.WEB_URL,
+    process.env.NEXT_PUBLIC_SITE_URL,
+    process.env.NEXTAUTH_URL,
+    process.env.SITE_URL,
+    process.env.VITE_SITE_URL,
+  ]
+    .flatMap((v) => list(v))
+    .map(normalizeOrigin)
+    .filter(Boolean);
+
+  return Array.from(
+    new Set([
+      ...envOrigins,
+      'https://noutlife.site',
+      'https://www.noutlife.site',
+      'http://localhost:5173',
+      'http://localhost:3000',
+      'https://tourmaline-sherbet-90125b.netlify.app',
+      'https://lifequest2-web.vercel.app',
+    ]),
+  );
+}
+
+export function isAllowedOrigin(origin: string | undefined): boolean {
+  if (!origin) return true;
+  const normalized = normalizeOrigin(origin);
+  return getAllowedOrigins().includes(normalized);
+}
 
 export const oauthConfig = () => ({
   googleClientId: list(process.env.GOOGLE_CLIENT_ID)[0] ?? null,
@@ -34,12 +104,17 @@ export const oauthConfig = () => ({
 export function calendarRedirectUri(fromClient: unknown, origin?: string): string {
   const configured = (process.env.GOOGLE_CALENDAR_REDIRECT_URI ?? '').trim();
   if (configured) return configured;
+  const effectiveOrigin = (origin || siteOrigin()).trim();
   // La página que manda la web solo vale si es del mismo origen de la petición
-  // (que CORS ya validó): nadie puede colar otro dominio como retorno.
-  if (typeof fromClient === 'string' && /^https?:\/\//.test(fromClient) && origin) {
-    try { if (new URL(fromClient).origin === new URL(origin).origin) return fromClient; } catch { /* URL inválida: se ignora */ }
+  // (que CORS ya validó) o un origen propio permitido: nadie puede colar otro dominio como retorno.
+  if (typeof fromClient === 'string' && /^https?:\/\//.test(fromClient)) {
+    try {
+      const clientOrigin = new URL(fromClient).origin;
+      if (effectiveOrigin && clientOrigin === new URL(effectiveOrigin).origin) return fromClient;
+      if (!origin && isAllowedOrigin(clientOrigin)) return fromClient;
+    } catch { /* URL inválida: se ignora */ }
   }
-  const base = (origin || process.env.WEB_URL || '').trim().replace(/\/+$/, '');
+  const base = effectiveOrigin.replace(/\/+$/, '');
   return `${base}/agenda`;
 }
 

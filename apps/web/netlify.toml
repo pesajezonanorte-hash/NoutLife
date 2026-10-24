@@ -23,3 +23,4 @@
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(self), microphone=(self), geolocation=(), payment=()"
     Strict-Transport-Security = "max-age=63072000; includeSubDomains"
+    Cross-Origin-Opener-Policy = "same-origin-allow-popups"

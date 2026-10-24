@@ -10,6 +10,7 @@ import { errorHandler, notFoundHandler } from './middleware/error.middleware';
 import { globalLimiter } from './middleware/rate-limit.middleware';
 import { initScheduler } from './jobs/scheduler';
 import { prisma, ensureDbMigrated } from './lib/prisma';
+import { getAllowedOrigins, isAllowedOrigin } from './lib/oauth';
 
 const app = express();
 const PORT = process.env.PORT ?? 3001;
@@ -24,27 +25,26 @@ app.use(async (_req, _res, next) => {
   next();
 });
 
-const allowedOrigins = [
-  process.env.CORS_ORIGIN,
-  process.env.CORS_ORIGIN_2,
-  'http://localhost:5173',
-  'http://localhost:3000',
-  'https://tourmaline-sherbet-90125b.netlify.app',
-  'https://noutlife.vercel.app',
-  'https://lifequest2-web.vercel.app',
-].filter(Boolean) as string[];
+const allowedOrigins = getAllowedOrigins();
 
 // ─── Seguridad ───────────────────────────────────────────────────────────────
-app.use(helmet());
+// Cross-Origin-Opener-Policy: same-origin-allow-popups permite que el popup de
+// Google OAuth se comunique de vuelta con la ventana principal mediante postMessage.
+app.use(
+  helmet({
+    crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+  })
+);
 app.use(
   cors({
     origin: (origin, callback) => {
       // Exact origins only: a wildcard such as *.vercel.app would let any site
       // deployed there make credentialed calls that carry the refresh cookie.
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (!origin || allowedOrigins.includes(origin) || isAllowedOrigin(origin)) {
         callback(null, true);
       } else {
-        callback(new Error('Not allowed by CORS'));
+        const corsError = Object.assign(new Error('Not allowed by CORS'), { status: 403 });
+        callback(corsError);
       }
     },
     credentials: true,

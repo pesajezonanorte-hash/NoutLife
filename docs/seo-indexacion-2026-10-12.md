@@ -1,6 +1,6 @@
 # Indexación en Google Search Console (2026-10-12)
 
-NoutLife (https://noutlife.vercel.app) quedó indexada con éxito en Google Search Console.
+NoutLife (https://noutlife.site) quedó indexada con éxito en Google Search Console.
 
 ## Rutas públicas rastreables
 - `/`, `/login`, `/privacy`, `/terms`, `/copyright`: incluidas en `apps/web/public/sitemap.xml` y permitidas en `apps/web/public/robots.txt`.
