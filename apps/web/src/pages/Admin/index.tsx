@@ -2,6 +2,7 @@
 // y cuándo cobra o vence la prueba. Solo lectura. El servidor exige el correo.
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { Check, Copy } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Badge, Button, Card, ChipGroup, ErrorState, Field, Input, Modal, PageLoader, type ChipOption } from '@/components/ui/lq';
 import { useToast } from '@/hooks/useToast';
@@ -10,6 +11,8 @@ import { isAdminEmail } from '@/utils/admin';
 import * as adminService from '@/services/admin.service';
 import type { AdminMetrics, AdminUser, PushStats } from '@/services/admin.service';
 import { ACTIVITY_SEGMENT_LABEL, PLAN_SEGMENT_LABEL, segmentUsers, type ActivitySegment, type PlanSegment } from '@/lib/admin-segments';
+import { emailsToClipboardText, uniqueEmails } from '@/lib/admin-emails';
+import { copyText } from '@/lib/clipboard';
 
 const dateFmt = new Intl.DateTimeFormat('es-CO', { day: 'numeric', month: 'short', year: 'numeric' });
 const fmtDate = (iso: string | null) => (iso ? dateFmt.format(new Date(iso)) : '—');
@@ -66,7 +69,31 @@ export default function AdminPage() {
   const [toDelete, setToDelete] = useState<AdminUser | null>(null);
   const [typed, setTyped] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [copiedEmail, setCopiedEmail] = useState<string | null>(null);
+  const [copiedList, setCopiedList] = useState(false);
   const toast = useToast();
+
+  const copyEmail = async (email: string) => {
+    if (await copyText(email)) {
+      setCopiedEmail(email);
+      toast.success('Correo copiado', email);
+      window.setTimeout(() => setCopiedEmail((current) => (current === email ? null : current)), 1800);
+    } else {
+      toast.error('No se pudo copiar el correo');
+    }
+  };
+
+  const copyShownEmails = async (list: AdminUser[]) => {
+    const emails = uniqueEmails(list.map((u) => u.email));
+    if (emails.length === 0) return;
+    if (await copyText(emailsToClipboardText(emails))) {
+      setCopiedList(true);
+      toast.success(emails.length === 1 ? '1 correo copiado' : `${emails.length} correos copiados`, 'Son los de la lista, separados por comas');
+      window.setTimeout(() => setCopiedList(false), 1800);
+    } else {
+      toast.error('No se pudieron copiar los correos');
+    }
+  };
 
   const confirmDelete = async () => {
     if (!toDelete) return;
@@ -215,7 +242,14 @@ export default function AdminPage() {
         <ChipGroup label="Filtro" options={FILTERS} value={filter} onChange={setFilter} />
       </div>
 
-      <p className="text-body-sm text-on-surface-light">{shown.length} de {users.length} cuentas</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-body-sm text-on-surface-light">{shown.length} de {users.length} cuentas</p>
+        <Button variant="secondary" size="sm" disabled={shown.length === 0} onClick={() => void copyShownEmails(shown)}>
+          {copiedList
+            ? <><Check aria-hidden className="size-4" strokeWidth={1.75} />¡Copiados!</>
+            : <><Copy aria-hidden className="size-4" strokeWidth={1.75} />Copiar correos de la lista ({shown.length})</>}
+        </Button>
+      </div>
 
       <ul className="flex flex-col gap-3">
         {shown.map((u) => (
@@ -223,7 +257,15 @@ export default function AdminPage() {
             <Card padding="sm" className="grid gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1.2fr)_minmax(0,1.4fr)] md:items-center">
               <div className="min-w-0">
                 <p className="truncate text-label-lg">{u.displayName} <span className="font-normal text-on-surface-light">@{u.username}</span></p>
-                <p className="truncate text-body-sm text-on-surface-light">{u.email}</p>
+                <div className="flex items-center gap-1">
+                  {/* lq-selectable: permite seleccionar el correo a mano (la app bloquea la selección global). */}
+                  <p className="lq-selectable min-w-0 truncate text-body-sm text-on-surface-light" title={u.email}>{u.email}</p>
+                  <Button variant="ghost" size="sm" className="shrink-0" aria-label={`Copiar el correo de ${u.displayName}`} onClick={() => void copyEmail(u.email)}>
+                    {copiedEmail === u.email
+                      ? <><Check aria-hidden className="size-4" strokeWidth={1.75} />Copiado</>
+                      : <><Copy aria-hidden className="size-4" strokeWidth={1.75} />Copiar</>}
+                  </Button>
+                </div>
                 <p className="text-body-sm text-on-surface-light">Alta {fmtDate(u.createdAt)} · Nivel {u.level}{u.lastSeenAt ? ` · Visto ${fmtDate(u.lastSeenAt)}` : ''}</p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -263,7 +305,7 @@ export default function AdminPage() {
       <Modal open={Boolean(toDelete)} onClose={() => !deleting && setToDelete(null)} title="Borrar cuenta">
         {toDelete && (
           <div className="flex flex-col gap-4">
-            <p className="text-body-md">Se borran <strong>{toDelete.email}</strong>, su progreso, sus hábitos, sus pagos registrados y todo lo que tenga guardado. No se puede deshacer.</p>
+            <p className="text-body-md">Se borran <strong className="lq-selectable">{toDelete.email}</strong>, su progreso, sus hábitos, sus pagos registrados y todo lo que tenga guardado. No se puede deshacer.</p>
             <Field label={`Escribe "${toDelete.email}" para confirmar`}>
               <Input value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" />
             </Field>
