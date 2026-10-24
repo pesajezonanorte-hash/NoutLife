@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { calendarRedirectUri } from '../src/lib/oauth';
+import { calendarRedirectUri, getAllowedOrigins, isAllowedOrigin } from '../src/lib/oauth';
 
-const KEYS = ['GOOGLE_CALENDAR_REDIRECT_URI', 'WEB_URL'] as const;
+const KEYS = ['GOOGLE_CALENDAR_REDIRECT_URI', 'WEB_URL', 'NEXT_PUBLIC_SITE_URL', 'NEXTAUTH_URL', 'CORS_ORIGIN'] as const;
 
 function withEnv(values: Partial<Record<(typeof KEYS)[number], string>>, run: () => void) {
   const saved = Object.fromEntries(KEYS.map((key) => [key, process.env[key]]));
@@ -22,25 +22,42 @@ function withEnv(values: Partial<Record<(typeof KEYS)[number], string>>, run: ()
 
 test('Google Calendar: the configured redirect URI wins over the page the web sends, in both OAuth steps', () => {
   withEnv({ GOOGLE_CALENDAR_REDIRECT_URI: ' https://lifequest2-web.vercel.app/agenda ' }, () => {
-    assert.equal(calendarRedirectUri('https://noutlife.vercel.app/agenda', 'https://noutlife.vercel.app'), 'https://lifequest2-web.vercel.app/agenda');
+    assert.equal(calendarRedirectUri('https://noutlife.site/agenda', 'https://noutlife.site'), 'https://lifequest2-web.vercel.app/agenda');
     assert.equal(calendarRedirectUri(undefined, undefined), 'https://lifequest2-web.vercel.app/agenda');
   });
 });
 
 test('Google Calendar: without configuration it uses the page the person connected from', () => {
   withEnv({}, () => {
-    assert.equal(calendarRedirectUri('https://noutlife.vercel.app/agenda', 'https://noutlife.vercel.app'), 'https://noutlife.vercel.app/agenda');
+    assert.equal(calendarRedirectUri('https://noutlife.site/agenda', 'https://noutlife.site'), 'https://noutlife.site/agenda');
+    assert.equal(calendarRedirectUri('https://www.noutlife.site/agenda', 'https://www.noutlife.site'), 'https://www.noutlife.site/agenda');
   });
 });
 
-test('Google Calendar: never builds «undefined/agenda»; falls back to the request origin, then WEB_URL', () => {
+test('Google Calendar: never builds «undefined/agenda»; falls back to the request origin, then WEB_URL / NEXT_PUBLIC_SITE_URL / noutlife.site', () => {
   withEnv({}, () => {
-    assert.equal(calendarRedirectUri(undefined, 'https://noutlife.vercel.app'), 'https://noutlife.vercel.app/agenda');
+    assert.equal(calendarRedirectUri(undefined, 'https://noutlife.site'), 'https://noutlife.site/agenda');
+    assert.equal(calendarRedirectUri(undefined, undefined), 'https://noutlife.site/agenda');
   });
-  withEnv({ WEB_URL: 'https://noutlife.vercel.app/' }, () => {
-    assert.equal(calendarRedirectUri(undefined, undefined), 'https://noutlife.vercel.app/agenda');
+  withEnv({ WEB_URL: 'https://noutlife.site/' }, () => {
+    assert.equal(calendarRedirectUri(undefined, undefined), 'https://noutlife.site/agenda');
     // Lo que no es una URL http(s) no se manda a Google.
-    assert.equal(calendarRedirectUri('javascript:alert(1)', undefined), 'https://noutlife.vercel.app/agenda');
+    assert.equal(calendarRedirectUri('javascript:alert(1)', undefined), 'https://noutlife.site/agenda');
+  });
+  withEnv({ NEXT_PUBLIC_SITE_URL: 'https://www.noutlife.site/' }, () => {
+    assert.equal(calendarRedirectUri(undefined, undefined), 'https://www.noutlife.site/agenda');
+  });
+});
+
+test('OAuth origins: allows noutlife.site, www.noutlife.site and configured env origins, and rejects unknown origins', () => {
+  withEnv({ CORS_ORIGIN: 'https://custom.noutlife.site/' }, () => {
+    const origins = getAllowedOrigins();
+    assert.ok(origins.includes('https://noutlife.site'));
+    assert.ok(origins.includes('https://www.noutlife.site'));
+    assert.ok(origins.includes('https://custom.noutlife.site'));
+    assert.equal(isAllowedOrigin('https://noutlife.site'), true);
+    assert.equal(isAllowedOrigin('https://www.noutlife.site'), true);
+    assert.equal(isAllowedOrigin('https://evil.example'), false);
   });
 });
 
@@ -64,18 +81,18 @@ test('Google Calendar: the OAuth state is bound to the person, signed and short-
 });
 
 test('Google Calendar: a page from another origin is never used as the return URL', () => {
-  withEnv({ WEB_URL: 'https://noutlife.vercel.app' }, () => {
-    assert.equal(calendarRedirectUri('https://evil.example/agenda', 'https://noutlife.vercel.app'), 'https://noutlife.vercel.app/agenda');
+  withEnv({ WEB_URL: 'https://noutlife.site' }, () => {
+    assert.equal(calendarRedirectUri('https://evil.example/agenda', 'https://noutlife.site'), 'https://noutlife.site/agenda');
   });
 });
 
 test('Google Calendar: only the events scope is requested, with state and incremental consent', async () => {
   process.env.GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || 'client-id.apps.googleusercontent.com';
   const { getGoogleAuthUrl } = await import('../src/services/agenda.service');
-  const url = new URL(getGoogleAuthUrl('https://noutlife.vercel.app/agenda', 'st4te', 'persona@example.com'));
+  const url = new URL(getGoogleAuthUrl('https://noutlife.site/agenda', 'st4te', 'persona@example.com'));
   assert.equal(url.searchParams.get('scope'), 'https://www.googleapis.com/auth/calendar.events');
   assert.equal(url.searchParams.get('state'), 'st4te');
   assert.equal(url.searchParams.get('include_granted_scopes'), 'true');
   assert.equal(url.searchParams.get('login_hint'), 'persona@example.com');
-  assert.equal(url.searchParams.get('redirect_uri'), 'https://noutlife.vercel.app/agenda');
+  assert.equal(url.searchParams.get('redirect_uri'), 'https://noutlife.site/agenda');
 });

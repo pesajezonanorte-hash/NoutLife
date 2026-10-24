@@ -98,7 +98,7 @@ function useShareCard() {
     ctx.fillStyle = tok('on-surface-light'); ctx.font = font(40); ctx.fillText(d.period, 80, 1520);
     ctx.fillStyle = tok('on-background'); ctx.font = font(52, 600); ctx.fillText('Tu rutina, tu mente y tus ideas', 80, 1700);
     ctx.fillText('en un solo lugar.', 80, 1770);
-    ctx.fillStyle = tok('primary-text'); ctx.font = font(44, 600); ctx.fillText('noutlife.vercel.app', 80, 1850);
+    ctx.fillStyle = tok('primary-text'); ctx.font = font(44, 600); ctx.fillText('noutlife.site', 80, 1850);
     const blob = await new Promise<Blob | null>((r) => c.toBlob(r, 'image/png'));
     if (!blob) return;
     const file = new File([blob], `mi-semana-${new Date().toISOString().slice(0, 10)}.png`, { type: 'image/png' });

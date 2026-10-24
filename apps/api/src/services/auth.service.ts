@@ -125,7 +125,10 @@ async function findOrCreateUser(identity: OAuthIdentity, displayName?: string, r
   // Prueba inversa: 7 días de Pro sin medio de pago; al vencer pasa sola a Lite
   // (billing.service syncSubscription). Un correo que ya tuvo prueba nace en Lite.
   const now = new Date();
-  const trial = await claimReverseTrial(identity.email);
+  const trial = await claimReverseTrial(identity.email).catch((error) => {
+    console.error('[AUTH_REVERSE_TRIAL_ERROR]', identity.email, error);
+    return false;
+  });
   const user = await prisma.user.create({
     data: {
       email: identity.email,
@@ -191,7 +194,10 @@ export async function oauthSignIn(data: OAuthInput, deviceId?: string | null) {
   await recordDevice(user.id, deviceId);
 
   const { reconcileUserActivityStreak } = await import('./xp.service');
-  const reconciledStreak = await reconcileUserActivityStreak(user.id);
+  const reconciledStreak = await reconcileUserActivityStreak(user.id).catch((error) => {
+    console.error('[AUTH_STREAK_RECONCILE_ERROR]', user.id, error);
+    return user.currentStreak;
+  });
   const userForResponse = reconciledStreak === user.currentStreak ? user : { ...user, currentStreak: reconciledStreak };
 
   const { accessToken, refreshToken } = await issueSession(user);

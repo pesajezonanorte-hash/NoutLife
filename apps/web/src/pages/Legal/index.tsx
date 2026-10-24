@@ -9,7 +9,12 @@ import { Button } from '@/components/ui/lq';
 import { LegalFooter } from '@/components/legal/LegalFooter';
 import { COPYRIGHT, LEGAL_UPDATED, PRIVACY, TERMS } from './content';
 
-const SITE = 'https://noutlife.vercel.app';
+const SITE = (
+  import.meta.env.VITE_SITE_URL ||
+  import.meta.env.NEXT_PUBLIC_SITE_URL ||
+  (typeof window !== 'undefined' ? window.location.origin : '') ||
+  'https://noutlife.site'
+).replace(/\/+$/, '');
 const SEO = {
   privacy: { path: '/privacy', title: 'Política de privacidad', description: 'Cómo NoutLife recopila, usa y protege tus datos: inicio de sesión con Google, proveedores de IA, almacenamiento local y tus derechos.' },
   terms: { path: '/terms', title: 'Términos de uso', description: 'Reglas de uso de NoutLife: edad mínima, contenido del usuario, servicios de terceros y responsabilidad.' },
