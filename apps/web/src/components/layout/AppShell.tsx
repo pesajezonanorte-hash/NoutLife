@@ -20,7 +20,8 @@ import { ZoneVisitors } from '@/components/social/ZoneVisitors';
 import { PigeonLayer } from '@/components/social/CarrierPigeon';
 import { MessagePings } from '@/components/social/MessagePings';
 import { ReminderPings } from '@/components/ui/ReminderPings';
-import { ZONE_TOOLTIPS } from '@/lib/gameProgress';
+import { zoneTooltipOf } from '@/lib/gameProgress';
+import { useLocale, type Copy } from '@/lib/i18n';
 import { proZoneOf } from '@/lib/plan';
 import { Button, Toaster } from '@/components/ui/lq';
 import { LevelUpOverlay } from '../animations/LevelUpOverlay';
@@ -49,13 +50,19 @@ import { isNewAccount } from '@/lib/new-account';
  * vez por persona y zona (clave con el id del usuario) y se cierra con una
  * animación de colapso.
  */
+const zoneTipCopy: Copy<{ about: string; dismiss: string }> = {
+  es: { about: 'Sobre esta zona', dismiss: 'Entendido, ocultar' },
+  en: { about: 'About this zone', dismiss: 'Got it, hide' },
+};
+
 function ZoneTip() {
   const { pathname } = useLocation();
+  const locale = useLocale();
   const userId = useAuthStore((st) => st.user?.id);
   // Zona Pro con candado (Lite): la tarjeta espera a que la zona se abra.
   const locked = useAuthStore((st) => st.user?.subscription?.plan === 'lite') && proZoneOf(pathname) !== null;
   const [visible, setVisible] = useState(false);
-  const tip = ZONE_TOOLTIPS[pathname];
+  const tip = zoneTooltipOf(pathname, locale);
 
   const key = userId ? `noutlife_banner_seen_${pathname}_${userId}` : null;
 
@@ -82,7 +89,7 @@ function ZoneTip() {
           className="overflow-hidden"
         >
           <aside
-            aria-label="Sobre esta zona"
+            aria-label={zoneTipCopy[locale].about}
             className="mb-6 flex items-start gap-3 rounded-2xl border border-info/30 bg-info/[var(--lq-soft-alpha)] p-4"
           >
             <Info aria-hidden className="mt-0.5 size-5 shrink-0 text-info-text" strokeWidth={1.75} />
@@ -90,7 +97,7 @@ function ZoneTip() {
               <p className="text-label-lg text-info-text">{tip.title}</p>
               <p className="mt-1 text-body-sm text-on-surface">{tip.body}</p>
             </div>
-            <Button variant="icon" aria-label="Entendido, ocultar" onClick={() => setVisible(false)} className="-m-2">
+            <Button variant="icon" aria-label={zoneTipCopy[locale].dismiss} onClick={() => setVisible(false)} className="-m-2">
               <X aria-hidden className="size-5" strokeWidth={1.75} />
             </Button>
           </aside>

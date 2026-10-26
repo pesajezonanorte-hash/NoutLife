@@ -22,6 +22,7 @@ import { Lettering } from '@/components/layout/Lettering';
 import { categoryMeta, formatMoney, greeting, longDate } from '@/lib/lifeMeta';
 import { getLevelTitle } from '@/lib/gameProgress';
 import { relativeTime } from '@/lib/time';
+import { INTL_LOCALE, useLocale, type Copy, type Locale } from '@/lib/i18n';
 import { useAuthStore } from '@/store/authStore';
 import { useShellStore } from '@/store/shellStore';
 import { useUIStore } from '@/store/uiStore';
@@ -30,7 +31,7 @@ import { useHabitCompletion } from '@/hooks/useHabitCompletion';
 import { useToastStore } from '@/hooks/useToast';
 import { refreshUser } from '@/hooks/useAuth';
 import { Badge, Button, Card, Confetti, EmptyState, ErrorState, IconChip, ProgressBar, ProgressRing, StatCard, buttonClasses, type Tone, PageLoader } from '@/components/ui/lq';
-import { LOADING_COPY } from '@/lib/loadingCopy';
+import { useLoadingCopy } from '@/lib/loadingCopy';
 import { HabitListItem } from '@/components/habits/HabitListItem';
 import { questProgress } from '@/components/quests/questMeta';
 import { ClassSelectionModal } from '@/components/character/ClassSelectionModal';
@@ -41,6 +42,150 @@ import { completeGuideDay, dismissGuide, fetchDashboard } from '@/services/user.
 import { fetchLifeScore, type LifeScore } from '@/services/lifescore.service';
 import { fetchUpcoming, type AgendaEvent } from '@/services/agenda.service';
 import { useLifeChange } from '@/lib/lifeSync';
+
+const es = {
+  loading: 'Cargando tu aventura…',
+  errorTitle: 'No pudimos cargar tu panel',
+  errorBody: 'Revisa tu conexión.',
+  level: 'Nivel',
+  levelNamed: (level: number, title: string) => `Nivel ${level} · ${title}`,
+  missing: (n: string) => `faltan ${n}`,
+  xpFor: (n: string, level: number) => `${n} XP para el nivel ${level}`,
+  experience: 'Experiencia',
+  xpOf: (xp: string, next: string) => `${xp} de ${next} XP`,
+  welcomeHome: 'Bienvenido a casa',
+  calmEmpty: 'Tu casa está lista. Empieza con algo pequeño.',
+  calmDone: 'Todo listo por hoy. Ponte cómodo.',
+  calmLeft: (n: number) => (n === 1 ? 'Te espera 1 hábito hoy, sin prisa.' : `Te esperan ${n} hábitos hoy, sin prisa.`),
+  sinceEmptyTitle: 'Sin hábitos aún',
+  sinceEmptyBody: 'Tu aventura empieza con un hábito pequeño. Cada día completado te da XP.',
+  newHabit: 'Nuevo hábito',
+  summary: 'Resumen',
+  habitsToday: 'Hábitos hoy',
+  activeGoals: 'Misiones activas',
+  monthBalance: 'Saldo del mes',
+  streakDays: 'Días de racha',
+  habitsTodayTitle: 'Hábitos de hoy',
+  pendingToday: 'Pendiente hoy',
+  seeAll: 'Ver todo',
+  allDoneHabits: (n: number) => `¡Todo listo por hoy! Completaste tus ${n} hábitos.`,
+  missions: 'Misiones',
+  seeAllMissions: 'Ver todas',
+  noMissionsToday: 'Sin misiones para hoy',
+  noMissionsBody: 'Crea una misión para tus objetivos grandes.',
+  newMission: 'Nueva misión',
+  progressOf: (title: string) => `Progreso de ${title}`,
+  recoverStreak: 'Recupera tu racha',
+  recoverBody: (habit: string, required: number, lost: number) => `Completa “${habit}” ${required} días seguidos para recuperar ${lost} días de racha.`,
+  recoveryProgress: 'Progreso de recuperación',
+  daysOf: (current: number, required: number) => `${current} de ${required} días`,
+  expiresToday: 'termina hoy',
+  oneDayLeft: 'queda 1 día',
+  daysLeft: (n: number) => `quedan ${n} días`,
+  heroWeek: (day: number, total: number) => `Semana del héroe · día ${day}/${total}`,
+  inZone: (zone: string, xp: number) => `En ${zone} · +${xp} XP`,
+  hideGuide: 'Ocultar la guía',
+  guideProgress: 'Progreso de la guía',
+  guideDays: (done: number, total: number) => `${done} de ${total} días`,
+  goZone: (zone: string) => `Ir a ${zone}`,
+  markDone: 'Marcar como hecho',
+  guideDone: (day: number) => `Día ${day} completado`,
+  guideFailed: 'No se pudo actualizar la guía',
+  yourDay: 'Tu día',
+  chooseClass: 'Elige tu clase',
+  briefing: 'Briefing del día',
+  checkinTitle: 'Check-in diario',
+  checkinBody: '¿Cómo llegas hoy? Bonus de XP diario.',
+  sleepAvg: 'Sueño · media 7 días',
+  noData: 'Sin datos',
+  lastWorkout: 'Último entrenamiento',
+  noRecord: 'Sin registro',
+  ofHundred: (n: number) => `${n} de 100`,
+  sageTitle: 'Consejo del Sabio',
+  sageBody: 'Pregúntale en qué enfocarte hoy.',
+  sageQuestion: '¿En qué me recomiendas enfocarme hoy?',
+  nextInAgenda: 'Próximo en tu agenda',
+  agenda: 'Agenda',
+  recentAchievements: 'Logros recientes',
+  seeAchievements: 'Ver logros',
+  lastWeek: 'Tu última semana',
+  day: 'día',
+  days: 'días',
+  lifeScore: 'Life Score',
+};
+
+const en: typeof es = {
+  loading: 'Loading your adventure…',
+  errorTitle: "We couldn't load your dashboard",
+  errorBody: 'Check your connection.',
+  level: 'Level',
+  levelNamed: (level, title) => `Level ${level} · ${title}`,
+  missing: (n: string) => `${n} to go`,
+  xpFor: (n: string, level: number) => `${n} XP to level ${level}`,
+  experience: 'Experience',
+  xpOf: (xp: string, next: string) => `${xp} of ${next} XP`,
+  welcomeHome: 'Welcome home',
+  calmEmpty: 'Your home is ready. Start with something small.',
+  calmDone: 'All set for today. Make yourself comfortable.',
+  calmLeft: (n) => (n === 1 ? 'You have 1 habit today, no rush.' : `You have ${n} habits today, no rush.`),
+  sinceEmptyTitle: 'No habits yet',
+  sinceEmptyBody: 'Your adventure starts with one small habit. Every completed day earns you XP.',
+  newHabit: 'New habit',
+  summary: 'Summary',
+  habitsToday: 'Habits today',
+  activeGoals: 'Active goals',
+  monthBalance: 'Balance this month',
+  streakDays: 'Streak days',
+  habitsTodayTitle: "Today's habits",
+  pendingToday: 'Pending today',
+  seeAll: 'See all',
+  allDoneHabits: (n) => `All set for today! You completed your ${n} habits.`,
+  missions: 'Goals',
+  seeAllMissions: 'See all',
+  noMissionsToday: 'No goals for today',
+  noMissionsBody: 'Create a goal for your big objectives.',
+  newMission: 'New goal',
+  progressOf: (title) => `Progress of ${title}`,
+  recoverStreak: 'Recover your streak',
+  recoverBody: (habit, required, lost) => `Complete “${habit}” ${required} days in a row to recover ${lost} days of streak.`,
+  recoveryProgress: 'Recovery progress',
+  daysOf: (current, required) => `${current} of ${required} days`,
+  expiresToday: 'ends today',
+  oneDayLeft: '1 day left',
+  daysLeft: (n) => `${n} days left`,
+  heroWeek: (day, total) => `Hero week · day ${day}/${total}`,
+  inZone: (zone, xp) => `In ${zone} · +${xp} XP`,
+  hideGuide: 'Hide the guide',
+  guideProgress: 'Guide progress',
+  guideDays: (done, total) => `${done} of ${total} days`,
+  goZone: (zone) => `Go to ${zone}`,
+  markDone: 'Mark as done',
+  guideDone: (day) => `Day ${day} completed`,
+  guideFailed: "We couldn't update the guide",
+  yourDay: 'Your day',
+  chooseClass: 'Choose your class',
+  briefing: 'Daily briefing',
+  checkinTitle: 'Daily check-in',
+  checkinBody: 'How are you arriving today? Daily XP bonus.',
+  sleepAvg: 'Sleep · 7-day average',
+  noData: 'No data',
+  lastWorkout: 'Last workout',
+  noRecord: 'No record',
+  ofHundred: (n) => `${n} of 100`,
+  sageTitle: 'Advice from the Sage',
+  sageBody: 'Ask what to focus on today.',
+  sageQuestion: 'What do you recommend I focus on today?',
+  nextInAgenda: 'Up next in your agenda',
+  agenda: 'Agenda',
+  recentAchievements: 'Recent achievements',
+  seeAchievements: 'See achievements',
+  lastWeek: 'Your last week',
+  day: 'day',
+  days: 'days',
+  lifeScore: 'Life Score',
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 interface HabitSummary {
   id: string;
@@ -73,15 +218,15 @@ interface DashboardData {
   firstSteps: { questCount: number; habitCount: number; hasJournalEntry: boolean };
 }
 
-function daysLeft(iso: string) {
+function daysLeft(iso: string, t: typeof es) {
   const d = Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000);
-  return d <= 0 ? 'termina hoy' : d === 1 ? 'queda 1 día' : `quedan ${d} días`;
+  return d <= 0 ? t.expiresToday : d === 1 ? t.oneDayLeft : t.daysLeft(d);
 }
 
 const isDone = (h: HabitSummary) => Boolean(h.todayCompleted) || h.todayStatus === 'completed';
 
-function DashboardSkeleton() {
-  return <PageLoader label="Cargando tu aventura…" words={LOADING_COPY.page} />;
+function DashboardSkeleton({ label, words }: { label: string; words: readonly string[] }) {
+  return <PageLoader label={label} words={words} />;
 }
 
 function SectionHead({ title, to, linkLabel, id }: { title: string; to: string; linkLabel: string; id: string }) {
@@ -110,6 +255,9 @@ function MiniStat({ icon, tone, label, value, to }: { icon: LucideIcon; tone: To
 }
 
 export default function DashboardPage() {
+  const locale: Locale = useLocale();
+  const t = COPY[locale];
+  const loading = useLoadingCopy();
   const user = useAuthStore((s) => s.user);
   const openQuickAction = useShellStore((s) => s.openQuickAction);
   const openSage = useUIStore((s) => s.openSage);
@@ -175,12 +323,12 @@ export default function DashboardPage() {
         setData((d) => d && { ...d, sevenDayGuide: null });
       } else {
         const r = await completeGuideDay(data.sevenDayGuide.task.day);
-        useToastStore.getState().success(`Día ${r.day} completado`, r.rewards?.xpEarned ? `+${r.rewards.xpEarned} XP` : undefined);
+        useToastStore.getState().success(t.guideDone(r.day), r.rewards?.xpEarned ? `+${r.rewards.xpEarned} XP` : undefined);
         void refreshUser();
         await load(true);
       }
     } catch {
-      useToastStore.getState().error('No se pudo actualizar la guía');
+      useToastStore.getState().error(t.guideFailed);
     } finally {
       setGuideBusy(false);
     }
@@ -194,33 +342,33 @@ export default function DashboardPage() {
   const quests = (data?.todayQuests ?? []).filter((q) => q.status === 'ACTIVE');
   const playerClass = (user as unknown as { playerClass?: string }).playerClass;
   const isEmpty = state === 'ready' && habits.length === 0 && (data?.firstSteps?.habitCount ?? 0) === 0;
-  const fmt = (n: number) => n.toLocaleString('es-CO');
+  const fmt = (n: number) => n.toLocaleString(INTL_LOCALE[locale]);
 
   const levelCard = (
-    <Card as="section" variant="elevated" padding="lg" aria-label="Nivel" className="flex min-w-0 flex-col gap-4 md:max-w-[500px]">
+    <Card as="section" variant="elevated" padding="lg" aria-label={t.level} className="flex min-w-0 flex-col gap-4 md:max-w-[500px]">
       <div className="flex items-center gap-4">
         <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-primary/[var(--lq-soft-alpha)] text-heading-md text-primary-text font-mono tabular-nums">
           {user.level}
         </span>
         <div className="min-w-0 flex-1">
-          <div className="text-heading-sm">Nivel {user.level} · {getLevelTitle(user.level)}</div>
+          <div className="text-heading-sm">{t.levelNamed(user.level, getLevelTitle(user.level, locale))}</div>
           <div className="text-body-sm text-on-surface-light font-mono tabular-nums">
-            {fmt(user.xp)} / {fmt(user.xpToNextLevel)} XP<span className="hidden md:inline"> · faltan {fmt(missing)}</span>
+            {fmt(user.xp)} / {fmt(user.xpToNextLevel)} XP<span className="hidden md:inline"> · {t.missing(fmt(missing))}</span>
           </div>
         </div>
       </div>
-      <ProgressBar value={xpPct} size="lg" shine label="Experiencia" valueText={`${fmt(user.xp)} de ${fmt(user.xpToNextLevel)} XP`} />
+      <ProgressBar value={xpPct} size="lg" shine label={t.experience} valueText={t.xpOf(fmt(user.xp), fmt(user.xpToNextLevel))} />
       <div className="flex items-center gap-1.5 text-body-sm text-on-surface md:hidden">
         <Sparkles aria-hidden className="size-4 text-primary-text" strokeWidth={1.75} />
-        {fmt(missing)} XP para el nivel {user.level + 1}
+        {t.xpFor(fmt(missing), user.level + 1)}
       </div>
     </Card>
   );
 
   const left = habits.filter((h) => !isDone(h)).length;
   const calm = habits.length === 0
-    ? 'Tu casa está lista. Empieza con algo pequeño.'
-    : left === 0 ? 'Todo listo por hoy. Ponte cómodo.' : `Te ${left === 1 ? 'espera 1 hábito' : `esperan ${left} hábitos`} hoy, sin prisa.`;
+    ? t.calmEmpty
+    : left === 0 ? t.calmDone : t.calmLeft(left);
 
   // En casa: la ventana con el cielo de esta hora y, al lado, el saludo escrito con la letra de la marca.
   const header = (
@@ -228,9 +376,9 @@ export default function DashboardPage() {
       <HomeWindow now={now} className="md:order-2" />
       <div className="flex min-w-0 flex-col gap-5 md:order-1">
         <div className="flex flex-col gap-1.5">
-          <p className="hidden text-body-md text-on-surface-light md:block">{longDate(now)}</p>
+          <p className="hidden text-body-md text-on-surface-light md:block">{longDate(now, locale)}</p>
           <h1 className="text-display-sm [text-wrap:balance] md:text-display-md lg:text-display-lg">
-            <Lettering text={`${isEmpty ? 'Bienvenido a casa' : greeting(now)}, ${first}`} delay={0.2} />
+            <Lettering text={`${isEmpty ? t.welcomeHome : greeting(now, locale)}, ${first}`} delay={0.2} />
           </h1>
           <p className="text-body-lg text-on-surface">{calm}</p>
         </div>
@@ -239,12 +387,12 @@ export default function DashboardPage() {
     </motion.section>
   );
 
-  if (state === 'loading') return <DashboardSkeleton />;
+  if (state === 'loading') return <DashboardSkeleton label={t.loading} words={loading.page} />;
   if (state === 'error') {
     return (
       <ErrorState
-        title="No pudimos cargar tu panel"
-        description="Revisa tu conexión."
+        title={t.errorTitle}
+        description={t.errorBody}
         onRetry={() => void load()}
         className="py-24 md:py-32"
       />
@@ -258,9 +406,9 @@ export default function DashboardPage() {
         <motion.div variants={item}>
           <EmptyState
             icon={ListChecks}
-            title="Sin hábitos aún"
-            description="Tu aventura empieza con un hábito pequeño. Cada día completado te da XP."
-            action={<Link to="/habits?new=1" className={buttonClasses('primary', 'lg')}><Plus aria-hidden className="size-5" strokeWidth={2} />Nuevo hábito</Link>}
+            title={t.sinceEmptyTitle}
+            description={t.sinceEmptyBody}
+            action={<Link to="/habits?new=1" className={buttonClasses('primary', 'lg')}><Plus aria-hidden className="size-5" strokeWidth={2} />{t.newHabit}</Link>}
             className="py-12"
           />
         </motion.div>
@@ -283,17 +431,17 @@ export default function DashboardPage() {
       <motion.div variants={item}><SocialPortal /></motion.div>
 
       {/* Resumen: 4 StatCards con count-up */}
-      <motion.section variants={item} aria-label="Resumen" className="grid grid-cols-2 gap-4 md:grid-cols-[repeat(auto-fit,minmax(220px,1fr))] md:gap-6">
-        <StatCard icon={CheckCircle2} tone="success" value={`${done}/${habits.length}`} label="Hábitos hoy" to="/habits" size={statSize} />
-        <StatCard icon={Flag} tone="primary" value={quests.length} label="Misiones activas" to="/quests" size={statSize} />
-        <StatCard icon={Wallet} tone="info" value={data?.monthBalance ?? 0} format={(n) => formatMoney(n, user.currency, true)} label="Saldo del mes" to="/finances" size={statSize} />
-        <StatCard icon={Flame} tone="warning" value={user.currentStreak} label="Días de racha" to="/achievements" size={statSize} />
+      <motion.section variants={item} aria-label={t.summary} className="grid grid-cols-2 gap-4 md:grid-cols-[repeat(auto-fit,minmax(220px,1fr))] md:gap-6">
+        <StatCard icon={CheckCircle2} tone="success" value={`${done}/${habits.length}`} label={t.habitsToday} to="/habits" size={statSize} />
+        <StatCard icon={Flag} tone="primary" value={quests.length} label={t.activeGoals} to="/quests" size={statSize} />
+        <StatCard icon={Wallet} tone="info" value={data?.monthBalance ?? 0} format={(n) => formatMoney(n, user.currency, true, locale)} label={t.monthBalance} to="/finances" size={statSize} />
+        <StatCard icon={Flame} tone="warning" value={user.currentStreak} label={t.streakDays} to="/achievements" size={statSize} />
       </motion.section>
 
       {/* Hábitos + Misiones */}
       <motion.div variants={item} className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2 [&>*]:min-w-0">
         <section aria-labelledby="dash-habits" className="flex min-w-0 flex-col gap-4 md:rounded-2xl md:border md:border-border md:bg-surface md:p-6 md:shadow-sm">
-          <SectionHead id="dash-habits" title={isDesktop ? 'Hábitos de hoy' : 'Pendiente hoy'} to="/habits" linkLabel="Ver todo" />
+          <SectionHead id="dash-habits" title={isDesktop ? t.habitsTodayTitle : t.pendingToday} to="/habits" linkLabel={t.seeAll} />
           {(isDesktop ? habits : pendingHabits).length > 0 ? (
             <motion.ul variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-3 md:gap-0 md:divide-y md:divide-border">
               {(isDesktop ? habits : pendingHabits).slice(0, 6).map((h) => (
@@ -309,18 +457,18 @@ export default function DashboardPage() {
           ) : (
             <div className="flex items-center gap-3 rounded-2xl border border-border bg-success/[var(--lq-soft-alpha)] p-4" role="status">
               <CheckCircle2 aria-hidden className="size-6 shrink-0 text-success-text" strokeWidth={1.75} />
-              <p className="text-body-md text-on-surface">¡Todo listo por hoy! Completaste tus {habits.length} hábitos.</p>
+              <p className="text-body-md text-on-surface">{t.allDoneHabits(habits.length)}</p>
             </div>
           )}
         </section>
 
         <Card as="section" padding="lg" aria-labelledby="dash-quests" className="flex flex-col gap-4">
-          <SectionHead id="dash-quests" title="Misiones" to="/quests" linkLabel="Ver todas" />
+          <SectionHead id="dash-quests" title={t.missions} to="/quests" linkLabel={t.seeAllMissions} />
           {quests.length > 0 ? (
             <ul className="flex flex-col">
               {quests.slice(0, 3).map((q, i) => {
-                const p = questProgress(q);
-                const cat = categoryMeta(q.category);
+                const p = questProgress(q, locale);
+                const cat = categoryMeta(q.category, locale);
                 return (
                   <li key={q.id} className={cn('relative flex flex-col gap-2 py-4 first:pt-0 last:pb-0', i > 0 && 'border-t border-border')}>
                     <div className="flex items-center justify-between gap-2">
@@ -328,7 +476,7 @@ export default function DashboardPage() {
                       <span className="text-label-lg text-primary-text font-mono tabular-nums">+{q.xpReward} XP</span>
                     </div>
                     <Link to="/quests" className="text-heading-sm lq-stretch after:absolute after:inset-0 after:content-[''] hover:underline">{q.title}</Link>
-                    <ProgressBar value={p.pct} tone={p.pct >= 100 ? 'success' : 'primary'} label={`Progreso de ${q.title}`} valueText={p.text} />
+                    <ProgressBar value={p.pct} tone={p.pct >= 100 ? 'success' : 'primary'} label={t.progressOf(q.title)} valueText={p.text} />
                     <span className="text-body-sm text-on-surface-light">{p.text}</span>
                   </li>
                 );
@@ -338,9 +486,9 @@ export default function DashboardPage() {
             <EmptyState
               icon={Flag}
               tone="muted"
-              title="Sin misiones para hoy"
-              description="Crea una misión para tus objetivos grandes."
-              action={<Link to="/quests?new=1" className={buttonClasses('secondary', 'md')}><Plus aria-hidden className="size-4" strokeWidth={2} />Nueva misión</Link>}
+              title={t.noMissionsToday}
+              description={t.noMissionsBody}
+              action={<Link to="/quests?new=1" className={buttonClasses('secondary', 'md')}><Plus aria-hidden className="size-4" strokeWidth={2} />{t.newMission}</Link>}
               className="py-6"
             />
           )}
@@ -355,16 +503,16 @@ export default function DashboardPage() {
               <div className="flex items-start gap-3">
                 <IconChip icon={RotateCcw} tone="warning" />
                 <div className="min-w-0 flex-1">
-                  <h2 id="dash-recovery" className="text-heading-sm">Recupera tu racha</h2>
+                  <h2 id="dash-recovery" className="text-heading-sm">{t.recoverStreak}</h2>
                   <p className="text-body-sm text-on-surface-light">
-                    Completa “{recovery.habitTitle}” {recovery.requiredDays} días seguidos para recuperar {recovery.lostStreak} días de racha.
+                    {t.recoverBody(recovery.habitTitle, recovery.requiredDays, recovery.lostStreak)}
                   </p>
                 </div>
                 <Badge variant="warning">+{recovery.bonusXp} XP</Badge>
               </div>
-              <ProgressBar value={(recovery.currentDays / recovery.requiredDays) * 100} tone="warning" label="Progreso de recuperación" valueText={`${recovery.currentDays} de ${recovery.requiredDays} días`} />
+              <ProgressBar value={(recovery.currentDays / recovery.requiredDays) * 100} tone="warning" label={t.recoveryProgress} valueText={t.daysOf(recovery.currentDays, recovery.requiredDays)} />
               <span className="text-body-sm text-on-surface-light font-mono tabular-nums">
-                {recovery.currentDays} de {recovery.requiredDays} días · {daysLeft(recovery.expiresAt)}
+                {t.daysOf(recovery.currentDays, recovery.requiredDays)} · {daysLeft(recovery.expiresAt, t)}
               </span>
             </Card>
           )}
@@ -373,18 +521,18 @@ export default function DashboardPage() {
               <div className="flex items-start gap-3">
                 <IconChip icon={Zap} tone="primary" />
                 <div className="min-w-0 flex-1">
-                  <span className="text-label-md uppercase text-primary-text">Semana del héroe · día {guide.currentDay}/{guide.totalDays}</span>
+                  <span className="text-label-md uppercase text-primary-text">{t.heroWeek(guide.currentDay, guide.totalDays)}</span>
                   <h2 id="dash-guide" className="text-heading-sm">{guide.task.title}</h2>
-                  <p className="text-body-sm text-on-surface-light">En {guide.task.zone} · +{guide.task.xpBonus} XP</p>
+                  <p className="text-body-sm text-on-surface-light">{t.inZone(guide.task.zone, guide.task.xpBonus)}</p>
                 </div>
-                <Button variant="icon" aria-label="Ocultar la guía" onClick={() => void handleGuide('dismiss')} disabled={guideBusy}>
+                <Button variant="icon" aria-label={t.hideGuide} onClick={() => void handleGuide('dismiss')} disabled={guideBusy}>
                   <X aria-hidden className="size-5" strokeWidth={1.75} />
                 </Button>
               </div>
-              <ProgressBar value={(guide.completedDays.length / guide.totalDays) * 100} label="Progreso de la guía" valueText={`${guide.completedDays.length} de ${guide.totalDays} días`} />
+              <ProgressBar value={(guide.completedDays.length / guide.totalDays) * 100} label={t.guideProgress} valueText={t.guideDays(guide.completedDays.length, guide.totalDays)} />
               <div className="flex flex-wrap gap-2">
-                <Link to={guide.task.route} className={buttonClasses('secondary', 'md')}>Ir a {guide.task.zone}</Link>
-                <Button size="md" loading={guideBusy} onClick={() => void handleGuide('complete')}>Marcar como hecho</Button>
+                <Link to={guide.task.route} className={buttonClasses('secondary', 'md')}>{t.goZone(guide.task.zone)}</Link>
+                <Button size="md" loading={guideBusy} onClick={() => void handleGuide('complete')}>{t.markDone}</Button>
               </div>
             </Card>
           )}
@@ -394,12 +542,12 @@ export default function DashboardPage() {
       {/* Tu día */}
       <motion.section variants={item} aria-labelledby="dash-day" className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 id="dash-day" className="text-heading-sm md:text-heading-lg">Tu día</h2>
+          <h2 id="dash-day" className="text-heading-sm md:text-heading-lg">{t.yourDay}</h2>
           <div className="flex flex-wrap gap-2">
             {!playerClass && user.level >= 10 && (
-              <Button variant="secondary" size="sm" onClick={() => setModal('class')}><Zap aria-hidden className="size-4" strokeWidth={1.75} />Elige tu clase</Button>
+              <Button variant="secondary" size="sm" onClick={() => setModal('class')}><Zap aria-hidden className="size-4" strokeWidth={1.75} />{t.chooseClass}</Button>
             )}
-            <Button variant="ghost" size="sm" onClick={() => setModal('briefing')}><ClipboardList aria-hidden className="size-4" strokeWidth={1.75} />Briefing del día</Button>
+            <Button variant="ghost" size="sm" onClick={() => setModal('briefing')}><ClipboardList aria-hidden className="size-4" strokeWidth={1.75} />{t.briefing}</Button>
           </div>
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 [&>*]:min-w-0">
@@ -410,19 +558,19 @@ export default function DashboardPage() {
           >
             <IconChip icon={HeartPulse} tone="primary" size="sm" className="bg-background" />
             <span className="min-w-0 flex-1">
-              <span className="block text-label-lg text-primary-text">Check-in diario</span>
-              <span className="block text-body-sm text-on-surface">¿Cómo llegas hoy? Bonus de XP diario.</span>
+              <span className="block text-label-lg text-primary-text">{t.checkinTitle}</span>
+              <span className="block text-body-sm text-on-surface">{t.checkinBody}</span>
             </span>
           </button>
-          <MiniStat icon={Moon} tone="info" label="Sueño · media 7 días" value={data?.sleepAvg7d ? `${data.sleepAvg7d.toFixed(1)} h` : 'Sin datos'} to="/sleep" />
-          <MiniStat icon={Dumbbell} tone="success" label="Último entrenamiento" value={data?.recentWorkout ? relativeTime(data.recentWorkout.date) : 'Sin registro'} to="/coliseo" />
+          <MiniStat icon={Moon} tone="info" label={t.sleepAvg} value={data?.sleepAvg7d ? `${data.sleepAvg7d.toFixed(1)} h` : t.noData} to="/sleep" />
+          <MiniStat icon={Dumbbell} tone="success" label={t.lastWorkout} value={data?.recentWorkout ? relativeTime(data.recentWorkout.date, locale) : t.noRecord} to="/coliseo" />
           {lifeScore && (
             <Link to="/life" className="lq-lift flex items-center gap-4 rounded-2xl border border-border bg-surface p-4 shadow-sm">
-              <ProgressRing value={lifeScore.total} size={48} stroke={5} label="Life Score" valueText={`${lifeScore.total} de 100`}>
+              <ProgressRing value={lifeScore.total} size={48} stroke={5} label={t.lifeScore} valueText={t.ofHundred(lifeScore.total)}>
                 <span className="text-label-md font-mono tabular-nums">{lifeScore.total}</span>
               </ProgressRing>
               <span className="min-w-0 flex-1">
-                <span className="block text-body-sm text-on-surface-light">Life Score</span>
+                <span className="block text-body-sm text-on-surface-light">{t.lifeScore}</span>
                 <span className="block text-heading-sm font-mono tabular-nums">{lifeScore.total}/100</span>
               </span>
               <ChevronRight aria-hidden className="size-5 shrink-0 text-on-surface-light" strokeWidth={1.75} />
@@ -430,13 +578,13 @@ export default function DashboardPage() {
           )}
           <button
             type="button"
-            onClick={() => openSage('¿En qué me recomiendas enfocarme hoy?')}
+            onClick={() => openSage(t.sageQuestion)}
             className="lq-lift flex items-center gap-4 rounded-2xl border border-border bg-surface p-4 text-left shadow-sm"
           >
             <IconChip icon={Sparkles} tone="forest" size="sm" />
             <span className="min-w-0 flex-1">
-              <span className="block text-label-lg text-on-background">Consejo del Sabio</span>
-              <span className="block text-body-sm text-on-surface-light">Pregúntale en qué enfocarte hoy.</span>
+              <span className="block text-label-lg text-on-background">{t.sageTitle}</span>
+              <span className="block text-body-sm text-on-surface-light">{t.sageBody}</span>
             </span>
           </button>
         </div>
@@ -446,7 +594,7 @@ export default function DashboardPage() {
         <motion.div variants={item} className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2 [&>*]:min-w-0">
           {events.length > 0 && (
             <Card as="section" padding="lg" aria-labelledby="dash-agenda" className="flex flex-col gap-4">
-              <SectionHead id="dash-agenda" title="Próximo en tu agenda" to="/agenda" linkLabel="Agenda" />
+              <SectionHead id="dash-agenda" title={t.nextInAgenda} to="/agenda" linkLabel={t.agenda} />
               <ul className="flex flex-col gap-3">
                 {events.map((e) => (
                   <li key={e.id} className="flex items-center gap-3">
@@ -454,7 +602,7 @@ export default function DashboardPage() {
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-label-lg text-on-background">{e.title}</span>
                       <span className="block text-body-sm text-on-surface-light">
-                        {new Date(e.startDate).toLocaleString('es-ES', e.isAllDay ? { weekday: 'long', day: 'numeric', month: 'short' } : { weekday: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        {new Date(e.startDate).toLocaleString(INTL_LOCALE[locale], e.isAllDay ? { weekday: 'long', day: 'numeric', month: 'short' } : { weekday: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </span>
                   </li>
@@ -464,7 +612,7 @@ export default function DashboardPage() {
           )}
           {(data?.recentAchievements?.length ?? 0) > 0 && (
             <Card as="section" padding="lg" aria-labelledby="dash-ach" className="flex flex-col gap-4">
-              <SectionHead id="dash-ach" title="Logros recientes" to="/achievements" linkLabel="Ver logros" />
+              <SectionHead id="dash-ach" title={t.recentAchievements} to="/achievements" linkLabel={t.seeAchievements} />
               <ul className="flex flex-col gap-3">
                 {data!.recentAchievements.slice(0, 3).map((a) => (
                   <li key={a.id} className="flex items-center gap-3">
@@ -473,7 +621,7 @@ export default function DashboardPage() {
                       <span className="block truncate text-label-lg text-on-background">{a.title}</span>
                       <span className="block truncate text-body-sm text-on-surface-light">{a.description}</span>
                     </span>
-                    <span className="shrink-0 whitespace-nowrap text-caption text-on-surface-light">{relativeTime(a.unlockedAt)}</span>
+                    <span className="shrink-0 whitespace-nowrap text-caption text-on-surface-light">{relativeTime(a.unlockedAt, locale)}</span>
                   </li>
                 ))}
               </ul>
@@ -482,8 +630,8 @@ export default function DashboardPage() {
           {data?.latestWeeklySummary && (
             <Card as="section" padding="lg" aria-labelledby="dash-week" className="flex flex-col gap-3 lg:col-span-2">
               <div className="flex items-center justify-between gap-3">
-                <h2 id="dash-week" className="text-heading-sm md:text-heading-lg">Tu última semana</h2>
-                <Badge variant="primary">Life Score {data.latestWeeklySummary.lifeScore}/100</Badge>
+                <h2 id="dash-week" className="text-heading-sm md:text-heading-lg">{t.lastWeek}</h2>
+                <Badge variant="primary">{t.lifeScore} {data.latestWeeklySummary.lifeScore}/100</Badge>
               </div>
               <p className="text-body-md text-on-surface">{data.latestWeeklySummary.summary}</p>
             </Card>

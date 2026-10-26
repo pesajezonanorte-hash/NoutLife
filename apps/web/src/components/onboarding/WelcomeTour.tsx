@@ -14,6 +14,7 @@ import { BrandMark } from '@/components/layout/Brand';
 import { Button } from '@/components/ui/lq';
 import { springs } from '@/lib/motion';
 import { useMotionStore } from '@/store/motionStore';
+import { useLocale, type Copy, type Locale } from '@/lib/i18n';
 
 /* ───────── Estado «ya lo vio» ───────── */
 
@@ -62,14 +63,62 @@ interface Step {
 
 const isDesktop = () => window.matchMedia('(min-width: 768px)').matches;
 
-function buildSteps(name: string): Step[] {
+const TOUR_COPY: Copy<{
+  hello: (name: string) => string; helloBody: string;
+  zones: string; zonesBody: string;
+  create: string; createBody: string;
+  sage: string; sageBody: string;
+  search: string; searchBody: string; searchBodyDesktop: string;
+  alerts: string; alertsBody: string;
+  ariaProgress: (i: number, n: number) => string;
+  skip: string; back: string; start: string; done: string; next: string;
+}> = {
+  es: {
+    hello: (name) => `Hola, ${name}. Este es tu espacio.`,
+    helloBody: 'Tu rutina, tu mente y tus ideas en un solo lugar. Te enseñamos lo básico en medio minuto.',
+    zones: 'Cada parte de tu vida es un lugar',
+    zonesBody: 'Hábitos, finanzas, sueño, tu diario… Cada zona se ve y se siente como lo que es. Muévete entre ellas desde aquí.',
+    create: 'Empieza por un hábito',
+    createBody: 'Algo pequeño que quieras repetir. Cada vez que lo marcas, tu racha crece.',
+    sage: 'El Sabio te acompaña',
+    sageBody: 'Lee tu progreso y te da un consejo concreto cuando lo necesitas.',
+    search: 'Encuentra cualquier cosa',
+    searchBody: 'Hábitos, misiones o zonas, desde cualquier pantalla.',
+    searchBodyDesktop: 'Hábitos, misiones o zonas, desde cualquier pantalla. También con Ctrl + K.',
+    alerts: 'Que no se te pase nada',
+    alertsBody: 'Cuando cumplas tu primer hábito te preguntamos si quieres recordatorios, a la hora que elijas.',
+    ariaProgress: (i, n) => `Paso ${i} de ${n}`,
+    skip: 'Saltar', back: 'Atrás', start: 'Empezar', done: 'Listo', next: 'Siguiente',
+  },
+  en: {
+    hello: (name) => `Hi, ${name}. This is your space.`,
+    helloBody: 'Your routine, your mind and your ideas in one place. We will show you the basics in half a minute.',
+    zones: 'Every part of your life has a place',
+    zonesBody: 'Habits, finances, sleep, your journal… Each zone looks and feels like what it is. Move between them from here.',
+    create: 'Start with one habit',
+    createBody: 'Something small you want to repeat. Every time you check it off, your streak grows.',
+    sage: 'The Sage keeps you company',
+    sageBody: 'It reads your progress and gives you a concrete piece of advice when you need it.',
+    search: 'Find anything',
+    searchBody: 'Habits, goals or zones, from any screen.',
+    searchBodyDesktop: 'Habits, goals or zones, from any screen. Also with Ctrl + K.',
+    alerts: 'Never miss a thing',
+    alertsBody: 'When you complete your first habit we will ask if you want reminders, at the time you choose.',
+    ariaProgress: (i, n) => `Step ${i} of ${n}`,
+    skip: 'Skip', back: 'Back', start: 'Start', done: 'Done', next: 'Next',
+  },
+};
+
+function buildSteps(name: string, locale: Locale): Step[] {
+  const t = TOUR_COPY[locale];
+  const desktop = isDesktop();
   return [
-    { id: 'hola', icon: Compass, title: `Hola, ${name}. Este es tu espacio.`, body: 'Tu rutina, tu mente y tus ideas en un solo lugar. Te enseñamos lo básico en medio minuto.' },
-    { id: 'zonas', target: 'nav', icon: Compass, title: 'Cada parte de tu vida es un lugar', body: 'Hábitos, finanzas, sueño, tu diario… Cada zona se ve y se siente como lo que es. Muévete entre ellas desde aquí.' },
-    { id: 'crear', target: 'create', icon: Plus, title: 'Empieza por un hábito', body: 'Algo pequeño que quieras repetir. Cada vez que lo marcas, tu racha crece.' },
-    { id: 'sabio', target: 'sage', optional: true, icon: Sparkles, title: 'El Sabio te acompaña', body: 'Lee tu progreso y te da un consejo concreto cuando lo necesitas.' },
-    { id: 'buscar', target: 'search', icon: Search, title: 'Encuentra cualquier cosa', body: isDesktop() ? 'Hábitos, misiones o zonas, desde cualquier pantalla. También con Ctrl + K.' : 'Hábitos, misiones o zonas, desde cualquier pantalla.' },
-    { id: 'avisos', target: 'bell', icon: Bell, title: 'Que no se te pase nada', body: 'Cuando cumplas tu primer hábito te preguntamos si quieres recordatorios, a la hora que elijas.' },
+    { id: 'hola', icon: Compass, title: t.hello(name), body: t.helloBody },
+    { id: 'zonas', target: 'nav', icon: Compass, title: t.zones, body: t.zonesBody },
+    { id: 'crear', target: 'create', icon: Plus, title: t.create, body: t.createBody },
+    { id: 'sabio', target: 'sage', optional: true, icon: Sparkles, title: t.sage, body: t.sageBody },
+    { id: 'buscar', target: 'search', icon: Search, title: t.search, body: desktop ? t.searchBodyDesktop : t.searchBody },
+    { id: 'avisos', target: 'bell', icon: Bell, title: t.alerts, body: t.alertsBody },
   ];
 }
 
@@ -118,7 +167,9 @@ function cardPos(spot: Box | null, card: { w: number; h: number }): { x: number;
 
 export function WelcomeTour({ userId, name }: { userId: string; name: string }) {
   const reduce = useMotionStore((s) => s.reduce);
-  const all = useMemo(() => buildSteps(name.split(' ')[0] || name), [name]);
+  const locale = useLocale();
+  const t = TOUR_COPY[locale];
+  const all = useMemo(() => buildSteps(name.split(' ')[0] || name, locale), [name, locale]);
   const [steps, setSteps] = useState(all);
   const [i, setI] = useState(0);
   const [dir, setDir] = useState(1);
@@ -270,7 +321,7 @@ export function WelcomeTour({ userId, name }: { userId: string; name: string }) 
 
             <div className="mt-5 flex items-center justify-between gap-3">
               {/* Progreso: un punto por paso; el actual se alarga */}
-              <div className="flex items-center gap-1.5" role="img" aria-label={`Paso ${i + 1} de ${steps.length}`}>
+              <div className="flex items-center gap-1.5" role="img" aria-label={t.ariaProgress(i + 1, steps.length)}>
                 {steps.map((s, k) => (
                   <motion.span
                     key={s.id}
@@ -283,11 +334,11 @@ export function WelcomeTour({ userId, name }: { userId: string; name: string }) 
               </div>
               <div className="flex items-center gap-1">
                 {i === 0 ? (
-                  <Button size="sm" variant="ghost" onClick={close}>Saltar</Button>
+                  <Button size="sm" variant="ghost" onClick={close}>{t.skip}</Button>
                 ) : (
-                  <Button size="sm" variant="ghost" onClick={() => go(-1)}>Atrás</Button>
+                  <Button size="sm" variant="ghost" onClick={() => go(-1)}>{t.back}</Button>
                 )}
-                <Button ref={primaryRef} size="sm" onClick={() => go(1)}>{i === 0 ? 'Empezar' : last ? 'Listo' : 'Siguiente'}</Button>
+                <Button ref={primaryRef} size="sm" onClick={() => go(1)}>{i === 0 ? t.start : last ? t.done : t.next}</Button>
               </div>
             </div>
           </motion.div>

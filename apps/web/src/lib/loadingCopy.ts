@@ -1,8 +1,12 @@
 /**
  * Brief, contextual copy for shared loading states. Every terminal receives a
  * small rotation rather than generic repeated "Cargando…" text.
+ * Cada tabla existe en español y en inglés: los componentes usan `useLoadingCopy()`.
  */
-export const LOADING_COPY = {
+import type { Locale } from './locale';
+import { useLocale } from './i18n';
+
+const es = {
   splash: [
     'Iniciando tus herramientas…',
     'Sincronizando tu progreso…',
@@ -152,6 +156,54 @@ export const LOADING_COPY = {
     'Cargando tus rutinas…',
     'Sumando tu volumen…',
   ],
-} as const;
+};
 
-export type LoadingCopyKey = keyof typeof LOADING_COPY;
+const en: Record<keyof typeof es, string[]> = {
+  splash: ['Starting your tools…', 'Syncing your progress…', 'Preparing your day…'],
+  page: ['Getting the zone ready…', 'Syncing your adventure…', 'Plotting the next step…'],
+  routeCue: ['Preparing the next zone…', 'Opening a new path…'],
+  achievements: ['Counting your achievements…', 'Reviewing your feats…', 'Sorting your trophies…'],
+  agenda: ['Sorting your agenda…', 'Arranging your plans…', 'Checking your calendar…'],
+  food: ['Preparing your log…', 'Serving your meals…', 'Adding up your nutrients…'],
+  glowUpRoutines: ['Preparing your rituals…', 'Tuning your routine…', 'Opening your vanity…'],
+  glowUpWardrobe: ['Opening your wardrobe…', 'Sorting your pieces…', 'Preparing your style…'],
+  guild: ['Calling your guild…', 'Checking the brotherhood…', 'Preparing the common room…'],
+  history: ['Reviewing your history…', 'Sorting your days…', 'Plotting your progress…'],
+  journal: ['Opening your journal…', 'Weaving your reflections…', 'Finding your pages…'],
+  learning: ['Opening the library…', 'Preparing your studies…', 'Sorting your lessons…'],
+  learningNotes: ['Opening your notes…', 'Sorting your notes…', 'Preparing your review…'],
+  learningCards: ['Shuffling your cards…', 'Preparing the review…', 'Recalling your concepts…'],
+  loveIdeas: ['Preparing your little gestures…', 'Finding new ideas…', 'Sorting your gifts…'],
+  loveDashboard: ['Walking into the garden…', 'Tending its story…', 'Preparing shared moments…'],
+  shop: ['Opening the market…', 'Preparing the catalog…', 'Counting the stock…'],
+  life: ['Calculating your Life Score…', 'Reading your progress…', 'Connecting your life areas…'],
+  season: ['Preparing the campaign…', 'Checking the season…', 'Gathering the rewards…'],
+  customZones: ['Mapping your zones…', 'Preparing your kingdom…', 'Raising new spaces…'],
+  nutrition: ['Preparing your macros…', 'Calculating your nutrients…', 'Stocking your pantry…'],
+  stats: ['Reading your stats…', 'Calculating trends…', 'Preparing your metrics…'],
+  statsFinance: ['Analyzing your treasury…', 'Sorting your finances…', 'Calculating your balance…'],
+  statsSleep: ['Checking your rest…', 'Measuring your nights…', 'Preparing the sleep report…'],
+  statsTraining: ['Checking your training…', 'Calculating your effort…', 'Sorting your sessions…'],
+  statsPredictions: ['Plotting your projections…', 'Reading your trends…', 'Preparing your forecasts…'],
+  habits: ['Loading your habits…', 'Checking your streaks…', 'Sorting your day…'],
+  quests: ['Loading goals…', 'Unrolling the map…', 'Checking your objectives…'],
+  recreation: ['Dimming the lights…', 'Preparing the show…', 'Rewinding the tape…'],
+  coliseo: ['Warming up…', 'Loading your routines…', 'Adding up your volume…'],
+};
+
+const TABLES: Record<Locale, Record<keyof typeof es, readonly string[]>> = { es, en };
+
+/** Frases de carga en un idioma (para fuera de React). */
+export function loadingCopyFor(locale: Locale) {
+  return TABLES[locale];
+}
+
+/** Frases de carga en el idioma de la persona. */
+export function useLoadingCopy() {
+  return TABLES[useLocale()];
+}
+
+/** Frases en español (compatibilidad: preferir `useLoadingCopy`). */
+export const LOADING_COPY = es;
+
+export type LoadingCopyKey = keyof typeof es;

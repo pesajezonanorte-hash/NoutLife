@@ -10,6 +10,9 @@ import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { springs } from '@/lib/motion/presets';
 import { InkPath, ZoneAmbience } from '@/components/ambience';
+import { useText, type Copy } from '@/lib/i18n';
+
+const COPY: Copy<{ list: string }> = { es: { list: 'Lista de hábitos' }, en: { list: 'Habit list' } };
 
 export interface NotebookTab<T extends string> { value: T; label: string; icon: LucideIcon; count?: number }
 
@@ -81,7 +84,7 @@ const DOODLES = [
   { d: 'M3 15.5c4.6-.9 9.1-3.6 12.8-7.7M12.4 6.8l3.9.6-.4 4', box: '0 0 20 20', cls: 'bottom-6 left-[3.75rem] size-6 md:left-[6rem] md:size-7', r: '3deg', d0: 1.45 },
 ] as const;
 
-export function NotebookSheet({ header, children, className, lines = 3, label = 'Lista de hábitos', id, labelledBy, tabbed }: {
+export function NotebookSheet({ header, children, className, lines = 3, label, id, labelledBy, tabbed }: {
   header: ReactNode;
   children: ReactNode;
   className?: string;
@@ -94,10 +97,11 @@ export function NotebookSheet({ header, children, className, lines = 3, label = 
   /** Lleva separadores encima: la esquina superior izquierda queda recta bajo la primera pestaña. */
   tabbed?: boolean;
 }) {
+  const t = useText(COPY);
   return (
     <motion.section
       id={id}
-      {...(labelledBy ? { role: 'tabpanel', 'aria-labelledby': labelledBy } : { 'aria-label': label })}
+      {...(labelledBy ? { role: 'tabpanel', 'aria-labelledby': labelledBy } : { 'aria-label': label ?? t.list })}
       className={cn('lq-tex-paper relative overflow-hidden rounded-2xl border border-border shadow-md', tabbed && 'rounded-tl-none', className)}
       initial={{ y: 14, rotate: -0.35 }}
       animate={{ y: 0, rotate: 0, transition: springs.heavy }}

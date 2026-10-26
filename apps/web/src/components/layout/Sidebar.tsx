@@ -14,9 +14,30 @@ import { cn } from '@/lib/utils';
 import { ease } from '@/lib/motion';
 import { useAuthStore } from '@/store/authStore';
 import { getLevelTitle } from '@/lib/gameProgress';
+import { useLocale, type Copy } from '@/lib/i18n';
 import { BrandLockup } from './Brand';
 import { NavLock } from './NavLock';
-import { UTILITY_NAV, matchesRoute, useNav, type NavEntry, type NavSection } from './nav';
+import { matchesRoute, useNav, type NavEntry, type NavSection } from './nav';
+
+const es = {
+  home: 'Noutlife, ir al inicio',
+  main: 'Principal',
+  profileOf: (name: string, level: number) => `Ver perfil de ${name}, nivel ${level}`,
+  level: (level: number, name: string) => `Nivel ${level} · ${name}`,
+  collapse: 'Contraer menú',
+  expand: 'Expandir menú',
+};
+
+const en: typeof es = {
+  home: 'Noutlife, go to home',
+  main: 'Main',
+  profileOf: (name, level) => `View the profile of ${name}, level ${level}`,
+  level: (level, name) => `Level ${level} · ${name}`,
+  collapse: 'Collapse menu',
+  expand: 'Expand menu',
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 const OPEN_KEY = 'lq-nav-sections';
 const ENTER_DELAY = 90;
@@ -119,6 +140,8 @@ function Section({ section, open, onToggle }: { section: NavSection; open: boole
 
 /** UserCard: recogido solo se ven las iniciales; nombre, nivel y barra de XP aparecen al desplegar. */
 function ProfileCard() {
+  const locale = useLocale();
+  const t = COPY[locale];
   const user = useAuthStore((s) => s.user);
   if (!user) return null;
   const initials = user.displayName.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
@@ -126,7 +149,7 @@ function ProfileCard() {
     <Link
       to="/profile"
       className="flex rounded-2xl border border-transparent p-[3px] transition-colors duration-300 group-data-[open=true]/side:border-border group-data-[open=true]/side:bg-background"
-      aria-label={`Ver perfil de ${user.displayName}, nivel ${user.level}`}
+      aria-label={t.profileOf(user.displayName, user.level)}
     >
       <span className="flex min-w-0 items-center gap-3">
         <span className="lq-ichip flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/[var(--lq-soft-alpha)] text-label-lg text-primary-text">
@@ -134,7 +157,7 @@ function ProfileCard() {
         </span>
         <span className={cn('min-w-0', reveal)}>
           <span className="block truncate text-label-lg text-on-background">{user.displayName}</span>
-          <span className="block truncate text-body-sm leading-tight text-on-surface-light">Nivel {user.level} · {getLevelTitle(user.level)}</span>
+          <span className="block truncate text-body-sm leading-tight text-on-surface-light">{t.level(user.level, getLevelTitle(user.level, locale))}</span>
           <span aria-hidden className="mt-1 block h-1 w-36 overflow-hidden rounded-full bg-surface-variant">
             <span className="block h-full origin-left rounded-full bg-primary transition-transform duration-700" style={{ transform: `scaleX(${Math.min(1, (user.xp ?? 0) / Math.max(1, user.xpToNextLevel ?? 1))})` }} />
           </span>
@@ -145,6 +168,7 @@ function ProfileCard() {
 }
 
 export function Sidebar({ className }: { className?: string }) {
+  const t = COPY[useLocale()];
   const { pathname } = useLocation();
   const [openMap, setOpenMap] = useState(readOpen);
   const [hovered, setHovered] = useState(false);
@@ -236,11 +260,11 @@ export function Sidebar({ className }: { className?: string }) {
         )}
       >
         <div ref={scrollRef} className="flex h-full w-64 flex-col gap-4 overflow-y-auto overscroll-contain overflow-x-hidden px-3 py-4 [scrollbar-gutter:stable] [scrollbar-width:thin] [scrollbar-color:transparent_transparent] group-data-[open=true]/side:[scrollbar-color:rgb(var(--lq-border-strong))_transparent]">
-          <Link to="/" className="flex min-h-11 items-center gap-3 rounded-xl px-1" aria-label="Noutlife, ir al inicio">
+          <Link to="/" className="flex min-h-11 items-center gap-3 rounded-xl px-1" aria-label={t.home}>
             <BrandLockup markSize={32} wordClassName={reveal} />
           </Link>
 
-          <nav aria-label="Principal" data-tour="nav" className="flex flex-col gap-3">
+          <nav aria-label={t.main} data-tour="nav" className="flex flex-col gap-3">
             <div className="flex flex-col gap-1">
               {nav.primary.map((it) => <SideLink key={it.to} {...it} />)}
             </div>
@@ -251,7 +275,7 @@ export function Sidebar({ className }: { className?: string }) {
 
           <div className="mt-auto flex flex-col gap-3">
             <div className="flex flex-col gap-1">
-              {UTILITY_NAV.map((it) => <SideLink key={it.to} {...it} />)}
+              {nav.utility.map((it) => <SideLink key={it.to} {...it} />)}
               <button
                 type="button"
                 aria-expanded={open}
@@ -264,7 +288,7 @@ export function Sidebar({ className }: { className?: string }) {
                 {open
                   ? <PanelLeftClose aria-hidden className="relative size-6 shrink-0" strokeWidth={1.75} />
                   : <PanelLeftOpen aria-hidden className="relative size-6 shrink-0" strokeWidth={1.75} />}
-                <span className={cn('relative', reveal)}>{open ? 'Contraer menú' : 'Expandir menú'}</span>
+                <span className={cn('relative', reveal)}>{open ? t.collapse : t.expand}</span>
               </button>
             </div>
             <ProfileCard />

@@ -10,6 +10,39 @@ import { cn } from '@/lib/utils';
 import { springs } from '@/lib/motion/presets';
 import { useSocialStore, type SocialPulse } from '@/store/socialStore';
 import { AvatarDisplay } from '@/components/character/AvatarDisplay';
+import { useLocale, type Copy } from '@/lib/i18n';
+
+const es = {
+  social: 'Social',
+  letters: (n: number) => `${n} ${n === 1 ? 'carta sin abrir' : 'cartas sin abrir'}`,
+  doves: (n: number) => `${n} ${n === 1 ? 'paloma por responder' : 'palomas por responder'}`,
+  online: (n: number) => `${n} en línea`,
+  streaks: (n: number) => `${n} ${n === 1 ? 'racha encendida espera' : 'rachas encendidas esperan'} que escribas hoy`,
+  yourPeople: 'Tu gente',
+  findPeople: 'Encuentra a tu gente',
+  friendsOnline: (n: number) => `${n} ${n === 1 ? 'amigo en línea' : 'amigos en línea'}`,
+  directorySub: 'Tu directorio, tus cartas y tus gremios.',
+  inviteSub: 'Envía una paloma a tus amigos y anótalos en tu directorio.',
+  writeSub: 'Escríbeles una carta o envíales una foto.',
+  enter: 'Entrar',
+};
+
+const en: typeof es = {
+  social: 'Social',
+  letters: (n) => `${n} ${n === 1 ? 'unread letter' : 'unread letters'}`,
+  doves: (n) => `${n} ${n === 1 ? 'dove to answer' : 'doves to answer'}`,
+  online: (n) => `${n} online`,
+  streaks: (n) => `${n} ${n === 1 ? 'lit streak is waiting' : 'lit streaks are waiting'} for you to write today`,
+  yourPeople: 'Your people',
+  findPeople: 'Find your people',
+  friendsOnline: (n) => `${n} ${n === 1 ? 'friend online' : 'friends online'}`,
+  directorySub: 'Your directory, your letters and your guilds.',
+  inviteSub: 'Send a dove to your friends and add them to your directory.',
+  writeSub: 'Write them a letter or send them a photo.',
+  enter: 'Enter',
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 /** El pulso llega en vivo (lib/live); al entrar en la app se pide una vez por si acaso. */
 export function useSocialPulseSync() {
@@ -26,6 +59,7 @@ function socialTarget(pulse: SocialPulse | null) {
 
 /** Icono de Social en la cabecera: número de pendientes o punto verde si hay gente en línea. */
 export function SocialButton({ className }: { className?: string }) {
+  const t = COPY[useLocale()];
   const pulse = useSocialStore((s) => s.pulse);
   const { pathname } = useLocation();
   const reduce = useReducedMotionConfig();
@@ -34,10 +68,10 @@ export function SocialButton({ className }: { className?: string }) {
   const online = (pulse?.onlineCount ?? 0) > 0;
   const active = pathname.startsWith('/social') || pathname.startsWith('/u/');
   const label = [
-    'Social',
-    letters ? `${letters} ${letters === 1 ? 'carta sin abrir' : 'cartas sin abrir'}` : null,
-    pulse?.requests ? `${pulse.requests} ${pulse.requests === 1 ? 'paloma por responder' : 'palomas por responder'}` : null,
-    online ? `${pulse!.onlineCount} en línea` : null,
+    t.social,
+    letters ? t.letters(letters) : null,
+    pulse?.requests ? t.doves(pulse.requests) : null,
+    online ? t.online(pulse!.onlineCount) : null,
   ].filter(Boolean).join(', ');
   return (
     <Link
@@ -73,17 +107,18 @@ export function SocialButton({ className }: { className?: string }) {
 
 /** El portal del inicio: entrada grande y viva a Social. */
 export function SocialPortal({ className }: { className?: string }) {
+  const t = COPY[useLocale()];
   const pulse = useSocialStore((s) => s.pulse);
   const reduce = useReducedMotionConfig();
   const online = pulse?.online ?? [];
   const letters = (pulse?.unreadMessages ?? 0) + (pulse?.guildUnread ?? 0);
   const lines = [
-    letters ? { icon: MessageCircle, text: `${letters} ${letters === 1 ? 'carta sin abrir' : 'cartas sin abrir'}` } : null,
-    pulse?.streaksWaiting ? { icon: Flame, text: `${pulse.streaksWaiting} ${pulse.streaksWaiting === 1 ? 'racha encendida espera' : 'rachas encendidas esperan'} que escribas hoy` } : null,
-    pulse?.requests ? { icon: UserPlus, text: `${pulse.requests} ${pulse.requests === 1 ? 'paloma por responder' : 'palomas por responder'}` } : null,
+    letters ? { icon: MessageCircle, text: t.letters(letters) } : null,
+    pulse?.streaksWaiting ? { icon: Flame, text: t.streaks(pulse.streaksWaiting) } : null,
+    pulse?.requests ? { icon: UserPlus, text: t.doves(pulse.requests) } : null,
   ].filter((x): x is { icon: typeof Users; text: string } => Boolean(x));
-  const title = !pulse ? 'Tu gente' : pulse.friends === 0 ? 'Encuentra a tu gente' : pulse.onlineCount > 0 ? `${pulse.onlineCount} ${pulse.onlineCount === 1 ? 'amigo en línea' : 'amigos en línea'}` : 'Tu gente';
-  const sub = !pulse ? 'Tu directorio, tus cartas y tus gremios.' : pulse.friends === 0 ? 'Envía una paloma a tus amigos y anótalos en tu directorio.' : lines.length ? null : 'Escríbeles una carta o envíales una foto.';
+  const title = !pulse ? t.yourPeople : pulse.friends === 0 ? t.findPeople : pulse.onlineCount > 0 ? t.friendsOnline(pulse.onlineCount) : t.yourPeople;
+  const sub = !pulse ? t.directorySub : pulse.friends === 0 ? t.inviteSub : lines.length ? null : t.writeSub;
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={springs.gentle} className={className}>
@@ -128,7 +163,7 @@ export function SocialPortal({ className }: { className?: string }) {
           })}
         </span>
         <span className="flex min-w-0 flex-1 flex-col gap-1">
-          <span className="text-label-lg text-primary-text">Social</span>
+          <span className="text-label-lg text-primary-text">{t.social}</span>
           <span className="text-heading-sm md:text-heading-md">{title}</span>
           {sub && <span className="text-body-sm text-on-surface-light">{sub}</span>}
           {lines.length > 0 && (
@@ -143,7 +178,7 @@ export function SocialPortal({ className }: { className?: string }) {
           )}
         </span>
         <span className="hidden items-center gap-1 text-label-lg text-primary-text sm:inline-flex">
-          Entrar<ArrowRight aria-hidden className="size-4 transition-transform group-hover:translate-x-1" />
+          {t.enter}<ArrowRight aria-hidden className="size-4 transition-transform group-hover:translate-x-1" />
         </span>
         <ArrowRight aria-hidden className="size-5 shrink-0 text-primary-text sm:hidden" />
       </Link>

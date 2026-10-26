@@ -4,9 +4,11 @@ import { cn } from '@/lib/utils';
 import { useShellStore } from '@/store/shellStore';
 import { useToastStore } from '@/hooks/useToast';
 import { useKeyboardOpen } from '@/hooks/useKeyboardOpen';
+import { useLocale } from '@/lib/i18n';
 
 /** Botón flotante móvil (64 px) sobre la TabBar: abre las acciones rápidas. */
 export function Fab({ className }: { className?: string }) {
+  const locale = useLocale();
   const quickOpen = useShellStore((s) => s.quickOpen);
   const setQuickOpen = useShellStore((s) => s.setQuickOpen);
   // Los avisos salen justo encima de la barra: el botón sube para dejarles sitio.
@@ -15,7 +17,7 @@ export function Fab({ className }: { className?: string }) {
   return (
     <motion.button
       type="button"
-      aria-label="Crear: acciones rápidas"
+      aria-label={locale === 'en' ? 'Create: quick actions' : 'Crear: acciones rápidas'}
       data-tour="create"
       aria-haspopup="dialog"
       aria-expanded={quickOpen}

@@ -8,12 +8,53 @@ import { spring } from '@/lib/motion';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { Button, IconChip, ResponsiveDialog, type Tone } from '@/components/ui/lq';
+import { useLocale, type Copy } from '@/lib/i18n';
 
-const CLASSES: Array<{ id: string; icon: LucideIcon; tone: Exclude<Tone, 'muted'>; name: string; description: string; bonus: string; stat: string }> = [
-  { id: 'warrior', icon: Swords, tone: 'error', name: 'Guerrero', description: 'Maestro del fitness y la disciplina', bonus: '+20% XP en el Coliseo y en misiones de fitness', stat: 'Fuerza +2 por nivel' },
-  { id: 'mage', icon: Wand2, tone: 'forest', name: 'Mago', description: 'Sabio del conocimiento', bonus: '+20% XP en misiones de Aprendizaje', stat: 'Inteligencia +2 por nivel' },
-  { id: 'merchant', icon: Coins, tone: 'warning', name: 'Mercader', description: 'Maestro de las finanzas y el ahorro', bonus: '+20% de oro en todas las misiones', stat: 'Acumula riqueza más rápido' },
-  { id: 'paladin', icon: Heart, tone: 'success', name: 'Paladín', description: 'Guardián de las relaciones y el bienestar', bonus: '+20% XP en misiones de Amor y Salud', stat: 'Carisma +2 por nivel' },
+const es = {
+  chosen: '¡Clase elegida!',
+  choose: 'Elige tu clase',
+  now: (name: string) => `Ahora eres ${name}`,
+  continue: 'Continuar',
+  intro: 'Has llegado al nivel 10: especialízate. Tu clase da bonus de XP y atributos.',
+  group: 'Clase',
+  later: 'Decidir después',
+  pick: 'Elige una clase',
+  be: (name: string) => `Ser ${name}`,
+  saveFailed: 'No se pudo guardar tu clase. Inténtalo de nuevo.',
+  classes: {
+    warrior: { name: 'Guerrero', description: 'Maestro del fitness y la disciplina', bonus: '+20% XP en el Coliseo y en misiones de fitness', stat: 'Fuerza +2 por nivel' },
+    mage: { name: 'Mago', description: 'Sabio del conocimiento', bonus: '+20% XP en misiones de Aprendizaje', stat: 'Inteligencia +2 por nivel' },
+    merchant: { name: 'Mercader', description: 'Maestro de las finanzas y el ahorro', bonus: '+20% de oro en todas las misiones', stat: 'Acumula riqueza más rápido' },
+    paladin: { name: 'Paladín', description: 'Guardián de las relaciones y el bienestar', bonus: '+20% XP en misiones de Amor y Salud', stat: 'Carisma +2 por nivel' },
+  } as Record<string, { name: string; description: string; bonus: string; stat: string }>,
+};
+
+const en: typeof es = {
+  chosen: 'Class chosen!',
+  choose: 'Choose your class',
+  now: (name) => `You are now a ${name}`,
+  continue: 'Continue',
+  intro: 'You reached level 10: specialize. Your class gives you XP bonuses and attributes.',
+  group: 'Class',
+  later: 'Decide later',
+  pick: 'Choose a class',
+  be: (name) => `Become a ${name}`,
+  saveFailed: "We couldn't save your class. Try again.",
+  classes: {
+    warrior: { name: 'Warrior', description: 'Master of fitness and discipline', bonus: '+20% XP in Coliseum and fitness goals', stat: 'Strength +2 per level' },
+    mage: { name: 'Mage', description: 'Wise in knowledge', bonus: '+20% XP in Learning goals', stat: 'Intelligence +2 per level' },
+    merchant: { name: 'Merchant', description: 'Master of finances and saving', bonus: '+20% gold on all goals', stat: 'Builds wealth faster' },
+    paladin: { name: 'Paladin', description: 'Guardian of relationships and wellbeing', bonus: '+20% XP in Love and Health goals', stat: 'Charisma +2 per level' },
+  },
+};
+
+const COPY: Copy<typeof es> = { es, en };
+
+const CLASSES: Array<{ id: string; icon: LucideIcon; tone: Exclude<Tone, 'muted'> }> = [
+  { id: 'warrior', icon: Swords, tone: 'error' },
+  { id: 'mage', icon: Wand2, tone: 'forest' },
+  { id: 'merchant', icon: Coins, tone: 'warning' },
+  { id: 'paladin', icon: Heart, tone: 'success' },
 ];
 
 const ring: Record<Exclude<Tone, 'muted'>, string> = {
@@ -32,6 +73,7 @@ interface Props {
 }
 
 export function ClassSelectionModal({ open, onClose }: Props) {
+  const t = COPY[useLocale()];
   const name = useId();
   const [selected, setSelected] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -39,6 +81,7 @@ export function ClassSelectionModal({ open, onClose }: Props) {
   const [confirmed, setConfirmed] = useState(false);
   const { updateUser, user } = useAuthStore();
   const cls = CLASSES.find((c) => c.id === selected);
+  const text = cls ? t.classes[cls.id] : undefined;
 
   useEffect(() => { if (open) { setConfirmed(false); setError(null); } }, [open]);
 
@@ -53,7 +96,7 @@ export function ClassSelectionModal({ open, onClose }: Props) {
       setConfirmed(true);
     } catch (err) {
       const msg = (err as { response?: { data?: { message?: string } } }).response?.data?.message;
-      setError(msg ?? 'No se pudo guardar tu clase. Inténtalo de nuevo.');
+      setError(msg ?? t.saveFailed);
     } finally {
       setSaving(false);
     }
@@ -63,62 +106,65 @@ export function ClassSelectionModal({ open, onClose }: Props) {
     <ResponsiveDialog
       open={open}
       onClose={onClose}
-      title={confirmed ? '¡Clase elegida!' : <span className="block text-heading-lg md:text-display-sm">Elige tu clase</span>}
+      title={confirmed ? t.chosen : <span className="block text-heading-lg md:text-display-sm">{t.choose}</span>}
       className="md:max-w-[640px]"
     >
-      {confirmed && cls ? (
+      {confirmed && cls && text ? (
         <div className="flex flex-col items-center gap-4 py-4 text-center">
           <motion.span initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1, transition: spring }}>
             <IconChip icon={cls.icon} tone={cls.tone} size="lg" />
           </motion.span>
-          <p className="text-heading-sm">Ahora eres {cls.name}</p>
-          <p className="text-body-md text-on-surface-light">{cls.bonus}. {cls.stat}.</p>
-          <Button size="lg" block data-autofocus onClick={onClose}>Continuar</Button>
+          <p className="text-heading-sm">{t.now(text.name)}</p>
+          <p className="text-body-md text-on-surface-light">{text.bonus}. {text.stat}.</p>
+          <Button size="lg" block data-autofocus onClick={onClose}>{t.continue}</Button>
         </div>
       ) : (
         <div className="flex flex-col gap-6">
-          <p className="-mt-2 text-body-md text-on-surface-light">Has llegado al nivel 10: especialízate. Tu clase da bonus de XP y atributos.</p>
+          <p className="-mt-2 text-body-md text-on-surface-light">{t.intro}</p>
 
-          <div role="radiogroup" aria-label="Clase" className="grid grid-cols-2 gap-3 md:gap-4">
-            {CLASSES.map((c) => (
-              <label
-                key={c.id}
-                className={cn(
-                  'lq-lift relative flex cursor-pointer flex-col gap-2 rounded-2xl border-2 border-border bg-surface p-3 md:p-4',
-                  'hover:border-border-strong has-[:checked]:bg-background has-[:checked]:shadow-md',
-                  'has-[:focus-visible]:outline has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary',
-                  ring[c.tone],
-                )}
-              >
-                <input
-                  type="radio" name={name} value={c.id}
-                  checked={selected === c.id}
-                  onChange={() => setSelected(c.id)}
-                  className="peer sr-only"
-                  aria-describedby={`${name}-${c.id}`}
-                />
-                <span className="flex items-start justify-between">
-                  <IconChip icon={c.icon} tone={c.tone} size="sm" />
-                  <span aria-hidden className={cn('flex size-6 items-center justify-center rounded-full', selected !== c.id && 'border-2 border-border-strong')}>
-                    {selected === c.id && <CheckCircle2 className="size-6 text-primary-text" strokeWidth={2} />}
+          <div role="radiogroup" aria-label={t.group} className="grid grid-cols-2 gap-3 md:gap-4">
+            {CLASSES.map((c) => {
+              const info = t.classes[c.id];
+              return (
+                <label
+                  key={c.id}
+                  className={cn(
+                    'lq-lift relative flex cursor-pointer flex-col gap-2 rounded-2xl border-2 border-border bg-surface p-3 md:p-4',
+                    'hover:border-border-strong has-[:checked]:bg-background has-[:checked]:shadow-md',
+                    'has-[:focus-visible]:outline has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary',
+                    ring[c.tone],
+                  )}
+                >
+                  <input
+                    type="radio" name={name} value={c.id}
+                    checked={selected === c.id}
+                    onChange={() => setSelected(c.id)}
+                    className="peer sr-only"
+                    aria-describedby={`${name}-${c.id}`}
+                  />
+                  <span className="flex items-start justify-between">
+                    <IconChip icon={c.icon} tone={c.tone} size="sm" />
+                    <span aria-hidden className={cn('flex size-6 items-center justify-center rounded-full', selected !== c.id && 'border-2 border-border-strong')}>
+                      {selected === c.id && <CheckCircle2 className="size-6 text-primary-text" strokeWidth={2} />}
+                    </span>
                   </span>
-                </span>
-                <span className="text-heading-sm">{c.name}</span>
-                <span id={`${name}-${c.id}`} className="flex flex-col gap-1">
-                  <span className="text-body-sm text-on-surface-light">{c.description}</span>
-                  <span className="text-label-lg text-on-surface">{c.bonus}</span>
-                  <span className="text-body-sm text-on-surface-light">{c.stat}</span>
-                </span>
-              </label>
-            ))}
+                  <span className="text-heading-sm">{info.name}</span>
+                  <span id={`${name}-${c.id}`} className="flex flex-col gap-1">
+                    <span className="text-body-sm text-on-surface-light">{info.description}</span>
+                    <span className="text-label-lg text-on-surface">{info.bonus}</span>
+                    <span className="text-body-sm text-on-surface-light">{info.stat}</span>
+                  </span>
+                </label>
+              );
+            })}
           </div>
 
           {error && <p role="alert" className="rounded-xl bg-error/[var(--lq-soft-alpha)] px-4 py-3 text-body-sm text-error-text">{error}</p>}
 
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <Button variant="ghost" onClick={onClose}>Decidir después</Button>
+            <Button variant="ghost" onClick={onClose}>{t.later}</Button>
             <Button size="lg" disabled={!selected} loading={saving} onClick={choose}>
-              {cls ? `Ser ${cls.name}` : 'Elige una clase'}
+              {text ? t.be(text.name) : t.pick}
             </Button>
           </div>
         </div>

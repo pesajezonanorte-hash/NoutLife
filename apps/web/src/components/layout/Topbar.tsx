@@ -9,18 +9,43 @@ import { OptionsMenu } from './OptionsMenu';
 import { TrialPill } from '@/components/billing/TrialPill';
 import { buildCrumbs } from './nav';
 import { openCommandPalette, sageHasNew, useShellActions } from './actions';
+import { INTL_LOCALE, useLocale, type Copy, type Locale } from '@/lib/i18n';
 
-export function todayLabel() {
-  const s = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+const es = {
+  today: 'es-ES',
+  route: 'Ruta',
+  search: 'Buscar (Ctrl+K)',
+  sageNew: 'El Sabio, consejo nuevo',
+  sage: 'El Sabio',
+  quick: 'Acciones rápidas',
+  newHabit: 'Nuevo hábito',
+};
+
+const en: typeof es = {
+  today: 'en-US',
+  route: 'Path',
+  search: 'Search (Ctrl+K)',
+  sageNew: 'The Sage, new advice',
+  sage: 'The Sage',
+  quick: 'Quick actions',
+  newHabit: 'New habit',
+};
+
+const COPY: Copy<typeof es> = { es, en };
+
+/** Fecha de hoy como «Lunes 3 de marzo» (o «Monday, March 3»). */
+export function todayLabel(locale: Locale = 'es') {
+  const s = new Date().toLocaleDateString(INTL_LOCALE[locale], { weekday: 'long', day: 'numeric', month: 'long' });
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 function Breadcrumb() {
+  const locale = useLocale();
   const { pathname } = useLocation();
   const detail = useShellStore((s) => s.crumb);
-  const crumbs = buildCrumbs(pathname, detail);
+  const crumbs = buildCrumbs(pathname, detail, locale);
   return (
-    <nav aria-label="Ruta" className="min-w-0">
+    <nav aria-label={COPY[locale].route} className="min-w-0">
       <ol className="flex min-w-0 items-center gap-2 text-body-sm text-on-surface-light">
         {crumbs.map((c, i) => {
           const last = i === crumbs.length - 1;
@@ -46,6 +71,8 @@ function Breadcrumb() {
  * Sabio, notificaciones, acciones rápidas, más opciones y "Nuevo hábito".
  */
 export function Topbar({ className }: { className?: string }) {
+  const locale = useLocale();
+  const t = COPY[locale];
   const navigate = useNavigate();
   const setQuickOpen = useShellStore((s) => s.setQuickOpen);
   const { openSage } = useShellActions();
@@ -60,27 +87,27 @@ export function Topbar({ className }: { className?: string }) {
       )}
     >
       <div className="min-w-0 flex-1">
-        <span className="block truncate text-body-sm text-on-surface-light lg:hidden">{todayLabel()}</span>
+        <span className="block truncate text-body-sm text-on-surface-light lg:hidden">{todayLabel(locale)}</span>
         <div className="hidden lg:block"><Breadcrumb /></div>
       </div>
       <div className="flex items-center gap-1">
         <TrialPill className="mr-2" />
-        <Button variant="icon" data-tour="search" aria-label="Buscar (Ctrl+K)" aria-keyshortcuts="Control+K" onClick={openCommandPalette}>
+        <Button variant="icon" data-tour="search" aria-label={t.search} aria-keyshortcuts="Control+K" onClick={openCommandPalette}>
           <Search aria-hidden className="size-6" strokeWidth={1.75} />
         </Button>
-        <Button variant="icon" aria-label={hasNew ? 'El Sabio, consejo nuevo' : 'El Sabio'} onClick={() => openSage()} data-tour="sage" className="relative">
+        <Button variant="icon" aria-label={hasNew ? t.sageNew : t.sage} onClick={() => openSage()} data-tour="sage" className="relative">
           <Sparkles aria-hidden className="size-6" strokeWidth={1.75} />
           {hasNew && <span aria-hidden className="absolute right-[11px] top-2.5 size-2 rounded-full bg-primary ring-2 ring-background" />}
         </Button>
         <SocialButton />
         <NotificationBell />
-        <Button variant="icon" aria-label="Acciones rápidas" aria-haspopup="dialog" onClick={() => setQuickOpen(true)}>
+        <Button variant="icon" aria-label={t.quick} aria-haspopup="dialog" onClick={() => setQuickOpen(true)}>
           <Zap aria-hidden className="size-6" strokeWidth={1.75} />
         </Button>
         <OptionsMenu />
         <Button size="md" className="ml-2" data-tour="create" onClick={() => navigate('/habits?new=1')}>
           <Plus aria-hidden className="size-4" strokeWidth={2} />
-          Nuevo hábito
+          {t.newHabit}
         </Button>
       </div>
     </header>

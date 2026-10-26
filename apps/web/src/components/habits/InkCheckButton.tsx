@@ -9,6 +9,12 @@ import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { springs } from '@/lib/motion/presets';
 import { SketchCheck, SketchCircle } from '@/components/ambience';
+import { useText, type Copy } from '@/lib/i18n';
+
+const COPY: Copy<{ done: (n: string) => string; undo: (n: string) => string; complete: (n: string) => string }> = {
+  es: { done: (n) => `${n}: completado hoy`, undo: (n) => `Desmarcar ${n}`, complete: (n) => `Completar ${n}` },
+  en: { done: (n) => `${n}: completed today`, undo: (n) => `Undo ${n}`, complete: (n) => `Complete ${n}` },
+};
 
 export interface InkCheckButtonProps {
   checked: boolean;
@@ -23,6 +29,7 @@ export interface InkCheckButtonProps {
 }
 
 export function InkCheckButton({ checked, name, onToggle, pending, locked, className }: InkCheckButtonProps) {
+  const t = useText(COPY);
   const [inking, setInking] = useState(false);
   const wasPending = useRef(false);
   const shown = checked || inking;
@@ -43,7 +50,7 @@ export function InkCheckButton({ checked, name, onToggle, pending, locked, class
     <motion.button
       type="button"
       aria-pressed={checked}
-      aria-label={isLocked ? `${name}: completado hoy` : checked ? `Desmarcar ${name}` : `Completar ${name}`}
+      aria-label={isLocked ? t.done(name) : checked ? t.undo(name) : t.complete(name)}
       aria-disabled={isLocked || undefined}
       aria-busy={pending || undefined}
       disabled={pending}

@@ -1,4 +1,5 @@
 import api from '../lib/api';
+import type { Locale } from '../lib/locale';
 
 export const NOTIFICATION_CATEGORIES = ['HABITS', 'QUESTS', 'COLISEO', 'FINANCE', 'SOCIAL', 'ACHIEVEMENTS', 'SYSTEM'] as const;
 export type NotificationCategory = (typeof NOTIFICATION_CATEGORIES)[number];
@@ -75,14 +76,29 @@ export function pushSupport(): 'ok' | 'ios-install' | 'unsupported' {
 
 export type PushResult = 'ok' | 'denied' | 'unsupported' | 'ios-install' | 'no-server' | 'error';
 
-export const PUSH_MESSAGES: Record<PushResult, string> = {
-  ok: 'Avisos activados en este dispositivo',
-  denied: 'El navegador bloqueó los avisos. Actívalos en los permisos del sitio.',
-  unsupported: 'Este navegador no puede recibir avisos.',
-  'ios-install': 'En iPhone: toca Compartir y «Añadir a pantalla de inicio», abre Noutlife desde ahí y activa los avisos.',
-  'no-server': 'Los avisos push aún no están configurados en el servidor.',
-  error: 'No se pudieron activar los avisos. Inténtalo de nuevo.',
+const PUSH_MESSAGES_BY_LOCALE: Record<Locale, Record<PushResult, string>> = {
+  es: {
+    ok: 'Avisos activados en este dispositivo',
+    denied: 'El navegador bloqueó los avisos. Actívalos en los permisos del sitio.',
+    unsupported: 'Este navegador no puede recibir avisos.',
+    'ios-install': 'En iPhone: toca Compartir y «Añadir a pantalla de inicio», abre Noutlife desde ahí y activa los avisos.',
+    'no-server': 'Los avisos push aún no están configurados en el servidor.',
+    error: 'No se pudieron activar los avisos. Inténtalo de nuevo.',
+  },
+  en: {
+    ok: 'Alerts turned on for this device',
+    denied: 'The browser blocked alerts. Turn them on in the site permissions.',
+    unsupported: 'This browser cannot receive alerts.',
+    'ios-install': 'On iPhone: tap Share and “Add to Home Screen”, open NoutLife from there and turn on alerts.',
+    'no-server': 'Push alerts are not set up on the server yet.',
+    error: "Alerts couldn't be turned on. Try again.",
+  },
 };
+
+/** Mensajes de los avisos push en el idioma indicado. */
+export const pushMessagesFor = (locale: Locale): Record<PushResult, string> => PUSH_MESSAGES_BY_LOCALE[locale];
+
+export const PUSH_MESSAGES = PUSH_MESSAGES_BY_LOCALE.es;
 
 let vapidKey: string | null | undefined;
 async function getVapidKey(): Promise<string | null> {

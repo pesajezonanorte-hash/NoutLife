@@ -13,7 +13,7 @@ import { createContext, useContext, useEffect } from 'react';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { useAuthStore } from '@/store/authStore';
-import { resolveLocale, type Locale } from './locale';
+import { resolveLocale, type Copy, type Locale } from './locale';
 
 export * from './locale';
 
@@ -50,6 +50,11 @@ export function useLocale(): Locale {
   const account = useAuthStore((s) => s.user?.language);
   const choice = useLocaleStore((s) => s.choice);
   return forced ?? resolveLocale(account, choice);
+}
+
+/** Los textos de un componente en el idioma de la persona: `const t = useText(COPY)`. */
+export function useText<T>(copy: Copy<T>): T {
+  return copy[useLocale()];
 }
 
 /** Lo mismo fuera de React (servicios, avisos que llegan después de una petición). */

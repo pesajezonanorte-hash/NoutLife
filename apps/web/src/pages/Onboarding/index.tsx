@@ -26,13 +26,84 @@ import { isProRequired, LITE_LIMITS } from '@/lib/plan';
 import { track } from '@/lib/analytics';
 import { BrandLockup } from '@/components/layout/Brand';
 import { Button, CheckButton, IconChip, ModernLoader } from '@/components/ui/lq';
-import { LOADING_COPY } from '@/lib/loadingCopy';
+import { useLoadingCopy } from '@/lib/loadingCopy';
 import { AvatarPreview } from '@/components/character/AvatarPixelEditor';
 import { withBody, withDefaults } from '@/components/character/avatarOptions';
 import {
-  AvatarContent, ChoiceMark, GoalsContent, IdentityFields, LightChoice, MAX_GOALS, PACKS, cascade, goalCategoryOf, rise, type HowFound, type Pack,
+  AvatarContent, ChoiceMark, GoalsContent, IdentityFields, LightChoice, MAX_GOALS, cascade, goalCategoryOf, packsFor, rise, type HowFound, type Pack,
 } from '@/components/onboarding/steps';
 import { Lettering, TitleText } from '@/components/layout/Lettering';
+import { useLocale, type Copy } from '@/lib/i18n';
+
+const es = {
+  step: 'Paso',
+  of: 'de',
+  progress: 'Progreso',
+  back: 'Atrás',
+  next: 'Siguiente',
+  otherAccount: 'Usar otra cuenta',
+  nameError: 'Escribe un nombre para continuar',
+  genderError: 'Elige una opción para continuar',
+  identityTitle: '¿Cómo te llamamos?',
+  identitySubtitle: 'Tu espacio te espera. Empecemos por ti.',
+  lightTitle: 'Elige tu luz',
+  lightSubtitle: 'Así se verá tu espacio.',
+  goalsTitle: '¿Qué quieres ordenar primero?',
+  goalsSubtitle: (max: number) => `Elige hasta ${max} áreas. Serán tus zonas principales.`,
+  habitTitle: 'Tu primer hábito',
+  habitSubtitle: 'Agrega un pack con un toque. Puedes editarlo después.',
+  skip: 'Saltar por ahora',
+  done: 'Listo',
+  added: 'Agregado',
+  adding: 'Agregando…',
+  add: 'Agregar',
+  checkToday: '¿Ya hiciste alguno hoy? Márcalo.',
+  checkFailed: 'No se pudo marcar. Inténtalo de nuevo.',
+  liteLimit: (n: number) => `En NoutLife Lite tienes hasta ${n} hábitos activos. Con Pro, los que quieras.`,
+  packFailed: 'No se pudo agregar todo el pack. Revisa tu conexión e inténtalo de nuevo.',
+  preparing: 'Preparando tu espacio…',
+  readyTitle: 'Tu espacio está listo.',
+  readyBody: (name: string) => `Todo está en su sitio, ${name}.`,
+  enter: 'Entrar',
+  studioTitle: 'Crea tu personaje',
+  studioDone: 'Listo',
+};
+
+const en: typeof es = {
+  step: 'Step',
+  of: 'of',
+  progress: 'Progress',
+  back: 'Back',
+  next: 'Next',
+  otherAccount: 'Use another account',
+  nameError: 'Write a name to continue',
+  genderError: 'Choose an option to continue',
+  identityTitle: 'What should we call you?',
+  identitySubtitle: 'Your space is waiting. Let’s start with you.',
+  lightTitle: 'Choose your light',
+  lightSubtitle: 'This is how your space will look.',
+  goalsTitle: 'What do you want to organize first?',
+  goalsSubtitle: (max) => `Pick up to ${max} areas. They will be your main zones.`,
+  habitTitle: 'Your first habit',
+  habitSubtitle: 'Add a pack with one tap. You can edit it later.',
+  skip: 'Skip for now',
+  done: 'Done',
+  added: 'Added',
+  adding: 'Adding…',
+  add: 'Add',
+  checkToday: 'Did you do any today? Mark it.',
+  checkFailed: "Couldn't mark it. Try again.",
+  liteLimit: (n) => `NoutLife Lite includes up to ${n} active habits. With Pro, as many as you want.`,
+  packFailed: "We couldn't add the whole pack. Check your connection and try again.",
+  preparing: 'Preparing your space…',
+  readyTitle: 'Your space is ready.',
+  readyBody: (name) => `Everything is in place, ${name}.`,
+  enter: 'Enter',
+  studioTitle: 'Create your character',
+  studioDone: 'Done',
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 const STORAGE_KEY = 'lifequest_onboarding_progress';
 const TOTAL_STEPS = 4;
@@ -86,6 +157,7 @@ const stepMotion: Variants = {
 };
 
 function Shell({ step, dir, title, subtitle, children, footer }: { step: number; dir: number; title: string; subtitle: string; children: ReactNode; footer: ReactNode }) {
+  const t = COPY[useLocale()];
   const initialStep = useRef(step);
   // Pantalla de app: mide exactamente el alto visible (100dvh). Cabecera y botones
   // quedan fijos; si un paso no cabe, solo se desplaza su contenido.
@@ -95,7 +167,7 @@ function Shell({ step, dir, title, subtitle, children, footer }: { step: number;
         <BrandLockup markSize={30} />
         <div className="flex flex-col gap-2">
           <span className="flex text-label-lg text-on-surface-light">
-            Paso&nbsp;
+            {t.step}&nbsp;
             <span className="relative inline-flex overflow-hidden tabular-nums">
               <AnimatePresence mode="popLayout" initial={false} custom={dir}>
                 <motion.span key={step} custom={dir} initial={{ y: dir * 14, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: dir * -14, opacity: 0 }} transition={springs.natural}>
@@ -103,10 +175,10 @@ function Shell({ step, dir, title, subtitle, children, footer }: { step: number;
                 </motion.span>
               </AnimatePresence>
             </span>
-            &nbsp;de {TOTAL_STEPS}
+            &nbsp;{t.of} {TOTAL_STEPS}
           </span>
           {/* Cada tramo se llena con un muelle; el actual brilla con la luz jade. */}
-          <div role="progressbar" aria-label="Progreso" aria-valuemin={1} aria-valuemax={TOTAL_STEPS} aria-valuenow={step + 1} className="grid grid-cols-4 gap-1.5">
+          <div role="progressbar" aria-label={t.progress} aria-valuemin={1} aria-valuemax={TOTAL_STEPS} aria-valuenow={step + 1} className="grid grid-cols-4 gap-1.5">
             {Array.from({ length: TOTAL_STEPS }, (_, i) => (
               <span key={i} className="h-1.5 overflow-hidden rounded-full bg-surface-variant">
                 <motion.span
@@ -148,14 +220,18 @@ function Shell({ step, dir, title, subtitle, children, footer }: { step: number;
   );
 }
 
-const back = (onClick: () => void, label = 'Atrás') => (
+const back = (onClick: () => void, label: string) => (
   <Button variant="ghost" onClick={onClick}><ArrowLeft aria-hidden className="size-5" strokeWidth={1.75} />{label}</Button>
 );
-const next = (onClick: () => void, label = 'Siguiente', disabled = false) => (
+const next = (onClick: () => void, label: string, disabled = false) => (
   <Button size="lg" disabled={disabled} onClick={onClick} className="flex-1 sm:flex-none sm:min-w-[200px]">{label}<ArrowRight aria-hidden className="size-5" strokeWidth={1.75} /></Button>
 );
 
 export default function OnboardingPage() {
+  const locale = useLocale();
+  const t = COPY[locale];
+  const packs = packsFor(locale);
+  const loading = useLoadingCopy();
   const navigate = useNavigate();
   const { user, updateUser, logout } = useAuthStore();
   const toast = useToast();
@@ -172,7 +248,7 @@ export default function OnboardingPage() {
   const [howFound, setHowFound] = useState<HowFound | ''>(saved.howFound ?? '');
   const [goalCategories, setGoalCategories] = useState<string[]>(saved.goalCategories ?? []);
   const [yearGoal, setYearGoal] = useState(saved.yearGoal ?? '');
-  const [packs, setPacks] = useState<string[]>(saved.packs ?? []);
+  const [packIds, setPackIds] = useState<string[]>(saved.packs ?? []);
   const [created, setCreated] = useState<Created[]>(saved.created ?? []);
   const light = useThemeStore((s) => s.mode);
   const [editingAvatar, setEditingAvatar] = useState(false);
@@ -183,8 +259,8 @@ export default function OnboardingPage() {
   const completedUser = useRef<Parameters<typeof updateUser>[0] | null>(null);
 
   useEffect(() => {
-    save({ step, displayName, birthDate, timezone, gender, avatarConfig, howFound, goalCategories, yearGoal, packs, created });
-  }, [step, displayName, birthDate, timezone, gender, avatarConfig, howFound, goalCategories, yearGoal, packs, created]);
+    save({ step, displayName, birthDate, timezone, gender, avatarConfig, howFound, goalCategories, yearGoal, packs: packIds, created });
+  }, [step, displayName, birthDate, timezone, gender, avatarConfig, howFound, goalCategories, yearGoal, packIds, created]);
 
   useEffect(() => { track('onboarding_step_viewed', { step: step + 1 }); }, [step]);
 
@@ -220,7 +296,7 @@ export default function OnboardingPage() {
   }
 
   async function addPack(pack: Pack) {
-    if (adding || packs.includes(pack.id)) return;
+    if (adding || packIds.includes(pack.id)) return;
     setAdding(pack.id);
     const made: Created[] = [];
     try {
@@ -231,12 +307,10 @@ export default function OnboardingPage() {
       for (const title of pack.obstacles ?? []) await createAntiHabit({ title });
       track('pack_added', { pack: pack.id });
     } catch (error) {
-      toast.info(isProRequired(error)
-        ? `En NoutLife Lite tienes hasta ${LITE_LIMITS.activeHabits} hábitos activos. Con Pro, los que quieras.`
-        : 'No se pudo agregar todo el pack. Revisa tu conexión e inténtalo de nuevo.');
+      toast.info(isProRequired(error) ? t.liteLimit(LITE_LIMITS.activeHabits) : t.packFailed);
     } finally {
       // Lo que alcanzó a crearse se queda: así un reintento no lo duplica.
-      if (made.length) { setCreated((c) => [...c, ...made]); setPacks((p) => [...p, pack.id]); }
+      if (made.length) { setCreated((c) => [...c, ...made]); setPackIds((p) => [...p, pack.id]); }
       setAdding(null);
     }
   }
@@ -250,7 +324,7 @@ export default function OnboardingPage() {
       if (xp) setCreated((list) => list.map((h) => (h.id === habit.id ? { ...h, xp } : h)));
     } catch {
       setCreated((list) => list.map((h) => (h.id === habit.id ? { ...h, done: false } : h)));
-      toast.error('No se pudo marcar. Inténtalo de nuevo.');
+      toast.error(t.checkFailed);
     }
   }
 
@@ -261,7 +335,7 @@ export default function OnboardingPage() {
     const userId = useAuthStore.getState().user?.id;
     if (userId) useNavStore.getState().setOrder(String(userId), orderFromGoals(goalCategories));
     track('onboarding_completed', {
-      how_found: howFound || null, theme: light, areas: goalCategories.length, packs: packs.length,
+      how_found: howFound || null, theme: light, areas: goalCategories.length, packs: packIds.length,
       year_goal: Boolean(yearGoal.trim()), checked_today: created.filter((h) => h.done).length,
       $set: { how_found: howFound || null },
     });
@@ -298,7 +372,7 @@ export default function OnboardingPage() {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-background px-4 text-on-background">
         {submitting ? (
-          <ModernLoader label="Preparando tu espacio…" words={LOADING_COPY.splash} />
+          <ModernLoader label={t.preparing} words={loading.splash} />
         ) : (
           <motion.div
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0, transition: { duration: 0.3, ease } }}
@@ -306,10 +380,10 @@ export default function OnboardingPage() {
           >
             <AvatarPreview config={config} size={120} animate="celebrate" className="lq-halo" />
             <div className="flex flex-col gap-2">
-              <h1 className="text-display-sm"><Lettering text="Tu espacio está listo." /></h1>
-              <p className="text-body-lg text-on-surface-light">Todo está en su sitio, {displayName.split(' ')[0]}.</p>
+              <h1 className="text-display-sm"><Lettering text={t.readyTitle} /></h1>
+              <p className="text-body-lg text-on-surface-light">{t.readyBody(displayName.split(' ')[0])}</p>
             </div>
-            <Button size="lg" block onClick={enter} autoFocus>Entrar</Button>
+            <Button size="lg" block onClick={enter} autoFocus>{t.enter}</Button>
           </motion.div>
         )}
       </div>
@@ -320,12 +394,12 @@ export default function OnboardingPage() {
   const checkable = created.filter((h) => h.daily);
   const steps: Array<{ title: string; subtitle: string; footer: ReactNode; body: ReactNode }> = [
     {
-      title: '¿Cómo te llamamos?', subtitle: 'Tu espacio te espera. Empecemos por ti.',
-      footer: <><Button variant="ghost" onClick={() => void leave('/login')}>Usar otra cuenta</Button>{next(submitIdentity)}</>,
+      title: t.identityTitle, subtitle: t.identitySubtitle,
+      footer: <><Button variant="ghost" onClick={() => void leave('/login')}>{t.otherAccount}</Button>{next(submitIdentity, t.next)}</>,
       body: (
         <IdentityFields
-          name={displayName} onName={setDisplayName} nameError={tried && !displayName.trim() ? 'Escribe un nombre para continuar' : undefined}
-          gender={gender} onGender={chooseGender} genderError={tried && !gender ? 'Elige una opción para continuar' : undefined}
+          name={displayName} onName={setDisplayName} nameError={tried && !displayName.trim() ? t.nameError : undefined}
+          gender={gender} onGender={chooseGender} genderError={tried && !gender ? t.genderError : undefined}
           lockGender={Boolean(savedOrRegisteredGender)}
           config={config} avatarAnimate={avatarAnim} onEditAvatar={() => setEditingAvatar(true)}
           howFound={howFound} onHowFound={setHowFound}
@@ -334,13 +408,13 @@ export default function OnboardingPage() {
       ),
     },
     {
-      title: 'Elige tu luz', subtitle: 'Así se verá tu espacio.',
-      footer: <>{back(() => go(0))}{next(() => { track('theme_chosen', { mode: light }); go(2); })}</>,
+      title: t.lightTitle, subtitle: t.lightSubtitle,
+      footer: <>{back(() => go(0), t.back)}{next(() => { track('theme_chosen', { mode: light }); go(2); }, t.next)}</>,
       body: <LightChoice mode={light} onMode={chooseLight} />,
     },
     {
-      title: '¿Qué quieres ordenar primero?', subtitle: `Elige hasta ${MAX_GOALS} áreas. Serán tus zonas principales.`,
-      footer: <>{back(() => go(1))}{next(() => go(3), 'Siguiente', goalCategories.length === 0)}</>,
+      title: t.goalsTitle, subtitle: t.goalsSubtitle(MAX_GOALS),
+      footer: <>{back(() => go(1), t.back)}{next(() => go(3), t.next, goalCategories.length === 0)}</>,
       body: (
         <GoalsContent
           selected={goalCategories}
@@ -350,13 +424,13 @@ export default function OnboardingPage() {
       ),
     },
     {
-      title: 'Tu primer hábito', subtitle: 'Agrega un pack con un toque. Puedes editarlo después.',
-      footer: <>{back(() => go(2))}{next(() => void finish(), created.length ? 'Listo' : 'Saltar por ahora')}</>,
+      title: t.habitTitle, subtitle: t.habitSubtitle,
+      footer: <>{back(() => go(2), t.back)}{next(() => void finish(), created.length ? t.done : t.skip)}</>,
       body: (
         <>
           <motion.ul variants={cascade} className="flex flex-col gap-3">
-            {PACKS.map((pack) => {
-              const added = packs.includes(pack.id);
+            {packs.map((pack) => {
+              const added = packIds.includes(pack.id);
               return (
                 <motion.li key={pack.id} variants={rise}>
                   <button
@@ -375,7 +449,7 @@ export default function OnboardingPage() {
                       <span className="block text-body-sm text-on-surface-light">{pack.desc}</span>
                     </span>
                     <ChoiceMark on={added} round off={<Plus className="size-4" strokeWidth={2.5} />} />
-                    <span className="sr-only">{added ? 'Agregado' : adding === pack.id ? 'Agregando…' : 'Agregar'}</span>
+                    <span className="sr-only">{added ? t.added : adding === pack.id ? t.adding : t.add}</span>
                   </button>
                 </motion.li>
               );
@@ -388,7 +462,7 @@ export default function OnboardingPage() {
                 key="check" aria-labelledby="lq-check-today" className="flex flex-col gap-3"
                 initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0, transition: springs.natural }} exit={{ opacity: 0 }}
               >
-                <h2 id="lq-check-today" className="text-label-lg">¿Ya hiciste alguno hoy? Márcalo.</h2>
+                <h2 id="lq-check-today" className="text-label-lg">{t.checkToday}</h2>
                 <ul className="flex flex-col gap-2">
                   {checkable.map((h, i) => (
                     <motion.li
@@ -424,14 +498,14 @@ export default function OnboardingPage() {
       <AnimatePresence>
         {editingAvatar && (
           <motion.div
-            role="dialog" aria-modal="true" aria-label="Crea tu personaje"
+            role="dialog" aria-modal="true" aria-label={t.studioTitle}
             initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0, transition: springs.natural }} exit={{ opacity: 0, y: 16, transition: { duration: 0.16 } }}
             className="fixed inset-0 z-50 flex flex-col gap-3 bg-background px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] md:p-8"
           >
-            <h2 className="text-heading-md">Crea tu personaje</h2>
+            <h2 className="text-heading-md">{t.studioTitle}</h2>
             <AvatarContent config={config} onChange={setAvatarConfig} />
             <Button size="lg" className="self-end sm:min-w-[200px]" onClick={closeAvatar}>
-              <Check aria-hidden className="size-5" strokeWidth={2} />Listo
+              <Check aria-hidden className="size-5" strokeWidth={2} />{t.studioDone}
             </Button>
           </motion.div>
         )}

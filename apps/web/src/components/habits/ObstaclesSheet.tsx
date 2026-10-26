@@ -13,13 +13,165 @@ import * as antiHabits from '@/services/antiHabit.service';
 import type { AntiHabit } from '@/services/antiHabit.service';
 import { Badge, BarChart, Button, EmptyState, ErrorState, Field, IconChip, Input, Modal, PageLoader, SegmentedControl, type BarDatum } from '@/components/ui/lq';
 import { NotebookSheet } from './NotebookSheet';
+import { INTL_LOCALE, useLocale, useText, type Copy, type Locale } from '@/lib/i18n';
 
 export type ObstaclePeriod = 'today' | 'week' | 'month';
-export const OBSTACLE_PERIODS: { value: ObstaclePeriod; label: string }[] = [
-  { value: 'today', label: 'Hoy' }, { value: 'week', label: 'Semana' }, { value: 'month', label: 'Mes' },
-];
 
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+const COPY: Copy<{
+  periods: Record<ObstaclePeriod, string>;
+  fall: (n: number) => string; resisted: (n: number) => string; clean: (n: number) => string;
+  fallNote: string; resistNote: string; savedObstacle: string; savedBody: string; createdBody: string;
+  saveFailed: string; createFailed: string; newObstacle: string; editObstacle: string; avoidQ: string; avoidPh: string;
+  category: string; categoryPh: string; trigger: string; triggerPh: string; limit: string; limitHelp: string; limitPh: string;
+  cancel: string; save: string; create: string; add: string;
+  fallLogged: string; fallLoggedBody: string; resistedLogged: string; resistedLoggedBody: string;
+  logFailed: string; undoneLast: string; undoFailed: string; archiveQ: (t: string) => string; archiveFailed: string; archived: string;
+  removeQ: (t: string) => string; removeFailed: string; removed: string; superceded: string; overLimit: string;
+  hide: string; viewDetail: string; daysOfWeek: string; fallsDay: string; resistedLabel: string; resistedTitle: string;
+  edit: string; undoLast: string; archiveBtn: string; notePlural: string;
+  summaryLine: (today: number, week: number, weekTarget: string, month: number) => string;
+  chartLabel: (t: string) => string;
+  period: string; newObstacleBtn: string; loading: string; loadFailed: string;
+  emptyTitle: string; emptyBody: string; emptyCta: string;
+  dayLabel: string;
+  resistBtn: string; slipBtn: string; deleteLabel: (t: string) => string;
+}> = {
+  es: {
+    periods: { today: 'Hoy', week: 'Semana', month: 'Mes' },
+    fall: (n) => `${n} ${n === 1 ? 'caída' : 'caídas'}`,
+    resisted: (n) => `${n} ${n === 1 ? 'tentación resistida' : 'tentaciones resistidas'}`,
+    clean: (n) => `${n} ${n === 1 ? 'día' : 'días'} sin caer`,
+    fallNote: 'Mañana es otro intento. Fíjate en qué la provocó.',
+    resistNote: 'Cada vez que dices que no, se vuelve más fácil.',
+    savedObstacle: 'Obstáculo guardado',
+    savedBody: '',
+    createdBody: 'Registra cada tentación que resistas.',
+    saveFailed: 'No se pudo guardar el obstáculo',
+    createFailed: 'No se pudo crear el obstáculo',
+    newObstacle: 'Nuevo obstáculo',
+    editObstacle: 'Editar obstáculo',
+    avoidQ: '¿Qué quieres evitar?',
+    avoidPh: 'Ej. Redes sociales después de las 23:00',
+    category: 'Categoría',
+    categoryPh: 'salud, dinero, pantallas…',
+    trigger: 'Detonante (opcional)',
+    triggerPh: 'Aburrimiento, estrés, después de cenar…',
+    limit: 'Límite semanal (opcional)',
+    limitHelp: 'Cuántas caídas a la semana aceptas como máximo.',
+    limitPh: 'Ej. 2',
+    cancel: 'Cancelar',
+    save: 'Guardar',
+    create: 'Crear',
+    add: 'Anotar',
+    fallLogged: 'Caída anotada',
+    fallLoggedBody: 'Mañana es otro intento. Fíjate en qué la provocó.',
+    resistedLogged: 'Tentación resistida',
+    resistedLoggedBody: 'Cada vez que dices que no, se vuelve más fácil.',
+    logFailed: 'No se pudo registrar',
+    undoneLast: 'Último registro deshecho',
+    undoFailed: 'No se pudo deshacer',
+    archiveQ: (t) => `¿Archivar «${t}»? Sus registros se conservan.`,
+    archiveFailed: 'No se pudo archivar',
+    archived: 'Obstáculo archivado',
+    removeQ: (t) => `¿Eliminar «${t}» para siempre? Se borran también sus registros.`,
+    removeFailed: 'No se pudo eliminar',
+    removed: 'Obstáculo eliminado',
+    superceded: 'Obstáculo anotado',
+    overLimit: '· superaste tu límite semanal',
+    hide: 'Ocultar detalle',
+    viewDetail: 'Ver detalle',
+    daysOfWeek: 'semana',
+    fallsDay: 'Caídas',
+    resistedLabel: 'Resistidas',
+    resistedTitle: 'Resistidas',
+    edit: 'Editar',
+    undoLast: 'Deshacer el último',
+    archiveBtn: 'Archivar',
+    notePlural: 'caídas',
+    summaryLine: (today, week, weekTarget, month) => `Hoy ${today} · semana ${week}${weekTarget} · mes ${month} caídas`,
+    chartLabel: (t) => `Caídas diarias de ${t} en los últimos 30 días`,
+    period: 'Periodo',
+    newObstacleBtn: 'Nuevo obstáculo',
+    loading: 'Cargando tus obstáculos…',
+    loadFailed: 'No pudimos cargar tus obstáculos',
+    emptyTitle: 'Sin obstáculos anotados',
+    emptyBody: 'Anota algo que quieras dejar (redes de noche, azúcar, fumar…) y registra cada tentación que resistas.',
+    emptyCta: 'Anotar un obstáculo',
+    dayLabel: 'Caídas',
+    resistBtn: 'Resistí', slipBtn: 'Caí', deleteLabel: (t) => `Eliminar ${t}`,
+  },
+  en: {
+    periods: { today: 'Today', week: 'Week', month: 'Month' },
+    fall: (n) => `${n} ${n === 1 ? 'slip' : 'slips'}`,
+    resisted: (n) => `${n} ${n === 1 ? 'temptation resisted' : 'temptations resisted'}`,
+    clean: (n) => `${n} ${n === 1 ? 'day' : 'days'} clean`,
+    fallNote: 'Tomorrow is another try. Notice what triggered it.',
+    resistNote: 'Every time you say no, it gets easier.',
+    savedObstacle: 'Obstacle saved',
+    savedBody: '',
+    createdBody: 'Log every temptation you resist.',
+    saveFailed: "We couldn't save the obstacle",
+    createFailed: "We couldn't create the obstacle",
+    newObstacle: 'New obstacle',
+    editObstacle: 'Edit obstacle',
+    avoidQ: 'What do you want to avoid?',
+    avoidPh: 'E.g. Social media after 11 p.m.',
+    category: 'Category',
+    categoryPh: 'health, money, screens…',
+    trigger: 'Trigger (optional)',
+    triggerPh: 'Boredom, stress, after dinner…',
+    limit: 'Weekly limit (optional)',
+    limitHelp: 'How many slips a week you accept at most.',
+    limitPh: 'E.g. 2',
+    cancel: 'Cancel',
+    save: 'Save',
+    create: 'Create',
+    add: 'Add',
+    fallLogged: 'Slip logged',
+    fallLoggedBody: 'Tomorrow is another try. Notice what triggered it.',
+    resistedLogged: 'Temptation resisted',
+    resistedLoggedBody: 'Every time you say no, it gets easier.',
+    logFailed: "We couldn't log it",
+    undoneLast: 'Last entry undone',
+    undoFailed: "We couldn't undo it",
+    archiveQ: (t) => `Archive “${t}”? Its entries are kept.`,
+    archiveFailed: "We couldn't archive it",
+    archived: 'Obstacle archived',
+    removeQ: (t) => `Delete “${t}” forever? Its entries are deleted too.`,
+    removeFailed: "We couldn't delete it",
+    removed: 'Obstacle deleted',
+    superceded: 'Obstacle added',
+    overLimit: '· you went over your weekly limit',
+    hide: 'Hide details',
+    viewDetail: 'View details',
+    daysOfWeek: 'week',
+    fallsDay: 'Slips',
+    resistedLabel: 'Resisted',
+    resistedTitle: 'Resisted',
+    edit: 'Edit',
+    undoLast: 'Undo the last one',
+    archiveBtn: 'Archive',
+    notePlural: 'slips',
+    summaryLine: (today, week, weekTarget, month) => `Today ${today} · week ${week}${weekTarget} · month ${month} slips`,
+    chartLabel: (t) => `Daily slips for ${t} over the last 30 days`,
+    period: 'Period',
+    newObstacleBtn: 'New obstacle',
+    loading: 'Loading your obstacles…',
+    loadFailed: "We couldn't load your obstacles",
+    emptyTitle: 'No obstacles noted',
+    emptyBody: 'Note something you want to leave behind (late-night scrolling, sugar, smoking…) and log every temptation you resist.',
+    emptyCta: 'Note an obstacle',
+    dayLabel: 'Slips',
+    resistBtn: 'Resisted', slipBtn: 'Slipped', deleteLabel: (t) => `Delete ${t}`,
+  },
+};
+
+/** Periodos de la hoja de obstáculos en el idioma indicado. */
+export function obstaclePeriodsFor(locale: Locale): { value: ObstaclePeriod; label: string }[] {
+  const p = COPY[locale].periods;
+  return (['today', 'week', 'month'] as const).map((value) => ({ value, label: p[value] }));
+}
+
 const row: Variants = { initial: { opacity: 0 }, animate: { opacity: 1, transition: { duration: 0.18 } }, exit: { opacity: 0, transition: { duration: 0.12 } } };
 
 type FormState = { title: string; category: string; cue: string; limit: string };
@@ -28,6 +180,7 @@ const formOf = (o: AntiHabit): FormState => ({ title: o.title, category: o.categ
 
 /** Crear o editar un obstáculo (mismo formulario). */
 export function ObstacleFormDialog({ open, obstacle, onClose, onSaved }: { open: boolean; obstacle: AntiHabit | null; onClose: () => void; onSaved: () => Promise<void> }) {
+  const t = useText(COPY);
   const toast = useToast();
   const [form, setForm] = useState<FormState>(EMPTY);
   const [saving, setSaving] = useState(false);
@@ -45,27 +198,27 @@ export function ObstacleFormDialog({ open, obstacle, onClose, onSaved }: { open:
     try {
       if (obstacle) {
         await antiHabits.updateAntiHabit(obstacle.id, { title: form.title.trim(), category: form.category.trim() || 'general', cue: form.cue.trim() || null, targetPerWeek });
-        toast.success('Obstáculo guardado');
+        toast.success(t.savedObstacle);
       } else {
         await antiHabits.createAntiHabit({ title: form.title.trim(), category: form.category.trim() || 'general', cue: form.cue.trim() || undefined, targetPerWeek: targetPerWeek ?? undefined });
-        toast.success('Obstáculo anotado', 'Registra cada tentación que resistas.');
+        toast.success(t.superceded, t.createdBody);
       }
       await onSaved();
       onClose();
-    } catch { toast.error(obstacle ? 'No se pudo guardar el obstáculo' : 'No se pudo crear el obstáculo'); }
+    } catch { toast.error(obstacle ? t.saveFailed : t.createFailed); }
     finally { setSaving(false); }
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={obstacle ? 'Editar obstáculo' : 'Nuevo obstáculo'}>
+    <Modal open={open} onClose={onClose} title={obstacle ? t.editObstacle : t.newObstacle}>
       <form onSubmit={submit} className="flex flex-col gap-4">
-        <Field label="¿Qué quieres evitar?"><Input autoFocus value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} maxLength={100} placeholder="Ej. Redes sociales después de las 23:00" required /></Field>
-        <Field label="Categoría"><Input value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} maxLength={32} placeholder="salud, dinero, pantallas…" /></Field>
-        <Field label="Detonante (opcional)"><Input value={form.cue} onChange={(e) => setForm((f) => ({ ...f, cue: e.target.value }))} maxLength={200} placeholder="Aburrimiento, estrés, después de cenar…" /></Field>
-        <Field label="Límite semanal (opcional)" help="Cuántas caídas a la semana aceptas como máximo."><Input type="number" inputMode="numeric" min={1} max={100} value={form.limit} onChange={(e) => setForm((f) => ({ ...f, limit: e.target.value }))} placeholder="Ej. 2" /></Field>
+        <Field label={t.avoidQ}><Input autoFocus value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} maxLength={100} placeholder={t.avoidPh} required /></Field>
+        <Field label={t.category}><Input value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} maxLength={32} placeholder={t.categoryPh} /></Field>
+        <Field label={t.trigger}><Input value={form.cue} onChange={(e) => setForm((f) => ({ ...f, cue: e.target.value }))} maxLength={200} placeholder={t.triggerPh} /></Field>
+        <Field label={t.limit} help={t.limitHelp}><Input type="number" inputMode="numeric" min={1} max={100} value={form.limit} onChange={(e) => setForm((f) => ({ ...f, limit: e.target.value }))} placeholder={t.limitPh} /></Field>
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button type="submit" loading={saving} disabled={!form.title.trim()}>{obstacle ? 'Guardar' : <><Plus aria-hidden className="size-4" />Crear</>}</Button>
+          <Button type="button" variant="secondary" onClick={onClose}>{t.cancel}</Button>
+          <Button type="submit" loading={saving} disabled={!form.title.trim()}>{obstacle ? t.save : <><Plus aria-hidden className="size-4" />{t.create}</>}</Button>
         </div>
       </form>
     </Modal>
@@ -74,6 +227,8 @@ export function ObstacleFormDialog({ open, obstacle, onClose, onSaved }: { open:
 
 /** Una línea de la hoja: el obstáculo, sus registros rápidos y, al abrirla, su detalle. */
 function ObstacleRow({ obstacle, period, onChanged, onEdit }: { obstacle: AntiHabit; period: ObstaclePeriod; onChanged: () => Promise<void>; onEdit: () => void }) {
+  const locale = useLocale();
+  const t = useText(COPY);
   const toast = useToast();
   const [busy, setBusy] = useState<'fall' | 'resist' | null>(null);
   const [open, setOpen] = useState(false);
@@ -84,7 +239,7 @@ function ObstacleRow({ obstacle, period, onChanged, onEdit }: { obstacle: AntiHa
   const bars: BarDatum[] = m.daily.map((d, i) => ({
     label: i % 5 === 0 || i === m.daily.length - 1 ? new Date(`${d.date}T12:00:00`).getDate().toString() : '',
     value: d.falls,
-    tip: `${new Date(`${d.date}T12:00:00`).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}: ${plural(d.falls, 'caída', 'caídas')}, ${plural(d.resisted, 'tentación resistida', 'tentaciones resistidas')}`,
+    tip: `${new Date(`${d.date}T12:00:00`).toLocaleDateString(INTL_LOCALE[locale], { day: 'numeric', month: 'short' })}: ${t.fall(d.falls)}, ${t.resisted(d.resisted)}`,
     highlight: i === m.daily.length - 1,
   }));
 
@@ -93,26 +248,26 @@ function ObstacleRow({ obstacle, period, onChanged, onEdit }: { obstacle: AntiHa
     try {
       await antiHabits.logAntiHabit(obstacle.id, { occurred });
       await onChanged();
-      if (occurred) toast.info('Caída anotada', 'Mañana es otro intento. Fíjate en qué la provocó.');
-      else toast.success('Tentación resistida', 'Cada vez que dices que no, se vuelve más fácil.');
-    } catch { toast.error('No se pudo registrar'); }
+      if (occurred) toast.info(t.fallLogged, t.fallLoggedBody);
+      else toast.success(t.resistedLogged, t.resistedLoggedBody);
+    } catch { toast.error(t.logFailed); }
     finally { setBusy(null); }
   }
   async function undoLast() {
     const last = obstacle.logs[0];
     if (!last) return;
-    try { await antiHabits.deleteAntiHabitLog(last.id); await onChanged(); toast.info('Último registro deshecho'); }
-    catch { toast.error('No se pudo deshacer'); }
+    try { await antiHabits.deleteAntiHabitLog(last.id); await onChanged(); toast.info(t.undoneLast); }
+    catch { toast.error(t.undoFailed); }
   }
   async function archive() {
-    if (!window.confirm(`¿Archivar «${obstacle.title}»? Sus registros se conservan.`)) return;
-    try { await antiHabits.archiveAntiHabit(obstacle.id); await onChanged(); toast.info('Obstáculo archivado'); }
-    catch { toast.error('No se pudo archivar'); }
+    if (!window.confirm(t.archiveQ(obstacle.title))) return;
+    try { await antiHabits.archiveAntiHabit(obstacle.id); await onChanged(); toast.info(t.archived); }
+    catch { toast.error(t.archiveFailed); }
   }
   async function remove() {
-    if (!window.confirm(`¿Eliminar «${obstacle.title}» para siempre? Se borran también sus registros.`)) return;
-    try { await antiHabits.deleteAntiHabitPermanently(obstacle.id); await onChanged(); toast.info('Obstáculo eliminado'); }
-    catch { toast.error('No se pudo eliminar'); }
+    if (!window.confirm(t.removeQ(obstacle.title))) return;
+    try { await antiHabits.deleteAntiHabitPermanently(obstacle.id); await onChanged(); toast.info(t.removed); }
+    catch { toast.error(t.removeFailed); }
   }
 
   return (
@@ -131,15 +286,15 @@ function ObstacleRow({ obstacle, period, onChanged, onEdit }: { obstacle: AntiHa
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-body-sm text-on-surface-light">
             <span className="capitalize">{obstacle.category}</span>
             {obstacle.cue && <span className="truncate">· {obstacle.cue}</span>}
-            {m.daysClean !== null && <Badge variant={m.daysClean >= 7 ? 'success' : 'neutral'}>{plural(m.daysClean, 'día', 'días')} sin caer</Badge>}
-            {over && <span className="text-error-text">· superaste tu límite semanal</span>}
+            {m.daysClean !== null && <Badge variant={m.daysClean >= 7 ? 'success' : 'neutral'}>{t.clean(m.daysClean)}</Badge>}
+            {over && <span className="text-error-text">{t.overLimit}</span>}
           </span>
-          <span className="sr-only">{open ? 'Ocultar detalle' : 'Ver detalle'}</span>
+          <span className="sr-only">{open ? t.hide : t.viewDetail}</span>
         </button>
         <div className="col-span-2 flex flex-wrap gap-2 pl-[3.75rem] md:col-span-1 md:pl-0">
-          <Button variant="secondary" size="sm" loading={busy === 'resist'} onClick={() => void log(false)}><ShieldCheck aria-hidden className="size-4" />Resistí</Button>
-          <Button variant="ghost" size="sm" loading={busy === 'fall'} onClick={() => void log(true)} className="text-error-text"><ShieldAlert aria-hidden className="size-4" />Caí</Button>
-          <Button variant="icon" aria-label={`Eliminar ${obstacle.title}`} onClick={() => void remove()} className="ml-auto text-on-surface-light md:ml-0"><Trash2 aria-hidden className="size-4" strokeWidth={1.75} /></Button>
+          <Button variant="secondary" size="sm" loading={busy === 'resist'} onClick={() => void log(false)}><ShieldCheck aria-hidden className="size-4" />{t.resistBtn}</Button>
+          <Button variant="ghost" size="sm" loading={busy === 'fall'} onClick={() => void log(true)} className="text-error-text"><ShieldAlert aria-hidden className="size-4" />{t.slipBtn}</Button>
+          <Button variant="icon" aria-label={t.deleteLabel(obstacle.title)} onClick={() => void remove()} className="ml-auto text-on-surface-light md:ml-0"><Trash2 aria-hidden className="size-4" strokeWidth={1.75} /></Button>
         </div>
       </div>
       <AnimatePresence initial={false}>
@@ -151,22 +306,22 @@ function ObstacleRow({ obstacle, period, onChanged, onEdit }: { obstacle: AntiHa
           >
             <dl className="grid grid-cols-2 gap-3 sm:max-w-md">
               <div className="rounded-xl bg-error/[var(--lq-soft-alpha)] p-3">
-                <dt className="text-body-sm text-error-text">Caídas · {OBSTACLE_PERIODS.find((p) => p.value === period)?.label.toLowerCase()}</dt>
+                <dt className="text-body-sm text-error-text">{t.fallsDay} · {obstaclePeriodsFor(locale).find((p) => p.value === period)?.label.toLowerCase()}</dt>
                 <dd className="font-mono text-heading-lg tabular-nums">{current.falls}</dd>
               </div>
               <div className="rounded-xl bg-success/[var(--lq-soft-alpha)] p-3">
-                <dt className="text-body-sm text-success-text">Resistidas</dt>
+                <dt className="text-body-sm text-success-text">{t.resistedLabel}</dt>
                 <dd className="font-mono text-heading-lg tabular-nums">{current.resisted}</dd>
               </div>
             </dl>
             <p className="text-body-sm text-on-surface-light">
-              Hoy {m.today.falls} · semana {m.week.falls}{obstacle.targetPerWeek != null ? `/${obstacle.targetPerWeek}` : ''} · mes {m.month.falls} caídas
+              {t.summaryLine(m.today.falls, m.week.falls, obstacle.targetPerWeek != null ? `/${obstacle.targetPerWeek}` : '', m.month.falls)}
             </p>
-            <BarChart data={bars} label={`Caídas diarias de ${obstacle.title} en los últimos 30 días`} tone="warning" highlightTone="error" height={80} />
+            <BarChart data={bars} label={t.chartLabel(obstacle.title)} tone="warning" highlightTone="error" height={80} />
             <div className="flex flex-wrap gap-2">
-              <Button variant="ghost" size="sm" onClick={onEdit}><Pencil aria-hidden className="size-4" />Editar</Button>
-              {obstacle.logs.length > 0 && <Button variant="ghost" size="sm" onClick={() => void undoLast()}><Undo2 aria-hidden className="size-4" />Deshacer el último</Button>}
-              <Button variant="ghost" size="sm" onClick={() => void archive()} className="ml-auto"><Archive aria-hidden className="size-4" />Archivar</Button>
+              <Button variant="ghost" size="sm" onClick={onEdit}><Pencil aria-hidden className="size-4" />{t.edit}</Button>
+              {obstacle.logs.length > 0 && <Button variant="ghost" size="sm" onClick={() => void undoLast()}><Undo2 aria-hidden className="size-4" />{t.undoLast}</Button>}
+              <Button variant="ghost" size="sm" onClick={() => void archive()} className="ml-auto"><Archive aria-hidden className="size-4" />{t.archiveBtn}</Button>
             </div>
           </motion.div>
         )}
@@ -187,24 +342,26 @@ export function ObstaclesSheet({ list, state, period, onPeriod, onReload, onNew,
   panelId: string;
   labelledBy: string;
 }) {
+  const t = useText(COPY);
+  const locale = useLocale();
   return (
     <NotebookSheet
       id={panelId} labelledBy={labelledBy} tabbed
       header={(
         <>
-          <SegmentedControl label="Periodo" value={period} onChange={onPeriod} options={OBSTACLE_PERIODS} className="w-full md:max-w-[360px]" />
-          <Button size="md" onClick={onNew}><Plus aria-hidden className="size-4" />Nuevo obstáculo</Button>
+          <SegmentedControl label={t.period} value={period} onChange={onPeriod} options={obstaclePeriodsFor(locale)} className="w-full md:max-w-[360px]" />
+          <Button size="md" onClick={onNew}><Plus aria-hidden className="size-4" />{t.newObstacleBtn}</Button>
         </>
       )}
     >
-      {state === 'loading' ? <PageLoader size="sm" label="Cargando tus obstáculos…" /> : state === 'error' ? (
-        <ErrorState title="No pudimos cargar tus obstáculos" onRetry={() => void onReload()} />
+      {state === 'loading' ? <PageLoader size="sm" label={t.loading} /> : state === 'error' ? (
+        <ErrorState title={t.loadFailed} onRetry={() => void onReload()} />
       ) : list.length === 0 ? (
         <EmptyState
           icon={ShieldAlert} tone="muted" className="py-12"
-          title="Sin obstáculos anotados"
-          description="Anota algo que quieras dejar (redes de noche, azúcar, fumar…) y registra cada tentación que resistas."
-          action={<Button onClick={onNew}><Plus aria-hidden className="size-4" />Anotar un obstáculo</Button>}
+          title={t.emptyTitle}
+          description={t.emptyBody}
+          action={<Button onClick={onNew}><Plus aria-hidden className="size-4" />{t.emptyCta}</Button>}
         />
       ) : (
         <motion.ul key={period} initial="initial" animate="animate" variants={{ animate: { transition: { staggerChildren: 0.05 } } }} className="flex flex-col">

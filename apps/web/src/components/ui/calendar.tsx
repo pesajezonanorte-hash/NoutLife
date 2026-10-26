@@ -10,7 +10,8 @@ import {
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { LayoutGroup, motion, PresenceContext } from 'framer-motion';
 import { DayPicker, type CalendarDay, type CalendarMonth, type Modifiers } from 'react-day-picker';
-import { es } from 'react-day-picker/locale';
+import { enUS, es } from 'react-day-picker/locale';
+import { useLocale } from '@/lib/i18n';
 import { differenceInCalendarDays, startOfMonth, startOfWeek } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -137,6 +138,7 @@ const GroupCtx = createContext('cal');
 const COMPONENTS = { Chevron, CaptionLabel, Month, DayButton } as const;
 
 export function Calendar({ className, classNames, components, showOutsideDays = true, onCaptionClick, captionExpanded, ...props }: CalendarProps) {
+  const dateLocale = useLocale() === 'en' ? enUS : es;
   const group = useId();
   const merged = Object.fromEntries(
     Object.entries(CLASSES).map(([k, v]) => [k, cn(v, classNames?.[k as keyof typeof classNames])]),
@@ -148,7 +150,7 @@ export function Calendar({ className, classNames, components, showOutsideDays = 
         <GroupCtx.Provider value={group}>
           <Ctx.Provider value={{ onCaptionClick, captionExpanded }}>
             <DayPicker
-              locale={es}
+              locale={dateLocale}
               showOutsideDays={showOutsideDays}
               className={cn(CLASSES.root, className)}
               classNames={merged}

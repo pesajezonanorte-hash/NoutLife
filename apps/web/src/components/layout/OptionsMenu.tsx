@@ -1,18 +1,50 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { LogOut, MessageSquarePlus, Monitor, Moon, MoreHorizontal, Sun, Volume2, VolumeX, Zap, type LucideIcon } from 'lucide-react';
+import { Languages, LogOut, MessageSquarePlus, Monitor, Moon, MoreHorizontal, Sun, Volume2, VolumeX, Zap, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ease } from '@/lib/motion';
 import { Button } from '@/components/ui/lq';
 import { useUIStore } from '@/store/uiStore';
 import { useThemeStore, type ThemeMode } from '@/store/themeStore';
 import { useShellStore } from '@/store/shellStore';
+import { useAuthStore } from '@/store/authStore';
+import { useToastStore } from '@/hooks/useToast';
+import * as userService from '@/services/user.service';
+import { LOCALE_NAMES, useLocale, useLocaleStore, type Copy, type Locale } from '@/lib/i18n';
 import { useShellActions } from './actions';
 
-const THEME_NEXT: Record<ThemeMode, { next: ThemeMode; label: string; icon: LucideIcon }> = {
-  light: { next: 'dark', label: 'Tema: claro', icon: Sun },
-  dark: { next: 'auto', label: 'Tema: oscuro', icon: Moon },
-  auto: { next: 'light', label: 'Tema: automático', icon: Monitor },
+const es = {
+  more: 'Más opciones',
+  themeLabel: { light: 'Tema: claro', dark: 'Tema: oscuro', auto: 'Tema: automático' } as Record<ThemeMode, string>,
+  change: 'Cambiar',
+  mute: 'Silenciar sonidos',
+  unmute: 'Activar sonidos',
+  focus: 'Modo enfoque',
+  feedback: 'Enviar feedback',
+  language: 'Idioma',
+  logout: 'Cerrar sesión',
+  languageError: 'No pudimos cambiar el idioma. Inténtalo de nuevo.',
+};
+
+const en: typeof es = {
+  more: 'More options',
+  themeLabel: { light: 'Theme: light', dark: 'Theme: dark', auto: 'Theme: automatic' },
+  change: 'Change',
+  mute: 'Mute sounds',
+  unmute: 'Turn on sounds',
+  focus: 'Focus mode',
+  feedback: 'Send feedback',
+  language: 'Language',
+  logout: 'Log out',
+  languageError: "We couldn't change the language. Try again.",
+};
+
+const COPY: Copy<typeof es> = { es, en };
+
+const THEME_NEXT: Record<ThemeMode, { next: ThemeMode; icon: LucideIcon }> = {
+  light: { next: 'dark', icon: Sun },
+  dark: { next: 'auto', icon: Moon },
+  auto: { next: 'light', icon: Monitor },
 };
 
 interface Item { label: string; icon: LucideIcon; onSelect: () => void; danger?: boolean; hint?: string }
@@ -23,6 +55,8 @@ interface Item { label: string; icon: LucideIcon; onSelect: () => void; danger?:
  * role="menu" con ↑/↓, Home/End, Escape devuelve el foco al botón.
  */
 export function OptionsMenu() {
+  const locale = useLocale();
+  const t = COPY[locale];
   const [open, setOpen] = useState(false);
   const menuId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -35,14 +69,26 @@ export function OptionsMenu() {
   const setFocusOpen = useShellStore((s) => s.setFocusOpen);
   const setFeedbackOpen = useShellStore((s) => s.setFeedbackOpen);
   const { logout } = useShellActions();
+  const signedIn = useAuthStore((s) => Boolean(s.user));
+  const updateUser = useAuthStore((s) => s.updateUser);
+  const toast = useToastStore((s) => s.error);
+
+  /** Con sesión, el idioma se guarda en la cuenta (manda en todos tus dispositivos); sin sesión, en este navegador. */
+  async function switchLanguage() {
+    const next: Locale = locale === 'en' ? 'es' : 'en';
+    useLocaleStore.getState().choose(next);
+    if (!signedIn) return;
+    try { updateUser(await userService.updateProfile({ language: next })); } catch { toast(t.languageError); }
+  }
 
   const theme = THEME_NEXT[mode];
   const items: Item[] = [
-    ...(skin ? [] : [{ label: theme.label, hint: 'Cambiar', icon: theme.icon, onSelect: () => setMode(theme.next) }]),
-    { label: audioEnabled ? 'Silenciar sonidos' : 'Activar sonidos', icon: audioEnabled ? Volume2 : VolumeX, onSelect: toggleAudio },
-    { label: 'Modo enfoque', icon: Zap, onSelect: () => setFocusOpen(true) },
-    { label: 'Enviar feedback', icon: MessageSquarePlus, onSelect: () => setFeedbackOpen(true) },
-    { label: 'Cerrar sesión', icon: LogOut, onSelect: () => void logout(), danger: true },
+    ...(skin ? [] : [{ label: t.themeLabel[mode], hint: t.change, icon: theme.icon, onSelect: () => setMode(theme.next) }]),
+    { label: audioEnabled ? t.mute : t.unmute, icon: audioEnabled ? Volume2 : VolumeX, onSelect: toggleAudio },
+    { label: t.focus, icon: Zap, onSelect: () => setFocusOpen(true) },
+    { label: t.feedback, icon: MessageSquarePlus, onSelect: () => setFeedbackOpen(true) },
+    { label: t.language, hint: LOCALE_NAMES[locale === 'en' ? 'es' : 'en'], icon: Languages, onSelect: () => void switchLanguage() },
+    { label: t.logout, icon: LogOut, onSelect: () => void logout(), danger: true },
   ];
 
   const focusItem = (i: number) => {
@@ -82,7 +128,7 @@ export function OptionsMenu() {
       <Button
         ref={triggerRef}
         variant="icon"
-        aria-label="Más opciones"
+        aria-label={t.more}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
@@ -96,7 +142,7 @@ export function OptionsMenu() {
             ref={menuRef}
             id={menuId}
             role="menu"
-            aria-label="Más opciones"
+            aria-label={t.more}
             onKeyDown={onKeyDown}
             initial={{ opacity: 0, y: -6, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1, transition: { duration: 0.2, ease } }}

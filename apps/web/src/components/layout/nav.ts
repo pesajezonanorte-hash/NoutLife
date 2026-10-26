@@ -2,6 +2,8 @@
 // principal (TabBar/Sidebar) es Inicio + las 3 zonas que elige el usuario
 // (onboarding o Ajustes → Zonas) + Perfil; el resto queda en Bienestar, "Más
 // zonas" y Comunidad.
+// Las etiquetas en español viven en cada entrada; las de inglés, en EN_LABELS
+// (por ruta) y EN_SECTIONS. `useNav` y `buildCrumbs` las resuelven según el idioma.
 import {
   BarChart3, BookOpen, CalendarDays, Clapperboard, Flower2, Gem, HelpCircle, Flag, Globe, Heart, Home,
   MapPin, Moon, Notebook, NotebookPen, Scroll, Settings, ShoppingBag, Skull,
@@ -14,6 +16,7 @@ import { useCustomZoneStore, type CustomZoneNav } from '@/store/customZoneStore'
 import { zoneIconOf } from '@/components/zones/zoneIcons';
 import { DEFAULT_ORDER, PINNED_COUNT, useNavStore } from '@/store/navStore';
 import { proZoneOf, usableOrder } from '@/lib/plan';
+import { useLocale, type Locale } from '@/lib/i18n';
 import { canUseCycle } from '@/utils/gender';
 
 export interface NavEntry {
@@ -173,18 +176,54 @@ function withLocks(nav: ReturnType<typeof buildNav>, lite: boolean): ReturnType<
   return { primary: nav.primary.map(lock), sections: nav.sections.map((s) => ({ ...s, items: usableFirst(s.items.map(lock)) })) };
 }
 
+// ─── Inglés ──────────────────────────────────────────────────────────────────
+// Nombres por ruta en inglés (el español sigue en cada entrada). Coliseo → Coliseum y
+// Espejo → Mirror son el glosario de lib/plan (PRO_ZONES).
+
+const EN_LABELS: Record<string, string> = {
+  '/': 'Home', '/profile': 'Profile', '/plan': 'Plan', '/settings': 'Settings', '/faq': 'Help',
+  '/finances': 'Finances', '/food': 'Food', '/sleep': 'Sleep', '/recreacion': 'Recreation', '/ciclo-menstrual': 'Cycle', '/achievements': 'Achievements',
+  '/habits': 'Habits', '/checklists': 'Checklists', '/quests': 'Quests', '/stats': 'Stats', '/coliseo': 'Coliseum', '/espejo': 'Mirror',
+  '/learning': 'Learning', '/love': 'Relationships', '/journal': 'Journal', '/agenda': 'Agenda', '/libreta': 'Notebook', '/wisdom': 'Wisdom',
+  '/custom-zones': 'My zones', '/shop': 'Shop', '/social': 'Social', '/gallery': 'Gallery', '/leaderboard': 'Ranking', '/season': 'Campaign',
+  '/social?tab=directorio': 'Directory', '/social?tab=cartas': 'Letters', '/social?tab=gremios': 'Guilds',
+};
+
+const EN_SECTIONS: Record<string, string> = { wellness: 'Wellness', zones: 'More zones', community: 'Community', custom: 'My zones' };
+
+/** Entrada en el idioma de la persona. */
+function localizeEntry(entry: NavEntry, locale: Locale): NavEntry {
+  return locale === 'en' && EN_LABELS[entry.to] ? { ...entry, label: EN_LABELS[entry.to] } : entry;
+}
+
+/** Sección en el idioma de la persona (con sus entradas). */
+function localizeSection(section: NavSection, locale: Locale): NavSection {
+  if (locale !== 'en') return section;
+  return { ...section, label: EN_SECTIONS[section.id] ?? section.label, items: section.items.map((it) => localizeEntry(it, locale)) };
+}
+
+/** Todas las entradas fijas (para el buscador), en el idioma indicado. */
+export function localizedNavCatalog(locale: Locale): NavEntry[] {
+  return [...PRIMARY_NAV, ...NAV_SECTIONS.flatMap((s) => s.items), ...SOCIAL_SHORTCUTS, ...UTILITY_NAV].map((it) => localizeEntry(it, locale));
+}
+
 /** Navegación del usuario actual: Inicio + sus zonas principales + Perfil, y el resto por secciones. */
 export function useNav() {
+  const locale = useLocale();
   const userId = String(useAuthStore((s) => s.user?.id) ?? 'anon');
   const lite = useAuthStore((s) => s.user?.subscription?.plan === 'lite');
   const order = useNavStore((s) => s.byUser[userId]);
   const hidden = useNavStore((s) => s.hiddenByUser?.[userId]);
   const extra = useCustomZoneEntries();
   const unavailable = useUnavailableZones();
-  return useMemo(
-    () => withLocks(buildNav(usableOrder(resolveOrder(order, extra, unavailable), lite, hidden), hidden, extra, unavailable), lite),
-    [order, hidden, extra, unavailable, lite],
-  );
+  return useMemo(() => {
+    const nav = withLocks(buildNav(usableOrder(resolveOrder(order, extra, unavailable), lite, hidden), hidden, extra, unavailable), lite);
+    return {
+      primary: nav.primary.map((it) => localizeEntry(it, locale)),
+      sections: nav.sections.map((s) => localizeSection(s, locale)),
+      utility: UTILITY_NAV.map((it) => localizeEntry(it, locale)),
+    };
+  }, [order, hidden, extra, unavailable, lite, locale]);
 }
 
 /** Navegación por defecto (búsqueda rápida y breadcrumb). */
@@ -202,6 +241,12 @@ const EXTRA_LABELS: Record<string, string> = {
   '/life': 'Life Score',
   '/about': 'Acerca de',
   '/quests/new': 'Nueva misión',
+};
+const EN_EXTRA_LABELS: Record<string, string> = {
+  '/history': 'History',
+  '/life': 'Life Score',
+  '/about': 'About',
+  '/quests/new': 'New quest',
 };
 
 const ALL_NAV = [HOME, PROFILE, ...ZONES, ...UTILITY_NAV];
@@ -221,32 +266,41 @@ export interface Crumb { label: string; to?: string }
  * Breadcrumb "Noutlife › Sección › Detalle". El último tramo puede venir de
  * la página (p. ej. el nombre del hábito) vía `usePageCrumb`.
  */
-export function buildCrumbs(pathname: string, detail?: string | null): Crumb[] {
+export function buildCrumbs(pathname: string, detail: string | null | undefined, locale: Locale = 'es'): Crumb[] {
+  const en = locale === 'en';
+  const text = {
+    zones: en ? 'My zones' : 'Mis zonas',
+    zone: en ? 'Zone' : 'Zona',
+    social: 'Social',
+    detail: en ? 'Detail' : 'Detalle',
+    page: en ? 'Page' : 'Página',
+  };
   const crumbs: Crumb[] = [{ label: 'Noutlife', to: '/' }];
   const entry = findNavEntry(pathname);
+  const localized = entry && localizeEntry(entry, locale);
   if (EXTRA_LABELS[pathname]) {
-    if (entry && entry.to !== '/') crumbs.push({ label: entry.label, to: entry.to });
-    crumbs.push({ label: EXTRA_LABELS[pathname] });
+    if (localized && localized.to !== '/') crumbs.push({ label: localized.label, to: localized.to });
+    crumbs.push({ label: en ? EN_EXTRA_LABELS[pathname] : EXTRA_LABELS[pathname] });
     return crumbs;
   }
   // Zonas personalizadas: Noutlife › Mis zonas › Nombre de la zona
   if (pathname.startsWith(CUSTOM_ZONE_PREFIX)) {
-    crumbs.push({ label: 'Mis zonas', to: '/custom-zones' });
-    crumbs.push({ label: detail ?? 'Zona' });
+    crumbs.push({ label: text.zones, to: '/custom-zones' });
+    crumbs.push({ label: detail ?? text.zone });
     return crumbs;
   }
   // Perfiles sociales (su DNI): Noutlife › Social › @usuario
   if (pathname.startsWith('/u/')) {
-    crumbs.push({ label: 'Social', to: '/social' });
+    crumbs.push({ label: text.social, to: '/social' });
     crumbs.push({ label: detail ?? `@${decodeURIComponent(pathname.slice(3))}` });
     return crumbs;
   }
-  if (!entry) {
-    crumbs.push({ label: detail ?? 'Página' });
+  if (!localized) {
+    crumbs.push({ label: detail ?? text.page });
     return crumbs;
   }
-  const isDetail = pathname !== entry.to;
-  crumbs.push({ label: entry.label, to: isDetail ? entry.to : undefined });
-  if (isDetail) crumbs.push({ label: detail ?? 'Detalle' });
+  const isDetail = pathname !== localized.to;
+  crumbs.push({ label: localized.label, to: isDetail ? localized.to : undefined });
+  if (isDetail) crumbs.push({ label: detail ?? text.detail });
   return crumbs;
 }

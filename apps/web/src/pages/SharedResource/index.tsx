@@ -6,8 +6,44 @@ import { Badge, Button, Card, ErrorState, PageLoader } from '@/components/ui/lq'
 import { useToast } from '@/hooks/useToast';
 import { track } from '@/lib/analytics';
 import { resolveShare, updateSharedResource, type SharedResource } from '@/services/share.service';
+import { useLocale, useText, type Copy } from '@/lib/i18n';
+
+const COPY: Copy<{
+  loading: string; gone: string; goneBody: string; retry: string; saved: string; saveFailed: string;
+  shared: string; canEdit: string; readOnly: string; checklist: string; goal: string; noDescription: string;
+  progress: (p: number) => string; achieved: string; paused: string; active: string; noSteps: string;
+  noEditNote: string; editNote: string; login: string; cta: string; trial: string; markDone: (t: string) => string; complete: (t: string) => string;
+  template: string;
+}> = {
+  es: {
+    loading: 'Abriendo contenido compartido…', gone: 'Este enlace ya no está disponible',
+    goneBody: 'Puede haber sido desactivado por su dueño o el contenido ya no existir.', retry: 'Reintentar',
+    saved: 'Cambio guardado', saveFailed: 'No se pudo guardar. Revisa si el enlace sigue activo.',
+    shared: 'Contenido compartido', canEdit: 'Puedes editar', readOnly: 'Solo lectura', checklist: 'Checklist', goal: 'Meta',
+    noDescription: 'Una lista para organizarse mejor.', progress: (p) => `Progreso · ${p}%`,
+    achieved: 'Lograda', paused: 'En pausa', active: 'Activa', noSteps: 'Esta lista aún no tiene pasos.',
+    noEditNote: 'Tienes acceso de solo lectura. Pídele al dueño un enlace con permiso de edición si necesitas colaborar.',
+    editNote: 'Los cambios quedan guardados en la lista original para todas las personas.',
+    login: 'Iniciar sesión', cta: 'Crea tu propio espacio gratis en NoutLife', trial: '7 días de Pro incluidos, sin tarjeta.',
+    markDone: (t) => `Desmarcar ${t}`, complete: (t) => `Completar ${t}`, template: 'Plantilla',
+  },
+  en: {
+    loading: 'Opening shared content…', gone: 'This link is no longer available',
+    goneBody: 'Its owner may have turned it off, or the content may no longer exist.', retry: 'Try again',
+    saved: 'Change saved', saveFailed: "Couldn't save. Check whether the link is still active.",
+    shared: 'Shared content', canEdit: 'You can edit', readOnly: 'Read only', checklist: 'Checklist', goal: 'Goal',
+    noDescription: 'A list to get organized.', progress: (p) => `Progress · ${p}%`,
+    achieved: 'Achieved', paused: 'Paused', active: 'Active', noSteps: 'This list has no steps yet.',
+    noEditNote: 'You have read-only access. Ask the owner for a link with edit permission if you want to collaborate.',
+    editNote: 'Changes are saved to the original list for everyone.',
+    login: 'Log in', cta: 'Create your own space for free on NoutLife', trial: '7 days of Pro included, no card required.',
+    markDone: (t) => `Undo ${t}`, complete: (t) => `Complete ${t}`, template: 'Template',
+  },
+};
 
 export default function SharedResourcePage() {
+  const t = useText(COPY);
+  const locale = useLocale();
   const { code = '' } = useParams();
   const toast = useToast();
   const [result, setResult] = useState<SharedResource | null>(null);
@@ -25,8 +61,8 @@ export default function SharedResourcePage() {
 
   async function update(id: string, payload: Record<string, unknown>) {
     setBusyId(id);
-    try { await updateSharedResource(code, payload); await load(); toast.success('Cambio guardado'); }
-    catch { toast.error('No se pudo guardar. Revisa si el enlace sigue activo.'); }
+    try { await updateSharedResource(code, payload); await load(); toast.success(t.saved); }
+    catch { toast.error(t.saveFailed); }
     finally { setBusyId(null); }
   }
 
@@ -35,43 +71,43 @@ export default function SharedResourcePage() {
   const resource = result?.resource;
 
   return (
-    <main className="min-h-screen bg-background px-4 py-8 text-on-background sm:px-6 md:py-12">
+    <main lang={locale} className="min-h-screen bg-background px-4 py-8 text-on-background sm:px-6 md:py-12">
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
         <header className="flex items-center justify-between gap-4">
           <BrandLockup />
-          <Link to="/login" className="text-label-lg text-primary-text hover:underline">Iniciar sesión</Link>
+          <Link to="/login" className="text-label-lg text-primary-text hover:underline">{t.login}</Link>
         </header>
-        {loading ? <PageLoader label="Abriendo contenido compartido…" /> : failed || !result ? (
-          <ErrorState title="Este enlace ya no está disponible" description="Puede haber sido desactivado por su dueño o el contenido ya no existir." onRetry={() => void load()} autoRetrySeconds={0} />
+        {loading ? <PageLoader label={t.loading} /> : failed || !result ? (
+          <ErrorState title={t.gone} description={t.goneBody} onRetry={() => void load()} autoRetrySeconds={0} />
         ) : (
           <>
             <div className="flex flex-col gap-2">
-              <span className="flex items-center gap-2 text-label-lg text-primary-text"><Link2 aria-hidden className="size-4" />Contenido compartido</span>
+              <span className="flex items-center gap-2 text-label-lg text-primary-text"><Link2 aria-hidden className="size-4" />{t.shared}</span>
               <h1 className="text-display-sm">{resource?.title}</h1>
-              <p className="text-body-lg text-on-surface-light">{resource?.description || 'Una lista para organizarse mejor.'}</p>
-              <div className="flex flex-wrap gap-2"><Badge variant={editable ? 'success' : 'neutral'}>{editable ? 'Puedes editar' : 'Solo lectura'}</Badge><Badge variant="neutral">{isChecklist ? 'Checklist' : 'Meta'}</Badge></div>
+              <p className="text-body-lg text-on-surface-light">{resource?.description || t.noDescription}</p>
+              <div className="flex flex-wrap gap-2"><Badge variant={editable ? 'success' : 'neutral'}>{editable ? t.canEdit : t.readOnly}</Badge><Badge variant="neutral">{isChecklist ? t.checklist : t.goal}</Badge></div>
             </div>
 
             {result.resourceType === 'CHECKLIST' ? (
               <Card as="section" padding="lg" className="flex flex-col gap-4">
-                <div className="flex items-center gap-2"><ListChecks aria-hidden className="size-5 text-primary-text" /><h2 className="text-heading-sm">{result.resource.category}</h2>{result.resource.isTemplate && <Badge variant="warning">Plantilla</Badge>}</div>
+                <div className="flex items-center gap-2"><ListChecks aria-hidden className="size-5 text-primary-text" /><h2 className="text-heading-sm">{result.resource.category}</h2>{result.resource.isTemplate && <Badge variant="warning">{t.template}</Badge>}</div>
                 <ul className="flex flex-col gap-2">
                   {result.resource.items.map((step) => (
                     <li key={step.id} className="flex items-center gap-3 rounded-xl bg-surface-variant/60 p-2">
                       {editable ? (
-                        <button type="button" aria-pressed={step.isDone} aria-label={`${step.isDone ? 'Desmarcar' : 'Completar'} ${step.title}`} disabled={busyId === step.id} onClick={() => void update(step.id, { itemId: step.id, isDone: !step.isDone })} className="flex min-h-11 min-w-0 flex-1 items-center gap-3 text-left">
+                        <button type="button" aria-pressed={step.isDone} aria-label={step.isDone ? t.markDone(step.title) : t.complete(step.title)} disabled={busyId === step.id} onClick={() => void update(step.id, { itemId: step.id, isDone: !step.isDone })} className="flex min-h-11 min-w-0 flex-1 items-center gap-3 text-left">
                           {step.isDone ? <CheckCircle2 aria-hidden className="size-5 shrink-0 text-success-text" /> : <Circle aria-hidden className="size-5 shrink-0 text-on-surface-light" />}
                           <span className={step.isDone ? 'text-body-md text-on-surface-light line-through' : 'text-body-md'}>{step.title}</span>
                         </button>
                       ) : <div className="flex min-h-11 min-w-0 flex-1 items-center gap-3">{step.isDone ? <CheckCircle2 aria-hidden className="size-5 shrink-0 text-success-text" /> : <Circle aria-hidden className="size-5 shrink-0 text-on-surface-light" />}<span className={step.isDone ? 'text-body-md text-on-surface-light line-through' : 'text-body-md'}>{step.title}</span></div>}
                     </li>
                   ))}
-                  {!result.resource.items.length && <li className="py-3 text-body-md text-on-surface-light">Esta lista aún no tiene pasos.</li>}
+                  {!result.resource.items.length && <li className="py-3 text-body-md text-on-surface-light">{t.noSteps}</li>}
                 </ul>
               </Card>
             ) : (
               <Card as="section" padding="lg" className="flex flex-col gap-5">
-                <div className="flex items-center gap-3"><Target aria-hidden className="size-6 text-primary-text" /><div><h2 className="text-heading-sm">Progreso · {result.resource.progress}%</h2><p className="text-body-sm text-on-surface-light">{result.resource.category} · {result.resource.status === 'ACHIEVED' ? 'Lograda' : result.resource.status === 'PAUSED' ? 'En pausa' : 'Activa'}</p></div></div>
+                <div className="flex items-center gap-3"><Target aria-hidden className="size-6 text-primary-text" /><div><h2 className="text-heading-sm">{t.progress(result.resource.progress)}</h2><p className="text-body-sm text-on-surface-light">{result.resource.category} · {result.resource.status === 'ACHIEVED' ? t.achieved : result.resource.status === 'PAUSED' ? t.paused : t.active}</p></div></div>
                 {result.resource.why && <p className="text-body-md italic text-on-surface-light">“{result.resource.why}”</p>}
                 <ul className="flex flex-col gap-2">
                   {result.resource.milestones.map((milestone) => (
@@ -83,10 +119,10 @@ export default function SharedResourcePage() {
               </Card>
             )}
 
-            <p className="flex items-start gap-2 text-body-sm text-on-surface-light"><Check aria-hidden className="mt-0.5 size-4 shrink-0 text-primary-text" />{editable ? 'Los cambios quedan guardados en la lista original para todas las personas.' : 'Tienes acceso de solo lectura. Pídele al dueño un enlace con permiso de edición si necesitas colaborar.'}</p>
+            <p className="flex items-start gap-2 text-body-sm text-on-surface-light"><Check aria-hidden className="mt-0.5 size-4 shrink-0 text-primary-text" />{editable ? t.editNote : t.noEditNote}</p>
             <div className="flex flex-col items-center gap-2 pt-2 text-center">
-              <Button onClick={() => { track('shared_cta_clicked'); window.location.assign('/login?ref=shared'); }}>Crea tu propio espacio gratis en NoutLife</Button>
-              <p className="text-body-sm text-on-surface-light">7 días de Pro incluidos, sin tarjeta.</p>
+              <Button onClick={() => { track('shared_cta_clicked'); window.location.assign('/login?ref=shared'); }}>{t.cta}</Button>
+              <p className="text-body-sm text-on-surface-light">{t.trial}</p>
             </div>
           </>
         )}

@@ -7,8 +7,14 @@ import * as Popover from '@radix-ui/react-popover';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CalendarDays, ChevronDown, X } from 'lucide-react';
 import { format, isAfter, isBefore, isSameMonth, startOfMonth } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { enUS, es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { useLocale, useText, type Copy } from '@/lib/i18n';
+
+const COPY: Copy<{ pickDate: string; clear: string; today: string; calendar: string; longDate: string }> = {
+  es: { pickDate: 'Elige una fecha', clear: 'Borrar', today: 'Hoy', calendar: 'Calendario', longDate: "d 'de' MMMM 'de' yyyy" },
+  en: { pickDate: 'Choose a date', clear: 'Clear', today: 'Today', calendar: 'Calendar', longDate: 'MMMM d, yyyy' },
+};
 import { pressSpring, spring } from '@/lib/motion';
 import { Calendar } from '@/components/ui/calendar';
 import { fieldClasses } from './Field';
@@ -38,7 +44,7 @@ export interface DatePickerProps {
 }
 
 export const DatePicker = forwardRef<HTMLButtonElement, DatePickerProps>(function DatePicker(
-  { value, onChange, min, max, placeholder = 'Elige una fecha', clearable, disabled, invalid, id, className, 'aria-describedby': describedBy },
+  { value, onChange, min, max, placeholder, clearable, disabled, invalid, id, className, 'aria-describedby': describedBy },
   ref,
 ) {
   const selected = parse(value);
@@ -70,7 +76,9 @@ export const DatePicker = forwardRef<HTMLButtonElement, DatePickerProps>(functio
     window.setTimeout(() => setOpen(false), 220);
   }
 
-  const label = selected ? format(selected, "d 'de' MMMM 'de' yyyy", { locale: es }) : placeholder;
+  const t = useText(COPY);
+  const dateLocale = useLocale() === 'en' ? enUS : es;
+  const label = selected ? format(selected, t.longDate, { locale: dateLocale }) : (placeholder ?? t.pickDate);
 
   return (
     <Popover.Root open={open} onOpenChange={toggle}>
@@ -123,7 +131,7 @@ export const DatePicker = forwardRef<HTMLButtonElement, DatePickerProps>(functio
               align="start"
               sideOffset={8}
               collisionPadding={16}
-              aria-label="Calendario"
+              aria-label={t.calendar}
               onEscapeKeyDown={(e) => {
                 // Escape cierra solo el calendario, no el diálogo que lo contiene.
                 e.stopPropagation();
@@ -167,11 +175,11 @@ export const DatePicker = forwardRef<HTMLButtonElement, DatePickerProps>(functio
                   <div className="mt-2 flex items-center justify-between gap-2 border-t border-border pt-2">
                     {clearable && selected ? (
                       <FooterButton onClick={() => { onChange(''); setOpen(false); }}>
-                        <X aria-hidden className="size-4" strokeWidth={2} />Borrar
+                        <X aria-hidden className="size-4" strokeWidth={2} />{t.clear}
                       </FooterButton>
                     ) : <span />}
                     {todayAllowed && (
-                      <FooterButton primary onClick={() => { setMonth(startOfMonth(today)); pick(today); }}>Hoy</FooterButton>
+                      <FooterButton primary onClick={() => { setMonth(startOfMonth(today)); pick(today); }}>{t.today}</FooterButton>
                     )}
                   </div>
                 )}
@@ -204,6 +212,7 @@ function FooterButton({ primary, className, ...rest }: React.ButtonHTMLAttribute
 
 /** Vista de años y meses: lista desplazable; el año actual abierto y a la vista. */
 function YearView({ start, end, month, selected, onPick }: { start: Date; end: Date; month: Date; selected?: Date; onPick: (m: Date) => void }) {
+  const dateLocale = useLocale() === 'en' ? enUS : es;
   const years = useMemo(() => {
     const list: number[] = [];
     for (let y = start.getFullYear(); y <= end.getFullYear(); y++) list.push(y);
@@ -275,7 +284,7 @@ function YearView({ start, end, month, selected, onPick }: { start: Date; end: D
                           isCurrent ? 'bg-primary-strong text-on-primary' : isSelected ? 'bg-primary/[var(--lq-soft-alpha)] text-primary-text' : 'text-on-background hover:bg-primary/10',
                         )}
                       >
-                        {format(m, 'MMM', { locale: es }).replace('.', '')}
+                        {format(m, 'MMM', { locale: dateLocale }).replace('.', '')}
                       </motion.button>
                     );
                   })}

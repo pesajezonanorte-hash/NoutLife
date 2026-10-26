@@ -7,6 +7,21 @@ import { CheckButton, IconChip } from '@/components/ui/lq';
 import { resolveGlyph } from '@/components/ui/glyphs';
 import { categoryMeta, frequencyLabel } from '@/lib/lifeMeta';
 import type { HabitFrequency } from '@/services/habit.service';
+import { useLocale, type Copy } from '@/lib/i18n';
+
+const es = {
+  days: (n: number): string => (n === 1 ? 'día' : 'días'),
+  restToday: 'descanso hoy (no rompe la racha)',
+  weekDone: (n: number) => `${n} de 7 días completados esta semana`,
+};
+
+const en: typeof es = {
+  days: (n: number): string => (n === 1 ? 'day' : 'days'),
+  restToday: 'rest day today (keeps your streak)',
+  weekDone: (n) => `${n} of 7 days completed this week`,
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 export interface HabitItemData {
   id: string;
@@ -38,11 +53,13 @@ export interface HabitListItemProps {
  * nombre → detalle, racha (ícono + texto), puntos de la semana y check 48 px.
  */
 export function HabitListItem({ habit, onComplete, pending, week, variant = 'card' }: HabitListItemProps) {
-  const meta = categoryMeta(habit.category);
+  const locale = useLocale();
+  const t = COPY[locale];
+  const meta = categoryMeta(habit.category, locale);
   const done = Boolean(habit.todayCompleted) || habit.todayStatus === 'completed';
   const skipped = habit.todayStatus === 'skipped';
   const weekDone = week?.filter(Boolean).length ?? 0;
-  const sub = [meta.label, habit.frequency ? frequencyLabel(habit.frequency).toLowerCase() : null, habit.reminderTime].filter(Boolean).join(' · ');
+  const sub = [meta.label, habit.frequency ? frequencyLabel(habit.frequency, locale).toLowerCase() : null, habit.reminderTime].filter(Boolean).join(' · ');
 
   return (
     <motion.li
@@ -60,15 +77,15 @@ export function HabitListItem({ habit, onComplete, pending, week, variant = 'car
         {variant === 'card' && <span className="hidden truncate text-body-sm text-on-surface-light md:block">{sub}</span>}
         <span className={cn('flex items-center gap-1 text-body-sm text-warning-text font-mono tabular-nums', variant === 'card' && 'md:hidden')}>
           <Flame aria-hidden className="size-4" strokeWidth={1.75} />
-          {habit.currentStreak} {habit.currentStreak === 1 ? 'día' : 'días'}
-          {skipped && <span className="ml-1 text-on-surface-light">· descanso hoy (no rompe la racha)</span>}
+          {habit.currentStreak} {t.days(habit.currentStreak)}
+          {skipped && <span className="ml-1 text-on-surface-light">· {t.restToday}</span>}
         </span>
       </Link>
       {variant === 'card' && (
         <div className="hidden shrink-0 flex-col items-end gap-1.5 md:flex">
           {week && (
             <span className="flex items-center gap-2">
-              <span className="flex gap-1" role="img" aria-label={`${weekDone} de 7 días completados esta semana`}>
+              <span className="flex gap-1" role="img" aria-label={t.weekDone(weekDone)}>
                 {week.map((d, i) => (
                   <span key={i} className={cn('size-2.5 rounded-[3px]', d ? 'bg-success' : 'bg-surface-variant')} />
                 ))}
@@ -78,7 +95,7 @@ export function HabitListItem({ habit, onComplete, pending, week, variant = 'car
           )}
           <span className="flex items-center gap-1 text-body-sm text-warning-text font-mono tabular-nums">
             <Flame aria-hidden className="size-4" strokeWidth={1.75} />
-            {habit.currentStreak} {habit.currentStreak === 1 ? 'día' : 'días'}
+            {habit.currentStreak} {t.days(habit.currentStreak)}
           </span>
         </div>
       )}

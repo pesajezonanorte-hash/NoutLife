@@ -3,8 +3,8 @@ import { useEffect, useState, type FormEvent } from 'react';
 import type { Quest } from '@noutlife/shared';
 import { Plus, X } from 'lucide-react';
 import { Button, Field, Input, ResponsiveDialog, SegmentedControl, Select, Textarea, DatePicker } from '@/components/ui/lq';
-import { CATEGORIES, CATEGORY_META } from '@/lib/lifeMeta';
-import { DIFFICULTIES, QUEST_TYPES } from './questMeta';
+import { CATEGORIES, categoryMeta } from '@/lib/lifeMeta';
+import { difficultiesFor, questTypesFor } from './questMeta';
 
 export interface QuestFormValues {
   type: Quest['type'];
@@ -65,8 +65,8 @@ export function QuestFormDialog({ open, quest, onClose, onSubmit }: QuestFormDia
     }
   }
 
-  const typeOptions = QUEST_TYPES.map((t) => ({ value: t.value, label: t.label }));
-  const typeValue = (QUEST_TYPES.some((t) => t.value === v.type) ? v.type : 'SIDE') as 'SIDE' | 'MAIN' | 'META';
+  const typeOptions = questTypesFor('es').map((t) => ({ value: t.value, label: t.label }));
+  const typeValue = (questTypesFor('es').some((t) => t.value === v.type) ? v.type : 'SIDE') as 'SIDE' | 'MAIN' | 'META';
 
   return (
     <ResponsiveDialog open={open} onClose={onClose} title={quest ? 'Editar misión' : 'Nueva misión'} className="md:max-w-[560px]">
@@ -74,7 +74,7 @@ export function QuestFormDialog({ open, quest, onClose, onSubmit }: QuestFormDia
         <div className="flex flex-col gap-2">
           <span aria-hidden className="text-label-lg text-on-surface">Tipo</span>
           <SegmentedControl role="radiogroup" label="Tipo de misión" value={typeValue} onChange={(t) => set('type', t)} options={typeOptions} />
-          <span className="text-body-sm text-on-surface-light">{QUEST_TYPES.find((t) => t.value === typeValue)?.description}</span>
+          <span className="text-body-sm text-on-surface-light">{questTypesFor('es').find((t) => t.value === typeValue)?.description}</span>
         </div>
 
         <Field label="Nombre" error={titleError}>
@@ -88,7 +88,7 @@ export function QuestFormDialog({ open, quest, onClose, onSubmit }: QuestFormDia
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Categoría">
             <Select value={v.category} onChange={(e) => set('category', e.target.value as Quest['category'])}>
-              {CATEGORIES.map((c) => <option key={c} value={c}>{CATEGORY_META[c].label}</option>)}
+              {CATEGORIES.map((c) => <option key={c} value={c}>{categoryMeta(c).label}</option>)}
             </Select>
           </Field>
           <Field label="Fecha límite" help="Opcional">
@@ -103,7 +103,7 @@ export function QuestFormDialog({ open, quest, onClose, onSubmit }: QuestFormDia
             label="Dificultad"
             value={v.difficulty}
             onChange={(d) => set('difficulty', d)}
-            options={DIFFICULTIES.map((d) => ({ value: d.value, label: d.label }))}
+            options={difficultiesFor('es').map((d) => ({ value: d.value, label: d.label }))}
           />
           <span className="text-body-sm text-on-surface-light">A más dificultad, más XP al completarla.</span>
         </div>

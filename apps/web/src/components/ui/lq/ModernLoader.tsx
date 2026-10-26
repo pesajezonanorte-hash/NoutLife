@@ -10,6 +10,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { usePageVisibility } from '@/components/ui/LoadingGate';
 import { blurFrom, blurTo, useMotionReduced } from '@/lib/motion';
+import { useText, type Copy } from '@/lib/i18n';
 
 /** Hoja asimétrica, misma familia que las del logo. Centrada en (0,0), 20 de alto. */
 const LEAF = 'M0 -10C6.6 -6.4 6.2 4.6 0 10C-3.4 4.4 -4.2 -4.6 0 -10Z';
@@ -51,12 +52,19 @@ function useRotatingWord(words: readonly string[], active: boolean) {
   return words[i % words.length] ?? '';
 }
 
+const COPY: Copy<{ words: string[] }> = {
+  es: { words: ['Preparando todo…', 'Cargando módulos…', 'Casi listo…'] },
+  en: { words: ['Getting everything ready…', 'Loading modules…', 'Almost ready…'] },
+};
+
 export function ModernLoader({
-  words = ['Preparando todo…', 'Cargando módulos…', 'Casi listo…'],
+  words: wordsProp,
   label,
   size = 'lg',
   className,
 }: ModernLoaderProps) {
+  const t = useText(COPY);
+  const words = wordsProp ?? t.words;
   const visible = usePageVisibility();
   const ref = useRef<HTMLDivElement>(null);
   const lim = LIMITS[size];

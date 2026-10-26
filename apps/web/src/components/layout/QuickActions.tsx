@@ -8,9 +8,10 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button, CheckButton, EmptyState, Field, Input, ResponsiveDialog, SegmentedControl, Textarea, type Tone, PageLoader } from '@/components/ui/lq';
-import { LOADING_COPY } from '@/lib/loadingCopy';
+import { useLoadingCopy } from '@/lib/loadingCopy';
 import type { ProZone } from '@/lib/plan';
 import { softTone } from '@/components/ui/lq/tones';
+import { useLocale, type Copy } from '@/lib/i18n';
 import { useAuthStore } from '@/store/authStore';
 import { usePlanStore } from '@/store/planStore';
 import { useShellStore, type QuickAction } from '@/store/shellStore';
@@ -23,28 +24,137 @@ import { createTransaction } from '@/services/finance.service';
 import { fetchHabits, logHabit, type Habit } from '@/services/habit.service';
 import { createJournalEntry } from '@/services/journal.service';
 
-interface ActionDef { id: QuickAction | 'new-habit'; label: string; description: string; icon: LucideIcon; tone: Tone }
+const es = {
+  actions: {
+    newHabit: { label: 'Nuevo hábito', description: 'Crea una rutina para tu día' },
+    habit: { label: 'Marcar hábito', description: 'Completa un hábito de hoy' },
+    quest: { label: 'Nueva misión', description: 'Una tarea, proyecto o meta' },
+    expense: { label: 'Gasto rápido', description: 'Registra un gasto en segundos' },
+    note: { label: 'Nota rápida', description: 'Guárdala en tu diario' },
+    checkin: { label: 'Check-in', description: 'Ánimo y energía de hoy' },
+  } as Record<string, { label: string; description: string }>,
+  title: 'Acciones rápidas',
+  withPro: 'Con NoutLife Pro',
+  saveError: 'No se pudo guardar. Inténtalo de nuevo.',
+  questTypes: { SIDE: 'Tarea', MAIN: 'Proyecto', META: 'Meta' } as Record<string, string>,
+  questTypeGroup: 'Tipo de misión',
+  questName: 'Nombre de la misión',
+  questNameError: 'Escribe un nombre',
+  questNamePlaceholder: 'Ej. Terminar el informe',
+  type: 'Tipo',
+  questCreated: 'Misión creada',
+  questRewardHint: 'Ganarás XP al completarla',
+  createQuest: 'Crear misión',
+  amount: 'Monto',
+  amountError: 'Escribe un monto mayor que 0',
+  description: 'Descripción',
+  optional: 'Opcional',
+  descriptionPlaceholder: 'Ej. Almuerzo',
+  expenseSaved: 'Gasto registrado',
+  saveExpense: 'Registrar gasto',
+  habitsFailed: 'No pudimos cargar tus hábitos.',
+  retry: 'Reintentar',
+  habitsLoading: 'Cargando tus hábitos…',
+  allDone: '¡Todo listo por hoy!',
+  allDoneBody: 'Completaste todos tus hábitos del día.',
+  habitCompleted: (title: string) => `${title} completado`,
+  habitMarkFailed: 'No se pudo marcar el hábito',
+  streak: (days: number) => `racha ${days} d`,
+  noteQuestion: '¿Qué quieres recordar?',
+  noteName: 'Tu nota',
+  noteError: 'Escribe algo para guardar',
+  noteSaved: 'Nota guardada en tu diario',
+  saveNote: 'Guardar nota',
+  moods: ['Muy mal', 'Mal', 'Normal', 'Bien', 'Muy bien'],
+  moodQuestion: '¿Cómo te sientes?',
+  moodGroup: 'Estado de ánimo',
+  energy: 'Energía',
+  checkinSaved: 'Check-in registrado',
+  bonus: 'bonus diario',
+  checkinUpdated: 'Check-in actualizado',
+  checkinBonusClaimed: 'El bonus de hoy ya estaba reclamado',
+  saveCheckin: 'Registrar check-in',
+  titles: { quest: 'Nueva misión', expense: 'Gasto rápido', habit: 'Marcar hábito', note: 'Nota rápida', checkin: 'Check-in' } as Record<string, string>,
+};
+
+const en: typeof es = {
+  actions: {
+    newHabit: { label: 'New habit', description: 'Create a routine for your day' },
+    habit: { label: 'Mark a habit', description: 'Complete one of today’s habits' },
+    quest: { label: 'New goal', description: 'A task, project or goal' },
+    expense: { label: 'Quick expense', description: 'Log an expense in seconds' },
+    note: { label: 'Quick note', description: 'Save it in your journal' },
+    checkin: { label: 'Check-in', description: 'Mood and energy today' },
+  },
+  title: 'Quick actions',
+  withPro: 'With NoutLife Pro',
+  saveError: 'We couldn’t save it. Try again.',
+  questTypes: { SIDE: 'Task', MAIN: 'Project', META: 'Goal' },
+  questTypeGroup: 'Goal type',
+  questName: 'Goal name',
+  questNameError: 'Write a name',
+  questNamePlaceholder: 'E.g. Finish the report',
+  type: 'Type',
+  questCreated: 'Goal created',
+  questRewardHint: 'You will earn XP when you complete it',
+  createQuest: 'Create goal',
+  amount: 'Amount',
+  amountError: 'Write an amount greater than 0',
+  description: 'Description',
+  optional: 'Optional',
+  descriptionPlaceholder: 'E.g. Lunch',
+  expenseSaved: 'Expense logged',
+  saveExpense: 'Log expense',
+  habitsFailed: "We couldn't load your habits.",
+  retry: 'Try again',
+  habitsLoading: 'Loading your habits…',
+  allDone: 'All set for today!',
+  allDoneBody: 'You completed all your habits for the day.',
+  habitCompleted: (title) => `${title} completed`,
+  habitMarkFailed: "We couldn't mark the habit",
+  streak: (days) => `${days}-day streak`,
+  noteQuestion: 'What do you want to remember?',
+  noteName: 'Your note',
+  noteError: 'Write something to save',
+  noteSaved: 'Note saved in your journal',
+  saveNote: 'Save note',
+  moods: ['Very bad', 'Bad', 'Okay', 'Good', 'Very good'],
+  moodQuestion: 'How are you feeling?',
+  moodGroup: 'Mood',
+  energy: 'Energy',
+  checkinSaved: 'Check-in logged',
+  bonus: 'daily bonus',
+  checkinUpdated: 'Check-in updated',
+  checkinBonusClaimed: 'Today’s bonus was already claimed',
+  saveCheckin: 'Log check-in',
+  titles: { quest: 'New goal', expense: 'Quick expense', habit: 'Mark a habit', note: 'Quick note', checkin: 'Check-in' },
+};
+
+const COPY: Copy<typeof es> = { es, en };
+
+interface ActionDef { id: QuickAction | 'new-habit'; icon: LucideIcon; tone: Tone }
 
 const ACTIONS: ActionDef[] = [
-  { id: 'new-habit', label: 'Nuevo hábito', description: 'Crea una rutina para tu día', icon: Plus, tone: 'primary' },
-  { id: 'habit', label: 'Marcar hábito', description: 'Completa un hábito de hoy', icon: CheckCircle2, tone: 'success' },
-  { id: 'quest', label: 'Nueva misión', description: 'Una tarea, proyecto o meta', icon: Flag, tone: 'forest' },
-  { id: 'expense', label: 'Gasto rápido', description: 'Registra un gasto en segundos', icon: Wallet, tone: 'warning' },
-  { id: 'note', label: 'Nota rápida', description: 'Guárdala en tu diario', icon: NotebookPen, tone: 'info' },
-  { id: 'checkin', label: 'Check-in', description: 'Ánimo y energía de hoy', icon: Zap, tone: 'error' },
+  { id: 'new-habit', icon: Plus, tone: 'primary' },
+  { id: 'habit', icon: CheckCircle2, tone: 'success' },
+  { id: 'quest', icon: Flag, tone: 'forest' },
+  { id: 'expense', icon: Wallet, tone: 'warning' },
+  { id: 'note', icon: NotebookPen, tone: 'info' },
+  { id: 'checkin', icon: Zap, tone: 'error' },
 ];
 
 /** Acciones que escriben en una zona Pro: en NoutLife Lite llevan candado y abren el diálogo de Pro. */
 const ACTION_ZONES: Partial<Record<ActionDef['id'], ProZone>> = { expense: 'finances', note: 'journal' };
 
 function useSubmit(fn: () => Promise<void>) {
+  const t = COPY[useLocale()];
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const submit = async (e?: FormEvent) => {
     e?.preventDefault();
     setSaving(true);
     setError(null);
-    try { await fn(); } catch { setError('No se pudo guardar. Inténtalo de nuevo.'); } finally { setSaving(false); }
+    try { await fn(); } catch { setError(t.saveError); } finally { setSaving(false); }
   };
   return { saving, error, submit };
 }
@@ -55,36 +165,35 @@ function FormError({ error }: { error: string | null }) {
 
 // ── Formularios ──────────────────────────────────────────────────────────────
 
-const QUEST_TYPES = [
-  { value: 'SIDE', label: 'Tarea' }, { value: 'MAIN', label: 'Proyecto' }, { value: 'META', label: 'Meta' },
-] as const;
-
 function QuestForm({ onDone }: { onDone: () => void }) {
+  const t = COPY[useLocale()];
   const [title, setTitle] = useState('');
   const [type, setType] = useState<'SIDE' | 'MAIN' | 'META'>('SIDE');
   const [touched, setTouched] = useState(false);
   const { saving, error, submit } = useSubmit(async () => {
     await createQuest({ title: title.trim(), type, difficulty: 'EASY', category: 'PERSONAL', xpReward: type === 'META' ? 75 : 50, goldReward: 10 });
-    useToastStore.getState().success('Misión creada', 'Ganarás XP al completarla');
+    useToastStore.getState().success(t.questCreated, t.questRewardHint);
     onDone();
   });
   const invalid = touched && !title.trim();
+  const types = (['SIDE', 'MAIN', 'META'] as const).map((value) => ({ value, label: t.questTypes[value] }));
   return (
     <form className="flex flex-col gap-4" onSubmit={(e) => { setTouched(true); if (title.trim()) void submit(e); else e.preventDefault(); }}>
-      <Field label="Nombre de la misión" error={invalid ? 'Escribe un nombre' : undefined}>
-        <Input data-autofocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ej. Terminar el informe" />
+      <Field label={t.questName} error={invalid ? t.questNameError : undefined}>
+        <Input data-autofocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t.questNamePlaceholder} />
       </Field>
       <div className="flex flex-col gap-1.5">
-        <span aria-hidden className="text-label-lg text-on-surface">Tipo</span>
-        <SegmentedControl role="radiogroup" label="Tipo de misión" value={type} onChange={setType} options={[...QUEST_TYPES]} />
+        <span aria-hidden className="text-label-lg text-on-surface">{t.type}</span>
+        <SegmentedControl role="radiogroup" label={t.questTypeGroup} value={type} onChange={setType} options={types} />
       </div>
       <FormError error={error} />
-      <Button type="submit" block loading={saving}>Crear misión</Button>
+      <Button type="submit" block loading={saving}>{t.createQuest}</Button>
     </form>
   );
 }
 
 function ExpenseForm({ onDone }: { onDone: () => void }) {
+  const t = COPY[useLocale()];
   const [amount, setAmount] = useState('');
   const [desc, setDesc] = useState('');
   const [touched, setTouched] = useState(false);
@@ -92,24 +201,26 @@ function ExpenseForm({ onDone }: { onDone: () => void }) {
   const valid = amount !== '' && Number.isFinite(value) && value > 0;
   const { saving, error, submit } = useSubmit(async () => {
     await createTransaction({ type: 'EXPENSE', amount: value, category: 'OTHER', description: desc.trim() || undefined });
-    useToastStore.getState().success('Gasto registrado');
+    useToastStore.getState().success(t.expenseSaved);
     onDone();
   });
   return (
     <form className="flex flex-col gap-4" onSubmit={(e) => { setTouched(true); if (valid) void submit(e); else e.preventDefault(); }}>
-      <Field label="Monto" error={touched && !valid ? 'Escribe un monto mayor que 0' : undefined}>
+      <Field label={t.amount} error={touched && !valid ? t.amountError : undefined}>
         <Input data-autofocus type="number" inputMode="decimal" min="0" step="any" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" />
       </Field>
-      <Field label="Descripción" help="Opcional">
-        <Input value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Ej. Almuerzo" />
+      <Field label={t.description} help={t.optional}>
+        <Input value={desc} onChange={(e) => setDesc(e.target.value)} placeholder={t.descriptionPlaceholder} />
       </Field>
       <FormError error={error} />
-      <Button type="submit" block loading={saving}>Registrar gasto</Button>
+      <Button type="submit" block loading={saving}>{t.saveExpense}</Button>
     </form>
   );
 }
 
 function HabitPicker({ onDone }: { onDone: () => void }) {
+  const t = COPY[useLocale()];
+  const loading = useLoadingCopy();
   const [habits, setHabits] = useState<Habit[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [saving, setSaving] = useState<string | null>(null);
@@ -127,13 +238,13 @@ function HabitPicker({ onDone }: { onDone: () => void }) {
       const r = await logHabit(h.id, 'completed');
       const xp = r.rewards?.xpEarned ?? 0;
       addFloatingXP(xp, window.innerWidth / 2, 200);
-      useToastStore.getState().success(`${h.title} completado`, xp > 0 ? `+${xp} XP` : undefined);
+      useToastStore.getState().success(t.habitCompleted(h.title), xp > 0 ? `+${xp} XP` : undefined);
       void refreshUser();
       const rest = (habits ?? []).filter((x) => x.id !== h.id);
       setHabits(rest);
       if (rest.length === 0) onDone();
     } catch {
-      useToastStore.getState().error('No se pudo marcar el hábito');
+      useToastStore.getState().error(t.habitMarkFailed);
     } finally {
       setSaving(null);
     }
@@ -142,16 +253,16 @@ function HabitPicker({ onDone }: { onDone: () => void }) {
   if (failed) {
     return (
       <div role="alert" className="flex flex-col items-center gap-3 py-4 text-center">
-        <p className="text-body-md text-on-surface">No pudimos cargar tus hábitos.</p>
-        <Button variant="secondary" size="sm" onClick={load}>Reintentar</Button>
+        <p className="text-body-md text-on-surface">{t.habitsFailed}</p>
+        <Button variant="secondary" size="sm" onClick={load}>{t.retry}</Button>
       </div>
     );
   }
   if (!habits) {
-    return <PageLoader label="Cargando tus hábitos…" words={LOADING_COPY.habits} size="sm" />;
+    return <PageLoader label={t.habitsLoading} words={loading.habits} size="sm" />;
   }
   if (habits.length === 0) {
-    return <EmptyState icon={CheckCircle2} tone="success" title="¡Todo listo por hoy!" description="Completaste todos tus hábitos del día." />;
+    return <EmptyState icon={CheckCircle2} tone="success" title={t.allDone} description={t.allDoneBody} />;
   }
   return (
     <ul className="flex max-h-[50dvh] flex-col gap-2 overflow-y-auto">
@@ -159,7 +270,7 @@ function HabitPicker({ onDone }: { onDone: () => void }) {
         <li key={h.id} className="flex items-center gap-3 rounded-2xl border border-border bg-surface p-3">
           <span className="min-w-0 flex-1">
             <span className="block truncate text-label-lg text-on-background">{h.title}</span>
-            <span className="block text-body-sm text-primary-text font-mono tabular-nums">+{h.xpReward} XP{h.currentStreak > 0 ? ` · racha ${h.currentStreak} d` : ''}</span>
+            <span className="block text-body-sm text-primary-text font-mono tabular-nums">+{h.xpReward} XP{h.currentStreak > 0 ? ` · ${t.streak(h.currentStreak)}` : ''}</span>
           </span>
           <CheckButton name={h.title} checked={saving === h.id} disabled={saving === h.id} onToggle={() => void complete(h)} />
         </li>
@@ -169,30 +280,29 @@ function HabitPicker({ onDone }: { onDone: () => void }) {
 }
 
 function NoteForm({ onDone }: { onDone: () => void }) {
+  const t = COPY[useLocale()];
   const [content, setContent] = useState('');
   const [touched, setTouched] = useState(false);
   const { saving, error, submit } = useSubmit(async () => {
     await createJournalEntry({ content: content.trim(), title: content.trim().slice(0, 40) });
-    useToastStore.getState().success('Nota guardada en tu diario');
+    useToastStore.getState().success(t.noteSaved);
     onDone();
   });
   return (
     <form className="flex flex-col gap-4" onSubmit={(e) => { setTouched(true); if (content.trim()) void submit(e); else e.preventDefault(); }}>
-      <Field label="Tu nota" error={touched && !content.trim() ? 'Escribe algo para guardar' : undefined}>
-        <Textarea data-autofocus rows={4} value={content} onChange={(e) => setContent(e.target.value)} placeholder="¿Qué quieres recordar?" />
+      <Field label={t.noteName} error={touched && !content.trim() ? t.noteError : undefined}>
+        <Textarea data-autofocus rows={4} value={content} onChange={(e) => setContent(e.target.value)} placeholder={t.noteQuestion} />
       </Field>
       <FormError error={error} />
-      <Button type="submit" block loading={saving}>Guardar nota</Button>
+      <Button type="submit" block loading={saving}>{t.saveNote}</Button>
     </form>
   );
 }
 
-const MOODS: { icon: LucideIcon; label: string }[] = [
-  { icon: Angry, label: 'Muy mal' }, { icon: Frown, label: 'Mal' }, { icon: Meh, label: 'Normal' },
-  { icon: Smile, label: 'Bien' }, { icon: Laugh, label: 'Muy bien' },
-];
+const MOOD_ICONS: LucideIcon[] = [Angry, Frown, Meh, Smile, Laugh];
 
 function CheckinForm({ onDone }: { onDone: () => void }) {
+  const t = COPY[useLocale()];
   const [mood, setMood] = useState(3);
   const [energy, setEnergy] = useState(5);
   const addFloatingXP = useUIStore((s) => s.addFloatingXP);
@@ -201,9 +311,9 @@ function CheckinForm({ onDone }: { onDone: () => void }) {
     const xp = (res.data as { rewards?: { xpEarned?: number } | null })?.rewards?.xpEarned ?? 0;
     if (xp > 0) {
       addFloatingXP(xp, window.innerWidth / 2, 200);
-      useToastStore.getState().success('Check-in registrado', `+${xp} XP · bonus diario`);
+      useToastStore.getState().success(t.checkinSaved, `+${xp} XP · ${t.bonus}`);
     } else {
-      useToastStore.getState().success('Check-in actualizado', 'El bonus de hoy ya estaba reclamado');
+      useToastStore.getState().success(t.checkinUpdated, t.checkinBonusClaimed);
     }
     void refreshUser();
     onDone();
@@ -211,17 +321,17 @@ function CheckinForm({ onDone }: { onDone: () => void }) {
   return (
     <form className="flex flex-col gap-6" onSubmit={(e) => void submit(e)}>
       <fieldset className="flex flex-col gap-3">
-        <legend className="mb-3 text-label-lg text-on-surface">¿Cómo te sientes?</legend>
-        <div role="radiogroup" aria-label="Estado de ánimo" className="grid grid-cols-5 gap-2">
-          {MOODS.map(({ icon: Icon, label }, i) => {
+        <legend className="mb-3 text-label-lg text-on-surface">{t.moodQuestion}</legend>
+        <div role="radiogroup" aria-label={t.moodGroup} className="grid grid-cols-5 gap-2">
+          {MOOD_ICONS.map((Icon, i) => {
             const selected = mood === i + 1;
             return (
               <button
-                key={label}
+                key={t.moods[i]}
                 type="button"
                 role="radio"
                 aria-checked={selected}
-                aria-label={label}
+                aria-label={t.moods[i]}
                 data-autofocus={selected || undefined}
                 onClick={() => setMood(i + 1)}
                 className={cn(
@@ -234,11 +344,11 @@ function CheckinForm({ onDone }: { onDone: () => void }) {
             );
           })}
         </div>
-        <span className="text-center text-body-sm text-on-surface" aria-live="polite">{MOODS[mood - 1].label}</span>
+        <span className="text-center text-body-sm text-on-surface" aria-live="polite">{t.moods[mood - 1]}</span>
       </fieldset>
       <div className="flex flex-col gap-2">
         <label htmlFor="qa-energy" className="flex justify-between text-label-lg text-on-surface">
-          Energía <span className="font-mono tabular-nums text-primary-text">{energy}/10</span>
+          {t.energy} <span className="font-mono tabular-nums text-primary-text">{energy}/10</span>
         </label>
         <input
           id="qa-energy"
@@ -252,17 +362,14 @@ function CheckinForm({ onDone }: { onDone: () => void }) {
         />
       </div>
       <FormError error={error} />
-      <Button type="submit" block loading={saving}>Registrar check-in</Button>
+      <Button type="submit" block loading={saving}>{t.saveCheckin}</Button>
     </form>
   );
 }
 
-const TITLES: Record<QuickAction, string> = {
-  quest: 'Nueva misión', expense: 'Gasto rápido', habit: 'Marcar hábito', note: 'Nota rápida', checkin: 'Check-in',
-};
-
 /** Hoja de acciones + diálogo del formulario activo. Montado una vez en el AppShell. */
 export function QuickActions() {
+  const t = COPY[useLocale()];
   const navigate = useNavigate();
   const open = useShellStore((s) => s.quickOpen);
   const setOpen = useShellStore((s) => s.setQuickOpen);
@@ -296,32 +403,35 @@ export function QuickActions() {
 
   return (
     <>
-      <ResponsiveDialog open={open} onClose={() => setOpen(false)} title="Acciones rápidas">
+      <ResponsiveDialog open={open} onClose={() => setOpen(false)} title={t.title}>
         <ul className="flex flex-col gap-2">
-          {ACTIONS.map(({ id, label, description, icon: Icon, tone }) => (
-            <li key={id}>
-              <button
-                type="button"
-                onClick={() => choose(id)}
-                className="lq-lift flex min-h-16 w-full items-center gap-3 rounded-2xl border border-border bg-surface p-3 text-left"
-              >
-                <span className={cn('lq-ichip flex size-10 shrink-0 items-center justify-center rounded-xl', softTone[tone])}>
-                  <Icon aria-hidden className="size-5" strokeWidth={1.75} />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-label-lg text-on-background">{label}</span>
-                  <span className="block truncate text-body-sm text-on-surface-light">{lockOf(id) ? 'Con NoutLife Pro' : description}</span>
-                </span>
-                {lockOf(id)
-                  ? <Lock aria-hidden className="size-4 shrink-0 text-secondary-text" strokeWidth={2} />
-                  : <ChevronRight aria-hidden className="size-5 shrink-0 text-on-surface-light" strokeWidth={1.75} />}
-              </button>
-            </li>
-          ))}
+          {ACTIONS.map(({ id, icon: Icon, tone }) => {
+            const { label, description } = t.actions[id];
+            return (
+              <li key={id}>
+                <button
+                  type="button"
+                  onClick={() => choose(id)}
+                  className="lq-lift flex min-h-16 w-full items-center gap-3 rounded-2xl border border-border bg-surface p-3 text-left"
+                >
+                  <span className={cn('lq-ichip flex size-10 shrink-0 items-center justify-center rounded-xl', softTone[tone])}>
+                    <Icon aria-hidden className="size-5" strokeWidth={1.75} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-label-lg text-on-background">{label}</span>
+                    <span className="block truncate text-body-sm text-on-surface-light">{lockOf(id) ? t.withPro : description}</span>
+                  </span>
+                  {lockOf(id)
+                    ? <Lock aria-hidden className="size-4 shrink-0 text-secondary-text" strokeWidth={2} />
+                    : <ChevronRight aria-hidden className="size-5 shrink-0 text-on-surface-light" strokeWidth={1.75} />}
+                </button>
+              </li>
+            );
+          })}
         </ul>
       </ResponsiveDialog>
 
-      <ResponsiveDialog open={action !== null} onClose={done} title={action ? TITLES[action] : ''}>
+      <ResponsiveDialog open={action !== null} onClose={done} title={action ? t.titles[action] : ''}>
         {action === 'quest' && <QuestForm onDone={done} />}
         {action === 'expense' && <ExpenseForm onDone={done} />}
         {action === 'habit' && <HabitPicker onDone={done} />}

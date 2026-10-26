@@ -6,6 +6,9 @@ import { cn } from '@/lib/utils';
 import { dialog, scrim, sheet } from '@/lib/motion';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { Button } from './Button';
+import { useText, type Copy } from '@/lib/i18n';
+
+const COPY: Copy<{ close: string }> = { es: { close: 'Cerrar' }, en: { close: 'Close' } };
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -96,6 +99,7 @@ export interface ModalProps {
 
 /** Diálogo centrado: scrim fade 200 ms, panel y 20→0 + spring. role="dialog" aria-modal. */
 export function Modal({ open, onClose, title, hideClose, dismissible = true, className, children }: ModalProps) {
+  const t = useText(COPY);
   const titleId = useId();
   const panelRef = useDialogBehavior(open, onClose);
   return createPortal(
@@ -116,7 +120,7 @@ export function Modal({ open, onClose, title, hideClose, dismissible = true, cla
             <div className="flex items-start justify-between gap-4">
               <h2 id={titleId} className="min-w-0 flex-1 text-heading-md">{title}</h2>
               {!hideClose && (
-                <Button variant="icon" aria-label="Cerrar" onClick={onClose} className="-mr-2 -mt-2">
+                <Button variant="icon" aria-label={t.close} onClick={onClose} className="-mr-2 -mt-2">
                   <X aria-hidden className="size-6" strokeWidth={1.75} />
                 </Button>
               )}
@@ -132,6 +136,7 @@ export function Modal({ open, onClose, title, hideClose, dismissible = true, cla
 
 /** Hoja inferior (móvil): sube y 100%→0 en 300 ms, sale en 200 ms. Mismo contrato que Modal. */
 export function Sheet({ open, onClose, title, hideClose = true, dismissible = true, className, children }: ModalProps) {
+  const t = useText(COPY);
   const titleId = useId();
   const panelRef = useDialogBehavior(open, onClose);
   const drag = useDragControls();
@@ -168,7 +173,7 @@ export function Sheet({ open, onClose, title, hideClose = true, dismissible = tr
               <div className="flex items-start justify-between gap-4">
                 <h2 id={titleId} className="text-heading-lg">{title}</h2>
                 {!hideClose && (
-                  <Button variant="icon" aria-label="Cerrar" onClick={onClose} onPointerDown={(e) => e.stopPropagation()} className="-mr-2">
+                  <Button variant="icon" aria-label={t.close} onClick={onClose} onPointerDown={(e) => e.stopPropagation()} className="-mr-2">
                     <X aria-hidden className="size-6" strokeWidth={1.75} />
                   </Button>
                 )}

@@ -1,8 +1,10 @@
 import { Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useLocale } from '@/lib/i18n';
 
 /** Candado de zona Pro sobre el ícono de una entrada de navegación (cuenta en Lite). Va dentro de un contenedor posicionado. */
 export function NavLock({ className }: { className?: string }) {
+  const proZone = useLocale() === 'en' ? 'Pro zone' : 'zona Pro';
   return (
     <>
       <span
@@ -14,7 +16,7 @@ export function NavLock({ className }: { className?: string }) {
       >
         <Lock className="size-2.5" strokeWidth={2.5} />
       </span>
-      <span className="sr-only"> (zona Pro)</span>
+      <span className="sr-only"> ({proZone})</span>
     </>
   );
 }

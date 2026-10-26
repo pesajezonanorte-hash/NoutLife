@@ -15,6 +15,20 @@ import { TallyMarks } from '@/components/ambience';
 import { categoryMeta, frequencyLabel } from '@/lib/lifeMeta';
 import type { HabitItemData } from './HabitListItem';
 import { InkCheckButton } from './InkCheckButton';
+import { useLocale, type Copy } from '@/lib/i18n';
+
+const COPY: Copy<{
+  days: (n: number) => string; restToday: string; weekDone: (n: number) => string; steps: string; stepsOf: (t: string) => string;
+}> = {
+  es: {
+    days: (n) => `${n} ${n === 1 ? 'día' : 'días'}`, restToday: 'descanso hoy (no rompe la racha)',
+    weekDone: (n) => `${n} de 7 días completados esta semana`, steps: 'pasos', stepsOf: (t) => `Pasos de ${t}`,
+  },
+  en: {
+    days: (n) => `${n} ${n === 1 ? 'day' : 'days'}`, restToday: 'rest day today (keeps your streak)',
+    weekDone: (n) => `${n} of 7 days completed this week`, steps: 'steps', stepsOf: (t) => `Steps for ${t}`,
+  },
+};
 
 const row: Variants = {
   initial: { opacity: 0 },
@@ -39,14 +53,16 @@ export interface HabitNotebookRowProps {
 }
 
 export function HabitNotebookRow({ habit, onComplete, pending, week, index, onStep }: HabitNotebookRowProps) {
-  const meta = categoryMeta(habit.category);
+  const locale = useLocale();
+  const t = COPY[locale];
+  const meta = categoryMeta(habit.category, locale);
   const done = Boolean(habit.todayCompleted) || habit.todayStatus === 'completed';
   const skipped = habit.todayStatus === 'skipped';
   const weekDone = week?.filter(Boolean).length ?? 0;
-  const sub = [meta.label, habit.frequency ? frequencyLabel(habit.frequency).toLowerCase() : null, habit.reminderTime].filter(Boolean).join(' · ');
+  const sub = [meta.label, habit.frequency ? frequencyLabel(habit.frequency, locale).toLowerCase() : null, habit.reminderTime].filter(Boolean).join(' · ');
   // La escritura se quita al terminar: una máscara residual recortaría el anillo de foco.
   const [written, setWritten] = useState(false);
-  const days = `${habit.currentStreak} ${habit.currentStreak === 1 ? 'día' : 'días'}`;
+  const days = t.days(habit.currentStreak);
   const steps = habit.kind === 'ritual' ? habit.steps ?? [] : [];
   const stepDone = new Set(habit.todayStepIds ?? []);
 
@@ -80,13 +96,13 @@ export function HabitNotebookRow({ habit, onComplete, pending, week, index, onSt
             {days}
           </span>
           {habit.currentStreak > 0 && <TallyMarks count={habit.currentStreak} />}
-          {steps.length > 0 && <span className="font-mono tabular-nums text-on-surface-light">{steps.filter((st) => stepDone.has(st.id)).length}/{steps.length} pasos</span>}
-          {skipped && <span className="text-on-surface-light">· descanso hoy (no rompe la racha)</span>}
+          {steps.length > 0 && <span className="font-mono tabular-nums text-on-surface-light">{steps.filter((st) => stepDone.has(st.id)).length}/{steps.length} {t.steps}</span>}
+          {skipped && <span className="text-on-surface-light">· {t.restToday}</span>}
         </span>
       </div>
       {week && (
         <span className="hidden items-center gap-2 md:flex">
-          <span className="flex gap-1" role="img" aria-label={`${weekDone} de 7 días completados esta semana`}>
+          <span className="flex gap-1" role="img" aria-label={t.weekDone(weekDone)}>
             {week.map((d, i) => (
               <span key={i} className={cn('size-2.5 rounded-[3px] border', d ? 'border-success bg-success' : 'border-border-strong/40 bg-transparent')} />
             ))}
@@ -96,7 +112,7 @@ export function HabitNotebookRow({ habit, onComplete, pending, week, index, onSt
       )}
       <InkCheckButton name={habit.title} checked={done} pending={pending} onToggle={onComplete} />
       {steps.length > 0 && (
-        <ol aria-label={`Pasos de ${habit.title}`} className="col-span-full flex flex-col gap-0.5 pb-3 pl-[3rem] md:pl-[5rem]">
+        <ol aria-label={t.stepsOf(habit.title)} className="col-span-full flex flex-col gap-0.5 pb-3 pl-[3rem] md:pl-[5rem]">
           {steps.map((st, i) => {
             const on = stepDone.has(st.id);
             return (

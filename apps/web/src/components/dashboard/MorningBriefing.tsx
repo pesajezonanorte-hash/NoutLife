@@ -7,8 +7,36 @@ import { CheckCircle2, Flag, Flame, Sparkles, type LucideIcon } from 'lucide-rea
 import { ease } from '@/lib/motion';
 import { fetchMorningBriefing } from '@/services/lifescore.service';
 import { Button, IconChip, ResponsiveDialog, Skeleton, type Tone } from '@/components/ui/lq';
+import { INTL_LOCALE, useLocale, type Copy, type Locale } from '@/lib/i18n';
+import { greeting as greetingFor } from '@/lib/lifeMeta';
 
-const FALLBACK = '**Enfoque hoy:** mantén tus misiones al día.\n**Consejo:** avanza con constancia y cuida tus rachas.';
+const es = {
+  fallback: '**Enfoque hoy:** mantén tus misiones al día.\n**Consejo:** avanza con constancia y cuida tus rachas.',
+  figures: 'Tu día en cifras',
+  habitsToday: 'Hábitos hoy',
+  activeGoal: 'Misión activa',
+  activeGoals: 'Misiones activas',
+  streakDay: 'Día de racha',
+  streakDays: 'Días de racha',
+  sage: 'Mensaje del Sabio',
+  loadingMessage: 'Cargando mensaje',
+  start: 'Comenzar el día',
+};
+
+const en: typeof es = {
+  fallback: '**Focus today:** keep your goals up to date.\n**Tip:** move forward steadily and protect your streaks.',
+  figures: 'Your day in numbers',
+  habitsToday: 'Habits today',
+  activeGoal: 'Active goal',
+  activeGoals: 'Active goals',
+  streakDay: 'Streak day',
+  streakDays: 'Streak days',
+  sage: 'Message from the Sage',
+  loadingMessage: 'Loading message',
+  start: 'Start the day',
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 const list: Variants = { animate: { transition: { staggerChildren: 0.05, delayChildren: 0.1 } } };
 const child: Variants = { initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0, transition: { duration: 0.3, ease } } };
@@ -21,11 +49,6 @@ interface Props {
   habitsTotal: number;
   quests: number;
   streak: number;
-}
-
-function greeting(d = new Date()) {
-  const h = d.getHours();
-  return h < 12 ? 'Buenos días' : h < 20 ? 'Buenas tardes' : 'Buenas noches';
 }
 
 /** **negrita** → <b>; respeta saltos de línea. */
@@ -48,40 +71,42 @@ function Figure({ icon, tone, value, label }: { icon: LucideIcon; tone: Tone; va
 }
 
 export function MorningBriefing({ open, onClose, name, habitsDone, habitsTotal, quests, streak }: Props) {
+  const locale: Locale = useLocale();
+  const t = COPY[locale];
   const [briefing, setBriefing] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open || briefing) return;
-    fetchMorningBriefing().then((d) => setBriefing(d.briefing?.trim() || FALLBACK)).catch(() => setBriefing(FALLBACK));
-  }, [open, briefing]);
+    fetchMorningBriefing().then((d) => setBriefing(d.briefing?.trim() || t.fallback)).catch(() => setBriefing(t.fallback));
+  }, [open, briefing, t.fallback]);
 
-  const date = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+  const date = new Date().toLocaleDateString(INTL_LOCALE[locale], { weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
     <ResponsiveDialog
       open={open}
       onClose={onClose}
-      title={<span className="block text-heading-lg md:text-display-sm">{greeting()}, {name}</span>}
+      title={<span className="block text-heading-lg md:text-display-sm">{greetingFor(new Date(), locale)}, {name}</span>}
       className="md:max-w-[520px]"
     >
       <motion.div variants={list} initial="initial" animate="animate" className="flex flex-col gap-6">
         <motion.p variants={child} className="-mt-3 text-body-sm text-on-surface-light first-letter:uppercase">{date}</motion.p>
 
-        <motion.ul variants={list} aria-label="Tu día en cifras" className="grid grid-cols-3 gap-2 md:gap-3">
-          <Figure icon={CheckCircle2} tone="success" value={`${habitsDone}/${habitsTotal}`} label="Hábitos hoy" />
-          <Figure icon={Flag} tone="primary" value={String(quests)} label={quests === 1 ? 'Misión activa' : 'Misiones activas'} />
-          <Figure icon={Flame} tone="warning" value={String(streak)} label={streak === 1 ? 'Día de racha' : 'Días de racha'} />
+        <motion.ul variants={list} aria-label={t.figures} className="grid grid-cols-3 gap-2 md:gap-3">
+          <Figure icon={CheckCircle2} tone="success" value={`${habitsDone}/${habitsTotal}`} label={t.habitsToday} />
+          <Figure icon={Flag} tone="primary" value={String(quests)} label={quests === 1 ? t.activeGoal : t.activeGoals} />
+          <Figure icon={Flame} tone="warning" value={String(streak)} label={streak === 1 ? t.streakDay : t.streakDays} />
         </motion.ul>
 
         <motion.section variants={child} aria-labelledby="briefing-sage" className="flex flex-col gap-3 rounded-2xl bg-forest/[var(--lq-soft-alpha)] p-4">
           <h3 id="briefing-sage" className="flex items-center gap-2 text-label-lg text-forest-text">
             <Sparkles aria-hidden className="size-4" strokeWidth={1.75} />
-            Mensaje del Sabio
+            {t.sage}
           </h3>
           {briefing ? (
             <Rich text={briefing} />
           ) : (
-            <div aria-busy="true" aria-label="Cargando mensaje" className="flex flex-col gap-2">
+            <div aria-busy="true" aria-label={t.loadingMessage} className="flex flex-col gap-2">
               <Skeleton className="h-4 w-full" />
               <Skeleton className="h-4 w-5/6" />
               <Skeleton className="h-4 w-2/3" />
@@ -90,7 +115,7 @@ export function MorningBriefing({ open, onClose, name, habitsDone, habitsTotal, 
         </motion.section>
 
         <motion.div variants={child}>
-          <Button size="lg" block onClick={onClose} data-autofocus>Comenzar el día</Button>
+          <Button size="lg" block onClick={onClose} data-autofocus>{t.start}</Button>
         </motion.div>
       </motion.div>
     </ResponsiveDialog>

@@ -16,10 +16,10 @@ import { useAuthStore } from '@/store/authStore';
 import { useHabitCompletion } from '@/hooks/useHabitCompletion';
 import { useToastStore } from '@/hooks/useToast';
 import { Badge, BarChart, Button, Card, Confetti, EmptyState, ErrorState, IconChip, ProgressBar, ProgressRing, SegmentedControl, type BarDatum, PageLoader } from '@/components/ui/lq';
-import { LOADING_COPY } from '@/lib/loadingCopy';
+import { useLoadingCopy } from '@/lib/loadingCopy';
 import { HabitNotebookRow } from '@/components/habits/HabitNotebookRow';
 import { NotebookSheet, NotebookTabs, StickyNote } from '@/components/habits/NotebookSheet';
-import { ObstacleFormDialog, ObstaclesSheet, OBSTACLE_PERIODS, type ObstaclePeriod } from '@/components/habits/ObstaclesSheet';
+import { ObstacleFormDialog, ObstaclesSheet, obstaclePeriodsFor, type ObstaclePeriod } from '@/components/habits/ObstaclesSheet';
 import { RitualsSheet } from '@/components/habits/RitualsSheet';
 import * as ritualsService from '@/services/rituals.service';
 import type { Ritual } from '@/services/rituals.service';
@@ -35,12 +35,116 @@ import { StreakRevival } from '@/components/habits/StreakRevival';
 import { LiteNotice } from '@/components/billing/LiteNotice';
 import { LITE_LIMITS, isProRequired } from '@/lib/plan';
 import { usePlanStore } from '@/store/planStore';
+import { INTL_LOCALE, useLocale, type Copy } from '@/lib/i18n';
+
+const es = {
+  filters: { all: 'Todos', active: 'Activos', done: 'Completados' } as Record<Filter, string>,
+  filter: 'Filtro',
+  habit: 'hábito',
+  habits: 'hábitos',
+  headline: 'Hábitos',
+  intro: 'Pequeñas acciones y rituales, todos los días. Cada hábito completado suma XP a tu personaje.',
+  doneToday: (done: number, total: number) => `de ${total} completados hoy`,
+  doneOf: (done: number, total: number) => `${done} de ${total}`,
+  ringLabel: 'Hábitos completados hoy',
+  today: 'hoy',
+  globalStreak: (n: number) => `Racha global ${n} días`,
+  xpToday: (xp: number) => `+${xp} XP ganados hoy`,
+  loadFailed: 'No pudimos cargar tus hábitos',
+  savedNote: 'Tus hábitos siguen guardados.',
+  noneYet: 'Sin hábitos aún',
+  emptyBody: 'Tu aventura empieza con un hábito pequeño. Cada día completado te da XP.',
+  newHabit: 'Nuevo hábito',
+  nothingHere: 'Nada por aquí',
+  notDoneYet: 'Aún no completas hábitos hoy.',
+  allToday: '¡Completaste todo lo de hoy!',
+  notebook: 'Tu libreta de hábitos',
+  thisWeek: 'Esta semana',
+  weekChart: (detail: string) => `Hábitos completados por día esta semana: ${detail}`,
+  bestStreak: 'Mejor racha',
+  streakLine: (title: string, n: number, more: number, next: number) => `${title} lleva ${n} ${n === 1 ? 'día' : 'días'}. ${more} más para llegar a ${next}.`,
+  progressTo: (n: number) => `Progreso hacia ${n} días`,
+  ofDays: (n: number, of: number) => `${n} de ${of} días`,
+  summary: (period: string) => `Resumen · ${period}`,
+  resisted: 'Resistidas',
+  falls: 'Caídas',
+  triggerNote: 'Anota el detonante de cada obstáculo: saber qué te hace caer ayuda a esquivarlo.',
+  ritualsTitle: 'Uno detrás de otro',
+  ritualsBefore: 'Pulsa ',
+  ritualsStart: 'Comenzar',
+  ritualsAfter: ' y sigue cada paso con su cronómetro. Al terminar el último, el ritual suma su recompensa del día.',
+  loadingHabits: 'Cargando tus hábitos…',
+  pending: 'pendiente',
+  of: 'de',
+  sections: 'Secciones de la libreta',
+  tabHabits: 'Hábitos',
+  tabObstacles: 'Obstáculos',
+  tabRituals: 'Rituales',
+  ritualDone: 'Ritual completado',
+  stepFailed: 'No se pudo marcar el paso',
+  created: 'Hábito creado',
+  createdHint: 'Complétalo hoy para empezar tu racha',
+  liteOver: (max: number, n: number) => `NoutLife Lite admite ${max} hábitos activos. Tus ${n} hábitos siguen aquí; para crear más, pasa a Pro.`,
+  liteCount: (n: number, max: number, atLimit: boolean) => `Tienes ${n} de ${max} hábitos activos de NoutLife Lite.${atLimit ? ' Con Pro, sin límite.' : ''}`,
+  weekdays: ['L', 'M', 'X', 'J', 'V', 'S', 'D'],
+};
+
+const en: typeof es = {
+  filters: { all: 'All', active: 'Active', done: 'Completed' },
+  filter: 'Filter',
+  habit: 'habit',
+  habits: 'habits',
+  headline: 'Habits',
+  intro: 'Small actions and rituals, every day. Every habit you complete adds XP to your character.',
+  doneToday: (done, total) => `of ${total} completed today`,
+  doneOf: (done, total) => `${done} of ${total}`,
+  ringLabel: 'Habits completed today',
+  today: 'today',
+  globalStreak: (n) => `Global streak ${n} days`,
+  xpToday: (xp) => `+${xp} XP earned today`,
+  loadFailed: "We couldn't load your habits",
+  savedNote: 'Your habits are still saved.',
+  noneYet: 'No habits yet',
+  emptyBody: 'Your adventure starts with one small habit. Every completed day earns you XP.',
+  newHabit: 'New habit',
+  nothingHere: 'Nothing here',
+  notDoneYet: "You haven't completed any habits today yet.",
+  allToday: 'You completed everything for today!',
+  notebook: 'Your habit notebook',
+  thisWeek: 'This week',
+  weekChart: (detail) => `Habits completed per day this week: ${detail}`,
+  bestStreak: 'Best streak',
+  streakLine: (title, n, more, next) => `${title} is at ${n} ${n === 1 ? 'day' : 'days'}. ${more} more to reach ${next}.`,
+  progressTo: (n) => `Progress toward ${n} days`,
+  ofDays: (n, of) => `${n} of ${of} days`,
+  summary: (period) => `Summary · ${period}`,
+  resisted: 'Resisted',
+  falls: 'Slips',
+  triggerNote: 'Note the trigger of each obstacle: knowing what makes you slip helps you avoid it.',
+  ritualsTitle: 'One after another',
+  ritualsBefore: 'Tap ',
+  ritualsStart: 'Start',
+  ritualsAfter: ' and follow each step with its timer. When you finish the last one, the ritual adds its reward for the day.',
+  loadingHabits: 'Loading your habits…',
+  pending: 'pending',
+  of: 'of',
+  sections: 'Notebook sections',
+  tabHabits: 'Habits',
+  tabObstacles: 'Obstacles',
+  tabRituals: 'Rituals',
+  ritualDone: 'Ritual completed',
+  stepFailed: "Couldn't mark the step",
+  created: 'Habit created',
+  createdHint: 'Complete it today to start your streak',
+  liteOver: (max, n) => `NoutLife Lite includes ${max} active habits. Your ${n} habits are still here; to create more, go Pro.`,
+  liteCount: (n, max, atLimit) => `You have ${n} of ${max} active NoutLife Lite habits.${atLimit ? ' With Pro, no limit.' : ''}`,
+  weekdays: ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 type Filter = 'all' | 'active' | 'done';
-const FILTERS: { value: Filter; label: string }[] = [
-  { value: 'all', label: 'Todos' }, { value: 'active', label: 'Activos' }, { value: 'done', label: 'Completados' },
-];
-const WEEK_LABELS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+const FILTER_VALUES: Filter[] = ['all', 'active', 'done'];
 const MILESTONES = [7, 14, 21, 30, 60, 100, 180, 365];
 
 type SheetId = 'habitos' | 'obstaculos' | 'rituales';
@@ -61,6 +165,9 @@ function useDays() {
 }
 
 export default function HabitsPage() {
+  const locale = useLocale();
+  const t = COPY[locale];
+  const loadingCopy = useLoadingCopy();
   const user = useAuthStore((s) => s.user);
   const [habits, setHabits] = useState<Habit[]>([]);
   const habitsRef = useRef(habits);
@@ -179,10 +286,10 @@ export default function HabitsPage() {
       setHabits((prev) => prev.map((x) => (x.id === h.id
         ? { ...x, todayStepIds: r.stepIds, todayCompleted: r.completed, todayStatus: r.completed ? 'completed' : x.todayStatus === 'completed' ? 'pending' : x.todayStatus }
         : x)));
-      if (r.completed && !isDone(h)) useToastStore.getState().success('Ritual completado', h.title);
+      if (r.completed && !isDone(h)) useToastStore.getState().success(t.ritualDone, h.title);
       void habitService.fetchHabits().then(setHabits).catch(() => null);
     } catch {
-      useToastStore.getState().error('No se pudo marcar el paso');
+      useToastStore.getState().error(t.stepFailed);
     }
   }
 
@@ -201,7 +308,7 @@ export default function HabitsPage() {
       throw error;
     }
     setForm({ open: false, habit: null });
-    useToastStore.getState().success('Hábito creado', 'Complétalo hoy para empezar tu racha');
+    useToastStore.getState().success(t.created, t.createdHint);
     await load();
   }
 
@@ -214,7 +321,7 @@ export default function HabitsPage() {
   const weekBars: BarDatum[] = week.map((key, i) => {
     const future = key > todayKey;
     const value = future ? 0 : habits.filter((h) => history[h.id]?.has(key) || (key === todayKey && isDone(h))).length;
-    return { label: WEEK_LABELS[i], value, highlight: key === todayKey, muted: future, tip: future ? `${WEEK_LABELS[i]} · pendiente` : `${value} de ${total}` };
+    return { label: t.weekdays[i], value, highlight: key === todayKey, muted: future, tip: future ? `${t.weekdays[i]} · ${t.pending}` : `${value} ${t.of} ${total}` };
   });
   const elapsed = weekBars.filter((b) => !b.muted);
   const weekRate = total && elapsed.length ? Math.round((elapsed.reduce((s, b) => s + b.value, 0) / (total * elapsed.length)) * 100) : 0;
@@ -223,37 +330,37 @@ export default function HabitsPage() {
   const nextMilestone = best ? MILESTONES.find((m) => m > best.currentStreak) ?? best.currentStreak + 30 : 0;
 
   const obstacleTotals = obstacles.reduce((acc, o) => ({ falls: acc.falls + o.metrics[period].falls, resisted: acc.resisted + o.metrics[period].resisted }), { falls: 0, resisted: 0 });
-  const periodLabel = OBSTACLE_PERIODS.find((p) => p.value === period)?.label.toLowerCase() ?? '';
+  const periodLabel = obstaclePeriodsFor(locale).find((p) => p.value === period)?.label.toLowerCase() ?? '';
 
   const header = (
     <motion.section variants={item} className="flex flex-wrap items-center justify-between gap-6 lg:gap-8">
       <div className="flex min-w-0 flex-[1_1_420px] flex-col gap-1 md:gap-2">
-        <span className="hidden text-label-lg text-primary-text md:block">{longDate()}</span>
+        <span className="hidden text-label-lg text-primary-text md:block">{longDate(new Date(), locale)}</span>
         <h1 className="relative self-start text-display-sm md:text-display-md lg:text-display-lg">
-          <Lettering text="Hábitos" />
+          <Lettering text={t.headline} />
           <SketchUnderline className="absolute -bottom-1.5 left-0 w-full text-warning md:-bottom-2.5" delay={0.75} />
         </h1>
         <p className="hidden max-w-[520px] text-body-lg text-on-surface-light md:block">
-          Pequeñas acciones y rituales, todos los días. Cada hábito completado suma XP a tu personaje.
+          {t.intro}
         </p>
         {!loading && !failed && total > 0 && (
           <p className="text-body-md text-on-surface-light md:hidden" aria-live="polite">
-            <span className="font-mono tabular-nums">{doneCount}</span> de {total} completados hoy
+            <span className="font-mono tabular-nums">{doneCount}</span> {t.doneToday(doneCount, total)}
           </p>
         )}
       </div>
       {!loading && !failed && total > 0 && (
         <div className="hidden items-center gap-6 md:flex">
-          <ProgressRing value={pct} tone="success" size={132} stroke={12} label="Hábitos completados hoy" valueText={`${doneCount} de ${total}`}>
+          <ProgressRing value={pct} tone="success" size={132} stroke={12} label={t.ringLabel} valueText={t.doneOf(doneCount, total)}>
             <span className="text-heading-lg font-mono tabular-nums" aria-live="polite">{doneCount}/{total}</span>
-            <span className="text-body-sm text-on-surface-light">hoy</span>
+            <span className="text-body-sm text-on-surface-light">{t.today}</span>
           </ProgressRing>
           <div className="flex flex-col gap-1">
             <span className="flex items-center gap-1.5 text-label-lg text-warning-text">
               <Flame aria-hidden className="size-4" strokeWidth={1.75} />
-              Racha global {user?.currentStreak ?? 0} días
+              {t.globalStreak(user?.currentStreak ?? 0)}
             </span>
-            <span className="text-body-sm text-on-surface-light font-mono tabular-nums">+{xpToday} XP ganados hoy</span>
+            <span className="text-body-sm text-on-surface-light font-mono tabular-nums">{t.xpToday(xpToday)}</span>
           </div>
         </div>
       )}
@@ -262,16 +369,16 @@ export default function HabitsPage() {
 
   let habitsContent;
   if (loading) {
-    habitsContent = <PageLoader size="sm" label="Cargando tus hábitos…" words={LOADING_COPY.habits} />;
+    habitsContent = <PageLoader size="sm" label={t.loadingHabits} words={loadingCopy.habits} />;
   } else if (failed) {
-    habitsContent = <ErrorState title="No pudimos cargar tus hábitos" description="Tus hábitos siguen guardados." onRetry={() => void load()} />;
+    habitsContent = <ErrorState title={t.loadFailed} description={t.savedNote} onRetry={() => void load()} />;
   } else if (total === 0) {
     habitsContent = (
       <EmptyState
         icon={ListChecks}
-        title="Sin hábitos aún"
-        description="Tu aventura empieza con un hábito pequeño. Cada día completado te da XP."
-        action={<Button onClick={openNew}><Plus aria-hidden className="size-4" strokeWidth={2} />Nuevo hábito</Button>}
+        title={t.noneYet}
+        description={t.emptyBody}
+        action={<Button onClick={openNew}><Plus aria-hidden className="size-4" strokeWidth={2} />{t.newHabit}</Button>}
         className="py-16"
       />
     );
@@ -280,8 +387,8 @@ export default function HabitsPage() {
       <EmptyState
         icon={filter === 'done' ? CheckCircle2 : ListChecks}
         tone="muted"
-        title="Nada por aquí"
-        description={filter === 'done' ? 'Aún no completas hábitos hoy.' : '¡Completaste todo lo de hoy!'}
+        title={t.nothingHere}
+        description={filter === 'done' ? t.notDoneYet : t.allToday}
         className="py-12"
       />
     );
@@ -308,12 +415,18 @@ export default function HabitsPage() {
       id={`${sheetId('habitos')}-panel`} labelledBy={`${sheetId('habitos')}-tab`} tabbed
       header={total > 0 ? (
         <>
-          <SegmentedControl label="Filtro" value={filter} onChange={setFilter} options={FILTERS} className="w-full md:max-w-[420px]" />
+          <SegmentedControl
+            label={t.filter}
+            value={filter}
+            onChange={setFilter}
+            options={FILTER_VALUES.map((value) => ({ value, label: t.filters[value] }))}
+            className="w-full md:max-w-[420px]"
+          />
           <span className="hidden text-body-sm text-on-surface-light md:block" aria-live="polite">
-            {shown.length} {shown.length === 1 ? 'hábito' : 'hábitos'}
+            {shown.length} {shown.length === 1 ? t.habit : t.habits}
           </span>
         </>
-      ) : <span className="text-body-md text-on-surface-light">Tu libreta de hábitos</span>}
+      ) : <span className="text-body-md text-on-surface-light">{t.notebook}</span>}
     >
       {habitsContent}
     </NotebookSheet>
@@ -324,12 +437,12 @@ export default function HabitsPage() {
       <StickyNote tilt={-0.8} delay={0.35}>
         <Card as="section" padding="lg" className="flex flex-col gap-4" aria-labelledby="week-title">
           <div className="flex items-center justify-between">
-            <h2 id="week-title" className="text-heading-sm">Esta semana</h2>
+            <h2 id="week-title" className="text-heading-sm">{t.thisWeek}</h2>
             <Badge variant="success">{weekRate}%</Badge>
           </div>
           <BarChart
             data={weekBars}
-            label={`Hábitos completados por día esta semana: ${elapsed.map((b) => `${b.label} ${b.value}`).join(', ')}`}
+            label={t.weekChart(elapsed.map((b) => `${b.label} ${b.value}`).join(', '))}
             tone="primary"
             highlightTone="primary"
             max={Math.max(1, total)}
@@ -340,16 +453,18 @@ export default function HabitsPage() {
         <StickyNote tilt={0.6} delay={0.5}>
           <Card as="section" padding="lg" className="flex flex-col gap-3">
             <IconChip icon={Trophy} tone="warning" className="animate-float [.reduce-motion_&]:animate-none" />
-            <h2 className="text-heading-sm">Mejor racha</h2>
+            <h2 className="text-heading-sm">{t.bestStreak}</h2>
             <p className="text-body-md text-on-surface">
-              <b>{best.title}</b> lleva {best.currentStreak} {best.currentStreak === 1 ? 'día' : 'días'}. {nextMilestone - best.currentStreak} más para llegar a {nextMilestone}.
+              {t.streakLine(best.title, best.currentStreak, nextMilestone - best.currentStreak, nextMilestone).split(best.title).map((part, i, all) => (
+                <span key={i}>{part}{i < all.length - 1 && <b>{best.title}</b>}</span>
+              ))}
             </p>
             <ProgressBar
               value={(best.currentStreak / nextMilestone) * 100}
               tone="warning"
               shine
-              label={`Progreso hacia ${nextMilestone} días`}
-              valueText={`${best.currentStreak} de ${nextMilestone} días`}
+              label={t.progressTo(nextMilestone)}
+              valueText={t.ofDays(best.currentStreak, nextMilestone)}
             />
           </Card>
         </StickyNote>
@@ -360,18 +475,18 @@ export default function HabitsPage() {
   const obstaclesAside = obstacleState === 'ready' && obstacles.length > 0 && (
     <StickyNote tilt={-0.6} delay={0.2}>
       <Card as="section" padding="lg" className="flex flex-col gap-3" aria-labelledby="obstacles-summary">
-        <h2 id="obstacles-summary" className="text-heading-sm">Resumen · {periodLabel}</h2>
+        <h2 id="obstacles-summary" className="text-heading-sm">{t.summary(periodLabel)}</h2>
         <dl className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1">
-            <dt className="flex items-center gap-1.5 text-body-sm text-success-text"><ShieldCheck aria-hidden className="size-4" strokeWidth={1.75} />Resistidas</dt>
+            <dt className="flex items-center gap-1.5 text-body-sm text-success-text"><ShieldCheck aria-hidden className="size-4" strokeWidth={1.75} />{t.resisted}</dt>
             <dd className="font-mono text-heading-lg tabular-nums">{obstacleTotals.resisted}</dd>
           </div>
           <div className="flex flex-col gap-1">
-            <dt className="flex items-center gap-1.5 text-body-sm text-error-text"><ShieldAlert aria-hidden className="size-4" strokeWidth={1.75} />Caídas</dt>
+            <dt className="flex items-center gap-1.5 text-body-sm text-error-text"><ShieldAlert aria-hidden className="size-4" strokeWidth={1.75} />{t.falls}</dt>
             <dd className="font-mono text-heading-lg tabular-nums">{obstacleTotals.falls}</dd>
           </div>
         </dl>
-        <p className="text-body-sm text-on-surface-light">Anota el detonante de cada obstáculo: saber qué te hace caer ayuda a esquivarlo.</p>
+        <p className="text-body-sm text-on-surface-light">{t.triggerNote}</p>
       </Card>
     </StickyNote>
   );
@@ -380,10 +495,8 @@ export default function HabitsPage() {
     <StickyNote tilt={0.6} delay={0.2}>
       <Card as="section" padding="lg" className="flex flex-col gap-3" aria-labelledby="rituals-summary">
         <IconChip icon={Sun} tone="warning" />
-        <h2 id="rituals-summary" className="text-heading-sm">Uno detrás de otro</h2>
-        <p className="text-body-md text-on-surface">
-          Pulsa <b>Comenzar</b> y sigue cada paso con su cronómetro. Al terminar el último, el ritual suma su recompensa del día.
-        </p>
+        <h2 id="rituals-summary" className="text-heading-sm">{t.ritualsTitle}</h2>
+        <p className="text-body-md text-on-surface">{t.ritualsBefore}<b>{t.ritualsStart}</b>{t.ritualsAfter}</p>
       </Card>
     </StickyNote>
   );
@@ -400,8 +513,8 @@ export default function HabitsPage() {
         <motion.div variants={item}>
           <LiteNotice feature="habits">
             {habits.length > LITE_LIMITS.activeHabits
-              ? `NoutLife Lite admite ${LITE_LIMITS.activeHabits} hábitos activos. Tus ${habits.length} hábitos siguen aquí; para crear más, pasa a Pro.`
-              : `Tienes ${habits.length} de ${LITE_LIMITS.activeHabits} hábitos activos de NoutLife Lite.${atLiteLimit ? ' Con Pro, sin límite.' : ''}`}
+              ? t.liteOver(LITE_LIMITS.activeHabits, habits.length)
+              : t.liteCount(habits.length, LITE_LIMITS.activeHabits, atLiteLimit)}
           </LiteNotice>
         </motion.div>
       )}
@@ -412,11 +525,11 @@ export default function HabitsPage() {
           {sheet === 'habitos' && total > 0 && !loading && <ProgressBar value={pct} tone="success" className="md:hidden" />}
           <div className="flex flex-col">
             <NotebookTabs
-              label="Secciones de la libreta" value={sheet} onChange={openSheet} idOf={sheetId}
+              label={t.sections} value={sheet} onChange={openSheet} idOf={sheetId}
               tabs={[
-                { value: 'habitos', label: 'Hábitos', icon: CheckCircle2, count: loading ? undefined : total },
-                { value: 'obstaculos', label: 'Obstáculos', icon: ShieldAlert, count: obstacleState === 'ready' ? obstacles.length : undefined },
-                { value: 'rituales', label: 'Rituales', icon: Sun, count: ritualState === 'ready' ? rituals.length : undefined },
+                { value: 'habitos', label: t.tabHabits, icon: CheckCircle2, count: loading ? undefined : total },
+                { value: 'obstaculos', label: t.tabObstacles, icon: ShieldAlert, count: obstacleState === 'ready' ? obstacles.length : undefined },
+                { value: 'rituales', label: t.tabRituals, icon: Sun, count: ritualState === 'ready' ? rituals.length : undefined },
               ]}
             />
             {sheet === 'habitos' ? habitsSheet : sheet === 'rituales' ? (

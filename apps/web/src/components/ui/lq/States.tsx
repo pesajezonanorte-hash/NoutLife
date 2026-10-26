@@ -4,8 +4,22 @@ import { cn } from '@/lib/utils';
 import { Button } from './Button';
 import { IconChip } from './IconChip';
 import { ModernLoader } from './ModernLoader';
-import { LOADING_COPY } from '@/lib/loadingCopy';
+import { useLoadingCopy } from '@/lib/loadingCopy';
+import { useText, type Copy } from '@/lib/i18n';
 import type { Tone } from './tones';
+
+const COPY: Copy<{
+  loadingPage: string; couldNotLoad: string; checkConnection: string; retryingIn: (s: number) => string; retry: string;
+}> = {
+  es: {
+    loadingPage: 'Cargando tu aventura…', couldNotLoad: 'No pudimos cargar', checkConnection: 'Revisa tu conexión.',
+    retryingIn: (s) => `Reintentando en ${s} s…`, retry: 'Reintentar',
+  },
+  en: {
+    loadingPage: 'Loading your adventure…', couldNotLoad: "We couldn't load this", checkConnection: 'Check your connection.',
+    retryingIn: (s) => `Retrying in ${s} s…`, retry: 'Try again',
+  },
+};
 
 export interface EmptyStateProps {
   icon: LucideIcon;
@@ -40,12 +54,13 @@ export interface ErrorStateProps {
 
 /** Error con "Reintentar" y reintento automático a los 5 s (cuenta atrás visible). */
 export function ErrorState({
-  title = 'No pudimos cargar',
+  title,
   description,
   onRetry,
   autoRetrySeconds = 5,
   className,
 }: ErrorStateProps) {
+  const t = useText(COPY);
   const [left, setLeft] = useState(autoRetrySeconds);
   const retryRef = useRef(onRetry);
   retryRef.current = onRetry;
@@ -64,14 +79,14 @@ export function ErrorState({
   return (
     <div role="alert" className={cn('flex flex-col items-center gap-3 px-6 py-12 text-center', className)}>
       <IconChip icon={AlertTriangle} tone="error" size="lg" />
-      <h2 className="text-heading-lg">{title}</h2>
+      <h2 className="text-heading-lg">{title ?? t.couldNotLoad}</h2>
       <p className="max-w-sm text-body-md text-on-surface-light">
-        {description ?? 'Revisa tu conexión.'}{' '}
-        {autoRetrySeconds > 0 && left > 0 && <span>Reintentando en <span className="font-mono tabular-nums">{left}</span> s…</span>}
+        {description ?? t.checkConnection}{' '}
+        {autoRetrySeconds > 0 && left > 0 && <span>{t.retryingIn(left)}</span>}
       </p>
       <Button variant="secondary" onClick={onRetry}>
         <RefreshCw aria-hidden className="size-4" strokeWidth={1.75} />
-        Reintentar
+        {t.retry}
       </Button>
     </div>
   );
@@ -93,10 +108,14 @@ export interface PageLoaderProps {
 }
 
 /** Cargando página o sección: remolino de hojas (ModernLoader) centrado y a la medida del hueco. */
-export function PageLoader({ label = 'Cargando tu aventura…', words = LOADING_COPY.page, size = 'lg', className }: PageLoaderProps) {
+export function PageLoader({ label, words, size = 'lg', className }: PageLoaderProps) {
+  const t = useText(COPY);
+  const loading = useLoadingCopy();
+  const main = label ?? t.loadingPage;
+  const rest = words ?? loading.page;
   return (
     <div className={cn('flex w-full items-center justify-center', size === 'lg' ? 'py-4' : 'py-1', className)}>
-      <ModernLoader label={label} words={[label, ...words.filter((w) => w !== label)]} size={size} />
+      <ModernLoader label={main} words={[main, ...rest.filter((w) => w !== main)]} size={size} />
     </div>
   );
 }

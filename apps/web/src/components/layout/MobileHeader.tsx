@@ -9,9 +9,16 @@ import { useShellStore } from '@/store/shellStore';
 import { openCommandPalette } from './actions';
 import { todayLabel } from './Topbar';
 import { TrialPill, useTrialDay } from '@/components/billing/TrialPill';
+import { useLocale, type Copy } from '@/lib/i18n';
+
+const es = { home: 'Noutlife, inicio ·', search: 'Buscar', menu: 'Menú' };
+const en: typeof es = { home: 'Noutlife, home ·', search: 'Search', menu: 'Menu' };
+const COPY: Copy<typeof es> = { es, en };
 
 /** Cabecera móvil (<768): h-14 con fecha + buscar, notificaciones y menú (Dashboard.dc.html `.hdr`). */
 export function MobileHeader({ className }: { className?: string }) {
+  const locale = useLocale();
+  const t = COPY[locale];
   const menuOpen = useShellStore((s) => s.menuOpen);
   const setMenuOpen = useShellStore((s) => s.setMenuOpen);
   // Durante la prueba, el indicador ocupa el lugar de la fecha.
@@ -26,18 +33,18 @@ export function MobileHeader({ className }: { className?: string }) {
     >
       <div className="flex min-w-0 items-center gap-2.5">
         <Link to="/" className="flex min-h-11 shrink-0 items-center gap-2.5 rounded-md">
-          <BrandMark size={28} alt="Noutlife, inicio ·" />
-          {!trial && <span className="truncate text-body-sm text-on-surface-light">{todayLabel()}</span>}
+          <BrandMark size={28} alt={t.home} />
+          {!trial && <span className="truncate text-body-sm text-on-surface-light">{todayLabel(locale)}</span>}
         </Link>
         <TrialPill />
       </div>
       <div className="flex items-center">
-        <Button variant="icon" data-tour="search" aria-label="Buscar" onClick={openCommandPalette}>
+        <Button variant="icon" data-tour="search" aria-label={t.search} onClick={openCommandPalette}>
           <Search aria-hidden className="size-6" strokeWidth={1.75} />
         </Button>
         <SocialButton />
         <NotificationBell />
-        <Button variant="icon" aria-label="Menú" aria-haspopup="dialog" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}>
+        <Button variant="icon" aria-label={t.menu} aria-haspopup="dialog" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}>
           <Menu aria-hidden className="size-6" strokeWidth={1.75} />
         </Button>
       </div>

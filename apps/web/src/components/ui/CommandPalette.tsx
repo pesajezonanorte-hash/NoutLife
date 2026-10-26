@@ -9,7 +9,8 @@ import { cn } from '@/lib/utils';
 import { dialog, scrim } from '@/lib/motion';
 import { Spinner } from '@/components/ui/lq';
 import { softTone } from '@/components/ui/lq/tones';
-import { NAV_SECTIONS, PRIMARY_NAV, SOCIAL_SHORTCUTS, UTILITY_NAV, useUnavailableZones } from '@/components/layout/nav';
+import { PRIMARY_NAV, localizedNavCatalog, useUnavailableZones } from '@/components/layout/nav';
+import { useLocale, type Copy, type Locale } from '@/lib/i18n';
 import { useUIStore } from '../../store/uiStore';
 import { useToastStore } from '../../hooks/useToast';
 import { fetchHabits, logHabit } from '../../services/habit.service';
@@ -17,35 +18,99 @@ import { globalSearch, type SearchResult } from '../../services/notification.ser
 import { refreshUser } from '../../hooks/useAuth';
 import { logBodyWeight } from '../../services/coliseo.service';
 
+const es = {
+  groups: { go: 'Ir a', actions: 'Acciones', habits: 'Hábitos de hoy', results: 'Resultados' } as Record<string, string>,
+  newHabit: 'Nuevo hábito',
+  newQuest: 'Nueva misión',
+  sage: 'Preguntar al Sabio',
+  weight: 'Registrar peso',
+  weightHint: 'Escribe "peso 79.5"',
+  complete: (title: string) => `Completar ${title}`,
+  completed: (title: string) => `${title} completado`,
+  weightSaved: 'Peso registrado',
+  actionFailed: 'No se pudo completar la acción',
+  saveFailed: 'No se pudo registrar',
+  keywords: {
+    newHabit: 'crear habito nuevo',
+    newQuest: 'crear mision quest nueva',
+    sage: 'sabio ia consejo ayuda',
+    weight: 'peso kg coliseo gym entrenamiento',
+    habit: 'completar habito',
+  },
+  label: 'Buscar o ejecutar un comando',
+  results: 'Resultados',
+  placeholder: 'Busca una zona, hábito o comando…',
+  esc: 'Esc',
+  noResults: (query: string) => `Sin resultados para “${query}”`,
+  navigate: '↑↓ navegar',
+  run: '↵ ejecutar',
+  tryWeight: 'Prueba “peso 79.5”',
+  weightWord: 'peso',
+  journalWord: 'diario',
+};
+
+const en: typeof es = {
+  groups: { go: 'Go to', actions: 'Actions', habits: 'Today’s habits', results: 'Results' },
+  newHabit: 'New habit',
+  newQuest: 'New goal',
+  sage: 'Ask the Sage',
+  weight: 'Log weight',
+  weightHint: 'Type "weight 79.5"',
+  complete: (title) => `Complete ${title}`,
+  completed: (title) => `${title} completed`,
+  weightSaved: 'Weight logged',
+  actionFailed: "We couldn't complete the action",
+  saveFailed: "We couldn't save it",
+  keywords: {
+    newHabit: 'create new habit',
+    newQuest: 'create new goal quest task',
+    sage: 'sage ai advice help',
+    weight: 'weight kg coliseum gym workout',
+    habit: 'complete habit',
+  },
+  label: 'Search or run a command',
+  results: 'Results',
+  placeholder: 'Search a zone, habit or command…',
+  esc: 'Esc',
+  noResults: (query) => `No results for “${query}”`,
+  navigate: '↑↓ navigate',
+  run: '↵ run',
+  tryWeight: 'Try “weight 79.5”',
+  weightWord: 'weight',
+  journalWord: 'journal',
+};
+
+const COPY: Copy<typeof es> = { es, en };
+
 interface Cmd {
   id: string;
   label: string;
-  group: 'Ir a' | 'Acciones' | 'Hábitos de hoy' | 'Resultados';
+  group: 'go' | 'actions' | 'habits' | 'results';
   sublabel?: string;
   icon: LucideIcon;
   keywords: string;
   run: () => void | Promise<void>;
 }
 
-const NAV_CMDS = [...PRIMARY_NAV, ...NAV_SECTIONS.flatMap((s) => s.items), ...SOCIAL_SHORTCUTS, ...UTILITY_NAV];
-
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
-/** "peso 79.5" registra el peso corporal; "diario" abre el diario. */
-async function runSmartCommand(input: string, navigate: (to: string) => void): Promise<boolean> {
+/** "peso 79.5" (o "weight 79.5") registra el peso corporal; "diario" (o "journal") abre el diario. */
+async function runSmartCommand(input: string, navigate: (to: string) => void, t: typeof es): Promise<boolean> {
   const q = norm(input.trim());
-  const peso = q.match(/^peso\s+([\d.,]+)$/);
+  const peso = q.match(new RegExp(`^(${t.weightWord}|peso|weight)\\s+([\\d.,]+)$`));
   if (peso) {
-    const weight = parseFloat(peso[1].replace(',', '.'));
+    const weight = parseFloat(peso[2].replace(',', '.'));
     await logBodyWeight(weight, new Date().toISOString().slice(0, 10));
-    useToastStore.getState().success('Peso registrado', `${weight} kg`);
+    useToastStore.getState().success(t.weightSaved, `${weight} kg`);
     return true;
   }
-  if (q === 'diario') { navigate('/journal'); return true; }
+  if (q === t.journalWord || q === 'diario' || q === 'journal') { navigate('/journal'); return true; }
   return false;
 }
 
 export function CommandPalette() {
+  const locale: Locale = useLocale();
+  const t = COPY[locale];
   const navigate = useNavigate();
   const { addFloatingXP, openSage } = useUIStore();
   const [open, setOpen] = useState(false);
@@ -106,35 +171,36 @@ export function CommandPalette() {
 
   const commands = useMemo<Cmd[]>(() => {
     const go = (to: string) => () => navigate(to);
+    const navCmds = localizedNavCatalog(locale);
     return [
-      ...NAV_CMDS.filter((n) => !unavailable.has(n.to)).map((n) => ({ id: `nav-${n.to}`, group: 'Ir a' as const, label: n.label, icon: n.icon, keywords: n.label, run: go(n.to) })),
-      { id: 'new-habit', group: 'Acciones', label: 'Nuevo hábito', icon: Plus, keywords: 'crear habito nuevo', run: go('/habits?new=1') },
-      { id: 'new-quest', group: 'Acciones', label: 'Nueva misión', icon: Plus, keywords: 'crear mision quest nueva', run: go('/quests?new=1') },
-      { id: 'sage', group: 'Acciones', label: 'Preguntar al Sabio', icon: Sparkles, keywords: 'sabio ia consejo ayuda', run: () => openSage() },
-      { id: 'weight', group: 'Acciones', label: 'Registrar peso', sublabel: 'Escribe "peso 79.5"', icon: Scale, keywords: 'peso kg coliseo gym entrenamiento', run: () => { setQuery('peso '); inputRef.current?.focus(); } },
+      ...navCmds.filter((n) => !unavailable.has(n.to)).map((n) => ({ id: `nav-${n.to}`, group: 'go' as const, label: n.label, icon: n.icon, keywords: n.label, run: go(n.to) })),
+      { id: 'new-habit', group: 'actions', label: t.newHabit, icon: Plus, keywords: t.keywords.newHabit, run: go('/habits?new=1') },
+      { id: 'new-quest', group: 'actions', label: t.newQuest, icon: Plus, keywords: t.keywords.newQuest, run: go('/quests?new=1') },
+      { id: 'sage', group: 'actions', label: t.sage, icon: Sparkles, keywords: t.keywords.sage, run: () => openSage() },
+      { id: 'weight', group: 'actions', label: t.weight, sublabel: t.weightHint, icon: Scale, keywords: t.keywords.weight, run: () => { setQuery(`${t.weightWord} `); inputRef.current?.focus(); } },
       ...habits.map((h) => ({
         id: `habit-${h.id}`,
-        group: 'Hábitos de hoy' as const,
-        label: `Completar ${h.title}`,
+        group: 'habits' as const,
+        label: t.complete(h.title),
         icon: CheckCircle2,
-        keywords: `completar habito ${h.title}`,
+        keywords: `${t.keywords.habit} ${h.title}`,
         run: async () => {
           const r = await logHabit(h.id, 'completed');
           addFloatingXP(r.rewards?.xpEarned ?? 0, window.innerWidth / 2, 200);
-          useToastStore.getState().success(`${h.title} completado`);
+          useToastStore.getState().success(t.completed(h.title));
           void refreshUser();
         },
       })),
     ];
-  }, [habits, navigate, openSage, addFloatingXP, unavailable]);
+  }, [habits, navigate, openSage, addFloatingXP, unavailable, locale, t]);
 
   const filtered = useMemo(() => {
     const q = norm(query.trim());
     const base = q
       ? commands.filter((c) => norm(c.label).includes(q) || norm(c.keywords).includes(q))
-      : commands.filter((c) => c.group !== 'Ir a' || PRIMARY_NAV.some((p) => `nav-${p.to}` === c.id));
+      : commands.filter((c) => c.group !== 'go' || PRIMARY_NAV.some((p) => `nav-${p.to}` === c.id));
     const found: Cmd[] = results.map((r) => ({
-      id: `res-${r.type}-${r.id}`, group: 'Resultados', label: r.title, sublabel: r.subtitle, icon: FileText, keywords: '', run: () => navigate(r.link),
+      id: `res-${r.type}-${r.id}`, group: 'results', label: r.title, sublabel: r.subtitle, icon: FileText, keywords: '', run: () => navigate(r.link),
     }));
     return [...found, ...base].slice(0, 12);
   }, [commands, query, results, navigate]);
@@ -146,7 +212,7 @@ export function CommandPalette() {
     if (!cmd) return;
     if (cmd.id === 'weight') { await cmd.run(); return; }
     close();
-    try { await cmd.run(); } catch { useToastStore.getState().error('No se pudo completar la acción'); }
+    try { await cmd.run(); } catch { useToastStore.getState().error(t.actionFailed); }
   };
 
   const onKeyDown = async (e: React.KeyboardEvent) => {
@@ -156,9 +222,9 @@ export function CommandPalette() {
     else if (e.key === 'Enter') {
       e.preventDefault();
       try {
-        if (await runSmartCommand(query, navigate)) { close(); return; }
+        if (await runSmartCommand(query, navigate, t)) { close(); return; }
       } catch {
-        useToastStore.getState().error('No se pudo registrar');
+        useToastStore.getState().error(t.saveFailed);
         return;
       }
       await execute(filtered[active]);
@@ -185,7 +251,7 @@ export function CommandPalette() {
             variants={dialog}
             role="dialog"
             aria-modal="true"
-            aria-label="Buscar o ejecutar un comando"
+            aria-label={t.label}
             className="flex max-h-[70dvh] w-full max-w-xl flex-col overflow-hidden rounded-3xl border border-border bg-background shadow-lg"
           >
             <div className="flex items-center gap-3 border-b border-border px-4">
@@ -200,21 +266,21 @@ export function CommandPalette() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => void onKeyDown(e)}
-                placeholder="Busca una zona, hábito o comando…"
+                placeholder={t.placeholder}
                 className="min-h-14 flex-1 bg-transparent text-body-lg text-on-background outline-none placeholder:text-on-surface-light focus-visible:outline-none"
               />
               {searching && <Spinner size="sm" />}
-              <kbd className="hidden rounded-md border border-border bg-surface px-2 py-0.5 text-label-md text-on-surface-light sm:block">Esc</kbd>
+              <kbd className="hidden rounded-md border border-border bg-surface px-2 py-0.5 text-label-md text-on-surface-light sm:block">{t.esc}</kbd>
             </div>
 
-            <ul id={listId} role="listbox" aria-label="Resultados" className="min-h-0 flex-1 overflow-y-auto p-2">
+            <ul id={listId} role="listbox" aria-label={t.results} className="min-h-0 flex-1 overflow-y-auto p-2">
               {filtered.length === 0 ? (
                 <li className="px-4 py-10 text-center text-body-md text-on-surface-light" role="presentation">
-                  Sin resultados para “{query}”
+                  {t.noResults(query)}
                 </li>
               ) : (
                 filtered.map((cmd, i) => {
-                  const header = cmd.group !== lastGroup ? cmd.group : null;
+                  const header = cmd.group !== lastGroup ? t.groups[cmd.group] : null;
                   lastGroup = cmd.group;
                   const Icon = cmd.icon;
                   const selected = i === active;
@@ -248,9 +314,9 @@ export function CommandPalette() {
             </ul>
 
             <div className="hidden items-center gap-4 border-t border-border px-4 py-2 text-body-sm text-on-surface-light sm:flex">
-              <span>↑↓ navegar</span>
-              <span>↵ ejecutar</span>
-              <span className="ml-auto">Prueba “peso 79.5”</span>
+              <span>{t.navigate}</span>
+              <span>{t.run}</span>
+              <span className="ml-auto">{t.tryWeight}</span>
             </div>
           </motion.div>
         </motion.div>
