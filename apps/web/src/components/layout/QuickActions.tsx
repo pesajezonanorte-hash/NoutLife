@@ -26,7 +26,7 @@ import { createJournalEntry } from '@/services/journal.service';
 
 const es = {
   actions: {
-    newHabit: { label: 'Nuevo hábito', description: 'Crea una rutina para tu día' },
+    'new-habit': { label: 'Nuevo hábito', description: 'Crea una rutina para tu día' },
     habit: { label: 'Marcar hábito', description: 'Completa un hábito de hoy' },
     quest: { label: 'Nueva misión', description: 'Una tarea, proyecto o meta' },
     expense: { label: 'Gasto rápido', description: 'Registra un gasto en segundos' },
@@ -79,7 +79,7 @@ const es = {
 
 const en: typeof es = {
   actions: {
-    newHabit: { label: 'New habit', description: 'Create a routine for your day' },
+    'new-habit': { label: 'New habit', description: 'Create a routine for your day' },
     habit: { label: 'Mark a habit', description: 'Complete one of today’s habits' },
     quest: { label: 'New goal', description: 'A task, project or goal' },
     expense: { label: 'Quick expense', description: 'Log an expense in seconds' },
@@ -406,7 +406,8 @@ export function QuickActions() {
       <ResponsiveDialog open={open} onClose={() => setOpen(false)} title={t.title}>
         <ul className="flex flex-col gap-2">
           {ACTIONS.map(({ id, icon: Icon, tone }) => {
-            const { label, description } = t.actions[id];
+            const label = t.actions[id]?.label ?? id;
+            const description = t.actions[id]?.description ?? '';
             return (
               <li key={id}>
                 <button

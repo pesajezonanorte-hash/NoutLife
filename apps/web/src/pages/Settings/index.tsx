@@ -608,7 +608,7 @@ export default function SettingsPage() {
                         <ul className="overflow-hidden rounded-xl border border-border">
                           {prefs.categories.map((p) => (
                             <li key={p.category} className="flex min-h-14 flex-wrap items-center gap-2 border-b border-border px-3 last:border-b-0">
-                              <span className="min-w-0 flex-1 text-label-lg">{t.notif[p.category]}</span>
+                              <span className="min-w-0 flex-1 text-label-lg">{t.notif[p.category] ?? p.category}</span>
                               <Button size="sm" variant={p.inAppEnabled ? 'primary' : 'secondary'} aria-pressed={p.inAppEnabled} disabled={savingPrefs} onClick={() => void toggleCategory(p.category, 'inAppEnabled')}>{t.inApp}</Button>
                               <Button size="sm" variant={p.pushEnabled ? 'primary' : 'secondary'} aria-pressed={p.pushEnabled} disabled={savingPrefs} onClick={() => void toggleCategory(p.category, 'pushEnabled')}>{t.push}</Button>
                             </li>
