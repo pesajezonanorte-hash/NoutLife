@@ -1,30 +1,34 @@
 // Diálogo de Pro. Se abre por un límite de Lite (402 de la API o bloqueo en la
 // interfaz), al pasar la cuenta a Lite o para empezar la prueba. El botón
 // principal lleva directo al método de pago, sin salir de la pantalla:
-// motivo → método de pago → listo.
+// motivo → plan (anual recomendado) → método de pago → listo.
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, CheckCircle2 } from 'lucide-react';
-import type { Subscription } from '@noutlife/shared';
+import type { BillingInterval, Subscription } from '@noutlife/shared';
 import { Button, ResponsiveDialog } from '@/components/ui/lq';
 import { useAuthStore } from '@/store/authStore';
 import { usePlanStore, type UpgradeReason } from '@/store/planStore';
 import { useToastStore } from '@/hooks/useToast';
 import { ease, useMotionReduced } from '@/lib/motion';
-import { LITE_LIMITS, PRO_FRAMING, PRO_FRAMING_TRIAL, PRO_PRICE_COP, PRO_ZONES, PRO_ZONE_COUNT, TRIAL_DAYS, formatCop, longDay } from '@/lib/plan';
+import { track } from '@/lib/analytics';
+import {
+  ANNUAL_PITCH, LITE_LIMITS, PRO_ZONES, PRO_ZONE_COUNT, TRIAL_DAYS,
+  annualAvailable, firstPaymentCop, firstPriceLabel, formatCop, framingFor, intervalName, intervalUnit, longDay, priceFor,
+} from '@/lib/plan';
 import { getBillingStatus, getPlanPreview, subscribe } from '@/services/billing.service';
 import { contextFor, trialDoneLine, type PlanPreview } from '@/lib/planPreview';
 import { PaymentMethodForm, type PaymentMethodFormProps } from './PaymentMethodForm';
-
-const PRICE = formatCop(PRO_PRICE_COP);
+import { PlanIntervalPicker } from './PlanIntervalPicker';
+import { CreatorCodeField } from './CreatorCodeField';
 
 const BENEFITS = [
   `Las ${PRO_ZONE_COUNT} zonas Pro: Finanzas, Coliseo, Comida, Sueño, Diario y más`,
   'El Sabio con IA y análisis de hábitos, finanzas y entrenos',
   'Hábitos y rutinas ilimitados',
   'Historial y analíticas completas',
-  `Tarifa congelada: ${PRICE}/mes mientras sigas en Pro`,
+  'Tarifa congelada mientras sigas en Pro',
 ];
 
 /** Panel esmerilado estilo iOS (lo de atrás se ve difuminado). */
@@ -80,12 +84,16 @@ export function UpgradeModal() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [preview, setPreview] = useState<PlanPreview | null>(null);
+  // El anual va elegido por defecto: es el mejor valor y el compromiso que más acompaña.
+  const [interval, setInterval] = useState<BillingInterval>('year');
 
   // Cada apertura empieza de cero y trae el estado real (el 402 puede llegar con datos viejos).
   useEffect(() => {
     if (!reason) return;
     setStep('pitch');
     setError('');
+    setInterval('year');
+    track('upgrade_prompt_viewed', { reason });
     getBillingStatus().then(({ subscription: fresh }) => updateUser({ subscription: fresh })).catch(() => null);
     getPlanPreview().then(setPreview).catch(() => setPreview(null));
   }, [reason, updateUser]);
@@ -100,13 +108,19 @@ export function UpgradeModal() {
   // Qué hace el formulario: empezar la prueba, cobrar desde Lite o solo vincular (prueba o mes en curso).
   const intent: PaymentMethodFormProps['intent'] = trial ? 'trial' : lite ? 'charge' : 'save';
   const payDirectly = lite && !trial && subscription?.hasPaymentMethod;
+  // El plan se elige si lo que sigue es el primer cobro: prueba, activar desde Lite o la prueba inversa sin tarjeta.
+  const choosesPlan = annualAvailable(subscription)
+    && (trial || lite || (subscription?.status === 'trialing' && !subscription.hasPaymentMethod));
+  const planInterval: BillingInterval = choosesPlan ? interval : subscription?.interval ?? 'month';
+  const codeDiscount = subscription?.creatorCodeEditable ? subscription.creatorCode?.discountPercent ?? 0 : 0;
+  const firstCop = firstPaymentCop(planInterval, codeDiscount);
 
   async function activate() {
     if (!payDirectly) { setStep('card'); return; }
     setBusy(true);
     setError('');
     try {
-      const next = await subscribe();
+      const next = await subscribe(choosesPlan ? interval : undefined);
       updateUser({ subscription: next });
       if (next.plan === 'pro' || next.pendingPayment) setStep('done');
       else setError(next.lastPaymentError ?? 'No se pudo completar el cobro. Prueba con otro método de pago.');
@@ -123,12 +137,12 @@ export function UpgradeModal() {
   }
 
   const title = step === 'card'
-    ? (intent === 'trial' ? `${TRIAL_DAYS} días de Pro gratis` : intent === 'charge' ? 'Activa NoutLife Pro' : 'Tu método de pago')
+    ? (intent === 'trial' ? `${TRIAL_DAYS} días de Pro gratis` : intent === 'charge' ? `Activa ${choosesPlan ? intervalName(planInterval) : 'NoutLife Pro'}` : 'Tu método de pago')
     : step === 'done' ? 'Listo' : copy.title;
   const primaryLabel = trial
     ? `Empezar mis ${TRIAL_DAYS} días gratis`
     : lite
-      ? `Activar Pro por ${PRICE}/mes`
+      ? payDirectly ? `Pagar ${formatCop(firstCop)} y activar Pro` : `Continuar con ${intervalName(planInterval)}`
       : subscription?.hasPaymentMethod ? 'Ver mi plan' : 'Vincular método de pago';
   const fade = reduce
     ? {}
@@ -142,22 +156,35 @@ export function UpgradeModal() {
             <p className="text-body-md text-on-surface">{copy.body}</p>
             {context && <p className="rounded-2xl bg-surface-variant px-4 py-3 text-body-md text-on-surface">{context}</p>}
 
-            {/* Ancla: el precio grande y lo que cuesta al día; con prueba, el $0 de hoy manda. */}
-            <div className="flex flex-col items-center gap-1 rounded-3xl border border-secondary/40 bg-secondary/[var(--lq-soft-alpha)] px-4 py-5 text-center">
-              {trial ? (
-                <>
-                  <p className="text-display-md font-semibold tracking-tight tabular-nums">$0 hoy</p>
-                  <p className="text-body-sm text-on-surface-light">{TRIAL_DAYS} días gratis, luego {PRICE} COP/mes.</p>
-                  <p className="text-body-sm text-on-background">{PRO_FRAMING_TRIAL}</p>
-                </>
-              ) : (
-                <>
-                  <p className="flex items-baseline gap-1.5"><span className="text-display-md font-semibold tracking-tight tabular-nums">{PRICE}</span><span className="text-body-md text-on-surface-light">COP/mes</span></p>
-                  <p className="text-body-sm text-on-background">{PRO_FRAMING}</p>
-                </>
-              )}
-              <p className="text-body-sm font-semibold text-on-background">Cancela en cualquier momento con 1 clic.</p>
-            </div>
+            {choosesPlan && <PlanIntervalPicker value={interval} onChange={setInterval} discountPercent={codeDiscount} surface="upgrade_modal" />}
+
+            {/* Ancla: con prueba, el $0 de hoy manda. Con el selector a la vista, solo el precio dicho por día. */}
+            {choosesPlan && !trial ? (
+              <p className="-mt-1 text-center text-body-sm text-on-background">
+                {framingFor(planInterval)} <span className="font-semibold">Cancela en cualquier momento con 1 clic.</span>
+              </p>
+            ) : (
+              <div className="flex flex-col items-center gap-1 rounded-3xl border border-secondary/40 bg-secondary/[var(--lq-soft-alpha)] px-4 py-4 text-center">
+                {trial ? (
+                  <>
+                    <p className="text-display-md font-semibold tracking-tight tabular-nums">$0 hoy</p>
+                    <p className="text-body-sm text-on-surface-light">{TRIAL_DAYS} días gratis, luego {firstPriceLabel(planInterval, firstCop)}.</p>
+                    <p className="text-body-sm text-on-background">{framingFor(planInterval, true)}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="flex items-baseline gap-1.5"><span className="text-display-md font-semibold tracking-tight tabular-nums">{formatCop(priceFor(planInterval))}</span><span className="text-body-md text-on-surface-light">COP/{intervalUnit(planInterval)}</span></p>
+                    <p className="text-body-sm text-on-background">{framingFor(planInterval)}</p>
+                  </>
+                )}
+                <p className="text-body-sm font-semibold text-on-background">Cancela en cualquier momento con 1 clic.</p>
+              </div>
+            )}
+
+            {/* Por qué un año: el compromiso con tu propio sistema, en un solo espacio. */}
+            {choosesPlan && planInterval === 'year' && (
+              <p className="text-body-md text-on-surface"><span className="font-semibold text-on-background">{ANNUAL_PITCH.title}.</span> {ANNUAL_PITCH.body}</p>
+            )}
 
             <ul className="flex flex-col gap-2.5">
               {BENEFITS.map((b) => (
@@ -166,6 +193,9 @@ export function UpgradeModal() {
                 </li>
               ))}
             </ul>
+
+            {/* Con tarjeta guardada no hay paso de pago: el código va aquí. */}
+            {payDirectly && <CreatorCodeField />}
 
             {error && <p role="alert" className="rounded-xl bg-error/[var(--lq-soft-alpha)] px-4 py-3 text-body-sm text-error-text">{error}</p>}
             <div className="flex flex-col gap-2">
@@ -190,7 +220,13 @@ export function UpgradeModal() {
 
         {step === 'card' && (
           <motion.div key="card" {...fade}>
-            <PaymentMethodForm intent={intent} chargeDate={subscription?.accessEndsAt} onDone={finish} onCancel={() => setStep('pitch')} />
+            <PaymentMethodForm
+              intent={intent}
+              interval={choosesPlan ? interval : undefined}
+              chargeDate={subscription?.accessEndsAt}
+              onDone={finish}
+              onCancel={() => setStep('pitch')}
+            />
           </motion.div>
         )}
 
@@ -212,7 +248,9 @@ export function UpgradeModal() {
                   ? trialDoneLine(subscription)
                   : intent === 'save'
                     ? 'Método de pago actualizado.'
-                    : 'Ya tienes NoutLife Pro. Todas las zonas, hábitos ilimitados, tu historial completo y la IA del Sabio están listos.'}
+                    : subscription?.interval === 'year'
+                      ? 'Ya tienes NoutLife Pro Anual: un año completo con todas las zonas, hábitos ilimitados, tu historial y la IA del Sabio.'
+                      : 'Ya tienes NoutLife Pro. Todas las zonas, hábitos ilimitados, tu historial completo y la IA del Sabio están listos.'}
             </p>
             <Button size="lg" block onClick={close}>Seguir</Button>
           </motion.div>

@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import type { AuthRequest } from '../middleware/auth.middleware';
 import * as billing from '../services/billing.service';
-import type { PaymentMethodBody } from '../schemas/billing.schemas';
+import type { CreatorCodeBody, IntervalBody, PaymentMethodBody, SubscribeBody } from '../schemas/billing.schemas';
 import type { WompiEvent } from '../lib/wompi';
 import { deviceIdOf } from '../lib/device';
 
@@ -50,9 +50,44 @@ export async function paymentMethod(req: AuthRequest, res: Response): Promise<vo
 
 export async function subscribe(req: AuthRequest, res: Response): Promise<void> {
   try {
-    res.json({ subscription: await billing.subscribeNow(req.userId!) });
+    const { interval } = req.body as SubscribeBody;
+    res.json({ subscription: await billing.subscribeNow(req.userId!, interval) });
   } catch (error) {
     sendError(res, error, 'SUBSCRIBE');
+  }
+}
+
+/** Mensual o anual para el próximo cobro (fin de la prueba o renovación). */
+export async function interval(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    res.json({ subscription: await billing.setBillingInterval(req.userId!, (req.body as IntervalBody).interval) });
+  } catch (error) {
+    sendError(res, error, 'INTERVAL');
+  }
+}
+
+/** Datos públicos de un código (creador y descuento) para mostrarlos antes de aplicarlo. */
+export async function lookupCreatorCode(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    res.json({ creatorCode: await billing.lookupCreatorCode(req.params.code) });
+  } catch (error) {
+    sendError(res, error, 'CREATOR_CODE_LOOKUP');
+  }
+}
+
+export async function applyCreatorCode(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    res.json({ subscription: await billing.applyCreatorCode(req.userId!, (req.body as CreatorCodeBody).code) });
+  } catch (error) {
+    sendError(res, error, 'CREATOR_CODE');
+  }
+}
+
+export async function removeCreatorCode(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    res.json({ subscription: await billing.removeCreatorCode(req.userId!) });
+  } catch (error) {
+    sendError(res, error, 'CREATOR_CODE');
   }
 }
 

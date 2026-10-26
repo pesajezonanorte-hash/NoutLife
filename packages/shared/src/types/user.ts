@@ -40,6 +40,15 @@ export interface User {
 /** 'pending_approval': un cobro de Nequi espera la aprobación del celular. La API lo deriva del cobro; no se guarda como estado. */
 export type SubscriptionStatus = 'trialing' | 'active' | 'canceled' | 'lite' | 'pending_approval';
 export type Plan = 'pro' | 'lite';
+/** Cada cuánto se cobra Pro: 'month' (mensual) o 'year' (anual). */
+export type BillingInterval = 'month' | 'year';
+
+/** Código de creador aplicado a la cuenta. El descuento solo vale para el primer pago. */
+export interface CreatorCodeInfo {
+  code: string;
+  creatorName: string;
+  discountPercent: number;
+}
 
 export interface Subscription {
   status: SubscriptionStatus;
@@ -68,6 +77,14 @@ export interface Subscription {
   trialDays: number;
   /** Prueba de regalo: vence sin cobro aunque haya tarjeta. Ausente en APIs anteriores. */
   giftTrial?: boolean;
+  /** Plan del próximo cobro. Ausente en APIs sin plan anual: ahí todo es mensual y no se ofrece el anual. */
+  interval?: BillingInterval;
+  annualPriceCop?: number;
+  /** Monto del próximo cobro automático (con el descuento del código en el primer pago). null si no se renovará. */
+  nextChargeCop?: number | null;
+  creatorCode?: CreatorCodeInfo | null;
+  /** Se puede poner, cambiar o quitar el código de creador (antes del primer pago). Ausente en APIs anteriores. */
+  creatorCodeEditable?: boolean;
 }
 
 export type HairStyle = 'short' | 'medium' | 'long' | 'shaved' | 'copete' | 'afro' | 'recogido' | 'trenzas' | 'ondulado';

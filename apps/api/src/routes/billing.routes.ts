@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate.middleware';
 import { buildLimiter } from '../middleware/rate-limit.middleware';
-import { paymentMethodSchema } from '../schemas/billing.schemas';
+import { creatorCodeSchema, intervalSchema, paymentMethodSchema, subscribeSchema } from '../schemas/billing.schemas';
 import * as billing from '../controllers/billing.controller';
 
 const router = Router();
@@ -26,7 +26,13 @@ router.post('/webhook', billing.webhook);
 router.get('/status', requireAuth, billing.status);
 router.get('/preview', requireAuth, billing.preview);
 router.post('/payment-method', requireAuth, cardLimiter, validate(paymentMethodSchema), billing.paymentMethod);
-router.post('/subscribe', requireAuth, chargeLimiter, billing.subscribe);
+router.post('/subscribe', requireAuth, chargeLimiter, validate(subscribeSchema), billing.subscribe);
+router.put('/interval', requireAuth, validate(intervalSchema), billing.interval);
+// Códigos de creador: un límite propio frena que se adivinen probando uno tras otro.
+const codeLimiter = buildLimiter({ windowMs: 10 * 60_000, max: 20, message: 'Demasiados intentos con códigos. Espera unos minutos.' });
+router.get('/creator-codes/:code', requireAuth, codeLimiter, billing.lookupCreatorCode);
+router.put('/creator-code', requireAuth, codeLimiter, validate(creatorCodeSchema), billing.applyCreatorCode);
+router.delete('/creator-code', requireAuth, billing.removeCreatorCode);
 router.post('/lite', requireAuth, billing.chooseLite);
 router.post('/cancel', requireAuth, billing.cancel);
 router.post('/resume', requireAuth, billing.resume);

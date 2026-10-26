@@ -1,7 +1,8 @@
 import axios from 'axios';
-import type { Subscription } from '@noutlife/shared';
+import type { BillingInterval, CreatorCodeInfo, Subscription } from '@noutlife/shared';
 import api from '../lib/api';
 import type { PlanPreview } from '@/lib/planPreview';
+import { track } from '@/lib/analytics';
 
 export interface BillingConfig {
   /** false si la API no tiene llaves de Wompi: la app sigue funcionando sin cobros. */
@@ -13,6 +14,8 @@ export interface BillingConfig {
   apiUrl: string;
   sandbox: boolean;
   priceCop: number;
+  /** Ausente en APIs sin plan anual. */
+  annualPriceCop?: number;
   trialDays: number;
   liteLimits: { activeHabits: number; historyDays: number };
   /** Contratos de Wompi que la persona acepta antes de vincular su método de pago. */
@@ -28,6 +31,10 @@ export interface BillingPayment {
   periodStart: string;
   periodEnd: string;
   createdAt: string;
+  /** Mensual o anual. Ausente en APIs anteriores (mensual). */
+  interval?: BillingInterval;
+  /** Descuento del código de creador en este cobro. */
+  discountInCents?: number;
 }
 
 /**
@@ -56,13 +63,46 @@ export async function getBillingStatus(): Promise<{ subscription: Subscription; 
   return data;
 }
 
-export async function savePaymentMethod(link: PaymentMethodLink): Promise<Subscription> {
-  const { data } = await api.post<{ subscription: Subscription }>('/billing/payment-method', { ...link, acceptTerms: true, acceptPersonalData: true });
+/** Vincula el medio de pago. `interval` deja elegido el plan del próximo cobro (fin de la prueba o renovación). */
+export async function savePaymentMethod(link: PaymentMethodLink, interval?: BillingInterval): Promise<Subscription> {
+  const { data } = await api.post<{ subscription: Subscription }>('/billing/payment-method', {
+    ...link, acceptTerms: true, acceptPersonalData: true, ...(interval ? { interval } : {}),
+  });
   return data.subscription;
 }
 
-export async function subscribe(): Promise<Subscription> {
-  const { data } = await api.post<{ subscription: Subscription }>('/billing/subscribe');
+/** Activa Pro con el plan elegido. Desde Lite cobra hoy el primer periodo; en prueba o con periodo pagado no cobra. */
+export async function subscribe(interval?: BillingInterval): Promise<Subscription> {
+  const { data } = await api.post<{ subscription: Subscription }>('/billing/subscribe', interval ? { interval } : {});
+  const sub = data.subscription;
+  if (sub.plan === 'pro' && !sub.pendingPayment && sub.status === 'active') {
+    track('subscription_activated', { interval: sub.interval ?? 'month', with_code: Boolean(sub.creatorCode) });
+  }
+  return sub;
+}
+
+/** Cambia el plan del próximo cobro (mensual o anual). No cobra nada hoy. */
+export async function setBillingInterval(interval: BillingInterval): Promise<Subscription> {
+  const { data } = await api.put<{ subscription: Subscription }>('/billing/interval', { interval });
+  track('plan_interval_changed', { interval });
+  return data.subscription;
+}
+
+/** Creador y descuento de un código activo, sin aplicarlo (404 si no existe o está inactivo). */
+export async function lookupCreatorCode(code: string): Promise<CreatorCodeInfo> {
+  const { data } = await api.get<{ creatorCode: CreatorCodeInfo }>(`/billing/creator-codes/${encodeURIComponent(code.trim())}`);
+  return data.creatorCode;
+}
+
+/** «¿Tienes un código de creador?»: lo valida y lo deja en la cuenta para el primer pago. */
+export async function applyCreatorCode(code: string): Promise<Subscription> {
+  const { data } = await api.put<{ subscription: Subscription }>('/billing/creator-code', { code });
+  track('creator_code_applied', { code: data.subscription.creatorCode?.code ?? null });
+  return data.subscription;
+}
+
+export async function removeCreatorCode(): Promise<Subscription> {
+  const { data } = await api.delete<{ subscription: Subscription }>('/billing/creator-code');
   return data.subscription;
 }
 

@@ -4,10 +4,11 @@ import { hasAIProvider } from '../lib/ai';
 import { fingerprintSecret, paymentKey, publicDataShape, type NequiProof } from '../lib/trial-keys';
 import { claimTrial, markGiftAvailability, trialAvailable } from './trial.service';
 import { proExtension } from '../lib/referrals';
+import { normalizeCreatorCode, quoteCharge } from '../lib/creator-codes';
 import {
-  LITE_LIMITS, PRO_AMOUNT_IN_CENTS, PRO_CURRENCY, PRO_PRICE_COP, PRO_ZONES, RENEWAL_GRACE_MS, TRIAL_DAYS,
-  accessEndsAt, addDays, addMonth, hasProAccess, isComplimentary, nextAction, paymentReference, planOf, statusOf, trialEndOf, willRenew,
-  type Plan, type SubscriptionStatus,
+  LITE_LIMITS, PRO_ANNUAL_PRICE_COP, PRO_CURRENCY, PRO_PRICE_COP, PRO_ZONES, RENEWAL_GRACE_MS, TRIAL_DAYS,
+  accessEndsAt, addDays, hasProAccess, intervalOf, isComplimentary, nextAction, paymentReference, periodEndFor, planOf, statusOf, trialEndOf, willRenew,
+  type BillingInterval, type Plan, type SubscriptionStatus,
 } from '../lib/plans';
 import {
   WompiError, createPaymentSource, createTransaction, getAcceptance, getPaymentSource, getTransaction, verifyEventChecksum, wompiConfig,
@@ -36,6 +37,9 @@ const SUBSCRIPTION_SELECT = {
   lastPaymentError: true,
   giftTrial: true,
   compPro: true,
+  billingInterval: true,
+  creatorCodeId: true,
+  creatorCode: { select: { code: true, creatorName: true, discountPercent: true } },
 } satisfies Prisma.UserSelect;
 
 type SubscriptionUser = Prisma.UserGetPayload<{ select: typeof SUBSCRIPTION_SELECT }> & { complimentary?: boolean };
@@ -70,7 +74,7 @@ export interface SubscriptionView {
   plan: Plan;
   trialEndsAt: string;
   currentPeriodEnd: string | null;
-  /** Fin del Pro ya concedido (prueba o mes pagado). null en Lite. */
+  /** Fin del Pro ya concedido (prueba o periodo pagado). null en Lite. */
   accessEndsAt: string | null;
   /** Se cobrará automáticamente al vencer. */
   renews: boolean;
@@ -91,14 +95,25 @@ export interface SubscriptionView {
   trialDays: number;
   /** Prueba de regalo (cuenta Lite actual o invitación): vence sin cobro, aunque haya tarjeta. */
   giftTrial: boolean;
+  /** Plan del próximo cobro: 'month' (mensual) o 'year' (anual). */
+  interval: BillingInterval;
+  annualPriceCop: number;
+  /** Monto del próximo cobro automático, con el descuento del código si es el primer pago. null si no se renovará. */
+  nextChargeCop: number | null;
+  /** Código de creador de la cuenta. `discountPercent` solo aplica al primer pago. */
+  creatorCode: { code: string; creatorName: string; discountPercent: number } | null;
+  /** Se puede poner, cambiar o quitar el código: solo antes del primer pago aprobado y sin cortesía. */
+  creatorCodeEditable: boolean;
 }
 
 export function subscriptionView(
   user: SubscriptionUser, now = new Date(), pendingPayment = false, canTrial = false,
-  awaitingApproval = false,
+  awaitingApproval = false, paidBefore = false,
 ): SubscriptionView {
   // La cortesía se muestra como un Pro activo sin fecha: no hay cobro ni vencimiento que contar.
   const dbStatus = user.complimentary ? 'active' : statusOf(user);
+  const interval = intervalOf(user.billingInterval);
+  const code = user.creatorCode ?? null;
   return {
     // El cobro de Nequi en espera no se guarda como estado: se muestra así mientras Wompi no responde.
     status: awaitingApproval ? 'pending_approval' : dbStatus,
@@ -119,6 +134,11 @@ export function subscriptionView(
     priceCop: PRO_PRICE_COP,
     trialDays: TRIAL_DAYS,
     giftTrial: Boolean(user.giftTrial),
+    interval,
+    annualPriceCop: PRO_ANNUAL_PRICE_COP,
+    nextChargeCop: willRenew(user) ? quoteCharge(interval, code?.discountPercent, !paidBefore).amountInCents / 100 : null,
+    creatorCode: code ? { code: code.code, creatorName: code.creatorName, discountPercent: code.discountPercent } : null,
+    creatorCodeEditable: !user.complimentary && !paidBefore,
   };
 }
 
@@ -155,14 +175,20 @@ async function loadUser(userId: string): Promise<SubscriptionUser> {
   return withComplimentary(user);
 }
 
+/** ¿La cuenta ya tuvo un cobro aprobado? Decide el descuento del código (solo el primer pago) y si el código aún se puede cambiar. */
+async function hasPaidBefore(userId: string): Promise<boolean> {
+  return Boolean(await prisma.subscriptionPayment.findFirst({ where: { userId, status: 'APPROVED' }, select: { id: true } }));
+}
+
 async function getView(userId: string): Promise<SubscriptionView> {
-  const [user, pending] = await Promise.all([
+  const [user, pending, paidBefore] = await Promise.all([
     loadUser(userId),
     prisma.subscriptionPayment.count({ where: { userId, status: 'PENDING' } }),
+    hasPaidBefore(userId),
   ]);
   // Un cobro PENDING con Nequi es el que la persona debe aprobar en su celular.
   const awaitingApproval = pending > 0 && user.paymentMethodType === 'NEQUI';
-  return subscriptionView(user, new Date(), pending > 0, await canStartTrial(user), awaitingApproval);
+  return subscriptionView(user, new Date(), pending > 0, await canStartTrial(user), awaitingApproval, paidBefore);
 }
 
 /** Estado de la suscripción sin aplicar vencimientos (lectura rápida para /auth/me y el aviso de Nequi). */
@@ -201,6 +227,43 @@ async function moveToLite(userId: string, error: string | null): Promise<void> {
   await prisma.user.update({ where: { id: userId }, data: { lastPaymentError: error } });
 }
 
+type LedgerPayment = Pick<SubscriptionPayment, 'reference' | 'userId' | 'creatorCodeId' | 'billingInterval' | 'amountInCents' | 'discountInCents' | 'createdAt'>;
+
+/**
+ * Libro del revenue share: anota un cobro aprobado con código de creador. Idempotente por referencia
+ * (el webhook, el cron y el panel pueden pedirlo a la vez). 'first' si es el primer cobro aprobado de
+ * la cuenta (la conversión); si no, 'renewal'. La fecha es la del cobro, no la de la aprobación.
+ */
+export async function recordCreatorPayment(payment: LedgerPayment): Promise<void> {
+  if (!payment.creatorCodeId) return;
+  if (await prisma.creatorCodePayment.findUnique({ where: { reference: payment.reference }, select: { id: true } })) return;
+  const earlier = await prisma.subscriptionPayment.count({
+    where: { userId: payment.userId, status: 'APPROVED', createdAt: { lt: payment.createdAt } },
+  });
+  try {
+    await prisma.creatorCodePayment.create({
+      data: {
+        creatorCodeId: payment.creatorCodeId, userId: payment.userId, reference: payment.reference,
+        interval: intervalOf(payment.billingInterval), amountInCents: payment.amountInCents, discountInCents: payment.discountInCents,
+        kind: earlier === 0 ? 'first' : 'renewal', paidAt: payment.createdAt,
+      },
+    });
+  } catch (error) {
+    if ((error as { code?: unknown }).code !== 'P2002') throw error; // otro proceso ya lo anotó
+  }
+}
+
+/** El libro sigue al cobro: aprobado se anota, anulado se marca. Un fallo aquí nunca frena el Pro (el panel lo repone). */
+async function syncCreatorLedger(payment: LedgerPayment, status: string): Promise<void> {
+  if (!payment.creatorCodeId) return;
+  try {
+    if (status === 'APPROVED') await recordCreatorPayment(payment);
+    else if (status === 'VOIDED') await prisma.creatorCodePayment.updateMany({ where: { reference: payment.reference }, data: { status: 'VOIDED' } });
+  } catch (error) {
+    console.error('[CREATOR_LEDGER_ERROR]', payment.reference, error);
+  }
+}
+
 function paymentErrorMessage(status: string, detail: string | null): string {
   const base = status === 'DECLINED'
     ? 'Tu banco rechazó el cobro.'
@@ -223,6 +286,7 @@ async function settlePayment(paymentId: string, status: string, message: string 
     await prisma.subscriptionPayment.update({ where: { id: payment.id }, data: { status, statusMessage: message } });
   }
   if (status === 'PENDING') return;
+  await syncCreatorLedger(payment, status);
 
   const user = payment.user;
   if (status === 'APPROVED') {
@@ -230,7 +294,7 @@ async function settlePayment(paymentId: string, status: string, message: string 
     await prisma.user.update({
       where: { id: user.id },
       data: {
-        // Si canceló mientras el cobro estaba en curso, conserva el mes pagado pero no renueva.
+        // Si canceló mientras el cobro estaba en curso, conserva el periodo pagado pero no renueva.
         subscriptionStatus: user.subscriptionStatus === 'canceled' ? 'canceled' : 'active',
         currentPeriodEnd: periodEnd,
         liteSince: null,
@@ -240,7 +304,7 @@ async function settlePayment(paymentId: string, status: string, message: string 
     return;
   }
 
-  // DECLINED / VOIDED / ERROR: sin otro mes pagado vigente, la cuenta pasa a Lite.
+  // DECLINED / VOIDED / ERROR: sin otro periodo pagado vigente, la cuenta pasa a Lite.
   const covered = user.currentPeriodEnd !== null && user.currentPeriodEnd.getTime() > Date.now();
   if (covered) {
     await prisma.user.update({ where: { id: user.id }, data: { lastPaymentError: paymentErrorMessage(status, message) } });
@@ -313,9 +377,10 @@ export async function recheckTimedOutPayments(
 }
 
 /**
- * Cobra un periodo a la tarjeta guardada. `periodKey` fija la referencia
- * (única por usuario y periodo); si otro proceso ya creó ese cobro, aquí no se
- * vuelve a cobrar: solo se consulta su estado.
+ * Cobra un periodo (un mes o un año, según billingInterval) al medio de pago guardado. `periodKey`
+ * fija la referencia (única por usuario y periodo); si otro proceso ya creó ese cobro, aquí no se
+ * vuelve a cobrar: solo se consulta su estado. El código de creador de la cuenta queda en el cobro, y
+ * su descuento solo va en el primer pago.
  */
 async function chargePeriod(user: SubscriptionUser, periodKey: Date, periodStart: Date, wait: boolean): Promise<void> {
   if (!user.paymentSourceId) return;
@@ -323,11 +388,14 @@ async function chargePeriod(user: SubscriptionUser, periodKey: Date, periodStart
   let payment = await prisma.subscriptionPayment.findUnique({ where: { reference } });
 
   if (!payment) {
+    const interval = intervalOf(user.billingInterval);
+    const quote = quoteCharge(interval, user.creatorCode?.discountPercent, !(await hasPaidBefore(user.id)));
     try {
       payment = await prisma.subscriptionPayment.create({
         data: {
-          userId: user.id, reference, amountInCents: PRO_AMOUNT_IN_CENTS, currency: PRO_CURRENCY,
-          periodStart, periodEnd: addMonth(periodStart),
+          userId: user.id, reference, amountInCents: quote.amountInCents, currency: PRO_CURRENCY,
+          periodStart, periodEnd: periodEndFor(periodStart, interval), billingInterval: interval,
+          creatorCodeId: user.creatorCodeId, discountInCents: quote.discountInCents,
         },
       });
     } catch (error) {
@@ -372,7 +440,7 @@ async function chargePeriod(user: SubscriptionUser, periodKey: Date, periodStart
 }
 
 /**
- * Revisa la suscripción y aplica lo que toque: cobrar el mes si la prueba o el
+ * Revisa la suscripción y aplica lo que toque: cobrar el periodo si la prueba o el
  * periodo vencieron con tarjeta, o pasar a Lite si no hay pago. Corre en cada
  * inicio de sesión (y al reabrir la app), en /billing/status y en el cron.
  */
@@ -389,7 +457,7 @@ export async function syncSubscription(userId: string, options: { wait?: boolean
       if (!hasProAccess(user, now)) await moveToLite(user.id, 'Los pagos no están disponibles en este momento.');
     } else {
       const periodKey = accessEndsAt(user);
-      // Muy atrasado (el cron no corrió): el mes nuevo empieza hoy, no en el pasado.
+      // Muy atrasado (el cron no corrió): el periodo nuevo empieza hoy, no en el pasado.
       const periodStart = now.getTime() - periodKey.getTime() > RENEWAL_GRACE_MS ? now : periodKey;
       await chargePeriod(user, periodKey, periodStart, Boolean(options.wait)).catch((error) => {
         console.error('[BILLING_CHARGE_ERROR]', user.id, error);
@@ -402,6 +470,8 @@ export async function syncSubscription(userId: string, options: { wait?: boolean
 export type PaymentMethodInput = {
   /** Cookie HttpOnly o cabecera del dispositivo. Solo auditoría: nunca bloquea. */
   deviceId: string | null;
+  /** Plan elegido en el checkout para el próximo cobro. Sin él se conserva el que ya tenía la cuenta. */
+  interval?: BillingInterval;
 } & (
   /** Token de Wompi (tok_…) creado en el navegador: lo único del cliente que cuenta. `brand` solo sirve para la etiqueta. */
   | { method: 'CARD'; token: string; brand?: string }
@@ -460,6 +530,7 @@ export async function savePaymentMethod(userId: string, input: PaymentMethodInpu
     lastPaymentError: null,
     liteSince: null, // la marca de Lite sin tarjeta no aplica con una tarjeta vinculada
     giftTrial: false, // quien vincula tarjeta decide cobrar: la prueba de regalo deja de ser sin cobro
+    ...(input.interval ? { billingInterval: input.interval } : {}),
   };
   // Vincular un medio de pago durante una cancelación vigente la deshace.
   if (statusOf(user) === 'canceled' && now < accessEndsAt(user)) {
@@ -507,8 +578,17 @@ export async function chooseLite(userId: string): Promise<SubscriptionView> {
   return getView(userId);
 }
 
-/** Activa Pro ya. Desde Lite cobra el primer mes en el acto; en prueba o con mes pagado no cobra nada. */
-export async function subscribeNow(userId: string): Promise<SubscriptionView> {
+/** Guarda el plan del próximo cobro (sin tocar nada si ya era ese). */
+async function rememberInterval(userId: string, interval: BillingInterval): Promise<void> {
+  await prisma.user.updateMany({ where: { id: userId, NOT: { billingInterval: interval } }, data: { billingInterval: interval } });
+}
+
+/**
+ * Activa Pro ya, con el plan elegido (mensual o anual). Desde Lite cobra el primer periodo en el acto;
+ * en prueba o con un periodo pagado no cobra nada: el plan rige el próximo cobro.
+ */
+export async function subscribeNow(userId: string, interval?: BillingInterval): Promise<SubscriptionView> {
+  if (interval) await rememberInterval(userId, interval);
   await syncSubscription(userId, { wait: true }); // aplica vencimientos pendientes primero
   const user = await loadUser(userId);
   if (user.complimentary) return getView(userId); // nada que activar ni cobrar
@@ -537,7 +617,7 @@ export async function subscribeNow(userId: string): Promise<SubscriptionView> {
   return getView(userId);
 }
 
-/** Cancelar en un clic: conserva el Pro hasta el fin de la prueba o del mes pagado, sin más cobros. */
+/** Cancelar en un clic: conserva el Pro hasta el fin de la prueba o del periodo pagado, sin más cobros. */
 export async function cancelSubscription(userId: string): Promise<SubscriptionView> {
   const user = await loadUser(userId);
   if (user.complimentary) throw new BillingError('COMPLIMENTARY', 'Tu Pro es de cortesía: no hay cobros que cancelar.', 409);
@@ -561,9 +641,66 @@ export async function resumeSubscription(userId: string): Promise<SubscriptionVi
   return getView(userId);
 }
 
+/** Cambia el plan del próximo cobro (fin de la prueba o renovación). No cobra nada ahora. */
+export async function setBillingInterval(userId: string, interval: BillingInterval): Promise<SubscriptionView> {
+  const user = await loadUser(userId);
+  if (user.complimentary) throw new BillingError('COMPLIMENTARY', 'Tu Pro es de cortesía: no hay cobros que cambiar.', 409);
+  await rememberInterval(userId, interval);
+  return getView(userId);
+}
+
+const CODE_NOT_FOUND = 'Ese código no existe o ya no está activo.';
+
+/** Código activo, con su creador y su descuento: el checkout lo muestra antes de aplicarlo. */
+export async function lookupCreatorCode(raw: unknown): Promise<{ code: string; creatorName: string; discountPercent: number }> {
+  const code = normalizeCreatorCode(raw);
+  const found = code ? await prisma.creatorCode.findUnique({ where: { code }, select: { code: true, creatorName: true, discountPercent: true, active: true } }) : null;
+  if (!found?.active) throw new BillingError('CREATOR_CODE_NOT_FOUND', CODE_NOT_FOUND, 404);
+  return { code: found.code, creatorName: found.creatorName, discountPercent: found.discountPercent };
+}
+
+/** El código solo se pone, cambia o quita antes del primer pago, sin cortesía y sin un cobro en curso. */
+async function assertCreatorCodeEditable(user: SubscriptionUser): Promise<void> {
+  if (user.complimentary) throw new BillingError('COMPLIMENTARY', 'Tu Pro es de cortesía: no necesitas un código.', 409);
+  const [paid, pending] = await Promise.all([
+    hasPaidBefore(user.id),
+    prisma.subscriptionPayment.count({ where: { userId: user.id, status: 'PENDING' } }),
+  ]);
+  if (paid) throw new BillingError('CREATOR_CODE_LOCKED', 'Los códigos de creador son para el primer pago de Pro.', 409);
+  if (pending > 0) throw new BillingError('PAYMENT_PENDING', 'Tienes un cobro en curso. Espera a que se confirme.', 409);
+}
+
+/**
+ * «¿Tienes un código de creador?»: valida el código y lo deja en la cuenta. Su descuento va en el
+ * primer pago (hoy desde Lite o al terminar la prueba), y los cobros quedan atribuidos al creador.
+ * Desactivar un código impide aplicarlo de nuevo; quien ya lo tenía lo conserva.
+ */
+export async function applyCreatorCode(userId: string, raw: unknown): Promise<SubscriptionView> {
+  const user = await loadUser(userId);
+  await assertCreatorCodeEditable(user);
+  const code = normalizeCreatorCode(raw);
+  const found = code ? await prisma.creatorCode.findUnique({ where: { code }, select: { id: true, active: true } }) : null;
+  if (!found?.active) throw new BillingError('CREATOR_CODE_NOT_FOUND', CODE_NOT_FOUND, 404);
+  if (user.creatorCodeId !== found.id) {
+    await prisma.user.update({ where: { id: userId }, data: { creatorCodeId: found.id, creatorCodeAt: new Date() } });
+  }
+  return getView(userId);
+}
+
+export async function removeCreatorCode(userId: string): Promise<SubscriptionView> {
+  const user = await loadUser(userId);
+  if (!user.creatorCodeId) return getView(userId);
+  await assertCreatorCodeEditable(user);
+  await prisma.user.update({ where: { id: userId }, data: { creatorCodeId: null, creatorCodeAt: null } });
+  return getView(userId);
+}
+
 export interface BillingStatus {
   subscription: SubscriptionView;
-  payments: Array<{ id: string; amountInCents: number; currency: string; status: string; periodStart: string; periodEnd: string; createdAt: string }>;
+  payments: Array<{
+    id: string; amountInCents: number; currency: string; status: string; periodStart: string; periodEnd: string; createdAt: string;
+    interval: BillingInterval; discountInCents: number;
+  }>;
 }
 
 export async function getBillingStatus(userId: string): Promise<BillingStatus> {
@@ -574,6 +711,7 @@ export async function getBillingStatus(userId: string): Promise<BillingStatus> {
     payments: payments.map((p) => ({
       id: p.id, amountInCents: p.amountInCents, currency: p.currency, status: p.status,
       periodStart: p.periodStart.toISOString(), periodEnd: p.periodEnd.toISOString(), createdAt: p.createdAt.toISOString(),
+      interval: intervalOf(p.billingInterval), discountInCents: p.discountInCents,
     })),
   };
 }
@@ -591,6 +729,7 @@ export async function getBillingConfig() {
     apiUrl: config.baseUrl,
     sandbox: config.sandbox,
     priceCop: PRO_PRICE_COP,
+    annualPriceCop: PRO_ANNUAL_PRICE_COP,
     trialDays: TRIAL_DAYS,
     liteLimits: LITE_LIMITS,
     proZones: PRO_ZONES,

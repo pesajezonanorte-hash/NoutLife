@@ -7,6 +7,7 @@ import { SUBSCRIPTIONS_SQL } from './lib/billing-migrations';
 import { REFERRALS_PUSH_EVENTS_SQL } from './lib/referral-migrations';
 import { COMP_PRO_SQL, GIFT_AVAILABLE_SQL, GIFT_TRIAL_SQL, MARK_GIFT_AVAILABLE_SQL } from './lib/gift-trial-migrations';
 import { REFERRAL_ANTI_ABUSE_SQL } from './lib/anti-abuse-migrations';
+import { CREATOR_CODES_PAYMENTS_SQL, CREATOR_CODES_USERS_SQL } from './lib/creator-code-migrations';
 import { DEFAULT_SHOP_ITEMS } from './lib/default-catalog';
 import { MAX_SHIELD_DAYS, STREAK_SHIELDS, shieldDaysOf } from './lib/streak-shields';
 
@@ -330,6 +331,8 @@ async function migrate() {
   // Va primero: este cliente de Prisma ya lee "gender" y "streakShieldDays" en
   // cualquier consulta de users sin select (settleLevel, más abajo).
   for (const sql of GENDER_CYCLE_AND_SHIELDS_SQL) await prisma.$executeRawUnsafe(sql);
+  // Idempotent mirror of prisma/migrations/20261104120000_annual_plan_creator_codes (columnas de users), por la misma razón.
+  for (const sql of CREATOR_CODES_USERS_SQL) await prisma.$executeRawUnsafe(sql);
   for (const sql of HABIT_RITUALS_HYGIENE_SQL) await prisma.$executeRawUnsafe(sql);
   for (const sql of SMART_REMINDERS_SQL) await prisma.$executeRawUnsafe(sql);
   // Idempotent mirror of prisma/migrations/20261025120000_wisdom_source (antes del seed de Sabiduría).
@@ -452,6 +455,8 @@ async function migrate() {
 
   // Idempotent mirror of prisma/migrations/20261019120000_subscriptions.
   for (const sql of SUBSCRIPTIONS_SQL) await prisma.$executeRawUnsafe(sql);
+  // Plan anual y códigos de creador en los cobros, y el libro del revenue share.
+  for (const sql of CREATOR_CODES_PAYMENTS_SQL) await prisma.$executeRawUnsafe(sql);
   // Antes de RLS_LOCKDOWN_SQL: las tablas nuevas también quedan con RLS activo.
   for (const sql of REFERRALS_PUSH_EVENTS_SQL) await prisma.$executeRawUnsafe(sql);
   for (const sql of GIFT_TRIAL_SQL) await prisma.$executeRawUnsafe(sql);

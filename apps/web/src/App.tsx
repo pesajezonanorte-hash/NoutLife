@@ -38,6 +38,7 @@ const loaders = {
   DashboardPage: () => import('./pages/Dashboard'),
   ProfilePage: () => import('./pages/Profile'),
   AdminPage: () => import('./pages/Admin'),
+  AdminCreatorsPage: () => import('./pages/Admin/Creators'),
   OnboardingPage: () => import('./pages/Onboarding'),
   QuestsPage: () => import('./pages/Quests'),
   HabitsPage: () => import('./pages/Habits'),
@@ -235,6 +236,7 @@ function AnimatedRoutes({ location }: { location: ReturnType<typeof useLocation>
           <Route path="/profile"      element={<SafePage><DeferredLazyPage load={loaders.ProfilePage} /></SafePage>} />
           {/* Administración: solo las cuentas de utils/admin (el servidor vuelve a comprobarlo). */}
           <Route path="/admin"        element={<AdminRoute><SafePage><DeferredLazyPage load={loaders.AdminPage} /></SafePage></AdminRoute>} />
+          <Route path="/admin/creadores" element={<AdminRoute><SafePage><DeferredLazyPage load={loaders.AdminCreatorsPage} /></SafePage></AdminRoute>} />
           <Route path="/character"    element={<Navigate to="/profile" replace />} />
           <Route path="/quests"       element={<SafePage><DeferredLazyPage load={loaders.QuestsPage} /></SafePage>} />
           <Route path="/quests/new"   element={<SafePage><DeferredLazyPage load={loaders.QuestsPage} /></SafePage>} />

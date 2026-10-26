@@ -1,24 +1,35 @@
-// Medio de pago: tarjeta o Nequi. Los dos se vinculan con Wompi desde el navegador
-// (llave pública) y a la API de NoutLife solo llega un token: el servidor lee en
-// Wompi los datos reales del medio de pago y decide la prueba gratis. Nequi pide
-// además la cédula, que solo entra en la huella anti-abuso. Wompi exige aceptar
-// explícitamente sus dos documentos: una sola casilla, en micro-texto.
+// Checkout de Pro: plan (anual o mensual), código de creador y medio de pago (tarjeta o
+// Nequi). Los dos medios se vinculan con Wompi desde el navegador (llave pública) y a la
+// API de NoutLife solo llega un token: el servidor lee en Wompi los datos reales del medio
+// de pago y decide la prueba gratis. Nequi pide además la cédula, que solo entra en la
+// huella anti-abuso. Wompi exige aceptar explícitamente sus dos documentos: una sola
+// casilla, en micro-texto. Los montos que se muestran salen de la misma aritmética que la
+// API (precio del plan menos el descuento del código, solo en el primer pago).
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AlertCircle, CreditCard, Gem, Lock, Smartphone, type LucideIcon } from 'lucide-react';
-import type { Subscription } from '@noutlife/shared';
-import { Button, Field, Input } from '@/components/ui/lq';
+import type { BillingInterval, Subscription } from '@noutlife/shared';
+import { Button, Field, Input, SegmentedControl, type SegmentOption } from '@/components/ui/lq';
 import { useAuthStore } from '@/store/authStore';
 import { ease, useMotionReduced } from '@/lib/motion';
 import { cn } from '@/lib/utils';
-import { PRO_FRAMING, PRO_FRAMING_TRIAL, PRO_PRICE_COP, TRIAL_DAYS, formatCop, longDay } from '@/lib/plan';
+import { track } from '@/lib/analytics';
+import {
+  ANNUAL_SAVINGS_COP, ANNUAL_SAVINGS_PERCENT, PRO_ANNUAL_PRICE_COP, PRO_PRICE_COP, TRIAL_DAYS,
+  annualAvailable, chargeLine, firstPaymentCop, firstPriceLabel, formatCop, framingFor, intervalName, intervalUnit, longDay, priceFor,
+} from '@/lib/plan';
 import {
   PaymentError, getBillingConfig, isValidCardNumber, savePaymentMethod, subscribe, tokenizeCard, tokenizeNequi,
   waitForNequiApproval, type BillingConfig, type CardInput, type PaymentField, type PaymentMethodLink,
 } from '@/services/billing.service';
+import { CreatorCodeField } from './CreatorCodeField';
 
-const PRICE = formatCop(PRO_PRICE_COP);
 const DAY_MS = 24 * 60 * 60_000;
+
+const INTERVAL_OPTIONS: SegmentOption<BillingInterval>[] = [
+  { value: 'year', label: `Anual · ${formatCop(PRO_ANNUAL_PRICE_COP)}` },
+  { value: 'month', label: `Mensual · ${formatCop(PRO_PRICE_COP)}` },
+];
 
 type Method = 'CARD' | 'NEQUI';
 type Errors = Partial<Record<PaymentField | 'consent', string>>;
@@ -75,11 +86,11 @@ function MethodOption({ active, icon: Icon, label, hint, onClick }: { active: bo
 }
 
 /** Reencuadre del precio, justo encima del botón que cobra: la cuota dicha en días quita la objeción. */
-function PriceFraming({ trial }: { trial: boolean }) {
+function PriceFraming({ trial, interval }: { trial: boolean; interval: BillingInterval }) {
   return (
     <p className="flex items-start gap-2 rounded-xl bg-secondary/[var(--lq-soft-alpha)] px-4 py-3 text-body-sm text-on-background">
       <Gem aria-hidden className="mt-0.5 size-4 shrink-0 text-secondary-text" strokeWidth={1.75} />
-      {trial ? PRO_FRAMING_TRIAL : PRO_FRAMING}
+      {framingFor(interval, trial)}
     </p>
   );
 }
@@ -87,19 +98,27 @@ function PriceFraming({ trial }: { trial: boolean }) {
 export interface PaymentMethodFormProps {
   /**
    * trial: vincula el medio de pago y empieza la prueba ($0 hoy; el servidor la confirma).
-   * save: cambia el medio de pago, sin cobro. charge: lo vincula y cobra el primer mes (desde Lite).
+   * save: cambia el medio de pago, sin cobro. charge: lo vincula y cobra el primer periodo (desde Lite).
    */
   intent: 'trial' | 'save' | 'charge';
   /** Fecha del próximo cobro, para el texto de «save». */
   chargeDate?: string | null;
+  /** Plan con que abre el checkout (lo elegido en la pantalla anterior). Por defecto, el anual recomendado. */
+  interval?: BillingInterval;
   onDone: (subscription: Subscription) => void;
   onCancel?: () => void;
   /** Texto del botón que llama a `onCancel` antes de vincular («Ahora no» por defecto). */
   cancelLabel?: string;
 }
 
-export function PaymentMethodForm({ intent, chargeDate, onDone, onCancel, cancelLabel = 'Ahora no' }: PaymentMethodFormProps) {
+export function PaymentMethodForm({ intent, chargeDate, interval: initialInterval, onDone, onCancel, cancelLabel = 'Ahora no' }: PaymentMethodFormProps) {
   const updateUser = useAuthStore((s) => s.updateUser);
+  const sub = useAuthStore((s) => s.user?.subscription);
+  const canAnnual = annualAvailable(sub);
+  // Quien ya tiene medio de pago eligió antes: se respeta su plan. Si no, el anual recomendado.
+  const [interval, setInterval] = useState<BillingInterval>(() => (
+    !canAnnual ? 'month' : initialInterval ?? (sub?.hasPaymentMethod && sub.interval ? sub.interval : 'year')
+  ));
   const reduce = useMotionReduced();
   const consentId = useId();
   const alive = useRef(false);
@@ -122,6 +141,13 @@ export function PaymentMethodForm({ intent, chargeDate, onDone, onCancel, cancel
   const [denied, setDenied] = useState('');
   // Calculada una vez: el texto no cambia mientras se escribe.
   const [trialEnd] = useState(() => new Date(Date.now() + TRIAL_DAYS * DAY_MS).toISOString());
+  // El plan se elige cuando el próximo cobro es el primero (prueba o activar desde Lite). Al cambiar
+  // de tarjeta con un periodo ya pagado no: rige el plan guardado, que se cambia en Plan.
+  const choosesPlan = canAnnual && (intent !== 'save' || sub?.status === 'trialing');
+  const planInterval: BillingInterval = choosesPlan ? interval : sub?.interval ?? 'month';
+  // El descuento del código solo va en el primer pago (mientras el código se puede cambiar).
+  const codeDiscount = sub?.creatorCodeEditable ? sub.creatorCode?.discountPercent ?? 0 : 0;
+  const firstCop = firstPaymentCop(planInterval, codeDiscount);
 
   useEffect(() => {
     alive.current = true;
@@ -168,10 +194,12 @@ export function PaymentMethodForm({ intent, chargeDate, onDone, onCancel, cancel
     if (Object.keys(found).length || !config) return;
 
     setBusy(true);
+    track('checkout_started', { intent, interval: planInterval, method, with_code: Boolean(sub?.creatorCode) });
+    const chosen = choosesPlan ? interval : undefined;
     try {
       const link = method === 'CARD' ? await cardLink(config) : await nequiLink(config);
-      const subscription = await savePaymentMethod(link);
-      if (intent === 'charge') { finish(await subscribe()); return; }
+      const subscription = await savePaymentMethod(link, chosen);
+      if (intent === 'charge') { finish(await subscribe(chosen)); return; }
       updateUser({ subscription });
       if (intent === 'trial' && subscription.plan !== 'pro') {
         setDenied(subscription.lastPaymentError ?? 'Este método de pago ya usó una prueba gratis.');
@@ -194,7 +222,7 @@ export function PaymentMethodForm({ intent, chargeDate, onDone, onCancel, cancel
     setBusy(true);
     setFormError('');
     try {
-      finish(await subscribe());
+      finish(await subscribe(choosesPlan ? interval : undefined));
     } catch (error) {
       setFormError(apiError(error) ?? 'No se pudo activar Pro. Inténtalo de nuevo.');
     } finally {
@@ -219,6 +247,19 @@ export function PaymentMethodForm({ intent, chargeDate, onDone, onCancel, cancel
       <AlertCircle aria-hidden className="mt-0.5 size-4 shrink-0" strokeWidth={1.75} />{formError}
     </p>
   );
+  // Plan del checkout: anual o mensual, con lo que ahorra el anual dicho en pesos.
+  // Mientras se cobra (o se espera a Nequi) no se cambia: el plan ya salió con la petición.
+  const planSwitch = choosesPlan && (
+    <fieldset disabled={busy} className="flex flex-col gap-1.5">
+      <SegmentedControl role="radiogroup" label="Plan de NoutLife Pro" options={INTERVAL_OPTIONS} value={interval} onChange={setInterval} />
+      <p className="text-label-sm text-on-surface-light">
+        {interval === 'year'
+          ? `Ahorras ${formatCop(ANNUAL_SAVINGS_COP)} al año frente al plan mensual.`
+          : `Con el plan anual ahorrarías ${formatCop(ANNUAL_SAVINGS_COP)} al año (${ANNUAL_SAVINGS_PERCENT} %).`}
+      </p>
+    </fieldset>
+  );
+  const codeField = (intent !== 'save' || sub?.status === 'trialing') && <CreatorCodeField />;
 
   return (
     <AnimatePresence mode="wait" initial={false}>
@@ -227,9 +268,13 @@ export function PaymentMethodForm({ intent, chargeDate, onDone, onCancel, cancel
           <p role="alert" className="text-body-md text-on-surface">
             {denied} Tu método de pago quedó vinculado: activa Pro y sigue sin límites.
           </p>
+          {planSwitch}
+          {codeField}
           {errorBox}
-          <PriceFraming trial={false} />
-          <Button size="lg" block loading={busy} onClick={() => void payNow()}>Activar Pro por {PRICE}/mes</Button>
+          <PriceFraming trial={false} interval={planInterval} />
+          <Button size="lg" block loading={busy} onClick={() => void payNow()}>
+            Activar {intervalName(planInterval)} por {firstPriceLabel(planInterval, firstCop)}
+          </Button>
           <p className="text-center text-label-sm text-on-surface-light">Cancela en cualquier momento con 1 clic.</p>
           {onCancel && <Button variant="ghost" size="md" onClick={onCancel} disabled={busy}>Seguir en NoutLife Lite</Button>}
         </motion.div>
@@ -240,7 +285,7 @@ export function PaymentMethodForm({ intent, chargeDate, onDone, onCancel, cancel
               <p className="text-display-md font-semibold tracking-tight tabular-nums">$0 hoy</p>
               <p className="text-body-md text-on-background">Cancela en cualquier momento con 1 clic.</p>
               <p className="text-body-sm text-on-surface-light">
-                {TRIAL_DAYS} días de Pro gratis. Luego {PRICE}/mes desde el {longDay(trialEnd)}.
+                {TRIAL_DAYS} días de Pro gratis. Luego {firstPriceLabel(planInterval, firstCop)} desde el {longDay(trialEnd)}.
               </p>
             </div>
           )}
@@ -297,11 +342,19 @@ export function PaymentMethodForm({ intent, chargeDate, onDone, onCancel, cancel
             </>
           )}
 
+          {/* Resumen junto al botón (plan, código y monto): el foco inicial va al primer campo de pago y no lo esconde. */}
+          {planSwitch}
+          {codeField}
+
           {intent !== 'trial' && (
             <p className="text-body-sm text-on-surface">
               {intent === 'charge'
-                ? `Hoy ${PRICE} y luego cada mes, el mismo día. Cancela en cualquier momento con 1 clic.`
-                : chargeDate ? `$0 hoy. El próximo cobro de ${PRICE} es el ${longDay(chargeDate)}.` : '$0 hoy.'}
+                ? chargeLine(planInterval, firstCop)
+                : !chargeDate
+                  ? '$0 hoy.'
+                  : choosesPlan
+                    ? `$0 hoy. El ${longDay(chargeDate)} se cobran ${formatCop(firstCop)} por tu primer ${intervalUnit(planInterval)} de Pro.`
+                    : `$0 hoy. El próximo cobro de ${formatCop(sub?.nextChargeCop ?? priceFor(planInterval))} es el ${longDay(chargeDate)}.`}
             </p>
           )}
 
@@ -314,10 +367,10 @@ export function PaymentMethodForm({ intent, chargeDate, onDone, onCancel, cancel
 
           {errorBox}
 
-          {intent !== 'save' && <PriceFraming trial={intent === 'trial'} />}
+          {intent !== 'save' && <PriceFraming trial={intent === 'trial'} interval={planInterval} />}
 
           <Button type="submit" size="lg" block loading={busy} disabled={!config}>
-            {intent === 'trial' ? `Empezar mis ${TRIAL_DAYS} días gratis` : intent === 'charge' ? `Pagar ${PRICE} y activar Pro` : 'Vincular método de pago'}
+            {intent === 'trial' ? `Empezar mis ${TRIAL_DAYS} días gratis` : intent === 'charge' ? `Pagar ${formatCop(firstCop)} y activar Pro` : 'Vincular método de pago'}
           </Button>
 
           <label className="flex min-h-11 items-start gap-2.5 text-label-sm text-on-surface-light">
