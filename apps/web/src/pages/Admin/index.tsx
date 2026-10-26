@@ -2,9 +2,9 @@
 // y cuándo cobra o vence la prueba. Solo lectura. El servidor exige el correo.
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, Copy } from 'lucide-react';
+import { Check, Copy, Ticket } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { Badge, Button, Card, ChipGroup, ErrorState, Field, Input, Modal, PageLoader, type ChipOption } from '@/components/ui/lq';
+import { Badge, Button, Card, ChipGroup, ErrorState, Field, Input, Modal, PageLoader, buttonClasses, type ChipOption } from '@/components/ui/lq';
 import { useToast } from '@/hooks/useToast';
 import { apiError } from '@/services/network.service';
 import { isAdminEmail } from '@/utils/admin';
@@ -167,6 +167,10 @@ export default function AdminPage() {
     <div className="flex flex-col gap-6 p-4 md:p-8">
       <PageHeader eyebrow="Administración" title="Cuentas y pagos" description="Solo lectura: lo que pagó cada persona, su medio de pago y cuándo cobra o vence su prueba." />
 
+      <Link to="/admin/creadores" className={buttonClasses('secondary', 'md', false) + ' self-start'}>
+        <Ticket aria-hidden className="size-4" strokeWidth={1.75} />Creadores y socios: códigos, conversiones y comisiones
+      </Link>
+
       <Stats items={[
         ['Cuentas', String(totals.all)], ['Han pagado', String(totals.paid)], ['En prueba', String(totals.trialing)],
         ['Con medio de pago', String(totals.card)], ['Total cobrado', cop(totals.cobrado)],
@@ -273,6 +277,8 @@ export default function AdminPage() {
                 {u.complimentary && <Badge variant="secondary">Cortesía</Badge>}
                 {u.giftTrial && u.status === 'trialing' && <Badge variant="primary">Regalo</Badge>}
                 {u.giftAvailable && <Badge variant="info">Regalo al entrar</Badge>}
+                {u.interval === 'year' && !u.complimentary && u.status !== 'lite' && <Badge variant="secondary">Anual</Badge>}
+                {u.creatorCode && <Badge variant="info">Código {u.creatorCode}</Badge>}
                 {u.pendingPayments > 0 && <Badge variant="warning">{u.pendingPayments} en espera</Badge>}
               </div>
               <div className="text-body-sm">

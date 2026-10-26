@@ -20,7 +20,7 @@ import { detectInAppBrowser } from '@/lib/inAppBrowser';
 import { AccordionItem } from '@/components/ui/lq';
 import { ease } from '@/lib/motion';
 import { track } from '@/lib/analytics';
-import { PRO_PER_DAY_COP, TRIAL_DAYS, formatCop } from '@/lib/plan';
+import { PRO_ANNUAL_PER_DAY_COP, TRIAL_DAYS, formatCop } from '@/lib/plan';
 import { useIsDark } from '@/store/themeStore';
 import { clearReferral, readReferral } from '@/services/referral.service';
 
@@ -149,7 +149,7 @@ export default function LoginPage() {
                 {providers?.googleClientId && <div ref={googleRef} className="flex min-h-11 max-w-[400px]" />}
                 {none && <p className="text-body-sm text-on-surface-light">El inicio de sesión no está disponible ahora mismo.</p>}
                 <p className="text-body-sm text-on-surface-light">
-                  {TRIAL_DAYS} días de Pro incluidos, sin tarjeta. Después sigues gratis en Lite, o pasas a Pro por unos {formatCop(PRO_PER_DAY_COP)} COP al día.
+                  {TRIAL_DAYS} días de Pro incluidos, sin tarjeta. Después sigues gratis en Lite, o pasas a Pro desde unos {formatCop(PRO_ANNUAL_PER_DAY_COP)} COP al día.
                 </p>
                 {apiError && (
                   <p role="alert" className="flex items-start gap-2 rounded-xl bg-error/[var(--lq-soft-alpha)] px-4 py-3 text-body-sm text-error-text">
@@ -199,7 +199,7 @@ export default function LoginPage() {
           className="pt-16 md:pt-24"
           showRibbon={false}
           title="Lite gratis para siempre. Pro cuando lo quieras."
-          description={`Toda cuenta empieza con ${TRIAL_DAYS} días de Pro, sin tarjeta. El día ${TRIAL_DAYS + 1} sigues gratis en Lite sin perder nada, o pasas a Pro por unos ${formatCop(PRO_PER_DAY_COP)} COP al día.`}
+          description={`Toda cuenta empieza con ${TRIAL_DAYS} días de Pro, sin tarjeta. El día ${TRIAL_DAYS + 1} sigues gratis en Lite sin perder nada, o pasas a Pro desde unos ${formatCop(PRO_ANNUAL_PER_DAY_COP)} COP al día con el plan anual.`}
           proAction={{
             label: 'Empieza gratis',
             // El acceso con Google está arriba: se vuelve a él.

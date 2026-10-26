@@ -224,6 +224,12 @@ model User {
   /// Regalo de 7 días disponible y aún sin activar: se activa al volver a entrar (giftTrialToLite).
   giftAvailable      Boolean   @default(false)
   lastPaymentError   String?
+  /// Cada cuánto se cobra Pro: 'month' | 'year'. Rige el próximo cobro (fin de la prueba o renovación).
+  billingInterval    String    @default("month")
+  /// Código de creador aplicado antes del primer pago: descuento en ese pago y cobros atribuidos al creador.
+  creatorCodeId      String?
+  creatorCode        CreatorCode? @relation(fields: [creatorCodeId], references: [id], onDelete: SetNull)
+  creatorCodeAt      DateTime?
 
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
@@ -317,6 +323,7 @@ model User {
 
   @@index([subscriptionStatus, trialEndsAt])
   @@index([subscriptionStatus, currentPeriodEnd])
+  @@index([creatorCodeId])
   @@map("users")
 }
 
@@ -342,7 +349,7 @@ model UsedTrial {
   @@map("used_trials")
 }
 
-/// Un cobro mensual de NoutLife Pro. La referencia es única por usuario y
+/// Un cobro de NoutLife Pro (un mes o un año). La referencia es única por usuario y
 /// periodo: dos disparos a la vez (inicio de sesión y cron) nunca cobran dos veces.
 model SubscriptionPayment {
   id     String @id @default(cuid())
@@ -358,6 +365,12 @@ model SubscriptionPayment {
   statusMessage      String?
   periodStart        DateTime
   periodEnd          DateTime
+  /// 'month' | 'year': el periodo que paga este cobro. Se fija al crearlo.
+  billingInterval    String   @default("month")
+  /// Código de creador de la cuenta al crear el cobro y el descuento que se aplicó (solo en el primer pago).
+  creatorCodeId      String?
+  creatorCode        CreatorCode? @relation(fields: [creatorCodeId], references: [id], onDelete: SetNull)
+  discountInCents    Int      @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -365,6 +378,57 @@ model SubscriptionPayment {
   @@index([userId, createdAt])
   @@index([status, createdAt])
   @@map("subscription_payments")
+}
+
+/// Código de un creador o socio («MIGUEL»). Quien lo aplica antes de su primer pago recibe el
+/// descuento en ese pago, y los cobros de su cuenta quedan atribuidos al creador (revenue share).
+/// Nunca se borra: desactivarlo impide aplicarlo de nuevo y conserva el historial.
+model CreatorCode {
+  id              String   @id @default(cuid())
+  /// En mayúsculas, único (lib/creator-codes: CREATOR_CODE_PATTERN).
+  code            String   @unique
+  creatorName     String
+  /// Descuento del primer pago para quien aplica el código (0 a 50).
+  discountPercent Int      @default(0)
+  /// Comisión del creador sobre cada cobro atribuido (0 a 100).
+  sharePercent    Int      @default(30)
+  /// Meses desde la conversión con comisión. null: sin límite.
+  shareMonths     Int?     @default(6)
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  users    User[]
+  payments SubscriptionPayment[]
+  ledger   CreatorCodePayment[]
+
+  @@map("creator_codes")
+}
+
+/// Libro del revenue share: un cobro aprobado de Pro atribuido a un código de creador. Sin relación
+/// con User a propósito: borrar la cuenta no borra lo que se le debe al creador (queda el id opaco,
+/// sin correo). Una fila por cobro (misma referencia que subscription_payments); una anulación la marca.
+model CreatorCodePayment {
+  id              String      @id @default(cuid())
+  creatorCodeId   String
+  creatorCode     CreatorCode @relation(fields: [creatorCodeId], references: [id], onDelete: Restrict)
+  userId          String
+  reference       String      @unique
+  /// 'month' | 'year'
+  interval        String
+  amountInCents   Int
+  discountInCents Int         @default(0)
+  /// 'first' (la conversión) | 'renewal'
+  kind            String
+  /// 'APPROVED' | 'VOIDED'
+  status          String      @default("APPROVED")
+  paidAt          DateTime
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([creatorCodeId, paidAt])
+  @@index([userId])
+  @@map("creator_code_payments")
 }
 
 model Quest {

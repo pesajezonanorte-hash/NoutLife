@@ -1,9 +1,11 @@
 // Planes de NoutLife: lo que el cliente necesita saber para mostrar precios,
 // límites de Lite y el estado de la suscripción. La regla real vive en la API
 // (apps/api/src/lib/plans.ts); estos valores solo sirven para los textos.
-import type { Subscription } from '@noutlife/shared';
+import type { BillingInterval, Subscription } from '@noutlife/shared';
 
 export const PRO_PRICE_COP = 9900;
+/** Pro Anual: 12 meses de una vez (plan v3, Rev7). Igual que en la API (PRO_ANNUAL_PRICE_COP). */
+export const PRO_ANNUAL_PRICE_COP = 89900;
 export const TRIAL_DAYS = 7;
 /** NoutLife Lite. La IA es solo de Pro. */
 export const LITE_LIMITS = { activeHabits: 3, activeRoutines: 3, historyDays: 5, notebooks: 2, notebookPages: 10 } as const;
@@ -78,6 +80,14 @@ export function longDay(iso: string | null | undefined): string {
   return new Date(iso).toLocaleDateString('es-CO', { day: 'numeric', month: 'long' });
 }
 
+/** «19 de octubre» si es este año; «19 de octubre de 2027» si no (renovaciones anuales). */
+export function longDate(iso: string | null | undefined, now = new Date()): string {
+  if (!iso) return '';
+  const date = new Date(iso);
+  if (date.getFullYear() === now.getFullYear()) return longDay(iso);
+  return date.toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
 export const isLite = (subscription?: Subscription | null) => subscription?.plan === 'lite';
 
 /** Error de axios con el 402 de un límite de Lite. */
@@ -99,6 +109,86 @@ export const PRO_PER_DAY_COP = Math.round(PRO_PRICE_COP / 30);
 export const PRO_FRAMING = `Solo ${formatCop(PRO_PER_DAY_COP)} COP al día para desbloquear todo tu potencial.`;
 /** Lo mismo durante la prueba: el primer cobro llega después de los días gratis. */
 export const PRO_FRAMING_TRIAL = `Después de tu prueba: solo ${formatCop(PRO_PER_DAY_COP)} COP al día para desbloquear todo tu potencial.`;
+
+// ── Plan anual ─────────────────────────────────────────────────────────────────────────────
+// Todo sale de la aritmética de los dos precios, así los textos siguen siendo ciertos si cambian.
+
+/** Doce meses pagando mes a mes. */
+const TWELVE_MONTHS_COP = PRO_PRICE_COP * 12;
+/** Lo que ahorra el anual frente a 12 cobros mensuales ($28.900). */
+export const ANNUAL_SAVINGS_COP = TWELVE_MONTHS_COP - PRO_ANNUAL_PRICE_COP;
+/** El ahorro en porcentaje (24 %). */
+export const ANNUAL_SAVINGS_PERCENT = Math.round((ANNUAL_SAVINGS_COP / TWELVE_MONTHS_COP) * 100);
+/** El anual dicho por mes ($7.492) y por día ($246, sobre 365 días). */
+export const PRO_ANNUAL_PER_MONTH_COP = Math.round(PRO_ANNUAL_PRICE_COP / 12);
+export const PRO_ANNUAL_PER_DAY_COP = Math.round(PRO_ANNUAL_PRICE_COP / 365);
+
+/** «3 meses gratis», «casi 3 meses gratis» o «más de 2 meses gratis», según cuántas cuotas ahorra el anual. */
+export function freeMonthsLabel(savingsCop = ANNUAL_SAVINGS_COP, monthlyCop = PRO_PRICE_COP): string {
+  const months = savingsCop / monthlyCop;
+  const whole = Math.floor(months + 1e-9);
+  const plural = (n: number) => (n === 1 ? '1 mes gratis' : `${n} meses gratis`);
+  if (months - whole < 0.01) return plural(whole);
+  if (months - whole >= 0.75) return `casi ${plural(whole + 1)}`;
+  return `más de ${plural(whole)}`;
+}
+
+/** Precio de lista de un periodo. */
+export const priceFor = (interval: BillingInterval) => (interval === 'year' ? PRO_ANNUAL_PRICE_COP : PRO_PRICE_COP);
+/** El precio de un periodo dicho por día. */
+export const perDayFor = (interval: BillingInterval) => (interval === 'year' ? PRO_ANNUAL_PER_DAY_COP : PRO_PER_DAY_COP);
+/** «mes» o «año»: para «$9.900/mes» y «$89.900/año». */
+export const intervalUnit = (interval: BillingInterval) => (interval === 'year' ? 'año' : 'mes');
+/** «Pro Mensual» o «Pro Anual». */
+export const intervalName = (interval: BillingInterval) => (interval === 'year' ? 'Pro Anual' : 'Pro Mensual');
+
+/** Primer pago con el descuento de un código de creador: pesos enteros y tope del 50 %, igual que la API (quoteCharge). */
+export function firstPaymentCop(interval: BillingInterval, discountPercent = 0): number {
+  const list = priceFor(interval);
+  const percent = Math.min(50, Math.max(0, Math.round(discountPercent)));
+  return list - Math.round((list * percent) / 100);
+}
+
+/** «$89.900/año» o, con descuento en el primer pago, «$80.910 el primer año». */
+export function firstPriceLabel(interval: BillingInterval, firstCop: number): string {
+  const unit = intervalUnit(interval);
+  return firstCop < priceFor(interval) ? `${formatCop(firstCop)} el primer ${unit}` : `${formatCop(firstCop)}/${unit}`;
+}
+
+/** Qué se cobra hoy al activar Pro desde Lite, y después. */
+export function chargeLine(interval: BillingInterval, firstCop: number): string {
+  const list = priceFor(interval);
+  if (interval === 'year') {
+    return firstCop < list
+      ? `Hoy ${formatCop(firstCop)} por 12 meses de Pro. Luego ${formatCop(list)} cada año, el mismo día. Cancela la renovación con 1 clic.`
+      : `Hoy ${formatCop(list)} por 12 meses de Pro. Se renueva cada año, el mismo día. Cancela la renovación con 1 clic.`;
+  }
+  return firstCop < list
+    ? `Hoy ${formatCop(firstCop)} y luego ${formatCop(list)} cada mes, el mismo día. Cancela en cualquier momento con 1 clic.`
+    : `Hoy ${formatCop(list)} y luego cada mes, el mismo día. Cancela en cualquier momento con 1 clic.`;
+}
+
+/** Reencuadre por día según el plan, igual que PRO_FRAMING. */
+export function framingFor(interval: BillingInterval, trial = false): string {
+  if (interval === 'month') return trial ? PRO_FRAMING_TRIAL : PRO_FRAMING;
+  const line = `solo ${formatCop(PRO_ANNUAL_PER_DAY_COP)} COP al día por un año completo de Pro.`;
+  return trial ? `Después de tu prueba: ${line}` : `${line.charAt(0).toUpperCase()}${line.slice(1)}`;
+}
+
+/** El plan anual solo se ofrece si la API ya lo cobra (devuelve `interval`); una API anterior cobraría mensual. */
+export const annualAvailable = (subscription?: Subscription | null) => subscription?.interval !== undefined;
+
+/** Por qué comprometerse un año: un solo espacio que crece contigo. Lo usan el diálogo de Pro y Planes. */
+export const ANNUAL_PITCH = {
+  title: 'Un año de orden en calma',
+  body: `Tu rutina, tu mente y tus ideas en un solo espacio durante 12 meses. Un solo pago, y ${freeMonthsLabel()} frente al plan mensual.`,
+  points: [
+    'Hábitos, libreta, finanzas, sueño y metas creciendo juntos en un mismo lugar.',
+    'Un año entero de historial para ver tu progreso real, mes a mes.',
+    'Tarifa congelada todo el año, con un solo pago.',
+    'Cancelas la renovación con 1 clic y conservas Pro hasta el final de tu año.',
+  ],
+} as const;
 
 /** Cuántas zonas desbloquea Pro (para los textos). */
 export const PRO_ZONE_COUNT = Object.keys(PRO_ZONES).length;

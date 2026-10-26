@@ -1,10 +1,15 @@
 import { z } from 'zod';
 
+/** Plan del cobro: mensual o anual. */
+const interval = z.enum(['month', 'year']);
+
 /** Lo que Wompi exige aceptar antes de guardar cualquier medio de pago. */
 const acceptances = {
   /** La persona aceptó la política de privacidad y la autorización de datos de Wompi. */
   acceptTerms: z.literal(true, { errorMap: () => ({ message: 'Acepta los términos de Wompi para continuar.' }) }),
   acceptPersonalData: z.literal(true, { errorMap: () => ({ message: 'Acepta la autorización de datos personales para continuar.' }) }),
+  /** Plan elegido en el checkout para el próximo cobro. Los clientes anteriores no lo mandan (mensual). */
+  interval: interval.optional(),
 };
 
 /**
@@ -36,3 +41,14 @@ export const paymentMethodSchema = z.preprocess(
 );
 
 export type PaymentMethodBody = z.infer<typeof paymentMethodSchema>;
+
+/** «Activar Pro»: el plan es opcional porque los clientes anteriores llaman sin cuerpo (mensual). */
+export const subscribeSchema = z.preprocess((body) => body ?? {}, z.object({ interval: interval.optional() }));
+export type SubscribeBody = z.infer<typeof subscribeSchema>;
+
+export const intervalSchema = z.object({ interval });
+export type IntervalBody = z.infer<typeof intervalSchema>;
+
+/** El formato fino (mayúsculas, caracteres) lo decide lib/creator-codes; aquí solo se acota el tamaño. */
+export const creatorCodeSchema = z.object({ code: z.string().trim().min(1, 'Escribe el código.').max(40) });
+export type CreatorCodeBody = z.infer<typeof creatorCodeSchema>;

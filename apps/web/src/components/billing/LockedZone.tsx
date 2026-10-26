@@ -8,7 +8,7 @@ import { Badge, Button, buttonClasses } from '@/components/ui/lq';
 import { findNavEntry } from '@/components/layout/nav';
 import { useMotionReduced } from '@/lib/motion';
 import { cn } from '@/lib/utils';
-import { PRO_PRICE_COP, PRO_ZONES, TRIAL_DAYS, formatCop, type ProZone } from '@/lib/plan';
+import { PRO_ANNUAL_PER_DAY_COP, PRO_PRICE_COP, PRO_ZONES, TRIAL_DAYS, annualAvailable, formatCop, type ProZone } from '@/lib/plan';
 import { useAuthStore } from '@/store/authStore';
 import { usePlanStore } from '@/store/planStore';
 
@@ -19,6 +19,8 @@ export function LockedZone({ zone }: { zone: ProZone }) {
   const { pathname } = useLocation();
   const reduce = useMotionReduced();
   const trial = useAuthStore((s) => Boolean(s.user?.subscription?.trialAvailable));
+  // Con el plan anual en la API, el precio más bajo por día es el del anual (el diálogo lo trae elegido).
+  const annual = useAuthStore((s) => annualAvailable(s.user?.subscription));
   const openUpgrade = usePlanStore((s) => s.openUpgrade);
   const info = PRO_ZONES[zone];
   const Icon = findNavEntry(pathname)?.icon ?? Lock;
@@ -66,7 +68,9 @@ export function LockedZone({ zone }: { zone: ProZone }) {
 
       <div className="flex w-full max-w-[360px] flex-col gap-2">
         <Button size="lg" block onClick={() => openUpgrade(zone)}>
-          {trial ? `Probar ${TRIAL_DAYS} días gratis` : `Desbloquear por ${formatCop(PRO_PRICE_COP)}/mes`}
+          {trial
+            ? `Probar ${TRIAL_DAYS} días gratis`
+            : annual ? `Desbloquear desde ${formatCop(PRO_ANNUAL_PER_DAY_COP)} al día` : `Desbloquear por ${formatCop(PRO_PRICE_COP)}/mes`}
         </Button>
         <p className="text-body-sm text-on-surface-light">{trial ? '$0 hoy. ' : ''}Cancela en cualquier momento con 1 clic.</p>
         <Link to="/plan" className={buttonClasses('ghost', 'md', true)}>Comparar planes</Link>

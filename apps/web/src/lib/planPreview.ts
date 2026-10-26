@@ -1,7 +1,7 @@
 // Textos del cambio a Lite con los datos reales de la persona (aviso de los días 5 y 6 y
 // diálogo de Pro). Son reglas puras: lo que dicen coincide con lo que hace la API.
 import type { Subscription } from '@noutlife/shared';
-import { PRO_PRICE_COP, formatCop, PRO_PER_DAY_COP, longDay } from '@/lib/plan';
+import { PRO_ANNUAL_PER_DAY_COP, PRO_ANNUAL_PRICE_COP, PRO_PRICE_COP, formatCop, PRO_PER_DAY_COP, longDay } from '@/lib/plan';
 
 export interface PlanPreview {
   activeHabits: number; habitLimit: number;
@@ -56,8 +56,10 @@ export function trialNoticeDaysLeft(sub: { status: string; hasPaymentMethod: boo
 
 export const trialNoticeTitle = (daysLeft: number) => (daysLeft === 1 ? 'Mañana vuelves a Lite' : `En ${daysLeft} días vuelves a Lite`);
 
-/** Precio de Miembro Fundador: se congela mientras sigas en Pro. */
-export const foundingPriceLine = () => `${formatCop(PRO_PRICE_COP)} COP al mes (unos ${formatCop(PRO_PER_DAY_COP)} al día), tarifa congelada mientras sigas en Pro.`;
+/** Precio de Miembro Fundador: se congela mientras sigas en Pro. Con el plan anual, las dos opciones. */
+export const foundingPriceLine = (annual = false) => annual
+  ? `${formatCop(PRO_PRICE_COP)} COP al mes (unos ${formatCop(PRO_PER_DAY_COP)} al día) o ${formatCop(PRO_ANNUAL_PRICE_COP)} al año (unos ${formatCop(PRO_ANNUAL_PER_DAY_COP)} al día), tarifa congelada mientras sigas en Pro.`
+  : `${formatCop(PRO_PRICE_COP)} COP al mes (unos ${formatCop(PRO_PER_DAY_COP)} al día), tarifa congelada mientras sigas en Pro.`;
 
 // ── Cobro al terminar la prueba con tarjeta vinculada (decisión 15, 22 de octubre) ──────────
 // Quien vincula un medio de pago durante la prueba sabe cuándo y cuánto se cobra. Los avisos
@@ -67,10 +69,19 @@ export const foundingPriceLine = () => `${formatCop(PRO_PRICE_COP)} COP al mes (
 
 export type CardTrialKind = 'linked' | 'pre-charge';
 
-type TrialSub = Pick<Subscription, 'status' | 'trialEndsAt' | 'hasPaymentMethod' | 'paymentMethodLabel' | 'paymentMethodType'> & { complimentary?: boolean };
+type TrialSub = Pick<Subscription, 'status' | 'trialEndsAt' | 'hasPaymentMethod' | 'paymentMethodLabel' | 'paymentMethodType' | 'interval' | 'nextChargeCop'> & { complimentary?: boolean };
 
 const DAY_MS = 24 * 60 * 60_000;
-const PRICE = formatCop(PRO_PRICE_COP);
+
+/**
+ * El cobro al terminar la prueba, como lo calcula la API (plan elegido y descuento del código).
+ * Una API anterior no lo manda: ahí el cobro es el mensual de siempre.
+ */
+function trialCharge(sub: TrialSub): { price: string; perDay: string; annual: boolean } {
+  const annual = sub.interval === 'year';
+  const cop = sub.nextChargeCop ?? PRO_PRICE_COP;
+  return { price: formatCop(cop), perDay: formatCop(Math.round(cop / (annual ? 365 : 30))), annual };
+}
 
 /** Días de prueba que quedan, redondeando hacia arriba; 0 si ya terminó. */
 export function trialDaysLeft(trialEndsAt: string, now = Date.now()): number {
@@ -97,17 +108,18 @@ const medioDePago = (sub: TrialSub) => sub.paymentMethodLabel ?? (sub.paymentMet
 /** Texto del aviso, con la fecha de fin de prueba y el medio de pago de la persona. */
 export function cardTrialCopy(kind: CardTrialKind, sub: TrialSub): { title: string; body: string; primary: string; secondary: string } {
   const fecha = longDay(sub.trialEndsAt);
+  const { price, perDay, annual } = trialCharge(sub);
   if (kind === 'linked') {
     return {
       title: `Tu prueba Pro termina el ${fecha}`,
-      body: `Hasta el ${fecha} tienes NoutLife Pro completo. Ese día se cobran ${PRICE} COP (unos ${formatCop(PRO_PER_DAY_COP)} COP al día) para seguir con Pro. Puedes cancelar cuando quieras, con un clic en Plan. Si cancelas antes del ${fecha}, no se cobra nada.`,
+      body: `Hasta el ${fecha} tienes NoutLife Pro completo. Ese día se cobran ${price} COP${annual ? ' por un año completo' : ''} (unos ${perDay} COP al día) para seguir con Pro. Puedes cancelar cuando quieras, con un clic en Plan. Si cancelas antes del ${fecha}, no se cobra nada.`,
       primary: 'Seguir con Pro',
       secondary: 'Ver mi plan',
     };
   }
   return {
-    title: 'En 2 días se cobra tu primer mes',
-    body: `El ${fecha} se cobran ${PRICE} COP a tu ${medioDePago(sub)}. Lo que construiste (hábitos, libreta e historial) sigue contigo. Si no quieres seguir, cancela con un clic en Plan antes de esa fecha.`,
+    title: `En 2 días se cobra tu primer ${annual ? 'año' : 'mes'}`,
+    body: `El ${fecha} se cobran ${price} COP a tu ${medioDePago(sub)}. Lo que construiste (hábitos, libreta e historial) sigue contigo. Si no quieres seguir, cancela con un clic en Plan antes de esa fecha.`,
     primary: 'Seguir con Pro',
     secondary: 'Cancelar en Plan',
   };
@@ -117,5 +129,6 @@ export function cardTrialCopy(kind: CardTrialKind, sub: TrialSub): { title: stri
 export function trialDoneLine(sub: TrialSub): string {
   const fecha = longDay(sub.trialEndsAt);
   if (!sub.hasPaymentMethod) return `Tienes NoutLife Pro gratis hasta el ${fecha}. $0 hoy; puedes cancelar con 1 clic en Plan.`;
-  return `Tienes NoutLife Pro gratis hasta el ${fecha}. Hoy no se cobra nada. El ${fecha} se cobran ${PRICE} COP para seguir con Pro, y puedes cancelar con un clic en Plan antes de esa fecha.`;
+  const { price, annual } = trialCharge(sub);
+  return `Tienes NoutLife Pro gratis hasta el ${fecha}. Hoy no se cobra nada. El ${fecha} se cobran ${price} COP${annual ? ' por un año' : ''} para seguir con Pro, y puedes cancelar con un clic en Plan antes de esa fecha.`;
 }

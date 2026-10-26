@@ -1,19 +1,24 @@
 // Planes: Pro y Lite lado a lado. Se usa en la portada pública (debajo del
-// inicio de sesión) y en /plan. Anclaje: Pro va primero, grande y completo;
-// Lite después, con sus límites a la vista. Pro lleva el oro champán del
-// sistema de diseño (reservado a lo premium); Lite, el jade neutro. El único
-// momento animado es la cinta de la prueba.
+// inicio de sesión) y en /plan. Anclaje: Pro va primero, grande y completo, con
+// el anual elegido por defecto como mejor valor; Lite después, con sus límites a
+// la vista. Pro lleva el oro champán del sistema de diseño (reservado a lo
+// premium); Lite, el jade neutro. El único momento animado es la cinta de la prueba.
 import { useId, useState, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { Check, Minus } from 'lucide-react';
-import type { Subscription } from '@noutlife/shared';
+import type { BillingInterval, Subscription } from '@noutlife/shared';
 import { AccordionItem, Badge, Button, Card } from '@/components/ui/lq';
 import { cn } from '@/lib/utils';
 import { useMotionReduced } from '@/lib/motion';
-import { LITE_LIMITS, PLAN_ROWS, PRO_FRAMING, PRO_PRICE_COP, PRO_ZONE_COUNT, TRIAL_DAYS, formatCop } from '@/lib/plan';
+import {
+  ANNUAL_PITCH, ANNUAL_SAVINGS_COP, ANNUAL_SAVINGS_PERCENT, LITE_LIMITS, PLAN_ROWS, PRO_ANNUAL_PER_DAY_COP, PRO_ANNUAL_PRICE_COP, PRO_FRAMING,
+  PRO_PRICE_COP, PRO_ZONE_COUNT, TRIAL_DAYS, annualAvailable, formatCop, framingFor, freeMonthsLabel, intervalUnit, priceFor,
+} from '@/lib/plan';
 import { TrialRibbon } from './TrialRibbon';
+import { PlanIntervalPicker } from './PlanIntervalPicker';
 
 const PRICE = formatCop(PRO_PRICE_COP);
+const ANNUAL = formatCop(PRO_ANNUAL_PRICE_COP);
 
 export const PRICING_HOOK = `${TRIAL_DAYS} días de Pro incluidos, sin tarjeta.`;
 
@@ -29,27 +34,37 @@ const PRO_POINTS = [
   'El Sabio con IA y análisis de hábitos, finanzas y entrenos',
   'Hábitos y rutinas ilimitados',
   'Historial y analíticas completas',
-  `Tarifa congelada: ${PRICE}/mes mientras sigas en Pro`,
+  'Tarifa congelada mientras sigas en Pro',
 ];
 
-const FAQ: Array<{ q: string; a: string }> = [
-  {
-    q: '¿Necesito tarjeta para empezar?',
-    a: `No. Toda cuenta nueva tiene ${TRIAL_DAYS} días de Pro completo, sin tarjeta. El día ${TRIAL_DAYS + 1} pasa sola a NoutLife Lite, gratis para siempre, sin perder nada. Si quieres seguir en Pro, vinculas tu tarjeta o tu Nequi y se cobran ${PRICE} al mes. La prueba es una por persona.`,
-  },
-  {
-    q: '¿Cómo cancelo?',
-    a: 'En Plan, con el botón Cancelar suscripción. Es un clic, sin llamadas ni formularios. Conservas Pro hasta el final del periodo que ya tienes y no se vuelve a cobrar.',
-  },
-  {
-    q: '¿Qué pasa si cancelo o falla el cobro?',
-    a: `Tu cuenta pasa a NoutLife Lite y sigue funcionando. No se borra nada: si tenías más de ${LITE_LIMITS.activeHabits} hábitos se conservan todos, y las zonas Pro y tu historial completo vuelven a abrirse cuando activas Pro.`,
-  },
-  {
-    q: '¿Mi método de pago está seguro?',
-    a: 'Los datos viajan cifrados directo a Wompi, la pasarela de pagos. NoutLife nunca recibe ni guarda el número de tu tarjeta. Con Nequi guardamos tu celular para cobrar y una huella cifrada de tu cédula para evitar pruebas repetidas.',
-  },
-];
+function faqFor(annual: boolean): Array<{ q: string; a: string }> {
+  const price = annual ? `${PRICE} al mes o ${ANNUAL} al año, según el plan que elijas` : `${PRICE} al mes`;
+  return [
+    {
+      q: '¿Necesito tarjeta para empezar?',
+      a: `No. Toda cuenta nueva tiene ${TRIAL_DAYS} días de Pro completo, sin tarjeta. El día ${TRIAL_DAYS + 1} pasa sola a NoutLife Lite, gratis para siempre, sin perder nada. Si quieres seguir en Pro, vinculas tu tarjeta o tu Nequi y se cobran ${price}. La prueba es una por persona.`,
+    },
+    ...(annual ? [{
+      q: '¿Qué incluye el plan anual?',
+      a: `Todo NoutLife Pro, pagado una vez al año: ${ANNUAL} COP por 12 meses, unos ${formatCop(PRO_ANNUAL_PER_DAY_COP)} al día. Frente a pagar mes a mes ahorras ${formatCop(ANNUAL_SAVINGS_COP)} (${ANNUAL_SAVINGS_PERCENT} %), ${freeMonthsLabel()}. Si cancelas, no se renueva y conservas Pro hasta el final de tu año.`,
+    }, {
+      q: '¿Qué es un código de creador?',
+      a: 'Si llegaste a NoutLife por un creador, escribe su código al pagar. Apoyas a quien te lo recomendó y, si el código trae descuento, se aplica a tu primer pago, mensual o anual. Se usa una vez, antes de tu primer pago.',
+    }] : []),
+    {
+      q: '¿Cómo cancelo?',
+      a: 'En Plan, con el botón Cancelar suscripción. Es un clic, sin llamadas ni formularios. Conservas Pro hasta el final del periodo que ya tienes y no se vuelve a cobrar.',
+    },
+    {
+      q: '¿Qué pasa si cancelo o falla el cobro?',
+      a: `Tu cuenta pasa a NoutLife Lite y sigue funcionando. No se borra nada: si tenías más de ${LITE_LIMITS.activeHabits} hábitos se conservan todos, y las zonas Pro y tu historial completo vuelven a abrirse cuando activas Pro.`,
+    },
+    {
+      q: '¿Mi método de pago está seguro?',
+      a: 'Los datos viajan cifrados directo a Wompi, la pasarela de pagos. NoutLife nunca recibe ni guarda el número de tu tarjeta. Con Nequi guardamos tu celular para cobrar y una huella cifrada de tu cédula para evitar pruebas repetidas.',
+    },
+  ];
+}
 
 function Mark({ value }: { value: string | boolean }) {
   if (value === true) return <><Check aria-hidden className="mx-auto size-5 text-success-text" strokeWidth={2} /><span className="sr-only">Incluido</span></>;
@@ -57,7 +72,7 @@ function Mark({ value }: { value: string | boolean }) {
   return <span>{value}</span>;
 }
 
-function Points({ items, tone }: { items: string[]; tone: 'lite' | 'pro' }) {
+function Points({ items, tone }: { items: readonly string[]; tone: 'lite' | 'pro' }) {
   return (
     <ul className="flex flex-col gap-2.5">
       {items.map((text) => (
@@ -80,15 +95,29 @@ export interface PricingSectionProps {
   showRibbon?: boolean;
   /** Botón de Pro. Sin él, la tarjeta solo informa. */
   proAction?: { label: string; onClick: () => void; loading?: boolean; note?: string };
+  /** Plan elegido (controlado desde /plan). Sin él, la sección guarda el suyo, anual por defecto. */
+  interval?: BillingInterval;
+  onIntervalChange?: (interval: BillingInterval) => void;
+  /** Descuento del código de creador aplicado: el selector muestra el precio del primer pago. */
+  discountPercent?: number;
   id?: string;
   className?: string;
 }
 
-export function PricingSection({ mode, subscription, title, description, showRibbon = mode === 'public', proAction, id = 'planes', className }: PricingSectionProps) {
+export function PricingSection({
+  mode, subscription, title, description, showRibbon = mode === 'public', proAction, interval: controlled, onIntervalChange, discountPercent = 0, id = 'planes', className,
+}: PricingSectionProps) {
   const headingId = useId();
   const reduce = useMotionReduced();
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [own, setOwn] = useState<BillingInterval>('year');
   const current = mode === 'app' ? subscription?.plan : undefined;
+  // En la app el anual se ofrece solo si la API ya lo cobra; la portada solo informa.
+  const annual = mode === 'public' || annualAvailable(subscription);
+  const interval: BillingInterval = annual ? controlled ?? own : 'month';
+  const setInterval = (next: BillingInterval) => { setOwn(next); onIntervalChange?.(next); };
+  const priceLabel = `${formatCop(priceFor(interval))}/${intervalUnit(interval)}`;
+  const faq = faqFor(annual);
 
   return (
     <motion.section
@@ -103,15 +132,17 @@ export function PricingSection({ mode, subscription, title, description, showRib
       <div className="flex max-w-[640px] flex-col gap-3">
         <h2 id={headingId} className="text-display-sm [text-wrap:balance] md:text-display-md">{title ?? PRICING_HOOK}</h2>
         <p className="text-body-lg text-on-surface-light">
-          {description ?? `Luego ${PRICE} COP/mes. Cancela en cualquier momento con 1 clic. Si cancelas o un cobro falla, tu cuenta sigue en NoutLife Lite y no pierdes nada.`}
+          {description ?? (annual
+            ? `Luego ${PRICE} COP/mes, o ${ANNUAL} al año con ${freeMonthsLabel()}. Cancela en cualquier momento con 1 clic. Si cancelas o un cobro falla, tu cuenta sigue en NoutLife Lite y no pierdes nada.`
+            : `Luego ${PRICE} COP/mes. Cancela en cualquier momento con 1 clic. Si cancelas o un cobro falla, tu cuenta sigue en NoutLife Lite y no pierdes nada.`)}
         </p>
       </div>
 
       {showRibbon && (
         <TrialRibbon
           className="max-w-[560px]"
-          chargeLabel={`Día ${TRIAL_DAYS + 1}: ${PRICE}/mes`}
-          summary={`Los primeros ${TRIAL_DAYS} días son gratis. El día ${TRIAL_DAYS + 1} empieza el cobro de ${PRICE} COP al mes.`}
+          chargeLabel={`Día ${TRIAL_DAYS + 1}: ${priceLabel}`}
+          summary={`Los primeros ${TRIAL_DAYS} días son gratis. El día ${TRIAL_DAYS + 1} empieza el cobro de ${formatCop(priceFor(interval))} COP ${interval === 'year' ? 'por el año' : 'al mes'}.`}
         />
       )}
 
@@ -130,16 +161,23 @@ export function PricingSection({ mode, subscription, title, description, showRib
               <p className="text-body-sm text-on-surface-light">Todo NoutLife, sin topes.</p>
             </div>
             {current === 'pro'
-              ? <Badge variant="secondary">Tu plan</Badge>
+              ? <Badge variant="secondary">{subscription?.interval === 'year' ? 'Tu plan · Anual' : 'Tu plan'}</Badge>
               : (mode === 'public' || subscription?.trialAvailable) && <Badge variant="secondary">{TRIAL_DAYS} días gratis</Badge>}
           </div>
-          <div className="flex flex-col gap-1">
-            <p className="flex flex-wrap items-baseline gap-x-2">
-              <span className="text-display-md tabular-nums tracking-tight md:text-display-lg">{PRICE}</span>
-              <span className="text-body-lg text-on-surface-light">COP/mes</span>
-            </p>
-            <p className="text-body-sm text-on-background">{PRO_FRAMING}</p>
-          </div>
+          {annual ? (
+            <div className="flex flex-col gap-3">
+              <PlanIntervalPicker value={interval} onChange={setInterval} discountPercent={discountPercent} surface={mode === 'public' ? 'landing' : 'plan'} className="pt-1" />
+              <p className="text-body-sm text-on-background">{framingFor(interval)}</p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-1">
+              <p className="flex flex-wrap items-baseline gap-x-2">
+                <span className="text-display-md tabular-nums tracking-tight md:text-display-lg">{PRICE}</span>
+                <span className="text-body-lg text-on-surface-light">COP/mes</span>
+              </p>
+              <p className="text-body-sm text-on-background">{PRO_FRAMING}</p>
+            </div>
+          )}
           <Points items={PRO_POINTS} tone="pro" />
           {proAction && (
             <div className="mt-auto flex flex-col gap-2 pt-2">
@@ -166,6 +204,20 @@ export function PricingSection({ mode, subscription, title, description, showRib
         </Card>
       </div>
 
+      {/* Por qué un año: el compromiso con tu propio sistema, en un solo espacio. Solo con el anual elegido. */}
+      {annual && interval === 'year' && (
+        <div className="flex flex-col gap-4 rounded-2xl border border-secondary/40 bg-secondary/[var(--lq-soft-alpha)] p-5 md:p-6">
+          <div className="flex max-w-[640px] flex-col gap-1.5">
+            <h3 className="text-heading-md">{ANNUAL_PITCH.title}</h3>
+            <p className="text-body-md text-on-surface">{ANNUAL_PITCH.body}</p>
+          </div>
+          <div className="grid gap-x-6 gap-y-2.5 md:grid-cols-2">
+            <Points items={ANNUAL_PITCH.points.slice(0, 2)} tone="pro" />
+            <Points items={ANNUAL_PITCH.points.slice(2)} tone="pro" />
+          </div>
+        </div>
+      )}
+
       <div className="overflow-hidden rounded-2xl border border-border bg-surface">
         <table className="w-full border-collapse text-left text-body-sm md:text-body-md">
           <caption className="sr-only">Comparación entre NoutLife Pro y NoutLife Lite</caption>
@@ -191,7 +243,7 @@ export function PricingSection({ mode, subscription, title, description, showRib
       <div className="flex flex-col gap-3">
         <h3 className="text-heading-md">Preguntas sobre el plan</h3>
         <div className="flex flex-col gap-3">
-          {FAQ.map((item, i) => (
+          {faq.map((item, i) => (
             <AccordionItem key={item.q} title={item.q} open={openFaq === i} onToggle={() => setOpenFaq(openFaq === i ? null : i)}>
               <p className="max-w-prose px-4 pb-4 text-body-md text-on-surface md:px-5">{item.a}</p>
             </AccordionItem>

@@ -12,6 +12,7 @@ import {
   type CardTrialKind, type PlanPreview,
 } from '@/lib/planPreview';
 import { track } from '@/lib/analytics';
+import { annualAvailable } from '@/lib/plan';
 
 const shownKey = (userId: string, daysLeft: number) => `lq_trial_notice:${userId}:${daysLeft}`;
 const read = (key: string) => { try { return localStorage.getItem(key); } catch { return null; } };
@@ -90,7 +91,7 @@ export function TrialNotice() {
           {lines.map((line) => <li key={line}>{line}</li>)}
         </ul>
         <p className="rounded-2xl bg-primary/[var(--lq-soft-alpha)] px-4 py-3 text-body-md text-primary-text">
-          {foundingPriceLine()} Cancelas con 1 clic.
+          {foundingPriceLine(annualAvailable(sub))} Cancelas con 1 clic.
         </p>
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <Button variant="secondary" size="md" onClick={close}>Después</Button>

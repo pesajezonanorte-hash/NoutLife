@@ -3,9 +3,9 @@
  * límites de Lite y las pruebas usen exactamente la misma lógica.
  *
  *   trialing  7 días de Pro. Toda cuenta nueva nace así, sin medio de pago (prueba inversa): al
- *             vencer pasa sola a Lite sin perder nada. Con un medio de pago vinculado, al vencer se cobra el primer mes.
- *   active    mes pagado. Al vencer se cobra el siguiente.
- *   canceled  la persona canceló: conserva Pro hasta el fin de su prueba o mes pagado.
+ *             vencer pasa sola a Lite sin perder nada. Con un medio de pago vinculado, al vencer se cobra el primer periodo.
+ *   active    periodo pagado (un mes o un año, según billingInterval). Al vencer se cobra el siguiente.
+ *   canceled  la persona canceló: conserva Pro hasta el fin de su prueba o periodo pagado.
  *   lite      sin pago activo. Funciona con los límites de Lite y las zonas Pro con candado.
  *
  * No hay paywall de entrada: nadie tiene que vincular un medio de pago para entrar.
@@ -15,6 +15,28 @@ export const TRIAL_DAYS = 7;
 export const PRO_PRICE_COP = 9900;
 export const PRO_AMOUNT_IN_CENTS = PRO_PRICE_COP * 100;
 export const PRO_CURRENCY = 'COP';
+
+/**
+ * Cada cuánto se cobra Pro. 'month' es el cobro de siempre; 'year' cobra 12 meses de una vez.
+ * Lo guarda la cuenta (users.billingInterval) y rige el próximo cobro: el fin de la prueba o la renovación.
+ */
+export type BillingInterval = 'month' | 'year';
+export const BILLING_INTERVALS: readonly BillingInterval[] = ['month', 'year'];
+/**
+ * Pro Anual (plan v3, Rev7): 12 meses por $89.900. Frente a 12 cobros de $9.900 ($118.800) se ahorran
+ * $28.900, un 24 %: casi 3 meses gratis, unos $246 al día. También es tarifa congelada.
+ */
+export const PRO_ANNUAL_PRICE_COP = 89900;
+
+/** Intervalo guardado; cualquier valor desconocido (o cuentas anteriores) cobra mensual. */
+export function intervalOf(value: string | null | undefined): BillingInterval {
+  return value === 'year' ? 'year' : 'month';
+}
+
+/** Precio de lista de un periodo de Pro, en pesos. */
+export function priceCopFor(interval: BillingInterval): number {
+  return interval === 'year' ? PRO_ANNUAL_PRICE_COP : PRO_PRICE_COP;
+}
 
 /** NoutLife Lite. La IA es solo de Pro (requirePro('ai') y canUseAI). */
 export const LITE_LIMITS = {
@@ -97,15 +119,25 @@ export function addDays(date: Date, days: number): Date {
   return new Date(date.getTime() + days * DAY_MS);
 }
 
-/** Mismo día del mes siguiente; el 31 de enero pasa al último día de febrero. */
-export function addMonth(date: Date): Date {
+/** Mismo día `months` meses después; si ese mes es más corto, su último día (31 de enero + 1 → 28 de febrero). */
+export function addMonths(date: Date, months: number): Date {
   const next = new Date(date);
   const day = next.getUTCDate();
   next.setUTCDate(1);
-  next.setUTCMonth(next.getUTCMonth() + 1);
+  next.setUTCMonth(next.getUTCMonth() + months);
   const lastDay = new Date(Date.UTC(next.getUTCFullYear(), next.getUTCMonth() + 1, 0)).getUTCDate();
   next.setUTCDate(Math.min(day, lastDay));
   return next;
+}
+
+/** Mismo día del mes siguiente; el 31 de enero pasa al último día de febrero. */
+export function addMonth(date: Date): Date {
+  return addMonths(date, 1);
+}
+
+/** Fin del periodo pagado que empieza en `start`: un mes o un año (el 29 de febrero pasa al 28). */
+export function periodEndFor(start: Date, interval: BillingInterval): Date {
+  return addMonths(start, interval === 'year' ? 12 : 1);
 }
 
 /** Fin de la prueba. Las cuentas sin fecha (creadas antes del campo) cuentan desde su alta. */
