@@ -1,51 +1,56 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  ANNUAL_PITCH, ANNUAL_SAVINGS_COP, ANNUAL_SAVINGS_PERCENT, PRO_ANNUAL_PER_DAY_COP, PRO_ANNUAL_PER_MONTH_COP, PRO_ANNUAL_PRICE_COP,
-  annualAvailable, chargeLine, firstPaymentCop, firstPriceLabel, framingFor, freeMonthsLabel, longDate,
-} from '../../src/lib/plan';
+import { PRICE_LISTS, PRO_ANNUAL_PRICE_COP, annualAvailable, longDate } from '../../src/lib/plan';
+import { freeMonthsLabel, offerFor } from '../../src/lib/offer';
 import { cardTrialCopy, foundingPriceLine, trialDoneLine } from '../../src/lib/planPreview';
+
+// La oferta colombiana en español: los mismos textos de siempre (montos en centavos: pesos × 100).
+const co = offerFor('es', PRICE_LISTS.CO);
+const cop = (pesos: number) => pesos * 100;
 
 test('annual numbers come from the price arithmetic: $89.900, $28.900 saved (24 %), $7.492 a month, $246 a day', () => {
   assert.equal(PRO_ANNUAL_PRICE_COP, 89900);
-  assert.equal(ANNUAL_SAVINGS_COP, 28900);
-  assert.equal(ANNUAL_SAVINGS_PERCENT, 24);
-  assert.equal(PRO_ANNUAL_PER_MONTH_COP, 7492);
-  assert.equal(PRO_ANNUAL_PER_DAY_COP, 246);
+  assert.equal(co.listFor('year'), cop(89900));
+  assert.equal(co.savings, cop(28900));
+  assert.equal(co.savingsPercent, 24);
+  assert.equal(co.perMonthOfYear, cop(7492));
+  assert.equal(co.perDayFor('year'), cop(246));
+  assert.equal(co.perDayFor('month'), cop(330));
 });
 
 test('free months are only claimed when the arithmetic backs them', () => {
-  assert.equal(freeMonthsLabel(), 'casi 3 meses gratis');
-  assert.equal(freeMonthsLabel(19800), '2 meses gratis');
-  assert.equal(freeMonthsLabel(29700), '3 meses gratis');
-  assert.equal(freeMonthsLabel(24750), 'más de 2 meses gratis');
-  assert.equal(freeMonthsLabel(9900), '1 mes gratis');
+  assert.equal(co.freeMonths, 'casi 3 meses gratis');
+  assert.equal(freeMonthsLabel(19800, 9900), '2 meses gratis');
+  assert.equal(freeMonthsLabel(29700, 9900), '3 meses gratis');
+  assert.equal(freeMonthsLabel(24750, 9900), 'más de 2 meses gratis');
+  assert.equal(freeMonthsLabel(9900, 9900), '1 mes gratis');
 });
 
 test('first payment with a creator code: whole pesos, capped at 50 %, same as the API', () => {
-  assert.equal(firstPaymentCop('year'), 89900);
-  assert.equal(firstPaymentCop('year', 10), 80910);
-  assert.equal(firstPaymentCop('month', 15), 8415);
-  assert.equal(firstPaymentCop('month', 80), 4950);
-  assert.equal(firstPriceLabel('year', 89900), '$89.900/año');
-  assert.equal(firstPriceLabel('year', 80910), '$80.910 el primer año');
-  assert.equal(firstPriceLabel('month', 9900), '$9.900/mes');
+  assert.equal(co.firstPayment('year'), cop(89900));
+  assert.equal(co.firstPayment('year', 10), cop(80910));
+  assert.equal(co.firstPayment('month', 15), cop(8415));
+  assert.equal(co.firstPayment('month', 80), cop(4950));
+  assert.equal(co.priceLabel('year', cop(89900)), '$89.900/año');
+  assert.equal(co.priceLabel('year', cop(80910)), '$80.910 el primer año');
+  assert.equal(co.priceLabel('month', cop(9900)), '$9.900/mes');
 });
 
 test('what is charged today and after, in one sentence', () => {
-  assert.equal(chargeLine('year', 89900), 'Hoy $89.900 por 12 meses de Pro. Se renueva cada año, el mismo día. Cancela la renovación con 1 clic.');
-  assert.equal(chargeLine('year', 80910), 'Hoy $80.910 por 12 meses de Pro. Luego $89.900 cada año, el mismo día. Cancela la renovación con 1 clic.');
-  assert.equal(chargeLine('month', 9900), 'Hoy $9.900 y luego cada mes, el mismo día. Cancela en cualquier momento con 1 clic.');
-  assert.equal(chargeLine('month', 8910), 'Hoy $8.910 y luego $9.900 cada mes, el mismo día. Cancela en cualquier momento con 1 clic.');
+  assert.equal(co.chargeLine('year', cop(89900)), 'Hoy $89.900 por 12 meses de Pro. Se renueva cada año, el mismo día. Cancela la renovación con 1 clic.');
+  assert.equal(co.chargeLine('year', cop(80910)), 'Hoy $80.910 por 12 meses de Pro. Luego $89.900 cada año, el mismo día. Cancela la renovación con 1 clic.');
+  assert.equal(co.chargeLine('month', cop(9900)), 'Hoy $9.900 y luego cada mes, el mismo día. Cancela en cualquier momento con 1 clic.');
+  assert.equal(co.chargeLine('month', cop(8910)), 'Hoy $8.910 y luego $9.900 cada mes, el mismo día. Cancela en cualquier momento con 1 clic.');
 });
 
 test('per-day framing for each plan, never a product comparison', () => {
-  assert.equal(framingFor('month'), 'Solo $330 COP al día para desbloquear todo tu potencial.');
-  assert.equal(framingFor('year'), 'Solo $246 COP al día por un año completo de Pro.');
-  assert.equal(framingFor('year', true), 'Después de tu prueba: solo $246 COP al día por un año completo de Pro.');
-  const copy = [framingFor('year'), ANNUAL_PITCH.title, ANNUAL_PITCH.body, ...ANNUAL_PITCH.points].join(' ');
+  assert.equal(co.framing('month'), 'Solo $330 COP al día para desbloquear todo tu potencial.');
+  assert.equal(co.framing('month', true), 'Después de tu prueba: solo $330 COP al día para desbloquear todo tu potencial.');
+  assert.equal(co.framing('year'), 'Solo $246 COP al día por un año completo de Pro.');
+  assert.equal(co.framing('year', true), 'Después de tu prueba: solo $246 COP al día por un año completo de Pro.');
+  const copy = [co.framing('year'), co.annualPitch.title, co.annualPitch.body, ...co.annualPitch.points].join(' ');
   assert.doesNotMatch(copy, /café|sándwich|XP|nivel|héroe|temporada/i);
-  assert.match(ANNUAL_PITCH.body, /casi 3 meses gratis/);
+  assert.match(co.annualPitch.body, /casi 3 meses gratis/);
 });
 
 test('the annual plan is offered only when the API returns an interval (an older API would bill monthly)', () => {

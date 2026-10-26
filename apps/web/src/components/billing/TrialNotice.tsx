@@ -13,6 +13,7 @@ import {
 } from '@/lib/planPreview';
 import { track } from '@/lib/analytics';
 import { annualAvailable } from '@/lib/plan';
+import { useOffer } from '@/lib/useOffer';
 
 const shownKey = (userId: string, daysLeft: number) => `lq_trial_notice:${userId}:${daysLeft}`;
 const read = (key: string) => { try { return localStorage.getItem(key); } catch { return null; } };
@@ -21,6 +22,8 @@ const write = (key: string) => { try { localStorage.setItem(key, '1'); } catch {
 export function TrialNotice() {
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
+  const offer = useOffer();
+  const { locale } = offer;
   const daysLeft = trialNoticeDaysLeft(user?.subscription);
   const [preview, setPreview] = useState<PlanPreview | null>(null);
   const [open, setOpen] = useState(false);
@@ -50,7 +53,7 @@ export function TrialNotice() {
   }, [user, daysLeft]);
 
   if (card && sub && userId) {
-    const copy = cardTrialCopy(card, sub);
+    const copy = cardTrialCopy(card, sub, locale);
     // Cerrar el aviso lo marca como visto para esta prueba: no vuelve a salir por la misma razón.
     const close = (toPlan: boolean) => {
       write(cardTrialKey(userId, card, sub.trialEndsAt));
@@ -59,7 +62,7 @@ export function TrialNotice() {
     };
     return (
       <ResponsiveDialog open onClose={() => close(false)} title={copy.title}>
-        <div className="flex flex-col gap-5">
+        <div lang={locale} className="flex flex-col gap-5">
           <p className="text-body-md text-on-surface">{copy.body}</p>
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
             <Button variant="secondary" size="md" onClick={() => close(true)}>{copy.secondary}</Button>
@@ -78,24 +81,25 @@ export function TrialNotice() {
   }
 
   const lines = [
-    contextFor('habits', preview),
-    contextFor('history', preview),
-    contextFor('notebooks', preview),
-    contextFor('routines', preview),
+    contextFor('habits', preview, locale),
+    contextFor('history', preview, locale),
+    contextFor('notebooks', preview, locale),
+    contextFor('routines', preview, locale),
   ].filter((line): line is string => Boolean(line));
+  const en = locale === 'en';
 
   return (
-    <ResponsiveDialog open onClose={close} title={trialNoticeTitle(daysLeft)}>
-      <div className="flex flex-col gap-5">
+    <ResponsiveDialog open onClose={close} title={trialNoticeTitle(daysLeft, locale)}>
+      <div lang={locale} className="flex flex-col gap-5">
         <ul className="flex flex-col gap-2 text-body-md text-on-surface">
           {lines.map((line) => <li key={line}>{line}</li>)}
         </ul>
         <p className="rounded-2xl bg-primary/[var(--lq-soft-alpha)] px-4 py-3 text-body-md text-primary-text">
-          {foundingPriceLine(annualAvailable(sub))} Cancelas con 1 clic.
+          {foundingPriceLine(annualAvailable(sub), offer)} {en ? 'Cancel in 1 click.' : 'Cancelas con 1 clic.'}
         </p>
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <Button variant="secondary" size="md" onClick={close}>Después</Button>
-          <Button size="md" onClick={() => { close(); navigate('/plan'); }}>Ver mi plan</Button>
+          <Button variant="secondary" size="md" onClick={close}>{en ? 'Later' : 'Después'}</Button>
+          <Button size="md" onClick={() => { close(); navigate('/plan'); }}>{en ? 'View my plan' : 'Ver mi plan'}</Button>
         </div>
       </div>
     </ResponsiveDialog>

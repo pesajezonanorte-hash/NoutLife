@@ -43,6 +43,23 @@ export type Plan = 'pro' | 'lite';
 /** Cada cuánto se cobra Pro: 'month' (mensual) o 'year' (anual). */
 export type BillingInterval = 'month' | 'year';
 
+/**
+ * Mercado de precios de la cuenta. 'CO' paga la lista en pesos de siempre; 'INTL' (todo lo que no es
+ * Colombia) ve la lista en dólares. Wompi cobra siempre en COP: un precio en USD se convierte con la
+ * TRM del día del cobro. Se fija al crear la cuenta; las cuentas anteriores son 'CO'.
+ */
+export type Market = 'CO' | 'INTL';
+/** Moneda en que se muestra y se fija el precio. */
+export type PriceCurrency = 'COP' | 'USD';
+
+/** Lista de precios de Pro de un mercado. Montos en centavos de su moneda (COP: pesos × 100). */
+export interface PriceList {
+  market: Market;
+  currency: PriceCurrency;
+  monthInCents: number;
+  yearInCents: number;
+}
+
 /** Código de creador aplicado a la cuenta. El descuento solo vale para el primer pago. */
 export interface CreatorCodeInfo {
   code: string;
@@ -85,6 +102,10 @@ export interface Subscription {
   creatorCode?: CreatorCodeInfo | null;
   /** Se puede poner, cambiar o quitar el código de creador (antes del primer pago). Ausente en APIs anteriores. */
   creatorCodeEditable?: boolean;
+  /** Lista de precios de la cuenta (mercado y moneda). Ausente en APIs anteriores: ahí todo es la lista en pesos. */
+  pricing?: PriceList;
+  /** Próximo cobro automático en la moneda de `pricing` (con el descuento del código en el primer pago). */
+  nextChargeInCents?: number | null;
 }
 
 export type HairStyle = 'short' | 'medium' | 'long' | 'shaved' | 'copete' | 'afro' | 'recogido' | 'trenzas' | 'ondulado';
@@ -128,4 +149,8 @@ export interface OAuthPayload {
   displayName?: string;
   /** Usuario de quien invitó (portada /i/:username). Solo se usa si la cuenta es nueva. */
   referredBy?: string;
+  /** Zona horaria IANA del dispositivo. En una cuenta nueva fija su zona y su mercado de precios. */
+  timezone?: string;
+  /** Idioma con que la persona usó la portada. Solo se guarda en una cuenta nueva. */
+  language?: 'es' | 'en';
 }

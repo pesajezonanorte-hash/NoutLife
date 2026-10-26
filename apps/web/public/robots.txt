@@ -1,9 +1,12 @@
 User-agent: *
 Allow: /$
+Allow: /es$
+Allow: /en$
 Allow: /login
 Allow: /privacy
 Allow: /terms
 Allow: /copyright
+Allow: /health-data
 Disallow: /api/
 Disallow: /onboarding
 Disallow: /profile

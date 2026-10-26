@@ -3,6 +3,7 @@ import { LETTERS_AND_GESTURES_SQL, REMOVE_LEGACY_HABIT_RITUAL_FLAG_SQL, RLS_LOCK
 import { BACKLOG_SQL, BACKLOG_V2_SQL, REVERSIBLE_HABIT_LOGS_SQL, WARDROBE_PHOTO_SQL } from './backlog-migrations';
 import { SUBSCRIPTIONS_SQL } from './billing-migrations';
 import { CREATOR_CODES_PAYMENTS_SQL, CREATOR_CODES_USERS_SQL } from './creator-code-migrations';
+import { MARKETS_PAYMENTS_SQL, MARKETS_USERS_SQL } from './market-migrations';
 import { ensureDefaultCatalog } from './default-catalog';
 
 function getDatabaseUrl(): string {
@@ -121,6 +122,9 @@ export function ensureDbMigrated(): Promise<void> {
         }
         for (const sql of [...CREATOR_CODES_USERS_SQL, ...CREATOR_CODES_PAYMENTS_SQL]) {
           await prisma.$executeRawUnsafe(sql).catch((err) => console.error('Runtime DB migration (creator codes):', err));
+        }
+        for (const sql of [...MARKETS_USERS_SQL, ...MARKETS_PAYMENTS_SQL]) {
+          await prisma.$executeRawUnsafe(sql).catch((err) => console.error('Runtime DB migration (markets):', err));
         }
         await prisma.$executeRawUnsafe(RLS_LOCKDOWN_SQL).catch((err) => console.error('Runtime RLS lockdown:', err));
 

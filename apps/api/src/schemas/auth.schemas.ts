@@ -7,6 +7,10 @@ export const oauthSchema = z.object({
   displayName: z.string().trim().max(50).optional(),
   /** Usuario de quien invitó (portada /i/:username). Solo cuenta si la cuenta es nueva. */
   referredBy: z.string().regex(/^[A-Za-z0-9_]{3,20}$/).optional(),
+  /** Zona horaria IANA del dispositivo. Solo en una cuenta nueva: fija su zona y su mercado de precios (lib/pricing). */
+  timezone: z.string().trim().max(64).optional(),
+  /** Idioma con que la persona usó la portada. Solo se guarda en una cuenta nueva. */
+  language: z.enum(['es', 'en']).optional(),
 });
 
 export type OAuthInput = z.infer<typeof oauthSchema>;

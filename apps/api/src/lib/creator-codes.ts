@@ -5,7 +5,8 @@
 //   · Quien aplica un código antes de su primer pago recibe el descuento del código en ese pago (mensual o anual).
 //   · Desde ahí, cada cobro aprobado de la cuenta queda atribuido al creador (tabla creator_code_payments).
 //   · Comisión: sharePercent de cada cobro hecho dentro de los primeros shareMonths meses desde la conversión.
-import { addMonths, intervalOf, priceCopFor, type BillingInterval } from './plans';
+import { addMonths, intervalOf, type BillingInterval } from './plans';
+import { PRICE_LISTS, listInCentsFor, roundingUnitOf, type Market, type PriceCurrency } from './pricing';
 
 /** 3 a 20 caracteres: letras sin tilde, números, guion o guion bajo, y empieza por letra o número. Se guarda en mayúsculas. */
 export const CREATOR_CODE_PATTERN = /^[A-Z0-9][A-Z0-9_-]{2,19}$/;
@@ -25,23 +26,27 @@ export function normalizeCreatorCode(raw: unknown): string | null {
 const clampPercent = (value: number, max: number) => Math.min(max, Math.max(0, Math.round(Number.isFinite(value) ? value : 0)));
 
 export interface ChargeQuote {
+  /** Moneda del precio: la del mercado de la cuenta. */
+  currency: PriceCurrency;
   /** Precio de lista del periodo. */
   listInCents: number;
   discountInCents: number;
-  /** Lo que se cobra en Wompi. */
+  /** Lo que se cobra, en la moneda del precio (un precio en USD se convierte a COP al cobrar en Wompi). */
   amountInCents: number;
 }
 
 /**
- * Monto de un cobro de Pro. El descuento del código solo va en el primer pago de la cuenta (la
- * conversión); las renovaciones van a precio de lista. Se redondea a pesos enteros: Wompi recibe
- * centavos, pero el COP no los usa.
+ * Monto de un cobro de Pro en la moneda del mercado. El descuento del código solo va en el primer pago
+ * de la cuenta (la conversión); las renovaciones van a precio de lista. El COP se redondea a pesos
+ * enteros (Wompi recibe centavos, pero el COP no los usa); el USD, a centavos.
  */
-export function quoteCharge(interval: BillingInterval, discountPercent = 0, firstPayment = false): ChargeQuote {
-  const list = priceCopFor(interval);
+export function quoteCharge(interval: BillingInterval, discountPercent = 0, firstPayment = false, market: Market = 'CO'): ChargeQuote {
+  const { currency } = PRICE_LISTS[market];
+  const list = listInCentsFor(market, interval);
+  const unit = roundingUnitOf(currency);
   const percent = firstPayment ? clampPercent(discountPercent, MAX_CREATOR_DISCOUNT_PERCENT) : 0;
-  const discount = Math.round((list * percent) / 100);
-  return { listInCents: list * 100, discountInCents: discount * 100, amountInCents: (list - discount) * 100 };
+  const discount = Math.round(((list / unit) * percent) / 100) * unit;
+  return { currency, listInCents: list, discountInCents: discount, amountInCents: list - discount };
 }
 
 /** ¿El cobro cae dentro de la ventana de comisión? Sin `shareMonths` (null) no hay límite. */

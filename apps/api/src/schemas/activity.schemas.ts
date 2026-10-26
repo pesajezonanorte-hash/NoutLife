@@ -161,7 +161,8 @@ export const updateProfileSchema = withLegacyKeys(z.object({
   displayName: z.string().trim().min(1, 'El nombre no puede estar vacío.').max(50).optional(),
   timezone: z.string().min(1).optional(),
   currency: z.string().min(1).optional(),
-  language: z.string().min(1).optional(),
+  /** Idioma de la app: español o inglés. */
+  language: z.enum(['es', 'en']).optional(),
   coliseoPlaylistUrl: z.string().nullable().optional(),
   avatarUrl: z.string().nullable().optional(),
   gender: z.enum(GENDERS).nullable().optional(),

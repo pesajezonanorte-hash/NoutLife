@@ -226,6 +226,9 @@ model User {
   lastPaymentError   String?
   /// Cada cuánto se cobra Pro: 'month' | 'year'. Rige el próximo cobro (fin de la prueba o renovación).
   billingInterval    String    @default("month")
+  /// Mercado de precios: 'CO' (lista en pesos) | 'INTL' (lista en dólares, cobrada en COP con la TRM del día).
+  /// Se fija al crear la cuenta por la zona horaria del dispositivo; las cuentas anteriores son 'CO'.
+  market             String    @default("CO")
   /// Código de creador aplicado antes del primer pago: descuento en ese pago y cobros atribuidos al creador.
   creatorCodeId      String?
   creatorCode        CreatorCode? @relation(fields: [creatorCodeId], references: [id], onDelete: SetNull)
@@ -371,6 +374,10 @@ model SubscriptionPayment {
   creatorCodeId      String?
   creatorCode        CreatorCode? @relation(fields: [creatorCodeId], references: [id], onDelete: SetNull)
   discountInCents    Int      @default(0)
+  /// Precio que vio la persona, en la moneda de su mercado y ya con el descuento: 'COP' | 'USD'.
+  /// amountInCents y currency son lo que cobró Wompi (siempre COP). Null en cobros anteriores (COP).
+  priceCurrency      String?
+  priceAmountInCents Int?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

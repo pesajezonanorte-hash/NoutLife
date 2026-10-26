@@ -6,6 +6,7 @@ import { Button, ResponsiveDialog } from '@/components/ui/lq';
 import { useAuthStore } from '@/store/authStore';
 import { useTourDone } from '@/components/onboarding/WelcomeTour';
 import { GIFT_WELCOME, giftWelcomeKey, giftWelcomeWaitsForTour, shouldShowGiftWelcome } from '@/lib/gift';
+import { useLocale } from '@/lib/i18n';
 import { track } from '@/lib/analytics';
 
 const read = (key: string) => { try { return localStorage.getItem(key); } catch { return null; } };
@@ -16,6 +17,8 @@ export function GiftWelcome() {
   const sub = user?.subscription;
   const tourDone = useTourDone(user?.id);
   const navigate = useNavigate();
+  const locale = useLocale();
+  const t = GIFT_WELCOME[locale];
   const [open, setOpen] = useState(false);
 
   // Se evalúa al cambiar de cuenta o de estado del regalo (no en cada render).
@@ -38,15 +41,15 @@ export function GiftWelcome() {
   }
 
   return (
-    <ResponsiveDialog open onClose={close} title={GIFT_WELCOME.title}>
-      <div className="flex flex-col gap-5">
+    <ResponsiveDialog open onClose={close} title={t.title}>
+      <div lang={locale} className="flex flex-col gap-5">
         <div className="flex flex-col gap-3 text-body-md text-on-surface">
-          <p>{GIFT_WELCOME.body}</p>
-          <p className="text-on-surface-light">{GIFT_WELCOME.ending}</p>
+          <p>{t.body}</p>
+          <p className="text-on-surface-light">{t.ending}</p>
         </div>
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <Button variant="secondary" size="md" onClick={() => { close(); navigate('/plan'); }}>Ver mi plan</Button>
-          <Button size="md" onClick={close}>Empezar</Button>
+          <Button variant="secondary" size="md" onClick={() => { close(); navigate('/plan'); }}>{t.plan}</Button>
+          <Button size="md" onClick={close}>{t.start}</Button>
         </div>
       </div>
     </ResponsiveDialog>

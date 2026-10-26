@@ -46,9 +46,9 @@ test('creator codes are case-insensitive, 3 to 20 characters, letters, numbers, 
 });
 
 test('the code discount applies only to the first payment, monthly or annual, in whole pesos', () => {
-  assert.deepEqual(quoteCharge('month'), { listInCents: 990000, discountInCents: 0, amountInCents: 990000 });
-  assert.deepEqual(quoteCharge('year', 10, true), { listInCents: 8990000, discountInCents: 899000, amountInCents: 8091000 });
-  assert.deepEqual(quoteCharge('month', 15, true), { listInCents: 990000, discountInCents: 148500, amountInCents: 841500 });
+  assert.deepEqual(quoteCharge('month'), { currency: 'COP', listInCents: 990000, discountInCents: 0, amountInCents: 990000 });
+  assert.deepEqual(quoteCharge('year', 10, true), { currency: 'COP', listInCents: 8990000, discountInCents: 899000, amountInCents: 8091000 });
+  assert.deepEqual(quoteCharge('month', 15, true), { currency: 'COP', listInCents: 990000, discountInCents: 148500, amountInCents: 841500 });
   // Renovación: precio de lista aunque la cuenta tenga código.
   assert.equal(quoteCharge('year', 10, false).amountInCents, 8990000);
   // El descuento nunca pasa del 50 % ni baja de 0.

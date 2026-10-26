@@ -1,98 +1,133 @@
-// Política de privacidad (/privacy), Términos de uso (/terms) y Propiedad
-// intelectual (/copyright). Públicas: las enlazan el login, Ajustes, el pie y las
-// fichas de las tiendas. El texto vive en ./content.ts.
-import { useEffect } from 'react';
+// Política de privacidad (/privacy), Términos de uso (/terms), Propiedad intelectual (/copyright) y la
+// política de datos de salud de EE. UU. (/health-data). Públicas: las enlazan la portada, el checkout,
+// Ajustes, el pie y las fichas de las tiendas. Cada documento existe en español (./content.ts) e inglés
+// (./content.en.ts); se abre en el idioma de la persona y se puede leer en el otro sin cambiar su idioma.
+// La política de datos de salud (Washington My Health My Data Act) solo existe en inglés.
+import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Languages } from 'lucide-react';
 import { BrandLockup } from '@/components/layout/Brand';
 import { Button } from '@/components/ui/lq';
 import { LegalFooter } from '@/components/legal/LegalFooter';
-import { COPYRIGHT, LEGAL_UPDATED, PRIVACY, TERMS } from './content';
+import { LocaleProvider, useDocumentLang, useLocale, type Copy, type Locale } from '@/lib/i18n';
+import { useDocumentMeta } from '@/lib/seo';
+import { COPYRIGHT, LEGAL_UPDATED, PRIVACY, TERMS, type LegalSection } from './content';
+import { COPYRIGHT_EN, HEALTH_DATA_EN, LEGAL_UPDATED_EN, PRIVACY_EN, TERMS_EN } from './content.en';
 
-const SITE = (
-  import.meta.env.VITE_SITE_URL ||
-  import.meta.env.NEXT_PUBLIC_SITE_URL ||
-  (typeof window !== 'undefined' ? window.location.origin : '') ||
-  'https://noutlife.site'
-).replace(/\/+$/, '');
-const SEO = {
-  privacy: { path: '/privacy', title: 'Política de privacidad', description: 'Cómo NoutLife recopila, usa y protege tus datos: inicio de sesión con Google, proveedores de IA, almacenamiento local y tus derechos.' },
-  terms: { path: '/terms', title: 'Términos de uso', description: 'Reglas de uso de NoutLife: edad mínima, contenido del usuario, servicios de terceros y responsabilidad.' },
-  copyright: { path: '/copyright', title: 'Propiedad intelectual y DMCA', description: 'Titularidad de la marca, el diseño y el código de NoutLife, prohibición de clonación y procedimiento DMCA.' },
-} as const;
+type Kind = 'privacy' | 'terms' | 'copyright' | 'health';
 
-function setMeta(selector: string, attr: 'content' | 'href', value: string) {
-  document.head.querySelector(selector)?.setAttribute(attr, value);
-}
+interface Doc { title: string; description: string; sections: LegalSection[]; updated: string }
 
-/** Título, descripción, canonical y Open Graph propios de cada página legal; se restauran al salir. */
-function useLegalSeo(kind: keyof typeof SEO) {
-  useEffect(() => {
-    const { path, title, description } = SEO[kind];
-    const fullTitle = `${title} — NoutLife`;
-    const url = SITE + path;
-    const q = (sel: string, attr: 'content' | 'href') => document.head.querySelector(sel)?.getAttribute(attr) ?? '';
-    const prev = {
-      title: document.title,
-      description: q('meta[name="description"]', 'content'),
-      ogTitle: q('meta[property="og:title"]', 'content'),
-      ogDescription: q('meta[property="og:description"]', 'content'),
-      ogUrl: q('meta[property="og:url"]', 'content'),
-      canonical: q('link[rel="canonical"]', 'href'),
-    };
-    document.title = fullTitle;
-    setMeta('meta[name="description"]', 'content', description);
-    setMeta('meta[property="og:title"]', 'content', fullTitle);
-    setMeta('meta[property="og:description"]', 'content', description);
-    setMeta('meta[property="og:url"]', 'content', url);
-    setMeta('link[rel="canonical"]', 'href', url);
-    return () => {
-      document.title = prev.title;
-      setMeta('meta[name="description"]', 'content', prev.description);
-      setMeta('meta[property="og:title"]', 'content', prev.ogTitle);
-      setMeta('meta[property="og:description"]', 'content', prev.ogDescription);
-      setMeta('meta[property="og:url"]', 'content', prev.ogUrl);
-      setMeta('link[rel="canonical"]', 'href', prev.canonical);
-    };
-  }, [kind]);
+const DOCS: Record<Kind, { path: string; es: Doc | null; en: Doc }> = {
+  privacy: {
+    path: '/privacy',
+    es: { title: 'Política de privacidad', description: 'Cómo NoutLife recopila, usa y protege tus datos: inicio de sesión con Google, proveedores de IA, almacenamiento local y tus derechos.', sections: PRIVACY, updated: LEGAL_UPDATED },
+    en: { title: 'Privacy Policy', description: 'How NoutLife collects, uses and protects your information: Google sign-in, payments, AI providers, analytics and your privacy rights, including US state rights.', sections: PRIVACY_EN, updated: LEGAL_UPDATED_EN },
+  },
+  terms: {
+    path: '/terms',
+    es: { title: 'Términos de uso', description: 'Reglas de uso de NoutLife: edad mínima, contenido del usuario, servicios de terceros y responsabilidad.', sections: TERMS, updated: LEGAL_UPDATED },
+    en: { title: 'Terms of Service', description: 'The rules for using NoutLife: eligibility, subscriptions and automatic renewal, cancellation, your content, acceptable use and liability.', sections: TERMS_EN, updated: LEGAL_UPDATED_EN },
+  },
+  copyright: {
+    path: '/copyright',
+    es: { title: 'Propiedad intelectual y DMCA', description: 'Titularidad de la marca, el diseño y el código de NoutLife, prohibición de clonación y procedimiento DMCA.', sections: COPYRIGHT, updated: LEGAL_UPDATED },
+    en: { title: 'Intellectual Property & Copyright', description: 'Ownership of the NoutLife brand, design and code, restrictions on copying, and how to report copyright infringement under the DMCA.', sections: COPYRIGHT_EN, updated: LEGAL_UPDATED_EN },
+  },
+  health: {
+    path: '/health-data',
+    es: null,
+    en: { title: 'Consumer Health Data Privacy Policy', description: 'How NoutLife collects, uses and shares consumer health data, and how to exercise your rights under Washington’s My Health My Data Act.', sections: HEALTH_DATA_EN, updated: LEGAL_UPDATED_EN },
+  },
+};
+
+const UI: Copy<{
+  back: string; updated: (date: string) => string; seeAlso: string; other: string; englishOnly: string;
+  links: Record<Kind, string>;
+}> = {
+  es: {
+    back: 'Volver',
+    updated: (date) => `Última actualización: ${date}`,
+    seeAlso: 'Lee también:',
+    other: 'Read in English',
+    englishOnly: 'Este aviso aplica a residentes de Estados Unidos y solo está disponible en inglés.',
+    links: { privacy: 'Política de privacidad', terms: 'Términos de uso', copyright: 'Propiedad intelectual', health: 'Datos de salud' },
+  },
+  en: {
+    back: 'Back',
+    updated: (date) => `Last updated: ${date}`,
+    seeAlso: 'See also:',
+    other: 'Leer en español',
+    englishOnly: '',
+    links: { privacy: 'Privacy Policy', terms: 'Terms of Service', copyright: 'Intellectual Property', health: 'Consumer Health Data' },
+  },
+};
+
+function kindOf(pathname: string): Kind {
+  if (pathname.startsWith('/privacy')) return 'privacy';
+  if (pathname.startsWith('/copyright')) return 'copyright';
+  if (pathname.startsWith('/health-data')) return 'health';
+  return 'terms';
 }
 
 export default function LegalPage() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const kind = pathname.startsWith('/privacy') ? 'privacy' : pathname.startsWith('/copyright') ? 'copyright' : 'terms';
-  useLegalSeo(kind);
-  const sections = { privacy: PRIVACY, terms: TERMS, copyright: COPYRIGHT }[kind];
-  const title = { privacy: 'Política de privacidad', terms: 'Términos de uso', copyright: 'Propiedad intelectual y DMCA' }[kind];
+  const kind = kindOf(pathname);
+  const appLocale = useLocale();
+  // Leer el documento en el otro idioma no cambia el idioma de la app.
+  const [view, setView] = useState<Locale | null>(null);
+  const locale = view ?? appLocale;
+  const entry = DOCS[kind];
+  const doc = entry[locale] ?? entry.en;
+  const docLocale: Locale = entry[locale] ? locale : 'en';
+  const ui = UI[locale];
+
+  useDocumentLang(docLocale);
+  useDocumentMeta({ title: `${doc.title} — NoutLife`, description: doc.description, path: entry.path, locale: docLocale });
+
+  const others = (Object.keys(DOCS) as Kind[])
+    .filter((k) => k !== kind && (k !== 'health' || locale === 'en'))
+    .map((k) => <Link key={k} to={DOCS[k].path} className="text-primary-text underline">{ui.links[k]}</Link>);
+  const otherLocale: Locale = locale === 'es' ? 'en' : 'es';
 
   return (
-    <main className="min-h-dvh bg-background px-4 py-6 text-on-background md:py-12">
-      <article className="mx-auto flex max-w-[720px] flex-col gap-6">
-        <div className="flex items-center justify-between gap-3">
-          <BrandLockup />
-          <Button variant="ghost" onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))}>
-            <ArrowLeft aria-hidden className="size-5" strokeWidth={1.75} />Volver
-          </Button>
-        </div>
-        <header className="flex flex-col gap-1">
-          <h1 className="text-display-sm">{title}</h1>
-          <p className="text-body-sm text-on-surface-light">Última actualización: {LEGAL_UPDATED}</p>
-        </header>
-        {sections.map((s) => (
-          <section key={s.h} className="flex flex-col gap-2">
-            <h2 className="text-heading-md">{s.h}</h2>
-            {s.p.map((t) => <p key={t} className="text-body-lg text-on-surface">{t}</p>)}
-          </section>
-        ))}
-        <p className="text-body-sm text-on-surface-light">
-          Lee también: {[
-            kind !== 'privacy' && <Link key="p" to="/privacy" className="text-primary-text underline">Política de privacidad</Link>,
-            kind !== 'terms' && <Link key="t" to="/terms" className="text-primary-text underline">Términos de uso</Link>,
-            kind !== 'copyright' && <Link key="c" to="/copyright" className="text-primary-text underline">Propiedad intelectual</Link>,
-          ].filter(Boolean).flatMap((el, i) => (i ? [' · ', el] : [el]))}.
-        </p>
-        <LegalFooter className="-mx-4" />
-      </article>
-    </main>
+    <LocaleProvider value={locale}>
+      <main className="min-h-dvh bg-background px-4 py-6 text-on-background md:py-12">
+        <article lang={docLocale} className="mx-auto flex max-w-[720px] flex-col gap-6">
+          <div className="flex items-center justify-between gap-3">
+            <BrandLockup />
+            <Button variant="ghost" onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))}>
+              <ArrowLeft aria-hidden className="size-5" strokeWidth={1.75} />{ui.back}
+            </Button>
+          </div>
+          <header className="flex flex-col gap-2">
+            <h1 className="text-display-sm">{doc.title}</h1>
+            <p className="text-body-sm text-on-surface-light">{ui.updated(doc.updated)}</p>
+            {entry.es && (
+              <button
+                type="button"
+                lang={otherLocale}
+                onClick={() => setView(otherLocale)}
+                className="inline-flex min-h-11 items-center gap-1.5 self-start text-body-sm font-semibold text-primary-text underline-offset-4 hover:underline"
+              >
+                <Languages aria-hidden className="size-4" strokeWidth={1.75} />{ui.other}
+              </button>
+            )}
+            {!entry[locale] && ui.englishOnly && <p lang="es" className="text-body-sm text-on-surface-light">{ui.englishOnly}</p>}
+          </header>
+          {doc.sections.map((s) => (
+            <section key={s.h} className="flex flex-col gap-2">
+              <h2 className="text-heading-md">{s.h}</h2>
+              {s.p.map((t) => <p key={t} className="text-body-lg text-on-surface">{t}</p>)}
+            </section>
+          ))}
+          <p className="text-body-sm text-on-surface-light">
+            {ui.seeAlso} {others.flatMap((el, i) => (i ? [' · ', el] : [el]))}.
+          </p>
+          <LegalFooter className="-mx-4" />
+        </article>
+      </main>
+    </LocaleProvider>
   );
 }

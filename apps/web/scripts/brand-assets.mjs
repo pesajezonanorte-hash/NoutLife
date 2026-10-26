@@ -1,5 +1,6 @@
-// Genera los iconos transparentes (solo la N) y la og-image de NoutLife.
+// Genera los iconos transparentes (solo la N) y las og-image de NoutLife (español e inglés).
 // Uso (desde apps/web): node scripts/brand-assets.mjs public  → luego borra public/_check.png
+// Solo las og-image, sin tocar los iconos: --og (las dos), --og=es o --og=en.
 import { createRequire } from 'node:module';
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -8,6 +9,9 @@ const require = createRequire(new URL('../package.json', import.meta.url));
 const { chromium } = require('@playwright/test');
 
 const out = process.argv[2];
+const ogFlag = process.argv.find((arg) => arg.startsWith('--og'));
+const ogOnly = Boolean(ogFlag);
+const ogLangs = ogFlag?.includes('=') ? [ogFlag.split('=')[1]] : ['es', 'en'];
 mkdirSync(join(out, 'icons'), { recursive: true });
 mkdirSync(join(out, 'brand'), { recursive: true });
 
@@ -25,7 +29,7 @@ const markSvg = (v, size, pad) => `<svg xmlns="http://www.w3.org/2000/svg" width
 
 // icon.svg: favicon vectorial que cambia de tono con el tema del navegador.
 const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${square(0.02)}" role="img" aria-label="NoutLife"><title>NoutLife</title><style>.d{display:none}@media (prefers-color-scheme:dark){.l{display:none}.d{display:inline}}</style><defs>${grads(V.light, 'l')}${grads(V.dark, 'd')}</defs><g class="l">${PATHS.replace(/url\(#/g, 'url(#l')}</g><g class="d">${PATHS.replace(/url\(#/g, 'url(#d')}</g></svg>\n`;
-writeFileSync(join(out, 'icon.svg'), iconSvg);
+if (!ogOnly) writeFileSync(join(out, 'icon.svg'), iconSvg);
 
 const browser = await chromium.launch(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {});
 const page = await browser.newPage({ deviceScaleFactor: 1 });
@@ -37,14 +41,16 @@ async function png(svg, size, file) {
   return buf;
 }
 
+const fav = {};
+let apple;
+if (!ogOnly) {
 // PWA «any» y notificaciones: 8 % de aire.
 for (const s of [72, 96, 128, 144, 152, 192, 384, 512]) await png(markSvg(V.mid, s, 0.08), s, `icons/icon-${s}.png`);
 await png(markSvg(V.mid, 512, 0.08), 512, 'icon.png');
 // Apple Touch Icon 180×180.
-const apple = await png(markSvg(V.mid, 180, 0.1), 180, 'apple-touch-icon.png');
+apple = await png(markSvg(V.mid, 180, 0.1), 180, 'apple-touch-icon.png');
 writeFileSync(join(out, 'brand/apple-touch-icon.png'), apple);
 // Pestaña: casi sin margen para que la N se lea a 16 px.
-const fav = {};
 for (const s of [16, 32, 48]) fav[s] = await png(markSvg(V.mid, s, 0.02), s);
 writeFileSync(join(out, 'brand/favicon-32.png'), fav[32]);
 writeFileSync(join(out, 'brand/favicon-16.png'), fav[16]);
@@ -62,12 +68,20 @@ entries.forEach(({ s, data }, i) => {
   offset += data.length;
 });
 writeFileSync(join(out, 'favicon.ico'), Buffer.concat([header, ...entries.map((e) => e.data)]));
+}
 
-// og-image 1200×630: la N sin caja, wordmark y el nuevo eslogan.
+// og-image 1200×630: la N sin caja, wordmark y el eslogan, una por idioma (index.html y /es usan la
+// española; /en, la inglesa: las redes no ejecutan JS y leen la imagen de la cabecera estática).
+const OG = {
+  es: { file: 'og-image.png', h1: 'Tu rutina, tu mente y tus ideas en un solo lugar.', p: 'Hábitos, libreta, bienestar y metas en un espacio en calma.' },
+  en: { file: 'og-image-en.png', h1: 'Your routine, your mind and your ideas in one place.', p: 'Habits, notebook, wellbeing and goals in one calm space.' },
+};
 const wordmark = readFileSync(fileURLToPath(new URL('../public/brand/noutlife-wordmark.svg', import.meta.url)), 'utf8')
   .replace(/#0e1d16/g, '#eef6f0').replace(/<title>.*?<\/title>/, '');
+for (const lang of ogLangs) {
+const og = OG[lang];
 await page.setViewportSize({ width: 1200, height: 630 });
-await page.setContent(`<!doctype html><html><head>
+await page.setContent(`<!doctype html><html lang="${lang}"><head>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   html,body{margin:0;width:1200px;height:630px;overflow:hidden}
@@ -79,19 +93,22 @@ await page.setContent(`<!doctype html><html><head>
   .tx{display:flex;flex-direction:column;gap:30px}
   .wm svg{width:440px;height:auto;display:block}
   h1{margin:0;font-weight:500;font-size:44px;line-height:1.22;letter-spacing:-.01em;max-width:620px}
-  p{margin:0;font-size:22px;font-weight:400;color:#8faea0;letter-spacing:.02em}
+  p{margin:0;font-size:22px;font-weight:400;color:#8faea0;letter-spacing:.02em;text-wrap:balance}
   .site{position:absolute;right:56px;bottom:40px;font-size:18px;color:#5f7f71;letter-spacing:.06em}
 </style></head><body>
   <div class="mk">${markSvg(V.dark, 300, 0.02)}</div>
   <div class="tx">
     <div class="wm">${wordmark}</div>
-    <h1>Tu rutina, tu mente y tus ideas en un solo lugar.</h1>
-    <p>Hábitos, libreta, bienestar y metas en un espacio en calma.</p>
+    <h1>${og.h1}</h1>
+    <p>${og.p}</p>
   </div>
   <div class="site">noutlife.site</div>
 </body></html>`, { waitUntil: 'networkidle' });
 await page.evaluate(() => document.fonts.ready);
-writeFileSync(join(out, 'og-image.png'), await page.screenshot({ clip: { x: 0, y: 0, width: 1200, height: 630 } }));
+writeFileSync(join(out, og.file), await page.screenshot({ clip: { x: 0, y: 0, width: 1200, height: 630 } }));
+}
+
+if (ogOnly) { await browser.close(); console.log('ok'); process.exit(0); }
 
 // Hoja de control: iconos sobre fondos claros y oscuros.
 await page.setViewportSize({ width: 900, height: 300 });

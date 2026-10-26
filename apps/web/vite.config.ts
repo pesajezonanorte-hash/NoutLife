@@ -1,9 +1,11 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import { seoPages } from './scripts/seo-pages';
 
 export default defineConfig({
-  plugins: [react()],
+  // seoPages: HTML estático de /en y /es con la cabecera de su idioma (enlaces compartidos y Google).
+  plugins: [react(), seoPages()],
   resolve: {
     alias: {
       '@noutlife/shared': path.resolve(__dirname, '../../packages/shared/src/index.ts'),

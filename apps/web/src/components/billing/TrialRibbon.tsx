@@ -8,6 +8,7 @@ import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useMotionReduced } from '@/lib/motion';
 import { TRIAL_DAYS } from '@/lib/plan';
+import { useLocale } from '@/lib/i18n';
 
 interface TrialRibbonProps {
   /** Días de prueba ya vividos (pantalla de Plan). Sin valor, se marcan los 7 (sección pública). */
@@ -25,13 +26,14 @@ export function TrialRibbon({ elapsed, chargeLabel, summary, className }: TrialR
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, amount: 0.6 });
   const reduce = useMotionReduced();
+  const locale = useLocale();
   const show = inView || reduce;
   const filled = Math.min(TRIAL_DAYS, Math.max(0, elapsed ?? TRIAL_DAYS));
   const live = elapsed !== undefined;
   const days = Array.from({ length: TRIAL_DAYS }, (_, i) => i + 1);
 
   return (
-    <div ref={ref} className={cn('flex flex-col gap-2', className)}>
+    <div ref={ref} lang={locale} className={cn('flex flex-col gap-2', className)}>
       <p className="sr-only">{summary}</p>
       <div aria-hidden className="relative flex items-center justify-between">
         {/* Hilo que une los días: se tiende de izquierda a derecha. */}
@@ -79,7 +81,11 @@ export function TrialRibbon({ elapsed, chargeLabel, summary, className }: TrialR
         </motion.span>
       </div>
       <div aria-hidden className="flex items-baseline justify-between gap-3 text-body-sm">
-        <span className="text-on-surface-light">{live ? `Día ${Math.min(filled + 1, TRIAL_DAYS)} de ${TRIAL_DAYS}` : `${TRIAL_DAYS} días gratis`}</span>
+        <span className="text-on-surface-light">
+          {locale === 'en'
+            ? (live ? `Day ${Math.min(filled + 1, TRIAL_DAYS)} of ${TRIAL_DAYS}` : `${TRIAL_DAYS} days free`)
+            : (live ? `Día ${Math.min(filled + 1, TRIAL_DAYS)} de ${TRIAL_DAYS}` : `${TRIAL_DAYS} días gratis`)}
+        </span>
         <span className="font-semibold text-secondary-text">{chargeLabel}</span>
       </div>
     </div>

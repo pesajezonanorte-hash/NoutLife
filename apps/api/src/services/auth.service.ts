@@ -9,6 +9,7 @@ import { syncSubscription, type SubscriptionView } from './billing.service';
 import { claimReverseTrial } from './trial.service';
 import { attachReferral, recordDevice } from './referral.service';
 import { TRIAL_DAYS, addDays, giftEligible, isComplimentary } from '../lib/plans';
+import { marketForTimezone, validTimezone } from '../lib/pricing';
 
 function sanitizeUser(user: {
   id: string;
@@ -105,12 +106,16 @@ async function uniqueUsername(seed: string) {
   return `heroe${randomBytes(5).toString('hex')}`;
 }
 
+/** Lo que el navegador cuenta de la persona al registrarse: su zona horaria y el idioma de la portada. */
+type SignupLocale = Pick<OAuthInput, 'timezone' | 'language'>;
+
 /**
  * Busca la cuenta por el id estable de Google; si no existe, la enlaza por
  * email verificado (cuentas antiguas con contraseña) o crea una nueva. Las
  * cuentas nuevas empiezan sin onboarding y la app las lleva a completarlo.
+ * Solo una cuenta nueva toma la zona, el idioma y el mercado de precios del navegador.
  */
-async function findOrCreateUser(identity: OAuthIdentity, displayName?: string, referredBy?: string, deviceId?: string | null) {
+async function findOrCreateUser(identity: OAuthIdentity, displayName?: string, referredBy?: string, deviceId?: string | null, locale: SignupLocale = {}) {
   const bySub = await prisma.user.findFirst({ where: { googleSub: identity.sub } });
   if (bySub) return bySub;
 
@@ -129,6 +134,8 @@ async function findOrCreateUser(identity: OAuthIdentity, displayName?: string, r
     console.error('[AUTH_REVERSE_TRIAL_ERROR]', identity.email, error);
     return false;
   });
+  // Zona del dispositivo (si es válida) y su mercado: Colombia paga en pesos; el resto del mundo, la lista en dólares.
+  const timezone = validTimezone(locale.timezone);
   const user = await prisma.user.create({
     data: {
       email: identity.email,
@@ -137,6 +144,9 @@ async function findOrCreateUser(identity: OAuthIdentity, displayName?: string, r
       googleSub: identity.sub,
       subscriptionStatus: trial ? 'trialing' : 'lite',
       trialEndsAt: trial ? addDays(now, TRIAL_DAYS) : now,
+      ...(timezone ? { timezone } : {}),
+      ...(locale.language ? { language: locale.language } : {}),
+      market: marketForTimezone(timezone),
       avatarConfig: {
         bodyType: 'male', hairStyle: 'short', hairColor: '#4a3728', skinColor: '#c68642',
         shirtColor: '#4d96ff', pants: '#37474f', accessory: 'none', expression: 'normal', pet: null,
@@ -190,7 +200,7 @@ async function checkSubscription(userId: string): Promise<SubscriptionView | nul
 /** Inicio de sesión único: Google. No hay contraseñas. */
 export async function oauthSignIn(data: OAuthInput, deviceId?: string | null) {
   const identity = await verifyIdToken(data.provider, data.idToken);
-  const user = await findOrCreateUser(identity, data.displayName, data.referredBy, deviceId);
+  const user = await findOrCreateUser(identity, data.displayName, data.referredBy, deviceId, { timezone: data.timezone, language: data.language });
   await recordDevice(user.id, deviceId);
 
   const { reconcileUserActivityStreak } = await import('./xp.service');
