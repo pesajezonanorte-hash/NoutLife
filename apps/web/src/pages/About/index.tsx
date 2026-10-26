@@ -8,7 +8,7 @@
 // Solo transform/opacity; quieto con «Reducir movimiento».
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Compass, HeartHandshake, Instagram, LifeBuoy, ShieldCheck, Sparkles, Swords, Target } from 'lucide-react';
+import { Compass, HeartHandshake, Instagram, Leaf, LifeBuoy, ShieldCheck, Sparkles, Target } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { item, springSoft } from '@/lib/motion';
 import { buttonClasses } from '@/components/ui/lq/Button';
@@ -19,10 +19,10 @@ import { Lettering } from '@/components/layout/Lettering';
 
 const CREATOR = { name: 'Miguel Angel Romero', initials: 'MR', instagram: 'miguxlxr' };
 
-const TAGLINE = 'Tu vida real, jugada como la mejor partida.';
+const TAGLINE = 'Orden en calma para tu rutina, tu mente y tus ideas.';
 
 const PILLARS = [
-  { icon: Swords, title: 'Una aventura, no una lista', text: 'Hábitos, misiones, finanzas, sueño o entrenamientos dejan de ser tareas sueltas: cada avance suma XP, sube tu nivel y hace crecer a tu personaje.', tone: 'bg-primary/[var(--lq-soft-alpha)] text-primary-text' },
+  { icon: Leaf, title: 'Calma antes que ruido', text: 'Un diseño limpio y pocas decisiones por pantalla: abres, registras lo de hoy y sigues con tu día con la mente más clara.', tone: 'bg-primary/[var(--lq-soft-alpha)] text-primary-text' },
   { icon: Target, title: 'Constancia antes que perfección', text: 'Las rachas, los rituales y los pequeños logros premian volver cada día, aunque sea un poco. El progreso se construye así.', tone: 'bg-warning/[var(--lq-soft-alpha)] text-warning-text' },
   { icon: Compass, title: 'Toda tu vida en un lugar', text: 'Ver tus zonas juntas te ayuda a notar qué va bien, qué se está quedando atrás y dónde poner la energía esta semana.', tone: 'bg-info/[var(--lq-soft-alpha)] text-info-text' },
   { icon: ShieldCheck, title: 'Tus datos son tuyos', text: 'Puedes exportar todo lo que registras o borrarlo cuando quieras desde Ajustes.', tone: 'bg-success/[var(--lq-soft-alpha)] text-success-text' },
@@ -93,12 +93,12 @@ export default function AboutPage() {
               <h2 id="about-why" className="text-heading-lg md:text-display-sm">Mejorar es fácil de empezar y difícil de sostener.</h2>
               <div className="flex flex-col gap-4 text-body-lg text-on-surface">
                 <p>
-                  Todos hemos empezado un hábito con ganas y lo hemos dejado a las dos semanas. Los videojuegos, en cambio, saben
-                  exactamente cómo hacer que quieras volver: metas claras, progreso visible y recompensas por cada paso.
+                  Todos hemos empezado un hábito con ganas y lo hemos dejado a las dos semanas. Casi siempre lo que falta es
+                  un lugar tranquilo donde ver con claridad qué hiciste, qué sigue y por qué importa.
                 </p>
                 <p>
-                  Noutlife toma esas mismas ideas y las pone al servicio de tu vida real. Tú eres el personaje; tus hábitos,
-                  tus metas y tu descanso son la partida.
+                  Noutlife reúne tu rutina, tu mente y tus ideas en un solo espacio en calma: metas claras, progreso visible
+                  y nada de ruido, para que volver cada día se sienta ligero.
                 </p>
               </div>
             </div>
@@ -180,9 +180,9 @@ export default function AboutPage() {
           <div className="flex flex-col items-center gap-5 text-center">
             <Sparkles aria-hidden className="size-6 text-primary-text" strokeWidth={1.75} />
             <h2 id="about-exit" className="sr-only">Salida</h2>
-            <p className="max-w-lg text-body-lg text-on-surface">Gracias por jugar. Cada día que vuelves, tu personaje —y tú— sube un poco más.</p>
+            <p className="max-w-lg text-body-lg text-on-surface">Gracias por estar aquí. Cada día que vuelves, tu rutina se ordena un poco más.</p>
             <div className="flex flex-wrap justify-center gap-2">
-              <Link to="/" className={buttonClasses('primary', 'md')}><HeartHandshake aria-hidden className="size-5" strokeWidth={1.75} />Seguir mi aventura</Link>
+              <Link to="/" className={buttonClasses('primary', 'md')}><HeartHandshake aria-hidden className="size-5" strokeWidth={1.75} />Volver a mi día</Link>
               <Link to="/faq" className={buttonClasses('ghost', 'md')}><LifeBuoy aria-hidden className="size-5" strokeWidth={1.75} />Ayuda</Link>
             </div>
             <span className="flex items-center gap-2 text-body-sm text-on-surface-light">

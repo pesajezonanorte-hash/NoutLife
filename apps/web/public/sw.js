@@ -255,7 +255,7 @@ self.addEventListener('notificationclick', (event) => {
 });
 
 // ─── App shell cache ─────────────────────────────────────────────────────────
-const CACHE_NAME = 'noutlife-shell-v3';
+const CACHE_NAME = 'noutlife-shell-v4';
 const SHELL_URLS = ['/', '/index.html', '/manifest.json'];
 
 self.addEventListener('install', (event) => {
