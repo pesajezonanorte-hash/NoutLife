@@ -22,12 +22,17 @@
     <meta name="description" content="Hábitos, libreta, bienestar y metas en un espacio en calma para ganar enfoque y claridad mental. Empieza gratis con 7 días de Pro, sin tarjeta." />
     <meta name="application-name" content="NoutLife" />
 
-    <!-- Open Graph -->
+    <!-- Open Graph. Esta cabecera es la de la raíz (x-default, en español). /en y /es tienen la suya:
+         scripts/seo-pages.ts la escribe al compilar desde src/lib/seo-meta.ts (una prueba compara ambos). -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="NoutLife" />
     <meta property="og:locale" content="es_CO" />
+    <meta property="og:locale:alternate" content="en_US" />
     <meta property="og:url" content="https://noutlife.site/" />
     <link rel="canonical" href="https://noutlife.site/" />
+    <link rel="alternate" hreflang="es" href="https://noutlife.site/es" />
+    <link rel="alternate" hreflang="en" href="https://noutlife.site/en" />
+    <link rel="alternate" hreflang="x-default" href="https://noutlife.site/" />
     <meta property="og:title" content="NoutLife — Tu rutina, tu mente y tus ideas en un solo lugar" />
     <meta property="og:description" content="Hábitos, libreta, bienestar y metas en un espacio en calma para ganar enfoque y claridad mental. Empieza gratis con 7 días de Pro, sin tarjeta." />
     <meta property="og:image" content="https://noutlife.site/og-image.png" />
@@ -141,6 +146,25 @@
       <div class="tg" aria-hidden="true">Orden en calma</div>
       <div class="bar" aria-hidden="true"><i></i></div>
     </div>
+    <!-- Splash en el idioma de la visita (misma regla que src/lib/i18n): /en y /es ya traen el suyo
+         (data-fixed-locale); en las demás rutas, el último idioma con que se vio la app o el del navegador.
+         Los textos en inglés son los de src/lib/seo-meta (LANDING_META.en); una prueba lo comprueba. -->
+    <script>
+      try {
+        if (!document.documentElement.getAttribute('data-fixed-locale')) {
+          var ls = (JSON.parse(localStorage.getItem('lq-locale') || 'null') || {}).state || {};
+          var lc = ls.last || ls.choice;
+          if (!lc) {
+            var langs = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language];
+            for (var li = 0; li < langs.length && !lc; li++) { var lb = String(langs[li]).slice(0, 2).toLowerCase(); if (lb === 'es' || lb === 'en') lc = lb; }
+          }
+          if ((lc || 'en') === 'en') {
+            document.querySelector('#lq-boot .tg').textContent = 'Calm, in order';
+            document.getElementById('lq-boot').setAttribute('aria-label', 'Loading NoutLife');
+          }
+        }
+      } catch (e) {}
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

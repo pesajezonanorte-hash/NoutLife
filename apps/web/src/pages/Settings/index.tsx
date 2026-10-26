@@ -27,6 +27,7 @@ import {
 import { SmartRemindersPanel } from '@/components/settings/SmartRemindersPanel';
 import { SKINS, THEME_PALETTES, skinOf, themeIdOf } from '@/lib/shopThemes';
 import { daysUntil, longDay } from '@/lib/plan';
+import { LOCALE_NAMES, isLocale, useLocaleStore, type Locale } from '@/lib/i18n';
 import type { Gender, InventoryItem, ShopItem, Subscription, User as Account } from '@noutlife/shared';
 import { GENDER_OPTIONS, canUseCycle } from '@/utils/gender';
 import { ZoneToggleList } from '@/components/settings/ZoneOrderEditor';
@@ -48,9 +49,13 @@ const NOTIF_LABELS: Record<NotificationCategoryPreference['category'], string> =
 };
 const TIMEZONES = [
   ['America/Bogota', 'Bogotá (UTC−5)'], ['America/New_York', 'Nueva York (UTC−5)'], ['America/Chicago', 'Chicago (UTC−6)'],
+  ['America/Denver', 'Denver (UTC−7)'], ['America/Phoenix', 'Phoenix (UTC−7)'], ['America/Los_Angeles', 'Los Ángeles (UTC−8)'],
+  ['America/Anchorage', 'Anchorage (UTC−9)'], ['Pacific/Honolulu', 'Honolulu (UTC−10)'],
   ['America/Mexico_City', 'Ciudad de México (UTC−6)'], ['America/Argentina/Buenos_Aires', 'Buenos Aires (UTC−3)'],
   ['America/Santiago', 'Santiago (UTC−4)'], ['Europe/Madrid', 'Madrid (UTC+1)'], ['UTC', 'UTC'],
 ];
+/** Idioma guardado en la cuenta (las cuentas anteriores son español). */
+const accountLocale = (value: string | null | undefined): Locale => (isLocale(value) ? value : 'es');
 /** Resumen del plan en una línea. */
 function planLine(sub: Subscription): string {
   if (sub.complimentary) return 'Pro de cortesía, sin cobros.';
@@ -92,6 +97,7 @@ export default function SettingsPage() {
   });
   const [displayName, setDisplayName] = useState(user?.displayName ?? '');
   const [timezone, setTimezone] = useState(user?.timezone ?? 'America/Bogota');
+  const [language, setLanguage] = useState<Locale>(accountLocale(user?.language));
   const [gender, setGender] = useState<Gender | ''>(user?.gender ?? '');
   const [playlistUrl, setPlaylistUrl] = useState(user?.coliseoPlaylistUrl ?? '');
   const [showPlaylist, setShowPlaylist] = useState(Boolean(user?.coliseoPlaylistUrl));
@@ -108,12 +114,12 @@ export default function SettingsPage() {
   /** Al guardar, las piezas encajan; cada valor que cambia hace girar los engranajes. */
   const [fit, setFit] = useState(0);
   const [turns, setTurns] = useState(0);
-  const sig = JSON.stringify([displayName, timezone, gender, showPlaylist, audioEnabled, reduceMotion, mode, user?.equippedTheme, prefs]);
+  const sig = JSON.stringify([displayName, timezone, language, gender, showPlaylist, audioEnabled, reduceMotion, mode, user?.equippedTheme, prefs]);
   const lastSig = useRef(sig);
   useEffect(() => { if (lastSig.current !== sig) { lastSig.current = sig; setTurns((t) => t + 1); } }, [sig]);
 
   useEffect(() => {
-    setDisplayName(user?.displayName ?? ''); setTimezone(user?.timezone ?? 'America/Bogota'); setGender(user?.gender ?? '');
+    setDisplayName(user?.displayName ?? ''); setTimezone(user?.timezone ?? 'America/Bogota'); setLanguage(accountLocale(user?.language)); setGender(user?.gender ?? '');
     setPlaylistUrl(user?.coliseoPlaylistUrl ?? ''); setShowPlaylist(Boolean(user?.coliseoPlaylistUrl));
   }, [user]);
   useEffect(() => { getNotificationPreferences().then(setPrefs).catch(() => null); }, []);
@@ -136,9 +142,11 @@ export default function SettingsPage() {
     try {
       const cycleBefore = canUseCycle(user?.gender);
       updateUser(await userService.updateProfile({
-        displayName: displayName.trim(), timezone, gender: gender || null,
+        displayName: displayName.trim(), timezone, language, gender: gender || null,
         coliseoPlaylistUrl: showPlaylist && playlistUrl.trim() ? playlistUrl.trim() : null,
       }));
+      // El idioma de la cuenta manda con sesión; sin sesión (la portada) también se recuerda en este navegador.
+      useLocaleStore.getState().choose(language);
       const cycleNow = canUseCycle(gender || null);
       toast.success('Perfil guardado', cycleNow && !cycleBefore ? 'La zona Ciclo Menstrual ya está en tu menú, en Bienestar.' : !cycleNow && cycleBefore ? 'La zona Ciclo Menstrual se ocultó. Tus registros siguen guardados.' : undefined);
       setFit((f) => f + 1);
@@ -256,7 +264,15 @@ export default function SettingsPage() {
                     <Field label="Correo" help="Se administra desde tu cuenta."><Input type="email" value={user?.email ?? ''} disabled readOnly /></Field>
                     <Field label="Zona horaria">
                       <Select value={timezone} onChange={(e) => setTimezone(e.target.value)}>
+                        {/* La zona del dispositivo (onboarding) puede no estar en la lista: se muestra tal cual. */}
+                        {!TIMEZONES.some(([v]) => v === timezone) && <option value={timezone}>{timezone}</option>}
                         {TIMEZONES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                      </Select>
+                    </Field>
+                    <Field label="Idioma" help="La portada, los planes, el pago y los textos legales ya están en inglés; el resto de la app se traduce poco a poco.">
+                      <Select value={language} onChange={(e) => setLanguage(accountLocale(e.target.value))}>
+                        <option value="es" lang="es">{LOCALE_NAMES.es}</option>
+                        <option value="en" lang="en">{LOCALE_NAMES.en} (beta)</option>
                       </Select>
                     </Field>
                     <Field label="¿Cómo te identificas?" help="Si eliges Mujer, se activa la zona Ciclo Menstrual.">

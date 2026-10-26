@@ -23,6 +23,12 @@ export async function config(_req: Request, res: Response): Promise<void> {
   }
 }
 
+/** Público: TRM vigente para estimar en pesos un precio en dólares. `usdCop` es null si no hay tasa. */
+export async function fx(_req: Request, res: Response): Promise<void> {
+  res.set('Cache-Control', 'public, max-age=900');
+  res.json({ usdCop: await billing.getUsdCopRate() });
+}
+
 export async function preview(req: AuthRequest, res: Response): Promise<void> {
   try {
     res.json(await billing.getPlanPreview(req.userId!));

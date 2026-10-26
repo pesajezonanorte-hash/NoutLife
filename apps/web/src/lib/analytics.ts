@@ -12,6 +12,12 @@ const read = (key: string) => { try { return localStorage.getItem(key); } catch 
 const write = (key: string, value: string) => { try { localStorage.setItem(key, value); } catch { /* sin storage */ } };
 
 let userId: string | null = null;
+/** Propiedades que viajan en todos los eventos: idioma y mercado de precios (App → LocaleSync). */
+let superProps: Record<string, unknown> = {};
+
+export function setSuperProperties(props: Record<string, unknown>) {
+  superProps = { ...superProps, ...props };
+}
 
 function anonId(): string {
   let id = read(ANON_KEY);
@@ -31,7 +37,7 @@ export function captureAttribution() {
 }
 
 export function track(event: string, properties: Record<string, unknown> = {}) {
-  const props = { ...attribution(), ...properties, $current_url: location.origin + location.pathname };
+  const props = { ...attribution(), ...superProps, ...properties, $current_url: location.origin + location.pathname };
   if (!KEY) {
     if (import.meta.env.DEV) console.debug('[track]', event, props);
     return;

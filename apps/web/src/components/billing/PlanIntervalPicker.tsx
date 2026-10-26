@@ -1,16 +1,33 @@
 // Mensual o anual, como dos tarjetas de radio. El anual va primero, elegido por defecto y con el
-// oro de Pro: «Mejor valor», el ahorro en pesos y en porcentaje, y el precio dicho por mes. El total
-// del año siempre es la cifra grande (lo que se cobra), nunca el equivalente mensual.
+// oro de Pro: «Mejor valor», el ahorro en la moneda de la cuenta y en porcentaje, y el precio dicho por
+// mes. El total del año siempre es la cifra grande (lo que se cobra), nunca el equivalente mensual.
 import { useRef, type KeyboardEvent } from 'react';
 import { Check } from 'lucide-react';
 import type { BillingInterval } from '@noutlife/shared';
 import { cn } from '@/lib/utils';
 import { track } from '@/lib/analytics';
-import {
-  ANNUAL_SAVINGS_COP, ANNUAL_SAVINGS_PERCENT, PRO_ANNUAL_PER_MONTH_COP, PRO_PER_DAY_COP, firstPaymentCop, formatCop, intervalUnit, priceFor,
-} from '@/lib/plan';
+import type { Copy } from '@/lib/i18n';
+import { useOffer } from '@/lib/useOffer';
 
 const OPTIONS: BillingInterval[] = ['year', 'month'];
+
+const es = {
+  group: 'Plan de NoutLife Pro',
+  best: (percent: number) => `Mejor valor · −${percent} %`,
+  name: (annual: boolean): string => (annual ? 'Anual' : 'Mensual'),
+  annualLine: (perMonth: string, savings: string) => `${perMonth}/mes · ahorras ${savings}`,
+  monthlyLine: (perDay: string) => `${perDay} al día, mes a mes`,
+  first: (annual: boolean, price: string) => `${annual ? 'Primer año' : 'Primer mes'}: ${price}`,
+};
+const en: typeof es = {
+  group: 'NoutLife Pro plan',
+  best: (percent) => `Best value · −${percent}%`,
+  name: (annual) => (annual ? 'Annual' : 'Monthly'),
+  annualLine: (perMonth, savings) => `${perMonth}/month · save ${savings}`,
+  monthlyLine: (perDay) => `${perDay} a day, month to month`,
+  first: (annual, price) => `${annual ? 'First year' : 'First month'}: ${price}`,
+};
+const COPY: Copy<typeof es> = { es, en };
 
 export interface PlanIntervalPickerProps {
   value: BillingInterval;
@@ -24,6 +41,8 @@ export interface PlanIntervalPickerProps {
 
 export function PlanIntervalPicker({ value, onChange, discountPercent = 0, surface, className }: PlanIntervalPickerProps) {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
+  const offer = useOffer();
+  const t = COPY[offer.locale];
 
   const choose = (interval: BillingInterval) => {
     if (interval === value) return;
@@ -41,12 +60,12 @@ export function PlanIntervalPicker({ value, onChange, discountPercent = 0, surfa
   };
 
   return (
-    <div role="radiogroup" aria-label="Plan de NoutLife Pro" className={cn('grid grid-cols-2 gap-2.5', className)}>
+    <div role="radiogroup" aria-label={t.group} lang={offer.locale} className={cn('grid grid-cols-2 gap-2.5', className)}>
       {OPTIONS.map((interval, i) => {
         const on = interval === value;
         const annual = interval === 'year';
-        const first = firstPaymentCop(interval, discountPercent);
-        const discounted = first < priceFor(interval);
+        const first = offer.firstPayment(interval, discountPercent);
+        const discounted = first < offer.listFor(interval);
         return (
           <button
             key={interval}
@@ -65,7 +84,7 @@ export function PlanIntervalPicker({ value, onChange, discountPercent = 0, surfa
             {annual && (
               // Texto oro sobre el fondo (no sobre oro sólido): el contraste se cumple en todos los temas.
               <span className="absolute -top-2.5 left-3 rounded-full border border-secondary/70 bg-background px-2 py-0.5 text-label-sm font-semibold text-secondary-text shadow-sm">
-                Mejor valor · −{ANNUAL_SAVINGS_PERCENT} %
+                {t.best(offer.savingsPercent)}
               </span>
             )}
             <span
@@ -77,20 +96,18 @@ export function PlanIntervalPicker({ value, onChange, discountPercent = 0, surfa
             >
               {on && <Check className="size-3.5" strokeWidth={3} />}
             </span>
-            <span className="text-label-lg">{annual ? 'Anual' : 'Mensual'}</span>
+            <span className="text-label-lg">{t.name(annual)}</span>
             <span className="flex flex-wrap items-baseline gap-x-1">
-              <span className="text-heading-md font-semibold tabular-nums tracking-tight">{formatCop(priceFor(interval))}</span>
-              <span className="text-body-sm text-on-surface-light">/{intervalUnit(interval)}</span>
+              <span className="text-heading-md font-semibold tabular-nums tracking-tight">{offer.money(offer.listFor(interval))}</span>
+              <span className="text-body-sm text-on-surface-light">/{offer.unit(interval)}</span>
             </span>
             <span className="text-body-sm text-on-surface">
               {annual
-                ? <>{formatCop(PRO_ANNUAL_PER_MONTH_COP)}/mes · ahorras {formatCop(ANNUAL_SAVINGS_COP)}</>
-                : <>{formatCop(PRO_PER_DAY_COP)} al día, mes a mes</>}
+                ? t.annualLine(offer.money(offer.perMonthOfYear), offer.money(offer.savings))
+                : t.monthlyLine(offer.perDay(offer.perDayFor('month')))}
             </span>
             {discounted && (
-              <span className="text-label-sm font-semibold text-success-text">
-                {annual ? 'Primer año' : 'Primer mes'}: {formatCop(first)}
-              </span>
+              <span className="text-label-sm font-semibold text-success-text">{t.first(annual, offer.money(first))}</span>
             )}
           </button>
         );

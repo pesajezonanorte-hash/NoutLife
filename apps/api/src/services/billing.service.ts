@@ -4,7 +4,9 @@ import { hasAIProvider } from '../lib/ai';
 import { fingerprintSecret, paymentKey, publicDataShape, type NequiProof } from '../lib/trial-keys';
 import { claimTrial, markGiftAvailability, trialAvailable } from './trial.service';
 import { proExtension } from '../lib/referrals';
-import { normalizeCreatorCode, quoteCharge } from '../lib/creator-codes';
+import { normalizeCreatorCode, quoteCharge, type ChargeQuote } from '../lib/creator-codes';
+import { PRICE_LISTS, marketOf, type PriceList } from '../lib/pricing';
+import { FxUnavailableError, copCentsFromUsdCents, usdCopRate, type UsdCopRate } from '../lib/fx';
 import {
   LITE_LIMITS, PRO_ANNUAL_PRICE_COP, PRO_CURRENCY, PRO_PRICE_COP, PRO_ZONES, RENEWAL_GRACE_MS, TRIAL_DAYS,
   accessEndsAt, addDays, hasProAccess, intervalOf, isComplimentary, nextAction, paymentReference, periodEndFor, planOf, statusOf, trialEndOf, willRenew,
@@ -38,6 +40,7 @@ const SUBSCRIPTION_SELECT = {
   giftTrial: true,
   compPro: true,
   billingInterval: true,
+  market: true,
   creatorCodeId: true,
   creatorCode: { select: { code: true, creatorName: true, discountPercent: true } },
 } satisfies Prisma.UserSelect;
@@ -98,12 +101,16 @@ export interface SubscriptionView {
   /** Plan del próximo cobro: 'month' (mensual) o 'year' (anual). */
   interval: BillingInterval;
   annualPriceCop: number;
-  /** Monto del próximo cobro automático, con el descuento del código si es el primer pago. null si no se renovará. */
+  /** Monto del próximo cobro automático en pesos, con el descuento del código si es el primer pago. null si no se renovará o si la cuenta paga en dólares. */
   nextChargeCop: number | null;
   /** Código de creador de la cuenta. `discountPercent` solo aplica al primer pago. */
   creatorCode: { code: string; creatorName: string; discountPercent: number } | null;
   /** Se puede poner, cambiar o quitar el código: solo antes del primer pago aprobado y sin cortesía. */
   creatorCodeEditable: boolean;
+  /** Lista de precios del mercado de la cuenta: pesos en Colombia, dólares en el resto del mundo. */
+  pricing: PriceList;
+  /** Próximo cobro automático en la moneda de `pricing` (con el descuento del primer pago). null si no se renovará. */
+  nextChargeInCents: number | null;
 }
 
 export function subscriptionView(
@@ -114,6 +121,8 @@ export function subscriptionView(
   const dbStatus = user.complimentary ? 'active' : statusOf(user);
   const interval = intervalOf(user.billingInterval);
   const code = user.creatorCode ?? null;
+  const market = marketOf(user.market);
+  const next = willRenew(user) ? quoteCharge(interval, code?.discountPercent, !paidBefore, market) : null;
   return {
     // El cobro de Nequi en espera no se guarda como estado: se muestra así mientras Wompi no responde.
     status: awaitingApproval ? 'pending_approval' : dbStatus,
@@ -136,9 +145,11 @@ export function subscriptionView(
     giftTrial: Boolean(user.giftTrial),
     interval,
     annualPriceCop: PRO_ANNUAL_PRICE_COP,
-    nextChargeCop: willRenew(user) ? quoteCharge(interval, code?.discountPercent, !paidBefore).amountInCents / 100 : null,
+    nextChargeCop: next?.currency === 'COP' ? next.amountInCents / 100 : null,
     creatorCode: code ? { code: code.code, creatorName: code.creatorName, discountPercent: code.discountPercent } : null,
     creatorCodeEditable: !user.complimentary && !paidBefore,
+    pricing: PRICE_LISTS[market],
+    nextChargeInCents: next?.amountInCents ?? null,
   };
 }
 
@@ -377,6 +388,16 @@ export async function recheckTimedOutPayments(
 }
 
 /**
+ * Lo que se cobra en Wompi, que solo cobra en COP. Un precio en dólares se convierte con la TRM vigente
+ * (lib/fx); sin tasa confiable lanza FxUnavailableError antes de guardar nada, y el cobro se reintenta.
+ */
+async function wompiAmounts(quote: ChargeQuote): Promise<{ amountInCents: number; discountInCents: number }> {
+  if (quote.currency === 'COP') return { amountInCents: quote.amountInCents, discountInCents: quote.discountInCents };
+  const { rate } = await usdCopRate();
+  return { amountInCents: copCentsFromUsdCents(quote.amountInCents, rate), discountInCents: copCentsFromUsdCents(quote.discountInCents, rate) };
+}
+
+/**
  * Cobra un periodo (un mes o un año, según billingInterval) al medio de pago guardado. `periodKey`
  * fija la referencia (única por usuario y periodo); si otro proceso ya creó ese cobro, aquí no se
  * vuelve a cobrar: solo se consulta su estado. El código de creador de la cuenta queda en el cobro, y
@@ -389,13 +410,16 @@ async function chargePeriod(user: SubscriptionUser, periodKey: Date, periodStart
 
   if (!payment) {
     const interval = intervalOf(user.billingInterval);
-    const quote = quoteCharge(interval, user.creatorCode?.discountPercent, !(await hasPaidBefore(user.id)));
+    const quote = quoteCharge(interval, user.creatorCode?.discountPercent, !(await hasPaidBefore(user.id)), marketOf(user.market));
+    const charge = await wompiAmounts(quote);
     try {
       payment = await prisma.subscriptionPayment.create({
         data: {
-          userId: user.id, reference, amountInCents: quote.amountInCents, currency: PRO_CURRENCY,
+          userId: user.id, reference, amountInCents: charge.amountInCents, currency: PRO_CURRENCY,
           periodStart, periodEnd: periodEndFor(periodStart, interval), billingInterval: interval,
-          creatorCodeId: user.creatorCodeId, discountInCents: quote.discountInCents,
+          creatorCodeId: user.creatorCodeId, discountInCents: charge.discountInCents,
+          // El precio que vio la persona (en su moneda); amountInCents es lo que cobra Wompi.
+          priceCurrency: quote.currency, priceAmountInCents: quote.amountInCents,
         },
       });
     } catch (error) {
@@ -613,7 +637,13 @@ export async function subscribeNow(userId: string, interval?: BillingInterval): 
 
   // La clave por minuto hace que dos peticiones simultáneas choquen en la referencia única.
   const minute = new Date(Math.floor(now.getTime() / 60_000) * 60_000);
-  await chargePeriod(user, minute, now, true);
+  try {
+    await chargePeriod(user, minute, now, true);
+  } catch (error) {
+    // Precio en dólares sin TRM disponible: no se cobró nada.
+    if (error instanceof FxUnavailableError) throw new BillingError('FX_UNAVAILABLE', 'Los pagos en dólares no están disponibles en este momento. Inténtalo de nuevo en unos minutos.', 503);
+    throw error;
+  }
   return getView(userId);
 }
 
@@ -700,6 +730,8 @@ export interface BillingStatus {
   payments: Array<{
     id: string; amountInCents: number; currency: string; status: string; periodStart: string; periodEnd: string; createdAt: string;
     interval: BillingInterval; discountInCents: number;
+    /** El precio en la moneda del mercado (USD en INTL). En cobros anteriores, el mismo cobro en COP. */
+    priceCurrency: string; priceAmountInCents: number;
   }>;
 }
 
@@ -712,6 +744,7 @@ export async function getBillingStatus(userId: string): Promise<BillingStatus> {
       id: p.id, amountInCents: p.amountInCents, currency: p.currency, status: p.status,
       periodStart: p.periodStart.toISOString(), periodEnd: p.periodEnd.toISOString(), createdAt: p.createdAt.toISOString(),
       interval: intervalOf(p.billingInterval), discountInCents: p.discountInCents,
+      priceCurrency: p.priceCurrency ?? p.currency, priceAmountInCents: p.priceAmountInCents ?? p.amountInCents,
     })),
   };
 }
@@ -730,12 +763,22 @@ export async function getBillingConfig() {
     sandbox: config.sandbox,
     priceCop: PRO_PRICE_COP,
     annualPriceCop: PRO_ANNUAL_PRICE_COP,
+    /** Listas de precios por mercado (pesos y dólares). La de cada cuenta va en su suscripción (`pricing`). */
+    priceLists: PRICE_LISTS,
     trialDays: TRIAL_DAYS,
     liteLimits: LITE_LIMITS,
     proZones: PRO_ZONES,
     termsUrl: acceptance?.termsUrl ?? null,
     personalDataUrl: acceptance?.personalDataUrl ?? null,
   };
+}
+
+/**
+ * TRM vigente para el checkout en dólares: «unos COP 126,306 hoy». Es solo informativa (el cobro usa la
+ * tasa del día en que ocurre). null si no hay tasa: el checkout lo dice sin cifra.
+ */
+export async function getUsdCopRate(): Promise<UsdCopRate | null> {
+  return usdCopRate().catch(() => null);
 }
 
 /** Evento de Wompi (POST /billing/webhook). Solo se aceptan eventos con checksum válido. */

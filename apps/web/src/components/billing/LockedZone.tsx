@@ -8,12 +8,34 @@ import { Badge, Button, buttonClasses } from '@/components/ui/lq';
 import { findNavEntry } from '@/components/layout/nav';
 import { useMotionReduced } from '@/lib/motion';
 import { cn } from '@/lib/utils';
-import { PRO_ANNUAL_PER_DAY_COP, PRO_PRICE_COP, PRO_ZONES, TRIAL_DAYS, annualAvailable, formatCop, type ProZone } from '@/lib/plan';
+import { PRO_ZONES, TRIAL_DAYS, annualAvailable, type ProZone } from '@/lib/plan';
+import { useOffer } from '@/lib/useOffer';
+import type { Copy } from '@/lib/i18n';
 import { useAuthStore } from '@/store/authStore';
 import { usePlanStore } from '@/store/planStore';
 
 /** Filas falsas de la vista previa (ancho del título de cada una). */
 const GHOST_ROWS = [0.82, 0.6, 0.74];
+
+const es = {
+  badge: 'Zona Pro',
+  kept: 'Lo que ya guardaste aquí sigue intacto y vuelve a abrirse con NoutLife Pro.',
+  trial: `Probar ${TRIAL_DAYS} días gratis`,
+  fromPerDay: (perDay: string) => `Desbloquear desde ${perDay} al día`,
+  forMonth: (price: string) => `Desbloquear por ${price}/mes`,
+  cancel: (trial: boolean) => `${trial ? '$0 hoy. ' : ''}Cancela en cualquier momento con 1 clic.`,
+  compare: 'Comparar planes',
+};
+const en: typeof es = {
+  badge: 'Pro zone',
+  kept: 'Everything you saved here stays intact and opens again with NoutLife Pro.',
+  trial: `Try ${TRIAL_DAYS} days free`,
+  fromPerDay: (perDay) => `Unlock from ${perDay} a day`,
+  forMonth: (price) => `Unlock for ${price}/month`,
+  cancel: (trial) => `${trial ? '$0 today. ' : ''}Cancel anytime in 1 click.`,
+  compare: 'Compare plans',
+};
+const COPY: Copy<typeof es> = { es, en };
 
 export function LockedZone({ zone }: { zone: ProZone }) {
   const { pathname } = useLocation();
@@ -22,11 +44,13 @@ export function LockedZone({ zone }: { zone: ProZone }) {
   // Con el plan anual en la API, el precio más bajo por día es el del anual (el diálogo lo trae elegido).
   const annual = useAuthStore((s) => annualAvailable(s.user?.subscription));
   const openUpgrade = usePlanStore((s) => s.openUpgrade);
-  const info = PRO_ZONES[zone];
+  const offer = useOffer();
+  const t = COPY[offer.locale];
+  const info = PRO_ZONES[offer.locale][zone];
   const Icon = findNavEntry(pathname)?.icon ?? Lock;
 
   return (
-    <section aria-labelledby="locked-zone-title" className="mx-auto flex w-full max-w-[640px] flex-col items-center gap-6 pb-6 pt-2 text-center md:gap-8 md:py-12">
+    <section aria-labelledby="locked-zone-title" lang={offer.locale} className="mx-auto flex w-full max-w-[640px] flex-col items-center gap-6 pb-6 pt-2 text-center md:gap-8 md:py-12">
       <div className="relative w-full max-w-[420px]">
         {/* Así se ve la zona por dentro: presente, pero fuera de alcance. */}
         <div aria-hidden className="pointer-events-none flex select-none flex-col gap-3 opacity-80 blur-[5px]">
@@ -60,20 +84,20 @@ export function LockedZone({ zone }: { zone: ProZone }) {
       </div>
 
       <div className="flex flex-col items-center gap-3">
-        <Badge variant="secondary" icon={Gem}>Zona Pro</Badge>
+        <Badge variant="secondary" icon={Gem}>{t.badge}</Badge>
         <h1 id="locked-zone-title" className="text-display-sm tracking-tight">{info.label}</h1>
         <p className="max-w-[40ch] text-body-lg text-on-surface-light">{info.pitch}</p>
-        <p className="max-w-[44ch] text-body-sm text-on-surface-light">Lo que ya guardaste aquí sigue intacto y vuelve a abrirse con NoutLife Pro.</p>
+        <p className="max-w-[44ch] text-body-sm text-on-surface-light">{t.kept}</p>
       </div>
 
       <div className="flex w-full max-w-[360px] flex-col gap-2">
         <Button size="lg" block onClick={() => openUpgrade(zone)}>
           {trial
-            ? `Probar ${TRIAL_DAYS} días gratis`
-            : annual ? `Desbloquear desde ${formatCop(PRO_ANNUAL_PER_DAY_COP)} al día` : `Desbloquear por ${formatCop(PRO_PRICE_COP)}/mes`}
+            ? t.trial
+            : annual ? t.fromPerDay(offer.perDay(offer.perDayFor('year'))) : t.forMonth(offer.money(offer.listFor('month')))}
         </Button>
-        <p className="text-body-sm text-on-surface-light">{trial ? '$0 hoy. ' : ''}Cancela en cualquier momento con 1 clic.</p>
-        <Link to="/plan" className={buttonClasses('ghost', 'md', true)}>Comparar planes</Link>
+        <p className="text-body-sm text-on-surface-light">{t.cancel(trial)}</p>
+        <Link to="/plan" className={buttonClasses('ghost', 'md', true)}>{t.compare}</Link>
       </div>
     </section>
   );

@@ -2,6 +2,7 @@
 // aviso de bienvenida. Son funciones puras: lo que muestran coincide con lo que decide la API
 // (giftTrial en la suscripción).
 import type { Subscription } from '@noutlife/shared';
+import type { Copy } from './locale';
 import { isNewAccount } from './new-account';
 
 const DAY_MS = 24 * 60 * 60_000;
@@ -34,8 +35,19 @@ export function giftWelcomeWaitsForTour(tourDone: boolean, createdAt: string | n
 }
 
 /** Texto de la bienvenida. El último renglón evita la sorpresa: no hay cobro al terminar. */
-export const GIFT_WELCOME = {
-  title: '¡Te regalamos 7 días de NoutLife Pro!',
-  body: 'Disfruta de hábitos ilimitados, historial completo y todas las herramientas sin costo ni tarjeta de crédito.',
-  ending: 'Al terminar, tu cuenta sigue en NoutLife Lite. No hay cobros.',
-} as const;
+export const GIFT_WELCOME: Copy<{ title: string; body: string; ending: string; plan: string; start: string }> = {
+  es: {
+    title: '¡Te regalamos 7 días de NoutLife Pro!',
+    body: 'Disfruta de hábitos ilimitados, historial completo y todas las herramientas sin costo ni tarjeta de crédito.',
+    ending: 'Al terminar, tu cuenta sigue en NoutLife Lite. No hay cobros.',
+    plan: 'Ver mi plan',
+    start: 'Empezar',
+  },
+  en: {
+    title: '7 days of NoutLife Pro, on us',
+    body: 'Unlimited habits, your full history and every tool, with no cost and no credit card.',
+    ending: 'When it ends, your account stays on NoutLife Lite. No charges.',
+    plan: 'View my plan',
+    start: 'Get started',
+  },
+};

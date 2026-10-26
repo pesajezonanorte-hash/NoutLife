@@ -15,7 +15,7 @@ export async function listUsers(now = new Date()) {
       id: true, email: true, displayName: true, username: true, level: true, createdAt: true, lastSeenAt: true,
       subscriptionStatus: true, trialEndsAt: true, currentPeriodEnd: true, paymentSourceId: true,
       paymentMethodType: true, paymentMethodLabel: true, liteSince: true, lastPaymentError: true, gender: true, giftTrial: true, compPro: true, giftAvailable: true,
-      billingInterval: true, creatorCodeId: true, creatorCode: { select: { code: true, creatorName: true, discountPercent: true } },
+      billingInterval: true, market: true, creatorCodeId: true, creatorCode: { select: { code: true, creatorName: true, discountPercent: true } },
     },
   });
   const payments = await prisma.subscriptionPayment.findMany({
@@ -71,6 +71,8 @@ export async function listUsers(now = new Date()) {
       interval: view.interval,
       /** Código de creador de la cuenta, si tiene. */
       creatorCode: u.creatorCode?.code ?? null,
+      /** Mercado de precios: 'CO' (pesos) o 'INTL' (dólares, cobrados en COP con la TRM del día). */
+      market: view.pricing.market,
     };
   });
 }

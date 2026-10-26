@@ -16,7 +16,9 @@ import { TrialNotice } from './components/billing/TrialNotice';
 import { GiftWelcome } from './components/billing/GiftWelcome';
 import { PendingApprovalGate } from './components/billing/PendingApprovalGate';
 import { LockedZone } from './components/billing/LockedZone';
-import type { ProZone } from './lib/plan';
+import { priceListFor, type ProZone } from './lib/plan';
+import { LocaleProvider, useLocale, useLocaleStore, type Locale } from './lib/i18n';
+import { setSuperProperties } from './lib/analytics';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { NotificationPermissionModal, useNotificationModalState } from './components/ui/NotificationPermissionModal';
 import { PageLoader as LqPageLoader, Spinner } from './components/ui/lq';
@@ -407,6 +409,28 @@ function PublicRoute({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * Portada en un idioma fijo (/en, /es): Google la indexa con su propio canonical y entrar por ella elige ese
+ * idioma en este navegador. /login sigue al idioma de la persona.
+ */
+function LandingRoute({ locale }: { locale: Locale }) {
+  useEffect(() => { useLocaleStore.getState().choose(locale); }, [locale]);
+  return (
+    <PublicRoute>
+      <LocaleProvider value={locale}><DeferredLazyPage load={loaders.LoginPage} /></LocaleProvider>
+    </PublicRoute>
+  );
+}
+
+/** Recuerda el idioma (lo lee el splash de index.html antes de React) y lo manda, con el mercado de precios, en cada evento. */
+function LocaleSync() {
+  const locale = useLocale();
+  const market = useAuthStore((s) => priceListFor(s.user?.subscription).market);
+  useEffect(() => { useLocaleStore.getState().remember(locale); }, [locale]);
+  useEffect(() => { setSuperProperties({ locale, market }); }, [locale, market]);
+  return null;
+}
+
 export default function App() {
   useBootstrapAuth();
   useKeyboardAdjust();
@@ -485,6 +509,7 @@ export default function App() {
 
   return (
     <ErrorBoundary>
+      <LocaleSync />
       {!showSplash && <CookieNotice />}
       {showSplash && <SplashScreen ready={splashReady} onDone={() => setSplashDone(true)} />}
 
@@ -504,10 +529,14 @@ export default function App() {
             }
           />
           <Route path="/register" element={<Navigate to="/login" replace />} />
+          {/* Portada en inglés y en español: las URL que indexa Google (scripts/seo-pages genera su HTML estático). */}
+          <Route path="/en" element={<LandingRoute locale="en" />} />
+          <Route path="/es" element={<LandingRoute locale="es" />} />
           {/* Legales: públicas, sin sesión (las piden las tiendas y el login). */}
           <Route path="/privacy" element={<DeferredLazyPage load={loaders.LegalPage} />} />
           <Route path="/terms" element={<DeferredLazyPage load={loaders.LegalPage} />} />
           <Route path="/copyright" element={<DeferredLazyPage load={loaders.LegalPage} />} />
+          <Route path="/health-data" element={<DeferredLazyPage load={loaders.LegalPage} />} />
           <Route path="/shared/:code" element={<SafePage><DeferredLazyPage load={loaders.SharedResourcePage} /></SafePage>} />
           <Route path="/i/:username" element={<SafePage><DeferredLazyPage load={loaders.InvitePage} /></SafePage>} />
           <Route

@@ -20,6 +20,7 @@ const chargeLimiter = buildLimiter({
 });
 
 router.get('/config', billing.config);
+router.get('/fx', billing.fx);
 // Wompi no envía token: la autenticidad se comprueba con el checksum del evento.
 router.post('/webhook', billing.webhook);
 

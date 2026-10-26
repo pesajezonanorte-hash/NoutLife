@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { daysUntil } from '@/lib/plan';
 import { giftProgress } from '@/lib/gift';
+import { useLocale } from '@/lib/i18n';
 import { useAuthStore } from '@/store/authStore';
 
 /** Día de la prueba (1…N) o null si la cuenta no está en prueba. `gift`: es un regalo sin cobro. */
@@ -18,12 +19,15 @@ export function useTrialDay(): { day: number; of: number; gift: boolean } | null
 
 export function TrialPill({ className }: { className?: string }) {
   const trial = useTrialDay();
+  const en = useLocale() === 'en';
   if (!trial) return null;
-  const full = trial.gift ? `Pro · Regalo (día ${trial.day} de ${trial.of})` : `Pro · día ${trial.day} de ${trial.of}`;
+  const full = en
+    ? (trial.gift ? `Pro · Gift (day ${trial.day} of ${trial.of})` : `Pro · day ${trial.day} of ${trial.of}`)
+    : (trial.gift ? `Pro · Regalo (día ${trial.day} de ${trial.of})` : `Pro · día ${trial.day} de ${trial.of}`);
   // En el móvil la cabecera tiene poco sitio: el regalo se abrevia a «Pro · Regalo 1/7».
-  const short = `Pro · Regalo ${trial.day}/${trial.of}`;
+  const short = `Pro · ${en ? 'Gift' : 'Regalo'} ${trial.day}/${trial.of}`;
   return (
-    <Link to="/plan" aria-label={`${full}. Ver tu plan`}
+    <Link to="/plan" aria-label={`${full}. ${en ? 'View your plan' : 'Ver tu plan'}`} lang={en ? 'en' : 'es'}
       className={cn('inline-flex min-h-11 min-w-0 items-center rounded-full', className)}>
       <span className="truncate rounded-full border border-secondary/50 bg-secondary/[var(--lq-soft-alpha)] px-2.5 py-1 text-label-sm tabular-nums text-secondary-text">
         {trial.gift ? (

@@ -1,7 +1,8 @@
 import axios from 'axios';
-import type { BillingInterval, CreatorCodeInfo, Subscription } from '@noutlife/shared';
+import type { BillingInterval, CreatorCodeInfo, Market, PriceList, Subscription } from '@noutlife/shared';
 import api from '../lib/api';
 import type { PlanPreview } from '@/lib/planPreview';
+import type { Copy } from '@/lib/i18n';
 import { track } from '@/lib/analytics';
 
 export interface BillingConfig {
@@ -16,6 +17,8 @@ export interface BillingConfig {
   priceCop: number;
   /** Ausente en APIs sin plan anual. */
   annualPriceCop?: number;
+  /** Listas de precios por mercado. Ausente en APIs anteriores (solo pesos). */
+  priceLists?: Record<Market, PriceList>;
   trialDays: number;
   liteLimits: { activeHabits: number; historyDays: number };
   /** Contratos de Wompi que la persona acepta antes de vincular su método de pago. */
@@ -33,8 +36,18 @@ export interface BillingPayment {
   createdAt: string;
   /** Mensual o anual. Ausente en APIs anteriores (mensual). */
   interval?: BillingInterval;
-  /** Descuento del código de creador en este cobro. */
+  /** Descuento del código de creador en este cobro (en COP, como el monto). */
   discountInCents?: number;
+  /** El precio en la moneda del mercado de la cuenta (USD fuera de Colombia). amountInCents/currency son lo que cobró Wompi (COP). */
+  priceCurrency?: string;
+  priceAmountInCents?: number;
+}
+
+/** TRM vigente: pesos por dólar y su día. Solo informa en el checkout; el cobro usa la tasa del día en que ocurre. */
+export interface UsdCopRate {
+  rate: number;
+  asOf: string;
+  source: 'trm' | 'fallback';
 }
 
 /**
@@ -56,6 +69,17 @@ export function getBillingConfig(): Promise<BillingConfig> {
     throw error;
   });
   return configPromise;
+}
+
+let fxPromise: Promise<UsdCopRate | null> | null = null;
+
+/** Pesos por dólar de hoy para estimar un precio en USD. null si la API no lo sabe (o es anterior). */
+export function getUsdCopRate(): Promise<UsdCopRate | null> {
+  fxPromise ??= api.get<{ usdCop: UsdCopRate | null }>('/billing/fx').then((r) => r.data.usdCop ?? null).catch(() => {
+    fxPromise = null;
+    return null;
+  });
+  return fxPromise;
 }
 
 export async function getBillingStatus(): Promise<{ subscription: Subscription; payments: BillingPayment[] }> {
@@ -141,10 +165,45 @@ export interface CardInput {
 /** Campos del formulario de pago que pueden tener un error. */
 export type PaymentField = 'number' | 'expiry' | 'cvc' | 'holder' | 'phone' | 'documentNumber';
 
-/** Error apto para mostrar. `field` indica el campo que hay que corregir. */
+/** Por qué falló vincular el medio de pago en el navegador (Wompi o la espera de Nequi). */
+export type PaymentErrorCode =
+  | 'unavailable' | 'field' | 'card' | 'network'
+  | 'nequi-phone' | 'nequi-start' | 'nequi-token' | 'nequi-cancelled' | 'nequi-unconfirmed' | 'nequi-declined' | 'nequi-timeout';
+
+/** Texto de cada error, en los dos idiomas. */
+export const PAYMENT_ERROR_TEXT: Copy<Record<PaymentErrorCode, string>> = {
+  es: {
+    unavailable: 'Los pagos no están disponibles en este momento.',
+    field: 'Wompi no aceptó este dato. Revísalo.',
+    card: 'Wompi no pudo validar la tarjeta. Revisa los datos.',
+    network: 'No pudimos conectar con Wompi. Revisa tu conexión e inténtalo de nuevo.',
+    'nequi-phone': 'Wompi no aceptó este celular. Revísalo.',
+    'nequi-start': 'Wompi no pudo iniciar la vinculación con Nequi. Revisa el celular.',
+    'nequi-token': 'Wompi no devolvió la vinculación con Nequi. Inténtalo de nuevo.',
+    'nequi-cancelled': 'La vinculación se canceló.',
+    'nequi-unconfirmed': 'No pudimos confirmar tu aprobación en Nequi. Revisa tu conexión e inténtalo de nuevo.',
+    'nequi-declined': 'Nequi no aprobó la vinculación. Inténtalo de nuevo.',
+    'nequi-timeout': 'No recibimos tu aprobación en Nequi a tiempo. Inténtalo de nuevo.',
+  },
+  en: {
+    unavailable: 'Payments aren’t available right now.',
+    field: 'Wompi didn’t accept this detail. Please check it.',
+    card: 'Wompi couldn’t validate the card. Please check the details.',
+    network: 'We couldn’t reach Wompi. Check your connection and try again.',
+    'nequi-phone': 'Wompi didn’t accept this phone number. Please check it.',
+    'nequi-start': 'Wompi couldn’t start linking your Nequi. Check the phone number.',
+    'nequi-token': 'Wompi didn’t return the Nequi link. Please try again.',
+    'nequi-cancelled': 'Linking was cancelled.',
+    'nequi-unconfirmed': 'We couldn’t confirm your approval in Nequi. Check your connection and try again.',
+    'nequi-declined': 'Nequi didn’t approve the link. Please try again.',
+    'nequi-timeout': 'We didn’t receive your Nequi approval in time. Please try again.',
+  },
+};
+
+/** Error apto para mostrar: `code` elige el texto en cada idioma y `field` indica el campo que hay que corregir. */
 export class PaymentError extends Error {
-  constructor(message: string, readonly field?: PaymentField) {
-    super(message);
+  constructor(readonly code: PaymentErrorCode, readonly field?: PaymentField) {
+    super(PAYMENT_ERROR_TEXT.es[code]);
   }
 }
 
@@ -165,7 +224,7 @@ const hasResponse = (error: unknown) => Boolean((error as { response?: unknown }
  * NoutLife a una petición de otro dominio. El número nunca pasa por la API.
  */
 export async function tokenizeCard(config: BillingConfig, card: CardInput): Promise<PaymentMethodLink> {
-  if (!config.publicKey) throw new PaymentError('Los pagos no están disponibles en este momento.');
+  if (!config.publicKey) throw new PaymentError('unavailable');
   try {
     const { data } = await axios.post<{ data: { id: string; brand?: string } }>(
       `${config.apiUrl}/tokens/cards`,
@@ -182,9 +241,9 @@ export async function tokenizeCard(config: BillingConfig, card: CardInput): Prom
   } catch (error) {
     const messages = wompiMessages(error);
     const field = messages ? Object.keys(messages).map((k) => WOMPI_CARD_FIELDS[k]).find(Boolean) : undefined;
-    if (field) throw new PaymentError('Wompi no aceptó este dato. Revísalo.', field);
-    if (hasResponse(error)) throw new PaymentError('Wompi no pudo validar la tarjeta. Revisa los datos.');
-    throw new PaymentError('No pudimos conectar con Wompi. Revisa tu conexión e inténtalo de nuevo.');
+    if (field) throw new PaymentError('field', field);
+    if (hasResponse(error)) throw new PaymentError('card');
+    throw new PaymentError('network');
   }
 }
 
@@ -201,7 +260,7 @@ const tokenOf = (body: NequiTokenResponse): NequiToken => ('data' in body ? body
 
 /** Pide a Wompi vincular el celular. Wompi manda la aprobación a la app de Nequi de la persona. */
 export async function tokenizeNequi(config: BillingConfig, phone: string): Promise<string> {
-  if (!config.publicKey) throw new PaymentError('Los pagos no están disponibles en este momento.');
+  if (!config.publicKey) throw new PaymentError('unavailable');
   const body = await axios
     .post<NequiTokenResponse>(
       `${config.apiUrl}/tokens/nequi`,
@@ -210,12 +269,12 @@ export async function tokenizeNequi(config: BillingConfig, phone: string): Promi
     )
     .then((r) => r.data)
     .catch((error: unknown): never => {
-      if (wompiMessages(error)?.phone_number) throw new PaymentError('Wompi no aceptó este celular. Revísalo.', 'phone');
-      if (hasResponse(error)) throw new PaymentError('Wompi no pudo iniciar la vinculación con Nequi. Revisa el celular.', 'phone');
-      throw new PaymentError('No pudimos conectar con Wompi. Revisa tu conexión e inténtalo de nuevo.');
+      if (wompiMessages(error)?.phone_number) throw new PaymentError('nequi-phone', 'phone');
+      if (hasResponse(error)) throw new PaymentError('nequi-start', 'phone');
+      throw new PaymentError('network');
     });
   const id = tokenOf(body).id;
-  if (!id) throw new PaymentError('Wompi no devolvió la vinculación con Nequi. Inténtalo de nuevo.');
+  if (!id) throw new PaymentError('nequi-token');
   return id;
 }
 
@@ -227,7 +286,7 @@ export async function waitForNequiApproval(config: BillingConfig, tokenId: strin
   const deadline = Date.now() + NEQUI_APPROVAL_MS;
   let failures = 0;
   while (Date.now() < deadline) {
-    if (stop()) throw new PaymentError('La vinculación se canceló.');
+    if (stop()) throw new PaymentError('nequi-cancelled');
     let status: string | undefined;
     try {
       const { data } = await axios.get<NequiTokenResponse>(
@@ -239,14 +298,14 @@ export async function waitForNequiApproval(config: BillingConfig, tokenId: strin
     } catch {
       // Un corte de red puntual no cancela la espera: solo tres fallos seguidos.
       failures += 1;
-      if (failures >= 3) throw new PaymentError('No pudimos confirmar tu aprobación en Nequi. Revisa tu conexión e inténtalo de nuevo.');
+      if (failures >= 3) throw new PaymentError('nequi-unconfirmed');
     }
     if (status === 'APPROVED') return;
     // Un estado de fallo corta; cualquier otro (PENDING u otro intermedio) sigue esperando hasta el plazo.
-    if (status && NEQUI_FAILED.has(status)) throw new PaymentError('Nequi no aprobó la vinculación. Inténtalo de nuevo.');
+    if (status && NEQUI_FAILED.has(status)) throw new PaymentError('nequi-declined');
     await new Promise((resolve) => setTimeout(resolve, NEQUI_POLL_MS));
   }
-  throw new PaymentError('No recibimos tu aprobación en Nequi a tiempo. Inténtalo de nuevo.');
+  throw new PaymentError('nequi-timeout');
 }
 
 /** Algoritmo de Luhn: descarta números mal escritos antes de enviarlos. */
