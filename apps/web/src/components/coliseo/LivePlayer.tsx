@@ -20,6 +20,7 @@ import { notifyLocal } from '@/lib/systemNotifications';
 import * as workoutService from '@/services/workout.service';
 import * as coliseo from '@/services/coliseo.service';
 import { RollingClock } from './ColiseoMotion';
+import { exerciseName, exerciseTags } from './exerciseText';
 
 export interface ActiveSet { id: string; weight: string; reps: string; completed: boolean; type: SetType; rpe?: number; rir?: number }
 export interface ActiveExercise {
@@ -257,6 +258,7 @@ const MUSCLE_FILTERS = ['Todos', 'Pecho', 'Espalda', 'Hombros', 'Bíceps', 'Trí
 
 function ExerciseSearchModal({ onSelect, onClose }: { onSelect: (ex: Exercise) => void; onClose: () => void }) {
   const t = useText(COPY);
+  const locale = useLocale();
   const [search, setSearch] = useState('');
   const [muscleFilter, setMuscleFilter] = useState('Todos');
   const [exercises, setExercises] = useState<Exercise[]>([]);
@@ -284,8 +286,8 @@ function ExerciseSearchModal({ onSelect, onClose }: { onSelect: (ex: Exercise) =
         ) : (
           exercises.map((ex) => (
             <button key={ex.id} type="button" onClick={() => onSelect(ex)} className="flex min-h-12 flex-col justify-center rounded-xl px-3 py-2 text-left transition-colors hover:bg-surface-variant">
-              <span className="text-body-md text-on-background">{ex.name}</span>
-              {(ex.muscleGroup || ex.equipment) && <span className="text-body-sm text-on-surface-light">{[ex.muscleGroup, ex.equipment].filter(Boolean).join(' · ')}</span>}
+              <span className="text-body-md text-on-background">{exerciseName(ex.name, locale)}</span>
+              {(ex.muscleGroup || ex.equipment) && <span className="text-body-sm text-on-surface-light">{exerciseTags(ex.muscleGroup, ex.equipment, locale)}</span>}
             </button>
           ))
         )}
@@ -689,8 +691,8 @@ export function LivePlayer({ workout, update, playlistUrl, onMinimize, onFinish,
                 <ChevronLeft aria-hidden className="size-6" />
               </Button>
               <div className="min-w-0 flex-1 text-center">
-                <h2 className="text-heading-lg">{ex.name}</h2>
-                <p className="text-body-sm text-on-surface-light">{[ex.muscleGroup, ex.equipment].filter(Boolean).join(' · ')}{n > 1 ? ` · ${t.ofN(exIdx + 1, n)}` : ''}</p>
+                <h2 className="text-heading-lg">{exerciseName(ex.name, locale)}</h2>
+                <p className="text-body-sm text-on-surface-light">{exerciseTags(ex.muscleGroup, ex.equipment, locale)}{n > 1 ? ` · ${t.ofN(exIdx + 1, n)}` : ''}</p>
               </div>
               <Button variant="icon" aria-label={t.nextEx} disabled={exIdx >= n - 1} onClick={() => jumpTo(exIdx + 1)}>
                 <ChevronRight aria-hidden className="size-6" />

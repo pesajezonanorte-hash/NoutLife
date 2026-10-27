@@ -19,6 +19,7 @@ import { AmbientLight, Particles, Sheen, ZoneShell, useParticleBudget } from '@/
 import { fetchAchievements, type Achievement } from '@/services/achievement.service';
 import { achievementCategory, achievementIcon, achievementProgress as progressOf } from '@/components/achievements/achievementMeta';
 import { Lettering } from '@/components/layout/Lettering';
+import { achievementText } from '@/components/achievements/achievementText';
 import { INTL_LOCALE, useLocale, useText, type Copy, type Locale } from '@/lib/i18n';
 
 type Filter = 'all' | 'on' | 'off';
@@ -83,11 +84,12 @@ function AchievementCard({ a, index, fresh }: { a: Achievement; index: number; f
   const t = useText(COPY);
   const locale = useLocale();
   const meta = achievementCategory(a.category, locale);
+  const text = achievementText(a, locale);
   const Icon = achievementIcon(a);
   const { target, current, pct } = progressOf(a);
   const on = a.unlocked;
   const metaText = on ? t.unlockedOn(fmtDate(a.unlockedAt, locale)) : target > 0 ? t.percent(pct, current, target) : t.lockedWord;
-  const aria = `${a.title}. ${a.description.replace(/\.\s*$/, '')}. ${on ? t.bDate(fmtDate(a.unlockedAt, locale)) : target > 0 ? t.lockedPct(pct) : t.lockedAria}. ${a.xpReward} ${t.xp}.`;
+  const aria = `${text.title}. ${text.description.replace(/\.\s*$/, '')}. ${on ? t.bDate(fmtDate(a.unlockedAt, locale)) : target > 0 ? t.lockedPct(pct) : t.lockedAria}. ${a.xpReward} ${t.xp}.`;
   const delay = 0.35 + Math.min(index, 12) * 0.08;
 
   // El brillo del cristal sigue al puntero.
@@ -151,7 +153,7 @@ function AchievementCard({ a, index, fresh }: { a: Achievement; index: number; f
         {on && <span className="absolute right-3 top-3 flex size-6 items-center justify-center rounded-full bg-success-strong text-on-success"><Check className="size-3.5" strokeWidth={3} /></span>}
       </div>
       {/* La placa grabada y lo que dice debajo */}
-      <h2 className={cn('lq-brass relative -mt-3 max-w-[92%] truncate px-3 py-1 text-label-md md:text-label-lg', !on && 'opacity-80')}>{a.title}</h2>
+      <h2 className={cn('lq-brass relative -mt-3 max-w-[92%] truncate px-3 py-1 text-label-md md:text-label-lg', !on && 'opacity-80')}>{text.title}</h2>
       <div className="mt-2 flex w-full flex-col items-center gap-1.5 px-2">
         {!on && target > 0 && (
           // Lo que falta: un hilo de latón que se llena (el porcentaje va en el texto y en la etiqueta)
@@ -160,13 +162,13 @@ function AchievementCard({ a, index, fresh }: { a: Achievement; index: number; f
           </span>
         )}
         <span className={cn('font-mono text-body-sm tabular-nums', on ? 'text-secondary' : 'text-jade-50/70')}>{metaText}</span>
-        <p className="text-body-sm text-jade-50/75 md:hidden">{a.description}</p>
+        <p className="text-body-sm text-jade-50/75 md:hidden">{text.description}</p>
       </div>
       {/* Desktop: la descripción se despliega en hover/foco (grid-rows 0fr → 1fr). */}
       <div className="relative hidden w-full grid-rows-[0fr] opacity-0 transition-[grid-template-rows,opacity] duration-300 ease-out group-hover:grid-rows-[1fr] group-hover:opacity-100 group-focus:grid-rows-[1fr] group-focus:opacity-100 [.reduce-motion_&]:transition-none md:grid">
         <div className="overflow-hidden">
           <p className="mt-2 border-t border-jade-50/10 px-2 pt-2 text-body-sm text-jade-50/85">
-            {a.description} <span className="text-secondary">{t.xpShort(a.xpReward)}</span>
+            {text.description} <span className="text-secondary">{t.xpShort(a.xpReward)}</span>
           </p>
         </div>
       </div>

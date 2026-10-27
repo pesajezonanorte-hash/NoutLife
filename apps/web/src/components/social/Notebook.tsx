@@ -40,6 +40,7 @@ const es = {
   onlineCap: 'En línea',
   nowIn: (zone: string): string => `Ahora en ${zone}`,
   youWord: 'Tú',
+  activeAgo: (ago: string): string => `Activo ${ago}`,
   levelShort: 'Nivel',
   letters: 'cartas sin leer',
   viewId: (name: string): string => `Ver el DNI de ${name}`,
@@ -99,6 +100,7 @@ const en: typeof es = {
   onlineCap: 'Online',
   nowIn: (zone: string): string => `Now in ${zone}`,
   youWord: 'You',
+  activeAgo: (ago: string): string => `Active ${ago}`,
   levelShort: 'Level',
   letters: 'unread letters',
   viewId: (name: string): string => `See the ID of ${name}`,
@@ -178,7 +180,7 @@ function Entry({ f, active, index, onOpen }: { f: FriendItem; active: boolean; i
   const navigate = useNavigate();
   const line = f.friend.online
     ? (f.friend.zone ? t.nowIn(f.friend.zone) : t.onlineCap)
-    : f.lastMessage ? `${f.lastMessage.mine ? 'Tú: ' : ''}${f.lastMessage.preview}` : f.friend.lastSeen ? `Activo ${timeAgo(f.friend.lastSeen)}` : `@${f.friend.username}`;
+    : f.lastMessage ? `${f.lastMessage.mine ? `${t.youWord}: ` : ''}${f.lastMessage.preview}` : f.friend.lastSeen ? t.activeAgo(timeAgo(f.friend.lastSeen)) : `@${f.friend.username}`;
   const tilt = ((f.friend.id.charCodeAt(0) + index) % 5 - 2) * 1.6;
   return (
     <li className="relative">

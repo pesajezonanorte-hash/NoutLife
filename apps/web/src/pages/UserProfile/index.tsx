@@ -35,6 +35,7 @@ import {
 } from '@/services/network.service';
 import { Badge, Button, EmptyState, ErrorState, Modal, PageLoader } from '@/components/ui/lq';
 import { INTL_LOCALE, useLocale, useText, type Copy, type Locale } from '@/lib/i18n';
+import { achievementText } from '@/components/achievements/achievementText';
 
 const es = {
   guildSent: (name: string): string => `Paloma enviada con la invitación a ${name}`,
@@ -469,9 +470,10 @@ export default function UserProfilePage() {
                 <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                   {data.achievements.map((a, i) => {
                     const tilt = ((i * 7) % 11) - 5;
+                    const text = achievementText(a, locale);
                     return (
                       <motion.li
-                        key={`${a.title}-${i}`} title={a.description}
+                        key={`${a.title}-${i}`} title={text.description}
                         initial={{ opacity: 0, scale: 1.7, rotate: tilt - 14 }} animate={{ opacity: 1, scale: 1, rotate: tilt }}
                         transition={{ ...slam, delay: 0.25 + i * 0.07 }}
                         className="flex flex-col items-center gap-1.5 p-2 text-center"
@@ -479,7 +481,7 @@ export default function UserProfilePage() {
                         <span className="flex size-16 items-center justify-center rounded-full border-[2.5px] border-dashed border-secondary-text/70 text-secondary-text shadow-[inset_0_0_0_4px_rgb(var(--lq-surface)),inset_0_0_0_5.5px_rgb(var(--lq-secondary-text)/.45)]">
                           <E e={a.icon} s={26} />
                         </span>
-                        <span className="line-clamp-2 text-body-sm text-on-background">{a.title}</span>
+                        <span className="line-clamp-2 text-body-sm text-on-background">{text.title}</span>
                         <span className="font-mono text-label-md text-on-surface-light">{fmtDate(a.unlockedAt, locale)}</span>
                       </motion.li>
                     );

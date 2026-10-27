@@ -9,15 +9,30 @@ import { springs, staggerVariants, enter } from '@/lib/motion/presets';
 import { softTone } from '@/components/ui/lq/tones';
 import type { Achievement } from '@/services/achievement.service';
 import { achievementCategory, achievementIcon, achievementProgress } from '@/components/achievements/achievementMeta';
-import { getLocale, INTL_LOCALE } from '@/lib/i18n';
+import { INTL_LOCALE, useLocale, useText, type Copy, type Locale } from '@/lib/i18n';
+import { achievementText } from '@/components/achievements/achievementText';
 
-const fmtDate = (iso?: string) => (iso ? new Date(iso).toLocaleDateString(INTL_LOCALE[getLocale()], { day: 'numeric', month: 'short' }).replace('.', '') : '');
+const es = {
+  empty: 'Completa hábitos y misiones para publicar tus primeros logros.',
+  locked: 'Bloqueado.',
+};
+
+const en: typeof es = {
+  empty: 'Complete habits and quests to post your first achievements.',
+  locked: 'Locked.',
+};
+
+const COPY: Copy<typeof es> = { es, en };
+
+const fmtDate = (iso: string | undefined, locale: Locale) => (iso ? new Date(iso).toLocaleDateString(INTL_LOCALE[locale], { day: 'numeric', month: 'short' }).replace('.', '') : '');
 
 export function AchievementPosts({ achievements, max = 12 }: { achievements: Achievement[]; max?: number }) {
+  const t = useText(COPY);
+  const locale = useLocale();
   const unlocked = achievements.filter((a) => a.unlocked).sort((a, b) => (b.unlockedAt ?? '').localeCompare(a.unlockedAt ?? ''));
   const locked = achievements.filter((a) => !a.unlocked);
   const posts = [...unlocked, ...locked].slice(0, max);
-  if (!posts.length) return <p className="text-body-md text-on-surface-light">Completa hábitos y misiones para publicar tus primeros logros.</p>;
+  if (!posts.length) return <p className="text-body-md text-on-surface-light">{t.empty}</p>;
 
   return (
     <motion.ul
@@ -29,6 +44,7 @@ export function AchievementPosts({ achievements, max = 12 }: { achievements: Ach
     >
       {posts.map((a) => {
         const Icon = achievementIcon(a);
+        const text = achievementText(a, locale);
         const tone = achievementCategory(a.category).tone;
         const p = achievementProgress(a);
         return (
@@ -50,12 +66,12 @@ export function AchievementPosts({ achievements, max = 12 }: { achievements: Ach
             </span>
             {/* Pie de la publicación: título siempre visible */}
             <span className="relative flex min-w-0 flex-col gap-0.5 bg-surface/80 px-2 py-1.5 backdrop-blur-[2px] md:px-3 md:py-2">
-              <span className="truncate text-label-md text-on-background md:text-label-lg">{a.title}</span>
+              <span className="truncate text-label-md text-on-background md:text-label-lg">{text.title}</span>
               {a.unlocked ? (
-                <span className="hidden truncate text-label-md text-on-surface-light md:block">{fmtDate(a.unlockedAt)}</span>
+                <span className="hidden truncate text-label-md text-on-surface-light md:block">{fmtDate(a.unlockedAt, locale)}</span>
               ) : (
                 <span className="flex items-center gap-1.5">
-                  <span className="sr-only">Bloqueado. </span>
+                  <span className="sr-only">{t.locked} </span>
                   <span aria-hidden className="h-1 flex-1 overflow-hidden rounded-full bg-border">
                     <span className="block h-full origin-left rounded-full bg-primary" style={{ transform: `scaleX(${p.pct / 100})` }} />
                   </span>

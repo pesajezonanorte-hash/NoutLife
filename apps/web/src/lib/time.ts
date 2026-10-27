@@ -53,7 +53,3 @@ export function relativeTime(iso: string, locale: Locale = 'es'): string {
 export function formatNumber(n: number, locale: Locale = 'es'): string {
   return new Intl.NumberFormat(INTL_LOCALE[locale]).format(n);
 }
-
-export function formatCOP(n: number, locale: Locale = 'es'): string {
-  return new Intl.NumberFormat(INTL_LOCALE[locale], { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
-}
