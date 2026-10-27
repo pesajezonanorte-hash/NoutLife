@@ -41,10 +41,10 @@ export function BrandMark({ size = 32, tile, className, alt = '' }: { size?: num
         ))}
       </defs>
       {LEAVES.map(({ key, d }) => <path key={key} fill={`url(#${uid}${key})`} d={d} />)}
-      {/* Halloween: sombrero de bruja que cae sobre la N y asoma por encima (lib/season,
+      {/* Halloween: sombrero de bruja que cae sobre la punta alta de la N y asoma por encima (lib/season,
           misma geometría que el splash de index.html; colores en styles/halloween.css). */}
       {hat && (
-        <g transform="translate(250 60) rotate(-14)">
+        <g transform="translate(60 30) rotate(-16) scale(.72)">
           <linearGradient id={`${uid}hat`} gradientUnits="userSpaceOnUse" x1={0} y1={-330} x2={0} y2={40}>
             <stop offset={0} style={{ stopColor: 'var(--lq-hat-0)' }} />
             <stop offset={1} style={{ stopColor: 'var(--lq-hat-1)' }} />
