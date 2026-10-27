@@ -1,5 +1,10 @@
 import { useRef, type ClipboardEvent, type KeyboardEvent } from 'react';
 import { cn } from '@/lib/utils';
+import { useText, type Copy } from '@/lib/i18n';
+
+const es = { char: (i: number, n: number): string => `Carácter ${i} de ${n}` };
+const en: typeof es = { char: (i: number, n: number): string => `Character ${i} of ${n}` };
+const COPY: Copy<typeof es> = { es, en };
 
 export interface OtpInputProps {
   /** Valor actual (se normaliza a mayúsculas, sin espacios). */
@@ -18,6 +23,7 @@ const clean = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, '');
 /** Código de N casillas: pegar reparte el código, cada carácter avanza solo y
  *  Backspace en una casilla vacía vuelve a la anterior. Flechas para moverse. */
 export function OtpInput({ value, onChange, length = 6, label, invalid, disabled, className }: OtpInputProps) {
+  const t = useText(COPY);
   const refs = useRef<Array<HTMLInputElement | null>>([]);
   const chars = Array.from({ length }, (_, i) => value[i] ?? '');
   const focus = (i: number) => refs.current[Math.max(0, Math.min(length - 1, i))]?.focus();
@@ -56,7 +62,7 @@ export function OtpInput({ value, onChange, length = 6, label, invalid, disabled
           autoCapitalize="characters"
           autoComplete={i === 0 ? 'one-time-code' : 'off'}
           maxLength={length}
-          aria-label={`Carácter ${i + 1} de ${length}`}
+          aria-label={t.char(i + 1, length)}
           aria-invalid={invalid || undefined}
           onFocus={(e) => e.currentTarget.select()}
           onKeyDown={onKeyDown(i)}

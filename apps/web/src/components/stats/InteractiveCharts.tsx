@@ -5,6 +5,7 @@ import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type P
 import { AnimatePresence, motion, useInView, useReducedMotionConfig } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { expo } from '@/lib/motion';
+import { INTL_LOCALE, useLocale } from '@/lib/i18n';
 import { smoothPath } from '@/components/ui/lq/AdvancedCharts';
 import { fillSoftTone, fillTone, solidBg, strokeTone, type Tone } from '@/components/ui/lq/tones';
 
@@ -354,6 +355,7 @@ export interface HabitHeatmapProps {
 
 /** Constancia por día (lunes → domingo): ola de entrada, tooltip con fecha y conteo, ← → ↑ ↓ con teclado. */
 export function HabitHeatmap({ counts, weeks = 26, className }: HabitHeatmapProps) {
+  const locale = useLocale();
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, amount: 0.25 });
   const reduce = useReducedMotionConfig() ?? false;
@@ -388,7 +390,7 @@ export function HabitHeatmap({ counts, weeks = 26, className }: HabitHeatmapProp
   };
   const months = Array.from({ length: weeks }, (_, w) => {
     const d = days[w * 7].d, prev = w ? days[(w - 1) * 7].d : null;
-    return !prev || prev.getMonth() !== d.getMonth() ? d.toLocaleDateString('es-ES', { month: 'short' }) : '';
+    return !prev || prev.getMonth() !== d.getMonth() ? d.toLocaleDateString(INTL_LOCALE[locale], { month: 'short' }) : '';
   });
   const a = active != null ? days[active] : null;
   const total = days.reduce((s, x) => s + x.n, 0);
@@ -428,7 +430,7 @@ export function HabitHeatmap({ counts, weeks = 26, className }: HabitHeatmapProp
               initial={{ opacity: 0, x: pos.x, y: pos.y - 6, scale: 0.94 }} animate={{ opacity: 1, x: pos.x, y: pos.y - 10, scale: 1 }}
               exit={{ opacity: 0, transition: { duration: 0.12 } }} transition={glide}>
               <div className="-translate-x-1/2 -translate-y-full whitespace-nowrap rounded-md border border-border bg-surface px-3 py-2 shadow-lg">
-                <div className="text-label-lg first-letter:uppercase">{a.d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'short' })}</div>
+                <div className="text-label-lg first-letter:uppercase">{a.d.toLocaleDateString(INTL_LOCALE[locale], { weekday: 'long', day: 'numeric', month: 'short' })}</div>
                 <div className="text-body-sm text-on-surface-light">
                   {a.n ? <><span className="font-mono tabular-nums text-on-background">{a.n}</span> {a.n === 1 ? 'hábito completado' : 'hábitos completados'}</> : 'Sin hábitos completados'}
                 </div>
@@ -436,7 +438,7 @@ export function HabitHeatmap({ counts, weeks = 26, className }: HabitHeatmapProp
             </motion.div>
           )}
         </AnimatePresence>
-        <span className="sr-only" aria-live="polite">{a ? `${a.d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}: ${a.n} hábitos` : ''}</span>
+        <span className="sr-only" aria-live="polite">{a ? `${a.d.toLocaleDateString(INTL_LOCALE[locale], { weekday: 'long', day: 'numeric', month: 'long' })}: ${a.n} hábitos` : ''}</span>
       </div>
       <div className="flex items-center justify-end gap-1.5 text-caption text-on-surface-light">
         Menos{HEAT.map((c) => <span key={c} aria-hidden className={cn('size-3 rounded-[3px]', c)} />)}Más

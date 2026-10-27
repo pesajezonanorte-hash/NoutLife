@@ -18,6 +18,7 @@ import { springs } from '@/lib/motion/presets';
 import { useAuthStore } from '@/store/authStore';
 import { useToastStore } from '@/hooks/useToast';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { INTL_LOCALE, useLocale, useText, type Copy as CopyDict } from '@/lib/i18n';
 import {
   apiError, getGuild, getNetwork, inviteToGuild, peekGuildMessages, postGuildSnap, respondGuildInvite, thumbOf,
   type FriendItem, type GuildDetail, type GuildInvite, type GuildMessage, type GuildSummary,
@@ -39,6 +40,220 @@ import { InstantCamera } from './letters/InstantCamera';
 import { InstantPhoto } from './letters/InstantPhoto';
 import { GuildLetter } from './letters/LetterView';
 
+const es = {
+  nameErr: 'Ponle un nombre a tu gremio',
+  codeErr: 'Escribe el código completo',
+  generic: 'Algo salió mal',
+  created: 'Gremio creado · eres el líder',
+  joined: 'Te uniste al gremio',
+  firstGuild: 'tu primer gremio',
+  otherGuild: 'otro gremio',
+  intro: (members: number, guilds: number): string => `Un gremio es un grupo con su propia carta. Cada día envían una foto con la cámara para vencer al enemigo del día; si todos escriben tres días seguidos, se enciende su racha. Hasta ${members} aventureros por gremio y ${guilds} gremios por persona.`,
+  createTitle: 'Crear gremio',
+  nameLabel: 'Nombre',
+  namePh: 'Ej. Los Constantes',
+  emblemLabel: 'Emblema',
+  emblemAria: 'Emblema',
+  photoLabel: 'Foto del gremio',
+  optional: '(opcional)',
+  changePhoto: 'Cambiar foto',
+  choosePhoto: 'Elegir foto',
+  yourGuild: 'tu gremio',
+  creating: 'Creando…',
+  createBtn: 'Crear gremio',
+  joinTitle: 'Unirse con código',
+  joinHint: 'Pide el código de 6 caracteres a quien lidera el gremio. Puedes pegarlo entero.',
+  inviteCodeLabel: 'Código de invitación',
+  verifying: 'Verificando…',
+  joinBtn: 'Unirse',
+  inviteTitle: (name: string): string => `Invitar a ${name}`,
+  inviteHint: (code: string): string => `Les llegará una paloma con la invitación. También pueden entrar con el código ${code}.`,
+  allFriendsHere: 'Todos tus amigos ya están aquí.',
+  addFriendsFirst: 'Anota amigos en tu directorio para invitarlos.',
+  pigeonSent: 'Paloma enviada',
+  pigeonTo: (name: string): string => `Paloma enviada a ${name}`,
+  pigeonFailed: 'La paloma no pudo salir',
+  invite: 'Invitar',
+  photoOf: (who: string): string => `Foto de ${who}`,
+  you: 'ti',
+  youCap: 'Tú',
+  openLetter: 'Abrir la carta del gremio',
+  unreadN: (n: number): string => `, ${n} sin leer`,
+  letterTitle: 'Carta del gremio',
+  writeFirst: 'Escribe la primera línea para todos',
+  unreadSr: 'sin leer',
+  guildLevel: 'Gremio · nivel',
+  adventurers: 'aventureros',
+  editGuild: 'Editar gremio',
+  guildStreak: (n: number): string => `Racha del gremio: ${n} días`,
+  guildStreakShort: 'racha del gremio',
+  inviteCode: 'Código de invitación',
+  copied: 'Copiado',
+  copy: 'Copiar',
+  inviteFriends: 'Invitar amigos',
+  copyFail: 'No se pudo copiar',
+  sendFail: 'No se pudo enviar la foto',
+  snapOk: (name: string): string => `¡${name} cayó!`,
+  snapPasted: 'Foto pegada en la carta del gremio',
+  snapHit: (hp: number, name: string): string => `Le quitaste ${hp} HP a ${name}`,
+  enemyDay: 'Enemigo del día',
+  enemyDefeatedNote: 'Todos enviaron una foto hoy: el enemigo cayó y el gremio ganó experiencia. Mañana llega otro.',
+  enemyNote: (hp: number): string => `La primera foto de hoy de cada miembro, tomada con la cámara, le quita ${hp} HP. Si todos envían la suya, cae.`,
+  photos: 'fotos',
+  yourPhotoHit: 'Tu foto de hoy ya golpeó',
+  takePhoto: 'Tomar foto y atacar',
+  wallToday: 'Muro de hoy',
+  members: 'Miembros',
+  photoTodayXp: 'Foto de hoy · XP',
+  seeId: (name: string): string => `Ver el DNI de ${name}`,
+  leader: 'Líder',
+  level: 'Nivel',
+  days: 'días',
+  alreadySent: 'Ya envió su foto de hoy',
+  notSent: 'Aún no envía su foto',
+  photoSentToday: 'Foto enviada hoy',
+  noPhotoToday: 'Sin foto hoy',
+  contributionOf: (name: string): string => `Aporte de ${name}`,
+  photosToday: 'Fotos de hoy',
+  membersSent: 'Miembros que enviaron una foto hoy',
+  sent: 'enviadas',
+  streakBest: (n: number, best: number): string => `Racha del gremio: ${n} días (mejor: ${best}).`,
+  streakHowTo: 'Si todos escriben en la carta tres días seguidos, se enciende la racha del gremio.',
+  leaveGuild: 'Salir del gremio',
+  leaveTitle: '¿Salir del gremio?',
+  leaveBody: (name: string): string => `Dejarás de ver su carta y de aportar al enemigo del día de ${name}. Podrás volver con el código.`,
+  cancel: 'Cancelar',
+  leave: 'Salir',
+  guildsNav: 'Tus gremios',
+  newOrJoin: 'Nuevo o unirme',
+  unreadSrShort: 'sin leer',
+  inviteLine: 'te envió una paloma: te invita a',
+  membersWord: 'miembros',
+  notNow: 'Ahora no',
+  join: 'Unirme',
+  answerFail: 'No se pudo responder',
+  joinedTo: (name: string): string => `Te uniste a ${name}`,
+  leftGuild: 'Saliste del gremio',
+  photoUpdated: 'Foto del gremio actualizada',
+  photoRemoved: 'Foto del gremio quitada',
+  changeGuildPhoto: 'Cambiar la foto del gremio',
+  setGuildPhoto: 'Poner una foto al gremio',
+  defeated: '¡Enemigo derrotado!',
+  nameGuildDefault: 'tu gremio',
+  boss: 'Enemigo del día',
+  otherPhoto: 'Foto',
+  avatarShort: 'Avatar',
+  you2: 'Tú',
+};
+
+const en: typeof es = {
+  nameErr: 'Give your guild a name',
+  codeErr: 'Enter the full code',
+  generic: 'Something went wrong',
+  created: 'Guild created · you are the leader',
+  joined: 'You joined the guild',
+  firstGuild: 'your first guild',
+  otherGuild: 'another guild',
+  intro: (members: number, guilds: number): string => `A guild is a group with its own letter. Every day they send a photo with the camera to defeat the enemy of the day; if everyone writes three days in a row, its streak lights up. Up to ${members} adventurers per guild and ${guilds} guilds per person.`,
+  createTitle: 'Create guild',
+  nameLabel: 'Name',
+  namePh: 'E.g. The Constants',
+  emblemLabel: 'Emblem',
+  emblemAria: 'Emblem',
+  photoLabel: 'Guild photo',
+  optional: '(optional)',
+  changePhoto: 'Change photo',
+  choosePhoto: 'Choose photo',
+  yourGuild: 'your guild',
+  creating: 'Creating…',
+  createBtn: 'Create guild',
+  joinTitle: 'Join with a code',
+  joinHint: 'Ask whoever leads the guild for the 6-character code. You can paste it whole.',
+  inviteCodeLabel: 'Invite code',
+  verifying: 'Checking…',
+  joinBtn: 'Join',
+  inviteTitle: (name: string): string => `Invite to ${name}`,
+  inviteHint: (code: string): string => `They will get a pigeon with the invitation. They can also join with the code ${code}.`,
+  allFriendsHere: 'All your friends are already here.',
+  addFriendsFirst: 'Add friends to your directory to invite them.',
+  pigeonSent: 'Pigeon sent',
+  pigeonTo: (name: string): string => `Pigeon sent to ${name}`,
+  pigeonFailed: 'The pigeon could not fly',
+  invite: 'Invite',
+  photoOf: (who: string): string => `Photo of ${who}`,
+  you: 'you',
+  youCap: 'You',
+  openLetter: 'Open the guild letter',
+  unreadN: (n: number): string => `, ${n} unread`,
+  letterTitle: 'Guild letter',
+  writeFirst: 'Write the first line for everyone',
+  unreadSr: 'unread',
+  guildLevel: 'Guild · level',
+  adventurers: 'adventurers',
+  editGuild: 'Edit guild',
+  guildStreak: (n: number): string => `Guild streak: ${n} days`,
+  guildStreakShort: 'guild streak',
+  inviteCode: 'Invite code',
+  copied: 'Copied',
+  copy: 'Copy',
+  inviteFriends: 'Invite friends',
+  copyFail: 'Could not copy',
+  sendFail: 'Could not send the photo',
+  snapOk: (name: string): string => `${name} fell!`,
+  snapPasted: 'Photo pinned to the guild letter',
+  snapHit: (hp: number, name: string): string => `You took ${hp} HP from ${name}`,
+  enemyDay: 'Enemy of the day',
+  enemyDefeatedNote: 'Everyone sent a photo today: the enemy fell and the guild gained experience. Another one comes tomorrow.',
+  enemyNote: (hp: number): string => `Each member’s first photo of the day, taken with the camera, takes ${hp} HP. If everyone sends theirs, it falls.`,
+  photos: 'photos',
+  yourPhotoHit: 'Your photo today hit the enemy',
+  takePhoto: 'Take photo and attack',
+  wallToday: 'Today’s wall',
+  members: 'Members',
+  photoTodayXp: 'Photo today · XP',
+  seeId: (name: string): string => `See the ID of ${name}`,
+  leader: 'Leader',
+  level: 'Level',
+  days: 'days',
+  alreadySent: 'Already sent their photo today',
+  notSent: 'Has not sent a photo yet',
+  photoSentToday: 'Photo sent today',
+  noPhotoToday: 'No photo today',
+  contributionOf: (name: string): string => `Contribution of ${name}`,
+  photosToday: 'Today’s photos',
+  membersSent: 'Members who sent a photo today',
+  sent: 'sent',
+  streakBest: (n: number, best: number): string => `Guild streak: ${n} days (best: ${best}).`,
+  streakHowTo: 'If everyone writes in the letter three days in a row, the guild streak lights up.',
+  leaveGuild: 'Leave guild',
+  leaveTitle: 'Leave the guild?',
+  leaveBody: (name: string): string => `You will stop seeing its letter and contributing to the enemy of the day of ${name}. You can come back with the code.`,
+  cancel: 'Cancel',
+  leave: 'Leave',
+  guildsNav: 'Your guilds',
+  newOrJoin: 'New or join',
+  unreadSrShort: 'unread',
+  inviteLine: 'sent you a pigeon: they invite you to',
+  membersWord: 'members',
+  notNow: 'Not now',
+  join: 'Join',
+  answerFail: 'Could not reply',
+  joinedTo: (name: string): string => `You joined ${name}`,
+  leftGuild: 'You left the guild',
+  photoUpdated: 'Guild photo updated',
+  photoRemoved: 'Guild photo removed',
+  changeGuildPhoto: 'Change the guild photo',
+  setGuildPhoto: 'Add a photo to the guild',
+  defeated: 'Enemy defeated!',
+  nameGuildDefault: 'your guild',
+  boss: 'Enemy of the day',
+  otherPhoto: 'Photo',
+  avatarShort: 'Avatar',
+  you2: 'You',
+};
+
+const COPY: CopyDict<typeof es> = { es, en };
+
 const MAX_MEMBERS = 10;
 const MAX_GUILDS = 5;
 /** Vida que le quita al enemigo del día la primera foto de cada miembro (igual que en la API). */
@@ -47,9 +262,10 @@ const ENEMY_HIT = 100;
 const FIRE_KEY = 'lq-guild-fire';
 const readFire = (id: string): number | null => { try { const v = JSON.parse(localStorage.getItem(FIRE_KEY) || '{}')[id]; return typeof v === 'number' ? v : null; } catch { return null; } };
 const toaster = () => useToastStore.getState();
-const errMsg = (e: unknown) => apiError(e, (e as Error)?.message || 'Algo salió mal');
+const errMsg = (e: unknown, fallback: string) => apiError(e, (e as Error)?.message || fallback);
 
 function NoGuild({ onEntered, hasGuilds = false }: { onEntered: (msg: string) => void; hasGuilds?: boolean }) {
+  const t = useText(COPY);
   const [name, setName] = useState('');
   const [emblem, setEmblem] = useState('shield');
   const [photo, setPhoto] = useState<string | null>(null);
@@ -61,18 +277,18 @@ function NoGuild({ onEntered, hasGuilds = false }: { onEntered: (msg: string) =>
 
   async function create(e: FormEvent) {
     e.preventDefault();
-    if (!name.trim()) { setError({ create: 'Ponle un nombre a tu gremio' }); return; }
+    if (!name.trim()) { setError({ create: t.nameErr }); return; }
     setBusy('create'); setError({});
-    try { await createGuild({ name: name.trim(), emblem, ...(photo ? { photoUrl: photo } : {}) }); onEntered('Gremio creado · eres el líder'); }
-    catch (err) { setError({ create: errMsg(err) }); }
+    try { await createGuild({ name: name.trim(), emblem, ...(photo ? { photoUrl: photo } : {}) }); onEntered(t.created); }
+    catch (err) { setError({ create: errMsg(err, t.generic) }); }
     finally { setBusy(null); }
   }
   async function join(e: FormEvent) {
     e.preventDefault();
-    if (code.length < 4) { setError({ join: 'Escribe el código completo' }); return; }
+    if (code.length < 4) { setError({ join: t.codeErr }); return; }
     setBusy('join'); setError({});
-    try { await joinGuild(code); onEntered('Te uniste al gremio'); }
-    catch (err) { setError({ join: errMsg(err) }); }
+    try { await joinGuild(code); onEntered(t.joined); }
+    catch (err) { setError({ join: errMsg(err, t.generic) }); }
     finally { setBusy(null); }
   }
   // Radiogroup con flechas (patrón WAI-ARIA).
@@ -89,21 +305,21 @@ function NoGuild({ onEntered, hasGuilds = false }: { onEntered: (msg: string) =>
     <motion.div variants={stagger} initial="initial" animate="animate" className="mx-auto flex w-full max-w-[920px] flex-col gap-8 md:gap-10">
       <motion.section variants={item} className="flex flex-col items-center gap-3 pt-2 text-center">
         <IconChip icon={Shield} tone="warning" size="lg" className="lq-halo size-20 animate-float rounded-[28px] [.reduce-motion_&]:animate-none md:size-24" />
-        <h2 className="text-display-sm"><Lettering text={hasGuilds ? 'otro gremio' : 'tu primer gremio'} /></h2>
-        <p className="max-w-[540px] text-body-lg text-on-surface-light">Un gremio es un grupo con su propia carta. Cada día envían una foto con la cámara para vencer al enemigo del día; si todos escriben tres días seguidos, se enciende su racha. Hasta {MAX_MEMBERS} aventureros por gremio y {MAX_GUILDS} gremios por persona.</p>
+        <h2 className="text-display-sm"><Lettering text={hasGuilds ? t.otherGuild : t.firstGuild} /></h2>
+        <p className="max-w-[540px] text-body-lg text-on-surface-light">{t.intro(MAX_MEMBERS, MAX_GUILDS)}</p>
       </motion.section>
 
       <motion.div variants={item} className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
         <SpotCard aria-labelledby="g-create" padding="md" className="md:p-8">
           <form noValidate onSubmit={create} className="flex h-full flex-col gap-4">
             <IconChip icon={Plus} tone="primary" />
-            <h3 id="g-create" className="text-heading-md">Crear gremio</h3>
-            <Field label="Nombre" error={error.create}>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej. Los Constantes" maxLength={40} />
+            <h3 id="g-create" className="text-heading-md">{t.createTitle}</h3>
+            <Field label={t.nameLabel} error={error.create}>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t.namePh} maxLength={40} />
             </Field>
             <fieldset className="flex flex-col gap-2">
-              <legend className="mb-2 text-label-lg text-on-surface">Emblema</legend>
-              <div role="radiogroup" aria-label="Emblema" className="flex flex-wrap gap-2">
+              <legend className="mb-2 text-label-lg text-on-surface">{t.emblemLabel}</legend>
+              <div role="radiogroup" aria-label={t.emblemAria} className="flex flex-wrap gap-2">
                 {EMBLEMS.map((em, i) => {
                   const on = emblem === em.id;
                   return (
@@ -124,28 +340,28 @@ function NoGuild({ onEntered, hasGuilds = false }: { onEntered: (msg: string) =>
               </div>
             </fieldset>
             <div className="flex items-center gap-4">
-              <GuildCrest photoUrl={photo} emblem={emblemOf(emblem).icon} tone={emblemOf(emblem).tone} name={name.trim() || 'tu gremio'} halo={false} className="size-14 rounded-2xl [&>svg]:size-7" />
+              <GuildCrest photoUrl={photo} emblem={emblemOf(emblem).icon} tone={emblemOf(emblem).tone} name={name.trim() || t.yourGuild} halo={false} className="size-14 rounded-2xl [&>svg]:size-7" />
               <div className="flex min-w-0 flex-col items-start gap-1">
-                <span className="text-label-lg text-on-surface">Foto del gremio <span className="font-normal text-on-surface-light">(opcional)</span></span>
-                <Button type="button" variant="secondary" size="sm" onClick={() => setPhotoOpen(true)}>{photo ? 'Cambiar foto' : 'Elegir foto'}</Button>
+                <span className="text-label-lg text-on-surface">{t.photoLabel} <span className="font-normal text-on-surface-light">{t.optional}</span></span>
+                <Button type="button" variant="secondary" size="sm" onClick={() => setPhotoOpen(true)}>{photo ? t.changePhoto : t.choosePhoto}</Button>
               </div>
             </div>
             <GuildPhotoDialog
-              open={photoOpen} onClose={() => setPhotoOpen(false)} name={name.trim() || 'tu gremio'}
+              open={photoOpen} onClose={() => setPhotoOpen(false)} name={name.trim() || t.yourGuild}
               photoUrl={photo} emblem={emblemOf(emblem).icon} tone={emblemOf(emblem).tone} onSave={(url) => setPhoto(url)}
             />
-            <Button type="submit" block loading={busy === 'create'} disabled={busy === 'join'} className="mt-auto">{busy === 'create' ? 'Creando…' : 'Crear gremio'}</Button>
+            <Button type="submit" block loading={busy === 'create'} disabled={busy === 'join'} className="mt-auto">{busy === 'create' ? t.creating : t.createBtn}</Button>
           </form>
         </SpotCard>
 
         <SpotCard aria-labelledby="g-join" padding="md" className="md:p-8">
           <form noValidate onSubmit={join} className="flex h-full flex-col gap-4">
             <IconChip icon={LogIn} tone="forest" />
-            <h3 id="g-join" className="text-heading-md">Unirse con código</h3>
-            <p className="text-body-md text-on-surface-light">Pide el código de 6 caracteres a quien lidera el gremio. Puedes pegarlo entero.</p>
-            <OtpInput value={code} onChange={setCode} label="Código de invitación" invalid={Boolean(error.join)} disabled={busy === 'join'} />
+            <h3 id="g-join" className="text-heading-md">{t.joinTitle}</h3>
+            <p className="text-body-md text-on-surface-light">{t.joinHint}</p>
+            <OtpInput value={code} onChange={setCode} label={t.inviteCodeLabel} invalid={Boolean(error.join)} disabled={busy === 'join'} />
             {error.join && <p role="alert" className="text-body-sm text-error-text">{error.join}</p>}
-            <Button type="submit" variant="secondary" block loading={busy === 'join'} disabled={busy === 'create'} className="mt-auto">{busy === 'join' ? 'Verificando…' : 'Unirse'}</Button>
+            <Button type="submit" variant="secondary" block loading={busy === 'join'} disabled={busy === 'create'} className="mt-auto">{busy === 'join' ? t.verifying : t.joinBtn}</Button>
           </form>
         </SpotCard>
       </motion.div>
@@ -155,6 +371,7 @@ function NoGuild({ onEntered, hasGuilds = false }: { onEntered: (msg: string) =>
 
 /** Invitar a amigos que todavía no están en el gremio: cada invitación sale con su paloma. */
 function InviteFriends({ open, onClose, guild }: { open: boolean; onClose: () => void; guild: GuildDetail }) {
+  const t = useText(COPY);
   const [friends, setFriends] = useState<FriendItem[] | null>(null);
   const [sent, setSent] = useState<string[]>([]);
   useEffect(() => { if (open) getNetwork().then(setFriends).catch(() => setFriends([])); }, [open]);
@@ -162,14 +379,14 @@ function InviteFriends({ open, onClose, guild }: { open: boolean; onClose: () =>
   const candidates = (friends ?? []).filter((f) => !members.has(f.friend.id));
   async function invite(f: FriendItem, from: HTMLElement) {
     sendPigeon(from);
-    try { await inviteToGuild(guild.id, f.friend.id); setSent((s) => [...s, f.friend.id]); toaster().success(`Paloma enviada a ${f.friend.displayName.split(' ')[0]}`); }
-    catch (e) { toaster().error(apiError(e, 'La paloma no pudo salir')); }
+    try { await inviteToGuild(guild.id, f.friend.id); setSent((s) => [...s, f.friend.id]); toaster().success(t.pigeonTo(f.friend.displayName.split(' ')[0])); }
+    catch (e) { toaster().error(apiError(e, t.pigeonFailed)); }
   }
   return (
-    <Modal open={open} onClose={onClose} title={`Invitar a ${guild.name}`}>
-      <p className="-mt-2 text-body-sm text-on-surface-light">Les llegará una paloma con la invitación. También pueden entrar con el código <span className="font-mono">{guild.inviteCode}</span>.</p>
+    <Modal open={open} onClose={onClose} title={t.inviteTitle(guild.name)}>
+      <p className="-mt-2 text-body-sm text-on-surface-light">{t.inviteHint(guild.inviteCode)}</p>
       {friends === null ? <PageLoader size="sm" /> : candidates.length === 0 ? (
-        <p className="text-body-md text-on-surface-light">{friends.length ? 'Todos tus amigos ya están aquí.' : 'Anota amigos en tu directorio para invitarlos.'}</p>
+        <p className="text-body-md text-on-surface-light">{friends.length ? t.allFriendsHere : t.addFriendsFirst}</p>
       ) : (
         <ul className="flex max-h-[50vh] flex-col overflow-y-auto">
           {candidates.map((f) => (
@@ -177,8 +394,8 @@ function InviteFriends({ open, onClose, guild }: { open: boolean; onClose: () =>
               <PresenceAvatar user={f.friend} online={f.friend.online} size={40} />
               <span className="min-w-0 flex-1 truncate text-label-lg">{f.friend.displayName}</span>
               {sent.includes(f.friend.id)
-                ? <Badge variant="success" icon={Check}>Paloma enviada</Badge>
-                : <Button size="sm" variant="secondary" onClick={(e) => void invite(f, e.currentTarget)}><UserPlus aria-hidden className="size-4" />Invitar</Button>}
+                ? <Badge variant="success" icon={Check}>{t.pigeonSent}</Badge>
+                : <Button size="sm" variant="secondary" onClick={(e) => void invite(f, e.currentTarget)}><UserPlus aria-hidden className="size-4" />{t.invite}</Button>}
             </li>
           ))}
         </ul>
@@ -189,31 +406,33 @@ function InviteFriends({ open, onClose, guild }: { open: boolean; onClose: () =>
 
 /** Una foto del muro de hoy (se pide al acercarse a la pantalla). */
 function WallPhoto({ m, tilt, mine }: { m: GuildMessage; tilt: number; mine: boolean }) {
+  const t = useText(COPY);
   const { ref, near } = useNearScreen<HTMLDivElement>();
   const media = useMedia('guild', m.id, { enabled: near, hasThumb: Boolean(m.meta?.thumb) });
   return (
     <div ref={ref}>
-      <InstantPhoto src={media.photoUrl} thumb={m.meta?.thumb} alt={`Foto de ${mine ? 'ti' : m.user.displayName}`} tilt={tilt} caption={m.content || null} className="w-full" />
+      <InstantPhoto src={media.photoUrl} thumb={m.meta?.thumb} alt={t.photoOf(mine ? t.you : m.user.displayName)} tilt={tilt} caption={m.content || null} className="w-full" />
     </div>
   );
 }
 
 /** El sobre de la carta del gremio (móvil): lo último y las cartas sin abrir. */
 function GuildLetterEnvelope({ summary, onOpen }: { summary?: GuildSummary; onOpen: () => void }) {
+  const t = useText(COPY);
   const last = summary?.lastMessage;
   return (
-    <button type="button" onClick={onOpen} aria-label={`Abrir la carta del gremio${summary?.unread ? `, ${summary.unread} sin leer` : ''}`} className="group block w-full text-left">
+    <button type="button" onClick={onOpen} aria-label={`${t.openLetter}${summary?.unread ? t.unreadN(summary.unread) : ''}`} className="group block w-full text-left">
       <span className="lq-envelope relative block overflow-hidden rounded-[8px]">
         <span aria-hidden="true" className="lq-envelope-folds absolute inset-0" />
         <span aria-hidden="true" className="lq-envelope-flap absolute inset-x-0 top-0 block h-[46%]" />
         <span className="relative flex min-h-[84px] items-center gap-3 px-4 py-3">
           <Mail aria-hidden className="size-6 shrink-0 text-on-surface-light" strokeWidth={1.5} />
           <span className="min-w-0 flex-1 pt-2">
-            <span className="block text-label-lg text-on-background">Carta del gremio</span>
-            <span className="block truncate text-body-sm text-on-surface-light">{last ? `${last.mine ? 'Tú' : last.author.split(' ')[0]}: ${last.preview}` : 'Escribe la primera línea para todos'}</span>
+            <span className="block text-label-lg text-on-background">{t.letterTitle}</span>
+            <span className="block truncate text-body-sm text-on-surface-light">{last ? `${last.mine ? t.youCap : last.author.split(' ')[0]}: ${last.preview}` : t.writeFirst}</span>
           </span>
           {summary?.unread ? (
-            <span className="lq-wax flex size-9 shrink-0 items-center justify-center font-mono text-label-md">{summary.unread > 9 ? '9+' : summary.unread}<span className="sr-only"> sin leer</span></span>
+            <span className="lq-wax flex size-9 shrink-0 items-center justify-center font-mono text-label-md">{summary.unread > 9 ? '9+' : summary.unread}<span className="sr-only"> {t.unreadSr}</span></span>
           ) : null}
         </span>
       </span>
@@ -224,6 +443,8 @@ function GuildLetterEnvelope({ summary, onOpen }: { summary?: GuildSummary; onOp
 function InGuild({ guild, summary, onLeft, onChanged, onOpenLetter }: {
   guild: GuildDetail; summary?: GuildSummary; onLeft: () => void; onChanged: () => void; onOpenLetter: () => void;
 }) {
+  const t = useText(COPY);
+  const nf = INTL_LOCALE[useLocale()];
   const me = useAuthStore((s) => s.user);
   const wide = useMediaQuery('(min-width: 1024px)');
   const [copied, setCopied] = useState(false);
@@ -259,9 +480,9 @@ function InGuild({ guild, summary, onLeft, onChanged, onOpenLetter }: {
       const res = await updateGuild(guild.id, { photoUrl: url });
       setPhoto(res.photoUrl);
       onChanged();
-      toaster().success(url ? 'Foto del gremio actualizada' : 'Foto del gremio quitada');
+      toaster().success(url ? t.photoUpdated : t.photoRemoved);
     } catch (e) {
-      toaster().error(errMsg(e));
+      toaster().error(errMsg(e, t.generic));
       throw e;
     }
   }
@@ -274,20 +495,20 @@ function InGuild({ guild, summary, onLeft, onChanged, onOpenLetter }: {
 
   async function copy() {
     try { await navigator.clipboard.writeText(guild.inviteCode); setCopied(true); window.setTimeout(() => setCopied(false), 1800); }
-    catch { toaster().error('No se pudo copiar'); }
+    catch { toaster().error(t.copyFail); }
   }
   async function sendSnap(photoUrl: string, caption: string) {
     try {
       const thumb = await thumbOf(photoUrl);
       const r = await postGuildSnap(guild.id, photoUrl, caption, thumb ? { thumb } : undefined);
-      toaster().success(r.enemyDefeated ? `¡${guild.today.enemy.name} cayó!` : mineToday ? 'Foto pegada en la carta del gremio' : `Le quitaste ${ENEMY_HIT} HP a ${guild.today.enemy.name}`);
+      toaster().success(r.enemyDefeated ? t.snapOk(guild.today.enemy.name) : mineToday ? t.snapPasted : t.snapHit(ENEMY_HIT, guild.today.enemy.name));
       onChanged();
-    } catch (e) { toaster().error(apiError(e, 'No se pudo enviar la foto')); }
+    } catch (e) { toaster().error(apiError(e, t.sendFail)); }
   }
   async function leave() {
     setLeaving(true);
     try { await leaveGuild(guild.id); onLeft(); }
-    catch (e) { toaster().error(errMsg(e)); setLeaving(false); }
+    catch (e) { toaster().error(errMsg(e, t.generic)); setLeaving(false); }
   }
 
   return (
@@ -296,28 +517,28 @@ function InGuild({ guild, summary, onLeft, onChanged, onOpenLetter }: {
         <div className="flex flex-wrap items-center gap-6 md:gap-8">
           <motion.span variants={pop3} initial="initial" animate="animate" className="relative">
             <GuildCrest photoUrl={photo} emblem={em.icon} tone={em.tone} name={guild.name} className="size-20 rounded-[28px] md:size-24 md:rounded-[32px]" />
-            {canEdit && <CrestEditButton onClick={() => setPhotoOpen(true)} label={photo ? 'Cambiar la foto del gremio' : 'Poner una foto al gremio'} />}
+            {canEdit && <CrestEditButton onClick={() => setPhotoOpen(true)} label={photo ? t.changeGuildPhoto : t.setGuildPhoto} />}
           </motion.span>
           <div className="flex min-w-0 flex-[1_1_300px] flex-col gap-2">
-            <span className="text-label-lg text-primary-text">Gremio · nivel <span className="font-mono">{guild.level}</span></span>
+            <span className="text-label-lg text-primary-text">{t.guildLevel} <span className="font-mono">{guild.level}</span></span>
             <h2 className="text-display-sm md:text-display-md"><Lettering text={guild.name} /></h2>
             {guild.description && <p className="text-body-md text-on-surface-light">{guild.description}</p>}
             <div className="flex flex-wrap items-center gap-2">
-              <Badge size="lg" icon={Users}><span className="font-mono">{guild.members.length}/{MAX_MEMBERS}</span> aventureros</Badge>
-              {canEdit && <Button variant="ghost" size="sm" onClick={() => setEditOpen(true)}><Pencil aria-hidden className="size-4" />Editar gremio</Button>}
-              {isLit(guild.streak) && <Badge size="lg" variant="warning"><StreakFlame streak={guild.streak} size="sm" label={`Racha del gremio: ${guild.streak.count} días`} /> racha del gremio</Badge>}
+              <Badge size="lg" icon={Users}><span className="font-mono">{guild.members.length}/{MAX_MEMBERS}</span> {t.adventurers}</Badge>
+              {canEdit && <Button variant="ghost" size="sm" onClick={() => setEditOpen(true)}><Pencil aria-hidden className="size-4" />{t.editGuild}</Button>}
+              {isLit(guild.streak) && <Badge size="lg" variant="warning"><StreakFlame streak={guild.streak} size="sm" label={t.guildStreak(guild.streak.count)} /> {t.guildStreakShort}</Badge>}
             </div>
           </div>
           <Card padding="sm" className="flex min-w-[240px] flex-col gap-2 bg-background">
-            <span className="text-body-sm text-on-surface-light">Código de invitación</span>
+            <span className="text-body-sm text-on-surface-light">{t.inviteCode}</span>
             <div className="flex items-center justify-between gap-3">
               <span className="font-mono text-heading-md tracking-[4px]">{guild.inviteCode}</span>
               <Button variant="secondary" size="md" onClick={copy} aria-live="polite">
                 {copied ? <Check aria-hidden className="size-4" strokeWidth={2} /> : <Copy aria-hidden className="size-4" strokeWidth={1.75} />}
-                {copied ? 'Copiado' : 'Copiar'}
+                {copied ? t.copied : t.copy}
               </Button>
             </div>
-            <Button variant="ghost" size="sm" onClick={() => setInviteOpen(true)} className="self-start"><UserPlus aria-hidden className="size-4" />Invitar amigos</Button>
+            <Button variant="ghost" size="sm" onClick={() => setInviteOpen(true)} className="self-start"><UserPlus aria-hidden className="size-4" />{t.inviteFriends}</Button>
           </Card>
         </div>
         <Campfire
@@ -335,14 +556,12 @@ function InGuild({ guild, summary, onLeft, onChanged, onOpenLetter }: {
           <motion.div variants={item}>
             <Card padding="lg">
               <BossBar
-                eyebrow="Enemigo del día" name={guild.today.enemy.name} icon={Swords} hp={guild.today.enemy.hp} maxHp={guild.today.enemy.maxHp}
-                note={guild.today.enemy.defeated
-                  ? 'Todos enviaron una foto hoy: el enemigo cayó y el gremio ganó experiencia. Mañana llega otro.'
-                  : `La primera foto de hoy de cada miembro, tomada con la cámara, le quita ${ENEMY_HIT} HP. Si todos envían la suya, cae.`}
-                aside={<Badge variant={guild.today.enemy.defeated ? 'success' : 'neutral'}><span className="font-mono">{snapped.size}/{guild.members.length}</span> fotos</Badge>}
+                eyebrow={t.enemyDay} name={guild.today.enemy.name} icon={Swords} hp={guild.today.enemy.hp} maxHp={guild.today.enemy.maxHp}
+                note={guild.today.enemy.defeated ? t.enemyDefeatedNote : t.enemyNote(ENEMY_HIT)}
+                aside={<Badge variant={guild.today.enemy.defeated ? 'success' : 'neutral'}><span className="font-mono">{snapped.size}/{guild.members.length}</span> {t.photos}</Badge>}
                 action={mineToday
-                  ? <p className="flex items-center gap-2 text-label-lg text-success-text"><CheckCheck aria-hidden className="size-5" />Tu foto de hoy ya golpeó</p>
-                  : <Button className="self-start" onClick={() => setCamera(true)}><Camera aria-hidden className="size-4" strokeWidth={1.75} />Tomar foto y atacar</Button>}
+                  ? <p className="flex items-center gap-2 text-label-lg text-success-text"><CheckCheck aria-hidden className="size-5" />{t.yourPhotoHit}</p>
+                  : <Button className="self-start" onClick={() => setCamera(true)}><Camera aria-hidden className="size-4" strokeWidth={1.75} />{t.takePhoto}</Button>}
               />
             </Card>
           </motion.div>
@@ -350,12 +569,12 @@ function InGuild({ guild, summary, onLeft, onChanged, onOpenLetter }: {
           {wall.length > 0 && (
             <motion.div variants={item}>
               <Card padding="lg" className="flex flex-col gap-4">
-                <h3 className="text-heading-sm">Muro de hoy</h3>
+                <h3 className="text-heading-sm">{t.wallToday}</h3>
                 <ul className="flex gap-5 overflow-x-auto px-1 pb-3 pt-4">
                   {wall.map((m, i) => (
                     <motion.li key={m.id} className="w-40 shrink-0" initial={{ opacity: 0, y: -20, rotate: 0 }} animate={{ opacity: 1, y: 0 }} transition={{ ...springs.heavy, delay: i * 0.08 }}>
                       <WallPhoto m={m} tilt={((i % 3) - 1) * 2.5} mine={m.userId === myId} />
-                      <p className="mt-2 truncate text-center text-body-sm text-on-surface-light">{m.userId === myId ? 'Tú' : m.user.displayName.split(' ')[0]}</p>
+                      <p className="mt-2 truncate text-center text-body-sm text-on-surface-light">{m.userId === myId ? t.youCap : m.user.displayName.split(' ')[0]}</p>
                     </motion.li>
                   ))}
                 </ul>
@@ -365,7 +584,7 @@ function InGuild({ guild, summary, onLeft, onChanged, onOpenLetter }: {
 
           <motion.div variants={item}>
             <Card padding="lg" className="flex flex-col gap-2">
-              <div className="mb-2 flex items-center justify-between"><h3 className="text-heading-sm">Miembros</h3><span className="text-body-sm text-on-surface-light">Foto de hoy · XP</span></div>
+              <div className="mb-2 flex items-center justify-between"><h3 className="text-heading-sm">{t.members}</h3><span className="text-body-sm text-on-surface-light">{t.photoTodayXp}</span></div>
               <motion.ol variants={stagger} initial="initial" animate="animate" className="flex flex-col">
                 {members.map((m, i) => {
                   const lead = m.userId === guild.leaderId;
@@ -373,27 +592,27 @@ function InGuild({ guild, summary, onLeft, onChanged, onOpenLetter }: {
                   const did = snapped.has(m.userId);
                   return (
                     <motion.li key={m.id} variants={item} layout="position" className={cn('flex min-h-[60px] flex-wrap items-center gap-3 py-2 sm:flex-nowrap sm:gap-4', i < members.length - 1 && 'border-b border-border')}>
-                      <Link to={`/u/${encodeURIComponent(m.user.username)}`} className="shrink-0" aria-label={`Ver el DNI de ${m.user.displayName}`}>
+                      <Link to={`/u/${encodeURIComponent(m.user.username)}`} className="shrink-0" aria-label={t.seeId(m.user.displayName)}>
                         <AvatarDisplay avatarConfig={m.user.avatarConfig} avatarUrl={m.user.avatarUrl} equippedAura={m.user.equippedAura} equippedFrame={m.user.equippedFrame} size={40} animate="none" className="overflow-hidden rounded-full" />
                       </Link>
                       <div className="min-w-0 flex-1 sm:flex-[0_0_200px]">
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span className="truncate text-label-lg">{m.user.displayName}</span>
-                          {lead && <Badge variant="warning" icon={Crown}>Líder</Badge>}
-                          {you && <Badge variant="primary">Tú</Badge>}
+                          {lead && <Badge variant="warning" icon={Crown}>{t.leader}</Badge>}
+                          {you && <Badge variant="primary">{t.youCap}</Badge>}
                         </div>
-                        <div className="text-body-sm text-on-surface-light">Nivel <span className="font-mono">{m.user.level}</span> · <Flame aria-hidden className="inline size-3.5 text-warning-text" /> <span className="font-mono">{m.user.currentStreak ?? 0}</span> días</div>
+                        <div className="text-body-sm text-on-surface-light">{t.level} <span className="font-mono">{m.user.level}</span> · <Flame aria-hidden className="inline size-3.5 text-warning-text" /> <span className="font-mono">{m.user.currentStreak ?? 0}</span> {t.days}</div>
                       </div>
                       <motion.span
                         animate={{ scale: did ? [1, 1.2, 1] : 1 }} transition={{ duration: 0.4 }}
-                        title={did ? 'Ya envió su foto de hoy' : 'Aún no envía su foto'}
+                        title={did ? t.alreadySent : t.notSent}
                         className={cn('flex size-8 shrink-0 items-center justify-center rounded-full', did ? 'bg-success/[var(--lq-soft-alpha)] text-success-text' : 'bg-background text-on-surface-light')}
                       >
                         {did ? <CheckCheck aria-hidden className="size-4" /> : <Camera aria-hidden className="size-4" />}
-                        <span className="sr-only">{did ? 'Foto enviada hoy' : 'Sin foto hoy'}</span>
+                        <span className="sr-only">{did ? t.photoSentToday : t.noPhotoToday}</span>
                       </motion.span>
-                      <ProgressBar value={((m.user.xp ?? 0) / maxXp) * 100} className="order-last w-full sm:order-none sm:flex-1" label={`Aporte de ${m.user.displayName}`} />
-                      <span className="w-20 text-right font-mono text-label-lg tabular-nums">{(m.user.xp ?? 0).toLocaleString('es-CO')}</span>
+                      <ProgressBar value={((m.user.xp ?? 0) / maxXp) * 100} className="order-last w-full sm:order-none sm:flex-1" label={t.contributionOf(m.user.displayName)} />
+                      <span className="w-20 text-right font-mono text-label-lg tabular-nums">{(m.user.xp ?? 0).toLocaleString(nf)}</span>
                     </motion.li>
                   );
                 })}
@@ -410,20 +629,20 @@ function InGuild({ guild, summary, onLeft, onChanged, onOpenLetter }: {
           )}
           <motion.div variants={item}>
             <Card padding="lg" className="flex flex-col items-center gap-3 text-center">
-              <h3 className="self-start text-heading-sm">Fotos de hoy</h3>
-              <ProgressRing value={snapPct} tone="success" size={160} stroke={9} label="Miembros que enviaron una foto hoy" valueText={`${snapPct}%`}>
+              <h3 className="self-start text-heading-sm">{t.photosToday}</h3>
+              <ProgressRing value={snapPct} tone="success" size={160} stroke={9} label={t.membersSent} valueText={`${snapPct}%`}>
                 <span className="font-mono text-display-sm tabular-nums">{snapped.size}/{guild.members.length}</span>
-                <span className="text-body-sm text-on-surface-light">enviadas</span>
+                <span className="text-body-sm text-on-surface-light">{t.sent}</span>
               </ProgressRing>
               <p className="text-body-sm text-on-surface-light">
                 {isLit(guild.streak)
-                  ? `Racha del gremio: ${guild.streak.count} días (mejor: ${guild.streak.best}).`
-                  : 'Si todos escriben en la carta tres días seguidos, se enciende la racha del gremio.'}
+                  ? t.streakBest(guild.streak.count, guild.streak.best)
+                  : t.streakHowTo}
               </p>
             </Card>
           </motion.div>
           <motion.div variants={item}>
-            <Button variant="ghost" onClick={() => setConfirmLeave(true)}><LogOut aria-hidden className="size-4" strokeWidth={1.75} />Salir del gremio</Button>
+            <Button variant="ghost" onClick={() => setConfirmLeave(true)}><LogOut aria-hidden className="size-4" strokeWidth={1.75} />{t.leaveGuild}</Button>
           </motion.div>
         </div>
       </div>
@@ -434,11 +653,11 @@ function InGuild({ guild, summary, onLeft, onChanged, onOpenLetter }: {
       <InstantCamera open={camera} onClose={() => setCamera(false)} to={guild.name} cameraOnly onSend={(p, c) => void sendSnap(p, c)} />
       <GuildEditDialog open={editOpen} guild={{ ...guild, photoUrl: photo }} onClose={() => setEditOpen(false)} onSaved={(g) => { setPhoto(g.photoUrl ?? null); onChanged(); }} />
       <InviteFriends open={inviteOpen} onClose={() => setInviteOpen(false)} guild={guild} />
-      <Modal open={confirmLeave} onClose={() => setConfirmLeave(false)} title="¿Salir del gremio?">
-        <p className="text-body-md text-on-surface">Dejarás de ver su carta y de aportar al enemigo del día de {guild.name}. Podrás volver con el código.</p>
+      <Modal open={confirmLeave} onClose={() => setConfirmLeave(false)} title={t.leaveTitle}>
+        <p className="text-body-md text-on-surface">{t.leaveBody(guild.name)}</p>
         <div className="flex justify-end gap-3">
-          <Button variant="secondary" size="md" onClick={() => setConfirmLeave(false)}>Cancelar</Button>
-          <Button variant="danger" size="md" loading={leaving} onClick={leave}>Salir</Button>
+          <Button variant="secondary" size="md" onClick={() => setConfirmLeave(false)}>{t.cancel}</Button>
+          <Button variant="danger" size="md" loading={leaving} onClick={leave}>{t.leave}</Button>
         </div>
       </Modal>
     </motion.div>
@@ -447,8 +666,9 @@ function InGuild({ guild, summary, onLeft, onChanged, onOpenLetter }: {
 
 /** Tus gremios como pestañas: su foto, la racha encendida y las cartas sin leer. */
 function GuildSwitcher({ guilds, active, onPick }: { guilds: GuildSummary[]; active: string | null; onPick: (id: string | null) => void }) {
+  const t = useText(COPY);
   return (
-    <nav aria-label="Tus gremios" className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
+    <nav aria-label={t.guildsNav} className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
       <ul className="flex gap-2 pb-1 pt-2">
         {guilds.map((g) => {
           const em = emblemOf(g.emblem);
@@ -464,7 +684,7 @@ function GuildSwitcher({ guilds, active, onPick }: { guilds: GuildSummary[]; act
                 <span className="max-w-[160px] truncate text-label-lg">{g.name}</span>
                 <StreakFlame streak={g.streak} size="sm" />
                 {g.unread > 0 && (
-                  <span className="lq-wax absolute -right-1.5 -top-2 flex size-6 items-center justify-center font-mono text-[0.68rem]">{g.unread > 9 ? '9+' : g.unread}<span className="sr-only"> sin leer</span></span>
+                  <span className="lq-wax absolute -right-1.5 -top-2 flex size-6 items-center justify-center font-mono text-[0.68rem]">{g.unread > 9 ? '9+' : g.unread}<span className="sr-only"> {t.unreadSrShort}</span></span>
                 )}
               </button>
             </li>
@@ -474,7 +694,7 @@ function GuildSwitcher({ guilds, active, onPick }: { guilds: GuildSummary[]; act
           <li className="shrink-0">
             <button type="button" onClick={() => onPick(null)} aria-current={active === null ? 'page' : undefined}
               className={cn('flex min-h-12 items-center gap-2 rounded-full border border-dashed px-4 text-label-lg transition-colors', active === null ? 'border-primary text-primary-text' : 'border-border-strong text-on-surface hover:border-primary/40')}>
-              <Plus aria-hidden className="size-4" />Nuevo o unirme
+              <Plus aria-hidden className="size-4" />{t.newOrJoin}
             </button>
           </li>
         )}
@@ -485,11 +705,12 @@ function GuildSwitcher({ guilds, active, onPick }: { guilds: GuildSummary[]; act
 
 /** Invitaciones a gremios que trajo la paloma. */
 function InvitesBanner({ invites, onAnswered }: { invites: GuildInvite[]; onAnswered: (guildId: string | null) => void }) {
+  const t = useText(COPY);
   const [gone, setGone] = useState<string[]>([]);
   async function answer(inv: GuildInvite, accept: boolean) {
     setGone((g) => [...g, inv.id]);
-    try { const r = await respondGuildInvite(inv.id, accept); if (accept) toaster().success(`Te uniste a ${inv.guild.name}`); onAnswered(accept ? r.guildId : null); }
-    catch (e) { setGone((g) => g.filter((x) => x !== inv.id)); toaster().error(apiError(e, 'No se pudo responder')); }
+    try { const r = await respondGuildInvite(inv.id, accept); if (accept) toaster().success(t.joinedTo(inv.guild.name)); onAnswered(accept ? r.guildId : null); }
+    catch (e) { setGone((g) => g.filter((x) => x !== inv.id)); toaster().error(apiError(e, t.answerFail)); }
   }
   const list = invites.filter((i) => !gone.includes(i.id));
   return (
@@ -499,9 +720,9 @@ function InvitesBanner({ invites, onAnswered }: { invites: GuildInvite[]; onAnsw
           className="lq-pigeon-note relative mt-6 flex flex-wrap items-center gap-3 p-3 md:p-4">
           <Pigeon className="pointer-events-none absolute -top-8 right-12 h-10 w-14" />
           <GuildCrest photoUrl={inv.guild.photoUrl} emblem={emblemOf(inv.guild.emblem).icon} tone={emblemOf(inv.guild.emblem).tone} name={inv.guild.name} halo={false} className="size-12 rounded-2xl [&>svg]:size-6" />
-          <p className="min-w-0 flex-[1_1_200px] text-body-md"><b>{inv.inviter.displayName}</b> te envió una paloma: te invita a <b>{inv.guild.name}</b> · <span className="font-mono">{inv.guild._count.members}</span> miembros</p>
-          <Button variant="ghost" size="sm" onClick={() => void answer(inv, false)}>Ahora no</Button>
-          <Button size="sm" onClick={() => void answer(inv, true)}>Unirme</Button>
+          <p className="min-w-0 flex-[1_1_200px] text-body-md"><b>{inv.inviter.displayName}</b> {t.inviteLine} <b>{inv.guild.name}</b> · <span className="font-mono">{inv.guild._count.members}</span> {t.membersWord}</p>
+          <Button variant="ghost" size="sm" onClick={() => void answer(inv, false)}>{t.notNow}</Button>
+          <Button size="sm" onClick={() => void answer(inv, true)}>{t.join}</Button>
         </motion.div>
       ))}
     </AnimatePresence>
@@ -522,6 +743,7 @@ export interface GuildRoomProps {
 }
 
 export function GuildRoom({ guilds, invites, error, activeId, onPick, onListChanged, onOpenLetter, onRetry }: GuildRoomProps) {
+  const t = useText(COPY);
   const [guild, setGuild] = useState<GuildDetail | null>(null);
   const active = activeId === undefined ? guilds?.[0]?.id ?? null : activeId && guilds?.some((g) => g.id === activeId) ? activeId : activeId === null ? null : guilds?.[0]?.id ?? null;
   const pickLast = useRef(false);
@@ -549,7 +771,7 @@ export function GuildRoom({ guilds, invites, error, activeId, onPick, onListChan
           <motion.div key={guild.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, transition: { duration: 0.15 } }} transition={springs.natural}>
             <InGuild
               guild={guild} summary={guilds.find((g) => g.id === guild.id)} onChanged={refresh} onOpenLetter={() => onOpenLetter(guild.id)}
-              onLeft={() => { toaster().info('Saliste del gremio'); onPick(undefined); onListChanged(); }}
+              onLeft={() => { toaster().info(t.leftGuild); onPick(undefined); onListChanged(); }}
             />
           </motion.div>
         ) : active ? (

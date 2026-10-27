@@ -3,21 +3,38 @@
 // según el ejercicio. Funciones puras (sin React ni API): las usa la zona y las
 // prueba tests/unit/coliseo.unit.ts.
 import type { SetType, Workout, WorkoutSet } from '@noutlife/shared';
+import type { Locale } from '@/lib/locale';
 
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
 
 /* ───────── Series ───────── */
 
-export const SET_TYPES: Array<{ value: SetType; label: string; short: string }> = [
-  { value: 'normal', label: 'Efectiva', short: '' },
-  { value: 'warmup', label: 'Calentamiento', short: 'C' },
-  { value: 'drop', label: 'Drop-set', short: 'D' },
-  { value: 'myo', label: 'Myo-reps', short: 'M' },
-  { value: 'rest_pause', label: 'Rest-pause', short: 'RP' },
-  { value: 'failure', label: 'Al fallo', short: 'F' },
-];
-export const setTypeOf = (type?: SetType) => SET_TYPES.find((t) => t.value === (type ?? 'normal')) ?? SET_TYPES[0];
+const SET_TYPE_TEXT: Record<Locale, Record<SetType, { label: string; short: string }>> = {
+  es: {
+    normal: { label: 'Efectiva', short: '' },
+    warmup: { label: 'Calentamiento', short: 'C' },
+    drop: { label: 'Drop-set', short: 'D' },
+    myo: { label: 'Myo-reps', short: 'M' },
+    rest_pause: { label: 'Rest-pause', short: 'RP' },
+    failure: { label: 'Al fallo', short: 'F' },
+  },
+  en: {
+    normal: { label: 'Working set', short: '' },
+    warmup: { label: 'Warm-up', short: 'W' },
+    drop: { label: 'Drop set', short: 'D' },
+    myo: { label: 'Myo-reps', short: 'M' },
+    rest_pause: { label: 'Rest-pause', short: 'RP' },
+    failure: { label: 'To failure', short: 'F' },
+  },
+};
+export const setTypesFor = (locale: Locale = 'es') =>
+  (Object.keys(SET_TYPE_TEXT.es) as SetType[]).map((value) => ({ value, ...SET_TYPE_TEXT[locale][value] }));
+export const SET_TYPES = setTypesFor('es');
+export const setTypeOf = (type?: SetType, locale: Locale = 'es') => {
+  const value: SetType = type && type in SET_TYPE_TEXT.es ? type : 'normal';
+  return { value, ...SET_TYPE_TEXT[locale][value] };
+};
 
 type SetLike = Pick<WorkoutSet, 'weight' | 'reps' | 'type'> & { completed?: boolean };
 
@@ -56,6 +73,17 @@ export const MUSCLES: Record<Muscle, { label: string; hours: number; split: Spli
   calves: { label: 'Gemelos', hours: 48, split: 'legs' },
 };
 export const MUSCLE_IDS = Object.keys(MUSCLES) as Muscle[];
+
+/** Nombres de músculo en inglés; los términos de entrenamiento (triceps, biceps, lats…) se dejan como se usan en un gimnasio. */
+const MUSCLE_TEXT: Record<Locale, Record<Muscle, string>> = {
+  es: Object.fromEntries(MUSCLE_IDS.map((m) => [m, MUSCLES[m].label])) as Record<Muscle, string>,
+  en: {
+    chest: 'Chest', frontDelts: 'Front delts', sideDelts: 'Side delts', rearDelts: 'Rear delts', triceps: 'Triceps', biceps: 'Biceps',
+    forearms: 'Forearms', traps: 'Traps', lats: 'Lats', lowerBack: 'Lower back', abs: 'Abs', obliques: 'Obliques', glutes: 'Glutes',
+    quads: 'Quads', hamstrings: 'Hamstrings', calves: 'Calves',
+  },
+};
+export const muscleLabelFor = (m: Muscle, locale: Locale = 'es') => MUSCLE_TEXT[locale][m];
 
 type Targets = { primary: Muscle[]; secondary: Muscle[] };
 const t = (primary: Muscle[], secondary: Muscle[] = []): Targets => ({ primary, secondary });
@@ -119,16 +147,31 @@ const COMPOUND = new Set([
   'Jalón al Pecho', 'Press Arnold', 'Sentadilla Goblet', 'Prensa de Piernas', 'Zancadas',
 ]);
 
+const REST_TEXT: Record<Locale, {
+  drop: string; pause: (label: string) => string; heavy: string; compound: string; core: string; isolation: string;
+  warmup: string; failure: (reason: string) => string;
+}> = {
+  es: {
+    drop: 'Drop-set: baja el peso y sigue', pause: (label) => `${label}: pausa corta`, heavy: 'Compuesto pesado', compound: 'Compuesto',
+    core: 'Core y cardio', isolation: 'Aislamiento', warmup: 'Calentamiento', failure: (reason) => `${reason} al fallo`,
+  },
+  en: {
+    drop: 'Drop set: drop the weight and keep going', pause: (label) => `${label}: short pause`, heavy: 'Heavy compound', compound: 'Compound',
+    core: 'Core and cardio', isolation: 'Isolation', warmup: 'Warm-up', failure: (reason) => `${reason} to failure`,
+  },
+};
+
 /** Descanso tras una serie: más tras los compuestos pesados, menos tras aislamiento, calentamiento y técnicas de intensidad. */
-export function restFor(name: string | undefined, group: string | undefined, type: SetType = 'normal'): { seconds: number; reason: string } {
-  if (type === 'drop') return { seconds: 10, reason: 'Drop-set: baja el peso y sigue' };
-  if (type === 'myo' || type === 'rest_pause') return { seconds: 20, reason: `${setTypeOf(type).label}: pausa corta` };
-  const [seconds, reason]: [number, string] = name && HEAVY.has(name) ? [180, 'Compuesto pesado']
-    : name && COMPOUND.has(name) ? [120, 'Compuesto']
-      : group === 'Core' || group === 'Cardio' ? [60, 'Core y cardio']
-        : [90, 'Aislamiento'];
-  if (type === 'warmup') return { seconds: Math.min(seconds, 60), reason: 'Calentamiento' };
-  if (type === 'failure') return { seconds: seconds + 30, reason: `${reason} al fallo` };
+export function restFor(name: string | undefined, group: string | undefined, type: SetType = 'normal', locale: Locale = 'es'): { seconds: number; reason: string } {
+  const text = REST_TEXT[locale];
+  if (type === 'drop') return { seconds: 10, reason: text.drop };
+  if (type === 'myo' || type === 'rest_pause') return { seconds: 20, reason: text.pause(setTypeOf(type, locale).label) };
+  const [seconds, reason]: [number, string] = name && HEAVY.has(name) ? [180, text.heavy]
+    : name && COMPOUND.has(name) ? [120, text.compound]
+      : group === 'Core' || group === 'Cardio' ? [60, text.core]
+        : [90, text.isolation];
+  if (type === 'warmup') return { seconds: Math.min(seconds, 60), reason: text.warmup };
+  if (type === 'failure') return { seconds: seconds + 30, reason: text.failure(reason) };
   return { seconds, reason };
 }
 
@@ -252,7 +295,25 @@ export const rangeOf = (sets: number): 'low' | 'optimal' | 'high' =>
 export interface Balance { push: number; pull: number; legs: number; total: number; notes: string[] }
 
 /** Series efectivas de empuje, tirón y pierna (por el músculo principal de cada ejercicio) de los últimos `days` días. */
-export function pplBalance(workouts: Workout[], now = Date.now(), days = 28): Balance {
+const BALANCE_TEXT: Record<Locale, {
+  pushHeavy: string; pullHeavy: string; legsLow: string; upperLow: string;
+}> = {
+  es: {
+    pushHeavy: 'Empujas mucho más de lo que tiras: suma remos o dominadas para equilibrar los hombros.',
+    pullHeavy: 'Tiras mucho más de lo que empujas: suma press o fondos.',
+    legsLow: 'Las piernas se quedan atrás: hacen menos del 20 % de tus series.',
+    upperLow: 'El tren superior se queda atrás: las piernas se llevan más del 60 % de tus series.',
+  },
+  en: {
+    pushHeavy: 'You push far more than you pull: add rows or pull-ups to balance the shoulders.',
+    pullHeavy: 'You pull far more than you push: add presses or dips.',
+    legsLow: 'Legs are lagging: they get less than 20 % of your sets.',
+    upperLow: 'Upper body is lagging: legs take more than 60 % of your sets.',
+  },
+};
+
+/** Series efectivas de empuje, tirón y pierna (por el músculo principal de cada ejercicio) de los últimos `days` días. */
+export function pplBalance(workouts: Workout[], now = Date.now(), days = 28, locale: Locale = 'es'): Balance {
   const b = { push: 0, pull: 0, legs: 0 };
   for (const w of workouts) {
     if (!(w.xpEarned > 0) || Date.parse(w.date) < now - days * DAY) continue;
@@ -263,12 +324,13 @@ export function pplBalance(workouts: Workout[], now = Date.now(), days = 28): Ba
     }
   }
   const total = b.push + b.pull + b.legs;
+  const text = BALANCE_TEXT[locale];
   const notes: string[] = [];
   if (total >= 6) {
-    if (b.push > b.pull * 1.5) notes.push('Empujas mucho más de lo que tiras: suma remos o dominadas para equilibrar los hombros.');
-    else if (b.pull > b.push * 1.5) notes.push('Tiras mucho más de lo que empujas: suma press o fondos.');
-    if (b.legs < total * 0.2) notes.push('Las piernas se quedan atrás: hacen menos del 20 % de tus series.');
-    else if (b.legs > total * 0.6) notes.push('El tren superior se queda atrás: las piernas se llevan más del 60 % de tus series.');
+    if (b.push > b.pull * 1.5) notes.push(text.pushHeavy);
+    else if (b.pull > b.push * 1.5) notes.push(text.pullHeavy);
+    if (b.legs < total * 0.2) notes.push(text.legsLow);
+    else if (b.legs > total * 0.6) notes.push(text.upperLow);
   }
   return { ...b, total, notes };
 }

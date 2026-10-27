@@ -9,18 +9,52 @@ import { fetchHabits, type Habit } from '@/services/habit.service';
 import { fetchEvents } from '@/services/agenda.service';
 import { getNotificationPreferences, registerServiceWorker, type SmartReminderSettings } from '@/services/notification.service';
 import { showInAppAlert, type InAppAlert } from '@/lib/systemNotifications';
+import { INTL_LOCALE, getLocale, type Copy, type Locale } from '@/lib/i18n';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** Replanifica cada 15 min: recoge hábitos y eventos creados o cambiados mientras tanto. */
 const REPLAN_MS = 15 * 60 * 1000;
-/** Consejos de las pausas activas (los mismos que manda el servidor, lib/smart-reminders). */
-const BREAK_TIPS = [
-  'Levántate, estira la espalda y mira a lo lejos 20 segundos.',
-  'Suelta los hombros y respira hondo tres veces. Un minuto basta.',
-  'Camina un poco y bebe agua antes de seguir.',
-  'Estira el cuello y las muñecas: 30 segundos por lado.',
-  'Cierra los ojos un momento y relaja la mandíbula.',
-];
+
+const es = {
+  /** Consejos de las pausas activas (los mismos que manda el servidor, lib/smart-reminders). */
+  breakTips: [
+    'Levántate, estira la espalda y mira a lo lejos 20 segundos.',
+    'Suelta los hombros y respira hondo tres veces. Un minuto basta.',
+    'Camina un poco y bebe agua antes de seguir.',
+    'Estira el cuello y las muñecas: 30 segundos por lado.',
+    'Cierra los ojos un momento y relaja la mandíbula.',
+  ],
+  breakTitle: 'Pausa activa',
+  habitTitle: (title: string): string => `Hora de: ${title}`,
+  habitBody: 'Márcalo cuando lo hagas y tu racha sigue viva.',
+  pendingTitle: (n: number): string => `${n} ${n === 1 ? 'hábito pendiente' : 'hábitos pendientes'}`,
+  pendingBody: (names: string, more: number): string => `Si todavía puedes, completa ${names}${more > 0 ? ` y ${more} más` : ''} antes de cerrar el día.`,
+  agendaAllDay: 'Es hoy. Revisa tu agenda.',
+  agendaNow: 'Empieza ahora.',
+  agendaIn: (min: number): string => `Empieza en ${min} min.`,
+  agendaAt: (time: string): string => `Empieza a las ${time}.`,
+};
+
+const en: typeof es = {
+  breakTips: [
+    'Stand up, stretch your back and look far away for 20 seconds.',
+    'Drop your shoulders and take three deep breaths. One minute is enough.',
+    'Walk a little and drink some water before you carry on.',
+    'Stretch your neck and wrists: 30 seconds per side.',
+    'Close your eyes for a moment and relax your jaw.',
+  ],
+  breakTitle: 'Active break',
+  habitTitle: (title: string): string => `Time for: ${title}`,
+  habitBody: 'Mark it when you do it and your streak stays alive.',
+  pendingTitle: (n: number): string => `${n} ${n === 1 ? 'habit pending' : 'habits pending'}`,
+  pendingBody: (names: string, more: number): string => `If you still can, complete ${names}${more > 0 ? ` and ${more} more` : ''} before you close the day.`,
+  agendaAllDay: 'It is today. Check your agenda.',
+  agendaNow: 'Starts now.',
+  agendaIn: (min: number): string => `Starts in ${min} min.`,
+  agendaAt: (time: string): string => `Starts at ${time}.`,
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 const dayKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const minutesOf = (hhmm: string | null | undefined) => {
@@ -48,6 +82,8 @@ async function deliver(alert: InAppAlert) {
 interface Planned { at: number; run: () => Promise<void> }
 
 async function plan(now = new Date()): Promise<Planned[]> {
+  const locale: Locale = getLocale();
+  const t = COPY[locale];
   const [habits, events, settings] = await Promise.all([
     fetchHabits().catch(() => [] as Habit[]),
     fetchEvents({ from: now.toISOString(), to: new Date(now.getTime() + DAY_MS + 60 * 60 * 1000).toISOString() }).catch(() => []),
@@ -68,7 +104,7 @@ async function plan(now = new Date()): Promise<Planned[]> {
         const fresh = (await fetchHabits().catch(() => [] as Habit[])).find((x) => x.id === h.id);
         if (fresh?.todayCompleted) return;
         await deliver({
-          tag: `habit-reminder-${h.id}-${today}`, title: `Hora de: ${h.title}`, body: 'Márcalo cuando lo hagas y tu racha sigue viva.',
+          tag: `habit-reminder-${h.id}-${today}`, title: t.habitTitle(h.title), body: t.habitBody,
           link: '/habits', quick: 'habit_done', quickRef: h.id, day: today,
         });
       },
@@ -81,7 +117,7 @@ async function plan(now = new Date()): Promise<Planned[]> {
     const at = start - e.reminder * 60 * 1000;
     if (at <= now.getTime() || at - now.getTime() > DAY_MS) continue;
     const mins = Math.round((start - at) / 60000);
-    const body = e.isAllDay ? 'Es hoy. Revisa tu agenda.' : mins <= 1 ? 'Empieza ahora.' : mins < 90 ? `Empieza en ${mins} min.` : `Empieza a las ${new Date(start).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}.`;
+    const body = e.isAllDay ? t.agendaAllDay : mins <= 1 ? t.agendaNow : mins < 90 ? t.agendaIn(mins) : t.agendaAt(new Date(start).toLocaleTimeString(INTL_LOCALE[locale], { hour: '2-digit', minute: '2-digit' }));
     out.push({ at, run: () => deliver({ tag: `agenda-reminder-${e.id}-${new Date(e.startDate).toISOString()}`, title: e.title, body, link: '/agenda' }) });
   }
 
@@ -97,8 +133,8 @@ async function plan(now = new Date()): Promise<Planned[]> {
         const names = pending.slice(0, 3).map((h) => `«${h.title}»`).join(', ');
         await deliver({
           tag: `zone-reminder:habitos-pendientes:${today}`,
-          title: `${pending.length} ${pending.length === 1 ? 'hábito pendiente' : 'hábitos pendientes'}`,
-          body: `Si todavía puedes, completa ${names}${pending.length > 3 ? ` y ${pending.length - 3} más` : ''} antes de cerrar el día.`,
+          title: t.pendingTitle(pending.length),
+          body: t.pendingBody(names, pending.length - 3),
           link: '/habits',
         });
       },
@@ -116,7 +152,7 @@ async function plan(now = new Date()): Promise<Planned[]> {
       const slot = (from + offset) % 1440;
       const at = atMinutes(now, slot).getTime();
       if (at <= now.getTime()) continue;
-      out.push({ at, run: () => deliver({ tag: `break-${today}-${slot}`, title: 'Pausa activa', body: BREAK_TIPS[i % BREAK_TIPS.length], link: '/' }) });
+      out.push({ at, run: () => deliver({ tag: `break-${today}-${slot}`, title: t.breakTitle, body: t.breakTips[i % t.breakTips.length], link: '/' }) });
     }
   }
   return out;

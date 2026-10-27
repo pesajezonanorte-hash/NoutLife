@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import type { Achievement } from '../../services/achievement.service';
 import { E } from '@/components/ui/glyphs';
+import { INTL_LOCALE, useLocale } from '@/lib/i18n';
 
 interface Props {
   achievement: Achievement;
@@ -8,6 +9,7 @@ interface Props {
 }
 
 export function AchievementCard({ achievement, onClick }: Props) {
+  const locale = useLocale();
   const { unlocked, progress, target } = achievement;
   const pct = progress != null && target ? Math.min((progress / target) * 100, 100) : null;
 
@@ -45,7 +47,7 @@ export function AchievementCard({ achievement, onClick }: Props) {
           )}
           {unlocked && achievement.unlockedAt && (
             <p className="font-vt text-text-secondary text-xs mt-0.5">
-              {new Date(achievement.unlockedAt).toLocaleDateString('es-CO')}
+              {new Date(achievement.unlockedAt).toLocaleDateString(INTL_LOCALE[locale])}
             </p>
           )}
         </div>

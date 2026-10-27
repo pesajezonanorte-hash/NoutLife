@@ -20,6 +20,7 @@ import { useMotionStore } from '@/store/motionStore';
 import { useToastStore } from '@/hooks/useToast';
 import { useKeyboardOpen } from '@/hooks/useKeyboardOpen';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { useLocale, useText, type Copy } from '@/lib/i18n';
 import {
   apiError, sendGesture, socialLink, zoneName, type GestureKind, type ZoneSection, type ZoneVisitor,
 } from '@/services/network.service';
@@ -29,20 +30,83 @@ import { lookFrom } from '@/components/character/pixel/look';
 import { Button } from '@/components/ui/lq';
 import { GESTURE_GLYPH, PixelGlyph } from './PixelGlyph';
 
+const es = {
+  someone: 'Un amigo',
+  fromZone: (z: string): string => `Desde ${z}`,
+  sendFail: 'No se pudo mandar el gesto',
+  sentBubble: 'Enviado',
+  letterOne: 'te dejó una carta',
+  letterMany: (n: number): string => `te dejó ${n} cartas`,
+  visitorAria: (name: string, zone: string, letter: string): string => `${name} está en ${zone}${letter}. Saludar o escribir`,
+  alsoIn: (zone: string): string => `También en ${zone}`,
+  close: 'Cerrar',
+  read: 'Leer',
+  sendGesture: 'Mandar un gesto',
+  write: 'Escribir',
+  dni: 'DNI',
+  viewId: (name: string): string => `Ver el DNI de ${name}`,
+  withName: (name: string): string => `Con ${name}`,
+  friendsIn: (zone: string): string => `Amigos en ${zone}`,
+  sentGestureTo: (name: string, label: string): string => `Le mandaste a ${name}: ${label}`,
+  leftLetter: (name: string): string => `${name} te dejó una carta`,
+  gestures: {
+    wave: { label: 'Saludar', bubble: '¡Hola!', said: 'te saluda' },
+    heart: { label: 'Corazón', bubble: 'Para ti', said: 'te manda un corazón' },
+    dance: { label: 'Bailar', bubble: '¡A bailar!', said: 'baila contigo' },
+    cheer: { label: 'Animar', bubble: '¡Tú puedes!', said: 'te anima' },
+    laugh: { label: 'Reír', bubble: '¡Ja, ja!', said: 'se ríe contigo' },
+    highfive: { label: 'Chocar', bubble: '¡Choca!', said: 'quiere chocar los cinco' },
+  } as Record<GestureKind, { label: string; bubble: string; said: string }>,
+};
+
+const en: typeof es = {
+  someone: 'A friend',
+  fromZone: (z: string): string => `From ${z}`,
+  sendFail: 'Could not send the gesture',
+  sentBubble: 'Sent',
+  letterOne: 'left you a letter',
+  letterMany: (n: number): string => `left you ${n} letters`,
+  visitorAria: (name: string, zone: string, letter: string): string => `${name} is in ${zone}${letter}. Say hi or write`,
+  alsoIn: (zone: string): string => `Also in ${zone}`,
+  close: 'Close',
+  read: 'Read',
+  sendGesture: 'Send a gesture',
+  write: 'Write',
+  dni: 'ID',
+  viewId: (name: string): string => `See the ID of ${name}`,
+  withName: (name: string): string => `With ${name}`,
+  friendsIn: (zone: string): string => `Friends in ${zone}`,
+  sentGestureTo: (name: string, label: string): string => `You sent ${name}: ${label}`,
+  leftLetter: (name: string): string => `${name} left you a letter`,
+  gestures: {
+    wave: { label: 'Wave', bubble: 'Hi!', said: 'waves at you' },
+    heart: { label: 'Heart', bubble: 'For you', said: 'sends you a heart' },
+    dance: { label: 'Dance', bubble: 'Let’s dance!', said: 'dances with you' },
+    cheer: { label: 'Cheer', bubble: 'You can do it!', said: 'cheers you on' },
+    laugh: { label: 'Laugh', bubble: 'Ha ha!', said: 'laughs with you' },
+    highfive: { label: 'High five', bubble: 'High five!', said: 'wants a high five' },
+  } as Record<GestureKind, { label: string; bubble: string; said: string }>,
+};
+
+const COPY: Copy<typeof es> = { es, en };
+
 /** Preferencia de este dispositivo: ver o no a los amigos paseando. */
 export const useVisitorPrefs = create<{ show: boolean; setShow: (show: boolean) => void }>()(
   persist((set) => ({ show: true, setShow: (show) => set({ show }) }), { name: 'lq-zone-visitors' }),
 );
 
-export const GESTURES: Array<{ kind: GestureKind; label: string; bubble: string; said: string }> = [
-  { kind: 'wave', label: 'Saludar', bubble: '¡Hola!', said: 'te saluda' },
-  { kind: 'heart', label: 'Corazón', bubble: 'Para ti', said: 'te manda un corazón' },
-  { kind: 'dance', label: 'Bailar', bubble: '¡A bailar!', said: 'baila contigo' },
-  { kind: 'cheer', label: 'Animar', bubble: '¡Tú puedes!', said: 'te anima' },
-  { kind: 'laugh', label: 'Reír', bubble: '¡Ja, ja!', said: 'se ríe contigo' },
-  { kind: 'highfive', label: 'Chocar', bubble: '¡Choca!', said: 'quiere chocar los cinco' },
-];
-const gestureOf = (k: GestureKind) => GESTURES.find((g) => g.kind === k) ?? GESTURES[0];
+const GESTURE_KINDS: GestureKind[] = ['wave', 'heart', 'dance', 'cheer', 'laugh', 'highfive'];
+
+
+/** Gestos en el idioma indicado (los kinds y los iconos no cambian). */
+export function gesturesFor(locale: 'es' | 'en' = 'es') {
+  const copy = COPY[locale].gestures;
+  return GESTURE_KINDS.map((kind) => ({ kind, ...copy[kind] }));
+}
+
+/** Gestos en español (compatibilidad). */
+export const GESTURES = gesturesFor('es');
+const gestureOf = (k: GestureKind, locale: 'es' | 'en' = 'es') => gesturesFor(locale).find((g) => g.kind === k) ?? gesturesFor(locale)[0];
 
 /** Movimiento del muñequito al hacer cada gesto. */
 const MOVES: Record<GestureKind, { rotate?: number[]; y?: number[]; scale?: number[]; duration: number }> = {
@@ -68,6 +132,9 @@ function Walker({ v, index, width, zone, act, letterBubble, onSent }: {
   letterBubble: string | null;
   onSent: (kind: GestureKind) => void;
 }) {
+  const t = useText(COPY);
+  const locale = useLocale();
+  const gestures = gesturesFor(locale);
   const navigate = useNavigate();
   const reduce = useMotionStore((s) => s.reduce);
   const look = useMemo(() => lookFrom(v.avatarConfig), [v.avatarConfig]);
@@ -145,7 +212,9 @@ function Walker({ v, index, width, zone, act, letterBubble, onSent }: {
 
   const move = act && !reduce ? MOVES[act.kind] : null;
   const shown = act?.kind === 'laugh' ? { ...look, mouth: 'sonrisota' as const, eyes: 'felices' as const } : look;
-  const g = act ? gestureOf(act.kind) : null;
+  const g = act ? gestureOf(act.kind, locale) : null;
+  const letterCount = v.letter?.count ?? 0;
+  const letterText = v.letter ? (letterCount === 1 ? ` · ${t.letterOne}` : ` · ${t.letterMany(letterCount)}`) : '';
 
   return (
     <motion.li
@@ -168,7 +237,7 @@ function Walker({ v, index, width, zone, act, letterBubble, onSent }: {
               <motion.span animate={reduce ? undefined : { rotate: act!.kind === 'wave' || act!.kind === 'highfive' ? [0, -18, 14, -18, 0] : 0, y: act!.kind === 'heart' || act!.kind === 'dance' ? [0, -2, 0] : 0 }} transition={{ duration: 0.9, repeat: 1 }} className="inline-flex">
                 <PixelGlyph name={GESTURE_GLYPH[act!.kind]} size={15} />
               </motion.span>
-              {act!.sent ? 'Enviado' : g.bubble}
+              {act!.sent ? t.sentBubble : g.bubble}
             </span>
           </motion.span>
         ) : letterBubble ? (
@@ -207,7 +276,7 @@ function Walker({ v, index, width, zone, act, letterBubble, onSent }: {
 
       <button
         type="button" onClick={toggle} aria-expanded={open} aria-haspopup="dialog"
-        aria-label={`${v.displayName} está en ${zone}${v.letter ? `, te dejó ${v.letter.count === 1 ? 'una carta' : `${v.letter.count} cartas`}` : ''}. Saludar o escribir`}
+        aria-label={t.visitorAria(v.displayName, zone, letterText)}
         className="group relative block rounded-lg px-1 pt-1 focus-visible:outline-offset-2"
       >
         <span aria-hidden="true" className="lq-walker-shadow absolute -bottom-1 left-1/2 block h-2 w-8 -translate-x-1/2" />
@@ -231,7 +300,7 @@ function Walker({ v, index, width, zone, act, letterBubble, onSent }: {
       <AnimatePresence>
         {open && (
           <motion.div
-            role="dialog" aria-label={`Con ${v.displayName}`}
+            role="dialog" aria-label={t.withName(v.displayName)}
             className="absolute bottom-[calc(100%+14px)] z-10 rounded-2xl border border-border bg-surface p-3 shadow-lg"
             style={{ left: popLeft, width: Math.min(POP_W, width) }}
             initial={{ opacity: 0, y: 10, scale: 0.94 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 6, scale: 0.97, transition: { duration: 0.12 } }}
@@ -240,19 +309,19 @@ function Walker({ v, index, width, zone, act, letterBubble, onSent }: {
             <div className="mb-2 flex items-start gap-2">
               <div className="min-w-0 flex-1">
                 <p className="truncate text-label-lg text-on-background">{v.displayName}</p>
-                <p className="truncate text-body-sm text-success-text">También en {zone}</p>
+                <p className="truncate text-body-sm text-success-text">{t.alsoIn(zone)}</p>
               </div>
-              <Button variant="icon" aria-label="Cerrar" onClick={() => setOpen(false)} className="-mr-2 -mt-2"><X aria-hidden className="size-5" /></Button>
+              <Button variant="icon" aria-label={t.close} onClick={() => setOpen(false)} className="-mr-2 -mt-2"><X aria-hidden className="size-5" /></Button>
             </div>
             {v.letter && (
               <button type="button" onClick={() => navigate(socialLink.letter(v.username))} className="lq-pigeon-note mb-2 flex w-full items-center gap-2 px-3 py-2 text-left">
                 <PixelGlyph name="letter" size={16} className="shrink-0" />
                 <span className="min-w-0 flex-1 truncate text-body-sm text-on-background">“{v.letter.preview}”</span>
-                <span className="text-label-md text-primary-text">Leer</span>
+                <span className="text-label-md text-primary-text">{t.read}</span>
               </button>
             )}
-            <div role="group" aria-label="Mandar un gesto" className="grid grid-cols-3 gap-1.5">
-              {GESTURES.map((ge) => (
+            <div role="group" aria-label={t.sendGesture} className="grid grid-cols-3 gap-1.5">
+              {gestures.map((ge) => (
                 <button
                   key={ge.kind} type="button" onClick={() => { setOpen(false); onSent(ge.kind); }}
                   className="flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl border border-border bg-background text-label-md text-on-surface transition-colors hover:border-primary/40 hover:bg-surface-variant"
@@ -263,8 +332,8 @@ function Walker({ v, index, width, zone, act, letterBubble, onSent }: {
               ))}
             </div>
             <div className="mt-2.5 flex gap-2">
-              <Button size="sm" className="flex-1" onClick={() => navigate(socialLink.letter(v.username))}><Mail aria-hidden className="size-4" />Escribir</Button>
-              <Button size="sm" variant="secondary" onClick={() => navigate(`/u/${encodeURIComponent(v.username)}`)} aria-label={`Ver el DNI de ${v.displayName}`}><Contact aria-hidden className="size-4" />DNI</Button>
+              <Button size="sm" className="flex-1" onClick={() => navigate(socialLink.letter(v.username))}><Mail aria-hidden className="size-4" />{t.write}</Button>
+              <Button size="sm" variant="secondary" onClick={() => navigate(`/u/${encodeURIComponent(v.username)}`)} aria-label={t.viewId(v.displayName)}><Contact aria-hidden className="size-4" />{t.dni}</Button>
             </div>
           </motion.div>
         )}
@@ -274,6 +343,8 @@ function Walker({ v, index, width, zone, act, letterBubble, onSent }: {
 }
 
 export function ZoneVisitors() {
+  const t = useText(COPY);
+  const locale = useLocale();
   const { pathname } = useLocation();
   const zone = zoneName(pathname);
   const show = useVisitorPrefs((s) => s.show);
@@ -299,7 +370,7 @@ export function ZoneVisitors() {
     return () => ro.disconnect();
   }, [area]);
 
-  useEffect(() => () => timers.current.forEach((t) => window.clearTimeout(t)), []);
+  useEffect(() => () => timers.current.forEach((tm) => window.clearTimeout(tm)), []);
   const later = (fn: () => void, ms: number) => { timers.current.push(window.setTimeout(fn, ms)); };
 
   const play = useCallback((id: string, act: Act, ms = 3200) => {
@@ -322,7 +393,7 @@ export function ZoneVisitors() {
           if (at && letters.current[v.id] !== at) {
             if (!first || Date.now() - new Date(at).getTime() < 60_000) {
               setBubbles((b) => ({ ...b, [v.id]: v.letter!.preview }));
-              setAnnounce(`${v.displayName} te dejó una carta`);
+              setAnnounce(t.leftLetter(v.displayName));
               later(() => setBubbles((b) => (({ [v.id]: _drop, ...rest }) => rest)(b)), 6000);
             }
             letters.current[v.id] = at;
@@ -330,12 +401,12 @@ export function ZoneVisitors() {
         }
         // Gestos: los hace su muñequito si está aquí; si no, llega un aviso.
         r.gestures.forEach((gst, i) => {
-          const name = gst.fromName.split(' ')[0] || 'Un amigo';
-          const said = gestureOf(gst.kind).said;
+          const name = gst.fromName.split(' ')[0] || t.someone;
+          const said = gestureOf(gst.kind, locale).said;
           if (r.visitors.some((v) => v.id === gst.fromId)) {
             later(() => { play(gst.fromId, { kind: gst.kind, key: Date.now() + i }); setAnnounce(`${name} ${said}`); }, i * 3400);
           } else {
-            toaster().info(`${name} ${said}`, gst.zone ? `Desde ${gst.zone}` : undefined);
+            toaster().info(`${name} ${said}`, gst.zone ? t.fromZone(gst.zone) : undefined);
           }
         });
         first = false;
@@ -344,20 +415,20 @@ export function ZoneVisitors() {
     const now = useLive.getState().zone;
     if (now) take(now);
     return liveHub.onZone(take);
-  }, [play, show, zone]);
+  }, [play, show, zone, t, locale]);
 
   async function gesture(v: ZoneVisitor, kind: GestureKind) {
     play(v.id, { kind, key: Date.now(), sent: true }, 1800);
-    setAnnounce(`Le mandaste a ${v.displayName.split(' ')[0]}: ${gestureOf(kind).label.toLowerCase()}`);
+    setAnnounce(t.sentGestureTo(v.displayName.split(' ')[0], gestureOf(kind, locale).label.toLowerCase()));
     try { await sendGesture(v.id, kind, zone); }
-    catch (e) { toaster().error(apiError(e, 'No se pudo mandar el gesto')); }
+    catch (e) { toaster().error(apiError(e, t.sendFail)); }
   }
 
   if (!show || (keyboard && coarse) || visitors.length === 0) return null;
   return (
     <div className="pointer-events-none sticky bottom-[calc(3.75rem+max(1rem,env(safe-area-inset-bottom)))] z-20 h-0 md:bottom-0">
       <div className="relative mx-auto h-0 w-full max-w-[1120px] px-4 md:px-8">
-        <ul ref={setArea} aria-label={`Amigos en ${zone}`} className="absolute bottom-2 left-4 right-[6.25rem] h-16 md:bottom-4 md:left-8 md:right-8">
+        <ul ref={setArea} aria-label={t.friendsIn(zone)} className="absolute bottom-2 left-4 right-[6.25rem] h-16 md:bottom-4 md:left-8 md:right-8">
           <AnimatePresence>
             {width > 0 && visitors.map((v, i) => (
               <Walker key={v.id} v={v} index={i} width={width} zone={zone} act={acts[v.id] ?? null} letterBubble={bubbles[v.id] ?? null} onSent={(k) => void gesture(v, k)} />

@@ -10,31 +10,98 @@ import { cn } from '@/lib/utils';
 import { LiteNotice } from '@/components/billing/LiteNotice';
 import { LITE_LIMITS } from '@/lib/plan';
 import { useAuthStore } from '@/store/authStore';
+import { INTL_LOCALE, useLocale, useText, type Copy } from '@/lib/i18n';
+
+const es = {
+  loading: 'Cargando tu historial',
+  eyebrow: 'Historial',
+  title: (span: number): string => `Tus últimos ${span} días`,
+  desc: 'Cada día, lo que completaste y lo que ganaste.',
+  view: 'Vista',
+  calendar: 'Calendario',
+  charts: 'Gráficas',
+  liteNotice: (days: number): string => `NoutLife Lite muestra tus últimos ${days} días. Con Pro ves todo tu historial: nada se borra.`,
+  xpEarned: 'XP ganada',
+  quests: 'Misiones',
+  habits: 'Hábitos',
+  gold: 'Oro',
+  daily: 'Actividad diaria',
+  legend: 'Leyenda',
+  dayAria: (date: string, score: number, quests: number, habits: number, none: boolean): string =>
+    none ? `${date}: sin actividad` : `${date}: ${score} puntos, ${quests} misiones, ${habits} hábitos`,
+  xp: (n: number): string => `+${n} XP`,
+  goldPlus: (n: number): string => `+${n} oro`,
+  questsDone: 'Misiones completadas',
+  habitsSection: 'Hábitos',
+  done: 'Hecho',
+  failed: 'Fallido',
+  partial: 'Parcial',
+  xpPerDay: 'XP por día',
+  xpChart: (span: number): string => `XP ganada por día en los últimos ${span} días`,
+  noXp: 'Sin XP registrada',
+  noXpDesc: 'Completa hábitos y misiones para ver tu progreso.',
+  byCategory: 'Por categoría',
+  barLabel: (name: string, pct: number): string => `${name}: ${pct}%`,
+  noQuests: 'Sin misiones aún',
+  noQuestsDesc: 'Cuando completes misiones verás aquí su reparto.',
+  levels: { excellent: 'Excelente', good: 'Bien', little: 'Poco', none: 'Sin actividad' },
+  cats: { FITNESS: 'Fitness', HEALTH: 'Salud', FINANCE: 'Finanzas', LEARNING: 'Aprendizaje', LOVE: 'Amor', SOCIAL: 'Social', PERSONAL: 'Personal', CREATIVE: 'Creativo' } as Record<string, string>,
+};
+
+const en: typeof es = {
+  loading: 'Loading your history',
+  eyebrow: 'History',
+  title: (span: number): string => `Your last ${span} days`,
+  desc: 'Each day, what you completed and what you earned.',
+  view: 'View',
+  calendar: 'Calendar',
+  charts: 'Charts',
+  liteNotice: (days: number): string => `NoutLife Lite shows your last ${days} days. With Pro you see your whole history: nothing is erased.`,
+  xpEarned: 'XP earned',
+  quests: 'Quests',
+  habits: 'Habits',
+  gold: 'Gold',
+  daily: 'Daily activity',
+  legend: 'Legend',
+  dayAria: (date: string, score: number, quests: number, habits: number, none: boolean): string =>
+    none ? `${date}: no activity` : `${date}: ${score} points, ${quests} quests, ${habits} habits`,
+  xp: (n: number): string => `+${n} XP`,
+  goldPlus: (n: number): string => `+${n} gold`,
+  questsDone: 'Quests completed',
+  habitsSection: 'Habits',
+  done: 'Done',
+  failed: 'Failed',
+  partial: 'Partial',
+  xpPerDay: 'XP per day',
+  xpChart: (span: number): string => `XP earned per day over the last ${span} days`,
+  noXp: 'No XP recorded',
+  noXpDesc: 'Complete habits and quests to see your progress.',
+  byCategory: 'By category',
+  barLabel: (name: string, pct: number): string => `${name}: ${pct}%`,
+  noQuests: 'No quests yet',
+  noQuestsDesc: 'When you complete quests, their breakdown will show here.',
+  levels: { excellent: 'Excellent', good: 'Good', little: 'Little', none: 'No activity' },
+  cats: { FITNESS: 'Fitness', HEALTH: 'Health', FINANCE: 'Finance', LEARNING: 'Learning', LOVE: 'Love', SOCIAL: 'Social', PERSONAL: 'Personal', CREATIVE: 'Creative' } as Record<string, string>,
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 type View = 'calendar' | 'charts';
 
-const VIEWS = [
-  { value: 'calendar' as const, label: 'Calendario' },
-  { value: 'charts' as const, label: 'Gráficas' },
-];
-
-const CATEGORY_LABELS: Record<string, string> = {
-  FITNESS: 'Fitness', HEALTH: 'Salud', FINANCE: 'Finanzas', LEARNING: 'Aprendizaje',
-  LOVE: 'Amor', SOCIAL: 'Social', PERSONAL: 'Personal', CREATIVE: 'Creativo',
-};
-
 // Intensidad del día: jade al 15 / 45 / 100 % según la productividad.
-const LEVELS = [
-  { min: 70, cls: 'bg-primary text-on-primary', label: 'Excelente' },
-  { min: 40, cls: 'bg-primary/45 text-on-background', label: 'Bien' },
-  { min: 1, cls: 'bg-primary/15 text-on-background', label: 'Poco' },
-  { min: 0, cls: 'bg-surface-variant text-on-surface-light', label: 'Sin actividad' },
-];
-const levelOf = (score: number) => LEVELS.find((l) => score >= l.min) ?? LEVELS[3];
+const LEVEL_STYLE = [
+  { min: 70, cls: 'bg-primary text-on-primary', key: 'excellent' },
+  { min: 40, cls: 'bg-primary/45 text-on-background', key: 'good' },
+  { min: 1, cls: 'bg-primary/15 text-on-background', key: 'little' },
+  { min: 0, cls: 'bg-surface-variant text-on-surface-light', key: 'none' },
+] as const;
+const levelOf = (score: number) => LEVEL_STYLE.find((l) => score >= l.min) ?? LEVEL_STYLE[3];
 
 const isoDay = (d: Date) => d.toISOString().split('T')[0];
 
 export default function HistoryPage() {
+  const t = useText(COPY);
+  const locale = useLocale();
   const [summary, setSummary] = useState<HistorySummary | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
@@ -43,6 +110,11 @@ export default function HistoryPage() {
   // NoutLife Lite: la API solo devuelve los últimos 7 días; el calendario muestra esos.
   const lite = useAuthStore((s) => s.user?.subscription?.plan === 'lite');
   const span = lite ? LITE_LIMITS.historyDays : 30;
+
+  const VIEWS = [
+    { value: 'calendar' as const, label: t.calendar },
+    { value: 'charts' as const, label: t.charts },
+  ];
 
   const load = useCallback(() => {
     setState('loading');
@@ -61,7 +133,7 @@ export default function HistoryPage() {
     setDayDetail(await fetchDayDetail(date).catch(() => null));
   }
 
-  if (state === 'loading') return <PageLoader label="Cargando tu historial" />;
+  if (state === 'loading') return <PageLoader label={t.loading} />;
   if (state === 'error') return <ErrorState onRetry={load} />;
 
   const today = new Date();
@@ -74,30 +146,30 @@ export default function HistoryPage() {
   const days = summary?.days ?? [];
   const cats = summary?.categoryDistribution ?? [];
   const dayMap = new Map(days.map((d) => [d.date, d]));
-  const xpData = days.map((d) => ({ label: d.date.slice(8), value: d.xpGained, tip: `${d.date.slice(5)} · +${d.xpGained} XP` }));
+  const xpData = days.map((d) => ({ label: d.date.slice(8), value: d.xpGained, tip: `${d.date.slice(5)} · ${t.xp(d.xpGained)}` }));
   const catTotal = cats.reduce((s, c) => s + c.count, 0);
 
   return (
     <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-8 md:gap-12">
       <PageHeader
-        eyebrow="Historial"
-        title={`Tus últimos ${span} días`}
-        description="Cada día, lo que completaste y lo que ganaste."
-        aside={<div className="w-full max-w-[320px] sm:w-[300px]"><SegmentedControl label="Vista" value={view} onChange={setView} options={VIEWS} /></div>}
+        eyebrow={t.eyebrow}
+        title={t.title(span)}
+        description={t.desc}
+        aside={<div className="w-full max-w-[320px] sm:w-[300px]"><SegmentedControl label={t.view} value={view} onChange={setView} options={VIEWS} /></div>}
       />
 
       {lite && (
         <motion.div variants={item}>
-          <LiteNotice feature="history">NoutLife Lite muestra tus últimos {LITE_LIMITS.historyDays} días. Con Pro ves todo tu historial: nada se borra.</LiteNotice>
+          <LiteNotice feature="history">{t.liteNotice(LITE_LIMITS.historyDays)}</LiteNotice>
         </motion.div>
       )}
 
       {summary && (
         <motion.ul variants={stagger} className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <motion.li variants={item}><StatCard icon={Zap} tone="secondary" value={summary.totalXp} label="XP ganada" /></motion.li>
-          <motion.li variants={item}><StatCard icon={Flag} tone="forest" value={summary.totalQuestsCompleted} label="Misiones" /></motion.li>
-          <motion.li variants={item}><StatCard icon={Repeat} tone="primary" value={summary.totalHabitsCompleted} label="Hábitos" /></motion.li>
-          <motion.li variants={item}><StatCard icon={Coins} tone="secondary" value={summary.totalGold} label="Oro" /></motion.li>
+          <motion.li variants={item}><StatCard icon={Zap} tone="secondary" value={summary.totalXp} label={t.xpEarned} /></motion.li>
+          <motion.li variants={item}><StatCard icon={Flag} tone="forest" value={summary.totalQuestsCompleted} label={t.quests} /></motion.li>
+          <motion.li variants={item}><StatCard icon={Repeat} tone="primary" value={summary.totalHabitsCompleted} label={t.habits} /></motion.li>
+          <motion.li variants={item}><StatCard icon={Coins} tone="secondary" value={summary.totalGold} label={t.gold} /></motion.li>
         </motion.ul>
       )}
 
@@ -110,11 +182,11 @@ export default function HistoryPage() {
           {view === 'calendar' ? (
             <Card padding="lg" className="flex flex-col gap-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-heading-md">Actividad diaria</h2>
-                <ul className="flex flex-wrap gap-x-4 gap-y-2" aria-label="Leyenda">
-                  {LEVELS.map((l) => (
-                    <li key={l.label} className="flex items-center gap-1.5 text-body-sm text-on-surface-light">
-                      <span aria-hidden className={cn('size-3 rounded-sm', l.cls)} />{l.label}
+                <h2 className="text-heading-md">{t.daily}</h2>
+                <ul className="flex flex-wrap gap-x-4 gap-y-2" aria-label={t.legend}>
+                  {LEVEL_STYLE.map((l) => (
+                    <li key={l.key} className="flex items-center gap-1.5 text-body-sm text-on-surface-light">
+                      <span aria-hidden className={cn('size-3 rounded-sm', l.cls)} />{t.levels[l.key]}
                     </li>
                   ))}
                 </ul>
@@ -125,6 +197,7 @@ export default function HistoryPage() {
                   const score = day?.productivityScore ?? 0;
                   const lvl = levelOf(score);
                   const selected = date === selectedDay;
+                  const dateLabel = new Date(date).toLocaleDateString(INTL_LOCALE[locale], { day: 'numeric', month: 'long', timeZone: 'UTC' });
                   return (
                     <motion.button
                       key={date}
@@ -132,7 +205,7 @@ export default function HistoryPage() {
                       onClick={() => void handleDayClick(date, score)}
                       disabled={score === 0}
                       aria-pressed={selected}
-                      aria-label={`${new Date(date).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', timeZone: 'UTC' })}: ${day ? `${score} puntos, ${day.questsCompleted} misiones, ${day.habitsCompleted} hábitos` : 'sin actividad'}`}
+                      aria-label={t.dayAria(dateLabel, score, day?.questsCompleted ?? 0, day?.habitsCompleted ?? 0, !day)}
                       initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }}
                       transition={{ type: 'spring', stiffness: 380, damping: 24, delay: i * 0.012 }}
                       whileHover={score ? { y: -2 } : undefined} whileTap={score ? { scale: 0.94 } : undefined}
@@ -160,21 +233,21 @@ export default function HistoryPage() {
                   >
                     <div className="flex flex-wrap items-baseline justify-between gap-3">
                       <h3 className="text-heading-sm first-letter:uppercase">
-                        {new Date(selectedDay).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' })}
+                        {new Date(selectedDay).toLocaleDateString(INTL_LOCALE[locale], { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' })}
                       </h3>
                       <span className="flex gap-4 font-mono text-label-lg tabular-nums text-secondary-text">
-                        <span>+{dayDetail.totalXp} XP</span><span>+{dayDetail.totalGold} oro</span>
+                        <span>{t.xp(dayDetail.totalXp)}</span><span>{t.goldPlus(dayDetail.totalGold)}</span>
                       </span>
                     </div>
                     {dayDetail.questsCompleted.length > 0 && (
                       <div className="flex flex-col gap-2">
-                        <p className="text-label-md uppercase tracking-[0.08em] text-on-surface-light">Misiones completadas</p>
+                        <p className="text-label-md uppercase tracking-[0.08em] text-on-surface-light">{t.questsDone}</p>
                         <ul className="flex flex-col gap-1">
                           {dayDetail.questsCompleted.map((q) => (
                             <li key={q.questId} className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-surface-variant/60">
                               <CheckCircle2 aria-hidden className="size-5 shrink-0 text-success-text" strokeWidth={1.75} />
                               <span className="min-w-0 flex-1 truncate text-body-md">{q.title}</span>
-                              <span className="font-mono text-label-lg tabular-nums text-on-surface-light">+{q.xpEarned} XP</span>
+                              <span className="font-mono text-label-lg tabular-nums text-on-surface-light">{t.xp(q.xpEarned)}</span>
                             </li>
                           ))}
                         </ul>
@@ -182,7 +255,7 @@ export default function HistoryPage() {
                     )}
                     {dayDetail.habitLogs.length > 0 && (
                       <div className="flex flex-col gap-2">
-                        <p className="text-label-md uppercase tracking-[0.08em] text-on-surface-light">Hábitos</p>
+                        <p className="text-label-md uppercase tracking-[0.08em] text-on-surface-light">{t.habitsSection}</p>
                         <ul className="flex flex-col gap-1">
                           {dayDetail.habitLogs.map((l) => {
                             const done = l.status === 'completed', failed = l.status === 'failed';
@@ -192,7 +265,7 @@ export default function HistoryPage() {
                                 <Icon aria-hidden className={cn('size-5 shrink-0', done ? 'text-success-text' : failed ? 'text-error-text' : 'text-on-surface-light')} strokeWidth={1.75} />
                                 <span className="min-w-0 flex-1 truncate text-body-md">{l.title}</span>
                                 <span className={cn('text-label-lg', done ? 'text-success-text' : failed ? 'text-error-text' : 'text-on-surface-light')}>
-                                  {done ? 'Hecho' : failed ? 'Fallido' : 'Parcial'}
+                                  {done ? t.done : failed ? t.failed : t.partial}
                                 </span>
                               </li>
                             );
@@ -207,33 +280,33 @@ export default function HistoryPage() {
           ) : (
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
               <Card padding="lg" className="flex flex-col gap-4">
-                <h2 className="text-heading-md">XP por día</h2>
+                <h2 className="text-heading-md">{t.xpPerDay}</h2>
                 {xpData.length ? (
-                  <BarChart data={xpData} label={`XP ganada por día en los últimos ${span} días`} tone="primary" height={200} grid />
+                  <BarChart data={xpData} label={t.xpChart(span)} tone="primary" height={200} grid />
                 ) : (
-                  <EmptyState icon={Zap} title="Sin XP registrada" description="Completa hábitos y misiones para ver tu progreso." className="py-4" />
+                  <EmptyState icon={Zap} title={t.noXp} description={t.noXpDesc} className="py-4" />
                 )}
               </Card>
               <Card padding="lg" className="flex flex-col gap-5">
-                <h2 className="text-heading-md">Por categoría</h2>
+                <h2 className="text-heading-md">{t.byCategory}</h2>
                 {catTotal > 0 ? (
                   <motion.ul variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-4">
                     {[...cats].sort((a, b) => b.count - a.count).map((c) => {
                       const pct = Math.round((c.count / catTotal) * 100);
-                      const name = CATEGORY_LABELS[c.category] ?? c.category;
+                      const name = t.cats[c.category] ?? c.category;
                       return (
                         <motion.li key={c.category} variants={item} className="flex flex-col gap-2">
                           <div className="flex items-baseline justify-between gap-3">
                             <span className="text-label-lg">{name}</span>
                             <span className="font-mono text-body-sm tabular-nums text-on-surface-light">{pct}%</span>
                           </div>
-                          <ProgressBar value={pct} tone="forest" label={`${name}: ${pct}%`} />
+                          <ProgressBar value={pct} tone="forest" label={t.barLabel(name, pct)} />
                         </motion.li>
                       );
                     })}
                   </motion.ul>
                 ) : (
-                  <EmptyState icon={CalendarDays} tone="forest" title="Sin misiones aún" description="Cuando completes misiones verás aquí su reparto." className="py-4" />
+                  <EmptyState icon={CalendarDays} tone="forest" title={t.noQuests} description={t.noQuestsDesc} className="py-4" />
                 )}
               </Card>
             </div>

@@ -25,7 +25,7 @@ export { DayDot, type DayStatus, type DayDotProps } from './DayDot';
 export { StepItem, type StepItemProps } from './StepItem';
 export { Timer, formatClock, type TimerProps } from './Timer';
 export { BookCover, type BookCoverProps } from './BookCover';
-export { MoodPicker, MoodFace, MOODS, moodOf, type MoodPickerProps } from './MoodPicker';
+export { MoodPicker, MoodFace, MOODS, moodOf, moodNameOf, type MoodPickerProps } from './MoodPicker';
 export { TimelineDay, type TimelineItem, type TimelineDayProps } from './TimelineDay';
 export { MonthGrid, type MonthGridProps } from './MonthGrid';
 export { DatePicker, type DatePickerProps } from './DatePicker';

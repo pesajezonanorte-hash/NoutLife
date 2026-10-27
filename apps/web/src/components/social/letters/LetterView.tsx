@@ -22,6 +22,7 @@ import { useToastStore } from '@/hooks/useToast';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { nameClass } from '@/lib/nameColors';
 import { useMedia } from '@/lib/media';
+import { INTL_LOCALE, useLocale, useText, type Copy, type Locale } from '@/lib/i18n';
 import {
   apiError, blockUser, DEFAULT_FIT, saveSticker, setChatPref, socialLink, timeAgo,
   type GameType, type GuildDetail, type GuildMemberRow, type PublicUser, type RpsPick, type Typing,
@@ -45,15 +46,198 @@ import { addToCollection } from './StickerPanel';
 import { knownKeyboard } from './viewport';
 import { useDirectLetter, useGuildLetter, type LetterApi, type LetterMsg } from './useLetter';
 
+const es = {
+  today: 'Hoy',
+  yesterday: 'Ayer',
+  editLabel: { name: 'el nombre', description: 'la descripción', emblem: 'el emblema', photo: 'la foto' } as Record<string, string>,
+  and: 'y',
+  guildWord: 'el gremio',
+  unknown: 'Alguien',
+  you: 'Tú',
+  editMine: (list: string): string => `Cambiaste ${list} del gremio`,
+  editTheirs: (who: string, list: string): string => `${who} cambió ${list} del gremio`,
+  bgOffMine: 'Quitaste el fondo: la carta volvió al papel',
+  bgOffTheirs: (who: string): string => `${who} quitó el fondo: la carta volvió al papel`,
+  bgMine: 'Cambiaste el fondo de la carta',
+  bgTheirs: (who: string): string => `${who} cambió el fondo de la carta`,
+  typing: 'Escribiendo',
+  typingLower: 'escribiendo',
+  typingNow: 'escribiendo…',
+  typingOne: (n: string): string => `${n} escribe`,
+  typingTwo: (a: string, b: string): string => `${a} y ${b} escriben`,
+  typingMany: (n: number): string => `${n} personas escriben`,
+  typingCount: (n: number): string => `${n} escriben`,
+  options: 'Opciones de la carta',
+  myPhoto: 'Tu foto',
+  photoOf: (name: string): string => `Foto de ${name}`,
+  close: 'Cerrar',
+  back: 'Volver',
+  logAria: 'Carta',
+  olderBtn: 'Ver mensajes anteriores',
+  couldntOpen: 'No pudimos abrir la carta.',
+  retry: 'Reintentar',
+  newCount: (n: number): string => `${n} ${n === 1 ? 'mensaje nuevo' : 'mensajes nuevos'}`,
+  streakA: 'Su racha de',
+  streakB: 'días se apagó hace poco. Todavía pueden recuperarla.',
+  revive: 'Revivir',
+  deleteTitle: '¿Borrar el mensaje?',
+  deleteBody: 'Se borrará para todos. En la carta quedará «Mensaje borrado».',
+  cancel: 'Cancelar',
+  remove: 'Borrar',
+  clearTitle: '¿Eliminar este chat?',
+  clearBody: (who: string): string => `Se borra el historial solo para ti; ${who} lo seguirán viendo. Lo que se escriba a partir de ahora sí te llega.`,
+  others: 'los demás',
+  clearChat: 'Eliminar chat',
+  blockTitle: (name: string): string => `¿Bloquear a ${name}?`,
+  blockBody: 'Dejarán de ser amigos. No podrá escribirte, enviarte palomas ni gestos, y no se verán en las zonas. Puedes desbloquearlo cuando quieras en Ajustes → Privacidad.',
+  block: 'Bloquear',
+  bgMenu: 'Fondo de la carta',
+  bgAdd: 'Poner una foto de fondo',
+  bgRemove: 'Quitar el fondo',
+  archive: 'Archivar carta',
+  report: (name: string): string => `Denunciar a ${name}`,
+  blockName: (name: string): string => `Bloquear a ${name}`,
+  archivedOk: 'Carta archivada',
+  archivedBody: 'La encuentras en «Archivadas», al final del buzón.',
+  archiveFail: 'No se pudo archivar',
+  clearedOk: 'Chat eliminado',
+  clearedBody: 'Se borró el historial solo para ti.',
+  clearFail: 'No se pudo eliminar el chat',
+  blockedOk: (first: string): string => `Bloqueaste a ${first}`,
+  blockedBody: 'Puedes desbloquearlo en Ajustes → Privacidad.',
+  blockFail: 'No se pudo bloquear',
+  copyText: 'Copiar texto',
+  copied: 'Texto copiado',
+  reply: 'Responder',
+  saveSticker: 'Guardar sticker',
+  stickerSaved: 'Sticker guardado',
+  stickerSavedBody: 'Ya está en tu colección.',
+  saveFail: 'No se pudo guardar',
+  editMsg: 'Editar',
+  removeMsg: 'Borrar para todos',
+  olderMsg: 'Ese mensaje es más antiguo',
+  olderBody: 'Sube en la carta para cargarlo.',
+  sendAria: 'Enviar carta',
+  seeId: (name: string): string => `Ver el DNI de ${name}`,
+  forWord: 'Para ',
+  online: 'En línea',
+  onlineIn: (zone: string): string => `En línea · en ${zone}`,
+  activeAgo: (ago: string): string => `Activo ${ago}`,
+  helloTitle: (first: string): string => `hola, ${first}:`,
+  directHint: 'Escribe la primera línea de su carta. Si se escriben tres días seguidos, se enciende su racha.',
+  letterWith: (name: string): string => `Carta con ${name}`,
+  guildLetterOf: (name: string): string => `Carta de ${name}`,
+  everyoneIn: (name: string): string => `todo ${name}`,
+  editGuild: 'Editar gremio',
+  guildCamp: 'Ir al campamento del gremio',
+  helloAll: 'hola a todos:',
+  guildHint: 'La carta del gremio la escriben entre todos. Si todos escriben tres días seguidos, se enciende la racha del gremio.',
+  membersLine: (m: number, talked: number): string =>
+    `${m} ${m === 1 ? 'miembro' : 'miembros'} · ${talked} ${talked === 1 ? 'escribió' : 'escribieron'} hoy`,
+};
+
+const en: typeof es = {
+  today: 'Today',
+  yesterday: 'Yesterday',
+  editLabel: { name: 'the name', description: 'the description', emblem: 'the emblem', photo: 'the photo' },
+  and: 'and',
+  guildWord: 'the guild',
+  unknown: 'Someone',
+  you: 'You',
+  editMine: (list: string): string => `You changed ${list} of the guild`,
+  editTheirs: (who: string, list: string): string => `${who} changed ${list} of the guild`,
+  bgOffMine: 'You removed the background: the letter went back to paper',
+  bgOffTheirs: (who: string): string => `${who} removed the background: the letter went back to paper`,
+  bgMine: 'You changed the letter background',
+  bgTheirs: (who: string): string => `${who} changed the letter background`,
+  typing: 'Typing',
+  typingLower: 'typing',
+  typingNow: 'typing…',
+  typingOne: (n: string): string => `${n} is typing`,
+  typingTwo: (a: string, b: string): string => `${a} and ${b} are typing`,
+  typingMany: (n: number): string => `${n} people are typing`,
+  typingCount: (n: number): string => `${n} are typing`,
+  options: 'Letter options',
+  myPhoto: 'Your photo',
+  photoOf: (name: string): string => `Photo from ${name}`,
+  close: 'Close',
+  back: 'Back',
+  logAria: 'Letter',
+  olderBtn: 'See earlier messages',
+  couldntOpen: 'We could not open the letter.',
+  retry: 'Try again',
+  newCount: (n: number): string => `${n} new ${n === 1 ? 'message' : 'messages'}`,
+  streakA: 'Their streak of',
+  streakB: 'days went out a while ago. They can still bring it back.',
+  revive: 'Revive',
+  deleteTitle: 'Delete the message?',
+  deleteBody: 'It will be deleted for everyone. The letter will show “Message deleted”.',
+  cancel: 'Cancel',
+  remove: 'Delete',
+  clearTitle: 'Delete this chat?',
+  clearBody: (who: string): string => `The history is erased only for you; ${who} will still see it. Anything written from now on will reach you.`,
+  others: 'everyone else',
+  clearChat: 'Delete chat',
+  blockTitle: (name: string): string => `Block ${name}?`,
+  blockBody: 'You will stop being friends. They will not be able to write to you, send pigeons or gestures, and you will not see each other in the zones. You can unblock them anytime in Settings → Privacy.',
+  block: 'Block',
+  bgMenu: 'Letter background',
+  bgAdd: 'Set a background photo',
+  bgRemove: 'Remove the background',
+  archive: 'Archive letter',
+  report: (name: string): string => `Report ${name}`,
+  blockName: (name: string): string => `Block ${name}`,
+  archivedOk: 'Letter archived',
+  archivedBody: 'You will find it in “Archived”, at the end of the mailbox.',
+  archiveFail: 'Could not archive',
+  clearedOk: 'Chat deleted',
+  clearedBody: 'The history was erased only for you.',
+  clearFail: 'Could not delete the chat',
+  blockedOk: (first: string): string => `You blocked ${first}`,
+  blockedBody: 'You can unblock them in Settings → Privacy.',
+  blockFail: 'Could not block',
+  copyText: 'Copy text',
+  copied: 'Text copied',
+  reply: 'Reply',
+  saveSticker: 'Save sticker',
+  stickerSaved: 'Sticker saved',
+  stickerSavedBody: 'It is already in your collection.',
+  saveFail: 'Could not save',
+  editMsg: 'Edit',
+  removeMsg: 'Delete for everyone',
+  olderMsg: 'That message is older',
+  olderBody: 'Scroll up in the letter to load it.',
+  sendAria: 'Send letter',
+  seeId: (name: string): string => `See ${name}’s ID`,
+  forWord: 'To ',
+  online: 'Online',
+  onlineIn: (zone: string): string => `Online · in ${zone}`,
+  activeAgo: (ago: string): string => `Active ${ago}`,
+  helloTitle: (first: string): string => `hi, ${first}:`,
+  directHint: 'Write the first line of their letter. If you talk three days in a row, their streak lights up.',
+  letterWith: (name: string): string => `Letter with ${name}`,
+  guildLetterOf: (name: string): string => `Letter from ${name}`,
+  everyoneIn: (name: string): string => `everyone in ${name}`,
+  editGuild: 'Edit guild',
+  guildCamp: 'Go to the guild camp',
+  helloAll: 'hi everyone:',
+  guildHint: 'The guild letter is written by everyone together. If everyone talks three days in a row, the guild streak lights up.',
+  membersLine: (m: number, talked: number): string =>
+    `${m} ${m === 1 ? 'member' : 'members'} · ${talked} ${talked === 1 ? 'person' : 'people'} wrote today`,
+};
+
+const COPY: Copy<typeof es> = { es, en };
+type Tx = typeof es;
+
 const toaster = () => useToastStore.getState();
 const dayOf = (iso: string) => new Date(iso).toDateString();
-function dayLabel(iso: string) {
+function dayLabel(iso: string, t: Tx, locale: Locale) {
   const d = new Date(iso);
   const today = new Date();
   const y = new Date(); y.setDate(today.getDate() - 1);
-  if (d.toDateString() === today.toDateString()) return 'Hoy';
-  if (d.toDateString() === y.toDateString()) return 'Ayer';
-  return d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+  if (d.toDateString() === today.toDateString()) return t.today;
+  if (d.toDateString() === y.toDateString()) return t.yesterday;
+  return d.toLocaleDateString(INTL_LOCALE[locale], { weekday: 'long', day: 'numeric', month: 'long' });
 }
 const sameGroup = (a: LetterMsg | undefined, b: LetterMsg) =>
   Boolean(a && a.kind !== 'EVENT' && b.kind !== 'EVENT' && a.author?.id === b.author?.id && dayOf(a.createdAt) === dayOf(b.createdAt)
@@ -63,9 +247,11 @@ const sameGroup = (a: LetterMsg | undefined, b: LetterMsg) =>
 
 /** Matasellos entre días: aro con el día y las ondas de cancelación. */
 function Postmark({ iso }: { iso: string }) {
+  const t = useText(COPY);
+  const locale = useLocale();
   const d = new Date(iso);
-  const label = dayLabel(iso);
-  const month = d.toLocaleDateString('es-ES', { month: 'short' }).replace('.', '');
+  const label = dayLabel(iso, t, locale);
+  const month = d.toLocaleDateString(INTL_LOCALE[locale], { month: 'short' }).replace('.', '');
   return (
     <div role="separator" aria-label={label} className="my-4 flex items-center justify-center gap-2">
       <span aria-hidden="true" className="lq-postmark relative flex -rotate-6 items-center">
@@ -84,19 +270,18 @@ function Postmark({ iso }: { iso: string }) {
   );
 }
 
-const EDIT_LABEL: Record<string, string> = { name: 'el nombre', description: 'la descripción', emblem: 'el emblema', photo: 'la foto' };
-
 /** Aviso de la carta (cambió el fondo o el gremio). */
 function EventNote({ m }: { m: LetterMsg }) {
-  const who = m.mine ? 'Tú' : m.author?.name.split(' ')[0] ?? 'Alguien';
+  const t = useText(COPY);
+  const who = m.mine ? t.you : m.author?.name.split(' ')[0] ?? t.unknown;
   const c = m.content ?? '';
   let text: string;
   if (c.startsWith('edit:')) {
-    const parts = c.slice(5).split(',').map((p) => EDIT_LABEL[p]).filter(Boolean);
-    const list = parts.length > 1 ? `${parts.slice(0, -1).join(', ')} y ${parts[parts.length - 1]}` : parts[0] ?? 'el gremio';
-    text = `${who} ${m.mine ? 'cambiaste' : 'cambió'} ${list} del gremio`;
-  } else if (c === 'bg-off') text = m.mine ? 'Quitaste el fondo: la carta volvió al papel' : `${who} quitó el fondo: la carta volvió al papel`;
-  else text = m.mine ? 'Cambiaste el fondo de la carta' : `${who} cambió el fondo de la carta`;
+    const parts = c.slice(5).split(',').map((p) => t.editLabel[p]).filter(Boolean);
+    const list = parts.length > 1 ? `${parts.slice(0, -1).join(', ')} ${t.and} ${parts[parts.length - 1]}` : parts[0] ?? t.guildWord;
+    text = m.mine ? t.editMine(list) : t.editTheirs(who, list);
+  } else if (c === 'bg-off') text = m.mine ? t.bgOffMine : t.bgOffTheirs(who);
+  else text = m.mine ? t.bgMine : t.bgTheirs(who);
   return (
     <p className="mx-auto my-3 inline-flex max-w-[92%] items-center gap-1.5 self-center rounded-full border border-dashed border-border-strong/60 bg-surface/90 px-3 py-1 text-body-sm text-on-surface-light">
       {c.startsWith('edit:') ? <Pencil aria-hidden className="size-4 shrink-0" strokeWidth={1.75} /> : <ImageIcon aria-hidden className="size-4 shrink-0" strokeWidth={1.75} />}{text}
@@ -115,10 +300,11 @@ export function TypingDots({ className }: { className?: string }) {
 
 /** La tira de "escribiendo…" al pie de la carta (con quién, en un gremio). */
 function TypingSlip({ typing, group, authorOf }: { typing: Typing[]; group: boolean; authorOf: (id: string) => { name: string; avatarConfig?: unknown; avatarUrl?: string | null } | null }) {
+  const t = useText(COPY);
   const reduce = useMotionStore((s) => s.reduce);
-  const who = typing.map((t) => authorOf(t.userId)).filter(Boolean) as Array<{ name: string; avatarConfig?: unknown; avatarUrl?: string | null }>;
+  const who = typing.map((tp) => authorOf(tp.userId)).filter(Boolean) as Array<{ name: string; avatarConfig?: unknown; avatarUrl?: string | null }>;
   const names = who.map((w) => w.name.split(' ')[0]);
-  const label = !group ? 'Escribiendo' : names.length === 1 ? `${names[0]} escribe` : names.length === 2 ? `${names[0]} y ${names[1]} escriben` : `${names.length} personas escriben`;
+  const label = !group ? t.typing : names.length === 1 ? t.typingOne(names[0]) : names.length === 2 ? t.typingTwo(names[0], names[1]) : t.typingMany(names.length);
   return (
     <motion.div
       key="typing" initial={reduce ? { opacity: 0 } : { opacity: 0, y: 10, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -210,6 +396,7 @@ function EnvelopeFlights({ items }: { items: Array<{ id: number; x: number; y: n
 interface MenuItem { label: string; icon: LucideIcon; to?: string; onSelect?: () => void; danger?: boolean }
 
 function LetterMenu({ items }: { items: MenuItem[] }) {
+  const t = useText(COPY);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -223,7 +410,7 @@ function LetterMenu({ items }: { items: MenuItem[] }) {
   const row = 'flex min-h-11 w-full items-center gap-2.5 rounded-xl px-3 text-left text-body-md hover:bg-background focus-visible:bg-background';
   return (
     <div ref={ref} className="relative">
-      <Button variant="icon" aria-label="Opciones de la carta" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+      <Button variant="icon" aria-label={t.options} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <MoreHorizontal aria-hidden className="size-5" />
       </Button>
       <AnimatePresence>
@@ -258,11 +445,13 @@ function PhotoViewer({ m, side, src, onClose }: { m: LetterMsg | null; side: 'dm
 }
 
 function PhotoLightbox({ m, side, src, onClose }: { m: LetterMsg; side: 'dm' | 'guild'; src: string | null; onClose: () => void }) {
+  const t = useText(COPY);
+  const locale = useLocale();
   const panelRef = useDialogBehavior(true, onClose);
   const reduce = useMotionStore((s) => s.reduce);
   const media = useMedia(side, m.id, { enabled: !src, local: m.local });
   const photo = src ?? media.photoUrl;
-  const title = m.mine ? 'Tu foto' : `Foto de ${m.author?.name.split(' ')[0] ?? ''}`;
+  const title = m.mine ? t.myPhoto : t.photoOf(m.author?.name.split(' ')[0] ?? '');
   const dragRef = useRef(false);
   useEffect(() => {
     return () => { dragRef.current = false; };
@@ -275,8 +464,8 @@ function PhotoLightbox({ m, side, src, onClose }: { m: LetterMsg; side: 'dm' | '
     >
       <div ref={panelRef} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} className="pointer-events-none flex min-h-0 flex-1 flex-col outline-none">
         <div className="pointer-events-auto flex items-center justify-between gap-3 px-3 pt-[max(.75rem,env(safe-area-inset-top))]">
-          <p className="min-w-0 truncate pl-2 text-label-lg">{title} <span className="font-mono text-body-sm text-jade-100/75">· {dayLabel(m.createdAt)} · {time(m.createdAt)}</span></p>
-          <Button variant="icon" aria-label="Cerrar" onClick={onClose} className="text-jade-50 hover:bg-white/10"><X aria-hidden className="size-6" /></Button>
+          <p className="min-w-0 truncate pl-2 text-label-lg">{title} <span className="font-mono text-body-sm text-jade-100/75">· {dayLabel(m.createdAt, t, locale)} · {time(m.createdAt, locale)}</span></p>
+          <Button variant="icon" aria-label={t.close} onClick={onClose} className="text-jade-50 hover:bg-white/10"><X aria-hidden className="size-6" /></Button>
         </div>
         <div className="flex min-h-0 flex-1 items-center justify-center p-4">
           <motion.div
@@ -321,6 +510,8 @@ interface ShellProps {
 }
 
 function LetterShell({ api, label, to, shareWith, header, extraMenu = [], empty, group = false, members, onBack, onLeave, blockTarget, className }: ShellProps) {
+  const t = useText(COPY);
+  const locale = useLocale();
   const reduce = useMotionStore((s) => s.reduce);
   const fine = useMediaQuery('(pointer: fine)');
   const listRef = useRef<HTMLDivElement>(null);
@@ -423,16 +614,16 @@ function LetterShell({ api, label, to, shareWith, header, extraMenu = [], empty,
   // Deslizar hacia abajo sobre la carta esconde el teclado (como en las apps de mensajería).
   function onTouchStart(e: TouchEvent) { touch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }
   function onTouchMove(e: TouchEvent) {
-    const t = touch.current;
-    if (!t || !composerFocused) return;
-    const dy = e.touches[0].clientY - t.y;
-    const dx = Math.abs(e.touches[0].clientX - t.x);
+    const tc = touch.current;
+    if (!tc || !composerFocused) return;
+    const dy = e.touches[0].clientY - tc.y;
+    const dx = Math.abs(e.touches[0].clientX - tc.x);
     if (dy > 28 && dx < 24) { composer.current?.blur(); touch.current = null; }
   }
 
   function flyEnvelope() {
     if (reduce) return;
-    const btn = document.querySelector<HTMLElement>('[aria-label="Enviar carta"]');
+    const btn = document.querySelector<HTMLElement>('[data-send-letter]');
     const r = btn?.getBoundingClientRect();
     if (!r) return;
     const id = Date.now();
@@ -475,7 +666,7 @@ function LetterShell({ api, label, to, shareWith, header, extraMenu = [], empty,
     for (const m of api.messages) if (m.author) map.set(m.author.id, { name: m.author.name, color: m.author.nameColor, avatarConfig: m.author.avatarConfig, avatarUrl: m.author.avatarUrl });
     return map;
   }, [api.messages, members]);
-  const nameOf = useCallback((authorId: string) => (authorId === api.meId ? 'Tú' : authors.get(authorId)?.name.split(' ')[0] ?? (group ? 'Alguien' : to)), [api.meId, authors, group, to]);
+  const nameOf = useCallback((authorId: string) => (authorId === api.meId ? t.you : authors.get(authorId)?.name.split(' ')[0] ?? (group ? t.unknown : to)), [api.meId, authors, group, to, t]);
   const colorOf = useCallback((authorId: string) => authors.get(authorId)?.color, [authors]);
 
   function startReply(m: LetterMsg) {
@@ -486,7 +677,7 @@ function LetterShell({ api, label, to, shareWith, header, extraMenu = [], empty,
   }
   function jump(id: string) {
     const el = listRef.current?.querySelector(`[data-msg="${CSS.escape(id)}"]`);
-    if (!el) { toaster().info('Ese mensaje es más antiguo', 'Sube en la carta para cargarlo.'); return; }
+    if (!el) { toaster().info(t.olderMsg, t.olderBody); return; }
     el.scrollIntoView({ block: 'center', behavior: reduce ? 'auto' : 'smooth' });
     setFlash(id);
     window.setTimeout(() => setFlash((c) => (c === id ? null : c)), 1400);
@@ -523,34 +714,34 @@ function LetterShell({ api, label, to, shareWith, header, extraMenu = [], empty,
 
   const menuActions = (m: LetterMsg): MenuAction[] => {
     const close = () => setMenu(null);
-    const acts: MenuAction[] = [{ id: 'reply', label: 'Responder', icon: ACTION_ICONS.reply, run: () => startReply(m) }];
-    if (m.kind === 'TEXT' && m.content) acts.push({ id: 'copy', label: 'Copiar texto', icon: ACTION_ICONS.copy, run: () => { close(); void navigator.clipboard?.writeText(m.content ?? '').then(() => toaster().info('Texto copiado')); } });
+    const acts: MenuAction[] = [{ id: 'reply', label: t.reply, icon: ACTION_ICONS.reply, run: () => startReply(m) }];
+    if (m.kind === 'TEXT' && m.content) acts.push({ id: 'copy', label: t.copyText, icon: ACTION_ICONS.copy, run: () => { close(); void navigator.clipboard?.writeText(m.content ?? '').then(() => toaster().info(t.copied)); } });
     if (m.kind === 'STICKER' && !m.mine && m.meta?.sticker) {
       const hash = m.meta.sticker;
-      acts.push({ id: 'save', label: 'Guardar sticker', icon: ACTION_ICONS.save, run: () => {
+      acts.push({ id: 'save', label: t.saveSticker, icon: ACTION_ICONS.save, run: () => {
         close();
-        saveSticker(hash).then((row) => { addToCollection(row); toaster().success('Sticker guardado', 'Ya está en tu colección.'); }).catch((e) => toaster().error(apiError(e, 'No se pudo guardar')));
+        saveSticker(hash).then((row) => { addToCollection(row); toaster().success(t.stickerSaved, t.stickerSavedBody); }).catch((e) => toaster().error(apiError(e, t.saveFail)));
       } });
     }
-    if (m.mine && m.kind === 'TEXT') acts.push({ id: 'edit', label: 'Editar', icon: ACTION_ICONS.edit, run: () => { close(); setReplying(null); setEditing(m); } });
-    if (m.mine) acts.push({ id: 'remove', label: 'Borrar para todos', icon: ACTION_ICONS.remove, danger: true, run: () => { close(); setPendingDelete(m); setConfirm('delete'); } });
+    if (m.mine && m.kind === 'TEXT') acts.push({ id: 'edit', label: t.editMsg, icon: ACTION_ICONS.edit, run: () => { close(); setReplying(null); setEditing(m); } });
+    if (m.mine) acts.push({ id: 'remove', label: t.removeMsg, icon: ACTION_ICONS.remove, danger: true, run: () => { close(); setPendingDelete(m); setConfirm('delete'); } });
     return acts;
   };
 
   async function archive() {
-    try { await setChatPref(api.viewKey, { archived: true }); toaster().info('Carta archivada', 'La encuentras en «Archivadas», al final del buzón.'); onLeave?.(); }
-    catch (e) { toaster().error(apiError(e, 'No se pudo archivar')); }
+    try { await setChatPref(api.viewKey, { archived: true }); toaster().info(t.archivedOk, t.archivedBody); onLeave?.(); }
+    catch (e) { toaster().error(apiError(e, t.archiveFail)); }
   }
   async function clearChat() {
     setConfirm(null);
-    try { await setChatPref(api.viewKey, { clear: true }); toaster().info('Chat eliminado', 'Se borró el historial solo para ti.'); onLeave?.(); }
-    catch (e) { toaster().error(apiError(e, 'No se pudo eliminar el chat')); }
+    try { await setChatPref(api.viewKey, { clear: true }); toaster().info(t.clearedOk, t.clearedBody); onLeave?.(); }
+    catch (e) { toaster().error(apiError(e, t.clearFail)); }
   }
   async function block() {
     if (!blockTarget) return;
     setConfirm(null);
-    try { await blockUser(blockTarget.id); toaster().info(`Bloqueaste a ${blockTarget.displayName.split(' ')[0]}`, 'Puedes desbloquearlo en Ajustes → Privacidad.'); onLeave?.(); }
-    catch (e) { toaster().error(apiError(e, 'No se pudo bloquear')); }
+    try { await blockUser(blockTarget.id); toaster().info(t.blockedOk(blockTarget.displayName.split(' ')[0]), t.blockedBody); onLeave?.(); }
+    catch (e) { toaster().error(apiError(e, t.blockFail)); }
   }
 
   const bg = api.background;
@@ -559,15 +750,16 @@ function LetterShell({ api, label, to, shareWith, header, extraMenu = [], empty,
   const lastMineAt = lastMine ? new Date(lastMine.createdAt).getTime() : 0;
   const seenBy = group && lastMine ? (members ?? []).filter((mem) => mem.userId !== api.meId && (api.reads.get(mem.userId) ?? 0) >= lastMineAt) : [];
   const streak = api.streak;
+  const firstName = blockTarget?.displayName.split(' ')[0] ?? '';
   const letterMenu: MenuItem[] = [
-    { label: bg ? 'Fondo de la carta' : 'Poner una foto de fondo', icon: ImagePlus, onSelect: () => setEditor(true) },
-    ...(bg ? [{ label: 'Quitar el fondo', icon: Trash2, danger: true, onSelect: () => { void api.saveBackground({ photoUrl: null }).catch((err) => toaster().error((err as Error).message)); } }] : []),
+    { label: bg ? t.bgMenu : t.bgAdd, icon: ImagePlus, onSelect: () => setEditor(true) },
+    ...(bg ? [{ label: t.bgRemove, icon: Trash2, danger: true, onSelect: () => { void api.saveBackground({ photoUrl: null }).catch((err) => toaster().error((err as Error).message)); } }] : []),
     ...extraMenu,
-    { label: 'Archivar carta', icon: Archive, onSelect: () => void archive() },
-    { label: 'Eliminar chat', icon: Eraser, danger: true, onSelect: () => setConfirm('clear') },
+    { label: t.archive, icon: Archive, onSelect: () => void archive() },
+    { label: t.clearChat, icon: Eraser, danger: true, onSelect: () => setConfirm('clear') },
     ...(blockTarget ? [
-      { label: `Denunciar a ${blockTarget.displayName.split(' ')[0]}`, icon: Flag, danger: true, onSelect: () => setConfirm('report') },
-      { label: `Bloquear a ${blockTarget.displayName.split(' ')[0]}`, icon: Ban, danger: true, onSelect: () => setConfirm('block') },
+      { label: t.report(firstName), icon: Flag, danger: true, onSelect: () => setConfirm('report') },
+      { label: t.blockName(firstName), icon: Ban, danger: true, onSelect: () => setConfirm('block') },
     ] : []),
   ];
 
@@ -578,7 +770,7 @@ function LetterShell({ api, label, to, shareWith, header, extraMenu = [], empty,
       {/* z-20: su menú queda por encima de la carta. */}
       <header className="relative z-20 flex items-center gap-3 border-b border-border/80 bg-surface/95 px-3 py-2.5 md:bg-surface/90 md:px-5 md:backdrop-blur-md">
         {onBack && (
-          <Button variant="icon" aria-label="Volver" onClick={onBack} className="-ml-1"><ArrowLeft aria-hidden className="size-5" /></Button>
+          <Button variant="icon" aria-label={t.back} onClick={onBack} className="-ml-1"><ArrowLeft aria-hidden className="size-5" /></Button>
         )}
         {header}
         {streak && <StreakFlame streak={streak} size="md" />}
@@ -590,26 +782,26 @@ function LetterShell({ api, label, to, shareWith, header, extraMenu = [], empty,
       )}
       {streak?.revivable && !isLit(streak) && api.revive && (
         <div className="relative flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border/80 bg-warning/[var(--lq-soft-alpha)] px-4 py-2.5 text-body-sm md:px-5">
-          <span className="min-w-0 flex-1 text-on-surface">Su racha de <b className="font-mono">{streak.lost}</b> días se apagó hace poco. Todavía pueden recuperarla.</span>
-          <Button size="sm" variant="secondary" loading={reviving} onClick={() => void revive()}><Coins aria-hidden className="size-4" />Revivir · <span className="font-mono">{streak.reviveCost}</span></Button>
+          <span className="min-w-0 flex-1 text-on-surface">{t.streakA} <b className="font-mono">{streak.lost}</b> {t.streakB}</span>
+          <Button size="sm" variant="secondary" loading={reviving} onClick={() => void revive()}><Coins aria-hidden className="size-4" />{t.revive} · <span className="font-mono">{streak.reviveCost}</span></Button>
         </div>
       )}
 
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
         <div
           ref={listRef} onScroll={onScroll} onTouchStart={onTouchStart} onTouchMove={onTouchMove}
-          role="log" aria-live="polite" aria-label="Carta"
+          role="log" aria-live="polite" aria-label={t.logAria}
           className="relative flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-contain px-3 pb-5 pt-1 [overflow-anchor:none] md:px-6"
         >
           {api.hasMore && (
             <div className="flex justify-center py-3">
-              <Button size="sm" variant="ghost" loading={loadingOlder} onClick={() => void loadOlder()}>Ver mensajes anteriores</Button>
+              <Button size="sm" variant="ghost" loading={loadingOlder} onClick={() => void loadOlder()}>{t.olderBtn}</Button>
             </div>
           )}
           {api.status === 'error' ? (
             <div className="m-auto flex flex-col items-center gap-3 text-center">
-              <p className="text-body-md text-on-surface">No pudimos abrir la carta.</p>
-              <Button size="sm" variant="secondary" onClick={api.retry}>Reintentar</Button>
+              <p className="text-body-md text-on-surface">{t.couldntOpen}</p>
+              <Button size="sm" variant="secondary" onClick={api.retry}>{t.retry}</Button>
             </div>
           ) : api.status === 'loading' && count === 0 ? (
             <div className="lq-skeleton-delay mt-6 flex flex-col gap-3">
@@ -627,7 +819,7 @@ function LetterShell({ api, label, to, shareWith, header, extraMenu = [], empty,
             const next = api.messages[i + 1];
             const newDay = !prev || dayOf(prev.createdAt) !== dayOf(m.createdAt);
             const joined = !newDay && sameGroup(prev, m);
-            const last = !next || !sameGroup(m, next);
+            const lastOfGroup = !next || !sameGroup(m, next);
             const isLastMine = m.id === lastMine?.id;
             const seen = !group && m.mine && isLastMine && api.seenUntil > 0 && new Date(m.createdAt).getTime() <= api.seenUntil;
             return (
@@ -635,7 +827,7 @@ function LetterShell({ api, label, to, shareWith, header, extraMenu = [], empty,
                 {newDay && <Postmark iso={m.createdAt} />}
                 {m.kind === 'EVENT' ? <EventNote m={m} /> : (
                   <MessageRow
-                    m={m} side={api.side} meId={api.meId} group={group} joined={joined} last={last || isLastMine} seen={seen} lastMine={isLastMine}
+                    m={m} side={api.side} meId={api.meId} group={group} joined={joined} last={lastOfGroup || isLastMine} seen={seen} lastMine={isLastMine}
                     seenBy={isLastMine ? seenBy : undefined} coarse={!fine} flash={flash === m.id} nameOf={nameOf} colorOf={colorOf}
                     {...rowHandlers}
                   />
@@ -656,7 +848,7 @@ function LetterShell({ api, label, to, shareWith, header, extraMenu = [], empty,
               initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} transition={springs.snappy}
               className="absolute bottom-3 left-1/2 flex min-h-10 -translate-x-1/2 items-center gap-1.5 rounded-full bg-primary px-4 text-label-md text-on-primary shadow-lg"
             >
-              <ArrowDown aria-hidden className="size-4" />{below} {below === 1 ? 'mensaje nuevo' : 'mensajes nuevos'}
+              <ArrowDown aria-hidden className="size-4" />{t.newCount(below)}
             </motion.button>
           )}
         </AnimatePresence>
@@ -684,28 +876,28 @@ function LetterShell({ api, label, to, shareWith, header, extraMenu = [], empty,
       <EnvelopeFlights items={envelopes} />
       <PhotoViewer m={viewer?.m ?? null} side={api.side} src={viewer?.src ?? null} onClose={() => setViewer(null)} />
 
-      <Modal open={confirm === 'delete'} onClose={() => { setConfirm(null); setPendingDelete(null); }} title="¿Borrar el mensaje?">
-        <p className="text-body-md text-on-surface">Se borrará para todos. En la carta quedará «Mensaje borrado».</p>
-        {pendingDelete && <p className="lq-quote line-clamp-2 text-body-sm text-on-surface-light">{snippetOf(pendingDelete)}</p>}
+      <Modal open={confirm === 'delete'} onClose={() => { setConfirm(null); setPendingDelete(null); }} title={t.deleteTitle}>
+        <p className="text-body-md text-on-surface">{t.deleteBody}</p>
+        {pendingDelete && <p className="lq-quote line-clamp-2 text-body-sm text-on-surface-light">{snippetOf(pendingDelete, locale)}</p>}
         <div className="flex justify-end gap-3">
-          <Button variant="secondary" size="md" onClick={() => { setConfirm(null); setPendingDelete(null); }}>Cancelar</Button>
-          <Button variant="danger" size="md" onClick={() => { const m = pendingDelete; setConfirm(null); setPendingDelete(null); if (m) void api.remove(m.id); }}>Borrar</Button>
+          <Button variant="secondary" size="md" onClick={() => { setConfirm(null); setPendingDelete(null); }}>{t.cancel}</Button>
+          <Button variant="danger" size="md" onClick={() => { const m = pendingDelete; setConfirm(null); setPendingDelete(null); if (m) void api.remove(m.id); }}>{t.remove}</Button>
         </div>
       </Modal>
-      <Modal open={confirm === 'clear'} onClose={() => setConfirm(null)} title="¿Eliminar este chat?">
-        <p className="text-body-md text-on-surface">Se borra el historial solo para ti; {group ? 'los demás' : to} lo seguirán viendo. Lo que se escriba a partir de ahora sí te llega.</p>
+      <Modal open={confirm === 'clear'} onClose={() => setConfirm(null)} title={t.clearTitle}>
+        <p className="text-body-md text-on-surface">{t.clearBody(group ? t.others : to)}</p>
         <div className="flex justify-end gap-3">
-          <Button variant="secondary" size="md" onClick={() => setConfirm(null)}>Cancelar</Button>
-          <Button variant="danger" size="md" onClick={() => void clearChat()}>Eliminar chat</Button>
+          <Button variant="secondary" size="md" onClick={() => setConfirm(null)}>{t.cancel}</Button>
+          <Button variant="danger" size="md" onClick={() => void clearChat()}>{t.clearChat}</Button>
         </div>
       </Modal>
       {blockTarget && <ReportDialog open={confirm === 'report'} onClose={() => setConfirm(null)} target={blockTarget} />}
       {blockTarget && (
-        <Modal open={confirm === 'block'} onClose={() => setConfirm(null)} title={`¿Bloquear a ${blockTarget.displayName.split(' ')[0]}?`}>
-          <p className="text-body-md text-on-surface">Dejarán de ser amigos. No podrá escribirte, enviarte palomas ni gestos, y no se verán en las zonas. Puedes desbloquearlo cuando quieras en Ajustes → Privacidad.</p>
+        <Modal open={confirm === 'block'} onClose={() => setConfirm(null)} title={t.blockTitle(firstName)}>
+          <p className="text-body-md text-on-surface">{t.blockBody}</p>
           <div className="flex justify-end gap-3">
-            <Button variant="secondary" size="md" onClick={() => setConfirm(null)}>Cancelar</Button>
-            <Button variant="danger" size="md" onClick={() => void block()}>Bloquear</Button>
+            <Button variant="secondary" size="md" onClick={() => setConfirm(null)}>{t.cancel}</Button>
+            <Button variant="danger" size="md" onClick={() => void block()}>{t.block}</Button>
           </div>
         </Modal>
       )}
@@ -718,33 +910,34 @@ function LetterShell({ api, label, to, shareWith, header, extraMenu = [], empty,
 export function DirectLetter({ friend, onBack, onLeave, onActivity, className }: {
   friend: PublicUser; onBack?: () => void; onLeave?: () => void; onActivity?: () => void; className?: string;
 }) {
+  const t = useText(COPY);
   const api = useDirectLetter(friend, onActivity);
   const presence = api.presence;
   const first = friend.displayName.split(' ')[0];
   const typing = api.typing.length > 0;
-  const line = typing ? 'escribiendo' : !presence ? '…' : presence.online ? (presence.zone ? `En línea · en ${presence.zone}` : 'En línea') : presence.lastSeen ? `Activo ${timeAgo(presence.lastSeen)}` : `@${friend.username}`;
+  const line = typing ? t.typingLower : !presence ? '…' : presence.online ? (presence.zone ? t.onlineIn(presence.zone) : t.online) : presence.lastSeen ? t.activeAgo(timeAgo(presence.lastSeen)) : `@${friend.username}`;
   return (
     <LetterShell
-      api={api} label={`Carta con ${friend.displayName}`} to={first} shareWith={first} onBack={onBack} onLeave={onLeave ?? onBack} className={className}
+      api={api} label={t.letterWith(friend.displayName)} to={first} shareWith={first} onBack={onBack} onLeave={onLeave ?? onBack} className={className}
       blockTarget={friend}
       header={(
         <>
-          <Link to={`/u/${encodeURIComponent(friend.username)}`} aria-label={`Ver el DNI de ${friend.displayName}`} className="shrink-0 rounded-full">
+          <Link to={`/u/${encodeURIComponent(friend.username)}`} aria-label={t.seeId(friend.displayName)} className="shrink-0 rounded-full">
             <PresenceAvatar user={friend} online={presence?.online} size={44} />
           </Link>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-label-lg"><span className="font-normal text-on-surface-light">Para </span><span className={nameClass(friend.nameColor)}>{friend.displayName}</span></p>
+            <p className="truncate text-label-lg"><span className="font-normal text-on-surface-light">{t.forWord}</span><span className={nameClass(friend.nameColor)}>{friend.displayName}</span></p>
             <AnimatePresence mode="wait" initial={false}>
               <motion.p key={line} initial={{ opacity: 0, y: 3 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}
                 className={cn('flex items-center gap-1.5 truncate text-body-sm', typing ? 'text-primary-text' : presence?.online ? 'text-success-text' : 'text-on-surface-light')}>
-                {typing && <TypingDots />}{typing ? 'escribiendo…' : line}
+                {typing && <TypingDots />}{typing ? t.typingNow : line}
               </motion.p>
             </AnimatePresence>
           </div>
         </>
       )}
-      extraMenu={[{ label: `Ver el DNI de ${first}`, icon: Contact, to: `/u/${encodeURIComponent(friend.username)}` }]}
-      empty={{ title: `hola, ${first}:`, hint: 'Escribe la primera línea de su carta. Si se escriben tres días seguidos, se enciende su racha.' }}
+      extraMenu={[{ label: t.seeId(first), icon: Contact, to: `/u/${encodeURIComponent(friend.username)}` }]}
+      empty={{ title: t.helloTitle(first), hint: t.directHint }}
     />
   );
 }
@@ -760,24 +953,25 @@ export function GuildLetter({ guildId, guild, reloadGuild, onBack, onLeave, onAc
   className?: string;
   showGuildLink?: boolean;
 }) {
+  const t = useText(COPY);
   const api = useGuildLetter(guildId, guild !== undefined ? { guild, reloadGuild, onActivity } : { onActivity });
   const [edit, setEdit] = useState(false);
   const g = api.guild;
   const em = emblemOf(g?.emblem ?? 'shield');
-  const name = g?.name ?? 'el gremio';
+  const name = g?.name ?? t.guildWord;
   const talked = g?.today.talkedUserIds.length ?? 0;
-  const typers = api.typing.map((t) => g?.members.find((mem) => mem.userId === t.userId)?.user.displayName.split(' ')[0]).filter(Boolean) as string[];
-  const line = typers.length ? `${typers.length === 1 ? `${typers[0]} escribe` : `${typers.length} escriben`}…`
-    : g ? `${g.members.length} ${g.members.length === 1 ? 'miembro' : 'miembros'} · ${talked} ${talked === 1 ? 'escribió' : 'escribieron'} hoy` : '…';
+  const typers = api.typing.map((tp) => g?.members.find((mem) => mem.userId === tp.userId)?.user.displayName.split(' ')[0]).filter(Boolean) as string[];
+  const line = typers.length ? `${typers.length === 1 ? t.typingOne(typers[0]) : t.typingCount(typers.length)}…`
+    : g ? t.membersLine(g.members.length, talked) : '…';
   return (
     <>
       <LetterShell
-        api={api} group members={g?.members} label={`Carta de ${name}`} to={name} shareWith={`todo ${name}`} onBack={onBack} onLeave={onLeave ?? onBack} className={className}
+        api={api} group members={g?.members} label={t.guildLetterOf(name)} to={name} shareWith={t.everyoneIn(name)} onBack={onBack} onLeave={onLeave ?? onBack} className={className}
         header={(
           <>
             <GuildCrest photoUrl={g?.photoUrl} emblem={em.icon} tone={em.tone} name={name} halo={false} className="size-11 shrink-0 rounded-2xl [&>svg]:size-5" />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-label-lg"><span className="font-normal text-on-surface-light">Para </span>{name}</p>
+              <p className="truncate text-label-lg"><span className="font-normal text-on-surface-light">{t.forWord}</span>{name}</p>
               <AnimatePresence mode="wait" initial={false}>
                 <motion.p key={line} initial={{ opacity: 0, y: 3 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}
                   className={cn('flex items-center gap-1.5 truncate text-body-sm', typers.length ? 'text-primary-text' : 'text-on-surface-light')}>
@@ -788,13 +982,12 @@ export function GuildLetter({ guildId, guild, reloadGuild, onBack, onLeave, onAc
           </>
         )}
         extraMenu={[
-          { label: 'Editar gremio', icon: Pencil, onSelect: () => setEdit(true) },
-          ...(showGuildLink ? [{ label: 'Ir al campamento del gremio', icon: Tent, to: socialLink.guild(guildId) }] : []),
+          { label: t.editGuild, icon: Pencil, onSelect: () => setEdit(true) },
+          ...(showGuildLink ? [{ label: t.guildCamp, icon: Tent, to: socialLink.guild(guildId) }] : []),
         ]}
-        empty={{ title: 'hola a todos:', hint: 'La carta del gremio la escriben entre todos. Si todos escriben tres días seguidos, se enciende la racha del gremio.' }}
+        empty={{ title: t.helloAll, hint: t.guildHint }}
       />
       {g && <GuildEditDialog open={edit} guild={g} onClose={() => setEdit(false)} onSaved={() => reloadGuild?.()} />}
     </>
   );
 }
-

@@ -8,19 +8,50 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Brain, Coins, Dumbbell, Heart, Sparkles, Star, type LucideIcon } from 'lucide-react';
 import { dialog, scrim, spring } from '@/lib/motion';
 import { getLevelTitle } from '@/lib/gameProgress';
+import { useLocale, useText, type Copy } from '@/lib/i18n';
 import { useUIStore, type StatIncreases } from '@/store/uiStore';
 import { Badge, Button, Confetti, useDialogBehavior, type BadgeVariant } from '@/components/ui/lq';
 
+const es = {
+  levelUp: '¡Subiste de nivel!',
+  level: (n: number): string => `¡Nivel ${n}!`,
+  nowYouAre: 'Ahora eres',
+  keepGoing: '. Sigue así.',
+  rewards: 'Recompensas',
+  xp: (n: number): string => `+${n} XP`,
+  gold: (n: number): string => `+${n} oro`,
+  stat: (n: number, label: string): string => `+${n} ${label}`,
+  statLabels: { hp: 'HP', strength: 'Fuerza', intelligence: 'Inteligencia', charisma: 'Carisma' } as Record<keyof StatIncreases, string>,
+  continue: 'Continuar',
+};
+
+const en: typeof es = {
+  levelUp: 'You leveled up!',
+  level: (n: number): string => `Level ${n}!`,
+  nowYouAre: 'You are now',
+  keepGoing: '. Keep it up.',
+  rewards: 'Rewards',
+  xp: (n: number): string => `+${n} XP`,
+  gold: (n: number): string => `+${n} gold`,
+  stat: (n: number, label: string): string => `+${n} ${label}`,
+  statLabels: { hp: 'HP', strength: 'Strength', intelligence: 'Intelligence', charisma: 'Charisma' } as Record<keyof StatIncreases, string>,
+  continue: 'Continue',
+};
+
+const COPY: Copy<typeof es> = { es, en };
+
 const AUTO_CLOSE_MS = 5000;
 
-const STATS: Array<{ key: keyof StatIncreases; label: string; icon: LucideIcon; variant: BadgeVariant }> = [
-  { key: 'hp', label: 'HP', icon: Heart, variant: 'error' },
-  { key: 'strength', label: 'Fuerza', icon: Dumbbell, variant: 'success' },
-  { key: 'intelligence', label: 'Inteligencia', icon: Brain, variant: 'forest' },
-  { key: 'charisma', label: 'Carisma', icon: Sparkles, variant: 'warning' },
+const STATS: Array<{ key: keyof StatIncreases; icon: LucideIcon; variant: BadgeVariant }> = [
+  { key: 'hp', icon: Heart, variant: 'error' },
+  { key: 'strength', icon: Dumbbell, variant: 'success' },
+  { key: 'intelligence', icon: Brain, variant: 'forest' },
+  { key: 'charisma', icon: Sparkles, variant: 'warning' },
 ];
 
 export function LevelUpOverlay() {
+  const t = useText(COPY);
+  const locale = useLocale();
   const data = useUIStore((s) => s.levelUpData);
   const clear = useUIStore((s) => s.clearLevelUp);
   const open = Boolean(data);
@@ -67,24 +98,24 @@ export function LevelUpOverlay() {
             </motion.span>
 
             <div className="flex flex-col gap-1">
-              <span className="text-label-lg text-primary-text">¡Subiste de nivel!</span>
-              <h2 id={titleId} className="text-display-sm md:text-display-md">¡Nivel {level}!</h2>
+              <span className="text-label-lg text-primary-text">{t.levelUp}</span>
+              <h2 id={titleId} className="text-display-sm md:text-display-md">{t.level(level)}</h2>
               <p id={descId} className="text-body-md text-on-surface-light">
-                Ahora eres <b className="text-on-background">{getLevelTitle(level)}</b>. Sigue así.
+                {t.nowYouAre} <b className="text-on-background">{getLevelTitle(level, locale)}</b>{t.keepGoing}
               </p>
             </div>
 
             {(data.xpEarned > 0 || data.goldEarned > 0 || stats.length > 0) && (
-              <ul aria-label="Recompensas" className="flex flex-wrap justify-center gap-2">
-                {data.xpEarned > 0 && <li><Badge variant="primary" size="lg" icon={Star}>+{data.xpEarned} XP</Badge></li>}
-                {data.goldEarned > 0 && <li><Badge variant="warning" size="lg" icon={Coins}>+{data.goldEarned} oro</Badge></li>}
+              <ul aria-label={t.rewards} className="flex flex-wrap justify-center gap-2">
+                {data.xpEarned > 0 && <li><Badge variant="primary" size="lg" icon={Star}>{t.xp(data.xpEarned)}</Badge></li>}
+                {data.goldEarned > 0 && <li><Badge variant="warning" size="lg" icon={Coins}>{t.gold(data.goldEarned)}</Badge></li>}
                 {stats.map((s) => (
-                  <li key={s.key}><Badge variant={s.variant} size="lg" icon={s.icon}>+{data.statIncreases[s.key]} {s.label}</Badge></li>
+                  <li key={s.key}><Badge variant={s.variant} size="lg" icon={s.icon}>{t.stat(data.statIncreases[s.key] ?? 0, t.statLabels[s.key])}</Badge></li>
                 ))}
               </ul>
             )}
 
-            <Button size="lg" block data-autofocus onClick={clear}>Continuar</Button>
+            <Button size="lg" block data-autofocus onClick={clear}>{t.continue}</Button>
 
             {/* Cuenta atrás del cierre automático (decorativa). */}
             <motion.span

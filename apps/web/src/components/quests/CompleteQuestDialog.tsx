@@ -3,10 +3,45 @@ import { motion } from 'framer-motion';
 import { Trophy } from 'lucide-react';
 import type { Quest } from '@noutlife/shared';
 import { Button, Confetti, IconChip, ProgressBar, ResponsiveDialog } from '@/components/ui/lq';
+import { INTL_LOCALE, useLocale, useText, type Copy } from '@/lib/i18n';
 import { useAuthStore } from '@/store/authStore';
 import { useUIStore } from '@/store/uiStore';
 import { useToastStore } from '@/hooks/useToast';
 import * as questService from '@/services/quest.service';
+
+const es = {
+  errTitle: 'No se pudo completar la misión',
+  errBody: 'Inténtalo de nuevo',
+  done: '¡Misión completada!',
+  ask: '¿Completar misión?',
+  willMove: 'pasará a Completadas y recibirás',
+  and: 'y',
+  gold: 'de oro',
+  cancel: 'Cancelar',
+  complete: 'Completar',
+  experience: 'Experiencia',
+  of: 'de',
+  level: 'Nivel',
+  continueBtn: 'Continuar',
+};
+
+const en: typeof es = {
+  errTitle: 'Could not complete the quest',
+  errBody: 'Try again',
+  done: 'Quest completed!',
+  ask: 'Complete the quest?',
+  willMove: 'will move to Completed and you will get',
+  and: 'and',
+  gold: 'gold',
+  cancel: 'Cancel',
+  complete: 'Complete',
+  experience: 'Experience',
+  of: 'of',
+  level: 'Level',
+  continueBtn: 'Continue',
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 export interface CompleteQuestDialogProps {
   quest: Quest | null;
@@ -17,6 +52,8 @@ export interface CompleteQuestDialogProps {
 
 /** Quests.dc.html: confirmar → éxito con +XP (pop), barra de nivel y confeti. */
 export function CompleteQuestDialog({ quest: current, onClose, onCompleted }: CompleteQuestDialogProps) {
+  const t = useText(COPY);
+  const nf = INTL_LOCALE[useLocale()];
   const last = useRef(current);
   if (current) last.current = current;
   const quest = current ?? last.current;
@@ -47,7 +84,7 @@ export function CompleteQuestDialog({ quest: current, onClose, onCompleted }: Co
       }
       for (const a of result.achievementsUnlocked) showAchievementToast(a);
     } catch {
-      useToastStore.getState().error('No se pudo completar la misión', 'Inténtalo de nuevo');
+      useToastStore.getState().error(t.errTitle, t.errBody);
     } finally {
       setSaving(false);
     }
@@ -64,18 +101,18 @@ export function CompleteQuestDialog({ quest: current, onClose, onCompleted }: Co
       <ResponsiveDialog
         open={Boolean(current)}
         onClose={onClose}
-        title={success ? '¡Misión completada!' : '¿Completar misión?'}
+        title={success ? t.done : t.ask}
         hideClose={success}
       >
         {quest && !success && (
           <div className="flex flex-col gap-6">
             <p className="text-body-md text-on-surface">
-              “{quest.title}” pasará a Completadas y recibirás <b className="text-primary-text">+{quest.xpReward} XP</b>
-              {quest.goldReward ? <> y <b>{quest.goldReward} de oro</b></> : null}.
+              “{quest.title}” {t.willMove} <b className="text-primary-text">+{quest.xpReward} XP</b>
+              {quest.goldReward ? <> {t.and} <b>{quest.goldReward} {t.gold}</b></> : null}.
             </p>
             <div className="grid grid-cols-2 gap-3 md:flex md:justify-end">
-              <Button variant="secondary" size="md" onClick={onClose}>Cancelar</Button>
-              <Button size="md" data-autofocus loading={saving} onClick={() => void confirm()}>Completar</Button>
+              <Button variant="secondary" size="md" onClick={onClose}>{t.cancel}</Button>
+              <Button size="md" data-autofocus loading={saving} onClick={() => void confirm()}>{t.complete}</Button>
             </div>
           </div>
         )}
@@ -94,13 +131,13 @@ export function CompleteQuestDialog({ quest: current, onClose, onCompleted }: Co
             </motion.p>
             {user && (
               <div className="flex w-full flex-col gap-1.5">
-                <ProgressBar value={pct} size="lg" shine label="Experiencia" valueText={`${user.xp} de ${user.xpToNextLevel} XP`} />
+                <ProgressBar value={pct} size="lg" shine label={t.experience} valueText={`${user.xp} ${t.of} ${user.xpToNextLevel} XP`} />
                 <span className="text-body-sm text-on-surface-light font-mono tabular-nums">
-                  {user.xp.toLocaleString('es-CO')} / {user.xpToNextLevel.toLocaleString('es-CO')} XP · Nivel {user.level}
+                  {user.xp.toLocaleString(nf)} / {user.xpToNextLevel.toLocaleString(nf)} XP · {t.level} {user.level}
                 </span>
               </div>
             )}
-            <Button ref={continueRef} block onClick={onClose}>Continuar</Button>
+            <Button ref={continueRef} block onClick={onClose}>{t.continueBtn}</Button>
           </div>
         )}
       </ResponsiveDialog>

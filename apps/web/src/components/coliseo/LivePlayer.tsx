@@ -11,7 +11,8 @@ import { Check, ChevronDown, ChevronLeft, ChevronRight, Dumbbell, Minus, Music, 
 import type { Exercise, SetType } from '@noutlife/shared';
 import { cn } from '@/lib/utils';
 import { slam } from '@/lib/motion';
-import { SET_TYPES, oneRepMax, platesPerSide, previousBest, restFor, setTonnage, setTypeOf, type PreviousBest } from '@/lib/coliseo';
+import { oneRepMax, platesPerSide, previousBest, restFor, setTonnage, setTypeOf, setTypesFor, type PreviousBest } from '@/lib/coliseo';
+import { INTL_LOCALE, useLocale, useText, type Copy } from '@/lib/i18n';
 import { Badge, Button, ChipGroup, IconChip, Input, Modal, ResponsiveDialog, SegmentedControl, chipClasses, type SegmentOption } from '@/components/ui/lq';
 import { lockScroll, unlockScroll } from '@/components/ui/lq/Modal';
 import { playChime } from '@/components/focus/ambientSound';
@@ -61,11 +62,188 @@ export const toWorkoutSets = (ex: ActiveExercise) => ex.sets.map((s) => ({
 export const sessionTonnage = (w: ActiveWorkout) =>
   w.exercises.reduce((a, ex) => a + toWorkoutSets(ex).reduce((b, s) => b + setTonnage(s), 0), 0);
 
-const kg = (n: number) => `${(Math.round(n * 100) / 100).toLocaleString('es-ES')} kg`;
-const mark = (t: { weight?: number; reps?: number }) => ((t.weight ?? 0) > 0 ? `${kg(t.weight ?? 0)} × ${t.reps ?? 0}` : `${t.reps ?? 0} reps`);
-/** «80×8» con coma decimal (102,5×5). */
-const pair = (w?: number | string, r?: number | string) => `${(Number(w) || 0).toLocaleString('es-ES')}×${Number(r) || 0}`;
-const shortDate = (iso: string) => new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }).replace('.', '');
+const es = {
+  // Filtros: el valor es el grupo tal como lo guarda la API; solo cambia el texto.
+  groupNames: { Todos: 'Todos', Pecho: 'Pecho', Espalda: 'Espalda', Hombros: 'Hombros', 'Bíceps': 'Bíceps', 'Tríceps': 'Tríceps', Piernas: 'Piernas', Core: 'Core', Cardio: 'Cardio' } as Record<string, string>,
+  addExercise: 'Agregar ejercicio',
+  searchPlaceholder: 'Buscar ejercicio…',
+  searchAria: 'Buscar ejercicio',
+  muscleGroup: 'Grupo muscular',
+  searching: 'Buscando…',
+  noResults: 'Sin resultados',
+  minusAria: (step: number, label: string): string => `Restar ${step} a ${label}`,
+  plusAria: (step: number, label: string): string => `Sumar ${step} a ${label}`,
+  unitWeight: 'Kilos',
+  unitReps: 'Reps',
+  repsWord: 'reps',
+  dialogAria: (title: string): string => `Entrenamiento en vivo: ${title}`,
+  minimize: 'Minimizar el modo en vivo',
+  paused: 'En pausa',
+  live: 'En vivo',
+  clockLabel: 'Tiempo de entrenamiento',
+  playlist: 'Abrir tu playlist de entrenamiento (pestaña nueva)',
+  resume: 'Reanudar',
+  pause: 'Pausar',
+  setsProgress: 'Series completadas',
+  firstTitle: 'Agrega tu primer ejercicio',
+  firstBody: 'Búscalo por nombre o por grupo muscular. Verás tu marca anterior para superarla.',
+  exercisesAria: 'Ejercicios de la sesión',
+  prevEx: 'Ejercicio anterior',
+  nextEx: 'Ejercicio siguiente',
+  ofN: (i: number, n: number): string => `${i} de ${n}`,
+  lookingUp: 'Buscando tu marca anterior…',
+  firstTime: 'Primera vez con este ejercicio: lo que hagas hoy será tu marca a superar.',
+  markToBeat: 'Marca a superar',
+  toBeat: 'Para superarte hoy',
+  bestE1rm: 'Mejor 1RM estimado',
+  topWeight: 'Peso máximo',
+  lastTime: (d: string): string => `Última vez (${d}): `,
+  setsOf: (name: string): string => `Series de ${name}`,
+  setLabel: (n: number, typeText: string, status: string, record: string): string => `Serie ${n}${typeText}${status}${record}`,
+  typeSep: (type: string): string => `, ${type}`,
+  doneAt: (w: number, r: number): string => `, hecha: ${w} kg por ${r}`,
+  pendingStatus: ', pendiente',
+  recordTag: ', récord',
+  removeSet: (n: number): string => `Eliminar la serie ${n}`,
+  setHeading: (n: number, type: string): string => `Serie ${n} · ${type}`,
+  record: 'Récord',
+  kilosOf: (n: number): string => `Kilos de la serie ${n}`,
+  repsOf: (n: number): string => `Repeticiones de la serie ${n}`,
+  est1rm: '1RM est.',
+  beatBest: (v: string): string => ` · +${v} sobre tu mejor marca`,
+  behindBest: (v: string): string => ` · a ${v} de tu mejor marca`,
+  prevInSet: 'Anterior en esta serie:',
+  platesSide: 'Discos por lado:',
+  effortTitle: 'Tipo y esfuerzo',
+  setTypeAria: 'Tipo de serie',
+  effortScale: 'Escala de esfuerzo',
+  rpeLabel: (n: number): string => `RPE de la serie ${n}`,
+  rirLabel: (n: number): string => `Repeticiones en reserva de la serie ${n}`,
+  rpeHelp: 'RPE 10: no salía ni una repetición más.',
+  rirHelp: 'RIR: repeticiones que te quedaban en el tanque.',
+  addSet: 'Agregar serie',
+  restAria: 'Descanso',
+  restLabel: 'Descanso',
+  nextSetNow: '¡A por la siguiente serie!',
+  minus15: 'Restar 15 segundos al descanso',
+  plus15: 'Sumar 15 segundos al descanso',
+  closeRest: 'Cerrar',
+  skipRest: 'Saltar',
+  restRemaining: 'Descanso restante',
+  rpeQuestion: (n: number): string => `¿Qué tan dura fue la serie ${n}? RPE`,
+  rirQuestion: (n: number): string => `¿Cuántas repeticiones te quedaban en la serie ${n}?`,
+  rpeRecent: 'RPE de la serie recién hecha',
+  rirRecent: 'Repeticiones en reserva de la serie recién hecha',
+  setDeleted: (n: number): string => `Serie ${n} eliminada`,
+  undo: 'Deshacer',
+  unmark: (n: number): string => `Desmarcar serie ${n}`,
+  complete: (n: number): string => `Completar serie ${n}`,
+  addSetBtn: 'Serie',
+  addExBtn: 'Ejercicio',
+  finishBtn: 'Terminar',
+  confirmTitle: '¿Terminar el entrenamiento?',
+  of: 'de',
+  setsDone: 'series completadas',
+  lifted: 'levantados',
+  noSetsDone: 'No hay series completadas: se guardará solo el tiempo.',
+  keepTraining: 'Seguir entrenando',
+  finishSave: 'Terminar y guardar',
+  discardNoSave: 'Descartar sin guardar',
+  restDoneNotif: 'Descanso terminado',
+  restDoneBody: 'Ya puedes hacer la siguiente serie.',
+};
+
+const en: typeof es = {
+  groupNames: { Todos: 'All', Pecho: 'Chest', Espalda: 'Back', Hombros: 'Shoulders', 'Bíceps': 'Biceps', 'Tríceps': 'Triceps', Piernas: 'Legs', Core: 'Core', Cardio: 'Cardio' },
+  addExercise: 'Add exercise',
+  searchPlaceholder: 'Search exercise…',
+  searchAria: 'Search exercise',
+  muscleGroup: 'Muscle group',
+  searching: 'Searching…',
+  noResults: 'No results',
+  minusAria: (step: number, label: string): string => `Subtract ${step} from ${label}`,
+  plusAria: (step: number, label: string): string => `Add ${step} to ${label}`,
+  unitWeight: 'Weight',
+  unitReps: 'Reps',
+  repsWord: 'reps',
+  dialogAria: (title: string): string => `Live workout: ${title}`,
+  minimize: 'Minimize live mode',
+  paused: 'Paused',
+  live: 'Live',
+  clockLabel: 'Workout time',
+  playlist: 'Open your workout playlist (new tab)',
+  resume: 'Resume',
+  pause: 'Pause',
+  setsProgress: 'Sets completed',
+  firstTitle: 'Add your first exercise',
+  firstBody: 'Search by name or muscle group. You will see your previous best to beat.',
+  exercisesAria: 'Session exercises',
+  prevEx: 'Previous exercise',
+  nextEx: 'Next exercise',
+  ofN: (i: number, n: number): string => `${i} of ${n}`,
+  lookingUp: 'Looking up your previous best…',
+  firstTime: 'First time with this exercise: whatever you do today becomes the mark to beat.',
+  markToBeat: 'Mark to beat',
+  toBeat: 'To beat yourself today',
+  bestE1rm: 'Best estimated 1RM',
+  topWeight: 'Top weight',
+  lastTime: (d: string): string => `Last time (${d}): `,
+  setsOf: (name: string): string => `Sets of ${name}`,
+  setLabel: (n: number, typeText: string, status: string, record: string): string => `Set ${n}${typeText}${status}${record}`,
+  typeSep: (type: string): string => `, ${type}`,
+  doneAt: (w: number, r: number): string => `, done: ${w} kg for ${r}`,
+  pendingStatus: ', pending',
+  recordTag: ', record',
+  removeSet: (n: number): string => `Delete set ${n}`,
+  setHeading: (n: number, type: string): string => `Set ${n} · ${type}`,
+  record: 'Record',
+  kilosOf: (n: number): string => `Weight of set ${n}`,
+  repsOf: (n: number): string => `Reps of set ${n}`,
+  est1rm: 'Est. 1RM',
+  beatBest: (v: string): string => ` · +${v} over your best`,
+  behindBest: (v: string): string => ` · ${v} short of your best`,
+  prevInSet: 'Previous in this set:',
+  platesSide: 'Plates per side:',
+  effortTitle: 'Type and effort',
+  setTypeAria: 'Set type',
+  effortScale: 'Effort scale',
+  rpeLabel: (n: number): string => `RPE of set ${n}`,
+  rirLabel: (n: number): string => `Reps in reserve for set ${n}`,
+  rpeHelp: 'RPE 10: could not have done one more rep.',
+  rirHelp: 'RIR: reps you had left in the tank.',
+  addSet: 'Add set',
+  restAria: 'Rest',
+  restLabel: 'Rest',
+  nextSetNow: 'Time for the next set!',
+  minus15: 'Subtract 15 seconds from rest',
+  plus15: 'Add 15 seconds to rest',
+  closeRest: 'Close',
+  skipRest: 'Skip',
+  restRemaining: 'Rest left',
+  rpeQuestion: (n: number): string => `How hard was set ${n}? RPE`,
+  rirQuestion: (n: number): string => `How many reps did you have left in set ${n}?`,
+  rpeRecent: 'RPE of the set you just did',
+  rirRecent: 'Reps in reserve for the set you just did',
+  setDeleted: (n: number): string => `Set ${n} deleted`,
+  undo: 'Undo',
+  unmark: (n: number): string => `Unmark set ${n}`,
+  complete: (n: number): string => `Complete set ${n}`,
+  addSetBtn: 'Set',
+  addExBtn: 'Exercise',
+  finishBtn: 'Finish',
+  confirmTitle: 'Finish the workout?',
+  of: 'of',
+  setsDone: 'sets completed',
+  lifted: 'lifted',
+  noSetsDone: 'No sets completed: only the time will be saved.',
+  keepTraining: 'Keep training',
+  finishSave: 'Finish and save',
+  discardNoSave: 'Discard without saving',
+  restDoneNotif: 'Rest over',
+  restDoneBody: 'You can do the next set now.',
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 type Scale = 'rpe' | 'rir';
 const SCALES: SegmentOption<Scale>[] = [{ value: 'rpe', label: 'RPE 1–10' }, { value: 'rir', label: 'RIR 0–4' }];
@@ -74,13 +252,16 @@ function readScale(): Scale {
   try { return localStorage.getItem(SCALE_KEY) === 'rir' ? 'rir' : 'rpe'; } catch { return 'rpe'; }
 }
 
-const MUSCLE_GROUPS = ['Todos', 'Pecho', 'Espalda', 'Hombros', 'Bíceps', 'Tríceps', 'Piernas', 'Core', 'Cardio'].map((m) => ({ value: m, label: m }));
+/** Grupos del filtro del buscador: el valor es el que entiende la API. */
+const MUSCLE_FILTERS = ['Todos', 'Pecho', 'Espalda', 'Hombros', 'Bíceps', 'Tríceps', 'Piernas', 'Core', 'Cardio'];
 
 function ExerciseSearchModal({ onSelect, onClose }: { onSelect: (ex: Exercise) => void; onClose: () => void }) {
+  const t = useText(COPY);
   const [search, setSearch] = useState('');
   const [muscleFilter, setMuscleFilter] = useState('Todos');
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(true);
+  const muscleGroups = MUSCLE_FILTERS.map((m) => ({ value: m, label: t.groupNames[m] }));
 
   useEffect(() => {
     setLoading(true);
@@ -92,14 +273,14 @@ function ExerciseSearchModal({ onSelect, onClose }: { onSelect: (ex: Exercise) =
   }, [search, muscleFilter]);
 
   return (
-    <ResponsiveDialog open onClose={onClose} title="Agregar ejercicio">
-      <Input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar ejercicio…" aria-label="Buscar ejercicio" autoFocus />
-      <ChipGroup label="Grupo muscular" options={MUSCLE_GROUPS} value={muscleFilter} onChange={setMuscleFilter} />
+    <ResponsiveDialog open onClose={onClose} title={t.addExercise}>
+      <Input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t.searchPlaceholder} aria-label={t.searchAria} autoFocus />
+      <ChipGroup label={t.muscleGroup} options={muscleGroups} value={muscleFilter} onChange={setMuscleFilter} />
       <div className="-mx-2 flex max-h-72 flex-col overflow-y-auto">
         {loading ? (
-          <p role="status" className="py-6 text-center text-body-sm text-on-surface-light">Buscando…</p>
+          <p role="status" className="py-6 text-center text-body-sm text-on-surface-light">{t.searching}</p>
         ) : exercises.length === 0 ? (
-          <p className="py-6 text-center text-body-sm text-on-surface-light">Sin resultados</p>
+          <p className="py-6 text-center text-body-sm text-on-surface-light">{t.noResults}</p>
         ) : (
           exercises.map((ex) => (
             <button key={ex.id} type="button" onClick={() => onSelect(ex)} className="flex min-h-12 flex-col justify-center rounded-xl px-3 py-2 text-left transition-colors hover:bg-surface-variant">
@@ -117,13 +298,14 @@ function ExerciseSearchModal({ onSelect, onClose }: { onSelect: (ex: Exercise) =
 function BigStepper({ label, unit, value, step, disabled, onChange }: {
   label: string; unit: string; value: string; step: number; disabled?: boolean; onChange: (v: string) => void;
 }) {
+  const t = useText(COPY);
   const num = parseFloat(value) || 0;
   const set = (n: number) => onChange(String(Math.max(0, Math.round(n * 100) / 100)));
   const btn = 'flex size-14 shrink-0 items-center justify-center rounded-2xl bg-surface-variant text-on-background transition-transform duration-150 active:scale-95 disabled:opacity-40';
   return (
     <div className="flex items-center gap-2">
       <span className="w-14 shrink-0 text-label-lg text-on-surface-light">{unit}</span>
-      <button type="button" disabled={disabled} aria-label={`Restar ${step} a ${label}`} onClick={() => set(num - step)} className={btn}>
+      <button type="button" disabled={disabled} aria-label={t.minusAria(step, label)} onClick={() => set(num - step)} className={btn}>
         <Minus aria-hidden className="size-6" strokeWidth={2.25} />
       </button>
       <input
@@ -131,7 +313,7 @@ function BigStepper({ label, unit, value, step, disabled, onChange }: {
         onChange={(e) => onChange(e.target.value)}
         className="h-16 w-full min-w-0 flex-1 rounded-2xl border border-border-strong bg-background text-center font-mono text-display-sm font-bold tabular-nums text-on-background focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/25 disabled:opacity-60"
       />
-      <button type="button" disabled={disabled} aria-label={`Sumar ${step} a ${label}`} onClick={() => set(num + step)} className={btn}>
+      <button type="button" disabled={disabled} aria-label={t.plusAria(step, label)} onClick={() => set(num + step)} className={btn}>
         <Plus aria-hidden className="size-6" strokeWidth={2.25} />
       </button>
     </div>
@@ -174,6 +356,16 @@ export function LivePlayer({ workout, update, playlistUrl, onMinimize, onFinish,
   onFinish: (w: ActiveWorkout) => Promise<void>;
   onDiscard: (w: ActiveWorkout) => Promise<void>;
 }) {
+  const t = useText(COPY);
+  const locale = useLocale();
+  const nf = INTL_LOCALE[locale];
+  const kg = (n: number) => `${(Math.round(n * 100) / 100).toLocaleString(nf)} kg`;
+  const mark = (x: { weight?: number; reps?: number }) => ((x.weight ?? 0) > 0 ? `${kg(x.weight ?? 0)} × ${x.reps ?? 0}` : `${x.reps ?? 0} ${t.repsWord}`);
+  /** «80×8» con coma decimal (102,5×5). */
+  const pair = (w?: number | string, r?: number | string) => `${(Number(w) || 0).toLocaleString(nf)}×${Number(r) || 0}`;
+  const shortDate = (iso: string) => new Date(iso).toLocaleDateString(nf, { day: 'numeric', month: 'short' }).replace('.', '');
+  const setTypes = setTypesFor(locale);
+
   const [now, setNow] = useState(Date.now());
   const [rest, setRest] = useState<Rest | null>(null);
   /** Serie elegida a mano; sin elegir, la primera pendiente. */
@@ -230,10 +422,10 @@ export function LivePlayer({ workout, update, playlistUrl, onMinimize, onFinish,
   useEffect(() => {
     if (!rest || rest.done) return;
     const id = window.setTimeout(() => {
-      if (document.hidden) void notifyLocal('Descanso terminado', { body: 'Ya puedes hacer la siguiente serie.', tag: 'coliseo-rest', renotify: true, data: { link: '/coliseo' } });
+      if (document.hidden) void notifyLocal(t.restDoneNotif, { body: t.restDoneBody, tag: 'coliseo-rest', renotify: true, data: { link: '/coliseo' } });
     }, Math.max(0, rest.endAt - Date.now()));
     return () => window.clearTimeout(id);
-  }, [rest?.endAt, rest?.done]);
+  }, [rest?.endAt, rest?.done, t]);
   // Pantalla encendida mientras entrenas (Wake Lock): el descanso avisa con el móvil en la mano.
   useEffect(() => {
     const device = navigator as Navigator & { wakeLock?: { request: (type: 'screen') => Promise<ScreenLock> } };
@@ -364,7 +556,7 @@ export function LivePlayer({ workout, update, playlistUrl, onMinimize, onFinish,
 
     const left = workout.exercises.some((e, i) => e.sets.some((s) => !s.completed && !(i === exIdx && s.id === set.id)));
     if (left) {
-      const r = restFor(ex.name, ex.muscleGroup, set.type);
+      const r = restFor(ex.name, ex.muscleGroup, set.type, locale);
       setRest({ endAt: Date.now() + r.seconds * 1000, total: r.seconds, reason: r.reason, exIdx, setId: set.id });
     } else {
       setRest(null);
@@ -425,36 +617,36 @@ export function LivePlayer({ workout, update, playlistUrl, onMinimize, onFinish,
 
   return createPortal(
     <motion.div
-      ref={rootRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={`Entrenamiento en vivo: ${workout.title}`}
+      ref={rootRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t.dialogAria(workout.title)}
       className="fixed inset-0 z-[70] flex flex-col bg-background text-on-background outline-none"
       initial={{ opacity: 0, y: 32 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 32, transition: { duration: 0.2 } }} transition={slam}
     >
       <header className="border-b border-border px-3 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
         <div className="mx-auto flex max-w-lg items-center gap-2">
-          <Button variant="icon" aria-label="Minimizar el modo en vivo" onClick={onMinimize}>
+          <Button variant="icon" aria-label={t.minimize} onClick={onMinimize}>
             <ChevronDown aria-hidden className="size-6" strokeWidth={1.75} />
           </Button>
           <div className="min-w-0 flex-1 text-center">
             <p className={cn('flex items-center justify-center gap-1.5 truncate text-label-md', paused ? 'text-warning-text' : 'text-error-text')}>
               <span aria-hidden className={cn('size-2 rounded-full', paused ? 'bg-warning' : 'animate-pulse bg-error [.reduce-motion_&]:animate-none')} />
-              {paused ? 'En pausa' : 'En vivo'} · {workout.title}
+              {paused ? t.paused : t.live} · {workout.title}
             </p>
-            <RollingClock seconds={elapsedMs(workout, now) / 1000} label="Tiempo de entrenamiento" className={cn('text-heading-lg', paused && 'opacity-50')} />
+            <RollingClock seconds={elapsedMs(workout, now) / 1000} label={t.clockLabel} className={cn('text-heading-lg', paused && 'opacity-50')} />
           </div>
           {playlistUrl && (
             <a
-              href={playlistUrl} target="_blank" rel="noopener noreferrer" aria-label="Abrir tu playlist de entrenamiento (pestaña nueva)"
+              href={playlistUrl} target="_blank" rel="noopener noreferrer" aria-label={t.playlist}
               className="flex size-11 shrink-0 items-center justify-center rounded-full text-success-text hover:bg-surface-variant"
             >
               <Music aria-hidden className="size-5" />
             </a>
           )}
-          <Button variant="icon" aria-label={paused ? 'Reanudar' : 'Pausar'} onClick={togglePause}>
+          <Button variant="icon" aria-label={paused ? t.resume : t.pause} onClick={togglePause}>
             {paused ? <Play aria-hidden className="size-6" /> : <Pause aria-hidden className="size-6" />}
           </Button>
         </div>
         <div
-          role="progressbar" aria-label="Series completadas" aria-valuemin={0} aria-valuemax={planned || 1} aria-valuenow={done}
+          role="progressbar" aria-label={t.setsProgress} aria-valuemin={0} aria-valuemax={planned || 1} aria-valuenow={done}
           className="mx-auto mt-2 h-1.5 max-w-lg overflow-hidden rounded-full bg-surface-variant"
         >
           <span className="block h-full origin-left rounded-full bg-primary transition-transform duration-500" style={{ transform: `scaleX(${planned ? done / planned : 0})` }} />
@@ -465,14 +657,14 @@ export function LivePlayer({ workout, update, playlistUrl, onMinimize, onFinish,
         {!ex ? (
           <div className="mx-auto flex max-w-lg flex-col items-center gap-4 py-12 text-center">
             <IconChip icon={Dumbbell} tone="primary" size="lg" />
-            <p className="text-heading-md">Agrega tu primer ejercicio</p>
-            <p className="text-body-md text-on-surface-light">Búscalo por nombre o por grupo muscular. Verás tu marca anterior para superarla.</p>
-            <Button size="lg" onClick={() => setSearching(true)}><Plus aria-hidden className="size-5" />Agregar ejercicio</Button>
+            <p className="text-heading-md">{t.firstTitle}</p>
+            <p className="text-body-md text-on-surface-light">{t.firstBody}</p>
+            <Button size="lg" onClick={() => setSearching(true)}><Plus aria-hidden className="size-5" />{t.addExercise}</Button>
           </div>
         ) : (
           <div className="mx-auto flex max-w-lg flex-col gap-5">
             {n > 1 && (
-              <ol aria-label="Ejercicios de la sesión" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [touch-action:pan-x] [overscroll-behavior-x:contain]">
+              <ol aria-label={t.exercisesAria} className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [touch-action:pan-x] [overscroll-behavior-x:contain]">
                 {workout.exercises.map((e, i) => {
                   const d = e.sets.filter((s) => s.completed).length;
                   const on = i === exIdx;
@@ -493,56 +685,61 @@ export function LivePlayer({ workout, update, playlistUrl, onMinimize, onFinish,
             )}
 
             <div className="flex items-center gap-1">
-              <Button variant="icon" aria-label="Ejercicio anterior" disabled={exIdx === 0} onClick={() => jumpTo(exIdx - 1)}>
+              <Button variant="icon" aria-label={t.prevEx} disabled={exIdx === 0} onClick={() => jumpTo(exIdx - 1)}>
                 <ChevronLeft aria-hidden className="size-6" />
               </Button>
               <div className="min-w-0 flex-1 text-center">
                 <h2 className="text-heading-lg">{ex.name}</h2>
-                <p className="text-body-sm text-on-surface-light">{[ex.muscleGroup, ex.equipment].filter(Boolean).join(' · ')}{n > 1 ? ` · ${exIdx + 1} de ${n}` : ''}</p>
+                <p className="text-body-sm text-on-surface-light">{[ex.muscleGroup, ex.equipment].filter(Boolean).join(' · ')}{n > 1 ? ` · ${t.ofN(exIdx + 1, n)}` : ''}</p>
               </div>
-              <Button variant="icon" aria-label="Ejercicio siguiente" disabled={exIdx >= n - 1} onClick={() => jumpTo(exIdx + 1)}>
+              <Button variant="icon" aria-label={t.nextEx} disabled={exIdx >= n - 1} onClick={() => jumpTo(exIdx + 1)}>
                 <ChevronRight aria-hidden className="size-6" />
               </Button>
             </div>
 
             {/* Sobrecarga progresiva: la marca anterior y cómo superarla hoy */}
             {prev === undefined ? (
-              !noHistory.has(ex.exerciseId) && <p role="status" className="text-center text-body-sm text-on-surface-light">Buscando tu marca anterior…</p>
+              !noHistory.has(ex.exerciseId) && <p role="status" className="text-center text-body-sm text-on-surface-light">{t.lookingUp}</p>
             ) : prev === null ? (
-              <p className="rounded-2xl bg-surface-variant/60 p-4 text-center text-body-sm text-on-surface">Primera vez con este ejercicio: lo que hagas hoy será tu marca a superar.</p>
+              <p className="rounded-2xl bg-surface-variant/60 p-4 text-center text-body-sm text-on-surface">{t.firstTime}</p>
             ) : (
-              <section aria-label="Marca a superar" className="flex flex-col gap-3 rounded-2xl border border-primary/30 bg-primary/[var(--lq-soft-alpha)] p-4">
+              <section aria-label={t.markToBeat} className="flex flex-col gap-3 rounded-2xl border border-primary/30 bg-primary/[var(--lq-soft-alpha)] p-4">
                 <div>
-                  <p className="text-label-md text-primary-text">Para superarte hoy</p>
+                  <p className="text-label-md text-primary-text">{t.toBeat}</p>
                   <p className="font-mono text-heading-md font-bold tabular-nums">{prev.targets.map(mark).join(' o ')}</p>
                 </div>
                 <dl className="grid grid-cols-2 gap-2">
                   <div>
-                    <dt className="text-label-md text-on-surface-light">Mejor 1RM estimado</dt>
+                    <dt className="text-label-md text-on-surface-light">{t.bestE1rm}</dt>
                     <dd className="font-mono text-label-lg tabular-nums">{prev.e1rm > 0 ? `${kg(Math.round(prev.e1rm))} (${mark(prev.best)})` : mark(prev.best)}</dd>
                   </div>
                   <div>
-                    <dt className="text-label-md text-on-surface-light">Peso máximo</dt>
+                    <dt className="text-label-md text-on-surface-light">{t.topWeight}</dt>
                     <dd className="font-mono text-label-lg tabular-nums">{mark({ weight: prev.maxWeight, reps: prev.maxWeightReps })}</dd>
                   </div>
                 </dl>
                 <p className="text-body-sm text-on-surface-light">
-                  Última vez ({shortDate(prev.lastDate)}): <span className="font-mono tabular-nums text-on-surface">{prev.last.map((s) => pair(s.weight, s.reps)).join(' · ')}</span>
+                  {t.lastTime(shortDate(prev.lastDate))}<span className="font-mono tabular-nums text-on-surface">{prev.last.map((s) => pair(s.weight, s.reps)).join(' · ')}</span>
                 </p>
               </section>
             )}
 
             {ex.sets.length > 0 && (
-              <ol aria-label={`Series de ${ex.name}`} className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 pt-2 [touch-action:pan-x] [overscroll-behavior-x:contain]">
+              <ol aria-label={t.setsOf(ex.name)} className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 pt-2 [touch-action:pan-x] [overscroll-behavior-x:contain]">
                 {ex.sets.map((s, j) => {
                   const on = j === setIdx;
-                  const type = setTypeOf(s.type);
+                  const type = setTypeOf(s.type, locale);
                   const pr = prs.has(`${exIdx}-${s.id}`);
                   return (
                     <li key={s.id} className="relative shrink-0">
                       <button
                         type="button" aria-pressed={on} onClick={() => pickSet(j)}
-                        aria-label={`Serie ${j + 1}${type.short ? `, ${type.label.toLowerCase()}` : ''}${s.completed ? `, hecha: ${s.weight || 0} kg por ${s.reps || 0}` : ', pendiente'}${pr ? ', récord' : ''}`}
+                        aria-label={t.setLabel(
+                          j + 1,
+                          type.short ? t.typeSep(type.label.toLowerCase()) : '',
+                          s.completed ? t.doneAt(Number(s.weight) || 0, Number(s.reps) || 0) : t.pendingStatus,
+                          pr ? t.recordTag : '',
+                        )}
                         className={cn(
                           'flex min-h-14 min-w-16 flex-col items-center justify-center rounded-2xl border px-3 transition-colors',
                           on ? 'border-primary bg-primary/[var(--lq-soft-alpha)]' : 'border-border bg-surface',
@@ -556,7 +753,7 @@ export function LivePlayer({ workout, update, playlistUrl, onMinimize, onFinish,
                         <span className="font-mono text-label-md tabular-nums">{s.weight || s.reps ? pair(s.weight, s.reps) : '–'}</span>
                       </button>
                       <button
-                        type="button" aria-label={`Eliminar la serie ${j + 1}`} onClick={() => removeSet(j)}
+                        type="button" aria-label={t.removeSet(j + 1)} onClick={() => removeSet(j)}
                         className="absolute -right-1.5 -top-1.5 flex size-8 items-center justify-center rounded-full border border-border bg-background text-on-surface-light shadow-sm transition-colors hover:text-error-text"
                       >
                         <X aria-hidden className="size-4" />
@@ -568,54 +765,54 @@ export function LivePlayer({ workout, update, playlistUrl, onMinimize, onFinish,
             )}
 
             {set ? (
-              <section aria-label={`Serie ${setIdx + 1}`} className="flex flex-col gap-3">
+              <section aria-label={t.setHeading(setIdx + 1, setTypeOf(set.type, locale).label)} className="flex flex-col gap-3">
                 <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-heading-sm">Serie {setIdx + 1} · {setTypeOf(set.type).label}</h3>
+                  <h3 className="text-heading-sm">{t.setHeading(setIdx + 1, setTypeOf(set.type, locale).label)}</h3>
                   <AnimatePresence>
                     {prs.has(`${exIdx}-${set.id}`) && (
                       <motion.span initial={{ opacity: 0, scale: 2, rotate: -10 }} animate={{ opacity: 1, scale: 1, rotate: 0 }} exit={{ opacity: 0 }} transition={slam}>
-                        <Badge variant="warning" icon={Trophy}>Récord</Badge>
+                        <Badge variant="warning" icon={Trophy}>{t.record}</Badge>
                       </motion.span>
                     )}
                   </AnimatePresence>
                 </div>
-                <BigStepper label={`Kilos de la serie ${setIdx + 1}`} unit="Kilos" step={2.5} value={set.weight} disabled={set.completed} onChange={(v) => patchSet(exIdx, set.id, { weight: v })} />
-                <BigStepper label={`Repeticiones de la serie ${setIdx + 1}`} unit="Reps" step={1} value={set.reps} disabled={set.completed} onChange={(v) => patchSet(exIdx, set.id, { reps: v })} />
+                <BigStepper label={t.kilosOf(setIdx + 1)} unit={t.unitWeight} step={2.5} value={set.weight} disabled={set.completed} onChange={(v) => patchSet(exIdx, set.id, { weight: v })} />
+                <BigStepper label={t.repsOf(setIdx + 1)} unit={t.unitReps} step={1} value={set.reps} disabled={set.completed} onChange={(v) => patchSet(exIdx, set.id, { reps: v })} />
                 <p aria-live="polite" className="min-h-5 text-center text-body-sm text-on-surface-light">
-                  {e1 > 0 && <>1RM est. <span className="font-mono tabular-nums text-on-background">{kg(Math.round(e1))}</span></>}
+                  {e1 > 0 && <>{t.est1rm} <span className="font-mono tabular-nums text-on-background">{kg(Math.round(e1))}</span></>}
                   {e1 > 0 && prev && prev.e1rm > 0 && (
                     beat > 0
-                      ? <span className="text-success-text"> · +{kg(Math.round(beat * 10) / 10)} sobre tu mejor marca</span>
-                      : <span> · a {kg(Math.round(-beat * 10) / 10)} de tu mejor marca</span>
+                      ? <span className="text-success-text">{t.beatBest(kg(Math.round(beat * 10) / 10))}</span>
+                      : <span>{t.behindBest(kg(Math.round(-beat * 10) / 10))}</span>
                   )}
-                  {previousSet && <span className="block">Anterior en esta serie: <span className="font-mono tabular-nums">{pair(previousSet.weight, previousSet.reps)}</span></span>}
-                  {plates && plates.length > 0 && <span className="block">Discos por lado: <span className="font-mono tabular-nums">{plates.map((p) => p.toLocaleString('es-ES')).join(' + ')}</span></span>}
+                  {previousSet && <span className="block">{t.prevInSet} <span className="font-mono tabular-nums">{pair(previousSet.weight, previousSet.reps)}</span></span>}
+                  {plates && plates.length > 0 && <span className="block">{t.platesSide} <span className="font-mono tabular-nums">{plates.map((p) => p.toLocaleString(nf)).join(' + ')}</span></span>}
                 </p>
 
                 <details className="group rounded-2xl border border-border bg-surface">
                   <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 px-4 [&::-webkit-details-marker]:hidden">
-                    <span className="text-label-lg">Tipo y esfuerzo</span>
+                    <span className="text-label-lg">{t.effortTitle}</span>
                     <span className="min-w-0 flex-1 truncate text-right text-body-sm text-on-surface-light">
-                      {setTypeOf(set.type).label}{set.rpe ? ` · RPE ${set.rpe}` : set.rir !== undefined ? ` · RIR ${set.rir}` : ''}
+                      {setTypeOf(set.type, locale).label}{set.rpe ? ` · RPE ${set.rpe}` : set.rir !== undefined ? ` · RIR ${set.rir}` : ''}
                     </span>
                     <ChevronDown aria-hidden className="size-5 shrink-0 transition-transform duration-300 group-open:rotate-180" />
                   </summary>
                   <div className="flex flex-col gap-4 px-4 pb-4">
-                    <div role="radiogroup" aria-label="Tipo de serie" className="flex flex-wrap gap-2">
-                      {SET_TYPES.map((t) => (
-                        <button key={t.value} type="button" role="radio" aria-checked={set.type === t.value} onClick={() => patchSet(exIdx, set.id, { type: t.value })} className={chipClasses(set.type === t.value)}>
-                          {t.label}
+                    <div role="radiogroup" aria-label={t.setTypeAria} className="flex flex-wrap gap-2">
+                      {setTypes.map((opt) => (
+                        <button key={opt.value} type="button" role="radio" aria-checked={set.type === opt.value} onClick={() => patchSet(exIdx, set.id, { type: opt.value })} className={chipClasses(set.type === opt.value)}>
+                          {opt.label}
                         </button>
                       ))}
                     </div>
-                    <SegmentedControl label="Escala de esfuerzo" role="radiogroup" options={SCALES} value={scale} onChange={setScale} />
-                    <EffortPicker scale={scale} set={set} label={scale === 'rpe' ? `RPE de la serie ${setIdx + 1}` : `Repeticiones en reserva de la serie ${setIdx + 1}`} onChange={(p) => patchSet(exIdx, set.id, p)} />
-                    <p className="text-body-sm text-on-surface-light">{scale === 'rpe' ? 'RPE 10: no salía ni una repetición más.' : 'RIR: repeticiones que te quedaban en el tanque.'}</p>
+                    <SegmentedControl label={t.effortScale} role="radiogroup" options={SCALES} value={scale} onChange={setScale} />
+                    <EffortPicker scale={scale} set={set} label={scale === 'rpe' ? t.rpeLabel(setIdx + 1) : t.rirLabel(setIdx + 1)} onChange={(p) => patchSet(exIdx, set.id, p)} />
+                    <p className="text-body-sm text-on-surface-light">{scale === 'rpe' ? t.rpeHelp : t.rirHelp}</p>
                   </div>
                 </details>
               </section>
             ) : (
-              <Button variant="secondary" block onClick={addSet}><Plus aria-hidden className="size-4" />Agregar serie</Button>
+              <Button variant="secondary" block onClick={addSet}><Plus aria-hidden className="size-4" />{t.addSet}</Button>
             )}
           </div>
         )}
@@ -626,29 +823,29 @@ export function LivePlayer({ workout, update, playlistUrl, onMinimize, onFinish,
           <AnimatePresence>
             {rest && (
               <motion.section
-                key="rest" aria-label="Descanso" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8, transition: { duration: 0.18 } }} transition={slam}
+                key="rest" aria-label={t.restAria} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8, transition: { duration: 0.18 } }} transition={slam}
                 className={cn('relative flex flex-col gap-3 overflow-hidden rounded-2xl border p-3', rest.done ? 'border-success/50 bg-success/[var(--lq-soft-alpha)]' : 'border-info/40 bg-info/[var(--lq-soft-alpha)]')}
               >
                 <div className="flex items-center gap-2">
                   <div role="status" className="min-w-0 flex-1">
-                    <p className={cn('truncate text-label-md', rest.done ? 'text-success-text' : 'text-info-text')}>{rest.done ? '¡A por la siguiente serie!' : 'Descanso'}</p>
-                    <RollingClock seconds={restLeft} label="Descanso restante" className="text-display-sm" />
+                    <p className={cn('truncate text-label-md', rest.done ? 'text-success-text' : 'text-info-text')}>{rest.done ? t.nextSetNow : t.restLabel}</p>
+                    <RollingClock seconds={restLeft} label={t.restRemaining} className="text-display-sm" />
                     {!rest.done && <p className="truncate text-label-md text-on-surface-light">{rest.reason}</p>}
                   </div>
                   {!rest.done && (
                     <>
-                      <Button variant="secondary" size="sm" aria-label="Restar 15 segundos al descanso" onClick={() => setRest({ ...rest, endAt: Math.max(Date.now(), rest.endAt - 15_000) })}>−15</Button>
-                      <Button variant="secondary" size="sm" aria-label="Sumar 15 segundos al descanso" onClick={() => setRest({ ...rest, endAt: rest.endAt + 15_000, total: rest.total + 15 })}>+15</Button>
+                      <Button variant="secondary" size="sm" aria-label={t.minus15} onClick={() => setRest({ ...rest, endAt: Math.max(Date.now(), rest.endAt - 15_000) })}>−15</Button>
+                      <Button variant="secondary" size="sm" aria-label={t.plus15} onClick={() => setRest({ ...rest, endAt: rest.endAt + 15_000, total: rest.total + 15 })}>+15</Button>
                     </>
                   )}
-                  <Button variant="ghost" size="sm" onClick={() => setRest(null)}>{rest.done ? 'Cerrar' : 'Saltar'}</Button>
+                  <Button variant="ghost" size="sm" onClick={() => setRest(null)}>{rest.done ? t.closeRest : t.skipRest}</Button>
                 </div>
                 {rated && ratedEx && (
                   <div className="flex flex-col gap-2">
                     <p className="text-label-md text-on-surface">
-                      {scale === 'rpe' ? `¿Qué tan dura fue la serie ${ratedEx.sets.indexOf(rated) + 1}? RPE` : `¿Cuántas repeticiones te quedaban en la serie ${ratedEx.sets.indexOf(rated) + 1}?`}
+                      {scale === 'rpe' ? t.rpeQuestion(ratedEx.sets.indexOf(rated) + 1) : t.rirQuestion(ratedEx.sets.indexOf(rated) + 1)}
                     </p>
-                    <EffortPicker quick scale={scale} set={rated} label={scale === 'rpe' ? 'RPE de la serie recién hecha' : 'Repeticiones en reserva de la serie recién hecha'} onChange={(p) => patchSet(rest.exIdx, rated.id, p)} />
+                    <EffortPicker quick scale={scale} set={rated} label={scale === 'rpe' ? t.rpeRecent : t.rirRecent} onChange={(p) => patchSet(rest.exIdx, rated.id, p)} />
                   </div>
                 )}
                 {!rest.done && (
@@ -660,8 +857,8 @@ export function LivePlayer({ workout, update, playlistUrl, onMinimize, onFinish,
 
           {undo && (
             <div role="status" className="flex items-center justify-between gap-3 rounded-2xl bg-surface-variant px-4 py-2 text-body-sm">
-              <span>Serie {undo.index + 1} eliminada</span>
-              <Button variant="ghost" size="sm" onClick={undoRemove}>Deshacer</Button>
+              <span>{t.setDeleted(undo.index + 1)}</span>
+              <Button variant="ghost" size="sm" onClick={undoRemove}>{t.undo}</Button>
             </div>
           )}
           {set && (
@@ -673,30 +870,30 @@ export function LivePlayer({ workout, update, playlistUrl, onMinimize, onFinish,
               )}
             >
               <Check aria-hidden className="size-6" strokeWidth={2.5} />
-              {set.completed ? `Desmarcar serie ${setIdx + 1}` : `Completar serie ${setIdx + 1}`}
+              {set.completed ? t.unmark(setIdx + 1) : t.complete(setIdx + 1)}
             </motion.button>
           )}
           <div className="grid grid-cols-3 gap-2">
-            <Button variant="secondary" size="md" className="px-3" onClick={addSet} disabled={!ex}><Plus aria-hidden className="size-4 shrink-0" />Serie</Button>
-            <Button variant="secondary" size="md" className="px-3" onClick={() => setSearching(true)}><Plus aria-hidden className="size-4 shrink-0" />Ejercicio</Button>
-            <Button variant="ghost" size="md" className="px-3" onClick={() => setConfirming(true)}><Check aria-hidden className="size-4 shrink-0" />Terminar</Button>
+            <Button variant="secondary" size="md" className="px-3" onClick={addSet} disabled={!ex}><Plus aria-hidden className="size-4 shrink-0" />{t.addSetBtn}</Button>
+            <Button variant="secondary" size="md" className="px-3" onClick={() => setSearching(true)}><Plus aria-hidden className="size-4 shrink-0" />{t.addExBtn}</Button>
+            <Button variant="ghost" size="md" className="px-3" onClick={() => setConfirming(true)}><Check aria-hidden className="size-4 shrink-0" />{t.finishBtn}</Button>
           </div>
         </div>
       </footer>
 
       {searching && <ExerciseSearchModal onSelect={addExercise} onClose={() => setSearching(false)} />}
 
-      <Modal open={confirming} onClose={() => { if (!busy) setConfirming(false); }} title="¿Terminar el entrenamiento?">
+      <Modal open={confirming} onClose={() => { if (!busy) setConfirming(false); }} title={t.confirmTitle}>
         <p className="text-body-md text-on-surface">
-          <span className="font-mono tabular-nums">{done}</span> de <span className="font-mono tabular-nums">{planned}</span> series completadas · {kg(sessionTonnage(workout))} levantados.
+          <span className="font-mono tabular-nums">{done}</span> {t.of} <span className="font-mono tabular-nums">{planned}</span> {t.setsDone} · {kg(sessionTonnage(workout))} {t.lifted}.
         </p>
-        {done === 0 && <p className="text-body-sm text-warning-text">No hay series completadas: se guardará solo el tiempo.</p>}
+        {done === 0 && <p className="text-body-sm text-warning-text">{t.noSetsDone}</p>}
         <div className="flex flex-col-reverse gap-2 sm:flex-row">
-          <Button variant="ghost" className="flex-1" disabled={!!busy} onClick={() => setConfirming(false)}>Seguir entrenando</Button>
-          <Button className="flex-1" loading={busy === 'finish'} disabled={!!busy} onClick={() => void run('finish')}>Terminar y guardar</Button>
+          <Button variant="ghost" className="flex-1" disabled={!!busy} onClick={() => setConfirming(false)}>{t.keepTraining}</Button>
+          <Button className="flex-1" loading={busy === 'finish'} disabled={!!busy} onClick={() => void run('finish')}>{t.finishSave}</Button>
         </div>
         <Button variant="ghost" size="sm" className="self-center text-error-text" loading={busy === 'discard'} disabled={!!busy} onClick={() => void run('discard')}>
-          Descartar sin guardar
+          {t.discardNoSave}
         </Button>
       </Modal>
     </motion.div>,

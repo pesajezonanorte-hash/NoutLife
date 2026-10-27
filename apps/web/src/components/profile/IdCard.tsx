@@ -18,9 +18,40 @@ import { useMotionStore } from '@/store/motionStore';
 import { PerspectiveFlipCard } from '@/components/ui/perspective-flip-card';
 import { PixelReveal, useHoloTilt } from '@/components/ambience';
 import { BrandMark } from '@/components/layout/Brand';
+import { INTL_LOCALE, useLocale, useText, type Copy, type Locale } from '@/lib/i18n';
 
-const CLASS_NAMES: Record<string, string> = { warrior: 'Guerrero', mage: 'Mago', merchant: 'Mercader', paladin: 'Paladín' };
-export const classLabel = (c?: string | null) => (c ? CLASS_NAMES[c] ?? c : 'Aventurero');
+const es = {
+  docTitle: 'Documento de identidad',
+  docNumber: 'Nº de documento',
+  docNumberShort: 'Nº',
+  name: 'Nombre',
+  className: 'Clase',
+  level: 'Nivel',
+  issued: 'Expedición',
+  sealText: 'NOUTLIFE · VERIFICADO · NOUTLIFE · VERIFICADO ·',
+  docAria: (name: string): string => `Documento de ${name}`,
+};
+
+const en: typeof es = {
+  docTitle: 'Identity document',
+  docNumber: 'Document no.',
+  docNumberShort: 'No.',
+  name: 'Name',
+  className: 'Class',
+  level: 'Level',
+  issued: 'Issued',
+  sealText: 'NOUTLIFE · VERIFIED · NOUTLIFE · VERIFIED ·',
+  docAria: (name: string): string => `Document of ${name}`,
+};
+
+const COPY: Copy<typeof es> = { es, en };
+
+const CLASS_NAMES: Record<Locale, Record<string, string>> = {
+  es: { warrior: 'Guerrero', mage: 'Mago', merchant: 'Mercader', paladin: 'Paladín' },
+  en: { warrior: 'Warrior', mage: 'Mage', merchant: 'Merchant', paladin: 'Paladin' },
+};
+const ADVENTURER: Record<Locale, string> = { es: 'Aventurero', en: 'Adventurer' };
+export const classLabel = (c?: string | null, locale: Locale = 'es') => (c ? CLASS_NAMES[locale][c] ?? c : ADVENTURER[locale]);
 
 /** Hash FNV-1a de 32 bits (estable para un mismo ID). */
 function hash(s: string) {
@@ -57,14 +88,14 @@ export function mrzLines({ name, id, issued, level }: { name: string; id: string
 }
 
 /** Sello oficial: anillo con texto y la hoja de Noutlife en el centro. */
-function Seal({ className }: { className?: string }) {
+function Seal({ className, text }: { className?: string; text: string }) {
   return (
     <svg aria-hidden="true" viewBox="0 0 100 100" className={cn('overflow-visible', className)}>
       <defs><path id="lq-seal-ring" d="M50 50m-36 0a36 36 0 1 1 72 0a36 36 0 1 1-72 0" /></defs>
       <circle cx="50" cy="50" r="46" className="fill-none stroke-current" strokeWidth="2.2" />
       <circle cx="50" cy="50" r="27" className="fill-none stroke-current" strokeWidth="1.2" strokeDasharray="2 2.6" />
       <text className="fill-current font-mono text-[10.5px] font-bold tracking-[.18em]">
-        <textPath href="#lq-seal-ring" startOffset="2%">NOUTLIFE · VERIFICADO · NOUTLIFE · VERIFICADO ·</textPath>
+        <textPath href="#lq-seal-ring" startOffset="2%">{text}</textPath>
       </text>
       <path d="M41 63V43l18 20V40" className="fill-none stroke-current" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
@@ -79,6 +110,7 @@ export interface IdCardProps {
 }
 
 export function IdCard({ user, title, photo, back }: IdCardProps) {
+  const t = useText(COPY);
   const reduce = useMotionStore((s) => s.reduce);
   const card = useAnimationControls();
   const [flipped, setFlipped] = useState(false);
@@ -87,7 +119,9 @@ export function IdCard({ user, title, photo, back }: IdCardProps) {
   const issued = new Date(user.createdAt);
   const doc = documentNumber(user.id);
   const [m1, m2] = mrzLines({ name: user.displayName, id: user.id, issued, level: user.level });
-  const fmt = (d: Date) => d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/\./g, '');
+  const locale = useLocale();
+  const fmt = (d: Date) => d.toLocaleDateString(INTL_LOCALE[locale], { day: '2-digit', month: 'short', year: 'numeric' }).replace(/\./g, '');
+  const classText = classLabel(user.playerClass, locale);
 
   // El sello cae cuando la tarjeta ya está entera (~1,3 s): la tarjeta acusa el golpe.
   useEffect(() => {
@@ -105,11 +139,11 @@ export function IdCard({ user, title, photo, back }: IdCardProps) {
           <BrandMark size={24} className="sm:!size-7" />
           <span className="flex flex-col leading-tight">
             <span className="text-label-lg text-on-background">Noutlife</span>
-            <span className="text-label-md text-on-surface-light">Documento de identidad</span>
+            <span className="text-label-md text-on-surface-light">{t.docTitle}</span>
           </span>
         </div>
         <span className="hidden flex-col items-end leading-tight sm:flex">
-          <span className="text-label-md text-on-surface-light">Nº de documento</span>
+          <span className="text-label-md text-on-surface-light">{t.docNumber}</span>
           <span className="font-mono text-label-lg text-on-background">{doc.pretty}</span>
         </span>
       </div>
@@ -127,28 +161,28 @@ export function IdCard({ user, title, photo, back }: IdCardProps) {
             animate={{ opacity: 0.72, scale: 1, rotate: -14, y: 0 }}
             transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 520, damping: 20, mass: 1.1, delay: 1.3, opacity: { duration: 0.12, delay: 1.3 } }}
           >
-            <Seal className="size-full" />
+            <Seal className="size-full" text={t.sealText} />
           </motion.span>
         </div>
         <dl className="grid min-w-0 flex-1 grid-cols-2 content-start gap-x-2 gap-y-1.5 pl-3 sm:gap-x-3 sm:gap-y-2.5 sm:pl-4">
           <div className="col-span-2 min-w-0">
-            <dt className="text-label-md text-on-surface-light">Nombre</dt>
+            <dt className="text-label-md text-on-surface-light">{t.name}</dt>
             <dd className="truncate text-body-md font-semibold text-on-background sm:text-heading-sm">{user.displayName}</dd>
           </div>
           <div className="min-w-0">
-            <dt className="text-label-md text-on-surface-light">Clase</dt>
-            <dd className="truncate text-label-md text-on-background sm:text-label-lg">{classLabel(user.playerClass)}</dd>
+            <dt className="text-label-md text-on-surface-light">{t.className}</dt>
+            <dd className="truncate text-label-md text-on-background sm:text-label-lg">{classText}</dd>
           </div>
           <div className="min-w-0">
-            <dt className="text-label-md text-on-surface-light">Nivel</dt>
+            <dt className="text-label-md text-on-surface-light">{t.level}</dt>
             <dd className="truncate text-label-md text-on-background sm:text-label-lg"><span className="font-mono">{user.level}</span> · {title}</dd>
           </div>
           <div className="min-w-0 sm:col-span-2">
-            <dt className="text-label-md text-on-surface-light">Expedición</dt>
+            <dt className="text-label-md text-on-surface-light">{t.issued}</dt>
             <dd className="truncate font-mono text-label-md text-on-background sm:text-label-lg">{fmt(issued)}</dd>
           </div>
           <div className="min-w-0 sm:hidden">
-            <dt className="text-label-md text-on-surface-light">Nº</dt>
+            <dt className="text-label-md text-on-surface-light">{t.docNumberShort}</dt>
             <dd className="truncate font-mono text-label-md text-on-background">{doc.pretty.slice(3)}</dd>
           </div>
         </dl>
@@ -177,7 +211,7 @@ export function IdCard({ user, title, photo, back }: IdCardProps) {
             className="relative [transform:perspective(1100px)_rotateX(var(--rx,0deg))_rotateY(var(--ry,0deg))]"
           >
             <PerspectiveFlipCard
-              label={`Documento de ${user.displayName}`}
+              label={t.docAria(user.displayName)}
               trigger="tap"
               flipped={flipped}
               onFlipChange={setFlipped}

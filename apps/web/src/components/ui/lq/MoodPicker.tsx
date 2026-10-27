@@ -2,6 +2,19 @@ import { useRef, type KeyboardEvent } from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { softTone, type Tone } from './tones';
+import { useText, type Copy, type Locale } from '@/lib/i18n';
+
+const es = {
+  label: 'Ánimo',
+  names: ['Muy mal', 'Mal', 'Neutral', 'Bien', 'Genial'],
+};
+
+const en: typeof es = {
+  label: 'Mood',
+  names: ['Very bad', 'Bad', 'Neutral', 'Good', 'Great'],
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 export const MOODS: Array<{ n: number; name: string; mouth: string; tone: Tone }> = [
   { n: 1, name: 'Muy mal', mouth: 'M8.5 16.5q3.5-3 7 0', tone: 'error' },
@@ -12,6 +25,9 @@ export const MOODS: Array<{ n: number; name: string; mouth: string; tone: Tone }
 ];
 
 export const moodOf = (n?: number | null) => MOODS[Math.min(5, Math.max(1, n ?? 3)) - 1];
+
+/** Nombre del ánimo (1–5) en el idioma indicado. `MOODS[].name` queda en español (dato). */
+export const moodNameOf = (n: number, locale: Locale = 'es') => COPY[locale].names[Math.min(5, Math.max(1, n)) - 1];
 
 /** Cara SVG del ánimo (1–5). Decorativa por defecto; pasa `label` para exponerla como imagen. */
 export function MoodFace({ mood, className, label }: { mood: number; className?: string; label?: string }) {
@@ -34,7 +50,8 @@ export interface MoodPickerProps {
 }
 
 /** Cinco caras en radiogroup (flechas con roving tabindex). 56 px, la elegida crece 1.08 y se tiñe de primary. */
-export function MoodPicker({ value, onChange, label = 'Ánimo', className }: MoodPickerProps) {
+export function MoodPicker({ value, onChange, label, className }: MoodPickerProps) {
+  const t = useText(COPY);
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   const onKey = (e: KeyboardEvent, i: number) => {
     const d = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0;
@@ -45,14 +62,15 @@ export function MoodPicker({ value, onChange, label = 'Ánimo', className }: Moo
     refs.current[next]?.focus();
   };
   return (
-    <div role="radiogroup" aria-label={label} className={cn('flex flex-wrap gap-2', className)}>
+    <div role="radiogroup" aria-label={label ?? t.label} className={cn('flex flex-wrap gap-2', className)}>
       {MOODS.map((m, i) => {
         const on = value === m.n;
+        const name = t.names[i];
         return (
           <motion.button
             key={m.n}
             ref={(el) => (refs.current[i] = el)}
-            type="button" role="radio" aria-checked={on} aria-label={m.name} title={m.name}
+            type="button" role="radio" aria-checked={on} aria-label={name} title={name}
             // Sin ánimo elegido (0), la cara del medio recibe el foco del Tab.
             tabIndex={on || (!MOODS.some((x) => x.n === value) && m.n === 3) ? 0 : -1}
             animate={{ scale: on ? 1.08 : 1 }}

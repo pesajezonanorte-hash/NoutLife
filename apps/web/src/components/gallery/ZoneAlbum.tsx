@@ -14,6 +14,7 @@ import { lockScroll, unlockScroll } from '@/components/ui/lq/Modal';
 import { springs } from '@/lib/motion/presets';
 import { useMotionStore } from '@/store/motionStore';
 import { useAuthStore } from '@/store/authStore';
+import { INTL_LOCALE, useLocale } from '@/lib/i18n';
 import api from '@/lib/api';
 import * as coliseo from '@/services/coliseo.service';
 
@@ -52,6 +53,7 @@ export function useZonePhotos() {
 }
 
 function ZoneViewer({ items, index, onIndex, onClose }: { items: ZonePhoto[]; index: number; onIndex: (i: number) => void; onClose: () => void }) {
+  const locale = useLocale();
   const reduce = useMotionStore((s) => s.reduce);
   const navigate = useNavigate();
   const it = items[index];
@@ -85,7 +87,7 @@ function ZoneViewer({ items, index, onIndex, onClose }: { items: ZonePhoto[]; in
         <meta.icon aria-hidden className="size-6 shrink-0" />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-label-lg">{meta.label}</span>
-          <span className="block truncate text-body-sm text-jade-100/80">{new Date(it.at).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+          <span className="block truncate text-body-sm text-jade-100/80">{new Date(it.at).toLocaleDateString(INTL_LOCALE[locale], { day: 'numeric', month: 'long', year: 'numeric' })}</span>
         </span>
         <Button size="sm" onClick={() => navigate(meta.link)} className="bg-jade-50 text-jade-900 hover:bg-white">Ir a la zona</Button>
       </div>
@@ -96,12 +98,13 @@ function ZoneViewer({ items, index, onIndex, onClose }: { items: ZonePhoto[]; in
 
 /** Un capítulo del álbum: las fotos de una zona agrupadas por mes. */
 export function ZoneAlbum({ zone, photos }: { zone: ZoneAlbumId; photos: ZonePhoto[] | null }) {
+  const locale = useLocale();
   const [open, setOpen] = useState<number | null>(null);
   const items = useMemo(() => (photos ?? []).filter((p) => p.zone === zone), [photos, zone]);
   const months = useMemo(() => {
     const out: Array<{ label: string; items: Array<{ it: ZonePhoto; index: number }> }> = [];
     items.forEach((it, index) => {
-      const label = new Date(it.at).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+      const label = new Date(it.at).toLocaleDateString(INTL_LOCALE[locale], { month: 'long', year: 'numeric' });
       const last = out[out.length - 1];
       if (last?.label === label) last.items.push({ it, index }); else out.push({ label, items: [{ it, index }] });
     });
@@ -119,7 +122,7 @@ export function ZoneAlbum({ zone, photos }: { zone: ZoneAlbumId; photos: ZonePho
           <ul className="grid grid-cols-2 gap-x-5 gap-y-7 sm:grid-cols-3 lg:grid-cols-4">
             {mo.items.map(({ it, index }) => (
               <li key={it.id}>
-                <button type="button" onClick={() => setOpen(index)} className="block w-full rounded-[3px] text-left" aria-label={`${meta.label}: ${it.caption ?? 'foto'}, ${new Date(it.at).toLocaleDateString('es-ES')}`}>
+                <button type="button" onClick={() => setOpen(index)} className="block w-full rounded-[3px] text-left" aria-label={`${meta.label}: ${it.caption ?? 'foto'}, ${new Date(it.at).toLocaleDateString(INTL_LOCALE[locale])}`}>
                   <InstantPhoto src={it.src} alt="" caption={it.caption} tilt={((index % 5) - 2) * 0.9} className="w-full" />
                 </button>
               </li>

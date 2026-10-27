@@ -2,6 +2,25 @@ import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { tick } from '@/lib/motion';
+import { useText, type Copy } from '@/lib/i18n';
+
+const es = {
+  left: (d: number, h: number, m: number): string => `Quedan ${d} días, ${h} horas y ${m} minutos`,
+  days: 'días',
+  hours: 'horas',
+  min: 'min',
+  sec: 'seg',
+};
+
+const en: typeof es = {
+  left: (d: number, h: number, m: number): string => `${d} days, ${h} hours and ${m} minutes left`,
+  days: 'days',
+  hours: 'hours',
+  min: 'min',
+  sec: 'sec',
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 export interface CountdownProps {
   /** Fecha objetivo (ISO o Date). */
@@ -44,6 +63,7 @@ function Digit({ value, label, accent }: { value: string; label: string; accent?
 /** Cuenta atrás en vivo (días · horas · min · seg). role="timer"; el texto accesible
  *  solo cambia por minuto para no saturar al lector de pantalla. */
 export function Countdown({ to, className, accent = true }: CountdownProps) {
+  const t = useText(COPY);
   const target = new Date(to).getTime();
   const [p, setP] = useState(() => parts(target));
   useEffect(() => {
@@ -53,11 +73,11 @@ export function Countdown({ to, className, accent = true }: CountdownProps) {
   }, [target]);
 
   return (
-    <div role="timer" aria-label={`Quedan ${p.d} días, ${p.h} horas y ${p.m} minutos`} className={cn('flex flex-wrap gap-2', className)}>
-      <Digit value={pad(p.d)} label="días" />
-      <Digit value={pad(p.h)} label="horas" />
-      <Digit value={pad(p.m)} label="min" />
-      <Digit value={pad(p.s)} label="seg" accent={accent} />
+    <div role="timer" aria-label={t.left(p.d, p.h, p.m)} className={cn('flex flex-wrap gap-2', className)}>
+      <Digit value={pad(p.d)} label={t.days} />
+      <Digit value={pad(p.h)} label={t.hours} />
+      <Digit value={pad(p.m)} label={t.min} />
+      <Digit value={pad(p.s)} label={t.sec} accent={accent} />
     </div>
   );
 }

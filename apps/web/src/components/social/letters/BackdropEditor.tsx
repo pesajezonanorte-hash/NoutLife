@@ -8,15 +8,62 @@ import { ImagePlus, Move, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { compressPhoto, DEFAULT_FIT, type Background, type BackgroundFit } from '@/services/network.service';
 import { Button, ResponsiveDialog } from '@/components/ui/lq';
+import { useText, type Copy } from '@/lib/i18n';
 import { LetterBackdrop, frameFor, useBoxSize, useImageSize } from './LetterBackdrop';
+
+const es = {
+  title: 'Fondo de la carta',
+  shareLine: (who: string): string => `Lo verá también ${who}. La foto queda impresa sobre el papel de la carta.`,
+  dragAria: 'Encuadre del fondo: arrástralo o usa las flechas para moverlo',
+  hello1: '¡Hola! ¿Cómo va tu día?',
+  hello2: 'Muy bien. ¡Mira el fondo nuevo!',
+  dragHint: 'Arrastra para encuadrar',
+  zoom: 'Zoom',
+  paper: 'Papel encima',
+  moreReadable: 'Más papel, más fácil de leer.',
+  pickPhoto: 'Elegir una foto',
+  anyPhoto: 'Cualquiera de tus fotos',
+  otherPhoto: 'Otra foto',
+  removeBg: 'Quitar fondo',
+  cancel: 'Cancelar',
+  save: 'Guardar fondo',
+  tooBig: 'Esa foto pesa demasiado. Prueba con otra.',
+  readFail: 'No se pudo leer esa foto',
+  saveFail: 'No se pudo guardar el fondo',
+  removeFail: 'No se pudo quitar el fondo',
+};
+
+const en: typeof es = {
+  title: 'Letter background',
+  shareLine: (who: string): string => `${who} will see it too. The photo is printed on the letter paper.`,
+  dragAria: 'Background frame: drag it or use the arrow keys to move it',
+  hello1: 'Hi! How is your day going?',
+  hello2: 'Great. Look at the new background!',
+  dragHint: 'Drag to frame',
+  zoom: 'Zoom',
+  paper: 'Paper on top',
+  moreReadable: 'More paper, easier to read.',
+  pickPhoto: 'Pick a photo',
+  anyPhoto: 'Any of your photos',
+  otherPhoto: 'Another photo',
+  removeBg: 'Remove background',
+  cancel: 'Cancel',
+  save: 'Save background',
+  tooBig: 'That photo is too big. Try another one.',
+  readFail: 'Could not read that photo',
+  saveFail: 'Could not save the background',
+  removeFail: 'Could not remove the background',
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 const MAX_LEN = 880_000;
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
-async function backgroundFrom(file: File) {
+async function backgroundFrom(file: File, tooBig: string) {
   let url = await compressPhoto(file, 1280, 0.72);
   if (url.length > MAX_LEN) url = await compressPhoto(file, 1080, 0.6);
-  if (url.length > MAX_LEN) throw new Error('Esa foto pesa demasiado. Prueba con otra.');
+  if (url.length > MAX_LEN) throw new Error(tooBig);
   return url;
 }
 
@@ -31,6 +78,7 @@ export interface BackdropEditorProps {
 }
 
 export function BackdropEditor({ open, onClose, current, shareWith, onSave }: BackdropEditorProps) {
+  const t = useText(COPY);
   const fileRef = useRef<HTMLInputElement>(null);
   const [photo, setPhoto] = useState<string | null>(null);
   const [fresh, setFresh] = useState(false);
@@ -62,10 +110,10 @@ export function BackdropEditor({ open, onClose, current, shareWith, onSave }: Ba
     if (!file) return;
     setError(null);
     try {
-      setPhoto(await backgroundFrom(file));
+      setPhoto(await backgroundFrom(file, t.tooBig));
       setFresh(true);
       setFit((f) => ({ ...DEFAULT_FIT, paper: f.paper }));
-    } catch (e) { setError(e instanceof Error ? e.message : 'No se pudo leer esa foto'); }
+    } catch (e) { setError(e instanceof Error ? e.message : t.readFail); }
   }
 
   const frame = photo ? frameFor(fit, box, img) : null;
@@ -92,47 +140,47 @@ export function BackdropEditor({ open, onClose, current, shareWith, onSave }: Ba
     if (!photo) return;
     setBusy('save'); setError(null);
     try { await onSave(fresh ? { photoUrl: photo, fit } : { fit }); onClose(); }
-    catch (e) { setError(e instanceof Error && e.message ? e.message : 'No se pudo guardar el fondo'); }
+    catch (e) { setError(e instanceof Error && e.message ? e.message : t.saveFail); }
     finally { setBusy(null); }
   }
   async function remove() {
     setBusy('remove'); setError(null);
     try { await onSave({ photoUrl: null }); onClose(); }
-    catch (e) { setError(e instanceof Error && e.message ? e.message : 'No se pudo quitar el fondo'); }
+    catch (e) { setError(e instanceof Error && e.message ? e.message : t.removeFail); }
     finally { setBusy(null); }
   }
 
   return (
-    <ResponsiveDialog open={open} onClose={onClose} title="Fondo de la carta" className="md:max-w-[520px]">
-      <p className="-mt-2 text-body-sm text-on-surface-light">Lo verá también {shareWith}. La foto queda impresa sobre el papel de la carta.</p>
+    <ResponsiveDialog open={open} onClose={onClose} title={t.title} className="md:max-w-[520px]">
+      <p className="-mt-2 text-body-sm text-on-surface-light">{t.shareLine(shareWith)}</p>
       <input ref={fileRef} type="file" accept="image/*" className="sr-only" tabIndex={-1} aria-hidden="true" onChange={(e) => { void pick(e.target.files?.[0]); e.target.value = ''; }} />
 
       {photo ? (
         <div className="flex flex-col gap-4">
           <div
             ref={boxRef}
-            role="application" tabIndex={0} aria-label="Encuadre del fondo: arrástralo o usa las flechas para moverlo"
+            role="application" tabIndex={0} aria-label={t.dragAria}
             onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onKeyDown={onKey}
             className="relative mx-auto aspect-[3/4] w-full max-w-[300px] cursor-grab touch-none select-none overflow-hidden rounded-2xl border border-border shadow-md active:cursor-grabbing"
           >
             <LetterBackdrop src={photo} fit={fit} />
             <div className="pointer-events-none relative flex h-full flex-col justify-center gap-3 p-4">
-              <p className="lq-slip max-w-[80%] self-start px-3 py-2 text-body-sm text-on-background">¡Hola! ¿Cómo va tu día?</p>
-              <p className="lq-slip lq-slip-mine max-w-[80%] self-end px-3 py-2 text-body-sm text-forest-text">Muy bien. ¡Mira el fondo nuevo!</p>
+              <p className="lq-slip max-w-[80%] self-start px-3 py-2 text-body-sm text-on-background">{t.hello1}</p>
+              <p className="lq-slip lq-slip-mine max-w-[80%] self-end px-3 py-2 text-body-sm text-forest-text">{t.hello2}</p>
             </div>
             <span className="pointer-events-none absolute bottom-2 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-full bg-surface/90 px-2.5 py-1 text-label-md text-on-surface shadow-sm">
-              <Move aria-hidden className="size-3.5" />Arrastra para encuadrar
+              <Move aria-hidden className="size-3.5" />{t.dragHint}
             </span>
           </div>
 
           <label className="flex flex-col gap-1.5">
-            <span className="flex items-center justify-between text-label-lg text-on-surface">Zoom <span className="font-mono text-body-sm text-on-surface-light">{fit.zoom.toFixed(1)}×</span></span>
+            <span className="flex items-center justify-between text-label-lg text-on-surface">{t.zoom} <span className="font-mono text-body-sm text-on-surface-light">{fit.zoom.toFixed(1)}×</span></span>
             <input type="range" min={1} max={3} step={0.05} value={fit.zoom} onChange={(e) => setFit((f) => ({ ...f, zoom: Number(e.target.value) }))} className="h-11 w-full accent-[rgb(var(--lq-primary))]" />
           </label>
           <label className="flex flex-col gap-1.5">
-            <span className="flex items-center justify-between text-label-lg text-on-surface">Papel encima <span className="font-mono text-body-sm text-on-surface-light">{Math.round(fit.paper * 100)} %</span></span>
+            <span className="flex items-center justify-between text-label-lg text-on-surface">{t.paper} <span className="font-mono text-body-sm text-on-surface-light">{Math.round(fit.paper * 100)} %</span></span>
             <input type="range" min={0.2} max={0.9} step={0.01} value={fit.paper} onChange={(e) => setFit((f) => ({ ...f, paper: Number(e.target.value) }))} className="h-11 w-full accent-[rgb(var(--lq-primary))]" />
-            <span className="text-body-sm text-on-surface-light">Más papel, más fácil de leer.</span>
+            <span className="text-body-sm text-on-surface-light">{t.moreReadable}</span>
           </label>
         </div>
       ) : (
@@ -141,8 +189,8 @@ export function BackdropEditor({ open, onClose, current, shareWith, onSave }: Ba
           className="lq-stationery flex min-h-[220px] flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-border-strong text-on-surface transition-colors hover:border-primary"
         >
           <span className="flex size-14 items-center justify-center rounded-full bg-primary/[var(--lq-soft-alpha)] text-primary-text"><ImagePlus aria-hidden className="size-7" strokeWidth={1.75} /></span>
-          <span className="text-label-lg">Elegir una foto</span>
-          <span className="text-body-sm text-on-surface-light">Cualquiera de tus fotos</span>
+          <span className="text-label-lg">{t.pickPhoto}</span>
+          <span className="text-body-sm text-on-surface-light">{t.anyPhoto}</span>
         </button>
       )}
 
@@ -151,17 +199,17 @@ export function BackdropEditor({ open, onClose, current, shareWith, onSave }: Ba
       <div className="flex flex-col gap-3">
         {(photo || current) && (
           <div className="flex flex-wrap gap-1">
-            {photo && <Button variant="ghost" size="md" onClick={() => fileRef.current?.click()}><ImagePlus aria-hidden className="size-4" />Otra foto</Button>}
+            {photo && <Button variant="ghost" size="md" onClick={() => fileRef.current?.click()}><ImagePlus aria-hidden className="size-4" />{t.otherPhoto}</Button>}
             {current && (
               <Button variant="ghost" size="md" loading={busy === 'remove'} onClick={() => void remove()} className={cn('text-error-text hover:bg-error/[var(--lq-soft-alpha)]')}>
-                <Trash2 aria-hidden className="size-4" />Quitar fondo
+                <Trash2 aria-hidden className="size-4" />{t.removeBg}
               </Button>
             )}
           </div>
         )}
         <div className="flex gap-3">
-          <Button variant="secondary" size="md" className="flex-1" onClick={onClose}>Cancelar</Button>
-          <Button size="md" className="flex-1" disabled={!photo} loading={busy === 'save'} onClick={() => void save()}>Guardar fondo</Button>
+          <Button variant="secondary" size="md" className="flex-1" onClick={onClose}>{t.cancel}</Button>
+          <Button size="md" className="flex-1" disabled={!photo} loading={busy === 'save'} onClick={() => void save()}>{t.save}</Button>
         </div>
       </div>
     </ResponsiveDialog>

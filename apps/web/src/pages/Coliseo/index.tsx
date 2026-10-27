@@ -12,11 +12,12 @@ import type { Workout, Routine } from '@noutlife/shared';
 import { cn } from '@/lib/utils';
 import { expo, heavy, item, slam, stagger, useCountUp } from '@/lib/motion';
 import { muscleStates, pplBalance, tonnage, workoutTonnage } from '@/lib/coliseo';
+import { INTL_LOCALE, useLocale, useText, type Copy } from '@/lib/i18n';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { useToast } from '../../hooks/useToast';
 import { AnimatedValue, Badge, Button, Card, ChipGroup, Confetti, DayDot, EmptyState, ErrorState, Field, IconChip, Input, Modal, ProgressBar, formatClock, type DayStatus, type Tone, PageLoader } from '@/components/ui/lq';
-import { LOADING_COPY } from '@/lib/loadingCopy';
+import { useLoadingCopy } from '@/lib/loadingCopy';
 import * as workoutService from '../../services/workout.service';
 import { SageContextButton } from '../../components/sage/SageContextButton';
 import { BalanceCard, BodyWeightTracker, OneRMCalculator, PlateCalculator, ProgressPhotos, RestTimer, WeeklySets } from '../../components/coliseo/ColiseoExtras';
@@ -27,22 +28,228 @@ import { CycleColiseoHint } from '../../components/cycle/CycleHints';
 
 type ColiseoTab = 'history' | 'routines' | 'analytics' | 'photos';
 
-const COLISEO_TABS: Array<{ id: ColiseoTab; label: string; helper: string; icon: typeof History; tone: Tone }> = [
-  { id: 'history', label: 'Historial', helper: 'Tus sesiones', icon: History, tone: 'primary' },
-  { id: 'routines', label: 'Rutinas', helper: 'Planes listos', icon: ClipboardList, tone: 'forest' },
-  { id: 'analytics', label: 'Análisis', helper: 'Hipertrofia y fuerza', icon: TrendingUp, tone: 'info' },
-  { id: 'photos', label: 'Progreso', helper: 'Fotos y cambios', icon: Camera, tone: 'success' },
-];
+const es = {
+  tabs: {
+    history: { label: 'Historial', helper: 'Tus sesiones' },
+    routines: { label: 'Rutinas', helper: 'Planes listos' },
+    analytics: { label: 'Análisis', helper: 'Hipertrofia y fuerza' },
+    photos: { label: 'Progreso', helper: 'Fotos y cambios' },
+  } as Record<ColiseoTab, { label: string; helper: string }>,
+  weekdays: ['D', 'L', 'M', 'X', 'J', 'V', 'S'],
+  tabsAria: 'Secciones del Coliseo',
+  zone: 'Zona de entrenamiento',
+  title: 'Coliseo',
+  description: 'Pesas, cardio, deporte o una caminata: cada sesión suma XP y fortalece a tu personaje.',
+  askSage: '¿Qué entreno hoy?',
+  sageMessage: '¿Qué entreno hoy? Sugiere un workout basado en mi historial y los días que llevo sin entrenar.',
+  rest: 'Descanso',
+  logCardio: 'Registrar cardio',
+  startWorkout: 'Iniciar entrenamiento',
+  resumeAria: (title: string, clock: string, done: number, planned: number): string => `Volver al entrenamiento en vivo: ${title}, ${clock}, ${done} de ${planned} series`,
+  barProgress: (done: number, planned: number): string => `${done}/${planned} series`,
+  attendanceAria: 'Asistencia',
+  attendanceTitle: 'Asistencia de la semana',
+  streakOne: 'día seguido',
+  streakMany: 'días seguidos',
+  platesWeek: (n: number): string => `${n}/7 discos`,
+  loggedToday: 'Registrada hoy',
+  logAttendance: 'Registrar asistencia',
+  weekListAria: 'Asistencia de los últimos siete días',
+  dayAria: (name: string, status: 'attended' | 'today' | 'rest'): string => `${name}: ${status === 'attended' ? 'asististe' : status === 'today' ? 'hoy, pendiente' : 'descanso'}`,
+  attendanceSaved: 'Asistencia registrada',
+  attendanceSavedSub: 'Tu visita de hoy ya cuenta.',
+  attendanceErr: 'No se pudo registrar la asistencia',
+  startErr: 'Error al iniciar entrenamiento',
+  routineErr: 'Error al iniciar rutina',
+  deletedWorkout: 'Entrenamiento eliminado',
+  deletedRoutine: 'Rutina eliminada',
+  deleteWorkoutErr: 'No se pudo eliminar el entrenamiento',
+  deleteRoutineErr: 'No se pudo eliminar la rutina',
+  finishErr: 'Error al finalizar entrenamiento',
+  finishErrSub: 'Tu sesión sigue guardada en este dispositivo: vuelve a intentarlo.',
+  discarded: 'Sesión descartada',
+  cardioErr: 'No se pudo registrar el cardio',
+  cardioWalk: 'Caminata',
+  cardioGeneral: 'Cardio general',
+  cardioShort: 'Cardio',
+  cardioTypeLabel: 'Tipo de actividad',
+  minutesLabel: 'Tiempo (minutos)',
+  kmLabel: 'Distancia (km, opcional)',
+  kmPlaceholder: '3,5',
+  save: 'Guardar',
+  cancel: 'Cancelar',
+  lastWorkout: 'Último entrenamiento',
+  deleteWorkoutAria: (name: string): string => `Eliminar entrenamiento ${name}`,
+  deleteRoutineAria: (name: string): string => `Eliminar rutina ${name}`,
+  startRoutineAria: (name: string): string => `Iniciar ${name}`,
+  durationLabel: 'Duración',
+  tonnageLabel: 'Tonelaje',
+  setsLabel: 'Series',
+  exercisesAria: 'Ejercicios y peso máximo',
+  setsCount: (n: number): string => `${n} series`,
+  exercisesCount: (n: number): string => `${n} ejercicios`,
+  restWord: 'descanso',
+  kgUnit: 'kg',
+  volumeTitle: 'Tonelaje',
+  vsLastWeek: (sign: string, n: number): string => `${sign}${n}% vs. semana pasada`,
+  volumeHelp: 'Kilos movidos: peso × repeticiones de cada serie completada.',
+  lastSession: 'Última sesión',
+  days7: '7 días',
+  days30: '30 días',
+  tonnageAria: (list: string): string => `Tonelaje por día en kilos: ${list}`,
+  previousTitle: 'Sesiones anteriores',
+  routinesTitle: 'Rutinas',
+  seeAll: 'Ver todas',
+  noRoutines: 'Aún no tienes rutinas guardadas.',
+  recordsTitle: 'Récords personales',
+  noRecords: 'Completa series con peso para ver tus récords.',
+  recordAria: (name: string, weight: number): string => `${name}: ${weight} kilos`,
+  emptyRoutinesTitle: 'Aún no tienes una rutina guardada',
+  emptyRoutinesBody: 'Empieza una sesión libre y convierte tus ejercicios favoritos en una ruta fácil de repetir.',
+  freeSession: 'Iniciar sesión libre',
+  emptyHistoryTitle: 'El Coliseo está listo para ti',
+  emptyHistoryBody: 'Registra ejercicios, pesos y repeticiones para convertir cada entrenamiento en progreso visible.',
+  routineSummary: (n: number): string => `${n} ejercicios`,
+  start: 'Iniciar',
+  loadErr: 'No pudimos cargar tu Coliseo',
+  deleteTitleRoutine: 'Eliminar rutina',
+  deleteTitleWorkout: 'Eliminar entrenamiento',
+  confirmDelete: (kind: 'routine' | 'workout', name: string): string => `¿Seguro que quieres eliminar ${kind === 'routine' ? 'la rutina' : 'el entrenamiento'} «${name}»? Esta acción no se puede deshacer.`,
+  deleteBtn: 'Eliminar',
+  newWorkoutTitle: 'Nuevo entrenamiento',
+  workoutName: 'Nombre del entrenamiento',
+  workoutNamePlaceholder: 'Empuje, piernas…',
+  letsGo: '¡Empezar!',
+  summaryTitle: '¡Sesión completada!',
+  timeLabel: 'Tiempo',
+  distanceLabel: 'Distancia',
+  typeLabel: 'Tipo',
+  continueBtn: 'Continuar',
+  recordKg: (w: number): string => `${w} kg`,
+  distanceKm: (km: number): string => `${km} km`,
+  durationMin: (m: number): string => `${m} min`,
+  durationEst: (m: number): string => `~${m} min`,
+  loadingLabel: 'Calentando motores…',
+  xpLabel: (xp: number): string => `+${xp} XP`,
+};
 
-const WEEKDAY_LABELS = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
+const en: typeof es = {
+  tabs: {
+    history: { label: 'History', helper: 'Your sessions' },
+    routines: { label: 'Routines', helper: 'Ready-made plans' },
+    analytics: { label: 'Analysis', helper: 'Hypertrophy and strength' },
+    photos: { label: 'Progress', helper: 'Photos and changes' },
+  },
+  weekdays: ['S', 'M', 'T', 'W', 'T', 'F', 'S'],
+  tabsAria: 'Coliseo sections',
+  zone: 'Training zone',
+  title: 'Coliseo',
+  description: 'Weights, cardio, sport or a walk: every session earns XP and strengthens your character.',
+  askSage: 'What should I train today?',
+  sageMessage: 'What should I train today? Suggest a workout based on my history and the days I have been away from training.',
+  rest: 'Rest',
+  logCardio: 'Log cardio',
+  startWorkout: 'Start workout',
+  resumeAria: (title: string, clock: string, done: number, planned: number): string => `Back to the live workout: ${title}, ${clock}, ${done} of ${planned} sets`,
+  barProgress: (done: number, planned: number): string => `${done}/${planned} sets`,
+  attendanceAria: 'Attendance',
+  attendanceTitle: 'This week’s attendance',
+  streakOne: 'day in a row',
+  streakMany: 'days in a row',
+  platesWeek: (n: number): string => `${n}/7 plates`,
+  loggedToday: 'Logged today',
+  logAttendance: 'Log attendance',
+  weekListAria: 'Attendance over the last seven days',
+  dayAria: (name: string, status: 'attended' | 'today' | 'rest'): string => `${name}: ${status === 'attended' ? 'attended' : status === 'today' ? 'today, pending' : 'rest day'}`,
+  attendanceSaved: 'Attendance logged',
+  attendanceSavedSub: 'Today’s visit counts.',
+  attendanceErr: 'Could not log attendance',
+  startErr: 'Could not start the workout',
+  routineErr: 'Could not start the routine',
+  deletedWorkout: 'Workout deleted',
+  deletedRoutine: 'Routine deleted',
+  deleteWorkoutErr: 'Could not delete the workout',
+  deleteRoutineErr: 'Could not delete the routine',
+  finishErr: 'Could not finish the workout',
+  finishErrSub: 'Your session is still saved on this device: try again.',
+  discarded: 'Session discarded',
+  cardioErr: 'Could not log the cardio',
+  cardioWalk: 'Walk',
+  cardioGeneral: 'General cardio',
+  cardioShort: 'Cardio',
+  cardioTypeLabel: 'Activity type',
+  minutesLabel: 'Time (minutes)',
+  kmLabel: 'Distance (km, optional)',
+  kmPlaceholder: '3.5',
+  save: 'Save',
+  cancel: 'Cancel',
+  lastWorkout: 'Latest workout',
+  deleteWorkoutAria: (name: string): string => `Delete workout ${name}`,
+  deleteRoutineAria: (name: string): string => `Delete routine ${name}`,
+  startRoutineAria: (name: string): string => `Start ${name}`,
+  durationLabel: 'Duration',
+  tonnageLabel: 'Tonnage',
+  setsLabel: 'Sets',
+  exercisesAria: 'Exercises and top weight',
+  setsCount: (n: number): string => `${n} ${n === 1 ? 'set' : 'sets'}`,
+  exercisesCount: (n: number): string => `${n} ${n === 1 ? 'exercise' : 'exercises'}`,
+  restWord: 'rest',
+  kgUnit: 'kg',
+  volumeTitle: 'Tonnage',
+  vsLastWeek: (sign: string, n: number): string => `${sign}${n}% vs. last week`,
+  volumeHelp: 'Kilograms moved: weight × reps of each completed set.',
+  lastSession: 'Last session',
+  days7: '7 days',
+  days30: '30 days',
+  tonnageAria: (list: string): string => `Tonnage per day in kilograms: ${list}`,
+  previousTitle: 'Previous sessions',
+  routinesTitle: 'Routines',
+  seeAll: 'See all',
+  noRoutines: 'You have no saved routines yet.',
+  recordsTitle: 'Personal records',
+  noRecords: 'Complete sets with weight to see your records.',
+  recordAria: (name: string, weight: number): string => `${name}: ${weight} kilograms`,
+  emptyRoutinesTitle: 'You do not have a saved routine yet',
+  emptyRoutinesBody: 'Start a free session and turn your favorite exercises into an easy routine to repeat.',
+  freeSession: 'Start a free session',
+  emptyHistoryTitle: 'The Coliseo is ready for you',
+  emptyHistoryBody: 'Log exercises, weights and reps to turn every workout into visible progress.',
+  routineSummary: (n: number): string => `${n} ${n === 1 ? 'exercise' : 'exercises'}`,
+  start: 'Start',
+  loadErr: 'We could not load your Coliseo',
+  deleteTitleRoutine: 'Delete routine',
+  deleteTitleWorkout: 'Delete workout',
+  confirmDelete: (kind: 'routine' | 'workout', name: string): string => `Are you sure you want to delete the ${kind} “${name}”? This cannot be undone.`,
+  deleteBtn: 'Delete',
+  newWorkoutTitle: 'New workout',
+  workoutName: 'Workout name',
+  workoutNamePlaceholder: 'Push, legs…',
+  letsGo: 'Let’s go!',
+  summaryTitle: 'Session complete!',
+  timeLabel: 'Time',
+  distanceLabel: 'Distance',
+  typeLabel: 'Type',
+  continueBtn: 'Continue',
+  recordKg: (w: number): string => `${w} kg`,
+  distanceKm: (km: number): string => `${km} km`,
+  durationMin: (m: number): string => `${m} min`,
+  durationEst: (m: number): string => `~${m} min`,
+  loadingLabel: 'Warming up…',
+  xpLabel: (xp: number): string => `+${xp} XP`,
+};
+
+const COPY: Copy<typeof es> = { es, en };
+
 const DAY_MS = 86_400_000;
 const ROUTINE_TONES: Tone[] = ['primary', 'forest', 'warning', 'success'];
+const COLISEO_TAB_IDS: Array<{ id: ColiseoTab; icon: typeof History; tone: Tone }> = [
+  { id: 'history', icon: History, tone: 'primary' },
+  { id: 'routines', icon: ClipboardList, tone: 'forest' },
+  { id: 'analytics', icon: TrendingUp, tone: 'info' },
+  { id: 'photos', icon: Camera, tone: 'success' },
+];
 
-const kg = (n: number) => `${Math.round(n).toLocaleString('es-ES')} kg`;
-const longDate = (iso: string) => {
-  const s = new Date(iso).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
-  return s.charAt(0).toUpperCase() + s.slice(1);
-};
+type CardioKind = 'WALK' | 'CARDIO';
 
 function routineExerciseCount(routine: Routine) {
   return routine.days.length > 0
@@ -53,13 +260,6 @@ function routineExerciseCount(routine: Routine) {
 const workoutSets = (w: Workout) => w.exercises.reduce((a, ex) => a + ex.sets.filter((s) => s.completed).length, 0);
 
 interface Summary { title: string; xp: number; gold: number; seconds: number; sets: number; volume: number; cardio?: { label: string; distanceKm?: number } }
-
-type CardioKind = 'WALK' | 'CARDIO';
-const CARDIO_LABEL: Record<CardioKind, string> = { WALK: 'Caminata', CARDIO: 'Cardio general' };
-const CARDIO_OPTIONS: { value: CardioKind; label: string }[] = [
-  { value: 'WALK', label: 'Caminata' },
-  { value: 'CARDIO', label: 'Cardio general' },
-];
 
 /** La sesión en curso sobrevive a recargas y a que el móvil descarte la pestaña durante el descanso. */
 const sessionKey = (userId?: string) => `coliseo.session:${userId ?? 'anon'}`;
@@ -79,6 +279,7 @@ function readSession(key: string): ActiveWorkout | null {
  * re-renderizar la página cada segundo.
  */
 function SessionBar({ workout, onOpen }: { workout: ActiveWorkout; onOpen: () => void }) {
+  const t = useText(COPY);
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
@@ -90,14 +291,14 @@ function SessionBar({ workout, onOpen }: { workout: ActiveWorkout; onOpen: () =>
   return (
     <motion.button
       type="button" onClick={onOpen}
-      aria-label={`Volver al entrenamiento en vivo: ${workout.title}, ${clock}, ${done} de ${planned} series`}
+      aria-label={t.resumeAria(workout.title, clock, done, planned)}
       initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 24 }} transition={slam}
       className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] left-4 right-24 z-40 flex min-h-16 items-center gap-3 rounded-2xl border border-primary/40 bg-background px-4 text-left shadow-lg md:bottom-6 md:left-0 md:right-0 md:mx-auto md:w-[24rem]"
     >
       <span aria-hidden className="size-2.5 shrink-0 animate-pulse rounded-full bg-error [.reduce-motion_&]:animate-none" />
       <span aria-hidden className="min-w-0 flex-1">
         <span className="block truncate text-label-lg">{workout.title}</span>
-        <span className="block font-mono text-body-sm tabular-nums text-on-surface-light">{clock} · {done}/{planned} series</span>
+        <span className="block font-mono text-body-sm tabular-nums text-on-surface-light">{clock} · {t.barProgress(done, planned)}</span>
       </span>
       <span aria-hidden className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary-strong text-on-primary">
         <Play className="size-5" />
@@ -108,22 +309,24 @@ function SessionBar({ workout, onOpen }: { workout: ActiveWorkout; onOpen: () =>
 
 /** XP del resumen: cuenta con peso y aterriza con un golpe. */
 function SummaryXP({ xp }: { xp: number }) {
+  const t = useText(COPY);
   const v = useCountUp(xp, 1.3);
   return (
     <motion.p
       className="font-mono text-display-sm font-bold tabular-nums text-primary-text"
       initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ ...slam, delay: 0.25 }}
     >
-      <span aria-hidden>+{Math.round(v)} XP</span><span className="sr-only">+{xp} XP</span>
+      <span aria-hidden>+{Math.round(v)} XP</span><span className="sr-only">{t.xpLabel(xp)}</span>
     </motion.p>
   );
 }
 
 function SessionHeader({ title, description, actions }: { title: string; description: string; actions: React.ReactNode }) {
+  const t = useText(COPY);
   return (
     <motion.section variants={item} className="flex flex-wrap items-end justify-between gap-6">
       <div className="flex min-w-0 flex-[1_1_420px] flex-col gap-2">
-        <span className="text-label-lg text-primary-text">Zona de entrenamiento</span>
+        <span className="text-label-lg text-primary-text">{t.zone}</span>
         <DropTitle text={title} className="text-display-sm md:text-display-md lg:text-display-lg" />
         <p className="text-body-lg text-on-surface-light">{description}</p>
       </div>
@@ -133,6 +336,22 @@ function SessionHeader({ title, description, actions }: { title: string; descrip
 }
 
 export default function ColiseoPage() {
+  const t = useText(COPY);
+  const locale = useLocale();
+  const loading = useLoadingCopy();
+  const nf = INTL_LOCALE[locale];
+  const kg = (n: number) => `${Math.round(n).toLocaleString(nf)} ${t.kgUnit}`;
+  const longDate = (iso: string) => {
+    const s = new Date(iso).toLocaleDateString(nf, { weekday: 'long', day: 'numeric', month: 'long' });
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  };
+  const tabs = COLISEO_TAB_IDS.map((x) => ({ ...x, label: t.tabs[x.id].label, helper: t.tabs[x.id].helper }));
+  const cardioLabel: Record<CardioKind, string> = { WALK: t.cardioWalk, CARDIO: t.cardioGeneral };
+  const cardioOptions: { value: CardioKind; label: string }[] = [
+    { value: 'WALK', label: t.cardioWalk },
+    { value: 'CARDIO', label: t.cardioGeneral },
+  ];
+
   const { addFloatingXP, triggerLevelUp, showAchievementToast } = useUIStore();
   const { updateUser, user } = useAuthStore();
   const toast = useToast();
@@ -170,7 +389,7 @@ export default function ColiseoPage() {
   /** Sentido del cambio de pestaña: el panel entra desde ese lado. */
   const tabDir = useRef(1);
   const changeTab = (next: ColiseoTab) => {
-    tabDir.current = COLISEO_TABS.findIndex((t) => t.id === next) >= COLISEO_TABS.findIndex((t) => t.id === tab) ? 1 : -1;
+    tabDir.current = COLISEO_TAB_IDS.findIndex((x) => x.id === next) >= COLISEO_TAB_IDS.findIndex((x) => x.id === tab) ? 1 : -1;
     setTab(next);
   };
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -200,25 +419,25 @@ export default function ColiseoPage() {
     try {
       const attendance = await workoutService.recordColiseoAttendance();
       setAttendances((current) => [...current.filter((i) => i.id !== attendance.id), attendance]);
-      toast.success('Asistencia registrada', 'Tu visita de hoy ya cuenta.');
+      toast.success(t.attendanceSaved, t.attendanceSavedSub);
     } catch {
-      toast.error('No se pudo registrar la asistencia');
+      toast.error(t.attendanceErr);
     } finally {
       setRecordingAttendance(false);
     }
   }
 
   async function startWorkout(title?: string) {
-    const t = title ?? newTitle;
-    if (!t.trim()) return;
+    const value = title ?? newTitle;
+    if (!value.trim()) return;
     try {
-      const w = await workoutService.createWorkout({ title: t });
+      const w = await workoutService.createWorkout({ title: value });
       setActiveWorkout({ id: w.id, title: w.title, startTime: Date.now(), exercises: [] });
       setLiveOpen(true);
       setShowStartModal(false);
       setNewTitle('');
     } catch {
-      toast.error('Error al iniciar entrenamiento');
+      toast.error(t.startErr);
     }
   }
 
@@ -244,7 +463,7 @@ export default function ColiseoPage() {
       setActiveWorkout({ id: w.id, title: w.title, startTime: Date.now(), exercises });
       setLiveOpen(true);
     } catch {
-      toast.error('Error al iniciar rutina');
+      toast.error(t.routineErr);
     }
   }
 
@@ -257,15 +476,15 @@ export default function ColiseoPage() {
       if (kind === 'workout') {
         await workoutService.deleteWorkout(id);
         setWorkouts((current) => current.filter((w) => w.id !== id));
-        toast.success('Entrenamiento eliminado', name);
+        toast.success(t.deletedWorkout, name);
       } else {
         await workoutService.deleteRoutine(id);
         setRoutines((current) => current.filter((r) => r.id !== id));
-        toast.success('Rutina eliminada', name);
+        toast.success(t.deletedRoutine, name);
       }
       setPendingDelete(null);
     } catch {
-      toast.error(kind === 'workout' ? 'No se pudo eliminar el entrenamiento' : 'No se pudo eliminar la rutina');
+      toast.error(kind === 'workout' ? t.deleteWorkoutErr : t.deleteRoutineErr);
     } finally {
       setDeleting(false);
     }
@@ -291,7 +510,7 @@ export default function ColiseoPage() {
       for (const achievement of result.achievementsUnlocked ?? []) showAchievementToast(achievement);
       await load();
     } catch {
-      toast.error('Error al finalizar entrenamiento', 'Tu sesión sigue guardada en este dispositivo: vuelve a intentarlo.');
+      toast.error(t.finishErr, t.finishErrSub);
     }
   }
 
@@ -299,7 +518,7 @@ export default function ColiseoPage() {
   async function discardWorkout(aw: ActiveWorkout) {
     await workoutService.deleteWorkout(aw.id).catch(() => undefined);
     setActiveWorkout(null);
-    toast.success('Sesión descartada', aw.title);
+    toast.success(t.discarded, aw.title);
   }
 
   async function logCardio() {
@@ -309,7 +528,7 @@ export default function ColiseoPage() {
     const distanceKm = Number.isFinite(km) && km > 0 ? km : undefined;
     setCardioSaving(true);
     try {
-      const created = await workoutService.createWorkout({ title: CARDIO_LABEL[cardioKind], kind: cardioKind });
+      const created = await workoutService.createWorkout({ title: cardioLabel[cardioKind], kind: cardioKind });
       const result = await workoutService.finishWorkout(created.id, { duration: minutes, distanceKm });
       const rewards = result.rewards as { xpGained: number; goldGained: number; leveledUp: boolean; oldLevel: number; newLevel: number };
       updateUser(result.user as never);
@@ -320,11 +539,11 @@ export default function ColiseoPage() {
       setShowCardioModal(false);
       setCardioMinutes('');
       setCardioKm('');
-      setSummary({ title: CARDIO_LABEL[cardioKind], xp: rewards.xpGained ?? 0, gold: rewards.goldGained ?? 0, seconds: minutes * 60, sets: 0, volume: 0, cardio: { label: CARDIO_LABEL[cardioKind], distanceKm } });
+      setSummary({ title: cardioLabel[cardioKind], xp: rewards.xpGained ?? 0, gold: rewards.goldGained ?? 0, seconds: minutes * 60, sets: 0, volume: 0, cardio: { label: cardioLabel[cardioKind], distanceKm } });
       for (const achievement of result.achievementsUnlocked ?? []) showAchievementToast(achievement);
       await load();
     } catch {
-      toast.error('No se pudo registrar el cardio');
+      toast.error(t.cardioErr);
     } finally {
       setCardioSaving(false);
     }
@@ -344,14 +563,14 @@ export default function ColiseoPage() {
     const key = calendarKey(day);
     const attended = attendances.some((a) => a.date.slice(0, 10) === key);
     const isToday = key === todayKey;
-    const name = day.toLocaleDateString('es-ES', { timeZone: tz, weekday: 'long' });
+    const name = day.toLocaleDateString(nf, { timeZone: tz, weekday: 'long' });
     const status: DayStatus = attended ? 'done' : isToday ? 'today' : 'rest';
     return {
       key, status,
-      label: day.toLocaleDateString('es-ES', { timeZone: tz, weekday: 'narrow' }).toUpperCase(),
-      aria: `${name}: ${attended ? 'asististe' : isToday ? 'hoy, pendiente' : 'descanso'}`,
+      label: day.toLocaleDateString(nf, { timeZone: tz, weekday: 'narrow' }).toUpperCase(),
+      aria: t.dayAria(name, attended ? 'attended' : isToday ? 'today' : 'rest'),
     };
-  }), [attendances, calendarKey, todayKey, tz]);
+  }), [attendances, calendarKey, todayKey, tz, nf, t]);
 
   // Racha: días consecutivos con asistencia hasta hoy (o ayer si hoy falta).
   const streak = useMemo(() => {
@@ -369,8 +588,8 @@ export default function ColiseoPage() {
   // Fatiga por músculo, balance y tonelaje, recalculados con cada sesión terminada.
   const stats = useMemo(() => {
     const now = Date.now();
-    return { now, muscles: muscleStates(workouts, now), balance: pplBalance(workouts, now), tons: tonnage(workouts, now) };
-  }, [workouts]);
+    return { now, muscles: muscleStates(workouts, now), balance: pplBalance(workouts, now, 28, locale), tons: tonnage(workouts, now) };
+  }, [workouts, locale]);
   const weekDelta = stats.tons.prevWeek > 0 ? Math.round(((stats.tons.week - stats.tons.prevWeek) / stats.tons.prevWeek) * 100) : null;
 
   // Tonelaje por día de los últimos 7 días.
@@ -380,16 +599,16 @@ export default function ColiseoPage() {
       const key = calendarKey(d);
       const ws = listed.filter((w) => calendarKey(new Date(w.date)) === key);
       const vol = ws.reduce((a, w) => a + workoutTonnage(w), 0);
-      const title = d.toLocaleDateString('es-ES', { timeZone: tz, weekday: 'long', day: 'numeric', month: 'short' }).replace(/\./g, '');
+      const title = d.toLocaleDateString(nf, { timeZone: tz, weekday: 'long', day: 'numeric', month: 'short' }).replace(/\./g, '');
       return {
         key, vol, sessions: ws.map((w) => w.title),
         title: title.charAt(0).toUpperCase() + title.slice(1),
-        label: d.toLocaleDateString('es-ES', { timeZone: tz, weekday: 'narrow' }).toUpperCase(),
-        name: d.toLocaleDateString('es-ES', { timeZone: tz, weekday: 'long' }),
+        label: d.toLocaleDateString(nf, { timeZone: tz, weekday: 'narrow' }).toUpperCase(),
+        name: d.toLocaleDateString(nf, { timeZone: tz, weekday: 'long' }),
       };
     });
     return { days };
-  }, [listed, calendarKey, tz]);
+  }, [listed, calendarKey, tz, nf]);
 
   // TODO(api): no hay endpoint de récords históricos; se calculan sobre las últimas 60 sesiones.
   const records = useMemo(() => {
@@ -407,10 +626,10 @@ export default function ColiseoPage() {
 
   const startButtons = (
     <>
-      <SageContextButton message="¿Qué entreno hoy? Sugiere un workout basado en mi historial y los días que llevo sin entrenar." label="¿Qué entreno hoy?" />
-      <Button variant="ghost" size="md" onClick={() => setShowRestTimer(true)}><TimerIcon aria-hidden className="size-4" />Descanso</Button>
-      <Button variant="secondary" onClick={() => setShowCardioModal(true)} disabled={sessionOpen}><Footprints aria-hidden className="size-4" />Registrar cardio</Button>
-      <Button onClick={() => setShowStartModal(true)} disabled={sessionOpen}><Play aria-hidden className="size-4" />Iniciar entrenamiento</Button>
+      <SageContextButton message={t.sageMessage} label={t.askSage} />
+      <Button variant="ghost" size="md" onClick={() => setShowRestTimer(true)}><TimerIcon aria-hidden className="size-4" />{t.rest}</Button>
+      <Button variant="secondary" onClick={() => setShowCardioModal(true)} disabled={sessionOpen}><Footprints aria-hidden className="size-4" />{t.logCardio}</Button>
+      <Button onClick={() => setShowStartModal(true)} disabled={sessionOpen}><Play aria-hidden className="size-4" />{t.startWorkout}</Button>
     </>
   );
 
@@ -424,20 +643,20 @@ export default function ColiseoPage() {
       <div className="flex flex-wrap items-center gap-5">
         <IconChip icon={Dumbbell} tone="warning" size="md" className="lq-halo" />
         <div className="min-w-0 flex-1">
-          <span className="text-label-lg text-primary-text">Último entrenamiento</span>
+          <span className="text-label-lg text-primary-text">{t.lastWorkout}</span>
           <h2 id="coliseo-last" className="text-heading-lg">{latest.title}</h2>
-          <p className="text-body-sm text-on-surface-light">{longDate(latest.date)}{latest.duration ? ` · ${latest.duration} min` : ''}</p>
+          <p className="text-body-sm text-on-surface-light">{longDate(latest.date)}{latest.duration ? ` · ${t.durationMin(latest.duration)}` : ''}</p>
         </div>
-        <Badge variant="primary" size="lg" icon={Sparkles}>+{latest.xpEarned} XP</Badge>
-        <Button variant="icon" aria-label={`Eliminar entrenamiento ${latest.title}`} onClick={() => setPendingDelete({ kind: 'workout', id: latest.id, name: latest.title })}>
+        <Badge variant="primary" size="lg" icon={Sparkles}>{t.xpLabel(latest.xpEarned)}</Badge>
+        <Button variant="icon" aria-label={t.deleteWorkoutAria(latest.title)} onClick={() => setPendingDelete({ kind: 'workout', id: latest.id, name: latest.title })}>
           <Trash2 aria-hidden className="size-[18px]" strokeWidth={1.75} />
         </Button>
       </div>
       <dl className="grid grid-cols-3 gap-3 md:gap-4">
         {([
-          ['Duración', latest.duration ?? 0, (n: number) => (latest.duration ? `${Math.round(n)} min` : '—')],
-          ['Tonelaje', workoutTonnage(latest), kg],
-          ['Series', workoutSets(latest), (n: number) => String(Math.round(n))],
+          [t.durationLabel, latest.duration ?? 0, (n: number) => (latest.duration ? t.durationMin(Math.round(n)) : '—')],
+          [t.tonnageLabel, workoutTonnage(latest), kg],
+          [t.setsLabel, workoutSets(latest), (n: number) => String(Math.round(n))],
         ] as const).map(([k, v, f], i) => (
           <motion.div
             key={k} className="rounded-2xl border border-border bg-surface p-3 md:p-4"
@@ -450,7 +669,7 @@ export default function ColiseoPage() {
         ))}
       </dl>
       {latest.exercises.length > 0 && (
-        <ul className="flex flex-col" aria-label="Ejercicios y peso máximo">
+        <ul className="flex flex-col" aria-label={t.exercisesAria}>
           {latest.exercises.map((ex, i) => {
             const done = ex.sets.filter((s) => s.completed);
             const top = latestTops[i];
@@ -458,8 +677,8 @@ export default function ColiseoPage() {
               <li key={ex.id ?? i} className="group flex min-h-14 flex-col justify-center gap-2 border-b border-border py-2.5 last:border-0">
                 <div className="flex items-center gap-4">
                   <span className="min-w-0 flex-1 truncate text-body-md transition-transform duration-300 ease-expo group-hover:translate-x-1">{ex.exerciseName}</span>
-                  <span className="font-mono text-body-sm tabular-nums text-on-surface-light">{done.length} series</span>
-                  <span className="w-20 text-right font-mono text-label-lg tabular-nums">{top ? `${top} kg` : '—'}</span>
+                  <span className="font-mono text-body-sm tabular-nums text-on-surface-light">{t.setsCount(done.length)}</span>
+                  <span className="w-20 text-right font-mono text-label-lg tabular-nums">{top ? `${top} ${t.kgUnit}` : '—'}</span>
                 </div>
                 {top > 0 && <LoadBar pct={top / latestTop} delay={i * 0.08} />}
               </li>
@@ -475,12 +694,12 @@ export default function ColiseoPage() {
       <IconChip icon={Dumbbell} tone={ROUTINE_TONES[i % ROUTINE_TONES.length]} size="sm" />
       <div className="min-w-0 flex-1">
         <p className="truncate text-label-lg">{r.name}</p>
-        <p className="text-body-sm text-on-surface-light">{routineExerciseCount(r)} ejercicios{r.estimatedDuration ? ` · ${r.estimatedDuration} min` : ''}</p>
+        <p className="text-body-sm text-on-surface-light">{t.routineSummary(routineExerciseCount(r))}{r.estimatedDuration ? ` · ${t.durationMin(r.estimatedDuration)}` : ''}</p>
       </div>
-      <Button variant="icon" aria-label={`Eliminar rutina ${r.name}`} onClick={() => setPendingDelete({ kind: 'routine', id: r.id, name: r.name })}>
+      <Button variant="icon" aria-label={t.deleteRoutineAria(r.name)} onClick={() => setPendingDelete({ kind: 'routine', id: r.id, name: r.name })}>
         <Trash2 aria-hidden className="size-[18px]" strokeWidth={1.75} />
       </Button>
-      <Button variant="icon" aria-label={`Iniciar ${r.name}`} onClick={() => void startFromRoutine(r)} className="bg-primary/[var(--lq-soft-alpha)] text-primary-text hover:bg-primary/20">
+      <Button variant="icon" aria-label={t.startRoutineAria(r.name)} onClick={() => void startFromRoutine(r)} className="bg-primary/[var(--lq-soft-alpha)] text-primary-text hover:bg-primary/20">
         <Play aria-hidden className="size-[18px]" />
       </Button>
     </li>
@@ -488,7 +707,7 @@ export default function ColiseoPage() {
 
   return (
     <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-6 md:gap-8">
-      <SessionHeader title="Coliseo" description="Pesas, cardio, deporte o una caminata: cada sesión suma XP y fortalece a tu personaje." actions={startButtons} />
+      <SessionHeader title={t.title} description={t.description} actions={startButtons} />
 
       {/* Ciclo: intensidad sugerida para hoy (solo si la persona tiene la zona Ciclo) */}
       <motion.div variants={item}><CycleColiseoHint /></motion.div>
@@ -496,22 +715,22 @@ export default function ColiseoPage() {
       {state === 'ready' && <motion.div variants={item}><MuscleMap states={stats.muscles} now={stats.now} /></motion.div>}
 
       <motion.div variants={item}>
-        <Thud as="section" trigger={platesThisWeek} aria-label="Asistencia" className="flex flex-wrap items-center justify-between gap-x-6 gap-y-5 rounded-2xl border border-border bg-surface p-4 shadow-sm md:p-6">
+        <Thud as="section" trigger={platesThisWeek} aria-label={t.attendanceAria} className="flex flex-wrap items-center justify-between gap-x-6 gap-y-5 rounded-2xl border border-border bg-surface p-4 shadow-sm md:p-6">
           <div className="flex min-w-0 flex-[1_1_240px] flex-col gap-3">
             <div className="flex flex-col gap-1">
-              <h2 className="text-heading-sm">Asistencia de la semana</h2>
+              <h2 className="text-heading-sm">{t.attendanceTitle}</h2>
               <span className="flex items-center gap-1.5 text-body-sm text-warning-text">
                 <Flame aria-hidden className="size-4" />
                 <motion.span key={streak} initial={{ y: -8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={slam} className="inline-block font-mono tabular-nums">{streak}</motion.span>
-                {streak === 1 ? 'día seguido' : 'días seguidos'}
+                {streak === 1 ? t.streakOne : t.streakMany}
               </span>
             </div>
             <div className="flex items-center gap-3">
               <Barbell plates={platesThisWeek} className="max-w-[220px]" />
-              <span className="whitespace-nowrap font-mono text-label-md tabular-nums text-on-surface-light">{platesThisWeek}/7 discos</span>
+              <span className="whitespace-nowrap font-mono text-label-md tabular-nums text-on-surface-light">{t.platesWeek(platesThisWeek)}</span>
             </div>
           </div>
-          <ol className="flex w-full items-center justify-between gap-1 sm:w-auto sm:gap-2.5" aria-label="Asistencia de los últimos siete días">
+          <ol className="flex w-full items-center justify-between gap-1 sm:w-auto sm:gap-2.5" aria-label={t.weekListAria}>
             {attendanceDays.map((d, i) => (
               <li key={d.key} aria-label={d.aria} className="flex flex-col items-center gap-1.5">
                 <motion.span
@@ -527,22 +746,22 @@ export default function ColiseoPage() {
             ))}
           </ol>
           <Button size="md" disabled={attendedToday} loading={recordingAttendance} onClick={() => void recordAttendance()}>
-            {attendedToday ? <><Check aria-hidden className="size-4" />Registrada hoy</> : 'Registrar asistencia'}
+            {attendedToday ? <><Check aria-hidden className="size-4" />{t.loggedToday}</> : t.logAttendance}
           </Button>
         </Thud>
       </motion.div>
 
-      <motion.div variants={item} role="tablist" aria-label="Secciones del Coliseo" className="grid grid-cols-2 gap-4 lg:grid-cols-4"
+      <motion.div variants={item} role="tablist" aria-label={t.tabsAria} className="grid grid-cols-2 gap-4 lg:grid-cols-4"
         onKeyDown={(e) => {
-          const i = COLISEO_TABS.findIndex((t) => t.id === tab);
+          const i = COLISEO_TAB_IDS.findIndex((x) => x.id === tab);
           const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
           if (!d) return;
           e.preventDefault();
-          const next = COLISEO_TABS[(i + d + COLISEO_TABS.length) % COLISEO_TABS.length];
+          const next = COLISEO_TAB_IDS[(i + d + COLISEO_TAB_IDS.length) % COLISEO_TAB_IDS.length];
           changeTab(next.id);
           document.getElementById(`coliseo-tab-${next.id}`)?.focus();
         }}>
-        {COLISEO_TABS.map(({ id, label, helper, icon, tone }) => {
+        {tabs.map(({ id, label, helper, icon, tone }) => {
           const on = tab === id;
           return (
             <button
@@ -580,16 +799,16 @@ export default function ColiseoPage() {
         initial="enter" animate="center" exit="leave"
       >
         {state === 'loading' ? (
-          <PageLoader label="Calentando motores…" words={LOADING_COPY.coliseo} />
+          <PageLoader label={t.loadingLabel} words={loading.coliseo} />
         ) : state === 'error' ? (
-          <ErrorState title="No pudimos cargar tu Coliseo" onRetry={() => void load()} />
+          <ErrorState title={t.loadErr} onRetry={() => void load()} />
         ) : tab === 'history' ? (
           listed.length === 0 ? (
             <Card variant="elevated" padding="lg">
               <EmptyState
-                icon={Dumbbell} tone="warning" title="El Coliseo está listo para ti"
-                description="Registra ejercicios, pesos y repeticiones para convertir cada entrenamiento en progreso visible."
-                action={<Button onClick={() => setShowStartModal(true)}><Play aria-hidden className="size-4" />Iniciar entrenamiento</Button>}
+                icon={Dumbbell} tone="warning" title={t.emptyHistoryTitle}
+                description={t.emptyHistoryBody}
+                action={<Button onClick={() => setShowStartModal(true)}><Play aria-hidden className="size-4" />{t.startWorkout}</Button>}
                 className="py-6"
               />
             </Card>
@@ -599,27 +818,27 @@ export default function ColiseoPage() {
                 {lastCard}
                 <Card as="section" padding="lg" aria-labelledby="coliseo-vol" className="flex flex-col gap-5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h2 id="coliseo-vol" className="text-heading-sm">Tonelaje</h2>
+                    <h2 id="coliseo-vol" className="text-heading-sm">{t.volumeTitle}</h2>
                     {weekDelta !== null && (
                       <span className={cn('flex items-center gap-1.5 text-body-sm', weekDelta >= 0 ? 'text-success-text' : 'text-warning-text')}>
-                        <TrendingUp aria-hidden className={cn('size-4', weekDelta < 0 && '-scale-y-100')} />{weekDelta >= 0 ? '+' : ''}{weekDelta}% vs. semana pasada
+                        <TrendingUp aria-hidden className={cn('size-4', weekDelta < 0 && '-scale-y-100')} />{t.vsLastWeek(weekDelta >= 0 ? '+' : '', weekDelta)}
                       </span>
                     )}
                   </div>
-                  <p className="-mt-3 text-body-sm text-on-surface-light">Kilos movidos: peso × repeticiones de cada serie completada.</p>
+                  <p className="-mt-3 text-body-sm text-on-surface-light">{t.volumeHelp}</p>
                   <dl className="grid grid-cols-3 gap-2 md:gap-3">
-                    {([['Última sesión', stats.tons.session], ['7 días', stats.tons.week], ['30 días', stats.tons.month]] as const).map(([k, v]) => (
+                    {([[t.lastSession, stats.tons.session], [t.days7, stats.tons.week], [t.days30, stats.tons.month]] as const).map(([k, v]) => (
                       <div key={k} className="rounded-2xl border border-border bg-background p-3">
                         <dt className="text-body-sm text-on-surface-light">{k}</dt>
                         <dd className="font-mono text-label-lg font-bold tabular-nums md:text-heading-sm"><AnimatedValue value={v} format={kg} /></dd>
                       </div>
                     ))}
                   </dl>
-                  <LiftBars days={liftDays} label={`Tonelaje por día en kilos: ${weekly.days.map((d) => `${d.name} ${Math.round(d.vol)}`).join(', ')}`} />
+                  <LiftBars days={liftDays} label={t.tonnageAria(weekly.days.map((d) => `${d.name} ${Math.round(d.vol)}`).join(', '))} />
                 </Card>
                 {listed.length > 1 && (
                   <Card as="section" padding="lg" aria-labelledby="coliseo-prev" className="flex flex-col gap-2">
-                    <h2 id="coliseo-prev" className="mb-2 text-heading-sm">Sesiones anteriores</h2>
+                    <h2 id="coliseo-prev" className="mb-2 text-heading-sm">{t.previousTitle}</h2>
                     <ul className="flex flex-col">
                       {listed.slice(1, 9).map((w, i) => (
                         <motion.li
@@ -630,10 +849,10 @@ export default function ColiseoPage() {
                         >
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-label-lg">{w.title}</p>
-                            <p className="text-body-sm text-on-surface-light">{new Date(w.date).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '')}{w.duration ? ` · ${w.duration} min` : ''} · {w.kind === 'WALK' || w.kind === 'CARDIO' ? `${w.kind === 'WALK' ? 'Caminata' : 'Cardio'}${w.distanceKm ? ` · ${w.distanceKm} km` : ''}` : `${w.exercises?.length ?? 0} ejercicios`}</p>
+                            <p className="text-body-sm text-on-surface-light">{new Date(w.date).toLocaleDateString(nf, { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '')}{w.duration ? ` · ${t.durationMin(w.duration)}` : ''} · {w.kind === 'WALK' || w.kind === 'CARDIO' ? `${w.kind === 'WALK' ? t.cardioWalk : t.cardioShort}${w.distanceKm ? ` · ${t.distanceKm(w.distanceKm)}` : ''}` : t.exercisesCount(w.exercises?.length ?? 0)}</p>
                           </div>
-                          <Badge variant="primary" icon={Sparkles}>+{w.xpEarned} XP</Badge>
-                          <Button variant="icon" size="sm" aria-label={`Eliminar entrenamiento ${w.title}`} onClick={() => setPendingDelete({ kind: 'workout', id: w.id, name: w.title })}>
+                          <Badge variant="primary" icon={Sparkles}>{t.xpLabel(w.xpEarned)}</Badge>
+                          <Button variant="icon" size="sm" aria-label={t.deleteWorkoutAria(w.title)} onClick={() => setPendingDelete({ kind: 'workout', id: w.id, name: w.title })}>
                             <Trash2 aria-hidden className="size-4" strokeWidth={1.75} />
                           </Button>
                         </motion.li>
@@ -645,17 +864,17 @@ export default function ColiseoPage() {
               <aside className="flex min-w-0 flex-col gap-6">
                 <Card as="section" padding="lg" aria-labelledby="coliseo-routines" className="flex flex-col gap-2">
                   <div className="mb-2 flex items-center justify-between">
-                    <h2 id="coliseo-routines" className="text-heading-sm">Rutinas</h2>
-                    {routines.length > 0 && <Button variant="ghost" size="sm" onClick={() => changeTab('routines')}>Ver todas</Button>}
+                    <h2 id="coliseo-routines" className="text-heading-sm">{t.routinesTitle}</h2>
+                    {routines.length > 0 && <Button variant="ghost" size="sm" onClick={() => changeTab('routines')}>{t.seeAll}</Button>}
                   </div>
-                  {routines.length === 0 ? <p className="text-body-sm text-on-surface-light">Aún no tienes rutinas guardadas.</p> : <ul>{routineRows(routines.slice(0, 4))}</ul>}
+                  {routines.length === 0 ? <p className="text-body-sm text-on-surface-light">{t.noRoutines}</p> : <ul>{routineRows(routines.slice(0, 4))}</ul>}
                 </Card>
                 <Card as="section" padding="lg" aria-labelledby="coliseo-prs" className="flex flex-col gap-3">
-                  <h2 id="coliseo-prs" className="text-heading-sm">Récords personales</h2>
-                  {records.length === 0 ? <p className="text-body-sm text-on-surface-light">Completa series con peso para ver tus récords.</p> : records.map((p) => (
+                  <h2 id="coliseo-prs" className="text-heading-sm">{t.recordsTitle}</h2>
+                  {records.length === 0 ? <p className="text-body-sm text-on-surface-light">{t.noRecords}</p> : records.map((p) => (
                     <div key={p.name} className="flex flex-col gap-1.5">
-                      <div className="flex items-center justify-between"><span className="text-body-md">{p.name}</span><span className="font-mono text-label-lg tabular-nums">{p.weight} kg</span></div>
-                      <ProgressBar value={p.pct} tone="warning" shine label={`${p.name}: ${p.weight} kilos`} />
+                      <div className="flex items-center justify-between"><span className="text-body-md">{p.name}</span><span className="font-mono text-label-lg tabular-nums">{t.recordKg(p.weight)}</span></div>
+                      <ProgressBar value={p.pct} tone="warning" shine label={t.recordAria(p.name, p.weight)} />
                     </div>
                   ))}
                 </Card>
@@ -666,9 +885,9 @@ export default function ColiseoPage() {
           routines.length === 0 ? (
             <Card variant="elevated" padding="lg">
               <EmptyState
-                icon={ClipboardList} tone="forest" title="Aún no tienes una rutina guardada"
-                description="Empieza una sesión libre y convierte tus ejercicios favoritos en una ruta fácil de repetir."
-                action={<Button onClick={() => setShowStartModal(true)}>Iniciar sesión libre</Button>} className="py-6"
+                icon={ClipboardList} tone="forest" title={t.emptyRoutinesTitle}
+                description={t.emptyRoutinesBody}
+                action={<Button onClick={() => setShowStartModal(true)}>{t.freeSession}</Button>} className="py-6"
               />
             </Card>
           ) : (
@@ -684,16 +903,16 @@ export default function ColiseoPage() {
                   </div>
                   <p className="text-body-sm text-on-surface">
                     {r.days.length > 0
-                      ? r.days.filter((day) => !day.isRestDay).map((day) => `${WEEKDAY_LABELS[day.weekday]}: ${day.exercises.map((x) => x.exercise.name).join(', ') || 'descanso'}`).join(' · ')
+                      ? r.days.filter((day) => !day.isRestDay).map((day) => `${t.weekdays[day.weekday]}: ${day.exercises.map((x) => x.exercise.name).join(', ') || t.restWord}`).join(' · ')
                       : r.exercises.map((x) => x.name).join(' · ')}
                   </p>
                   <div className="mt-auto flex items-center justify-between gap-3">
-                    <span className="font-mono text-body-sm tabular-nums text-on-surface-light">{routineExerciseCount(r)} ejercicios{r.estimatedDuration ? ` · ~${r.estimatedDuration} min` : ''}</span>
+                    <span className="font-mono text-body-sm tabular-nums text-on-surface-light">{t.routineSummary(routineExerciseCount(r))}{r.estimatedDuration ? ` · ${t.durationEst(r.estimatedDuration)}` : ''}</span>
                     <div className="flex items-center gap-2">
-                      <Button variant="icon" aria-label={`Eliminar rutina ${r.name}`} onClick={() => setPendingDelete({ kind: 'routine', id: r.id, name: r.name })}>
+                      <Button variant="icon" aria-label={t.deleteRoutineAria(r.name)} onClick={() => setPendingDelete({ kind: 'routine', id: r.id, name: r.name })}>
                         <Trash2 aria-hidden className="size-[18px]" strokeWidth={1.75} />
                       </Button>
-                      <Button size="md" onClick={() => void startFromRoutine(r)}><Play aria-hidden className="size-4" />Iniciar</Button>
+                      <Button size="md" onClick={() => void startFromRoutine(r)}><Play aria-hidden className="size-4" />{t.start}</Button>
                     </div>
                   </div>
                 </Card>
@@ -724,48 +943,47 @@ export default function ColiseoPage() {
       </AnimatePresence>
 
       {/* Confirmación para no borrar por accidente una rutina o un entrenamiento */}
-      <Modal open={!!pendingDelete} onClose={() => { if (!deleting) setPendingDelete(null); }} title={pendingDelete?.kind === 'routine' ? 'Eliminar rutina' : 'Eliminar entrenamiento'}>
+      <Modal open={!!pendingDelete} onClose={() => { if (!deleting) setPendingDelete(null); }} title={pendingDelete?.kind === 'routine' ? t.deleteTitleRoutine : t.deleteTitleWorkout}>
         <div className="flex flex-col gap-4">
           <p className="text-body-md text-on-surface">
-            ¿Seguro que quieres eliminar {pendingDelete?.kind === 'routine' ? 'la rutina' : 'el entrenamiento'}{' '}
-            <span className="font-semibold">«{pendingDelete?.name}»</span>? Esta acción no se puede deshacer.
+            {t.confirmDelete(pendingDelete?.kind === 'routine' ? 'routine' : 'workout', pendingDelete?.name ?? '')}
           </p>
           <div className="flex gap-3">
-            <Button variant="ghost" className="flex-1" disabled={deleting} onClick={() => setPendingDelete(null)}>Cancelar</Button>
-            <Button variant="danger" className="flex-1" loading={deleting} onClick={() => void confirmDelete()}>Eliminar</Button>
+            <Button variant="ghost" className="flex-1" disabled={deleting} onClick={() => setPendingDelete(null)}>{t.cancel}</Button>
+            <Button variant="danger" className="flex-1" loading={deleting} onClick={() => void confirmDelete()}>{t.deleteBtn}</Button>
           </div>
         </div>
       </Modal>
 
-      <Modal open={showStartModal} onClose={() => setShowStartModal(false)} title="Nuevo entrenamiento">
+      <Modal open={showStartModal} onClose={() => setShowStartModal(false)} title={t.newWorkoutTitle}>
         <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); void startWorkout(); }}>
-          <Field label="Nombre del entrenamiento">
-            <Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Empuje, piernas…" autoFocus />
+          <Field label={t.workoutName}>
+            <Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder={t.workoutNamePlaceholder} autoFocus />
           </Field>
           <div className="flex gap-3">
-            <Button type="button" variant="ghost" className="flex-1" onClick={() => setShowStartModal(false)}>Cancelar</Button>
-            <Button type="submit" className="flex-1" disabled={!newTitle.trim()}>¡Empezar!</Button>
+            <Button type="button" variant="ghost" className="flex-1" onClick={() => setShowStartModal(false)}>{t.cancel}</Button>
+            <Button type="submit" className="flex-1" disabled={!newTitle.trim()}>{t.letsGo}</Button>
           </div>
         </form>
       </Modal>
 
-      <Modal open={showCardioModal} onClose={() => setShowCardioModal(false)} title="Registrar cardio">
+      <Modal open={showCardioModal} onClose={() => setShowCardioModal(false)} title={t.logCardio}>
         <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); void logCardio(); }}>
-          <ChipGroup label="Tipo de actividad" options={CARDIO_OPTIONS} value={cardioKind} onChange={setCardioKind} />
-          <Field label="Tiempo (minutos)">
+          <ChipGroup label={t.cardioTypeLabel} options={cardioOptions} value={cardioKind} onChange={setCardioKind} />
+          <Field label={t.minutesLabel}>
             <Input type="number" inputMode="numeric" min={1} max={1440} step={1} value={cardioMinutes} onChange={(e) => setCardioMinutes(e.target.value)} placeholder="30" autoFocus />
           </Field>
-          <Field label="Distancia (km, opcional)">
-            <Input type="number" inputMode="decimal" min={0} max={1000} step={0.1} value={cardioKm} onChange={(e) => setCardioKm(e.target.value)} placeholder="3,5" />
+          <Field label={t.kmLabel}>
+            <Input type="number" inputMode="decimal" min={0} max={1000} step={0.1} value={cardioKm} onChange={(e) => setCardioKm(e.target.value)} placeholder={t.kmPlaceholder} />
           </Field>
           <div className="flex gap-3">
-            <Button type="button" variant="ghost" className="flex-1" onClick={() => setShowCardioModal(false)}>Cancelar</Button>
-            <Button type="submit" className="flex-1" disabled={cardioSaving || !(Number(cardioMinutes) >= 1)}>Guardar</Button>
+            <Button type="button" variant="ghost" className="flex-1" onClick={() => setShowCardioModal(false)}>{t.cancel}</Button>
+            <Button type="submit" className="flex-1" disabled={cardioSaving || !(Number(cardioMinutes) >= 1)}>{t.save}</Button>
           </div>
         </form>
       </Modal>
 
-      <Modal open={!!summary} onClose={() => setSummary(null)} title="¡Sesión completada!" hideClose className="items-center text-center">
+      <Modal open={!!summary} onClose={() => setSummary(null)} title={t.summaryTitle} hideClose className="items-center text-center">
         {summary && (
           <>
             <Confetti />
@@ -775,8 +993,8 @@ export default function ColiseoPage() {
             <SummaryXP xp={summary.xp} />
             <dl className="grid grid-cols-3 gap-2">
               {(summary.cardio
-                ? [['Tiempo', formatClock(summary.seconds)], ['Distancia', summary.cardio.distanceKm ? `${summary.cardio.distanceKm} km` : '—'], ['Tipo', summary.cardio.label]]
-                : [['Tiempo', formatClock(summary.seconds)], ['Series', String(summary.sets)], ['Tonelaje', kg(summary.volume)]]).map(([k, v], i) => (
+                ? [[t.timeLabel, formatClock(summary.seconds)], [t.distanceLabel, summary.cardio.distanceKm ? t.distanceKm(summary.cardio.distanceKm) : '—'], [t.typeLabel, summary.cardio.label]]
+                : [[t.timeLabel, formatClock(summary.seconds)], [t.setsLabel, String(summary.sets)], [t.tonnageLabel, kg(summary.volume)]]).map(([k, v], i) => (
                 <motion.div
                   key={k} className="rounded-xl border border-border bg-surface px-2 py-3"
                   initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} transition={{ ...slam, delay: 0.45 + i * 0.09 }}
@@ -786,7 +1004,7 @@ export default function ColiseoPage() {
                 </motion.div>
               ))}
             </dl>
-            <Button block onClick={() => setSummary(null)}>Continuar</Button>
+            <Button block onClick={() => setSummary(null)}>{t.continueBtn}</Button>
           </>
         )}
       </Modal>

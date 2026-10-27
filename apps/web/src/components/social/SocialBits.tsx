@@ -8,6 +8,21 @@ import { cn } from '@/lib/utils';
 import { springs } from '@/lib/motion/presets';
 import { STREAK_MIN, type StreakView } from '@/services/network.service';
 import { AvatarDisplay } from '@/components/character/AvatarDisplay';
+import { useText, type Copy } from '@/lib/i18n';
+
+const es = {
+  burning: (n: number): string => `Racha de ${n} días: hoy ya cuenta`,
+  waiting: (n: number): string => `Racha de ${n} días: escríbanse hoy para mantenerla`,
+  ember: 'Racha apagada: todavía pueden revivirla',
+};
+
+const en: typeof es = {
+  burning: (n: number): string => `${n}-day streak: today already counts`,
+  waiting: (n: number): string => `${n}-day streak: talk today to keep it`,
+  ember: 'Streak out: it can still be revived',
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 /** Avatar redondo con su punto verde de "en línea". */
 export function PresenceAvatar({ user, online, size = 44, className }: {
@@ -43,13 +58,14 @@ export const isLit = (s: FlameStreak) => s.active ?? (s.alive && s.count >= STRE
  * Antes del tercer día no se dibuja nada.
  */
 export function StreakFlame({ streak, size = 'md', className, label }: { streak: FlameStreak; size?: 'sm' | 'md' | 'lg'; className?: string; label?: string }) {
+  const t = useText(COPY);
   const reduce = useReducedMotionConfig();
   const lit = isLit(streak);
   if (!lit && !streak.revivable) return null;
   const icon = { sm: 'size-3.5', md: 'size-4', lg: 'size-6' }[size];
   const text = { sm: 'text-body-sm', md: 'text-label-lg', lg: 'text-heading-sm' }[size];
   const state = !lit ? 'ember' : streak.doneToday ? 'burning' : 'waiting';
-  const title = label ?? (state === 'burning' ? `Racha de ${streak.count} días: hoy ya cuenta` : state === 'waiting' ? `Racha de ${streak.count} días: escríbanse hoy para mantenerla` : 'Racha apagada: todavía pueden revivirla');
+  const title = label ?? (state === 'burning' ? t.burning(streak.count) : state === 'waiting' ? t.waiting(streak.count) : t.ember);
   return (
     <span
       className={cn('inline-flex items-center gap-1 font-mono tabular-nums', text,

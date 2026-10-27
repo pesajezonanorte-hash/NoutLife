@@ -15,17 +15,146 @@ import { useAuthStore } from '../../store/authStore';
 import { useToast } from '../../hooks/useToast';
 import type { AvatarConfig, AvatarMode } from '@noutlife/shared';
 import { Badge, Button, Field, Input, SegmentedControl } from '@/components/ui/lq';
+import { useText, type Copy } from '@/lib/i18n';
+
+const es = {
+  readError: 'Error al leer el archivo',
+  skinPng: 'La skin debe ser un archivo PNG.',
+  skinTooBig: 'La skin supera el límite de 1 MB.',
+  skinSize: 'Usa una skin estándar de Minecraft de 64×64 o 64×32 píxeles.',
+  skinPrep: 'No se pudo preparar la vista previa de la skin.',
+  skinRead: 'No se pudo leer la skin de Minecraft.',
+  skinFileRead: 'No se pudo leer el archivo de skin.',
+  pixelSaved: '¡Avatar pixel guardado!',
+  saveErr: 'Error al guardar el avatar. Intenta de nuevo.',
+  notImage: 'Por favor selecciona un archivo de imagen válido.',
+  processImg: 'Error al procesar la imagen.',
+  skinReady: 'Skin lista para previsualizar. Guarda y equipa para aplicarla.',
+  skinProcess: 'No se pudo procesar la skin.',
+  previewUpdated: 'Vista previa actualizada ',
+  photoSaved: '¡Foto de perfil actualizada!',
+  photoRemoved: 'Foto de perfil eliminada.',
+  photoSaveErr: 'Error al actualizar foto de perfil.',
+  removedUseSkin: 'Foto eliminada, se usará tu skin de Minecraft.',
+  removedUsePixel: 'Foto eliminada, se usará tu avatar pixel.',
+  photoRemoveErr: 'Error al quitar foto.',
+  skinSelectFirst: 'Selecciona una skin de Minecraft antes de guardarla.',
+  skinSaved: '¡Skin de Minecraft guardada y equipada!',
+  skinNotConfirmed: 'La API no confirmó la skin. Tu vista previa se conserva: inténtalo de nuevo.',
+  skinSaveErr: 'Error al guardar la skin de Minecraft. Tu vista previa se conserva.',
+  skinRemovedPhoto: 'Skin eliminada, se usará tu foto de perfil.',
+  skinRemovedPixel: 'Skin eliminada, se usará tu avatar pixel.',
+  skinRemoveErr: 'Error al quitar la skin de Minecraft.',
+  close: 'Cerrar',
+  title: 'Tu personaje',
+  typeAria: 'Tipo de avatar',
+  tabPixel: 'Pixel',
+  tabPhoto: 'Foto',
+  tabSkin: 'Skin MC',
+  done: 'Listo',
+  save: 'Guardar',
+  photoIntro: 'Sube una foto desde tu dispositivo o pega el enlace de una imagen.',
+  photoAlt: 'Vista previa de tu foto',
+  loadImgErr: 'No se pudo cargar la imagen desde el enlace.',
+  photoActive: 'Foto activa',
+  uploadAria: 'Subir foto',
+  selfieAria: 'Tomar selfie',
+  selfie: 'Tomar selfie',
+  fromDevice: 'Subir desde el dispositivo',
+  adjust: 'Ajustar encuadre',
+  pasteLink: 'O pega un enlace',
+  see: 'Ver',
+  savePhoto: 'Guardar foto de perfil',
+  removePhoto: 'Quitar foto',
+  skinIntro: 'Sube una textura PNG de Minecraft; se dibuja como tu personaje en 3D sin borrar tu foto ni tu avatar pixel.',
+  skinEmpty: 'Tu skin aparecerá aquí',
+  skinHint: 'Skins Java de 64×64 o clásicas de 64×32.',
+  changeSkin: 'Cambiar skin',
+  uploadSkin: 'Subir skin',
+  tempTitle: 'Vista previa temporal.',
+  tempBody: 'Guarda y equipa la skin para aplicarla. Si cierras la pestaña, la selección se conserva al volver.',
+  skinFoot: 'PNG de 64×64 (las de 64×32 se adaptan). Solo se guarda en tu perfil al pulsar el botón; no se envía a ningún visor externo.',
+  saveEquip: 'Guardar y equipar skin',
+  equip: 'Equipar skin',
+  removeSkin: 'Quitar skin',
+  photoAdjusted: 'Foto ajustada. Guárdala para aplicarla.',
+};
+
+const en: typeof es = {
+  readError: 'Could not read the file',
+  skinPng: 'The skin must be a PNG file.',
+  skinTooBig: 'The skin is over the 1 MB limit.',
+  skinSize: 'Use a standard Minecraft skin of 64×64 or 64×32 pixels.',
+  skinPrep: 'Could not prepare the skin preview.',
+  skinRead: 'Could not read the Minecraft skin.',
+  skinFileRead: 'Could not read the skin file.',
+  pixelSaved: 'Pixel avatar saved!',
+  saveErr: 'Error saving the avatar. Try again.',
+  notImage: 'Please select a valid image file.',
+  processImg: 'Error processing the image.',
+  skinReady: 'Skin ready to preview. Save and equip it to apply it.',
+  skinProcess: 'Could not process the skin.',
+  previewUpdated: 'Preview updated ',
+  photoSaved: 'Profile photo updated!',
+  photoRemoved: 'Profile photo removed.',
+  photoSaveErr: 'Error updating the profile photo.',
+  removedUseSkin: 'Photo removed, your Minecraft skin will be used.',
+  removedUsePixel: 'Photo removed, your pixel avatar will be used.',
+  photoRemoveErr: 'Error removing the photo.',
+  skinSelectFirst: 'Select a Minecraft skin before saving it.',
+  skinSaved: 'Minecraft skin saved and equipped!',
+  skinNotConfirmed: 'The API did not confirm the skin. Your preview is kept: try again.',
+  skinSaveErr: 'Error saving the Minecraft skin. Your preview is kept.',
+  skinRemovedPhoto: 'Skin removed, your profile photo will be used.',
+  skinRemovedPixel: 'Skin removed, your pixel avatar will be used.',
+  skinRemoveErr: 'Error removing the Minecraft skin.',
+  close: 'Close',
+  title: 'Your character',
+  typeAria: 'Avatar type',
+  tabPixel: 'Pixel',
+  tabPhoto: 'Photo',
+  tabSkin: 'MC Skin',
+  done: 'Done',
+  save: 'Save',
+  photoIntro: 'Upload a photo from your device or paste an image link.',
+  photoAlt: 'Preview of your photo',
+  loadImgErr: 'Could not load the image from that link.',
+  photoActive: 'Photo active',
+  uploadAria: 'Upload photo',
+  selfieAria: 'Take a selfie',
+  selfie: 'Take a selfie',
+  fromDevice: 'Upload from device',
+  adjust: 'Adjust framing',
+  pasteLink: 'Or paste a link',
+  see: 'View',
+  savePhoto: 'Save profile photo',
+  removePhoto: 'Remove photo',
+  skinIntro: 'Upload a Minecraft PNG texture; it is drawn as your 3D character without deleting your photo or your pixel avatar.',
+  skinEmpty: 'Your skin will appear here',
+  skinHint: 'Java skins of 64×64 or classic ones of 64×32.',
+  changeSkin: 'Change skin',
+  uploadSkin: 'Upload skin',
+  tempTitle: 'Temporary preview.',
+  tempBody: 'Save and equip the skin to apply it. If you close the tab, your selection is kept when you come back.',
+  skinFoot: 'PNG of 64×64 (64×32 ones are adapted). It is only saved to your profile when you press the button; it is not sent to any external viewer.',
+  saveEquip: 'Save and equip skin',
+  equip: 'Equip skin',
+  removeSkin: 'Remove skin',
+  photoAdjusted: 'Photo adjusted. Save it to apply it.',
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
 }
 
-function readAsDataUrl(file: File): Promise<string> {
+function readAsDataUrl(file: File, t: typeof es): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(new Error('Error al leer el archivo'));
+    reader.onerror = () => reject(new Error(t.readError));
     reader.readAsDataURL(file);
   });
 }
@@ -78,15 +207,15 @@ function initialTabFor(config: AvatarConfig | undefined, avatarUrl?: string | nu
  * 64×64 by reusing the old right-side limbs, so they still render as a complete
  * character without altering the original user's photo/avatar options.
  */
-function normalizeMinecraftSkin(file: File): Promise<string> {
+function normalizeMinecraftSkin(file: File, t: typeof es): Promise<string> {
   return new Promise((resolve, reject) => {
     const isPng = file.type === 'image/png' || file.name.toLowerCase().endsWith('.png');
     if (!isPng) {
-      reject(new Error('La skin debe ser un archivo PNG.'));
+      reject(new Error(t.skinPng));
       return;
     }
     if (file.size > MAX_MINECRAFT_SKIN_BYTES) {
-      reject(new Error('La skin supera el límite de 1 MB.'));
+      reject(new Error(t.skinTooBig));
       return;
     }
 
@@ -97,7 +226,7 @@ function normalizeMinecraftSkin(file: File): Promise<string> {
         const isModern = image.naturalWidth === MINECRAFT_SKIN_SIZE && image.naturalHeight === MINECRAFT_SKIN_SIZE;
         const isLegacy = image.naturalWidth === MINECRAFT_SKIN_SIZE && image.naturalHeight === MINECRAFT_SKIN_SIZE / 2;
         if (!isModern && !isLegacy) {
-          reject(new Error('Usa una skin estándar de Minecraft de 64×64 o 64×32 píxeles.'));
+          reject(new Error(t.skinSize));
           return;
         }
 
@@ -106,7 +235,7 @@ function normalizeMinecraftSkin(file: File): Promise<string> {
         canvas.height = MINECRAFT_SKIN_SIZE;
         const context = canvas.getContext('2d');
         if (!context) {
-          reject(new Error('No se pudo preparar la vista previa de la skin.'));
+          reject(new Error(t.skinPrep));
           return;
         }
 
@@ -123,15 +252,16 @@ function normalizeMinecraftSkin(file: File): Promise<string> {
 
         resolve(canvas.toDataURL('image/png'));
       };
-      image.onerror = () => reject(new Error('No se pudo leer la skin de Minecraft.'));
+      image.onerror = () => reject(new Error(t.skinRead));
       image.src = reader.result as string;
     };
-    reader.onerror = () => reject(new Error('No se pudo leer el archivo de skin.'));
+    reader.onerror = () => reject(new Error(t.skinFileRead));
     reader.readAsDataURL(file);
   });
 }
 
 export function AvatarCustomizer({ isOpen, onClose }: Props) {
+  const t = useText(COPY);
   const { user, updateUser } = useAuthStore();
   const toast = useToast();
   const [activeTab, setActiveTab] = useState<AvatarTab>(() => initialTabFor(user?.avatarConfig, user?.avatarUrl));
@@ -184,10 +314,10 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
       setConfig(withDefaults(updatedUser.avatarConfig));
       updateUser(updatedUser);
       setCelebrate((c) => c + 1);
-      toast.success('¡Avatar pixel guardado!');
+      toast.success(t.pixelSaved);
       window.setTimeout(() => { setCelebrate(0); onClose(); }, 1500);
     } catch {
-      toast.error('Error al guardar el avatar. Intenta de nuevo.');
+      toast.error(t.saveErr);
     } finally {
       setSaving(false);
     }
@@ -198,15 +328,15 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      toast.error('Por favor selecciona un archivo de imagen válido.');
+      toast.error(t.notImage);
       return;
     }
 
     try {
       // Primero se encuadra (zoom, posición, giro); el recorte genera el JPEG final.
-      setCropSrc(await readAsDataUrl(file));
+      setCropSrc(await readAsDataUrl(file, t));
     } catch {
-      toast.error('Error al procesar la imagen.');
+      toast.error(t.processImg);
     } finally {
       e.target.value = '';
     }
@@ -217,12 +347,12 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
     if (!file) return;
 
     try {
-      const normalizedSkin = await normalizeMinecraftSkin(file);
+      const normalizedSkin = await normalizeMinecraftSkin(file, t);
       setSkinUrl(normalizedSkin);
       saveMinecraftSkinDraft(user?.id, normalizedSkin);
-      toast.success('Skin lista para previsualizar. Guarda y equipa para aplicarla.');
+      toast.success(t.skinReady);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'No se pudo procesar la skin.');
+      toast.error(error instanceof Error ? error.message : t.skinProcess);
     } finally {
       // Allows choosing the same file again after correcting or removing it.
       e.target.value = '';
@@ -233,7 +363,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
     if (!urlInput.trim()) return;
     setPhotoUrl(urlInput.trim());
     setUrlInput('');
-    toast.success('Vista previa actualizada ');
+    toast.success(t.previewUpdated);
   };
 
   const handleSavePhotoProfile = async () => {
@@ -244,10 +374,10 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
       const updatedUser = await updateProfile({ avatarUrl: photoUrl.trim() || null });
       setConfig(withDefaults(updatedUser.avatarConfig));
       updateUser(updatedUser);
-      toast.success(photoUrl ? '¡Foto de perfil actualizada!' : 'Foto de perfil eliminada.');
+      toast.success(photoUrl ? t.photoSaved : t.photoRemoved);
       onClose();
     } catch {
-      toast.error('Error al actualizar foto de perfil.');
+      toast.error(t.photoSaveErr);
     } finally {
       setSaving(false);
     }
@@ -262,9 +392,9 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
       setConfig(withDefaults(updatedUser.avatarConfig));
       setPhotoUrl('');
       updateUser(updatedUser);
-      toast.success(skinUrl ? 'Foto eliminada, se usará tu skin de Minecraft.' : 'Foto eliminada, se usará tu avatar pixel.');
+      toast.success(skinUrl ? t.removedUseSkin : t.removedUsePixel);
     } catch {
-      toast.error('Error al quitar foto.');
+      toast.error(t.photoRemoveErr);
     } finally {
       setSaving(false);
     }
@@ -272,7 +402,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
 
   const handleSaveMinecraftSkin = async () => {
     if (!skinUrl) {
-      toast.error('Selecciona una skin de Minecraft antes de guardarla.');
+      toast.error(t.skinSelectFirst);
       return;
     }
 
@@ -289,12 +419,12 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
       clearMinecraftSkinDraft(user?.id);
       setConfig(withDefaults(updatedUser.avatarConfig));
       updateUser(updatedUser);
-      toast.success('¡Skin de Minecraft guardada y equipada!');
+      toast.success(t.skinSaved);
       onClose();
     } catch (error) {
       toast.error(error instanceof Error && error.message === 'SKIN_NOT_PERSISTED'
-        ? 'La API no confirmó la skin. Tu vista previa se conserva: inténtalo de nuevo.'
-        : 'Error al guardar la skin de Minecraft. Tu vista previa se conserva.');
+        ? t.skinNotConfirmed
+        : t.skinSaveErr);
     } finally {
       setSaving(false);
     }
@@ -313,9 +443,9 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
       setConfig(withDefaults(updatedUser.avatarConfig));
       setSkinUrl('');
       updateUser(updatedUser);
-      toast.success(photoUrl ? 'Skin eliminada, se usará tu foto de perfil.' : 'Skin eliminada, se usará tu avatar pixel.');
+      toast.success(photoUrl ? t.skinRemovedPhoto : t.skinRemovedPixel);
     } catch {
-      toast.error('Error al quitar la skin de Minecraft.');
+      toast.error(t.skinRemoveErr);
     } finally {
       setSaving(false);
     }
@@ -325,9 +455,9 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const tabs = [
-    { value: 'pixel' as const, label: 'Pixel' },
-    { value: 'photo' as const, label: 'Foto' },
-    { value: 'minecraft' as const, label: 'Skin MC' },
+    { value: 'pixel' as const, label: t.tabPixel },
+    { value: 'photo' as const, label: t.tabPhoto },
+    { value: 'minecraft' as const, label: t.tabSkin },
   ];
 
   // Diálogo a pantalla completa: Escape cierra, el foco queda dentro y vuelve
@@ -336,7 +466,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
     if (!isOpen) return;
     const opener = document.activeElement as HTMLElement | null;
     lockScroll();
-    const t = window.setTimeout(() => closeRef.current?.focus(), 50);
+    const timer = window.setTimeout(() => closeRef.current?.focus(), 50);
     const onKey = (e: KeyboardEvent) => {
       // Con el recorte abierto, Escape solo lo cancela.
       if (e.key === 'Escape') { e.preventDefault(); if (cropOpen.current) setCropSrc(null); else onClose(); return; }
@@ -348,7 +478,7 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     };
     document.addEventListener('keydown', onKey);
-    return () => { window.clearTimeout(t); document.removeEventListener('keydown', onKey); unlockScroll(); opener?.focus?.(); };
+    return () => { window.clearTimeout(timer); document.removeEventListener('keydown', onKey); unlockScroll(); opener?.focus?.(); };
   }, [isOpen, onClose]);
 
   // En el body: un ancestro con transform o filtro haría que el fixed se pintara dentro de la página.
@@ -373,17 +503,17 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
             className="relative flex size-full flex-col overflow-hidden bg-background text-on-background shadow-lg md:rounded-[28px] md:border md:border-border"
           >
             <header className="flex h-16 shrink-0 items-center gap-2 border-b border-border px-2 md:gap-4 md:px-5">
-              <Button ref={closeRef} variant="icon" aria-label="Cerrar" onClick={onClose}>
+              <Button ref={closeRef} variant="icon" aria-label={t.close} onClick={onClose}>
                 <X aria-hidden className="size-6" strokeWidth={1.75} />
               </Button>
-              <h2 id={titleId} className="hidden text-heading-sm md:block">Tu personaje</h2>
+              <h2 id={titleId} className="hidden text-heading-sm md:block">{t.title}</h2>
               <div className="mx-auto w-full max-w-[280px]">
-                <SegmentedControl role="tablist" label="Tipo de avatar" value={activeTab} onChange={setActiveTab} options={tabs} />
+                <SegmentedControl role="tablist" label={t.typeAria} value={activeTab} onChange={setActiveTab} options={tabs} />
               </div>
               {activeTab === 'pixel' ? (
                 <motion.span key="save" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
                   <Button size="md" loading={saving} onClick={handleSavePixelAvatar} className="min-w-[104px]">
-                    {celebrate ? <><Check aria-hidden className="size-5" strokeWidth={2.25} />Listo</> : 'Guardar'}
+                    {celebrate ? <><Check aria-hidden className="size-5" strokeWidth={2.25} />{t.done}</> : t.save}
                   </Button>
                 </motion.span>
               ) : <span aria-hidden className="w-11 shrink-0 md:w-[104px]" />}
@@ -401,95 +531,93 @@ export function AvatarCustomizer({ isOpen, onClose }: Props) {
                   <div className="min-h-0 flex-1 overflow-y-auto">
                     <div className="mx-auto flex w-full max-w-md flex-col gap-6 px-4 py-6">
                       {activeTab === 'photo' ? (
-                        <>
-                      {cropSrc ? (
-                        <PhotoCropper
-                          src={cropSrc}
-                          onCancel={() => setCropSrc(null)}
-                          onApply={(url) => { setPhotoUrl(url); setCropSrc(null); toast.success('Foto ajustada. Guárdala para aplicarla.'); }}
-                        />
-                      ) : (
-                        <>
-                      <p className="text-body-md text-on-surface-light">Sube una foto desde tu dispositivo o pega el enlace de una imagen.</p>
-                      <div className="relative flex justify-center pb-3">
-                        <span className="flex size-36 items-center justify-center overflow-hidden rounded-full bg-surface-variant shadow-[0_0_0_4px_rgb(var(--lq-background)),0_0_0_6px_rgb(var(--lq-primary)/0.4)]">
-                          {photoUrl ? (
-                            <img src={photoUrl} alt="Vista previa de tu foto" className="size-full object-cover" onError={() => toast.error('No se pudo cargar la imagen desde el enlace.')} />
-                          ) : (
-                            <AvatarPreview config={config} size={104} className="bg-transparent" />
-                          )}
-                        </span>
-                        {photoUrl && <Badge variant="success" className="absolute bottom-0 left-1/2 -translate-x-1/2">Foto activa</Badge>}
-                      </div>
-                      <input type="file" aria-label="Subir foto" ref={fileInputRef} onChange={handleFileSelect} accept="image/*" className="hidden" tabIndex={-1} />
-                      {/* La cámara frontal abre directamente en Android/iOS dentro de la PWA. */}
-                      <input type="file" aria-label="Tomar selfie" ref={selfieInputRef} onChange={handleFileSelect} accept="image/*" capture="user" className="hidden" tabIndex={-1} />
-                      <Button variant="secondary" block onClick={() => selfieInputRef.current?.click()}>
-                        <Camera aria-hidden className="size-5" strokeWidth={1.75} />Tomar selfie
-                      </Button>
-                      <Button variant="ghost" block onClick={() => fileInputRef.current?.click()}>
-                        <Upload aria-hidden className="size-5" strokeWidth={1.75} />Subir desde el dispositivo
-                      </Button>
-                      {photoUrl && (
-                        <Button variant="ghost" block onClick={() => setCropSrc(photoUrl)}>
-                          <Crop aria-hidden className="size-5" strokeWidth={1.75} />Ajustar encuadre
-                        </Button>
-                      )}
-                      <div className="flex items-end gap-2">
-                        <Field label="O pega un enlace" className="flex-1">
-                          <Input type="url" value={urlInput} onChange={(e) => setUrlInput(e.target.value)} placeholder="https://ejemplo.com/foto.jpg" />
-                        </Field>
-                        <Button variant="secondary" onClick={handleApplyUrl} disabled={!urlInput.trim()} className="min-h-12">
-                          <LinkIcon aria-hidden className="size-5" strokeWidth={1.75} />Ver
-                        </Button>
-                      </div>
-                      <div className="flex flex-col gap-2 border-t border-border pt-4">
-                        <Button size="lg" block loading={saving} onClick={handleSavePhotoProfile}>Guardar foto de perfil</Button>
-                        {user?.avatarUrl && (
-                          <Button variant="danger" block disabled={saving} onClick={handleRemovePhoto}>
-                            <Trash2 aria-hidden className="size-5" strokeWidth={1.75} />Quitar foto
-                          </Button>
-                        )}
-                      </div>
-                        </>
-                      )}
-                        </>
-                      ) : (
-                        <>
-                      <p className="text-body-md text-on-surface-light">Sube una textura PNG de Minecraft; se dibuja como tu personaje en 3D sin borrar tu foto ni tu avatar pixel.</p>
-                      <div className="flex min-h-[224px] items-center justify-center rounded-2xl border border-border bg-surface p-5">
-                        {skinUrl ? (
-                          <motion.div key={skinUrl} initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }}>
-                            <MinecraftSkinAvatar skinUrl={skinUrl} size={164} animate="idle" />
-                          </motion.div>
+                        cropSrc ? (
+                          <PhotoCropper
+                            src={cropSrc}
+                            onCancel={() => setCropSrc(null)}
+                            onApply={(url) => { setPhotoUrl(url); setCropSrc(null); toast.success(t.photoAdjusted); }}
+                          />
                         ) : (
-                          <div className="flex max-w-[240px] flex-col items-center gap-2 text-center">
-                            <Box aria-hidden className="size-8 text-on-surface-light" strokeWidth={1.5} />
-                            <p className="text-label-lg">Tu skin aparecerá aquí</p>
-                            <p className="text-body-sm text-on-surface-light">Skins Java de 64×64 o clásicas de 64×32.</p>
+                          <>
+                            <p className="text-body-md text-on-surface-light">{t.photoIntro}</p>
+                            <div className="relative flex justify-center pb-3">
+                              <span className="flex size-36 items-center justify-center overflow-hidden rounded-full bg-surface-variant shadow-[0_0_0_4px_rgb(var(--lq-background)),0_0_0_6px_rgb(var(--lq-primary)/0.4)]">
+                                {photoUrl ? (
+                                  <img src={photoUrl} alt={t.photoAlt} className="size-full object-cover" onError={() => toast.error(t.loadImgErr)} />
+                                ) : (
+                                  <AvatarPreview config={config} size={104} className="bg-transparent" />
+                                )}
+                              </span>
+                              {photoUrl && <Badge variant="success" className="absolute bottom-0 left-1/2 -translate-x-1/2">{t.photoActive}</Badge>}
+                            </div>
+                            <input type="file" aria-label={t.uploadAria} ref={fileInputRef} onChange={handleFileSelect} accept="image/*" className="hidden" tabIndex={-1} />
+                            {/* La cámara frontal abre directamente en Android/iOS dentro de la PWA. */}
+                            <input type="file" aria-label={t.selfieAria} ref={selfieInputRef} onChange={handleFileSelect} accept="image/*" capture="user" className="hidden" tabIndex={-1} />
+                            <Button variant="secondary" block onClick={() => selfieInputRef.current?.click()}>
+                              <Camera aria-hidden className="size-5" strokeWidth={1.75} />{t.selfie}
+                            </Button>
+                            <Button variant="ghost" block onClick={() => fileInputRef.current?.click()}>
+                              <Upload aria-hidden className="size-5" strokeWidth={1.75} />{t.fromDevice}
+                            </Button>
+                            {photoUrl && (
+                              <Button variant="ghost" block onClick={() => setCropSrc(photoUrl)}>
+                                <Crop aria-hidden className="size-5" strokeWidth={1.75} />{t.adjust}
+                              </Button>
+                            )}
+                            <div className="flex items-end gap-2">
+                              <Field label={t.pasteLink} className="flex-1">
+                                <Input type="url" value={urlInput} onChange={(e) => setUrlInput(e.target.value)} placeholder="https://ejemplo.com/foto.jpg" />
+                              </Field>
+                              <Button variant="secondary" onClick={handleApplyUrl} disabled={!urlInput.trim()} className="min-h-12">
+                                <LinkIcon aria-hidden className="size-5" strokeWidth={1.75} />{t.see}
+                              </Button>
+                            </div>
+                            <div className="flex flex-col gap-2 border-t border-border pt-4">
+                              <Button size="lg" block loading={saving} onClick={handleSavePhotoProfile}>{t.savePhoto}</Button>
+                              {user?.avatarUrl && (
+                                <Button variant="danger" block disabled={saving} onClick={handleRemovePhoto}>
+                                  <Trash2 aria-hidden className="size-5" strokeWidth={1.75} />{t.removePhoto}
+                                </Button>
+                              )}
+                            </div>
+                          </>
+                        )
+                      ) : (
+                        <>
+                          <p className="text-body-md text-on-surface-light">{t.skinIntro}</p>
+                          <div className="flex min-h-[224px] items-center justify-center rounded-2xl border border-border bg-surface p-5">
+                            {skinUrl ? (
+                              <motion.div key={skinUrl} initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }}>
+                                <MinecraftSkinAvatar skinUrl={skinUrl} size={164} animate="idle" />
+                              </motion.div>
+                            ) : (
+                              <div className="flex max-w-[240px] flex-col items-center gap-2 text-center">
+                                <Box aria-hidden className="size-8 text-on-surface-light" strokeWidth={1.5} />
+                                <p className="text-label-lg">{t.skinEmpty}</p>
+                                <p className="text-body-sm text-on-surface-light">{t.skinHint}</p>
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                      <input ref={skinInputRef} type="file" accept="image/png,.png" onChange={handleSkinFileSelect} className="hidden" tabIndex={-1} />
-                      <Button variant="secondary" block onClick={() => skinInputRef.current?.click()}>
-                        <Upload aria-hidden className="size-5" strokeWidth={1.75} />{skinUrl ? 'Cambiar skin' : 'Subir skin'}
-                      </Button>
-                      {hasUnsavedSkinDraft && (
-                        <p role="status" className="rounded-xl bg-warning/[var(--lq-soft-alpha)] px-4 py-3 text-body-sm text-warning-text">
-                          <b>Vista previa temporal.</b> Guarda y equipa la skin para aplicarla. Si cierras la pestaña, la selección se conserva al volver.
-                        </p>
-                      )}
-                      <p className="text-body-sm text-on-surface-light">PNG de 64×64 (las de 64×32 se adaptan). Solo se guarda en tu perfil al pulsar el botón; no se envía a ningún visor externo.</p>
-                      <div className="flex flex-col gap-2 border-t border-border pt-4">
-                        <Button size="lg" block loading={saving} disabled={!skinUrl} onClick={handleSaveMinecraftSkin}>
-                          {hasUnsavedSkinDraft ? 'Guardar y equipar skin' : 'Equipar skin'}
-                        </Button>
-                        {(skinUrl || user?.avatarConfig?.minecraftSkinUrl) && (
-                          <Button variant="danger" block disabled={saving} onClick={handleRemoveMinecraftSkin}>
-                            <Trash2 aria-hidden className="size-5" strokeWidth={1.75} />Quitar skin
+                          <input ref={skinInputRef} type="file" accept="image/png,.png" onChange={handleSkinFileSelect} className="hidden" tabIndex={-1} />
+                          <Button variant="secondary" block onClick={() => skinInputRef.current?.click()}>
+                            <Upload aria-hidden className="size-5" strokeWidth={1.75} />{skinUrl ? t.changeSkin : t.uploadSkin}
                           </Button>
-                        )}
-                      </div>
+                          {hasUnsavedSkinDraft && (
+                            <p role="status" className="rounded-xl bg-warning/[var(--lq-soft-alpha)] px-4 py-3 text-body-sm text-warning-text">
+                              <b>{t.tempTitle}</b> {t.tempBody}
+                            </p>
+                          )}
+                          <p className="text-body-sm text-on-surface-light">{t.skinFoot}</p>
+                          <div className="flex flex-col gap-2 border-t border-border pt-4">
+                            <Button size="lg" block loading={saving} disabled={!skinUrl} onClick={handleSaveMinecraftSkin}>
+                              {hasUnsavedSkinDraft ? t.saveEquip : t.equip}
+                            </Button>
+                            {(skinUrl || user?.avatarConfig?.minecraftSkinUrl) && (
+                              <Button variant="danger" block disabled={saving} onClick={handleRemoveMinecraftSkin}>
+                                <Trash2 aria-hidden className="size-5" strokeWidth={1.75} />{t.removeSkin}
+                              </Button>
+                            )}
+                          </div>
                         </>
                       )}
                     </div>

@@ -8,9 +8,28 @@ import { cn } from '@/lib/utils';
 import { springs } from '@/lib/motion';
 import { useMotionStore } from '@/store/motionStore';
 import { AnimatedValue } from '@/components/ui/lq/StatCard';
+import { useText, type Copy } from '@/lib/i18n';
+
+const es = {
+  lampOff: 'Apagar la lámpara',
+  lampOn: 'Encender la lámpara',
+  summary: 'Resumen',
+  readingCard: 'Ficha de lectura',
+};
+
+const en: typeof es = {
+  lampOff: 'Turn off the lamp',
+  lampOn: 'Turn on the lamp',
+  summary: 'Summary',
+  readingCard: 'Reading card',
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 /** Lámpara de banquero. `on`: encendida; la cadena es un botón que la enciende o la apaga. */
 export function BankerLamp({ on, onToggle, className }: { on: boolean; onToggle: () => void; className?: string }) {
+  const t = useText(COPY);
+  const { lampOff, lampOn } = t;
   const reduce = useMotionStore((s) => s.reduce);
   return (
     <div className={cn('relative', className)}>
@@ -36,7 +55,7 @@ export function BankerLamp({ on, onToggle, className }: { on: boolean; onToggle:
       <motion.button
         type="button"
         aria-pressed={on}
-        aria-label={on ? 'Apagar la lámpara' : 'Encender la lámpara'}
+        aria-label={on ? lampOff : lampOn}
         onClick={onToggle}
         whileTap={{ y: 7, transition: springs.snappy }}
         className="absolute left-[43%] top-[42%] -ml-[22px] flex h-14 w-11 flex-col items-center rounded-md"
@@ -76,9 +95,10 @@ export function DeskLight({ on }: { on: boolean }) {
 
 /** Ficha de lectura: tus cifras en una tarjeta de cartulina, con puntos guía. */
 export function ReadingCard({ rows, className }: { rows: { label: string; value: number }[]; className?: string }) {
+  const t = useText(COPY);
   return (
-    <section aria-label="Resumen" className={cn('lq-index-card relative px-5 pb-8 pt-6 [--rule-y:3.05rem]', className)}>
-      <h2 className="relative mb-3 text-label-lg text-on-background">Ficha de lectura</h2>
+    <section aria-label={t.summary} className={cn('lq-index-card relative px-5 pb-8 pt-6 [--rule-y:3.05rem]', className)}>
+      <h2 className="relative mb-3 text-label-lg text-on-background">{t.readingCard}</h2>
       <dl className="relative flex flex-col">
         {rows.map((r) => (
           <div key={r.label} className="lq-lines flex items-baseline gap-2 font-mono text-body-sm text-on-surface [--lq-rule:2rem]">

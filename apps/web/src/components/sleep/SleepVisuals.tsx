@@ -10,6 +10,12 @@ import { cn } from '@/lib/utils';
 import { expo, springSoft, useCountUp } from '@/lib/motion';
 import { softTone } from '@/components/ui/lq/tones';
 import { hm, minuteOfDay } from './sleepMeta';
+import { useText, type Copy } from '@/lib/i18n';
+
+const COPY: Copy<{ dial: (segs: string) => string; dialEmpty: string; total: (t: string) => string; duration: string }> = {
+  es: { dial: (s) => `Reloj de 24 horas: ${s}`, dialEmpty: 'Reloj de 24 horas sin registros.', total: (t) => `Total ${t}.`, duration: 'Duración' },
+  en: { dial: (s) => `24-hour clock: ${s}`, dialEmpty: '24-hour clock with no records.', total: (t) => `Total ${t}.`, duration: 'Duration' },
+};
 
 /* ───────── Cielo ───────── */
 
@@ -83,9 +89,10 @@ export function RestDial({ segments, totalHours, size = 220, caption = 'descanso
   const minutes = useCountUp(Math.round(totalHours * 60), 1.4);
   const now = minuteOfDay(new Date());
   const [nx, ny] = polar(C, R, now);
+  const t = useText(COPY);
   const label = segments.length
-    ? `Reloj de 24 horas: ${segments.map((s) => s.label).join('; ')}. Total ${hm(totalHours)}.`
-    : 'Reloj de 24 horas sin registros.';
+    ? `${t.dial(segments.map((s) => s.label).join('; '))}. ${t.total(hm(totalHours))}`
+    : t.dialEmpty;
   return (
     <figure className="relative mx-auto shrink-0" style={{ width: size, height: size }}>
       <svg viewBox="0 0 220 220" role="img" aria-label={label} className="size-full overflow-visible">
@@ -130,10 +137,11 @@ export function DurationMeter({ hours, target, targetLabel, tone = 'info', advic
 }) {
   const minutes = useCountUp(Math.round((hours ?? 0) * 60), 0.6);
   const fill = hours ? Math.min(1, hours / target) : 0;
+  const t = useText(COPY);
   return (
     <div className="flex flex-col gap-2" aria-live="polite">
       <div className="flex items-baseline justify-between gap-2">
-        <span className="text-label-lg text-on-surface">Duración</span>
+        <span className="text-label-lg text-on-surface">{t.duration}</span>
         <span className="text-heading-sm font-bold font-mono tabular-nums">{hours ? hm(minutes / 60) : '—'}</span>
       </div>
       <div className="relative h-3 overflow-hidden rounded-full bg-surface-variant">

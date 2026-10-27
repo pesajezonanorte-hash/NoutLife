@@ -17,6 +17,31 @@ import { useSocialStore } from '@/store/socialStore';
 import { apiError, getConversation, postGuildText, sendMessage, socialLink, type InboxItem } from '@/services/network.service';
 import { liveHub } from '@/lib/live';
 import { AvatarDisplay } from '@/components/character/AvatarDisplay';
+import { useText, type Copy } from '@/lib/i18n';
+
+const es = {
+  wroteYou: 'Te escribió',
+  openLetter: (name: string): string => `Abrir la carta de ${name}`,
+  closeAlert: 'Cerrar aviso',
+  replyTo: (name: string): string => `Responder a ${name}`,
+  replyPh: (name: string): string => `Responder a ${name}…`,
+  sendReply: 'Enviar respuesta',
+  sendFail: 'No se pudo enviar',
+  listAria: 'Mensajes nuevos',
+};
+
+const en: typeof es = {
+  wroteYou: 'Sent you a message',
+  openLetter: (name: string): string => `Open the letter from ${name}`,
+  closeAlert: 'Close alert',
+  replyTo: (name: string): string => `Reply to ${name}`,
+  replyPh: (name: string): string => `Reply to ${name}…`,
+  sendReply: 'Send reply',
+  sendFail: 'Could not send',
+  listAria: 'New messages',
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 interface Ping {
   /** "dm:<amigo>" | "guild:<gremio>": avisos de la misma carta se juntan en uno. */
@@ -33,6 +58,7 @@ const keyOf = (i: InboxItem) => (i.type === 'guild' && i.guild ? `guild:${i.guil
 const linkOf = (i: InboxItem) => (i.type === 'guild' && i.guild ? socialLink.guildLetter(i.guild.id) : socialLink.letter(i.from.username));
 
 function PingCard({ ping, onClose, onOpen }: { ping: Ping; onClose: () => void; onOpen: () => void }) {
+  const t = useText(COPY);
   const reduce = useMotionStore((s) => s.reduce);
   const { last } = ping;
   const [text, setText] = useState('');
@@ -67,7 +93,7 @@ function PingCard({ ping, onClose, onOpen }: { ping: Ping; onClose: () => void; 
     } catch (err) {
       setState('idle');
       input.current?.focus();
-      useToastStore.getState().error(apiError(err, 'No se pudo enviar'));
+      useToastStore.getState().error(apiError(err, t.sendFail));
     }
   }
 
@@ -82,7 +108,7 @@ function PingCard({ ping, onClose, onOpen }: { ping: Ping; onClose: () => void; 
       onFocusCapture={() => setHeld(true)} onBlurCapture={() => setHeld(false)}
       className="lq-ping pointer-events-auto relative overflow-hidden"
     >
-      <button type="button" onClick={onOpen} aria-label={`Abrir la carta de ${title}`} className="flex w-full items-start gap-3 p-3 pr-11 text-left">
+      <button type="button" onClick={onOpen} aria-label={t.openLetter(title)} className="flex w-full items-start gap-3 p-3 pr-11 text-left">
         <span className="relative mt-0.5 inline-flex size-10 shrink-0">
           <AvatarDisplay avatarConfig={last.from.avatarConfig} avatarUrl={last.from.avatarUrl} size={40} animate="none" className="overflow-hidden rounded-full" />
           {ping.count > 1 && (
@@ -91,21 +117,21 @@ function PingCard({ ping, onClose, onOpen }: { ping: Ping; onClose: () => void; 
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-label-lg text-on-background">{title}</span>
-          <span className="line-clamp-2 block break-words text-body-md text-on-surface">{last.preview || 'Te escribió'}</span>
+          <span className="line-clamp-2 block break-words text-body-md text-on-surface">{last.preview || t.wroteYou}</span>
         </span>
       </button>
-      <button type="button" onClick={onClose} aria-label="Cerrar aviso" className="absolute right-1.5 top-1.5 flex size-8 items-center justify-center rounded-full text-on-surface-light hover:bg-background hover:text-on-background">
+      <button type="button" onClick={onClose} aria-label={t.closeAlert} className="absolute right-1.5 top-1.5 flex size-8 items-center justify-center rounded-full text-on-surface-light hover:bg-background hover:text-on-background">
         <X aria-hidden className="size-4" />
       </button>
       <form onSubmit={reply} className="flex items-center gap-2 border-t border-border/70 px-3 pb-2.5 pt-2">
-        <label className="sr-only" htmlFor={`ping-${ping.key}`}>Responder a {from}</label>
+        <label className="sr-only" htmlFor={`ping-${ping.key}`}>{t.replyTo(from)}</label>
         <input
           ref={input} id={`ping-${ping.key}`} value={text} onChange={(e) => setText(e.target.value)} maxLength={last.type === 'guild' ? 500 : 1000}
-          placeholder={`Responder a ${from}…`} autoComplete="off" enterKeyHint="send" disabled={state !== 'idle'}
+          placeholder={t.replyPh(from)} autoComplete="off" enterKeyHint="send" disabled={state !== 'idle'}
           className="lq-pen-line min-h-10 min-w-0 flex-1 px-1 text-body-md text-on-background placeholder:text-on-surface-light/80"
         />
         <button
-          type="submit" aria-label="Enviar respuesta" disabled={!text.trim() || state !== 'idle'}
+          type="submit" aria-label={t.sendReply} disabled={!text.trim() || state !== 'idle'}
           className={cn('lq-wax flex size-10 shrink-0 items-center justify-center transition-opacity disabled:cursor-not-allowed', state === 'idle' && 'disabled:opacity-40')}
         >
           {state === 'sent' ? <Check aria-hidden className="size-4" strokeWidth={2.2} /> : <Send aria-hidden className="size-4" strokeWidth={1.75} />}
@@ -116,6 +142,7 @@ function PingCard({ ping, onClose, onOpen }: { ping: Ping; onClose: () => void; 
 }
 
 export function MessagePings() {
+  const t = useText(COPY);
   const userId = useAuthStore((s) => s.user?.id);
   const navigate = useNavigate();
   const [pings, setPings] = useState<Ping[]>([]);
@@ -158,7 +185,7 @@ export function MessagePings() {
 
   return (
     <ul
-      aria-label="Mensajes nuevos" aria-live="polite"
+      aria-label={t.listAria} aria-live="polite"
       className="pointer-events-none fixed inset-x-3 top-[calc(env(safe-area-inset-top)+0.5rem)] z-[85] flex flex-col gap-2 sm:inset-x-auto sm:right-4 sm:top-[4.5rem] sm:w-[360px]"
     >
       <AnimatePresence initial={false}>

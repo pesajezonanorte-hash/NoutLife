@@ -21,8 +21,71 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { Lettering } from '@/components/layout/Lettering';
 import { Button, Spinner, useDialogBehavior } from '@/components/ui/lq';
 import { squarePhoto } from '@/services/network.service';
+import { useText, type Copy } from '@/lib/i18n';
 import { InstantPhoto } from './InstantPhoto';
 import { PhotoCropper } from '@/components/character/PhotoCropper';
+
+const es = {
+  dialogAria: (to: string): string => `Cámara instantánea: foto para ${to}`,
+  closeCam: 'Cerrar la cámara',
+  photoFor: (first: string): string => `Foto para ${first}`,
+  switchCam: 'Cambiar de cámara',
+  adjust: 'Ajusta la foto',
+  camView: 'Vista de la cámara',
+  opening: 'Abriendo la cámara…',
+  denied: 'Sin permiso para usar la cámara',
+  noCam: 'No encontramos una cámara',
+  openPhone: 'Abre la cámara del teléfono',
+  noResponse: 'La cámara no respondió',
+  deniedHelp: 'Actívalo en los permisos del navegador o elige una foto de la galería.',
+  phoneHelp: 'Usa la cámara del teléfono o elige una foto.',
+  noCamHelp: 'Conecta una cámara o elige una foto de la galería.',
+  retryHelp: 'Ciérrala y vuelve a abrirla.',
+  openCam: 'Abrir cámara',
+  retry: 'Reintentar',
+  snap: 'Tomar foto',
+  shot: 'foto',
+  photoAlt: (first: string): string => `Tu foto para ${first}`,
+  noteLabel: 'Nota en la foto (opcional)',
+  notePh: 'Escribe una nota…',
+  redo: 'Repetir',
+  sendTo: (first: string): string => `Enviar a ${first}`,
+  gallery: 'Elegir de la galería',
+  cameraOnlyHelp: 'Para atacar al enemigo, la foto se toma ahora mismo con la cámara.',
+  bothHelp: 'Toma la foto ahora o elige una: sale impresa al momento.',
+};
+
+const en: typeof es = {
+  dialogAria: (to: string): string => `Instant camera: photo for ${to}`,
+  closeCam: 'Close the camera',
+  photoFor: (first: string): string => `Photo for ${first}`,
+  switchCam: 'Switch camera',
+  adjust: 'Adjust the photo',
+  camView: 'Camera view',
+  opening: 'Opening the camera…',
+  denied: 'No permission to use the camera',
+  noCam: 'We could not find a camera',
+  openPhone: 'Open the phone camera',
+  noResponse: 'The camera did not respond',
+  deniedHelp: 'Turn it on in your browser permissions or pick a photo from your gallery.',
+  phoneHelp: 'Use your phone camera or pick a photo.',
+  noCamHelp: 'Connect a camera or pick a photo from your gallery.',
+  retryHelp: 'Close it and open it again.',
+  openCam: 'Open camera',
+  retry: 'Try again',
+  snap: 'Take photo',
+  shot: 'photo',
+  photoAlt: (first: string): string => `Your photo for ${first}`,
+  noteLabel: 'Note on the photo (optional)',
+  notePh: 'Write a note…',
+  redo: 'Retake',
+  sendTo: (first: string): string => `Send to ${first}`,
+  gallery: 'Pick from gallery',
+  cameraOnlyHelp: 'To attack the enemy, the photo is taken right now with the camera.',
+  bothHelp: 'Take the photo now or pick one: it prints right away.',
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 type CamState = 'starting' | 'live' | 'shot' | 'denied' | 'unsupported' | 'error';
 
@@ -50,6 +113,7 @@ export function InstantCamera(props: InstantCameraProps) {
 
 function CameraOverlay({ onClose, to, onSend, cameraOnly = false }: InstantCameraProps) {
   const panelRef = useDialogBehavior(true, onClose);
+  const t = useText(COPY);
   const reduce = useMotionStore((s) => s.reduce);
   const coarse = useMediaQuery('(pointer: coarse)');
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -187,17 +251,17 @@ function CameraOverlay({ onClose, to, onSend, cameraOnly = false }: InstantCamer
     >
       <div
         ref={panelRef}
-        role="dialog" aria-modal="true" aria-label={`Cámara instantánea: foto para ${to}`} tabIndex={-1}
+        role="dialog" aria-modal="true" aria-label={t.dialogAria(to)} tabIndex={-1}
         className="mx-auto flex min-h-full w-full max-w-md flex-col items-center px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(.75rem,env(safe-area-inset-top))] outline-none"
         style={camSize}
       >
         <div className="mb-4 flex w-full items-center justify-between text-jade-50">
-          <Button variant="icon" aria-label="Cerrar la cámara" onClick={onClose} className="text-jade-50 hover:bg-white/10">
+          <Button variant="icon" aria-label={t.closeCam} onClick={onClose} className="text-jade-50 hover:bg-white/10">
             <X aria-hidden className="size-6" strokeWidth={1.75} />
           </Button>
-          <p className="min-w-0 truncate text-label-lg">Foto para {first}</p>
+          <p className="min-w-0 truncate text-label-lg">{t.photoFor(first)}</p>
           {cams > 1 && !photo ? (
-            <Button variant="icon" aria-label="Cambiar de cámara" onClick={() => setFacing((f) => (f === 'user' ? 'environment' : 'user'))} className="text-jade-50 hover:bg-white/10">
+            <Button variant="icon" aria-label={t.switchCam} onClick={() => setFacing((f) => (f === 'user' ? 'environment' : 'user'))} className="text-jade-50 hover:bg-white/10">
               <SwitchCamera aria-hidden className="size-6" strokeWidth={1.75} />
             </Button>
           ) : <span className="size-11" aria-hidden="true" />}
@@ -205,7 +269,7 @@ function CameraOverlay({ onClose, to, onSend, cameraOnly = false }: InstantCamer
 
         {cropSrc && (
           <div className="w-full rounded-[28px] bg-surface p-5 text-on-background">
-            <PhotoCropper src={cropSrc} shape="square" size={OUT} quality={0.9} title="Ajusta la foto" onCancel={cancelCrop} onApply={(u) => void applyCrop(u)} />
+            <PhotoCropper src={cropSrc} shape="square" size={OUT} quality={0.9} title={t.adjust} onCancel={cancelCrop} onApply={(u) => void applyCrop(u)} />
           </div>
         )}
 
@@ -231,7 +295,7 @@ function CameraOverlay({ onClose, to, onSend, cameraOnly = false }: InstantCamer
             {/* Visor en vivo (cuadrado: lo que ves es la foto) */}
             <div className="lq-cam-screen relative aspect-square overflow-hidden rounded-[14px]">
               <video
-                ref={videoRef} playsInline muted autoPlay aria-label="Vista de la cámara"
+                ref={videoRef} playsInline muted autoPlay aria-label={t.camView}
                 className={cn('size-full object-cover transition-opacity duration-300 [transform:translateZ(0)]', !live && 'opacity-0')}
               />
               {photo && <img src={photo} alt="" className="absolute inset-0 size-full object-cover" />}
@@ -242,20 +306,20 @@ function CameraOverlay({ onClose, to, onSend, cameraOnly = false }: InstantCamer
                 {!live && !photo && (
                   <motion.div key={state} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-5 text-center text-jade-50">
                     {state === 'starting' ? (
-                      <><Spinner className="text-jade-200" /><p className="text-body-sm text-jade-100" role="status">Abriendo la cámara…</p></>
+                      <><Spinner className="text-jade-200" /><p className="text-body-sm text-jade-100" role="status">{t.opening}</p></>
                     ) : (
                       <>
                         <CameraOff aria-hidden className="size-8 text-jade-200" strokeWidth={1.5} />
                         <p className="text-label-lg" role="alert">
-                          {state === 'denied' ? 'Sin permiso para usar la cámara' : state === 'unsupported' ? (coarse ? 'Abre la cámara del teléfono' : 'No encontramos una cámara') : 'La cámara no respondió'}
+                          {state === 'denied' ? t.denied : state === 'unsupported' ? (coarse ? t.openPhone : t.noCam) : t.noResponse}
                         </p>
                         <p className="text-body-sm text-jade-100/85">
-                          {state === 'denied' ? 'Actívalo en los permisos del navegador o elige una foto de la galería.' : state === 'unsupported' ? (coarse ? 'Usa la cámara del teléfono o elige una foto.' : 'Conecta una cámara o elige una foto de la galería.') : 'Ciérrala y vuelve a abrirla.'}
+                          {state === 'denied' ? t.deniedHelp : state === 'unsupported' ? (coarse ? t.phoneHelp : t.noCamHelp) : t.retryHelp}
                         </p>
                         {state === 'unsupported' && coarse ? (
-                          <Button size="sm" onClick={() => fallbackRef.current?.click()}>Abrir cámara</Button>
+                          <Button size="sm" onClick={() => fallbackRef.current?.click()}>{t.openCam}</Button>
                         ) : state !== 'unsupported' ? (
-                          <Button size="sm" variant="secondary" onClick={() => void start(facing)}>Reintentar</Button>
+                          <Button size="sm" variant="secondary" onClick={() => void start(facing)}>{t.retry}</Button>
                         ) : null}
                       </>
                     )}
@@ -277,10 +341,10 @@ function CameraOverlay({ onClose, to, onSend, cameraOnly = false }: InstantCamer
               </span>
               <span className="flex flex-col items-center gap-1">
                 <button
-                  type="button" onClick={() => void shoot()} disabled={!live || busy} aria-label="Tomar foto"
+                  type="button" onClick={() => void shoot()} disabled={!live || busy} aria-label={t.snap}
                   className="lq-cam-shutter size-16 rounded-full focus-visible:outline-offset-4 select-none"
                 />
-                <span aria-hidden="true" className="text-label-md text-jade-700">foto</span>
+                <span aria-hidden="true" className="text-label-md text-jade-700">{t.shot}</span>
               </span>
             </div>
             <span aria-hidden="true" className="lq-cam-slot mx-auto block h-2 w-[80%] rounded-full" style={{ marginTop: 'calc(var(--cam) * .045)' }} />
@@ -299,11 +363,11 @@ function CameraOverlay({ onClose, to, onSend, cameraOnly = false }: InstantCamer
                 transition={reduce ? { duration: 0.2 } : { duration: 1.3, ease: [0.5, 0.05, 0.25, 1], delay: 0.25 }}
                 className="pb-6"
               >
-                <InstantPhoto ref={printRef} src={photo} alt={`Tu foto para ${first}`} develop tape={false} className="w-full">
-                  <label className="sr-only" htmlFor="instant-caption">Nota en la foto (opcional)</label>
+                <InstantPhoto ref={printRef} src={photo} alt={t.photoAlt(first)} develop tape={false} className="w-full">
+                  <label className="sr-only" htmlFor="instant-caption">{t.noteLabel}</label>
                   <input
                     id="instant-caption" value={caption} onChange={(e) => setCaption(e.target.value.slice(0, 40))}
-                    placeholder="Escribe una nota…" autoComplete="off"
+                    placeholder={t.notePh} autoComplete="off"
                     className="absolute inset-x-[6%] bottom-[3%] h-[13%] border-b border-dashed border-transparent bg-transparent text-center text-body-md font-medium text-jade-900 placeholder:text-jade-600/70 focus:border-jade-600 focus:outline-none"
                   />
                 </InstantPhoto>
@@ -315,18 +379,18 @@ function CameraOverlay({ onClose, to, onSend, cameraOnly = false }: InstantCamer
         <div ref={actionsRef} className={cn('mt-auto flex w-full flex-col items-center gap-3 pt-5', cropSrc && 'hidden')}>
           {photo ? (
             <div className="flex w-full max-w-[22rem] gap-3">
-              <Button variant="secondary" className="flex-1" onClick={retake}><RotateCcw aria-hidden className="size-4" />Repetir</Button>
-              <Button className="flex-1 bg-jade-50 text-jade-900 hover:bg-white" onClick={send} data-autofocus><Send aria-hidden className="size-4" />Enviar a {first}</Button>
+              <Button variant="secondary" className="flex-1" onClick={retake}><RotateCcw aria-hidden className="size-4" />{t.redo}</Button>
+              <Button className="flex-1 bg-jade-50 text-jade-900 hover:bg-white" onClick={send} data-autofocus><Send aria-hidden className="size-4" />{t.sendTo(first)}</Button>
             </div>
           ) : (
             <div className="flex w-full max-w-[22rem] flex-col items-center gap-3">
               {!cameraOnly && (
                 <Button variant="secondary" onClick={() => galleryRef.current?.click()} disabled={busy}>
-                  <ImageIcon aria-hidden className="size-4" />Elegir de la galería
+                  <ImageIcon aria-hidden className="size-4" />{t.gallery}
                 </Button>
               )}
               <p className="text-center text-body-sm text-jade-100/80">
-                {cameraOnly ? 'Para atacar al enemigo, la foto se toma ahora mismo con la cámara.' : 'Toma la foto ahora o elige una: sale impresa al momento.'}
+                {cameraOnly ? t.cameraOnlyHelp : t.bothHelp}
               </p>
             </div>
           )}

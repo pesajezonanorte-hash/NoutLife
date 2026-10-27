@@ -7,8 +7,51 @@ import { cn } from '@/lib/utils';
 import { categoryMeta } from '@/lib/lifeMeta';
 import { Badge, Button, ProgressBar, ResponsiveDialog } from '@/components/ui/lq';
 import { useToastStore } from '@/hooks/useToast';
+import { useLocale, useText, type Copy } from '@/lib/i18n';
 import * as questService from '@/services/quest.service';
 import { deadlineInfo, difficultyMeta, questProgress, typeMeta } from './questMeta';
+
+const es = {
+  stepError: 'No se pudo actualizar el paso',
+  completed: 'Completada',
+  failed: 'Fallida',
+  reward: 'Recompensa',
+  oro: 'oro',
+  steps: 'Pasos',
+  progressLabel: 'Progreso de la misión',
+  askFail: '¿Marcar la misión como fallida?',
+  askArchive: '¿Archivar la misión?',
+  failNote: 'No ganarás su recompensa. Podrás verla en el historial.',
+  archiveNote: 'Desaparecerá de tus listas.',
+  cancel: 'Cancelar',
+  markFailed: 'Marcar fallida',
+  archive: 'Archivar',
+  complete: 'Completar misión',
+  edit: 'Editar',
+  fail: 'Fallar',
+};
+
+const en: typeof es = {
+  stepError: 'Could not update the step',
+  completed: 'Completed',
+  failed: 'Failed',
+  reward: 'Reward',
+  oro: 'gold',
+  steps: 'Steps',
+  progressLabel: 'Quest progress',
+  askFail: 'Mark the quest as failed?',
+  askArchive: 'Archive the quest?',
+  failNote: 'You will not earn its reward. You can see it in your history.',
+  archiveNote: 'It will disappear from your lists.',
+  cancel: 'Cancel',
+  markFailed: 'Mark as failed',
+  archive: 'Archive',
+  complete: 'Complete quest',
+  edit: 'Edit',
+  fail: 'Fail',
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 export interface QuestDetailDialogProps {
   quest: Quest | null;
@@ -25,17 +68,19 @@ export function QuestDetailDialog({ quest: current, onClose, onChange, onComplet
   const last = useRef(current);
   if (current) last.current = current;
   const quest = current ?? last.current;
+  const t = useText(COPY);
+  const locale = useLocale();
   const [busy, setBusy] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<'fail' | 'archive' | null>(null);
   useEffect(() => setConfirm(null), [quest?.id]);
 
   if (!quest) return null;
 
-  const cat = categoryMeta(quest.category);
-  const type = typeMeta(quest.type);
-  const diff = difficultyMeta(quest.difficulty);
-  const p = questProgress(quest);
-  const deadline = deadlineInfo(quest.deadline);
+  const cat = categoryMeta(quest.category, locale);
+  const type = typeMeta(quest.type, locale);
+  const diff = difficultyMeta(quest.difficulty, locale);
+  const p = questProgress(quest, locale);
+  const deadline = deadlineInfo(quest.deadline, locale);
   const active = quest.status === 'ACTIVE';
 
   async function toggle(subId: string, completed: boolean) {
@@ -47,7 +92,7 @@ export function QuestDetailDialog({ quest: current, onClose, onChange, onComplet
       onChange(await questService.toggleSubObjective(quest.id, subId, completed));
     } catch {
       onChange(quest);
-      useToastStore.getState().error('No se pudo actualizar el paso');
+      useToastStore.getState().error(t.stepError);
     } finally {
       setBusy(null);
     }
@@ -60,24 +105,24 @@ export function QuestDetailDialog({ quest: current, onClose, onChange, onComplet
         <Badge variant="neutral" icon={type.icon}>{type.label}</Badge>
         <Badge variant={diff.variant}>{diff.label}</Badge>
         {active && deadline && <Badge variant={deadline.variant} icon={CalendarClock}>{deadline.text}</Badge>}
-        {quest.status === 'COMPLETED' && <Badge variant="success" icon={CheckCircle2}>Completada</Badge>}
-        {quest.status === 'FAILED' && <Badge variant="error" icon={XCircle}>Fallida</Badge>}
+        {quest.status === 'COMPLETED' && <Badge variant="success" icon={CheckCircle2}>{t.completed}</Badge>}
+        {quest.status === 'FAILED' && <Badge variant="error" icon={XCircle}>{t.failed}</Badge>}
       </div>
 
       {quest.description && <p className="text-body-md text-on-surface">{quest.description}</p>}
 
       <div className="flex items-center justify-between rounded-2xl bg-primary/[var(--lq-soft-alpha)] p-4">
-        <span className="flex items-center gap-2 text-label-lg text-primary-text"><Sparkles aria-hidden className="size-5" strokeWidth={1.75} />Recompensa</span>
-        <span className="text-heading-sm text-primary-text font-mono tabular-nums">+{quest.xpReward} XP{quest.goldReward ? ` · ${quest.goldReward} oro` : ''}</span>
+        <span className="flex items-center gap-2 text-label-lg text-primary-text"><Sparkles aria-hidden className="size-5" strokeWidth={1.75} />{t.reward}</span>
+        <span className="text-heading-sm text-primary-text font-mono tabular-nums">+{quest.xpReward} XP{quest.goldReward ? ` · ${quest.goldReward} ${t.oro}` : ''}</span>
       </div>
 
       {quest.subObjectives.length > 0 && (
         <section className="flex flex-col gap-3" aria-labelledby="qd-steps">
           <div className="flex items-center justify-between">
-            <h3 id="qd-steps" className="text-heading-sm">Pasos</h3>
+            <h3 id="qd-steps" className="text-heading-sm">{t.steps}</h3>
             <span className="text-body-sm text-on-surface-light font-mono tabular-nums">{p.text}</span>
           </div>
-          <ProgressBar value={p.pct} tone={p.pct >= 100 ? 'success' : 'primary'} label="Progreso de la misión" valueText={p.text} />
+          <ProgressBar value={p.pct} tone={p.pct >= 100 ? 'success' : 'primary'} label={t.progressLabel} valueText={p.text} />
           <ul className="flex flex-col gap-1">
             {quest.subObjectives.map((s) => (
               <li key={s.id}>
@@ -109,15 +154,15 @@ export function QuestDetailDialog({ quest: current, onClose, onChange, onComplet
       {confirm ? (
         <div role="alertdialog" aria-labelledby="qd-confirm" className="flex flex-col gap-3 rounded-2xl border border-error/30 bg-error/[var(--lq-soft-alpha)] p-4">
           <p id="qd-confirm" className="text-label-lg text-error-text">
-            {confirm === 'fail' ? '¿Marcar la misión como fallida?' : '¿Archivar la misión?'}
+            {confirm === 'fail' ? t.askFail : t.askArchive}
           </p>
           <p className="text-body-sm text-on-surface">
-            {confirm === 'fail' ? 'No ganarás su recompensa. Podrás verla en el historial.' : 'Desaparecerá de tus listas.'}
+            {confirm === 'fail' ? t.failNote : t.archiveNote}
           </p>
           <div className="grid grid-cols-2 gap-2">
-            <Button variant="secondary" size="sm" onClick={() => setConfirm(null)}>Cancelar</Button>
+            <Button variant="secondary" size="sm" onClick={() => setConfirm(null)}>{t.cancel}</Button>
             <Button variant="danger" size="sm" onClick={() => (confirm === 'fail' ? onFail(quest) : onArchive(quest))}>
-              {confirm === 'fail' ? 'Marcar fallida' : 'Archivar'}
+              {confirm === 'fail' ? t.markFailed : t.archive}
             </Button>
           </div>
         </div>
@@ -125,13 +170,13 @@ export function QuestDetailDialog({ quest: current, onClose, onChange, onComplet
         <div className="flex flex-col gap-3">
           {active && (
             <Button block onClick={() => onComplete(quest)}>
-              <CheckCircle2 aria-hidden className="size-5" strokeWidth={1.75} />Completar misión
+              <CheckCircle2 aria-hidden className="size-5" strokeWidth={1.75} />{t.complete}
             </Button>
           )}
           <div className={cn('grid gap-2', active ? 'grid-cols-3' : 'grid-cols-1')}>
-            {active && <Button variant="secondary" size="md" onClick={() => onEdit(quest)}><Pencil aria-hidden className="size-4" strokeWidth={1.75} />Editar</Button>}
-            {active && <Button variant="ghost" size="md" onClick={() => setConfirm('fail')}><XCircle aria-hidden className="size-4" strokeWidth={1.75} />Fallar</Button>}
-            <Button variant="ghost" size="md" onClick={() => setConfirm('archive')} className="text-error-text"><Archive aria-hidden className="size-4" strokeWidth={1.75} />Archivar</Button>
+            {active && <Button variant="secondary" size="md" onClick={() => onEdit(quest)}><Pencil aria-hidden className="size-4" strokeWidth={1.75} />{t.edit}</Button>}
+            {active && <Button variant="ghost" size="md" onClick={() => setConfirm('fail')}><XCircle aria-hidden className="size-4" strokeWidth={1.75} />{t.fail}</Button>}
+            <Button variant="ghost" size="md" onClick={() => setConfirm('archive')} className="text-error-text"><Archive aria-hidden className="size-4" strokeWidth={1.75} />{t.archive}</Button>
           </div>
         </div>
       )}

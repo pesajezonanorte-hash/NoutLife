@@ -15,32 +15,144 @@ import { useAuthStore } from '@/store/authStore';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useToastStore } from '@/hooks/useToast';
 import { Button, Card, EmptyState, ErrorState, Field, IconChip, Input, LineChart, SegmentedControl, Select, type LinePoint, PageLoader } from '@/components/ui/lq';
-import { LOADING_COPY } from '@/lib/loadingCopy';
+import { useLoadingCopy } from '@/lib/loadingCopy';
 import { softTone } from '@/components/ui/lq/tones';
 import * as sleepService from '@/services/sleep.service';
 import {
-  NAP_PRESETS, QUALITY, QualityFace, SLEEP_GOAL_H, bedMinutes, clock, fmtBedMinutes, hm, isNap, napAdvice, nightFromTimes, nightKey, quality,
+  napPresets, quality, qualityList, QualityFace, SLEEP_GOAL_H, bedMinutes, clock, fmtBedMinutes, hm, isNap, napAdvice, nightFromTimes, nightKey,
 } from '@/components/sleep/sleepMeta';
 import { DurationMeter, RestDial, SleepSky, SleepyMoon, type DialSegment } from '@/components/sleep/SleepVisuals';
 import { Lettering } from '@/components/layout/Lettering';
+import { INTL_LOCALE, useLocale, useText, type Copy, type Locale } from '@/lib/i18n';
+
+const COPY: Copy<{
+  section: string; headline: string; loading: string; loadFailed: string;
+  quality: string; qualityNow: (name: string, n: number) => string; howSlept: string; howSleptLegend: string; howFeltLegend: string;
+  factors: string; optional: string; cafLate: string; screens: string; exercised: string;
+  nightEnded: string; sleptAt: string; wokeAt: string; wakeRange: string; goalRange: string; advisedHours: string;
+  alreadyNight: string; updateNight: string; saveNight: string; nightUpdated: string; nightRegistered: string; nightInvalid: string; saveFailed: string;
+  napUpdated: string; napRegistered: string; napInvalid: string; napSameTimes: string; napSaved: string; dayLabel: string; quickDuration: string;
+  startedAt: string; endedAt: string; refHint: string; saveNap: string; wentWell: string;
+  today: string; yesterday: string; logNight: string; logNap: string; typeOfRest: string; night: string; nap: string;
+  napDate: string;
+  asleepLast: string; asleepSince: (d: string) => string; lastRecord: (d: string) => string; restStarts: string;
+  firstNight: string; goalMet: (g: string) => string; belowGoal: (h: string) => string;
+  napTotal: (h: string, c: number) => string; napTotalOne: (h: string) => string;
+  nightOf: (c: string) => string; napOf: (c: string) => string;
+  noTrend: string; trendNeed: string; lastNights: (n: number) => string; avg: string; nightDay: string; withNap: string;
+  trendLabel: (l: string) => string; trendImproving: string; trendDeclining: string; trendStable: string;
+  vsLastWeek: (d: string, sign: string) => string; compareTwo: string; bestNights: (t: string) => string;
+  napDayNote: string; noRecordsTrend: string; statsTrend: string;
+  historyTitle: string; viewLess: string; viewAll: (n: number) => string; deleteEntry: (what: string, d: string) => string;
+  naps: string; nightWord: string; napWord: string; deleted: string; deleteNapToast: string; deleteFailed: string;
+  mean: string; noNights: string; lastN: (n: number) => string; napsWeek: string; noneWeek: string; napsCount: (n: number) => string;
+  restToday: string; nightPlusNap: string; sheetLabel: string; gapTitle: string; gapBody: (d: string, from: string, to: string) => string;
+  gapOnlyIfConfirm: string; gapNotSleep: string; gapRegister: string; gapQ: string; restRegistered: string; restFailed: string; restFailedBody: string;
+  sleepLabel: string; sleepLoadingWords: string;
+  shortLegend: string; night2: string; nap2: string; now: string;
+  napPlus: (h: string, c: number) => string; napPlusOne: (h: string) => string;
+  whichDay: string; sameBad: string; dayLetter: (d: string) => string;
+  trendHeading: string; chartLabel: (ns: string, t: string) => string; napDaysLegend: string;
+  gapCardAria: string; restSectionAria: string;
+}> = {
+  es: {
+    section: 'Descanso', headline: 'Sueño', loading: 'Cargando tus noches…', loadFailed: 'No pudimos cargar tu sueño',
+    quality: 'Calidad', qualityNow: (name, n) => `${name} (${n}/5)`, howSlept: 'Calidad', howSleptLegend: 'Calidad',
+    howFeltLegend: '¿Cómo te sentiste?', factors: 'Factores', optional: '(opcional)',
+    cafLate: 'Cafeína tarde', screens: 'Pantallas antes de dormir', exercised: 'Hice ejercicio',
+    nightEnded: 'Noche que terminó', sleptAt: 'Me dormí', wokeAt: 'Desperté', wakeRange: 'Entre 1 min y 20 h',
+    goalRange: 'Meta: 7 h por noche', advisedHours: 'Entre 1 min y 20 h',
+    alreadyNight: 'Ya registraste esta noche: al guardar se actualizará.', updateNight: 'Actualizar noche', saveNight: 'Guardar noche',
+    nightUpdated: 'Registro actualizado', nightRegistered: 'Noche registrada',
+    nightInvalid: 'El descanso debe durar entre 1 min y 20 h.', saveFailed: 'No se pudo guardar. Inténtalo de nuevo.',
+    napUpdated: 'Siesta actualizada', napRegistered: 'Siesta registrada', napInvalid: 'El descanso debe durar entre 1 min y 20 h.',
+    napSameTimes: 'La hora de fin debe ser distinta del inicio.', napSaved: 'Siesta registrada',
+    dayLabel: 'Día', quickDuration: 'Duración rápida', startedAt: 'Empecé', endedAt: 'Terminé',
+    refHint: 'Referencia: un ciclo completo dura ~90 min', saveNap: 'Guardar siesta', wentWell: '¿Cómo te sentiste?',
+    today: 'Hoy', yesterday: 'Ayer', logNight: 'Registrar noche', logNap: 'Registrar siesta', typeOfRest: 'Tipo de descanso',
+    night: 'Noche', nap: 'Siesta', napDate: 'Día',
+    asleepLast: 'Anoche dormiste', asleepSince: (d) => `Último registro · ${d}`, lastRecord: (d) => `Último registro · ${d}`, restStarts: 'Tu descanso empieza hoy',
+    firstNight: 'Registra tu primera noche (o una siesta) para descubrir cómo cambia tu energía con el tiempo.',
+    goalMet: (g) => `Meta ${g} h cumplida`, belowGoal: (h) => `${h} por debajo de la meta`,
+    napTotal: (h, c) => `+ ${h} de siesta (${c})`, napTotalOne: (h) => `+ ${h} de siesta`,
+    nightOf: (c) => `Noche de ${c}`, napOf: (c) => `Siesta de ${c}`,
+    noTrend: 'Aún no hay tendencia', trendNeed: 'Registra al menos dos noches para ver cómo evoluciona tu descanso.',
+    lastNights: (n) => `Últimas ${n} noches`, avg: 'Prom.', nightDay: 'Día con siesta (no cuenta en la media de noches)', withNap: 'Día con siesta',
+    trendLabel: (l) => `Tendencia: ${l}`, trendImproving: 'mejorando', trendDeclining: 'bajando', trendStable: 'estable',
+    vsLastWeek: (d, sign) => `${sign}${d} vs. la semana pasada.`, compareTwo: 'Registra dos semanas para comparar.', bestNights: (t) => `En tus mejores noches te acostaste hacia las ${t}.`,
+    napDayNote: 'Día con siesta (no cuenta en la media de noches)', noRecordsTrend: 'Registra dos semanas para comparar.', statsTrend: 'estable',
+    historyTitle: 'Historial', viewLess: 'Ver menos', viewAll: (n) => `Ver los ${n} registros`, deleteEntry: (w, d) => `Eliminar ${w} del ${d}`,
+    naps: 'Siesta', nightWord: 'noche', napWord: 'siesta', deleted: 'Registro eliminado', deleteNapToast: 'Siesta eliminada',
+    deleteFailed: 'No se pudo eliminar',
+    mean: 'Media de noches', noNights: 'Sin noches aún', lastN: (n) => `Últimas ${n}`, napsWeek: 'Siestas · 7 días', noneWeek: 'Ninguna esta semana',
+    napsCount: (n) => `${n} siesta${n === 1 ? '' : 's'}`, restToday: 'Descanso de hoy', nightPlusNap: 'Noche + siestas',
+    sheetLabel: 'Sugerencia de descanso nocturno', gapTitle: '¿Dormiste durante esta pausa?',
+    gapBody: (d, from, to) => `Noutlife detectó que volviste tras una pausa nocturna de ${d} (${from}–${to}). Solo se guardará si lo confirmas.`,
+    gapOnlyIfConfirm: 'Solo se guardará si lo confirmas.', gapNotSleep: 'No fue sueño', gapRegister: 'Registrar descanso',
+    gapQ: '¿Cómo descansaste?', restRegistered: 'Descanso registrado', restFailed: 'No se pudo registrar el descanso',
+    restFailedBody: 'Comprueba que no haya un registro para esa noche.',
+    sleepLabel: 'Sueño', sleepLoadingWords: '',
+    shortLegend: 'Noche', night2: 'Noche', nap2: 'Siesta', now: 'Ahora',
+    napPlus: (h, c) => `+ ${h} de siesta (${c})`, napPlusOne: (h) => `+ ${h} de siesta`,
+    whichDay: 'Día', sameBad: '', dayLetter: (d) => d.charAt(0),
+    trendHeading: 'Tendencia', chartLabel: (ns, t) => `Horas de sueño por noche: ${ns}. Tendencia ${t}.`, napDaysLegend: 'Día con siesta',
+    gapCardAria: 'Sugerencia de descanso nocturno', restSectionAria: 'Tu descanso',
+  },
+  en: {
+    section: 'Rest', headline: 'Sleep', loading: 'Loading your nights…', loadFailed: "We couldn't load your sleep",
+    quality: 'Quality', qualityNow: (name, n) => `${name} (${n}/5)`, howSlept: 'Quality', howSleptLegend: 'Quality',
+    howFeltLegend: 'How did you feel?', factors: 'Factors', optional: '(optional)',
+    cafLate: 'Late caffeine', screens: 'Screens before bed', exercised: 'Exercised',
+    nightEnded: 'Night that ended', sleptAt: 'Went to bed', wokeAt: 'Woke up', wakeRange: 'Between 1 min and 20 h',
+    goalRange: 'Goal: 7 h a night', advisedHours: 'Between 1 min and 20 h',
+    alreadyNight: 'You already logged this night: saving will update it.', updateNight: 'Update night', saveNight: 'Save night',
+    nightUpdated: 'Entry updated', nightRegistered: 'Night logged',
+    nightInvalid: 'Rest must last between 1 min and 20 h.', saveFailed: "We couldn't save. Try again.",
+    napUpdated: 'Nap updated', napRegistered: 'Nap logged', napInvalid: 'Rest must last between 1 min and 20 h.',
+    napSameTimes: 'The end time must differ from the start.', napSaved: 'Nap logged',
+    dayLabel: 'Day', quickDuration: 'Quick length', startedAt: 'Started', endedAt: 'Ended',
+    refHint: 'Reference: a full cycle lasts ~90 min', saveNap: 'Save nap', wentWell: 'How did you feel?',
+    today: 'Today', yesterday: 'Yesterday', logNight: 'Log night', logNap: 'Log nap', typeOfRest: 'Type of rest', night: 'Night', nap: 'Nap', napDate: 'Day',
+    asleepLast: 'Last night you slept', asleepSince: (d) => `Last entry · ${d}`, lastRecord: (d) => `Last entry · ${d}`, restStarts: 'Your rest starts today',
+    firstNight: 'Log your first night (or a nap) to see how your energy changes over time.',
+    goalMet: (g) => `Goal ${g} h met`, belowGoal: (h) => `${h} below goal`,
+    napTotal: (h, c) => `+ ${h} of naps (${c})`, napTotalOne: (h) => `+ ${h} of naps`,
+    nightOf: (c) => `Night from ${c}`, napOf: (c) => `Nap from ${c}`,
+    noTrend: 'No trend yet', trendNeed: 'Log at least two nights to see how your rest changes.',
+    lastNights: (n) => `Last ${n} nights`, avg: 'Avg.', nightDay: 'Day with a nap (not counted in the night average)', withNap: 'Day with a nap',
+    trendLabel: (l) => `Trend: ${l}`, trendImproving: 'improving', trendDeclining: 'declining', trendStable: 'steady',
+    vsLastWeek: (d, sign) => `${sign}${d} vs. last week.`, compareTwo: 'Log two weeks to compare.', bestNights: (t) => `On your best nights you went to bed around ${t}.`,
+    napDayNote: 'Day with a nap (not counted in the night average)', noRecordsTrend: 'Log two weeks to compare.', statsTrend: 'steady',
+    historyTitle: 'History', viewLess: 'Show less', viewAll: (n) => `See all ${n} entries`, deleteEntry: (w, d) => `Delete the ${w} from ${d}`,
+    naps: 'Nap', nightWord: 'night', napWord: 'nap', deleted: 'Entry deleted', deleteNapToast: 'Nap deleted', deleteFailed: "We couldn't delete it",
+    mean: 'Night average', noNights: 'No nights yet', lastN: (n) => `Last ${n}`, napsWeek: 'Naps · 7 days', noneWeek: 'None this week',
+    napsCount: (n) => `${n} nap${n === 1 ? '' : 's'}`, restToday: 'Rest today', nightPlusNap: 'Night + naps',
+    sheetLabel: 'Night rest suggestion', gapTitle: 'Did you sleep during this gap?',
+    gapBody: (d, from, to) => `NoutLife noticed you came back after a ${d} overnight gap (${from}–${to}). It is only saved if you confirm.`,
+    gapOnlyIfConfirm: 'It is only saved if you confirm.', gapNotSleep: "It wasn't sleep", gapRegister: 'Log rest',
+    gapQ: 'How did you rest?', restRegistered: 'Rest logged', restFailed: "We couldn't log the rest",
+    restFailedBody: 'Check that there is no entry for that night.',
+    sleepLabel: 'Sleep', sleepLoadingWords: '',
+    shortLegend: 'Night', night2: 'Night', nap2: 'Nap', now: 'Now',
+    napPlus: (h, c) => `+ ${h} of naps (${c})`, napPlusOne: (h) => `+ ${h} of naps`,
+    whichDay: 'Day', sameBad: '', dayLetter: (d) => d.charAt(0),
+    trendHeading: 'Trend', chartLabel: (ns, t) => `Hours of sleep per night: ${ns}. Trend ${t}.`, napDaysLegend: 'Day with a nap',
+    gapCardAria: 'Night rest suggestion', restSectionAria: 'Your rest',
+  },
+};
 
 const DAY = 86400000;
 // Límites amplios de descanso (mismos que la API): de una microsiesta a un turno largo.
 const REST_MIN_H = 1 / 60;
 const REST_MAX_H = 20;
-const weekday = (d: Date, style: 'short' | 'long' = 'short') => {
-  const s = d.toLocaleDateString('es-ES', { weekday: style }).replace('.', '');
-  return s.charAt(0).toUpperCase() + s.slice(1);
-};
-const shortDate = (d: Date) => d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '');
-const num1 = (n: number) => n.toLocaleString('es-ES', { maximumFractionDigits: 1 });
 const toHHMM = (m: number) => { const v = ((Math.round(m) % 1440) + 1440) % 1440; return `${String(Math.floor(v / 60)).padStart(2, '0')}:${String(v % 60).padStart(2, '0')}`; };
 const fromHHMM = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
 
 type Mode = 'night' | 'nap';
 
 function QualityBadge({ q }: { q: number }) {
-  const meta = quality(q);
+  const locale = useLocale();
+  const meta = quality(q, locale);
   return (
     <span className={cn('inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-label-lg', softTone[meta.tone])}>
       <QualityFace q={q} className="size-4" />{meta.name} · {meta.n}/5
@@ -49,7 +161,10 @@ function QualityBadge({ q }: { q: number }) {
 }
 
 /** Radiogroup de caras 1–5 con flechas (roving tabindex); la píldora se desliza entre caras. */
-function QualityPicker({ value, onChange, legend = 'Calidad' }: { value: number; onChange: (q: number) => void; legend?: string }) {
+function QualityPicker({ value, onChange, legend }: { value: number; onChange: (q: number) => void; legend: string }) {
+  const locale = useLocale();
+  const t = useText(COPY);
+  const list = qualityList(locale);
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   const pillId = useId();
   const onKey = (e: KeyboardEvent, i: number) => {
@@ -62,11 +177,11 @@ function QualityPicker({ value, onChange, legend = 'Calidad' }: { value: number;
   };
   return (
     <fieldset className="flex flex-col gap-2">
-      <legend className="mb-2 text-label-lg text-on-surface">{legend}: <span className="text-on-background">{quality(value).name} ({value}/5)</span></legend>
+      <legend className="mb-2 text-label-lg text-on-surface">{legend}: <span className="text-on-background">{t.qualityNow(quality(value, locale).name, value)}</span></legend>
       {/* La píldora usa layoutId: se aísla del AnimatePresence del formulario (como SegmentedControl). */}
       <PresenceContext.Provider value={null}>
         <div role="radiogroup" aria-label={legend} className="grid grid-cols-5 gap-2">
-          {QUALITY.map((f, i) => {
+          {list.map((f, i) => {
             const on = value === f.n;
             return (
               <motion.button
@@ -75,7 +190,7 @@ function QualityPicker({ value, onChange, legend = 'Calidad' }: { value: number;
                 type="button"
                 role="radio"
                 aria-checked={on}
-                aria-label={`${f.n} de 5, ${f.name}`}
+                aria-label={`${f.n} / 5, ${f.name}`}
                 tabIndex={on ? 0 : -1}
                 onClick={() => onChange(f.n)}
                 onKeyDown={(e) => onKey(e, i)}
@@ -102,19 +217,22 @@ function QualityPicker({ value, onChange, legend = 'Calidad' }: { value: number;
 }
 
 const FACTORS = [
-  { key: 'caffeineLate', label: 'Cafeína tarde', icon: Coffee },
-  { key: 'screensBeforeBed', label: 'Pantallas antes de dormir', icon: MonitorSmartphone },
-  { key: 'exercisedToday', label: 'Hice ejercicio', icon: Dumbbell },
+  { key: 'caffeineLate', icon: Coffee },
+  { key: 'screensBeforeBed', icon: MonitorSmartphone },
+  { key: 'exercisedToday', icon: Dumbbell },
 ] as const;
 type FactorKey = (typeof FACTORS)[number]['key'];
 
 function DaySelect({ id, label, value, onChange }: { id: string; label: string; value: number; onChange: (v: number) => void }) {
+  const t = useText(COPY);
+  const locale = useLocale();
+  const shortDate = (d: Date) => d.toLocaleDateString(INTL_LOCALE[locale], { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '');
   return (
     <Field label={label}>
       <Select id={id} value={value} onChange={(e) => onChange(Number(e.target.value))}>
         {Array.from({ length: 7 }, (_, i) => {
           const d = new Date(Date.now() - i * DAY);
-          return <option key={i} value={i}>{i === 0 ? `Hoy · ${shortDate(d)}` : i === 1 ? `Ayer · ${shortDate(d)}` : shortDate(d)}</option>;
+          return <option key={i} value={i}>{i === 0 ? `${t.today} · ${shortDate(d)}` : i === 1 ? `${t.yesterday} · ${shortDate(d)}` : shortDate(d)}</option>;
         })}
       </Select>
     </Field>
@@ -122,10 +240,12 @@ function DaySelect({ id, label, value, onChange }: { id: string; label: string; 
 }
 
 function NightForm({ logs, onSaved, idPrefix }: { logs: SleepLog[]; onSaved: () => void; idPrefix: string }) {
+  const t = useText(COPY);
+  const locale = useLocale();
   const last = logs.find((l) => !isNap(l));
   const [wakeDay, setWakeDay] = useState(0);
-  const [bed, setBed] = useState(() => (last ? clock(last.bedtime) : '23:00'));
-  const [wake, setWake] = useState(() => (last ? clock(last.wakeTime) : '07:00'));
+  const [bed, setBed] = useState(() => (last ? clock(last.bedtime, locale) : '23:00'));
+  const [wake, setWake] = useState(() => (last ? clock(last.wakeTime, locale) : '07:00'));
   const [q, setQ] = useState(4);
   const [factors, setFactors] = useState<Record<FactorKey, boolean>>({ caffeineLate: false, screensBeforeBed: false, exercisedToday: false });
   const [saving, setSaving] = useState(false);
@@ -139,17 +259,17 @@ function NightForm({ logs, onSaved, idPrefix }: { logs: SleepLog[]; onSaved: () 
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (!night || !valid) { setError('El descanso debe durar entre 1 min y 20 h.'); return; }
+    if (!night || !valid) { setError(t.nightInvalid); return; }
     setSaving(true);
     setError(null);
     try {
       const body = { bedtime: night.bedtime.toISOString(), wakeTime: night.wakeTime.toISOString(), quality: q };
       if (existing) await sleepService.updateSleep(existing.id, body);
       else await sleepService.createSleep({ ...body, date: dayKey(night.wakeTime), ...factors });
-      useToastStore.getState().success(existing ? 'Registro actualizado' : 'Noche registrada', `${hm(night.hours)} · ${quality(q).name.toLowerCase()}`);
+      useToastStore.getState().success(existing ? t.nightUpdated : t.nightRegistered, `${hm(night.hours)} · ${quality(q, locale).name.toLowerCase()}`);
       onSaved();
     } catch {
-      setError('No se pudo guardar. Inténtalo de nuevo.');
+      setError(t.saveFailed);
     } finally {
       setSaving(false);
     }
@@ -157,18 +277,18 @@ function NightForm({ logs, onSaved, idPrefix }: { logs: SleepLog[]; onSaved: () 
 
   return (
     <form className="flex flex-col gap-5" onSubmit={(e) => void submit(e)} noValidate>
-      <DaySelect id={`${idPrefix}-day`} label="Noche que terminó" value={wakeDay} onChange={setWakeDay} />
+      <DaySelect id={`${idPrefix}-day`} label={t.nightEnded} value={wakeDay} onChange={setWakeDay} />
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Me dormí"><Input id={`${idPrefix}-in`} type="time" value={bed} onChange={(e) => setBed(e.target.value)} required /></Field>
-        <Field label="Desperté" error={night && !valid ? 'Entre 1 min y 20 h' : undefined}><Input id={`${idPrefix}-out`} type="time" value={wake} onChange={(e) => setWake(e.target.value)} required /></Field>
+        <Field label={t.sleptAt}><Input id={`${idPrefix}-in`} type="time" value={bed} onChange={(e) => setBed(e.target.value)} required /></Field>
+        <Field label={t.wokeAt} error={night && !valid ? t.wakeRange : undefined}><Input id={`${idPrefix}-out`} type="time" value={wake} onChange={(e) => setWake(e.target.value)} required /></Field>
       </div>
-      <DurationMeter hours={night && valid ? night.hours : null} target={SLEEP_GOAL_H} targetLabel={`Meta: ${SLEEP_GOAL_H} h por noche`} />
-      <QualityPicker value={q} onChange={setQ} legend="Calidad" />
+      <DurationMeter hours={night && valid ? night.hours : null} target={SLEEP_GOAL_H} targetLabel={t.goalRange} />
+      <QualityPicker value={q} onChange={setQ} legend={t.howSleptLegend} />
       {!existing && (
         <fieldset className="flex flex-col gap-2">
-          <legend className="mb-2 text-label-lg text-on-surface">Factores <span className="font-normal text-on-surface-light">(opcional)</span></legend>
+          <legend className="mb-2 text-label-lg text-on-surface">{t.factors} <span className="font-normal text-on-surface-light">{t.optional}</span></legend>
           <div className="flex flex-wrap gap-2">
-            {FACTORS.map(({ key, label, icon: Icon }) => (
+            {FACTORS.map(({ key, icon: Icon }) => (
               <motion.button
                 key={key}
                 type="button"
@@ -180,20 +300,23 @@ function NightForm({ logs, onSaved, idPrefix }: { logs: SleepLog[]; onSaved: () 
                   factors[key] ? 'border-primary bg-primary/[var(--lq-soft-alpha)] text-primary-text' : 'border-border text-on-surface hover:bg-surface-variant',
                 )}
               >
-                <Icon aria-hidden className="size-4" strokeWidth={1.75} />{label}
+                <Icon aria-hidden className="size-4" strokeWidth={1.75} />{key === 'caffeineLate' ? t.cafLate : key === 'screensBeforeBed' ? t.screens : t.exercised}
               </motion.button>
             ))}
           </div>
         </fieldset>
       )}
-      {existing && <p className="text-body-sm text-on-surface-light">Ya registraste esta noche: al guardar se actualizará.</p>}
+      {existing && <p className="text-body-sm text-on-surface-light">{t.alreadyNight}</p>}
       {error && <p role="alert" className="text-body-sm text-error-text">{error}</p>}
-      <Button type="submit" block loading={saving}>{existing ? 'Actualizar noche' : 'Guardar noche'}</Button>
+      <Button type="submit" block loading={saving}>{existing ? t.updateNight : t.saveNight}</Button>
     </form>
   );
 }
 
 function NapForm({ onSaved, idPrefix }: { onSaved: () => void; idPrefix: string }) {
+  const t = useText(COPY);
+  const locale = useLocale();
+  const presets = napPresets(locale);
   const [day, setDay] = useState(0);
   const [start, setStart] = useState(() => {
     // Hoy, después de mediodía: termina «ahora» (redondeado a 5 min); si no, 15:00.
@@ -210,11 +333,11 @@ function NapForm({ onSaved, idPrefix }: { onSaved: () => void; idPrefix: string 
   const minutes = start && end ? (fromHHMM(end) - fromHHMM(start) + 1440) % 1440 : 0;
   const hours = minutes / 60;
   const valid = hours >= REST_MIN_H && hours <= REST_MAX_H;
-  const preset = NAP_PRESETS.find((p) => p.min === minutes)?.min;
+  const preset = presets.find((p) => p.min === minutes)?.min;
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (!valid) { setError(minutes <= 0 ? 'La hora de fin debe ser distinta del inicio.' : 'El descanso debe durar entre 1 min y 20 h.'); return; }
+    if (!valid) { setError(minutes <= 0 ? t.napSameTimes : t.napInvalid); return; }
     const base = new Date(Date.now() - day * DAY);
     const s = new Date(base); s.setHours(0, fromHHMM(start), 0, 0);
     const w = new Date(s.getTime() + minutes * 60_000);
@@ -222,22 +345,23 @@ function NapForm({ onSaved, idPrefix }: { onSaved: () => void; idPrefix: string 
     setError(null);
     try {
       await sleepService.createSleep({ bedtime: s.toISOString(), wakeTime: w.toISOString(), quality: q, date: dayKey(w), isNap: true });
-      useToastStore.getState().success('Siesta registrada', `${hm(hours)} · ${quality(q).name.toLowerCase()}`);
+      useToastStore.getState().success(t.napRegistered, `${hm(hours)} · ${quality(q, locale).name.toLowerCase()}`);
       onSaved();
     } catch {
-      setError('No se pudo guardar. Inténtalo de nuevo.');
+      setError(t.saveFailed);
     } finally {
       setSaving(false);
     }
   }
 
+  const advice = valid ? napAdvice(hours, locale) : null;
   return (
     <form className="flex flex-col gap-5" onSubmit={(e) => void submit(e)} noValidate>
-      <DaySelect id={`${idPrefix}-day`} label="Día" value={day} onChange={setDay} />
+      <DaySelect id={`${idPrefix}-day`} label={t.napDate} value={day} onChange={setDay} />
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 text-label-lg text-on-surface">Duración rápida</legend>
+        <legend className="mb-2 text-label-lg text-on-surface">{t.quickDuration}</legend>
         <div className="grid grid-cols-3 gap-2">
-          {NAP_PRESETS.map((p) => {
+          {presets.map((p) => {
             const on = preset === p.min;
             return (
               <motion.button
@@ -259,24 +383,19 @@ function NapForm({ onSaved, idPrefix }: { onSaved: () => void; idPrefix: string 
         </div>
       </fieldset>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Empecé"><Input id={`${idPrefix}-in`} type="time" value={start} onChange={(e) => setStart(e.target.value)} required /></Field>
-        <Field label="Terminé" error={start && end && !valid ? 'Entre 1 min y 20 h' : undefined}><Input id={`${idPrefix}-out`} type="time" value={end} onChange={(e) => setEnd(e.target.value)} required /></Field>
+        <Field label={t.startedAt}><Input id={`${idPrefix}-in`} type="time" value={start} onChange={(e) => setStart(e.target.value)} required /></Field>
+        <Field label={t.endedAt} error={start && end && !valid ? t.wakeRange : undefined}><Input id={`${idPrefix}-out`} type="time" value={end} onChange={(e) => setEnd(e.target.value)} required /></Field>
       </div>
-      <DurationMeter
-        hours={valid ? hours : null}
-        target={1.5}
-        tone="warning"
-        targetLabel="Referencia: un ciclo completo dura ~90 min"
-        advice={valid ? napAdvice(hours) : null}
-      />
-      <QualityPicker value={q} onChange={setQ} legend="¿Cómo te sentiste?" />
+      <DurationMeter hours={valid ? hours : null} target={1.5} tone="warning" targetLabel={t.refHint} advice={advice} />
+      <QualityPicker value={q} onChange={setQ} legend={t.wentWell} />
       {error && <p role="alert" className="text-body-sm text-error-text">{error}</p>}
-      <Button type="submit" block loading={saving}>Guardar siesta</Button>
+      <Button type="submit" block loading={saving}>{t.saveNap}</Button>
     </form>
   );
 }
 
 function LogCard({ logs, onSaved }: { logs: SleepLog[]; onSaved: () => void }) {
+  const t = useText(COPY);
   const [mode, setMode] = useState<Mode>('night');
   const [formKey, setFormKey] = useState(0);
   const dir = mode === 'nap' ? 1 : -1;
@@ -297,14 +416,14 @@ function LogCard({ logs, onSaved }: { logs: SleepLog[]; onSaved: () => void }) {
             </motion.span>
           </AnimatePresence>
         </span>
-        <h2 id="sleep-log" className="text-heading-sm">{mode === 'night' ? 'Registrar noche' : 'Registrar siesta'}</h2>
+        <h2 id="sleep-log" className="text-heading-sm">{mode === 'night' ? t.logNight : t.logNap}</h2>
       </div>
       <SegmentedControl
         role="radiogroup"
-        label="Tipo de descanso"
+        label={t.typeOfRest}
         value={mode}
         onChange={setMode}
-        options={[{ value: 'night', label: 'Noche' }, { value: 'nap', label: 'Siesta' }]}
+        options={[{ value: 'night', label: t.night }, { value: 'nap', label: t.nap }]}
       />
       <AnimatePresence mode="wait" initial={false} custom={dir}>
         <motion.div
@@ -325,6 +444,7 @@ function LogCard({ logs, onSaved }: { logs: SleepLog[]; onSaved: () => void }) {
 
 /** Cifra grande que cuenta hasta el valor (horas y minutos). */
 function BigDuration({ hours }: { hours: number }) {
+  const t = useText(COPY);
   const minutes = useCountUp(Math.round(hours * 60), 1.2);
   const h = Math.floor(minutes / 60);
   const m = Math.round(minutes % 60);
@@ -340,6 +460,9 @@ function BigDuration({ hours }: { hours: number }) {
 }
 
 function SleepHero({ night, dayLogs }: { night: SleepLog | undefined; dayLogs: SleepLog[] }) {
+  const t = useText(COPY);
+  const locale = useLocale();
+  const shortDate = (d: Date) => d.toLocaleDateString(INTL_LOCALE[locale], { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '');
   const naps = dayLogs.filter(isNap);
   const napHours = naps.reduce((a, l) => a + l.duration, 0);
   const total = dayLogs.reduce((a, l) => a + l.duration, 0);
@@ -349,17 +472,17 @@ function SleepHero({ night, dayLogs }: { night: SleepLog | undefined; dayLogs: S
   const gap = night ? Math.round((SLEEP_GOAL_H - night.duration) * 60) : 0;
   const segments: DialSegment[] = dayLogs.map((l) => ({
     start: l.bedtime, end: l.wakeTime, kind: isNap(l) ? 'nap' : 'night',
-    label: `${isNap(l) ? 'Siesta' : 'Noche'} de ${clock(l.bedtime)} a ${clock(l.wakeTime)}`,
+    label: `${isNap(l) ? t.naps : t.night} ${clock(l.bedtime, locale)} → ${clock(l.wakeTime, locale)}`,
   }));
   return (
-    <Card as="section" variant="elevated" padding="none" aria-label={night ? (recent ? 'Última noche' : 'Último registro') : 'Tu descanso'} className="relative isolate overflow-hidden">
+    <Card as="section" variant="elevated" padding="none" aria-label={night ? (recent ? t.asleepLast : t.lastRecord(shortDate(wake!))) : t.restSectionAria} className="relative isolate overflow-hidden">
       <SleepSky className="-z-10" />
       <div className="flex flex-col gap-6 p-6 pb-10 md:flex-row md:items-center md:gap-12 md:p-10 md:pb-14">
         <div className="flex min-w-0 flex-1 flex-col gap-3">
           <div className="flex items-center gap-3">
             <SleepyMoon />
             <span className="text-body-sm text-on-surface-light md:text-body-md">
-              {night ? (recent ? 'Anoche dormiste' : `Último registro · ${shortDate(wake!)}`) : 'Tu descanso empieza hoy'}
+              {night ? (recent ? t.asleepLast : t.asleepSince(shortDate(wake!))) : t.restStarts}
             </span>
           </div>
           {night ? (
@@ -367,14 +490,14 @@ function SleepHero({ night, dayLogs }: { night: SleepLog | undefined; dayLogs: S
               <BigDuration hours={night.duration} />
               <div className="flex flex-wrap items-center gap-2 md:gap-3">
                 <QualityBadge q={night.quality} />
-                <span className="flex items-center gap-1.5 text-body-sm text-on-surface-light"><Clock aria-hidden className="size-4" strokeWidth={1.75} />{clock(night.bedtime)} → {clock(night.wakeTime)}</span>
+                <span className="flex items-center gap-1.5 text-body-sm text-on-surface-light"><Clock aria-hidden className="size-4" strokeWidth={1.75} />{clock(night.bedtime, locale)} → {clock(night.wakeTime, locale)}</span>
                 <span className={cn('rounded-full px-3 py-1.5 text-label-lg', met ? 'bg-surface-variant text-on-surface' : softTone.warning)}>
-                  {met ? `Meta ${SLEEP_GOAL_H} h cumplida` : `${hm(gap / 60)} por debajo de la meta`}
+                  {met ? t.goalMet(String(SLEEP_GOAL_H)) : t.belowGoal(hm(gap / 60))}
                 </span>
               </div>
             </>
           ) : (
-            <p className="max-w-md text-body-md text-on-surface">Registra tu primera noche (o una siesta) para descubrir cómo cambia tu energía con el tiempo.</p>
+            <p className="max-w-md text-body-md text-on-surface">{t.firstNight}</p>
           )}
           <AnimatePresence>
             {naps.length > 0 && (
@@ -383,17 +506,17 @@ function SleepHero({ night, dayLogs }: { night: SleepLog | undefined; dayLogs: S
                 className={cn('inline-flex w-fit items-center gap-2 rounded-full px-3 py-1.5 text-label-lg', softTone.warning)}
               >
                 <CloudSun aria-hidden className="size-4" strokeWidth={1.75} />
-                + {hm(napHours)} de siesta{naps.length > 1 ? ` (${naps.length})` : ''}
+                {naps.length > 1 ? t.napTotal(hm(napHours), naps.length) : t.napTotalOne(hm(napHours))}
               </motion.p>
             )}
           </AnimatePresence>
         </div>
         <div className="flex flex-col items-center gap-3">
-          <RestDial segments={segments} totalHours={total} caption={naps.length ? 'noche + siestas' : 'descanso total'} />
+          <RestDial segments={segments} totalHours={total} caption={naps.length ? t.nightPlusNap : t.restToday} />
           <div aria-hidden className="flex items-center gap-4 text-body-sm text-on-surface-light">
-            <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-info" />Noche</span>
-            <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-warning" />Siesta</span>
-            <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-primary" />Ahora</span>
+            <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-info" />{t.shortLegend}</span>
+            <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-warning" />{t.nap2}</span>
+            <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-primary" />{t.now}</span>
           </div>
         </div>
       </div>
@@ -402,6 +525,7 @@ function SleepHero({ night, dayLogs }: { night: SleepLog | undefined; dayLogs: S
 }
 
 function MiniStat({ label, hours, sub, tone }: { label: string; hours: number; sub: string; tone: 'info' | 'warning' | 'primary' }) {
+  const t = useText(COPY);
   const minutes = useCountUp(Math.round(hours * 60), 1.1);
   return (
     <motion.div variants={pop3} className="min-w-0">
@@ -411,7 +535,7 @@ function MiniStat({ label, hours, sub, tone }: { label: string; hours: number; s
           {label}
         </span>
         <span className="text-heading-md font-bold font-mono tabular-nums" aria-hidden>{hours ? hm(minutes / 60, true) : '—'}</span>
-        <span className="sr-only">{hours ? hm(hours) : 'Sin datos'}</span>
+        <span className="sr-only">{hours ? hm(hours) : t.noNights}</span>
         <span className="truncate text-body-sm text-on-surface-light">{sub}</span>
       </Card>
     </motion.div>
@@ -419,11 +543,13 @@ function MiniStat({ label, hours, sub, tone }: { label: string; hours: number; s
 }
 
 function SleepGapCard({ suggestion, onDismiss, onSaved }: { suggestion: SleepGapSuggestion; onDismiss: () => void; onSaved: () => void }) {
+  const t = useText(COPY);
+  const locale = useLocale();
   const [q, setQ] = useState(3);
   const [saving, setSaving] = useState(false);
   const start = new Date(suggestion.bedtime);
   const end = new Date(suggestion.wakeTime);
-  const time = (date: Date) => date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  const time = (date: Date) => date.toLocaleTimeString(INTL_LOCALE[locale], { hour: '2-digit', minute: '2-digit' });
 
   async function confirm() {
     setSaving(true);
@@ -434,37 +560,47 @@ function SleepGapCard({ suggestion, onDismiss, onSaved }: { suggestion: SleepGap
         date: dayKey(end),
         quality: q,
       });
-      useToastStore.getState().success('Descanso registrado', `${hm(suggestion.durationHours)} · ${quality(q).name.toLowerCase()}`);
+      useToastStore.getState().success(t.restRegistered, `${hm(suggestion.durationHours)} · ${quality(q, locale).name.toLowerCase()}`);
       onSaved();
       onDismiss();
     } catch {
-      useToastStore.getState().error('No se pudo registrar el descanso', 'Comprueba que no haya un registro para esa noche.');
+      useToastStore.getState().error(t.restFailed, t.restFailedBody);
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <Card as="section" padding="lg" aria-label="Sugerencia de descanso nocturno" className="flex flex-col gap-4 border-info/35 bg-info/[var(--lq-soft-alpha)]">
+    <Card as="section" padding="lg" aria-label={t.gapCardAria} className="flex flex-col gap-4 border-info/35 bg-info/[var(--lq-soft-alpha)]">
       <div className="flex items-start gap-3">
         <IconChip icon={Moon} tone="info" size="lg" />
         <div className="min-w-0 flex-1">
-          <h2 className="text-heading-sm">¿Dormiste durante esta pausa?</h2>
+          <h2 className="text-heading-sm">{t.gapTitle}</h2>
           <p className="mt-1 text-body-sm text-on-surface-light">
-            Noutlife detectó que volviste tras una pausa nocturna de <b className="font-mono text-on-surface">{hm(suggestion.durationHours)}</b> ({time(start)}–{time(end)}). Solo se guardará si lo confirmas.
+            {t.gapBody(hm(suggestion.durationHours), time(start), time(end))}
           </p>
         </div>
       </div>
-      <QualityPicker value={q} onChange={setQ} legend="¿Cómo descansaste?" />
+      <QualityPicker value={q} onChange={setQ} legend={t.gapQ} />
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <Button type="button" variant="ghost" onClick={onDismiss}>No fue sueño</Button>
-        <Button type="button" loading={saving} onClick={() => void confirm()}>Registrar descanso</Button>
+        <Button type="button" variant="ghost" onClick={onDismiss}>{t.gapNotSleep}</Button>
+        <Button type="button" loading={saving} onClick={() => void confirm()}>{t.gapRegister}</Button>
       </div>
     </Card>
   );
 }
 
 export default function SleepPage() {
+  const t = useText(COPY);
+  const locale: Locale = useLocale();
+  const loadingCopy = useLoadingCopy();
+  const weekday = (d: Date, style: 'short' | 'long' = 'short') => {
+    const s = d.toLocaleDateString(INTL_LOCALE[locale], { weekday: style }).replace('.', '');
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  };
+  const shortDate = (d: Date) => d.toLocaleDateString(INTL_LOCALE[locale], { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '');
+  const num1 = (n: number) => n.toLocaleString(INTL_LOCALE[locale], { maximumFractionDigits: 1 });
+
   const [logs, setLogs] = useState<SleepLog[]>([]);
   const [stats, setStats] = useState<SleepStats | null>(null);
   const [state, setState] = useState<'loading' | 'error' | 'ready'>('loading');
@@ -521,10 +657,10 @@ export default function SleepPage() {
     setLogs((list) => list.filter((x) => x.id !== l.id));
     try {
       await sleepService.deleteSleep(l.id);
-      useToastStore.getState().success(isNap(l) ? 'Siesta eliminada' : 'Registro eliminado');
+      useToastStore.getState().success(isNap(l) ? t.deleteNapToast : t.deleted);
       void load(true);
     } catch {
-      useToastStore.getState().error('No se pudo eliminar');
+      useToastStore.getState().error(t.deleteFailed);
       void load(true);
     }
   }
@@ -554,7 +690,7 @@ export default function SleepPage() {
     return {
       label: isDesktop ? weekday(n.wake) : num1(n.hours),
       value: n.hours,
-      tip: `${weekday(n.wake)} · ${hm(n.hours, true)}${nap ? ` + ${hm(nap)} de siesta` : ''}`,
+      tip: `${weekday(n.wake)} · ${hm(n.hours, true)}${nap ? ` + ${hm(nap)} ${t.nap2.toLowerCase()}` : ''}`,
     };
   });
   const avg = recent.length ? recent.reduce((a, n) => a + n.hours, 0) / recent.length : 0;
@@ -570,9 +706,9 @@ export default function SleepPage() {
   const delta = thisWeek !== null && lastWeek !== null ? Math.round((thisWeek - lastWeek) * 60) : null;
   const trend = delta !== null ? (delta > 15 ? 'improving' : delta < -15 ? 'declining' : 'stable') : stats?.trend ?? 'stable';
   const trendMeta = {
-    improving: { label: 'mejorando', icon: TrendingUp, tone: 'success' as const },
-    declining: { label: 'bajando', icon: TrendingDown, tone: 'warning' as const },
-    stable: { label: 'estable', icon: Minus, tone: 'info' as const },
+    improving: { label: t.trendImproving, icon: TrendingUp, tone: 'success' as const },
+    declining: { label: t.trendDeclining, icon: TrendingDown, tone: 'warning' as const },
+    stable: { label: t.trendStable, icon: Minus, tone: 'info' as const },
   }[trend];
   const good = nights.slice(0, 14).flatMap((n) => n.logs).filter((l) => l.quality >= 4);
   const goodBed = good.length >= 2 ? fmtBedMinutes(good.reduce((a, l) => a + bedMinutes(l.bedtime), 0) / good.length) : null;
@@ -584,16 +720,16 @@ export default function SleepPage() {
 
   const header = (
     <motion.section variants={item} className="flex flex-col gap-1 md:gap-2">
-      <span className="hidden text-label-lg text-primary-text md:block">Descanso</span>
-      <h1 className="text-display-sm md:text-display-md lg:text-display-lg"><Lettering text="Sueño" /></h1>
+      <span className="hidden text-label-lg text-primary-text md:block">{t.section}</span>
+      <h1 className="text-display-sm md:text-display-md lg:text-display-lg"><Lettering text={t.headline} /></h1>
     </motion.section>
   );
 
   const chart = (
     <Card as="section" padding="none" aria-labelledby="sleep-week" className="flex flex-col gap-4 p-4 md:gap-6 md:p-6 lg:p-8">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 id="sleep-week" className="text-heading-sm md:text-heading-lg">Últimas {recent.length > 1 ? recent.length : 7} noches</h2>
-        {recent.length > 1 && <span className="text-body-sm text-on-surface-light md:text-body-md">Prom. <b className="font-semibold text-on-background font-mono tabular-nums">{hm(avg, true)}</b></span>}
+        <h2 id="sleep-week" className="text-heading-sm md:text-heading-lg">{t.lastNights(recent.length > 1 ? recent.length : 7)}</h2>
+        {recent.length > 1 && <span className="text-body-sm text-on-surface-light md:text-body-md">{t.avg} <b className="font-semibold text-on-background font-mono tabular-nums">{hm(avg, true)}</b></span>}
       </div>
       {recent.length > 1 ? (
         <>
@@ -601,10 +737,10 @@ export default function SleepPage() {
             key={`${isDesktop}-${recent.map((n) => n.key).join()}`}
             data={points}
             min={lo} max={hi}
-            goal={{ value: SLEEP_GOAL_H, label: `Meta ${SLEEP_GOAL_H} h` }}
+            goal={{ value: SLEEP_GOAL_H, label: `${t.goalRange}` }}
             height={isDesktop ? 240 : 140}
             dots={isDesktop}
-            label={`Horas de sueño por noche: ${recent.map((n) => num1(n.hours)).join('; ')}. Tendencia ${trendMeta.label}.`}
+            label={t.chartLabel(recent.map((n) => num1(n.hours)).join('; '), trendMeta.label)}
           />
           <div aria-hidden className="-mt-1 grid text-center" style={{ gridTemplateColumns: `repeat(${recent.length}, minmax(0, 1fr))` }}>
             {recent.map((n, i) => (
@@ -622,17 +758,17 @@ export default function SleepPage() {
             <IconChip icon={trendMeta.icon} tone={trendMeta.tone} size="sm" className="hidden bg-background md:inline-flex" />
             <trendMeta.icon aria-hidden className={cn('size-5 shrink-0 md:hidden', softTone[trendMeta.tone].split(' ')[1])} strokeWidth={1.75} />
             <div className="min-w-0">
-              <div className={cn('text-label-lg md:text-body-lg md:font-semibold', softTone[trendMeta.tone].split(' ')[1])}>Tendencia: {trendMeta.label}</div>
+              <div className={cn('text-label-lg md:text-body-lg md:font-semibold', softTone[trendMeta.tone].split(' ')[1])}>{t.trendLabel(trendMeta.label)}</div>
               <div className="text-body-sm text-on-surface md:text-body-md">
-                {delta !== null ? `${delta >= 0 ? '+' : '−'}${hm(Math.abs(delta) / 60)} vs. la semana pasada.` : 'Registra dos semanas para comparar.'}
-                {goodBed && <span className="hidden md:inline"> En tus mejores noches te acostaste hacia las {goodBed}.</span>}
+                {delta !== null ? t.vsLastWeek(hm(Math.abs(delta) / 60), delta >= 0 ? '+' : '−') : t.compareTwo}
+                {goodBed && <span className="hidden md:inline"> {t.bestNights(goodBed)}</span>}
               </div>
             </div>
           </div>
-          {napsByDay.size > 0 && <p className="-mt-2 flex items-center gap-2 text-body-sm text-on-surface-light"><span aria-hidden className="size-1.5 rounded-full bg-warning" />Día con siesta (no cuenta en la media de noches)</p>}
+          {napsByDay.size > 0 && <p className="-mt-2 flex items-center gap-2 text-body-sm text-on-surface-light"><span aria-hidden className="size-1.5 rounded-full bg-warning" />{t.nightDay}</p>}
         </>
       ) : (
-        <EmptyState icon={Moon} tone="muted" title="Aún no hay tendencia" description="Registra al menos dos noches para ver cómo evoluciona tu descanso." className="py-8" />
+        <EmptyState icon={Moon} tone="muted" title={t.noTrend} description={t.trendNeed} className="py-8" />
       )}
     </Card>
   );
@@ -640,7 +776,7 @@ export default function SleepPage() {
   const visible = showAll ? logs : logs.slice(0, 8);
   const history = logs.length > 0 && (
     <Card as="section" padding="none" aria-labelledby="sleep-history" className="flex flex-col gap-2 p-4 md:p-6">
-      <h2 id="sleep-history" className="text-heading-sm">Historial</h2>
+      <h2 id="sleep-history" className="text-heading-sm">{t.historyTitle}</h2>
       <ul className="flex flex-col">
         <AnimatePresence initial={false}>
           {visible.map((l, i) => {
@@ -656,18 +792,18 @@ export default function SleepPage() {
                 transition={{ layout: springSoft }}
                 className={cn('flex min-h-16 items-center gap-3 md:gap-4', i < visible.length - 1 && 'border-b border-border')}
               >
-                <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-xl', nap ? softTone.warning : softTone[quality(l.quality).tone])} title={nap ? 'Siesta' : quality(l.quality).name}>
+                <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-xl', nap ? softTone.warning : softTone[quality(l.quality, locale).tone])} title={nap ? t.nap2 : quality(l.quality, locale).name}>
                   {nap ? <CloudSun aria-hidden className="size-5" strokeWidth={1.75} /> : <QualityFace q={l.quality} className="size-5" />}
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="flex min-w-0 items-center gap-2 truncate text-body-md font-semibold">
                     {date}
-                    {nap && <span className="hidden rounded-full sm:inline bg-warning/[var(--lq-soft-alpha)] px-2 py-0.5 text-label-md text-warning-text">Siesta</span>}
+                    {nap && <span className="hidden rounded-full sm:inline bg-warning/[var(--lq-soft-alpha)] px-2 py-0.5 text-label-md text-warning-text">{t.nap2}</span>}
                   </div>
-                  <div className="truncate text-body-sm text-on-surface-light font-mono tabular-nums">{nap && <span className="text-warning-text sm:hidden">Siesta · </span>}{clock(l.bedtime)} → {clock(l.wakeTime)}<span className="sr-only sm:not-sr-only"> · {quality(l.quality).name}</span></div>
+                  <div className="truncate text-body-sm text-on-surface-light font-mono tabular-nums">{nap && <span className="text-warning-text sm:hidden">{t.nap2} · </span>}{clock(l.bedtime, locale)} → {clock(l.wakeTime, locale)}<span className="sr-only sm:not-sr-only"> · {quality(l.quality, locale).name}</span></div>
                 </div>
                 <span className={cn('text-body-md font-semibold font-mono tabular-nums', !nap && l.duration < SLEEP_GOAL_H - 1 && 'text-warning-text')}>{nap ? hm(l.duration) : hm(l.duration, true)}</span>
-                <Button variant="icon" aria-label={`Eliminar ${nap ? 'la siesta' : 'la noche'} del ${date}`} onClick={() => void remove(l)} className="-mr-2 hover:text-error-text">
+                <Button variant="icon" aria-label={t.deleteEntry(nap ? t.napWord : t.nightWord, date)} onClick={() => void remove(l)} className="-mr-2 hover:text-error-text">
                   <Trash2 aria-hidden className="size-5" strokeWidth={1.75} />
                 </Button>
               </motion.li>
@@ -677,7 +813,7 @@ export default function SleepPage() {
       </ul>
       {logs.length > 8 && (
         <Button variant="ghost" size="sm" className="self-center" aria-expanded={showAll} onClick={() => setShowAll((v) => !v)}>
-          {showAll ? 'Ver menos' : `Ver los ${logs.length} registros`}
+          {showAll ? t.viewLess : t.viewAll(logs.length)}
         </Button>
       )}
     </Card>
@@ -687,9 +823,9 @@ export default function SleepPage() {
     <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-6 md:gap-8">
       {header}
       {state === 'loading' ? (
-        <PageLoader label="Cargando tus noches…" words={LOADING_COPY.statsSleep} />
+        <PageLoader label={t.loading} words={loadingCopy.statsSleep} />
       ) : state === 'error' ? (
-        <ErrorState title="No pudimos cargar tu sueño" onRetry={() => void load()} />
+        <ErrorState title={t.loadFailed} onRetry={() => void load()} />
       ) : (
         <>
           {gapSuggestion && (
@@ -699,10 +835,10 @@ export default function SleepPage() {
           )}
           <motion.div variants={item}><SleepHero night={lastNight} dayLogs={heroLogs} /></motion.div>
           <motion.div variants={stagger} className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
-            <MiniStat label="Media de noches" hours={avg} sub={recent.length ? `Últimas ${recent.length}` : 'Sin noches aún'} tone="info" />
-            <MiniStat label="Siestas · 7 días" hours={weekNapHours} sub={weekNaps.length ? `${weekNaps.length} siesta${weekNaps.length === 1 ? '' : 's'}` : 'Ninguna esta semana'} tone="warning" />
+            <MiniStat label={t.mean} hours={avg} sub={recent.length ? t.lastN(recent.length) : t.noNights} tone="info" />
+            <MiniStat label={t.napsWeek} hours={weekNapHours} sub={weekNaps.length ? t.napsCount(weekNaps.length) : t.noneWeek} tone="warning" />
             <div className="col-span-2 md:col-span-1">
-              <MiniStat label="Descanso de hoy" hours={todayHours} sub="Noche + siestas" tone="primary" />
+              <MiniStat label={t.restToday} hours={todayHours} sub={t.nightPlusNap} tone="primary" />
             </div>
           </motion.div>
           <motion.div variants={item} className="grid items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">

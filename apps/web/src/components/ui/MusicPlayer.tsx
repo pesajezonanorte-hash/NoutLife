@@ -11,6 +11,29 @@ import { cn } from '@/lib/utils';
 import { ease } from '@/lib/motion';
 import { useShellStore } from '@/store/shellStore';
 import { Button, IconChip } from '@/components/ui/lq';
+import { useText, type Copy } from '@/lib/i18n';
+
+const es = {
+  title: 'Tu música',
+  playlistOf: 'Playlist de',
+  openIn: (p: string): string => `Abrir en ${p} (nueva pestaña)`,
+  hide: 'Ocultar reproductor',
+  player: (p: string): string => `Reproductor de ${p}`,
+  keepPlaying: 'Sigue sonando aunque ocultes el panel.',
+  launcher: 'Música',
+};
+
+const en: typeof es = {
+  title: 'Your music',
+  playlistOf: 'Playlist from',
+  openIn: (p: string): string => `Open in ${p} (new tab)`,
+  hide: 'Hide player',
+  player: (p: string): string => `${p} player`,
+  keepPlaying: 'Keeps playing even when you hide the panel.',
+  launcher: 'Music',
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 type Provider = 'spotify' | 'youtube';
 
@@ -28,6 +51,7 @@ export function parseEmbed(url: string | null | undefined): { type: Provider | n
 const PROVIDER: Record<Provider, string> = { spotify: 'Spotify', youtube: 'YouTube' };
 
 export function MusicPlayer({ url }: { url: string | null | undefined }) {
+  const t = useText(COPY);
   const { type, embedUrl } = useMemo(() => parseEmbed(url), [url]);
   const open = useShellStore((s) => s.musicOpen);
   const setOpen = useShellStore((s) => s.setMusicOpen);
@@ -73,30 +97,30 @@ export function MusicPlayer({ url }: { url: string | null | undefined }) {
         <header className="flex items-center gap-3 border-b border-border py-2 pl-4 pr-2">
           <IconChip icon={Music} tone="forest" size="sm" />
           <div className="min-w-0 flex-1">
-            <h2 id={titleId} className="text-heading-sm">Tu música</h2>
-            <p className="text-body-sm text-on-surface-light">Playlist de {PROVIDER[type]}</p>
+            <h2 id={titleId} className="text-heading-sm">{t.title}</h2>
+            <p className="text-body-sm text-on-surface-light">{t.playlistOf} {PROVIDER[type]}</p>
           </div>
           <a
             href={url} target="_blank" rel="noopener noreferrer"
-            aria-label={`Abrir en ${PROVIDER[type]} (nueva pestaña)`}
+            aria-label={t.openIn(PROVIDER[type])}
             className="flex size-11 shrink-0 items-center justify-center rounded-full text-on-surface hover:bg-surface-variant"
           >
             <ExternalLink aria-hidden className="size-5" strokeWidth={1.75} />
           </a>
-          <Button variant="icon" aria-label="Ocultar reproductor" onClick={close}>
+          <Button variant="icon" aria-label={t.hide} onClick={close}>
             <X aria-hidden className="size-5" strokeWidth={1.75} />
           </Button>
         </header>
         {mounted && (
           <iframe
-            title={`Reproductor de ${PROVIDER[type]}`}
+            title={t.player(PROVIDER[type])}
             src={embedUrl}
             className={cn('block w-full border-0', type === 'spotify' ? 'h-[152px]' : 'aspect-video')}
             allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
             loading="lazy"
           />
         )}
-        <p className="px-4 py-2 text-body-sm text-on-surface-light">Sigue sonando aunque ocultes el panel.</p>
+        <p className="px-4 py-2 text-body-sm text-on-surface-light">{t.keepPlaying}</p>
       </motion.section>
 
       {/* Lanzador (md+). En móvil se abre desde el menú. */}
@@ -109,7 +133,7 @@ export function MusicPlayer({ url }: { url: string | null | undefined }) {
         className="fixed bottom-8 right-8 z-40 hidden min-h-11 items-center gap-2 rounded-full border border-border bg-background px-4 text-label-lg text-on-background shadow-md transition-shadow hover:shadow-lg md:inline-flex"
       >
         <Music aria-hidden className="size-5 text-forest-text" strokeWidth={1.75} />
-        Música
+        {t.launcher}
         <ChevronDown aria-hidden className={cn('size-4 transition-transform duration-200', !open && 'rotate-180')} strokeWidth={1.75} />
       </button>
     </>

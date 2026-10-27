@@ -6,7 +6,24 @@ import { useEffect, useRef } from 'react';
 import { AnimatePresence, motion, useAnimationControls, useInView } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { heavy, slam } from '@/lib/motion';
+import { INTL_LOCALE, useLocale, useText, type Copy } from '@/lib/i18n';
 import { WeightBars, formatClock } from '@/components/ui/lq';
+
+const es = {
+  kgUnit: 'kg',
+  best: 'Mayor carga de la semana',
+  rest: 'Descanso',
+  sessions: ['sesión', 'sesiones'] as [string, string],
+};
+
+const en: typeof es = {
+  kgUnit: 'kg',
+  best: 'Heaviest load this week',
+  rest: 'Rest',
+  sessions: ['session', 'sessions'],
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 export { Thud } from '@/components/ui/lq';
 
@@ -109,15 +126,16 @@ export interface LiftDay {
   sessions: string[];
 }
 
-const fmtKg = (n: number) => `${Math.round(n).toLocaleString('es-ES')} kg`;
-
 /** Volumen semanal en kilos sobre las barras con peso compartidas (WeightBars). */
 export function LiftBars({ days, height = 190, label }: { days: LiftDay[]; height?: number; label: string }) {
+  const t = useText(COPY);
+  const nf = INTL_LOCALE[useLocale()];
+  const fmtKg = (n: number) => `${Math.round(n).toLocaleString(nf)} ${t.kgUnit}`;
   return (
     <WeightBars
       data={days.map((d) => ({ key: d.key, label: d.label, title: d.title, value: d.value, details: d.sessions }))}
       label={label} height={height} format={fmtKg}
-      bestLabel="Mayor carga de la semana" emptyLabel="Descanso" noun={['sesión', 'sesiones']}
+      bestLabel={t.best} emptyLabel={t.rest} noun={t.sessions}
     />
   );
 }

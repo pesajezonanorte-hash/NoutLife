@@ -10,12 +10,63 @@ import { Gamepad2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { springs } from '@/lib/motion/presets';
 import { useMotionStore } from '@/store/motionStore';
+import { useText, type Copy } from '@/lib/i18n';
 import type { Game, RpsGame, RpsPick, TttGame } from '@/services/network.service';
 
-const RPS: Array<{ id: RpsPick; label: string; hand: string }> = [
-  { id: 'r', label: 'Piedra', hand: '✊' },
-  { id: 'p', label: 'Papel', hand: '✋' },
-  { id: 's', label: 'Tijera', hand: '✌️' },
+const es = {
+  ttt: 'Tres en raya',
+  rps: 'Piedra, papel o tijera',
+  board: 'Tablero de tres en raya',
+  cell: (n: number, v: string): string => `Casilla ${n}: ${v}`,
+  cross: 'equis',
+  ring: 'círculo',
+  empty: 'vacía',
+  draw: 'Empate. Nadie gana esta.',
+  won: '¡Ganaste!',
+  wonBy: (name: string): string => `Ganó ${name}`,
+  yourTurn: 'Te toca',
+  theirTurn: (name: string): string => `Le toca a ${name}`,
+  anyone: 'quien quiera',
+  rpsDraw: '¡Empate! Mismo gesto.',
+  revealing: 'Revelando…',
+  waitingFor: (name: string): string => `Esperando a ${name}`,
+  yourRival: 'tu rival',
+  alreadyPicked: (name: string): string => `${name} ya eligió. Te toca.`,
+  pickSecret: 'Elige en secreto',
+  you: 'Tú',
+  hands: { r: 'Piedra', p: 'Papel', s: 'Tijera' } as Record<RpsPick, string>,
+};
+
+const en: typeof es = {
+  ttt: 'Tic-tac-toe',
+  rps: 'Rock, paper or scissors',
+  board: 'Tic-tac-toe board',
+  cell: (n: number, v: string): string => `Square ${n}: ${v}`,
+  cross: 'cross',
+  ring: 'circle',
+  empty: 'empty',
+  draw: 'Draw. Nobody wins this one.',
+  won: 'You won!',
+  wonBy: (name: string): string => `${name} won`,
+  yourTurn: 'Your turn',
+  theirTurn: (name: string): string => `It is ${name}’s turn`,
+  anyone: 'anyone',
+  rpsDraw: 'Draw! Same move.',
+  revealing: 'Revealing…',
+  waitingFor: (name: string): string => `Waiting for ${name}`,
+  yourRival: 'your rival',
+  alreadyPicked: (name: string): string => `${name} has already picked. Your turn.`,
+  pickSecret: 'Pick in secret',
+  you: 'You',
+  hands: { r: 'Rock', p: 'Paper', s: 'Scissors' } as Record<RpsPick, string>,
+};
+
+const COPY: Copy<typeof es> = { es, en };
+
+const RPS: Array<{ id: RpsPick; hand: string }> = [
+  { id: 'r', hand: '✊' },
+  { id: 'p', hand: '✋' },
+  { id: 's', hand: '✌️' },
 ];
 const handOf = (p?: RpsPick) => RPS.find((r) => r.id === p);
 
@@ -47,15 +98,16 @@ function Mark({ mark, reduce }: { mark: 'X' | 'O'; reduce: boolean }) {
 }
 
 function Ttt({ game, meId, nameOf, onMove, group }: Props & { game: TttGame }) {
+  const t = useText(COPY);
   const reduce = useMotionStore((s) => s.reduce);
   const [busy, setBusy] = useState<number | null>(null);
   const myMark = game.players.X === meId ? 'X' : game.players.O === meId ? 'O' : null;
   const canJoin = !myMark && !game.players.O && group && game.players.X !== meId;
   const myTurn = !game.winner && (myMark === game.turn || (canJoin && game.turn === 'O'));
-  const turnName = game.players[game.turn] ? nameOf(game.players[game.turn]!) : 'quien quiera';
-  const status = game.winner === 'draw' ? 'Empate. Nadie gana esta.'
-    : game.winner ? (game.players[game.winner] === meId ? '¡Ganaste!' : `Ganó ${nameOf(game.players[game.winner] ?? '')}`)
-      : myTurn ? 'Te toca' : `Le toca a ${turnName}`;
+  const turnName = game.players[game.turn] ? nameOf(game.players[game.turn]!) : t.anyone;
+  const status = game.winner === 'draw' ? t.draw
+    : game.winner ? (game.players[game.winner] === meId ? t.won : t.wonBy(nameOf(game.players[game.winner] ?? '')))
+      : myTurn ? t.yourTurn : t.theirTurn(turnName);
   // Coordenadas del centro de cada casilla (para tachar la línea ganadora).
   const center = (i: number) => [20 + (i % 3) * 40, 20 + Math.floor(i / 3) * 40];
   const [a, , c] = game.line ?? [];
@@ -66,12 +118,12 @@ function Ttt({ game, meId, nameOf, onMove, group }: Props & { game: TttGame }) {
           <path d="M41 6 q-1.5 54 0.5 108" /><path d="M80 7 q1.5 54 -0.5 107" />
           <path d="M6 40 q54 -1.5 108 0.5" /><path d="M7 80 q54 1.5 107 -0.5" />
         </svg>
-        <div role="grid" aria-label="Tablero de tres en raya" className="relative grid size-full grid-cols-3 grid-rows-3">
+        <div role="grid" aria-label={t.board} className="relative grid size-full grid-cols-3 grid-rows-3">
           {game.board.map((cell, i) => (
             <button
               key={i} type="button" role="gridcell" disabled={Boolean(cell) || !myTurn || busy !== null}
               onClick={async () => { setBusy(i); try { await onMove(i); } finally { setBusy(null); } }}
-              aria-label={`Casilla ${i + 1}: ${cell === 'X' ? 'equis' : cell === 'O' ? 'círculo' : 'vacía'}`}
+              aria-label={t.cell(i + 1, cell === 'X' ? t.cross : cell === 'O' ? t.ring : t.empty)}
               className={cn('flex items-center justify-center rounded-lg transition-colors', !cell && myTurn && 'hover:bg-primary/[0.08] focus-visible:bg-primary/[0.08]')}
             >
               {cell ? <Mark mark={cell} reduce={reduce} /> : busy === i ? <span className="size-2 animate-pulse rounded-full bg-on-surface-light" /> : null}
@@ -96,20 +148,20 @@ function Ttt({ game, meId, nameOf, onMove, group }: Props & { game: TttGame }) {
 }
 
 function Rps({ game, meId, nameOf, onMove }: Props & { game: RpsGame }) {
+  const t = useText(COPY);
   const reduce = useMotionStore((s) => s.reduce);
   const [busy, setBusy] = useState<RpsPick | null>(null);
   const inGame = game.players.includes(meId);
   const canPlay = !game.winner && !game.picks[meId] && (inGame || game.players.length < 2);
   const opponent = game.players.find((p) => p !== meId);
   const picked = game.picked ?? Object.keys(game.picks);
-  const revealed = Boolean(game.winner);
-  const status = game.winner === 'draw' ? '¡Empate! Mismo gesto.'
-    : game.winner ? (game.winner === meId ? '¡Ganaste!' : `Ganó ${nameOf(game.winner)}`)
-      : game.picks[meId] ? (opponent && picked.includes(opponent) ? 'Revelando…' : `Esperando a ${opponent ? nameOf(opponent) : 'tu rival'}`)
-        : opponent && picked.includes(opponent) ? `${nameOf(opponent)} ya eligió. Te toca.` : 'Elige en secreto';
+  const status = game.winner === 'draw' ? t.rpsDraw
+    : game.winner ? (game.winner === meId ? t.won : t.wonBy(nameOf(game.winner)))
+      : game.picks[meId] ? (opponent && picked.includes(opponent) ? t.revealing : t.waitingFor(opponent ? nameOf(opponent) : t.yourRival))
+        : opponent && picked.includes(opponent) ? t.alreadyPicked(nameOf(opponent)) : t.pickSecret;
   return (
     <div className="flex flex-col items-center gap-2.5">
-      {revealed ? (
+      {game.winner ? (
         <div className="flex items-center gap-5">
           {game.players.map((p, i) => (
             <div key={p} className="flex flex-col items-center gap-1">
@@ -122,7 +174,7 @@ function Rps({ game, meId, nameOf, onMove }: Props & { game: RpsGame }) {
               >
                 {handOf(game.picks[p])?.hand}
               </motion.span>
-              <span className={cn('text-label-md', game.winner === p ? 'text-success-text' : 'text-on-surface-light')}>{p === meId ? 'Tú' : nameOf(p)}</span>
+              <span className={cn('text-label-md', game.winner === p ? 'text-success-text' : 'text-on-surface-light')}>{p === meId ? t.you : nameOf(p)}</span>
             </div>
           ))}
         </div>
@@ -133,12 +185,12 @@ function Rps({ game, meId, nameOf, onMove }: Props & { game: RpsGame }) {
               key={r.id} type="button" disabled={!canPlay || busy !== null}
               whileTap={reduce ? undefined : { scale: 0.88, rotate: -6 }}
               onClick={async () => { setBusy(r.id); try { await onMove(r.id); } finally { setBusy(null); } }}
-              aria-label={r.label} aria-pressed={game.picks[meId] === r.id}
+              aria-label={t.hands[r.id]} aria-pressed={game.picks[meId] === r.id}
               className={cn('flex size-[60px] flex-col items-center justify-center gap-0.5 rounded-2xl border-2 bg-surface text-[1.6rem] leading-none transition-colors',
                 game.picks[meId] === r.id ? 'border-primary' : 'border-border-strong/50', canPlay ? 'hover:border-primary/60' : 'opacity-60')}
             >
               <span aria-hidden="true">{r.hand}</span>
-              <span className="text-[0.66rem] font-semibold text-on-surface-light">{r.label}</span>
+              <span className="text-[0.66rem] font-semibold text-on-surface-light">{t.hands[r.id]}</span>
             </motion.button>
           ))}
         </div>
@@ -152,6 +204,7 @@ function Rps({ game, meId, nameOf, onMove }: Props & { game: RpsGame }) {
 }
 
 export function GameCard(props: Props) {
+  const t = useText(COPY);
   const reduce = useMotionStore((s) => s.reduce);
   const { game } = props;
   return (
@@ -160,7 +213,7 @@ export function GameCard(props: Props) {
       className="lq-game-card flex min-w-[230px] flex-col items-center gap-2 rounded-[14px] px-4 pb-3 pt-2.5"
     >
       <span className="flex items-center gap-1.5 self-start text-label-md text-on-surface-light">
-        <Gamepad2 aria-hidden className="size-4" strokeWidth={1.8} />{game.type === 'ttt' ? 'Tres en raya' : 'Piedra, papel o tijera'}
+        <Gamepad2 aria-hidden className="size-4" strokeWidth={1.8} />{game.type === 'ttt' ? t.ttt : t.rps}
       </span>
       {game.type === 'ttt' ? <Ttt {...props} game={game} /> : <Rps {...props} game={game} />}
     </motion.div>

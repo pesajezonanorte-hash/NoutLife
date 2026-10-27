@@ -9,6 +9,37 @@ import { Move, Palette, Trash2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { imageUrl, type NotebookPaper, type PageContent, type PageImage, type Sticky, type StickyColor, type Stroke } from '@/services/notebook.service';
 import { FONT, LINE, PAGE_H, PAGE_W, STICKY_COLORS, TEXT_LEFT, TEXT_TOP, drawStroke, simplifyPoints } from './paper';
+import { useText, type Copy } from '@/lib/i18n';
+
+const es = {
+  image: 'Imagen pegada',
+  removeImage: 'Quitar imagen',
+  moveNote: 'Mover nota (o usa las flechas)',
+  changeColor: 'Cambiar color de la nota',
+  removeNote: 'Quitar nota',
+  noteText: 'Texto de la nota',
+  notePh: 'Escribe…',
+  canvas: 'Lienzo de dibujo',
+  pageText: (n: number): string => `Texto de la página ${n}`,
+  writeHere: 'Escribe aquí…',
+  pageFull: 'Página llena · sigue en la siguiente',
+};
+
+const en: typeof es = {
+  image: 'Pasted image',
+  removeImage: 'Remove image',
+  moveNote: 'Move note (or use the arrow keys)',
+  changeColor: 'Change note color',
+  removeNote: 'Remove note',
+  noteText: 'Note text',
+  notePh: 'Write…',
+  canvas: 'Drawing canvas',
+  pageText: (n: number): string => `Text of page ${n}`,
+  writeHere: 'Write here…',
+  pageFull: 'Page full · continue on the next one',
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 export type Mode = 'write' | 'draw';
 export interface Tool { t: Stroke['t']; c: string; w: number }
@@ -95,6 +126,7 @@ function ImageItem({ notebookId, img, u, editable, selected, onSelect, onChange,
   notebookId: string; img: PageImage; u: number; editable: boolean; selected: boolean;
   onSelect: () => void; onChange: (next: PageImage) => void; onRemove: () => void;
 }) {
+  const t = useText(COPY);
   const [src, setSrc] = useState<string | null>(null);
   const box = useRef<HTMLDivElement>(null);
   const resize = useRef<{ x: number; w: number; id: number } | null>(null);
@@ -104,7 +136,7 @@ function ImageItem({ notebookId, img, u, editable, selected, onSelect, onChange,
   return (
     <div
       ref={box}
-      role="img" aria-label="Imagen pegada" tabIndex={editable ? 0 : -1}
+      role="img" aria-label={t.image} tabIndex={editable ? 0 : -1}
       className={cn('absolute touch-none outline-none', editable ? 'cursor-grab active:cursor-grabbing' : 'pointer-events-none', selected && 'ring-2 ring-primary ring-offset-2 ring-offset-surface')}
       style={{ left: img.x * u, top: img.y * u, width: img.w * u, height: h * u, zIndex: 2 }}
       onPointerDown={(e) => { onSelect(); drag.onPointerDown(e, box.current); }}
@@ -118,7 +150,7 @@ function ImageItem({ notebookId, img, u, editable, selected, onSelect, onChange,
       {editable && selected && (
         <>
           <button
-            type="button" aria-label="Quitar imagen" onPointerDown={(e) => e.stopPropagation()} onClick={onRemove}
+            type="button" aria-label={t.removeImage} onPointerDown={(e) => e.stopPropagation()} onClick={onRemove}
             className="absolute -right-3 -top-3 flex size-8 items-center justify-center rounded-full bg-on-background text-background shadow-md"
           ><X aria-hidden className="size-4" /></button>
           <span
@@ -141,6 +173,7 @@ function StickyItem({ note, u, editable, selected, canColor, onSelect, onChange,
 }) {
   const box = useRef<HTMLDivElement>(null);
   const drag = useDrag(u, (dx, dy) => onChange({ ...note, x: clamp(note.x + dx, -STICKY / 2, PAGE_W - STICKY / 2), y: clamp(note.y + dy, 0, PAGE_H - 60) }));
+  const t = useText(COPY);
   const nextColor = STICKY_ORDER[(STICKY_ORDER.indexOf(note.color) + 1) % STICKY_ORDER.length];
   return (
     <div
@@ -151,7 +184,7 @@ function StickyItem({ note, u, editable, selected, canColor, onSelect, onChange,
     >
       <div className="flex shrink-0 items-center justify-between bg-black/[.06]" style={{ height: 56 * u, paddingInline: 8 * u }}>
         <button
-          type="button" aria-label="Mover nota (o usa las flechas)" tabIndex={editable ? 0 : -1}
+          type="button" aria-label={t.moveNote} tabIndex={editable ? 0 : -1}
           className="flex h-full flex-1 cursor-grab touch-none items-center text-black/40 active:cursor-grabbing"
           onPointerDown={(e) => { onSelect(); drag.onPointerDown(e, box.current); }}
           onPointerMove={drag.onPointerMove} onPointerUp={drag.onPointerUp} onPointerCancel={drag.onPointerUp}
@@ -159,17 +192,17 @@ function StickyItem({ note, u, editable, selected, canColor, onSelect, onChange,
         ><Move aria-hidden style={{ width: 28 * u, height: 28 * u }} /></button>
         {editable && selected && (
           <span className="flex items-center" style={{ gap: 4 * u }}>
-            {canColor && <button type="button" aria-label="Cambiar color de la nota" onClick={() => onChange({ ...note, color: nextColor })} className="flex items-center justify-center rounded-full text-black/55 hover:bg-black/10" style={{ width: 36 * u, height: 36 * u, minWidth: 28, minHeight: 28 }}>
+            {canColor && <button type="button" aria-label={t.changeColor} onClick={() => onChange({ ...note, color: nextColor })} className="flex items-center justify-center rounded-full text-black/55 hover:bg-black/10" style={{ width: 36 * u, height: 36 * u, minWidth: 28, minHeight: 28 }}>
               <Palette aria-hidden className="size-[60%]" />
             </button>}
-            <button type="button" aria-label="Quitar nota" onClick={onRemove} className="flex items-center justify-center rounded-full text-black/55 hover:bg-black/10" style={{ width: 36 * u, height: 36 * u, minWidth: 28, minHeight: 28 }}>
+            <button type="button" aria-label={t.removeNote} onClick={onRemove} className="flex items-center justify-center rounded-full text-black/55 hover:bg-black/10" style={{ width: 36 * u, height: 36 * u, minWidth: 28, minHeight: 28 }}>
               <Trash2 aria-hidden className="size-[60%]" />
             </button>
           </span>
         )}
       </div>
       <textarea
-        aria-label="Texto de la nota" value={note.text} readOnly={!editable} maxLength={1000} placeholder="Escribe…"
+        aria-label={t.noteText} value={note.text} readOnly={!editable} maxLength={1000} placeholder={t.notePh}
         onFocus={onSelect}
         onChange={(e) => onChange({ ...note, text: e.target.value })}
         className="min-h-0 flex-1 resize-none bg-transparent outline-none placeholder:text-black/35"
@@ -189,6 +222,7 @@ function StickyItem({ note, u, editable, selected, canColor, onSelect, onChange,
 function InkLayer({ strokes, width, height, active, tool, onCommit }: {
   strokes: Stroke[]; width: number; height: number; active: boolean; tool: Tool; onCommit: (s: Stroke) => void;
 }) {
+  const t = useText(COPY);
   const base = useRef<HTMLCanvasElement>(null);
   const live = useRef<HTMLCanvasElement>(null);
   const drawn = useRef<{ strokes: Stroke[]; width: number } | null>(null);
@@ -252,7 +286,7 @@ function InkLayer({ strokes, width, height, active, tool, onCommit }: {
       <canvas ref={base} aria-hidden className="pointer-events-none absolute left-0 top-0" style={{ width, height, zIndex: 3 }} />
       <canvas
         ref={live}
-        aria-label={active ? 'Lienzo de dibujo' : undefined}
+        aria-label={active ? t.canvas : undefined}
         aria-hidden={!active || undefined}
         className={cn('absolute left-0 top-0', active ? 'cursor-crosshair touch-none' : 'pointer-events-none')}
         style={{ width, height, zIndex: 3 }}
@@ -308,6 +342,7 @@ export interface PageSheetProps {
 export const PageSheet = memo(function PageSheet({
   notebookId, paper, content, number, width, mode, tool, interactive, onHtml, onChange, onDropImages, onNext, richStickies = true,
 }: PageSheetProps) {
+  const t = useText(COPY);
   const u = width / PAGE_W;
   const height = width * (PAGE_H / PAGE_W);
   const text = useRef<HTMLDivElement | null>(null);
@@ -358,11 +393,11 @@ export const PageSheet = memo(function PageSheet({
         ref={text}
         // La barra de formato busca el texto de la hoja que está a la vista.
         data-nb-current={interactive ? '' : undefined}
-        role="textbox" aria-multiline="true" aria-label={`Texto de la página ${number}`}
+        role="textbox" aria-multiline="true" aria-label={t.pageText(number)}
         contentEditable={writing}
         suppressContentEditableWarning
         spellCheck
-        data-placeholder="Escribe aquí…"
+        data-placeholder={t.writeHere}
         className="lq-nb-text absolute overflow-hidden text-on-background outline-none"
         style={{ top: TEXT_TOP * u, left: TEXT_LEFT * u, right: 50 * u, bottom: 70 * u, fontSize: FONT * u, lineHeight: `${LINE * u}px`, zIndex: 1 }}
         onInput={(e) => { onHtml(e.currentTarget.innerHTML); checkFull(e.currentTarget); }}
@@ -401,7 +436,7 @@ export const PageSheet = memo(function PageSheet({
           className="absolute left-1/2 z-[5] -translate-x-1/2 whitespace-nowrap rounded-full bg-on-background px-3 py-1.5 text-label-md text-background shadow-md"
           style={{ bottom: 64 * u }}
         >
-          Página llena · sigue en la siguiente
+          {t.pageFull}
         </button>
       )}
       <span aria-hidden className="pointer-events-none absolute inset-x-0 text-center font-mono text-on-surface-light" style={{ bottom: 26 * u, fontSize: Math.max(9, 18 * u) }}>{number}</span>

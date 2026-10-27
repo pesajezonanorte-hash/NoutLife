@@ -7,11 +7,33 @@ import { motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Droplet } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { springs } from '@/lib/motion';
+import { INTL_LOCALE, useLocale, useText, type Copy } from '@/lib/i18n';
 import { Button } from '@/components/ui/lq';
 import type { CycleLog, CycleOverview, CyclePhase } from '@/services/cycle.service';
-import { PHASE_META, cycleRanges, daysBetween, isBleeding, phaseOnDay, shiftDay } from './cycleMeta';
+import { cycleRanges, daysBetween, isBleeding, phaseMetaFor, phaseOnDay, shiftDay } from './cycleMeta';
 
-const DOW = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+const es = {
+  dow: ['L', 'M', 'X', 'J', 'V', 'S', 'D'],
+  prevMonth: 'Mes anterior',
+  nextMonth: 'Mes siguiente',
+  predicted: ' (prevista)',
+  bleeding: 'con sangrado',
+  expectedPeriod: 'periodo previsto',
+  logged: 'con registro',
+};
+
+const en: typeof es = {
+  dow: ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
+  prevMonth: 'Previous month',
+  nextMonth: 'Next month',
+  predicted: ' (predicted)',
+  bleeding: 'with bleeding',
+  expectedPeriod: 'expected period',
+  logged: 'with a log entry',
+};
+
+const COPY: Copy<typeof es> = { es, en };
+
 const keyOf = (y: number, m: number, d: number) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 
 export interface DayInfo {
@@ -71,12 +93,15 @@ export function useDayInfo(data: CycleOverview) {
 }
 
 export function CycleCalendar({ data, onSelect, selected }: { data: CycleOverview; onSelect: (info: DayInfo) => void; selected?: string | null }) {
+  const t = useText(COPY);
+  const locale = useLocale();
+  const phases = phaseMetaFor(locale);
   const today = data.today;
   const [cursor, setCursor] = useState(() => ({ y: Number(today.slice(0, 4)), m: Number(today.slice(5, 7)) - 1 }));
   const infoOf = useDayInfo(data);
   const offset = (new Date(cursor.y, cursor.m, 1).getDay() + 6) % 7;
   const total = new Date(cursor.y, cursor.m + 1, 0).getDate();
-  const title = new Date(cursor.y, cursor.m, 1).toLocaleDateString('es-CO', { month: 'long', year: 'numeric' });
+  const title = new Date(cursor.y, cursor.m, 1).toLocaleDateString(INTL_LOCALE[locale], { month: 'long', year: 'numeric' });
   const move = (d: number) => setCursor(({ y, m }) => { const n = new Date(y, m + d, 1); return { y: n.getFullYear(), m: n.getMonth() }; });
 
   return (
@@ -84,12 +109,12 @@ export function CycleCalendar({ data, onSelect, selected }: { data: CycleOvervie
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-heading-sm first-letter:uppercase" aria-live="polite">{title}</h3>
         <div className="flex gap-1">
-          <Button variant="icon" aria-label="Mes anterior" onClick={() => move(-1)}><ChevronLeft aria-hidden className="size-5" /></Button>
-          <Button variant="icon" aria-label="Mes siguiente" onClick={() => move(1)}><ChevronRight aria-hidden className="size-5" /></Button>
+          <Button variant="icon" aria-label={t.prevMonth} onClick={() => move(-1)}><ChevronLeft aria-hidden className="size-5" /></Button>
+          <Button variant="icon" aria-label={t.nextMonth} onClick={() => move(1)}><ChevronRight aria-hidden className="size-5" /></Button>
         </div>
       </div>
       <div aria-hidden className="grid grid-cols-7 gap-1.5">
-        {DOW.map((d) => <span key={d} className="text-center text-label-md text-on-surface-light">{d}</span>)}
+        {t.dow.map((d, i) => <span key={`${d}-${i}`} className="text-center text-label-md text-on-surface-light">{d}</span>)}
       </div>
       <motion.div key={`${cursor.y}-${cursor.m}`} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0, transition: springs.natural }} className="grid grid-cols-7 gap-1.5">
         {Array.from({ length: offset }, (_, i) => <span key={`pad-${i}`} aria-hidden />)}
@@ -97,12 +122,12 @@ export function CycleCalendar({ data, onSelect, selected }: { data: CycleOvervie
           const key = keyOf(cursor.y, cursor.m, i + 1);
           const info = infoOf(key);
           const isToday = key === today;
-          const meta = info.phase ? PHASE_META[info.phase] : null;
+          const meta = info.phase ? phases[info.phase] : null;
           const label = [
-            new Date(`${key}T12:00:00`).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' }),
-            meta ? `${meta.name}${info.predicted ? ' (prevista)' : ''}` : null,
-            info.bleeding ? 'con sangrado' : info.expectedPeriod ? 'periodo previsto' : null,
-            info.log ? 'con registro' : null,
+            new Date(`${key}T12:00:00`).toLocaleDateString(INTL_LOCALE[locale], { weekday: 'long', day: 'numeric', month: 'long' }),
+            meta ? `${meta.name}${info.predicted ? t.predicted : ''}` : null,
+            info.bleeding ? t.bleeding : info.expectedPeriod ? t.expectedPeriod : null,
+            info.log ? t.logged : null,
           ].filter(Boolean).join(', ');
           return (
             <button

@@ -10,6 +10,35 @@ import { cn } from '@/lib/utils';
 import { springSoft } from '@/lib/motion';
 import { useMotionStore } from '@/store/motionStore';
 import { Button } from '@/components/ui/lq';
+import { useText, type Copy } from '@/lib/i18n';
+
+const es = {
+  title: 'Ajusta tu foto',
+  hint: 'Arrastra para encuadrar y pellizca, usa la rueda o el deslizador para acercar.',
+  frameAria: 'Encuadre de la foto. Flechas para mover, más y menos para el zoom.',
+  frameRole: 'recorte de imagen',
+  zoomOut: 'Alejar',
+  zoomIn: 'Acercar',
+  rotate: 'Girar',
+  reset: 'Restablecer',
+  cancel: 'Cancelar',
+  apply: 'Aplicar',
+};
+
+const en: typeof es = {
+  title: 'Adjust your photo',
+  hint: 'Drag to frame it, pinch, use the wheel or the slider to zoom in.',
+  frameAria: 'Photo frame. Arrow keys to move, plus and minus to zoom.',
+  frameRole: 'image crop',
+  zoomOut: 'Zoom out',
+  zoomIn: 'Zoom in',
+  rotate: 'Rotate',
+  reset: 'Reset',
+  cancel: 'Cancel',
+  apply: 'Apply',
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 const OUT = 512;
 const MAX_SRC = 1600;
@@ -48,7 +77,7 @@ function loadSource(src: string): Promise<HTMLCanvasElement | HTMLImageElement> 
       ctx.drawImage(img, 0, 0, c.width, c.height);
       resolve(c);
     };
-    img.onerror = () => reject(new Error('No se pudo cargar la imagen.'));
+    img.onerror = () => reject(new Error('image-load-failed'));
     img.src = src;
   });
 }
@@ -153,7 +182,8 @@ function ZoomSlider({ value, onChange, onStep }: { value: number; onChange: (z: 
   );
 }
 
-export function PhotoCropper({ src, onCancel, onApply, size = OUT, shape = 'circle', quality = 0.88, title = 'Ajusta tu foto' }: PhotoCropperProps) {
+export function PhotoCropper({ src, onCancel, onApply, size = OUT, shape = 'circle', quality = 0.88, title }: PhotoCropperProps) {
+  const t = useText(COPY);
   const reduce = useMotionStore((s) => s.reduce);
   const frameRef = useRef<HTMLDivElement>(null);
   const [source, setSource] = useState<{ el: HTMLCanvasElement | HTMLImageElement; url: string; w: number; h: number } | null>(null);
@@ -323,16 +353,16 @@ export function PhotoCropper({ src, onCancel, onApply, size = OUT, shape = 'circ
       className="flex flex-col gap-5"
     >
       <div>
-        <h3 className="text-heading-sm">{title}</h3>
-        <p className="mt-1 text-body-sm text-on-surface-light">Arrastra para encuadrar y pellizca, usa la rueda o el deslizador para acercar.</p>
+        <h3 className="text-heading-sm">{title ?? t.title}</h3>
+        <p className="mt-1 text-body-sm text-on-surface-light">{t.hint}</p>
       </div>
 
       <div
         ref={frameRef}
         role="group"
         tabIndex={0}
-        aria-label="Encuadre de la foto. Flechas para mover, más y menos para el zoom."
-        aria-roledescription="recorte de imagen"
+        aria-label={t.frameAria}
+        aria-roledescription={t.frameRole}
         onPointerDown={onDown}
         onPointerMove={onMove}
         onPointerUp={onUp}
@@ -380,28 +410,28 @@ export function PhotoCropper({ src, onCancel, onApply, size = OUT, shape = 'circ
       </div>
 
       <div className="flex items-center gap-3">
-        <BounceIcon label="Alejar" onClick={() => setZoomTo(zoom - 0.25)} disabled={zoom <= MIN_Z}>
+        <BounceIcon label={t.zoomOut} onClick={() => setZoomTo(zoom - 0.25)} disabled={zoom <= MIN_Z}>
           <ZoomOut aria-hidden className="size-5" strokeWidth={1.75} />
         </BounceIcon>
         <ZoomSlider value={zoom} onChange={(z) => setZoomTo(z, false)} onStep={(d) => setZoomTo(zoom + d)} />
-        <BounceIcon label="Acercar" onClick={() => setZoomTo(zoom + 0.25)} disabled={zoom >= MAX_Z}>
+        <BounceIcon label={t.zoomIn} onClick={() => setZoomTo(zoom + 0.25)} disabled={zoom >= MAX_Z}>
           <ZoomIn aria-hidden className="size-5" strokeWidth={1.75} />
         </BounceIcon>
       </div>
 
       <div className="flex flex-wrap items-center justify-center gap-2 [&>*]:inline-flex">
         <Bouncy><Button variant="ghost" size="sm" onClick={() => setRot((r) => r - 90)} disabled={!source}>
-          <RotateCcw aria-hidden className="size-4" strokeWidth={1.75} />Girar
+          <RotateCcw aria-hidden className="size-4" strokeWidth={1.75} />{t.rotate}
         </Button></Bouncy>
-        <Bouncy><Button variant="ghost" size="sm" onClick={reset} disabled={!source}>Restablecer</Button></Bouncy>
+        <Bouncy><Button variant="ghost" size="sm" onClick={reset} disabled={!source}>{t.reset}</Button></Bouncy>
         <Bouncy><Button variant="ghost" size="sm" onClick={() => setRot((r) => r + 90)} disabled={!source}>
-          Girar<RotateCw aria-hidden className="size-4" strokeWidth={1.75} />
+          {t.rotate}<RotateCw aria-hidden className="size-4" strokeWidth={1.75} />
         </Button></Bouncy>
       </div>
 
       <div className="grid grid-cols-2 gap-2 border-t border-border pt-4">
-        <Bouncy><Button variant="secondary" block onClick={onCancel}>Cancelar</Button></Bouncy>
-        <Bouncy><Button block onClick={apply} disabled={!source || failed}>Aplicar</Button></Bouncy>
+        <Bouncy><Button variant="secondary" block onClick={onCancel}>{t.cancel}</Button></Bouncy>
+        <Bouncy><Button block onClick={apply} disabled={!source || failed}>{t.apply}</Button></Bouncy>
       </div>
     </motion.div>
   );

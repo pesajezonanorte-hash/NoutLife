@@ -12,6 +12,7 @@ import { springs } from '@/lib/motion/presets';
 import { useMotionStore } from '@/store/motionStore';
 import { useLive, typingIn } from '@/lib/live';
 import { nameClass } from '@/lib/nameColors';
+import { INTL_LOCALE, useLocale, useText, type Copy } from '@/lib/i18n';
 import { chatOf, timeAgo, type FriendItem, type GuildSummary } from '@/services/network.service';
 import { AvatarDisplay } from '@/components/character/AvatarDisplay';
 import { GuildCrest } from '@/components/guild/GuildCrest';
@@ -21,14 +22,84 @@ import { Button, Skeleton } from '@/components/ui/lq';
 import { StreakFlame } from './SocialBits';
 import { TypingDots } from './letters/LetterView';
 
+const es = {
+  tray: 'Bandeja de cartas',
+  unreadOpen: 'sin abrir',
+  allRead: 'Todo leído',
+  emptyTitle: 'Tu buzón está vacío',
+  emptyBody: 'Elige a alguien de tu directorio y escríbele la primera carta.',
+  openDir: 'Abrir el directorio',
+  noOutside: 'No tienes cartas fuera del archivo.',
+  archivedBtn: 'Archivadas',
+  seen: 'Visto',
+  sent: 'Enviado',
+  seenBy: (n: number | string): string => `por ${n}`,
+  wroteYou: 'Te escribió',
+  newMessages: 'Mensajes nuevos',
+  guildEmpty: 'Todavía nadie escribió en la carta del gremio',
+  noLetters: 'Sin cartas todavía',
+  typing: 'escribiendo…',
+  typingMany: (first: string, more: number): string => `${first}${more > 0 ? ` y ${more} más` : ''} escribe…`,
+  online: 'en línea',
+  unreadSr: 'sin leer',
+  unreadN: (n: number): string => `, ${n} sin leer`,
+  typingAria: ', escribiendo',
+  openGuildLetter: (name: string): string => `Abrir la carta del gremio ${name}`,
+  openLetter: (name: string): string => `Abrir la carta de ${name}`,
+  moreOpt: (what: string): string => `Más opciones de la carta ${what}`,
+  guildOf: (name: string): string => `del gremio ${name}`,
+  letterOf: (name: string): string => `de ${name}`,
+  unarchive: 'Sacar del archivo',
+  archive: 'Archivar carta',
+  deleteChat: 'Eliminar chat',
+  someone: 'Alguien',
+  mailbox: 'buzón',
+};
+
+const en: typeof es = {
+  tray: 'Letter tray',
+  unreadOpen: 'unopened',
+  allRead: 'All read',
+  emptyTitle: 'Your mailbox is empty',
+  emptyBody: 'Pick someone from your directory and write them the first letter.',
+  openDir: 'Open the directory',
+  noOutside: 'You have no letters outside the archive.',
+  archivedBtn: 'Archived',
+  seen: 'Seen',
+  sent: 'Sent',
+  seenBy: (n: number | string): string => `by ${n}`,
+  wroteYou: 'Sent you a message',
+  newMessages: 'New messages',
+  guildEmpty: 'Nobody has written in the guild letter yet',
+  noLetters: 'No letters yet',
+  typing: 'typing…',
+  typingMany: (first: string, more: number): string => `${first}${more > 0 ? ` and ${more} more` : ''} is typing…`,
+  online: 'online',
+  unreadSr: 'unread',
+  unreadN: (n: number): string => `, ${n} unread`,
+  typingAria: ', typing',
+  openGuildLetter: (name: string): string => `Open the letter of the guild ${name}`,
+  openLetter: (name: string): string => `Open the letter from ${name}`,
+  moreOpt: (what: string): string => `More options for the letter ${what}`,
+  guildOf: (name: string): string => `of the guild ${name}`,
+  letterOf: (name: string): string => `from ${name}`,
+  unarchive: 'Take out of archive',
+  archive: 'Archive letter',
+  deleteChat: 'Delete chat',
+  someone: 'Someone',
+  mailbox: 'mailbox',
+};
+
+const COPY: Copy<typeof es> = { es, en };
+
 export type TrayItem =
   | { kind: 'dm'; key: string; chat: string; at: string; unread: number; archived: boolean; friend: FriendItem }
   | { kind: 'guild'; key: string; chat: string; at: string; unread: number; archived: boolean; guild: GuildSummary };
 
 /** Hora del matasellos: la hora si es de hoy; si no, "ayer", "hace 3 días"… */
-function stampTime(iso: string) {
+function stampTime(iso: string, nf: string) {
   const d = new Date(iso);
-  return d.toDateString() === new Date().toDateString() ? d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : timeAgo(iso).replace('hace ', '');
+  return d.toDateString() === new Date().toDateString() ? d.toLocaleTimeString(nf, { hour: '2-digit', minute: '2-digit' }) : timeAgo(iso).replace('hace ', '');
 }
 
 export function trayItems(friends: FriendItem[] | null, guilds: GuildSummary[] | null): TrayItem[] {
@@ -44,6 +115,8 @@ export function trayItems(friends: FriendItem[] | null, guilds: GuildSummary[] |
 function Envelope({ item, active, index, typingNames, onOpen, onMenu }: {
   item: TrayItem; active: boolean; index: number; typingNames: string[]; onOpen: () => void; onMenu: (el: HTMLElement) => void;
 }) {
+  const t = useText(COPY);
+  const nf = INTL_LOCALE[useLocale()];
   const reduce = useMotionStore((s) => s.reduce);
   const timer = useRef(0);
   const dm = item.kind === 'dm' ? item.friend : null;
@@ -55,8 +128,9 @@ function Envelope({ item, active, index, typingNames, onOpen, onMenu }: {
   const seen = Boolean(last?.mine && (dm ? last.seen : (g!.lastMessage?.seenBy ?? 0) > 0));
   const preview = last
     ? `${last.mine ? '' : g ? `${(last as GuildSummary['lastMessage'])!.author.split(' ')[0]}: ` : ''}${last.preview}`
-    : g ? 'Todavía nadie escribió en la carta del gremio' : '';
-  const status = typing ? null : item.unread > 0 ? null : last?.mine ? (seen ? 'Visto' : 'Enviado') : null;
+    : g ? t.guildEmpty : '';
+  const status = typing ? null : item.unread > 0 ? null : last?.mine ? (seen ? t.seen : t.sent) : null;
+  const who = g ? t.guildOf(name) : t.letterOf(name);
 
   const down = (e: PointerEvent<HTMLButtonElement>) => {
     if (e.pointerType === 'mouse') return;
@@ -76,7 +150,7 @@ function Envelope({ item, active, index, typingNames, onOpen, onMenu }: {
         type="button" onClick={onOpen} aria-current={active ? 'true' : undefined}
         onPointerDown={down} onPointerUp={cancel} onPointerLeave={cancel} onPointerMove={(e) => { if (Math.abs(e.movementY) > 4) cancel(); }}
         onContextMenu={(e) => { e.preventDefault(); onMenu(e.currentTarget); }}
-        aria-label={`Abrir la carta ${g ? `del gremio ${name}` : `de ${name}`}${item.unread ? `, ${item.unread} sin leer` : ''}${typing ? ', escribiendo' : ''}`}
+        aria-label={`${g ? t.openGuildLetter(name) : t.openLetter(name)}${item.unread ? t.unreadN(item.unread) : ''}${typing ? t.typingAria : ''}`}
         className="group block w-full text-left outline-none [-webkit-touch-callout:none]"
       >
         <span className="lq-envelope relative block overflow-hidden rounded-[8px]">
@@ -93,7 +167,7 @@ function Envelope({ item, active, index, typingNames, onOpen, onMenu }: {
                 {typing ? (
                   <motion.span key="typing" initial={{ opacity: 0, y: 3 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
                     className="mt-0.5 flex items-center gap-1.5 truncate text-body-sm text-primary-text">
-                    <TypingDots />{g ? `${typingNames[0]}${typingNames.length > 1 ? ` y ${typingNames.length - 1} más` : ''} escribe…` : 'escribiendo…'}
+                    <TypingDots />{g ? t.typingMany(typingNames[0], typingNames.length - 1) : t.typing}
                   </motion.span>
                 ) : (
                   <motion.span key="preview" initial={{ opacity: 0, y: 3 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
@@ -101,7 +175,7 @@ function Envelope({ item, active, index, typingNames, onOpen, onMenu }: {
                     {last?.mine && (seen
                       ? <CheckCheck aria-hidden className="size-4 shrink-0 text-info-text" strokeWidth={2} />
                       : <Check aria-hidden className="size-4 shrink-0" strokeWidth={2} />)}
-                    <span className="truncate">{preview || 'Sin cartas todavía'}</span>
+                    <span className="truncate">{preview || t.noLetters}</span>
                   </motion.span>
                 )}
               </AnimatePresence>
@@ -109,9 +183,9 @@ function Envelope({ item, active, index, typingNames, onOpen, onMenu }: {
                 <svg aria-hidden="true" viewBox="0 0 64 16" className="h-3.5 w-14" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
                   {[4, 8, 12].map((y) => <path key={y} d={`M1 ${y}q4-3 8 0t8 0 8 0 8 0 8 0 8 0 8 0`} />)}
                 </svg>
-                {item.at && <span className="font-mono text-label-md">{stampTime(item.at)}</span>}
-                {status && <span className={cn('text-label-md', seen ? 'text-info-text' : '')}>{status}{g && seen && g.lastMessage?.seenBy ? ` por ${g.lastMessage.seenBy}` : ''}</span>}
-                {item.unread > 0 && <span className="text-label-md text-primary-text">{dm ? 'Te escribió' : 'Mensajes nuevos'}</span>}
+                {item.at && <span className="font-mono text-label-md">{stampTime(item.at, nf)}</span>}
+                {status && <span className={cn('text-label-md', seen ? 'text-info-text' : '')}>{status}{g && seen && g.lastMessage?.seenBy ? ` ${t.seenBy(g.lastMessage.seenBy)}` : ''}</span>}
+                {item.unread > 0 && <span className="text-label-md text-primary-text">{dm ? t.wroteYou : t.newMessages}</span>}
               </span>
             </span>
             {/* Estampilla */}
@@ -125,14 +199,14 @@ function Envelope({ item, active, index, typingNames, onOpen, onMenu }: {
                 )}
                 </span>
               </span>
-              {dm?.friend.online && <span className="absolute -right-1 -top-1 block size-3 rounded-full bg-success ring-2 ring-surface"><span className="sr-only">en línea</span></span>}
+              {dm?.friend.online && <span className="absolute -right-1 -top-1 block size-3 rounded-full bg-success ring-2 ring-surface"><span className="sr-only">{t.online}</span></span>}
               <AnimatePresence>
                 {item.unread > 0 && (
                   <motion.span
                     key="wax" initial={{ scale: 0, rotate: -30 }} animate={{ scale: 1, rotate: -8 }} exit={{ scale: 0 }} transition={springs.snappy}
                     className="lq-wax absolute -bottom-2 -left-3 flex size-8 items-center justify-center font-mono text-label-md"
                   >
-                    {item.unread > 9 ? '9+' : item.unread}<span className="sr-only"> sin leer</span>
+                    {item.unread > 9 ? '9+' : item.unread}<span className="sr-only"> {t.unreadSr}</span>
                   </motion.span>
                 )}
               </AnimatePresence>
@@ -141,7 +215,7 @@ function Envelope({ item, active, index, typingNames, onOpen, onMenu }: {
         </span>
       </button>
       <button
-        type="button" aria-label={`Más opciones de la carta ${g ? `del gremio ${name}` : `de ${name}`}`} aria-haspopup="menu"
+        type="button" aria-label={t.moreOpt(who)} aria-haspopup="menu"
         onClick={(e) => onMenu(e.currentTarget)}
         className="absolute right-[4.6rem] top-2 flex size-9 items-center justify-center rounded-full text-on-surface-light opacity-70 transition-opacity hover:bg-on-background/5 hover:opacity-100 focus-visible:opacity-100"
       >
@@ -152,6 +226,7 @@ function Envelope({ item, active, index, typingNames, onOpen, onMenu }: {
 }
 
 function TrayMenu({ item, rect, onArchive, onClear, onClose }: { item: TrayItem; rect: DOMRect; onArchive: () => void; onClear: () => void; onClose: () => void }) {
+  const t = useText(COPY);
   const row = 'flex min-h-11 w-full items-center gap-2.5 rounded-xl px-3 text-left text-body-md hover:bg-background focus-visible:bg-background';
   const top = Math.min(rect.bottom + 4, window.innerHeight - 120);
   const left = Math.min(Math.max(8, rect.right - 232), window.innerWidth - 240);
@@ -165,10 +240,10 @@ function TrayMenu({ item, rect, onArchive, onClear, onClose }: { item: TrayItem;
       >
         <button type="button" role="menuitem" autoFocus onClick={onArchive} className={row}>
           {item.archived ? <ArchiveRestore aria-hidden className="size-4 text-on-surface-light" /> : <Archive aria-hidden className="size-4 text-on-surface-light" />}
-          {item.archived ? 'Sacar del archivo' : 'Archivar carta'}
+          {item.archived ? t.unarchive : t.archive}
         </button>
         <button type="button" role="menuitem" onClick={onClear} className={cn(row, 'text-error-text')}>
-          <Eraser aria-hidden className="size-4" />Eliminar chat
+          <Eraser aria-hidden className="size-4" />{t.deleteChat}
         </button>
       </motion.div>
     </>
@@ -185,6 +260,7 @@ export function LetterTray({ friends, guilds, active, meId, onOpen, onGoDirector
   onArchive: (item: TrayItem, archived: boolean) => void;
   onClear: (item: TrayItem) => void;
 }) {
+  const t = useText(COPY);
   const typing = useLive((s) => s.typing);
   const [showArchived, setShowArchived] = useState(false);
   const [menu, setMenu] = useState<{ item: TrayItem; rect: DOMRect } | null>(null);
@@ -194,8 +270,8 @@ export function LetterTray({ friends, guilds, active, meId, onOpen, onGoDirector
   const unread = inbox.reduce((n, i) => n + i.unread, 0);
   const archivedUnread = archived.reduce((n, i) => n + i.unread, 0);
   const namesTyping = (it: TrayItem) => typingIn(typing, it.chat)
-    .filter((t) => t.userId !== meId)
-    .map((t) => (it.kind === 'dm' ? it.friend.friend.displayName : t.name ?? 'Alguien').split(' ')[0]);
+    .filter((x) => x.userId !== meId)
+    .map((x) => (it.kind === 'dm' ? it.friend.friend.displayName : x.name ?? t.someone).split(' ')[0]);
 
   const list = (rows: TrayItem[]) => (
     <ul className="flex flex-col gap-3">
@@ -209,28 +285,28 @@ export function LetterTray({ friends, guilds, active, meId, onOpen, onGoDirector
   );
 
   return (
-    <section aria-label="Bandeja de cartas" className="flex flex-col gap-4">
+    <section aria-label={t.tray} className="flex flex-col gap-4">
       <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-heading-md text-on-background"><Lettering text="buzón" /></h2>
-        <span className="text-body-sm text-on-surface-light">{unread ? <><span className="font-mono">{unread}</span> sin abrir</> : 'Todo leído'}</span>
+        <h2 className="text-heading-md text-on-background"><Lettering text={t.mailbox} /></h2>
+        <span className="text-body-sm text-on-surface-light">{unread ? <><span className="font-mono">{unread}</span> {t.unreadOpen}</> : t.allRead}</span>
       </div>
       {friends === null || guilds === null ? (
         <div className="flex flex-col gap-3">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-[92px] rounded-lg" />)}</div>
       ) : inbox.length === 0 && archived.length === 0 ? (
         <div className="lq-envelope flex flex-col items-start gap-3 rounded-[8px] p-5">
           <Mail aria-hidden className="size-7 text-on-surface-light" strokeWidth={1.5} />
-          <p className="text-label-lg text-on-background">Tu buzón está vacío</p>
-          <p className="text-body-sm text-on-surface-light">Elige a alguien de tu directorio y escríbele la primera carta.</p>
-          <Button size="sm" variant="secondary" onClick={onGoDirectory}><NotebookTabs aria-hidden className="size-4" />Abrir el directorio</Button>
+          <p className="text-label-lg text-on-background">{t.emptyTitle}</p>
+          <p className="text-body-sm text-on-surface-light">{t.emptyBody}</p>
+          <Button size="sm" variant="secondary" onClick={onGoDirectory}><NotebookTabs aria-hidden className="size-4" />{t.openDir}</Button>
         </div>
       ) : (
         <>
-          {inbox.length ? list(inbox) : <p className="text-body-sm text-on-surface-light">No tienes cartas fuera del archivo.</p>}
+          {inbox.length ? list(inbox) : <p className="text-body-sm text-on-surface-light">{t.noOutside}</p>}
           {archived.length > 0 && (
             <div className="flex flex-col gap-3">
               <button type="button" onClick={() => setShowArchived((v) => !v)} aria-expanded={showArchived}
                 className="flex min-h-11 items-center gap-2 self-start rounded-full px-3 text-label-lg text-on-surface-light hover:bg-on-background/5">
-                <Archive aria-hidden className="size-4" />Archivadas · <span className="font-mono">{archived.length}</span>
+                <Archive aria-hidden className="size-4" />{t.archivedBtn} · <span className="font-mono">{archived.length}</span>
                 {archivedUnread > 0 && <span className="rounded-full bg-primary/15 px-2 font-mono text-label-md text-primary-text">{archivedUnread}</span>}
                 <ChevronDown aria-hidden className={cn('size-4 transition-transform', showArchived && 'rotate-180')} />
               </button>

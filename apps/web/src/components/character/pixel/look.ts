@@ -4,8 +4,34 @@
 // se mantienen sincronizados para el contrato compartido.
 import type { Accessory, AvatarConfig, Expression, HairStyle } from '@noutlife/shared';
 import type { Body, BottomId, BrowsId, EyesId, ExtraId, FacialId, HairId, MouthId, PixelLook, ShoesId, TopId } from './engine';
+import type { Locale } from '@/lib/locale';
 
 export interface Option<T extends string> { id: T; label: string }
+
+/** Nombres en inglés de cada opción (los ids son únicos en todo el catálogo). */
+const OPTION_EN: Record<string, string> = {
+  corto: 'Short', puntas: 'Spiky', despeinado: 'Messy', raya: 'Side part', copete: 'Quiff', media: 'Shoulder length', bob: 'Bob',
+  flequillo: 'Bangs', pixie: 'Pixie', largo: 'Long', ondulado: 'Wavy', coleta: 'Ponytail', dos_coletas: 'Pigtails', trenzas: 'Braids',
+  mono: 'Bun', mono_alto: 'High bun', afro: 'Afro', mohicano: 'Mohawk', rapado: 'Buzz cut', calvo: 'Bald',
+  normal: 'Normal', grandes: 'Big', felices: 'Happy', entrecerrados: 'Relaxed', guino: 'Wink',
+  normales: 'Normal', gruesas: 'Thick', enfadadas: 'Determined', preocupadas: 'Soft', ninguna: 'No brows',
+  sonrisa: 'Smile', sonrisota: 'Laugh', abierta: 'Surprise', neutral: 'Neutral', seria: 'Serious', lengua: 'Tongue',
+  ninguno: 'No hair', bigote: 'Mustache', perilla: 'Goatee', barba_corta: 'Short beard', barba: 'Beard',
+  camiseta: 'T-shirt', manga_larga: 'Long sleeve', camisa: 'Shirt', uniforme: 'Uniform', sudadera: 'Hoodie', chaqueta: 'Jacket',
+  sueter: 'Sweater', tirantes: 'Tank top', vestido: 'Dress', sin_camiseta: 'Shirtless',
+  pantalon: 'Pants', rotos: 'Ripped', shorts: 'Shorts', falda: 'Skirt',
+  zapatillas: 'Sneakers', botas: 'Boots', sandalias: 'Sandals', descalzo: 'Barefoot',
+  gafas: 'Glasses', gafas_sol: 'Sunglasses', cinta: 'Headband', gorra: 'Cap', gorro: 'Beanie', corona: 'Crown', auriculares: 'Headphones',
+  pendientes: 'Earrings', bufanda: 'Scarf', collar: 'Necklace', flor: 'Flower', parche: 'Eye patch',
+  samurai: 'Samurai', rizos: 'Wild curls', armadura: 'Armor', kimono: 'Kimono', traje: 'Gala suit',
+  sombrero_aventurero: 'Adventurer hat', sombrero_mago: 'Wizard hat', birrete: 'Mortarboard', casco_vikingo: 'Viking helmet',
+  bandana_ninja: 'Ninja band', corona_campeon: 'Champion’s crown', corona_cristal: 'Crystal crown', antifaz: 'Mask', monoculo: 'Monocle',
+  capa: 'Cape', alas: 'Fairy wings', escudo: 'Golden shield', dragoncito: 'Little dragon',
+};
+
+/** Etiqueta de una opción en el idioma indicado (la española es la de respaldo). */
+export const optionLabel = (option: Option<string>, locale: Locale = 'es') =>
+  (locale === 'en' ? OPTION_EN[option.id] : undefined) ?? option.label;
 
 export const HAIRS: Option<HairId>[] = [
   { id: 'corto', label: 'Corto' }, { id: 'puntas', label: 'De punta' }, { id: 'despeinado', label: 'Despeinado' },

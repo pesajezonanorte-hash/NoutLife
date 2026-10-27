@@ -7,7 +7,8 @@
 import { Fragment, Suspense, lazy, useEffect, useMemo, useState, type ComponentType, type KeyboardEvent } from 'react';
 import { BatteryFull, BatteryLow, BatteryMedium, ChevronDown, CircleDashed, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { FATIGUE_BANDS, MUSCLES, MUSCLE_IDS, type Muscle, type MuscleState, type Recovery } from '@/lib/coliseo';
+import { FATIGUE_BANDS, MUSCLE_IDS, muscleLabelFor, type Muscle, type MuscleState, type Recovery } from '@/lib/coliseo';
+import { INTL_LOCALE, useLocale, useText, type Copy } from '@/lib/i18n';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { Badge, Card, ProgressBar, SegmentedControl, Skeleton, chipClasses, type BadgeVariant } from '@/components/ui/lq';
 import type { MuscleViewer3DProps } from './muscle3d/MuscleViewer3D';
@@ -20,16 +21,99 @@ function Unavailable({ onUnavailable }: MuscleViewer3DProps) {
 // three.js solo se descarga si se abre la vista 3D.
 const MuscleViewer3D = lazy<ComponentType<MuscleViewer3DProps>>(() => import('./muscle3d/MuscleViewer3D').catch(() => ({ default: Unavailable })));
 
-const STATUS: Record<Recovery, { label: string; range: string; fill: string; badge: BadgeVariant; icon: LucideIcon; group: string }> = {
-  high: { label: 'Fatiga alta', range: `${FATIGUE_BANDS.moderate + 1}–100 %`, fill: 'fill-error', badge: 'error', icon: BatteryLow, group: 'Necesitan descanso' },
-  moderate: { label: 'Fatiga moderada', range: `${FATIGUE_BANDS.fresh + 1}–${FATIGUE_BANDS.moderate} %`, fill: 'fill-warning', badge: 'warning', icon: BatteryMedium, group: 'Fatiga moderada' },
-  fresh: { label: 'Recuperado', range: `0–${FATIGUE_BANDS.fresh} %`, fill: 'fill-success', badge: 'success', icon: BatteryFull, group: 'Listos para entrenar' },
-  idle: { label: 'Sin trabajo esta semana', range: '', fill: 'fill-on-surface-light/25', badge: 'neutral', icon: CircleDashed, group: 'Sin trabajo esta semana' },
+const es = {
+  high: 'Fatiga alta',
+  moderate: 'Fatiga moderada',
+  fresh: 'Recuperado',
+  idle: 'Sin trabajo esta semana',
+  groupHigh: 'Necesitan descanso',
+  groupModerate: 'Fatiga moderada',
+  groupFresh: 'Listos para entrenar',
+  groupIdle: 'Sin trabajo esta semana',
+  flat: 'Plano',
+  viewLabel: 'Vista del mapa',
+  legend: 'Leyenda',
+  front: 'Frente',
+  back: 'Espalda',
+  title: 'Recuperación muscular',
+  introThree: 'Según tus series de los últimos 7 días. Gira el cuerpo y toca un músculo para ver cuándo se recupera.',
+  introFlat: 'Según tus series de los últimos 7 días. Toca un músculo para ver cuándo vuelve a estar listo.',
+  fatigue: 'Fatiga',
+  fullRecovery: 'Recuperación total',
+  sets7: 'Series 7 días',
+  fullIn: (h: number): string => `en ~${h} h`,
+  full: 'completa',
+  agoLess: 'hace menos de 1 h',
+  agoHours: (h: number): string => `hace ${h} h`,
+  yesterday: 'ayer',
+  agoDays: (d: number): string => `hace ${d} días`,
+  touchHint: 'Toca un músculo para ver su fatiga y cuándo se recupera.',
+  idleSets: 'Sin series esta semana.',
+  readyIn: (h: number): string => `Se puede volver a entrenar en ~${h} h.`,
+  readyNow: 'Se puede entrenar ya.',
+  lastWork: (when: string): string => `Último trabajo ${when}.`,
+  allReady: 'Todo listo: ningún músculo arrastra fatiga. Toca uno para ver su semana.',
+  noSets: 'Aún no hay series esta semana. Termina un entrenamiento y cada músculo se pinta según su fatiga.',
+  allMuscles: 'Todos los músculos',
+  fatigueOf: (name: string): string => `Fatiga de ${name}`,
+  muscleAria: (name: string, status: string, pct: number): string => `${name}: ${status.toLowerCase()}, ${pct} % recuperado`,
 };
+
+const en: typeof es = {
+  high: 'High fatigue',
+  moderate: 'Moderate fatigue',
+  fresh: 'Recovered',
+  idle: 'No work this week',
+  groupHigh: 'Need rest',
+  groupModerate: 'Moderate fatigue',
+  groupFresh: 'Ready to train',
+  groupIdle: 'No work this week',
+  flat: 'Flat',
+  viewLabel: 'Map view',
+  legend: 'Legend',
+  front: 'Front',
+  back: 'Back',
+  title: 'Muscle recovery',
+  introThree: 'Based on your sets over the last 7 days. Rotate the body and tap a muscle to see when it recovers.',
+  introFlat: 'Based on your sets over the last 7 days. Tap a muscle to see when it is ready again.',
+  fatigue: 'Fatigue',
+  fullRecovery: 'Full recovery',
+  sets7: '7-day sets',
+  fullIn: (h: number): string => `in ~${h} h`,
+  full: 'complete',
+  agoLess: 'less than 1 h ago',
+  agoHours: (h: number): string => `${h} h ago`,
+  yesterday: 'yesterday',
+  agoDays: (d: number): string => `${d} days ago`,
+  touchHint: 'Tap a muscle to see its fatigue and when it recovers.',
+  idleSets: 'No sets this week.',
+  readyIn: (h: number): string => `You can train it again in ~${h} h.`,
+  readyNow: 'You can train it now.',
+  lastWork: (when: string): string => `Last worked ${when}.`,
+  allReady: 'All set: no muscle is carrying fatigue. Tap one to see its week.',
+  noSets: 'No sets this week yet. Finish a workout and each muscle will be colored by its fatigue.',
+  allMuscles: 'All muscles',
+  fatigueOf: (name: string): string => `${name} fatigue`,
+  muscleAria: (name: string, status: string, pct: number): string => `${name}: ${status.toLowerCase()}, ${pct} % recovered`,
+};
+
+const COPY: Copy<typeof es> = { es, en };
+
+/** Estilo por estado (el texto sale del idioma activo). */
+const STATUS_STYLE: Record<Recovery, { range: string; fill: string; badge: BadgeVariant; icon: LucideIcon }> = {
+  high: { range: `${FATIGUE_BANDS.moderate + 1}–100 %`, fill: 'fill-error', badge: 'error', icon: BatteryLow },
+  moderate: { range: `${FATIGUE_BANDS.fresh + 1}–${FATIGUE_BANDS.moderate} %`, fill: 'fill-warning', badge: 'warning', icon: BatteryMedium },
+  fresh: { range: `0–${FATIGUE_BANDS.fresh} %`, fill: 'fill-success', badge: 'success', icon: BatteryFull },
+  idle: { range: '', fill: 'fill-on-surface-light/25', badge: 'neutral', icon: CircleDashed },
+};
+const statusOf = (r: Recovery, t: typeof es) => ({
+  ...STATUS_STYLE[r],
+  label: t[r],
+  group: { high: t.groupHigh, moderate: t.groupModerate, fresh: t.groupFresh, idle: t.groupIdle }[r],
+});
 const ORDER: Recovery[] = ['high', 'moderate', 'fresh', 'idle'];
 
 type View = '3d' | 'flat';
-const VIEWS: Array<{ value: View; label: string }> = [{ value: '3d', label: '3D' }, { value: 'flat', label: 'Plano' }];
 const VIEW_KEY = 'coliseo.muscle-view';
 // Alto de la tarjeta flotante del visor en móvil (más su margen): la figura se encuadra debajo.
 const FLOAT_INSET = 96;
@@ -80,32 +164,36 @@ const BACK: Partial<Record<Muscle, string[]>> = {
 };
 
 const HOUR = 3_600_000;
-const sets = (n: number) => n.toLocaleString('es-ES', { maximumFractionDigits: 1 });
-function ago(t: number, now: number) {
-  const h = Math.floor((now - t) / HOUR);
-  return h < 1 ? 'hace menos de 1 h' : h < 24 ? `hace ${h} h` : h < 48 ? 'ayer' : `hace ${Math.floor(h / 24)} días`;
-}
 const toneOf = (s: MuscleState) => (s.status === 'high' ? 'error' : s.status === 'moderate' ? 'warning' : 'success');
-const fullText = (s: MuscleState) => (s.fullIn > 0 ? `en ~${s.fullIn} h` : 'completa');
+
+/** Texto de «hace X» y de «en ~X h», en el idioma activo. */
+function agoText(t: number, now: number, copy: typeof es) {
+  const h = Math.floor((now - t) / HOUR);
+  return h < 1 ? copy.agoLess : h < 24 ? copy.agoHours(h) : h < 48 ? copy.yesterday : copy.agoDays(Math.floor(h / 24));
+}
+const fullText = (s: MuscleState, copy: typeof es) => (s.fullIn > 0 ? copy.fullIn(s.fullIn) : copy.full);
 
 /** Tarjeta flotante del visor 3D en móvil: lo que dice el panel lateral, en una línea, junto al dedo. */
 function FloatingReadout({ muscle, state }: { muscle: Muscle | null; state: MuscleState | null }) {
+  const t = useText(COPY);
+  const locale = useLocale();
+  const sets = (n: number) => n.toLocaleString(INTL_LOCALE[locale], { maximumFractionDigits: 1 });
   return (
     <div aria-hidden className="pointer-events-none absolute inset-x-3 top-3 h-[84px] rounded-xl border border-border bg-background/90 px-3 py-2.5 shadow-sm md:hidden">
       {muscle && state ? (
         <div className="flex h-full flex-col justify-between">
           <div className="flex items-center justify-between gap-2">
-            <span className="truncate text-label-lg text-on-background">{MUSCLES[muscle].label}</span>
-            <Badge variant={STATUS[state.status].badge} icon={STATUS[state.status].icon}>{STATUS[state.status].label}</Badge>
+            <span className="truncate text-label-lg text-on-background">{muscleLabelFor(muscle, locale)}</span>
+            <Badge variant={statusOf(state.status, t).badge} icon={statusOf(state.status, t).icon}>{statusOf(state.status, t).label}</Badge>
           </div>
           <dl className="grid grid-cols-[auto_1fr_auto] gap-x-4 text-caption text-on-surface-light">
-            <div><dt>Fatiga</dt><dd className="font-mono text-label-lg tabular-nums text-on-background">{state.fatiguePct} %</dd></div>
-            <div><dt>Recuperación total</dt><dd className="font-mono text-label-lg tabular-nums text-on-background">{fullText(state)}</dd></div>
-            <div><dt>Series 7 días</dt><dd className="font-mono text-label-lg tabular-nums text-on-background">{sets(state.weekSets)}</dd></div>
+            <div><dt>{t.fatigue}</dt><dd className="font-mono text-label-lg tabular-nums text-on-background">{state.fatiguePct} %</dd></div>
+            <div><dt>{t.fullRecovery}</dt><dd className="font-mono text-label-lg tabular-nums text-on-background">{fullText(state, t)}</dd></div>
+            <div><dt>{t.sets7}</dt><dd className="font-mono text-label-lg tabular-nums text-on-background">{sets(state.weekSets)}</dd></div>
           </dl>
         </div>
       ) : (
-        <p className="flex h-full items-center text-body-sm text-on-surface">Toca un músculo para ver su fatiga y cuándo se recupera.</p>
+        <p className="flex h-full items-center text-body-sm text-on-surface">{t.touchHint}</p>
       )}
     </div>
   );
@@ -128,6 +216,8 @@ function Figure({ shapes, label, states, selected, onSelect }: {
   selected: Muscle | null;
   onSelect: (m: Muscle) => void;
 }) {
+  const t = useText(COPY);
+  const locale = useLocale();
   // El seleccionado se dibuja el último para que su contorno quede encima.
   const muscles = (Object.keys(shapes) as Muscle[]).sort((a, b) => Number(a === selected) - Number(b === selected));
   const onKey = (e: KeyboardEvent, m: Muscle) => {
@@ -149,11 +239,11 @@ function Figure({ shapes, label, states, selected, onSelect }: {
           return (
             <g
               key={m} role="button" tabIndex={0} aria-pressed={on}
-              aria-label={`${MUSCLES[m].label}: ${STATUS[s.status].label.toLowerCase()}, ${s.recovered} % recuperado`}
+              aria-label={t.muscleAria(muscleLabelFor(m, locale), statusOf(s.status, t).label, s.recovered)}
               onClick={() => onSelect(m)} onKeyDown={(e) => onKey(e, m)}
               className={cn(
                 'cursor-pointer outline-none transition-[fill,stroke,opacity] duration-700 [stroke-linejoin:round] hover:opacity-80',
-                STATUS[s.status].fill,
+                STATUS_STYLE[s.status].fill,
                 on ? 'stroke-on-background [stroke-width:2.5]' : 'stroke-surface [stroke-width:1.5] focus-visible:stroke-primary focus-visible:[stroke-width:3]',
               )}
             >
@@ -173,6 +263,9 @@ function Figure({ shapes, label, states, selected, onSelect }: {
 }
 
 export function MuscleMap({ states, now }: { states: Record<Muscle, MuscleState>; now: number }) {
+  const t = useText(COPY);
+  const locale = useLocale();
+  const views: Array<{ value: View; label: string }> = [{ value: '3d', label: '3D' }, { value: 'flat', label: t.flat }];
   const worst = useMemo(
     () => MUSCLE_IDS.filter((m) => states[m].status === 'high' || states[m].status === 'moderate')
       .sort((a, b) => states[b].fatigue - states[a].fatigue)[0] ?? null,
@@ -196,12 +289,12 @@ export function MuscleMap({ states, now }: { states: Record<Muscle, MuscleState>
   // Lista de músculos por estado: alternativa sin color al dibujo, con dianas de 44 px para los músculos pequeños.
   const group = ({ status, muscles }: (typeof groups)[number]) => (
     <div key={status} className="flex flex-col gap-2">
-      <h3 className="text-label-lg text-on-surface">{STATUS[status].group}</h3>
+      <h3 className="text-label-lg text-on-surface">{statusOf(status, t).group}</h3>
       <ul className="flex flex-wrap gap-2">
         {muscles.map((m) => (
           <li key={m}>
             <button type="button" aria-pressed={m === selected} onClick={() => setPicked(m)} className={chipClasses(m === selected)}>
-              {MUSCLES[m].label}
+              {muscleLabelFor(m, locale)}
             </button>
           </li>
         ))}
@@ -213,14 +306,12 @@ export function MuscleMap({ states, now }: { states: Record<Muscle, MuscleState>
     <Card as="section" aria-labelledby="coliseo-map" padding="lg" className="flex flex-col gap-5 md:p-8">
       <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
         <div className="flex min-w-0 flex-[1_1_280px] flex-col gap-1">
-          <h2 id="coliseo-map" className="text-heading-sm">Recuperación muscular</h2>
+          <h2 id="coliseo-map" className="text-heading-sm">{t.title}</h2>
           <p className="text-body-sm text-on-surface-light">
-            {show3d
-              ? 'Según tus series de los últimos 7 días. Gira el cuerpo y toca un músculo para ver cuándo se recupera.'
-              : 'Según tus series de los últimos 7 días. Toca un músculo para ver cuándo vuelve a estar listo.'}
+            {show3d ? t.introThree : t.introFlat}
           </p>
         </div>
-        {can3d && <SegmentedControl options={VIEWS} value={view} onChange={changeView} label="Vista del mapa" role="radiogroup" className="w-40" />}
+        {can3d && <SegmentedControl options={views} value={view} onChange={changeView} label={t.viewLabel} role="radiogroup" className="w-40" />}
       </div>
 
       <div className="grid items-start gap-6 md:grid-cols-[minmax(0,1fr)_minmax(260px,320px)]">
@@ -234,16 +325,16 @@ export function MuscleMap({ states, now }: { states: Record<Muscle, MuscleState>
             </Suspense>
           ) : (
             <div className="flex justify-center gap-2 sm:gap-6">
-              <Figure shapes={FRONT} label="Frente" states={states} selected={selected} onSelect={setPicked} />
-              <Figure shapes={BACK} label="Espalda" states={states} selected={selected} onSelect={setPicked} />
+              <Figure shapes={FRONT} label={t.front} states={states} selected={selected} onSelect={setPicked} />
+              <Figure shapes={BACK} label={t.back} states={states} selected={selected} onSelect={setPicked} />
             </div>
           )}
-          <ul className="flex flex-wrap justify-center gap-x-4 gap-y-2" aria-label="Leyenda">
+          <ul className="flex flex-wrap justify-center gap-x-4 gap-y-2" aria-label={t.legend}>
             {ORDER.map((status) => (
               <li key={status} className="flex items-center gap-1.5 text-label-md text-on-surface">
-                <svg aria-hidden viewBox="0 0 10 10" className={cn('size-3', STATUS[status].fill)}><circle cx="5" cy="5" r="5" /></svg>
-                {STATUS[status].label}
-                {STATUS[status].range && <span className="font-normal tabular-nums text-on-surface-light">{STATUS[status].range}</span>}
+                <svg aria-hidden viewBox="0 0 10 10" className={cn('size-3', STATUS_STYLE[status].fill)}><circle cx="5" cy="5" r="5" /></svg>
+                {statusOf(status, t).label}
+                {STATUS_STYLE[status].range && <span className="font-normal tabular-nums text-on-surface-light">{STATUS_STYLE[status].range}</span>}
               </li>
             ))}
           </ul>
@@ -254,18 +345,18 @@ export function MuscleMap({ states, now }: { states: Record<Muscle, MuscleState>
             {s && selected ? (
               <>
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="text-heading-md">{MUSCLES[selected].label}</h3>
-                  <Badge variant={STATUS[s.status].badge} icon={STATUS[s.status].icon}>{STATUS[s.status].label}</Badge>
+                  <h3 className="text-heading-md">{muscleLabelFor(selected, locale)}</h3>
+                  <Badge variant={statusOf(s.status, t).badge} icon={statusOf(s.status, t).icon}>{statusOf(s.status, t).label}</Badge>
                 </div>
                 <ProgressBar
                   key={selected} value={s.fatiguePct} tone={toneOf(s)}
-                  label={`Fatiga de ${MUSCLES[selected].label}`} valueText={`${s.fatiguePct} %`}
+                  label={t.fatigueOf(muscleLabelFor(selected, locale))} valueText={`${s.fatiguePct} %`}
                 />
                 <dl className="grid grid-cols-3 gap-2 text-center">
                   {([
-                    ['Fatiga', `${s.fatiguePct} %`],
-                    ['Recuperación total', fullText(s)],
-                    ['Series 7 días', sets(s.weekSets)],
+                    [t.fatigue, `${s.fatiguePct} %`],
+                    [t.fullRecovery, fullText(s, t)],
+                    [t.sets7, s.weekSets.toLocaleString(INTL_LOCALE[locale], { maximumFractionDigits: 1 })],
                   ] as const).map(([k, v]) => (
                     <div key={k} className="flex flex-col justify-between gap-0.5 rounded-xl bg-surface-variant/60 px-1 py-2">
                       <dt className="text-label-md text-on-surface-light">{k}</dt>
@@ -274,17 +365,15 @@ export function MuscleMap({ states, now }: { states: Record<Muscle, MuscleState>
                   ))}
                 </dl>
                 <p className="text-body-sm text-on-surface-light">
-                  {s.status === 'idle' ? 'Sin series esta semana.' : [
-                    s.readyIn > 0 ? `Se puede volver a entrenar en ~${s.readyIn} h.` : 'Se puede entrenar ya.',
-                    s.lastTrained ? `Último trabajo ${ago(s.lastTrained, now)}.` : '',
+                  {s.status === 'idle' ? t.idleSets : [
+                    s.readyIn > 0 ? t.readyIn(s.readyIn) : t.readyNow,
+                    s.lastTrained ? t.lastWork(agoText(s.lastTrained, now, t)) : '',
                   ].filter(Boolean).join(' ')}
                 </p>
               </>
             ) : (
               <p className="text-body-sm text-on-surface">
-                {trained
-                  ? 'Todo listo: ningún músculo arrastra fatiga. Toca uno para ver su semana.'
-                  : 'Aún no hay series esta semana. Termina un entrenamiento y cada músculo se pinta según su fatiga.'}
+                {trained ? t.allReady : t.noSets}
               </p>
             )}
           </div>
@@ -293,7 +382,7 @@ export function MuscleMap({ states, now }: { states: Record<Muscle, MuscleState>
           {trained && (
             <details className="group/all">
               <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-label-lg text-primary-text [&::-webkit-details-marker]:hidden">
-                Todos los músculos
+                {t.allMuscles}
                 <ChevronDown aria-hidden className="size-4 transition-transform duration-300 group-open/all:rotate-180" />
               </summary>
               <div className="flex flex-col gap-5 pt-2">{groups.filter((g) => g.status === 'fresh' || g.status === 'idle').map(group)}</div>

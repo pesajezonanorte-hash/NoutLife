@@ -7,11 +7,68 @@ import { motion } from 'framer-motion';
 import { Droplet, Minus, Plus, Save, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { springs } from '@/lib/motion';
+import { useLocale, useText, type Copy } from '@/lib/i18n';
 import { Button, Field, Textarea } from '@/components/ui/lq';
 import type { CycleContraceptive, CycleFlow, CycleLog, CycleLogInput, CycleMood, CycleSexualActivity, CycleSymptom } from '@/services/cycle.service';
 import {
-  CONTRACEPTIVE_OPTIONS, ENERGY_LABELS, FLOW_OPTIONS, MOOD_META, MOODS, SEXUAL_OPTIONS, SYMPTOMS, SYMPTOM_META, phaseFill,
+  contraceptiveOptionsFor, energyLabelFor, flowOptionsFor, moodOptionsFor, sexualOptionsFor, symptomLabelsFor, SYMPTOMS, SYMPTOM_META, phaseFill,
 } from './cycleMeta';
+
+const es = {
+  energy: 'Energía',
+  scaleAria: (n: number, label: string): string => `${n} de 5: ${label}`,
+  ofFive: (n: number): string => `${n} de 5`,
+  unset: 'Sin anotar',
+  flow: 'Flujo',
+  mood: 'Ánimo',
+  symptoms: 'Síntomas físicos',
+  sexual: 'Actividad sexual',
+  contraceptive: 'Anticonceptivo de hoy',
+  sleep: 'Calidad del sueño',
+  stress: 'Estrés',
+  water: 'Agua',
+  removeGlass: 'Quitar un vaso',
+  addGlass: 'Añadir un vaso',
+  glasses: (n: number): string => `${n} ${n === 1 ? 'vaso' : 'vasos'}`,
+  sleepLow: 'Muy mal',
+  sleepHigh: 'Muy bien',
+  stressLow: 'Nada',
+  stressHigh: 'Mucho',
+  note: 'Nota del día',
+  noteHelp: 'Solo la ves tú.',
+  notePlaceholder: 'Cómo te sentiste, qué te ayudó…',
+  clear: 'Borrar el día',
+  save: 'Guardar el día',
+};
+
+const en: typeof es = {
+  energy: 'Energy',
+  scaleAria: (n: number, label: string): string => `${n} of 5: ${label}`,
+  ofFive: (n: number): string => `${n} of 5`,
+  unset: 'Not logged',
+  flow: 'Flow',
+  mood: 'Mood',
+  symptoms: 'Physical symptoms',
+  sexual: 'Sexual activity',
+  contraceptive: 'Contraceptive today',
+  sleep: 'Sleep quality',
+  stress: 'Stress',
+  water: 'Water',
+  removeGlass: 'Remove a glass',
+  addGlass: 'Add a glass',
+  glasses: (n: number): string => `${n} ${n === 1 ? 'glass' : 'glasses'}`,
+  sleepLow: 'Very poor',
+  sleepHigh: 'Very good',
+  stressLow: 'None',
+  stressHigh: 'A lot',
+  note: 'Note for the day',
+  noteHelp: 'Only you can see it.',
+  notePlaceholder: 'How you felt, what helped…',
+  clear: 'Delete the day',
+  save: 'Save the day',
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 const toggleClass = (on: boolean) => cn(
   'inline-flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-label-lg transition-[background-color,border-color,color,transform] duration-200 active:scale-[.97]',
@@ -20,28 +77,30 @@ const toggleClass = (on: boolean) => cn(
 const WATER_MAX = 20;
 
 /** Gotas del flujo: 0 a 3 (el manchado lleva una gota hueca). */
-function Drops({ flow }: { flow: CycleFlow }) {
-  const meta = FLOW_OPTIONS.find((f) => f.value === flow)!;
+function Drops({ flow, drops }: { flow: CycleFlow; drops: number }) {
   if (flow === 'none') return null;
   if (flow === 'spotting') return <Droplet aria-hidden className="size-3.5" strokeWidth={1.75} />;
   return (
     <span aria-hidden className="flex -space-x-1">
-      {Array.from({ length: meta.drops }, (_, i) => <Droplet key={i} className="size-3.5" fill="currentColor" strokeWidth={1.5} />)}
+      {Array.from({ length: drops }, (_, i) => <Droplet key={i} className="size-3.5" fill="currentColor" strokeWidth={1.5} />)}
     </span>
   );
 }
 
 /** Cinco barras que suben: la energía del día (radiogroup con flechas). */
 function EnergyMeter({ value, onChange }: { value: number | null; onChange: (n: number | null) => void }) {
+  const t = useText(COPY);
+  const locale = useLocale();
+  const labels = [1, 2, 3, 4, 5].map((n) => energyLabelFor(n, locale));
   return (
-    <div role="radiogroup" aria-label="Energía" className="flex items-end gap-2">
-      {ENERGY_LABELS.map((label, i) => {
+    <div role="radiogroup" aria-label={t.energy} className="flex items-end gap-2">
+      {labels.map((label, i) => {
         const n = i + 1;
         const on = value === n;
         const lit = value != null && n <= value;
         return (
           <button
-            key={n} type="button" role="radio" aria-checked={on} aria-label={`${n} de 5: ${label}`} title={label}
+            key={n} type="button" role="radio" aria-checked={on} aria-label={t.scaleAria(n, label)} title={label}
             tabIndex={on || (value == null && n === 3) ? 0 : -1}
             onClick={() => onChange(on ? null : n)}
             onKeyDown={(e) => {
@@ -65,13 +124,14 @@ function EnergyMeter({ value, onChange }: { value: number | null; onChange: (n: 
           </button>
         );
       })}
-      <span className="ml-1 self-center text-body-sm text-on-surface-light" aria-live="polite">{value ? ENERGY_LABELS[value - 1] : 'Sin anotar'}</span>
+      <span className="ml-1 self-center text-body-sm text-on-surface-light" aria-live="polite">{value ? labels[value - 1] : t.unset}</span>
     </div>
   );
 }
 
 /** Escala de 1 a 5 con etiquetas en los extremos (sueño, estrés). */
 function ScaleRow({ label, value, onChange, low, high }: { label: string; value: number | null; onChange: (n: number | null) => void; low: string; high: string }) {
+  const t = useText(COPY);
   return (
     <div role="radiogroup" aria-label={label} className="flex flex-col gap-1.5">
       <div className="flex gap-2">
@@ -79,7 +139,7 @@ function ScaleRow({ label, value, onChange, low, high }: { label: string; value:
           const on = value === n;
           return (
             <button
-              key={n} type="button" role="radio" aria-checked={on} aria-label={`${n} de 5`}
+              key={n} type="button" role="radio" aria-checked={on} aria-label={t.ofFive(n)}
               onClick={() => onChange(on ? null : n)}
               className={cn('flex min-h-11 flex-1 items-center justify-center rounded-xl border font-mono text-label-lg tabular-nums transition-colors duration-200',
                 on ? 'border-transparent bg-primary text-on-primary' : 'border-border bg-background text-on-surface hover:border-border-strong')}
@@ -96,13 +156,14 @@ function ScaleRow({ label, value, onChange, low, high }: { label: string; value:
 
 /** Vasos de agua: un contador con más y menos. */
 function WaterStepper({ value, onChange }: { value: number | null; onChange: (n: number | null) => void }) {
+  const t = useText(COPY);
   const n = value ?? 0;
   const set = (next: number) => onChange(next <= 0 ? null : Math.min(WATER_MAX, next));
   return (
     <div className="flex items-center gap-3">
-      <Button type="button" variant="secondary" size="md" aria-label="Quitar un vaso" disabled={n === 0} onClick={() => set(n - 1)}><Minus aria-hidden className="size-4" /></Button>
-      <span className="min-w-[4.5rem] text-center font-mono text-heading-sm tabular-nums" aria-live="polite">{n} {n === 1 ? 'vaso' : 'vasos'}</span>
-      <Button type="button" variant="secondary" size="md" aria-label="Añadir un vaso" disabled={n >= WATER_MAX} onClick={() => set(n + 1)}><Plus aria-hidden className="size-4" /></Button>
+      <Button type="button" variant="secondary" size="md" aria-label={t.removeGlass} disabled={n === 0} onClick={() => set(n - 1)}><Minus aria-hidden className="size-4" /></Button>
+      <span className="min-w-[4.5rem] text-center font-mono text-heading-sm tabular-nums" aria-live="polite">{t.glasses(n)}</span>
+      <Button type="button" variant="secondary" size="md" aria-label={t.addGlass} disabled={n >= WATER_MAX} onClick={() => set(n + 1)}><Plus aria-hidden className="size-4" /></Button>
     </div>
   );
 }
@@ -115,6 +176,13 @@ export function DayLogForm({ initial, onSave, onClear, saving, compact }: {
   /** Sin la nota (registro rápido de hoy). */
   compact?: boolean;
 }) {
+  const t = useText(COPY);
+  const locale = useLocale();
+  const flowOptions = flowOptionsFor(locale);
+  const moodOptions = moodOptionsFor(locale);
+  const symptomLabels = symptomLabelsFor(locale);
+  const sexualOptions = sexualOptionsFor(locale);
+  const contraceptiveOptions = contraceptiveOptionsFor(locale);
   const [flow, setFlow] = useState<CycleFlow | null>(initial?.flow ?? null);
   const [moods, setMoods] = useState<CycleMood[]>(initial?.moods ?? []);
   const [energy, setEnergy] = useState<number | null>(initial?.energy ?? null);
@@ -140,9 +208,9 @@ export function DayLogForm({ initial, onSave, onClear, saving, compact }: {
       }}
     >
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 text-label-lg text-on-surface">Flujo</legend>
+        <legend className="mb-2 text-label-lg text-on-surface">{t.flow}</legend>
         <div className="flex flex-wrap gap-2">
-          {FLOW_OPTIONS.map((f) => {
+          {flowOptions.map((f) => {
             const on = flow === f.value;
             return (
               <button
@@ -150,7 +218,7 @@ export function DayLogForm({ initial, onSave, onClear, saving, compact }: {
                 className={toggleClass(on)}
                 style={on ? { background: f.drops || f.value === 'spotting' ? phaseFill('menstrual', 0.18) : 'rgb(var(--lq-surface-variant))', color: f.drops || f.value === 'spotting' ? 'rgb(var(--cy-menstrual-text))' : undefined } : undefined}
               >
-                <Drops flow={f.value} />{f.label}
+                <Drops flow={f.value} drops={f.drops} />{f.label}
               </button>
             );
           })}
@@ -158,14 +226,14 @@ export function DayLogForm({ initial, onSave, onClear, saving, compact }: {
       </fieldset>
 
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 text-label-lg text-on-surface">Ánimo</legend>
+        <legend className="mb-2 text-label-lg text-on-surface">{t.mood}</legend>
         <div className="flex flex-wrap gap-2">
-          {MOODS.map((m) => {
-            const on = moods.includes(m);
-            const { icon: Icon, label } = MOOD_META[m];
+          {moodOptions.map((m) => {
+            const on = moods.includes(m.value);
+            const Icon = m.icon;
             return (
-              <button key={m} type="button" aria-pressed={on} onClick={() => setMoods(toggle(moods, m))} className={toggleClass(on)} style={on ? { background: 'rgb(var(--lq-primary) / var(--lq-soft-alpha))' } : undefined}>
-                <Icon aria-hidden className="size-4" strokeWidth={1.75} />{label}
+              <button key={m.value} type="button" aria-pressed={on} onClick={() => setMoods(toggle(moods, m.value))} className={toggleClass(on)} style={on ? { background: 'rgb(var(--lq-primary) / var(--lq-soft-alpha))' } : undefined}>
+                <Icon aria-hidden className="size-4" strokeWidth={1.75} />{m.label}
               </button>
             );
           })}
@@ -173,19 +241,19 @@ export function DayLogForm({ initial, onSave, onClear, saving, compact }: {
       </fieldset>
 
       <div className="flex flex-col gap-2">
-        <span className="text-label-lg text-on-surface" aria-hidden>Energía</span>
+        <span className="text-label-lg text-on-surface" aria-hidden>{t.energy}</span>
         <EnergyMeter value={energy} onChange={setEnergy} />
       </div>
 
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 text-label-lg text-on-surface">Síntomas físicos</legend>
+        <legend className="mb-2 text-label-lg text-on-surface">{t.symptoms}</legend>
         <div className="flex flex-wrap gap-2">
           {SYMPTOMS.map((s) => {
             const on = symptoms.includes(s);
-            const { icon: Icon, label } = SYMPTOM_META[s];
+            const Icon = SYMPTOM_META[s].icon;
             return (
               <button key={s} type="button" aria-pressed={on} onClick={() => setSymptoms(toggle(symptoms, s))} className={toggleClass(on)} style={on ? { background: 'rgb(var(--lq-primary) / var(--lq-soft-alpha))' } : undefined}>
-                <Icon aria-hidden className="size-4" strokeWidth={1.75} />{label}
+                <Icon aria-hidden className="size-4" strokeWidth={1.75} />{symptomLabels[s]}
               </button>
             );
           })}
@@ -193,9 +261,9 @@ export function DayLogForm({ initial, onSave, onClear, saving, compact }: {
       </fieldset>
 
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 text-label-lg text-on-surface">Actividad sexual</legend>
+        <legend className="mb-2 text-label-lg text-on-surface">{t.sexual}</legend>
         <div className="flex flex-wrap gap-2">
-          {SEXUAL_OPTIONS.map((o) => {
+          {sexualOptions.map((o) => {
             const on = sexualActivity === o.value;
             return <button key={o.value} type="button" aria-pressed={on} onClick={() => setSexualActivity(on ? null : o.value)} className={toggleClass(on)}>{o.label}</button>;
           })}
@@ -203,9 +271,9 @@ export function DayLogForm({ initial, onSave, onClear, saving, compact }: {
       </fieldset>
 
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 text-label-lg text-on-surface">Anticonceptivo de hoy</legend>
+        <legend className="mb-2 text-label-lg text-on-surface">{t.contraceptive}</legend>
         <div className="flex flex-wrap gap-2">
-          {CONTRACEPTIVE_OPTIONS.map((o) => {
+          {contraceptiveOptions.map((o) => {
             const on = contraception === o.value;
             return <button key={o.value} type="button" aria-pressed={on} onClick={() => setContraception(on ? null : o.value)} className={toggleClass(on)}>{o.label}</button>;
           })}
@@ -214,31 +282,31 @@ export function DayLogForm({ initial, onSave, onClear, saving, compact }: {
 
       <div className="grid gap-6 md:grid-cols-2">
         <fieldset className="flex flex-col gap-2">
-          <legend className="mb-2 text-label-lg text-on-surface">Calidad del sueño</legend>
-          <ScaleRow label="Calidad del sueño" value={sleepQuality} onChange={setSleepQuality} low="Muy mal" high="Muy bien" />
+          <legend className="mb-2 text-label-lg text-on-surface">{t.sleep}</legend>
+          <ScaleRow label={t.sleep} value={sleepQuality} onChange={setSleepQuality} low={t.sleepLow} high={t.sleepHigh} />
         </fieldset>
         <fieldset className="flex flex-col gap-2">
-          <legend className="mb-2 text-label-lg text-on-surface">Estrés</legend>
-          <ScaleRow label="Estrés" value={stress} onChange={setStress} low="Nada" high="Mucho" />
+          <legend className="mb-2 text-label-lg text-on-surface">{t.stress}</legend>
+          <ScaleRow label={t.stress} value={stress} onChange={setStress} low={t.stressLow} high={t.stressHigh} />
         </fieldset>
       </div>
 
       <div className="flex flex-col gap-2">
-        <span className="text-label-lg text-on-surface" aria-hidden>Agua</span>
+        <span className="text-label-lg text-on-surface" aria-hidden>{t.water}</span>
         <WaterStepper value={waterGlasses} onChange={setWaterGlasses} />
       </div>
 
       {!compact && (
-        <Field label="Nota del día" help="Solo la ves tú.">
-          <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={500} rows={3} placeholder="Cómo te sentiste, qué te ayudó…" />
+        <Field label={t.note} help={t.noteHelp}>
+          <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={500} rows={3} placeholder={t.notePlaceholder} />
         </Field>
       )}
 
       <div className="flex flex-wrap items-center justify-end gap-2">
         {onClear && initial && (
-          <Button type="button" variant="ghost" onClick={() => void onClear()} className="mr-auto"><Trash2 aria-hidden className="size-4" />Borrar el día</Button>
+          <Button type="button" variant="ghost" onClick={() => void onClear()} className="mr-auto"><Trash2 aria-hidden className="size-4" />{t.clear}</Button>
         )}
-        <Button type="submit" loading={saving} disabled={empty && !initial}><Save aria-hidden className="size-4" />Guardar el día</Button>
+        <Button type="submit" loading={saving} disabled={empty && !initial}><Save aria-hidden className="size-4" />{t.save}</Button>
       </div>
     </form>
   );

@@ -2,17 +2,29 @@ import { Flag, Flame, LayoutGrid, Sparkles, Star, Swords, Trophy, type LucideIco
 import type { Tone } from '@/components/ui/lq';
 import { resolveGlyph } from '@/components/ui/glyphs';
 import type { Achievement } from '@/services/achievement.service';
+import type { Locale } from '@/lib/locale';
 
-export const ACHIEVEMENT_CATEGORY: Record<string, { label: string; tone: Exclude<Tone, 'muted'>; icon: LucideIcon }> = {
-  quest: { label: 'Misiones', tone: 'primary', icon: Flag },
-  habit: { label: 'Hábitos', tone: 'warning', icon: Flame },
-  level: { label: 'Nivel', tone: 'forest', icon: Star },
+const CATEGORY_STYLE: Record<string, { tone: Exclude<Tone, 'muted'>; icon: LucideIcon }> = {
+  quest: { tone: 'primary', icon: Flag },
+  habit: { tone: 'warning', icon: Flame },
+  level: { tone: 'forest', icon: Star },
   // «gym» es la categoría guardada de los logros del Coliseo.
-  gym: { label: 'Coliseo', tone: 'success', icon: Swords },
-  category: { label: 'Zonas', tone: 'info', icon: LayoutGrid },
-  special: { label: 'Especiales', tone: 'error', icon: Sparkles },
+  gym: { tone: 'success', icon: Swords },
+  category: { tone: 'info', icon: LayoutGrid },
+  special: { tone: 'error', icon: Sparkles },
 };
-export const achievementCategory = (c: string) => ACHIEVEMENT_CATEGORY[c] ?? { label: 'Otros', tone: 'primary' as const, icon: Trophy };
+
+const CATEGORY_LABEL: Record<Locale, Record<string, string>> = {
+  es: { quest: 'Misiones', habit: 'Hábitos', level: 'Nivel', gym: 'Coliseo', category: 'Zonas', special: 'Especiales', other: 'Otros' },
+  en: { quest: 'Goals', habit: 'Habits', level: 'Level', gym: 'Coliseum', category: 'Zones', special: 'Special', other: 'Other' },
+};
+
+/** Nombre y estilo de la categoría de un logro, en el idioma indicado. */
+export function achievementCategory(c: string, locale: Locale = 'es') {
+  const style = CATEGORY_STYLE[c];
+  const label = CATEGORY_LABEL[locale][style ? c : 'other'];
+  return style ? { label, ...style } : { label, tone: 'primary' as const, icon: Trophy };
+}
 
 /** Ícono del logro; resolveGlyph devuelve Star para claves desconocidas → ícono de la categoría. */
 export function achievementIcon(a: Achievement): LucideIcon {
