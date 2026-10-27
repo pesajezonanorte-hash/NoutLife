@@ -280,7 +280,7 @@ function NightForm({ logs, onSaved, idPrefix }: { logs: SleepLog[]; onSaved: () 
       <DaySelect id={`${idPrefix}-day`} label={t.nightEnded} value={wakeDay} onChange={setWakeDay} />
       <div className="grid grid-cols-2 gap-3">
         <Field label={t.sleptAt}><Input id={`${idPrefix}-in`} type="time" value={bed} onChange={(e) => setBed(e.target.value)} required /></Field>
-        <Field label={t.wokeAt} error={night && !valid ? t.wakeRange : undefined}><Input id={`${idPrefix}-out`} type="time" value={wake} onChange={(e) => setWake(e.target.value)} required /></Field>
+        <Field label={t.wokeAt} help={night && !valid ? t.wakeRange : undefined}><Input id={`${idPrefix}-out`} type="time" value={wake} onChange={(e) => setWake(e.target.value)} required /></Field>
       </div>
       <DurationMeter hours={night && valid ? night.hours : null} target={SLEEP_GOAL_H} targetLabel={t.goalRange} />
       <QualityPicker value={q} onChange={setQ} legend={t.howSleptLegend} />
@@ -384,7 +384,7 @@ function NapForm({ onSaved, idPrefix }: { onSaved: () => void; idPrefix: string 
       </fieldset>
       <div className="grid grid-cols-2 gap-3">
         <Field label={t.startedAt}><Input id={`${idPrefix}-in`} type="time" value={start} onChange={(e) => setStart(e.target.value)} required /></Field>
-        <Field label={t.endedAt} error={start && end && !valid ? t.wakeRange : undefined}><Input id={`${idPrefix}-out`} type="time" value={end} onChange={(e) => setEnd(e.target.value)} required /></Field>
+        <Field label={t.endedAt} help={start && end && !valid ? t.wakeRange : undefined}><Input id={`${idPrefix}-out`} type="time" value={end} onChange={(e) => setEnd(e.target.value)} required /></Field>
       </div>
       <DurationMeter hours={valid ? hours : null} target={1.5} tone="warning" targetLabel={t.refHint} advice={advice} />
       <QualityPicker value={q} onChange={setQ} legend={t.wentWell} />

@@ -19,7 +19,8 @@ import * as wisdomService from '@/services/wisdom.service';
 import type { WisdomCard } from '@/services/wisdom.service';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { useToast } from '@/hooks/useToast';
-import { useText, type Copy } from '@/lib/i18n';
+import { useLocale, useText, type Copy } from '@/lib/i18n';
+import { wisdomText } from '@/components/wisdom/quoteText';
 import {
   Badge, Button, Card, ChipGroup, EmptyState, ErrorState, PageLoader, ProgressBar, QuoteCard, type ChipOption, type Tone,
 } from '@/components/ui/lq';
@@ -106,6 +107,8 @@ type Data = Awaited<ReturnType<typeof wisdomService.getAllCards>>;
 
 export default function WisdomPage() {
   const t = useText(COPY);
+  const locale = useLocale();
+  const tx = (c: WisdomCard) => wisdomText(c, locale);
   const navigate = useNavigate();
   const toast = useToast();
   const [data, setData] = useState<Data | null>(null);
@@ -163,8 +166,9 @@ export default function WisdomPage() {
   };
   const share = async () => {
     if (!featured) return;
-    const by = featured.author ? `\n${featured.author}${featured.source ? `, ${featured.source}` : ''}` : '';
-    const text = `“${featured.quote}”${by}`;
+    const q = tx(featured);
+    const by = q.author ? `\n${q.author}${q.source ? `, ${q.source}` : ''}` : '';
+    const text = `“${q.quote}”${by}`;
     try {
       if (navigator.share) await navigator.share({ text });
       else { await navigator.clipboard.writeText(text); toast.success(t.copied); }
@@ -225,17 +229,17 @@ export default function WisdomPage() {
             {/* key: cada cita nueva se vuelve a grabar palabra a palabra */}
             <blockquote key={featured.id} className="relative flex flex-col items-center gap-6">
               <p className="lq-engraved mx-auto max-w-[26ch] text-center font-serif text-[1.75rem] font-medium leading-[1.2] [text-wrap:balance] md:text-[2.625rem]">
-                <EngravedText text={`“${featured.quote}”`} delay={delay} step={step} />
+                <EngravedText text={`“${tx(featured).quote}”`} delay={delay} step={step} />
               </p>
               {featured.author && (
                 <motion.footer
                   className="flex flex-col items-center gap-1 text-center"
                   initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0, transition: { duration: 0.8, delay: delay + 0.15 + featured.quote.split(/\s+/).length * step } }}
+                  animate={{ opacity: 1, y: 0, transition: { duration: 0.8, delay: delay + 0.15 + tx(featured).quote.split(/\s+/).length * step } }}
                 >
                   <span aria-hidden className="mb-2 block h-px w-12 bg-secondary" />
-                  <cite className="text-heading-sm not-italic text-on-background">{featured.author}</cite>
-                  {featured.source && <span className="font-serif text-body-lg italic text-on-surface-light">{featured.source}</span>}
+                  <cite className="text-heading-sm not-italic text-on-background">{tx(featured).author}</cite>
+                  {tx(featured).source && <span className="font-serif text-body-lg italic text-on-surface-light">{tx(featured).source}</span>}
                 </motion.footer>
               )}
             </blockquote>
@@ -267,7 +271,7 @@ export default function WisdomPage() {
               return (
                 <motion.li key={c.id} variants={enter.emerge}>
                   <Card interactive padding="lg" className="lq-stone h-full rounded-[18px_14px_20px_12px]">
-                    <QuoteCard category={k.label} icon={k.icon} tone={k.tone} text={c.quote} author={c.author} source={c.source} />
+                    <QuoteCard category={k.label} icon={k.icon} tone={k.tone} text={tx(c).quote} author={tx(c).author} source={tx(c).source} />
                   </Card>
                 </motion.li>
               );
