@@ -24,7 +24,7 @@ export function Card<T extends ElementType = 'div'>({
   return (
     <Tag
       className={cn(
-        'rounded-2xl border border-border',
+        'lq-card rounded-2xl border border-border',
         variant === 'base' ? 'bg-surface shadow-sm' : 'bg-background shadow-md',
         interactive && 'lq-lift',
         paddings[padding],

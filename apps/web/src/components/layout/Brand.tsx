@@ -9,6 +9,12 @@ const LEAVES = [
   { key: 'b', d: 'M2 271C93.4 468.0 228.1 416.0 251.0 545.0L251 743C76.1 695.7 -13.2 587.2 0.0 380.0L0 275Z', line: [30, 290, 250, 740], stops: [[0, 'b0'], [1, 'b1']] },
 ] as const;
 
+/** Sombrero de bruja (Halloween): copa con la punta doblada y cinta; el ala es una elipse. */
+const HAT = [
+  'M-120 -6C-94 -96 -60 -196 -18 -270C4 -310 50 -336 112 -318C62 -306 34 -286 24 -250C50 -170 88 -92 120 -6Z',
+  'M-113 -30C-40 -8 40 -8 113 -30L104 -68C36 -48 -36 -48 -102 -68Z',
+] as const;
+
 /**
  * Marca de Noutlife (docs/redesign/design-system/logos): la N de hojas.
  * Sus degradados salen de --lq-brand-* (tokens.css): jade en Aurora (más claro
@@ -22,9 +28,11 @@ const LEAVES = [
 export function BrandMark({ size = 32, tile, className, alt = '' }: { size?: number; tile?: boolean; className?: string; alt?: string }) {
   // Ids únicos por instancia: varias marcas en pantalla no comparten degradado.
   const uid = useId().replace(/:/g, '');
+  // En baldosa el sombrero quedaría recortado.
+  const hat = !tile && isHalloween();
   const img = (
     <svg viewBox="0 0 670 786" width={size} height={size} role={alt ? 'img' : undefined} aria-label={alt || undefined} aria-hidden={!alt || undefined}
-      className={tile ? 'size-[62%]' : 'size-full'}>
+      className={tile ? 'size-[62%]' : 'size-full'} overflow={hat ? 'visible' : undefined}>
       <defs>
         {LEAVES.map(({ key, line: [x1, y1, x2, y2], stops }) => (
           <linearGradient key={key} id={`${uid}${key}`} gradientUnits="userSpaceOnUse" x1={x1} y1={y1} x2={x2} y2={y2}>
@@ -33,15 +41,20 @@ export function BrandMark({ size = 32, tile, className, alt = '' }: { size?: num
         ))}
       </defs>
       {LEAVES.map(({ key, d }) => <path key={key} fill={`url(#${uid}${key})`} d={d} />)}
-      {/* Halloween: luna creciente en el hueco de arriba a la derecha (lib/season). */}
-      {isHalloween() && (
-        <>
-          <mask id={`${uid}moon`}>
-            <circle cx={585} cy={100} r={88} fill="#fff" />
-            <circle cx={627} cy={70} r={76} fill="#000" />
-          </mask>
-          <circle cx={585} cy={100} r={88} mask={`url(#${uid}moon)`} style={{ fill: 'var(--lq-brand-c0)' }} />
-        </>
+      {/* Halloween: sombrero de bruja que cae sobre la N y asoma por encima (lib/season,
+          misma geometría que el splash de index.html; colores en styles/halloween.css). */}
+      {hat && (
+        <g transform="translate(250 60) rotate(-14)">
+          <linearGradient id={`${uid}hat`} gradientUnits="userSpaceOnUse" x1={0} y1={-330} x2={0} y2={40}>
+            <stop offset={0} style={{ stopColor: 'var(--lq-hat-0)' }} />
+            <stop offset={1} style={{ stopColor: 'var(--lq-hat-1)' }} />
+          </linearGradient>
+          <g className="lq-hat-drop">
+            <path fill={`url(#${uid}hat)`} d={HAT[0]} />
+            <path d={HAT[1]} style={{ fill: 'rgb(var(--lq-primary))' }} />
+            <ellipse fill={`url(#${uid}hat)`} cx={0} cy={0} rx={222} ry={42} />
+          </g>
+        </g>
       )}
     </svg>
   );
