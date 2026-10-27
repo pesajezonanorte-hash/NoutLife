@@ -14,15 +14,52 @@ import { cn } from '@/lib/utils';
 import { item, springs, stagger } from '@/lib/motion';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { EmptyState, ErrorState, Select, SegmentedControl, PageLoader } from '@/components/ui/lq';
-import { LOADING_COPY } from '@/lib/loadingCopy';
+import { useLoadingCopy } from '@/lib/loadingCopy';
 import { AmbientLight, Particles, Sheen, ZoneShell, useParticleBudget } from '@/components/ambience';
 import { fetchAchievements, type Achievement } from '@/services/achievement.service';
-import { achievementCategory as catMeta, achievementIcon, achievementProgress as progressOf } from '@/components/achievements/achievementMeta';
+import { achievementCategory, achievementIcon, achievementProgress as progressOf } from '@/components/achievements/achievementMeta';
 import { Lettering } from '@/components/layout/Lettering';
+import { INTL_LOCALE, useLocale, useText, type Copy, type Locale } from '@/lib/i18n';
 
 type Filter = 'all' | 'on' | 'off';
 
-const fmtDate = (iso?: string) => (iso ? new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) : '');
+const COPY: Copy<{
+  shelf: string; headline: string; intro: string; loading: string; loadFailed: string;
+  emptyTitle: string; emptyBody: string; filter: string; all: string; unlocked: string; obtained: string; locked: string;
+  category: string; allCategories: string; unlockedOn: (d: string) => string; percent: (p: number, c: number, t: number) => string;
+  lockedWord: string; lockedPct: (p: number) => string; lockedAria: string; xp: string; xpShort: (n: number) => string;
+  ofObtained: (u: number, t: number) => string; noMedalsHere: string; noMedalsBody: string; allUnlocked: string; allUnlockedBody: string;
+  bDate: (d: string) => string;
+}> = {
+  es: {
+    shelf: 'Vitrina', headline: 'Logros',
+    intro: 'Cada medalla cuenta una parte de tu historia. Pasa el cursor o enfoca una para ver cómo se consigue.',
+    loading: 'Cargando tu colección…', loadFailed: 'No pudimos cargar tus logros',
+    emptyTitle: 'Aún no hay logros', emptyBody: 'Completa hábitos y misiones para empezar tu colección.',
+    filter: 'Filtro', all: 'Todos', unlocked: 'Desbloqueados', obtained: 'Obtenidos', locked: 'Bloqueados',
+    category: 'Categoría', allCategories: 'Todas las categorías',
+    unlockedOn: (d) => `Desbloqueado el ${d}`, percent: (p, c, t) => `${p}% · ${c}/${t}`,
+    lockedWord: 'Bloqueado', lockedPct: (p) => `Bloqueado, ${p} por ciento`, lockedAria: 'Bloqueado',
+    xp: 'XP', xpShort: (n) => `+${n} XP`,
+    ofObtained: (u, t) => `de ${t} obtenidos`, noMedalsHere: 'Todavía sin medallas aquí', noMedalsBody: 'Sigue completando hábitos y misiones.',
+    allUnlocked: '¡Lo tienes todo!', allUnlockedBody: 'No te quedan logros bloqueados en este filtro.',
+    bDate: (d) => `Desbloqueado el ${d}`,
+  },
+  en: {
+    shelf: 'Showcase', headline: 'Achievements',
+    intro: 'Each medal tells part of your story. Hover over or focus one to see how it is earned.',
+    loading: 'Loading your collection…', loadFailed: "We couldn't load your achievements",
+    emptyTitle: 'No achievements yet', emptyBody: 'Complete habits and goals to start your collection.',
+    filter: 'Filter', all: 'All', unlocked: 'Unlocked', obtained: 'Earned', locked: 'Locked',
+    category: 'Category', allCategories: 'All categories',
+    unlockedOn: (d) => `Unlocked on ${d}`, percent: (p, c, t) => `${p}% · ${c}/${t}`,
+    lockedWord: 'Locked', lockedPct: (p) => `Locked, ${p} percent`, lockedAria: 'Locked',
+    xp: 'XP', xpShort: (n) => `+${n} XP`,
+    ofObtained: (u, t) => `of ${t} earned`, noMedalsHere: 'No medals here yet', noMedalsBody: 'Keep completing habits and goals.',
+    allUnlocked: 'You have them all!', allUnlockedBody: 'No locked achievements left in this filter.',
+    bDate: (d) => `Unlocked on ${d}`,
+  },
+};
 
 /** Logros ya celebrados en este navegador (solo para no repetir la celebración). */
 const SEEN_KEY = 'lq-ach-seen';
@@ -40,13 +77,17 @@ const BURST = Array.from({ length: 10 }, (_, i) => {
   return { tx: `${Math.cos(ang) * r}px`, ty: `${Math.sin(ang) * r - 8}px`, delay: `${0.42 + (i % 4) * 0.04}s` };
 });
 
+const fmtDate = (iso: string | undefined, locale: Locale) => (iso ? new Date(iso).toLocaleDateString(INTL_LOCALE[locale], { day: 'numeric', month: 'short' }) : '');
+
 function AchievementCard({ a, index, fresh }: { a: Achievement; index: number; fresh: boolean }) {
-  const meta = catMeta(a.category);
+  const t = useText(COPY);
+  const locale = useLocale();
+  const meta = achievementCategory(a.category, locale);
   const Icon = achievementIcon(a);
   const { target, current, pct } = progressOf(a);
   const on = a.unlocked;
-  const metaText = on ? `Desbloqueado el ${fmtDate(a.unlockedAt)}` : target > 0 ? `${pct}% · ${current}/${target}` : 'Bloqueado';
-  const aria = `${a.title}. ${a.description.replace(/\.\s*$/, '')}. ${on ? `Desbloqueado el ${fmtDate(a.unlockedAt)}` : target > 0 ? `Bloqueado, ${pct} por ciento` : 'Bloqueado'}. ${a.xpReward} XP.`;
+  const metaText = on ? t.unlockedOn(fmtDate(a.unlockedAt, locale)) : target > 0 ? t.percent(pct, current, target) : t.lockedWord;
+  const aria = `${a.title}. ${a.description.replace(/\.\s*$/, '')}. ${on ? t.bDate(fmtDate(a.unlockedAt, locale)) : target > 0 ? t.lockedPct(pct) : t.lockedAria}. ${a.xpReward} ${t.xp}.`;
   const delay = 0.35 + Math.min(index, 12) * 0.08;
 
   // El brillo del cristal sigue al puntero.
@@ -125,7 +166,7 @@ function AchievementCard({ a, index, fresh }: { a: Achievement; index: number; f
       <div className="relative hidden w-full grid-rows-[0fr] opacity-0 transition-[grid-template-rows,opacity] duration-300 ease-out group-hover:grid-rows-[1fr] group-hover:opacity-100 group-focus:grid-rows-[1fr] group-focus:opacity-100 [.reduce-motion_&]:transition-none md:grid">
         <div className="overflow-hidden">
           <p className="mt-2 border-t border-jade-50/10 px-2 pt-2 text-body-sm text-jade-50/85">
-            {a.description} <span className="text-secondary">+{a.xpReward} XP</span>
+            {a.description} <span className="text-secondary">{t.xpShort(a.xpReward)}</span>
           </p>
         </div>
       </div>
@@ -134,6 +175,9 @@ function AchievementCard({ a, index, fresh }: { a: Achievement; index: number; f
 }
 
 export default function AchievementsPage() {
+  const t = useText(COPY);
+  const locale = useLocale();
+  const loadingCopy = useLoadingCopy();
   const [list, setList] = useState<Achievement[]>([]);
   const [state, setState] = useState<'loading' | 'error' | 'ready'>('loading');
   const [filter, setFilter] = useState<Filter>('all');
@@ -189,35 +233,33 @@ export default function AchievementsPage() {
     >
       <motion.section variants={item} className="flex flex-wrap items-center justify-between gap-6 md:gap-8">
         <div className="flex w-full min-w-0 flex-col gap-3 md:w-auto md:flex-[1_1_420px] md:gap-2">
-          <span className="hidden text-label-lg text-primary-text md:block">Vitrina</span>
-          <h1 className="text-display-sm md:text-display-md lg:text-display-lg"><Lettering text="Logros" /></h1>
-          <p className="hidden max-w-[520px] text-body-lg text-on-surface-light md:block">
-            Cada medalla cuenta una parte de tu historia. Pasa el cursor o enfoca una para ver cómo se consigue.
-          </p>
+          <span className="hidden text-label-lg text-primary-text md:block">{t.shelf}</span>
+          <h1 className="text-display-sm md:text-display-md lg:text-display-lg"><Lettering text={t.headline} /></h1>
+          <p className="hidden max-w-[520px] text-body-lg text-on-surface-light md:block">{t.intro}</p>
         </div>
       </motion.section>
 
       <motion.div variants={item} className="flex flex-col gap-6">
         {state === 'loading' ? (
-          <PageLoader label="Cargando tu colección…" words={LOADING_COPY.achievements} />
+          <PageLoader label={t.loading} words={loadingCopy.achievements} />
         ) : state === 'error' ? (
-          <ErrorState title="No pudimos cargar tus logros" onRetry={() => void load()} />
+          <ErrorState title={t.loadFailed} onRetry={() => void load()} />
         ) : list.length === 0 ? (
-          <EmptyState icon={Trophy} title="Aún no hay logros" description="Completa hábitos y misiones para empezar tu colección." className="py-16" />
+          <EmptyState icon={Trophy} title={t.emptyTitle} description={t.emptyBody} className="py-16" />
         ) : (
           <>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <SegmentedControl
-                label="Filtro"
+                label={t.filter}
                 value={filter}
                 onChange={setFilter}
-                options={[{ value: 'all', label: 'Todos' }, { value: 'on', label: isDesktop ? 'Desbloqueados' : 'Obtenidos' }, { value: 'off', label: 'Bloqueados' }]}
+                options={[{ value: 'all', label: t.all }, { value: 'on', label: isDesktop ? t.unlocked : t.obtained }, { value: 'off', label: t.locked }]}
                 className="w-full sm:max-w-[480px]"
               />
               {categories.length > 1 && (
-                <Select aria-label="Categoría" value={category} onChange={(e) => setCategory(e.target.value)} className="sm:w-52">
-                  <option value="">Todas las categorías</option>
-                  {categories.map((c) => <option key={c} value={c}>{catMeta(c).label}</option>)}
+                <Select aria-label={t.category} value={category} onChange={(e) => setCategory(e.target.value)} className="sm:w-52">
+                  <option value="">{t.allCategories}</option>
+                  {categories.map((c) => <option key={c} value={c}>{achievementCategory(c, locale).label}</option>)}
                 </Select>
               )}
             </div>
@@ -225,7 +267,7 @@ export default function AchievementsPage() {
               // La vitrina: mueble lacado con filete de latón; un barrido de luz cruza el cristal cada cierto tiempo.
               <div className="lq-cabinet relative rounded-2xl px-3 pb-5 pt-4 md:px-6 md:pb-8 md:pt-5">
                 <div className="mb-4 flex flex-col items-center gap-2 md:mb-6">
-                  <span className="lq-brass px-4 py-1 text-label-md md:text-label-lg"><span className="font-mono">{unlocked}</span> de <span className="font-mono">{list.length}</span> obtenidos</span>
+                  <span className="lq-brass px-4 py-1 text-label-md md:text-label-lg"><span className="font-mono">{unlocked}</span> {t.ofObtained(unlocked, list.length)}</span>
                   <span aria-hidden="true" className="block h-[3px] w-40 overflow-hidden rounded-full bg-jade-50/10">
                     <motion.span className="block h-full origin-left bg-secondary" initial={{ scaleX: 0 }} animate={{ scaleX: pct / 100, transition: { ...springs.gentle, delay: 0.5 } }} />
                   </span>
@@ -245,8 +287,8 @@ export default function AchievementsPage() {
               <EmptyState
                 icon={filter === 'on' ? Trophy : Lock}
                 tone="muted"
-                title={filter === 'on' ? 'Todavía sin medallas aquí' : '¡Lo tienes todo!'}
-                description={filter === 'on' ? 'Sigue completando hábitos y misiones.' : 'No te quedan logros bloqueados en este filtro.'}
+                title={filter === 'on' ? t.noMedalsHere : t.allUnlocked}
+                description={filter === 'on' ? t.noMedalsBody : t.allUnlockedBody}
                 className="py-12"
               />
             )}

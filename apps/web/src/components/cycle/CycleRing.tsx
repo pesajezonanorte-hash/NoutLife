@@ -9,8 +9,19 @@ import type { ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { springs, useMotionReduced } from '@/lib/motion';
+import { useLocale, useText, type Copy } from '@/lib/i18n';
 import type { CyclePhase, CycleShape } from '@/services/cycle.service';
-import { PHASES, PHASE_META, phaseFill, phaseInk } from './cycleMeta';
+import { PHASES, phaseFill, phaseInk, phaseMetaFor } from './cycleMeta';
+
+const es = {
+  label: (day: number, length: number, phase: string): string => `Día ${day} de unos ${length}: ${phase}.`,
+};
+
+const en: typeof es = {
+  label: (day: number, length: number, phase: string): string => `Day ${day} of about ${length}: ${phase}.`,
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 const SIZE = 320;
 const C = SIZE / 2;
@@ -47,6 +58,9 @@ export interface CycleRingProps {
 
 export function CycleRing({ shape, cycleDay, phase, bleedDays = [], loggedDays = [], children, className }: CycleRingProps) {
   const reduce = useMotionReduced();
+  const t = useText(COPY);
+  const locale = useLocale();
+  const phases = phaseMetaFor(locale);
   // Con retraso, el anillo se estira para que hoy siga dentro.
   const days = Math.max(shape.length, cycleDay);
   const step = 360 / days;
@@ -55,7 +69,7 @@ export function CycleRing({ shape, cycleDay, phase, bleedDays = [], loggedDays =
   const logged = new Set(loggedDays);
   const fertileFrom = (shape.ovulationDay - 6) * step;
   const fertileTo = (shape.ovulationDay + 1) * step;
-  const label = `Día ${cycleDay} de unos ${shape.length}: ${PHASE_META[phase].name}.`;
+  const label = t.label(cycleDay, shape.length, phases[phase].name);
 
   return (
     <div role="img" aria-label={label} className={cn('relative mx-auto aspect-square w-full max-w-[360px]', className)}>
@@ -116,7 +130,7 @@ export function CycleRing({ shape, cycleDay, phase, bleedDays = [], loggedDays =
         const r = shape.ranges[p];
         if (r.end < r.start) return null;
         const mid = (((r.start - 1) + (p === 'luteal' ? days : r.end)) / 2) * step;
-        const Icon = PHASE_META[p].icon;
+        const Icon = phases[p].icon;
         return (
           <span key={p} aria-hidden="true" className="absolute flex size-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-surface shadow-sm" style={{ ...pct(R + 40, mid), color: phaseInk(p) }}>
             <Icon className="size-4" strokeWidth={1.75} />

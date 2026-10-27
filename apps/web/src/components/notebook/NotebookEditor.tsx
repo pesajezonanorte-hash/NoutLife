@@ -24,9 +24,114 @@ import { LITE_LIMITS } from '@/lib/plan';
 import {
   fetchPage, primeImage, savePage, uploadImage, type Notebook, type PageContent, type PageImage, type Sticky,
 } from '@/services/notebook.service';
-import { EMPTY_PAGE, INKS, MAX_PAGE_IMAGES, MAX_PAGE_STICKIES, PAGE_H, PAGE_W, SIZES, STICKY_COLORS, categoryLabel, exceedsPageLimits, sanitizeHtml, uid } from './paper';
+import { EMPTY_PAGE, INKS, MAX_PAGE_IMAGES, MAX_PAGE_STICKIES, PAGE_H, PAGE_W, SIZE_WIDTHS, STICKY_COLORS, categoryLabelFor, exceedsPageLimits, sanitizeHtml, sizesFor, uid } from './paper';
 import { PageSheet, type Mode, type Tool } from './PageSheet';
 import { PageProgress } from './PageProgress';
+import { useLocale, useText, type Copy } from '@/lib/i18n';
+
+const es = {
+  unsaved: 'Sin guardar · reintentar',
+  saving: 'Guardando…',
+  saved: 'Guardado',
+  savingShort: 'Guardando',
+  savedShort: 'Guardado',
+  full: 'Esta hoja está llena',
+  fullBody: 'Pasa a otra hoja para seguir escribiendo o dibujando.',
+  deviceSaved: 'Cambios guardados en este dispositivo',
+  deviceSavedBody: 'Se subirán cuando vuelvas a abrir la libreta con conexión.',
+  manyNotes: 'Esta hoja ya tiene muchas notas',
+  nextSheet: 'Pasa a otra hoja para seguir.',
+  manyImages: 'Esta hoja ya tiene muchas imágenes',
+  imagesLimit: (n: number): string => `Hasta ${n} por hoja. Pasa a otra hoja para seguir.`,
+  pasteFail: 'No se pudo pegar la imagen',
+  tryAgain: 'Inténtalo de nuevo.',
+  notebookAria: (title: string): string => `Libreta ${title}`,
+  back: 'Volver a tus libretas',
+  pageOf: (cat: string, n: number, total: number): string => `${cat} · página ${n} de ${total}`,
+  settings: 'Ajustes de la libreta',
+  mode: 'Modo',
+  write: 'Escribir',
+  draw: 'Dibujar',
+  drawPro: 'Dibujar · Pro',
+  sticky: 'Pegar una nota adhesiva',
+  image: 'Pegar una imagen',
+  formatAria: 'Formato del texto',
+  drawAria: 'Herramientas de dibujo',
+  bold: 'Negrita',
+  italic: 'Cursiva',
+  underline: 'Subrayado',
+  strike: 'Tachado',
+  heading: 'Título',
+  list: 'Lista',
+  numbered: 'Lista numerada',
+  highlight: 'Resaltar',
+  pen: 'Pluma',
+  marker: 'Marcador',
+  eraser: 'Borrador',
+  ink: (c: string): string => `Tinta ${c}`,
+  thickness: (label: string): string => `Grosor ${label.toLowerCase()}`,
+  undo: 'Deshacer (Ctrl+Z)',
+  redo: 'Rehacer (Ctrl+Mayús+Z)',
+  openFail: 'No se pudo abrir la página · reintentar',
+  opening: 'Abriendo la página',
+  prevPage: 'Página anterior',
+  nextPage: 'Página siguiente',
+  addPage: 'Añadir página',
+  morePages: 'Más páginas · Pro',
+};
+
+const en: typeof es = {
+  unsaved: 'Not saved · retry',
+  saving: 'Saving…',
+  saved: 'Saved',
+  savingShort: 'Saving',
+  savedShort: 'Saved',
+  full: 'This page is full',
+  fullBody: 'Go to another page to keep writing or drawing.',
+  deviceSaved: 'Changes saved on this device',
+  deviceSavedBody: 'They will upload when you open the notebook again with a connection.',
+  manyNotes: 'This page already has many notes',
+  nextSheet: 'Go to another page to keep going.',
+  manyImages: 'This page already has many images',
+  imagesLimit: (n: number): string => `Up to ${n} per page. Go to another page to keep going.`,
+  pasteFail: 'Could not paste the image',
+  tryAgain: 'Try again.',
+  notebookAria: (title: string): string => `Notebook ${title}`,
+  back: 'Back to your notebooks',
+  pageOf: (cat: string, n: number, total: number): string => `${cat} · page ${n} of ${total}`,
+  settings: 'Notebook settings',
+  mode: 'Mode',
+  write: 'Write',
+  draw: 'Draw',
+  drawPro: 'Draw · Pro',
+  sticky: 'Paste a sticky note',
+  image: 'Paste an image',
+  formatAria: 'Text formatting',
+  drawAria: 'Drawing tools',
+  bold: 'Bold',
+  italic: 'Italic',
+  underline: 'Underline',
+  strike: 'Strikethrough',
+  heading: 'Heading',
+  list: 'List',
+  numbered: 'Numbered list',
+  highlight: 'Highlight',
+  pen: 'Pen',
+  marker: 'Marker',
+  eraser: 'Eraser',
+  ink: (c: string): string => `Ink ${c}`,
+  thickness: (label: string): string => `Thickness ${label.toLowerCase()}`,
+  undo: 'Undo (Ctrl+Z)',
+  redo: 'Redo (Ctrl+Shift+Z)',
+  openFail: 'Could not open the page · retry',
+  opening: 'Opening the page',
+  prevPage: 'Previous page',
+  nextPage: 'Next page',
+  addPage: 'Add page',
+  morePages: 'More pages · Pro',
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 type Status = 'saved' | 'saving' | 'error';
 const SAVE_DELAY = 900;
@@ -152,18 +257,19 @@ function ToolButton({ icon: Icon, label, active, disabled, onClick, keepFocus, c
 const Divider = () => <span aria-hidden className="mx-1 h-6 w-px shrink-0 bg-border" />;
 
 function SaveState({ status, onRetry }: { status: Status; onRetry: () => void }) {
+  const t = useText(COPY);
   if (status === 'error') {
     return (
       <button type="button" onClick={onRetry} className="flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-label-md text-error-text hover:bg-error/[var(--lq-soft-alpha)]">
-        <CloudOff aria-hidden className="size-4" />Sin guardar · reintentar
+        <CloudOff aria-hidden className="size-4" />{t.unsaved}
       </button>
     );
   }
   return (
     <span role="status" className="flex items-center gap-1.5 px-2 text-label-md text-on-surface-light">
       {status === 'saving' ? <Loader2 aria-hidden className="size-4 animate-spin" /> : <Cloud aria-hidden className="size-4" />}
-      <span className="hidden sm:inline">{status === 'saving' ? 'Guardando…' : 'Guardado'}</span>
-      <span className="sr-only sm:hidden">{status === 'saving' ? 'Guardando' : 'Guardado'}</span>
+      <span className="hidden sm:inline">{status === 'saving' ? t.saving : t.saved}</span>
+      <span className="sr-only sm:hidden">{status === 'saving' ? t.savingShort : t.savedShort}</span>
     </span>
   );
 }
@@ -179,6 +285,8 @@ export function NotebookEditor({ notebook, lite, onClose, onEdit, onAddPage }: {
   /** Añade una página al final; devuelve false si no se pudo. */
   onAddPage: () => Promise<boolean>;
 }) {
+  const t = useText(COPY);
+  const locale = useLocale();
   const reduce = useMotionStore((s) => s.reduce);
   const openUpgrade = usePlanStore((s) => s.openUpgrade);
   /** Lite pasa las hojas con un fundido: el giro es de Pro. */
@@ -192,7 +300,7 @@ export function NotebookEditor({ notebook, lite, onClose, onEdit, onAddPage }: {
   });
   const [dir, setDir] = useState(1);
   const [mode, setMode] = useState<Mode>('write');
-  const [tool, setTool] = useState<Tool>({ t: 'pen', c: INKS[0], w: SIZES[1].w });
+  const [tool, setTool] = useState<Tool>({ t: 'pen', c: INKS[0], w: SIZE_WIDTHS[1] });
   const [status, setStatus] = useState<Status>('saved');
   const [, setVersion] = useState(0);
   const [failed, setFailed] = useState<number | null>(null);
@@ -319,10 +427,10 @@ export function NotebookEditor({ notebook, lite, onClose, onEdit, onAddPage }: {
   };
   const update = useCallback((i: number, next: PageContent) => {
     const before = pages.current.get(i);
-    if (exceedsPageLimits(next)) { toast().warning('Esta hoja está llena', 'Pasa a otra hoja para seguir escribiendo o dibujando.'); return; }
+    if (exceedsPageLimits(next)) { toast().warning(t.full, t.fullBody); return; }
     if (before) remember(i, before, next, kindOf(before, next));
     pages.current.set(i, next); bump(); schedule(i);
-  }, [schedule]);
+  }, [schedule, t]);
   const updateHtml = useCallback((i: number, html: string) => {
     const page = pages.current.get(i);
     if (!page || page.html === html) return;
@@ -340,7 +448,7 @@ export function NotebookEditor({ notebook, lite, onClose, onEdit, onAddPage }: {
     setLeaving(true);
     leaveTimer.current = window.setTimeout(onClose, FADE_MS);
     void flushAll().then((ok) => {
-      if (!ok) toast().info('Cambios guardados en este dispositivo', 'Se subirán cuando vuelvas a abrir la libreta con conexión.');
+      if (!ok) toast().info(t.deviceSaved, t.deviceSavedBody);
     });
   }
 
@@ -425,7 +533,7 @@ export function NotebookEditor({ notebook, lite, onClose, onEdit, onAddPage }: {
   const current = pages.current.get(index);
   function addSticky() {
     if (!current) return;
-    if (current.stickies.length >= MAX_PAGE_STICKIES) { toast().warning('Esta hoja ya tiene muchas notas', 'Pasa a otra hoja para seguir.'); return; }
+    if (current.stickies.length >= MAX_PAGE_STICKIES) { toast().warning(t.manyNotes, t.nextSheet); return; }
     const colors = Object.keys(STICKY_COLORS) as Sticky['color'][];
     const n = current.stickies.length;
     const note: Sticky = { id: uid(), x: 330 + ((n * 70) % 280), y: 260 + ((n * 110) % 700), text: '', color: lite ? 'yellow' : colors[n % colors.length], rot: Math.round((Math.random() * 6 - 3) * 10) / 10 };
@@ -438,7 +546,7 @@ export function NotebookEditor({ notebook, lite, onClose, onEdit, onAddPage }: {
     const i = index;
     const cur = pages.current.get(i);
     if (!cur) return;
-    if (cur.images.length >= MAX_PAGE_IMAGES) { toast().warning('Esta hoja ya tiene muchas imágenes', `Hasta ${MAX_PAGE_IMAGES} por hoja. Pasa a otra hoja para seguir.`); return; }
+    if (cur.images.length >= MAX_PAGE_IMAGES) { toast().warning(t.manyImages, t.imagesLimit(MAX_PAGE_IMAGES)); return; }
     setUploading(true);
     try {
       for (const file of files.slice(0, 4)) {
@@ -454,7 +562,7 @@ export function NotebookEditor({ notebook, lite, onClose, onEdit, onAddPage }: {
         update(i, { ...page, images: [...page.images, img] });
       }
     } catch (err) {
-      toast().error('No se pudo pegar la imagen', err instanceof Error && /comprimir/.test(err.message) ? err.message : 'Inténtalo de nuevo.');
+      toast().error(t.pasteFail, err instanceof Error && /comprimir/.test(err.message) ? err.message : t.tryAgain);
     } finally { setUploading(false); }
   }
 
@@ -479,65 +587,65 @@ export function NotebookEditor({ notebook, lite, onClose, onEdit, onAddPage }: {
   return createPortal(
     <motion.div
       ref={dialog} tabIndex={-1}
-      role="dialog" aria-modal="true" aria-label={`Libreta ${notebook.title}`}
+      role="dialog" aria-modal="true" aria-label={t.notebookAria(notebook.title)}
       initial={{ opacity: 0 }} animate={{ opacity: leaving ? 0 : 1 }} transition={{ duration: FADE_MS / 1000 }}
       className={cn('fixed inset-0 z-[60] flex flex-col bg-surface-variant text-on-background outline-none', leaving && 'pointer-events-none')}
     >
       {/* Encabezado */}
       <header className="lq-bar-glass flex shrink-0 items-center gap-1 border-b border-border px-2 pt-[env(safe-area-inset-top)] sm:gap-2 sm:px-4">
-        <Button variant="icon" aria-label="Volver a tus libretas" onClick={() => void close()}><ArrowLeft aria-hidden className="size-5" strokeWidth={1.75} /></Button>
+        <Button variant="icon" aria-label={t.back} onClick={() => void close()}><ArrowLeft aria-hidden className="size-5" strokeWidth={1.75} /></Button>
         <div className="min-w-0 flex-1 py-2">
           <h2 className="truncate text-label-lg">{notebook.title}</h2>
-          <p className="truncate text-body-sm text-on-surface-light">{categoryLabel(notebook.category)} · página {index + 1} de {notebook.pageCount}</p>
+          <p className="truncate text-body-sm text-on-surface-light">{t.pageOf(categoryLabelFor(notebook.category, locale), index + 1, notebook.pageCount)}</p>
         </div>
         <SaveState status={status} onRetry={() => void flushAll()} />
-        <Button variant="icon" aria-label="Ajustes de la libreta" onClick={onEdit}><Settings2 aria-hidden className="size-5" strokeWidth={1.75} /></Button>
+        <Button variant="icon" aria-label={t.settings} onClick={onEdit}><Settings2 aria-hidden className="size-5" strokeWidth={1.75} /></Button>
       </header>
 
       {/* Herramientas */}
       <div className="flex shrink-0 flex-col gap-1 border-b border-border bg-background/80 px-2 py-1.5 sm:px-4 md:flex-row md:items-center md:gap-3">
         <div className="flex items-center gap-2">
           <SegmentedControl
-            label="Modo" value={mode} onChange={(m) => { if (m === 'draw' && lite) { openUpgrade('notebook-draw'); return; } setMode(m); if (m === 'draw') textEl()?.blur(); }} className="w-[11.5rem]"
-            options={[{ value: 'write', label: 'Escribir' }, { value: 'draw', label: lite ? 'Dibujar · Pro' : 'Dibujar' }]}
+            label={t.mode} value={mode} onChange={(m) => { if (m === 'draw' && lite) { openUpgrade('notebook-draw'); return; } setMode(m); if (m === 'draw') textEl()?.blur(); }} className="w-[11.5rem]"
+            options={[{ value: 'write', label: t.write }, { value: 'draw', label: lite ? t.drawPro : t.draw }]}
           />
-          <ToolButton icon={StickyNote} label="Pegar una nota adhesiva" onClick={addSticky} />
-          <ToolButton icon={uploading ? Loader2 : ImagePlus} label="Pegar una imagen" onClick={() => (lite ? openUpgrade('notebook-images') : fileInput.current?.click())} className={cn(uploading && '[&_svg]:animate-spin')} />
+          <ToolButton icon={StickyNote} label={t.sticky} onClick={addSticky} />
+          <ToolButton icon={uploading ? Loader2 : ImagePlus} label={t.image} onClick={() => (lite ? openUpgrade('notebook-images') : fileInput.current?.click())} className={cn(uploading && '[&_svg]:animate-spin')} />
           <input ref={fileInput} type="file" accept="image/*" hidden onChange={(e) => { const files = [...(e.target.files ?? [])]; e.target.value = ''; if (files.length) void addImages(files); }} />
         </div>
-        <div role="toolbar" aria-label={mode === 'write' ? 'Formato del texto' : 'Herramientas de dibujo'} className="-mx-2 flex items-center overflow-x-auto px-2 [scrollbar-width:none] md:mx-0 md:px-0 [&::-webkit-scrollbar]:hidden">
+        <div role="toolbar" aria-label={mode === 'write' ? t.formatAria : t.drawAria} className="-mx-2 flex items-center overflow-x-auto px-2 [scrollbar-width:none] md:mx-0 md:px-0 [&::-webkit-scrollbar]:hidden">
           {mode === 'write' ? (
             <>
-              <ToolButton icon={Bold} label="Negrita" keepFocus onClick={() => format('bold')} />
-              <ToolButton icon={Italic} label="Cursiva" keepFocus onClick={() => format('italic')} />
-              <ToolButton icon={Underline} label="Subrayado" keepFocus onClick={() => format('underline')} />
-              <ToolButton icon={Strikethrough} label="Tachado" keepFocus onClick={() => format('strikeThrough')} />
+              <ToolButton icon={Bold} label={t.bold} keepFocus onClick={() => format('bold')} />
+              <ToolButton icon={Italic} label={t.italic} keepFocus onClick={() => format('italic')} />
+              <ToolButton icon={Underline} label={t.underline} keepFocus onClick={() => format('underline')} />
+              <ToolButton icon={Strikethrough} label={t.strike} keepFocus onClick={() => format('strikeThrough')} />
               <Divider />
-              <ToolButton icon={Heading} label="Título" keepFocus onClick={toggleHeading} />
-              <ToolButton icon={List} label="Lista" keepFocus onClick={() => format('insertUnorderedList')} />
-              <ToolButton icon={ListOrdered} label="Lista numerada" keepFocus onClick={() => format('insertOrderedList')} />
-              <ToolButton icon={Highlighter} label="Resaltar" keepFocus onClick={toggleHighlight} />
+              <ToolButton icon={Heading} label={t.heading} keepFocus onClick={toggleHeading} />
+              <ToolButton icon={List} label={t.list} keepFocus onClick={() => format('insertUnorderedList')} />
+              <ToolButton icon={ListOrdered} label={t.numbered} keepFocus onClick={() => format('insertOrderedList')} />
+              <ToolButton icon={Highlighter} label={t.highlight} keepFocus onClick={toggleHighlight} />
             </>
           ) : (
             <>
-              <ToolButton icon={PenLine} label="Pluma" active={tool.t === 'pen'} onClick={() => setTool((t) => ({ ...t, t: 'pen' }))} />
-              <ToolButton icon={Highlighter} label="Marcador" active={tool.t === 'marker'} onClick={() => setTool((t) => ({ ...t, t: 'marker' }))} />
-              <ToolButton icon={Eraser} label="Borrador" active={tool.t === 'eraser'} onClick={() => setTool((t) => ({ ...t, t: 'eraser' }))} />
+              <ToolButton icon={PenLine} label={t.pen} active={tool.t === 'pen'} onClick={() => setTool((cur) => ({ ...cur, t: 'pen' }))} />
+              <ToolButton icon={Highlighter} label={t.marker} active={tool.t === 'marker'} onClick={() => setTool((cur) => ({ ...cur, t: 'marker' }))} />
+              <ToolButton icon={Eraser} label={t.eraser} active={tool.t === 'eraser'} onClick={() => setTool((cur) => ({ ...cur, t: 'eraser' }))} />
               <Divider />
               {INKS.map((c) => (
                 <button
-                  key={c} type="button" aria-label={`Tinta ${c}`} aria-pressed={tool.c === c}
-                  onClick={() => setTool((t) => ({ ...t, c, t: t.t === 'eraser' ? 'pen' : t.t }))}
+                  key={c} type="button" aria-label={t.ink(c)} aria-pressed={tool.c === c}
+                  onClick={() => setTool((cur) => ({ ...cur, c, t: cur.t === 'eraser' ? 'pen' : cur.t }))}
                   className="flex size-10 shrink-0 items-center justify-center rounded-xl hover:bg-surface-variant"
                 >
                   <span className={cn('block size-6 rounded-full border-2 transition-transform', tool.c === c && tool.t !== 'eraser' ? 'scale-110 border-on-background' : 'border-transparent')} style={{ background: c }} />
                 </button>
               ))}
               <Divider />
-              {SIZES.map((s) => (
+              {sizesFor(locale).map((s) => (
                 <button
-                  key={s.w} type="button" aria-label={`Grosor ${s.label.toLowerCase()}`} aria-pressed={tool.w === s.w}
-                  onClick={() => setTool((t) => ({ ...t, w: s.w }))}
+                  key={s.w} type="button" aria-label={t.thickness(s.label)} aria-pressed={tool.w === s.w}
+                  onClick={() => setTool((cur) => ({ ...cur, w: s.w }))}
                   className={cn('flex size-10 shrink-0 items-center justify-center rounded-xl hover:bg-surface-variant', tool.w === s.w && 'bg-primary/[var(--lq-soft-alpha)]')}
                 >
                   <span className="block rounded-full bg-on-background" style={{ width: 4 + s.w, height: 4 + s.w }} />
@@ -546,8 +654,8 @@ export function NotebookEditor({ notebook, lite, onClose, onEdit, onAddPage }: {
             </>
           )}
           <Divider />
-          <ToolButton icon={Undo2} label="Deshacer (Ctrl+Z)" keepFocus disabled={!canUndo} onClick={undo} />
-          <ToolButton icon={Redo2} label="Rehacer (Ctrl+Mayús+Z)" keepFocus disabled={!canRedo} onClick={redo} />
+          <ToolButton icon={Undo2} label={t.undo} keepFocus disabled={!canUndo} onClick={undo} />
+          <ToolButton icon={Redo2} label={t.redo} keepFocus disabled={!canRedo} onClick={redo} />
         </div>
       </div>
 
@@ -564,8 +672,8 @@ export function NotebookEditor({ notebook, lite, onClose, onEdit, onAddPage }: {
                       return (
                         <div className="lq-tex-paper flex size-full items-center justify-center rounded-r-[10px] shadow-lg">
                           {failed === index
-                            ? <Button variant="secondary" onClick={() => { setFailed(null); ensure(index); }}>No se pudo abrir la página · reintentar</Button>
-                            : <Spinner label="Abriendo la página" />}
+                            ? <Button variant="secondary" onClick={() => { setFailed(null); ensure(index); }}>{t.openFail}</Button>
+                            : <Spinner label={t.opening} />}
                         </div>
                       );
                     }
@@ -610,14 +718,14 @@ export function NotebookEditor({ notebook, lite, onClose, onEdit, onAddPage }: {
 
       {/* Barra de páginas: avanza con cada hoja */}
       <footer className="lq-bar-glass flex shrink-0 items-center gap-2 border-t border-border px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 sm:px-4">
-        <Button variant="icon" aria-label="Página anterior" disabled={index === 0} onClick={() => go(index - 1)}><ChevronLeft aria-hidden className="size-6" strokeWidth={1.75} /></Button>
+        <Button variant="icon" aria-label={t.prevPage} disabled={index === 0} onClick={() => go(index - 1)}><ChevronLeft aria-hidden className="size-6" strokeWidth={1.75} /></Button>
         <PageProgress value={index + 1} total={notebook.pageCount} onCommit={(n) => go(n - 1)} />
         {last && canGrow ? (
-          <Button variant="secondary" size="sm" onClick={() => void addPage()}><FilePlus2 aria-hidden className="size-4" />Añadir página</Button>
+          <Button variant="secondary" size="sm" onClick={() => void addPage()}><FilePlus2 aria-hidden className="size-4" />{t.addPage}</Button>
         ) : last && lite ? (
-          <Button variant="secondary" size="sm" onClick={() => openUpgrade('notebook-pages')}><FilePlus2 aria-hidden className="size-4" />Más páginas · Pro</Button>
+          <Button variant="secondary" size="sm" onClick={() => openUpgrade('notebook-pages')}><FilePlus2 aria-hidden className="size-4" />{t.morePages}</Button>
         ) : (
-          <Button variant="icon" aria-label="Página siguiente" disabled={last} onClick={() => go(index + 1)}><ChevronRight aria-hidden className="size-6" strokeWidth={1.75} /></Button>
+          <Button variant="icon" aria-label={t.nextPage} disabled={last} onClick={() => go(index + 1)}><ChevronRight aria-hidden className="size-6" strokeWidth={1.75} /></Button>
         )}
       </footer>
     </motion.div>,

@@ -13,6 +13,53 @@ import { cn } from '@/lib/utils';
 import { springs } from '@/lib/motion/presets';
 import { useMotionStore } from '@/store/motionStore';
 import { Button, Spinner, useDialogBehavior } from '@/components/ui/lq';
+import { useText, type Copy } from '@/lib/i18n';
+
+const es = {
+  tooShort: 'El video es demasiado corto.',
+  tooBig: 'El video pesa demasiado. Grábalo un poco más corto.',
+  title: (to: string): string => `Grabar un video para ${to}`,
+  camView: 'Vista de la cámara',
+  yourVideo: 'Tu video',
+  opening: 'Abriendo la cámara…',
+  denied: 'Sin permiso para usar la cámara y el micrófono',
+  unsupported: 'Este navegador no puede grabar video',
+  noResponse: 'La cámara no respondió',
+  retry: 'Reintentar',
+  close: 'Cerrar',
+  videoFor: (first: string): string => `Video para ${first}`,
+  switchCam: 'Cambiar de cámara',
+  stopAria: (s: number): string => `Parar (quedan ${s} s)`,
+  recAria: 'Grabar video (máximo 15 segundos)',
+  tapStop: 'Toca para parar',
+  tapRec: 'Toca para grabar · hasta 15 s',
+  redo: 'Repetir',
+  sendTo: (first: string): string => `Enviar a ${first}`,
+};
+
+const en: typeof es = {
+  tooShort: 'The video is too short.',
+  tooBig: 'The video is too big. Record it a bit shorter.',
+  title: (to: string): string => `Record a video for ${to}`,
+  camView: 'Camera view',
+  yourVideo: 'Your video',
+  opening: 'Opening the camera…',
+  denied: 'No permission to use the camera and microphone',
+  unsupported: 'This browser cannot record video',
+  noResponse: 'The camera did not respond',
+  retry: 'Try again',
+  close: 'Close',
+  videoFor: (first: string): string => `Video for ${first}`,
+  switchCam: 'Switch camera',
+  stopAria: (s: number): string => `Stop (${s} s left)`,
+  recAria: 'Record video (up to 15 seconds)',
+  tapStop: 'Tap to stop',
+  tapRec: 'Tap to record · up to 15 s',
+  redo: 'Retake',
+  sendTo: (first: string): string => `Send to ${first}`,
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 export const VIDEO_MAX_MS = 15_000;
 /** Tope del data URL que acepta la API. */
@@ -53,6 +100,7 @@ export function VideoRecorder(props: { open: boolean; to: string; onClose: () =>
 
 function Recorder({ to, onClose, onSend }: { to: string; onClose: () => void; onSend: (clip: VideoClip) => void }) {
   const panelRef = useDialogBehavior(true, onClose);
+  const t = useText(COPY);
   const reduce = useMotionStore((s) => s.reduce);
   const liveRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -123,9 +171,9 @@ function Recorder({ to, onClose, onSend }: { to: string; onClose: () => void; on
       const durationMs = Math.min(VIDEO_MAX_MS, Date.now() - startedAt.current);
       const blob = new Blob(chunks, { type: (rec.mimeType || mime || 'video/webm').split(';')[0] });
       stopStream();
-      if (durationMs < 500 || !blob.size) { setError('El video es demasiado corto.'); void start(facing); return; }
+      if (durationMs < 500 || !blob.size) { setError(t.tooShort); void start(facing); return; }
       const videoUrl = await toDataUrl(blob);
-      if (videoUrl.length > MAX_CHARS) { setError('El video pesa demasiado. Grábalo un poco más corto.'); void start(facing); return; }
+      if (videoUrl.length > MAX_CHARS) { setError(t.tooBig); void start(facing); return; }
       setClip({ videoUrl, durationMs, thumb });
       setPreview(URL.createObjectURL(blob));
       setState('review');
@@ -154,28 +202,28 @@ function Recorder({ to, onClose, onSend }: { to: string; onClose: () => void; on
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.18 } }}
     >
       <div
-        ref={panelRef} role="dialog" aria-modal="true" aria-label={`Grabar un video para ${to}`} tabIndex={-1}
+        ref={panelRef} role="dialog" aria-modal="true" aria-label={t.title(to)} tabIndex={-1}
         className="relative flex min-h-0 flex-1 flex-col outline-none"
       >
         <motion.div
           className="relative min-h-0 flex-1 overflow-hidden"
           initial={reduce ? false : { scale: 0.96 }} animate={{ scale: 1 }} transition={springs.natural}
         >
-          <video ref={liveRef} playsInline muted autoPlay aria-label="Vista de la cámara"
+          <video ref={liveRef} playsInline muted autoPlay aria-label={t.camView}
             className={cn('absolute inset-0 size-full object-cover', (!live || preview) && 'opacity-0')} />
-          {preview && <video src={preview} playsInline autoPlay loop controls={false} aria-label="Tu video" className="absolute inset-0 size-full bg-black object-contain" />}
+          {preview && <video src={preview} playsInline autoPlay loop controls={false} aria-label={t.yourVideo} className="absolute inset-0 size-full bg-black object-contain" />}
 
           {!live && !preview && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center">
               {state === 'starting' ? (
-                <><Spinner className="text-white" /><p className="text-body-sm" role="status">Abriendo la cámara…</p></>
+                <><Spinner className="text-white" /><p className="text-body-sm" role="status">{t.opening}</p></>
               ) : (
                 <>
                   <CameraOff aria-hidden className="size-8" strokeWidth={1.5} />
                   <p className="text-label-lg" role="alert">
-                    {state === 'denied' ? 'Sin permiso para usar la cámara y el micrófono' : state === 'unsupported' ? 'Este navegador no puede grabar video' : 'La cámara no respondió'}
+                    {state === 'denied' ? t.denied : state === 'unsupported' ? t.unsupported : t.noResponse}
                   </p>
-                  {state !== 'unsupported' && <Button size="sm" variant="secondary" onClick={() => void start(facing)}>Reintentar</Button>}
+                  {state !== 'unsupported' && <Button size="sm" variant="secondary" onClick={() => void start(facing)}>{t.retry}</Button>}
                 </>
               )}
             </div>
@@ -183,10 +231,10 @@ function Recorder({ to, onClose, onSend }: { to: string; onClose: () => void; on
 
           {/* Barra superior: cerrar, para quién y cambiar de cámara. */}
           <div className="absolute inset-x-0 top-0 flex items-center justify-between bg-gradient-to-b from-black/60 to-transparent px-3 pb-6 pt-[max(.75rem,env(safe-area-inset-top))]">
-            <Button variant="icon" aria-label="Cerrar" onClick={onClose} className="text-white hover:bg-white/10"><X aria-hidden className="size-6" /></Button>
-            <p className="min-w-0 truncate text-label-lg">{state === 'recording' ? <span className="font-mono tabular-nums">0:{String(Math.floor(elapsed / 1000)).padStart(2, '0')} / 0:15</span> : `Video para ${first}`}</p>
+            <Button variant="icon" aria-label={t.close} onClick={onClose} className="text-white hover:bg-white/10"><X aria-hidden className="size-6" /></Button>
+            <p className="min-w-0 truncate text-label-lg">{state === 'recording' ? <span className="font-mono tabular-nums">0:{String(Math.floor(elapsed / 1000)).padStart(2, '0')} / 0:15</span> : t.videoFor(first)}</p>
             {state === 'live' ? (
-              <Button variant="icon" aria-label="Cambiar de cámara" onClick={() => setFacing((f) => (f === 'user' ? 'environment' : 'user'))} className="text-white hover:bg-white/10">
+              <Button variant="icon" aria-label={t.switchCam} onClick={() => setFacing((f) => (f === 'user' ? 'environment' : 'user'))} className="text-white hover:bg-white/10">
                 <SwitchCamera aria-hidden className="size-6" />
               </Button>
             ) : <span className="size-11" aria-hidden="true" />}
@@ -197,16 +245,16 @@ function Recorder({ to, onClose, onSend }: { to: string; onClose: () => void; on
           {error && <p role="alert" className="text-body-sm text-error">{error}</p>}
           {clip ? (
             <div className="flex w-full max-w-[22rem] gap-3">
-              <Button variant="secondary" className="flex-1" onClick={retake}><RotateCcw aria-hidden className="size-4" />Repetir</Button>
+              <Button variant="secondary" className="flex-1" onClick={retake}><RotateCcw aria-hidden className="size-4" />{t.redo}</Button>
               <Button className="flex-1 bg-white text-black hover:bg-white/90" onClick={() => { onSend(clip); onClose(); }} data-autofocus>
-                <Send aria-hidden className="size-4" />Enviar a {first}
+                <Send aria-hidden className="size-4" />{t.sendTo(first)}
               </Button>
             </div>
           ) : (
             <>
               <button
                 type="button" disabled={!live} onClick={state === 'recording' ? stop : record}
-                aria-label={state === 'recording' ? `Parar (quedan ${secs} s)` : 'Grabar video (máximo 15 segundos)'}
+                aria-label={state === 'recording' ? t.stopAria(secs) : t.recAria}
                 className="relative flex size-20 items-center justify-center rounded-full disabled:opacity-40 select-none"
               >
                 <svg aria-hidden viewBox="0 0 80 80" className="absolute inset-0 -rotate-90">
@@ -219,7 +267,7 @@ function Recorder({ to, onClose, onSend }: { to: string; onClose: () => void; on
                   transition={springs.snappy} className="block bg-error"
                 />
               </button>
-              <p className="text-body-sm text-white/75">{state === 'recording' ? 'Toca para parar' : 'Toca para grabar · hasta 15 s'}</p>
+              <p className="text-body-sm text-white/75">{state === 'recording' ? t.tapStop : t.tapRec}</p>
             </>
           )}
         </div>

@@ -34,9 +34,180 @@ import {
   type GuildSummary, type ProfileData,
 } from '@/services/network.service';
 import { Badge, Button, EmptyState, ErrorState, Modal, PageLoader } from '@/components/ui/lq';
+import { INTL_LOCALE, useLocale, useText, type Copy, type Locale } from '@/lib/i18n';
+
+const es = {
+  guildSent: (name: string): string => `Paloma enviada con la invitación a ${name}`,
+  pigeonFail: 'La paloma no pudo salir',
+  actFail: 'No se pudo completar',
+  waveFail: 'No se pudo saludar',
+  inviteTitle: (name: string): string => `Invitar a ${name} a un gremio`,
+  noGuilds: 'Aún no estás en ningún gremio.',
+  createGuild: 'Crea uno',
+  thenInvite: 'y luego invita a tus amigos.',
+  members: 'miembros',
+  sent: 'Enviada',
+  invite: 'Invitar',
+  notFound: 'DNI no encontrado',
+  notFoundDesc: 'Puede que esa persona haya cambiado de usuario.',
+  backSocial: 'Volver a Social',
+  alreadyDir: (first: string): string => `${first} ya está en tu directorio`,
+  rejected: 'Solicitud rechazada',
+  unblocked: (first: string): string => `Desbloqueaste a ${first}`,
+  waved: (first: string): string => `Saludaste a ${first}`,
+  waveBody: 'Lo verá en tu muñequito.',
+  removed: (first: string): string => `${first} ya no está en tu directorio`,
+  partnerSent: 'Invitación enviada: la verá en su jardín',
+  seeMyId: 'Así ven tu DNI los demás',
+  onlineNow: (zone: string): string => `En línea · ahora en ${zone}`,
+  online: 'En línea',
+  activeAgo: (ago: string): string => `Activo ${ago}`,
+  idAria: (name: string): string => `DNI de ${name}`,
+  statsHolder: 'Estadísticas del titular',
+  privateTag: 'reservado',
+  sharesOnlyFriends: (first: string): string => `${first} comparte estos datos solo con sus amigos.`,
+  statStreak: 'Racha',
+  statBest: 'Mejor racha',
+  statAch: 'Logros',
+  statHabits: 'Hábitos',
+  statHabitsStreak: 'Con racha',
+  statFriends: 'Amigos',
+  since: (date: string): string => `Desde el ${date}`,
+  editMyId: 'Editar mi DNI y privacidad',
+  writeLetter: 'Escribir carta',
+  wave: 'Saludar',
+  waveSent: 'Saludo enviado',
+  moreOpts: 'Más opciones',
+  shareGarden: 'Compartir mi jardín',
+  inviteGuild: 'Invitar a un gremio',
+  removeDir: 'Borrar de mi directorio',
+  report: 'Denunciar',
+  block: 'Bloquear',
+  addToDir: 'Anotar en mi directorio',
+  decline: 'Rechazar',
+  youBlocked: (first: string): string => `Bloqueaste a ${first}`,
+  unblock: 'Desbloquear',
+  pigeonOnWay: 'Tu paloma va en camino',
+  streakLive: (n: number): string => `Llevan ${n} días seguidos escribiéndose.`,
+  streakOut: (first: string, lost: number): string => `Su racha de ${lost} días se apagó. Pueden revivirla desde su carta.`,
+  goLetter: 'Ir a la carta',
+  reservedPages: 'Páginas reservadas',
+  friendsOnly: 'Solo para amigos',
+  friendsOnlyDesc: (first: string): string => `${first} comparte sus sellos, visados y contactos solo con sus amigos.`,
+  stamps: 'Sellos',
+  noStamps: 'Todavía sin sellos.',
+  contacts: 'Contactos',
+  directoryBlank: 'Su directorio todavía está en blanco.',
+  visas: 'Visados',
+  memberVisa: 'Visado de miembro',
+  noVisas: 'Sin visados de gremio todavía.',
+  closeFriends: 'Amistades más cercanas',
+  privateDir: (first: string): string => `${first} mantiene su directorio en privado.`,
+  streakTip: (n: number, best: number): string => `Racha de ${n} días (mejor: ${best})`,
+  bestOf: (best: number): string => `mejor: ${best}`,
+  streaksHere: 'Sus rachas con amigos aparecerán aquí.',
+  blockTitle: (first: string): string => `¿Bloquear a ${first}?`,
+  blockFriendsNote: 'Dejarán de ser amigos. ',
+  blockBody: 'No podrá escribirte, enviarte palomas ni gestos, y no se verán en las zonas ni en el buscador. Puedes desbloquearlo cuando quieras.',
+  cancel: 'Cancelar',
+  removeTitle: (first: string): string => `¿Borrar a ${first} de tu directorio?`,
+  removeBody: 'Dejarán de ver su carta y su racha se perderá.',
+  remove: 'Borrar',
+  shareTitle: (first: string): string => `¿Compartir tu jardín con ${first}?`,
+  shareBody: 'Le llegará una invitación. Si acepta, los dos cuidarán el mismo jardín del corazón: fechas especiales, flores y recuerdos. Tu jardín actual pasa a ser el compartido.',
+  sendInvite: 'Enviar invitación',
+  levelWord: 'Nivel',
+  bioCaption: 'Firma del titular',
+};
+
+const en: typeof es = {
+  guildSent: (name: string): string => `Pigeon sent with the invitation to ${name}`,
+  pigeonFail: 'The pigeon could not fly',
+  actFail: 'Could not complete it',
+  waveFail: 'Could not wave',
+  inviteTitle: (name: string): string => `Invite ${name} to a guild`,
+  noGuilds: "You're not in any guild yet.",
+  createGuild: 'Create one',
+  thenInvite: 'and then invite your friends.',
+  members: 'members',
+  sent: 'Sent',
+  invite: 'Invite',
+  notFound: 'ID not found',
+  notFoundDesc: 'That person may have changed their username.',
+  backSocial: 'Back to Social',
+  alreadyDir: (first: string): string => `${first} is already in your directory`,
+  rejected: 'Request declined',
+  unblocked: (first: string): string => `You unblocked ${first}`,
+  waved: (first: string): string => `You waved at ${first}`,
+  waveBody: 'It will show on your character.',
+  removed: (first: string): string => `${first} is no longer in your directory`,
+  partnerSent: 'Invitation sent: they will see it in their garden',
+  seeMyId: 'This is how others see your ID',
+  onlineNow: (zone: string): string => `Online · now in ${zone}`,
+  online: 'Online',
+  activeAgo: (ago: string): string => `Active ${ago}`,
+  idAria: (name: string): string => `ID of ${name}`,
+  statsHolder: "Holder's statistics",
+  privateTag: 'private',
+  sharesOnlyFriends: (first: string): string => `${first} shares this data only with friends.`,
+  statStreak: 'Streak',
+  statBest: 'Best streak',
+  statAch: 'Achievements',
+  statHabits: 'Habits',
+  statHabitsStreak: 'With streak',
+  statFriends: 'Friends',
+  since: (date: string): string => `Since ${date}`,
+  editMyId: 'Edit my ID and privacy',
+  writeLetter: 'Write letter',
+  wave: 'Wave',
+  waveSent: 'Wave sent',
+  moreOpts: 'More options',
+  shareGarden: 'Share my garden',
+  inviteGuild: 'Invite to a guild',
+  removeDir: 'Remove from my directory',
+  report: 'Report',
+  block: 'Block',
+  addToDir: 'Add to my directory',
+  decline: 'Decline',
+  youBlocked: (first: string): string => `You blocked ${first}`,
+  unblock: 'Unblock',
+  pigeonOnWay: 'Your pigeon is on its way',
+  streakLive: (n: number): string => `You have written to each other for ${n} days in a row.`,
+  streakOut: (first: string, lost: number): string => `Their ${lost}-day streak went out. They can revive it from their letter.`,
+  goLetter: 'Go to letter',
+  reservedPages: 'Private pages',
+  friendsOnly: 'Friends only',
+  friendsOnlyDesc: (first: string): string => `${first} shares their stamps, visas and contacts only with friends.`,
+  stamps: 'Stamps',
+  noStamps: 'No stamps yet.',
+  contacts: 'Contacts',
+  directoryBlank: 'Their directory is still empty.',
+  visas: 'Visas',
+  memberVisa: 'Member visa',
+  noVisas: 'No guild visas yet.',
+  closeFriends: 'Closest friends',
+  privateDir: (first: string): string => `${first} keeps their directory private.`,
+  streakTip: (n: number, best: number): string => `${n}-day streak (best: ${best})`,
+  bestOf: (best: number): string => `best: ${best}`,
+  streaksHere: 'Their streaks with friends will show here.',
+  blockTitle: (first: string): string => `Block ${first}?`,
+  blockFriendsNote: 'You will stop being friends. ',
+  blockBody: 'They will not be able to write to you, send pigeons or gestures, and you will not see each other in the zones or search. You can unblock them any time.',
+  cancel: 'Cancel',
+  removeTitle: (first: string): string => `Remove ${first} from your directory?`,
+  removeBody: 'You will stop seeing each other’s letters and the streak will be lost.',
+  remove: 'Remove',
+  shareTitle: (first: string): string => `Share your garden with ${first}?`,
+  shareBody: 'They will receive an invitation. If they accept, you two will look after the same garden of the heart: special dates, flowers and memories. Your current garden becomes the shared one.',
+  sendInvite: 'Send invitation',
+  levelWord: 'Level',
+  bioCaption: 'Holder’s signature',
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 const toaster = () => useToastStore.getState();
-const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }).replace('.', '');
+const fmtDate = (iso: string, locale: Locale) => new Date(iso).toLocaleDateString(INTL_LOCALE[locale], { day: 'numeric', month: 'short', year: 'numeric' }).replace('.', '');
 
 /** La foto del documento: su foto si la eligió; si no, el busto de su muñequito. */
 function IdPhoto({ user }: { user: ProfileData['user'] }) {
@@ -48,18 +219,19 @@ function IdPhoto({ user }: { user: ProfileData['user'] }) {
 }
 
 function GuildInviteModal({ open, onClose, userId, name }: { open: boolean; onClose: () => void; userId: string; name: string }) {
+  const t = useText(COPY);
   const [guilds, setGuilds] = useState<GuildSummary[] | null>(null);
   const [sent, setSent] = useState<string[]>([]);
   useEffect(() => { if (open) getMyGuilds().then(setGuilds).catch(() => setGuilds([])); }, [open]);
   async function invite(g: GuildSummary, from: HTMLElement) {
     sendPigeon(from);
-    try { await inviteToGuild(g.id, userId); setSent((s) => [...s, g.id]); toaster().success(`Paloma enviada con la invitación a ${g.name}`); }
-    catch (e) { toaster().error(apiError(e, 'La paloma no pudo salir')); }
+    try { await inviteToGuild(g.id, userId); setSent((s) => [...s, g.id]); toaster().success(t.guildSent(g.name)); }
+    catch (e) { toaster().error(apiError(e, t.pigeonFail)); }
   }
   return (
-    <Modal open={open} onClose={onClose} title={`Invitar a ${name} a un gremio`}>
+    <Modal open={open} onClose={onClose} title={t.inviteTitle(name)}>
       {guilds === null ? <PageLoader size="sm" /> : guilds.length === 0 ? (
-        <p className="text-body-md text-on-surface-light">Aún no estás en ningún gremio. <Link to={socialLink.guild()} className="text-primary-text underline">Crea uno</Link> y luego invita a tus amigos.</p>
+        <p className="text-body-md text-on-surface-light">{t.noGuilds} <Link to={socialLink.guild()} className="text-primary-text underline">{t.createGuild}</Link> {t.thenInvite}</p>
       ) : (
         <ul className="flex flex-col">
           {guilds.map((g) => {
@@ -67,8 +239,8 @@ function GuildInviteModal({ open, onClose, userId, name }: { open: boolean; onCl
             return (
               <li key={g.id} className="flex min-h-[60px] items-center gap-3 border-b border-border py-2 last:border-0">
                 <GuildCrest photoUrl={g.photoUrl} emblem={em.icon} tone={em.tone} name={g.name} halo={false} className="size-10 rounded-xl [&>svg]:size-5" />
-                <span className="min-w-0 flex-1"><span className="block truncate text-label-lg">{g.name}</span><span className="text-body-sm text-on-surface-light"><span className="font-mono">{g.members}</span> miembros</span></span>
-                {sent.includes(g.id) ? <Badge variant="success" icon={Check}>Enviada</Badge> : <Button size="sm" variant="secondary" onClick={(e) => void invite(g, e.currentTarget)}>Invitar</Button>}
+                <span className="min-w-0 flex-1"><span className="block truncate text-label-lg">{g.name}</span><span className="text-body-sm text-on-surface-light"><span className="font-mono">{g.members}</span> {t.members}</span></span>
+                {sent.includes(g.id) ? <Badge variant="success" icon={Check}>{t.sent}</Badge> : <Button size="sm" variant="secondary" onClick={(e) => void invite(g, e.currentTarget)}>{t.invite}</Button>}
               </li>
             );
           })}
@@ -93,6 +265,8 @@ function PassportPage({ title, folio, children, className }: { title: string; fo
 }
 
 export default function UserProfilePage() {
+  const t = useText(COPY);
+  const locale = useLocale();
   const { username = '' } = useParams();
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -121,49 +295,49 @@ export default function UserProfilePage() {
   }, [menu]);
 
   if (state === 'loading') return <PageLoader />;
-  if (state === 'missing') return <EmptyState icon={Users} title="DNI no encontrado" description="Puede que esa persona haya cambiado de usuario." action={<Button onClick={() => navigate('/social')}>Volver a Social</Button>} className="py-16" />;
+  if (state === 'missing') return <EmptyState icon={Users} title={t.notFound} description={t.notFoundDesc} action={<Button onClick={() => navigate('/social')}>{t.backSocial}</Button>} className="py-16" />;
   if (state === 'error' || !data) return <ErrorState onRetry={() => void load()} />;
 
   const { user, presence, relation } = data;
   const first = user.displayName.split(' ')[0];
   const self = relation.status === 'SELF';
   const friends = relation.status === 'FRIENDS';
-  const title = getLevelTitle(user.level);
+  const title = getLevelTitle(user.level, locale);
   const doc = documentNumber(user.id);
 
   async function act(kind: string, fn: () => Promise<unknown>, ok: string) {
     setBusy(kind);
     try { await fn(); toaster().success(ok); await load(true); }
-    catch (e) { toaster().error(apiError(e, 'No se pudo completar')); }
+    catch (e) { toaster().error(apiError(e, t.actFail)); }
     finally { setBusy(null); setConfirm(null); setMenu(false); }
   }
   async function wave() {
     setWaved(true);
-    try { await sendGesture(user.id, 'wave', zoneName(pathname)); toaster().success(`Saludaste a ${first}`, 'Lo verá en tu muñequito.'); }
-    catch (e) { toaster().error(apiError(e, 'No se pudo saludar')); }
+    try { await sendGesture(user.id, 'wave', zoneName(pathname)); toaster().success(t.waved(first), t.waveBody); }
+    catch (e) { toaster().error(apiError(e, t.waveFail)); }
     finally { window.setTimeout(() => setWaved(false), 2200); }
   }
 
-  const presenceLine = self ? 'Así ven tu DNI los demás' : presence.online ? (presence.zone ? `En línea · ahora en ${presence.zone}` : 'En línea') : presence.lastSeen ? `Activo ${timeAgo(presence.lastSeen)}` : null;
+  const presenceLine = self ? t.seeMyId : presence.online ? (presence.zone ? t.onlineNow(presence.zone) : t.online) : presence.lastSeen ? t.activeAgo(timeAgo(presence.lastSeen)) : null;
   const bars = Array.from({ length: 46 }, (_, i) => ((doc.raw.charCodeAt(i % 10) * (i + 7)) % 5) + 1);
 
   const back = (
     <div className="lq-tex-paper relative flex size-full flex-col rounded-[inherit] p-3.5 sm:p-5">
       <span aria-hidden="true" className="lq-guilloche" />
       <div className="relative pr-24">
-        <h2 className="text-label-lg text-on-background">Estadísticas del titular</h2>
+        <h2 className="text-label-lg text-on-background">{t.statsHolder}</h2>
         <p className="font-mono text-label-md text-on-surface-light">{doc.pretty}</p>
       </div>
       {data.locked ? (
         <div className="relative flex flex-1 flex-col items-center justify-center gap-2 text-center">
-          <span className="-rotate-6 rounded-md border-2 border-dashed border-error-text/60 px-3 py-1 font-mono text-label-lg text-error-text">reservado</span>
-          <p className="max-w-[24ch] text-body-sm text-on-surface-light">{first} comparte estos datos solo con sus amigos.</p>
+          <span className="-rotate-6 rounded-md border-2 border-dashed border-error-text/60 px-3 py-1 font-mono text-label-lg text-error-text">{t.privateTag}</span>
+          <p className="max-w-[24ch] text-body-sm text-on-surface-light">{t.sharesOnlyFriends(first)}</p>
         </div>
       ) : (
         <dl className="relative mt-2.5 grid flex-1 grid-cols-3 content-start gap-x-3 gap-y-2 sm:mt-4 sm:gap-y-4">
           {([
-            ['Racha', user.currentStreak], ['Mejor racha', user.longestStreak], ['Logros', data.stats?.achievements ?? 0],
-            ['Hábitos', data.stats?.habits ?? 0], ['Con racha', data.stats?.habitsOnStreak ?? 0], ['Amigos', data.stats?.friends ?? 0],
+            [t.statStreak, user.currentStreak], [t.statBest, user.longestStreak], [t.statAch, data.stats?.achievements ?? 0],
+            [t.statHabits, data.stats?.habits ?? 0], [t.statHabitsStreak, data.stats?.habitsOnStreak ?? 0], [t.statFriends, data.stats?.friends ?? 0],
           ] as const).map(([k, v]) => (
             <div key={k} className="min-w-0">
               <dt className="truncate text-label-md text-on-surface-light">{k}</dt>
@@ -173,7 +347,7 @@ export default function UserProfilePage() {
         </dl>
       )}
       <div className="relative flex items-end justify-between gap-3">
-        <span className="text-label-md text-on-surface-light">Desde el {fmtDate(user.createdAt)}</span>
+        <span className="text-label-md text-on-surface-light">{t.since(fmtDate(user.createdAt, locale))}</span>
         <span aria-hidden="true" className="flex h-7 items-end gap-px sm:h-9">
           {bars.map((w, i) => <span key={i} className="block h-full bg-on-background/80" style={{ width: w * 0.9 }} />)}
         </span>
@@ -195,7 +369,7 @@ export default function UserProfilePage() {
         </>
       )}
     >
-      <motion.section variants={item} aria-label={`DNI de ${user.displayName}`} className="grid items-center gap-8 pt-4 md:gap-10 md:pt-8 lg:grid-cols-[minmax(0,30rem)_minmax(0,1fr)]">
+      <motion.section variants={item} aria-label={t.idAria(user.displayName)} className="grid items-center gap-8 pt-4 md:gap-10 md:pt-8 lg:grid-cols-[minmax(0,30rem)_minmax(0,1fr)]">
         <IdCard
           user={{ id: user.id, displayName: user.displayName, username: user.username, level: user.level, playerClass: user.playerClass, createdAt: user.createdAt }}
           title={title}
@@ -209,62 +383,62 @@ export default function UserProfilePage() {
           </div>
           <div className="flex flex-col gap-1">
             <h1 className="text-display-sm md:text-display-md"><Lettering text={user.displayName} /></h1>
-            <p className="text-body-lg text-on-surface-light">@{user.username} · Nivel <span className="font-mono">{user.level}</span> · {title}</p>
+            <p className="text-body-lg text-on-surface-light">@{user.username} · {t.levelWord} <span className="font-mono">{user.level}</span> · {title}</p>
           </div>
           {user.bio && (
             <figure className="max-w-[46ch]">
               <blockquote className="border-b border-dashed border-border-strong/60 pb-2 text-body-lg text-on-background">
                 {user.bio.length <= 60 && canLetter(user.bio) ? <Lettering text={user.bio} delay={0.6} /> : user.bio}
               </blockquote>
-              <figcaption className="mt-1 text-label-md text-on-surface-light">Firma del titular</figcaption>
+              <figcaption className="mt-1 text-label-md text-on-surface-light">{t.bioCaption}</figcaption>
             </figure>
           )}
 
           <div ref={menuRef} className="relative flex flex-wrap items-center gap-2 pt-1">
             {self ? (
-              <Button variant="secondary" onClick={() => navigate('/settings?tab=privacy')}>Editar mi DNI y privacidad</Button>
+              <Button variant="secondary" onClick={() => navigate('/settings?tab=privacy')}>{t.editMyId}</Button>
             ) : friends ? (
               <>
-                <Button onClick={() => navigate(socialLink.letter(user.username))}><Mail aria-hidden className="size-4" />Escribir carta</Button>
+                <Button onClick={() => navigate(socialLink.letter(user.username))}><Mail aria-hidden className="size-4" />{t.writeLetter}</Button>
                 <Button variant="secondary" onClick={() => void wave()} disabled={waved}>
                   <motion.span animate={waved ? { rotate: [0, -20, 16, -20, 0] } : { rotate: 0 }} transition={{ duration: 0.9 }} className="inline-flex"><Hand aria-hidden className="size-4" /></motion.span>
-                  {waved ? 'Saludo enviado' : 'Saludar'}
+                  {waved ? t.waveSent : t.wave}
                 </Button>
-                <Button variant="icon" aria-label="Más opciones" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)}><MoreHorizontal aria-hidden className="size-5" /></Button>
+                <Button variant="icon" aria-label={t.moreOpts} aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)}><MoreHorizontal aria-hidden className="size-5" /></Button>
                 <AnimatePresence>
                   {menu && (
                     <motion.div
                       role="menu" initial={{ opacity: 0, y: -6, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -4, transition: { duration: 0.12 } }} transition={springs.natural}
                       className="absolute left-0 top-full z-20 mt-2 flex w-64 flex-col rounded-2xl border border-border bg-surface p-1.5 shadow-lg sm:left-auto sm:right-0"
                     >
-                      <button role="menuitem" type="button" onClick={() => { setMenu(false); setConfirm('partner'); }} className={menuRow}><Heart aria-hidden className="size-4 text-error-text" />Compartir mi jardín</button>
-                      <button role="menuitem" type="button" onClick={() => { setMenu(false); setGuildOpen(true); }} className={menuRow}><Shield aria-hidden className="size-4 text-warning-text" />Invitar a un gremio</button>
-                      <button role="menuitem" type="button" onClick={() => { setMenu(false); setConfirm('remove'); }} className={cn(menuRow, 'text-error-text')}><UserMinus aria-hidden className="size-4" />Borrar de mi directorio</button>
-                      <button role="menuitem" type="button" onClick={() => { setMenu(false); setConfirm('report'); }} className={cn(menuRow, 'text-error-text')}><Flag aria-hidden className="size-4" />Denunciar</button>
-                      <button role="menuitem" type="button" onClick={() => { setMenu(false); setConfirm('block'); }} className={cn(menuRow, 'text-error-text')}><Ban aria-hidden className="size-4" />Bloquear</button>
+                      <button role="menuitem" type="button" onClick={() => { setMenu(false); setConfirm('partner'); }} className={menuRow}><Heart aria-hidden className="size-4 text-error-text" />{t.shareGarden}</button>
+                      <button role="menuitem" type="button" onClick={() => { setMenu(false); setGuildOpen(true); }} className={menuRow}><Shield aria-hidden className="size-4 text-warning-text" />{t.inviteGuild}</button>
+                      <button role="menuitem" type="button" onClick={() => { setMenu(false); setConfirm('remove'); }} className={cn(menuRow, 'text-error-text')}><UserMinus aria-hidden className="size-4" />{t.removeDir}</button>
+                      <button role="menuitem" type="button" onClick={() => { setMenu(false); setConfirm('report'); }} className={cn(menuRow, 'text-error-text')}><Flag aria-hidden className="size-4" />{t.report}</button>
+                      <button role="menuitem" type="button" onClick={() => { setMenu(false); setConfirm('block'); }} className={cn(menuRow, 'text-error-text')}><Ban aria-hidden className="size-4" />{t.block}</button>
                     </motion.div>
                   )}
                 </AnimatePresence>
               </>
             ) : relation.status === 'PENDING_IN' ? (
               <>
-                <Button loading={busy === 'accept'} onClick={() => void act('accept', () => respondFriendRequest(relation.friendshipId!, true), `${first} ya está en tu directorio`)}><Check aria-hidden className="size-4" />Anotar en mi directorio</Button>
-                <Button variant="ghost" onClick={() => void act('reject', () => respondFriendRequest(relation.friendshipId!, false), 'Solicitud rechazada')}><X aria-hidden className="size-4" />Rechazar</Button>
+                <Button loading={busy === 'accept'} onClick={() => void act('accept', () => respondFriendRequest(relation.friendshipId!, true), t.alreadyDir(first))}><Check aria-hidden className="size-4" />{t.addToDir}</Button>
+                <Button variant="ghost" onClick={() => void act('reject', () => respondFriendRequest(relation.friendshipId!, false), t.rejected)}><X aria-hidden className="size-4" />{t.decline}</Button>
               </>
             ) : relation.status === 'BLOCKED' ? (
               <>
-                <span className="inline-flex min-h-11 items-center gap-1.5 text-label-lg text-on-surface-light"><Ban aria-hidden className="size-4" />Bloqueaste a {first}</span>
-                <Button variant="secondary" loading={busy === 'unblock'} onClick={() => void act('unblock', () => unblockUser(user.id), `Desbloqueaste a ${first}`)}>Desbloquear</Button>
+                <span className="inline-flex min-h-11 items-center gap-1.5 text-label-lg text-on-surface-light"><Ban aria-hidden className="size-4" />{t.youBlocked(first)}</span>
+                <Button variant="secondary" loading={busy === 'unblock'} onClick={() => void act('unblock', () => unblockUser(user.id), t.unblocked(first))}>{t.unblock}</Button>
               </>
             ) : relation.status === 'PENDING_OUT' ? (
               <>
-                <span className="inline-flex min-h-11 items-center gap-1.5 text-label-lg text-on-surface-light"><Send aria-hidden className="size-4" />Tu paloma va en camino</span>
-                <Button variant="ghost" onClick={() => setConfirm('block')}><Ban aria-hidden className="size-4" />Bloquear</Button>
+                <span className="inline-flex min-h-11 items-center gap-1.5 text-label-lg text-on-surface-light"><Send aria-hidden className="size-4" />{t.pigeonOnWay}</span>
+                <Button variant="ghost" onClick={() => setConfirm('block')}><Ban aria-hidden className="size-4" />{t.block}</Button>
               </>
             ) : (
               <>
                 <PigeonButton user={user} relation={relation} size="md" onSent={() => void load(true)} />
-                <Button variant="ghost" onClick={() => setConfirm('block')}><Ban aria-hidden className="size-4" />Bloquear</Button>
+                <Button variant="ghost" onClick={() => setConfirm('block')}><Ban aria-hidden className="size-4" />{t.block}</Button>
               </>
             )}
           </div>
@@ -273,9 +447,9 @@ export default function UserProfilePage() {
             <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-warning/30 bg-warning/[var(--lq-soft-alpha)] px-4 py-3">
               <StreakFlame streak={streak} size="lg" />
               <p className="min-w-0 flex-1 text-body-md">
-                {isLit(streak) ? `Llevan ${streak.count} días seguidos escribiéndose.` : `Su racha de ${streak.lost} días se apagó. Pueden revivirla desde su carta.`}
+                {isLit(streak) ? t.streakLive(streak.count) : t.streakOut(first, streak.lost)}
               </p>
-              <Button size="sm" variant="secondary" onClick={() => navigate(socialLink.letter(user.username))}>Ir a la carta</Button>
+              <Button size="sm" variant="secondary" onClick={() => navigate(socialLink.letter(user.username))}>{t.goLetter}</Button>
             </div>
           )}
         </div>
@@ -283,14 +457,14 @@ export default function UserProfilePage() {
 
       {data.locked ? (
         <motion.div variants={item}>
-          <PassportPage title="Páginas reservadas" folio="02">
-            <EmptyState icon={Lock} title="Solo para amigos" description={`${first} comparte sus sellos, visados y contactos solo con sus amigos.`} className="py-4" />
+          <PassportPage title={t.reservedPages} folio="02">
+            <EmptyState icon={Lock} title={t.friendsOnly} description={t.friendsOnlyDesc(first)} className="py-4" />
           </PassportPage>
         </motion.div>
       ) : (
         <motion.div variants={stagger} initial="initial" animate="animate" className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
           <div className="flex min-w-0 flex-col gap-6">
-            <PassportPage title="Sellos" folio="02">
+            <PassportPage title={t.stamps} folio="02">
               {data.achievements?.length ? (
                 <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                   {data.achievements.map((a, i) => {
@@ -306,16 +480,16 @@ export default function UserProfilePage() {
                           <E e={a.icon} s={26} />
                         </span>
                         <span className="line-clamp-2 text-body-sm text-on-background">{a.title}</span>
-                        <span className="font-mono text-label-md text-on-surface-light">{fmtDate(a.unlockedAt)}</span>
+                        <span className="font-mono text-label-md text-on-surface-light">{fmtDate(a.unlockedAt, locale)}</span>
                       </motion.li>
                     );
                   })}
                 </ul>
-              ) : <p className="text-body-sm text-on-surface-light">Todavía sin sellos.</p>}
+              ) : <p className="text-body-sm text-on-surface-light">{t.noStamps}</p>}
             </PassportPage>
 
             {data.friendsVisible && (
-              <PassportPage title="Contactos" folio="03">
+              <PassportPage title={t.contacts} folio="03">
                 {data.friends?.length ? (
                   <ul className="grid grid-cols-3 gap-3 sm:grid-cols-5">
                     {data.friends.map((f, i) => (
@@ -329,13 +503,13 @@ export default function UserProfilePage() {
                       </motion.li>
                     ))}
                   </ul>
-                ) : <p className="text-body-sm text-on-surface-light">Su directorio todavía está en blanco.</p>}
+                ) : <p className="text-body-sm text-on-surface-light">{t.directoryBlank}</p>}
               </PassportPage>
             )}
           </div>
 
           <div className="flex min-w-0 flex-col gap-6">
-            <PassportPage title="Visados" folio="04">
+            <PassportPage title={t.visas} folio="04">
               {data.guilds?.length ? (
                 <ul className="flex flex-col gap-3">
                   {data.guilds.map((g, i) => {
@@ -346,18 +520,18 @@ export default function UserProfilePage() {
                         <GuildCrest photoUrl={g.photoUrl} emblem={em.icon} tone={em.tone} name={g.name} halo={false} className="size-11 rounded-xl [&>svg]:size-5" />
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-label-lg">{g.name}</span>
-                          <span className="block text-body-sm text-on-surface-light">Visado de miembro</span>
+                          <span className="block text-body-sm text-on-surface-light">{t.memberVisa}</span>
                         </span>
                       </motion.li>
                     );
                   })}
                 </ul>
-              ) : <p className="text-body-sm text-on-surface-light">Sin visados de gremio todavía.</p>}
+              ) : <p className="text-body-sm text-on-surface-light">{t.noVisas}</p>}
             </PassportPage>
 
-            <PassportPage title="Amistades más cercanas" folio="05">
+            <PassportPage title={t.closeFriends} folio="05">
               {!data.friendsVisible ? (
-                <p className="flex items-center gap-2 text-body-sm text-on-surface-light"><Lock aria-hidden className="size-4" />{first} mantiene su directorio en privado.</p>
+                <p className="flex items-center gap-2 text-body-sm text-on-surface-light"><Lock aria-hidden className="size-4" />{t.privateDir(first)}</p>
               ) : data.closeFriends?.length ? (
                 <ul className="flex flex-col">
                   {data.closeFriends.map((f, i) => (
@@ -366,13 +540,13 @@ export default function UserProfilePage() {
                         <PresenceAvatar user={f} size={40} />
                         <span className="min-w-0 flex-1 truncate text-label-lg">{f.displayName}</span>
                         {f.friendStreak >= 3
-                          ? <StreakFlame streak={{ count: f.friendStreak, alive: true, active: true, doneToday: true, revivable: false }} size="sm" label={`Racha de ${f.friendStreak} días (mejor: ${f.best})`} />
-                          : <span className="font-mono text-body-sm text-on-surface-light">mejor: {f.best}</span>}
+                          ? <StreakFlame streak={{ count: f.friendStreak, alive: true, active: true, doneToday: true, revivable: false }} size="sm" label={t.streakTip(f.friendStreak, f.best)} />
+                          : <span className="font-mono text-body-sm text-on-surface-light">{t.bestOf(f.best)}</span>}
                       </Link>
                     </motion.li>
                   ))}
                 </ul>
-              ) : <p className="text-body-sm text-on-surface-light">Sus rachas con amigos aparecerán aquí.</p>}
+              ) : <p className="text-body-sm text-on-surface-light">{t.streaksHere}</p>}
             </PassportPage>
           </div>
         </motion.div>
@@ -380,25 +554,25 @@ export default function UserProfilePage() {
 
       {friends && <GuildInviteModal open={guildOpen} onClose={() => setGuildOpen(false)} userId={user.id} name={first} />}
       <ReportDialog open={confirm === 'report'} onClose={() => setConfirm(null)} target={user} />
-      <Modal open={confirm === 'block'} onClose={() => setConfirm(null)} title={`¿Bloquear a ${first}?`}>
-        <p className="text-body-md text-on-surface">{friends ? 'Dejarán de ser amigos. ' : ''}No podrá escribirte, enviarte palomas ni gestos, y no se verán en las zonas ni en el buscador. Puedes desbloquearlo cuando quieras.</p>
+      <Modal open={confirm === 'block'} onClose={() => setConfirm(null)} title={t.blockTitle(first)}>
+        <p className="text-body-md text-on-surface">{friends ? t.blockFriendsNote : ''}{t.blockBody}</p>
         <div className="flex justify-end gap-3">
-          <Button variant="secondary" size="md" onClick={() => setConfirm(null)}>Cancelar</Button>
-          <Button variant="danger" size="md" loading={busy === 'block'} onClick={() => void act('block', () => blockUser(user.id), `Bloqueaste a ${first}`)}><Ban aria-hidden className="size-4" />Bloquear</Button>
+          <Button variant="secondary" size="md" onClick={() => setConfirm(null)}>{t.cancel}</Button>
+          <Button variant="danger" size="md" loading={busy === 'block'} onClick={() => void act('block', () => blockUser(user.id), t.youBlocked(first))}><Ban aria-hidden className="size-4" />{t.block}</Button>
         </div>
       </Modal>
-      <Modal open={confirm === 'remove'} onClose={() => setConfirm(null)} title={`¿Borrar a ${first} de tu directorio?`}>
-        <p className="text-body-md text-on-surface">Dejarán de ver su carta y su racha se perderá.</p>
+      <Modal open={confirm === 'remove'} onClose={() => setConfirm(null)} title={t.removeTitle(first)}>
+        <p className="text-body-md text-on-surface">{t.removeBody}</p>
         <div className="flex justify-end gap-3">
-          <Button variant="secondary" size="md" onClick={() => setConfirm(null)}>Cancelar</Button>
-          <Button variant="danger" size="md" loading={busy === 'remove'} onClick={() => void act('remove', () => removeFriend(relation.friendshipId!), `${first} ya no está en tu directorio`)}>Borrar</Button>
+          <Button variant="secondary" size="md" onClick={() => setConfirm(null)}>{t.cancel}</Button>
+          <Button variant="danger" size="md" loading={busy === 'remove'} onClick={() => void act('remove', () => removeFriend(relation.friendshipId!), t.removed(first))}>{t.remove}</Button>
         </div>
       </Modal>
-      <Modal open={confirm === 'partner'} onClose={() => setConfirm(null)} title={`¿Compartir tu jardín con ${first}?`}>
-        <p className="text-body-md text-on-surface">Le llegará una invitación. Si acepta, los dos cuidarán el mismo jardín del corazón: fechas especiales, flores y recuerdos. Tu jardín actual pasa a ser el compartido.</p>
+      <Modal open={confirm === 'partner'} onClose={() => setConfirm(null)} title={t.shareTitle(first)}>
+        <p className="text-body-md text-on-surface">{t.shareBody}</p>
         <div className="flex justify-end gap-3">
-          <Button variant="secondary" size="md" onClick={() => setConfirm(null)}>Cancelar</Button>
-          <Button size="md" loading={busy === 'partner'} onClick={() => void act('partner', () => invitePartner(user.id), 'Invitación enviada: la verá en su jardín')}><Heart aria-hidden className="size-4" />Enviar invitación</Button>
+          <Button variant="secondary" size="md" onClick={() => setConfirm(null)}>{t.cancel}</Button>
+          <Button size="md" loading={busy === 'partner'} onClick={() => void act('partner', () => invitePartner(user.id), t.partnerSent)}><Heart aria-hidden className="size-4" />{t.sendInvite}</Button>
         </div>
       </Modal>
     </ZoneShell>

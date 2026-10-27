@@ -5,10 +5,51 @@ import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 
 import { Camera } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToastStore } from '@/hooks/useToast';
+import { useText, type Copy } from '@/lib/i18n';
 import { apiError, updateGuildInfo } from '@/services/network.service';
 import { EMBLEMS, emblemOf } from '@/components/guild/emblems';
 import { GuildCrest, GuildPhotoDialog } from '@/components/guild/GuildCrest';
 import { Button, Field, Input, ResponsiveDialog } from '@/components/ui/lq';
+
+const es = {
+  nameShort: 'El nombre necesita al menos 2 letras',
+  updated: 'Gremio actualizado',
+  updatedBody: 'Todos ven ya los cambios.',
+  saveFail: 'No se pudo guardar',
+  title: 'Editar gremio',
+  changePhoto: 'Cambiar la foto del gremio',
+  setPhoto: 'Poner una foto al gremio',
+  hint: 'Cualquiera del gremio puede cambiar esto. En la carta queda un aviso con quién lo cambió.',
+  name: 'Nombre',
+  namePh: 'Ej. Los Constantes',
+  desc: 'Descripción (opcional)',
+  descPh: '¿Qué los une?',
+  emblem: 'Emblema',
+  emblemAria: 'Emblema',
+  cancel: 'Cancelar',
+  save: 'Guardar cambios',
+};
+
+const en: typeof es = {
+  nameShort: 'The name needs at least 2 letters',
+  updated: 'Guild updated',
+  updatedBody: 'Everyone sees the changes now.',
+  saveFail: 'Could not save',
+  title: 'Edit guild',
+  changePhoto: 'Change the guild photo',
+  setPhoto: 'Add a photo to the guild',
+  hint: 'Anyone in the guild can change this. The letter shows a note with who changed it.',
+  name: 'Name',
+  namePh: 'E.g. The Constants',
+  desc: 'Description (optional)',
+  descPh: 'What brings them together?',
+  emblem: 'Emblem',
+  emblemAria: 'Emblem',
+  cancel: 'Cancel',
+  save: 'Save changes',
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 export interface EditableGuild { id: string; name: string; description?: string | null; emblem: string; photoUrl?: string | null }
 
@@ -22,6 +63,7 @@ const TONE_BG: Record<string, string> = {
 export function GuildEditDialog({ open, guild, onClose, onSaved }: {
   open: boolean; guild: EditableGuild; onClose: () => void; onSaved: (g: EditableGuild) => void;
 }) {
+  const t = useText(COPY);
   const [name, setName] = useState(guild.name);
   const [description, setDescription] = useState(guild.description ?? '');
   const [emblem, setEmblem] = useState(guild.emblem);
@@ -57,40 +99,40 @@ export function GuildEditDialog({ open, guild, onClose, onSaved }: {
     if (emblem !== guild.emblem) body.emblem = emblem;
     if (photo !== (guild.photoUrl ?? null)) body.photoUrl = photo;
     if (!Object.keys(body).length) { onClose(); return; }
-    if (body.name !== undefined && body.name.length < 2) { setError('El nombre necesita al menos 2 letras'); return; }
+    if (body.name !== undefined && body.name.length < 2) { setError(t.nameShort); return; }
     setBusy(true); setError(null);
     try {
       const g = await updateGuildInfo(guild.id, body);
       onSaved({ ...guild, ...g });
-      useToastStore.getState().success('Gremio actualizado', 'Todos ven ya los cambios.');
+      useToastStore.getState().success(t.updated, t.updatedBody);
       onClose();
-    } catch (err) { setError(apiError(err, 'No se pudo guardar')); }
+    } catch (err) { setError(apiError(err, t.saveFail)); }
     finally { setBusy(false); }
   }
 
   const em = emblemOf(emblem);
   return (
-    <ResponsiveDialog open={open} onClose={onClose} title="Editar gremio" className="md:max-w-[520px]">
+    <ResponsiveDialog open={open} onClose={onClose} title={t.title} className="md:max-w-[520px]">
       <form noValidate onSubmit={save} className="flex flex-col gap-5">
         <div className="flex items-center gap-4">
           <span className="relative">
             <GuildCrest photoUrl={photo} emblem={em.icon} tone={em.tone} name={name || guild.name} halo={false} className="size-20 rounded-[26px] [&>svg]:size-9" />
-            <button type="button" onClick={() => setPhotoOpen(true)} aria-label={photo ? 'Cambiar la foto del gremio' : 'Poner una foto al gremio'}
+            <button type="button" onClick={() => setPhotoOpen(true)} aria-label={photo ? t.changePhoto : t.setPhoto}
               className="absolute -bottom-2 -right-2 flex size-10 items-center justify-center rounded-full border border-border bg-surface text-on-surface shadow-md hover:text-primary-text">
               <Camera aria-hidden className="size-5" strokeWidth={1.75} />
             </button>
           </span>
-          <p className="min-w-0 flex-1 text-body-sm text-on-surface-light">Cualquiera del gremio puede cambiar esto. En la carta queda un aviso con quién lo cambió.</p>
+          <p className="min-w-0 flex-1 text-body-sm text-on-surface-light">{t.hint}</p>
         </div>
-        <Field label="Nombre">
-          <Input value={name} onChange={(e) => setName(e.target.value)} maxLength={40} placeholder="Ej. Los Constantes" />
+        <Field label={t.name}>
+          <Input value={name} onChange={(e) => setName(e.target.value)} maxLength={40} placeholder={t.namePh} />
         </Field>
-        <Field label="Descripción (opcional)">
-          <Input value={description} onChange={(e) => setDescription(e.target.value)} maxLength={200} placeholder="¿Qué los une?" />
+        <Field label={t.desc}>
+          <Input value={description} onChange={(e) => setDescription(e.target.value)} maxLength={200} placeholder={t.descPh} />
         </Field>
         <fieldset className="flex flex-col gap-2">
-          <legend className="mb-2 text-label-lg text-on-surface">Emblema</legend>
-          <div role="radiogroup" aria-label="Emblema" className="flex flex-wrap gap-2">
+          <legend className="mb-2 text-label-lg text-on-surface">{t.emblem}</legend>
+          <div role="radiogroup" aria-label={t.emblemAria} className="flex flex-wrap gap-2">
             {EMBLEMS.map((it, i) => {
               const on = emblem === it.id;
               return (
@@ -107,8 +149,8 @@ export function GuildEditDialog({ open, guild, onClose, onSaved }: {
         </fieldset>
         {error && <p role="alert" className="text-body-sm text-error-text">{error}</p>}
         <div className="flex gap-3">
-          <Button type="button" variant="secondary" size="md" className="flex-1" onClick={onClose}>Cancelar</Button>
-          <Button type="submit" size="md" className="flex-1" loading={busy}>Guardar cambios</Button>
+          <Button type="button" variant="secondary" size="md" className="flex-1" onClick={onClose}>{t.cancel}</Button>
+          <Button type="submit" size="md" className="flex-1" loading={busy}>{t.save}</Button>
         </div>
       </form>
       <GuildPhotoDialog

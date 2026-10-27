@@ -17,9 +17,78 @@ import { ColorField } from './pixel/ColorField';
 import type { Body, PixelLook } from './pixel/engine';
 import {
   BOTTOMS, BROWS, CLOTH_COLORS, EXTRAS, EYES, EYE_COLORS, FACIALS, HAIRS, HAIR_COLORS, MOUTHS, SHOES, SHOP_EXTRAS, SHOP_HAIRS, SHOP_TOPS, SKINS, TOPS,
-  lookFrom, randomLook, shopKey, switchBody, toConfig, toggleExtra, type Option, type ShopSlot,
+  lookFrom, optionLabel, randomLook, shopKey, switchBody, toConfig, toggleExtra, type Option, type ShopSlot,
 } from './pixel/look';
 import { useOwnedItems } from './ownedItems';
+import { useLocale, useText, type Copy } from '@/lib/i18n';
+
+const es = {
+  shop: 'De la Tienda',
+  styles: (n: number): string => `${n} estilos`,
+  accessories: 'Accesorios',
+  accessoriesHint: 'Combina los que quieras: uno de cada tipo a la vez (sombrero, gafas, espalda y costado). Lo que compres en la Tienda aparece aquí.',
+  tabs: { cuerpo: 'Cuerpo', pelo: 'Pelo', cara: 'Cara', ropa: 'Ropa', extras: 'Extras' } as Record<string, string>,
+  tabsLabel: 'Partes del personaje',
+  skinTone: 'Tono de piel',
+  blush: 'Mejillas sonrosadas',
+  blushHint: 'Un toque de color en la cara',
+  hairstyle: 'Peinado',
+  hairColor: 'Color de pelo',
+  facialHair: 'Vello facial',
+  eyes: 'Ojos',
+  eyeColor: 'Color de ojos',
+  brows: 'Cejas',
+  mouth: 'Boca',
+  top: 'Parte de arriba',
+  topColor: 'Color de arriba',
+  bottom: 'Parte de abajo',
+  bottomColor: 'Color de abajo',
+  shoes: 'Calzado',
+  shoesColor: 'Color del calzado',
+  accessoryColor: 'Color de accesorios',
+  bodyType: 'Tipo de cuerpo',
+  male: 'Masculino',
+  female: 'Femenino',
+  randomChar: 'Personaje aleatorio',
+  random: 'Aleatorio',
+  undo: 'Deshacer',
+  redo: 'Rehacer',
+};
+
+const en: typeof es = {
+  shop: 'From the Shop',
+  styles: (n: number): string => `${n} styles`,
+  accessories: 'Accessories',
+  accessoriesHint: 'Mix and match: one of each kind at a time (hat, glasses, back and side). Anything you buy in the Shop shows up here.',
+  tabs: { cuerpo: 'Body', pelo: 'Hair', cara: 'Face', ropa: 'Clothes', extras: 'Extras' } as Record<string, string>,
+  tabsLabel: 'Character parts',
+  skinTone: 'Skin tone',
+  blush: 'Rosy cheeks',
+  blushHint: 'A touch of color on the face',
+  hairstyle: 'Hairstyle',
+  hairColor: 'Hair color',
+  facialHair: 'Facial hair',
+  eyes: 'Eyes',
+  eyeColor: 'Eye color',
+  brows: 'Eyebrows',
+  mouth: 'Mouth',
+  top: 'Top',
+  topColor: 'Top color',
+  bottom: 'Bottom',
+  bottomColor: 'Bottom color',
+  shoes: 'Shoes',
+  shoesColor: 'Shoe color',
+  accessoryColor: 'Accessory color',
+  bodyType: 'Body type',
+  male: 'Male',
+  female: 'Female',
+  randomChar: 'Random character',
+  random: 'Random',
+  undo: 'Undo',
+  redo: 'Redo',
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 /** Fondo de cuadros (tokens) para vistas previas pequeñas. */
 const STAGE = 'bg-surface-variant bg-[repeating-conic-gradient(rgb(var(--lq-primary)/0.09)_0_25%,transparent_0_50%)] bg-[length:16px_16px]';
@@ -66,11 +135,12 @@ const tileCls = cn(
 );
 
 function Section({ title, count, children }: { title: string; count?: number; children: ReactNode }) {
+  const t = useText(COPY);
   return (
     <fieldset className="flex min-w-0 flex-col gap-3">
       <legend className="mb-3 flex w-full items-baseline justify-between gap-2">
         <span className="text-label-lg text-on-surface">{title}</span>
-        {count !== undefined && <span className="text-body-sm text-on-surface-light">{count} estilos</span>}
+        {count !== undefined && <span className="text-body-sm text-on-surface-light">{t.styles(count)}</span>}
       </legend>
       {children}
     </fieldset>
@@ -90,10 +160,11 @@ function Selected({ id }: { id: string }) {
 
 /** Marca de lo comprado en la Tienda. */
 function ShopMark() {
+  const t = useText(COPY);
   return (
-    <span title="De la Tienda" className="absolute left-1.5 top-1.5 z-10 flex size-5 items-center justify-center rounded-full bg-warning/[var(--lq-soft-alpha)] text-warning-text">
+    <span title={t.shop} className="absolute left-1.5 top-1.5 z-10 flex size-5 items-center justify-center rounded-full bg-warning/[var(--lq-soft-alpha)] text-warning-text">
       <Gem aria-hidden className="size-3" strokeWidth={2} />
-      <span className="sr-only">De la Tienda</span>
+      <span className="sr-only">{t.shop}</span>
     </span>
   );
 }
@@ -109,6 +180,7 @@ function OptionGrid<T extends string>({ title, look, options, value, preview, cr
   crop: 'head' | 'body'; onSelect: (v: T) => void; premium?: Set<string>;
 }) {
   const name = useId();
+  const locale = useLocale();
   return (
     <Section title={title} count={options.length}>
       <div className="grid grid-cols-3 gap-2 min-[420px]:grid-cols-4">
@@ -122,7 +194,7 @@ function OptionGrid<T extends string>({ title, look, options, value, preview, cr
               <span className="relative transition-transform duration-300 ease-[cubic-bezier(.34,1.56,.64,1)] group-hover:scale-110">
                 <PixelAvatar look={preview(look, o.id)} size={crop === 'body' ? 72 : 66} crop={crop} animate={on ? 'idle' : 'none'} />
               </span>
-              <span className={cn('relative text-label-md leading-tight', on ? 'text-primary-text' : 'text-on-surface')}>{o.label}</span>
+              <span className={cn('relative text-label-md leading-tight', on ? 'text-primary-text' : 'text-on-surface')}>{optionLabel(o, locale)}</span>
             </motion.label>
           );
         })}
@@ -135,10 +207,12 @@ function OptionGrid<T extends string>({ title, look, options, value, preview, cr
 const EXTRA_CROP: Partial<Record<string, 'head' | 'body' | 'full'>> = { bufanda: 'body', collar: 'body', capa: 'full', alas: 'full', escudo: 'full', dragoncito: 'full' };
 
 function ExtrasGrid({ look, onChange, owned }: { look: PixelLook; onChange: (l: PixelLook) => void; owned: Set<string> }) {
+  const t = useText(COPY);
+  const locale = useLocale();
   const { options, premium } = withShop(EXTRAS, SHOP_EXTRAS, 'extra', owned, (id) => look.extras.includes(id));
   return (
-    <Section title="Accesorios" count={options.length}>
-      <p className="-mt-1 text-body-sm text-on-surface-light">Combina los que quieras: uno de cada tipo a la vez (sombrero, gafas, espalda y costado). Lo que compres en la Tienda aparece aquí.</p>
+    <Section title={t.accessories} count={options.length}>
+      <p className="-mt-1 text-body-sm text-on-surface-light">{t.accessoriesHint}</p>
       <div className="grid grid-cols-3 gap-2 min-[420px]:grid-cols-4">
         {options.map((o, i) => {
           const on = look.extras.includes(o.id);
@@ -157,7 +231,7 @@ function ExtrasGrid({ look, onChange, owned }: { look: PixelLook; onChange: (l: 
               <span className="relative transition-transform duration-300 ease-[cubic-bezier(.34,1.56,.64,1)] group-hover:scale-110">
                 <PixelAvatar look={on ? look : toggleExtra(look, o.id)} size={EXTRA_CROP[o.id] === 'full' ? 60 : 66} crop={EXTRA_CROP[o.id] ?? 'head'} animate={on ? 'idle' : 'none'} />
               </span>
-              <span className={cn('relative text-label-md leading-tight', on ? 'text-primary-text' : 'text-on-surface')}>{o.label}</span>
+              <span className={cn('relative text-label-md leading-tight', on ? 'text-primary-text' : 'text-on-surface')}>{optionLabel(o, locale)}</span>
             </motion.label>
           );
         })}
@@ -185,6 +259,8 @@ function Controls(props: { look: PixelLook; commit: (l: PixelLook) => void; tab:
 }
 
 function ControlsInner({ look, commit, tab, setTab }: { look: PixelLook; commit: (l: PixelLook) => void; tab: Tab; setTab: (t: Tab) => void }) {
+  const t = useText(COPY);
+  const tabs = TABS.map((x) => ({ ...x, label: t.tabs[x.value] }));
   const set = <K extends keyof PixelLook>(k: K) => (v: PixelLook[K]) => commit({ ...look, [k]: v });
   const owned = useOwnedItems();
   const hairs = withShop(HAIRS, SHOP_HAIRS, 'hair', owned, (id) => look.hair === id);
@@ -195,13 +271,13 @@ function ControlsInner({ look, commit, tab, setTab }: { look: PixelLook; commit:
 
   return (
     <div className="flex flex-col gap-5">
-      <Tabs label="Partes del personaje" value={tab} onChange={setTab} options={TABS} />
+      <Tabs label={t.tabsLabel} value={tab} onChange={setTab} options={tabs} />
       {/* El panel nuevo entra al instante (sin esperar la salida del anterior):
           cambiar rápido de pestaña nunca deja el panel vacío. */}
       <motion.div
           key={tab}
           role="tabpanel"
-          aria-label={TABS.find((t) => t.value === tab)?.label}
+          aria-label={tabs.find((x) => x.value === tab)?.label}
           initial={{ opacity: 0, x: dir.current * 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ type: 'spring', stiffness: 420, damping: 34 }}
@@ -209,45 +285,45 @@ function ControlsInner({ look, commit, tab, setTab }: { look: PixelLook; commit:
         >
           {tab === 'cuerpo' && (
             <>
-              <ColorField label="Tono de piel" value={look.skin} colors={SKINS} onChange={set('skin')} />
+              <ColorField label={t.skinTone} value={look.skin} colors={SKINS} onChange={set('skin')} />
               <label className="flex min-h-14 cursor-pointer items-center justify-between gap-3 rounded-2xl border border-border bg-background px-4 transition-colors hover:border-border-strong">
                 <span className="flex flex-col">
-                  <span className="text-label-lg">Mejillas sonrosadas</span>
-                  <span className="text-body-sm text-on-surface-light">Un toque de color en la cara</span>
+                  <span className="text-label-lg">{t.blush}</span>
+                  <span className="text-body-sm text-on-surface-light">{t.blushHint}</span>
                 </span>
-                <Switch checked={look.blush} onChange={(e) => set('blush')(e.target.checked)} aria-label="Mejillas sonrosadas" />
+                <Switch checked={look.blush} onChange={(e) => set('blush')(e.target.checked)} aria-label={t.blush} />
               </label>
             </>
           )}
           {tab === 'pelo' && (
             <>
-              <OptionGrid title="Peinado" look={look} options={hairs.options} premium={hairs.premium} value={look.hair} preview={(l, v) => ({ ...l, hair: v, extras: [] })} crop="head" onSelect={set('hair')} />
-              <ColorField label="Color de pelo" value={look.hairColor} colors={HAIR_COLORS} onChange={set('hairColor')} />
-              <OptionGrid title="Vello facial" look={look} options={FACIALS} value={look.facial} preview={(l, v) => ({ ...l, facial: v })} crop="head" onSelect={set('facial')} />
+              <OptionGrid title={t.hairstyle} look={look} options={hairs.options} premium={hairs.premium} value={look.hair} preview={(l, v) => ({ ...l, hair: v, extras: [] })} crop="head" onSelect={set('hair')} />
+              <ColorField label={t.hairColor} value={look.hairColor} colors={HAIR_COLORS} onChange={set('hairColor')} />
+              <OptionGrid title={t.facialHair} look={look} options={FACIALS} value={look.facial} preview={(l, v) => ({ ...l, facial: v })} crop="head" onSelect={set('facial')} />
             </>
           )}
           {tab === 'cara' && (
             <>
-              <OptionGrid title="Ojos" look={look} options={EYES} value={look.eyes} preview={(l, v) => ({ ...l, eyes: v, extras: l.extras.filter((e) => e !== 'gafas_sol' && e !== 'parche') })} crop="head" onSelect={set('eyes')} />
-              <ColorField label="Color de ojos" value={look.eyeColor} colors={EYE_COLORS} onChange={set('eyeColor')} />
-              <OptionGrid title="Cejas" look={look} options={BROWS} value={look.brows} preview={(l, v) => ({ ...l, brows: v })} crop="head" onSelect={set('brows')} />
-              <OptionGrid title="Boca" look={look} options={MOUTHS} value={look.mouth} preview={(l, v) => ({ ...l, mouth: v })} crop="head" onSelect={set('mouth')} />
+              <OptionGrid title={t.eyes} look={look} options={EYES} value={look.eyes} preview={(l, v) => ({ ...l, eyes: v, extras: l.extras.filter((e) => e !== 'gafas_sol' && e !== 'parche') })} crop="head" onSelect={set('eyes')} />
+              <ColorField label={t.eyeColor} value={look.eyeColor} colors={EYE_COLORS} onChange={set('eyeColor')} />
+              <OptionGrid title={t.brows} look={look} options={BROWS} value={look.brows} preview={(l, v) => ({ ...l, brows: v })} crop="head" onSelect={set('brows')} />
+              <OptionGrid title={t.mouth} look={look} options={MOUTHS} value={look.mouth} preview={(l, v) => ({ ...l, mouth: v })} crop="head" onSelect={set('mouth')} />
             </>
           )}
           {tab === 'ropa' && (
             <>
-              <OptionGrid title="Parte de arriba" look={look} options={tops.options} premium={tops.premium} value={look.top} preview={(l, v) => ({ ...l, top: v })} crop="body" onSelect={set('top')} />
-              <ColorField label="Color de arriba" value={look.topColor} colors={CLOTH_COLORS} onChange={set('topColor')} />
-              <OptionGrid title="Parte de abajo" look={look} options={BOTTOMS} value={look.bottom} preview={(l, v) => ({ ...l, bottom: v })} crop="body" onSelect={set('bottom')} />
-              <ColorField label="Color de abajo" value={look.bottomColor} colors={CLOTH_COLORS} onChange={set('bottomColor')} />
-              <OptionGrid title="Calzado" look={look} options={SHOES} value={look.shoes} preview={(l, v) => ({ ...l, shoes: v })} crop="body" onSelect={set('shoes')} />
-              <ColorField label="Color del calzado" value={look.shoesColor} colors={CLOTH_COLORS} onChange={set('shoesColor')} />
+              <OptionGrid title={t.top} look={look} options={tops.options} premium={tops.premium} value={look.top} preview={(l, v) => ({ ...l, top: v })} crop="body" onSelect={set('top')} />
+              <ColorField label={t.topColor} value={look.topColor} colors={CLOTH_COLORS} onChange={set('topColor')} />
+              <OptionGrid title={t.bottom} look={look} options={BOTTOMS} value={look.bottom} preview={(l, v) => ({ ...l, bottom: v })} crop="body" onSelect={set('bottom')} />
+              <ColorField label={t.bottomColor} value={look.bottomColor} colors={CLOTH_COLORS} onChange={set('bottomColor')} />
+              <OptionGrid title={t.shoes} look={look} options={SHOES} value={look.shoes} preview={(l, v) => ({ ...l, shoes: v })} crop="body" onSelect={set('shoes')} />
+              <ColorField label={t.shoesColor} value={look.shoesColor} colors={CLOTH_COLORS} onChange={set('shoesColor')} />
             </>
           )}
           {tab === 'extras' && (
             <>
               <ExtrasGrid look={look} onChange={commit} owned={owned} />
-              <ColorField label="Color de accesorios" value={look.extraColor} colors={CLOTH_COLORS} onChange={set('extraColor')} />
+              <ColorField label={t.accessoryColor} value={look.extraColor} colors={CLOTH_COLORS} onChange={set('extraColor')} />
             </>
           )}
       </motion.div>
@@ -259,20 +335,21 @@ function ControlsInner({ look, commit, tab, setTab }: { look: PixelLook; commit:
 type History = ReturnType<typeof useLookHistory>;
 
 function StageBar({ look, history, onRoll }: { look: PixelLook; history: History; onRoll: () => void }) {
+  const t = useText(COPY);
   const [spin, setSpin] = useState(0);
   return (
     <div className="flex items-center justify-center gap-1 sm:gap-2">
       <SegmentedControl
-        role="radiogroup" label="Tipo de cuerpo" className="shrink-0 sm:w-56 [&_button]:text-label-md sm:[&_button]:text-label-lg"
+        role="radiogroup" label={t.bodyType} className="shrink-0 sm:w-56 [&_button]:text-label-md sm:[&_button]:text-label-lg"
         value={look.body} onChange={(b: Body) => history.commit(switchBody(look, b))}
-        options={[{ value: 'male', label: 'Masculino' }, { value: 'female', label: 'Femenino' }]}
+        options={[{ value: 'male', label: t.male }, { value: 'female', label: t.female }]}
       />
-      <Button variant="secondary" size="sm" aria-label="Personaje aleatorio" onClick={() => { setSpin((s) => s + 1); onRoll(); }} className="px-2.5 sm:px-3">
+      <Button variant="secondary" size="sm" aria-label={t.randomChar} onClick={() => { setSpin((s) => s + 1); onRoll(); }} className="px-2.5 sm:px-3">
         <motion.span animate={{ rotate: spin * 360 }} transition={{ type: 'spring', stiffness: 160, damping: 14 }} className="flex"><Dices aria-hidden className="size-5" strokeWidth={1.75} /></motion.span>
-        <span className="hidden sm:inline">Aleatorio</span>
+        <span className="hidden sm:inline">{t.random}</span>
       </Button>
-      <Button variant="icon" aria-label="Deshacer" disabled={!history.canUndo} onClick={history.undo} className="size-10 sm:size-11"><Undo2 aria-hidden className="size-5" strokeWidth={1.75} /></Button>
-      <Button variant="icon" aria-label="Rehacer" disabled={!history.canRedo} onClick={history.redo} className="size-10 sm:size-11"><Redo2 aria-hidden className="size-5" strokeWidth={1.75} /></Button>
+      <Button variant="icon" aria-label={t.undo} disabled={!history.canUndo} onClick={history.undo} className="size-10 sm:size-11"><Undo2 aria-hidden className="size-5" strokeWidth={1.75} /></Button>
+      <Button variant="icon" aria-label={t.redo} disabled={!history.canRedo} onClick={history.redo} className="size-10 sm:size-11"><Redo2 aria-hidden className="size-5" strokeWidth={1.75} /></Button>
     </div>
   );
 }

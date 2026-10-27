@@ -5,6 +5,26 @@ import { useEffect, useRef, useState } from 'react';
 import { Loader2, Pause, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { loadMedia, cachedMedia } from '@/lib/media';
+import { useText, type Copy } from '@/lib/i18n';
+
+const es = {
+  pause: 'Pausar la nota de voz',
+  listen: 'Escuchar la nota de voz',
+  seek: 'Avance de la nota de voz',
+  speed: (s: number): string => `Velocidad ${s}x`,
+  loadFail: 'No se pudo cargar',
+};
+
+const en: typeof es = {
+  pause: 'Pause the voice note',
+  listen: 'Listen to the voice note',
+  seek: 'Voice note progress',
+  speed: (s: number): string => `Speed ${s}x`,
+  loadFail: 'Could not load',
+};
+
+const COPY: Copy<typeof es> = { es, en };
+
 const clock = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, '0')}`;
 
 const SPEEDS = [1, 1.5, 2];
@@ -12,6 +32,7 @@ const SPEEDS = [1, 1.5, 2];
 export function VoiceNote({ side, id, mine, durationMs, peaks, localUrl }: {
   side: 'dm' | 'guild'; id: string; mine: boolean; durationMs: number; peaks: number[]; localUrl?: string;
 }) {
+  const t = useText(COPY);
   const audio = useRef<HTMLAudioElement | null>(null);
   const [state, setState] = useState<'idle' | 'loading' | 'playing' | 'paused' | 'error'>('idle');
   const [pos, setPos] = useState(0);
@@ -63,14 +84,14 @@ export function VoiceNote({ side, id, mine, durationMs, peaks, localUrl }: {
   return (
     <div className="flex min-w-[220px] max-w-[300px] items-center gap-2.5">
       <button
-        type="button" onClick={() => void toggle()} aria-label={playing ? 'Pausar la nota de voz' : 'Escuchar la nota de voz'}
+        type="button" onClick={() => void toggle()} aria-label={playing ? t.pause : t.listen}
         className={cn('flex size-11 shrink-0 items-center justify-center rounded-full transition-transform active:scale-90', mine ? 'bg-forest-text text-surface' : 'bg-primary text-on-primary')}
       >
         {state === 'loading' ? <Loader2 aria-hidden className="size-5 animate-spin" /> : playing ? <Pause aria-hidden className="size-5" fill="currentColor" /> : <Play aria-hidden className="ml-0.5 size-5" fill="currentColor" />}
       </button>
       <div className="min-w-0 flex-1">
         <div
-          role="slider" aria-label="Avance de la nota de voz" aria-valuemin={0} aria-valuemax={Math.round(total / 1000)} aria-valuenow={Math.round(pos / 1000)} tabIndex={0}
+          role="slider" aria-label={t.seek} aria-valuemin={0} aria-valuemax={Math.round(total / 1000)} aria-valuenow={Math.round(pos / 1000)} tabIndex={0}
           onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); seek((e.clientX - r.left) / r.width); }}
           onKeyDown={(e) => { if (e.key === 'ArrowRight') seek(Math.min(1, progress + 0.1)); if (e.key === 'ArrowLeft') seek(Math.max(0, progress - 0.1)); }}
           className="flex h-8 cursor-pointer items-center gap-[2px]"
@@ -84,8 +105,8 @@ export function VoiceNote({ side, id, mine, durationMs, peaks, localUrl }: {
           ))}
         </div>
         <div className="mt-0.5 flex items-center justify-between font-mono text-[0.72rem] text-on-surface-light">
-          <span>{state === 'error' ? 'No se pudo cargar' : clock(pos > 0 ? pos : total)}</span>
-          <button type="button" onClick={cycleSpeed} aria-label={`Velocidad ${speed}x`} className="rounded-full px-1.5 py-0.5 hover:bg-on-background/10">{speed}×</button>
+          <span>{state === 'error' ? t.loadFail : clock(pos > 0 ? pos : total)}</span>
+          <button type="button" onClick={cycleSpeed} aria-label={t.speed(speed)} className="rounded-full px-1.5 py-0.5 hover:bg-on-background/10">{speed}×</button>
         </div>
       </div>
     </div>

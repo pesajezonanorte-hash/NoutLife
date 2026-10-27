@@ -9,8 +9,55 @@ import { cn } from '@/lib/utils';
 import { Button, Field, Input, ResponsiveDialog, SegmentedControl, DatePicker } from '@/components/ui/lq';
 import { softTone } from '@/components/ui/lq/tones';
 import { useToastStore } from '@/hooks/useToast';
+import { useLocale, useText, type Copy } from '@/lib/i18n';
 import * as financeService from '@/services/finance.service';
 import { categoriesFor } from './financeMeta';
+
+const es = {
+  saveErr: 'No se pudo guardar. Inténtalo de nuevo.',
+  incomeOk: 'Ingreso registrado',
+  expenseOk: 'Gasto registrado',
+  title: 'Nueva transacción',
+  typeLabel: 'Tipo de transacción',
+  expense: 'Gasto',
+  income: 'Ingreso',
+  amount: 'Monto',
+  amountErr: 'Escribe un monto mayor que 0',
+  category: 'Categoría',
+  shortcutNote: '¿Acabas de comprar ropa? Añade la prenda al armario de tu Espejo.',
+  goMirror: 'Ir al Espejo',
+  description: 'Descripción',
+  optional: 'Opcional',
+  incomePh: 'Ej. Pago de nómina',
+  expensePh: 'Ej. Supermercado',
+  date: 'Fecha',
+  cancel: 'Cancelar',
+  save: 'Guardar',
+};
+
+const en: typeof es = {
+  saveErr: 'Could not save. Try again.',
+  incomeOk: 'Income logged',
+  expenseOk: 'Expense logged',
+  title: 'New transaction',
+  typeLabel: 'Transaction type',
+  expense: 'Expense',
+  income: 'Income',
+  amount: 'Amount',
+  amountErr: 'Enter an amount greater than 0',
+  category: 'Category',
+  shortcutNote: 'Just bought clothes? Add the piece to your Mirror wardrobe.',
+  goMirror: 'Go to the Mirror',
+  description: 'Description',
+  optional: 'Optional',
+  incomePh: 'E.g. Payroll',
+  expensePh: 'E.g. Groceries',
+  date: 'Date',
+  cancel: 'Cancel',
+  save: 'Save',
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -19,6 +66,8 @@ export function TransactionFormDialog({ open, onClose, onSaved }: {
   onClose: () => void;
   onSaved: (t: Transaction) => void;
 }) {
+  const t = useText(COPY);
+  const locale = useLocale();
   const navigate = useNavigate();
   const [type, setType] = useState<'EXPENSE' | 'INCOME'>('EXPENSE');
   const [amount, setAmount] = useState('');
@@ -49,27 +98,27 @@ export function TransactionFormDialog({ open, onClose, onSaved }: {
     setSaving(true);
     setError(null);
     try {
-      const t = await financeService.createTransaction({ type, amount: value, category, description: description.trim() || undefined, date });
-      useToastStore.getState().success(type === 'INCOME' ? 'Ingreso registrado' : 'Gasto registrado');
-      onSaved(t);
+      const created = await financeService.createTransaction({ type, amount: value, category, description: description.trim() || undefined, date });
+      useToastStore.getState().success(type === 'INCOME' ? t.incomeOk : t.expenseOk);
+      onSaved(created);
     } catch {
-      setError('No se pudo guardar. Inténtalo de nuevo.');
+      setError(t.saveErr);
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <ResponsiveDialog open={open} onClose={onClose} title="Nueva transacción" className="md:max-w-[520px]">
+    <ResponsiveDialog open={open} onClose={onClose} title={t.title} className="md:max-w-[520px]">
       <form className="flex flex-col gap-6" onSubmit={(e) => void submit(e)} noValidate>
-        <SegmentedControl role="radiogroup" label="Tipo de transacción" value={type} onChange={changeType} options={[{ value: 'EXPENSE', label: 'Gasto' }, { value: 'INCOME', label: 'Ingreso' }]} />
-        <Field label="Monto" error={touched && !valid ? 'Escribe un monto mayor que 0' : undefined}>
+        <SegmentedControl role="radiogroup" label={t.typeLabel} value={type} onChange={changeType} options={[{ value: 'EXPENSE', label: t.expense }, { value: 'INCOME', label: t.income }]} />
+        <Field label={t.amount} error={touched && !valid ? t.amountErr : undefined}>
           <Input data-autofocus type="number" inputMode="decimal" min="0" step="any" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" className="text-heading-sm font-mono tabular-nums" />
         </Field>
         <fieldset className="flex flex-col gap-2">
-          <legend className="mb-2 text-label-lg text-on-surface">Categoría</legend>
-          <div role="radiogroup" aria-label="Categoría" className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-            {categoriesFor(type).map(({ value: v, label, icon: Icon, tone }) => {
+          <legend className="mb-2 text-label-lg text-on-surface">{t.category}</legend>
+          <div role="radiogroup" aria-label={t.category} className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+            {categoriesFor(type, locale).map(({ value: v, label, icon: Icon, tone }) => {
               const selected = category === v;
               return (
                 <button
@@ -96,24 +145,24 @@ export function TransactionFormDialog({ open, onClose, onSaved }: {
             para registrar la prenda que acabas de comprar. */}
         {type === 'EXPENSE' && category === 'CLOTHING_FOR_ME' && (
           <div role="note" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/40 bg-primary/[var(--lq-soft-alpha)] p-3">
-            <p className="min-w-0 flex-1 text-body-sm text-on-surface">¿Acabas de comprar ropa? Añade la prenda al armario de tu Espejo.</p>
+            <p className="min-w-0 flex-1 text-body-sm text-on-surface">{t.shortcutNote}</p>
             <Button type="button" variant="secondary" size="sm" onClick={() => { onClose(); navigate('/espejo?add=prenda'); }}>
-              <Sparkles aria-hidden className="size-4" />Ir al Espejo
+              <Sparkles aria-hidden className="size-4" />{t.goMirror}
             </Button>
           </div>
         )}
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Descripción" help="Opcional">
-            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={type === 'INCOME' ? 'Ej. Pago de nómina' : 'Ej. Supermercado'} />
+          <Field label={t.description} help={t.optional}>
+            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={type === 'INCOME' ? t.incomePh : t.expensePh} />
           </Field>
-          <Field label="Fecha">
+          <Field label={t.date}>
             <DatePicker value={date} max={today()} onChange={setDate} />
           </Field>
         </div>
         {error && <p role="alert" className="text-body-sm text-error-text">{error}</p>}
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button type="submit" loading={saving}>Guardar</Button>
+          <Button variant="secondary" onClick={onClose}>{t.cancel}</Button>
+          <Button type="submit" loading={saving}>{t.save}</Button>
         </div>
       </form>
     </ResponsiveDialog>

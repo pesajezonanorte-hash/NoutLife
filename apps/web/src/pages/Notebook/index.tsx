@@ -19,9 +19,96 @@ import { LiteNotice } from '@/components/billing/LiteNotice';
 import { useAuthStore } from '@/store/authStore';
 import { usePlanStore } from '@/store/planStore';
 import { LITE_LIMITS } from '@/lib/plan';
-import { CATEGORIES, COVERS, PAPERS, categoryLabel } from '@/components/notebook/paper';
+import { useLocale, useText, type Copy } from '@/lib/i18n';
+import { categoriesFor, categoryLabelFor, coversFor, papersFor } from '@/components/notebook/paper';
 import * as svc from '@/services/notebook.service';
 import type { Notebook, NotebookCategory, NotebookColor, NotebookInput, NotebookPaper } from '@/services/notebook.service';
+
+const es = {
+  title: 'Libreta',
+  description: 'Cuadernos para escribir con formato, dibujar a mano y pegar notas y fotos. Cada página se guarda sola.',
+  created: 'Libreta creada',
+  createdBody: (n: number): string => `${n} páginas en blanco te esperan.`,
+  saved: 'Libreta guardada',
+  saveFail: 'No se pudo guardar la libreta',
+  createFail: 'No se pudo crear la libreta',
+  settingsTitle: 'Ajustes de la libreta',
+  newTitle: 'Nueva libreta',
+  name: 'Nombre',
+  nameErr: 'Ponle un nombre a la libreta',
+  namePh: 'Ej. Ideas para el negocio',
+  category: 'Categoría',
+  cover: 'Tapa',
+  paper: 'Papel',
+  pages: 'Páginas',
+  pagesHelp: 'Puedes añadir páginas en cualquier momento; las escritas no se quitan.',
+  delete: 'Eliminar',
+  cancel: 'Cancelar',
+  save: 'Guardar',
+  create: 'Crear libreta',
+  openAria: (title: string): string => `Abrir ${title}`,
+  settingsAria: (title: string): string => `Ajustes de ${title}`,
+  pagesUsed: (used: number, total: number): string => `${used}/${total} págs.`,
+  notFound: 'No encontramos esa libreta',
+  addPageFail: 'No se pudo añadir la página',
+  deleted: 'Libreta eliminada',
+  deleteFail: 'No se pudo eliminar la libreta',
+  all: 'Todas',
+  loading: 'Abriendo tu estantería…',
+  errorTitle: 'No pudimos cargar tus libretas',
+  errorDesc: 'Tus libretas siguen guardadas.',
+  emptyTitle: 'Tu estantería está vacía',
+  emptyDesc: 'Crea tu primera libreta: elige la tapa, el papel y cuántas páginas quieres. Escribe, dibuja y pega notas o fotos; se guarda sola.',
+  newNotebook: 'Nueva libreta',
+  liteNotice: (n: number, max: number, pages: number): string => `Tienes ${n} de ${max} libretas de NoutLife Lite, con hasta ${pages} páginas cada una.`,
+  deleteTitle: (title: string): string => `¿Eliminar «${title}»?`,
+  deleteBody: (n: number): string => `Se borran sus ${n} páginas escritas, los dibujos y las imágenes. No se puede deshacer.`,
+  deleteBtn: 'Eliminar libreta',
+};
+
+const en: typeof es = {
+  title: 'Notebook',
+  description: 'Notebooks to write with formatting, draw by hand and paste notes and photos. Each page saves itself.',
+  created: 'Notebook created',
+  createdBody: (n: number): string => `${n} blank pages are waiting for you.`,
+  saved: 'Notebook saved',
+  saveFail: 'Could not save the notebook',
+  createFail: 'Could not create the notebook',
+  settingsTitle: 'Notebook settings',
+  newTitle: 'New notebook',
+  name: 'Name',
+  nameErr: 'Give the notebook a name',
+  namePh: 'E.g. Business ideas',
+  category: 'Category',
+  cover: 'Cover',
+  paper: 'Paper',
+  pages: 'Pages',
+  pagesHelp: 'You can add pages at any time; written ones are never removed.',
+  delete: 'Delete',
+  cancel: 'Cancel',
+  save: 'Save',
+  create: 'Create notebook',
+  openAria: (title: string): string => `Open ${title}`,
+  settingsAria: (title: string): string => `${title} settings`,
+  pagesUsed: (used: number, total: number): string => `${used}/${total} pp.`,
+  notFound: 'We could not find that notebook',
+  addPageFail: 'Could not add a page',
+  deleted: 'Notebook deleted',
+  deleteFail: 'Could not delete the notebook',
+  all: 'All',
+  loading: 'Opening your shelf…',
+  errorTitle: 'We could not load your notebooks',
+  errorDesc: 'Your notebooks are still saved.',
+  emptyTitle: 'Your shelf is empty',
+  emptyDesc: 'Create your first notebook: pick the cover, the paper and how many pages you want. Write, draw and paste notes or photos; it saves itself.',
+  newNotebook: 'New notebook',
+  liteNotice: (n: number, max: number, pages: number): string => `You have ${n} of ${max} notebooks on NoutLife Lite, with up to ${pages} pages each.`,
+  deleteTitle: (title: string): string => `Delete “${title}”?`,
+  deleteBody: (n: number): string => `Its ${n} written pages, drawings and images will be erased. This cannot be undone.`,
+  deleteBtn: 'Delete notebook',
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 const PAGE_CHOICES = [10, 20, 40, 80, 120, 200];
 type Filter = 'all' | NotebookCategory;
@@ -44,6 +131,8 @@ function PaperSwatch({ paper }: { paper: NotebookPaper }) {
 function NotebookDialog({ open, book, lite, onClose, onSaved, onDelete }: {
   open: boolean; book: Notebook | null; lite: boolean; onClose: () => void; onSaved: (b: Notebook) => void; onDelete: (b: Notebook) => void;
 }) {
+  const t = useText(COPY);
+  const locale = useLocale();
   const toast = useToast();
   const defaultPages = lite ? LITE_LIMITS.notebookPages : 20;
   const [form, setForm] = useState<NotebookInput>({ title: '', category: 'personal', color: 'jade', paper: 'ruled', pageCount: defaultPages });
@@ -58,6 +147,7 @@ function NotebookDialog({ open, book, lite, onClose, onSaved, onDelete }: {
   const choices = lite ? PAGE_CHOICES.filter((n) => n <= LITE_LIMITS.notebookPages) : PAGE_CHOICES;
   const pageChoices = choices.filter((n) => !book || n >= book.pageCount);
   if (book && !pageChoices.includes(book.pageCount)) pageChoices.unshift(book.pageCount);
+  const covers = coversFor(locale);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -66,39 +156,39 @@ function NotebookDialog({ open, book, lite, onClose, onSaved, onDelete }: {
     try {
       const body = { ...form, title: form.title.trim() };
       const saved = book ? await svc.updateNotebook(book.id, body) : await svc.createNotebook(body);
-      toast.success(book ? 'Libreta guardada' : 'Libreta creada', book ? undefined : `${saved.pageCount} páginas en blanco te esperan.`);
+      toast.success(book ? t.saved : t.created, book ? undefined : t.createdBody(saved.pageCount));
       onSaved(saved);
-    } catch (err) { toast.error(errorText(err, book ? 'No se pudo guardar la libreta' : 'No se pudo crear la libreta')); }
+    } catch (err) { toast.error(errorText(err, book ? t.saveFail : t.createFail)); }
     finally { setSaving(false); }
   }
 
   const set = <K extends keyof NotebookInput>(k: K, v: NotebookInput[K]) => setForm((f) => ({ ...f, [k]: v }));
   return (
-    <ResponsiveDialog open={open} onClose={onClose} title={book ? 'Ajustes de la libreta' : 'Nueva libreta'}>
+    <ResponsiveDialog open={open} onClose={onClose} title={book ? t.settingsTitle : t.newTitle}>
       <form noValidate onSubmit={submit} className="flex flex-col gap-5">
-        <Field label="Nombre" error={tried && !form.title.trim() ? 'Ponle un nombre a la libreta' : undefined}>
-          <Input value={form.title} onChange={(e) => set('title', e.target.value)} maxLength={60} placeholder="Ej. Ideas para el negocio" autoFocus={!book} />
+        <Field label={t.name} error={tried && !form.title.trim() ? t.nameErr : undefined}>
+          <Input value={form.title} onChange={(e) => set('title', e.target.value)} maxLength={60} placeholder={t.namePh} autoFocus={!book} />
         </Field>
         <div className="flex flex-col gap-2">
-          <span className="text-label-lg text-on-surface">Categoría</span>
-          <ChipGroup label="Categoría" value={form.category} onChange={(v) => set('category', v)} options={CATEGORIES} />
+          <span className="text-label-lg text-on-surface">{t.category}</span>
+          <ChipGroup label={t.category} value={form.category} onChange={(v) => set('category', v)} options={categoriesFor(locale)} />
         </div>
         <fieldset className="flex flex-col gap-2">
-          <legend className="mb-2 text-label-lg text-on-surface">Tapa</legend>
+          <legend className="mb-2 text-label-lg text-on-surface">{t.cover}</legend>
           <div className="flex flex-wrap gap-2">
-            {(Object.keys(COVERS) as NotebookColor[]).map((c) => (
+            {(Object.keys(covers) as NotebookColor[]).map((c) => (
               <label key={c} className="relative cursor-pointer">
                 <input type="radio" name="nb-color" value={c} checked={form.color === c} onChange={() => set('color', c)} className="peer sr-only" />
-                <span className={cn('block size-11 rounded-l-sm rounded-r-lg ring-offset-2 ring-offset-surface peer-checked:ring-2 peer-checked:ring-on-background peer-focus-visible:outline peer-focus-visible:outline-[3px] peer-focus-visible:outline-primary', COVERS[c].className)} />
-                <span className="sr-only">{COVERS[c].label}</span>
+                <span className={cn('block size-11 rounded-l-sm rounded-r-lg ring-offset-2 ring-offset-surface peer-checked:ring-2 peer-checked:ring-on-background peer-focus-visible:outline peer-focus-visible:outline-[3px] peer-focus-visible:outline-primary', covers[c].className)} />
+                <span className="sr-only">{covers[c].label}</span>
               </label>
             ))}
           </div>
         </fieldset>
         <fieldset className="flex flex-col gap-2">
-          <legend className="mb-2 text-label-lg text-on-surface">Papel</legend>
+          <legend className="mb-2 text-label-lg text-on-surface">{t.paper}</legend>
           <div className="grid grid-cols-4 gap-2">
-            {PAPERS.map((p) => (
+            {papersFor(locale).map((p) => (
               <label key={p.value} className="flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border-2 border-border p-2 has-[:checked]:border-primary has-[:focus-visible]:outline has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-primary">
                 <input type="radio" name="nb-paper" value={p.value} checked={form.paper === p.value} onChange={() => set('paper', p.value)} className="sr-only" />
                 <PaperSwatch paper={p.value} />
@@ -108,15 +198,15 @@ function NotebookDialog({ open, book, lite, onClose, onSaved, onDelete }: {
           </div>
         </fieldset>
         <div className="flex flex-col gap-2">
-          <span className="text-label-lg text-on-surface">Páginas</span>
-          <ChipGroup label="Páginas" value={String(form.pageCount)} onChange={(v) => set('pageCount', Number(v))} options={pageChoices.map((n) => ({ value: String(n), label: String(n) }))} />
-          {book && <p className="text-body-sm text-on-surface-light">Puedes añadir páginas en cualquier momento; las escritas no se quitan.</p>}
+          <span className="text-label-lg text-on-surface">{t.pages}</span>
+          <ChipGroup label={t.pages} value={String(form.pageCount)} onChange={(v) => set('pageCount', Number(v))} options={pageChoices.map((n) => ({ value: String(n), label: String(n) }))} />
+          {book && <p className="text-body-sm text-on-surface-light">{t.pagesHelp}</p>}
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          {book ? <Button variant="ghost" size="md" className="text-error-text" onClick={() => onDelete(book)}><Trash2 aria-hidden className="size-4" />Eliminar</Button> : <span />}
+          {book ? <Button variant="ghost" size="md" className="text-error-text" onClick={() => onDelete(book)}><Trash2 aria-hidden className="size-4" />{t.delete}</Button> : <span />}
           <div className="flex gap-3">
-            <Button variant="secondary" size="md" onClick={onClose}>Cancelar</Button>
-            <Button type="submit" size="md" loading={saving}>{book ? 'Guardar' : 'Crear libreta'}</Button>
+            <Button variant="secondary" size="md" onClick={onClose}>{t.cancel}</Button>
+            <Button type="submit" size="md" loading={saving}>{book ? t.save : t.create}</Button>
           </div>
         </div>
       </form>
@@ -126,14 +216,16 @@ function NotebookDialog({ open, book, lite, onClose, onSaved, onDelete }: {
 
 /** Tapa en la estantería: lomo, goma elástica y etiqueta con el nombre. */
 function Cover({ book, onOpen, onEdit }: { book: Notebook; onOpen: () => void; onEdit: () => void }) {
+  const t = useText(COPY);
+  const locale = useLocale();
   return (
     <motion.li variants={item} className="relative">
-      <button type="button" onClick={onOpen} className="group block w-full text-left outline-none" aria-label={`Abrir ${book.title}`}>
+      <button type="button" onClick={onOpen} className="group block w-full text-left outline-none" aria-label={t.openAria(book.title)}>
         <div
           className={cn(
             'relative aspect-[3/4] overflow-hidden rounded-l-md rounded-r-2xl text-background shadow-[0_14px_24px_-14px_rgb(0_0_0/.6),0_2px_4px_rgb(0_0_0/.12)]',
             'transition-transform duration-300 ease-[cubic-bezier(.34,1.56,.64,1)] group-hover:-translate-y-1 group-hover:-rotate-1 group-focus-visible:outline group-focus-visible:outline-[3px] group-focus-visible:outline-offset-2 group-focus-visible:outline-primary',
-            COVERS[book.color].className,
+            coversFor(locale)[book.color].className,
           )}
         >
           {/* Lomo y goma elástica */}
@@ -143,12 +235,12 @@ function Cover({ book, onOpen, onEdit }: { book: Notebook; onOpen: () => void; o
           <span aria-hidden className="lq-tex-linen absolute inset-0 opacity-60" />
           <span className="absolute left-[17%] right-[21%] top-[16%] flex flex-col gap-1 rounded-md bg-background/95 px-3 py-2.5 text-on-background shadow-sm">
             <span className="line-clamp-3 break-words text-label-lg leading-snug">{book.title}</span>
-            <span className="text-label-md text-on-surface-light">{categoryLabel(book.category)}</span>
+            <span className="text-label-md text-on-surface-light">{categoryLabelFor(book.category, locale)}</span>
           </span>
-          <span className="absolute bottom-3 left-[17%] font-mono text-label-md tabular-nums opacity-90">{book.usedPages}/{book.pageCount} págs.</span>
+          <span className="absolute bottom-3 left-[17%] font-mono text-label-md tabular-nums opacity-90">{t.pagesUsed(book.usedPages, book.pageCount)}</span>
         </div>
       </button>
-      <Button variant="icon" aria-label={`Ajustes de ${book.title}`} onClick={onEdit} className="absolute right-0 top-0 text-background hover:bg-black/20">
+      <Button variant="icon" aria-label={t.settingsAria(book.title)} onClick={onEdit} className="absolute right-0 top-0 text-background hover:bg-black/20">
         <MoreHorizontal aria-hidden className="size-5" />
       </Button>
     </motion.li>
@@ -156,6 +248,8 @@ function Cover({ book, onOpen, onEdit }: { book: Notebook; onOpen: () => void; o
 }
 
 export default function NotebookPage() {
+  const t = useText(COPY);
+  const locale = useLocale();
   const toast = useToast();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
@@ -180,7 +274,7 @@ export default function NotebookPage() {
   const book = books.find((b) => b.id === openId) ?? null;
   useEffect(() => {
     if (state === 'ready' && openId && !book) {
-      toast.error('No encontramos esa libreta');
+      toast.error(t.notFound);
       setParams((p) => { p.delete('n'); return p; }, { replace: true });
     }
   }, [state, openId, book]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -205,7 +299,7 @@ export default function NotebookPage() {
       const next = await svc.updateNotebook(book.id, { pageCount: book.pageCount + 1 });
       setBooks((list) => list.map((x) => (x.id === next.id ? next : x)));
       return true;
-    } catch (err) { toast.error(errorText(err, 'No se pudo añadir la página')); return false; }
+    } catch (err) { toast.error(errorText(err, t.addPageFail)); return false; }
   }
 
   async function remove() {
@@ -215,30 +309,31 @@ export default function NotebookPage() {
       await svc.deleteNotebook(deleting.id);
       clearNotebookDrafts(deleting.id);
       setBooks((list) => list.filter((x) => x.id !== deleting.id));
-      toast.success('Libreta eliminada');
+      toast.success(t.deleted);
       if (openId === deleting.id) close();
       setDeleting(null);
       setDialog(null);
-    } catch (err) { toast.error(errorText(err, 'No se pudo eliminar la libreta')); }
+    } catch (err) { toast.error(errorText(err, t.deleteFail)); }
     finally { setBusy(false); }
   }
 
-  const counts = Object.fromEntries(CATEGORIES.map((c) => [c.value, books.filter((b) => b.category === c.value).length]));
+  const categories = categoriesFor(locale);
+  const counts = Object.fromEntries(categories.map((c) => [c.value, books.filter((b) => b.category === c.value).length]));
   const shown = books.filter((b) => filter === 'all' || b.category === filter);
   // Lite: dos libretas como máximo; la siguiente invita a Pro.
   const newBook = () => (lite && books.length >= LITE_LIMITS.notebooks ? openUpgrade('notebooks') : setDialog({ book: null }));
 
   let content;
-  if (state === 'loading') content = <PageLoader label="Abriendo tu estantería…" />;
-  else if (state === 'error') content = <ErrorState title="No pudimos cargar tus libretas" description="Tus libretas siguen guardadas." onRetry={() => void load()} />;
+  if (state === 'loading') content = <PageLoader label={t.loading} />;
+  else if (state === 'error') content = <ErrorState title={t.errorTitle} description={t.errorDesc} onRetry={() => void load()} />;
   else if (books.length === 0) {
     content = (
       <motion.div variants={item}>
         <EmptyState
           icon={NotebookIcon}
-          title="Tu estantería está vacía"
-          description="Crea tu primera libreta: elige la tapa, el papel y cuántas páginas quieres. Escribe, dibuja y pega notas o fotos; se guarda sola."
-          action={<Button onClick={newBook}><Plus aria-hidden className="size-4" strokeWidth={2} />Nueva libreta</Button>}
+          title={t.emptyTitle}
+          description={t.emptyDesc}
+          action={<Button onClick={newBook}><Plus aria-hidden className="size-4" strokeWidth={2} />{t.newNotebook}</Button>}
         />
       </motion.div>
     );
@@ -247,8 +342,8 @@ export default function NotebookPage() {
       <>
         <motion.div variants={item} className="-mx-4 overflow-x-auto px-4 [scrollbar-width:none] md:mx-0 md:px-0 [&::-webkit-scrollbar]:hidden">
           <ChipGroup
-            label="Categoría" value={filter} onChange={setFilter} className="flex-nowrap md:flex-wrap"
-            options={[{ value: 'all', label: 'Todas', count: books.length }, ...CATEGORIES.filter((c) => counts[c.value]).map((c) => ({ ...c, count: counts[c.value] }))]}
+            label={t.category} value={filter} onChange={setFilter} className="flex-nowrap md:flex-wrap"
+            options={[{ value: 'all', label: t.all, count: books.length }, ...categories.filter((c) => counts[c.value]).map((c) => ({ ...c, count: counts[c.value] }))]}
           />
         </motion.div>
         <motion.ul variants={stagger} initial="initial" animate="animate" className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-4 lg:gap-x-6">
@@ -258,7 +353,7 @@ export default function NotebookPage() {
               className="flex aspect-[3/4] w-full flex-col items-center justify-center gap-2 rounded-l-md rounded-r-2xl border-2 border-dashed border-border-strong/60 text-on-surface transition-colors hover:border-primary hover:text-primary-text"
             >
               <Plus aria-hidden className="size-7" strokeWidth={1.75} />
-              <span className="text-label-lg">Nueva libreta</span>
+              <span className="text-label-lg">{t.newNotebook}</span>
             </button>
           </motion.li>
           {shown.map((b) => <Cover key={b.id} book={b} onOpen={() => open(b.id)} onEdit={() => setDialog({ book: b })} />)}
@@ -274,12 +369,12 @@ export default function NotebookPage() {
       ambience={<span className="lq-amb-breathe absolute -right-[10%] -top-[10%] block h-[60vh] w-[60%] rounded-full bg-[radial-gradient(closest-side,rgb(var(--lq-warning)/.07),transparent)] [--d:16s] [--hi:1] [--lo:.6] dark:bg-[radial-gradient(closest-side,rgb(var(--lq-jade-200)/.05),transparent)]" />}
     >
       <PageHeader
-        title="Libreta"
-        description="Cuadernos para escribir con formato, dibujar a mano y pegar notas y fotos. Cada página se guarda sola."
+        title={t.title}
+        description={t.description}
       />
       {lite && state === 'ready' && books.length > 0 && (
         <LiteNotice feature="notebooks">
-          Tienes {books.length} de {LITE_LIMITS.notebooks} libretas de NoutLife Lite, con hasta {LITE_LIMITS.notebookPages} páginas cada una.
+          {t.liteNotice(books.length, LITE_LIMITS.notebooks, LITE_LIMITS.notebookPages)}
         </LiteNotice>
       )}
       {content}
@@ -288,12 +383,12 @@ export default function NotebookPage() {
         open={dialog !== null} book={dialog?.book ?? null} lite={lite} onClose={() => setDialog(null)} onSaved={saved}
         onDelete={(b) => setDeleting(b)}
       />
-      <Modal open={deleting !== null} onClose={() => setDeleting(null)} title={`¿Eliminar «${deleting?.title ?? ''}»?`}>
+      <Modal open={deleting !== null} onClose={() => setDeleting(null)} title={t.deleteTitle(deleting?.title ?? '')}>
         <div className="flex flex-col gap-5">
-          <p className="text-body-md text-on-surface">Se borran sus {deleting?.usedPages ?? 0} páginas escritas, los dibujos y las imágenes. No se puede deshacer.</p>
+          <p className="text-body-md text-on-surface">{t.deleteBody(deleting?.usedPages ?? 0)}</p>
           <div className="flex justify-end gap-3">
-            <Button variant="secondary" size="md" onClick={() => setDeleting(null)}>Cancelar</Button>
-            <Button variant="danger" size="md" loading={busy} onClick={() => void remove()}><Trash2 aria-hidden className="size-4" />Eliminar libreta</Button>
+            <Button variant="secondary" size="md" onClick={() => setDeleting(null)}>{t.cancel}</Button>
+            <Button variant="danger" size="md" loading={busy} onClick={() => void remove()}><Trash2 aria-hidden className="size-4" />{t.deleteBtn}</Button>
           </div>
         </div>
       </Modal>

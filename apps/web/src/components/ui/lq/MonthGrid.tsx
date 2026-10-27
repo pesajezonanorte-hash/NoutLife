@@ -3,6 +3,11 @@ import { cn } from '@/lib/utils';
 import { springs } from '@/lib/motion';
 import { SketchCircle } from '@/components/ambience';
 import { solidBg, type Tone } from './tones';
+import { INTL_LOCALE, useLocale, useText, type Copy } from '@/lib/i18n';
+
+const es = { dow: ['L', 'M', 'X', 'J', 'V', 'S', 'D'] };
+const en: typeof es = { dow: ['M', 'T', 'W', 'T', 'F', 'S', 'S'] };
+const COPY: Copy<typeof es> = { es, en };
 
 export interface MonthGridProps {
   /** Cualquier fecha del mes a mostrar. */
@@ -17,7 +22,6 @@ export interface MonthGridProps {
 }
 
 const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-const DOW = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 
 /**
  * Mes en rejilla de 7 columnas (semana desde el lunes). Cada día es un botón
@@ -25,6 +29,9 @@ const DOW = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
  * se marca con un círculo dibujado a mano; al pasar, el día se eleva un poco.
  */
 export function MonthGrid({ month, selected, onSelect, dots, describe, className }: MonthGridProps) {
+  const t = useText(COPY);
+  const locale = useLocale();
+  const DOW = t.dow;
   const year = month.getFullYear();
   const m = month.getMonth();
   const offset = (new Date(year, m, 1).getDay() + 6) % 7;
@@ -45,7 +52,7 @@ export function MonthGrid({ month, selected, onSelect, dots, describe, className
           const tones = dots?.(day) ?? [];
           const isSel = !!selected && sameDay(day, selected);
           const isToday = sameDay(day, today);
-          const long = day.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+          const long = day.toLocaleDateString(INTL_LOCALE[locale], { weekday: 'long', day: 'numeric', month: 'long' });
           const diag = Math.floor(i / 7) + (i % 7);
           return (
             <motion.button

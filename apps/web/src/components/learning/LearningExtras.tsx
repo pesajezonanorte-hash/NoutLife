@@ -11,6 +11,135 @@ import api from '../../lib/api';
 import { Badge, Button, Card, EmptyState, Field, Input, ProgressBar, ProgressRing, Textarea, formatClock, PageLoader } from '@/components/ui/lq';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 import { PerspectiveFlipCard } from '@/components/ui/perspective-flip-card';
+import { INTL_LOCALE, useLocale, useText, type Copy } from '@/lib/i18n';
+
+const es = {
+  pomoAria: 'Pomodoro',
+  ready: 'Listo para enfocar',
+  focused: 'Enfocado',
+  paused: 'En pausa',
+  breakTime: 'Descanso',
+  ringLabel: 'Progreso del Pomodoro',
+  timerAria: (time: string): string => `Tiempo restante ${time}`,
+  reading: (title: string): string => `Leyendo: ${title}`,
+  reset: 'Reiniciar',
+  pause: 'Pausar',
+  start: 'Comenzar',
+  resume: 'Reanudar',
+  sessionsAria: (n: number): string => `${n} sesiones completadas`,
+  sessionsXp: (n: number, xp: number): string => `${n} ${n === 1 ? 'sesión completada' : 'sesiones completadas'} · +${xp} XP`,
+  todayFocus: 'Enfoque de hoy',
+  min: 'min',
+  dailyGoal: (m: number): string => `Meta diaria ${m} min`,
+  focusOf: (f: number, g: number): string => `${f} de ${g} minutos`,
+  settings: 'Ajustes',
+  focus: 'Enfoque',
+  shortBreak: 'Descanso corto',
+  longBreak: 'Descanso largo',
+  longBreakValue: '15 min',
+  loadingNotes: 'Abriendo tus apuntes…',
+  newNote: 'Nueva nota',
+  addNote: 'Añadir nota…',
+  noteBtn: 'Nota',
+  noteSaveFail: 'No se pudo guardar la nota',
+  noteDeleteFail: 'No se pudo eliminar la nota',
+  deleteNote: 'Eliminar nota',
+  noNotes: 'Sin notas aún',
+  noNotesDesc: 'Guarda ideas y citas mientras avanzas.',
+  loadingCards: 'Barajando tus tarjetas…',
+  gradeNone: 'Nada',
+  gradeHard: 'Difícil',
+  gradeEasy: 'Fácil',
+  cardsSummary: (n: number, due: number): string => `${n} tarjetas · ${due} para repasar`,
+  reviewBtn: (n: number): string => `Repasar (${n})`,
+  close: 'Cerrar',
+  card: 'Tarjeta',
+  front: 'Frente',
+  back: 'Dorso',
+  example: 'Ejemplo (opcional)',
+  frontPh: 'Palabra o concepto',
+  backPh: 'Definición o traducción',
+  saveCard: 'Guardar tarjeta',
+  cardSaveFail: 'No se pudo guardar la tarjeta',
+  reviewFail: 'No se pudo registrar el repaso',
+  reviewing: (i: number, n: number): string => `Repasando ${i} / ${n}`,
+  cardLabel: (front: string): string => `Tarjeta ${front}`,
+  newNoteLabel: 'Nueva nota',
+  addCardBtn: 'Tarjeta',
+  tapAnswer: 'Toca para ver la respuesta',
+  howWell: '¿Qué tan bien lo recordaste?',
+  exitReview: 'Salir de la revisión',
+  means: 'significa',
+  dueToday: 'Hoy',
+  inDays: (d: number): string => `en ${d} d`,
+  noCards: 'Sin tarjetas aún',
+  noCardsDesc: 'Crea tarjetas de vocabulario y repásalas con repetición espaciada.',
+};
+
+const en: typeof es = {
+  pomoAria: 'Pomodoro',
+  ready: 'Ready to focus',
+  focused: 'Focused',
+  paused: 'Paused',
+  breakTime: 'Break',
+  ringLabel: 'Pomodoro progress',
+  timerAria: (time: string): string => `Time left ${time}`,
+  reading: (title: string): string => `Reading: ${title}`,
+  reset: 'Reset',
+  pause: 'Pause',
+  start: 'Start',
+  resume: 'Resume',
+  sessionsAria: (n: number): string => `${n} sessions completed`,
+  sessionsXp: (n: number, xp: number): string => `${n} ${n === 1 ? 'session completed' : 'sessions completed'} · +${xp} XP`,
+  todayFocus: 'Focus today',
+  min: 'min',
+  dailyGoal: (m: number): string => `Daily goal ${m} min`,
+  focusOf: (f: number, g: number): string => `${f} of ${g} minutes`,
+  settings: 'Settings',
+  focus: 'Focus',
+  shortBreak: 'Short break',
+  longBreak: 'Long break',
+  longBreakValue: '15 min',
+  loadingNotes: 'Opening your notes…',
+  newNote: 'New note',
+  addNote: 'Add a note…',
+  noteBtn: 'Note',
+  noteSaveFail: 'Could not save the note',
+  noteDeleteFail: 'Could not delete the note',
+  deleteNote: 'Delete note',
+  noNotes: 'No notes yet',
+  noNotesDesc: 'Save ideas and quotes as you go.',
+  loadingCards: 'Shuffling your cards…',
+  gradeNone: 'None',
+  gradeHard: 'Hard',
+  gradeEasy: 'Easy',
+  cardsSummary: (n: number, due: number): string => `${n} cards · ${due} to review`,
+  reviewBtn: (n: number): string => `Review (${n})`,
+  close: 'Close',
+  card: 'Card',
+  front: 'Front',
+  back: 'Back',
+  example: 'Example (optional)',
+  frontPh: 'Word or concept',
+  backPh: 'Definition or translation',
+  saveCard: 'Save card',
+  cardSaveFail: 'Could not save the card',
+  reviewFail: 'Could not record the review',
+  reviewing: (i: number, n: number): string => `Reviewing ${i} / ${n}`,
+  cardLabel: (front: string): string => `Card ${front}`,
+  newNoteLabel: 'New note',
+  addCardBtn: 'Card',
+  tapAnswer: 'Tap to see the answer',
+  howWell: 'How well did you remember it?',
+  exitReview: 'Leave the review',
+  means: 'means',
+  dueToday: 'Today',
+  inDays: (d: number): string => `in ${d} d`,
+  noCards: 'No cards yet',
+  noCardsDesc: 'Create vocabulary cards and review them with spaced repetition.',
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 // ─── Pomodoro Timer ────────────────────────────────────────────────────────────
 
@@ -31,6 +160,7 @@ function writeFocus(min: number) {
 }
 
 export function PomodoroTimer({ itemTitle }: { itemTitle?: string }) {
+  const t = useText(COPY);
   const [phase, setPhase] = useState<'idle' | 'work' | 'break'>('idle');
   const [running, setRunning] = useState(false);
   const [seconds, setSeconds] = useState(POMODORO_MINUTES * 60);
@@ -90,45 +220,45 @@ export function PomodoroTimer({ itemTitle }: { itemTitle?: string }) {
 
   const total = phase === 'break' ? BREAK_MINUTES * 60 : POMODORO_MINUTES * 60;
   const pct = phase === 'idle' ? 0 : (1 - seconds / total) * 100;
-  const label = phase === 'idle' ? 'Listo para enfocar' : phase === 'work' ? (running ? 'Enfocado' : 'En pausa') : 'Descanso';
+  const label = phase === 'idle' ? t.ready : phase === 'work' ? (running ? t.focused : t.paused) : t.breakTime;
   const dots = Math.max(4, sessions);
 
   return (
-    <section className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]" aria-label="Pomodoro">
+    <section className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]" aria-label={t.pomoAria}>
       <Card variant="elevated" padding="none" className="flex flex-col items-center gap-6 px-6 py-10 text-center md:px-8 md:py-12">
         <Badge variant={phase === 'break' ? 'success' : phase === 'work' && running ? 'primary' : 'neutral'} size="lg">{label}</Badge>
-        <ProgressRing value={pct} tone={phase === 'break' ? 'success' : 'primary'} size={260} stroke={9} label="Progreso del Pomodoro" valueText={formatClock(seconds)}>
+        <ProgressRing value={pct} tone={phase === 'break' ? 'success' : 'primary'} size={260} stroke={9} label={t.ringLabel} valueText={formatClock(seconds)}>
           <span className="flex flex-col items-center gap-1">
-            <span role="timer" aria-live="off" aria-label={`Tiempo restante ${formatClock(seconds)}`} className="font-mono text-display-md font-bold tabular-nums"><span aria-hidden>{formatClock(seconds)}</span></span>
-            {itemTitle && <span className="max-w-[12rem] truncate text-body-sm text-on-surface-light">Leyendo: {itemTitle}</span>}
+            <span role="timer" aria-live="off" aria-label={t.timerAria(formatClock(seconds))} className="font-mono text-display-md font-bold tabular-nums"><span aria-hidden>{formatClock(seconds)}</span></span>
+            {itemTitle && <span className="max-w-[12rem] truncate text-body-sm text-on-surface-light">{t.reading(itemTitle)}</span>}
           </span>
         </ProgressRing>
         <div className="flex flex-wrap items-center justify-center gap-3">
-          <Button variant="secondary" onClick={reset}><RotateCcw aria-hidden className="size-4" />Reiniciar</Button>
+          <Button variant="secondary" onClick={reset}><RotateCcw aria-hidden className="size-4" />{t.reset}</Button>
           <Button className="min-w-40" onClick={toggle}>
             {running ? <Pause aria-hidden className="size-4" /> : <Play aria-hidden className="size-4" />}
-            {running ? 'Pausar' : phase === 'idle' ? 'Comenzar' : 'Reanudar'}
+            {running ? t.pause : phase === 'idle' ? t.start : t.resume}
           </Button>
         </div>
-        <ul className="flex gap-2" aria-label={`${sessions} sesiones completadas`}>
+        <ul className="flex gap-2" aria-label={t.sessionsAria(sessions)}>
           {Array.from({ length: dots }, (_, i) => (
             <li key={i} aria-hidden className={cn('size-3 rounded-full transition-colors duration-300', i < sessions ? 'bg-primary' : 'bg-surface-variant')} />
           ))}
         </ul>
-        {sessions > 0 && <p className="font-mono text-body-sm tabular-nums text-success-text">{sessions} {sessions === 1 ? 'sesión completada' : 'sesiones completadas'} · +{sessions * 15} XP</p>}
+        {sessions > 0 && <p className="font-mono text-body-sm tabular-nums text-success-text">{t.sessionsXp(sessions, sessions * 15)}</p>}
       </Card>
 
       <aside className="flex flex-col gap-6">
         <Card as="section" padding="lg" aria-labelledby="pomo-focus" className="flex flex-col gap-3">
-          <h2 id="pomo-focus" className="text-heading-sm">Enfoque de hoy</h2>
-          <span className="font-mono text-display-sm font-bold tabular-nums">{focusMin} min</span>
-          <span className="text-body-sm text-on-surface-light">Meta diaria {DAILY_GOAL_MIN} min</span>
-          <ProgressBar value={Math.min(100, (focusMin / DAILY_GOAL_MIN) * 100)} shine label="Enfoque de hoy" valueText={`${focusMin} de ${DAILY_GOAL_MIN} minutos`} />
+          <h2 id="pomo-focus" className="text-heading-sm">{t.todayFocus}</h2>
+          <span className="font-mono text-display-sm font-bold tabular-nums">{focusMin} {t.min}</span>
+          <span className="text-body-sm text-on-surface-light">{t.dailyGoal(DAILY_GOAL_MIN)}</span>
+          <ProgressBar value={Math.min(100, (focusMin / DAILY_GOAL_MIN) * 100)} shine label={t.todayFocus} valueText={t.focusOf(focusMin, DAILY_GOAL_MIN)} />
         </Card>
         <Card as="section" padding="lg" aria-labelledby="pomo-set" className="flex flex-col gap-2">
-          <h2 id="pomo-set" className="mb-1 text-heading-sm">Ajustes</h2>
+          <h2 id="pomo-set" className="mb-1 text-heading-sm">{t.settings}</h2>
           <dl>
-            {[['Enfoque', `${POMODORO_MINUTES} min`], ['Descanso corto', `${BREAK_MINUTES} min`], ['Descanso largo', '15 min']].map(([k, v]) => (
+            {[[t.focus, `${POMODORO_MINUTES} ${t.min}`], [t.shortBreak, `${BREAK_MINUTES} ${t.min}`], [t.longBreak, t.longBreakValue]].map(([k, v]) => (
               <div key={k} className="flex min-h-11 items-center justify-between border-b border-border last:border-0">
                 <dt className="text-body-md text-on-surface">{k}</dt><dd className="font-mono text-label-lg tabular-nums">{v}</dd>
               </div>
@@ -145,6 +275,8 @@ export function PomodoroTimer({ itemTitle }: { itemTitle?: string }) {
 interface Note { id: string; text: string; createdAt: string }
 
 export function NotesPanel({ itemId }: { itemId: string }) {
+  const t = useText(COPY);
+  const locale = useLocale();
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
@@ -161,26 +293,26 @@ export function NotesPanel({ itemId }: { itemId: string }) {
       const r: { data: { note: Note } } = await api.post(`/learning/${itemId}/notes`, { text });
       setNotes((prev) => [...prev, r.data.note]);
       setText('');
-    } catch { useToastStore.getState().error('No se pudo guardar la nota'); } finally { setSaving(false); }
+    } catch { useToastStore.getState().error(t.noteSaveFail); } finally { setSaving(false); }
   }
 
   async function deleteNote(noteId: string) {
     try {
       await api.delete(`/learning/${itemId}/notes/${noteId}`);
       setNotes((prev) => prev.filter((n) => n.id !== noteId));
-    } catch { useToastStore.getState().error('No se pudo eliminar la nota'); }
+    } catch { useToastStore.getState().error(t.noteDeleteFail); }
   }
 
-  if (loading) return <PageLoader label="Abriendo tus apuntes…" words={LOADING_COPY.learningNotes} size="sm" />;
+  if (loading) return <PageLoader label={t.loadingNotes} words={LOADING_COPY.learningNotes} size="sm" />;
 
   return (
     <div className="flex flex-col gap-4">
       <form className="flex flex-col gap-3 sm:flex-row sm:items-end" onSubmit={(e) => { e.preventDefault(); void addNote(); }}>
-        <Field label="Nueva nota" className="flex-1"><Textarea rows={2} value={text} onChange={(e) => setText(e.target.value)} placeholder="Añadir nota…" /></Field>
-        <Button type="submit" variant="secondary" loading={saving} disabled={!text.trim()}><Plus aria-hidden className="size-4" />Nota</Button>
+        <Field label={t.newNoteLabel} className="flex-1"><Textarea rows={2} value={text} onChange={(e) => setText(e.target.value)} placeholder={t.addNote} /></Field>
+        <Button type="submit" variant="secondary" loading={saving} disabled={!text.trim()}><Plus aria-hidden className="size-4" />{t.noteBtn}</Button>
       </form>
       {notes.length === 0 ? (
-        <Card><EmptyState icon={NotebookPen} tone="info" title="Sin notas aún" description="Guarda ideas y citas mientras avanzas." className="py-4" /></Card>
+        <Card><EmptyState icon={NotebookPen} tone="info" title={t.noNotes} description={t.noNotesDesc} className="py-4" /></Card>
       ) : (
         <ul className="flex flex-col gap-3">
           {notes.map((n) => (
@@ -188,9 +320,9 @@ export function NotesPanel({ itemId }: { itemId: string }) {
               <Card padding="sm" className="flex items-start gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="whitespace-pre-wrap text-body-md">{n.text}</p>
-                  <p className="mt-1 text-body-sm text-on-surface-light">{new Date(n.createdAt).toLocaleDateString('es-ES')}</p>
+                  <p className="mt-1 text-body-sm text-on-surface-light">{new Date(n.createdAt).toLocaleDateString(INTL_LOCALE[locale])}</p>
                 </div>
-                <Button variant="icon" aria-label="Eliminar nota" onClick={() => void deleteNote(n.id)} className="-mr-2 -mt-2"><Trash2 aria-hidden className="size-5" strokeWidth={1.75} /></Button>
+                <Button variant="icon" aria-label={t.deleteNote} onClick={() => void deleteNote(n.id)} className="-mr-2 -mt-2"><Trash2 aria-hidden className="size-5" strokeWidth={1.75} /></Button>
               </Card>
             </li>
           ))}
@@ -208,6 +340,8 @@ interface VocabCard {
 }
 
 export function VocabPanel({ itemId }: { itemId: string }) {
+  const t = useText(COPY);
+  const locale = useLocale();
   const [cards, setCards] = useState<VocabCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [reviewing, setReviewing] = useState<VocabCard | null>(null);
@@ -229,7 +363,7 @@ export function VocabPanel({ itemId }: { itemId: string }) {
       setCards((prev) => [...prev, r.data.card]);
       setForm({ front: '', back: '', example: '' });
       setShowForm(false);
-    } catch { useToastStore.getState().error('No se pudo guardar la tarjeta'); }
+    } catch { useToastStore.getState().error(t.cardSaveFail); }
   }
 
   async function review(quality: 0 | 1 | 2 | 3 | 4 | 5) {
@@ -239,35 +373,35 @@ export function VocabPanel({ itemId }: { itemId: string }) {
       setCards((prev) => prev.map((c) => (c.id === reviewing.id ? r.data.card : c)));
       setReviewing(dueCards.find((c) => c.id !== reviewing.id) ?? null);
       setShowBack(false);
-    } catch { useToastStore.getState().error('No se pudo registrar el repaso'); }
+    } catch { useToastStore.getState().error(t.reviewFail); }
   }
 
-  if (loading) return <PageLoader label="Barajando tus tarjetas…" words={LOADING_COPY.learningCards} size="sm" />;
+  if (loading) return <PageLoader label={t.loadingCards} words={LOADING_COPY.learningCards} size="sm" />;
 
   const grades: Array<[0 | 2 | 4, string, string]> = [
-    [0, 'Nada', 'bg-error/[var(--lq-soft-alpha)] text-error-text'],
-    [2, 'Difícil', 'bg-warning/[var(--lq-soft-alpha)] text-warning-text'],
-    [4, 'Fácil', 'bg-success/[var(--lq-soft-alpha)] text-success-text'],
+    [0, t.gradeNone, 'bg-error/[var(--lq-soft-alpha)] text-error-text'],
+    [2, t.gradeHard, 'bg-warning/[var(--lq-soft-alpha)] text-warning-text'],
+    [4, t.gradeEasy, 'bg-success/[var(--lq-soft-alpha)] text-success-text'],
   ];
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="font-mono text-body-sm tabular-nums text-on-surface-light">{cards.length} tarjetas · {dueCards.length} para repasar</p>
+        <p className="font-mono text-body-sm tabular-nums text-on-surface-light">{t.cardsSummary(cards.length, dueCards.length)}</p>
         <div className="flex gap-2">
-          {dueCards.length > 0 && !reviewing && <Button size="md" onClick={() => { setReviewing(dueCards[0] ?? null); setShowBack(false); }}><Play aria-hidden className="size-4" />Repasar ({dueCards.length})</Button>}
+          {dueCards.length > 0 && !reviewing && <Button size="md" onClick={() => { setReviewing(dueCards[0] ?? null); setShowBack(false); }}><Play aria-hidden className="size-4" />{t.reviewBtn(dueCards.length)}</Button>}
           <Button variant="secondary" size="md" onClick={() => setShowForm((f) => !f)}>
-            {showForm ? <><X aria-hidden className="size-4" />Cerrar</> : <><Plus aria-hidden className="size-4" />Tarjeta</>}
+            {showForm ? <><X aria-hidden className="size-4" />{t.close}</> : <><Plus aria-hidden className="size-4" />{t.addCardBtn}</>}
           </Button>
         </div>
       </div>
 
       {showForm && (
         <Card as="form" padding="md" className="flex flex-col gap-3" onSubmit={(e: React.FormEvent) => { e.preventDefault(); void addCard(); }}>
-          <Field label="Frente"><Input value={form.front} onChange={(e) => setForm((f) => ({ ...f, front: e.target.value }))} placeholder="Palabra o concepto" /></Field>
-          <Field label="Dorso"><Input value={form.back} onChange={(e) => setForm((f) => ({ ...f, back: e.target.value }))} placeholder="Definición o traducción" /></Field>
-          <Field label="Ejemplo (opcional)"><Input value={form.example} onChange={(e) => setForm((f) => ({ ...f, example: e.target.value }))} /></Field>
-          <Button type="submit" block disabled={!form.front.trim() || !form.back.trim()}>Guardar tarjeta</Button>
+          <Field label={t.front}><Input value={form.front} onChange={(e) => setForm((f) => ({ ...f, front: e.target.value }))} placeholder={t.frontPh} /></Field>
+          <Field label={t.back}><Input value={form.back} onChange={(e) => setForm((f) => ({ ...f, back: e.target.value }))} placeholder={t.backPh} /></Field>
+          <Field label={t.example}><Input value={form.example} onChange={(e) => setForm((f) => ({ ...f, example: e.target.value }))} /></Field>
+          <Button type="submit" block disabled={!form.front.trim() || !form.back.trim()}>{t.saveCard}</Button>
         </Card>
       )}
 
@@ -275,11 +409,11 @@ export function VocabPanel({ itemId }: { itemId: string }) {
         {reviewing && (
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
             <div className="flex flex-col items-center gap-4">
-              <p className="font-mono text-body-sm tabular-nums text-on-surface-light">Repasando {dueCards.indexOf(reviewing) + 1} / {dueCards.length}</p>
+              <p className="font-mono text-body-sm tabular-nums text-on-surface-light">{t.reviewing(dueCards.indexOf(reviewing) + 1, dueCards.length)}</p>
               {/* Pasar la página de la tarjeta: el flip card existente */}
               <PerspectiveFlipCard
                 key={reviewing.id}
-                label={`Tarjeta ${reviewing.front}`}
+                label={t.cardLabel(reviewing.front)}
                 trigger="tap"
                 flipped={showBack}
                 onFlipChange={setShowBack}
@@ -287,7 +421,7 @@ export function VocabPanel({ itemId }: { itemId: string }) {
                 front={(
                   <div className="lq-tex-paper flex size-full flex-col items-center justify-center gap-3 rounded-[inherit] p-6 text-center">
                     <p className="text-heading-lg [text-wrap:balance]">{reviewing.front}</p>
-                    <p className="text-body-sm text-on-surface-light">Toca para ver la respuesta</p>
+                    <p className="text-body-sm text-on-surface-light">{t.tapAnswer}</p>
                   </div>
                 )}
                 back={(
@@ -297,7 +431,7 @@ export function VocabPanel({ itemId }: { itemId: string }) {
                       {reviewing.example && <p className="mt-1 text-body-md italic text-on-surface-light">{reviewing.example}</p>}
                     </div>
                     <div className="flex flex-col gap-2">
-                      <p className="text-label-lg text-on-surface">¿Qué tan bien lo recordaste?</p>
+                      <p className="text-label-lg text-on-surface">{t.howWell}</p>
                       <div className="grid grid-cols-3 gap-2">
                         {grades.map(([q, name, cls]) => (
                           <button key={q} type="button" onClick={() => void review(q)} className={cn('min-h-12 rounded-md text-label-lg transition-shadow hover:shadow-md', cls)}>{name}</button>
@@ -307,7 +441,7 @@ export function VocabPanel({ itemId }: { itemId: string }) {
                   </div>
                 )}
               />
-              <Button variant="ghost" size="sm" onClick={() => setReviewing(null)}><X aria-hidden className="size-4" />Salir de la revisión</Button>
+              <Button variant="ghost" size="sm" onClick={() => setReviewing(null)}><X aria-hidden className="size-4" />{t.exitReview}</Button>
             </div>
           </motion.div>
         )}
@@ -317,15 +451,15 @@ export function VocabPanel({ itemId }: { itemId: string }) {
         <ul className="flex flex-col">
           {cards.map((c) => (
             <li key={c.id} className="flex min-h-12 items-center justify-between gap-3 border-b border-border py-2 last:border-0">
-              <p className="min-w-0 truncate text-body-md">{c.front} <span aria-hidden>→</span><span className="sr-only">significa</span> <span className="text-on-surface-light">{c.back}</span></p>
-              {c.nextReview <= today ? <Badge variant="warning">Hoy</Badge> : <span className="shrink-0 font-mono text-body-sm tabular-nums text-on-surface-light">en {Math.ceil((new Date(c.nextReview).getTime() - Date.now()) / 86400000)} d</span>}
+              <p className="min-w-0 truncate text-body-md">{c.front} <span aria-hidden>→</span><span className="sr-only">{t.means}</span> <span className="text-on-surface-light">{c.back}</span></p>
+              {c.nextReview <= today ? <Badge variant="warning">{t.dueToday}</Badge> : <span className="shrink-0 font-mono text-body-sm tabular-nums text-on-surface-light">{t.inDays(Math.ceil((new Date(c.nextReview).getTime() - Date.now()) / 86400000))}</span>}
             </li>
           ))}
         </ul>
       )}
 
       {cards.length === 0 && !showForm && (
-        <Card><EmptyState icon={Layers} tone="forest" title="Sin tarjetas aún" description="Crea tarjetas de vocabulario y repásalas con repetición espaciada." className="py-4" /></Card>
+        <Card><EmptyState icon={Layers} tone="forest" title={t.noCards} description={t.noCardsDesc} className="py-4" /></Card>
       )}
     </div>
   );

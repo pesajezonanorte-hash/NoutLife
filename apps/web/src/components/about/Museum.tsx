@@ -6,6 +6,11 @@ import { motion, useScroll, useSpring, useTransform } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { expo, springs } from '@/lib/motion';
 import { useMotionStore } from '@/store/motionStore';
+import { useText, type Copy } from '@/lib/i18n';
+
+const es = { room: (n: number): string => `Sala ${n}` };
+const en: typeof es = { room: (n: number): string => `Room ${n}` };
+const COPY: Copy<typeof es> = { es, en };
 
 /** Foco de galería que se enciende cuando la sala entra en pantalla. */
 export function GallerySpot({ className }: { className?: string }) {
@@ -22,6 +27,7 @@ export function GallerySpot({ className }: { className?: string }) {
 
 /** Una sala del recorrido: número, foco y contenido que sube a la pared al llegar. */
 export function Room({ n, label, id, children, className }: { n: number; label: string; id: string; children: ReactNode; className?: string }) {
+  const t = useText(COPY);
   return (
     <section aria-labelledby={id} className={cn('lq-room relative scroll-mt-24', className)} data-room={n}>
       <GallerySpot className="inset-x-0 -top-10 mx-auto h-[30rem] w-[min(46rem,100%)]" />
@@ -34,7 +40,7 @@ export function Room({ n, label, id, children, className }: { n: number; label: 
         viewport={{ once: true, margin: '-80px' }}
         transition={{ duration: 0.9, ease: expo }}
       >
-        <span className="lq-room-sign self-start px-3 py-1 font-mono text-label-md">Sala {n} <span aria-hidden="true">—</span> {label}</span>
+        <span className="lq-room-sign self-start px-3 py-1 font-mono text-label-md">{t.room(n)} <span aria-hidden="true">—</span> {label}</span>
         {children}
       </motion.div>
     </section>

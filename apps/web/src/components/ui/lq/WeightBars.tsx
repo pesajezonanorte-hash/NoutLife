@@ -6,6 +6,23 @@ import { useRef, useState } from 'react';
 import { AnimatePresence, motion, useInView } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { heavy, slam } from '@/lib/motion';
+import { useText, type Copy } from '@/lib/i18n';
+
+const es = {
+  avg: 'media',
+  empty: 'Sin datos',
+  nouns: ['registro', 'registros'] as [string, string],
+  more: (n: number): string => `+${n} más`,
+};
+
+const en: typeof es = {
+  avg: 'average',
+  empty: 'No data',
+  nouns: ['entry', 'entries'],
+  more: (n: number): string => `+${n} more`,
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 export interface WeightBar {
   key: string;
@@ -41,9 +58,12 @@ export interface WeightBarsProps {
 }
 
 export function WeightBars({
-  data, label, format, height = 190, tone = 'primary', bestLabel, emptyLabel = 'Sin datos', noun = ['registro', 'registros'],
+  data, label, format, height = 190, tone = 'primary', bestLabel, emptyLabel, noun,
   highlightKey, onActiveChange,
 }: WeightBarsProps) {
+  const t = useText(COPY);
+  const empty = emptyLabel ?? t.empty;
+  const nouns = noun ?? t.nouns;
   const ref = useRef<HTMLDivElement>(null);
   const seen = useInView(ref, { once: true, amount: 0.4 });
   const [own, setOwn] = useState<number | null>(null);
@@ -72,7 +92,7 @@ export function WeightBars({
               className="block h-px border-t border-dashed border-on-surface-light/50" style={{ originX: 0 }}
               initial={{ scaleX: 0 }} animate={seen ? { scaleX: 1 } : {}} transition={{ ...heavy, delay: 0.9 }}
             />
-            <span className="absolute -top-5 left-0 rounded-full bg-surface/90 px-1.5 font-mono text-label-md tabular-nums text-on-surface-light">media {format(avg)}</span>
+            <span className="absolute -top-5 left-0 rounded-full bg-surface/90 px-1.5 font-mono text-label-md tabular-nums text-on-surface-light">{t.avg} {format(avg)}</span>
           </motion.div>
         )}
         <div className="absolute inset-0 grid items-end gap-2 md:gap-4" style={cols}>
@@ -82,7 +102,7 @@ export function WeightBars({
             const h = d.value > 0 ? Math.max(6, (d.value / max) * plot) : 4;
             const edge = i === 0 ? 'left-0' : i === data.length - 1 ? 'right-0' : 'left-1/2 -translate-x-1/2';
             const n = d.details.length;
-            const desc = d.value > 0 ? `${d.title}: ${format(d.value)}${n ? `, ${n} ${n === 1 ? noun[0] : noun[1]}` : ''}` : `${d.title}: ${emptyLabel.toLowerCase()}`;
+            const desc = d.value > 0 ? `${d.title}: ${format(d.value)}${n ? `, ${n} ${n === 1 ? nouns[0] : nouns[1]}` : ''}` : `${d.title}: ${empty.toLowerCase()}`;
             return (
               <button
                 key={d.key} type="button" aria-label={desc}
@@ -101,9 +121,9 @@ export function WeightBars({
                       style={{ bottom: h + 10 }}
                     >
                       <span className="block text-label-md text-on-surface-light">{d.title}</span>
-                      <span className="block font-mono text-heading-sm font-bold tabular-nums text-on-background">{d.value > 0 ? format(d.value) : emptyLabel}</span>
+                      <span className="block font-mono text-heading-sm font-bold tabular-nums text-on-background">{d.value > 0 ? format(d.value) : empty}</span>
                       {d.details.slice(0, 2).map((x, k) => <span key={k} className="block truncate text-label-md text-on-surface">{x}</span>)}
-                      {n > 2 && <span className="block text-label-md text-on-surface-light">+{n - 2} más</span>}
+                      {n > 2 && <span className="block text-label-md text-on-surface-light">{t.more(n - 2)}</span>}
                       {i === best && bestLabel && <span className={cn('mt-1 block text-label-md', ink[tone])}>{bestLabel}</span>}
                     </motion.span>
                   )}

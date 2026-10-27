@@ -15,6 +15,7 @@ import { Check, Plus, Tent, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { springs } from '@/lib/motion';
 import { categoryMeta } from '@/lib/lifeMeta';
+import { INTL_LOCALE, useLocale, useText, type Copy } from '@/lib/i18n';
 import { InkPath, ZoneAmbience, seeded } from '@/components/ambience';
 import { Badge, Button } from '@/components/ui/lq';
 import { borderTone, fillTone, strokeTone, textTone } from '@/components/ui/lq/tones';
@@ -31,9 +32,43 @@ type Stop =
 interface Placed { stop: Stop; top: number; h: number; x: number; side: 'l' | 'r'; order: number }
 interface Pt { x: number; y: number }
 
+const es = {
+  here: 'Estás aquí',
+  visitedOne: 'lugar visitado',
+  visitedMany: 'lugares visitados',
+  toExplore: 'por explorar',
+  origin: 'Aquí empezó tu viaje',
+  markNew: 'Marcar un destino nuevo',
+  frontier: 'Tierra por explorar',
+  frontierMore: 'Marca otro destino en el mapa.',
+  frontierFirst: 'Marca tu primer destino en el mapa.',
+  closed: 'Camino cerrado',
+  visited: 'Visitado',
+  complete: 'Completar',
+  completeAria: (title: string): string => `Completar ${title}`,
+  mapAria: 'Mapa de tus misiones',
+};
+
+const en: typeof es = {
+  here: 'You are here',
+  visitedOne: 'place visited',
+  visitedMany: 'places visited',
+  toExplore: 'to explore',
+  origin: 'Your journey started here',
+  markNew: 'Mark a new destination',
+  frontier: 'Unexplored land',
+  frontierMore: 'Mark another destination on the map.',
+  frontierFirst: 'Mark your first destination on the map.',
+  closed: 'Path closed',
+  visited: 'Visited',
+  complete: 'Complete',
+  completeAria: (title: string): string => `Complete ${title}`,
+  mapAria: 'Your quests map',
+};
+
+const COPY: Copy<typeof es> = { es, en };
+
 const hash = (s: string) => [...s].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
-const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
-const xp = (n: number) => n.toLocaleString('es-CO');
 
 /** Curva suave (Catmull-Rom) que pasa por todos los puntos. */
 function smooth(p: Pt[]) {
@@ -152,6 +187,11 @@ export interface AdventureMapProps {
 }
 
 export function AdventureMap({ ahead, behind, traveler, startedAt, onOpen, onComplete, onNew, className }: AdventureMapProps) {
+  const t = useText(COPY);
+  const locale = useLocale();
+  const nf = INTL_LOCALE[locale];
+  const fmtDate = (iso: string) => new Date(iso).toLocaleDateString(nf, { day: 'numeric', month: 'short' });
+  const xp = (n: number) => n.toLocaleString(nf);
   const ref = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(0);
   const uid = useId().replace(/:/g, '');
@@ -177,13 +217,13 @@ export function AdventureMap({ ahead, behind, traveler, startedAt, onOpen, onCom
     let month = '';
     behind.forEach((q) => {
       const d = new Date(q.completedAt ?? q.updatedAt);
-      const m = d.toLocaleDateString('es-ES', d.getFullYear() === now.getFullYear() ? { month: 'long' } : { month: 'long', year: 'numeric' });
+      const m = d.toLocaleDateString(nf, d.getFullYear() === now.getFullYear() ? { month: 'long' } : { month: 'long', year: 'numeric' });
       if (m !== month) { out.push({ kind: 'region', key: `region-${m}`, label: m }); month = m; }
       out.push({ kind: 'quest', key: q.id, q });
     });
     out.push({ kind: 'origin', key: 'origin' });
     return out;
-  }, [ahead, behind, onNew]);
+  }, [ahead, behind, onNew, nf]);
 
   const { placed, height, you } = useMemo(() => {
     const rowH = (s: Stop) => {
@@ -304,7 +344,7 @@ export function AdventureMap({ ahead, behind, traveler, startedAt, onOpen, onCom
             </span>
           )}
 
-          <ol aria-label="Mapa de tus misiones" className="relative" style={{ height }}>
+          <ol aria-label={t.mapAria} className="relative" style={{ height }}>
             {placed.map((p) => {
               const delay = delayOf(p);
               const s = p.stop;
@@ -339,13 +379,13 @@ export function AdventureMap({ ahead, behind, traveler, startedAt, onOpen, onCom
                         className="group flex size-14 items-center justify-center rounded-full border-2 border-dashed border-on-surface-light/60 bg-surface/70 text-on-surface transition-colors duration-300 hover:border-primary hover:text-primary-text"
                       >
                         <Plus aria-hidden className="size-6 transition-transform duration-500 ease-[var(--lq-ease-natural)] group-hover:rotate-90" strokeWidth={2} />
-                        <span className="sr-only">Marcar un destino nuevo</span>
+                        <span className="sr-only">{t.markNew}</span>
                       </button>
                       </motion.span>
                     </span>
                     <motion.div aria-hidden className="absolute flex flex-col gap-0.5" style={labelBox(p)} {...labelMotion}>
-                      <span className="text-label-lg text-on-background">Tierra por explorar</span>
-                      <span className="text-body-sm text-on-surface-light">{ahead.length ? 'Marca otro destino en el mapa.' : 'Marca tu primer destino en el mapa.'}</span>
+                      <span className="text-label-lg text-on-background">{t.frontier}</span>
+                      <span className="text-body-sm text-on-surface-light">{ahead.length ? t.frontierMore : t.frontierFirst}</span>
                     </motion.div>
                   </li>
                 );
@@ -370,9 +410,9 @@ export function AdventureMap({ ahead, behind, traveler, startedAt, onOpen, onCom
                     </motion.span>
                     </span>
                     <motion.div className={cn('absolute flex flex-col gap-0.5', outward(p) && 'items-end text-right')} style={labelBox(p)} {...labelMotion}>
-                      <span className="text-heading-md text-primary-text"><Lettering text="Estás aquí" delay={reach.you + 0.15} /></span>
+                      <span className="text-heading-md text-primary-text"><Lettering text={t.here} delay={reach.you + 0.15} /></span>
                       <span className="text-body-sm text-on-surface-light">
-                        <span className="font-mono tabular-nums">{visited}</span> {visited === 1 ? 'lugar visitado' : 'lugares visitados'} · <span className="font-mono tabular-nums">{ahead.length}</span> por explorar
+                        <span className="font-mono tabular-nums">{visited}</span> {visited === 1 ? t.visitedOne : t.visitedMany} · <span className="font-mono tabular-nums">{ahead.length}</span> {t.toExplore}
                       </span>
                     </motion.div>
                   </li>
@@ -388,8 +428,8 @@ export function AdventureMap({ ahead, behind, traveler, startedAt, onOpen, onCom
                       </motion.span>
                     </span>
                     <motion.div className="absolute flex flex-col gap-0.5" style={labelBox(p)} {...labelMotion}>
-                      <span className="text-label-lg text-on-background">Aquí empezó tu viaje</span>
-                      {startedAt && <span className="text-body-sm text-on-surface-light">{new Date(startedAt).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}</span>}
+                      <span className="text-label-lg text-on-background">{t.origin}</span>
+                      {startedAt && <span className="text-body-sm text-on-surface-light">{new Date(startedAt).toLocaleDateString(nf, { month: 'long', year: 'numeric' })}</span>}
                     </motion.div>
                   </li>
                 );
@@ -400,7 +440,7 @@ export function AdventureMap({ ahead, behind, traveler, startedAt, onOpen, onCom
               const failed = q.status === 'FAILED';
               const ready = isReady(q);
               const prog = questProgress(q);
-              const deadline = active ? deadlineInfo(q.deadline) : null;
+              const deadline = active ? deadlineInfo(q.deadline, locale) : null;
               const out = outward(p);
               return (
                 <motion.li key={s.key} layout="position" transition={{ layout: springs.gentle }} className="group absolute inset-x-0" style={{ top: p.top, height: p.h }}>
@@ -419,15 +459,15 @@ export function AdventureMap({ ahead, behind, traveler, startedAt, onOpen, onCom
                     </button>
                     <span className="text-body-sm text-on-surface-light">
                       {active
-                        ? <>{prog.total ? prog.text : categoryMeta(q.category).label} · <span className="font-mono tabular-nums">+{xp(q.xpReward)} XP</span></>
+                        ? <>{prog.total ? prog.text : categoryMeta(q.category, locale).label} · <span className="font-mono tabular-nums">+{xp(q.xpReward)} XP</span></>
                         : failed
-                          ? <>Camino cerrado · {fmtDate(q.updatedAt)}</>
-                          : <>{q.completedAt ? fmtDate(q.completedAt) : 'Visitado'} · <span className="font-mono tabular-nums">+{xp(q.xpReward)} XP</span></>}
+                          ? <>{t.closed} · {fmtDate(q.updatedAt)}</>
+                          : <>{q.completedAt ? fmtDate(q.completedAt) : t.visited} · <span className="font-mono tabular-nums">+{xp(q.xpReward)} XP</span></>}
                     </span>
                     {active && (
                       <span className={cn('mt-1 flex flex-wrap items-center gap-2', out && 'justify-end')}>
-                        <Button size="sm" variant={ready ? 'primary' : 'secondary'} aria-label={`Completar ${q.title}`} onClick={() => onComplete(q)}>
-                          Completar
+                        <Button size="sm" variant={ready ? 'primary' : 'secondary'} aria-label={t.completeAria(q.title)} onClick={() => onComplete(q)}>
+                          {t.complete}
                         </Button>
                         {deadline && <Badge variant={deadline.variant}>{deadline.text}</Badge>}
                       </span>

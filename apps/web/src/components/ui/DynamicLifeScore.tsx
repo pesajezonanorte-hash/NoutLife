@@ -1,5 +1,10 @@
 import { motion } from 'framer-motion';
 import { E } from '@/components/ui/glyphs';
+import { useText, type Copy } from '@/lib/i18n';
+
+const es = { empty: 'Completa acciones en tus zonas para ver tu Life Score dinámico' };
+const en: typeof es = { empty: 'Complete actions in your zones to see your dynamic Life Score' };
+const COPY: Copy<typeof es> = { es, en };
 
 interface ZoneScore {
   id: string;
@@ -18,6 +23,7 @@ interface Props {
 }
 
 export function DynamicLifeScore({ totalScore, zones, size = 220, stroke = 13, gap = 3 }: Props) {
+  const t = useText(COPY);
   const ringZones = zones.slice(0, 6);
   const barZones = zones.slice(6);
   const cx = size / 2;
@@ -128,7 +134,7 @@ export function DynamicLifeScore({ totalScore, zones, size = 220, stroke = 13, g
 
       {zones.length === 0 && (
         <p className="text-center text-sm" style={{ color: 'var(--text-muted)' }}>
-          Completa acciones en tus zonas para ver tu Life Score dinámico
+          {t.empty}
         </p>
       )}
     </div>

@@ -15,10 +15,49 @@ import { useMotionStore } from '@/store/motionStore';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useToastStore } from '@/hooks/useToast';
 import { Button } from '@/components/ui/lq';
+import { useLocale, useText, type Copy } from '@/lib/i18n';
 import type { GameType } from '@/services/network.service';
 import { Quote, snippetOf } from './MessageRow';
 import { StickerPanel } from './StickerPanel';
 import type { LetterMsg } from './useLetter';
+
+const es = {
+  editing: 'Editando tu mensaje',
+  cancelEdit: 'Cancelar la edición',
+  cancelReply: 'Cancelar la respuesta',
+  replyingTo: (name: string): string => `Respondes a ${name}`,
+  photoFor: (to: string): string => `Tomar o elegir una foto para ${to}`,
+  editLabel: 'Editar tu mensaje',
+  writeTo: (to: string): string => `Escribir a ${to}`,
+  backKeyboard: 'Volver al teclado',
+  stickers: 'Stickers y juegos',
+  editPh: 'Edita tu mensaje…',
+  replyPh: 'Escribe tu respuesta…',
+  writePh: (to: string): string => `Escribe a ${to}…`,
+  videoFor: (to: string): string => `Grabar un video para ${to} (hasta 15 segundos)`,
+  saveEdit: 'Guardar el cambio',
+  send: 'Enviar carta',
+};
+
+const en: typeof es = {
+  editing: 'Editing your message',
+  cancelEdit: 'Cancel the edit',
+  cancelReply: 'Cancel the reply',
+  replyingTo: (name: string): string => `You are replying to ${name}`,
+  photoFor: (to: string): string => `Take or pick a photo for ${to}`,
+  editLabel: 'Edit your message',
+  writeTo: (to: string): string => `Write to ${to}`,
+  backKeyboard: 'Back to the keyboard',
+  stickers: 'Stickers and games',
+  editPh: 'Edit your message…',
+  replyPh: 'Write your reply…',
+  writePh: (to: string): string => `Write to ${to}…`,
+  videoFor: (to: string): string => `Record a video for ${to} (up to 15 seconds)`,
+  saveEdit: 'Save the change',
+  send: 'Send letter',
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 const toaster = () => useToastStore.getState();
 
@@ -51,6 +90,8 @@ interface Props {
 export const Composer = forwardRef<ComposerHandle, Props>(function Composer(props, handle) {
   const { to, maxLength, replying, editing, nameOf, colorOf, onCancelReply, onCancelEdit, onSend, onEdit, onCamera, onVideo, onSticker, onGame, onTyping, onFocusChange, keyboardHeight } = props;
   const reduce = useMotionStore((s) => s.reduce);
+  const t = useText(COPY);
+  const locale = useLocale();
   const fine = useMediaQuery('(pointer: fine)');
   const input = useRef<HTMLTextAreaElement>(null);
   const [text, setText] = useState('');
@@ -112,9 +153,9 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(prop
             <div className="flex items-center gap-2 px-3 py-2 md:px-5">
               {editing ? <Pencil aria-hidden className="size-4 shrink-0 text-primary-text" strokeWidth={1.9} /> : <Reply aria-hidden className="size-4 shrink-0 text-primary-text" strokeWidth={1.9} />}
               {editing
-                ? <span className="lq-quote min-w-0 flex-1"><span className="block text-label-md text-primary-text">Editando tu mensaje</span><span className="line-clamp-1 block text-body-sm text-on-surface-light">{editing.content}</span></span>
-                : <Quote r={{ id: replying!.id, authorId: replying!.author?.id ?? '', kind: replying!.kind, content: snippetOf(replying!) }} name={`Respondes a ${nameOf(replying!.author?.id ?? '')}`} nameColor={colorOf(replying!.author?.id ?? '')} className="min-w-0 flex-1" />}
-              <Button variant="icon" aria-label={editing ? 'Cancelar la edición' : 'Cancelar la respuesta'} onClick={() => { if (editing) { setText(''); onCancelEdit(); } else onCancelReply(); }}>
+                ? <span className="lq-quote min-w-0 flex-1"><span className="block text-label-md text-primary-text">{t.editing}</span><span className="line-clamp-1 block text-body-sm text-on-surface-light">{editing.content}</span></span>
+                : <Quote r={{ id: replying!.id, authorId: replying!.author?.id ?? '', kind: replying!.kind, content: snippetOf(replying!, locale) }} name={t.replyingTo(nameOf(replying!.author?.id ?? ''))} nameColor={colorOf(replying!.author?.id ?? '')} className="min-w-0 flex-1" />}
+              <Button variant="icon" aria-label={editing ? t.cancelEdit : t.cancelReply} onClick={() => { if (editing) { setText(''); onCancelEdit(); } else onCancelReply(); }}>
                 <X aria-hidden className="size-4" />
               </Button>
             </div>
@@ -124,11 +165,11 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(prop
 
       <form onSubmit={submit} className="relative flex items-end gap-2 border-t border-border/80 bg-surface px-2.5 pt-2.5 md:px-5" style={{ paddingBottom: drawer ? '0.625rem' : 'max(.625rem, env(safe-area-inset-bottom))' }}>
             <div className="flex min-w-0 flex-1 items-end gap-2">
-              <Button type="button" variant="secondary" aria-label={`Tomar o elegir una foto para ${to}`} onClick={onCamera} className="size-12 shrink-0 rounded-full p-0">
+              <Button type="button" variant="secondary" aria-label={t.photoFor(to)} onClick={onCamera} className="size-12 shrink-0 rounded-full p-0">
                 <Camera aria-hidden className="size-5" strokeWidth={1.75} />
               </Button>
               <div className="relative flex min-w-0 flex-1 items-end">
-                <label htmlFor="letter-input" className="sr-only">{editing ? 'Editar tu mensaje' : `Escribir a ${to}`}</label>
+                <label htmlFor="letter-input" className="sr-only">{editing ? t.editLabel : t.writeTo(to)}</label>
                 <textarea
                   id="letter-input" ref={input} rows={1} value={text} maxLength={maxLength} autoComplete="off" enterKeyHint={fine ? 'send' : 'enter'}
                   onChange={(e) => { setText(e.target.value); onTyping(Boolean(e.target.value.trim())); }}
@@ -138,11 +179,11 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(prop
                     if (e.key === 'Escape' && (replying || editing)) { e.stopPropagation(); if (editing) { setText(''); onCancelEdit(); } else onCancelReply(); return; }
                     if (e.key === 'Enter' && !e.shiftKey && fine && !e.nativeEvent.isComposing) { e.preventDefault(); void submit(); }
                   }}
-                  placeholder={editing ? 'Edita tu mensaje…' : replying ? 'Escribe tu respuesta…' : `Escribe a ${to}…`}
+                  placeholder={editing ? t.editPh : replying ? t.replyPh : t.writePh(to)}
                   className="lq-pen-line min-h-12 w-full resize-none py-3 pl-1 pr-11 text-body-lg leading-6 text-on-background transition-[height] duration-150 ease-out placeholder:text-on-surface-light/80"
                 />
                 <button
-                  type="button" aria-label={drawer ? 'Volver al teclado' : 'Stickers y juegos'} aria-expanded={drawer}
+                  type="button" aria-label={drawer ? t.backKeyboard : t.stickers} aria-expanded={drawer}
                   onPointerDown={(e) => e.preventDefault()}
                   onClick={() => { if (drawer) { setDrawer(false); input.current?.focus(); } else { input.current?.blur(); setDrawer(true); } }}
                   className={cn('absolute bottom-1 right-0 flex size-10 items-center justify-center rounded-full transition-colors', drawer ? 'text-primary-text' : 'text-on-surface-light hover:text-on-background')}
@@ -154,7 +195,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(prop
 
         {empty && !editing ? (
           <motion.button
-            type="button" aria-label={`Grabar un video para ${to} (hasta 15 segundos)`} onClick={onVideo}
+            type="button" aria-label={t.videoFor(to)} onClick={onVideo}
             initial={reduce ? false : { scale: 0.6 }} animate={{ scale: 1 }} transition={springs.snappy}
             whileTap={reduce ? undefined : { scale: 0.88 }}
             className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary/12 text-primary-text transition-colors hover:bg-primary/20"
@@ -163,7 +204,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(prop
           </motion.button>
         ) : (
           <motion.button
-            type="submit" aria-label={editing ? 'Guardar el cambio' : 'Enviar carta'} disabled={empty}
+            type="submit" data-send-letter aria-label={editing ? t.saveEdit : t.send} disabled={empty}
             // Sin robar el foco al renglón: así el teclado no se cierra al enviar.
             onPointerDown={(e) => e.preventDefault()}
             initial={reduce ? false : { scale: 0.6, rotate: -20 }} animate={{ scale: 1, rotate: 0 }} transition={springs.snappy}

@@ -14,6 +14,97 @@ import { useToastStore } from '@/hooks/useToast';
 import { refreshUser } from '@/hooks/useAuth';
 import { Button, Confetti, Field, IconChip, Input, SegmentedControl, Select, Switch, useDialogBehavior } from '@/components/ui/lq';
 import { AMBIENT_SOUNDS, createAmbientSound, playChime, type AmbientAudioController, type AmbientSoundId } from '@/components/focus/ambientSound';
+import { useText, type Copy } from '@/lib/i18n';
+
+const es = {
+  title: 'Modo enfoque',
+  close: 'Cerrar modo enfoque',
+  saveFail: 'No se pudo guardar la sesión',
+  tryAgain: 'Inténtalo de nuevo',
+  tagline: 'Una sola cosa a la vez',
+  taglineBody: 'Elige cuánto tiempo, silencia lo demás y gana XP al terminar.',
+  duration: 'Duración',
+  focusOn: '¿En qué te vas a enfocar?',
+  focusHelp: 'Opcional. Aparece bajo el temporizador.',
+  focusPh: 'Ej. Repasar el capítulo 3',
+  timerAria: (t: string): string => `Tiempo restante ${t}`,
+  minute: (n: number): string => `${n} ${n === 1 ? 'minuto' : 'minutos'}`,
+  done: '¡Completado!',
+  focusMinutes: (n: number): string => `${n} min de enfoque`,
+  paused: 'En pausa',
+  ready: 'Listo cuando quieras',
+  focused: 'Enfocado',
+  endQ: '¿Terminar la sesión?',
+  saveHint: (n: number): string => `Llevas ${n} min; puedes guardarlos.`,
+  noSaveHint: 'Aún no llevas un minuto, no se guardará nada.',
+  stay: 'Seguir enfocado',
+  saveMinutes: (n: number): string => `Guardar ${n} min`,
+  leaveNoSave: 'Salir sin guardar',
+  start: 'Comenzar',
+  saveXp: 'Guardar sesión y ganar XP',
+  closeNoSave: 'Cerrar sin guardar',
+  pause: 'Pausar',
+  resume: 'Continuar',
+  resetAria: 'Reiniciar',
+  reset: 'Reiniciar',
+  finish: 'Terminar',
+  soundAria: 'Sonido',
+  ambient: 'Sonido ambiente',
+  volume: 'Volumen',
+  chime: 'Aviso sonoro al terminar',
+  announceStart: (t: string): string => `Sesión iniciada: ${t}`,
+  announcePaused: 'Sesión en pausa',
+  announceResumed: 'Sesión reanudada',
+  announceReset: 'Temporizador reiniciado',
+  announceDone: '¡Sesión completada!',
+  sounds: { none: 'Silencio', rain: 'Lluvia', waves: 'Olas', forest: 'Bosque', fire: 'Fogata' } as Record<AmbientSoundId, string>,
+};
+
+const en: typeof es = {
+  title: 'Focus mode',
+  close: 'Close focus mode',
+  saveFail: 'Could not save the session',
+  tryAgain: 'Try again',
+  tagline: 'One thing at a time',
+  taglineBody: 'Pick how long, silence everything else and earn XP when you finish.',
+  duration: 'Duration',
+  focusOn: 'What will you focus on?',
+  focusHelp: 'Optional. Shown under the timer.',
+  focusPh: 'E.g. Review chapter 3',
+  timerAria: (t: string): string => `Time left ${t}`,
+  minute: (n: number): string => `${n} ${n === 1 ? 'minute' : 'minutes'}`,
+  done: 'Done!',
+  focusMinutes: (n: number): string => `${n} min of focus`,
+  paused: 'Paused',
+  ready: 'Ready whenever you are',
+  focused: 'Focused',
+  endQ: 'End the session?',
+  saveHint: (n: number): string => `You have ${n} min; you can save them.`,
+  noSaveHint: 'Not even a minute yet, nothing will be saved.',
+  stay: 'Keep focusing',
+  saveMinutes: (n: number): string => `Save ${n} min`,
+  leaveNoSave: 'Leave without saving',
+  start: 'Start',
+  saveXp: 'Save session and earn XP',
+  closeNoSave: 'Close without saving',
+  pause: 'Pause',
+  resume: 'Continue',
+  resetAria: 'Reset',
+  reset: 'Reset',
+  finish: 'Finish',
+  soundAria: 'Sound',
+  ambient: 'Background sound',
+  volume: 'Volume',
+  chime: 'Chime when finished',
+  announceStart: (t: string): string => `Session started: ${t}`,
+  announcePaused: 'Session paused',
+  announceResumed: 'Session resumed',
+  announceReset: 'Timer reset',
+  announceDone: 'Session complete!',
+  sounds: { none: 'Silence', rain: 'Rain', waves: 'Waves', forest: 'Forest', fire: 'Campfire' } as Record<AmbientSoundId, string>,
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 const PRESETS = ['25', '45', '60', '90'] as const;
 type Preset = (typeof PRESETS)[number];
@@ -26,12 +117,10 @@ interface Props {
 }
 
 const mmss = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
-const minutesText = (s: number) => {
-  const m = Math.ceil(s / 60);
-  return `${m} ${m === 1 ? 'minuto' : 'minutos'}`;
-};
 
 export function FocusMode({ onClose, taskLabel, questId }: Props) {
+  const t = useText(COPY);
+  const minutesText = (s: number) => t.minute(Math.ceil(s / 60));
   const titleId = useId();
   const soundOnId = useId();
   const confirmId = useId();
@@ -120,33 +209,33 @@ export function FocusMode({ onClose, taskLabel, questId }: Props) {
   function start() {
     endAt.current = Date.now() + remaining * 1000;
     setPhase('running');
-    setAnnounce(`Sesión iniciada: ${minutesText(remaining)}`);
+    setAnnounce(t.announceStart(minutesText(remaining)));
     if (chime) void audioCtx(); // desbloquea el audio con el gesto del usuario
   }
 
   function pause() {
     setRemaining(Math.max(0, Math.ceil((endAt.current - Date.now()) / 1000)));
     setPhase('paused');
-    setAnnounce('Sesión en pausa');
+    setAnnounce(t.announcePaused);
   }
 
   function resume() {
     setConfirmExit(false);
     start();
-    setAnnounce('Sesión reanudada');
+    setAnnounce(t.announceResumed);
   }
 
   function reset() {
     setPhase('setup');
     setRemaining(total);
     setConfirmExit(false);
-    setAnnounce('Temporizador reiniciado');
+    setAnnounce(t.announceReset);
   }
 
   function finish() {
     setRemaining(0);
     setPhase('done');
-    setAnnounce('¡Sesión completada!');
+    setAnnounce(t.announceDone);
     navigator.vibrate?.([300, 100, 300]);
     if (chime && ctxRef.current) playChime(ctxRef.current);
   }
@@ -161,7 +250,7 @@ export function FocusMode({ onClose, taskLabel, questId }: Props) {
       void refreshUser();
       onClose();
     } catch {
-      toast.error('No se pudo guardar la sesión', 'Inténtalo de nuevo');
+      toast.error(t.saveFail, t.tryAgain);
       setSaving(false);
     }
   }
@@ -183,8 +272,8 @@ export function FocusMode({ onClose, taskLabel, questId }: Props) {
       >
         <header className="flex items-center gap-3 px-4 pb-2 pt-[max(1rem,env(safe-area-inset-top))] md:px-8 md:pt-6">
           <IconChip icon={Zap} tone="primary" size="sm" />
-          <h2 id={titleId} className="min-w-0 flex-1 text-heading-sm">Modo enfoque</h2>
-          <Button variant="icon" aria-label="Cerrar modo enfoque" onClick={requestClose} className="-mr-2">
+          <h2 id={titleId} className="min-w-0 flex-1 text-heading-sm">{t.title}</h2>
+          <Button variant="icon" aria-label={t.close} onClick={requestClose} className="-mr-2">
             <X aria-hidden className="size-6" strokeWidth={1.75} />
           </Button>
         </header>
@@ -193,19 +282,19 @@ export function FocusMode({ onClose, taskLabel, questId }: Props) {
           {phase === 'setup' && (
             <>
               <div className="flex flex-col gap-1">
-                <p className="text-heading-lg md:text-display-sm">Una sola cosa a la vez</p>
-                <p className="text-body-md text-on-surface-light">Elige cuánto tiempo, silencia lo demás y gana XP al terminar.</p>
+                <p className="text-heading-lg md:text-display-sm">{t.tagline}</p>
+                <p className="text-body-md text-on-surface-light">{t.taglineBody}</p>
               </div>
               <div className="flex flex-col gap-1.5">
-                <span className="text-label-lg text-on-surface" aria-hidden>Duración</span>
+                <span className="text-label-lg text-on-surface" aria-hidden>{t.duration}</span>
                 <SegmentedControl
-                  role="radiogroup" label="Duración"
+                  role="radiogroup" label={t.duration}
                   value={preset} onChange={changePreset}
                   options={PRESETS.map((p) => ({ value: p, label: `${p} min` }))}
                 />
               </div>
-              <Field label="¿En qué te vas a enfocar?" help="Opcional. Aparece bajo el temporizador.">
-                <Input value={task} onChange={(e) => setTask(e.target.value)} placeholder="Ej. Repasar el capítulo 3" maxLength={80} />
+              <Field label={t.focusOn} help={t.focusHelp}>
+                <Input value={task} onChange={(e) => setTask(e.target.value)} placeholder={t.focusPh} maxLength={80} />
               </Field>
             </>
           )}
@@ -226,16 +315,16 @@ export function FocusMode({ onClose, taskLabel, questId }: Props) {
                 {phase === 'done' ? (
                   <>
                     <CheckCircle2 aria-hidden className="size-12 text-success-text" strokeWidth={1.75} />
-                    <span className="text-heading-md">¡Completado!</span>
-                    <span className="text-body-sm text-on-surface-light">{preset} min de enfoque</span>
+                    <span className="text-heading-md">{t.done}</span>
+                    <span className="text-body-sm text-on-surface-light">{t.focusMinutes(Number(preset))}</span>
                   </>
                 ) : (
                   <>
-                    <span role="timer" aria-label={`Tiempo restante ${minutesText(remaining)}`} className="text-display-md font-mono tabular-nums md:text-display-lg">
+                    <span role="timer" aria-label={t.timerAria(minutesText(remaining))} className="text-display-md font-mono tabular-nums md:text-display-lg">
                       {mmss(remaining)}
                     </span>
                     <span className={cn('max-w-full truncate text-body-sm', phase === 'paused' ? 'text-warning-text' : 'text-on-surface-light')}>
-                      {phase === 'paused' ? 'En pausa' : task.trim() || (phase === 'setup' ? 'Listo cuando quieras' : 'Enfocado')}
+                      {phase === 'paused' ? t.paused : task.trim() || (phase === 'setup' ? t.ready : t.focused)}
                     </span>
                   </>
                 )}
@@ -249,50 +338,50 @@ export function FocusMode({ onClose, taskLabel, questId }: Props) {
           {confirmExit ? (
             <div role="group" aria-labelledby={confirmId} className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4">
               <p id={confirmId} className="text-body-md">
-                <b>¿Terminar la sesión?</b>{' '}
-                {savedMinutes >= 1 ? `Llevas ${savedMinutes} min; puedes guardarlos.` : 'Aún no llevas un minuto, no se guardará nada.'}
+                <b>{t.endQ}</b>{' '}
+                {savedMinutes >= 1 ? t.saveHint(savedMinutes) : t.noSaveHint}
               </p>
               <div className="flex flex-col gap-2 sm:flex-row-reverse">
-                <Button ref={stayRef} onClick={resume} className="sm:flex-1">Seguir enfocado</Button>
-                {savedMinutes >= 1 && <Button variant="secondary" loading={saving} onClick={save} className="sm:flex-1">Guardar {savedMinutes} min</Button>}
-                <Button variant="danger" onClick={onClose} className="sm:flex-1">Salir sin guardar</Button>
+                <Button ref={stayRef} onClick={resume} className="sm:flex-1">{t.stay}</Button>
+                {savedMinutes >= 1 && <Button variant="secondary" loading={saving} onClick={save} className="sm:flex-1">{t.saveMinutes(savedMinutes)}</Button>}
+                <Button variant="danger" onClick={onClose} className="sm:flex-1">{t.leaveNoSave}</Button>
               </div>
             </div>
           ) : phase === 'setup' ? (
-            <Button ref={mainRef} size="lg" block onClick={start}><Play aria-hidden className="size-5" strokeWidth={1.75} />Comenzar</Button>
+            <Button ref={mainRef} size="lg" block onClick={start}><Play aria-hidden className="size-5" strokeWidth={1.75} />{t.start}</Button>
           ) : phase === 'done' ? (
             <div className="flex flex-col gap-2">
-              <Button ref={mainRef} size="lg" block loading={saving} onClick={save}><Zap aria-hidden className="size-5" strokeWidth={1.75} />Guardar sesión y ganar XP</Button>
-              <Button variant="ghost" block onClick={onClose}>Cerrar sin guardar</Button>
+              <Button ref={mainRef} size="lg" block loading={saving} onClick={save}><Zap aria-hidden className="size-5" strokeWidth={1.75} />{t.saveXp}</Button>
+              <Button variant="ghost" block onClick={onClose}>{t.closeNoSave}</Button>
             </div>
           ) : (
             <div className="flex flex-col gap-2">
               <div className="flex gap-2">
                 <Button ref={mainRef} size="lg" onClick={phase === 'running' ? pause : resume} className="flex-1">
                   {phase === 'running'
-                    ? <><Pause aria-hidden className="size-5" strokeWidth={1.75} />Pausar</>
-                    : <><Play aria-hidden className="size-5" strokeWidth={1.75} />Continuar</>}
+                    ? <><Pause aria-hidden className="size-5" strokeWidth={1.75} />{t.pause}</>
+                    : <><Play aria-hidden className="size-5" strokeWidth={1.75} />{t.resume}</>}
                 </Button>
-                <Button variant="secondary" size="lg" onClick={reset} aria-label="Reiniciar" className="px-4 sm:px-6">
-                  <RotateCcw aria-hidden className="size-5" strokeWidth={1.75} /><span aria-hidden className="hidden sm:inline">Reiniciar</span>
+                <Button variant="secondary" size="lg" onClick={reset} aria-label={t.resetAria} className="px-4 sm:px-6">
+                  <RotateCcw aria-hidden className="size-5" strokeWidth={1.75} /><span aria-hidden className="hidden sm:inline">{t.reset}</span>
                 </Button>
               </div>
-              <Button variant="ghost" block onClick={requestClose}><Square aria-hidden className="size-4" strokeWidth={1.75} />Terminar</Button>
+              <Button variant="ghost" block onClick={requestClose}><Square aria-hidden className="size-4" strokeWidth={1.75} />{t.finish}</Button>
             </div>
           )}
 
           {/* Sonido */}
           {phase !== 'done' && (
-            <section aria-label="Sonido" className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-4">
-              <Field label="Sonido ambiente">
+            <section aria-label={t.soundAria} className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-4">
+              <Field label={t.ambient}>
                 <Select value={ambient} onChange={(e) => void changeAmbient(e.target.value as AmbientSoundId)}>
-                  {AMBIENT_SOUNDS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+                  {AMBIENT_SOUNDS.map((s) => <option key={s.id} value={s.id}>{t.sounds[s.id]}</option>)}
                 </Select>
               </Field>
               {ambient !== 'none' && (
                 <div className="flex flex-col gap-1">
                   <div className="flex justify-between text-label-lg text-on-surface">
-                    <label htmlFor={`${soundOnId}-vol`}>Volumen</label>
+                    <label htmlFor={`${soundOnId}-vol`}>{t.volume}</label>
                     <span className="font-mono tabular-nums text-on-surface-light">{volume}%</span>
                   </div>
                   <input
@@ -304,7 +393,7 @@ export function FocusMode({ onClose, taskLabel, questId }: Props) {
                 </div>
               )}
               <div className="flex items-center justify-between gap-4">
-                <label htmlFor={soundOnId} className="text-body-md">Aviso sonoro al terminar</label>
+                <label htmlFor={soundOnId} className="text-body-md">{t.chime}</label>
                 <Switch id={soundOnId} checked={chime} onChange={(e) => setChime(e.target.checked)} />
               </div>
             </section>

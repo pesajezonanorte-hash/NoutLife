@@ -17,6 +17,41 @@ import { logHabit } from '@/services/habit.service';
 import { createMeal } from '@/services/meal.service';
 import { snoozeReminder } from '@/services/notification.service';
 import { Button } from './lq';
+import { useText, type Copy } from '@/lib/i18n';
+
+const es = {
+  habitDone: 'Hábito completado',
+  streakAlive: 'Tu racha sigue viva.',
+  water: '+250 ml de agua',
+  logFail: 'No se pudo registrar. Inténtalo desde la zona.',
+  done: 'Listo',
+  snoozed: 'Te lo recuerdo en 10 min.',
+  snoozeFail: 'No se pudo posponer el aviso',
+  water250: '+250 ml',
+  complete: 'Completar',
+  snooze: 'Posponer 10 min',
+  view: 'Ver',
+  close: 'Cerrar aviso',
+  listAria: 'Recordatorios',
+};
+
+const en: typeof es = {
+  habitDone: 'Habit completed',
+  streakAlive: 'Your streak stays alive.',
+  water: '+250 ml of water',
+  logFail: 'Could not log it. Try again from the zone.',
+  done: 'Done',
+  snoozed: 'I will remind you again in 10 min.',
+  snoozeFail: 'Could not snooze the reminder',
+  water250: '+250 ml',
+  complete: 'Complete',
+  snooze: 'Snooze 10 min',
+  view: 'View',
+  close: 'Close reminder',
+  listAria: 'Reminders',
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 const SHOW_MS = 12_000;
 const MAX_PINGS = 3;
@@ -34,6 +69,7 @@ function iconOf(a: InAppAlert): LucideIcon {
 }
 
 function PingCard({ ping, onClose }: { ping: Ping; onClose: () => void }) {
+  const t = useText(COPY);
   const navigate = useNavigate();
   const reduce = useMotionStore((s) => s.reduce);
   const [held, setHeld] = useState(false);
@@ -51,15 +87,15 @@ function PingCard({ ping, onClose }: { ping: Ping; onClose: () => void }) {
     try {
       if (ping.quick === 'habit_done' && ping.quickRef) {
         await logHabit(ping.quickRef, 'completed', undefined, ping.day);
-        useToastStore.getState().success('Hábito completado', 'Tu racha sigue viva.');
+        useToastStore.getState().success(t.habitDone, t.streakAlive);
       } else if (ping.quick === 'water_250') {
         await createMeal({ name: 'Agua', mealType: 'WATER', waterMl: 250, date: ping.day });
-        useToastStore.getState().success('+250 ml de agua');
+        useToastStore.getState().success(t.water);
       }
       onClose();
     } catch {
       setBusy(false);
-      useToastStore.getState().error('No se pudo registrar. Inténtalo desde la zona.');
+      useToastStore.getState().error(t.logFail);
     }
   }
 
@@ -67,11 +103,11 @@ function PingCard({ ping, onClose }: { ping: Ping; onClose: () => void }) {
     setBusy(true);
     try {
       await snoozeReminder(ping);
-      useToastStore.getState().success('Listo', 'Te lo recuerdo en 10 min.');
+      useToastStore.getState().success(t.done, t.snoozed);
       onClose();
     } catch {
       setBusy(false);
-      useToastStore.getState().error('No se pudo posponer el aviso');
+      useToastStore.getState().error(t.snoozeFail);
     }
   }
 
@@ -98,15 +134,15 @@ function PingCard({ ping, onClose }: { ping: Ping; onClose: () => void }) {
       <div className="flex flex-wrap gap-2 pl-[3.25rem]">
         {ping.quick && (
           <Button size="sm" loading={busy} onClick={() => void quick()}>
-            {ping.quick === 'water_250' ? '+250 ml' : 'Completar'}
+            {ping.quick === 'water_250' ? t.water250 : t.complete}
           </Button>
         )}
-        <Button size="sm" variant="secondary" disabled={busy} onClick={() => void snooze()}>Posponer 10 min</Button>
+        <Button size="sm" variant="secondary" disabled={busy} onClick={() => void snooze()}>{t.snooze}</Button>
         {ping.link && (
-          <Button size="sm" variant="ghost" disabled={busy} onClick={() => { navigate(ping.link!); onClose(); }}>Ver</Button>
+          <Button size="sm" variant="ghost" disabled={busy} onClick={() => { navigate(ping.link!); onClose(); }}>{t.view}</Button>
         )}
       </div>
-      <button type="button" onClick={onClose} aria-label="Cerrar aviso" className="absolute right-1.5 top-1.5 flex size-9 items-center justify-center rounded-full text-on-surface-light hover:bg-background hover:text-on-background">
+      <button type="button" onClick={onClose} aria-label={t.close} className="absolute right-1.5 top-1.5 flex size-9 items-center justify-center rounded-full text-on-surface-light hover:bg-background hover:text-on-background">
         <X aria-hidden className="size-4" />
       </button>
     </motion.li>
@@ -114,6 +150,7 @@ function PingCard({ ping, onClose }: { ping: Ping; onClose: () => void }) {
 }
 
 export function ReminderPings() {
+  const t = useText(COPY);
   const [pings, setPings] = useState<Ping[]>([]);
 
   useEffect(() => {
@@ -134,7 +171,7 @@ export function ReminderPings() {
 
   return (
     <ul
-      aria-label="Recordatorios" aria-live="polite"
+      aria-label={t.listAria} aria-live="polite"
       className="pointer-events-none fixed inset-x-3 top-[calc(env(safe-area-inset-top)+0.5rem)] z-[87] flex flex-col gap-2 sm:inset-x-auto sm:left-1/2 sm:top-[4.5rem] sm:w-[380px] sm:-translate-x-1/2"
     >
       <AnimatePresence initial={false}>

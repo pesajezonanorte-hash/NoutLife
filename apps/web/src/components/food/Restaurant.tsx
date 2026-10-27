@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { springs } from '@/lib/motion/presets';
 import { useMotionStore } from '@/store/motionStore';
 import { ProgressRing, type Tone } from '@/components/ui/lq';
+import { INTL_LOCALE, useLocale } from '@/lib/i18n';
 
 /** Tres hilos de vapor que suben y se disipan (CSS, en bucle lento). */
 export function Steam({ className }: { className?: string }) {
@@ -108,7 +109,8 @@ export function ClocheIcon({ className }: { className?: string }) {
 export function MacroPlate({ label, value, max, tone, size = 92, className }: { label: string; value: number; max: number; tone: Exclude<Tone, 'muted'>; size?: number; className?: string }) {
   const over = value > max;
   const pct = max > 0 ? Math.round((value / max) * 100) : 0;
-  const fmt = (n: number) => Math.round(n).toLocaleString('es-CO');
+  const locale = useLocale();
+  const fmt = (n: number) => Math.round(n).toLocaleString(INTL_LOCALE[locale]);
   return (
     <div className={cn('group flex min-w-0 flex-col items-center gap-2 text-center', className)}>
       <span className="rounded-full border border-border bg-surface p-1.5 shadow-sm transition-transform duration-[560ms] ease-[var(--lq-ease-heavy)] group-hover:-translate-y-1 group-hover:shadow-md">

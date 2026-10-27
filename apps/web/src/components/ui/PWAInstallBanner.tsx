@@ -5,6 +5,35 @@ import { BrandMark } from '@/components/layout/Brand';
 import { Button } from '@/components/ui/lq';
 import { springSoft } from '@/lib/motion';
 import { cn } from '@/lib/utils';
+import { useText, type Copy } from '@/lib/i18n';
+
+const es = {
+  stepShare: 'Toca el botón',
+  share: 'Compartir',
+  stepAdd: 'Selecciona',
+  addHome: '«Agregar a la pantalla de inicio»',
+  stepOpen: 'Abre NoutLife desde tu pantalla de inicio',
+  installTitle: 'Instala NoutLife',
+  installBody: 'Disfruta la experiencia completa sin descargas pesadas ni ocupar memoria. Añádela a tu pantalla de inicio.',
+  regionAria: 'Instalar NoutLife',
+  close: 'Cerrar',
+  installBtn: 'Instalar NoutLife',
+};
+
+const en: typeof es = {
+  stepShare: 'Tap the',
+  share: 'Share',
+  stepAdd: 'Select',
+  addHome: '“Add to Home Screen”',
+  stepOpen: 'Open NoutLife from your home screen',
+  installTitle: 'Install NoutLife',
+  installBody: 'Enjoy the full experience without heavy downloads or using up memory. Add it to your home screen.',
+  regionAria: 'Install NoutLife',
+  close: 'Close',
+  installBtn: 'Install NoutLife',
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -42,27 +71,29 @@ function isIosSafari(): boolean {
 
 /** Guía de Safari en iPhone: Compartir → «Agregar a la pantalla de inicio». */
 export function IosInstallSteps({ className }: { className?: string }) {
+  const t = useText(COPY);
   return (
     <ol className={cn('space-y-3', className)}>
       <li className="flex items-center gap-3 text-body-sm text-on-background">
         <span className="grid size-7 shrink-0 place-items-center rounded-full bg-primary text-label-sm text-on-primary">1</span>
-        <span className="min-w-0 flex-1">Toca el botón <strong>Compartir</strong></span>
+        <span className="min-w-0 flex-1">{t.stepShare} <strong>{t.share}</strong></span>
         <Share aria-hidden className="size-5 shrink-0 text-on-surface-light" strokeWidth={1.75} />
       </li>
       <li className="flex items-center gap-3 text-body-sm text-on-background">
         <span className="grid size-7 shrink-0 place-items-center rounded-full bg-primary text-label-sm text-on-primary">2</span>
-        <span className="min-w-0 flex-1">Selecciona <strong>«Agregar a la pantalla de inicio»</strong></span>
+        <span className="min-w-0 flex-1">{t.stepAdd} <strong>{t.addHome}</strong></span>
         <PlusSquare aria-hidden className="size-5 shrink-0 text-on-surface-light" strokeWidth={1.75} />
       </li>
       <li className="flex items-center gap-3 text-body-sm text-on-background">
         <span className="grid size-7 shrink-0 place-items-center rounded-full bg-primary text-label-sm text-on-primary">3</span>
-        <span className="min-w-0 flex-1">Abre NoutLife desde tu pantalla de inicio</span>
+        <span className="min-w-0 flex-1">{t.stepOpen}</span>
       </li>
     </ol>
   );
 }
 
 export function PWAInstallBanner() {
+  const t = useText(COPY);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   // 'android': botón con el aviso nativo de Chrome. 'ios': guía manual de Safari.
   const [platform, setPlatform] = useState<'android' | 'ios' | null>(null);
@@ -118,7 +149,7 @@ export function PWAInstallBanner() {
       {visible && platform && (
         <motion.div
           role="region"
-          aria-label="Instalar NoutLife"
+          aria-label={t.regionAria}
           className="fixed inset-x-0 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-[150] mx-auto w-full max-w-sm px-4 md:bottom-6 md:left-auto md:right-6 md:mx-0"
           initial={{ y: 40, opacity: 0, scale: 0.98 }}
           animate={{ y: 0, opacity: 1, scale: 1 }}
@@ -129,12 +160,12 @@ export function PWAInstallBanner() {
             <div className="flex items-start gap-3">
               <BrandMark size={36} />
               <div className="min-w-0 flex-1">
-                <p className="text-label-lg text-on-background">Instala NoutLife</p>
+                <p className="text-label-lg text-on-background">{t.installTitle}</p>
                 <p className="text-body-sm text-on-surface-light">
-                  Disfruta la experiencia completa sin descargas pesadas ni ocupar memoria. Añádela a tu pantalla de inicio.
+                  {t.installBody}
                 </p>
               </div>
-              <Button variant="icon" aria-label="Cerrar" onClick={dismiss}>
+              <Button variant="icon" aria-label={t.close} onClick={dismiss}>
                 <X aria-hidden className="size-5" strokeWidth={1.75} />
               </Button>
             </div>
@@ -142,7 +173,7 @@ export function PWAInstallBanner() {
             {platform === 'android' ? (
               <Button block size="sm" className="mt-3" onClick={() => void handleInstall()}>
                 <Download aria-hidden className="size-4" strokeWidth={1.75} />
-                Instalar NoutLife
+                {t.installBtn}
               </Button>
             ) : (
               <IosInstallSteps className="mt-4" />

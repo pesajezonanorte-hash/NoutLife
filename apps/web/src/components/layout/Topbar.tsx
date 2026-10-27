@@ -12,7 +12,6 @@ import { openCommandPalette, sageHasNew, useShellActions } from './actions';
 import { INTL_LOCALE, useLocale, type Copy, type Locale } from '@/lib/i18n';
 
 const es = {
-  today: 'es-ES',
   route: 'Ruta',
   search: 'Buscar (Ctrl+K)',
   sageNew: 'El Sabio, consejo nuevo',
@@ -22,7 +21,6 @@ const es = {
 };
 
 const en: typeof es = {
-  today: 'en-US',
   route: 'Path',
   search: 'Search (Ctrl+K)',
   sageNew: 'The Sage, new advice',

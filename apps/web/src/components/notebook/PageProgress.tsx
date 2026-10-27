@@ -7,6 +7,19 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { springs } from '@/lib/motion/presets';
+import { useText, type Copy } from '@/lib/i18n';
+
+const es = {
+  goTo: 'Ir a la página',
+  pageOf: (shown: number, total: number): string => `Página ${shown} de ${total}`,
+};
+
+const en: typeof es = {
+  goTo: 'Go to page',
+  pageOf: (shown: number, total: number): string => `Page ${shown} of ${total}`,
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 /** Hasta esta cantidad de páginas se dibuja un punto por página. */
 const DOTS_MAX = 24;
@@ -18,6 +31,7 @@ export function PageProgress({ value, total, onCommit }: {
   /** Al soltar (o al soltar una tecla): la hoja pasa a esa página. */
   onCommit: (page: number) => void;
 }) {
+  const t = useText(COPY);
   // Mientras se arrastra, la barra sigue al dedo sin muelle; la hoja no se mueve hasta soltar.
   const [drag, setDrag] = useState<number | null>(null);
   const shown = drag ?? value;
@@ -67,7 +81,7 @@ export function PageProgress({ value, total, onCommit }: {
         {/* Control real: transparente, encima de todo lo visual */}
         <input
           type="range" min={1} max={total} step={1} value={shown}
-          aria-label="Ir a la página" aria-valuetext={`Página ${shown} de ${total}`}
+          aria-label={t.goTo} aria-valuetext={t.pageOf(shown, total)}
           onChange={(e) => setDrag(Number(e.target.value))}
           onPointerUp={finish} onKeyUp={finish} onBlur={finish}
           className="peer absolute inset-0 z-10 m-0 h-full w-full cursor-pointer appearance-none opacity-0 focus:outline-none"

@@ -2,6 +2,7 @@
 // enriquecido y dibujo de trazos en un canvas. Todo en unidades de página
 // (1000 de ancho × 1414 de alto, proporción A5): la página se ve igual en
 // cualquier pantalla y solo cambia la escala.
+import type { Locale } from '@/lib/locale';
 import type { NotebookCategory, NotebookColor, NotebookPaper, PageContent, StickyColor, Stroke } from '@/services/notebook.service';
 
 export const PAGE_W = 1000;
@@ -16,25 +17,48 @@ export const TEXT_LEFT = 140;
 
 export const EMPTY_PAGE: PageContent = { html: '', strokes: [], stickies: [], images: [] };
 
-export const CATEGORIES: Array<{ value: NotebookCategory; label: string }> = [
-  { value: 'personal', label: 'Personal' }, { value: 'trabajo', label: 'Trabajo' }, { value: 'ideas', label: 'Ideas' },
-  { value: 'proyectos', label: 'Proyectos' }, { value: 'estudio', label: 'Estudio' },
-];
-export const categoryLabel = (c: NotebookCategory) => CATEGORIES.find((x) => x.value === c)?.label ?? 'Personal';
+const CATEGORY_VALUES: NotebookCategory[] = ['personal', 'trabajo', 'ideas', 'proyectos', 'estudio'];
+const PAPER_VALUES: NotebookPaper[] = ['ruled', 'grid', 'dots', 'plain'];
 
-/** Tapas: tonos del tema (cada tema de la Tienda los cambia); el texto invierte con claro/oscuro. */
-export const COVERS: Record<NotebookColor, { label: string; className: string }> = {
-  jade: { label: 'Jade', className: 'bg-primary-strong' },
-  bosque: { label: 'Bosque', className: 'bg-success-text' },
-  oceano: { label: 'Océano', className: 'bg-info-text' },
-  ambar: { label: 'Ámbar', className: 'bg-warning-text' },
-  coral: { label: 'Coral', className: 'bg-error-text' },
-  oro: { label: 'Oro', className: 'bg-secondary-text' },
+/** Textos del cuaderno por idioma (los valores que se guardan no cambian). */
+const LABELS: Record<Locale, {
+  categories: Record<NotebookCategory, string>;
+  covers: Record<NotebookColor, string>;
+  papers: Record<NotebookPaper, string>;
+  sizes: [string, string, string];
+}> = {
+  es: {
+    categories: { personal: 'Personal', trabajo: 'Trabajo', ideas: 'Ideas', proyectos: 'Proyectos', estudio: 'Estudio' },
+    covers: { jade: 'Jade', bosque: 'Bosque', oceano: 'Océano', ambar: 'Ámbar', coral: 'Coral', oro: 'Oro' },
+    papers: { ruled: 'Rayado', grid: 'Cuadriculado', dots: 'Punteado', plain: 'Liso' },
+    sizes: ['Fino', 'Medio', 'Grueso'],
+  },
+  en: {
+    categories: { personal: 'Personal', trabajo: 'Work', ideas: 'Ideas', proyectos: 'Projects', estudio: 'Study' },
+    covers: { jade: 'Jade', bosque: 'Forest', oceano: 'Ocean', ambar: 'Amber', coral: 'Coral', oro: 'Gold' },
+    papers: { ruled: 'Lined', grid: 'Grid', dots: 'Dotted', plain: 'Plain' },
+    sizes: ['Fine', 'Medium', 'Thick'],
+  },
 };
 
-export const PAPERS: Array<{ value: NotebookPaper; label: string }> = [
-  { value: 'ruled', label: 'Rayado' }, { value: 'grid', label: 'Cuadriculado' }, { value: 'dots', label: 'Punteado' }, { value: 'plain', label: 'Liso' },
-];
+export const categoriesFor = (locale: Locale = 'es'): Array<{ value: NotebookCategory; label: string }> =>
+  CATEGORY_VALUES.map((value) => ({ value, label: LABELS[locale].categories[value] }));
+export const categoryLabelFor = (c: NotebookCategory, locale: Locale = 'es'): string => LABELS[locale].categories[c] ?? LABELS[locale].categories.personal;
+
+/** Tapas: tonos del tema (cada tema de la Tienda los cambia); el texto invierte con claro/oscuro. */
+const COVER_CLASS: Record<NotebookColor, string> = {
+  jade: 'bg-primary-strong',
+  bosque: 'bg-success-text',
+  oceano: 'bg-info-text',
+  ambar: 'bg-warning-text',
+  coral: 'bg-error-text',
+  oro: 'bg-secondary-text',
+};
+export const coversFor = (locale: Locale = 'es'): Record<NotebookColor, { label: string; className: string }> =>
+  Object.fromEntries((Object.keys(COVER_CLASS) as NotebookColor[]).map((c) => [c, { label: LABELS[locale].covers[c], className: COVER_CLASS[c] }])) as Record<NotebookColor, { label: string; className: string }>;
+
+export const papersFor = (locale: Locale = 'es'): Array<{ value: NotebookPaper; label: string }> =>
+  PAPER_VALUES.map((value) => ({ value, label: LABELS[locale].papers[value] }));
 
 /** Notas adhesivas: colores de papel de verdad (el texto va siempre oscuro encima). */
 export const STICKY_COLORS: Record<StickyColor, string> = {
@@ -43,7 +67,9 @@ export const STICKY_COLORS: Record<StickyColor, string> = {
 
 /** Tintas del dibujo. */
 export const INKS = ['#1f2937', '#1d4ed8', '#b91c1c', '#15803d', '#7c3aed', '#ea580c'] as const;
-export const SIZES = [{ label: 'Fino', w: 3 }, { label: 'Medio', w: 6 }, { label: 'Grueso', w: 12 }] as const;
+/** Grosores del trazo (unidades de página). */
+export const SIZE_WIDTHS = [3, 6, 12] as const;
+export const sizesFor = (locale: Locale = 'es') => SIZE_WIDTHS.map((w, i) => ({ label: LABELS[locale].sizes[i], w }));
 
 // ─── Texto enriquecido ─────────────────────────────────────────────────────────
 const ALLOWED = new Set(['B', 'STRONG', 'I', 'EM', 'U', 'S', 'STRIKE', 'DIV', 'P', 'BR', 'UL', 'OL', 'LI', 'H3', 'SPAN', 'MARK']);

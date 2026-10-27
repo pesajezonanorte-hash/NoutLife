@@ -4,12 +4,37 @@
 // NoutLife a la pantalla de inicio.
 import { useEffect, useState } from 'react';
 import { Bell } from 'lucide-react';
-import { enablePush, PUSH_MESSAGES, pushSupport } from '../../services/notification.service';
+import { enablePush, pushMessagesFor, pushSupport } from '../../services/notification.service';
 import { FIRST_CHECK_EVENT, FIRST_CHECK_KEY, updateHabit } from '../../services/habit.service';
 import { Button, Field, IconChip, Input, ResponsiveDialog } from '@/components/ui/lq';
 import { IosInstallSteps } from '@/components/ui/PWAInstallBanner';
 import { useToastStore } from '@/hooks/useToast';
 import { track } from '@/lib/analytics';
+import { useLocale, useText, type Copy } from '@/lib/i18n';
+
+const es = {
+  titleIos: 'Recibe tus recordatorios en iPhone',
+  title: '¿Te aviso mañana a esta hora?',
+  bodyIos: 'En iPhone los avisos llegan solo con NoutLife en tu pantalla de inicio. Instálala así y actívalos desde Ajustes.',
+  body: 'Un recordatorio para seguir con lo que empezaste hoy. Nada de lo que ya hiciste te va a sonar.',
+  timeLabel: 'Hora del recordatorio',
+  gotIt: 'Entendido',
+  notNow: 'Ahora no',
+  yes: 'Sí, avísame',
+};
+
+const en: typeof es = {
+  titleIos: 'Get your reminders on iPhone',
+  title: 'Remind you tomorrow at this time?',
+  bodyIos: 'On iPhone, alerts only arrive with NoutLife on your home screen. Add it that way, then turn them on in Settings.',
+  body: 'A reminder to keep going with what you started today. Nothing you already did will ring.',
+  timeLabel: 'Reminder time',
+  gotIt: 'Got it',
+  notNow: 'Not now',
+  yes: 'Yes, remind me',
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 const PREF_KEY = 'notif-perm-asked';
 
@@ -44,6 +69,8 @@ function nowRounded() {
 }
 
 export function NotificationPermissionModal({ onClose }: { onClose: () => void }) {
+  const t = useText(COPY);
+  const PUSH_MESSAGES = pushMessagesFor(useLocale());
   const [loading, setLoading] = useState(false);
   const [time, setTime] = useState(nowRounded);
   const needsInstall = pushSupport() === 'ios-install';
@@ -74,30 +101,28 @@ export function NotificationPermissionModal({ onClose }: { onClose: () => void }
   }
 
   return (
-    <ResponsiveDialog open onClose={handleDeny} title={needsInstall ? 'Recibe tus recordatorios en iPhone' : '¿Te aviso mañana a esta hora?'}>
+    <ResponsiveDialog open onClose={handleDeny} title={needsInstall ? t.titleIos : t.title}>
       <div className="flex flex-col gap-5">
         <div className="flex items-start gap-4">
           <IconChip icon={Bell} tone="primary" />
           <p className="text-body-lg text-on-surface">
-            {needsInstall
-              ? 'En iPhone los avisos llegan solo con NoutLife en tu pantalla de inicio. Instálala así y actívalos desde Ajustes.'
-              : 'Un recordatorio para seguir con lo que empezaste hoy. Nada de lo que ya hiciste te va a sonar.'}
+            {needsInstall ? t.bodyIos : t.body}
           </p>
         </div>
         {needsInstall ? (
           <IosInstallSteps />
         ) : habitId && habitId !== '1' && (
-          <Field label="Hora del recordatorio">
+          <Field label={t.timeLabel}>
             <Input type="time" value={time} onChange={(e) => setTime(e.target.value || time)} />
           </Field>
         )}
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           {needsInstall ? (
-            <Button size="md" onClick={handleDeny}>Entendido</Button>
+            <Button size="md" onClick={handleDeny}>{t.gotIt}</Button>
           ) : (
             <>
-              <Button variant="secondary" size="md" onClick={handleDeny}>Ahora no</Button>
-              <Button size="md" loading={loading} onClick={() => void handleAccept()}>Sí, avísame</Button>
+              <Button variant="secondary" size="md" onClick={handleDeny}>{t.notNow}</Button>
+              <Button size="md" loading={loading} onClick={() => void handleAccept()}>{t.yes}</Button>
             </>
           )}
         </div>

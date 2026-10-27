@@ -2,6 +2,7 @@ import { useId } from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { ease, expo, heavy, springSoft } from '@/lib/motion';
+import { useLocale } from '@/lib/i18n';
 import { borderTone, fillSoftTone, solidBg, strokeTone, textTone, type Tone } from './tones';
 
 type ChartTone = Exclude<Tone, 'muted'>;
@@ -214,7 +215,13 @@ const levelCls: Record<HeatLevel, string> = {
 };
 
 /** Mapa de calor semanal (12 semanas en el detalle de hábito) con leyenda. */
-export function Heatmap({ weeks, label, dayLabels = ['L', '', 'X', '', 'V', '', 'D'], className }: HeatmapProps) {
+const HEAT_COPY = {
+  es: { days: ['L', '', 'X', '', 'V', '', 'D'], none: 'Sin registrar', partial: 'Parcial', full: 'Completado' },
+  en: { days: ['M', '', 'W', '', 'F', '', 'S'], none: 'Not logged', partial: 'Partial', full: 'Complete' },
+};
+
+export function Heatmap({ weeks, label, dayLabels, className }: HeatmapProps) {
+  const t = HEAT_COPY[useLocale()];
   return (
     <div className={cn('flex w-full max-w-[640px] flex-col gap-4', className)}>
       <div
@@ -224,7 +231,7 @@ export function Heatmap({ weeks, label, dayLabels = ['L', '', 'X', '', 'V', '', 
         style={{ gridTemplateColumns: `24px repeat(${weeks.length}, minmax(0, 1fr))` }}
       >
         <div className="grid grid-rows-7 gap-1.5" aria-hidden>
-          {dayLabels.map((l, i) => <span key={i} className="flex items-center text-label-md text-on-surface-light">{l}</span>)}
+          {(dayLabels ?? t.days).map((l, i) => <span key={i} className="flex items-center text-label-md text-on-surface-light">{l}</span>)}
         </div>
         {weeks.map((week, w) => (
           <div key={w} className="grid grid-rows-7 gap-1.5">
@@ -241,7 +248,7 @@ export function Heatmap({ weeks, label, dayLabels = ['L', '', 'X', '', 'V', '', 
         ))}
       </div>
       <div className="flex flex-wrap items-center gap-4 text-body-sm text-on-surface" aria-hidden>
-        {([[0, 'Sin registrar'], [1, 'Parcial'], [2, 'Completado']] as const).map(([lvl, text]) => (
+        {([[0, t.none], [1, t.partial], [2, t.full]] as const).map(([lvl, text]) => (
           <span key={lvl} className="flex items-center gap-1.5">
             <span className={cn('size-3.5 rounded', levelCls[lvl])} />
             {text}

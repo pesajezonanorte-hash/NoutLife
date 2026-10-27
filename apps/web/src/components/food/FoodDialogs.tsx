@@ -17,6 +17,7 @@ import type { NutritionGoal, ParsedMeal, SavedMeal } from '@/services/meal.servi
 import { DEFAULT_GOAL, MACROS, MEAL_TYPES, mealTypeLabel, type FoodType } from './foodMeta';
 import { ChefService } from './Restaurant';
 import { solidBg } from '@/components/ui/lq/tones';
+import { INTL_LOCALE, useLocale } from '@/lib/i18n';
 
 // `type` empieza vacío salvo que la persona haya tocado un momento concreto
 // (un hueco de la línea de tiempo): nunca se asigna uno por la hora ni por defecto.
@@ -224,7 +225,8 @@ export function AnalyzeMealDialog({ open, onClose, date, initialType, onSaved }:
         ? { tone: 'warning', icon: AlertTriangle, text: 'No pudimos estimar los macros de esta descripción. Complétalos a mano o déjalos vacíos.' }
         : { tone: 'info', icon: Info, text: 'El análisis automático no está disponible ahora. Completa los datos a mano.' });
 
-  const fmt = (n: number) => Math.round(n).toLocaleString('es-CO');
+  const locale = useLocale();
+  const fmt = (n: number) => Math.round(n).toLocaleString(INTL_LOCALE[locale]);
   const served = Boolean(parsed && parsed.aiSucceeded && parsed.recognized && !parsed.needsIngredients && text.trim() && parsed.estimatedCalories > 0);
 
   return (

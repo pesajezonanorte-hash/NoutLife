@@ -4,6 +4,7 @@
 // gestos entre muñequitos, pareja, gremios múltiples, bloqueos, galería y
 // revivir rachas con oro. Lo que llega en vivo viaja por lib/live.
 import api from '../lib/api';
+import { getLocale } from '../lib/i18n';
 
 export type Visibility = 'public' | 'friends' | 'private';
 export interface Privacy {
@@ -402,15 +403,27 @@ export function zoneName(pathname: string): string {
   return ZONE_NAMES.find(([p]) => pathname.startsWith(p))?.[1] ?? 'Noutlife';
 }
 
-/** "hace 5 min", "ayer"… para la última conexión. */
+const AGO = {
+  es: {
+    now: 'hace un momento', min: (n: number): string => `hace ${n} min`, hours: (n: number): string => `hace ${n} h`,
+    yesterday: 'ayer', days: (n: number): string => `hace ${n} días`,
+  },
+  en: {
+    now: 'just now', min: (n: number): string => `${n} min ago`, hours: (n: number): string => `${n} h ago`,
+    yesterday: 'yesterday', days: (n: number): string => `${n} days ago`,
+  },
+};
+
+/** "hace 5 min" / "5 min ago", "ayer" / "yesterday"… para la última conexión (en el idioma activo). */
 export function timeAgo(iso: string | null | undefined): string {
   if (!iso) return '';
+  const a = AGO[getLocale()];
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 60) return 'hace un momento';
-  if (s < 3600) return `hace ${Math.floor(s / 60)} min`;
-  if (s < 86400) return `hace ${Math.floor(s / 3600)} h`;
-  if (s < 172800) return 'ayer';
-  return `hace ${Math.floor(s / 86400)} días`;
+  if (s < 60) return a.now;
+  if (s < 3600) return a.min(Math.floor(s / 60));
+  if (s < 86400) return a.hours(Math.floor(s / 3600));
+  if (s < 172800) return a.yesterday;
+  return a.days(Math.floor(s / 86400));
 }
 
 /** Enlaces dentro de la sección Social (directorio, cartas y gremios en un solo sitio). */

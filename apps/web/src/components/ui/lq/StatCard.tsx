@@ -6,6 +6,11 @@ import { Odometer } from './Odometer';
 import { Card } from './Card';
 import { IconChip } from './IconChip';
 import type { Tone } from './tones';
+import { useText, type Copy } from '@/lib/i18n';
+
+const es = { more: 'Ver más' };
+const en: typeof es = { more: 'See more' };
+const COPY: Copy<typeof es> = { es, en };
 
 export interface StatCardProps {
   icon: LucideIcon;
@@ -29,7 +34,8 @@ export function AnimatedValue({ value, format = fmtNumber, quietUnits }: { value
 }
 
 /** Ícono + número (count-up) + label + enlace. Lift en hover. */
-export function StatCard({ icon, tone = 'primary', value, format, label, to, linkLabel = 'Ver más', size = 'md', className }: StatCardProps) {
+export function StatCard({ icon, tone = 'primary', value, format, label, to, linkLabel, size = 'md', className }: StatCardProps) {
+  const t = useText(COPY);
   return (
     <Card interactive padding={size === 'lg' ? 'lg' : 'sm'} className={cn('flex flex-col', size === 'lg' ? 'gap-4' : 'gap-3', className)}>
       <IconChip icon={icon} tone={tone} />
@@ -41,7 +47,7 @@ export function StatCard({ icon, tone = 'primary', value, format, label, to, lin
       </div>
       {to && (
         <Link to={to} className="inline-flex min-h-11 items-center gap-1 self-start text-label-lg text-primary-text hover:underline hover:underline-offset-4">
-          {linkLabel}
+          {linkLabel ?? t.more}
           <span className="sr-only"> · {label}</span>
           <ChevronRight aria-hidden className="size-4" strokeWidth={1.75} />
         </Link>

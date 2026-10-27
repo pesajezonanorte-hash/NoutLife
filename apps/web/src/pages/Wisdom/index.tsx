@@ -19,21 +19,77 @@ import * as wisdomService from '@/services/wisdom.service';
 import type { WisdomCard } from '@/services/wisdom.service';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { useToast } from '@/hooks/useToast';
+import { useText, type Copy } from '@/lib/i18n';
 import {
   Badge, Button, Card, ChipGroup, EmptyState, ErrorState, PageLoader, ProgressBar, QuoteCard, type ChipOption, type Tone,
 } from '@/components/ui/lq';
 
-type Cat = { label: string; tone: Exclude<Tone, 'muted'>; icon: LucideIcon };
-const CATS: Record<string, Cat> = {
-  discipline: { label: 'Disciplina', tone: 'error', icon: Swords },
-  mindset: { label: 'Mentalidad', tone: 'primary', icon: Brain },
-  strategy: { label: 'Estrategia', tone: 'secondary', icon: Compass },
-  finance: { label: 'Finanzas', tone: 'warning', icon: Coins },
-  health: { label: 'Salud', tone: 'success', icon: HeartPulse },
-  relationships: { label: 'Relaciones', tone: 'forest', icon: Users },
-  growth: { label: 'Crecimiento', tone: 'info', icon: Sprout },
+const es = {
+  cats: { discipline: 'Disciplina', mindset: 'Mentalidad', strategy: 'Estrategia', finance: 'Finanzas', health: 'Salud', relationships: 'Relaciones', growth: 'Crecimiento' } as Record<string, string>,
+  copied: 'Cita copiada',
+  eyebrow: 'Sabiduría',
+  title: 'Biblioteca de citas',
+  desc: (unlocked: number, total: number): string => `Lo que dijeron filósofos, estrategas, científicos y atletas que marcaron su época. Subir de nivel abre más: ${unlocked} de ${total}.`,
+  unlocked: 'Desbloqueadas',
+  unlockedAria: 'Citas desbloqueadas',
+  nextLevel: (n: number): string => `Siguiente al nivel ${n}`,
+  otherQuote: 'Otra cita',
+  dayQuote: 'Cita del día',
+  featured: 'Cita destacada',
+  quoteAria: 'Cita del día',
+  saved: 'Guardada',
+  save: 'Guardar',
+  backToDay: 'Volver a la del día',
+  share: 'Compartir',
+  reflect: 'Reflexionar en el diario',
+  category: 'Categoría',
+  all: 'Todas',
+  savedCount: 'Guardadas',
+  library: 'Biblioteca',
+  nothingHere: 'Nada en esta categoría',
+  nothingHereDesc: 'Sube de nivel para desbloquear más citas.',
 };
-const catOf = (c: string): Cat => CATS[c] ?? { label: c, tone: 'primary', icon: BookOpen };
+
+const en: typeof es = {
+  cats: { discipline: 'Discipline', mindset: 'Mindset', strategy: 'Strategy', finance: 'Finance', health: 'Health', relationships: 'Relationships', growth: 'Growth' } as Record<string, string>,
+  copied: 'Quote copied',
+  eyebrow: 'Wisdom',
+  title: 'Quote library',
+  desc: (unlocked: number, total: number): string => `What philosophers, strategists, scientists and athletes who shaped their time said. Levelling up unlocks more: ${unlocked} of ${total}.`,
+  unlocked: 'Unlocked',
+  unlockedAria: 'Unlocked quotes',
+  nextLevel: (n: number): string => `Next at level ${n}`,
+  otherQuote: 'Another quote',
+  dayQuote: 'Quote of the day',
+  featured: 'Featured quote',
+  quoteAria: 'Quote of the day',
+  saved: 'Saved',
+  save: 'Save',
+  backToDay: "Back to today's",
+  share: 'Share',
+  reflect: 'Reflect in the journal',
+  category: 'Category',
+  all: 'All',
+  savedCount: 'Saved',
+  library: 'Library',
+  nothingHere: 'Nothing in this category',
+  nothingHereDesc: 'Level up to unlock more quotes.',
+};
+
+const COPY: Copy<typeof es> = { es, en };
+
+type Cat = { tone: Exclude<Tone, 'muted'>; icon: LucideIcon };
+const CATS: Record<string, Cat> = {
+  discipline: { tone: 'error', icon: Swords },
+  mindset: { tone: 'primary', icon: Brain },
+  strategy: { tone: 'secondary', icon: Compass },
+  finance: { tone: 'warning', icon: Coins },
+  health: { tone: 'success', icon: HeartPulse },
+  relationships: { tone: 'forest', icon: Users },
+  growth: { tone: 'info', icon: Sprout },
+};
+const catOf = (c: string, labels: Record<string, string>): { label: string; tone: Exclude<Tone, 'muted'>; icon: LucideIcon } =>
+  (CATS[c] ? { label: labels[c] ?? c, ...CATS[c] } : { label: c, tone: 'primary', icon: BookOpen });
 
 // TODO(api): no hay endpoint para guardar citas; se guardan en este dispositivo.
 const SAVED_KEY = 'lq-wisdom-saved';
@@ -49,6 +105,7 @@ const engraveStep = (slow: boolean) => (slow ? 0.09 : 0.05);
 type Data = Awaited<ReturnType<typeof wisdomService.getAllCards>>;
 
 export default function WisdomPage() {
+  const t = useText(COPY);
   const navigate = useNavigate();
   const toast = useToast();
   const [data, setData] = useState<Data | null>(null);
@@ -91,8 +148,8 @@ export default function WisdomPage() {
   };
 
   const options: ChipOption<string>[] = [
-    { value: 'all', label: 'Todas', icon: List },
-    ...Object.entries(CATS).map(([value, c]) => ({ value, label: c.label, icon: c.icon })),
+    { value: 'all', label: t.all, icon: List },
+    ...Object.entries(CATS).map(([value, c]) => ({ value, label: t.cats[value] ?? value, icon: c.icon })),
   ];
   const open = (data?.available ?? []).filter((c) => c.id !== featured?.id && (cat === 'all' || c.category === cat));
   const locked = (data?.locked ?? []).filter((c) => cat === 'all' || c.category === cat).slice(0, 6);
@@ -110,14 +167,14 @@ export default function WisdomPage() {
     const text = `“${featured.quote}”${by}`;
     try {
       if (navigator.share) await navigator.share({ text });
-      else { await navigator.clipboard.writeText(text); toast.success('Cita copiada'); }
+      else { await navigator.clipboard.writeText(text); toast.success(t.copied); }
     } catch { /* cancelado */ }
   };
 
   if (state === 'loading') return <PageLoader />;
   if (state === 'error') return <ErrorState onRetry={load} />;
 
-  const fc = featured ? catOf(featured.category) : null;
+  const fc = featured ? catOf(featured.category, t.cats) : null;
   // Al pedir otra cita se graba enseguida; la del día espera a que la página entre.
   const delay = picked ? 0.1 : 0.45;
   const step = engraveStep(discovered && !picked);
@@ -143,14 +200,14 @@ export default function WisdomPage() {
       )}
     >
       <PageHeader
-        eyebrow="Sabiduría"
-        title="Biblioteca de citas"
-        description={`Lo que dijeron filósofos, estrategas, científicos y atletas que marcaron su época. Subir de nivel abre más: ${data?.available.length ?? 0} de ${total}.`}
+        eyebrow={t.eyebrow}
+        title={t.title}
+        description={t.desc(data?.available.length ?? 0, total)}
         aside={
           <div className="flex w-full max-w-[260px] flex-col gap-1.5">
-            <div className="flex justify-between gap-3"><span className="text-body-sm text-on-surface-light">Desbloqueadas</span><span className="font-mono text-label-lg tabular-nums">{data?.available.length ?? 0}/{total}</span></div>
-            <ProgressBar value={total ? ((data?.available.length ?? 0) / total) * 100 : 0} shine label="Citas desbloqueadas" />
-            {nextLevel && <span className="text-body-sm text-on-surface-light">Siguiente al nivel {nextLevel}</span>}
+            <div className="flex justify-between gap-3"><span className="text-body-sm text-on-surface-light">{t.unlocked}</span><span className="font-mono text-label-lg tabular-nums">{data?.available.length ?? 0}/{total}</span></div>
+            <ProgressBar value={total ? ((data?.available.length ?? 0) / total) * 100 : 0} shine label={t.unlockedAria} />
+            {nextLevel && <span className="text-body-sm text-on-surface-light">{t.nextLevel(nextLevel)}</span>}
           </div>
         }
       />
@@ -160,9 +217,9 @@ export default function WisdomPage() {
           {/* Una cita nueva aviva la luz de las antorchas un instante */}
           {discovered && <motion.span aria-hidden="true" className="pointer-events-none absolute -inset-10 rounded-[2rem] bg-[radial-gradient(closest-side,rgb(var(--lq-warning)/.3),transparent)]" initial={{ opacity: 0 }} animate={{ opacity: [0, 1, 0.15] }} transition={{ duration: 2.4, times: [0, 0.35, 1], delay: 0.6 }} />}
           <Column side="left" className="hidden md:flex" />
-          <StoneTablet aria-label={picked ? 'Otra cita' : 'Cita del día'} className="flex min-w-0 max-w-[880px] flex-1 flex-col gap-7 px-6 py-9 md:px-12 md:py-12">
+          <StoneTablet aria-label={picked ? t.otherQuote : t.quoteAria} className="flex min-w-0 max-w-[880px] flex-1 flex-col gap-7 px-6 py-9 md:px-12 md:py-12">
             <div className="flex flex-wrap items-center justify-center gap-2 text-center">
-              <span className="text-label-lg text-on-surface">{picked ? 'Otra cita' : daily ? 'Cita del día' : 'Cita destacada'}</span>
+              <span className="text-label-lg text-on-surface">{picked ? t.otherQuote : daily ? t.dayQuote : t.featured}</span>
               <Badge variant={fc.tone} icon={fc.icon}>{fc.label}</Badge>
             </div>
             {/* key: cada cita nueva se vuelve a grabar palabra a palabra */}
@@ -184,29 +241,29 @@ export default function WisdomPage() {
             </blockquote>
             <div className="flex flex-wrap justify-center gap-3">
               <Button variant={isSaved ? 'secondary' : 'primary'} aria-pressed={isSaved} onClick={toggleSave}>
-                <Bookmark aria-hidden className={cn('size-4', isSaved && 'fill-current')} strokeWidth={1.75} />{isSaved ? 'Guardada' : 'Guardar'}
+                <Bookmark aria-hidden className={cn('size-4', isSaved && 'fill-current')} strokeWidth={1.75} />{isSaved ? t.saved : t.save}
               </Button>
-              <Button variant="ghost" onClick={another} disabled={(data?.available.length ?? 0) < 2}><Shuffle aria-hidden className="size-4" strokeWidth={1.75} />Otra cita</Button>
-              {picked && <Button variant="ghost" onClick={() => setPicked(null)}><RotateCcw aria-hidden className="size-4" strokeWidth={1.75} />Volver a la del día</Button>}
-              <Button variant="ghost" onClick={share}><Share2 aria-hidden className="size-4" strokeWidth={1.75} />Compartir</Button>
-              <Button variant="ghost" onClick={() => navigate('/journal')}><NotebookPen aria-hidden className="size-4" strokeWidth={1.75} />Reflexionar en el diario</Button>
+              <Button variant="ghost" onClick={another} disabled={(data?.available.length ?? 0) < 2}><Shuffle aria-hidden className="size-4" strokeWidth={1.75} />{t.otherQuote}</Button>
+              {picked && <Button variant="ghost" onClick={() => setPicked(null)}><RotateCcw aria-hidden className="size-4" strokeWidth={1.75} />{t.backToDay}</Button>}
+              <Button variant="ghost" onClick={share}><Share2 aria-hidden className="size-4" strokeWidth={1.75} />{t.share}</Button>
+              <Button variant="ghost" onClick={() => navigate('/journal')}><NotebookPen aria-hidden className="size-4" strokeWidth={1.75} />{t.reflect}</Button>
             </div>
           </StoneTablet>
           <Column side="right" className="hidden md:flex" />
         </motion.div>
       )}
 
-      <motion.section variants={item} className="flex flex-col gap-6" aria-label="Biblioteca">
+      <motion.section variants={item} className="flex flex-col gap-6" aria-label={t.library}>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <ChipGroup label="Categoría" options={options} value={cat} onChange={setCat} />
-          <span className="text-body-sm text-on-surface-light">Guardadas: <span className="font-mono">{saved.length}</span></span>
+          <ChipGroup label={t.category} options={options} value={cat} onChange={setCat} />
+          <span className="text-body-sm text-on-surface-light">{t.savedCount}: <span className="font-mono">{saved.length}</span></span>
         </div>
         {open.length === 0 && locked.length === 0 ? (
-          <EmptyState icon={BookOpen} title="Nada en esta categoría" description="Sube de nivel para desbloquear más citas." />
+          <EmptyState icon={BookOpen} title={t.nothingHere} description={t.nothingHereDesc} />
         ) : (
           <motion.ul variants={stagger} initial="initial" animate="animate" className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-6 xl:grid-cols-3">
             {open.map((c) => {
-              const k = catOf(c.category);
+              const k = catOf(c.category, t.cats);
               return (
                 <motion.li key={c.id} variants={enter.emerge}>
                   <Card interactive padding="lg" className="lq-stone h-full rounded-[18px_14px_20px_12px]">
@@ -216,7 +273,7 @@ export default function WisdomPage() {
               );
             })}
             {locked.map((c) => {
-              const k = catOf(c.category);
+              const k = catOf(c.category, t.cats);
               return (
                 <motion.li key={c.id} variants={enter.emerge}>
                   <Card padding="lg" className="lq-stone lq-dusty h-full rounded-[18px_14px_20px_12px]">

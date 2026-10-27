@@ -15,6 +15,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useSocialStore } from '@/store/socialStore';
 import { liveHub, type LiveChatSection } from '@/lib/live';
 import { primeMedia } from '@/lib/media';
+import { useText, type Copy } from '@/lib/i18n';
 import { closeSystemNotifications } from '@/lib/systemNotifications';
 import {
   apiError, chatOf, deleteMessage, editMessage, getConversation, getDirectBackground, getGuild, getGuildBackground, getGuildLetter,
@@ -102,6 +103,52 @@ interface Cached {
 /** Cartas ya abiertas: se pintan al instante al volver. */
 const letterCache = new Lru<Cached>(25);
 
+const es = {
+  you: 'Tú',
+  streakLit: (first: string): string => `¡Se encendió su racha con ${first}!`,
+  streakLitBody: 'Tres días seguidos escribiéndose.',
+  sendFail: 'No se pudo enviar',
+  bgFail: 'No se pudo guardar el fondo',
+  reviveFail: 'No se pudo revivir la racha',
+  reviveOk: 'La racha volvió a encenderse',
+  reviveBody: 'Escríbanse hoy para mantenerla.',
+  enemyDown: (name: string): string => `¡${name} cayó!`,
+  enemyDownBody: 'Todos enviaron una foto hoy.',
+  guildStreakLit: (name: string): string => `¡Se encendió la racha de ${name}!`,
+  guildStreakBody: 'Tres días seguidos escribiéndose todos.',
+  gameFail: 'No se pudo empezar la partida',
+  moveFail: 'Esa jugada no vale',
+  editFail: 'No se pudo editar',
+  removeFail: 'No se pudo borrar',
+  reactFail: 'No se pudo reaccionar',
+  theGuild: 'el gremio',
+  theEnemy: 'El enemigo',
+};
+
+const en: typeof es = {
+  you: 'You',
+  streakLit: (first: string): string => `Your streak with ${first} is lit!`,
+  streakLitBody: 'Three days in a row talking.',
+  sendFail: 'Could not send',
+  bgFail: 'Could not save the background',
+  reviveFail: 'Could not revive the streak',
+  reviveOk: 'The streak is lit again',
+  reviveBody: 'Talk to each other today to keep it.',
+  enemyDown: (name: string): string => `${name} is down!`,
+  enemyDownBody: 'Everyone sent a photo today.',
+  guildStreakLit: (name: string): string => `The ${name} streak is lit!`,
+  guildStreakBody: 'Three days in a row, everyone talking.',
+  gameFail: 'Could not start the game',
+  moveFail: 'That move is not valid',
+  editFail: 'Could not edit',
+  removeFail: 'Could not delete',
+  reactFail: 'Could not react',
+  theGuild: 'the guild',
+  theEnemy: 'The enemy',
+};
+
+const COPY: Copy<typeof es> = { es, en };
+
 const toaster = () => useToastStore.getState();
 const tmpId = () => `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
@@ -167,10 +214,11 @@ function useBackgroundPhoto(key: string, meta: BackgroundMeta | null, fetcher: (
 }
 
 function useMe(): LetterAuthor {
+  const t = useText(COPY);
   const me = useAuthStore((s) => s.user) as (ReturnType<typeof useAuthStore.getState>['user'] & { nameColor?: string | null }) | null;
   return useMemo(() => ({
-    id: String(me?.id ?? ''), name: me?.displayName ?? 'Tú', username: me?.username, avatarConfig: me?.avatarConfig, avatarUrl: me?.avatarUrl, nameColor: me?.nameColor ?? null,
-  }), [me]);
+    id: String(me?.id ?? ''), name: me?.displayName ?? t.you, username: me?.username, avatarConfig: me?.avatarConfig, avatarUrl: me?.avatarUrl, nameColor: me?.nameColor ?? null,
+  }), [me, t.you]);
 }
 
 /** "Escribiendo…" con freno: como mucho un aviso cada 2,5 s mientras se teclea. */
@@ -221,6 +269,7 @@ export function useDirectLetter(friend: PublicUser, onActivity?: () => void): Le
   const activity = useRef(onActivity);
   activity.current = onActivity;
   const first = friend.displayName.split(' ')[0];
+  const t = useText(COPY);
   const notifyTyping = useTypingNotifier(viewKey);
 
   const them: LetterAuthor = useMemo(
@@ -302,10 +351,10 @@ export function useDirectLetter(friend: PublicUser, onActivity?: () => void): Le
     if (r.message.createdAt > (lastAt.current ?? '')) lastAt.current = r.message.createdAt;
     setConv((c) => (c ? { ...c, streak: { ...c.streak, ...r.streak } } : c));
     if (r.completed && r.streak.active && r.streak.count === STREAK_MIN) {
-      toaster().success(`¡Se encendió su racha con ${first}!`, 'Tres días seguidos escribiéndose.');
+      toaster().success(t.streakLit(first), t.streakLitBody);
     }
     activity.current?.();
-  }, [first, toMsg, setMessages, lastAt]);
+  }, [first, t, toMsg, setMessages, lastAt]);
 
   /** Envío optimista de cualquier tipo de mensaje. */
   const send = useCallback(async (body: OutgoingBody, draft: Partial<LetterMsg>, localId = tmpId()) => {
@@ -321,9 +370,9 @@ export function useDirectLetter(friend: PublicUser, onActivity?: () => void): Le
       afterSend(localId, r);
     } catch (e) {
       setMessages((p) => p.filter((m) => m.id !== localId));
-      throw new Error(apiError(e, 'No se pudo enviar'));
+      throw new Error(apiError(e, t.sendFail));
     }
-  }, [afterSend, friend.id, me, notifyTyping, setMessages]);
+  }, [afterSend, friend.id, me, notifyTyping, setMessages, t]);
 
   return {
     ...useLetterActions({
@@ -352,18 +401,18 @@ export function useDirectLetter(friend: PublicUser, onActivity?: () => void): Le
         if (body.photoUrl && r.background) bgCache.set(`dm:${friend.id}@${r.background.at}`, body.photoUrl);
         if (body.photoUrl === undefined && r.background && prevPhoto) bgCache.set(`dm:${friend.id}@${r.background.at}`, prevPhoto);
         setConv((c) => (c ? { ...c, background: r.background } : c));
-      } catch (e) { throw new Error(apiError(e, 'No se pudo guardar el fondo')); }
-    }, [conv?.background, friend.id]),
+      } catch (e) { throw new Error(apiError(e, t.bgFail)); }
+    }, [conv?.background, friend.id, t]),
     revive: useCallback(async () => {
       if (!conv) return;
       try {
         const r = await reviveFriendStreak(conv.friendshipId);
         setConv((c) => (c ? { ...c, streak: { ...c.streak, ...r.streak } } : c));
-        toaster().success('La racha volvió a encenderse', 'Escríbanse hoy para mantenerla.');
+        toaster().success(t.reviveOk, t.reviveBody);
         void refreshUser();
         activity.current?.();
-      } catch (e) { toaster().error(apiError(e, 'No se pudo revivir la racha')); }
-    }, [conv]),
+      } catch (e) { toaster().error(apiError(e, t.reviveFail)); }
+    }, [conv, t]),
   };
 }
 
@@ -381,6 +430,7 @@ export function useGuildLetter(guildId: string, opts: { guild?: GuildDetail | nu
   const [reads, setReads] = useState<Map<string, number>>(() => new Map(cached?.reads ?? []));
   const ext = useRef(opts);
   ext.current = opts;
+  const t = useText(COPY);
   const notifyTyping = useTypingNotifier(viewKey);
 
   const loadGuild = useCallback(() => {
@@ -467,12 +517,12 @@ export function useGuildLetter(guildId: string, opts: { guild?: GuildDetail | nu
   const afterSend = useCallback((localId: string, r: Awaited<ReturnType<typeof postGuildMessage>>) => {
     setMessages((p) => confirm(p, localId, toMsg(r)));
     if (r.createdAt > (lastAt.current ?? '')) lastAt.current = r.createdAt;
-    const name = guild?.name ?? 'el gremio';
-    if (r.enemyDefeated) toaster().success(`¡${guild?.today.enemy.name ?? 'El enemigo'} cayó!`, 'Todos enviaron una foto hoy.');
-    else if (r.streakCompleted && r.streak.active && r.streak.count === STREAK_MIN) toaster().success(`¡Se encendió la racha de ${name}!`, 'Tres días seguidos escribiéndose todos.');
+    const name = guild?.name ?? t.theGuild;
+    if (r.enemyDefeated) toaster().success(t.enemyDown(guild?.today.enemy.name ?? t.theEnemy), t.enemyDownBody);
+    else if (r.streakCompleted && r.streak.active && r.streak.count === STREAK_MIN) toaster().success(t.guildStreakLit(name), t.guildStreakBody);
     if (r.enemyDefeated || r.streakCompleted || r.kind === 'SNAP') loadGuild();
     ext.current.onActivity?.();
-  }, [guild?.name, guild?.today.enemy.name, loadGuild, toMsg, setMessages, lastAt]);
+  }, [guild?.name, guild?.today.enemy.name, loadGuild, toMsg, setMessages, lastAt, t]);
 
   const send = useCallback(async (body: OutgoingBody, draft: Partial<LetterMsg>, localId = tmpId()) => {
     notifyTyping(false);
@@ -487,9 +537,9 @@ export function useGuildLetter(guildId: string, opts: { guild?: GuildDetail | nu
       afterSend(localId, r);
     } catch (e) {
       setMessages((p) => p.filter((m) => m.id !== localId));
-      throw new Error(apiError(e, 'No se pudo enviar'));
+      throw new Error(apiError(e, t.sendFail));
     }
-  }, [afterSend, guildId, me, notifyTyping, setMessages]);
+  }, [afterSend, guildId, me, notifyTyping, setMessages, t]);
 
   return {
     ...useLetterActions({
@@ -518,8 +568,8 @@ export function useGuildLetter(guildId: string, opts: { guild?: GuildDetail | nu
         if (body.photoUrl === undefined && r.background && prevPhoto) bgCache.set(`guild:${guildId}@${r.background.at}`, prevPhoto);
         if (!controlled) setOwn((g) => (g ? { ...g, background: r.background } : g));
         loadGuild();
-      } catch (e) { throw new Error(apiError(e, 'No se pudo guardar el fondo')); }
-    }, [controlled, guild?.background, guildId, loadGuild]),
+      } catch (e) { throw new Error(apiError(e, t.bgFail)); }
+    }, [controlled, guild?.background, guildId, loadGuild, t]),
   };
 }
 
@@ -535,6 +585,7 @@ function useLetterActions({ core, me, side, viewKey, send, notifyTyping, react: 
   addMessage: (m: DM | GuildMessage) => LetterMsg;
 }) {
   const { setMessages, messagesRef } = core;
+  const t = useText(COPY);
 
   const sendText = useCallback((text: string, reply?: LetterMsg | null) =>
     send({ content: text, replyToId: reply?.id }, { replyTo: replyRefOf(reply) }), [send]);
@@ -559,15 +610,15 @@ function useLetterActions({ core, me, side, viewKey, send, notifyTyping, react: 
       const m = await apiStartGame(viewKey, type);
       setMessages((p) => merge(p, [addMessage(m)]));
       liveHub.refresh();
-    } catch (e) { toaster().error(apiError(e, 'No se pudo empezar la partida')); }
-  }, [addMessage, setMessages, viewKey]);
+    } catch (e) { toaster().error(apiError(e, t.gameFail)); }
+  }, [addMessage, setMessages, viewKey, t]);
 
   const move = useCallback(async (messageId: string, mv: number | RpsPick) => {
     try {
       const r = await playMove(side, messageId, mv);
       setMessages((p) => p.map((m) => (m.id === r.id ? { ...m, meta: { ...(m.meta ?? {}), game: r.game } } : m)));
-    } catch (e) { toaster().error(apiError(e, 'Esa jugada no vale')); }
-  }, [setMessages, side]);
+    } catch (e) { toaster().error(apiError(e, t.moveFail)); }
+  }, [setMessages, side, t]);
 
   const edit = useCallback(async (messageId: string, content: string) => {
     const before = messagesRef.current.find((m) => m.id === messageId);
@@ -576,9 +627,9 @@ function useLetterActions({ core, me, side, viewKey, send, notifyTyping, react: 
     try { await editMessage(viewKey, messageId, content); }
     catch (e) {
       setMessages((p) => p.map((m) => (m.id === messageId ? before : m)));
-      toaster().error(apiError(e, 'No se pudo editar'));
+      toaster().error(apiError(e, t.editFail));
     }
-  }, [messagesRef, setMessages, viewKey]);
+  }, [messagesRef, setMessages, viewKey, t]);
 
   const remove = useCallback(async (messageId: string) => {
     const before = messagesRef.current.find((m) => m.id === messageId);
@@ -587,9 +638,9 @@ function useLetterActions({ core, me, side, viewKey, send, notifyTyping, react: 
     try { await deleteMessage(viewKey, messageId); }
     catch (e) {
       setMessages((p) => p.map((m) => (m.id === messageId ? before : m)));
-      toaster().error(apiError(e, 'No se pudo borrar'));
+      toaster().error(apiError(e, t.removeFail));
     }
-  }, [messagesRef, setMessages, viewKey]);
+  }, [messagesRef, setMessages, viewKey, t]);
 
   const react = useCallback(async (messageId: string, emoji: string) => {
     setMessages((p) => p.map((m) => (m.id === messageId ? { ...m, reactions: toggleMine(m.reactions, emoji) } : m)));
@@ -598,9 +649,9 @@ function useLetterActions({ core, me, side, viewKey, send, notifyTyping, react: 
       setMessages((p) => p.map((m) => (m.id === r.id ? { ...m, reactions: r.reactions } : m)));
     } catch (e) {
       setMessages((p) => p.map((m) => (m.id === messageId ? { ...m, reactions: toggleMine(m.reactions, emoji) } : m)));
-      toaster().error(apiError(e, 'No se pudo reaccionar'));
+      toaster().error(apiError(e, t.reactFail));
     }
-  }, [apiReact, setMessages]);
+  }, [apiReact, setMessages, t]);
 
   const reveal = useCallback((localId: string) => {
     setMessages((p) => p.map((m) => (m.localId === localId || m.id === localId ? { ...m, hidden: false } : m)));

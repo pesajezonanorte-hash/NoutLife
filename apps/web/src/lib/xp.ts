@@ -1,3 +1,5 @@
+import { getLocale, INTL_LOCALE } from '@/lib/i18n';
+
 export function xpForNextLevel(currentLevel: number): number {
   return Math.floor(100 * currentLevel * Math.pow(1.15, currentLevel - 1));
 }
@@ -18,5 +20,5 @@ export function xpProgressPercent(xp: number, xpToNext: number): number {
 }
 
 export function formatXP(n: number): string {
-  return n.toLocaleString('es-CO');
+  return n.toLocaleString(INTL_LOCALE[getLocale()]);
 }

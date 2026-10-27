@@ -9,8 +9,9 @@ import { springs, staggerVariants, enter } from '@/lib/motion/presets';
 import { softTone } from '@/components/ui/lq/tones';
 import type { Achievement } from '@/services/achievement.service';
 import { achievementCategory, achievementIcon, achievementProgress } from '@/components/achievements/achievementMeta';
+import { getLocale, INTL_LOCALE } from '@/lib/i18n';
 
-const fmtDate = (iso?: string) => (iso ? new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }).replace('.', '') : '');
+const fmtDate = (iso?: string) => (iso ? new Date(iso).toLocaleDateString(INTL_LOCALE[getLocale()], { day: 'numeric', month: 'short' }).replace('.', '') : '');
 
 export function AchievementPosts({ achievements, max = 12 }: { achievements: Achievement[]; max?: number }) {
   const unlocked = achievements.filter((a) => a.unlocked).sort((a, b) => (b.unlockedAt ?? '').localeCompare(a.unlockedAt ?? ''));

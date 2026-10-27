@@ -16,6 +16,7 @@ import { useMotionStore } from '@/store/motionStore';
 import { nameClass } from '@/lib/nameColors';
 import { useMedia, useNearScreen } from '@/lib/media';
 import { REACTIONS, type GuildMemberRow, type ReplyRef, type RpsPick } from '@/services/network.service';
+import { INTL_LOCALE, useLocale, useText, type Copy as CopyDict, type Locale } from '@/lib/i18n';
 import { AvatarDisplay } from '@/components/character/AvatarDisplay';
 import { InstantPhoto } from './InstantPhoto';
 import { VoiceNote } from './VoiceNote';
@@ -23,7 +24,93 @@ import { GameCard } from './GameCard';
 import { StickerImage } from './StickerPanel';
 import type { LetterAuthor, LetterMsg } from './useLetter';
 
-export const time = (iso: string) => new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+const es = {
+  snip: {
+    deleted: 'Mensaje borrado',
+    photo: 'Foto',
+    photoCap: (c: string): string => `Foto · ${c}`,
+    video: 'Video',
+    videoCap: (c: string): string => `Video · ${c}`,
+    voice: 'Nota de voz',
+    sticker: 'Sticker',
+    game: 'Minijuego',
+    message: 'Mensaje',
+  },
+  jumpTo: (name: string): string => `Ir al mensaje de ${name}`,
+  edited: '(editado)',
+  friendFallback: 'tu amigo',
+  yourPhoto: 'Ver tu foto en grande',
+  seePhoto: (name: string): string => `Ver la foto de ${name} en grande`,
+  tPhoto: 'Tu foto',
+  photoOf: (name: string): string => `Foto de ${name}`,
+  yourVideo: 'Tu video',
+  videoOf: (name: string): string => `Video de ${name}`,
+  pauseVideo: 'Pausar el video',
+  playVideo: 'Reproducir el video',
+  yourSticker: 'Tu sticker',
+  stickerOf: (name: string): string => `Sticker de ${name}`,
+  seeId: (name: string): string => `Ver el DNI de ${name}`,
+  youDeleted: 'Borraste este mensaje',
+  deletedMsg: 'Mensaje borrado',
+  reactAria: (emoji: string, count: number, mine: boolean): string =>
+    `${emoji} ${count} ${count === 1 ? 'persona' : 'personas'}${mine ? '. Tocar para quitar tu reacción' : '. Tocar para reaccionar igual'}`,
+  sending: 'enviando…',
+  seen: 'Visto',
+  sent: 'Enviado',
+  seenMany: (n: number): string => `Visto por ${n}`,
+  seenWho: (names: string): string => `Visto por ${names}`,
+  moreOpts: 'Reaccionar y más opciones',
+  reply: 'Responder',
+  reactMenu: 'Reaccionar',
+  actionsMenu: 'Acciones del mensaje',
+  reactWith: (emoji: string): string => `Reaccionar con ${emoji}`,
+};
+
+const en: typeof es = {
+  snip: {
+    deleted: 'Message deleted',
+    photo: 'Photo',
+    photoCap: (c: string): string => `Photo · ${c}`,
+    video: 'Video',
+    videoCap: (c: string): string => `Video · ${c}`,
+    voice: 'Voice note',
+    sticker: 'Sticker',
+    game: 'Mini-game',
+    message: 'Message',
+  },
+  jumpTo: (name: string): string => `Go to the message from ${name}`,
+  edited: '(edited)',
+  friendFallback: 'your friend',
+  yourPhoto: 'View your photo large',
+  seePhoto: (name: string): string => `View ${name}’s photo large`,
+  tPhoto: 'Your photo',
+  photoOf: (name: string): string => `Photo from ${name}`,
+  yourVideo: 'Your video',
+  videoOf: (name: string): string => `Video from ${name}`,
+  pauseVideo: 'Pause the video',
+  playVideo: 'Play the video',
+  yourSticker: 'Your sticker',
+  stickerOf: (name: string): string => `Sticker from ${name}`,
+  seeId: (name: string): string => `See ${name}’s ID`,
+  youDeleted: 'You deleted this message',
+  deletedMsg: 'Message deleted',
+  reactAria: (emoji: string, count: number, mine: boolean): string =>
+    `${emoji} ${count} ${count === 1 ? 'person' : 'people'}${mine ? '. Tap to remove your reaction' : '. Tap to react the same way'}`,
+  sending: 'sending…',
+  seen: 'Seen',
+  sent: 'Sent',
+  seenMany: (n: number): string => `Seen by ${n}`,
+  seenWho: (names: string): string => `Seen by ${names}`,
+  moreOpts: 'React and more options',
+  reply: 'Reply',
+  reactMenu: 'React',
+  actionsMenu: 'Message actions',
+  reactWith: (emoji: string): string => `React with ${emoji}`,
+};
+
+const COPY: CopyDict<typeof es> = { es, en };
+
+export const time = (iso: string, locale: Locale = 'es') => new Date(iso).toLocaleTimeString(INTL_LOCALE[locale], { hour: '2-digit', minute: '2-digit' });
 
 /** Inclinación estable por mensaje: las tiras no quedan todas iguales. */
 export function tiltOf(id: string) {
@@ -33,14 +120,15 @@ export function tiltOf(id: string) {
 }
 
 /** Fragmento corto de un mensaje (o de la cita de uno). */
-export function snippetOf(m: { kind: string; content: string | null; deleted?: boolean; deletedAt?: string | null }) {
-  if (m.deleted || m.deletedAt) return 'Mensaje borrado';
+export function snippetOf(m: { kind: string; content: string | null; deleted?: boolean; deletedAt?: string | null }, locale: Locale = 'es') {
+  const s = COPY[locale].snip;
+  if (m.deleted || m.deletedAt) return s.deleted;
   switch (m.kind) {
-    case 'SNAP': case 'PHOTO': return m.content ? `Foto · ${m.content}` : 'Foto';
-    case 'VIDEO': return m.content ? `Video · ${m.content}` : 'Video';
-    case 'VOICE': return 'Nota de voz';
-    case 'STICKER': return 'Sticker';
-    case 'GAME': return 'Minijuego';
+    case 'SNAP': case 'PHOTO': return m.content ? s.photoCap(m.content) : s.photo;
+    case 'VIDEO': return m.content ? s.videoCap(m.content) : s.video;
+    case 'VOICE': return s.voice;
+    case 'STICKER': return s.sticker;
+    case 'GAME': return s.game;
     default: return m.content ?? '';
   }
 }
@@ -69,19 +157,22 @@ function useLongPress(onLong: (el: HTMLElement) => void, ms = 420) {
 
 /** Cita del mensaje al que se responde; al tocarla, la carta salta a él. */
 export function Quote({ r, name, nameColor, onJump, className }: { r: ReplyRef; name: string; nameColor?: string | null; onJump?: (id: string) => void; className?: string }) {
+  const t = useText(COPY);
+  const locale = useLocale();
   const body = (
     <>
       <span className={cn('block truncate text-label-md', nameClass(nameColor) || 'text-primary-text')}>{name}</span>
-      <span className={cn('line-clamp-2 block break-words text-body-sm text-on-surface-light', r.deleted && 'italic')}>{snippetOf(r) || 'Mensaje'}</span>
+      <span className={cn('line-clamp-2 block break-words text-body-sm text-on-surface-light', r.deleted && 'italic')}>{snippetOf(r, locale) || t.snip.message}</span>
     </>
   );
   return onJump
-    ? <button type="button" onClick={() => onJump(r.id)} aria-label={`Ir al mensaje de ${name}`} className={cn('lq-quote', className)}>{body}</button>
+    ? <button type="button" onClick={() => onJump(r.id)} aria-label={t.jumpTo(name)} className={cn('lq-quote', className)}>{body}</button>
     : <span className={cn('lq-quote cursor-default', className)}>{body}</span>;
 }
 
 /** Tira de papel: lo que llega con la carta abierta se escribe solo. */
 function Slip({ m, quote, children }: { m: LetterMsg; quote?: ReactNode; children?: ReactNode }) {
+  const t = useText(COPY);
   const reduce = useMotionStore((s) => s.reduce);
   const tilt = tiltOf(m.localId ?? m.id);
   const text = m.content ?? '';
@@ -96,16 +187,18 @@ function Slip({ m, quote, children }: { m: LetterMsg; quote?: ReactNode; childre
     >
       {quote}
       {children ?? <span className={cn(write && 'lq-write')} style={write ? { ['--d' as string]: `${Math.min(1100, 380 + text.length * 14)}ms` } : undefined}>{text}</span>}
-      {m.editedAt && !m.deletedAt && <span className="ml-1.5 align-baseline text-[0.7rem] italic text-on-surface-light">(editado)</span>}
+      {m.editedAt && !m.deletedAt && <span className="ml-1.5 align-baseline text-[0.7rem] italic text-on-surface-light">{t.edited}</span>}
     </motion.div>
   );
 }
 
 /** Foto pegada en la carta (se pide al acercarse a la pantalla; mientras, su miniatura). */
 function LetterPhoto({ m, side, onOpen }: { m: LetterMsg; side: 'dm' | 'guild'; onOpen: (m: LetterMsg, src: string | null) => void }) {
+  const t = useText(COPY);
   const id = m.localId ?? m.id;
   const { ref, near } = useNearScreen<HTMLDivElement>();
   const media = useMedia(side, m.id, { enabled: near, local: m.local, hasThumb: Boolean(m.meta?.thumb) });
+  const who = m.author?.name ?? t.friendFallback;
   return (
     <motion.div
       ref={ref}
@@ -117,11 +210,11 @@ function LetterPhoto({ m, side, onOpen }: { m: LetterMsg; side: 'dm' | 'guild'; 
     >
       <button
         type="button" data-photo={id} onClick={() => onOpen(m, media.photoUrl)}
-        aria-label={m.mine ? 'Ver tu foto en grande' : `Ver la foto de ${m.author?.name ?? 'tu amigo'} en grande`}
+        aria-label={m.mine ? t.yourPhoto : t.seePhoto(who)}
         className="block w-[min(240px,62vw)] rounded-[3px] text-left"
       >
         <InstantPhoto
-          src={media.photoUrl} thumb={m.meta?.thumb} alt={m.mine ? 'Tu foto' : `Foto de ${m.author?.name ?? 'tu amigo'}`}
+          src={media.photoUrl} thumb={m.meta?.thumb} alt={m.mine ? t.tPhoto : t.photoOf(who)}
           caption={m.content} tilt={tiltOf(id) * 3} develop={m.fresh} className={cn('w-full', m.pending && !m.hidden && 'opacity-90')}
         />
       </button>
@@ -134,6 +227,7 @@ function LetterPhoto({ m, side, onOpen }: { m: LetterMsg; side: 'dm' | 'guild'; 
  * duración; el video se pide al acercarse y se reproduce al tocarlo.
  */
 function LetterVideo({ m, side }: { m: LetterMsg; side: 'dm' | 'guild' }) {
+  const t = useText(COPY);
   const id = m.localId ?? m.id;
   const { ref, near } = useNearScreen<HTMLDivElement>();
   const media = useMedia(side, m.id, { enabled: near, local: m.local });
@@ -153,13 +247,13 @@ function LetterVideo({ m, side }: { m: LetterMsg; side: 'dm' | 'guild' }) {
             <video
               ref={video} src={media.audioUrl} poster={m.meta?.thumb} playsInline preload="metadata"
               onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onEnded={() => setPlaying(false)}
-              aria-label={m.mine ? 'Tu video' : `Video de ${m.author?.name ?? 'tu amigo'}`}
+              aria-label={m.mine ? t.yourVideo : t.videoOf(m.author?.name ?? t.friendFallback)}
               className="size-full object-cover"
             />
           ) : m.meta?.thumb ? <img src={m.meta.thumb} alt="" className="size-full object-cover blur-[2px]" /> : null}
           <button
             type="button" onClick={toggle} disabled={!media.audioUrl}
-            aria-label={playing ? 'Pausar el video' : 'Reproducir el video'}
+            aria-label={playing ? t.pauseVideo : t.playVideo}
             className={cn('absolute inset-0 flex items-center justify-center transition-opacity', playing && 'opacity-0')}
           >
             <span className="flex size-12 items-center justify-center rounded-full bg-black/55 text-white"><Play aria-hidden className="ml-0.5 size-6" fill="currentColor" /></span>
@@ -176,6 +270,7 @@ function LetterVideo({ m, side }: { m: LetterMsg; side: 'dm' | 'guild' }) {
 
 /** Sticker pegado: cae despegándose y se queda un poco ladeado. */
 function StickerMsg({ m }: { m: LetterMsg }) {
+  const t = useText(COPY);
   const reduce = useMotionStore((s) => s.reduce);
   const tilt = tiltOf(m.localId ?? m.id) * 5;
   return (
@@ -185,19 +280,20 @@ function StickerMsg({ m }: { m: LetterMsg }) {
       transition={springs.heavy}
       className="py-1"
     >
-      {m.meta?.sticker ? <StickerImage hash={m.meta.sticker} className="size-32 md:size-36" alt={m.mine ? 'Tu sticker' : `Sticker de ${m.author?.name ?? 'tu amigo'}`} /> : null}
+      {m.meta?.sticker ? <StickerImage hash={m.meta.sticker} className="size-32 md:size-36" alt={m.mine ? t.yourSticker : t.stickerOf(m.author?.name ?? t.friendFallback)} /> : null}
     </motion.div>
   );
 }
 
 /** Foto de perfil junto a cada mensaje de un gremio: así se sabe de quién es. */
 function MessageAvatar({ author, mine }: { author: LetterAuthor | null; mine: boolean }) {
+  const t = useText(COPY);
   if (!author) return <span aria-hidden className="size-[30px] shrink-0" />;
   const face = <AvatarDisplay avatarConfig={author.avatarConfig} avatarUrl={author.avatarUrl} size={30} animate="none" className="overflow-hidden rounded-full" />;
   return (
     <span className="mb-0.5 inline-flex size-[30px] shrink-0 rounded-full bg-surface shadow-sm ring-2 ring-surface">
       {!mine && author.username
-        ? <Link to={`/u/${encodeURIComponent(author.username)}`} aria-label={`Ver el DNI de ${author.name}`} className="rounded-full">{face}</Link>
+        ? <Link to={`/u/${encodeURIComponent(author.username)}`} aria-label={t.seeId(author.name)} className="rounded-full">{face}</Link>
         : face}
     </span>
   );
@@ -253,6 +349,8 @@ export interface RowProps {
 }
 
 export const MessageRow = memo(function MessageRow({ m, side, meId, group, joined, last, seen, lastMine = false, seenBy, coarse, flash, nameOf, colorOf, onMenu, onReply, onReact, onOpenPhoto, onJump, onMove }: RowProps) {
+  const t = useText(COPY);
+  const locale = useLocale();
   const reduce = useMotionStore((s) => s.reduce);
   const deleted = Boolean(m.deletedAt);
   const acts = !m.pending && !m.hidden;
@@ -266,7 +364,7 @@ export const MessageRow = memo(function MessageRow({ m, side, meId, group, joine
   if (deleted) {
     body = (
       <div className="lq-slip lq-slip-gone flex items-center gap-1.5 px-3.5 py-2 text-body-md italic text-on-surface-light">
-        <Trash2 aria-hidden className="size-4" strokeWidth={1.6} />{m.mine ? 'Borraste este mensaje' : 'Mensaje borrado'}
+        <Trash2 aria-hidden className="size-4" strokeWidth={1.6} />{m.mine ? t.youDeleted : t.deletedMsg}
       </div>
     );
   } else if ((m.kind === 'SNAP' || m.kind === 'PHOTO') && m.media.photo) {
@@ -312,7 +410,7 @@ export const MessageRow = memo(function MessageRow({ m, side, meId, group, joine
                   key={r.emoji} type="button" layout={!reduce} aria-pressed={r.mine}
                   initial={reduce ? false : { scale: 0.3, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.3, opacity: 0, transition: { duration: 0.12 } }} transition={springs.snappy}
                   onClick={() => onReact(m, r.emoji)}
-                  aria-label={`${r.emoji} ${r.count} ${r.count === 1 ? 'persona' : 'personas'}${r.mine ? '. Tocar para quitar tu reacción' : '. Tocar para reaccionar igual'}`}
+                  aria-label={t.reactAria(r.emoji, r.count, r.mine)}
                   className="lq-react"
                 >
                   <span aria-hidden className="text-[0.95rem]">{r.emoji}</span>
@@ -324,15 +422,15 @@ export const MessageRow = memo(function MessageRow({ m, side, meId, group, joine
         )}
         {last && !m.hidden && (
           <span className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-surface/80 px-1.5 font-mono text-[0.72rem] text-on-surface-light">
-            {m.pending ? 'enviando…' : time(m.createdAt)}
+            {m.pending ? t.sending : time(m.createdAt, locale)}
             <AnimatePresence>
               {seen && (
                 <motion.span key="seen" initial={{ opacity: 0, x: -4 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} className="inline-flex items-center gap-0.5 font-sans text-info-text">
-                  <CheckCheck aria-hidden className="size-3.5" />Visto
+                  <CheckCheck aria-hidden className="size-3.5" />{t.seen}
                 </motion.span>
               )}
               {!seen && lastMine && !m.pending && !group && (
-                <span key="sent" className="inline-flex items-center gap-0.5 font-sans">Enviado</span>
+                <span key="sent" className="inline-flex items-center gap-0.5 font-sans">{t.sent}</span>
               )}
             </AnimatePresence>
           </span>
@@ -340,7 +438,7 @@ export const MessageRow = memo(function MessageRow({ m, side, meId, group, joine
         {seenBy && seenBy.length > 0 && (
           <motion.span
             initial={reduce ? false : { opacity: 0, y: -3 }} animate={{ opacity: 1, y: 0 }}
-            title={`Visto por ${seenBy.map((s) => s.user.displayName.split(' ')[0]).join(', ')}`}
+            title={t.seenWho(seenBy.map((s) => s.user.displayName.split(' ')[0]).join(', '))}
             className="mt-1 inline-flex items-center gap-1 rounded-full bg-surface/85 py-0.5 pl-1 pr-2 text-[0.72rem] text-info-text"
           >
             <span className="flex -space-x-1.5">
@@ -350,18 +448,18 @@ export const MessageRow = memo(function MessageRow({ m, side, meId, group, joine
                 </span>
               ))}
             </span>
-            Visto{seenBy.length > 4 ? ` por ${seenBy.length}` : ''}
-            <span className="sr-only"> por {seenBy.map((s) => s.user.displayName).join(', ')}</span>
+            {seenBy.length > 4 ? t.seenMany(seenBy.length) : t.seen}
+            <span className="sr-only">{t.seenWho(seenBy.map((s) => s.user.displayName).join(', '))}</span>
           </motion.span>
         )}
       </div>
       {acts && !deleted && (
         <div className="hidden shrink-0 items-center gap-0.5 self-center opacity-0 transition-opacity focus-within:opacity-100 group-hover/msg:opacity-100 md:flex">
-          <button type="button" aria-label="Reaccionar y más opciones" aria-haspopup="menu" onClick={() => bubble.current && onMenu(m, bubble.current.getBoundingClientRect())}
+          <button type="button" aria-label={t.moreOpts} aria-haspopup="menu" onClick={() => bubble.current && onMenu(m, bubble.current.getBoundingClientRect())}
             className="flex size-8 items-center justify-center rounded-full bg-surface/90 text-on-surface-light shadow-sm hover:text-on-background focus-visible:text-on-background">
             <SmilePlus aria-hidden className="size-4" strokeWidth={1.8} />
           </button>
-          <button type="button" aria-label="Responder" onClick={() => onReply(m)}
+          <button type="button" aria-label={t.reply} onClick={() => onReply(m)}
             className="flex size-8 items-center justify-center rounded-full bg-surface/90 text-on-surface-light shadow-sm hover:text-on-background focus-visible:text-on-background">
             <Reply aria-hidden className="size-4" strokeWidth={1.8} />
           </button>
@@ -379,6 +477,7 @@ export interface MenuAction { id: string; label: string; icon: LucideIcon; dange
 export function MessageMenu({ rect, current, actions, onPick, onClose }: {
   rect: DOMRect; current?: string; actions: MenuAction[]; onPick: (emoji: string) => void; onClose: () => void;
 }) {
+  const t = useText(COPY);
   const reduce = useMotionStore((s) => s.reduce);
   const width = Math.min(336, window.innerWidth - 16);
   const left = Math.min(Math.max(8, rect.left + rect.width / 2 - width / 2), window.innerWidth - width - 8);
@@ -400,7 +499,7 @@ export function MessageMenu({ rect, current, actions, onPick, onClose }: {
     <>
       <motion.div aria-hidden className="fixed inset-0 z-[79] bg-jade-900/10" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} />
       <motion.div
-        data-msg-menu role="menu" aria-label="Reaccionar"
+        data-msg-menu role="menu" aria-label={t.reactMenu}
         initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.8, y: above ? 10 : -10 }} animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.1 } }} transition={springs.snappy}
         style={{ left, top, width, originY: above ? 1 : 0 }}
@@ -408,7 +507,7 @@ export function MessageMenu({ rect, current, actions, onPick, onClose }: {
       >
         {REACTIONS.map((emoji, i) => (
           <motion.button
-            key={emoji} type="button" role="menuitem" aria-label={`Reaccionar con ${emoji}`} aria-pressed={current === emoji}
+            key={emoji} type="button" role="menuitem" aria-label={t.reactWith(emoji)} aria-pressed={current === emoji}
             initial={reduce ? false : { opacity: 0, y: 8, scale: 0.6 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ ...springs.snappy, delay: reduce ? 0 : 0.03 * i }}
             whileHover={reduce ? undefined : { scale: 1.25, y: -3 }} whileTap={reduce ? undefined : { scale: 0.85 }}
             onClick={() => onPick(emoji)}
@@ -420,7 +519,7 @@ export function MessageMenu({ rect, current, actions, onPick, onClose }: {
       </motion.div>
       {actions.length > 0 && (
         <motion.div
-          data-msg-menu role="menu" aria-label="Acciones del mensaje"
+          data-msg-menu role="menu" aria-label={t.actionsMenu}
           initial={reduce ? { opacity: 0 } : { opacity: 0, y: -6, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, transition: { duration: 0.1 } }} transition={{ ...springs.natural, delay: reduce ? 0 : 0.04 }}
           style={{ left: Math.min(Math.max(8, rect.left), window.innerWidth - 216), top: listTop }}

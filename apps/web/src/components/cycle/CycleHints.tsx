@@ -3,6 +3,7 @@
 // Ciclo y ya anotó un periodo. Si lo que anotó hoy pide calma (energía baja,
 // cólicos, flujo abundante), Hábitos ofrece marcar descanso en los hábitos de
 // ejercicio: no suman XP pero tampoco rompen su racha. Nada se cambia sin un toque.
+// Los consejos de texto llegan de la API; los rótulos de esta vista salen en el idioma activo.
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -15,7 +16,32 @@ import { dayKey } from '@/lib/lifeMeta';
 import { Button } from '@/components/ui/lq';
 import { getCycleAdvice, type CycleAdvice } from '@/services/cycle.service';
 import type { Habit } from '@/services/habit.service';
-import { PHASE_META, SOURCE_LABEL, SYMPTOM_LABELS, energyLabel, intensityLine, phaseFill, phaseInk } from './cycleMeta';
+import { phaseMetaFor, sourceLabelFor, symptomLabelsFor, energyLabelFor, intensityLineFor, phaseFill, phaseInk } from './cycleMeta';
+import { useLocale, useText, type Copy } from '@/lib/i18n';
+
+const COPY: Copy<{
+  day: string; energy: string; energyOf: (n: number) => string; seeCycle: string; hide: string;
+  coliseoTitle: string; habitsTitle: string; carga: (i: string) => string;
+  todayNoted: string; usualDays: string; ideas: string; restTodayBtn: string; restList: string; restDone: (t: string) => string;
+  restKeeps: string; restFailed: string;
+}> = {
+  es: {
+    day: 'día', energy: 'energía', energyOf: (n) => `Energía ${n}/5`, seeCycle: 'Ver mi ciclo', hide: 'Ocultar por hoy',
+    coliseoTitle: 'Tu entrenamiento según tu ciclo', habitsTitle: 'Tus hábitos según tu ciclo',
+    carga: (i) => `Carga sugerida (${i}):`,
+    todayNoted: 'Hoy anotaste', usualDays: 'Estos días sueles tener', ideas: 'Ideas para hoy',
+    restTodayBtn: 'Descanso hoy', restList: 'Hábitos de ejercicio de hoy', restDone: (t) => `Descanso en «${t}»`,
+    restKeeps: 'Su racha sigue intacta.', restFailed: 'No se pudo marcar el descanso',
+  },
+  en: {
+    day: 'day', energy: 'energy', energyOf: (n) => `Energy ${n}/5`, seeCycle: 'See my cycle', hide: 'Hide for today',
+    coliseoTitle: 'Your training based on your cycle', habitsTitle: 'Your habits based on your cycle',
+    carga: (i) => `Suggested load (${i}):`,
+    todayNoted: 'Today you logged', usualDays: 'These days you usually have', ideas: 'Ideas for today',
+    restTodayBtn: 'Rest today', restList: "Today's exercise habits", restDone: (t) => `Rest day for “${t}”`,
+    restKeeps: 'Its streak stays intact.', restFailed: "We couldn't mark the rest day",
+  },
+};
 
 const HIDE_KEY = 'lq-cycle-hint-hidden';
 const readHidden = (zone: string) => { try { return localStorage.getItem(`${HIDE_KEY}:${zone}`) === dayKey(new Date()); } catch { return false; } };
@@ -35,9 +61,11 @@ function useCycleAdvice(): CycleAdvice | null {
 }
 
 function HintShell({ advice, zone, title, children }: { advice: CycleAdvice; zone: string; title: string; children: ReactNode }) {
+  const t = useText(COPY);
+  const locale = useLocale();
   const [hidden, setHidden] = useState(() => readHidden(zone));
   if (hidden) return null;
-  const meta = PHASE_META[advice.phase];
+  const meta = phaseMetaFor(locale)[advice.phase];
   const Icon = meta.icon;
   return (
     <motion.section
@@ -51,16 +79,16 @@ function HintShell({ advice, zone, title, children }: { advice: CycleAdvice; zon
       </span>
       <div className="flex min-w-0 flex-1 flex-col gap-1.5 pr-8">
         <p className="text-label-lg" style={{ color: phaseInk(advice.phase) }}>
-          {meta.name} · día {advice.cycleDay} · energía {energyLabel(advice.energy).toLowerCase()}
+          {meta.name} · {t.day} {advice.cycleDay} · {t.energy} {energyLabelFor(advice.energy, locale).toLowerCase()}
         </p>
         {children}
         <p className="text-body-sm text-on-surface-light">
-          Energía {advice.energy}/5, {SOURCE_LABEL[advice.energySource]}.{' '}
-          <Link to="/ciclo-menstrual" className="inline-flex items-center gap-0.5 font-semibold text-primary-text underline-offset-4 hover:underline">Ver mi ciclo<ArrowUpRight aria-hidden className="size-3.5" /></Link>
+          {t.energyOf(advice.energy)}, {sourceLabelFor(advice.energySource, locale)}.{' '}
+          <Link to="/ciclo-menstrual" className="inline-flex items-center gap-0.5 font-semibold text-primary-text underline-offset-4 hover:underline">{t.seeCycle}<ArrowUpRight aria-hidden className="size-3.5" /></Link>
         </p>
       </div>
       <button
-        type="button" aria-label="Ocultar por hoy" title="Ocultar por hoy"
+        type="button" aria-label={t.hide} title={t.hide}
         onClick={() => { writeHidden(zone); setHidden(true); }}
         className="absolute right-2 top-2 flex size-11 items-center justify-center rounded-full text-on-surface-light hover:bg-on-background/5 hover:text-on-background"
       >
@@ -72,18 +100,21 @@ function HintShell({ advice, zone, title, children }: { advice: CycleAdvice; zon
 
 /** Coliseo: intensidad y carga sugeridas para la sesión de hoy. */
 export function CycleColiseoHint({ className }: { className?: string }) {
+  const t = useText(COPY);
+  const locale = useLocale();
   const advice = useCycleAdvice();
   if (!advice) return null;
+  const symptoms = symptomLabelsFor(locale);
   return (
     <div className={className}>
-      <HintShell advice={advice} zone="coliseo" title="Tu entrenamiento según tu ciclo">
+      <HintShell advice={advice} zone="coliseo" title={t.coliseoTitle}>
         <h2 className="text-heading-sm">{advice.training.title}</h2>
         <p className="text-body-md text-on-surface">{advice.training.body}</p>
         <p className="text-body-sm text-on-surface">
-          <span className="font-semibold">Carga sugerida ({intensityLine(advice.intensity)}):</span> {advice.training.load}.
-          {advice.symptoms.length > 0 && <> {advice.symptomsSource === 'today' ? 'Hoy anotaste' : 'Estos días sueles tener'} {advice.symptoms.map((s) => SYMPTOM_LABELS[s].toLowerCase()).join(', ')}.</>}
+          <span className="font-semibold">{t.carga(intensityLineFor(advice.intensity, locale))}</span> {advice.training.load}.
+          {advice.symptoms.length > 0 && <> {advice.symptomsSource === 'today' ? t.todayNoted : t.usualDays} {advice.symptoms.map((s) => symptoms[s].toLowerCase()).join(', ')}.</>}
         </p>
-        <ul aria-label="Ideas para hoy" className="mt-1 flex flex-wrap gap-1.5">
+        <ul aria-label={t.ideas} className="mt-1 flex flex-wrap gap-1.5">
           {advice.training.ideas.map((idea) => <li key={idea} className="rounded-full bg-surface px-3 py-1.5 text-body-sm text-on-surface shadow-sm">{idea}</li>)}
         </ul>
       </HintShell>
@@ -95,6 +126,7 @@ const isDone = (h: Habit) => Boolean(h.todayCompleted) || h.todayStatus === 'com
 
 /** Hábitos: cómo llevar los hábitos hoy y, si hace falta, descanso en los de ejercicio. */
 export function CycleHabitsHint({ habits, onRest }: { habits: Habit[]; onRest: (h: Habit) => Promise<void> }) {
+  const t = useText(COPY);
   const advice = useCycleAdvice();
   const toast = useToast();
   const [busy, setBusy] = useState<string | null>(null);
@@ -102,20 +134,20 @@ export function CycleHabitsHint({ habits, onRest }: { habits: Habit[]; onRest: (
   const fitness = advice.pauseFitness ? habits.filter((h) => h.category === 'FITNESS' && !isDone(h) && h.todayStatus !== 'skipped') : [];
   async function rest(h: Habit) {
     setBusy(h.id);
-    try { await onRest(h); toast.success(`Descanso en «${h.title}»`, 'Su racha sigue intacta.'); }
-    catch { toast.error('No se pudo marcar el descanso'); }
+    try { await onRest(h); toast.success(t.restDone(h.title), t.restKeeps); }
+    catch { toast.error(t.restFailed); }
     finally { setBusy(null); }
   }
   return (
-    <HintShell advice={advice} zone="habits" title="Tus hábitos según tu ciclo">
+    <HintShell advice={advice} zone="habits" title={t.habitsTitle}>
       <h2 className="text-heading-sm">{advice.habits.title}</h2>
       <p className="text-body-md text-on-surface">{advice.habits.body}</p>
       {fitness.length > 0 && (
-        <ul aria-label="Hábitos de ejercicio de hoy" className="mt-1 flex flex-col gap-2">
+        <ul aria-label={t.restList} className="mt-1 flex flex-col gap-2">
           {fitness.map((h) => (
             <li key={h.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-surface px-3 py-2 shadow-sm">
               <span className="min-w-0 truncate text-body-md font-semibold">{h.title}</span>
-              <Button size="sm" variant="secondary" loading={busy === h.id} onClick={() => void rest(h)}><Moon aria-hidden className="size-4" />Descanso hoy</Button>
+              <Button size="sm" variant="secondary" loading={busy === h.id} onClick={() => void rest(h)}><Moon aria-hidden className="size-4" />{t.restTodayBtn}</Button>
             </li>
           ))}
         </ul>

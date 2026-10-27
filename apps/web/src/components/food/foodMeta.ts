@@ -2,6 +2,7 @@ import { Apple, Coffee, Moon, Sun, type LucideIcon } from 'lucide-react';
 import type { Meal } from '@noutlife/shared';
 import type { NutritionGoal } from '@/services/meal.service';
 import type { Tone } from '@/components/ui/lq';
+import { getLocale, INTL_LOCALE } from '@/lib/i18n';
 
 export type FoodType = 'BREAKFAST' | 'LUNCH' | 'SNACK' | 'DINNER';
 
@@ -46,10 +47,34 @@ export function totals(meals: Meal[]) {
   );
 }
 
-export const fmtInt = (n: number) => Math.round(n).toLocaleString('es-CO');
+export const fmtInt = (n: number) => Math.round(n).toLocaleString(INTL_LOCALE[getLocale()]);
 
 /** "P 14 · C 62 · G 12" (solo los macros registrados). */
 export function macroLine(m: { protein?: number | null; carbs?: number | null; fat?: number | null }) {
   const parts = MACROS.filter(({ key }) => m[key] != null && m[key]! > 0).map(({ key, short }) => `${short} ${fmtInt(m[key]!)}`);
   return parts.join(' · ');
 }
+
+const MEAL_LABEL: Record<'es' | 'en', Record<FoodType, string>> = {
+  es: { BREAKFAST: 'Desayuno', LUNCH: 'Almuerzo', SNACK: 'Merienda', DINNER: 'Cena' },
+  en: { BREAKFAST: 'Breakfast', LUNCH: 'Lunch', SNACK: 'Snack', DINNER: 'Dinner' },
+};
+const MACRO_LABEL: Record<'es' | 'en', Record<MacroKey, string>> = {
+  es: { protein: 'Proteína', carbs: 'Carbohidratos', fat: 'Grasas' },
+  en: { protein: 'Protein', carbs: 'Carbs', fat: 'Fat' },
+};
+
+/** Momentos del día con su nombre en el idioma indicado. */
+export function mealTypesFor(locale: 'es' | 'en') {
+  return MEAL_TYPES.map((m) => ({ ...m, label: MEAL_LABEL[locale][m.value] }));
+}
+/** Nombre de un momento; `Comida` si no se reconoce. */
+export function mealTypeLabelFor(t: string | null | undefined, locale: 'es' | 'en') {
+  return MEAL_LABEL[locale][t as FoodType] ?? (locale === 'en' ? 'Meal' : 'Comida');
+}
+/** Macros con su nombre en el idioma indicado. */
+export function macrosFor(locale: 'es' | 'en') {
+  return MACROS.map((m) => ({ ...m, label: MACRO_LABEL[locale][m.key] }));
+}
+/** Número entero con separadores del idioma. */
+export const fmtIntFor = (n: number, locale: 'es' | 'en') => Math.round(n).toLocaleString(INTL_LOCALE[locale]);

@@ -1,32 +1,56 @@
 import { Clapperboard, Gamepad2, Music, Palette, Sparkles, Ticket, Tv, type LucideIcon } from 'lucide-react';
 import type { Tone } from '@/components/ui/lq';
 import type { RecreationEntry, RecreationKind } from '@/services/recreation.service';
+import { INTL_LOCALE, type Locale } from '@/lib/locale';
 
-export const KINDS: { value: RecreationKind; label: string; icon: LucideIcon; tone: Exclude<Tone, 'muted'> }[] = [
-  { value: 'MOVIE', label: 'Película', icon: Clapperboard, tone: 'error' },
-  { value: 'SERIES', label: 'Serie', icon: Tv, tone: 'info' },
-  { value: 'GAME', label: 'Videojuego', icon: Gamepad2, tone: 'success' },
-  { value: 'OUTING', label: 'Salida', icon: Ticket, tone: 'warning' },
-  { value: 'HOBBY', label: 'Hobby', icon: Palette, tone: 'forest' },
-  { value: 'MUSIC', label: 'Música', icon: Music, tone: 'secondary' },
-  { value: 'OTHER', label: 'Otro', icon: Sparkles, tone: 'primary' },
+const KIND_STYLE: { value: RecreationKind; icon: LucideIcon; tone: Exclude<Tone, 'muted'> }[] = [
+  { value: 'MOVIE', icon: Clapperboard, tone: 'error' },
+  { value: 'SERIES', icon: Tv, tone: 'info' },
+  { value: 'GAME', icon: Gamepad2, tone: 'success' },
+  { value: 'OUTING', icon: Ticket, tone: 'warning' },
+  { value: 'HOBBY', icon: Palette, tone: 'forest' },
+  { value: 'MUSIC', icon: Music, tone: 'secondary' },
+  { value: 'OTHER', icon: Sparkles, tone: 'primary' },
 ];
 
-export const kindOf = (kind: string) => KINDS.find((k) => k.value === kind) ?? KINDS[KINDS.length - 1];
+const KIND_LABEL: Record<Locale, Record<RecreationKind, string>> = {
+  es: { MOVIE: 'Película', SERIES: 'Serie', GAME: 'Videojuego', OUTING: 'Salida', HOBBY: 'Hobby', MUSIC: 'Música', OTHER: 'Otro' },
+  en: { MOVIE: 'Movie', SERIES: 'Series', GAME: 'Video game', OUTING: 'Outing', HOBBY: 'Hobby', MUSIC: 'Music', OTHER: 'Other' },
+};
+
+/** Tipos de ocio con su nombre en el idioma indicado. */
+export function kindsFor(locale: Locale) {
+  return KIND_STYLE.map((k) => ({ ...k, label: KIND_LABEL[locale][k.value] }));
+}
+
+/** Lista con los nombres en español (compatibilidad con los diálogos aún sin traducir). */
+export const KINDS = kindsFor('es');
+
+export const kindOf = (kind: string, locale: Locale = 'es') => {
+  const all = kindsFor(locale);
+  return all.find((k) => k.value === kind) ?? all[all.length - 1];
+};
+
+const TEXT: Record<Locale, { min: string; hour: string; season: string; episode: string }> = {
+  es: { min: 'min', hour: 'h', season: 'Temporada', episode: 'capítulo' },
+  en: { min: 'min', hour: 'h', season: 'Season', episode: 'episode' },
+};
 
 /** «1 h 20 min» */
-export function minutesLabel(minutes: number | null | undefined): string {
+export function minutesLabel(minutes: number | null | undefined, locale: Locale = 'es'): string {
   if (!minutes) return '';
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
-  return h ? `${h} h${m ? ` ${m} min` : ''}` : `${m} min`;
+  const w = TEXT[locale];
+  return h ? `${h} ${w.hour}${m ? ` ${m} ${w.min}` : ''}` : `${m} ${w.min}`;
 }
 
 /** «Temporada 2, capítulo 5», o solo la temporada si no hay capítulo. */
-export function seriesPosition(entry: RecreationEntry): string | null {
+export function seriesPosition(entry: RecreationEntry, locale: Locale = 'es'): string | null {
   if (entry.kind !== 'SERIES') return null;
-  if (entry.episode !== null) return `Temporada ${entry.season ?? 1}, capítulo ${entry.episode}`;
-  return entry.season !== null ? `Temporada ${entry.season}` : null;
+  const w = TEXT[locale];
+  if (entry.episode !== null) return `${w.season} ${entry.season ?? 1}, ${w.episode} ${entry.episode}`;
+  return entry.season !== null ? `${w.season} ${entry.season}` : null;
 }
 
 /** Porcentaje de capítulos vistos (0–100) si la serie tiene el total; null si no. */
@@ -36,12 +60,13 @@ export function seriesProgress(entry: RecreationEntry): number | null {
 }
 
 /** «vie 10 oct» para el talón de la boleta. */
-export function stubDate(iso: string) {
+export function stubDate(iso: string, locale: Locale = 'es') {
   const d = new Date(iso);
+  const loc = INTL_LOCALE[locale];
   return {
-    weekday: d.toLocaleDateString('es-CO', { weekday: 'short' }).replace('.', ''),
-    day: d.toLocaleDateString('es-CO', { day: 'numeric' }),
-    month: d.toLocaleDateString('es-CO', { month: 'short' }).replace('.', ''),
+    weekday: d.toLocaleDateString(loc, { weekday: 'short' }).replace('.', ''),
+    day: d.toLocaleDateString(loc, { day: 'numeric' }),
+    month: d.toLocaleDateString(loc, { month: 'short' }).replace('.', ''),
   };
 }
 
@@ -63,7 +88,7 @@ export function weekSummary(entries: RecreationEntry[], now = Date.now()) {
 }
 
 /** Reparto de los últimos 30 días por tipo (para la barra de balance). */
-export function kindBalance(entries: RecreationEntry[], now = Date.now()) {
+export function kindBalance(entries: RecreationEntry[], now = Date.now(), locale: Locale = 'es') {
   const month = entries.filter((e) => e.status === 'DONE' && now - new Date(e.date).getTime() < 30 * DAY_MS);
-  return KINDS.map((k) => ({ ...k, count: month.filter((e) => e.kind === k.value).length })).filter((k) => k.count > 0);
+  return kindsFor(locale).map((k) => ({ ...k, count: month.filter((e) => e.kind === k.value).length })).filter((k) => k.count > 0);
 }

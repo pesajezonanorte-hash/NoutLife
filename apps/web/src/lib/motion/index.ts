@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { animate, useReducedMotionConfig, type Transition, type Variants } from 'framer-motion';
 import { useMotionStore } from '@/store/motionStore';
 import { lite, reduced, springs } from './presets';
+import { getLocale, INTL_LOCALE } from '@/lib/i18n';
 
 export * from './presets';
 
@@ -147,7 +148,7 @@ export function useCountUp(target: number, duration = 1.1) {
   return v;
 }
 
-export const fmtNumber = (n: number) => Math.round(n).toLocaleString('es-CO');
+export const fmtNumber = (n: number) => Math.round(n).toLocaleString(INTL_LOCALE[getLocale()]);
 
 /** Dígito de cuenta atrás: key por valor dentro de AnimatePresence. */
 export const tick: Variants = {

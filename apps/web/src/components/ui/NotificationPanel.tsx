@@ -20,24 +20,87 @@ import { softTone } from '@/components/ui/lq/tones';
 import * as notifService from '../../services/notification.service';
 import type { InAppNotification } from '../../services/notification.service';
 import { syncAppBadge } from '@/lib/systemNotifications';
+import { INTL_LOCALE, useLocale, useText, type Copy, type Locale } from '@/lib/i18n';
 
-function timeAgo(iso: string): string {
+type Filter = 'all' | 'social' | 'reminders' | 'achievements';
+
+const es = {
+  now: 'hace un momento',
+  minAgo: (n: number): string => `hace ${n} min`,
+  hAgo: (n: number): string => `hace ${n} h`,
+  dAgo: (n: number): string => `hace ${n} d`,
+  today: 'Hoy',
+  yesterday: 'Ayer',
+  filters: { all: 'Todo', social: 'Mensajes y social', reminders: 'Recordatorios', achievements: 'Logros' } as Record<Filter, string>,
+  markReadAria: (title: string): string => `Marcar como leída: ${title}`,
+  deleteAria: (title: string): string => `Eliminar: ${title}`,
+  unread: '(sin leer)',
+  loadingAria: 'Cargando notificaciones',
+  loadFail: 'No pudimos cargar tus notificaciones.',
+  retry: 'Reintentar',
+  emptyTitle: 'Todo al día',
+  emptyDesc: 'Aquí verás mensajes, recordatorios de cada zona, logros y rachas.',
+  showAria: 'Mostrar',
+  nothing: 'Nada por aquí.',
+  clearQ: '¿Eliminar todas las notificaciones?',
+  clearBody: 'Se borra el historial de avisos y no se puede deshacer.',
+  cancel: 'Cancelar',
+  remove: 'Eliminar',
+  loadMore: 'Cargar más',
+  markAllAria: 'Marcar todas como leídas',
+  deleteAllAria: 'Eliminar todas las notificaciones',
+  bellUnread: (n: number): string => `Notificaciones, ${n} sin leer`,
+  bell: 'Notificaciones',
+};
+
+const en: typeof es = {
+  now: 'just now',
+  minAgo: (n: number): string => `${n} min ago`,
+  hAgo: (n: number): string => `${n} h ago`,
+  dAgo: (n: number): string => `${n} d ago`,
+  today: 'Today',
+  yesterday: 'Yesterday',
+  filters: { all: 'All', social: 'Messages and social', reminders: 'Reminders', achievements: 'Achievements' } as Record<Filter, string>,
+  markReadAria: (title: string): string => `Mark as read: ${title}`,
+  deleteAria: (title: string): string => `Delete: ${title}`,
+  unread: '(unread)',
+  loadingAria: 'Loading notifications',
+  loadFail: 'We could not load your notifications.',
+  retry: 'Try again',
+  emptyTitle: 'All caught up',
+  emptyDesc: 'Here you will see messages, reminders from each zone, achievements and streaks.',
+  showAria: 'Show',
+  nothing: 'Nothing here.',
+  clearQ: 'Delete all notifications?',
+  clearBody: 'This clears the alert history and cannot be undone.',
+  cancel: 'Cancel',
+  remove: 'Delete',
+  loadMore: 'Load more',
+  markAllAria: 'Mark all as read',
+  deleteAllAria: 'Delete all notifications',
+  bellUnread: (n: number): string => `Notifications, ${n} unread`,
+  bell: 'Notifications',
+};
+
+const COPY: Copy<typeof es> = { es, en };
+
+function timeAgo(iso: string, t: typeof es): string {
   const diff = (Date.now() - new Date(iso).getTime()) / 1000;
-  if (diff < 60) return 'hace un momento';
-  if (diff < 3600) return `hace ${Math.floor(diff / 60)} min`;
-  if (diff < 86400) return `hace ${Math.floor(diff / 3600)} h`;
-  return `hace ${Math.floor(diff / 86400)} d`;
+  if (diff < 60) return t.now;
+  if (diff < 3600) return t.minAgo(Math.floor(diff / 60));
+  if (diff < 86400) return t.hAgo(Math.floor(diff / 3600));
+  return t.dAgo(Math.floor(diff / 86400));
 }
 
-function dayLabel(iso: string): string {
+function dayLabel(iso: string, t: typeof es, locale: Locale): string {
   const date = new Date(iso);
   const today = new Date();
   const startToday = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
   const startDate = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
   const diff = Math.round((startToday - startDate) / 86_400_000);
-  if (diff === 0) return 'Hoy';
-  if (diff === 1) return 'Ayer';
-  return date.toLocaleDateString('es-CO', { day: 'numeric', month: 'long' });
+  if (diff === 0) return t.today;
+  if (diff === 1) return t.yesterday;
+  return date.toLocaleDateString(INTL_LOCALE[locale], { day: 'numeric', month: 'long' });
 }
 
 // La API manda un emoji en `icon`; el rediseño no usa emojis → ícono por tipo.
@@ -72,12 +135,11 @@ function iconOf(n: InAppNotification) {
   }
   return TYPE_ICON[n.type] ?? TYPE_ICON.system;
 }
-type Filter = 'all' | 'social' | 'reminders' | 'achievements';
-const FILTERS: Array<{ id: Filter; label: string; test: (n: InAppNotification) => boolean }> = [
-  { id: 'all', label: 'Todo', test: () => true },
-  { id: 'social', label: 'Mensajes y social', test: (n) => n.category === 'SOCIAL' },
-  { id: 'reminders', label: 'Recordatorios', test: (n) => n.type === 'reminder' || n.type === 'quest_deadline' },
-  { id: 'achievements', label: 'Logros', test: (n) => n.category === 'ACHIEVEMENTS' || n.type === 'achievement' || n.type === 'levelup' },
+const FILTERS: Array<{ id: Filter; test: (n: InAppNotification) => boolean }> = [
+  { id: 'all', test: () => true },
+  { id: 'social', test: (n) => n.category === 'SOCIAL' },
+  { id: 'reminders', test: (n) => n.type === 'reminder' || n.type === 'quest_deadline' },
+  { id: 'achievements', test: (n) => n.category === 'ACHIEVEMENTS' || n.type === 'achievement' || n.type === 'levelup' },
 ];
 
 function NotificationRow({ n, onOpen, onRead, onDelete }: {
@@ -86,6 +148,7 @@ function NotificationRow({ n, onOpen, onRead, onDelete }: {
   onRead: () => void;
   onDelete: () => void;
 }) {
+  const t = useText(COPY);
   const { icon: Icon, tone } = iconOf(n);
   return (
     <motion.li
@@ -108,22 +171,22 @@ function NotificationRow({ n, onOpen, onRead, onDelete }: {
             {!n.isRead && (
               <>
                 <span aria-hidden className="size-2 shrink-0 rounded-full bg-primary" />
-                <span className="sr-only">(sin leer)</span>
+                <span className="sr-only">{t.unread}</span>
               </>
             )}
           </span>
           <span className="mt-0.5 line-clamp-2 block text-body-sm text-on-surface-light">{n.body}</span>
-          <span className="mt-1 block text-caption text-on-surface-light">{timeAgo(n.createdAt)}</span>
+          <span className="mt-1 block text-caption text-on-surface-light">{timeAgo(n.createdAt, t)}</span>
         </span>
       </button>
       {/* Acciones visibles en hover/foco (desktop) y siempre en táctil. */}
       <span className="flex shrink-0 flex-col pt-1 md:opacity-0 md:transition-opacity md:group-focus-within:opacity-100 md:group-hover:opacity-100">
         {!n.isRead && (
-          <Button variant="icon" aria-label={`Marcar como leída: ${n.title}`} onClick={onRead}>
+          <Button variant="icon" aria-label={t.markReadAria(n.title)} onClick={onRead}>
             <Check aria-hidden className="size-5" strokeWidth={1.75} />
           </Button>
         )}
-        <Button variant="icon" aria-label={`Eliminar: ${n.title}`} onClick={onDelete} className="hover:text-error-text">
+        <Button variant="icon" aria-label={t.deleteAria(n.title)} onClick={onDelete} className="hover:text-error-text">
           <Trash2 aria-hidden className="size-5" strokeWidth={1.75} />
         </Button>
       </span>
@@ -211,11 +274,13 @@ function PanelBody({ state, onNavigate, confirming, setConfirming }: {
   confirming: boolean;
   setConfirming: (v: boolean) => void;
 }) {
+  const t = useText(COPY);
+  const locale = useLocale();
   const [filter, setFilter] = useState<Filter>('all');
   const test = FILTERS.find((f) => f.id === filter)!.test;
   const shown = state.items.filter(test);
   const groups = shown.reduce<Array<{ label: string; items: InAppNotification[] }>>((acc, n) => {
-    const label = dayLabel(n.createdAt);
+    const label = dayLabel(n.createdAt, t, locale);
     const g = acc.find((x) => x.label === label);
     if (g) g.items.push(n); else acc.push({ label, items: [n] });
     return acc;
@@ -223,7 +288,7 @@ function PanelBody({ state, onNavigate, confirming, setConfirming }: {
 
   if (state.loading) {
     return (
-      <div className="flex flex-col gap-3 p-2" aria-busy="true" aria-label="Cargando notificaciones">
+      <div className="flex flex-col gap-3 p-2" aria-busy="true" aria-label={t.loadingAria}>
         {[0, 1, 2].map((i) => (
           <div key={i} className="flex items-center gap-3">
             <Skeleton className="size-10 rounded-xl" />
@@ -236,8 +301,8 @@ function PanelBody({ state, onNavigate, confirming, setConfirming }: {
   if (state.failed) {
     return (
       <div role="alert" className="flex flex-col items-center gap-3 px-4 py-8 text-center">
-        <p className="text-body-md text-on-surface">No pudimos cargar tus notificaciones.</p>
-        <Button variant="secondary" size="sm" onClick={state.load}>Reintentar</Button>
+        <p className="text-body-md text-on-surface">{t.loadFail}</p>
+        <Button variant="secondary" size="sm" onClick={state.load}>{t.retry}</Button>
       </div>
     );
   }
@@ -246,39 +311,39 @@ function PanelBody({ state, onNavigate, confirming, setConfirming }: {
       <EmptyState
         icon={Bell}
         tone="muted"
-        title="Todo al día"
-        description="Aquí verás mensajes, recordatorios de cada zona, logros y rachas."
+        title={t.emptyTitle}
+        description={t.emptyDesc}
         className="py-8"
       />
     );
   }
   return (
     <div className="flex flex-col gap-4">
-      <div role="radiogroup" aria-label="Mostrar" className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
+      <div role="radiogroup" aria-label={t.showAria} className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
         {FILTERS.map((f) => {
           const n = state.items.filter((x) => f.test(x) && !x.isRead).length;
           return (
             <button key={f.id} type="button" role="radio" aria-checked={filter === f.id} onClick={() => setFilter(f.id)}
               className={cn('flex min-h-9 shrink-0 items-center gap-1.5 rounded-full border px-3 text-label-md transition-colors',
                 filter === f.id ? 'border-primary bg-primary/10 text-primary-text' : 'border-border text-on-surface-light hover:text-on-surface')}>
-              {f.label}{n > 0 && f.id !== 'all' && <span className="font-mono">{n}</span>}
+              {t.filters[f.id]}{n > 0 && f.id !== 'all' && <span className="font-mono">{n}</span>}
             </button>
           );
         })}
       </div>
-      {shown.length === 0 && <p className="px-3 py-6 text-center text-body-sm text-on-surface-light">Nada por aquí.</p>}
+      {shown.length === 0 && <p className="px-3 py-6 text-center text-body-sm text-on-surface-light">{t.nothing}</p>}
       {confirming && (
         <div role="alertdialog" aria-labelledby="lq-clear-title" className="flex flex-col gap-3 rounded-2xl border border-error/30 bg-error/[var(--lq-soft-alpha)] p-4">
-          <p id="lq-clear-title" className="text-label-lg text-error-text">¿Eliminar todas las notificaciones?</p>
-          <p className="text-body-sm text-on-surface">Se borra el historial de avisos y no se puede deshacer.</p>
+          <p id="lq-clear-title" className="text-label-lg text-error-text">{t.clearQ}</p>
+          <p className="text-body-sm text-on-surface">{t.clearBody}</p>
           <div className="grid grid-cols-2 gap-2">
-            <Button variant="secondary" size="sm" data-autofocus onClick={() => setConfirming(false)}>Cancelar</Button>
+            <Button variant="secondary" size="sm" data-autofocus onClick={() => setConfirming(false)}>{t.cancel}</Button>
             <Button
               variant="danger"
               size="sm"
               onClick={() => { void state.removeAll(); setConfirming(false); }}
             >
-              Eliminar
+              {t.remove}
             </Button>
           </div>
         </div>
@@ -306,7 +371,7 @@ function PanelBody({ state, onNavigate, confirming, setConfirming }: {
       ))}
       {state.nextCursor && (
         <Button variant="ghost" size="sm" block onClick={() => void state.loadMore()} loading={state.loadingMore}>
-          Cargar más
+          {t.loadMore}
         </Button>
       )}
     </div>
@@ -314,15 +379,16 @@ function PanelBody({ state, onNavigate, confirming, setConfirming }: {
 }
 
 function HeaderActions({ state, onClearAll }: { state: ReturnType<typeof useNotifications>; onClearAll: () => void }) {
+  const t = useText(COPY);
   return (
     <span className="flex items-center">
       {state.unread > 0 && (
-        <Button variant="icon" aria-label="Marcar todas como leídas" onClick={() => void state.markAll()}>
+        <Button variant="icon" aria-label={t.markAllAria} onClick={() => void state.markAll()}>
           <CheckCheck aria-hidden className="size-5" strokeWidth={1.75} />
         </Button>
       )}
       {state.items.length > 0 && (
-        <Button variant="icon" aria-label="Eliminar todas las notificaciones" onClick={onClearAll} className="hover:text-error-text">
+        <Button variant="icon" aria-label={t.deleteAllAria} onClick={onClearAll} className="hover:text-error-text">
           <Trash2 aria-hidden className="size-5" strokeWidth={1.75} />
         </Button>
       )}
@@ -332,6 +398,7 @@ function HeaderActions({ state, onClearAll }: { state: ReturnType<typeof useNoti
 
 /** Botón ícono 44 px con punto error si hay sin leer; aria-label incluye el número. */
 export function NotificationBell({ className }: { className?: string }) {
+  const t = useText(COPY);
   const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const isDesktop = useMediaQuery('(min-width: 768px)');
@@ -364,11 +431,11 @@ export function NotificationBell({ className }: { className?: string }) {
     };
   }, [open, isDesktop, close]);
 
-  const label = state.unread > 0 ? `Notificaciones, ${state.unread} sin leer` : 'Notificaciones';
+  const label = state.unread > 0 ? t.bellUnread(state.unread) : t.bell;
   const onNavigate = (link: string) => { close(false); navigate(link); };
   const title: ReactNode = (
     <span className="flex items-center gap-2">
-      Notificaciones
+      {t.bell}
       {state.unread > 0 && <span className="rounded-full bg-error/[var(--lq-soft-alpha)] px-2 text-label-md text-error-text">{state.unread}</span>}
     </span>
   );

@@ -6,6 +6,11 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent, type PointerEve
 import { AnimatePresence, PresenceContext, motion } from 'framer-motion';
 import { Check, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useText, type Copy } from '@/lib/i18n';
+
+const es = { sat: 'saturación y brillo', hue: 'tono', hex: 'código hexadecimal', mix: 'mezclar un color propio', color: 'color', recent: 'Recientes' };
+const en: typeof es = { sat: 'saturation and brightness', hue: 'hue', hex: 'hex code', mix: 'mix your own color', color: 'color', recent: 'Recent' };
+const COPY: Copy<typeof es> = { es, en };
 
 // ── HSV ─────────────────────────────────────────────────────────────────────
 type HSV = { h: number; s: number; v: number };
@@ -33,6 +38,7 @@ function readRecent(): string[] {
 
 // ── Mezclador ───────────────────────────────────────────────────────────────
 function Mixer({ value, onChange, label }: { value: string; onChange: (c: string) => void; label: string }) {
+  const t = useText(COPY);
   const [hsv, setHsv] = useState<HSV>(() => hexToHsv(value));
   const [hex, setHex] = useState(value);
   const plane = useRef<HTMLDivElement>(null);
@@ -64,7 +70,7 @@ function Mixer({ value, onChange, label }: { value: string; onChange: (c: string
         ref={plane}
         role="slider"
         tabIndex={0}
-        aria-label={`${label}: saturación y brillo`}
+        aria-label={`${label}: ${t.sat}`}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={hsv.s}
@@ -90,7 +96,7 @@ function Mixer({ value, onChange, label }: { value: string; onChange: (c: string
       <input
         type="range" min={0} max={359} value={hsv.h}
         onChange={(e) => apply({ ...hsv, h: +e.target.value })}
-        aria-label={`${label}: tono`}
+        aria-label={`${label}: ${t.hue}`}
         className="lq-hue h-3 w-full cursor-pointer rounded-full"
         style={{ backgroundImage: 'linear-gradient(to right, hsl(0 100% 50%), hsl(60 100% 50%), hsl(120 100% 50%), hsl(180 100% 50%), hsl(240 100% 50%), hsl(300 100% 50%), hsl(359 100% 50%))', ['--thumb' as string]: hue }}
       />
@@ -106,7 +112,7 @@ function Mixer({ value, onChange, label }: { value: string; onChange: (c: string
               setHex(`#${v}`);
               if (v.length === 6) { const h = `#${v}`.toLowerCase(); setHsv(hexToHsv(h)); onChange(h); }
             }}
-            aria-label={`${label}: código hexadecimal`}
+            aria-label={`${label}: ${t.hex}`}
             spellCheck={false}
             className="min-w-0 flex-1 bg-transparent font-mono text-body-md uppercase tracking-wider text-on-background outline-none"
           />
@@ -123,6 +129,7 @@ export function ColorField(props: { label: string; value: string; colors: string
 }
 
 function ColorFieldInner({ label, value, colors, onChange }: { label: string; value: string; colors: string[]; onChange: (c: string) => void }) {
+  const t = useText(COPY);
   const name = useId();
   const panelId = useId();
   const [open, setOpen] = useState(false);
@@ -153,7 +160,7 @@ function ColorFieldInner({ label, value, colors, onChange }: { label: string; va
         whileTap={{ scale: 0.88 }}
         className={cn('relative cursor-pointer rounded-full', small ? 'size-9' : 'size-11', 'has-[:focus-visible]:outline has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-offset-[6px] has-[:focus-visible]:outline-primary')}
       >
-        <input type="radio" name={name} checked={on} onChange={() => onChange(c)} aria-label={`${label}: color ${i + 1}`} className="sr-only" />
+        <input type="radio" name={name} checked={on} onChange={() => onChange(c)} aria-label={`${label}: ${t.color} ${i + 1}`} className="sr-only" />
         {/* Color del personaje (dato del usuario). */}
         <span aria-hidden className="absolute inset-0 rounded-full border border-on-background/15 shadow-sm" style={{ backgroundColor: c }} />
         {on && <motion.span aria-hidden layoutId={`ring-${name}`} className="absolute -inset-[5px] rounded-full border-2 border-primary" transition={{ type: 'spring', stiffness: 420, damping: 30 }} />}
@@ -185,7 +192,7 @@ function ColorFieldInner({ label, value, colors, onChange }: { label: string; va
           layout
           aria-expanded={open}
           aria-controls={panelId}
-          aria-label={`${label}: mezclar un color propio`}
+          aria-label={`${label}: ${t.mix}`}
           onClick={toggle}
           initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 520, damping: 26, delay: colors.length * 0.018 }}
           whileHover={{ scale: 1.14, y: -2 }} whileTap={{ scale: 0.88 }}
@@ -220,7 +227,7 @@ function ColorFieldInner({ label, value, colors, onChange }: { label: string; va
             <Mixer value={value} onChange={onChange} label={label} />
             {extra.length > 0 && (
               <div className="flex flex-col gap-2">
-                <span className="text-label-md text-on-surface-light">Recientes</span>
+                <span className="text-label-md text-on-surface-light">{t.recent}</span>
                 <div className="flex flex-wrap gap-2">{extra.map((c, i) => swatch(c, i, true))}</div>
               </div>
             )}
