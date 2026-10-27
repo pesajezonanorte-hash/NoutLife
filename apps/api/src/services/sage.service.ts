@@ -310,11 +310,76 @@ Tu respuesta anterior fue: ${lastResponse.slice(0, 300)}`;
   }
 }
 
+export type SageLang = 'es' | 'en';
+
+/** Respuestas fijas del Sabio en inglés: el texto español se conserva para comparar (chatTurn, cachés) y se traduce al salir. */
+const SAGE_REPLIES_EN: Record<string, string> = {
+  [SAGE_QUOTA_REPLY]: "Aghh… I've consulted the spirits too much today and my scrolls need a rest. Come back tomorrow and my magic will be restored. In the meantime, you can keep logging your habits, quests and finances: all of that works without spells and keeps saving as usual.",
+  [SAGE_TIRED_REPLY]: "We've talked a lot today and I need to rest my eyes. Come back tomorrow and we'll pick up where we left off. In the meantime, your habits, quests, meals and everything else keep working as always.",
+  [SAGE_ERROR_REPLY]: "My scrolls got tangled for a moment and I couldn't hear you well. Try again in a few minutes.",
+  'Sigue con tu racha — cada día cuenta.': 'Keep your streak going — every day counts.',
+  'Tu resumen diario con IA es de NoutLife Pro.': 'Your AI daily summary is a NoutLife Pro feature.',
+};
+
+/** Texto de salida en el idioma pedido: las respuestas fijas se traducen; la respuesta de la IA pasa tal cual. */
+export function localizeSageReply(text: string, lang: SageLang): string {
+  return lang === 'en' ? (SAGE_REPLIES_EN[text] ?? text) : text;
+}
+
+/** Textos del Sabio por idioma: el encuadre del prompt y la instrucción de cada acción. */
+const INSTRUCTIONS: Record<SageLang, {
+  system: (name: string, dateLabel: string, data: string) => string;
+  questsIntro: string;
+  habits: string;
+  finances: string;
+  workout: string;
+  tip: string;
+  summary: (name: string) => string;
+}> = {
+  es: {
+    system: (name, dateLabel, data) => `Eres el Sabio, el mentor de ${name} en NoutLife (su vida convertida en un juego de rol).
+Habla en español natural, cercano y práctico; nada de tono de fantasía salvo que te lo pidan.
+Máximo 3 párrafos cortos, sin listas largas ni relleno.
+Usa solo los datos de abajo y nunca los inventes; si falta un dato, dilo.
+Ves todas sus zonas: conéctalas cuando ayude (sueño y entreno, comida y energía, ocio y ánimo, gasto y metas).
+Sé proactivo: si notas un patrón importante, menciónalo con tacto y propone un solo paso pequeño y concreto.
+
+DATOS DE ${name.toUpperCase()} (${dateLabel}):
+${data}`,
+    questsIntro: 'Sugiere exactamente 3 misiones nuevas y especificas para esta semana.\nUna MAIN quest, una SIDE quest y una DAILY.\nResponde SOLO con este JSON sin markdown ni texto extra:',
+    habits: 'Analiza los habitos del heroe. En 3 parrafos: cual tiene mas riesgo de romperse esta semana y por que, cual esta mas consolidado, y que habito nuevo recomendarias agregar dado sus metas actuales.',
+    finances: 'Analiza las finanzas del heroe este mes. En 3 parrafos concretos: en que categoria gasta mas de lo optimo, cuanto podria ahorrar mensualmente si ajusta eso, y cuando alcanzaria su meta de ahorro mas cercana.',
+    workout: 'Basandote en su historial del Coliseo, su sueño y su nutrición, sugiere el proximo entrenamiento ideal (puede ser fuerza, cardio, caminata o deporte): que trabajar, 4-5 ejercicios o bloques con series, reps o tiempo, y justifica brevemente la eleccion considerando su recuperacion.',
+    tip: 'Da UNA sola frase de consejo o motivación para hoy, basada en el estado actual del usuario. Máximo 15 palabras. Sin saludos, sin introducciones. Solo la frase, directa y útil.',
+    summary: (name) => `Es el inicio del dia de ${name}. En 2 parrafos: resume que logro ayer y que deberia priorizar hoy segun sus misiones activas, habitos con riesgo de romperse y estado financiero.`,
+  },
+  en: {
+    system: (name, dateLabel, data) => `You are the Sage, the mentor of ${name} in NoutLife (their life turned into a role-playing game).
+Reply in English: natural, friendly and practical; no fantasy tone unless they ask for it.
+Maximum 3 short paragraphs, no long lists or filler.
+Use only the data below and never invent it; if a piece of data is missing, say so.
+You see all their zones: connect them when it helps (sleep and training, food and energy, leisure and mood, spending and goals).
+Be proactive: if you notice an important pattern, mention it tactfully and suggest one small, concrete step.
+The data below is written in Spanish. Read it, but always answer in English.
+
+DATA OF ${name.toUpperCase()} (${dateLabel}):
+${data}`,
+    questsIntro: 'Suggest exactly 3 new, specific quests for this week.\nOne MAIN quest, one SIDE quest and one DAILY.\nRespond ONLY with this JSON, no markdown and no extra text. Write "title" and "description" in English:',
+    habits: "Analyze the hero's habits. In 3 paragraphs: which one is most at risk of breaking this week and why, which one is the most consolidated, and which new habit you would recommend adding given their current goals.",
+    finances: "Analyze the hero's finances this month. In 3 concrete paragraphs: in which category they spend more than is optimal, how much they could save each month if they adjust it, and when they would reach their nearest savings goal.",
+    workout: "Based on their Coliseum history, their sleep and their nutrition, suggest the ideal next workout (strength, cardio, a walk or a sport): what to work on, 4-5 exercises or blocks with sets, reps or time, and briefly justify the choice considering their recovery.",
+    tip: 'Give ONE single sentence of advice or motivation for today, based on the current state of the user. Maximum 15 words. No greetings, no introductions. Just the sentence, direct and useful.',
+    summary: (name) => `It is the start of the day for ${name}. In 2 paragraphs: summarize what they achieved yesterday and what they should prioritize today, based on their active quests, the habits at risk of breaking and their financial status.`,
+  },
+};
+
 interface ContextOptions {
   /** Sección que el análisis necesita entera (hábitos, finanzas, Coliseo…). */
   focus?: SectionKey;
   /** Presupuesto del bloque de datos, en caracteres. */
   budget?: number;
+  /** Idioma de las instrucciones y de la respuesta. */
+  lang?: SageLang;
 }
 
 /**
@@ -324,35 +389,26 @@ interface ContextOptions {
 async function buildSageContext(userId: string, options: ContextOptions = {}): Promise<string> {
   const snapshot = await buildLifeSnapshot(userId, options.focus);
   const data = packSections(snapshot.sections, options.budget ?? CONTEXT_BUDGET_CHARS);
-  return `Eres el Sabio, el mentor de ${snapshot.name} en NoutLife (su vida convertida en un juego de rol).
-Habla en español natural, cercano y práctico; nada de tono de fantasía salvo que te lo pidan.
-Máximo 3 párrafos cortos, sin listas largas ni relleno.
-Usa solo los datos de abajo y nunca los inventes; si falta un dato, dilo.
-Ves todas sus zonas: conéctalas cuando ayude (sueño y entreno, comida y energía, ocio y ánimo, gasto y metas).
-Sé proactivo: si notas un patrón importante, menciónalo con tacto y propone un solo paso pequeño y concreto.
-
-DATOS DE ${snapshot.name.toUpperCase()} (${snapshot.dateLabel}):
-${data}`;
+  const lang = options.lang ?? 'es';
+  return INSTRUCTIONS[lang].system(snapshot.name, snapshot.dateLabel, data);
 }
 
-export async function sageChat(userId: string, message: string): Promise<string> {
+export async function sageChat(userId: string, message: string, lang: SageLang = 'es'): Promise<string> {
   const usage = await takeChatSlot(userId);
   if (!usage) return SAGE_TIRED_REPLY;
 
   const text = clipText(message, SAGE_MESSAGE_MAX_CHARS);
-  return chatTurn(userId, async () => callAIWithMemory(userId, await buildSageContext(userId), text));
+  return chatTurn(userId, async () => callAIWithMemory(userId, await buildSageContext(userId, { lang }), text));
 }
 
-export async function sageSuggestQuests(userId: string): Promise<string> {
+export async function sageSuggestQuests(userId: string, lang: SageLang = 'es'): Promise<string> {
   const usage = await takeChatSlot(userId);
   if (!usage) return SAGE_TIRED_REPLY;
 
-  const context = await buildSageContext(userId);
+  const context = await buildSageContext(userId, { lang });
   const fullPrompt = `${context}
 
-Sugiere exactamente 3 misiones nuevas y especificas para esta semana.
-Una MAIN quest, una SIDE quest y una DAILY.
-Responde SOLO con este JSON sin markdown ni texto extra:
+${INSTRUCTIONS[lang].questsIntro}
 [
   {"type":"MAIN","title":"...","description":"...","difficulty":"HARD","category":"FITNESS","xpReward":200,"goldReward":50},
   {"type":"SIDE","title":"...","description":"...","difficulty":"NORMAL","category":"FINANCE","xpReward":80,"goldReward":20},
@@ -362,28 +418,28 @@ Responde SOLO con este JSON sin markdown ni texto extra:
   return chatTurn(userId, () => callAI(fullPrompt.trim()));
 }
 
-export async function sageAnalyzeHabits(userId: string): Promise<string> {
+export async function sageAnalyzeHabits(userId: string, lang: SageLang = 'es'): Promise<string> {
   const usage = await takeChatSlot(userId);
   if (!usage) return SAGE_TIRED_REPLY;
 
-  const context = await buildSageContext(userId, { focus: 'habits' });
-  return chatTurn(userId, () => callAI(`${context}\n\nAnaliza los habitos del heroe. En 3 parrafos: cual tiene mas riesgo de romperse esta semana y por que, cual esta mas consolidado, y que habito nuevo recomendarias agregar dado sus metas actuales.`));
+  const context = await buildSageContext(userId, { focus: 'habits', lang });
+  return chatTurn(userId, () => callAI(`${context}\n\n${INSTRUCTIONS[lang].habits}`));
 }
 
-export async function sageAnalyzeFinances(userId: string): Promise<string> {
+export async function sageAnalyzeFinances(userId: string, lang: SageLang = 'es'): Promise<string> {
   const usage = await takeChatSlot(userId);
   if (!usage) return SAGE_TIRED_REPLY;
 
-  const context = await buildSageContext(userId, { focus: 'finances' });
-  return chatTurn(userId, () => callAI(`${context}\n\nAnaliza las finanzas del heroe este mes. En 3 parrafos concretos: en que categoria gasta mas de lo optimo, cuanto podria ahorrar mensualmente si ajusta eso, y cuando alcanzaria su meta de ahorro mas cercana.`));
+  const context = await buildSageContext(userId, { focus: 'finances', lang });
+  return chatTurn(userId, () => callAI(`${context}\n\n${INSTRUCTIONS[lang].finances}`));
 }
 
-export async function sagePlanWorkout(userId: string): Promise<string> {
+export async function sagePlanWorkout(userId: string, lang: SageLang = 'es'): Promise<string> {
   const usage = await takeChatSlot(userId);
   if (!usage) return SAGE_TIRED_REPLY;
 
-  const context = await buildSageContext(userId, { focus: 'coliseo' });
-  return chatTurn(userId, () => callAI(`${context}\n\nBasandote en su historial del Coliseo, su sueño y su nutrición, sugiere el proximo entrenamiento ideal (puede ser fuerza, cardio, caminata o deporte): que trabajar, 4-5 ejercicios o bloques con series, reps o tiempo, y justifica brevemente la eleccion considerando su recuperacion.`));
+  const context = await buildSageContext(userId, { focus: 'coliseo', lang });
+  return chatTurn(userId, () => callAI(`${context}\n\n${INSTRUCTIONS[lang].workout}`));
 }
 
 // Cache del consejo diario en memoria de proceso: la llaman el scheduler (un
@@ -393,39 +449,41 @@ const dailyTipCache = new Map<string, { date: string; tip: string }>();
 
 const DAILY_TIP_FALLBACK = 'Sigue con tu racha — cada día cuenta.';
 
-export async function sageDailyTip(userId: string): Promise<string> {
+export async function sageDailyTip(userId: string, lang: SageLang = 'es'): Promise<string> {
+  const cacheKey = `${userId}:${lang}`;
   const today = new Date().toISOString().slice(0, 10);
-  const hit = dailyTipCache.get(userId);
+  const hit = dailyTipCache.get(cacheKey);
   if (hit?.date === today) return hit.tip;
-  if (!(await canUseAI(userId))) return DAILY_TIP_FALLBACK; // NoutLife Lite: sin IA
+  if (!(await canUseAI(userId))) return localizeSageReply(DAILY_TIP_FALLBACK, lang); // NoutLife Lite: sin IA
 
-  const context = await buildSageContext(userId, { budget: 1200 });
-  const tip = await callAI(`${context}\n\nDa UNA sola frase de consejo o motivación para hoy, basada en el estado actual del usuario. Máximo 15 palabras. Sin saludos, sin introducciones. Solo la frase, directa y útil.`);
+  const context = await buildSageContext(userId, { budget: 1200, lang });
+  const tip = await callAI(`${context}\n\n${INSTRUCTIONS[lang].tip}`);
   // No cachear la respuesta de cuota agotada ni el fallback: mañana podría
   // haber cuota de nuevo y queremos reintentar la llamada a la IA.
-  if (tip === SAGE_QUOTA_REPLY || tip === SAGE_ERROR_REPLY) return DAILY_TIP_FALLBACK;
+  if (tip === SAGE_QUOTA_REPLY || tip === SAGE_ERROR_REPLY) return localizeSageReply(DAILY_TIP_FALLBACK, lang);
   if (tip !== DAILY_TIP_FALLBACK) {
-    dailyTipCache.set(userId, { date: today, tip });
+    dailyTipCache.set(cacheKey, { date: today, tip });
   }
   return tip;
 }
 
 const dailySummaryCache = new Map<string, { date: string; text: string }>();
 
-export async function sageDailySummary(userId: string): Promise<string> {
+export async function sageDailySummary(userId: string, lang: SageLang = 'es'): Promise<string> {
+  const cacheKey = `${userId}:${lang}`;
   const today = new Date().toISOString().slice(0, 10);
-  const hit = dailySummaryCache.get(userId);
+  const hit = dailySummaryCache.get(cacheKey);
   if (hit?.date === today) return hit.text;
-  if (!(await canUseAI(userId))) return 'Tu resumen diario con IA es de NoutLife Pro.'; // Lite: sin IA
+  if (!(await canUseAI(userId))) return localizeSageReply('Tu resumen diario con IA es de NoutLife Pro.', lang); // Lite: sin IA
 
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
     select: { displayName: true },
   });
 
-  const context = await buildSageContext(userId, { budget: 2000 });
-  const text = await callAI(`${context}\n\nEs el inicio del dia de ${user.displayName}. En 2 parrafos: resume que logro ayer y que deberia priorizar hoy segun sus misiones activas, habitos con riesgo de romperse y estado financiero.`);
-  if (text !== SAGE_QUOTA_REPLY && text !== SAGE_ERROR_REPLY) dailySummaryCache.set(userId, { date: today, text });
+  const context = await buildSageContext(userId, { budget: 2000, lang });
+  const text = await callAI(`${context}\n\n${INSTRUCTIONS[lang].summary(user.displayName)}`);
+  if (text !== SAGE_QUOTA_REPLY && text !== SAGE_ERROR_REPLY) dailySummaryCache.set(cacheKey, { date: today, text });
   return text;
 }
 

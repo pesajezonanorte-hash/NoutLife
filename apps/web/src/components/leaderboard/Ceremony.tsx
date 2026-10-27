@@ -10,6 +10,12 @@ import { cn } from '@/lib/utils';
 import { springs } from '@/lib/motion';
 import { Particles, ZoneAmbience, useParticleBudget } from '@/components/ambience';
 import { Badge } from '@/components/ui/lq';
+import { useText, type Copy } from '@/lib/i18n';
+
+const COPY: Copy<{ you: string }> = {
+  es: { you: 'Tú' },
+  en: { you: 'You' },
+};
 
 export interface Winner { id: string; username?: string; name: string; initials: string; score: ReactNode; isYou?: boolean; avatar?: (size: number) => ReactNode }
 
@@ -53,6 +59,7 @@ function Medal({ place, delay }: { place: 0 | 1 | 2; delay: number }) {
 
 /** El podio 2 · 1 · 3 en su escenario de noche, con focos y polvo dorado en la luz. */
 export function CeremonyPodium({ top }: { top: Winner[] }) {
+  const t = useText(COPY);
   const budget = useParticleBudget();
   const order = [1, 0, 2].filter((i) => top[i]) as (0 | 1 | 2)[];
   const heights = [148, 108, 80];
@@ -97,7 +104,7 @@ export function CeremonyPodium({ top }: { top: Winner[] }) {
               </span>
               <Medal place={i} delay={rise[i] + 0.75} />
               <div className="mb-3 mt-1.5 text-center">
-                <div className="flex items-center justify-center gap-1.5 text-label-lg text-jade-50 md:text-body-md md:font-semibold">{p.name}{p.isYou && <Badge variant="success">Tú</Badge>}</div>
+                <div className="flex items-center justify-center gap-1.5 text-label-lg text-jade-50 md:text-body-md md:font-semibold">{p.name}{p.isYou && <Badge variant="success">{t.you}</Badge>}</div>
                 <div className="font-mono text-body-sm tabular-nums text-secondary">{p.score}</div>
               </div>
               </Link>
@@ -125,6 +132,7 @@ export function CeremonyPodium({ top }: { top: Winner[] }) {
 export function ResultRow({ id, username, position, name, initials, avatar, subtitle, score, isYou, rose }: {
   id: string; username?: string; position: number; name: string; initials: string; avatar?: (size: number) => ReactNode; subtitle?: string; score: ReactNode; isYou?: boolean; rose?: number;
 }) {
+  const t = useText(COPY);
   return (
     <motion.li
       layout="position"
@@ -142,7 +150,7 @@ export function ResultRow({ id, username, position, name, initials, avatar, subt
             to={`/u/${encodeURIComponent(username ?? id)}`} aria-label={`Ver el DNI de ${name}`}
             className={cn('truncate rounded text-label-lg after:absolute after:inset-0 after:rounded-xl after:content-[""] focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-primary md:text-body-md md:font-semibold', isYou ? 'text-secondary-text' : 'text-on-background')}
           >{name}</Link>
-          {isYou && <Badge variant="secondary">Tú</Badge>}
+          {isYou && <Badge variant="secondary">{t.you}</Badge>}
           {isYou && rose ? <span className="text-body-sm text-success-text">↑ {rose}</span> : null}
         </div>
         {subtitle && <div className="truncate text-body-sm text-on-surface-light">{subtitle}</div>}

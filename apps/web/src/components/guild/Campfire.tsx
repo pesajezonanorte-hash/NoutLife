@@ -11,6 +11,12 @@ import { cn } from '@/lib/utils';
 import { springs } from '@/lib/motion';
 import { Particles, ZoneAmbience, seeded, useParticleBudget } from '@/components/ambience';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { useText, type Copy } from '@/lib/i18n';
+
+const COPY: Copy<{ you: string }> = {
+  es: { you: 'Tú' },
+  en: { you: 'You' },
+};
 
 export interface Camper { id: string; name: string; lead?: boolean; you?: boolean; avatar: (size: number) => ReactNode }
 
@@ -150,6 +156,7 @@ export function Campfire({ campers, progress, prevProgress, emblem, emblemTone, 
 }
 
 function Seat({ seat, i }: { seat: { c: Camper; x: number; y: number; s: number; out: { x: number; y: number } }; i: number }) {
+  const t = useText(COPY);
   const size = Math.round(46 * seat.s);
   return (
     <motion.span
@@ -164,7 +171,7 @@ function Seat({ seat, i }: { seat: { c: Camper; x: number; y: number; s: number;
           {seat.c.avatar(size)}
         </span>
       </span>
-      <span className="mt-1.5 max-w-[6rem] truncate rounded-full bg-jade-900/70 px-2 text-[0.6875rem] font-semibold leading-5 text-jade-50">{seat.c.you ? 'Tú' : seat.c.name}</span>
+      <span className="mt-1.5 max-w-[6rem] truncate rounded-full bg-jade-900/70 px-2 text-[0.6875rem] font-semibold leading-5 text-jade-50">{seat.c.you ? t.you : seat.c.name}</span>
     </motion.span>
   );
 }

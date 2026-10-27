@@ -5,6 +5,7 @@ import { getDeviceId, rememberDeviceId } from './deviceId';
 import type { ProFeature, ProLock } from './plan';
 import { clearRefreshSessionExpected, markRefreshSessionExpected } from './session-hint';
 import { announceLifeChange, lifeZoneOf } from './lifeSync';
+import { getLocale } from './i18n';
 
 /**
  * En producción la API se pide en el mismo dominio de la web (/api/v1), que
@@ -30,6 +31,8 @@ api.interceptors.request.use(async (config) => {
   }
   const deviceId = await getDeviceId().catch(() => '');
   if (deviceId) config.headers['X-Device-Id'] = deviceId;
+  // Idioma de la persona: la API responde en él (p. ej. el Sabio).
+  config.headers['Accept-Language'] = getLocale();
   return config;
 });
 

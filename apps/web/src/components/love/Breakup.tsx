@@ -6,10 +6,13 @@ import { createPortal } from 'react-dom';
 import { motion, useReducedMotionConfig } from 'framer-motion';
 import { springs } from '@/lib/motion/presets';
 import { Button, useDialogBehavior } from '@/components/ui/lq';
+import { useLocale, useText, type Copy } from '@/lib/i18n';
 
 type Variant = 'fish' | 'heart' | 'sprout' | 'sunrise' | 'balloon';
 
-const COPY: Record<Variant, { title: string; body: string }> = {
+type SceneText = Record<Variant, { title: string; body: string }>;
+
+const ES: SceneText = {
   fish: { title: 'Hay millones de peces en el océano', body: 'Y alguno salta justo cuando menos lo esperas. Hoy, nada primero hacia ti.' },
   heart: { title: 'Los corazones rotos también sanan', body: 'Puntada a puntada. No tiene que ser hoy; basta con que sea a tu ritmo.' },
   sprout: { title: 'Lo que se marchita abona lo que viene', body: 'Tu jardín vuelve a estar en blanco, y la tierra recuerda cómo florecer.' },
@@ -17,7 +20,22 @@ const COPY: Record<Variant, { title: string; body: string }> = {
   balloon: { title: 'Soltar también es cuidarte', body: 'Lo que fue bonito se queda contigo. Lo demás puede irse volando.' },
 };
 
-const VARIANTS = Object.keys(COPY) as Variant[];
+const EN: SceneText = {
+  fish: { title: 'There are millions of fish in the ocean', body: 'And one of them jumps just when you least expect it. Today, swim toward yourself first.' },
+  heart: { title: 'Broken hearts heal too', body: 'Stitch by stitch. It doesn’t have to be today; it only has to be at your own pace.' },
+  sprout: { title: 'What withers feeds what comes next', body: 'Your garden is blank again, and the soil remembers how to bloom.' },
+  sunrise: { title: 'Tomorrow the sun rises just the same', body: 'So do you. Look after your small habits: they hold up the big days.' },
+  balloon: { title: 'Letting go is also taking care of yourself', body: 'What was beautiful stays with you. The rest can float away.' },
+};
+
+const TEXT = { es: ES, en: EN };
+
+const BUTTONS: Copy<{ back: string; again: string }> = {
+  es: { back: 'Volver al jardín', again: 'Empezar de nuevo' },
+  en: { back: 'Back to the garden', again: 'Start over' },
+};
+
+const VARIANTS = Object.keys(ES) as Variant[];
 
 function Ocean({ reduce }: { reduce: boolean }) {
   const fish = [
@@ -128,10 +146,12 @@ const SCENES: Record<Variant, (p: { reduce: boolean }) => JSX.Element> = { fish:
 export function BreakupScene({ open, onClose, onRestart }: { open: boolean; onClose: () => void; onRestart: () => void }) {
   const reduce = Boolean(useReducedMotionConfig());
   const variant = useMemo(() => VARIANTS[Math.floor(Math.random() * VARIANTS.length)], [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  const locale = useLocale();
+  const t = useText(BUTTONS);
   const panelRef = useDialogBehavior(open, onClose);
   if (!open) return null;
   const Scene = SCENES[variant];
-  const copy = COPY[variant];
+  const copy = TEXT[locale][variant];
   return createPortal(
     <motion.div
       ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="breakup-title" tabIndex={-1}
@@ -146,8 +166,8 @@ export function BreakupScene({ open, onClose, onRestart }: { open: boolean; onCl
         <p className="text-body-lg text-on-surface-light">{copy.body}</p>
       </motion.div>
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.3 }} className="flex flex-wrap justify-center gap-3">
-        <Button variant="secondary" onClick={onClose}>Volver al jardín</Button>
-        <Button onClick={onRestart}>Empezar de nuevo</Button>
+        <Button variant="secondary" onClick={onClose}>{t.back}</Button>
+        <Button onClick={onRestart}>{t.again}</Button>
       </motion.div>
     </motion.div>,
     document.body,

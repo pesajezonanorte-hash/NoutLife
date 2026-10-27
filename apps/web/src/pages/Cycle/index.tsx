@@ -33,6 +33,7 @@ import {
   PHASES, daysBetween, energyLabelFor, fertilityLabelFor, intensityLineFor, isBleeding, longDay, phaseFill, phaseInk,
   phaseMetaFor, sourceLabelFor, symptomLabelsFor,
 } from '@/components/cycle/cycleMeta';
+import { adviceCopy } from '@/components/cycle/adviceText';
 
 const es = {
   // Primer arranque
@@ -282,6 +283,7 @@ export default function CyclePage() {
 
   const snap = data?.snapshot ?? null;
   const advice = data?.advice ?? null;
+  const copy = advice ? adviceCopy(advice, locale) : null;
   const tone = snap ? `var(--cy-${snap.phase})` : 'var(--cy-follicular)';
   const phases = phaseMetaFor(locale);
   const symptoms = symptomLabelsFor(locale);
@@ -375,25 +377,25 @@ export default function CyclePage() {
         </motion.section>
 
         {/* El ciclo en el resto de la app */}
-        {advice && (
+        {advice && copy && (
           <motion.section variants={item} aria-labelledby="cy-today" className="flex flex-col gap-4">
             <div className="flex flex-col gap-1">
               <h2 id="cy-today" className="text-heading-lg">{t.forToday}</h2>
-              <p className="text-body-md text-on-surface-light">{advice.note}</p>
+              <p className="text-body-md text-on-surface-light">{copy.note}</p>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <Card padding="lg" className="flex flex-col gap-3">
                 <span className="flex items-center gap-2 text-label-lg text-on-surface"><Dumbbell aria-hidden className="size-4" strokeWidth={1.75} />{t.coliseoTag} · {intensityLineFor(advice.intensity, locale)}</span>
-                <h3 className="text-heading-sm">{advice.training.title}</h3>
-                <p className="text-body-md text-on-surface">{advice.training.body}</p>
-                <p className="text-body-sm text-on-surface"><span className="font-semibold">{t.suggestedLoad}</span> {advice.training.load}.</p>
-                <ul className="flex flex-wrap gap-1.5">{advice.training.ideas.map((i) => <li key={i} className="rounded-full bg-surface-variant px-3 py-1.5 text-body-sm">{i}</li>)}</ul>
+                <h3 className="text-heading-sm">{copy.training.title}</h3>
+                <p className="text-body-md text-on-surface">{copy.training.body}</p>
+                <p className="text-body-sm text-on-surface"><span className="font-semibold">{t.suggestedLoad}</span> {copy.training.load}.</p>
+                <ul className="flex flex-wrap gap-1.5">{copy.training.ideas.map((i) => <li key={i} className="rounded-full bg-surface-variant px-3 py-1.5 text-body-sm">{i}</li>)}</ul>
                 <Link to="/coliseo" className="mt-auto inline-flex min-h-11 items-center gap-1 self-start font-semibold text-primary-text underline-offset-4 hover:underline">{t.goColiseo}<ArrowUpRight aria-hidden className="size-4" /></Link>
               </Card>
               <Card padding="lg" className="flex flex-col gap-3">
                 <span className="flex items-center gap-2 text-label-lg text-on-surface"><ListChecks aria-hidden className="size-4" strokeWidth={1.75} />{t.habitsTag}</span>
-                <h3 className="text-heading-sm">{advice.habits.title}</h3>
-                <p className="text-body-md text-on-surface">{advice.habits.body}</p>
+                <h3 className="text-heading-sm">{copy.habits.title}</h3>
+                <p className="text-body-md text-on-surface">{copy.habits.body}</p>
                 {!advice.pauseFitness && <p className="text-body-sm text-on-surface-light">{t.restNote}</p>}
                 <Link to="/habits" className="mt-auto inline-flex min-h-11 items-center gap-1 self-start font-semibold text-primary-text underline-offset-4 hover:underline">{t.goHabits}<ArrowUpRight aria-hidden className="size-4" /></Link>
               </Card>

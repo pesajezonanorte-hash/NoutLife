@@ -4,9 +4,15 @@
 import { useRef } from 'react';
 import { Camera, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/lq';
+import { getLocale, type Copy } from '@/lib/i18n';
+
+const COPY: Copy<{ camera: string; gallery: string }> = {
+  es: { camera: 'Cámara', gallery: 'Galería' },
+  en: { camera: 'Camera', gallery: 'Gallery' },
+};
 
 export function PhotoSourceButtons({
-  onPick, facing = 'environment', loading, size = 'md', cameraLabel = 'Cámara', galleryLabel = 'Galería', accept = 'image/*', className,
+  onPick, facing = 'environment', loading, size = 'md', cameraLabel = COPY[getLocale()].camera, galleryLabel = COPY[getLocale()].gallery, accept = 'image/*', className,
 }: {
   onPick: (file: File) => void;
   /** «user» abre la cámara frontal (selfies); «environment», la trasera. */
