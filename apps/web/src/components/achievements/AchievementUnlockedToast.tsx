@@ -9,10 +9,27 @@ import { ease } from '@/lib/motion';
 import { useUIStore, type AchievementToast } from '@/store/uiStore';
 import { resolveGlyph } from '@/components/ui/glyphs';
 import { Badge, Button, IconChip } from '@/components/ui/lq';
+import { useLocale, useText, type Copy } from '@/lib/i18n';
+import { achievementText } from './achievementText';
+
+const es = {
+  unlocked: 'Logro desbloqueado',
+  close: (title: string): string => `Cerrar aviso: ${title}`,
+};
+
+const en: typeof es = {
+  unlocked: 'Achievement unlocked',
+  close: (title: string): string => `Close notice: ${title}`,
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 const LIFE_MS = 4000;
 
 function AchievementCard({ t, onClose }: { t: AchievementToast; onClose: () => void }) {
+  const copy = useText(COPY);
+  const locale = useLocale();
+  const text = achievementText(t, locale);
   const [paused, setPaused] = useState(false);
   const Icon = resolveGlyph(t.icon);
   const closeRef = useRef(onClose);
@@ -40,12 +57,12 @@ function AchievementCard({ t, onClose }: { t: AchievementToast; onClose: () => v
       <div className="flex items-start gap-3 py-3 pl-3 pr-1">
         <IconChip icon={Icon} tone="success" size="md" />
         <div className="min-w-0 flex-1 py-0.5">
-          <p className="text-label-md uppercase tracking-wide text-success-text">Logro desbloqueado</p>
-          <p className="text-heading-sm">{t.title}</p>
-          {t.description && <p className="text-body-sm text-on-surface-light">{t.description}</p>}
+          <p className="text-label-md uppercase tracking-wide text-success-text">{copy.unlocked}</p>
+          <p className="text-heading-sm">{text.title}</p>
+          {text.description && <p className="text-body-sm text-on-surface-light">{text.description}</p>}
           {t.xpReward > 0 && <Badge variant="primary" icon={Star} className="mt-2">+{t.xpReward} XP</Badge>}
         </div>
-        <Button variant="icon" aria-label={`Cerrar aviso: ${t.title}`} onClick={onClose}>
+        <Button variant="icon" aria-label={copy.close(text.title)} onClick={onClose}>
           <X aria-hidden className="size-5" strokeWidth={1.75} />
         </Button>
       </div>

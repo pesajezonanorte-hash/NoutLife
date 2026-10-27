@@ -12,6 +12,7 @@ import type { Workout, Routine } from '@noutlife/shared';
 import { cn } from '@/lib/utils';
 import { expo, heavy, item, slam, stagger, useCountUp } from '@/lib/motion';
 import { muscleStates, pplBalance, tonnage, workoutTonnage } from '@/lib/coliseo';
+import { exerciseName } from '@/components/coliseo/exerciseText';
 import { INTL_LOCALE, useLocale, useText, type Copy } from '@/lib/i18n';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
@@ -676,7 +677,7 @@ export default function ColiseoPage() {
             return (
               <li key={ex.id ?? i} className="group flex min-h-14 flex-col justify-center gap-2 border-b border-border py-2.5 last:border-0">
                 <div className="flex items-center gap-4">
-                  <span className="min-w-0 flex-1 truncate text-body-md transition-transform duration-300 ease-expo group-hover:translate-x-1">{ex.exerciseName}</span>
+                  <span className="min-w-0 flex-1 truncate text-body-md transition-transform duration-300 ease-expo group-hover:translate-x-1">{exerciseName(ex.exerciseName, locale)}</span>
                   <span className="font-mono text-body-sm tabular-nums text-on-surface-light">{t.setsCount(done.length)}</span>
                   <span className="w-20 text-right font-mono text-label-lg tabular-nums">{top ? `${top} ${t.kgUnit}` : '—'}</span>
                 </div>
@@ -873,7 +874,7 @@ export default function ColiseoPage() {
                   <h2 id="coliseo-prs" className="text-heading-sm">{t.recordsTitle}</h2>
                   {records.length === 0 ? <p className="text-body-sm text-on-surface-light">{t.noRecords}</p> : records.map((p) => (
                     <div key={p.name} className="flex flex-col gap-1.5">
-                      <div className="flex items-center justify-between"><span className="text-body-md">{p.name}</span><span className="font-mono text-label-lg tabular-nums">{t.recordKg(p.weight)}</span></div>
+                      <div className="flex items-center justify-between"><span className="text-body-md">{exerciseName(p.name, locale)}</span><span className="font-mono text-label-lg tabular-nums">{t.recordKg(p.weight)}</span></div>
                       <ProgressBar value={p.pct} tone="warning" shine label={t.recordAria(p.name, p.weight)} />
                     </div>
                   ))}
@@ -903,8 +904,8 @@ export default function ColiseoPage() {
                   </div>
                   <p className="text-body-sm text-on-surface">
                     {r.days.length > 0
-                      ? r.days.filter((day) => !day.isRestDay).map((day) => `${t.weekdays[day.weekday]}: ${day.exercises.map((x) => x.exercise.name).join(', ') || t.restWord}`).join(' · ')
-                      : r.exercises.map((x) => x.name).join(' · ')}
+                      ? r.days.filter((day) => !day.isRestDay).map((day) => `${t.weekdays[day.weekday]}: ${day.exercises.map((x) => exerciseName(x.exercise.name, locale)).join(', ') || t.restWord}`).join(' · ')
+                      : r.exercises.map((x) => exerciseName(x.name, locale)).join(' · ')}
                   </p>
                   <div className="mt-auto flex items-center justify-between gap-3">
                     <span className="font-mono text-body-sm tabular-nums text-on-surface-light">{t.routineSummary(routineExerciseCount(r))}{r.estimatedDuration ? ` · ${t.durationEst(r.estimatedDuration)}` : ''}</span>

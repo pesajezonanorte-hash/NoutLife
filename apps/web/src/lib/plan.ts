@@ -53,9 +53,6 @@ export function formatMoney(cents: number, currency: PriceCurrency, locale: Loca
   return locale === 'es' ? `US$${dollars}` : `$${dollars}`;
 }
 
-/** «$9.900» con separador de miles colombiano (pesos enteros). */
-export const formatCop = (value: number) => `$${value.toLocaleString('es-CO')}`;
-
 /** Funciones que Lite limita (la API responde 402 con `feature`). */
 export type ProFeature = 'habits' | 'history' | 'ai';
 

@@ -36,13 +36,68 @@ import { GuildRoom } from '@/components/social/GuildRoom';
 import { DirectLetter, GuildLetter } from '@/components/social/letters/LetterView';
 import { useViewportBox } from '@/components/social/letters/viewport';
 import { useLive } from '@/lib/live';
+import { useText, type Copy } from '@/lib/i18n';
 
 type Tab = 'directorio' | 'cartas' | 'gremios';
-const TABS: Array<{ id: Tab; label: string; title: string; icon: LucideIcon; sub: string }> = [
-  { id: 'directorio', label: 'Directorio', title: 'directorio', icon: NotebookTabs, sub: 'Tus contactos y tus gremios. Toca a alguien para escribirle.' },
-  { id: 'cartas', label: 'Cartas', title: 'cartas', icon: Mail, sub: 'Todas tus conversaciones, con amigos y con tus gremios.' },
-  { id: 'gremios', label: 'Gremios', title: 'gremios', icon: Tent, sub: 'Tus grupos: su fogata, el enemigo del día y quién está en cada uno.' },
+const TABS: Array<{ id: Tab; icon: LucideIcon }> = [
+  { id: 'directorio', icon: NotebookTabs },
+  { id: 'cartas', icon: Mail },
+  { id: 'gremios', icon: Tent },
 ];
+
+const es = {
+  tabs: {
+    directorio: { label: 'Directorio', title: 'directorio', sub: 'Tus contactos y tus gremios. Toca a alguien para escribirle.' },
+    cartas: { label: 'Cartas', title: 'cartas', sub: 'Todas tus conversaciones, con amigos y con tus gremios.' },
+    gremios: { label: 'Gremios', title: 'gremios', sub: 'Tus grupos: su fogata, el enemigo del día y quién está en cada uno.' },
+  },
+  social: 'Social',
+  onlineCount: (n: number): string => `${n} ${n === 1 ? 'amigo en línea' : 'amigos en línea'}`,
+  sections: 'Secciones de Social',
+  pending: 'pendientes',
+  sendPigeon: 'Enviar paloma',
+  writeLetter: 'Escribir carta',
+  blankPaper: 'papel en blanco',
+  openEnvelope: 'Abre un sobre del buzón para leer y responder.',
+  letterArchived: 'Carta archivada',
+  letterUnarchived: 'Carta fuera del archivo',
+  archiveFail: 'No se pudo archivar',
+  chatDeleted: 'Chat eliminado',
+  chatDeletedBody: 'Se borró el historial solo para ti.',
+  deleteChatFail: 'No se pudo eliminar el chat',
+  deleteChatTitle: '¿Eliminar este chat?',
+  deleteChatBody: (guild: boolean): string => `Se borra el historial solo para ti; ${guild ? 'los demás miembros' : 'tu amigo'} lo seguirán viendo. Lo que se escriba a partir de ahora sí te llega.`,
+  cancel: 'Cancelar',
+  deleteChat: 'Eliminar chat',
+};
+
+const en: typeof es = {
+  tabs: {
+    directorio: { label: 'Directory', title: 'directory', sub: 'Your contacts and your guilds. Tap someone to write to them.' },
+    cartas: { label: 'Letters', title: 'letters', sub: 'All your conversations, with friends and with your guilds.' },
+    gremios: { label: 'Guilds', title: 'guilds', sub: 'Your groups: their campfire, the enemy of the day, and who is in each one.' },
+  },
+  social: 'Social',
+  onlineCount: (n: number): string => `${n} ${n === 1 ? 'friend online' : 'friends online'}`,
+  sections: 'Social sections',
+  pending: 'pending',
+  sendPigeon: 'Send pigeon',
+  writeLetter: 'Write letter',
+  blankPaper: 'blank paper',
+  openEnvelope: 'Open an envelope from the mailbox to read and reply.',
+  letterArchived: 'Letter archived',
+  letterUnarchived: 'Letter unarchived',
+  archiveFail: 'Could not archive',
+  chatDeleted: 'Chat deleted',
+  chatDeletedBody: 'The history was erased for you only.',
+  deleteChatFail: 'Could not delete the chat',
+  deleteChatTitle: 'Delete this chat?',
+  deleteChatBody: (guild: boolean): string => `The history is erased for you only; ${guild ? 'the other members' : 'your friend'} will still see it. Anything written from now on will still reach you.`,
+  cancel: 'Cancel',
+  deleteChat: 'Delete chat',
+};
+
+const COPY: Copy<typeof es> = { es, en };
 const toaster = () => useToastStore.getState();
 
 /** Mientras está montado, la página de atrás no se desplaza. */
@@ -85,14 +140,15 @@ function SocialAmbience({ tab }: { tab: Tab }) {
 
 /** Panel vacío de la carta (escritorio): papel en blanco con la pluma. */
 function EmptyPane() {
+  const t = useText(COPY);
   return (
     <div className="lq-stationery relative flex min-h-[460px] flex-col items-center justify-center gap-3 overflow-hidden rounded-[22px] border border-border p-8 text-center shadow-md">
       <motion.span initial={{ rotate: -16, y: -8, opacity: 0 }} animate={{ rotate: -6, y: 0, opacity: 1 }} transition={springs.heavy}
         className="flex size-16 items-center justify-center rounded-2xl bg-warning/[var(--lq-soft-alpha)] text-warning-text">
         <PenLine aria-hidden className="size-8" strokeWidth={1.5} />
       </motion.span>
-      <h2 className="text-heading-md text-on-background"><Lettering text="papel en blanco" /></h2>
-      <p className="max-w-[340px] text-body-md text-on-surface-light">Abre un sobre del buzón para leer y responder.</p>
+      <h2 className="text-heading-md text-on-background"><Lettering text={t.blankPaper} /></h2>
+      <p className="max-w-[340px] text-body-md text-on-surface-light">{t.openEnvelope}</p>
     </div>
   );
 }
@@ -129,6 +185,7 @@ function MobileLetter({ children }: { children: React.ReactNode }) {
 }
 
 export default function SocialPage() {
+  const t = useText(COPY);
   const [params, setParams] = useSearchParams();
   const isDesktop = useMediaQuery('(min-width: 1024px)');
   const pulse = useSocialStore((s) => s.pulse);
@@ -209,17 +266,17 @@ export default function SocialPage() {
       else setGuilds((l) => l?.map((g) => (g.id === it.guild.id ? { ...g, archived: v } : g)) ?? l);
     };
     mark(archived);
-    try { await setChatPref(it.chat, { archived }); toaster().info(archived ? 'Carta archivada' : 'Carta fuera del archivo'); }
-    catch (e) { mark(!archived); toaster().error(apiError(e, 'No se pudo archivar')); }
+    try { await setChatPref(it.chat, { archived }); toaster().info(archived ? t.letterArchived : t.letterUnarchived); }
+    catch (e) { mark(!archived); toaster().error(apiError(e, t.archiveFail)); }
   }
   async function clearChat(it: TrayItem) {
     setClearing(null);
     try {
       await setChatPref(it.chat, { clear: true });
-      toaster().info('Chat eliminado', 'Se borró el historial solo para ti.');
+      toaster().info(t.chatDeleted, t.chatDeletedBody);
       if ((it.kind === 'dm' && chat === it.friend.friend.username) || (it.kind === 'guild' && gchat === it.guild.id)) closeLetter();
       void load(true);
-    } catch (e) { toaster().error(apiError(e, 'No se pudo eliminar el chat')); }
+    } catch (e) { toaster().error(apiError(e, t.deleteChatFail)); }
   }
 
   const chatFriend = useMemo(() => friends?.find((f) => f.friend.username === chat)?.friend ?? null, [friends, chat]);
@@ -227,7 +284,7 @@ export default function SocialPage() {
   const dmUnread = friends?.reduce((n, f) => n + f.unread, 0) ?? pulse?.unreadMessages ?? 0;
   const guildUnread = guilds?.reduce((n, g) => n + g.unread, 0) ?? pulse?.guildUnread ?? 0;
   const badges: Record<Tab, number> = { directorio: pending.length + invites.length, cartas: dmUnread + guildUnread, gremios: invites.length };
-  const meta = TABS.find((t) => t.id === tab)!;
+  const meta = t.tabs[tab];
   const letterOpen = tab === 'cartas' && Boolean(chatFriend || gchat);
   const activeKey = chatFriend ? `dm:${chatFriend.id}` : gchat ? `g:${gchat}` : null;
 
@@ -252,7 +309,7 @@ export default function SocialPage() {
       <motion.section variants={item} className="flex flex-wrap items-end justify-between gap-4 pt-6 md:pt-10">
         <div className="flex min-w-0 flex-col gap-2">
           <span className={cn('text-label-lg', online ? 'text-success-text' : 'text-primary-text')}>
-            {online ? `${online} ${online === 1 ? 'amigo en línea' : 'amigos en línea'}` : 'Social'}
+            {online ? t.onlineCount(online) : t.social}
           </span>
           <h1 className="text-display-sm md:text-display-md"><Lettering key={tab} text={meta.title} /></h1>
           <AnimatePresence mode="wait" initial={false}>
@@ -263,36 +320,36 @@ export default function SocialPage() {
         </div>
         {tab === 'directorio' && (
           <Button variant="secondary" onClick={() => { setQuery({ view: 'search' }); document.getElementById('notebook-search')?.focus(); }}>
-            <Send aria-hidden className="size-4" />Enviar paloma
+            <Send aria-hidden className="size-4" />{t.sendPigeon}
           </Button>
         )}
-        {tab === 'cartas' && <Button variant="secondary" onClick={() => goTab('directorio')}><PenLine aria-hidden className="size-4" />Escribir carta</Button>}
+        {tab === 'cartas' && <Button variant="secondary" onClick={() => goTab('directorio')}><PenLine aria-hidden className="size-4" />{t.writeLetter}</Button>}
       </motion.section>
 
       {/* Pestañas: siempre a mano al bajar. El indicador (layoutId) va aislado de la
           presencia de la página: si no, al salir de Social la zona de destino se quedaba en blanco. */}
       <motion.div variants={item} className="lq-bar-glass sticky top-[calc(3.5rem+env(safe-area-inset-top))] z-10 -mx-4 border-b border-border px-4 md:top-16 md:mx-0 md:rounded-t-xl md:px-1">
         <PresenceContext.Provider value={null}>
-          <div role="tablist" aria-label="Secciones de Social" className="flex">
-            {TABS.map((t, i) => {
-              const on = t.id === tab;
-              const n = badges[t.id];
+          <div role="tablist" aria-label={t.sections} className="flex">
+            {TABS.map((tb, i) => {
+              const on = tb.id === tab;
+              const n = badges[tb.id];
               return (
                 <button
-                  key={t.id} id={`social-tab-${t.id}`} type="button" role="tab" aria-selected={on} aria-controls="social-panel" tabIndex={on ? 0 : -1}
-                  onClick={() => goTab(t.id)} onKeyDown={(e) => onTabKey(e, i)}
+                  key={tb.id} id={`social-tab-${tb.id}`} type="button" role="tab" aria-selected={on} aria-controls="social-panel" tabIndex={on ? 0 : -1}
+                  onClick={() => goTab(tb.id)} onKeyDown={(e) => onTabKey(e, i)}
                   className={cn('relative flex min-h-[52px] min-w-0 flex-1 items-center justify-center gap-1.5 px-1 text-label-md transition-colors sm:gap-2 sm:px-2 sm:text-label-lg md:flex-none md:px-6',
                     on ? 'text-on-background' : 'text-on-surface-light hover:text-on-surface')}
                 >
                   <motion.span animate={on ? { rotate: [0, -10, 6, 0] } : { rotate: 0 }} transition={{ duration: 0.45 }} className="inline-flex shrink-0">
-                    <t.icon aria-hidden className="size-5" strokeWidth={1.75} />
+                    <tb.icon aria-hidden className="size-5" strokeWidth={1.75} />
                   </motion.span>
-                  <span className="truncate">{t.label}</span>
+                  <span className="truncate">{t.tabs[tb.id].label}</span>
                   <AnimatePresence>
                     {n > 0 && (
                       <motion.span key="n" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} transition={springs.snappy}
                         className="flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-error-text px-1 font-mono text-[0.65rem] text-background sm:h-5 sm:min-w-5">
-                        {n > 9 ? '9+' : n}<span className="sr-only"> pendientes</span>
+                        {n > 9 ? '9+' : n}<span className="sr-only"> {t.pending}</span>
                       </motion.span>
                     )}
                   </AnimatePresence>
@@ -367,11 +424,11 @@ export default function SocialPage() {
         document.body,
       )}
 
-      <Modal open={Boolean(clearing)} onClose={() => setClearing(null)} title="¿Eliminar este chat?">
-        <p className="text-body-md text-on-surface">Se borra el historial solo para ti; {clearing?.kind === 'guild' ? 'los demás miembros' : 'tu amigo'} lo seguirán viendo. Lo que se escriba a partir de ahora sí te llega.</p>
+      <Modal open={Boolean(clearing)} onClose={() => setClearing(null)} title={t.deleteChatTitle}>
+        <p className="text-body-md text-on-surface">{t.deleteChatBody(clearing?.kind === 'guild')}</p>
         <div className="flex justify-end gap-3">
-          <Button variant="secondary" size="md" onClick={() => setClearing(null)}>Cancelar</Button>
-          <Button variant="danger" size="md" onClick={() => clearing && void clearChat(clearing)}>Eliminar chat</Button>
+          <Button variant="secondary" size="md" onClick={() => setClearing(null)}>{t.cancel}</Button>
+          <Button variant="danger" size="md" onClick={() => clearing && void clearChat(clearing)}>{t.deleteChat}</Button>
         </div>
       </Modal>
     </ZoneShell>

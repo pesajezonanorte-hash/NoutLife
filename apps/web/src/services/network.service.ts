@@ -61,7 +61,7 @@ export interface ProfileData {
   friendStreak: StreakView | null;
   locked: boolean;
   stats?: { habits: number; habitsOnStreak: number; bestHabitStreak: number; achievements: number; friends: number };
-  achievements?: Array<{ title: string; icon: string; category: string; description?: string; unlockedAt: string }>;
+  achievements?: Array<{ key?: string; title: string; icon: string; category: string; description?: string; unlockedAt: string }>;
   guilds?: Array<{ id: string; name: string; emblem: string; photoUrl?: string | null }>;
   friendsVisible?: boolean;
   friends?: Array<PublicUser & { friendStreak: number }>;
