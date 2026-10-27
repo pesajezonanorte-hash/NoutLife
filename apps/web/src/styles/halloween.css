@@ -1,0 +1,99 @@
+/* Temporada de Halloween (hasta el 31-10-2026, lib/season.ts pone
+   html[data-season="halloween"]; pasada la fecha nada de esto aplica).
+   Aurora cambia el jade por calabaza y ámbar sobre fondos más cálidos; los temas
+   comprados en la Tienda conservan su paleta. Telarañas y destellos van en todos
+   los temas, con el color del texto, aria-less (pseudo-elementos) y sin eventos.
+   Va después de skins.css. Texto sobre superficie ≥ 4.5:1. */
+
+html[data-season="halloween"]:is(:not([data-theme]), [data-theme="aurora"]) {
+  --lq-jade-50: 255 247 237;  --lq-jade-100: 255 237 213; --lq-jade-200: 254 215 170;
+  --lq-jade-300: 253 186 116; --lq-jade-400: 251 146 60;  --lq-jade-500: 249 115 22;
+  --lq-jade-600: 234 88 12;   --lq-jade-700: 194 65 12;   --lq-jade-800: 154 52 18;
+  --lq-jade-900: 67 20 7;
+
+  --lq-primary: 194 65 12;           /* #c2410c calabaza quemada: barras, anillos, foco */
+  --lq-primary-strong: 194 65 12;    /* relleno de botón (blanco 5.2:1) */
+  --lq-primary-hover: 173 58 12;     /* #ad3a0c */
+  --lq-primary-text: 154 52 18;      /* #9a3412 (7.3:1 sobre blanco) */
+  --lq-forest: 124 45 18; --lq-forest-text: 124 45 18;
+
+  --lq-background: 250 246 240;      /* marfil tostado #faf6f0 */
+  --lq-surface-variant: 252 240 228; /* #fcf0e4 */
+  --lq-border: 236 224 211;          /* #ece0d3 */
+  --lq-border-strong: 138 111 92;    /* #8a6f5c */
+  --lq-on-background: 31 20 13;      /* #1f140d tinta cálida */
+  --lq-on-surface: 61 42 29;         /* #3d2a1d */
+  --lq-on-surface-light: 107 82 66;  /* #6b5242 */
+
+  --lq-brand-a0: #fb923c; --lq-brand-a1: #c2410c; --lq-brand-a2: #7c2d12; --lq-brand-a3: #431407;
+  --lq-brand-b0: #fdba74; --lq-brand-b1: #c2410c;
+  --lq-brand-c0: #f97316; --lq-brand-c1: #9a3412; --lq-brand-c2: #431407;
+
+  --shadow-sm: 0 1px 2px rgb(31 20 13 / .04), 0 1px 3px rgb(31 20 13 / .06);
+  --shadow-md: 0 4px 12px rgb(31 20 13 / .08), 0 2px 4px rgb(31 20 13 / .04);
+  --shadow-lg: 0 12px 32px rgb(31 20 13 / .12), 0 4px 8px rgb(31 20 13 / .06);
+  --lq-backdrop: radial-gradient(90% 50% at 100% 0%, rgb(249 115 22 / .06), transparent 65%);
+}
+
+html.dark[data-season="halloween"]:is(:not([data-theme]), [data-theme="aurora"]) {
+  --lq-primary: 249 115 22;          /* #f97316 */
+  --lq-primary-strong: 249 115 22;
+  --lq-primary-hover: 251 146 60;    /* #fb923c */
+  --lq-primary-text: 253 186 116;    /* #fdba74 */
+  --lq-on-primary: 28 13 4;          /* #1c0d04 sobre calabaza (7:1) */
+  --lq-forest: 254 215 170; --lq-forest-text: 254 215 170;
+
+  --lq-background: 12 8 6;           /* #0c0806 noche */
+  --lq-surface: 23 16 11;            /* #17100b */
+  --lq-surface-variant: 34 23 15;    /* #22170f */
+  --lq-border: 51 35 26;             /* #33231a */
+  --lq-border-strong: 160 104 63;    /* #a0683f */
+  --lq-on-background: 251 238 226;   /* #fbeee2 */
+  --lq-on-surface: 242 217 194;      /* #f2d9c2 */
+  --lq-on-surface-light: 191 160 138;/* #bfa08a */
+
+  --lq-brand-a0: #fed7aa; --lq-brand-a1: #fb923c; --lq-brand-a2: #c2410c; --lq-brand-a3: #9a3412;
+  --lq-brand-b0: #ffedd5; --lq-brand-b1: #fb923c;
+  --lq-brand-c0: #fdba74; --lq-brand-c1: #ea580c; --lq-brand-c2: #9a3412;
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / .3);
+  --shadow-md: 0 4px 12px rgb(0 0 0 / .35);
+  --shadow-lg: 0 12px 32px rgb(0 0 0 / .45);
+  --lq-backdrop:
+    radial-gradient(80% 45% at 100% 0%, rgb(249 115 22 / .09), transparent 65%),
+    radial-gradient(60% 40% at 0% 100%, rgb(124 45 18 / .14), transparent 70%);
+}
+
+/* Telarañas en dos esquinas: máscara SVG pintada con el color del texto. Encima de
+   la cabecera y la TabBar (z 20/30) para colgar de la esquina real; debajo del FAB
+   y los diálogos (z 40+). Sin eventos: no tapa ningún botón. */
+html[data-season="halloween"] body::after {
+  content: ""; position: fixed; inset: 0; z-index: 35; pointer-events: none;
+  background: rgb(var(--lq-on-background) / .13);
+  --web-tr: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><g fill='none' stroke='%23000' stroke-width='.8' stroke-linecap='round'><path d='M200 0L-3.9 21.4M200 0L12.7 83.4M200 0L50.1 139.8M200 0L100.6 179.3M200 0L160.9 201.2M200 0L207.2 204.9' stroke-opacity='.8'/><path d='M167.9 3.4Q171.8 7.6 168.9 13.8Q174.4 16.9 173.9 24.3Q181.3 23.9 183.9 29Q189.8 28.1 193.4 34.2Q197.7 29.5 201.1 32.3' stroke-opacity='0.95'/><path d='M136.8 6.6Q148 13.9 146.2 24Q155.6 29.4 154.7 42.3Q165.6 44.1 168.4 56.9Q181.1 51.9 188.5 59.3Q195.7 54.4 202.2 63.5' stroke-opacity='0.85'/><path d='M110.8 9.4Q121.8 21 113.9 38.4Q133.3 44.1 136.1 59.6Q151.4 62.2 155.4 80.5Q171.6 78 181.6 94.8Q193.6 81.7 203.1 89.6' stroke-opacity='0.7'/><path d='M70.5 13.6Q93.3 28.6 89.6 49.2Q109 60.2 107 86.7Q133.7 84.9 142.9 103Q163.6 100 176.3 121.7Q191.2 111.5 204.5 130.1' stroke-opacity='0.52'/><path d='M42.9 16.5Q62.3 36.9 48.4 67.5Q82.6 77.7 87.3 105.1Q114.4 109.6 121.5 141.6Q153 129 171.4 147.3Q189.4 135.1 205.5 157.9' stroke-opacity='0.34'/></g></svg>");
+  --web-bl: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><g fill='none' stroke='%23000' stroke-width='.8' stroke-linecap='round' transform='rotate(180 100 100)'><path d='M200 0L-3.9 21.4M200 0L12.7 83.4M200 0L50.1 139.8M200 0L100.6 179.3M200 0L160.9 201.2M200 0L207.2 204.9' stroke-opacity='.8'/><path d='M167.9 3.4Q171.8 7.6 168.9 13.8Q174.4 16.9 173.9 24.3Q181.3 23.9 183.9 29Q189.8 28.1 193.4 34.2Q197.7 29.5 201.1 32.3' stroke-opacity='0.95'/><path d='M136.8 6.6Q148 13.9 146.2 24Q155.6 29.4 154.7 42.3Q165.6 44.1 168.4 56.9Q181.1 51.9 188.5 59.3Q195.7 54.4 202.2 63.5' stroke-opacity='0.85'/><path d='M110.8 9.4Q121.8 21 113.9 38.4Q133.3 44.1 136.1 59.6Q151.4 62.2 155.4 80.5Q171.6 78 181.6 94.8Q193.6 81.7 203.1 89.6' stroke-opacity='0.7'/><path d='M70.5 13.6Q93.3 28.6 89.6 49.2Q109 60.2 107 86.7Q133.7 84.9 142.9 103Q163.6 100 176.3 121.7Q191.2 111.5 204.5 130.1' stroke-opacity='0.52'/><path d='M42.9 16.5Q62.3 36.9 48.4 67.5Q82.6 77.7 87.3 105.1Q114.4 109.6 121.5 141.6Q153 129 171.4 147.3Q189.4 135.1 205.5 157.9' stroke-opacity='0.34'/></g></svg>");
+  -webkit-mask: var(--web-tr) top right / clamp(140px, 22vw, 260px) no-repeat, var(--web-bl) bottom left / clamp(110px, 16vw, 200px) no-repeat;
+  mask: var(--web-tr) top right / clamp(140px, 22vw, 260px) no-repeat, var(--web-bl) bottom left / clamp(110px, 16vw, 200px) no-repeat;
+}
+html.dark[data-season="halloween"] body::after { background: rgb(var(--lq-on-background) / .1); }
+
+/* Destellos: brasas finas en los bordes, lejos del texto; suben y respiran despacio. */
+html[data-season="halloween"] #root::after {
+  content: ""; position: fixed; inset: -24px 0 0; z-index: 0; pointer-events: none;
+  --ember: rgb(var(--lq-jade-400) / .55);
+  background:
+    radial-gradient(circle at 4% 22%, var(--ember) 0 1.2px, transparent 2px),
+    radial-gradient(circle at 9% 58%, var(--ember) 0 1px, transparent 1.8px),
+    radial-gradient(circle at 3% 84%, var(--ember) 0 1.4px, transparent 2.2px),
+    radial-gradient(circle at 95% 34%, var(--ember) 0 1px, transparent 1.8px),
+    radial-gradient(circle at 91% 66%, var(--ember) 0 1.3px, transparent 2.1px),
+    radial-gradient(circle at 97% 90%, var(--ember) 0 1px, transparent 1.8px);
+  animation: lq-embers 9s ease-in-out infinite alternate;
+}
+@keyframes lq-embers {
+  from { transform: translateY(0); opacity: .45; }
+  to { transform: translateY(-24px); opacity: 1; }
+}
+html.reduce-motion[data-season="halloween"] #root::after,
+html.lq-rm[data-season="halloween"] #root::after { animation: none; }
+@media (prefers-reduced-motion: reduce) { html[data-season="halloween"] #root::after { animation: none; } }

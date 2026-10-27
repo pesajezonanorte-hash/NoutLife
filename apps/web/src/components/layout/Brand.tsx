@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import { cn } from '@/lib/utils';
+import { isHalloween } from '@/lib/season';
 
 /** Las tres hojas de la N (misma geometría que /brand/noutlife-mark.svg y el splash de index.html). */
 const LEAVES = [
@@ -32,6 +33,16 @@ export function BrandMark({ size = 32, tile, className, alt = '' }: { size?: num
         ))}
       </defs>
       {LEAVES.map(({ key, d }) => <path key={key} fill={`url(#${uid}${key})`} d={d} />)}
+      {/* Halloween: luna creciente en el hueco de arriba a la derecha (lib/season). */}
+      {isHalloween() && (
+        <>
+          <mask id={`${uid}moon`}>
+            <circle cx={585} cy={100} r={88} fill="#fff" />
+            <circle cx={627} cy={70} r={76} fill="#000" />
+          </mask>
+          <circle cx={585} cy={100} r={88} mask={`url(#${uid}moon)`} style={{ fill: 'var(--lq-brand-c0)' }} />
+        </>
+      )}
     </svg>
   );
   if (tile) {

@@ -8,7 +8,12 @@ import { PWAInstallBanner } from './components/ui/PWAInstallBanner';
 import './store/themeStore';
 import { useMotionStore } from './store/motionStore';
 import { captureAttribution, track } from './lib/analytics';
+import { isHalloween } from './lib/season';
 import './styles/globals.css';
+
+// Temporada (styles/halloween.css); index.html lo adelanta para el splash.
+if (isHalloween()) document.documentElement.dataset.season = 'halloween';
+else delete document.documentElement.dataset.season;
 
 // Sensación de app: iOS hace zoom con dos dedos aunque el viewport lo prohíba, y
 // mantener pulsado abre el menú del sistema. Ambos se cortan fuera de los campos

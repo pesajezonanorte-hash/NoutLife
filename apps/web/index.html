@@ -81,6 +81,8 @@
         // Un tema de la Tienda fija su esquema (skinDark) y su data-theme.
         if (t.skin && typeof t.skinDark === 'boolean') { d = t.skinDark; document.documentElement.setAttribute('data-theme', t.skin); }
         document.documentElement.classList.add(d ? 'dark' : 'light');
+        // Halloween para el splash (misma fecha que lib/season.ts).
+        if (new Date() <= new Date('2026-10-31T23:59:59')) document.documentElement.setAttribute('data-season', 'halloween');
       } catch (e) {}
     </script>
     <!-- «Reducir movimiento» de la app antes del primer pintado (store/motionStore). -->
