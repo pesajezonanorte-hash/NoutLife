@@ -14,6 +14,35 @@ import { useToastStore } from '@/hooks/useToast';
 import * as recreationService from '@/services/recreation.service';
 import type { RecreationEntry } from '@/services/recreation.service';
 import { kindOf, minutesLabel, seriesPosition, seriesProgress, stubDate } from './recreationMeta';
+import { useLocale, useText, type Copy } from '@/lib/i18n';
+
+const es = {
+  rating: 'Calificación',
+  starsOf: (n: number): string => `${n} de 5 estrellas`,
+  starN: (n: number): string => `${n} ${n === 1 ? 'estrella' : 'estrellas'}`,
+  ratingLabel: (n: number): string => `${n} ${n === 1 ? 'estrella' : 'estrellas'}`,
+  progressLabel: (title: string): string => `Capítulos vistos de ${title}`,
+  ofTotal: (watched: number, total: number): string => `${watched} de ${total}`,
+  advanceFail: 'No se pudo avanzar el capítulo',
+  finished: 'Serie terminada',
+  nextEpisode: 'Siguiente capítulo',
+  posterAria: (title: string, label: string): string => `${title}, ${label}, por ver`,
+};
+
+const en: typeof es = {
+  rating: 'Rating',
+  starsOf: (n: number): string => `${n} out of 5 stars`,
+  starN: (n: number): string => `${n} ${n === 1 ? 'star' : 'stars'}`,
+  ratingLabel: (n: number): string => `${n} ${n === 1 ? 'star' : 'stars'}`,
+  progressLabel: (title: string): string => `Episodes watched of ${title}`,
+  ofTotal: (watched: number, total: number): string => `${watched} of ${total}`,
+  advanceFail: 'Could not advance the episode',
+  finished: 'Series finished',
+  nextEpisode: 'Next episode',
+  posterAria: (title: string, label: string): string => `${title}, ${label}, to watch`,
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 const CURTAIN_EASE = [0.65, 0, 0.35, 1] as const;
 
@@ -62,22 +91,23 @@ export function Screen({ children, className }: { children: ReactNode; className
 /** Estrellas: lectura (sin onChange) o selector accesible de 1 a 5. */
 export function Stars({ value, onChange, className }: { value: number | null; onChange?: (v: number | null) => void; className?: string }) {
   const reduce = useMotionReduced();
+  const t = useText(COPY);
   if (!onChange) {
     if (!value) return null;
     return (
-      <span role="img" aria-label={`${value} de 5 estrellas`} className={cn('flex items-center gap-0.5 text-secondary', className)}>
+      <span role="img" aria-label={t.starsOf(value)} className={cn('flex items-center gap-0.5 text-secondary', className)}>
         {Array.from({ length: 5 }, (_, i) => <Star key={i} aria-hidden className={cn('size-3.5', i < value ? 'fill-current' : 'opacity-30')} strokeWidth={1.75} />)}
       </span>
     );
   }
   return (
-    <div role="radiogroup" aria-label="Calificación" className={cn('flex items-center gap-1', className)}>
+    <div role="radiogroup" aria-label={t.rating} className={cn('flex items-center gap-1', className)}>
       {Array.from({ length: 5 }, (_, i) => {
         const n = i + 1;
         const on = (value ?? 0) >= n;
         return (
           <motion.button
-            key={n} type="button" role="radio" aria-checked={value === n} aria-label={`${n} ${n === 1 ? 'estrella' : 'estrellas'}`}
+            key={n} type="button" role="radio" aria-checked={value === n} aria-label={t.starN(n)}
             // Tocar la estrella marcada la quita: calificar es opcional.
             onClick={() => onChange(value === n ? null : n)}
             whileTap={reduce ? undefined : { scale: 0.82 }}
@@ -95,9 +125,11 @@ export function Stars({ value, onChange, className }: { value: number | null; on
 
 /** Boleta de una función vivida: talón perforado con la fecha y el tipo de ocio. Las series traen su capítulo al día y un botón para sumar uno. */
 export function Ticket({ entry, onOpen, onUpdated }: { entry: RecreationEntry; onOpen: () => void; onUpdated: (entry: RecreationEntry) => void }) {
-  const kind = kindOf(entry.kind);
-  const d = stubDate(entry.date);
-  const position = seriesPosition(entry);
+  const t = useText(COPY);
+  const locale = useLocale();
+  const kind = kindOf(entry.kind, locale);
+  const d = stubDate(entry.date, locale);
+  const position = seriesPosition(entry, locale);
   const progress = seriesProgress(entry);
   const series = entry.kind === 'SERIES';
   const finished = progress === 100;
@@ -106,7 +138,7 @@ export function Ticket({ entry, onOpen, onUpdated }: { entry: RecreationEntry; o
   async function nextEpisode() {
     setAdvancing(true);
     try { onUpdated(await recreationService.advanceRecreationSeries(entry.id, 'episode')); }
-    catch { useToastStore.getState().error('No se pudo avanzar el capítulo', entry.title); }
+    catch { useToastStore.getState().error(t.advanceFail, entry.title); }
     finally { setAdvancing(false); }
   }
 
@@ -114,7 +146,7 @@ export function Ticket({ entry, onOpen, onUpdated }: { entry: RecreationEntry; o
     <div className="relative">
       <button
         type="button" aria-haspopup="dialog" onClick={onOpen}
-        aria-label={`${entry.title}, ${kind.label}, ${d.weekday} ${d.day} ${d.month}${position ? `, ${position}` : ''}${entry.rating ? `, ${entry.rating} estrellas` : ''}`}
+        aria-label={`${entry.title}, ${kind.label}, ${d.weekday} ${d.day} ${d.month}${position ? `, ${position}` : ''}${entry.rating ? `, ${t.ratingLabel(entry.rating)}` : ''}`}
         className="lq-ticket grid w-full grid-cols-[var(--stub)_minmax(0,1fr)] text-left transition-transform duration-[325ms] ease-[var(--lq-ease-snappy)] active:scale-[.985]"
       >
         <span aria-hidden="true" className="lq-ticket-stub flex flex-col items-center justify-center gap-0.5 py-3">
@@ -128,16 +160,16 @@ export function Ticket({ entry, onOpen, onUpdated }: { entry: RecreationEntry; o
           <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-body-sm text-on-surface-light">
             <span>{kind.label}</span>
             {position && <span>{position}</span>}
-            {entry.minutes ? <span className="font-mono tabular-nums">{minutesLabel(entry.minutes)}</span> : null}
+            {entry.minutes ? <span className="font-mono tabular-nums">{minutesLabel(entry.minutes, locale)}</span> : null}
             <Stars value={entry.rating} />
             {entry.xpEarned > 0 && <span className="font-mono text-secondary-text tabular-nums">+{entry.xpEarned} XP</span>}
           </span>
           {progress !== null && (
             <span className="flex items-center gap-3 pt-1 text-label-md text-on-surface-light">
-              <span role="progressbar" aria-label={`Capítulos vistos de ${entry.title}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} className="relative h-1.5 w-24 shrink-0 overflow-hidden rounded-full bg-surface-variant">
+              <span role="progressbar" aria-label={t.progressLabel(entry.title)} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} className="relative h-1.5 w-24 shrink-0 overflow-hidden rounded-full bg-surface-variant">
                 <span className="absolute inset-y-0 left-0 rounded-full bg-secondary" style={{ width: `${progress}%` }} />
               </span>
-              <span className="font-mono tabular-nums">{entry.episodesWatched} de {entry.totalEpisodes}</span>
+              <span className="font-mono tabular-nums">{t.ofTotal(entry.episodesWatched, entry.totalEpisodes ?? 0)}</span>
             </span>
           )}
         </span>
@@ -147,7 +179,7 @@ export function Ticket({ entry, onOpen, onUpdated }: { entry: RecreationEntry; o
           type="button" onClick={() => void nextEpisode()} disabled={advancing || finished}
           className="absolute right-3 top-1/2 inline-flex min-h-11 -translate-y-1/2 items-center rounded-full bg-secondary/[var(--lq-soft-alpha)] px-4 text-body-sm font-semibold text-secondary-text transition-opacity disabled:opacity-50"
         >
-          {finished ? 'Serie terminada' : 'Siguiente capítulo'}
+          {finished ? t.finished : t.nextEpisode}
         </button>
       )}
     </div>
@@ -156,11 +188,13 @@ export function Ticket({ entry, onOpen, onUpdated }: { entry: RecreationEntry; o
 
 /** Póster de la cartelera (algo por ver). */
 export function Poster({ entry, onOpen, index }: { entry: RecreationEntry; onOpen: () => void; index: number }) {
-  const kind = kindOf(entry.kind);
+  const t = useText(COPY);
+  const locale = useLocale();
+  const kind = kindOf(entry.kind, locale);
   const reduce = useMotionReduced();
   return (
     <motion.button
-      type="button" aria-haspopup="dialog" onClick={onOpen} aria-label={`${entry.title}, ${kind.label}, por ver`}
+      type="button" aria-haspopup="dialog" onClick={onOpen} aria-label={t.posterAria(entry.title, kind.label)}
       initial={reduce ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
       transition={{ ...springs.natural, delay: reduce ? 0 : 0.05 * index }}
       whileTap={reduce ? undefined : { scale: 0.97 }}

@@ -7,8 +7,103 @@ import { useToastStore } from '@/hooks/useToast';
 import { useUIStore } from '@/store/uiStore';
 import * as recreationService from '@/services/recreation.service';
 import type { RecreationEntry, RecreationKind, RecreationResult, RecreationStatus } from '@/services/recreation.service';
-import { KINDS, kindOf, localDay } from './recreationMeta';
+import { kindOf, kindsFor, localDay } from './recreationMeta';
 import { Stars } from './Cinema';
+import { useLocale, useText, type Copy } from '@/lib/i18n';
+
+const es = {
+  statusLabel: 'Estado',
+  statusDone: 'Ya la viví',
+  statusPlanned: 'Por ver',
+  what: '¿Qué fue?',
+  nameError: 'Ponle nombre a la función',
+  namePlanned: 'Ej. Dune: Parte Tres',
+  nameDone: 'Ej. Partido de fútbol con amigos',
+  kind: 'Tipo de ocio',
+  kindError: 'Elige qué tipo de ocio fue',
+  howWas: '¿Qué tal estuvo?',
+  duration: 'Duración',
+  minutes: 'minutos',
+  minutesRange: 'Entre 1 y 1.440',
+  forWhen: 'Para cuándo',
+  when: 'Cuándo',
+  series: 'Seguimiento de la serie',
+  currentSeason: 'Temporada actual',
+  currentEpisode: 'Capítulo actual',
+  watchedEpisodes: 'Capítulos vistos',
+  allSeasons: 'En todas las temporadas',
+  totalEpisodes: 'Capítulos en total',
+  totalSeasons: 'Temporadas en total',
+  optional: 'Opcional',
+  seriesRange: 'Revisa los números: temporada hasta 99, capítulo hasta 999, y no más capítulos vistos que el total.',
+  notes: 'Notas',
+  notesPlanned: 'Con quién, dónde la ves…',
+  notesDone: 'Lo que más te gustó',
+  saveFail: 'No se pudo guardar la función. Inténtalo de nuevo.',
+  removeFail: 'No se pudo quitar. Inténtalo de nuevo.',
+  addedToBill: 'Añadida a la cartelera',
+  registered: 'Función registrada',
+  xpGold: (xp: number, gold: number): string => `+${xp} XP y ${gold} de oro`,
+  removed: 'Función quitada',
+  onBill: 'En cartelera',
+  yourEntry: 'Tu función',
+  planEntry: 'Planear una función',
+  logEntry: 'Registrar una función',
+  remove: 'Quitar',
+  save: 'Guardar',
+  addToBill: 'Añadir a la cartelera',
+  sawIt: 'Ya la vi',
+  logKind: (label: string): string => `Registrar ${label}`,
+  logFunction: 'Registrar función',
+};
+
+const en: typeof es = {
+  statusLabel: 'Status',
+  statusDone: 'Already watched',
+  statusPlanned: 'To watch',
+  what: 'What was it?',
+  nameError: 'Give it a name',
+  namePlanned: 'E.g. Dune: Part Two',
+  nameDone: 'E.g. Football match with friends',
+  kind: 'Leisure type',
+  kindError: 'Choose what kind of leisure it was',
+  howWas: 'How was it?',
+  duration: 'Duration',
+  minutes: 'minutes',
+  minutesRange: 'Between 1 and 1,440',
+  forWhen: 'For when',
+  when: 'When',
+  series: 'Series tracking',
+  currentSeason: 'Current season',
+  currentEpisode: 'Current episode',
+  watchedEpisodes: 'Episodes watched',
+  allSeasons: 'Across all seasons',
+  totalEpisodes: 'Total episodes',
+  totalSeasons: 'Total seasons',
+  optional: 'Optional',
+  seriesRange: 'Check the numbers: season up to 99, episode up to 999, and no more episodes watched than the total.',
+  notes: 'Notes',
+  notesPlanned: 'With whom, where you’ll watch it…',
+  notesDone: 'What you liked most',
+  saveFail: 'Could not save the entry. Try again.',
+  removeFail: 'Could not remove it. Try again.',
+  addedToBill: 'Added to the billboard',
+  registered: 'Entry logged',
+  xpGold: (xp: number, gold: number): string => `+${xp} XP and ${gold} gold`,
+  removed: 'Entry removed',
+  onBill: 'On the billboard',
+  yourEntry: 'Your entry',
+  planEntry: 'Plan an entry',
+  logEntry: 'Log an entry',
+  remove: 'Remove',
+  save: 'Save',
+  addToBill: 'Add to the billboard',
+  sawIt: 'I saw it',
+  logKind: (label: string): string => `Log ${label}`,
+  logFunction: 'Log entry',
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 type Draft = {
   title: string; kind: RecreationKind | null; status: RecreationStatus; rating: number | null; minutes: string; date: string; notes: string;
@@ -29,11 +124,6 @@ const blank = (status: RecreationStatus): Draft => ({
 const whole = (text: string) => (text.trim() === '' ? null : Math.round(Number(text)));
 const inRange = (n: number | null, min: number, max: number) => n === null || (n >= min && n <= max);
 
-const STATUS_OPTIONS = [
-  { value: 'DONE' as const, label: 'Ya la viví' },
-  { value: 'PLANNED' as const, label: 'Por ver' },
-];
-
 export function RecreationDialog({ open, onClose, entry, initialStatus = 'DONE', onSaved, onDeleted }: {
   open: boolean;
   onClose: () => void;
@@ -43,6 +133,12 @@ export function RecreationDialog({ open, onClose, entry, initialStatus = 'DONE',
   onSaved: (result: RecreationResult) => void;
   onDeleted?: (id: string) => void;
 }) {
+  const t = useText(COPY);
+  const locale = useLocale();
+  const STATUS_OPTIONS = [
+    { value: 'DONE' as const, label: t.statusDone },
+    { value: 'PLANNED' as const, label: t.statusPlanned },
+  ];
   const [draft, setDraft] = useState<Draft>(blank(initialStatus));
   const [touched, setTouched] = useState(false);
   const [saving, setSaving] = useState<'save' | 'watched' | 'delete' | null>(null);
@@ -74,8 +170,8 @@ export function RecreationDialog({ open, onClose, entry, initialStatus = 'DONE',
     if (r && r.xpGained > 0) addFloatingXP(r.xpGained, window.innerWidth / 2, window.innerHeight / 3);
     if (r?.leveledUp) triggerLevelUp({ oldLevel: r.oldLevel, newLevel: r.newLevel, xpEarned: r.xpGained, goldEarned: r.goldGained, statIncreases: {} });
     const toast = useToastStore.getState();
-    if (result.entry.status === 'PLANNED') toast.success('Añadida a la cartelera', result.entry.title);
-    else toast.success('Función registrada', r && r.xpGained > 0 ? `+${r.xpGained} XP y ${r.goldGained} de oro` : result.entry.title);
+    if (result.entry.status === 'PLANNED') toast.success(t.addedToBill, result.entry.title);
+    else toast.success(t.registered, r && r.xpGained > 0 ? t.xpGold(r.xpGained, r.goldGained) : result.entry.title);
   }
 
   async function save(status: RecreationStatus, mode: 'save' | 'watched') {
@@ -92,7 +188,7 @@ export function RecreationDialog({ open, onClose, entry, initialStatus = 'DONE',
       celebrate(result);
       onSaved(result);
     } catch {
-      setError('No se pudo guardar la función. Inténtalo de nuevo.');
+      setError(t.saveFail);
     } finally {
       setSaving(null);
     }
@@ -103,89 +199,89 @@ export function RecreationDialog({ open, onClose, entry, initialStatus = 'DONE',
     setSaving('delete');
     try {
       await recreationService.deleteRecreation(entry.id);
-      useToastStore.getState().info('Función quitada', entry.title);
+      useToastStore.getState().info(t.removed, entry.title);
       onDeleted?.(entry.id);
     } catch {
-      setError('No se pudo quitar. Inténtalo de nuevo.');
+      setError(t.removeFail);
       setSaving(null);
     }
   }
 
   const submit = (e: FormEvent) => { e.preventDefault(); void save(draft.status, 'save'); };
   const planned = draft.status === 'PLANNED';
-  const title = entry ? (entry.status === 'PLANNED' ? 'En cartelera' : 'Tu función') : planned ? 'Planear una función' : 'Registrar una función';
+  const title = entry ? (entry.status === 'PLANNED' ? t.onBill : t.yourEntry) : planned ? t.planEntry : t.logEntry;
 
   return (
     <ResponsiveDialog open={open} onClose={onClose} title={title} className="md:max-w-[560px]">
       <form className="flex flex-col gap-5" onSubmit={submit} noValidate>
-        <SegmentedControl role="radiogroup" label="Estado" options={STATUS_OPTIONS} value={draft.status} onChange={(status) => set({ status })} />
-        <Field label="¿Qué fue?" error={touched && !draft.title.trim() ? 'Ponle nombre a la función' : undefined}>
-          <Input data-autofocus value={draft.title} maxLength={120} onChange={(e) => set({ title: e.target.value })} placeholder={planned ? 'Ej. Dune: Parte Tres' : 'Ej. Partido de fútbol con amigos'} />
+        <SegmentedControl role="radiogroup" label={t.statusLabel} options={STATUS_OPTIONS} value={draft.status} onChange={(status) => set({ status })} />
+        <Field label={t.what} error={touched && !draft.title.trim() ? t.nameError : undefined}>
+          <Input data-autofocus value={draft.title} maxLength={120} onChange={(e) => set({ title: e.target.value })} placeholder={planned ? t.namePlanned : t.nameDone} />
         </Field>
         <div className="flex flex-col gap-2">
-          <span className="text-label-lg text-on-surface">Tipo de ocio</span>
+          <span className="text-label-lg text-on-surface">{t.kind}</span>
           <ChipGroup
-            label="Tipo de ocio" className="flex flex-wrap gap-2"
-            options={KINDS.map(({ value, label, icon }) => ({ value, label, icon }))}
+            label={t.kind} className="flex flex-wrap gap-2"
+            options={kindsFor(locale).map(({ value, label, icon }) => ({ value, label, icon }))}
             value={(draft.kind ?? '') as RecreationKind} onChange={(kind) => set({ kind })}
           />
-          {touched && !draft.kind && <p role="alert" className="text-body-sm text-error-text">Elige qué tipo de ocio fue</p>}
+          {touched && !draft.kind && <p role="alert" className="text-body-sm text-error-text">{t.kindError}</p>}
         </div>
         {!planned && (
           <div className="flex flex-col gap-1">
-            <span className="text-label-lg text-on-surface">¿Qué tal estuvo?</span>
+            <span className="text-label-lg text-on-surface">{t.howWas}</span>
             <Stars value={draft.rating} onChange={(rating) => set({ rating })} />
           </div>
         )}
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Duración" help="minutos" error={touched && minutesBad ? 'Entre 1 y 1.440' : undefined}>
+          <Field label={t.duration} help={t.minutes} error={touched && minutesBad ? t.minutesRange : undefined}>
             <Input type="number" inputMode="numeric" min="1" max="1440" value={draft.minutes} onChange={(e) => set({ minutes: e.target.value })} placeholder="90" className="font-mono tabular-nums" />
           </Field>
-          <Field label={planned ? 'Para cuándo' : 'Cuándo'}>
+          <Field label={planned ? t.forWhen : t.when}>
             <Input type="date" value={draft.date} max={planned ? undefined : localDay()} onChange={(e) => set({ date: e.target.value })} />
           </Field>
         </div>
         {draft.kind === 'SERIES' && (
           <div className="flex flex-col gap-4 rounded-2xl border border-border p-4">
-            <span className="text-label-lg text-on-surface">Seguimiento de la serie</span>
+            <span className="text-label-lg text-on-surface">{t.series}</span>
             <div className="grid grid-cols-2 gap-4">
-              <Field label="Temporada actual">
+              <Field label={t.currentSeason}>
                 <Input type="number" inputMode="numeric" min="1" max="99" value={draft.season} onChange={(e) => set({ season: e.target.value })} placeholder="1" className="font-mono tabular-nums" />
               </Field>
-              <Field label="Capítulo actual">
+              <Field label={t.currentEpisode}>
                 <Input type="number" inputMode="numeric" min="1" max="999" value={draft.episode} onChange={(e) => set({ episode: e.target.value })} placeholder="1" className="font-mono tabular-nums" />
               </Field>
-              <Field label="Capítulos vistos" help="En todas las temporadas">
+              <Field label={t.watchedEpisodes} help={t.allSeasons}>
                 <Input type="number" inputMode="numeric" min="0" max="9999" value={draft.watched} onChange={(e) => set({ watched: e.target.value })} placeholder="0" className="font-mono tabular-nums" />
               </Field>
-              <Field label="Capítulos en total" help="Opcional">
+              <Field label={t.totalEpisodes} help={t.optional}>
                 <Input type="number" inputMode="numeric" min="1" max="9999" value={draft.totalEpisodes} onChange={(e) => set({ totalEpisodes: e.target.value })} placeholder="62" className="font-mono tabular-nums" />
               </Field>
-              <Field label="Temporadas en total" help="Opcional">
+              <Field label={t.totalSeasons} help={t.optional}>
                 <Input type="number" inputMode="numeric" min="1" max="99" value={draft.totalSeasons} onChange={(e) => set({ totalSeasons: e.target.value })} placeholder="5" className="font-mono tabular-nums" />
               </Field>
             </div>
-            {touched && seriesBad && <p role="alert" className="text-body-sm text-error-text">Revisa los números: temporada hasta 99, capítulo hasta 999, y no más capítulos vistos que el total.</p>}
+            {touched && seriesBad && <p role="alert" className="text-body-sm text-error-text">{t.seriesRange}</p>}
           </div>
         )}
-        <Field label="Notas" help="Opcional">
-          <Textarea rows={2} maxLength={1000} value={draft.notes} onChange={(e) => set({ notes: e.target.value })} placeholder={planned ? 'Con quién, dónde la ves…' : 'Lo que más te gustó'} />
+        <Field label={t.notes} help={t.optional}>
+          <Textarea rows={2} maxLength={1000} value={draft.notes} onChange={(e) => set({ notes: e.target.value })} placeholder={planned ? t.notesPlanned : t.notesDone} />
         </Field>
         {error && <p role="alert" className="text-body-sm text-error-text">{error}</p>}
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
           {entry ? (
             <Button variant="ghost" loading={saving === 'delete'} disabled={saving !== null && saving !== 'delete'} onClick={() => void remove()}>
-              <Trash2 aria-hidden className="size-5" strokeWidth={1.75} />Quitar
+              <Trash2 aria-hidden className="size-5" strokeWidth={1.75} />{t.remove}
             </Button>
           ) : <span className="hidden sm:block" />}
           <div className="flex flex-col-reverse gap-3 sm:flex-row">
             {entry?.status === 'PLANNED' && planned && (
               <Button variant="secondary" loading={saving === 'watched'} disabled={saving !== null && saving !== 'watched'} onClick={() => void save('DONE', 'watched')}>
-                <Check aria-hidden className="size-5" strokeWidth={2} />Ya la vi
+                <Check aria-hidden className="size-5" strokeWidth={2} />{t.sawIt}
               </Button>
             )}
             <Button type="submit" loading={saving === 'save'} disabled={saving !== null && saving !== 'save'}>
-              {planned ? (entry ? 'Guardar' : 'Añadir a la cartelera') : entry ? 'Guardar' : draft.kind ? `Registrar ${kindOf(draft.kind).label.toLowerCase()}` : 'Registrar función'}
+              {planned ? (entry ? t.save : t.addToBill) : entry ? t.save : draft.kind ? t.logKind(kindOf(draft.kind, locale).label.toLowerCase()) : t.logFunction}
             </Button>
           </div>
         </div>

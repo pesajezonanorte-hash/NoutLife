@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/lq';
 import { getCycleAdvice, type CycleAdvice } from '@/services/cycle.service';
 import type { Habit } from '@/services/habit.service';
 import { phaseMetaFor, sourceLabelFor, symptomLabelsFor, energyLabelFor, intensityLineFor, phaseFill, phaseInk } from './cycleMeta';
+import { adviceCopy } from './adviceText';
 import { useLocale, useText, type Copy } from '@/lib/i18n';
 
 const COPY: Copy<{
@@ -105,17 +106,18 @@ export function CycleColiseoHint({ className }: { className?: string }) {
   const advice = useCycleAdvice();
   if (!advice) return null;
   const symptoms = symptomLabelsFor(locale);
+  const copy = adviceCopy(advice, locale);
   return (
     <div className={className}>
       <HintShell advice={advice} zone="coliseo" title={t.coliseoTitle}>
-        <h2 className="text-heading-sm">{advice.training.title}</h2>
-        <p className="text-body-md text-on-surface">{advice.training.body}</p>
+        <h2 className="text-heading-sm">{copy.training.title}</h2>
+        <p className="text-body-md text-on-surface">{copy.training.body}</p>
         <p className="text-body-sm text-on-surface">
-          <span className="font-semibold">{t.carga(intensityLineFor(advice.intensity, locale))}</span> {advice.training.load}.
+          <span className="font-semibold">{t.carga(intensityLineFor(advice.intensity, locale))}</span> {copy.training.load}.
           {advice.symptoms.length > 0 && <> {advice.symptomsSource === 'today' ? t.todayNoted : t.usualDays} {advice.symptoms.map((s) => symptoms[s].toLowerCase()).join(', ')}.</>}
         </p>
         <ul aria-label={t.ideas} className="mt-1 flex flex-wrap gap-1.5">
-          {advice.training.ideas.map((idea) => <li key={idea} className="rounded-full bg-surface px-3 py-1.5 text-body-sm text-on-surface shadow-sm">{idea}</li>)}
+          {copy.training.ideas.map((idea) => <li key={idea} className="rounded-full bg-surface px-3 py-1.5 text-body-sm text-on-surface shadow-sm">{idea}</li>)}
         </ul>
       </HintShell>
     </div>
@@ -127,10 +129,12 @@ const isDone = (h: Habit) => Boolean(h.todayCompleted) || h.todayStatus === 'com
 /** Hábitos: cómo llevar los hábitos hoy y, si hace falta, descanso en los de ejercicio. */
 export function CycleHabitsHint({ habits, onRest }: { habits: Habit[]; onRest: (h: Habit) => Promise<void> }) {
   const t = useText(COPY);
+  const locale = useLocale();
   const advice = useCycleAdvice();
   const toast = useToast();
   const [busy, setBusy] = useState<string | null>(null);
   if (!advice) return null;
+  const copy = adviceCopy(advice, locale);
   const fitness = advice.pauseFitness ? habits.filter((h) => h.category === 'FITNESS' && !isDone(h) && h.todayStatus !== 'skipped') : [];
   async function rest(h: Habit) {
     setBusy(h.id);
@@ -140,8 +144,8 @@ export function CycleHabitsHint({ habits, onRest }: { habits: Habit[]; onRest: (
   }
   return (
     <HintShell advice={advice} zone="habits" title={t.habitsTitle}>
-      <h2 className="text-heading-sm">{advice.habits.title}</h2>
-      <p className="text-body-md text-on-surface">{advice.habits.body}</p>
+      <h2 className="text-heading-sm">{copy.habits.title}</h2>
+      <p className="text-body-md text-on-surface">{copy.habits.body}</p>
       {fitness.length > 0 && (
         <ul aria-label={t.restList} className="mt-1 flex flex-col gap-2">
           {fitness.map((h) => (

@@ -10,6 +10,18 @@ import { springs } from '@/lib/motion';
 import { useToast } from '@/hooks/useToast';
 import { PhotoCropper } from '@/components/character/PhotoCropper';
 import { PhotoSourceButtons } from '@/components/media/PhotoSourceButtons';
+import { useText, type Copy } from '@/lib/i18n';
+
+const COPY: Copy<{ dialogTitle: string; photoOf: (name: string) => string; camera: string; gallery: string; changeGallery: string; removePhoto: string; changeCrest: string }> = {
+  es: {
+    dialogTitle: 'Foto del gremio', photoOf: (name: string): string => `Una foto que represente a ${name}. Se verá en la cabecera del gremio y en el banderín de la fogata.`,
+    camera: 'Tomar foto', gallery: 'Galería', changeGallery: 'Cambiar desde la galería', removePhoto: 'Quitar foto', changeCrest: 'Cambiar la foto del gremio',
+  },
+  en: {
+    dialogTitle: 'Guild photo', photoOf: (name: string): string => `A photo that represents ${name}. It will show on the guild header and on the campfire pennant.`,
+    camera: 'Take photo', gallery: 'Gallery', changeGallery: 'Change from gallery', removePhoto: 'Remove photo', changeCrest: 'Change the guild photo',
+  },
+};
 import { Button, IconChip, ResponsiveDialog, type Tone } from '@/components/ui/lq';
 
 /** Lado del JPEG de la foto del gremio (px): nítido en la cabecera y ligero de guardar. */
@@ -69,6 +81,7 @@ export interface GuildPhotoDialogProps {
 }
 
 export function GuildPhotoDialog({ open, onClose, name, photoUrl, emblem, tone, onSave }: GuildPhotoDialogProps) {
+  const t = useText(COPY);
   const toast = useToast();
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -96,7 +109,7 @@ export function GuildPhotoDialog({ open, onClose, name, photoUrl, emblem, tone, 
   }
 
   return (
-    <ResponsiveDialog open={open} onClose={close} title="Foto del gremio" className="max-w-[440px]">
+    <ResponsiveDialog open={open} onClose={close} title={t.dialogTitle} className="max-w-[440px]">
       {cropSrc ? (
         <PhotoCropper src={cropSrc} size={PHOTO_SIZE} onCancel={() => setCropSrc(null)} onApply={(url) => void save(url)} />
       ) : (
@@ -104,14 +117,14 @@ export function GuildPhotoDialog({ open, onClose, name, photoUrl, emblem, tone, 
           <div className="flex flex-col items-center gap-3 text-center">
             <GuildCrest photoUrl={photoUrl} emblem={emblem} tone={tone} name={name} className="size-28 rounded-[36px]" />
             <p className="max-w-[320px] text-body-md text-on-surface-light">
-              Una foto que represente a {name}. Se verá en la cabecera del gremio y en el banderín de la fogata.
+              {t.photoOf(name)}
             </p>
           </div>
           <div className="flex flex-col gap-2">
-            <PhotoSourceButtons onPick={(file) => void pick(file)} loading={saving} cameraLabel="Tomar foto" galleryLabel={photoUrl ? 'Cambiar desde la galería' : 'Galería'} className="grid grid-cols-2 gap-2" />
+            <PhotoSourceButtons onPick={(file) => void pick(file)} loading={saving} cameraLabel={t.camera} galleryLabel={photoUrl ? t.changeGallery : t.gallery} className="grid grid-cols-2 gap-2" />
             {photoUrl && (
               <Button variant="ghost" block disabled={saving} onClick={() => void save(null)}>
-                <Trash2 aria-hidden className="size-5" strokeWidth={1.75} />Quitar foto
+                <Trash2 aria-hidden className="size-5" strokeWidth={1.75} />{t.removePhoto}
               </Button>
             )}
           </div>
@@ -122,11 +135,12 @@ export function GuildPhotoDialog({ open, onClose, name, photoUrl, emblem, tone, 
 }
 
 /** Botón de cámara sobre el escudo (solo para quien lidera el gremio). */
-export function CrestEditButton({ onClick, label = 'Cambiar la foto del gremio' }: { onClick: () => void; label?: string }) {
+export function CrestEditButton({ onClick, label }: { onClick: () => void; label?: string }) {
+  const t = useText(COPY);
   return (
     <motion.button
       type="button"
-      aria-label={label}
+      aria-label={label ?? t.changeCrest}
       onClick={onClick}
       whileHover={{ scale: 1.08, rotate: -6 }}
       whileTap={{ scale: 0.92 }}

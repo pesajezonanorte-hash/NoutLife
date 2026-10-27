@@ -74,7 +74,7 @@ export function greeting(d = new Date(), locale: Locale = 'es') {
 export function formatMoney(n: number, currency = 'COP', compact = false, locale: Locale = 'es') {
   try {
     return new Intl.NumberFormat(INTL_LOCALE[locale], {
-      style: 'currency', currency, maximumFractionDigits: compact && Math.abs(n) >= 1000 ? 1 : 0,
+      style: 'currency', currency, currencyDisplay: currency === 'COP' ? 'narrowSymbol' : 'symbol', maximumFractionDigits: compact && Math.abs(n) >= 1000 ? 1 : 0,
       ...(compact ? { notation: 'compact' as const } : {}),
     }).format(n);
   } catch {

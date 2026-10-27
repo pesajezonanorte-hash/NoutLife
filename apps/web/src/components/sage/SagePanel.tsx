@@ -16,6 +16,65 @@ import {
 import { useUIStore } from '@/store/uiStore';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { Button, IconChip, Input, useDialogBehavior } from '@/components/ui/lq';
+import { useText, type Copy } from '@/lib/i18n';
+
+const es = {
+  title: 'El Sabio',
+  tagline: 'Tu consejero IA',
+  fallback: 'No pude responder ahora mismo. Inténtalo de nuevo en un momento.',
+  actions: { quests: 'Ideas de misiones', habits: 'Analiza mis hábitos', finances: 'Revisa mis finanzas', coliseo: 'Plan de entrenamiento' },
+  questsIntro: 'Te propongo estas misiones:',
+  noQuests: 'No tengo sugerencias de misiones por ahora.',
+  rateTip: 'Tus mensajes de hoy. El límite cambia según cuánta gente usa el Sabio: con menos gente, tienes más.',
+  clear: 'Borrar conversación',
+  close: 'Cerrar',
+  askTitle: '¿En qué te ayudo hoy?',
+  askBody: 'Pide ideas de misiones, analiza tus hábitos o tus finanzas, o pregunta lo que quieras.',
+  todayMsgs: (n: number): string => `Hoy tienes ${n} mensajes. Cuanta menos gente usa el Sabio, más mensajes tienes.`,
+  ofLimit: (n: number): string => `de ${n}`,
+  log: 'Conversación con el Sabio',
+  youPrefix: 'Tú: ',
+  sagePrefix: 'El Sabio: ',
+  thinking: 'El Sabio está pensando…',
+  tiredLine: (n: number): string => `El Sabio se va cansando: te quedan ${n} ${n === 1 ? 'consulta' : 'consultas'} hoy.`,
+  restUntilTomorrow: 'El Sabio descansa hasta mañana. Todo lo demás (hábitos, misiones, comidas, inicio) sigue funcionando con normalidad.',
+  quickActions: 'Acciones rápidas',
+  inputAria: 'Mensaje para el Sabio',
+  returnTomorrow: 'El Sabio vuelve mañana…',
+  typePlaceholder: 'Escribe tu pregunta…',
+  send: 'Enviar',
+  disclaimer: 'El Sabio puede equivocarse. Verifica las decisiones importantes.',
+};
+
+const en: typeof es = {
+  title: 'The Sage',
+  tagline: 'Your AI advisor',
+  fallback: 'I could not answer right now. Please try again in a moment.',
+  actions: { quests: 'Quest ideas', habits: 'Analyze my habits', finances: 'Review my finances', coliseo: 'Training plan' },
+  questsIntro: 'Here are some quests for you:',
+  noQuests: 'I have no quest suggestions for now.',
+  rateTip: 'Your messages today. The limit changes with how many people use the Sage: the fewer people, the more messages you have.',
+  clear: 'Clear conversation',
+  close: 'Close',
+  askTitle: 'How can I help you today?',
+  askBody: 'Ask for quest ideas, analyze your habits or finances, or ask anything you like.',
+  todayMsgs: (n: number): string => `Today you have ${n} messages. The fewer people use the Sage, the more messages you get.`,
+  ofLimit: (n: number): string => `of ${n}`,
+  log: 'Conversation with the Sage',
+  youPrefix: 'You: ',
+  sagePrefix: 'The Sage: ',
+  thinking: 'The Sage is thinking…',
+  tiredLine: (n: number): string => `The Sage is getting tired: you have ${n} ${n === 1 ? 'question' : 'questions'} left today.`,
+  restUntilTomorrow: 'The Sage rests until tomorrow. Everything else (habits, quests, meals, home) keeps working as usual.',
+  quickActions: 'Quick actions',
+  inputAria: 'Message for the Sage',
+  returnTomorrow: 'The Sage is back tomorrow…',
+  typePlaceholder: 'Type your question…',
+  send: 'Send',
+  disclaimer: 'The Sage can make mistakes. Check important decisions.',
+};
+
+const COPY: Copy<typeof es> = { es, en };
 
 interface Message {
   from: 'user' | 'sage';
@@ -24,15 +83,14 @@ interface Message {
 
 type Action = 'quests' | 'habits' | 'finances' | 'coliseo';
 
-const ACTIONS: Array<{ id: Action; label: string; icon: LucideIcon }> = [
-  { id: 'quests', label: 'Ideas de misiones', icon: Sword },
-  { id: 'habits', label: 'Analiza mis hábitos', icon: BarChart2 },
-  { id: 'finances', label: 'Revisa mis finanzas', icon: Wallet },
-  { id: 'coliseo', label: 'Plan de entrenamiento', icon: Dumbbell },
+const ACTIONS: Array<{ id: Action; icon: LucideIcon }> = [
+  { id: 'quests', icon: Sword },
+  { id: 'habits', icon: BarChart2 },
+  { id: 'finances', icon: Wallet },
+  { id: 'coliseo', icon: Dumbbell },
 ];
 
 const STORAGE_KEY = 'sage-history';
-const FALLBACK = 'No pude responder ahora mismo. Inténtalo de nuevo en un momento.';
 
 const drawer: Variants = {
   initial: { x: '100%', opacity: 0 },
@@ -52,7 +110,7 @@ function loadHistory(): Message[] {
   }
 }
 
-const clean = (reply: unknown) => (typeof reply === 'string' && reply.trim() ? reply : FALLBACK);
+const clean = (reply: unknown, fallback: string) => (typeof reply === 'string' && reply.trim() ? reply : fallback);
 
 /** Mensaje legible de un error de axios (`{ error, message }` del API), si existe. */
 function extractApiError(err: unknown): string | null {
@@ -86,6 +144,7 @@ function Typewriter({ text }: { text: string }) {
 
 export function SagePanel({ onClose }: { onClose: () => void }) {
   const titleId = useId();
+  const t = useText(COPY);
   const pending = useUIStore((s) => s.sagePendingMessage);
   const clearPending = useUIStore((s) => s.clearSagePending);
   const [messages, setMessages] = useState<Message[]>(loadHistory);
@@ -126,8 +185,8 @@ export function SagePanel({ onClose }: { onClose: () => void }) {
   async function ask(userText: string, request: () => Promise<string>) {
     setMessages((prev) => [...prev, { from: 'user', text: userText }]);
     setLoading(true);
-    let reply = FALLBACK;
-    try { reply = clean(await request()); } catch (err) { reply = extractApiError(err) ?? FALLBACK; }
+    let reply = t.fallback;
+    try { reply = clean(await request(), t.fallback); } catch (err) { reply = extractApiError(err) ?? t.fallback; }
     setMessages((prev) => {
       setTyping(prev.length);
       return [...prev, { from: 'sage', text: reply }];
@@ -163,15 +222,15 @@ export function SagePanel({ onClose }: { onClose: () => void }) {
 
   function runAction(a: (typeof ACTIONS)[number]) {
     if (loading || outOfCalls) return;
-    void ask(a.label, async () => {
+    void ask(t.actions[a.id], async () => {
       if (a.id === 'quests') {
         const { quests, raw } = await sageSuggestQuests();
         const list = Array.isArray(quests) ? (quests as Array<{ title: string; description: string; difficulty: string }>) : [];
         if (list.length) {
-          return `Te propongo estas misiones:\n\n${list.map((q) => `• ${q.title} (${q.difficulty})\n  ${q.description}`).join('\n\n')}`;
+          return `${t.questsIntro}\n\n${list.map((q) => `• ${q.title} (${q.difficulty})\n  ${q.description}`).join('\n\n')}`;
         }
         // raw: texto del Sabio que no era JSON (p. ej. aviso de cuota agotada).
-        return typeof raw === 'string' && raw.trim() ? raw : 'No tengo sugerencias de misiones por ahora.';
+        return typeof raw === 'string' && raw.trim() ? raw : t.noQuests;
       }
       if (a.id === 'habits') return (await sageAnalyzeHabits()).reply;
       if (a.id === 'finances') return (await sageAnalyzeFinances()).reply;
@@ -196,12 +255,12 @@ export function SagePanel({ onClose }: { onClose: () => void }) {
         <header className="flex items-center gap-3 border-b border-border py-3 pl-4 pr-2 pt-[max(0.75rem,env(safe-area-inset-top))] md:pl-6">
           <IconChip icon={Sparkles} tone="forest" size="sm" />
           <div className="min-w-0 flex-1">
-            <h2 id={titleId} className="text-heading-sm">El Sabio</h2>
+            <h2 id={titleId} className="text-heading-sm">{t.title}</h2>
             <p className="text-body-sm text-on-surface-light">Tu consejero IA</p>
           </div>
           {rate && (
             <span
-              title="Tus mensajes de hoy. El límite cambia según cuánta gente usa el Sabio: con menos gente, tienes más."
+              title={t.rateTip}
               className={cn(
                 'flex shrink-0 items-baseline gap-1 rounded-full border px-3 py-1 text-body-sm tabular-nums transition-colors',
                 outOfCalls ? 'border-border text-on-surface-light' : rate.remaining <= rate.limit * 0.2 ? 'border-warning/40 text-on-background' : 'border-border text-on-background',
@@ -218,16 +277,16 @@ export function SagePanel({ onClose }: { onClose: () => void }) {
                 {rate.remaining}
               </motion.span>
               <span aria-hidden className="text-on-surface-light">/ {rate.limit}</span>
-              <span className="sr-only">de {rate.limit}</span>
+              <span className="sr-only">{t.ofLimit(rate.limit)}</span>
               <span aria-hidden className="hidden text-on-surface-light sm:inline">hoy</span>
             </span>
           )}
           {messages.length > 0 && (
-            <Button variant="icon" aria-label="Borrar conversación" disabled={loading} onClick={() => { setMessages([]); setTyping(null); }}>
+            <Button variant="icon" aria-label={t.clear} disabled={loading} onClick={() => { setMessages([]); setTyping(null); }}>
               <Trash2 aria-hidden className="size-5" strokeWidth={1.75} />
             </Button>
           )}
-          <Button variant="icon" aria-label="Cerrar" onClick={onClose}>
+          <Button variant="icon" aria-label={t.close} onClick={onClose}>
             <X aria-hidden className="size-6" strokeWidth={1.75} />
           </Button>
         </header>
@@ -237,17 +296,17 @@ export function SagePanel({ onClose }: { onClose: () => void }) {
             <div className="flex h-full flex-col items-center justify-center gap-4 py-8 text-center">
               <IconChip icon={Sparkles} tone="forest" size="lg" />
               <div className="flex max-w-[300px] flex-col gap-1">
-                <p className="text-heading-sm">¿En qué te ayudo hoy?</p>
-                <p className="text-body-md text-on-surface-light">Pide ideas de misiones, analiza tus hábitos o tus finanzas, o pregunta lo que quieras.</p>
+                <p className="text-heading-sm">{t.askTitle}</p>
+                <p className="text-body-md text-on-surface-light">{t.askBody}</p>
                 {rate && !outOfCalls && (
                   <p className="text-body-sm text-on-surface-light">
-                    Hoy tienes {rate.limit} mensajes. Cuanta menos gente usa el Sabio, más mensajes tienes.
+                    {t.todayMsgs(rate.limit)}
                   </p>
                 )}
               </div>
             </div>
           ) : (
-            <div role="log" aria-label="Conversación con el Sabio" className="flex flex-col gap-3">
+            <div role="log" aria-label={t.log} className="flex flex-col gap-3">
               {messages.map((m, i) => (
                 <div
                   key={i}
@@ -258,7 +317,7 @@ export function SagePanel({ onClose }: { onClose: () => void }) {
                       : 'self-start rounded-bl-md border border-border bg-surface text-on-background',
                   )}
                 >
-                  <span className="sr-only">{m.from === 'user' ? 'Tú: ' : 'El Sabio: '}</span>
+                  <span className="sr-only">{m.from === 'user' ? t.youPrefix : t.sagePrefix}</span>
                   {m.from === 'sage' && i === typing ? <Typewriter text={m.text} /> : m.text}
                 </div>
               ))}
@@ -274,7 +333,7 @@ export function SagePanel({ onClose }: { onClose: () => void }) {
                       />
                     ))}
                   </span>
-                  <span className="text-body-sm text-on-surface-light">El Sabio está pensando…</span>
+                  <span className="text-body-sm text-on-surface-light">{t.thinking}</span>
                 </div>
               )}
               <div ref={endRef} />
@@ -286,7 +345,7 @@ export function SagePanel({ onClose }: { onClose: () => void }) {
           <div aria-live="polite" className="flex flex-col gap-1">
             {callsUsed !== null && rate && !outOfCalls && rate.remaining <= rate.limit * 0.2 && (
               <p className="text-center text-body-sm text-on-surface-light">
-                El Sabio se va cansando: te quedan {rate.remaining} {rate.remaining === 1 ? 'consulta' : 'consultas'} hoy.
+                {t.tiredLine(rate.remaining)}
               </p>
             )}
             {outOfCalls && (
@@ -296,30 +355,30 @@ export function SagePanel({ onClose }: { onClose: () => void }) {
               </p>
             )}
           </div>
-          <ul aria-label="Acciones rápidas" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-wrap md:overflow-visible md:px-0">
+          <ul aria-label={t.quickActions} className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-wrap md:overflow-visible md:px-0">
             {ACTIONS.map((a) => (
               <li key={a.id} className="shrink-0">
                 <Button variant="secondary" size="sm" disabled={loading || outOfCalls} onClick={() => runAction(a)}>
-                  <a.icon aria-hidden className="size-4" strokeWidth={1.75} />{a.label}
+                  <a.icon aria-hidden className="size-4" strokeWidth={1.75} />{t.actions[a.id]}
                 </Button>
               </li>
             ))}
           </ul>
           <form onSubmit={submit} className="flex items-center gap-2">
             <Input
-              aria-label="Mensaje para el Sabio"
+              aria-label={t.inputAria}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder={outOfCalls ? 'El Sabio vuelve mañana…' : 'Escribe tu pregunta…'}
+              placeholder={outOfCalls ? t.returnTomorrow : t.typePlaceholder}
               maxLength={500}
               disabled={outOfCalls}
               data-autofocus={isDesktop || undefined}
             />
-            <Button type="submit" aria-label="Enviar" disabled={!input.trim() || loading || outOfCalls} className="size-12 shrink-0 rounded-full p-0">
+            <Button type="submit" aria-label={t.send} disabled={!input.trim() || loading || outOfCalls} className="size-12 shrink-0 rounded-full p-0">
               <Send aria-hidden className="size-5" strokeWidth={1.75} />
             </Button>
           </form>
-          <p className="text-center text-body-sm text-on-surface-light">El Sabio puede equivocarse. Verifica las decisiones importantes.</p>
+          <p className="text-center text-body-sm text-on-surface-light">{t.disclaimer}</p>
         </div>
       </motion.div>
     </motion.div>,

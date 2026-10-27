@@ -27,6 +27,17 @@ export const ZONE_ALBUMS: Record<ZoneAlbumId, { label: string; icon: typeof Swor
   wardrobe: { label: 'Espejo', icon: Shirt, link: '/espejo', empty: 'Fotografía una prenda en el armario del Espejo para empezar este capítulo.' },
 };
 
+const ALBUM_TEXT = {
+  es: {
+    coliseo: { label: 'Coliseo', empty: 'Sube tu primera foto de progreso en el Coliseo.' },
+    wardrobe: { label: 'Espejo', empty: 'Fotografía una prenda en el armario del Espejo para empezar este capítulo.' },
+  },
+  en: {
+    coliseo: { label: 'Coliseum', empty: 'Upload your first progress photo in the Coliseum.' },
+    wardrobe: { label: 'Mirror', empty: 'Photograph a piece of clothing in the Mirror wardrobe to start this chapter.' },
+  },
+};
+
 const toSrc = (data: string) => (data.startsWith('data:') ? data : `data:image/jpeg;base64,${data}`);
 
 /** Fotos de las zonas (una sola carga por visita). Coliseo y Espejo son de Pro: en Lite no se piden. */
@@ -57,7 +68,7 @@ function ZoneViewer({ items, index, onIndex, onClose }: { items: ZonePhoto[]; in
   const reduce = useMotionStore((s) => s.reduce);
   const navigate = useNavigate();
   const it = items[index];
-  const meta = ZONE_ALBUMS[it.zone];
+  const meta = { ...ZONE_ALBUMS[it.zone], ...ALBUM_TEXT[locale][it.zone] };
   const go = (d: number) => { const n = index + d; if (n >= 0 && n < items.length) onIndex(n); };
   useEffect(() => {
     lockScroll();
@@ -78,7 +89,7 @@ function ZoneViewer({ items, index, onIndex, onClose }: { items: ZonePhoto[]; in
           drag="x" dragConstraints={{ left: 0, right: 0 }} dragElastic={0.6}
           onDragEnd={(_, info) => { if (info.offset.x < -80) go(1); else if (info.offset.x > 80) go(-1); }}
           className="w-[min(86vw,400px)] touch-pan-y">
-          <InstantPhoto src={it.src} alt={it.caption ?? `Foto de ${meta.label}`} caption={it.caption} className="w-full" />
+          <InstantPhoto src={it.src} alt={it.caption ?? `${locale === 'en' ? 'Photo of' : 'Foto de'} ${meta.label}`} caption={it.caption} className="w-full" />
         </motion.div>
         <button type="button" aria-label="Foto anterior" disabled={index === 0} onClick={() => go(-1)} className="absolute left-0 hidden size-11 items-center justify-center rounded-full bg-white/10 text-jade-50 disabled:opacity-30 md:-left-14 md:flex"><ChevronLeft aria-hidden className="size-6" /></button>
         <button type="button" aria-label="Foto siguiente" disabled={index === items.length - 1} onClick={() => go(1)} className="absolute right-0 hidden size-11 items-center justify-center rounded-full bg-white/10 text-jade-50 disabled:opacity-30 md:-right-14 md:flex"><ChevronRight aria-hidden className="size-6" /></button>
@@ -110,19 +121,19 @@ export function ZoneAlbum({ zone, photos }: { zone: ZoneAlbumId; photos: ZonePho
     });
     return out;
   }, [items]);
-  const meta = ZONE_ALBUMS[zone];
+  const meta = { ...ZONE_ALBUMS[zone], ...ALBUM_TEXT[locale][zone] };
 
   if (photos === null) return <ul className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">{[0, 1, 2, 3].map((i) => <li key={i}><Skeleton className="aspect-[0.86] rounded-[3px]" /></li>)}</ul>;
   return (
     <div className="flex flex-col gap-8">
       <PrivatePhotoNotice />
-      {items.length === 0 ? <EmptyState icon={meta.icon} title={`Capítulo «${meta.label}» en blanco`} description={meta.empty} /> : months.map((mo) => (
+      {items.length === 0 ? <EmptyState icon={meta.icon} title={locale === 'en' ? `Chapter «${meta.label}» is blank` : `Capítulo «${meta.label}» en blanco`} description={meta.empty} /> : months.map((mo) => (
         <section key={mo.label} aria-label={mo.label} className="flex flex-col gap-5">
           <h2 className="text-heading-lg capitalize text-on-background"><Lettering text={mo.label} draw={false} /></h2>
           <ul className="grid grid-cols-2 gap-x-5 gap-y-7 sm:grid-cols-3 lg:grid-cols-4">
             {mo.items.map(({ it, index }) => (
               <li key={it.id}>
-                <button type="button" onClick={() => setOpen(index)} className="block w-full rounded-[3px] text-left" aria-label={`${meta.label}: ${it.caption ?? 'foto'}, ${new Date(it.at).toLocaleDateString(INTL_LOCALE[locale])}`}>
+                <button type="button" onClick={() => setOpen(index)} className="block w-full rounded-[3px] text-left" aria-label={`${meta.label}: ${it.caption ?? (locale === 'en' ? 'photo' : 'foto')}, ${new Date(it.at).toLocaleDateString(INTL_LOCALE[locale])}`}>
                   <InstantPhoto src={it.src} alt="" caption={it.caption} tilt={((index % 5) - 2) * 0.9} className="w-full" />
                 </button>
               </li>
