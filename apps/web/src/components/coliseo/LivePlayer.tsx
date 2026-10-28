@@ -4,16 +4,17 @@
 // arranca el descanso según el ejercicio y la clase de serie (lib/coliseo
 // restFor), con sonido y vibración al terminar; mientras corre se anota el
 // esfuerzo (RPE o RIR) de la serie recién hecha.
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Dumbbell, Minus, Music, Pause, Play, Plus, Trophy, X } from 'lucide-react';
 import type { Exercise, SetType } from '@noutlife/shared';
 import { cn } from '@/lib/utils';
 import { slam } from '@/lib/motion';
-import { oneRepMax, platesPerSide, previousBest, restFor, setTonnage, setTypeOf, setTypesFor, type PreviousBest } from '@/lib/coliseo';
+import { carryForward, oneRepMax, platesPerSide, previousBest, restFor, setTonnage, setTypeOf, setTypesFor, type PreviousBest } from '@/lib/coliseo';
 import { INTL_LOCALE, useLocale, useText, type Copy } from '@/lib/i18n';
-import { Badge, Button, ChipGroup, IconChip, Input, Modal, ResponsiveDialog, SegmentedControl, chipClasses, type SegmentOption } from '@/components/ui/lq';
+import { useToastStore } from '@/hooks/useToast';
+import { Badge, Button, ChipGroup, Field, IconChip, Input, Modal, ResponsiveDialog, SegmentedControl, Select, chipClasses, type SegmentOption } from '@/components/ui/lq';
 import { lockScroll, unlockScroll } from '@/components/ui/lq/Modal';
 import { playChime } from '@/components/focus/ambientSound';
 import { notifyLocal } from '@/lib/systemNotifications';
@@ -22,7 +23,8 @@ import * as coliseo from '@/services/coliseo.service';
 import { RollingClock } from './ColiseoMotion';
 import { exerciseName, exerciseTags } from './exerciseText';
 
-export interface ActiveSet { id: string; weight: string; reps: string; completed: boolean; type: SetType; rpe?: number; rir?: number }
+/** `auto`: clase o esfuerzo heredados de la serie anterior (lib/coliseo carryForward), aún sin tocar. */
+export interface ActiveSet { id: string; weight: string; reps: string; completed: boolean; type: SetType; rpe?: number; rir?: number; auto?: boolean }
 export interface ActiveExercise {
   exerciseId: string;
   name: string;
@@ -42,10 +44,12 @@ export interface ActiveWorkout {
   pausedAt?: number | null;
   /** Ejercicio en pantalla. */
   current?: number;
+  /** Rutina guardada de la que salió la sesión: al terminar se puede actualizar con lo hecho. */
+  routineId?: string;
 }
 export type UpdateWorkout = (fn: (w: ActiveWorkout) => ActiveWorkout) => void;
 
-export const blankSet = (id: number | string, weight = '', reps = ''): ActiveSet => ({ id: String(id), weight, reps, completed: false, type: 'normal' });
+export const blankSet = (id: number | string, weight = '', reps = '', type: SetType = 'normal'): ActiveSet => ({ id: String(id), weight, reps, completed: false, type });
 
 /** Id de una serie nueva: el mayor de la lista + 1, así no choca con otra serie tras borrar una. */
 export const nextSetId = (sets: ActiveSet[]) => String(Math.max(0, ...sets.map((s) => Number(s.id) || 0)) + 1);
@@ -72,6 +76,22 @@ const es = {
   muscleGroup: 'Grupo muscular',
   searching: 'Buscando…',
   noResults: 'Sin resultados',
+  mine: 'Tuyo',
+  createNamed: (name: string): string => `Crear «${name}»`,
+  createExercise: 'Crear ejercicio',
+  createTitle: 'Nuevo ejercicio',
+  createHelp: 'Queda guardado en tu cuenta para tus próximos entrenamientos.',
+  exerciseName: 'Nombre del ejercicio',
+  exerciseNamePh: 'Hip thrust, press en máquina…',
+  nameShort: 'Escribe al menos 2 letras',
+  pickGroup: 'Elige el grupo muscular',
+  equipmentLabel: 'Equipo (opcional)',
+  noEquipment: 'Sin especificar',
+  equipmentNames: { Barra: 'Barra', Mancuernas: 'Mancuernas', 'Máquina': 'Máquina', Polea: 'Polea', 'Peso Corporal': 'Peso corporal', Banco: 'Banco', Cuerda: 'Cuerda' } as Record<string, string>,
+  backToSearch: 'Volver',
+  createAndAdd: 'Crear y agregar',
+  createFailed: 'No se pudo crear el ejercicio',
+  alreadyThere: (name: string): string => `«${name}» ya estaba en tu lista: lo agregamos.`,
   minusAria: (step: number, label: string): string => `Restar ${step} a ${label}`,
   plusAria: (step: number, label: string): string => `Sumar ${step} a ${label}`,
   unitWeight: 'Kilos',
@@ -116,6 +136,7 @@ const es = {
   prevInSet: 'Anterior en esta serie:',
   platesSide: 'Discos por lado:',
   effortTitle: 'Tipo y esfuerzo',
+  inherited: 'como la anterior',
   setTypeAria: 'Tipo de serie',
   effortScale: 'Escala de esfuerzo',
   rpeLabel: (n: number): string => `RPE de la serie ${n}`,
@@ -162,6 +183,22 @@ const en: typeof es = {
   muscleGroup: 'Muscle group',
   searching: 'Searching…',
   noResults: 'No results',
+  mine: 'Yours',
+  createNamed: (name: string): string => `Create “${name}”`,
+  createExercise: 'Create exercise',
+  createTitle: 'New exercise',
+  createHelp: 'It stays saved in your account for your next workouts.',
+  exerciseName: 'Exercise name',
+  exerciseNamePh: 'Hip thrust, machine press…',
+  nameShort: 'Type at least 2 letters',
+  pickGroup: 'Pick the muscle group',
+  equipmentLabel: 'Equipment (optional)',
+  noEquipment: 'Not specified',
+  equipmentNames: { Barra: 'Barbell', Mancuernas: 'Dumbbells', 'Máquina': 'Machine', Polea: 'Cable', 'Peso Corporal': 'Bodyweight', Banco: 'Bench', Cuerda: 'Rope' },
+  backToSearch: 'Back',
+  createAndAdd: 'Create and add',
+  createFailed: 'Could not create the exercise',
+  alreadyThere: (name: string): string => `“${name}” was already on your list: we added it.`,
   minusAria: (step: number, label: string): string => `Subtract ${step} from ${label}`,
   plusAria: (step: number, label: string): string => `Add ${step} to ${label}`,
   unitWeight: 'Weight',
@@ -206,6 +243,7 @@ const en: typeof es = {
   prevInSet: 'Previous in this set:',
   platesSide: 'Plates per side:',
   effortTitle: 'Type and effort',
+  inherited: 'same as the last one',
   setTypeAria: 'Set type',
   effortScale: 'Effort scale',
   rpeLabel: (n: number): string => `RPE of set ${n}`,
@@ -255,7 +293,13 @@ function readScale(): Scale {
 
 /** Grupos del filtro del buscador: el valor es el que entiende la API. */
 const MUSCLE_FILTERS = ['Todos', 'Pecho', 'Espalda', 'Hombros', 'Bíceps', 'Tríceps', 'Piernas', 'Core', 'Cardio'];
+/** Equipos del catálogo (API EXERCISE_EQUIPMENT). */
+const EQUIPMENT = ['Barra', 'Mancuernas', 'Máquina', 'Polea', 'Peso Corporal', 'Banco', 'Cuerda'];
 
+/**
+ * Buscador de ejercicios del catálogo y de los propios. Si falta uno, se crea aquí
+ * mismo dentro de su grupo muscular: queda guardado en la cuenta y entra en la sesión.
+ */
 function ExerciseSearchModal({ onSelect, onClose }: { onSelect: (ex: Exercise) => void; onClose: () => void }) {
   const t = useText(COPY);
   const locale = useLocale();
@@ -264,6 +308,10 @@ function ExerciseSearchModal({ onSelect, onClose }: { onSelect: (ex: Exercise) =
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(true);
   const muscleGroups = MUSCLE_FILTERS.map((m) => ({ value: m, label: t.groupNames[m] }));
+  /** Formulario de ejercicio nuevo (null = buscando). */
+  const [draft, setDraft] = useState<{ name: string; group: string; equipment: string } | null>(null);
+  const [tried, setTried] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -273,6 +321,56 @@ function ExerciseSearchModal({ onSelect, onClose }: { onSelect: (ex: Exercise) =
       .catch(() => setExercises([]))
       .finally(() => setLoading(false));
   }, [search, muscleFilter]);
+
+  const openCreate = () => {
+    setTried(false);
+    setDraft({ name: search.trim(), group: muscleFilter !== 'Todos' ? muscleFilter : '', equipment: '' });
+  };
+
+  async function create(e: FormEvent) {
+    e.preventDefault();
+    if (!draft) return;
+    setTried(true);
+    if (draft.name.trim().length < 2 || !draft.group) return;
+    setSaving(true);
+    try {
+      const { exercise, created } = await workoutService.createExercise({ name: draft.name.trim(), muscleGroup: draft.group, equipment: draft.equipment || undefined });
+      if (!created) useToastStore.getState().info(t.alreadyThere(exerciseName(exercise.name, locale)));
+      onSelect(exercise);
+    } catch {
+      useToastStore.getState().error(t.createFailed);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (draft) {
+    const groups = MUSCLE_FILTERS.slice(1).map((m) => ({ value: m, label: t.groupNames[m] }));
+    return (
+      <ResponsiveDialog open onClose={onClose} title={t.createTitle}>
+        <form noValidate onSubmit={(e) => void create(e)} className="flex flex-col gap-5">
+          <p className="text-body-sm text-on-surface-light">{t.createHelp}</p>
+          <Field label={t.exerciseName} error={tried && draft.name.trim().length < 2 ? t.nameShort : undefined}>
+            <Input value={draft.name} maxLength={60} autoFocus placeholder={t.exerciseNamePh} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
+          </Field>
+          <div className="flex flex-col gap-2">
+            <ChipGroup label={t.muscleGroup} options={groups} value={draft.group} onChange={(group) => setDraft({ ...draft, group })} />
+            {tried && !draft.group && <p role="alert" className="text-body-sm text-error-text">{t.pickGroup}</p>}
+          </div>
+          <Field label={t.equipmentLabel}>
+            <Select value={draft.equipment} onChange={(e) => setDraft({ ...draft, equipment: e.target.value })}>
+              <option value="">{t.noEquipment}</option>
+              {EQUIPMENT.map((q) => <option key={q} value={q}>{t.equipmentNames[q]}</option>)}
+            </Select>
+          </Field>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button type="button" variant="ghost" onClick={() => setDraft(null)}><ChevronLeft aria-hidden className="size-4" />{t.backToSearch}</Button>
+            <Button type="submit" loading={saving}><Plus aria-hidden className="size-4" />{t.createAndAdd}</Button>
+          </div>
+        </form>
+      </ResponsiveDialog>
+    );
+  }
 
   return (
     <ResponsiveDialog open onClose={onClose} title={t.addExercise}>
@@ -285,13 +383,19 @@ function ExerciseSearchModal({ onSelect, onClose }: { onSelect: (ex: Exercise) =
           <p className="py-6 text-center text-body-sm text-on-surface-light">{t.noResults}</p>
         ) : (
           exercises.map((ex) => (
-            <button key={ex.id} type="button" onClick={() => onSelect(ex)} className="flex min-h-12 flex-col justify-center rounded-xl px-3 py-2 text-left transition-colors hover:bg-surface-variant">
-              <span className="text-body-md text-on-background">{exerciseName(ex.name, locale)}</span>
-              {(ex.muscleGroup || ex.equipment) && <span className="text-body-sm text-on-surface-light">{exerciseTags(ex.muscleGroup, ex.equipment, locale)}</span>}
+            <button key={ex.id} type="button" onClick={() => onSelect(ex)} className="flex min-h-12 items-center gap-3 rounded-xl px-3 py-2 text-left transition-colors hover:bg-surface-variant">
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="text-body-md text-on-background">{exerciseName(ex.name, locale)}</span>
+                {(ex.muscleGroup || ex.equipment) && <span className="text-body-sm text-on-surface-light">{exerciseTags(ex.muscleGroup, ex.equipment, locale)}</span>}
+              </span>
+              {ex.custom && <Badge variant="info">{t.mine}</Badge>}
             </button>
           ))
         )}
       </div>
+      <Button variant="secondary" block onClick={openCreate}>
+        <Plus aria-hidden className="size-4" />{search.trim() ? t.createNamed(search.trim()) : t.createExercise}
+      </Button>
     </ResponsiveDialog>
   );
 }
@@ -494,6 +598,20 @@ export function LivePlayer({ workout, update, playlistUrl, onMinimize, onFinish,
     exercises: w.exercises.map((e, i) => (i !== exI ? e : { ...e, sets: e.sets.map((s) => (s.id === setId ? { ...s, ...patch } : s)) })),
   })), [update]);
 
+  /**
+   * Cambia una serie y pasa su clase o esfuerzo a la siguiente pendiente (lib/coliseo
+   * carryForward): al fallo suele repetirse. `manual`: lo eligió la persona, deja de ser heredado.
+   */
+  const patchCarry = useCallback((exI: number, setId: string, patch: Partial<ActiveSet>, manual = true) => update((w) => ({
+    ...w,
+    exercises: w.exercises.map((e, i) => {
+      const j = i === exI ? e.sets.findIndex((s) => s.id === setId) : -1;
+      if (j < 0) return e;
+      const sets = e.sets.map((s, k) => (k === j ? { ...s, ...patch, ...(manual ? { auto: false } : {}) } : s));
+      return { ...e, sets: carryForward(sets, j) };
+    }),
+  })), [update]);
+
   const goTo = (i: number) => {
     setPicked(null);
     update((w) => ({ ...w, current: i }));
@@ -509,9 +627,10 @@ export function LivePlayer({ workout, update, playlistUrl, onMinimize, onFinish,
     if (!ex) return;
     const last = ex.sets[ex.sets.length - 1];
     const id = nextSetId(ex.sets);
+    // Mismo peso y repeticiones que la anterior; si fue al fallo o con RPE, también eso.
     update((w) => ({
       ...w,
-      exercises: w.exercises.map((e, i) => (i !== exIdx ? e : { ...e, sets: [...e.sets, blankSet(id, last?.weight, last?.reps)] })),
+      exercises: w.exercises.map((e, i) => (i !== exIdx ? e : { ...e, sets: carryForward([...e.sets, blankSet(id, last?.weight, last?.reps)], e.sets.length - 1) })),
     }));
     setPicked(ex.sets.length);
     // La serie nueva pasa a ser la que toca: el descanso anterior se cancela en silencio.
@@ -548,7 +667,7 @@ export function LivePlayer({ workout, update, playlistUrl, onMinimize, onFinish,
       return;
     }
     primeAudio();
-    patchSet(exIdx, set.id, { completed: true });
+    patchCarry(exIdx, set.id, { completed: true }, false);
     setPicked(null);
 
     // Récord: supera el mejor 1RM estimado anterior y lo mejor de hoy.
@@ -743,7 +862,8 @@ export function LivePlayer({ workout, update, playlistUrl, onMinimize, onFinish,
                           pr ? t.recordTag : '',
                         )}
                         className={cn(
-                          'flex min-h-14 min-w-16 flex-col items-center justify-center rounded-2xl border px-3 transition-colors',
+                          // Ancho y relleno derecho para que la X de la esquina no tape «✓ F».
+                          'flex min-h-14 min-w-20 flex-col items-center justify-center rounded-2xl border pl-3 pr-5 transition-colors',
                           on ? 'border-primary bg-primary/[var(--lq-soft-alpha)]' : 'border-border bg-surface',
                           s.completed && 'text-success-text',
                         )}
@@ -795,20 +915,20 @@ export function LivePlayer({ workout, update, playlistUrl, onMinimize, onFinish,
                   <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 px-4 [&::-webkit-details-marker]:hidden">
                     <span className="text-label-lg">{t.effortTitle}</span>
                     <span className="min-w-0 flex-1 truncate text-right text-body-sm text-on-surface-light">
-                      {setTypeOf(set.type, locale).label}{set.rpe ? ` · RPE ${set.rpe}` : set.rir !== undefined ? ` · RIR ${set.rir}` : ''}
+                      {setTypeOf(set.type, locale).label}{set.rpe ? ` · RPE ${set.rpe}` : set.rir !== undefined ? ` · RIR ${set.rir}` : ''}{set.auto && !set.completed ? ` · ${t.inherited}` : ''}
                     </span>
                     <ChevronDown aria-hidden className="size-5 shrink-0 transition-transform duration-300 group-open:rotate-180" />
                   </summary>
                   <div className="flex flex-col gap-4 px-4 pb-4">
                     <div role="radiogroup" aria-label={t.setTypeAria} className="flex flex-wrap gap-2">
                       {setTypes.map((opt) => (
-                        <button key={opt.value} type="button" role="radio" aria-checked={set.type === opt.value} onClick={() => patchSet(exIdx, set.id, { type: opt.value })} className={chipClasses(set.type === opt.value)}>
+                        <button key={opt.value} type="button" role="radio" aria-checked={set.type === opt.value} onClick={() => patchCarry(exIdx, set.id, { type: opt.value })} className={chipClasses(set.type === opt.value)}>
                           {opt.label}
                         </button>
                       ))}
                     </div>
                     <SegmentedControl label={t.effortScale} role="radiogroup" options={SCALES} value={scale} onChange={setScale} />
-                    <EffortPicker scale={scale} set={set} label={scale === 'rpe' ? t.rpeLabel(setIdx + 1) : t.rirLabel(setIdx + 1)} onChange={(p) => patchSet(exIdx, set.id, p)} />
+                    <EffortPicker scale={scale} set={set} label={scale === 'rpe' ? t.rpeLabel(setIdx + 1) : t.rirLabel(setIdx + 1)} onChange={(p) => patchCarry(exIdx, set.id, p)} />
                     <p className="text-body-sm text-on-surface-light">{scale === 'rpe' ? t.rpeHelp : t.rirHelp}</p>
                   </div>
                 </details>
@@ -847,7 +967,7 @@ export function LivePlayer({ workout, update, playlistUrl, onMinimize, onFinish,
                     <p className="text-label-md text-on-surface">
                       {scale === 'rpe' ? t.rpeQuestion(ratedEx.sets.indexOf(rated) + 1) : t.rirQuestion(ratedEx.sets.indexOf(rated) + 1)}
                     </p>
-                    <EffortPicker quick scale={scale} set={rated} label={scale === 'rpe' ? t.rpeRecent : t.rirRecent} onChange={(p) => patchSet(rest.exIdx, rated.id, p)} />
+                    <EffortPicker quick scale={scale} set={rated} label={scale === 'rpe' ? t.rpeRecent : t.rirRecent} onChange={(p) => patchCarry(rest.exIdx, rated.id, p)} />
                   </div>
                 )}
                 {!rest.done && (

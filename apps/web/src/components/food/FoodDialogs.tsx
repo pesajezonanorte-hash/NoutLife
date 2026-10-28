@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { motion } from 'framer-motion';
 import type { Meal } from '@noutlife/shared';
-import { AlertTriangle, ArrowLeft, Info, Sparkles } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Camera, Info, Sparkles, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { enter, staggerVariants } from '@/lib/motion';
 import { Button, Field, Input, ResponsiveDialog, Textarea } from '@/components/ui/lq';
@@ -13,6 +13,8 @@ import { useToastStore } from '@/hooks/useToast';
 import { useAuthStore } from '@/store/authStore';
 import { usePlanStore } from '@/store/planStore';
 import * as mealService from '@/services/meal.service';
+import { compressImageToBase64 } from '@/lib/imageCompress';
+import { PhotoSourceButtons } from '@/components/media/PhotoSourceButtons';
 import type { NutritionGoal, ParsedMeal, SavedMeal } from '@/services/meal.service';
 import { DEFAULT_GOAL, macrosFor, mealTypeLabelFor, mealTypesFor, type FoodType } from './foodMeta';
 import { ChefService } from './Restaurant';
@@ -44,9 +46,16 @@ const es = {
   noticeNoMacros: 'No pudimos estimar los macros de esta descripción. Complétalos a mano o déjalos vacíos.',
   noticeNoAi: 'El análisis automático no está disponible ahora. Completa los datos a mano.',
   estimatedMacros: 'Macros estimados',
-  describe: 'Describe lo que comiste y estimaremos las calorías y los macros por ti.',
+  describe: 'Describe lo que comiste o usa una foto del plato, y estimaremos las calorías y los macros por ti.',
   whatAte: '¿Qué comiste?',
   whatAteHelp: 'Incluye cantidades si las sabes',
+  whatAteHelpPhoto: 'Opcional: porción o ingredientes que no se vean, para afinar.',
+  photoOr: 'O usa una foto del plato',
+  photoHelp: 'La reducimos en tu móvil antes de enviarla: el análisis es rápido y gasta poco.',
+  photoAlt: 'Foto del plato',
+  removePhoto: 'Quitar foto',
+  photoFail: 'No pudimos leer esa foto. Prueba con otra o describe el plato.',
+  photoReady: 'Foto lista: toca Analizar.',
   whatAteErr: 'Describe tu comida para analizarla',
   whatAtePh: 'Ej. Un plato de arroz con pollo, ensalada y un jugo de mango',
   analyzingSr: 'Analizando tu plato…',
@@ -101,9 +110,16 @@ const en: typeof es = {
   noticeNoMacros: 'We could not estimate the macros for this description. Fill them in by hand or leave them empty.',
   noticeNoAi: 'Automatic analysis is not available right now. Fill in the details by hand.',
   estimatedMacros: 'Estimated macros',
-  describe: 'Describe what you ate and we will estimate the calories and macros for you.',
+  describe: 'Describe what you ate or use a photo of your plate, and we will estimate the calories and macros for you.',
   whatAte: 'What did you eat?',
   whatAteHelp: 'Include amounts if you know them',
+  whatAteHelpPhoto: 'Optional: portion or hidden ingredients, to fine-tune it.',
+  photoOr: 'Or use a photo of your plate',
+  photoHelp: 'We shrink it on your phone before sending it: the analysis is fast and light.',
+  photoAlt: 'Photo of the plate',
+  removePhoto: 'Remove photo',
+  photoFail: 'We could not read that photo. Try another one or describe the dish.',
+  photoReady: 'Photo ready: tap Analyze.',
   whatAteErr: 'Describe your meal to analyze it',
   whatAtePh: 'E.g. A plate of rice with chicken, salad and a mango juice',
   analyzingSr: 'Analyzing your dish…',
@@ -263,9 +279,9 @@ function Actions({ onCancel, saving, label }: { onCancel: () => void; saving: bo
 // ───────────────────────────── Analizar ─────────────────────────────
 
 /**
- * "Analizar comida": describe el plato → /nutrition/ai-parse estima kcal y
- * macros → se revisan y se registran.
- * TODO(api): el prototipo analiza una foto; la API solo acepta texto.
+ * "Analizar comida": describe el plato (/nutrition/ai-parse) o toma o sube una foto
+ * (/nutrition/ai-photo, con el texto como pista) → se estiman kcal y macros → se revisan
+ * y se registran. La foto se reduce en el móvil a ≤384 px antes de enviarla.
  */
 export function AnalyzeMealDialog({ open, onClose, date, initialType, onSaved }: {
   open: boolean;
@@ -285,6 +301,10 @@ export function AnalyzeMealDialog({ open, onClose, date, initialType, onSaved }:
   const [touched, setTouched] = useState(false);
   const [favorite, setFavorite] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Foto del plato ya reducida (base64 sin prefijo) y su vista previa. */
+  const [photo, setPhoto] = useState<{ data: string; url: string } | null>(null);
+  const [reading, setReading] = useState(false);
+  const locale = useLocale();
   const nameRef = useRef<HTMLInputElement>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
   // El análisis es IA: en NoutLife Lite se va directo al diálogo de Pro (la API también lo bloquea).
@@ -298,7 +318,7 @@ export function AnalyzeMealDialog({ open, onClose, date, initialType, onSaved }:
 
   useEffect(() => {
     if (!open) return;
-    setText(''); setIngredients(''); setParsed(null); setDraft(blank(initialType)); setTouched(false); setFavorite(false); setError(null);
+    setText(''); setIngredients(''); setParsed(null); setDraft(blank(initialType)); setTouched(false); setFavorite(false); setError(null); setPhoto(null);
   }, [open, initialType]);
 
   // Al cambiar de paso, el foco va al primer campo del paso nuevo.
@@ -307,11 +327,27 @@ export function AnalyzeMealDialog({ open, onClose, date, initialType, onSaved }:
     else if (parsed) nameRef.current?.focus();
   }, [parsed]);
 
+  /** 384 px y JPEG: la visión cobra por tamaño de imagen, y así basta para reconocer el plato. */
+  async function pickPhoto(file: File) {
+    setReading(true);
+    setError(null);
+    try {
+      const data = await compressImageToBase64(file, { maxSide: 384, maxBytes: 60 * 1024 });
+      setPhoto({ data, url: `data:image/jpeg;base64,${data}` });
+    } catch {
+      setError(t.photoFail);
+    } finally {
+      setReading(false);
+    }
+  }
+
   async function requestAnalysis(description: string) {
     setAnalyzing(true);
     setError(null);
     try {
-      const r = await mealService.parseMeal(description);
+      const r = photo
+        ? await mealService.scanMealPhoto({ image: photo.data, mimeType: 'image/jpeg', hint: description || undefined, lang: locale })
+        : await mealService.parseMeal(description);
       setParsed(r);
       const s = (n: number) => (r.aiSucceeded && r.recognized && n > 0 ? String(n) : '');
       setDraft((d) => ({ ...d, name: r.name || text.trim().slice(0, 80), calories: s(r.estimatedCalories), protein: s(r.estimatedProtein), carbs: s(r.estimatedCarbs), fat: s(r.estimatedFat) }));
@@ -325,7 +361,7 @@ export function AnalyzeMealDialog({ open, onClose, date, initialType, onSaved }:
 
   async function analyze(e: FormEvent) {
     e.preventDefault();
-    if (!text.trim()) { setTouched(true); return; }
+    if (!text.trim() && !photo) { setTouched(true); return; }
     await requestAnalysis(text.trim());
   }
 
@@ -350,9 +386,10 @@ export function AnalyzeMealDialog({ open, onClose, date, initialType, onSaved }:
         ? { tone: 'warning', icon: AlertTriangle, text: t.noticeNoMacros }
         : { tone: 'info', icon: Info, text: t.noticeNoAi });
 
-  const locale = useLocale();
   const fmt = (n: number) => Math.round(n).toLocaleString(INTL_LOCALE[locale]);
-  const served = Boolean(parsed && parsed.aiSucceeded && parsed.recognized && !parsed.needsIngredients && text.trim() && parsed.estimatedCalories > 0);
+  /** Hay algo que analizar: texto o foto. */
+  const hasInput = Boolean(text.trim() || photo);
+  const served = Boolean(parsed && parsed.aiSucceeded && parsed.recognized && !parsed.needsIngredients && hasInput && parsed.estimatedCalories > 0);
 
   return (
     <ResponsiveDialog open={open} onClose={onClose} title={t.analyzeTitle} className="md:max-w-[560px]">
@@ -382,9 +419,24 @@ export function AnalyzeMealDialog({ open, onClose, date, initialType, onSaved }:
       {!parsed ? (
         <form className="flex flex-col gap-6" onSubmit={(e) => void analyze(e)} noValidate>
           <p className="text-body-md text-on-surface">{t.describe}</p>
-          <Field label={t.whatAte} help={t.whatAteHelp} error={touched && !text.trim() ? t.whatAteErr : undefined}>
+          <Field label={t.whatAte} help={photo ? t.whatAteHelpPhoto : t.whatAteHelp} error={touched && !hasInput ? t.whatAteErr : undefined}>
             <Textarea ref={textRef} data-autofocus rows={3} value={text} onChange={(e) => setText(e.target.value)} placeholder={t.whatAtePh} />
           </Field>
+          {/* Foto del plato: cámara o galería; reemplaza la descripción (que pasa a ser una pista). */}
+          <div className="flex flex-col gap-3 rounded-2xl border border-dashed border-border-strong p-4">
+            <div className="flex items-center gap-3">
+              {photo
+                ? <img src={photo.url} alt={t.photoAlt} className="size-16 shrink-0 rounded-xl object-cover" />
+                : <span aria-hidden className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-surface-variant text-on-surface"><Camera className="size-6" strokeWidth={1.75} /></span>}
+              <div className="min-w-0 flex-1">
+                <p className="text-label-lg text-on-background">{t.photoOr}</p>
+                <p className="text-body-sm text-on-surface-light">{photo ? t.photoReady : t.photoHelp}</p>
+              </div>
+            </div>
+            {photo
+              ? <Button type="button" variant="ghost" size="sm" className="self-start" onClick={() => setPhoto(null)}><X aria-hidden className="size-4" />{t.removePhoto}</Button>
+              : <PhotoSourceButtons onPick={(file) => void pickPhoto(file)} loading={reading} size="sm" />}
+          </div>
           {analyzing && (
             <p role="status" className="sr-only">{t.analyzingSr}</p>
           )}
@@ -398,7 +450,7 @@ export function AnalyzeMealDialog({ open, onClose, date, initialType, onSaved }:
         </form>
       ) : parsed.needsIngredients ? (
         <form className="flex flex-col gap-6" onSubmit={(e) => { e.preventDefault(); void retryWithIngredients(); }} noValidate>
-          {notice && text.trim() && (
+          {notice && hasInput && (
             <div role="status" className="flex items-start gap-3 rounded-xl bg-warning/[var(--lq-soft-alpha)] p-3">
               <notice.icon aria-hidden className="mt-0.5 size-5 shrink-0 text-warning-text" strokeWidth={1.75} />
               <p className="text-body-md text-on-surface">{notice.text}</p>
@@ -421,7 +473,7 @@ export function AnalyzeMealDialog({ open, onClose, date, initialType, onSaved }:
         </form>
       ) : (
         <form className="flex flex-col gap-6" onSubmit={(e) => void save(e)} noValidate>
-          {notice && text.trim() && (
+          {notice && hasInput && (
             <div role="status" className={cn('flex items-start gap-3 rounded-xl p-3', notice.tone === 'success' ? 'bg-success/[var(--lq-soft-alpha)]' : notice.tone === 'warning' ? 'bg-warning/[var(--lq-soft-alpha)]' : 'bg-info/[var(--lq-soft-alpha)]')}>
               <notice.icon aria-hidden className={cn('mt-0.5 size-5 shrink-0', notice.tone === 'success' ? 'text-success-text' : notice.tone === 'warning' ? 'text-warning-text' : 'text-info-text')} strokeWidth={1.75} />
               <p className="text-body-md text-on-surface">{notice.text}</p>

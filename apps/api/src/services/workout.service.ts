@@ -1,6 +1,6 @@
 import { prisma } from '../lib/prisma';
 import { DEFAULT_TIMEZONE, getCalendarDay, parseCalendarDate } from '../lib/calendar';
-import { awardXpAndGold } from './xp.service';
+import { awardXpAndGold, revokeXpEvent } from './xp.service';
 import { checkAchievements } from './achievement.service';
 import { createNotification } from './notification.service';
 import { listColiseoAttendances, recordManualColiseoAttendance, recordWorkoutColiseoAttendance } from './coliseo-attendance.service';
@@ -193,6 +193,11 @@ export async function finishWorkout(userId: string, id: string, body: { notes?: 
   return { workout, rewards: result, user, achievementsUnlocked };
 }
 
+/**
+ * Borra una sesión. Si ya dio recompensa, se borra con ella: su XP y su oro se
+ * descuentan (revokeXpEvent), así el registro de XP y el Coliseo siguen cuadrando.
+ * La asistencia de ese día se conserva: la visita sí ocurrió.
+ */
 export async function deleteWorkout(userId: string, id: string) {
   const workout = await prisma.workout.findFirst({
     where: { id, userId },
@@ -200,23 +205,51 @@ export async function deleteWorkout(userId: string, id: string) {
   });
   if (!workout) throw new Error('WORKOUT_NOT_FOUND');
 
-  // Deleting a rewarded session would leave its XP event in the ledger while
-  // removing the session from Coliseo stats. Completed workouts remain editable,
-  // but are intentionally protected from deletion until a true reward reversal
-  // flow exists.
-  if (workout.xpEarned > 0) throw new Error('WORKOUT_COMPLETED_CANNOT_DELETE');
-  return prisma.workout.delete({ where: { id } });
+  let revoked = { xpRemoved: 0, goldRemoved: 0 };
+  if (workout.xpEarned > 0) {
+    const event = await prisma.xpEvent.findFirst({ where: { userId, source: 'workout', sourceId: id }, orderBy: { createdAt: 'desc' } });
+    if (event) revoked = await revokeXpEvent(userId, event);
+  }
+  await prisma.workout.delete({ where: { id } });
+  return revoked;
 }
 
-export async function listExercises(search?: string, muscleGroup?: string) {
-  return prisma.exercise.findMany({
+/** Catálogo común más los ejercicios propios de la persona (`custom`). */
+export async function listExercises(userId: string, search?: string, muscleGroup?: string) {
+  const rows = await prisma.exercise.findMany({
     where: {
+      OR: [{ userId: null }, { userId }],
       ...(search && { name: { contains: search, mode: 'insensitive' } }),
       ...(muscleGroup && { muscleGroup: { equals: muscleGroup, mode: 'insensitive' } }),
     },
     orderBy: { name: 'asc' },
     take: 100,
   });
+  return rows.map(({ userId: owner, ...exercise }) => ({ ...exercise, custom: owner !== null }));
+}
+
+/** Tope de ejercicios propios por cuenta (evita abusos; nadie llega en uso normal). */
+export const MAX_CUSTOM_EXERCISES = 200;
+
+/**
+ * Crea un ejercicio propio dentro de un grupo muscular. Si ya existe uno con ese nombre
+ * (del catálogo o propio, sin distinguir mayúsculas), devuelve ese en vez de duplicarlo.
+ */
+export async function createExercise(userId: string, body: { name: string; muscleGroup: string; equipment?: string }) {
+  const name = body.name.trim().replace(/\s+/g, ' ');
+  const same = () => prisma.exercise.findFirst({ where: { OR: [{ userId: null }, { userId }], name: { equals: name, mode: 'insensitive' } } });
+  const existing = await same();
+  if (existing) return { exercise: { ...existing, userId: undefined, custom: existing.userId !== null }, created: false };
+  if ((await prisma.exercise.count({ where: { userId } })) >= MAX_CUSTOM_EXERCISES) throw new Error('CUSTOM_EXERCISE_LIMIT');
+  try {
+    const exercise = await prisma.exercise.create({ data: { userId, name, muscleGroup: body.muscleGroup, equipment: body.equipment ?? null } });
+    return { exercise: { ...exercise, userId: undefined, custom: true }, created: true };
+  } catch (error) {
+    // Dos toques seguidos: el segundo choca con el índice único y devuelve el primero.
+    const again = (error as { code?: string }).code === 'P2002' ? await same() : null;
+    if (!again) throw error;
+    return { exercise: { ...again, userId: undefined, custom: again.userId !== null }, created: false };
+  }
 }
 
 export async function getExerciseProgress(userId: string, exerciseId: string) {

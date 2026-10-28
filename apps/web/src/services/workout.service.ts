@@ -51,8 +51,16 @@ export async function finishWorkout(id: string, body: { duration?: number; dista
   return data;
 }
 
-export async function deleteWorkout(id: string): Promise<void> {
-  await api.delete(`/workouts/${id}`);
+/** Borra una sesión; si ya había dado recompensa, devuelve el XP y el oro que se descontaron. */
+export async function deleteWorkout(id: string): Promise<{ xpRemoved: number; goldRemoved: number }> {
+  const { data } = await api.delete<{ xpRemoved?: number; goldRemoved?: number }>(`/workouts/${id}`);
+  return { xpRemoved: data?.xpRemoved ?? 0, goldRemoved: data?.goldRemoved ?? 0 };
+}
+
+/** Ejercicio propio, guardado en la cuenta. Si ya existía con ese nombre, devuelve ese (`created: false`). */
+export async function createExercise(body: { name: string; muscleGroup: string; equipment?: string }): Promise<{ exercise: Exercise; created: boolean }> {
+  const { data } = await api.post<{ exercise: Exercise; created: boolean }>('/workouts/exercises', body);
+  return data;
 }
 
 export async function fetchExercises(search?: string, muscleGroup?: string): Promise<Exercise[]> {

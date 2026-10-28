@@ -244,8 +244,10 @@ function RitualCard({ ritual, doneToday, playing, onPlay, celebrate }: { ritual:
       <ol className="relative flex flex-col">
         {/* El sendero que une las piedras */}
         <span aria-hidden="true" className="pointer-events-none absolute bottom-5 left-3 top-5 border-l border-dashed border-border-strong/50" />
+        {/* Cada paso en su renglón: la piedra y los minutos se alinean con la primera línea y
+            un paso largo baja con su propio interlineado, sin pisar el siguiente. */}
         {ritual.steps.map((st, i) => (
-          <li key={st.id} className="relative flex min-h-10 items-center gap-3">
+          <li key={st.id} className="relative flex min-h-10 items-start gap-3 py-2">
             <motion.span
               // Las piedras se encienden una a una; al completar el ritual brillan todas juntas.
               className={cn('relative flex size-6 shrink-0 items-center justify-center rounded-[45%_55%_50%_50%] text-label-md transition-colors duration-700', doneToday ? 'bg-success text-background' : 'bg-surface-variant text-on-surface')}
@@ -255,8 +257,8 @@ function RitualCard({ ritual, doneToday, playing, onPlay, celebrate }: { ritual:
               {(doneToday || celebrate) && <span aria-hidden="true" className="absolute -inset-2 rounded-full bg-[radial-gradient(closest-side,rgb(var(--lq-success)/.4),transparent)]" />}
               <span className="relative">{i + 1}</span>
             </motion.span>
-            <span className={cn('min-w-0 flex-1 text-body-md', doneToday ? 'text-on-surface-light' : 'text-on-background')}>{st.title}</span>
-            {st.durationMin ? <span className="font-mono text-body-sm tabular-nums text-on-surface-light">{st.durationMin} min</span> : null}
+            <span className={cn('min-w-0 flex-1 text-body-md leading-6 [overflow-wrap:anywhere]', doneToday ? 'text-on-surface-light' : 'text-on-background')}>{st.title}</span>
+            {st.durationMin ? <span className="shrink-0 whitespace-nowrap font-mono text-body-sm leading-6 tabular-nums text-on-surface-light">{st.durationMin} min</span> : null}
           </li>
         ))}
       </ol>
@@ -393,7 +395,8 @@ export function RitualsSheet({ list, state, onReload, panelId, labelledBy }: {
             <Button onClick={seed} loading={seeding}><Zap aria-hidden className="size-4" strokeWidth={1.75} />{t.seedBtn}</Button>
           </div>
         }
-        className="py-12"
+        // Escrito a la derecha del margen rojo, como el resto de la hoja: en el móvil el texto centrado lo cruzaba.
+        className="py-12 pl-[3.75rem] pr-3 md:pl-[6rem] md:pr-4"
       />
     );
   } else {
@@ -424,7 +427,8 @@ export function RitualsSheet({ list, state, onReload, panelId, labelledBy }: {
             </motion.div>
           )}
         </AnimatePresence>
-        <motion.ul variants={stagger} initial="initial" animate="animate" className="grid grid-cols-1 gap-4 md:gap-6 xl:grid-cols-2">
+        {/* Una columna hasta pantallas muy anchas: en dos, títulos y pasos se partían en tres líneas. */}
+        <motion.ul variants={stagger} initial="initial" animate="animate" className="grid grid-cols-1 gap-4 md:gap-6 2xl:grid-cols-2">
           {ordered.map((r) => (
             <motion.li key={r.id} variants={item}>
               <RitualCard ritual={r} doneToday={doneIds.includes(r.id)} playing={playing?.id === r.id} celebrate={celebrating === r.id}

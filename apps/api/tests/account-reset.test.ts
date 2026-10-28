@@ -95,7 +95,7 @@ void test('factory reset de cuenta', async (suite) => {
         'habits', 'quests', 'rituals', 'transactions', 'inventoryItems',
         'userAchievements', 'notifications', 'pushSubscriptions', 'feedback',
         'directMessages', 'socialGestures', 'guildInvites',
-        'workouts', 'routines', 'coliseoAttendances', 'bodyWeights', 'progressPhotos',
+        'workouts', 'routines', 'coliseoAttendances', 'bodyWeights', 'progressPhotos', 'customExercises',
         'workoutExercises', 'stickers', 'chatPrefs', 'messageReactions',
       ]) {
         assert.equal(result.deleted[key], 1, `expected ${key} to be deleted`);

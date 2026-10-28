@@ -262,6 +262,16 @@ const GYM_ATTENDANCE_AND_NOTIFICATION_CONTROLS_SQL = [
   ignoreDuplicate(`ALTER TABLE "notification_category_preferences" ADD CONSTRAINT "notification_category_preferences_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE`),
 ];
 
+// Idempotent mirror of prisma/migrations/20261106120000_custom_exercises.
+// Ejercicios propios: el nombre pasa a ser único por dueño; el catálogo (sin dueño), por nombre.
+const CUSTOM_EXERCISES_SQL = [
+  `ALTER TABLE "exercises" ADD COLUMN IF NOT EXISTS "userId" TEXT;`,
+  `DROP INDEX IF EXISTS "exercises_name_key";`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "exercises_userId_name_key" ON "exercises"("userId", "name");`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "exercises_catalog_name_key" ON "exercises"("name") WHERE "userId" IS NULL;`,
+  ignoreDuplicate(`ALTER TABLE "exercises" ADD CONSTRAINT "exercises_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE`),
+];
+
 /**
  * One-time data fixes. Each op id is recorded in "_data_ops" and never runs
  * again, so a fix that deletes data cannot repeat on a later deploy.
@@ -313,6 +323,12 @@ const DATA_OPS: Array<[string, () => Promise<void>]> = [
       await prisma.shopItem.updateMany({ where: { imageKey: item.imageKey }, data: { name: item.name, description: item.description, cost: item.cost, levelRequired: item.levelRequired } });
     }
   }],
+  // Los avisos de hábito completado llevaban la clave del ícono como texto
+  // («code "Leer" completado»). Se quita de los que ya están en la bandeja.
+  ['2026-10-28-habit-notice-icon-keys', async () => {
+    const n = await prisma.$executeRawUnsafe(`UPDATE "notifications" SET "title" = regexp_replace("title", '^[a-z][a-z0-9_-]*\\s+', '') WHERE "type" = 'habit_completed' AND "title" ~ '^[a-z][a-z0-9_-]*\\s+"'`);
+    console.log(`Habit notices cleaned: ${n}.`);
+  }],
 ];
 
 async function runDataOpsOnce() {
@@ -338,6 +354,8 @@ async function migrate() {
   for (const sql of MARKETS_USERS_SQL) await prisma.$executeRawUnsafe(sql);
   for (const sql of HABIT_RITUALS_HYGIENE_SQL) await prisma.$executeRawUnsafe(sql);
   for (const sql of SMART_REMINDERS_SQL) await prisma.$executeRawUnsafe(sql);
+  // Antes de cualquier consulta a exercises: este cliente de Prisma ya lee "userId".
+  for (const sql of CUSTOM_EXERCISES_SQL) await prisma.$executeRawUnsafe(sql);
   // Idempotent mirror of prisma/migrations/20261025120000_wisdom_source (antes del seed de Sabiduría).
   await prisma.$executeRawUnsafe(`ALTER TABLE "wisdom_cards" ADD COLUMN IF NOT EXISTS "source" TEXT;`);
 

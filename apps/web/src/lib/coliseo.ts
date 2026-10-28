@@ -2,7 +2,7 @@
 // efectivas, balance empuje/tirón/piernas, tonelaje, 1RM, discos y descanso
 // según el ejercicio. Funciones puras (sin React ni API): las usa la zona y las
 // prueba tests/unit/coliseo.unit.ts.
-import type { SetType, Workout, WorkoutSet } from '@noutlife/shared';
+import type { RoutineExercise, RoutineTargetSet, SetType, Workout, WorkoutSet } from '@noutlife/shared';
 import type { Locale } from '@/lib/locale';
 
 const HOUR = 3_600_000;
@@ -393,4 +393,65 @@ export function previousBest(sessions: HistorySession[]): PreviousBest | null {
       ? [{ weight: kgOf(top), reps: repsOf(top) + 1 }, { weight: kgOf(top) + 2.5, reps: repsOf(top) }]
       : [{ weight: 0, reps: repsOf(top) + 1 }],
   };
+}
+
+/* ───────── Intensidad que se repite ───────── */
+
+/** Clases de serie que suelen repetirse en la siguiente (el calentamiento no: después viene trabajo). */
+const CARRIED_TYPES: ReadonlySet<SetType> = new Set<SetType>(['failure', 'drop', 'myo', 'rest_pause']);
+
+export interface EffortSet { completed: boolean; type: SetType; rpe?: number; rir?: number; /** Heredada de la serie anterior, aún sin tocar. */ auto?: boolean }
+
+/**
+ * Autocompletado de intensidad: si una serie fue al fallo (u otra clase intensa) o lleva
+ * RPE/RIR, la siguiente pendiente lo hereda, porque lo más probable es repetirlo. Solo
+ * cambia una serie que la persona no ajustó (o que ya venía heredada, `auto`); si la de
+ * origen vuelve a efectiva y sin esfuerzo, la heredada se limpia. null = no tocarla.
+ */
+export function carriedIntensity(source: EffortSet, next: EffortSet | undefined): Partial<EffortSet> | null {
+  if (!next || next.completed) return null;
+  const untouched = next.auto || (next.type === 'normal' && next.rpe === undefined && next.rir === undefined);
+  if (!untouched) return null;
+  const type: SetType = CARRIED_TYPES.has(source.type) ? source.type : 'normal';
+  if (type === 'normal' && source.rpe === undefined && source.rir === undefined) {
+    return next.auto ? { type: 'normal', rpe: undefined, rir: undefined, auto: false } : null;
+  }
+  if (next.auto && next.type === type && next.rpe === source.rpe && next.rir === source.rir) return null;
+  return { type, rpe: source.rpe, rir: source.rir, auto: true };
+}
+
+/** Aplica carriedIntensity de la serie `from` a la que le sigue. */
+export function carryForward<T extends EffortSet>(sets: T[], from: number): T[] {
+  const patch = from >= 0 ? carriedIntensity(sets[from], sets[from + 1]) : null;
+  return patch ? sets.map((s, i) => (i === from + 1 ? { ...s, ...patch } : s)) : sets;
+}
+
+/* ───────── Rutinas guardadas ───────── */
+
+export interface SessionExercise {
+  exerciseId: string;
+  name: string;
+  muscleGroup?: string;
+  equipment?: string;
+  sets: Array<{ weight: string | number | undefined; reps: string | number | undefined; completed: boolean; type?: SetType }>;
+}
+
+/**
+ * Rutina a partir de una sesión: por ejercicio, las series hechas (o, si no se hizo
+ * ninguna, las planeadas) con su peso, repeticiones y clase. Al reutilizarla, cada serie
+ * llega con esos valores para ajustarlos. Los ejercicios sin series no se guardan.
+ */
+export function routineFromSession(exercises: SessionExercise[]): RoutineExercise[] {
+  const n = (v: string | number | undefined) => Math.max(0, Number(v) || 0);
+  return exercises.flatMap((ex) => {
+    const done = ex.sets.filter((s) => s.completed);
+    const sets = done.length ? done : ex.sets;
+    if (!sets.length) return [];
+    const targetSets: RoutineTargetSet[] = sets.map((s) => ({ weight: n(s.weight), reps: Math.round(n(s.reps)), type: s.type ?? 'normal' }));
+    const work = targetSets.find((s) => s.type !== 'warmup') ?? targetSets[0];
+    return [{
+      exerciseId: ex.exerciseId, name: ex.name, muscleGroup: ex.muscleGroup, equipment: ex.equipment,
+      sets: targetSets.length, reps: work.reps, weight: work.weight, targetSets,
+    }];
+  });
 }

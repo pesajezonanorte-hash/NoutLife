@@ -3,7 +3,7 @@ import { requireAuth } from '../middleware/auth.middleware';
 import * as notificationController from '../controllers/notification.controller';
 import { validate } from '../middleware/validate.middleware';
 import { snoozeSchema } from '../schemas/snooze.schemas';
-import { pushClickSchema } from '../schemas/push-event.schemas';
+import { pushClickSchema, resumeZoneSchema } from '../schemas/push-event.schemas';
 
 const router = Router();
 
@@ -21,6 +21,9 @@ router.post('/test',            notificationController.sendTestNotification);
 router.post('/snooze',          validate(snoozeSchema), notificationController.snooze);
 // Medición de avisos: clic desde el service worker (T8).
 router.post('/event',           validate(pushClickSchema), notificationController.pushClick);
+// Lo aprendido (horas habituales, zonas en pausa) y reanudar una zona.
+router.get('/insights',         notificationController.insights);
+router.post('/insights/resume', validate(resumeZoneSchema), notificationController.resume);
 
 // In-app notifications
 router.get('/',                 notificationController.listInApp);

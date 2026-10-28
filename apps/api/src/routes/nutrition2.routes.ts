@@ -4,9 +4,11 @@ import { requireAuth, AuthRequest } from '../middleware/auth.middleware';
 import {
   getNutritionGoal, upsertNutritionGoal,
   getSavedMeals, createSavedMeal, deleteSavedMeal,
-  parseMealWithAI, getDailyMacros,
+  parseMealWithAI, getDailyMacros, scanMealPhoto,
 } from '../services/nutrition2.service';
 import { requirePro, requireProZone } from '../middleware/plan.middleware';
+import { validate } from '../middleware/validate.middleware';
+import { photoMealSchema } from '../schemas/activity.schemas';
 
 const router = Router();
 router.use(requireAuth);
@@ -46,6 +48,12 @@ router.post('/ai-parse', requirePro('ai'), async (req, res) => {
     if (!description) return res.status(400).json({ message: 'description requerido' });
     res.json(await parseMealWithAI(description));
   } catch (err: any) { res.status(400).json({ message: publicErrorMessage(err) }); }
+});
+
+// Foto del plato → kcal y macros (visión de bajo consumo; misma respuesta que /ai-parse).
+router.post('/ai-photo', requirePro('ai'), validate(photoMealSchema), async (req, res) => {
+  try { res.json(await scanMealPhoto(req.body)); }
+  catch (err: any) { res.status(400).json({ message: publicErrorMessage(err) }); }
 });
 
 router.get('/daily', async (req, res) => {

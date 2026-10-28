@@ -7,8 +7,11 @@ import { DEFAULT_TIMEZONE } from './calendar';
 export const WINDOW_MS = 30 * 60 * 1000;
 
 export interface SmartReminderSettings {
-  /** Hora a la que avisar de la rutina programada de hoy (null: solo el aviso de las 21:00). */
-  coliseo: { time: string | null };
+  /**
+   * Entreno. `learn`: aprender de las sesiones los días habituales y la hora (aviso 30 min antes).
+   * `time`: hora fija elegida por la persona (gana a la aprendida); null = sin hora fija.
+   */
+  coliseo: { time: string | null; learn: boolean };
   /** Rutinas de cuidado personal y rituales de mañana y de noche. */
   care: { enabled: boolean; morning: string; night: string };
   /** Solo usuarias con Ciclo: avisos discretos sobre el registro del día y la predicción. */
@@ -17,8 +20,8 @@ export interface SmartReminderSettings {
   hydration: { enabled: boolean; everyHours: 1 | 2 | 3 | 4; from: string; to: string };
   /** Hora de comer: si hoy no hay comida registrada, avisa en cada una de estas horas. */
   meals: { enabled: boolean; times: string[] };
-  /** Cita del día, elegida según el progreso de la última semana. */
-  wisdom: { enabled: boolean; time: string };
+  /** Cita del día, elegida según el progreso de la última semana. Sin `manual`, llega cuando sueles empezar el día. */
+  wisdom: { enabled: boolean; time: string; manual: boolean };
   /** Pausas activas cada `everyMinutes` entre `from` y `to` (sin la de `from`); `workdays`: solo de lunes a viernes. */
   breaks: { enabled: boolean; everyMinutes: BreakMinutes; from: string; to: string; workdays: boolean };
   /** Hábitos de hoy sin marcar: un aviso a esta hora si queda alguno. */
@@ -30,12 +33,12 @@ export const BREAK_MINUTES = [30, 45, 60, 90, 120] as const;
 export type BreakMinutes = (typeof BREAK_MINUTES)[number];
 
 export const DEFAULT_SMART_SETTINGS: SmartReminderSettings = {
-  coliseo: { time: null },
+  coliseo: { time: null, learn: true },
   care: { enabled: true, morning: '08:00', night: '22:00' },
   cycle: { enabled: true },
   hydration: { enabled: false, everyHours: 2, from: '09:00', to: '21:00' },
   meals: { enabled: false, times: ['09:00', '14:00', '20:00'] },
-  wisdom: { enabled: true, time: '08:00' },
+  wisdom: { enabled: true, time: '08:00', manual: false },
   breaks: { enabled: false, everyMinutes: 60, from: '09:00', to: '18:00', workdays: true },
   // Mismo aviso que antes iba fijo a las 21:00 para todos: ahora la hora se elige.
   habits: { enabled: true, time: '21:00', manual: false },
@@ -77,7 +80,7 @@ export function sanitizeSmartSettings(raw: unknown): SmartReminderSettings {
     : d.meals.times;
 
   return {
-    coliseo: { time: typeof coliseo.time === 'string' && HHMM.test(coliseo.time) ? coliseo.time : null },
+    coliseo: { time: typeof coliseo.time === 'string' && HHMM.test(coliseo.time) ? coliseo.time : null, learn: bool(coliseo.learn, d.coliseo.learn) },
     care: { enabled: bool(care.enabled, d.care.enabled), morning: hhmm(care.morning, d.care.morning), night: hhmm(care.night, d.care.night) },
     cycle: { enabled: bool(cycle.enabled, d.cycle.enabled) },
     hydration: {
@@ -87,7 +90,12 @@ export function sanitizeSmartSettings(raw: unknown): SmartReminderSettings {
       to: hhmm(hydration.to, d.hydration.to),
     },
     meals: { enabled: bool(meals.enabled, d.meals.enabled), times },
-    wisdom: { enabled: bool(wisdom.enabled, d.wisdom.enabled), time: hhmm(wisdom.time, d.wisdom.time) },
+    wisdom: {
+      enabled: bool(wisdom.enabled, d.wisdom.enabled),
+      time: hhmm(wisdom.time, d.wisdom.time),
+      // Igual que en hábitos: una hora guardada distinta de la por defecto la eligió la persona.
+      manual: bool(wisdom.manual, hhmm(wisdom.time, d.wisdom.time) !== d.wisdom.time),
+    },
     breaks: {
       enabled: bool(breaks.enabled, d.breaks.enabled),
       everyMinutes: (BREAK_MINUTES as readonly number[]).includes(breakEvery) ? (breakEvery as BreakMinutes) : d.breaks.everyMinutes,
@@ -114,9 +122,11 @@ export function mergeSmartSettings(current: unknown, patch: unknown): SmartRemin
     merged[key] = { ...base[key], ...(isObject(part) ? part : {}) };
   }
   // Una hora distinta de la guardada es una elección de la persona: gana siempre a la aprendida.
-  const habitsPatch = isObject(changes.habits) ? changes.habits : {};
-  if (habitsPatch.time !== undefined && habitsPatch.time !== base.habits.time && habitsPatch.manual === undefined) {
-    (merged.habits as Record<string, unknown>).manual = true;
+  for (const key of ['habits', 'wisdom'] as const) {
+    const patchPart = isObject(changes[key]) ? changes[key] : {};
+    if (patchPart.time !== undefined && patchPart.time !== base[key].time && patchPart.manual === undefined) {
+      (merged[key] as Record<string, unknown>).manual = true;
+    }
   }
   return sanitizeSmartSettings(merged);
 }
@@ -182,6 +192,7 @@ export const AUTOMATIC_PREFIXES = [
   'zone-reminder:rachas:',
   'zone-reminder:gremio:',
   'zone-reminder:gimnasio:',
+  'coliseo-learned-',
 ] as const;
 /** Avisos automáticos por día, como máximo. */
 export const DAILY_AUTOMATIC_CAP = 2;
@@ -213,15 +224,16 @@ export function isRestricted(p: QueuedPush): boolean {
  * Qué sale de lo encolado en una pasada para una persona. `sentToday`: automáticos que ya se
  * enviaron hoy; `minutes`: hora local; `inactive`: lleva INACTIVE_PAUSE_DAYS sin abrir la app;
  * `ignored`: los últimos 3 automáticos siguen sin abrir (el tope baja a la mitad).
+ * `cooling`: prefijos cuyos últimos avisos nadie abrió (coolingPrefixes): su push no sale.
  * `send`: los avisos que salen tal cual (todos los programados y los automáticos que caben).
  * `group`: si caen dos o más automáticos, un solo aviso («3 cosas para esta tarde») en su lugar.
  */
-export function planPushes<T extends QueuedPush>(queued: T[], opts: { minutes: number; sentToday: number; inactive: boolean; ignored?: boolean }): { send: T[]; group: QueuedPush | null } {
+export function planPushes<T extends QueuedPush>(queued: T[], opts: { minutes: number; sentToday: number; inactive: boolean; ignored?: boolean; cooling?: ReadonlySet<string> }): { send: T[]; group: QueuedPush | null } {
   const quiet = opts.minutes >= QUIET_FROM || opts.minutes < QUIET_TO;
   const cap = opts.ignored ? Math.floor(DAILY_AUTOMATIC_CAP / 2) : DAILY_AUTOMATIC_CAP;
   let budget = opts.inactive || quiet ? 0 : Math.max(0, cap - opts.sentToday);
   const scheduled = queued.filter((p) => !isRestricted(p));
-  const automatic = queued.filter(isRestricted).filter(() => budget-- > 0);
+  const automatic = queued.filter(isRestricted).filter((p) => !opts.cooling?.has(prefixOf(p.key) ?? '')).filter(() => budget-- > 0);
   if (automatic.length < 2) return { send: [...scheduled, ...automatic], group: null };
   const names = automatic.map((p) => p.title.replace(/^Hora de: /, ''));
   const part = opts.minutes < 12 * 60 ? 'esta mañana' : opts.minutes < 19 * 60 ? 'esta tarde' : 'esta noche';
@@ -356,12 +368,52 @@ export const LEARN_LEAD_MIN = 30;
 
 /**
  * Hora del aviso (minutos del día) a partir de los minutos locales de cada cumplimiento:
- * la mediana menos LEARN_LEAD_MIN. null si hay menos de LEARN_MIN_SAMPLES cumplimientos.
+ * la mediana menos `lead`. null si hay menos de LEARN_MIN_SAMPLES cumplimientos.
+ * ponytail: mediana lineal; hábitos a ambos lados de medianoche (23:50 y 00:10) dan una hora rara, usar media circular si aparecen.
  */
-export function learnedHabitTime(minutesOfDay: number[]): number | null {
+export function learnedHabitTime(minutesOfDay: number[], lead = LEARN_LEAD_MIN): number | null {
   if (minutesOfDay.length < LEARN_MIN_SAMPLES) return null;
   const sorted = [...minutesOfDay].sort((a, b) => a - b);
   const mid = sorted.length >> 1;
   const median = sorted.length % 2 ? sorted[mid] : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
-  return (median - LEARN_LEAD_MIN + 1440) % 1440;
+  return (median - lead + 1440) % 1440;
 }
+
+/** Días de entreno habituales (0 = domingo): los que se repiten al menos `min` veces en la ventana. */
+export function usualWeekdays(weekdays: number[], min = 2): number[] {
+  const count = new Map<number, number>();
+  for (const d of weekdays) count.set(d, (count.get(d) ?? 0) + 1);
+  return [...count].filter(([, n]) => n >= min).map(([d]) => d).sort((a, b) => a - b);
+}
+
+/** Avisos de cada zona en Ajustes (para pausarlos o reanudarlos por zona). */
+export const ZONE_PREFIXES = {
+  habits: ['zone-reminder:habitos-pendientes:'],
+  wisdom: ['wisdom-'],
+  coliseo: ['coliseo-learned-', 'zone-reminder:gimnasio:'],
+  cycle: ['cycle-'],
+} as const;
+export type LearnZone = keyof typeof ZONE_PREFIXES;
+
+/** Avisos sin abrir seguidos que pausan el push de su zona. */
+export const COOL_AFTER = 3;
+/** Solo cuentan los avisos de estos últimos días. */
+export const COOL_WINDOW_DAYS = 21;
+
+/**
+ * Prefijos automáticos «en pausa»: sus últimos COOL_AFTER avisos (de la ventana) siguen sin abrir.
+ * El aviso nuevo se guarda igual en la bandeja; solo se calla el push. Abrir uno lo reanuda.
+ * `recent`: avisos anteriores a esta pasada, del más nuevo al más viejo.
+ */
+export function coolingPrefixes(recent: Array<{ key: string | null; isRead: boolean; createdAt: Date }>, now: Date): Set<string> {
+  const since = now.getTime() - COOL_WINDOW_DAYS * 86_400_000;
+  const out = new Set<string>();
+  for (const prefix of AUTOMATIC_PREFIXES) {
+    const last = recent.filter((n) => n.key?.startsWith(prefix) && n.createdAt.getTime() >= since).slice(0, COOL_AFTER);
+    if (last.length === COOL_AFTER && last.every((n) => !n.isRead)) out.add(prefix);
+  }
+  return out;
+}
+
+/** Prefijo automático de una clave (o undefined si no es automática). */
+export const prefixOf = (key: string | undefined) => AUTOMATIC_PREFIXES.find((p) => key?.startsWith(p));

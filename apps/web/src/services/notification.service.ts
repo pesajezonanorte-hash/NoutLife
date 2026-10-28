@@ -12,12 +12,14 @@ export interface NotificationCategoryPreference {
 
 /** Horarios de los avisos inteligentes (espejo de lib/smart-reminders.ts de la API). */
 export interface SmartReminderSettings {
-  coliseo: { time: string | null };
+  /** `learn`: aprender días y hora de entreno de las sesiones; `time`: hora fija (gana a la aprendida). */
+  coliseo: { time: string | null; learn?: boolean };
   care: { enabled: boolean; morning: string; night: string };
   cycle: { enabled: boolean };
   hydration: { enabled: boolean; everyHours: 1 | 2 | 3 | 4; from: string; to: string };
   meals: { enabled: boolean; times: string[] };
-  wisdom: { enabled: boolean; time: string };
+  /** Sin `manual`, la cita llega cuando sueles empezar el día. */
+  wisdom: { enabled: boolean; time: string; manual?: boolean };
   /** Pausas activas durante la jornada (la primera, un intervalo después de `from`). */
   breaks: { enabled: boolean; everyMinutes: 30 | 45 | 60 | 90 | 120; from: string; to: string; workdays: boolean };
   /** Hábitos de hoy sin marcar: un aviso a esta hora. */
@@ -173,6 +175,28 @@ export async function getNotificationPreferences(): Promise<NotificationPreferen
 export async function updateNotificationPreferences(prefs: Partial<Omit<NotificationPreferences, 'reminderSettings'>> & { categoryPreferences?: NotificationCategoryPreference[]; reminderSettings?: SmartReminderPatch }) {
   const { data } = await api.patch<{ preferences: NotificationPreferences }>('/notifications/preferences', prefs);
   return data.preferences;
+}
+
+/** Zonas que aprenden de la persona (hora habitual) y que se pausan solas si nadie abre sus avisos. */
+export type LearnZone = 'habits' | 'wisdom' | 'coliseo' | 'cycle';
+
+/** Lo aprendido: minutos del día a los que saldría cada aviso (null = aún sin datos) y zonas en pausa. */
+export interface LearningInsights {
+  habits: { at: number | null };
+  wisdom: { at: number | null };
+  coliseo: { at: number | null; weekdays: number[] };
+  paused: LearnZone[];
+}
+
+export async function fetchLearningInsights(): Promise<LearningInsights> {
+  const { data } = await api.get<LearningInsights>('/notifications/insights');
+  return data;
+}
+
+/** Reanuda una zona en pausa (sus avisos sin abrir pasan a leídos) y devuelve lo aprendido. */
+export async function resumeLearnZone(zone: LearnZone): Promise<LearningInsights> {
+  const { data } = await api.post<LearningInsights>('/notifications/insights/resume', { zone });
+  return data;
 }
 
 /** Pospone un aviso 10 min: el servidor lo vuelve a enviar a su hora, aunque la app esté cerrada. */

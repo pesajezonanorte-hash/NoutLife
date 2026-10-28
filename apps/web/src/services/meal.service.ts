@@ -69,3 +69,12 @@ export async function parseMeal(description: string): Promise<ParsedMeal> {
   const { data } = await api.post<ParsedMeal>('/nutrition/ai-parse', { description });
   return data;
 }
+
+/**
+ * Foto del plato → kcal y macros (la misma forma que parseMeal). La imagen llega ya
+ * reducida (≤384 px, JPEG): así el análisis gasta pocos tokens. `hint`: detalles opcionales.
+ */
+export async function scanMealPhoto(body: { image: string; mimeType: 'image/jpeg'; hint?: string; lang?: 'es' | 'en' }): Promise<ParsedMeal> {
+  const { data } = await api.post<ParsedMeal>('/nutrition/ai-photo', { ...body, hint: body.hint?.slice(0, 200) || undefined });
+  return data;
+}

@@ -1,5 +1,5 @@
 import { prisma } from '../lib/prisma';
-import { generateText, hasAIProvider } from '../lib/ai';
+import { generateFromImage, generateText, hasAIProvider, hasVisionProvider } from '../lib/ai';
 
 // ─── Nutrition Goals ───────────────────────────────────────────────────────────
 
@@ -176,6 +176,59 @@ Comida del usuario: "${trimmed}"`;
     recognized: true,
     needsIngredients: false,
   };
+}
+
+// ─── Foto del plato ────────────────────────────────────────────────────────────
+
+/**
+ * Prompt de visión comprimido (~50 tokens): en inglés porque cuesta menos tokens, claves
+ * de una letra en la respuesta y la imagen ya llega reducida desde el móvil (≤384 px).
+ */
+export function photoPrompt(lang: 'es' | 'en', hint?: string): string {
+  return [
+    'Food photo. Estimate the visible portion. Latin American dishes are common. Reply JSON only:',
+    `{"ok":true,"n":"short dish name in ${lang === 'en' ? 'English' : 'Spanish'}","k":kcal,"p":protein_g,"c":carbs_g,"f":fat_g}`,
+    'Not food or unclear: {"ok":false}',
+    hint ? `Hint: ${hint.slice(0, 160)}` : '',
+  ].filter(Boolean).join('\n');
+}
+
+/** Respuesta compacta del modelo → la misma forma que el análisis por texto. */
+export function mealFromPhotoReply(text: string, fallbackName = ''): ParsedMeal {
+  const parsed = extractJsonObject(text) as Record<string, unknown> | null;
+  const name = typeof parsed?.n === 'string' && parsed.n.trim() ? parsed.n.trim().slice(0, 80) : fallbackName.slice(0, 80);
+  const kcal = num(parsed?.k);
+  if (!parsed || parsed.ok !== true || kcal <= 0) {
+    return { name, estimatedCalories: 0, estimatedProtein: 0, estimatedCarbs: 0, estimatedFat: 0, aiAvailable: true, aiSucceeded: Boolean(parsed), recognized: false, needsIngredients: true };
+  }
+  return {
+    name,
+    estimatedCalories: kcal,
+    estimatedProtein: num(parsed.p),
+    estimatedCarbs: num(parsed.c),
+    estimatedFat: num(parsed.f),
+    aiAvailable: true,
+    aiSucceeded: true,
+    recognized: true,
+    needsIngredients: false,
+  };
+}
+
+/** Estima kcal y macros a partir de la foto del plato (y una pista opcional de la persona). */
+export async function scanMealPhoto(input: { image: string; mimeType: string; hint?: string; lang?: 'es' | 'en' }): Promise<ParsedMeal> {
+  const hint = input.hint?.trim() ?? '';
+  const empty: ParsedMeal = {
+    name: hint.slice(0, 80), estimatedCalories: 0, estimatedProtein: 0, estimatedCarbs: 0, estimatedFat: 0,
+    aiAvailable: hasVisionProvider(), aiSucceeded: false, recognized: false, needsIngredients: false,
+  };
+  if (!hasVisionProvider()) return empty;
+  try {
+    const text = await generateFromImage(photoPrompt(input.lang ?? 'es', hint), { data: input.image, mimeType: input.mimeType }, { temperature: 0.1, maxTokens: 120 });
+    return mealFromPhotoReply(text, hint);
+  } catch (e) {
+    console.error('[scanMealPhoto] AI provider failed:', e instanceof Error ? e.message : e);
+    return empty;
+  }
 }
 
 // ─── Daily Macro Summary ───────────────────────────────────────────────────────

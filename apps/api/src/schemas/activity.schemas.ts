@@ -77,6 +77,17 @@ export const createMealSchema = z.object({
   date: parsableDate.optional(),
 });
 
+/**
+ * POST /nutrition/ai-photo: foto del plato ya reducida en el móvil (≤384 px, JPEG), en base64
+ * sin el prefijo data:. El tope (~300 KB) deja fuera fotos sin reducir: cuestan muchos más tokens.
+ */
+export const photoMealSchema = z.object({
+  image: z.string().min(100).max(400_000, 'La foto es demasiado grande: vuelve a tomarla.').regex(/^[A-Za-z0-9+/=]+$/, 'La foto no es válida.'),
+  mimeType: z.enum(['image/jpeg', 'image/png', 'image/webp']),
+  hint: z.string().trim().max(200).optional(),
+  lang: z.enum(['es', 'en']).optional(),
+});
+
 /** Recreación: qué tipo de ocio fue y si ya se vivió o está en cartelera. */
 export const RECREATION_KINDS = ['MOVIE', 'SERIES', 'GAME', 'OUTING', 'HOBBY', 'MUSIC', 'OTHER'] as const;
 export const RECREATION_STATUSES = ['DONE', 'PLANNED'] as const;
@@ -147,6 +158,51 @@ export const finishWorkoutSchema = z.object({
 export const updateWorkoutSchema = finishWorkoutSchema.extend({
   title: z.string().trim().min(1).max(200).optional(),
 });
+
+/** Grupos y equipos del catálogo (exercise-catalog): los ejercicios propios usan los mismos. */
+export const EXERCISE_GROUPS = ['Pecho', 'Espalda', 'Hombros', 'Bíceps', 'Tríceps', 'Piernas', 'Core', 'Cardio'] as const;
+export const EXERCISE_EQUIPMENT = ['Barra', 'Mancuernas', 'Máquina', 'Polea', 'Peso Corporal', 'Banco', 'Cuerda'] as const;
+
+/** POST /workouts/exercises: ejercicio propio, guardado en la cuenta. */
+export const createExerciseSchema = z.object({
+  name: z.string().trim().min(2, 'Ponle un nombre de al menos 2 letras.').max(60, 'El nombre admite hasta 60 caracteres.'),
+  muscleGroup: z.enum(EXERCISE_GROUPS),
+  equipment: z.enum(EXERCISE_EQUIPMENT).optional(),
+});
+
+// Rutina guardada (plantilla): cada ejercicio con sus series objetivo (peso, reps y clase).
+const targetSetSchema = z.object({
+  weight: z.number().finite().min(0).max(10000).optional(),
+  reps: z.number().finite().min(0).max(10000).optional(),
+  duration: z.number().finite().min(0).max(86400).optional(),
+  type: z.enum(SET_TYPES).optional(),
+});
+
+const routineExerciseSchema = z.object({
+  exerciseId: z.string().min(1).max(64),
+  name: z.string().trim().min(1).max(100),
+  muscleGroup: z.string().trim().max(40).optional(),
+  equipment: z.string().trim().max(40).optional(),
+  sets: z.number().int().min(0).max(30),
+  reps: z.number().finite().min(0).max(10000).optional(),
+  weight: z.number().finite().min(0).max(10000).optional(),
+  notes: z.string().max(500).optional(),
+  targetSets: z.array(targetSetSchema).max(30).optional(),
+});
+
+/** POST /workouts/routines. `days` (plan semanal) lo valida el servicio (normalizeRoutineDays). */
+export const routineSchema = z.object({
+  name: z.string().trim().min(1, 'Ponle un nombre a la rutina.').max(100),
+  description: z.string().trim().max(500).optional(),
+  exercises: z.array(routineExerciseSchema).max(30).optional(),
+  targetDays: z.array(z.union([z.string().max(20), z.number().int().min(0).max(6)])).max(7).optional(),
+  estimatedDuration: z.number().int().min(1).max(600).optional(),
+  isActive: z.boolean().optional(),
+  days: z.array(z.unknown()).max(7).optional(),
+});
+
+/** PATCH /workouts/routines/:id: lo mismo, todo opcional. */
+export const updateRoutineSchema = routineSchema.partial();
 
 export const createLearningSchema = z.object({
   type: z.string().trim().min(1, 'El tipo es obligatorio.'),
