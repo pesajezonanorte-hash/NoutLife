@@ -4,6 +4,7 @@ import {
   clearRefreshSessionExpected,
   markRefreshSessionExpected,
 } from '../lib/session-hint';
+import { AUTH_TIMEOUT_MS } from '../lib/timeout';
 
 /** ID público de Google (viene de la API, no del build). */
 export async function getProviders() {
@@ -29,7 +30,7 @@ export async function fetchMe(): Promise<AuthResponse['user']> {
 
 export async function refreshToken(): Promise<AuthResponse> {
   try {
-    const { data } = await api.post<AuthResponse>('/auth/refresh');
+    const { data } = await api.post<AuthResponse>('/auth/refresh', undefined, { timeout: AUTH_TIMEOUT_MS });
     markRefreshSessionExpected();
     return data;
   } catch (error) {

@@ -6,6 +6,7 @@ import type { ProFeature, ProLock } from './plan';
 import { clearRefreshSessionExpected, markRefreshSessionExpected } from './session-hint';
 import { announceLifeChange, lifeZoneOf } from './lifeSync';
 import { getLocale } from './i18n';
+import { AUTH_TIMEOUT_MS } from './timeout';
 
 /**
  * En producción la API se pide en el mismo dominio de la web (/api/v1), que
@@ -103,7 +104,7 @@ api.interceptors.response.use(
         const { data } = await axios.post(
           `${API_BASE}/auth/refresh`,
           {},
-          { withCredentials: true }
+          { withCredentials: true, timeout: AUTH_TIMEOUT_MS }
         );
 
         useAuthStore.getState().setAccessToken(data.accessToken);
