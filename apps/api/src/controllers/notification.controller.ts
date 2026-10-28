@@ -2,10 +2,31 @@ import { Response } from 'express';
 import type { AuthRequest } from '../middleware/auth.middleware';
 import * as notificationService from '../services/notification.service';
 import * as snoozeService from '../services/snooze.service';
+import { learningInsights, resumeZone } from '../services/smart-reminder.service';
 
 export async function pushClick(req: AuthRequest, res: Response): Promise<void> {
   await notificationService.recordPushEvent(req.userId!, 'clicked', req.body.category);
+  // Abrir el push cuenta como leído: es la señal con la que cada zona aprende si interesa.
+  if (req.body.tag) await notificationService.markReadByKeys(req.userId!, [req.body.tag]);
   res.status(204).end();
+}
+
+/** Lo aprendido de la persona (horas habituales y zonas en pausa) para Ajustes. */
+export async function insights(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    res.json(await learningInsights(req.userId!));
+  } catch {
+    res.status(500).json({ error: 'No se pudo leer lo aprendido de tus avisos.' });
+  }
+}
+
+export async function resume(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    await resumeZone(req.userId!, req.body.zone);
+    res.json(await learningInsights(req.userId!));
+  } catch {
+    res.status(500).json({ error: 'No se pudieron reanudar los avisos.' });
+  }
 }
 
 export async function snooze(req: AuthRequest, res: Response): Promise<void> {

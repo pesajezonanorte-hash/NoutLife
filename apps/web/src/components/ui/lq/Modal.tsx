@@ -20,6 +20,7 @@ const FOCUSABLE =
  */
 let locks = 0;
 let saved: { y: number; style: string } | null = null;
+let anchor: { el: Element; top: number } | null = null;
 export function lockScroll() {
   locks += 1;
   if (locks > 1) return;
@@ -28,13 +29,34 @@ export function lockScroll() {
   const gap = window.innerWidth - document.documentElement.clientWidth;
   Object.assign(document.body.style, { position: 'fixed', top: `-${y}px`, left: '0', right: '0', width: '100%', overflow: 'hidden', paddingRight: gap ? `${gap}px` : '' });
 }
+
+/**
+ * Con un diálogo abierto, deja `el` en el mismo sitio de la pantalla al cerrarlo aunque cambie
+ * lo de arriba (p. ej. al borrar algo). Con el body fijo el navegador no ancla el scroll y la
+ * posición guardada hacía saltar la página. Se llama antes de aplicar el cambio.
+ */
+export function keepOnUnlock(el: Element | null | undefined) {
+  anchor = el && locks > 0 ? { el, top: el.getBoundingClientRect().top } : null;
+}
+
 export function unlockScroll() {
   locks = Math.max(0, locks - 1);
   if (locks > 0 || !saved) return;
-  const { y, style } = saved;
+  const { style } = saved;
+  let { y } = saved;
   saved = null;
   document.body.setAttribute('style', style);
   window.scrollTo({ top: y, behavior: 'instant' as ScrollBehavior });
+  // En el mismo instante (sin pintar entre medias): corrige lo que se movió el ancla.
+  if (anchor) {
+    const { el, top } = anchor;
+    anchor = null;
+    const shift = el.isConnected ? el.getBoundingClientRect().top - top : 0;
+    if (Math.abs(shift) > 1) {
+      y = Math.max(0, y + shift);
+      window.scrollTo({ top: y, behavior: 'instant' as ScrollBehavior });
+    }
+  }
   // iOS: si el teclado aún se está cerrando, la vista queda desplazada y la
   // barra inferior fuera de sitio. Se vuelve a colocar cuando termina.
   const vv = window.visualViewport;
@@ -77,7 +99,9 @@ export function useDialogBehavior(open: boolean, onClose: () => void) {
     return () => {
       document.removeEventListener('keydown', onKey);
       unlockScroll();
-      previous?.focus?.();
+      // Sin desplazar: si el botón que abrió el diálogo cambió de sitio (p. ej. se borró
+      // la fila de arriba), enfocarlo movía toda la página en el móvil.
+      previous?.focus?.({ preventScroll: true });
     };
   }, [open]);
 

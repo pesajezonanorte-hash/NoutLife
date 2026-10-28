@@ -113,6 +113,8 @@ export async function resetAccountData(userId: string): Promise<AccountResetSumm
     await remove('rituals', () => tx.ritual.deleteMany({ where: { userId } }));
     await remove('careRoutines', () => tx.careRoutine.deleteMany({ where: { userId } }));
     await remove('workouts', () => tx.workout.deleteMany({ where: { userId } }));
+    // Ejercicios propios: después de las sesiones y rutinas que los usaban.
+    await remove('customExercises', () => tx.exercise.deleteMany({ where: { userId } }));
     // Asistencia del Coliseo (calendario y racha de entrenos): sin esto el Coliseo
     // seguía mostrando los días entrenados después de reiniciar la cuenta.
     await remove('coliseoAttendances', () => tx.coliseoAttendance.deleteMany({ where: { userId } }));

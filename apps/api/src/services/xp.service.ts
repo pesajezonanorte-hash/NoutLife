@@ -302,3 +302,27 @@ export async function awardXpAndGold(
 
   return { leveledUp, oldLevel, newLevel: currentLevel, xpGained: xp, goldGained: gold, statIncreases };
 }
+
+/**
+ * Deshace una recompensa ya dada: resta su XP (bajando de nivel si hace falta) y su
+ * oro (sin bajar de cero) y borra el evento del registro. Devuelve lo que se quitó.
+ */
+export async function revokeXpEvent(userId: string, event: { id: string; xpAmount: number; goldAmount: number }) {
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { xp: true, level: true, xpToNextLevel: true, gold: true } });
+  let xp = user.xp - event.xpAmount;
+  let level = user.level;
+  let next = user.xpToNextLevel;
+  while (xp < 0 && level > 1) {
+    level -= 1;
+    next = xpForLevel(level);
+    xp += next;
+  }
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: userId },
+      data: { xp: Math.max(0, xp), level, xpToNextLevel: next, gold: Math.max(0, user.gold - event.goldAmount) },
+    }),
+    prisma.xpEvent.delete({ where: { id: event.id } }),
+  ]);
+  return { xpRemoved: event.xpAmount, goldRemoved: event.goldAmount };
+}

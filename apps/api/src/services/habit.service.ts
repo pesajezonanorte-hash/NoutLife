@@ -1,8 +1,9 @@
 import { prisma } from '../lib/prisma';
 import { addCalendarDays, DEFAULT_TIMEZONE, getCalendarDay, parseCalendarDate } from '../lib/calendar';
-import { awardXpAndGold, xpForLevel } from './xp.service';
+import { awardXpAndGold, revokeXpEvent } from './xp.service';
 import { checkAchievements } from './achievement.service';
 import { createNotification } from './notification.service';
+import { iconEmoji } from '../lib/notification-text';
 import { removeHabitFromGoogleCalendar, syncHabitWithGoogleCalendar } from './agenda.service';
 import { recordHabitColiseoAttendance } from './coliseo-attendance.service';
 import type { QuestCategory } from '@prisma/client';
@@ -611,11 +612,12 @@ export async function logHabit(
 
     // Personalized notification with real data
     const streakMsg = currentStreak >= 2 ? ` 🔥 Racha: ${currentStreak} días` : '';
+    // El ícono se guarda como clave ('gym', 'code'…): en el título va su emoji, nunca la clave.
     createNotification(userId, {
       type: 'habit_completed',
-      title: `${habit.icon ?? '✅'} "${habit.title}" completado`,
+      title: `${iconEmoji(habit.icon)} "${habit.title}" completado`,
       body: `+${result.xpGained} XP.${streakMsg}`,
-      icon: habit.icon ?? '✅',
+      icon: iconEmoji(habit.icon),
       link: '/habits',
       silentForeground: true,
     }).catch(() => {});
@@ -683,26 +685,7 @@ export async function undoHabitLog(userId: string, habitId: string) {
       where: { userId, source: 'habit_completed', sourceId: habitId, createdAt: { gte: new Date(existing.loggedAt.getTime() - 60_000) } },
       orderBy: { createdAt: 'desc' },
     });
-    if (event) {
-      const user = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { xp: true, level: true, xpToNextLevel: true, gold: true } });
-      let xp = user.xp - event.xpAmount;
-      let level = user.level;
-      let next = user.xpToNextLevel;
-      while (xp < 0 && level > 1) {
-        level -= 1;
-        next = xpForLevel(level);
-        xp += next;
-      }
-      await prisma.$transaction([
-        prisma.user.update({
-          where: { id: userId },
-          data: { xp: Math.max(0, xp), level, xpToNextLevel: next, gold: Math.max(0, user.gold - event.goldAmount) },
-        }),
-        prisma.xpEvent.delete({ where: { id: event.id } }),
-      ]);
-      xpRemoved = event.xpAmount;
-      goldRemoved = event.goldAmount;
-    }
+    if (event) ({ xpRemoved, goldRemoved } = await revokeXpEvent(userId, event));
     await prisma.habitLog.update({ where: { id: existing.id }, data: { rewardsGranted: false } });
     await prisma.recoveryChallenge.updateMany({
       where: { userId, habitId, isCompleted: false, currentDays: { gt: 0 } },

@@ -247,6 +247,7 @@ model User {
   financialGoals          FinancialGoal[]
   savingsEntries          SavingsEntry[]
   workouts                Workout[]
+  customExercises         Exercise[]
   meals                   Meal[]
   recreationEntries       RecreationEntry[]
   notebooks               Notebook[]
@@ -698,13 +699,18 @@ model Workout {
 
 model Exercise {
   id          String  @id @default(cuid())
-  name        String  @unique
+  name        String
   muscleGroup String?
   equipment   String?
+  /// null: catálogo para todos. Con dueño: ejercicio que creó esa persona (solo lo ve ella).
+  userId      String?
+  user        User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   workoutExercises WorkoutExercise[]
   routineDayExercises RoutineDayExercise[]
 
+  // El catálogo (userId null) tiene además un índice único parcial por nombre (migrate-db).
+  @@unique([userId, name])
   @@map("exercises")
 }
 

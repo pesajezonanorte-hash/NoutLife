@@ -70,15 +70,11 @@ export async function finishWorkout(req: AuthRequest, res: Response): Promise<vo
 
 export async function deleteWorkout(req: AuthRequest, res: Response): Promise<void> {
   try {
-    await svc.deleteWorkout(req.userId!, req.params.id);
-    res.json({ success: true });
+    const revoked = await svc.deleteWorkout(req.userId!, req.params.id);
+    res.json({ success: true, ...revoked });
   } catch (error) {
     const code = error instanceof Error ? error.message : '';
     if (code === 'WORKOUT_NOT_FOUND') { res.status(404).json({ error: 'Entrenamiento no encontrado.' }); return; }
-    if (code === 'WORKOUT_COMPLETED_CANNOT_DELETE') {
-      res.status(409).json({ error: 'No se puede eliminar un entrenamiento que ya otorgó XP. Puedes editarlo para corregirlo.' });
-      return;
-    }
     res.status(500).json({ error: 'Error al eliminar entrenamiento.' });
   }
 }
@@ -118,9 +114,22 @@ export async function recordAttendance(req: AuthRequest, res: Response): Promise
 
 export async function listExercises(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const exercises = await svc.listExercises(req.query.search as string, req.query.muscleGroup as string);
+    const exercises = await svc.listExercises(req.userId!, req.query.search as string, req.query.muscleGroup as string);
     res.json({ exercises });
   } catch { res.status(500).json({ error: 'Error al obtener ejercicios.' }); }
+}
+
+export async function createExercise(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const { exercise, created } = await svc.createExercise(req.userId!, req.body);
+    res.status(created ? 201 : 200).json({ exercise, created });
+  } catch (error) {
+    if (error instanceof Error && error.message === 'CUSTOM_EXERCISE_LIMIT') {
+      res.status(409).json({ error: `Llegaste al máximo de ${svc.MAX_CUSTOM_EXERCISES} ejercicios propios.` });
+      return;
+    }
+    res.status(500).json({ error: 'No se pudo crear el ejercicio.' });
+  }
 }
 
 export async function getExerciseProgress(req: AuthRequest, res: Response): Promise<void> {

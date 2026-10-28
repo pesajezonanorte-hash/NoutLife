@@ -11,13 +11,14 @@ import {
 import type { Workout, Routine } from '@noutlife/shared';
 import { cn } from '@/lib/utils';
 import { expo, heavy, item, slam, stagger, useCountUp } from '@/lib/motion';
-import { muscleStates, pplBalance, tonnage, workoutTonnage } from '@/lib/coliseo';
+import { muscleStates, pplBalance, routineFromSession, tonnage, workoutTonnage, type SessionExercise } from '@/lib/coliseo';
 import { exerciseName } from '@/components/coliseo/exerciseText';
 import { INTL_LOCALE, useLocale, useText, type Copy } from '@/lib/i18n';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { useToast } from '../../hooks/useToast';
 import { AnimatedValue, Badge, Button, Card, ChipGroup, Confetti, DayDot, EmptyState, ErrorState, Field, IconChip, Input, Modal, ProgressBar, formatClock, type DayStatus, type Tone, PageLoader } from '@/components/ui/lq';
+import { keepOnUnlock } from '@/components/ui/lq/Modal';
 import { useLoadingCopy } from '@/lib/loadingCopy';
 import * as workoutService from '../../services/workout.service';
 import { SageContextButton } from '../../components/sage/SageContextButton';
@@ -116,7 +117,21 @@ const es = {
   deleteTitleRoutine: 'Eliminar rutina',
   deleteTitleWorkout: 'Eliminar entrenamiento',
   confirmDelete: (kind: 'routine' | 'workout', name: string): string => `¿Seguro que quieres eliminar ${kind === 'routine' ? 'la rutina' : 'el entrenamiento'} «${name}»? Esta acción no se puede deshacer.`,
+  deleteXpNote: (xp: number): string => `Se descontarán los ${xp} XP que te dio.`,
+  xpRemoved: (xp: number): string => `Se descontaron ${xp} XP`,
   deleteBtn: 'Eliminar',
+  saveRoutine: 'Guardar como rutina',
+  saveRoutineAria: (name: string): string => `Guardar «${name}» como rutina`,
+  saveRoutineHelp: 'Se guardan los ejercicios y las series de esta sesión. La próxima vez empiezas con los mismos pesos, repeticiones y tipo de serie, y solo ajustas.',
+  updateRoutineHelp: 'La rutina se queda con los pesos, repeticiones y tipos de serie de hoy para la próxima vez.',
+  routineName: 'Nombre de la rutina',
+  updateRoutine: (name: string): string => `Actualizar «${name}»`,
+  saveAsNew: 'Guardar como nueva',
+  routineSaved: 'Rutina guardada',
+  routineSavedSub: 'La tienes en Rutinas, lista para repetir.',
+  routineUpdated: 'Rutina actualizada',
+  routineSaveErr: 'No se pudo guardar la rutina',
+  setsByReps: (sets: number, reps: number): string => `${sets}×${reps}`,
   newWorkoutTitle: 'Nuevo entrenamiento',
   workoutName: 'Nombre del entrenamiento',
   workoutNamePlaceholder: 'Empuje, piernas…',
@@ -221,7 +236,21 @@ const en: typeof es = {
   deleteTitleRoutine: 'Delete routine',
   deleteTitleWorkout: 'Delete workout',
   confirmDelete: (kind: 'routine' | 'workout', name: string): string => `Are you sure you want to delete the ${kind} “${name}”? This cannot be undone.`,
+  deleteXpNote: (xp: number): string => `The ${xp} XP it gave you will be taken back.`,
+  xpRemoved: (xp: number): string => `${xp} XP taken back`,
   deleteBtn: 'Delete',
+  saveRoutine: 'Save as routine',
+  saveRoutineAria: (name: string): string => `Save “${name}” as a routine`,
+  saveRoutineHelp: 'The exercises and sets of this session are saved. Next time you start with the same weights, reps and set types, and only adjust.',
+  updateRoutineHelp: 'The routine keeps today’s weights, reps and set types for next time.',
+  routineName: 'Routine name',
+  updateRoutine: (name: string): string => `Update “${name}”`,
+  saveAsNew: 'Save as new',
+  routineSaved: 'Routine saved',
+  routineSavedSub: 'It is in Routines, ready to repeat.',
+  routineUpdated: 'Routine updated',
+  routineSaveErr: 'Could not save the routine',
+  setsByReps: (sets: number, reps: number): string => `${sets}×${reps}`,
   newWorkoutTitle: 'New workout',
   workoutName: 'Workout name',
   workoutNamePlaceholder: 'Push, legs…',
@@ -260,7 +289,23 @@ function routineExerciseCount(routine: Routine) {
 
 const workoutSets = (w: Workout) => w.exercises.reduce((a, ex) => a + ex.sets.filter((s) => s.completed).length, 0);
 
-interface Summary { title: string; xp: number; gold: number; seconds: number; sets: number; volume: number; cardio?: { label: string; distanceKm?: number } }
+interface Summary {
+  title: string; xp: number; gold: number; seconds: number; sets: number; volume: number; cardio?: { label: string; distanceKm?: number };
+  /** Lo hecho en la sesión, para guardarla como rutina (o actualizar la rutina de la que salió). */
+  session?: RoutineDraft;
+}
+
+/** Rutina por guardar: ejercicios con sus series; `routineId` si la sesión salió de una rutina. */
+interface RoutineDraft { name: string; exercises: SessionExercise[]; minutes?: number; routineId?: string }
+
+/** Una sesión guardada vista como ejercicios con series (para guardarla como rutina). */
+const workoutExercises = (w: Workout): SessionExercise[] => w.exercises.map((ex) => ({
+  exerciseId: ex.exerciseId, name: ex.exerciseName, muscleGroup: ex.muscleGroup,
+  sets: ex.sets.map((s) => ({ weight: s.weight, reps: s.reps, completed: s.completed, type: s.type })),
+}));
+
+/** Lo que el usuario miraba al tocar un botón (para keepOnUnlock): su tarjeta con título o, si no hay, el panel. */
+const anchorOf = (button: Element) => button.closest('article[aria-labelledby], section[aria-labelledby]') ?? button.closest('[role="tabpanel"]');
 
 /** La sesión en curso sobrevive a recargas y a que el móvil descarte la pestaña durante el descanso. */
 const sessionKey = (userId?: string) => `coliseo.session:${userId ?? 'anon'}`;
@@ -383,9 +428,15 @@ export default function ColiseoPage() {
   const [cardioSaving, setCardioSaving] = useState(false);
   const [showRestTimer, setShowRestTimer] = useState(false);
   const [newTitle, setNewTitle] = useState('');
-  /** Confirmación antes de borrar una rutina o un entrenamiento guardado. */
-  const [pendingDelete, setPendingDelete] = useState<{ kind: 'workout' | 'routine'; id: string; name: string } | null>(null);
+  /**
+   * Confirmación antes de borrar una rutina o un entrenamiento guardado. `xp`: lo que se
+   * descontará; `anchor`: la tarjeta que se miraba, para que no salte al borrar (keepOnUnlock).
+   */
+  const [pendingDelete, setPendingDelete] = useState<{ kind: 'workout' | 'routine'; id: string; name: string; xp?: number; anchor?: Element | null } | null>(null);
   const [deleting, setDeleting] = useState(false);
+  /** Guardar una sesión como rutina (desde el resumen o desde el último entrenamiento). */
+  const [routineDraft, setRoutineDraft] = useState<RoutineDraft | null>(null);
+  const [savingRoutine, setSavingRoutine] = useState(false);
   const [tab, setTab] = useState<ColiseoTab>('history');
   /** Sentido del cambio de pestaña: el panel entra desde ese lado. */
   const tabDir = useRef(1);
@@ -395,8 +446,12 @@ export default function ColiseoPage() {
   };
   const [summary, setSummary] = useState<Summary | null>(null);
 
-  const load = useCallback(async () => {
-    setState('loading');
+  /**
+   * `silent`: recarga después de terminar o registrar algo sin cambiar a «cargando». Así el
+   * mapa muscular y el panel no se desmontan y la página no salta en el móvil.
+   */
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setState('loading');
     try {
       const [ws, rs, attendance] = await Promise.all([
         // ponytail: las 60 últimas cubren el tonelaje de 30 días y el balance de 4 semanas hasta 2 sesiones al día; pasar a rango de fechas si alguien entrena más.
@@ -409,7 +464,7 @@ export default function ColiseoPage() {
       setAttendances(attendance);
       setState('ready');
     } catch {
-      setState('error');
+      if (!silent) setState('error');
     }
   }, []);
 
@@ -456,12 +511,17 @@ export default function ColiseoPage() {
           equipment: exercise.exercise.equipment,
           sets: (exercise.targetSets ?? []).map((set, index) => blankSet(index + 1, set.weight ? String(set.weight) : '', set.reps ? String(set.reps) : '')),
         }))
-        : (routine.exercises as Array<{ exerciseId: string; name: string; sets: number; reps?: number }>).map((exercise) => ({
+        : routine.exercises.map((exercise) => ({
           exerciseId: exercise.exerciseId,
           name: exercise.name,
-          sets: Array.from({ length: exercise.sets }, (_, index) => blankSet(index + 1, '', exercise.reps ? String(exercise.reps) : '')),
+          muscleGroup: exercise.muscleGroup,
+          equipment: exercise.equipment,
+          // Rutina guardada desde una sesión: cada serie llega con su peso, repeticiones y clase.
+          sets: exercise.targetSets?.length
+            ? exercise.targetSets.map((set, index) => blankSet(index + 1, set.weight ? String(set.weight) : '', set.reps ? String(set.reps) : '', set.type))
+            : Array.from({ length: exercise.sets }, (_, index) => blankSet(index + 1, exercise.weight ? String(exercise.weight) : '', exercise.reps ? String(exercise.reps) : '')),
         }));
-      setActiveWorkout({ id: w.id, title: w.title, startTime: Date.now(), exercises });
+      setActiveWorkout({ id: w.id, title: w.title, startTime: Date.now(), exercises, routineId: routine.id });
       setLiveOpen(true);
     } catch {
       toast.error(t.routineErr);
@@ -471,19 +531,22 @@ export default function ColiseoPage() {
   /** Ejecuta la eliminación confirmada de una rutina o un entrenamiento guardado. */
   async function confirmDelete() {
     if (!pendingDelete || deleting) return;
-    const { kind, id, name } = pendingDelete;
+    const { kind, id, name, anchor } = pendingDelete;
     setDeleting(true);
     try {
       if (kind === 'workout') {
-        await workoutService.deleteWorkout(id);
+        const { xpRemoved } = await workoutService.deleteWorkout(id);
+        keepOnUnlock(anchor);
         setWorkouts((current) => current.filter((w) => w.id !== id));
-        toast.success(t.deletedWorkout, name);
+        setPendingDelete(null);
+        toast.success(t.deletedWorkout, xpRemoved ? `${name} · ${t.xpRemoved(xpRemoved)}` : name);
       } else {
         await workoutService.deleteRoutine(id);
+        keepOnUnlock(anchor);
         setRoutines((current) => current.filter((r) => r.id !== id));
+        setPendingDelete(null);
         toast.success(t.deletedRoutine, name);
       }
-      setPendingDelete(null);
     } catch {
       toast.error(kind === 'workout' ? t.deleteWorkoutErr : t.deleteRoutineErr);
     } finally {
@@ -507,11 +570,35 @@ export default function ColiseoPage() {
       if (rewards.leveledUp) {
         triggerLevelUp({ oldLevel: rewards.oldLevel, newLevel: rewards.newLevel, xpEarned: rewards.xpGained, goldEarned: rewards.goldGained, statIncreases: {} });
       }
-      setSummary({ title: aw.title, xp: rewards.xpGained ?? 0, gold: rewards.goldGained ?? 0, seconds: Math.round(activeMs / 1000), sets, volume });
+      setSummary({
+        title: aw.title, xp: rewards.xpGained ?? 0, gold: rewards.goldGained ?? 0, seconds: Math.round(activeMs / 1000), sets, volume,
+        session: aw.exercises.length ? { name: aw.title, exercises: aw.exercises, minutes: duration, routineId: aw.routineId } : undefined,
+      });
       for (const achievement of result.achievementsUnlocked ?? []) showAchievementToast(achievement);
-      await load();
+      await load(true);
     } catch {
       toast.error(t.finishErr, t.finishErrSub);
+    }
+  }
+
+  /** Guarda la sesión como rutina nueva o, si salió de una, la actualiza con lo de hoy. */
+  async function saveAsRoutine(draft: RoutineDraft, update: boolean) {
+    const name = draft.name.trim();
+    if (!name || savingRoutine) return;
+    setSavingRoutine(true);
+    try {
+      const body = { name, exercises: routineFromSession(draft.exercises), ...(draft.minutes ? { estimatedDuration: Math.min(600, Math.max(1, draft.minutes)) } : {}) };
+      const saved = update && draft.routineId
+        ? await workoutService.updateRoutine(draft.routineId, body)
+        : await workoutService.createRoutine(body);
+      setRoutines((current) => [saved, ...current.filter((r) => r.id !== saved.id)]);
+      setRoutineDraft(null);
+      if (update && draft.routineId) toast.success(t.routineUpdated, name);
+      else toast.success(t.routineSaved, t.routineSavedSub);
+    } catch {
+      toast.error(t.routineSaveErr);
+    } finally {
+      setSavingRoutine(false);
     }
   }
 
@@ -542,7 +629,7 @@ export default function ColiseoPage() {
       setCardioKm('');
       setSummary({ title: cardioLabel[cardioKind], xp: rewards.xpGained ?? 0, gold: rewards.goldGained ?? 0, seconds: minutes * 60, sets: 0, volume: 0, cardio: { label: cardioLabel[cardioKind], distanceKm } });
       for (const achievement of result.achievementsUnlocked ?? []) showAchievementToast(achievement);
-      await load();
+      await load(true);
     } catch {
       toast.error(t.cardioErr);
     } finally {
@@ -641,17 +728,26 @@ export default function ColiseoPage() {
 
   const lastCard = latest && (
     <Card as="article" variant="elevated" padding="lg" aria-labelledby="coliseo-last" className="flex flex-col gap-6 md:p-8">
-      <div className="flex flex-wrap items-center gap-5">
+      {/* El título reserva su ancho (12rem): en el móvil la XP y las acciones bajan a su propia
+          fila en vez de montarse sobre un nombre largo. */}
+      <div className="flex flex-wrap items-start gap-x-4 gap-y-3 md:gap-x-5">
         <IconChip icon={Dumbbell} tone="warning" size="md" className="lq-halo" />
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-[1_1_12rem]">
           <span className="text-label-lg text-primary-text">{t.lastWorkout}</span>
-          <h2 id="coliseo-last" className="text-heading-lg">{latest.title}</h2>
+          <h2 id="coliseo-last" className="text-heading-lg [overflow-wrap:anywhere]">{latest.title}</h2>
           <p className="text-body-sm text-on-surface-light">{longDate(latest.date)}{latest.duration ? ` · ${t.durationMin(latest.duration)}` : ''}</p>
         </div>
-        <Badge variant="primary" size="lg" icon={Sparkles}>{t.xpLabel(latest.xpEarned)}</Badge>
-        <Button variant="icon" aria-label={t.deleteWorkoutAria(latest.title)} onClick={() => setPendingDelete({ kind: 'workout', id: latest.id, name: latest.title })}>
-          <Trash2 aria-hidden className="size-[18px]" strokeWidth={1.75} />
-        </Button>
+        <div className="ml-auto flex shrink-0 items-center gap-1">
+          <Badge variant="primary" size="lg" icon={Sparkles} className="mr-1">{t.xpLabel(latest.xpEarned)}</Badge>
+          {latest.exercises.length > 0 && (
+            <Button variant="icon" aria-label={t.saveRoutineAria(latest.title)} title={t.saveRoutine} onClick={() => setRoutineDraft({ name: latest.title, exercises: workoutExercises(latest), minutes: latest.duration })}>
+              <ClipboardList aria-hidden className="size-[18px]" strokeWidth={1.75} />
+            </Button>
+          )}
+          <Button variant="icon" aria-label={t.deleteWorkoutAria(latest.title)} onClick={(e) => setPendingDelete({ kind: 'workout', id: latest.id, name: latest.title, xp: latest.xpEarned, anchor: anchorOf(e.currentTarget) })}>
+            <Trash2 aria-hidden className="size-[18px]" strokeWidth={1.75} />
+          </Button>
+        </div>
       </div>
       <dl className="grid grid-cols-3 gap-3 md:gap-4">
         {([
@@ -697,7 +793,7 @@ export default function ColiseoPage() {
         <p className="truncate text-label-lg">{r.name}</p>
         <p className="text-body-sm text-on-surface-light">{t.routineSummary(routineExerciseCount(r))}{r.estimatedDuration ? ` · ${t.durationMin(r.estimatedDuration)}` : ''}</p>
       </div>
-      <Button variant="icon" aria-label={t.deleteRoutineAria(r.name)} onClick={() => setPendingDelete({ kind: 'routine', id: r.id, name: r.name })}>
+      <Button variant="icon" aria-label={t.deleteRoutineAria(r.name)} onClick={(e) => setPendingDelete({ kind: 'routine', id: r.id, name: r.name, anchor: anchorOf(e.currentTarget) })}>
         <Trash2 aria-hidden className="size-[18px]" strokeWidth={1.75} />
       </Button>
       <Button variant="icon" aria-label={t.startRoutineAria(r.name)} onClick={() => void startFromRoutine(r)} className="bg-primary/[var(--lq-soft-alpha)] text-primary-text hover:bg-primary/20">
@@ -853,7 +949,7 @@ export default function ColiseoPage() {
                             <p className="text-body-sm text-on-surface-light">{new Date(w.date).toLocaleDateString(nf, { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\./g, '')}{w.duration ? ` · ${t.durationMin(w.duration)}` : ''} · {w.kind === 'WALK' || w.kind === 'CARDIO' ? `${w.kind === 'WALK' ? t.cardioWalk : t.cardioShort}${w.distanceKm ? ` · ${t.distanceKm(w.distanceKm)}` : ''}` : t.exercisesCount(w.exercises?.length ?? 0)}</p>
                           </div>
                           <Badge variant="primary" icon={Sparkles}>{t.xpLabel(w.xpEarned)}</Badge>
-                          <Button variant="icon" size="sm" aria-label={t.deleteWorkoutAria(w.title)} onClick={() => setPendingDelete({ kind: 'workout', id: w.id, name: w.title })}>
+                          <Button variant="icon" size="sm" aria-label={t.deleteWorkoutAria(w.title)} onClick={(e) => setPendingDelete({ kind: 'workout', id: w.id, name: w.title, xp: w.xpEarned, anchor: anchorOf(e.currentTarget) })}>
                             <Trash2 aria-hidden className="size-4" strokeWidth={1.75} />
                           </Button>
                         </motion.li>
@@ -905,12 +1001,12 @@ export default function ColiseoPage() {
                   <p className="text-body-sm text-on-surface">
                     {r.days.length > 0
                       ? r.days.filter((day) => !day.isRestDay).map((day) => `${t.weekdays[day.weekday]}: ${day.exercises.map((x) => exerciseName(x.exercise.name, locale)).join(', ') || t.restWord}`).join(' · ')
-                      : r.exercises.map((x) => exerciseName(x.name, locale)).join(' · ')}
+                      : r.exercises.map((x) => `${exerciseName(x.name, locale)}${x.sets && x.reps ? ` ${t.setsByReps(x.sets, x.reps)}` : ''}`).join(' · ')}
                   </p>
-                  <div className="mt-auto flex items-center justify-between gap-3">
-                    <span className="font-mono text-body-sm tabular-nums text-on-surface-light">{t.routineSummary(routineExerciseCount(r))}{r.estimatedDuration ? ` · ${t.durationEst(r.estimatedDuration)}` : ''}</span>
-                    <div className="flex items-center gap-2">
-                      <Button variant="icon" aria-label={t.deleteRoutineAria(r.name)} onClick={() => setPendingDelete({ kind: 'routine', id: r.id, name: r.name })}>
+                  <div className="mt-auto flex flex-wrap items-center justify-between gap-3">
+                    <span className="whitespace-nowrap font-mono text-body-sm tabular-nums text-on-surface-light">{t.routineSummary(routineExerciseCount(r))}{r.estimatedDuration ? ` · ${t.durationEst(r.estimatedDuration)}` : ''}</span>
+                    <div className="ml-auto flex items-center gap-2">
+                      <Button variant="icon" aria-label={t.deleteRoutineAria(r.name)} onClick={(e) => setPendingDelete({ kind: 'routine', id: r.id, name: r.name, anchor: anchorOf(e.currentTarget) })}>
                         <Trash2 aria-hidden className="size-[18px]" strokeWidth={1.75} />
                       </Button>
                       <Button size="md" onClick={() => void startFromRoutine(r)}><Play aria-hidden className="size-4" />{t.start}</Button>
@@ -949,6 +1045,7 @@ export default function ColiseoPage() {
           <p className="text-body-md text-on-surface">
             {t.confirmDelete(pendingDelete?.kind === 'routine' ? 'routine' : 'workout', pendingDelete?.name ?? '')}
           </p>
+          {pendingDelete?.kind === 'workout' && !!pendingDelete.xp && <p className="text-body-sm text-warning-text">{t.deleteXpNote(pendingDelete.xp)}</p>}
           <div className="flex gap-3">
             <Button variant="ghost" className="flex-1" disabled={deleting} onClick={() => setPendingDelete(null)}>{t.cancel}</Button>
             <Button variant="danger" className="flex-1" loading={deleting} onClick={() => void confirmDelete()}>{t.deleteBtn}</Button>
@@ -1006,7 +1103,39 @@ export default function ColiseoPage() {
               ))}
             </dl>
             <Button block onClick={() => setSummary(null)}>{t.continueBtn}</Button>
+            {summary.session && (
+              <Button variant="ghost" block onClick={() => { setRoutineDraft(summary.session ?? null); setSummary(null); }}>
+                <ClipboardList aria-hidden className="size-4" />
+                {summary.session.routineId ? t.updateRoutine(routines.find((r) => r.id === summary.session?.routineId)?.name ?? summary.title) : t.saveRoutine}
+              </Button>
+            )}
           </>
+        )}
+      </Modal>
+
+      {/* Guardar la sesión como rutina: ejercicios, series, pesos y tipo de serie. */}
+      <Modal open={!!routineDraft} onClose={() => { if (!savingRoutine) setRoutineDraft(null); }} title={t.saveRoutine}>
+        {routineDraft && (
+          <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); void saveAsRoutine(routineDraft, Boolean(routineDraft.routineId)); }}>
+            <p className="text-body-sm text-on-surface-light">{routineDraft.routineId ? t.updateRoutineHelp : t.saveRoutineHelp}</p>
+            <Field label={t.routineName}>
+              <Input value={routineDraft.name} maxLength={100} autoFocus onChange={(e) => setRoutineDraft({ ...routineDraft, name: e.target.value })} />
+            </Field>
+            <ul className="flex flex-col gap-1 text-body-sm text-on-surface" aria-label={t.exercisesAria}>
+              {routineFromSession(routineDraft.exercises).map((x) => (
+                <li key={x.exerciseId} className="flex items-baseline justify-between gap-3">
+                  <span className="min-w-0 truncate">{exerciseName(x.name, locale)}</span>
+                  <span className="shrink-0 font-mono tabular-nums text-on-surface-light">{t.setsCount(x.sets)}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row">
+              {routineDraft.routineId
+                ? <Button type="button" variant="ghost" className="flex-1" disabled={savingRoutine || !routineDraft.name.trim()} onClick={() => void saveAsRoutine(routineDraft, false)}>{t.saveAsNew}</Button>
+                : <Button type="button" variant="ghost" className="flex-1" disabled={savingRoutine} onClick={() => setRoutineDraft(null)}>{t.cancel}</Button>}
+              <Button type="submit" className="flex-1" loading={savingRoutine} disabled={!routineDraft.name.trim()}>{routineDraft.routineId ? t.updateRoutine(routineDraft.name.trim() || t.saveRoutine) : t.saveRoutine}</Button>
+            </div>
+          </form>
         )}
       </Modal>
     </motion.div>

@@ -2,8 +2,9 @@ import { AsyncLocalStorage } from 'async_hooks';
 import webpush from 'web-push';
 import { prisma } from '../lib/prisma';
 import {
-  AUTOMATIC_PREFIXES, INACTIVE_PAUSE_DAYS, localMinutes, mergeSmartSettings, planPushes, sanitizeSmartSettings,
+  AUTOMATIC_PREFIXES, COOL_WINDOW_DAYS, INACTIVE_PAUSE_DAYS, coolingPrefixes, localMinutes, mergeSmartSettings, planPushes, sanitizeSmartSettings,
 } from '../lib/smart-reminders';
+import { plainText } from '../lib/notification-text';
 import { bump } from './chat-live.service';
 
 export const NOTIFICATION_CATEGORIES = [
@@ -158,13 +159,17 @@ export async function deliverBatchedPushes(pushes: BatchedPush[], now = new Date
           });
         }
       }
+      // Lo que la persona hizo con los avisos anteriores a esta pasada (los de ahora aún no los vio).
+      const recent = (await prisma.notification.findMany({
+        where: { userId, createdAt: { gte: new Date(now.getTime() - COOL_WINDOW_DAYS * DAY_MS), lt: now }, OR: AUTOMATIC_PREFIXES.map((p) => ({ dedupeKey: { startsWith: p } })) },
+        orderBy: { createdAt: 'desc' }, take: 60, select: { dedupeKey: true, isRead: true, createdAt: true },
+      })).map((n) => ({ key: n.dedupeKey, isRead: n.isRead, createdAt: n.createdAt }));
       // Frenado automático: los últimos 3 avisos automáticos, todos sin abrir en la última semana.
-      const recent = await prisma.notification.findMany({
-        where: { userId, OR: AUTOMATIC_PREFIXES.map((p) => ({ dedupeKey: { startsWith: p } })) },
-        orderBy: { createdAt: 'desc' }, take: 3, select: { isRead: true, createdAt: true },
-      });
-      const ignored = recent.length === 3 && recent.every((n) => !n.isRead && now.getTime() - n.createdAt.getTime() < 7 * DAY_MS);
-      const { send, group } = planPushes(allowed, { minutes, sentToday, inactive, ignored });
+      const last3 = recent.slice(0, 3);
+      const ignored = last3.length === 3 && last3.every((n) => !n.isRead && now.getTime() - n.createdAt.getTime() < 7 * DAY_MS);
+      // Aprendizaje por zona: la zona cuyos últimos avisos nadie abrió deja de sonar hasta que se abra uno.
+      const cooling = coolingPrefixes(recent, now);
+      const { send, group } = planPushes(allowed, { minutes, sentToday, inactive, ignored, cooling });
       // Los programados salen tal cual; los automáticos que sobran se agrupan en uno solo.
       for (const item of send) sent += await sendPush(userId, item.payload, item.category).catch(() => 0);
       if (group) {
@@ -182,7 +187,9 @@ export async function deliverBatchedPushes(pushes: BatchedPush[], now = new Date
  * congela al responder y un push pendiente puede perderse; los recordatorios lo usan.
  */
 export async function createNotification(userId: string, input: CreateNotificationInput, opts: { awaitPush?: boolean; push?: boolean } = {}) {
-  const { reply, silentForeground = false, chatKey, priority, quick, quickRef, day, userScheduled, ...data } = input;
+  const { reply, silentForeground = false, chatKey, priority, quick, quickRef, day, userScheduled, ...raw } = input;
+  // Texto plano en la bandeja y en el push: ni etiquetas ni markdown (textos de IA, copias).
+  const data = { ...raw, title: plainText(raw.title), body: plainText(raw.body) };
   const category = data.category ?? categoryForType(data.type);
   const preference = await getChannelPreference(userId, category);
   const now = new Date();

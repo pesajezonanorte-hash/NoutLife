@@ -43,12 +43,21 @@ export const EXERCISE_CATALOG = [
   { name: 'Burpees',                       muscleGroup: 'Cardio',   equipment: 'Peso Corporal' },
 ];
 
+/**
+ * Deja el catálogo común (ejercicios sin dueño) igual a EXERCISE_CATALOG. Los que crea
+ * cada persona (userId) no se tocan. skipDuplicates cubre dos despliegues a la vez.
+ */
 export async function ensureExerciseCatalog(client: Pick<PrismaClient, 'exercise'>): Promise<void> {
+  const current = new Map((await client.exercise.findMany({
+    where: { userId: null },
+    select: { id: true, name: true, muscleGroup: true, equipment: true },
+  })).map((ex) => [ex.name, ex]));
+  const missing = EXERCISE_CATALOG.filter((ex) => !current.has(ex.name));
+  if (missing.length) await client.exercise.createMany({ data: missing, skipDuplicates: true });
   for (const ex of EXERCISE_CATALOG) {
-    await client.exercise.upsert({
-      where: { name: ex.name },
-      update: { muscleGroup: ex.muscleGroup, equipment: ex.equipment },
-      create: ex,
-    });
+    const row = current.get(ex.name);
+    if (row && (row.muscleGroup !== ex.muscleGroup || row.equipment !== ex.equipment)) {
+      await client.exercise.update({ where: { id: row.id }, data: { muscleGroup: ex.muscleGroup, equipment: ex.equipment } });
+    }
   }
 }

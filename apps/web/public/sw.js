@@ -199,7 +199,11 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const data = event.notification.data || {};
   // Medición (T8): el clic queda contado por categoría. Si la sesión venció, no se pierde el aviso.
-  if (data.category) event.waitUntil(apiCall('/notifications/event', 'POST', { event: 'clicked', category: data.category }).catch(() => {}));
+  // Con la clave, el aviso queda leído: así cada zona aprende si sus avisos interesan.
+  if (data.category) {
+    const tag = event.notification.tag;
+    event.waitUntil(apiCall('/notifications/event', 'POST', { event: 'clicked', category: data.category, ...(tag && tag !== 'noutlife' ? { tag: tag.slice(0, 200) } : {}) }).catch(() => {}));
+  }
   const text = typeof event.reply === "string" ? event.reply.trim() : "";
   if (event.action === "reply" && text && data.reply) {
     const tag = event.notification.tag || "noutlife";

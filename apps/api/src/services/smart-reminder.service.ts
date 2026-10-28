@@ -6,8 +6,8 @@ import { prisma } from '../lib/prisma';
 import { getCalendarDay } from '../lib/calendar';
 import { averages, snapshot, type PeriodRow } from '../lib/cycle';
 import {
-  BREAK_TIPS, CARE_COPY, CYCLE_COPY, breakSlots, focusCategory, hydrationSlots, inWindow, learnedHabitTime, localMinutes, parseHHMM, pickQuote,
-  sanitizeSmartSettings, type SmartReminderSettings,
+  AUTOMATIC_PREFIXES, BREAK_TIPS, CARE_COPY, COOL_WINDOW_DAYS, CYCLE_COPY, ZONE_PREFIXES, breakSlots, coolingPrefixes, focusCategory, hydrationSlots, inWindow,
+  learnedHabitTime, localMinutes, parseHHMM, pickQuote, sanitizeSmartSettings, usualWeekdays, type LearnZone, type SmartReminderSettings,
 } from '../lib/smart-reminders';
 import { isComplimentary, planOf } from '../lib/plans';
 import { isHabitScheduledForDay } from './habit.service';
@@ -67,25 +67,96 @@ const slotDue = (c: Ctx, time: string | null | undefined) => {
   return target !== null && inWindow(c.minutes, target);
 };
 
-// ─── Coliseo: la rutina programada de hoy, a la hora elegida ──────────────────
+// ─── Lo aprendido de la persona (hora habitual de cada cosa) ──────────────────
+// Cada valor se calcula con lo que la persona hizo en las últimas semanas y se guarda
+// una hora en memoria (la pasada corre cada 5 min). Sin datos suficientes: null.
 
-async function coliseoScheduled(c: Ctx): Promise<number> {
-  if (!slotDue(c, c.settings.coliseo.time)) return 0;
+type LearnCtx = Pick<Ctx, 'userId' | 'now' | 'timezone'>;
+const learnedCache = new Map<string, { at: number; value: unknown }>();
+const LEARN_TTL_MS = 60 * 60_000;
+
+async function cachedLearn<T>(c: LearnCtx, kind: string, load: () => Promise<T>): Promise<T> {
+  const key = `${kind}:${c.userId}`;
+  const hit = learnedCache.get(key);
+  if (hit && c.now.getTime() - hit.at < LEARN_TTL_MS) return hit.value as T;
+  const value = await load();
+  // Sin tope fijo: se reinicia al desplegar y en cada arranque en frío (serverless).
+  if (learnedCache.size > 5000) learnedCache.clear();
+  learnedCache.set(key, { at: c.now.getTime(), value });
+  return value;
+}
+
+/** Hábitos: 30 min antes de la hora a la que sueles cumplirlos (14 días). */
+const learnedHabitTarget = (c: LearnCtx) => cachedLearn(c, 'habits', async () => {
+  const logs = await prisma.habitLog.findMany({
+    where: { userId: c.userId, completed: true, loggedAt: { gte: new Date(c.now.getTime() - 14 * DAY_MS) } },
+    select: { loggedAt: true },
+    take: 500,
+  });
+  return learnedHabitTime(logs.map((l) => localMinutes(c.timezone, l.loggedAt)));
+});
+
+/**
+ * Sabiduría: la hora a la que sueles empezar el día en la app (primer XP de cada día, 14 días).
+ * Solo entre las 07:00 y las 21:00: fuera de eso el push callaría por el horario de silencio.
+ */
+const learnedDayStart = (c: LearnCtx) => cachedLearn(c, 'day-start', async () => {
+  const events = await prisma.xpEvent.findMany({
+    where: { userId: c.userId, createdAt: { gte: new Date(c.now.getTime() - 14 * DAY_MS) } },
+    select: { createdAt: true },
+    orderBy: { createdAt: 'asc' },
+    take: 1000,
+  });
+  const first = new Map<string, number>();
+  for (const e of events) {
+    const day = getCalendarDay(c.timezone, e.createdAt).toISOString().slice(0, 10);
+    if (!first.has(day)) first.set(day, localMinutes(c.timezone, e.createdAt));
+  }
+  const start = learnedHabitTime([...first.values()], 0);
+  return start !== null && start >= 7 * 60 && start <= 21 * 60 ? start : null;
+});
+
+/** Coliseo: días que sueles entrenar y 30 min antes de tu hora de empezar (sesiones de fuerza, 28 días). */
+const learnedTraining = (c: LearnCtx) => cachedLearn(c, 'training', async () => {
+  const sessions = await prisma.workout.findMany({
+    where: { userId: c.userId, kind: 'STRENGTH', xpEarned: { gt: 0 }, createdAt: { gte: new Date(c.now.getTime() - 28 * DAY_MS) } },
+    select: { createdAt: true },
+    take: 200,
+  });
+  const at = learnedHabitTime(sessions.map((s) => localMinutes(c.timezone, s.createdAt)));
+  return at === null ? null : { at, weekdays: usualWeekdays(sessions.map((s) => getCalendarDay(c.timezone, s.createdAt).getUTCDay())) };
+});
+
+// ─── Coliseo: días y hora habituales (o la hora fija elegida) ─────────────────
+
+async function coliseoReminder(c: Ctx): Promise<number> {
+  const s = c.settings.coliseo;
+  // El Coliseo es zona Pro: en Lite el aviso llevaría a un candado.
+  if (c.lite || (!s.learn && s.time === null)) return 0;
+  const manualAt = parseHHMM(s.time);
+  const learned = s.learn || manualAt !== null ? await learnedTraining(c) : null;
+  // La hora fija gana a la aprendida, igual que en hábitos.
+  const at = manualAt ?? (s.learn ? learned?.at ?? null : null);
+  if (at === null || !inWindow(c.minutes, at)) return 0;
+  // ¿Toca hoy? Un día en que sueles entrenar o una rutina programada para hoy.
+  const usualDay = Boolean(learned?.weekdays.includes(c.weekday));
   const routine = await prisma.routine.findFirst({
     where: { userId: c.userId, isActive: true, days: { some: { weekday: c.weekday, isRestDay: false } } },
     select: { name: true },
   });
-  if (!routine) return 0;
+  if (!usualDay && !routine) return 0;
   const [workout, attendance] = await Promise.all([
     prisma.workout.findFirst({ where: { userId: c.userId, date: { gte: c.since } }, select: { id: true } }),
     prisma.coliseoAttendance.findFirst({ where: { userId: c.userId, date: c.calendarDate }, select: { id: true } }),
   ]);
   if (workout || attendance) return 0;
-  return notifyOnce(c, `coliseo-scheduled-${c.day}`, {
-    userScheduled: true,
+  // Con hora fija lo programó la persona; con la aprendida es automático (tope, silencio y pausa por zona).
+  const manual = manualAt !== null;
+  return notifyOnce(c, manual ? `coliseo-scheduled-${c.day}` : `coliseo-learned-${c.day}`, {
+    userScheduled: manual,
     category: 'COLISEO',
     title: 'Hoy toca entrenar',
-    body: `«${routine.name}» te espera. Empieza cuando quieras.`,
+    body: routine ? `«${routine.name}» te espera. Empieza cuando quieras.` : 'Sueles entrenar a esta hora. Empieza cuando quieras.',
     link: '/coliseo',
   });
 }
@@ -127,25 +198,6 @@ async function careReminders(c: Ctx): Promise<number> {
 }
 
 /** Hábitos de hoy sin marcar, a la hora elegida (antes iba fijo a las 21:00 para todos). */
-/** Hora habitual de cumplir, cacheada una hora por persona (la consulta corre cada 5 min). */
-const learnedCache = new Map<string, { at: number; target: number | null }>();
-const LEARN_TTL_MS = 60 * 60_000;
-
-async function learnedHabitTarget(c: Ctx): Promise<number | null> {
-  const hit = learnedCache.get(c.userId);
-  if (hit && c.now.getTime() - hit.at < LEARN_TTL_MS) return hit.target;
-  const logs = await prisma.habitLog.findMany({
-    where: { userId: c.userId, completed: true, loggedAt: { gte: new Date(c.now.getTime() - 14 * DAY_MS) } },
-    select: { loggedAt: true },
-    take: 500,
-  });
-  const target = learnedHabitTime(logs.map((l) => localMinutes(c.timezone, l.loggedAt)));
-  // Sin tope fijo: se reinicia al desplegar y en cada arranque en frío (serverless).
-  if (learnedCache.size > 5000) learnedCache.clear();
-  learnedCache.set(c.userId, { at: c.now.getTime(), target });
-  return target;
-}
-
 async function pendingHabits(c: Ctx): Promise<number> {
   if (!c.settings.habits.enabled) return 0;
   // Hora aprendida: solo si la persona nunca eligió la hora; el aviso sale 30 min antes de su
@@ -275,7 +327,11 @@ async function mealReminders(c: Ctx): Promise<number> {
 // ─── Sabiduría: una cita del día según en qué progresa la persona ────────────
 
 async function wisdomReminder(c: Ctx): Promise<number> {
-  if (!c.settings.wisdom.enabled || !slotDue(c, c.settings.wisdom.time)) return 0;
+  const w = c.settings.wisdom;
+  if (!w.enabled) return 0;
+  // Sin hora elegida a mano, la cita llega cuando sueles empezar el día en la app.
+  const learned = w.manual ? null : await learnedDayStart(c);
+  if (!(learned !== null ? inWindow(c.minutes, learned) : slotDue(c, w.time))) return 0;
   const dedupeKey = `wisdom-${c.day}`;
   if (await wasNotified(c.userId, dedupeKey)) return 0;
 
@@ -307,7 +363,7 @@ export async function smartReminders(now: Date): Promise<number> {
       subscriptionStatus: true, trialEndsAt: true, currentPeriodEnd: true, paymentSourceId: true, createdAt: true, compPro: true,
     },
   });
-  const jobs = [coliseoScheduled, careReminders, pendingHabits, breakReminders, cycleReminders, hydrationReminders, mealReminders, wisdomReminder];
+  const jobs = [coliseoReminder, careReminders, pendingHabits, breakReminders, cycleReminders, hydrationReminders, mealReminders, wisdomReminder];
   let sent = 0;
   for (const user of users) {
     const minutes = localMinutes(user.timezone, now);
@@ -336,4 +392,40 @@ export async function smartReminders(now: Date): Promise<number> {
     }
   }
   return sent;
+}
+
+// ─── Lo que la app aprendió, para Ajustes ─────────────────────────────────────
+
+/**
+ * Horas aprendidas (minutos del día del aviso) y zonas en pausa porque sus últimos
+ * avisos quedaron sin abrir. Ajustes lo muestra junto a los interruptores manuales.
+ */
+export async function learningInsights(userId: string, now = new Date()) {
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { timezone: true } });
+  const c: LearnCtx = { userId, now, timezone: user?.timezone ?? null };
+  const [habits, dayStart, training, recent] = await Promise.all([
+    learnedHabitTarget(c),
+    learnedDayStart(c),
+    learnedTraining(c),
+    prisma.notification.findMany({
+      where: { userId, createdAt: { gte: new Date(now.getTime() - COOL_WINDOW_DAYS * DAY_MS) }, OR: AUTOMATIC_PREFIXES.map((p) => ({ dedupeKey: { startsWith: p } })) },
+      orderBy: { createdAt: 'desc' }, take: 60, select: { dedupeKey: true, isRead: true, createdAt: true },
+    }),
+  ]);
+  const cooling = coolingPrefixes(recent.map((n) => ({ key: n.dedupeKey, isRead: n.isRead, createdAt: n.createdAt })), now);
+  return {
+    habits: { at: habits },
+    wisdom: { at: dayStart },
+    coliseo: { at: training?.at ?? null, weekdays: training?.weekdays ?? [] },
+    paused: (Object.keys(ZONE_PREFIXES) as LearnZone[]).filter((zone) => ZONE_PREFIXES[zone].some((p) => cooling.has(p))),
+  };
+}
+
+/** Reanuda los avisos de una zona en pausa: sus avisos sin abrir pasan a leídos. */
+export async function resumeZone(userId: string, zone: LearnZone) {
+  const { count } = await prisma.notification.updateMany({
+    where: { userId, isRead: false, OR: ZONE_PREFIXES[zone].map((p) => ({ dedupeKey: { startsWith: p } })) },
+    data: { isRead: true },
+  });
+  return count;
 }

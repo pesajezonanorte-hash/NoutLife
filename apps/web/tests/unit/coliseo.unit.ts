@@ -3,9 +3,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Box3, Mesh, MeshBasicMaterial, Raycaster, Vector3 } from 'three';
-import type { Workout } from '@noutlife/shared';
+import type { SetType, Workout } from '@noutlife/shared';
 import {
-  MUSCLE_IDS, muscleStates, oneRepMax, platesPerSide, pplBalance, previousBest, restFor, tonnage,
+  MUSCLE_IDS, carryForward, muscleStates, oneRepMax, platesPerSide, pplBalance, previousBest, restFor, routineFromSession, tonnage,
 } from '../../src/lib/coliseo';
 import { buildFigure } from '../../src/components/coliseo/muscle3d/figure';
 import { heatColor, type HeatTokens } from '../../src/components/coliseo/muscle3d/heat';
@@ -151,4 +151,50 @@ test('la mejor marca anterior ignora el calentamiento y propone cómo superarla'
   assert.equal(best.maxWeight, 85);
   assert.deepEqual(best.targets, [{ weight: 80, reps: 9 }, { weight: 82.5, reps: 8 }]);
   assert.equal(previousBest([]), null);
+});
+
+test('la serie siguiente hereda «al fallo» o el esfuerzo de la anterior, sin pisar lo que la persona ajustó', () => {
+  type S = { completed: boolean; type: SetType; rpe?: number; rir?: number; auto?: boolean };
+  const s = (p: Partial<S> = {}): S => ({ completed: false, type: 'normal', ...p });
+
+  // Al fallo: la siguiente pendiente se preselecciona igual.
+  const fail = carryForward([s({ completed: true, type: 'failure' }), s()], 0);
+  assert.equal(fail[1].type, 'failure');
+  assert.equal(fail[1].auto, true);
+  // Con RPE (o RIR) también se hereda la intensidad.
+  assert.equal(carryForward([s({ completed: true, rpe: 9 }), s()], 0)[1].rpe, 9);
+  assert.equal(carryForward([s({ completed: true, rir: 1 }), s()], 0)[1].rir, 1);
+  // El calentamiento no se hereda: después viene una serie efectiva.
+  assert.equal(carryForward([s({ completed: true, type: 'warmup' }), s()], 0)[1].type, 'normal');
+  // Lo que la persona eligió en la siguiente no se toca, ni una serie ya hecha.
+  assert.equal(carryForward([s({ type: 'failure' }), s({ type: 'drop' })], 0)[1].type, 'drop');
+  assert.equal(carryForward([s({ type: 'failure' }), s({ completed: true })], 0)[1].type, 'normal');
+  // Si la de origen vuelve a efectiva, la heredada se limpia.
+  const undone = carryForward([s({ type: 'normal' }), s({ type: 'failure', auto: true })], 0);
+  assert.equal(undone[1].type, 'normal');
+  assert.equal(undone[1].auto, false);
+  // Sin serie anterior o siguiente, nada cambia.
+  const one = [s({ type: 'failure' })];
+  assert.equal(carryForward(one, 0), one);
+  assert.equal(carryForward(one, -1), one);
+});
+
+test('una sesión se guarda como rutina con las series hechas: peso, repeticiones y clase', () => {
+  const routine = routineFromSession([
+    { exerciseId: 'b', name: 'Press de Banca', muscleGroup: 'Pecho', sets: [
+      { weight: '40', reps: '12', completed: true, type: 'warmup' },
+      { weight: '80', reps: '8', completed: true, type: 'normal' },
+      { weight: '80', reps: '6', completed: true, type: 'failure' },
+      { weight: '80', reps: '', completed: false, type: 'normal' },
+    ] },
+    { exerciseId: 'f', name: 'Fondos', sets: [{ weight: '', reps: '10', completed: false }] },
+    { exerciseId: 'x', name: 'Vacío', sets: [] },
+  ]);
+  assert.equal(routine.length, 2, 'un ejercicio sin series no se guarda');
+  assert.deepEqual(routine[0].targetSets, [
+    { weight: 40, reps: 12, type: 'warmup' }, { weight: 80, reps: 8, type: 'normal' }, { weight: 80, reps: 6, type: 'failure' },
+  ], 'solo las series hechas');
+  assert.equal(routine[0].sets, 3);
+  assert.equal(routine[0].weight, 80, 'el peso de trabajo, no el del calentamiento');
+  assert.deepEqual(routine[1].targetSets, [{ weight: 0, reps: 10, type: 'normal' }], 'sin series hechas, se guarda lo planeado');
 });

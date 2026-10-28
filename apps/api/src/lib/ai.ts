@@ -217,6 +217,15 @@ interface Lane {
   run: (messages: ChatMessage[], options: ChatOptions) => Promise<string>;
 }
 
+/** Modelos de Gemini por llave: los preferidos que existen para esa llave y luego su catálogo. */
+async function geminiModelLists(): Promise<string[][]> {
+  const catalogs = await Promise.all(GEMINI_API_KEYS.map((key, i) => geminiCatalog(key, i)));
+  return catalogs.map((catalog) => {
+    const preferred = catalog.length ? GEMINI_MODELS.filter((m) => catalog.includes(m)) : GEMINI_MODELS;
+    return [...new Set([...preferred, ...catalog])];
+  });
+}
+
 /** Orden de prioridad: Groq → Gemini → OpenRouter → OpenAI; dentro de cada uno, modelos y luego llaves. */
 async function buildLanes(): Promise<Lane[]> {
   const lanes: Lane[] = [];
@@ -225,9 +234,9 @@ async function buildLanes(): Promise<Lane[]> {
     if (!lanes.some((l) => l.id === id)) lanes.push({ id, provider, run });
   };
 
-  const [groqExtra, geminiExtra] = await Promise.all([
+  const [groqExtra, geminiModels] = await Promise.all([
     Promise.all(GROQ_API_KEYS.map((key, i) => groqCatalog(key, i))),
-    Promise.all(GEMINI_API_KEYS.map((key, i) => geminiCatalog(key, i))),
+    geminiModelLists(),
   ]);
 
   GROQ_API_KEYS.forEach((key, i) => {
@@ -239,9 +248,7 @@ async function buildLanes(): Promise<Lane[]> {
     }
   });
   GEMINI_API_KEYS.forEach((key, i) => {
-    const catalog = geminiExtra[i];
-    const preferred = catalog.length ? GEMINI_MODELS.filter((m) => catalog.includes(m)) : GEMINI_MODELS;
-    for (const model of [...preferred, ...catalog]) {
+    for (const model of geminiModels[i]) {
       push('gemini', model, i, (m, o) => generateWithGemini(m, o, geminiUrl(model), key));
     }
   });
@@ -262,12 +269,50 @@ export async function generateText(messages: ChatMessage[], options: ChatOptions
   if (!hasAIProvider()) {
     throw new Error('No hay ningún proveedor de IA configurado. Por favor define GROQ_API_KEY, GEMINI_API_KEY, OPENROUTER_API_KEY o OPENAI_API_KEY en Vercel.');
   }
+  const lanes = await buildLanes();
+  return firstSuccess(lanes.map((lane) => ({ ...lane, call: () => lane.run(messages, options) })));
+}
 
+export interface ImageInput {
+  /** Base64 sin el prefijo data:. */
+  data: string;
+  mimeType: string;
+}
+
+export function hasVisionProvider(): boolean {
+  return GEMINI_API_KEYS.length > 0;
+}
+
+/**
+ * Visión de bajo consumo: una imagen pequeña y un prompt corto, respuesta JSON corta.
+ * Solo Gemini (todos los Flash leen imágenes) con resolución de imagen baja (~64 tokens
+ * por imagen en 2.5), sin razonamiento y con tope de salida. Sus carriles tienen su propio
+ * breaker: un fallo de visión (p. ej. un modelo sin imágenes) no pausa el chat del Sabio.
+ */
+export async function generateFromImage(prompt: string, image: ImageInput, options: ChatOptions = {}): Promise<string> {
+  if (!hasVisionProvider()) throw new Error('No hay un proveedor de IA con visión configurado (GEMINI_API_KEY).');
+  const models = await geminiModelLists();
+  return firstSuccess(GEMINI_API_KEYS.flatMap((key, i) => models[i].map((model) => ({
+    id: `gemini-vision:${model}:${i}`,
+    provider: 'gemini' as const,
+    call: () => postGemini(geminiUrl(model), key, {
+      contents: [{ role: 'user', parts: [{ inlineData: { mimeType: image.mimeType, data: image.data } }, { text: prompt }] }],
+      generationConfig: {
+        temperature: options.temperature ?? 0.1,
+        maxOutputTokens: options.maxTokens ?? 120,
+        responseMimeType: 'application/json',
+        mediaResolution: 'MEDIA_RESOLUTION_LOW',
+        ...(/2\.5-flash/.test(model) ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+      },
+    }),
+  }))));
+}
+
+/** Prueba los carriles en orden (saltando los que están en pausa) y devuelve la primera respuesta. */
+async function firstSuccess(lanes: Array<{ id: LaneId; provider: ProviderName; call: () => Promise<string> }>): Promise<string> {
   const errors: string[] = [];
   let quotaBlocked = 0;
   let attempts = 0;
-
-  const lanes = await buildLanes();
 
   for (const lane of lanes) {
     if (!isProviderAvailable(lane.id)) {
@@ -278,7 +323,7 @@ export async function generateText(messages: ChatMessage[], options: ChatOptions
     attempts += 1;
 
     try {
-      const text = await lane.run(messages, options);
+      const text = await lane.call();
       registerProviderSuccess(lane.id);
       return text;
     } catch (err) {
@@ -359,6 +404,11 @@ async function generateWithGemini(messages: ChatMessage[], options: ChatOptions,
     };
   }
 
+  return postGemini(apiUrl, apiKey, body);
+}
+
+/** POST a generateContent con un reintento corto ante 429; devuelve el texto de la respuesta. */
+async function postGemini(apiUrl: string, apiKey: string, body: Record<string, unknown>): Promise<string> {
   let response: Response | null = null;
   let data: any = null;
 

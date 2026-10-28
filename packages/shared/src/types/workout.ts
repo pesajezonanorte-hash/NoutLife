@@ -47,21 +47,28 @@ export interface Exercise {
   name: string;
   muscleGroup?: string;
   equipment?: string;
+  /** Creado por la persona (solo lo ve ella); sin marcar = catálogo común. */
+  custom?: boolean;
 }
 
 export interface RoutineExercise {
   exerciseId: string;
   name: string;
+  muscleGroup?: string;
+  equipment?: string;
   sets: number;
   reps?: number;
   weight?: number;
   notes?: string;
+  /** Rutina guardada desde una sesión: cada serie con su peso, repeticiones y clase. */
+  targetSets?: RoutineTargetSet[];
 }
 
 export interface RoutineTargetSet {
   weight?: number;
   reps?: number;
   duration?: number;
+  type?: SetType;
 }
 
 export interface RoutineDayExercise {
