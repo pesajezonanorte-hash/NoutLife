@@ -4,6 +4,8 @@
 
 `noutlife-music.wav`: original, hecha para este vídeo. La sintetiza `scripts/build-music.mjs` nota a nota, sin samples de terceros. Para regenerarla: `npm run music`.
 
+`pro-trial-music.wav`: original, para el anuncio «7 días de Pro». La sintetiza `scripts/build-music-pro-trial.mjs` de la misma forma. Para regenerarla: `npm run music:pro-trial`.
+
 ## Efectos de sonido
 
 Todos son CC0 1.0 (dominio público): se pueden usar, cambiar y redistribuir sin pedir permiso, y el crédito es opcional. Aun así, se acredita a quien los hizo.

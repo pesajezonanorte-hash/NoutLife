@@ -66,6 +66,17 @@ export const LOGO_GRADIENTS = {
   c: [['0', '#86c5aa'], ['.45', '#4c957d'], ['1', '#1a5547']],
 } as const;
 
+/** Paradas [posición, color] del degradado de cada hoja del isotipo. */
+export type LogoGradients = Record<keyof typeof LOGO_GRADIENTS, ReadonlyArray<readonly [string, string]>>;
+
+/** El isotipo sobre fondo claro (noutlife-mark.svg) y su logotipo (noutlife-logo-horizontal.svg). */
+export const LOGO_GRADIENTS_ON_LIGHT: LogoGradients = {
+  a: [['0', '#5fae97'], ['.35', '#2f7565'], ['.72', '#0a3a33'], ['1', '#05302b']],
+  b: [['0', '#8ec7ad'], ['1', '#2c7362']],
+  c: [['0', '#4f9c84'], ['.45', '#2a6f60'], ['1', '#06302b']],
+};
+export const WORDMARK_ON_LIGHT = '#0e1d16';
+
 export const FONT = {
   sans: '"Montserrat", system-ui, sans-serif',
   mono: '"JetBrains Mono", ui-monospace, monospace',

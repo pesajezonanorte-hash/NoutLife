@@ -7,8 +7,22 @@
     "dev": "remotion studio",
     "preview": "remotion preview",
     "render": "remotion render NoutLifePromoVertical out/noutlife-promo.mp4",
+    "render:pro-trial": "remotion render NoutLifeProTrial out/noutlife-pro-trial.mp4",
+    "render:pro-keynote": "remotion render NoutLifeProKeynote out/noutlife-pro-keynote.mp4",
+    "render:pro-studio": "remotion render NoutLifeProStudio out/noutlife-pro-studio.mp4",
+    "studio:screen": "remotion render NoutLifeProStudioScreen blender/cache/screen --sequence --image-format=png --scale=3 --frames=80-412 --image-sequence-pattern=screen_[frame].[ext]",
+    "studio:blender": "node scripts/blender.mjs render",
+    "studio:track": "node scripts/blender.mjs track",
     "still": "remotion still NoutLifePromoVertical out/still.png",
+    "still:pro-trial": "remotion still NoutLifeProTrial out/pro-trial-still.png",
+    "still:pro-keynote": "remotion still NoutLifeProKeynote out/pro-keynote-still.png",
+    "still:pro-studio": "remotion still NoutLifeProStudio out/pro-studio-still.png",
     "music": "node scripts/build-music.mjs",
+    "music:pro-trial": "node scripts/build-music-pro-trial.mjs",
+    "music:pro-keynote": "node scripts/build-music-keynote.mjs",
+    "music:pro-studio": "node scripts/build-music-studio.mjs",
+    "type:pro-keynote": "node scripts/build-keynote-type.mjs",
+    "type:pro-studio": "node scripts/build-keynote-type.mjs src/ProStudio",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -23,6 +37,7 @@
   "devDependencies": {
     "@types/react": "18.3.28",
     "@types/react-dom": "18.3.7",
+    "fontkit": "2.0.4",
     "typescript": "5.9.3"
   }
 }

@@ -1,0 +1,22 @@
+{
+  "hook": [
+    [{ "t": "¿Y si tu vida real", "w": 300 }],
+    [{ "t": "tuviera un", "w": 300 }],
+    [{ "t": "modo ", "w": 300 }, { "t": "Pro", "w": 600, "role": "pro" }, { "t": "?", "w": 300 }]
+  ],
+  "offer": {
+    "headline": [
+      [{ "t": "7 DÍAS DE ", "w": 600 }, { "t": "PRO.", "w": 600, "role": "pro" }],
+      [{ "t": "GRATIS.", "w": 600 }]
+    ],
+    "noCard": [[{ "t": "Sin tarjeta de crédito.", "w": 500 }]],
+    "fine": [
+      [{ "t": "Disponible para nuevos usuarios y cuentas Lite", "w": 400 }],
+      [{ "t": "que aún no han probado Pro.", "w": 400 }]
+    ],
+    "button": [[{ "t": "Empieza ahora", "w": 500 }]]
+  },
+  "end": {
+    "url": [[{ "t": "noutlife.vercel.app", "w": 400 }]]
+  }
+}

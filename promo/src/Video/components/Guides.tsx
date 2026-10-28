@@ -16,8 +16,11 @@ const band = (style: React.CSSProperties): React.CSSProperties => ({
 
 const label: React.CSSProperties = { position: 'absolute', fontFamily: FONT.mono, fontSize: 22, color: 'rgba(255, 140, 140, 0.95)' };
 
-export const Guides: React.FC<{ frame: number }> = ({ frame }) => {
-  const cue = VO_CUES.find((c) => frame >= c.from && frame < c.to);
+export const Guides: React.FC<{ frame: number; cues?: ReadonlyArray<{ from: number; to: number; text: string }> }> = ({
+  frame,
+  cues = VO_CUES,
+}) => {
+  const cue = cues.find((c) => frame >= c.from && frame < c.to);
   return (
     <AbsoluteFill style={{ pointerEvents: 'none' }}>
       <div style={band({ left: 0, right: 0, top: 0, height: 220 })} />
