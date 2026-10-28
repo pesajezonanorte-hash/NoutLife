@@ -4,7 +4,13 @@
 // X-Device-Id; rememberDeviceId lo copia a las capas locales. Solo sirve para
 // auditar pruebas gratis: la decisión real la toma el servidor con el correo y
 // el medio de pago. Settings lo conserva al reiniciar o eliminar la cuenta.
+import { withTimeout } from './timeout';
+
 const KEY = 'lq_device_id';
+/** Si IndexedDB no responde (perfil bloqueado, modo privado), no se espera más: se usa un id nuevo. */
+const IDB_TIMEOUT_MS = 1500;
+
+const newId = (): string => globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 
 /** Una operación sobre el almacén clave-valor de IndexedDB ('noutlife' → 'kv'). */
 function idb<T>(run: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
@@ -33,8 +39,8 @@ export function getDeviceId(): Promise<string> {
   current ??= (async () => {
     let id: string | null = null;
     try { id = localStorage.getItem(KEY); } catch { /* sin storage */ }
-    id ||= await idb<string | undefined>((s) => s.get(KEY)).catch(() => undefined) ?? null;
-    id ||= crypto.randomUUID();
+    id ||= await withTimeout(idb<string | undefined>((s) => s.get(KEY)), IDB_TIMEOUT_MS).catch(() => undefined) ?? null;
+    id ||= newId();
     rememberDeviceId(id); // restaura la capa que faltara
     return id;
   })();

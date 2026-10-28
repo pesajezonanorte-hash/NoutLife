@@ -17,11 +17,12 @@ import { GiftWelcome } from './components/billing/GiftWelcome';
 import { PendingApprovalGate } from './components/billing/PendingApprovalGate';
 import { LockedZone } from './components/billing/LockedZone';
 import { priceListFor, type ProZone } from './lib/plan';
-import { LocaleProvider, useLocale, useLocaleStore, type Locale } from './lib/i18n';
+import { LocaleProvider, useLocale, useLocaleStore, useText, type Copy, type Locale } from './lib/i18n';
+import { clearRefreshSessionExpected } from './lib/session-hint';
 import { setSuperProperties } from './lib/analytics';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { NotificationPermissionModal, useNotificationModalState } from './components/ui/NotificationPermissionModal';
-import { PageLoader as LqPageLoader, Spinner } from './components/ui/lq';
+import { Button, PageLoader as LqPageLoader, Spinner } from './components/ui/lq';
 import { page as pageVariants } from './lib/motion';
 import { LoadingGate, LOADER_DELAY_MS, useLoadingVisibility } from './components/ui/LoadingGate';
 import { useKeyboardAdjust } from './hooks/useKeyboardAdjust';
@@ -149,6 +150,56 @@ function loaderForPath(pathname: string) {
 
 function PageLoader() {
   return <LqPageLoader className="min-h-[300px] sm:min-h-[360px]" />;
+}
+
+const STALL_COPY: Copy<{ stalled: string; retry: string; restart: string }> = {
+  es: {
+    stalled: 'Esto tarda más de lo normal. Puedes reintentar o volver a iniciar sesión.',
+    retry: 'Reintentar',
+    restart: 'Reiniciar sesión',
+  },
+  en: {
+    stalled: 'This is taking longer than usual. You can retry or sign in again.',
+    retry: 'Retry',
+    restart: 'Restart session',
+  },
+};
+/** Tras este tiempo en el cargador (con el splash ya retirado), se ofrecen los botones; el cierre automático llega antes de AUTH_TIMEOUT_MS. */
+const STALL_AFTER_MS = 3000;
+
+/**
+ * Cargador mientras se confirma la sesión. Si tarda más de STALL_AFTER_MS, ofrece reintentar
+ * o reiniciar la sesión: nunca se queda atrapado en la pantalla de carga.
+ */
+function AuthLoading() {
+  const t = useText(STALL_COPY);
+  const [stalled, setStalled] = useState(false);
+  useEffect(() => {
+    const id = window.setTimeout(() => setStalled(true), STALL_AFTER_MS);
+    return () => window.clearTimeout(id);
+  }, []);
+
+  const restart = () => {
+    // Borra la pista de sesión y el estado local: la siguiente pantalla es el inicio de sesión.
+    clearRefreshSessionExpected();
+    useAuthStore.getState().logout();
+    window.location.replace('/login');
+  };
+
+  return (
+    <>
+      <PageLoader />
+      {stalled && (
+        <div role="status" className="flex flex-col items-center gap-3 px-4 pb-8 text-center">
+          <p className="max-w-sm text-body-md text-on-surface-light">{t.stalled}</p>
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button variant="secondary" onClick={() => window.location.reload()}>{t.retry}</Button>
+            <Button variant="ghost" onClick={restart}>{t.restart}</Button>
+          </div>
+        </div>
+      )}
+    </>
+  );
 }
 
 /**
@@ -377,7 +428,7 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
 
   return (
     <>
-      <LoadingGate loading={isLoading} fallback={<PageLoader />}>
+      <LoadingGate loading={isLoading} fallback={<AuthLoading />}>
         {isLoading ? null
           : !isAuthenticated ? <Navigate to="/login" replace />
           : user && !user.onboardingCompleted && pathname !== '/onboarding' ? <Navigate to="/onboarding" replace />
@@ -393,7 +444,7 @@ function OnboardingRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading, user } = useAuthStore();
 
   return (
-    <LoadingGate loading={isLoading} fallback={<PageLoader />}>
+    <LoadingGate loading={isLoading} fallback={<AuthLoading />}>
       {isLoading ? null : !isAuthenticated ? <Navigate to="/login" replace /> : user?.onboardingCompleted ? <Navigate to="/" replace /> : children}
     </LoadingGate>
   );
@@ -403,7 +454,7 @@ function PublicRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading } = useAuthStore();
 
   return (
-    <LoadingGate loading={isLoading} fallback={<PageLoader />}>
+    <LoadingGate loading={isLoading} fallback={<AuthLoading />}>
       {isLoading ? null : isAuthenticated ? <Navigate to="/" replace /> : children}
     </LoadingGate>
   );

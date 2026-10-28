@@ -3,6 +3,7 @@ import { useAuthStore } from '../store/authStore';
 import * as authService from '../services/auth.service';
 import { shouldBootstrapSession } from '../lib/session-hint';
 import { lifeGeneration } from '../lib/lifeSync';
+import { AUTH_TIMEOUT_MS, withTimeout } from '../lib/timeout';
 
 /**
  * At mount, recover a session with the httpOnly refresh cookie only when it is
@@ -22,9 +23,11 @@ export function useBootstrapAuth() {
       }
 
       try {
-        const { user, accessToken } = await authService.refreshToken();
+        const { user, accessToken } = await withTimeout(authService.refreshToken(), AUTH_TIMEOUT_MS);
         if (!cancelled) setAuth(user, accessToken);
-      } catch {
+      } catch (error) {
+        // Sin respuesta a tiempo (red caída, servidor frío) o sesión vencida: a iniciar sesión, no a una carga infinita.
+        console.warn('[AUTH_BOOTSTRAP] sesión no confirmada, se muestra el inicio de sesión:', error instanceof Error ? error.message : error);
         if (!cancelled) logout();
       }
     }
