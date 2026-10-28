@@ -1,0 +1,70 @@
+{
+  "$comment": "Guion del anuncio «Pro Studio» en fotogramas (30 fps, 120 BPM: 1 pulso = 15 fotogramas). Lo leen src/ProStudio (Remotion), blender/studio.py (el teléfono 3D) y scripts/build-music-studio.mjs (la música). Si cambias un número, vuelve a renderizar la pantalla, Blender y la música (README).",
+  "fps": 30,
+  "width": 1080,
+  "height": 1920,
+  "duration": 450,
+  "bpm": 120,
+
+  "hook": {
+    "$comment": "Fondo crema (todo el anuncio va sobre crema). Cada línea se revela letra a letra (stagger en fotogramas) mientras su interletrado se cierra; el bloque se recentra al sumar una línea. La primera línea arranca antes del fotograma 0: el primer fotograma ya tiene texto.",
+    "lines": [-10, 12, 28],
+    "stagger": 0.7,
+    "glint": 48,
+    "push": [0, 84],
+    "exit": [78, 96]
+  },
+
+  "device": {
+    "$comment": "Fotogramas que renderiza Blender y momentos del teléfono. Emerge con un muelle algo subamortiguado (un rebote mínimo al frenar). El teléfono sale del cuadro hacia arriba antes de render[1].",
+    "render": [80, 330],
+    "emerge": [84, 152],
+    "orbit": [80, 330],
+    "cards": { "coliseo": 132, "recreacion": 140 },
+    "$closeup": "La cámara se acerca a las zonas (entra en 22 fotogramas, vuelve en 24) sin perder el crema de los lados; las tarjetas se apartan mientras tanto.",
+    "closeup": [176, 238],
+    "unlock": { "coliseo": 194, "recreacion": 204 },
+    "ripple": [210, 224],
+    "cardsUnlock": 234,
+    "streaks": [[96, 140], [196, 222]],
+    "jadeRim": [196, 250],
+    "$cardsOut": "Las tarjetas de las zonas salen del cuadro por los lados (sin fundido) antes de que entre la oferta.",
+    "cardsOut": [260, 286],
+    "rise": [270, 318],
+    "defocus": [276, 316]
+  },
+
+  "offer": {
+    "$comment": "La tarjeta de la oferta entra entera, con todo su texto sólido desde el primer fotograma (enter), detrás del teléfono que sube y la destapa; luego el destello del oro y el botón.",
+    "enter": [284, 296],
+    "glint": 306,
+    "button": 340,
+    "press": 358
+  },
+
+  "end": {
+    "$comment": "Silencio total antes del cierre; luego la tarjeta se va y, cuando ya no está, queda el logo sobre el crema.",
+    "silence": [372, 390],
+    "cardOut": [390, 398],
+    "logo": 400,
+    "url": 414
+  },
+
+  "screen": {
+    "$comment": "La app dentro del teléfono: lienzo de 562 × 1190 px (393 pt de ancho, 1 pt = 1,43 px), su textura sale a escala 3. Rectángulos de las zonas en ese lienzo (los comprueba src/ProStudio/screen/app.ts).",
+    "w": 562,
+    "h": 1190,
+    "radius": 80,
+    "textureScale": 3,
+    "tiles": {
+      "recreacion": { "x": 198.77, "y": 552.81, "w": 164.45, "h": 125.84 },
+      "coliseo": { "x": 198.77, "y": 893.15, "w": 164.45, "h": 125.84 }
+    }
+  },
+
+  "phone": {
+    "$comment": "Medidas del teléfono en mm. La pantalla mide lo mismo que el lienzo de la app (0,11495 mm por px).",
+    "body": { "w": 68.97, "h": 141.16, "d": 8.25, "r": 11.04 },
+    "display": { "w": 64.6, "h": 136.79, "r": 9.2 }
+  }
+}

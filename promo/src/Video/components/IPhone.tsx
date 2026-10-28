@@ -6,6 +6,7 @@
 // - `pops`: piezas de la interfaz que se levantan de la pantalla (translateZ), fuera
 //   del recorte de la pantalla para poder asomar por encima del teléfono.
 // - `edgeGlow`: el halo de colores que recorre el borde de la pantalla cuando habla la IA.
+// - `finish`: titanio natural (por defecto) o negro.
 // Nada de box-shadow con desenfoque grande: el teléfono se escala y Chrome deja
 // costuras cuadradas (ver README); los brillos son degradados.
 import type React from 'react';
@@ -15,10 +16,21 @@ import { clamp } from '../lib/anim';
 /** Distancia de la cámara (px): lente larga, poca deformación, como una foto de producto. */
 const PERSPECTIVE = 2100;
 const SLICES = 13;
-const RIM_METAL =
-  'linear-gradient(140deg, #f4f6f5 0%, #a3a8a5 9%, #50544f 24%, #2b2e2c 46%, #545956 70%, #c9cdca 90%, #7a7f7c 100%)';
-const EDGE_METAL =
-  'linear-gradient(125deg, #d2d6d3 0%, #7b807d 12%, #3a3e3c 34%, #222524 58%, #353937 82%, #9a9f9c 100%)';
+/** Acabados del titanio: aro pulido del frente, canto y botones laterales. */
+const FINISH = {
+  natural: {
+    rim: 'linear-gradient(140deg, #f4f6f5 0%, #a3a8a5 9%, #50544f 24%, #2b2e2c 46%, #545956 70%, #c9cdca 90%, #7a7f7c 100%)',
+    edge: 'linear-gradient(125deg, #d2d6d3 0%, #7b807d 12%, #3a3e3c 34%, #222524 58%, #353937 82%, #9a9f9c 100%)',
+    button: 'linear-gradient(90deg, #6b706d, #2a2d2c 60%, #8a8f8c)',
+  },
+  // Titanio negro: el mismo pulido con menos luz; los brillos se quedan en gris acero
+  black: {
+    rim: 'linear-gradient(140deg, #b9bec4 0%, #5d6168 8%, #2a2d32 22%, #16181b 46%, #26292e 70%, #858a91 90%, #3d4046 100%)',
+    edge: 'linear-gradient(125deg, #8c9198 0%, #43474d 12%, #1f2125 34%, #121316 58%, #1d1f23 82%, #5b5f66 100%)',
+    button: 'linear-gradient(90deg, #4a4e54, #17191c 60%, #61656c)',
+  },
+} as const;
+export type PhoneFinish = keyof typeof FINISH;
 /** Botones laterales: [lado, desde y, alto]. Acción, volumen +, volumen − y encendido. */
 const BUTTONS: Array<[-1 | 1, number, number]> = [
   [-1, 214, 58],
@@ -30,8 +42,8 @@ const BUTTONS: Array<[-1 | 1, number, number]> = [
 export const phoneTransform = (p: PhonePose) =>
   `perspective(${PERSPECTIVE}px) rotateX(${p.rx}deg) rotateY(${p.ry}deg) rotateZ(${p.rz}deg) scale3d(${p.s}, ${p.s}, ${p.s})`;
 
-const Slice: React.FC<{ z: number; buttons: boolean }> = ({ z, buttons }) => (
-  <div style={{ position: 'absolute', inset: 0, borderRadius: PHONE.r, background: EDGE_METAL, transform: `translateZ(${z}px)` }}>
+const Slice: React.FC<{ z: number; buttons: boolean; finish: PhoneFinish }> = ({ z, buttons, finish }) => (
+  <div style={{ position: 'absolute', inset: 0, borderRadius: PHONE.r, background: FINISH[finish].edge, transform: `translateZ(${z}px)` }}>
     {buttons &&
       BUTTONS.map(([side, top, height], i) => (
         <div
@@ -43,7 +55,7 @@ const Slice: React.FC<{ z: number; buttons: boolean }> = ({ z, buttons }) => (
             width: 9,
             [side < 0 ? 'left' : 'right']: -4,
             borderRadius: 4,
-            background: 'linear-gradient(90deg, #6b706d, #2a2d2c 60%, #8a8f8c)',
+            background: FINISH[finish].button,
           }}
         />
       ))}
@@ -89,21 +101,33 @@ export const IPhone: React.FC<{
   pops?: React.ReactNode;
   edgeGlow?: number;
   glowColors?: string[];
+  finish?: PhoneFinish;
+  /**
+   * Posición en fracciones de píxel: la parte entera en left/top y la fracción dentro de
+   * la transformación. Chrome coloca el teléfono (una capa 3D) en píxeles enteros según
+   * left/top, así que al moverse despacio avanza a saltos de 1 px; dentro de la
+   * transformación 3D la fracción se remuestrea y el movimiento es continuo.
+   */
+  subpixel?: boolean;
   style?: React.CSSProperties;
-}> = ({ pose, frame, screen, pops, edgeGlow = 0, glowColors = ['#7a66ff', '#5aa8ff', '#ff8aa8', '#ffb070'], style }) => {
+}> = ({ pose, frame, screen, pops, edgeGlow = 0, glowColors = ['#7a66ff', '#5aa8ff', '#ff8aa8', '#ffb070'], finish = 'natural', subpixel = false, style }) => {
   // El canto solo se ve si el teléfono está girado
   const turned = Math.abs(pose.rx) + Math.abs(pose.ry) > 0.4;
   // El reflejo cruza la pantalla según el giro
   const glare = 50 + pose.ry * 2.4 - pose.rx * 1.2;
+  const x = pose.x - PHONE.w / 2;
+  const y = pose.y - PHONE.h / 2;
+  const left = subpixel ? Math.floor(x) : x;
+  const top = subpixel ? Math.floor(y) : y;
   return (
     <div
       style={{
         position: 'absolute',
-        left: pose.x - PHONE.w / 2,
-        top: pose.y - PHONE.h / 2,
+        left,
+        top,
         width: PHONE.w,
         height: PHONE.h,
-        transform: phoneTransform(pose),
+        transform: subpixel ? `translate(${x - left}px, ${y - top}px) ${phoneTransform(pose)}` : phoneTransform(pose),
         transformStyle: 'preserve-3d',
         ...style,
       }}
@@ -111,11 +135,11 @@ export const IPhone: React.FC<{
       {turned &&
         Array.from({ length: SLICES }, (_, i) => {
           const t = (i + 1) / SLICES;
-          return <Slice key={i} z={-PHONE.depth * t} buttons={t > 0.3 && t < 0.75} />;
+          return <Slice key={i} z={-PHONE.depth * t} buttons={t > 0.3 && t < 0.75} finish={finish} />;
         })}
 
       {/* Frente: aro de titanio, cristal negro y pantalla */}
-      <div style={{ position: 'absolute', inset: 0, borderRadius: PHONE.r, background: RIM_METAL, transform: 'translateZ(0.5px)' }}>
+      <div style={{ position: 'absolute', inset: 0, borderRadius: PHONE.r, background: FINISH[finish].rim, transform: 'translateZ(0.5px)' }}>
         <div
           style={{
             position: 'absolute',

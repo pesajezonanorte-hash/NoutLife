@@ -1,0 +1,27 @@
+{
+  "hook": [
+    [{ "t": "¿Y si tu vida real", "w": 300 }],
+    [{ "t": "tuviera un modo ", "w": 300 }, { "t": "Pro", "w": 700, "role": "pro" }, { "t": "?", "w": 300 }]
+  ],
+  "callout": {
+    "coliseo": [[{ "t": "Coliseo", "w": 700 }]],
+    "recreacion": [[{ "t": "Recreación", "w": 700 }]],
+    "locked": [[{ "t": "ZONA PRO", "w": 700 }]],
+    "unlocked": [[{ "t": "DESBLOQUEADA", "w": 700 }]]
+  },
+  "offer": {
+    "headline": [
+      [{ "t": "7 DÍAS DE ", "w": 700 }, { "t": "PRO.", "w": 700, "role": "pro" }],
+      [{ "t": "GRATIS.", "w": 700 }]
+    ],
+    "noCard": [[{ "t": "Sin tarjeta de crédito.", "w": 700 }]],
+    "fine": [
+      [{ "t": "Disponible para nuevos usuarios", "w": 300 }],
+      [{ "t": "y cuentas Lite que aún no han probado Pro.", "w": 300 }]
+    ],
+    "button": [[{ "t": "Empieza ahora", "w": 700 }]]
+  },
+  "end": {
+    "url": [[{ "t": "noutlife.vercel.app", "w": 300 }]]
+  }
+}

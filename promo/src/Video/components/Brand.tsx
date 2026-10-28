@@ -4,7 +4,7 @@
 // letras de «Noutlife» también.
 import type React from 'react';
 import { useId } from 'react';
-import { COLORS, LOGO_GRADIENTS } from '../theme';
+import { COLORS, LOGO_GRADIENTS, type LogoGradients } from '../theme';
 
 export const MARK_SIZE = { w: 670, h: 786 };
 
@@ -44,8 +44,10 @@ export const NoutLifeMark: React.FC<{
   blades?: Partial<Record<Blade, BladeState>>;
   /** 0→1: barrido de luz sobre las hojas (null = sin barrido). */
   sheen?: number | null;
+  /** Degradados de las hojas: los de fondo oscuro por defecto; LOGO_GRADIENTS_ON_LIGHT sobre claro. */
+  gradients?: LogoGradients;
   style?: React.CSSProperties;
-}> = ({ height, blades = {}, sheen = null, style }) => {
+}> = ({ height, blades = {}, sheen = null, gradients = LOGO_GRADIENTS, style }) => {
   const uid = useId().replace(/:/g, '');
   const width = (height * MARK_SIZE.w) / MARK_SIZE.h;
   const bladeStyle = (k: Blade): React.CSSProperties => {
@@ -65,7 +67,7 @@ export const NoutLifeMark: React.FC<{
           const [x1, y1, x2, y2] = GRADIENT_AXES[k];
           return (
             <linearGradient key={k} id={`${uid}${k}`} gradientUnits="userSpaceOnUse" x1={x1} y1={y1} x2={x2} y2={y2}>
-              {LOGO_GRADIENTS[k].map(([offset, color]) => (
+              {gradients[k].map(([offset, color]) => (
                 <stop key={offset} offset={offset} stopColor={color} />
               ))}
             </linearGradient>

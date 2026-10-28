@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   Flower2,
   Home,
+  Lock,
   Signal,
   Swords,
   User,
@@ -83,8 +84,15 @@ const TABS: Array<{ id: string; label: string; icon: LucideIcon }> = [
   { id: 'perfil', label: 'Perfil', icon: User },
 ];
 
-/** La barra inferior de la app: Inicio, tres zonas elegidas y Perfil. */
-export const TabBar: React.FC<{ active: string; accent?: string }> = ({ active, accent = COLORS.jade }) => (
+/**
+ * La barra inferior de la app: Inicio, tres zonas elegidas y Perfil. `locks` pone el
+ * candado de NoutLife Lite a las zonas Pro (0–1: así se puede desvanecer al desbloquear).
+ */
+export const TabBar: React.FC<{ active: string; accent?: string; locks?: Partial<Record<string, number>> }> = ({
+  active,
+  accent = COLORS.jade,
+  locks = {},
+}) => (
   <div
     style={{
       position: 'absolute',
@@ -102,10 +110,12 @@ export const TabBar: React.FC<{ active: string; accent?: string }> = ({ active, 
   >
     {TABS.map(({ id, label, icon: Icon }) => {
       const on = id === active;
+      const lock = locks[id] ?? 0;
       return (
         <div key={id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
           <div
             style={{
+              position: 'relative',
               width: 76,
               height: 44,
               borderRadius: 22,
@@ -116,6 +126,27 @@ export const TabBar: React.FC<{ active: string; accent?: string }> = ({ active, 
             }}
           >
             <Icon size={30} color={on ? accent : COLORS.textMuted} strokeWidth={1.9} />
+            {lock > 0.001 && (
+              <div
+                style={{
+                  position: 'absolute',
+                  right: 12,
+                  top: -2,
+                  width: 22,
+                  height: 22,
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: COLORS.bg,
+                  boxShadow: `inset 0 0 0 1.5px ${rgba(COLORS.gold, 0.6)}`,
+                  opacity: lock,
+                  transform: `scale(${0.6 + 0.4 * lock})`,
+                }}
+              >
+                <Lock size={13} color={COLORS.gold} strokeWidth={2.6} />
+              </div>
+            )}
           </div>
           <span style={{ fontSize: 16, fontWeight: on ? 700 : 500, color: on ? accent : COLORS.textMuted }}>{label}</span>
         </div>

@@ -1,3 +1,7 @@
 # Renders (MP4, fotogramas sueltos): se regeneran con `npm run render`.
 out/
 node_modules/
+# Anuncio «Pro Studio»: la pantalla del teléfono (textura) y los fotogramas de Blender.
+# Pesan ~1 GB y se regeneran con `npm run studio:screen` y `npm run studio:blender`.
+blender/cache/
+public/studio/
