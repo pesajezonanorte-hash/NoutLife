@@ -5,10 +5,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Shirt, Swords, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Swords, X } from 'lucide-react';
 import { Button, EmptyState, Skeleton } from '@/components/ui/lq';
 import { InstantPhoto } from '@/components/social/letters/InstantPhoto';
 import { Lettering } from '@/components/layout/Lettering';
+import { MirrorIcon } from '@/components/zones/mirrorIcon';
 import { PrivatePhotoNotice } from '@/components/privacy/PrivatePhotoNotice';
 import { lockScroll, unlockScroll } from '@/components/ui/lq/Modal';
 import { springs } from '@/lib/motion/presets';
@@ -24,7 +25,7 @@ export interface ZonePhoto { id: string; zone: ZoneAlbumId; at: string; caption:
 
 export const ZONE_ALBUMS: Record<ZoneAlbumId, { label: string; icon: typeof Swords; link: string; empty: string }> = {
   coliseo: { label: 'Coliseo', icon: Swords, link: '/coliseo', empty: 'Sube tu primera foto de progreso en el Coliseo.' },
-  wardrobe: { label: 'Espejo', icon: Shirt, link: '/espejo', empty: 'Fotografía una prenda en el armario del Espejo para empezar este capítulo.' },
+  wardrobe: { label: 'Espejo', icon: MirrorIcon, link: '/espejo', empty: 'Fotografía una prenda en el armario del Espejo para empezar este capítulo.' },
 };
 
 const ALBUM_TEXT = {

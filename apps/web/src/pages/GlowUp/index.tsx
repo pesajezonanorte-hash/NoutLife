@@ -7,12 +7,13 @@
 import { useState, useEffect, useCallback, useMemo, useRef, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Camera, Check, Droplets, Flame, Moon, Plus, Shirt, Sparkles, Star, Sun, Trash2 } from 'lucide-react';
+import { Camera, Check, Droplets, Flame, Moon, Plus, Shirt, SlidersHorizontal, Star, Sun, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { blurFrom, blurTo, item, springs, stagger, useMotionReduced } from '@/lib/motion';
 import { AmbientLight, ZoneShell } from '@/components/ambience';
 import { Mirror } from '@/components/glowup/Mirror';
 import { LookTray, Wardrobe3D } from '@/components/glowup/Wardrobe';
+import { MirrorIcon } from '@/components/zones/mirrorIcon';
 import { useToastStore } from '../../hooks/useToast';
 import api from '../../lib/api';
 import { Badge, Button, Card, ChipGroup, EmptyState, ErrorState, Field, IconChip, Input, Modal, ResponsiveDialog, ProgressBar, Select, SegmentedControl, StepItem, Textarea, type Tone, PageLoader } from '@/components/ui/lq';
@@ -272,7 +273,7 @@ const TIME_META: Record<string, { tone: Tone; icon: typeof Sun }> = {
   morning: { tone: 'warning', icon: Sun },
   night: { tone: 'forest', icon: Moon },
   weekly: { tone: 'info', icon: Droplets },
-  custom: { tone: 'primary', icon: Sparkles },
+  custom: { tone: 'primary', icon: SlidersHorizontal },
 };
 
 const todayKey = () => new Date().toISOString().slice(0, 10);
@@ -768,7 +769,7 @@ function PresenceSection() {
   let history: ReactNode = null;
   if (state === 'loading') history = <PageLoader label={t.loadingEvolution} words={LOADING_COPY.glowUpRoutines} size="sm" />;
   else if (state === 'error') history = <ErrorState title={t.evolutionFail} onRetry={() => void load()} />;
-  else if (checkins.length === 0) history = <EmptyState icon={Sparkles} tone="forest" title={t.noCheckins} description={t.noCheckinsDesc} className="py-4" />;
+  else if (checkins.length === 0) history = <EmptyState icon={MirrorIcon} tone="forest" title={t.noCheckins} description={t.noCheckinsDesc} className="py-4" />;
   else history = (
     <ul className="flex flex-col">
       {checkins.slice(0, 6).map((c) => {

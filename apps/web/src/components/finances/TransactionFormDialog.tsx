@@ -3,7 +3,7 @@
 // el atajo «Ir al Espejo» para registrar la prenda recién comprada en su armario.
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles } from 'lucide-react';
+import { MirrorIcon } from '@/components/zones/mirrorIcon';
 import type { Transaction, TransactionCategory } from '@noutlife/shared';
 import { cn } from '@/lib/utils';
 import { Button, Field, Input, ResponsiveDialog, SegmentedControl, DatePicker } from '@/components/ui/lq';
@@ -147,7 +147,7 @@ export function TransactionFormDialog({ open, onClose, onSaved }: {
           <div role="note" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/40 bg-primary/[var(--lq-soft-alpha)] p-3">
             <p className="min-w-0 flex-1 text-body-sm text-on-surface">{t.shortcutNote}</p>
             <Button type="button" variant="secondary" size="sm" onClick={() => { onClose(); navigate('/espejo?add=prenda'); }}>
-              <Sparkles aria-hidden className="size-4" />{t.goMirror}
+              <MirrorIcon aria-hidden className="size-4" />{t.goMirror}
             </Button>
           </div>
         )}
