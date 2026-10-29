@@ -7,13 +7,14 @@
 import {
   BarChart3, BookOpen, CalendarDays, Clapperboard, Flower2, Gem, HelpCircle, Flag, Globe, Heart, Home,
   MapPin, Moon, Notebook, NotebookPen, Scroll, Settings, ShoppingBag, Skull,
-  Sparkles, Swords, Trophy, User, UtensilsCrossed, Wallet, CheckCircle2, MessageCircle, Mail, NotebookTabs, Tent, Album, ListChecks, type LucideIcon,
+  Swords, Trophy, User, UtensilsCrossed, Wallet, CheckCircle2, MessageCircle, Mail, NotebookTabs, Tent, Album, ListChecks, type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useMemo } from 'react';
 import type { Gender } from '@noutlife/shared';
 import { useAuthStore } from '@/store/authStore';
 import { useCustomZoneStore, type CustomZoneNav } from '@/store/customZoneStore';
 import { zoneIconOf } from '@/components/zones/zoneIcons';
+import { MirrorIcon } from '@/components/zones/mirrorIcon';
 import { DEFAULT_ORDER, PINNED_COUNT, useNavStore } from '@/store/navStore';
 import { proZoneOf, usableOrder } from '@/lib/plan';
 import { useLocale, type Locale } from '@/lib/i18n';
@@ -64,7 +65,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { to: '/stats', label: 'Estadísticas', icon: BarChart3 },
       // Coliseo (antes Gimnasio): cualquier entrenamiento físico, no solo el gimnasio.
       { to: '/coliseo', label: 'Coliseo', icon: Swords },
-      { to: '/espejo', label: 'Espejo', icon: Sparkles },
+      { to: '/espejo', label: 'Espejo', icon: MirrorIcon },
       { to: '/learning', label: 'Aprendizaje', icon: BookOpen },
       { to: '/love', label: 'Relaciones', icon: Heart },
       { to: '/journal', label: 'Diario', icon: NotebookPen },

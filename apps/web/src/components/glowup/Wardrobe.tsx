@@ -6,7 +6,7 @@
 // Solo transform y opacity; con «Reducir movimiento» las puertas ya están abiertas.
 import { type CSSProperties } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Check, MoreHorizontal, Sparkles, X } from 'lucide-react';
+import { Bookmark, Check, MoreHorizontal, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { springs } from '@/lib/motion';
 import { useMotionStore } from '@/store/motionStore';
@@ -210,7 +210,7 @@ export function LookTray({ items, onRemove, onSave }: { items: WardrobeItem[]; o
           ))}
         </AnimatePresence>
       </ul>
-      <Button size="md" disabled={items.length < 2} onClick={onSave}><Sparkles aria-hidden className="size-4" />{t.save}</Button>
+      <Button size="md" disabled={items.length < 2} onClick={onSave}><Bookmark aria-hidden className="size-4" />{t.save}</Button>
     </section>
   );
 }
