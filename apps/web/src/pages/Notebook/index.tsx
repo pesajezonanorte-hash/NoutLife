@@ -1,13 +1,14 @@
-// Libreta: una estantería de cuadernos. Cada libreta tiene su tapa (color del
-// tema), su papel (rayado, cuadriculado, punteado o liso), una categoría y las
-// páginas que elijas. Al abrirla, el cuaderno ocupa toda la pantalla
-// (components/notebook/NotebookEditor) y la URL lleva ?n=<id>: el botón atrás la cierra.
+// Libreta: un escritorio de cuadernos en 3D que se mueven a mano (NotebookDesk).
+// Cada libreta tiene su tapa (color del tema), su papel (rayado, cuadriculado,
+// punteado o liso), una categoría y las páginas que elijas. Al abrirla, el cuaderno
+// ocupa toda la pantalla (components/notebook/NotebookEditor) y la URL lleva ?n=<id>:
+// el botón atrás la cierra.
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { MoreHorizontal, Notebook as NotebookIcon, Plus, Trash2 } from 'lucide-react';
+import { Notebook as NotebookIcon, Plus, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { item, stagger } from '@/lib/motion';
+import { item } from '@/lib/motion';
 import { ZoneShell } from '@/components/ambience';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { useToast } from '@/hooks/useToast';
@@ -15,12 +16,13 @@ import {
   Button, ChipGroup, EmptyState, ErrorState, Field, Input, Modal, PageLoader, ResponsiveDialog,
 } from '@/components/ui/lq';
 import { NotebookEditor, clearNotebookDrafts } from '@/components/notebook/NotebookEditor';
+import { NotebookDesk } from '@/components/notebook/NotebookDesk';
 import { LiteNotice } from '@/components/billing/LiteNotice';
 import { useAuthStore } from '@/store/authStore';
 import { usePlanStore } from '@/store/planStore';
 import { LITE_LIMITS } from '@/lib/plan';
 import { useLocale, useText, type Copy } from '@/lib/i18n';
-import { categoriesFor, categoryLabelFor, coversFor, papersFor } from '@/components/notebook/paper';
+import { categoriesFor, coversFor, papersFor } from '@/components/notebook/paper';
 import * as svc from '@/services/notebook.service';
 import type { Notebook, NotebookCategory, NotebookColor, NotebookInput, NotebookPaper } from '@/services/notebook.service';
 
@@ -214,39 +216,6 @@ function NotebookDialog({ open, book, lite, onClose, onSaved, onDelete }: {
   );
 }
 
-/** Tapa en la estantería: lomo, goma elástica y etiqueta con el nombre. */
-function Cover({ book, onOpen, onEdit }: { book: Notebook; onOpen: () => void; onEdit: () => void }) {
-  const t = useText(COPY);
-  const locale = useLocale();
-  return (
-    <motion.li variants={item} className="relative">
-      <button type="button" onClick={onOpen} className="group block w-full text-left outline-none" aria-label={t.openAria(book.title)}>
-        <div
-          className={cn(
-            'relative aspect-[3/4] overflow-hidden rounded-l-md rounded-r-2xl text-background shadow-[0_14px_24px_-14px_rgb(0_0_0/.6),0_2px_4px_rgb(0_0_0/.12)]',
-            'transition-transform duration-300 ease-[cubic-bezier(.34,1.56,.64,1)] group-hover:-translate-y-1 group-hover:-rotate-1 group-focus-visible:outline group-focus-visible:outline-[3px] group-focus-visible:outline-offset-2 group-focus-visible:outline-primary',
-            coversFor(locale)[book.color].className,
-          )}
-        >
-          {/* Lomo y goma elástica */}
-          <span aria-hidden className="absolute inset-y-0 left-0 w-[9%] bg-black/25 shadow-[inset_-2px_0_3px_rgb(0_0_0/.2)]" />
-          <span aria-hidden className="absolute inset-y-0 right-[11%] w-[4.5%] bg-black/30 shadow-[1px_0_2px_rgb(0_0_0/.25)]" />
-          {/* Grano de la tapa */}
-          <span aria-hidden className="lq-tex-linen absolute inset-0 opacity-60" />
-          <span className="absolute left-[17%] right-[21%] top-[16%] flex flex-col gap-1 rounded-md bg-background/95 px-3 py-2.5 text-on-background shadow-sm">
-            <span className="line-clamp-3 break-words text-label-lg leading-snug">{book.title}</span>
-            <span className="text-label-md text-on-surface-light">{categoryLabelFor(book.category, locale)}</span>
-          </span>
-          <span className="absolute bottom-3 left-[17%] font-mono text-label-md tabular-nums opacity-90">{t.pagesUsed(book.usedPages, book.pageCount)}</span>
-        </div>
-      </button>
-      <Button variant="icon" aria-label={t.settingsAria(book.title)} onClick={onEdit} className="absolute right-0 top-0 text-background hover:bg-black/20">
-        <MoreHorizontal aria-hidden className="size-5" />
-      </Button>
-    </motion.li>
-  );
-}
-
 export default function NotebookPage() {
   const t = useText(COPY);
   const locale = useLocale();
@@ -263,6 +232,7 @@ export default function NotebookPage() {
   /** Se abrió desde la estantería (atrás la cierra) o con un enlace directo (cerrar reemplaza). */
   const openedHere = useRef(false);
   const lite = useAuthStore((s) => s.user?.subscription?.plan === 'lite');
+  const userId = useAuthStore((s) => s.user?.id) ?? 'anon';
   const openUpgrade = usePlanStore((s) => s.openUpgrade);
 
   const load = useCallback(async () => {
@@ -346,18 +316,9 @@ export default function NotebookPage() {
             options={[{ value: 'all', label: t.all, count: books.length }, ...categories.filter((c) => counts[c.value]).map((c) => ({ ...c, count: counts[c.value] }))]}
           />
         </motion.div>
-        <motion.ul variants={stagger} initial="initial" animate="animate" className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-4 lg:gap-x-6">
-          <motion.li variants={item}>
-            <button
-              type="button" onClick={newBook}
-              className="flex aspect-[3/4] w-full flex-col items-center justify-center gap-2 rounded-l-md rounded-r-2xl border-2 border-dashed border-border-strong/60 text-on-surface transition-colors hover:border-primary hover:text-primary-text"
-            >
-              <Plus aria-hidden className="size-7" strokeWidth={1.75} />
-              <span className="text-label-lg">{t.newNotebook}</span>
-            </button>
-          </motion.li>
-          {shown.map((b) => <Cover key={b.id} book={b} onOpen={() => open(b.id)} onEdit={() => setDialog({ book: b })} />)}
-        </motion.ul>
+        <motion.div variants={item}>
+          <NotebookDesk books={shown} userId={userId} onOpen={open} onEdit={(b) => setDialog({ book: b })} />
+        </motion.div>
       </>
     );
   }
@@ -371,6 +332,7 @@ export default function NotebookPage() {
       <PageHeader
         title={t.title}
         description={t.description}
+        aside={state === 'ready' && books.length > 0 ? <Button onClick={newBook}><Plus aria-hidden className="size-4" strokeWidth={2} />{t.newNotebook}</Button> : undefined}
       />
       {lite && state === 'ready' && books.length > 0 && (
         <LiteNotice feature="notebooks">

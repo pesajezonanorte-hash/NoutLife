@@ -140,11 +140,17 @@ html.dark {
   .lq-lift {
     transition: transform .6s cubic-bezier(.3, 1.35, .5, 1), scale .5s cubic-bezier(.3, 1.6, .5, 1), box-shadow .4s cubic-bezier(.16, 1, .3, 1), border-color .2s ease-out;
   }
-  .lq-lift:hover, .lq-lift:focus-within {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-lg);
-    border-color: rgb(var(--lq-primary) / .25);
+  /* Solo con ratón o trackpad: en el móvil :hover se queda pegado tras el toque y la
+     tarjeta (o el selector) quedaba levantada y saltaba al tocar la siguiente. */
+  @media (hover: hover) and (pointer: fine) {
+    .lq-lift:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); border-color: rgb(var(--lq-primary) / .25); }
+    .lq-lift:hover .lq-ichip { transform: scale(1.08) rotate(-4deg); }
   }
+  .lq-lift:has(:focus-visible) { transform: translateY(-4px); box-shadow: var(--shadow-lg); border-color: rgb(var(--lq-primary) / .25); }
+
+  /* Píldora o subrayado que se desliza entre opciones (hooks/useIndicator): solo transform. */
+  .lq-indicator { transition: transform .42s cubic-bezier(.3, 1.22, .5, 1), width .32s cubic-bezier(.16, 1, .3, 1), height .32s cubic-bezier(.16, 1, .3, 1); will-change: transform; }
+  .reduce-motion .lq-indicator { transition: none; }
   /* Enlace estirado (título que cubre toda la tarjeta): el anillo de foco rodea la tarjeta. */
   .lq-stretch:focus-visible { outline: none; }
   .lq-stretch:focus-visible::after { outline: 3px solid rgb(var(--lq-primary)); outline-offset: 2px; border-radius: 1rem; }
@@ -171,7 +177,6 @@ html.dark {
   .lq-acc-panel .lq-acc-body { opacity: 0; transform: translateY(-6px); transition: opacity .4s .05s, transform .5s cubic-bezier(.16, 1, .3, 1); }
   .lq-acc-panel[data-open="true"] .lq-acc-body { opacity: 1; transform: none; }
   .reduce-motion .lq-acc-panel { transition: none; }
-  .lq-lift:hover .lq-ichip { transform: scale(1.08) rotate(-4deg); }
 
   /* Barra con brillo (`shine`) */
   .lq-sheen::after {
@@ -200,7 +205,7 @@ html.dark {
   }
   .lq-shine:hover::before, .lq-shine:focus-visible::before { transform: translateX(120%); transition: transform .7s cubic-bezier(.22, 1, .36, 1); }
 
-  .reduce-motion .lq-lift:hover, .reduce-motion .lq-lift:focus-within, .reduce-motion .lq-lift:hover .lq-ichip { transform: none; }
+  .reduce-motion .lq-lift:hover, .reduce-motion .lq-lift:has(:focus-visible), .reduce-motion .lq-lift:hover .lq-ichip { transform: none; }
   .reduce-motion .lq-lift:active, .reduce-motion .lq-press:active { scale: none; }
   .reduce-motion .lq-shine::before { display: none; }
   .reduce-motion .lq-sheen::after, .reduce-motion .lq-skeleton { animation: none; }

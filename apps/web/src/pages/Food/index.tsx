@@ -25,6 +25,9 @@ import { ClocheIcon, MacroPlate, Steam } from '@/components/food/Restaurant';
 import { ZoneAmbience } from '@/components/ambience';
 import { Lettering } from '@/components/layout/Lettering';
 import { CategoryChecklists } from '@/components/checklists/CategoryChecklists';
+import { PerformancePanel } from '@/components/food/Performance';
+import { fetchWorkouts } from '@/services/workout.service';
+import type { Workout } from '@noutlife/shared';
 import { INTL_LOCALE, useLocale, useText, type Copy, type Locale } from '@/lib/i18n';
 
 const COPY: Copy<{
@@ -127,6 +130,10 @@ export default function FoodPage() {
   const goDay = (d: -1 | 1) => { turn.current = d; setOffset((o) => Math.min(0, o + d)); };
   const day = useMemo(() => { const d = new Date(); d.setDate(d.getDate() + offset); return d; }, [offset]);
   const key = dayKey(day);
+  // Sesiones recientes del Coliseo: el panel de rendimiento sabe si el día mostrado fue de entreno.
+  const [workouts, setWorkouts] = useState<Workout[]>([]);
+  useEffect(() => { fetchWorkouts(14).then(setWorkouts).catch(() => setWorkouts([])); }, []);
+  const trainedTitle = workouts.find((w) => (w.duration ?? 0) > 0 && dayKey(new Date(w.date)) === key)?.title ?? null;
   const [meals, setMeals] = useState<Meal[]>([]);
   const [goal, setGoal] = useState<NutritionGoal | null>(null);
   const [saved, setSaved] = useState<SavedMeal[] | null>(null);
@@ -506,6 +513,7 @@ export default function FoodPage() {
       ) : (
         <>
           <motion.div variants={item}>{summary}</motion.div>
+          <motion.div variants={item}><PerformancePanel totals={tot} goals={g} trainedTitle={trainedTitle} /></motion.div>
           <motion.div variants={item} className="grid items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
             <div className="flex min-w-0 flex-col gap-6">
               {cta}

@@ -10,8 +10,11 @@ import { cn } from '@/lib/utils';
 import { FATIGUE_BANDS, MUSCLE_IDS, muscleLabelFor, type Muscle, type MuscleState, type Recovery } from '@/lib/coliseo';
 import { INTL_LOCALE, useLocale, useText, type Copy } from '@/lib/i18n';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { useAuthStore } from '@/store/authStore';
+import { lookFrom } from '@/components/character/pixel/look';
 import { Badge, Card, ProgressBar, SegmentedControl, Skeleton, chipClasses, type BadgeVariant } from '@/components/ui/lq';
 import type { MuscleViewer3DProps } from './muscle3d/MuscleViewer3D';
+import type { Body } from './muscle3d/figure';
 
 /** Si three.js no llega a descargarse (sin red), la tarjeta vuelve al mapa plano en vez de romper la zona. */
 function Unavailable({ onUnavailable }: MuscleViewer3DProps) {
@@ -262,8 +265,17 @@ function Figure({ shapes, label, states, selected, onSelect }: {
   );
 }
 
+/** Figura del perfil: mujer u hombre según el género; si no lo indicó, el cuerpo de su personaje. */
+function useBody(): Body {
+  const gender = useAuthStore((s) => s.user?.gender);
+  const avatar = useAuthStore((s) => s.user?.avatarConfig);
+  if (gender === 'female' || gender === 'male') return gender;
+  return lookFrom(avatar, 'male').body;
+}
+
 export function MuscleMap({ states, now }: { states: Record<Muscle, MuscleState>; now: number }) {
   const t = useText(COPY);
+  const body = useBody();
   const locale = useLocale();
   const views: Array<{ value: View; label: string }> = [{ value: '3d', label: '3D' }, { value: 'flat', label: t.flat }];
   const worst = useMemo(
@@ -319,7 +331,7 @@ export function MuscleMap({ states, now }: { states: Record<Muscle, MuscleState>
           {show3d ? (
             <Suspense fallback={<ViewerFallback />}>
               <MuscleViewer3D
-                states={states} selected={selected} onSelect={setPicked} onUnavailable={() => setCan3d(false)}
+                body={body} states={states} selected={selected} onSelect={setPicked} onUnavailable={() => setCan3d(false)}
                 topInset={compact ? FLOAT_INSET : 0} overlay={<FloatingReadout muscle={selected} state={s} />}
               />
             </Suspense>
@@ -341,7 +353,7 @@ export function MuscleMap({ states, now }: { states: Record<Muscle, MuscleState>
         </div>
 
         <div className="flex flex-col gap-5">
-          <div aria-live="polite" className="flex flex-col gap-3 rounded-2xl border border-border bg-background p-4">
+          <div aria-live="polite" className="flex min-h-[12.5rem] flex-col gap-3 rounded-2xl border border-border bg-background p-4">
             {s && selected ? (
               <>
                 <div className="flex flex-wrap items-center justify-between gap-2">

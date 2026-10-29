@@ -8,7 +8,7 @@ import { motion } from 'framer-motion';
 import { Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { springs, useMotionReduced } from '@/lib/motion';
-import { usePaused } from '@/components/ambience';
+import { Pickup, usePaused } from '@/components/ambience';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useToastStore } from '@/hooks/useToast';
 import * as recreationService from '@/services/recreation.service';
@@ -186,13 +186,14 @@ export function Ticket({ entry, onOpen, onUpdated }: { entry: RecreationEntry; o
   );
 }
 
-/** Póster de la cartelera (algo por ver). */
+/** Póster de la cartelera (algo por ver). Se despega de la pared (pulsación larga en el móvil) y vuelve a su sitio. */
 export function Poster({ entry, onOpen, index }: { entry: RecreationEntry; onOpen: () => void; index: number }) {
   const t = useText(COPY);
   const locale = useLocale();
   const kind = kindOf(entry.kind, locale);
   const reduce = useMotionReduced();
   return (
+    <Pickup snapBack limits={{ top: -26, right: 20, bottom: 8, left: -20 }} tilt={8}>
     <motion.button
       type="button" aria-haspopup="dialog" onClick={onOpen} aria-label={t.posterAria(entry.title, kind.label)}
       initial={reduce ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
@@ -207,5 +208,6 @@ export function Poster({ entry, onOpen, index }: { entry: RecreationEntry; onOpe
         <span className="text-label-md opacity-80">{kind.label}</span>
       </span>
     </motion.button>
+    </Pickup>
   );
 }

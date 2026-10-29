@@ -1266,3 +1266,205 @@ html.dark .lq-cy-light { background: radial-gradient(closest-side, rgb(var(--ton
 html.dark .lq-oath { box-shadow: inset 0 0 0 1px rgb(var(--lq-secondary) / .3), inset 0 0 0 6px rgb(0 0 0 / .15), inset 0 0 0 7px rgb(var(--lq-secondary) / .16), var(--shadow-sm); }
 .lq-engraved { color: rgb(var(--lq-on-background) / .86); text-shadow: 0 1px 0 rgb(255 255 255 / .7), 0 -1px 0 rgb(0 0 0 / .08); }
 html.dark .lq-engraved { color: rgb(var(--lq-on-background) / .9); text-shadow: 0 -1px 0 rgb(0 0 0 / .6); }
+
+/* ───────── Listas (libreta de espiral) ───────── */
+/* Renglones azules que cruzan la hoja y el margen rojo; el texto escribe sobre la línea
+   (la trama sube un 22 % del renglón para que la línea quede bajo la base de las letras). */
+.lq-checklist { --lq-rule: 2.75rem; --lq-margin: 3.25rem; }
+.lq-checklist-lines {
+  background-image:
+    linear-gradient(to right, transparent calc(var(--lq-margin) - 1px), rgb(var(--lq-error) / .42) calc(var(--lq-margin) - 1px), rgb(var(--lq-error) / .42) var(--lq-margin), transparent var(--lq-margin)),
+    linear-gradient(to bottom, transparent calc(var(--lq-rule) - 1px), rgb(var(--lq-info) / .22) calc(var(--lq-rule) - 1px), rgb(var(--lq-info) / .22) var(--lq-rule));
+  background-size: 100% 100%, 100% var(--lq-rule);
+  background-position: 0 0, 0 calc(var(--lq-rule) * -.22);
+}
+html.dark .lq-checklist-lines {
+  background-image:
+    linear-gradient(to right, transparent calc(var(--lq-margin) - 1px), rgb(var(--lq-error) / .34) calc(var(--lq-margin) - 1px), rgb(var(--lq-error) / .34) var(--lq-margin), transparent var(--lq-margin)),
+    linear-gradient(to bottom, transparent calc(var(--lq-rule) - 1px), rgb(var(--lq-info) / .15) calc(var(--lq-rule) - 1px), rgb(var(--lq-info) / .15) var(--lq-rule));
+}
+/* Cinta de papel (washi) con la categoría: rayas tenues y bordes rasgados. */
+.lq-washi {
+  background: repeating-linear-gradient(-45deg, rgb(var(--lq-warning) / .3) 0 6px, rgb(var(--lq-warning) / .2) 6px 12px);
+  clip-path: polygon(3% 0, 97% 6%, 100% 50%, 96% 100%, 2% 94%, 0 52%);
+  filter: drop-shadow(0 1px 1px rgb(0 0 0 / .08));
+}
+/* Espiral: perforación del papel y el alambre que la atraviesa. */
+.lq-spiral-hole { fill: rgb(var(--lq-background)); stroke: rgb(0 0 0 / .14); stroke-width: .8; }
+.lq-spiral-wire { fill: none; stroke: rgb(var(--lq-on-surface-light) / .85); stroke-width: 2.2; stroke-linecap: round; }
+html.dark .lq-spiral-hole { stroke: rgb(0 0 0 / .5); }
+html.dark .lq-spiral-wire { stroke: rgb(var(--lq-on-surface-light) / .7); }
+
+/* ───────── Objetos que se levantan (components/ambience/Pickup) ───────── */
+.lq-pickup { position: relative; perspective: 900px; cursor: grab; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.lq-pickup[data-held] { cursor: grabbing; }
+.lq-pickup-body { position: relative; transform-style: preserve-3d; }
+/* Sombra en la mesa: se aleja y se abre cuando el objeto se levanta. */
+.lq-pickup::before {
+  content: ""; position: absolute; inset: 10% 8% -3%; z-index: -1; pointer-events: none; border-radius: 30%;
+  background: radial-gradient(closest-side, rgb(0 0 0 / .3), transparent); filter: blur(7px);
+  opacity: .55; transform: translateY(4px) scale(.94); transition: opacity .3s, transform .45s cubic-bezier(.16, 1, .3, 1);
+}
+.lq-pickup[data-held]::before { opacity: .9; transform: translateY(22px) scale(1.06); }
+html.dark .lq-pickup::before { background: radial-gradient(closest-side, rgb(0 0 0 / .6), transparent); }
+.reduce-motion .lq-pickup::before { transition: none; }
+
+/* ───────── Libreta: escritorio y cuadernos en 3D ───────── */
+/* La mesa: un tapete con grano fino y una luz cálida que entra desde arriba a la izquierda. */
+.lq-desk {
+  border-radius: 1.5rem;
+  background-color: color-mix(in srgb, rgb(var(--lq-surface-variant)) 70%, rgb(var(--lq-warning)) 6%);
+  background-image:
+    radial-gradient(120% 70% at 18% 0%, rgb(255 255 255 / .38), transparent 60%),
+    radial-gradient(rgb(var(--lq-on-background) / .05) .6px, transparent .9px);
+  background-size: auto, 6px 6px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .5), inset 0 0 0 1px rgb(var(--lq-on-background) / .06), inset 0 -18px 40px -24px rgb(0 0 0 / .18);
+}
+html.dark .lq-desk {
+  background-color: color-mix(in srgb, rgb(var(--lq-surface)) 88%, rgb(var(--lq-warning)) 4%);
+  background-image: radial-gradient(120% 70% at 18% 0%, rgb(255 255 255 / .05), transparent 60%), radial-gradient(rgb(255 255 255 / .04) .6px, transparent .9px);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .06), inset 0 -18px 40px -24px rgb(0 0 0 / .5);
+}
+/* Prisma: --w × --h de tapa y --t de grosor. Se mira un poco desde abajo a la derecha
+   para que asomen el canto de hojas y el pie; al levantarlo, Pickup suma su inclinación. */
+.lq-book3d { position: relative; width: var(--w); height: var(--h); transform-style: preserve-3d; transform: rotateX(14deg) rotateY(-11deg); }
+.lq-book3d > * { position: absolute; }
+.lq-book3d-cover { inset: 0; border-radius: 4px 14px 14px 4px; transform: translateZ(calc(var(--t) / 2)); box-shadow: inset 0 0 0 1px rgb(0 0 0 / .08); }
+.lq-book3d-back { inset: 0; border-radius: 4px 14px 14px 4px; transform: translateZ(calc(var(--t) / -2)); filter: brightness(.7); }
+.lq-book3d-spine { top: 0; height: var(--h); left: calc((var(--w) - var(--t)) / 2); width: var(--t); border-radius: 3px; transform: rotateY(-90deg) translateZ(calc(var(--w) / 2)); filter: brightness(.78); }
+/* Canto de las hojas: una línea por pliego. */
+.lq-book3d-pages {
+  top: 6px; height: calc(var(--h) - 12px); left: calc((var(--w) - var(--t)) / 2); width: var(--t);
+  transform: rotateY(90deg) translateZ(calc(var(--w) / 2 - 4px));
+  background: repeating-linear-gradient(90deg, rgb(var(--lq-surface)) 0 1.4px, color-mix(in srgb, rgb(var(--lq-surface)) 82%, rgb(var(--lq-on-background))) 1.4px 2.2px);
+}
+.lq-book3d-foot {
+  left: 5px; width: calc(var(--w) - 16px); top: calc((var(--h) - var(--t)) / 2); height: var(--t);
+  transform: rotateX(-90deg) translateZ(calc(var(--h) / 2 - 3px));
+  background: repeating-linear-gradient(0deg, rgb(var(--lq-surface)) 0 1.4px, color-mix(in srgb, rgb(var(--lq-surface)) 80%, rgb(var(--lq-on-background))) 1.4px 2.2px);
+}
+.reduce-motion .lq-book3d { transform: none; }
+
+/* ───────── Jardín: tarjeta de la rosa 3D ───────── */
+/* Fondo de atardecer detrás del lienzo transparente; de noche, cielo profundo para las luciérnagas. */
+.lq-rose-card {
+  background:
+    radial-gradient(70% 90% at 30% 35%, rgb(var(--lq-error) / .1), transparent 70%),
+    radial-gradient(80% 60% at 30% 100%, rgb(var(--lq-success) / .12), transparent 70%),
+    linear-gradient(180deg, rgb(var(--lq-warning) / .08), rgb(var(--lq-surface)) 70%);
+}
+html.dark .lq-rose-card {
+  background:
+    radial-gradient(70% 90% at 30% 35%, rgb(var(--lq-error) / .12), transparent 70%),
+    radial-gradient(80% 60% at 30% 100%, rgb(var(--lq-success) / .1), transparent 70%),
+    linear-gradient(180deg, rgb(10 14 30 / .6), rgb(var(--lq-surface)) 75%);
+}
+
+/* ───────── Espejo: el armario en 3D ───────── */
+.lq-wardrobe {
+  --wood: color-mix(in srgb, rgb(var(--lq-warning-text)) 58%, rgb(var(--lq-jade-900)));
+  perspective: 1500px;
+}
+html.dark .lq-wardrobe { --wood: color-mix(in srgb, rgb(var(--lq-warning-text)) 28%, rgb(var(--lq-jade-900))); }
+.lq-wardrobe-crown { height: 18px; margin: 0 -10px; border-radius: 10px 10px 3px 3px; background: linear-gradient(180deg, rgb(255 255 255 / .18), transparent 40%, rgb(0 0 0 / .3)), var(--wood); box-shadow: 0 3px 5px rgb(0 0 0 / .35); position: relative; z-index: 2; }
+.lq-wardrobe-base { height: 16px; margin: 0 -6px; border-radius: 2px 2px 8px 8px; background: linear-gradient(180deg, rgb(0 0 0 / .25), transparent 30%, rgb(255 255 255 / .08)), var(--wood); box-shadow: 0 16px 28px -14px rgb(var(--lq-jade-900) / .7); }
+/* Interior: madera más oscura, sombra de las paredes y del techo, vetas verticales. */
+.lq-wardrobe-body {
+  transform-style: preserve-3d;
+  background-color: color-mix(in srgb, var(--wood) 58%, black);
+  background-image: repeating-linear-gradient(90deg, rgb(255 255 255 / .025) 0 2px, transparent 2px 11px), repeating-linear-gradient(90deg, rgb(0 0 0 / .08) 0 1px, transparent 1px 17px);
+  box-shadow: inset 0 0 0 7px var(--wood), inset 0 26px 30px -10px rgb(0 0 0 / .6), inset 22px 0 26px -14px rgb(0 0 0 / .55), inset -22px 0 26px -14px rgb(0 0 0 / .55), inset 0 -10px 18px -10px rgb(0 0 0 / .5);
+}
+/* La lámpara del armario: luz cálida desde arriba. */
+.lq-wardrobe-light { background: radial-gradient(60% 70% at 50% 0%, rgb(255 214 150 / .2), transparent 70%); }
+html.dark .lq-wardrobe-light { background: radial-gradient(60% 70% at 50% 0%, rgb(255 214 150 / .14), transparent 70%); }
+.lq-wardrobe-rail { background: linear-gradient(180deg, color-mix(in srgb, rgb(var(--lq-secondary)) 70%, white), rgb(var(--lq-secondary)) 55%, rgb(var(--lq-secondary-text))); box-shadow: 0 4px 6px -2px rgb(0 0 0 / .55); }
+.lq-wardrobe-shelf { background: linear-gradient(180deg, rgb(255 255 255 / .2), transparent 40%, rgb(0 0 0 / .3)), var(--wood); box-shadow: 0 5px 8px -4px rgb(0 0 0 / .55); }
+/* Puertas: bisagra en el borde exterior; cara de madera con su panel en relieve y el tirador. */
+.lq-wardrobe-door { position: absolute; top: 0; bottom: 0; width: 50%; transform-style: preserve-3d; pointer-events: none; }
+.lq-wardrobe-door-l { left: 0; transform-origin: left center; }
+.lq-wardrobe-door-r { right: 0; transform-origin: right center; }
+.lq-door-face {
+  position: absolute; inset: 0; backface-visibility: hidden; border-radius: 3px;
+  background: linear-gradient(90deg, rgb(255 255 255 / .06), transparent 30%, rgb(0 0 0 / .12)), var(--wood);
+  box-shadow: inset 0 0 0 10px rgb(0 0 0 / .06), inset 0 0 0 11px rgb(255 255 255 / .08), inset 0 0 0 22px var(--wood), inset 0 0 0 23px rgb(0 0 0 / .18), 0 0 0 1px rgb(0 0 0 / .25);
+}
+.lq-wardrobe-door-l .lq-door-face:not(.lq-door-inside)::after, .lq-wardrobe-door-r .lq-door-face:not(.lq-door-inside)::after {
+  content: ""; position: absolute; top: 46%; width: 7px; height: 28px; border-radius: 4px;
+  background: linear-gradient(90deg, color-mix(in srgb, rgb(var(--lq-secondary)) 70%, white), rgb(var(--lq-secondary-text))); box-shadow: 0 2px 3px rgb(0 0 0 / .4);
+}
+.lq-wardrobe-door-l .lq-door-face::after { right: 12px; }
+.lq-wardrobe-door-r .lq-door-face::after { left: 12px; }
+.lq-door-inside { transform: rotateY(180deg); background: color-mix(in srgb, var(--wood) 80%, black); }
+/* El espejo por dentro de la puerta derecha: vidrio con un reflejo en diagonal y su marco. */
+.lq-door-mirror {
+  background:
+    linear-gradient(125deg, transparent 30%, rgb(255 255 255 / .55) 38%, transparent 46%, transparent 60%, rgb(255 255 255 / .25) 64%, transparent 70%),
+    linear-gradient(180deg, #dfe7ea, #b7c4c9 60%, #9fb0b6);
+  box-shadow: inset 0 0 0 8px var(--wood), inset 0 0 0 9px rgb(0 0 0 / .3);
+}
+/* Perchas: alambre de metal y un vaivén lento, cada una a su ritmo. */
+.lq-hanger { transform-origin: 50% 0.4rem; animation: lq-sway 5.6s ease-in-out var(--sway-delay, 0s) infinite; }
+@keyframes lq-sway { 0%, 100% { transform: rotate(-1.4deg); } 50% { transform: rotate(1.4deg); } }
+.reduce-motion .lq-hanger { animation: none; }
+.lq-hanger-wire path { fill: none; stroke: color-mix(in srgb, rgb(var(--lq-secondary)) 55%, #c9ced3); stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }
+.lq-garment { fill: var(--g); stroke: rgb(0 0 0 / .28); stroke-width: 1.6; filter: drop-shadow(0 6px 6px rgb(0 0 0 / .35)); }
+.lq-garment-photo { box-shadow: 0 8px 14px -6px rgb(0 0 0 / .6); }
+.lq-hanger-picked { box-shadow: 0 0 0 3px rgb(var(--lq-primary)), 0 12px 22px -8px rgb(0 0 0 / .6); }
+/* Bandeja del look: lino claro. */
+.lq-look { background-color: rgb(var(--lq-surface)); background-image: repeating-linear-gradient(45deg, rgb(var(--lq-on-background) / .025) 0 2px, transparent 2px 6px); }
+
+/* ───────── Coliseo: sala de pesas ───────── */
+/* Suelo de caucho: motas de colores sobre el fondo, que aparecen hacia abajo. */
+.lq-gym-floor {
+  position: absolute; inset: 0;
+  background-image: radial-gradient(rgb(var(--lq-on-background) / .06) .8px, transparent 1.15px), radial-gradient(rgb(var(--lq-warning) / .07) .7px, transparent 1px), radial-gradient(rgb(var(--lq-info) / .05) .7px, transparent 1px);
+  background-size: 9px 9px, 13px 11px, 17px 15px;
+  background-position: 0 0, 4px 6px, 9px 3px;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 8%, black 45%);
+  mask-image: linear-gradient(to bottom, transparent 8%, black 45%);
+}
+/* Foco de techo: un cono de luz cálida que respira despacio. */
+.lq-gym-spot {
+  position: absolute; top: -6rem; width: 44%; height: 85svh; pointer-events: none;
+  background: linear-gradient(180deg, rgb(255 240 214 / .5), rgb(255 240 214 / .08) 60%, transparent 85%);
+  clip-path: polygon(41% 0, 59% 0, 100% 100%, 0 100%); filter: blur(22px);
+  opacity: calc(var(--a) * .8); animation: lq-gym-spot 9s ease-in-out infinite alternate;
+}
+html.dark .lq-gym-spot { background: linear-gradient(180deg, rgb(255 228 180 / .22), rgb(255 228 180 / .04) 60%, transparent 85%); }
+@keyframes lq-gym-spot { from { opacity: calc(var(--a) * .55); } to { opacity: calc(var(--a) * .85); } }
+.lq-amb[data-reduce] .lq-gym-spot { animation: none; }
+.lq-gym-rack { stroke: rgb(var(--lq-on-background) / .07); }
+.lq-gym-rack-fill { fill: rgb(var(--lq-on-background) / .09); stroke: none; }
+html.dark .lq-gym-rack { stroke: rgb(255 255 255 / .06); }
+.lq-chalk { background: rgb(255 255 255 / .9); box-shadow: 0 0 4px rgb(255 255 255 / .8); }
+html:not(.dark) .lq-chalk { background: rgb(var(--lq-on-surface-light) / .55); box-shadow: none; }
+
+/* ───────── Finanzas: terminal de mercado ───────── */
+/* Cuadrícula fina de terminal que se desvanece hacia abajo. */
+.lq-market-grid {
+  position: absolute; inset: 0;
+  background-image: linear-gradient(rgb(var(--lq-on-background) / .045) 1px, transparent 1px), linear-gradient(90deg, rgb(var(--lq-on-background) / .045) 1px, transparent 1px);
+  background-size: 28px 28px;
+  -webkit-mask-image: radial-gradient(120% 70% at 70% 0%, black 30%, transparent 75%);
+  mask-image: radial-gradient(120% 70% at 70% 0%, black 30%, transparent 75%);
+}
+.lq-market-candles { opacity: .16; }
+html.dark .lq-market-candles { opacity: .12; }
+.lq-candle-up { stroke: rgb(var(--lq-success)); fill: rgb(var(--lq-success) / .6); }
+.lq-candle-down { stroke: rgb(var(--lq-error)); fill: rgb(var(--lq-error) / .6); }
+.lq-market-trend { fill: none; stroke: rgb(var(--lq-primary)); stroke-width: 1.4; stroke-dasharray: 3 3; }
+/* Cinta de cotizaciones: se desliza a velocidad constante y se detiene al pasar el cursor. */
+.lq-ticker { background: rgb(var(--lq-surface) / .85); -webkit-mask-image: linear-gradient(90deg, transparent, black 6%, black 94%, transparent); mask-image: linear-gradient(90deg, transparent, black 6%, black 94%, transparent); }
+.lq-ticker-track { animation: lq-ticker calc(var(--n) * 4.5s) linear infinite; }
+.lq-ticker:hover .lq-ticker-track { animation-play-state: paused; }
+@keyframes lq-ticker { to { transform: translateX(-50%); } }
+.lq-balance-dot { filter: drop-shadow(0 0 4px currentColor); }
+
+/* ───────── Comida: panel de rendimiento ───────── */
+/* Superficie técnica: líneas finas en diagonal, como el tejido de una prenda deportiva. */
+.lq-perf {
+  background-color: rgb(var(--lq-surface));
+  background-image: repeating-linear-gradient(135deg, rgb(var(--lq-primary) / .035) 0 1px, transparent 1px 7px), radial-gradient(90% 120% at 100% 0%, rgb(var(--lq-primary) / .08), transparent 60%);
+  box-shadow: var(--shadow-sm);
+}

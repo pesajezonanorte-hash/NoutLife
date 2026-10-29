@@ -5,7 +5,7 @@
 // brisa de tu cursor; tu pareja es el rosal del centro y cada fecha especial una
 // flor que se abre más cuanto más cerca está. La cuenta atrás es un capullo que se
 // abre; añadir una fecha hace brotar su flor. Pétalos que caen y luz de atardecer.
-import { useState, useEffect, useCallback } from 'react';
+import { Suspense, lazy, useState, useEffect, useCallback, type ComponentType } from 'react';
 import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CalendarDays, Clock, Gift, Heart, HeartCrack, Plus, Sprout, Star, Trash2, UserPlus } from 'lucide-react';
@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils';
 import { item, stagger } from '@/lib/motion';
 import { AmbientLight, Particles, ZoneShell, useParticleBudget } from '@/components/ambience';
 import { Bloom, GardenScene, NextBloom, bloomOf, type Species } from '@/components/love/Garden';
+import type { Rose3DProps } from '@/components/love/rose/Rose3D';
 import { useToast } from '../../hooks/useToast';
 import * as loveService from '../../services/love.service';
 import api from '../../lib/api';
@@ -104,6 +105,8 @@ const es = {
   yesShare: 'Sí, compartir',
   relationships: 'Relaciones',
   titleGarden: 'Jardín del corazón',
+  roseTitle: 'Tu rosa',
+  roseBody: 'Tócala para que se abra o se cierre y arrástrala de lado para verla entera. La mariposa no se deja atrapar.',
   tagline: 'Cuida las relaciones y los momentos que más te importan.',
   sageLabel: 'Consejo del Sabio',
   sageQ: '¿Cómo puedo cuidar mejor las relaciones que importan?',
@@ -232,6 +235,8 @@ const en: typeof es = {
   yesShare: 'Yes, share',
   relationships: 'Relationships',
   titleGarden: 'Garden of the heart',
+  roseTitle: 'Your rose',
+  roseBody: 'Tap it to open or close it, and drag sideways to see it from every angle. The butterfly won’t let you catch it.',
   tagline: 'Look after the relationships and moments you care about most.',
   sageLabel: "The Sage's tip",
   sageQ: 'How can I better look after the relationships that matter?',
@@ -288,6 +293,29 @@ const en: typeof es = {
 };
 
 const COPY: Copy<typeof es> = { es, en };
+
+// three.js solo se descarga si la tarjeta de la rosa llega a montarse.
+const Rose3D = lazy<ComponentType<Rose3DProps>>(() => import('@/components/love/rose/Rose3D').catch(() => ({ default: ({ onUnavailable }: Rose3DProps) => { useEffect(onUnavailable, []); return null; } })));
+
+/** La rosa 3D del jardín: más abierta cuando hay pareja. Sin WebGL 2, la tarjeta no aparece. */
+function RoseCard({ bloom }: { bloom: number }) {
+  const t = useText(COPY);
+  const [ok, setOk] = useState(() => typeof window !== 'undefined' && 'WebGL2RenderingContext' in window);
+  if (!ok) return null;
+  return (
+    <Card as="section" variant="elevated" padding="none" aria-labelledby="love-rose" className="lq-rose-card overflow-hidden">
+      <div className="grid items-center md:grid-cols-[minmax(0,1fr)_minmax(240px,320px)]">
+        <Suspense fallback={<div className="h-[300px] md:h-[360px]" />}>
+          <Rose3D bloom={bloom} onUnavailable={() => setOk(false)} />
+        </Suspense>
+        <div className="flex flex-col gap-2 px-6 pb-6 md:py-8 md:pl-0">
+          <h2 id="love-rose" className="text-heading-lg">{t.roseTitle}</h2>
+          <p className="text-body-md text-on-surface-light">{t.roseBody}</p>
+        </div>
+      </div>
+    </Card>
+  );
+}
 
 interface GiftIdea { id: string; title: string; description?: string; estimatedPrice?: number; isPurchased: boolean; forPerson?: string }
 
@@ -735,6 +763,7 @@ export default function LovePage() {
             <>
               {/* El jardín vacío: tierra y pasto esperando su primera flor */}
               <GardenScene dates={[]} />
+              <RoseCard bloom={0.12} />
               <Card variant="elevated" padding="lg">
                 <EmptyState icon={Heart} tone="error" title={t.waiting} description={t.waitingDesc}
                   action={(
@@ -753,6 +782,7 @@ export default function LovePage() {
                 fresh={sprout}
                 onPick={(id) => { setPicked(id); document.getElementById(`love-date-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); window.setTimeout(() => setPicked(null), 1800); }}
               />
+              <RoseCard bloom={0.9} />
               {next ? (
                 <Card as="section" variant="elevated" padding="lg" aria-label={t.nextAria} className="flex flex-wrap items-center gap-6 md:gap-8 md:p-8">
                   {/* El capullo se abre a medida que se acerca la fecha */}

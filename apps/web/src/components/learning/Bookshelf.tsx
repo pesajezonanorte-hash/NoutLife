@@ -4,13 +4,16 @@
 // formato y un marcapáginas que cuelga según el progreso). Al llegar, los libros
 // se colocan deslizándose uno a uno; al pasar el cursor el libro asoma del estante.
 // Un libro que terminas vuela de su estante al de completados (layoutId) y vuelve
-// con un brillo. Cada lomo es un botón (abre «Actualizar progreso»).
+// con un brillo. Cada lomo es un botón (abre «Actualizar progreso») y se puede
+// sacar un poco del estante (pulsación larga en el móvil): se inclina, pesa y al
+// soltarlo vuelve a su hueco con un rebote (ambience/Pickup).
 import { useEffect, useRef } from 'react';
 import { LayoutGroup, motion } from 'framer-motion';
 import type { LearningItem } from '@noutlife/shared';
 import { cn } from '@/lib/utils';
 import { springs } from '@/lib/motion';
 import type { Tone } from '@/components/ui/lq';
+import { Pickup } from '@/components/ambience';
 
 const SPINE: Record<Exclude<Tone, 'muted'>, string> = {
   primary: 'bg-primary-strong', secondary: 'bg-secondary-text', forest: 'bg-forest-text', success: 'bg-success-text',
@@ -39,6 +42,8 @@ function Spine({ b, i, onPick, closing, seen }: { b: ShelfBook; i: number; onPic
       animate={{ x: 0, opacity: 1, rotate: 0, transition: { ...springs.heavy, delay: 0.35 + i * 0.07, opacity: { duration: 0.2, delay: 0.35 + i * 0.07 } } }}
       transition={{ layout: { ...springs.heavy } }}
     >
+      {/* El estante recorta lo que sale de él: el libro asoma y vuelve, no se va. */}
+      <Pickup snapBack limits={{ top: -22, right: 12, bottom: 4, left: -12 }} tilt={7}>
       <motion.button
         type="button"
         onClick={() => onPick(b.item)}
@@ -68,6 +73,7 @@ function Spine({ b, i, onPick, closing, seen }: { b: ShelfBook; i: number; onPic
         {/* Terminado: el dorado del lomo brilla al volver al estante */}
         {done && <span aria-hidden="true" className={cn('lq-sheen-sweep', !closing && 'hidden')} style={{ ['--sheen-every' as string]: '2.6s', ['--sheen-delay' as string]: '1.2s' }} />}
       </motion.button>
+      </Pickup>
     </motion.li>
   );
 }

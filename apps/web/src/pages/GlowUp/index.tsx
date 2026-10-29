@@ -12,9 +12,10 @@ import { cn } from '@/lib/utils';
 import { blurFrom, blurTo, item, springs, stagger, useMotionReduced } from '@/lib/motion';
 import { AmbientLight, ZoneShell } from '@/components/ambience';
 import { Mirror } from '@/components/glowup/Mirror';
+import { LookTray, Wardrobe3D } from '@/components/glowup/Wardrobe';
 import { useToastStore } from '../../hooks/useToast';
 import api from '../../lib/api';
-import { Badge, Button, Card, ChipGroup, EmptyState, ErrorState, Field, IconChip, Input, Modal, ProgressBar, Select, SegmentedControl, StepItem, Textarea, type Tone, PageLoader } from '@/components/ui/lq';
+import { Badge, Button, Card, ChipGroup, EmptyState, ErrorState, Field, IconChip, Input, Modal, ResponsiveDialog, ProgressBar, Select, SegmentedControl, StepItem, Textarea, type Tone, PageLoader } from '@/components/ui/lq';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 import { Lettering } from '@/components/layout/Lettering';
 import { PrivatePhotoNotice } from '@/components/privacy/PrivatePhotoNotice';
@@ -70,6 +71,7 @@ const es = {
   itemDeleteFail: 'No se pudo eliminar la prenda',
   itemsTitle: 'Prendas',
   outfitBtn: (n: number): string => `Combinación (${n})`,
+  usesLabel: 'Usos',
   item: 'Prenda',
   itemCategoryAria: 'Categoría de prenda',
   all: 'Todas',
@@ -177,6 +179,7 @@ const en: typeof es = {
   itemDeleteFail: 'Could not delete the item',
   itemsTitle: 'Items',
   outfitBtn: (n: number): string => `Outfit (${n})`,
+  usesLabel: 'Wears',
   item: 'Item',
   itemCategoryAria: 'Item category',
   all: 'All',
@@ -478,6 +481,8 @@ function StyleSection({ autoOpenAdd, onAddOpened }: { autoOpenAdd?: boolean; onA
   const [outfitName, setOutfitName] = useState('');
   const [savingOutfit, setSavingOutfit] = useState(false);
   const [form, setForm] = useState({ name: '', category: 'tops', color: '', brand: '', photoData: '' });
+  /** Prenda con la ficha abierta (usar hoy, eliminar). */
+  const [detail, setDetail] = useState<ClothingItem | null>(null);
 
   // Llegar con ?add=prenda (desde Finanzas → «Ir al Espejo») abre directamente
   // el formulario de nueva prenda, para registrar la compra recién hecha.
@@ -580,12 +585,7 @@ function StyleSection({ autoOpenAdd, onAddOpened }: { autoOpenAdd?: boolean; onA
     <section className="flex flex-col gap-6" aria-labelledby="glow-style">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 id="glow-style" className="text-heading-lg">{t.itemsTitle}</h2>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" size="md" disabled={selectedItemIds.length < 2} onClick={() => setShowOutfit(true)}>
-            <Sparkles aria-hidden className="size-4" />{t.outfitBtn(selectedItemIds.length)}
-          </Button>
-          <Button size="md" onClick={() => setShowNew(true)}><Plus aria-hidden className="size-4" />{t.item}</Button>
-        </div>
+        <Button size="md" onClick={() => setShowNew(true)}><Plus aria-hidden className="size-4" />{t.item}</Button>
       </div>
       <PrivatePhotoNotice />
       <ChipGroup label={t.itemCategoryAria} options={options} value={activeCategory} onChange={setActiveCategory} />
@@ -600,41 +600,39 @@ function StyleSection({ autoOpenAdd, onAddOpened }: { autoOpenAdd?: boolean; onA
             action={<Button onClick={() => setShowNew(true)}><Plus aria-hidden className="size-4" />{t.addItem}</Button>} className="py-6" />
         </Card>
       ) : (
-        <motion.ul variants={stagger} initial="initial" animate="animate" className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-          {displayed.map((it) => {
-            const selected = selectedItemIds.includes(it.id);
-            return (
-              <motion.li key={it.id} variants={item}>
-                <Card as="article" padding="sm" interactive className="flex h-full flex-col gap-2">
-                  {it.photoData ? (
-                    <img src={`data:image/jpeg;base64,${it.photoData}`} alt={t.photoAlt(it.name)} className="aspect-[4/3] w-full rounded-xl border border-border object-cover" />
-                  ) : (
-                    <div aria-hidden className="flex aspect-[4/3] items-center justify-center rounded-xl bg-surface-variant text-on-surface-light"><Shirt className="size-10" strokeWidth={1.25} /></div>
-                  )}
-                  <div className="flex items-start justify-between gap-1">
-                    <h3 className="min-w-0 truncate text-label-lg">{it.name}</h3>
-                    <Button variant="icon" size="sm" aria-label={t.deleteAria(it.name)} onClick={() => void handleDelete(it.id)} className="-mr-2 -mt-2 size-11 md:size-9">
-                      <Trash2 aria-hidden className="size-4" strokeWidth={1.75} />
-                    </Button>
-                  </div>
-                  <p className="text-body-sm text-on-surface">{t.categories[it.category] ?? it.category}</p>
-                  {it.brand && <p className="text-body-sm text-on-surface-light">{it.brand}</p>}
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-body-sm text-on-surface-light">
-                      <span className="font-mono tabular-nums">{it.timesWorn}</span> {it.timesWorn === 1 ? t.use : t.uses}
-                    </p>
-                    {it.isFavorite && <Star aria-label={t.favorite} className="size-4 shrink-0 fill-warning text-warning" />}
-                  </div>
-                  <Button variant={selected ? 'primary' : 'secondary'} size="sm" block aria-pressed={selected} onClick={() => toggleSelected(it.id)}>
-                    {selected ? <><Check aria-hidden className="size-4" />{t.inOutfit}</> : t.addToOutfit}
-                  </Button>
-                  <Button variant="secondary" size="sm" block className="mt-auto" onClick={() => void handleWorn(it.id)}>{t.wearToday}</Button>
-                </Card>
-              </motion.li>
-            );
-          })}
-        </motion.ul>
+        <motion.div variants={item} className="flex flex-col gap-4">
+          {/* El armario se abre al llegar; tocar una prenda la lleva al look en curso. */}
+          <Wardrobe3D items={displayed} selected={selectedItemIds} onToggle={toggleSelected} onMore={setDetail} />
+          <LookTray
+            items={selectedItemIds.map((id) => items.find((it) => it.id === id)).filter((it): it is ClothingItem => Boolean(it))}
+            onRemove={toggleSelected} onSave={() => setShowOutfit(true)}
+          />
+        </motion.div>
       )}
+
+      <ResponsiveDialog open={detail !== null} onClose={() => setDetail(null)} title={detail?.name ?? ''}>
+        {detail && (
+          <div className="flex flex-col gap-4">
+            {detail.photoData && <img src={`data:image/jpeg;base64,${detail.photoData}`} alt={t.photoAlt(detail.name)} className="aspect-[4/3] w-full rounded-xl border border-border object-cover" />}
+            <dl className="grid grid-cols-2 gap-2 text-body-sm">
+              <div><dt className="text-on-surface-light">{t.category}</dt><dd className="text-label-lg">{t.categories[detail.category] ?? detail.category}</dd></div>
+              <div><dt className="text-on-surface-light">{t.usesLabel}</dt><dd className="font-mono text-label-lg tabular-nums">{detail.timesWorn}</dd></div>
+              {detail.brand && <div><dt className="text-on-surface-light">{t.brand}</dt><dd className="text-label-lg">{detail.brand}</dd></div>}
+              {detail.color && <div><dt className="text-on-surface-light">{t.color}</dt><dd className="text-label-lg">{detail.color}</dd></div>}
+            </dl>
+            {detail.isFavorite && <p className="flex items-center gap-1.5 text-body-sm text-warning-text"><Star aria-hidden className="size-4 fill-warning text-warning" />{t.favorite}</p>}
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button variant={selectedItemIds.includes(detail.id) ? 'primary' : 'secondary'} className="flex-1" aria-pressed={selectedItemIds.includes(detail.id)} onClick={() => toggleSelected(detail.id)}>
+                {selectedItemIds.includes(detail.id) ? <><Check aria-hidden className="size-4" />{t.inOutfit}</> : t.addToOutfit}
+              </Button>
+              <Button className="flex-1" onClick={() => { void handleWorn(detail.id); setDetail(null); }}>{t.wearToday}</Button>
+            </div>
+            <Button variant="ghost" className="self-center text-error-text" onClick={() => { void handleDelete(detail.id); setDetail(null); }}>
+              <Trash2 aria-hidden className="size-4" strokeWidth={1.75} />{t.deleteAria(detail.name)}
+            </Button>
+          </div>
+        )}
+      </ResponsiveDialog>
 
       {outfits.length > 0 && (
         <section className="flex flex-col gap-3" aria-labelledby="saved-outfits">
