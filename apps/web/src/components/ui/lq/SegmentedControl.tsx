@@ -1,7 +1,6 @@
-import { heavy } from '@/lib/motion';
-import { useId, useRef, type KeyboardEvent } from 'react';
-import { motion, PresenceContext } from 'framer-motion';
+import { useRef, type KeyboardEvent } from 'react';
 import { cn } from '@/lib/utils';
+import { indicatorStyle, useIndicator } from '@/hooks/useIndicator';
 
 export interface SegmentOption<T extends string> {
   value: T;
@@ -20,15 +19,15 @@ export interface SegmentedControlProps<T extends string> {
 }
 
 /**
- * Control segmentado con píldora deslizante (layoutId, spring). Flechas
+ * Control segmentado con píldora deslizante (solo transform, ver useIndicator). Flechas
  * izquierda/derecha mueven la selección (roving tabindex).
  */
 export function SegmentedControl<T extends string>({
   options, value, onChange, label, role = 'tablist', className,
 }: SegmentedControlProps<T>) {
-  const pillId = useId();
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   const itemRole = role === 'tablist' ? 'tab' : 'radio';
+  const { ref, box } = useIndicator<HTMLDivElement>(options.findIndex((o) => o.value === value));
 
   const onKey = (e: KeyboardEvent, i: number) => {
     const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
@@ -39,18 +38,16 @@ export function SegmentedControl<T extends string>({
     refs.current[next]?.focus();
   };
 
-  // El indicador usa layoutId: al cambiar de opción el anterior se desmonta y,
-  // dentro de un diálogo, quedaba registrado como salida pendiente de su
-  // AnimatePresence y el diálogo no terminaba de cerrarse. Se aísla aquí.
   return (
-    <PresenceContext.Provider value={null}>
-    <div role={role} aria-label={label} className={cn('flex gap-1 rounded-[0.875rem] bg-surface-variant p-1', className)}>
+    <div ref={ref} role={role} aria-label={label} className={cn('relative flex gap-1 rounded-[0.875rem] bg-surface-variant p-1', className)}>
+      {box && <span aria-hidden className="lq-indicator pointer-events-none absolute left-0 top-0 rounded-[0.625rem] bg-background shadow-sm" style={indicatorStyle(box)} />}
       {options.map((o, i) => {
         const on = o.value === value;
         return (
           <button
             key={o.value}
             ref={(el) => (refs.current[i] = el)}
+            data-indicator
             type="button"
             role={itemRole}
             aria-selected={itemRole === 'tab' ? on : undefined}
@@ -63,19 +60,10 @@ export function SegmentedControl<T extends string>({
               on ? 'text-on-background' : 'text-on-surface hover:text-on-background',
             )}
           >
-            {on && (
-              <motion.span
-                layoutId={pillId}
-                aria-hidden
-                className="absolute inset-0 rounded-[0.625rem] bg-background shadow-sm"
-                transition={heavy}
-              />
-            )}
-            <span className="relative">{o.label}</span>
+            {o.label}
           </button>
         );
       })}
     </div>
-    </PresenceContext.Provider>
   );
 }

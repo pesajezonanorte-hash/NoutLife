@@ -4,3 +4,4 @@ export { InkPath, SketchUnderline, SketchCircle, SketchCheck, SketchStrike, Tall
 export { Sheen, useHoloTilt } from './Light';
 export { PixelReveal, type PixelRevealProps } from './PixelReveal';
 export { ZoneShell, AmbientLight, AllowEntrance, DetachPresence } from './ZoneShell';
+export { Pickup, type PickupProps } from './Pickup';

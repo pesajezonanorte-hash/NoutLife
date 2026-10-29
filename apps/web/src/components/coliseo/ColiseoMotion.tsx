@@ -5,7 +5,7 @@
 import { useEffect, useRef } from 'react';
 import { AnimatePresence, motion, useAnimationControls, useInView } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { heavy, slam } from '@/lib/motion';
+import { heavy } from '@/lib/motion';
 import { INTL_LOCALE, useLocale, useText, type Copy } from '@/lib/i18n';
 import { WeightBars, formatClock } from '@/components/ui/lq';
 
@@ -156,22 +156,5 @@ export function LoadBar({ pct, delay = 0, className }: { pct: number; delay?: nu
         transition={{ ...heavy, delay: 0.2 + delay }}
       />
     </span>
-  );
-}
-
-/** Título que cae letra a letra como discos sobre el suelo. */
-export function DropTitle({ text, className }: { text: string; className?: string }) {
-  return (
-    <h1 aria-label={text} className={cn('flex', className)}>
-      {text.split('').map((ch, i) => (
-        <motion.span
-          key={i} aria-hidden className="inline-block"
-          initial={{ opacity: 0, y: -36 }} animate={{ opacity: 1, y: 0 }}
-          transition={{ ...slam, delay: 0.12 + i * 0.045, opacity: { duration: 0.18, delay: 0.12 + i * 0.045 } }}
-        >
-          {ch === ' ' ? ' ' : ch}
-        </motion.span>
-      ))}
-    </h1>
   );
 }

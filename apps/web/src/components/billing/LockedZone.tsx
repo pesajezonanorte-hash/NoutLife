@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { Gem, Lock } from 'lucide-react';
 import { Badge, Button, buttonClasses } from '@/components/ui/lq';
 import { findNavEntry } from '@/components/layout/nav';
+import { TitleText } from '@/components/layout/Lettering';
 import { useMotionReduced } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 import { PRO_ZONES, TRIAL_DAYS, annualAvailable, type ProZone } from '@/lib/plan';
@@ -85,7 +86,7 @@ export function LockedZone({ zone }: { zone: ProZone }) {
 
       <div className="flex flex-col items-center gap-3">
         <Badge variant="secondary" icon={Gem}>{t.badge}</Badge>
-        <h1 id="locked-zone-title" className="text-display-sm tracking-tight">{info.label}</h1>
+        <h1 id="locked-zone-title" className="text-display-sm"><TitleText>{info.label}</TitleText></h1>
         <p className="max-w-[40ch] text-body-lg text-on-surface-light">{info.pitch}</p>
         <p className="max-w-[44ch] text-body-sm text-on-surface-light">{t.kept}</p>
       </div>

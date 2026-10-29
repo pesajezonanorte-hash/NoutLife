@@ -27,6 +27,9 @@ import { SHARE_TONES, monthRange, pctChange, txCategory } from '@/components/fin
 import { TransactionFormDialog } from '@/components/finances/TransactionFormDialog';
 import { BudgetsPanel, DebtsPanel, GoalsPanel, PLANNING_TABS, ProjectionPanel, RecurringPanel, SavingsPanel } from '@/components/finances/PlanningTools';
 import { CategoryChecklists } from '@/components/checklists/CategoryChecklists';
+import { Lettering } from '@/components/layout/Lettering';
+import { SketchUnderline, ZoneShell } from '@/components/ambience';
+import { BalanceChart, MarketBackdrop, Ticker, dailyBalance, type Quote } from '@/components/finances/Market';
 import { INTL_LOCALE, useLocale, useText, type Copy, type Locale } from '@/lib/i18n';
 
 type Summary = { income: number; expenses: number; balance: number; byCategory: Record<string, number>; count: number };
@@ -94,6 +97,9 @@ const es = {
   pendingFinance: 'Pendientes financieros',
   pendingFinanceBody: 'Pagos, trámites y revisiones por hacer.',
   financeWord: 'Finanzas',
+  tickerLabel: 'Tus cifras del mes frente al anterior',
+  savingsQuote: 'Ahorro',
+  balanceTrend: 'Evolución del saldo del mes',
 };
 
 const en: typeof es = {
@@ -154,6 +160,9 @@ const en: typeof es = {
   pendingFinance: 'Financial to-dos',
   pendingFinanceBody: 'Payments, paperwork and reviews to do.',
   financeWord: 'Finances',
+  tickerLabel: 'Your numbers this month vs. last month',
+  savingsQuote: 'Savings',
+  balanceTrend: 'Balance over the month',
 };
 
 const COPY: Copy<typeof es> = { es, en };
@@ -180,23 +189,6 @@ function Trend({ value, good, suffix, t }: { value: number | null; good: 'up' | 
     <span className={cn('flex items-center gap-1 text-body-sm', positive ? 'text-success-text' : 'text-error-text')}>
       <Icon aria-hidden className="size-4" strokeWidth={1.75} />{t.vs(up ? '+' : '', value, suffix)}
     </span>
-  );
-}
-
-/** Título que sube desde una ranura, como un billete saliendo del cajero. */
-function SlotTitle({ text }: { text: string }) {
-  return (
-    <h1 aria-label={text} className="flex overflow-hidden pb-[0.08em] text-display-sm md:text-display-md lg:text-display-lg">
-      {text.split('').map((ch, i) => (
-        <motion.span
-          key={i} aria-hidden className="inline-block"
-          initial={{ y: '105%' }} animate={{ y: 0 }}
-          transition={{ ...heavy, delay: 0.1 + i * 0.035 }}
-        >
-          {ch}
-        </motion.span>
-      ))}
-    </h1>
   );
 }
 
@@ -333,6 +325,14 @@ export default function FinancesPage() {
   /** Una fila está «enlazada» si coincide con el día o la categoría resaltados. */
   const linked = (tx: Transaction) => (hoverDay ? tx.date.slice(0, 10) === hoverDay && tx.type === 'EXPENSE' : hoverCat ? tx.type === 'EXPENSE' && tx.category === hoverCat : null);
   const anyLink = Boolean(hoverDay || hoverCat);
+  // Cinta de cotizaciones: ingresos, gastos, ahorro y las categorías con más gasto, contra el mes anterior.
+  const quotes: Quote[] = [
+    { key: 'in', label: t.income, value: compact(s.income), change: prev ? pctChange(s.income, prev.income) : null },
+    { key: 'out', label: t.expenses, value: compact(s.expenses), change: prev ? pctChange(s.expenses, prev.expenses) : null },
+    ...(savingsRate !== null ? [{ key: 'save', label: t.savingsQuote, value: `${savingsRate} %`, change: null }] : []),
+    ...cats.slice(0, 6).map(([c, v]) => ({ key: c, label: txCategory(c, locale).label, value: compact(v), change: prev?.byCategory?.[c] ? pctChange(v, prev.byCategory[c]) : null })),
+  ];
+  const balanceSeries = useMemo(() => dailyBalance(txs, range.from, range.to), [txs, range]);
 
   const monthPicker = (
     <div className="flex items-center gap-1" role="group" aria-label={t.monthGroup}>
@@ -356,7 +356,11 @@ export default function FinancesPage() {
     <motion.section variants={item} className="relative flex flex-wrap items-end justify-between gap-4">
       <div className="flex flex-col gap-1 md:gap-2">
         <span className="hidden text-label-lg text-primary-text md:block">{range.label}</span>
-        <SlotTitle text={t.financeWord} />
+        {/* Letra de la marca, como el resto de zonas. */}
+        <h1 className="relative self-start text-display-sm md:text-display-md lg:text-display-lg">
+          <Lettering text={t.financeWord} />
+          <SketchUnderline className="absolute -bottom-1.5 left-0 w-full text-success md:-bottom-2.5" delay={0.75} />
+        </h1>
       </div>
       <div className="flex flex-wrap items-center gap-2">
         {monthPicker}
@@ -402,6 +406,8 @@ export default function FinancesPage() {
           )}
         </AnimatePresence>
 
+        {s.count > 0 && <Ticker quotes={quotes} label={t.tickerLabel} />}
+
         {/* KPIs */}
         <Thud as="section" trigger={pulse} aria-label={t.balanceMonth} className="grid gap-4 md:grid-cols-[repeat(auto-fit,minmax(260px,1fr))] md:gap-6">
           {/* Tarjeta de saldo: se inclina con el cursor como una tarjeta física y mide el flujo del mes */}
@@ -413,6 +419,8 @@ export default function FinancesPage() {
             <span className={cn('text-display-md font-mono tabular-nums md:text-display-lg', s.balance < 0 ? 'text-error-text' : 'text-primary-text')}>
               <AnimatedValue value={s.balance} format={compact} quietUnits />
             </span>
+            {/* El saldo del mes como la gráfica de una acción. */}
+            {balanceSeries.length > 1 && <span role="img" aria-label={t.balanceTrend} className="block"><BalanceChart key={range.label} series={balanceSeries} /></span>}
             {/* Medidor de flujo: cuánto de lo que entró ya salió */}
             <div className="flex flex-col gap-1.5">
               <div
@@ -621,7 +629,7 @@ export default function FinancesPage() {
   }
 
   return (
-    <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-6 md:gap-12">
+    <ZoneShell zone="finances" ambience={<MarketBackdrop />}>
       {header}
       <motion.div variants={item}>{body}</motion.div>
       <motion.div variants={item}><CategoryChecklists category="Finanzas" title={t.pendingFinance} description={t.pendingFinanceBody} /></motion.div>
@@ -655,6 +663,6 @@ export default function FinancesPage() {
         open={adding} onClose={() => setAdding(false)}
         onSaved={(tx) => { setAdding(false); setFresh(tx.id); setPulse((n) => n + 1); setTxTab('all'); void load(true); }}
       />
-    </motion.div>
+    </ZoneShell>
   );
 }

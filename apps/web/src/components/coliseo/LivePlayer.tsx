@@ -10,7 +10,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Dumbbell, Minus, Music, Pause, Play, Plus, Trophy, X } from 'lucide-react';
 import type { Exercise, SetType } from '@noutlife/shared';
 import { cn } from '@/lib/utils';
-import { slam } from '@/lib/motion';
+import { expo, slam } from '@/lib/motion';
 import { carryForward, oneRepMax, platesPerSide, previousBest, restFor, setTonnage, setTypeOf, setTypesFor, type PreviousBest } from '@/lib/coliseo';
 import { INTL_LOCALE, useLocale, useText, type Copy } from '@/lib/i18n';
 import { useToastStore } from '@/hooks/useToast';
@@ -846,13 +846,20 @@ export function LivePlayer({ workout, update, playlistUrl, onMinimize, onFinish,
             )}
 
             {ex.sets.length > 0 && (
-              <ol aria-label={t.setsOf(ex.name)} className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 pt-2 [touch-action:pan-x] [overscroll-behavior-x:contain]">
+              <ol aria-label={t.setsOf(ex.name)} className="-mx-4 flex overflow-x-auto px-4 pb-1 pt-2 [touch-action:pan-x] [overscroll-behavior-x:contain]">
+                {/* Una serie nueva abre su hueco y una borrada lo cierra: las demás se deslizan, no saltan. */}
+                <AnimatePresence initial={false}>
                 {ex.sets.map((s, j) => {
                   const on = j === setIdx;
                   const type = setTypeOf(s.type, locale);
                   const pr = prs.has(`${exIdx}-${s.id}`);
                   return (
-                    <li key={s.id} className="relative shrink-0">
+                    <motion.li
+                      key={`${exIdx}-${s.id}`} className="relative shrink-0 pr-2"
+                      initial={{ opacity: 0, width: 0, scale: 0.7 }} animate={{ opacity: 1, width: 'auto', scale: 1 }}
+                      exit={{ opacity: 0, width: 0, scale: 0.7, transition: { duration: 0.24, ease: expo } }}
+                      transition={{ ...slam, opacity: { duration: 0.18 } }}
+                    >
                       <button
                         type="button" aria-pressed={on} onClick={() => pickSet(j)}
                         aria-label={t.setLabel(
@@ -876,13 +883,14 @@ export function LivePlayer({ workout, update, playlistUrl, onMinimize, onFinish,
                       </button>
                       <button
                         type="button" aria-label={t.removeSet(j + 1)} onClick={() => removeSet(j)}
-                        className="absolute -right-1.5 -top-1.5 flex size-8 items-center justify-center rounded-full border border-border bg-background text-on-surface-light shadow-sm transition-colors hover:text-error-text"
+                        className="absolute right-0.5 -top-1.5 flex size-8 items-center justify-center rounded-full border border-border bg-background text-on-surface-light shadow-sm transition-colors hover:text-error-text"
                       >
                         <X aria-hidden className="size-4" />
                       </button>
-                    </li>
+                    </motion.li>
                   );
                 })}
+                </AnimatePresence>
               </ol>
             )}
 
@@ -941,12 +949,15 @@ export function LivePlayer({ workout, update, playlistUrl, onMinimize, onFinish,
       </main>
 
       <footer className="border-t border-border bg-background px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
-        <div className="mx-auto flex max-w-lg flex-col gap-3">
-          <AnimatePresence>
+        {/* Sin gap: el descanso y el «deshacer» abren su hueco con altura animada (margen incluido),
+            así lo de abajo nunca salta. */}
+        <div className="mx-auto flex max-w-lg flex-col">
+          <AnimatePresence initial={false}>
             {rest && (
+              <motion.div key="rest" className="overflow-hidden" initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0, transition: { duration: 0.22, ease: expo } }} transition={{ duration: 0.32, ease: expo }}>
               <motion.section
-                key="rest" aria-label={t.restAria} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8, transition: { duration: 0.18 } }} transition={slam}
-                className={cn('relative flex flex-col gap-3 overflow-hidden rounded-2xl border p-3', rest.done ? 'border-success/50 bg-success/[var(--lq-soft-alpha)]' : 'border-info/40 bg-info/[var(--lq-soft-alpha)]')}
+                aria-label={t.restAria} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8, transition: { duration: 0.18 } }} transition={slam}
+                className={cn('relative mb-3 flex flex-col gap-3 overflow-hidden rounded-2xl border p-3', rest.done ? 'border-success/50 bg-success/[var(--lq-soft-alpha)]' : 'border-info/40 bg-info/[var(--lq-soft-alpha)]')}
               >
                 <div className="flex items-center gap-2">
                   <div role="status" className="min-w-0 flex-1">
@@ -974,20 +985,25 @@ export function LivePlayer({ workout, update, playlistUrl, onMinimize, onFinish,
                   <span aria-hidden className="absolute inset-x-0 bottom-0 h-1 origin-left bg-info transition-transform duration-1000 ease-linear" style={{ transform: `scaleX(${rest.total ? restLeft / rest.total : 0})` }} />
                 )}
               </motion.section>
+              </motion.div>
             )}
           </AnimatePresence>
 
-          {undo && (
-            <div role="status" className="flex items-center justify-between gap-3 rounded-2xl bg-surface-variant px-4 py-2 text-body-sm">
-              <span>{t.setDeleted(undo.index + 1)}</span>
-              <Button variant="ghost" size="sm" onClick={undoRemove}>{t.undo}</Button>
-            </div>
-          )}
+          <AnimatePresence initial={false}>
+            {undo && (
+              <motion.div key="undo" className="overflow-hidden" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.24, ease: expo }}>
+                <div role="status" className="mb-3 flex items-center justify-between gap-3 rounded-2xl bg-surface-variant px-4 py-2 text-body-sm">
+                  <span>{t.setDeleted(undo.index + 1)}</span>
+                  <Button variant="ghost" size="sm" onClick={undoRemove}>{t.undo}</Button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
           {set && (
             <motion.button
               type="button" onClick={toggleSet} whileTap={{ scale: 0.97 }} transition={slam}
               className={cn(
-                'flex min-h-16 w-full items-center justify-center gap-3 rounded-2xl px-4 text-heading-sm shadow-md transition-colors',
+                'mb-3 flex min-h-16 w-full items-center justify-center gap-3 rounded-2xl px-4 text-heading-sm shadow-md transition-colors',
                 set.completed ? 'border border-border-strong bg-surface-variant text-on-background' : 'bg-primary-strong text-on-primary',
               )}
             >

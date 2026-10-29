@@ -1,8 +1,9 @@
 // Modelo del Coliseo (src/lib/coliseo.ts). Corre con: npm run test:unit --workspace=apps/web
 // (.unit.ts para que Playwright, que recoge *.test.ts y *.spec.ts de tests/, no lo tome).
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { Box3, Mesh, MeshBasicMaterial, Raycaster, Vector3 } from 'three';
+import { Mesh, MeshBasicMaterial, Raycaster, Vector3 } from 'three';
 import type { SetType, Workout } from '@noutlife/shared';
 import {
   MUSCLE_IDS, carryForward, muscleStates, oneRepMax, platesPerSide, pplBalance, previousBest, restFor, routineFromSession, tonnage,
@@ -95,33 +96,51 @@ test('el color va de azul claro a verde, de amarillo a naranja y de rojo a carme
   assert.ok(heatColor(100, t).reduce((a, b) => a + b) < t.error.reduce((a, b) => a + b), 'el carmesí es más oscuro que el rojo');
 });
 
-test('la figura 3D tiene los 16 músculos en espejo y cada toque cae en su músculo', () => {
-  const fig = buildFigure();
-  const material = new MeshBasicMaterial(); // FrontSide: un rayo solo choca con caras que miran hacia él
-  const meshes = [new Mesh(fig.body, material), ...MUSCLE_IDS.map((m) => Object.assign(new Mesh(fig.muscles[m], material), { name: m }))];
-  for (const m of MUSCLE_IDS) {
-    const g = fig.muscles[m];
-    assert.ok(g.index!.count >= 300, `${m}: tiene malla`);
-    const box = new Box3().setFromBufferAttribute(g.getAttribute('position') as never);
-    assert.ok(Math.abs(box.min.x + box.max.x) < 1e-6, `${m}: los dos lados son espejo`);
-    assert.ok(box.min.y > 0 && box.max.y < 1.6, `${m}: dentro del cuerpo`);
-  }
-  // Rayo horizontal desde delante (+z) o desde detrás (−z) hacia (x, y), lado derecho.
-  const hit = (x: number, y: number, front: boolean) =>
-    new Raycaster(new Vector3(x, y, front ? 3 : -3), new Vector3(0, 0, front ? -1 : 1)).intersectObjects(meshes, false)[0]?.object.name || 'maniquí';
-  const front: Array<[number, number, string]> = [
-    [0.09, 1.32, 'chest'], [0.03, 1.21, 'abs'], [0.03, 1.15, 'abs'], [0.135, 1.15, 'obliques'], [0.2, 1.4, 'frontDelts'],
-    [0.22, 1.25, 'biceps'], [0.275, 1.04, 'forearms'], [0.1, 0.7, 'quads'], [0, 1.65, 'maniquí'],
-  ];
-  const back: Array<[number, number, string]> = [
-    [0.03, 1.38, 'traps'], [0.14, 1.22, 'lats'], [0.03, 1.06, 'lowerBack'], [0.2, 1.4, 'rearDelts'], [0.22, 1.25, 'triceps'],
-    [0.08, 0.88, 'glutes'], [0.1, 0.66, 'hamstrings'], [0.1, 0.36, 'calves'],
-  ];
-  for (const [x, y, m] of front) assert.equal(hit(x, y, true), m, `de frente en (${x}, ${y})`);
-  for (const [x, y, m] of back) assert.equal(hit(x, y, false), m, `de espaldas en (${x}, ${y})`);
-  assert.equal(hit(-0.09, 1.32, true), 'chest', 'el lado izquierdo también');
-  assert.deepEqual([fig.facing.chest, fig.facing.glutes, fig.facing.sideDelts], [1, -1, 0]);
-});
+for (const [body, height] of [['male', 1.773], ['female', 1.69]] as const) {
+  test(`la figura ${body} tiene los 16 músculos en los dos lados y cada toque cae en su músculo`, () => {
+    const file = readFileSync(new URL(`../../src/assets/models/body-${body}.nlm`, import.meta.url));
+    const fig = buildFigure(file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength) as ArrayBuffer);
+    assert.ok(Math.abs(fig.height - height) < 0.01, `mide ${height} m`);
+    const pos = fig.geometry.getAttribute('position');
+    const ids = fig.geometry.getAttribute('muscle');
+    const weight = fig.geometry.getAttribute('mweight');
+    MUSCLE_IDS.forEach((m, id) => {
+      // Caja del vientre de cada lado (peso > 0,5): [x lejano, y mín, y máx]; el izquierdo, con x en espejo.
+      const box = { l: [0, 9, -9], r: [0, 9, -9], nl: 0, nr: 0 };
+      for (let i = 0; i < pos.count; i++) {
+        if (ids.getX(i) !== id || weight.getX(i) < 0.5) continue;
+        const [x, y] = [pos.getX(i), pos.getY(i)];
+        const b = x < 0 ? box.l : box.r;
+        if (x < 0) box.nl++; else box.nr++;
+        b[0] = Math.max(b[0], Math.abs(x));
+        b[1] = Math.min(b[1], y);
+        b[2] = Math.max(b[2], y);
+      }
+      assert.ok(box.nl >= 40 && box.nr >= 40, `${m}: tiene superficie en los dos lados (${box.nl}/${box.nr})`);
+      for (let k = 0; k < 3; k++) assert.ok(Math.abs(box.l[k] - box.r[k]) < 0.02, `${m}: los dos lados son espejo`);
+    });
+    // Rayo horizontal desde delante (+z) o desde detrás (−z) hacia (x, y), lado derecho; la femenina, a escala.
+    const mesh = new Mesh(fig.geometry, new MeshBasicMaterial()); // FrontSide: un rayo solo choca con caras que miran hacia él
+    const k = height / 1.773;
+    const hit = (x: number, y: number, front: boolean) => {
+      const face = new Raycaster(new Vector3(x * k, y * k, front ? 3 : -3), new Vector3(0, 0, front ? -1 : 1)).intersectObject(mesh, false)[0]?.face;
+      return face ? fig.muscleOfFace(face.a, face.b, face.c) ?? 'piel' : 'nada';
+    };
+    const front: Array<[number, number, string]> = [
+      [0.09, 1.32, 'chest'], [0.03, 1.21, 'abs'], [0.03, 1.15, 'abs'], [0.115, 1.1, 'obliques'], [0.2, 1.4, 'frontDelts'],
+      [0.22, 1.25, 'biceps'], [0.275, 1.04, 'forearms'], [0.1, 0.7, 'quads'], [0, 1.65, 'piel'],
+    ];
+    const back: Array<[number, number, string]> = [
+      [0.06, 1.42, 'traps'], [0.12, 1.22, 'lats'], [0.03, 1.06, 'lowerBack'], [0.2, 1.4, 'rearDelts'], [0.22, 1.25, 'triceps'],
+      [0.08, 0.88, 'glutes'], [0.1, 0.66, 'hamstrings'], [0.1, 0.36, 'calves'],
+    ];
+    for (const [x, y, m] of front) assert.equal(hit(x, y, true), m, `de frente en (${x}, ${y})`);
+    for (const [x, y, m] of back) assert.equal(hit(x, y, false), m, `de espaldas en (${x}, ${y})`);
+    assert.equal(hit(-0.09, 1.32, true), 'chest', 'el lado izquierdo también');
+    assert.deepEqual([fig.facing.chest, fig.facing.glutes, fig.facing.sideDelts], [1, -1, 0]);
+    assert.ok(fig.trianglesOf('biceps').length > 300, 'el contorno del bíceps tiene triángulos');
+  });
+}
 
 test('tonelaje por sesión, semana y mes', () => {
   const t = tonnage([workout(1, legDay), workout(10 * 24, legDay)], NOW);

@@ -1,6 +1,7 @@
-// Visor 3D del mapa muscular: monta MuscleScene en un div y le pasa estados,
-// selección, tema y «reducir movimiento». Se carga perezoso (three.js pesa):
-// MuscleMap lo importa con React.lazy y, si no hay WebGL 2, vuelve al mapa plano.
+// Visor 3D del mapa muscular: monta MuscleScene en un div y le pasa cuerpo,
+// estados, selección, tema y «reducir movimiento». Se carga perezoso (three.js
+// pesa): MuscleMap lo importa con React.lazy y, si no hay WebGL 2 o la figura no
+// llega, vuelve al mapa plano.
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useReducedMotionConfig } from 'framer-motion';
 import { Minus, Plus } from 'lucide-react';
@@ -8,6 +9,7 @@ import type { Muscle, MuscleState } from '@/lib/coliseo';
 import { Button, SegmentedControl } from '@/components/ui/lq';
 import { useText, type Copy } from '@/lib/i18n';
 import { MuscleScene, type Side } from './MuscleScene';
+import type { Body } from './figure';
 import { readPalette } from './heat';
 
 const es = {
@@ -29,6 +31,8 @@ const en: typeof es = {
 const COPY: Copy<typeof es> = { es, en };
 
 export interface MuscleViewer3DProps {
+  /** Figura masculina o femenina (según el perfil). */
+  body: Body;
   states: Record<Muscle, MuscleState>;
   selected: Muscle | null;
   onSelect: (m: Muscle) => void;
@@ -40,23 +44,28 @@ export interface MuscleViewer3DProps {
   topInset?: number;
 }
 
-export default function MuscleViewer3D({ states, selected, onSelect, onUnavailable, overlay, topInset = 0 }: MuscleViewer3DProps) {
+export default function MuscleViewer3D({ body, states, selected, onSelect, onUnavailable, overlay, topInset = 0 }: MuscleViewer3DProps) {
   const t = useText(COPY);
   const sides = [{ value: 'front' as const, label: t.front }, { value: 'back' as const, label: t.back }];
   const host = useRef<HTMLDivElement>(null);
   const scene = useRef<MuscleScene | null>(null);
   const [side, setSide] = useState<Side>('front');
+  /** La figura (~280 KB) aún baja: el hueco muestra el mismo pulso que la carga de three.js. */
+  const [ready, setReady] = useState(false);
   const reduce = useReducedMotionConfig() ?? false;
   // Los callbacks cambian en cada render; la escena se crea una vez y lee siempre los últimos.
-  const latest = useRef({ onSelect, onUnavailable, reduce, topInset });
-  latest.current = { onSelect, onUnavailable, reduce, topInset };
+  const latest = useRef({ onSelect, onUnavailable, reduce, topInset, states, selected });
+  latest.current = { onSelect, onUnavailable, reduce, topInset, states, selected };
 
   useEffect(() => {
     let s: MuscleScene;
     try {
+      setReady(false);
       s = new MuscleScene(host.current!, {
+        body,
         onPick: (m) => latest.current.onSelect(m),
         onSide: setSide,
+        onReady: (ok) => (ok ? setReady(true) : latest.current.onUnavailable()),
         reduceMotion: latest.current.reduce,
         topInset: latest.current.topInset,
       });
@@ -77,6 +86,8 @@ export default function MuscleViewer3D({ states, selected, onSelect, onUnavailab
       s.setPalette(palette);
     };
     applyTheme();
+    s.setStates(latest.current.states);
+    s.setSelected(latest.current.selected);
     const themeObserver = new MutationObserver(applyTheme);
     themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'data-theme'] });
     return () => {
@@ -84,7 +95,7 @@ export default function MuscleViewer3D({ states, selected, onSelect, onUnavailab
       s.dispose();
       scene.current = null;
     };
-  }, []);
+  }, [body]);
 
   useEffect(() => { scene.current?.setStates(states); }, [states]);
   useEffect(() => { scene.current?.setSelected(selected); }, [selected]);
@@ -96,6 +107,7 @@ export default function MuscleViewer3D({ states, selected, onSelect, onUnavailab
       <div className="relative h-[460px] overflow-hidden rounded-2xl sm:h-[480px] md:h-[500px]">
         {/* El lienzo no es accesible por teclado: las listas de músculos de la tarjeta son la alternativa. */}
         <div ref={host} aria-hidden className="absolute inset-0" />
+        {!ready && <span aria-hidden className="lq-skeleton absolute inset-0 rounded-2xl" />}
         {overlay}
       </div>
       <div className="flex items-center justify-between gap-3">

@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import type { Workout, Routine } from '@noutlife/shared';
 import { cn } from '@/lib/utils';
-import { expo, heavy, item, slam, stagger, useCountUp } from '@/lib/motion';
+import { expo, heavy, item, slam, useCountUp } from '@/lib/motion';
 import { muscleStates, pplBalance, routineFromSession, tonnage, workoutTonnage, type SessionExercise } from '@/lib/coliseo';
 import { exerciseName } from '@/components/coliseo/exerciseText';
 import { INTL_LOCALE, useLocale, useText, type Copy } from '@/lib/i18n';
@@ -20,10 +20,15 @@ import { useToast } from '../../hooks/useToast';
 import { AnimatedValue, Badge, Button, Card, ChipGroup, Confetti, DayDot, EmptyState, ErrorState, Field, IconChip, Input, Modal, ProgressBar, formatClock, type DayStatus, type Tone, PageLoader } from '@/components/ui/lq';
 import { keepOnUnlock } from '@/components/ui/lq/Modal';
 import { useLoadingCopy } from '@/lib/loadingCopy';
+import { indicatorStyle, useIndicator } from '@/hooks/useIndicator';
+import { useMotionStore } from '@/store/motionStore';
 import * as workoutService from '../../services/workout.service';
 import { SageContextButton } from '../../components/sage/SageContextButton';
 import { BalanceCard, BodyWeightTracker, OneRMCalculator, PlateCalculator, ProgressPhotos, RestTimer, WeeklySets } from '../../components/coliseo/ColiseoExtras';
-import { Barbell, DropTitle, LiftBars, LoadBar, Thud, type LiftDay } from '../../components/coliseo/ColiseoMotion';
+import { Barbell, LiftBars, LoadBar, Thud, type LiftDay } from '../../components/coliseo/ColiseoMotion';
+import { Lettering } from '../../components/layout/Lettering';
+import { SketchUnderline, ZoneShell } from '../../components/ambience';
+import { ChalkDust, GymBackdrop } from '../../components/coliseo/GymAmbience';
 import { MuscleMap } from '../../components/coliseo/MuscleMap';
 import { LivePlayer, blankSet, elapsedMs, sessionTonnage, toWorkoutSets, type ActiveExercise, type ActiveWorkout, type UpdateWorkout } from '../../components/coliseo/LivePlayer';
 import { CycleColiseoHint } from '../../components/cycle/CycleHints';
@@ -373,7 +378,11 @@ function SessionHeader({ title, description, actions }: { title: string; descrip
     <motion.section variants={item} className="flex flex-wrap items-end justify-between gap-6">
       <div className="flex min-w-0 flex-[1_1_420px] flex-col gap-2">
         <span className="text-label-lg text-primary-text">{t.zone}</span>
-        <DropTitle text={title} className="text-display-sm md:text-display-md lg:text-display-lg" />
+        {/* Letra de la marca, como el resto de zonas. */}
+        <h1 className="relative self-start text-display-sm md:text-display-md lg:text-display-lg">
+          <Lettering text={title} />
+          <SketchUnderline className="absolute -bottom-1.5 left-0 w-full text-warning md:-bottom-2.5" delay={0.75} />
+        </h1>
         <p className="text-body-lg text-on-surface-light">{description}</p>
       </div>
       <div className="flex flex-wrap items-center gap-2">{actions}</div>
@@ -440,9 +449,16 @@ export default function ColiseoPage() {
   const [tab, setTab] = useState<ColiseoTab>('history');
   /** Sentido del cambio de pestaña: el panel entra desde ese lado. */
   const tabDir = useRef(1);
+  const tabsBar = useIndicator<HTMLDivElement>(COLISEO_TAB_IDS.findIndex((x) => x.id === tab));
   const changeTab = (next: ColiseoTab) => {
     tabDir.current = COLISEO_TAB_IDS.findIndex((x) => x.id === next) >= COLISEO_TAB_IDS.findIndex((x) => x.id === tab) ? 1 : -1;
     setTab(next);
+  };
+  /** Desde una tarjeta de más abajo («Ver todas»): primero se vuelve a las pestañas, luego cambia el panel. */
+  const openTab = (next: ColiseoTab) => {
+    const bar = tabsBar.ref.current;
+    if (bar && bar.getBoundingClientRect().top < 0) bar.scrollIntoView({ behavior: useMotionStore.getState().reduce ? 'auto' : 'smooth', block: 'start' });
+    changeTab(next);
   };
   const [summary, setSummary] = useState<Summary | null>(null);
 
@@ -803,7 +819,7 @@ export default function ColiseoPage() {
   ));
 
   return (
-    <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-6 md:gap-8">
+    <ZoneShell zone="coliseo" contentClassName="gap-6 md:gap-8" ambience={<GymBackdrop />} view={<ChalkDust />}>
       <SessionHeader title={t.title} description={t.description} actions={startButtons} />
 
       {/* Ciclo: intensidad sugerida para hoy (solo si la persona tiene la zona Ciclo) */}
@@ -848,7 +864,7 @@ export default function ColiseoPage() {
         </Thud>
       </motion.div>
 
-      <motion.div variants={item} role="tablist" aria-label={t.tabsAria} className="grid grid-cols-2 gap-4 lg:grid-cols-4"
+      <motion.div ref={tabsBar.ref} variants={item} role="tablist" aria-label={t.tabsAria} className="relative grid scroll-mt-24 grid-cols-2 gap-4 lg:grid-cols-4"
         onKeyDown={(e) => {
           const i = COLISEO_TAB_IDS.findIndex((x) => x.id === tab);
           const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
@@ -858,21 +874,16 @@ export default function ColiseoPage() {
           changeTab(next.id);
           document.getElementById(`coliseo-tab-${next.id}`)?.focus();
         }}>
+        {/* Las tarjetas dan el fondo; la selección se desliza por encima con peso (solo transform). */}
         {tabs.map(({ id, label, helper, icon, tone }) => {
           const on = tab === id;
           return (
             <button
               key={id} id={`coliseo-tab-${id}`} type="button" role="tab" aria-selected={on} aria-controls={`coliseo-panel-${id}`} tabIndex={on ? 0 : -1}
+              data-indicator
               onClick={() => changeTab(id)}
-              className="lq-lift relative flex min-h-[72px] min-w-0 items-center gap-2 rounded-2xl border border-border bg-surface p-3 text-left shadow-sm md:gap-3 md:p-4"
+              className={cn('lq-lift relative flex min-h-[72px] min-w-0 items-center gap-2 rounded-2xl border border-border p-3 text-left shadow-sm transition-colors duration-300 md:gap-3 md:p-4', on ? 'bg-primary/[var(--lq-soft-alpha)]' : 'bg-surface')}
             >
-              {/* La selección se desliza entre pestañas con peso */}
-              {on && (
-                <motion.span
-                  layoutId="coliseo-tab-pill" aria-hidden transition={heavy}
-                  className="pointer-events-none absolute -inset-px rounded-2xl border border-primary/50 bg-primary/[var(--lq-soft-alpha)]"
-                />
-              )}
               <IconChip icon={icon} tone={tone} size="sm" className="relative" />
               <span className="relative min-w-0 flex-1">
                 <span className="block truncate text-label-lg">{label}</span>
@@ -882,8 +893,15 @@ export default function ColiseoPage() {
             </button>
           );
         })}
+        {tabsBar.box && (
+          <span
+            aria-hidden style={indicatorStyle(tabsBar.box)}
+            className="lq-indicator pointer-events-none absolute left-0 top-0 z-[1] rounded-2xl border border-primary/50"
+          />
+        )}
       </motion.div>
 
+      <div className="max-md:min-h-[72svh]">
       <AnimatePresence mode="wait" initial={false} custom={tabDir.current}>
       <motion.div
         key={`${tab}-${state}`} id={`coliseo-panel-${tab}`} role="tabpanel" aria-labelledby={`coliseo-tab-${tab}`} className="flex flex-col gap-6 outline-none" tabIndex={-1}
@@ -962,7 +980,7 @@ export default function ColiseoPage() {
                 <Card as="section" padding="lg" aria-labelledby="coliseo-routines" className="flex flex-col gap-2">
                   <div className="mb-2 flex items-center justify-between">
                     <h2 id="coliseo-routines" className="text-heading-sm">{t.routinesTitle}</h2>
-                    {routines.length > 0 && <Button variant="ghost" size="sm" onClick={() => changeTab('routines')}>{t.seeAll}</Button>}
+                    {routines.length > 0 && <Button variant="ghost" size="sm" onClick={() => openTab('routines')}>{t.seeAll}</Button>}
                   </div>
                   {routines.length === 0 ? <p className="text-body-sm text-on-surface-light">{t.noRoutines}</p> : <ul>{routineRows(routines.slice(0, 4))}</ul>}
                 </Card>
@@ -1026,6 +1044,7 @@ export default function ColiseoPage() {
         )}
       </motion.div>
       </AnimatePresence>
+      </div>
 
       {showRestTimer && <RestTimer onClose={() => setShowRestTimer(false)} />}
 
@@ -1138,6 +1157,6 @@ export default function ColiseoPage() {
           </form>
         )}
       </Modal>
-    </motion.div>
+    </ZoneShell>
   );
 }

@@ -1,20 +1,22 @@
 import { motion } from 'framer-motion';
 import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { spring } from '@/lib/motion';
 import { matchesRoute, useNav } from './nav';
 import { NavLock } from './NavLock';
 import { useKeyboardOpen } from '@/hooks/useKeyboardOpen';
+import { indicatorStyle, useIndicator } from '@/hooks/useIndicator';
 
 /** Barra inferior móvil (<768): 5 destinos, 56 px de alto táctil, fondo translúcido. */
 export function TabBar({ className }: { className?: string }) {
   const { pathname } = useLocation();
   const { primary } = useNav();
   const keyboard = useKeyboardOpen();
+  const { ref, box } = useIndicator<HTMLElement>(primary.findIndex(({ to }) => matchesRoute(pathname, to)));
   return (
     // Siempre pegada abajo: con el teclado abierto se esconde (si no, subiría
     // hasta la mitad de la pantalla) y vuelve al cerrarlo.
     <motion.nav
+      ref={ref}
       aria-label="Principal"
       data-tour="nav"
       initial={false}
@@ -27,6 +29,8 @@ export function TabBar({ className }: { className?: string }) {
         className,
       )}
     >
+      {/* La píldora va por debajo de los íconos y se desliza solo con transform (useIndicator). */}
+      {box && <span aria-hidden className="lq-indicator pointer-events-none absolute left-0 top-0 rounded-full bg-primary/[var(--lq-soft-alpha)]" style={indicatorStyle(box)} />}
       {primary.map(({ to, label, icon: Icon, locked }) => {
         const active = matchesRoute(pathname, to);
         return (
@@ -40,15 +44,7 @@ export function TabBar({ className }: { className?: string }) {
               active ? 'text-primary-text' : 'text-on-surface-light hover:text-on-surface',
             )}
           >
-            <span className="relative flex h-8 w-14 items-center justify-center">
-              {active && (
-                <motion.span
-                  layoutId="tabbar-pill"
-                  transition={spring}
-                  aria-hidden
-                  className="absolute inset-0 rounded-full bg-primary/[var(--lq-soft-alpha)]"
-                />
-              )}
+            <span data-indicator className="relative flex h-8 w-14 items-center justify-center">
               <Icon aria-hidden className="relative size-6 transition-transform duration-300 ease-[cubic-bezier(.34,1.56,.64,1)] group-active/tab:scale-[.82]" strokeWidth={1.75} />
               {locked && <NavLock className="right-2 top-0" />}
             </span>

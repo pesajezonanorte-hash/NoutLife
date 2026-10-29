@@ -1,30 +1,37 @@
-// Escena 3D del mapa muscular (three.js, sin React): cámara orbital, figura,
-// color por fatiga, selección con brillo y contorno, y pulso en fatiga alta.
+// Escena 3D del mapa muscular (three.js, sin React): cámara orbital, figura
+// atlética (masculina o femenina, modelada en Blender), color por fatiga desde el
+// shader, selección con brillo y contorno, y pulso en fatiga alta.
 // Dibuja bajo demanda: quieta y sin pulso no gasta ni un fotograma, el pulso va
 // a 30 fps y todo se detiene fuera de pantalla o con la pestaña oculta.
 import {
-  AmbientLight, BackSide, CircleGeometry, Color, DirectionalLight, Mesh, MeshBasicMaterial, MeshStandardMaterial,
-  PerspectiveCamera, Raycaster, Scene, ShaderMaterial, Spherical, SRGBColorSpace, Vector2, WebGLRenderer, type BufferGeometry, type Texture,
+  AmbientLight, BackSide, BufferAttribute, BufferGeometry, CircleGeometry, Color, DirectionalLight, Mesh, MeshBasicMaterial,
+  MeshStandardMaterial, PerspectiveCamera, Raycaster, Scene, ShaderMaterial, Spherical, SRGBColorSpace, Vector2, WebGLRenderer,
+  type Texture,
 } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { MUSCLE_IDS, type Muscle, type MuscleState } from '@/lib/coliseo';
-import { buildFigure, type Figure } from './figure';
+import maleUrl from '@/assets/models/body-male.nlm?url';
+import femaleUrl from '@/assets/models/body-female.nlm?url';
+import { buildFigure, type Body, type Figure } from './figure';
 import { heatColor, type RGB, type ScenePalette } from './heat';
 
 export type Side = 'front' | 'back';
 
 export interface MuscleSceneOptions {
+  /** Cuerpo de la figura (según el perfil). */
+  body: Body;
   /** Músculo tocado en la figura. */
   onPick: (m: Muscle) => void;
   /** Lado que mira la cámara (cambia al girar). */
   onSide: (side: Side) => void;
+  /** La figura ya está en pantalla (o no se pudo descargar: `ok` false). */
+  onReady?: (ok: boolean) => void;
   reduceMotion: boolean;
   /** Espacio que tapa la tarjeta flotante de arriba (móvil), en px: la figura se encuadra debajo. */
   topInset?: number;
 }
 
 const FOV = 30;
-const FIGURE_H = 1.78; // de los pies a la coronilla
 // El borde cercano del anillo del suelo asoma por debajo de los pies: se encuadra con él.
 const FLOOR_DROP = 0.12;
 const MARGIN_PX = 8;
@@ -32,12 +39,27 @@ const HOME_PHI = 1.43; // un poco por encima del horizonte
 const TAP_PX = 8; // un toque se mueve menos; más es girar
 const FINGER_PX = 16; // el dedo tapa lo que toca: radio de tolerancia para músculos pequeños
 const PULSE_MS = 1600;
-const OUTLINE = 0.0045; // m
+const OUTLINE = 0.0042; // m
+const N = MUSCLE_IDS.length;
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const expoOut = (t: number) => (t >= 1 ? 1 : 1 - 2 ** (-10 * t));
 const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 const paint = (c: Color, [r, g, b]: RGB) => c.setRGB(r / 255, g / 255, b / 255, SRGBColorSpace);
+
+const figures = new Map<Body, Promise<Figure>>();
+/** Descarga y decodifica cada figura una sola vez por sesión (remontar el visor no la vuelve a pedir). */
+function loadFigure(body: Body): Promise<Figure> {
+  let p = figures.get(body);
+  if (!p) {
+    p = fetch(body === 'female' ? femaleUrl : maleUrl)
+      .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(`figure ${r.status}`))))
+      .then(buildFigure);
+    p.catch(() => figures.delete(body));
+    figures.set(body, p);
+  }
+  return p;
+}
 
 interface Tween { from: Spherical; to: Spherical; fromY: number; toY: number; start: number; ms: number }
 
@@ -62,17 +84,69 @@ function floorMaterial() {
   });
 }
 
+/**
+ * Piel y músculos en un solo material: cada vértice trae su músculo (`muscle`, 255 = piel),
+ * su peso (0 en el surco) y su oclusión horneada en Blender (`ao`), que oscurece surcos y
+ * axilas para que la definición se lea con cualquier luz. El color del músculo y su brillo
+ * llegan como uniformes: repintar o latir no sube geometría. El índice es `flat`.
+ */
+function bodyMaterial() {
+  const mat = new MeshStandardMaterial({ roughness: 0.62, metalness: 0 });
+  const uniforms = {
+    uHeat: { value: Array.from({ length: N }, () => new Color()) },
+    uGlow: { value: new Float32Array(N) },
+    uSkin: { value: new Color() },
+  };
+  mat.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, uniforms);
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', `#include <common>
+        attribute float muscle;
+        attribute float mweight;
+        attribute float ao;
+        flat varying int vMuscle;
+        varying float vWeight;
+        varying float vAO;`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+        vMuscle = int(muscle + 0.5);
+        vWeight = mweight;
+        vAO = ao;`);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>
+        uniform vec3 uHeat[${N}];
+        uniform float uGlow[${N}];
+        uniform vec3 uSkin;
+        flat varying int vMuscle;
+        varying float vWeight;
+        varying float vAO;`)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        float mw = 0.0;
+        vec3 heat = uSkin;
+        float glow = 0.0;
+        if (vMuscle < ${N}) {
+          mw = smoothstep(0.0, 0.85, vWeight);
+          heat = uHeat[vMuscle];
+          glow = uGlow[vMuscle] * mw;
+        }
+        diffuseColor.rgb = mix(uSkin, heat, mw) * vAO;`)
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        totalEmissiveRadiance += heat * glow;`);
+  };
+  // Mismo programa para todas las figuras: three no debe recompilar por instancia.
+  mat.customProgramCacheKey = () => 'lq-body-heat';
+  return { mat, uniforms };
+}
+
 export class MuscleScene {
   private renderer: WebGLRenderer;
   private scene = new Scene();
   private camera = new PerspectiveCamera(FOV, 1, 0.1, 40);
   private controls: OrbitControls;
-  private figure: Figure;
-  private body: Mesh<BufferGeometry, MeshStandardMaterial>;
-  private muscles = new Map<Muscle, Mesh<BufferGeometry, MeshStandardMaterial>>();
+  private figure: Figure | null = null;
+  private skin = bodyMaterial();
+  private body: Mesh<BufferGeometry, MeshStandardMaterial> | null = null;
   private outline: Mesh<BufferGeometry, MeshBasicMaterial>;
   private floor: Mesh<CircleGeometry, ShaderMaterial>;
-  private pickables: Mesh[];
   private raycaster = new Raycaster();
   private ndc = new Vector2();
 
@@ -85,6 +159,7 @@ export class MuscleScene {
   private picked: Muscle | null = null;
   private side: Side = 'front';
   private reduceMotion: boolean;
+  private disposed = false;
 
   private frame = 0;
   private hoverFrame = 0;
@@ -93,6 +168,7 @@ export class MuscleScene {
   private lost = false;
   private tween: Tween | null = null;
   private home = { radius: 3.5, y: 0.89 };
+  private figureH = 1.78;
   private topInset = 0;
   private size = { w: 1, h: 1 };
   private dpr: number;
@@ -104,6 +180,7 @@ export class MuscleScene {
   constructor(host: HTMLElement, private opts: MuscleSceneOptions) {
     this.reduceMotion = opts.reduceMotion;
     this.topInset = opts.topInset ?? 0;
+    this.figureH = opts.body === 'female' ? 1.69 : 1.773;
     // Sin WebGL 2 esto lanza: quien crea la escena muestra el mapa plano.
     this.renderer = new WebGLRenderer({ antialias: true, alpha: true });
     this.dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -113,23 +190,12 @@ export class MuscleScene {
     canvas.style.cssText = 'display:block;width:100%;height:100%;outline:none;-webkit-tap-highlight-color:transparent';
     host.appendChild(canvas);
 
-    this.figure = buildFigure();
-    this.body = new Mesh(this.figure.body, new MeshStandardMaterial({ roughness: 0.85, metalness: 0 }));
-    this.scene.add(this.body);
-    for (const m of MUSCLE_IDS) {
-      const mesh = new Mesh(this.figure.muscles[m], new MeshStandardMaterial({ roughness: 0.5, metalness: 0 }));
-      mesh.userData.muscle = m;
-      this.muscles.set(m, mesh);
-      this.scene.add(mesh);
-    }
-    this.pickables = [this.body, ...this.muscles.values()];
-
-    // Contorno: la misma malla por dentro (BackSide), inflada a lo largo de las normales.
+    // Contorno: la malla del músculo elegido por dentro (BackSide), inflada a lo largo de las normales.
     const outline = new MeshBasicMaterial({ side: BackSide });
     outline.onBeforeCompile = (shader) => {
       shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>\n\ttransformed += normal * ${OUTLINE.toFixed(4)};`);
     };
-    this.outline = new Mesh(this.figure.muscles.chest, outline);
+    this.outline = new Mesh(new BufferGeometry(), outline);
     this.outline.visible = false;
     this.scene.add(this.outline);
 
@@ -139,15 +205,19 @@ export class MuscleScene {
     this.scene.add(this.floor);
 
     // Luces pegadas a la cámara: el lado que miras siempre está iluminado, también la espalda.
+    // La principal viene de arriba y de lado, como en una sala de pesas: marca el relieve.
     this.scene.add(this.camera);
-    this.camera.add(new AmbientLight(0xffffff, 1.1));
-    const key = new DirectionalLight(0xffffff, 2.1);
-    key.position.set(-1.4, 1.8, 1.5);
+    this.camera.add(new AmbientLight(0xffffff, 0.6));
+    const key = new DirectionalLight(0xffffff, 2.9);
+    key.position.set(-1.6, 2.6, 1.2);
     key.target.position.set(0, 0, -3.5);
-    const rim = new DirectionalLight(0xffffff, 1.6);
+    const fill = new DirectionalLight(0xffffff, 0.7);
+    fill.position.set(1.6, 0.2, 1.4);
+    fill.target.position.set(0, 0, -3.5);
+    const rim = new DirectionalLight(0xffffff, 1.8);
     rim.position.set(1.8, 1.4, -7);
     rim.target.position.set(0, 0, -3.5);
-    this.camera.add(key, key.target, rim, rim.target);
+    this.camera.add(key, key.target, fill, fill.target, rim, rim.target);
 
     const c = (this.controls = new OrbitControls(this.camera, canvas));
     c.enableDamping = true;
@@ -195,7 +265,19 @@ export class MuscleScene {
     this.controls.target.set(0, this.home.y, 0);
     this.camera.position.setFromSpherical(new Spherical(this.home.radius, HOME_PHI, this.reduceMotion ? 0 : -0.62)).add(this.controls.target);
     this.controls.update();
-    this.goTo('front', 1100);
+
+    loadFigure(opts.body).then((fig) => {
+      if (this.disposed) return;
+      this.figure = fig;
+      this.body = new Mesh(fig.geometry, this.skin.mat);
+      this.scene.add(this.body);
+      this.outline.geometry.setAttribute('position', fig.geometry.getAttribute('position'));
+      this.outline.geometry.setAttribute('normal', fig.geometry.getAttribute('normal'));
+      if (this.selected) this.setSelected(this.selected);
+      this.repaint();
+      this.goTo('front', 1100);
+      this.opts.onReady?.(true);
+    }, () => { if (!this.disposed) this.opts.onReady?.(false); });
   }
 
   /* ───────── API ───────── */
@@ -215,11 +297,11 @@ export class MuscleScene {
     const fromFigure = m !== null && m === this.picked;
     this.picked = null;
     this.selected = m;
-    if (m) this.outline.geometry = this.muscles.get(m)!.geometry;
-    this.outline.visible = m !== null;
+    if (m && this.figure) this.outline.geometry.setIndex(new BufferAttribute(this.figure.trianglesOf(m), 1));
+    this.outline.visible = m !== null && this.figure !== null;
     this.repaint();
     // Elegido en la lista o por defecto: si mira hacia el otro lado, la cámara da la vuelta.
-    if (m && !fromFigure) {
+    if (m && !fromFigure && this.figure) {
       const facing = this.figure.facing[m];
       const want: Side = facing > 0 ? 'front' : 'back';
       const heading = this.tween ? this.sideOf(this.tween.to.theta) : this.side;
@@ -254,6 +336,7 @@ export class MuscleScene {
   }
 
   dispose() {
+    this.disposed = true;
     this.stop();
     cancelAnimationFrame(this.hoverFrame);
     this.cleanup.forEach((fn) => fn());
@@ -273,12 +356,12 @@ export class MuscleScene {
     // le deja una escucha 'dispose' que retiene su contexto y su lienzo: renderer.dispose() no la
     // suelta. Liberarla quita esas escuchas; three la vuelve a subir si otro renderer la usa.
     // Se lee antes de liberar los materiales, que borran sus propiedades en el renderer.
-    const props = this.renderer.properties.get(this.body.material) as { uniforms?: { dfgLUT?: { value: Texture | null } } };
+    const props = this.renderer.properties.get(this.skin.mat) as { uniforms?: { dfgLUT?: { value: Texture | null } } };
     props.uniforms?.dfgLUT?.value?.dispose();
-    this.body.material.dispose();
-    this.figure.body.dispose();
-    for (const mesh of this.muscles.values()) mesh.material.dispose();
-    for (const m of MUSCLE_IDS) this.figure.muscles[m].dispose();
+    this.skin.mat.dispose();
+    // La geometría de la figura queda en memoria para el próximo montaje; aquí solo se sueltan sus búferes de GPU.
+    this.figure?.geometry.dispose();
+    this.outline.geometry.dispose();
     this.outline.material.dispose();
     this.floor.geometry.dispose();
     this.floor.material.dispose();
@@ -306,7 +389,7 @@ export class MuscleScene {
     const tweening = this.tween ? this.stepTween(now) : false;
     const moved = this.controls.update(); // inercia del giro
     const moving = tweening || moved;
-    const pulsing = this.high.length > 0 && !this.reduceMotion;
+    const pulsing = this.high.length > 0 && !this.reduceMotion && this.figure !== null;
     // Solo late el pulso: basta con 30 fps.
     if (!moving && pulsing && now - this.lastFrame < 30) {
       this.requestRender();
@@ -314,7 +397,8 @@ export class MuscleScene {
     }
     if (pulsing) {
       const pulse = 0.06 + 0.24 * (0.5 - 0.5 * Math.cos((2 * Math.PI * now) / PULSE_MS));
-      for (const m of this.high) this.muscles.get(m)!.material.emissiveIntensity = this.glow(m) + pulse;
+      const glow = this.skin.uniforms.uGlow.value;
+      for (const m of this.high) glow[MUSCLE_IDS.indexOf(m)] = this.glow(m) + pulse;
     }
     this.renderer.render(this.scene, this.camera);
     if (moving) this.adaptResolution(now);
@@ -343,20 +427,19 @@ export class MuscleScene {
   private repaint() {
     const p = this.palette;
     if (!p) return;
-    paint(this.body.material.color, p.body);
-    for (const [m, mesh] of this.muscles) {
+    const u = this.skin.uniforms;
+    paint(u.uSkin.value, p.body);
+    MUSCLE_IDS.forEach((m, i) => {
       const s = this.states?.[m];
-      const mat = mesh.material;
-      paint(mat.color, !s || s.status === 'idle' ? p.idle : heatColor(s.fatiguePct, p));
-      mat.emissive.copy(mat.color);
-      mat.emissiveIntensity = this.glow(m) + (this.reduceMotion && this.high.includes(m) ? 0.16 : 0);
-    }
+      paint(u.uHeat.value[i], !s || s.status === 'idle' ? p.idle : heatColor(s.fatiguePct, p));
+      u.uGlow.value[i] = this.glow(m) + (this.reduceMotion && this.high.includes(m) ? 0.16 : 0);
+    });
     paint(this.outline.material.color, p.outline);
-    const u = this.floor.material.uniforms;
-    paint(u.uShadow.value, p.shadow);
-    paint(u.uRing.value, p.ring);
-    u.uShadowA.value = p.dark ? 0.45 : 0.22;
-    u.uRingA.value = p.dark ? 0.55 : 0.45;
+    const f = this.floor.material.uniforms;
+    paint(f.uShadow.value, p.shadow);
+    paint(f.uRing.value, p.ring);
+    f.uShadowA.value = p.dark ? 0.45 : 0.22;
+    f.uRingA.value = p.dark ? 0.55 : 0.45;
     this.requestRender();
   }
 
@@ -407,7 +490,7 @@ export class MuscleScene {
   private onChange = () => {
     const { target } = this.controls;
     // El paneo solo sube y baja por el cuerpo: cámara y objetivo se corrigen juntos.
-    const dy = Math.min(1.55, Math.max(0.25, target.y)) - target.y;
+    const dy = Math.min(this.figureH - 0.2, Math.max(0.25, target.y)) - target.y;
     if (target.x || target.z || dy) {
       this.camera.position.x -= target.x;
       this.camera.position.y += dy;
@@ -438,7 +521,7 @@ export class MuscleScene {
     const { w, h } = this.size;
     const usable = Math.max(120, h - this.topInset - 2 * MARGIN_PX);
     const tan = Math.tan((FOV * Math.PI) / 360);
-    let perPx = (FIGURE_H + FLOOR_DROP) / usable;
+    let perPx = (this.figureH + FLOOR_DROP) / usable;
     // En un lienzo muy apaisado no manda la altura sino el ancho (brazos abiertos ≈ 0,8 m).
     perPx = Math.max(perPx, 0.86 / Math.max(120, w - 2 * MARGIN_PX));
     const radius = (h * perPx) / 2 / tan;
@@ -490,12 +573,12 @@ export class MuscleScene {
   }
 
   private muscleAt(clientX: number, clientY: number): Muscle | null {
+    if (!this.body || !this.figure) return null;
     const rect = this.renderer.domElement.getBoundingClientRect();
     this.ndc.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
     this.raycaster.setFromCamera(this.ndc, this.camera);
-    // El maniquí también cuenta: tapa lo que queda detrás.
-    const hit = this.raycaster.intersectObjects(this.pickables, false)[0];
-    return (hit?.object.userData.muscle as Muscle | undefined) ?? null;
+    const face = this.raycaster.intersectObject(this.body, false)[0]?.face;
+    return face ? this.figure.muscleOfFace(face.a, face.b, face.c) : null;
   }
 
   private listen<E extends Event>(target: EventTarget, type: string, fn: (e: E) => void, options?: AddEventListenerOptions) {
