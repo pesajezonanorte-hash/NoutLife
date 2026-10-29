@@ -9,11 +9,16 @@ const LEAVES = [
   { key: 'b', d: 'M2 271C93.4 468.0 228.1 416.0 251.0 545.0L251 743C76.1 695.7 -13.2 587.2 0.0 380.0L0 275Z', line: [30, 290, 250, 740], stops: [[0, 'b0'], [1, 'b1']] },
 ] as const;
 
-/** Sombrero de bruja (Halloween): copa con la punta doblada y cinta; el ala es una elipse. */
-const HAT = [
-  'M-120 -6C-94 -96 -60 -196 -18 -270C4 -310 50 -336 112 -318C62 -306 34 -286 24 -250C50 -170 88 -92 120 -6Z',
-  'M-113 -30C-40 -8 40 -8 113 -30L104 -68C36 -48 -36 -48 -102 -68Z',
-] as const;
+/**
+ * Sombrero de bruja (Halloween): copa cóncava con la punta doblada, banda con hebilla y ala
+ * con sombra. Va sobre la punta alta de la N; colores en styles/halloween.css (--lq-hat-*).
+ */
+const HAT = {
+  crown: 'M-118 -4C-112 -70 -86 -150 -40 -214C-14 -258 18 -300 74 -330C96 -340 128 -326 132 -300C116 -306 100 -302 84 -292C62 -262 44 -226 46 -186C58 -120 96 -60 118 -4Z',
+  shine: 'M-96 -120C-80 -170 -58 -210 -36 -236',
+  band: 'M-116 -26C-40 -4 40 -4 116 -26L108 -64C36 -44 -36 -44 -106 -64Z',
+  buckle: 'M-13 -46H13V-18H-13Z',
+} as const;
 
 /**
  * Marca de Noutlife (docs/redesign/design-system/logos): la N de hojas.
@@ -45,14 +50,21 @@ export function BrandMark({ size = 32, tile, className, alt = '' }: { size?: num
           misma geometría que el splash de index.html; colores en styles/halloween.css). */}
       {hat && (
         <g transform="translate(60 30) rotate(-16) scale(.72)">
-          <linearGradient id={`${uid}hat`} gradientUnits="userSpaceOnUse" x1={0} y1={-330} x2={0} y2={40}>
+          <linearGradient id={`${uid}hat`} gradientUnits="userSpaceOnUse" x1={0} y1={-340} x2={0} y2={0}>
             <stop offset={0} style={{ stopColor: 'var(--lq-hat-0)' }} />
             <stop offset={1} style={{ stopColor: 'var(--lq-hat-1)' }} />
           </linearGradient>
+          <linearGradient id={`${uid}brim`} gradientUnits="userSpaceOnUse" x1={0} y1={-42} x2={0} y2={42}>
+            <stop offset={0} style={{ stopColor: 'var(--lq-hat-brim-0)' }} />
+            <stop offset={1} style={{ stopColor: 'var(--lq-hat-brim-1)' }} />
+          </linearGradient>
           <g className="lq-hat-drop">
-            <path fill={`url(#${uid}hat)`} d={HAT[0]} />
-            <path d={HAT[1]} style={{ fill: 'rgb(var(--lq-primary))' }} />
-            <ellipse fill={`url(#${uid}hat)`} cx={0} cy={0} rx={222} ry={42} />
+            <ellipse style={{ fill: 'var(--lq-hat-shade)' }} cx={0} cy={10} rx={216} ry={40} />
+            <ellipse fill={`url(#${uid}brim)`} cx={0} cy={0} rx={222} ry={42} />
+            <path fill={`url(#${uid}hat)`} d={HAT.crown} />
+            <path fill="none" stroke="#fff" strokeOpacity={0.28} strokeWidth={6} strokeLinecap="round" d={HAT.shine} />
+            <path style={{ fill: 'var(--lq-hat-band)' }} d={HAT.band} />
+            <path style={{ fill: 'var(--lq-hat-buckle)' }} d={HAT.buckle} />
           </g>
         </g>
       )}
