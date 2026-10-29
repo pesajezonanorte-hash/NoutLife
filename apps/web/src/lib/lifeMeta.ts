@@ -3,7 +3,7 @@
 // el rediseño (regla "sin hex en componentes"); el tono sale de la categoría.
 // Las funciones reciben el idioma (`locale`, español por defecto). Sin React: usa lib/locale.
 import {
-  BookOpen, Coins, Dumbbell, Heart, HeartPulse, Palette, Sparkles, User, Users, type LucideIcon,
+  BookOpen, Coins, Dumbbell, Heart, HeartPulse, Palette, SprayCan, User, Users, type LucideIcon,
 } from 'lucide-react';
 import type { Tone } from '@/components/ui/lq';
 import type { BadgeVariant } from '@/components/ui/lq';
@@ -29,7 +29,7 @@ const CATEGORY_STYLE: Record<Category, Omit<CategoryMeta, 'label'>> = {
   SOCIAL: { tone: 'info', icon: Users },
   PERSONAL: { tone: 'forest', icon: User },
   CREATIVE: { tone: 'forest', icon: Palette },
-  HYGIENE: { tone: 'success', icon: Sparkles },
+  HYGIENE: { tone: 'success', icon: SprayCan },
 };
 
 export function categoryMeta(category?: string | null, locale: Locale = 'es'): CategoryMeta {
