@@ -6,10 +6,10 @@ export type RGB = [number, number, number]; // sRGB 0–255
 export interface HeatTokens { success: RGB; warning: RGB; error: RGB; info: RGB }
 
 export interface ScenePalette extends HeatTokens {
-  /** Maniquí, músculos sin trabajo esta semana, contorno de la selección, sombra y anillo del suelo. */
+  /** Piel de la figura, su ropa deportiva, brillo de la selección (acento de la skin), sombra y anillo del suelo. */
   body: RGB;
-  idle: RGB;
-  outline: RGB;
+  cloth: RGB;
+  accent: RGB;
   shadow: RGB;
   ring: RGB;
   dark: boolean;
@@ -74,8 +74,9 @@ export function readPalette(root: HTMLElement = document.documentElement): Scene
     error: token('error', [200, 70, 63]),
     info: token('info', [59, 126, 166]),
     body: mix(surface, ink, dark ? 0.34 : 0.3),
-    idle: mix(surface, ink, dark ? 0.52 : 0.46),
-    outline: token('on-background', dark ? [230, 240, 232] : [14, 29, 22]),
+    // Grafito neutro: combina con cualquier skin y deja ver el brillo de la fatiga.
+    cloth: dark ? [26, 30, 33] : [58, 64, 68],
+    accent: token('jade-400', [133, 199, 161]),
     shadow: dark ? [0, 0, 0] : mix(surface, ink, 0.85),
     ring: token('border-strong', dark ? [48, 70, 58] : [190, 210, 196]),
     dark,

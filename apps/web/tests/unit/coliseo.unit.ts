@@ -96,49 +96,58 @@ test('el color va de azul claro a verde, de amarillo a naranja y de rojo a carme
   assert.ok(heatColor(100, t).reduce((a, b) => a + b) < t.error.reduce((a, b) => a + b), 'el carmesí es más oscuro que el rojo');
 });
 
-for (const [body, height] of [['male', 1.773], ['female', 1.69]] as const) {
-  test(`la figura ${body} tiene los 16 músculos en los dos lados y cada toque cae en su músculo`, () => {
-    const file = readFileSync(new URL(`../../src/assets/models/body-${body}.nlm`, import.meta.url));
-    const fig = buildFigure(file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength) as ArrayBuffer);
-    assert.ok(Math.abs(fig.height - height) < 0.01, `mide ${height} m`);
-    const pos = fig.geometry.getAttribute('position');
-    const ids = fig.geometry.getAttribute('muscle');
-    const weight = fig.geometry.getAttribute('mweight');
-    MUSCLE_IDS.forEach((m, id) => {
-      // Caja del vientre de cada lado (peso > 0,5): [x lejano, y mín, y máx]; el izquierdo, con x en espejo.
-      const box = { l: [0, 9, -9], r: [0, 9, -9], nl: 0, nr: 0 };
-      for (let i = 0; i < pos.count; i++) {
-        if (ids.getX(i) !== id || weight.getX(i) < 0.5) continue;
-        const [x, y] = [pos.getX(i), pos.getY(i)];
-        const b = x < 0 ? box.l : box.r;
-        if (x < 0) box.nl++; else box.nr++;
-        b[0] = Math.max(b[0], Math.abs(x));
-        b[1] = Math.min(b[1], y);
-        b[2] = Math.max(b[2], y);
-      }
-      assert.ok(box.nl >= 40 && box.nr >= 40, `${m}: tiene superficie en los dos lados (${box.nl}/${box.nr})`);
-      for (let k = 0; k < 3; k++) assert.ok(Math.abs(box.l[k] - box.r[k]) < 0.02, `${m}: los dos lados son espejo`);
-    });
-    // Rayo horizontal desde delante (+z) o desde detrás (−z) hacia (x, y), lado derecho; la femenina, a escala.
-    const mesh = new Mesh(fig.geometry, new MeshBasicMaterial()); // FrontSide: un rayo solo choca con caras que miran hacia él
-    const k = height / 1.773;
-    const hit = (x: number, y: number, front: boolean) => {
-      const face = new Raycaster(new Vector3(x * k, y * k, front ? 3 : -3), new Vector3(0, 0, front ? -1 : 1)).intersectObject(mesh, false)[0]?.face;
+// Puntos de cada figura (m, lado derecho): de frente o de espaldas, con lo que debe tocarse ahí.
+const ANATOMY: Record<'male' | 'female', { height: number; points: Array<[number, number, 'front' | 'back', string]> }> = {
+  male: { height: 1.78, points: [
+    [0.08, 1.38, 'front', 'chest'], [0.02, 1.1, 'front', 'abs'], [0.25, 1.23, 'front', 'biceps'], [0.14, 0.64, 'front', 'quads'],
+    [0.05, 1.47, 'back', 'traps'], [0.075, 0.89, 'back', 'glutes'], [0.16, 0.32, 'back', 'calves'], [0, 1.7, 'front', 'piel'],
+  ] },
+  female: { height: 1.68, points: [
+    [0.06, 1.32, 'front', 'chest'], [0.013, 1.02, 'front', 'abs'], [0.21, 1.17, 'front', 'biceps'], [0.12, 0.62, 'front', 'quads'],
+    [0.04, 1.38, 'back', 'traps'], [0.09, 0.86, 'back', 'glutes'], [0.12, 0.3, 'back', 'calves'], [0, 1.6, 'front', 'piel'],
+  ] },
+};
+
+for (const body of ['male', 'female'] as const) {
+  test(`la figura ${body} tiene los 16 músculos en los dos lados y cada toque cae en su músculo`, async () => {
+    const file = readFileSync(new URL(`../../src/assets/models/body-${body}.glb`, import.meta.url));
+    const fig = await buildFigure(file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength) as ArrayBuffer);
+    const { height, points } = ANATOMY[body];
+    assert.ok(Math.abs(fig.height - height) < 0.005, `mide ${height} m`);
+    assert.equal(fig.normalMap?.mimeType, 'image/webp', 'trae su mapa de normales');
+    // FrontSide: un rayo solo choca con caras que miran hacia él.
+    const mesh = new Mesh(fig.geometry, new MeshBasicMaterial());
+    const hit = (x: number, y: number, side: 'front' | 'back') => {
+      const z = side === 'front' ? 3 : -3;
+      const face = new Raycaster(new Vector3(x, y, z), new Vector3(0, 0, -Math.sign(z))).intersectObject(mesh, false)[0]?.face;
       return face ? fig.muscleOfFace(face.a, face.b, face.c) ?? 'piel' : 'nada';
     };
-    const front: Array<[number, number, string]> = [
-      [0.09, 1.32, 'chest'], [0.03, 1.21, 'abs'], [0.03, 1.15, 'abs'], [0.115, 1.1, 'obliques'], [0.2, 1.4, 'frontDelts'],
-      [0.22, 1.25, 'biceps'], [0.275, 1.04, 'forearms'], [0.1, 0.7, 'quads'], [0, 1.65, 'piel'],
-    ];
-    const back: Array<[number, number, string]> = [
-      [0.06, 1.42, 'traps'], [0.12, 1.22, 'lats'], [0.03, 1.06, 'lowerBack'], [0.2, 1.4, 'rearDelts'], [0.22, 1.25, 'triceps'],
-      [0.08, 0.88, 'glutes'], [0.1, 0.66, 'hamstrings'], [0.1, 0.36, 'calves'],
-    ];
-    for (const [x, y, m] of front) assert.equal(hit(x, y, true), m, `de frente en (${x}, ${y})`);
-    for (const [x, y, m] of back) assert.equal(hit(x, y, false), m, `de espaldas en (${x}, ${y})`);
-    assert.equal(hit(-0.09, 1.32, true), 'chest', 'el lado izquierdo también');
-    assert.deepEqual([fig.facing.chest, fig.facing.glutes, fig.facing.sideDelts], [1, -1, 0]);
-    assert.ok(fig.trianglesOf('biceps').length > 300, 'el contorno del bíceps tiene triángulos');
+    const pos = fig.geometry.getAttribute('position');
+    const mus = fig.geometry.getAttribute('muscle');
+    MUSCLE_IDS.forEach((m, id) => {
+      // Vientre de cada lado (peso > 0,5): caja [x lejano, y mín, y máx] y centro; el izquierdo, con x en espejo.
+      const side = () => ({ box: [0, 9, -9], sum: [0, 0, 0], n: 0 });
+      const l = side();
+      const r = side();
+      for (let i = 0; i < pos.count; i++) {
+        if (mus.getX(i) !== id || mus.getY(i) < 0.5) continue;
+        const [x, y, z] = [pos.getX(i), pos.getY(i), pos.getZ(i)];
+        const s = x < 0 ? l : r;
+        s.n++;
+        s.box = [Math.max(s.box[0], Math.abs(x)), Math.min(s.box[1], y), Math.max(s.box[2], y)];
+        s.sum = [s.sum[0] + Math.abs(x), s.sum[1] + y, s.sum[2] + z];
+      }
+      assert.ok(l.n >= 4 && r.n >= 4, `${m}: tiene superficie en los dos lados (${l.n}/${r.n})`);
+      for (let k = 0; k < 3; k++) assert.ok(Math.abs(l.box[k] - r.box[k]) < 0.02, `${m}: los dos lados son espejo`);
+      // Un toque en el centro del vientre, desde donde mira, cae en ese músculo (a la derecha y a la izquierda).
+      const [cx, cy, cz] = r.sum.map((v) => v / r.n);
+      const from = cz >= 0 ? 'front' : 'back';
+      assert.equal(hit(cx, cy, from), m, `${m}: tocado en su centro (${cx.toFixed(2)}, ${cy.toFixed(2)})`);
+      assert.equal(hit(-cx, cy, from), m, `${m}: también en el lado izquierdo`);
+    });
+    for (const [x, y, side, m] of points) assert.equal(hit(x, y, side), m, `${side === 'front' ? 'de frente' : 'de espaldas'} en (${x}, ${y})`);
+    assert.deepEqual([fig.facing.chest, fig.facing.biceps, fig.facing.glutes, fig.facing.sideDelts], [1, 1, -1, 0]);
+    assert.ok(fig.trianglesOf('biceps').length / 3 > 300, 'el halo del bíceps tiene triángulos');
   });
 }
 
