@@ -6,8 +6,9 @@
    decoración sin eventos (pseudo-elementos o aria-hidden).
    Va después de skins.css. Texto sobre superficie ≥ 4.5:1. */
 
-html[data-season="halloween"] { --lq-hat-0: #5b2d86; --lq-hat-1: #2a1040; }
-html.dark[data-season="halloween"] { --lq-hat-0: #7c4bb0; --lq-hat-1: #3b1a5a; }
+/* Sombrero del logo: naranja calabaza, como la N. Copa (hat-0/1), ala (brim), banda, sombra y hebilla. */
+html[data-season="halloween"] { --lq-hat-0: #ea580c; --lq-hat-1: #c2410c; --lq-hat-brim-0: #f97316; --lq-hat-brim-1: #c2410c; --lq-hat-band: #7c2d12; --lq-hat-shade: #9a3412; --lq-hat-buckle: #fbbf24; }
+html.dark[data-season="halloween"] { --lq-hat-0: #fb923c; --lq-hat-1: #c2410c; --lq-hat-brim-0: #f97316; --lq-hat-brim-1: #c2410c; --lq-hat-band: #7c2d12; --lq-hat-shade: #9a3412; --lq-hat-buckle: #fde68a; }
 
 html[data-season="halloween"]:is(:not([data-theme]), [data-theme="aurora"]) {
   /* Escala calabaza (ilustración y gráficos): ámbar → calabaza → corteza. */
