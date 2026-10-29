@@ -1,18 +1,17 @@
-// Escena 3D del mapa muscular (three.js, sin React): cámara orbital, figura
-// atlética (masculina o femenina, modelada en Blender), color por fatiga desde el
-// shader, selección con brillo y contorno, y pulso en fatiga alta.
+// Escena 3D del mapa muscular (three.js, sin React): cámara orbital, figura atlética
+// (masculina o femenina, modelada en Blender), fatiga pintada en la propia piel desde el
+// shader, selección con brillo de acento y halo, y pulso en fatiga alta.
 // Dibuja bajo demanda: quieta y sin pulso no gasta ni un fotograma, el pulso va
 // a 30 fps y todo se detiene fuera de pantalla o con la pestaña oculta.
 import {
-  AmbientLight, BackSide, BufferAttribute, BufferGeometry, CircleGeometry, Color, DirectionalLight, Mesh, MeshBasicMaterial,
-  MeshStandardMaterial, PerspectiveCamera, Raycaster, Scene, ShaderMaterial, Spherical, SRGBColorSpace, Vector2, WebGLRenderer,
-  type Texture,
+  BufferGeometry, CircleGeometry, Color, DirectionalLight, HemisphereLight, Mesh, MeshStandardMaterial, NeutralToneMapping,
+  PerspectiveCamera, Raycaster, Scene, ShaderMaterial, Spherical, SRGBColorSpace, Texture, Vector2, WebGLRenderer, BufferAttribute,
 } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { MUSCLE_IDS, type Muscle, type MuscleState } from '@/lib/coliseo';
-import maleUrl from '@/assets/models/body-male.nlm?url';
-import femaleUrl from '@/assets/models/body-female.nlm?url';
-import { buildFigure, type Body, type Figure } from './figure';
+import maleUrl from '@/assets/models/body-male.glb?url';
+import femaleUrl from '@/assets/models/body-female.glb?url';
+import { buildFigure, STRAP, type Body, type Figure } from './figure';
 import { heatColor, type RGB, type ScenePalette } from './heat';
 
 export type Side = 'front' | 'back';
@@ -39,7 +38,9 @@ const HOME_PHI = 1.43; // un poco por encima del horizonte
 const TAP_PX = 8; // un toque se mueve menos; más es girar
 const FINGER_PX = 16; // el dedo tapa lo que toca: radio de tolerancia para músculos pequeños
 const PULSE_MS = 1600;
-const OUTLINE = 0.0042; // m
+const SELECT_MS = 320; // el brillo de la selección entra suave
+const SCAN_MS = 700; // y una franja de luz recorre el músculo de abajo arriba, una vez
+const HALO = 0.007; // m: el halo de la selección, inflado sobre la piel
 const N = MUSCLE_IDS.length;
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -47,14 +48,21 @@ const expoOut = (t: number) => (t >= 1 ? 1 : 1 - 2 ** (-10 * t));
 const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 const paint = (c: Color, [r, g, b]: RGB) => c.setRGB(r / 255, g / 255, b / 255, SRGBColorSpace);
 
-const figures = new Map<Body, Promise<Figure>>();
+interface Loaded { figure: Figure; normal: ImageBitmap | null }
+const figures = new Map<Body, Promise<Loaded>>();
 /** Descarga y decodifica cada figura una sola vez por sesión (remontar el visor no la vuelve a pedir). */
-function loadFigure(body: Body): Promise<Figure> {
+function loadFigure(body: Body): Promise<Loaded> {
   let p = figures.get(body);
   if (!p) {
     p = fetch(body === 'female' ? femaleUrl : maleUrl)
       .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(`figure ${r.status}`))))
-      .then(buildFigure);
+      .then(buildFigure)
+      .then(async (figure) => {
+        const img = figure.normalMap;
+        // Sin el mapa de normales la figura funciona igual, solo más lisa.
+        const normal = img ? await createImageBitmap(new Blob([img.bytes], { type: img.mimeType })).catch(() => null) : null;
+        return { figure, normal };
+      });
     p.catch(() => figures.delete(body));
     figures.set(body, p);
   }
@@ -84,57 +92,147 @@ function floorMaterial() {
   });
 }
 
+// Peso de cada uno de los 16 músculos en el vértice, a partir de sus dos músculos (id, peso):
+// interpolados entre vértices, los bordes entre músculos se funden en varios centímetros.
+const WEIGHTS = [0, 4, 8, 12].map((b, k) => `vW${k} = vec4(equal(vec4(muscle.x), vec4(${b}., ${b + 1}., ${b + 2}., ${b + 3}.))) * muscle.y
+          + vec4(equal(vec4(muscle.z), vec4(${b}., ${b + 1}., ${b + 2}., ${b + 3}.))) * muscle.w;`).join('\n        ');
+const SUM = MUSCLE_IDS.map((_, i) => `w = vW${i >> 2}.${'xyzw'[i & 3]}; heat += w * uLevel[${i}] * uHeat[${i}]; level += w * uLevel[${i}]; glow += w * uGlow[${i}];`).join('\n        ');
+
 /**
- * Piel y músculos en un solo material: cada vértice trae su músculo (`muscle`, 255 = piel),
- * su peso (0 en el surco) y su oclusión horneada en Blender (`ao`), que oscurece surcos y
- * axilas para que la definición se lea con cualquier luz. El color del músculo y su brillo
- * llegan como uniformes: repintar o latir no sube geometría. El índice es `flat`.
+ * Piel, ropa y músculos en un solo material. La fatiga tiñe la piel con el color de su banda
+ * y la hace brillar desde dentro (más en los bordes, como luz que atraviesa); el músculo
+ * elegido se enciende con el acento de la skin. Los tonos y brillos llegan como uniformes:
+ * repintar o latir no sube geometría. La tela se corta por píxel con los campos de `surf`.
  */
 function bodyMaterial() {
-  const mat = new MeshStandardMaterial({ roughness: 0.62, metalness: 0 });
+  const mat = new MeshStandardMaterial({ roughness: 0.52, metalness: 0 });
   const uniforms = {
     uHeat: { value: Array.from({ length: N }, () => new Color()) },
+    uLevel: { value: new Float32Array(N) },
     uGlow: { value: new Float32Array(N) },
     uSkin: { value: new Color() },
+    uCloth: { value: new Color() },
+    uAccent: { value: new Color() },
+    uSel: { value: -1 },
+    uHover: { value: -1 },
+    uSelGlow: { value: 0 },
+    uHeatGlow: { value: 0.2 },
+    /** La tela no se tiñe: bajo ella el brillo de la fatiga sube un poco para que se lea. */
+    uClothGlow: { value: 1.6 },
+    /** Altura (m) del barrido de luz que recorre el músculo recién elegido; fuera del cuerpo, apagado. */
+    uScan: { value: -1 },
   };
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
-        attribute float muscle;
-        attribute float mweight;
+        attribute vec4 muscle;
+        attribute vec3 surf;
         attribute float ao;
-        flat varying int vMuscle;
-        varying float vWeight;
-        varying float vAO;`)
+        uniform float uSel;
+        uniform float uHover;
+        varying vec4 vW0; varying vec4 vW1; varying vec4 vW2; varying vec4 vW3;
+        varying vec2 vPick;
+        varying vec3 vSurf;
+        varying float vAO;
+        varying float vY;`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>
-        vMuscle = int(muscle + 0.5);
-        vWeight = mweight;
-        vAO = ao;`);
+        ${WEIGHTS}
+        vPick = vec2(
+          (muscle.x == uSel ? muscle.y : 0.0) + (muscle.z == uSel ? muscle.w : 0.0),
+          (muscle.x == uHover ? muscle.y : 0.0) + (muscle.z == uHover ? muscle.w : 0.0));
+        vSurf = surf;
+        vAO = ao;
+        vY = position.y;`);
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
         uniform vec3 uHeat[${N}];
+        uniform float uLevel[${N}];
         uniform float uGlow[${N}];
         uniform vec3 uSkin;
-        flat varying int vMuscle;
-        varying float vWeight;
-        varying float vAO;`)
+        uniform vec3 uCloth;
+        uniform vec3 uAccent;
+        uniform float uSelGlow;
+        uniform float uHeatGlow;
+        uniform float uClothGlow;
+        uniform float uScan;
+        varying vec4 vW0; varying vec4 vW1; varying vec4 vW2; varying vec4 vW3;
+        varying vec2 vPick;
+        varying vec3 vSurf;
+        varying float vAO;
+        varying float vY;`)
       .replace('#include <color_fragment>', `#include <color_fragment>
-        float mw = 0.0;
-        vec3 heat = uSkin;
+        float w;
+        vec3 heat = vec3(0.0);
+        float level = 0.0;
         float glow = 0.0;
-        if (vMuscle < ${N}) {
-          mw = smoothstep(0.0, 0.85, vWeight);
-          heat = uHeat[vMuscle];
-          glow = uGlow[vMuscle] * mw;
-        }
-        diffuseColor.rgb = mix(uSkin, heat, mw) * vAO;`)
+        ${SUM}
+        vec3 tint = level > 0.001 ? heat / level : uSkin;
+        float amount = clamp(level, 0.0, 1.0);
+        // Tela: borde nítido y suavizado a un píxel, también en tirantes más finos que una cara.
+        float clothD = max(vSurf.x, min(${STRAP.toFixed(4)} - abs(vSurf.y), vSurf.z));
+        float cloth = smoothstep(-0.5, 0.5, clothD / max(fwidth(clothD), 1e-4));
+        float sel = smoothstep(0.15, 0.85, vPick.x) * uSelGlow;
+        float hov = smoothstep(0.15, 0.85, vPick.y);
+        // La piel se tiñe multiplicando (no se tapa): luces, sombras y surcos siguen ahí. La tela
+        // no cambia de color; la fatiga se le nota como luz que la atraviesa.
+        vec3 hue = tint / max(max(tint.r, max(tint.g, tint.b)), 0.2);
+        diffuseColor.rgb = mix(uSkin, uCloth, cloth) * mix(vec3(1.0), hue, amount * 0.36 * (1.0 - cloth));
+        diffuseColor.rgb = mix(diffuseColor.rgb, uAccent, sel * 0.1);
+        diffuseColor.rgb *= mix(1.0, vAO, 0.85);`)
+      .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+        roughnessFactor = mix(roughnessFactor, 0.88, cloth);`)
+      .replace('#include <normal_fragment_begin>', `#include <normal_fragment_begin>
+        vec3 lqFlatNormal = normal;`)
+      .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+        normal = normalize(mix(normal, lqFlatNormal, cloth * 0.55));`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
-        totalEmissiveRadiance += heat * glow;`);
+        // Brillo desde dentro: más en el contorno (fresnel) y menos en surcos y pliegues, así la
+        // definición del músculo se sigue leyendo encendida.
+        float fresnel = pow(1.0 - clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0), 2.5);
+        float inner = mix(0.4, 1.0, pow(clamp(dot(normal, lqFlatNormal), 0.0, 1.0), 6.0)) * vAO;
+        float scan = exp(-pow((vY - uScan) / 0.035, 2.0));
+        totalEmissiveRadiance += tint * (amount * mix(1.0, uClothGlow, cloth) * (0.15 + 0.85 * fresnel) + glow) * uHeatGlow * inner;
+        totalEmissiveRadiance += uAccent * (sel * ((0.06 + 0.85 * fresnel) * inner + scan * 0.7) + hov * 0.1 * (0.3 + 0.7 * fresnel));`);
   };
   // Mismo programa para todas las figuras: three no debe recompilar por instancia.
-  mat.customProgramCacheKey = () => 'lq-body-heat';
+  mat.customProgramCacheKey = () => 'lq-body-heat-2';
   return { mat, uniforms };
+}
+
+/** Halo del músculo elegido: su piel inflada unos milímetros, visible sobre todo en el contorno. */
+function haloMaterial() {
+  return new ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    uniforms: { uColor: { value: new Color() }, uMuscle: { value: -1 }, uStrength: { value: 0 } },
+    vertexShader: /* glsl */ `
+      attribute vec4 muscle;
+      attribute float ao;
+      uniform float uMuscle;
+      varying float vW;
+      varying vec3 vN;
+      varying vec3 vV;
+      void main() {
+        // En los pliegues (oclusión baja) las dos paredes del halo se sumaban en un punto brillante.
+        vW = ((muscle.x == uMuscle ? muscle.y : 0.0) + (muscle.z == uMuscle ? muscle.w : 0.0)) * ao * ao;
+        vec4 mv = modelViewMatrix * vec4(position + normal * ${HALO}, 1.0);
+        vN = normalize(normalMatrix * normal);
+        vV = -mv.xyz;
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: /* glsl */ `
+      uniform vec3 uColor;
+      uniform float uStrength;
+      varying float vW;
+      varying vec3 vN;
+      varying vec3 vV;
+      void main() {
+        float rim = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 3.0);
+        gl_FragColor = vec4(uColor, rim * smoothstep(0.1, 0.7, vW) * uStrength);
+        #include <colorspace_fragment>
+      }`,
+  });
 }
 
 export class MuscleScene {
@@ -144,8 +242,10 @@ export class MuscleScene {
   private controls: OrbitControls;
   private figure: Figure | null = null;
   private skin = bodyMaterial();
+  private eyeMat = new MeshStandardMaterial({ roughness: 0.3, metalness: 0 });
+  private normalMap: Texture | null = null;
   private body: Mesh<BufferGeometry, MeshStandardMaterial> | null = null;
-  private outline: Mesh<BufferGeometry, MeshBasicMaterial>;
+  private halo: Mesh<BufferGeometry, ShaderMaterial>;
   private floor: Mesh<CircleGeometry, ShaderMaterial>;
   private raycaster = new Raycaster();
   private ndc = new Vector2();
@@ -167,6 +267,8 @@ export class MuscleScene {
   private visible = typeof IntersectionObserver === 'undefined';
   private lost = false;
   private tween: Tween | null = null;
+  /** Entrada de la selección: brillo (k, 0 → 1) y barrido entre las alturas del músculo. */
+  private selAnim = { start: 0, k: 1, done: true, y0: 0, y1: 0 };
   private home = { radius: 3.5, y: 0.89 };
   private figureH = 1.78;
   private topInset = 0;
@@ -180,49 +282,49 @@ export class MuscleScene {
   constructor(host: HTMLElement, private opts: MuscleSceneOptions) {
     this.reduceMotion = opts.reduceMotion;
     this.topInset = opts.topInset ?? 0;
-    this.figureH = opts.body === 'female' ? 1.69 : 1.773;
+    this.figureH = opts.body === 'female' ? 1.68 : 1.78;
     // Sin WebGL 2 esto lanza: quien crea la escena muestra el mapa plano.
     this.renderer = new WebGLRenderer({ antialias: true, alpha: true });
     this.dpr = Math.min(window.devicePixelRatio || 1, 2);
     this.renderer.setPixelRatio(this.dpr);
     this.renderer.setClearColor(0x000000, 0);
+    // Tonos sin saturar: el brillo de la fatiga no se quema en blanco.
+    this.renderer.toneMapping = NeutralToneMapping;
     const canvas = this.renderer.domElement;
     canvas.style.cssText = 'display:block;width:100%;height:100%;outline:none;-webkit-tap-highlight-color:transparent';
     host.appendChild(canvas);
 
-    // Contorno: la malla del músculo elegido por dentro (BackSide), inflada a lo largo de las normales.
-    const outline = new MeshBasicMaterial({ side: BackSide });
-    outline.onBeforeCompile = (shader) => {
-      shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>\n\ttransformed += normal * ${OUTLINE.toFixed(4)};`);
-    };
-    this.outline = new Mesh(new BufferGeometry(), outline);
-    this.outline.visible = false;
-    this.scene.add(this.outline);
+    this.halo = new Mesh(new BufferGeometry(), haloMaterial());
+    this.halo.visible = false;
+    this.halo.renderOrder = 1;
+    this.scene.add(this.halo);
 
     this.floor = new Mesh(new CircleGeometry(0.56, 64), floorMaterial());
     this.floor.rotation.x = -Math.PI / 2;
     this.floor.position.y = 0.001;
     this.scene.add(this.floor);
 
-    // Luces pegadas a la cámara: el lado que miras siempre está iluminado, también la espalda.
-    // La principal viene de arriba y de lado, como en una sala de pesas: marca el relieve.
+    // Luz de estudio suave, sin sombras proyectadas: cielo y suelo dan el ambiente y tres
+    // direccionales pegadas a la cámara (el lado que miras siempre está iluminado, también la
+    // espalda). La principal cae de arriba y de lado, como en una sala de pesas: marca el relieve.
+    this.scene.add(new HemisphereLight(0xf4f8f5, 0x6b6560, 0.95));
     this.scene.add(this.camera);
-    this.camera.add(new AmbientLight(0xffffff, 0.6));
-    const key = new DirectionalLight(0xffffff, 2.9);
-    key.position.set(-1.6, 2.6, 1.2);
+    const key = new DirectionalLight(0xffffff, 2.6);
+    key.position.set(-1.7, 2.4, 1.4);
     key.target.position.set(0, 0, -3.5);
-    const fill = new DirectionalLight(0xffffff, 0.7);
-    fill.position.set(1.6, 0.2, 1.4);
+    const fill = new DirectionalLight(0xffffff, 0.45);
+    fill.position.set(1.8, 0.4, 1.2);
     fill.target.position.set(0, 0, -3.5);
     const rim = new DirectionalLight(0xffffff, 1.8);
-    rim.position.set(1.8, 1.4, -7);
+    rim.position.set(1.6, 1.8, -7);
     rim.target.position.set(0, 0, -3.5);
     this.camera.add(key, key.target, fill, fill.target, rim, rim.target);
 
     const c = (this.controls = new OrbitControls(this.camera, canvas));
+    // Giro sedoso: inercia larga y suave al soltar.
     c.enableDamping = true;
-    c.dampingFactor = 0.09;
-    c.rotateSpeed = 0.85;
+    c.dampingFactor = 0.07;
+    c.rotateSpeed = 0.8;
     c.zoomSpeed = 0.9;
     c.panSpeed = 0.7;
     c.screenSpacePanning = true;
@@ -266,13 +368,19 @@ export class MuscleScene {
     this.camera.position.setFromSpherical(new Spherical(this.home.radius, HOME_PHI, this.reduceMotion ? 0 : -0.62)).add(this.controls.target);
     this.controls.update();
 
-    loadFigure(opts.body).then((fig) => {
+    loadFigure(opts.body).then(({ figure, normal }) => {
       if (this.disposed) return;
-      this.figure = fig;
-      this.body = new Mesh(fig.geometry, this.skin.mat);
-      this.scene.add(this.body);
-      this.outline.geometry.setAttribute('position', fig.geometry.getAttribute('position'));
-      this.outline.geometry.setAttribute('normal', fig.geometry.getAttribute('normal'));
+      this.figure = figure;
+      if (normal) {
+        const tex = (this.normalMap = new Texture(normal));
+        tex.flipY = false; // UV de glTF
+        tex.anisotropy = Math.min(4, this.renderer.capabilities.getMaxAnisotropy());
+        tex.needsUpdate = true;
+        this.skin.mat.normalMap = tex;
+      }
+      this.body = new Mesh(figure.geometry, this.skin.mat);
+      this.scene.add(this.body, new Mesh(figure.eyes, this.eyeMat));
+      for (const name of ['position', 'normal', 'muscle', 'ao'] as const) this.halo.geometry.setAttribute(name, figure.geometry.getAttribute(name));
       if (this.selected) this.setSelected(this.selected);
       this.repaint();
       this.goTo('front', 1100);
@@ -296,9 +404,19 @@ export class MuscleScene {
   setSelected(m: Muscle | null) {
     const fromFigure = m !== null && m === this.picked;
     this.picked = null;
+    const fresh = m !== this.selected;
     this.selected = m;
-    if (m && this.figure) this.outline.geometry.setIndex(new BufferAttribute(this.figure.trianglesOf(m), 1));
-    this.outline.visible = m !== null && this.figure !== null;
+    if (m && this.figure) {
+      const tris = this.figure.trianglesOf(m);
+      this.halo.geometry.setIndex(new BufferAttribute(tris, 1));
+      if (fresh) {
+        const pos = this.figure.geometry.getAttribute('position');
+        let [y0, y1] = [Infinity, -Infinity];
+        for (const v of tris) [y0, y1] = [Math.min(y0, pos.getY(v)), Math.max(y1, pos.getY(v))];
+        this.selAnim = { start: 0, k: this.reduceMotion ? 1 : 0, done: this.reduceMotion, y0: y0 - 0.04, y1: y1 + 0.04 };
+      }
+    }
+    this.halo.visible = m !== null && this.figure !== null;
     this.repaint();
     // Elegido en la lista o por defecto: si mira hacia el otro lado, la cámara da la vuelta.
     if (m && !fromFigure && this.figure) {
@@ -359,10 +477,13 @@ export class MuscleScene {
     const props = this.renderer.properties.get(this.skin.mat) as { uniforms?: { dfgLUT?: { value: Texture | null } } };
     props.uniforms?.dfgLUT?.value?.dispose();
     this.skin.mat.dispose();
+    this.eyeMat.dispose();
+    this.normalMap?.dispose(); // la imagen queda en memoria para el próximo montaje
     // La geometría de la figura queda en memoria para el próximo montaje; aquí solo se sueltan sus búferes de GPU.
     this.figure?.geometry.dispose();
-    this.outline.geometry.dispose();
-    this.outline.material.dispose();
+    this.figure?.eyes.dispose();
+    this.halo.geometry.dispose();
+    this.halo.material.dispose();
     this.floor.geometry.dispose();
     this.floor.material.dispose();
     this.scene.clear();
@@ -388,7 +509,8 @@ export class MuscleScene {
     this.frame = 0;
     const tweening = this.tween ? this.stepTween(now) : false;
     const moved = this.controls.update(); // inercia del giro
-    const moving = tweening || moved;
+    const fading = this.selAnim.done ? false : this.stepSelection(now);
+    const moving = tweening || moved || fading;
     const pulsing = this.high.length > 0 && !this.reduceMotion && this.figure !== null;
     // Solo late el pulso: basta con 30 fps.
     if (!moving && pulsing && now - this.lastFrame < 30) {
@@ -396,15 +518,26 @@ export class MuscleScene {
       return;
     }
     if (pulsing) {
-      const pulse = 0.06 + 0.24 * (0.5 - 0.5 * Math.cos((2 * Math.PI * now) / PULSE_MS));
+      const pulse = 0.05 + 0.2 * (0.5 - 0.5 * Math.cos((2 * Math.PI * now) / PULSE_MS));
       const glow = this.skin.uniforms.uGlow.value;
-      for (const m of this.high) glow[MUSCLE_IDS.indexOf(m)] = this.glow(m) + pulse;
+      for (const m of this.high) glow[MUSCLE_IDS.indexOf(m)] = pulse;
     }
     this.renderer.render(this.scene, this.camera);
-    if (moving) this.adaptResolution(now);
+    if (tweening || moved) this.adaptResolution(now);
     this.lastFrame = now;
     if (moving || pulsing) this.requestRender();
   };
+
+  private stepSelection(now: number) {
+    const a = this.selAnim;
+    if (!a.start) a.start = now;
+    const t = Math.min(1, (now - a.start) / SCAN_MS);
+    a.k = expoOut(Math.min(1, (now - a.start) / SELECT_MS));
+    a.done = t >= 1;
+    this.skin.uniforms.uScan.value = a.done ? -1 : lerp(a.y0, a.y1, t * t * (3 - 2 * t));
+    this.applySelection();
+    return true;
+  }
 
   /** Si al girar no llega a ~45 fps, baja la resolución (2 → 1,5 → 1). */
   private adaptResolution(now: number) {
@@ -420,8 +553,12 @@ export class MuscleScene {
     }
   }
 
-  private glow(m: Muscle) {
-    return (m === this.selected ? 0.3 : 0) + (m === this.hovered ? 0.14 : 0);
+  /** Brillo de la selección y del halo (tema oscuro: neón; claro: más contenido). */
+  private applySelection() {
+    const dark = this.palette?.dark ?? false;
+    const k = this.selAnim.k;
+    this.skin.uniforms.uSelGlow.value = k * (dark ? 1 : 0.55);
+    this.halo.material.uniforms.uStrength.value = k * (dark ? 0.9 : 0.6);
   }
 
   private repaint() {
@@ -429,12 +566,25 @@ export class MuscleScene {
     if (!p) return;
     const u = this.skin.uniforms;
     paint(u.uSkin.value, p.body);
+    paint(u.uCloth.value, p.cloth);
+    paint(u.uAccent.value, p.accent);
+    paint(this.eyeMat.color, p.body);
     MUSCLE_IDS.forEach((m, i) => {
       const s = this.states?.[m];
-      paint(u.uHeat.value[i], !s || s.status === 'idle' ? p.idle : heatColor(s.fatiguePct, p));
-      u.uGlow.value[i] = this.glow(m) + (this.reduceMotion && this.high.includes(m) ? 0.16 : 0);
+      const worked = s !== undefined && s.status !== 'idle';
+      // Sin trabajo esta semana: piel limpia. Con trabajo: el color de su banda, más intenso con más fatiga.
+      paint(u.uHeat.value[i], worked ? heatColor(s.fatiguePct, p) : p.body);
+      u.uLevel.value[i] = worked ? 0.35 + (0.65 * s.fatiguePct) / 100 : 0;
+      u.uGlow.value[i] = this.reduceMotion && this.high.includes(m) ? 0.14 : 0;
     });
-    paint(this.outline.material.color, p.outline);
+    u.uSel.value = this.selected ? MUSCLE_IDS.indexOf(this.selected) : -1;
+    u.uHover.value = this.hovered ? MUSCLE_IDS.indexOf(this.hovered) : -1;
+    // Con piel oscura un brillo pequeño ya pesa mucho: el tema oscuro lleva menos.
+    u.uHeatGlow.value = p.dark ? 0.26 : 0.32;
+    const h = this.halo.material.uniforms;
+    paint(h.uColor.value, p.accent);
+    h.uMuscle.value = u.uSel.value;
+    this.applySelection();
     const f = this.floor.material.uniforms;
     paint(f.uShadow.value, p.shadow);
     paint(f.uRing.value, p.ring);

@@ -50,7 +50,7 @@ export default function MuscleViewer3D({ body, states, selected, onSelect, onUna
   const host = useRef<HTMLDivElement>(null);
   const scene = useRef<MuscleScene | null>(null);
   const [side, setSide] = useState<Side>('front');
-  /** La figura (~280 KB) aún baja: el hueco muestra el mismo pulso que la carga de three.js. */
+  /** La figura (~380 KB) aún baja: el hueco muestra el mismo pulso que la carga de three.js. */
   const [ready, setReady] = useState(false);
   const reduce = useReducedMotionConfig() ?? false;
   // Los callbacks cambian en cada render; la escena se crea una vez y lee siempre los últimos.
