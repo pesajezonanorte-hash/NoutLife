@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  AlertTriangle, Check, Dumbbell, Flag, Minus, Moon, RefreshCw, Share2, Sparkles, TrendingUp, Wallet, Zap, CheckCircle2,
+  AlertTriangle, Check, Dumbbell, Flag, Minus, Moon, RefreshCw, Share2, Target, TrendingUp, Wallet, Zap, CheckCircle2,
 } from 'lucide-react';
 import { blurFrom, blurTo, expo, item, stagger, useMotionReduced } from '@/lib/motion';
 import { cn } from '@/lib/utils';
@@ -573,7 +573,7 @@ export default function StatsPage() {
                   <motion.li key={z.id} variants={item}>
                     <Card interactive padding="md" className="flex h-full flex-col gap-3.5">
                       <div className="flex items-center gap-3">
-                        <IconChip icon={Sparkles} tone={z.hasData ? 'primary' : 'muted'} size="sm" />
+                        <IconChip icon={Target} tone={z.hasData ? 'primary' : 'muted'} size="sm" />
                         <div className="min-w-0 flex-1" title={`${z.name} · ${z.activityLabel}`}><div className="truncate text-label-lg md:text-body-md md:font-semibold">{z.name}</div><div className="line-clamp-2 text-body-sm text-on-surface-light">{z.activityLabel}</div></div>
                         <Badge variant={st.variant} icon={st.icon}>{st.label}</Badge>
                       </div>
