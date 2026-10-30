@@ -160,10 +160,13 @@ export const tick: Variants = {
 const finePointer = () => typeof window !== 'undefined' && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 
 /** Spotlight + tilt 3D (`.lq-spot`): fija --mx/--my y, si procede, --rx/--ry (máx. 3°).
- *  Sin tilt con «Reducir movimiento» y en pantallas táctiles (pointer: coarse). */
+ *  Sin tilt con «Reducir movimiento» y en pantallas táctiles (pointer: coarse).
+ *  El dedo no mueve la luz: al desplazar la página llegaba un pointermove por fotograma y
+ *  cada --mx/--my (variables heredadas) recalculaba el estilo de toda la tarjeta. */
 export function useSpotlight<T extends HTMLElement>() {
   const reduce = useReducedMotionConfig();
   const onPointerMove = (e: PointerEvent<T>) => {
+    if (e.pointerType === 'touch') return;
     const el = e.currentTarget, r = el.getBoundingClientRect();
     const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
     el.style.setProperty('--mx', `${x * 100}%`); el.style.setProperty('--my', `${y * 100}%`);
