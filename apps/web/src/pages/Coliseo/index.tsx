@@ -30,6 +30,7 @@ import { Lettering } from '../../components/layout/Lettering';
 import { SketchUnderline, ZoneShell } from '../../components/ambience';
 import { ChalkDust, GymBackdrop } from '../../components/coliseo/GymAmbience';
 import { MuscleMap } from '../../components/coliseo/MuscleMap';
+import { GymRack } from '../../components/coliseo/GymRack';
 import { LivePlayer, blankSet, elapsedMs, sessionTonnage, toWorkoutSets, type ActiveExercise, type ActiveWorkout, type UpdateWorkout } from '../../components/coliseo/LivePlayer';
 import { CycleColiseoHint } from '../../components/cycle/CycleHints';
 
@@ -863,6 +864,18 @@ export default function ColiseoPage() {
           </Button>
         </Thud>
       </motion.div>
+
+      {/* Rack 3D: la barra suma un disco por cada día entrenado esta semana. */}
+      {state === 'ready' && (
+        <motion.div variants={item}>
+          <GymRack
+            plates={platesThisWeek}
+            onStart={() => (sessionOpen ? setLiveOpen(true) : setShowStartModal(true))}
+            onRest={() => setShowRestTimer(true)}
+            onCardio={() => { if (!sessionOpen) setShowCardioModal(true); }}
+          />
+        </motion.div>
+      )}
 
       <motion.div ref={tabsBar.ref} variants={item} role="tablist" aria-label={t.tabsAria} className="relative grid scroll-mt-24 grid-cols-2 gap-4 lg:grid-cols-4"
         onKeyDown={(e) => {

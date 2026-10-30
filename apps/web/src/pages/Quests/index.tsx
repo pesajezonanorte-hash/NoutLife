@@ -1,6 +1,7 @@
 // Misiones — el mapa de tu vida. Cada misión cumplida es un lugar que ya
 // visitaste (la lista de lo que has hecho, con su fecha), cada misión activa es
-// un destino por explorar y en la niebla marcas uno nuevo. Al lado, el cuaderno
+// un destino por explorar y en la niebla marcas uno nuevo. Arriba, el monumento
+// 3D de tus metas: un peldaño por cada 10 % y una bandera por cada cumplida. Al lado, el cuaderno
 // de viaje con las cifras del viaje, la próxima parada y la leyenda del mapa.
 // «Todo el mapa / Por explorar / Visitados», la búsqueda y el tipo filtran el
 // mapa. Detalle, completar y formulario son los de siempre (quest.service).
@@ -19,6 +20,7 @@ import { AmbientLight, ZoneShell } from '@/components/ambience';
 import { AvatarDisplay } from '@/components/character/AvatarDisplay';
 import { Lettering } from '@/components/layout/Lettering';
 import { AdventureMap } from '@/components/quests/AdventureMap';
+import { GoalMonumentCard } from '@/components/quests/GoalMonumentCard';
 import { QuestDetailDialog } from '@/components/quests/QuestDetailDialog';
 import { CompleteQuestDialog } from '@/components/quests/CompleteQuestDialog';
 import { QuestFormDialog, type QuestFormValues } from '@/components/quests/QuestFormDialog';
@@ -243,6 +245,12 @@ export default function QuestsPage() {
           <SegmentedControl label={t.mapFilter} value={tab} onChange={setTab} options={tabOptions} className="w-full" />
         </div>
       </motion.section>
+
+      {!loading && !failed && (ahead.length > 0 || visited.length > 0) && (
+        <motion.div variants={item}>
+          <GoalMonumentCard ahead={ahead} visited={visited} onOpen={(q) => setDetailId(q.id)} />
+        </motion.div>
+      )}
 
       <motion.div variants={item} className="flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">

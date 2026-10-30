@@ -1,7 +1,9 @@
-// Lector mínimo de los .glb de las figuras (scripts/build-avatars.mjs): un nodo con su
-// malla, KHR_mesh_quantization (enteros normalizados + escala y traslación del nodo) y
-// EXT_meshopt_compression. Devuelve cada primitiva con sus atributos en Float32Array (posición
-// en metros) y las imágenes tal cual vienen. Sin DOM: también lo usan los tests de Node.
+// Lector mínimo de los .glb que generan los scripts de Blender: KHR_mesh_quantization (enteros
+// normalizados + escala y traslación del nodo) y EXT_meshopt_compression (con sus filtros).
+// `readGlb` devuelve el primer nodo con malla (figuras del Coliseo, scripts/build-avatars.mjs);
+// `readGlbNodes`, todos los nodos con su nombre y sus `extras` (objetos de las zonas,
+// scripts/build-props.mjs). Atributos en Float32Array (posición en metros); las imágenes, tal
+// cual vienen. Sin DOM: también lo usan los tests de Node.
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 
 export interface GlbPrimitive {
@@ -16,20 +18,26 @@ export interface Glb {
   images: Array<{ mimeType: string; bytes: Uint8Array<ArrayBuffer> }>;
 }
 
+export interface GlbNode {
+  name: string;
+  extras: Record<string, unknown>;
+  primitives: GlbPrimitive[];
+}
+
 interface Json {
   accessors: Array<{ bufferView: number; byteOffset?: number; componentType: number; normalized?: boolean; count: number; type: string }>;
   bufferViews: Array<{ byteOffset?: number; byteLength: number; byteStride?: number; extensions?: { EXT_meshopt_compression?: { byteOffset?: number; byteLength: number; byteStride: number; count: number; mode: string; filter?: string } } }>;
   meshes: Array<{ primitives: Array<{ attributes: Record<string, number>; indices: number; material: number }> }>;
   materials: Array<{ name: string }>;
   images?: Array<{ bufferView: number; mimeType: string }>;
-  nodes: Array<{ mesh?: number; translation?: number[]; scale?: number[] }>;
+  nodes: Array<{ name?: string; mesh?: number; translation?: number[]; scale?: number[]; extras?: Record<string, unknown> }>;
 }
 
 const SIZE: Record<string, number> = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4 };
 const ARRAY = { 5120: Int8Array, 5121: Uint8Array, 5122: Int16Array, 5123: Uint16Array, 5125: Uint32Array, 5126: Float32Array } as const;
 const MAX: Record<number, number> = { 5120: 127, 5121: 255, 5122: 32767, 5123: 65535 };
 
-export async function readGlb(buffer: ArrayBuffer): Promise<Glb> {
+async function parse(buffer: ArrayBuffer) {
   const view = new DataView(buffer);
   if (view.getUint32(0, true) !== 0x46546c67) throw new Error('glb: formato desconocido');
   const jsonLength = view.getUint32(12, true);
@@ -63,19 +71,31 @@ export async function readGlb(buffer: ArrayBuffer): Promise<Glb> {
     return { array: out, size };
   };
 
+  const primitivesOf = (node: Json['nodes'][number]): GlbPrimitive[] => {
+    const [sx, sy, sz] = node.scale ?? [1, 1, 1];
+    const [tx, ty, tz] = node.translation ?? [0, 0, 0];
+    return json.meshes[node.mesh!].primitives.map((p) => {
+      const attributes = Object.fromEntries(Object.entries(p.attributes).map(([name, i]) => [name, read(i)]));
+      const pos = attributes.POSITION.array;
+      for (let i = 0; i < pos.length; i += 3) {
+        pos[i] = pos[i] * sx + tx;
+        pos[i + 1] = pos[i + 1] * sy + ty;
+        pos[i + 2] = pos[i + 2] * sz + tz;
+      }
+      return { material: json.materials[p.material]?.name ?? '', attributes, index: Uint32Array.from(read(p.indices).array) };
+    });
+  };
+  return { json, views, primitivesOf };
+}
+
+export async function readGlb(buffer: ArrayBuffer): Promise<Glb> {
+  const { json, views, primitivesOf } = await parse(buffer);
   const node = json.nodes.find((n) => n.mesh !== undefined)!;
-  const [sx, sy, sz] = node.scale ?? [1, 1, 1];
-  const [tx, ty, tz] = node.translation ?? [0, 0, 0];
-  const primitives = json.meshes[node.mesh!].primitives.map((p) => {
-    const attributes = Object.fromEntries(Object.entries(p.attributes).map(([name, i]) => [name, read(i)]));
-    const pos = attributes.POSITION.array;
-    for (let i = 0; i < pos.length; i += 3) {
-      pos[i] = pos[i] * sx + tx;
-      pos[i + 1] = pos[i + 1] * sy + ty;
-      pos[i + 2] = pos[i + 2] * sz + tz;
-    }
-    return { material: json.materials[p.material].name, attributes, index: Uint32Array.from(read(p.indices).array) };
-  });
   const images = (json.images ?? []).map((img) => ({ mimeType: img.mimeType, bytes: views[img.bufferView] }));
-  return { primitives, images };
+  return { primitives: primitivesOf(node), images };
+}
+
+export async function readGlbNodes(buffer: ArrayBuffer): Promise<GlbNode[]> {
+  const { json, primitivesOf } = await parse(buffer);
+  return json.nodes.filter((n) => n.mesh !== undefined).map((n) => ({ name: n.name ?? '', extras: n.extras ?? {}, primitives: primitivesOf(n) }));
 }

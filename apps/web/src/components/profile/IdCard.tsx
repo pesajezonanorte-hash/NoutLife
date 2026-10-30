@@ -10,7 +10,12 @@
 // se quedan donde estaban y al volver se deslizan hasta el cursor. En Android
 // sigue la inclinación del móvil. Con «Reducir movimiento»: un fundido, sin
 // inclinación, el sello ya puesto y el giro como fundido (lo resuelve el flip card).
-import { useEffect, useState, type ReactNode } from 'react';
+//
+// Giro 360°: arrastrar en horizontal hace girar el carnet entero con inercia (el reverso
+// asoma a mitad de vuelta) y siempre aterriza en la cara que estaba; «Girar 360°» da una
+// vuelta completa con teclado o ratón.
+import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { RotateCw } from 'lucide-react';
 import { motion, useAnimationControls } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { thud } from '@/lib/motion';
@@ -30,6 +35,7 @@ const es = {
   issued: 'Expedición',
   sealText: 'NOUTLIFE · VERIFICADO · NOUTLIFE · VERIFICADO ·',
   docAria: (name: string): string => `Documento de ${name}`,
+  spin: 'Girar 360°',
 };
 
 const en: typeof es = {
@@ -42,6 +48,7 @@ const en: typeof es = {
   issued: 'Issued',
   sealText: 'NOUTLIFE · VERIFIED · NOUTLIFE · VERIFIED ·',
   docAria: (name: string): string => `Document of ${name}`,
+  spin: 'Spin 360°',
 };
 
 const COPY: Copy<typeof es> = { es, en };
@@ -102,6 +109,94 @@ function Seal({ className, text }: { className?: string; text: string }) {
   );
 }
 
+/**
+ * Giro libre del carnet: escribe --spin (grados) en el contenedor; mientras gira, data-spinning
+ * quita la transición del rotor y deja ver las dos caras. Al soltar, un muelle lo lleva a la
+ * vuelta completa más cercana en el sentido del gesto y --spin vuelve a 0 sin que se note.
+ */
+function useSpin360(reduce: boolean) {
+  const ref = useRef<HTMLDivElement>(null);
+  const s = useRef({ deg: 0, vel: 0, raf: 0, dragged: false, press: null as null | { id: number; x: number; y: number; base: number; lastX: number; lastT: number; moved: boolean } });
+  const paint = (deg: number) => ref.current?.style.setProperty('--spin', `${deg.toFixed(2)}deg`);
+  const spinning = (on: boolean) => (on ? ref.current?.setAttribute('data-spinning', '') : ref.current?.removeAttribute('data-spinning'));
+
+  const settle = useCallback((goal?: number) => {
+    const st = s.current;
+    cancelAnimationFrame(st.raf);
+    const target = goal ?? (Math.abs(st.vel) > 120
+      ? (st.vel > 0 ? Math.ceil(st.deg / 360 + 0.08) : Math.floor(st.deg / 360 - 0.08)) * 360
+      : Math.round(st.deg / 360) * 360);
+    let last = performance.now();
+    const tick = (now: number) => {
+      const dt = Math.min(0.04, (now - last) / 1000);
+      last = now;
+      st.vel += ((target - st.deg) * 70 - st.vel * 12) * dt;
+      st.deg += st.vel * dt;
+      paint(st.deg);
+      if (Math.abs(target - st.deg) < 0.25 && Math.abs(st.vel) < 6) {
+        // Una vuelta entera es lo mismo que ninguna: vuelve a 0 todavía sin transición.
+        st.deg = 0;
+        st.vel = 0;
+        paint(0);
+        st.raf = requestAnimationFrame(() => spinning(false));
+        return;
+      }
+      st.raf = requestAnimationFrame(tick);
+    };
+    st.raf = requestAnimationFrame(tick);
+  }, []);
+
+  useEffect(() => () => cancelAnimationFrame(s.current.raf), []);
+
+  const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (reduce || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    const st = s.current;
+    cancelAnimationFrame(st.raf);
+    st.press = { id: e.pointerId, x: e.clientX, y: e.clientY, base: st.deg, lastX: e.clientX, lastT: performance.now(), moved: false };
+  };
+  const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const p = s.current.press;
+    if (!p || p.id !== e.pointerId) return;
+    const dx = e.clientX - p.x;
+    if (!p.moved) {
+      if (Math.abs(dx) < 10 || Math.abs(dx) < Math.abs(e.clientY - p.y) * 1.2) return;
+      p.moved = true;
+      spinning(true);
+      e.currentTarget.setPointerCapture(e.pointerId);
+    }
+    const now = performance.now();
+    const st = s.current;
+    st.deg = p.base + dx * 0.6;
+    st.vel = st.vel * 0.6 + (((e.clientX - p.lastX) * 0.6) / Math.max(0.008, (now - p.lastT) / 1000)) * 0.4;
+    p.lastX = e.clientX;
+    p.lastT = now;
+    paint(st.deg);
+  };
+  const onPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const st = s.current;
+    const p = st.press;
+    st.press = null;
+    if (!p || p.id !== e.pointerId || !p.moved) return;
+    st.dragged = true;
+    settle();
+  };
+  // Un arrastre no es un toque: el carnet no se da la vuelta al soltar.
+  const onClickCapture = (e: ReactMouseEvent) => {
+    if (!s.current.dragged) return;
+    s.current.dragged = false;
+    e.preventDefault();
+    e.stopPropagation();
+  };
+  const spinOnce = () => {
+    if (reduce) return;
+    const st = s.current;
+    spinning(true);
+    st.vel = 900;
+    settle(Math.ceil((st.deg + 1) / 360) * 360);
+  };
+  return { ref, handlers: { onPointerDown, onPointerMove, onPointerUp, onPointerCancel: onPointerUp, onClickCapture }, spinOnce };
+}
+
 export interface IdCardProps {
   user: { id: string; displayName: string; username?: string; level: number; playerClass?: string | null; createdAt: string };
   title: string;
@@ -116,6 +211,7 @@ export function IdCard({ user, title, photo, back }: IdCardProps) {
   const [flipped, setFlipped] = useState(false);
   // Girada, la tarjeta deja de inclinarse para que el reverso se lea recto.
   const holo = useHoloTilt<HTMLDivElement>(7, { frozen: flipped });
+  const spin = useSpin360(reduce);
   const issued = new Date(user.createdAt);
   const doc = documentNumber(user.id);
   const [m1, m2] = mrzLines({ name: user.displayName, id: user.id, issued, level: user.level });
@@ -204,6 +300,7 @@ export function IdCard({ user, title, photo, back }: IdCardProps) {
     >
       <PixelReveal cols={30} rows={19} delay={140} spread={640} seed={user.id.length + 11}>
         <motion.div animate={card}>
+          <div ref={spin.ref} {...spin.handlers} className="relative touch-pan-y">
           <div
             ref={holo.ref}
             onPointerMove={holo.onPointerMove}
@@ -222,8 +319,16 @@ export function IdCard({ user, title, photo, back }: IdCardProps) {
               back={back}
             />
           </div>
+          </div>
         </motion.div>
       </PixelReveal>
+      {!reduce && (
+        <div className="mt-3 flex justify-center">
+          <button type="button" className="lq-flip-chip" onClick={spin.spinOnce}>
+            <RotateCw aria-hidden className="size-4" strokeWidth={2} />{t.spin}
+          </button>
+        </div>
+      )}
     </motion.div>
   );
 }

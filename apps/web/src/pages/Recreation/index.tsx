@@ -1,7 +1,9 @@
 // Recreación — la sala de cine. Lo que viste, jugaste o viviste para desconectar:
 // la pantalla proyecta tu última función, la cartelera guarda lo que quieres ver y
-// cada boleta es una función vivida (XP y oro; Carisma al subir de nivel). El Sabio
-// ve esta zona junto con las demás y puede proponerte un plan para hoy.
+// cada boleta es una función vivida (XP y oro; Carisma al subir de nivel). Debajo de
+// la pantalla, la repisa de hobbies en 3D: objetos que se agarran y se lanzan, y que al
+// tocarlos registran ese tipo de ocio. El Sabio ve esta zona junto con las demás y puede
+// proponerte un plan para hoy.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Clapperboard, Plus } from 'lucide-react';
@@ -14,9 +16,10 @@ import { Lettering } from '@/components/layout/Lettering';
 import { SageContextButton } from '@/components/sage/SageContextButton';
 import { useLoadingCopy } from '@/lib/loadingCopy';
 import * as recreationService from '@/services/recreation.service';
-import type { RecreationEntry, RecreationResult, RecreationStatus } from '@/services/recreation.service';
+import type { RecreationEntry, RecreationKind, RecreationResult, RecreationStatus } from '@/services/recreation.service';
 import { Bulbs, Poster, Screen, Stars, Theater, Ticket } from '@/components/recreation/Cinema';
 import { RecreationDialog } from '@/components/recreation/RecreationDialog';
+import { HobbyShelf } from '@/components/recreation/HobbyShelf';
 import { kindBalance, kindOf, minutesLabel, weekSummary } from '@/components/recreation/recreationMeta';
 import { INTL_LOCALE, useLocale, useText, type Copy, type Locale } from '@/lib/i18n';
 
@@ -74,7 +77,7 @@ export default function RecreationPage() {
   const loadingCopy = useLoadingCopy();
   const [entries, setEntries] = useState<RecreationEntry[]>([]);
   const [state, setState] = useState<'loading' | 'error' | 'ready'>('loading');
-  const [dialog, setDialog] = useState<{ entry: RecreationEntry | null; status: RecreationStatus } | null>(null);
+  const [dialog, setDialog] = useState<{ entry: RecreationEntry | null; status: RecreationStatus; kind?: RecreationKind } | null>(null);
   const [showAll, setShowAll] = useState(false);
   const budget = useParticleBudget();
   const reduce = useMotionReduced();
@@ -264,6 +267,9 @@ export default function RecreationPage() {
       ) : (
         <>
           {theater}
+          <motion.div variants={item}>
+            <HobbyShelf onPick={(kind) => setDialog({ entry: null, status: 'DONE', kind })} />
+          </motion.div>
           <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(300px,1fr)]">
             <div className="flex min-w-0 flex-col gap-6">
               {billboard}
@@ -275,7 +281,7 @@ export default function RecreationPage() {
       )}
       <RecreationDialog
         open={dialog !== null} onClose={() => setDialog(null)}
-        entry={dialog?.entry ?? null} initialStatus={dialog?.status ?? 'DONE'}
+        entry={dialog?.entry ?? null} initialStatus={dialog?.status ?? 'DONE'} initialKind={dialog?.kind ?? null}
         onSaved={saved} onDeleted={deleted}
       />
     </ZoneShell>

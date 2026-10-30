@@ -9,7 +9,7 @@
 // se aclara, la medalla destella y suelta motas doradas dentro de su nicho.
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type PointerEvent } from 'react';
 import { motion } from 'framer-motion';
-import { Check, Lock, Trophy } from 'lucide-react';
+import { Check, Lock, Star, Trophy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { item, springs, stagger } from '@/lib/motion';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -20,6 +20,7 @@ import { fetchAchievements, type Achievement } from '@/services/achievement.serv
 import { achievementCategory, achievementIcon, achievementProgress as progressOf } from '@/components/achievements/achievementMeta';
 import { Lettering } from '@/components/layout/Lettering';
 import { achievementText } from '@/components/achievements/achievementText';
+import { TrophyShowcase } from '@/components/achievements/TrophyShowcase';
 import { INTL_LOCALE, useLocale, useText, type Copy, type Locale } from '@/lib/i18n';
 
 type Filter = 'all' | 'on' | 'off';
@@ -78,6 +79,9 @@ const BURST = Array.from({ length: 10 }, (_, i) => {
   return { tx: `${Math.cos(ang) * r}px`, ty: `${Math.sin(ang) * r - 8}px`, delay: `${0.42 + (i % 4) * 0.04}s` };
 });
 
+/** Segmentos del canto de cada medalla (moneda 3D en CSS). */
+const MEDAL_RIM = Array.from({ length: 24 }, (_, i) => i);
+
 const fmtDate = (iso: string | undefined, locale: Locale) => (iso ? new Date(iso).toLocaleDateString(INTL_LOCALE[locale], { day: 'numeric', month: 'short' }) : '');
 
 function AchievementCard({ a, index, fresh }: { a: Achievement; index: number; fresh: boolean }) {
@@ -127,7 +131,15 @@ function AchievementCard({ a, index, fresh }: { a: Achievement; index: number; f
             <path d="M8 0h16l12 40H22Z" className={cn('lq-ribbon-l', !on && 'opacity-40')} />
             <path d="M52 0H36L24 40h14Z" className={cn('lq-ribbon-r', !on && 'opacity-40')} />
           </svg>
-          <span className={cn('relative -mt-3 flex size-[4.25rem] items-center justify-center rounded-full md:size-24', on ? 'lq-medal-disc' : 'lq-medal-dim')}>
+          {/* Moneda 3D: cara con el ícono, dorso con una estrella y canto metálico; gira al
+              pasar el cursor o al enfocar, y da dos vueltas al desbloquearse. */}
+          <span className={cn('lq-medal3d relative -mt-3 block size-[4.25rem] md:size-24', fresh && 'lq-medal3d-fresh')}>
+          <span className="lq-medal3d-coin">
+            {MEDAL_RIM.map((i) => <span key={i} className={cn('lq-medal3d-rim', !on && 'lq-medal3d-rim-dim')} style={{ '--i': i } as CSSProperties} />)}
+            <span className={cn('lq-medal3d-back flex items-center justify-center rounded-full', on ? 'lq-medal-disc' : 'lq-medal-dim')}>
+              <Star className={cn('size-6 md:size-8', on ? 'text-[rgb(var(--lq-jade-900)/.6)]' : 'text-jade-50/25')} strokeWidth={1.75} />
+            </span>
+          <span className={cn('lq-medal3d-face flex items-center justify-center rounded-full', on ? 'lq-medal-disc' : 'lq-medal-dim')}>
             <Icon className={cn('size-7 md:size-10', on ? 'text-[rgb(var(--lq-jade-900)/.7)]' : 'text-jade-50/30')} strokeWidth={1.75} />
             {/* Bloqueado: tras cristal esmerilado. Recién desbloqueado: el cristal se aclara. */}
             {(!on || fresh) && (
@@ -145,6 +157,8 @@ function AchievementCard({ a, index, fresh }: { a: Achievement; index: number; f
                 ))}
               </>
             )}
+          </span>
+          </span>
           </span>
         </motion.span>
         {/* Soporte forrado de terciopelo */}
@@ -268,6 +282,7 @@ export default function AchievementsPage() {
             {shown.length > 0 ? (
               // La vitrina: mueble lacado con filete de latón; un barrido de luz cruza el cristal cada cierto tiempo.
               <div className="lq-cabinet relative rounded-2xl px-3 pb-5 pt-4 md:px-6 md:pb-8 md:pt-5">
+                <TrophyShowcase list={list} />
                 <div className="mb-4 flex flex-col items-center gap-2 md:mb-6">
                   <span className="lq-brass px-4 py-1 text-label-md md:text-label-lg"><span className="font-mono">{unlocked}</span> {t.ofObtained(unlocked, list.length)}</span>
                   <span aria-hidden="true" className="block h-[3px] w-40 overflow-hidden rounded-full bg-jade-50/10">

@@ -6,6 +6,7 @@
 @import './social.css';
 @import './avatar.css';
 @import './depth.css';
+@import './props3d.css';
 
 @tailwind base;
 @tailwind components;
@@ -385,13 +386,20 @@ input[type='number']::-webkit-outer-spin-button {
       -webkit-transform-style: preserve-3d;
     }
 
+    /* --spin: giro extra de quien la usa (el carnet del Perfil gira 360° al arrastrarlo). */
     .perspective-flip-card[data-3d-supported='true'] .perspective-flip-card__rotor {
       transition-property: transform;
+      transform: rotateY(var(--spin, 0deg));
     }
 
     .perspective-flip-card[data-3d-supported='true'][data-flipped='true'] .perspective-flip-card__rotor {
-      transform: rotateY(180deg);
+      transform: rotateY(calc(180deg + var(--spin, 0deg)));
     }
+
+    /* Mientras gira a mano, el rotor sigue al dedo sin transición y las dos caras se ven
+       (cada una oculta su dorso): el reverso aparece a mitad de vuelta. */
+    [data-spinning] .perspective-flip-card[data-3d-supported='true'] .perspective-flip-card__rotor { transition: none; }
+    [data-spinning] .perspective-flip-card[data-3d-supported='true'] .perspective-flip-card__face { opacity: 1; transition: none; }
 
     /* Belt and braces: hidden face also fades out exactly at 90deg (half of 700ms). */
     .perspective-flip-card[data-3d-supported='true']:not(.perspective-flip-card--reduced-motion) .perspective-flip-card__face {
