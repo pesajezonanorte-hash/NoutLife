@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  AlertTriangle, Check, Dumbbell, Flag, Minus, Moon, RefreshCw, Share2, Target, TrendingUp, Wallet, Zap, CheckCircle2,
+  AlertTriangle, Check, Dumbbell, Flag, Minus, Moon, RefreshCw, Share2, Target, TrendingUp, Wallet, Zap, CheckCircle2, type LucideIcon,
 } from 'lucide-react';
 import { blurFrom, blurTo, expo, item, stagger, useMotionReduced } from '@/lib/motion';
 import { cn } from '@/lib/utils';
@@ -22,9 +22,13 @@ import { LiteNotice } from '@/components/billing/LiteNotice';
 import { PageHeader } from '@/components/layout/PageHeader';
 import {
   AnimatedValue, Badge, Button, Card, ChipGroup, IconChip, MoodFace, ProgressBar, ProgressRing,
-  SegmentedControl, Skeleton, SpotCard, StatCard, moodOf, type Tone,
+  SegmentedControl, Skeleton, SpotCard, moodOf, type Tone,
 } from '@/components/ui/lq';
 import { GroupedBars, HabitHeatmap, RadarPlus, TipHead, TipRow, TrendChart } from '@/components/stats/InteractiveCharts';
+import { FlipCard3D, FlipHint, FlipToggle } from '@/components/stats/FlipCard3D';
+import { LifeBack, TotalFlip, XpBack, ZoneFlip } from '@/components/stats/StatsDepth';
+import { ZoneMapCard } from '@/components/stats/ZoneMapCard';
+import { levelPercent } from '@/components/stats/statsMath';
 import { SLEEP_GOAL_H, hm, quality } from '@/components/sleep/sleepMeta';
 import { useLifeChange } from '@/lib/lifeSync';
 
@@ -162,6 +166,13 @@ const es = {
   ofWord: 'de',
   dayWord: 'día',
   daysWord: 'días',
+  completed: 'Completadas',
+  vsPrevPeriod: 'vs. periodo anterior',
+  currentStreak: 'Racha actual',
+  bestStreak: 'Mejor racha',
+  daysN: (n: number): string => `${n} ${n === 1 ? 'día' : 'días'}`,
+  weightedLifts: 'Ejercicios con peso',
+  recordOf: (lift: string): string => `Récord · ${lift}`,
 };
 
 const en: typeof es = {
@@ -296,6 +307,13 @@ const en: typeof es = {
   ofWord: 'of',
   dayWord: 'day',
   daysWord: 'days',
+  completed: 'Completed',
+  vsPrevPeriod: 'vs. previous period',
+  currentStreak: 'Current streak',
+  bestStreak: 'Best streak',
+  daysN: (n: number): string => `${n} ${n === 1 ? 'day' : 'days'}`,
+  weightedLifts: 'Weighted exercises',
+  recordOf: (lift: string): string => `Record · ${lift}`,
 };
 
 /** Nombre del evento de analítica (no se traduce). */
@@ -310,6 +328,19 @@ const parseDay = (d: string) => new Date(`${d.length === 7 ? `${d}-01` : d.slice
 function Reveal({ children, className, as = 'section', ...rest }: { children: React.ReactNode; className?: string; as?: 'section' | 'div'; 'aria-labelledby'?: string; 'aria-label'?: string }) {
   const Tag = as === 'div' ? motion.div : motion.section;
   return <Tag variants={item} initial="initial" whileInView="animate" viewport={{ once: true, amount: 0.12 }} className={className} {...rest}>{children}</Tag>;
+}
+
+/** Anverso de un total (ícono, cifra que rueda y etiqueta), como StatCard pero sobre vidrio. */
+function TotalFace({ icon, tone, value, label }: { icon: LucideIcon; tone: Tone; value: number; label: string }) {
+  return (
+    <>
+      <IconChip icon={icon} tone={tone} />
+      <div>
+        <div className="font-mono text-heading-lg tabular-nums"><AnimatedValue value={value} /></div>
+        <div className="text-body-sm text-on-surface-light">{label}</div>
+      </div>
+    </>
+  );
 }
 
 /** Datos de la tarjeta «Mi semana». */
@@ -463,6 +494,12 @@ export default function StatsPage() {
   const liftBestDay = liftData.find((d) => d.weight === liftBest)?.date;
   const sleepAvg = sleep.length ? sleep.reduce((a, s) => a + s.duration, 0) / sleep.length : 0;
   const heatCounts = useMemo(() => new Map(heat.map((h) => [h.date.slice(0, 10), h.count])), [heat]);
+  const trendLabel = dyn?.trend === 'up' ? t.rising : dyn?.trend === 'down' ? t.falling : t.balance;
+  // Récord del periodo entre todos los ejercicios con peso (reverso de «Entrenamientos»).
+  const bestLift = coliseo.reduce<{ name: string; weight: number } | null>((best, g) => {
+    const top = Math.max(0, ...g.data.map((d) => d.weight));
+    return top > 0 && (!best || top > best.weight) ? { name: g.name, weight: top } : best;
+  }, null);
 
   return (
     <motion.div variants={stagger} initial="initial" animate="animate" className="flex flex-col gap-8 md:gap-12">
@@ -492,96 +529,125 @@ export default function StatsPage() {
 
       <div className="flex flex-wrap items-start gap-6">
         <motion.div variants={item} className="min-w-0 flex-[2_1_520px]">
-          <SpotCard aria-label={t.xpProgress} className="flex flex-col gap-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <span className="flex items-center gap-2 text-label-lg text-on-surface"><Zap aria-hidden className="size-4 text-primary-text" />{t.xpRecorded(per.long)}</span>
-              <span className="flex flex-wrap gap-2">
-                <Badge variant="primary">{t.level(user?.level ?? 1)}</Badge>
-                {summary && <Badge variant={summary.xp.change >= 0 ? 'success' : 'warning'} icon={TrendingUp}>{summary.xp.change >= 0 ? '+' : ''}{t.vsPrev(String(Math.round(summary.xp.change)))}</Badge>}
-              </span>
-            </div>
-            <div className="flex items-baseline gap-2.5">
-              <span className="font-mono text-[3rem] font-bold leading-none tracking-[-2px] md:text-[4rem]"><AnimatedValue value={xpTotal} /></span>
-              <span className="text-heading-md text-on-surface-light">{t.xpUnit}</span>
-            </div>
-            {loading && !xp ? <Skeleton className="h-[240px] rounded-xl" /> : xpData.length === 0 ? (
-              <p className="py-10 text-center text-body-md text-on-surface-light">{t.noXp}</p>
-            ) : (
-              <>
-                <TrendChart key={period} values={xpData.map((d) => d.cumulativeXp)} bars={xpData.map((d) => d.xp)}
-                  xLabels={xpData.map((d) => shortDate(d.date))} yFormat={(n) => fmt(n)} height={250}
-                  mark={(i) => xpData[i].xp > 0 && xpData[i].xp === xpBest}
-                  label={t.xpAccum(per.long, fmt(xpTotal))}
-                  tipText={(i) => t.xpTip(longDate(xpData[i].date), xpData[i].xp ? t.xpDayTip(fmt(xpData[i].xp)) : t.noXpDay, fmt(xpData[i].cumulativeXp))}
-                  tip={(i) => {
-                    const d = xpData[i];
-                    return (
-                      <>
-                        <TipHead sub={d.xp > 0 && d.xp === xpBest ? t.bestDay : undefined}>{longDate(d.date)}</TipHead>
-                        <div className="flex flex-col gap-1">
-                          <TipRow tone="primary" label={t.earnedThatDay} value={d.xp ? `+${fmt(d.xp)} XP` : '0 XP'} strong />
-                          <TipRow label={t.accumulated} value={`${fmt(d.cumulativeXp)} XP`} />
-                          {xp && xp.avg > 0 && <TipRow label={t.vsAvg} value={signed(Math.round(d.xp - xp.avg), ' XP')} />}
-                        </div>
-                      </>
-                    );
-                  }} />
-                <div className="flex flex-wrap gap-x-5 gap-y-1 text-body-sm text-on-surface-light">
-                  <span className="flex items-center gap-1.5"><span aria-hidden className="h-[3px] w-4 rounded-full bg-primary" />{t.legendAccum}</span>
-                  <span className="flex items-center gap-1.5"><span aria-hidden className="size-2.5 rounded-sm bg-primary/30" />{t.legendEachDay}</span>
-                  <span className="flex items-center gap-1.5"><span aria-hidden className="size-2.5 rounded-full bg-secondary" />{t.legendBest}</span>
-                  <span className="ml-auto hidden sm:inline">{t.hoverHint}</span>
-                </div>
-              </>
+          <FlipCard3D
+            label={t.xpProgress}
+            trigger="toggle"
+            peek
+            faceClassName="flex flex-col gap-5 p-6 md:p-8 lg:p-10"
+            back={(active) => (
+              <XpBack
+                active={active}
+                period={per.long}
+                level={user?.level ?? 1}
+                xpInLevel={user?.xp ?? 0}
+                xpToNext={user?.xpToNextLevel ?? 0}
+                points={xpData}
+                activeDays={xp?.activeDays ?? 0}
+                daysInPeriod={xp?.daysInPeriod ?? 0}
+                streak={summary?.currentStreak ?? user?.currentStreak ?? 0}
+                bestStreak={summary?.bestStreak ?? 0}
+                daysToNextLevel={pred?.daysToNextLevel ?? null}
+                avgDailyXp={pred?.avgDailyXp ?? 0}
+              />
             )}
-            <div className="grid grid-cols-3 gap-4 border-t border-border pt-4">
-              <div><div className="text-body-sm text-on-surface-light">{t.average}</div><div className="font-mono text-label-lg tabular-nums md:text-body-md md:font-semibold">{fmt(xp?.avg ?? 0)} {t.xpPerDay}</div></div>
-              <div><div className="text-body-sm text-on-surface-light">{t.daysWithXp}</div><div className="font-mono text-label-lg tabular-nums md:text-body-md md:font-semibold">{xp?.activeDays ?? 0} {t.ofWord} {xp?.daysInPeriod ?? 0}</div></div>
-              <div><div className="text-body-sm text-on-surface-light">{t.toNextLevel}</div><div className="font-mono text-label-lg tabular-nums md:text-body-md md:font-semibold">{fmt(Math.max(0, (user?.xpToNextLevel ?? 0) - (user?.xp ?? 0)))} {t.xpUnit}</div></div>
-            </div>
-          </SpotCard>
+            front={<>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span className="flex items-center gap-2 text-label-lg text-on-surface"><Zap aria-hidden className="size-4 text-primary-text" />{t.xpRecorded(per.long)}</span>
+                <span className="flex flex-wrap items-center gap-2">
+                  <Badge variant="primary">{t.level(user?.level ?? 1)}</Badge>
+                  {summary && <Badge variant={summary.xp.change >= 0 ? 'success' : 'warning'} icon={TrendingUp}>{summary.xp.change >= 0 ? '+' : ''}{t.vsPrev(String(Math.round(summary.xp.change)))}</Badge>}
+                  <FlipToggle />
+                </span>
+              </div>
+              <div className="flex items-baseline gap-2.5">
+                <span className="font-mono text-[3rem] font-bold leading-none tracking-[-2px] md:text-[4rem]"><AnimatedValue value={xpTotal} /></span>
+                <span className="text-heading-md text-on-surface-light">{t.xpUnit}</span>
+              </div>
+              {loading && !xp ? <Skeleton className="h-[240px] rounded-xl" /> : xpData.length === 0 ? (
+                <p className="py-10 text-center text-body-md text-on-surface-light">{t.noXp}</p>
+              ) : (
+                <>
+                  <TrendChart key={period} values={xpData.map((d) => d.cumulativeXp)} bars={xpData.map((d) => d.xp)}
+                    xLabels={xpData.map((d) => shortDate(d.date))} yFormat={(n) => fmt(n)} height={250}
+                    mark={(i) => xpData[i].xp > 0 && xpData[i].xp === xpBest}
+                    label={t.xpAccum(per.long, fmt(xpTotal))}
+                    tipText={(i) => t.xpTip(longDate(xpData[i].date), xpData[i].xp ? t.xpDayTip(fmt(xpData[i].xp)) : t.noXpDay, fmt(xpData[i].cumulativeXp))}
+                    tip={(i) => {
+                      const d = xpData[i];
+                      return (
+                        <>
+                          <TipHead sub={d.xp > 0 && d.xp === xpBest ? t.bestDay : undefined}>{longDate(d.date)}</TipHead>
+                          <div className="flex flex-col gap-1">
+                            <TipRow tone="primary" label={t.earnedThatDay} value={d.xp ? `+${fmt(d.xp)} XP` : '0 XP'} strong />
+                            <TipRow label={t.accumulated} value={`${fmt(d.cumulativeXp)} XP`} />
+                            {xp && xp.avg > 0 && <TipRow label={t.vsAvg} value={signed(Math.round(d.xp - xp.avg), ' XP')} />}
+                          </div>
+                        </>
+                      );
+                    }} />
+                  <div className="flex flex-wrap gap-x-5 gap-y-1 text-body-sm text-on-surface-light">
+                    <span className="flex items-center gap-1.5"><span aria-hidden className="h-[3px] w-4 rounded-full bg-primary" />{t.legendAccum}</span>
+                    <span className="flex items-center gap-1.5"><span aria-hidden className="size-2.5 rounded-sm bg-primary/30" />{t.legendEachDay}</span>
+                    <span className="flex items-center gap-1.5"><span aria-hidden className="size-2.5 rounded-full bg-secondary" />{t.legendBest}</span>
+                    <span className="ml-auto hidden sm:inline">{t.hoverHint}</span>
+                  </div>
+                </>
+              )}
+              <div className="grid grid-cols-3 gap-4 border-t border-border pt-4">
+                <div><div className="text-body-sm text-on-surface-light">{t.average}</div><div className="font-mono text-label-lg tabular-nums md:text-body-md md:font-semibold">{fmt(xp?.avg ?? 0)} {t.xpPerDay}</div></div>
+                <div><div className="text-body-sm text-on-surface-light">{t.daysWithXp}</div><div className="font-mono text-label-lg tabular-nums md:text-body-md md:font-semibold">{xp?.activeDays ?? 0} {t.ofWord} {xp?.daysInPeriod ?? 0}</div></div>
+                <div><div className="text-body-sm text-on-surface-light">{t.toNextLevel}</div><div className="font-mono text-label-lg tabular-nums md:text-body-md md:font-semibold">{fmt(Math.max(0, (user?.xpToNextLevel ?? 0) - (user?.xp ?? 0)))} {t.xpUnit}</div></div>
+              </div>
+            </>}
+          />
         </motion.div>
 
         <motion.div variants={item} className="min-w-0 flex-[1_1_300px]">
-          <SpotCard aria-label={t.lifeScore} padding="md" className="flex flex-col items-center gap-4 text-center md:p-6">
-            <div className="flex w-full items-center justify-between"><span className="text-label-lg">{t.lifeScore}</span><Badge>{dyn?.trend === 'up' ? t.rising : dyn?.trend === 'down' ? t.falling : t.balance}</Badge></div>
-            <div className="relative">
-              <ProgressRing value={lifeScore} tone="warning" size={200} stroke={7} label={t.lifeScore} valueText={`${lifeScore} ${t.of100}`}>
-                <span className="font-mono text-[3rem] font-bold leading-none tabular-nums"><AnimatedValue value={lifeScore} /></span>
-                <span className="text-body-sm text-on-surface-light">{t.of100}</span>
-              </ProgressRing>
-              <ProgressRing value={coverage} tone="primary" size={150} stroke={5} label={t.coverage} valueText={`${coverage}%`}
-                className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 [&_span]:hidden" />
-            </div>
-            <div className="flex flex-wrap justify-center gap-4 text-body-sm text-on-surface">
-              <span className="flex items-center gap-1.5"><span aria-hidden className="size-2.5 rounded-full bg-warning" />{t.scoreLegend}</span>
-              <span className="flex items-center gap-1.5"><span aria-hidden className="size-2.5 rounded-full bg-primary" />{t.coveragePct(coverage)}</span>
-            </div>
-            <p className="text-body-sm text-on-surface-light">{t.lifeNote}</p>
-          </SpotCard>
+          <FlipCard3D
+            label={t.lifeScore}
+            faceClassName="flex flex-col items-center gap-4 p-6 text-center"
+            back={(active) => <LifeBack active={active} score={lifeScore} trend={trendLabel} zones={zones} />}
+            front={<>
+              <div className="flex w-full items-center justify-between"><span className="text-label-lg">{t.lifeScore}</span><span className="flex items-center gap-2"><Badge>{trendLabel}</Badge><FlipHint /></span></div>
+              <div className="relative">
+                <ProgressRing value={lifeScore} tone="warning" size={200} stroke={7} label={t.lifeScore} valueText={`${lifeScore} ${t.of100}`}>
+                  <span className="font-mono text-[3rem] font-bold leading-none tabular-nums"><AnimatedValue value={lifeScore} /></span>
+                  <span className="text-body-sm text-on-surface-light">{t.of100}</span>
+                </ProgressRing>
+                <ProgressRing value={coverage} tone="primary" size={150} stroke={5} label={t.coverage} valueText={`${coverage}%`}
+                  className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 [&_span]:hidden" />
+              </div>
+              <div className="flex flex-wrap justify-center gap-4 text-body-sm text-on-surface">
+                <span className="flex items-center gap-1.5"><span aria-hidden className="size-2.5 rounded-full bg-warning" />{t.scoreLegend}</span>
+                <span className="flex items-center gap-1.5"><span aria-hidden className="size-2.5 rounded-full bg-primary" />{t.coveragePct(coverage)}</span>
+              </div>
+              <p className="text-body-sm text-on-surface-light">{t.lifeNote}</p>
+            </>}
+          />
         </motion.div>
       </div>
 
       {zones.length > 0 && (
         <Reveal className="flex flex-col gap-6" aria-labelledby="zones-t">
           <div><h2 id="zones-t" className="text-heading-lg">{t.zonesTitle}</h2><p className="text-body-sm text-on-surface-light">{t.zonesSummary(withData, zones.filter((z) => z.isTracking).length, per.long)}</p></div>
+          <ZoneMapCard zones={zones} score={lifeScore} />
           <AnimatePresence mode="wait" initial={false}>
             <motion.ul key={period} variants={stagger} initial="initial" whileInView="animate" viewport={{ once: true, amount: 0.1 }} className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {zones.map((z) => {
                 const st = zoneStatus[z.status] ?? zoneStatus.empty;
                 return (
                   <motion.li key={z.id} variants={item}>
-                    <Card interactive padding="md" className="flex h-full flex-col gap-3.5">
+                    <ZoneFlip zone={z} zones={zones} period={per.long} front={<>
                       <div className="flex items-center gap-3">
                         <IconChip icon={Target} tone={z.hasData ? 'primary' : 'muted'} size="sm" />
-                        <div className="min-w-0 flex-1" title={`${z.name} · ${z.activityLabel}`}><div className="truncate text-label-lg md:text-body-md md:font-semibold">{z.name}</div><div className="line-clamp-2 text-body-sm text-on-surface-light">{z.activityLabel}</div></div>
+                        <div className="min-w-0 flex-1"><div className="truncate text-label-lg md:text-body-md md:font-semibold">{z.name}</div><div className="line-clamp-2 text-body-sm text-on-surface-light">{z.activityLabel}</div></div>
                         <Badge variant={st.variant} icon={st.icon}>{st.label}</Badge>
                       </div>
-                      <div className="flex flex-col gap-1.5">
-                        <div className="flex justify-between"><span className="text-body-sm text-on-surface-light">{t.pace}</span><span className="font-mono text-label-lg tabular-nums">{z.scoreAvailable ? <AnimatedValue value={Math.round(z.score)} format={(n) => `${Math.round(n)}%`} /> : '—'}</span></div>
+                      <div className="mt-auto flex flex-col gap-1.5">
+                        <div className="flex items-center justify-between gap-2"><span className="flex items-center gap-1.5 text-body-sm text-on-surface-light">{t.pace}<FlipHint className="size-3.5" /></span><span className="font-mono text-label-lg tabular-nums">{z.scoreAvailable ? <AnimatedValue value={Math.round(z.score)} format={(n) => `${Math.round(n)}%`} /> : '—'}</span></div>
                         <ProgressBar value={z.scoreAvailable ? z.score : 0} />
                       </div>
-                    </Card>
+                    </>} />
                   </motion.li>
                 );
               })}
@@ -592,10 +658,38 @@ export default function StatsPage() {
 
       {summary && (
         <Reveal aria-label={t.totals} className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-6 xl:grid-cols-4">
-          <StatCard icon={Zap} tone="primary" value={summary.totals.xpEarned} label={t.xpHistory} />
-          <StatCard icon={Flag} tone="forest" value={summary.quests.completed} label={t.questsIn(per.long)} />
-          <StatCard icon={CheckCircle2} tone="success" value={summary.totals.habitCompletions} label={t.habitsDone} />
-          <StatCard icon={Dumbbell} tone="warning" value={summary.totals.workouts} label={t.workouts} />
+          <TotalFlip
+            label={t.xpHistory}
+            front={<TotalFace icon={Zap} tone="primary" value={summary.totals.xpEarned} label={t.xpHistory} />}
+            details={[
+              { label: t.level(user?.level ?? 1), value: `${levelPercent(user?.xp ?? 0, user?.xpToNextLevel ?? 0)}%` },
+              { label: t.toNextLevel, value: `${fmt(Math.max(0, (user?.xpToNextLevel ?? 0) - (user?.xp ?? 0)))} ${t.xpUnit}` },
+            ]}
+          />
+          <TotalFlip
+            label={t.questsIn(per.long)}
+            front={<TotalFace icon={Flag} tone="forest" value={summary.quests.completed} label={t.questsIn(per.long)} />}
+            details={[
+              { label: t.completed, value: `${summary.quests.completed}/${Math.max(summary.quests.total, summary.quests.completed)}` },
+              { label: t.vsPrevPeriod, value: `${summary.quests.change >= 0 ? '+' : '−'}${Math.abs(Math.round(summary.quests.change))}%` },
+            ]}
+          />
+          <TotalFlip
+            label={t.habitsDone}
+            front={<TotalFace icon={CheckCircle2} tone="success" value={summary.totals.habitCompletions} label={t.habitsDone} />}
+            details={[
+              { label: t.currentStreak, value: t.daysN(summary.currentStreak) },
+              { label: t.bestStreak, value: t.daysN(Math.max(summary.bestStreak, summary.currentStreak)) },
+            ]}
+          />
+          <TotalFlip
+            label={t.workouts}
+            front={<TotalFace icon={Dumbbell} tone="warning" value={summary.totals.workouts} label={t.workouts} />}
+            details={[
+              { label: t.weightedLifts, value: String(coliseo.length) },
+              { label: bestLift ? t.recordOf(bestLift.name) : t.record, value: bestLift ? kg(bestLift.weight) : '—' },
+            ]}
+          />
         </Reveal>
       )}
 

@@ -1,13 +1,14 @@
 // Acciones rápidas del FAB (móvil) y de la Topbar (md+). Reemplaza al antiguo
 // QuickActionsFAB con los componentes del rediseño; mismos servicios y mismas
 // recompensas reales del backend (sin XP inventado).
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useId, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Angry, CheckCircle2, ChevronRight, Flag, Frown, Laugh, Lock, Meh, NotebookPen, Plus, Smile, Wallet, Zap, type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Button, CheckButton, EmptyState, Field, Input, ResponsiveDialog, SegmentedControl, Textarea, type Tone, PageLoader } from '@/components/ui/lq';
+import { Button, CheckButton, EmptyState, EnergyMeter, Field, Input, ResponsiveDialog, SegmentedControl, Textarea, type Tone, PageLoader } from '@/components/ui/lq';
+import { energyLevel } from '@/components/ui/lq/energy';
 import { useLoadingCopy } from '@/lib/loadingCopy';
 import type { ProZone } from '@/lib/plan';
 import { softTone } from '@/components/ui/lq/tones';
@@ -69,6 +70,8 @@ const es = {
   moodQuestion: '¿Cómo te sientes?',
   moodGroup: 'Estado de ánimo',
   energy: 'Energía',
+  energyLevels: ['Agotada', 'Baja', 'Estable', 'Alta', 'A tope'],
+  energyValue: (v: number, level: string): string => `${v} de 10 · ${level}`,
   checkinSaved: 'Check-in registrado',
   bonus: 'bonus diario',
   checkinUpdated: 'Check-in actualizado',
@@ -122,6 +125,8 @@ const en: typeof es = {
   moodQuestion: 'How are you feeling?',
   moodGroup: 'Mood',
   energy: 'Energy',
+  energyLevels: ['Drained', 'Low', 'Steady', 'High', 'Charged'],
+  energyValue: (v, level) => `${v} of 10 · ${level}`,
   checkinSaved: 'Check-in logged',
   bonus: 'daily bonus',
   checkinUpdated: 'Check-in updated',
@@ -305,6 +310,8 @@ function CheckinForm({ onDone }: { onDone: () => void }) {
   const t = COPY[useLocale()];
   const [mood, setMood] = useState(3);
   const [energy, setEnergy] = useState(5);
+  const energyLabel = useId();
+  const level = t.energyLevels[energyLevel(energy)];
   const addFloatingXP = useUIStore((s) => s.addFloatingXP);
   const { saving, error, submit } = useSubmit(async () => {
     const res = await api.post('/checkin', { mood, energy });
@@ -346,20 +353,18 @@ function CheckinForm({ onDone }: { onDone: () => void }) {
         </div>
         <span className="text-center text-body-sm text-on-surface" aria-live="polite">{t.moods[mood - 1]}</span>
       </fieldset>
-      <div className="flex flex-col gap-2">
-        <label htmlFor="qa-energy" className="flex justify-between text-label-lg text-on-surface">
-          {t.energy} <span className="font-mono tabular-nums text-primary-text">{energy}/10</span>
-        </label>
-        <input
-          id="qa-energy"
-          type="range"
-          min={1}
-          max={10}
-          step={1}
-          value={energy}
-          onChange={(e) => setEnergy(Number(e.target.value))}
-          className="h-11 w-full cursor-pointer accent-primary-strong"
-        />
+      <div className="flex flex-col gap-2.5">
+        <div className="flex items-center justify-between gap-3">
+          <span id={energyLabel} className="text-label-lg text-on-surface">{t.energy}</span>
+          {/* El slider anuncia el valor (aria-valuetext); esta lectura es solo visual. */}
+          <span aria-hidden className="flex items-center gap-1.5 text-label-lg">
+            {/* El rayo se «carga» con la energía elegida. */}
+            <Zap className="size-4 text-primary-text" strokeWidth={2} fill="currentColor" fillOpacity={0.12 + (energy / 10) * 0.78} />
+            <span className="font-mono tabular-nums text-primary-text">{energy}/10</span>
+            <span className="text-on-surface-light">· {level}</span>
+          </span>
+        </div>
+        <EnergyMeter value={energy} onChange={setEnergy} labelledBy={energyLabel} valueText={t.energyValue(energy, level)} />
       </div>
       <FormError error={error} />
       <Button type="submit" block loading={saving}>{t.saveCheckin}</Button>

@@ -5,6 +5,7 @@
 @import './ambience.css';
 @import './social.css';
 @import './avatar.css';
+@import './depth.css';
 
 @tailwind base;
 @tailwind components;
