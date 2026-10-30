@@ -1,5 +1,5 @@
 // Web Audio API procedural sound engine — no external files, no CDN
-type SoundType = 'blip' | 'questComplete' | 'levelUp' | 'error' | 'coin' | 'achievement' | 'hover' | 'tick' | 'welcome';
+type SoundType = 'blip' | 'questComplete' | 'levelUp' | 'error' | 'coin' | 'achievement' | 'hover' | 'tick' | 'welcome' | 'snap' | 'unlock' | 'chest';
 
 /** Sonido de los avisos dentro de la app (aparte de los efectos del juego). Encendido de base. */
 const ALERT_KEY = 'lq_alert_sound';
@@ -127,6 +127,22 @@ class AudioEngine {
         this.tone(1047, 'sine', 0.5, 0.3, 0);
         this.tone(1319, 'sine', 0.4, 0.18, 0.06);
         this.tone(1568, 'sine', 0.35, 0.12, 0.12);
+        break;
+      case 'snap':
+        // Ficha que encaja (Hábitos): chasquido seco y un golpe grave al asentarse.
+        this.tone(2100, 'square', 0.016, 0.06, 0);
+        this.tone(160, 'sine', 0.12, 0.28, 0.3, 70);
+        this.tone(1250, 'sine', 0.07, 0.1, 0.32);
+        break;
+      case 'unlock':
+        // Candado del cofre: dos clics metálicos.
+        this.tone(1650, 'square', 0.02, 0.07, 0);
+        this.tone(2300, 'square', 0.025, 0.06, 0.09);
+        break;
+      case 'chest':
+        // Tapa que se abre y el tesoro: barrido grave y arpegio brillante.
+        this.tone(110, 'sine', 0.35, 0.2, 0, 180);
+        [784, 988, 1175, 1568].forEach((f, i) => this.tone(f, 'sine', 0.32, 0.16, 0.18 + i * 0.07));
         break;
       case 'welcome':
         [262, 330, 392, 523, 659].forEach((f, i) => this.tone(f, 'square', 0.18, 0.22, i * 0.11));

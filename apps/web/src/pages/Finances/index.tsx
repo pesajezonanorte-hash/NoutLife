@@ -30,6 +30,7 @@ import { CategoryChecklists } from '@/components/checklists/CategoryChecklists';
 import { Lettering } from '@/components/layout/Lettering';
 import { SketchUnderline, ZoneShell } from '@/components/ambience';
 import { BalanceChart, MarketBackdrop, Ticker, dailyBalance, type Quote } from '@/components/finances/Market';
+import { CashflowCard } from '@/components/finances/CashflowCard';
 import { INTL_LOCALE, useLocale, useText, type Copy, type Locale } from '@/lib/i18n';
 
 type Summary = { income: number; expenses: number; balance: number; byCategory: Record<string, number>; count: number };
@@ -410,13 +411,13 @@ export default function FinancesPage() {
 
         {/* KPIs */}
         <Thud as="section" trigger={pulse} aria-label={t.balanceMonth} className="grid gap-4 md:grid-cols-[repeat(auto-fit,minmax(260px,1fr))] md:gap-6">
-          {/* Tarjeta de saldo: se inclina con el cursor como una tarjeta física y mide el flujo del mes */}
-          <div {...spot} className="lq-spot flex flex-col gap-1 rounded-2xl bg-primary/[var(--lq-soft-alpha)] p-6 shadow-md md:order-last md:gap-3">
+          {/* Tarjeta de saldo: vidrio ahumado que se inclina con el cursor (parallax en el saldo) y mide el flujo del mes */}
+          <div {...spot} className="lq-spot lq-smoke lq-smoke-accent flex flex-col gap-1 rounded-2xl p-6 md:order-last md:gap-3">
             <div className="flex items-center justify-between">
               <span className="text-body-sm text-on-surface md:text-body-md">{t.balanceMonth}</span>
               <IconChip icon={Wallet} tone="primary" size="sm" className="hidden bg-background md:flex" />
             </div>
-            <span className={cn('text-display-md font-mono tabular-nums md:text-display-lg', s.balance < 0 ? 'text-error-text' : 'text-primary-text')}>
+            <span className={cn('lq-parallax text-display-md font-mono tabular-nums md:text-display-lg', s.balance < 0 ? 'text-error-text' : 'text-primary-text')}>
               <AnimatedValue value={s.balance} format={compact} quietUnits />
             </span>
             {/* El saldo del mes como la gráfica de una acción. */}
@@ -442,12 +443,12 @@ export default function FinancesPage() {
               [t.income, s.income, prev?.income, true, 'up'],
               [t.expenses, s.expenses, prev?.expenses, false, 'down'],
             ] as const).map(([label, v, pv, income, good], i) => (
-              <Card key={label} padding="lg" interactive className={cn('flex flex-col gap-2 max-md:p-4 md:gap-3', i === 0 ? 'md:order-first' : 'md:order-2')}>
+              <Card key={label} padding="lg" {...spot} className={cn('lq-spot lq-smoke flex flex-col gap-2 max-md:p-4 md:gap-3', i === 0 ? 'md:order-first' : 'md:order-2')}>
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-body-sm text-on-surface-light md:text-body-md">{label}</span>
                   <FlowChip income={income} />
                 </div>
-                <span className="text-heading-md font-mono tabular-nums md:text-display-lg" title={money(v)}><AnimatedValue value={v} format={compact} quietUnits /></span>
+                <span className="lq-parallax text-heading-md font-mono tabular-nums md:text-display-lg" title={money(v)}><AnimatedValue value={v} format={compact} quietUnits /></span>
                 <span className="hidden md:block"><Trend value={pv !== undefined ? pctChange(v, pv) : null} good={good} suffix={prevWord} t={t} /></span>
               </Card>
             ))}
@@ -465,6 +466,7 @@ export default function FinancesPage() {
           />
         ) : (
           <>
+            <CashflowCard txs={txs} from={range.from} to={range.to} money={compact} />
             <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
               <Card as="section" padding="lg" aria-labelledby="fin-week" className="flex flex-col gap-6">
                 <div className="flex items-start justify-between gap-3">

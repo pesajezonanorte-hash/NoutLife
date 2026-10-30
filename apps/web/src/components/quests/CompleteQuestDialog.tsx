@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState, type ComponentType } from 'react';
 import { motion } from 'framer-motion';
 import { Trophy } from 'lucide-react';
 import type { Quest } from '@noutlife/shared';
@@ -8,6 +8,13 @@ import { useAuthStore } from '@/store/authStore';
 import { useUIStore } from '@/store/uiStore';
 import { useToastStore } from '@/hooks/useToast';
 import * as questService from '@/services/quest.service';
+import { hasWebGL2 } from '@/components/three3d/near';
+import type { RewardChest3DProps } from './chest/RewardChest3D';
+
+// El cofre 3D solo se descarga al abrir el diálogo (three.js pesa); sin WebGL queda el trofeo.
+const RewardChest3D = lazy<ComponentType<RewardChest3DProps>>(() => import('./chest/RewardChest3D').catch(() => ({
+  default: ({ onUnavailable }: RewardChest3DProps) => { useEffect(onUnavailable, []); return null; },
+})));
 
 const es = {
   errTitle: 'No se pudo completar la misión',
@@ -50,7 +57,11 @@ export interface CompleteQuestDialogProps {
   onCompleted: (quest: Quest) => void;
 }
 
-/** Quests.dc.html: confirmar → éxito con +XP (pop), barra de nivel y confeti. */
+/**
+ * Quests.dc.html: confirmar → éxito con +XP (pop), barra de nivel y confeti. Arriba, el cofre de
+ * metas cumplidas: cerrado con candado mientras se confirma; al completarse en el servidor, se
+ * abre con su escena (candado que salta, tapa, haz de luz y estallido de XP).
+ */
 export function CompleteQuestDialog({ quest: current, onClose, onCompleted }: CompleteQuestDialogProps) {
   const t = useText(COPY);
   const nf = INTL_LOCALE[useLocale()];
@@ -63,6 +74,7 @@ export function CompleteQuestDialog({ quest: current, onClose, onCompleted }: Co
   const [burst, setBurst] = useState(0);
   const user = useAuthStore((s) => s.user);
   const { triggerLevelUp, showAchievementToast } = useUIStore();
+  const [chest3d, setChest3d] = useState(hasWebGL2);
 
   useEffect(() => { if (current) { setPhase('confirm'); setSaving(false); } }, [current?.id]);
 
@@ -104,6 +116,13 @@ export function CompleteQuestDialog({ quest: current, onClose, onCompleted }: Co
         title={success ? t.done : t.ask}
         hideClose={success}
       >
+        {quest && chest3d && (
+          <div className="lq-chest-stage relative -mt-1 mb-4 h-[170px] md:h-[190px]">
+            <Suspense fallback={null}>
+              <RewardChest3D opened={success} onUnavailable={() => setChest3d(false)} />
+            </Suspense>
+          </div>
+        )}
         {quest && !success && (
           <div className="flex flex-col gap-6">
             <p className="text-body-md text-on-surface">
@@ -118,13 +137,15 @@ export function CompleteQuestDialog({ quest: current, onClose, onCompleted }: Co
         )}
         {quest && success && (
           <div className="flex flex-col items-center gap-4 text-center" role="status">
-            <motion.span initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: [0.6, 1.08, 1], opacity: 1 }} transition={{ duration: 0.45 }}>
-              <IconChip icon={Trophy} tone="success" size="lg" className="rounded-full" />
-            </motion.span>
+            {!chest3d && (
+              <motion.span initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: [0.6, 1.08, 1], opacity: 1 }} transition={{ duration: 0.45 }}>
+                <IconChip icon={Trophy} tone="success" size="lg" className="rounded-full" />
+              </motion.span>
+            )}
             <motion.p
               initial={{ scale: 0.6, opacity: 0 }}
               animate={{ scale: [0.6, 1.08, 1], opacity: 1 }}
-              transition={{ duration: 0.45, delay: 0.18 }}
+              transition={{ duration: 0.45, delay: chest3d ? 0.95 : 0.18 }}
               className="text-display-md text-primary-text font-mono tabular-nums md:text-display-lg"
             >
               +{earned} XP

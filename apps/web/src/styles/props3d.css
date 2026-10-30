@@ -1,0 +1,308 @@
+/* Objetos en 3D de las zonas: ficha de check-in de Hábitos, tótem de racha, monumento y cofre de
+   Misiones, repisas de objetos, medallas de Logros, carnet que gira y tarjetas de vidrio de
+   Finanzas. Todo el color sale de los tokens (--lq-*), así sigue al tema. Solo se animan
+   transform y opacity; con «Reducir movimiento» la regla global de tokens.css las acorta. */
+
+/* ───────── Ficha de check-in (components/habits/HabitToken) ─────────
+   Un cilindro real: cara clara (pendiente, con su hueco), cara del acento con el check
+   (completado) y 18 segmentos de canto a franjas. La ficha está algo inclinada hacia quien
+   mira (rotateX) para que se vea el grosor. */
+@layer components {
+  .lq-token {
+    --s: 2.3rem;
+    --t: 7px;
+    --n: 18;
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 3rem;
+    height: 3rem;
+    flex-shrink: 0;
+    border-radius: 999px;
+    perspective: 240px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .lq-token:focus-visible { outline: 2px solid rgb(var(--lq-primary)); outline-offset: 2px; }
+  .lq-token-socket {
+    position: absolute;
+    width: calc(var(--s) + 7px);
+    height: calc(var(--s) + 7px);
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 38%, rgb(var(--lq-on-background) / .03), rgb(var(--lq-on-background) / .1) 72%);
+    box-shadow: inset 0 2px 4px rgb(var(--lq-on-background) / .18), inset 0 0 0 1px rgb(var(--lq-on-background) / .08), 0 1px 0 rgb(255 255 255 / .65);
+  }
+  html.dark .lq-token-socket { box-shadow: inset 0 2px 5px rgb(0 0 0 / .55), inset 0 0 0 1px rgb(var(--lq-on-background) / .08), 0 1px 0 rgb(255 255 255 / .05); }
+  .lq-token-coin {
+    position: relative;
+    width: var(--s);
+    height: var(--s);
+    transform-style: preserve-3d;
+    transform: translateZ(0) rotateX(24deg) rotateY(0deg) scale(1);
+    transition: transform .5s cubic-bezier(.34, 1.4, .64, 1);
+  }
+  .lq-token[data-on] .lq-token-coin { transform: translateZ(0) rotateX(24deg) rotateY(180deg) scale(1); }
+  .lq-token-face {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    backface-visibility: hidden;
+  }
+  .lq-token-front {
+    transform: translateZ(calc(var(--t) / 2));
+    background: radial-gradient(circle at 34% 26%, rgb(255 255 255), rgb(var(--lq-surface)) 46%, rgb(var(--lq-jade-50)) 100%);
+    box-shadow: inset 0 0 0 1.5px rgb(var(--lq-jade-400) / .5), inset 0 -3px 6px rgb(var(--lq-jade-700) / .14);
+  }
+  html.dark .lq-token-front {
+    background: radial-gradient(circle at 34% 26%, rgb(var(--lq-on-background) / .2), rgb(var(--lq-surface-variant)) 52%, rgb(var(--lq-surface)) 100%);
+    box-shadow: inset 0 0 0 1.5px rgb(var(--lq-jade-400) / .55), inset 0 -3px 6px rgb(0 0 0 / .35);
+  }
+  /* El hueco donde va el check: anillo punteado que gira despacio al pasar el cursor. */
+  .lq-token-slot {
+    width: 50%;
+    height: 50%;
+    border-radius: 50%;
+    border: 1.5px dashed rgb(var(--lq-jade-500) / .6);
+    transition: transform .6s cubic-bezier(.34, 1.56, .64, 1);
+  }
+  .lq-token-back {
+    transform: rotateY(180deg) translateZ(calc(var(--t) / 2));
+    color: rgb(var(--lq-on-primary));
+    background: radial-gradient(circle at 34% 26%, rgb(var(--lq-jade-300)), rgb(var(--lq-jade-500)) 55%, rgb(var(--lq-jade-700)));
+    box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / .38), inset 0 -4px 8px rgb(0 0 0 / .2), 0 0 16px rgb(var(--lq-jade-400) / .55);
+  }
+  .lq-token-back svg { filter: drop-shadow(0 1px 0 rgb(0 0 0 / .25)); }
+  /* Canto: cada segmento se coloca en su ángulo, en el borde, y se tumba para ocupar el grosor. */
+  .lq-token-rim {
+    --w: calc(3.1416 * var(--s) / var(--n) + 1px);
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: var(--w);
+    height: var(--t);
+    margin: calc(var(--t) / -2) 0 0 calc(var(--w) / -2);
+    background: linear-gradient(180deg, rgb(var(--lq-jade-400)), rgb(var(--lq-jade-600)));
+    transform: rotateZ(calc(var(--i) * 360deg / var(--n))) translateY(calc(var(--s) / -2)) rotateX(90deg);
+  }
+  .lq-token-rim:nth-child(3n) { background: linear-gradient(180deg, rgb(var(--lq-surface)), rgb(var(--lq-jade-100))); }
+  html.dark .lq-token-rim:nth-child(3n) { background: linear-gradient(180deg, rgb(var(--lq-on-background) / .85), rgb(var(--lq-on-background) / .6)); }
+  .lq-token-wave {
+    position: absolute;
+    width: var(--s);
+    height: var(--s);
+    border-radius: 50%;
+    border: 2px solid rgb(var(--lq-jade-400));
+    opacity: 0;
+    pointer-events: none;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .lq-token:not([data-on]):not([aria-disabled]):hover .lq-token-coin { transform: translateZ(5px) rotateX(24deg) rotateY(-16deg) scale(1); }
+    .lq-token:not([data-on]):hover .lq-token-slot { transform: rotate(90deg); }
+  }
+  .lq-token:not([aria-disabled]):active .lq-token-coin { transform: translateZ(-3px) rotateX(24deg) rotateY(var(--ry, 0deg)) scale(.94); }
+  .lq-token[data-on]:not([aria-disabled]):active .lq-token-coin { --ry: 180deg; }
+  .lq-token[data-anim='snap'] .lq-token-coin { animation: lq-token-snap .66s cubic-bezier(.3, .7, .3, 1) both; }
+  .lq-token[data-anim='unsnap'] .lq-token-coin { animation: lq-token-unsnap .46s cubic-bezier(.3, .7, .3, 1) both; }
+  .lq-token[data-anim='snap'] .lq-token-wave { animation: lq-token-wave .7s .34s cubic-bezier(.2, .7, .3, 1) both; }
+  .lq-token[data-anim='snap'] .lq-token-socket { animation: lq-token-socket .5s .34s cubic-bezier(.3, .7, .3, 1) both; }
+  /* Tirón al encajar: el «golpe» que se siente, también donde el móvil no vibra. */
+  .lq-token[data-anim='snap'] { animation: lq-token-jolt .26s .36s linear both; }
+}
+
+@keyframes lq-token-snap {
+  0% { transform: translateZ(0) rotateX(24deg) rotateY(0deg) scale(1); }
+  32% { transform: translateZ(20px) rotateX(8deg) rotateY(250deg) scale(1.16); }
+  58% { transform: translateZ(-4px) rotateX(30deg) rotateY(168deg) scale(.92); }
+  76% { transform: translateZ(2px) rotateX(21deg) rotateY(186deg) scale(1.03); }
+  100% { transform: translateZ(0) rotateX(24deg) rotateY(180deg) scale(1); }
+}
+@keyframes lq-token-unsnap {
+  0% { transform: translateZ(0) rotateX(24deg) rotateY(180deg) scale(1); }
+  45% { transform: translateZ(10px) rotateX(14deg) rotateY(70deg) scale(1.06); }
+  100% { transform: translateZ(0) rotateX(24deg) rotateY(0deg) scale(1); }
+}
+/* Arranca invisible: con retardo y fill-mode both, el primer fotograma se ve durante la espera. */
+@keyframes lq-token-wave {
+  0% { opacity: 0; transform: scale(.9); }
+  8% { opacity: .9; transform: scale(.95); }
+  100% { opacity: 0; transform: scale(2); }
+}
+@keyframes lq-token-socket {
+  0% { transform: scale(1); }
+  35% { transform: scale(.9); box-shadow: inset 0 3px 7px rgb(var(--lq-on-background) / .25), 0 0 0 3px rgb(var(--lq-jade-400) / .35); }
+  100% { transform: scale(1); }
+}
+@keyframes lq-token-jolt {
+  0%, 100% { translate: 0 0; }
+  25% { translate: -1.5px 1px; }
+  50% { translate: 1.5px -.5px; }
+  75% { translate: -.75px .5px; }
+}
+
+/* ───────── Tótem de racha (components/habits/StreakTotemCard) ───────── */
+@layer components {
+  .lq-totem-aura {
+    background:
+      radial-gradient(42% 55% at 50% 56%, rgb(var(--lq-jade-400) / .16), transparent 70%),
+      radial-gradient(60% 30% at 50% 92%, rgb(var(--lq-jade-500) / .1), transparent 70%);
+  }
+  html.dark .lq-totem-aura {
+    background:
+      radial-gradient(42% 55% at 50% 56%, rgb(var(--lq-jade-400) / .22), transparent 70%),
+      radial-gradient(60% 30% at 50% 92%, rgb(var(--lq-jade-300) / .12), transparent 70%);
+  }
+  .lq-totem-rank {
+    flex-shrink: 0;
+    padding: .2rem .7rem;
+    border-radius: 999px;
+    font-size: .75rem;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: rgb(var(--lq-primary-text));
+    background: rgb(var(--lq-jade-400) / .12);
+    box-shadow: inset 0 0 0 1px rgb(var(--lq-jade-400) / .3);
+  }
+  .lq-totem-dot {
+    width: .55rem;
+    height: .55rem;
+    border-radius: 3px;
+    box-shadow: inset 0 0 0 1px rgb(var(--lq-on-background) / .2);
+  }
+  .lq-totem-dot-on {
+    background: rgb(var(--lq-jade-400));
+    box-shadow: 0 0 6px rgb(var(--lq-jade-400) / .6);
+  }
+}
+
+/* ───────── Monumento y cofre de Misiones (components/quests) ───────── */
+@layer components {
+  .lq-monument-aura {
+    background:
+      radial-gradient(46% 42% at 50% 62%, rgb(var(--lq-jade-400) / .14), transparent 72%),
+      radial-gradient(70% 26% at 50% 96%, rgb(var(--lq-secondary) / .12), transparent 70%);
+  }
+  html.dark .lq-monument-aura {
+    background:
+      radial-gradient(46% 42% at 50% 62%, rgb(var(--lq-jade-400) / .2), transparent 72%),
+      radial-gradient(70% 26% at 50% 96%, rgb(var(--lq-secondary) / .14), transparent 70%);
+  }
+  /* El cofre en el diálogo: un foco cálido debajo, como en una vitrina. */
+  .lq-chest-stage {
+    border-radius: 1rem;
+    background:
+      radial-gradient(40% 46% at 50% 70%, rgb(var(--lq-secondary) / .2), transparent 72%),
+      radial-gradient(60% 60% at 50% 40%, rgb(var(--lq-jade-400) / .1), transparent 70%);
+  }
+}
+
+/* ───────── Repisas de objetos 3D (components/three3d/PropShelf3D) ─────────
+   El escenario: una luz suave desde arriba y la línea de la repisa al fondo. */
+@layer components {
+  .lq-shelf-stage {
+    background:
+      radial-gradient(60% 70% at 50% 30%, rgb(var(--lq-jade-400) / .1), transparent 70%),
+      linear-gradient(180deg, transparent 78%, rgb(var(--lq-on-background) / .05) 78.5%, transparent 92%);
+  }
+  html.dark .lq-shelf-stage {
+    background:
+      radial-gradient(60% 70% at 50% 30%, rgb(var(--lq-jade-400) / .14), transparent 70%),
+      linear-gradient(180deg, transparent 78%, rgb(var(--lq-on-background) / .06) 78.5%, transparent 92%);
+  }
+}
+
+/* ───────── Logros: medallas como monedas 3D (pages/Achievements) y vitrina 3D ─────────
+   La medalla deja de ser un disco plano: cara, dorso y 24 segmentos de canto. Gira una vuelta
+   entera al pasar el cursor o al enfocar la tarjeta; al desbloquearse da dos vueltas. */
+@layer components {
+  .lq-medal3d {
+    --d: 4.25rem;
+    --t: 6px;
+    perspective: 420px;
+  }
+  @media (min-width: 768px) { .lq-medal3d { --d: 6rem; --t: 8px; } }
+  .lq-medal3d-coin {
+    position: absolute;
+    inset: 0;
+    transform-style: preserve-3d;
+    transition: transform 1.1s cubic-bezier(.3, .7, .2, 1);
+  }
+  .group:hover .lq-medal3d-coin, .group:focus-visible .lq-medal3d-coin { transform: rotateY(360deg); }
+  .lq-medal3d-face, .lq-medal3d-back {
+    position: absolute;
+    inset: 0;
+    backface-visibility: hidden;
+  }
+  .lq-medal3d-face { transform: translateZ(calc(var(--t) / 2)); }
+  .lq-medal3d-back { transform: rotateY(180deg) translateZ(calc(var(--t) / 2)); }
+  .lq-medal3d-face.lq-medal-disc { box-shadow: 0 8px 14px rgb(0 0 0 / .5), inset 0 0 0 2px rgb(var(--lq-secondary-text) / .55), 0 0 22px rgb(var(--lq-secondary) / .4); }
+  .lq-medal3d-rim {
+    --w: calc(3.1416 * var(--d) / 24 + 1px);
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: var(--w);
+    height: var(--t);
+    margin: calc(var(--t) / -2) 0 0 calc(var(--w) / -2);
+    background: linear-gradient(180deg, rgb(var(--lq-secondary-text)), rgb(var(--lq-secondary)) 50%, rgb(var(--lq-secondary-text)));
+    transform: rotateZ(calc(var(--i) * 15deg)) translateY(calc(var(--d) / -2)) rotateX(90deg);
+  }
+  .lq-medal3d-rim:nth-child(even) { filter: brightness(1.18); }
+  .lq-medal3d-rim-dim { background: rgb(255 255 255 / .1); }
+  .lq-medal3d-fresh .lq-medal3d-coin { animation: lq-medal3d-spin 1.7s .55s cubic-bezier(.2, .7, .2, 1) both; }
+
+  /* Foco de la vitrina 3D: un cono cálido desde arriba. */
+  .lq-trophy-spot {
+    background:
+      radial-gradient(38% 62% at 50% 0%, rgb(var(--lq-secondary) / .22), transparent 72%),
+      radial-gradient(50% 20% at 50% 92%, rgb(var(--lq-secondary) / .14), transparent 70%);
+  }
+}
+@keyframes lq-medal3d-spin {
+  from { transform: rotateY(0deg); }
+  to { transform: rotateY(720deg); }
+}
+
+/* ───────── Finanzas: tarjetas de vidrio ahumado con inclinación y parallax ─────────
+   Vidrio pintado (sin backdrop-filter: dentro de transformaciones 3D cuesta fotogramas):
+   un velo de tinta sobre la superficie, bisel de 1 px y un reflejo que sigue al cursor.
+   La tarjeta se inclina con useSpotlight (.lq-spot) y las cifras (.lq-parallax) se
+   desplazan un poco más que el resto, como si flotaran delante del vidrio. */
+@layer components {
+  /* :root sube la especificidad por encima de las utilidades de Card (bg-surface, border). */
+  :root .lq-smoke {
+    border: 1px solid rgb(var(--lq-on-background) / .08);
+    background:
+      radial-gradient(130% 90% at 100% 0%, rgb(var(--lq-on-background) / .05), transparent 60%),
+      linear-gradient(165deg, rgb(var(--lq-on-background) / .055), rgb(var(--lq-on-background) / .015) 55%, rgb(var(--lq-on-background) / .04)),
+      rgb(var(--lq-surface) / .82);
+    box-shadow: inset 1px 1px 0 rgb(255 255 255 / .85), inset -1px -1px 0 rgb(var(--lq-on-background) / .07), 0 18px 36px -24px rgb(var(--lq-on-background) / .35);
+  }
+  html.dark .lq-smoke {
+    border-color: rgb(var(--lq-on-background) / .08);
+    background:
+      radial-gradient(130% 90% at 100% 0%, rgb(var(--lq-on-background) / .07), transparent 60%),
+      linear-gradient(165deg, rgb(0 0 0 / .18), rgb(0 0 0 / .32) 60%, rgb(0 0 0 / .22)),
+      rgb(var(--lq-surface-variant) / .85);
+    box-shadow: inset 1px 1px 0 rgb(255 255 255 / .08), inset -1px -1px 0 rgb(0 0 0 / .4), 0 24px 44px -26px rgb(0 0 0 / .9);
+  }
+  :root .lq-smoke-accent {
+    background:
+      radial-gradient(120% 90% at 100% 0%, rgb(var(--lq-primary) / .16), transparent 60%),
+      linear-gradient(165deg, rgb(var(--lq-on-background) / .05), rgb(var(--lq-on-background) / .015) 55%, rgb(var(--lq-on-background) / .04)),
+      rgb(var(--lq-surface) / .82);
+  }
+  html.dark .lq-smoke-accent {
+    background:
+      radial-gradient(120% 90% at 100% 0%, rgb(var(--lq-primary) / .2), transparent 60%),
+      linear-gradient(165deg, rgb(0 0 0 / .16), rgb(0 0 0 / .3) 60%, rgb(0 0 0 / .2)),
+      rgb(var(--lq-surface-variant) / .85);
+  }
+  .lq-parallax {
+    display: inline-block;
+    translate: calc(var(--px, 0) * 7px) calc(var(--py, 0) * 5px);
+    transition: translate .6s cubic-bezier(.16, 1, .3, 1);
+  }
+  .reduce-motion .lq-parallax { translate: none; }
+}

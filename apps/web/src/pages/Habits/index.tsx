@@ -1,21 +1,23 @@
 // Hábitos — Habits.dc.html (móvil) / HabitsDesktop.dc.html (desktop).
 // Zona ambientada: una libreta de registro. La lista es una hoja con margen y
-// líneas; cada hábito se escribe en su línea, el check se traza con tinta y la
-// racha se lleva con marcas de conteo. El resumen de la semana va en notas
-// adhesivas. Completar el último hábito del día cierra la página con confeti.
+// líneas; cada hábito se escribe en su línea, el check es una ficha 3D que encaja
+// y la racha se lleva con marcas de conteo. Al lado, el tótem de racha (cristal 3D
+// que crece con los días seguidos) y el resumen de la semana en una nota adhesiva.
+// Completar el último hábito del día cierra la página con confeti.
 // La libreta tiene tres separadores: Hábitos, Obstáculos (lo que quieres dejar) y
 // Rituales (secuencias de pasos con modo guiado). Los dos últimos antes eran zonas
 // aparte: /obstaculos y /rituals llegan aquí.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useSearchParams } from 'react-router-dom';
-import { CheckCircle2, Flame, ListChecks, Plus, ShieldAlert, ShieldCheck, Sun, Trophy } from 'lucide-react';
+import { CheckCircle2, Flame, ListChecks, Plus, ShieldAlert, ShieldCheck, Sun } from 'lucide-react';
 import { item, stagger, zoneExit } from '@/lib/motion';
 import { dayKey, longDate } from '@/lib/lifeMeta';
 import { useAuthStore } from '@/store/authStore';
 import { useHabitCompletion } from '@/hooks/useHabitCompletion';
 import { useToastStore } from '@/hooks/useToast';
 import { Badge, BarChart, Button, Card, Confetti, EmptyState, ErrorState, IconChip, ProgressBar, ProgressRing, SegmentedControl, type BarDatum, PageLoader } from '@/components/ui/lq';
+import { StreakTotemCard } from '@/components/habits/StreakTotemCard';
 import { useLoadingCopy } from '@/lib/loadingCopy';
 import { HabitNotebookRow } from '@/components/habits/HabitNotebookRow';
 import { NotebookSheet, NotebookTabs, StickyNote } from '@/components/habits/NotebookSheet';
@@ -61,10 +63,6 @@ const es = {
   notebook: 'Tu libreta de hábitos',
   thisWeek: 'Esta semana',
   weekChart: (detail: string) => `Hábitos completados por día esta semana: ${detail}`,
-  bestStreak: 'Mejor racha',
-  streakLine: (title: string, n: number, more: number, next: number) => `${title} lleva ${n} ${n === 1 ? 'día' : 'días'}. ${more} más para llegar a ${next}.`,
-  progressTo: (n: number) => `Progreso hacia ${n} días`,
-  ofDays: (n: number, of: number) => `${n} de ${of} días`,
   summary: (period: string) => `Resumen · ${period}`,
   resisted: 'Resistidas',
   falls: 'Caídas',
@@ -113,10 +111,6 @@ const en: typeof es = {
   notebook: 'Your habit notebook',
   thisWeek: 'This week',
   weekChart: (detail) => `Habits completed per day this week: ${detail}`,
-  bestStreak: 'Best streak',
-  streakLine: (title, n, more, next) => `${title} is at ${n} ${n === 1 ? 'day' : 'days'}. ${more} more to reach ${next}.`,
-  progressTo: (n) => `Progress toward ${n} days`,
-  ofDays: (n, of) => `${n} of ${of} days`,
   summary: (period) => `Summary · ${period}`,
   resisted: 'Resisted',
   falls: 'Slips',
@@ -145,7 +139,6 @@ const COPY: Copy<typeof es> = { es, en };
 
 type Filter = 'all' | 'active' | 'done';
 const FILTER_VALUES: Filter[] = ['all', 'active', 'done'];
-const MILESTONES = [7, 14, 21, 30, 60, 100, 180, 365];
 
 type SheetId = 'habitos' | 'obstaculos' | 'rituales';
 const sheetId = (s: SheetId) => `habits-sheet-${s}`;
@@ -181,6 +174,8 @@ export default function HabitsPage() {
   const { complete, undo, pending } = useHabitCompletion();
   /** Sube solo cuando se completa el último hábito del día (página cerrada). */
   const [dayDone, setDayDone] = useState(0);
+  /** Hábito recién completado: el tótem de racha lo enfoca y celebra el día. */
+  const [focusId, setFocusId] = useState<string | null>(null);
   const { todayKey, last7, week } = useDays();
   // NoutLife Lite: hasta 3 hábitos activos. Al llegar al tope, «Nuevo hábito» abre el diálogo de Pro.
   const lite = user?.subscription?.plan === 'lite';
@@ -256,6 +251,7 @@ export default function HabitsPage() {
     // ¿Era el último pendiente del día? (lista más reciente, no la del render que lanzó el toque)
     const latest = habitsRef.current;
     if (latest.length && !latest.every(isDone) && latest.every((x) => x.id === h.id || isDone(x))) setDayDone((n) => n + 1);
+    setFocusId(h.id);
     setHabits((prev) => prev.map((x) => (x.id === h.id
       ? { ...x, todayStatus: 'completed', todayCompleted: true, currentStreak: result.currentStreak, longestStreak: result.longestStreak }
       : x)));
@@ -326,8 +322,7 @@ export default function HabitsPage() {
   const elapsed = weekBars.filter((b) => !b.muted);
   const weekRate = total && elapsed.length ? Math.round((elapsed.reduce((s, b) => s + b.value, 0) / (total * elapsed.length)) * 100) : 0;
 
-  const best = habits.reduce<Habit | null>((b, h) => (!b || h.currentStreak > b.currentStreak ? h : b), null);
-  const nextMilestone = best ? MILESTONES.find((m) => m > best.currentStreak) ?? best.currentStreak + 30 : 0;
+  const weekOf = (h: Habit) => last7.map((k) => Boolean(history[h.id]?.has(k)) || (k === todayKey && isDone(h)));
 
   const obstacleTotals = obstacles.reduce((acc, o) => ({ falls: acc.falls + o.metrics[period].falls, resisted: acc.resisted + o.metrics[period].resisted }), { falls: 0, resisted: 0 });
   const periodLabel = obstaclePeriodsFor(locale).find((p) => p.value === period)?.label.toLowerCase() ?? '';
@@ -401,7 +396,7 @@ export default function HabitsPage() {
             index={i}
             habit={h}
             pending={pending === h.id}
-            week={last7.map((k) => history[h.id]?.has(k) || (k === todayKey && isDone(h)))}
+            week={weekOf(h)}
             onComplete={() => void handleToggle(h)}
             onStep={(stepId, completed) => void handleStep(h, stepId, completed)}
           />
@@ -434,6 +429,7 @@ export default function HabitsPage() {
 
   const habitsAside = total > 0 && !loading && (
     <>
+      <StreakTotemCard habits={habits} weekOf={weekOf} focusId={focusId} />
       <StickyNote tilt={-0.8} delay={0.35}>
         <Card as="section" padding="lg" className="flex flex-col gap-4" aria-labelledby="week-title">
           <div className="flex items-center justify-between">
@@ -449,26 +445,6 @@ export default function HabitsPage() {
           />
         </Card>
       </StickyNote>
-      {best && best.currentStreak > 0 && (
-        <StickyNote tilt={0.6} delay={0.5}>
-          <Card as="section" padding="lg" className="flex flex-col gap-3">
-            <IconChip icon={Trophy} tone="warning" className="animate-float [.reduce-motion_&]:animate-none" />
-            <h2 className="text-heading-sm">{t.bestStreak}</h2>
-            <p className="text-body-md text-on-surface">
-              {t.streakLine(best.title, best.currentStreak, nextMilestone - best.currentStreak, nextMilestone).split(best.title).map((part, i, all) => (
-                <span key={i}>{part}{i < all.length - 1 && <b>{best.title}</b>}</span>
-              ))}
-            </p>
-            <ProgressBar
-              value={(best.currentStreak / nextMilestone) * 100}
-              tone="warning"
-              shine
-              label={t.progressTo(nextMilestone)}
-              valueText={t.ofDays(best.currentStreak, nextMilestone)}
-            />
-          </Card>
-        </StickyNote>
-      )}
     </>
   );
 

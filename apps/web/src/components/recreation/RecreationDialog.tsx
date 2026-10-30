@@ -116,20 +116,22 @@ const fromEntry = (e: RecreationEntry): Draft => ({
   totalSeasons: e.totalSeasons ? String(e.totalSeasons) : '', totalEpisodes: e.totalEpisodes ? String(e.totalEpisodes) : '',
   watched: e.episodesWatched ? String(e.episodesWatched) : '',
 });
-const blank = (status: RecreationStatus): Draft => ({
-  title: '', kind: null, status, rating: null, minutes: '', date: localDay(), notes: '',
+const blank = (status: RecreationStatus, kind: RecreationKind | null = null): Draft => ({
+  title: '', kind, status, rating: null, minutes: '', date: localDay(), notes: '',
   season: '', episode: '', totalSeasons: '', totalEpisodes: '', watched: '',
 });
 
 const whole = (text: string) => (text.trim() === '' ? null : Math.round(Number(text)));
 const inRange = (n: number | null, min: number, max: number) => n === null || (n >= min && n <= max);
 
-export function RecreationDialog({ open, onClose, entry, initialStatus = 'DONE', onSaved, onDeleted }: {
+export function RecreationDialog({ open, onClose, entry, initialStatus = 'DONE', initialKind = null, onSaved, onDeleted }: {
   open: boolean;
   onClose: () => void;
   /** Con entrada: editar; sin ella: registrar una nueva. */
   entry?: RecreationEntry | null;
   initialStatus?: RecreationStatus;
+  /** Tipo ya elegido al registrar (p. ej. al tocar un objeto de la repisa de hobbies). */
+  initialKind?: RecreationKind | null;
   onSaved: (result: RecreationResult) => void;
   onDeleted?: (id: string) => void;
 }) {
@@ -139,7 +141,7 @@ export function RecreationDialog({ open, onClose, entry, initialStatus = 'DONE',
     { value: 'DONE' as const, label: t.statusDone },
     { value: 'PLANNED' as const, label: t.statusPlanned },
   ];
-  const [draft, setDraft] = useState<Draft>(blank(initialStatus));
+  const [draft, setDraft] = useState<Draft>(blank(initialStatus, initialKind));
   const [touched, setTouched] = useState(false);
   const [saving, setSaving] = useState<'save' | 'watched' | 'delete' | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -147,9 +149,9 @@ export function RecreationDialog({ open, onClose, entry, initialStatus = 'DONE',
 
   useEffect(() => {
     if (!open) return;
-    setDraft(entry ? fromEntry(entry) : blank(initialStatus));
+    setDraft(entry ? fromEntry(entry) : blank(initialStatus, initialKind));
     setTouched(false); setError(null); setSaving(null);
-  }, [open, entry, initialStatus]);
+  }, [open, entry, initialStatus, initialKind]);
 
   const set = (patch: Partial<Draft>) => setDraft((d) => ({ ...d, ...patch }));
   const minutes = draft.minutes.trim() === '' ? null : Math.round(Number(draft.minutes));

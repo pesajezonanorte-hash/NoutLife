@@ -172,10 +172,13 @@ export function useSpotlight<T extends HTMLElement>() {
     el.style.setProperty('--mx', `${x * 100}%`); el.style.setProperty('--my', `${y * 100}%`);
     if (!reduce && e.pointerType === 'mouse' && finePointer()) {
       el.style.setProperty('--rx', `${(0.5 - y) * 6}deg`); el.style.setProperty('--ry', `${(x - 0.5) * 6}deg`);
+      // --px/--py (−1…1, sin unidad): capas con parallax dentro de la tarjeta (.lq-parallax).
+      el.style.setProperty('--px', (x * 2 - 1).toFixed(3)); el.style.setProperty('--py', (y * 2 - 1).toFixed(3));
     }
   };
   const onPointerLeave = (e: PointerEvent<T>) => {
     const el = e.currentTarget; el.style.setProperty('--rx', '0deg'); el.style.setProperty('--ry', '0deg');
+    el.style.setProperty('--px', '0'); el.style.setProperty('--py', '0');
   };
   return { onPointerMove, onPointerLeave };
 }

@@ -5,7 +5,7 @@
 // y = 0, frente hacia +z. Sin DOM ni WebGL: MuscleScene la pinta y tests/unit/coliseo.unit.ts la prueba.
 import { BufferAttribute, BufferGeometry, Float32BufferAttribute } from 'three';
 import { MUSCLE_IDS, type Muscle } from '@/lib/coliseo';
-import { readGlb } from './glb';
+import { readGlb } from '@/components/three3d/glb';
 
 export type Body = 'male' | 'female';
 

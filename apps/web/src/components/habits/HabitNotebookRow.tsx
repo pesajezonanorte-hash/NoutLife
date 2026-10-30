@@ -1,6 +1,6 @@
 // Hábito como una línea anotada en la libreta: el ícono vive en el margen, el
 // texto aparece como escrito, la racha se lleva con marcas de conteo y el check
-// se traza con tinta. Al entrar, la línea de la hoja se dibuja y el texto se
+// es una ficha 3D que encaja en su hueco (HabitToken). Al entrar, la línea de la hoja se dibuja y el texto se
 // escribe; al pasar el cursor, un marcador subraya el nombre; al presionar, la
 // línea se inclina un poco, como el papel bajo el lápiz.
 import { useState, type CSSProperties } from 'react';
@@ -14,7 +14,7 @@ import { resolveGlyph } from '@/components/ui/glyphs';
 import { TallyMarks } from '@/components/ambience';
 import { categoryMeta, frequencyLabel } from '@/lib/lifeMeta';
 import type { HabitItemData } from './HabitListItem';
-import { InkCheckButton } from './InkCheckButton';
+import { HabitToken } from './HabitToken';
 import { useLocale, type Copy } from '@/lib/i18n';
 
 const COPY: Copy<{
@@ -110,7 +110,7 @@ export function HabitNotebookRow({ habit, onComplete, pending, week, index, onSt
           <span aria-hidden className="text-label-md text-on-surface-light font-mono tabular-nums">{weekDone}/7</span>
         </span>
       )}
-      <InkCheckButton name={habit.title} checked={done} pending={pending} onToggle={onComplete} />
+      <HabitToken name={habit.title} checked={done} pending={pending} onToggle={onComplete} />
       {steps.length > 0 && (
         <ol aria-label={t.stepsOf(habit.title)} className="col-span-full flex flex-col gap-0.5 pb-3 pl-[3rem] md:pl-[5rem]">
           {steps.map((st, i) => {
