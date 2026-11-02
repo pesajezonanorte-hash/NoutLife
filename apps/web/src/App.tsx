@@ -164,6 +164,8 @@ const STALL_COPY: Copy<{ stalled: string; retry: string; restart: string }> = {
     restart: 'Restart session',
   },
 };
+/** Desde que se abre la página hasta montar la app debajo: el nacimiento (1,3 s) y un respiro. El vuelo sale 450 ms después (splash/timing). */
+const SPLASH_MIN_MS = 2000;
 /** Tras este tiempo en el cargador (con el splash ya retirado), se ofrecen los botones; el cierre automático llega antes de AUTH_TIMEOUT_MS. */
 const STALL_AFTER_MS = 3000;
 
@@ -533,6 +535,7 @@ export default function App() {
   const [splashDone, setSplashDone] = useState(false);
   const [minimumSplashElapsed, setMinimumSplashElapsed] = useState(false);
   const [splashReady, setSplashReady] = useState(false);
+  const [pageFetched, setPageFetched] = useState(false);
 
   useEffect(() => {
     initAudio();
@@ -543,18 +546,25 @@ export default function App() {
   }, [initAudio]);
 
   useEffect(() => {
-    // Keep the launch transition perceptible without retaining the old,
-    // disconnected four-second loading scene.
-    // La animación de arranque (index.html) termina hacia los 3 s; con «Reducir movimiento», 0,5 s.
-    const minDelay = window.setTimeout(() => setMinimumSplashElapsed(true), document.documentElement.classList.contains('lq-rm') ? 500 : 3000);
+    // El nacimiento de la escultura y un respiro; el tiempo cuenta desde que se abrió la página,
+    // así un teléfono lento no espera dos veces. Con «Reducir movimiento» no hay nada que ver.
+    const min = document.documentElement.classList.contains('lq-rm') ? 500 : SPLASH_MIN_MS;
+    const minDelay = window.setTimeout(() => setMinimumSplashElapsed(true), Math.max(0, min - performance.now()));
     return () => window.clearTimeout(minDelay);
   }, []);
 
+  // La página de destino se descarga mientras dura el splash: al levantarse ya está pintada debajo.
   useEffect(() => {
-    if (minimumSplashElapsed && !isLoading) {
+    if (isLoading) return;
+    const load = isAuthenticated ? loaderForPath(window.location.pathname) : loaders.LoginPage;
+    void Promise.resolve(load?.()).catch(() => undefined).finally(() => setPageFetched(true));
+  }, [isLoading, isAuthenticated]);
+
+  useEffect(() => {
+    if (minimumSplashElapsed && !isLoading && pageFetched) {
       setSplashReady(true);
     }
-  }, [isLoading, minimumSplashElapsed]);
+  }, [isLoading, minimumSplashElapsed, pageFetched]);
 
   const showSplash = !splashDone;
 

@@ -1,9 +1,7 @@
-// Splash inicial. La animación (hojas que vuelan y forman la N + «Noutlife»
-// letra a letra) vive en index.html (#lq-boot) como CSS puro, para que empiece
-// en el primer pintado y no se corte al montar React. Este componente solo la
-// desvanece cuando la app está lista y la retira del DOM.
+// Splash inicial. Vive fuera de React para que empiece en el primer pintado y no se corte al montar
+// la app: la gota y el nombre en index.html (#lq-boot) y la escultura 3D en src/splash. Este componente
+// monta la app debajo y le avisa al splash de que ya puede salir (viaja al navbar y se retira solo).
 import { useEffect, useRef, useState } from 'react';
-import { useReducedMotionConfig } from 'framer-motion';
 import { BrandLockup } from '@/components/layout/Brand';
 
 interface Props {
@@ -13,23 +11,19 @@ interface Props {
 }
 
 export function SplashScreen({ ready, onDone }: Props) {
-  const reduce = useReducedMotionConfig() ?? false;
   const [boot] = useState(() => document.getElementById('lq-boot'));
   const done = useRef(onDone);
   done.current = onDone;
 
   useEffect(() => {
     if (!ready) return;
-    if (!boot) { done.current(); return; }
+    done.current();
+    if (!boot) return;
+    if (window.lqSplash) { window.lqSplash.leave(); return; }
+    // El chunk del splash no llegó (sin red): un fundido y fuera.
     boot.classList.add('out');
-    // La retirada no depende del ciclo de vida del componente: se desmonta al llamar a onDone.
-    const remove = () => boot.remove();
-    boot.addEventListener('transitionend', remove, { once: true });
-    window.setTimeout(remove, 900);
-    // La app se monta debajo mientras el splash se desvanece encima.
-    const t = window.setTimeout(() => done.current(), reduce ? 0 : 120);
-    return () => window.clearTimeout(t);
-  }, [boot, ready, reduce]);
+    window.setTimeout(() => boot.remove(), 520);
+  }, [boot, ready]);
 
   if (boot) return null;
   // Sin splash estático (p. ej. recarga en caliente): marca centrada.

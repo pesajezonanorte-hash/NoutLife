@@ -1,11 +1,13 @@
-// Materia calma: modelos de Blender (calm-*.glb), clips de animación, tubo de los íconos del navbar
-// y la inclinación de las tarjetas.
+// Materia calma: modelos de Blender (calm-*.glb), clips de animación, héroe del splash, tubo de los
+// íconos del navbar y la inclinación de las tarjetas.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { clipLength, decodeCalm, sampleClip, type CalmModel } from '../../src/components/three3d/calmModels';
 import { buildTube, type Point } from '../../src/components/layout/nav3d/iconTube';
 import { castShadow, settled, springStep, tiltLimits, tiltTarget } from '../../src/lib/motion/tiltMath';
+import { flightAt, flightEase, HERO_RADIUS, rollWeights } from '../../src/splash/hero';
+import { BIRTH_MS, BIRTH_RUSH, LEAVE_HOLD_MS, leaveDelay } from '../../src/splash/timing';
 
 const load = async (name: string) => {
   const file = readFileSync(new URL(`../../src/assets/models/${name}.glb`, import.meta.url));
@@ -180,6 +182,125 @@ test('canto rodado: estirarse sigue al eje del viaje y el clip termina en reposo
   const travel = clips.get('nav_travel')!;
   const end = sampleClip(travel, 99, []);
   assert.ok(end.every((v) => Math.abs(v) < 0.01), 'termina en reposo');
+});
+
+test('héroe: malla, shape keys, clips, mapa de normales y peso para el splash', async () => {
+  const set = await load('calm-hero');
+  const hero = set.models.get('hero')!;
+  assert.deepEqual(Object.keys(hero.targets).sort(), ['breath', 'mass', 'pebble', 'ridge_a', 'ridge_b']);
+  for (const name of ['hero_birth', 'hero_breath', 'hero_roll', 'hero_outro']) assert.ok(set.clips.has(name), name);
+  assert.ok(set.normalMap, 'mapa de normales');
+  const verts = hero.position.length / 3;
+  assert.ok(verts < 1800 && hero.index.length / 3 < 3200, `malla baja (${verts} vértices, ${hero.index.length / 3} triángulos)`);
+  const size = readFileSync(new URL('../../src/assets/models/calm-hero.glb', import.meta.url)).length / 1024;
+  assert.ok(size < 95, `${size.toFixed(1)} KB < 95 KB`);
+  // En reposo trae las crestas puestas: así la ve cualquier visor de glTF.
+  const file = readFileSync(new URL('../../src/assets/models/calm-hero.glb', import.meta.url));
+  const json = JSON.parse(file.subarray(20, 20 + file.readUInt32LE(12)).toString('utf8'));
+  const names: string[] = json.meshes[0].extras.targetNames;
+  assert.equal(json.meshes[0].weights[names.indexOf('ridge_a')], 1);
+  assert.ok(json.meshes[0].weights.every((w: number, i: number) => i === names.indexOf('ridge_a') || w === 0));
+});
+
+test('héroe: las crestas ruedan por la superficie sin cambiar el tamaño', async () => {
+  const { models } = await load('calm-hero');
+  const hero = models.get('hero')!;
+  /** Radio máximo en el plano del aro y alto (en three.js el eje del aro es y). */
+  const measure = (phase: number) => {
+    const [a, b] = rollWeights(1, phase);
+    let radius = 0;
+    let height = 0;
+    for (let i = 0; i < hero.position.length; i += 3) {
+      const at = (c: number) => hero.position[i + c] + hero.targets.ridge_a.position[i + c] * a + hero.targets.ridge_b.position[i + c] * b;
+      radius = Math.max(radius, Math.hypot(at(0), at(2)));
+      height = Math.max(height, Math.abs(at(1)));
+    }
+    return { radius, height };
+  };
+  const rest = measure(0);
+  assert.ok(Math.abs(rest.radius - HERO_RADIUS) < 0.03, `radio exterior ${rest.radius} ≈ ${HERO_RADIUS}`);
+  assert.ok(rest.height > bounds(hero).size[1] / 2 * 1.3, 'la cresta sale del toro liso');
+  for (const phase of [0.7, 1.9, 3.1, 4.4, 5.6]) {
+    const other = measure(phase);
+    assert.ok(Math.abs(other.radius / rest.radius - 1) < 0.02, `radio a fase ${phase}: ${other.radius}`);
+    assert.ok(Math.abs(other.height / rest.height - 1) < 0.02, `alto a fase ${phase}: ${other.height}`);
+  }
+});
+
+test('héroe: una gota cerrada y, al final, el mismo canto rodado del navbar', async () => {
+  const set = await load('calm-hero');
+  const hero = set.models.get('hero')!;
+  // Cada vértice de la gota está en la esfera o, doblado, sobre el eje: el agujero se cerró.
+  let onSphere = 0;
+  for (let i = 0; i < hero.position.length; i += 3) {
+    const [x, y, z] = [0, 1, 2].map((c) => hero.position[i + c] + hero.targets.mass.position[i + c]);
+    const radial = Math.hypot(x, z); // en three.js el eje del aro es y
+    const r = Math.hypot(radial, y);
+    const sphere = Math.abs(r - 0.92) < 0.02;
+    if (sphere) onSphere++;
+    assert.ok(sphere || radial < 0.02, `vértice suelto: radio ${r}, al eje ${radial}`);
+  }
+  assert.ok(onSphere > hero.position.length / 3 / 2, 'la mayoría forma la esfera');
+  const pebble = bounds(hero, hero.targets.pebble.position);
+  const nav = bounds((await load('calm-nav')).models.get('pebble')!);
+  for (const c of [0, 1, 2]) assert.ok(Math.abs(pebble.size[c] - nav.size[c]) < 0.02, `medida ${c}: ${pebble.size[c]} frente a ${nav.size[c]}`);
+});
+
+test('héroe: nace con rebote, respira sin saltos y sale convertido en canto rodado', async () => {
+  const { clips, models } = await load('calm-hero');
+  const hero = models.get('hero')!;
+  const names = Object.keys(hero.targets);
+  const w: number[] = [];
+  const weight = (clip: string, name: string, t: number) => sampleClip(clips.get(clip)!, t, w)[names.indexOf(name)];
+  // Nacimiento: de la gota entera a la forma de reposo, pasándose y volviendo.
+  const birth = clipLength(clips.get('hero_birth')!);
+  assert.ok(Math.abs(birth - BIRTH_MS / 1000) < 0.05, `dura ${birth} s: splash/timing dice ${BIRTH_MS} ms`);
+  assert.ok(Math.abs(weight('hero_birth', 'mass', 0) - 1) < 0.01, 'empieza en la gota');
+  assert.ok(Math.abs(weight('hero_birth', 'mass', birth)) < 0.01 && Math.abs(weight('hero_birth', 'ridge_a', birth) - 1) < 0.01, 'termina en reposo');
+  let over = 0;
+  let jump = 0;
+  for (let t = 0; t < birth; t += 1 / 60) {
+    over = Math.min(over, weight('hero_birth', 'mass', t));
+    jump = Math.max(jump, Math.abs(weight('hero_birth', 'mass', t + 1 / 60) - weight('hero_birth', 'mass', t)));
+  }
+  assert.ok(over < -0.1 && over > -0.5, `rebote blando: ${over}`);
+  assert.ok(jump < 0.08, `sin saltos: ${jump}`);
+  // Respiración: en bucle, sin escalón al volver a empezar, y casi imperceptible.
+  const breath = clipLength(clips.get('hero_breath')!);
+  assert.ok(Math.abs(weight('hero_breath', 'breath', 0) - weight('hero_breath', 'breath', breath)) < 0.01, 'cierra el bucle');
+  const big = bounds(hero, hero.targets.breath.position);
+  const small = bounds(hero);
+  assert.ok(big.size[0] / small.size[0] < 1.05 && big.size[0] / small.size[0] > 1.01, 'expansión pequeña');
+  // Salida: sin crestas y en el canto rodado; la ola sigue en bucle exacto.
+  const outro = clipLength(clips.get('hero_outro')!);
+  assert.ok(Math.abs(weight('hero_outro', 'pebble', outro) - 1) < 0.01, 'termina en canto rodado');
+  assert.ok(Math.abs(weight('hero_outro', 'ridge_a', outro)) < 0.01, 'sin crestas');
+  const roll = clipLength(clips.get('hero_roll')!);
+  assert.ok(Math.abs(weight('hero_roll', 'ridge_a', 0) - weight('hero_roll', 'ridge_a', roll)) < 0.01, 'la ola cierra el bucle');
+});
+
+test('salida del héroe: deja pintar la app y no corta el nacimiento', () => {
+  assert.equal(leaveDelay(5000), LEAVE_HOLD_MS, 'ya nació: solo la espera del pintado');
+  assert.equal(leaveDelay(0), BIRTH_MS / BIRTH_RUSH, 'acaba de nacer: lo que le falta, a ritmo rápido');
+});
+
+test('vuelo del héroe: sale de su sitio, llega exacto y el tamaño cambia en proporción', () => {
+  const from = { x: 195, y: 340, unit: 72 };
+  const to = { x: 118, y: 791, unit: 32 };
+  const start = flightAt(0, from, to);
+  const end = flightAt(1, from, to);
+  assert.deepEqual([start.x, start.y, start.unit], [from.x, from.y, from.unit]);
+  assert.ok(Math.abs(end.x - to.x) < 1e-6 && Math.abs(end.y - to.y) < 1e-6 && Math.abs(end.unit - to.unit) < 1e-6);
+  const middle = flightAt(0.5, from, to);
+  assert.ok(Math.abs(middle.unit - Math.sqrt(from.unit * to.unit)) < 1e-6, 'a mitad de camino, la media geométrica');
+  // En arco: no va por la recta entre los dos puntos.
+  assert.ok(Math.abs(middle.x - (from.x + to.x) / 2) > 10, 'hace un arco');
+  let previous = -1;
+  for (let t = 0; t <= 1; t += 0.02) {
+    const k = flightEase(t);
+    assert.ok(k >= previous, 'nunca retrocede');
+    previous = k;
+  }
 });
 
 test('sampleClip: interpola, sujeta los extremos y no reserva memoria', () => {

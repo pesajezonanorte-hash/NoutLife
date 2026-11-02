@@ -4,6 +4,8 @@
 import { BufferAttribute, BufferGeometry } from 'three';
 import { readGlbScene, type GlbClip } from './glb';
 
+export { clipLength, sampleClip } from './glb';
+
 export interface CalmModel {
   name: string;
   position: Float32Array;
@@ -93,22 +95,3 @@ export async function calmNormalBitmap(set: CalmSet): Promise<ImageBitmap | null
   if (!img) return null;
   return createImageBitmap(new Blob([img.bytes], { type: img.mimeType })).catch(() => null);
 }
-
-/** Pesos de un clip en `t` segundos (interpolación lineal, como el .glb). Reutiliza `out`. */
-export function sampleClip(clip: GlbClip, t: number, out: number[]): number[] {
-  const { times, weights, targets } = clip;
-  const last = times.length - 1;
-  let i = 0;
-  while (i < last && times[i + 1] <= t) i++;
-  if (t <= times[0] || i >= last) {
-    const k = (t <= times[0] ? 0 : last) * targets;
-    for (let c = 0; c < targets; c++) out[c] = weights[k + c];
-    return out;
-  }
-  const f = (t - times[i]) / (times[i + 1] - times[i]);
-  for (let c = 0; c < targets; c++) out[c] = weights[i * targets + c] + (weights[(i + 1) * targets + c] - weights[i * targets + c]) * f;
-  return out;
-}
-
-/** Duración de un clip en segundos. */
-export const clipLength = (clip: GlbClip) => clip.times[clip.times.length - 1];
