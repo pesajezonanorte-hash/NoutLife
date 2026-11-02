@@ -782,8 +782,13 @@ HERO_BAND = (0.012, 0.03, 0.058, 0.1)  # anillos hacia dentro, donde más se cur
 HERO_WALL = 0.28  # la pared baja esto; la web la abre hacia fuera
 HERO_DROP_R = 0.6  # la gota en la que se recoge
 HERO_DROP_H = 0.42
-HERO_LEAVES = 118
-HERO_LEAF_ROWS = 5
+HERO_LEAF_H = 0.05  # alto del centro de cada hoja: vidrio curvo, con el borde plano como el trazo
+# Por trazo: de dónde viene (en unidades de la N), eje y vueltas del giro, y cuándo empieza (0 a 1).
+HERO_LEAF_FLY = {
+    'c': ((2.6, 1.2, 0.6), (0.2, 0.9, 0.3), 0.26, 0.0),
+    'a': ((-3.0, 0.6, 0.4), (-0.6, 0.3, 0.7), 0.22, 0.45),
+    'b': ((-2.2, -2.2, 0.3), (0.8, -0.2, 0.4), 0.30, 0.9),
+}
 HERO_BIRTH = 1.3
 HERO_OUTRO = 1.5
 HERO_BREATH = 4.0
@@ -967,103 +972,56 @@ def hero_morphs(co, poly, centroid, lift):
     return puffed, drop
 
 
-def hero_leaf_layout(parts, rng):
-    """Mosaico de hojas sobre la silueta: las grandes por dentro, las pequeñas contra el borde, y cada
-    una a lo largo de la dirección local de su parte (como escamas)."""
-    candidates = []
-    for name, poly in parts.items():
-        lo, hi = poly.min(axis=0), poly.max(axis=0)
-        xs, ys = np.meshgrid(np.arange(lo[0], hi[0], 0.016), np.arange(lo[1], hi[1], 0.016))
-        pts = np.stack([xs.ravel(), ys.ravel()], axis=1)
-        pts = pts[inside_poly(pts, poly)]
-        d, _ = seg_distance(pts, poly)
-        for p, dist in zip(pts, d):
-            candidates.append((dist, p, name))
-    dense = {name: [c[1] for c in candidates if c[2] == name] for name in parts}
-    dense = {k: np.array(v) for k, v in dense.items()}
-    rng.shuffle(candidates)
-    candidates.sort(key=lambda c: -round(c[0] / 0.012))
-    placed = []
-    gap = 0.86
-    for dist, p, name in candidates:
-        length = float(np.clip(dist * 3.0, 0.1, 0.5))
-        if dist < 0.02:
-            continue
-        if any(np.linalg.norm(p - q[0]) < (length + q[1]) * 0.5 * gap * 0.62 for q in placed):
-            continue
-        # Dirección local: el eje principal de los puntos de la parte que hay alrededor.
-        near = dense[name][np.linalg.norm(dense[name] - p, axis=1) < 0.3]
-        cov = np.cov((near - p).T) if len(near) > 3 else np.eye(2)
-        vals, vecs = np.linalg.eigh(cov)
-        axis = vecs[:, 1]
-        placed.append((p, length, name, math.atan2(axis[1], axis[0]) + rng.uniform(-0.2, 0.2)))
-        if len(placed) >= HERO_LEAVES:
-            break
-    print(f'hero: {len(placed)} hojas en el mosaico')
-    return placed
-
-
-def leaf_grid(length, rows=HERO_LEAF_ROWS):
-    """Una hoja: tres columnas (borde, nervio, borde), con las puntas cerradas, un pliegue y algo de arco."""
-    width = length * 0.2
-    verts = []
-    for i in range(rows):
-        t = i / (rows - 1)
-        half = width * math.sin(math.pi * t) ** 0.72 * (1.0 + 0.22 * (0.5 - t))
-        x = (t - 0.5) * length
-        bow = 0.1 * length * math.sin(math.pi * t)
-        fold = half * 0.34
-        verts += [(x, -half, bow + fold), (x, 0.0, bow), (x, half, bow + fold)]
-    faces = []
-    for i in range(rows - 1):
-        for j in range(2):
-            a = i * 3 + j
-            faces.append((a, a + 1, a + 4, a + 3))
-    return verts, faces
+def leaf_mesh(poly, step=0.05):
+    """Una hoja del logo: su contorno exacto, con el centro un poco más alto (vidrio curvo)."""
+    n = len(poly)
+    lo, hi = poly.min(axis=0), poly.max(axis=0)
+    xs, ys = np.meshgrid(np.arange(lo[0], hi[0], step), np.arange(lo[1], hi[1], step * 0.866))
+    xs[1::2] += step / 2
+    grid = np.stack([xs.ravel(), ys.ravel()], axis=1)
+    d, _ = seg_distance(grid, poly)
+    grid = grid[inside_poly(grid, poly) & (d > step * 0.45)]
+    coords = [Vector(p) for p in np.concatenate([poly, grid])]
+    edges = [(i, (i + 1) % n) for i in range(n)]
+    verts2, _e, faces, *_ = mathutils.geometry.delaunay_2d_cdt(coords, edges, [list(range(n))], 1, 1e-6, True)
+    pts = np.array([v[:2] for v in verts2])
+    d, _ = seg_distance(pts, poly)
+    height = HERO_LEAF_H * (1.0 - np.exp(-d / 0.09))
+    return np.column_stack([pts, height]), [tuple(f) for f in faces]
 
 
 def build_hero_leaves(parts):
-    """Todas las hojas en una malla. La base es el mosaico armado; `scatter` las lleva a donde flotan.
-    _PIVOT: su centro; _AXIS: eje del giro con el que llegan, por el número de vueltas; _LAG: cuándo salen."""
-    rng = np.random.default_rng(41)
-    layout = hero_leaf_layout(parts, rng)
-    verts, faces, pivot, axis, lag, scatter = [], [], [], [], [], []
-    order = sorted(range(len(layout)), key=lambda i: rng.random())
-    for k, i in enumerate(order):
-        p, length, _name, angle = layout[i]
-        gv, gf = leaf_grid(length)
-        c, s = math.cos(angle), math.sin(angle)
-        z = 0.06 + rng.uniform(0.0, 0.06)
+    """Las tres hojas del logo, cada una con el contorno exacto de su trazo. Vienen de fuera girando y se
+    posan una tras otra. _PIVOT: su centro; _AXIS: el giro (vueltas); _LAG: cuándo empieza; _PART: qué
+    trazo del logo es (0, ½ o 1)."""
+    verts, faces, pivot, axis, lag, part, fly = [], [], [], [], [], [], []
+    for k, name in enumerate(HERO_ORDER):
+        poly = parts[name]
+        v, f = leaf_mesh(poly)
+        direction, turn, turns, start = HERO_LEAF_FLY[name]
         base = len(verts)
-        verts += [(p[0] + x * c - y * s, p[1] + x * s + y * c, z + zz) for x, y, zz in gv]
-        faces += [tuple(base + v for v in f) for f in gf]
-        turn = rng.normal(size=3)
-        turn[2] *= 0.5
-        turn = turn / np.linalg.norm(turn) * rng.uniform(0.35, 0.95)
-        # Flotan alrededor de la N, a varias distancias: las de más lejos salen antes para llegar a la vez.
-        ang = rng.uniform(0, 2 * math.pi)
-        reach = rng.uniform(1.25, 3.0)
-        fly = np.array([math.cos(ang) * reach * 0.92, math.sin(ang) * reach, rng.uniform(-1.1, 1.4)])
-        pivot += [(p[0] / 4, p[1] / 4, z / 4)] * len(gv)
-        axis += [tuple(turn)] * len(gv)
-        lag += [float(np.clip(0.62 - (reach - 1.25) / 1.75 * 0.45 + rng.uniform(-0.1, 0.22), 0.0, 1.0))] * len(gv)
-        scatter += [tuple(fly)] * len(gv)
+        verts += [tuple(p) for p in v]
+        faces += [tuple(i + base for i in face) for face in f]
+        count = len(v)
+        centre = poly.mean(axis=0)
+        spin = np.array(turn, dtype=float) / np.linalg.norm(turn) * turns
+        pivot += [(centre[0], centre[1], 0.0)] * count
+        axis += [tuple(spin)] * count
+        lag += [start] * count
+        part += [k / 2] * count
+        fly += [direction] * count
     me = bpy.data.meshes.new('hero_hojas')
     me.from_pydata(verts, [], faces)
     me.update()
     me.polygons.foreach_set('use_smooth', np.ones(len(me.polygons), bool))
     me.update()
-    a = me.attributes.new('_PIVOT', 'FLOAT_VECTOR', 'POINT')
-    a.data.foreach_set('vector', np.array(pivot, np.float32).ravel())
-    a = me.attributes.new('_AXIS', 'FLOAT_VECTOR', 'POINT')
-    a.data.foreach_set('vector', np.array(axis, np.float32).ravel())
-    a = me.attributes.new('_LAG', 'FLOAT', 'POINT')
-    a.data.foreach_set('value', np.array(lag, np.float32))
+    for attr_name, kind, field, data in (('_PIVOT', 'FLOAT_VECTOR', 'vector', pivot), ('_AXIS', 'FLOAT_VECTOR', 'vector', axis), ('_LAG', 'FLOAT', 'value', lag), ('_PART', 'FLOAT', 'value', part)):
+        attr = me.attributes.new(attr_name, kind, 'POINT')
+        attr.data.foreach_set(field, np.asarray(data, np.float32).ravel())
     leaves = link(bpy.data.objects.new('hero_hojas', me))
-    mat = principled('hero_hoja', (0.62, 0.9, 0.76), 0.34, **{'Transmission_Weight': 0.62, 'IOR': 1.35, 'Specular_IOR_Level': 0.5})
-    me.materials.append(mat)
-    add_keys(leaves, {'scatter': co_of(me) + np.array(scatter)})
-    print(f'hero_hojas: {sum(len(p.vertices) - 2 for p in me.polygons)} triángulos, {len(me.vertices)} vértices')
+    me.materials.append(principled('hero_hoja', (0.62, 0.9, 0.76), 0.34, **{'Transmission_Weight': 0.62, 'IOR': 1.35, 'Specular_IOR_Level': 0.5}))
+    add_keys(leaves, {'scatter': co_of(me) + np.array(fly)})
+    print(f'hero_hojas: {len(faces)} triángulos, {len(verts)} vértices')
     return leaves
 
 
@@ -1081,7 +1039,7 @@ def hero_timeline():
     steps = [k / 30 for k in range(0, 40)]
     add_clip(tl, 'hero_birth', {
         'assemble': [(0, 0.0), (1.08, 1.0), (end, 1.0)],
-        'solid': [(0, 0.0), (0.78, 0.0), (0.9, 0.28), (1.06, 0.8), (1.22, 1.0), (end, 1.0)],
+        'solid': [(0, 0.0), (1.02, 0.0), (1.14, 0.35), (1.24, 0.85), (end, 1.0)],
         'puff': [*((t, 0.75 * math.exp(-5.0 * (t - 1.02)) * math.sin(2 * math.pi * 1.5 * (t - 1.02)) if t > 1.02 else 0.0) for t in steps), (end, 0.0)],
     })
     # Respirar mientras la app carga.
