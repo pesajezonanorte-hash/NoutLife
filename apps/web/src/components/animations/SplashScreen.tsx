@@ -1,6 +1,6 @@
 // Splash inicial. Vive fuera de React para que empiece en el primer pintado y no se corte al montar
-// la app: la gota y el nombre en index.html (#lq-boot) y la escultura 3D en src/splash. Este componente
-// monta la app debajo y le avisa al splash de que ya puede salir (viaja al navbar y se retira solo).
+// la app: el nombre en index.html (#lq-boot) y la secuencia 3D en src/splash. Este componente monta la
+// app debajo y le avisa al splash de que ya puede salir (corre hasta el logo y se retira solo).
 import { useEffect, useRef, useState } from 'react';
 import { BrandLockup } from '@/components/layout/Brand';
 

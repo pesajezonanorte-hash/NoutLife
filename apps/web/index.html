@@ -52,10 +52,7 @@
     <link rel="manifest" href="/manifest.json" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap"
-      rel="stylesheet"
-    />
+    <link rel="preload" href="/src/assets/fonts/nout-sans.woff2" as="font" type="font/woff2" crossorigin />
     <title>NoutLife — Tu rutina, tu mente y tus ideas en un solo lugar</title>
     <script type="application/ld+json">
       {
@@ -89,48 +86,45 @@
     <script>
       try { if ((JSON.parse(localStorage.getItem('lq-motion') || 'null') || {}).state.reduce) document.documentElement.classList.add('lq-rm'); } catch (e) {}
     </script>
-    <!-- Splash de arranque. El primer pintado es CSS puro: la gota (.drop), el nombre y el eslogan. Cuando
-         llega, src/splash/hero.ts dibuja en un Worker la escultura 3D encima y la gota se apaga: ella nace de
-         esa misma masa. SplashScreen (React) solo avisa de cuándo salir. -->
+    <!-- Splash de arranque. El primer pintado es CSS puro: el nombre y el eslogan. Cuando llega, src/splash/hero.ts
+         dibuja encima, en un Worker, la secuencia 3D: hojas, N, líquido y logo. Si tarda, o si no hay 3D, se ve la
+         N del logo en CSS (.n). SplashScreen (React) solo avisa de cuándo salir. -->
     <style>
       /* Colores del tema puesto (tokens.css / skins.css, ya cargados en producción); los literales son Aurora. */
       #lq-boot { --bg: var(--lq-background, 249 247 243); --fg: var(--lq-on-background, 14 29 22); --mt: var(--lq-on-surface-light, 79 107 92);
-        --d0: var(--lq-jade-100, 220 243 225); --d1: var(--lq-jade-200, 196 226 202); --d2: var(--lq-jade-300, 165 210 181); --ds: var(--lq-jade-900, 14 29 22);
         --hero: min(58vw, 36vh, 280px);
         position: fixed; inset: 0; z-index: 300; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
-        padding: 0 16px; background: rgb(var(--bg)); color: rgb(var(--fg)); font-family: Montserrat, system-ui, sans-serif; overflow: hidden;
-        /* .999: si fuera opaco, el navegador no pintaría la app de debajo hasta que empiece a verse, justo en pleno vuelo. */
-        opacity: .999; transition: opacity .5s cubic-bezier(.4,0,.2,1) var(--wait, 0s); }
-      html.dark #lq-boot { --bg: var(--lq-background, 7 13 10); --fg: var(--lq-on-background, 230 242 232); --mt: var(--lq-on-surface-light, 143 174 156);
-        --d0: var(--lq-jade-400, 133 199 161); --d1: var(--lq-jade-500, 112 180 141); --d2: var(--lq-jade-600, 84 143 111); --ds: 0 0 0; }
+        padding: 0 16px; background: rgb(var(--bg)); color: rgb(var(--fg)); font-family: 'Nout Sans', system-ui, sans-serif; overflow: hidden;
+        /* .999: si fuera opaco, el navegador no pintaría la app de debajo hasta que empiece a verse, justo en pleno viaje.
+           El fondo se va cuando la N ya se ha fundido: la app aparece bajo la corriente. */
+        opacity: .999; transition: opacity .6s cubic-bezier(.4,0,.2,1) calc(var(--wait, 0s) + .42s); }
+      html.dark #lq-boot { --bg: var(--lq-background, 7 13 10); --fg: var(--lq-on-background, 230 242 232); --mt: var(--lq-on-surface-light, 143 174 156); }
       #lq-boot.out { opacity: 0; pointer-events: none; }
-      /* Sin 3D, la gota viaja dentro del splash: se apaga el fondo, no ella. */
+      /* Sin 3D, la N viaja dentro del splash: se apaga el fondo, no ella. */
       #lq-boot.out.fly { opacity: 1; background-color: transparent; transition: background-color .5s cubic-bezier(.4,0,.2,1); }
       #lq-boot .mk { display: grid; place-items: center; width: var(--hero); height: var(--hero); margin-bottom: 20px; }
-      /* La gota: la misma masa translúcida de la que nace el 3D, del mismo tamaño (hero_mass en calm.py). */
-      #lq-boot .drop { width: 58.6%; aspect-ratio: 1; border-radius: 50%; opacity: .92;
-        background: radial-gradient(circle at 36% 30%, rgb(var(--d0)), rgb(var(--d1)) 52%, rgb(var(--d2)));
-        box-shadow: inset 0 2px 6px rgb(255 255 255 / .55), inset -6px -10px 22px rgb(var(--d2) / .7), 14px 26px 46px -14px rgb(var(--ds) / .22);
-        animation: lqb-drop 1.8s ease-in-out infinite alternate; transition: opacity .2s linear; }
-      html.dark #lq-boot .drop { box-shadow: inset 0 2px 6px rgb(255 255 255 / .22), inset -6px -10px 22px rgb(0 0 0 / .3), 14px 26px 46px -14px rgb(var(--ds) / .6); }
-      #lq-boot.born .drop { opacity: 0; animation-play-state: paused; }
+      /* La N del logo: se ve si el 3D tarda (hero.ts, SKIP_LEAVES_AFTER_MS) y, sin 3D, hace todo el camino. */
+      #lq-boot .n { height: 100%; aspect-ratio: 670 / 786; opacity: 0; animation: lqb-in .5s ease-out 1.6s both; transition: opacity .2s linear; }
+      #lq-boot.flat .n { animation-delay: .08s; }
+      #lq-boot.born .n { animation: none; opacity: 0; }
       #lq-boot .wm { width: min(56vw, 224px); height: auto; overflow: visible; opacity: 0; animation: lqb-in 1.1s cubic-bezier(.33,0,.2,1) .45s both; }
       #lq-boot .tg { font-size: .9375rem; color: rgb(var(--mt)); opacity: 0; animation: lqb-in .9s cubic-bezier(.33,0,.2,1) 1s both; }
       #lq-boot.out .wm, #lq-boot.out .tg { animation: none; opacity: 0; transition: opacity .22s linear var(--wait, 0s); }
       #lq-boot-3d { position: fixed; inset: 0; z-index: 301; width: 100%; height: 100%; pointer-events: none; transition: opacity .16s linear; }
-      /* La página espera a que la escultura se pose: el trazo de los títulos y el ambiente repintan cada fotograma,
-         y el GPU, que es uno solo, daba tirones al vuelo. Al quitarse el splash, todo empieza a la vez. */
+      /* La página espera a que la N se pose: el barrido de los títulos y el ambiente repintan cada fotograma,
+         y el GPU, que es uno solo, daba tirones al viaje. Al quitarse el splash, todo empieza a la vez. */
       html:has(#lq-boot) #root *, html:has(#lq-boot) #root *::before, html:has(#lq-boot) #root *::after { animation-play-state: paused !important; }
-      @keyframes lqb-drop { from { transform: scale(.98); } to { transform: scale(1.02); } }
+      /* El logo de la cabecera no se ve hasta que llega la N: entonces la releva, ya idéntica. */
+      html:has(#lq-boot) [data-brand-mark] { opacity: 0; }
+      html:has(#lq-boot.landed) [data-brand-mark] { opacity: 1; transition: opacity .18s linear; }
       @keyframes lqb-in { from { opacity: 0; } to { opacity: 1; } }
-      /* Reducir movimiento: todo aparece con un fundido corto y la gota no late. */
-      html.lq-rm #lq-boot .drop { animation: none; }
-      html.lq-rm #lq-boot .wm, html.lq-rm #lq-boot .tg { animation-duration: .3s; animation-delay: 0s; }
+      /* Reducir movimiento: todo aparece con un fundido corto. */
+      html.lq-rm #lq-boot .n, html.lq-rm #lq-boot .wm, html.lq-rm #lq-boot .tg { animation-duration: .3s; animation-delay: 0s; }
     </style>
   </head>
   <body>
     <div id="lq-boot" role="status" aria-label="Cargando Noutlife">
-      <div class="mk" aria-hidden="true"><div class="drop"></div></div>
+      <div class="mk" aria-hidden="true"><svg class="n" viewBox="0 0 670 786"><linearGradient id="lqb-c" gradientUnits="userSpaceOnUse" x1="520" y1="210" x2="669" y2="780"><stop offset="0" style="stop-color:var(--lq-brand-c0,#4f9c84)"/><stop offset=".45" style="stop-color:var(--lq-brand-c1,#2a6f60)"/><stop offset="1" style="stop-color:var(--lq-brand-c2,#06302b)"/></linearGradient><linearGradient id="lqb-a" gradientUnits="userSpaceOnUse" x1="60" y1="40" x2="650" y2="770"><stop offset="0" style="stop-color:var(--lq-brand-a0,#5fae97)"/><stop offset=".35" style="stop-color:var(--lq-brand-a1,#2f7565)"/><stop offset=".72" style="stop-color:var(--lq-brand-a2,#0a3a33)"/><stop offset="1" style="stop-color:var(--lq-brand-a3,#05302b)"/></linearGradient><linearGradient id="lqb-b" gradientUnits="userSpaceOnUse" x1="30" y1="290" x2="250" y2="740"><stop offset="0" style="stop-color:var(--lq-brand-b0,#8ec7ad)"/><stop offset="1" style="stop-color:var(--lq-brand-b1,#2c7362)"/></linearGradient><path fill="url(#lqb-c)" d="M474 198C581.2 230.2 670.1 305.6 669.0 500.0L669 760C669 776 666 783 662 785L500 600L474 489Z"/><path fill="url(#lqb-a)" d="M1 0C124.1 148.2 331.6 191.3 474.0 489.0L662 785C314.2 532.2 633.0 710.9 118.0 399.0C-22.3 290.2 2.6 200.5 0.0 150.0L0 4Z"/><path fill="url(#lqb-b)" d="M2 271C93.4 468.0 228.1 416.0 251.0 545.0L251 743C76.1 695.7 -13.2 587.2 0.0 380.0L0 275Z"/></svg></div>
       <svg class="wm" viewBox="-10 -10 486 120" fill="none" stroke="currentColor" stroke-width="15" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 100 L16 52 A22.5 22.5 0 0 1 59 58.5 V100"/><path d="M110 43.5a24.5 24.5 0 1 1 0 49a24.5 24.5 0 1 1 0-49"/><path d="M163.5 36v41.5a22.5 22.5 0 0 0 45 0V36M208.5 36v64"/><path d="M240 12v68a20 20 0 0 0 20 20M240 40h26"/><path d="M290 0v100"/><path d="M322 52v48"/><path d="M356 100V30a22 22 0 0 1 22-22h4M342 46h34"/><path d="M406 78 L449 56 A24.5 24.5 0 1 0 448.3 84.7"/><circle cx="322" cy="22" r="9" fill="currentColor" stroke="none"/></svg>
       <div class="tg" aria-hidden="true">Orden en calma</div>
     </div>

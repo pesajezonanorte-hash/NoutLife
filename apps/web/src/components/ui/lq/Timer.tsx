@@ -19,7 +19,7 @@ export interface TimerProps {
 
 const sizes = { hero: 'text-display-lg', lg: 'text-display-sm', md: 'text-heading-md' } as const;
 
-/** mm:ss (h:mm:ss) en JetBrains Mono. role="timer" sin aria-live: no se anuncia cada segundo. */
+/** mm:ss (h:mm:ss) con cifras tabulares. role="timer" sin aria-live: no se anuncia cada segundo. */
 export function Timer({ seconds, size = 'md', label, className }: TimerProps) {
   return (
     <span role="timer" aria-live="off" aria-label={`${label}: ${formatClock(seconds)}`} className={cn('font-mono font-bold tabular-nums', sizes[size], className)}>

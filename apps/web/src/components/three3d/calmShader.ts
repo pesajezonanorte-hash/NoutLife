@@ -4,6 +4,36 @@
 /** Dirección de reposo de la luz principal, sin normalizar: arriba a la izquierda, hacia quien mira. */
 export const KEY_DIR = [-0.42, 0.74, 0.52] as const;
 
+/** Solo la luz del estudio: la dirección de la principal y cómo reacciona la arcilla. */
+export const lightChunk = /* glsl */ `
+  uniform vec3 uKey;
+  uniform float uDark;
+
+  float softbox(vec3 r, vec3 dir, float inner, float outer) {
+    return smoothstep(outer, inner, 1.0 - dot(r, dir));
+  }
+
+  // Reflejo del estudio: la luz principal y otra de relleno, grandes y de borde difuso.
+  float studioGloss(vec3 r) {
+    return softbox(r, uKey, 0.05, 0.42) + 0.32 * softbox(r, normalize(vec3(0.82, 0.3, 0.5)), 0.03, 0.3);
+  }
+
+  // Arcilla o silicona mate: luz que envuelve, subsuperficie en el paso a la sombra y brillo abierto.
+  vec3 clayLight(vec3 albedo, vec3 n, vec3 v, float gloss) {
+    float ndl = dot(n, uKey);
+    float wrap = clamp((ndl + 0.62) / 1.62, 0.0, 1.0);
+    float hemi = 0.5 + 0.5 * n.y;
+    vec3 col = albedo * (mix(0.52, 0.72, hemi) + wrap * wrap * 0.46);
+    float scatter = smoothstep(-0.75, -0.1, ndl) * (1.0 - smoothstep(-0.1, 0.5, ndl));
+    col += albedo * albedo * scatter * 0.2;
+    vec3 r = reflect(-v, n);
+    float fres = pow(1.0 - max(dot(n, v), 0.0), 4.0);
+    col += vec3(1.0) * studioGloss(r) * (0.035 + 0.42 * fres) * gloss;
+    col += mix(vec3(1.0), albedo, 0.4) * fres * (0.06 + 0.1 * uDark);
+    return col;
+  }
+`;
+
 /** Fragmento común: varyings, mapa de normales por derivadas (vale con la malla deformada) y estudio. */
 export const studioChunk = /* glsl */ `
   varying vec3 vN;
@@ -13,8 +43,6 @@ export const studioChunk = /* glsl */ `
   varying vec3 vRay;
   varying vec2 vUv;
   varying float vPart;
-  uniform vec3 uKey;
-  uniform float uDark;
   uniform float uHasMap;
   uniform float uMapStrength;
   uniform vec2 uMapRepeat;
@@ -41,28 +69,4 @@ export const studioChunk = /* glsl */ `
     // En triángulos menores que un píxel (el centro de un abanico) las derivadas no sirven.
     return dot(mapped, n) < 0.55 ? n : mapped;
   }
-
-  float softbox(vec3 r, vec3 dir, float inner, float outer) {
-    return smoothstep(outer, inner, 1.0 - dot(r, dir));
-  }
-
-  // Reflejo del estudio: la luz principal y otra de relleno, grandes y de borde difuso.
-  float studioGloss(vec3 r) {
-    return softbox(r, uKey, 0.05, 0.42) + 0.32 * softbox(r, normalize(vec3(0.82, 0.3, 0.5)), 0.03, 0.3);
-  }
-
-  // Arcilla o silicona mate: luz que envuelve, subsuperficie en el paso a la sombra y brillo abierto.
-  vec3 clayLight(vec3 albedo, vec3 n, vec3 v, float gloss) {
-    float ndl = dot(n, uKey);
-    float wrap = clamp((ndl + 0.62) / 1.62, 0.0, 1.0);
-    float hemi = 0.5 + 0.5 * n.y;
-    vec3 col = albedo * (mix(0.52, 0.72, hemi) + wrap * wrap * 0.46);
-    float scatter = smoothstep(-0.75, -0.1, ndl) * (1.0 - smoothstep(-0.1, 0.5, ndl));
-    col += albedo * albedo * scatter * 0.2;
-    vec3 r = reflect(-v, n);
-    float fres = pow(1.0 - max(dot(n, v), 0.0), 4.0);
-    col += vec3(1.0) * studioGloss(r) * (0.035 + 0.42 * fres) * gloss;
-    col += mix(vec3(1.0), albedo, 0.4) * fres * (0.06 + 0.1 * uDark);
-    return col;
-  }
-`;
+${lightChunk}`;

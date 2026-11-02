@@ -106,8 +106,8 @@ html.dark {
 
 @layer base {
   :focus-visible { outline: 3px solid rgb(var(--lq-primary)); outline-offset: 2px; }
-  /* Números que cuentan: JetBrains Mono con cifras tabulares (README §Tipografía). */
-  .font-mono { font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+  /* Números que cuentan: la misma letra, con cifras tabulares (design/type/README.md). */
+  .font-mono { font-variant-numeric: tabular-nums; }
   /* El cuerpo es 15 px: en táctil los campos suben a 16 px para que iOS no haga zoom. */
   @media (pointer: coarse) {
     input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea { font-size: max(1rem, 1em); }

@@ -6,7 +6,6 @@ import { offerFor } from '../../src/lib/offer';
 import { cardTrialCopy, foundingPriceLine, habitsLine, trialDoneLine, trialNoticeTitle } from '../../src/lib/planPreview';
 import { apiErrorMessage, localizeBillingMessage } from '../../src/lib/billing-messages';
 import { LANDING } from '../../src/pages/Login/copy';
-import { canLetter } from '../../src/components/layout/Lettering';
 
 test('the browser language picks Spanish or English; anything else falls back to English', () => {
   assert.equal(detectLocale(['es-CO', 'en']), 'es');
@@ -135,9 +134,7 @@ test('every Pro zone has an English name and pitch (the glossary for the app tra
   }
 });
 
-test('the landing headline can be drawn with the brand lettering in both languages, and the copy leads with the product', () => {
-  assert.ok(canLetter(LANDING.en.headline));
-  assert.ok(canLetter(LANDING.es.headline));
+test('the landing copy leads with the product', () => {
   const en = [LANDING.en.headline, LANDING.en.subhead, LANDING.en.pillarsTitle, LANDING.en.meta.title, LANDING.en.meta.description, ...LANDING.en.pillars.map((p) => p.line + p.body)].join(' ');
   assert.doesNotMatch(en, /game|gamif|\bXP\b|level|hero|quest|guild|season/i);
   assert.ok(LANDING.en.meta.title.length <= 60, 'title fits a search result');

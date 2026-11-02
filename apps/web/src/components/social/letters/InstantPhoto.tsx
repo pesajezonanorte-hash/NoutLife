@@ -5,7 +5,7 @@
 // se escribe en el borde inferior con la letra de la marca si es corta.
 import { forwardRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
-import { Lettering, canLetter } from '@/components/layout/Lettering';
+import { Lettering } from '@/components/layout/Lettering';
 
 export interface InstantPhotoProps {
   /** La foto (null mientras llega). */
@@ -32,7 +32,7 @@ export const InstantPhoto = forwardRef<HTMLElement, InstantPhotoProps>(function 
 ) {
   const [loaded, setLoaded] = useState(false);
   const text = caption?.trim();
-  const lettered = text && text.length <= 28 && canLetter(text);
+  const lettered = text && text.length <= 28;
   return (
     <figure ref={ref} className={cn('lq-print relative rounded-[3px] p-[6%] pb-[19%]', className)} style={{ rotate: `${tilt}deg`, ...style }}>
       {tape && <span aria-hidden="true" className="lq-photo-tape absolute -top-2.5 left-1/2 h-5 w-[34%] -translate-x-1/2 -rotate-3 rounded-[2px]" />}

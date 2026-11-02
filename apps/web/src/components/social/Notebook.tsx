@@ -23,7 +23,7 @@ import { nameClass } from '@/lib/nameColors';
 import { GuildCrest } from '@/components/guild/GuildCrest';
 import { emblemOf } from '@/components/guild/emblems';
 import { AvatarDisplay } from '@/components/character/AvatarDisplay';
-import { Lettering, canLetter } from '@/components/layout/Lettering';
+import { Lettering } from '@/components/layout/Lettering';
 import { Button, Skeleton } from '@/components/ui/lq';
 import { Pigeon, sendPigeon } from './CarrierPigeon';
 import { StreakFlame } from './SocialBits';
@@ -156,9 +156,9 @@ const strip = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerC
 const initialOf = (name: string) => { const c = strip(name.trim())[0]?.toUpperCase() ?? '#'; return /[A-Z]/.test(c) ? c : '#'; };
 const ALPHABET = [...'ABCDEFGHIJKLMNOPQRSTUVWXYZ', '#'];
 
-/** Nombre escrito a mano (si el alfabeto de la marca lo admite). */
+/** Nombre con la voz de la marca. */
 function Handwritten({ text, draw = true, delay = 0, className }: { text: string; draw?: boolean; delay?: number; className?: string }) {
-  return canLetter(text) ? <Lettering text={text} draw={draw} delay={delay} className={cn('[word-spacing:0.28em]', className)} /> : <span className={cn('font-medium', className)}>{text}</span>;
+  return <Lettering text={text} draw={draw} delay={delay} className={cn('font-medium', className)} />;
 }
 
 /** La espiral del lomo: perforaciones con su anilla. */
@@ -196,7 +196,7 @@ function Entry({ f, active, index, onOpen }: { f: FriendItem; active: boolean; i
         </span>
         <span className="min-w-0 flex-1">
           {/* El nombre escrito a mano puede ocupar dos renglones; nunca se corta a media palabra. */}
-          <span className={cn('block text-[1.0625rem] leading-tight md:text-heading-sm md:leading-tight', nameClass(f.friend.nameColor) || (f.unread > 0 ? 'text-primary-text' : 'text-on-background'), !canLetter(f.friend.displayName) && 'truncate')}>
+          <span className={cn('block text-[1.0625rem] leading-tight md:text-heading-sm md:leading-tight', nameClass(f.friend.nameColor) || (f.unread > 0 ? 'text-primary-text' : 'text-on-background'))}>
             <Handwritten text={f.friend.displayName} delay={0.15 + Math.min(index, 10) * 0.06} />
           </span>
           <span className={cn('mt-0.5 block truncate text-body-sm', f.friend.online ? 'text-success-text' : 'text-on-surface-light')}>{line}</span>
@@ -381,7 +381,7 @@ function GuildEntry({ g, index, onOpen }: { g: GuildSummary; index: number; onOp
           <GuildCrest photoUrl={g.photoUrl} emblem={em.icon} tone={em.tone} name={g.name} halo={false} className="size-10 rounded-[1px] [&>svg]:size-5" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className={cn('block text-[1.0625rem] leading-tight md:text-heading-sm md:leading-tight', g.unread > 0 ? 'text-primary-text' : 'text-on-background', !canLetter(g.name) && 'truncate')}>
+          <span className={cn('block text-[1.0625rem] leading-tight md:text-heading-sm md:leading-tight', g.unread > 0 ? 'text-primary-text' : 'text-on-background')}>
             <Handwritten text={g.name} delay={0.15 + Math.min(index, 6) * 0.06} />
           </span>
           <span className="mt-0.5 block truncate text-body-sm text-on-surface-light">

@@ -17,7 +17,7 @@ import { springs } from '@/lib/motion/presets';
 import { getLevelTitle } from '@/lib/gameProgress';
 import { useToastStore } from '@/hooks/useToast';
 import { AmbientLight, ZoneShell } from '@/components/ambience';
-import { Lettering, canLetter } from '@/components/layout/Lettering';
+import { Lettering } from '@/components/layout/Lettering';
 import { E } from '@/components/ui/glyphs';
 import { IdCard, documentNumber } from '@/components/profile/IdCard';
 import { PixelAvatar } from '@/components/character/pixel/PixelAvatar';
@@ -389,7 +389,7 @@ export default function UserProfilePage() {
           {user.bio && (
             <figure className="max-w-[46ch]">
               <blockquote className="border-b border-dashed border-border-strong/60 pb-2 text-body-lg text-on-background">
-                {user.bio.length <= 60 && canLetter(user.bio) ? <Lettering text={user.bio} delay={0.6} /> : user.bio}
+                {user.bio.length <= 60 ? <Lettering text={user.bio} delay={0.6} /> : user.bio}
               </blockquote>
               <figcaption className="mt-1 text-label-md text-on-surface-light">{t.bioCaption}</figcaption>
             </figure>

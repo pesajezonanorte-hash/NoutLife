@@ -32,6 +32,8 @@ export function TabBar({ className }: { className?: string }) {
         className,
       )}
     >
+      {/* Antes que los enlaces: la pastilla queda debajo del ícono (nav3d/NavPebble). */}
+      <NavPebble root={ref} active={pathname} axis="x" enabled={mobile} />
       {primary.map(({ to, label, icon: Icon, locked }) => {
         const active = matchesRoute(pathname, to);
         return (
@@ -41,8 +43,8 @@ export function TabBar({ className }: { className?: string }) {
             end={to === '/'}
             aria-current={active ? 'page' : undefined}
             className={cn(
-              'group/tab relative flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-xl text-label-md transition-colors',
-              active ? 'text-primary-text' : 'text-on-surface-light hover:text-on-surface',
+              'group/tab relative flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-xl text-caption transition-colors',
+              active ? 'font-medium text-primary-text' : 'text-on-surface-light hover:text-on-surface',
             )}
           >
             <span data-nav-slot className="relative flex h-8 w-14 items-center justify-center">
@@ -53,8 +55,6 @@ export function TabBar({ className }: { className?: string }) {
           </NavLink>
         );
       })}
-      {/* Encima de los íconos: el canto rodado lleva el ícono activo con volumen (nav3d/NavPebble). */}
-      <NavPebble root={ref} active={pathname} axis="x" enabled={mobile} />
     </motion.nav>
   );
 }

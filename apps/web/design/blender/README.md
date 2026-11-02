@@ -1,12 +1,12 @@
 # Materia calma: fuentes 3D
 
-El volumen de la interfaz de NoutLife: almohadilla de los hábitos, aro de enfoque, canto rodado del navbar, losa de las tarjetas y la escultura del splash. Todo sale de un script, así que nada se edita a mano en el `.glb`: se cambia [`scripts/blender/calm.py`](../../scripts/blender/calm.py) y se regenera.
+El volumen de la interfaz de NoutLife: almohadilla de los hábitos, aro de enfoque, losa de las tarjetas y la secuencia del splash. Todo sale de un script, así que nada se edita a mano en el `.glb`: se cambia [`scripts/blender/calm.py`](../../scripts/blender/calm.py) y se regenera.
 
 ```bash
 # desde apps/web; necesita Blender 4.5 (la variable BLENDER cambia la ruta)
-node scripts/build-calm.mjs                 # los cinco juegos
+node scripts/build-calm.mjs                 # los cuatro juegos
 node scripts/build-calm.mjs pad focus       # solo algunos
-node scripts/build-calm.mjs nav --render /tmp/qa --samples 32   # con láminas de control en Cycles
+node scripts/build-calm.mjs hero --render /tmp/qa --samples 32   # con láminas de control
 npm test                                    # tests/unit/calm3d.unit.ts revisa cada .glb
 ```
 
@@ -16,24 +16,29 @@ npm test                                    # tests/unit/calm3d.unit.ts revisa c
 |---|---|---|---|---|
 | Almohadilla | `src/assets/models/calm-pad.glb` (26 KB) | `press`, `release`, `fill` | `pad_press`, `pad_release`, `pad_fill` | 256², labio de la corona |
 | Aro de enfoque | `src/assets/models/calm-focus.glb` (63 KB) | `inhale`, `exhale`, `flow_a`, `flow_b` | `focus_breath` (11 s), `focus_flow` (26 s) | 128², grano esmerilado que se repite |
-| Canto rodado | `src/assets/models/calm-nav.glb` (22 KB) | `stretch_x`, `stretch_y`, `squash` | `nav_travel` | 128², labio del borde |
 | Losa | `design/blender/calm-card.glb` (10 KB) | `lift`, `press` | `card_lift`, `card_settle` | no |
-| Escultura del splash | `src/assets/models/calm-hero.glb` (87 KB) | `ridge_a`, `ridge_b`, `breath`, `mass`, `pebble` | `hero_birth`, `hero_breath` (4 s), `hero_roll` (9 s), `hero_outro` | 128², ondulación de la mano |
+| Secuencia del splash | `src/assets/models/calm-hero.glb` (91 KB) y `design/blender/calm-hero-secuencia.glb` (95 KB) | `scatter` (hojas), `puff`, `drop` (N) | `hero_birth` (1,3 s), `hero_breath` (4 s), `hero_outro` (1,5 s); en el archivo de diseño, además, `hero_sequence` (3,25 s) | no |
 
-Cada `.blend` trae la malla baja, la malla alta con la que se horneó el mapa (oculta), los materiales, las acciones en pistas NLA y el mundo «estudio suave». El de la escultura cambia el estudio por tres luces con nombre (`Key`, `Fill`, `Rim`) sobre el color de fondo de la app (#f9f7f3) y añade su núcleo de arcilla (`hero_nucleo`), que sigue al vidrio con drivers.
+Cada `.blend` trae la malla baja, la malla alta con la que se horneó el mapa (oculta), los materiales, las acciones en pistas NLA y el mundo «estudio suave». El de la secuencia cambia el estudio por tres luces con nombre (`Key`, `Fill`, `Rim`) sobre el color de fondo de la app (#f9f7f3) y añade el líquido en metabolas (`hero_liquido`), que solo existe en el `.blend`.
 
-## La escultura del splash
+## La secuencia del splash
 
-Una cinta gruesa de Möbius con tres medias vueltas: una sección de dos crestas que, al cerrar el aro, empalma cada lado con el otro. Se ven tres tramos y un agujero de tres lados (rutina, mente e ideas), pero es una sola cara y un solo canto. Por eso la malla base es el toro liso y las crestas son dos shape keys en cuadratura: con `ridge_a = cos φ` y `ridge_b = sin φ`, la cresta rueda por la superficie sin que el objeto se mueva. Las filas de la malla van a lo largo de la cresta; con 64 × 24 caras la silueta sale limpia a cualquier fase.
+Hojas → N → líquido → logo. Abre `calm-hero.blend` y dale a reproducir: la pista `hero_sequence` cuenta la historia entera. `calm-hero-secuencia.glb` lleva lo mismo para cualquier visor de glTF, salvo las metabolas (el glTF no las admite): allí la gota viaja entera hasta el rincón.
+
+| Pieza | Qué es |
+|---|---|
+| `hero_n` | La N del logo, con el contorno exacto de sus trazados (`components/layout/Brand.tsx`). Tres almohadas, una por hoja del logo, cada una con su pared. Una primitiva por hoja, en el orden en que el SVG las pinta (c, a, b). `puff` la hincha; `drop` la recoge en una gota. |
+| `hero_hojas` | 96 hojas en una sola malla. La base es el mosaico armado: las grandes por dentro, las pequeñas contra el borde, cada una a lo largo de su parte. `scatter` las lleva a donde flotan. |
+| `hero_tiempo` | Una malla vacía que solo lleva curvas: `assemble`, `solid`, `puff`, `drop`, `liquid`, `pool`, `flow`, `reform` y `flat`. La web las lee del `.glb`, así los tiempos se ajustan en Blender. |
+| `hero_liquido` | Solo en el `.blend`: las metabolas de la corriente. La web la dibuja con su propio campo de gotas. |
 
 | Clip | Dura | Qué hace |
 |---|---|---|
-| `hero_birth` | 1,3 s | De la gota (`mass`) a la forma de reposo con un rebote blando; la cresta sube después, con su propio muelle |
-| `hero_breath` | 4 s, en bucle | Se expande un 3 % y vuelve, despacio |
-| `hero_roll` | 9 s, en bucle | Una vuelta de fase de la cresta |
-| `hero_outro` | 0,95 s | Toma aire, suelta las crestas y se cierra en el canto rodado del navbar (`pebble`, el mismo contorno y perfil de `calm-nav`) |
+| `hero_birth` | 1,3 s | Las hojas se precipitan hacia su sitio y la N se solidifica desde dentro, con un rebote blando |
+| `hero_breath` | 4 s, en bucle | La N respira mientras la app carga |
+| `hero_outro` | 1,5 s | Toma aire, se funde en una gota, la corriente sale hacia el logo y allí vuelve a ser la N, ya plana como el SVG |
 
-En reposo el `.glb` trae `ridge_a = 1`. Fuera de la web, el núcleo no viaja en el archivo: es la misma malla sin toda la cresta y metida un 10 % hacia dentro (`HERO_CORE`).
+Atributos propios, que el exportador deja en los ejes de Blender (x, y, z), sin pasarlos a glTF: `_OUT` (hacia dónde abre la web la pared, para tener una altura con signo alrededor del borde), `_LAG` (cuándo se funde cada punto o sale cada hoja), `_SHADE` (la sombra que deja la hoja de encima), `_PIVOT` (centro de cada hoja, dividido entre 4) y `_AXIS` (giro con el que llega).
 
 ## Materiales
 
@@ -51,11 +56,11 @@ Los colores no salen del `.glb`: cada escena pinta con los tokens del tema (`--l
 |---|---|---|
 | Hábitos y rutinas | `ui/lq/SoftPad`, `CheckButton` | Un solo contexto WebGL (`three3d/softPadEngine`): en reposo es una imagen del modelo por tema; solo la que se toca se dibuja en vivo |
 | Enfoque y Pomodoro | `focus/FocusRing` | Escena propia (`FocusRingScene`); el tiempo sigue en el DOM |
-| Navbar | `layout/nav3d/NavPebble` | El viaje en X/Y va por CSS `transform` (compositor); la escena dibuja la forma y el ícono solo mientras algo cambia |
+| Navbar | `layout/nav3d/NavPebble` | La pastilla es CSS (`.lq-nav-clay`) y viaja con `transform` en el compositor; la escena dibuja solo el ícono con volumen, mientras algo cambia |
 | Tarjetas | `.lq-card`, `.lq-lift`, `lib/motion/tilt` | DOM: bisel horneado de la losa (`src/assets/textures/card-bevel.webp`) e inclinación con muelle |
-| Splash | `src/splash` (`boot`, `hero`, `hero.worker`) | WebGL 2 a pelo en un Worker con OffscreenCanvas: no se traba mientras React monta la app y no descarga three.js. El núcleo se dibuja aparte en un lienzo de 256² y el vidrio lo mira desenfocado desde sus mipmaps. El primer pintado es una gota en CSS (`index.html`); sin WebGL de verdad, con «Ahorro de datos», con 2G o con «Reducir movimiento», se queda ella |
+| Splash | `src/splash` (`boot`, `hero`, `hero.worker`) | WebGL 2 a pelo en un Worker con OffscreenCanvas: no se traba mientras React monta la app y no descarga three.js. La N se dibuja a una textura (altura con signo, normal, color) y las gotas a otra (valor y pendiente); el paso final las suma, y donde el total pasa de 1 hay materia: por eso se funden entre sí. Las hojas son geometría encima. Sin WebGL de verdad, con «Ahorro de datos», con 2G o con «Reducir movimiento», la N del logo en CSS (`index.html`) hace el camino sola |
 
-Los íconos con volumen del navbar no son modelos: se generan al vuelo desde el mismo `<svg>` de lucide (`nav3d/iconTube.ts`), así funcionan con cualquier zona, también las que crea cada persona.
+El ícono con volumen del navbar no es un modelo: se genera al vuelo desde el mismo `<svg>` de lucide (`nav3d/iconTube.ts`), así funciona con cualquier zona, también las que crea cada persona.
 
 ## Otros clientes (React Three Fiber, móvil)
 

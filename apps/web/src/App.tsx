@@ -164,8 +164,10 @@ const STALL_COPY: Copy<{ stalled: string; retry: string; restart: string }> = {
     restart: 'Restart session',
   },
 };
-/** Desde que se abre la página hasta montar la app debajo: el nacimiento (1,3 s) y un respiro. El vuelo sale 450 ms después (splash/timing). */
-const SPLASH_MIN_MS = 2000;
+/** Desde que se abre la página hasta montar la app debajo; las hojas siguen armando la N mientras tanto. Se funde 450 ms después de armarse (splash/timing). */
+const SPLASH_MIN_MS = 1200;
+/** Al recargar en la misma pestaña no se repiten las hojas: la N se funde enseguida. */
+const SPLASH_AGAIN_MS = 500;
 /** Tras este tiempo en el cargador (con el splash ya retirado), se ofrecen los botones; el cierre automático llega antes de AUTH_TIMEOUT_MS. */
 const STALL_AFTER_MS = 3000;
 
@@ -546,9 +548,9 @@ export default function App() {
   }, [initAudio]);
 
   useEffect(() => {
-    // El nacimiento de la escultura y un respiro; el tiempo cuenta desde que se abrió la página,
+    // Las hojas siguen armando la N mientras la app se monta; el tiempo cuenta desde que se abrió la página,
     // así un teléfono lento no espera dos veces. Con «Reducir movimiento» no hay nada que ver.
-    const min = document.documentElement.classList.contains('lq-rm') ? 500 : SPLASH_MIN_MS;
+    const min = document.documentElement.classList.contains('lq-rm') ? 500 : window.lqSplash?.seen ? SPLASH_AGAIN_MS : SPLASH_MIN_MS;
     const minDelay = window.setTimeout(() => setMinimumSplashElapsed(true), Math.max(0, min - performance.now()));
     return () => window.clearTimeout(minDelay);
   }, []);

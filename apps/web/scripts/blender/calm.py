@@ -2,9 +2,8 @@
 #
 #   pad    Almohadilla de silicona de los hábitos (shape keys press, release, fill).
 #   focus  Aro de vidrio esmerilado del enfoque (shape keys inhale, exhale, flow_a, flow_b).
-#   nav    Canto rodado del navbar (shape keys stretch_x, stretch_y, squash).
 #   card   Losa de las tarjetas (shape key lift) y su bisel horneado para CSS (9 cortes).
-#   hero   Escultura del splash (shape keys ridge_a, ridge_b, breath, mass, pebble).
+#   hero   Secuencia del splash: hojas → N → líquido → logo (shape keys scatter, puff, drop; los tiempos, en hero_tiempo).
 #
 # Cada juego sale como .blend (malla baja, malla alta de horneado, materiales procedurales,
 # acciones en pistas NLA y mundo de estudio suave) y como .glb PBR estándar: los materiales son
@@ -19,10 +18,12 @@
 #        --dir out/ [--blend carpeta/] [--render carpeta/] [--samples 64]
 import math
 import os
+import re
 import sys
 
 import bmesh
 import bpy
+import mathutils
 import numpy as np
 from mathutils import Vector
 
@@ -616,11 +617,13 @@ def build_focus():
     return [ring]
 
 
-# ───────── nav: canto rodado del navbar ─────────
+# ───────── card: la losa de las tarjetas y su bisel para CSS ─────────
 
-PEBBLE_X = 0.875
-PEBBLE_Y = 0.5
-PEBBLE_H = 0.2
+CARD_X = 1.5
+CARD_Y = 1.0
+CARD_R = 0.15  # 16 px en una tarjeta de 320 × 213
+CARD_T = 0.05
+CARD_ROLL = 0.05  # ancho del canto redondeado (5 px)
 
 
 def rounded_rect(hx, hy, r):
@@ -635,60 +638,6 @@ def rounded_rect(hx, hy, r):
             lo, hi = (m, hi) if d < 0 else (lo, m)
         return lo * c, lo * s
     return fn
-
-
-def build_nav():
-    reset('nav')
-    outline = resample_outline(rounded_rect(PEBBLE_X, PEBBLE_Y, 0.44), 72)
-    me, _ = pillow('pebble', outline, 9, PEBBLE_H, crown=3.4, wall=2.5)
-    pebble = link(bpy.data.objects.new('pebble', me))
-    mat = clay('nav_arcilla', (0.72, 0.86, 0.78), rough=0.42)
-    mat['takes_normal_map'] = True
-    me.materials.append(mat)
-    uv_of = lambda c: (c[:, 0] / (2 * PEBBLE_X) + 0.5, c[:, 1] / (2 * PEBBLE_X) + 0.5)
-    set_uv(me, uv_of)
-
-    hi_me, hi_s = pillow('pebble_alta', resample_outline(rounded_rect(PEBBLE_X, PEBBLE_Y, 0.44), 576), 90, PEBBLE_H, crown=3.4, wall=2.5)
-    hi_co = co_of(hi_me)
-    hi_co[:, 2] += np.exp(-((hi_s - 0.84) ** 2) / (2 * 0.016 ** 2)) * 0.0035
-    hi_me.vertices.foreach_set('co', hi_co.astype(np.float32).ravel())
-    hi_me.update()
-    high = link(bpy.data.objects.new('pebble_alta', hi_me))
-    bake_normals(pebble, high, 128, 'nav_normal', 0.012, 0.03)
-    high.hide_set(True)
-    high.hide_render = True
-
-    co = co_of(me)
-    def scaled(sx, sy, sz):
-        out = co.copy()
-        t = np.clip(co[:, 2] / PEBBLE_H, 0.0, 1.0)
-        belly = np.sin(np.pi * t) ** 0.8
-        out[:, 0] *= 1 + (sx - 1) * (0.6 + 0.4 * belly)
-        out[:, 1] *= 1 + (sy - 1) * (0.6 + 0.4 * belly)
-        out[:, 2] *= sz
-        return out
-    add_keys(pebble, {
-        'stretch_x': scaled(1.2, 0.93, 0.9),
-        'stretch_y': scaled(0.93, 1.22, 0.9),
-        'squash': scaled(1.05, 1.07, 0.7),
-    })
-    travel = [(0, 0.0), (0.09, 0.55), (0.2, 1.0), (0.34, 0.2), (0.42, 0.0), (0.62, 0.0)]
-    add_clip(pebble, 'nav_travel', {
-        'stretch_x': travel,
-        'stretch_y': travel,
-        'squash': [(0, 0.0), (0.06, 0.32), (0.16, 0.0), (0.36, 0.0), (0.44, 0.62), (0.54, 0.0), (0.62, 0.0)],
-    })
-    print(f'nav: {sum(len(p.vertices) - 2 for p in me.polygons)} triángulos, {len(me.vertices)} vértices')
-    return [pebble]
-
-
-# ───────── card: la losa de las tarjetas y su bisel para CSS ─────────
-
-CARD_X = 1.5
-CARD_Y = 1.0
-CARD_R = 0.15  # 16 px en una tarjeta de 320 × 213
-CARD_T = 0.05
-CARD_ROLL = 0.05  # ancho del canto redondeado (5 px)
 
 
 def slab(name, hx, hy, r, thick, roll, segs, rings):
@@ -811,139 +760,349 @@ def build_card():
     return [card]
 
 
-# ───────── hero: la escultura del splash ─────────
+# ───────── hero: la secuencia del splash ─────────
 #
-# Una cinta gruesa de Möbius con tres medias vueltas: sección de dos crestas (una lente de bordes
-# suaves) que al cerrar el aro empalma cada lado con el otro. Quedan tres tramos a la vista y un
-# agujero de tres lados (rutina, mente e ideas), pero es una sola cara y un solo canto, sin costura.
-# La malla base es el toro liso; las crestas son una ola en cuadratura (ridge_a, ridge_b), así que
-# girar la fase hace rodar la superficie sin mover el objeto.
+# Hojas → N → líquido → logo. Coordenadas de la N: x a la derecha, y arriba, z hacia quien mira; la N
+# mide 2 unidades de alto, centrada, y su contorno sale exacto de los trazados del logo
+# (components/layout/Brand.tsx). Cada parte es una almohada con su pared: el trazo del logo es la línea
+# donde la altura vale 0, y esa pared la abre la web hacia fuera (atributo _OUT) para tener una altura
+# con signo alrededor del borde, con la que el líquido se funde con la N. Fuera de la web se ve como
+# el canto de la pieza. Tres mallas en una: c, a y b, en el orden en que el logo las pinta.
 
-HERO_R = 1.0
-HERO_TUBE = 0.39
-HERO_RIDGE = 0.46  # alto de la cresta, en fracción del tubo
-HERO_LOBES = 2
-HERO_TWIST = 3
-HERO_U = 64
-HERO_V = 24
-HERO_UV_MARGIN = 1.08  # las caras que cruzan la costura del tubo necesitan pasarse un poco de 1
-HERO_THROAT = 0.74 * np.pi  # hasta dónde del tubo (desde afuera) cubre la gota; el resto, por dentro
-HERO_MASS = 0.92  # radio de la gota de la que nace
-HERO_CORE = 0.9  # el núcleo de arcilla, en fracción del tubo
-HERO_CORE_RIDGE = 0.444  # su cresta es más baja: el canto de la cinta queda lleno de vidrio
-HERO_BREATH = 4.0  # segundos: lo que se alcanza a ver mientras carga la app
-HERO_ROLL = 9.0
-
-
-def hero_grid(segs_u=HERO_U, segs_v=HERO_V, follow=True):
-    """u da la vuelta al aro; v, al tubo (0 afuera, ±π en el ecuador de adentro). Con `follow`, las
-    filas de la malla van a lo largo de la cresta, a cualquier fase de la ola: con pocas caras la
-    silueta sale limpia. Cerrar el aro corre media vuelta las filas (HERO_V tiene que ser par)."""
-    u = 2 * np.pi * np.arange(segs_u)[:, None] / segs_u
-    v = -np.pi + (np.arange(segs_v)[None, :] + 0.5) * 2 * np.pi / segs_v
-    if follow:
-        v = (v - (HERO_TWIST / HERO_LOBES) * u + np.pi) % (2 * np.pi) - np.pi
-    return u, v
+HERO_LOGO = {
+    'c': 'M474 198C581.2 230.2 670.1 305.6 669.0 500.0L669 760C669 776 666 783 662 785L500 600L474 489Z',
+    'a': 'M1 0C124.1 148.2 331.6 191.3 474.0 489.0L662 785C314.2 532.2 633.0 710.9 118.0 399.0C-22.3 290.2 2.6 200.5 0.0 150.0L0 4Z',
+    'b': 'M2 271C93.4 468.0 228.1 416.0 251.0 545.0L251 743C76.1 695.7 -13.2 587.2 0.0 380.0L0 275Z',
+}
+HERO_ORDER = ('c', 'a', 'b')
+HERO_STEP = 0.042  # separación de los puntos del contorno, en unidades de la N
+HERO_H = 0.15  # alto de la almohada
+HERO_D = 0.17  # distancia al borde a la que deja de subir
+HERO_BAND = (0.012, 0.03, 0.058, 0.1)  # anillos hacia dentro, donde más se curva
+HERO_WALL = 0.28  # la pared baja esto; la web la abre hacia fuera
+HERO_DROP_R = 0.6  # la gota en la que se recoge
+HERO_DROP_H = 0.42
+HERO_LEAVES = 118
+HERO_LEAF_ROWS = 5
+HERO_BIRTH = 1.3
+HERO_OUTRO = 1.5
+HERO_BREATH = 4.0
+HERO_END = (-2.05, 1.5)  # dónde se posa, en el encuadre del .blend: la esquina del logo
 
 
-def hero_points(c=0.0, s=0.0, ring=1.0, tube=1.0, ridge=HERO_RIDGE, segs_u=HERO_U, segs_v=HERO_V, bump=None, follow=True):
-    u, v = hero_grid(segs_u, segs_v, follow)
-    th = HERO_LOBES * v + HERO_TWIST * u
-    rad = HERO_TUBE * tube * (1 + ridge * (c * np.cos(th) + s * np.sin(th)))
-    if bump is not None:
-        rad = rad + bump
-    rho = HERO_R * ring + rad * np.cos(v)
-    return np.stack([rho * np.cos(u), rho * np.sin(u), rad * np.sin(v)], axis=-1).reshape(-1, 3)
+def svg_to_n(p):
+    return np.array([(p[0] - 335.0) / 393.0, (393.0 - p[1]) / 393.0])
 
 
-def hero_fold(v):
-    """Para cerrar el agujero sin dientes: de afuera hasta HERO_THROAT, la vuelta del tubo se estira
-    a media esfera por lado (elevación de −90° a 90°); lo de adentro se dobla sobre el eje, hasta el
-    centro, donde se juntan los dos lados. Es continuo y no depende de por dónde pasen las filas.
-    Devuelve la elevación y, para lo doblado, cuánto baja hacia el centro (0 en el polo, 1 al llegar)."""
-    side = np.sign(v)
-    # Primero un margen de una cara en el polo mismo: si lo vecino de la superficie ya bajara por el
-    # eje, quedaría un pozo en el polo.
-    margin = 2 * np.pi * (1 / HERO_V + (HERO_TWIST / HERO_LOBES) / HERO_U)
-    start = HERO_THROAT + margin
-    fold = np.clip((np.abs(v) - start) / (np.pi - start), 0.0, 1.0)
-    return side * np.minimum(np.abs(v) / HERO_THROAT, 1.0) * np.pi / 2, fold
+def logo_outline(path):
+    """Contorno de un trazado M/C/L/Z, con puntos a HERO_STEP y las esquinas intactas."""
+    nums = [float(v) for v in re.findall(r'-?\d+\.?\d*', path)]
+    cmds = re.findall(r'[MCLZ]', path)
+    pts, at = [], 0
+    current = None
+    for cmd in cmds:
+        if cmd == 'M':
+            current = svg_to_n(nums[at:at + 2])
+            at += 2
+            pts.append(current)
+        elif cmd == 'L':
+            end = svg_to_n(nums[at:at + 2])
+            at += 2
+            n = max(1, round(np.linalg.norm(end - current) / HERO_STEP))
+            pts += [current + (end - current) * k / n for k in range(1, n + 1)]
+            current = end
+        elif cmd == 'C':
+            c0, c1, end = [svg_to_n(nums[at + i:at + i + 2]) for i in (0, 2, 4)]
+            at += 6
+            bez = lambda t: (1 - t) ** 3 * current + 3 * (1 - t) ** 2 * t * c0 + 3 * (1 - t) * t * t * c1 + t ** 3 * end
+            dense = np.array([bez(t) for t in np.linspace(0, 1, 80)])
+            s = np.concatenate([[0.0], np.cumsum(np.linalg.norm(np.diff(dense, axis=0), axis=1))])
+            n = max(2, round(s[-1] / HERO_STEP))
+            want = np.linspace(0, s[-1], n + 1)[1:]
+            pts += [np.array([np.interp(w, s, dense[:, 0]), np.interp(w, s, dense[:, 1])]) for w in want]
+            current = end
+    pts = np.array(pts)
+    # Sin el último si repite el primero; sentido antihorario.
+    if np.linalg.norm(pts[0] - pts[-1]) < 1e-3:
+        pts = pts[:-1]
+    x, y = pts[:, 0], pts[:, 1]
+    if np.sum(x * np.roll(y, -1) - np.roll(x, -1) * y) < 0:
+        pts = pts[::-1]
+    return pts
 
 
-def hero_mass():
-    u, v = hero_grid()
-    e, fold = hero_fold(v)
-    z = np.sin(e) * (1.0 - fold)
-    return (HERO_MASS * np.stack([np.cos(e) * np.cos(u), np.cos(e) * np.sin(u), z], axis=-1)).reshape(-1, 3)
+def seg_distance(points, poly):
+    """Distancia de cada punto al contorno cerrado, y el tramo más cercano."""
+    a, b = poly, np.roll(poly, -1, axis=0)
+    ab = b - a
+    ap = points[:, None, :] - a[None, :, :]
+    t = np.clip((ap * ab[None]).sum(-1) / (ab * ab).sum(-1)[None], 0.0, 1.0)
+    d = np.linalg.norm(ap - t[..., None] * ab[None], axis=-1)
+    near = d.argmin(axis=1)
+    return d[np.arange(len(points)), near], near
 
 
-def hero_pebble():
-    """El canto rodado del navbar (build_nav): mismo contorno y perfil, centrado en su alto."""
-    u, v = hero_grid()
-    e, fold = hero_fold(v)
-    edge = np.array([rounded_rect(PEBBLE_X, PEBBLE_Y, 0.44)(a) for a in u[:, 0]])
-    s = 1.0 - (np.abs(e) / (np.pi / 2)) ** 1.7
-    z = np.where(e > 0, PEBBLE_H * (1.0 - s ** 3.4) ** (1.0 / 2.5), 0.0)
-    middle = PEBBLE_H * 0.5  # los dos lados se juntan por dentro, a media altura
-    z = (z + (middle - z) * fold) - 0.09
-    return np.stack([edge[:, 0, None] * s, edge[:, 1, None] * s, z], axis=-1).reshape(-1, 3)
+def inside_poly(points, poly):
+    x, y = points[:, 0], points[:, 1]
+    x0, y0 = poly[:, 0], poly[:, 1]
+    x1, y1 = np.roll(x0, -1), np.roll(y0, -1)
+    cross = ((y0[None] > y[:, None]) != (y1[None] > y[:, None])) & (x[:, None] < (x1 - x0)[None] * (y[:, None] - y0[None]) / np.where(y1 - y0 == 0, 1e-9, y1 - y0)[None] + x0[None])
+    return cross.sum(axis=1) % 2 == 1
 
 
-def grid_mesh(name, coords, segs_u, segs_v, follow=True):
-    seam = segs_v // 2 if follow else 0
+def outward_normals(poly):
+    """Normal hacia fuera en cada punto (antihorario: a la derecha del avance)."""
+    t = np.roll(poly, -1, axis=0) - np.roll(poly, 1, axis=0)
+    n = np.stack([t[:, 1], -t[:, 0]], axis=1)
+    return n / np.linalg.norm(n, axis=1, keepdims=True)
+
+
+def hero_part(poly):
+    """La almohada de una parte de la N: vértices, caras y cuántos puntos son de la pared."""
+    out = outward_normals(poly)
+    # Anillos hacia dentro donde caben (no en las puntas) y una rejilla holgada en el centro.
+    cloud = [poly]
+    for off in HERO_BAND:
+        ring = poly - out * off
+        d, _ = seg_distance(ring, poly)
+        cloud.append(ring[(d > off * 0.9) & inside_poly(ring, poly)])
+    lo, hi = poly.min(axis=0), poly.max(axis=0)
+    step = 0.082
+    xs, ys = np.meshgrid(np.arange(lo[0], hi[0], step), np.arange(lo[1], hi[1], step * 0.866))
+    xs[1::2] += step / 2
+    grid = np.stack([xs.ravel(), ys.ravel()], axis=1)
+    d, _ = seg_distance(grid, poly)
+    cloud.append(grid[inside_poly(grid, poly) & (d > HERO_BAND[-1] + step * 0.45)])
+    # Triangulación que respeta el contorno: la línea del logo queda hecha de aristas.
+    n = len(poly)
+    coords = [Vector(p) for p in np.concatenate(cloud)]
+    edges = [(i, (i + 1) % n) for i in range(n)]
+    verts2, _e, faces, orig, *_ = mathutils.geometry.delaunay_2d_cdt(coords, edges, [list(range(n))], 1, 1e-6, True)
+    pts = np.array([v[:2] for v in verts2])
+    rim = [0] * n
+    for out_index, inputs in enumerate(orig):
+        for i in inputs:
+            if i < n:
+                rim[i] = out_index
+    d, _ = seg_distance(pts, poly)
+    height = HERO_H * (1.0 - (1.0 - np.minimum(d / HERO_D, 1.0)) ** 2.3) ** (1 / 1.9)
+    edge = np.zeros(len(pts), bool)
+    edge[rim] = True
+    height[edge] = 0.0
+    # Suaviza la arista que deja la distancia sobre el eje de cada hoja: arcilla, no papel.
+    neighbors = [set() for _ in pts]
+    for f in faces:
+        for a, b in zip(f, f[1:] + f[:1]):
+            neighbors[a].add(b)
+            neighbors[b].add(a)
+    for _ in range(4):
+        around = np.array([height[list(nb)].mean() if nb else h for nb, h in zip(neighbors, height)])
+        height = np.where(edge, 0.0, height * 0.45 + around * 0.55)
+    # La pared: copia del contorno, abajo, cerrada contra él.
+    base = len(pts)
+    verts = np.concatenate([np.column_stack([pts, height]), np.column_stack([poly, np.full(n, -HERO_WALL)])])
+    wall = [(rim[k], base + k, base + (k + 1) % n, rim[(k + 1) % n]) for k in range(n)]
+    return verts, [tuple(f) for f in faces] + wall, n
+
+
+def hero_opening(co, poly):
+    """_OUT: hacia dónde abre la pared la web."""
+    _, near = seg_distance(co[:, :2], poly)
+    opening = np.zeros((len(co), 3))
+    walls = co[:, 2] < -HERO_WALL * 0.5
+    opening[walls, :2] = outward_normals(poly)[near[walls]]
+    return opening
+
+
+def hero_lag(co):
+    """_LAG: cuándo empieza a fundirse cada punto. Lo de arriba, antes; algo de ondulación para que no
+    baje como una persiana."""
+    wave = np.sin(co[:, 0] * 7.0 + 0.7) * np.sin(co[:, 1] * 5.0 + 1.3)
+    return np.clip((1.0 - co[:, 1]) / 2.0 * 0.82 + 0.09 + wave * 0.09, 0.0, 1.0)
+
+
+def hero_shade(co, above):
+    """Lo que oscurece a una hoja la que tiene encima: 1 lejos de ella, baja al acercarse."""
+    if above is None:
+        return np.ones(len(co))
+    d, _ = seg_distance(co[:, :2], above)
+    outside = ~inside_poly(co[:, :2], above)
+    return np.where(outside, 1.0 - 0.52 * np.exp(-(d / 0.085) ** 1.6), 1.0)
+
+
+def hero_morphs(co, poly, centroid, lift):
+    """puff: la hoja se hincha y su borde sale un poco. drop: todo a una gota, con su pared abajo."""
+    out = outward_normals(poly)
+    d, near = seg_distance(co[:, :2], poly)
+    walls = co[:, 2] < -HERO_WALL * 0.5
+    swell = np.exp(-(d / 0.07) ** 2)[:, None] * out[near] * 0.018
+    puffed = co.copy()
+    puffed[:, :2] += swell
+    puffed[:, 2] = np.where(walls, co[:, 2], co[:, 2] * 1.5)
+    # A la gota: cada punto conserva su ángulo alrededor del centro de la hoja y su fracción del radio
+    # hasta el contorno en ese ángulo.
+    v = co[:, :2] - centroid
+    ang = np.arctan2(v[:, 1], v[:, 0])
+    rad = np.linalg.norm(v, axis=1)
+    edge_v = poly - centroid
+    edge_ang = np.arctan2(edge_v[:, 1], edge_v[:, 0])
+    edge_rad = np.linalg.norm(edge_v, axis=1)
+    bins = 64
+    reach = np.zeros(bins)
+    idx = ((edge_ang + np.pi) / (2 * np.pi) * bins).astype(int) % bins
+    np.maximum.at(reach, idx, edge_rad)
+    for _ in range(3):
+        reach = np.maximum(reach, (np.roll(reach, 1) + np.roll(reach, -1)) * 0.5 * 0.98)
+    at = (ang + np.pi) / (2 * np.pi) * bins
+    limit = np.interp(at, np.arange(bins + 1), np.append(reach, reach[0]))
+    frac = np.clip(rad / np.maximum(limit, 1e-3), 0.0, 1.0)
+    # El contorno de la hoja va siempre al borde de la gota, también donde es cóncavo.
+    frac = np.where(d < 1e-4, 1.0, np.minimum(frac, 0.985))
+    r = HERO_DROP_R * frac ** 0.8
+    drop = co.copy()
+    drop[:, 0] = np.cos(ang) * r
+    drop[:, 1] = np.sin(ang) * r
+    dome = HERO_DROP_H * np.sqrt(np.maximum(1.0 - (r / HERO_DROP_R) ** 2, 0.0)) ** 0.9
+    drop[:, 2] = np.where(walls, -HERO_WALL, dome + lift)
+    return puffed, drop
+
+
+def hero_leaf_layout(parts, rng):
+    """Mosaico de hojas sobre la silueta: las grandes por dentro, las pequeñas contra el borde, y cada
+    una a lo largo de la dirección local de su parte (como escamas)."""
+    candidates = []
+    for name, poly in parts.items():
+        lo, hi = poly.min(axis=0), poly.max(axis=0)
+        xs, ys = np.meshgrid(np.arange(lo[0], hi[0], 0.016), np.arange(lo[1], hi[1], 0.016))
+        pts = np.stack([xs.ravel(), ys.ravel()], axis=1)
+        pts = pts[inside_poly(pts, poly)]
+        d, _ = seg_distance(pts, poly)
+        for p, dist in zip(pts, d):
+            candidates.append((dist, p, name))
+    dense = {name: [c[1] for c in candidates if c[2] == name] for name in parts}
+    dense = {k: np.array(v) for k, v in dense.items()}
+    rng.shuffle(candidates)
+    candidates.sort(key=lambda c: -round(c[0] / 0.012))
+    placed = []
+    gap = 0.86
+    for dist, p, name in candidates:
+        length = float(np.clip(dist * 3.0, 0.1, 0.5))
+        if dist < 0.02:
+            continue
+        if any(np.linalg.norm(p - q[0]) < (length + q[1]) * 0.5 * gap * 0.62 for q in placed):
+            continue
+        # Dirección local: el eje principal de los puntos de la parte que hay alrededor.
+        near = dense[name][np.linalg.norm(dense[name] - p, axis=1) < 0.3]
+        cov = np.cov((near - p).T) if len(near) > 3 else np.eye(2)
+        vals, vecs = np.linalg.eigh(cov)
+        axis = vecs[:, 1]
+        placed.append((p, length, name, math.atan2(axis[1], axis[0]) + rng.uniform(-0.2, 0.2)))
+        if len(placed) >= HERO_LEAVES:
+            break
+    print(f'hero: {len(placed)} hojas en el mosaico')
+    return placed
+
+
+def leaf_grid(length, rows=HERO_LEAF_ROWS):
+    """Una hoja: tres columnas (borde, nervio, borde), con las puntas cerradas, un pliegue y algo de arco."""
+    width = length * 0.2
+    verts = []
+    for i in range(rows):
+        t = i / (rows - 1)
+        half = width * math.sin(math.pi * t) ** 0.72 * (1.0 + 0.22 * (0.5 - t))
+        x = (t - 0.5) * length
+        bow = 0.1 * length * math.sin(math.pi * t)
+        fold = half * 0.34
+        verts += [(x, -half, bow + fold), (x, 0.0, bow), (x, half, bow + fold)]
     faces = []
-    for i in range(segs_u):
-        i2, s = (i + 1, 0) if i + 1 < segs_u else (0, seam)
-        for j in range(segs_v):
-            j2 = (j + 1) % segs_v
-            faces.append((i * segs_v + j, i2 * segs_v + (j + s) % segs_v, i2 * segs_v + (j2 + s) % segs_v, i * segs_v + j2))
-    me = bpy.data.meshes.new(name)
-    me.from_pydata(coords.tolist(), [], faces)
+    for i in range(rows - 1):
+        for j in range(2):
+            a = i * 3 + j
+            faces.append((a, a + 1, a + 4, a + 3))
+    return verts, faces
+
+
+def build_hero_leaves(parts):
+    """Todas las hojas en una malla. La base es el mosaico armado; `scatter` las lleva a donde flotan.
+    _PIVOT: su centro; _AXIS: eje del giro con el que llegan, por el número de vueltas; _LAG: cuándo salen."""
+    rng = np.random.default_rng(41)
+    layout = hero_leaf_layout(parts, rng)
+    verts, faces, pivot, axis, lag, scatter = [], [], [], [], [], []
+    order = sorted(range(len(layout)), key=lambda i: rng.random())
+    for k, i in enumerate(order):
+        p, length, _name, angle = layout[i]
+        gv, gf = leaf_grid(length)
+        c, s = math.cos(angle), math.sin(angle)
+        z = 0.06 + rng.uniform(0.0, 0.06)
+        base = len(verts)
+        verts += [(p[0] + x * c - y * s, p[1] + x * s + y * c, z + zz) for x, y, zz in gv]
+        faces += [tuple(base + v for v in f) for f in gf]
+        turn = rng.normal(size=3)
+        turn[2] *= 0.5
+        turn = turn / np.linalg.norm(turn) * rng.uniform(0.35, 0.95)
+        # Flotan alrededor de la N, a varias distancias: las de más lejos salen antes para llegar a la vez.
+        ang = rng.uniform(0, 2 * math.pi)
+        reach = rng.uniform(1.25, 3.0)
+        fly = np.array([math.cos(ang) * reach * 0.92, math.sin(ang) * reach, rng.uniform(-1.1, 1.4)])
+        pivot += [(p[0] / 4, p[1] / 4, z / 4)] * len(gv)
+        axis += [tuple(turn)] * len(gv)
+        lag += [float(np.clip(0.62 - (reach - 1.25) / 1.75 * 0.45 + rng.uniform(-0.1, 0.22), 0.0, 1.0))] * len(gv)
+        scatter += [tuple(fly)] * len(gv)
+    me = bpy.data.meshes.new('hero_hojas')
+    me.from_pydata(verts, [], faces)
     me.update()
     me.polygons.foreach_set('use_smooth', np.ones(len(me.polygons), bool))
     me.update()
-    # UV por esquina: x = vuelta del aro, y = vuelta del tubo (dividida por HERO_UV_MARGIN). La malla
-    # sigue cerrada: al separar vértices en las costuras para el .glb, normales y shape keys son los mismos.
-    v = np.broadcast_to(hero_grid(segs_u, segs_v, follow)[1], (segs_u, segs_v))
-    uv = me.uv_layers.new(name='UVMap')
-    data = np.empty(len(me.loops) * 2, np.float32)
-    k = 0
-    for p in me.polygons:
-        i, j = p.index // segs_v, p.index % segs_v
-        corners = ((i, j), (i + 1, j), (i + 1, j + 1), (i, j + 1))
-        ys = [(v[0, (cj + seam) % segs_v] if ci == segs_u else v[ci, cj % segs_v]) for ci, cj in corners]
-        ys = np.array(ys) / (2 * np.pi) + 0.5
-        ys += np.round(ys[0] - ys)  # sin saltos dentro de la cara
-        ys += ys.min() < 0
-        for (ci, _), y in zip(corners, ys):
-            data[k], data[k + 1] = ci / segs_u, y / HERO_UV_MARGIN
-            k += 2
-    uv.data.foreach_set('uv', data)
-    return me
+    a = me.attributes.new('_PIVOT', 'FLOAT_VECTOR', 'POINT')
+    a.data.foreach_set('vector', np.array(pivot, np.float32).ravel())
+    a = me.attributes.new('_AXIS', 'FLOAT_VECTOR', 'POINT')
+    a.data.foreach_set('vector', np.array(axis, np.float32).ravel())
+    a = me.attributes.new('_LAG', 'FLOAT', 'POINT')
+    a.data.foreach_set('value', np.array(lag, np.float32))
+    leaves = link(bpy.data.objects.new('hero_hojas', me))
+    mat = principled('hero_hoja', (0.62, 0.9, 0.76), 0.34, **{'Transmission_Weight': 0.62, 'IOR': 1.35, 'Specular_IOR_Level': 0.5})
+    me.materials.append(mat)
+    add_keys(leaves, {'scatter': co_of(me) + np.array(scatter)})
+    print(f'hero_hojas: {sum(len(p.vertices) - 2 for p in me.polygons)} triángulos, {len(me.vertices)} vértices')
+    return leaves
 
 
-def hero_undulation(segs_u, segs_v, seed=11):
-    """Lo que deja la mano en la arcilla: ondas muy bajas, periódicas en las dos vueltas (fft)."""
-    rng = np.random.default_rng(seed)
-    white = rng.standard_normal((segs_u, segs_v))
-    # Frecuencias físicas: ciclos por unidad a lo largo del aro y alrededor del tubo.
-    fu = np.fft.fftfreq(segs_u, 2 * np.pi * HERO_R / segs_u)[:, None]
-    fv = np.fft.rfftfreq(segs_v, 2 * np.pi * HERO_TUBE / segs_v)[None, :]
-    f = np.hypot(fu, fv)
-    h = 0.0
-    for cycles, amp in ((1.2, 0.016), (4.5, 0.0028)):
-        band = np.exp(-((f - cycles) ** 2) / (2 * (cycles * 0.4) ** 2))
-        layer = np.fft.irfft2(np.fft.rfft2(white) * band, s=(segs_u, segs_v))
-        h = h + layer / np.abs(layer).max() * amp
-    return h
+def hero_timeline():
+    """Los tiempos de la secuencia. No mueve nada: cada peso es una curva que la web lee del .glb."""
+    me = bpy.data.meshes.new('hero_tiempo')
+    me.from_pydata([(0, 0, 0), (1e-4, 0, 0), (0, 1e-4, 0)], [], [(0, 1, 2)])
+    me.update()
+    tl = link(bpy.data.objects.new('hero_tiempo', me))
+    co = co_of(me)
+    names = ('assemble', 'solid', 'puff', 'drop', 'liquid', 'pool', 'flow', 'reform', 'flat')
+    add_keys(tl, {name: co + np.array([[1e-4 * (i + 1), 0, 0]] * 3) for i, name in enumerate(names)})
+    # Nacer: las hojas vuelan, llegan y se funden en la N, que se asienta con un rebote blando.
+    end = HERO_BIRTH
+    steps = [k / 30 for k in range(0, 40)]
+    add_clip(tl, 'hero_birth', {
+        'assemble': [(0, 0.0), (1.08, 1.0), (end, 1.0)],
+        'solid': [(0, 0.0), (0.78, 0.0), (0.9, 0.28), (1.06, 0.8), (1.22, 1.0), (end, 1.0)],
+        'puff': [*((t, 0.75 * math.exp(-5.0 * (t - 1.02)) * math.sin(2 * math.pi * 1.5 * (t - 1.02)) if t > 1.02 else 0.0) for t in steps), (end, 0.0)],
+    })
+    # Respirar mientras la app carga.
+    add_clip(tl, 'hero_breath', {'puff': [(0, 0.0), (HERO_BREATH * 0.42, 0.32), (HERO_BREATH, 0.0)]})
+    # Salir: toma aire, se funde en una gota, corre hasta el logo y allí vuelve a ser la N.
+    add_clip(tl, 'hero_outro', {
+        'puff': [(0, 0.0), (0.12, 0.95), (0.3, 0.55), (0.5, 0.0), (HERO_OUTRO, 0.0)],
+        'drop': [(0, 0.0), (0.08, 0.0), (0.3, 0.42), (0.55, 1.0), (HERO_OUTRO, 1.0)],
+        'liquid': [(0, 0.0), (0.06, 0.0), (0.38, 1.0), (1.2, 1.0), (1.38, 0.0), (HERO_OUTRO, 0.0)],
+        'pool': [(0, 1.0), (0.42, 1.0), (0.8, 0.42), (1.08, 0.0), (HERO_OUTRO, 0.0)],
+        'flow': [(0, 0.0), (0.3, 0.0), (1.28, 1.0), (HERO_OUTRO, 1.0)],
+        'reform': [(0, 0.0), (0.7, 0.0), (1.0, 0.35), (1.36, 1.0), (HERO_OUTRO, 1.0)],
+        'flat': [(0, 0.0), (1.26, 0.0), (HERO_OUTRO, 1.0)],
+    })
+    return tl
 
 
-def hero_lights():
-    """Tres puntos de estudio suave: principal tenue arriba a la izquierda (donde la pone toda la
-    interfaz), relleno muy abierto y contraluz apenas para despegar la silueta."""
+def hero_key_light():
+    """El estudio de toda la interfaz sobre el fondo de la app: la N no sale de un escenario aparte."""
     for o in [o for o in bpy.context.scene.objects if o.type == 'LIGHT']:
         bpy.data.objects.remove(o)
-    # El fondo: el color de la app (#f9f7f3), parejo, para que el paso a la interfaz no se note.
     nodes = bpy.context.scene.world.node_tree.nodes
     links = bpy.context.scene.world.node_tree.links
     for link_ in list(nodes['Background'].inputs['Color'].links):
@@ -963,98 +1122,164 @@ def hero_lights():
         obj.rotation_euler = (Vector((0, 0, 0)) - Vector(loc)).to_track_quat('-Z', 'Y').to_euler()
 
 
-def hero_core(hero):
-    """El núcleo de arcilla del .blend: mismo morph sin las crestas, siguiendo al vidrio con drivers.
-    No va en el .glb: la web lo dibuja con la misma malla (splash/hero.ts), sin pesar el doble."""
-    me = grid_mesh('hero_nucleo', hero_points(tube=HERO_CORE), HERO_U, HERO_V)
-    core = link(bpy.data.objects.new('hero_nucleo', me))
-    me.materials.append(clay('hero_arcilla', (0.62, 0.8, 0.7), rough=0.6))
-    low = {'tube': HERO_CORE, 'ridge': HERO_CORE_RIDGE}
-    add_keys(core, {
-        'ridge_a': hero_points(c=1.0, **low),
-        'ridge_b': hero_points(s=1.0, **low),
-        'breath': hero_points(ring=1.03, tube=HERO_CORE * 1.05),
-        'mass': hero_mass() * 0.46,
-        'pebble': hero_pebble() * 0.97,
+def hero_sequence(n_obj, leaves):
+    """La secuencia entera en una pista: es lo que ve quien abre el .blend o el .glb en otro visor. La web
+    no la usa: dibuja el líquido con su propio campo y solo toma de aquí las mallas y los tiempos."""
+    sc = bpy.context.scene
+    rest = 0.45
+    t_out = HERO_BIRTH + rest
+    add_clip(leaves, 'hero_sequence', {'scatter': [(0, 1.0), (1.08, 0.0), (t_out + HERO_OUTRO, 0.0)]})
+    # Las hojas se funden en la N: se encogen en su sitio mientras ella aparece.
+    leaves.animation_data_create()
+    for sec, s in ((0.0, 1.0), (0.95, 1.0), (1.26, 0.001), (t_out + HERO_OUTRO, 0.001)):
+        leaves.scale = (s, s, s)
+        leaves.keyframe_insert('scale', frame=round(sec * FPS))
+    leaf_action = leaves.animation_data.action
+    leaf_action.name = 'hero_sequence_hojas'
+    leaf_action.use_fake_user = True
+    leaf_track = leaves.animation_data.nla_tracks.new()
+    leaf_track.name = 'hero_sequence'
+    leaf_track.strips.new('hero_sequence', 0, leaf_action).extrapolation = 'NOTHING'
+    leaves.animation_data.action = None
+    leaves.scale = (1, 1, 1)
+    add_clip(n_obj, 'hero_sequence', {
+        'puff': [(0, 0.0), (t_out, 0.0), (t_out + 0.12, 0.95), (t_out + 0.5, 0.0), (t_out + HERO_OUTRO, 0.0)],
+        'drop': [(0, 0.0), (t_out + 0.08, 0.0), (t_out + 0.52, 1.0), (t_out + 1.0, 1.0), (t_out + HERO_OUTRO - 0.08, 0.0), (t_out + HERO_OUTRO, 0.0)],
     })
-    for name in ('ridge_a', 'ridge_b', 'breath', 'mass', 'pebble'):
-        fc = core.data.shape_keys.driver_add(f'key_blocks["{name}"].value')
-        drv = fc.driver
-        drv.type = 'AVERAGE'
-        var = drv.variables.new()
-        var.name = 'w'
-        var.type = 'SINGLE_PROP'
-        var.targets[0].id_type = 'KEY'
-        var.targets[0].id = hero.data.shape_keys
-        var.targets[0].data_path = f'key_blocks["{name}"].value'
-    return core
+    # La pieza aparece bajo las hojas, y como gota corre al rincón del logo, donde se posa pequeña.
+    frames = [(0.0, (0, 0, 0), 0.001), (0.82, (0, 0, 0), 0.001), (1.22, (0, 0, 0), 1.0), (t_out + 0.42, (0, 0, 0), 1.0),
+              (t_out + 0.76, (-0.5, -0.32, 0.1), 0.72), (t_out + 1.02, (-1.42, 0.2, 0.1), 0.42), (t_out + 1.26, (HERO_END[0], HERO_END[1], 0.05), 0.2), (t_out + HERO_OUTRO, (HERO_END[0], HERO_END[1], 0.0), 0.16)]
+    n_obj.animation_data_create()
+    for sec, loc, s in frames:
+        frame = round(sec * FPS)
+        n_obj.location = loc
+        n_obj.scale = (s, s, s)
+        n_obj.keyframe_insert('location', frame=frame)
+        n_obj.keyframe_insert('scale', frame=frame)
+    action = n_obj.animation_data.action
+    action.name = 'hero_sequence_trs'
+    action.use_fake_user = True
+    track = n_obj.animation_data.nla_tracks.new()
+    track.name = 'hero_sequence'
+    strip = track.strips.new('hero_sequence', 0, action)
+    strip.extrapolation = 'NOTHING'
+    n_obj.animation_data.action = None
+    n_obj.location = (0, 0, 0)
+    n_obj.scale = (1, 1, 1)
+    sc.frame_end = round((t_out + HERO_OUTRO) * FPS)
+    return t_out
 
 
-def spring(t, freq, decay):
-    """Muelle amortiguado de 0 a 1: se pasa, vuelve y se asienta (el rebote blando de la masa)."""
-    t = max(t, 0.0)
-    return 1.0 - math.exp(-decay * t) * math.cos(2 * math.pi * freq * t)
+def hero_metaballs(t_out):
+    """El líquido en el .blend: metabolas que salen de la gota y corren al logo, una tras otra."""
+    meta = bpy.data.metaballs.new('hero_liquido')
+    meta.resolution = 0.05
+    meta.render_resolution = 0.03
+    meta.threshold = 0.6
+    obj = link(bpy.data.objects.new('hero_liquido', meta))
+    mat = principled('hero_liquido', (0.42, 0.78, 0.62), 0.12, **{'Transmission_Weight': 0.35, 'IOR': 1.33, 'Specular_IOR_Level': 0.7, 'Coat_Weight': 0.6, 'Coat_Roughness': 0.08})
+    meta.materials.append(mat)
+    p0 = np.array([0.0, 0.0, 0.12])
+    p1 = np.array([-0.4, -1.05, 0.14])
+    p2 = np.array([HERO_END[0] - 0.05, -0.2, 0.14])
+    p3 = np.array([HERO_END[0], HERO_END[1], 0.1])
+    bez = lambda t: (1 - t) ** 3 * p0 + 3 * (1 - t) ** 2 * t * p1 + 3 * (1 - t) * t * t * p2 + t ** 3 * p3
+    count = 26
+    rng = np.random.default_rng(5)
+    for i in range(count):
+        e = meta.elements.new(type='BALL')
+        lag = i / (count - 1)
+        e.radius = 0.26 * (1.0 - 0.45 * lag) * rng.uniform(0.85, 1.1)
+        side = rng.uniform(-0.05, 0.05)
+        for k in range(13):
+            t = k / 12
+            sec = t_out + 0.3 + t * 0.98
+            u = np.clip((t * (1 + 0.55) - lag * 0.55), 0.0, 1.0)
+            u = u * u * (3 - 2 * u)
+            p = bez(u)
+            p[0] += side * math.sin(math.pi * u)
+            e.co = tuple(p)
+            # Bajo la gota hasta que sale; al llegar, se mete en la N pequeña.
+            e.radius = (0.0 if u <= 0.0 or u >= 1.0 else 0.26 * (1.0 - 0.45 * lag))
+            e.keyframe_insert('co', frame=round(sec * FPS))
+            e.keyframe_insert('radius', frame=round(sec * FPS))
+    return obj
 
 
 def build_hero():
     reset('hero')
-    hero_lights()
-    me = grid_mesh('hero', hero_points(), HERO_U, HERO_V)
-    hero = link(bpy.data.objects.new('hero', me))
-    glass = frost('hero_vidrio', (0.8, 0.9, 0.84))
-    glass['takes_normal_map'] = True
-    me.materials.append(glass)
-
-    # Malla alta: el mismo toro con la ondulación de la mano (va al mapa de normales).
-    su, sv = HERO_U * 5, HERO_V * 5
-    hi_me = grid_mesh('hero_alta', hero_points(segs_u=su, segs_v=sv, bump=hero_undulation(su, sv), follow=False), su, sv, follow=False)
-    high = link(bpy.data.objects.new('hero_alta', hi_me))
-    bake_normals(hero, high, 128, 'hero_normal', 0.02, 0.05)
-    high.hide_set(True)
-    high.hide_render = True
-
-    add_keys(hero, {
-        'ridge_a': hero_points(c=1.0),
-        'ridge_b': hero_points(s=1.0),
-        'breath': hero_points(ring=1.03, tube=1.05),
-        'mass': hero_mass(),
-        'pebble': hero_pebble(),
-    })
-
-    # Nacimiento: la gota se abre con un rebote blando y la cresta sube después, con su propio muelle.
-    frames = [k / 30 for k in range(0, 39)]
-    end = 1.3
-    add_clip(hero, 'hero_birth', {
-        'mass': [*((t, 1.0 - spring(t, 1.05, 4.1)) for t in frames), (end, 0.0)],
-        'ridge_a': [*((t, spring(t - 0.3, 1.15, 4.6) if t > 0.3 else 0.0) for t in frames), (end, 1.0)],
-        'breath': [*((t, 0.7 * math.exp(-3.4 * t) * math.sin(2 * math.pi * 1.6 * t)) for t in frames), (end, 0.0)],
-    })
-    add_clip(hero, 'hero_breath', {
-        'ridge_a': [(0, 1.0), (HERO_BREATH, 1.0)],
-        'breath': [(0, 0.0), (HERO_BREATH * 0.4, 1.0), (HERO_BREATH, 0.0)],
-    })
-    steps = [HERO_ROLL * k / 8 for k in range(9)]
-    add_clip(hero, 'hero_roll', {
-        'ridge_a': [(t, math.cos(2 * math.pi * t / HERO_ROLL)) for t in steps],
-        'ridge_b': [(t, math.sin(2 * math.pi * t / HERO_ROLL)) for t in steps],
-    })
-    # Salida: toma aire, suelta las crestas y se recoge en el canto rodado antes de llegar.
-    add_clip(hero, 'hero_outro', {
-        'ridge_a': [(0, 1.0), (0.1, 1.0), (0.4, 0.0), (0.95, 0.0)],
-        'breath': [(0, 0.0), (0.12, 0.7), (0.34, 0.0), (0.95, 0.0)],
-        'pebble': [(0, 0.0), (0.14, 0.0), (0.42, 0.62), (0.62, 1.04), (0.78, 0.99), (0.95, 1.0)],
-    })
-    hero_core(hero)
-    # Encuadre de cerca, de frente y un poco de lado, como en el splash.
+    hero_key_light()
+    parts = {name: logo_outline(HERO_LOGO[name]) for name in HERO_ORDER}
+    above = {'c': parts['a'], 'a': parts['b'], 'b': None}
+    tones = {'c': (0.16, 0.42, 0.36), 'a': (0.08, 0.34, 0.29), 'b': (0.34, 0.62, 0.5)}
+    verts, faces, materials = [], [], []
+    opening, shade, puffed, drop = [], [], [], []
+    base = 0
+    for k, name in enumerate(HERO_ORDER):
+        v, f, _rim = hero_part(parts[name])
+        verts.append(v)
+        faces += [tuple(i + base for i in face) for face in f]
+        materials += [k] * len(f)
+        opening.append(hero_opening(v, parts[name]))
+        shade.append(hero_shade(v, above[name]))
+        p, d = hero_morphs(v, parts[name], parts[name].mean(axis=0), k * 0.03)
+        puffed.append(p)
+        drop.append(d)
+        base += len(v)
+    co = np.concatenate(verts)
+    me = bpy.data.meshes.new('hero_n')
+    me.from_pydata(co.tolist(), [], faces)
+    me.update()
+    me.polygons.foreach_set('material_index', np.array(materials, np.int32))
+    me.polygons.foreach_set('use_smooth', np.ones(len(me.polygons), bool))
+    for name in HERO_ORDER:
+        me.materials.append(clay(f'hero_hoja_{name}', tones[name], rough=0.46))
+    me.update()
+    for attr_name, kind, field, data in (('_OUT', 'FLOAT_VECTOR', 'vector', np.concatenate(opening)), ('_LAG', 'FLOAT', 'value', hero_lag(co)), ('_SHADE', 'FLOAT', 'value', np.concatenate(shade))):
+        attr = me.attributes.new(attr_name, kind, 'POINT')
+        attr.data.foreach_set(field, np.asarray(data, np.float32).ravel())
+    n_obj = link(bpy.data.objects.new('hero_n', me))
+    add_keys(n_obj, {'puff': np.concatenate(puffed), 'drop': np.concatenate(drop)})
+    leaves = build_hero_leaves(parts)
+    tl = hero_timeline()
+    t_out = hero_sequence(n_obj, leaves)
+    hero_metaballs(t_out)
     cam = link(bpy.data.objects.new('Camera', bpy.data.cameras.new('Camera')))
     cam.data.lens = 85
-    cam.location = (-1.0, -3.2, 13.0)
-    cam.rotation_euler = (Vector((0, 0, 0)) - cam.location).to_track_quat('-Z', 'Y').to_euler()
+    cam.location = (-0.9, 0.2, 13.5)
+    cam.rotation_euler = (Vector((-0.9, 0.2, 0)) - cam.location).to_track_quat('-Z', 'Y').to_euler()
     sc = bpy.context.scene
     sc.camera = cam
-    sc.render.resolution_x = sc.render.resolution_y = 1024
-    print(f'hero: {sum(len(p.vertices) - 2 for p in me.polygons)} triángulos, {len(me.vertices)} vértices')
-    return [hero]
+    sc.render.resolution_x, sc.render.resolution_y = 1280, 800
+    print(f'hero_n: {sum(len(p.vertices) - 2 for p in me.polygons)} triángulos, {len(me.vertices)} vértices')
+    return [n_obj, leaves, tl]
+
+
+def strip_sequence(objs):
+    """La web no usa la pista de la secuencia completa: su .glb se exporta sin ella."""
+    for o in objs:
+        holders = [o.data.shape_keys.animation_data, o.animation_data]
+        for anim in holders:
+            if not anim:
+                continue
+            for track in list(anim.nla_tracks):
+                if track.name == 'hero_sequence':
+                    anim.nla_tracks.remove(track)
+
+
+def hero_qa(path, samples):
+    """Lámina de la secuencia: un fotograma por momento, en EEVEE."""
+    sc = bpy.context.scene
+    sc.render.engine = 'BLENDER_EEVEE_NEXT'
+    sc.eevee.taa_render_samples = max(16, min(samples, 64))
+    sc.render.film_transparent = False
+    sc.render.resolution_x, sc.render.resolution_y = 640, 400
+    sc.render.image_settings.file_format = 'PNG'
+    for label, sec in (('hojas', 0.25), ('llegan', 0.8), ('n', 1.5), ('funde', 2.2), ('corre', 2.75), ('llega', 3.0), ('logo', 3.24)):
+        sc.frame_set(round(sec * FPS))
+        sc.render.filepath = f'{path}-{label}.png'
+        bpy.ops.render.render(write_still=True)
+        print('render', sc.render.filepath)
 
 
 # ───────── Exportación ─────────
@@ -1064,6 +1289,8 @@ def export(objs, path, frame_step=2):
     for o in objs:
         for block in o.data.shape_keys.key_blocks:
             block.value = 0.0  # los pesos por defecto del .glb
+        o.location = (0, 0, 0)  # el reposo de los que además se mueven (la secuencia del héroe)
+        o.scale = (1, 1, 1)
     bpy.ops.object.select_all(action='DESELECT')
     for o in objs:
         o.hide_set(False)
@@ -1072,7 +1299,7 @@ def export(objs, path, frame_step=2):
         filepath=path, export_format='GLB', use_selection=True, export_apply=False, export_yup=True,
         export_normals=True, export_texcoords=True, export_tangents=False, export_materials='EXPORT',
         export_image_format='WEBP', export_image_quality=88,
-        export_vertex_color='NONE', export_attributes=False, export_extras=True,
+        export_vertex_color='NONE', export_attributes=True, export_extras=True,
         export_animations=True, export_animation_mode='NLA_TRACKS', export_force_sampling=True, export_frame_step=frame_step,
         export_optimize_animation_size=True, export_anim_slide_to_zero=False, export_bake_animation=False,
         export_morph=True, export_morph_normal=True, export_morph_animation=True, export_morph_reset_sk_data=True,
@@ -1128,22 +1355,11 @@ QA = {
         'res': (640, 640), 'cam': (0, -5.5, 9.6), 'look': (0, 0, 0), 'floor': -0.6,
         'states': {'rest': {}, 'inhale': {'inhale': 1.0}, 'exhale': {'exhale': 1.0}, 'flow': {'flow_a': 1.0}},
     },
-    'nav': {
-        'res': (640, 400), 'cam': (0, -3.4, 5.0), 'look': (0, 0, 0.05), 'floor': 0.0,
-        'states': {'rest': {}, 'stretch': {'stretch_x': 1.0}, 'squash': {'squash': 1.0}},
-    },
-    'hero': {
-        'res': (640, 640), 'cam': (-1.0, -3.2, 13.0), 'look': (0, 0, 0), 'denoise': True,
-        'states': {
-            'rest': {'ridge_a': 1.0}, 'roll': {'ridge_a': 0.71, 'ridge_b': 0.71}, 'inhale': {'ridge_a': 1.0, 'breath': 1.0},
-            'mass': {'mass': 1.0}, 'birth': {'mass': 0.45, 'ridge_a': 0.2}, 'outro': {'pebble': 0.55, 'ridge_a': 0.2}, 'pebble': {'pebble': 1.0},
-        },
-    },
 }
 
-BUILD = {'pad': build_pad, 'focus': build_focus, 'nav': build_nav, 'card': build_card, 'hero': build_hero}
+BUILD = {'pad': build_pad, 'focus': build_focus, 'card': build_card, 'hero': build_hero}
 # Muestras de animación por juego: la respiración es lenta, con 5 por segundo basta.
-FRAME_STEP = {'focus': 12, 'hero': 4}
+FRAME_STEP = {'focus': 12, 'hero': 2}
 
 
 def main():
@@ -1154,14 +1370,22 @@ def main():
     samples = int(arg('--samples', 48))
     for name in names:
         objs = BUILD[name]()
-        export(objs, os.path.join(folder, f'calm-{name}.glb'), FRAME_STEP.get(name, 2))
+        if name == 'hero':
+            export(objs, os.path.join(folder, 'calm-hero-secuencia.glb'), 2)
+        else:
+            export(objs, os.path.join(folder, f'calm-{name}.glb'), FRAME_STEP.get(name, 2))
         if blend:
             # Aquí y no antes: reset() vuelve a las preferencias de fábrica.
             bpy.context.preferences.filepaths.save_version = 0  # sin copias .blend1
             bpy.ops.file.pack_all()
             bpy.ops.wm.save_as_mainfile(filepath=os.path.abspath(os.path.join(blend, f'calm-{name}.blend')), compress=True)
-        if render_dir and name in QA:
+        if render_dir and name == 'hero':
+            hero_qa(os.path.join(render_dir, name), samples)
+        elif render_dir and name in QA:
             qa_render(objs, os.path.join(render_dir, name), QA[name], samples)
+        if name == 'hero':
+            strip_sequence(objs)
+            export(objs, os.path.join(folder, 'calm-hero.glb'), FRAME_STEP.get(name, 2))
 
 
 main()

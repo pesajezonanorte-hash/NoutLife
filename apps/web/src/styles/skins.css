@@ -9,7 +9,7 @@
    Jade de tokens.css. Va después de tokens.css: igual especificidad que
    html.dark, gana por orden. Texto sobre superficie ≥ 4.5:1 en todos. */
 
-:root { --lq-font-sans: 'Montserrat'; --lq-backdrop: none; }
+:root { --lq-font-sans: 'Nout Sans'; --lq-backdrop: none; }
 
 /* ── Océano Profundo: abismo azul marino con luz bioluminiscente ─────────── */
 html[data-theme="ocean"] {
