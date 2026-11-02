@@ -87,7 +87,7 @@ export function HabitListItem({ habit, onComplete, pending, week, variant = 'car
             <span className="flex items-center gap-2">
               <span className="flex gap-1" role="img" aria-label={t.weekDone(weekDone)}>
                 {week.map((d, i) => (
-                  <span key={i} className={cn('size-2.5 rounded-[3px]', d ? 'bg-success' : 'bg-surface-variant')} />
+                  <span key={i} data-on={d || undefined} className="lq-bead" />
                 ))}
               </span>
               <span aria-hidden className="text-label-md text-on-surface-light font-mono tabular-nums">{weekDone}/7</span>

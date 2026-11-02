@@ -1,20 +1,19 @@
 // Hábito como una línea anotada en la libreta: el ícono vive en el margen, el
 // texto aparece como escrito, la racha se lleva con marcas de conteo y el check
-// es una ficha 3D que encaja en su hueco (HabitToken). Al entrar, la línea de la hoja se dibuja y el texto se
+// es una almohadilla de silicona (SoftPad). Al entrar, la línea de la hoja se dibuja y el texto se
 // escribe; al pasar el cursor, un marcador subraya el nombre; al presionar, la
 // línea se inclina un poco, como el papel bajo el lápiz.
 import { useState, type CSSProperties } from 'react';
 import { motion, type Variants } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Check, Flame } from 'lucide-react';
+import { Flame } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { springs } from '@/lib/motion/presets';
-import { IconChip } from '@/components/ui/lq';
+import { IconChip, SoftPad, SoftPadFace } from '@/components/ui/lq';
 import { resolveGlyph } from '@/components/ui/glyphs';
 import { TallyMarks } from '@/components/ambience';
 import { categoryMeta, frequencyLabel } from '@/lib/lifeMeta';
 import type { HabitItemData } from './HabitListItem';
-import { HabitToken } from './HabitToken';
 import { useLocale, type Copy } from '@/lib/i18n';
 
 const COPY: Copy<{
@@ -104,13 +103,13 @@ export function HabitNotebookRow({ habit, onComplete, pending, week, index, onSt
         <span className="hidden items-center gap-2 md:flex">
           <span className="flex gap-1" role="img" aria-label={t.weekDone(weekDone)}>
             {week.map((d, i) => (
-              <span key={i} className={cn('size-2.5 rounded-[3px] border', d ? 'border-success bg-success' : 'border-border-strong/40 bg-transparent')} />
+              <span key={i} data-on={d || undefined} className="lq-bead" />
             ))}
           </span>
           <span aria-hidden className="text-label-md text-on-surface-light font-mono tabular-nums">{weekDone}/7</span>
         </span>
       )}
-      <HabitToken name={habit.title} checked={done} pending={pending} onToggle={onComplete} />
+      <SoftPad name={habit.title} checked={done} pending={pending} onToggle={onComplete} />
       {steps.length > 0 && (
         <ol aria-label={t.stepsOf(habit.title)} className="col-span-full flex flex-col gap-0.5 pb-3 pl-[3rem] md:pl-[5rem]">
           {steps.map((st, i) => {
@@ -124,9 +123,7 @@ export function HabitNotebookRow({ habit, onComplete, pending, week, index, onSt
                   onClick={() => onStep?.(st.id, !on)}
                   className="flex min-h-11 w-full items-center gap-3 rounded-lg px-2 text-left text-body-sm transition-colors hover:bg-surface-variant disabled:opacity-60"
                 >
-                  <span aria-hidden className={cn('flex size-5 shrink-0 items-center justify-center rounded-[5px] border', on ? 'border-success bg-success text-on-success' : 'border-border-strong')}>
-                    {on && <Check className="size-3.5" strokeWidth={2.25} />}
-                  </span>
+                  <SoftPadFace on={on} className="size-7" />
                   <span className="font-mono text-label-md tabular-nums text-on-surface-light">{i + 1}</span>
                   <span className={cn(on ? 'text-on-surface-light line-through' : 'text-on-background')}>{st.title}</span>
                 </button>

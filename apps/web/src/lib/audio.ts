@@ -1,5 +1,5 @@
 // Web Audio API procedural sound engine — no external files, no CDN
-type SoundType = 'blip' | 'questComplete' | 'levelUp' | 'error' | 'coin' | 'achievement' | 'hover' | 'tick' | 'welcome' | 'snap' | 'unlock' | 'chest';
+type SoundType = 'blip' | 'questComplete' | 'levelUp' | 'error' | 'coin' | 'achievement' | 'hover' | 'tick' | 'welcome' | 'press' | 'unlock' | 'chest';
 
 /** Sonido de los avisos dentro de la app (aparte de los efectos del juego). Encendido de base. */
 const ALERT_KEY = 'lq_alert_sound';
@@ -128,11 +128,10 @@ class AudioEngine {
         this.tone(1319, 'sine', 0.4, 0.18, 0.06);
         this.tone(1568, 'sine', 0.35, 0.12, 0.12);
         break;
-      case 'snap':
-        // Ficha que encaja (Hábitos): chasquido seco y un golpe grave al asentarse.
-        this.tone(2100, 'square', 0.016, 0.06, 0);
-        this.tone(160, 'sine', 0.12, 0.28, 0.3, 70);
-        this.tone(1250, 'sine', 0.07, 0.1, 0.32);
+      case 'press':
+        // Almohadilla de silicona: un golpe mullido, sin chasquido.
+        this.tone(190, 'sine', 0.09, 0.2, 0, 110);
+        this.tone(620, 'sine', 0.05, 0.05, 0.015);
         break;
       case 'unlock':
         // Candado del cofre: dos clics metálicos.

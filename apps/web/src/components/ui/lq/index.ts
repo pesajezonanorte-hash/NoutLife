@@ -10,6 +10,7 @@ export { Switch } from './Switch';
 export { SegmentedControl, type SegmentOption } from './SegmentedControl';
 export { Tabs } from './Tabs';
 export { CheckButton } from './CheckButton';
+export { SoftPad, SoftPadFace } from './SoftPad';
 export { ProgressBar, ProgressRing } from './Progress';
 export { StatCard, AnimatedValue } from './StatCard';
 export { Toast, Toaster, useToast } from './Toast';

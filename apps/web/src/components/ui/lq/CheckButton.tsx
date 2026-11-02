@@ -1,7 +1,4 @@
-import { springSoft } from '@/lib/motion';
-import { motion } from 'framer-motion';
-import { Check } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { SoftPad } from './SoftPad';
 
 export interface CheckButtonProps {
   checked: boolean;
@@ -14,29 +11,7 @@ export interface CheckButtonProps {
   className?: string;
 }
 
-/** Check de hábito 48 px: aria-pressed, gira 360° y se rellena de success. */
+/** Check de hábito 48 px: almohadilla de silicona en relieve (SoftPad). */
 export function CheckButton({ checked, onToggle, name, disabled, locked, className }: CheckButtonProps) {
-  const isLocked = checked && locked;
-  return (
-    <motion.button
-      type="button"
-      aria-pressed={checked}
-      aria-label={isLocked ? `${name}: completado hoy` : `${checked ? 'Desmarcar' : 'Completar'} ${name}`}
-      aria-disabled={isLocked || undefined}
-      disabled={disabled}
-      onClick={isLocked ? undefined : onToggle}
-      animate={{ rotate: checked ? 360 : 0 }}
-      transition={springSoft}
-      className={cn(
-        'flex size-12 shrink-0 items-center justify-center rounded-full border-2 transition-colors duration-200 disabled:opacity-40',
-        checked
-          ? 'border-success bg-success text-on-primary'
-          : 'border-border-strong bg-transparent text-transparent hover:border-success',
-        isLocked && 'cursor-default',
-        className,
-      )}
-    >
-      <Check aria-hidden className="size-6" strokeWidth={2.25} />
-    </motion.button>
-  );
+  return <SoftPad checked={checked} name={name} onToggle={onToggle} pending={disabled} locked={locked} className={className} />;
 }

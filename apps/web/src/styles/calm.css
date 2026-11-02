@@ -1,0 +1,151 @@
+/* «Materia calma»: el volumen como material de la propia interfaz. Todo el color sale de los
+   tokens (--lq-*), así sigue al tema. Solo se animan transform y opacity; con «Reducir movimiento»
+   la regla global de tokens.css las acorta. */
+
+/* ───────── Almohadilla de silicona (components/ui/lq/SoftPad) ─────────
+   La imagen de cada estado la pone three3d/softPadEngine en --lq-pad-off / --lq-pad-on (el modelo de
+   Blender renderizado una vez por tema); .lq-pad-css es lo que se ve sin WebGL o mientras carga. El
+   lienzo vivo y las imágenes miden 64/48 del botón: dejan sitio al abultarse al presionar. */
+@layer components {
+  .lq-pad {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 3rem;
+    height: 3rem;
+    flex-shrink: 0;
+    border-radius: 32%;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .lq-pad:focus-visible { outline: 2px solid rgb(var(--lq-primary)); outline-offset: 2px; }
+  .lq-pad-face-only { pointer-events: none; }
+  /* Asiento: la sombra de contacto, difusa, que se aprieta al presionar y brilla con la luz. */
+  .lq-pad-seat {
+    position: absolute;
+    inset: 15% 15% 6%;
+    border-radius: 34%;
+    background: rgb(var(--lq-on-background) / .05);
+    box-shadow: 0 5px 12px -3px rgb(var(--lq-on-background) / .26), 0 1px 3px rgb(var(--lq-on-background) / .12);
+    transition: transform .22s cubic-bezier(.3, 1.4, .5, 1), box-shadow .3s ease-out;
+  }
+  html.dark .lq-pad-seat { box-shadow: 0 5px 12px -2px rgb(0 0 0 / .6), 0 1px 3px rgb(0 0 0 / .5); }
+  .lq-pad[data-on] .lq-pad-seat { box-shadow: 0 2px 16px 1px rgb(var(--lq-jade-400) / .55), 0 1px 3px rgb(var(--lq-jade-600) / .3); }
+  .lq-pad:not([aria-disabled]):active .lq-pad-seat { transform: scale(1.08) translateY(-1px); }
+  .lq-pad-img, .lq-pad-live {
+    position: absolute;
+    left: -16.67%;
+    top: -16.67%;
+    width: 133.33%;
+    height: 133.33%;
+    pointer-events: none;
+  }
+  .lq-pad-img { background: center / 100% 100% no-repeat; transition: opacity .2s ease-out, transform .14s cubic-bezier(.3, 1.6, .5, 1); }
+  .lq-pad-img-off { background-image: var(--lq-pad-off, none); }
+  .lq-pad-img-on { background-image: var(--lq-pad-on, none); opacity: 0; }
+  .lq-pad[data-on] .lq-pad-img-on { opacity: 1; }
+  .lq-pad[data-on] .lq-pad-img-off { opacity: 0; transition-delay: .1s; }
+  /* Sin lienzo (WebGL perdido, «Reducir movimiento» no: ahí la regla global lo acorta), la imagen cede sola. */
+  .lq-pad:not([data-live]):not([aria-disabled]):active .lq-pad-img { transform: scale(1.05, .95); }
+  /* Lienzo presente: tapa a las imágenes (el cambio ocurre en un solo fotograma). */
+  .lq-pad[data-live] .lq-pad-img { visibility: hidden; transition: none; }
+  /* Sin modelo todavía: la misma almohadilla en CSS. */
+  .lq-pad-css {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 74%;
+    height: 74%;
+    border-radius: 36%;
+    color: transparent;
+    background: radial-gradient(90% 90% at 38% 26%, rgb(var(--lq-surface)), rgb(var(--lq-jade-100)) 72%, rgb(var(--lq-jade-200)));
+    box-shadow: inset 0 1px 1px rgb(255 255 255 / .8), inset 0 -3px 5px rgb(var(--lq-jade-700) / .2);
+    transition: transform .16s cubic-bezier(.3, 1.6, .5, 1);
+  }
+  html.dark .lq-pad-css {
+    background: radial-gradient(90% 90% at 38% 26%, rgb(var(--lq-on-background) / .22), rgb(var(--lq-surface-variant)) 70%);
+    box-shadow: inset 0 1px 1px rgb(255 255 255 / .14), inset 0 -3px 5px rgb(0 0 0 / .4);
+  }
+  .lq-pad-css svg { width: 58%; height: 58%; }
+  .lq-pad[data-on] .lq-pad-css {
+    color: rgb(var(--lq-jade-900));
+    background: radial-gradient(90% 90% at 50% 45%, rgb(var(--lq-jade-200)), rgb(var(--lq-jade-400)) 80%);
+    box-shadow: inset 0 1px 1px rgb(255 255 255 / .5), inset 0 -3px 5px rgb(var(--lq-jade-700) / .3);
+  }
+  .lq-pad:not([aria-disabled]):active .lq-pad-css { transform: scale(1.08, .9); }
+  html[data-pad3d] .lq-pad-css { display: none; }
+}
+
+/* ───────── Canto rodado del navbar (components/layout/nav3d) ─────────
+   Se desliza en X o Y solo con transform, en el compositor. .lq-nav-clay es la pieza en CSS que se
+   ve hasta que el 3D está listo (o si no hay WebGL). */
+@layer components {
+  .lq-nav-pebble {
+    z-index: 0;
+    will-change: transform;
+  }
+  .lq-nav-pebble[data-placed] { transition: transform .48s cubic-bezier(.34, 1.16, .5, 1), opacity .2s ease-out; }
+  /* El canto 3D va encima y lleva el ícono; la pieza de CSS, debajo del ícono plano. */
+  .lq-nav-pebble[data-ready] { z-index: 2; }
+  .reduce-motion .lq-nav-pebble[data-placed] { transition: none; }
+  .lq-nav-clay {
+    border-radius: 999px;
+    background: linear-gradient(180deg, rgb(var(--lq-jade-200) / .9), rgb(var(--lq-jade-300) / .82));
+    box-shadow: inset 0 1px 1px rgb(255 255 255 / .55), inset 0 -2px 3px rgb(var(--lq-jade-700) / .22), 0 3px 8px -2px rgb(var(--lq-jade-900) / .25);
+    transition: opacity .25s ease-out;
+  }
+  html.dark .lq-nav-clay {
+    background: linear-gradient(180deg, rgb(var(--lq-jade-500) / .55), rgb(var(--lq-jade-600) / .5));
+    box-shadow: inset 0 1px 1px rgb(255 255 255 / .18), inset 0 -2px 3px rgb(0 0 0 / .3), 0 3px 8px -2px rgb(0 0 0 / .5);
+  }
+  .lq-nav-pebble[data-ready] .lq-nav-clay { opacity: 0; }
+}
+
+/* ───────── Tarjetas con grosor (Card, .lq-lift) ─────────
+   Siguen siendo DOM: el texto se lee y se selecciona como siempre. El canto es la losa de Blender
+   (juego card de calm.py) horneada a nueve cortes: transparente en la cara, blanco o negro con alfa
+   en el borde; el color lo pone el tema. Los materiales con otras esquinas (papel, piedra) no lo
+   llevan. La inclinación y la sombra que se corre las pone lib/motion/tilt. */
+@layer components {
+  .lq-card, .lq-lift { position: relative; }
+  .lq-card:not([class*="rounded-["]):not(.lq-zen-tray):not(.lq-tray):not(.lq-stone):not(.lq-marble)::after,
+  .lq-lift:not(.lq-card):not([class*="rounded-["])::after {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    z-index: 1;
+    pointer-events: none;
+    /* 100 px de textura a 2×: 44 px de esquina y 12 de tramo que se estira. */
+    border: 22px solid transparent;
+    border-image: url("@/assets/textures/card-bevel.webp") 44 / 22px stretch;
+    opacity: .72;
+  }
+  html.dark .lq-card::after, html.dark .lq-lift::after { opacity: .7; }
+  .lq-tilt { position: relative; }
+  .lq-card[data-tilting], .lq-lift[data-tilting], .lq-tilt[data-tilting] {
+    transition: border-color .2s ease-out, scale .12s ease-out;
+    will-change: transform;
+    /* Encima de sus vecinas mientras se levanta. */
+    z-index: 3;
+  }
+}
+
+/* ───────── Puntos de la semana: cuentas de la misma silicona ───────── */
+@layer components {
+  .lq-bead {
+    display: block;
+    width: .68rem;
+    height: .68rem;
+    border-radius: 34%;
+    background: radial-gradient(90% 90% at 36% 28%, rgb(var(--lq-surface)), rgb(var(--lq-jade-100)) 78%);
+    box-shadow: inset 0 -1px 1.5px rgb(var(--lq-jade-700) / .3), 0 1px 1.5px rgb(var(--lq-shadow-ink) / .2);
+  }
+  html.dark .lq-bead {
+    background: radial-gradient(90% 90% at 36% 28%, rgb(var(--lq-on-background) / .2), rgb(var(--lq-surface-variant)) 78%);
+    box-shadow: inset 0 -1px 1.5px rgb(0 0 0 / .5), 0 1px 1.5px rgb(0 0 0 / .4);
+  }
+  .lq-bead[data-on] {
+    background: radial-gradient(90% 90% at 50% 40%, rgb(var(--lq-jade-200)), rgb(var(--lq-jade-500)) 88%);
+    box-shadow: inset 0 -1px 1.5px rgb(var(--lq-jade-800) / .35), 0 0 5px rgb(var(--lq-jade-400) / .6);
+  }
+}
