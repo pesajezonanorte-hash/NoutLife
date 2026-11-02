@@ -150,7 +150,7 @@ export function DiaryBook({ left, right, pages = 0, className }: { left: ReactNo
 /** Hoja de una entrada anterior: papel con margen, el sello de ánimo en él y la esquina doblada. */
 export function DiaryLeaf({ stamp, children, aside, className }: { stamp: ReactNode; children: ReactNode; aside?: ReactNode; className?: string }) {
   return (
-    <article className={cn('lq-leaf grid grid-cols-[3.25rem_minmax(0,1fr)_auto] items-start gap-x-4 py-5 pl-2.5 pr-4 md:grid-cols-[4rem_minmax(0,1fr)_auto] md:gap-x-6 md:py-6 md:pl-4 md:pr-5', className)}>
+    <article className={cn('lq-tilt lq-leaf grid grid-cols-[3.25rem_minmax(0,1fr)_auto] items-start gap-x-4 py-5 pl-2.5 pr-4 md:grid-cols-[4rem_minmax(0,1fr)_auto] md:gap-x-6 md:py-6 md:pl-4 md:pr-5', className)}>
       <span aria-hidden="true" className="lq-tex-margin pointer-events-none absolute inset-y-0 left-[3.95rem] w-0 md:left-[5.25rem]" />
       <span className="flex justify-center pt-0.5">{stamp}</span>
       <div className="flex min-w-0 flex-col gap-1.5">{children}</div>

@@ -61,9 +61,10 @@
   --radius-full: 999px;
 
   /* Sombras: mismos nombres que antes, teñidas de verde tinta */
-  --shadow-sm: 0 1px 2px rgb(14 29 22 / .04), 0 1px 3px rgb(14 29 22 / .06);
-  --shadow-md: 0 4px 12px rgb(14 29 22 / .08), 0 2px 4px rgb(14 29 22 / .04);
-  --shadow-lg: 0 12px 32px rgb(14 29 22 / .12), 0 4px 8px rgb(14 29 22 / .06);
+  --lq-shadow-ink: 14 29 22;
+  --shadow-sm: 0 1px 2px rgb(14 29 22 / .05), 2px 5px 14px -6px rgb(14 29 22 / .11);
+  --shadow-md: 0 1px 2px rgb(14 29 22 / .05), 3px 8px 20px -8px rgb(14 29 22 / .14);
+  --shadow-lg: 0 2px 4px rgb(14 29 22 / .05), 6px 16px 36px -12px rgb(14 29 22 / .18);
 }
 
 html.dark {
@@ -97,9 +98,10 @@ html.dark {
   --lq-brand-b0: #c4e6d4; --lq-brand-b1: #5aa58c;
   --lq-brand-c0: #86c5aa; --lq-brand-c1: #4c957d; --lq-brand-c2: #1a5547;
 
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / .3);
-  --shadow-md: 0 4px 12px rgb(0 0 0 / .35);
-  --shadow-lg: 0 12px 32px rgb(0 0 0 / .45);
+  --lq-shadow-ink: 0 0 0;
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / .32), 2px 6px 14px -5px rgb(0 0 0 / .4);
+  --shadow-md: 0 1px 2px rgb(0 0 0 / .34), 3px 9px 20px -7px rgb(0 0 0 / .48);
+  --shadow-lg: 0 2px 4px rgb(0 0 0 / .36), 6px 18px 36px -10px rgb(0 0 0 / .6);
 }
 
 @layer base {
@@ -143,7 +145,7 @@ html.dark {
   /* Solo con ratón o trackpad: en el móvil :hover se queda pegado tras el toque y la
      tarjeta (o el selector) quedaba levantada y saltaba al tocar la siguiente. */
   @media (hover: hover) and (pointer: fine) {
-    .lq-lift:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); border-color: rgb(var(--lq-primary) / .25); }
+    .lq-lift:hover { border-color: rgb(var(--lq-primary) / .25); }
     .lq-lift:hover .lq-ichip { transform: scale(1.08) rotate(-4deg); }
   }
   .lq-lift:has(:focus-visible) { transform: translateY(-4px); box-shadow: var(--shadow-lg); border-color: rgb(var(--lq-primary) / .25); }

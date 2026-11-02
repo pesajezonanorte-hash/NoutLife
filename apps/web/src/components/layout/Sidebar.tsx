@@ -7,6 +7,8 @@
 // El scroll interno es siempre el mismo elemento, así que su posición se conserva al
 // abrir y cerrar; el hueco de la barra está reservado y solo se pinta desplegado.
 import { useEffect, useId, useRef, useState, type FocusEvent, type PointerEvent } from 'react';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { NavPebble } from './nav3d/NavPebble';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { ChevronDown, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
@@ -75,11 +77,9 @@ function SideLink({ to, label, icon: Icon, locked }: NavEntry) {
           active ? 'bg-primary/[var(--lq-soft-alpha)]' : 'group-hover/link:bg-surface-variant',
         )}
       />
-      {active && (
-        <span aria-hidden className="absolute -left-3 bottom-2.5 top-2.5 w-[3px] origin-center animate-grow-y rounded-r-[3px] bg-primary" />
-      )}
+      <span data-nav-slot className="absolute inset-y-0 left-0 w-12" />
       <span className="relative flex shrink-0">
-        <Icon aria-hidden className="relative size-6 shrink-0 transition-transform duration-300 ease-[cubic-bezier(.34,1.56,.64,1)] group-hover/link:scale-110 group-active/link:scale-95" strokeWidth={1.75} />
+        <Icon data-nav-icon aria-hidden className={cn('relative z-[1] size-6 shrink-0 transition-transform duration-300 ease-[cubic-bezier(.34,1.56,.64,1)] group-hover/link:scale-110 group-active/link:scale-95', !active && 'opacity-80')} strokeWidth={1.75} />
         {locked && <NavLock />}
       </span>
       <span className={cn('relative truncate', reveal)}>{label}</span>
@@ -179,6 +179,7 @@ export function Sidebar({ className }: { className?: string }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const open = hovered || focused || pinned;
   const nav = useNav();
+  const desktop = useMediaQuery('(min-width: 768px)');
 
   const isOpen = (s: NavSection) => openMap[s.id] ?? s.items.some((it) => matchesRoute(pathname, it.to));
   const toggle = (s: NavSection) => {
@@ -259,7 +260,7 @@ export function Sidebar({ className }: { className?: string }) {
           'group/side sticky top-0 h-dvh w-full overflow-hidden border-r border-border bg-surface',
         )}
       >
-        <div ref={scrollRef} className="flex h-full w-64 flex-col gap-4 overflow-y-auto overscroll-contain overflow-x-hidden px-3 py-4 [scrollbar-gutter:stable] [scrollbar-width:thin] [scrollbar-color:transparent_transparent] group-data-[open=true]/side:[scrollbar-color:rgb(var(--lq-border-strong))_transparent]">
+        <div ref={scrollRef} className="relative flex h-full w-64 flex-col gap-4 overflow-y-auto overscroll-contain overflow-x-hidden px-3 py-4 [scrollbar-gutter:stable] [scrollbar-width:thin] [scrollbar-color:transparent_transparent] group-data-[open=true]/side:[scrollbar-color:rgb(var(--lq-border-strong))_transparent]">
           <Link to="/" className="flex min-h-11 items-center gap-3 rounded-xl px-1" aria-label={t.home}>
             <BrandLockup markSize={32} wordClassName={reveal} />
           </Link>
@@ -293,6 +294,7 @@ export function Sidebar({ className }: { className?: string }) {
             </div>
             <ProfileCard />
           </div>
+          <NavPebble root={scrollRef} active={pathname} axis="y" enabled={desktop} />
         </div>
       </aside>
     </div>

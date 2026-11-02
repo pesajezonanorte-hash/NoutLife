@@ -8,7 +8,8 @@ import { useUIStore } from '../../store/uiStore';
 import { refreshUser } from '../../hooks/useAuth';
 import { useToastStore } from '../../hooks/useToast';
 import api from '../../lib/api';
-import { Badge, Button, Card, EmptyState, Field, Input, ProgressBar, ProgressRing, Textarea, formatClock, PageLoader } from '@/components/ui/lq';
+import { Badge, Button, Card, EmptyState, Field, Input, ProgressBar, Textarea, formatClock, PageLoader } from '@/components/ui/lq';
+import { FocusRing } from '@/components/focus/FocusRing';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 import { PerspectiveFlipCard } from '@/components/ui/perspective-flip-card';
 import { INTL_LOCALE, useLocale, useText, type Copy } from '@/lib/i18n';
@@ -227,12 +228,12 @@ export function PomodoroTimer({ itemTitle }: { itemTitle?: string }) {
     <section className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]" aria-label={t.pomoAria}>
       <Card variant="elevated" padding="none" className="flex flex-col items-center gap-6 px-6 py-10 text-center md:px-8 md:py-12">
         <Badge variant={phase === 'break' ? 'success' : phase === 'work' && running ? 'primary' : 'neutral'} size="lg">{label}</Badge>
-        <ProgressRing value={pct} tone={phase === 'break' ? 'success' : 'primary'} size={260} stroke={9} label={t.ringLabel} valueText={formatClock(seconds)}>
+        <FocusRing progress={pct / 100} state={phase === 'idle' ? 'idle' : running ? 'running' : 'paused'} rest={phase === 'break'} label={t.ringLabel} valueText={formatClock(seconds)} className="size-[260px] shrink-0">
           <span className="flex flex-col items-center gap-1">
             <span role="timer" aria-live="off" aria-label={t.timerAria(formatClock(seconds))} className="font-mono text-display-md font-bold tabular-nums"><span aria-hidden>{formatClock(seconds)}</span></span>
             {itemTitle && <span className="max-w-[12rem] truncate text-body-sm text-on-surface-light">{t.reading(itemTitle)}</span>}
           </span>
-        </ProgressRing>
+        </FocusRing>
         <div className="flex flex-wrap items-center justify-center gap-3">
           <Button variant="secondary" onClick={reset}><RotateCcw aria-hidden className="size-4" />{t.reset}</Button>
           <Button className="min-w-40" onClick={toggle}>
@@ -317,7 +318,7 @@ export function NotesPanel({ itemId }: { itemId: string }) {
         <ul className="flex flex-col gap-3">
           {notes.map((n) => (
             <li key={n.id}>
-              <Card padding="sm" className="flex items-start gap-3">
+              <Card padding="sm" interactive className="flex items-start gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="whitespace-pre-wrap text-body-md">{n.text}</p>
                   <p className="mt-1 text-body-sm text-on-surface-light">{new Date(n.createdAt).toLocaleDateString(INTL_LOCALE[locale])}</p>

@@ -2,14 +2,19 @@
 // normalizados + escala y traslación del nodo) y EXT_meshopt_compression (con sus filtros).
 // `readGlb` devuelve el primer nodo con malla (figuras del Coliseo, scripts/build-avatars.mjs);
 // `readGlbNodes`, todos los nodos con su nombre y sus `extras` (objetos de las zonas,
-// scripts/build-props.mjs). Atributos en Float32Array (posición en metros); las imágenes, tal
-// cual vienen. Sin DOM: también lo usan los tests de Node.
+// scripts/build-props.mjs); `readGlbScene`, además los morph targets, las animaciones de pesos
+// y las imágenes (Materia calma, scripts/build-calm.mjs). Atributos en Float32Array (posición en
+// metros); las imágenes, tal cual vienen. Sin DOM: también lo usan los tests de Node.
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+
+export interface GlbAttribute { array: Float32Array; size: number }
 
 export interface GlbPrimitive {
   material: string;
   /** Por nombre glTF (POSITION, NORMAL, TEXCOORD_0, _MUSCLE0…): valores y componentes por vértice. */
-  attributes: Record<string, { array: Float32Array; size: number }>;
+  attributes: Record<string, GlbAttribute>;
+  /** Morph targets, en el orden de `targetNames`: diferencia con la base (posición en metros). */
+  targets: Array<Record<string, GlbAttribute>>;
   index: Uint32Array;
 }
 
@@ -22,15 +27,30 @@ export interface GlbNode {
   name: string;
   extras: Record<string, unknown>;
   primitives: GlbPrimitive[];
+  targetNames: string[];
+}
+
+/** Animación de pesos de morph: `weights` trae `targets` valores por cada tiempo (segundos). */
+export interface GlbClip {
+  name: string;
+  times: Float32Array;
+  weights: Float32Array;
+  targets: number;
+}
+
+export interface GlbScene extends Glb {
+  nodes: GlbNode[];
+  clips: GlbClip[];
 }
 
 interface Json {
   accessors: Array<{ bufferView: number; byteOffset?: number; componentType: number; normalized?: boolean; count: number; type: string }>;
   bufferViews: Array<{ byteOffset?: number; byteLength: number; byteStride?: number; extensions?: { EXT_meshopt_compression?: { byteOffset?: number; byteLength: number; byteStride: number; count: number; mode: string; filter?: string } } }>;
-  meshes: Array<{ primitives: Array<{ attributes: Record<string, number>; indices: number; material: number }> }>;
+  meshes: Array<{ extras?: { targetNames?: string[] }; primitives: Array<{ attributes: Record<string, number>; targets?: Array<Record<string, number>>; indices: number; material: number }> }>;
   materials: Array<{ name: string }>;
   images?: Array<{ bufferView: number; mimeType: string }>;
   nodes: Array<{ name?: string; mesh?: number; translation?: number[]; scale?: number[]; extras?: Record<string, unknown> }>;
+  animations?: Array<{ name?: string; channels: Array<{ sampler: number; target: { path: string } }>; samplers: Array<{ input: number; output: number }> }>;
 }
 
 const SIZE: Record<string, number> = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4 };
@@ -82,10 +102,35 @@ async function parse(buffer: ArrayBuffer) {
         pos[i + 1] = pos[i + 1] * sy + ty;
         pos[i + 2] = pos[i + 2] * sz + tz;
       }
-      return { material: json.materials[p.material]?.name ?? '', attributes, index: Uint32Array.from(read(p.indices).array) };
+      // Las diferencias de posición llevan la escala del nodo, no su traslación.
+      const targets = (p.targets ?? []).map((target) => {
+        const out = Object.fromEntries(Object.entries(target).map(([name, i]) => [name, read(i)]));
+        const delta = out.POSITION?.array;
+        for (let i = 0; delta && i < delta.length; i += 3) {
+          delta[i] *= sx;
+          delta[i + 1] *= sy;
+          delta[i + 2] *= sz;
+        }
+        return out;
+      });
+      return { material: json.materials[p.material]?.name ?? '', attributes, targets, index: Uint32Array.from(read(p.indices).array) };
     });
   };
-  return { json, views, primitivesOf };
+  const nodes = (): GlbNode[] => json.nodes.filter((n) => n.mesh !== undefined).map((n) => ({
+    name: n.name ?? '',
+    extras: n.extras ?? {},
+    primitives: primitivesOf(n),
+    targetNames: json.meshes[n.mesh!].extras?.targetNames ?? [],
+  }));
+  const clips = (): GlbClip[] => (json.animations ?? []).flatMap((a) => {
+    const channel = a.channels.find((c) => c.target.path === 'weights');
+    if (!channel) return [];
+    const sampler = a.samplers[channel.sampler];
+    const times = read(sampler.input).array;
+    const weights = read(sampler.output).array;
+    return [{ name: a.name ?? '', times, weights, targets: weights.length / times.length }];
+  });
+  return { json, views, primitivesOf, nodes, clips };
 }
 
 export async function readGlb(buffer: ArrayBuffer): Promise<Glb> {
@@ -96,6 +141,12 @@ export async function readGlb(buffer: ArrayBuffer): Promise<Glb> {
 }
 
 export async function readGlbNodes(buffer: ArrayBuffer): Promise<GlbNode[]> {
-  const { json, primitivesOf } = await parse(buffer);
-  return json.nodes.filter((n) => n.mesh !== undefined).map((n) => ({ name: n.name ?? '', extras: n.extras ?? {}, primitives: primitivesOf(n) }));
+  return (await parse(buffer)).nodes();
+}
+
+export async function readGlbScene(buffer: ArrayBuffer): Promise<GlbScene> {
+  const { json, views, primitivesOf, nodes, clips } = await parse(buffer);
+  const first = json.nodes.find((n) => n.mesh !== undefined)!;
+  const images = (json.images ?? []).map((img) => ({ mimeType: img.mimeType, bytes: views[img.bufferView] }));
+  return { primitives: primitivesOf(first), images, nodes: nodes(), clips: clips() };
 }

@@ -14,6 +14,7 @@ import { useToastStore } from '@/hooks/useToast';
 import { refreshUser } from '@/hooks/useAuth';
 import { Button, Confetti, Field, IconChip, Input, SegmentedControl, Select, Switch, useDialogBehavior } from '@/components/ui/lq';
 import { AMBIENT_SOUNDS, createAmbientSound, playChime, type AmbientAudioController, type AmbientSoundId } from '@/components/focus/ambientSound';
+import { FocusRing } from '@/components/focus/FocusRing';
 import { useText, type Copy } from '@/lib/i18n';
 
 const es = {
@@ -255,7 +256,6 @@ export function FocusMode({ onClose, taskLabel, questId }: Props) {
     }
   }
 
-  const ringTone = phase === 'done' ? 'stroke-success' : 'stroke-primary';
   const savedMinutes = Math.floor(elapsed / 60);
 
   return createPortal(
@@ -301,17 +301,7 @@ export function FocusMode({ onClose, taskLabel, questId }: Props) {
 
           {/* Temporizador */}
           <div className="flex justify-center py-2">
-            <div className="relative size-60 md:size-72">
-              <svg viewBox="0 0 100 100" aria-hidden className="size-full -rotate-90">
-                <circle cx="50" cy="50" r="45" fill="none" strokeWidth="6" className="stroke-surface-variant" />
-                <circle
-                  cx="50" cy="50" r="45" fill="none" strokeWidth="6" strokeLinecap="round"
-                  pathLength={1} strokeDasharray="1 1" strokeDashoffset={1 - progress}
-                  strokeOpacity={progress > 0 ? 1 : 0}
-                  className={cn(ringTone, 'transition-[stroke-dashoffset,stroke] duration-300 ease-linear')}
-                />
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 px-8 text-center">
+            <FocusRing progress={progress} state={phase === 'setup' ? 'idle' : phase} className="size-60 md:size-72">
                 {phase === 'done' ? (
                   <>
                     <CheckCircle2 aria-hidden className="size-12 text-success-text" strokeWidth={1.75} />
@@ -328,8 +318,7 @@ export function FocusMode({ onClose, taskLabel, questId }: Props) {
                     </span>
                   </>
                 )}
-              </div>
-            </div>
+            </FocusRing>
           </div>
           <p aria-live="polite" className="sr-only">{announce}</p>
           {phase === 'done' && <Confetti />}

@@ -10,6 +10,7 @@ import { useMotionStore } from './store/motionStore';
 import { captureAttribution, track } from './lib/analytics';
 import { isHalloween } from './lib/season';
 import './styles/globals.css';
+import { startCardTilt } from './lib/motion/tilt';
 
 // Temporada (styles/halloween.css); index.html lo adelanta para el splash.
 if (isHalloween()) document.documentElement.dataset.season = 'halloween';
@@ -23,6 +24,9 @@ document.addEventListener('gesturestart', (e) => e.preventDefault());
 document.addEventListener('contextmenu', (e) => {
   if (!(e.target instanceof Element && e.target.closest(EDITABLE))) e.preventDefault();
 });
+
+// Las tarjetas se inclinan con el cursor o el dedo (un solo oyente para todas).
+startCardTilt();
 
 // Embudo: UTM y ref del primer toque, y la instalación de la PWA.
 captureAttribution();
