@@ -182,7 +182,7 @@ test('héroe: las mallas, los shape keys, los tiempos y el peso para el splash',
   assert.deepEqual(n.primitives.map((p) => p.material.slice(-1)).sort(), ['a', 'b', 'c'], 'una primitiva por hoja del logo');
   for (const name of ['_OUT', '_LAG', '_SHADE']) assert.ok(n.primitives[0].attributes[name], name);
   assert.deepEqual(leaves.targetNames, ['scatter']);
-  for (const name of ['_PIVOT', '_AXIS', '_LAG']) assert.ok(leaves.primitives[0].attributes[name], name);
+  for (const name of ['_PIVOT', '_AXIS', '_LAG', '_PART']) assert.ok(leaves.primitives[0].attributes[name], name);
   assert.deepEqual([...timeline.targetNames].sort(), ['assemble', 'drop', 'flat', 'flow', 'liquid', 'pool', 'puff', 'reform', 'solid']);
   for (const name of ['hero_birth', 'hero_breath', 'hero_outro']) assert.ok(scene.clips.some((c) => c.name === name), name);
   assert.ok(!scene.clips.some((c) => c.name === 'hero_sequence'), 'la secuencia completa no pesa en la web');
@@ -221,18 +221,19 @@ test('héroe: el contorno de la N es el del logo y la gota cabe en su radio', as
   assert.ok(Math.abs(maxDrop - 0.6) < 0.03, `radio de la gota: ${maxDrop}`);
 });
 
-test('héroe: el mosaico de hojas cae dentro de la N y las hojas flotan lejos de ella', async () => {
+test('héroe: tres hojas, una por trazo del logo, que empiezan lejos de la N', async () => {
   const scene = await heroScene();
   const leaves = scene.nodes.find((x) => x.name === 'hero_hojas')!.primitives[0];
-  const pivots = leaves.attributes._PIVOT.array;
+  const part = leaves.attributes._PART.array;
+  const pivot = leaves.attributes._PIVOT.array;
   const fly = leaves.targets[0].POSITION.array;
-  const seen = new Set<string>();
-  for (let i = 0; i < pivots.length; i += 3) {
-    seen.add(`${pivots[i].toFixed(4)},${pivots[i + 1].toFixed(4)}`);
-    assert.ok(Math.abs(pivots[i] * 4) < 0.86 && Math.abs(pivots[i + 1] * 4) < 1.01, 'dentro de la caja del logo');
-    assert.ok(Math.hypot(fly[i], fly[i + 2]) > 1, 'empieza fuera de la N');
+  const per = new Map<number, number>();
+  for (const p of part) per.set(Math.round(p * 2), (per.get(Math.round(p * 2)) ?? 0) + 1);
+  assert.deepEqual([...per.keys()].sort(), [0, 1, 2], 'una hoja por trazo');
+  for (let i = 0; i < pivot.length; i += 3) {
+    assert.ok(Math.abs(pivot[i]) < 0.9 && Math.abs(pivot[i + 1]) < 1.05, 'el centro cae dentro del logo');
+    assert.ok(Math.hypot(fly[i], fly[i + 2]) > 2, 'empieza lejos de la N');
   }
-  assert.ok(seen.size >= 60 && seen.size <= 160, `${seen.size} hojas`);
 });
 
 test('héroe: los mismos tres trazados en el logo, en el splash de CSS y en Blender', () => {

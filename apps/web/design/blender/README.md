@@ -28,7 +28,7 @@ Hojas → N → líquido → logo. Abre `calm-hero.blend` y dale a reproducir: l
 | Pieza | Qué es |
 |---|---|
 | `hero_n` | La N del logo, con el contorno exacto de sus trazados (`components/layout/Brand.tsx`). Tres almohadas, una por hoja del logo, cada una con su pared. Una primitiva por hoja, en el orden en que el SVG las pinta (c, a, b). `puff` la hincha; `drop` la recoge en una gota. |
-| `hero_hojas` | 96 hojas en una sola malla. La base es el mosaico armado: las grandes por dentro, las pequeñas contra el borde, cada una a lo largo de su parte. `scatter` las lleva a donde flotan. |
+| `hero_hojas` | Tres hojas, una por trazo del logo, con su contorno exacto. Vienen de fuera girando y se posan en su sitio una tras otra. `scatter` las lleva a donde flotan. |
 | `hero_tiempo` | Una malla vacía que solo lleva curvas: `assemble`, `solid`, `puff`, `drop`, `liquid`, `pool`, `flow`, `reform` y `flat`. La web las lee del `.glb`, así los tiempos se ajustan en Blender. |
 | `hero_liquido` | Solo en el `.blend`: las metabolas de la corriente. La web la dibuja con su propio campo de gotas. |
 
@@ -38,7 +38,7 @@ Hojas → N → líquido → logo. Abre `calm-hero.blend` y dale a reproducir: l
 | `hero_breath` | 4 s, en bucle | La N respira mientras la app carga |
 | `hero_outro` | 1,5 s | Toma aire, se funde en una gota, la corriente sale hacia el logo y allí vuelve a ser la N, ya plana como el SVG |
 
-Atributos propios, que el exportador deja en los ejes de Blender (x, y, z), sin pasarlos a glTF: `_OUT` (hacia dónde abre la web la pared, para tener una altura con signo alrededor del borde), `_LAG` (cuándo se funde cada punto o sale cada hoja), `_SHADE` (la sombra que deja la hoja de encima), `_PIVOT` (centro de cada hoja, dividido entre 4) y `_AXIS` (giro con el que llega).
+Atributos propios, que el exportador deja en los ejes de Blender (x, y, z), sin pasarlos a glTF: `_OUT` (hacia dónde abre la web la pared, para tener una altura con signo alrededor del borde), `_LAG` (cuándo se funde cada punto o sale cada hoja), `_SHADE` (la sombra que deja la hoja de encima), `_PIVOT` (centro de cada hoja), `_AXIS` (giro con el que llega) y `_PART` (qué trazo del logo es: 0, ½ o 1).
 
 ## Materiales
 

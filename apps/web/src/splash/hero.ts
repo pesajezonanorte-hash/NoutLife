@@ -73,7 +73,7 @@ const FIELD_K = 11;
 const FIELD_SCALE = 1 / 2;
 /** Distancia de la cámara de las hojas, en unidades de la N. */
 const CAMERA = 8;
-/** Gotas por cada hoja del mosaico: con menos, la corriente se corta. */
+/** Gotas por cada punto de la superficie de la N: con menos, la corriente se corta. */
 const DROPS_PER_LEAF = 4;
 /** Radio de la gota en la que se recoge, igual que HERO_DROP_R en calm.py. */
 const DROP_R = 0.6;
@@ -149,21 +149,13 @@ void main() {
   gl_Position = vec4(uRegion.xy + xy * uRegion.zw, 0.0, 1.0);
 }`;
 
-const N_FRAG = /* glsl */ `${HEAD}
-in float vH;
-in vec3 vN;
-in vec2 vLogo;
-in float vShade;
-flat in float vPart;
-uniform float uPass;
+/** Los degradados del logo, por trazo: las mismas líneas y paradas que el SVG (components/layout/Brand.tsx). */
+const LOGO_FN = /* glsl */ `
 uniform vec3 uStops[9];
-layout(location = 0) out vec4 out0;
-layout(location = 1) out vec4 out1;
 
-// Los degradados del logo, por hoja, con las mismas líneas y paradas que el SVG (components/layout/Brand.tsx).
+// Necesita vLogo (posición en el viewBox 670 × 786 del logo) y vPart (0 = c, 1 = a, 2 = b).
 vec3 logoColor() {
   vec2 a, b;
-  vec3 c0, c1, c2, c3;
   float t;
   if (vPart < 0.5) {
     a = vec2(520.0, 210.0); b = vec2(669.0, 780.0);
@@ -181,6 +173,18 @@ vec3 logoColor() {
   t = clamp(dot(vLogo - a, b - a) / dot(b - a, b - a), 0.0, 1.0);
   return mix(uStops[7], uStops[8], t);
 }
+`;
+
+const N_FRAG = /* glsl */ `${HEAD}
+in float vH;
+in vec3 vN;
+in vec2 vLogo;
+in float vShade;
+flat in float vPart;
+uniform float uPass;
+${LOGO_FN}
+layout(location = 0) out vec4 out0;
+layout(location = 1) out vec4 out1;
 
 void main() {
   if (uPass < 0.5) {
@@ -403,10 +407,10 @@ void main() {
   gl_FragColor = vec4(outRgb + dither() / 255.0 * cover, cover + rest);
 }`;
 
-// Las hojas: geometría de verdad, con su perspectiva. Vuelan atraídas por la N y al llegar se recortan
-// exactas contra su contorno.
+// Las tres hojas del logo: geometría de verdad, con su perspectiva. Vienen de fuera, translúcidas y de color
+// menta; al posarse toman los degradados del logo (LOGO_FN) y la N, ya armada, las releva.
 const LEAF_VERT = /* glsl */ `${HEAD}
-in vec3 position; in vec3 normal; in vec3 aPivot; in vec3 aAxis; in float aLag; in vec3 aFly;
+in vec3 position; in vec3 normal; in vec3 aPivot; in vec3 aAxis; in float aLag; in vec3 aFly; in float aPartLeaf;
 uniform float uAssemble;
 uniform float uTime;
 uniform vec2 uCenter;
@@ -415,6 +419,10 @@ out vec3 vN;
 out vec3 vV;
 out float vLanded;
 out float vFar;
+out vec2 vLogo;
+flat out float vPart;
+out vec3 vBrand;
+${LOGO_FN}
 
 vec3 turn(vec3 v, vec3 axis, float a) {
   float c = cos(a);
@@ -423,34 +431,29 @@ vec3 turn(vec3 v, vec3 axis, float a) {
 }
 
 void main() {
+  // Los atributos propios van en los ejes de Blender; los de glTF (position, normal, morphs) se pasan aquí.
   vec3 pos = vec3(position.x, -position.z, position.y);
   vec3 nor = vec3(normal.x, -normal.z, normal.y);
-  vec3 pivot = aPivot * 4.0;
-  vec3 axis = aAxis;
   vec3 fly = vec3(aFly.x, -aFly.z, aFly.y);
   float span = 0.46;
   float tl = clamp((uAssemble - aLag * (1.0 - span)) / span, 0.0, 1.0);
-  // Atracción: flotan sin prisa y, cerca, se precipitan. Un pelín de más al llegar.
   float e = tl * tl * tl * (tl * (6.0 * tl - 15.0) + 10.0);
-  e = pow(e, 1.5);
-  float settle = sin(clamp((tl - 0.86) / 0.14, 0.0, 1.0) * 3.14159) * 0.028;
   float rest = 1.0 - e;
-  float spin = rest * 1.15;
-  vec3 away = fly * rest;
-  float cs = cos(spin);
-  float sn = sin(spin);
-  away.xy = vec2(cs * away.x - sn * away.y, sn * away.x + cs * away.y);
+  float settle = sin(clamp((tl - 0.86) / 0.14, 0.0, 1.0) * 3.14159) * 0.028;
+  // Antes de posarse flotan, con un vaivén lento que es distinto en cada hoja.
   float seed = dot(aPivot, vec3(91.3, 47.7, 13.1));
-  away += vec3(sin(uTime * 0.9 + seed), cos(uTime * 0.7 + seed * 1.7), sin(uTime * 0.6 + seed * 0.6) * 1.4) * 0.05 * rest;
-  float amount = length(axis);
-  vec3 dir = axis / max(amount, 1e-3);
-  float a = rest * amount * 6.2832 + rest * sin(uTime * 0.8 + seed) * 0.4;
-  vec3 local = (pos - pivot) * (1.0 + rest * 0.25 + settle * 2.0);
-  vec3 wp = pivot + turn(local, dir, a) + away;
-  wp.z += settle * 0.2;
+  vec3 away = fly * rest + vec3(sin(uTime * 0.9 + seed), cos(uTime * 0.7 + seed * 1.7), 0.0) * 0.04 * rest;
+  float amount = length(aAxis);
+  vec3 dir = aAxis / max(amount, 1e-3);
+  float a = rest * amount * 6.2832;
+  vec3 local = (pos - aPivot) * (1.0 + settle * 2.0);
+  vec3 wp = aPivot + turn(local, dir, a) + away;
   vN = turn(nor, dir, a);
   vLanded = smoothstep(0.82, 1.0, tl);
   vFar = clamp(-wp.z * 0.5, 0.0, 1.0);
+  vLogo = vec2(position.x * 393.0 + 335.0, 393.0 + position.z * 393.0);
+  vPart = floor(aPartLeaf * 2.0 + 0.5);
+  vBrand = logoColor();
   vV = normalize(vec3(0.0, 0.0, ${CAMERA.toFixed(1)}) - wp);
   float w = (${CAMERA.toFixed(1)} - wp.z) / ${CAMERA.toFixed(1)};
   gl_Position = vec4(uCenter * w + wp.xy * uUnit, -wp.z * 0.1 * w, w);
@@ -461,15 +464,11 @@ in vec3 vN;
 in vec3 vV;
 in float vLanded;
 in float vFar;
+in vec3 vBrand;
 uniform vec3 uKey;
 uniform vec3 uLeaf;
 uniform vec3 uDeep;
 uniform float uFade;
-uniform sampler2D uH;
-uniform vec4 uA;
-uniform vec4 uAtlasA;
-uniform vec2 uView;
-uniform float uDpr;
 out vec4 color;
 void main() {
   vec3 n = normalize(vN);
@@ -477,22 +476,13 @@ void main() {
   vec3 v = normalize(vV);
   float ndv = abs(dot(n, v));
   float wrap = clamp((dot(n, uKey) + 0.5) / 1.5, 0.0, 1.0);
-  vec3 col = mix(uLeaf, uDeep, 0.15 + 0.5 * (1.0 - wrap)) * (0.82 + 0.3 * wrap);
-  // Translúcida: de canto se ve más y de frente deja pasar el fondo.
-  float alpha = mix(0.86, 0.5, ndv) * mix(1.0, 0.62, vFar);
+  vec3 mint = toSrgb(mix(uLeaf, uDeep, 0.15 + 0.5 * (1.0 - wrap)) * (0.82 + 0.3 * wrap));
+  vec3 col = mix(mint, vBrand * (0.86 + 0.24 * wrap), vLanded);
+  // Translúcida: de canto se ve más y de frente deja pasar el fondo. Al posarse, ya es el logo.
+  float alpha = mix(mix(0.86, 0.5, ndv) * mix(1.0, 0.62, vFar), 0.92, vLanded) * uFade;
   vec3 r = reflect(-v, n);
   col += vec3(1.0) * smoothstep(0.16, 0.02, 1.0 - dot(r, uKey)) * 0.34;
-  // Ya en su sitio, se recorta contra el contorno exacto de la N.
-  vec2 p = vec2(gl_FragCoord.x, uView.y * uDpr - gl_FragCoord.y) / uDpr;
-  vec2 q = (p - uA.xy) / uA.z;
-  q.y = -q.y;
-  vec2 a = q / ${EXTENT.toFixed(2)};
-  float inside = step(max(abs(a.x), abs(a.y)), 0.995);
-  float h = mix(-1.0, texture(uH, uAtlasA.xy + (a * 0.5 + 0.5) * uAtlasA.zw).r, inside);
-  float clip = smoothstep(-0.012, 0.012, h);
-  alpha *= mix(1.0, clip, vLanded) * uFade;
-  vec3 srgb = toSrgb(col);
-  color = vec4(srgb * alpha, alpha);
+  color = vec4(col * alpha, alpha);
 }`;
 
 type Canvas = HTMLCanvasElement | OffscreenCanvas;
@@ -839,12 +829,11 @@ export function startHero(canvas: Canvas, init: HeroInit, post: (e: HeroEvent) =
     gl.uniform3f(sceneProg.at('uKey'), KEY_DIR[0] / key, KEY_DIR[1] / key, KEY_DIR[2] / key);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
 
-    // Las hojas, encima, hasta fundirse en la N.
+    // Las tres hojas, encima, hasta fundirse en la N.
     const leafFade = 1 - clamp((w.solid - 0.55) / 0.42);
     if (leafFade > 0 && leaveT < 0) {
       gl.useProgram(leafProg.p);
       gl.bindVertexArray(leafVao);
-      bind(0, 'uH', hTarget!.tex, leafProg);
       gl.uniform1f(leafProg.at('uAssemble'), w.assemble);
       gl.uniform1f(leafProg.at('uTime'), time);
       gl.uniform2f(leafProg.at('uCenter'), (layout.x / layout.width) * 2 - 1, 1 - (layout.y / layout.height) * 2);
@@ -852,12 +841,9 @@ export function startHero(canvas: Canvas, init: HeroInit, post: (e: HeroEvent) =
       gl.uniform3f(leafProg.at('uKey'), KEY_DIR[0] / key, KEY_DIR[1] / key, KEY_DIR[2] / key);
       gl.uniform3fv(leafProg.at('uLeaf'), tones.leaf);
       gl.uniform3fv(leafProg.at('uDeep'), tones.deep);
-      // Entran con un fundido corto; al fundirse en la N, se apagan.
+      gl.uniform3fv(leafProg.at('uStops[0]'), tones.logo.flat(2) as number[]);
+      // Entran con un fundido corto; ya posadas son el logo, y la N las releva.
       gl.uniform1f(leafProg.at('uFade'), leafFade * clamp(birthT / 0.28));
-      gl.uniform4f(leafProg.at('uA'), layout.x, layout.y, unit, 1);
-      gl.uniform4fv(leafProg.at('uAtlasA'), atlasA);
-      gl.uniform2f(leafProg.at('uView'), layout.width, layout.height);
-      gl.uniform1f(leafProg.at('uDpr'), layout.dpr);
       gl.drawElements(gl.TRIANGLES, leafIndex, gl.UNSIGNED_INT, 0);
     }
     gl.bindVertexArray(null);
@@ -957,7 +943,7 @@ export function startHero(canvas: Canvas, init: HeroInit, post: (e: HeroEvent) =
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, joined.index, gl.STATIC_DRAW);
     nIndex = joined.index.length;
 
-    // Las hojas.
+    // Las tres hojas del logo.
     const leaves = nodeOf('hero_hojas').primitives[0];
     const flyAt = nodeOf('hero_hojas').targetNames.indexOf('scatter');
     gl.bindVertexArray(leafVao);
@@ -966,28 +952,28 @@ export function startHero(canvas: Canvas, init: HeroInit, post: (e: HeroEvent) =
     attr(leafProg, 'aPivot', leaves.attributes._PIVOT.array, 3);
     attr(leafProg, 'aAxis', leaves.attributes._AXIS.array, 3);
     attr(leafProg, 'aLag', leaves.attributes._LAG.array, 1);
+    attr(leafProg, 'aPartLeaf', leaves.attributes._PART.array, 1);
     attr(leafProg, 'aFly', leaves.targets[flyAt].POSITION.array, 3);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, gl.createBuffer());
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, leaves.index, gl.STATIC_DRAW);
     leafIndex = leaves.index.length;
 
-    // Las gotas salen de las mismas hojas: una por cada hoja del mosaico, con su sitio y su tamaño.
-    const pivots = leaves.attributes._PIVOT.array;
-    const seen = new Map<string, number>();
-    const pts: number[] = [];
-    for (let i = 0; i < pivots.length; i += 3) {
-      const key = `${pivots[i].toFixed(4)},${pivots[i + 1].toFixed(4)},${pivots[i + 2].toFixed(4)}`;
-      seen.set(key, (seen.get(key) ?? 0) + 1);
-      if (seen.get(key) === 1) pts.push(pivots[i] * 4, pivots[i + 1] * 4);
+    // Las gotas salen de la superficie de la N: una cada tantos puntos, y de cada una varias.
+    const top: number[] = [];
+    for (const prim of n.primitives) {
+      const pos = prim.attributes.POSITION.array;
+      for (let i = 0; i < pos.length; i += 3) if (pos[i + 1] > -0.05) top.push(pos[i], -pos[i + 2]);
     }
-    dropCount = (pts.length / 2) * DROPS_PER_LEAF;
+    const every = Math.max(1, Math.ceil(top.length / 2 / 80));
+    const homes: number[] = [];
+    for (let i = 0; i < top.length; i += 2 * every) homes.push(top[i], top[i + 1]);
+    dropCount = (homes.length / 2) * DROPS_PER_LEAF;
     const instance = new Float32Array(dropCount * 4);
     const rand = new Float32Array(dropCount * 2);
     const hash = (x: number) => { const s = Math.sin(x) * 43758.5453; return s - Math.floor(s); };
     for (let i = 0; i < dropCount; i++) {
-      const home = i % (pts.length / 2);
-      // Las tandas repartidas por igual, pero sin orden: de cualquier parte de la N salen en cualquier momento.
-      instance.set([pts[home * 2], pts[home * 2 + 1], 0.1 + hash(i * 3.17) * 0.13, ((i * 0.618034) % 1)], i * 4);
+      const home = i % (homes.length / 2);
+      instance.set([homes[home * 2], homes[home * 2 + 1], 0.1 + hash(i * 3.17) * 0.13, (i * 0.618034) % 1], i * 4);
       rand.set([hash(i * 12.9898), hash(i * 78.233)], i * 2);
     }
     gl.bindVertexArray(dropVao);
