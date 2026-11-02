@@ -360,7 +360,7 @@ function useShareCard(t: typeof es, locale: Locale) {
     const W = 1080, H = 1920;
     const css = getComputedStyle(document.documentElement);
     const tok = (n: string, a = 1) => `rgb(${css.getPropertyValue(`--lq-${n}`).trim()} / ${a})`;
-    const font = (px: number, w = 500) => `${w} ${px}px Montserrat, system-ui, sans-serif`;
+    const font = (px: number, w = 500) => `${w} ${px}px 'Nout Sans', system-ui, sans-serif`;
     c.width = W; c.height = H;
     ctx.fillStyle = tok('background'); ctx.fillRect(0, 0, W, H);
     // Luz jade suave arriba, como el cielo de la ventana de Inicio.

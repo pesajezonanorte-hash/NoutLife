@@ -309,8 +309,8 @@ html:not(.dark) .lq-energy-fill::before { box-shadow: 0 0 10px 1px rgb(var(--lq-
   .lq-prism-pool-b { stop-color: rgb(var(--lq-jade-400)); stop-opacity: 0; }
   html:not(.dark) .lq-prism-beam-a { stop-opacity: .3; }
   html:not(.dark) .lq-prism-pool-a { stop-opacity: .3; }
-  .lq-prism-value { font: 700 11px 'JetBrains Mono', ui-monospace, monospace; fill: rgb(var(--lq-primary-text)); }
-  .lq-prism-label { font: 500 10.5px var(--lq-font-sans), 'Montserrat', system-ui, sans-serif; fill: rgb(var(--lq-on-surface-light)); }
+  .lq-prism-value { font: 600 11px var(--lq-font-sans), 'Nout Sans', system-ui, sans-serif; font-variant-numeric: tabular-nums; fill: rgb(var(--lq-primary-text)); }
+  .lq-prism-label { font: 500 10.5px var(--lq-font-sans), 'Nout Sans', system-ui, sans-serif; fill: rgb(var(--lq-on-surface-light)); }
   .lq-prism-label[data-hi] { font-weight: 700; fill: rgb(var(--lq-primary-text)); }
   /* Las columnas suben desde el suelo (recortadas por él) cuando el reverso ya está quieto;
      al volver bajan sin transición (la cara ya no se ve). Igual el anillo y los medidores. */

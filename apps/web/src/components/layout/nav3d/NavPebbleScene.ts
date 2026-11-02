@@ -1,36 +1,18 @@
-// Canto rodado del navbar: la pestaña activa con volumen. El modelo sale de Blender (juego nav de
-// scripts/blender/calm.py) y el clip nav_travel marca cómo se estira al viajar y se asienta al
-// llegar. La posición en X/Y la lleva CSS (.lq-nav-pebble, solo transform): el canto cruza la barra
-// en el compositor y no se traba mientras React monta la página nueva. Esta escena solo dibuja lo
-// que cambia: al navegar unas décimas de segundo y, en reposo, nada.
-import { BufferAttribute, BufferGeometry, Color, Group, Mesh, ShaderMaterial, Texture, Vector3 } from 'three';
-import navUrl from '@/assets/models/calm-nav.glb?url';
+// Ícono activo del navbar con volumen: un gel translúcido que se ilumina por dentro. La pastilla es
+// CSS (.lq-nav-clay) y sigue a la barra al desplegarse; esta escena solo dibuja el ícono, sobre fondo
+// transparente, y únicamente mientras algo cambia. La luz sigue al dedo o al cursor y al presionar
+// se enciende: la misma respuesta que la luz difusa de la pastilla.
+import { BufferAttribute, BufferGeometry, Color, Group, Mesh, ShaderMaterial } from 'three';
 import { Stage, type StageOptions } from '@/components/three3d/stage';
-import { calmGeometry, calmNormalBitmap, clipLength, loadCalm, sampleClip } from '@/components/three3d/calmModels';
-import { KEY_LIGHT, morphVertex, readCalmTones, setWeights, studioChunk, studioUniforms } from '@/components/three3d/calmMaterial';
-import type { GlbClip } from '@/components/three3d/glb';
-import type { PropPalette } from '@/components/three3d/palette';
+import { KEY_LIGHT, readCalmTones } from '@/components/three3d/calmMaterial';
+import { tokenColor, type PropPalette } from '@/components/three3d/palette';
 import { buildTube, sampleStrokes, type TubeMesh } from './iconTube';
 
-/** Px CSS por unidad del modelo: el canto mide 1,75 × 1 unidades y 56 × 32 px en la barra. */
+/** Px CSS por unidad de la escena: el ícono mide 24 × 24. */
 const PX = 32;
-const TILT = (13 * Math.PI) / 180;
 const FOV = 18;
-const CROWN = 0.2;
-/** Unidades del modelo por unidad del icono (24 × 24 px). */
 const ICON = 1 / PX;
-
-const pebbleFrag = /* glsl */ `
-  ${studioChunk}
-  uniform vec3 uClay;
-  uniform float uGloss;
-  void main() {
-    vec3 n = surfaceNormal();
-    vec3 v = normalize(vV);
-    vec3 col = clayLight(uClay, n, v, uGloss);
-    gl_FragColor = vec4(col, 1.0);
-    #include <colorspace_fragment>
-  }`;
+const TILT = (9 * Math.PI) / 180;
 
 const iconVert = /* glsl */ `
   attribute vec3 aC;
@@ -38,173 +20,83 @@ const iconVert = /* glsl */ `
   varying vec3 vN;
   varying vec3 vV;
   void main() {
-    // Con uInflate = 0, el tubo aplastado sobre la cara: el mismo trazo plano del ícono.
+    // Con uInflate = 0, el tubo aplastado: el mismo trazo plano del ícono de al lado.
     vec3 p = vec3(aC.xy + (position.xy - aC.xy) * (0.86 + 0.14 * uInflate), position.z * uInflate * 0.9 + 0.012);
     vec3 n = normalize(vec3(normal.xy, normal.z + (1.0 - uInflate) * 2.0));
     vec4 wp = modelMatrix * vec4(p, 1.0);
-    vN = normalize(transpose(inverse(mat3(modelMatrix))) * n);
+    vN = normalize(mat3(modelMatrix) * n);
     vV = normalize(cameraPosition - wp.xyz);
     gl_Position = projectionMatrix * viewMatrix * wp;
   }`;
 
 const iconFrag = /* glsl */ `
   uniform vec3 uInk;
+  uniform vec3 uLit;
   uniform vec3 uKey;
   uniform float uOpacity;
+  uniform float uGlow;
   uniform float uDark;
   varying vec3 vN;
   varying vec3 vV;
   void main() {
     vec3 n = normalize(vN);
     vec3 v = normalize(vV);
-    float wrap = clamp((dot(n, uKey) + 0.5) / 1.5, 0.0, 1.0);
-    vec3 col = uInk * (0.82 + 0.3 * wrap);
+    float wrap = clamp((dot(n, uKey) + 0.45) / 1.45, 0.0, 1.0);
+    // El centro del tubo deja pasar la luz de dentro; los lados se quedan con la tinta.
+    float core = pow(max(dot(n, v), 0.0), 1.8);
+    vec3 col = mix(uInk, uLit, core * (0.34 + 0.5 * uGlow)) * (0.74 + 0.42 * wrap);
     vec3 r = reflect(-v, n);
-    col += vec3(1.0) * smoothstep(0.09, 0.012, 1.0 - dot(r, uKey)) * (0.05 + 0.1 * uDark);
+    col += vec3(1.0) * smoothstep(0.12, 0.015, 1.0 - dot(r, uKey)) * (0.16 + 0.12 * uDark + 0.1 * uGlow);
     gl_FragColor = vec4(col, uOpacity);
-    #include <colorspace_fragment>
-  }`;
-
-// Sombra de contacto: se separa y se abre cuando el canto se levanta en el viaje.
-const shadowVert = /* glsl */ `
-  varying vec2 vP;
-  void main() {
-    vP = position.xy;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-  }`;
-const shadowFrag = /* glsl */ `
-  uniform vec2 uHalf;
-  uniform float uSoft;
-  uniform float uStrength;
-  uniform vec3 uTint;
-  varying vec2 vP;
-  void main() {
-    vec2 q = abs(vP) - uHalf + 0.4;
-    float d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - 0.4;
-    float a = smoothstep(uSoft, -uSoft * 0.4, d);
-    gl_FragColor = vec4(uTint, a * a * uStrength);
     #include <colorspace_fragment>
   }`;
 
 export interface NavPebbleOptions extends StageOptions {
   /** Eje de la barra: x en la inferior del móvil, y en la lateral. */
   axis: 'x' | 'y';
-  /** Tamaño del canto en px CSS. */
-  width: number;
-  height: number;
 }
 
 interface IconState {
   mesh: Mesh;
   material: ShaderMaterial;
   inflate: number;
-  /** Tiempo desde que debe aparecer; deshincharse no espera. */
+  /** Tiempo hasta que debe aparecer; deshincharse no espera. */
   delay: number;
   leaving: boolean;
 }
 
 export class NavPebbleScene extends Stage {
   private axis: 'x' | 'y';
-  /** Inclinación del viaje, en ejes de la pantalla; dentro, el canto con su tumbado fijo. */
   private lean = new Group();
-  private group = new Group();
-  private pebble: Mesh | null = null;
-  private clay: ShaderMaterial;
-  private shadow: Mesh;
-  private shadowMaterial: ShaderMaterial;
-  private map: Texture | null = null;
-  private travel: GlbClip | null = null;
-  private t = 1e3;
-  private w: number[] = [0, 0, 0];
-  private sign = 1;
-  private lift = 0;
   private icons: IconState[] = [];
   private tubes = new WeakMap<SVGSVGElement, TubeMesh>();
-  private pendingIcon: { svg: SVGSVGElement; animate: boolean } | null = null;
-  private iconColor = new Color();
+  private ink = new Color();
+  private lit = new Color();
   private dark = false;
-  private scaleX: number;
-  private scaleZ: number;
+  private key = KEY_LIGHT.clone();
+  /** Viaje: 1 al salir y baja a 0; inclina el ícono hacia donde va. */
+  private travel = 0;
+  private sign = 1;
+  /** Punto de luz (−1…1 sobre la pastilla) y presión, con su valor suavizado. */
+  private light = { x: 0, y: 0, press: 0, tx: 0, ty: 0, tp: 0 };
 
   constructor(host: HTMLElement, opts: NavPebbleOptions) {
     super(host, { ...opts, fov: FOV, maxDpr: 3 });
     this.axis = opts.axis;
-    this.scaleX = opts.width / 56;
-    this.scaleZ = opts.height / 32;
-    this.clay = new ShaderMaterial({
-      vertexShader: morphVertex(3),
-      fragmentShader: pebbleFrag,
-      uniforms: { ...studioUniforms(), uClay: { value: new Color() }, uGloss: { value: 1.25 } },
-    });
-    this.shadowMaterial = new ShaderMaterial({
-      vertexShader: shadowVert,
-      fragmentShader: shadowFrag,
-      transparent: true,
-      depthWrite: false,
-      uniforms: {
-        uHalf: { value: [0.875 * this.scaleX, 0.5 * this.scaleZ] },
-        uSoft: { value: 0.2 },
-        uStrength: { value: 0.3 },
-        uTint: { value: new Color() },
-      },
-    });
-    const quad = new BufferGeometry();
-    const hx = 1.5 * this.scaleX + 0.4;
-    const hy = 1 * this.scaleZ + 0.4;
-    quad.setAttribute('position', new BufferAttribute(new Float32Array([-hx, -hy, 0, hx, -hy, 0, hx, hy, 0, -hx, hy, 0]), 3));
-    quad.setIndex([0, 1, 2, 0, 2, 3]);
-    this.shadow = new Mesh(quad, this.shadowMaterial);
-    this.shadow.renderOrder = -1;
-    this.lean.add(this.group);
-    this.scene.add(this.shadow, this.lean);
-    this.group.rotation.x = Math.PI / 2 - TILT;
+    this.lean.rotation.x = -TILT;
+    this.scene.add(this.lean);
     this.applyPalette(opts.palette);
-    this.loading = true;
-    void this.load();
     this.start();
   }
 
-  private async load() {
-    try {
-      const set = await loadCalm(navUrl);
-      const model = set.models.get('pebble');
-      this.travel = set.clips.get('nav_travel') ?? null;
-      if (!model || this.disposed) { if (!model) this.fail(); return; }
-      const bitmap = await calmNormalBitmap(set);
-      if (this.disposed) return;
-      if (bitmap) {
-        const tex = (this.map = new Texture(bitmap));
-        tex.flipY = false; // UV de glTF
-        tex.needsUpdate = true;
-        this.clay.uniforms.uMap.value = tex;
-        this.clay.uniforms.uHasMap.value = 1;
-      }
-      this.pebble = new Mesh(calmGeometry(model, ['stretch_x', 'stretch_y', 'squash']), this.clay);
-      this.pebble.scale.set(this.scaleX, 1, this.scaleZ);
-      this.pebble.position.y = -0.09;
-      this.group.add(this.pebble);
-      this.loading = false;
-      if (this.pendingIcon) {
-        const { svg, animate } = this.pendingIcon;
-        this.pendingIcon = null;
-        this.setIcon(svg, animate);
-      }
-      this.request();
-    } catch {
-      this.fail();
-    }
-  }
-
   protected applyPalette(p: PropPalette) {
-    const tones = readCalmTones(p);
+    const css = getComputedStyle(document.documentElement);
     this.dark = p.dark;
-    (this.clay.uniforms.uClay.value as Color).copy(tones.clayAccent);
-    this.clay.uniforms.uDark.value = p.dark ? 1 : 0;
-    this.iconColor.copy(tones.ink);
-    (this.shadowMaterial.uniforms.uTint.value as Color).copy(p.dark ? new Color(0, 0, 0) : tones.ink);
-    this.shadowMaterial.uniforms.uStrength.value = p.dark ? 0.55 : 0.2;
+    this.ink.copy(p.dark ? tokenColor(css.getPropertyValue('--lq-jade-200'), '196 226 202') : readCalmTones(p).ink);
+    this.lit.copy(tokenColor(css.getPropertyValue(p.dark ? '--lq-jade-50' : '--lq-jade-500'), p.dark ? '230 242 232' : '112 180 141'));
     for (const icon of this.icons) {
-      (icon.material.uniforms.uInk.value as Color).copy(this.iconColor);
+      (icon.material.uniforms.uInk.value as Color).copy(this.ink);
+      (icon.material.uniforms.uLit.value as Color).copy(this.lit);
       icon.material.uniforms.uDark.value = p.dark ? 1 : 0;
     }
   }
@@ -223,19 +115,23 @@ export class NavPebbleScene extends Stage {
   move(dir: number) {
     if (this.reduceMotion) return;
     this.sign = dir >= 0 ? 1 : -1;
-    this.t = 0;
+    this.travel = 1;
     this.request();
   }
 
-  /** Pone el ícono de la pestaña activa. Con `animate`, hincha el nuevo al llegar el canto. */
+  /** La luz va hacia (x, y), en −1…1 sobre la pastilla; `press` la enciende. */
+  touch(x: number, y: number, press: boolean) {
+    this.light.tx = x;
+    this.light.ty = y;
+    this.light.tp = press ? 1 : 0;
+    this.request();
+  }
+
+  /** Pone el ícono de la pestaña activa. Con `animate`, hincha el nuevo cuando llega la pastilla. */
   setIcon(svg: SVGSVGElement, animate: boolean) {
-    if (!this.pebble) {
-      this.pendingIcon = { svg, animate };
-      return;
-    }
     let tube = this.tubes.get(svg);
     if (!tube) {
-      tube = buildTube(sampleStrokes(svg));
+      tube = buildTube(sampleStrokes(svg), 0.98);
       this.tubes.set(svg, tube);
     }
     const geometry = new BufferGeometry();
@@ -243,74 +139,66 @@ export class NavPebbleScene extends Stage {
     geometry.setAttribute('normal', new BufferAttribute(tube.normal, 3));
     geometry.setAttribute('aC', new BufferAttribute(tube.center, 3));
     geometry.setIndex(new BufferAttribute(tube.index, 1));
+    const start = animate && !this.reduceMotion ? 0 : 1;
     const material = new ShaderMaterial({
       vertexShader: iconVert,
       fragmentShader: iconFrag,
       transparent: true,
       uniforms: {
-        uInk: { value: this.iconColor.clone() },
-        uKey: { value: KEY_LIGHT.clone() },
-        uInflate: { value: animate && !this.reduceMotion ? 0 : 1 },
-        uOpacity: { value: animate && !this.reduceMotion ? 0 : 1 },
+        uInk: { value: this.ink.clone() },
+        uLit: { value: this.lit.clone() },
+        uKey: { value: this.key },
+        uInflate: { value: start },
+        uOpacity: { value: start },
+        uGlow: { value: 0 },
         uDark: { value: this.dark ? 1 : 0 },
       },
     });
     const mesh = new Mesh(geometry, material);
     mesh.frustumCulled = false;
-    mesh.renderOrder = 2;
-    // El ícono mira hacia quien usa la app: su plano es el de la cara del canto.
-    mesh.rotation.x = -Math.PI / 2;
     mesh.scale.setScalar(ICON);
-    mesh.position.y = CROWN - 0.09;
-    this.group.add(mesh);
+    this.lean.add(mesh);
     for (const old of this.icons) old.leaving = true;
-    this.icons.push({ mesh, material, inflate: animate && !this.reduceMotion ? 0 : 1, delay: animate ? 0.2 : 0, leaving: false });
+    this.icons.push({ mesh, material, inflate: start, delay: animate ? 0.22 : 0, leaving: false });
     this.request();
   }
 
   protected step(dt: number): boolean {
     let busy = false;
-    const clip = this.travel;
-    let stretch = 0;
-    let squash = 0;
-    if (clip && this.t < clipLength(clip)) {
-      this.t += dt;
-      sampleClip(clip, this.t, this.w);
-      stretch = this.axis === 'x' ? this.w[0] : this.w[1];
-      squash = this.w[2];
+    const l = this.light;
+    const ease = 1 - Math.exp(-dt / 0.09);
+    l.x += (l.tx - l.x) * ease;
+    l.y += (l.ty - l.y) * ease;
+    l.press += (l.tp - l.press) * ease;
+    if (Math.abs(l.tx - l.x) + Math.abs(l.ty - l.y) + Math.abs(l.tp - l.press) > 0.004) busy = true;
+    else {
+      l.x = l.tx;
+      l.y = l.ty;
+      l.press = l.tp;
+    }
+    this.key.copy(KEY_LIGHT);
+    this.key.x += l.x * 0.7;
+    this.key.y += l.y * 0.7;
+    this.key.normalize();
+
+    if (this.travel > 0) {
+      this.travel = Math.max(0, this.travel - dt / 0.42);
       busy = true;
     }
-    if (this.axis === 'x') setWeights(this.clay, stretch, 0, squash);
-    else setWeights(this.clay, 0, stretch, squash);
+    const swing = Math.sin(this.travel * Math.PI) * this.sign;
+    // Se inclina hacia donde va, y vuelve a mirar de frente al llegar.
+    if (this.axis === 'x') this.lean.rotation.y = swing * 0.3;
+    else this.lean.rotation.x = -TILT - swing * 0.3;
+    const lift = 1 + Math.sin(this.travel * Math.PI) * 0.06 - l.press * 0.06;
+    this.lean.scale.set(lift, lift, 1 - l.press * 0.35);
 
-    // En el viaje se levanta: la sombra se abre y se separa; la luz corre sobre la cara.
-    const liftTo = clip && this.t < clipLength(clip) * 0.72 ? 1 : 0;
-    this.lift = liftTo + (this.lift - liftTo) * Math.exp(-dt / 0.07);
-    if (Math.abs(this.lift - liftTo) < 0.004) this.lift = liftTo;
-    else busy = true;
-    const lift = this.lift;
-    const scale = 1 + lift * 0.055;
-    this.group.scale.setScalar(scale);
-    // Se inclina hacia donde va, como un guijarro que se lanza.
-    if (this.axis === 'x') this.lean.rotation.y = this.sign * stretch * 0.2;
-    else this.lean.rotation.x = -this.sign * stretch * 0.18;
-    const u = this.shadowMaterial.uniforms;
-    u.uSoft.value = 0.16 + lift * 0.22;
-    this.shadow.position.set(0, -0.09 - lift * 0.12, -0.5);
-    const key = this.clay.uniforms.uKey.value as Vector3;
-    if (this.axis === 'x') key.copy(KEY_LIGHT).setX(KEY_LIGHT.x - this.sign * stretch * 0.32);
-    else key.copy(KEY_LIGHT).setY(KEY_LIGHT.y + this.sign * stretch * 0.28);
-    key.normalize();
-
-    const crown = (CROWN - 0.09) * (1 - squash * 0.3) * (1 - stretch * 0.1);
     for (let i = this.icons.length - 1; i >= 0; i--) {
       const icon = this.icons[i];
-      icon.mesh.position.y = crown;
       if (icon.leaving) {
         icon.inflate = Math.max(0, icon.inflate - dt / 0.09);
         icon.material.uniforms.uOpacity.value = Math.min(1, icon.inflate * 1.6);
         if (icon.inflate <= 0) {
-          this.group.remove(icon.mesh);
+          this.lean.remove(icon.mesh);
           icon.mesh.geometry.dispose();
           icon.material.dispose();
           this.icons.splice(i, 1);
@@ -322,20 +210,14 @@ export class NavPebbleScene extends Stage {
           icon.delay -= dt;
         } else {
           icon.inflate = Math.min(1, icon.inflate + dt / 0.26);
-          // Sube rápido y se asienta: un poco de más y vuelve.
           icon.material.uniforms.uOpacity.value = Math.min(1, icon.inflate * 4);
         }
         busy = true;
       }
-      const k = icon.inflate;
-      icon.material.uniforms.uInflate.value = k + Math.sin(k * Math.PI) * 0.12;
-      (icon.material.uniforms.uKey.value as Vector3).copy(key);
+      // Sube rápido y se asienta: un poco de más y vuelve.
+      icon.material.uniforms.uInflate.value = icon.inflate + Math.sin(icon.inflate * Math.PI) * 0.12;
+      icon.material.uniforms.uGlow.value = Math.min(1, l.press + Math.hypot(l.x, l.y) * 0.5);
     }
     return busy;
-  }
-
-  dispose() {
-    this.map?.dispose();
-    super.dispose();
   }
 }

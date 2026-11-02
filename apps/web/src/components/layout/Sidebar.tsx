@@ -66,23 +66,22 @@ function SideLink({ to, label, icon: Icon, locked }: NavEntry) {
       end={to === '/'}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'group/link relative flex min-h-11 items-center gap-3 rounded-[10px] px-3 text-label-lg transition-colors',
-        active ? 'text-primary-text' : 'text-on-surface',
+        'group/link relative flex min-h-11 items-center gap-3 rounded-[14px] px-3 text-body-sm transition-colors',
+        active ? 'font-medium text-primary-text' : 'text-on-surface',
       )}
     >
-      <span
-        aria-hidden
-        className={cn(
-          'absolute inset-y-0 left-0 w-12 rounded-[10px] transition-[width,background-color] duration-[320ms] ease-[cubic-bezier(.4,0,.2,1)] group-data-[open=true]/side:w-full group-data-[open=true]/side:duration-[520ms] group-data-[open=true]/side:ease-[cubic-bezier(.22,1,.36,1)]',
-          active ? 'bg-primary/[var(--lq-soft-alpha)]' : 'group-hover/link:bg-surface-variant',
-        )}
-      />
+      {!active && (
+        <span
+          aria-hidden
+          className="absolute inset-y-0 left-0 w-12 rounded-[14px] transition-[width,background-color] duration-[320ms] ease-[cubic-bezier(.4,0,.2,1)] group-hover/link:bg-surface-variant/45 group-data-[open=true]/side:w-full group-data-[open=true]/side:duration-[520ms] group-data-[open=true]/side:ease-[cubic-bezier(.22,1,.36,1)]"
+        />
+      )}
       <span data-nav-slot className="absolute inset-y-0 left-0 w-12" />
       <span className="relative flex shrink-0">
         <Icon data-nav-icon aria-hidden className={cn('relative z-[1] size-6 shrink-0 transition-transform duration-300 ease-[cubic-bezier(.34,1.56,.64,1)] group-hover/link:scale-110 group-active/link:scale-95', !active && 'opacity-80')} strokeWidth={1.75} />
         {locked && <NavLock />}
       </span>
-      <span className={cn('relative truncate', reveal)}>{label}</span>
+      <span className={cn('relative z-[1] truncate', reveal)}>{label}</span>
     </NavLink>
   );
 }
@@ -102,7 +101,7 @@ function Section({ section, open, onToggle }: { section: NavSection; open: boole
   if (!section.collapsible) {
     return (
       <div className="flex flex-col gap-1">
-        <span className="relative flex min-h-8 items-center px-3 text-label-md uppercase text-on-surface-light">
+        <span className="relative flex min-h-8 items-center px-3 text-caption text-on-surface-light">
           <SectionLabel>{section.label}</SectionLabel>
         </span>
         {section.items.map((it) => <SideLink key={it.to} {...it} />)}
@@ -116,7 +115,7 @@ function Section({ section, open, onToggle }: { section: NavSection; open: boole
         aria-expanded={open}
         aria-controls={listId}
         onClick={onToggle}
-        className="relative flex min-h-11 items-center justify-between rounded-[10px] px-3 text-label-md uppercase text-on-surface-light transition-colors hover:bg-surface-variant hover:text-on-surface"
+        className="relative flex min-h-11 items-center justify-between rounded-[14px] px-3 text-caption text-on-surface-light transition-colors hover:bg-surface-variant/60 hover:text-on-surface"
       >
         <SectionLabel>{section.label}</SectionLabel>
         <ChevronDown aria-hidden className={cn('size-4 transition-transform duration-200', reveal, open && 'rotate-180')} />
@@ -265,6 +264,7 @@ export function Sidebar({ className }: { className?: string }) {
             <BrandLockup markSize={32} wordClassName={reveal} />
           </Link>
 
+          <NavPebble root={scrollRef} active={pathname} axis="y" enabled={desktop} />
           <nav aria-label={t.main} data-tour="nav" className="flex flex-col gap-3">
             <div className="flex flex-col gap-1">
               {nav.primary.map((it) => <SideLink key={it.to} {...it} />)}
@@ -283,9 +283,9 @@ export function Sidebar({ className }: { className?: string }) {
                 onClick={() => {
                   if (open) { setPinned(false); setFocused(false); setHovered(false); } else setPinned(true);
                 }}
-                className="group/link relative flex min-h-11 items-center gap-3 rounded-[10px] px-3 text-label-lg text-on-surface-light transition-colors hover:text-on-surface"
+                className="group/link relative flex min-h-11 items-center gap-3 rounded-[14px] px-3 text-body-sm text-on-surface-light transition-colors hover:text-on-surface"
               >
-                <span aria-hidden className="absolute inset-y-0 left-0 w-12 rounded-[10px] transition-[width,background-color] duration-300 ease-out group-hover/link:bg-surface-variant group-data-[open=true]/side:w-full" />
+                <span aria-hidden className="absolute inset-y-0 left-0 w-12 rounded-[14px] transition-[width,background-color] duration-300 ease-out group-hover/link:bg-surface-variant/60 group-data-[open=true]/side:w-full" />
                 {open
                   ? <PanelLeftClose aria-hidden className="relative size-6 shrink-0" strokeWidth={1.75} />
                   : <PanelLeftOpen aria-hidden className="relative size-6 shrink-0" strokeWidth={1.75} />}
@@ -294,7 +294,6 @@ export function Sidebar({ className }: { className?: string }) {
             </div>
             <ProfileCard />
           </div>
-          <NavPebble root={scrollRef} active={pathname} axis="y" enabled={desktop} />
         </div>
       </aside>
     </div>

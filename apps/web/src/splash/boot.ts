@@ -1,15 +1,15 @@
 // Arranque del splash, antes del paquete principal (vite.config, splashBoot: va en su propio chunk):
-// lee el tema, lanza el héroe 3D en un Worker y saca el splash cuando la app ya está pintada debajo. La
-// gota de CSS de index.html se ve desde el primer pintado; el 3D la releva sin que se note. Sin WebGL
-// de verdad, con «Ahorro de datos» o con 2G, la gota hace todo el camino ella sola.
+// lee el tema, lanza la secuencia 3D en un Worker y saca el splash cuando la app ya está pintada debajo.
+// Si tarda, index.html muestra la N de CSS (.n) y el 3D la releva sin que se note. Sin WebGL de verdad,
+// con «Ahorro de datos» o con 2G, esa N hace todo el camino ella sola hasta el logo.
 import heroUrl from '@/assets/models/calm-hero.glb?url';
 import type { HeroCommand, HeroEvent, HeroInit, HeroLayout, HeroTarget, HeroTones, Rgb } from './hero';
 import { leaveDelay } from './timing';
 
 declare global {
   interface Window {
-    /** App.tsx lo llama (por SplashScreen) con la app ya montada debajo. */
-    lqSplash?: { leave(): void };
+    /** App.tsx lo llama (por SplashScreen) con la app ya montada debajo. `seen`: recarga en la misma pestaña. */
+    lqSplash?: { leave(): void; seen: boolean };
   }
 }
 
@@ -17,10 +17,28 @@ const boot = document.getElementById('lq-boot');
 const root = document.documentElement;
 const reduce = root.classList.contains('lq-rm');
 
+const SEEN_KEY = 'lq-splash-seen';
+/** La app ya está lista pero el 3D aún no ha dado su primer fotograma: se le espera este tiempo. */
+const HERO_WAIT_MS = 1200;
+
+let seen = false;
+try {
+  seen = sessionStorage.getItem(SEEN_KEY) === '1';
+  sessionStorage.setItem(SEEN_KEY, '1');
+} catch { /* sin storage: siempre la historia entera */ }
+
 const linear = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
 const mix = (a: Rgb, b: Rgb, t: number): Rgb => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 
-/** Los mismos tonos de three3d/calmMaterial (readCalmTones): el canto rodado llega con su color. */
+/** Lo que resuelve el navegador para un color: «#rrggbb», «rgb(r g b)», «rgb(r, g, b)». En sRGB de 0 a 1. */
+function parseColor(value: string, fallback: Rgb): Rgb {
+  const v = value.trim();
+  const hex = /^#([\da-f]{2})([\da-f]{2})([\da-f]{2})/i.exec(v);
+  if (hex) return [parseInt(hex[1], 16) / 255, parseInt(hex[2], 16) / 255, parseInt(hex[3], 16) / 255];
+  const rgb = /rgb\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)/i.exec(v);
+  return rgb ? [Number(rgb[1]) / 255, Number(rgb[2]) / 255, Number(rgb[3]) / 255] : fallback;
+}
+
 function readTones(): HeroTones {
   const css = getComputedStyle(root);
   const dark = root.classList.contains('dark');
@@ -28,8 +46,6 @@ function readTones(): HeroTones {
     const [r, g, b] = (css.getPropertyValue(`--lq-${name}`).trim() || fallback).split(/[\s,]+/).map(Number);
     return [linear(r / 255), linear(g / 255), linear(b / 255)];
   };
-  const surface = dark ? token('surface-variant', '21 34 27') : token('surface', '255 255 255');
-  const paper = token('background', '249 247 243');
   const j100 = token('jade-100', '220 243 225');
   const j200 = token('jade-200', '196 226 202');
   const j300 = token('jade-300', '165 210 181');
@@ -37,62 +53,65 @@ function readTones(): HeroTones {
   const j500 = token('jade-500', '112 180 141');
   const j600 = token('jade-600', '84 143 111');
   const j900 = token('jade-900', '14 29 22');
-  const mint = dark ? mix(j600, j400, 0.5) : mix(j200, j300, 0.55);
+  // --lq-brand-* pueden depender de otras variables: se resuelven con el propio navegador.
+  const probe = document.createElement('i');
+  probe.style.display = 'none';
+  document.documentElement.appendChild(probe);
+  const stop = (name: string, fallback: string): Rgb => {
+    probe.style.color = `var(--lq-brand-${name}, ${fallback})`;
+    return parseColor(getComputedStyle(probe).color, parseColor(fallback, [0.3, 0.6, 0.5]));
+  };
+  const logo = [
+    [stop('c0', '#4f9c84'), stop('c1', '#2a6f60'), stop('c2', '#06302b')],
+    [stop('a0', '#5fae97'), stop('a1', '#2f7565'), stop('a2', '#0a3a33'), stop('a3', '#05302b')],
+    [stop('b0', '#8ec7ad'), stop('b1', '#2c7362')],
+  ];
+  probe.remove();
   return {
     dark,
-    clay: dark ? mix(j500, j300, 0.35) : mix(paper, j100, 0.62),
-    mint,
-    deep: dark ? mix(j600, j500, 0.35) : mix(j200, j400, 0.55),
-    glass: dark ? mix(j500, j300, 0.5) : mix(paper, j100, 0.55),
-    light: dark ? j300 : mix(j300, j200, 0.35),
-    shade: dark ? mix(j600, surface, 0.6) : mix(j500, j600, 0.25),
+    mint: dark ? mix(j400, j300, 0.5) : mix(j200, j100, 0.5),
+    deep: dark ? mix(j500, j400, 0.4) : mix(j400, j500, 0.45),
+    light: dark ? j300 : mix(j200, j300, 0.4),
+    leaf: dark ? mix(j300, j200, 0.5) : mix(j200, j300, 0.45),
     shadow: dark ? [0, 0, 0] : mix(j900, j600, 0.3),
+    logo,
   };
 }
 
 function readLayout(): HeroLayout {
   const mark = boot!.querySelector('.mk')!.getBoundingClientRect();
-  const word = boot!.querySelector('.wm')!.getBoundingClientRect();
   return {
     width: window.innerWidth,
     height: window.innerHeight,
-    // El lienzo cubre la pantalla, con antialias: en teléfonos con poca memoria, un poco menos nítido.
+    // El lienzo cubre la pantalla: en teléfonos con poca memoria, un poco menos nítido.
     dpr: Math.min(window.devicePixelRatio || 1, ((navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 8) < 4 ? 2 : 2.5),
     x: mark.left + mark.width / 2,
     y: mark.top + mark.height / 2,
-    size: mark.width,
-    text: { x: word.left, y: word.top, w: word.width, h: word.height },
+    size: mark.height,
   };
 }
 
 const onScreen = (r: DOMRect) => r.width > 0 && r.height > 0 && r.left >= 0 && r.top >= 0 && r.right <= window.innerWidth && r.bottom <= window.innerHeight;
 
-/**
- * El canto rodado de la pestaña activa. En las pantallas sin navbar, la marca de la cabecera. Con el
- * navbar a la vista y aún sin medir, espera: `last` da la búsqueda por terminada.
- */
-function findTarget(last: boolean): HeroTarget | null {
-  const rects = (selector: string) => Array.from(document.querySelectorAll(selector), (el) => el.getBoundingClientRect()).filter(onScreen);
-  const box = (kind: HeroTarget['kind'], r: DOMRect): HeroTarget => ({ kind, x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height });
-  const [pebble] = rects('.lq-nav-pebble[data-placed]');
-  if (pebble) return box('pebble', pebble);
-  if (!last && rects('.lq-nav-pebble').length) return null;
-  const [mark] = rects('[data-brand-mark]');
-  return mark ? box('mark', mark) : null;
+/** El logo de la cabecera. El .glb y el SVG miden lo mismo: su alto es el de la caja. */
+function findTarget(): HeroTarget | null {
+  const mark = Array.from(document.querySelectorAll('[data-brand-mark]'), (el) => el.getBoundingClientRect()).find(onScreen);
+  return mark ? { kind: 'mark', x: mark.left + mark.width / 2, y: mark.top + mark.height / 2, h: mark.height } : null;
 }
 
-/** La gota, sin 3D: viaja con transform (compositor) y se apaga al llegar. */
-function flyDrop(target: HeroTarget | null) {
-  const drop = boot?.querySelector<HTMLElement>('.drop');
-  if (!drop || !target || reduce) return;
+/** La N de CSS, sin 3D: viaja con transform (compositor) hasta el logo y lo releva. */
+function flyMark(target: HeroTarget | null) {
+  const mark = boot?.querySelector<SVGElement>('.n');
+  if (!mark || !target || reduce) return;
   boot!.classList.add('fly');
-  const r = drop.getBoundingClientRect();
+  const r = mark.getBoundingClientRect();
   const dx = target.x - (r.left + r.width / 2);
   const dy = target.y - (r.top + r.height / 2);
-  const k = Math.max(target.w, target.h) / r.width;
-  drop.style.animation = 'none';
-  drop.animate(
-    [{ transform: 'none', opacity: 1 }, { transform: `translate(${dx}px, ${dy}px) scale(${k})`, opacity: 1, offset: 0.86 }, { transform: `translate(${dx}px, ${dy}px) scale(${k})`, opacity: 0 }],
+  const k = target.h / r.height;
+  mark.style.animation = 'none';
+  mark.style.opacity = '1';
+  mark.animate(
+    [{ transform: 'none' }, { transform: `translate(${dx}px, ${dy}px) scale(${k})` }],
     { duration: 820, easing: 'cubic-bezier(.65, 0, .35, 1)', fill: 'forwards' },
   );
 }
@@ -105,6 +124,7 @@ function onEvent(e: HeroEvent) {
   if (e.type === 'ready') {
     bornAt = performance.now();
     boot?.classList.add('born');
+    waiting?.();
   } else if (e.type === 'fail') dropHero();
   else if (e.type === 'landed') land?.();
 }
@@ -116,30 +136,39 @@ function dropHero() {
   canvas?.remove();
   canvas = null;
   boot?.classList.remove('born');
-  // Si ya iba de salida, la gota no llega a ningún sitio: que no espere más.
+  boot?.classList.add('flat');
+  // Si ya iba de salida, no llega a ningún sitio: que no espere más.
   land?.();
+  waiting?.();
 }
 
 let land: (() => void) | null = null;
+let waiting: (() => void) | null = null;
 let bornAt = 0;
 let themeWatch: MutationObserver | null = null;
 
 function startHero() {
   const net = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
-  // Con «Reducir movimiento», la gota quieta y un fundido: nada que descargar.
-  if (!boot || reduce || !('WebGL2RenderingContext' in window) || net?.saveData || /2g/.test(net?.effectiveType ?? '')) return;
+  // Con «Reducir movimiento», la N quieta y un fundido: nada que descargar.
+  if (!boot || reduce || !('WebGL2RenderingContext' in window) || net?.saveData || /2g/.test(net?.effectiveType ?? '')) {
+    boot?.classList.add('flat');
+    return;
+  }
   const real = { failIfMajorPerformanceCaveat: true };
   let workerGl = false;
   try {
     workerGl = 'transferControlToOffscreen' in HTMLCanvasElement.prototype && Boolean(new OffscreenCanvas(1, 1).getContext('webgl2', real));
   } catch { /* Safari antiguo: Offscreen sin WebGL */ }
-  // Sin GPU de verdad, ni siquiera se descarga: la gota hace el camino.
-  if (!workerGl && !document.createElement('canvas').getContext('webgl2', real)) return;
+  // Sin GPU de verdad, ni siquiera se descarga: la N de CSS hace el camino.
+  if (!workerGl && !document.createElement('canvas').getContext('webgl2', real)) {
+    boot.classList.add('flat');
+    return;
+  }
   canvas = document.createElement('canvas');
   canvas.id = 'lq-boot-3d';
   canvas.setAttribute('aria-hidden', 'true');
   boot.after(canvas);
-  const init: HeroInit = { url: heroUrl, tones: readTones(), layout: readLayout() };
+  const init: HeroInit = { url: new URL(heroUrl, location.href).href, tones: readTones(), layout: readLayout(), openedAt: performance.timeOrigin, seen };
   if (workerGl) {
     const worker = new Worker(new URL('./hero.worker.ts', import.meta.url), { type: 'module' });
     worker.onmessage = ({ data }) => onEvent(data as HeroEvent);
@@ -170,14 +199,14 @@ const resized = () => {
 
 let left = false;
 
-/** Busca el destino unos fotogramas: la app acaba de montarse y el navbar se mide después. */
+/** Busca el destino unos fotogramas: la app acaba de montarse. */
 function whenTarget(done: (t: HeroTarget | null) => void) {
   let frames = 0;
   const started = performance.now();
   const look = () => {
     frames++;
     const last = frames > 12 || performance.now() - started > 700;
-    const t = frames > 1 ? findTarget(last) : null;
+    const t = frames > 1 ? findTarget() : null;
     if (t || last) done(t);
     else requestAnimationFrame(look);
   };
@@ -188,37 +217,53 @@ function leave() {
   if (left || !boot) return;
   left = true;
   window.removeEventListener('resize', resized);
+  if (!canvas || boot.classList.contains('born')) {
+    depart();
+    return;
+  }
+  const limit = window.setTimeout(() => waiting?.(), HERO_WAIT_MS);
+  waiting = () => {
+    waiting = null;
+    window.clearTimeout(limit);
+    depart();
+  };
+}
+
+function depart() {
+  if (!boot) return;
   whenTarget((target) => {
     const outAt = performance.now();
     const finish = () => {
       if (!boot.isConnected) return;
       land = null;
       window.clearTimeout(limit);
+      // El logo de verdad releva a la N del lienzo, que ya es igual que él (calm.css).
+      boot.classList.add('landed');
       const gone = canvas;
       if (gone) gone.style.opacity = '0';
-      // El relevo con el navbar y, si llegó antes, lo que falte del fundido del fondo (.5 s).
+      // El relevo y, si llegó antes, lo que falte del fundido del fondo.
       window.setTimeout(() => {
         themeWatch?.disconnect();
         closeHero?.();
         gone?.remove();
         boot.remove();
-      }, Math.max(180, 520 - (performance.now() - outAt)));
+      }, Math.max(200, 820 - (performance.now() - outAt)));
     };
     // Si algo se atasca (pestaña oculta, GPU perdida), la app no se queda tapada.
-    const limit = window.setTimeout(finish, 4000);
+    const limit = window.setTimeout(finish, 4600);
     if (send && boot.classList.contains('born')) {
       land = finish;
-      send({ type: 'leave', target: target ?? { kind: 'none', x: 0, y: 0, w: 0, h: 0 } });
+      send({ type: 'leave', target: target ?? { kind: 'none', x: 0, y: 0, h: 0 } });
       boot.style.setProperty('--wait', `${leaveDelay(performance.now() - bornAt)}ms`);
     } else {
       // El modelo no ha llegado (red lenta) o no hay 3D: no se le espera.
       dropHero();
-      flyDrop(target);
+      flyMark(target);
       window.setTimeout(finish, reduce ? 500 : 860);
     }
     boot.classList.add('out');
   });
 }
 
-window.lqSplash = { leave };
+window.lqSplash = { leave, seen };
 startHero();

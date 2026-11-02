@@ -9,7 +9,7 @@ import { LANDING_META } from '@/lib/seo-meta';
 const es = {
   /** Título y descripción para Google: los mismos del HTML estático (lib/seo-meta). */
   meta: { title: LANDING_META.es.title, description: LANDING_META.es.description },
-  /** Se escribe con la letra de la marca (Lettering): solo letras, comas y puntos. */
+  /** Va en la voz de la marca (Lettering): en minúsculas. */
   headline: 'Tu rutina, tu mente y tus ideas. En un solo lugar.',
   subhead: 'Hábitos, libreta, obstáculos, bienestar y metas en un espacio que da gusto abrir todos los días.',
   start: 'Empieza gratis con Google',

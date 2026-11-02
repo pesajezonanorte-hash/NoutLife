@@ -70,7 +70,7 @@ export interface CalmTones {
   dark: boolean;
   /** Arcilla en reposo: la superficie con un toque del acento. */
   clay: Color;
-  /** Arcilla del acento, para volúmenes con color (almohadilla encendida, canto rodado). */
+  /** Arcilla del acento, para volúmenes con color (almohadilla encendida). */
   clayAccent: Color;
   /** Luz interna en el centro y en el borde. */
   lightCore: Color;

@@ -73,12 +73,13 @@ export default {
         'on-surface': { DEFAULT: c('on-surface'), light: c('on-surface-light') },
       },
       fontFamily: {
-        sans:  ['var(--lq-font-sans)', 'Montserrat', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
-        pixel: ['var(--lq-font-sans)', 'Montserrat', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+        sans:  ['var(--lq-font-sans)', 'Nout Sans', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+        pixel: ['var(--lq-font-sans)', 'Nout Sans', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
         // Citas de Sabiduría (y el cuerpo del tema Papiro).
         serif: ['EB Garamond', 'Garamond', 'Georgia', 'serif'],
-        mono:  ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
-        vt:    ['var(--lq-font-sans)', 'Montserrat', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+        // Las cifras también van en la letra de la casa; lo tabular lo pone .font-mono (tokens.css).
+        mono:  ['var(--lq-font-sans)', 'Nout Sans', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        vt:    ['var(--lq-font-sans)', 'Nout Sans', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
       },
       boxShadow: {
         pixel:       'var(--shadow-sm)',
@@ -96,6 +97,7 @@ export default {
         sm: 'var(--radius-sm)', md: 'var(--radius-md)', lg: 'var(--radius-lg)',
         xl: '0.75rem', '2xl': 'var(--radius-lg)', '3xl': '1.5rem',
       },
+      fontWeight: { semibold: '500', bold: '600' },
       // Escala Noutlife (lq.css .t-*). Las clases heredadas que ya usan las páginas
       // conservan su nombre con los valores del design system:
       //   display-lg = .t-dl 56 · display-md = .t-dm 40 · display-sm = .t-ds 32
@@ -104,25 +106,25 @@ export default {
       //   label-lg = .t-ll 14 · label-md = .t-lm 12 · caption = .t-cap 12
       // y se añaden los alias del README v4 (hero-lg, hero-md, display, heading-xl, body, label-sm, stat).
       fontSize: {
-        'display-lg': ['3.5rem', { lineHeight: '1.1', letterSpacing: '-0.02em', fontWeight: '700' }],
-        'display-md': ['2.5rem', { lineHeight: '1.15', letterSpacing: '-0.02em', fontWeight: '700' }],
-        'display-sm': ['2rem', { lineHeight: '2.5rem', letterSpacing: '-0.02em', fontWeight: '700' }],
-        'heading-lg': ['1.5rem', { lineHeight: '2rem', letterSpacing: '-0.01em', fontWeight: '700' }],
-        'heading-md': ['1.25rem', { lineHeight: '1.75rem', letterSpacing: '-0.01em', fontWeight: '600' }],
-        'heading-sm': ['1.125rem', { lineHeight: '1.625rem', letterSpacing: '-0.01em', fontWeight: '600' }],
+        'display-lg': ['3.5rem', { lineHeight: '1.1', letterSpacing: '-0.015em', fontWeight: '500' }],
+        'display-md': ['2.5rem', { lineHeight: '1.15', letterSpacing: '-0.015em', fontWeight: '500' }],
+        'display-sm': ['2rem', { lineHeight: '2.5rem', letterSpacing: '-0.01em', fontWeight: '500' }],
+        'heading-lg': ['1.5rem', { lineHeight: '2rem', letterSpacing: '-0.005em', fontWeight: '500' }],
+        'heading-md': ['1.25rem', { lineHeight: '1.75rem', fontWeight: '500' }],
+        'heading-sm': ['1.125rem', { lineHeight: '1.625rem', fontWeight: '500' }],
         'body-lg': ['1rem', { lineHeight: '1.5rem' }],
-        'body-md': ['0.9375rem', { lineHeight: '1.375rem', letterSpacing: '-0.01em' }],
+        'body-md': ['0.9375rem', { lineHeight: '1.375rem' }],
         'body-sm': ['0.875rem', { lineHeight: '1.25rem' }],
-        'label-lg': ['0.875rem', { lineHeight: '1.25rem', fontWeight: '600' }],
-        'label-md': ['0.75rem', { lineHeight: '1.125rem', letterSpacing: '0.01em', fontWeight: '600' }],
+        'label-lg': ['0.875rem', { lineHeight: '1.25rem', fontWeight: '500' }],
+        'label-md': ['0.75rem', { lineHeight: '1.125rem', letterSpacing: '0.01em', fontWeight: '500' }],
         caption: ['0.75rem', { lineHeight: '1.125rem' }],
         // Alias README v4
-        'hero-lg': ['3.5rem', { lineHeight: '1.1', letterSpacing: '-0.02em', fontWeight: '700' }],
-        'hero-md': ['2.5rem', { lineHeight: '1.15', letterSpacing: '-0.02em', fontWeight: '700' }],
-        display: ['2rem', { lineHeight: '2.5rem', letterSpacing: '-0.02em', fontWeight: '700' }],
-        'heading-xl': ['1.5rem', { lineHeight: '2rem', letterSpacing: '-0.01em', fontWeight: '700' }],
-        body: ['0.9375rem', { lineHeight: '1.375rem', letterSpacing: '-0.01em' }],
-        'label-sm': ['0.75rem', { lineHeight: '1.125rem', fontWeight: '600' }],
+        'hero-lg': ['3.5rem', { lineHeight: '1.1', letterSpacing: '-0.015em', fontWeight: '500' }],
+        'hero-md': ['2.5rem', { lineHeight: '1.15', letterSpacing: '-0.015em', fontWeight: '500' }],
+        display: ['2rem', { lineHeight: '2.5rem', letterSpacing: '-0.01em', fontWeight: '500' }],
+        'heading-xl': ['1.5rem', { lineHeight: '2rem', letterSpacing: '-0.005em', fontWeight: '500' }],
+        body: ['0.9375rem', { lineHeight: '1.375rem' }],
+        'label-sm': ['0.75rem', { lineHeight: '1.125rem', fontWeight: '500' }],
         stat: ['1.25rem', { lineHeight: '1.75rem', fontWeight: '500' }],
       },
       transitionTimingFunction: { out: 'cubic-bezier(0, 0, 0.2, 1)', expo: 'cubic-bezier(.16, 1, .3, 1)', spring: 'cubic-bezier(.34, 1.56, .64, 1)' },
