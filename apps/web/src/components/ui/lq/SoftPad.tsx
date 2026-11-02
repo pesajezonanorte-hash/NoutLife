@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { audio } from '@/lib/audio';
 import { useText, type Copy } from '@/lib/i18n';
 import { hasWebGL2 } from '@/components/three3d/near';
+import { afterSplash } from '@/splash/after';
 import type { SoftPadEngine } from '@/components/three3d/softPadEngine';
 
 const COPY: Copy<{ done: (n: string) => string; undo: (n: string) => string; complete: (n: string) => string }> = {
@@ -30,6 +31,7 @@ function loadEngine(): Promise<SoftPadEngine | null> {
         if (idle) idle(() => resolve(), { timeout: 1200 });
         else window.setTimeout(resolve, 200);
       })
+        .then(afterSplash)
         .then(() => import('@/components/three3d/softPadEngine'))
         .then((m) => m.softPadEngine())
         .catch(() => null);

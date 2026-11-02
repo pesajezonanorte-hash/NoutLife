@@ -77,7 +77,7 @@ export function BrandMark({ size = 32, tile, className, alt = '' }: { size?: num
       </span>
     );
   }
-  return <span className={cn('flex shrink-0', className)} style={{ width: size, height: size }}>{img}</span>;
+  return <span data-brand-mark className={cn('flex shrink-0', className)} style={{ width: size, height: size }}>{img}</span>;
 }
 
 /** Trazos del wordmark «noutlife» (monolínea, remates redondos; n de pierna inclinada,

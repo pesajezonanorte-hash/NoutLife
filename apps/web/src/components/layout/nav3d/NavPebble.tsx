@@ -5,7 +5,7 @@
 //
 //   <nav ref={rootRef}>…<a aria-current="page"><span data-nav-slot><svg data-nav-icon/></span></a>…</nav>
 //   <NavPebble root={rootRef} active={pathname} axis="x" />
-import { Suspense, lazy, useEffect, useLayoutEffect, useMemo, useState, type RefObject } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useState, type RefObject } from 'react';
 import { cn } from '@/lib/utils';
 import { hasWebGL2 } from '@/components/three3d/near';
 
@@ -23,7 +23,9 @@ interface Slot {
 
 function useSlot(root: RefObject<HTMLElement>, active: string): Slot | null {
   const [slot, setSlot] = useState<Slot | null>(null);
-  useLayoutEffect(() => {
+  // useEffect, no de layout: la ref del <nav> que nos contiene se asigna después de los efectos de
+  // layout de sus hijos, y al abrir la app estaría vacía.
+  useEffect(() => {
     const el = root.current;
     if (!el) return undefined;
     const measure = () => {

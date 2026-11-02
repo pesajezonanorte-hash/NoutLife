@@ -4,6 +4,7 @@
 #   focus  Aro de vidrio esmerilado del enfoque (shape keys inhale, exhale, flow_a, flow_b).
 #   nav    Canto rodado del navbar (shape keys stretch_x, stretch_y, squash).
 #   card   Losa de las tarjetas (shape key lift) y su bisel horneado para CSS (9 cortes).
+#   hero   Escultura del splash (shape keys ridge_a, ridge_b, breath, mass, pebble).
 #
 # Cada juego sale como .blend (malla baja, malla alta de horneado, materiales procedurales,
 # acciones en pistas NLA y mundo de estudio suave) y como .glb PBR estándar: los materiales son
@@ -810,6 +811,252 @@ def build_card():
     return [card]
 
 
+# ───────── hero: la escultura del splash ─────────
+#
+# Una cinta gruesa de Möbius con tres medias vueltas: sección de dos crestas (una lente de bordes
+# suaves) que al cerrar el aro empalma cada lado con el otro. Quedan tres tramos a la vista y un
+# agujero de tres lados (rutina, mente e ideas), pero es una sola cara y un solo canto, sin costura.
+# La malla base es el toro liso; las crestas son una ola en cuadratura (ridge_a, ridge_b), así que
+# girar la fase hace rodar la superficie sin mover el objeto.
+
+HERO_R = 1.0
+HERO_TUBE = 0.39
+HERO_RIDGE = 0.46  # alto de la cresta, en fracción del tubo
+HERO_LOBES = 2
+HERO_TWIST = 3
+HERO_U = 64
+HERO_V = 24
+HERO_UV_MARGIN = 1.08  # las caras que cruzan la costura del tubo necesitan pasarse un poco de 1
+HERO_THROAT = 0.74 * np.pi  # hasta dónde del tubo (desde afuera) cubre la gota; el resto, por dentro
+HERO_MASS = 0.92  # radio de la gota de la que nace
+HERO_CORE = 0.9  # el núcleo de arcilla, en fracción del tubo
+HERO_CORE_RIDGE = 0.444  # su cresta es más baja: el canto de la cinta queda lleno de vidrio
+HERO_BREATH = 4.0  # segundos: lo que se alcanza a ver mientras carga la app
+HERO_ROLL = 9.0
+
+
+def hero_grid(segs_u=HERO_U, segs_v=HERO_V, follow=True):
+    """u da la vuelta al aro; v, al tubo (0 afuera, ±π en el ecuador de adentro). Con `follow`, las
+    filas de la malla van a lo largo de la cresta, a cualquier fase de la ola: con pocas caras la
+    silueta sale limpia. Cerrar el aro corre media vuelta las filas (HERO_V tiene que ser par)."""
+    u = 2 * np.pi * np.arange(segs_u)[:, None] / segs_u
+    v = -np.pi + (np.arange(segs_v)[None, :] + 0.5) * 2 * np.pi / segs_v
+    if follow:
+        v = (v - (HERO_TWIST / HERO_LOBES) * u + np.pi) % (2 * np.pi) - np.pi
+    return u, v
+
+
+def hero_points(c=0.0, s=0.0, ring=1.0, tube=1.0, ridge=HERO_RIDGE, segs_u=HERO_U, segs_v=HERO_V, bump=None, follow=True):
+    u, v = hero_grid(segs_u, segs_v, follow)
+    th = HERO_LOBES * v + HERO_TWIST * u
+    rad = HERO_TUBE * tube * (1 + ridge * (c * np.cos(th) + s * np.sin(th)))
+    if bump is not None:
+        rad = rad + bump
+    rho = HERO_R * ring + rad * np.cos(v)
+    return np.stack([rho * np.cos(u), rho * np.sin(u), rad * np.sin(v)], axis=-1).reshape(-1, 3)
+
+
+def hero_fold(v):
+    """Para cerrar el agujero sin dientes: de afuera hasta HERO_THROAT, la vuelta del tubo se estira
+    a media esfera por lado (elevación de −90° a 90°); lo de adentro se dobla sobre el eje, hasta el
+    centro, donde se juntan los dos lados. Es continuo y no depende de por dónde pasen las filas.
+    Devuelve la elevación y, para lo doblado, cuánto baja hacia el centro (0 en el polo, 1 al llegar)."""
+    side = np.sign(v)
+    # Primero un margen de una cara en el polo mismo: si lo vecino de la superficie ya bajara por el
+    # eje, quedaría un pozo en el polo.
+    margin = 2 * np.pi * (1 / HERO_V + (HERO_TWIST / HERO_LOBES) / HERO_U)
+    start = HERO_THROAT + margin
+    fold = np.clip((np.abs(v) - start) / (np.pi - start), 0.0, 1.0)
+    return side * np.minimum(np.abs(v) / HERO_THROAT, 1.0) * np.pi / 2, fold
+
+
+def hero_mass():
+    u, v = hero_grid()
+    e, fold = hero_fold(v)
+    z = np.sin(e) * (1.0 - fold)
+    return (HERO_MASS * np.stack([np.cos(e) * np.cos(u), np.cos(e) * np.sin(u), z], axis=-1)).reshape(-1, 3)
+
+
+def hero_pebble():
+    """El canto rodado del navbar (build_nav): mismo contorno y perfil, centrado en su alto."""
+    u, v = hero_grid()
+    e, fold = hero_fold(v)
+    edge = np.array([rounded_rect(PEBBLE_X, PEBBLE_Y, 0.44)(a) for a in u[:, 0]])
+    s = 1.0 - (np.abs(e) / (np.pi / 2)) ** 1.7
+    z = np.where(e > 0, PEBBLE_H * (1.0 - s ** 3.4) ** (1.0 / 2.5), 0.0)
+    middle = PEBBLE_H * 0.5  # los dos lados se juntan por dentro, a media altura
+    z = (z + (middle - z) * fold) - 0.09
+    return np.stack([edge[:, 0, None] * s, edge[:, 1, None] * s, z], axis=-1).reshape(-1, 3)
+
+
+def grid_mesh(name, coords, segs_u, segs_v, follow=True):
+    seam = segs_v // 2 if follow else 0
+    faces = []
+    for i in range(segs_u):
+        i2, s = (i + 1, 0) if i + 1 < segs_u else (0, seam)
+        for j in range(segs_v):
+            j2 = (j + 1) % segs_v
+            faces.append((i * segs_v + j, i2 * segs_v + (j + s) % segs_v, i2 * segs_v + (j2 + s) % segs_v, i * segs_v + j2))
+    me = bpy.data.meshes.new(name)
+    me.from_pydata(coords.tolist(), [], faces)
+    me.update()
+    me.polygons.foreach_set('use_smooth', np.ones(len(me.polygons), bool))
+    me.update()
+    # UV por esquina: x = vuelta del aro, y = vuelta del tubo (dividida por HERO_UV_MARGIN). La malla
+    # sigue cerrada: al separar vértices en las costuras para el .glb, normales y shape keys son los mismos.
+    v = np.broadcast_to(hero_grid(segs_u, segs_v, follow)[1], (segs_u, segs_v))
+    uv = me.uv_layers.new(name='UVMap')
+    data = np.empty(len(me.loops) * 2, np.float32)
+    k = 0
+    for p in me.polygons:
+        i, j = p.index // segs_v, p.index % segs_v
+        corners = ((i, j), (i + 1, j), (i + 1, j + 1), (i, j + 1))
+        ys = [(v[0, (cj + seam) % segs_v] if ci == segs_u else v[ci, cj % segs_v]) for ci, cj in corners]
+        ys = np.array(ys) / (2 * np.pi) + 0.5
+        ys += np.round(ys[0] - ys)  # sin saltos dentro de la cara
+        ys += ys.min() < 0
+        for (ci, _), y in zip(corners, ys):
+            data[k], data[k + 1] = ci / segs_u, y / HERO_UV_MARGIN
+            k += 2
+    uv.data.foreach_set('uv', data)
+    return me
+
+
+def hero_undulation(segs_u, segs_v, seed=11):
+    """Lo que deja la mano en la arcilla: ondas muy bajas, periódicas en las dos vueltas (fft)."""
+    rng = np.random.default_rng(seed)
+    white = rng.standard_normal((segs_u, segs_v))
+    # Frecuencias físicas: ciclos por unidad a lo largo del aro y alrededor del tubo.
+    fu = np.fft.fftfreq(segs_u, 2 * np.pi * HERO_R / segs_u)[:, None]
+    fv = np.fft.rfftfreq(segs_v, 2 * np.pi * HERO_TUBE / segs_v)[None, :]
+    f = np.hypot(fu, fv)
+    h = 0.0
+    for cycles, amp in ((1.2, 0.016), (4.5, 0.0028)):
+        band = np.exp(-((f - cycles) ** 2) / (2 * (cycles * 0.4) ** 2))
+        layer = np.fft.irfft2(np.fft.rfft2(white) * band, s=(segs_u, segs_v))
+        h = h + layer / np.abs(layer).max() * amp
+    return h
+
+
+def hero_lights():
+    """Tres puntos de estudio suave: principal tenue arriba a la izquierda (donde la pone toda la
+    interfaz), relleno muy abierto y contraluz apenas para despegar la silueta."""
+    for o in [o for o in bpy.context.scene.objects if o.type == 'LIGHT']:
+        bpy.data.objects.remove(o)
+    # El fondo: el color de la app (#f9f7f3), parejo, para que el paso a la interfaz no se note.
+    nodes = bpy.context.scene.world.node_tree.nodes
+    links = bpy.context.scene.world.node_tree.links
+    for link_ in list(nodes['Background'].inputs['Color'].links):
+        links.remove(link_)
+    nodes['Background'].inputs['Color'].default_value = (0.947, 0.93, 0.896, 1.0)
+    nodes['Background'].inputs['Strength'].default_value = 1.0
+    bpy.context.scene.view_settings.view_transform = 'Standard'
+    bpy.context.scene.view_settings.look = 'None'
+    for name, loc, energy, size in (('Key', (-3.1, 3.4, 5.4), 90.0, 4.5), ('Fill', (4.8, 0.4, 3.0), 16.0, 6.0), ('Rim', (1.8, 4.8, -3.0), 50.0, 3.2)):
+        light = bpy.data.lights.new(name, 'AREA')
+        light.shape = 'DISK'
+        light.size = size
+        light.energy = energy
+        light.color = (1.0, 0.985, 0.96)
+        obj = link(bpy.data.objects.new(name, light))
+        obj.location = loc
+        obj.rotation_euler = (Vector((0, 0, 0)) - Vector(loc)).to_track_quat('-Z', 'Y').to_euler()
+
+
+def hero_core(hero):
+    """El núcleo de arcilla del .blend: mismo morph sin las crestas, siguiendo al vidrio con drivers.
+    No va en el .glb: la web lo dibuja con la misma malla (splash/hero.ts), sin pesar el doble."""
+    me = grid_mesh('hero_nucleo', hero_points(tube=HERO_CORE), HERO_U, HERO_V)
+    core = link(bpy.data.objects.new('hero_nucleo', me))
+    me.materials.append(clay('hero_arcilla', (0.62, 0.8, 0.7), rough=0.6))
+    low = {'tube': HERO_CORE, 'ridge': HERO_CORE_RIDGE}
+    add_keys(core, {
+        'ridge_a': hero_points(c=1.0, **low),
+        'ridge_b': hero_points(s=1.0, **low),
+        'breath': hero_points(ring=1.03, tube=HERO_CORE * 1.05),
+        'mass': hero_mass() * 0.46,
+        'pebble': hero_pebble() * 0.97,
+    })
+    for name in ('ridge_a', 'ridge_b', 'breath', 'mass', 'pebble'):
+        fc = core.data.shape_keys.driver_add(f'key_blocks["{name}"].value')
+        drv = fc.driver
+        drv.type = 'AVERAGE'
+        var = drv.variables.new()
+        var.name = 'w'
+        var.type = 'SINGLE_PROP'
+        var.targets[0].id_type = 'KEY'
+        var.targets[0].id = hero.data.shape_keys
+        var.targets[0].data_path = f'key_blocks["{name}"].value'
+    return core
+
+
+def spring(t, freq, decay):
+    """Muelle amortiguado de 0 a 1: se pasa, vuelve y se asienta (el rebote blando de la masa)."""
+    t = max(t, 0.0)
+    return 1.0 - math.exp(-decay * t) * math.cos(2 * math.pi * freq * t)
+
+
+def build_hero():
+    reset('hero')
+    hero_lights()
+    me = grid_mesh('hero', hero_points(), HERO_U, HERO_V)
+    hero = link(bpy.data.objects.new('hero', me))
+    glass = frost('hero_vidrio', (0.8, 0.9, 0.84))
+    glass['takes_normal_map'] = True
+    me.materials.append(glass)
+
+    # Malla alta: el mismo toro con la ondulación de la mano (va al mapa de normales).
+    su, sv = HERO_U * 5, HERO_V * 5
+    hi_me = grid_mesh('hero_alta', hero_points(segs_u=su, segs_v=sv, bump=hero_undulation(su, sv), follow=False), su, sv, follow=False)
+    high = link(bpy.data.objects.new('hero_alta', hi_me))
+    bake_normals(hero, high, 128, 'hero_normal', 0.02, 0.05)
+    high.hide_set(True)
+    high.hide_render = True
+
+    add_keys(hero, {
+        'ridge_a': hero_points(c=1.0),
+        'ridge_b': hero_points(s=1.0),
+        'breath': hero_points(ring=1.03, tube=1.05),
+        'mass': hero_mass(),
+        'pebble': hero_pebble(),
+    })
+
+    # Nacimiento: la gota se abre con un rebote blando y la cresta sube después, con su propio muelle.
+    frames = [k / 30 for k in range(0, 39)]
+    end = 1.3
+    add_clip(hero, 'hero_birth', {
+        'mass': [*((t, 1.0 - spring(t, 1.05, 4.1)) for t in frames), (end, 0.0)],
+        'ridge_a': [*((t, spring(t - 0.3, 1.15, 4.6) if t > 0.3 else 0.0) for t in frames), (end, 1.0)],
+        'breath': [*((t, 0.7 * math.exp(-3.4 * t) * math.sin(2 * math.pi * 1.6 * t)) for t in frames), (end, 0.0)],
+    })
+    add_clip(hero, 'hero_breath', {
+        'ridge_a': [(0, 1.0), (HERO_BREATH, 1.0)],
+        'breath': [(0, 0.0), (HERO_BREATH * 0.4, 1.0), (HERO_BREATH, 0.0)],
+    })
+    steps = [HERO_ROLL * k / 8 for k in range(9)]
+    add_clip(hero, 'hero_roll', {
+        'ridge_a': [(t, math.cos(2 * math.pi * t / HERO_ROLL)) for t in steps],
+        'ridge_b': [(t, math.sin(2 * math.pi * t / HERO_ROLL)) for t in steps],
+    })
+    # Salida: toma aire, suelta las crestas y se recoge en el canto rodado antes de llegar.
+    add_clip(hero, 'hero_outro', {
+        'ridge_a': [(0, 1.0), (0.1, 1.0), (0.4, 0.0), (0.95, 0.0)],
+        'breath': [(0, 0.0), (0.12, 0.7), (0.34, 0.0), (0.95, 0.0)],
+        'pebble': [(0, 0.0), (0.14, 0.0), (0.42, 0.62), (0.62, 1.04), (0.78, 0.99), (0.95, 1.0)],
+    })
+    hero_core(hero)
+    # Encuadre de cerca, de frente y un poco de lado, como en el splash.
+    cam = link(bpy.data.objects.new('Camera', bpy.data.cameras.new('Camera')))
+    cam.data.lens = 85
+    cam.location = (-1.0, -3.2, 13.0)
+    cam.rotation_euler = (Vector((0, 0, 0)) - cam.location).to_track_quat('-Z', 'Y').to_euler()
+    sc = bpy.context.scene
+    sc.camera = cam
+    sc.render.resolution_x = sc.render.resolution_y = 1024
+    print(f'hero: {sum(len(p.vertices) - 2 for p in me.polygons)} triángulos, {len(me.vertices)} vértices')
+    return [hero]
+
+
 # ───────── Exportación ─────────
 
 def export(objs, path, frame_step=2):
@@ -840,7 +1087,7 @@ def qa_render(objs, path, setups, samples):
     sc.render.engine = 'CYCLES'
     sc.cycles.device = 'CPU'
     sc.cycles.samples = samples
-    sc.cycles.use_denoising = False
+    sc.cycles.use_denoising = setups.get('denoise', False)
     sc.render.film_transparent = False
     cam = link(bpy.data.objects.new('qa_cam', bpy.data.cameras.new('qa_cam')))
     cam.data.lens = 85
@@ -885,11 +1132,18 @@ QA = {
         'res': (640, 400), 'cam': (0, -3.4, 5.0), 'look': (0, 0, 0.05), 'floor': 0.0,
         'states': {'rest': {}, 'stretch': {'stretch_x': 1.0}, 'squash': {'squash': 1.0}},
     },
+    'hero': {
+        'res': (640, 640), 'cam': (-1.0, -3.2, 13.0), 'look': (0, 0, 0), 'denoise': True,
+        'states': {
+            'rest': {'ridge_a': 1.0}, 'roll': {'ridge_a': 0.71, 'ridge_b': 0.71}, 'inhale': {'ridge_a': 1.0, 'breath': 1.0},
+            'mass': {'mass': 1.0}, 'birth': {'mass': 0.45, 'ridge_a': 0.2}, 'outro': {'pebble': 0.55, 'ridge_a': 0.2}, 'pebble': {'pebble': 1.0},
+        },
+    },
 }
 
-BUILD = {'pad': build_pad, 'focus': build_focus, 'nav': build_nav, 'card': build_card}
+BUILD = {'pad': build_pad, 'focus': build_focus, 'nav': build_nav, 'card': build_card, 'hero': build_hero}
 # Muestras de animación por juego: la respiración es lenta, con 5 por segundo basta.
-FRAME_STEP = {'focus': 12}
+FRAME_STEP = {'focus': 12, 'hero': 4}
 
 
 def main():
