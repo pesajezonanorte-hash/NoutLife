@@ -32,6 +32,7 @@ import { useLocalReminders } from './lib/localReminders';
 import { touchLastActive } from './lib/sleepGapSuggestion';
 import { syncPushSubscription } from './services/notification.service';
 import { flushWrites } from './lib/offline/engine';
+import { isNativeApp } from './lib/native';
 
 // Páginas diferidas. Los loaders viven en un mapa para poder precargarlos en
 // idle; así, al cambiar de zona, el módulo suele estar en caché y no aparece
@@ -425,6 +426,11 @@ export default function App() {
   // Al entrar por primera vez, la invitación a los avisos; si se pospone, otra vez tras el primer hábito
   // cumplido, nunca encima del tutorial.
   const tourDone = useTourDone(user?.id);
+
+  // App de Android: esta versión arrancó bien (si no llega este aviso, el plugin vuelve a la anterior).
+  useEffect(() => {
+    if (isNativeApp()) void import('./lib/ota').then((ota) => ota.startOta()).catch(() => undefined);
+  }, []);
 
   // Avisos: renueva la suscripción push de este dispositivo en cada apertura y,
   // con la app abierta, programa también los recordatorios de hoy.

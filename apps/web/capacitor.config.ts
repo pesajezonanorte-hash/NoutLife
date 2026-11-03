@@ -15,6 +15,10 @@ const config: CapacitorConfig = {
     // index.html ya pide viewport-fit=cover: decirlo aquí evita un salto del splash al cargar.
     SystemBars: { initialViewportFitValueHint: 'cover' },
     LocalNotifications: { smallIcon: 'ic_stat_noutlife', iconColor: '#2F7565' },
+    // Actualizaciones sin APK nuevo: las decide src/lib/ota.ts. Las direcciones vacías son a propósito: por
+    // defecto el plugin mandaría datos del dispositivo a los servidores de Capgo.
+    // keepUrlPathAfterReload: al recargar se sigue en la misma pantalla, también la que acaba de abrir un aviso.
+    CapacitorUpdater: { autoUpdate: false, updateUrl: '', statsUrl: '', channelUrl: '', keepUrlPathAfterReload: true },
   },
 };
 
