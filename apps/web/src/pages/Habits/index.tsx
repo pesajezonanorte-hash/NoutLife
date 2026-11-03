@@ -16,7 +16,7 @@ import { dayKey, longDate } from '@/lib/lifeMeta';
 import { useAuthStore } from '@/store/authStore';
 import { useHabitCompletion } from '@/hooks/useHabitCompletion';
 import { useToastStore } from '@/hooks/useToast';
-import { Badge, BarChart, Button, Card, Confetti, EmptyState, ErrorState, IconChip, ProgressBar, ProgressRing, SegmentedControl, type BarDatum, PageLoader } from '@/components/ui/lq';
+import { Badge, BarChart, Button, Card, LeafBurst, EmptyState, ErrorState, IconChip, ProgressBar, ProgressRing, SegmentedControl, type BarDatum, PageLoader } from '@/components/ui/lq';
 import { StreakTotemCard } from '@/components/habits/StreakTotemCard';
 import { useLoadingCopy } from '@/lib/loadingCopy';
 import { HabitNotebookRow } from '@/components/habits/HabitNotebookRow';
@@ -528,7 +528,7 @@ export default function HabitsPage() {
         </aside>
       </motion.div>
       </div>
-      {dayDone > 0 && <Confetti burst={dayDone} />}
+      {dayDone > 0 && <LeafBurst burst={dayDone} />}
       <HabitFormDialog
         open={form.open}
         habit={form.habit}

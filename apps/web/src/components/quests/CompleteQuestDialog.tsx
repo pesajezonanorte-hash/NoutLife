@@ -2,7 +2,7 @@ import { Suspense, lazy, useEffect, useRef, useState, type ComponentType } from 
 import { motion } from 'framer-motion';
 import { Trophy } from 'lucide-react';
 import type { Quest } from '@noutlife/shared';
-import { Button, Confetti, IconChip, ProgressBar, ResponsiveDialog } from '@/components/ui/lq';
+import { Button, LeafBurst, IconChip, ProgressBar, ResponsiveDialog } from '@/components/ui/lq';
 import { INTL_LOCALE, useLocale, useText, type Copy } from '@/lib/i18n';
 import { useAuthStore } from '@/store/authStore';
 import { useUIStore } from '@/store/uiStore';
@@ -162,7 +162,7 @@ export function CompleteQuestDialog({ quest: current, onClose, onCompleted }: Co
           </div>
         )}
       </ResponsiveDialog>
-      {burst > 0 && <Confetti burst={burst} />}
+      {burst > 0 && <LeafBurst burst={burst} />}
     </>
   );
 }

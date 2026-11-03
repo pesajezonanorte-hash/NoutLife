@@ -193,6 +193,9 @@ export const AUTOMATIC_PREFIXES = [
   'zone-reminder:gremio:',
   'zone-reminder:gimnasio:',
   'coliseo-learned-',
+  // Vencimientos de deudas y recibos: cuentan para el tope diario y la pausa, como lo automático.
+  'debt-due:',
+  'bill-due:',
 ] as const;
 /** Avisos automáticos por día, como máximo. */
 export const DAILY_AUTOMATIC_CAP = 2;
@@ -384,6 +387,15 @@ export function usualWeekdays(weekdays: number[], min = 2): number[] {
   const count = new Map<number, number>();
   for (const d of weekdays) count.set(d, (count.get(d) ?? 0) + 1);
   return [...count].filter(([, n]) => n >= min).map(([d]) => d).sort((a, b) => a - b);
+}
+
+/**
+ * Fecha límite de un día del mes como clave de calendario (medianoche UTC). Un día que
+ * el mes no tiene (el 31 en abril) vence el último día del mes.
+ */
+export function monthDueKey(year: number, month: number, dayOfMonth: number): Date {
+  const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(year, month, Math.min(dayOfMonth, lastDay)));
 }
 
 /** Avisos de cada zona en Ajustes (para pausarlos o reanudarlos por zona). */

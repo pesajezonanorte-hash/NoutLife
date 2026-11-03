@@ -15,7 +15,8 @@ export async function createHabit(req: AuthRequest, res: Response): Promise<void
   try {
     const habit = await habitService.createHabit(req.userId!, req.body);
     res.status(201).json({ habit });
-  } catch {
+  } catch (err) {
+    if (err instanceof Error && err.message === 'HABIT_END_BEFORE_START') { res.status(400).json({ error: 'La hora de fin debe ser posterior a la de inicio.' }); return; }
     res.status(500).json({ error: 'Error al crear el hábito.' });
   }
 }
@@ -48,6 +49,7 @@ export async function updateHabit(req: AuthRequest, res: Response): Promise<void
   } catch (err) {
     const msg = err instanceof Error ? err.message : '';
     if (msg === 'HABIT_NOT_FOUND') { res.status(404).json({ error: 'Hábito no encontrado.' }); return; }
+    if (msg === 'HABIT_END_BEFORE_START') { res.status(400).json({ error: 'La hora de fin debe ser posterior a la de inicio.' }); return; }
     res.status(500).json({ error: 'Error al actualizar el hábito.' });
   }
 }

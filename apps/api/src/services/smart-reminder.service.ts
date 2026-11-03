@@ -7,7 +7,7 @@ import { getCalendarDay } from '../lib/calendar';
 import { averages, snapshot, type PeriodRow } from '../lib/cycle';
 import {
   AUTOMATIC_PREFIXES, BREAK_TIPS, CARE_COPY, COOL_WINDOW_DAYS, CYCLE_COPY, ZONE_PREFIXES, breakSlots, coolingPrefixes, focusCategory, hydrationSlots, inWindow,
-  learnedHabitTime, localMinutes, parseHHMM, pickQuote, sanitizeSmartSettings, usualWeekdays, type LearnZone, type SmartReminderSettings,
+  learnedHabitTime, localMinutes, monthDueKey, parseHHMM, pickQuote, sanitizeSmartSettings, usualWeekdays, type LearnZone, type SmartReminderSettings,
 } from '../lib/smart-reminders';
 import { isComplimentary, planOf } from '../lib/plans';
 import { isHabitScheduledForDay } from './habit.service';
@@ -225,6 +225,64 @@ async function pendingHabits(c: Ctx): Promise<number> {
   });
 }
 
+// ─── Deudas y recibos: aviso antes de la fecha límite ─────────────────────────
+// Una deuda por pagar avisa 3 días antes, 1 día antes y el día de vencimiento; un
+// recibo mensual (gasto recurrente) avisa 1 día antes de su día de pago. Todo a las
+// 09:00 locales. La clave incluye la fecha límite y los días que faltan: cambiar la
+// fecha genera un aviso nuevo, y el mismo aviso nunca sale dos veces. Las deudas
+// pagadas no avisan.
+const DEBT_LEAD_DAYS = [3, 1, 0];
+const BILL_LEAD_DAYS = [1];
+const DUE_NOTICE_MIN = 9 * 60;
+
+const dueLabel = (key: Date) => key.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', timeZone: 'UTC' });
+
+async function dueDateReminders(c: Ctx): Promise<number> {
+  if (!inWindow(c.minutes, DUE_NOTICE_MIN)) return 0;
+  const today = c.calendarDate;
+  const [debts, bills] = await Promise.all([
+    prisma.debt.findMany({
+      where: { userId: c.userId, type: 'owe', isPaid: false, dueDate: { gte: today, lte: new Date(today.getTime() + 3 * DAY_MS) } },
+      select: { id: true, title: true, dueDate: true },
+    }),
+    prisma.recurringTransaction.findMany({
+      where: { userId: c.userId, type: 'EXPENSE', isActive: true },
+      select: { id: true, description: true, dayOfMonth: true },
+    }),
+  ]);
+
+  let sent = 0;
+  for (const debt of debts) {
+    if (!debt.dueDate) continue;
+    const due = new Date(Date.UTC(debt.dueDate.getUTCFullYear(), debt.dueDate.getUTCMonth(), debt.dueDate.getUTCDate()));
+    const days = Math.round((due.getTime() - today.getTime()) / DAY_MS);
+    if (!DEBT_LEAD_DAYS.includes(days)) continue;
+    sent += await notifyOnce(c, `debt-due:${debt.id}:${due.toISOString().slice(0, 10)}:${days}`, {
+      category: 'FINANCE',
+      title: days === 0 ? 'Vence hoy' : days === 1 ? 'Vence mañana' : `Vence en ${days} días`,
+      body: `«${debt.title}» tiene fecha límite el ${dueLabel(due)}.${days === 0 ? ' Si ya la pagaste, márcala como pagada.' : ''}`,
+      link: '/finances',
+    });
+  }
+
+  // El mes siguiente también: un recibo del día 1 vence mañana cuando hoy es el último día.
+  const year = today.getUTCFullYear();
+  const month = today.getUTCMonth();
+  for (const bill of bills) {
+    for (const due of [monthDueKey(year, month, bill.dayOfMonth), monthDueKey(year, month + 1, bill.dayOfMonth)]) {
+      const days = Math.round((due.getTime() - today.getTime()) / DAY_MS);
+      if (!BILL_LEAD_DAYS.includes(days)) continue;
+      sent += await notifyOnce(c, `bill-due:${bill.id}:${due.toISOString().slice(0, 10)}:${days}`, {
+        category: 'FINANCE',
+        title: 'Mañana vence un recibo',
+        body: `«${bill.description}» se paga el ${dueLabel(due)}.`,
+        link: '/finances',
+      });
+    }
+  }
+  return sent;
+}
+
 // ─── Descansos: pausas activas durante la jornada ────────────────────────────
 
 async function breakReminders(c: Ctx): Promise<number> {
@@ -363,7 +421,7 @@ export async function smartReminders(now: Date): Promise<number> {
       subscriptionStatus: true, trialEndsAt: true, currentPeriodEnd: true, paymentSourceId: true, createdAt: true, compPro: true,
     },
   });
-  const jobs = [coliseoReminder, careReminders, pendingHabits, breakReminders, cycleReminders, hydrationReminders, mealReminders, wisdomReminder];
+  const jobs = [coliseoReminder, careReminders, pendingHabits, dueDateReminders, breakReminders, cycleReminders, hydrationReminders, mealReminders, wisdomReminder];
   let sent = 0;
   for (const user of users) {
     const minutes = localMinutes(user.timezone, now);

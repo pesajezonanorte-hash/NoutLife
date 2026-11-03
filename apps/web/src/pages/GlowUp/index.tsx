@@ -7,7 +7,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Camera, Check, Droplets, Flame, Moon, Plus, Shirt, SlidersHorizontal, Star, Sun, Trash2 } from 'lucide-react';
+import { Camera, Check, Droplets, Flame, Moon, Pencil, Plus, Shirt, SlidersHorizontal, Star, Sun, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { blurFrom, blurTo, item, springs, stagger, useMotionReduced } from '@/lib/motion';
 import { AmbientLight, ZoneShell } from '@/components/ambience';
@@ -36,6 +36,16 @@ const es = {
   completeFail: 'No se pudo completar la rutina',
   routineCreated: 'Rutina creada',
   routineCreateFail: 'No se pudo crear la rutina',
+  routineUpdated: 'Rutina actualizada',
+  routineUpdateFail: 'No se pudo guardar la rutina',
+  routineRemoved: 'Rutina borrada',
+  routineRemoveFail: 'No se pudo borrar la rutina',
+  editRoutineAria: (name: string): string => `Editar ${name}`,
+  editRoutineModal: 'Editar rutina',
+  saveRoutine: 'Guardar cambios',
+  removeRoutineTitle: 'Borrar rutina',
+  removeRoutineBody: (name: string, linked: boolean): string => `«${name}» dejará de aparecer en tu Espejo.${linked ? ' El hábito enlazado en la Libreta también se archivará.' : ''}`,
+  removeRoutineConfirm: 'Borrar rutina',
   careTitle: 'Tus rutinas de cuidado',
   tapStep: 'Toca un paso para marcarlo',
   newRoutine: 'Nueva rutina',
@@ -144,6 +154,16 @@ const en: typeof es = {
   completeFail: 'Could not complete the routine',
   routineCreated: 'Routine created',
   routineCreateFail: 'Could not create the routine',
+  routineUpdated: 'Routine updated',
+  routineUpdateFail: 'Could not save the routine',
+  routineRemoved: 'Routine deleted',
+  routineRemoveFail: 'Could not delete the routine',
+  editRoutineAria: (name: string): string => `Edit ${name}`,
+  editRoutineModal: 'Edit routine',
+  saveRoutine: 'Save changes',
+  removeRoutineTitle: 'Delete routine',
+  removeRoutineBody: (name: string, linked: boolean): string => `"${name}" will no longer appear in your Mirror.${linked ? ' The habit linked in the Notebook will be archived too.' : ''}`,
+  removeRoutineConfirm: 'Delete routine',
   careTitle: 'Your care routines',
   tapStep: 'Tap a step to mark it',
   newRoutine: 'New routine',
@@ -303,6 +323,9 @@ function CareSection({ onProgress }: CareProps) {
   const [state, setState] = useState<'loading' | 'error' | 'ready'>('loading');
   const [showNew, setShowNew] = useState(false);
   const [form, setForm] = useState({ name: '', timeOfDay: 'morning', steps: [''] });
+  /** Rutina que se edita (null: se crea una nueva). */
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [removing, setRemoving] = useState<CareRoutine | null>(null);
   const [completing, setCompleting] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [ticks, setTicks] = useState<Record<string, boolean>>(readSteps);
@@ -356,20 +379,48 @@ function CareSection({ onProgress }: CareProps) {
     if (r.steps.every((s) => next[`${r.id}:${s.id}`])) void handleComplete(r.id);
   }
 
-  async function handleCreate() {
+  function openNew() {
+    setEditingId(null);
+    setForm({ name: '', timeOfDay: 'morning', steps: [''] });
+    setShowNew(true);
+  }
+
+  function openEdit(r: CareRoutine) {
+    setEditingId(r.id);
+    setForm({ name: r.name, timeOfDay: r.timeOfDay, steps: [...r.steps].sort((a, b) => a.order - b.order).map((s) => s.name) });
+    setShowNew(true);
+  }
+
+  async function handleSave() {
     setSaving(true);
+    const body = {
+      name: form.name,
+      timeOfDay: form.timeOfDay,
+      steps: form.steps.filter(Boolean).map((s, i) => ({ name: s, order: i })),
+    };
     try {
-      await api.post('/mirror/routines', {
-        name: form.name,
-        timeOfDay: form.timeOfDay,
-        steps: form.steps.filter(Boolean).map((s, i) => ({ name: s, order: i })),
-      });
+      if (editingId) {
+        await api.patch(`/mirror/routines/${editingId}`, body);
+        toast.success(t.routineUpdated);
+      } else {
+        await api.post('/mirror/routines', body);
+        toast.success(t.routineCreated);
+      }
       setShowNew(false);
+      setEditingId(null);
       setForm({ name: '', timeOfDay: 'morning', steps: [''] });
       void load(true);
-      toast.success(t.routineCreated);
-    } catch { toast.error(t.routineCreateFail); }
+    } catch { toast.error(editingId ? t.routineUpdateFail : t.routineCreateFail); }
     finally { setSaving(false); }
+  }
+
+  async function handleRemove(r: CareRoutine) {
+    setRemoving(null);
+    try {
+      await api.delete(`/mirror/routines/${r.id}`);
+      toast.success(t.routineRemoved);
+      void load(true);
+    } catch { toast.error(t.routineRemoveFail); }
   }
 
   return (
@@ -378,7 +429,7 @@ function CareSection({ onProgress }: CareProps) {
         <h2 id="glow-care" className="text-heading-lg">{t.careTitle}</h2>
         <div className="flex items-center gap-3">
           <span className="hidden text-body-sm text-on-surface-light sm:inline">{t.tapStep}</span>
-          <Button size="md" onClick={() => setShowNew(true)}><Plus aria-hidden className="size-4" />{t.newRoutine}</Button>
+          <Button size="md" onClick={openNew}><Plus aria-hidden className="size-4" />{t.newRoutine}</Button>
         </div>
       </div>
 
@@ -389,7 +440,7 @@ function CareSection({ onProgress }: CareProps) {
       ) : routines.length === 0 ? (
         <Card variant="elevated" padding="lg">
           <EmptyState icon={Droplets} tone="forest" title={t.noRoutines} description={t.noRoutinesDesc}
-            action={<Button onClick={() => setShowNew(true)}><Plus aria-hidden className="size-4" />{t.newRoutine}</Button>} className="py-6" />
+            action={<Button onClick={openNew}><Plus aria-hidden className="size-4" />{t.newRoutine}</Button>} className="py-6" />
         </Card>
       ) : (
         <motion.ul variants={stagger} initial="initial" animate="animate" className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
@@ -423,14 +474,18 @@ function CareSection({ onProgress }: CareProps) {
                       ))}
                     </div>
                   )}
-                  <div className="mt-auto pt-2">
-                    {isToday(r.lastDoneAt) ? (
-                      <Badge variant="success" size="lg" icon={Check}>{t.doneToday}</Badge>
-                    ) : (
-                      <Button variant="secondary" size="md" block loading={completing === r.id} onClick={() => void handleComplete(r.id)}>
-                        <Check aria-hidden className="size-4" />{t.markRoutine}
-                      </Button>
-                    )}
+                  <div className="mt-auto flex items-center gap-2 pt-2">
+                    <div className="min-w-0 flex-1">
+                      {isToday(r.lastDoneAt) ? (
+                        <Badge variant="success" size="lg" icon={Check}>{t.doneToday}</Badge>
+                      ) : (
+                        <Button variant="secondary" size="md" block loading={completing === r.id} onClick={() => void handleComplete(r.id)}>
+                          <Check aria-hidden className="size-4" />{t.markRoutine}
+                        </Button>
+                      )}
+                    </div>
+                    <Button variant="icon" aria-label={t.editRoutineAria(r.name)} onClick={() => openEdit(r)}><Pencil aria-hidden className="size-[18px]" strokeWidth={1.75} /></Button>
+                    <Button variant="icon" aria-label={t.deleteAria(r.name)} onClick={() => setRemoving(r)}><Trash2 aria-hidden className="size-[18px]" strokeWidth={1.75} /></Button>
                   </div>
                 </Card>
               </motion.li>
@@ -439,8 +494,18 @@ function CareSection({ onProgress }: CareProps) {
         </motion.ul>
       )}
 
-      <Modal open={showNew} onClose={() => setShowNew(false)} title={t.routineModal}>
-        <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); void handleCreate(); }}>
+      <Modal open={removing !== null} onClose={() => setRemoving(null)} title={t.removeRoutineTitle}>
+        <div className="flex flex-col gap-4">
+          <p className="text-body-md text-on-surface">{removing ? t.removeRoutineBody(removing.name, Boolean(removing.habit)) : ''}</p>
+          <div className="flex gap-3">
+            <Button type="button" variant="ghost" className="flex-1" onClick={() => setRemoving(null)}>{t.cancel}</Button>
+            <Button type="button" variant="danger" className="flex-1" onClick={() => removing && void handleRemove(removing)}>{t.removeRoutineConfirm}</Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={showNew} onClose={() => setShowNew(false)} title={editingId ? t.editRoutineModal : t.routineModal}>
+        <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); void handleSave(); }}>
           <Field label={t.routineName}><Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder={t.routineNamePh} autoFocus /></Field>
           <Field label={t.moment}>
             <Select value={form.timeOfDay} onChange={(e) => setForm((f) => ({ ...f, timeOfDay: e.target.value }))}>
@@ -457,7 +522,7 @@ function CareSection({ onProgress }: CareProps) {
           </fieldset>
           <div className="flex gap-3">
             <Button type="button" variant="ghost" className="flex-1" onClick={() => setShowNew(false)}>{t.cancel}</Button>
-            <Button type="submit" className="flex-1" disabled={!form.name.trim()} loading={saving}>{t.create}</Button>
+            <Button type="submit" className="flex-1" disabled={!form.name.trim()} loading={saving}>{editingId ? t.saveRoutine : t.create}</Button>
           </div>
         </form>
       </Modal>

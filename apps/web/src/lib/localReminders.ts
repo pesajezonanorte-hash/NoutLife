@@ -12,6 +12,8 @@ import { showInAppAlert, type InAppAlert } from '@/lib/systemNotifications';
 import { INTL_LOCALE, getLocale, type Copy, type Locale } from '@/lib/i18n';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+/** Igual que el servidor (reminder.service): el aviso de un bloque sale 10 min antes. */
+const HABIT_LEAD_MIN = 10;
 /** Replanifica cada 15 min: recoge hábitos y eventos creados o cambiados mientras tanto. */
 const REPLAN_MS = 15 * 60 * 1000;
 
@@ -25,8 +27,8 @@ const es = {
     'Cierra los ojos un momento y relaja la mandíbula.',
   ],
   breakTitle: 'Pausa activa',
-  habitTitle: (title: string): string => `Hora de: ${title}`,
-  habitBody: 'Márcalo cuando lo hagas y tu racha sigue viva.',
+  habitTitle: (title: string): string => `En ${HABIT_LEAD_MIN} min: ${title}`,
+  habitBody: (range: string): string => `Tu bloque es de ${range}. Márcalo cuando lo hagas y tu racha sigue viva.`,
   pendingTitle: (n: number): string => `${n} ${n === 1 ? 'hábito pendiente' : 'hábitos pendientes'}`,
   pendingBody: (names: string, more: number): string => `Si todavía puedes, completa ${names}${more > 0 ? ` y ${more} más` : ''} antes de cerrar el día.`,
   agendaAllDay: 'Es hoy. Revisa tu agenda.',
@@ -44,8 +46,8 @@ const en: typeof es = {
     'Close your eyes for a moment and relax your jaw.',
   ],
   breakTitle: 'Active break',
-  habitTitle: (title: string): string => `Time for: ${title}`,
-  habitBody: 'Mark it when you do it and your streak stays alive.',
+  habitTitle: (title: string): string => `In ${HABIT_LEAD_MIN} min: ${title}`,
+  habitBody: (range: string): string => `Your block is ${range}. Mark it when you do it and your streak stays alive.`,
   pendingTitle: (n: number): string => `${n} ${n === 1 ? 'habit pending' : 'habits pending'}`,
   pendingBody: (names: string, more: number): string => `If you still can, complete ${names}${more > 0 ? ` and ${more} more` : ''} before you close the day.`,
   agendaAllDay: 'It is today. Check your agenda.',
@@ -93,18 +95,19 @@ async function plan(now = new Date()): Promise<Planned[]> {
   const today = dayKey(now);
 
   for (const h of habits) {
-    const target = minutesOf(h.reminderTime);
-    if (target === null || !h.isActive || h.todayCompleted || !scheduledToday(h, now)) continue;
-    const at = atMinutes(now, target);
+    const start = minutesOf(h.reminderTime);
+    if (start === null || !h.isActive || h.todayCompleted || !scheduledToday(h, now)) continue;
+    const at = atMinutes(now, start - HABIT_LEAD_MIN);
     if (at.getTime() <= now.getTime()) continue;
+    const range = h.reminderEndTime ? `${h.reminderTime} a ${h.reminderEndTime}` : h.reminderTime ?? '';
     out.push({
       at: at.getTime(),
       run: async () => {
-        // A la hora, comprueba que siga pendiente: si ya lo marcaste, no molesta.
+        // Antes del bloque, comprueba que siga pendiente: si ya lo marcaste, no molesta.
         const fresh = (await fetchHabits().catch(() => [] as Habit[])).find((x) => x.id === h.id);
         if (fresh?.todayCompleted) return;
         await deliver({
-          tag: `habit-reminder-${h.id}-${today}`, title: t.habitTitle(h.title), body: t.habitBody,
+          tag: `habit-reminder-${h.id}-${today}`, title: t.habitTitle(h.title), body: t.habitBody(range),
           link: '/habits', quick: 'habit_done', quickRef: h.id, day: today,
         });
       },

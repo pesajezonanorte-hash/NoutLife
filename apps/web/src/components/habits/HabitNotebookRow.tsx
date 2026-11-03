@@ -58,7 +58,8 @@ export function HabitNotebookRow({ habit, onComplete, pending, week, index, onSt
   const done = Boolean(habit.todayCompleted) || habit.todayStatus === 'completed';
   const skipped = habit.todayStatus === 'skipped';
   const weekDone = week?.filter(Boolean).length ?? 0;
-  const sub = [meta.label, habit.frequency ? frequencyLabel(habit.frequency, locale).toLowerCase() : null, habit.reminderTime].filter(Boolean).join(' · ');
+  const block = habit.reminderTime ? (habit.reminderEndTime ? `${habit.reminderTime}–${habit.reminderEndTime}` : habit.reminderTime) : null;
+  const sub = [meta.label, habit.frequency ? frequencyLabel(habit.frequency, locale).toLowerCase() : null, block].filter(Boolean).join(' · ');
   // La escritura se quita al terminar: una máscara residual recortaría el anillo de foco.
   const [written, setWritten] = useState(false);
   const days = t.days(habit.currentStreak);

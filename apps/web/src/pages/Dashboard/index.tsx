@@ -30,7 +30,7 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useHabitCompletion } from '@/hooks/useHabitCompletion';
 import { useToastStore } from '@/hooks/useToast';
 import { refreshUser } from '@/hooks/useAuth';
-import { Badge, Button, Card, Confetti, EmptyState, ErrorState, IconChip, ProgressBar, ProgressRing, StatCard, buttonClasses, type Tone, PageLoader } from '@/components/ui/lq';
+import { Badge, Button, Card, LeafBurst, EmptyState, ErrorState, IconChip, ProgressBar, ProgressRing, StatCard, buttonClasses, type Tone, PageLoader } from '@/components/ui/lq';
 import { useLoadingCopy } from '@/lib/loadingCopy';
 import { HabitListItem } from '@/components/habits/HabitListItem';
 import { questProgress } from '@/components/quests/questMeta';
@@ -639,7 +639,7 @@ export default function DashboardPage() {
         </motion.div>
       )}
 
-      {burst > 0 && <Confetti burst={burst} />}
+      {burst > 0 && <LeafBurst burst={burst} />}
       <ClassSelectionModal open={modal === 'class'} onClose={() => setModal(null)} />
       <MorningBriefing
         open={modal === 'briefing'}

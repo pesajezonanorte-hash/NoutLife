@@ -51,6 +51,11 @@ const es = {
   restNote: 'Los días sin seleccionar son de descanso y no rompen tu racha.',
   reminder: 'Recordatorio',
   reminderHelp: 'Opcional · también fija la hora en tu agenda',
+  reminderStart: 'Hora de inicio',
+  reminderEnd: 'Hora de fin',
+  reminderBetween: 'a',
+  reminderEndHelp: 'Opcional. Si no la pones, el bloque dura 30 min.',
+  endBeforeStart: 'La hora de fin debe ser posterior a la de inicio.',
   coliseoTitle: 'Cuenta como asistencia al Coliseo',
   coliseoBody: 'Completar este hábito registra un día de entrenamiento en el Coliseo.',
   gcalTitle: 'Añadir a Google Calendar',
@@ -105,6 +110,11 @@ const en: typeof es = {
   restNote: 'Unselected days are rest days and do not break your streak.',
   reminder: 'Reminder',
   reminderHelp: 'Optional · also sets the time in your agenda',
+  reminderStart: 'Start time',
+  reminderEnd: 'End time',
+  reminderBetween: 'to',
+  reminderEndHelp: 'Optional. If you leave it empty, the block lasts 30 min.',
+  endBeforeStart: 'The end time must be after the start time.',
   coliseoTitle: 'Counts as Coliseum attendance',
   coliseoBody: 'Completing this habit logs a training day in the Coliseum.',
   gcalTitle: 'Add to Google Calendar',
@@ -132,6 +142,7 @@ function initialForm(h?: Habit | null): CreateHabitPayload {
     xpReward: h?.xpReward ?? 20,
     goldReward: h?.goldReward ?? 5,
     reminderTime: h?.reminderTime ?? '',
+    reminderEndTime: h?.reminderEndTime ?? '',
     frequency: h?.frequency ?? { type: 'daily', days: [] },
     syncToGoogleCalendar: h?.syncToGoogleCalendar ?? false,
     createsColiseoAttendance: h?.createsColiseoAttendance ?? false,
@@ -177,18 +188,31 @@ export function HabitFormDialog({ open, habit, onClose, onSubmit }: HabitFormDia
   const freq = form.frequency ?? { type: 'daily' as const, days: [] };
   const titleError = touched && !form.title.trim() ? t.nameErr : undefined;
   const daysError = touched && freq.type === 'days_per_week' && freq.days.length === 0 ? t.daysErr : undefined;
+  // Las horas HH:mm se comparan como texto: con cero a la izquierda el orden es el mismo.
+  const timeError = form.reminderTime && form.reminderEndTime && form.reminderEndTime <= form.reminderTime ? t.endBeforeStart : undefined;
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     setTouched(true);
-    if (!form.title.trim() || (freq.type === 'days_per_week' && freq.days.length === 0)) return;
+    if (!form.title.trim() || (freq.type === 'days_per_week' && freq.days.length === 0) || timeError) return;
     const kind = form.kind ?? 'habit';
     const steps = (form.steps ?? []).map((st) => st.trim()).filter(Boolean);
     if (kind === 'ritual' && steps.length === 0) { setError(t.ritualErr); return; }
     setSaving(true);
     setError(null);
+    // Al editar, un campo vacío se envía como null para borrar la hora guardada.
+    const clear = habit ? null : undefined;
+    const reminderTime = form.reminderTime || clear;
     try {
-      await onSubmit({ ...form, title: form.title.trim(), description: form.description?.trim() || undefined, reminderTime: form.reminderTime || undefined, kind, steps: kind === 'ritual' ? steps : [] });
+      await onSubmit({
+        ...form,
+        title: form.title.trim(),
+        description: form.description?.trim() || undefined,
+        reminderTime,
+        reminderEndTime: reminderTime && form.reminderEndTime ? form.reminderEndTime : clear,
+        kind,
+        steps: kind === 'ritual' ? steps : [],
+      });
     } catch (err) {
       setError(apiError(err, t.saveErr));
     } finally {
@@ -340,8 +364,15 @@ export function HabitFormDialog({ open, habit, onClose, onSubmit }: HabitFormDia
           )}
         </div>
 
-        <Field label={t.reminder} help={t.reminderHelp}>
-          <Input type="time" value={form.reminderTime ?? ''} onChange={(e) => set('reminderTime', e.target.value)} className="max-w-40" />
+        <Field label={t.reminder} help={t.reminderHelp} error={timeError}>
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-3">
+              <Input type="time" aria-label={t.reminderStart} value={form.reminderTime ?? ''} onChange={(e) => set('reminderTime', e.target.value)} className="max-w-40" />
+              <span aria-hidden className="text-body-md text-on-surface-light">{t.reminderBetween}</span>
+              <Input type="time" aria-label={t.reminderEnd} value={form.reminderEndTime ?? ''} disabled={!form.reminderTime} onChange={(e) => set('reminderEndTime', e.target.value)} className="max-w-40" />
+            </div>
+            <p className="text-body-sm text-on-surface-light">{t.reminderEndHelp}</p>
+          </div>
         </Field>
 
         <div className="flex flex-col divide-y divide-border rounded-2xl border border-border">

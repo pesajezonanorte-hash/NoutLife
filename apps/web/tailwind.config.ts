@@ -143,7 +143,7 @@ export default {
         float: 'float 6s ease-in-out infinite',
         beat: 'beat 2s ease-in-out infinite',
         shimmer: 'shimmer 1.4s linear infinite',
-        confetti: 'confetti-fall 1.8s cubic-bezier(0,0,.2,1) forwards',
+        'leaf-burst': 'leaf-burst 2.6s cubic-bezier(.2,.7,.3,1) forwards',
       },
       keyframes: {
         bounceIn: {
@@ -178,7 +178,14 @@ export default {
         float: { '50%': { transform: 'translateY(-6px)' } },
         beat: { '50%': { transform: 'scale(1.5)', opacity: '.5' } },
         shimmer: { from: { backgroundPosition: '200% 0' }, to: { backgroundPosition: '-200% 0' } },
-        'confetti-fall': { '0%': { transform: 'translateY(0) rotate(0)', opacity: '1' }, '100%': { transform: 'translateY(420px) rotate(540deg)', opacity: '0' } },
+        // Hojas: abren desde el origen (--leaf-x/y), caen con vaivén (--leaf-fall/sway) y se desvanecen.
+        'leaf-burst': {
+          '0%': { transform: 'translate3d(0,0,0) rotate(var(--leaf-r)) scale(.3)', opacity: '0' },
+          '12%': { opacity: '1' },
+          '38%': { transform: 'translate3d(var(--leaf-x),var(--leaf-y),0) rotate(calc(var(--leaf-r) + var(--leaf-spin) * .4)) scale(1)', opacity: '1' },
+          '70%': { transform: 'translate3d(calc(var(--leaf-x) + var(--leaf-sway) * .5),calc(var(--leaf-y) + var(--leaf-fall) * .6),0) rotate(calc(var(--leaf-r) + var(--leaf-spin) * .8)) scale(1)', opacity: '1' },
+          '100%': { transform: 'translate3d(calc(var(--leaf-x) + var(--leaf-sway)),calc(var(--leaf-y) + var(--leaf-fall)),0) rotate(calc(var(--leaf-r) + var(--leaf-spin))) scale(.9)', opacity: '0' },
+        },
         idleBreathe: {
           '0%, 100%': { transform: 'scaleY(1)' },
           '50%': { transform: 'scaleY(0.97)' },

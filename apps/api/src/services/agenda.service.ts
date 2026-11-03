@@ -1,6 +1,7 @@
 import { prisma } from '../lib/prisma';
 import { GOOGLE_CALENDAR_SCOPE } from '../lib/oauth';
 import { addCalendarDays, getCalendarDay } from '../lib/calendar';
+import { dateKey, habitGoogleEventBody } from '../lib/habit-time';
 import type { Habit } from '@prisma/client';
 
 export async function listEvents(
@@ -144,14 +145,8 @@ interface GoogleCalendarEventsResponse {
 }
 
 
-const GOOGLE_WEEKDAYS = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'] as const;
-
 function calendarApiUrl(calendarId: string, suffix = ''): string {
   return `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}${suffix}`;
-}
-
-function dateKey(date: Date): string {
-  return date.toISOString().slice(0, 10);
 }
 
 function habitCategoryToAgendaCategory(category: Habit['category']): string {
@@ -170,69 +165,6 @@ function habitCategoryToAgendaCategory(category: Habit['category']): string {
     default:
       return 'personal';
   }
-}
-
-function habitRecurrenceRule(frequency: Habit['frequency']): string[] {
-  const value = frequency as { type?: string; days?: unknown } | null;
-  if (value?.type === 'days_per_week' && Array.isArray(value.days) && value.days.length > 0) {
-    const days = [...new Set(value.days)]
-      .filter((day): day is number => Number.isInteger(day) && day >= 0 && day <= 6)
-      .sort((a, b) => a - b)
-      .map((day) => GOOGLE_WEEKDAYS[day]);
-
-    if (days.length > 0) return [`RRULE:FREQ=WEEKLY;BYDAY=${days.join(',')}`];
-  }
-
-  return ['RRULE:FREQ=DAILY'];
-}
-
-function habitGoogleEventBody(habit: Habit, timezone: string) {
-  const startDay = getCalendarDay(timezone);
-  const startDate = dateKey(startDay);
-  const recurrence = habitRecurrenceRule(habit.frequency);
-  const description = [habit.description?.trim(), 'Hábito creado y administrado desde Noutlife.']
-    .filter(Boolean)
-    .join('\n\n');
-
-  const base = {
-    summary: habit.title,
-    description,
-    recurrence,
-    extendedProperties: {
-      private: {
-        lifequestSource: 'habit',
-        lifequestHabitId: habit.id,
-        lifequestHabitCategory: habit.category,
-      },
-    },
-  };
-
-  if (!habit.reminderTime) {
-    return {
-      ...base,
-      start: { date: startDate },
-      end: { date: dateKey(addCalendarDays(startDay, 1)) },
-    };
-  }
-
-  const match = habit.reminderTime.match(/^(\d{2}):(\d{2})$/);
-  const hour = match ? Number(match[1]) : 9;
-  const minute = match ? Number(match[2]) : 0;
-  const endMinutes = hour * 60 + minute + 30;
-  const endDay = endMinutes >= 24 * 60 ? addCalendarDays(startDay, 1) : startDay;
-  const endHour = Math.floor((endMinutes % (24 * 60)) / 60);
-  const endMinute = endMinutes % 60;
-  const pad = (value: number) => String(value).padStart(2, '0');
-
-  return {
-    ...base,
-    start: { dateTime: `${startDate}T${pad(hour)}:${pad(minute)}:00`, timeZone: timezone },
-    end: { dateTime: `${dateKey(endDay)}T${pad(endHour)}:${pad(endMinute)}:00`, timeZone: timezone },
-    reminders: {
-      useDefault: false,
-      overrides: [{ method: 'popup', minutes: 0 }],
-    },
-  };
 }
 
 async function getGoogleCalendarConnection(userId: string): Promise<GoogleCalendarConnection | null> {

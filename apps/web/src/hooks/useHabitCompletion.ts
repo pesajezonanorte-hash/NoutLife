@@ -34,7 +34,7 @@ const COPY: Copy<typeof es> = { es, en };
 export function useHabitCompletion() {
   const { addFloatingXP, triggerLevelUp, showAchievementToast } = useUIStore();
   const [pending, setPending] = useState<string | null>(null);
-  /** Cambia en cada éxito: úsalo como `burst` del <Confetti>. */
+  /** Cambia en cada éxito: úsalo como `burst` del <LeafBurst>. */
   const [burst, setBurst] = useState(0);
 
   const complete = useCallback(async (habit: { id: string; title: string }, status: 'completed' | 'skipped' = 'completed') => {

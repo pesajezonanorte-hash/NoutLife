@@ -10,7 +10,7 @@ import { usePageCrumb } from '@/store/shellStore';
 import { useHabitCompletion } from '@/hooks/useHabitCompletion';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useToastStore } from '@/hooks/useToast';
-import { Badge, BarChart, Button, Card, Confetti, EmptyState, ErrorState, Heatmap, IconChip, Modal, ProgressRing, StatCard, type BarDatum, type HeatLevel, PageLoader } from '@/components/ui/lq';
+import { Badge, BarChart, Button, Card, LeafBurst, EmptyState, ErrorState, Heatmap, IconChip, Modal, ProgressRing, StatCard, type BarDatum, type HeatLevel, PageLoader } from '@/components/ui/lq';
 import { useLoadingCopy } from '@/lib/loadingCopy';
 import { resolveGlyph } from '@/components/ui/glyphs';
 import { HabitFormDialog } from '@/components/habits/HabitFormDialog';
@@ -432,7 +432,7 @@ export default function HabitDetailPage() {
             <h2 id="det-title" className="mb-2 text-heading-sm">{t.details}</h2>
             {[
               [t.frequency, freq],
-              [t.reminder, habit.reminderTime || t.noReminder],
+              [t.reminder, habit.reminderTime ? (habit.reminderEndTime ? `${habit.reminderTime} – ${habit.reminderEndTime}` : habit.reminderTime) : t.noReminder],
               [t.bestStreak, `${habit.longestStreak} ${t.dayWord(habit.longestStreak)}`],
               [t.xpWindow(WINDOW_DAYS), `${stats.xp.toLocaleString(INTL_LOCALE[locale])} XP`],
             ].map(([k, v], i, arr) => (
@@ -466,7 +466,7 @@ export default function HabitDetailPage() {
       </Modal>
 
       <HabitFormDialog open={editing} habit={habit} onClose={() => setEditing(false)} onSubmit={handleEdit} />
-      {burst > 0 && <Confetti burst={burst} />}
+      {burst > 0 && <LeafBurst burst={burst} />}
     </motion.div>
   );
 }

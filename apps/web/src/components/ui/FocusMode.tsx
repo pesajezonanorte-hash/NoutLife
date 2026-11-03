@@ -12,7 +12,7 @@ import { logFocusSession } from '@/services/focus.service';
 import { useUIStore } from '@/store/uiStore';
 import { useToastStore } from '@/hooks/useToast';
 import { refreshUser } from '@/hooks/useAuth';
-import { Button, Confetti, Field, IconChip, Input, SegmentedControl, Select, Switch, useDialogBehavior } from '@/components/ui/lq';
+import { Button, LeafBurst, Field, IconChip, Input, SegmentedControl, Select, Switch, useDialogBehavior } from '@/components/ui/lq';
 import { AMBIENT_SOUNDS, createAmbientSound, playChime, type AmbientAudioController, type AmbientSoundId } from '@/components/focus/ambientSound';
 import { FocusRing } from '@/components/focus/FocusRing';
 import { useText, type Copy } from '@/lib/i18n';
@@ -321,7 +321,7 @@ export function FocusMode({ onClose, taskLabel, questId }: Props) {
             </FocusRing>
           </div>
           <p aria-live="polite" className="sr-only">{announce}</p>
-          {phase === 'done' && <Confetti />}
+          {phase === 'done' && <LeafBurst />}
 
           {/* Controles */}
           {confirmExit ? (

@@ -3,7 +3,7 @@ import {
   AlertTriangle, Bell, BookOpen, CheckCircle2, Flag, Flame, Info, Plus, Settings, Sparkles, Trash2, Wallet, X, Check,
 } from 'lucide-react';
 import {
-  Badge, BarChart, Button, Card, CheckButton, Confetti, EmptyState, ErrorState, Field, Heatmap, IconChip, Input,
+  Badge, BarChart, Button, Card, CheckButton, LeafBurst, EmptyState, ErrorState, Field, Heatmap, IconChip, Input,
   LineChart, Modal, PageLoader, ProgressBar, ProgressRing, SegmentedControl, Select, Sheet, StatCard, Switch, Tabs,
   Toast, useToast, type HeatLevel,
 } from '@/components/ui/lq';
@@ -184,7 +184,7 @@ export function ComponentsDemo() {
         </div>
       </Block>
 
-      <Block title="Modal · Sheet · Confetti" spec='role="dialog" aria-modal · focus trap · Escape · scrim 200 ms · panel spring / sheet 300 ms'>
+      <Block title="Modal · Sheet · LeafBurst" spec='role="dialog" aria-modal · focus trap · Escape · scrim 200 ms · panel spring / sheet 300 ms'>
         <div className="flex flex-wrap gap-3">
           <Button size="md" onClick={() => setModal(true)}>Abrir modal</Button>
           <Button size="md" variant="secondary" onClick={() => setSheetOpen(true)}>Abrir sheet</Button>
@@ -204,7 +204,7 @@ export function ComponentsDemo() {
             <Button onClick={() => setSheetOpen(false)}>Completar</Button>
           </div>
         </Sheet>
-        {burst > 0 && <Confetti burst={burst} />}
+        {burst > 0 && <LeafBurst burst={burst} />}
       </Block>
 
       <Block title="EmptyState · ErrorState · PageLoader" spec="if (isLoading) <PageLoader/> · if (error) <ErrorState onRetry/> (auto-retry 5 s) · if (empty) <EmptyState/>">

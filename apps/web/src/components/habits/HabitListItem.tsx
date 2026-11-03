@@ -32,7 +32,8 @@ export interface HabitItemData {
   todayCompleted?: boolean | null;
   todayStatus?: string | null;
   frequency?: HabitFrequency;
-  reminderTime?: string;
+  reminderTime?: string | null;
+  reminderEndTime?: string | null;
   kind?: 'habit' | 'ritual';
   steps?: { id: string; title: string; order: number }[];
   todayStepIds?: string[];
