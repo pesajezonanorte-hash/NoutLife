@@ -8,7 +8,7 @@ import { readGlbScene } from '../../src/components/three3d/glb';
 import { buildTube, type Point } from '../../src/components/layout/nav3d/iconTube';
 import { castShadow, settled, springStep, tiltLimits, tiltTarget } from '../../src/lib/motion/tiltMath';
 import { pathPoint, streamAt, streamPath } from '../../src/splash/hero';
-import { BIRTH_MS, BIRTH_RUSH, LEAVE_HOLD_MS, leaveDelay, N_HOLD_MS } from '../../src/splash/timing';
+import { LEAVE_HOLD_MS } from '../../src/splash/timing';
 
 const load = async (name: string) => {
   const file = readFileSync(new URL(`../../src/assets/models/${name}.glb`, import.meta.url));
@@ -173,19 +173,17 @@ const heroScene = async () => {
   return readGlbScene(file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength) as ArrayBuffer);
 };
 
-test('héroe: las mallas, los shape keys, los tiempos y el peso para el splash', async () => {
+test('héroe: la N, los tiempos de la salida y el peso para la web', async () => {
   const scene = await heroScene();
   const n = scene.nodes.find((x) => x.name === 'hero_n')!;
-  const leaves = scene.nodes.find((x) => x.name === 'hero_hojas')!;
   const timeline = scene.nodes.find((x) => x.name === 'hero_tiempo')!;
   assert.deepEqual([...n.targetNames].sort(), ['drop', 'puff']);
   assert.deepEqual(n.primitives.map((p) => p.material.slice(-1)).sort(), ['a', 'b', 'c'], 'una primitiva por hoja del logo');
   for (const name of ['_OUT', '_LAG', '_SHADE']) assert.ok(n.primitives[0].attributes[name], name);
-  assert.deepEqual(leaves.targetNames, ['scatter']);
-  for (const name of ['_PIVOT', '_AXIS', '_LAG', '_PART']) assert.ok(leaves.primitives[0].attributes[name], name);
-  assert.deepEqual([...timeline.targetNames].sort(), ['assemble', 'drop', 'flat', 'flow', 'liquid', 'pool', 'puff', 'reform', 'solid']);
-  for (const name of ['hero_birth', 'hero_breath', 'hero_outro']) assert.ok(scene.clips.some((c) => c.name === name), name);
-  assert.ok(!scene.clips.some((c) => c.name === 'hero_sequence'), 'la secuencia completa no pesa en la web');
+  assert.deepEqual([...timeline.targetNames].sort(), ['drop', 'flat', 'flow', 'liquid', 'pool', 'puff', 'reform', 'solid']);
+  assert.ok(scene.clips.some((c) => c.name === 'hero_outro'), 'hero_outro');
+  assert.ok(!scene.clips.some((c) => c.name === 'hero_birth' || c.name === 'hero_breath'), 'sin clips que la web no usa');
+  assert.ok(!scene.nodes.some((x) => x.name === 'hero_hojas'), 'las hojas son de CSS');
   const verts = n.primitives.reduce((sum, p) => sum + p.attributes.POSITION.array.length / 3, 0);
   assert.ok(verts < 2600, `N ligera: ${verts} vértices`);
   const size = readFileSync(new URL('../../src/assets/models/calm-hero.glb', import.meta.url)).length / 1024;
@@ -221,21 +219,6 @@ test('héroe: el contorno de la N es el del logo y la gota cabe en su radio', as
   assert.ok(Math.abs(maxDrop - 0.6) < 0.03, `radio de la gota: ${maxDrop}`);
 });
 
-test('héroe: tres hojas, una por trazo del logo, que empiezan lejos de la N', async () => {
-  const scene = await heroScene();
-  const leaves = scene.nodes.find((x) => x.name === 'hero_hojas')!.primitives[0];
-  const part = leaves.attributes._PART.array;
-  const pivot = leaves.attributes._PIVOT.array;
-  const fly = leaves.targets[0].POSITION.array;
-  const per = new Map<number, number>();
-  for (const p of part) per.set(Math.round(p * 2), (per.get(Math.round(p * 2)) ?? 0) + 1);
-  assert.deepEqual([...per.keys()].sort(), [0, 1, 2], 'una hoja por trazo');
-  for (let i = 0; i < pivot.length; i += 3) {
-    assert.ok(Math.abs(pivot[i]) < 0.9 && Math.abs(pivot[i + 1]) < 1.05, 'el centro cae dentro del logo');
-    assert.ok(Math.hypot(fly[i], fly[i + 2]) > 2, 'empieza lejos de la N');
-  }
-});
-
 test('héroe: los mismos tres trazados en el logo, en el splash de CSS y en Blender', () => {
   const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8');
   const brand = [...read('../../src/components/layout/Brand.tsx').matchAll(/key: '[abc]', d: '([^']+)'/g)].map((m) => m[1]);
@@ -248,36 +231,28 @@ test('héroe: los mismos tres trazados en el logo, en el splash de CSS y en Blen
   }
 });
 
-test('héroe: la línea de tiempo arma la N, respira en bucle y termina en el logo', async () => {
+test('héroe: la salida toma la N en su sitio, la funde y la deja plana en el logo', async () => {
   const scene = await heroScene();
   const names = scene.nodes.find((x) => x.name === 'hero_tiempo')!.targetNames;
-  const clip = (name: string) => scene.clips.find((c) => c.name === name)!;
+  const outro = scene.clips.find((c) => c.name === 'hero_outro')!;
   const w: number[] = [];
-  const weight = (name: string, target: string, t: number) => sampleClip(clip(name), t, w)[names.indexOf(target)];
-  const birth = clipLength(clip('hero_birth'));
-  assert.ok(Math.abs(birth - BIRTH_MS / 1000) < 0.05, `dura ${birth} s: splash/timing dice ${BIRTH_MS} ms`);
-  assert.equal(weight('hero_birth', 'assemble', 0), 0);
-  assert.equal(weight('hero_birth', 'solid', 0), 0);
-  assert.ok(Math.abs(weight('hero_birth', 'assemble', birth) - 1) < 0.01 && Math.abs(weight('hero_birth', 'solid', birth) - 1) < 0.01, 'termina armada');
-  assert.ok(Math.abs(weight('hero_birth', 'puff', birth)) < 0.02, 'sin hincharse al acabar: empalma con la respiración');
-  const breath = clipLength(clip('hero_breath'));
-  assert.ok(Math.abs(weight('hero_breath', 'puff', 0) - weight('hero_breath', 'puff', breath)) < 0.01, 'cierra el bucle');
-  const outro = clipLength(clip('hero_outro'));
-  for (const [name, value] of [['drop', 1], ['pool', 0], ['flow', 1], ['reform', 1], ['flat', 1], ['liquid', 0]] as const) {
-    assert.ok(Math.abs(weight('hero_outro', name, outro) - value) < 0.01, `${name} al final`);
-  }
-  // En orden: se funde, sale la corriente, aparece en el logo y solo entonces se vacía la gota de origen.
-  const first = (target: string) => { for (let t = 0; t <= outro; t += 1 / 60) if (weight('hero_outro', target, t) > 0.02) return t; return Infinity; };
+  const weight = (target: string, t: number) => sampleClip(outro, t, w)[names.indexOf(target)];
+  const end = clipLength(outro);
+  assert.equal(weight('solid', 0), 0, 'empieza sin N');
+  assert.ok(Math.abs(weight('solid', 0.3) - 1) < 0.01, 'la N aparece en 0,3 s');
+  assert.ok(Math.abs(weight('solid', end) - 1) < 0.01, 'sigue armada hasta el final');
+  const first = (target: string) => { for (let t = 0; t <= end; t += 1 / 60) if (weight(target, t) > 0.02) return t; return Infinity; };
+  assert.ok(first('puff') < first('drop'), 'primero se hincha');
   assert.ok(first('drop') < first('flow'), 'primero se funde');
   assert.ok(first('flow') < first('reform'), 'la corriente llega antes de abrirse en la N');
-  const emptied = (() => { for (let t = 0; t <= outro; t += 1 / 60) if (weight('hero_outro', 'pool', t) < 0.02) return t; return Infinity; })();
+  const emptied = (() => { for (let t = 0; t <= end; t += 1 / 60) if (weight('pool', t) < 0.02) return t; return Infinity; })();
   assert.ok(first('reform') < emptied, 'al logo ya está llegando cuando la gota se vacía');
   assert.ok(first('flat') > first('reform'), 'se aplana al final');
+  assert.ok(Math.abs(weight('flat', end) - 1) < 0.01 && Math.abs(weight('reform', end) - 1) < 0.01, 'termina en el logo');
 });
 
-test('salida del héroe: deja pintar la app y no corta el armado', () => {
-  assert.equal(leaveDelay(5000), Math.max(LEAVE_HOLD_MS, N_HOLD_MS), 'ya armada: solo la espera del pintado');
-  assert.equal(leaveDelay(0), BIRTH_MS / BIRTH_RUSH + N_HOLD_MS, 'acaba de empezar: lo que le falta, a ritmo rápido, y la N a la vista');
+test('salida del héroe: la N se queda a la vista un momento antes de fundirse', () => {
+  assert.ok(LEAVE_HOLD_MS >= 300 && LEAVE_HOLD_MS <= 600, `${LEAVE_HOLD_MS} ms`);
 });
 
 test('corriente: sale de la N, llega exacta al logo y cada gota avanza sin volver atrás', () => {

@@ -1,17 +1,16 @@
-// Héroe del splash: hojas → N → líquido → logo, con las mallas y los tiempos de Blender (juego hero de
-// scripts/blender/calm.py) y WebGL 2 a pelo. Corre en un Worker sobre OffscreenCanvas: mientras React
-// monta la app el hilo principal se traba, y la secuencia no puede depender de él. Por eso tampoco usa
-// three.js: en el Worker serían otros 142 KB antes de poder dibujar nada.
+// Héroe del splash: la N ya armada de CSS (index.html) se funde en líquido y una corriente la lleva hasta el
+// logo de la cabecera. Mallas y tiempos de Blender (juego hero de scripts/blender/calm.py) y WebGL 2 a pelo.
+// Corre en un Worker sobre OffscreenCanvas: mientras React monta la app el hilo principal se traba, y el
+// fundido no puede depender de él. Por eso tampoco usa three.js: en el Worker serían otros 142 KB.
 //
 // Todo lo sólido o líquido sale de un solo campo, y por eso pasa de un estado a otro sin cortes:
 //   · La N se dibuja a una textura (altura con signo, normal y color), en su sitio o a la medida del logo.
 //   · Las gotas se suman en otra textura, pequeña: valor y pendiente de cada una.
 //   · Un paso final a pantalla completa suma las dos: donde el total pasa de 1 hay materia, y su normal
 //     sale de esas mismas pendientes. Por eso la N se funde con las gotas al tocarlas.
-// Las hojas son geometría de verdad, encima, con su propia perspectiva.
+// Hasta que llega la orden de salir no dibuja nada: la N que se ve es la de CSS.
 import { clipLength, readGlbScene, sampleClip, type GlbClip, type GlbPrimitive } from '@/components/three3d/glb';
 import { KEY_DIR, lightChunk } from '@/components/three3d/calmShader';
-import { BIRTH_RUSH, LEAVE_HOLD_MS, N_HOLD_MS } from './timing';
 
 export type Rgb = readonly [number, number, number];
 
@@ -21,7 +20,6 @@ export interface HeroTones {
   mint: Rgb;
   deep: Rgb;
   light: Rgb;
-  leaf: Rgb;
   shadow: Rgb;
   /** Paradas de los degradados del logo, en sRGB: las hojas c, a y b, en ese orden. */
   logo: readonly (readonly Rgb[])[];
@@ -49,17 +47,10 @@ export interface HeroInit {
   url: string;
   tones: HeroTones;
   layout: HeroLayout;
-  /** Momento en que se abrió la página (ms de época): si ya se ve la N de CSS, las hojas sobran. */
-  openedAt: number;
-  /** Recarga en la misma pestaña: la historia de las hojas ya se contó. */
-  seen: boolean;
 }
 
 export type HeroCommand = { type: 'layout'; layout: HeroLayout } | { type: 'tones'; tones: HeroTones } | { type: 'leave'; target: HeroTarget } | { type: 'stop' };
-export type HeroEvent = { type: 'ready' } | { type: 'landed' } | { type: 'fail' };
-
-/** Pasado este tiempo, index.html ya muestra la N de CSS (.n): el 3D la releva sin repetir las hojas. */
-export const SKIP_LEAVES_AFTER_MS = 1600;
+export type HeroEvent = { type: 'landed' } | { type: 'fail' };
 
 /** Media medida de la zona de la N en su textura, en unidades de la N (mide 2 de alto). */
 const EXTENT = 1.32;
@@ -71,10 +62,8 @@ const TOP_H = 0.42;
 const FIELD_K = 11;
 /** Las gotas se dibujan a una textura de esta fracción de la pantalla. */
 const FIELD_SCALE = 1 / 2;
-/** Distancia de la cámara de las hojas, en unidades de la N. */
-const CAMERA = 8;
 /** Gotas por cada punto de la superficie de la N: con menos, la corriente se corta. */
-const DROPS_PER_LEAF = 4;
+const DROPS_PER_POINT = 4;
 /** Radio de la gota en la que se recoge, igual que HERO_DROP_R en calm.py. */
 const DROP_R = 0.6;
 
@@ -122,8 +111,7 @@ vec3 toLinear(vec3 c) {
 float dither() { return fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) - 0.5; }
 `;
 
-// La N a textura. El .glb trae (x, z, −y), salvo los atributos propios (_OUT, _PIVOT, _AXIS), que el
-// exportador deja como en Blender; aquí se trabaja en coordenadas de la N, y arriba.
+// La N a textura. El .glb trae (x, z, −y); aquí se trabaja en coordenadas de la N, y arriba.
 const N_VERT = /* glsl */ `${HEAD}
 in vec3 position; in vec3 normal; in vec3 aOut; in float aLag; in float aShade; in float aPart;
 in vec3 aPuffP; in vec3 aPuffN; in vec3 aDropP; in vec3 aDropN;
@@ -200,8 +188,8 @@ void main() {
   out1 = vec4(logoColor(), 1.0);
 }`;
 
-// Las gotas: cada una suma su valor y su pendiente. Salen del mosaico de la N, corren al logo y caen en
-// el mosaico de la N pequeña.
+// Las gotas: cada una suma su valor y su pendiente. Salen de la superficie de la N, corren al logo y caen en
+// la N pequeña.
 const DROP_VERT = /* glsl */ `${HEAD}
 in vec4 aDrop; // x, y: sitio en la N; z: radio; w: en qué tanda sale (0 a 1)
 in vec2 aRand;
@@ -254,7 +242,7 @@ void main() {
   vec2 dest = uTo.xy + vec2(aDrop.x, -aDrop.y) * uTo.z;
   float arrive = smoothstep(0.86, 1.0, u) * uTo.w;
   pos = mix(pos, dest, arrive);
-  // Tamaño: el de su hoja en la N; un hilo que se afina en la corriente; casi nada en el logo.
+  // Tamaño: el de su punto en la N; un hilo que se afina en la corriente; casi nada en el logo.
   float inSize = aDrop.z * uFrom.z * 0.62;
   float along = mix(uStream, uStream * 0.6, u) * (0.82 + 0.4 * aRand.x);
   float landed = max(aDrop.z * uTo.z * 0.9, 3.0);
@@ -407,84 +395,6 @@ void main() {
   gl_FragColor = vec4(outRgb + dither() / 255.0 * cover, cover + rest);
 }`;
 
-// Las tres hojas del logo: geometría de verdad, con su perspectiva. Vienen de fuera, translúcidas y de color
-// menta; al posarse toman los degradados del logo (LOGO_FN) y la N, ya armada, las releva.
-const LEAF_VERT = /* glsl */ `${HEAD}
-in vec3 position; in vec3 normal; in vec3 aPivot; in vec3 aAxis; in float aLag; in vec3 aFly; in float aPartLeaf;
-uniform float uAssemble;
-uniform float uTime;
-uniform vec2 uCenter;
-uniform vec2 uUnit;
-out vec3 vN;
-out vec3 vV;
-out float vLanded;
-out float vFar;
-out vec2 vLogo;
-flat out float vPart;
-out vec3 vBrand;
-${LOGO_FN}
-
-vec3 turn(vec3 v, vec3 axis, float a) {
-  float c = cos(a);
-  float s = sin(a);
-  return v * c + cross(axis, v) * s + axis * dot(axis, v) * (1.0 - c);
-}
-
-void main() {
-  // Los atributos propios van en los ejes de Blender; los de glTF (position, normal, morphs) se pasan aquí.
-  vec3 pos = vec3(position.x, -position.z, position.y);
-  vec3 nor = vec3(normal.x, -normal.z, normal.y);
-  vec3 fly = vec3(aFly.x, -aFly.z, aFly.y);
-  float span = 0.46;
-  float tl = clamp((uAssemble - aLag * (1.0 - span)) / span, 0.0, 1.0);
-  float e = tl * tl * tl * (tl * (6.0 * tl - 15.0) + 10.0);
-  float rest = 1.0 - e;
-  float settle = sin(clamp((tl - 0.86) / 0.14, 0.0, 1.0) * 3.14159) * 0.028;
-  // Antes de posarse flotan, con un vaivén lento que es distinto en cada hoja.
-  float seed = dot(aPivot, vec3(91.3, 47.7, 13.1));
-  vec3 away = fly * rest + vec3(sin(uTime * 0.9 + seed), cos(uTime * 0.7 + seed * 1.7), 0.0) * 0.04 * rest;
-  float amount = length(aAxis);
-  vec3 dir = aAxis / max(amount, 1e-3);
-  float a = rest * amount * 6.2832;
-  vec3 local = (pos - aPivot) * (1.0 + settle * 2.0);
-  vec3 wp = aPivot + turn(local, dir, a) + away;
-  vN = turn(nor, dir, a);
-  vLanded = smoothstep(0.82, 1.0, tl);
-  vFar = clamp(-wp.z * 0.5, 0.0, 1.0);
-  vLogo = vec2(position.x * 393.0 + 335.0, 393.0 + position.z * 393.0);
-  vPart = floor(aPartLeaf * 2.0 + 0.5);
-  vBrand = logoColor();
-  vV = normalize(vec3(0.0, 0.0, ${CAMERA.toFixed(1)}) - wp);
-  float w = (${CAMERA.toFixed(1)} - wp.z) / ${CAMERA.toFixed(1)};
-  gl_Position = vec4(uCenter * w + wp.xy * uUnit, -wp.z * 0.1 * w, w);
-}`;
-
-const LEAF_FRAG = /* glsl */ `${FRAG_HEAD}
-in vec3 vN;
-in vec3 vV;
-in float vLanded;
-in float vFar;
-in vec3 vBrand;
-uniform vec3 uKey;
-uniform vec3 uLeaf;
-uniform vec3 uDeep;
-uniform float uFade;
-out vec4 color;
-void main() {
-  vec3 n = normalize(vN);
-  if (!gl_FrontFacing) n = -n;
-  vec3 v = normalize(vV);
-  float ndv = abs(dot(n, v));
-  float wrap = clamp((dot(n, uKey) + 0.5) / 1.5, 0.0, 1.0);
-  vec3 mint = toSrgb(mix(uLeaf, uDeep, 0.15 + 0.5 * (1.0 - wrap)) * (0.82 + 0.3 * wrap));
-  vec3 col = mix(mint, vBrand * (0.86 + 0.24 * wrap), vLanded);
-  // Translúcida: de canto se ve más y de frente deja pasar el fondo. Al posarse, ya es el logo.
-  float alpha = mix(mix(0.86, 0.5, ndv) * mix(1.0, 0.62, vFar), 0.92, vLanded) * uFade;
-  vec3 r = reflect(-v, n);
-  col += vec3(1.0) * smoothstep(0.16, 0.02, 1.0 - dot(r, uKey)) * 0.34;
-  color = vec4(col * alpha, alpha);
-}`;
-
 type Canvas = HTMLCanvasElement | OffscreenCanvas;
 
 interface Target2D {
@@ -535,24 +445,18 @@ export function startHero(canvas: Canvas, init: HeroInit, post: (e: HeroEvent) =
   let frames = 0;
   let slow = 0;
   let stopped = false;
-  let ready = false;
+  let loaded = false;
   let time = 0;
 
-  // Tiempo de cada fase. `birth` empieza con el primer fotograma.
-  let birthT = 0;
-  let breathT = 0;
+  // Fase de salida: cuánto lleva, y a dónde va. `leaveT` < 0: todavía no ha empezado.
   let leaveT = -1;
   let target: HeroTarget | null = null;
   let pending: HeroTarget | null = null;
-  let hold = 0;
 
-  let birth: GlbClip;
-  let breath: GlbClip;
   let outro: GlbClip;
   let names: string[] = [];
   const clip: number[] = [];
   let nIndex = 0;
-  let leafIndex = 0;
   let dropCount = 0;
 
   const compile = (type: number, source: string) => {
@@ -578,10 +482,8 @@ export function startHero(canvas: Canvas, init: HeroInit, post: (e: HeroEvent) =
   const nProg = link(N_VERT, N_FRAG);
   const dropProg = link(DROP_VERT, DROP_FRAG);
   const sceneProg = link(FULL_VERT, SCENE_FRAG);
-  const leafProg = link(LEAF_VERT, LEAF_FRAG);
   const nVao = gl.createVertexArray();
   const dropVao = gl.createVertexArray();
-  const leafVao = gl.createVertexArray();
   const emptyVao = gl.createVertexArray();
 
   const texture = (w: number, h: number, format: number) => {
@@ -656,28 +558,19 @@ export function startHero(canvas: Canvas, init: HeroInit, post: (e: HeroEvent) =
 
   const pick = (name: string, source: readonly number[]) => source[names.indexOf(name)] ?? 0;
 
-  /** Los pesos del fotograma, de los clips de Blender. */
+  /** Los pesos del fotograma de la salida, de la pista hero_outro de Blender. */
   const timeline = () => {
-    const w = { assemble: 1, solid: 1, puff: 0, drop: 0, liquid: 0, pool: 1, flow: 0, reform: 0, flat: 0 };
-    if (leaveT >= 0) {
-      sampleClip(outro, Math.min(leaveT, clipLength(outro)), clip);
-      w.puff = pick('puff', clip);
-      w.drop = pick('drop', clip);
-      w.liquid = pick('liquid', clip);
-      w.pool = pick('pool', clip);
-      w.flow = pick('flow', clip);
-      w.reform = pick('reform', clip);
-      w.flat = pick('flat', clip);
-    } else if (birthT < clipLength(birth)) {
-      sampleClip(birth, birthT, clip);
-      w.assemble = pick('assemble', clip);
-      w.solid = pick('solid', clip);
-      w.puff = pick('puff', clip);
-    } else {
-      sampleClip(breath, breathT % clipLength(breath), clip);
-      w.puff = pick('puff', clip);
-    }
-    return w;
+    sampleClip(outro, Math.min(leaveT, clipLength(outro)), clip);
+    return {
+      solid: pick('solid', clip),
+      puff: pick('puff', clip),
+      drop: pick('drop', clip),
+      liquid: pick('liquid', clip),
+      pool: pick('pool', clip),
+      flow: pick('flow', clip),
+      reform: pick('reform', clip),
+      flat: pick('flat', clip),
+    };
   };
 
   /** Lado de la zona de la N pequeña: un 50 % más que lo que mide en pantalla. */
@@ -798,10 +691,10 @@ export function startHero(canvas: Canvas, init: HeroInit, post: (e: HeroEvent) =
     gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     gl.useProgram(sceneProg.p);
     gl.bindVertexArray(emptyVao);
-    const bind = (slot: number, name: string, tex: WebGLTexture | null, prog = sceneProg) => {
+    const bind = (slot: number, name: string, tex: WebGLTexture | null) => {
       gl.activeTexture(gl.TEXTURE0 + slot);
       gl.bindTexture(gl.TEXTURE_2D, tex);
-      gl.uniform1i(prog.at(name), slot);
+      gl.uniform1i(sceneProg.at(name), slot);
     };
     bind(0, 'uH', hTarget!.tex);
     bind(1, 'uS', sTex);
@@ -828,24 +721,6 @@ export function startHero(canvas: Canvas, init: HeroInit, post: (e: HeroEvent) =
     const key = Math.hypot(...KEY_DIR);
     gl.uniform3f(sceneProg.at('uKey'), KEY_DIR[0] / key, KEY_DIR[1] / key, KEY_DIR[2] / key);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
-
-    // Las tres hojas, encima, hasta fundirse en la N.
-    const leafFade = 1 - clamp((w.solid - 0.55) / 0.42);
-    if (leafFade > 0 && leaveT < 0) {
-      gl.useProgram(leafProg.p);
-      gl.bindVertexArray(leafVao);
-      gl.uniform1f(leafProg.at('uAssemble'), w.assemble);
-      gl.uniform1f(leafProg.at('uTime'), time);
-      gl.uniform2f(leafProg.at('uCenter'), (layout.x / layout.width) * 2 - 1, 1 - (layout.y / layout.height) * 2);
-      gl.uniform2f(leafProg.at('uUnit'), (unit * 2) / layout.width, (unit * 2) / layout.height);
-      gl.uniform3f(leafProg.at('uKey'), KEY_DIR[0] / key, KEY_DIR[1] / key, KEY_DIR[2] / key);
-      gl.uniform3fv(leafProg.at('uLeaf'), tones.leaf);
-      gl.uniform3fv(leafProg.at('uDeep'), tones.deep);
-      gl.uniform3fv(leafProg.at('uStops[0]'), tones.logo.flat(2) as number[]);
-      // Entran con un fundido corto; ya posadas son el logo, y la N las releva.
-      gl.uniform1f(leafProg.at('uFade'), leafFade * clamp(birthT / 0.28));
-      gl.drawElements(gl.TRIANGLES, leafIndex, gl.UNSIGNED_INT, 0);
-    }
     gl.bindVertexArray(null);
   };
 
@@ -873,25 +748,17 @@ export function startHero(canvas: Canvas, init: HeroInit, post: (e: HeroEvent) =
     const dt = last ? Math.min(0.1, (now - last) / 1000) : 1 / 60;
     last = now;
     time += dt;
-    if (leaveT >= 0) {
-      leaveT += dt;
-      if (leaveT >= clipLength(outro) + 0.04) { draw(); finish(); return; }
-    } else if (birthT < clipLength(birth)) {
-      // Si la app ya espera (el modelo llegó tarde), arma más deprisa.
-      birthT += pending ? dt * BIRTH_RUSH : dt;
-    } else if (pending && hold <= 0 && breathT >= N_HOLD_MS / 1000) {
-      target = pending;
-      pending = null;
-      leaveT = 0;
-    } else {
-      breathT += dt;
-    }
-    hold -= dt;
+    leaveT += dt;
     draw();
-    if (!ready) {
-      ready = true;
-      post({ type: 'ready' });
-    }
+    if (leaveT >= clipLength(outro) + 0.04) finish();
+  };
+
+  /** Empieza la salida: la N se toma de la de CSS y se funde hasta el logo. */
+  const startLeave = (t: HeroTarget) => {
+    target = t;
+    leaveT = 0;
+    last = 0;
+    frame = requestAnimationFrame(tick);
   };
 
   const load = async () => {
@@ -908,8 +775,6 @@ export function startHero(canvas: Canvas, init: HeroInit, post: (e: HeroEvent) =
       if (!c) throw new Error(`hero: sin ${name}`);
       return c;
     };
-    birth = clipOf('hero_birth');
-    breath = clipOf('hero_breath');
     outro = clipOf('hero_outro');
     names = nodeOf('hero_tiempo').targetNames;
 
@@ -943,21 +808,6 @@ export function startHero(canvas: Canvas, init: HeroInit, post: (e: HeroEvent) =
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, joined.index, gl.STATIC_DRAW);
     nIndex = joined.index.length;
 
-    // Las tres hojas del logo.
-    const leaves = nodeOf('hero_hojas').primitives[0];
-    const flyAt = nodeOf('hero_hojas').targetNames.indexOf('scatter');
-    gl.bindVertexArray(leafVao);
-    attr(leafProg, 'position', leaves.attributes.POSITION.array, 3);
-    attr(leafProg, 'normal', leaves.attributes.NORMAL.array, 3);
-    attr(leafProg, 'aPivot', leaves.attributes._PIVOT.array, 3);
-    attr(leafProg, 'aAxis', leaves.attributes._AXIS.array, 3);
-    attr(leafProg, 'aLag', leaves.attributes._LAG.array, 1);
-    attr(leafProg, 'aPartLeaf', leaves.attributes._PART.array, 1);
-    attr(leafProg, 'aFly', leaves.targets[flyAt].POSITION.array, 3);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, gl.createBuffer());
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, leaves.index, gl.STATIC_DRAW);
-    leafIndex = leaves.index.length;
-
     // Las gotas salen de la superficie de la N: una cada tantos puntos, y de cada una varias.
     const top: number[] = [];
     for (const prim of n.primitives) {
@@ -967,7 +817,7 @@ export function startHero(canvas: Canvas, init: HeroInit, post: (e: HeroEvent) =
     const every = Math.max(1, Math.ceil(top.length / 2 / 80));
     const homes: number[] = [];
     for (let i = 0; i < top.length; i += 2 * every) homes.push(top[i], top[i + 1]);
-    dropCount = (homes.length / 2) * DROPS_PER_LEAF;
+    dropCount = (homes.length / 2) * DROPS_PER_POINT;
     const instance = new Float32Array(dropCount * 4);
     const rand = new Float32Array(dropCount * 2);
     const hash = (x: number) => { const s = Math.sin(x) * 43758.5453; return s - Math.floor(s); };
@@ -982,10 +832,12 @@ export function startHero(canvas: Canvas, init: HeroInit, post: (e: HeroEvent) =
     gl.bindVertexArray(null);
 
     if (stopped) return;
-    // Si la N de CSS ya se ve, el 3D la releva sin repetir las hojas.
-    if (init.seen || Date.now() - init.openedAt > SKIP_LEAVES_AFTER_MS) birthT = clipLength(birth) - 0.01;
+    loaded = true;
     applyLayout(layout);
-    frame = requestAnimationFrame(tick);
+    if (pending) {
+      startLeave(pending);
+      pending = null;
+    }
   };
 
   load().catch((err) => {
@@ -996,16 +848,18 @@ export function startHero(canvas: Canvas, init: HeroInit, post: (e: HeroEvent) =
   return {
     handle(cmd: HeroCommand) {
       if (cmd.type === 'layout') {
-        applyLayout(cmd.layout);
+        if (loaded) applyLayout(cmd.layout);
+        else layout = cmd.layout;
         drawn.a = '';
+        drawn.b = '';
       } else if (cmd.type === 'tones') {
         tones = cmd.tones;
         drawn.a = '';
         drawn.b = '';
       } else if (cmd.type === 'leave') {
-        // No se corta el armado: sale al terminarlo. Mientras, la app se pinta debajo.
-        pending = cmd.target;
-        hold = LEAVE_HOLD_MS / 1000;
+        // Si el modelo aún no ha cargado, sale en cuanto esté listo.
+        if (!loaded) pending = cmd.target;
+        else if (leaveT < 0) startLeave(cmd.target);
       } else {
         stopped = true;
         cancelAnimationFrame(frame);

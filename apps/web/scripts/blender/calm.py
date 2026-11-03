@@ -3,7 +3,7 @@
 #   pad    Almohadilla de silicona de los hábitos (shape keys press, release, fill).
 #   focus  Aro de vidrio esmerilado del enfoque (shape keys inhale, exhale, flow_a, flow_b).
 #   card   Losa de las tarjetas (shape key lift) y su bisel horneado para CSS (9 cortes).
-#   hero   Secuencia del splash: hojas → N → líquido → logo (shape keys scatter, puff, drop; los tiempos, en hero_tiempo).
+#   hero   Secuencia del splash: N → líquido → logo (shape keys puff, drop; los tiempos, en hero_tiempo).
 #
 # Cada juego sale como .blend (malla baja, malla alta de horneado, materiales procedurales,
 # acciones en pistas NLA y mundo de estudio suave) y como .glb PBR estándar: los materiales son
@@ -782,16 +782,8 @@ HERO_BAND = (0.012, 0.03, 0.058, 0.1)  # anillos hacia dentro, donde más se cur
 HERO_WALL = 0.28  # la pared baja esto; la web la abre hacia fuera
 HERO_DROP_R = 0.6  # la gota en la que se recoge
 HERO_DROP_H = 0.42
-HERO_LEAF_H = 0.05  # alto del centro de cada hoja: vidrio curvo, con el borde plano como el trazo
-# Por trazo: de dónde viene (en unidades de la N), eje y vueltas del giro, y cuándo empieza (0 a 1).
-HERO_LEAF_FLY = {
-    'c': ((2.6, 1.2, 0.6), (0.2, 0.9, 0.3), 0.26, 0.0),
-    'a': ((-3.0, 0.6, 0.4), (-0.6, 0.3, 0.7), 0.22, 0.45),
-    'b': ((-2.2, -2.2, 0.3), (0.8, -0.2, 0.4), 0.30, 0.9),
-}
-HERO_BIRTH = 1.3
+HERO_TAKE = 0.3  # cuánto tarda la N en aparecer sobre la de CSS
 HERO_OUTRO = 1.5
-HERO_BREATH = 4.0
 HERO_END = (-2.05, 1.5)  # dónde se posa, en el encuadre del .blend: la esquina del logo
 
 
@@ -972,80 +964,20 @@ def hero_morphs(co, poly, centroid, lift):
     return puffed, drop
 
 
-def leaf_mesh(poly, step=0.05):
-    """Una hoja del logo: su contorno exacto, con el centro un poco más alto (vidrio curvo)."""
-    n = len(poly)
-    lo, hi = poly.min(axis=0), poly.max(axis=0)
-    xs, ys = np.meshgrid(np.arange(lo[0], hi[0], step), np.arange(lo[1], hi[1], step * 0.866))
-    xs[1::2] += step / 2
-    grid = np.stack([xs.ravel(), ys.ravel()], axis=1)
-    d, _ = seg_distance(grid, poly)
-    grid = grid[inside_poly(grid, poly) & (d > step * 0.45)]
-    coords = [Vector(p) for p in np.concatenate([poly, grid])]
-    edges = [(i, (i + 1) % n) for i in range(n)]
-    verts2, _e, faces, *_ = mathutils.geometry.delaunay_2d_cdt(coords, edges, [list(range(n))], 1, 1e-6, True)
-    pts = np.array([v[:2] for v in verts2])
-    d, _ = seg_distance(pts, poly)
-    height = HERO_LEAF_H * (1.0 - np.exp(-d / 0.09))
-    return np.column_stack([pts, height]), [tuple(f) for f in faces]
-
-
-def build_hero_leaves(parts):
-    """Las tres hojas del logo, cada una con el contorno exacto de su trazo. Vienen de fuera girando y se
-    posan una tras otra. _PIVOT: su centro; _AXIS: el giro (vueltas); _LAG: cuándo empieza; _PART: qué
-    trazo del logo es (0, ½ o 1)."""
-    verts, faces, pivot, axis, lag, part, fly = [], [], [], [], [], [], []
-    for k, name in enumerate(HERO_ORDER):
-        poly = parts[name]
-        v, f = leaf_mesh(poly)
-        direction, turn, turns, start = HERO_LEAF_FLY[name]
-        base = len(verts)
-        verts += [tuple(p) for p in v]
-        faces += [tuple(i + base for i in face) for face in f]
-        count = len(v)
-        centre = poly.mean(axis=0)
-        spin = np.array(turn, dtype=float) / np.linalg.norm(turn) * turns
-        pivot += [(centre[0], centre[1], 0.0)] * count
-        axis += [tuple(spin)] * count
-        lag += [start] * count
-        part += [k / 2] * count
-        fly += [direction] * count
-    me = bpy.data.meshes.new('hero_hojas')
-    me.from_pydata(verts, [], faces)
-    me.update()
-    me.polygons.foreach_set('use_smooth', np.ones(len(me.polygons), bool))
-    me.update()
-    for attr_name, kind, field, data in (('_PIVOT', 'FLOAT_VECTOR', 'vector', pivot), ('_AXIS', 'FLOAT_VECTOR', 'vector', axis), ('_LAG', 'FLOAT', 'value', lag), ('_PART', 'FLOAT', 'value', part)):
-        attr = me.attributes.new(attr_name, kind, 'POINT')
-        attr.data.foreach_set(field, np.asarray(data, np.float32).ravel())
-    leaves = link(bpy.data.objects.new('hero_hojas', me))
-    me.materials.append(principled('hero_hoja', (0.62, 0.9, 0.76), 0.34, **{'Transmission_Weight': 0.62, 'IOR': 1.35, 'Specular_IOR_Level': 0.5}))
-    add_keys(leaves, {'scatter': co_of(me) + np.array(fly)})
-    print(f'hero_hojas: {len(faces)} triángulos, {len(verts)} vértices')
-    return leaves
-
-
 def hero_timeline():
-    """Los tiempos de la secuencia. No mueve nada: cada peso es una curva que la web lee del .glb."""
+    """Los tiempos del héroe. Cada peso es una curva que la web lee del .glb: la N de CSS se queda como está
+    hasta que la app está lista, y entonces la pista de salida la toma, la funde y la lleva al logo."""
     me = bpy.data.meshes.new('hero_tiempo')
     me.from_pydata([(0, 0, 0), (1e-4, 0, 0), (0, 1e-4, 0)], [], [(0, 1, 2)])
     me.update()
     tl = link(bpy.data.objects.new('hero_tiempo', me))
     co = co_of(me)
-    names = ('assemble', 'solid', 'puff', 'drop', 'liquid', 'pool', 'flow', 'reform', 'flat')
+    names = ('solid', 'puff', 'drop', 'liquid', 'pool', 'flow', 'reform', 'flat')
     add_keys(tl, {name: co + np.array([[1e-4 * (i + 1), 0, 0]] * 3) for i, name in enumerate(names)})
-    # Nacer: las hojas vuelan, llegan y se funden en la N, que se asienta con un rebote blando.
-    end = HERO_BIRTH
-    steps = [k / 30 for k in range(0, 40)]
-    add_clip(tl, 'hero_birth', {
-        'assemble': [(0, 0.0), (1.08, 1.0), (end, 1.0)],
-        'solid': [(0, 0.0), (1.02, 0.0), (1.14, 0.35), (1.24, 0.85), (end, 1.0)],
-        'puff': [*((t, 0.75 * math.exp(-5.0 * (t - 1.02)) * math.sin(2 * math.pi * 1.5 * (t - 1.02)) if t > 1.02 else 0.0) for t in steps), (end, 0.0)],
-    })
-    # Respirar mientras la app carga.
-    add_clip(tl, 'hero_breath', {'puff': [(0, 0.0), (HERO_BREATH * 0.42, 0.32), (HERO_BREATH, 0.0)]})
-    # Salir: toma aire, se funde en una gota, corre hasta el logo y allí vuelve a ser la N.
+    # La salida: la N aparece sobre la de CSS, toma aire, se funde en una gota, la corriente sale hacia el logo
+    # y allí vuelve a ser la N, ya plana como el SVG.
     add_clip(tl, 'hero_outro', {
+        'solid': [(0, 0.0), (HERO_TAKE, 1.0), (HERO_OUTRO, 1.0)],
         'puff': [(0, 0.0), (0.12, 0.95), (0.3, 0.55), (0.5, 0.0), (HERO_OUTRO, 0.0)],
         'drop': [(0, 0.0), (0.08, 0.0), (0.3, 0.42), (0.55, 1.0), (HERO_OUTRO, 1.0)],
         'liquid': [(0, 0.0), (0.06, 0.0), (0.38, 1.0), (1.2, 1.0), (1.38, 0.0), (HERO_OUTRO, 0.0)],
@@ -1080,33 +1012,19 @@ def hero_key_light():
         obj.rotation_euler = (Vector((0, 0, 0)) - Vector(loc)).to_track_quat('-Z', 'Y').to_euler()
 
 
-def hero_sequence(n_obj, leaves):
-    """La secuencia entera en una pista: es lo que ve quien abre el .blend o el .glb en otro visor. La web
-    no la usa: dibuja el líquido con su propio campo y solo toma de aquí las mallas y los tiempos."""
+def hero_sequence(n_obj):
+    """La secuencia entera en una pista de la N: lo que ve quien abre el .blend o el .glb de diseño en otro
+    visor. La web no la usa: dibuja el líquido con su propio campo y solo toma de aquí las mallas y los tiempos."""
     sc = bpy.context.scene
-    rest = 0.45
-    t_out = HERO_BIRTH + rest
-    add_clip(leaves, 'hero_sequence', {'scatter': [(0, 1.0), (1.08, 0.0), (t_out + HERO_OUTRO, 0.0)]})
-    # Las hojas se funden en la N: se encogen en su sitio mientras ella aparece.
-    leaves.animation_data_create()
-    for sec, s in ((0.0, 1.0), (0.95, 1.0), (1.26, 0.001), (t_out + HERO_OUTRO, 0.001)):
-        leaves.scale = (s, s, s)
-        leaves.keyframe_insert('scale', frame=round(sec * FPS))
-    leaf_action = leaves.animation_data.action
-    leaf_action.name = 'hero_sequence_hojas'
-    leaf_action.use_fake_user = True
-    leaf_track = leaves.animation_data.nla_tracks.new()
-    leaf_track.name = 'hero_sequence'
-    leaf_track.strips.new('hero_sequence', 0, leaf_action).extrapolation = 'NOTHING'
-    leaves.animation_data.action = None
-    leaves.scale = (1, 1, 1)
+    t_out = HERO_TAKE + 0.45
     add_clip(n_obj, 'hero_sequence', {
         'puff': [(0, 0.0), (t_out, 0.0), (t_out + 0.12, 0.95), (t_out + 0.5, 0.0), (t_out + HERO_OUTRO, 0.0)],
         'drop': [(0, 0.0), (t_out + 0.08, 0.0), (t_out + 0.52, 1.0), (t_out + 1.0, 1.0), (t_out + HERO_OUTRO - 0.08, 0.0), (t_out + HERO_OUTRO, 0.0)],
     })
-    # La pieza aparece bajo las hojas, y como gota corre al rincón del logo, donde se posa pequeña.
-    frames = [(0.0, (0, 0, 0), 0.001), (0.82, (0, 0, 0), 0.001), (1.22, (0, 0, 0), 1.0), (t_out + 0.42, (0, 0, 0), 1.0),
-              (t_out + 0.76, (-0.5, -0.32, 0.1), 0.72), (t_out + 1.02, (-1.42, 0.2, 0.1), 0.42), (t_out + 1.26, (HERO_END[0], HERO_END[1], 0.05), 0.2), (t_out + HERO_OUTRO, (HERO_END[0], HERO_END[1], 0.0), 0.16)]
+    # La N está en su sitio y, ya fundida, corre al rincón del logo, donde se posa pequeña.
+    frames = [(0.0, (0, 0, 0), 1.0), (t_out + 0.42, (0, 0, 0), 1.0), (t_out + 0.7, (-0.5, -0.32, 0.1), 0.72),
+              (t_out + 1.02, (-1.42, 0.2, 0.1), 0.42), (t_out + 1.26, (HERO_END[0], HERO_END[1], 0.05), 0.2),
+              (t_out + HERO_OUTRO, (HERO_END[0], HERO_END[1], 0.0), 0.16)]
     n_obj.animation_data_create()
     for sec, loc, s in frames:
         frame = round(sec * FPS)
@@ -1198,9 +1116,8 @@ def build_hero():
         attr.data.foreach_set(field, np.asarray(data, np.float32).ravel())
     n_obj = link(bpy.data.objects.new('hero_n', me))
     add_keys(n_obj, {'puff': np.concatenate(puffed), 'drop': np.concatenate(drop)})
-    leaves = build_hero_leaves(parts)
     tl = hero_timeline()
-    t_out = hero_sequence(n_obj, leaves)
+    t_out = hero_sequence(n_obj)
     hero_metaballs(t_out)
     cam = link(bpy.data.objects.new('Camera', bpy.data.cameras.new('Camera')))
     cam.data.lens = 85
@@ -1210,7 +1127,7 @@ def build_hero():
     sc.camera = cam
     sc.render.resolution_x, sc.render.resolution_y = 1280, 800
     print(f'hero_n: {sum(len(p.vertices) - 2 for p in me.polygons)} triángulos, {len(me.vertices)} vértices')
-    return [n_obj, leaves, tl]
+    return [n_obj, tl]
 
 
 def strip_sequence(objs):
@@ -1233,7 +1150,7 @@ def hero_qa(path, samples):
     sc.render.film_transparent = False
     sc.render.resolution_x, sc.render.resolution_y = 640, 400
     sc.render.image_settings.file_format = 'PNG'
-    for label, sec in (('hojas', 0.25), ('llegan', 0.8), ('n', 1.5), ('funde', 2.2), ('corre', 2.75), ('llega', 3.0), ('logo', 3.24)):
+    for label, sec in (('take', 0.15), ('n', 0.6), ('funde', 1.0), ('corre', 1.6), ('llega', 2.0), ('logo', 2.3)):
         sc.frame_set(round(sec * FPS))
         sc.render.filepath = f'{path}-{label}.png'
         bpy.ops.render.render(write_still=True)
