@@ -7,7 +7,7 @@ import { join, relative, sep } from 'node:path';
 import type { Plugin, ResolvedConfig } from 'vite';
 
 /** Nada de esto hace falta para abrir la app: páginas para buscadores e imágenes para redes. */
-const SKIP = /^(?:sw\.js|en\/|es\/|og-image|google[0-9a-f]+\.html|robots\.txt|sitemap\.xml)/;
+const SKIP = /^(?:sw\.js|ota\/|en\/|es\/|og-image|google[0-9a-f]+\.html|robots\.txt|sitemap\.xml)/;
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
@@ -18,6 +18,14 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
+/** Los archivos que forman la app, relativos a dist y con barras normales. */
+export function shellFiles(dist: string): string[] {
+  return walk(dist)
+    .map((path) => relative(dist, path).split(sep).join('/'))
+    .filter((path) => !SKIP.test(path))
+    .sort();
+}
+
 export function offlineShell(): Plugin {
   let config: ResolvedConfig;
   return {
@@ -26,10 +34,7 @@ export function offlineShell(): Plugin {
     configResolved(resolved) { config = resolved; },
     closeBundle() {
       const dist = join(config.root, config.build.outDir);
-      const files = walk(dist)
-        .map((path) => relative(dist, path).split(sep).join('/'))
-        .filter((path) => !SKIP.test(path))
-        .sort();
+      const files = shellFiles(dist);
       const hash = createHash('sha256');
       for (const file of files) hash.update(file).update(readFileSync(join(dist, file)));
       const version = hash.digest('hex').slice(0, 12);

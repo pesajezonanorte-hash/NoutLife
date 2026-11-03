@@ -1,5 +1,10 @@
 apply plugin: 'com.android.application'
 
+// La clave de Google Play vive fuera del repositorio (scripts/android-keystore.mjs).
+def signingFile = file(System.getenv('NOUTLIFE_KEYSTORE_PROPERTIES') ?: "${System.getProperty('user.home')}/.noutlife/android-upload.properties")
+def signing = new Properties()
+if (signingFile.exists()) signingFile.withInputStream { signing.load(it) }
+
 android {
     namespace = "com.noutlife.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +12,10 @@ android {
         applicationId "com.noutlife.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        // Minutos desde 1970: sube sola con cada compilación, como exige Play. Además, un APK con el mismo
+        // versionCode seguiría mostrando la web descargada antes por OTA en vez de la que trae (src/lib/ota.ts).
+        versionCode System.currentTimeMillis().intdiv(60000L) as int
+        versionName new groovy.json.JsonSlurper().parse(file('../../package.json')).version
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,8 +23,19 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        if (signingFile.exists()) {
+            release {
+                storeFile file(signing.storeFile)
+                storePassword signing.storePassword
+                keyAlias signing.keyAlias
+                keyPassword signing.keyPassword
+            }
+        }
+    }
     buildTypes {
         release {
+            if (signingFile.exists()) signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

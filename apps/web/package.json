@@ -7,6 +7,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "android:apk": "node scripts/android-apk.mjs",
+    "android:aab": "node scripts/android-apk.mjs --release",
+    "android:keystore": "node scripts/android-keystore.mjs",
     "test:e2e": "playwright test",
     "test:unit": "tsx --test tests/unit/coliseo.unit.ts tests/unit/notebook.unit.ts tests/unit/funnel.unit.ts tests/unit/planPreview.unit.ts tests/unit/gift.unit.ts tests/unit/timeline.unit.ts",
     "test": "tsx --test tests/unit/*.unit.ts"
@@ -16,6 +18,7 @@
     "@capacitor/app": "^8.1.2",
     "@capacitor/core": "^8.6.0",
     "@capacitor/local-notifications": "^8.3.1",
+    "@capgo/capacitor-updater": "8.54.0",
     "@hookform/resolvers": "^3.3.4",
     "@noutlife/shared": "*",
     "@radix-ui/react-popover": "^1.1.23",
