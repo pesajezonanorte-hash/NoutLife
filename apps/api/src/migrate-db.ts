@@ -91,6 +91,20 @@ const REMINDER_SNOOZES_SQL = [
   ignoreDuplicate(`ALTER TABLE "reminder_snoozes" ADD CONSTRAINT "reminder_snoozes_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE`),
 ];
 
+// Idempotent mirror of prisma/migrations/20261110120000_idempotency_keys: reenvíos de la app sin conexión.
+const IDEMPOTENCY_KEYS_SQL = [
+  `CREATE TABLE IF NOT EXISTS "idempotency_keys" (
+    "userId" TEXT NOT NULL,
+    "key" TEXT NOT NULL,
+    "status" INTEGER,
+    "body" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "idempotency_keys_pkey" PRIMARY KEY ("userId", "key")
+  );`,
+  `CREATE INDEX IF NOT EXISTS "idempotency_keys_createdAt_idx" ON "idempotency_keys"("createdAt");`,
+  ignoreDuplicate(`ALTER TABLE "idempotency_keys" ADD CONSTRAINT "idempotency_keys_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE`),
+];
+
 // Idempotent mirror of prisma/migrations/20261029120000_series_progress: temporadas y capítulos de las series.
 const SERIES_PROGRESS_SQL = [
   `ALTER TABLE "recreation_entries" ADD COLUMN IF NOT EXISTS "season" INTEGER;`,
@@ -362,6 +376,7 @@ async function migrate() {
   // Antes de cualquier consulta a exercises: este cliente de Prisma ya lee "userId".
   for (const sql of CUSTOM_EXERCISES_SQL) await prisma.$executeRawUnsafe(sql);
   for (const sql of HABIT_END_TIME_SQL) await prisma.$executeRawUnsafe(sql);
+  for (const sql of IDEMPOTENCY_KEYS_SQL) await prisma.$executeRawUnsafe(sql);
   // Idempotent mirror of prisma/migrations/20261025120000_wisdom_source (antes del seed de Sabiduría).
   await prisma.$executeRawUnsafe(`ALTER TABLE "wisdom_cards" ADD COLUMN IF NOT EXISTS "source" TEXT;`);
 

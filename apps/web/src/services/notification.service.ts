@@ -1,5 +1,6 @@
 import api from '../lib/api';
 import type { Locale } from '../lib/locale';
+import { isNativeApp } from '../lib/native';
 
 export const NOTIFICATION_CATEGORIES = ['HABITS', 'QUESTS', 'COLISEO', 'FINANCE', 'SOCIAL', 'ACHIEVEMENTS', 'SYSTEM'] as const;
 export type NotificationCategory = (typeof NOTIFICATION_CATEGORIES)[number];
@@ -43,7 +44,7 @@ export interface NotificationPreferences {
 }
 
 export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
-  if (!('serviceWorker' in navigator)) return null;
+  if (!('serviceWorker' in navigator) || isNativeApp()) return null;
   try {
     await navigator.serviceWorker.register('/sw.js');
     return await navigator.serviceWorker.ready;
@@ -65,18 +66,41 @@ export function isStandalone() {
 }
 
 /**
- * ok: el dispositivo puede recibir avisos push.
+ * ok: el dispositivo puede recibir avisos.
  * ios-install: en iPhone los avisos web solo funcionan con Noutlife añadida a la pantalla de inicio.
  * unsupported: este navegador no tiene avisos push.
  */
 export function pushSupport(): 'ok' | 'ios-install' | 'unsupported' {
   if (typeof window === 'undefined') return 'unsupported';
+  // App de Android: los avisos los programa el sistema (lib/nativeNotifications).
+  if (isNativeApp()) return 'ok';
   if (isIOS() && !isStandalone()) return 'ios-install';
   if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return 'unsupported';
   return 'ok';
 }
 
 export type PushResult = 'ok' | 'denied' | 'unsupported' | 'ios-install' | 'no-server' | 'error';
+export type NotificationAccess = 'granted' | 'denied' | 'default' | 'unsupported';
+
+/** Lo último que se supo del permiso nativo (Android lo responde de forma asíncrona). */
+let nativeAccess: NotificationAccess = 'default';
+
+/** El permiso de avisos ahora mismo, en este dispositivo. */
+export async function notificationPermission(): Promise<NotificationAccess> {
+  if (isNativeApp()) {
+    const { nativePermission } = await import('../lib/nativeNotifications');
+    const permission = await nativePermission().catch(() => 'prompt' as const);
+    nativeAccess = permission === 'prompt' ? 'default' : permission;
+    return nativeAccess;
+  }
+  return notificationPermissionNow();
+}
+
+/** Igual, sin esperar: en Android, lo último que se supo. */
+export function notificationPermissionNow(): NotificationAccess {
+  if (isNativeApp()) return nativeAccess;
+  return typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'unsupported';
+}
 
 const PUSH_MESSAGES_BY_LOCALE: Record<Locale, Record<PushResult, string>> = {
   es: {
@@ -97,8 +121,15 @@ const PUSH_MESSAGES_BY_LOCALE: Record<Locale, Record<PushResult, string>> = {
   },
 };
 
+const NATIVE_DENIED: Record<Locale, string> = {
+  es: 'Android bloqueó los avisos. Actívalos en Ajustes del teléfono › Apps › NoutLife › Notificaciones.',
+  en: 'Android blocked alerts. Turn them on in your phone’s Settings › Apps › NoutLife › Notifications.',
+};
+
 /** Mensajes de los avisos push en el idioma indicado. */
-export const pushMessagesFor = (locale: Locale): Record<PushResult, string> => PUSH_MESSAGES_BY_LOCALE[locale];
+export const pushMessagesFor = (locale: Locale): Record<PushResult, string> => (
+  isNativeApp() ? { ...PUSH_MESSAGES_BY_LOCALE[locale], denied: NATIVE_DENIED[locale] } : PUSH_MESSAGES_BY_LOCALE[locale]
+);
 
 export const PUSH_MESSAGES = PUSH_MESSAGES_BY_LOCALE.es;
 
@@ -145,6 +176,12 @@ export async function enablePush(): Promise<PushResult> {
   const support = pushSupport();
   if (support !== 'ok') return support;
   try {
+    if (isNativeApp()) {
+      const { enableNativeReminders } = await import('../lib/nativeNotifications');
+      const permission = await enableNativeReminders();
+      nativeAccess = permission === 'prompt' ? 'default' : permission;
+      return permission === 'granted' ? 'ok' : 'denied';
+    }
     const permission = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
     if (permission !== 'granted') return 'denied';
     return await subscribeDevice();
@@ -163,6 +200,13 @@ export async function requestPermissionAndSubscribe(): Promise<boolean> {
  * sin esto los avisos dejarían de llegar en silencio.
  */
 export async function syncPushSubscription(): Promise<void> {
+  if (isNativeApp()) {
+    const { startNativeReminders, syncNativeReminders } = await import('../lib/nativeNotifications');
+    startNativeReminders();
+    await notificationPermission();
+    await syncNativeReminders();
+    return;
+  }
   if (pushSupport() !== 'ok' || Notification.permission !== 'granted') return;
   try { await subscribeDevice(); } catch { /* se reintenta en la próxima apertura */ }
 }
@@ -174,6 +218,8 @@ export async function getNotificationPreferences(): Promise<NotificationPreferen
 
 export async function updateNotificationPreferences(prefs: Partial<Omit<NotificationPreferences, 'reminderSettings'>> & { categoryPreferences?: NotificationCategoryPreference[]; reminderSettings?: SmartReminderPatch }) {
   const { data } = await api.patch<{ preferences: NotificationPreferences }>('/notifications/preferences', prefs);
+  // Android: lo programado sigue a los ajustes.
+  if (isNativeApp()) void syncPushSubscription();
   return data.preferences;
 }
 
@@ -208,6 +254,11 @@ export async function snoozeReminder(alert: { tag: string; title: string; body?:
 }
 
 export async function sendTestNotification(): Promise<void> {
+  if (isNativeApp()) {
+    const { sendNativeTest } = await import('../lib/nativeNotifications');
+    await sendNativeTest();
+    return;
+  }
   await api.post('/notifications/test');
 }
 

@@ -13,6 +13,7 @@ import {
   Calendar, CalendarCheck, ChevronLeft, ChevronRight, Check, Link2, MapPin, Pencil, Plus, RefreshCw, Trash2, Unplug,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useFreshData } from '@/lib/offline/fresh';
 import { cn } from '@/lib/utils';
 import { item, springs } from '@/lib/motion';
 import { longDate } from '@/lib/lifeMeta';
@@ -374,11 +375,14 @@ function EventRow({ event, index, pending, onEdit, onToggle }: { event: AgendaEv
 
 type EventBody = Omit<AgendaEvent, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'isCompleted'>;
 
+/** El día del calendario local. Con toISOString, de noche en Colombia ya sería mañana (es UTC). */
+const localDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
 function EventModal({ initial, defaultDate, onSave, onDelete, onClose }: {
   initial?: AgendaEvent; defaultDate?: string; onSave: (data: EventBody) => void; onDelete?: () => void; onClose: () => void;
 }) {
   const t = useText(COPY);
-  const todayLocal = defaultDate ?? new Date().toISOString().slice(0, 10);
+  const todayLocal = defaultDate ?? localDay(new Date());
   const [title, setTitle] = useState(initial?.title ?? '');
   const [category, setCategory] = useState(initial?.category ?? 'personal');
   const [startDate, setStartDate] = useState(initial ? initial.startDate.slice(0, 16) : `${todayLocal}T09:00`);
@@ -500,6 +504,7 @@ export default function AgendaPage() {
   }, [monthKey]);
 
   useEffect(() => { void load(); }, [load]);
+  useFreshData(['/agenda'], () => void load());
 
   async function handleCreate(body: Parameters<typeof agendaService.createEvent>[0]) {
     try { await agendaService.createEvent(body); setShowModal(false); await load(); toast.success(t.eventCreated); }
@@ -608,7 +613,7 @@ export default function AgendaPage() {
   monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
   const weekDays = Array.from({ length: 7 }, (_, i) => { const d = new Date(monday); d.setDate(d.getDate() + i); return d; });
   const today = new Date();
-  const defaultDate = currentDate.toISOString().slice(0, 10);
+  const defaultDate = localDay(currentDate);
 
   const VIEWS = (['day', 'week', 'month'] as const).map((value) => ({ value, label: t.views[value] }));
 

@@ -47,6 +47,16 @@ export const exitEase = [0.4, 0, 1, 1] as const;
 export const reduced = () => useMotionStore.getState().reduce;
 const fade = { opacity: 0 };
 
+let quiet = false;
+/**
+ * Mientras una zona se prepara oculta (layout/RouteStage) sus entradas no animan: se revela ya
+ * compuesta, con un solo fundido de la zona entera. Lo que llega después (datos lentos) sí entra con
+ * su animación. Las entradas lo leen al resolverse, igual que «Reducir movimiento».
+ */
+export const setQuietEntrance = (on: boolean) => { quiet = on; };
+export const quietEntrance = () => quiet;
+const QUIET = { opacity: 1 };
+
 let liteCache: boolean | null = null;
 /**
  * Movimiento ligero: pantallas táctiles o angostas y equipos de 4 núcleos o menos.
@@ -81,19 +91,19 @@ export function staggerVariants(stagger = 0.07, delay = 0.05): Variants {
 export const enter = {
   /** Sube y aparece con respuesta normal. */
   rise: {
-    initial: () => (reduced() ? fade : { opacity: 0, y: 16 }),
+    initial: () => (quiet ? QUIET : reduced() ? fade : { opacity: 0, y: 16 }),
     animate: { opacity: 1, y: 0, transition: springs.natural },
     exit: { opacity: 0, y: -6, transition: { duration: durations.quick, ease: exitEase } },
   },
   /** Cae con peso y se asienta (libros, trofeos, tarjetas). */
   settle: {
-    initial: () => (reduced() ? fade : { opacity: 0, y: -28, rotate: -1.2 }),
+    initial: () => (quiet ? QUIET : reduced() ? fade : { opacity: 0, y: -28, rotate: -1.2 }),
     animate: { opacity: 1, y: 0, rotate: 0, transition: { ...springs.heavy, opacity: { duration: durations.quick } } },
     exit: { opacity: 0, y: 8, transition: { duration: durations.quick, ease: exitEase } },
   },
   /** Emerge de la niebla: se enfoca despacio (citas, espejo). Con «Reducir movimiento», solo opacidad. */
   emerge: {
-    initial: () => (reduced() ? fade : { opacity: 0, scale: 0.985, ...blurFrom(10) }),
+    initial: () => (quiet ? QUIET : reduced() ? fade : { opacity: 0, scale: 0.985, ...blurFrom(10) }),
     animate: () => (reduced()
       ? { opacity: 1, transition: { duration: durations.quick } }
       : {
@@ -104,13 +114,13 @@ export const enter = {
   },
   /** Se sirve: baja sobre la mesa con una pizca de escala (platos, artículos). */
   serve: {
-    initial: () => (reduced() ? fade : { opacity: 0, y: 10, scale: 0.96 }),
+    initial: () => (quiet ? QUIET : reduced() ? fade : { opacity: 0, y: 10, scale: 0.96 }),
     animate: { opacity: 1, y: 0, scale: 1, transition: { ...springs.heavy, opacity: { duration: durations.base } } },
     exit: { opacity: 0, scale: 0.98, transition: { duration: durations.quick, ease: exitEase } },
   },
   /** Brota: crece desde su base (flores, chispas, sellos). */
   bloom: {
-    initial: () => (reduced() ? fade : { opacity: 0, scale: 0.4, rotate: -14 }),
+    initial: () => (quiet ? QUIET : reduced() ? fade : { opacity: 0, scale: 0.4, rotate: -14 }),
     animate: { opacity: 1, scale: 1, rotate: 0, transition: springs.heavy },
     exit: { opacity: 0, scale: 0.8, transition: { duration: durations.quick, ease: exitEase } },
   },

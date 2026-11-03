@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { usePageVisibility } from '@/components/ui/LoadingGate';
 import { blurFrom, blurTo, useMotionReduced } from '@/lib/motion';
 import { useText, type Copy } from '@/lib/i18n';
+import { useRoutePending } from '@/lib/routeStage';
 
 /** Hoja asimétrica, misma familia que las del logo. Centrada en (0,0), 20 de alto. */
 const LEAF = 'M0 -10C6.6 -6.4 6.2 4.6 0 10C-3.4 4.4 -4.2 -4.6 0 -10Z';
@@ -89,6 +90,7 @@ export function ModernLoader({
   const compact = d < 64;
   const leaves = compact ? LEAVES.slice(0, 4) : LEAVES;
   const reduce = useMotionReduced();
+  useRoutePending();
 
   return (
     <div

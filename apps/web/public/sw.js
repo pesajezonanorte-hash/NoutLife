@@ -258,55 +258,103 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-// ─── App shell cache ─────────────────────────────────────────────────────────
-const CACHE_NAME = 'noutlife-shell-v4';
-const SHELL_URLS = ['/', '/index.html', '/manifest.json'];
+// ─── La app sin conexión ──────────────────────────────────────────────────────
+// Al compilar (scripts/offline-shell) se escriben aquí la versión y la lista de archivos: al instalarse se
+// guarda la app entera, así abre sin red aunque sus zonas nunca se hayan visitado. Lo que no cambia entre
+// versiones no se vuelve a descargar. En `vite dev` las marcas siguen sin sustituir y no se guarda nada.
+const SHELL_VERSION = '__SHELL_VERSION__';
+const SHELL_FILES = "__SHELL_FILES__";
+const CACHE_NAME = `noutlife-shell-${SHELL_VERSION}`;
+const CACHE_PREFIX = 'noutlife-shell-';
+/** Con esta espera se muestra lo guardado: una red lenta no bloquea la apertura (la respuesta actualiza la copia). */
+const NAVIGATION_TIMEOUT_MS = 1500;
+/** Cuántos archivos se descargan a la vez al instalarse. */
+const INSTALL_CONCURRENCY = 6;
+
+async function fromOlderVersion(url) {
+  for (const name of await caches.keys()) {
+    if (name === CACHE_NAME || !name.startsWith(CACHE_PREFIX)) continue;
+    const hit = await (await caches.open(name)).match(url);
+    if (hit) return hit;
+  }
+  return undefined;
+}
+
+/** Guarda lo que falta. Un archivo que falle no aborta la instalación: se recoge cuando se pida. */
+async function precache() {
+  if (!Array.isArray(SHELL_FILES)) return;
+  const cache = await caches.open(CACHE_NAME);
+  const queue = ['/', ...SHELL_FILES];
+  await Promise.all(Array.from({ length: INSTALL_CONCURRENCY }, async () => {
+    for (let url = queue.shift(); url !== undefined; url = queue.shift()) {
+      try {
+        // Los archivos con hash son idénticos si ya estaban en la versión anterior.
+        const known = url.startsWith('/assets/') ? await fromOlderVersion(url) : undefined;
+        const res = known ?? await fetch(url, { cache: url.startsWith('/assets/') ? 'force-cache' : 'no-cache' });
+        if (res.ok) await cache.put(url, res.clone());
+      } catch { /* sin red al instalar: se recoge al pedirlo */ }
+    }
+  }));
+}
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_URLS))
-  );
+  event.waitUntil(precache());
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+      Promise.all(keys.filter((k) => k !== CACHE_NAME && k.startsWith(CACHE_PREFIX)).map((k) => caches.delete(k)))
     ).then(() => clients.claim())
   );
 });
 
+function saveCopy(request, res) {
+  if (res.ok) { const copy = res.clone(); void caches.open(CACHE_NAME).then((c) => c.put(request, copy)); }
+  return res;
+}
+
+/** La red, con un plazo: al vencer se muestra lo guardado y la respuesta queda para la próxima vez. */
+async function navigate(request) {
+  const url = new URL(request.url);
+  const saved = (await caches.match(url.pathname)) ?? (await caches.match('/index.html')) ?? (await caches.match('/'));
+  const network = fetch(request).then((res) => {
+    // Solo la raíz cambia de contenido por URL: /en y /es traen su propia cabecera y se guardan aparte.
+    if (res.ok && (url.pathname === '/' || url.pathname === '/index.html')) {
+      const copy = res.clone();
+      void caches.open(CACHE_NAME).then((c) => { void c.put('/', copy.clone()); void c.put('/index.html', copy); });
+    }
+    return res;
+  });
+  if (!saved) return network;
+  const timer = new Promise((resolve) => { setTimeout(() => resolve(saved), NAVIGATION_TIMEOUT_MS); });
+  // Con el servidor caído (5xx) también abre con lo guardado; una redirección sigue su curso.
+  return Promise.race([network.then((res) => (res.ok || res.type === 'opaqueredirect' ? res : saved)).catch(() => saved), timer]);
+}
+
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
+  if (event.request.method !== 'GET') return;
   // Solo nuestro propio origen: un recurso de terceros con una ruta parecida no entra en la caché.
   if (url.origin !== self.location.origin) return;
-  // La API (y su cookie de sesión) nunca pasa por la caché.
+  // La API (y su cookie de sesión) nunca pasa por aquí: lo guardado de la API lo lleva lib/offline.
   if (url.pathname.startsWith('/api/')) return;
-  // Navigation: network-first, fallback to cached shell
   if (event.request.mode === 'navigate') {
-    event.respondWith(
-      fetch(event.request).catch(() => caches.match('/index.html'))
-    );
+    event.respondWith(navigate(event.request));
     return;
   }
-  // Assets con hash (/assets/) e iconos: cache-first.
+  // Archivos con hash (/assets/) e iconos: nunca cambian de contenido.
   if (url.pathname.startsWith('/assets/') || url.pathname.startsWith('/icons/')) {
     event.respondWith(
-      caches.match(event.request).then((cached) => cached ?? fetch(event.request).then((res) => {
-        if (res.ok) { const copy = res.clone(); caches.open(CACHE_NAME).then((c) => c.put(event.request, copy)); }
-        return res;
-      }))
+      caches.match(event.request).then((cached) => cached ?? fetch(event.request).then((res) => saveCopy(event.request, res)))
     );
     return;
   }
-  // Logos y favicon: red primero (sin quedarse con una versión vieja) y caché si no hay conexión.
-  if (url.pathname.startsWith('/brand/') || url.pathname === '/icon.svg' || url.pathname === '/favicon.ico') {
+  // Logos, favicon y manifiesto: red primero (sin quedarse con una versión vieja) y lo guardado si no hay conexión.
+  if (url.pathname.startsWith('/brand/') || url.pathname === '/icon.svg' || url.pathname === '/favicon.ico' || url.pathname === '/manifest.json') {
     event.respondWith(
-      fetch(event.request).then((res) => {
-        if (res.ok) { const copy = res.clone(); caches.open(CACHE_NAME).then((c) => c.put(event.request, copy)); }
-        return res;
-      }).catch(() => caches.match(event.request))
+      fetch(event.request).then((res) => saveCopy(event.request, res)).catch(() => caches.match(event.request))
     );
   }
 });

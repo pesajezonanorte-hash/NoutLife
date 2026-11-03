@@ -15,4 +15,5 @@ export class Lru<V> {
   }
   has(key: string) { return this.map.has(key); }
   delete(key: string) { return this.map.delete(key); }
+  clear() { this.map.clear(); }
 }

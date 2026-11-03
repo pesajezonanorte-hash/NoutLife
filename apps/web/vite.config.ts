@@ -2,6 +2,7 @@ import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import { seoPages } from './scripts/seo-pages';
+import { offlineShell } from './scripts/offline-shell';
 
 /**
  * El arranque del splash (src/splash/boot.ts) en su propio chunk, antes del paquete principal: el 3D
@@ -36,7 +37,8 @@ function splashBoot(): Plugin {
 
 export default defineConfig({
   // seoPages: HTML estático de /en y /es con la cabecera de su idioma (enlaces compartidos y Google).
-  plugins: [react(), splashBoot(), seoPages()],
+  // offlineShell: la lista de archivos que el service worker guarda para abrir la app sin conexión.
+  plugins: [react(), splashBoot(), seoPages(), offlineShell()],
   resolve: {
     alias: {
       '@noutlife/shared': path.resolve(__dirname, '../../packages/shared/src/index.ts'),

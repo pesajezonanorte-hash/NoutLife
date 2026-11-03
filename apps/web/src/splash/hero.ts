@@ -745,7 +745,8 @@ export function startHero(canvas: Canvas, init: HeroInit, post: (e: HeroEvent) =
     if (stopped) return;
     frame = requestAnimationFrame(tick);
     if (last) adapt(now - last);
-    const dt = last ? Math.min(0.1, (now - last) / 1000) : 1 / 60;
+    // Un GPU lento salta fotogramas en vez de alargar la salida.
+    const dt = last ? Math.min(0.25, (now - last) / 1000) : 1 / 60;
     last = now;
     time += dt;
     leaveT += dt;

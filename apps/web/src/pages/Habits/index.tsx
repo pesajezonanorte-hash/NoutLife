@@ -11,6 +11,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useSearchParams } from 'react-router-dom';
 import { CheckCircle2, Flame, ListChecks, Plus, ShieldAlert, ShieldCheck, Sun } from 'lucide-react';
+import { useFreshData } from '@/lib/offline/fresh';
 import { item, stagger, zoneExit } from '@/lib/motion';
 import { dayKey, longDate } from '@/lib/lifeMeta';
 import { useAuthStore } from '@/store/authStore';
@@ -191,8 +192,8 @@ export default function HabitsPage() {
     return p;
   }, { replace: true });
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     setFailed(false);
     try {
       const data = await habitService.fetchHabits();
@@ -203,13 +204,14 @@ export default function HabitsPage() {
       );
       setHistory(Object.fromEntries(entries.map(([id, e]) => [id, new Set(e.filter((x) => x.completed).map((x) => x.date.slice(0, 10)))])));
     } catch {
-      setFailed(true);
+      if (!silent) setFailed(true);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+  useFreshData(['/habits'], () => void load(true));
   // Espejo puede cambiar estos hábitos (rutinas de Higiene Personal): al volver a la pestaña se relee la lista.
   useEffect(() => {
     const onFocus = () => { void habitService.fetchHabits().then(setHabits).catch(() => null); };
@@ -227,6 +229,7 @@ export default function HabitsPage() {
     catch { setObstacleState('error'); }
   }, []);
   useEffect(() => { void loadObstacles(); }, [loadObstacles]);
+  useFreshData(['/anti-habits'], () => void loadObstacles());
 
   // Rituales: igual, para el contador de su separador.
   const [rituals, setRituals] = useState<Ritual[]>([]);
@@ -236,6 +239,7 @@ export default function HabitsPage() {
     catch { setRitualState('error'); }
   }, []);
   useEffect(() => { void loadRituals(); }, [loadRituals]);
+  useFreshData(['/rituals'], () => void loadRituals());
 
   // ?new=1 (FAB, Topbar, paleta): abre el formulario de nuevo hábito.
   useEffect(() => {

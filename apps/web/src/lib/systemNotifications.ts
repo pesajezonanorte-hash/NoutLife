@@ -1,6 +1,7 @@
 // Avisos del sistema (push) en este dispositivo: al abrir una carta se cierran los
 // suyos (ya los estás leyendo) y, si tocas un aviso con la app abierta, el service
 // worker le pide a la app que vaya a la carta o zona de la que viene.
+import { isNativeApp } from './native';
 
 /** Cierra los avisos de este dispositivo con esa etiqueta (p. ej. "dm:<amigo>"). */
 export function closeSystemNotifications(tag: string) {
@@ -19,6 +20,11 @@ export type NotifyOptions = NotificationOptions & { vibrate?: number[]; renotify
  * Usa el service worker, que es el único que puede mostrar avisos en Android y en iPhone.
  */
 export async function notifyLocal(title: string, options: NotifyOptions = {}) {
+  if (isNativeApp()) {
+    const { showNativeNow } = await import('./nativeNotifications');
+    await showNativeNow(title, options.body ?? '', options.tag).catch(() => undefined);
+    return;
+  }
   if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
   const full: NotifyOptions = { icon: '/icons/icon-192.png', badge: '/icons/icon-96.png', vibrate: [200, 100, 200], ...options };
   try {
@@ -81,13 +87,26 @@ export function onServiceWorkerAlert() {
   return () => navigator.serviceWorker.removeEventListener('message', handler);
 }
 
+let navigateTo: ((link: string) => void) | null = null;
+let waitingLink: string | null = null;
+
+/** Un aviso de Android pide ir a un enlace. Si la app aún se está abriendo, espera a que el shell lo recoja. */
+export function requestNavigate(link: string) {
+  if (!link.startsWith('/')) return;
+  if (navigateTo) navigateTo(link);
+  else waitingLink = link;
+}
+
 /** Escucha al service worker: "lleva a la persona a este enlace" (sin recargar la app). */
 export function onNotificationNavigate(go: (link: string) => void) {
-  if (!('serviceWorker' in navigator)) return () => undefined;
+  navigateTo = go;
+  if (waitingLink) { go(waitingLink); waitingLink = null; }
+  const stop = () => { if (navigateTo === go) navigateTo = null; };
+  if (!('serviceWorker' in navigator)) return stop;
   const handler = (e: MessageEvent) => {
     const data = e.data as { type?: string; link?: string } | null;
     if (data?.type === 'lq:navigate' && typeof data.link === 'string' && data.link.startsWith('/')) go(data.link);
   };
   navigator.serviceWorker.addEventListener('message', handler);
-  return () => navigator.serviceWorker.removeEventListener('message', handler);
+  return () => { stop(); navigator.serviceWorker.removeEventListener('message', handler); };
 }

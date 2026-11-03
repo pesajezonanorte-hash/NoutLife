@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- El fondo del splash de la web (#lq-boot en index.html): el paso de lo nativo a la web no se nota. -->
+    <color name="splash_background">#F9F7F3</color>
+    <!-- Iconos oscuros en las barras del sistema, hasta que la web fija los del tema elegido (lib/native.ts). -->
+    <bool name="light_system_bars">true</bool>
+</resources>

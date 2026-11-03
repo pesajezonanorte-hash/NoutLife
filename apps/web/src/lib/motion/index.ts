@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { animate, useReducedMotionConfig, type Transition, type Variants } from 'framer-motion';
 import { useMotionStore } from '@/store/motionStore';
-import { lite, reduced, springs } from './presets';
+import { lite, quietEntrance, reduced, springs } from './presets';
 import { getLocale, INTL_LOCALE } from '@/lib/i18n';
 
 export * from './presets';
@@ -23,7 +23,7 @@ export const springSoft: Transition = { type: 'spring', stiffness: 300, damping:
  * En móvil (lite) la entrada es solo opacidad + y 14: cada ítem de una lista con
  * blur repintaba en cada fotograma y la entrada de las zonas daba tirones.
  */
-const blurIn = () => (reduced() ? { opacity: 0 } : lite() ? { opacity: 0, y: 14 } : { opacity: 0, y: 24, scale: 0.985, filter: 'blur(6px)' });
+const blurIn = () => (quietEntrance() ? { opacity: 1 } : reduced() ? { opacity: 0 } : lite() ? { opacity: 0, y: 14 } : { opacity: 0, y: 24, scale: 0.985, filter: 'blur(6px)' });
 
 /**
  * «Reducir movimiento» en React: solo el ajuste de la app. Úsalo para quitar
@@ -52,7 +52,7 @@ export const weightPress: Transition = { type: 'spring', stiffness: 460, damping
 /** Golpe seco que recorre un bloque cuando algo cae dentro (keyframes de y). */
 export const thud = { y: [0, 3, -1, 0], transition: { duration: 0.45, ease: expo, times: [0, 0.25, 0.6, 1] } };
 
-/** Transición de ruta (page3): AnimatePresence mode="wait" alrededor de las rutas. */
+/** Entrada de una página suelta (el relevo entre zonas lo hace layout/RouteStage con un solo fundido). */
 export const page3: Variants = {
   initial: blurIn,
   animate: () => (reduced()

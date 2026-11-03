@@ -599,6 +599,13 @@ img { -webkit-user-drag: none; }
   .lq-tex-glass { -webkit-backdrop-filter: none; backdrop-filter: none; background: linear-gradient(135deg, rgb(var(--lq-surface) / .94), rgb(var(--lq-surface) / .86)); }
 }
 
+/* ── Relevo entre zonas (layout/RouteStage): un solo fundido, solo opacidad (lo compone la GPU sin repintar).
+   Sin relleno hacia adelante: una animación terminada con forwards seguiría creando contexto de apilamiento. */
+.lq-route-enter { animation: lq-route-in 180ms cubic-bezier(.2, 0, .2, 1) backwards; }
+.lq-route-leave { animation: lq-route-out 110ms cubic-bezier(.4, 0, 1, 1) forwards; }
+@keyframes lq-route-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes lq-route-out { from { opacity: 1; } to { opacity: 0; } }
+
 /* ── Libreta: texto de la página ───────────────────────────────────────────────
    Tamaños en unidades de página (--u: píxeles por unidad, components/notebook):
    el renglón mide 60 u, así la hoja se ve igual en cualquier pantalla. El reset

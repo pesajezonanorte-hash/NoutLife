@@ -1,7 +1,11 @@
 import { useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import * as authService from '../services/auth.service';
-import { shouldBootstrapSession } from '../lib/session-hint';
+import { hasRefreshSessionHint, shouldBootstrapSession } from '../lib/session-hint';
+import { lastSessionUser } from '../lib/offline/session';
+import { onBackOnline } from '../lib/offline/connectivity';
+import { flushWrites } from '../lib/offline/engine';
+import { sessionRejected } from '../lib/api';
 import { lifeGeneration } from '../lib/lifeSync';
 import { AUTH_TIMEOUT_MS, withTimeout } from '../lib/timeout';
 
@@ -11,30 +15,44 @@ import { AUTH_TIMEOUT_MS, withTimeout } from '../lib/timeout';
  * not intentionally emit a 401 before the user has tried to authenticate.
  */
 export function useBootstrapAuth() {
-  const { setAuth, logout, setLoading } = useAuthStore();
+  const { setAuth, logout, setLoading, restoreOffline } = useAuthStore();
 
   useEffect(() => {
     let cancelled = false;
 
-    async function bootstrap() {
-      if (!shouldBootstrapSession(window.location.pathname)) {
-        if (!cancelled) setLoading(false);
-        return;
-      }
-
+    async function confirm(known: boolean) {
       try {
         const { user, accessToken } = await withTimeout(authService.refreshToken(), AUTH_TIMEOUT_MS);
         if (!cancelled) setAuth(user, accessToken);
+        void flushWrites();
       } catch (error) {
+        // Con la app ya abierta desde lo guardado, solo un rechazo del servidor cierra la sesión: sin red, se sigue.
+        if (known && !sessionRejected(error)) return;
         // Sin respuesta a tiempo (red caída, servidor frío) o sesión vencida: a iniciar sesión, no a una carga infinita.
         console.warn('[AUTH_BOOTSTRAP] sesión no confirmada, se muestra el inicio de sesión:', error instanceof Error ? error.message : error);
         if (!cancelled) logout();
       }
     }
 
+    async function bootstrap() {
+      if (!shouldBootstrapSession(window.location.pathname)) {
+        if (!cancelled) setLoading(false);
+        return;
+      }
+      // Con sesión en este dispositivo la app abre al momento, con o sin red; la sesión se confirma por detrás.
+      const known = hasRefreshSessionHint() ? lastSessionUser() : null;
+      if (known) restoreOffline(known);
+      await confirm(Boolean(known));
+    }
+
     void bootstrap();
-    return () => { cancelled = true; };
-  }, [setAuth, logout, setLoading]);
+    // Al volver la conexión: si se abrió sin ella aún no hay token. Luego se envía lo pendiente.
+    const stop = onBackOnline(() => {
+      if (useAuthStore.getState().isAuthenticated && !useAuthStore.getState().accessToken) void confirm(true);
+      else void flushWrites();
+    });
+    return () => { cancelled = true; stop(); };
+  }, [setAuth, logout, setLoading, restoreOffline]);
 }
 
 /**

@@ -1,14 +1,14 @@
 import { CookieNotice } from '@/components/legal/CookieNotice';
 import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { motion, AnimatePresence, useReducedMotionConfig } from 'framer-motion';
+import { Routes, Route, Navigate, useLocation, type Location } from 'react-router-dom';
 import { useAuthStore } from './store/authStore';
 import { useThemeStore } from './store/themeStore';
 import { isAdminEmail } from './utils/admin';
 import { skinOf } from './lib/shopThemes';
 import { useUIStore } from './store/uiStore';
 import { useBootstrapAuth } from './hooks/useAuth';
-import { AppShell } from './components/layout/AppShell';
+import { AppShell, ZoneTip } from './components/layout/AppShell';
+import { RouteStage } from './components/layout/RouteStage';
 import { SplashScreen } from './components/animations/SplashScreen';
 import { SageWidget } from './components/sage/SageWidget';
 import { PlanGate } from './components/billing/PlanGate';
@@ -22,15 +22,16 @@ import { clearRefreshSessionExpected } from './lib/session-hint';
 import { setSuperProperties } from './lib/analytics';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { NotificationPermissionModal, useNotificationModalState } from './components/ui/NotificationPermissionModal';
-import { Button, PageLoader as LqPageLoader, Spinner } from './components/ui/lq';
-import { page as pageVariants } from './lib/motion';
-import { LoadingGate, LOADER_DELAY_MS, useLoadingVisibility } from './components/ui/LoadingGate';
+import { NotificationInvite, useNotificationInvite } from './components/ui/NotificationInvite';
+import { Button, PageLoader as LqPageLoader } from './components/ui/lq';
+import { useRoutePending } from './lib/routeStage';
+import { LoadingGate } from './components/ui/LoadingGate';
 import { useKeyboardAdjust } from './hooks/useKeyboardAdjust';
 import { useTourDone } from './components/onboarding/WelcomeTour';
-import { DetachPresence } from './components/ambience/ZoneShell';
 import { useLocalReminders } from './lib/localReminders';
 import { touchLastActive } from './lib/sleepGapSuggestion';
 import { syncPushSubscription } from './services/notification.service';
+import { flushWrites } from './lib/offline/engine';
 
 // Páginas diferidas. Los loaders viven en un mapa para poder precargarlos en
 // idle; así, al cambiar de zona, el módulo suele estar en caché y no aparece
@@ -88,9 +89,13 @@ const loadPlayground = () => import('./pages/UIPlayground');
 type PageModule = { default: ComponentType<any> };
 type PageImport = () => Promise<PageModule>;
 
+/** Módulos ya descargados: su página se pinta en el primer render, sin un paso en blanco. */
+const resolved = new Map<PageImport, ComponentType<any>>();
+const ensurePage = (load: PageImport) => load().then((module) => { resolved.set(load, module.default); return module; });
+
 /** Calienta todos los módulos de página cuando el navegador está ocioso. */
 function preloadPages() {
-  const preload = () => Object.values(loaders).forEach((load) => void load());
+  const preload = () => Object.values(loaders).forEach((load) => void ensurePage(load).catch(() => undefined));
   const idle = (window as { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number }).requestIdleCallback;
   if (idle) {
     idle(preload, { timeout: 3000 });
@@ -101,7 +106,7 @@ function preloadPages() {
 
 // El shell conserva la zona actual hasta que el módulo de destino está listo.
 // Las redirecciones no necesitan esperar ningún bundle propio.
-const routeLoaders: Record<string, () => Promise<unknown>> = {
+const routeLoaders: Record<string, PageImport> = {
   '/': loaders.DashboardPage,
   '/profile': loaders.ProfilePage,
   '/quests': loaders.QuestsPage,
@@ -140,7 +145,7 @@ const routeLoaders: Record<string, () => Promise<unknown>> = {
 // Rutas que solo redirigen (no esperan ningún bundle).
 const REDIRECTS = new Set(['/rituals', '/rituales', '/character', '/friends', '/guild', '/glow-up', '/armario', '/gym', '/obstaculos']);
 
-function loaderForPath(pathname: string) {
+function loaderForPath(pathname: string): PageImport | null {
   if (REDIRECTS.has(pathname)) return null;
   if (/^\/habits\/[^/]+$/.test(pathname)) return loaders.HabitDetailPage;
   // Zonas creadas por el usuario: rutas dinámicas /zonas/:id.
@@ -208,17 +213,24 @@ function AuthLoading() {
  * Loads a page module without delegating its lifetime to a Suspense fallback.
  * This is what lets LoadingGate keep an already-visible terminal on screen for
  * its full shared minimum, even when an import resolves immediately after it.
+ * Con el módulo ya descargado se pinta en el primer render (RouteStage lo trae antes de montarla).
  */
 function DeferredLazyPage({ load }: { load: PageImport }) {
-  const [Page, setPage] = useState<ComponentType<any> | null>(null);
+  const [Page, setPage] = useState<ComponentType<any> | null>(() => resolved.get(load) ?? null);
   const [loadError, setLoadError] = useState<unknown>(null);
+  useRoutePending(!Page);
 
   useEffect(() => {
+    const ready = resolved.get(load);
+    if (ready) {
+      setPage(() => ready);
+      return undefined;
+    }
     let active = true;
     setPage(null);
     setLoadError(null);
 
-    void load().then(
+    void ensurePage(load).then(
       (module) => {
         if (active) setPage(() => module.default);
       },
@@ -269,24 +281,12 @@ function ProZonePage({ zone, load }: { zone: ProZone; load: PageImport }) {
   return lite ? <LockedZone zone={zone} /> : <DeferredLazyPage load={load} />;
 }
 
-function AnimatedRoutes({ location }: { location: ReturnType<typeof useLocation> }) {
+/** Las rutas de una zona, en la ubicación que muestra su sitio en RouteStage (la de la URL puede ir por delante). */
+function zoneRoutes(location: Location) {
   return (
-    <AnimatePresence mode="wait" initial={false}>
-      <motion.div
-        key={location.pathname}
-        variants={pageVariants}
-        initial="initial"
-        animate="animate"
-        exit="exit"
-        // OJO: nada de `will-change: transform` aquí. Crearía un containing
-        // block para los `position: fixed` de los modales y sus backdrops/blur
-        // se recortarían al contenedor de la página en vez del viewport
-        // (el rectángulo feo encima del HUD).
-        style={{ width: '100%' }}
-      >
-        {/* Solo se espera la salida de este contenedor: nada de la página puede dejarla colgada. */}
-        <DetachPresence>
-        <Routes location={location}>
+    <>
+      <ZoneTip pathname={location.pathname} />
+      <Routes location={location}>
           <Route path="/"             element={<SafePage><DeferredLazyPage load={loaders.DashboardPage} /></SafePage>} />
           <Route path="/profile"      element={<SafePage><DeferredLazyPage load={loaders.ProfilePage} /></SafePage>} />
           {/* Administración: solo las cuentas de utils/admin (el servidor vuelve a comprobarlo). */}
@@ -340,83 +340,15 @@ function AnimatedRoutes({ location }: { location: ReturnType<typeof useLocation>
           <Route path="/faq"      element={<SafePage><DeferredLazyPage load={loaders.FAQPage} /></SafePage>} />
           <Route path="/plan"     element={<SafePage><DeferredLazyPage load={loaders.PlanPage} /></SafePage>} />
           <Route path="*"         element={<SafePage><DeferredLazyPage load={loaders.NotFoundPage} /></SafePage>} />
-        </Routes>
-        </DetachPresence>
-      </motion.div>
-    </AnimatePresence>
+      </Routes>
+    </>
   );
 }
 
-/**
- * Mantiene la zona actual mientras el bundle de destino se resuelve. El
- * boundary vive dentro de AppShell, por lo que HUD, navegación y fondo nunca
- * se desmontan al entrar por primera vez a una ruta lazy.
- */
-function DeferredRouteContent() {
-  const location = useLocation();
-  const [displayedLocation, setDisplayedLocation] = useState(location);
-  const [isRoutePending, setIsRoutePending] = useState(false);
-  const showLoadingCue = useLoadingVisibility(isRoutePending, { delayMs: LOADER_DELAY_MS });
-  const shouldReduceMotion = useReducedMotionConfig();
-
-  // React Router actualiza la URL al instante, pero aquí esperamos el import de
-  // la nueva zona antes de reemplazar el contenido. Eso mantiene la sección
-  // anterior visible incluso cuando el navegador todavía no tiene su chunk.
-  useEffect(() => {
-    if (location.key === displayedLocation.key) return;
-
-    const loader = loaderForPath(location.pathname);
-    if (!loader) {
-      setDisplayedLocation(location);
-      setIsRoutePending(false);
-      return;
-    }
-
-    let active = true;
-    setIsRoutePending(true);
-
-    void loader().then(
-      () => {
-        if (!active) return;
-        setDisplayedLocation(location);
-        setIsRoutePending(false);
-      },
-      () => {
-        // El ErrorBoundary de la ruta conserva el manejo de un import fallido.
-        // Sólo liberamos el cambio para que pueda mostrar dicho estado.
-        if (!active) return;
-        setDisplayedLocation(location);
-        setIsRoutePending(false);
-      },
-    );
-
-    return () => {
-      active = false;
-    };
-  }, [displayedLocation.key, location]);
-
-  return (
-    <div className="relative">
-      <AnimatedRoutes location={displayedLocation} />
-
-      <AnimatePresence initial={false}>
-        {showLoadingCue && (
-          <motion.div
-            className="pointer-events-none absolute inset-x-0 top-3 z-20 flex justify-center px-4"
-            initial={shouldReduceMotion ? false : { opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
-            transition={{ duration: shouldReduceMotion ? 0.01 : 0.18, ease: 'easeOut' }}
-          >
-            <span role="status" className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-label-lg text-on-surface shadow-md">
-              <Spinner size="sm" className="text-primary-text" />
-              Cargando…
-            </span>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
+/** Trae el código de la zona de destino: un import que falle lo muestra el ErrorBoundary de su ruta. */
+function prepareZone(pathname: string) {
+  const load = loaderForPath(pathname);
+  return load ? ensurePage(load) : null;
 }
 
 function AdminRoute({ children }: { children: ReactNode }) {
@@ -490,13 +422,17 @@ export default function App() {
   const { initAudio } = useUIStore();
   const { user, isLoading, isAuthenticated } = useAuthStore();
   const { show: showNotifModal, setShow: setShowNotifModal } = useNotificationModalState();
-  // Los avisos se piden tras el primer hábito cumplido, nunca encima del tutorial.
+  // Al entrar por primera vez, la invitación a los avisos; si se pospone, otra vez tras el primer hábito
+  // cumplido, nunca encima del tutorial.
   const tourDone = useTourDone(user?.id);
 
   // Avisos: renueva la suscripción push de este dispositivo en cada apertura y,
   // con la app abierta, programa también los recordatorios de hoy.
   useEffect(() => {
-    if (isAuthenticated) void syncPushSubscription();
+    if (!isAuthenticated) return;
+    void syncPushSubscription();
+    void flushWrites();
+    void import('./lib/offline/warm').then((warm) => warm.warmOfflineCache()).catch(() => undefined);
   }, [isAuthenticated, user?.id]);
   useLocalReminders(isAuthenticated);
 
@@ -567,6 +503,7 @@ export default function App() {
   }, [isLoading, minimumSplashElapsed, pageFetched]);
 
   const showSplash = !splashDone;
+  const { open: inviteOpen, settled: inviteSettled } = useNotificationInvite(user?.id, isAuthenticated && !showSplash && Boolean(user?.onboardingCompleted));
 
   return (
     <ErrorBoundary>
@@ -574,7 +511,8 @@ export default function App() {
       {!showSplash && <CookieNotice />}
       {showSplash && <SplashScreen ready={splashReady} onDone={() => setSplashDone(true)} />}
 
-      {isAuthenticated && showNotifModal && tourDone && user?.onboardingCompleted && (
+      {isAuthenticated && inviteOpen && user && <NotificationInvite userId={user.id} />}
+      {isAuthenticated && showNotifModal && inviteSettled && tourDone && user?.onboardingCompleted && (
         <NotificationPermissionModal onClose={() => setShowNotifModal(false)} />
       )}
 
@@ -613,14 +551,14 @@ export default function App() {
               <ProtectedRoute>
                 <ErrorBoundary>
                   <AppShell>
-                    <DeferredRouteContent />
+                    <RouteStage render={zoneRoutes} prepare={prepareZone} />
                   </AppShell>
                 </ErrorBoundary>
                 <SageWidget />
                 {/* Plan: aviso de paso a Lite, tarjeta en la prueba y diálogo de Pro de los límites. */}
-                <PlanGate blocked={showNotifModal && tourDone && Boolean(user?.onboardingCompleted)} />
-                <TrialNotice />
-                <GiftWelcome />
+                <PlanGate blocked={!inviteSettled || (showNotifModal && tourDone && Boolean(user?.onboardingCompleted))} />
+                {inviteSettled && <TrialNotice />}
+                {inviteSettled && <GiftWelcome />}
               </ProtectedRoute>
             }
           />

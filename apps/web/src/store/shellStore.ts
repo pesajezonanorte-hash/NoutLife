@@ -14,6 +14,10 @@ interface ShellState {
   feedbackOpen: boolean;
   /** Panel del reproductor (no modal; el iframe sigue montado al cerrarlo). */
   musicOpen: boolean;
+  /** La invitación a los avisos está abierta. */
+  inviteOpen: boolean;
+  /** Ya se sabe si hay invitación y, si la hubo, ya se cerró: hasta entonces, el tutorial y los demás avisos esperan. */
+  inviteSettled: boolean;
   setCrumb: (crumb: string | null) => void;
   setMenuOpen: (open: boolean) => void;
   setQuickOpen: (open: boolean) => void;
@@ -28,6 +32,8 @@ export const useShellStore = create<ShellState>()((set) => ({
   menuOpen: false,
   quickOpen: false,
   quickAction: null,
+  inviteOpen: false,
+  inviteSettled: false,
   focusOpen: false,
   feedbackOpen: false,
   musicOpen: false,

@@ -52,6 +52,7 @@ export const PRIVACY: LegalSection[] = [
     'En concreto: solo usamos los datos de Google para ofrecerte las funciones visibles de Noutlife; no los transferimos a terceros salvo que sea necesario para prestar esas funciones, cumplir la ley o proteger la seguridad; no los usamos para publicidad; y ninguna persona los lee salvo con tu consentimiento, por seguridad o por obligación legal.',
   ] },
   { h: 'Almacenamiento local (localStorage)', p: [
+    'Para que NoutLife abra al instante y siga funcionando sin conexión, guardamos en este dispositivo una copia de lo que ves en la app (hábitos, agenda, libreta y demás zonas) y los cambios que aún no se han enviado. Se borra al cerrar sesión. Tus datos de ciclo no se guardan en el dispositivo.',
     'Usamos el almacenamiento local de tu navegador (localStorage e IndexedDB). Sirve para recordar que tu sesión está activa, tu tema visual (claro u oscuro), la preferencia de movimiento, los avisos que ya viste, el identificador de dispositivo y el identificador anónimo de la analítica.',
     'La sesión usa además una cookie técnica necesaria para renovar el acceso, y el identificador de dispositivo se guarda en una cookie. No usamos cookies con fines publicitarios. La analítica de producto (PostHog) sí guarda en tu navegador un identificador anónimo y los parámetros de campaña, como se explica en «Dispositivos, pruebas y analítica».',
     'Puedes borrar estos datos desde la configuración de tu navegador; tendrás que volver a iniciar sesión.',
