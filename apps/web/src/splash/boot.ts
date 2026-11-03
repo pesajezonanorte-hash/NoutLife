@@ -1,15 +1,16 @@
-// Arranque del splash, antes del paquete principal (vite.config, splashBoot: va en su propio chunk):
-// lee el tema, lanza la secuencia 3D en un Worker y saca el splash cuando la app ya está pintada debajo.
-// Si tarda, index.html muestra la N de CSS (.n) y el 3D la releva sin que se note. Sin WebGL de verdad,
-// con «Ahorro de datos» o con 2G, esa N hace todo el camino ella sola hasta el logo.
+// Arranque del splash, antes del paquete principal (vite.config, splashBoot: va en su propio chunk).
+// La entrada es CSS (index.html): las tres hojas del logo se juntan formando la N y aparece «noutlife»
+// letra a letra. Cuando esa entrada termina y la app ya está lista, hero.ts (un Worker) funde la N en
+// líquido y la corriente la lleva hasta el logo de la cabecera. Sin WebGL de verdad, con «Ahorro de datos»
+// o con 2G, la N de CSS vuela sola hasta el logo.
 import heroUrl from '@/assets/models/calm-hero.glb?url';
 import type { HeroCommand, HeroEvent, HeroInit, HeroLayout, HeroTarget, HeroTones, Rgb } from './hero';
-import { leaveDelay } from './timing';
+import { LEAVE_HOLD_MS } from './timing';
 
 declare global {
   interface Window {
-    /** App.tsx lo llama (por SplashScreen) con la app ya montada debajo. `seen`: recarga en la misma pestaña. */
-    lqSplash?: { leave(): void; seen: boolean };
+    /** App.tsx lo llama (por SplashScreen) con la app ya montada debajo. */
+    lqSplash?: { leave(): void };
   }
 }
 
@@ -17,15 +18,13 @@ const boot = document.getElementById('lq-boot');
 const root = document.documentElement;
 const reduce = root.classList.contains('lq-rm');
 
-const SEEN_KEY = 'lq-splash-seen';
-/** La app ya está lista pero el 3D aún no ha dado su primer fotograma: se le espera este tiempo. */
-const HERO_WAIT_MS = 1200;
-
-let seen = false;
-try {
-  seen = sessionStorage.getItem(SEEN_KEY) === '1';
-  sessionStorage.setItem(SEEN_KEY, '1');
-} catch { /* sin storage: siempre la historia entera */ }
+/** La entrada de CSS acaba con el eslogan, que es la última animación. Si no corre, no se espera más de 5 s. */
+const intro = new Promise<void>((done) => {
+  const last = boot?.querySelector('.tg');
+  if (!last) return done();
+  last.addEventListener('animationend', () => done(), { once: true });
+  window.setTimeout(done, 5000);
+});
 
 const linear = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
 const mix = (a: Rgb, b: Rgb, t: number): Rgb => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
@@ -46,13 +45,13 @@ function readTones(): HeroTones {
     const [r, g, b] = (css.getPropertyValue(`--lq-${name}`).trim() || fallback).split(/[\s,]+/).map(Number);
     return [linear(r / 255), linear(g / 255), linear(b / 255)];
   };
-  const j100 = token('jade-100', '220 243 225');
   const j200 = token('jade-200', '196 226 202');
   const j300 = token('jade-300', '165 210 181');
   const j400 = token('jade-400', '133 199 161');
   const j500 = token('jade-500', '112 180 141');
   const j600 = token('jade-600', '84 143 111');
   const j900 = token('jade-900', '14 29 22');
+  const j100 = token('jade-100', '220 243 225');
   // --lq-brand-* pueden depender de otras variables: se resuelven con el propio navegador.
   const probe = document.createElement('i');
   probe.style.display = 'none';
@@ -72,12 +71,12 @@ function readTones(): HeroTones {
     mint: dark ? mix(j400, j300, 0.5) : mix(j200, j100, 0.5),
     deep: dark ? mix(j500, j400, 0.4) : mix(j400, j500, 0.45),
     light: dark ? j300 : mix(j200, j300, 0.4),
-    leaf: dark ? mix(j300, j200, 0.5) : mix(j200, j300, 0.45),
     shadow: dark ? [0, 0, 0] : mix(j900, j600, 0.3),
     logo,
   };
 }
 
+/** La N de CSS (.mk): el lienzo del 3D va exactamente encima, con su mismo tamaño y lugar. */
 function readLayout(): HeroLayout {
   const mark = boot!.querySelector('.mk')!.getBoundingClientRect();
   return {
@@ -93,23 +92,21 @@ function readLayout(): HeroLayout {
 
 const onScreen = (r: DOMRect) => r.width > 0 && r.height > 0 && r.left >= 0 && r.top >= 0 && r.right <= window.innerWidth && r.bottom <= window.innerHeight;
 
-/** El logo de la cabecera. El .glb y el SVG miden lo mismo: su alto es el de la caja. */
+/** El logo de la cabecera: la N se funde hasta él. */
 function findTarget(): HeroTarget | null {
   const mark = Array.from(document.querySelectorAll('[data-brand-mark]'), (el) => el.getBoundingClientRect()).find(onScreen);
   return mark ? { kind: 'mark', x: mark.left + mark.width / 2, y: mark.top + mark.height / 2, h: mark.height } : null;
 }
 
-/** La N de CSS, sin 3D: viaja con transform (compositor) hasta el logo y lo releva. */
+/** Sin 3D: la N de CSS viaja con transform (compositor) hasta el logo de la cabecera. */
 function flyMark(target: HeroTarget | null) {
-  const mark = boot?.querySelector<SVGElement>('.n');
+  const mark = boot?.querySelector<SVGElement>('.mk');
   if (!mark || !target || reduce) return;
-  boot!.classList.add('fly');
   const r = mark.getBoundingClientRect();
   const dx = target.x - (r.left + r.width / 2);
   const dy = target.y - (r.top + r.height / 2);
   const k = target.h / r.height;
   mark.style.animation = 'none';
-  mark.style.opacity = '1';
   mark.animate(
     [{ transform: 'none' }, { transform: `translate(${dx}px, ${dy}px) scale(${k})` }],
     { duration: 820, easing: 'cubic-bezier(.65, 0, .35, 1)', fill: 'forwards' },
@@ -119,39 +116,31 @@ function flyMark(target: HeroTarget | null) {
 let send: ((cmd: HeroCommand) => void) | null = null;
 let canvas: HTMLCanvasElement | null = null;
 let closeHero: (() => void) | null = null;
+let land: (() => void) | null = null;
+let failed = false;
+let themeWatch: MutationObserver | null = null;
 
 function onEvent(e: HeroEvent) {
-  if (e.type === 'ready') {
-    bornAt = performance.now();
-    boot?.classList.add('born');
-    waiting?.();
-  } else if (e.type === 'fail') dropHero();
-  else if (e.type === 'landed') land?.();
+  if (e.type === 'fail') dropHero();
+  else land?.();
 }
 
+/** El 3D no sirve: se quita y la N de CSS hace el camino sola. */
 function dropHero() {
+  failed = true;
   closeHero?.();
   closeHero = null;
   send = null;
   canvas?.remove();
   canvas = null;
-  boot?.classList.remove('born');
-  boot?.classList.add('flat');
-  // Si ya iba de salida, no llega a ningún sitio: que no espere más.
   land?.();
-  waiting?.();
 }
-
-let land: (() => void) | null = null;
-let waiting: (() => void) | null = null;
-let bornAt = 0;
-let themeWatch: MutationObserver | null = null;
 
 function startHero() {
   const net = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
   // Con «Reducir movimiento», la N quieta y un fundido: nada que descargar.
   if (!boot || reduce || !('WebGL2RenderingContext' in window) || net?.saveData || /2g/.test(net?.effectiveType ?? '')) {
-    boot?.classList.add('flat');
+    failed = true;
     return;
   }
   const real = { failIfMajorPerformanceCaveat: true };
@@ -161,14 +150,14 @@ function startHero() {
   } catch { /* Safari antiguo: Offscreen sin WebGL */ }
   // Sin GPU de verdad, ni siquiera se descarga: la N de CSS hace el camino.
   if (!workerGl && !document.createElement('canvas').getContext('webgl2', real)) {
-    boot.classList.add('flat');
+    failed = true;
     return;
   }
   canvas = document.createElement('canvas');
   canvas.id = 'lq-boot-3d';
   canvas.setAttribute('aria-hidden', 'true');
   boot.after(canvas);
-  const init: HeroInit = { url: new URL(heroUrl, location.href).href, tones: readTones(), layout: readLayout(), openedAt: performance.timeOrigin, seen };
+  const init: HeroInit = { url: new URL(heroUrl, location.href).href, tones: readTones(), layout: readLayout() };
   if (workerGl) {
     const worker = new Worker(new URL('./hero.worker.ts', import.meta.url), { type: 'module' });
     worker.onmessage = ({ data }) => onEvent(data as HeroEvent);
@@ -213,57 +202,47 @@ function whenTarget(done: (t: HeroTarget | null) => void) {
   requestAnimationFrame(look);
 }
 
+/** La app ya está montada debajo: cuando la entrada de CSS acaba, se espera un momento y sale la N. */
 function leave() {
   if (left || !boot) return;
   left = true;
   window.removeEventListener('resize', resized);
-  if (!canvas || boot.classList.contains('born')) {
-    depart();
-    return;
-  }
-  const limit = window.setTimeout(() => waiting?.(), HERO_WAIT_MS);
-  waiting = () => {
-    waiting = null;
-    window.clearTimeout(limit);
-    depart();
-  };
+  intro.then(() => window.setTimeout(depart, reduce ? 0 : LEAVE_HOLD_MS));
 }
 
 function depart() {
   if (!boot) return;
   whenTarget((target) => {
-    const outAt = performance.now();
     const finish = () => {
       if (!boot.isConnected) return;
       land = null;
       window.clearTimeout(limit);
-      // El logo de verdad releva a la N del lienzo, que ya es igual que él (calm.css).
-      boot.classList.add('landed');
+      // La N ya está en el logo de la cabecera: se muestra, y el splash se va despacio, sin cortes.
+      boot.classList.add('landed', 'out');
       const gone = canvas;
-      if (gone) gone.style.opacity = '0';
-      // El relevo y, si llegó antes, lo que falte del fundido del fondo.
       window.setTimeout(() => {
         themeWatch?.disconnect();
         closeHero?.();
         gone?.remove();
         boot.remove();
-      }, Math.max(200, 820 - (performance.now() - outAt)));
+      }, 900);
     };
     // Si algo se atasca (pestaña oculta, GPU perdida), la app no se queda tapada.
-    const limit = window.setTimeout(finish, 4600);
-    if (send && boot.classList.contains('born')) {
-      land = finish;
+    const limit = window.setTimeout(finish, 6000);
+    if (send && !failed) {
+      // La N de CSS cede su sitio a la del 3D, que nace en el mismo lugar y con el mismo tamaño.
+      send({ type: 'layout', layout: readLayout() });
       send({ type: 'leave', target: target ?? { kind: 'none', x: 0, y: 0, h: 0 } });
-      boot.style.setProperty('--wait', `${leaveDelay(performance.now() - bornAt)}ms`);
+      land = finish;
+      boot.classList.add('taken', 'out');
     } else {
-      // El modelo no ha llegado (red lenta) o no hay 3D: no se le espera.
-      dropHero();
+      // Sin 3D (o si falló): la N de CSS vuela sola hasta el logo.
       flyMark(target);
+      boot.classList.add('out');
       window.setTimeout(finish, reduce ? 500 : 860);
     }
-    boot.classList.add('out');
   });
 }
 
-window.lqSplash = { leave, seen };
+window.lqSplash = { leave };
 startHero();
