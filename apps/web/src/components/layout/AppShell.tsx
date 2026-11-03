@@ -55,8 +55,7 @@ const zoneTipCopy: Copy<{ about: string; dismiss: string }> = {
   en: { about: 'About this zone', dismiss: 'Got it, hide' },
 };
 
-function ZoneTip() {
-  const { pathname } = useLocation();
+export function ZoneTip({ pathname }: { pathname: string }) {
   const locale = useLocale();
   const userId = useAuthStore((st) => st.user?.id);
   // Zona Pro con candado (Lite): la tarjeta espera a que la zona se abra.
@@ -155,6 +154,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
   const user = useAuthStore((s) => s.user);
   const focusOpen = useShellStore((s) => s.focusOpen);
+  const inviteSettled = useShellStore((s) => s.inviteSettled);
   const setFocusOpen = useShellStore((s) => s.setFocusOpen);
 
   useUserSync(pathname);
@@ -168,14 +168,14 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [tourReady, setTourReady] = useState(false);
   const newAccount = isNewAccount(user?.createdAt);
   useEffect(() => {
-    if (tourReady || tourDone || pathname !== '/' || !user?.onboardingCompleted || !newAccount || isTourSeen(user.id)) return;
+    if (tourReady || tourDone || !inviteSettled || pathname !== '/' || !user?.onboardingCompleted || !newAccount || isTourSeen(user.id)) return;
     const t = window.setTimeout(() => { setTourReady(true); markTourSeen(user.id); }, 1100);
     return () => window.clearTimeout(t);
-  }, [tourReady, tourDone, pathname, user?.onboardingCompleted, user?.id, newAccount]);
+  }, [tourReady, tourDone, inviteSettled, pathname, user?.onboardingCompleted, user?.id, newAccount]);
 
-  // Al cambiar de ruta: arriba del todo y menús cerrados.
+  // Al cambiar de ruta, menús cerrados. Subir arriba del todo lo hace RouteStage en el relevo: aquí se
+  // vería saltar la zona vieja, que sigue a la vista hasta que la nueva está lista.
   useEffect(() => {
-    window.scrollTo({ top: 0 });
     useShellStore.setState({ menuOpen: false, quickOpen: false });
   }, [pathname]);
 
@@ -200,7 +200,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           tabIndex={-1}
           className="mx-auto w-full min-w-0 max-w-[1120px] flex-1 px-4 pb-6 pt-2 outline-none md:px-8 md:pb-12 md:pt-8 lg:pt-12"
         >
-          <ZoneTip />
           {children}
         </main>
         <LegalFooter className="pb-[calc(7rem+env(safe-area-inset-bottom))] md:pb-6" />

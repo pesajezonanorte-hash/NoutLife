@@ -42,6 +42,7 @@ import { completeGuideDay, dismissGuide, fetchDashboard } from '@/services/user.
 import { fetchLifeScore, type LifeScore } from '@/services/lifescore.service';
 import { fetchUpcoming, type AgendaEvent } from '@/services/agenda.service';
 import { useLifeChange } from '@/lib/lifeSync';
+import { useFreshData } from '@/lib/offline/fresh';
 
 const es = {
   loading: 'Cargando tu aventura…',
@@ -289,6 +290,12 @@ export default function DashboardPage() {
     fetchLifeScore().then(setLifeScore).catch(() => null);
     fetchUpcoming().then((e) => setEvents(e.slice(0, 3))).catch(() => null);
   }, [load]);
+
+  useFreshData(['/dashboard', '/life/score', '/agenda/upcoming', '/habits', '/quests'], () => {
+    void load(true);
+    fetchLifeScore().then(setLifeScore).catch(() => null);
+    fetchUpcoming().then((e) => setEvents(e.slice(0, 3))).catch(() => null);
+  });
 
   // Inicio resume todas las zonas: cualquier registro (aquí, en el botón rápido o
   // desde el Sabio) lo actualiza en silencio, también el Life Score.

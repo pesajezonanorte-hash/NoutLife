@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.middleware';
+import { idempotent } from '../middleware/idempotency.middleware';
 import { requireProZone } from '../middleware/plan.middleware';
 import { validate } from '../middleware/validate.middleware';
 import { createJournalSchema, updateJournalSchema } from '../schemas/activity.schemas';
@@ -11,7 +12,7 @@ router.use(requireAuth);
 router.use(requireProZone('journal'));
 
 router.get('/',         ctrl.listJournal);
-router.post('/',        validate(createJournalSchema), ctrl.createJournalEntry);
+router.post('/',        validate(createJournalSchema), idempotent, ctrl.createJournalEntry);
 router.get('/streak',   ctrl.getJournalStreak);
 router.get('/:id',      ctrl.getJournalEntry);
 router.patch('/:id',    validate(updateJournalSchema), ctrl.updateJournalEntry);

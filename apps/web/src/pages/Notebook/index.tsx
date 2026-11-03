@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { motion } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Notebook as NotebookIcon, Plus, Trash2 } from 'lucide-react';
+import { useFreshData } from '@/lib/offline/fresh';
 import { cn } from '@/lib/utils';
 import { item } from '@/lib/motion';
 import { ZoneShell } from '@/components/ambience';
@@ -240,6 +241,7 @@ export default function NotebookPage() {
     catch { setState('error'); }
   }, []);
   useEffect(() => { void load(); }, [load]);
+  useFreshData(['/notebooks'], () => void load());
 
   const book = books.find((b) => b.id === openId) ?? null;
   useEffect(() => {

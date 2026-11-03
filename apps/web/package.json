@@ -6,11 +6,16 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
+    "android:apk": "node scripts/android-apk.mjs",
     "test:e2e": "playwright test",
     "test:unit": "tsx --test tests/unit/coliseo.unit.ts tests/unit/notebook.unit.ts tests/unit/funnel.unit.ts tests/unit/planPreview.unit.ts tests/unit/gift.unit.ts tests/unit/timeline.unit.ts",
     "test": "tsx --test tests/unit/*.unit.ts"
   },
   "dependencies": {
+    "@capacitor/android": "^8.6.0",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.6.0",
+    "@capacitor/local-notifications": "^8.3.1",
     "@hookform/resolvers": "^3.3.4",
     "@noutlife/shared": "*",
     "@radix-ui/react-popover": "^1.1.23",
@@ -37,6 +42,7 @@
     "zustand": "^4.5.0"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.6.0",
     "@playwright/test": "^1.55.0",
     "@types/react": "^18.2.55",
     "@types/react-dom": "^18.2.19",

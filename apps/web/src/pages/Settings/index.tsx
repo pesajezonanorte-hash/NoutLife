@@ -21,7 +21,7 @@ import { useUIStore } from '@/store/uiStore';
 import { useToast } from '@/hooks/useToast';
 import * as userService from '@/services/user.service';
 import {
-  getNotificationPreferences, enablePush, pushMessagesFor, pushSupport, sendTestNotification, updateNotificationPreferences,
+  getNotificationPreferences, enablePush, notificationPermission, notificationPermissionNow, pushMessagesFor, pushSupport, sendTestNotification, updateNotificationPreferences,
   type NotificationCategoryPreference, type NotificationPreferences, type SmartReminderPatch,
 } from '@/services/notification.service';
 import { SmartRemindersPanel } from '@/components/settings/SmartRemindersPanel';
@@ -342,7 +342,8 @@ export default function SettingsPage() {
   const [savingPrefs, setSavingPrefs] = useState(false);
   const [testing, setTesting] = useState(false);
   const [danger, setDanger] = useState<'reset' | 'delete' | null>(null);
-  const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>(() => (typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'unsupported'));
+  const [permission, setPermission] = useState(notificationPermissionNow);
+  useEffect(() => { void notificationPermission().then(setPermission); }, []);
   /** Al guardar, las piezas encajan; cada valor que cambia hace girar los engranajes. */
   const [fit, setFit] = useState(0);
   const [turns, setTurns] = useState(0);
@@ -403,7 +404,7 @@ export default function SettingsPage() {
   }
   async function enableNotifications() {
     const result = await enablePush();
-    setPermission('Notification' in window ? Notification.permission : 'unsupported');
+    setPermission(await notificationPermission());
     if (result === 'ok') toast.success(PUSH_MESSAGES.ok);
     else if (result === 'ios-install') toast.info(PUSH_MESSAGES[result]);
     else toast.error(PUSH_MESSAGES[result]);

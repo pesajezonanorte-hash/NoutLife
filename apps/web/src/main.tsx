@@ -9,6 +9,7 @@ import './store/themeStore';
 import { useMotionStore } from './store/motionStore';
 import { captureAttribution, track } from './lib/analytics';
 import { isHalloween } from './lib/season';
+import { isNativeApp, startNativeShell } from './lib/native';
 import './styles/globals.css';
 import { startCardTilt } from './lib/motion/tilt';
 
@@ -32,8 +33,11 @@ startCardTilt();
 captureAttribution();
 window.addEventListener('appinstalled', () => track('pwa_installed'));
 
-// Register service worker
-if ('serviceWorker' in navigator) {
+// Register service worker. En la app de Android no hace falta: los archivos ya están
+// en el teléfono y el WebView no recibe avisos push.
+if (isNativeApp()) {
+  void startNativeShell();
+} else if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch(() => {
       // SW registration failed silently — non-critical

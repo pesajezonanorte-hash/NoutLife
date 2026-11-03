@@ -3,7 +3,8 @@
 // onboarding. Móvil (360 px+): titular, acceso y la ventana de Inicio (el cielo
 // de la hora real) antes de cualquier scroll; debajo, los cuatro pilares, el FAQ
 // y los planes. En los navegadores de Instagram, Facebook o TikTok, Google no deja
-// entrar: el acceso se cambia por «Ábrelo en tu navegador».
+// entrar: el acceso se cambia por «Ábrelo en tu navegador». En la app de Android el
+// botón es propio y abre el acceso del sistema (lib/native).
 //
 // Idioma: /login sigue al idioma de la persona (lib/i18n); /en y /es fijan el suyo (LocaleProvider en
 // App.tsx) y son las URL que indexa Google, con canonical propio. El aviso legal con enlaces va
@@ -22,9 +23,10 @@ import { HomeWindow, useNow } from '@/components/dashboard/HomeWindow';
 import { PricingSection } from '@/components/billing/PricingSection';
 import { OpenInBrowser } from '@/components/auth/OpenInBrowser';
 import { detectInAppBrowser } from '@/lib/inAppBrowser';
-import { AccordionItem } from '@/components/ui/lq';
+import { AccordionItem, Button } from '@/components/ui/lq';
 import { ease } from '@/lib/motion';
 import { track } from '@/lib/analytics';
+import { isNativeApp, nativeGoogleSignIn } from '@/lib/native';
 import { useDocumentLang, useLocale } from '@/lib/i18n';
 import { useDocumentMeta } from '@/lib/seo';
 import { useOffer } from '@/lib/useOffer';
@@ -56,6 +58,18 @@ function loadScript(src: string) {
   return loaded.get(src)!;
 }
 
+/** La G de Google con sus colores oficiales (lo que pide su guía de marca fuera del botón oficial). */
+function GoogleMark() {
+  return (
+    <svg aria-hidden viewBox="0 0 48 48" className="size-5 shrink-0">
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+    </svg>
+  );
+}
+
 export default function LoginPage() {
   const navigate = useNavigate();
   const setAuth = useAuthStore((s) => s.setAuth);
@@ -68,6 +82,7 @@ export default function LoginPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const googleRef = useRef<HTMLDivElement>(null);
   const [inApp] = useState(() => detectInAppBrowser(navigator.userAgent));
+  const native = isNativeApp();
   const now = useNow();
   const dark = useIsDark();
   // El texto del error sigue al idioma aunque se cambie después de que ocurra.
@@ -112,9 +127,22 @@ export default function LoginPage() {
     authService.getProviders().then(setProviders).catch(() => setErrorKey('serverError'));
   }, [inApp]);
 
+  async function signInNative(clientId: string) {
+    setApiError('');
+    setErrorKey(null);
+    try {
+      const { idToken, displayName } = await nativeGoogleSignIn(clientId);
+      await signIn('google', idToken, displayName);
+    } catch (err: unknown) {
+      if ((err as { code?: string })?.code === 'CANCELLED') return;
+      console.error('[GOOGLE_NATIVE]', err);
+      setErrorKey('googleError');
+    }
+  }
+
   useEffect(() => {
     const clientId = providers?.googleClientId;
-    if (!clientId) return;
+    if (!clientId || native) return;
     // Google localiza el texto de su botón con el hl del script (el locale de renderButton no basta): cada
     // idioma de la portada carga el suyo, y el enlace al otro idioma recarga la página.
     loadScript(`https://accounts.google.com/gsi/client?hl=${locale}`).then(() => {
@@ -173,7 +201,11 @@ export default function LoginPage() {
                   {t.consent.before} <Link to="/terms" className={linkClass}>{t.consent.terms}</Link> {t.consent.and}{' '}
                   <Link to="/privacy" className={linkClass}>{t.consent.privacy}</Link>{t.consent.after}
                 </p>
-                {providers?.googleClientId && <div ref={googleRef} className="flex min-h-11 max-w-[400px]" />}
+                {providers?.googleClientId && (native ? (
+                  <Button variant="secondary" size="md" block loading={busy} className="max-w-[400px] rounded-full" onClick={() => void signInNative(providers.googleClientId!)}>
+                    {!busy && <GoogleMark />}{t.continueWithGoogle}
+                  </Button>
+                ) : <div ref={googleRef} className="flex min-h-11 max-w-[400px]" />)}
                 {none && <p className="text-body-sm text-on-surface-light">{t.unavailable}</p>}
                 <p className="text-body-sm text-on-surface-light">{t.trialLine(offer)}</p>
                 {error && (

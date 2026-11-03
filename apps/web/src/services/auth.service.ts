@@ -1,10 +1,9 @@
-import api from '../lib/api';
+import api, { renewSession, sessionRejected } from '../lib/api';
 import type { AuthResponse, OAuthPayload } from '@noutlife/shared';
 import {
   clearRefreshSessionExpected,
   markRefreshSessionExpected,
 } from '../lib/session-hint';
-import { AUTH_TIMEOUT_MS } from '../lib/timeout';
 
 /** ID público de Google (viene de la API, no del build). */
 export async function getProviders() {
@@ -30,11 +29,12 @@ export async function fetchMe(): Promise<AuthResponse['user']> {
 
 export async function refreshToken(): Promise<AuthResponse> {
   try {
-    const { data } = await api.post<AuthResponse>('/auth/refresh', undefined, { timeout: AUTH_TIMEOUT_MS });
+    const data = (await renewSession()) as AuthResponse;
     markRefreshSessionExpected();
     return data;
   } catch (error) {
-    clearRefreshSessionExpected();
+    // Sin respuesta del servidor no se sabe nada de la sesión: la pista se conserva para abrir sin conexión.
+    if (sessionRejected(error)) clearRefreshSessionExpected();
     throw error;
   }
 }

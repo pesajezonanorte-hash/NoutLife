@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.middleware';
+import { idempotent } from '../middleware/idempotency.middleware';
 import { validate } from '../middleware/validate.middleware';
 import { createHabitSchema, updateHabitSchema, habitLogSchema, habitStepSchema } from '../schemas/habit.schemas';
 import * as habitController from '../controllers/habit.controller';
@@ -10,7 +11,7 @@ const router = Router();
 router.use(requireAuth);
 
 router.get('/',                 habitController.listHabits);
-router.post('/', validate(createHabitSchema), limitActiveHabits, habitController.createHabit);
+router.post('/', validate(createHabitSchema), limitActiveHabits, idempotent, habitController.createHabit);
 router.get('/:id',              habitController.getHabit);
 router.patch('/:id', validate(updateHabitSchema), habitController.updateHabit);
 router.delete('/:id',           habitController.archiveHabit);

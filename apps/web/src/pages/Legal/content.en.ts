@@ -54,6 +54,7 @@ export const PRIVACY_EN: LegalSection[] = [
     'Our API, database and analytics run on servers in the United States, and the app is delivered through a global content network. Payments are processed by Wompi in Colombia. By using NoutLife you understand that your information is processed in those countries, which may have data protection laws different from yours. We protect it as this policy describes wherever it is processed.',
   ] },
   { h: 'Cookies and browser storage', p: [
+    'So NoutLife opens instantly and keeps working offline, we save a copy of what you see in the app (habits, agenda, notebook and other zones) on this device, along with changes that haven’t been sent yet. It’s deleted when you sign out. Your cycle data is not saved on the device.',
     'We use your browser’s local storage (localStorage and IndexedDB) to remember that you’re signed in, your theme, language and motion preferences, the notices you’ve seen, the device identifier and the anonymous analytics identifier with its campaign parameters.',
     'We also use a technical cookie needed to renew your session and a cookie with the device identifier. We don’t use advertising cookies or cross-site tracking. You can clear this data in your browser settings; you’ll need to sign in again.',
     'We don’t sell or share personal information for targeted advertising, so there is nothing to opt out of; where the law requires it, we treat a Global Privacy Control signal as a valid opt-out request.',

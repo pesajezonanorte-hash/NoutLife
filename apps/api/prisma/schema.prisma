@@ -252,6 +252,7 @@ model User {
   recreationEntries       RecreationEntry[]
   notebooks               Notebook[]
   reminderSnoozes         ReminderSnooze[]
+  idempotencyKeys         IdempotencyKey[]
   sleepLogs               SleepLog[]
   journalEntries          JournalEntry[]
   inventoryItems          InventoryItem[]
@@ -836,6 +837,21 @@ model NotebookImage {
 }
 
 /// Aviso pospuesto («Posponer 10 min»): el cron lo envía a su hora, también con la app cerrada.
+/// Creaciones ya aplicadas: un reenvío desde la app sin conexión recibe la misma respuesta (middleware/idempotency).
+model IdempotencyKey {
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key       String
+  /// Sin valor mientras el primer intento sigue en curso.
+  status    Int?
+  body      Json?
+  createdAt DateTime @default(now())
+
+  @@id([userId, key])
+  @@index([createdAt])
+  @@map("idempotency_keys")
+}
+
 model ReminderSnooze {
   id        String    @id @default(cuid())
   userId    String

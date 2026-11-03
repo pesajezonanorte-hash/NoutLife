@@ -12,6 +12,7 @@ import {
   ArrowLeft, Bold, ChevronLeft, ChevronRight, Cloud, CloudOff, Eraser, FilePlus2, Heading, Highlighter, ImagePlus, Italic,
   List, ListOrdered, Loader2, PenLine, Redo2, Settings2, StickyNote, Strikethrough, Underline, Undo2, type LucideIcon,
 } from 'lucide-react';
+import { warmNotebookPages } from '@/lib/offline/warm';
 import { cn } from '@/lib/utils';
 import { compressImageToBase64 } from '@/lib/imageCompress';
 import { lockScroll, unlockScroll } from '@/components/ui/lq/Modal';
@@ -392,6 +393,8 @@ export function NotebookEditor({ notebook, lite, onClose, onEdit, onAddPage }: {
       .finally(() => loading.current.delete(i));
   }, [notebook.id, notebook.pageCount, schedule]);
   useEffect(() => { ensure(index); ensure(index + 1); ensure(index - 1); }, [ensure, index]);
+  // Abierta una vez, la libreta queda en el dispositivo: sus hojas se leen y se escriben sin conexión.
+  useEffect(() => { warmNotebookPages(notebook.id, notebook.pageCount); }, [notebook.id, notebook.pageCount]);
 
   // Se guarda también al ocultar la app, al recuperar la conexión y al cerrar la libreta.
   useEffect(() => {

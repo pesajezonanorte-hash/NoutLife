@@ -13,6 +13,8 @@ const es = {
   headline: 'Tu rutina, tu mente y tus ideas. En un solo lugar.',
   subhead: 'Hábitos, libreta, obstáculos, bienestar y metas en un espacio que da gusto abrir todos los días.',
   start: 'Empieza gratis con Google',
+  /** Botón de la app de Android; en la web, el texto lo pone el botón oficial de Google. */
+  continueWithGoogle: 'Continuar con Google',
   consent: { before: 'Al continuar con Google aceptas los', terms: 'Términos', and: 'y la', privacy: 'Política de privacidad', after: '.' },
   unavailable: 'El inicio de sesión no está disponible ahora mismo.',
   trialLine: (o: Offer) => `${TRIAL_DAYS} días de Pro incluidos, sin tarjeta. Después sigues gratis en Lite, o pasas a Pro desde unos ${o.perDay(o.perDayFor('year'), true)} al día.`,
@@ -48,6 +50,7 @@ const en: typeof es = {
   headline: 'Your routine, your mind, your ideas. In one calm place.',
   subhead: 'Habits, notebook, wellbeing and goals in a calm space you’ll look forward to opening every day.',
   start: 'Start free with Google',
+  continueWithGoogle: 'Continue with Google',
   consent: { before: 'By continuing with Google, you agree to the', terms: 'Terms of Service', and: 'and', privacy: 'Privacy Policy', after: '.' },
   unavailable: 'Sign-in isn’t available right now.',
   trialLine: (o) => `${TRIAL_DAYS} days of Pro included, no card required. Then stay free on Lite, or go Pro from about ${o.perDay(o.perDayFor('year'), true)} a day.`,

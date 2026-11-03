@@ -8,7 +8,7 @@ import { readGlbScene } from '../../src/components/three3d/glb';
 import { buildTube, type Point } from '../../src/components/layout/nav3d/iconTube';
 import { castShadow, settled, springStep, tiltLimits, tiltTarget } from '../../src/lib/motion/tiltMath';
 import { pathPoint, streamAt, streamPath } from '../../src/splash/hero';
-import { LEAVE_HOLD_MS } from '../../src/splash/timing';
+import { INTRO_MAX_MS, LAND_MAX_MS, LEAVE_HOLD_MS, MIN_INTRO_FPS } from '../../src/splash/timing';
 
 const load = async (name: string) => {
   const file = readFileSync(new URL(`../../src/assets/models/${name}.glb`, import.meta.url));
@@ -253,6 +253,17 @@ test('héroe: la salida toma la N en su sitio, la funde y la deja plana en el lo
 
 test('salida del héroe: la N se queda a la vista un momento antes de fundirse', () => {
   assert.ok(LEAVE_HOLD_MS >= 300 && LEAVE_HOLD_MS <= 600, `${LEAVE_HOLD_MS} ms`);
+});
+
+test('splash en un equipo lento: los límites no cortan la entrada ni el líquido de un teléfono sano', async () => {
+  const tagline = /#lq-boot \.tg \{[^}]*animation: lqb-up ([\d.]+)s [^;]*? ([\d.]+)s both/.exec(readFileSync(new URL('../../index.html', import.meta.url), 'utf8'));
+  assert.ok(tagline, 'la animación del eslogan');
+  const entry = (Number(tagline[1]) + Number(tagline[2])) * 1000;
+  assert.ok(INTRO_MAX_MS >= entry + 700, `entrada ${entry} ms, límite ${INTRO_MAX_MS} ms`);
+  const scene = await heroScene();
+  const outro = scene.clips.find((c) => c.name === 'hero_outro')!;
+  assert.ok(LAND_MAX_MS >= clipLength(outro) * 1000 + 1500, `líquido ${clipLength(outro)} s, límite ${LAND_MAX_MS} ms`);
+  assert.ok(MIN_INTRO_FPS <= 15, 'un teléfono normal, aun montando la app, no baja de aquí');
 });
 
 test('corriente: sale de la N, llega exacta al logo y cada gota avanza sin volver atrás', () => {

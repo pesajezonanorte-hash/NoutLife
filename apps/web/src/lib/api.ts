@@ -7,22 +7,72 @@ import { clearRefreshSessionExpected, markRefreshSessionExpected } from './sessi
 import { announceLifeChange, lifeZoneOf } from './lifeSync';
 import { getLocale } from './i18n';
 import { AUTH_TIMEOUT_MS } from './timeout';
+import type { User } from '@noutlife/shared';
+import { isNativeApp, NATIVE_API_BASE } from './native';
+import { configureOffline, offlineAdapter } from './offline/engine';
+import { startConnectivity } from './offline/connectivity';
 
 /**
  * En producción la API se pide en el mismo dominio de la web (/api/v1), que
  * Vercel reenvía a la API (vercel.json). Así la cookie de sesión es de primera
  * parte: Safari en iPhone bloquea las cookies de otro dominio y obligaba a
  * iniciar sesión en cada visita. VITE_API_URL solo se usa si se pide a propósito
- * con VITE_API_CROSS_ORIGIN=true (p. ej. una API sin proxy).
+ * con VITE_API_CROSS_ORIGIN=true (p. ej. una API sin proxy). La app de Android
+ * no tiene ese proxy y va directamente a la API (lib/native).
  */
-export const API_BASE = import.meta.env.VITE_API_CROSS_ORIGIN === 'true' && import.meta.env.VITE_API_URL
-  ? import.meta.env.VITE_API_URL
-  : '/api/v1';
+export const API_BASE = isNativeApp()
+  ? NATIVE_API_BASE
+  : import.meta.env.VITE_API_CROSS_ORIGIN === 'true' && import.meta.env.VITE_API_URL
+    ? import.meta.env.VITE_API_URL
+    : '/api/v1';
 
 const api = axios.create({
   baseURL: API_BASE,
   withCredentials: true, // necesario para cookies de refresh token
 });
+
+// Sin conexión las lecturas salen de lo guardado y las escrituras entran en cola (lib/offline/engine).
+api.defaults.adapter = offlineAdapter(axios.getAdapter(api.defaults.adapter));
+
+/** La renovación en curso: la comparten quien abre la app y quien recibe un 401. */
+let renewing: Promise<RenewedSession> | null = null;
+
+export interface RenewedSession { accessToken: string; user: User }
+
+/** Renueva la sesión con la cookie. Una sola petición a la vez, aunque la pidan varios. */
+export function renewSession(): Promise<RenewedSession> {
+  renewing ??= (async () => {
+    const deviceId = await getDeviceId().catch(() => '');
+    const { data } = await axios.post<RenewedSession>(
+      `${API_BASE}/auth/refresh`,
+      {},
+      { withCredentials: true, timeout: AUTH_TIMEOUT_MS, headers: deviceId ? { 'X-Device-Id': deviceId } : undefined },
+    );
+    return data;
+  })().finally(() => { renewing = null; });
+  return renewing;
+}
+
+/** Sin red no se sabe nada de la sesión; solo un rechazo del servidor la da por terminada. */
+export const sessionRejected = (error: unknown) => axios.isAxiosError(error) && (error.response?.status === 401 || error.response?.status === 403);
+
+configureOffline({
+  send: (request) => api.request(request),
+  renew: async () => {
+    const data = await renewSession();
+    useAuthStore.getState().setAccessToken(data.accessToken);
+    markRefreshSessionExpected();
+    return data.accessToken;
+  },
+  // Lo guardado se muestra sin esperar; solo lo que sale a la red necesita la sesión lista.
+  beforeNetwork: async (config) => {
+    if (!renewing || /\/auth\//.test(String(config.url))) return;
+    await renewing.catch(() => undefined);
+    const token = useAuthStore.getState().accessToken;
+    if (token) config.headers.Authorization = `Bearer ${token}`;
+  },
+});
+startConnectivity(`${API_BASE}/auth/providers`);
 
 // Inyectar access token en cada request
 api.interceptors.request.use(async (config) => {
@@ -101,11 +151,7 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const { data } = await axios.post(
-          `${API_BASE}/auth/refresh`,
-          {},
-          { withCredentials: true, timeout: AUTH_TIMEOUT_MS }
-        );
+        const data = await renewSession();
 
         useAuthStore.getState().setAccessToken(data.accessToken);
         markRefreshSessionExpected();
@@ -114,8 +160,11 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
-        clearRefreshSessionExpected();
-        useAuthStore.getState().logout();
+        // Sin red no se pudo preguntar: la sesión sigue, y lo pendiente se envía al volver.
+        if (sessionRejected(refreshError)) {
+          clearRefreshSessionExpected();
+          useAuthStore.getState().logout();
+        }
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

@@ -5,7 +5,7 @@
 // o con 2G, la N de CSS vuela sola hasta el logo.
 import heroUrl from '@/assets/models/calm-hero.glb?url';
 import type { HeroCommand, HeroEvent, HeroInit, HeroLayout, HeroTarget, HeroTones, Rgb } from './hero';
-import { LEAVE_HOLD_MS } from './timing';
+import { INTRO_MAX_MS, LAND_MAX_MS, LEAVE_HOLD_MS, MIN_INTRO_FPS } from './timing';
 
 declare global {
   interface Window {
@@ -18,13 +18,23 @@ const boot = document.getElementById('lq-boot');
 const root = document.documentElement;
 const reduce = root.classList.contains('lq-rm');
 
-/** La entrada de CSS acaba con el eslogan, que es la última animación. Si no corre, no se espera más de 5 s. */
+/** La entrada de CSS acaba con el eslogan, que es la última animación. Si no corre o le faltan fotogramas, no se espera más. */
 const intro = new Promise<void>((done) => {
   const last = boot?.querySelector('.tg');
   if (!last) return done();
   last.addEventListener('animationend', () => done(), { once: true });
-  window.setTimeout(done, 5000);
+  window.setTimeout(done, Math.max(0, INTRO_MAX_MS - performance.now()));
 });
+
+/** Fotogramas durante la entrada. Hay GPU lentos que no avisan al pedir el contexto: esto los delata. */
+const introStart = performance.now();
+let introFrames = 0;
+let departed = false;
+const countFrame = () => {
+  introFrames++;
+  if (!departed) requestAnimationFrame(countFrame);
+};
+requestAnimationFrame(countFrame);
 
 const linear = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
 const mix = (a: Rgb, b: Rgb, t: number): Rgb => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
@@ -212,6 +222,9 @@ function leave() {
 
 function depart() {
   if (!boot) return;
+  departed = true;
+  // Mientras la N sale, esto ya no se mide: el líquido competiría con el montaje de la app en un equipo sin margen.
+  if (canvas && introFrames / ((performance.now() - introStart) / 1000) < MIN_INTRO_FPS) dropHero();
   whenTarget((target) => {
     const finish = () => {
       if (!boot.isConnected) return;
@@ -228,7 +241,7 @@ function depart() {
       }, 900);
     };
     // Si algo se atasca (pestaña oculta, GPU perdida), la app no se queda tapada.
-    const limit = window.setTimeout(finish, 6000);
+    const limit = window.setTimeout(finish, LAND_MAX_MS);
     if (send && !failed) {
       // La N de CSS cede su sitio a la del 3D, que nace en el mismo lugar y con el mismo tamaño.
       send({ type: 'layout', layout: readLayout() });

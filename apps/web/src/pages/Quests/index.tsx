@@ -10,6 +10,7 @@ import { motion } from 'framer-motion';
 import { useSearchParams } from 'react-router-dom';
 import type { Quest } from '@noutlife/shared';
 import { Plus, Search, X } from 'lucide-react';
+import { useFreshData } from '@/lib/offline/fresh';
 import { item } from '@/lib/motion';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useToastStore } from '@/hooks/useToast';
@@ -159,6 +160,7 @@ export default function QuestsPage() {
   }, [type, debounced]);
 
   useEffect(() => { void load(); }, [load]);
+  useFreshData(['/quests'], () => void load(true));
 
   // ?new=1 (acciones rápidas, paleta): abre el formulario de nueva misión.
   useEffect(() => {

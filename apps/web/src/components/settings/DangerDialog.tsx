@@ -5,6 +5,7 @@ import api from '@/lib/api';
 import * as authService from '@/services/auth.service';
 import { Button, Field, Input, Modal } from '@/components/ui/lq';
 import { useLocale, useText, type Copy } from '@/lib/i18n';
+import { wipeReads } from '@/lib/offline/engine';
 
 /** Palabra que se escribe para confirmar cada acción irreversible. */
 const DANGER_WORD = { reset: 'REINICIAR', delete: 'ELIMINAR' } as const;
@@ -59,6 +60,7 @@ export function DangerDialog({ mode, onClose }: { mode: 'reset' | 'delete' | nul
     try {
       if (mode === 'delete') await authService.deleteAccount();
       else await api.post('/auth/factory-reset', { confirmation: 'RESET_MY_NOUTLIFE' });
+      await wipeReads();
       clearLocalAccountState();
       window.location.assign(mode === 'delete' ? '/login' : '/');
     } catch (err) {

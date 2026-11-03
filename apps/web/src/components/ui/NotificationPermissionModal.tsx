@@ -4,7 +4,7 @@
 // NoutLife a la pantalla de inicio.
 import { useEffect, useState } from 'react';
 import { Bell } from 'lucide-react';
-import { enablePush, pushMessagesFor, pushSupport } from '../../services/notification.service';
+import { enablePush, notificationPermissionNow, pushMessagesFor, pushSupport } from '../../services/notification.service';
 import { FIRST_CHECK_EVENT, FIRST_CHECK_KEY, updateHabit } from '../../services/habit.service';
 import { Button, Field, IconChip, Input, ResponsiveDialog } from '@/components/ui/lq';
 import { IosInstallSteps } from '@/components/ui/PWAInstallBanner';
@@ -45,10 +45,12 @@ export function markNotificationsAsked() {
   try { localStorage.setItem(PREF_KEY, '1'); } catch { /* sin storage */ }
 }
 
+/** ¿Ya se pidió el permiso en este dispositivo? */
+export const wasAskedAboutNotifications = () => Boolean(read(PREF_KEY));
+
 function canAsk() {
   const support = pushSupport();
-  const permission = 'Notification' in window ? Notification.permission : 'denied';
-  return !read(PREF_KEY) && (support === 'ios-install' || (support === 'ok' && permission === 'default'));
+  return !read(PREF_KEY) && (support === 'ios-install' || (support === 'ok' && notificationPermissionNow() === 'default'));
 }
 
 /** Abierto tras el primer hábito cumplido (también si fue en otra visita y aún no se preguntó). */
