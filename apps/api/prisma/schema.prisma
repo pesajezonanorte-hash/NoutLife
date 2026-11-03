@@ -524,7 +524,10 @@ model Habit {
 
   frequency    Json    @default("{\"type\":\"daily\",\"days\":[]}")
   resetTime    String  @default("04:00")
+  /// Bloque horario del hábito (HH:mm). Sin hora de inicio no hay bloque ni aviso.
   reminderTime String?
+  /// Hora de fin del bloque (HH:mm). Si falta, el bloque dura 30 min.
+  reminderEndTime String?
   isActive     Boolean @default(true)
   // Completing this habit creates attendance in the Coliseo for the same local day.
   createsColiseoAttendance Boolean @default(false) @map("createsGymAttendance")

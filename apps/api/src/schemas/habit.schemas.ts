@@ -31,6 +31,7 @@ export const createHabitSchema = withLegacyKeys(z.object({
   frequency: frequencySchema.optional(),
   resetTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
   reminderTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  reminderEndTime: z.string().regex(/^\d{2}:\d{2}$/).nullable().optional(),
   syncToGoogleCalendar: z.boolean().optional(),
   createsColiseoAttendance: z.boolean().optional(),
 }), LEGACY);
@@ -48,6 +49,7 @@ export const updateHabitSchema = withLegacyKeys(z.object({
   frequency: frequencySchema.optional(),
   resetTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
   reminderTime: z.string().regex(/^\d{2}:\d{2}$/).nullable().optional(),
+  reminderEndTime: z.string().regex(/^\d{2}:\d{2}$/).nullable().optional(),
   syncToGoogleCalendar: z.boolean().optional(),
   createsColiseoAttendance: z.boolean().optional(),
 }), LEGACY);

@@ -17,7 +17,7 @@ import { INTL_LOCALE, useLocale, useText, type Copy } from '@/lib/i18n';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { useToast } from '../../hooks/useToast';
-import { AnimatedValue, Badge, Button, Card, ChipGroup, Confetti, DayDot, EmptyState, ErrorState, Field, IconChip, Input, Modal, ProgressBar, formatClock, type DayStatus, type Tone, PageLoader } from '@/components/ui/lq';
+import { AnimatedValue, Badge, Button, Card, ChipGroup, LeafBurst, DayDot, EmptyState, ErrorState, Field, IconChip, Input, Modal, ProgressBar, formatClock, type DayStatus, type Tone, PageLoader } from '@/components/ui/lq';
 import { keepOnUnlock } from '@/components/ui/lq/Modal';
 import { useLoadingCopy } from '@/lib/loadingCopy';
 import { indicatorStyle, useIndicator } from '@/hooks/useIndicator';
@@ -1116,7 +1116,7 @@ export default function ColiseoPage() {
       <Modal open={!!summary} onClose={() => setSummary(null)} title={t.summaryTitle} hideClose className="items-center text-center">
         {summary && (
           <>
-            <Confetti />
+            <LeafBurst />
             <motion.span className="mx-auto flex" initial={{ opacity: 0, scale: 0.4, y: -30 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ ...slam, delay: 0.1 }}>
               <IconChip icon={Trophy} tone="success" size="lg" className="lq-halo rounded-full" />
             </motion.span>

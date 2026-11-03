@@ -1,17 +1,10 @@
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { springs } from '@/lib/motion/presets';
+import { MIN_BLOCK_PX, layoutTimeline, type TimelineItem } from './timelineLayout';
 
-export interface TimelineItem {
-  id: string;
-  /** Minutos desde las 00:00. */
-  start: number;
-  /** Duración en minutos (se muestra con un mínimo de 56 px). */
-  duration: number;
-  render: ReactNode;
-  className?: string;
-}
+export type { TimelineItem } from './timelineLayout';
 
 export interface TimelineDayProps {
   items: TimelineItem[];
@@ -26,32 +19,6 @@ export interface TimelineDayProps {
   /** Hoja de agenda: medias horas punteadas y margen. */
   ruled?: boolean;
   className?: string;
-}
-
-const MIN_BLOCK = 56;
-
-/** Reparte los bloques solapados en columnas (greedy por inicio). */
-function layout(items: TimelineItem[]) {
-  const sorted = [...items].sort((a, b) => a.start - b.start || b.duration - a.duration);
-  const out: Array<{ item: TimelineItem; col: number; cols: number }> = [];
-  let group: typeof out = [];
-  let groupEnd = -1;
-  const flush = () => {
-    const cols = Math.max(1, ...group.map((g) => g.col + 1));
-    group.forEach((g) => { g.cols = cols; });
-    out.push(...group);
-    group = [];
-  };
-  for (const item of sorted) {
-    if (group.length && item.start >= groupEnd) flush();
-    const taken = new Set(group.filter((g) => g.item.start + Math.max(g.item.duration, 1) > item.start).map((g) => g.col));
-    let col = 0;
-    while (taken.has(col)) col += 1;
-    group.push({ item, col, cols: 1 });
-    groupEnd = Math.max(groupEnd, item.start + Math.max(item.duration, 1));
-  }
-  flush();
-  return out;
 }
 
 /**
@@ -72,8 +39,12 @@ export function TimelineDay({ items, showNow, fromHour = 7, toHour = 20, hourHei
   const { start, end, placed } = useMemo(() => {
     const first = Math.min(fromHour, ...items.map((i) => Math.floor(i.start / 60)));
     const last = Math.max(toHour, ...items.map((i) => Math.ceil((i.start + Math.max(i.duration, 30)) / 60)));
-    return { start: Math.max(0, first), end: Math.min(24, last), placed: layout(items) };
-  }, [items, fromHour, toHour]);
+    return {
+      start: Math.max(0, first),
+      end: Math.min(24, last),
+      placed: layoutTimeline(items, (MIN_BLOCK_PX / hourHeight) * 60),
+    };
+  }, [items, fromHour, toHour, hourHeight]);
 
   const hours = Array.from({ length: end - start + 1 }, (_, i) => start + i);
   const nowMin = now.getHours() * 60 + now.getMinutes();
@@ -126,8 +97,9 @@ export function TimelineDay({ items, showNow, fromHour = 7, toHour = 20, hourHei
           transition={{ duration: ruled ? 0.2 : 0.4, delay: 0.1 + i * 0.06, ease: [0, 0, 0.2, 1] }}
           className={cn('absolute', item.className)}
           style={{
-            top: top(item.start) + 2,
-            minHeight: Math.max(MIN_BLOCK, (item.duration / 60) * hourHeight - 4),
+            // Exactamente su tramo de la rejilla (con 1 px de aire arriba y abajo), salvo que no quepa su contenido.
+            top: top(item.start) + 1,
+            height: Math.max(MIN_BLOCK_PX, (item.duration / 60) * hourHeight - 2),
             left: `calc(${(col / cols) * 100}% + ${col === 0 ? 12 : 4}px)`,
             width: `calc(${100 / cols}% - ${col === 0 ? 12 : 4}px)`,
           }}

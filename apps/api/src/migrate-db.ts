@@ -272,6 +272,11 @@ const CUSTOM_EXERCISES_SQL = [
   ignoreDuplicate(`ALTER TABLE "exercises" ADD CONSTRAINT "exercises_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE`),
 ];
 
+// Idempotent mirror of prisma/migrations/20261107120000_habit_reminder_end_time.
+const HABIT_END_TIME_SQL = [
+  `ALTER TABLE "habits" ADD COLUMN IF NOT EXISTS "reminderEndTime" TEXT;`,
+];
+
 /**
  * One-time data fixes. Each op id is recorded in "_data_ops" and never runs
  * again, so a fix that deletes data cannot repeat on a later deploy.
@@ -356,6 +361,7 @@ async function migrate() {
   for (const sql of SMART_REMINDERS_SQL) await prisma.$executeRawUnsafe(sql);
   // Antes de cualquier consulta a exercises: este cliente de Prisma ya lee "userId".
   for (const sql of CUSTOM_EXERCISES_SQL) await prisma.$executeRawUnsafe(sql);
+  for (const sql of HABIT_END_TIME_SQL) await prisma.$executeRawUnsafe(sql);
   // Idempotent mirror of prisma/migrations/20261025120000_wisdom_source (antes del seed de Sabiduría).
   await prisma.$executeRawUnsafe(`ALTER TABLE "wisdom_cards" ADD COLUMN IF NOT EXISTS "source" TEXT;`);
 

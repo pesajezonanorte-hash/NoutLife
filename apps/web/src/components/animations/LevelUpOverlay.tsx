@@ -10,7 +10,7 @@ import { dialog, scrim, spring } from '@/lib/motion';
 import { getLevelTitle } from '@/lib/gameProgress';
 import { useLocale, useText, type Copy } from '@/lib/i18n';
 import { useUIStore, type StatIncreases } from '@/store/uiStore';
-import { Badge, Button, Confetti, useDialogBehavior, type BadgeVariant } from '@/components/ui/lq';
+import { Badge, Button, LeafBurst, useDialogBehavior, type BadgeVariant } from '@/components/ui/lq';
 
 const es = {
   levelUp: '¡Subiste de nivel!',
@@ -87,7 +87,7 @@ export function LevelUpOverlay() {
             onPointerLeave={() => setHover(false)}
             className="relative flex w-full max-w-[400px] flex-col items-center gap-6 overflow-hidden rounded-3xl bg-background px-6 pb-6 pt-10 text-center text-on-background shadow-lg outline-none md:px-8 md:pb-8"
           >
-            <Confetti pieces={28} position="absolute" />
+            <LeafBurst pieces={28} position="absolute" />
             <motion.span
               aria-hidden
               initial={{ scale: 0.6, opacity: 0 }}

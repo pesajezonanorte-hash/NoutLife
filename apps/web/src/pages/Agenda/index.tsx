@@ -33,7 +33,7 @@ const es = {
     personal: 'Personal', work: 'Trabajo', health: 'Salud', social: 'Social', romantic: 'Romántico', finance: 'Finanzas',
     tarea: 'Tarea', examen: 'Examen', exposicion: 'Exposición', clase: 'Clase', other: 'Otro',
   } as Record<string, string>,
-  reminders: ['Sin recordatorio', '30 minutos antes', '1 hora antes', '1 día antes'] as string[],
+  reminders: ['Sin recordatorio', '10 minutos antes', '30 minutos antes', '1 hora antes', '1 día antes'] as string[],
   views: { day: 'Día', week: 'Semana', month: 'Mes' } as Record<ViewKey, string>,
   allDay: 'Todo el día',
   habitsLink: 'Hábitos',
@@ -115,7 +115,7 @@ const en: typeof es = {
     personal: 'Personal', work: 'Work', health: 'Health', social: 'Social', romantic: 'Romantic', finance: 'Finance',
     tarea: 'Homework', examen: 'Exam', exposicion: 'Presentation', clase: 'Class', other: 'Other',
   } as Record<string, string>,
-  reminders: ['No reminder', '30 minutes before', '1 hour before', '1 day before'] as string[],
+  reminders: ['No reminder', '10 minutes before', '30 minutes before', '1 hour before', '1 day before'] as string[],
   views: { day: 'Day', week: 'Week', month: 'Month' } as Record<ViewKey, string>,
   allDay: 'All day',
   habitsLink: 'Habits',
@@ -211,7 +211,9 @@ const CATEGORY_KEYS: Array<{ key: string; tone: Tone }> = [
   { key: 'other', tone: 'muted' },
 ];
 
-const REMINDER_VALUES: Array<number | null> = [null, 30, 60, 1440];
+/** Minutos antes del inicio. Un evento nuevo avisa 10 min antes salvo que se cambie. */
+const REMINDER_VALUES: Array<number | null> = [null, 10, 30, 60, 1440];
+const DEFAULT_NEW_EVENT_REMINDER = 10;
 
 const catInfo = (key: string) => CATEGORY_KEYS.find((c) => c.key === key.toLowerCase()) ?? CATEGORY_KEYS[CATEGORY_KEYS.length - 1];
 const catLabel = (key: string, t: typeof es) => t.categories[catInfo(key).key] ?? t.categories.other;
@@ -238,6 +240,8 @@ const NO_TONES: Tone[] = [];
 
 const minutesOf = (iso: string) => { const d = new Date(iso); return d.getHours() * 60 + d.getMinutes(); };
 const durationOf = (e: AgendaEvent) => (e.endDate ? Math.max(15, (new Date(e.endDate).getTime() - new Date(e.startDate).getTime()) / 60000) : 60);
+/** Bajo estos minutos (a 64 px por hora, 52 min ≈ 56 px) el bloque no cabe con dos líneas: va en una. */
+const COMPACT_BLOCK_MIN = 52;
 const timeLabel = (e: AgendaEvent, t: typeof es, locale: Locale) => (e.isAllDay ? t.allDay : `${formatTime(e.startDate, locale)}${e.endDate ? ` – ${formatTime(e.endDate, locale)}` : ''}`);
 const hm = (min: number) => `${Math.floor(min / 60)} h${min % 60 ? ` ${String(min % 60).padStart(2, '0')} min` : ''}`;
 
@@ -283,17 +287,51 @@ function EventTitle({ event, className }: { event: AgendaEvent; className?: stri
   );
 }
 
-function EventBlock({ event, index, pending, onEdit, onToggle }: { event: AgendaEvent; index: number; pending?: boolean; onEdit: () => void; onToggle: () => void }) {
+/** Bloque corto (menos de COMPACT_BLOCK_MIN min): una sola línea, con la hora a la derecha. */
+function CompactEventBlock({ event, index, pending, onEdit, onToggle }: { event: AgendaEvent; index: number; pending?: boolean; onEdit: () => void; onToggle: () => void }) {
+  const locale = useLocale();
+  const cat = catInfo(event.category);
+  const at = 0.34 + index * 0.09;
+  const start = formatTime(event.startDate, locale);
+  return (
+    <article
+      aria-label={event.title}
+      style={{ '--hl': `var(--lq-${cat.tone === 'muted' ? 'border-strong' : cat.tone})` } as CSSProperties}
+      className="group relative flex h-full items-center gap-1.5 rounded-[3px_9px_9px_3px] pl-2 pr-1"
+    >
+      <motion.span
+        aria-hidden="true"
+        className={cn('lq-highlight lq-highlight-mark pointer-events-none absolute inset-0 origin-left rounded-[inherit]', event.isCompleted && '!opacity-60')}
+        initial={{ scaleX: 0 }}
+        animate={{ scaleX: 1, transition: { duration: 0.5, ease: [0.3, 0.2, 0.2, 1], delay: at } }}
+      />
+      {event.eventType === 'habit' ? (
+        <Link to="/habits" className="relative min-w-0 flex-1 truncate text-label-md text-primary-text hover:underline">{event.title}</Link>
+      ) : (
+        <>
+          <InkCheckButton name={event.title} checked={event.isCompleted} pending={pending} onToggle={onToggle} className="relative size-7" />
+          <button type="button" onClick={onEdit} aria-label={`${event.title}, ${start}`} className="relative flex min-w-0 flex-1 items-baseline gap-2 text-left">
+            <span className={cn('min-w-0 truncate text-label-md', event.isCompleted ? 'text-on-surface-light line-through' : 'text-on-background')}>{event.title}</span>
+            <span className="shrink-0 font-mono text-body-sm tabular-nums text-on-surface-light">{start}</span>
+          </button>
+        </>
+      )}
+    </article>
+  );
+}
+
+function EventBlock({ event, index, pending, compact, onEdit, onToggle }: { event: AgendaEvent; index: number; pending?: boolean; compact?: boolean; onEdit: () => void; onToggle: () => void }) {
   const t = useText(COPY);
   const locale = useLocale();
   const cat = catInfo(event.category);
   const at = 0.34 + index * 0.09;
+  if (compact) return <CompactEventBlock event={event} index={index} pending={pending} onEdit={onEdit} onToggle={onToggle} />;
   return (
     <article
       aria-label={event.title}
       style={{ '--hl': `var(--lq-${cat.tone === 'muted' ? 'border-strong' : cat.tone})` } as CSSProperties}
       // Presionar inclina un poco la marca, como el papel bajo el lápiz.
-      className="group relative flex h-full items-start gap-3 rounded-[4px_12px_12px_4px] py-2.5 pl-3.5 pr-1 transition-transform duration-[325ms] ease-[var(--lq-ease-snappy)] active:-rotate-[0.45deg] [.reduce-motion_&]:active:transform-none"
+      className="group relative flex h-full items-start gap-3 rounded-[4px_12px_12px_4px] py-1.5 pl-3.5 pr-1 transition-transform duration-[325ms] ease-[var(--lq-ease-snappy)] active:-rotate-[0.45deg] [.reduce-motion_&]:active:transform-none"
     >
       {/* El resaltador se pasa de izquierda a derecha; después se escribe el evento */}
       <motion.span
@@ -304,8 +342,7 @@ function EventBlock({ event, index, pending, onEdit, onToggle }: { event: Agenda
       />
       <Written delay={at + 0.28} className="relative min-w-0 flex-1">
         <EventTitle event={event} />
-        <p className="font-mono text-body-sm tabular-nums text-on-surface-light">{timeLabel(event, t, locale)} · {catLabel(event.category, t)}</p>
-        {event.location && <p className="flex items-center gap-1 text-body-sm text-on-surface-light"><MapPin aria-hidden className="size-3.5" />{event.location}</p>}
+        <p className="truncate font-mono text-body-sm tabular-nums text-on-surface-light">{timeLabel(event, t, locale)} · {catLabel(event.category, t)}{event.location ? ` · ${event.location}` : ''}</p>
       </Written>
       <EventActions event={event} pending={pending} onEdit={onEdit} onToggle={onToggle} />
     </article>
@@ -352,7 +389,7 @@ function EventModal({ initial, defaultDate, onSave, onDelete, onClose }: {
     initial?.description && !initial.description.startsWith('Asignatura:') ? initial.description : (initial?.description?.split('\n\n')[1] ?? ''),
   );
   const [asignatura, setAsignatura] = useState(() => (initial?.description?.startsWith('Asignatura:') ? initial.description.split('\n')[0].replace('Asignatura: ', '') : ''));
-  const [reminder, setReminder] = useState<number | null>(initial?.reminder ?? null);
+  const [reminder, setReminder] = useState<number | null>(initial ? initial.reminder ?? null : DEFAULT_NEW_EVENT_REMINDER);
   const isAcademic = ['tarea', 'examen', 'exposicion', 'clase'].includes(category);
 
   function handleSubmit() {
@@ -564,7 +601,7 @@ export default function AgendaPage() {
   // En orden de la hoja: los bloques se resaltan y se escriben de arriba abajo.
   const items: TimelineItem[] = [...timed].sort((a, b) => minutesOf(a.startDate) - minutesOf(b.startDate)).map((e, i) => ({
     id: e.id, start: minutesOf(e.startDate), duration: durationOf(e),
-    render: <EventBlock event={e} index={i} pending={toggling === e.id} onEdit={() => setEditingEvent(e)} onToggle={() => void handleToggle(e)} />,
+    render: <EventBlock event={e} index={i} compact={durationOf(e) < COMPACT_BLOCK_MIN} pending={toggling === e.id} onEdit={() => setEditingEvent(e)} onToggle={() => void handleToggle(e)} />,
   }));
 
   const monday = new Date(currentDate);

@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma';
 import { addCalendarDays, DEFAULT_TIMEZONE, getCalendarDay, parseCalendarDate } from '../lib/calendar';
+import { habitTimeRangeError } from '../lib/habit-time';
 import { awardXpAndGold, revokeXpEvent } from './xp.service';
 import { checkAchievements } from './achievement.service';
 import { createNotification } from './notification.service';
@@ -26,6 +27,7 @@ export interface CreateHabitInput {
   frequency?: { type: 'daily' | 'days_per_week'; days: number[] };
   resetTime?: string;
   reminderTime?: string;
+  reminderEndTime?: string | null;
   syncToGoogleCalendar?: boolean;
   createsColiseoAttendance?: boolean;
 }
@@ -44,6 +46,7 @@ export interface UpdateHabitInput {
   frequency?: { type: 'daily' | 'days_per_week'; days: number[] };
   resetTime?: string;
   reminderTime?: string | null;
+  reminderEndTime?: string | null;
   syncToGoogleCalendar?: boolean;
   createsColiseoAttendance?: boolean;
 }
@@ -214,6 +217,8 @@ async function createHabitRecoveryChallengeIfEligible(
 }
 
 export async function createHabit(userId: string, input: CreateHabitInput) {
+  if (habitTimeRangeError(input.reminderTime, input.reminderEndTime)) throw new Error('HABIT_END_BEFORE_START');
+
   const habit = await prisma.habit.create({
     data: {
       userId,
@@ -229,6 +234,7 @@ export async function createHabit(userId: string, input: CreateHabitInput) {
       frequency: input.frequency ?? { type: 'daily', days: [] },
       resetTime: input.resetTime ?? '04:00',
       reminderTime: input.reminderTime,
+      reminderEndTime: input.reminderTime ? input.reminderEndTime ?? null : null,
       syncToGoogleCalendar: input.syncToGoogleCalendar ?? false,
       createsColiseoAttendance: input.createsColiseoAttendance ?? false,
     },
@@ -289,18 +295,33 @@ export async function getHabitById(userId: string, habitId: string) {
   const habit = await prisma.habit.findFirst({ where: { id: habitId, userId } });
   if (!habit) return null;
 
-  const logs = await prisma.habitLog.findMany({
-    where: { habitId },
-    orderBy: { date: 'desc' },
-    take: 30,
-  });
+  // Mismo estado de hoy que listHabits: al volver al detalle, un hábito ya
+  // completado hoy no se ofrece de nuevo como pendiente.
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { timezone: true } });
+  const today = getCalendarDay(user?.timezone);
+  const [logs, todayLog, todayStepLogs] = await Promise.all([
+    prisma.habitLog.findMany({ where: { habitId }, orderBy: { date: 'desc' }, take: 30 }),
+    prisma.habitLog.findUnique({ where: { habitId_date: { habitId, date: today } } }),
+    prisma.habitStepLog.findMany({ where: { habitId, date: today }, select: { stepId: true } }),
+  ]);
 
-  return { ...habit, logs };
+  return {
+    ...habit,
+    logs,
+    todayStatus: todayLog?.status ?? null,
+    todayCompleted: todayLog?.completed ?? null,
+    todayStepIds: todayStepLogs.map((l) => l.stepId),
+  };
 }
 
 export async function updateHabit(userId: string, habitId: string, input: UpdateHabitInput) {
   const habit = await prisma.habit.findFirst({ where: { id: habitId, userId } });
   if (!habit) throw new Error('HABIT_NOT_FOUND');
+
+  // Se valida el rango final: el fin nuevo contra el inicio nuevo o el guardado.
+  const startTime = input.reminderTime !== undefined ? input.reminderTime : habit.reminderTime;
+  const endTime = input.reminderEndTime !== undefined ? input.reminderEndTime : habit.reminderEndTime;
+  if (habitTimeRangeError(startTime, endTime)) throw new Error('HABIT_END_BEFORE_START');
 
   const updatedHabit = await prisma.habit.update({
     where: { id: habitId },
@@ -316,6 +337,9 @@ export async function updateHabit(userId: string, habitId: string, input: Update
       ...(input.frequency !== undefined && { frequency: input.frequency }),
       ...(input.resetTime !== undefined && { resetTime: input.resetTime }),
       ...(input.reminderTime !== undefined && { reminderTime: input.reminderTime }),
+      // Sin hora de inicio no hay bloque: quitar el inicio también quita el fin.
+      ...(input.reminderTime === null && { reminderEndTime: null }),
+      ...(input.reminderEndTime !== undefined && input.reminderTime !== null && { reminderEndTime: input.reminderEndTime }),
       ...(input.syncToGoogleCalendar !== undefined && { syncToGoogleCalendar: input.syncToGoogleCalendar }),
       ...(input.createsColiseoAttendance !== undefined && { createsColiseoAttendance: input.createsColiseoAttendance }),
     },

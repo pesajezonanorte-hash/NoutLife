@@ -39,7 +39,8 @@ export interface Habit {
   longestStreak: number;
   frequency: HabitFrequency;
   resetTime: string;
-  reminderTime?: string;
+  reminderTime?: string | null;
+  reminderEndTime?: string | null;
   isActive: boolean;
   syncToGoogleCalendar: boolean;
   googleCalendarEventId?: string | null;
@@ -106,7 +107,9 @@ export interface CreateHabitPayload {
   goldReward?: number;
   frequency?: HabitFrequency;
   resetTime?: string;
-  reminderTime?: string;
+  /** null al editar borra la hora (y con ella la de fin). */
+  reminderTime?: string | null;
+  reminderEndTime?: string | null;
   syncToGoogleCalendar?: boolean;
   createsColiseoAttendance?: boolean;
 }

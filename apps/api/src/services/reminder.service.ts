@@ -21,20 +21,25 @@ function localTimeLabel(timezone: string | null | undefined, date: Date) {
   }
 }
 
+/** El aviso de un bloque de hábito sale este número de minutos antes de empezar. */
+export const HABIT_BLOCK_LEAD_MIN = 10;
+
 async function habitReminders(now: Date) {
   const habits = await prisma.habit.findMany({
     where: { isActive: true, reminderTime: { not: null } },
     select: {
-      id: true, title: true, userId: true, frequency: true, reminderTime: true,
+      id: true, title: true, userId: true, frequency: true, reminderTime: true, reminderEndTime: true,
       user: { select: { timezone: true, notificationPreferences: { select: { habitReminders: true } } } },
     },
   });
   let sent = 0;
   for (const habit of habits) {
-    const target = parseHHMM(habit.reminderTime);
-    if (target === null) continue;
+    const start = parseHHMM(habit.reminderTime);
+    if (start === null) continue;
     if (habit.user.notificationPreferences && !habit.user.notificationPreferences.habitReminders) continue;
     const tz = habit.user.timezone;
+    // Contextual: avisa antes de que empiece el bloque, no a la hora exacta.
+    const target = (start - HABIT_BLOCK_LEAD_MIN + 1440) % 1440;
     if (!inWindow(localMinutes(tz, now), target)) continue;
     const day = getCalendarDay(tz, now);
     if (!isHabitScheduledForDay(day, habit.frequency)) continue;
@@ -42,13 +47,14 @@ async function habitReminders(now: Date) {
     if (done) continue;
     const dedupeKey = `habit-reminder-${habit.id}-${day.toISOString().slice(0, 10)}`;
     if (await wasNotified(habit.userId, dedupeKey)) continue;
+    const range = habit.reminderEndTime ? `${habit.reminderTime} a ${habit.reminderEndTime}` : habit.reminderTime;
     await createNotification(habit.userId, {
       type: 'reminder',
       userScheduled: true,
       category: 'HABITS',
       dedupeKey,
-      title: `Hora de: ${habit.title}`,
-      body: 'Márcalo cuando lo hagas y tu racha sigue viva.',
+      title: `En ${HABIT_BLOCK_LEAD_MIN} min: ${habit.title}`,
+      body: `Tu bloque es de ${range}. Márcalo cuando lo hagas y tu racha sigue viva.`,
       link: '/habits',
       quick: 'habit_done',
       quickRef: habit.id,
