@@ -7,11 +7,11 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Check, ChevronDown, ChevronLeft, ChevronRight, Dumbbell, Minus, Music, Pause, Play, Plus, Trophy, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Dumbbell, Minus, Music, Pause, Play, Plus, Trash2, Trophy, X } from 'lucide-react';
 import type { Exercise, SetType } from '@noutlife/shared';
 import { cn } from '@/lib/utils';
 import { expo, slam } from '@/lib/motion';
-import { carryForward, oneRepMax, platesPerSide, previousBest, restFor, setTonnage, setTypeOf, setTypesFor, type PreviousBest } from '@/lib/coliseo';
+import { carryForward, oneRepMax, platesPerSide, previousBest, restFor, setTonnage, setTypeOf, setTypesFor, shiftRecords, type PreviousBest } from '@/lib/coliseo';
 import { INTL_LOCALE, useLocale, useText, type Copy } from '@/lib/i18n';
 import { useToastStore } from '@/hooks/useToast';
 import { Badge, Button, ChipGroup, Field, IconChip, Input, Modal, ResponsiveDialog, SegmentedControl, Select, chipClasses, type SegmentOption } from '@/components/ui/lq';
@@ -157,6 +157,9 @@ const es = {
   rpeRecent: 'RPE de la serie recién hecha',
   rirRecent: 'Repeticiones en reserva de la serie recién hecha',
   setDeleted: (n: number): string => `Serie ${n} eliminada`,
+  removeEx: 'Quitar ejercicio',
+  removeExAria: (name: string): string => `Quitar el ejercicio ${name} de esta sesión`,
+  exRemoved: (name: string): string => `${name} quitado`,
   undo: 'Deshacer',
   unmark: (n: number): string => `Desmarcar serie ${n}`,
   complete: (n: number): string => `Completar serie ${n}`,
@@ -264,6 +267,9 @@ const en: typeof es = {
   rpeRecent: 'RPE of the set you just did',
   rirRecent: 'Reps in reserve for the set you just did',
   setDeleted: (n: number): string => `Set ${n} deleted`,
+  removeEx: 'Remove exercise',
+  removeExAria: (name: string): string => `Remove ${name} from this session`,
+  exRemoved: (name: string): string => `${name} removed`,
   undo: 'Undo',
   unmark: (n: number): string => `Unmark set ${n}`,
   complete: (n: number): string => `Complete set ${n}`,
@@ -454,6 +460,11 @@ interface Rest { endAt: number; total: number; reason: string; exIdx: number; se
 /** Bloqueo de pantalla (Screen Wake Lock); el tipo de la librería DOM no siempre lo trae. */
 interface ScreenLock { release(): Promise<void>; addEventListener?: (type: 'release', fn: () => void) => void }
 
+type UndoEntry =
+  | { kind: 'set'; exIdx: number; index: number; set: ActiveSet }
+  | { kind: 'exercise'; index: number; exercise: ActiveExercise; current: number; records: string[] };
+
+
 export function LivePlayer({ workout, update, playlistUrl, onMinimize, onFinish, onDiscard }: {
   workout: ActiveWorkout;
   update: UpdateWorkout;
@@ -486,8 +497,8 @@ export function LivePlayer({ workout, update, playlistUrl, onMinimize, onFinish,
   const asked = useRef(new Set<string>());
   /** Ejercicios cuyo historial no se pudo leer: sin banner en vez de «Buscando…» para siempre. */
   const [noHistory, setNoHistory] = useState<Set<string>>(() => new Set());
-  /** Serie borrada que se puede deshacer (5 s). */
-  const [undo, setUndo] = useState<{ exIdx: number; index: number; set: ActiveSet } | null>(null);
+  /** Lo borrado por error que se puede deshacer (5 s): una serie o un ejercicio entero. */
+  const [undo, setUndo] = useState<UndoEntry | null>(null);
 
   useEffect(() => {
     lockScroll();
@@ -700,11 +711,49 @@ export function LivePlayer({ workout, update, playlistUrl, onMinimize, onFinish,
     // Si el descanso era de esta serie, ya no tiene sentido: se cancela en silencio.
     if (rest && rest.exIdx === exIdx && rest.setId === removed.id) setRest(null);
     setPicked(j);
-    setUndo({ exIdx, index: j, set: removed });
+    setUndo({ kind: 'set', exIdx, index: j, set: removed });
+  }
+
+  /**
+   * Quita el ejercicio que se está viendo (p. ej. «curl martillo» metido en medio de
+   * «press banca»): la sesión y sus series hechas se conservan; el resto del entreno sigue igual.
+   * Se puede deshacer unos segundos (la misma barra que las series).
+   */
+  function removeExercise() {
+    if (!ex) return;
+    const removed = ex;
+    const index = exIdx;
+    // El siguiente ejercicio ocupa su lugar; si era el último, se queda el anterior.
+    const nextCurrent = Math.max(0, Math.min(index, n - 2));
+    update((w) => ({
+      ...w,
+      current: nextCurrent,
+      exercises: w.exercises.filter((_, i) => i !== index),
+    }));
+    // Sus marcas de récord se guardan para que deshacer las devuelva junto con el ejercicio.
+    const records = [...prs].filter((key) => key.startsWith(`${index}-`));
+    setPrs((p) => shiftRecords(p, index, true));
+    if (rest && rest.exIdx === index) setRest(null);
+    else if (rest && rest.exIdx > index) setRest({ ...rest, exIdx: rest.exIdx - 1 });
+    setPicked(null);
+    setUndo({ kind: 'exercise', index, exercise: removed, current: index, records });
   }
 
   function undoRemove() {
     if (!undo) return;
+    if (undo.kind === 'exercise') {
+      const { index, exercise, current, records } = undo;
+      update((w) => ({
+        ...w,
+        current,
+        exercises: [...w.exercises.slice(0, index), exercise, ...w.exercises.slice(index)],
+      }));
+      setPrs((p) => new Set([...shiftRecords(p, index, false), ...records]));
+      if (rest && rest.exIdx >= index) setRest({ ...rest, exIdx: rest.exIdx + 1 });
+      setPicked(null);
+      setUndo(null);
+      return;
+    }
     const { exIdx: i, index, set: s } = undo;
     update((w) => ({
       ...w,
@@ -805,16 +854,21 @@ export function LivePlayer({ workout, update, playlistUrl, onMinimize, onFinish,
               </ol>
             )}
 
-            <div className="flex items-center gap-1">
-              <Button variant="icon" aria-label={t.prevEx} disabled={exIdx === 0} onClick={() => jumpTo(exIdx - 1)}>
-                <ChevronLeft aria-hidden className="size-6" />
-              </Button>
-              <div className="min-w-0 flex-1 text-center">
-                <h2 className="text-heading-lg">{exerciseName(ex.name, locale)}</h2>
-                <p className="text-body-sm text-on-surface-light">{exerciseTags(ex.muscleGroup, ex.equipment, locale)}{n > 1 ? ` · ${t.ofN(exIdx + 1, n)}` : ''}</p>
+            <div className="flex flex-col items-center gap-1">
+              <div className="flex w-full items-center gap-1">
+                <Button variant="icon" aria-label={t.prevEx} disabled={exIdx === 0} onClick={() => jumpTo(exIdx - 1)}>
+                  <ChevronLeft aria-hidden className="size-6" />
+                </Button>
+                <div className="min-w-0 flex-1 text-center">
+                  <h2 className="text-heading-lg">{exerciseName(ex.name, locale)}</h2>
+                  <p className="text-body-sm text-on-surface-light">{exerciseTags(ex.muscleGroup, ex.equipment, locale)}{n > 1 ? ` · ${t.ofN(exIdx + 1, n)}` : ''}</p>
+                </div>
+                <Button variant="icon" aria-label={t.nextEx} disabled={exIdx >= n - 1} onClick={() => jumpTo(exIdx + 1)}>
+                  <ChevronRight aria-hidden className="size-6" />
+                </Button>
               </div>
-              <Button variant="icon" aria-label={t.nextEx} disabled={exIdx >= n - 1} onClick={() => jumpTo(exIdx + 1)}>
-                <ChevronRight aria-hidden className="size-6" />
+              <Button variant="ghost" size="sm" className="text-error-text" aria-label={t.removeExAria(exerciseName(ex.name, locale))} onClick={removeExercise}>
+                <Trash2 aria-hidden className="size-4" />{t.removeEx}
               </Button>
             </div>
 
@@ -993,7 +1047,7 @@ export function LivePlayer({ workout, update, playlistUrl, onMinimize, onFinish,
             {undo && (
               <motion.div key="undo" className="overflow-hidden" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.24, ease: expo }}>
                 <div role="status" className="mb-3 flex items-center justify-between gap-3 rounded-2xl bg-surface-variant px-4 py-2 text-body-sm">
-                  <span>{t.setDeleted(undo.index + 1)}</span>
+                  <span>{undo.kind === 'exercise' ? t.exRemoved(exerciseName(undo.exercise.name, locale)) : t.setDeleted(undo.index + 1)}</span>
                   <Button variant="ghost" size="sm" onClick={undoRemove}>{t.undo}</Button>
                 </div>
               </motion.div>

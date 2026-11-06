@@ -6,7 +6,7 @@ import test from 'node:test';
 import { Mesh, MeshBasicMaterial, Raycaster, Vector3 } from 'three';
 import type { SetType, Workout } from '@noutlife/shared';
 import {
-  MUSCLE_IDS, carryForward, muscleStates, oneRepMax, platesPerSide, pplBalance, previousBest, restFor, routineFromSession, tonnage,
+  MUSCLE_IDS, carryForward, muscleStates, oneRepMax, platesPerSide, pplBalance, previousBest, restFor, routineFromSession, tonnage, shiftRecords,
 } from '../../src/lib/coliseo';
 import { buildFigure } from '../../src/components/coliseo/muscle3d/figure';
 import { heatColor, type HeatTokens } from '../../src/components/coliseo/muscle3d/heat';
@@ -225,4 +225,12 @@ test('una sesión se guarda como rutina con las series hechas: peso, repeticione
   assert.equal(routine[0].sets, 3);
   assert.equal(routine[0].weight, 80, 'el peso de trabajo, no el del calentamiento');
   assert.deepEqual(routine[1].targetSets, [{ weight: 0, reps: 10, type: 'normal' }], 'sin series hechas, se guarda lo planeado');
+});
+
+test('quitar un ejercicio corre las marcas de récord de los que van detrás; deshacer las vuelve a correr', () => {
+  const records = new Set(['0-s1', '1-s2', '2-s1']);
+  const removed = shiftRecords(records, 1, true);
+  assert.deepEqual([...removed].sort(), ['0-s1', '1-s1'], 'el ejercicio 1 se va con sus marcas; el 2 pasa al 1');
+  const restored = shiftRecords(removed, 1, false);
+  assert.deepEqual([...restored].sort(), ['0-s1', '2-s1'], 'al deshacer, los que iban detrás vuelven a su sitio');
 });

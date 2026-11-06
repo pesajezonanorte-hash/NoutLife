@@ -2,7 +2,7 @@
 // Topbar, a la derecha), pantalla completa en móvil. Modal: foco atrapado,
 // Escape cierra, el foco vuelve al disparador. Historial (8 últimos) en
 // localStorage como antes; la conversación es un role="log".
-import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from 'react';
+import { Fragment, useCallback, useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, useReducedMotionConfig, type Variants } from 'framer-motion';
 import { BarChart2, Dumbbell, Send, Sparkles, Sword, Trash2, Wallet, X, type LucideIcon } from 'lucide-react';
@@ -11,8 +11,11 @@ import { usePlanStore } from '@/store/planStore';
 import { cn } from '@/lib/utils';
 import { ease, scrim } from '@/lib/motion';
 import {
-  sageAnalyzeFinances, sageAnalyzeHabits, sageChat, sagePlanWorkout, sageRateInfo, sageSuggestQuests,
+  applySageAction, sageAnalyzeFinances, sageAnalyzeHabits, sageChat, sagePlanWorkout, sageRateInfo, sageSuggestQuests,
+  type SageFinanceAction,
 } from '@/services/sage.service';
+import { useToastStore } from '@/hooks/useToast';
+import { INTL_LOCALE, useLocale } from '@/lib/i18n';
 import { useUIStore } from '@/store/uiStore';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { Button, IconChip, Input, useDialogBehavior } from '@/components/ui/lq';
@@ -44,6 +47,19 @@ const es = {
   typePlaceholder: 'Escribe tu pregunta…',
   send: 'Enviar',
   disclaimer: 'El Sabio puede equivocarse. Verifica las decisiones importantes.',
+  proposalLabel: 'Propuesta para tus metas',
+  goalFallback: 'una de tus metas',
+  proposeCreate: (title: string, amount: string, date?: string) => `Crear la meta «${title}» por ${amount}${date ? `, para el ${date}` : ''}.`,
+  proposeUpdate: (name: string, changes: string) => `Cambiar la meta «${name}»: ${changes}.`,
+  proposeContribute: (name: string, amount: string) => `Aportar ${amount} a «${name}».`,
+  changeAmount: (value: string) => `monto a ${value}`,
+  changeDate: (value: string) => `fecha a ${value}`,
+  clearDate: 'quitar la fecha',
+  changeTitle: (value: string) => `título a «${value}»`,
+  applyBtn: 'Aplicar',
+  dismissBtn: 'No, gracias',
+  actionDone: 'Cambio aplicado a tus metas.',
+  actionFail: 'No se pudo aplicar el cambio. Revisa la meta e inténtalo otra vez.',
 };
 
 const en: typeof es = {
@@ -72,6 +88,19 @@ const en: typeof es = {
   typePlaceholder: 'Type your question…',
   send: 'Send',
   disclaimer: 'The Sage can make mistakes. Check important decisions.',
+  proposalLabel: 'Proposal for your goals',
+  goalFallback: 'one of your goals',
+  proposeCreate: (title: string, amount: string, date?: string) => `Create the goal “${title}” for ${amount}${date ? `, by ${date}` : ''}.`,
+  proposeUpdate: (name: string, changes: string) => `Change the goal “${name}”: ${changes}.`,
+  proposeContribute: (name: string, amount: string) => `Add ${amount} to “${name}”.`,
+  changeAmount: (value: string) => `amount to ${value}`,
+  changeDate: (value: string) => `date to ${value}`,
+  clearDate: 'remove the date',
+  changeTitle: (value: string) => `title to “${value}”`,
+  applyBtn: 'Apply',
+  dismissBtn: 'No, thanks',
+  actionDone: 'Change applied to your goals.',
+  actionFail: "The change couldn't be applied. Check the goal and try again.",
 };
 
 const COPY: Copy<typeof es> = { es, en };
@@ -79,6 +108,10 @@ const COPY: Copy<typeof es> = { es, en };
 interface Message {
   from: 'user' | 'sage';
   text: string;
+  /** Propuesta de cambio en metas (solo en respuestas del Sabio). */
+  action?: SageFinanceAction;
+  goalTitle?: string | null;
+  actionState?: 'idle' | 'busy' | 'done' | 'dismissed';
 }
 
 type Action = 'quests' | 'habits' | 'finances' | 'coliseo';
@@ -142,6 +175,50 @@ function Typewriter({ text }: { text: string }) {
   );
 }
 
+/** Propuesta del Sabio para una meta: no cambia nada hasta que la persona la aplica. */
+function GoalProposal({ action, goalTitle, state, onApply, onDismiss }: {
+  action: SageFinanceAction;
+  goalTitle?: string | null;
+  state?: Message['actionState'];
+  onApply: () => void;
+  onDismiss: () => void;
+}) {
+  const t = useText(COPY);
+  const locale = useLocale();
+  if (state === 'dismissed') return null;
+
+  const money = (n: number) => new Intl.NumberFormat(INTL_LOCALE[locale], { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
+  const name = goalTitle ?? t.goalFallback;
+  let description: string;
+  if (action.action === 'create_goal') {
+    description = t.proposeCreate(action.title, money(action.targetAmount), action.deadline);
+  } else if (action.action === 'contribute_goal') {
+    description = t.proposeContribute(name, money(action.amount));
+  } else {
+    const changes = [
+      action.targetAmount !== undefined ? t.changeAmount(money(action.targetAmount)) : null,
+      action.deadline !== undefined ? (action.deadline ? t.changeDate(action.deadline) : t.clearDate) : null,
+      action.title !== undefined ? t.changeTitle(action.title) : null,
+    ].filter(Boolean).join(', ');
+    description = t.proposeUpdate(name, changes);
+  }
+
+  return (
+    <div role="group" aria-label={t.proposalLabel} className="flex max-w-[85%] flex-col gap-3 self-start rounded-2xl border border-primary/30 bg-primary/[var(--lq-soft-alpha)] p-4">
+      <p className="text-label-md text-primary-text">{t.proposalLabel}</p>
+      <p className="text-body-md text-on-background">{description}</p>
+      {state === 'done' ? (
+        <p role="status" className="text-body-sm text-success-text">{t.actionDone}</p>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" loading={state === 'busy'} disabled={state === 'busy'} onClick={onApply}>{t.applyBtn}</Button>
+          <Button size="sm" variant="ghost" disabled={state === 'busy'} onClick={onDismiss}>{t.dismissBtn}</Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function SagePanel({ onClose }: { onClose: () => void }) {
   const titleId = useId();
   const t = useText(COPY);
@@ -182,6 +259,42 @@ export function SagePanel({ onClose }: { onClose: () => void }) {
   // En móvil no se enfoca el campo al abrir (abriría el teclado encima).
   const isDesktop = useMediaQuery('(min-width: 768px)');
 
+  /** Pregunta al chat: además del texto, la respuesta puede traer una propuesta de cambio en metas. */
+  async function askChat(userText: string) {
+    setMessages((prev) => [...prev, { from: 'user', text: userText }]);
+    setLoading(true);
+    let reply = t.fallback;
+    let proposal: Pick<Message, 'action' | 'goalTitle' | 'actionState'> = {};
+    try {
+      const res = await sageChat(userText);
+      reply = clean(res.reply, t.fallback);
+      if (res.action) proposal = { action: res.action, goalTitle: res.goalTitle ?? null, actionState: 'idle' };
+    } catch (err) { reply = extractApiError(err) ?? t.fallback; }
+    setMessages((prev) => {
+      setTyping(prev.length);
+      return [...prev, { from: 'sage', text: reply, ...proposal }];
+    });
+    setLoading(false);
+    void refreshRate(); // cada respuesta consume cupo: refresca el contador
+  }
+
+  function setProposalState(index: number, state: NonNullable<Message['actionState']>) {
+    setMessages((prev) => prev.map((m, i) => (i === index ? { ...m, actionState: state } : m)));
+  }
+
+  /** Confirmación explícita: el servidor vuelve a validar la propuesta antes de tocar la meta. */
+  async function applyProposal(index: number, action: SageFinanceAction) {
+    setProposalState(index, 'busy');
+    try {
+      await applySageAction(action);
+      setProposalState(index, 'done');
+      useToastStore.getState().success(t.actionDone);
+    } catch (err) {
+      setProposalState(index, 'idle');
+      useToastStore.getState().error(extractApiError(err) ?? t.actionFail);
+    }
+  }
+
   async function ask(userText: string, request: () => Promise<string>) {
     setMessages((prev) => [...prev, { from: 'user', text: userText }]);
     setLoading(true);
@@ -201,7 +314,7 @@ export function SagePanel({ onClose }: { onClose: () => void }) {
     sentPending.current = true; // StrictMode monta dos veces
     clearPending();
     if (lite) return; // Lite: va al diálogo de Pro, no al chat
-    void ask(pending, async () => (await sageChat(pending)).reply);
+    void askChat(pending);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -217,7 +330,7 @@ export function SagePanel({ onClose }: { onClose: () => void }) {
     const text = input.trim();
     if (!text || loading || outOfCalls) return;
     setInput('');
-    void ask(text, async () => (await sageChat(text)).reply);
+    void askChat(text);
   }
 
   function runAction(a: (typeof ACTIONS)[number]) {
@@ -308,18 +421,26 @@ export function SagePanel({ onClose }: { onClose: () => void }) {
           ) : (
             <div role="log" aria-label={t.log} className="flex flex-col gap-3">
               {messages.map((m, i) => (
-                <div
-                  key={i}
-                  className={cn(
-                    'max-w-[85%] whitespace-pre-line rounded-2xl px-4 py-3 text-body-md',
-                    m.from === 'user'
-                      ? 'self-end rounded-br-md bg-primary-strong text-on-primary'
-                      : 'self-start rounded-bl-md border border-border bg-surface text-on-background',
+                <Fragment key={i}>
+                  <div
+                    className={cn(
+                      'max-w-[85%] whitespace-pre-line rounded-2xl px-4 py-3 text-body-md',
+                      m.from === 'user'
+                        ? 'self-end rounded-br-md bg-primary-strong text-on-primary'
+                        : 'self-start rounded-bl-md border border-border bg-surface text-on-background',
+                    )}
+                  >
+                    <span className="sr-only">{m.from === 'user' ? t.youPrefix : t.sagePrefix}</span>
+                    {m.from === 'sage' && i === typing ? <Typewriter text={m.text} /> : m.text}
+                  </div>
+                  {m.from === 'sage' && m.action && (
+                    <GoalProposal
+                      action={m.action} goalTitle={m.goalTitle} state={m.actionState}
+                      onApply={() => void applyProposal(i, m.action!)}
+                      onDismiss={() => setProposalState(i, 'dismissed')}
+                    />
                   )}
-                >
-                  <span className="sr-only">{m.from === 'user' ? t.youPrefix : t.sagePrefix}</span>
-                  {m.from === 'sage' && i === typing ? <Typewriter text={m.text} /> : m.text}
-                </div>
+                </Fragment>
               ))}
               {loading && (
                 <div className="flex items-center gap-2 self-start rounded-2xl rounded-bl-md border border-border bg-surface px-4 py-3">

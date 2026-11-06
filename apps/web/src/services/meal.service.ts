@@ -78,3 +78,17 @@ export async function scanMealPhoto(body: { image: string; mimeType: 'image/jpeg
   const { data } = await api.post<ParsedMeal>('/nutrition/ai-photo', { ...body, hint: body.hint?.slice(0, 200) || undefined });
   return data;
 }
+
+/** Agua por foto: el servidor estima los ml y ya los registró en el día (`meal` es ese registro). */
+export interface WaterPhotoResult {
+  recognized: boolean;
+  waterMl: number;
+  containerMl: number | null;
+  reason?: 'no_provider' | 'ai_error' | 'no_water';
+  meal: Meal | null;
+}
+
+export async function scanWaterPhoto(body: { image: string; mimeType: 'image/jpeg'; date?: string; lang?: 'es' | 'en' }): Promise<WaterPhotoResult> {
+  const { data } = await api.post<WaterPhotoResult>('/nutrition/water-photo', body);
+  return data;
+}

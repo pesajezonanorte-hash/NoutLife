@@ -41,6 +41,23 @@ type SetLike = Pick<WorkoutSet, 'weight' | 'reps' | 'type'> & { completed?: bool
 /** Serie efectiva: completada, con repeticiones y que no es de calentamiento (las antiguas, sin tipo, cuentan). */
 export const isEffective = (s: SetLike) => s.completed !== false && s.type !== 'warmup' && (s.reps ?? 1) > 0;
 
+/**
+ * Las marcas de récord de la sesión se guardan por posición del ejercicio («3-s2»). Al quitar
+ * un ejercicio (`removing`) se descartan las suyas y se corren una posición las de detrás;
+ * al devolverlo (deshacer) se corren de nuevo para dejarlas donde estaban.
+ */
+export function shiftRecords(records: Set<string>, at: number, removing: boolean): Set<string> {
+  const next = new Set<string>();
+  for (const key of records) {
+    const cut = key.indexOf('-');
+    const exI = Number(key.slice(0, cut));
+    if (removing && exI === at) continue;
+    const moved = removing ? (exI > at ? exI - 1 : exI) : (exI >= at ? exI + 1 : exI);
+    next.add(`${moved}${key.slice(cut)}`);
+  }
+  return next;
+}
+
 /** Tonelaje: kilos × repeticiones de las series completadas (el calentamiento también es peso levantado). */
 export const setTonnage = (s: SetLike) => (s.completed !== false ? (s.weight ?? 0) * (s.reps ?? 0) : 0);
 export const workoutTonnage = (w: Pick<Workout, 'exercises'>) =>

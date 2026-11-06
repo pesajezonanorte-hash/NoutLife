@@ -9,13 +9,14 @@
 import { prisma } from '../lib/prisma';
 import { addCalendarDays, getCalendarDay, DEFAULT_TIMEZONE } from '../lib/calendar';
 import { isHabitScheduledForDay } from './habit.service';
+import { getFinancialProjection } from './finance2.service';
 
 /** ≈3,5 caracteres por token en español: 2.800 caracteres ≈ 800 tokens. */
 export const CONTEXT_BUDGET_CHARS = 2800;
 
 export type SectionKey =
   | 'profile' | 'today' | 'links' | 'habits' | 'quests' | 'coliseo' | 'nutrition' | 'sleep'
-  | 'recreation' | 'finances' | 'mind' | 'focus' | 'obstacles' | 'mirror' | 'mood' | 'relationships';
+  | 'recreation' | 'finances' | 'goals' | 'mind' | 'focus' | 'obstacles' | 'mirror' | 'mood' | 'relationships';
 
 export interface LifeSection {
   key: SectionKey;
@@ -170,6 +171,15 @@ export async function buildLifeSnapshot(userId: string, focus?: SectionKey, now 
     }),
   ]);
 
+  // Metas financieras activas y la proyección de los próximos 3 meses (ingresos y gastos fijos).
+  const [financeGoals, forecast] = await Promise.all([
+    prisma.financialGoal.findMany({
+      where: { userId, isCompleted: false }, take: 4, orderBy: [{ deadline: 'asc' }, { createdAt: 'asc' }],
+      select: { id: true, title: true, targetAmount: true, currentAmount: true, deadline: true },
+    }),
+    getFinancialProjection(userId, 3).catch(() => null),
+  ]);
+
   const sections: LifeSection[] = [];
   const add = (key: SectionKey, title: string, priority: number, lines: Array<string | null | false | undefined>) => {
     const kept = lines.filter((line): line is string => Boolean(line));
@@ -303,6 +313,21 @@ export async function buildLifeSnapshot(userId: string, focus?: SectionKey, now 
     `Ingresos ${money(income)}, gastos ${money(expenses)}, balance ${money(income - expenses)}.`,
     topSpend.length ? `Más gasto: ${topSpend.map(([category, amount]) => `${category.toLowerCase()} ${money(amount)}`).join(', ')}.` : null,
   ] : ['Sin movimientos este mes.']);
+
+  // ─── Metas financieras y proyección ──────────────────────────────────────
+  // El id va en cada meta: sin él el Sabio no puede proponer cambiarla (ver lib/sage-actions).
+  const monthsLeft = (deadline: Date) => Math.max(1, Math.ceil((deadline.getTime() - now.getTime()) / (30 * DAY_MS)));
+  add('goals', 'METAS Y PROYECCIÓN (COP)', 78, [
+    ...financeGoals.map((goal) => {
+      const target = Number(goal.targetAmount);
+      const left = Math.max(0, target - Number(goal.currentAmount));
+      const pace = goal.deadline ? `, vence ${goal.deadline.toISOString().slice(0, 10)} (${money(left / monthsLeft(goal.deadline))}/mes)` : `, faltan ${money(left)}`;
+      return `${clip(goal.title, 28)} (id ${goal.id}): ${pct(Number(goal.currentAmount), target)}% de ${money(target)}${pace}`;
+    }),
+    forecast && (forecast.monthlyIncome > 0 || forecast.monthlyRecurringExpenses > 0)
+      ? `Proyección 3 meses: saldo ${money(forecast.projection.at(-1)?.balance ?? 0)}; ingresos fijos ${money(forecast.monthlyIncome)}/mes, gastos ${money(forecast.monthlyRecurringExpenses + forecast.avgVariableExpenses)}/mes.`
+      : null,
+  ]);
 
   // ─── Mente (aprendizaje y diario) ────────────────────────────────────────
   const moods = journal.map((entry) => entry.mood).filter((mood): mood is number => mood != null);

@@ -308,6 +308,21 @@ export async function markReadByKeys(userId: string, keys: string[]) {
   return r.count;
 }
 
+/**
+ * Da por leídos los avisos automáticos del día cuyo pedido ya está hecho (agua, comida,
+ * hábitos). No los borra: quedan en el historial y el servidor no los vuelve a enviar
+ * (su clave ya existe), así que un aviso viejo nunca muestra un estado que ya no es cierto.
+ */
+export async function settleAutomaticReminders(userId: string, prefixes: readonly string[]): Promise<number> {
+  if (!prefixes.length) return 0;
+  const r = await prisma.notification.updateMany({
+    where: { userId, isRead: false, OR: prefixes.map((p) => ({ dedupeKey: { startsWith: p } })) },
+    data: { isRead: true },
+  }).catch(() => ({ count: 0 }));
+  if (r.count) void bump([userId]);
+  return r.count;
+}
+
 export async function markAllRead(userId: string) {
   return prisma.notification.updateMany({
     where: { userId, isRead: false },

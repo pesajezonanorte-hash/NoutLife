@@ -13,17 +13,30 @@ import {
   getSageRateInfo,
   localizeSageReply,
 } from '../services/sage.service';
+import { applySageFinanceAction, parseSageFinanceAction } from '../services/sage-actions.service';
 
 export async function chat(req: AuthRequest, res: Response): Promise<void> {
   try {
     const { message } = req.body as { message?: string };
     if (!message?.trim()) { res.status(400).json({ error: 'message requerido' }); return; }
     const lang = localeOf(req);
-    const reply = await sageChat(req.userId!, message.trim(), lang);
-    res.json({ reply: localizeSageReply(reply, lang) });
+    const { reply, action, goalTitle } = await sageChat(req.userId!, message.trim(), lang);
+    res.json({ reply: localizeSageReply(reply, lang), action, goalTitle });
   } catch (error) {
     console.error('[Sage controller] chat error:', error);
     res.status(500).json({ error: 'sage_error', message: publicErrorMessage(error) });
+  }
+}
+
+/** Confirmación de una propuesta del Sabio: se vuelve a validar aquí y se aplica con los servicios de Finanzas. */
+export async function applyAction(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const parsed = parseSageFinanceAction(req.body?.action);
+    if (!parsed.ok) { res.status(400).json({ message: parsed.message }); return; }
+    const goal = await applySageFinanceAction(req.userId!, parsed.action);
+    res.json({ goal });
+  } catch (error) {
+    res.status(400).json({ message: publicErrorMessage(error) });
   }
 }
 
