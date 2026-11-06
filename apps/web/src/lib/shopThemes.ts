@@ -22,6 +22,8 @@ export const SKINS: Record<string, Skin> = {
   papyrus: { scheme: 'light', font: 'EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400', palette: { background: '#e9dcbc', surface: '#f4ead0', accent: '#7a2e1c', soft: '#a8781e', text: '#2b1d0e' } },
   mono: { scheme: 'dark', font: 'Inter:wght@400;500;600;700', palette: { background: '#000000', surface: '#0a0a0a', accent: '#fafafa', soft: '#646464', text: '#fafafa' } },
   cyber: { scheme: 'dark', font: 'Chakra+Petch:wght@400;500;600;700', palette: { background: '#0d0d0a', surface: '#16160f', accent: '#fcee0a', soft: '#ff003c', text: '#fffde0' } },
+  // Exclusivo de los enlaces de recompensa (/claim): la Tienda no lo vende. Usa Nout Sans, la letra de la app.
+  calma: { scheme: 'dark', palette: { background: '#0c0e11', surface: '#13161a', accent: '#a3c9c1', soft: '#d6c4a0', text: '#e9eeec' } },
 };
 
 /** Paletas para las vistas previas (Tienda, Ajustes). */

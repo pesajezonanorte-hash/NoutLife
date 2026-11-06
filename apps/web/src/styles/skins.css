@@ -230,6 +230,46 @@ html[data-theme="cyber"] {
 }
 html[data-theme="cyber"] :focus-visible { outline-color: rgb(0 240 255); outline-offset: 3px; }
 
+/* ── Calma (exclusivo de recompensa): grafito, verde niebla, luz suave ─────
+   Sin fuente propia (Nout Sans). Contraste alto en texto y bajo en todo lo demás:
+   bordes casi invisibles, sombras difusas y un solo brillo tenue arriba. */
+html[data-theme="calma"], .lq-skin-calma {
+  --lq-jade-50: 238 246 244; --lq-jade-100: 214 233 229; --lq-jade-200: 188 217 211;
+  --lq-jade-300: 163 201 193; --lq-jade-400: 128 172 164; --lq-jade-500: 99 143 136;
+  --lq-jade-600: 76 113 107; --lq-jade-700: 55 83 79; --lq-jade-800: 31 47 45; --lq-jade-900: 12 14 17;
+  --lq-primary: 163 201 193; --lq-primary-strong: 188 217 211; --lq-primary-hover: 188 217 211; --lq-primary-text: 188 217 211; --lq-on-primary: 12 14 17;
+  --lq-secondary: 214 196 160; --lq-secondary-text: 224 209 178;
+  --lq-forest: 128 172 164; --lq-forest-text: 163 201 193;
+  --lq-success: 143 209 170; --lq-success-text: 163 220 186; --lq-success-strong: 143 209 170; --lq-on-success: 12 14 17;
+  --lq-warning: 230 196 128; --lq-warning-text: 236 208 152;
+  --lq-error: 232 140 140; --lq-error-text: 240 170 170;
+  --lq-info: 150 186 222; --lq-info-text: 174 203 232;
+  --lq-background: 12 14 17; --lq-surface: 19 22 26; --lq-surface-variant: 27 31 36;
+  --lq-border: 37 42 48; --lq-border-strong: 72 82 92;
+  --lq-on-background: 233 238 236; --lq-on-surface: 200 208 206; --lq-on-surface-light: 134 145 146;
+  --lq-soft-alpha: .1;
+  --radius-sm: 8px; --radius-md: 12px; --radius-lg: 18px;
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / .35);
+  --shadow-md: 0 8px 24px -12px rgb(0 0 0 / .6), 0 0 0 1px rgb(255 255 255 / .03);
+  --shadow-lg: 0 24px 60px -24px rgb(0 0 0 / .75), 0 0 0 1px rgb(255 255 255 / .04);
+  --lq-backdrop:
+    radial-gradient(70% 45% at 50% -8%, rgb(163 201 193 / .07), transparent 70%),
+    radial-gradient(40% 30% at 100% 100%, rgb(214 196 160 / .035), transparent 70%);
+}
+
+/* La portada /claim se pinta en Calma aunque la cuenta lleve otro tema: los tokens y el logo
+   viven en el contenedor (.lq-skin-calma), no en <html>. */
+.lq-skin-calma {
+  color-scheme: dark;
+  background-color: rgb(var(--lq-background)); color: rgb(var(--lq-on-background));
+  /* La letra de otro tema (Papiro, Neón…) no entra: Calma usa Nout Sans y el cuerpo de la app. */
+  --lq-font-sans: 'Nout Sans'; font-family: 'Nout Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 15px; letter-spacing: normal;
+  --lq-brand-a0: rgb(var(--lq-jade-200)); --lq-brand-a1: rgb(var(--lq-jade-400)); --lq-brand-a2: rgb(var(--lq-jade-600)); --lq-brand-a3: rgb(var(--lq-jade-700));
+  --lq-brand-b0: rgb(var(--lq-jade-100)); --lq-brand-b1: rgb(var(--lq-jade-400));
+  --lq-brand-c0: rgb(var(--lq-jade-300)); --lq-brand-c1: rgb(var(--lq-jade-500)); --lq-brand-c2: rgb(var(--lq-jade-700));
+}
+
 /* Logo (Brand + splash): con un tema puesto, las hojas de la N se tiñen con la
    escala propia del tema (--lq-jade-*). En los oscuros, la parte clara de la escala;
    en los claros, la oscura: el logo siempre contrasta con su fondo. */

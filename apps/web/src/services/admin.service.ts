@@ -153,3 +153,41 @@ export async function createCreatorCode(input: CreatorCodeInput): Promise<void> 
 export async function updateCreatorCode(id: string, input: Partial<Omit<CreatorCodeInput, 'code'>> & { active?: boolean }): Promise<void> {
   await api.patch(`/admin/creator-codes/${id}`, input);
 }
+
+// ─── Enlaces de recompensa (Instagram) ───────────────────────────────────────
+
+export interface RewardLinkRow {
+  id: string;
+  note: string | null;
+  proDays: number;
+  theme: string;
+  status: 'available' | 'claimed' | 'expired';
+  createdAt: string;
+  expiresAt: string | null;
+  claimedAt: string | null;
+  outcome: 'activated' | 'extended' | 'complimentary' | null;
+  claimedBy: { id: string; username: string | null; displayName: string | null } | null;
+}
+
+/** Enlace recién creado: el token completo solo llega aquí, una vez. */
+export interface NewRewardLink { id: string; token: string; note: string | null; expiresAt: string | null }
+
+export async function listRewardLinks(): Promise<RewardLinkRow[]> {
+  const { data } = await api.get<{ links: RewardLinkRow[] }>('/admin/reward-links');
+  return data.links;
+}
+
+/** expiresInDays null = no vence. */
+export async function createRewardLinks(input: { count: number; note?: string; expiresInDays: number | null }): Promise<NewRewardLink[]> {
+  const { data } = await api.post<{ links: NewRewardLink[] }>('/admin/reward-links', input);
+  return data.links;
+}
+
+export async function revokeRewardLink(id: string): Promise<void> {
+  await api.post(`/admin/reward-links/${id}/revoke`);
+}
+
+/** URL que se envía por Instagram. */
+export function rewardLinkUrl(token: string, origin = window.location.origin): string {
+  return `${origin.replace(/\/+$/, '')}/claim?token=${encodeURIComponent(token)}`;
+}

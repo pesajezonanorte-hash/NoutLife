@@ -332,6 +332,28 @@ model User {
   @@map("users")
 }
 
+/// Enlaces de recompensa de un solo uso (los envía el equipo por Instagram): 7 días de Pro y el
+/// tema exclusivo. Solo se guarda la huella SHA-256 del token; el enlace se muestra una vez al crearlo.
+/// claimedById SIN relación con User a propósito: el registro del canje sobrevive al borrar la cuenta.
+model RewardLink {
+  id          String    @id @default(cuid())
+  tokenHash   String    @unique
+  /// Nota interna: a quién se envió (por ejemplo, la cuenta de Instagram).
+  note        String?
+  proDays     Int       @default(7)
+  themeKey    String    @default("theme_calma")
+  expiresAt   DateTime?
+  createdById String?
+  createdAt   DateTime  @default(now())
+  claimedAt   DateTime?
+  claimedById String?
+  /// 'activated' | 'extended' | 'complimentary' (lib/reward-links RewardOutcome).
+  outcome     String?
+
+  @@index([createdAt])
+  @@map("reward_links")
+}
+
 /// Pruebas gratis ya concedidas. Registro permanente: SIN relación con User a
 /// propósito (borrar o reiniciar la cuenta no la toca) y la base rechaza DELETE y
 /// TRUNCATE con disparadores (migración 20261022120000_used_trials_permanent).

@@ -158,19 +158,32 @@ export function subscriptionView(
  * que vence sin cobro aunque haya tarjeta (giftTrial). Las demás extienden lo que ya tienen.
  */
 type Db = Pick<Prisma.TransactionClient, 'user'>;
-async function extendWith(db: Db, userId: string, days: number, now: Date): Promise<void> {
-  const user = await db.user.findUnique({ where: { id: userId }, select: SUBSCRIPTION_SELECT });
-  if (!user) return;
-  const data = proExtension(withComplimentary(user), days, now);
-  if (data) await db.user.update({ where: { id: userId }, data: data as Prisma.UserUpdateInput });
+
+/**
+ * Lo que hizo una extensión. 'activated': no tenía Pro en ese momento y empieza desde hoy;
+ * 'extended': ya tenía Pro y los días se suman al final; 'complimentary': cortesía, nada que sumar.
+ * accessEndsAt: hasta cuándo queda el Pro (null en cortesía o sin días).
+ */
+export interface ProGrant { outcome: 'activated' | 'extended' | 'complimentary'; accessEndsAt: Date | null }
+
+async function extendWith(db: Db, userId: string, days: number, now: Date): Promise<ProGrant | null> {
+  const found = await db.user.findUnique({ where: { id: userId }, select: SUBSCRIPTION_SELECT });
+  if (!found) return null;
+  const user = withComplimentary(found);
+  if (user.complimentary) return { outcome: 'complimentary', accessEndsAt: null };
+  const hadPro = hasProAccess(user, now);
+  const data = proExtension(user, days, now);
+  if (!data) return null;
+  await db.user.update({ where: { id: userId }, data: data as Prisma.UserUpdateInput });
+  return { outcome: hadPro ? 'extended' : 'activated', accessEndsAt: accessEndsAt({ ...user, ...data }) };
 }
 
-export function extendProAccess(userId: string, days: number, now = new Date()): Promise<void> {
+export function extendProAccess(userId: string, days: number, now = new Date()): Promise<ProGrant | null> {
   return extendWith(prisma, userId, days, now);
 }
 
-/** Igual que extendProAccess, dentro de una transacción (invitaciones con tope estricto). */
-export function extendProAccessTx(tx: Prisma.TransactionClient, userId: string, days: number, now = new Date()): Promise<void> {
+/** Igual que extendProAccess, dentro de una transacción (invitaciones con tope estricto, enlaces de recompensa). */
+export function extendProAccessTx(tx: Prisma.TransactionClient, userId: string, days: number, now = new Date()): Promise<ProGrant | null> {
   return extendWith(tx, userId, days, now);
 }
 
