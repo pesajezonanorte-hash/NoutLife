@@ -191,3 +191,40 @@ export async function revokeRewardLink(id: string): Promise<void> {
 export function rewardLinkUrl(token: string, origin = window.location.origin): string {
   return `${origin.replace(/\/+$/, '')}/claim?token=${encodeURIComponent(token)}`;
 }
+
+// ─── Pro de cortesía (/admin/recompensas) ────────────────────────────────────
+
+export type CompOutcome = 'activated' | 'extended' | 'permanent';
+
+export interface CompGrantRecord {
+  id: string;
+  targetUsername: string;
+  days: number | null;
+  outcome: CompOutcome;
+  accessEndsAt: string | null;
+  note: string | null;
+  createdAt: string;
+}
+
+export interface CompGrantRow extends CompGrantRecord {
+  /** Admin que concedió (su @usuario), o null si su cuenta ya no existe. */
+  grantedBy: string | null;
+}
+
+export interface CompGrantInput {
+  /** Correo o @usuario de la cuenta. */
+  target: string;
+  /** Días (1 a 3650), o null para Pro indefinido. */
+  days: number | null;
+  note?: string;
+}
+
+export async function listCompGrants(): Promise<CompGrantRow[]> {
+  const { data } = await api.get<{ grants: CompGrantRow[] }>('/admin/comp-grants');
+  return data.grants;
+}
+
+export async function grantComp(input: CompGrantInput): Promise<CompGrantRecord> {
+  const { data } = await api.post<{ grant: CompGrantRecord }>('/admin/comp-grants', input);
+  return data.grant;
+}

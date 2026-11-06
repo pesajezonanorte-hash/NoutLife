@@ -354,6 +354,24 @@ model RewardLink {
   @@map("reward_links")
 }
 
+/// Historial de Pro de cortesía concedido desde /admin/recompensas. SIN relación con User a
+/// propósito: el registro sobrevive a borrar la cuenta (igual que reward_links).
+/// days null = indefinido (users.compPro). outcome: 'activated' | 'extended' | 'permanent'.
+model CompGrant {
+  id             String    @id @default(cuid())
+  targetUserId   String
+  targetUsername String
+  days           Int?
+  outcome        String
+  accessEndsAt   DateTime?
+  note           String?
+  grantedById    String
+  createdAt      DateTime  @default(now())
+
+  @@index([createdAt])
+  @@map("comp_grants")
+}
+
 /// Pruebas gratis ya concedidas. Registro permanente: SIN relación con User a
 /// propósito (borrar o reiniciar la cuenta no la toca) y la base rechaza DELETE y
 /// TRUNCATE con disparadores (migración 20261022120000_used_trials_permanent).

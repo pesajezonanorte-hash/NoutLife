@@ -11,6 +11,7 @@ import { apiError } from '@/services/network.service';
 import * as adminService from '@/services/admin.service';
 import type { NewRewardLink, RewardLinkRow } from '@/services/admin.service';
 import { copyText } from '@/lib/clipboard';
+import { CompGrantsSection } from './CompGrantsSection';
 
 const dateFmt = new Intl.DateTimeFormat('es-CO', { day: 'numeric', month: 'short', year: 'numeric' });
 const fmtDate = (iso: string | null) => (iso ? dateFmt.format(new Date(iso)) : '—');
@@ -101,10 +102,11 @@ export default function AdminRewardsPage() {
       </Link>
       <PageHeader
         eyebrow="Administración"
-        title="Enlaces de recompensa"
-        description="Para enviar por Instagram. Cada enlace se canjea una sola vez: 7 días de Pro (si ya tiene Pro, se suman al final) y el tema exclusivo Calma."
+        title="Recompensas"
+        description="Enlaces para enviar por Instagram y Pro de cortesía para una cuenta concreta."
       />
 
+      <h2 className="text-heading-md">Enlaces de recompensa</h2>
       <Card padding="md">
         <form onSubmit={create} className="flex flex-col gap-4">
           <div className="grid gap-4 md:grid-cols-[120px_1fr]">
@@ -196,6 +198,8 @@ export default function AdminRewardsPage() {
           )}
         </Card>
       )}
+
+      <CompGrantsSection />
     </div>
   );
 }
