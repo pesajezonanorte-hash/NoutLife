@@ -3,7 +3,7 @@ import { prisma } from '../lib/prisma';
 import { hasAIProvider } from '../lib/ai';
 import { fingerprintSecret, paymentKey, publicDataShape, type NequiProof } from '../lib/trial-keys';
 import { claimTrial, markGiftAvailability, trialAvailable } from './trial.service';
-import { proExtension } from '../lib/referrals';
+import { giftTotalDays, proExtension } from '../lib/referrals';
 import { normalizeCreatorCode, quoteCharge, type ChargeQuote } from '../lib/creator-codes';
 import { PRICE_LISTS, marketOf, type PriceList } from '../lib/pricing';
 import { FxUnavailableError, copCentsFromUsdCents, usdCopRate, type UsdCopRate } from '../lib/fx';
@@ -38,6 +38,7 @@ const SUBSCRIPTION_SELECT = {
   liteSince: true,
   lastPaymentError: true,
   giftTrial: true,
+  giftDays: true,
   compPro: true,
   billingInterval: true,
   market: true,
@@ -141,7 +142,7 @@ export function subscriptionView(
     trialAvailable: canTrial,
     paywall: false,
     priceCop: PRO_PRICE_COP,
-    trialDays: TRIAL_DAYS,
+    trialDays: user.giftTrial ? giftTotalDays(user, now) : TRIAL_DAYS,
     giftTrial: Boolean(user.giftTrial),
     interval,
     annualPriceCop: PRO_ANNUAL_PRICE_COP,

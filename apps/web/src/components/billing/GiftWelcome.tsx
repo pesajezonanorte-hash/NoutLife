@@ -41,7 +41,7 @@ export function GiftWelcome() {
   }
 
   return (
-    <ResponsiveDialog open onClose={close} title={t.title}>
+    <ResponsiveDialog open onClose={close} title={t.title(sub?.trialDays ?? 7)}>
       <div lang={locale} className="flex flex-col gap-5">
         <div className="flex flex-col gap-3 text-body-md text-on-surface">
           <p>{t.body}</p>

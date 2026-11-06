@@ -175,3 +175,19 @@ test('the history lists the grants newest first with the admin who made them', a
   assert.equal(history[1].days, 7);
   assert.equal(history[0].grantedBy, 'miguel');
 });
+
+// ─── Total de días del regalo ────────────────────────────────────────────────
+
+test('a gift keeps its granted total, so the app shows day X of 30 and not of 7', async () => {
+  const { proExtension, giftTotalDays } = await import('../src/lib/referrals');
+  const lite = baseUser({});
+  const first = proExtension(lite, 30, NOW);
+  assert.equal(first?.giftTrial, true);
+  assert.equal(first?.giftDays, 30);
+
+  const running = { ...baseUser({}), subscriptionStatus: 'trialing', giftTrial: true, giftDays: 30, trialEndsAt: days(10) };
+  const more = proExtension(running, 7, NOW);
+  assert.equal(more?.giftDays, 37, 'adding days to a running gift adds to its total');
+  assert.equal(giftTotalDays(running, NOW), 30);
+  assert.equal(giftTotalDays({ ...running, giftDays: null, trialEndsAt: days(5) }, NOW), 7, 'older gifts fall back to at least the normal 7');
+});

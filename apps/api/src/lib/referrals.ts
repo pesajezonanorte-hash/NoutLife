@@ -1,6 +1,6 @@
 // Invitaciones (plan v3, T9): reglas puras, sin base de datos, para que el tope mensual
 // y los días de Pro se prueben sin conexión. La base vive en services/referral.service.ts.
-import { addDays, statusOf, trialEndOf, type SubscriptionFields } from './plans';
+import { TRIAL_DAYS, addDays, statusOf, trialEndOf, type SubscriptionFields } from './plans';
 
 /** Días de Pro que gana cada persona por una invitación activada. */
 export const REFERRAL_REWARD_DAYS = 7;
@@ -20,18 +20,30 @@ export function grantableDays(gainedThisMonth: number, wanted = REFERRAL_REWARD_
  * null si no hay nada que dar (cortesía o sin días).
  */
 export function proExtension(
-  user: SubscriptionFields & { liteSince?: Date | null },
+  user: SubscriptionFields & { liteSince?: Date | null; giftDays?: number | null },
   days: number,
   now = new Date(),
-): { subscriptionStatus?: string; trialEndsAt?: Date; currentPeriodEnd?: Date | null; liteSince?: null; giftTrial?: boolean } | null {
+): { subscriptionStatus?: string; trialEndsAt?: Date; currentPeriodEnd?: Date | null; liteSince?: null; giftTrial?: boolean; giftDays?: number } | null {
   if (days <= 0 || user.complimentary) return null;
   const later = (a: Date) => new Date(Math.max(a.getTime(), now.getTime()));
   if (statusOf(user) === 'lite') {
     // Regalo sin cobro: aunque haya tarjeta guardada, al vencer vuelve a Lite sin cargo (giftTrial).
-    return { subscriptionStatus: 'trialing', trialEndsAt: addDays(now, days), currentPeriodEnd: null, liteSince: null, giftTrial: true };
+    return { subscriptionStatus: 'trialing', trialEndsAt: addDays(now, days), currentPeriodEnd: null, liteSince: null, giftTrial: true, giftDays: days };
   }
   if (user.currentPeriodEnd) return { currentPeriodEnd: addDays(later(user.currentPeriodEnd), days) };
+  // Un regalo que ya corre guarda su total, para que la app muestre "día X de N" con N correcto.
+  if (user.giftTrial) return { trialEndsAt: addDays(later(trialEndOf(user)), days), giftDays: giftTotalDays(user, now) + days };
   return { trialEndsAt: addDays(later(trialEndOf(user)), days) };
+}
+
+/**
+ * Días totales de una prueba de regalo: los guardados al concederla. Las cuentas regaladas antes
+ * de guardar el total usan los días que les quedan (mínimo la prueba normal de 7).
+ */
+export function giftTotalDays(user: { giftDays?: number | null; trialEndsAt: Date | null; createdAt: Date }, now = new Date()): number {
+  if (user.giftDays) return user.giftDays;
+  const left = Math.ceil((trialEndOf(user).getTime() - now.getTime()) / (24 * 60 * 60_000));
+  return Math.max(TRIAL_DAYS, left);
 }
 
 /** Separación mínima entre dos días con hábitos cumplidos que cuentan para la activación. */

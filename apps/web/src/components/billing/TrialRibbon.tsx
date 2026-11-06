@@ -17,20 +17,23 @@ interface TrialRibbonProps {
   chargeLabel: string;
   /** Frase completa para lectores de pantalla. */
   summary: string;
+  /** Días totales de la prueba (regalos de más de 7). Sin valor, la prueba normal. */
+  total?: number;
   className?: string;
 }
 
 const STEP = 0.08;
 
-export function TrialRibbon({ elapsed, chargeLabel, summary, className }: TrialRibbonProps) {
+export function TrialRibbon({ elapsed, total, chargeLabel, summary, className }: TrialRibbonProps) {
+  const length = total ?? TRIAL_DAYS;
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, amount: 0.6 });
   const reduce = useMotionReduced();
   const locale = useLocale();
   const show = inView || reduce;
-  const filled = Math.min(TRIAL_DAYS, Math.max(0, elapsed ?? TRIAL_DAYS));
+  const filled = Math.min(length, Math.max(0, elapsed ?? length));
   const live = elapsed !== undefined;
-  const days = Array.from({ length: TRIAL_DAYS }, (_, i) => i + 1);
+  const days = Array.from({ length: length }, (_, i) => i + 1);
 
   return (
     <div ref={ref} lang={locale} className={cn('flex flex-col gap-2', className)}>
@@ -75,7 +78,7 @@ export function TrialRibbon({ elapsed, chargeLabel, summary, className }: TrialR
           className="relative flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary/[var(--lq-soft-alpha)] text-label-lg text-secondary-text ring-1 ring-secondary/60 sm:size-11 sm:text-heading-sm"
           initial={reduce ? false : { scale: 0.4, opacity: 0 }}
           animate={show ? { scale: 1, opacity: 1 } : undefined}
-          transition={{ type: 'spring', stiffness: 380, damping: 16, delay: TRIAL_DAYS * STEP + 0.1 }}
+          transition={{ type: 'spring', stiffness: 380, damping: 16, delay: length * STEP + 0.1 }}
         >
           $
         </motion.span>
@@ -83,8 +86,8 @@ export function TrialRibbon({ elapsed, chargeLabel, summary, className }: TrialR
       <div aria-hidden className="flex items-baseline justify-between gap-3 text-body-sm">
         <span className="text-on-surface-light">
           {locale === 'en'
-            ? (live ? `Day ${Math.min(filled + 1, TRIAL_DAYS)} of ${TRIAL_DAYS}` : `${TRIAL_DAYS} days free`)
-            : (live ? `Día ${Math.min(filled + 1, TRIAL_DAYS)} de ${TRIAL_DAYS}` : `${TRIAL_DAYS} días gratis`)}
+            ? (live ? `Day ${Math.min(filled + 1, length)} of ${length}` : `${length} days free`)
+            : (live ? `Día ${Math.min(filled + 1, length)} de ${length}` : `${length} días gratis`)}
         </span>
         <span className="font-semibold text-secondary-text">{chargeLabel}</span>
       </div>
