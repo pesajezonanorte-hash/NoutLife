@@ -7,6 +7,8 @@ import * as creators from '../services/creator-code.service';
 import { createCreatorCodeSchema, updateCreatorCodeSchema } from '../schemas/creator-code.schemas';
 import * as rewards from '../services/reward-link.service';
 import { createRewardLinksSchema } from '../schemas/reward-link.schemas';
+import * as compGrants from '../services/comp-grant.service';
+import { grantCompSchema } from '../schemas/comp-grant.schemas';
 
 const router = Router();
 router.use(requireAuth, requireAdmin);
@@ -42,6 +44,19 @@ router.post('/reward-links/:id/revoke', async (req, res, next) => {
   try { await rewards.revokeRewardLink(String(req.params.id)); res.json({ ok: true }); }
   catch (err) {
     if (err instanceof rewards.RewardLinkError) { res.status(err.status).json({ error: err.message }); return; }
+    next(err);
+  }
+});
+
+// Pro de cortesía: por correo o @usuario, días o indefinido. Cada concesión queda en el historial.
+router.get('/comp-grants', async (_req, res, next) => {
+  try { res.json({ grants: await compGrants.listCompGrants() }); } catch (err) { next(err); }
+});
+
+router.post('/comp-grants', validate(grantCompSchema), async (req: AuthRequest, res, next) => {
+  try { res.status(201).json({ grant: await compGrants.grantComp(req.body, req.userId!) }); }
+  catch (err) {
+    if (err instanceof compGrants.CompGrantError) { res.status(err.status).json({ error: err.message }); return; }
     next(err);
   }
 });
