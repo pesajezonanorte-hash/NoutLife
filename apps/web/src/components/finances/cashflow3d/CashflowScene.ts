@@ -1,17 +1,13 @@
 // Flujo de caja del mes en 3D: una barra extruida por día sobre una placa de vidrio; lo que entró
-// sube (color de éxito) y lo que salió baja (color de error), con cantos de neón. Encima flota
-// la moneda de NoutLife (Blender, scripts/blender/props.py) que gira despacio y da la vuelta al
-// tocarla. Se gira arrastrando en horizontal; pasar el cursor o tocar una barra la elige.
-// Rendimiento: todas las barras son un InstancedMesh (2 por día, ~62 como mucho); placa,
-// moneda y halo: ~5 draw calls. Sin texturas: el canto se dibuja con las UV de cada cara.
+// sube (color de éxito) y lo que salió baja (color de error), con un canto fino de luz. Sin
+// adornos encima: la cámara encuadra solo las barras para que la gráfica mande. Se gira
+// arrastrando en horizontal; pasar el cursor o tocar una barra la elige.
+// Rendimiento: todas las barras son un InstancedMesh (2 por día, ~62 como mucho) y la placa:
+// 2 draw calls. Sin texturas: el canto se dibuja con las UV de cada cara.
 import {
   BoxGeometry, Color, Group, InstancedBufferAttribute, InstancedMesh, Mesh, Object3D, ShaderMaterial, Vector3,
 } from 'three';
-import financeUrl from '@/assets/models/props-finance.glb?url';
-import financeHdUrl from '@/assets/models/props-finance-hd.glb?url';
 import { Stage, type StageOptions } from '@/components/three3d/stage';
-import { loadProps, propGeometry } from '@/components/three3d/models';
-import { propMaterial, setPropPalette } from '@/components/three3d/propMaterial';
 import type { PropPalette } from '@/components/three3d/palette';
 import { barHeights, type CashDay } from '../cashflowMath';
 
@@ -46,8 +42,8 @@ const barVert = /* glsl */ `
     gl_Position = projectionMatrix * viewMatrix * wp;
   }`;
 
-// Vidrio de color: cuerpo con luz principal, canto de neón (por las UV de cada cara), brillo en la
-// punta de la barra y fresnel; la elegida late y las demás se apagan un poco.
+// Vidrio de color: cuerpo con luz principal, canto fino (por las UV de cada cara), brillo suave en
+// la punta de la barra y fresnel; la elegida late y las demás se apagan un poco.
 const barFrag = /* glsl */ `
   uniform float uDark;
   uniform float uAnySel;
@@ -64,13 +60,13 @@ const barFrag = /* glsl */ `
     float key = max(dot(n, normalize(vec3(-0.4, 0.8, 0.6))), 0.0);
     float fres = pow(1.0 - max(dot(n, v), 0.0), 2.2);
     float e = min(min(vUv.x, 1.0 - vUv.x), min(vUv.y, 1.0 - vUv.y));
-    float edge = smoothstep(0.09, 0.0, e);
-    vec3 col = vColor * (0.42 + 0.5 * key) * mix(1.0, 0.8, uDark);
-    col += mix(vColor, vec3(1.0), 0.35) * edge * mix(0.35, 0.8, uDark);
-    col += vColor * fres * mix(0.25, 0.7, uDark);
-    col += vColor * smoothstep(0.35, 0.5, abs(vY)) * 0.25;
+    float edge = smoothstep(0.06, 0.0, e);
+    vec3 col = vColor * (0.4 + 0.45 * key) * mix(1.0, 0.78, uDark);
+    col += mix(vColor, vec3(1.0), 0.3) * edge * mix(0.18, 0.38, uDark);
+    col += vColor * fres * mix(0.15, 0.35, uDark);
+    col += vColor * smoothstep(0.4, 0.5, abs(vY)) * 0.12;
     col *= mix(1.0, 0.5, uAnySel * (1.0 - vSel));
-    col += mix(vColor, vec3(1.0), 0.4) * vSel * (0.2 + 0.12 * sin(uTime * 5.0));
+    col += mix(vColor, vec3(1.0), 0.4) * vSel * (0.16 + 0.08 * sin(uTime * 4.0));
     gl_FragColor = vec4(col, 1.0);
     #include <colorspace_fragment>
   }`;
@@ -101,8 +97,8 @@ const plateFrag = /* glsl */ `
     float gx = abs(fract(vP.x / uStep + 0.5) - 0.5) * uStep;
     float grid = smoothstep(0.006, 0.0, gx) * 0.35;
     float rim = smoothstep(uHalfW - 0.06, uHalfW, abs(vP.x)) + smoothstep(0.22, 0.3, abs(vP.z));
-    vec3 col = mix(uBody, uGlow, clamp(grid + rim * 0.5 + fres * 0.4, 0.0, 1.0));
-    gl_FragColor = vec4(col, mix(0.55, 0.42, uDark) + grid * 0.3 + rim * 0.2);
+    vec3 col = mix(uBody, uGlow, clamp(grid * 0.7 + rim * 0.35 + fres * 0.3, 0.0, 1.0));
+    gl_FragColor = vec4(col, mix(0.42, 0.3, uDark) + grid * 0.2 + rim * 0.12);
     #include <colorspace_fragment>
   }`;
 
@@ -110,8 +106,6 @@ export class CashflowScene extends Stage {
   private world = new Group();
   private bars: InstancedMesh<BoxGeometry, ShaderMaterial>;
   private plate: Mesh<BoxGeometry, ShaderMaterial>;
-  private coinGroup = new Group();
-  private coinMat: ShaderMaterial;
   private tmp = new Object3D();
   private v3 = new Vector3();
   private camGoal = new Vector3();
@@ -121,9 +115,6 @@ export class CashflowScene extends Stage {
   private selected = -1;
   private yaw = -0.28;
   private yawVel = 0;
-  private flip = 0;
-  private flipVel = 0;
-  private flipGoal = 0;
   private press: { id: number; x: number; y: number; dragging: boolean; lastX: number } | null = null;
   private labelTransform = '';
   private success: Color;
@@ -150,8 +141,7 @@ export class CashflowScene extends Stage {
       uniforms: { uBody: { value: p.body.clone() }, uGlow: { value: p.glow.clone() }, uDark: { value: p.dark ? 1 : 0 }, uHalfW: { value: 1 }, uStep: { value: STEP } },
     }));
     this.plate.renderOrder = 1;
-    this.coinMat = propMaterial(p);
-    this.world.add(this.bars, this.plate, this.coinGroup);
+    this.world.add(this.bars, this.plate);
     this.scene.add(this.world);
     if (opts.reduceMotion) this.grow = 1;
 
@@ -160,23 +150,6 @@ export class CashflowScene extends Stage {
     this.listen(this.canvas, 'pointerup', this.onUp);
     this.listen(this.canvas, 'pointercancel', () => { this.press = null; });
     this.listen(this.canvas, 'pointerleave', () => { if (!this.press) this.pickDay(null); });
-
-    this.loading = true;
-    // La moneda es grande en pantalla: LOD alto si el lienzo pasa de ~260 px de alto.
-    const url = (host.getBoundingClientRect().height || 300) > 260 ? financeHdUrl : financeUrl;
-    loadProps(url).then((models) => {
-      if (this.disposed) return;
-      const coin = models.get('coin');
-      if (coin) {
-        const mesh = new Mesh(propGeometry(coin), this.coinMat);
-        const k = 0.34 / coin.radius;
-        mesh.scale.setScalar(k);
-        mesh.position.set(-coin.center[0] * k, -coin.center[1] * k, -coin.center[2] * k);
-        this.coinGroup.add(mesh);
-      }
-      this.loading = false;
-      this.request();
-    }).catch(() => this.fail());
 
     this.setDays(opts.days);
     this.start();
@@ -209,7 +182,6 @@ export class CashflowScene extends Stage {
     (pu.uBody.value as Color).copy(p.body);
     (pu.uGlow.value as Color).copy(p.glow);
     pu.uDark.value = p.dark ? 1 : 0;
-    setPropPalette(this.coinMat, p);
     this.paintColors();
   }
 
@@ -218,9 +190,9 @@ export class CashflowScene extends Stage {
     const halfW = (n * STEP) / 2 + 0.35;
     const vHalf = (this.camera.fov * Math.PI) / 360;
     const aspect = this.width / Math.max(1, this.height);
-    // Alto: de la barra más baja (−0,63) a la moneda (~1,6); ancho: todos los días.
-    const dist = Math.max(1.05 / Math.tan(vHalf), halfW / (Math.tan(vHalf) * aspect)) + 0.3;
-    this.camGoal.set(0, 0.45 + dist * 0.26, dist);
+    // Alto: de la barra más baja (−0,63) a la más alta (1,05) con aire; ancho: todos los días.
+    const dist = Math.max(1.04 / Math.tan(vHalf), halfW / (Math.tan(vHalf) * aspect)) + 0.3;
+    this.camGoal.set(0, 0.2 + dist * 0.24, dist);
   }
 
   private paintColors() {
@@ -265,14 +237,6 @@ export class CashflowScene extends Stage {
     this.bars.material.uniforms.uAnySel.value = this.selected >= 0 ? 1 : 0;
     this.bars.material.uniforms.uTime.value = ambient ? t : 0;
 
-    // Moneda: flota sobre el último día, gira despacio y da una vuelta entera al tocarla.
-    const halfW = (n * STEP) / 2;
-    this.coinGroup.position.set(Math.min(halfW + 0.05, 1.6), 1.25 + (ambient ? Math.sin(t * 1.4) * 0.05 : 0), 0.15);
-    this.flipVel += ((this.flipGoal - this.flip) * 60 - this.flipVel * 9) * dt;
-    this.flip += this.flipVel * dt;
-    if (Math.abs(this.flipGoal - this.flip) > 0.002 || Math.abs(this.flipVel) > 0.01) busy = true;
-    this.coinGroup.rotation.set(this.flip, ambient ? t * 0.7 : 0.5, 0.12);
-
     if (!this.press?.dragging) {
       this.yaw += this.yawVel;
       this.yawVel *= Math.pow(0.9, dt * 60);
@@ -284,7 +248,7 @@ export class CashflowScene extends Stage {
 
     const cam = this.camera.position;
     if (cam.distanceToSquared(this.camGoal) > 1e-6) { cam.lerp(this.camGoal, cam.lengthSq() === 0 || this.reduceMotion ? 1 : 1 - Math.exp(-dt * 5)); busy = true; }
-    this.camera.lookAt(0, 0.22, 0);
+    this.camera.lookAt(0, 0.18, 0);
     this.placeLabel();
     return busy;
   }
@@ -308,7 +272,7 @@ export class CashflowScene extends Stage {
   }
 
   /** Día bajo el puntero: la columna más cercana en pantalla (las barras son finas para el dedo). */
-  private dayAt(clientX: number, clientY: number): number {
+  private dayAt(clientX: number): number {
     const r = this.canvas.getBoundingClientRect();
     const n = this.days.length;
     this.world.updateMatrixWorld();
@@ -320,16 +284,7 @@ export class CashflowScene extends Stage {
       const d = Math.abs((this.v3.x * 0.5 + 0.5) * r.width - (clientX - r.left));
       if (d < bestD) { bestD = d; best = i; }
     }
-    const coinHit = this.coinHit(clientX, clientY);
-    if (coinHit) return -2;
     return bestD < Math.max(14, (r.width / Math.max(1, n)) * 0.6) ? best : -1;
-  }
-
-  private coinHit(clientX: number, clientY: number) {
-    const r = this.canvas.getBoundingClientRect();
-    this.world.updateMatrixWorld();
-    this.v3.copy(this.coinGroup.position).applyMatrix4(this.world.matrixWorld).project(this.camera);
-    return Math.hypot((this.v3.x * 0.5 + 0.5) * r.width - (clientX - r.left), (-this.v3.y * 0.5 + 0.5) * r.height - (clientY - r.top)) < 46;
   }
 
   private pickDay(i: number | null) {
@@ -349,8 +304,8 @@ export class CashflowScene extends Stage {
     const p = this.press;
     if (!p) {
       if (e.pointerType === 'mouse') {
-        const i = this.dayAt(e.clientX, e.clientY);
-        this.canvas.style.cursor = i === -2 || i >= 0 ? 'pointer' : 'grab';
+        const i = this.dayAt(e.clientX);
+        this.canvas.style.cursor = i >= 0 ? 'pointer' : 'grab';
         if (i >= 0) this.pickDay(i);
       }
       return;
@@ -373,8 +328,7 @@ export class CashflowScene extends Stage {
     const p = this.press;
     this.press = null;
     if (!p || p.id !== e.pointerId || p.dragging) { this.request(); return; }
-    const i = this.dayAt(e.clientX, e.clientY);
-    if (i === -2) { this.flipGoal += Math.PI * 2; navigator.vibrate?.(8); this.request(); return; }
+    const i = this.dayAt(e.clientX);
     this.pickDay(i >= 0 && i !== this.selected ? i : null);
   };
 }
