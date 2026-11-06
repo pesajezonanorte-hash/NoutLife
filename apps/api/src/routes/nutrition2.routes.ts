@@ -8,7 +8,8 @@ import {
 } from '../services/nutrition2.service';
 import { requirePro, requireProZone } from '../middleware/plan.middleware';
 import { validate } from '../middleware/validate.middleware';
-import { photoMealSchema } from '../schemas/activity.schemas';
+import { photoMealSchema, waterPhotoSchema } from '../schemas/activity.schemas';
+import { scanWaterPhoto } from '../services/water-photo.service';
 
 const router = Router();
 router.use(requireAuth);
@@ -53,6 +54,12 @@ router.post('/ai-parse', requirePro('ai'), async (req, res) => {
 // Foto del plato → kcal y macros (visión de bajo consumo; misma respuesta que /ai-parse).
 router.post('/ai-photo', requirePro('ai'), validate(photoMealSchema), async (req, res) => {
   try { res.json(await scanMealPhoto(req.body)); }
+  catch (err: any) { res.status(400).json({ message: publicErrorMessage(err) }); }
+});
+
+// Agua por foto: estima los ml del vaso o la botella y los suma al día (WATER).
+router.post('/water-photo', requirePro('ai'), validate(waterPhotoSchema), async (req, res) => {
+  try { res.json(await scanWaterPhoto((req as AuthRequest).userId!, req.body)); }
   catch (err: any) { res.status(400).json({ message: publicErrorMessage(err) }); }
 });
 

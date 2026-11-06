@@ -21,6 +21,8 @@ import {
   effectiveGoal, mealTypeLabelFor, mealTypesFor, macrosFor, fmtIntFor, macroLine, totals, type FoodType,
 } from '@/components/food/foodMeta';
 import { AddAsTypeButtons, AnalyzeMealDialog, GoalDialog, MealFormDialog } from '@/components/food/FoodDialogs';
+import { PhotoSourceButtons } from '@/components/media/PhotoSourceButtons';
+import { compressImageToBase64 } from '@/lib/imageCompress';
 import { ClocheIcon, MacroPlate, Steam } from '@/components/food/Restaurant';
 import { ZoneAmbience } from '@/components/ambience';
 import { Lettering } from '@/components/layout/Lettering';
@@ -48,6 +50,7 @@ const COPY: Copy<{
   savedAlready: string; saveForRepeat: string; deleteMeal: string; removeSaved: string; addDayAs: (d: string) => string;
   added: (type: string) => string; addFailed: string; deleted: string; deleteFailed: string;
   waterFailed: string; waterRemoveFailed: string; savedFailed: string; saveFailed: string;
+  waterPhotoHelp: string; waterPhotoAdded: (ml: string) => string; waterPhotoNone: string; waterPhotoFail: string;
   savedToast: string; loadingSaved: string;
 
 
@@ -76,6 +79,10 @@ const COPY: Copy<{
     addDayAs: (d) => `Añadir a ${d} como`,
     added: (type) => `Añadida como ${type}`, addFailed: 'No se pudo añadir', deleted: 'Comida eliminada', deleteFailed: 'No se pudo eliminar',
     waterFailed: 'No se pudo registrar el agua', waterRemoveFailed: 'No se pudo quitar', savedFailed: 'No se pudo guardar',
+    waterPhotoHelp: 'Foto del vaso o la botella: estimamos los ml y los sumamos a hoy.',
+    waterPhotoAdded: (ml) => `+${ml} ml sumados por la foto`,
+    waterPhotoNone: 'No vemos agua en la foto. Prueba con más luz o añádela a mano.',
+    waterPhotoFail: 'No pudimos analizar la foto. Inténtalo otra vez.',
     saveFailed: 'No se pudo eliminar', savedToast: 'Guardada para repetirla', loadingSaved: 'Cargando tus guardadas…',
 
 
@@ -102,6 +109,10 @@ const COPY: Copy<{
     addDayAs: (d) => `Add to ${d} as`,
     added: (type) => `Added as ${type}`, addFailed: "We couldn't add it", deleted: 'Meal deleted', deleteFailed: "We couldn't delete it",
     waterFailed: "We couldn't log the water", waterRemoveFailed: "We couldn't remove it", savedFailed: "We couldn't save it",
+    waterPhotoHelp: 'Photo of the glass or bottle: we estimate the ml and add them to today.',
+    waterPhotoAdded: (ml) => `+${ml} ml added from the photo`,
+    waterPhotoNone: "We don't see water in the photo. Try better light or add it by hand.",
+    waterPhotoFail: "We couldn't analyze the photo. Try again.",
     saveFailed: "We couldn't delete it", savedToast: 'Saved to repeat', loadingSaved: 'Loading your saved meals…',
 
 
@@ -245,6 +256,26 @@ export default function FoodPage() {
       setMeals((list) => [...list, m]);
     } catch {
       toast().error(t.waterFailed);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  /** Foto del vaso o la botella: el servidor estima los ml y ya los registró en el día; aparecen al momento. */
+  async function addWaterFromPhoto(file: File) {
+    setBusy('waterPhoto');
+    try {
+      const image = await compressImageToBase64(file, { maxSide: 384, maxBytes: 60 * 1024 });
+      const r = await mealService.scanWaterPhoto({ image, mimeType: 'image/jpeg', date: key, lang: locale });
+      if (r.recognized && r.meal) {
+        const added = r.meal;
+        setMeals((list) => [...list, added]);
+        toast().success(t.waterPhotoAdded(r.waterMl.toLocaleString(INTL_LOCALE[locale])));
+      } else {
+        toast().error(r.reason === 'no_water' ? t.waterPhotoNone : t.waterPhotoFail);
+      }
+    } catch {
+      toast().error(t.waterPhotoFail);
     } finally {
       setBusy(null);
     }
@@ -486,6 +517,10 @@ export default function FoodPage() {
       <div className="grid grid-cols-2 gap-2">
         <Button variant="secondary" size="md" loading={busy === 'water'} onClick={() => void addWater(GLASS_ML)}><Plus aria-hidden className="size-4" strokeWidth={2} />{t.oneGlass}</Button>
         <Button variant="secondary" size="md" disabled={busy === 'water'} onClick={() => void addWater(500)}><Plus aria-hidden className="size-4" strokeWidth={2} />{t.ml500}</Button>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-body-sm text-on-surface-light">{t.waterPhotoHelp}</p>
+        <PhotoSourceButtons size="sm" loading={busy === 'waterPhoto'} onPick={(file) => void addWaterFromPhoto(file)} />
       </div>
     </Card>
   );

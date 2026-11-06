@@ -81,10 +81,20 @@ export const createMealSchema = z.object({
  * POST /nutrition/ai-photo: foto del plato ya reducida en el móvil (≤384 px, JPEG), en base64
  * sin el prefijo data:. El tope (~300 KB) deja fuera fotos sin reducir: cuestan muchos más tokens.
  */
+const photoImage = z.string().min(100).max(400_000, 'La foto es demasiado grande: vuelve a tomarla.').regex(/^[A-Za-z0-9+/=]+$/, 'La foto no es válida.');
+
 export const photoMealSchema = z.object({
-  image: z.string().min(100).max(400_000, 'La foto es demasiado grande: vuelve a tomarla.').regex(/^[A-Za-z0-9+/=]+$/, 'La foto no es válida.'),
+  image: photoImage,
   mimeType: z.enum(['image/jpeg', 'image/png', 'image/webp']),
   hint: z.string().trim().max(200).optional(),
+  lang: z.enum(['es', 'en']).optional(),
+});
+
+/** POST /nutrition/water-photo: foto del vaso o la botella (misma reducción). `date`: día local al que se suma el agua. */
+export const waterPhotoSchema = z.object({
+  image: photoImage,
+  mimeType: z.enum(['image/jpeg', 'image/png', 'image/webp']),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'La fecha no es válida.').optional(),
   lang: z.enum(['es', 'en']).optional(),
 });
 

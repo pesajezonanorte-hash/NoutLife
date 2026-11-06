@@ -2,6 +2,7 @@ import { generateText, hasAIProvider, AIQuotaError, type ChatMessage } from '../
 import { prisma } from '../lib/prisma';
 import { canUseAI } from './billing.service';
 import { buildLifeSnapshot, packSections, CONTEXT_BUDGET_CHARS, type SectionKey } from './life-context.service';
+import { SAGE_ACTION_INSTRUCTIONS, SAGE_ACTION_LEAD, splitSageAction, type SageFinanceAction } from '../lib/sage-actions';
 
 const SAGE_RATE_LIMIT = 1000;
 
@@ -278,7 +279,7 @@ async function callAIWithMemory(
   await prisma.sageMemory.createMany({
     data: [
       { userId, role: 'user', content: userMessage },
-      { userId, role: 'sage', content: responseText },
+      { userId, role: 'sage', content: splitSageAction(responseText).text || responseText },
     ],
   });
 
@@ -376,6 +377,8 @@ ${data}`,
 interface ContextOptions {
   /** Sección que el análisis necesita entera (hábitos, finanzas, Coliseo…). */
   focus?: SectionKey;
+  /** Solo el chat puede proponer cambios en metas (línea ACCION). */
+  actions?: boolean;
   /** Presupuesto del bloque de datos, en caracteres. */
   budget?: number;
   /** Idioma de las instrucciones y de la respuesta. */
@@ -390,15 +393,31 @@ async function buildSageContext(userId: string, options: ContextOptions = {}): P
   const snapshot = await buildLifeSnapshot(userId, options.focus);
   const data = packSections(snapshot.sections, options.budget ?? CONTEXT_BUDGET_CHARS);
   const lang = options.lang ?? 'es';
-  return INSTRUCTIONS[lang].system(snapshot.name, snapshot.dateLabel, data);
+  const base = INSTRUCTIONS[lang].system(snapshot.name, snapshot.dateLabel, data);
+  return options.actions ? `${base}\n\n${SAGE_ACTION_INSTRUCTIONS[lang]}` : base;
 }
 
-export async function sageChat(userId: string, message: string, lang: SageLang = 'es'): Promise<string> {
+export interface SageChatReply {
+  reply: string;
+  /** Cambio en metas que la persona puede confirmar. Nunca se aplica solo. */
+  action: SageFinanceAction | null;
+  /** Nombre de la meta a la que apunta la propuesta (para mostrarla); null si no aplica. */
+  goalTitle: string | null;
+}
+
+export async function sageChat(userId: string, message: string, lang: SageLang = 'es'): Promise<SageChatReply> {
   const usage = await takeChatSlot(userId);
-  if (!usage) return SAGE_TIRED_REPLY;
+  if (!usage) return { reply: SAGE_TIRED_REPLY, action: null, goalTitle: null };
 
   const text = clipText(message, SAGE_MESSAGE_MAX_CHARS);
-  return chatTurn(userId, async () => callAIWithMemory(userId, await buildSageContext(userId, { lang }), text));
+  const raw = await chatTurn(userId, async () => callAIWithMemory(userId, await buildSageContext(userId, { lang, actions: true }), text));
+  const split = splitSageAction(raw);
+  // Solo se busca la meta si es de esta persona: el id de la propuesta no basta para leerla.
+  const goalTitle = split.action && 'goalId' in split.action
+    ? await prisma.financialGoal.findFirst({ where: { id: split.action.goalId, userId }, select: { title: true } }).then((goal) => goal?.title ?? null).catch(() => null)
+    : null;
+  // Si solo llegó la línea de acción, la propuesta va con una frase que la presenta.
+  return { reply: split.text || (split.action ? SAGE_ACTION_LEAD[lang] : ''), action: split.action, goalTitle };
 }
 
 export async function sageSuggestQuests(userId: string, lang: SageLang = 'es'): Promise<string> {

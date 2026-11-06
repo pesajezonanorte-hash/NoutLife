@@ -3,8 +3,9 @@ import { addCalendarDays, DEFAULT_TIMEZONE, getCalendarDay, parseCalendarDate } 
 import { habitTimeRangeError } from '../lib/habit-time';
 import { awardXpAndGold, revokeXpEvent } from './xp.service';
 import { checkAchievements } from './achievement.service';
-import { createNotification } from './notification.service';
+import { createNotification, settleAutomaticReminders } from './notification.service';
 import { iconEmoji } from '../lib/notification-text';
+import { SETTLE_PREFIXES } from '../lib/smart-reminders';
 import { removeHabitFromGoogleCalendar, syncHabitWithGoogleCalendar } from './agenda.service';
 import { recordHabitColiseoAttendance } from './coliseo-attendance.service';
 import type { QuestCategory } from '@prisma/client';
@@ -406,6 +407,21 @@ export async function archiveHabit(userId: string, habitId: string) {
 
 export type HabitLogStatus = 'completed' | 'failed' | 'skipped';
 
+/**
+ * Tras registrar un hábito de un día: si ya no queda ninguno pendiente (hecho, saltado o
+ * fallado), el aviso automático «hábitos pendientes» de ese día queda leído. Si todavía
+ * quedan, el aviso se mantiene: su texto dice cuáles faltan.
+ */
+async function settleHabitsPendingReminder(userId: string, date: Date): Promise<void> {
+  const [habits, logs] = await Promise.all([
+    prisma.habit.findMany({ where: { userId, isActive: true }, select: { id: true, frequency: true } }),
+    prisma.habitLog.findMany({ where: { userId, date }, select: { habitId: true, completed: true, status: true } }),
+  ]);
+  const handled = new Set(logs.filter((log) => log.completed || log.status === 'skipped' || log.status === 'failed').map((log) => log.habitId));
+  if (habits.some((habit) => isHabitScheduledForDay(date, habit.frequency) && !handled.has(habit.id))) return;
+  await settleAutomaticReminders(userId, SETTLE_PREFIXES.habits(date.toISOString().slice(0, 10)));
+}
+
 export async function logHabit(
   userId: string,
   habitId: string,
@@ -541,6 +557,9 @@ export async function logHabit(
       data: { currentStreak, longestStreak },
     });
   }
+
+  // Si ya no queda ningún hábito por hacer ese día, el aviso de «pendientes» se da por leído al instante.
+  await settleHabitsPendingReminder(userId, date).catch(() => null);
 
   let recoveryCompleted: {
     id: string;

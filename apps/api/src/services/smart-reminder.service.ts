@@ -6,7 +6,7 @@ import { prisma } from '../lib/prisma';
 import { getCalendarDay } from '../lib/calendar';
 import { averages, snapshot, type PeriodRow } from '../lib/cycle';
 import {
-  AUTOMATIC_PREFIXES, BREAK_TIPS, CARE_COPY, COOL_WINDOW_DAYS, CYCLE_COPY, ZONE_PREFIXES, breakSlots, coolingPrefixes, focusCategory, hydrationSlots, inWindow,
+  AUTOMATIC_PREFIXES, BREAK_TIPS, CARE_COPY, COOL_WINDOW_DAYS, CYCLE_COPY, ZONE_PREFIXES, breakSlots, calendarDayRange, coolingPrefixes, focusCategory, hydrationSlots, inWindow,
   learnedHabitTime, localMinutes, monthDueKey, parseHHMM, pickQuote, sanitizeSmartSettings, usualWeekdays, type LearnZone, type SmartReminderSettings,
 } from '../lib/smart-reminders';
 import { isComplimentary, planOf } from '../lib/plans';
@@ -344,7 +344,7 @@ async function hydrationReminders(c: Ctx): Promise<number> {
   if (slot === undefined) return 0;
 
   const [sum, goal] = await Promise.all([
-    prisma.meal.aggregate({ where: { userId: c.userId, date: c.calendarDate }, _sum: { waterMl: true } }),
+    prisma.meal.aggregate({ where: { userId: c.userId, date: calendarDayRange(c.calendarDate) }, _sum: { waterMl: true } }),
     prisma.nutritionGoal.findUnique({ where: { userId: c.userId }, select: { waterMl: true } }),
   ]);
   const drank = sum._sum.waterMl ?? 0;
@@ -369,7 +369,7 @@ async function mealReminders(c: Ctx): Promise<number> {
   const slot = m.times.find((t) => slotDue(c, t));
   if (slot === undefined) return 0;
   const eaten = await prisma.meal.findFirst({
-    where: { userId: c.userId, date: c.calendarDate, mealType: { not: 'WATER' } },
+    where: { userId: c.userId, date: calendarDayRange(c.calendarDate), mealType: { not: 'WATER' } },
     select: { id: true },
   });
   if (eaten) return 0;

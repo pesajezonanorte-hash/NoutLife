@@ -1,5 +1,7 @@
 import { prisma } from '../lib/prisma';
+import { SETTLE_PREFIXES } from '../lib/smart-reminders';
 import type { MEAL_TYPES } from '../schemas/activity.schemas';
+import { settleAutomaticReminders } from './notification.service';
 
 function parseDateRange(dateStr?: string) {
   if (!dateStr) return undefined;
@@ -37,7 +39,7 @@ export async function listMeals(userId: string, date?: string) {
 }
 
 export async function createMeal(userId: string, body: { name: string; mealType: (typeof MEAL_TYPES)[number]; calories?: number; protein?: number; carbs?: number; fat?: number; waterMl?: number; date?: string }) {
-  return prisma.meal.create({
+  const meal = await prisma.meal.create({
     data: {
       userId,
       name: body.name,
@@ -50,6 +52,16 @@ export async function createMeal(userId: string, body: { name: string; mealType:
       date: parseMealDate(body.date),
     },
   });
+
+  // Lo registrado anula al instante los avisos del día que pedían justo eso (agua o comida):
+  // no espera a la siguiente pasada del cron. El día es el mismo que usa la pasada (calendarDayRange).
+  const settle: string[] = [];
+  const day = meal.date.toISOString().slice(0, 10);
+  if (body.mealType !== 'WATER') settle.push(...SETTLE_PREFIXES.meal(day));
+  if ((body.waterMl ?? 0) > 0) settle.push(...SETTLE_PREFIXES.hydration(day));
+  await settleAutomaticReminders(userId, settle).catch(() => 0);
+
+  return meal;
 }
 
 export async function deleteMeal(userId: string, id: string) {

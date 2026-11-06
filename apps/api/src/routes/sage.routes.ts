@@ -3,7 +3,7 @@ import { Router } from 'express';
 import { requireAuth, type AuthRequest } from '../middleware/auth.middleware';
 import { sageLimiter, sageDailyLimiter } from '../middleware/rate-limit.middleware';
 import * as sage from '../controllers/sage.controller';
-import { requirePro } from '../middleware/plan.middleware';
+import { requirePro, requireProZone } from '../middleware/plan.middleware';
 import { getTodayProactiveNote, markProactiveNoteRead } from '../services/sage-proactive.service';
 
 const router = Router();
@@ -15,6 +15,8 @@ const chatLimits = [sageLimiter, sageDailyLimiter];
 // Toda la IA es de Pro. En Lite, el consejo y el resumen usan su texto sin IA.
 const proAI = requirePro('ai');
 router.post('/chat',             proAI, ...chatLimits, sage.chat);
+// Confirmar una propuesta de meta (el Sabio nunca la aplica sola): misma zona Pro que Finanzas.
+router.post('/actions/apply',    proAI, requireProZone('finances'), sage.applyAction);
 router.post('/suggest-quests',   proAI, ...chatLimits, sage.suggestQuests);
 router.post('/analyze-habits',   proAI, ...chatLimits, sage.analyzeHabits);
 router.post('/analyze-finances', proAI, ...chatLimits, sage.analyzeFinances);

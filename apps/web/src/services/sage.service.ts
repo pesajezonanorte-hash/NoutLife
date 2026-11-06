@@ -1,8 +1,25 @@
 import api from '../lib/api';
 
-export async function sageChat(message: string): Promise<{ reply: string }> {
-  const { data } = await api.post<{ reply: string }>('/sage/chat', { message });
+/** Cambio en metas que propone el Sabio. Solo se aplica si la persona lo confirma. */
+export type SageFinanceAction =
+  | { action: 'create_goal'; title: string; targetAmount: number; deadline?: string }
+  | { action: 'update_goal'; goalId: string; title?: string; targetAmount?: number; deadline?: string | null }
+  | { action: 'contribute_goal'; goalId: string; amount: number };
+
+export interface SageChatReply {
+  reply: string;
+  action?: SageFinanceAction | null;
+  goalTitle?: string | null;
+}
+
+export async function sageChat(message: string): Promise<SageChatReply> {
+  const { data } = await api.post<SageChatReply>('/sage/chat', { message });
   return data;
+}
+
+/** Confirmación de una propuesta: el servidor la vuelve a validar y la aplica a tus metas. */
+export async function applySageAction(action: SageFinanceAction): Promise<void> {
+  await api.post('/sage/actions/apply', { action });
 }
 
 // raw: texto del Sabio cuando la respuesta no fue JSON parseable (p. ej. la

@@ -429,3 +429,23 @@ export function coolingPrefixes(recent: Array<{ key: string | null; isRead: bool
 
 /** Prefijo automático de una clave (o undefined si no es automática). */
 export const prefixOf = (key: string | undefined) => AUTOMATIC_PREFIXES.find((p) => key?.startsWith(p));
+
+/**
+ * Un día de calendario (medianoche UTC, como `calendarDate` de la pasada) como rango
+ * [inicio, día siguiente). Las comidas y el agua se guardan con la hora del registro:
+ * compararlas con la medianoche exacta nunca las encuentra (el aviso veía 0 L y «sin comer»).
+ */
+export function calendarDayRange(calendarDate: Date): { gte: Date; lt: Date } {
+  return { gte: calendarDate, lt: new Date(calendarDate.getTime() + 86_400_000) };
+}
+
+/**
+ * Avisos automáticos de un día (AAAA-MM-DD local) que se anulan en cuanto la persona
+ * registra lo que pedían: agua, comida o el último hábito pendiente. Las claves coinciden
+ * con las que genera la pasada de smart-reminder.service.
+ */
+export const SETTLE_PREFIXES = {
+  hydration: (day: string): string[] => [`hydration-${day}-`],
+  meal: (day: string): string[] => [`meal-${day}-`],
+  habits: (day: string): string[] => [`zone-reminder:habitos-pendientes:${day}`],
+} as const;

@@ -121,6 +121,9 @@ test('buildLifeSnapshot: ve todas las zonas y el contexto cabe en ~800 tokens', 
     dailyCheckin: { ...empty, findFirst: async () => ({ mood: 2, energy: 4, date: day(1) }) },
     relationship: many([{ name: 'Mamá', importantDates: [{ label: 'Cumpleaños', date: '1980-10-20', isRecurring: true }] }]),
     agendaEvent: many([{ title: 'Evento de Google', googleEventId: 'g1', isCompleted: false }, { title: 'Llamar al banco', googleEventId: null, isCompleted: false }]),
+    financialGoal: many([{ id: 'goal-viaje', title: 'Viaje a Cartagena', targetAmount: 3_000_000, currentAmount: 900_000, deadline: new Date('2027-06-30T00:00:00Z') }]),
+    recurringTransaction: many([{ type: 'INCOME', amount: 3_000_000, isActive: true }, { type: 'EXPENSE', amount: 1_200_000, isActive: true }]),
+    debt: many([]),
   };
   await withMocks(mocks, async () => {
     const { buildLifeSnapshot, packSections, CONTEXT_BUDGET_CHARS } = await import('../src/services/life-context.service');
@@ -134,6 +137,10 @@ test('buildLifeSnapshot: ve todas las zonas y el contexto cabe en ~800 tokens', 
     }
     assert.match(text, /Duerme menos de 6,5 h/, 'conecta sueño y entreno');
     assert.match(text, /Cumpleaños de Mamá en 7 días/);
+    // Metas y proyección: el id de cada meta va en la línea para que el Sabio pueda proponer cambios.
+    assert.match(text, /METAS Y PROYECCIÓN/);
+    assert.match(text, /Viaje a Cartagena \(id goal-viaje\): 30% de/);
+    assert.match(text, /Proyección 3 meses: saldo/);
     assert.ok(!text.includes('Evento de Google'), 'los títulos importados de Google no salen');
     assert.ok(text.includes('Llamar al banco'));
     // Con foco, la sección pedida entra entera aunque el presupuesto sea corto.
