@@ -10,6 +10,9 @@ interface Props {
   onDone: () => void;
 }
 
+/** Tiempo máximo, desde que la app está lista, para que el splash se retire aunque su secuencia 3D se atasque. */
+const FORCE_REMOVE_MS = 3000;
+
 export function SplashScreen({ ready, onDone }: Props) {
   const [boot] = useState(() => document.getElementById('lq-boot'));
   const done = useRef(onDone);
@@ -19,10 +22,25 @@ export function SplashScreen({ ready, onDone }: Props) {
     if (!ready) return;
     done.current();
     if (!boot) return;
-    if (window.lqSplash) { window.lqSplash.leave(); return; }
-    // El chunk del splash no llegó (sin red): un fundido y fuera.
-    boot.classList.add('out');
-    window.setTimeout(() => boot.remove(), 520);
+
+    // Red de seguridad: la secuencia de src/splash puede tardar más de lo esperado (GPU lenta, pestaña
+    // oculta). Pasado el límite, se quita el splash y su canvas 3D para no tapar la app.
+    // Sin cleanup a propósito: este componente se desmonta enseguida (done() quita el splash de React),
+    // y el watchdog debe sobrevivir a eso. Si #lq-boot ya no existe, no hace nada.
+    window.setTimeout(() => {
+      if (!boot.isConnected) return;
+      boot.classList.add('out');
+      document.getElementById('lq-boot-3d')?.remove();
+      window.setTimeout(() => boot.remove(), 520);
+    }, FORCE_REMOVE_MS);
+
+    if (window.lqSplash) {
+      window.lqSplash.leave();
+    } else {
+      // El chunk del splash no llegó (sin red): un fundido y fuera.
+      boot.classList.add('out');
+      window.setTimeout(() => boot.remove(), 520);
+    }
   }, [boot, ready]);
 
   if (boot) return null;
