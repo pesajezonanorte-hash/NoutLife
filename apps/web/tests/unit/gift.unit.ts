@@ -35,10 +35,13 @@ test('the welcome shows once per account while the gift is active', () => {
 });
 
 test('the welcome tells the truth about the end: no charge, back to Lite', () => {
-  assert.match(GIFT_WELCOME.es.title, /7 días de NoutLife Pro/);
+  assert.match(GIFT_WELCOME.es.title(7), /7 días de NoutLife Pro/);
+  assert.match(GIFT_WELCOME.es.title(30), /30 días de NoutLife Pro/, 'a 30-day gift says 30');
+  assert.match(GIFT_WELCOME.es.title(1), /1 día de NoutLife Pro/);
   assert.match(GIFT_WELCOME.es.ending, /Lite/);
   assert.match(GIFT_WELCOME.es.ending, /No hay cobros/);
-  assert.match(GIFT_WELCOME.en.title, /7 days of NoutLife Pro/);
+  assert.match(GIFT_WELCOME.en.title(7), /7 days of NoutLife Pro/);
+  assert.match(GIFT_WELCOME.en.title(30), /30 days of NoutLife Pro/);
   assert.match(GIFT_WELCOME.en.ending, /Lite/);
   assert.match(GIFT_WELCOME.en.ending, /No charges/);
 });

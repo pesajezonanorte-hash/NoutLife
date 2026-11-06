@@ -14,7 +14,7 @@ export async function listUsers(now = new Date()) {
     select: {
       id: true, email: true, displayName: true, username: true, level: true, createdAt: true, lastSeenAt: true,
       subscriptionStatus: true, trialEndsAt: true, currentPeriodEnd: true, paymentSourceId: true,
-      paymentMethodType: true, paymentMethodLabel: true, liteSince: true, lastPaymentError: true, gender: true, giftTrial: true, compPro: true, giftAvailable: true,
+      paymentMethodType: true, paymentMethodLabel: true, liteSince: true, lastPaymentError: true, gender: true, giftTrial: true, giftDays: true, compPro: true, giftAvailable: true,
       billingInterval: true, market: true, creatorCodeId: true, creatorCode: { select: { code: true, creatorName: true, discountPercent: true } },
     },
   });

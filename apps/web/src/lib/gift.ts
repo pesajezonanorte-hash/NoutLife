@@ -35,16 +35,16 @@ export function giftWelcomeWaitsForTour(tourDone: boolean, createdAt: string | n
 }
 
 /** Texto de la bienvenida. El último renglón evita la sorpresa: no hay cobro al terminar. */
-export const GIFT_WELCOME: Copy<{ title: string; body: string; ending: string; plan: string; start: string }> = {
+export const GIFT_WELCOME: Copy<{ title: (days: number) => string; body: string; ending: string; plan: string; start: string }> = {
   es: {
-    title: '¡Te regalamos 7 días de NoutLife Pro!',
+    title: (days) => `¡Te regalamos ${days} ${days === 1 ? 'día' : 'días'} de NoutLife Pro!`,
     body: 'Disfruta de hábitos ilimitados, historial completo y todas las herramientas sin costo ni tarjeta de crédito.',
     ending: 'Al terminar, tu cuenta sigue en NoutLife Lite. No hay cobros.',
     plan: 'Ver mi plan',
     start: 'Empezar',
   },
   en: {
-    title: '7 days of NoutLife Pro, on us',
+    title: (days) => `${days} ${days === 1 ? 'day' : 'days'} of NoutLife Pro, on us`,
     body: 'Unlimited habits, your full history and every tool, with no cost and no credit card.',
     ending: 'When it ends, your account stays on NoutLife Lite. No charges.',
     plan: 'View my plan',

@@ -338,7 +338,8 @@ export default function PlanPage() {
           {sub.status === 'trialing' && (
             <TrialRibbon
               className="max-w-[560px]"
-              elapsed={TRIAL_DAYS - trialLeft}
+              elapsed={sub.trialDays - trialLeft}
+              total={sub.trialDays}
               chargeLabel={sub.hasPaymentMethod ? t.ribbonCharge(trialEnd, offer.money(nextCents)) : t.ribbonLite(trialEnd)}
               summary={t.ribbonSummary(trialLeft, trialEnd)}
             />
