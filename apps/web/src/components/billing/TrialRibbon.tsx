@@ -23,6 +23,8 @@ interface TrialRibbonProps {
 }
 
 const STEP = 0.08;
+/** Hasta este número de días se dibuja un punto por día; más largo, una barra (un regalo de 365 días no cabe en una fila). */
+const MAX_DOTS = 10;
 
 export function TrialRibbon({ elapsed, total, chargeLabel, summary, className }: TrialRibbonProps) {
   const length = total ?? TRIAL_DAYS;
@@ -33,19 +35,30 @@ export function TrialRibbon({ elapsed, total, chargeLabel, summary, className }:
   const show = inView || reduce;
   const filled = Math.min(length, Math.max(0, elapsed ?? length));
   const live = elapsed !== undefined;
-  const days = Array.from({ length: length }, (_, i) => i + 1);
+  const compact = length > MAX_DOTS;
+  const days = Array.from({ length: compact ? 0 : length }, (_, i) => i + 1);
 
   return (
     <div ref={ref} lang={locale} className={cn('flex flex-col gap-2', className)}>
       <p className="sr-only">{summary}</p>
       <div aria-hidden className="relative flex items-center justify-between">
         {/* Hilo que une los días: se tiende de izquierda a derecha. */}
-        <motion.span
+        {!compact && <motion.span
           className="absolute inset-x-4 top-1/2 h-0.5 origin-left -translate-y-1/2 rounded-full bg-border sm:inset-x-5"
           initial={reduce ? false : { scaleX: 0 }}
           animate={show ? { scaleX: 1 } : undefined}
           transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
-        />
+        />}
+        {compact && (
+          <span className="relative mx-3 h-2 flex-1 overflow-hidden rounded-full bg-surface-variant sm:mx-4">
+            <motion.span
+              className="absolute inset-0 origin-left rounded-full bg-primary-strong"
+              initial={reduce ? false : { scaleX: 0 }}
+              animate={show ? { scaleX: filled / length } : undefined}
+              transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+            />
+          </span>
+        )}
         {days.map((day, i) => {
           const done = i < filled;
           const today = live && i === filled;
