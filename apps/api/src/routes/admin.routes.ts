@@ -5,6 +5,8 @@ import { validate } from '../middleware/validate.middleware';
 import * as admin from '../services/admin.service';
 import * as creators from '../services/creator-code.service';
 import { createCreatorCodeSchema, updateCreatorCodeSchema } from '../schemas/creator-code.schemas';
+import * as rewards from '../services/reward-link.service';
+import { createRewardLinksSchema } from '../schemas/reward-link.schemas';
 
 const router = Router();
 router.use(requireAuth, requireAdmin);
@@ -25,6 +27,23 @@ router.post('/creator-codes', validate(createCreatorCodeSchema), (req, res, next
 
 router.patch('/creator-codes/:id', validate(updateCreatorCodeSchema), (req, res, next) => {
   creators.updateCreatorCode(String(req.params.id), req.body).then((code) => res.json({ code }), creatorError(res, next));
+});
+
+// Enlaces de recompensa (Instagram): el token completo solo vuelve en la respuesta de alta.
+router.get('/reward-links', async (_req, res, next) => {
+  try { res.json({ links: await rewards.listRewardLinks() }); } catch (err) { next(err); }
+});
+
+router.post('/reward-links', validate(createRewardLinksSchema), async (req: AuthRequest, res, next) => {
+  try { res.status(201).json({ links: await rewards.createRewardLinks(req.body, req.userId!) }); } catch (err) { next(err); }
+});
+
+router.post('/reward-links/:id/revoke', async (req, res, next) => {
+  try { await rewards.revokeRewardLink(String(req.params.id)); res.json({ ok: true }); }
+  catch (err) {
+    if (err instanceof rewards.RewardLinkError) { res.status(err.status).json({ error: err.message }); return; }
+    next(err);
+  }
 });
 
 router.delete('/users/:id', async (req: AuthRequest, res, next) => {

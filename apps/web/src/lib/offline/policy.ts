@@ -13,7 +13,7 @@ export const pathnameOf = (path: string) => path.split('?')[0];
 export const queryOf = (path: string) => new URLSearchParams(path.split('?')[1] ?? '');
 
 /** Sesión, pagos y lo que depende del servidor al momento: una copia vieja aquí engañaría. */
-const NEVER = /^\/(?:auth|billing|admin|social\/live|social\/pulse|sage|search|export|cron|feedback|nutrition\/ai-|notifications\/(?:unread-count|vapid-public-key))(?:[/?-]|$)/;
+const NEVER = /^\/(?:auth|billing|rewards|admin|social\/live|social\/pulse|sage|search|export|cron|feedback|nutrition\/ai-|notifications\/(?:unread-count|vapid-public-key))(?:[/?-]|$)/;
 
 /**
  * Se muestran al instante desde lo guardado. Sus páginas se actualizan solas cuando llega lo nuevo

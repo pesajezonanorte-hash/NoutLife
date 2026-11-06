@@ -14,6 +14,7 @@ import { SageWidget } from './components/sage/SageWidget';
 import { PlanGate } from './components/billing/PlanGate';
 import { TrialNotice } from './components/billing/TrialNotice';
 import { GiftWelcome } from './components/billing/GiftWelcome';
+import { PendingReward } from './components/billing/PendingReward';
 import { PendingApprovalGate } from './components/billing/PendingApprovalGate';
 import { LockedZone } from './components/billing/LockedZone';
 import { priceListFor, type ProZone } from './lib/plan';
@@ -44,6 +45,7 @@ const loaders = {
   ProfilePage: () => import('./pages/Profile'),
   AdminPage: () => import('./pages/Admin'),
   AdminCreatorsPage: () => import('./pages/Admin/Creators'),
+  AdminRewardsPage: () => import('./pages/Admin/Rewards'),
   OnboardingPage: () => import('./pages/Onboarding'),
   QuestsPage: () => import('./pages/Quests'),
   HabitsPage: () => import('./pages/Habits'),
@@ -81,6 +83,7 @@ const loaders = {
   FAQPage: () => import('./pages/FAQ'),
   PlanPage: () => import('./pages/Plan'),
   InvitePage: () => import('./pages/Invite'),
+  ClaimPage: () => import('./pages/Claim'),
 } as const;
 
 // Playground del rediseño: solo se enruta en desarrollo (fuera de `loaders`
@@ -141,6 +144,7 @@ const routeLoaders: Record<string, PageImport> = {
   '/about': loaders.AboutPage,
   '/faq': loaders.FAQPage,
   '/plan': loaders.PlanPage,
+  '/claim': loaders.ClaimPage,
 };
 
 // Rutas que solo redirigen (no esperan ningún bundle).
@@ -293,6 +297,7 @@ function zoneRoutes(location: Location) {
           {/* Administración: solo las cuentas de utils/admin (el servidor vuelve a comprobarlo). */}
           <Route path="/admin"        element={<AdminRoute><SafePage><DeferredLazyPage load={loaders.AdminPage} /></SafePage></AdminRoute>} />
           <Route path="/admin/creadores" element={<AdminRoute><SafePage><DeferredLazyPage load={loaders.AdminCreatorsPage} /></SafePage></AdminRoute>} />
+          <Route path="/admin/recompensas" element={<AdminRoute><SafePage><DeferredLazyPage load={loaders.AdminRewardsPage} /></SafePage></AdminRoute>} />
           <Route path="/character"    element={<Navigate to="/profile" replace />} />
           <Route path="/quests"       element={<SafePage><DeferredLazyPage load={loaders.QuestsPage} /></SafePage>} />
           <Route path="/quests/new"   element={<SafePage><DeferredLazyPage load={loaders.QuestsPage} /></SafePage>} />
@@ -544,6 +549,8 @@ export default function App() {
           <Route path="/health-data" element={<DeferredLazyPage load={loaders.LegalPage} />} />
           <Route path="/shared/:code" element={<SafePage><DeferredLazyPage load={loaders.SharedResourcePage} /></SafePage>} />
           <Route path="/i/:username" element={<SafePage><DeferredLazyPage load={loaders.InvitePage} /></SafePage>} />
+          {/* Enlace de recompensa (Instagram): público; canjear pide sesión. */}
+          <Route path="/claim" element={<SafePage><DeferredLazyPage load={loaders.ClaimPage} /></SafePage>} />
           <Route
             path="/onboarding"
             element={
@@ -565,6 +572,7 @@ export default function App() {
                 <PlanGate blocked={!inviteSettled || (showNotifModal && tourDone && Boolean(user?.onboardingCompleted))} />
                 {inviteSettled && <TrialNotice />}
                 {inviteSettled && <GiftWelcome />}
+                <PendingReward />
               </ProtectedRoute>
             }
           />

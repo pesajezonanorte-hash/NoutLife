@@ -74,7 +74,7 @@ test('the theme catalog has one entry per skin, each wearable on the theme slot'
   const themes = DEFAULT_SHOP_ITEMS.filter((i) => i.type === 'THEME');
   const keys = themes.map((t) => t.imageKey);
   assert.equal(new Set(keys).size, keys.length);
-  for (const id of ['aurora', 'mono', 'ocean', 'forest', 'lava', 'papyrus', 'neon', 'galaxy', 'cyber']) assert.ok(keys.includes(`theme_${id}`), id);
+  for (const id of ['aurora', 'mono', 'ocean', 'forest', 'lava', 'papyrus', 'neon', 'galaxy', 'cyber', 'calma']) assert.ok(keys.includes(`theme_${id}`), id);
   for (const t of themes) {
     assert.equal('slot' in t && t.slot, 'theme');
     assert.equal('value' in t && t.value, t.imageKey);

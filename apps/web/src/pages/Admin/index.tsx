@@ -2,7 +2,7 @@
 // y cuándo cobra o vence la prueba. Solo lectura. El servidor exige el correo.
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, Copy, Ticket } from 'lucide-react';
+import { Check, Copy, Gift, Ticket } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Badge, Button, Card, ChipGroup, ErrorState, Field, Input, Modal, PageLoader, buttonClasses, type ChipOption } from '@/components/ui/lq';
 import { useToast } from '@/hooks/useToast';
@@ -169,6 +169,9 @@ export default function AdminPage() {
 
       <Link to="/admin/creadores" className={buttonClasses('secondary', 'md', false) + ' self-start'}>
         <Ticket aria-hidden className="size-4" strokeWidth={1.75} />Creadores y socios: códigos, conversiones y comisiones
+      </Link>
+      <Link to="/admin/recompensas" className={buttonClasses('secondary', 'md', false) + ' self-start'}>
+        <Gift aria-hidden className="size-4" strokeWidth={1.75} />Enlaces de recompensa: 7 días de Pro y tema Calma
       </Link>
 
       <Stats items={[

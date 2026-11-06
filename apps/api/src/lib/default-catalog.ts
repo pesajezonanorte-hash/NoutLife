@@ -91,6 +91,8 @@ export const DEFAULT_SHOP_ITEMS = [
   { name: 'Tema: Ciudad Neón', description: 'Noche violeta con letreros rosa y cian que brillan.', type: 'THEME', cost: 700, imageKey: 'theme_neon', levelRequired: 6, slot: 'theme', value: 'theme_neon' },
   { name: 'Tema: Galaxia', description: 'Índigo profundo, nebulosas y un campo de estrellas.', type: 'THEME', cost: 800, imageKey: 'theme_galaxy', levelRequired: 8, slot: 'theme', value: 'theme_galaxy' },
   { name: 'Tema: Cyberpunk', description: 'Amarillo de advertencia, cortes rectos y líneas de escaneo.', type: 'THEME', cost: 900, imageKey: 'theme_cyber', levelRequired: 10, slot: 'theme', value: 'theme_cyber' },
+  // Exclusivo de los enlaces de recompensa (lib/reward-links REWARD_ONLY_THEMES): la Tienda no lo vende.
+  { name: 'Tema: Calma', description: 'Exclusivo. Grafito profundo, verde niebla y luz suave: nada compite con lo que importa.', type: 'THEME', cost: 0, imageKey: 'theme_calma', levelRequired: 1, slot: 'theme', value: 'theme_calma' },
 ] as const;
 
 type CatalogClient = Pick<PrismaClient, 'achievement' | 'shopItem'>;

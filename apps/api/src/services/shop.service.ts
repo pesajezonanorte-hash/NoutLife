@@ -10,6 +10,10 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { applyAvatarItem, stripUnowned, wearing } from '../lib/avatar-items';
 import { MAX_SHIELD_DAYS, shieldDaysOf } from '../lib/streak-shields';
+import { REWARD_ONLY_THEMES } from '../lib/reward-links';
+
+/** Solo llega por un enlace de recompensa: no se vende. */
+const rewardOnly = (item: { imageKey: string | null }) => Boolean(item.imageKey && REWARD_ONLY_THEMES.has(item.imageKey));
 
 /** Partes del personaje que viven en avatarConfig.pixel. */
 const AVATAR_SLOTS = new Set(['extra', 'hair', 'top']);
@@ -38,7 +42,9 @@ export async function listShopItems(userId: string) {
     prisma.inventoryItem.findMany({ where: { userId }, select: { shopItemId: true, isEquipped: true } }),
     prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { level: true, avatarConfig: true, equippedAura: true, equippedFrame: true, equippedTheme: true } }),
   ]);
-  return items.map((item) => {
+  // Los temas de recompensa solo los ve quien ya los tiene (para volver a ponérselos).
+  const visible = items.filter((item) => !rewardOnly(item) || inventory.some((inv) => inv.shopItemId === item.id));
+  return visible.map((item) => {
     const shieldDays = shieldDaysOf(item.imageKey);
     const owned = !shieldDays && inventory.some((inv) => inv.shopItemId === item.id);
     return {
@@ -77,6 +83,7 @@ async function purchaseShield(userId: string, item: { id: string; cost: number; 
 export async function purchaseItem(userId: string, shopItemId: string) {
   const item = await prisma.shopItem.findUniqueOrThrow({ where: { id: shopItemId } });
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { level: true } });
+  if (rewardOnly(item)) throw new Error('Este tema es exclusivo: solo se desbloquea con un enlace de recompensa.');
   if (user.level < item.levelRequired) throw new Error(`Se desbloquea en el nivel ${item.levelRequired}`);
   if (shieldDaysOf(item.imageKey)) return purchaseShield(userId, item);
   const existing = await prisma.inventoryItem.findFirst({ where: { userId, shopItemId } });
