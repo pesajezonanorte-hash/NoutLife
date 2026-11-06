@@ -100,7 +100,11 @@
         transition: background-color .9s cubic-bezier(.4,0,.2,1); }
       #lq-boot.out { background-color: rgb(var(--bg) / 0); }
       /* La palabra y el eslogan se despiden despacio, después de que empiece el líquido. */
-      #lq-boot.out .wm, #lq-boot.out .tg, #lq-boot.out .bar { opacity: 0; transition: opacity .7s cubic-bezier(.4,0,.2,1) .15s; }
+      /* .tg y .bar tienen animaciones de entrada con relleno «both», que fijan opacity:1 y anulan la transición:
+         por eso se despiden con su propio fotograma de salida. */
+      @keyframes lqb-fade { from { opacity: 1; } to { opacity: 0; } }
+      #lq-boot.out .wm { opacity: 0; transition: opacity .7s cubic-bezier(.4,0,.2,1) .15s; }
+      #lq-boot.out .tg, #lq-boot.out .bar { animation: lqb-fade .7s cubic-bezier(.4,0,.2,1) .15s forwards; }
       #lq-boot .mk { position: relative; width: 89px; height: 104px; animation: lqb-settle .6s cubic-bezier(.34,1.56,.64,1) 1.62s both; transition: opacity .3s ease-in; }
       /* El 3D toma la N en este mismo sitio: la de CSS se funde mientras la otra aparece. */
       #lq-boot.taken .mk { opacity: 0; }
