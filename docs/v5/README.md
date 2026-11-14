@@ -29,8 +29,7 @@ API (rutas Express + servicios Prisma + esquemas zod). La lógica de cálculo vi
 - Los hábitos sugeridos (de la plantilla o del Sabio) ahora sí se crean al crear la zona; antes se ignoraban.
 - El progreso de la zona sale de las misiones cumplidas. Antes la API solo devolvía las activas y el
   progreso era siempre 0 %.
-- La API valida lo que llega al crear y editar (`custom-zones.routes.ts`); un módulo solo puede enlazar a una
-  ruta interna.
+- La API valida lo que llega al crear y editar (`schemas/custom-zone.schemas.ts`): lo de más se descarta, los textos largos se recortan y un enlace que no es ruta interna se quita. La zona se crea igual.
 
 ## 2. Académico (pestaña de Aprendizaje, `?tab=academico`)
 
@@ -156,8 +155,9 @@ Vercel despliega `noutlife` (web) y `noutlife-api` (API) desde `main`, a la vez.
 
 ## Pruebas
 
-- API: `npm test` en `apps/api` (313 pruebas). Las nuevas están en `tests/v5.test.ts`: migración
-  idempotente, saldos y cortes de tarjeta, pronóstico, banda sonora, reglas académicas y copiloto.
+- API: `npm test` en `apps/api` (317 pruebas). Las nuevas están en `tests/v5.test.ts`: migración
+  idempotente, saldos y cortes de tarjeta, pronóstico, banda sonora, reglas académicas y copiloto. Y en
+  `tests/custom-zone.test.ts`: las sugerencias del Sabio al crear zonas.
 - Web: `npm test` en `apps/web` (192 pruebas). Nuevas: `academic.unit.ts`, `sheet.unit.ts`, `v5.unit.ts`.
 - Revisión visual con la API simulada (Playwright, 390×844 y 1440×900, modo claro) de Inicio, Académico,
   Carteras, Recreación, Modo enfoque, Oficina (hoja, presentación, documento) y Zonas.
