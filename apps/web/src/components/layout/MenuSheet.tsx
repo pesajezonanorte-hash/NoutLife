@@ -5,7 +5,6 @@ import { Button, ProgressBar, SegmentedControl, Sheet } from '@/components/ui/lq
 import { SkinModeNote } from '@/components/settings/SkinModeNote';
 import { useAuthStore } from '@/store/authStore';
 import { useUIStore } from '@/store/uiStore';
-import { parseEmbed } from '@/components/ui/MusicPlayer';
 import { useShellStore } from '@/store/shellStore';
 import { useThemeStore, type ThemeMode } from '@/store/themeStore';
 import { getLevelTitle } from '@/lib/gameProgress';
@@ -152,9 +151,7 @@ export function MenuSheet() {
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <ToolButton icon={Sparkles} label={t.sage} onClick={then(() => openSage(t.sageQuestion))} />
           <ToolButton icon={Zap} label={t.focus} onClick={then(() => setFocusOpen(true))} />
-          {parseEmbed(user?.coliseoPlaylistUrl).embedUrl && (
-            <ToolButton icon={Music} label={t.music} onClick={then(() => setMusicOpen(true))} />
-          )}
+          <ToolButton icon={Music} label={t.music} onClick={then(() => setMusicOpen(true))} />
           <ToolButton icon={audioEnabled ? Volume2 : VolumeX} label={audioEnabled ? t.mute : t.unmute} onClick={toggleAudio} />
           <ToolButton icon={MessageSquarePlus} label={t.feedback} onClick={then(() => setFeedbackOpen(true))} />
         </div>

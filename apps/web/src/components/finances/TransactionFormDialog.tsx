@@ -6,12 +6,18 @@ import { useNavigate } from 'react-router-dom';
 import { MirrorIcon } from '@/components/zones/mirrorIcon';
 import type { Transaction, TransactionCategory } from '@noutlife/shared';
 import { cn } from '@/lib/utils';
-import { Button, Field, Input, ResponsiveDialog, SegmentedControl, DatePicker } from '@/components/ui/lq';
+import { Button, ChipGroup, Field, Input, ResponsiveDialog, SegmentedControl, DatePicker } from '@/components/ui/lq';
 import { softTone } from '@/components/ui/lq/tones';
 import { useToastStore } from '@/hooks/useToast';
 import { useLocale, useText, type Copy } from '@/lib/i18n';
 import * as financeService from '@/services/finance.service';
 import { categoriesFor } from './financeMeta';
+import { ACCOUNT_ICON } from './Wallets';
+import type { FinanceAccount } from '@/services/wallet.service';
+
+/** La última cartera usada en este dispositivo: la siguiente transacción la propone. */
+const LAST_ACCOUNT = 'lq-fin-account';
+const lastAccount = () => { try { return localStorage.getItem(LAST_ACCOUNT); } catch { return null; } };
 
 const es = {
   saveErr: 'No se pudo guardar. Inténtalo de nuevo.',
@@ -33,6 +39,8 @@ const es = {
   date: 'Fecha',
   cancel: 'Cancelar',
   save: 'Guardar',
+  wallet: 'Cartera',
+  noWallet: 'Sin cartera',
 };
 
 const en: typeof es = {
@@ -55,16 +63,22 @@ const en: typeof es = {
   date: 'Date',
   cancel: 'Cancel',
   save: 'Save',
+  wallet: 'Wallet',
+  noWallet: 'No wallet',
 };
 
 const COPY: Copy<typeof es> = { es, en };
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-export function TransactionFormDialog({ open, onClose, onSaved }: {
+export function TransactionFormDialog({ open, onClose, onSaved, accounts = [], defaultAccountId = null }: {
   open: boolean;
   onClose: () => void;
   onSaved: (t: Transaction) => void;
+  /** Carteras activas: con alguna, el movimiento elige de cuál sale o a cuál entra. */
+  accounts?: FinanceAccount[];
+  /** Cartera por la que se está filtrando la página, si hay una. */
+  defaultAccountId?: string | null;
 }) {
   const t = useText(COPY);
   const locale = useLocale();
@@ -74,6 +88,7 @@ export function TransactionFormDialog({ open, onClose, onSaved }: {
   const [category, setCategory] = useState<TransactionCategory>('FOOD');
   const [description, setDescription] = useState('');
   const [date, setDate] = useState(today());
+  const [accountId, setAccountId] = useState('');
   const [touched, setTouched] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -81,7 +96,9 @@ export function TransactionFormDialog({ open, onClose, onSaved }: {
   useEffect(() => {
     if (!open) return;
     setType('EXPENSE'); setAmount(''); setCategory('FOOD'); setDescription(''); setDate(today()); setTouched(false); setError(null);
-  }, [open]);
+    const proposed = defaultAccountId ?? lastAccount();
+    setAccountId(accounts.some((a) => a.id === proposed) ? proposed! : '');
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function changeType(next: 'EXPENSE' | 'INCOME') {
     setType(next);
@@ -98,7 +115,8 @@ export function TransactionFormDialog({ open, onClose, onSaved }: {
     setSaving(true);
     setError(null);
     try {
-      const created = await financeService.createTransaction({ type, amount: value, category, description: description.trim() || undefined, date });
+      const created = await financeService.createTransaction({ type, amount: value, category, description: description.trim() || undefined, date, ...(accounts.length > 0 && { accountId: accountId || null }) });
+      try { if (accountId) localStorage.setItem(LAST_ACCOUNT, accountId); } catch { /* modo privado */ }
       useToastStore.getState().success(type === 'INCOME' ? t.incomeOk : t.expenseOk);
       onSaved(created);
     } catch {
@@ -115,6 +133,15 @@ export function TransactionFormDialog({ open, onClose, onSaved }: {
         <Field label={t.amount} error={touched && !valid ? t.amountErr : undefined}>
           <Input data-autofocus type="number" inputMode="decimal" min="0" step="any" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" className="text-heading-sm font-mono tabular-nums" />
         </Field>
+        {accounts.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <span className="text-label-lg text-on-surface">{t.wallet}</span>
+            <ChipGroup
+              label={t.wallet} value={accountId} onChange={setAccountId}
+              options={[...accounts.map((a) => ({ value: a.id, label: a.name, icon: ACCOUNT_ICON[a.kind] })), { value: '', label: t.noWallet }]}
+            />
+          </div>
+        )}
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-2 text-label-lg text-on-surface">{t.category}</legend>
           <div role="radiogroup" aria-label={t.category} className="grid grid-cols-3 gap-2 sm:grid-cols-4">

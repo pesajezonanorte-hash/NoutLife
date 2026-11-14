@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { isValidCalendarDate } from '../lib/calendar';
+import { ACCOUNT_KINDS } from '../lib/wallets';
 
 export const TRANSACTION_TYPES = ['INCOME', 'EXPENSE'] as const;
 export const TRANSACTION_CATEGORIES = [
@@ -42,6 +43,8 @@ const transactionFields = {
   category: z.enum(TRANSACTION_CATEGORIES),
   description: z.string().trim().max(500).optional(),
   date: validDateTime.optional(),
+  /** Cartera del movimiento; null lo deja sin cartera. */
+  accountId: z.string().min(1).max(40).nullable().optional(),
 };
 
 export const createTransactionSchema = z.object(transactionFields).strict();
@@ -53,6 +56,7 @@ export const updateTransactionSchema = z
     category: transactionFields.category.optional(),
     description: z.string().trim().max(500).optional(),
     date: validDateTime.optional(),
+    accountId: transactionFields.accountId,
   })
   .strict()
   .refine((value) => Object.keys(value).length > 0, 'Incluye al menos un campo para actualizar.');
@@ -101,3 +105,39 @@ export const savingsMoveSchema = z.object({
   (v) => (v.kind === 'DEPOSIT' ? v.counterpart !== 'OUT' : v.counterpart !== 'EXTRA'),
   'Origen o destino no válido para este movimiento.',
 );
+
+// ─── Carteras: dónde está el dinero ─────────────────────────────────────────────
+
+export const ACCOUNT_COLORS = ['jade', 'ambar', 'oceano', 'coral', 'bosque', 'oro'] as const;
+const dayOfMonth = z.number().int().min(1).max(31);
+
+const accountFields = {
+  name: z.string().trim().min(1, 'Ponle nombre a la cartera.').max(40),
+  kind: z.enum(ACCOUNT_KINDS),
+  provider: z.string().trim().max(40).nullable().optional(),
+  /** Solo para reconocer la tarjeta: nunca el número completo. */
+  last4: z.string().regex(/^\d{4}$/, 'Escribe solo los últimos 4 dígitos.').nullable().optional(),
+  color: z.enum(ACCOUNT_COLORS).optional(),
+  openingBalance: z.number({ invalid_type_error: 'El saldo debe ser un número válido.' }).finite().min(0, 'El saldo inicial no puede ser negativo.').max(999_999_999_999.99).optional(),
+  creditLimit: positiveMoney.nullable().optional(),
+  cutoffDay: dayOfMonth.nullable().optional(),
+  dueDay: dayOfMonth.nullable().optional(),
+};
+export const createAccountSchema = z.object(accountFields).strict();
+export const updateAccountSchema = z
+  .object({ ...accountFields, archived: z.boolean(), order: z.number().int().min(0).max(1000) })
+  .partial()
+  .strict()
+  .refine((value) => Object.keys(value).length > 0, 'Incluye al menos un campo para actualizar.');
+
+export const createTransferSchema = z.object({
+  fromAccountId: z.string().min(1).max(40),
+  toAccountId: z.string().min(1).max(40),
+  amount: positiveMoney,
+  date: validDateTime.optional(),
+  note: z.string().trim().max(120).optional(),
+}).strict().refine((v) => v.fromAccountId !== v.toAccountId, 'Elige dos carteras distintas.');
+
+export type AccountInput = z.infer<typeof createAccountSchema>;
+export type AccountPatch = z.infer<typeof updateAccountSchema>;
+export type TransferInput = z.infer<typeof createTransferSchema>;

@@ -10,6 +10,8 @@ import { getNotificationPreferences } from '@/services/notification.service';
 import axios from 'axios';
 import { getLocale, type Copy } from './i18n';
 import { planReminders, type PlannedReminder } from './reminderPlan';
+import { fetchAcademic } from '@/services/academic.service';
+import { studyDues } from './academic';
 import { requestNavigate } from './systemNotifications';
 
 export type NativePermission = 'granted' | 'denied' | 'prompt';
@@ -107,14 +109,17 @@ export function syncNativeReminders(): Promise<void> {
     if ((await nativePermission()) !== 'granted') return;
     await prepare();
     const now = new Date();
-    const [habits, events, prefs, debts, bills] = await Promise.all([
+    const [habits, events, prefs, debts, bills, academic] = await Promise.all([
       fetchHabits(),
       fetchEvents({ from: now.toISOString(), to: new Date(now.getTime() + (PLAN_DAYS + 1) * 24 * 60 * 60_000).toISOString() }),
       getNotificationPreferences().catch((error: unknown) => { if (axios.isAxiosError(error) && error.response) return null; throw error; }),
       orEmpty(fetchDebts()),
       orEmpty(fetchRecurring()),
+      // Sin acceso a Aprendizaje (Lite) la API responde y no hay avisos; sin red, se reintenta como el resto.
+      fetchAcademic().catch((error: unknown) => { if (axios.isAxiosError(error) && error.response) return null; throw error; }),
     ]);
-    const plan = planReminders({ habits, events, prefs, debts, bills }, now, getLocale(), PLAN_DAYS).slice(0, MAX_SCHEDULED);
+    const study = academic ? studyDues(academic.courses, academic.tasks, now) : [];
+    const plan = planReminders({ habits, events, prefs, debts, bills, study }, now, getLocale(), PLAN_DAYS).slice(0, MAX_SCHEDULED);
     const wanted = new Set(plan.map((r) => idOf(r.tag)));
     const { notifications: scheduled } = await LocalNotifications.getPending();
     // Lo que ya no toca (hecho, borrado, cambiado). Un aviso pospuesto sigue su curso: no lo decide el plan.

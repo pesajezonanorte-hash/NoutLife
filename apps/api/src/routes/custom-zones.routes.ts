@@ -3,6 +3,8 @@ import { requireAuth, type AuthRequest } from '../middleware/auth.middleware';
 import { prisma } from '../lib/prisma';
 import { generateText, hasAIProvider } from '../lib/ai';
 import { limitActiveHabits, requirePro, requireProZone } from '../middleware/plan.middleware';
+import { validate } from '../middleware/validate.middleware';
+import { createZoneSchema, updateZoneSchema, reorderSchema } from '../schemas/custom-zone.schemas';
 
 const router = Router();
 router.use(requireAuth);
@@ -16,8 +18,9 @@ router.get('/', async (req, res, next) => {
     const zones = await prisma.customZone.findMany({
       where: { userId, isActive: true },
       include: {
-        quests: { where: { status: 'ACTIVE' }, select: { id: true, title: true, status: true } },
-        habits: { where: { isActive: true }, select: { id: true, title: true, currentStreak: true } },
+        // Las misiones cumplidas también: de ellas sale el progreso de la zona (solo con las activas era siempre 0 %).
+        quests: { where: { status: { in: ['ACTIVE', 'COMPLETED'] } }, select: { id: true, title: true, status: true, xpReward: true, difficulty: true }, orderBy: { createdAt: 'asc' }, take: 60 },
+        habits: { where: { isActive: true }, select: { id: true, title: true, currentStreak: true, icon: true, xpReward: true } },
       },
       orderBy: { order: 'asc' },
     });
@@ -32,7 +35,7 @@ router.get('/:id', async (req, res, next) => {
     const zone = await prisma.customZone.findFirst({
       where: { id: req.params.id, userId },
       include: {
-        quests: { where: { status: 'ACTIVE' } },
+        quests: { where: { status: { in: ['ACTIVE', 'COMPLETED'] } }, orderBy: { createdAt: 'asc' }, take: 60 },
         habits: { where: { isActive: true } },
       },
     });
@@ -42,7 +45,7 @@ router.get('/:id', async (req, res, next) => {
 });
 
 // Create zone
-router.post('/', async (req, res, next) => {
+router.post('/', validate(createZoneSchema), async (req, res, next) => {
   try {
     const userId = (req as AuthRequest).userId!;
     const { name, description, icon, accentColor, isMeasurable, measureMetric, weeklyXpGoal, sections, actions } = req.body;
@@ -69,10 +72,13 @@ router.post('/', async (req, res, next) => {
 });
 
 // Update zone
-router.patch('/:id', async (req, res, next) => {
+router.patch('/:id', validate(updateZoneSchema), async (req, res, next) => {
   try {
     const userId = (req as AuthRequest).userId!;
     const { name, description, icon, accentColor, isMeasurable, measureMetric, weeklyXpGoal, sections, actions, content } = req.body;
+    if (!(await prisma.customZone.findFirst({ where: { id: req.params.id, userId, isActive: true }, select: { id: true } }))) {
+      return res.status(404).json({ error: 'Esa zona ya no existe.' });
+    }
     const zone = await prisma.customZone.update({
       where: { id: req.params.id, userId },
       data: { name, description, icon, accentColor, isMeasurable, measureMetric, weeklyXpGoal, sections, actions, content },
@@ -91,7 +97,7 @@ router.delete('/:id', async (req, res, next) => {
 });
 
 // Reorder zones
-router.post('/reorder', async (req, res, next) => {
+router.post('/reorder', validate(reorderSchema), async (req, res, next) => {
   try {
     const userId = (req as AuthRequest).userId!;
     const { orderedIds } = req.body as { orderedIds: string[] };

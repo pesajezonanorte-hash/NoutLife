@@ -11,6 +11,7 @@ import { CREATOR_CODES_PAYMENTS_SQL, CREATOR_CODES_USERS_SQL } from './lib/creat
 import { MARKETS_PAYMENTS_SQL, MARKETS_USERS_SQL } from './lib/market-migrations';
 import { REWARD_LINKS_SQL } from './lib/reward-link-migrations';
 import { COMP_GRANTS_SQL } from './lib/comp-grant-migrations';
+import { V5_SQL } from './lib/v5-migrations';
 import { DEFAULT_SHOP_ITEMS } from './lib/default-catalog';
 import { MAX_SHIELD_DAYS, STREAK_SHIELDS, shieldDaysOf } from './lib/streak-shields';
 
@@ -521,6 +522,9 @@ async function migrate() {
   // Idempotent mirror of prisma/migrations/20261028120000_reminder_snoozes.
   for (const sql of REMINDER_SNOOZES_SQL) await prisma.$executeRawUnsafe(sql);
   for (const sql of SERIES_PROGRESS_SQL) await prisma.$executeRawUnsafe(sql);
+
+  // Idempotent mirror of prisma/migrations/20261114120000_noutlife_v5: académico, carteras, oficina y enfoque.
+  for (const sql of V5_SQL) await prisma.$executeRawUnsafe(sql);
 
   // Runs last so tables created above are covered too.
   await prisma.$executeRawUnsafe(RLS_LOCKDOWN_SQL);

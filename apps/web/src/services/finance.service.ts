@@ -1,14 +1,14 @@
 import api from '../lib/api';
 import type { Transaction, Budget, FinancialGoal } from '@noutlife/shared';
 
-export async function fetchTransactions(filters: { from?: string; to?: string; category?: string; type?: string; search?: string } = {}) {
+export async function fetchTransactions(filters: { from?: string; to?: string; category?: string; type?: string; search?: string; accountId?: string } = {}) {
   const params = new URLSearchParams();
   Object.entries(filters).forEach(([k, v]) => { if (v) params.set(k, v); });
   const { data } = await api.get<{ transactions: Transaction[] }>(`/finances/transactions?${params}`);
   return data.transactions;
 }
 
-export async function createTransaction(body: { type: string; amount: number; category: string; description?: string; date?: string }): Promise<Transaction> {
+export async function createTransaction(body: { type: string; amount: number; category: string; description?: string; date?: string; accountId?: string | null }): Promise<Transaction> {
   const { data } = await api.post<{ transaction: Transaction }>('/finances/transactions', body);
   return data.transaction;
 }

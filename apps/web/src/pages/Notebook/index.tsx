@@ -14,10 +14,11 @@ import { ZoneShell } from '@/components/ambience';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { useToast } from '@/hooks/useToast';
 import {
-  Button, ChipGroup, EmptyState, ErrorState, Field, Input, Modal, PageLoader, ResponsiveDialog,
+  Button, ChipGroup, EmptyState, ErrorState, Field, Input, Modal, PageLoader, ResponsiveDialog, SegmentedControl,
 } from '@/components/ui/lq';
 import { NotebookEditor, clearNotebookDrafts } from '@/components/notebook/NotebookEditor';
 import { NotebookDesk } from '@/components/notebook/NotebookDesk';
+import { OfficeShelf } from '@/components/notebook/office/OfficeShelf';
 import { LiteNotice } from '@/components/billing/LiteNotice';
 import { useAuthStore } from '@/store/authStore';
 import { usePlanStore } from '@/store/planStore';
@@ -67,6 +68,9 @@ const es = {
   deleteTitle: (title: string): string => `¿Eliminar «${title}»?`,
   deleteBody: (n: number): string => `Se borran sus ${n} páginas escritas, los dibujos y las imágenes. No se puede deshacer.`,
   deleteBtn: 'Eliminar libreta',
+  view: 'Vista de la Libreta',
+  viewNotebooks: 'Libretas',
+  viewOffice: 'Oficina',
 };
 
 const en: typeof es = {
@@ -109,6 +113,9 @@ const en: typeof es = {
   deleteTitle: (title: string): string => `Delete “${title}”?`,
   deleteBody: (n: number): string => `Its ${n} written pages, drawings and images will be erased. This cannot be undone.`,
   deleteBtn: 'Delete notebook',
+  view: 'Notebook view',
+  viewNotebooks: 'Notebooks',
+  viewOffice: 'Office',
 };
 
 const COPY: Copy<typeof es> = { es, en };
@@ -224,6 +231,9 @@ export default function NotebookPage() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const openId = params.get('n');
+  // Oficina: documentos, hojas y presentaciones (components/notebook/office).
+  const officeView = params.get('vista') === 'oficina';
+  const setView = (v: 'libretas' | 'oficina') => setParams((p) => { if (v === 'oficina') p.set('vista', 'oficina'); else p.delete('vista'); p.delete('f'); return p; }, { replace: true });
   const [books, setBooks] = useState<Notebook[]>([]);
   const [state, setState] = useState<'loading' | 'error' | 'ready'>('loading');
   const [filter, setFilter] = useState<Filter>('all');
@@ -334,14 +344,19 @@ export default function NotebookPage() {
       <PageHeader
         title={t.title}
         description={t.description}
-        aside={state === 'ready' && books.length > 0 ? <Button onClick={newBook}><Plus aria-hidden className="size-4" strokeWidth={2} />{t.newNotebook}</Button> : undefined}
+        aside={!officeView && state === 'ready' && books.length > 0 ? <Button onClick={newBook}><Plus aria-hidden className="size-4" strokeWidth={2} />{t.newNotebook}</Button> : undefined}
       />
+      <motion.div variants={item} className="w-full max-w-[320px]">
+        <SegmentedControl label={t.view} value={officeView ? 'oficina' : 'libretas'} onChange={setView} options={[{ value: 'libretas', label: t.viewNotebooks }, { value: 'oficina', label: t.viewOffice }]} />
+      </motion.div>
+      {officeView ? <OfficeShelf /> : <>
       {lite && state === 'ready' && books.length > 0 && (
         <LiteNotice feature="notebooks">
           {t.liteNotice(books.length, LITE_LIMITS.notebooks, LITE_LIMITS.notebookPages)}
         </LiteNotice>
       )}
       {content}
+      </>}
 
       <NotebookDialog
         open={dialog !== null} book={dialog?.book ?? null} lite={lite} onClose={() => setDialog(null)} onSaved={saved}

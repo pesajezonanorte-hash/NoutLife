@@ -14,7 +14,10 @@ import { Link } from 'react-router-dom';
 import { zoneIconOf } from '@/components/zones/zoneIcons';
 import { useCustomZoneStore } from '@/store/customZoneStore';
 import api from '@/lib/api';
-import { item, pop3, stagger } from '@/lib/motion';
+import { item, pop3, stagger, useMotionReduced } from '@/lib/motion';
+import { isModule, moduleIcon, zoneTemplates, type ZoneSection, type ZoneTemplate } from '@/components/zones/templates';
+import { useShellStore } from '@/store/shellStore';
+import { useLocale } from '@/lib/i18n';
 import { ZoneShell } from '@/components/ambience';
 import { BrushStroke, Easel, HungFrame, PaintSplash } from '@/components/zones/Brush';
 import { cn } from '@/lib/utils';
@@ -85,6 +88,14 @@ const es = {
   ],
   progressSteps: ['Analizando tu objetivo', 'Diseñando hábitos', 'Creando misiones', 'Preparando tu zona'],
   colorPick: 'Color',
+  templatesTitle: 'Empieza con una plantilla',
+  templatesDesc: 'Un entorno listo, con módulos que abren partes de la app. Después lo ajustas a tu gusto.',
+  orDescribe: 'O descríbela y El Sabio la arma',
+  useTemplate: (name: string): string => `Usar la plantilla ${name}`,
+  modules: 'Módulos',
+  starterHabits: 'Hábitos para empezar',
+  habitsCreated: (n: number): string => `${n} ${n === 1 ? 'hábito creado' : 'hábitos creados'} en la zona`,
+  habitsPartial: 'Algunos hábitos no se pudieron crear. Puedes añadirlos desde la zona.',
 };
 
 const en: typeof es = {
@@ -146,6 +157,14 @@ const en: typeof es = {
   ],
   progressSteps: ['Analyzing your goal', 'Designing habits', 'Creating quests', 'Preparing your zone'],
   colorPick: 'Color',
+  templatesTitle: 'Start from a template',
+  templatesDesc: 'A ready space, with modules that open parts of the app. Then make it your own.',
+  orDescribe: 'Or describe it and The Sage builds it',
+  useTemplate: (name: string): string => `Use the ${name} template`,
+  modules: 'Modules',
+  starterHabits: 'Habits to start with',
+  habitsCreated: (n: number): string => `${n} ${n === 1 ? 'habit' : 'habits'} created in the zone`,
+  habitsPartial: 'Some habits could not be created. You can add them from the zone.',
 };
 
 const COPY: Copy<typeof es> = { es, en };
@@ -154,13 +173,13 @@ interface ZoneQuest { id: string; title: string; status: string; xpReward: numbe
 interface ZoneHabit { id: string; title: string; currentStreak: number; icon: string; xpReward: number }
 export interface CustomZone {
   id: string; name: string; description?: string; icon: string; accentColor: string; isMeasurable: boolean;
-  sections?: { type: string; title: string; description: string }[];
+  sections?: ZoneSection[];
   actions?: { label: string; type: string }[];
   quests: ZoneQuest[]; habits: ZoneHabit[];
 }
 interface Suggestion {
   name: string; description: string; icon: string; color: string; isMeasurable: boolean; measureReason: string;
-  sections: { type: string; title: string; description: string }[];
+  sections: ZoneSection[];
   habits: { title: string; frequency: string }[];
   actions: { label: string; type: string }[];
 }
@@ -247,6 +266,9 @@ export function ZoneCard({ zone: initial, onDeleted, index = 0, fresh, defaultOp
     catch { toast.error(t.zoneDeleteFail); setDeleting(false); }
   }
 
+  const setFocusOpen = useShellStore((s) => s.setFocusOpen);
+  const setMusicOpen = useShellStore((s) => s.setMusicOpen);
+  const modules = (zone.sections ?? []).filter(isModule);
   const done = zone.quests.filter((q) => q.status === 'COMPLETED').length;
   const pct = zone.quests.length ? Math.round((done / zone.quests.length) * 100) : 0;
   const panelId = `zone-${zone.id}`;
@@ -275,6 +297,21 @@ export function ZoneCard({ zone: initial, onDeleted, index = 0, fresh, defaultOp
         ))}
       </div>
       <ProgressBar value={pct} tone="success" label={t.progressOf(zone.name)} valueText={`${pct}%`} />
+      {modules.length > 0 && (
+        <ul aria-label={t.modules} className="relative z-[1] grid grid-cols-2 gap-2">
+          {modules.map((m) => {
+            const Icon = moduleIcon(m);
+            const tile = 'flex min-h-14 w-full items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-left transition-[border-color,transform] duration-300 hover:-translate-y-0.5 hover:border-[color:var(--zone)] focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-primary';
+            const body = <><Icon aria-hidden className="size-5 shrink-0 text-[color:var(--zone)]" strokeWidth={1.75} /><span className="min-w-0"><span className="block truncate text-label-lg">{m.title}</span>{m.description && <span className="block truncate text-body-sm text-on-surface-light">{m.description}</span>}</span></>;
+            return (
+              <li key={m.title + (m.to ?? m.type)}>
+                {m.to ? <Link to={m.to} className={tile}>{body}</Link>
+                  : <button type="button" className={tile} onClick={() => (m.type === 'focus' ? setFocusOpen(true) : setMusicOpen(true))}>{body}</button>}
+              </li>
+            );
+          })}
+        </ul>
+      )}
       <Button variant="secondary" block aria-expanded={open} aria-controls={panelId} onClick={() => setOpen((o) => !o)} className="mt-auto">
         {open ? t.closeZone : t.openZone}<ChevronDown aria-hidden className={cn('size-4 transition-transform duration-500 ease-[cubic-bezier(.34,1.56,.64,1)]', open && 'rotate-180')} strokeWidth={1.75} />
       </Button>
@@ -348,6 +385,7 @@ function Review({ s, onCancel, onCreated }: { s: Suggestion; onCancel: () => voi
   const [color, setColor] = useState(ZONE_COLORS.includes(s.color) ? s.color : ZONE_COLORS[0]);
   const [measurable, setMeasurable] = useState(s.isMeasurable);
   const [saving, setSaving] = useState(false);
+  const [habits, setHabits] = useState<string[]>(() => (s.habits ?? []).map((h) => h.title).filter(Boolean));
 
   async function create() {
     setSaving(true);
@@ -357,7 +395,14 @@ function Review({ s, onCancel, onCreated }: { s: Suggestion; onCancel: () => voi
         sections: s.sections, actions: s.actions,
       });
       toast.success(t.zoneCreated(name));
-      onCreated(data);
+      // Los hábitos sugeridos que quedaron marcados se crean dentro de la zona.
+      let made = 0;
+      for (const title of habits) {
+        try { await api.post(`/custom-zones/${data.id}/habits`, { title }); made += 1; } catch { /* se avisa abajo */ }
+      }
+      if (made) toast.success(t.habitsCreated(made));
+      if (made < habits.length) toast.info(t.habitsPartial);
+      onCreated(made ? (await api.get<CustomZone>(`/custom-zones/${data.id}`).catch(() => ({ data }))).data : data);
     } catch { toast.error(t.zoneCreateFail); setSaving(false); }
   }
 
@@ -383,9 +428,23 @@ function Review({ s, onCancel, onCreated }: { s: Suggestion; onCancel: () => voi
         </div>
       </fieldset>
       {s.sections.length > 0 && (
-        <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {s.sections.map((sec) => <li key={sec.title} className="rounded-xl border border-border bg-background p-3"><div className="text-label-lg">{sec.title}</div><div className="text-body-sm text-on-surface-light">{sec.description}</div></li>)}
+        <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2" aria-label={t.modules}>
+          {s.sections.map((sec) => {
+            const Icon = moduleIcon(sec);
+            return <li key={sec.title} className="flex items-start gap-3 rounded-xl border border-border bg-background p-3"><Icon aria-hidden className="mt-0.5 size-5 shrink-0 text-primary-text" strokeWidth={1.75} /><div><div className="text-label-lg">{sec.title}</div><div className="text-body-sm text-on-surface-light">{sec.description}</div></div></li>;
+          })}
         </ul>
+      )}
+      {(s.habits ?? []).length > 0 && (
+        <fieldset className="flex flex-col gap-1">
+          <legend className="mb-1 text-label-lg text-on-surface">{t.starterHabits}</legend>
+          {s.habits.filter((h) => h.title).map((h) => (
+            <label key={h.title} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-1 hover:bg-surface-variant">
+              <input type="checkbox" className="size-5 accent-[rgb(var(--lq-primary-strong))]" checked={habits.includes(h.title)} onChange={(e) => setHabits((list) => (e.target.checked ? [...list, h.title] : list.filter((x) => x !== h.title)))} />
+              <span className="text-body-md">{h.title}</span>
+            </label>
+          ))}
+        </fieldset>
       )}
       <div className="flex items-center gap-4 rounded-xl bg-surface-variant p-3">
         <div className="flex-1"><label htmlFor="z-measure" className="text-label-lg">{t.measurable}</label><p className="text-body-sm text-on-surface-light">{s.measureReason}</p></div>
@@ -399,9 +458,50 @@ function Review({ s, onCancel, onCreated }: { s: Suggestion; onCancel: () => voi
   );
 }
 
+/** Plantillas: cinco tarjetas que se inclinan con el cursor o el dedo (lq-lift). */
+function TemplatePicker({ onPick }: { onPick: (tpl: ZoneTemplate) => void }) {
+  const t = useText(COPY);
+  const locale = useLocale();
+  return (
+    <section aria-labelledby="z-templates" className="flex flex-col gap-3">
+      <div>
+        <h2 id="z-templates" className="text-heading-sm">{t.templatesTitle}</h2>
+        <p className="text-body-sm text-on-surface-light">{t.templatesDesc}</p>
+      </div>
+      <ul className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-2 [scrollbar-width:none] sm:grid sm:grid-cols-5 sm:overflow-visible [&::-webkit-scrollbar]:hidden">
+        {zoneTemplates(locale).map((tpl) => {
+          const Icon = iconOf(tpl.icon);
+          return (
+            <li key={tpl.id} className="w-40 shrink-0 snap-start sm:w-auto">
+              <button
+                type="button" aria-label={t.useTemplate(tpl.name)} onClick={() => onPick(tpl)} style={zoneVars(tpl.color)}
+                className="lq-lift relative flex h-full w-full flex-col items-start gap-2 overflow-hidden rounded-2xl border border-border bg-background p-4 text-left shadow-sm focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-primary"
+              >
+                <span aria-hidden className="absolute inset-x-0 top-0 h-1 bg-[var(--zone)]" />
+                <Icon aria-hidden className="size-6 text-[color:var(--zone)]" strokeWidth={1.75} />
+                <span className="text-label-lg">{tpl.name}</span>
+                <span className="line-clamp-3 text-body-sm text-on-surface-light">{tpl.description}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 export default function CustomZonesPage() {
   const t = useText(COPY);
   const toast = useToast();
+  const reduce = useMotionReduced();
+  // Escribir la idea y revisar la propuesta son las dos caras de una misma hoja: gira en 3D al pasar de una a otra.
+  const face = reduce
+    ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0, transition: { duration: 0.15 } } }
+    : {
+        initial: { opacity: 0, rotateY: -70 },
+        animate: { opacity: 1, rotateY: 0, transition: { type: 'spring' as const, stiffness: 170, damping: 22 } },
+        exit: { opacity: 0, rotateY: 70, transition: { duration: 0.18 } },
+      };
   const [zones, setZones] = useState<CustomZone[]>([]);
   const [state, setState] = useState<'loading' | 'error' | 'ready'>('loading');
   const [text, setText] = useState('');
@@ -452,17 +552,20 @@ export default function CustomZonesPage() {
       <motion.div variants={item}>
         {/* El lienzo de El Sabio, sobre su caballete */}
         <Easel className="mx-auto w-full max-w-5xl">
-        <SpotCard aria-label={t.sabio} className="lq-canvas lq-tex-linen">
-          <AnimatePresence mode="wait">
+        <SpotCard aria-label={t.sabio} className="lq-canvas lq-tex-linen [perspective:1400px]">
+          <AnimatePresence mode="wait" initial={false}>
             {suggestion ? (
-              <motion.div key="review" exit={{ opacity: 0, transition: { duration: 0.15 } }}>
+              <motion.div key="review" {...face} style={{ transformOrigin: 'center' }}>
                 <Review s={suggestion} onCancel={() => setSuggestion(null)} onCreated={(z) => { setSuggestion(null); setText(''); setFresh(z.id); setZones((p) => [z, ...p]); void load(true); void useCustomZoneStore.getState().refresh(); }} />
               </motion.div>
             ) : (
-              <motion.div key="compose" exit={{ opacity: 0, transition: { duration: 0.15 } }}>
+              <motion.div key="compose" {...face} style={{ transformOrigin: 'center' }} className="flex flex-col gap-6">
                 {full ? (
                   <p className="text-body-md text-on-surface">{t.maxZones(MAX_ZONES)}</p>
                 ) : (
+                  <>
+                  <TemplatePicker onPick={(tpl) => setSuggestion(tpl)} />
+                  <p className="text-label-lg text-on-surface-light">{t.orDescribe}</p>
                   <SabioComposer
                     subtitle={t.composerSub}
                     value={text} onChange={setText} ideas={t.ideas} busy={busy}
@@ -470,6 +573,7 @@ export default function CustomZonesPage() {
                     submitLabel={t.createZone} onSubmit={ask}
                     placeholder={t.composerPh}
                   />
+                  </>
                 )}
               </motion.div>
             )}

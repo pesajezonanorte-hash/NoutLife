@@ -6,7 +6,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import api from '@/lib/api';
-import { item } from '@/lib/motion';
+import { item, useMotionReduced } from '@/lib/motion';
 import { ZoneShell } from '@/components/ambience';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { usePageCrumb } from '@/store/shellStore';
@@ -31,6 +31,7 @@ export default function CustomZoneDetailPage() {
   const navigate = useNavigate();
   const [zone, setZone] = useState<CustomZone | null>(null);
   const [state, setState] = useState<'loading' | 'error' | 'ready'>('loading');
+  const reduce = useMotionReduced();
 
   const load = useCallback(async () => {
     setState('loading');
@@ -47,8 +48,11 @@ export default function CustomZoneDetailPage() {
     <ZoneShell zone="custom-zones" contentClassName="gap-6 md:gap-10">
       <PageHeader eyebrow={t.eyebrow} title={zone.name} description={zone.description ?? t.fallback}
         aside={<Link to="/custom-zones" className="inline-flex min-h-11 items-center gap-2 text-label-lg text-primary-text hover:underline"><ArrowLeft aria-hidden className="size-4" />{t.back}</Link>} />
-      <motion.div variants={item} className="mx-auto w-full max-w-xl">
-        <ZoneCard zone={zone} defaultOpen onDeleted={() => navigate('/custom-zones', { replace: true })} />
+      {/* La zona llega desde atrás con un leve giro, como una hoja que se acerca. */}
+      <motion.div variants={item} className="mx-auto w-full max-w-xl [perspective:1400px]">
+        <motion.div initial={reduce ? false : { rotateX: 10, y: 24, opacity: 0 }} animate={{ rotateX: 0, y: 0, opacity: 1 }} transition={{ type: 'spring', stiffness: 160, damping: 22 }}>
+          <ZoneCard zone={zone} defaultOpen onDeleted={() => navigate('/custom-zones', { replace: true })} />
+        </motion.div>
       </motion.div>
     </ZoneShell>
   );

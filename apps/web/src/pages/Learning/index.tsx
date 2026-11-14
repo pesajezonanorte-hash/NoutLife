@@ -7,6 +7,7 @@
 // fichas con sello. Terminar un libro lo lleva volando al estante de completados
 // con un brillo. Polvo flotando bajo la luz. Todo lento.
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ArrowLeft, BookOpen, Globe, Headphones, MonitorPlay, NotebookPen, Plus, TrendingUp, Video,
@@ -22,6 +23,7 @@ import { useToast } from '../../hooks/useToast';
 import { refreshUser } from '../../hooks/useAuth';
 import * as learningService from '../../services/learning.service';
 import { PomodoroTimer, NotesPanel, VocabPanel } from '../../components/learning/LearningExtras';
+import { AcademicPanel } from '../../components/learning/academic/AcademicPanel';
 import { SageContextButton } from '../../components/sage/SageContextButton';
 import { Button, Card, EmptyState, ErrorState, Field, Input, Modal, ProgressBar, SegmentedControl, Select, type BadgeVariant, type Tone, PageLoader } from '@/components/ui/lq';
 import { LOADING_COPY } from '@/lib/loadingCopy';
@@ -70,6 +72,9 @@ const es = {
   add2: 'Agregar',
   view: 'Vista',
   tabLibrary: 'Biblioteca',
+  tabAcademic: 'Académico',
+  academicTitle: 'Periodo académico',
+  academicSubtitle: 'Tus materias, notas, temas y entregas, con el promedio y lo que necesitas siempre al día.',
   tabPomodoro: 'Pomodoro',
   back: 'Volver',
   notes: 'Notas',
@@ -141,6 +146,9 @@ const en: typeof es = {
   add2: 'Add',
   view: 'View',
   tabLibrary: 'Library',
+  tabAcademic: 'Academic',
+  academicTitle: 'Academic term',
+  academicSubtitle: 'Your courses, grades, topics and hand-ins, with your average and what you need always up to date.',
   tabPomodoro: 'Pomodoro',
   back: 'Back',
   notes: 'Notes',
@@ -311,7 +319,7 @@ function ProgressModal({ item: it, onClose, onUpdate }: { item: LearningItem; on
   );
 }
 
-type Mode = 'biblioteca' | 'pomodoro' | 'detalle';
+type Mode = 'biblioteca' | 'academico' | 'pomodoro' | 'detalle';
 
 export default function LearningPage() {
   const t = useText(COPY);
@@ -321,7 +329,14 @@ export default function LearningPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [updating, setUpdating] = useState<LearningItem | null>(null);
   const [filter, setFilter] = useState('all');
-  const [tab, setTab] = useState<Mode>('biblioteca');
+  // ?tab=academico abre el periodo directamente (avisos de entregas y el pronóstico enlazan ahí).
+  const [params, setParams] = useSearchParams();
+  const [tab, setTabState] = useState<Mode>(params.get('tab') === 'academico' ? 'academico' : 'biblioteca');
+  const setTab = (next: Mode) => {
+    setTabState(next);
+    setParams((p) => { if (next === 'academico') p.set('tab', 'academico'); else p.delete('tab'); return p; }, { replace: true });
+  };
+  const academic = tab === 'academico';
   const [selectedItem, setSelectedItem] = useState<LearningItem | null>(null);
   const [detailTab, setDetailTab] = useState<'notas' | 'vocab'>('notas');
   /** Libro que se acaba de terminar: se cierra y vuelve al estante. */
@@ -346,6 +361,7 @@ export default function LearningPage() {
   const reading = items.find((i) => i.status === 'IN_PROGRESS');
   const modes = useMemo(() => [
     { value: 'biblioteca' as const, label: t.tabLibrary },
+    { value: 'academico' as const, label: t.tabAcademic },
     { value: 'pomodoro' as const, label: t.tabPomodoro },
     ...(selectedItem ? [{ value: 'detalle' as const, label: selectedItem.title.length > 18 ? t.shortTitle(selectedItem.title.slice(0, 17)) : selectedItem.title }] : []),
   ], [selectedItem, t]);
@@ -379,16 +395,19 @@ export default function LearningPage() {
       <motion.section variants={item} className="flex flex-wrap items-end justify-between gap-6">
         <div className="flex min-w-0 flex-[1_1_360px] flex-col gap-2">
           <span className="text-label-lg text-primary-text">{t.eyebrow}</span>
-          <h1 className="text-display-sm md:text-display-md lg:text-display-lg"><Lettering text={t.title} /></h1>
-          <p className="text-body-lg text-on-surface-light">{t.subtitle}</p>
+          <h1 className="text-display-sm md:text-display-md lg:text-display-lg"><Lettering key={academic ? 'a' : 'b'} text={academic ? t.academicTitle : t.title} /></h1>
+          <p className="text-body-lg text-on-surface-light">{academic ? t.academicSubtitle : t.subtitle}</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <SageContextButton message={t.sageQ} label={t.sageLabel} />
-          <Button onClick={() => setShowAdd(true)}><Plus aria-hidden className="size-4" />{t.add2}</Button>
-        </div>
+        {/* El periodo académico trae sus propios botones (materia y compromiso). */}
+        {!academic && (
+          <div className="flex flex-wrap items-center gap-2">
+            <SageContextButton message={t.sageQ} label={t.sageLabel} />
+            <Button onClick={() => setShowAdd(true)}><Plus aria-hidden className="size-4" />{t.add2}</Button>
+          </div>
+        )}
       </motion.section>
 
-      <motion.div variants={item} className="w-full max-w-[360px]">
+      <motion.div variants={item} className="w-full max-w-[480px]">
         <SegmentedControl
           options={modes} value={tab} label={t.view}
           onChange={(v) => { setTab(v); if (v !== 'detalle') setSelectedItem(null); }}
@@ -398,6 +417,8 @@ export default function LearningPage() {
       <AnimatePresence mode="wait">
         <motion.div key={tab} role="tabpanel" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="flex flex-col gap-6 md:gap-8">
           {tab === 'pomodoro' && <PomodoroTimer itemTitle={reading?.title} />}
+
+          {academic && <AcademicPanel />}
 
           {tab === 'detalle' && selectedItem && (
             <div className="flex flex-col gap-4">
