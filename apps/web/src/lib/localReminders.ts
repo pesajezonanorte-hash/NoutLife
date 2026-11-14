@@ -14,6 +14,9 @@ import { getLocale, type Locale } from '@/lib/i18n';
 import { useLifeChange } from '@/lib/lifeSync';
 import { isNativeApp } from '@/lib/native';
 import { DAY_MS, pendingHabitsOn, pendingReminder, planReminders, type PlannedReminder } from '@/lib/reminderPlan';
+import { fetchAcademic } from '@/services/academic.service';
+import { studyDues } from '@/lib/academic';
+import { useAuthStore } from '@/store/authStore';
 
 /** Replanifica cada 15 min: recoge hábitos y eventos creados o cambiados mientras tanto. */
 const REPLAN_MS = 15 * 60 * 1000;
@@ -51,12 +54,15 @@ async function run(reminder: PlannedReminder, locale: Locale) {
 }
 
 async function plan(now = new Date()): Promise<PlannedReminder[]> {
-  const [habits, events, prefs] = await Promise.all([
+  // Aprendizaje es zona de Pro: en Lite no se pide (respondería 402 en cada replanificación).
+  const lite = useAuthStore.getState().user?.subscription?.plan === 'lite';
+  const [habits, events, prefs, academic] = await Promise.all([
     fetchHabits().catch(() => [] as Habit[]),
     fetchEvents({ from: now.toISOString(), to: new Date(now.getTime() + DAY_MS + 60 * 60 * 1000).toISOString() }).catch(() => []),
     getNotificationPreferences().catch(() => null),
+    lite ? null : fetchAcademic().catch(() => null),
   ]);
-  return planReminders({ habits, events, prefs }, now, getLocale());
+  return planReminders({ habits, events, prefs, study: academic ? studyDues(academic.courses, academic.tasks, now) : [] }, now, getLocale());
 }
 
 /** Activo mientras haya sesión (con o sin permiso de avisos del navegador). */

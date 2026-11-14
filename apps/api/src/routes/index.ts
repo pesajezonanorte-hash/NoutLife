@@ -54,6 +54,11 @@ import billingRoutes      from './billing.routes';
 // Ciclo menstrual (solo cuentas con gender = 'female')
 import cycleRoutes        from './cycle.routes';
 import adminRoutes        from './admin.routes';
+// NoutLife v5: académico, carteras, oficina y pronóstico
+import academicRoutes        from './academic.routes';
+import financeAccountsRoutes from './finance-accounts.routes';
+import officeRoutes          from './office.routes';
+import pulseRoutes           from './pulse.routes';
 
 const router = Router();
 
@@ -111,6 +116,10 @@ router.use('/rewards',      rewardRoutes);
 router.use('/billing',      billingRoutes);
 router.use('/menstrual-cycle', cycleRoutes);
 router.use('/admin',        adminRoutes);
+router.use('/academic',     academicRoutes);
+router.use('/finances',     financeAccountsRoutes);
+router.use('/office',       officeRoutes);
+router.use('/pulse',        pulseRoutes);
 
 router.get('/health', (_req, res) => {
   res.json({ status: 'ok', version: '10.0.0', timestamp: new Date().toISOString() });

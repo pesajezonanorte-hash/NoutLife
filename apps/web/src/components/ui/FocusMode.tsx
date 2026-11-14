@@ -8,7 +8,10 @@ import { motion } from 'framer-motion';
 import { CheckCircle2, Pause, Play, RotateCcw, Square, X, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { dialog, scrim } from '@/lib/motion';
-import { logFocusSession } from '@/services/focus.service';
+import { getFocusStats, logFocusSession } from '@/services/focus.service';
+import { useAuthStore } from '@/store/authStore';
+import { useMusicStore } from '@/store/musicStore';
+import { STATIONS, parseSpotify, stationOf } from '@/lib/spotify';
 import { useUIStore } from '@/store/uiStore';
 import { useToastStore } from '@/hooks/useToast';
 import { refreshUser } from '@/hooks/useAuth';
@@ -59,6 +62,15 @@ const es = {
   announceReset: 'Temporizador reiniciado',
   announceDone: '¡Sesión completada!',
   sounds: { none: 'Silencio', rain: 'Lluvia', waves: 'Olas', forest: 'Bosque', fire: 'Fogata' } as Record<AmbientSoundId, string>,
+  music: 'Música de Spotify',
+  musicHelp: 'Empieza, se pausa y se detiene con el temporizador.',
+  noMusic: 'Sin música',
+  myPlaylist: 'Mi playlist',
+  myLink: 'Tu enlace',
+  musicOn: (name: string): string => `Suena ${name}`,
+  musicWaiting: (name: string): string => `${name}, lista para sonar`,
+  best: (name: string, pct: number, n: number): string => `Con ${name} cumples el ${pct} % de lo que te propones (${n} sesiones).`,
+  useBest: 'Usarlo',
 };
 
 const en: typeof es = {
@@ -103,6 +115,15 @@ const en: typeof es = {
   announceReset: 'Timer reset',
   announceDone: 'Session complete!',
   sounds: { none: 'Silence', rain: 'Rain', waves: 'Waves', forest: 'Forest', fire: 'Campfire' } as Record<AmbientSoundId, string>,
+  music: 'Spotify music',
+  musicHelp: 'It starts, pauses and stops with the timer.',
+  noMusic: 'No music',
+  myPlaylist: 'My playlist',
+  myLink: 'Your link',
+  musicOn: (name: string): string => `Playing ${name}`,
+  musicWaiting: (name: string): string => `${name}, ready to play`,
+  best: (name: string, pct: number, n: number): string => `With ${name} you complete ${pct}% of what you set out to do (${n} sessions).`,
+  useBest: 'Use it',
 };
 
 const COPY: Copy<typeof es> = { es, en };
@@ -119,6 +140,17 @@ interface Props {
 
 const mmss = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
+/** El sonido elegido la última vez en este dispositivo. */
+const SOUND_KEY = 'lq-focus-sound';
+function savedSound(): { ambient: AmbientSoundId; music: string } {
+  try {
+    const raw = JSON.parse(localStorage.getItem(SOUND_KEY) ?? 'null') as { ambient?: string; music?: string } | null;
+    return { ambient: AMBIENT_SOUNDS.some((s) => s.id === raw?.ambient) ? (raw!.ambient as AmbientSoundId) : 'none', music: typeof raw?.music === 'string' ? raw.music : '' };
+  } catch { return { ambient: 'none', music: '' }; }
+}
+/** Mínimo de sesiones (igual que la API) para recomendar un sonido. */
+const BEST_MIN_SESSIONS = 3;
+
 export function FocusMode({ onClose, taskLabel, questId }: Props) {
   const t = useText(COPY);
   const minutesText = (s: number) => t.minute(Math.ceil(s / 60));
@@ -129,19 +161,59 @@ export function FocusMode({ onClose, taskLabel, questId }: Props) {
   const [phase, setPhase] = useState<Phase>('setup');
   const [remaining, setRemaining] = useState(25 * 60);
   const [task, setTask] = useState(taskLabel ?? '');
-  const [ambient, setAmbient] = useState<AmbientSoundId>('none');
+  const [ambient, setAmbient] = useState<AmbientSoundId>(() => savedSound().ambient);
+  /** Fuente de Spotify atada al temporizador ('' = sin música): una lista, «mine» o «custom». */
+  const [music, setMusic] = useState(() => savedSound().music);
+  const [best, setBest] = useState<{ id: string; sessions: number; completion: number } | null>(null);
+  const playlistUrl = useAuthStore((s) => s.user?.coliseoPlaylistUrl);
+  const customLink = useMusicStore((s) => s.custom);
+  const musicPlaying = useMusicStore((s) => s.playing);
   const [volume, setVolume] = useState(35);
   const [chime, setChime] = useState(true);
   const [confirmExit, setConfirmExit] = useState(false);
   const [saving, setSaving] = useState(false);
   const [announce, setAnnounce] = useState('');
   const endAt = useRef(0);
+  /** Esta sesión puso a sonar la música (para detenerla al salir). */
+  const startedMusic = useRef(false);
   const ctxRef = useRef<AudioContext | null>(null);
   const ambientRef = useRef<AmbientAudioController | null>(null);
   const stayRef = useRef<HTMLButtonElement>(null);
   const mainRef = useRef<HTMLButtonElement>(null);
   const addFloatingXP = useUIStore((s) => s.addFloatingXP);
   const toast = useToastStore();
+
+  // Fuentes de Spotify disponibles: las listas, la playlist de Ajustes y el enlace pegado en el reproductor.
+  const musicOptions = [
+    ...(parseSpotify(playlistUrl) ? [{ value: 'mine', label: t.myPlaylist }] : []),
+    ...STATIONS.map((s) => ({ value: s.id, label: s.name })),
+    ...(parseSpotify(customLink) ? [{ value: 'custom', label: t.myLink }] : []),
+  ];
+  const musicName = musicOptions.find((o) => o.value === music)?.label ?? null;
+  const soundtrack = musicName ? `spotify:${music}` : ambient;
+  const soundName = (id: string) => (id.startsWith('spotify:')
+    ? stationOf(id.slice(8))?.name ?? (id === 'spotify:mine' ? t.myPlaylist : t.myLink)
+    : t.sounds[id as AmbientSoundId] ?? id);
+  const startMusic = () => { if (musicName) { useMusicStore.getState().setSource(music); useMusicStore.getState().play(); } };
+  const stopMusic = () => { if (musicName) useMusicStore.getState().pause(); };
+
+  // Con qué sonido se cumplen más las sesiones (solo se recomienda con sesiones suficientes).
+  useEffect(() => {
+    let alive = true;
+    void getFocusStats().then((stats) => {
+      const top = stats.soundtracks?.[0];
+      if (alive && top && top.sessions >= BEST_MIN_SESSIONS) setBest(top);
+    }).catch(() => undefined);
+    return () => { alive = false; };
+  }, []);
+  useEffect(() => { try { localStorage.setItem(SOUND_KEY, JSON.stringify({ ambient, music })); } catch { /* modo privado */ } }, [ambient, music]);
+
+  /** Pone el sonido con el que más se cumplen las sesiones. */
+  function applyBest() {
+    if (!best) return;
+    if (best.id.startsWith('spotify:')) { setMusic(best.id.slice(8)); void changeAmbient('none'); }
+    else { setMusic(''); void changeAmbient(best.id as AmbientSoundId); }
+  }
 
   const total = Number(preset) * 60;
   const elapsed = total - remaining;
@@ -181,6 +253,8 @@ export function FocusMode({ onClose, taskLabel, questId }: Props) {
   useEffect(() => () => {
     ambientRef.current?.stop();
     ctxRef.current?.close().catch(() => null);
+    // La música que arrancó el temporizador se detiene con él.
+    if (startedMusic.current) useMusicStore.getState().pause();
   }, []);
 
   useEffect(() => { ambientRef.current?.setVolume(volume / 100); }, [volume]);
@@ -212,12 +286,16 @@ export function FocusMode({ onClose, taskLabel, questId }: Props) {
     setPhase('running');
     setAnnounce(t.announceStart(minutesText(remaining)));
     if (chime) void audioCtx(); // desbloquea el audio con el gesto del usuario
+    // El sonido recordado de la última vez arranca aquí, con el gesto de empezar.
+    if (ambient !== 'none' && !ambientRef.current) void changeAmbient(ambient);
+    if (musicName) { startedMusic.current = true; startMusic(); }
   }
 
   function pause() {
     setRemaining(Math.max(0, Math.ceil((endAt.current - Date.now()) / 1000)));
     setPhase('paused');
     setAnnounce(t.announcePaused);
+    stopMusic();
   }
 
   function resume() {
@@ -231,12 +309,14 @@ export function FocusMode({ onClose, taskLabel, questId }: Props) {
     setRemaining(total);
     setConfirmExit(false);
     setAnnounce(t.announceReset);
+    stopMusic();
   }
 
   function finish() {
     setRemaining(0);
     setPhase('done');
     setAnnounce(t.announceDone);
+    stopMusic();
     navigator.vibrate?.([300, 100, 300]);
     if (chime && ctxRef.current) playChime(ctxRef.current);
   }
@@ -245,7 +325,7 @@ export function FocusMode({ onClose, taskLabel, questId }: Props) {
     const minutes = Math.max(1, Math.floor(elapsed / 60));
     setSaving(true);
     try {
-      const r = await logFocusSession(minutes, questId, task.trim() || undefined);
+      const r = await logFocusSession(minutes, questId, task.trim() || undefined, { plannedMin: Number(preset), soundtrack });
       addFloatingXP(r.xpEarned, window.innerWidth / 2, window.innerHeight / 2);
       toast.success(r.message);
       void refreshUser();
@@ -379,6 +459,18 @@ export function FocusMode({ onClose, taskLabel, questId }: Props) {
                     aria-valuetext={`${volume}%`}
                     className="h-11 w-full cursor-pointer accent-primary"
                   />
+                </div>
+              )}
+              <Field label={t.music} help={musicName && phase !== 'setup' ? (musicPlaying ? t.musicOn(musicName) : t.musicWaiting(musicName)) : t.musicHelp}>
+                <Select value={musicName ? music : ''} onChange={(e) => { const next = e.target.value; if (inSession) stopMusic(); setMusic(next); if (phase === 'running' && next) { useMusicStore.getState().setSource(next); useMusicStore.getState().play(); startedMusic.current = true; } }}>
+                  <option value="">{t.noMusic}</option>
+                  {musicOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </Select>
+              </Field>
+              {phase === 'setup' && best && best.id !== soundtrack && (
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-primary/[var(--lq-soft-alpha)] p-3 text-body-sm text-on-surface">
+                  <p className="min-w-0 flex-1">{t.best(soundName(best.id), Math.round(best.completion * 100), best.sessions)}</p>
+                  <Button variant="secondary" size="sm" onClick={applyBest}>{t.useBest}</Button>
                 </div>
               )}
               <div className="flex items-center justify-between gap-4">

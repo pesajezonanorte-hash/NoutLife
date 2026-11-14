@@ -9,8 +9,8 @@ router.use(requireAuth);
 
 router.post('/complete', validate(completeFocusSchema), async (req, res, next) => {
   try {
-    const { durationMin, questId, taskLabel } = req.body;
-    const result = await focus.logFocusSession((req as AuthRequest).userId!, durationMin, questId, taskLabel);
+    const { durationMin, questId, taskLabel, plannedMin, soundtrack } = req.body;
+    const result = await focus.logFocusSession((req as AuthRequest).userId!, durationMin, questId, taskLabel, { plannedMin, soundtrack });
     res.json(result);
   } catch (err) { next(err); }
 });

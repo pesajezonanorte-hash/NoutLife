@@ -20,7 +20,7 @@ import type { RecreationEntry, RecreationKind, RecreationResult, RecreationStatu
 import { Bulbs, Poster, Screen, Stars, Theater, Ticket } from '@/components/recreation/Cinema';
 import { RecreationDialog } from '@/components/recreation/RecreationDialog';
 import { HobbyShelf } from '@/components/recreation/HobbyShelf';
-import { kindBalance, kindOf, minutesLabel, weekSummary } from '@/components/recreation/recreationMeta';
+import { SCREEN_DAILY_LIMIT, digitalBalance, kindBalance, kindOf, minutesLabel, weekSummary } from '@/components/recreation/recreationMeta';
 import { INTL_LOCALE, useLocale, useText, type Copy, type Locale } from '@/lib/i18n';
 
 const COPY: Copy<{
@@ -30,6 +30,7 @@ const COPY: Copy<{
   billboard: string; plan: string; billboardEmpty: string; functions: string; thisWeek: string; earlier: string;
   seeAll: (n: number) => string; noFunctions: string; balanceTitle: string; balanceDesc: string; balanceEmpty: string;
   balanceFoot: string; add: string; fromLastWeek: string; weekSuffix: string;
+  digital: { title: string; desc: string; screen: string; offline: string; perDay: (v: string) => string; longest: (title: string, v: string) => string; empty: string; untimed: (n: number) => string; tip: Record<'balanced' | 'screenHeavy' | 'long', string>; split: (screen: string, offline: string) => string };
 }> = {
   es: {
     eyebrow: 'Recreación', headline: 'Sala de cine', intro: 'Tu ocio también cuenta: lo que ves, juegas o vives para desconectar.',
@@ -47,6 +48,20 @@ const COPY: Copy<{
     balanceEmpty: 'Cuando registres funciones, aquí verás el reparto entre películas, juegos, salidas y hobbies.',
     balanceFoot: 'Cada función vivida suma 15 XP y oro, hasta 3 al día; al subir de nivel crece tu Carisma. El Sabio la tiene en cuenta junto con tu sueño, tus entrenos y tus hábitos.',
     add: "Añadir", fromLastWeek: "Tu semana", weekSuffix: "esta semana",
+    digital: {
+      title: 'Bienestar digital', desc: 'Tu ocio de los últimos 7 días, con pantalla y sin ella.',
+      screen: 'Con pantalla', offline: 'Sin pantalla',
+      perDay: (v) => `${v} de pantalla al día, en promedio`,
+      longest: (title, v) => `Bloque más largo: ${title} (${v})`,
+      empty: 'Anota cuánto dura cada función, en minutos u horas, y aquí verás el reparto.',
+      untimed: (n) => `${n} ${n === 1 ? 'función' : 'funciones'} sin duración no ${n === 1 ? 'entra' : 'entran'} en la cuenta.`,
+      tip: {
+        balanced: 'Buen equilibrio entre pantalla y vida fuera de ella.',
+        screenHeavy: 'Casi todo tu descanso pasa por una pantalla. Una salida o un rato de tu hobby le dan aire a la semana.',
+        long: `Pasas de ${SCREEN_DAILY_LIMIT / 60} horas diarias de ocio con pantalla. Prueba a cambiar un bloque por algo que te mueva.`,
+      },
+      split: (screen, offline) => `Con pantalla ${screen}, sin pantalla ${offline}`,
+    },
   },
   en: {
     eyebrow: 'Recreation', headline: 'Cinema room', intro: 'Your downtime counts too: what you watch, play or do to switch off.',
@@ -64,6 +79,20 @@ const COPY: Copy<{
     balanceEmpty: 'Once you log outings, you will see the split between movies, games, outings and hobbies here.',
     balanceFoot: 'Each outing adds 15 XP and gold, up to 3 a day; leveling up grows your Charisma. The Sage takes it into account along with your sleep, workouts and habits.',
     add: "Add", fromLastWeek: "Your week", weekSuffix: "this week",
+    digital: {
+      title: 'Digital wellbeing', desc: 'Your downtime over the last 7 days, on and off screens.',
+      screen: 'On a screen', offline: 'Off screens',
+      perDay: (v) => `${v} of screen time a day, on average`,
+      longest: (title, v) => `Longest block: ${title} (${v})`,
+      empty: 'Note how long each outing lasts, in minutes or hours, and you will see the split here.',
+      untimed: (n) => `${n} ${n === 1 ? 'outing' : 'outings'} with no duration ${n === 1 ? 'is' : 'are'} left out.`,
+      tip: {
+        balanced: 'A good balance between screens and life away from them.',
+        screenHeavy: 'Almost all your rest happens on a screen. A day out or some time on your hobby gives the week some air.',
+        long: `You are over ${SCREEN_DAILY_LIMIT / 60} hours a day of screen leisure. Try swapping one block for something that gets you moving.`,
+      },
+      split: (screen, offline) => `On a screen ${screen}, off screens ${offline}`,
+    },
   },
 };
 
@@ -98,6 +127,7 @@ export default function RecreationPage() {
   const week = weekSummary(entries);
   const balance = kindBalance(entries, Date.now(), locale);
   const balanceTotal = balance.reduce((sum, k) => sum + k.count, 0);
+  const digital = useMemo(() => digitalBalance(entries), [entries]);
   const featured = done[0];
   const now = Date.now();
   const shown = showAll ? done : done.slice(0, SHOWN);
@@ -246,6 +276,39 @@ export default function RecreationPage() {
     </Card>
   );
 
+  const digitalCard = (
+    <Card as="section" padding="lg" aria-labelledby="rec-digital" className="flex flex-col gap-4">
+      <div>
+        <h2 id="rec-digital" className="text-heading-sm">{t.digital.title}</h2>
+        <p className="text-body-sm text-on-surface-light">{t.digital.desc}</p>
+      </div>
+      {digital.status === 'empty' ? (
+        <p className="text-body-md text-on-surface-light">{t.digital.empty}</p>
+      ) : (
+        <>
+          <div className="flex h-3 w-full gap-0.5 overflow-hidden rounded-full" role="img" aria-label={t.digital.split(minutesLabel(digital.screenMinutes, locale) || '0 min', minutesLabel(digital.offlineMinutes, locale) || '0 min')}>
+            {digital.screenMinutes > 0 && <span className="block h-full bg-info" style={{ flexGrow: digital.screenMinutes }} />}
+            {digital.offlineMinutes > 0 && <span className="block h-full bg-success" style={{ flexGrow: digital.offlineMinutes }} />}
+          </div>
+          <dl className="grid grid-cols-2 gap-3">
+            {([[t.digital.screen, digital.screenMinutes, 'bg-info'], [t.digital.offline, digital.offlineMinutes, 'bg-success']] as const).map(([label, minutes, dot]) => (
+              <div key={label} className="flex flex-col">
+                <dt className="flex items-center gap-1.5 text-body-sm text-on-surface-light"><span aria-hidden className={cn('size-2.5 rounded-full', dot)} />{label}</dt>
+                <dd className="font-mono text-heading-md tabular-nums">{minutesLabel(minutes, locale) || '0 min'}</dd>
+              </div>
+            ))}
+          </dl>
+          <ul className="flex flex-col gap-1 text-body-sm text-on-surface">
+            {digital.dailyScreen > 0 && <li>{t.digital.perDay(minutesLabel(digital.dailyScreen, locale))}</li>}
+            {digital.longest && <li className="[overflow-wrap:anywhere]">{t.digital.longest(digital.longest.title, minutesLabel(digital.longest.minutes, locale))}</li>}
+          </ul>
+          <p className={cn('rounded-xl p-3 text-body-sm', digital.status === 'balanced' ? 'bg-success/[var(--lq-soft-alpha)] text-success-text' : 'bg-warning/[var(--lq-soft-alpha)] text-warning-text')}>{t.digital.tip[digital.status]}</p>
+        </>
+      )}
+      {digital.untimed > 0 && <p className="text-body-sm text-on-surface-light">{t.digital.untimed(digital.untimed)}</p>}
+    </Card>
+  );
+
   return (
     <ZoneShell
       zone="recreation"
@@ -275,7 +338,7 @@ export default function RecreationPage() {
               {billboard}
               {functions}
             </div>
-            <motion.div variants={item} className="flex min-w-0 flex-col gap-6">{balanceCard}</motion.div>
+            <motion.div variants={item} className="flex min-w-0 flex-col gap-6">{digitalCard}{balanceCard}</motion.div>
           </div>
         </>
       )}

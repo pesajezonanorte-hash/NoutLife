@@ -327,6 +327,11 @@ model User {
   menstrualSettings       MenstrualSettings?
   menstrualPeriods        MenstrualPeriod[]
   menstrualLogs           MenstrualLog[]
+  academicCourses         AcademicCourse[]
+  academicTasks           AcademicTask[]
+  financeAccounts         FinanceAccount[]
+  financeTransfers        FinanceTransfer[]
+  officeFiles             OfficeFile[]
 
   @@index([subscriptionStatus, trialEndsAt])
   @@index([subscriptionStatus, currentPeriodEnd])
@@ -654,9 +659,14 @@ model Transaction {
   budgetId String?
   budget   Budget? @relation(fields: [budgetId], references: [id])
 
+  /// Cartera de la que sale o a la que entra el dinero (null: sin cartera asignada).
+  accountId String?
+  account   FinanceAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([accountId])
   @@map("transactions")
 }
 
@@ -1835,6 +1845,10 @@ model FocusSession {
   questId     String?
   taskLabel   String?
   durationMin Int
+  /// Minutos que se propuso (para saber si terminó la sesión).
+  plannedMin  Int?
+  /// Con qué sonó: none | rain | waves | forest | fire | spotify:<lista>
+  soundtrack  String?
   xpEarned    Int      @default(0)
   completedAt DateTime @default(now())
 
@@ -2355,4 +2369,187 @@ model MenstrualLog {
 
   @@unique([userId, date])
   @@map("cycle_logs")
+}
+
+// ─── NoutLife v5: académico, carteras y oficina ───────────────────────────────
+
+/// Académico: una materia de un periodo (colegio o universidad).
+model AcademicCourse {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name    String
+  /// Etiqueta libre del periodo: «2026-2», «Periodo 4».
+  period  String
+  teacher String?
+  /// Tono del tema: jade | ambar | oceano | coral | bosque | oro
+  color   String  @default("jade")
+  /// Créditos: peso de la materia en el promedio del periodo.
+  credits Float   @default(1)
+
+  /// Escala de notas y nota para aprobar (Colombia: 0–5, se aprueba con 3).
+  scaleMin    Float  @default(0)
+  scaleMax    Float  @default(5)
+  passGrade   Float  @default(3)
+  /// Nota que la persona quiere sacar (para «qué necesito»).
+  targetGrade Float?
+
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  grades AcademicGrade[]
+  topics AcademicTopic[]
+  tasks  AcademicTask[]
+
+  @@index([userId, archivedAt])
+  @@map("academic_courses")
+}
+
+/// Una evaluación de la materia. Sin nota todavía es una evaluación por presentar.
+model AcademicGrade {
+  id       String         @id @default(cuid())
+  courseId String
+  course   AcademicCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  title     String
+  /// EXAM | MIDTERM | QUIZ | HOMEWORK | PROJECT | OTHER
+  kind      String    @default("EXAM")
+  /// Peso en la nota de la materia, en % (0–100).
+  weight    Float
+  score     Float?
+  /// Lo que la persona cree que va a sacar, anotado antes de la nota (calibración).
+  predicted Float?
+  date      DateTime?
+
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  topics AcademicTopic[]
+
+  @@index([courseId])
+  @@map("academic_grades")
+}
+
+/// Un tema por estudiar, con su nivel de dominio.
+model AcademicTopic {
+  id       String         @id @default(cuid())
+  courseId String
+  course   AcademicCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  /// Evaluación en la que entra el tema (opcional).
+  gradeId  String?
+  grade    AcademicGrade? @relation(fields: [gradeId], references: [id], onDelete: SetNull)
+
+  title   String
+  /// 0 sin ver · 1 visto · 2 practicado · 3 dominado
+  mastery Int    @default(0)
+  order   Int    @default(0)
+
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([courseId])
+  @@map("academic_topics")
+}
+
+/// Un compromiso o entrega con fecha. La materia es opcional.
+model AcademicTask {
+  id       String          @id @default(cuid())
+  userId   String
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId String?
+  course   AcademicCourse? @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  title  String
+  /// DELIVERY | READING | GROUP | PAPERWORK | OTHER
+  kind   String    @default("DELIVERY")
+  dueAt  DateTime
+  done   Boolean   @default(false)
+  doneAt DateTime?
+  notes  String?
+
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([userId, done, dueAt])
+  @@map("academic_tasks")
+}
+
+/// Finanzas: dónde está el dinero. Una cartera digital, una cuenta, una tarjeta, el efectivo u otro activo.
+model FinanceAccount {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name     String
+  /// WALLET (Nequi, Daviplata…) | BANK | CREDIT_CARD | DEBIT_CARD | CASH | ASSET
+  kind     String
+  /// Entidad o marca, en texto libre: «Nequi», «Bancolombia».
+  provider String?
+  /// Últimos 4 dígitos (solo para reconocer la tarjeta; nunca el número completo).
+  last4    String?
+  currency String  @default("COP")
+  color    String  @default("jade")
+
+  /// Saldo al crear la cartera. En una tarjeta de crédito: lo que ya se debía (en positivo).
+  openingBalance Decimal  @default(0) @db.Decimal(15, 2)
+  /// Tarjeta de crédito: cupo, día de corte y día de pago.
+  creditLimit    Decimal? @db.Decimal(15, 2)
+  cutoffDay      Int?
+  dueDay         Int?
+
+  order      Int       @default(0)
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  transactions Transaction[]
+  transfersOut FinanceTransfer[] @relation("TransferFrom")
+  transfersIn  FinanceTransfer[] @relation("TransferTo")
+
+  @@index([userId, archivedAt])
+  @@map("finance_accounts")
+}
+
+/// Dinero que pasa de una cartera a otra (no es ingreso ni gasto). Pagar una tarjeta es un traslado hacia ella.
+model FinanceTransfer {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  fromAccountId String
+  fromAccount   FinanceAccount @relation("TransferFrom", fields: [fromAccountId], references: [id], onDelete: Cascade)
+  toAccountId   String
+  toAccount     FinanceAccount @relation("TransferTo", fields: [toAccountId], references: [id], onDelete: Cascade)
+
+  amount Decimal  @db.Decimal(15, 2)
+  date   DateTime
+  note   String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, date])
+  @@map("finance_transfers")
+}
+
+/// Oficina de la Libreta: un documento, una hoja de cálculo o una presentación. `content` depende de `kind`.
+model OfficeFile {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// doc | sheet | slides
+  kind    String
+  title   String
+  content Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, updatedAt])
+  @@map("office_files")
 }

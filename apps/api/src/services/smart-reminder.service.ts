@@ -283,6 +283,60 @@ async function dueDateReminders(c: Ctx): Promise<number> {
   return sent;
 }
 
+// ─── Académico: entregas y evaluaciones ──────────────────────────────────────
+// Una entrega avisa 3 días antes, la víspera y el mismo día; una evaluación, con 7, 3 y 1 días, y dice
+// cuántos temas siguen sin practicar. A las 09:00 locales, con las mismas claves que el plan del cliente
+// (lib/reminderPlan): si llegan los dos, se ve uno. La fecha la puso la persona, así que no tienen tope.
+const TASK_LEAD_DAYS = [3, 1, 0];
+const EXAM_LEAD_DAYS = [7, 3, 1];
+const STUDY_LINK = '/learning?tab=academico';
+
+async function studyReminders(c: Ctx): Promise<number> {
+  // Aprendizaje es zona Pro: en Lite el aviso llevaría a un candado.
+  if (c.lite || !inWindow(c.minutes, DUE_NOTICE_MIN)) return 0;
+  const today = c.calendarDate;
+  const window = { gte: today, lt: new Date(today.getTime() + 8 * DAY_MS) };
+  const [tasks, exams] = await Promise.all([
+    prisma.academicTask.findMany({
+      where: { userId: c.userId, done: false, archivedAt: null, dueAt: window },
+      select: { id: true, title: true, dueAt: true, course: { select: { name: true } } },
+    }),
+    prisma.academicGrade.findMany({
+      where: { archivedAt: null, score: null, date: window, course: { userId: c.userId, archivedAt: null } },
+      select: { id: true, title: true, date: true, course: { select: { name: true, topics: { where: { archivedAt: null, mastery: { lt: 2 } }, select: { gradeId: true } } } } },
+    }),
+  ]);
+  const key = (date: Date) => date.toISOString().slice(0, 10);
+  const daysTo = (date: Date) => Math.round((Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()) - today.getTime()) / DAY_MS);
+
+  let sent = 0;
+  for (const task of tasks) {
+    const days = daysTo(task.dueAt);
+    if (!TASK_LEAD_DAYS.includes(days)) continue;
+    sent += await notifyOnce(c, `study-task:${task.id}:${key(task.dueAt)}:${days}`, {
+      userScheduled: true,
+      category: 'QUESTS',
+      title: days === 0 ? 'Se entrega hoy' : days === 1 ? 'Se entrega mañana' : `Se entrega en ${days} días`,
+      body: `«${task.title}»${task.course ? `, de ${task.course.name}` : ''}.${days === 0 ? ' Si ya lo entregaste, márcalo como cumplido.' : ''}`,
+      link: STUDY_LINK,
+    });
+  }
+  for (const exam of exams) {
+    if (!exam.date) continue;
+    const days = daysTo(exam.date);
+    if (!EXAM_LEAD_DAYS.includes(days)) continue;
+    const pending = exam.course.topics.filter((topic) => topic.gradeId === exam.id || topic.gradeId === null).length;
+    sent += await notifyOnce(c, `study-exam:${exam.id}:${key(exam.date)}:${days}`, {
+      userScheduled: true,
+      category: 'QUESTS',
+      title: days === 1 ? 'Evaluación mañana' : `Evaluación en ${days} días`,
+      body: `«${exam.title}», de ${exam.course.name}.${pending ? ` Te ${pending === 1 ? 'queda 1 tema' : `quedan ${pending} temas`} sin practicar.` : ''}`,
+      link: STUDY_LINK,
+    });
+  }
+  return sent;
+}
+
 // ─── Descansos: pausas activas durante la jornada ────────────────────────────
 
 async function breakReminders(c: Ctx): Promise<number> {
@@ -421,7 +475,7 @@ export async function smartReminders(now: Date): Promise<number> {
       subscriptionStatus: true, trialEndsAt: true, currentPeriodEnd: true, paymentSourceId: true, createdAt: true, compPro: true,
     },
   });
-  const jobs = [coliseoReminder, careReminders, pendingHabits, dueDateReminders, breakReminders, cycleReminders, hydrationReminders, mealReminders, wisdomReminder];
+  const jobs = [coliseoReminder, careReminders, pendingHabits, dueDateReminders, studyReminders, breakReminders, cycleReminders, hydrationReminders, mealReminders, wisdomReminder];
   let sent = 0;
   for (const user of users) {
     const minutes = localMinutes(user.timezone, now);

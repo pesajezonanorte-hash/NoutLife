@@ -1,7 +1,7 @@
 import { prisma } from '../lib/prisma';
 
 export async function exportUserData(userId: string) {
-  const [user, quests, habits, transactions, journals, workouts, sleep, meals, goals, checklists, antiHabits, recreation, cyclePeriods, cycleLogs, notebooks] =
+  const [user, quests, habits, transactions, journals, workouts, sleep, meals, goals, checklists, antiHabits, recreation, cyclePeriods, cycleLogs, notebooks, academicCourses, academicTasks, financeAccounts, financeTransfers, officeFiles] =
     await Promise.all([
       prisma.user.findUniqueOrThrow({
         where: { id: userId },
@@ -26,6 +26,11 @@ export async function exportUserData(userId: string) {
       prisma.menstrualLog.findMany({ where: { userId }, orderBy: { date: 'desc' } }),
       // Libreta: páginas completas; de las imágenes solo el id (pesan mucho para la copia).
       prisma.notebook.findMany({ where: { userId }, orderBy: { updatedAt: 'desc' }, include: { pages: { orderBy: { index: 'asc' } } } }),
+      prisma.academicCourse.findMany({ where: { userId }, include: { grades: true, topics: true } }),
+      prisma.academicTask.findMany({ where: { userId }, orderBy: { dueAt: 'desc' } }),
+      prisma.financeAccount.findMany({ where: { userId } }),
+      prisma.financeTransfer.findMany({ where: { userId }, orderBy: { date: 'desc' } }),
+      prisma.officeFile.findMany({ where: { userId }, orderBy: { updatedAt: 'desc' } }),
     ]);
 
   return {
@@ -45,6 +50,9 @@ export async function exportUserData(userId: string) {
     recreation,
     cycle: { periods: cyclePeriods, logs: cycleLogs },
     notebooks,
+    academic: { courses: academicCourses, tasks: academicTasks },
+    wallets: { accounts: financeAccounts, transfers: financeTransfers },
+    office: officeFiles,
   };
 }
 

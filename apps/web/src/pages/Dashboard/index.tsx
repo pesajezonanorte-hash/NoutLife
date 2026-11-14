@@ -38,6 +38,7 @@ import { ClassSelectionModal } from '@/components/character/ClassSelectionModal'
 import { MorningBriefing } from '@/components/dashboard/MorningBriefing';
 import { StreakRevival } from '@/components/habits/StreakRevival';
 import { SocialPortal } from '@/components/social/SocialEntry';
+import { PulseCard } from '@/components/dashboard/PulseCard';
 import { completeGuideDay, dismissGuide, fetchDashboard } from '@/services/user.service';
 import { fetchLifeScore, type LifeScore } from '@/services/lifescore.service';
 import { fetchUpcoming, type AgendaEvent } from '@/services/agenda.service';
@@ -444,6 +445,9 @@ export default function DashboardPage() {
         <StatCard icon={Wallet} tone="info" value={data?.monthBalance ?? 0} format={(n) => formatMoney(n, user.currency, true, locale)} label={t.monthBalance} to="/finances" size={statSize} />
         <StatCard icon={Flame} tone="warning" value={user.currentStreak} label={t.streakDays} to="/achievements" size={statSize} />
       </motion.section>
+
+      {/* Pronóstico de carga de los próximos 7 días */}
+      <motion.div variants={item}><PulseCard /></motion.div>
 
       {/* Hábitos + Misiones */}
       <motion.div variants={item} className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2 [&>*]:min-w-0">

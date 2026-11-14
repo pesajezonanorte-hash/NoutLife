@@ -1,6 +1,13 @@
 import { Response } from 'express';
 import type { AuthRequest } from '../middleware/auth.middleware';
 import * as svc from '../services/finance.service';
+import { ApiError } from '../lib/http';
+
+/** Una cartera ajena o archivada tiene su propio mensaje; el resto, el de siempre. */
+function failAccount(res: Response, err: unknown, fallback: string): void {
+  if (err instanceof ApiError) res.status(err.status).json({ error: err.message });
+  else res.status(500).json({ error: fallback });
+}
 
 const serDate = (obj: { createdAt: Date; updatedAt?: Date; date?: Date; [k: string]: unknown }) => ({
   ...obj,
@@ -16,8 +23,8 @@ const serDate = (obj: { createdAt: Date; updatedAt?: Date; date?: Date; [k: stri
 
 export async function listTransactions(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const { from, to, category, type, search } = req.query as Record<string, string>;
-    const transactions = await svc.listTransactions(req.userId!, { from, to, category, type, search });
+    const { from, to, category, type, search, accountId } = req.query as Record<string, string>;
+    const transactions = await svc.listTransactions(req.userId!, { from, to, category, type, search, accountId });
     res.json({ transactions: transactions.map(serDate) });
   } catch { res.status(500).json({ error: 'Error al obtener transacciones.' }); }
 }
@@ -26,14 +33,14 @@ export async function createTransaction(req: AuthRequest, res: Response): Promis
   try {
     const t = await svc.createTransaction(req.userId!, req.body);
     res.status(201).json({ transaction: serDate(t) });
-  } catch { res.status(500).json({ error: 'Error al crear transacción.' }); }
+  } catch (err) { failAccount(res, err, 'Error al crear transacción.'); }
 }
 
 export async function updateTransaction(req: AuthRequest, res: Response): Promise<void> {
   try {
     const t = await svc.updateTransaction(req.userId!, req.params.id, req.body);
     res.json({ transaction: serDate(t) });
-  } catch { res.status(500).json({ error: 'Error al actualizar transacción.' }); }
+  } catch (err) { failAccount(res, err, 'Error al actualizar transacción.'); }
 }
 
 export async function deleteTransaction(req: AuthRequest, res: Response): Promise<void> {

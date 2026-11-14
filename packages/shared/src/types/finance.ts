@@ -30,6 +30,8 @@ export interface Transaction {
   description?: string;
   date: string;
   createdAt: string;
+  /** Cartera del movimiento (null o ausente: sin cartera). */
+  accountId?: string | null;
 }
 
 export interface Budget {

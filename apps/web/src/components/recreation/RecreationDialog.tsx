@@ -7,7 +7,7 @@ import { useToastStore } from '@/hooks/useToast';
 import { useUIStore } from '@/store/uiStore';
 import * as recreationService from '@/services/recreation.service';
 import type { RecreationEntry, RecreationKind, RecreationResult, RecreationStatus } from '@/services/recreation.service';
-import { kindOf, kindsFor, localDay } from './recreationMeta';
+import { MAX_MINUTES, QUICK_BLOCKS, fromMinutes, kindOf, kindsFor, localDay, minutesLabel, toMinutes, type DurationUnit } from './recreationMeta';
 import { Stars } from './Cinema';
 import { useLocale, useText, type Copy } from '@/lib/i18n';
 
@@ -24,7 +24,12 @@ const es = {
   howWas: '¿Qué tal estuvo?',
   duration: 'Duración',
   minutes: 'minutos',
-  minutesRange: 'Entre 1 y 1.440',
+  hours: 'horas',
+  unit: 'Unidad de la duración',
+  unitMin: 'Minutos',
+  unitHours: 'Horas',
+  quickBlocks: 'Bloques rápidos',
+  minutesRange: 'Entre 1 minuto y 24 horas',
   forWhen: 'Para cuándo',
   when: 'Cuándo',
   series: 'Seguimiento de la serie',
@@ -70,7 +75,12 @@ const en: typeof es = {
   howWas: 'How was it?',
   duration: 'Duration',
   minutes: 'minutes',
-  minutesRange: 'Between 1 and 1,440',
+  hours: 'hours',
+  unit: 'Duration unit',
+  unitMin: 'Minutes',
+  unitHours: 'Hours',
+  quickBlocks: 'Quick blocks',
+  minutesRange: 'Between 1 minute and 24 hours',
   forWhen: 'For when',
   when: 'When',
   series: 'Series tracking',
@@ -106,18 +116,18 @@ const en: typeof es = {
 const COPY: Copy<typeof es> = { es, en };
 
 type Draft = {
-  title: string; kind: RecreationKind | null; status: RecreationStatus; rating: number | null; minutes: string; date: string; notes: string;
+  title: string; kind: RecreationKind | null; status: RecreationStatus; rating: number | null; minutes: string; unit: DurationUnit; date: string; notes: string;
   season: string; episode: string; totalSeasons: string; totalEpisodes: string; watched: string;
 };
 
 const fromEntry = (e: RecreationEntry): Draft => ({
-  title: e.title, kind: e.kind, status: e.status, rating: e.rating, minutes: e.minutes ? String(e.minutes) : '', date: localDay(new Date(e.date)), notes: e.notes ?? '',
+  title: e.title, kind: e.kind, status: e.status, rating: e.rating, minutes: fromMinutes(e.minutes).text, unit: fromMinutes(e.minutes).unit, date: localDay(new Date(e.date)), notes: e.notes ?? '',
   season: e.season ? String(e.season) : '', episode: e.episode ? String(e.episode) : '',
   totalSeasons: e.totalSeasons ? String(e.totalSeasons) : '', totalEpisodes: e.totalEpisodes ? String(e.totalEpisodes) : '',
   watched: e.episodesWatched ? String(e.episodesWatched) : '',
 });
 const blank = (status: RecreationStatus, kind: RecreationKind | null = null): Draft => ({
-  title: '', kind, status, rating: null, minutes: '', date: localDay(), notes: '',
+  title: '', kind, status, rating: null, minutes: '', unit: 'min', date: localDay(), notes: '',
   season: '', episode: '', totalSeasons: '', totalEpisodes: '', watched: '',
 });
 
@@ -154,8 +164,8 @@ export function RecreationDialog({ open, onClose, entry, initialStatus = 'DONE',
   }, [open, entry, initialStatus, initialKind]);
 
   const set = (patch: Partial<Draft>) => setDraft((d) => ({ ...d, ...patch }));
-  const minutes = draft.minutes.trim() === '' ? null : Math.round(Number(draft.minutes));
-  const minutesBad = minutes !== null && !(minutes >= 1 && minutes <= 1440);
+  const minutes = toMinutes(draft.minutes, draft.unit);
+  const minutesBad = minutes !== null && !(minutes >= 1 && minutes <= MAX_MINUTES);
   const series = {
     season: whole(draft.season), episode: whole(draft.episode), totalSeasons: whole(draft.totalSeasons),
     totalEpisodes: whole(draft.totalEpisodes), episodesWatched: whole(draft.watched),
@@ -236,12 +246,23 @@ export function RecreationDialog({ open, onClose, entry, initialStatus = 'DONE',
           </div>
         )}
         <div className="grid grid-cols-2 gap-4">
-          <Field label={t.duration} help={t.minutes} error={touched && minutesBad ? t.minutesRange : undefined}>
-            <Input type="number" inputMode="numeric" min="1" max="1440" value={draft.minutes} onChange={(e) => set({ minutes: e.target.value })} placeholder="90" className="font-mono tabular-nums" />
+          {/* Minutos u horas: una tarde de juego se anota como «3 horas», sin hacer la cuenta. */}
+          <Field label={t.duration} help={minutes && !minutesBad ? minutesLabel(minutes, locale) : draft.unit === 'h' ? t.hours : t.minutes} error={touched && minutesBad ? t.minutesRange : undefined}>
+            <Input inputMode="decimal" value={draft.minutes} onChange={(e) => set({ minutes: e.target.value })} placeholder={draft.unit === 'h' ? '2' : '90'} className="font-mono tabular-nums" />
           </Field>
           <Field label={planned ? t.forWhen : t.when}>
             <Input type="date" value={draft.date} max={planned ? undefined : localDay()} onChange={(e) => set({ date: e.target.value })} />
           </Field>
+        </div>
+        <div className="-mt-2 flex flex-col gap-2">
+          <SegmentedControl role="radiogroup" label={t.unit} className="max-w-[240px]" value={draft.unit} onChange={(unit) => set({ unit })} options={[{ value: 'min', label: t.unitMin }, { value: 'h', label: t.unitHours }]} />
+          <div role="group" aria-label={t.quickBlocks} className="flex flex-wrap gap-2">
+            {QUICK_BLOCKS.map((block) => (
+              <Button key={block} variant={minutes === block ? 'primary' : 'secondary'} size="sm" aria-pressed={minutes === block} onClick={() => set({ minutes: fromMinutes(block).text, unit: fromMinutes(block).unit })}>
+                {minutesLabel(block, locale)}
+              </Button>
+            ))}
+          </div>
         </div>
         {draft.kind === 'SERIES' && (
           <div className="flex flex-col gap-4 rounded-2xl border border-border p-4">

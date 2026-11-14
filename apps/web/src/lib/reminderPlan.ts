@@ -15,6 +15,9 @@ const HABIT_LEAD_MIN = 10;
 const DUE_NOTICE_MIN = 9 * 60;
 const DEBT_LEAD_DAYS = [3, 1, 0];
 const BILL_LEAD_DAYS = [1];
+/** Entregas: 3 días antes, la víspera y el mismo día. Evaluaciones: con una semana, para alcanzar a repasar. */
+const TASK_LEAD_DAYS = [3, 1, 0];
+const EXAM_LEAD_DAYS = [7, 3, 1];
 
 const es = {
   /** Consejos de las pausas activas (los mismos que manda el servidor, lib/smart-reminders). */
@@ -39,6 +42,11 @@ const es = {
   debtBody: (title: string, date: string, today: boolean): string => `«${title}» tiene fecha límite el ${date}.${today ? ' Si ya la pagaste, márcala como pagada.' : ''}`,
   billTitle: 'Mañana vence un recibo',
   billBody: (title: string, date: string): string => `«${title}» se paga el ${date}.`,
+  taskTitle: (days: number): string => (days === 0 ? 'Se entrega hoy' : days === 1 ? 'Se entrega mañana' : `Se entrega en ${days} días`),
+  examTitle: (days: number): string => (days === 1 ? 'Evaluación mañana' : `Evaluación en ${days} días`),
+  studyBody: (title: string, course: string | null): string => (course ? `«${title}», de ${course}.` : `«${title}».`),
+  studyTopics: (n: number): string => ` Te ${n === 1 ? 'queda 1 tema' : `quedan ${n} temas`} sin practicar.`,
+  studyDone: ' Si ya lo entregaste, márcalo como cumplido.',
 };
 
 const en: typeof es = {
@@ -63,11 +71,28 @@ const en: typeof es = {
   debtBody: (title: string, date: string, today: boolean): string => `“${title}” is due on ${date}.${today ? ' If you already paid it, mark it as paid.' : ''}`,
   billTitle: 'A bill is due tomorrow',
   billBody: (title: string, date: string): string => `“${title}” is paid on ${date}.`,
+  taskTitle: (days: number): string => (days === 0 ? 'Due today' : days === 1 ? 'Due tomorrow' : `Due in ${days} days`),
+  examTitle: (days: number): string => (days === 1 ? 'Assessment tomorrow' : `Assessment in ${days} days`),
+  studyBody: (title: string, course: string | null): string => (course ? `“${title}”, for ${course}.` : `“${title}”.`),
+  studyTopics: (n: number): string => ` You still have ${n} ${n === 1 ? 'topic' : 'topics'} to practise.`,
+  studyDone: ' If you already handed it in, mark it as done.',
 };
 
 const COPY: Copy<typeof es> = { es, en };
 
-export type ReminderKind = 'habit' | 'agenda' | 'pending' | 'break' | 'debt' | 'bill';
+export type ReminderKind = 'habit' | 'agenda' | 'pending' | 'break' | 'debt' | 'bill' | 'study';
+
+/** Una entrega abierta o una evaluación por presentar (lib/academic → studyDues). */
+export interface StudyDue {
+  id: string;
+  type: 'task' | 'exam';
+  title: string;
+  course: string | null;
+  /** Día de calendario guardado en UTC. */
+  date: string;
+  /** Evaluación: temas que aún no se han practicado. */
+  pendingTopics?: number;
+}
 
 export interface PlannedReminder {
   at: number;
@@ -88,6 +113,7 @@ export interface ReminderData {
   prefs: Partial<NotificationPreferences> | null;
   debts?: Debt[];
   bills?: RecurringTransaction[];
+  study?: StudyDue[];
 }
 
 export const dayKeyOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -226,6 +252,25 @@ export function planReminders(data: ReminderData, now: Date, locale: Locale, day
           if (!inWindow(at) || quiet(at)) continue;
           out.push({ at, kind: 'bill', tag: `bill-due:${bill.id}:${dayKeyOf(due)}:${lead}`, title: t.billTitle, body: t.billBody(bill.description, dateLabel(due)), link: '/finances' });
         }
+      }
+    }
+  }
+
+  // Académico: entregas y evaluaciones. El aviso de una evaluación dice cuántos temas faltan por practicar.
+  if (allows('QUESTS')) {
+    for (const due of data.study ?? []) {
+      const utc = new Date(due.date);
+      const day = new Date(utc.getUTCFullYear(), utc.getUTCMonth(), utc.getUTCDate());
+      for (const lead of due.type === 'exam' ? EXAM_LEAD_DAYS : TASK_LEAD_DAYS) {
+        const at = atMinutes(addDays(day, -lead), DUE_NOTICE_MIN);
+        if (!inWindow(at) || isQuiet(at, prefs.quietHoursStart, prefs.quietHoursEnd)) continue;
+        const extra = due.type === 'exam' ? (due.pendingTopics ? t.studyTopics(due.pendingTopics) : '') : lead === 0 ? t.studyDone : '';
+        out.push({
+          at, kind: 'study', tag: `study-${due.type}:${due.id}:${dayKeyOf(day)}:${lead}`,
+          title: due.type === 'exam' ? t.examTitle(lead) : t.taskTitle(lead),
+          body: t.studyBody(due.title, due.course) + extra,
+          link: '/learning?tab=academico',
+        });
       }
     }
   }

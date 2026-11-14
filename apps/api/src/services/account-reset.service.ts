@@ -102,6 +102,13 @@ export async function resetAccountData(userId: string): Promise<AccountResetSumm
     await remove('notebooks', () => tx.notebook.deleteMany({ where: { userId } }));
     await remove('reminderSnoozes', () => tx.reminderSnooze.deleteMany({ where: { userId } }));
     await remove('learningItems', () => tx.learningItem.deleteMany({ where: { userId } }));
+    // Académico: evaluaciones y temas se van con su materia (ON DELETE CASCADE).
+    await remove('academicTasks', () => tx.academicTask.deleteMany({ where: { userId } }));
+    await remove('academicCourses', () => tx.academicCourse.deleteMany({ where: { userId } }));
+    // Carteras: después de los movimientos; sus traslados se van con ellas.
+    await remove('financeTransfers', () => tx.financeTransfer.deleteMany({ where: { userId } }));
+    await remove('financeAccounts', () => tx.financeAccount.deleteMany({ where: { userId } }));
+    await remove('officeFiles', () => tx.officeFile.deleteMany({ where: { userId } }));
     await remove('routines', () => tx.routine.deleteMany({ where: { userId } }));
     await remove('financialGoals', () => tx.financialGoal.deleteMany({ where: { userId } }));
     await remove('recurringTransactions', () => tx.recurringTransaction.deleteMany({ where: { userId } }));

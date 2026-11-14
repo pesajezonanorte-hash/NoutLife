@@ -19,7 +19,7 @@ import { expo, heavy, item, slam, stagger, useSpotlight } from '@/lib/motion';
 import { dayKey, formatMoney } from '@/lib/lifeMeta';
 import { useAuthStore } from '@/store/authStore';
 import { useToastStore } from '@/hooks/useToast';
-import { AnimatedValue, Button, Card, EmptyState, ErrorState, IconChip, ResponsiveDialog, SegmentedControl, Tabs, Thud, WeightBars, type WeightBar, PageLoader } from '@/components/ui/lq';
+import { AnimatedValue, Button, Card, EmptyState, ErrorState, IconChip, ResponsiveDialog, SegmentedControl, Select, Tabs, Thud, WeightBars, type WeightBar, PageLoader } from '@/components/ui/lq';
 import { useLoadingCopy } from '@/lib/loadingCopy';
 import { solidBg } from '@/components/ui/lq/tones';
 import * as financeService from '@/services/finance.service';
@@ -31,6 +31,9 @@ import { Lettering } from '@/components/layout/Lettering';
 import { SketchUnderline, ZoneShell } from '@/components/ambience';
 import { BalanceChart, MarketBackdrop, Ticker, dailyBalance, type Quote } from '@/components/finances/Market';
 import { CashflowCard } from '@/components/finances/CashflowCard';
+import { Wallets } from '@/components/finances/Wallets';
+import * as walletService from '@/services/wallet.service';
+import type { FinanceAccount, WalletTotals } from '@/services/wallet.service';
 import { INTL_LOCALE, useLocale, useText, type Copy, type Locale } from '@/lib/i18n';
 
 type Summary = { income: number; expenses: number; balance: number; byCategory: Record<string, number>; count: number };
@@ -101,6 +104,10 @@ const es = {
   tickerLabel: 'Tus cifras del mes frente al anterior',
   savingsQuote: 'Ahorro',
   balanceTrend: 'Evolución del saldo del mes',
+  detailWallet: 'Cartera',
+  noWallet: 'Sin cartera',
+  walletFail: 'No se pudo cambiar la cartera',
+  balanceOf: (name: string): string => `Saldo del mes en ${name}`,
 };
 
 const en: typeof es = {
@@ -164,6 +171,10 @@ const en: typeof es = {
   tickerLabel: 'Your numbers this month vs. last month',
   savingsQuote: 'Savings',
   balanceTrend: 'Balance over the month',
+  detailWallet: 'Wallet',
+  noWallet: 'No wallet',
+  walletFail: "We couldn't change the wallet",
+  balanceOf: (name: string): string => `Balance this month in ${name}`,
 };
 
 const COPY: Copy<typeof es> = { es, en };
@@ -219,7 +230,7 @@ export default function FinancesPage() {
   const [offset, setOffset] = useState(0);
   const range = useMemo(() => monthRange(offset, locale), [offset, locale]);
   const prevRange = useMemo(() => monthRange(offset - 1, locale), [offset, locale]);
-  const [txs, setTxs] = useState<Transaction[]>([]);
+  const [all, setAll] = useState<Transaction[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [prev, setPrev] = useState<Summary | null>(null);
   const [state, setState] = useState<'loading' | 'error' | 'ready'>('loading');
@@ -229,6 +240,10 @@ export default function FinancesPage() {
   const [plan, setPlan] = useState<PlanTab>('savings');
   const [adding, setAdding] = useState(false);
   const [detail, setDetail] = useState<Transaction | null>(null);
+  /** Carteras con su saldo (null: aún no llegaron o la zona no las tiene). */
+  const [wallets, setWallets] = useState<{ accounts: FinanceAccount[]; totals: WalletTotals } | null>(null);
+  /** Cartera por la que se filtra la página. */
+  const [wallet, setWallet] = useState<string | null>(null);
   /** Enlaces entre gráfico, categorías y lista. */
   const [hoverDay, setHoverDay] = useState<string | null>(null);
   const [hoverCat, setHoverCat] = useState<string | null>(null);
@@ -236,6 +251,12 @@ export default function FinancesPage() {
   const [fresh, setFresh] = useState<string | null>(null);
   /** Sube con cada alta/baja: los bloques de saldo acusan el golpe. */
   const [pulse, setPulse] = useState(0);
+  const activeWallets = useMemo(() => (wallets?.accounts ?? []).filter((a) => !a.archivedAt), [wallets]);
+  /** La cartera elegida, si sigue activa (archivarla quita el filtro). */
+  const picked = activeWallets.find((a) => a.id === wallet) ?? null;
+  const pickedId = picked?.id ?? null;
+  /** Los movimientos a la vista: los del mes o, con una cartera elegida, solo los suyos. */
+  const txs = useMemo(() => (pickedId ? all.filter((tx) => tx.accountId === pickedId) : all), [all, pickedId]);
   const monthDir = useRef(-1);
   const loaded = useRef(false);
   const spot = useSpotlight<HTMLDivElement>();
@@ -256,7 +277,7 @@ export default function FinancesPage() {
         financeService.fetchTransactionSummary(prevRange.from, `${prevRange.to}T23:59:59`).catch(() => null),
       ]);
       const inMonth = list.filter((tx) => { const k = tx.date.slice(0, 10); return k >= range.from && k <= range.to; });
-      setTxs(inMonth);
+      setAll(inMonth);
       const local = summarize(inMonth);
       // El reparto por categoría sale de los movimientos si el resumen no lo trae.
       setSummary(s ? { ...EMPTY, ...s, byCategory: Object.keys(s.byCategory ?? {}).length ? s.byCategory : local.byCategory } : local);
@@ -270,6 +291,9 @@ export default function FinancesPage() {
     }
   }, [range, prevRange]);
 
+  const loadWallets = useCallback(() => walletService.fetchAccounts().then(setWallets).catch(() => undefined), []);
+  useEffect(() => { void loadWallets(); }, [loadWallets]);
+
   // Al cambiar de mes no se vuelve al cargador: los números ruedan del mes anterior al nuevo.
   useEffect(() => { void load(loaded.current); setShowAll(false); }, [load]);
 
@@ -279,19 +303,34 @@ export default function FinancesPage() {
   }
 
   async function remove(tx: Transaction) {
-    setTxs((list) => list.filter((x) => x.id !== tx.id));
+    setAll((list) => list.filter((x) => x.id !== tx.id));
     setPulse((n) => n + 1);
     try {
       await financeService.deleteTransaction(tx.id);
       useToastStore.getState().success(t.deleted);
       void load(true);
+      void loadWallets();
     } catch {
       useToastStore.getState().error(t.deleteFailed);
       void load(true);
     }
   }
 
-  const s = summary ?? EMPTY;
+  /** Mueve un movimiento a otra cartera (o lo deja sin cartera). */
+  async function moveTo(tx: Transaction, accountId: string | null) {
+    try {
+      const updated = await financeService.updateTransaction(tx.id, { accountId });
+      setAll((list) => list.map((x) => (x.id === tx.id ? { ...x, accountId: updated.accountId ?? null } : x)));
+      setDetail((d) => (d && d.id === tx.id ? { ...d, accountId: updated.accountId ?? null } : d));
+      void loadWallets();
+    } catch {
+      useToastStore.getState().error(t.walletFail);
+    }
+  }
+
+  // Con una cartera elegida, toda la página (cifras, gráficos y lista) cuenta solo sus movimientos.
+  const s = picked ? summarize(txs) : summary ?? EMPTY;
+  const prevAll = picked ? null : prev;
   // Lo que se aparta a Ahorro o Inversión es dinero ahorrado, no gastado (mismo criterio que el ranking de Ahorro).
   const setAside = txs.filter((tx) => tx.type === 'EXPENSE' && SAVED_CATEGORIES.has(tx.category)).reduce((a, tx) => a + Number(tx.amount), 0);
   const spent = Math.max(0, s.expenses - setAside);
@@ -328,10 +367,10 @@ export default function FinancesPage() {
   const anyLink = Boolean(hoverDay || hoverCat);
   // Cinta de cotizaciones: ingresos, gastos, ahorro y las categorías con más gasto, contra el mes anterior.
   const quotes: Quote[] = [
-    { key: 'in', label: t.income, value: compact(s.income), change: prev ? pctChange(s.income, prev.income) : null },
-    { key: 'out', label: t.expenses, value: compact(s.expenses), change: prev ? pctChange(s.expenses, prev.expenses) : null },
+    { key: 'in', label: t.income, value: compact(s.income), change: prevAll ? pctChange(s.income, prevAll.income) : null },
+    { key: 'out', label: t.expenses, value: compact(s.expenses), change: prevAll ? pctChange(s.expenses, prevAll.expenses) : null },
     ...(savingsRate !== null ? [{ key: 'save', label: t.savingsQuote, value: `${savingsRate} %`, change: null }] : []),
-    ...cats.slice(0, 6).map(([c, v]) => ({ key: c, label: txCategory(c, locale).label, value: compact(v), change: prev?.byCategory?.[c] ? pctChange(v, prev.byCategory[c]) : null })),
+    ...cats.slice(0, 6).map(([c, v]) => ({ key: c, label: txCategory(c, locale).label, value: compact(v), change: prevAll?.byCategory?.[c] ? pctChange(v, prevAll.byCategory[c]) : null })),
   ];
   const balanceSeries = useMemo(() => dailyBalance(txs, range.from, range.to), [txs, range]);
 
@@ -414,7 +453,7 @@ export default function FinancesPage() {
           {/* Tarjeta de saldo: vidrio ahumado que se inclina con el cursor (parallax en el saldo) y mide el flujo del mes */}
           <div {...spot} className="lq-spot lq-smoke lq-smoke-accent flex flex-col gap-1 rounded-2xl p-6 md:order-last md:gap-3">
             <div className="flex items-center justify-between">
-              <span className="text-body-sm text-on-surface md:text-body-md">{t.balanceMonth}</span>
+              <span className="text-body-sm text-on-surface md:text-body-md">{picked ? t.balanceOf(picked.name) : t.balanceMonth}</span>
               <IconChip icon={Wallet} tone="primary" size="sm" className="hidden bg-background md:flex" />
             </div>
             <span className={cn('lq-parallax text-display-md font-mono tabular-nums md:text-display-lg', s.balance < 0 ? 'text-error-text' : 'text-primary-text')}>
@@ -435,13 +474,13 @@ export default function FinancesPage() {
               </div>
               {savingsRate !== null
                 ? <span className={cn('text-body-sm', savingsRate >= 0 ? 'text-success-text' : 'text-error-text')}>{savingsRate >= 0 ? t.savingsPositive(savingsRate) : t.savingsNegative(-savingsRate)}</span>
-                : <Trend value={pctChange(s.balance, prev?.balance ?? 0)} good="up" suffix={prevWord} t={t} />}
+                : <Trend value={pctChange(s.balance, prevAll?.balance ?? 0)} good="up" suffix={prevWord} t={t} />}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4 md:contents">
             {([
-              [t.income, s.income, prev?.income, true, 'up'],
-              [t.expenses, s.expenses, prev?.expenses, false, 'down'],
+              [t.income, s.income, prevAll?.income, true, 'up'],
+              [t.expenses, s.expenses, prevAll?.expenses, false, 'down'],
             ] as const).map(([label, v, pv, income, good], i) => (
               <Card key={label} padding="lg" {...spot} className={cn('lq-spot lq-smoke flex flex-col gap-2 max-md:p-4 md:gap-3', i === 0 ? 'md:order-first' : 'md:order-2')}>
                 <div className="flex items-center justify-between gap-2">
@@ -454,6 +493,13 @@ export default function FinancesPage() {
             ))}
           </div>
         </Thud>
+
+        {wallets && (
+          <Wallets
+            accounts={wallets.accounts} totals={wallets.totals} selected={picked?.id ?? null} onSelect={(id) => { setWallet(id); setShowAll(false); }}
+            money={money} compact={compact} onChanged={() => { void loadWallets(); void load(true); }}
+          />
+        )}
 
         {s.count === 0 && txs.length === 0 ? (
           <EmptyState
@@ -645,6 +691,17 @@ export default function FinancesPage() {
                 <span className="h-[1.1em] leading-[1.1em]">{income ? '+' : '−'}</span><AnimatedValue value={Number(detail.amount)} format={money} quietUnits />
               </span>
               <dl className="flex flex-col gap-1">
+                {activeWallets.length > 0 && (
+                  <div className="flex min-h-10 items-center justify-between gap-4 border-b border-border py-1">
+                    <dt className="text-body-md text-on-surface-light"><label htmlFor="fin-detail-wallet">{t.detailWallet}</label></dt>
+                    <dd className="w-48">
+                      <Select id="fin-detail-wallet" value={detail.accountId ?? ''} onChange={(e) => void moveTo(detail, e.target.value || null)} className="min-h-11 py-1 text-body-md">
+                        <option value="">{t.noWallet}</option>
+                        {activeWallets.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                      </Select>
+                    </dd>
+                  </div>
+                )}
                 {[[t.detailType, income ? t.typeIncome : t.typeExpense], [t.detailCategory, cat.label], [t.detailDate, new Date(detail.date).toLocaleDateString(INTL_LOCALE[locale], { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })]].map(([k, v], i) => (
                   <motion.div
                     key={k} className="flex min-h-10 items-center justify-between gap-4 border-b border-border last:border-0"
@@ -662,8 +719,8 @@ export default function FinancesPage() {
         })()}
       </ResponsiveDialog>
       <TransactionFormDialog
-        open={adding} onClose={() => setAdding(false)}
-        onSaved={(tx) => { setAdding(false); setFresh(tx.id); setPulse((n) => n + 1); setTxTab('all'); void load(true); }}
+        open={adding} onClose={() => setAdding(false)} accounts={activeWallets} defaultAccountId={picked?.id ?? null}
+        onSaved={(tx) => { setAdding(false); setFresh(tx.id); setPulse((n) => n + 1); setTxTab('all'); void load(true); void loadWallets(); }}
       />
     </ZoneShell>
   );

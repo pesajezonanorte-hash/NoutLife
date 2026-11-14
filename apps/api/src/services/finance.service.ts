@@ -1,13 +1,16 @@
 import { prisma } from '../lib/prisma';
 import { checkAchievements } from './achievement.service';
 import type { TransactionType, TransactionCategory } from '@prisma/client';
+import { assertUsableAccount } from './finance-accounts.service';
 
-export async function listTransactions(userId: string, filters: { from?: string; to?: string; category?: string; type?: string; search?: string }) {
+export async function listTransactions(userId: string, filters: { from?: string; to?: string; category?: string; type?: string; search?: string; accountId?: string }) {
   return prisma.transaction.findMany({
     where: {
       userId,
-      ...(filters.from && { date: { gte: new Date(filters.from) } }),
-      ...(filters.to && { date: { lte: new Date(filters.to) } }),
+      // Un solo filtro de fecha: con dos claves `date` la segunda pisaba a la primera y `from` se perdía.
+      ...((filters.from || filters.to) && { date: { ...(filters.from && { gte: new Date(filters.from) }), ...(filters.to && { lte: new Date(filters.to) }) } }),
+      // «none»: los movimientos que aún no tienen cartera.
+      ...(filters.accountId && { accountId: filters.accountId === 'none' ? null : filters.accountId }),
       ...(filters.category && { category: filters.category as TransactionCategory }),
       ...(filters.type && { type: filters.type as TransactionType }),
       ...(filters.search && { description: { contains: filters.search, mode: 'insensitive' } }),
@@ -17,10 +20,12 @@ export async function listTransactions(userId: string, filters: { from?: string;
   });
 }
 
-export async function createTransaction(userId: string, body: { type: TransactionType; amount: number; category: TransactionCategory; description?: string; date?: string }) {
+export async function createTransaction(userId: string, body: { type: TransactionType; amount: number; category: TransactionCategory; description?: string; date?: string; accountId?: string | null }) {
+  await assertUsableAccount(userId, body.accountId);
   return prisma.transaction.create({
     data: {
       userId,
+      accountId: body.accountId ?? null,
       type: body.type,
       amount: body.amount,
       category: body.category,
@@ -30,10 +35,12 @@ export async function createTransaction(userId: string, body: { type: Transactio
   });
 }
 
-export async function updateTransaction(userId: string, id: string, body: Partial<{ type: TransactionType; amount: number; category: TransactionCategory; description: string; date: string }>) {
+export async function updateTransaction(userId: string, id: string, body: Partial<{ type: TransactionType; amount: number; category: TransactionCategory; description: string; date: string; accountId: string | null }>) {
+  await assertUsableAccount(userId, body.accountId);
   return prisma.transaction.update({
     where: { id, userId },
     data: {
+      ...(body.accountId !== undefined && { accountId: body.accountId }),
       ...(body.type && { type: body.type }),
       ...(body.amount !== undefined && { amount: body.amount }),
       ...(body.category && { category: body.category }),
