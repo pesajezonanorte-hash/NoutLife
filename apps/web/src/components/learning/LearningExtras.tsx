@@ -2,13 +2,13 @@
 // Misma lógica y endpoints; piel lq.
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Layers, NotebookPen, Pause, Play, Plus, RotateCcw, Trash2, X } from 'lucide-react';
+import { Layers, NotebookPen, Pause, Pencil, Play, Plus, RotateCcw, Trash2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '../../store/uiStore';
 import { refreshUser } from '../../hooks/useAuth';
 import { useToastStore } from '../../hooks/useToast';
 import api from '../../lib/api';
-import { Badge, Button, Card, EmptyState, Field, Input, ProgressBar, Textarea, formatClock, PageLoader } from '@/components/ui/lq';
+import { Badge, Button, Card, EmptyState, ErrorState, Field, Input, ProgressBar, Textarea, formatClock, PageLoader } from '@/components/ui/lq';
 import { FocusRing } from '@/components/focus/FocusRing';
 import { LOADING_COPY } from '@/lib/loadingCopy';
 import { PerspectiveFlipCard } from '@/components/ui/perspective-flip-card';
@@ -44,6 +44,18 @@ const es = {
   noteBtn: 'Nota',
   noteSaveFail: 'No se pudo guardar la nota',
   noteDeleteFail: 'No se pudo eliminar la nota',
+  notesLoadFail: 'No se pudieron abrir tus apuntes',
+  notesLoadFailDesc: 'Revisa tu conexión e inténtalo de nuevo.',
+  noteUpdateFail: 'No se pudo editar la nota',
+  editNote: 'Editar',
+  cancelEdit: 'Cancelar',
+  saveNote: 'Guardar',
+  confirmDeleteNote: '¿Eliminar esta nota?',
+  no: 'No',
+  yes: 'Sí, eliminar',
+  edited: 'editada',
+  sendHint: 'Ctrl/⌘ + Enter para guardar',
+  notesList: 'Notas',
   deleteNote: 'Eliminar nota',
   noNotes: 'Sin notas aún',
   noNotesDesc: 'Guarda ideas y citas mientras avanzas.',
@@ -107,6 +119,18 @@ const en: typeof es = {
   noteBtn: 'Note',
   noteSaveFail: 'Could not save the note',
   noteDeleteFail: 'Could not delete the note',
+  notesLoadFail: 'Could not open your notes',
+  notesLoadFailDesc: 'Check your connection and try again.',
+  noteUpdateFail: 'Could not edit the note',
+  editNote: 'Edit',
+  cancelEdit: 'Cancel',
+  saveNote: 'Save',
+  confirmDeleteNote: 'Delete this note?',
+  no: 'No',
+  yes: 'Yes, delete',
+  edited: 'edited',
+  sendHint: 'Ctrl/⌘ + Enter to save',
+  notesList: 'Notes',
   deleteNote: 'Delete note',
   noNotes: 'No notes yet',
   noNotesDesc: 'Save ideas and quotes as you go.',
@@ -273,57 +297,130 @@ export function PomodoroTimer({ itemTitle }: { itemTitle?: string }) {
 
 // ─── Notes Panel ──────────────────────────────────────────────────────────────
 
-interface Note { id: string; text: string; createdAt: string }
+interface Note { id: string; text: string; createdAt: string; updatedAt?: string }
 
 export function NotesPanel({ itemId }: { itemId: string }) {
   const t = useText(COPY);
   const locale = useLocale();
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
   const [text, setText] = useState('');
   const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [editText, setEditText] = useState('');
+  const [askDelete, setAskDelete] = useState<string | null>(null);
 
-  useEffect(() => {
-    api.get(`/learning/${itemId}/notes`).then((r: { data?: { notes?: Note[] } }) => setNotes(r.data?.notes ?? [])).catch(() => null).finally(() => setLoading(false));
+  const load = useCallback(() => {
+    setLoading(true);
+    setFailed(false);
+    api.get(`/learning/${itemId}/notes`)
+      .then((r: { data?: { notes?: Note[] } }) => setNotes(r.data?.notes ?? []))
+      .catch(() => setFailed(true))
+      .finally(() => setLoading(false));
   }, [itemId]);
 
+  useEffect(() => { load(); }, [load]);
+
   async function addNote() {
-    if (!text.trim()) return;
+    const clean = text.trim();
+    if (!clean || saving) return;
     setSaving(true);
     try {
-      const r: { data: { note: Note } } = await api.post(`/learning/${itemId}/notes`, { text });
-      setNotes((prev) => [...prev, r.data.note]);
+      const r: { data: { note: Note } } = await api.post(`/learning/${itemId}/notes`, { text: clean });
+      setNotes((prev) => [r.data.note, ...prev]);
       setText('');
     } catch { useToastStore.getState().error(t.noteSaveFail); } finally { setSaving(false); }
+  }
+
+  async function saveEdit(noteId: string) {
+    const clean = editText.trim();
+    if (!clean) return;
+    try {
+      const r: { data: { note: Note } } = await api.patch(`/learning/${itemId}/notes/${noteId}`, { text: clean });
+      setNotes((prev) => prev.map((n) => (n.id === noteId ? { ...n, text: r.data.note.text, updatedAt: new Date().toISOString() } : n)));
+      setEditing(null);
+    } catch { useToastStore.getState().error(t.noteUpdateFail); }
   }
 
   async function deleteNote(noteId: string) {
     try {
       await api.delete(`/learning/${itemId}/notes/${noteId}`);
       setNotes((prev) => prev.filter((n) => n.id !== noteId));
+      setAskDelete(null);
     } catch { useToastStore.getState().error(t.noteDeleteFail); }
   }
 
+  const when = (n: Note) => {
+    const d = new Date(n.updatedAt && n.updatedAt > n.createdAt ? n.updatedAt : n.createdAt);
+    return `${d.toLocaleString(INTL_LOCALE[locale], { dateStyle: 'medium', timeStyle: 'short' })}${n.updatedAt ? ` · ${t.edited}` : ''}`;
+  };
+
   if (loading) return <PageLoader label={t.loadingNotes} words={LOADING_COPY.learningNotes} size="sm" />;
+  if (failed) return <ErrorState title={t.notesLoadFail} description={t.notesLoadFailDesc} onRetry={load} />;
 
   return (
     <div className="flex flex-col gap-4">
-      <form className="flex flex-col gap-3 sm:flex-row sm:items-end" onSubmit={(e) => { e.preventDefault(); void addNote(); }}>
-        <Field label={t.newNoteLabel} className="flex-1"><Textarea rows={2} value={text} onChange={(e) => setText(e.target.value)} placeholder={t.addNote} /></Field>
-        <Button type="submit" variant="secondary" loading={saving} disabled={!text.trim()}><Plus aria-hidden className="size-4" />{t.noteBtn}</Button>
+      <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); void addNote(); }}>
+        <Field label={t.newNoteLabel}>
+          <Textarea
+            rows={3}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); void addNote(); } }}
+            placeholder={t.addNote}
+            maxLength={5000}
+          />
+        </Field>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-body-sm text-on-surface-light">{t.sendHint}</span>
+          <Button type="submit" variant="secondary" loading={saving} disabled={!text.trim()}><Plus aria-hidden className="size-4" />{t.noteBtn}</Button>
+        </div>
       </form>
+
       {notes.length === 0 ? (
         <Card><EmptyState icon={NotebookPen} tone="info" title={t.noNotes} description={t.noNotesDesc} className="py-4" /></Card>
       ) : (
-        <ul className="flex flex-col gap-3">
+        <ul className="flex flex-col gap-3" aria-label={t.notesList}>
           {notes.map((n) => (
             <li key={n.id}>
-              <Card padding="sm" interactive className="flex items-start gap-3">
-                <div className="min-w-0 flex-1">
-                  <p className="whitespace-pre-wrap text-body-md">{n.text}</p>
-                  <p className="mt-1 text-body-sm text-on-surface-light">{new Date(n.createdAt).toLocaleDateString(INTL_LOCALE[locale])}</p>
-                </div>
-                <Button variant="icon" aria-label={t.deleteNote} onClick={() => void deleteNote(n.id)} className="-mr-2 -mt-2"><Trash2 aria-hidden className="size-5" strokeWidth={1.75} /></Button>
+              <Card padding="sm" className="flex flex-col gap-2">
+                {editing === n.id ? (
+                  <form className="flex flex-col gap-2" onSubmit={(e) => { e.preventDefault(); void saveEdit(n.id); }}>
+                    <Textarea
+                      rows={3}
+                      value={editText}
+                      maxLength={5000}
+                      autoFocus
+                      aria-label={t.editNote}
+                      onChange={(e) => setEditText(e.target.value)}
+                      onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); void saveEdit(n.id); } if (e.key === 'Escape') setEditing(null); }}
+                    />
+                    <div className="flex justify-end gap-2">
+                      <Button variant="ghost" size="sm" onClick={() => setEditing(null)}>{t.cancelEdit}</Button>
+                      <Button type="submit" size="sm" disabled={!editText.trim()}>{t.saveNote}</Button>
+                    </div>
+                  </form>
+                ) : (
+                  <>
+                    <p className="whitespace-pre-wrap text-body-md">{n.text}</p>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-body-sm text-on-surface-light">{when(n)}</p>
+                      {askDelete === n.id ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-body-sm">{t.confirmDeleteNote}</span>
+                          <Button variant="ghost" size="sm" onClick={() => setAskDelete(null)}>{t.no}</Button>
+                          <Button variant="secondary" size="sm" onClick={() => void deleteNote(n.id)}>{t.yes}</Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <Button variant="ghost" size="sm" aria-label={t.editNote} onClick={() => { setEditing(n.id); setEditText(n.text); }}><Pencil aria-hidden className="size-4" />{t.editNote}</Button>
+                          <Button variant="icon" aria-label={t.deleteNote} onClick={() => setAskDelete(n.id)}><Trash2 aria-hidden className="size-5" strokeWidth={1.75} /></Button>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
               </Card>
             </li>
           ))}

@@ -80,6 +80,19 @@ export async function deleteNote(userId: string, itemId: string, noteId: string)
   return prisma.learningItem.update({ where: { id: itemId }, data: { richNotes: notes as never } });
 }
 
+/** Edita el texto de una nota. Devuelve la nota actualizada (o null si no existe). */
+export async function updateNote(userId: string, itemId: string, noteId: string, content: string) {
+  const item = await prisma.learningItem.findFirst({ where: { id: itemId, userId } });
+  if (!item) throw new Error('No encontrado');
+  const notes = (item.richNotes as unknown as LearningNote[]) ?? [];
+  const idx = notes.findIndex((n) => n.id === noteId);
+  if (idx < 0) return null;
+  const updated = { ...notes[idx], content, updatedAt: new Date().toISOString() };
+  const next = notes.map((n, i) => (i === idx ? updated : n));
+  await prisma.learningItem.update({ where: { id: itemId }, data: { richNotes: next as never } });
+  return updated;
+}
+
 // ─── Vocabulary (Spaced Repetition) ──────────────────────────────────────────
 
 interface VocabCard {

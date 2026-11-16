@@ -40,6 +40,17 @@ router.post('/:id/notes', async (req: AuthRequest, res: Response): Promise<void>
   } catch { res.status(500).json({ error: 'Error' }); }
 });
 
+// Editar el texto de una nota (máximo 5.000 caracteres).
+router.patch('/:id/notes/:noteId', async (req: AuthRequest, res: Response): Promise<void> => {
+  const text = String(req.body?.text ?? req.body?.content ?? '').trim();
+  if (!text || text.length > 5000) { res.status(400).json({ error: 'La nota debe tener entre 1 y 5.000 caracteres.' }); return; }
+  try {
+    const n = await svc.updateNote(req.userId!, req.params.id, req.params.noteId, text);
+    if (!n) { res.status(404).json({ error: 'Nota no encontrada' }); return; }
+    res.json({ note: { id: n.id, text: n.content, createdAt: n.createdAt } });
+  } catch { res.status(500).json({ error: 'Error' }); }
+});
+
 router.delete('/:id/notes/:noteId', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     await svc.deleteNote(req.userId!, req.params.id, req.params.noteId);

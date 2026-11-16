@@ -22,7 +22,8 @@ import { useUIStore } from '../../store/uiStore';
 import { useToast } from '../../hooks/useToast';
 import { refreshUser } from '../../hooks/useAuth';
 import * as learningService from '../../services/learning.service';
-import { PomodoroTimer, NotesPanel, VocabPanel } from '../../components/learning/LearningExtras';
+import { PomodoroTimer } from '../../components/learning/LearningExtras';
+import { OpenBook } from '../../components/learning/OpenBook';
 import { AcademicPanel } from '../../components/learning/academic/AcademicPanel';
 import { SageContextButton } from '../../components/sage/SageContextButton';
 import { Button, Card, EmptyState, ErrorState, Field, Input, Modal, ProgressBar, SegmentedControl, Select, type BadgeVariant, type Tone, PageLoader } from '@/components/ui/lq';
@@ -319,7 +320,7 @@ function ProgressModal({ item: it, onClose, onUpdate }: { item: LearningItem; on
   );
 }
 
-type Mode = 'biblioteca' | 'academico' | 'pomodoro' | 'detalle';
+type Mode = 'biblioteca' | 'academico' | 'pomodoro';
 
 export default function LearningPage() {
   const t = useText(COPY);
@@ -338,7 +339,6 @@ export default function LearningPage() {
   };
   const academic = tab === 'academico';
   const [selectedItem, setSelectedItem] = useState<LearningItem | null>(null);
-  const [detailTab, setDetailTab] = useState<'notas' | 'vocab'>('notas');
   /** Libro que se acaba de terminar: se cierra y vuelve al estante. */
   const [closing, setClosing] = useState<string | null>(null);
   const budget = useParticleBudget();
@@ -363,10 +363,10 @@ export default function LearningPage() {
     { value: 'biblioteca' as const, label: t.tabLibrary },
     { value: 'academico' as const, label: t.tabAcademic },
     { value: 'pomodoro' as const, label: t.tabPomodoro },
-    ...(selectedItem ? [{ value: 'detalle' as const, label: selectedItem.title.length > 18 ? t.shortTitle(selectedItem.title.slice(0, 17)) : selectedItem.title }] : []),
   ], [selectedItem, t]);
 
-  const openDetail = (it: LearningItem) => { setSelectedItem(it); setTab('detalle'); setDetailTab('notas'); };
+  // El libro se abre en su lugar, no en una pestaña nueva.
+  const openDetail = (it: LearningItem) => { setSelectedItem(it); setTab('biblioteca'); };
 
   const kpis = stats ? [
     { label: t.kpiInProgress, value: stats.inProgress },
@@ -410,7 +410,7 @@ export default function LearningPage() {
       <motion.div variants={item} className="w-full max-w-[480px]">
         <SegmentedControl
           options={modes} value={tab} label={t.view}
-          onChange={(v) => { setTab(v); if (v !== 'detalle') setSelectedItem(null); }}
+          onChange={(v) => { setTab(v); setSelectedItem(null); }}
         />
       </motion.div>
 
@@ -420,18 +420,15 @@ export default function LearningPage() {
 
           {academic && <AcademicPanel />}
 
-          {tab === 'detalle' && selectedItem && (
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center gap-3">
-                <Button variant="ghost" size="sm" onClick={() => { setTab('biblioteca'); setSelectedItem(null); }}><ArrowLeft aria-hidden className="size-4" />{t.back}</Button>
-                <h2 className="min-w-0 truncate text-heading-md">{selectedItem.title}</h2>
-              </div>
-              <SegmentedControl options={[{ value: 'notas', label: t.notes }, { value: 'vocab', label: t.vocab }]} value={detailTab} onChange={setDetailTab} label={t.contentOf} className="max-w-[320px]" />
-              {detailTab === 'notas' ? <NotesPanel itemId={selectedItem.id} /> : <VocabPanel itemId={selectedItem.id} />}
-            </div>
+          {tab === 'biblioteca' && selectedItem && (
+            <OpenBook
+              item={selectedItem}
+              onClose={() => setSelectedItem(null)}
+              onDeleted={(id) => { setItems((prev) => prev.filter((i) => i.id !== id)); setSelectedItem(null); }}
+            />
           )}
 
-          {tab === 'biblioteca' && (
+          {tab === 'biblioteca' && !selectedItem && (
             state === 'loading' ? (
               <PageLoader label={t.loadingLib} words={LOADING_COPY.learning} />
             ) : state === 'error' ? (
