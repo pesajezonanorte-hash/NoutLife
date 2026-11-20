@@ -2,7 +2,7 @@
 // y cuándo cobra o vence la prueba. Solo lectura. El servidor exige el correo.
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, Copy, Gift, Ticket } from 'lucide-react';
+import { Check, Copy, Gift, Store, Ticket } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Badge, Button, Card, ChipGroup, ErrorState, Field, Input, Modal, PageLoader, buttonClasses, type ChipOption } from '@/components/ui/lq';
 import { useToast } from '@/hooks/useToast';
@@ -30,6 +30,26 @@ function Stats({ items }: { items: ReadonlyArray<readonly [string, string]> }) {
         </Card>
       ))}
     </div>
+  );
+}
+
+/** Abre el panel de la tienda (módulo store) con un enlace de entrada de 2 minutos. */
+function StorePanelButton() {
+  const toast = useToast();
+  const [opening, setOpening] = useState(false);
+  const open = async () => {
+    setOpening(true);
+    try {
+      window.location.assign(await adminService.openStorePanel());
+    } catch (err) {
+      toast.error('No se pudo abrir el panel de la tienda', apiError(err));
+      setOpening(false);
+    }
+  };
+  return (
+    <Button variant="secondary" size="md" onClick={open} disabled={opening} className="self-start">
+      <Store aria-hidden className="size-4" strokeWidth={1.75} />{opening ? 'Abriendo…' : 'Panel de la tienda: pedidos, productos y proveedores'}
+    </Button>
   );
 }
 
@@ -173,6 +193,7 @@ export default function AdminPage() {
       <Link to="/admin/recompensas" className={buttonClasses('secondary', 'md', false) + ' self-start'}>
         <Gift aria-hidden className="size-4" strokeWidth={1.75} />Enlaces de recompensa: 7 días de Pro y tema Calma
       </Link>
+      <StorePanelButton />
 
       <Stats items={[
         ['Cuentas', String(totals.all)], ['Han pagado', String(totals.paid)], ['En prueba', String(totals.trialing)],

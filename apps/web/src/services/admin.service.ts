@@ -187,6 +187,12 @@ export async function revokeRewardLink(id: string): Promise<void> {
   await api.post(`/admin/reward-links/${id}/revoke`);
 }
 
+/** Enlace de entrada al panel de la tienda (vence en 2 minutos); la API decide quién puede. */
+export async function openStorePanel(): Promise<string> {
+  const { data } = await api.post<{ url: string }>('/store/admin/handoff');
+  return data.url;
+}
+
 /** URL que se envía por Instagram. */
 export function rewardLinkUrl(token: string, origin = window.location.origin): string {
   return `${origin.replace(/\/+$/, '')}/claim?token=${encodeURIComponent(token)}`;

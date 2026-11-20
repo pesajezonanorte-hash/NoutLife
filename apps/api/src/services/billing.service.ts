@@ -7,6 +7,8 @@ import { giftTotalDays, proExtension } from '../lib/referrals';
 import { normalizeCreatorCode, quoteCharge, type ChargeQuote } from '../lib/creator-codes';
 import { PRICE_LISTS, marketOf, type PriceList } from '../lib/pricing';
 import { FxUnavailableError, copCentsFromUsdCents, usdCopRate, type UsdCopRate } from '../lib/fx';
+import { isStoreReference } from '../lib/store';
+import { applyWompiTransaction } from './store.service';
 import {
   LITE_LIMITS, PRO_ANNUAL_PRICE_COP, PRO_CURRENCY, PRO_PRICE_COP, PRO_ZONES, RENEWAL_GRACE_MS, TRIAL_DAYS,
   accessEndsAt, addDays, hasProAccess, intervalOf, isComplimentary, nextAction, paymentReference, periodEndFor, planOf, statusOf, trialEndOf, willRenew,
@@ -804,6 +806,14 @@ export async function handleWompiEvent(event: WompiEvent, headerChecksum?: strin
 
   const tx = (event.data as { transaction?: { id?: string | number; reference?: string; status?: string; status_message?: string | null; amount_in_cents?: number; currency?: string } } | undefined)?.transaction;
   if (!tx?.reference || !tx.status) return { handled: false };
+  // Pedidos de la tienda (módulo store): mismo comercio, su propia lógica. Un error responde
+  // distinto de 200 y Wompi reintenta (30 min, 3 h y 24 h).
+  if (isStoreReference(tx.reference)) {
+    const handled = await applyWompiTransaction({
+      id: String(tx.id ?? ''), reference: tx.reference, status: tx.status, amountInCents: Number(tx.amount_in_cents), currency: String(tx.currency ?? ''),
+    });
+    return { handled };
+  }
   const payment = await prisma.subscriptionPayment.findUnique({ where: { reference: tx.reference } });
   if (!payment) return { handled: false }; // no es un cobro de suscripción
 

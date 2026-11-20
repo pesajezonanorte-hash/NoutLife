@@ -2553,3 +2553,148 @@ model OfficeFile {
   @@index([userId, updatedAt])
   @@map("office_files")
 }
+
+// ─── Tienda (módulo store) ───────────────────────────────────────────────────
+// Sitio de venta aparte que corre sobre esta API: catálogo, pedidos con su
+// historial de estados, proveedores y comprobantes. Ver services/store.service.ts.
+
+model StoreSettings {
+  id                Int      @id @default(1)
+  legalName         String   @default("")
+  documentId        String   @default("")
+  city              String   @default("")
+  address           String   @default("")
+  email             String   @default("")
+  whatsapp          String   @default("")
+  supportHours      String   @default("")
+  deliveryEstimate  String   @default("")
+  siteUrl           String   @default("")
+  paymentMethods    Json     @default("[]")
+  wompiEnabled      Boolean  @default(false)
+  wompiMerchantName String   @default("")
+  wompiFeeBps       Int      @default(0)
+  wompiFeeFixedCop  Int      @default(0)
+  updatedAt         DateTime @updatedAt
+
+  @@map("store_settings")
+}
+
+model StoreProduct {
+  id                    String                 @id @default(cuid())
+  slug                  String                 @unique
+  name                  String
+  platform              String
+  accessMode            String
+  category              String
+  shortDescription      String                 @default("")
+  description           String                 @default("")
+  conditions            String                 @default("")
+  coverage              String?
+  deliveryEstimate      String?
+  ageRating             String?
+  priceCop              Int
+  compareAtCop          Int?
+  availability          String                 @default("por_confirmar")
+  availabilityCheckedAt DateTime?
+  images                String[]               @default([])
+  active                Boolean                @default(true)
+  featured              Boolean                @default(false)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  orders                StoreOrder[]
+  providers             StoreProviderProduct[]
+
+  @@map("store_products")
+}
+
+model StoreProvider {
+  id        String                 @id @default(cuid())
+  name      String
+  whatsapp  String                 @default("")
+  notes     String                 @default("")
+  active    Boolean                @default(true)
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @updatedAt
+  products  StoreProviderProduct[]
+  orders    StoreOrder[]
+
+  @@map("store_providers")
+}
+
+model StoreProviderProduct {
+  id         String        @id @default(cuid())
+  providerId String
+  productId  String
+  costCop    Int
+  available  Boolean       @default(false)
+  checkedAt  DateTime?
+  isDefault  Boolean       @default(false)
+  updatedAt  DateTime      @updatedAt
+  provider   StoreProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  product    StoreProduct  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, productId])
+  @@index([productId])
+  @@map("store_provider_products")
+}
+
+model StoreOrder {
+  id                 String            @id @default(uuid())
+  code               String            @unique
+  productId          String
+  productName        String
+  priceCop           Int
+  customerName       String
+  customerWhatsapp   String
+  status             String            @default("pendiente_pago")
+  paymentMethod      String?
+  paymentReference   String?
+  termsAcceptedAt    DateTime
+  providerId         String?
+  costCop            Int?
+  providerRefunded   Boolean           @default(false)
+  feeCop             Int?
+  notes              String            @default("")
+  wompiAttempts      Int               @default(0)
+  wompiStatus        String?
+  wompiTransactionId String?
+  ipHash             String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  product            StoreProduct      @relation(fields: [productId], references: [id])
+  provider           StoreProvider?    @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  events             StoreOrderEvent[]
+  files              StoreFile[]
+
+  @@index([customerWhatsapp])
+  @@index([status])
+  @@index([createdAt])
+  @@map("store_orders")
+}
+
+model StoreOrderEvent {
+  id         String     @id @default(cuid())
+  orderId    String
+  status     String
+  note       String     @default("")
+  actor      String
+  createdAt  DateTime   @default(now())
+  notifiedAt DateTime?
+  order      StoreOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+  @@map("store_order_events")
+}
+
+model StoreFile {
+  id        String     @id @default(cuid())
+  orderId   String
+  mime      String
+  size      Int
+  bytes     Bytes
+  createdAt DateTime   @default(now())
+  order     StoreOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@map("store_files")
+}

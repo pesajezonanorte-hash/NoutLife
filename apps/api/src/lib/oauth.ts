@@ -76,6 +76,9 @@ export function getAllowedOrigins(): string[] {
       ...envOrigins,
       'https://noutlife.site',
       'https://www.noutlife.site',
+      // Sitio de la tienda (módulo store): sus POST llegan por su reescritura con su Origin.
+      'https://voltio.noutlife.site',
+      'https://voltio-black.vercel.app',
       'http://localhost:5173',
       'http://localhost:3000',
       'https://tourmaline-sherbet-90125b.netlify.app',

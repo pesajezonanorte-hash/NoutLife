@@ -1,0 +1,49 @@
+/**
+ * Espejo idempotente de prisma/migrations/20261120120000_store: tablas de la tienda,
+ * reglas que Prisma no expresa, RLS y datos iniciales. migrate-db.ts lo corre en cada
+ * build, así que cada sentencia puede repetirse.
+ */
+export const STORE_SQL: string[] = [
+  `CREATE TABLE IF NOT EXISTS "store_settings" ( "id" INTEGER NOT NULL DEFAULT 1, "legalName" TEXT NOT NULL DEFAULT '', "documentId" TEXT NOT NULL DEFAULT '', "city" TEXT NOT NULL DEFAULT '', "address" TEXT NOT NULL DEFAULT '', "email" TEXT NOT NULL DEFAULT '', "whatsapp" TEXT NOT NULL DEFAULT '', "supportHours" TEXT NOT NULL DEFAULT '', "deliveryEstimate" TEXT NOT NULL DEFAULT '', "siteUrl" TEXT NOT NULL DEFAULT '', "paymentMethods" JSONB NOT NULL DEFAULT '[]', "wompiEnabled" BOOLEAN NOT NULL DEFAULT false, "wompiMerchantName" TEXT NOT NULL DEFAULT '', "wompiFeeBps" INTEGER NOT NULL DEFAULT 0, "wompiFeeFixedCop" INTEGER NOT NULL DEFAULT 0, "updatedAt" TIMESTAMP(3) NOT NULL, CONSTRAINT "store_settings_pkey" PRIMARY KEY ("id") )`,
+  `CREATE TABLE IF NOT EXISTS "store_products" ( "id" TEXT NOT NULL, "slug" TEXT NOT NULL, "name" TEXT NOT NULL, "platform" TEXT NOT NULL, "accessMode" TEXT NOT NULL, "category" TEXT NOT NULL, "shortDescription" TEXT NOT NULL DEFAULT '', "description" TEXT NOT NULL DEFAULT '', "conditions" TEXT NOT NULL DEFAULT '', "coverage" TEXT, "deliveryEstimate" TEXT, "ageRating" TEXT, "priceCop" INTEGER NOT NULL, "compareAtCop" INTEGER, "availability" TEXT NOT NULL DEFAULT 'por_confirmar', "availabilityCheckedAt" TIMESTAMP(3), "images" TEXT[] DEFAULT ARRAY[]::TEXT[], "active" BOOLEAN NOT NULL DEFAULT true, "featured" BOOLEAN NOT NULL DEFAULT false, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL, CONSTRAINT "store_products_pkey" PRIMARY KEY ("id") )`,
+  `CREATE TABLE IF NOT EXISTS "store_providers" ( "id" TEXT NOT NULL, "name" TEXT NOT NULL, "whatsapp" TEXT NOT NULL DEFAULT '', "notes" TEXT NOT NULL DEFAULT '', "active" BOOLEAN NOT NULL DEFAULT true, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL, CONSTRAINT "store_providers_pkey" PRIMARY KEY ("id") )`,
+  `CREATE TABLE IF NOT EXISTS "store_provider_products" ( "id" TEXT NOT NULL, "providerId" TEXT NOT NULL, "productId" TEXT NOT NULL, "costCop" INTEGER NOT NULL, "available" BOOLEAN NOT NULL DEFAULT false, "checkedAt" TIMESTAMP(3), "isDefault" BOOLEAN NOT NULL DEFAULT false, "updatedAt" TIMESTAMP(3) NOT NULL, CONSTRAINT "store_provider_products_pkey" PRIMARY KEY ("id") )`,
+  `CREATE TABLE IF NOT EXISTS "store_orders" ( "id" TEXT NOT NULL, "code" TEXT NOT NULL, "productId" TEXT NOT NULL, "productName" TEXT NOT NULL, "priceCop" INTEGER NOT NULL, "customerName" TEXT NOT NULL, "customerWhatsapp" TEXT NOT NULL, "status" TEXT NOT NULL DEFAULT 'pendiente_pago', "paymentMethod" TEXT, "paymentReference" TEXT, "termsAcceptedAt" TIMESTAMP(3) NOT NULL, "providerId" TEXT, "costCop" INTEGER, "providerRefunded" BOOLEAN NOT NULL DEFAULT false, "feeCop" INTEGER, "notes" TEXT NOT NULL DEFAULT '', "wompiAttempts" INTEGER NOT NULL DEFAULT 0, "wompiStatus" TEXT, "wompiTransactionId" TEXT, "ipHash" TEXT, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL, CONSTRAINT "store_orders_pkey" PRIMARY KEY ("id") )`,
+  `CREATE TABLE IF NOT EXISTS "store_order_events" ( "id" TEXT NOT NULL, "orderId" TEXT NOT NULL, "status" TEXT NOT NULL, "note" TEXT NOT NULL DEFAULT '', "actor" TEXT NOT NULL, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "notifiedAt" TIMESTAMP(3), CONSTRAINT "store_order_events_pkey" PRIMARY KEY ("id") )`,
+  `CREATE TABLE IF NOT EXISTS "store_files" ( "id" TEXT NOT NULL, "orderId" TEXT NOT NULL, "mime" TEXT NOT NULL, "size" INTEGER NOT NULL, "bytes" BYTEA NOT NULL, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "store_files_pkey" PRIMARY KEY ("id") )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "store_products_slug_key" ON "store_products"("slug")`,
+  `CREATE INDEX IF NOT EXISTS "store_provider_products_productId_idx" ON "store_provider_products"("productId")`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "store_provider_products_providerId_productId_key" ON "store_provider_products"("providerId", "productId")`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "store_orders_code_key" ON "store_orders"("code")`,
+  `CREATE INDEX IF NOT EXISTS "store_orders_customerWhatsapp_idx" ON "store_orders"("customerWhatsapp")`,
+  `CREATE INDEX IF NOT EXISTS "store_orders_status_idx" ON "store_orders"("status")`,
+  `CREATE INDEX IF NOT EXISTS "store_orders_createdAt_idx" ON "store_orders"("createdAt")`,
+  `CREATE INDEX IF NOT EXISTS "store_order_events_orderId_createdAt_idx" ON "store_order_events"("orderId", "createdAt")`,
+  `CREATE INDEX IF NOT EXISTS "store_files_orderId_idx" ON "store_files"("orderId")`,
+  `DO $$ BEGIN ALTER TABLE "store_provider_products" ADD CONSTRAINT "store_provider_products_providerId_fkey" FOREIGN KEY ("providerId") REFERENCES "store_providers"("id") ON DELETE CASCADE ON UPDATE CASCADE; EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+  `DO $$ BEGIN ALTER TABLE "store_provider_products" ADD CONSTRAINT "store_provider_products_productId_fkey" FOREIGN KEY ("productId") REFERENCES "store_products"("id") ON DELETE CASCADE ON UPDATE CASCADE; EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+  `DO $$ BEGIN ALTER TABLE "store_orders" ADD CONSTRAINT "store_orders_productId_fkey" FOREIGN KEY ("productId") REFERENCES "store_products"("id") ON DELETE RESTRICT ON UPDATE CASCADE; EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+  `DO $$ BEGIN ALTER TABLE "store_orders" ADD CONSTRAINT "store_orders_providerId_fkey" FOREIGN KEY ("providerId") REFERENCES "store_providers"("id") ON DELETE SET NULL ON UPDATE CASCADE; EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+  `DO $$ BEGIN ALTER TABLE "store_order_events" ADD CONSTRAINT "store_order_events_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "store_orders"("id") ON DELETE CASCADE ON UPDATE CASCADE; EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+  `DO $$ BEGIN ALTER TABLE "store_files" ADD CONSTRAINT "store_files_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "store_orders"("id") ON DELETE CASCADE ON UPDATE CASCADE; EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+  // Reglas que Prisma no expresa.
+  `DO $$ BEGIN ALTER TABLE "store_settings" ADD CONSTRAINT "store_settings_single_row" CHECK ("id" = 1); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+  `DO $$ BEGIN ALTER TABLE "store_products" ADD CONSTRAINT "store_products_availability_check" CHECK ("availability" IN ('por_confirmar', 'disponible', 'agotado')); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+  `DO $$ BEGIN ALTER TABLE "store_products" ADD CONSTRAINT "store_products_price_check" CHECK ("priceCop" > 0 AND ("compareAtCop" IS NULL OR "compareAtCop" > "priceCop")); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+  `DO $$ BEGIN ALTER TABLE "store_orders" ADD CONSTRAINT "store_orders_status_check" CHECK ("status" IN ('pendiente_pago', 'pago_reportado', 'pago_verificado', 'pendiente_proveedor', 'en_proceso', 'entregado', 'cancelado', 'reembolsado')); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+  `DO $$ BEGIN ALTER TABLE "store_orders" ADD CONSTRAINT "store_orders_amounts_check" CHECK ("priceCop" > 0 AND ("costCop" IS NULL OR "costCop" >= 0) AND ("feeCop" IS NULL OR "feeCop" >= 0)); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+  `ALTER TABLE "store_settings" ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "store_products" ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "store_providers" ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "store_provider_products" ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "store_orders" ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "store_order_events" ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "store_files" ENABLE ROW LEVEL SECURITY`,
+  // Datos iniciales: solo si no existen (el admin los cambia desde el panel).
+  `INSERT INTO "store_settings" ("id", "deliveryEstimate", "siteUrl", "paymentMethods", "updatedAt") VALUES (1, 'Hasta 2 horas dentro del horario de atención; fuera de horario, al siguiente día de atención.', 'https://voltio.noutlife.site', '[{"id":"nequi","kind":"nequi","label":"Nequi","holder":"","number":"","bank":"Nequi","accountType":"","instructions":"","active":false},{"id":"transferencia","kind":"transferencia","label":"Transferencia bancaria","holder":"","number":"","bank":"","accountType":"","instructions":"","active":false}]'::jsonb, CURRENT_TIMESTAMP) ON CONFLICT ("id") DO NOTHING`,
+  `INSERT INTO "store_products" ("id", "slug", "name", "platform", "accessMode", "category", "shortDescription", "description", "conditions", "priceCop", "availability", "featured", "updatedAt") VALUES ('store_product_gta6', 'grand-theft-auto-vi', 'Grand Theft Auto VI', 'Xbox Series X|S', 'Cuenta compartida', 'Acción y aventura', 'Juega GTA VI en tu Xbox Series X|S con acceso por cuenta compartida.', 'Grand Theft Auto VI es el juego de mundo abierto de Rockstar Games, ambientado en el estado ficticio de Leonida. Lo juegas en tu consola con una cuenta compartida que te ayudamos a configurar.', 'Qué recibes: acceso para jugar Grand Theft Auto VI en tu Xbox Series X|S con una cuenta que comparte un proveedor. Te ayudamos a configurarla por WhatsApp.
+Qué no recibes: no es una licencia a tu nombre, ni una copia física, ni el juego para siempre en tu propia cuenta.
+La cuenta no es tuya: no cambies su contraseña, su correo ni sus datos de seguridad, y no la compartas con nadie.
+Microsoft no permite compartir cuentas en sus términos de servicio. Si Microsoft suspende la cuenta, el acceso se puede perder.
+La entrega empieza cuando verificamos tu pago y confirmamos el cupo con el proveedor.', 60000, 'por_confirmar', true, CURRENT_TIMESTAMP) ON CONFLICT ("slug") DO NOTHING`,
+];

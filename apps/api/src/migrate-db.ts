@@ -11,6 +11,7 @@ import { CREATOR_CODES_PAYMENTS_SQL, CREATOR_CODES_USERS_SQL } from './lib/creat
 import { MARKETS_PAYMENTS_SQL, MARKETS_USERS_SQL } from './lib/market-migrations';
 import { REWARD_LINKS_SQL } from './lib/reward-link-migrations';
 import { COMP_GRANTS_SQL } from './lib/comp-grant-migrations';
+import { STORE_SQL } from './lib/store-migrations';
 import { V5_SQL } from './lib/v5-migrations';
 import { DEFAULT_SHOP_ITEMS } from './lib/default-catalog';
 import { MAX_SHIELD_DAYS, STREAK_SHIELDS, shieldDaysOf } from './lib/streak-shields';
@@ -382,6 +383,7 @@ async function migrate() {
   for (const sql of IDEMPOTENCY_KEYS_SQL) await prisma.$executeRawUnsafe(sql);
   for (const sql of REWARD_LINKS_SQL) await prisma.$executeRawUnsafe(sql);
   for (const sql of COMP_GRANTS_SQL) await prisma.$executeRawUnsafe(sql);
+  for (const sql of STORE_SQL) await prisma.$executeRawUnsafe(sql);
   // Idempotent mirror of prisma/migrations/20261025120000_wisdom_source (antes del seed de Sabiduría).
   await prisma.$executeRawUnsafe(`ALTER TABLE "wisdom_cards" ADD COLUMN IF NOT EXISTS "source" TEXT;`);
 

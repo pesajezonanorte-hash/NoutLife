@@ -59,6 +59,7 @@ import academicRoutes        from './academic.routes';
 import financeAccountsRoutes from './finance-accounts.routes';
 import officeRoutes          from './office.routes';
 import pulseRoutes           from './pulse.routes';
+import storeRoutes           from './store.routes';
 
 const router = Router();
 
@@ -120,6 +121,7 @@ router.use('/academic',     academicRoutes);
 router.use('/finances',     financeAccountsRoutes);
 router.use('/office',       officeRoutes);
 router.use('/pulse',        pulseRoutes);
+router.use('/store',        storeRoutes);
 
 router.get('/health', (_req, res) => {
   res.json({ status: 'ok', version: '10.0.0', timestamp: new Date().toISOString() });
