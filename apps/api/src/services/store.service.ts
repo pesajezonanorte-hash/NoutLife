@@ -64,6 +64,7 @@ export function publicProduct(p: StoreProduct, s: StoreSettings) {
     shortDescription: p.shortDescription,
     description: p.description,
     conditions: p.conditions,
+    setupSteps: p.setupSteps,
     coverage: p.coverage,
     deliveryEstimate: p.deliveryEstimate || s.deliveryEstimate,
     ageRating: p.ageRating,

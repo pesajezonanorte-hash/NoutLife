@@ -2589,6 +2589,7 @@ model StoreProduct {
   shortDescription      String                 @default("")
   description           String                 @default("")
   conditions            String                 @default("")
+  setupSteps            String                 @default("")
   coverage              String?
   deliveryEstimate      String?
   ageRating             String?

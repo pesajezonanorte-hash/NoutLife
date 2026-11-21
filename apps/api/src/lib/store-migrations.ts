@@ -46,4 +46,10 @@ Qué no recibes: no es una licencia a tu nombre, ni una copia física, ni el jue
 La cuenta no es tuya: no cambies su contraseña, su correo ni sus datos de seguridad, y no la compartas con nadie.
 Microsoft no permite compartir cuentas en sus términos de servicio. Si Microsoft suspende la cuenta, el acceso se puede perder.
 La entrega empieza cuando verificamos tu pago y confirmamos el cupo con el proveedor.', 60000, 'por_confirmar', true, CURRENT_TIMESTAMP) ON CONFLICT ("slug") DO NOTHING`,
+  // Pasos de instalación del producto (columna agregada después del lanzamiento).
+  `ALTER TABLE "store_products" ADD COLUMN IF NOT EXISTS "setupSteps" TEXT NOT NULL DEFAULT ''`,
+  `UPDATE "store_products" SET "setupSteps" = 'Acceso y descarga: enciende tu consola y sigue el video del paso 1 para entrar a la cuenta y empezar a descargar el juego. https://youtu.be/r5MTpksckhg
+Juega: cuando la cuenta ya esté agregada y la descarga vaya al 100 %, sigue el video guía para empezar a jugar. https://youtu.be/HrOdSyfEWCA
+Importante: mientras haces los pasos de cualquiera de los dos videos, no tengas descargas ni actualizaciones activas, ni juegos o aplicaciones abiertos.
+Importante: mira cada video completo, de principio a fin. Los pasos funcionan cuando se hacen completos y en orden.' WHERE "slug" = 'grand-theft-auto-vi' AND "setupSteps" = ''`,
 ];
